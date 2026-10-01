@@ -44,8 +44,16 @@ defmodule Portfolixir.Portfolios.PerformanceViewTest do
     WorldFixtures.buy!(b, sec_b, quantity: "10", price: "100", date: ~D[2026-01-01])
     WorldFixtures.put_quotes!(sec_b, [{~D[2026-01-01], "100"}, {~D[2026-01-10], "110"}])
 
-    {:ok, bucket_a} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Scope A"})
-    {:ok, bucket_b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Scope B"})
+    {:ok, bucket_a} =
+      Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "Scope A #{System.unique_integer([:positive])}"
+      })
+
+    {:ok, bucket_b} =
+      Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "Scope B #{System.unique_integer([:positive])}"
+      })
+
     :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), a.depot, [bucket_a.id])
     :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), a.cash, [bucket_a.id])
     :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), b.depot, [bucket_b.id])
@@ -146,7 +154,11 @@ defmodule Portfolixir.Portfolios.PerformanceViewTest do
     WorldFixtures.buy!(b, sec_b, quantity: "10", price: "100", date: ~D[2026-01-01])
     WorldFixtures.put_quotes!(sec_b, [{~D[2026-01-01], "100"}, {~D[2026-01-10], "110"}])
 
-    {:ok, bucket_b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Scope B"})
+    {:ok, bucket_b} =
+      Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "Scope B #{System.unique_integer([:positive])}"
+      })
+
     :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), b.depot, [bucket_b.id])
     :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), b.cash, [bucket_b.id])
 

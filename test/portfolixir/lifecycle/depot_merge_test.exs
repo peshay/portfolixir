@@ -34,6 +34,12 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
 
   import Portfolixir.WorldFixtures, only: [printable_bucket!: 1]
 
+  # Bucket names are unique instance-wide, and async test modules write at the
+  # same time: a literal name another module also uses makes one test's write
+  # wait on the other's uncommitted row (#947). Each bucket here gets a name of
+  # its own.
+  defp bucket_name(base), do: "#{base} #{System.unique_integer([:positive])}"
+
   defp agent, do: Actor.api_token_rw("synthetic-agent")
 
   defp refused_detail!(source_id, target_id, code) do
@@ -480,8 +486,8 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
     # - The preview states each position's plan.
     test "an override is carried, dropped or cleared so every position keeps its set", ctx do
       worked_example!(ctx)
-      {:ok, long} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Long term"})
-      {:ok, spec} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Speculative"})
+      {:ok, long} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Long term")})
+      {:ok, spec} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Speculative")})
       :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), ctx.source, [long.id])
       :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), ctx.target, [long.id])
 
@@ -527,8 +533,8 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
     # - The record's source snapshot names the empty override as [].
     test "an empty override is carried empty; one the target has already is dropped", ctx do
       worked_example!(ctx)
-      {:ok, long} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Long term"})
-      {:ok, spec} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Speculative"})
+      {:ok, long} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Long term")})
+      {:ok, spec} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Speculative")})
 
       for depot <- [ctx.source, ctx.target],
           do: :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [long.id])
@@ -577,8 +583,18 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
     #   naming the position and the rule, and writes nothing.
     test "a carried override with two scope buckets is refused up front", ctx do
       worked_example!(ctx)
-      {:ok, one} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Scope A", dimension: "scope"})
-      {:ok, two} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Scope B", dimension: "scope"})
+
+      {:ok, one} =
+        Buckets.create_bucket(Actor.owner_ui(), %{
+          name: bucket_name("Scope A"),
+          dimension: "scope"
+        })
+
+      {:ok, two} =
+        Buckets.create_bucket(Actor.owner_ui(), %{
+          name: bucket_name("Scope B"),
+          dimension: "scope"
+        })
 
       # Stored the way an override was written before the one-scope rule.
       Repo.insert_all("position_bucket_overrides", [
@@ -619,8 +635,8 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
     test "the default-bucket and position refusals name printable-range buckets", ctx do
       worked_example!(ctx)
       tagged = depot!(ctx.portfolio, ctx.cash_t, "Tagged depot")
-      long = printable_bucket!(%{name: "Long term"})
-      spec = printable_bucket!(%{name: "Speculative"})
+      long = printable_bucket!(%{name: bucket_name("Long term")})
+      spec = printable_bucket!(%{name: bucket_name("Speculative")})
       assert long.id in ?A..?Z and spec.id in ?A..?Z
       :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), tagged, [long.id, spec.id])
 
@@ -628,7 +644,7 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
 
       assert detail =~
                ~s[the source depot defaults to no bucket and the target depot to the buckets ] <>
-                 ~s["Long term" (##{long.id}), "Speculative" (##{spec.id}): view membership]
+                 ~s["#{long.name}" (##{long.id}), "#{spec.name}" (##{spec.id}): view membership]
 
       refute detail =~ "~c"
 
@@ -637,15 +653,15 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
 
       assert detail =~
                ~s[Meridian Global Equity ETF (security ##{ctx.meridian.id}) sits in the bucket ] <>
-                 ~s["Speculative" (##{spec.id}) in the source and in no bucket in the target:]
+                 ~s["#{spec.name}" (##{spec.id}) in the source and in no bucket in the target:]
 
       refute detail =~ "~c"
     end
 
     test "the carried-override refusal names its printable-range scope buckets", ctx do
       worked_example!(ctx)
-      one = printable_bucket!(%{name: "Scope A", dimension: "scope"})
-      two = printable_bucket!(%{name: "Scope B", dimension: "scope"})
+      one = printable_bucket!(%{name: bucket_name("Scope A"), dimension: "scope"})
+      two = printable_bucket!(%{name: bucket_name("Scope B"), dimension: "scope"})
       assert one.id in ?A..?Z and two.id in ?A..?Z
 
       # Stored the way an override was written before the one-scope rule.
@@ -658,8 +674,8 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
 
       assert detail =~
                ~s[Kestrel Industrial Group NV (security ##{ctx.kestrel.id}) carries an override in ] <>
-                 ~s[the source with more than one scope bucket, "Scope A" (##{one.id}), ] <>
-                 ~s["Scope B" (##{two.id}), stored before a position could hold only one:]
+                 ~s[the source with more than one scope bucket, "#{one.name}" (##{one.id}), ] <>
+                 ~s["#{two.name}" (##{two.id}), stored before a position could hold only one:]
 
       refute detail =~ "~c"
     end
@@ -684,8 +700,8 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
     # - No row disappears that the manifest does not list.
     test "one entry per touched row, one per aggregate, nothing else", ctx do
       rows = worked_example!(ctx)
-      {:ok, long} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Long term"})
-      {:ok, spec} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Speculative"})
+      {:ok, long} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Long term")})
+      {:ok, spec} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Speculative")})
       :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), ctx.source, [long.id])
       :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), ctx.target, [long.id])
       :ok = Buckets.set_position_override(Actor.owner_ui(), ctx.source, ctx.kestrel, [spec.id])
@@ -875,8 +891,8 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
     #   differ where the target holds rows of it.
     test "each guard refuses with its code and writes nothing", ctx do
       worked_example!(ctx)
-      {:ok, long} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Long term"})
-      {:ok, spec} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Speculative"})
+      {:ok, long} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Long term")})
+      {:ok, spec} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Speculative")})
 
       tagged = depot!(ctx.portfolio, ctx.cash_t, "Tagged depot")
       :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), tagged, [long.id])

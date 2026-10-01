@@ -414,7 +414,12 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
     # - No row disappears that the manifest does not list.
     test "one entry per touched row, one per aggregate, nothing else", ctx do
       rows = worked_example!(ctx)
-      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Long term"})
+
+      {:ok, bucket} =
+        Buckets.create_bucket(Actor.owner_ui(), %{
+          name: "Long term #{System.unique_integer([:positive])}"
+        })
+
       :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), ctx.source, [bucket.id])
       :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), ctx.target, [bucket.id])
       depot = depot!(ctx, ctx.source, "Broker depot")
@@ -650,8 +655,14 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
     #   account's buckets as "<name>" (#<id>), and says "no bucket" for an
     #   account that sits in none; no detail carries a charlist.
     test "the bucket refusal names printable-range buckets by name and id", ctx do
-      short = WorldFixtures.printable_bucket!(%{name: "Short term"})
-      reserve = WorldFixtures.printable_bucket!(%{name: "Reserve"})
+      short =
+        WorldFixtures.printable_bucket!(%{
+          name: "Short term #{System.unique_integer([:positive])}"
+        })
+
+      reserve =
+        WorldFixtures.printable_bucket!(%{name: "Reserve #{System.unique_integer([:positive])}"})
+
       assert short.id in ?A..?Z and reserve.id in ?A..?Z
       :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), ctx.source, [short.id, reserve.id])
 
@@ -661,8 +672,8 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
       assert %{detail: detail} = Enum.find(guards, &(&1.code == :buckets_mismatch))
 
       assert detail =~
-               ~s[the source account sits in the buckets "Short term" (##{short.id}), ] <>
-                 ~s["Reserve" (##{reserve.id}) and the target account in no bucket: view membership]
+               ~s[the source account sits in the buckets "#{short.name}" (##{short.id}), ] <>
+                 ~s["#{reserve.name}" (##{reserve.id}) and the target account in no bucket: view membership]
 
       refute detail =~ "~c"
     end
@@ -681,7 +692,12 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
       worked_example!(ctx)
       usd = cash!(ctx.portfolio, "Broker USD", currency_code: "USD")
       credit = cash!(ctx.portfolio, "Credit line", liquidity_role: "credit_line")
-      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Short term"})
+
+      {:ok, bucket} =
+        Buckets.create_bucket(Actor.owner_ui(), %{
+          name: "Short term #{System.unique_integer([:positive])}"
+        })
+
       tagged = cash!(ctx.portfolio, "Fixed deposit")
       :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), tagged, [bucket.id])
 

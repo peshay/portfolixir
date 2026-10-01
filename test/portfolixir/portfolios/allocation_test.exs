@@ -86,7 +86,11 @@ defmodule Portfolixir.Portfolios.AllocationTest do
     buy!(world, sec_b, "10", "10")
     prices = %{sec_a.id => Decimal.new("10"), sec_b.id => Decimal.new("10")}
 
-    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "OnlyA"})
+    {:ok, bucket} =
+      Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "OnlyA #{System.unique_integer([:positive])}"
+      })
+
     {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "ViewA", include_all: false})
     :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
     :ok = Buckets.set_position_override(Actor.owner_ui(), world.depot, sec_a, [bucket.id])

@@ -15,8 +15,14 @@ defmodule Portfolixir.Portfolios.TargetPlansMigrationTest do
   Schema **reversibility** (the DDL round trip) is exercised separately by the
   standard `mix ecto.rollback` / `mix ecto.migrate` cycle in CI and locally; this
   test pins the part with the silent-corruption risk: the data carry-over.
+
+  Not async (#947): the two `ALTER TABLE` statements take ACCESS EXCLUSIVE
+  locks on `portfolios` and `portfolio_targets` and hold them until the
+  sandbox rolls back. Run beside the async suite, they wait behind every test
+  that touched either table and then block those tests in turn, which
+  surfaces as a checkout timeout or a deadlock abort in an unrelated test.
   """
-  use Portfolixir.DataCase, async: true
+  use Portfolixir.DataCase, async: false
 
   alias Portfolixir.Repo
 

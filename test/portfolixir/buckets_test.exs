@@ -35,6 +35,12 @@ defmodule Portfolixir.BucketsTest do
     %{portfolio: portfolio, cash: cash, depot: depot, security: security}
   end
 
+  # Bucket names are unique instance-wide, and async test modules write at the
+  # same time: a literal name another module also uses makes one test's write
+  # wait on the other's uncommitted row (#947). Each bucket here gets a name of
+  # its own.
+  defp bucket_name(base), do: "#{base} #{System.unique_integer([:positive])}"
+
   # User story:
   # As a local portfolio maintainer,
   # I want to create, rename and delete buckets through an actor-first context,
@@ -42,31 +48,34 @@ defmodule Portfolixir.BucketsTest do
   # (ADR-0017, ADR-0018).
   describe "bucket CRUD (journaled)" do
     test "create_bucket records exactly one journal entry with the actor" do
-      assert {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Retirement"})
-      assert bucket.name == "Retirement"
+      name = bucket_name("Retirement")
+      assert {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: name})
+      assert bucket.name == name
 
       assert [entry] =
                Journal.list_entries(resource_type: "bucket", resource_id: to_string(bucket.id))
 
       assert entry.operation == :create
       assert entry.actor_type == :owner_ui
-      assert entry.after["name"] == "Retirement"
+      assert entry.after["name"] == name
     end
 
     test "bucket name is required and unique" do
       assert {:error, changeset} = Buckets.create_bucket(Actor.owner_ui(), %{name: ""})
       assert %{name: ["can't be blank"]} = errors_on(changeset)
 
-      {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Dup"})
-      assert {:error, changeset} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Dup"})
+      name = bucket_name("Dup")
+      {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: name})
+      assert {:error, changeset} = Buckets.create_bucket(Actor.owner_ui(), %{name: name})
       assert %{name: ["has already been taken"]} = errors_on(changeset)
     end
 
     test "update_bucket and delete_bucket are journaled" do
-      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Old"})
+      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Old")})
 
-      assert {:ok, renamed} = Buckets.update_bucket(Actor.owner_ui(), bucket, %{name: "New"})
-      assert renamed.name == "New"
+      new_name = bucket_name("New")
+      assert {:ok, renamed} = Buckets.update_bucket(Actor.owner_ui(), bucket, %{name: new_name})
+      assert renamed.name == new_name
 
       assert {:ok, _} = Buckets.delete_bucket(Actor.owner_ui(), renamed)
       refute Buckets.get_bucket(renamed.id)
@@ -85,8 +94,9 @@ defmodule Portfolixir.BucketsTest do
     # so that an entered tag matching an existing bucket reuses it instead of
     # erroring on the unique name.
     test "ensure_tag_bucket creates a journaled tag bucket and reuses an existing name" do
-      assert {:ok, bucket} = Buckets.ensure_tag_bucket(Actor.import_session(), "  PP Import  ")
-      assert bucket.name == "PP Import"
+      name = bucket_name("PP Import")
+      assert {:ok, bucket} = Buckets.ensure_tag_bucket(Actor.import_session(), "  #{name}  ")
+      assert bucket.name == name
       assert bucket.dimension == "tag"
 
       assert [entry] =
@@ -96,7 +106,7 @@ defmodule Portfolixir.BucketsTest do
       assert entry.actor_type == :import_session
 
       # Same (trimmed) name → the existing bucket, regardless of dimension.
-      assert {:ok, reused} = Buckets.ensure_tag_bucket(Actor.import_session(), "PP Import")
+      assert {:ok, reused} = Buckets.ensure_tag_bucket(Actor.import_session(), name)
       assert reused.id == bucket.id
       assert length(Buckets.list_buckets()) == 1
     end
@@ -109,8 +119,8 @@ defmodule Portfolixir.BucketsTest do
   # so that tag assignment is predictable (ADR-0018).
   describe "assignment resolution: depot default + per-position override" do
     test "a position inherits the depot's default bucket set", %{depot: depot, security: security} do
-      {:ok, b1} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
-      {:ok, b2} = Buckets.create_bucket(Actor.owner_ui(), %{name: "ESG"})
+      {:ok, b1} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Core")})
+      {:ok, b2} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("ESG")})
 
       :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [b1.id, b2.id])
 
@@ -121,8 +131,8 @@ defmodule Portfolixir.BucketsTest do
     end
 
     test "an explicit override replaces the depot default", %{depot: depot, security: security} do
-      {:ok, default} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Default"})
-      {:ok, override} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Override"})
+      {:ok, default} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Default")})
+      {:ok, override} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Override")})
 
       :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [default.id])
       :ok = Buckets.set_position_override(Actor.owner_ui(), depot, security, [override.id])
@@ -135,7 +145,7 @@ defmodule Portfolixir.BucketsTest do
       depot: depot,
       security: security
     } do
-      {:ok, default} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Default"})
+      {:ok, default} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Default")})
       :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [default.id])
 
       :ok = Buckets.set_position_override(Actor.owner_ui(), depot, security, [])
@@ -148,7 +158,7 @@ defmodule Portfolixir.BucketsTest do
       depot: depot,
       security: security
     } do
-      {:ok, default} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Default"})
+      {:ok, default} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Default")})
       :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [default.id])
       :ok = Buckets.set_position_override(Actor.owner_ui(), depot, security, [])
 
@@ -162,9 +172,9 @@ defmodule Portfolixir.BucketsTest do
       depot: depot,
       security: security
     } do
-      {:ok, b1} = Buckets.create_bucket(Actor.owner_ui(), %{name: "A"})
-      {:ok, b2} = Buckets.create_bucket(Actor.owner_ui(), %{name: "B"})
-      {:ok, b3} = Buckets.create_bucket(Actor.owner_ui(), %{name: "C"})
+      {:ok, b1} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("A")})
+      {:ok, b2} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("B")})
+      {:ok, b3} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("C")})
 
       :ok =
         Buckets.set_position_override(Actor.owner_ui(), depot, security, [b1.id, b2.id, b3.id])
@@ -174,7 +184,7 @@ defmodule Portfolixir.BucketsTest do
     end
 
     test "an assignment write records exactly one journal entry", %{depot: depot} do
-      {:ok, b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Tag"})
+      {:ok, b} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Tag")})
       :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [b.id])
 
       assert [_] = Journal.list_entries(resource_type: "depot_bucket_assignment")
@@ -184,7 +194,7 @@ defmodule Portfolixir.BucketsTest do
       depot: depot,
       security: security
     } do
-      {:ok, b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Dup"})
+      {:ok, b} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Dup")})
 
       assert :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [b.id, b.id])
       assert Buckets.depot_default_bucket_ids(depot.id) == [b.id]
@@ -200,7 +210,7 @@ defmodule Portfolixir.BucketsTest do
       depot: depot,
       security: security
     } do
-      {:ok, b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "X"})
+      {:ok, b} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("X")})
 
       # position_bucket_overrides is not guard-armed, so a raw insert can bypass
       # the context invariant that keeps explicit-empty and explicit sets apart.
@@ -221,7 +231,7 @@ defmodule Portfolixir.BucketsTest do
   # so that I can scope cash into the same views as my positions (ADR-0018).
   describe "cash-account buckets" do
     test "a cash account carries its assigned bucket set", %{cash: cash} do
-      {:ok, b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Liquidity"})
+      {:ok, b} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Liquidity")})
       :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, [b.id])
 
       assert Buckets.cash_account_bucket_ids(cash.id) == [b.id]
@@ -239,8 +249,8 @@ defmodule Portfolixir.BucketsTest do
     test "create_view is not journaled; set_view_buckets produces a filter and one entry" do
       before = length(Journal.list_entries([]))
 
-      {:ok, b_in} = Buckets.create_bucket(Actor.owner_ui(), %{name: "In"})
-      {:ok, b_ex} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Ex"})
+      {:ok, b_in} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("In")})
+      {:ok, b_ex} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Ex")})
       bucket_entries = length(Journal.list_entries([]))
 
       {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Strategy", include_all: false})
@@ -333,23 +343,24 @@ defmodule Portfolixir.BucketsTest do
   #   over the 100-character bucket limit.
   describe "tag-bucket name safety (fix round)" do
     test "ensure_tag_bucket refuses to reuse a scope bucket's name" do
-      {:ok, scope} =
-        Buckets.create_bucket(Actor.owner_ui(), %{name: "Haushalt", dimension: "scope"})
+      name = bucket_name("Haushalt")
+      {:ok, scope} = Buckets.create_bucket(Actor.owner_ui(), %{name: name, dimension: "scope"})
 
       assert {:error, :name_taken_by_scope_bucket} =
-               Buckets.ensure_tag_bucket(Actor.import_session(), "  Haushalt ")
+               Buckets.ensure_tag_bucket(Actor.import_session(), "  #{name} ")
 
       # No second bucket appeared and the scope bucket is untouched.
       assert [%{id: id, dimension: "scope"}] =
-               Enum.filter(Buckets.list_buckets(), &(&1.name == "Haushalt"))
+               Enum.filter(Buckets.list_buckets(), &(&1.name == name))
 
       assert id == scope.id
     end
 
     test "validate_tag_bucket_name pre-flags scope collisions and over-long names" do
-      {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Firma", dimension: "scope"})
+      name = bucket_name("Firma")
+      {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: name, dimension: "scope"})
 
-      assert Buckets.validate_tag_bucket_name("Firma") ==
+      assert Buckets.validate_tag_bucket_name(name) ==
                {:error, :name_taken_by_scope_bucket}
 
       assert Buckets.validate_tag_bucket_name(String.duplicate("x", 101)) ==
@@ -366,11 +377,12 @@ defmodule Portfolixir.BucketsTest do
   # so that later API/MCP and UI stories have read access to the model (ADR-0018).
   describe "reads" do
     test "list_buckets and get_bucket!/list_views and get_view!" do
-      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Z-bucket"})
+      name = bucket_name("Z-bucket")
+      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: name})
       {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Z-view", include_all: true})
 
       assert Enum.any?(Buckets.list_buckets(), &(&1.id == bucket.id))
-      assert Buckets.get_bucket!(bucket.id).name == "Z-bucket"
+      assert Buckets.get_bucket!(bucket.id).name == name
 
       assert Enum.any?(Buckets.list_views(), &(&1.id == view.id))
       assert Buckets.get_view!(view.id).name == "Z-view"
@@ -393,8 +405,8 @@ defmodule Portfolixir.BucketsTest do
       cash: cash,
       security: security
     } do
-      {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
-      {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Tag"})
+      {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Core")})
+      {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Tag")})
       :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [core.id])
       :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, [core.id, tag.id])
       :ok = Buckets.set_position_override(Actor.owner_ui(), depot, security, [tag.id])
@@ -424,8 +436,8 @@ defmodule Portfolixir.BucketsTest do
            depot: depot,
            security: security
          } do
-      {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
-      {:ok, krypto} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Krypto"})
+      {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Core")})
+      {:ok, krypto} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Krypto")})
       {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "CoreView", include_all: false})
       :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [core.id], [])
 
@@ -444,7 +456,7 @@ defmodule Portfolixir.BucketsTest do
       depot: depot,
       security: security
     } do
-      {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Core"})
+      {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Core")})
       :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [core.id])
       :ok = Buckets.set_position_override(Actor.owner_ui(), depot, security, [])
 
@@ -471,7 +483,7 @@ defmodule Portfolixir.BucketsTest do
       cash: cash,
       security: security
     } do
-      {:ok, family} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Family"})
+      {:ok, family} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Family")})
       {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "NoFamily", include_all: true})
       :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [], [family.id])
 
@@ -528,8 +540,8 @@ defmodule Portfolixir.BucketsTest do
     #   writers; the view ends up with each bucket once.
     test "set_view_buckets de-duplicates repeated include and exclude ids" do
       {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Twice", include_all: false})
-      {:ok, alpha} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Alpha"})
-      {:ok, beta} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Beta"})
+      {:ok, alpha} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Alpha")})
+      {:ok, beta} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Beta")})
 
       assert :ok =
                Buckets.set_view_buckets(
@@ -571,7 +583,7 @@ defmodule Portfolixir.BucketsTest do
   describe "scope_matches_any_account?/1 (fix round)" do
     test "a view whose only include bucket was deleted matches no accounts",
          %{depot: depot} do
-      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Orphan"})
+      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Orphan")})
       {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Orphaned", include_all: false})
       :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
       :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [bucket.id])
@@ -592,7 +604,7 @@ defmodule Portfolixir.BucketsTest do
     end
 
     test "a position override alone keeps a view matching", %{depot: depot, security: security} do
-      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Solo"})
+      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Solo")})
       {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "SoloView", include_all: false})
       :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
 
@@ -609,7 +621,7 @@ defmodule Portfolixir.BucketsTest do
       depot: depot,
       security: security
     } do
-      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Solo"})
+      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Solo")})
       {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "SoloView", include_all: false})
       :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
       :ok = Buckets.set_position_override(Actor.owner_ui(), depot, security, [])
@@ -620,22 +632,25 @@ defmodule Portfolixir.BucketsTest do
 
   describe "exclusive scope dimension" do
     test "buckets default to the tag dimension and accept scope at creation" do
-      {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Krypto"})
+      {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Krypto")})
       assert tag.dimension == "tag"
 
       {:ok, scope} =
-        Buckets.create_bucket(Actor.owner_ui(), %{name: "Main", dimension: "scope"})
+        Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Main"), dimension: "scope"})
 
       assert scope.dimension == "scope"
 
       assert {:error, changeset} =
-               Buckets.create_bucket(Actor.owner_ui(), %{name: "Bad", dimension: "layer"})
+               Buckets.create_bucket(Actor.owner_ui(), %{
+                 name: bucket_name("Bad"),
+                 dimension: "layer"
+               })
 
       assert %{dimension: ["is invalid"]} = errors_on(changeset)
     end
 
     test "the dimension cannot be changed after creation" do
-      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Main"})
+      {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Main")})
 
       assert {:error, changeset} =
                Buckets.update_bucket(Actor.owner_ui(), bucket, %{dimension: "scope"})
@@ -643,21 +658,27 @@ defmodule Portfolixir.BucketsTest do
       assert %{dimension: ["cannot be changed after creation"]} = errors_on(changeset)
 
       # A no-op dimension value alongside a rename still goes through.
+      new_name = bucket_name("Primary")
+
       assert {:ok, renamed} =
                Buckets.update_bucket(Actor.owner_ui(), bucket, %{
-                 name: "Primary",
+                 name: new_name,
                  dimension: "tag"
                })
 
-      assert renamed.name == "Primary"
+      assert renamed.name == new_name
     end
 
     test "a depot carries at most one scope bucket; tag buckets stay unrestricted",
          %{depot: depot} do
-      {:ok, scope_a} = Buckets.create_bucket(Actor.owner_ui(), %{name: "A", dimension: "scope"})
-      {:ok, scope_b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "B", dimension: "scope"})
-      {:ok, tag_x} = Buckets.create_bucket(Actor.owner_ui(), %{name: "X"})
-      {:ok, tag_y} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Y"})
+      {:ok, scope_a} =
+        Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("A"), dimension: "scope"})
+
+      {:ok, scope_b} =
+        Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("B"), dimension: "scope"})
+
+      {:ok, tag_x} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("X")})
+      {:ok, tag_y} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Y")})
 
       assert {:error, :exclusive_bucket_conflict} =
                Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [
@@ -683,9 +704,13 @@ defmodule Portfolixir.BucketsTest do
     # into two scope-scoped totals.
     test "a position override carries at most one scope bucket",
          %{depot: depot, security: security} do
-      {:ok, scope_a} = Buckets.create_bucket(Actor.owner_ui(), %{name: "OA", dimension: "scope"})
-      {:ok, scope_b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "OB", dimension: "scope"})
-      {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: "OTag"})
+      {:ok, scope_a} =
+        Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("OA"), dimension: "scope"})
+
+      {:ok, scope_b} =
+        Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("OB"), dimension: "scope"})
+
+      {:ok, tag} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("OTag")})
 
       assert {:error, :exclusive_bucket_conflict} =
                Buckets.set_position_override(Actor.owner_ui(), depot, security, [
@@ -708,8 +733,11 @@ defmodule Portfolixir.BucketsTest do
     end
 
     test "a cash account carries at most one scope bucket", %{cash: cash} do
-      {:ok, scope_a} = Buckets.create_bucket(Actor.owner_ui(), %{name: "A", dimension: "scope"})
-      {:ok, scope_b} = Buckets.create_bucket(Actor.owner_ui(), %{name: "B", dimension: "scope"})
+      {:ok, scope_a} =
+        Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("A"), dimension: "scope"})
+
+      {:ok, scope_b} =
+        Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("B"), dimension: "scope"})
 
       assert {:error, :exclusive_bucket_conflict} =
                Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, [scope_a.id, scope_b.id])

@@ -7,7 +7,14 @@ defmodule Portfolixir.LifecycleTest do
   # journal-armed from the migration that creates them; the unboxed half of
   # that (a raw write without a journal actor) is pinned in
   # test/portfolixir/journal/append_only_test.exs.
-  use Portfolixir.DataCase, async: true
+  #
+  # Not async (#947): the append-only tests issue a TRUNCATE of
+  # `merge_records` (CASCADE) and of `retired_import_hashes`, and a TRUNCATE
+  # asks for an ACCESS EXCLUSIVE lock before the trigger refuses it. Run
+  # beside the async merge tests, that request waits for every open
+  # transaction that touched either table, and every later access to the two
+  # tables queues behind it.
+  use Portfolixir.DataCase, async: false
 
   alias Portfolixir.Actor
   alias Portfolixir.Derived.BlastRadius

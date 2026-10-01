@@ -76,7 +76,11 @@ defmodule Portfolixir.Portfolios.RiskTest do
   test "a view scopes risk through the underlying valuation; default identical" do
     {world, prices} = risk_world()
 
-    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Drop"})
+    {:ok, bucket} =
+      Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "Drop #{System.unique_integer([:positive])}"
+      })
+
     {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "NoMid", include_all: true})
     :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [], [bucket.id])
 

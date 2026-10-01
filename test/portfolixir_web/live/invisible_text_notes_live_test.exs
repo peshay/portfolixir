@@ -308,7 +308,12 @@ defmodule PortfolixirWeb.InvisibleTextNotesLiveTest do
   #   their inline rename forms.
   test "view, bucket and category names are marked where they are renamed", %{conn: conn} do
     {:ok, view_record} = Buckets.create_view(Actor.owner_ui(), %{name: "Retirement"})
-    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Household"})
+
+    {:ok, bucket} =
+      Buckets.create_bucket(Actor.owner_ui(), %{
+        name: "Household #{System.unique_integer([:positive])}"
+      })
+
     rename!(Portfolixir.Buckets.View, view_record.id, name: "Retire" <> zwsp() <> "ment")
     rename!(Portfolixir.Buckets.Bucket, bucket.id, name: "House" <> zwsp() <> "hold")
 

@@ -40,6 +40,12 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
 
   import Portfolixir.WorldFixtures, only: [printable_bucket!: 1]
 
+  # Bucket names are unique instance-wide, and async test modules write at the
+  # same time: a literal name another module also uses makes one test's write
+  # wait on the other's uncommitted row (#947). Each bucket here gets a name of
+  # its own.
+  defp bucket_name(base), do: "#{base} #{System.unique_integer([:positive])}"
+
   defp agent, do: Actor.api_token_rw("synthetic-agent")
 
   setup do
@@ -496,8 +502,8 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       d4 = depot!(ctx.main, ctx.c1, "Broker D")
       buy!(ctx, d4, ctx.c1, ctx.source, "1", "100.00", ~D[2025-02-20])
 
-      {:ok, long} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Long term"})
-      {:ok, spec} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Speculative"})
+      {:ok, long} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Long term")})
+      {:ok, spec} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Speculative")})
 
       for depot <- [ctx.d1, ctx.d2, d4],
           do: :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [long.id])
@@ -525,7 +531,7 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       worked_example!(ctx)
       # An id in the printable range, which `inspect/1` printed as a charlist
       # (#978).
-      spec = printable_bucket!(%{name: "Speculative"})
+      spec = printable_bucket!(%{name: bucket_name("Speculative")})
       :ok = Buckets.set_position_override(Actor.owner_ui(), ctx.d1, ctx.source, [spec.id])
 
       detail = refused!(ctx, :position_buckets_mismatch)
@@ -533,7 +539,7 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       refute detail =~ "Broker B"
 
       assert detail =~
-               ~s[In depot "Broker A" the source's position sits in the bucket "Speculative" ] <>
+               ~s[In depot "Broker A" the source's position sits in the bucket "#{spec.name}" ] <>
                  ~s[(##{spec.id}) and the target's in no bucket: view membership is retroactive]
 
       refute detail =~ "~c"
@@ -569,8 +575,8 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       buy!(ctx, d4, ctx.c1, ctx.source, "1", "100.00", ~D[2025-02-20])
       # Ids in the printable range, which `inspect/1` printed as a charlist
       # (#978).
-      one = printable_bucket!(%{name: "Scope A", dimension: "scope"})
-      two = printable_bucket!(%{name: "Scope B", dimension: "scope"})
+      one = printable_bucket!(%{name: bucket_name("Scope A"), dimension: "scope"})
+      two = printable_bucket!(%{name: bucket_name("Scope B"), dimension: "scope"})
 
       # Stored the way an override was written before the one-scope rule.
       Repo.insert_all("position_bucket_overrides", [
@@ -582,7 +588,7 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
 
       assert guard.detail =~
                ~s[In depot "Broker D" the source's position carries an override with more ] <>
-                 ~s[than one scope bucket, "Scope A" (##{one.id}), "Scope B" (##{two.id}), ] <>
+                 ~s[than one scope bucket, "#{one.name}" (##{one.id}), "#{two.name}" (##{two.id}), ] <>
                  ~s[stored before a position could hold only one]
 
       refute guard.detail =~ "~c"
@@ -614,7 +620,7 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
     #   note or rule version is touched.
     test "one entry per touched row, one per aggregate, nothing else", ctx do
       rows = worked_example!(ctx)
-      {:ok, spec} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Speculative"})
+      {:ok, spec} = Buckets.create_bucket(Actor.owner_ui(), %{name: bucket_name("Speculative")})
       :ok = Buckets.set_position_override(Actor.owner_ui(), ctx.d2, ctx.source, [spec.id])
       untouched = buy!(ctx, ctx.d1, ctx.c1, ctx.target, "1", "100.00", ~D[2025-12-01])
       other = security!("Other Co")
