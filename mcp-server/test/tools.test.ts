@@ -1091,8 +1091,8 @@ describe("Portfolixir MCP tools", () => {
     assert.match(result.content[0].text, /category_id/);
   });
 
-  // E25 S6, G27 under decision T-9: the journaled release of manual quotes,
-  // agent-first — its control on the security page is Sprint 17's.
+  // E25 S6, G27 under decision T-9: the journaled release of manual quotes;
+  // its control on the security page landed in Sprint 17 (V2).
   it("releases a security's manual quotes of a range through the API", async () => {
     const { client, requests } = createRecordingClient({
       data: { security_id: 42, from: "2026-02-01", to: "2026-02-28", released: ["2026-02-02"] }
@@ -1112,7 +1112,9 @@ describe("Portfolixir MCP tools", () => {
     const release = listTools().find((tool) => tool.name === "portfolixir.quotes.release");
     assert.deepEqual(release?.inputSchema.required, ["security_id", "from", "to"]);
     assert.match(release?.description ?? "", /journal/i);
-    assert.match(release?.description ?? "", /Sprint 17/);
+    // Sprint 17 V2: the operator's control has landed; the tool says where.
+    assert.match(release?.description ?? "", /Quotes tab/);
+    assert.doesNotMatch(release?.description ?? "", /lands no later than/);
     assert.throws(() => release?.zodSchema.parse({ security_id: 42, from: "2026-02-01" }));
 
     const upsert = listTools().find((tool) => tool.name === "portfolixir.quotes.upsert");

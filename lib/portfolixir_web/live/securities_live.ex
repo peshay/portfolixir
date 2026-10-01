@@ -45,7 +45,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.PolicyRuleReferences
   alias PortfolixirWeb.Securities.FilterPopover
   alias PortfolixirWeb.Securities.LogoOverrideDialog
+  alias PortfolixirWeb.Securities.ManualQuotes
   alias PortfolixirWeb.Securities.MergeDialog
+  alias PortfolixirWeb.Securities.QuoteReleaseDialog
   alias PortfolixirWeb.Securities.RowContextMenu
   alias PortfolixirWeb.Securities.SecurityFormDialog
   alias PortfolixirWeb.Securities.SplitWizardDialog
@@ -129,6 +131,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_ma, %{30 => false, 50 => true, 200 => true})
      |> assign(:detail_cost_basis?, false)
      |> assign(:detail_quotes, [])
+     # T-9 (Sprint 17 V2, G3-A): the selected security's manual quotes over
+     # its whole history, whether the sync can refill a released day, the
+     # release dialog, and its result in the Quotes tab.
+     |> assign(:detail_manual, nil)
+     |> assign(:detail_sync_adapter?, false)
+     |> assign(:quote_release_open?, false)
+     |> assign(:quotes_release_result, nil)
      |> assign(:detail_series_basis, :empty)
      |> assign(:detail_split_events, [])
      |> assign(:detail_transactions, [])
@@ -186,6 +195,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       |> assign(:class, safe_class_list(params["class"]))
       |> assign(:since, ChangedSince.parse(params))
       |> clear_action_result_on_navigation()
+      |> assign(quote_release_open?: false, quotes_release_result: nil)
       |> reset_logo_retry()
       |> load_securities()
 
@@ -912,6 +922,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
         />
       <% end %>
 
+      <%!-- T-9 (Sprint 17 V2, pick G3-A): the release of manual quotes. --%>
+      <%= if @quote_release_open? && @selected_security do %>
+        <.live_component
+          module={QuoteReleaseDialog}
+          id="quote-release-dialog"
+          security_id={@selected_security.id}
+        />
+      <% end %>
+
       <%= if @logo_dialog_security do %>
         <LogoOverrideDialog.dialog security={@logo_dialog_security} />
       <% end %>
@@ -1364,6 +1383,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
       <%= if @detail_tab == "quotes" do %>
         <.quotes_tab_panel
+          manual={@detail_manual}
+          sync_adapter?={@detail_sync_adapter?}
+          release_result={@quotes_release_result}
           quotes={@detail_quotes}
           currency_code={@selected_security.currency_code}
           range={@detail_range}
@@ -2765,6 +2787,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   attr(:range, :string, default: nil)
   attr(:series_basis, :atom, default: :empty)
   attr(:split_events, :list, default: [])
+  attr(:manual, :map, default: nil)
+  attr(:sync_adapter?, :boolean, default: false)
+  attr(:release_result, :any, default: nil)
 
   defp quotes_tab_panel(assigns) do
     assigns = assign(assigns, :rows, Enum.reverse(assigns.quotes))
@@ -2775,6 +2800,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
       role="tabpanel"
       class="detail-tab-panel detail-tab-panel--quotes"
     >
+      <%!-- T-9 (Sprint 17 V2, pick G3-A): a release's result, panel-local
+           beside its trigger, from regions that exist before it runs (A5);
+           then the manual quotes of the whole history and their remedy. --%>
+      <AppShell.inline_result
+        id="quotes-release-result"
+        result={@release_result}
+        dismiss_event="dismiss_release_result"
+      >
+        <:follow_up :if={@sync_adapter?}>
+          <button type="button" class="link-button" phx-click="sync_now" data-role="release-sync">
+            <%= gettext("Sync prices") %>
+          </button>
+        </:follow_up>
+      </AppShell.inline_result>
+      <ManualQuotes.note :if={@manual} manual={@manual} />
       <%= if @rows == [] do %>
         <p class="detail-tab-empty">
           <%= gettext("No price history yet for the selected range.") %>
@@ -4294,10 +4334,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
     # The sync button itself signals progress (spins + disabled via
     # `sync_running?`), so we no longer raise a sticky "Syncing…" toast on top.
+    # The Quotes tab's release result offers this sync as its next step, so
+    # running it is that result's next action.
     {:noreply,
      socket
      |> assign(:sync_running?, true)
-     |> assign(:action_result, nil)}
+     |> assign(:action_result, nil)
+     |> assign(:quotes_release_result, nil)}
   end
 
   def handle_event("toggle_detail_fullscreen", _params, socket) do
@@ -4596,6 +4639,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   def handle_event("dismiss_result", _params, socket) do
     {:noreply, assign(socket, :action_result, nil)}
+  end
+
+  def handle_event("dismiss_release_result", _params, socket) do
+    {:noreply, assign(socket, :quotes_release_result, nil)}
+  end
+
+  # T-9 (G3-A ②): "Release…" opens the dialog for the selected security,
+  # only while it has a manual quote to release.
+  def handle_event("open_quote_release", _params, socket) do
+    case socket.assigns do
+      %{selected_security: %Security{}, detail_manual: %{count: count}} when count > 0 ->
+        {:noreply, assign(socket, quote_release_open?: true, quotes_release_result: nil)}
+
+      _nothing_to_release ->
+        {:noreply, socket}
+    end
   end
 
   def handle_event("dismiss_merged_notice", _params, socket) do
@@ -5067,6 +5126,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> load_detail_data()}
   end
 
+  def handle_info({:dialog, "quote-release-dialog", :close}, socket) do
+    {:noreply, assign(socket, :quote_release_open?, false)}
+  end
+
+  # T-9 (G3-A, A5): the dialog closes and the tab says what the write
+  # answered, with the sync as the next step where one can help.
+  def handle_info({:dialog, "quote-release-dialog", {:released, released}}, socket) do
+    message = ManualQuotes.release_message(released, socket.assigns.detail_sync_adapter?)
+
+    {:noreply,
+     socket
+     |> assign(:quote_release_open?, false)
+     |> assign(:quotes_release_result, {:note, message})
+     |> load_detail_data()}
+  end
+
   def handle_info({:dialog, "security-merge-dialog", :close}, socket) do
     {:noreply, assign(socket, :merge_source_id, nil)}
   end
@@ -5167,6 +5242,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:selected_security, nil)
     |> assign(:detail_fullscreen?, false)
     |> assign(:detail_quotes, [])
+    |> assign(:detail_manual, nil)
+    |> assign(:detail_sync_adapter?, false)
     |> assign(:detail_series_basis, :empty)
     |> assign(:detail_split_events, [])
     |> assign(:detail_transactions, [])
@@ -5236,6 +5313,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
     socket
     |> assign(:detail_quotes, quotes)
+    # T-9 (Sprint 17 V2, G3-A): the note counts the whole history, not the
+    # chart's range; the stretches are the dialog's to read.
+    |> assign(:detail_manual, Quotes.manual_summary(id, stretches: 1))
+    |> assign(:detail_sync_adapter?, QuoteSync.adapter?(socket.assigns.selected_security))
     |> assign(:detail_split_events, split_events)
     |> assign(:detail_transactions, transactions)
     |> assign(:detail_transaction_rows, transaction_rows)
