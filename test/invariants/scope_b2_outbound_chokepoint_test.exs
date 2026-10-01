@@ -246,8 +246,20 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
     "@modelcontextprotocol/sdk/server/streamableHttp.js" =>
       {:all, "the HTTP transport behind the companion's own inbound listener"},
     "@modelcontextprotocol/sdk/types.js" =>
-      {["CallToolRequestSchema", "ListToolsRequestSchema", "CallToolResult", "Tool"],
-       "the protocol's request schemas and result types the server answers with; data only"},
+      {[
+         "CallToolRequestSchema",
+         "ListToolsRequestSchema",
+         "CallToolResult",
+         "Tool",
+         "ListPromptsRequestSchema",
+         "GetPromptRequestSchema",
+         "GetPromptResult",
+         "Prompt",
+         "ErrorCode",
+         "McpError"
+       ],
+       "the protocol's request schemas, result types and error type the server answers " <>
+         "with, the prompts' (Sprint 17 A4) among them; data only"},
     "express" => {:all, "the companion's inbound HTTP listener (#761)"},
     "zod" => {:all, "the tools' input schemas"},
     "node:crypto" => {:all, "the constant-time bearer-token compare"},

@@ -1,7 +1,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   CallToolRequestSchema,
+  ErrorCode,
+  GetPromptRequestSchema,
+  ListPromptsRequestSchema,
   ListToolsRequestSchema,
+  McpError,
   type CallToolResult,
   type Tool
 } from "@modelcontextprotocol/sdk/types.js";
@@ -9,6 +13,7 @@ import { ZodError } from "zod";
 
 import type { ApiClient } from "./api-client.js";
 import { profileClause } from "./profiles.js";
+import { getPrompt, listPrompts } from "./prompts.js";
 import { callTool, listTools, type ToolPolicy } from "./tools.js";
 
 // The read-only switch lives with the profiles since A1 (#992), as a synonym
@@ -54,6 +59,8 @@ export function serverInstructions(policy: ToolPolicy = {}): string {
  * API request (`callTool`), and a test holds it to the properties the
  * published schema names. Under a profile (A1, #992) it lists only that
  * profile's tools, and `callTool` refuses any other tool again at the call.
+ * It offers two prompts (A4, #983), the same under every profile; the
+ * first-setup prompt embeds the profile that runs.
  */
 export function createPortfolixirMcpServer(
   client: ApiClient,
@@ -61,7 +68,7 @@ export function createPortfolixirMcpServer(
 ): McpServer {
   const server = new McpServer(
     { name: "portfolixir", version: "0.1.0" },
-    { capabilities: { tools: {} }, instructions: serverInstructions(policy) }
+    { capabilities: { tools: {}, prompts: {} }, instructions: serverInstructions(policy) }
   );
 
   server.server.setRequestHandler(ListToolsRequestSchema, () => ({
@@ -71,6 +78,18 @@ export function createPortfolixirMcpServer(
   server.server.setRequestHandler(CallToolRequestSchema, (request) =>
     answer(client, request.params.name, request.params.arguments ?? {}, policy)
   );
+
+  server.server.setRequestHandler(ListPromptsRequestSchema, () => ({ prompts: listPrompts() }));
+
+  server.server.setRequestHandler(GetPromptRequestSchema, (request) => {
+    const prompt = getPrompt(request.params.name, request.params.arguments, policy.profile ?? "full");
+
+    if (prompt === undefined) {
+      throw new McpError(ErrorCode.InvalidParams, `Prompt ${request.params.name} not found`);
+    }
+
+    return prompt;
+  });
 
   return server;
 }

@@ -56,6 +56,9 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert Enum.any?(newest["parameters"], &(&1 =~ "PORTFOLIXIR_MCP_PROFILE"))
     # A2 (#993): the twin scope tools name each other, extending the entry.
     assert Enum.any?(newest["parameters"], &(&1 =~ "Scope twin"))
+    # A4 (#983): the two prompts, and why they are MCP only.
+    assert Enum.any?(newest["parameters"], &(&1 =~ "first_setup" and &1 =~ "import_converter"))
+    assert newest["summary"] =~ "MCP only"
 
     # Sprint 16 (version 8): the batch's one entry, opened by the error
     # envelope of the errors the server answers itself (E25 S2, F68). Found

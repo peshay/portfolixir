@@ -1,0 +1,220 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+
+import { MCP_PROFILES } from "../src/profiles.js";
+import { PP_CSV_V1_EXAMPLE, PP_JSON_V1_EXAMPLE } from "../src/prompts.js";
+import { listTools } from "../src/tools.js";
+import { connectCompanion } from "./support/companion.js";
+
+// Sprint 17, Lane A4 (#983): two prompts, MCP only. A prompt is an
+// instruction to the user's own agent; the API has nothing to serve it to.
+
+const NO_ADVICE = [
+  /The system prepares decisions and the operator executes them/,
+  /nothing here places, proposes or sizes a trade/
+];
+
+async function promptText(
+  name: string,
+  args: Record<string, string> = {},
+  profile: (typeof MCP_PROFILES)[number] = "full"
+): Promise<string> {
+  const companion = await connectCompanion(undefined, { profile });
+
+  try {
+    const prompt = await companion.mcp.getPrompt({ name, arguments: args });
+    assert.ok(prompt.messages.length > 0, name);
+
+    return prompt.messages
+      .map((message) => {
+        assert.equal(message.role, "user", name);
+        assert.equal(message.content.type, "text", name);
+        return (message.content as { text: string }).text;
+      })
+      .join("\n");
+  } finally {
+    await companion.close();
+  }
+}
+
+// Every tool a prompt names exists, so a prompt never sends an agent to a tool
+// that is gone.
+function assertNamesOnlyRealTools(name: string, text: string): void {
+  const tools = new Set(listTools().map((tool) => tool.name));
+
+  // A family written as portfolixir.views.* names no single tool and is skipped.
+  for (const [mention] of text.matchAll(/portfolixir\.[a-z_]+\.[a-z_.]*[a-z_]/g)) {
+    assert.ok(tools.has(mention), `${name} names ${mention}, which is no tool`);
+  }
+}
+
+describe("the companion's prompts", () => {
+  // User story (A4, #983):
+  // As the operator connecting an agent for the first time,
+  // I want the companion to offer two prompts, a first setup and an import
+  // converter, under every profile,
+  // so that my agent starts from the product's own instructions.
+  //
+  // Acceptance criteria:
+  // - The server advertises the prompts capability.
+  // - prompts/list answers exactly first_setup and import_converter, each with
+  //   a title and a description; import_converter takes one optional argument,
+  //   export_file.
+  // - An unknown prompt is an error.
+  it("lists the two prompts under every profile", async () => {
+    for (const profile of MCP_PROFILES) {
+      const companion = await connectCompanion(undefined, { profile });
+
+      try {
+        assert.ok(companion.mcp.getServerCapabilities()?.prompts, profile);
+
+        const { prompts } = await companion.mcp.listPrompts();
+        assert.deepEqual(
+          prompts.map((prompt) => prompt.name),
+          ["first_setup", "import_converter"],
+          profile
+        );
+
+        for (const prompt of prompts) {
+          assert.ok((prompt.title ?? "").length > 0, prompt.name);
+          assert.ok((prompt.description ?? "").length > 40, prompt.name);
+        }
+
+        assert.deepEqual(prompts[0].arguments ?? [], []);
+        assert.deepEqual(
+          (prompts[1].arguments ?? []).map((argument) => [argument.name, argument.required ?? false]),
+          [["export_file", false]]
+        );
+
+        await assert.rejects(companion.mcp.getPrompt({ name: "nope", arguments: {} }), /nope/);
+      } finally {
+        await companion.close();
+      }
+    }
+  });
+
+  // User story (A4, #983):
+  // As the operator setting up an instance with my agent,
+  // I want the first-setup prompt to check the instance and the profile, read
+  // what exists, propose a structure and explain how data gets in, writing
+  // nothing I have not confirmed,
+  // so that the setup is mine and nothing lands by surprise.
+  //
+  // Acceptance criteria:
+  // - The text embeds the active profile and what it admits.
+  // - It checks the instance first, reads before it proposes, writes nothing
+  //   without the operator's confirmation, and groups with buckets and views
+  //   (one view matching every account included), not portfolios.
+  // - It names the intake paths: a Portfolio Performance file on the Imports
+  //   page, the import_converter prompt, manual booking; and no broker sync.
+  // - It carries the no-advice framing, and names only tools that exist.
+  it("first_setup checks, reads, proposes and writes nothing unconfirmed", async () => {
+    for (const profile of MCP_PROFILES) {
+      const text = await promptText("first_setup", {}, profile);
+
+      assert.match(text, new RegExp(`runs the ${profile} profile \\(PORTFOLIXIR_MCP_PROFILE\\)`));
+      assertNamesOnlyRealTools(`first_setup/${profile}`, text);
+    }
+
+    const text = await promptText("first_setup", {}, "book");
+
+    assert.match(text, /Write nothing without the operator's confirmation/);
+    assert.match(text, /portfolixir\.contract\.get/);
+    assert.match(text, /portfolixir\.cash_accounts\.list/);
+    assert.match(text, /portfolixir\.securities_accounts\.list/);
+    assert.match(text, /portfolixir\.views\.list/);
+    assert.match(text, /portfolixir\.buckets\.create/);
+    assert.match(text, /portfolixir\.views\.create with only a name \(include_all is true by default\)/);
+    assert.match(text, /portfolixir\.views\.valuation/);
+    assert.match(text, /portfolixir\.portfolios\.create is deprecated/);
+    assert.match(text, /Imports page of the instance \(\/imports\)/);
+    assert.match(text, /import_converter prompt/);
+    assert.match(text, /portfolixir\.transactions\.create, one booking per call/);
+    assert.match(text, /There is no broker or bank connection/);
+
+    for (const framing of NO_ADVICE) {
+      assert.match(text, framing);
+    }
+
+    assert.match(await promptText("first_setup", {}, "read"), /propose but not create/);
+    assert.match(await promptText("first_setup", {}, "full"), /needs none of them/);
+  });
+
+  // User story (A4, #983):
+  // As the operator whose bank exports a format Portfolixir does not read,
+  // I want my agent told the exact file format the Imports page takes and how
+  // to write a converter for it on my machine,
+  // so that the file previews without an error and imports without a
+  // broker connection, a network call or a booking the preview never showed.
+  //
+  // Acceptance criteria:
+  // - The text states the header verbatim, the delimiter, the date and number
+  //   formats, every type label, what Betrag is per type and which account
+  //   Konto and Gegenkonto name, the EUR-only rule and the JSON v1 variant.
+  // - It carries the binding constraints: no broker sync, no network or model
+  //   call, synthetic examples, a file for the Imports page, and that booking
+  //   the rows one by one through portfolixir.transactions.create is not a
+  //   substitute (preview, content-hash idempotency).
+  // - It shows the example blocks verbatim and the no-advice framing.
+  // - A given export_file is named in the text.
+  it("import_converter states the target format and its constraints", async () => {
+    const text = await promptText("import_converter");
+
+    assert.ok(
+      text.includes("Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle")
+    );
+
+    for (const label of [
+      "Kauf",
+      "Verkauf",
+      "Dividende",
+      "Zinsen",
+      "Einlage",
+      "Entnahme",
+      "Gebühren",
+      "Steuern",
+      "Steuerrückerstattung",
+      "Umbuchung (Ausgang)",
+      "Einlieferung",
+      "Auslieferung",
+      "Umbuchung (Wertpapier)"
+    ]) {
+      assert.ok(text.includes(`${label} (`), label);
+    }
+
+    assert.match(text, /`;` between fields/);
+    assert.match(text, /YYYY-MM-DD HH:MM:SS/);
+    assert.match(text, /A dot is ALWAYS read as a thousands separator/);
+    assert.match(text, /INCLUDING Gebühren and Steuern/);
+    assert.match(text, /AFTER Gebühren and Steuern/);
+    assert.match(text, /NET amount credited/);
+    assert.match(text, /Konto is the depot, Gegenkonto the cash account/);
+    assert.match(text, /The CSV books every row in EUR/);
+    assert.match(text, /JSON v1 variant/);
+
+    assert.match(text, /No broker or bank connection/);
+    assert.match(text, /no network call and no model call/);
+    assert.match(text, /synthetic/);
+    assert.match(text, /Imports page/);
+    assert.match(
+      text,
+      /Booking the converted rows one by one with portfolixir\.transactions\.create is not a substitute/
+    );
+    assert.match(text, /skips the preview/);
+    assert.match(text, /content-hash idempotency/);
+
+    assert.ok(text.includes(PP_CSV_V1_EXAMPLE), "the CSV example, verbatim");
+    assert.ok(text.includes(PP_JSON_V1_EXAMPLE), "the JSON example, verbatim");
+
+    for (const framing of NO_ADVICE) {
+      assert.match(text, framing);
+    }
+
+    assertNamesOnlyRealTools("import_converter", text);
+
+    assert.match(
+      await promptText("import_converter", { export_file: "bank-export-2025.csv" }),
+      /bank-export-2025\.csv/
+    );
+  });
+});
