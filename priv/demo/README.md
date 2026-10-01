@@ -26,6 +26,18 @@ Then import the file through the Imports view (drag & drop, map everything as
 "create new", apply), or via the JSON API / a small `mix run` script that calls
 `Portfolixir.Imports.parse_portfolio_performance/2` and `Imports.apply/2`.
 
+### The seeds make no outbound calls
+
+`mix run` boots the application, and the dev configuration starts logo
+discovery and the quote and FX sync: on its own, a seed run would send a logo
+lookup and a quote backfill for every demo security to the public providers.
+Every seed command below therefore sets `PORTFOLIXIR_BACKGROUND_FETCH=off`,
+which leaves all three off from boot, so a seed run makes **no outbound
+calls** and the seeded data does not depend on any provider being reachable
+(#963). `finding_surfaces_seed.exs` refuses to run without it. A server
+started on the seeded database (`mix phx.server`) fetches as usual; give it the
+same switch to keep a walkthrough instance offline too.
+
 ## Quote history (offline)
 
 The demo export carries transactions only. To render charts and valuations
@@ -33,7 +45,7 @@ without any market-data sync, seed deterministic synthetic weekly closes
 (seeded RNG, anchored at each security's last trade price):
 
 ```bash
-DATABASE_NAME=portfolixir_demo PORT=4003 mix run priv/demo/quotes_seed.exs
+DATABASE_NAME=portfolixir_demo PORT=4003 PORTFOLIXIR_BACKGROUND_FETCH=off mix run priv/demo/quotes_seed.exs
 ```
 
 ## Strategies + target weights (optional)
@@ -42,7 +54,7 @@ To reproduce the target-vs-actual rebalancing view shown in the README, seed a
 small "Strategies" classification with target weights after importing:
 
 ```bash
-DATABASE_NAME=portfolixir_demo PORT=4003 mix run priv/demo/strategies_seed.exs
+DATABASE_NAME=portfolixir_demo PORT=4003 PORTFOLIXIR_BACKGROUND_FETCH=off mix run priv/demo/strategies_seed.exs
 ```
 
 It builds a Stability / Growth / Crypto tree fitted to the demo securities,
@@ -66,12 +78,13 @@ timing qualifiers, one unconfirmed past date, one nobody has re-read).
 ```bash
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.create
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.migrate
-DATABASE_NAME=portfolixir_review PORT=4003 mix run priv/demo/finding_surfaces_seed.exs
+DATABASE_NAME=portfolixir_review PORT=4003 PORTFOLIXIR_BACKGROUND_FETCH=off mix run priv/demo/finding_surfaces_seed.exs
 ```
 
 It is **idempotent**: every step asks whether its rows are already there, so a
-second run adds nothing. Synthetic all the way down — no real holdings, no
-real institution, no real person.
+second run adds nothing. It makes **no outbound calls** (see "The seeds make
+no outbound calls" above) and refuses to run without the switch. Synthetic all
+the way down — no real holdings, no real institution, no real person.
 
 The screenshots and the tour GIF under `docs/screenshots/` were produced from
 this dataset.

@@ -18,11 +18,18 @@
 #
 #   DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.create
 #   DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.migrate
-#   DATABASE_NAME=portfolixir_review PORT=4003 mix run priv/demo/finding_surfaces_seed.exs
+#   DATABASE_NAME=portfolixir_review PORT=4003 PORTFOLIXIR_BACKGROUND_FETCH=off mix run priv/demo/finding_surfaces_seed.exs
 #
 # The dev configuration reads `DATABASE_NAME`, `DATABASE_HOST`, `DATABASE_PORT`
 # and `PORT`; a PostgreSQL other than 127.0.0.1:5432 takes `DATABASE_HOST` and
 # `DATABASE_PORT` on every command above.
+#
+# **No outbound calls** (#963): `mix run` boots the application, whose dev
+# configuration starts logo discovery and the quote and FX sync, and every
+# security the seed imports or creates would queue a logo lookup and a quote
+# backfill. `PORTFOLIXIR_BACKGROUND_FETCH=off` leaves all three off from boot,
+# so the seeded instance does not depend on any provider and no demo name
+# leaves the machine. A run without it stops before seeding anything.
 #
 # **Idempotent**: every step asks whether its row is already there and skips
 # it, so a re-run on a seeded database adds nothing and raises nothing. Rerun
@@ -41,6 +48,22 @@ alias Portfolixir.{
 }
 
 alias Portfolixir.Portfolios.Snapshots
+
+# No outbound calls (#963): see the header.
+background_fetch = [
+  Application.get_env(:portfolixir, :enable_logo_discovery, false),
+  :portfolixir
+  |> Application.get_env(Portfolixir.Catalog.QuoteSync, [])
+  |> Keyword.get(:enabled?, false),
+  :portfolixir
+  |> Application.get_env(Portfolixir.Fx.RateSync, [])
+  |> Keyword.get(:enabled?, false)
+]
+
+if Enum.any?(background_fetch) do
+  raise "the review seed makes no outbound calls: run it with " <>
+          "PORTFOLIXIR_BACKGROUND_FETCH=off (priv/demo/README.md)"
+end
 
 owner = Actor.owner_ui()
 today = Date.utc_today()

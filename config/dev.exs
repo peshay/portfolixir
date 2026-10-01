@@ -45,13 +45,23 @@ config :portfolixir, PortfolixirWeb.HostGuard,
     |> Enum.reject(&(&1 == ""))
     |> Enum.uniq()
 
+# Logo discovery and the quote and FX sync fetch from public hosts by
+# themselves, at boot and after every new security.
+# PORTFOLIXIR_BACKGROUND_FETCH=off leaves all three off from boot, for a run
+# that must send nothing out: every documented demo seed command sets it, so
+# a seeded review database does not vary with provider availability and no
+# demo name leaves the machine (#963). Unset, dev keeps the full live
+# experience.
+background_fetch_switch = String.downcase(System.get_env("PORTFOLIXIR_BACKGROUND_FETCH", "on"))
+background_fetch? = background_fetch_switch not in ~w(0 false no off)
+
 # Try to fetch a logo for new securities locally as well so the dev
 # experience matches prod.
-config :portfolixir, :enable_logo_discovery, true
+config :portfolixir, :enable_logo_discovery, background_fetch?
 
 # Run the quote-sync GenServer in dev so freshly imported securities
 # get prices on the next tick. Disabled by default in `config/config.exs`
 # (because tests must not make real HTTP calls and prod is opt-in via
 # runtime.exs). For dev we want the full live experience.
-config :portfolixir, Portfolixir.Catalog.QuoteSync, enabled?: true
-config :portfolixir, Portfolixir.Fx.RateSync, enabled?: true
+config :portfolixir, Portfolixir.Catalog.QuoteSync, enabled?: background_fetch?
+config :portfolixir, Portfolixir.Fx.RateSync, enabled?: background_fetch?

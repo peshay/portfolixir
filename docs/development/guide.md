@@ -45,9 +45,12 @@ Start the project with either:
 
   The development configuration reads `DATABASE_NAME`, `DATABASE_HOST` and
   `DATABASE_PORT` (default `portfolixir_dev` on `127.0.0.1:5432`), `PORT`
-  (default `4000`), `PHX_HOST`, `PHX_BIND_ALL` and
-  `PORTFOLIXIR_ALLOWED_HOSTS`; prefix every command of a recipe with the same
-  values.
+  (default `4000`), `PHX_HOST`, `PHX_BIND_ALL`, `PORTFOLIXIR_ALLOWED_HOSTS`
+  and `PORTFOLIXIR_BACKGROUND_FETCH`; prefix every command of a recipe with
+  the same values. Logo discovery and the quote and FX sync run in
+  development as they do in production; `PORTFOLIXIR_BACKGROUND_FETCH=off`
+  leaves all three off, and every demo seed command in `priv/demo/README.md`
+  sets it, so a seed run makes no outbound call.
 
 ## Required local checks
 
