@@ -3,7 +3,6 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
 
   import Portfolixir.WorldFixtures, only: [create_security!: 1, put_quote!: 3]
 
-  alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.DataQuality
 

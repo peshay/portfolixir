@@ -7,7 +7,6 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Classifications
-  alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Targets
 
   @auth {"authorization", "Bearer test-api-token"}
