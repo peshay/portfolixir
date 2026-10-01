@@ -93,8 +93,8 @@ defmodule Portfolixir.Catalog.LogoDiscoveryTest do
 
     {:ok, bond} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "Anleihe USA 20/50",
-        isin: "US912810SN90",
+        name: "Anleihe USA 21/47",
+        isin: "USEXMPL21490",
         currency_code: "USD",
         provider: "portfolio_performance",
         feed: "PORTFOLIO_PERFORMANCE"

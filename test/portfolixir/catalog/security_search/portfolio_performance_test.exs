@@ -63,16 +63,16 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformanceTest do
     test "maps government bond results to government_bond" do
       body = [
         %{
-          "description" => "BUNDESREPUBLIK DEUTSCHLAND 0% 2034",
-          "isin" => "DE000BU2Z023",
+          "description" => "REPUBLIC OF EXAMPLIA 0% 2034",
+          "isin" => "DEEXMPL20340",
           "type" => "Bond",
-          "markets" => [%{"symbol" => "BU2Z.DE", "currency" => "EUR", "exchange" => "XETR"}]
+          "markets" => [%{"symbol" => "EXMP.DE", "currency" => "EUR", "exchange" => "XETR"}]
         },
         %{
-          "description" => "US TREASURY NOTE 2032",
-          "isin" => "US91282CFB28",
+          "description" => "EXAMPLIA TREASURY NOTE 2032",
+          "isin" => "USEXMPL23215",
           "type" => "Government Bond",
-          "markets" => [%{"symbol" => "91282CFB2", "currency" => "USD", "exchange" => "XNAS"}]
+          "markets" => [%{"symbol" => "EXMPL2321", "currency" => "USD", "exchange" => "XNAS"}]
         }
       ]
 

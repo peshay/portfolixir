@@ -629,7 +629,11 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
       assert LogoLookup.candidate?(%Security{asset_class: "crypto", name: "Bitcoin"})
       assert LogoLookup.candidate?(%Security{asset_class: "knock_out", name: "BNP Paribas Turbo"})
       refute LogoLookup.candidate?(%Security{asset_class: "warrant", name: "Generic Turbo"})
-      refute LogoLookup.candidate?(%Security{asset_class: "government_bond", name: "Bund 2030"})
+
+      refute LogoLookup.candidate?(%Security{
+               asset_class: "government_bond",
+               name: "Republic of Examplia 2030"
+             })
     end
 
     # User story:
@@ -658,7 +662,7 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
       refute LogoLookup.candidate?(%Security{
                provider: "portfolio_performance",
                asset_class: "government_bond",
-               name: "Anleihe USA 20/50"
+               name: "Anleihe USA 21/47"
              })
     end
 

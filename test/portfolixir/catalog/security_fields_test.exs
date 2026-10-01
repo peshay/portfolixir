@@ -31,8 +31,8 @@ defmodule Portfolixir.Catalog.SecurityFieldsTest do
              }) == "etf"
 
       assert SecurityFields.value(field, %Security{
-               name: "Anleihe USA 20/50",
-               isin: "US912810SN90",
+               name: "Anleihe USA 21/47",
+               isin: "USEXMPL21490",
                asset_class: nil
              }) == "government_bond"
     end

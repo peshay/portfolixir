@@ -72,7 +72,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialogEditTest do
     {:ok, sec} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Placeholder",
-        isin: "US912810SN90",
+        isin: "USEXMPL21490",
         currency_code: "USD",
         asset_class: "other",
         provider: "portfolio_performance"
@@ -80,7 +80,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialogEditTest do
 
     {:ok, sec} =
       Catalog.update_security(Portfolixir.Actor.owner_ui(), sec, %{
-        name: "Anleihe USA 20/50",
+        name: "Anleihe USA 21/47",
         asset_class: nil
       })
 
