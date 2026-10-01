@@ -269,9 +269,13 @@ defmodule Portfolixir.Ledger.TradeMatcher do
   # #984 (Sprint 17 T1): the lots a sell consumed, oldest first, each with
   # the cost the trade's basis already counts for it — quantity × buy price
   # plus the lot's buy fees and taxes prorated by the quantity taken, through
-  # the same `prorate/3` the basis uses. Their costs sum to `basis`. The
-  # annualized return (`Ledger.TradeReturn`) solves over these flows, each
-  # at its own open date, rather than over one averaged date.
+  # the same `prorate/3` the basis uses. Their costs sum to `basis` exactly
+  # where every prorated share terminates; where one does not, the two sums
+  # round in a different order at Decimal's precision and may part in the
+  # last digit (1E-31 in the closing act's probe, money lens note 1), which
+  # the six-place rate cannot see. The annualized return
+  # (`Ledger.TradeReturn`) solves over these flows, each at its own open
+  # date, rather than over one averaged date.
   defp consumed_lot(lot) do
     fees = prorate(lot.buy_fees, lot.quantity, lot.original_quantity)
     taxes = prorate(lot.buy_taxes, lot.quantity, lot.original_quantity)
