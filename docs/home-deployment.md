@@ -651,8 +651,10 @@ npm start --prefix mcp-server
 
 ## Versions And Rollback
 
-Every sprint merge is tagged (`vX.Y.Z`, starting at `v0.5.0`) and published
-automatically as a GitHub Release with generated notes. A release is a
+Every merge that changes shipped code is tagged with a calendar version
+(`YYYY.M.N`, the `N`-th release of that month; until September 2026 the
+scheme was `X.Y.Z`, ending at `0.14.0`) and published automatically as a
+GitHub Release with generated notes and the API contract version it ships. A release is a
 known-good point to pin or roll a self-hosted instance back to (check out the
 tag before building) plus a readable changelog — never an installable
 artifact. Migrations are additive; when rolling back across a release that

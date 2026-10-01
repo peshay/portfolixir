@@ -11,7 +11,10 @@ description: Feature trees are worked agentically on a single epic branch and ac
   work now rides the batch and the label governs review depth, not delivery
   mode) **and by the merge-method amendment below** (2026-08-14, owner decision
   on PR #688 — batch PRs are rebase-merged after an agent history cleanup;
-  small PRs stay squash-merged). Everything else here stands.
+  small PRs stay squash-merged), **by the signature-and-tag amendment below**
+  (2026-09-07, PR #780) **and by the calendar-version amendment below**
+  (2026-10-01, Sprint 17 plan D-11 — step 5's tag is made by the Release
+  workflow, not by the owner). Everything else here stands.
 - **Date:** 2026-07-12
 
 ## Context
@@ -133,3 +136,36 @@ for.
    credential gains tag-push rights.
 
 Both are recorded in AGENTS.md at the step they change.
+
+## Amendment: calendar versions made by the Release workflow (2026-10-01, Sprint 17 plan D-11)
+
+`0.<sprint>.0` coupled the number to the sprint, never left 0.x, and depended
+on an owner action the agent's credential cannot perform: three tags were
+outstanding when the Sprint 17 plan was written.
+
+Therefore:
+
+1. **The version is the calendar's: `YYYY.M.N`.** `N` counts up within the
+   month and starts at 1. The number says when a build shipped, not how
+   compatible it is; compatibility is the API contract version
+   (`GET /api/v1/contract`, ADR-0044 §8), which every release names.
+2. **The Release workflow makes it.** Every push to `main` that touches
+   shipped paths (what the release image, the companion's image and the
+   operator's Compose file are built from) creates the next number as an
+   annotated tag through the API and the GitHub Release in the same job,
+   with notes generated from the previous release. The release must be made
+   in that job, because a tag the workflow token creates triggers no other
+   workflow. Docs-only, test-only, planning and CI pushes make no release.
+3. **A merge is a release.** With batches cut into lane PRs (the Sprint 16
+   retrospective), each lane PR's merge is a rollback point, which is the
+   granularity a self-hoster wants.
+4. **The tag-push trigger stays.** A tag pushed by hand still becomes a
+   release, so the owner keeps a fallback if the workflow's tag write is
+   refused, and the old `X.Y.Z` tags keep their releases.
+5. **Step 5 changes accordingly.** The close-out names the release the merge
+   produced instead of preparing a tag command. The three `0.x` tags left
+   outstanding by Sprints 15 and 16 are not created; the first calendar
+   release's notes start from `0.14.0`, so nothing drops out of the
+   changelog.
+
+Recorded in AGENTS.md at step 5.
