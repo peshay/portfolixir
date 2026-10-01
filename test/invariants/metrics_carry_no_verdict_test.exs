@@ -18,7 +18,7 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   use PortfolixirWeb.ConnCase, async: true
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 0, buy!: 3, create_security!: 1, deposit!: 3]
+    only: [base_world: 0, buy!: 3, create_security!: 1, deposit!: 3, sell!: 3]
 
   alias Portfolixir.Catalog.Quotes
 
@@ -159,5 +159,49 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
     # The rich portfolio really computed — the check is not over gap markers only.
     refute rich_data["metrics"]["volatility"]["90d"]["insufficient_data"]
     refute hd(rich_data["metrics"]["correlations"]["pairs"])["insufficient_data"]
+  end
+
+  # User story (#984 rescoped, Sprint 17 T1, plan Lane T's identities):
+  # As the maintainer holding the scope ladder,
+  # I want the two reads that carry a trade's annualized return checked the
+  # same way,
+  # so that "was the trade worth it" stays a figure and never becomes a
+  # rating of the trade.
+  #
+  # Acceptance criteria:
+  # - No key of GET /api/v1/realized_gains or of
+  #   GET /api/v1/securities/:id/trades contains signal, recommend, rating,
+  #   score, action, alert, verdict or advice, over a payload with an
+  #   annualized figure AND one with its null-and-reason marker.
+  test "the trade reads carry no verdict key beside the annualized return", %{conn: conn} do
+    world = base_world()
+    long = create_security!(name: "Verdict Longhold", ticker: "VLH")
+    short = create_security!(name: "Verdict Quickturn", ticker: "VQT")
+    deposit!(world, "10000", ~D[2024-01-01])
+    buy!(world, long, quantity: "10", price: "100", date: ~D[2024-01-02])
+    sell!(world, long, quantity: "10", price: "120", date: ~D[2025-06-30])
+    buy!(world, short, quantity: "10", price: "100", date: ~D[2025-03-01])
+    sell!(world, short, quantity: "10", price: "90", date: ~D[2025-03-31])
+
+    %{"data" => realized} = conn |> get("/api/v1/realized_gains") |> json_response(200)
+
+    # Both shapes are in the walk: a computed figure and a null with its reason.
+    assert Enum.any?(realized["trades"], &is_binary(&1["annualized_return"]))
+    assert Enum.any?(realized["trades"], &is_binary(&1["annualized_return_reason"]))
+
+    payloads =
+      [realized] ++
+        for security <- [long, short] do
+          %{"data" => data} =
+            conn |> get("/api/v1/securities/#{security.id}/trades") |> json_response(200)
+
+          data
+        end
+
+    for data <- payloads do
+      assert offenders(data) == [],
+             "the trade reads carry verdict keys #{inspect(offenders(data))}: the " <>
+               "annualized return is a figure, not a rating of the trade."
+    end
   end
 end

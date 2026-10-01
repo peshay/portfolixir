@@ -39,6 +39,23 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 9,
+      # PR γ's one entry (Sprint 17, the operator's due surfaces): every later
+      # surface change of the PR extends it.
+      date: ~D[2026-10-01],
+      summary:
+        "Sprint 17, the operator's due surfaces: every closed round-trip carries its " <>
+          "annualized return, the money-weighted return per year of the trade's own flows, " <>
+          "or null with the reason, on both reads that serve closed trades (#984).",
+      endpoints: [],
+      tools: [],
+      parameters: [
+        "GET /api/v1/realized_gains (portfolixir.cashflow.realized_gains) and GET /api/v1/securities/:security_id/trades (portfolixir.trades.list): every closed trade carries annualized_return, the round-trip's money-weighted return per year (the XIRR solver over each consumed lot's buy on its open date for its prorated cost and the sell's proceeds on the close date, in the trade's own currency, rounded to 6 places) as a decimal string, or null with annualized_return_reason: holding_period_under_365_days below 365 days of the trade's holding_period_days, or the solver's no_sign_change, no_root or amount_out_of_range; computation_basis.annualized_return states the rule, and the trades read gains computation_basis for it. Every field both reads served before is unchanged (#984)"
+      ],
+      removed_endpoints: [],
+      removed_tools: []
+    },
+    %{
       version: 8,
       # Sprint 16's one entry: the first surface change of the batch opened it,
       # every later change of the batch extends it.

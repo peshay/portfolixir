@@ -1534,6 +1534,24 @@ Beispiel-Payloads für Konten:
   stammen aus **derselben** konvertierten Menge wie die Matrix; ohne
   abgeschlossene Trades sind `hit_rate` und `average_holding_period_days`
   `null` statt `0`. `limit` schneidet nur die Jahre der Matrix.
+
+  Seit Issue #984 trägt jeder Trade zusätzlich **`annualized_return`**: die
+  geldgewichtete Rendite des Rundlaufs pro Jahr, als Bruch (`"0.304701"` sind
+  30,47 % im Jahr). Es ist der XIRR-Löser aus ADR-0034 §2 (Act/365) über die
+  eigenen Zahlungen des Trades — der Kauf jedes verbrauchten Lots an seinem
+  Eröffnungstag mit seinen anteiligen Kosten (Stückzahl × Kaufkurs plus
+  Kaufgebühren und -steuern anteilig zur entnommenen Stückzahl) und der Erlös
+  des Verkaufs am Schlusstag — in der Währung des Trades; annualisiert wird
+  also `realized_pnl_pct`, nicht `realized_base`. Gerundet auf 6 Stellen,
+  und ein Verlust bleibt über −1. Der Wert ist `null` mit
+  **`annualized_return_reason`** `holding_period_under_365_days`, wenn die
+  `holding_period_days` des Trades unter 365 liegen (ADR-0034 §2 annualisiert
+  kein Fenster unter einem Jahr: 5 % in 14 Tagen wären rund 257 % im Jahr),
+  und `null` mit dem Grund des Lösers (`no_sign_change`, darunter ein
+  Totalverlust; `no_root`; `amount_out_of_range`), wenn kein Satz die
+  Zahlungen löst. Dividenden und Zinsen während der Haltedauer sind nicht
+  enthalten. `computation_basis.annualized_return` nennt die Regel.
+
 - `GET /api/v1/external_flows` (Issue #725) liefert das
   Ein-/Auszahlungs-Rollup: die gebuchten externen **Cash**-Flüsse (`deposit`
   und `removal`) über alle Portfolios, je Jahr und Monat mit Einzahlungen,
@@ -2091,6 +2109,10 @@ Beispiel-Payloads für Konten:
   Es gibt kein `limit`: `from`/`to` sind die Grenze (der FIFO-Matcher braucht
   die ganze Historie, und jedes Bein wird danach nach seinem eigenen Datum
   gefiltert), genannt im `basis` der Antwort.
+  Seit Issue #984 trägt jeder geschlossene Round-Trip `annualized_return` und
+  `annualized_return_reason`, dieselbe Zahl nach derselben Regel wie das
+  Realisiert-Rollup oben, und die Antwort trägt
+  `computation_basis.annualized_return`.
 - `GET /api/v1/snapshots` listet Depot-**Snapshot-Marker** (ADR-0027): jeder
   ist ein `name`, ein Geltungsbereich (`view_id`, `null` = alles) und ein
   `as_of`-Datum. Ein Snapshot kopiert keine Finanzdaten — die Bestände, die er
@@ -2931,7 +2953,8 @@ Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
 - `portfolixir.splits.create`
 - `portfolixir.holdings.list`
 - `portfolixir.cashflow.realized_gains` — das #724-Rollup mit erklärter
-  FX-Basis und Ausschluss-und-Benennung bei Kurslücken
+  FX-Basis und Ausschluss-und-Benennung bei Kurslücken, und der annualisierten
+  Rendite je Trade (#984)
 - `portfolixir.cashflow.external_flows` — das #725-Rollup mit erklärtem
   Unterschied zum investierten Kapital
 - `portfolixir.cashflow.costs` — das #726-Rollup mit erklärter
