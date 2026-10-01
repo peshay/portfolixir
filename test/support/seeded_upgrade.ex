@@ -20,8 +20,9 @@ defmodule Portfolixir.SeededUpgrade do
   The migrator cannot run under the SQL sandbox the rest of the suite uses:
   it holds its own lock and runs each migration in a process of its own, and
   a migration's DDL would change the schema every concurrent test reads. So
-  each upgrade gets its own database, named after the test database with an
-  `_upgrade_` suffix, and nothing here touches the sandboxed one.
+  each upgrade gets its own database (`Portfolixir.ScratchDatabase`, named
+  after the test database with an `_upgrade_` suffix), and nothing here
+  touches the sandboxed one.
 
   The scratch database is reached through a second, unsandboxed instance of
   `Portfolixir.Repo`, started as a dynamic repo, not through a repo module of
@@ -49,26 +50,9 @@ defmodule Portfolixir.SeededUpgrade do
   """
 
   import ExUnit.Assertions, only: [flunk: 1]
-  import ExUnit.Callbacks, only: [on_exit: 1, start_supervised!: 1]
 
-  alias Ecto.Adapters.Postgres
-  alias Ecto.Migrator
   alias Portfolixir.Repo
-
-  # Two connections: the migrator's lock and the migration it runs.
-  @pool_size 2
-
-  # What this VM has learned about a database's schema, cached VM-wide once
-  # seen: whether the data-version log and its pending mark exist yet
-  # (`Portfolixir.Derived.DataVersion`). A release migrates in a VM of its
-  # own, which starts without them; this VM has seen the test database and
-  # earlier scratch databases at other versions, and a migration that writes
-  # through the journal would trust their answer. Every migrator run here
-  # starts from a fresh VM's state, and the test leaves none behind.
-  @schema_caches [
-    {Portfolixir.Derived.DataVersion, :schema_ready},
-    {Portfolixir.Derived.DataVersion, :pending_column}
-  ]
+  alias Portfolixir.ScratchDatabase
 
   # The actor a seed writes under. Journal-armed tables refuse a write without
   # one, and every write the seeded release made carried one.
@@ -105,11 +89,14 @@ defmodule Portfolixir.SeededUpgrade do
   def upgrade!(opts) do
     from = Keyword.fetch!(opts, :from)
     seed = Keyword.fetch!(opts, :seed)
-    db = %{scratch_database!() | from: from}
 
     known_version!(from)
-    migrate!(db, to: from)
-    seeded = in_seed_transaction(db, fn -> seed.(db) end)
+
+    %ScratchDatabase{database: database, repo: repo} = ScratchDatabase.start!(suffix: "upgrade")
+    db = %__MODULE__{database: database, repo: repo, from: from}
+
+    ScratchDatabase.migrate!(db, from)
+    seeded = journaled!(db, fn -> seed.(db) end)
 
     {result, log} = ExUnit.CaptureLog.with_log(fn -> migrate_to_head(db) end)
 
@@ -130,9 +117,7 @@ defmodule Portfolixir.SeededUpgrade do
 
   @doc "Runs `sql` with `params` on the scratch database."
   @spec query!(t(), String.t(), list()) :: Postgrex.Result.t()
-  def query!(%__MODULE__{} = db, sql, params \\ []) do
-    on_database(db, fn -> Repo.query!(sql, params) end)
-  end
+  def query!(%__MODULE__{} = db, sql, params \\ []), do: ScratchDatabase.query!(db, sql, params)
 
   @doc """
   Runs `fun` in one transaction on the scratch database with a journal actor
@@ -140,81 +125,8 @@ defmodule Portfolixir.SeededUpgrade do
   asserting that a new row is refused. Raises what `fun` raises.
   """
   @spec journaled!(t(), (-> result)) :: result when result: term()
-  def journaled!(%__MODULE__{} = db, fun), do: in_seed_transaction(db, fun)
-
-  @doc "The head of `priv/repo/migrations`: the last version an upgrade runs."
-  @spec head() :: pos_integer()
-  def head, do: migrations() |> List.last() |> elem(0)
-
-  @doc """
-  Every migration under `priv/repo/migrations` as `{version, module}`,
-  ascending -- the source `Ecto.Migrator` runs. Each file is compiled once per
-  VM: a module already loaded (by an earlier case, or a test that requires
-  the file itself) is reused, as a second compile would redefine it.
-  """
-  @spec migrations() :: [{pos_integer(), module()}]
-  def migrations do
-    Repo
-    |> Migrator.migrations_path()
-    |> Path.join("*.exs")
-    |> Path.wildcard()
-    |> Enum.sort()
-    |> Enum.map(&load_migration/1)
-  end
-
-  @doc "The file name of the migration `version`, for messages."
-  @spec file_of(pos_integer()) :: String.t()
-  def file_of(version) do
-    Repo
-    |> Migrator.migrations_path()
-    |> Path.join("#{version}_*.exs")
-    |> Path.wildcard()
-    |> case do
-      [file] -> Path.basename(file)
-      _none -> "#{version} (no such migration)"
-    end
-  end
-
-  # -- the scratch database --------------------------------------------------
-
-  defp scratch_database! do
-    base = Keyword.fetch!(Repo.config(), :database)
-    database = "#{base}_upgrade_#{System.pid()}_#{System.unique_integer([:positive])}"
-
-    config =
-      Keyword.merge(Repo.config(),
-        database: database,
-        pool: DBConnection.ConnectionPool,
-        pool_size: @pool_size,
-        log: false
-      )
-
-    :ok = Postgres.storage_up(config)
-
-    # Registered before the repo starts, so a failed start still drops the
-    # database. The test supervisor stops the repo before on_exit runs; FORCE
-    # also ends any connection a crashed migration left behind.
-    on_exit(fn ->
-      forget_schema_caches()
-      :ok = Postgres.storage_down(Keyword.put(config, :force_drop, true))
-    end)
-
-    repo = start_supervised!({Repo, Keyword.put(config, :name, nil)})
-    %__MODULE__{database: database, repo: repo}
-  end
-
-  defp on_database(%__MODULE__{repo: repo}, fun) do
-    previous = Repo.put_dynamic_repo(repo)
-
-    try do
-      fun.()
-    after
-      Repo.put_dynamic_repo(previous)
-    end
-  end
-
-  defp in_seed_transaction(db, fun) do
-    on_database(db, fn ->
+  def journaled!(%__MODULE__{} = db, fun) do
+    ScratchDatabase.run(db, fn ->
       {:ok, result} =
         Repo.transaction(fn ->
           Repo.query!("SELECT set_config('portfolixir.journal_actor', $1, true)", [@seed_actor])
@@ -225,21 +137,15 @@ defmodule Portfolixir.SeededUpgrade do
     end)
   end
 
-  # -- migrating ---------------------------------------------------------------
+  @doc "The head of `priv/repo/migrations`: the last version an upgrade runs."
+  @spec head() :: pos_integer()
+  def head, do: ScratchDatabase.migrations() |> List.last() |> elem(0)
 
-  defp migrate!(%__MODULE__{repo: repo}, to: version) do
-    forget_schema_caches()
-    Migrator.run(Repo, migrations(), :up, to: version, dynamic_repo: repo, log: false)
-  end
-
-  defp migrate_to_head(%__MODULE__{repo: repo}) do
-    forget_schema_caches()
-    {:ok, Migrator.run(Repo, migrations(), :up, all: true, dynamic_repo: repo, log: false)}
+  defp migrate_to_head(db) do
+    {:ok, ScratchDatabase.migrate!(db, :head)}
   catch
     kind, reason -> {:error, kind, reason, __STACKTRACE__}
   end
-
-  defp forget_schema_caches, do: Enum.each(@schema_caches, &:persistent_term.erase/1)
 
   # The first migration the scratch database has not recorded: the one the
   # upgrade stopped at, as its transaction rolled back.
@@ -247,33 +153,15 @@ defmodule Portfolixir.SeededUpgrade do
     %{rows: rows} = query!(db, "SELECT version FROM schema_migrations")
     applied = MapSet.new(rows, fn [version] -> version end)
 
-    case Enum.find(migrations(), fn {version, _module} -> version not in applied end) do
-      {version, _module} -> file_of(version)
+    case Enum.find(ScratchDatabase.migrations(), fn {version, _} -> version not in applied end) do
+      {version, _module} -> ScratchDatabase.file_of(version)
       nil -> "no pending migration"
     end
   end
 
   defp known_version!(version) do
-    unless List.keymember?(migrations(), version, 0) do
+    unless List.keymember?(ScratchDatabase.migrations(), version, 0) do
       flunk("#{version} is not a migration under priv/repo/migrations")
     end
-  end
-
-  defp load_migration(file) do
-    {version, "_" <> _name} = file |> Path.basename() |> Integer.parse()
-    module = module_of(file)
-
-    unless Code.ensure_loaded?(module), do: Code.require_file(file)
-
-    {version, module}
-  end
-
-  # The module a migration file defines, read from its source rather than by
-  # compiling it.
-  defp module_of(file) do
-    {:defmodule, _meta, [{:__aliases__, _alias_meta, parts} | _body]} =
-      file |> File.read!() |> Code.string_to_quoted!()
-
-    Module.concat(parts)
   end
 end
