@@ -48,6 +48,7 @@ silence is not.
 
 - `mix format`:
 - `mix compile --force --warnings-as-errors`:
+- `mix gettext.extract --check-up-to-date`:
 - `mix test`:
 - `mix coveralls` (if applicable):
 - `mix credo --strict`:
@@ -64,6 +65,7 @@ silence is not.
 ```bash
 mix format
 mix compile --force --warnings-as-errors
+mix gettext.extract --check-up-to-date
 mix test
 mix coveralls
 mix credo --strict

@@ -215,6 +215,7 @@ passes here passes there.
 ```bash
 mix format
 mix compile --force --warnings-as-errors
+mix gettext.extract --check-up-to-date
 mix test
 mix coveralls
 mix credo --strict

@@ -243,6 +243,7 @@ amended by the Sprint 14 planning PR).
 ```bash
 mix format
 mix compile --force --warnings-as-errors
+mix gettext.extract --check-up-to-date
 mix test
 mix coveralls
 mix credo --strict

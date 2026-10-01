@@ -156,6 +156,17 @@ jobs:
       - name: Compile (warnings as errors)
         run: mix compile --force --warnings-as-errors
 
+      # The translation catalogs are what the source extracts (#924): until
+      # Sprint 17 they were kept up by hand-appended entries, drifted from the
+      # code, and only five named LiveViews were scanned for missing msgids.
+      # The check recompiles the app to collect the msgids (gettext's extract
+      # forces it) and fails when an extraction would change
+      # priv/gettext/default.pot; the fix is
+      # `mix gettext.extract --merge --no-fuzzy` and a translation, never a
+      # hand edit.
+      - name: Gettext catalogs match the source
+        run: mix gettext.extract --check-up-to-date
+
       # `mix hex.audit` on the current Hex: retirements plus the hex.pm EEF
       # advisory feed, which Hex 2.5 gates on with no ignore mechanism. Until
       # Sprint 11 this step pinned Hex 2.4.1 (the last retirement-only

@@ -734,6 +734,43 @@ defmodule Portfolixir.CITest do
     assert prod_config =~ "PHX_FORCE_SSL"
   end
 
+  # User story (#924, Sprint 17 Lane D):
+  # As a German-speaking operator,
+  # I want the translation catalogs to be exactly what the source extracts,
+  # so that a label added without its catalog entry fails the build instead
+  # of reaching my screen in English, and a hand-edited catalog cannot drift
+  # from the code again.
+  #
+  # Acceptance criteria:
+  # - CI's quality job runs `mix gettext.extract --check-up-to-date` after
+  #   the compile.
+  # - Every copy of the local gate list (AGENTS.md, CONTRIBUTING.md and the
+  #   pull request template's two) carries the same command, so a branch that
+  #   passes locally passes CI.
+  test "the gettext catalogs are checked against the source in CI and locally" do
+    ci_workflow = File.read!(".github/workflows/ci.yml")
+    command = "mix gettext.extract --check-up-to-date"
+
+    assert ci_workflow =~ "run: #{command}\n"
+
+    [quality_job] =
+      Regex.run(~r/^  quality:\n(.*?)(?=^  [a-z-]+:\n)/ms, ci_workflow, capture: :all_but_first)
+
+    assert quality_job =~ command
+
+    [before_check, _] = String.split(quality_job, command, parts: 2)
+    assert before_check =~ "mix compile --force --warnings-as-errors"
+
+    for file <- ["AGENTS.md", "CONTRIBUTING.md", ".github/pull_request_template.md"] do
+      text = File.read!(file)
+
+      assert text =~ "mix compile --force --warnings-as-errors\n#{command}\n",
+             "#{file}'s gate list must run the extraction check right after the compile"
+    end
+
+    assert File.read!(".github/pull_request_template.md") =~ "- `#{command}`:"
+  end
+
   # User story (E25 S2, F66):
   # As an operator reading my container's log,
   # I want the production release to log at info,
