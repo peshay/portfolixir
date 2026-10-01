@@ -863,9 +863,8 @@ Example create payload:
   entry. The next quote sync stores the provider's close for a released date;
   a security without a provider keeps no quote for it. A missing or invalid
   date answers `422` naming it, `to` before `from` `422` on `to`, an unknown
-  security `404`. The release ships agent-first (API and MCP): quotes have no
-  write control on the security page yet, and the page's release control
-  lands no later than Sprint 17.
+  security `404`. The operator releases from the security's Quotes tab
+  (**Release…**, Sprint 17), through the same write.
 - `GET /api/v1/securities/:security_id/quotes/manual` reads the security's
   **manual** quotes over its whole stored history — the read a release stands
   on (Sprint 17, `portfolixir.quotes.manual`): `count`, `first` and `last`
@@ -2970,8 +2969,8 @@ in its description; the server instructions say it once for every write.
   history: count, first and last date, the stretches, the count of a range,
   and whether the sync can refill a released date; a read.
 - `portfolixir.quotes.release` — the journaled release of a range's manual
-  quotes back to provider data; agent-first, its page control lands no later
-  than Sprint 17.
+  quotes back to provider data; the operator's control is **Release…** on the
+  security's Quotes tab.
 - `portfolixir.portfolios.list` — deprecated (ADR-0024): steers to
   buckets/views in its description.
 - `portfolixir.portfolios.create` — deprecated (ADR-0024): compatibility only;
