@@ -160,6 +160,43 @@ defmodule Portfolixir.Ledger.TradeReturnTest do
     assert TradeReturn.annualized(trade).annualized_return == d("0.200000")
   end
 
+  # Acceptance criteria (closing act γ, money lens M1):
+  # - Each lot's flow is its own cost — its price and its prorated fees —
+  #   not the basis split by quantity: lots at different prices and fees
+  #   give the exact XIRR of their own flows.
+  test "a multi-lot trade weights each lot by its own cost, not by its quantity" do
+    # -1003 at t0, -1303 at t0 + 900 days, +2793 at t0 + 1000 days; the
+    # exact XIRR is 0.14164249121711..., where splitting the basis 2306 by
+    # quantity would read 0.127414.
+    trade =
+      closed_trade([
+        buy(@open, "10", "100", fees: "3"),
+        buy(Date.add(@open, 900), "10", "130", fees: "3"),
+        sell(Date.add(@open, 1000), "20", "140", fees: "5", taxes: "2")
+      ])
+
+    assert Enum.map(trade.lots, & &1.cost) == [d("1003"), d("1303")]
+    assert TradeReturn.annualized(trade).annualized_return == d("0.141642")
+  end
+
+  # Acceptance criteria (closing act γ, money lens M3):
+  # - A trade whose amounts run past what the solver's absolute tolerance
+  #   (|NPV| < 1e-7) can meet in a float — a large position in a
+  #   high-nominal currency — still solves: the rate is scale-free, so its
+  #   flows are scaled to a cost of one million first.
+  test "a trade too large for the solver's absolute tolerance still solves" do
+    # -2,000,001,500 at t0, +2,740,000,000 at t0 + 500 days: the exact XIRR
+    # is 0.25836252518138...; unscaled the solver answers no_root.
+    trade =
+      closed_trade([
+        buy(@open, "1000000", "2000", fees: "1500"),
+        sell(Date.add(@open, 500), "1000000", "2740")
+      ])
+
+    assert TradeReturn.annualized(trade) ==
+             %{annualized_return: d("0.258363"), annualized_return_reason: nil}
+  end
+
   # Acceptance criteria (ADR-0034 §2: no root is invented):
   # - When the solver does not converge inside its budget the field is null
   #   with the solver's own reason.

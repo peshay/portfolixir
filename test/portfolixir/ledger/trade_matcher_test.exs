@@ -151,7 +151,9 @@ defmodule Portfolixir.Ledger.TradeMatcherTest do
     #   open date, the quantity taken from it, and its prorated cost
     #   (quantity × buy price + the lot's buy fees and taxes prorated by that
     #   quantity, exactly as the trade's basis prorates them).
-    # - The lots' costs sum to the trade's basis.
+    # - The lots' costs sum to the trade's basis (exactly here, where every
+    #   prorated share terminates; see `consumed_lot/1` for the last digit
+    #   where one does not).
     # - Every field the trade carried before is unchanged.
     test "a closed trade names its consumed lots with their prorated cost" do
       transactions = [
