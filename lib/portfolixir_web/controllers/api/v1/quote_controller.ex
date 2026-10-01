@@ -104,6 +104,75 @@ defmodule PortfolixirWeb.Api.V1.QuoteController do
     end
   end
 
+  @doc """
+  `GET /api/v1/securities/:security_id/quotes/manual` (Sprint 17 V2, T-9):
+  the security's manual quotes over its whole stored history — `count`,
+  `first`, `last`, `stored_count`, the `stretches` (each a run of manual
+  quotes with no quote of another source between them, `{from, to, count}`,
+  ascending; the newest `limit`, default 100, capped at 1000, with
+  `stretch_count` counting them all) — and `sync_adapter`, whether the quote
+  sync has an adapter for the security's provider (without one a released
+  date keeps no quote). `from` and/or `to` (inclusive, an absent bound open)
+  add `range` `{from, to, count}`: the manual quotes a release of that range
+  would remove. The read the Quotes tab's "Release…" stands on, under the
+  two-way rule; `to` before `from` answers 422 on `to`, as the release does.
+  """
+  def manual(conn, %{"security_id" => security_id} = params) do
+    with {:ok, id} <- IdParam.parse(security_id),
+         security when not is_nil(security) <- Catalog.get_security(id),
+         {:ok, from} <- parse_date(params, "from", nil, :from),
+         {:ok, to} <- parse_date(params, "to", nil, :to),
+         :ok <- ordered(from, to),
+         {:ok, limit} <- stretch_limit(params) do
+      summary = Quotes.manual_summary(id, stretches: limit)
+
+      json(conn, %{
+        data:
+          %{
+            security_id: id,
+            count: summary.count,
+            first: JSON.date(summary.first),
+            last: JSON.date(summary.last),
+            stored_count: summary.stored_count,
+            stretch_count: summary.stretch_count,
+            stretches: Enum.map(summary.stretches, &stretch/1),
+            sync_adapter: QuoteSync.adapter?(security)
+          }
+          |> put_range(id, from, to),
+        meta: %{limit: limit}
+      })
+    else
+      :error -> MergedAway.not_found(conn, :security, security_id)
+      nil -> MergedAway.not_found(conn, :security, security_id)
+      {:invalid_param, field} -> validation_error(conn, field)
+      {:error, :invalid_range} -> field_error(conn, :to, "must be on or after from")
+    end
+  end
+
+  defp ordered(%Date{} = from, %Date{} = to) do
+    if Date.compare(from, to) == :gt, do: {:error, :invalid_range}, else: :ok
+  end
+
+  defp ordered(_from, _to), do: :ok
+
+  # The list family's bound (#771), on the stretches.
+  defp stretch_limit(params) do
+    case ListLimit.parse(params, 100, 1000) do
+      {:ok, limit} -> {:ok, limit}
+      {:error, :limit} -> {:invalid_param, :limit}
+    end
+  end
+
+  defp stretch(%{from: from, to: to, count: count}),
+    do: %{from: JSON.date(from), to: JSON.date(to), count: count}
+
+  defp put_range(data, _id, nil, nil), do: data
+
+  defp put_range(data, id, from, to) do
+    count = Quotes.manual_count(id, from || ~D[0001-01-01], to || ~D[9999-12-31])
+    Map.put(data, :range, %{from: JSON.date(from), to: JSON.date(to), count: count})
+  end
+
   defp required_date(params, key, field) do
     case DateParam.parse(params, key) do
       {:ok, %Date{} = date} -> {:ok, date}
