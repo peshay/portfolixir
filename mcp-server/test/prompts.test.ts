@@ -215,6 +215,12 @@ describe("the companion's prompts", () => {
     assert.match(text, /never keep them apart through Notiz/);
     // Note 4: the preview renders no per-row CSV note.
     assert.doesNotMatch(text, /csv-without-isin/);
+    // The launch test's run: an export may state no closing balance.
+    assert.match(text, /When the export states no closing balance/);
+    assert.match(
+      text,
+      /ask the operator to compare it with the balance their bank shows before they drop the file/
+    );
     // Note 10: a PDF is not an export this prompt converts.
     assert.match(text, /A PDF statement is not an export this prompt converts/);
     assert.match(text, /machine_generated/);

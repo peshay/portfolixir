@@ -210,7 +210,7 @@ Portfolio Performance's JSON v1 export carries a currency per row and a security
 ${PP_JSON_V1_EXAMPLE}\`\`\`
 
 ## Step 3: check the output before handing it over
-Run the converter, then check the file: the header verbatim; only the labels above in Typ; no decimal point in any number; a positive Betrag wherever one is needed; and, per cash account, the sum of the cash effects equal to the balance the source states for the end of the period (tell the operator when it is not). Show the operator the summary: rows per Typ, rows per Konto, the date range and the end balance per cash account the file implies.
+Run the converter, then check the file: the header verbatim; only the labels above in Typ; no decimal point in any number; a positive Betrag wherever one is needed; and, per cash account, the sum of the cash effects equal to the closing balance the export states (tell the operator when it is not). When the export states no closing balance, compute each cash account's running total from the export's own rows, and ask the operator to compare it with the balance their bank shows before they drop the file. Show the operator the summary: rows per Typ, rows per Konto, the date range and the end balance per cash account the file implies.
 
 ## Step 4: the operator imports it
 The operator opens the Imports page (/imports), drops the file, reads the preview (the records it would create, the accounts and securities it would add, and any row it cannot book, with the reason) and applies it. A row the preview cannot book is fixed in the converter, and the file is dropped again: the rows already booked are skipped by their content hash. After the import, read the result back (portfolixir.cash_accounts.list for the balances) and compare it with the summary.
