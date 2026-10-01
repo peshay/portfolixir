@@ -3566,9 +3566,8 @@ const declaredTools: DeclaredTool[] = [
       "account or depot, and every route under a security (its quotes, trades, metrics, notes, events, logo) — " +
       "answers 404 with errors.merged_into. There is no unmerge: the record and the audit journal's before-images " +
       "(portfolixir.journal.list) are what make a merge reconstructable. limit keeps the newest records " +
-      "(default 100, capped at 1000, echoed in meta.limit). This is the agent's read; the operator sees a merge " +
-      "on Accounts & depots (the survivor's \"merged from\" line and its former names), and a list view of the " +
-      "records lands no later than Sprint 17.",
+      "(default 100, capped at 1000, echoed in meta.limit). The operator reads them in the Merges section at the " +
+      "end of Accounts & depots.",
     mergesListSchema,
     mergesListZ
   ),

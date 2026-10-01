@@ -221,7 +221,9 @@ defmodule Portfolixir.LifecycleTest do
       assert %{^target => [a, b]} =
                Lifecycle.merged_from(:cash_account, [target, target + 1_000_000])
 
+      # Sprint 17 V1: each entry names its record, the merge list's anchor.
       assert a == %{
+               merge_record_id: first.id,
                source_id: world.old_cash.id,
                source_name: "Savings (old)",
                source_isin: nil,
@@ -229,6 +231,7 @@ defmodule Portfolixir.LifecycleTest do
              }
 
       assert b.source_id == second.source_id
+      assert b.merge_record_id == second.id
       assert b.source_name == "Savings 2"
       assert Lifecycle.merged_from(:security, [target]) == %{}
 

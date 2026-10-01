@@ -2442,8 +2442,8 @@ describe("Portfolixir MCP tools", () => {
   // - portfolixir.merges.list routes to GET /api/v1/merges with limit.
   // - It is read-only, and its description says what each record carries,
   //   that the manifest is summarized as counts — the removed bookings also
-  //   per reason (deleted_by_reason) —, that there is no unmerge, and that
-  //   the operator's list view lands no later than Sprint 17.
+  //   per reason (deleted_by_reason) —, that there is no unmerge, and where
+  //   the operator reads the same list (Sprint 17 V1: Accounts & depots).
   it("routes portfolixir.merges.list to GET /api/v1/merges and says what it answers", async () => {
     const { client, requests } = createRecordingClient({ data: [], meta: { count: 0 } });
 
@@ -2467,7 +2467,8 @@ describe("Portfolixir MCP tools", () => {
     assert.match(tool?.description ?? "", /every route under a security/);
     assert.doesNotMatch(tool?.description ?? "", /elsewhere/);
     assert.match(tool?.description ?? "", /no unmerge/);
-    assert.match(tool?.description ?? "", /Sprint 17/);
+    assert.match(tool?.description ?? "", /Merges section at the end of Accounts & depots/);
+    assert.doesNotMatch(tool?.description ?? "", /lands no later than/);
   });
 
   it("forwards the view scope param on the analytics tools", async () => {

@@ -1252,10 +1252,9 @@ Example quote sync response:
   `collapsed_split`; only the reasons present, `{}` when none), and the
   operator's choices as given. `meta` carries `order`, `count` and `limit`.
   `limit` is the list family's: default 100, capped at 1000, and zero, a
-  negative or a non-number answers `422`. The read is **agent-first**: the
-  operator sees a merge on Accounts & depots (the survivor's "merged from"
-  line and its former names), and a list view of the records lands no later
-  than Sprint 17 under the two-way deadline.
+  negative or a non-number answers `422`. The operator reads the same
+  records, with the same counts, in **Merges** at the end of Accounts &
+  depots (Sprint 17; the survivor's "merged from" date links its entry).
 
 Example account payloads:
 
@@ -3146,8 +3145,8 @@ in its description; the server instructions say it once for every write.
 - `portfolixir.journal.list`
 - `portfolixir.merges.list` — the merge records, newest first, each with
   what went into what, who did it, when, and the manifest summarized
-  (ADR-0050 §12); a read, agent-first — its list view lands no later than
-  Sprint 17.
+  (ADR-0050 §12), the removed bookings also per reason; a read — the
+  operator's list is **Merges** on Accounts & depots.
 - `portfolixir.buckets.list`
 - `portfolixir.buckets.get`
 - `portfolixir.buckets.create`

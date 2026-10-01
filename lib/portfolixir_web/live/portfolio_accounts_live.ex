@@ -30,6 +30,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PortfolioAccounts.AccountFormDialog
   alias PortfolixirWeb.PortfolioAccounts.MergeDialog
+  alias PortfolixirWeb.PortfolioAccounts.MergeRecords
   alias PortfolixirWeb.PortfolioAccounts.RenameDialog
 
   @color_format ~r/^#[0-9a-fA-F]{3,8}$/
@@ -63,7 +64,17 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
      # Session-only: pairs the user chose to tag separately. Never persisted —
      # a reload merges equal sets again.
      |> assign(:split_pairs, MapSet.new())
+     # ADR-0050 §12 (Sprint 17 V1, G2-A): the merge record a link opened.
+     |> assign(:merge_focus, nil)
      |> load_state()}
+  end
+
+  # `?merge=<id>` opens the merge records and that record's result
+  # server-side (G2-A ⑤): a fragment alone does not reliably open a
+  # `<details>`. An id no record carries opens nothing.
+  @impl true
+  def handle_params(params, _uri, socket) do
+    {:noreply, assign(socket, :merge_focus, LiveParam.id(params["merge"]))}
   end
 
   @impl true
@@ -283,6 +294,15 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
           <% end %>
         </section>
 
+        <%!-- ADR-0050 §12 (Sprint 17 V1, pick G2-A): every merge, newest
+             first, read-only — after the accounts it changed, before the
+             compatibility records that stay the page's last block. --%>
+        <MergeRecords.section
+          records={@merge_records.records}
+          more?={@merge_records.more?}
+          focus={@merge_focus}
+        />
+
         <%!-- ADR-0024 modification 1: every portfolio record — however it was
              created (UI, API/MCP, import, seed) — stays visible in this
              minimal read-only list, so no writable resource is invisible.
@@ -477,11 +497,12 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   defp account_lines(assigns) do
     sources = Enum.map(assigns.merged, & &1.source_name)
     former = Enum.reject(assigns.account.former_names, &(&1 in sources))
-    assigns = assign(assigns, former: former)
+    newest = List.last(assigns.merged)
+    assigns = assign(assigns, former: former, newest: newest)
 
     ~H"""
-    <span :if={@merged != []} class="account-sub account-sub--merged" data-role="account-merged-from">
-      <%= merged_line(@merged) %>
+    <span :if={@newest} class="account-sub account-sub--merged" data-role="account-merged-from">
+      <.merged_line newest={@newest} more={length(@merged) - 1} />
     </span>
     <span :if={@former != []} class="account-sub account-sub--former" data-role="account-former">
       <%= gettext("former: %{name}", name: List.last(@former)) %><%= more(length(@former) - 1) %>
@@ -489,13 +510,34 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     """
   end
 
-  defp merged_line(merged) do
-    newest = List.last(merged)
+  attr(:newest, :map, required: true)
+  attr(:more, :integer, required: true)
 
-    gettext("merged from %{name} · %{date}",
-      name: newest.source_name,
-      date: Format.date(newest.merged_on)
-    ) <> more(length(merged) - 1)
+  # One line of text with the date as its link; written on one template line
+  # so no template whitespace lands between the words.
+  defp merged_line(assigns) do
+    assigns = assign(assigns, :segments, merged_segments())
+
+    ~H"""
+    <%= for segment <- @segments do %><%= if segment == :date do %><.link patch={"/portfolios?merge=#{@newest.merge_record_id}#merge-records"} data-role="account-merged-link" class="merge-date-link"><%= Format.date(@newest.merged_on) %></.link><% else %><%= if segment == :name, do: @newest.source_name, else: segment %><% end %><% end %><%= more(@more) %>
+    """
+  end
+
+  # G2-A ⑤ (replacing G13.1's "the line links nothing"): the date of the
+  # newest merge links its record in the list below. The translated line is
+  # split around its placeholders before the stored name is put in, so the
+  # name never takes part in the split (the policy-rule references' rule).
+  @marker "\u0000"
+
+  defp merged_segments do
+    "merged from %{name} · %{date}"
+    |> gettext(name: @marker <> "name" <> @marker, date: @marker <> "date" <> @marker)
+    |> then(&Regex.split(~r/\x{0}(name|date)\x{0}/u, &1, include_captures: true, trim: true))
+    |> Enum.map(fn
+      @marker <> "name" <> @marker -> :name
+      @marker <> "date" <> @marker -> :date
+      text -> text
+    end)
   end
 
   defp more(0), do: ""
@@ -1362,7 +1404,11 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     rows = build_rows(cash_accounts, buckets_by_id)
     depot_ids = for %{depot: %SecuritiesAccount{id: id}} <- rows, do: id
 
-    assign(socket,
+    socket
+    # ADR-0050 §12 (Sprint 17 V1, G2-A): the merge records, each target
+    # linked to its band on this page.
+    |> assign(:merge_records, MergeRecords.load(places(rows)))
+    |> assign(
       buckets: buckets,
       cash_accounts: cash_accounts,
       rows: rows,
@@ -1378,6 +1424,23 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
       }
     )
   end
+
+  # Every live account the merge records can link: a depot to its band, a
+  # cash account to the first band that carries its controls.
+  defp places(rows) do
+    Enum.reduce(rows, %{}, fn row, acc ->
+      href = "#" <> row_id(row)
+
+      acc
+      |> put_place(row.depot && {:securities_account, row.depot.id}, row.depot, href)
+      |> put_place(row.cash && {:cash_account, row.cash.id}, row.cash, href)
+    end)
+  end
+
+  defp put_place(acc, nil, _account, _href), do: acc
+
+  defp put_place(acc, key, account, href),
+    do: Map.put_new(acc, key, %{name: account.name, href: href})
 
   # One band per depot, paired with its linked cash account; cash accounts no
   # depot links to get their own single-row band appended. Depot bands sort by

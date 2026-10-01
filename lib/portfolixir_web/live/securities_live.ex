@@ -1648,16 +1648,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
             <% end %>
           </div>
 
-          <p
-            :if={overview_basis(@security, @classifications, @lineage) != "" or @security.is_retired}
-            class="summary-basis"
-            data-role="overview-basis"
-          >
-            <%= overview_basis(@security, @classifications, @lineage) %>
-            <span :if={@security.is_retired} class="badge badge--retired">
-              <%= gettext("Retired") %>
-            </span>
-          </p>
+          <.overview_basis_line
+            security={@security}
+            clauses={overview_clauses(@security, @classifications, @lineage)}
+          />
         </div>
 
         <div class="overview-reading__side">
@@ -1793,27 +1787,66 @@ defmodule PortfolixirWeb.SecuritiesLive do
     ngettext("%{count} depot", "%{count} depots", count, count: count)
   end
 
+  attr(:security, Security, required: true)
+  attr(:clauses, :list, required: true)
+
+  # The basis line's clauses joined by " · ", written on one template line so
+  # no template whitespace lands between them; a merge clause carries its
+  # date as a link (Sprint 17 V1, G2-A ⑤).
+  defp overview_basis_line(assigns) do
+    ~H"""
+    <p
+      :if={@clauses != [] or @security.is_retired}
+      class="summary-basis"
+      data-role="overview-basis"
+    >
+      <%= for {clause, index} <- Enum.with_index(@clauses) do %><%= if index > 0, do: " · " %><.basis_clause clause={clause} /><% end %>
+      <span :if={@security.is_retired} class="badge badge--retired">
+        <%= gettext("Retired") %>
+      </span>
+    </p>
+    """
+  end
+
+  attr(:clause, :any, required: true)
+
+  defp basis_clause(%{clause: {:merge, _merge, _segments}} = assigns) do
+    ~H"""
+    <%= for segment <- elem(@clause, 2) do %><%= if segment == :date do %><.link navigate={"/portfolios?merge=#{elem(@clause, 1).merge_record_id}#merge-records"} data-role="overview-merge-link" class="merge-date-link"><%= Date.to_iso8601(elem(@clause, 1).merged_on) %></.link><% else %><%= segment %><% end %><% end %>
+    """
+  end
+
+  defp basis_clause(assigns) do
+    ~H"""
+    <%= @clause %>
+    """
+  end
+
   # The reading surface's basis line: where the quotes come from, what the
   # security is, where it is classified, and the identifier the header does
   # not carry. Every value reads as a word (#785), never as a stored constant.
-  defp overview_basis(security, classifications, lineage) do
-    ([
-       feed_clause(security),
-       latest_feed_clause(security),
-       class_clause(security),
-       classification_clause(classifications),
-       security.wkn && security.wkn != "" && gettext("WKN %{wkn}", wkn: security.wkn),
-       security.exchange_code && security.exchange_code != "" &&
-         gettext("Exchange %{code}", code: security.exchange_code)
-     ] ++ lineage_clauses(lineage))
+  defp overview_clauses(security, classifications, lineage) do
+    [
+      feed_clause(security),
+      latest_feed_clause(security),
+      class_clause(security),
+      classification_clause(classifications),
+      security.wkn && security.wkn != "" && gettext("WKN %{wkn}", wkn: security.wkn),
+      security.exchange_code && security.exchange_code != "" &&
+        gettext("Exchange %{code}", code: security.exchange_code)
+    ]
     |> Enum.filter(&is_binary/1)
-    |> Enum.join(" · ")
+    |> Kernel.++(lineage_clauses(lineage))
   end
 
   # ADR-0029 §3, ADR-0050 §9, §12 (board 03, "Danach"): where the numbers
   # come from also means which ISINs lead here and what was merged in. The
   # merged source is named with the ISIN it carried then, because after an
   # adopted ISIN the survivor carries it itself.
+  # Placeholders no translation and no stored name can carry.
+  @date_marker "\u0000date\u0000"
+  @name_marker "\u0000name\u0000"
+
   defp lineage_clauses(%{former_isins: aliases, merged_from: merges}) do
     Enum.map(aliases, fn alias_row ->
       gettext("former ISIN %{isin} (until %{date})",
@@ -1822,20 +1855,28 @@ defmodule PortfolixirWeb.SecuritiesLive do
       )
     end) ++
       Enum.map(merges, fn merge ->
-        case merge.source_isin do
-          nil ->
-            gettext("merged on %{date} from “%{name}”",
-              date: Date.to_iso8601(merge.merged_on),
-              name: merge.source_name
-            )
+        # The translated clause is split around its date before the stored
+        # name is put in, so the name never takes part in the split.
+        text =
+          case merge.source_isin do
+            nil ->
+              gettext("merged on %{date} from “%{name}”", date: @date_marker, name: @name_marker)
 
-          isin ->
-            gettext("merged on %{date} from “%{name}” (then %{isin})",
-              date: Date.to_iso8601(merge.merged_on),
-              name: merge.source_name,
-              isin: isin
-            )
-        end
+            isin ->
+              gettext("merged on %{date} from “%{name}” (then %{isin})",
+                date: @date_marker,
+                name: @name_marker,
+                isin: isin
+              )
+          end
+
+        segments =
+          text
+          |> String.split(@date_marker)
+          |> Enum.map(&String.replace(&1, @name_marker, merge.source_name || ""))
+          |> Enum.intersperse(:date)
+
+        {:merge, merge, segments}
       end)
   end
 

@@ -213,8 +213,10 @@ defmodule Portfolixir.Lifecycle do
 
   @doc """
   The merges into each of `target_ids` under `kind`, oldest first, as
-  `%{target_id => [%{source_id, source_name, source_isin, merged_on}]}` —
-  what a survivor shows as "merged from …" (ADR-0050 §12). `source_isin` is
+  `%{target_id => [%{merge_record_id, source_id, source_name, source_isin,
+  merged_on}]}` — what a survivor shows as "merged from …" (ADR-0050 §12),
+  `merge_record_id` naming the record its date links to in the merge list
+  (Sprint 17 V1). `source_isin` is
   the ISIN a security's snapshot recorded (`nil` for an account, or a
   security without one). `merged_on` is the host's
   calendar date of the merge (`Portfolixir.Clock.local_date/1`). Direct
@@ -223,6 +225,7 @@ defmodule Portfolixir.Lifecycle do
   @spec merged_from(:cash_account | :securities_account | :security, [integer()]) :: %{
           optional(integer()) => [
             %{
+              merge_record_id: integer(),
               source_id: integer(),
               source_name: String.t() | nil,
               source_isin: String.t() | nil,
@@ -239,6 +242,7 @@ defmodule Portfolixir.Lifecycle do
     |> Repo.all()
     |> Enum.group_by(& &1.target_id, fn record ->
       %{
+        merge_record_id: record.id,
         source_id: record.source_id,
         source_name: snapshot_name(record),
         source_isin: snapshot_isin(record),
