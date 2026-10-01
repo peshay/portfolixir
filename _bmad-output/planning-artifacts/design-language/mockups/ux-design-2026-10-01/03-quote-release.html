@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Manuelle Kurse freigeben (T-9, Pick G3)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL (variant A): the rules the story adds to app.css. Everything
+     else inside the frames is markup and classes that already ship:
+     securities_live.ex (render_detail_pane/1: .detail-pane, .detail-pane-head,
+     .detail-pane-head__title, .detail-pane-head__actions, .detail-pane-sub,
+     .detail-pane-tabs, .detail-pane-tab; quotes_tab_panel/1:
+     .detail-tab-panel--quotes, .summary-basis, .data-table-wrap,
+     .detail-quotes-table, .badge.quote-source), AppShell.data_note/1
+     (.data-note, .data-note--attention, .data-note__icon, .data-note__word,
+     .data-note__body, .link-button as the remedy), AppShell.inline_result/1
+     (.inline-result, .inline-result__region, .inline-result__dismiss), the
+     detail chart's custom-range pair (.period-range__pair,
+     .period-range__field, .period-range__dash, the ISO text inputs), the
+     Wealth popover's year chips (.period-years with .filter-chip), the merge
+     dialog's band footer (.modal, .modal-head, .modal-body,
+     .modal-footer.modal-footer--band, .modal-footer__spacer, .button-danger
+     and its :disabled appearance, .merge-footer__why), .field-error, .hint,
+     and RowContextMenu.menu/1 (.row-context-menu, .row-context-menu__item). -->
+<style id="proposal">
+  /* ① The release dialog is a narrow modal: one date pair, one chip row, one
+     consequence and a band foot (the width of the merge dialog's first step,
+     .merge-dialog--target, plus the room the chip row needs). */
+  .quote-release-dialog { max-width: 460px; }
+
+  /* ② Under 720 px it is the merge dialog's bottom sheet. In app.css this is
+     not a copy: `.quote-release-dialog` joins the selector lists of the
+     `.merge-dialog` phone rules (app.css, the 720 px block after
+     .merge-stale__changes). Drawn here as rules so the board renders them;
+     the fixed positioning only applies to the real <dialog>. */
+  @media (max-width: 720px) {
+    dialog.modal.quote-release-dialog { position: fixed; inset: auto 0 0 0; width: 100%; max-width: none; max-height: 88vh; margin: 0; border-radius: var(--radius-md, 8px) var(--radius-md, 8px) 0 0; box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18); }
+    .quote-release-dialog > .modal-body { padding: 12px 16px; }
+    .quote-release-dialog .modal-footer--band { flex-direction: column; align-items: stretch; gap: 6px; padding: 10px 16px calc(18px + env(safe-area-inset-bottom, 0px)); border-radius: 0; }
+    .quote-release-dialog .modal-footer--band > button { width: 100%; min-height: 44px; justify-content: center; }
+    .quote-release-dialog .modal-footer__spacer { display: none; }
+    .quote-release-dialog .merge-footer__why { order: 1; }
+    .quote-release-dialog .modal-footer--band > .button-danger { order: 2; }
+    .quote-release-dialog .modal-footer--band > .button-ghost { order: 3; }
+  }
+
+  /* ③ A date inside a note's sentence stays whole. At 390 px "2026-09-16"
+     otherwise breaks at its hyphen ("2026-09-" / "16"); the dates are
+     <time datetime> elements, the one the Dates tab already renders. */
+  .data-note__body time { white-space: nowrap; }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: visible; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; min-width: 0; }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ol, .notes ul { margin: 0; }
+  .notes ol, .notes ul { padding-left: 18px; }
+  ol.pins { list-style: none; padding: 0; }
+  .notes li { margin: 0 0 6px; }
+  .notes code, .mock-note code, .pickbar code, .callout code, table.t code { font-size: 11.5px; }
+  .elide { margin: 0; font-size: 12px; color: var(--mock-ink); font-style: italic; }
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; text-transform: none; flex: none; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  i.pin.o { background: var(--mock-ink); }
+  .notes li > i.pin:first-child { margin: 0 4px 0 0; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .rec { color: var(--color-positive); font-weight: 760; }
+  .callout { border: 1px solid var(--color-border); border-left: 4px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-bg-elevated); padding: 10px 14px; display: grid; gap: 6px; font-size: 12.5px; }
+  .callout.open { border-left-color: var(--color-warning); }
+  .callout h4 { margin: 0; font-size: 13px; }
+  .callout p, .callout ul { margin: 0; }
+  .callout ul { padding-left: 18px; }
+  .frame-cap { margin: 0 0 8px; font-size: 12px; color: var(--mock-ink); }
+
+  /* the securities detail pane at board scale (as board 12) */
+  .stage { padding: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .stage .detail-pane { margin-top: 0; }
+  .stage .detail-pane-tabs { overflow: hidden; }
+  /* the elided middle of the quote table (drawing aid) */
+  td.elide-row { text-align: center; font-style: italic; color: var(--mock-ink); font-size: 11.5px; }
+  /* a date that is gone after the release (drawing aid, not app UI) */
+  tr.gone td { padding: 2px 8px; font-size: 11px; color: var(--mock-ink); font-style: italic; border-bottom-style: dashed; }
+
+  /* the dialog on a muted field standing in for the backdrop (as board 07) */
+  .dlg-field { background: var(--color-bg-muted); padding: 16px; display: grid; justify-items: center; align-content: start; }
+  .dlg-field .modal { width: 100%; }
+
+  /* the row menu drawn in flow (it is positioned by the PositionedMenu hook) */
+  .row-context-menu.static { position: static; box-shadow: var(--shadow-md); }
+  .row-context-menu__item.is-new { outline-offset: -2px; }
+  .row-context-menu__item[disabled] { opacity: .5; cursor: not-allowed; }
+
+  /* variant C: drawing aids for the proposed selection column */
+  .detail-quotes-table td.pick, .detail-quotes-table th.pick { width: 28px; text-align: center; }
+  .detail-quotes-table tr.is-picked td { background: color-mix(in srgb, var(--color-accent) 8%, transparent); }
+  .detail-quotes-table tr.is-picked td:first-child { box-shadow: inset 3px 0 0 var(--color-accent); }
+  .pick-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); box-shadow: var(--shadow-md); font-size: 12.5px; }
+
+  .phone-only { display: none; }
+  .w-pane { flex: 1 1 600px; min-width: 0; }
+  .w-dlg { flex: 0 1 488px; min-width: 0; }
+  .w-half { flex: 1 1 520px; min-width: 0; }
+  ol.pins.two { columns: 2; column-gap: 28px; }
+  ol.pins.two li { break-inside: avoid; }
+  .detail-quotes-table tr.is-picked td { background: color-mix(in srgb, var(--color-accent) 9%, var(--color-bg-elevated)) !important; }
+
+  /* ===== 390 px: the board becomes the phone =====
+     The same A markup renders in a true 390 px viewport, so app.css's 720 px
+     rules (detail pane, table font) and proposal ② fire as on a phone. The
+     renderer has a mouse, so the `pointer: coarse` floors (44 px tabs and
+     chips) are applied by hand here, as board 01 did. */
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 14px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .stage { padding: 8px; }
+    .dlg-field { padding: 56px 0 0; background: rgba(15, 23, 42, .4); }
+    .dlg-field .modal { border-radius: 8px 8px 0 0; box-shadow: 0 -8px 24px rgba(0, 0, 0, .18); }
+    .phone-cap { margin: 0; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+    .detail-pane-tab, .filter-chip { min-height: 44px; }
+    i.pin { display: none; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-ast" viewBox="0 0 24 24"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></symbol>
+    <symbol id="i-att" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-max" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+    <symbol id="i-keb" viewBox="0 0 24 24"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 4v5h-5"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16Z"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></symbol>
+    <symbol id="i-archive" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4"/><path d="M5 8v12h14V8M10 12h4"/></symbol>
+    <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6Z"/></symbol>
+    <symbol id="i-merge" viewBox="0 0 24 24"><path d="M4 6h4.5l5.5 6h6"/><path d="M4 18h4.5l5.5-6"/><path d="m17 9 3 3-3 3"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7"/><path d="M10 11v7M14 11v7"/></symbol>
+    <symbol id="i-q" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar desk-only"><b>Entscheidung G3 — offen.</b> Manuelle Kurse wieder dem Kursanbieter überlassen (T&#8209;9). Seit Sprint 16 ist jeder Kurs, den API oder MCP schreiben, ein manueller Kurs (F20), und ein manueller Kurs gewinnt gegen den Anbieter (ADR&#8209;0028): Die Kursaktualisierung lässt ihn stehen. Zurück geht es nur über die Freigabe, die bisher allein der Agent hat (<code>POST /api/v1/securities/:id/quotes/release</code>, <code>portfolixir.quotes.release</code>); ihre Steuerung auf der Seite ist bis Ende Sprint 17 fällig, als erste Kursschreibung der Oberfläche. Zwei Fragen: <b>Wo sitzt sie, und woran sieht der Operator, welche Kurse manuell sind?</b> <b>A</b> eine Datennotiz im Tab „Kurse“ mit Anzahl und Spanne, darin „Freigeben…“ · <b>B</b> ein Eintrag im Zeilenmenü des Wertpapiers · <b>C</b> manuelle Zeilen in der Kurstabelle ankreuzen. <span class="rec">Empfehlung A.</span> A und B öffnen denselben Dialog: Zeitraum, Folge, eine Bestätigung. Ein Kommentar mit Code und Buchstabe auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. Alle Namen, Kurse und Daten sind erfunden. <b>Gestrichelt = neu.</b> Die Darstellung bei 390&nbsp;px ist <code>03-quote-release--390.png</code>.</div>
+<p class="phone-only phone-cap"><b>G3 · Variante A (empfohlen) bei 390&nbsp;px.</b> Dieselben Rahmen wie im Board, in einem echten 390-px-Viewport: app.css' Regeln unter 720&nbsp;px und Vorschlag ② greifen. Alle Daten erfunden.</p>
+
+<!-- ============================ HEUTE ============================ -->
+<section class="mock-board desk-only">
+  <h2>Heute · Wertpapier → Kurse <small><code>securities_live.ex</code> <code>quotes_tab_panel/1</code></small></h2>
+  <p class="mock-note">Der Tab „Kurse“ listet die gespeicherten Kurse des Zeitraums, den das Diagramm gewählt hat, mit der Quelle als Wort in jeder Zeile. Wie viele manuelle Kurse ein Wertpapier hat und wo sie liegen, sagt die Seite nirgends; schreiben kann sie Kurse gar nicht.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-pane"><span class="mock-tag">Heute · /securities/42?tab=quotes · Zeitraum 1M</span>
+      <div class="stage">
+        <div class="detail-pane" aria-label="Ausgewähltes Wertpapier">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title">
+              <span class="security-logo security-logo--lg security-logo--initial">M</span>
+              <div><h2>Meridian Global Equity ETF</h2><p class="detail-pane-sub">XS0000000001 · MGEQ · EUR · Letzter 110,05 (2026-09-30)</p></div>
+            </div>
+            <div class="detail-pane-head__actions">
+              <button type="button" class="button-ghost" aria-label="Stammdaten bearbeiten">Bearbeiten</button>
+              <button type="button" class="button-ghost">Split erfassen</button><i class="pin b" style="align-self:center">3</i>
+              <span class="icon-button" aria-label="Maximieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-max"/></svg></span>
+              <span class="icon-button" aria-label="Detail schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-x"/></svg></span>
+            </div>
+          </header>
+          <nav class="detail-pane-tabs" role="tablist" aria-label="Wertpapier-Detailansicht">
+            <button type="button" role="tab" class="detail-pane-tab">Übersicht</button><button type="button" role="tab" class="detail-pane-tab">Diagramm<i class="pin b">2</i></button><button type="button" role="tab" class="detail-pane-tab">Transaktionen</button><button type="button" role="tab" class="detail-pane-tab">Trades</button><button type="button" role="tab" aria-selected="true" class="detail-pane-tab is-active">Kurse</button><button type="button" role="tab" class="detail-pane-tab">Bestände</button><button type="button" role="tab" class="detail-pane-tab">Klassifizierungen</button><button type="button" role="tab" class="detail-pane-tab">Research</button>
+          </nav>
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--quotes">
+            <p class="summary-basis">Zeitraum 1M · wie im Diagramm<i class="pin b">1</i></p>
+            <div class="data-table-wrap">
+              <table class="data-table detail-quotes-table">
+                <thead><tr><th>Datum</th><th class="num">Schlusskurs</th><th class="num">Gespeichert</th><th>Quelle</th></tr></thead>
+                <tbody>
+                  <tr><td>2026-09-30</td><td class="num">110,05 <small>EUR</small></td><td class="num">110,05</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td>2026-09-29</td><td class="num">109,62 <small>EUR</small></td><td class="num">109,62</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td colspan="4" class="elide-row">… 6 Zeilen, Quelle Portfolio Performance</td></tr>
+                  <tr><td>2026-09-17</td><td class="num">107,35 <small>EUR</small></td><td class="num">107,35</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td>2026-09-16</td><td class="num">106,80 <small>EUR</small></td><td class="num">106,80</td><td><span class="badge quote-source">Manuell</span><i class="pin b">1</i></td></tr>
+                  <tr><td>2026-09-15</td><td class="num">106,10 <small>EUR</small></td><td class="num">106,10</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                  <tr><td>2026-09-14</td><td class="num">105,95 <small>EUR</small></td><td class="num">105,95</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                  <tr><td>2026-09-11</td><td class="num">104,88 <small>EUR</small></td><td class="num">104,88</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td colspan="4" class="elide-row">… 7 Zeilen bis 2026-09-01</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+    <div class="notes" style="flex:1 1 420px">
+      <p class="cap">Was heute fehlt</p>
+      <ol class="pins">
+        <li><i class="pin b">1</i><b>Die Quelle steht als Wort in der Zeile, aber nur im Zeitraum des Diagramms.</b> „Manuell“ und „Portfolio Performance“ sind dasselbe Abzeichen, unterschieden allein durch das Wort (das genügt UX&#8209;DR7). Die vier manuellen Kurse vom 2026-06-30 bis 2026-07-03 liegen außerhalb von „1M“ und erscheinen erst bei „6M“. Eine Zählung oder Spanne über die ganze Historie gibt es nicht.</li>
+        <li><i class="pin b">2</i><b>„Kurse aktualisieren“ im Tab „Diagramm“ schweigt über die Kurse, die es stehen lässt.</b> Die Kursaktualisierung überspringt manuelle Kurse (<code>skipped_manual</code>), die Meldung sagt trotzdem „Kurse aktualisiert.“ (<code>sync_flash/1</code>). Wer einen festgesetzten Kurs nicht kennt, hält ihn danach für den Kurs des Anbieters. Nicht Teil dieser Entscheidung; ein eigener Punkt (Scope Lock).</li>
+        <li><i class="pin b">3</i><b>Keine Kursschreibung auf der Seite.</b> Schreiben und Freigeben gibt es nur über API und MCP. Die Freigabe bekommt ihre Steuerung jetzt (T&#8209;9, zweiseitige Frist); das Schreiben eines Kurses von Hand bleibt außerhalb dieser Entscheidung.</li>
+      </ol>
+      <div class="callout">
+        <h4>Was die Freigabe tut (<code>Quotes.release_manual/4</code>)</h4>
+        <ul>
+          <li>Sie entfernt die <b>manuellen</b> Kurse des Wertpapiers von <code>from</code> bis <code>to</code> (beide eingeschlossen). Kurse des Anbieters im Zeitraum bleiben, manuelle außerhalb auch.</li>
+          <li>Ein Journaleintrag (<code>delete</code>, <code>security_quotes</code>) hält die entfernten Kurse samt Schlusskurs als Vorher-Bild fest; ein Zeitraum ohne manuellen Kurs schreibt nichts und keinen Eintrag.</li>
+          <li>Sie holt selbst keinen Kurs. Erst die nächste Kursaktualisierung speichert für diese Tage den Schlusskurs des Anbieters; ohne Kursanbieter bleiben die Tage ohne Kurs.</li>
+          <li>Antwort: die freigegebenen Daten. Abgelehnt werden nur ein unbekanntes Wertpapier (404), ein fehlendes oder ungültiges Datum und <code>to</code> vor <code>from</code> (422 am Feld).</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>A · empfohlen — eine Datennotiz im Tab „Kurse“, darin „Freigeben…“ <small>Zählung über die ganze Historie · Dialog mit Zeitraum · Ergebnis im Tab</small></h2>
+  <p class="mock-note desk-only">Der Tab „Kurse“ ist der Ort, an dem die Seite die Quelle eines Kurses schon zeigt. Hat das Wertpapier manuelle Kurse, steht über der Tabelle eine Notiz mit ihrer Zahl und Spanne über die ganze Historie, unabhängig vom gewählten Zeitraum; die Abhilfe ist ein Kind der Notiz (UX&#8209;DR17). Ohne manuellen Kurs steht nichts da. „Freigeben…“ öffnet einen nativen <code>&lt;dialog&gt;</code> mit dem Zeitraum, vorbelegt mit dem ersten und dem letzten manuellen Datum; die Bestätigung darin ist die eine Rückfrage, die eine zerstörende Aktion bekommt.</p>
+
+  <div class="mock-row">
+    <div class="mock-frame mock-after w-pane"><span class="mock-tag">A1 · Tab „Kurse“ mit manuellen Kursen</span>
+      <div class="stage">
+        <div class="detail-pane" aria-label="Ausgewähltes Wertpapier">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title">
+              <span class="security-logo security-logo--lg security-logo--initial">M</span>
+              <div><h2>Meridian Global Equity ETF</h2><p class="detail-pane-sub">XS0000000001 · MGEQ · EUR · Letzter 110,05 (2026-09-30)</p></div>
+            </div>
+            <div class="detail-pane-head__actions">
+              <button type="button" class="button-ghost" aria-label="Stammdaten bearbeiten">Bearbeiten</button>
+              <button type="button" class="button-ghost">Split erfassen</button>
+              <span class="icon-button" aria-label="Maximieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-max"/></svg></span>
+              <span class="icon-button" aria-label="Detail schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-x"/></svg></span>
+            </div>
+          </header>
+          <nav class="detail-pane-tabs" role="tablist" aria-label="Wertpapier-Detailansicht">
+            <button type="button" role="tab" class="detail-pane-tab">Übersicht</button><button type="button" role="tab" class="detail-pane-tab">Diagramm</button><button type="button" role="tab" class="detail-pane-tab">Transaktionen</button><button type="button" role="tab" class="detail-pane-tab">Trades</button><button type="button" role="tab" aria-selected="true" class="detail-pane-tab is-active">Kurse</button><button type="button" role="tab" class="detail-pane-tab">Bestände</button><button type="button" role="tab" class="detail-pane-tab">Klassifizierungen</button><button type="button" role="tab" class="detail-pane-tab">Research</button>
+          </nav>
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--quotes">
+            <div class="data-note data-note--note is-new" data-role="manual-quotes-note">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+              <span class="data-note__word">Hinweis</span>
+              <div class="data-note__body">7 manuelle Kurse in der gespeicherten Historie, vom <time datetime="2026-06-30">2026-06-30</time> bis <time datetime="2026-09-16">2026-09-16</time>.<i class="pin o">1</i> Ein manueller Kurs hat Vorrang: Die Kursaktualisierung lässt ihn stehen, bis er freigegeben wird. <button type="button" class="link-button">Freigeben…</button><i class="pin o">2</i></div>
+            </div>
+            <p class="summary-basis">Zeitraum 1M · wie im Diagramm</p>
+            <div class="data-table-wrap">
+              <table class="data-table detail-quotes-table">
+                <thead><tr><th>Datum</th><th class="num">Schlusskurs</th><th class="num">Gespeichert</th><th>Quelle</th></tr></thead>
+                <tbody>
+                  <tr><td>2026-09-30</td><td class="num">110,05 <small>EUR</small></td><td class="num">110,05</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td colspan="4" class="elide-row">… 7 Zeilen, Quelle Portfolio Performance</td></tr>
+                  <tr><td>2026-09-17</td><td class="num">107,35 <small>EUR</small></td><td class="num">107,35</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td>2026-09-16</td><td class="num">106,80 <small>EUR</small></td><td class="num">106,80</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                  <tr><td>2026-09-15</td><td class="num">106,10 <small>EUR</small></td><td class="num">106,10</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                  <tr><td>2026-09-14</td><td class="num">105,95 <small>EUR</small></td><td class="num">105,95</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                  <tr><td>2026-09-11</td><td class="num">104,88 <small>EUR</small></td><td class="num">104,88</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td colspan="4" class="elide-row">… 7 Zeilen bis 2026-09-01</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after w-dlg"><span class="mock-tag">A2 · „Freigeben…“ — der Dialog</span>
+      <div class="dlg-field">
+        <div class="modal quote-release-dialog is-new" role="dialog" aria-labelledby="qr-title">
+          <header class="modal-head">
+            <h2 id="qr-title">Manuelle Kurse freigeben — Meridian Global Equity ETF<i class="pin o">3</i></h2>
+            <button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button>
+          </header>
+          <div class="modal-body">
+            <div class="period-range__pair">
+              <div class="period-range__field"><label for="qr-from">Von</label><input id="qr-from" type="text" value="2026-06-30" placeholder="YYYY-MM-DD" maxlength="10"></div>
+              <span class="period-range__dash" aria-hidden="true">–</span>
+              <div class="period-range__field"><label for="qr-to">Bis</label><input id="qr-to" type="text" value="2026-09-16" placeholder="YYYY-MM-DD" maxlength="10"></div>
+            </div>
+            <div class="period-years" role="group" aria-label="Manuelle Abschnitte">
+              <button type="button" class="filter-chip is-active" aria-pressed="true">Alle · 7</button>
+              <button type="button" class="filter-chip" aria-pressed="false">2026-06-30 – 2026-07-03 · 4</button>
+              <button type="button" class="filter-chip" aria-pressed="false">2026-09-14 – 2026-09-16 · 3</button><i class="pin o" style="align-self:center">4</i>
+            </div>
+            <p class="hint">Die manuellen Schlusskurse im Zeitraum werden entfernt und mit ihren Werten im Journal festgehalten; Kurse des Anbieters im Zeitraum bleiben, wie sie sind. Die nächste Kursaktualisierung speichert für die freigegebenen Tage den Schlusskurs des Anbieters, bis dahin haben sie keinen Kurs.<i class="pin o">5</i></p>
+          </div>
+          <div class="modal-footer modal-footer--band">
+            <button type="button" class="button-ghost">Abbrechen</button>
+            <span class="modal-footer__spacer"></span>
+            <button type="submit" class="button-danger">7 manuelle Kurse freigeben</button><i class="pin o" style="align-self:center">6</i>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mock-row desk-only" style="margin-top:16px">
+    <div class="notes" style="flex:1 1 100%">
+      <p class="cap">A — was jedes Teil tut</p>
+      <ol class="pins two">
+        <li><i class="pin o">1</i><b>Die Notiz zählt über die ganze Historie, nicht über den Zeitraum.</b> Darum „in der gespeicherten Historie“: Die Tabelle darunter zeigt mit „1M“ nur drei der sieben, die Basiszeile direkt darunter sagt das. Schweregrad <i>Hinweis</i>: Kontext, nichts ist falsch (UX&#8209;DR17). Ein Wertpapier, dessen Kurse alle manuell sind (ein Demo-Datensatz, ein Wertpapier ohne Anbieter), liest „39 manuelle Kurse …; alle gespeicherten Kurse sind manuell.“</li>
+        <li><i class="pin o">2</i><b>Die Abhilfe ist ein Kind der Notiz</b>, als <code>.link-button</code> wie die Abhilfen auf Board 12. Ein Wort, kein Symbol: Ein Glyph für „freigeben“ gibt es nicht, und ein vorhandenes in zweiter Bedeutung verbietet UX&#8209;DR16.</li>
+        <li><i class="pin o">3</i><b>Der Dialog nennt das Wertpapier im Titel</b> (wie „Umbenennen — Girokonto“). Das Datumspaar ist das des eigenen Zeitraums im Diagramm: zwei ISO-Textfelder, „Von“ und „Bis“ (UX&#8209;DR19). Vorbelegt mit dem ersten und dem letzten manuellen Datum.</li>
+        <li><i class="pin o">4</i><b>Die Abschnitte zeigen, wo die manuellen Kurse liegen.</b> Ein Abschnitt ist eine Folge manueller Tage ohne Kurs des Anbieters dazwischen. Die Chips sind die Jahres-Chips des Zeitraum-Popovers (<code>.period-years</code>, C5&#8209;A): Ein Klick füllt das Paar, und ein Paar, das einem Abschnitt gleicht, markiert seinen Chip. Mehr als fünf Abschnitte: „Alle“ und die fünf jüngsten, die übrigen über die Daten.</li>
+        <li><i class="pin o">5</i><b>Die Folge in den Worten des Codes:</b> entfernt, im Journal mit Schlusskurs, Anbieterkurse bleiben, erst die nächste Kursaktualisierung füllt die Tage. Das Wort „Freigeben“ allein sagt nicht, dass bis dahin kein Kurs da ist.</li>
+        <li><i class="pin o">6</i><b>Eine Bestätigung, die die Zahl nennt.</b> <code>.button-danger</code> im Bandfuß wie „Zusammenführen in …“: Die Freigabe löscht festgesetzte Werte, und die Oberfläche hat keinen Weg zurück; das Journal hält sie, schreibt sie aber nicht zurück. Kein <code>data-confirm</code> danach: zerstörend einmal bestätigen, nie zweimal. Die Zahl folgt dem Paar bei jeder Änderung.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">A3 · Ohne Kursanbieter</span>
+      <div class="dlg-field">
+        <div class="modal quote-release-dialog" role="dialog" aria-labelledby="qr3-title">
+          <header class="modal-head">
+            <h2 id="qr3-title">Manuelle Kurse freigeben — Halvorsen Shipping Bond 2031</h2>
+            <button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button>
+          </header>
+          <div class="modal-body">
+            <div class="data-note data-note--attention is-new">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-att"/></svg></span>
+              <span class="data-note__word">Achtung</span>
+              <div class="data-note__body">Für dieses Wertpapier holt die Kursaktualisierung keine Kurse: Die freigegebenen Tage bleiben ohne Kurs.<i class="pin o">7</i></div>
+            </div>
+            <div class="period-range__pair">
+              <div class="period-range__field"><label>Von</label><input type="text" value="2026-01-02" maxlength="10"></div>
+              <span class="period-range__dash" aria-hidden="true">–</span>
+              <div class="period-range__field"><label>Bis</label><input type="text" value="2026-09-30" maxlength="10"></div>
+            </div>
+            <p class="elide">… Abschnitte und Folge wie A2; der Satz zur Kursaktualisierung entfällt.</p>
+          </div>
+          <div class="modal-footer modal-footer--band">
+            <button type="button" class="button-ghost">Abbrechen</button>
+            <span class="modal-footer__spacer"></span>
+            <button type="submit" class="button-danger">39 manuelle Kurse freigeben</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">A4 · Im Zeitraum kein manueller Kurs</span>
+      <div class="dlg-field">
+        <div class="modal quote-release-dialog" role="dialog" aria-label="Manuelle Kurse freigeben">
+          <div class="modal-body">
+            <p class="elide">Kopf wie A2.</p>
+            <div class="period-range__pair">
+              <div class="period-range__field"><label>Von</label><input type="text" value="2026-07-06" maxlength="10"></div>
+              <span class="period-range__dash" aria-hidden="true">–</span>
+              <div class="period-range__field"><label>Bis</label><input type="text" value="2026-09-11" maxlength="10"></div>
+            </div>
+            <div class="period-years" role="group" aria-label="Manuelle Abschnitte">
+              <button type="button" class="filter-chip" aria-pressed="false">Alle · 7</button>
+              <button type="button" class="filter-chip" aria-pressed="false">2026-06-30 – 2026-07-03 · 4</button>
+              <button type="button" class="filter-chip" aria-pressed="false">2026-09-14 – 2026-09-16 · 3</button>
+            </div>
+          </div>
+          <div class="modal-footer modal-footer--band">
+            <button type="button" class="button-ghost">Abbrechen</button>
+            <span class="modal-footer__spacer"></span>
+            <p class="merge-footer__why is-new" id="qr4-why">Kein manueller Kurs im Zeitraum.<i class="pin o">8</i></p>
+            <button type="submit" class="button-danger" disabled aria-describedby="qr4-why">Freigeben</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="mock-frame mock-after w-pane"><span class="mock-tag">A5 · Nach dem Freigeben — das Ergebnis im Tab</span>
+      <div class="stage">
+        <div class="detail-pane" aria-label="Ausgewähltes Wertpapier">
+          <p class="elide">Kopf und Tabs wie A1.</p>
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--quotes">
+            <div id="quotes-release-result" class="inline-result is-new" data-role="action-result">
+              <div role="status" class="inline-result__region">
+                <div class="data-note data-note--note">
+                  <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+                  <span class="data-note__word">Hinweis</span>
+                  <div class="data-note__body">7 manuelle Kurse freigegeben, vom <time datetime="2026-06-30">2026-06-30</time> bis <time datetime="2026-09-16">2026-09-16</time>. Die nächste Kursaktualisierung speichert für diese Tage den Schlusskurs des Anbieters.<i class="pin o">9</i> <button type="button" class="link-button">Kurse aktualisieren</button><button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button></div>
+                </div>
+              </div>
+              <div role="alert" class="inline-result__region"></div>
+            </div>
+            <p class="summary-basis">Zeitraum 1M · wie im Diagramm</p>
+            <div class="data-table-wrap">
+              <table class="data-table detail-quotes-table">
+                <thead><tr><th>Datum</th><th class="num">Schlusskurs</th><th class="num">Gespeichert</th><th>Quelle</th></tr></thead>
+                <tbody>
+                  <tr><td>2026-09-30</td><td class="num">110,05 <small>EUR</small></td><td class="num">110,05</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td colspan="4" class="elide-row">… 7 Zeilen</td></tr>
+                  <tr><td>2026-09-17</td><td class="num">107,35 <small>EUR</small></td><td class="num">107,35</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr class="gone"><td colspan="4">2026-09-14 bis 2026-09-16: ohne Kurs</td></tr>
+                  <tr><td>2026-09-11</td><td class="num">104,88 <small>EUR</small></td><td class="num">104,88</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td colspan="4" class="elide-row">… 7 Zeilen bis 2026-09-01</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after w-dlg"><span class="mock-tag">A6 · Abgelehnt: „Bis“ vor „Von“</span>
+      <div class="dlg-field">
+        <div class="modal quote-release-dialog" role="dialog" aria-label="Manuelle Kurse freigeben">
+          <div class="modal-body">
+            <p class="elide">Kopf wie A2.</p>
+            <div class="period-range__pair">
+              <div class="period-range__field"><label>Von</label><input type="text" value="2026-09-14" maxlength="10"></div>
+              <span class="period-range__dash" aria-hidden="true">–</span>
+              <div class="period-range__field"><label>Bis</label><input type="text" value="2026-06-30" maxlength="10" aria-invalid="true" aria-describedby="qr5-err"></div>
+            </div>
+            <p class="field-error is-new" id="qr5-err" role="alert">Das Enddatum liegt vor dem Startdatum.<i class="pin o">10</i></p>
+            <p class="elide">… Abschnitte und Folge wie A2. Nichts wurde geschrieben.</p>
+          </div>
+          <div class="modal-footer modal-footer--band">
+            <button type="button" class="button-ghost">Abbrechen</button>
+            <span class="modal-footer__spacer"></span>
+            <button type="submit" class="button-danger">Freigeben</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="mock-frame mock-after w-pane"><span class="mock-tag">A7 · Kein manueller Kurs — keine Notiz, kein Freigeben</span>
+      <div class="stage">
+        <div class="detail-pane" aria-label="Ausgewähltes Wertpapier">
+          <p class="elide">Kopf und Tabs wie A1, ein Wertpapier nur mit Kursen des Anbieters.<i class="pin o">11</i></p>
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--quotes">
+            <p class="summary-basis">Zeitraum 1M · wie im Diagramm</p>
+            <div class="data-table-wrap">
+              <table class="data-table detail-quotes-table">
+                <thead><tr><th>Datum</th><th class="num">Schlusskurs</th><th class="num">Gespeichert</th><th>Quelle</th></tr></thead>
+                <tbody>
+                  <tr><td>2026-09-30</td><td class="num">54,20 <small>EUR</small></td><td class="num">54,20</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td>2026-09-29</td><td class="num">54,02 <small>EUR</small></td><td class="num">54,02</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td colspan="4" class="elide-row">… 19 Zeilen bis 2026-09-01</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="notes desk-only" style="flex:1 1 420px">
+      <p class="cap">A — die Zustände</p>
+      <ol class="pins">
+        <li><i class="pin o">7</i><b>A3, ohne Kursanbieter:</b> eine Notiz <i>Achtung</i> im Dialog, über dem Paar. Die Freigabe bleibt möglich (die API erlaubt sie auch), aber sie löscht dann, und das steht da, bevor bestätigt wird. Die Seite liest, ob die Kursaktualisierung für den Anbieter des Wertpapiers einen Adapter hat (<code>Security.provider</code>), wie <code>QuoteSync</code> selbst.</li>
+        <li><i class="pin o">8</i><b>A4, kein manueller Kurs im Zeitraum:</b> Die Bestätigung ist deaktiviert und ihr Grund steht als Text daneben (<code>.merge-footer__why</code>, die Regel des Merge-Dialogs: „deaktiviert, nie nur blass“). Die API würde nichts schreiben; die Oberfläche fragt gar nicht erst.</li>
+        <li><i class="pin o">9</i><b>A5, das Ergebnis:</b> ein Inline-Ergebnis <i>Hinweis</i> oben im Tab, wo die Notiz stand, aus einer Region, die vor der Aktion existiert. Es nennt die Zahl aus der Antwort (<code>released</code>), nicht die des Dialogs. „Kurse aktualisieren“ ist die vorhandene Aktion des Diagramm-Tabs, hier zur Stelle; ohne Anbieter fehlt sie und der zweite Satz lautet „Ohne Kursanbieter bleiben diese Tage ohne Kurs.“ Bleiben manuelle Kurse übrig, steht die Notiz mit neuer Zahl darunter.</li>
+        <li><i class="pin o">10</i><b>A6, „Bis“ vor „Von“:</b> der Fehler am Feld, das ihn beheben kann, nach dem Absenden, wie beim eigenen Zeitraum (D5) und wie die API (422 an <code>to</code>). Ein Feld, das kein Datum ist: „Kein Datum — Format JJJJ-MM-TT“. Nichts geschrieben, der Dialog bleibt offen.</li>
+        <li><i class="pin o">11</i><b>A7, nichts Manuelles:</b> keine Notiz, kein deaktiviertes „Freigeben“. Eine Entwarnung ist kein Befund, und die meisten Wertpapiere haben nur Anbieterkurse; ein grauer Knopf auf jedem wäre Lärm.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board desk-only">
+  <h2>B — ein Eintrag „Manuelle Kurse freigeben…“ im Zeilenmenü des Wertpapiers <small><code>RowContextMenu.menu/1</code> · derselbe Dialog wie A2</small></h2>
+  <p class="mock-note">Der Eintrag steht direkt nach „Kurse aktualisieren“, der einen Kursaktion, die das Menü schon trägt, und öffnet den Dialog von A2. Er ist von der Liste aus erreichbar, ohne das Detail zu öffnen, und braucht keinen Platz im Tab. Woran der Operator sieht, welche Kurse manuell sind, beantwortet B aber nicht: Der Eintrag steht an jedem Wertpapier, und erst der Dialog sagt, ob es überhaupt etwas freizugeben gibt.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-after" style="flex:0 1 330px"><span class="mock-tag">B · Kebab von „Meridian Global Equity ETF“</span>
+      <div class="stage">
+        <div class="row-context-menu static" role="menu" aria-label="Wertpapier-Aktionen">
+          <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-edit"/></svg><span>Bearbeiten</span></button>
+          <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-refresh"/></svg><span>Kurse aktualisieren</span></button>
+          <button type="button" class="row-context-menu__item is-new" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-q"/></svg><span>Manuelle Kurse freigeben…</span></button>
+          <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chev"/></svg><span>Detail öffnen</span></button>
+          <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-copy"/></svg><span>ISIN kopieren</span></button>
+          <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-copy"/></svg><span>Ticker kopieren</span></button>
+          <p class="elide" style="padding:4px 12px">… Logo aktualisieren · Logo verwalten · Stilllegen · Als Benchmark markieren · Zusammenführen in… · Löschen</p>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after" style="flex:0 1 330px"><span class="mock-tag">B · ein Wertpapier ohne manuellen Kurs</span>
+      <div class="stage">
+        <div class="row-context-menu static" role="menu" aria-label="Wertpapier-Aktionen">
+          <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-refresh"/></svg><span>Kurse aktualisieren</span></button>
+          <button type="button" class="row-context-menu__item is-new" role="menuitem" disabled aria-describedby="b-why"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-q"/></svg><span>Manuelle Kurse freigeben… <small id="b-why" class="muted">· keine</small></span></button>
+          <p class="elide" style="padding:4px 12px">… übrige Einträge</p>
+        </div>
+      </div>
+    </div>
+    <div class="notes" style="flex:1 1 360px">
+      <p><b>Für B.</b> Erreichbar aus der Liste, ohne den Bereich zu wechseln, und neben der einen Kursaktion, die das Menü schon trägt. Der Tab bleibt, wie er ist.</p>
+      <p><b>Gegen B.</b> Es beantwortet die zweite Frage nicht: Vor dem Öffnen des Menüs sagt nichts, dass ein Wertpapier manuelle Kurse hat, und das Menü müsste die Zahl erst beim Öffnen lesen, wie Konten &amp; Depots ihre Verweise vor dem Löschen. Dann gibt es nur schlechte Wahlen: Der Eintrag fehlt (das Menü springt je Wertpapier) oder steht deaktiviert mit „keine“ an fast jedem Wertpapier. Das Menü wächst auf zwölf Einträge, und jeder trägt ein Symbol; ein Glyph für „freigeben“ gibt es nicht (der graue Punkt oben ist der Platzhalter von <code>icon_paths/1</code>), und „Kurse aktualisieren“ teilt seins schon mit „Logo aktualisieren“. Das Menü ist der Ort für Aktionen am Wertpapier; die Freigabe ist eine Aktion an seinen Kursen und gehört dorthin, wo sie gelesen werden.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE C ============================ -->
+<section class="mock-board desk-only">
+  <h2>C — manuelle Zeilen in der Kurstabelle ankreuzen <small>eine Auswahlspalte nur für manuelle Zeilen · eine Leiste mit „Freigeben…“</small></h2>
+  <p class="mock-note">Jede manuelle Zeile bekommt ein Kästchen; Shift-Klick wählt einen Bereich. Die gewählten Zeilen tragen die getönte Zeile mit linker Akzentkante (UX&#8209;DR16, Klasse 3), und eine Leiste unter der Tabelle nennt die Auswahl und öffnet die Bestätigung. Die Markierung ist genau dort, wo der Kurs steht.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-after w-pane"><span class="mock-tag">C · Tab „Kurse“, drei Zeilen gewählt</span>
+      <div class="stage">
+        <section role="tabpanel" class="detail-tab-panel detail-tab-panel--quotes">
+          <p class="summary-basis">Zeitraum 1M · wie im Diagramm</p>
+          <div class="data-table-wrap">
+            <table class="data-table detail-quotes-table">
+              <thead><tr><th class="pick"><span class="visually-hidden">Auswahl</span></th><th>Datum</th><th class="num">Schlusskurs</th><th class="num">Gespeichert</th><th>Quelle</th></tr></thead>
+              <tbody>
+                <tr><td class="pick"></td><td>2026-09-17</td><td class="num">107,35 <small>EUR</small></td><td class="num">107,35</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                <tr class="is-picked"><td class="pick"><input type="checkbox" checked aria-label="2026-09-16 auswählen"></td><td>2026-09-16</td><td class="num">106,80 <small>EUR</small></td><td class="num">106,80</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                <tr class="is-picked"><td class="pick"><input type="checkbox" checked aria-label="2026-09-15 auswählen"></td><td>2026-09-15</td><td class="num">106,10 <small>EUR</small></td><td class="num">106,10</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                <tr class="is-picked"><td class="pick"><input type="checkbox" checked aria-label="2026-09-14 auswählen"></td><td>2026-09-14</td><td class="num">105,95 <small>EUR</small></td><td class="num">105,95</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                <tr><td class="pick"></td><td>2026-09-11</td><td class="num">104,88 <small>EUR</small></td><td class="num">104,88</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pick-bar is-new"><span>3 gewählt · 2026-09-14 bis 2026-09-16</span><span style="flex:1 1 auto"></span><button type="button" class="button-ghost">Auswahl aufheben</button><button type="button" class="button-danger">Freigeben…</button></div>
+        </section>
+      </div>
+    </div>
+    <div class="notes" style="flex:1 1 420px">
+      <p><b>Für C.</b> Die Markierung steht am Kurs selbst, und gewählt wird, was man sieht.</p>
+      <p><b>Gegen C.</b> Die Freigabe nimmt einen <b>Zeitraum</b>, keine Zeilen: Wer am 2026-09-14 und am 2026-09-16 ankreuzt, aber nicht am 2026-09-15, hat keine Spanne, die die API in einem Aufruf schreibt. Das wären zwei Journaleinträge für eine Absicht, oder der 2026-09-15 würde mit freigegeben. Die Tabelle zeigt nur den Zeitraum des Diagramms; die vier Kurse von Ende Juni bleiben unerreichbar, bis der Zeitraum gewechselt wird, und die Zahl über die ganze Historie fehlt wie heute. Die Tabelle ist zum Lesen da (EXPERIENCE.md, Tables: „Read-first“); eine Auswahlspalte nur auf manchen Zeilen ist eine neue Form, und bei 390&nbsp;px drängt eine fünfte Spalte die vier, die schon knapp sind.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ A, B ODER C ============================ -->
+<section class="mock-board desk-only">
+  <h2>A, B oder C</h2>
+  <div class="mock-row">
+    <div class="notes" style="flex:1 1 520px">
+      <p><b>Für A.</b> A beantwortet beide Fragen an einer Stelle: Die Notiz sagt, dass es manuelle Kurse gibt, wie viele und von wann bis wann, und zwar dort, wo die Seite die Quelle schon in jeder Zeile nennt; die Abhilfe sitzt in ihr. Der Dialog übersetzt die Form der API (ein Zeitraum, beide Grenzen eingeschlossen) in ein Datumspaar, das die Seite schon kennt, und die Abschnitte zeigen, wo die Kurse liegen, auch außerhalb des Zeitraums der Tabelle. Jede Form gibt es schon: Datennotiz, Zeitraum-Paar, Jahres-Chips, Bandfuß mit roter Bestätigung, Inline-Ergebnis. Neu sind nur die Breite des Dialogs und seine Telefonform, die die des Merge-Dialogs ist.</p>
+      <p><b>Gegen A.</b> Der Weg ist länger als in B: erst das Detail, dann der Tab. Die Notiz steht nur im Tab „Kurse“, nicht im Diagramm, das die Kurse zeichnet und ihre Quelle gar nicht zeigt. Und A braucht einen Lesezugriff, den es nicht gibt (rechts).</p>
+    </div>
+    <div class="callout open" style="flex:1 1 440px">
+      <h4>Was die Seite dafür lesen muss — es gibt es noch nicht</h4>
+      <p>Die Seite kennt die Quelle nur für die Zeilen, die sie für den Zeitraum lädt (<code>Quotes.adjusted_range/3</code>); <code>Quotes.range/4</code> filtert nicht nach Quelle, und <code>GET …/quotes</code> auch nicht. Die Story braucht:</p>
+      <ul>
+        <li>eine Zusammenfassung der manuellen Kurse eines Wertpapiers: Zahl, erstes und letztes Datum, die Abschnitte (Notiz und Chips);</li>
+        <li>die Zahl der manuellen Kurse in einem Zeitraum (die Bestätigung, A4);</li>
+        <li>ob der Anbieter des Wertpapiers einen Adapter hat (A3); heute privat in <code>QuoteSync</code>.</li>
+      </ul>
+      <p>Ob API und MCP dieselbe Zusammenfassung bekommen (die zweiseitige Regel in die andere Richtung) oder ein <code>source</code>-Filter an <code>GET …/quotes</code> genügt, entscheidet die Story.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+  /* Drawing aid: at phone width the DetailTabs hook keeps the selected tab
+     in view; without the hook the board scrolls the row to it once. */
+  if (window.innerWidth < 600) {
+    for (const row of document.querySelectorAll('.detail-pane-tabs')) {
+      const on = row.querySelector('.is-active');
+      if (on) row.scrollLeft = on.offsetLeft - row.offsetLeft - 48;
+    }
+  }
+</script>
+</body>
+</html>
