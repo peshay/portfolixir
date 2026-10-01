@@ -346,3 +346,15 @@ jobs:
           MIX_ENV=test mix ecto.migrate
           MIX_ENV=test mix ecto.rollback
           MIX_ENV=test mix ecto.migrate
+
+      # The round trip above migrates a database that holds no rows, and an
+      # upgrade runs over every row an instance holds (Sprint 16's two
+      # boot-stopping catches, the import-hash kind CHECK and CR-1's author
+      # backfill, were invisible to it). The seeded-upgrade cases replay the
+      # upgrade over synthetic legacy rows, each in a scratch database of its
+      # own, and the rule beside them requires a case for every new migration
+      # that adds a CHECK, a NOT NULL or a backfill (Portfolixir.SeededUpgrade,
+      # Sprint 17 Lane G-1). The default suite runs them too; here they run on
+      # their own, so a broken upgrade path reads as this job's failure.
+      - name: Seeded upgrades over legacy rows
+        run: MIX_ENV=test mix test --only seeded_upgrade
