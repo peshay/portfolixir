@@ -1252,7 +1252,19 @@ des neuesten gespeicherten Kurses über die gehaltenen Positionen, zur auf
 veraltete Kurse vorgefilterten Wertpapierliste; ihre Unterzeile „n veraltet"
 erscheint nur, wenn es veraltete Kurse gibt (sonst das Datum allein — ein
 Fakt, kein „alles in Ordnung"), und eine Basiszeile unter der Leiste nennt
-Ansicht, Zeitraum und Währung — eine Liste
+Ansicht, Zeitraum und Währung — die Karte **Abgeschlossene Trades** (UX-DR2
+in der Fassung vom 2026-10-01, Issue #984): die fünf zuletzt abgeschlossenen
+Rundläufe, neueste zuerst, je mit Verkaufsdatum und Haltedauer, dem
+realisierten Ergebnis in der Basiswährung in seiner Vorzeichenfarbe und
+darunter der Rendite — **pro Jahr** („p. a.") ab 365 Tagen Haltedauer,
+**über die ganze Haltedauer** („gesamt") darunter —, jede Zeile verlinkt auf
+den Trades-Tab ihres Wertpapiers, und **Alle Trades →** im Kopf der Karte
+führt zur Facette Trades. Ihre Basiszeile sagt, dass sie **alle Depots
+unabhängig von der Ansicht** abdeckt: der Rest der Übersicht folgt der
+gewählten Ansicht, die Trades nicht. Sie zeigt Ergebnisse, keine Aktivität,
+und fehlt, solange kein Trade abgeschlossen ist; ein Verkauf ohne
+gespeicherten Kurs an seinem Schlussdatum wird auf der Karte genannt, das
+Nachladen steht unter Alle Trades — eine Liste
 **Ziel-Abweichungen** (Issue #718 — die Karte ist nach ihrem Inhalt benannt,
 gemäß UX-DR21) — jede Kategorie mit Ziel, deren Allokations-Drift
 **±5 Prozentpunkte** überschreitet (ADR-0023-Vorzeichen: positiv =
@@ -1267,7 +1279,8 @@ wobei jeder Zähler auf die exakt darauf vorgefilterte Wertpapierliste
 verlinkt. Die Zeile erscheint nur, wenn mindestens ein Zähler größer als null
 ist; ein sauberer Katalog zeigt nichts (kein grünes „alles in Ordnung"). Es
 gibt bewusst keinen Aktivitäts-Feed: die forensischen Details gehören dem
-Audit-Journal.
+Audit-Journal, und die Karte Abgeschlossene Trades zeigt, was ein Verkauf
+realisiert hat, nie die Buchung selbst.
 
 ## Vermögens-Seite
 
@@ -1661,15 +1674,33 @@ wird als leere Hülle gezeigt. **Income** ist der Standard-Bereich, und
 ältere Links und Lesezeichen erhalten bleiben. Seit Issue #724 trägt der
 Bereich einen zweistufigen Facetten-Umschalter.
 
-**Realisierte Gewinne** (`/cashflow?tab=realized`, Issues #724 und #807)
-beantwortet „was hat Verkaufen tatsächlich gebracht" — und ist seit Issue #807
-**die Trades-Ansicht**: die Facette öffnet mit drei Zahlen — der realisierten
+**Trades** (`/cashflow?tab=realized`, Issues #724, #807 und #984)
+beantwortet „was hat Verkaufen tatsächlich gebracht — und hat sich der Trade
+gelohnt". Seit Issue #807 ist die Facette **die Trades-Ansicht**, und seit
+Issue #984 sagt ihr Schalter das auch (die Adresse bleibt, Links und
+Lesezeichen halten): die Facette öffnet mit drei Zahlen — der realisierten
 Summe, der **Trefferquote** (dem Anteil der abgeschlossenen Trades mit Gewinn;
 ein Nullergebnis zählt nicht als Treffer) und der **durchschnittlichen
 Haltedauer** — gefolgt von den abgeschlossenen Rundläufen selbst, neuester
 Schluss zuerst, je Zeile das Wertpapier (verlinkt auf seinen Trades-Tab),
 gekauft → verkauft, die Haltedauer, die Stückzahl, die Kosten, der Erlös und
-das Ergebnis in Geld und Prozent, das Ergebnis in seiner Vorzeichenfarbe. Die
+die Spalte **p. a.** und das Ergebnis in Geld und Prozent, das Ergebnis in
+seiner Vorzeichenfarbe. **p. a.** (Issue #984) ist die annualisierte Rendite
+des Trades: die geldgewichtete Rendite pro Jahr seines eigenen Geldes — jedes
+gekaufte Lot zu seinem Kaufdatum, der Verkauf zu seinem Verkaufsdatum — in
+der Währung des Trades, wie die Prozentzahl unter dem Ergebnis. Sie steht
+**ab 365 Tagen Haltedauer** (die Zelle Haltedauer derselben Zeile); darunter
+zeigt die Zelle einen gedämpften Strich, dessen Grund ihr Tooltip nennt
+(„Unter einem Jahr Haltedauer nicht annualisiert"), denn ein kurzer Trade
+liest sich annualisiert absurd — 5 % in 14 Tagen wären rund 257 % im Jahr —
+und seine Prozentzahl über die Haltedauer sagt bereits, was er gebracht hat.
+Eine Zeile unter der Liste nennt die Regeln: Einlieferungen eröffnen keinen
+Lot, Gebühren und Steuern stecken in Einstand und Erlös, Erträge während der
+Haltedauer sind nicht enthalten, und p. a. erst ab 365 Tagen Haltedauer. Der
+Umfang des Matchers — FIFO je Wertpapier über alle Depots — steht in der
+ersten Zeile der Facette. Auf dem Telefon weicht die Tabelle zweizeiligen
+Zeilen: der Name über gekauft → verkauft und den Tagen, das Ergebnis über
+seiner Prozentzahl und, ab einem Jahr Haltedauer, der p.-a.-Zahl. Die
 Jahres-/Monatsmatrix, mit der die Facette früher öffnete, behält jede Zahl —
 jetzt unter **Realisiert je Periode** hinter der Aufklappung **Matrix nach
 Jahr und Monat** unter der Liste. Konnte ein Verkauf nicht konvertiert

@@ -489,11 +489,11 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     {:ok, view, html} = live(conn, "/cashflow?tab=realized")
 
     # The facet tab row exists now that more than one facet has a read, and
-    # the active facet is marked.
+    # the active facet is marked — named "Trades" since #984 (pick G1-A).
     assert has_element?(view, ~s([data-role="cashflow-facets"]))
 
     assert view |> element(~s([data-role="cashflow-facets"] [aria-current])) |> render() =~
-             "Realized"
+             "Trades"
 
     assert html =~ ~s(data-role="facet-composition")
     composition = view |> element(~s([data-role="facet-composition"])) |> render()

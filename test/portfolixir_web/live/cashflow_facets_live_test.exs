@@ -20,8 +20,10 @@ defmodule PortfolixirWeb.CashflowFacetsLiveTest do
   #   free-standing paragraph above its first table.
   @facets [
     {"/cashflow", "Received dividends and interest", "dividends and interest · this portfolio"},
-    {"/cashflow?tab=realized", "Realized gains and losses from sales",
-     "FIFO-matched sales · all portfolios"},
+    # #984 (pick G1-A): the realized facet reads "Trades"; its basis line
+    # carries the matcher's scope once, the list's basis line does not.
+    {"/cashflow?tab=realized", "Closed trades and their realized result",
+     "FIFO per security · all depots"},
     {"/cashflow?tab=flows", "Deposits and withdrawals",
      "external deposits and withdrawals · all portfolios"},
     {"/cashflow?tab=costs", "Fees and taxes", "fees and taxes at overview level · all portfolios"}
