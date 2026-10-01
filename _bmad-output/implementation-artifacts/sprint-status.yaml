@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-10-01 (Sprint 17 PLANNED: sprint-plan-2026-10-01-sprint17.md, adopted by the merge of its planning PR, which SIGNS ADR-0051 (FR-41) and answers the 2026-10-01 triage's OQ-1 to OQ-6 -- the agent's first contact in three lane PRs, the launch test as the exit criterion, FR-41's build in Sprint 18, calendar versions by workflow, the authorship rule kept and its friction removed)
+# last_updated: 2026-10-01 (Sprint 17 PR alpha opened: E26 tracker #991 and its issues filed; earlier the same day, Sprint 17 PLANNED: sprint-plan-2026-10-01-sprint17.md, adopted by the merge of its planning PR, which SIGNS ADR-0051 (FR-41) and answers the 2026-10-01 triage's OQ-1 to OQ-6 -- the agent's first contact in three lane PRs, the launch test as the exit criterion, FR-41's build in Sprint 18, calendar versions by workflow, the authorship rule kept and its friction removed)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -51,6 +51,24 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# PR ALPHA OPENED (2026-10-01, Sprint 17) -- branch
+# agent/claude/sprint-17-alpha from `main` at bbe3ca5e, which carries the
+# Sprint 17 planning merge (PR #986). Lanes G, P, D and M (plan D-12).
+# LANE Z, after the planning merge (by the owner, 2026-10-01): #849 closed as
+# not planned (D-13); ADR-0051's four deferrals filed as #987-#990, each
+# `needs-decision`.
+# LANE Z, at PR alpha's branch opening (their registry rows land with this
+# entry): E26's tracker #991; under it A1 #992 (MCP profiles), A2 #993 (twin
+# scope tools), A3 #994 (schema budget), G-1 #995 (seeded upgrades), G-2 #996
+# (lock order), P1 #997 (calendar versions), the launch test #998 (D-1); the
+# follow-ups the decisions name, each `needs-decision`: #999 (scoped API
+# tokens, D-5), #1000 (income inside a trade, D-7/OQ-6), #1001 (the matcher's
+# lot scope, D-7), and D-8's Sprint 18 candidates #1002 (excess return per
+# trade), #1003 (returns heatmap), #1004 (presenter mode). #981-#984 moved
+# under #991. Rows touched: FR-41 in the FR Coverage Map (the four deferral
+# numbers) and the Tracker Index's E26 line; epic-26 moves to in-progress.
+# The design pass's Part 4 observations are filed at PR gamma's opening.
 #
 # PLANNED (2026-10-01, Sprint 17) -- sprint-plan-2026-10-01-sprint17.md,
 # adopted by the merge of the Sprint 17 planning PR, which SIGNS ADR-0051
@@ -1993,5 +2011,8 @@ development_status:
   # against it; the tracker is filed at PR alpha's branch opening, and
   # #981-#984 (filed 2026-10-01 without a parent) move under it. Exit
   # criterion: the launch test of the plan's D-1.
-  epic-26: backlog
+  # IN PROGRESS 2026-10-01: tracker #991 filed at PR alpha's branch opening,
+  # with A1-A3 #992-#994, G-1 #995, G-2 #996, P1 #997, the launch test #998,
+  # and the follow-ups #999-#1004; #981-#984 moved under it.
+  epic-26: in-progress
   epic-26-retrospective: optional
