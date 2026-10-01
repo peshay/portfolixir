@@ -290,6 +290,12 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     # Accounts & depots.
     assert Floki.attribute(Floki.find(basis, "a[data-role='overview-merge-link']"), "href") ==
              ["/portfolios?merge=#{record.id}#merge-records"]
+
+    # The basis line is a flex row: its clauses sit in one inline span, so
+    # the link does not split the sentence into flex items (closing act γ
+    # D5).
+    assert [{"p", _attrs, [{"span", span_attrs, _clauses}]}] = basis
+    assert {"class", "summary-basis__text"} in span_attrs
   end
 
   # User story:

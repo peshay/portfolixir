@@ -222,6 +222,8 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
       class="workspace-section merge-records"
       aria-labelledby="merge-records-title"
       data-role="merge-records"
+      phx-hook="MergeFocus"
+      data-focus={@focus}
     >
       <h2 id="merge-records-title"><%= gettext("Merges") %></h2>
       <%= if @records == [] do %>
@@ -234,13 +236,27 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
         <details
           id="merge-records-disclosure"
           class="section-disclosure"
-          open={focused?(@records, @focus)}
+          open={focused?(@records, @focus) or past_cut?(@records, @more?, @focus)}
         >
           <summary class="disclosure-summary" data-role="merge-records-summary">
             <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
             <%= list_summary(@records, @more?) %>
           </summary>
           <p class="detail-tab-hint"><%= gettext("What each merge moved, the newest first.") %></p>
+          <%!-- A link naming a merge the cut list does not carry (a
+               survivor's date past the newest 100, closing act γ): said,
+               not silently nothing. --%>
+          <p
+            :if={past_cut?(@records, @more?, @focus)}
+            class="hint"
+            data-role="merge-records-focus-missing"
+          >
+            <%= ngettext(
+              "The merge the link names is not among the newest %{count} listed here.",
+              "The merge the link names is not among the newest %{count} listed here.",
+              length(@records)
+            ) %>
+          </p>
 
           <div class="data-table-wrapper merge-records__table">
             <table class="data-table merge-records-table" data-role="merge-records-table">
@@ -343,6 +359,11 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
   # -- words ----------------------------------------------------------------------
 
   defp focused?(records, focus), do: focus != nil and Enum.any?(records, &(&1.id == focus))
+
+  # Only a cut list can leave out a merge a link names; in a whole list an id
+  # it does not carry names no merge, and nothing is said.
+  defp past_cut?(records, more?, focus),
+    do: more? and focus != nil and not focused?(records, focus)
 
   defp list_summary(records, more?) do
     latest = records |> hd() |> Map.fetch!(:date) |> Format.date()

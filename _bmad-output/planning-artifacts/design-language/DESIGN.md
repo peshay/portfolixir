@@ -2704,7 +2704,17 @@ be the two-way gap in the other direction.
   build's names the section, because each entry renders twice (the table row
   and the phone row, one of them always `display: none`) and a fragment that
   points at the hidden copy scrolls nowhere. The opened result marks the
-  entry; the list is dozens of rows, not thousands.
+  entry; the list is dozens of rows, not thousands. **Closing act γ:** the
+  section and every entry carry `scroll-margin-top` (the top bar's height
+  plus `--space-3`), so the fragment does not land under the sticky bar, and
+  the `MergeFocus` hook focuses the opened entry's visible result summary
+  once per opened id, which brings it into view (D8). A link naming a merge
+  a cut list does not carry — older than the newest 100 — opens the section
+  with a `.hint` under its hint, "The merge the link names is not among the
+  newest 100 listed here." (board 02, A8); in a whole list an unknown id
+  names no merge and nothing is said. In a security's basis line the clauses
+  sit in one inline `span.summary-basis__text`, because that line is a flex
+  row and the date link split the sentence into flex items (D5).
 - **Under 560 px** the table gives way to `.phone-row`s (UX-DR27):
   "source → target" (600, wrapping) over "date · kind · by" — the phone row
   has no figure for its right edge, because a merge carries no amount, so the

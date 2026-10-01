@@ -695,7 +695,9 @@ heißt es *die neuesten 100*. Jede Zeile nennt:
 
 Das Datum in der Zeile *zusammengeführt aus … · Datum* eines Überlebenden und
 in der Grundlagenzeile *zusammengeführt am … aus …* eines Wertpapiers öffnet
-die Liste beim Ergebnis dieser Zusammenführung. Die Liste ist nur zum Lesen:
+die Liste beim Ergebnis dieser Zusammenführung; eine, die älter ist als die
+neuesten 100, wird als außerhalb der Liste genannt. Die Liste ist nur zum
+Lesen:
 Ein Rückgängigmachen gibt es nicht, und nichts in ihr schreibt. Solange es
 keine Zusammenführung gibt, sagt sie, wo eine beginnt — **Zusammenführen in…**
 im Zeilenmenü jedes Kontos, Depots und Wertpapiers. Auf dem Telefon ist jede
