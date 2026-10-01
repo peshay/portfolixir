@@ -417,7 +417,7 @@ decided only if that question fails**, and then before the announcement,
 because a surface that changes after strangers learn it costs more than one
 that changes before.
 
-### D-7: trades — reach and one column; the figure already exists (recommended)
+### D-7: trades — the figure already exists; reach, one column, and the sells it drops (recommended)
 
 The facts, read from the code:
 
