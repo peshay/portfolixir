@@ -1777,10 +1777,12 @@ zu, zuerst gekauft, zuerst verkauft, in einer Warteschlange über alle Depots,
 und eine Einlieferung eröffnet keinen Lot — wer Stücke aus einer Einlieferung
 verkauft, typisch für eine importierte Historie, hinterlässt also einen
 Verkauf ohne Gegenstück, und ein Verkauf über die gekauften Stücke hinaus
-hinterlässt seinen Rest. Ein solcher Verkauf ist kein abgeschlossener Trade
-und steht in keiner der drei Kennzahlen, keiner Zeile und nicht in der
-Matrix. Eine Achtung-Notiz nach dem Kurs-Hinweis nennt die Anzahl, ihre
-Aufklappliste jeden Verkauf als Wertpapier · Datum · Stückzahl. Sie trägt
+hinterlässt seinen Rest. Diese Stückzahl ohne Gegenstück ist kein
+abgeschlossener Trade und steht in keiner der drei Kennzahlen, keiner Zeile
+und nicht in der Matrix; der zugeordnete Teil desselben Verkaufs ist ein
+Trade wie jeder andere. Eine Achtung-Notiz nach dem Kurs-Hinweis nennt, wie
+viele Verkäufe eine solche Stückzahl haben, ihre Aufklappliste jeden als
+Wertpapier · Datum · Stückzahl ohne Gegenstück. Sie trägt
 keine Schaltfläche, denn nichts auf der Seite kann den fehlenden Kauf
 liefern.
 

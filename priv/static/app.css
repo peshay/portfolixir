@@ -9693,6 +9693,30 @@ dialog.merge-dialog {
   color: var(--color-danger);
 }
 
+/* Rule ① inside the table (closing act γ D4): the same td rule outranked
+   the muted dash, which printed in the text colour. */
+#realized-trades-table td.trade-pa--na {
+  color: var(--color-text-muted);
+}
+
+/* Rule ⑦ (closing act γ D9; the board left it to the story): a reading
+   table, not a matrix — it fits its wrapper, the name and the dates wrap,
+   the figures do not, so Result stays in view at 1280 px with the sidebar
+   open. UX-DR15's scroller stays the fallback, as for the merge records. */
+.data-table-wrapper > #realized-trades-table {
+  min-width: 0;
+}
+
+#realized-trades-table td.num,
+#realized-trades-table th.num {
+  white-space: nowrap;
+}
+
+#realized-trades-table td:first-child {
+  min-width: 12ch;
+  overflow-wrap: anywhere;
+}
+
 /* Rule ⑤ at phone width (the board drew the note at desktop width only):
    under 560 px the security takes its own line and the date and quantity
    sit beneath it, so a long name is not squeezed into a narrow column by
