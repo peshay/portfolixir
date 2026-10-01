@@ -9471,6 +9471,14 @@ dialog.merge-dialog {
   }
 }
 
+/* ⑥ A link to the section or to one entry clears the sticky top bar
+   (closing act γ D8): the browser's fragment scroll and the MergeFocus
+   hook's focus both stop below it. */
+#merge-records,
+.merge-records [data-merge] {
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-3));
+}
+
 /* ⑤ A survivor's merge date is the way into its record: the "merged from"
    line on Accounts & depots and the basis line of a security. */
 .merge-date-link {

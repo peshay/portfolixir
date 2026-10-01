@@ -1822,7 +1822,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
       class="summary-basis"
       data-role="overview-basis"
     >
-      <%= for {clause, index} <- Enum.with_index(@clauses) do %><%= if index > 0, do: " · " %><.basis_clause clause={clause} /><% end %>
+      <%!-- One inline span for the sentence: the line is a flex row, and a
+           link inside a clause would otherwise split it into flex items
+           (closing act γ D5). --%>
+      <span :if={@clauses != []} class="summary-basis__text"><%= for {clause, index} <- Enum.with_index(@clauses) do %><%= if index > 0, do: " · " %><.basis_clause clause={clause} /><% end %></span>
       <span :if={@security.is_retired} class="badge badge--retired">
         <%= gettext("Retired") %>
       </span>

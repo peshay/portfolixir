@@ -388,6 +388,53 @@
 </section>
 
 <!-- ============================ VARIANTE B ============================ -->
+<!-- Nachtrag 2026-10-01: the closing act's review on the built section (γ D5,
+     D8 and the link past the cut). -->
+<section class="mock-board">
+  <h2>Nachtrag nach dem Review (Abschluss γ) — ein Zustand, eine Reparatur, eine Regel</h2>
+  <div class="mock-row">
+    <div class="col">
+      <div>
+        <p class="cap">A8 — der Link nennt eine Zusammenführung jenseits der neuesten 100</p>
+        <div class="mock-frame mock-after"><span class="mock-tag">Neu</span>
+          <section class="workspace-section">
+            <h2>Zusammenführungen</h2>
+            <details class="section-disclosure" open>
+              <summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>die neuesten 100 · zuletzt 30.09.2026</summary>
+              <p class="detail-tab-hint">Was jede Zusammenführung bewegt hat, die neueste zuerst.</p>
+              <p class="hint is-new">Die Zusammenführung, die der Link nennt, steht nicht unter den neuesten 100.</p>
+              <p class="elide" style="margin:0;font-size:12px;font-style:italic;color:var(--mock-ink)">… die Tabelle wie oben, kein Eintrag aufgeklappt.</p>
+            </details>
+          </section>
+        </div>
+      </div>
+      <div>
+        <p class="cap">Basiszeile des Wertpapiers, 390 px — vorher</p>
+        <div class="mock-frame mock-before" style="max-width:390px"><span class="mock-tag">Vorher</span>
+          <div class="detail-tab-panel--overview" style="padding:12px">
+            <p class="summary-basis">ehemals ISIN XS0000000025 (bis 2025-06-15) · zusammengeführt am <a class="merge-date-link" href="#">2026-09-30</a> aus „Alder Creek Timber Fund Class B“ (damals XS0000000025)</p>
+          </div>
+        </div>
+      </div>
+      <div>
+        <p class="cap">Basiszeile des Wertpapiers, 390 px — nachher</p>
+        <div class="mock-frame mock-after" style="max-width:390px"><span class="mock-tag">Nachher</span>
+          <div class="detail-tab-panel--overview" style="padding:12px">
+            <p class="summary-basis"><span class="summary-basis__text is-new">ehemals ISIN XS0000000025 (bis 2025-06-15) · zusammengeführt am <a class="merge-date-link" href="#">2026-09-30</a> aus „Alder Creek Timber Fund Class B“ (damals XS0000000025)</span></p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes" style="flex:1 1 360px">
+      <ol>
+        <li><b>A8, jenseits des Schnitts:</b> Das Datum eines Überlebenden verlinkt <code>?merge=&lt;id&gt;</code>; ist die Liste bei 100 geschnitten und der Eintrag älter, öffnete der Link bisher nichts, ohne ein Wort. Jetzt öffnet sich der Abschnitt und sagt es (UX&#8209;DR26). Eine Liste ohne Schnitt kennt jede Zusammenführung; dort nennt eine fremde Kennung keine, und es bleibt still.</li>
+        <li><b>Die Basiszeile ist eine Flex-Zeile</b> (<code>.detail-tab-panel--overview .summary-basis</code>): Der neue Link im Datum zerlegte den Satz in drei Flex-Elemente — bei 390 px „zusammengeführt am“, das Datum und der Rest auf drei Zeilen, bei 1200 px eine doppelte Lücke vor dem Datum. Ein Inline-<code>span</code> um alle Satzteile hält die Zeile als Text; das Flex-Element daneben bleibt nur das Abzeichen „Ausgemustert“.</li>
+        <li><b>Unter der Kopfleiste:</b> Abschnitt und Einträge tragen <code>scroll-margin-top</code> (Höhe der Kopfleiste plus Abstand), und der Hook <code>MergeFocus</code> fokussiert die Zusammenfassung des geöffneten Eintrags — die sichtbare, Tabelle oder Telefonzeile —, was ihn ins Bild holt. Einmal je geöffneter Kennung. Kein sichtbarer Unterschied im Bild außer dem Fokusring; darum nur als Regel.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
 <section class="mock-board">
   <h2>Variante B — derselbe Abschnitt auf Transaktionen → Import <small>Datenherkunft</small></h2>
   <p class="mock-note">Gleiche Zeile, gleiche Aufklappung; der Abschnitt steht unter der Ablagezone der Importseite. Die Begründung: Eine Zusammenführung ändert, was ein erneuter Import tut (zurückgezogene Hashes, frühere Namen, ADR-0050 §2–§4).</p>
