@@ -1,0 +1,592 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Anleihen: Stammdaten und Kennzahlen (#330, Pick H3)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL (variant A): the rules the story adds to app.css. Everything
+     else inside the frames is markup and classes that already ship:
+     securities_live.ex (render_detail_pane/1: .detail-pane, .detail-pane-head,
+     .detail-pane-head__title, .detail-pane-head__actions, .detail-pane-sub,
+     .detail-pane-tabs, .detail-pane-tab; overview_tab_panel/1:
+     .detail-tab-panel--overview, .overview-reading, .overview-reading__main,
+     .overview-reading__side, .overview-metrics, .overview-metric,
+     .overview-metric__unit, .overview-metric__sub, .overview-chart,
+     .summary-basis, .overview-card; metric_grid/1: the
+     .detail-tab-hint[data-role=metrics-basis] basis line of ADR-0047),
+     SecurityFormDialog (.modal, .modal-head, .modal-body, .form-grid,
+     .dialog-toggle, .full-width, .modal-footer, .field-error),
+     the booking drawer's .settlement-fieldset (legend, .form-help),
+     AppShell.data_note/1 (.data-note--note / --problem, __icon, __word,
+     __body, .link-button as the remedy) and portfolio_live.ex data_quality/1
+     (#portfolio-data-quality). -->
+<style id="proposal">
+  /* ① The bond strip: one more block in the Overview's main column, only for
+     asset class bond / government_bond. Its grid IS .overview-metrics (the
+     grid of issue 804 that the ADR-0047 metric grid reuses), its basis line
+     IS .detail-tab-hint as under the metric grid. The only new thing is the
+     heading that tells the two grids apart, in the overview-card head voice. */
+  .bond-strip { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; }
+  .bond-strip__head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+  .bond-strip__head h3 { margin: 0; font-size: 11px; font-weight: 650; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); }
+  .bond-strip .detail-tab-hint { margin: 0; }
+
+  /* ② The bond section of the security dialog: shown only while the asset
+     class select reads bond or government_bond. In app.css this is not a
+     copy: `.bond-fieldset` joins the selector lists of the booking drawer's
+     `.settlement-fieldset` rules (the block shown only when it applies). */
+  .bond-fieldset { margin: var(--space-2) 0; padding: var(--space-3); border: 1px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-accent-soft); }
+  .bond-fieldset legend { float: left; width: 100%; padding: 0; margin-bottom: var(--space-2); color: var(--color-accent); font-weight: 600; }
+  .bond-fieldset > .form-grid { clear: both; }
+  .bond-fieldset .form-help { margin: var(--space-2) 0 0; padding: 0; font-size: 12.5px; }
+
+  /* ③ A date or a figure with its unit inside a cell's sub-line stays whole
+     at 390 px ("2031-06-15" otherwise breaks at a hyphen). */
+  .overview-metric__sub time, .overview-metric__sub .nowrap { white-space: nowrap; }
+
+  /* ④ A conformance repair, not a new rule: DESIGN.md gives the
+     .overview-metrics grid "two per row under 720px", and app.css says so
+     (`.overview-metrics` in the 720 px block), but `.overview-reading
+     .overview-metrics` (three columns, issue 804) outranks it by specificity,
+     so on a phone the Overview's six figures stand in three columns of about
+     105 px: "TAGESÄNDERUNG" runs into "1Y" and "Durchschnittseinstand" out of
+     the pane (the before frame at 390 px). The bond strip is the same grid in
+     the same column and would inherit it. One rule repairs both; whichever of
+     this story and the UI polish lane lands first carries it. */
+  @media (max-width: 720px) {
+    .overview-reading .overview-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: visible; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ol, .notes ul { margin: 0; }
+  .notes ol, .notes ul { padding-left: 18px; }
+  ol.pins { list-style: none; padding: 0; }
+  .notes li { margin: 0 0 6px; }
+  .notes code, .mock-note code, .pickbar code, .callout code, table.check code { font-size: 11.5px; }
+  .elide { margin: 0; font-size: 12px; color: var(--mock-ink); font-style: italic; }
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; text-transform: none; flex: none; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  i.pin.o { background: var(--mock-ink); }
+  .notes li > i.pin:first-child { margin: 0 4px 0 0; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .rec { color: var(--color-positive); font-weight: 760; }
+  .callout { border: 1px solid var(--color-border); border-left: 4px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-bg-elevated); padding: 10px 14px; display: grid; gap: 6px; font-size: 12.5px; }
+  .callout.open { border-left-color: var(--color-warning); }
+  .callout h4 { margin: 0; font-size: 13px; }
+  .callout p, .callout ul { margin: 0; }
+  .callout ul { padding-left: 18px; }
+  table.check { width: 100%; border-collapse: collapse; font-size: 12.5px; background: var(--color-bg-elevated); border: 1px solid var(--color-border); border-radius: var(--radius-md); overflow: hidden; }
+  table.check th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); background: var(--color-bg-muted); padding: 7px 10px; }
+  table.check td { padding: 8px 10px; border-top: 1px solid var(--color-border); vertical-align: top; }
+  table.check td.win { background: color-mix(in srgb, #ecfdf5 70%, transparent); }
+
+  /* the securities detail pane at the width it has at a 1200 px viewport
+     (the workspace beside a 248 px sidebar: about 900 px) */
+  .stage { padding: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .stage .detail-pane { margin-top: 0; }
+  .stage .detail-pane-tabs { overflow: hidden; }
+  .w-pane { flex: 0 1 932px; min-width: 0; }
+  .w-small { flex: 1 1 340px; min-width: 0; }
+  .w-dlg { flex: 0 1 640px; min-width: 0; }
+  .w-half { flex: 1 1 520px; min-width: 0; }
+  .grow { flex: 1 1 300px; }
+  ol.pins.two { columns: 2; column-gap: 28px; }
+  ol.pins.two li { break-inside: avoid; }
+  /* a drawn price chart stands in for SecurityChart.chart */
+  .overview-chart .chart-frame { height: 150px; }
+  .overview-chart svg { width: 100%; height: 100%; display: block; }
+  /* the dialog on a muted field standing in for the backdrop */
+  .dlg-field { background: var(--color-bg-muted); padding: 16px; display: grid; justify-items: center; align-content: start; }
+  .dlg-field .modal { width: 100%; }
+  .frame-cap { margin: 0 0 8px; font-size: 12px; color: var(--mock-ink); }
+  /* the disabled-looking cell in the guard frame */
+  .phone-only { display: none; }
+
+  /* ===== 390 px: the board becomes the phone =====
+     The same A markup renders in a true 390 px viewport, so app.css's 720 px
+     and 900 px rules (detail pane, overview reading) fire as on a phone. The
+     renderer has a mouse, so the `pointer: coarse` floors (44 px tabs) are
+     applied by hand here. */
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-board > p.mock-note { padding: 0 12px; }
+    .mock-row { gap: 14px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .stage { padding: 8px; }
+    .dlg-field { padding: 40px 0 0; background: rgba(15, 23, 42, .4); }
+    .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+    .detail-pane-tab { min-height: 44px; }
+    i.pin { display: none; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-ast" viewBox="0 0 24 24"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></symbol>
+    <symbol id="i-att" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></symbol>
+    <symbol id="i-oct" viewBox="0 0 24 24"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-max" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar desk-only"><b>Entscheidung H3 — offen.</b> Anleihen: Stammdaten und Kennzahlen (#330, neu zugeschnitten am 2026-10-01). Die Bewertungshälfte des Issues entfällt: Der Portfolio-Performance-Export bucht ein Stück als ein Hundertstel des Nominals, also ist Stück × Prozentkurs schon richtig. Es bleiben Stammdaten (Kupon, Fälligkeit, Stückelung mit Währung, Zinszahlung, optional der Emissionstag), Kennzahlen nur zur Anzeige (Restlaufzeit, laufende Rendite, optional eine linear angenäherte Rendite bis Fälligkeit) und ein Wächter, der eine auf <b>zwei Skalen</b> bepreiste Anleihe benennt. Die Frage: <b>Wo stehen die Anleihedaten im Wertpapierdetail?</b> <b>A</b> in der Übersicht, als zweites Kennzahlenraster unter den sechs Werten, mit eigener Grundlagenzeile · <b>B</b> ein eigener Tab „Anleihe“. <span class="rec">Empfehlung A.</span> Formular und Wächter sind in beiden Varianten gleich. Ein Kommentar mit Code und Buchstabe auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. Anleihe, ISIN, Kurse und Beträge sind erfunden. <b>Gestrichelt = neu.</b> Die Darstellung bei 390&nbsp;px ist <code>03-bond-master-data--390.png</code>.</div>
+<p class="phone-only phone-cap"><b>H3 · Variante A (empfohlen) bei 390&nbsp;px:</b> die Übersicht mit dem Anleiheraster, der Abschnitt im Dialog und der Wächter. Dieselben Rahmen wie im Board, in einem echten 390-px-Viewport; app.css' Regeln unter 720 und 900&nbsp;px greifen. Alle Daten erfunden.</p>
+
+<!-- ============================ HEUTE ============================ -->
+<section class="mock-board desk-only">
+  <h2>Heute · Wertpapier → Übersicht einer Anleihe <small><code>securities_live.ex</code> <code>overview_tab_panel/1</code> · <code>security.ex</code></small></h2>
+  <p class="mock-note">Eine Anleihe ist ein Wertpapier wie jedes andere. Der Katalog hat kein Feld für Kupon, Fälligkeit oder Stückelung (die Charakterisierung prüft genau das: <code>valuation_bond_characterization_test.exs</code>), der Dialog „Wertpapier bearbeiten“ auch nicht. Die Übersicht zeigt die sechs Werte jedes Wertpapiers.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-pane"><span class="mock-tag">Heute · /securities/42 · Anlageklasse Staatsanleihe</span>
+      <div class="stage">
+        <aside class="detail-pane" aria-label="Ausgewähltes Wertpapier">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title">
+              <span class="security-logo security-logo--lg security-logo--initial">M</span>
+              <div><h2>Musterland Anleihe 2031</h2><p class="detail-pane-sub">XS0000000001 · EUR · Letzter 97,25 (2026-09-30)</p></div>
+            </div>
+            <div class="detail-pane-head__actions">
+              <button type="button" class="button-ghost">Bearbeiten</button><i class="pin b" style="align-self:center">4</i>
+              <button type="button" class="button-ghost">Split erfassen</button>
+              <span class="icon-button"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-max"/></svg></span>
+              <span class="icon-button"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-x"/></svg></span>
+            </div>
+          </header>
+          <nav class="detail-pane-tabs" role="tablist"><button type="button" role="tab" aria-selected="true" class="detail-pane-tab is-active">Übersicht</button><button type="button" role="tab" class="detail-pane-tab">Diagramm</button><button type="button" role="tab" class="detail-pane-tab">Transaktionen</button><button type="button" role="tab" class="detail-pane-tab">Trades</button><button type="button" role="tab" class="detail-pane-tab">Kurse</button><button type="button" role="tab" class="detail-pane-tab">Bestände</button><button type="button" role="tab" class="detail-pane-tab">Klassifizierungen</button><button type="button" role="tab" class="detail-pane-tab">Research</button><button type="button" role="tab" class="detail-pane-tab">Termine</button></nav>
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--overview">
+            <div class="overview-reading">
+              <div class="overview-reading__main">
+                <dl class="overview-metrics">
+                  <div class="overview-metric"><dt>Letzter Kurs</dt><dd>97,25 <small class="overview-metric__unit">EUR</small><i class="pin b">2</i><small class="overview-metric__sub">(2026-09-30)</small></dd></div>
+                  <div class="overview-metric"><dt>Tagesänderung</dt><dd class="is-negative">−0,10 %</dd></div>
+                  <div class="overview-metric"><dt>1Y</dt><dd class="is-negative">−0,85 % <small class="overview-metric__sub">nur Kurs</small></dd></div>
+                  <div class="overview-metric"><dt>Bestand</dt><dd>100 <small class="overview-metric__unit">Stück</small><i class="pin b">1</i><small class="overview-metric__sub">Depot 1</small></dd></div>
+                  <div class="overview-metric"><dt>Wert</dt><dd>9.725,00 <small class="overview-metric__unit">EUR</small><i class="pin b">5</i></dd></div>
+                  <div class="overview-metric"><dt>Unrealisiert</dt><dd class="is-negative">−125,00 <small class="overview-metric__sub">−1,27 % · gegen den Durchschnittseinstand</small></dd></div>
+                </dl>
+                <div class="overview-chart"><div class="chart-frame"><svg viewBox="0 0 600 140" preserveAspectRatio="none" aria-hidden="true"><path d="M0 40 L40 46 L80 38 L120 52 L160 58 L200 50 L240 66 L280 70 L320 62 L360 78 L400 74 L440 86 L480 82 L520 92 L560 88 L600 96 L600 140 L0 140Z" fill="var(--color-accent)" fill-opacity=".14"/><path d="M0 40 L40 46 L80 38 L120 52 L160 58 L200 50 L240 66 L280 70 L320 62 L360 78 L400 74 L440 86 L480 82 L520 92 L560 88 L600 96" fill="none" stroke="var(--color-accent)" stroke-width="1.6"/></svg></div></div>
+                <p class="summary-basis"><span class="summary-basis__text">Kurse: Portfolio Performance · Anlageklasse Staatsanleihe<i class="pin b">3</i></span></p>
+              </div>
+              <div class="overview-reading__side">
+                <section class="overview-card"><div class="overview-card__head"><h3>These</h3><span class="badge badge--thesis-none">Keine</span></div><p class="detail-tab-empty">Noch keine These erfasst.</p><button type="button" class="button-ghost">Research-Log</button></section>
+                <section class="overview-card"><div class="overview-card__head"><h3>Notiz</h3><button type="button" class="button-ghost">Hinzufügen</button></div><p class="detail-tab-empty">Noch keine persönliche Notiz.</p></section>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+    <div class="notes grow">
+      <p class="cap">Was heute fehlt</p>
+      <ol class="pins">
+        <li><i class="pin b">1</i><b>„100 Stück“ sagt nicht, dass es 10.000 EUR Nominal sind.</b> Ein Stück ist hier ein Hundertstel des Nominals, so bucht der Export prozentnotierte Anleihen. Das steht nirgends auf der Seite. Wer den Bestand gegen die Abrechnung prüft, rechnet selbst.</li>
+        <li><i class="pin b">2</i><b>„97,25 EUR“ ist zugleich 97,25 % vom Nennwert.</b> Das stimmt nur wegen der Konvention aus ①, und auch das sagt die Seite nicht.</li>
+        <li><i class="pin b">3</i><b>Nichts Anleihetypisches.</b> Kein Kupon, keine Fälligkeit, keine Restlaufzeit, keine Rendite. Die Grundlagenzeile nennt nur die Anlageklasse.</li>
+        <li><i class="pin b">4</i><b>Der Dialog hinter „Bearbeiten“ hat keine Felder dafür.</b> Name, Ticker, ISIN, WKN, Währung, Börse, Anlageklasse, Kursquelle, URL, Roh-Kurse und Notiz; für Anleihen gibt es nichts.</li>
+        <li><i class="pin b">5</i><b>Der Wert stimmt nur in der Hundertstel-Lesung.</b> Bucht ein Export das Nominal als Stückzahl, ist der Wert ab dem ersten Kurs hundertfach zu hoch (972.500,00 statt 9.725,00), und die TTWROR zeigt es nicht (Bond-Discovery, Punkt 5). Heute warnt nichts.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>A · empfohlen — die Anleihedaten in der Übersicht <small>ein zweites Kennzahlenraster unter den sechs Werten · Grundlagenzeile direkt darunter · nur für Anleihe und Staatsanleihe</small></h2>
+  <p class="mock-note desk-only">Die Übersicht ist der Ort, an dem Kurs, Bestand und Wert schon stehen, und aus genau diesen Zahlen rechnen sich Nominal und Renditen. Für eine Anleihe bekommt ihre Hauptspalte einen Block mehr: Überschrift „Anleihe“, darunter dasselbe <code>.overview-metrics</code>-Raster (drei mal zwei wie die sechs Werte darüber), darunter eine Grundlagenzeile in der Anatomie der Kennzahlen im Tab „Diagramm“ (ADR-0047). Andere Anlageklassen sehen nichts Neues. Kein Eingabefeld auf dem Tab; die Stammdaten werden im Dialog hinter „Bearbeiten“ erfasst.</p>
+
+  <div class="mock-frame mock-before phone-only" style="margin-bottom:14px"><span class="mock-tag">Heute bei 390 px · die sechs Werte in drei Spalten (Regel ④)</span>
+    <div class="stage">
+      <div class="detail-pane">
+        <div class="overview-reading"><div class="overview-reading__main">
+          <dl class="overview-metrics" style="grid-template-columns:repeat(3,minmax(0,1fr))">
+            <div class="overview-metric"><dt>Letzter Kurs</dt><dd>97,25 <small class="overview-metric__unit">EUR</small><small class="overview-metric__sub">(2026-09-30)</small></dd></div>
+            <div class="overview-metric"><dt>Tagesänderung</dt><dd class="is-negative">−0,10 %</dd></div>
+            <div class="overview-metric"><dt>1Y</dt><dd class="is-negative">−0,85 % <small class="overview-metric__sub">nur Kurs</small></dd></div>
+            <div class="overview-metric"><dt>Bestand</dt><dd>100 <small class="overview-metric__unit">Stück</small><small class="overview-metric__sub">Depot 1</small></dd></div>
+            <div class="overview-metric"><dt>Wert</dt><dd>9.725,00 <small class="overview-metric__unit">EUR</small></dd></div>
+            <div class="overview-metric"><dt>Unrealisiert</dt><dd class="is-negative">−125,00 <small class="overview-metric__sub" style="overflow:hidden">−1,27 % · gegen den Durchschnittseinstand</small></dd></div>
+          </dl>
+        </div></div>
+      </div>
+    </div>
+    <p class="frame-cap" style="padding:0 12px 10px;margin:0">„TAGESÄNDERUNG“ läuft in „1Y“, und „Durchschnittseinstand“ ragt über die Zelle hinaus (hier abgeschnitten, damit das Board nicht seitwärts scrollt). DESIGN.md verlangt zwei Spalten unter 720&nbsp;px; Regel ④ stellt das wieder her, für die sechs Werte und das neue Raster.</p>
+  </div>
+  <div class="mock-row">
+    <div class="mock-frame mock-after w-pane"><span class="mock-tag">A1 · Übersicht einer Anleihe mit erfassten Stammdaten</span>
+      <div class="stage">
+        <aside class="detail-pane" aria-label="Ausgewähltes Wertpapier">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title">
+              <span class="security-logo security-logo--lg security-logo--initial">M</span>
+              <div><h2>Musterland Anleihe 2031</h2><p class="detail-pane-sub">XS0000000001 · EUR · Letzter 97,25 (2026-09-30)</p></div>
+            </div>
+            <div class="detail-pane-head__actions">
+              <button type="button" class="button-ghost">Bearbeiten</button>
+              <button type="button" class="button-ghost">Split erfassen</button>
+              <span class="icon-button"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-max"/></svg></span>
+              <span class="icon-button"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-x"/></svg></span>
+            </div>
+          </header>
+          <nav class="detail-pane-tabs" role="tablist"><button type="button" role="tab" aria-selected="true" class="detail-pane-tab is-active">Übersicht</button><button type="button" role="tab" class="detail-pane-tab">Diagramm</button><button type="button" role="tab" class="detail-pane-tab">Transaktionen</button><button type="button" role="tab" class="detail-pane-tab">Trades</button><button type="button" role="tab" class="detail-pane-tab">Kurse</button><button type="button" role="tab" class="detail-pane-tab">Bestände</button><button type="button" role="tab" class="detail-pane-tab">Klassifizierungen</button><button type="button" role="tab" class="detail-pane-tab">Research</button><button type="button" role="tab" class="detail-pane-tab">Termine</button></nav>
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--overview">
+            <div class="overview-reading">
+              <div class="overview-reading__main">
+                <dl class="overview-metrics">
+                  <div class="overview-metric"><dt>Letzter Kurs</dt><dd>97,25 <small class="overview-metric__unit">EUR</small><small class="overview-metric__sub">(2026-09-30)</small></dd></div>
+                  <div class="overview-metric"><dt>Tagesänderung</dt><dd class="is-negative">−0,10 %</dd></div>
+                  <div class="overview-metric"><dt>1Y</dt><dd class="is-negative">−0,85 % <small class="overview-metric__sub">nur Kurs</small></dd></div>
+                  <div class="overview-metric"><dt>Bestand</dt><dd>100 <small class="overview-metric__unit">Stück</small><small class="overview-metric__sub">Depot 1</small></dd></div>
+                  <div class="overview-metric"><dt>Wert</dt><dd>9.725,00 <small class="overview-metric__unit">EUR</small></dd></div>
+                  <div class="overview-metric"><dt>Unrealisiert</dt><dd class="is-negative">−125,00 <small class="overview-metric__sub">−1,27 % · gegen den Durchschnittseinstand</small></dd></div>
+                </dl>
+
+                <section class="bond-strip is-new" aria-labelledby="bond-strip-a1" data-role="bond-strip">
+                  <div class="bond-strip__head"><h3 id="bond-strip-a1">Anleihe<i class="pin o">1</i></h3></div>
+                  <dl class="overview-metrics" data-role="bond-metrics">
+                    <div class="overview-metric"><dt>Fälligkeit</dt><dd>2031-06-15<small class="overview-metric__sub">Emission <time datetime="2021-06-15">2021-06-15</time></small></dd></div>
+                    <div class="overview-metric"><dt>Kupon</dt><dd>2,50 % <small class="overview-metric__unit">p. a.</small><small class="overview-metric__sub">jährlich, am 15.06.</small></dd></div>
+                    <div class="overview-metric"><dt>Nominal im Bestand<i class="pin o">2</i></dt><dd>10.000,00 <small class="overview-metric__unit">EUR</small><small class="overview-metric__sub"><span class="nowrap">100 Stück × 100 EUR</span> · Stückelung <span class="nowrap">1.000 EUR</span></small></dd></div>
+                    <div class="overview-metric"><dt>Restlaufzeit</dt><dd>4 J. 8 M.<small class="overview-metric__sub">4,70 Jahre ab <time datetime="2026-10-02">2026-10-02</time></small></dd></div>
+                    <div class="overview-metric"><dt>Laufende Rendite</dt><dd>2,57 %<small class="overview-metric__sub"><span class="nowrap">2,50 ÷ 97,25</span> (<time datetime="2026-09-30">2026-09-30</time>)</small></dd></div>
+                    <div class="overview-metric"><dt>Rendite bis Fälligkeit</dt><dd>≈ 3,17 %<i class="pin o">3</i><small class="overview-metric__sub">linear angenähert</small></dd></div>
+                  </dl>
+                  <p class="detail-tab-hint" data-role="bond-basis">Kupon und Kurs in Prozent vom Nennwert: Ein Stück im Bestand ist ein Hundertstel des Nominals, darum ist der Kurs zugleich der Preis je Stück. Laufende Rendite = Kupon ÷ letzter Kurs. Restlaufzeit in Kalendertagen ab heute, das Jahr zu 365 Tagen. Rendite bis Fälligkeit linear angenähert: (Kupon + (100 − Kurs) ÷ Restlaufzeit in Jahren) ÷ Kurs, ohne Zinseszins. Ohne Stückzinsen, Gebühren und Steuern. Berichtet, nicht bewertet.<i class="pin o">4</i></p>
+                </section>
+
+                <div class="overview-chart"><div class="chart-frame"><svg viewBox="0 0 600 140" preserveAspectRatio="none" aria-hidden="true"><path d="M0 40 L40 46 L80 38 L120 52 L160 58 L200 50 L240 66 L280 70 L320 62 L360 78 L400 74 L440 86 L480 82 L520 92 L560 88 L600 96 L600 140 L0 140Z" fill="var(--color-accent)" fill-opacity=".14"/><path d="M0 40 L40 46 L80 38 L120 52 L160 58 L200 50 L240 66 L280 70 L320 62 L360 78 L400 74 L440 86 L480 82 L520 92 L560 88 L600 96" fill="none" stroke="var(--color-accent)" stroke-width="1.6"/></svg></div></div>
+                <p class="summary-basis"><span class="summary-basis__text">Kurse: Portfolio Performance · Anlageklasse Staatsanleihe</span></p>
+              </div>
+              <div class="overview-reading__side">
+                <section class="overview-card"><div class="overview-card__head"><h3>These</h3><span class="badge badge--thesis-none">Keine</span></div><p class="detail-tab-empty">Noch keine These erfasst.</p><button type="button" class="button-ghost">Research-Log</button></section>
+                <section class="overview-card"><div class="overview-card__head"><h3>Notiz</h3><button type="button" class="button-ghost">Hinzufügen</button></div><p class="detail-tab-empty">Noch keine persönliche Notiz.</p></section>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes desk-only" style="margin-top:14px">
+    <p class="cap">A1 · was jedes Teil tut</p>
+    <ol class="pins two">
+      <li><i class="pin o">1</i><b>Ein Block, oben das Erfasste, darunter das Abgeleitete.</b> Die erste Zeile zeigt Fälligkeit mit Emissionstag, Kupon mit Zinszahlung und das Nominal mit der Stückelung. Die zweite zeigt, was daraus folgt, jeweils unter seinem Eingang: die Restlaufzeit unter der Fälligkeit, die laufende Rendite unter dem Kupon, die Rendite bis Fälligkeit, die beide braucht, rechts. Das Raster ist das der sechs Werte darüber, ohne neues Bauteil; nur die Überschrift „Anleihe“ trennt die beiden Raster. Der Block steht nur bei Anlageklasse Anleihe oder Staatsanleihe.</li>
+      <li><i class="pin o">2</i><b>Das Nominal ist abgeleitet, und die Zelle sagt woraus.</b> „100 Stück × 100 EUR“ ist die Konvention als Rechnung, die Grundlagenzeile sagt sie als Satz. Das Issue verlangt die Konvention überall dort, wo das Nominal abgeleitet wird; auf dem Schirm ist das nur diese Zelle (und die API-Nutzlast). Die Stückelung steht daneben, damit „Stück“ und „Stückelung“ nicht für dasselbe gehalten werden.</li>
+      <li><i class="pin o">3</i><b>Optional, und so gekennzeichnet.</b> „≈“ vor dem Wert, „linear angenähert“ darunter, die Formel in der Grundlagenzeile. Lässt die Story die Kennzahl weg, bleiben fünf Zellen; die letzte Zeile ist dann halb leer, was das Raster der sechs Werte auch zulässt.</li>
+      <li><i class="pin o">4</i><b>Eine Grundlagenzeile für den Block</b>, wie unter dem Kennzahlenraster im Tab „Diagramm“ (<code>data-role="metrics-basis"</code>): was die Zahlen sind (Prozent vom Nennwert, die Konvention), wie sie gerechnet werden (die Formeln, die Tageszählung) und was sie nicht enthalten (Stückzinsen, Gebühren, Steuern). Was je Zelle wechselt (der Kurs und sein Datum, der Stichtag), steht in der Unterzeile der Zelle. Die API-Nutzlast trägt dasselbe als <code>computation_basis</code> je Kennzahl.</li>
+      <li><b>Datumsform wie im übrigen Detail:</b> ISO in Zellen und Kopfzeile (<code>Date.to_iso8601</code>, wie „Letzter 97,25 (2026-09-30)“). Der Zinstermin „am 15.06.“ hat kein Jahr und steht als Tag und Monat.</li>
+      <li><b>Kein Eingabefeld, keine neue Steuerung.</b> Die Übersicht bleibt eine Lesefläche (C7-A, #804). Erfasst wird im Dialog hinter „Bearbeiten“, und sein neuer Abschnitt ist unten gezeichnet.</li>
+    </ol>
+  </div>
+
+  <div class="mock-row desk-only" style="margin-top:18px">
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">A2 · Anleihe ohne Stammdaten (z. B. frisch importiert)</span>
+      <div class="stage">
+        <section class="bond-strip is-new" aria-labelledby="bond-strip-a2">
+          <div class="bond-strip__head"><h3 id="bond-strip-a2">Anleihe</h3></div>
+          <p class="detail-tab-empty" data-role="bond-empty">Kupon, Fälligkeit und Stückelung sind nicht erfasst; ohne sie gibt es keine Restlaufzeit und keine Rendite. <button type="button" class="link-button">Anleihedaten erfassen…</button></p>
+          <p class="detail-tab-hint">Nominal im Bestand: 10.000,00 EUR, 100 Stück × 100 EUR (ein Stück ist ein Hundertstel des Nominals).</p>
+        </section>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">A3 · fällig</span>
+      <div class="stage">
+        <section class="bond-strip is-new" aria-labelledby="bond-strip-a3">
+          <div class="bond-strip__head"><h3 id="bond-strip-a3">Anleihe</h3></div>
+          <dl class="overview-metrics">
+            <div class="overview-metric"><dt>Restlaufzeit</dt><dd>fällig<small class="overview-metric__sub">seit <time datetime="2026-06-15">2026-06-15</time></small></dd></div>
+            <div class="overview-metric"><dt>Laufende Rendite</dt><dd><span data-role="metric-na">nicht berechenbar</span><small class="overview-metric__sub">fällig</small></dd></div>
+            <div class="overview-metric"><dt>Rendite bis Fälligkeit</dt><dd><span data-role="metric-na">nicht berechenbar</span><small class="overview-metric__sub">fällig</small></dd></div>
+          </dl>
+        </section>
+      </div>
+    </div>
+  </div>
+  <div class="mock-row desk-only" style="margin-top:14px">
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">A4 · ohne Kurs, nur der eigene Kauf</span>
+      <div class="stage">
+        <section class="bond-strip is-new" aria-labelledby="bond-strip-a4">
+          <div class="bond-strip__head"><h3 id="bond-strip-a4">Anleihe</h3></div>
+          <dl class="overview-metrics">
+            <div class="overview-metric"><dt>Restlaufzeit</dt><dd>4 J. 8 M.<small class="overview-metric__sub">4,70 Jahre</small></dd></div>
+            <div class="overview-metric"><dt>Laufende Rendite</dt><dd>2,54 %<small class="overview-metric__sub"><span class="nowrap">2,50 ÷ 98,50</span>, letzter eigener Kauf</small></dd></div>
+            <div class="overview-metric"><dt>Rendite bis Fälligkeit</dt><dd>≈ 2,86 %<small class="overview-metric__sub">linear angenähert</small></dd></div>
+          </dl>
+        </section>
+      </div>
+    </div>
+  <div class="notes grow">
+    <p class="cap">A2 bis A4 · die Zustände des Blocks</p>
+    <ol class="pins">
+      <li><b>A2, nichts erfasst:</b> eine Zeile statt sechs Striche, und ihre Abhilfe öffnet denselben Dialog wie „Bearbeiten“ (UX-DR17: die Abhilfe ist ein Kind ihres Satzes). Das Nominal braucht keine Stammdaten und steht trotzdem, mit der Konvention. Ist nur ein Teil erfasst (Kupon ohne Fälligkeit), liest die Zelle, der ein Eingang fehlt, „nicht erfasst“, im Ton von „nicht berechenbar“.</li>
+      <li><b>A3, fällig:</b> keine Rendite mehr, kein negativer Zeitraum. Die Zelle sagt seit wann. Stammdaten und Nominal bleiben wie in A1 (hier weggelassen). Einen Rückzahlungsbetrag rechnet das Raster nicht aus; die Rückzahlung ist eine Buchung.</li>
+      <li><b>A4, ohne Kurs:</b> Solange die Bewertung den eigenen Kaufpreis nimmt (der Hinweis im Kopf dazu besteht schon, <code>detail_valuation_status/1</code>), rechnen die Renditen mit demselben Preis und sagen das in der Unterzeile. Ohne Kurs und ohne Kauf: „nicht berechenbar“, kein Preis.</li>
+      <li><b>Kupon 0 (Nullkupon):</b> laufende Rendite 0,00 %, die Rendite bis Fälligkeit aus dem Kurs allein; die Zinszahlung liest „keine“. Im Board nicht gezeichnet.</li>
+    </ol>
+  </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board desk-only">
+  <h2>B — ein eigener Tab „Anleihe“ <small>zweite Stelle in der Tableiste, nur bei Anleihe und Staatsanleihe · Stammdaten als Liste, Kennzahlen als Raster</small></h2>
+  <p class="mock-note">Alles zur Anleihe auf einem Tab: die Stammdaten als lesbare Liste mit „Bearbeiten“ (öffnet denselben Dialog), darunter vier Kennzahlen im selben Raster und dieselbe Grundlagenzeile wie in A. Die Übersicht bleibt für jede Anlageklasse gleich. Der Tab steht an zweiter Stelle, weil er am Ende der Leiste bei 390&nbsp;px hinter der Kante läge.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-after w-pane"><span class="mock-tag">B1 · /securities/42?tab=bond</span>
+      <div class="stage">
+        <aside class="detail-pane" aria-label="Ausgewähltes Wertpapier">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title">
+              <span class="security-logo security-logo--lg security-logo--initial">M</span>
+              <div><h2>Musterland Anleihe 2031</h2><p class="detail-pane-sub">XS0000000001 · EUR · Letzter 97,25 (2026-09-30)</p></div>
+            </div>
+            <div class="detail-pane-head__actions">
+              <button type="button" class="button-ghost">Bearbeiten</button>
+              <button type="button" class="button-ghost">Split erfassen</button>
+              <span class="icon-button"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-max"/></svg></span>
+              <span class="icon-button"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-x"/></svg></span>
+            </div>
+          </header>
+          <nav class="detail-pane-tabs" role="tablist"><button type="button" role="tab" class="detail-pane-tab">Übersicht</button><button type="button" role="tab" aria-selected="true" class="detail-pane-tab is-active is-new" style="outline-offset:-2px">Anleihe</button><button type="button" role="tab" class="detail-pane-tab">Diagramm</button><button type="button" role="tab" class="detail-pane-tab">Transaktionen</button><button type="button" role="tab" class="detail-pane-tab">Trades</button><button type="button" role="tab" class="detail-pane-tab">Kurse</button><button type="button" role="tab" class="detail-pane-tab">Bestände</button><button type="button" role="tab" class="detail-pane-tab">Klassifizierungen</button><button type="button" role="tab" class="detail-pane-tab">Research</button><button type="button" role="tab" class="detail-pane-tab">Termine</button></nav>
+          <section role="tabpanel" class="detail-tab-panel is-new" style="display:flex;flex-direction:column;gap:12px">
+            <div class="overview-reading" style="grid-template-columns:minmax(0,1fr) minmax(240px,300px)">
+              <div class="overview-reading__main">
+                <dl class="overview-metrics" data-role="bond-metrics">
+                  <div class="overview-metric"><dt>Restlaufzeit</dt><dd>4 J. 8 M.<small class="overview-metric__sub">4,70 Jahre ab 2026-10-02</small></dd></div>
+                  <div class="overview-metric"><dt>Laufende Rendite</dt><dd>2,57 %<small class="overview-metric__sub">2,50 ÷ 97,25 (2026-09-30)</small></dd></div>
+                  <div class="overview-metric"><dt>Rendite bis Fälligkeit</dt><dd>≈ 3,17 %<small class="overview-metric__sub">linear angenähert</small></dd></div>
+                  <div class="overview-metric"><dt>Nominal im Bestand</dt><dd>10.000,00 <small class="overview-metric__unit">EUR</small><small class="overview-metric__sub">100 Stück × 100 EUR</small></dd></div>
+                  <div class="overview-metric"><dt>Letzter Kurs</dt><dd>97,25 <small class="overview-metric__unit">%</small><small class="overview-metric__sub">vom Nennwert</small></dd></div>
+                  <div class="overview-metric"><dt>Wert</dt><dd>9.725,00 <small class="overview-metric__unit">EUR</small></dd></div>
+                </dl>
+                <p class="detail-tab-hint">Kupon und Kurs in Prozent vom Nennwert: Ein Stück im Bestand ist ein Hundertstel des Nominals … (dieselbe Grundlagenzeile wie in A)</p>
+              </div>
+              <div class="overview-reading__side">
+                <section class="overview-card"><div class="overview-card__head"><h3>Stammdaten</h3><button type="button" class="button-ghost">Bearbeiten</button></div>
+                  <dl style="margin:0;display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px">
+                    <dt class="u-muted">Kupon</dt><dd style="margin:0">2,50 % p. a.</dd>
+                    <dt class="u-muted">Zinszahlung</dt><dd style="margin:0">jährlich, am 15.06.</dd>
+                    <dt class="u-muted">Fälligkeit</dt><dd style="margin:0">2031-06-15</dd>
+                    <dt class="u-muted">Emission</dt><dd style="margin:0">2021-06-15</dd>
+                    <dt class="u-muted">Stückelung</dt><dd style="margin:0">1.000 EUR</dd>
+                  </dl>
+                </section>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+    <div class="notes grow">
+      <p class="cap">Für B</p>
+      <ul>
+        <li>Alles zur Anleihe an einer Stelle, und die Übersicht ist für jedes Wertpapier dieselbe.</li>
+        <li>Platz für später: ein Zinszahlungsplan oder die Kupons, sobald eine Zinsbuchung ihr Wertpapier trägt (#928). Beides ist nicht Teil von #330.</li>
+      </ul>
+      <p class="cap" style="margin-top:6px">Gegen B</p>
+      <ul>
+        <li><b>Die Tableiste hängt dann von der Anlageklasse ab.</b> Neun Tabs für jedes Wertpapier, zehn für eine Anleihe. Ein Link mit <code>?tab=bond</code> auf ein anderes Wertpapier braucht einen Rückfall, und die Leiste läuft bei 390&nbsp;px um einen Tab weiter über. „Termine“ war der eine neue Tab, den das Budget erlaubte (#828); er gilt für jedes Wertpapier.</li>
+        <li><b>Die Renditen stehen einen Tab weg von dem Kurs, aus dem sie gerechnet sind,</b> und das Nominal einen Tab weg vom Bestand. B wiederholt deshalb Kurs und Wert, und dann stehen sie auf zwei Tabs. Das Kennzahlenraster aus ADR-0047 steht aus demselben Grund im Tab „Diagramm“ und nicht auf einem eigenen Tab (DESIGN.md, <code>security-metric-grid.placement</code>).</li>
+        <li><b>Der Wächter muss trotzdem in die Übersicht,</b> denn falsch ist dort der Wert (eine Datennotiz steht im selben Abschnitt wie die Zahl, die sie betrifft, UX-DR17). B hätte ihn auf zwei Tabs.</li>
+        <li>Die Stammdaten stünden zweimal: lesbar im Tab, bearbeitbar im Dialog. A zeigt sie, wo die Zahlen stehen, und bearbeitet sie, wo alle Stammdaten bearbeitet werden.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ FORMULAR ============================ -->
+<section class="mock-board">
+  <h2>A und B · „Wertpapier bearbeiten“ mit dem Abschnitt „Anleihe“ <small><code>SecurityFormDialog</code> <code>render_confirm/1</code> · nur bei Anlageklasse Anleihe oder Staatsanleihe</small></h2>
+  <p class="mock-note desk-only">Der Abschnitt steht im Dialog unter den Stammdaten, sobald die Auswahl „Anlageklasse“ Anleihe oder Staatsanleihe zeigt. Der Dialog folgt jeder Änderung schon heute (<code>form_change</code>), also erscheint der Abschnitt beim Umstellen der Auswahl und geht beim Zurückstellen wieder. Er gilt fürs Anlegen (auch „Manuelle Eingabe“) wie fürs Bearbeiten. Die Anatomie ist die des Abrechnungsblocks in der Buchungsmaske (#395): ein Block, der nur steht, wenn er gilt.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-after w-dlg"><span class="mock-tag">F1 · Anlageklasse Staatsanleihe</span>
+      <div class="dlg-field">
+        <div class="modal" role="dialog" aria-labelledby="f1-title">
+          <header class="modal-head"><h2 id="f1-title">Wertpapier bearbeiten</h2><span class="icon-button"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></span></header>
+          <div class="modal-body">
+            <form onsubmit="return false">
+              <div class="form-grid">
+                <label><span>Name</span><input type="text" value="Musterland Anleihe 2031"></label>
+                <label><span>ISIN</span><input type="text" value="XS0000000001"></label>
+                <label><span>Währung</span><select><option>EUR</option></select></label>
+                <label><span>Anlageklasse</span><select><option>Staatsanleihe</option></select></label>
+              </div>
+              <p class="elide">… Ticker, WKN, Börse, Kursquelle und Kursquelle-URL wie heute</p>
+              <fieldset class="bond-fieldset is-new" data-role="bond-fields">
+                <legend>Anleihedaten</legend>
+                <div class="form-grid">
+                  <label><span>Kupon p. a. (%)</span><input type="text" inputmode="decimal" class="num" value="2,5"></label>
+                  <label><span>Zinszahlung</span><select><option>jährlich</option><option>halbjährlich</option></select></label>
+                  <label><span>Fälligkeit</span><input type="text" placeholder="YYYY-MM-DD" value="2031-06-15"></label>
+                  <label><span>Emissionstag (optional)</span><input type="text" placeholder="YYYY-MM-DD" value="2021-06-15"></label>
+                  <label><span>Stückelung (Nennwert)</span><input type="text" inputmode="decimal" class="num" value="1000"></label>
+                  <label><span>Währung des Nennwerts</span><select><option>EUR</option></select></label>
+                </div>
+                <p class="form-help">Im Bestand ist ein Stück ein Hundertstel des Nominals: 100 Stück sind 10.000 Nominal. So bucht der Portfolio-Performance-Export prozentnotierte Anleihen, und darum liest sich ihr Kurs als Prozent vom Nennwert.</p>
+              </fieldset>
+              <div class="dialog-toggle"><label class="dialog-toggle__control"><input type="checkbox"><span>Synchronisierte Kurse als roh behandeln</span></label><details class="metric-tooltip metric-tooltip--inline"><summary>ⓘ</summary></details></div>
+              <label class="full-width"><span>Notiz</span><textarea rows="2"></textarea></label>
+              <div class="modal-footer"><button type="button" class="button-ghost">Abbrechen</button><button type="button" class="button-primary">Änderungen speichern</button></div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes grow desk-only">
+      <div class="mock-frame mock-after" style="margin-bottom:6px"><span class="mock-tag">F2 · abgelehnt, am Feld</span>
+        <div style="padding:12px">
+          <fieldset class="bond-fieldset" style="margin:0">
+            <legend>Anleihedaten</legend>
+            <div class="form-grid">
+              <label><span>Kupon p. a. (%)</span><input type="text" inputmode="decimal" class="num" value="2.500,0" aria-invalid="true"><span class="field-error">ist mehrdeutig: ohne Tausendertrennzeichen eingeben</span></label>
+              <label><span>Fälligkeit</span><input type="text" value="2021-06-15" aria-invalid="true"><span class="field-error">liegt nicht nach dem Emissionstag</span></label>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+      <p class="cap">Was der Abschnitt festlegt</p>
+      <ul>
+        <li><b>Zahlen nach der Regel der Dezimalfelder</b> (DESIGN.md, „Numeric inputs“): <code>DecimalInput</code>, <code>class="num"</code>, im Gebietsschema der Seite, nie gruppiert, streng gelesen. Der Kupon wird als Prozentzahl getippt (2,5), nicht als Bruch (0,025); das Label sagt „(%)“.</li>
+        <li><b>Datum als ISO-Textfeld</b> (UX-DR19), <code>placeholder="YYYY-MM-DD"</code> wie in den übrigen Dialogen.</li>
+        <li><b>Zinszahlung als Auswahl</b> mit zwei Wörtern, jährlich und halbjährlich, nie dem gespeicherten Wert (#785).</li>
+        <li><b>Die Währung des Nennwerts</b> steht auf der Währung des Wertpapiers, bis jemand sie ändert.</li>
+        <li><b>Eine Zeile zur Konvention</b> (<code>.form-help</code>), weil die Stückelung hier „Stück“ heißt und im Bestand ein anderes „Stück“ zählt. Sie leitet nichts aus dem Bestand ab; das tut nur die Übersicht.</li>
+        <li><b>F2: Fehler am Feld,</b> wie jedes Feld des Dialogs (<code>changeset_errors/1</code>). Gespeichert wird nichts. Was Pflicht ist, wenn der Abschnitt steht (Kupon und Fälligkeit, oder nichts), legt die Story fest.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ WÄCHTER ============================ -->
+<section class="mock-board">
+  <h2>A und B · der Wächter: „auf zwei Skalen bepreist“ <small>Problem-Datennotiz, wo der Wert gelesen wird · dieselbe Anleihe in der Nominal-Lesung</small></h2>
+  <p class="mock-note desk-only">Derselbe Kauf, aber der Export hat das Nominal als Stückzahl gebucht (10.000 Stück zu 0,985 statt 100 Stück zu 98,50). Solange die Anleihe nach ihrem Kauf bewertet wird, stimmt alles; mit dem ersten Kurs um 100 ist jeder Geldbetrag hundertfach zu hoch, und die TTWROR bleibt gleich (Bond-Discovery, Punkt 5). Der Wächter vergleicht die beiden Skalen: gespeicherte Kurse um 100, gebuchter Preis je Stück um 1. Er rechnet nichts um und repariert nichts; er sagt, was er sieht, und wo es zu prüfen ist.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-after w-pane"><span class="mock-tag">W1 · Übersicht (A), oberhalb der Werte, die er betrifft</span>
+      <div class="stage">
+        <aside class="detail-pane" aria-label="Ausgewähltes Wertpapier">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title">
+              <span class="security-logo security-logo--lg security-logo--initial">M</span>
+              <div><h2>Musterland Anleihe 2031</h2><p class="detail-pane-sub">XS0000000001 · EUR · Letzter 97,25 (2026-09-30)</p></div>
+            </div>
+            <div class="detail-pane-head__actions">
+              <button type="button" class="button-ghost">Bearbeiten</button>
+              <button type="button" class="button-ghost">Split erfassen</button>
+            </div>
+          </header>
+          <nav class="detail-pane-tabs" role="tablist"><button type="button" role="tab" aria-selected="true" class="detail-pane-tab is-active">Übersicht</button><button type="button" role="tab" class="detail-pane-tab">Diagramm</button><button type="button" role="tab" class="detail-pane-tab">Transaktionen</button><button type="button" role="tab" class="detail-pane-tab">Trades</button><button type="button" role="tab" class="detail-pane-tab">Kurse</button><button type="button" role="tab" class="detail-pane-tab">Bestände</button><button type="button" role="tab" class="detail-pane-tab">Klassifizierungen</button><button type="button" role="tab" class="detail-pane-tab">Research</button><button type="button" role="tab" class="detail-pane-tab">Termine</button></nav>
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--overview">
+            <div class="data-note data-note--problem is-new" data-role="two-scales-note">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-oct"/></svg></span>
+              <span class="data-note__word">Problem</span>
+              <div class="data-note__body"><b>Auf zwei Skalen bepreist:</b> Kurse um 100 (zuletzt 97,25 am <time datetime="2026-09-30">2026-09-30</time>), gebuchter Preis je Stück um 1 (1 Kauf: 0,985 am <time datetime="2026-03-12">2026-03-12</time>). Dann ist das Nominal als Stückzahl gebucht, und Wert, Gewinn und Gewicht sind hundertfach zu hoch; die Rendite (TTWROR) zeigt es nicht. Stückzahl gegen das Nominal der Abrechnung prüfen: <a href="#">Transaktionen</a><i class="pin o">1</i></div>
+            </div>
+            <div class="overview-reading">
+              <div class="overview-reading__main">
+                <dl class="overview-metrics">
+                  <div class="overview-metric"><dt>Letzter Kurs</dt><dd>97,25 <small class="overview-metric__unit">EUR</small><small class="overview-metric__sub">(2026-09-30)</small></dd></div>
+                  <div class="overview-metric"><dt>Tagesänderung</dt><dd class="is-negative">−0,10 %</dd></div>
+                  <div class="overview-metric"><dt>1Y</dt><dd class="is-negative">−0,85 % <small class="overview-metric__sub">nur Kurs</small></dd></div>
+                  <div class="overview-metric"><dt>Bestand</dt><dd>10.000 <small class="overview-metric__unit">Stück</small><small class="overview-metric__sub">Depot 1</small></dd></div>
+                  <div class="overview-metric"><dt>Wert</dt><dd>972.500,00 <small class="overview-metric__unit">EUR</small></dd></div>
+                  <div class="overview-metric"><dt>Unrealisiert</dt><dd class="is-positive">+962.650,00 <small class="overview-metric__sub">+9.773,10 % · gegen den Durchschnittseinstand</small></dd></div>
+                </dl>
+                <section class="bond-strip" aria-labelledby="bond-strip-w1">
+                  <div class="bond-strip__head"><h3 id="bond-strip-w1">Anleihe</h3></div>
+                  <dl class="overview-metrics">
+                    <div class="overview-metric"><dt>Fälligkeit</dt><dd>2031-06-15<small class="overview-metric__sub">Emission <time datetime="2021-06-15">2021-06-15</time></small></dd></div>
+                    <div class="overview-metric"><dt>Kupon</dt><dd>2,50 % <small class="overview-metric__unit">p. a.</small><small class="overview-metric__sub">jährlich, am 15.06.</small></dd></div>
+                    <div class="overview-metric"><dt>Nominal im Bestand</dt><dd>1.000.000,00 <small class="overview-metric__unit">EUR</small><i class="pin o">2</i><small class="overview-metric__sub"><span class="nowrap">10.000 Stück × 100 EUR</span> · Stückelung <span class="nowrap">1.000 EUR</span></small></dd></div>
+                  </dl>
+                  <p class="elide">… Restlaufzeit und Renditen wie in A1: sie rechnen mit dem Kurs, und der ist richtig</p>
+                </section>
+              </div>
+              <div class="overview-reading__side">
+                <section class="overview-card"><div class="overview-card__head"><h3>These</h3><span class="badge badge--thesis-none">Keine</span></div><p class="detail-tab-empty">Noch keine These erfasst.</p></section>
+              </div>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </div>
+  <div class="mock-row desk-only" style="margin-top:14px">
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">W2 · Vermögen → Bestände · Datenqualität (eine siebte Bedingung)</span>
+      <div style="padding:4px 0">
+        <section class="workspace-section data-quality" style="padding:14px 18px">
+          <h2 style="margin:0 0 10px">Datenqualität</h2>
+          <div role="status" style="display:grid;gap:8px">
+            <div class="data-note data-note--note">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+              <span class="data-note__word">Hinweis</span>
+              <div class="data-note__body"><a href="#">Eine gehaltene Position ist mit ihrem letzten Kaufpreis bewertet, daher ist die Summe nicht aktuell:</a> Nordwind Industrie AG</div>
+            </div>
+            <div class="data-note data-note--problem is-new" data-role="dq-two-scales">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-oct"/></svg></span>
+              <span class="data-note__word">Problem</span>
+              <div class="data-note__body">Eine Anleihe ist auf zwei Skalen bepreist (Kurse um 100, gebuchter Preis je Stück um 1) und zählt hundertfach zu hoch in den Summen; die Rendite zeigt es nicht. Stückzahl der Käufe gegen das Nominal der Abrechnung prüfen: <a href="#">Musterland Anleihe 2031</a> (Kurs 97,25 · Preis je Stück 0,985)</div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="notes grow">
+      <p class="cap">Was der Wächter festlegt</p>
+      <ol class="pins">
+        <li><i class="pin o">1</i><b>Problem, nicht Achtung.</b> Wenn er anschlägt, ist jeder Geldbetrag dieser Anleihe falsch, nicht unvollständig; das ist die Stufe „Problem“ (UX-DR17), wie beim unmöglichen negativen Bestand in derselben Liste. Nach UX-DR25 nennt er beide Zahlen und die Buchung, um die es geht. Seine Abhilfe kann handeln: Sie öffnet den Tab „Transaktionen“, in dem der Kauf steht (die Liste unten verlinkt <code>/securities/:id?tab=transactions</code> wie die Notiz zum negativen Bestand). Eine Umrechnung bietet er nicht an; ein Mengenwechsel wäre der Quotierungstyp, den das Issue gestrichen hat.</li>
+        <li><i class="pin o">2</i><b>Das Raster bleibt stehen</b> und zeigt die Folge: 1.000.000,00 EUR Nominal für einen Kauf über 9.850,00. Der Wächter versteckt keine Zahl, er benennt sie.</li>
+        <li><b>W2: Er steht auch dort, wo die Summe gelesen wird</b> (UX-DR25): als siebte Bedingung der Datenqualität in Vermögen → Bestände, mit dem Namen als Link auf den Tab „Transaktionen“ des Wertpapiers.</li>
+        <li><b>Er schweigt</b>, solange die Anleihe keinen Kurs hat (dann stimmt der Wert), wenn beide Skalen zusammenpassen, und bei jeder anderen Anlageklasse. Bei 100 Stück zu 98,50 und Kursen um 97 (A1) steht nichts da. Laut UAT-Plan des Issues muss er für jede Anleihe des Owners schweigen.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ GEHALTEN GEGEN ============================ -->
+<section class="mock-board desk-only">
+  <h2>Gegen DESIGN.md und EXPERIENCE.md gehalten <small>warum A</small></h2>
+  <table class="check">
+    <thead><tr><th style="width:30%">Regel</th><th>A — Raster in der Übersicht</th><th>B — eigener Tab „Anleihe“</th></tr></thead>
+    <tbody>
+      <tr><td><b><code>security-metric-grid.placement</code></b>: abgeleitete Zahlen bei der Reihe, aus der sie gerechnet sind, „never on a tab of its own“</td><td class="win">Renditen neben dem Kurs, Nominal neben dem Bestand</td><td>einen Tab entfernt; Kurs und Wert stehen dafür zweimal</td></tr>
+      <tr><td><b>UX-DR17, Platzierung</b>: eine Datennotiz steht im selben <code>&lt;section&gt;</code> wie ihre Daten</td><td class="win">Wächter über dem Wert, den er betrifft</td><td>Wächter in der Übersicht und im Tab</td></tr>
+      <tr><td><b>Tableiste</b> (UX-DR22, D6, #837): ein Tab-Widget mit fester Leiste; „Termine“ als einzige Erweiterung (#828)</td><td class="win">neun Tabs für jedes Wertpapier, wie heute</td><td>neun oder zehn je nach Anlageklasse; <code>?tab=bond</code> braucht einen Rückfall; bei 390&nbsp;px ein Tab mehr hinter der Kante</td></tr>
+      <tr><td><b>Übersicht als Lesefläche</b> (C7-A, #804): sechs Werte, Verlauf, Grundlage, These, Notiz; kein Eingabefeld</td><td>ein Block mehr, nur bei Anleihen; kein Eingabefeld</td><td class="win">unverändert</td></tr>
+      <tr><td><b>Jede abgeleitete Zahl nennt ihre Grundlage</b> (EXPERIENCE.md, Regel 3; AGENTS.md, Rechengrundlage in der Nutzlast)</td><td>Grundlagenzeile unter dem Raster, Wechselndes in der Zellen-Unterzeile</td><td>dieselbe Zeile im Tab</td></tr>
+      <tr><td><b>UX-DR26</b>: ein bewusstes Limit steht, wo man das Fehlende suchen würde</td><td>„ohne Stückzinsen, Gebühren und Steuern“ unter den Renditen</td><td>dasselbe</td></tr>
+      <tr><td><b>Ein Ort zum Bearbeiten</b> (C7-A: Anlegen und Bearbeiten sind ein Formular)</td><td class="win">Lesen in der Übersicht, Bearbeiten im Dialog</td><td>Stammdaten lesbar im Tab und bearbeitbar im Dialog</td></tr>
+      <tr><td><b>Platz für später</b> (kein Spec-Satz): Zinsplan, zugeordnete Kupons (#928)</td><td>bräuchte dann einen Tab</td><td class="win">hat ihn</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section class="mock-board desk-only">
+  <div class="callout open">
+    <h4>Die ADR-Frage des Issues (eigene Spalten oder die <code>attributes</code>-Map), nur soweit sie den Bildschirm betrifft</h4>
+    <ul>
+      <li><b>Fehler am Feld.</b> Der Dialog legt jeden Fehler unter sein Feld (<code>changeset_errors/1</code> nach Feldnamen). Eine typisierte Spalte (<code>:decimal</code>, <code>:date</code>, eine geschlossene Auswahl) lehnt ein unmögliches Datum („2031-13-01“) an ihrem eigenen Feld ab, so wie F2 Fehler am Feld zeichnet. In der Map ist jeder Wert JSON; ihre Fehler landen auf <code>attributes</code>, bis die Story jede Prüfung je Schlüssel neu schreibt und ihre Meldung zurück an das Eingabefeld führt.</li>
+      <li><b>Die Wertpapierliste.</b> <code>SecurityFields</code> zeigt einen Map-Schlüssel zwar in der Spaltenauswahl, aber ein Filter auf <code>attributes</code> ist in v1 aus, und „größer/kleiner“ ist für sie gesperrt (<code>jsonb_range_block?/2</code>). „Fällig vor 2028“ oder „Kupon über 3 %“ als Filter geht nur mit Spalten; die Operatoren für <code>:decimal</code> und <code>:date</code> gibt es dort schon.</li>
+      <li><b>Wer schreibt.</b> In die Map darf jeder Schreiber jeden Schlüssel legen (ein <code>nil</code> löscht ihn, <code>protect_attributes/1</code>). Ohne eigene Prüfung müsste die Übersicht lesen können, was sie nicht versteht (eine Zahl als Text, ein Datum in anderer Form).</li>
+      <li><b>Meine Sicht:</b> Für den Bildschirm sprechen eigene, leere Spalten (oder ein eingebettetes Schema mit eigenem Changeset): Fehler am Feld und Filter in der Liste gibt es dann ohne Nachbau. Entscheiden muss die Story in ihrem ADR-Absatz. An den gezeichneten Flächen ändert die Wahl nichts, außer dass F2 mit der Map Mehrarbeit ist.</li>
+    </ul>
+  </div>
+</section>
+
+</body>
+</html>
