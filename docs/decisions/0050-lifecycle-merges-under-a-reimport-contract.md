@@ -511,7 +511,9 @@ lesson applies: an invariant is swept over every writer of the table.
   for §10's retry and the `merged_into` answer below. The read ships
   agent-first: the operator sees a merge on the survivor ("merged from …") and
   as a former name on Accounts & depots, and a list view lands **no later than
-  Sprint 17** under the two-way deadline, which the close-out records. A read
+  Sprint 17** under the two-way deadline, which the close-out records.
+  *(Landed 2026-10-02, Sprint 17 PR γ, #1035: the Merges section at the end
+  of Accounts & depots, pick G2-A, within the deadline.)* A read
   of a merged-away id answers **404** with `merged_into {kind, id}`, following
   the chain to its live end. *(Closing act:)* a chain whose end was deleted
   since — a survivor may be deleted once it holds nothing — has no live end,

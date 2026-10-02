@@ -192,7 +192,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-1 | — | shipped (ledger projection, ADR-0011) |
 | FR-2 | #343 | currency consistency |
 | FR-3 | #344 | rounding-policy ADR (needs-decision) |
-| FR-4 | #327, #328, #608, #884 (L2); deferred by ADR-0050 §15: #902–#906 | portfolio switcher; merge/rename/delete. **Design gate: [ADR-0050](../../docs/decisions/0050-lifecycle-merges-under-a-reimport-contract.md)** (lifecycle merges under a post-merge re-import contract, risk-tier), signed by the merge of the Sprint 16 planning PR and built in Sprint 16's Lane L. #608, the security merge, is the same mechanism and carries FR-34's identity ladder across a merge (ADR-0050 §9). The "move between portfolios" clause of FR-4 is out of scope since ADR-0024 made portfolios internal (ADR-0050 §14). **Filed at branch opening (2026-09-24, Sprint 16 Lane Z), all under #417:** #884, the importer half (L2: hash first, retired hashes, lazy account creation, former names), which closes today's rename hazard on its own; and ADR-0050 §15's deferrals, each needing a decision — #902 (a tombstone for a source that research notes or rule versions name), #903 (generalized identifier aliases with remembered security remaps, for ISIN-less merges), #904 (a fail-closed probe for account identities the database never saw), #905 (one-to-one matching on the pre-import #533 layer) and #906 (unmerge). The sixth deferral, merger and spin-off, is #907 on FR-23's row. **Shipped 2026-09-29 (Sprint 16, PR #914, fast-forwarded onto `main` at `daeab17`)**: L1 (merge records and retired import hashes, append-only and journal-armed; a disposition for every foreign key onto accounts, depots and securities; hardened deletes answering 409 with the reference and a remedy, or 409 with nothing deleted when they lose a race; identity freezes), L2 (#884, the re-import contract with former names behind one name guard), L3 (cash and depot merge under a plan digest, Decimal-exact), L4 (#608, the security merge carrying FR-34's identity ladder) and L5 (the screens on picks G1–G4, G4b and G13.1). #884 and #608 closed by keyword. **#328 stays open under `needs-uat`**: its API, MCP and screen shipped and the UAT persona ran its five-step plan on the synthetic seed; the owner's run on real data is the remaining step. **Agent-first, due in Sprint 17:** the merge-record list view for `GET /api/v1/merges` (ADR-0050 §12) |
+| FR-4 | #327, #328, #608, #884 (L2); deferred by ADR-0050 §15: #902–#906 | portfolio switcher; merge/rename/delete. **Design gate: [ADR-0050](../../docs/decisions/0050-lifecycle-merges-under-a-reimport-contract.md)** (lifecycle merges under a post-merge re-import contract, risk-tier), signed by the merge of the Sprint 16 planning PR and built in Sprint 16's Lane L. #608, the security merge, is the same mechanism and carries FR-34's identity ladder across a merge (ADR-0050 §9). The "move between portfolios" clause of FR-4 is out of scope since ADR-0024 made portfolios internal (ADR-0050 §14). **Filed at branch opening (2026-09-24, Sprint 16 Lane Z), all under #417:** #884, the importer half (L2: hash first, retired hashes, lazy account creation, former names), which closes today's rename hazard on its own; and ADR-0050 §15's deferrals, each needing a decision — #902 (a tombstone for a source that research notes or rule versions name), #903 (generalized identifier aliases with remembered security remaps, for ISIN-less merges), #904 (a fail-closed probe for account identities the database never saw), #905 (one-to-one matching on the pre-import #533 layer) and #906 (unmerge). The sixth deferral, merger and spin-off, is #907 on FR-23's row. **Shipped 2026-09-29 (Sprint 16, PR #914, fast-forwarded onto `main` at `daeab17`)**: L1 (merge records and retired import hashes, append-only and journal-armed; a disposition for every foreign key onto accounts, depots and securities; hardened deletes answering 409 with the reference and a remedy, or 409 with nothing deleted when they lose a race; identity freezes), L2 (#884, the re-import contract with former names behind one name guard), L3 (cash and depot merge under a plan digest, Decimal-exact), L4 (#608, the security merge carrying FR-34's identity ladder) and L5 (the screens on picks G1–G4, G4b and G13.1). #884 and #608 closed by keyword. **#328 stays open under `needs-uat`**: its API, MCP and screen shipped and the UAT persona ran its five-step plan on the synthetic seed; the owner's run on real data is the remaining step. **Agent-first, due in Sprint 17:** the merge-record list view for `GET /api/v1/merges` (ADR-0050 §12). **Shipped 2026-10-02 (Sprint 17 PR γ, #1035, `main` at `e06bd4fd`)**: the list at the end of Accounts & depots (pick G2-A), every kind in one collapsed read-only list with each result's counts per table, the survivor's date and a security's basis line linking its entry; `deleted_by_reason` added to the read. The deadline is met |
 | FR-5 | #333 | XML import **gated**; CSV/JSON shipped. **#333 closed 2026-09-23** by the backlog triage (§3.4, adopted by the Sprint 15 planning PR): classifications are Portfolixir-owned and survive a re-import (E18), quote history has an API (`PUT /api/v1/securities/:security_id/quotes`), master data is maintained here; XML intake stays forbidden by the hard rule |
 | FR-6 | — | shipped (preview/idempotent/atomic) |
 | FR-7 | #326 | import gaps surfaced (logos) |
@@ -654,6 +654,84 @@ and the design-engagement issues #717–#721/#723 attach to #356.
 Retrospective: `sprint-7-retro-2026-08-19.md`. Close-out ledger and the
 process findings live there and in `sprint-status.yaml`'s log; this section
 records only what changed in the requirement registry.
+
+## Implementation Status — reconciled with code (2026-10-02, Sprint 17 close-out)
+
+Verification basis: the commits on `main` (`bbe3ca52..e06bd4fd`, linear, zero
+merge commits) from three lane PRs (plan D-12): PR α #1005 (31 commits,
+rebase-merged 06:13 UTC, `main` at `1940a21d`), PR β #1008 (13 commits, 06:14
+UTC, `7ceb0427`) and PR γ #1035 (15 commits, 07:35 UTC, `e06bd4fd`, its tree
+identical to the PR head CI tested). The Actions runs on the three merge
+pushes (Commit authorship, CI, and the Release workflow's calendar job); the
+three calendar releases **2026.10.1**, **2026.10.2** and **2026.10.3**; and the
+post-merge issue list. **#1028**, γ's first PR, was merged into its base branch
+`agent/claude/sprint-17-alpha` instead of `main`: GitHub did not retarget the
+stacked PR after α merged. The same commits reached `main` through #1035,
+replayed with contract entry 10 and the schema-budget trims.
+
+**Shipped by Sprint 17** — the agent's half of E26 (plan D-2), in full; nothing
+was taken from the shrink order.
+
+- **Lane A, the agent's first contact** (PR β): MCP tool profiles `read`,
+  `book` and `full` (#992), the twin scope tools steered both ways (#993), a
+  schema budget per profile as a ceiling that only moves down (#994), the MCP
+  prompts `first_setup` and `import_converter` (#983), the LLM-facing entry
+  `docs/llms.txt` with a Connect an agent page (#982), and the README's first
+  screen (#981). Contract version 9.
+- **Lane T, trades reached and annualized** (PR γ, #984 rescoped by D-7): the
+  facet reads "Trades", an "Abgeschlossene Trades" card on the Overview,
+  `annualized_return` per closed trade on both trade reads (XIRR over each
+  lot's own flow, `null` under 365 days of holding), and `unmatched_sells`
+  named on the realized read and the facet. Contract version 10.
+- **Lane V, the two human views due by this sprint's end** (PR γ): the
+  merge-record list at the end of Accounts & depots (ADR-0050 §12) and the
+  release of manual quotes from a security's Quotes tab (T-9), with the read it
+  stands on (`GET /api/v1/securities/:security_id/quotes/manual`,
+  `portfolixir.quotes.manual`).
+- **Lanes G, P, D, M** (PR α): the seeded-upgrade harness (#995) and the
+  two-connection lock-order harness (#996); calendar versions made by the
+  Release workflow on pushes to `main` that touch shipped code (#997, D-11);
+  the first-run debt; the maintenance lane
+  (`version-report-2026-10-01-sprint17.md`).
+- **The launch test** (D-1, #998) ran at PR β's closing act and at this
+  close-out; the record is in `sprint-status.yaml`'s Sprint 17 entry.
+
+**Registry rows this batch moves:** **FR-4** records ADR-0050 §12's list view
+as shipped, so the agent-first deadline is met. The Tracker Index's **E26**
+line records Sprint 17's half as shipped; the epic stays in progress for
+Sprint 18's half (FR-41, the UI polish lane, the human documentation).
+
+**Two-way coverage.** Both capabilities due by the end of Sprint 17 have their
+human views: the merge-record list (V1) and the release of manual quotes (V2).
+**New and agent-first:** `annualized_return` on the per-security trades read
+(`GET /api/v1/securities/:security_id/trades`, `portfolixir.trades.list`) has
+no human view on the security's Trades tab yet. The figure is on screen on
+the Trades facet and the Overview card, from the same computation, but not on
+the per-security surface. It is due by the end of Sprint 18 (#1029). The MCP
+profiles and prompts configure the companion; they have no data surface of
+their own to show.
+
+**Surface check (the 2026-09-03 owner decision):**
+- `annualized_return`'s family is the two closed-trade reads, and both carry
+  it with its reason and `computation_basis.annualized_return`.
+- `unmatched_sells` is on the realized read. The per-security trades read
+  already carries the same sells as `orphan_sells`, unchanged and not
+  renamed.
+- `limit=` gained one endpoint: `GET /api/v1/securities/:security_id/quotes/manual`
+  takes it through the shared `ListLimit` bound (default 100, capped at 1000)
+  and bounds the stretches, not the counts. `from`/`to` there add a range
+  count, not a row filter.
+- `PORTFOLIXIR_MCP_PROFILE` reaches every tool: each of the 140 tools is in
+  exactly the profiles its annotations and the admin list put it in.
+
+**Filed and not built (Scope Lock):**
+- From PR α: #1006 and #1015–#1022.
+- From PR β: #1007 (the view-less all-portfolio read, found while writing the
+  launch test) and #1023–#1027.
+- The design pass's Part 4 observations: #1009–#1014.
+- From PR γ's closing act: #1029–#1034.
+
+Six of them wait on a decision: #1007, #1014, #1016, #1020, #1025 and #1026.
 
 ## Implementation Status — reconciled with code (2026-09-29, Sprint 16 close-out)
 
@@ -1463,4 +1541,9 @@ issue state and the merge commits on `main`.
   Sprint 17's scope: #999 (scoped API tokens, D-5), #1000 (income inside a
   trade, D-7 and OQ-6), #1001 (the matcher's lot scope, D-7), and the
   Sprint 18 candidates of D-8: #1002 (excess return per trade), #1003 (a
-  returns heatmap), #1004 (a presenter mode).
+  returns heatmap), #1004 (a presenter mode). **Sprint 17's half shipped
+  2026-10-02** in three lane PRs: α #1005, β #1008, and γ through #1035
+  (#1028 went to α's branch instead of `main`). `main` is at `e06bd4fd`, with
+  the calendar releases 2026.10.1–2026.10.3. #981–#984 and #992–#997 closed by
+  keyword. #998, the launch test, closed at the close-out with its record. The
+  epic stays in progress for Sprint 18's half.
