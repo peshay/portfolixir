@@ -11,6 +11,9 @@ description: 'Design decision for issue #568, consolidating the 2026-07-12 desig
   consolidates the design-session memo and that sign-off — decision gate per
   [ADR-0026](0026-epic-batch-workflow.html))
 - **Date:** 2026-08-02
+- **Amended:** 2026-10-02, §2's tolerance: the solver scales large flows
+  before it tests it (see "Amendment (2026-10-02)" below). Adopted by the
+  merge of the Sprint 18 planning PR.
 
 ## Context
 
@@ -114,6 +117,61 @@ Presented per the microcopy standard (impersonal, terse; explanation in the
 - Implementation is ledger/money-domain math and therefore **risk-tier**
   ([ADR-0026](0026-epic-batch-workflow.html)): its own small PR with real
   human review.
+
+## Amendment (2026-10-02): the solver scales large flows before it tests its tolerance
+
+**Why.** §2 accepts a root when `|NPV|` is below `1e-7` in absolute terms.
+The solver's one float step cannot meet that once the amounts run to about
+`1e8`: the closing act of Sprint 17's PR gamma measured no rate for 16 of 80
+synthetic trades at about `1e8` and for 48 of 80 at about `1e9`, where a
+rate exists. That PR fixed the per-trade figure only, inside
+`Ledger.TradeReturn`, by scaling a trade's flows to a cost of one million
+before solving (#1031). The two other callers, the portfolio and view
+money-weighted return and the benchmark's IRR (both through
+`IRR.for_summary/2`), still pass unscaled flows. A large portfolio in a
+high-nominal currency (KRW, IDR, HUF, a large JPY book) can therefore read
+"n/a" where a rate exists.
+
+**What changes.** One sentence of §2's method:
+
+- Before the float step, if the largest absolute cashflow exceeds
+  `1,000,000`, `solve/2` multiplies every cashflow by
+  `1,000,000 ÷ that largest absolute amount`, in `Decimal`. The tolerance
+  `1e-7` is then tested on the scaled `NPV`. The rate is scale-free, so the
+  root is the same root.
+- Below that threshold nothing is scaled, so **every figure for flows up to
+  a million is byte-identical by construction**, not by measurement.
+- `Ledger.TradeReturn`'s own scaling is removed, because the solver now does
+  it for every caller.
+- `finalize/1` never returns a rate at or below `−1`: a Newton root that
+  rounds to `−1.000000` returns `−0.999999`, the bisection bracket's own
+  floor. This is unreachable today and becomes a stated property.
+
+**What does not change:** Newton from `0.1`, the bisection bracket
+`(−0.999999, +10]`, Act/365, the iteration cap, the six-decimal rounding, the
+degenerate reasons, and the float exception's boundary. Scaling happens in
+`Decimal` before the boundary; the float exception is not widened.
+
+**Why scaling and not a relative tolerance.** A relative tolerance moves the
+acceptance test for small amounts as well, so every stored fixture's
+last digit would have to be re-proven. Scaling above a threshold leaves
+everything under it untouched, and it is the shape of the fix the
+per-trade figure already ships with (that one scales to the trade's cost;
+the solver scales to its largest flow, which works for every caller).
+
+**The identities the building story pins** (risk-tier, ADR-0036):
+
+1. Every existing solver, walk, benchmark and trade fixture returns the same
+   rate, byte for byte. A trade fixture over a million whose rate moves in
+   the sixth decimal (its scale factor changes from cost-based to
+   largest-flow-based) is reported as a finding, never re-baselined
+   silently.
+2. The synthetic trades and portfolios that read "n/a" at about `1e8` and
+   `1e9` return the rate the same flows return at one millionth of the
+   amounts, within the six-decimal rounding.
+3. No rate is ever at or below `−1`.
+
+The mutation check for identity 2: removing the scaling turns the test red.
 
 ## References
 
