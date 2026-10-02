@@ -693,8 +693,11 @@ was taken from the shrink order.
   Release workflow on pushes to `main` that touch shipped code (#997, D-11);
   the first-run debt; the maintenance lane
   (`version-report-2026-10-01-sprint17.md`).
-- **The launch test** (D-1, #998) ran at PR β's closing act and at this
-  close-out; the record is in `sprint-status.yaml`'s Sprint 17 entry.
+- **The launch test** (D-1, #998) passed twice: at PR β's closing act and at
+  this close-out, against `main`, with all three answers exact both times.
+  Both runs needed a machine-local build, because the test container's egress
+  denies the Debian mirrors. The record is in `sprint-status.yaml`'s Sprint 17
+  entry.
 
 **Registry rows this batch moves:** **FR-4** records ADR-0050 §12's list view
 as shipped, so the agent-first deadline is met. The Tracker Index's **E26**
@@ -730,8 +733,11 @@ their own to show.
   launch test) and #1023–#1027.
 - The design pass's Part 4 observations: #1009–#1014.
 - From PR γ's closing act: #1029–#1034.
+- From the close-out's launch-test run: #1037 (the agent entry points' gaps)
+  and #1038 (a parse-only check of a converted file, needs a decision).
 
-Six of them wait on a decision: #1007, #1014, #1016, #1020, #1025 and #1026.
+Seven of them wait on a decision: #1007, #1014, #1016, #1020, #1025, #1026
+and #1038.
 
 ## Implementation Status — reconciled with code (2026-09-29, Sprint 16 close-out)
 

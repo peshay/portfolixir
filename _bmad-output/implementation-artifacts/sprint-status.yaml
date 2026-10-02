@@ -84,7 +84,8 @@ story_location: _bmad-output/implementation-artifacts
 # WHAT CLOSED:
 # - By keyword: #981, #982, #983 and #984 (#984 with its D-7 rescope stated in
 #   #1035's body), #992, #993, #994, #995, #996 and #997.
-# - By hand at this close-out: #998, the launch test, with the record below.
+# - By hand at this close-out: #998, the launch test, with the record below
+#   (two runs, both PASS).
 # - STAYS OPEN: #991, E26's tracker, because Sprint 18 carries the
 #   operator's half.
 #
@@ -100,8 +101,46 @@ story_location: _bmad-output/implementation-artifacts
 #   a release is never an installable image. The other half of that build,
 #   a proxy CA the Dockerfiles have no hook for, is #1026's decision. The
 #   run's documentation findings were fixed on beta before the merge.
-# - Run 2, at this close-out, against `main` e06bd4fd: running when this
-#   entry was first pushed; its record replaces this line.
+# - Run 2, at this close-out (2026-10-02, against `main` e06bd4fd): PASS on
+#   all three questions. The agent under test was a fresh Claude Code
+#   subagent, like run 1's. It worked in a clone without
+#   test/fixtures/launch_test/, with the export outside the clone.
+#   1. Setup: it read the README, llms.txt and the pages they link. It read
+#      the Dockerfiles and the Compose file only to work around the build.
+#      An audit of every tool call it made shows nothing under the
+#      fixture directory, the answer key or the repository on GitHub.
+#   2. The agent's part: PASS, again only through a machine-local build.
+#      The documented `docker compose up --build` failed twice on this
+#      machine: the egress policy denies the Debian mirrors, and the
+#      egress gateway re-signs TLS. The agent built through an override
+#      kept outside the clone: the same pinned images, the gateway's CA
+#      trusted in the build stages, TLS verification on, no tracked file
+#      changed. It connected the companion with the book profile (112
+#      tools, contract version 10), ran first_setup and import_converter,
+#      and handed over a CSV with nine bookings. The Imports preview showed
+#      no error and no warning.
+#   3. The drop: the stand-in user dropped the file and kept every
+#      proposal: the default bucket tag, four accounts created, each depot
+#      linked to its own cash account, three securities created. 9 bookings
+#      created, 0 duplicates.
+#   4. The questions, asked in the protocol's words:
+#      - 13,659.20 EUR from portfolios.valuation on the one portfolio record.
+#        The agent said both positions are priced at their latest trade,
+#        because no quote exists.
+#      - 200.75 EUR from cashflow.realized_gains, per trade, with the
+#        distribution named as income outside it.
+#      - 2,297.75 EUR from cash_accounts.list.
+#      All three are exact. All 25 of its MCP calls were reads.
+#   Its documentation findings:
+#   - Filed: #1037, the entry points name no Imports address or login,
+#     start Compose in the foreground, and the converter prompt is silent on
+#     a dividend's depot. #1038, the decision on a parse-only check of a
+#     converted file before the drop.
+#   - Already filed: the handbook's silence on the CSV path's missing ISIN
+#     (#1024), and the Dockerfiles' missing CA hook (#1026).
+#   - Refuted: home-deployment.md names the Debian packages and HTTP_PROXY
+#     for the build, and the companion's Node 24 is stated and enforced by
+#     package.json's engines.
 #
 # TWO-WAY COVERAGE:
 # - Both human views due by the end of Sprint 17 landed:
@@ -131,8 +170,9 @@ story_location: _bmad-output/implementation-artifacts
 # - from PR alpha: #1006 and #1015-#1022;
 # - from PR beta: #1007 and #1023-#1027;
 # - the design pass's Part 4 observations: #1009-#1014;
-# - from PR gamma's closing act: #1029-#1034.
-# Waiting on a decision: #1007, #1014, #1016, #1020, #1025 and #1026.
+# - from PR gamma's closing act: #1029-#1034;
+# - from the close-out's launch-test run: #1037 and #1038.
+# Waiting on a decision: #1007, #1014, #1016, #1020, #1025, #1026 and #1038.
 #
 # RETROSPECTIVE (Sprint 17, E26's first half).
 # * THE LANE-PR CUT WORKED FOR REVIEW, AND STACKING BROKE THE MERGE. Three
