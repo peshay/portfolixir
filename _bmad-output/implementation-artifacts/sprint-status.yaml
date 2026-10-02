@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-10-01 (Sprint 17 PR alpha opened: E26 tracker #991 and its issues filed; earlier the same day, Sprint 17 PLANNED: sprint-plan-2026-10-01-sprint17.md, adopted by the merge of its planning PR, which SIGNS ADR-0051 (FR-41) and answers the 2026-10-01 triage's OQ-1 to OQ-6 -- the agent's first contact in three lane PRs, the launch test as the exit criterion, FR-41's build in Sprint 18, calendar versions by workflow, the authorship rule kept and its friction removed)
+# last_updated: 2026-10-02 (Sprint 17 CLOSED OUT: alpha #1005, beta #1008 and gamma through #1035 merged, releases 2026.10.1-2026.10.3; earlier, Sprint 17 PR alpha opened: E26 tracker #991 and its issues filed; earlier the same day, Sprint 17 PLANNED: sprint-plan-2026-10-01-sprint17.md, adopted by the merge of its planning PR, which SIGNS ADR-0051 (FR-41) and answers the 2026-10-01 triage's OQ-1 to OQ-6 -- the agent's first contact in three lane PRs, the launch test as the exit criterion, FR-41's build in Sprint 18, calendar versions by workflow, the authorship rule kept and its friction removed)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-10-01
+last_updated: 2026-10-02
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,148 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# CLOSED OUT (2026-10-02, Sprint 17) -- three lane PRs, rebase-merged:
+# PR alpha #1005 at 06:13 UTC (`main` at 1940a21d, 31 commits), PR beta #1008
+# at 06:14 UTC (7ceb0427, 13 commits), PR gamma through #1035 at 07:35 UTC
+# (e06bd4fd, 15 commits).
+# Verification basis:
+# - The commits on `main` (bbe3ca52..e06bd4fd, linear, zero merge commits).
+#   #1035's merged tree is byte-identical to the head CI tested (37c51368).
+# - The Actions runs on the three merge pushes: Commit authorship 666, 667
+#   and 669 green; CI 1652 and 1653 green, and CI 1655 on e06bd4fd
+#   green. The Release workflow's calendar job made 2026.10.1,
+#   2026.10.2 and 2026.10.3.
+# - The post-merge issue list.
+#
+# GAMMA WENT TO THE WRONG BASE FIRST. PR gamma was opened as #1028 against PR
+# alpha's branch, so its diff showed gamma alone (plan D-12). The owner merged
+# #1028 at 06:13:46 UTC, 21 s after alpha. GitHub had not retargeted it to
+# `main`, so the merge landed on `agent/claude/sprint-17-alpha`
+# (3c6c3874) and `main` got none of gamma; #984 stayed open, correctly.
+# Rebasing onto `main`, which now carried alpha and beta, needed three
+# changes. A new PR was opened only after the owner chose it in the session:
+# - contract entry 10 before beta's 9;
+# - the companion's tool list trimmed under beta's schema-budget ceilings.
+#   A first commit shortens four existing descriptions, and each gamma
+#   commit words its own additions tightly; no ceiling was raised;
+# - the new tool counts in docs/llms.txt.
+# All 15 commits passed the MCP tests and the gettext check one by one. The
+# stale merge commit stays on the alpha branch; deleting that branch is the
+# owner's call.
+#
+# WHAT CLOSED:
+# - By keyword: #981, #982, #983 and #984 (#984 with its D-7 rescope stated in
+#   #1035's body), #992, #993, #994, #995, #996 and #997.
+# - By hand at this close-out: #998, the launch test, with the record below.
+# - STAYS OPEN: #991, E26's tracker, because Sprint 18 carries the
+#   operator's half.
+#
+# NOTHING WAS SHRUNK. Every lane of the plan landed; the shrink order was
+# never used.
+#
+# LAUNCH TEST (D-1, #998):
+# - Run 1, at PR beta's closing act (2026-10-01, against dab5d4b, beta's
+#   branch before its documentation fixes): PASS on all three questions.
+#   The agent built the images through a machine-local Compose override,
+#   because this container's egress refuses the Debian mirrors the
+#   Dockerfiles' apt steps need. That is the test machine, not the product:
+#   a release is never an installable image. The other half of that build,
+#   a proxy CA the Dockerfiles have no hook for, is #1026's decision. The
+#   run's documentation findings were fixed on beta before the merge.
+# - Run 2, at this close-out, against `main` e06bd4fd: running when this
+#   entry was first pushed; its record replaces this line.
+#
+# TWO-WAY COVERAGE:
+# - Both human views due by the end of Sprint 17 landed:
+#   - the merge-record list (V1, ADR-0050 section 12);
+#   - the release of manual quotes from the Quotes tab (V2, T-9), together
+#     with the read it stands on (GET
+#     /api/v1/securities/:security_id/quotes/manual,
+#     portfolixir.quotes.manual).
+# - New and agent-first: annualized_return on the per-security trades read
+#   has no figure on the security's Trades tab. The facet and the Overview
+#   card show it from the same computation. Due by the end of Sprint 18:
+#   #1029.
+# - The companion's profiles and prompts configure the agent and have no
+#   data surface to show.
+#
+# SURFACE CHECK (the 2026-09-03 owner decision):
+# - annualized_return's family is the two closed-trade reads (realized_gains
+#   and securities/:id/trades), and both carry it with its reason and basis.
+# - unmatched_sells is on the realized read. The per-security trades read
+#   carries the same sells as its existing orphan_sells, not renamed.
+# - limit= gained GET /api/v1/securities/:security_id/quotes/manual, through
+#   the shared ListLimit bound. It bounds the stretches; from/to add a range
+#   count, not a row filter.
+# - PORTFOLIXIR_MCP_PROFILE reaches every one of the 140 tools.
+#
+# FILED AND NOT BUILT (Scope Lock):
+# - from PR alpha: #1006 and #1015-#1022;
+# - from PR beta: #1007 and #1023-#1027;
+# - the design pass's Part 4 observations: #1009-#1014;
+# - from PR gamma's closing act: #1029-#1034.
+# Waiting on a decision: #1007, #1014, #1016, #1020, #1025 and #1026.
+#
+# RETROSPECTIVE (Sprint 17, E26's first half).
+# * THE LANE-PR CUT WORKED FOR REVIEW, AND STACKING BROKE THE MERGE. Three
+#   PRs of 31, 13 and 15 commits replaced Sprint 16's one PR of 336; each had
+#   its own closing act and briefing. But gamma, opened against alpha's
+#   branch so its diff stayed readable, was merged into that branch: a
+#   stacked PR is not retargeted while its base branch still exists. Carry
+#   forward: either the repository deletes head branches on merge (GitHub
+#   then retargets a stacked PR to `main`), or the agent retargets the next
+#   lane PR to `main` the moment its predecessor merges and says so in the
+#   PR, before the owner merges it.
+# * ONE LENS PER RISK CLASS (D-14) PAID. Gamma's closing act ran three
+#   reviewers instead of Sprint 16's fleets: no blocker, about twenty
+#   confirmed findings. The ones that mattered are the kind no gate sees:
+#   - Enter in a date field released the prefilled range;
+#   - a confirm could release more quotes than it named;
+#   - a page crashed on a security merged away meanwhile;
+#   - two mutants that changed the annualized figure survived the suite;
+#   - the solver answered null for large amounts.
+#   The walkthrough seed fired none of the new alarms until the UAT persona
+#   said so; it now does (step 15).
+# * THE SCHEMA BUDGET DID ITS JOB AT THE WORST MOMENT. Beta's ceilings caught
+#   gamma's growth, about 1.8 KB. The correctness lens saw it by a trial
+#   merge at gamma's closing act, but the fix had to wait for the rebase onto
+#   beta. Carry forward: a lane PR that adds MCP surface measures against the
+#   budget of the lanes ahead of it at its closing act, and words its
+#   additions tightly from the start.
+# * CALENDAR VERSIONS REMOVED AN OWNER STEP. Three merges made three releases
+#   with no tag pushed by hand, the first since 0.14.0 (D-11).
+# * THE AUTHORSHIP FRICTION MOVED, IT DID NOT GO. D-10's environment
+#   variables made every commit the owner's without a turn spent. The
+#   environment's stop hook still asks, after each turn that leaves commits,
+#   to recommit them under an agent identity, and each request is declined
+#   under CLAUDE.md.
+# * A REVIEW ROUND TRIPS INVARIANT TESTS. Gamma's fix round broke four of
+#   them with its own new code:
+#   - the companion's egress test (the word "fetch" in a tool description);
+#   - the LiveParam sweep (a page parsing an integer itself);
+#   - the localization test (a count through gettext);
+#   - the authored-quotes test (the seed calling the unjournaled quote
+#     upsert that only the sync may call).
+#   Local runs caught all four before the push. Carry forward: unchanged,
+#   the rule is to run the full suite.
+#
+# MAINTENANCE LANE: version-report-2026-10-01-sprint17.md -- phoenix 1.8.15
+# (#975), @types/node 24.19.0 (#976), fast-uri 3.1.8 (an advisory below the
+# high gate) and @modelcontextprotocol/sdk 1.31.0 taken. Deliberately not
+# taken, with reasons in the report: Node 26 (#977, not LTS until
+# 2026-10-28), sobelow 0.16.0 (six new findings to read first, #1006), and
+# codecov-action (#881, the maintainer's).
+#
+# EPIC STATES AFTER THIS MERGE: E26 STAYS IN PROGRESS -- Sprint 17's half (the
+# agent's first contact) shipped; Sprint 18 carries the operator's half
+# (FR-41 as ADR-0051 signed, #900, #901, the UI polish lane and the human
+# documentation with #1034's screenshots).
+#
+# THE RELEASES: 2026.10.1 (alpha, 1940a21d), 2026.10.2 (beta, 7ceb0427) and
+# 2026.10.3 (gamma, e06bd4fd), each an annotated tag and a GitHub Release
+# with generated notes that name the API contract version. 0.15.0, 0.15.1
+# and 0.16.0 stay untagged (D-11); 2026.10.1's notes start from 0.14.0.
 #
 # PR ALPHA OPENED (2026-10-01, Sprint 17) -- branch
 # agent/claude/sprint-17-alpha from `main` at bbe3ca5e, which carries the
@@ -2015,4 +2157,4 @@ development_status:
   # with A1-A3 #992-#994, G-1 #995, G-2 #996, P1 #997, the launch test #998,
   # and the follow-ups #999-#1004; #981-#984 moved under it.
   epic-26: in-progress
-  epic-26-retrospective: optional
+  epic-26-retrospective: optional  # Sprint 17's half recorded in its close-out entry
