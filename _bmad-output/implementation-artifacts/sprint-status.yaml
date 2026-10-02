@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-10-02 (Sprint 17 CLOSED OUT: alpha #1005, beta #1008 and gamma through #1035 merged, releases 2026.10.1-2026.10.3; earlier, Sprint 17 PR alpha opened: E26 tracker #991 and its issues filed; earlier the same day, Sprint 17 PLANNED: sprint-plan-2026-10-01-sprint17.md, adopted by the merge of its planning PR, which SIGNS ADR-0051 (FR-41) and answers the 2026-10-01 triage's OQ-1 to OQ-6 -- the agent's first contact in three lane PRs, the launch test as the exit criterion, FR-41's build in Sprint 18, calendar versions by workflow, the authorship rule kept and its friction removed)
+# last_updated: 2026-10-02 (Sprint 18 PLANNED: sprint-plan-2026-10-02-sprint18.md, adopted by the merge of its planning PR, which SIGNS the ADR-0034 amendment for #1031 -- the operator's half of E26 in four lane PRs, the two money bugs first, the operator's first-look test as a second exit criterion; earlier the same day, Sprint 17 CLOSED OUT: alpha #1005, beta #1008 and gamma through #1035 merged, releases 2026.10.1-2026.10.3; earlier, Sprint 17 PR alpha opened: E26 tracker #991 and its issues filed; earlier the same day, Sprint 17 PLANNED: sprint-plan-2026-10-01-sprint17.md, adopted by the merge of its planning PR, which SIGNS ADR-0051 (FR-41) and answers the 2026-10-01 triage's OQ-1 to OQ-6 -- the agent's first contact in three lane PRs, the launch test as the exit criterion, FR-41's build in Sprint 18, calendar versions by workflow, the authorship rule kept and its friction removed)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -51,6 +51,41 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# PLANNED (2026-10-02, Sprint 18) -- sprint-plan-2026-10-02-sprint18.md,
+# adopted by the merge of the Sprint 18 planning PR, which SIGNS the ADR-0034
+# amendment of 2026-10-02 (the solver scales flows above a largest flow of
+# one million before it tests its tolerance; the gate for #1031) and carries
+# the design pass ux-design-2026-10-02-sprint18.md with eight boards (picks
+# H1-H8). Verification basis: `main` at d73ecf55 with CI 1658 and Commit
+# authorship 672 green; 119 open issues (six trackers) and two Dependabot
+# PRs (#881, #977); release 2026.10.3; the companion's schema budget
+# measured on the branch (149, 36 and 167 bytes under the read, book and
+# full ceilings).
+# The operator's half of E26, in four lane PRs merged in order (D-9):
+# - alpha: #1023 (a two-sided PP cash transfer booked once, in the right
+#   direction; risk-tier), #1031 (the amendment; risk-tier), #1015 and
+#   #1016 (upgrades independent of today's code), #955 (an unknown write
+#   outcome reported), #1026 (the release's fetch switch, the proxy CA),
+#   Lane D hygiene, Lane M;
+# - beta: FR-41 (ADR-0051, I1-I9, board pick A), #901, #1007 (a view-less
+#   total read, as an optional view on the existing tool; D-5), #1029 (the
+#   Trades tab's p. a. figure, the two-way deadline; pick H1), #1030;
+# - gamma: #912 (deleting a booking from the screen, a two-way debt that
+#   does not shrink; D-6, pick H2), the polish lane (picks H4-H8), #330
+#   (pick H3, shrinkable);
+# - delta: the human documentation, the first run, the screenshots from the
+#   synthetic seed (#1034, #1017, #1037, #1024, #952, #960, #943, #929).
+# D-1: a second exit criterion, the operator's first-look test, at delta's
+# closing act; the agent's launch test runs again at the close-out. D-2:
+# #1002-#1004, #899 and #900 leave Sprint 18 (narrowing Sprint 17's D-2).
+# D-7 answers #1014 (the spec follows the screens), #1016 (rule widened),
+# #1020 (invented instruments in test fixtures), #1026 (both halves),
+# #1038 and #1025 (not now). D-9: the retrospective's stacked-PR fix, an
+# owner setting plus an agent duty. D-10: each PR pays for its MCP surface
+# by trimming inside the budget. D-11: Node 26 on its LTS date; owner
+# action on #881. The close-out ends with a launch-readiness summary for the
+# owner's announcement decision.
 #
 # CLOSED OUT (2026-10-02, Sprint 17) -- three lane PRs, rebase-merged:
 # PR alpha #1005 at 06:13 UTC (`main` at 1940a21d, 31 commits), PR beta #1008
