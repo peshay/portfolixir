@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Touch-Ziele und Fokus (Pick H6)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the rules the stories would add to app.css. Everything else
+     inside the frames is markup and classes that already ship:
+     AppShell.data_note/1 (.data-note, .data-note--note/--attention,
+     .data-note__icon, .data-note__word, .data-note__body, .link-button as the
+     remedy), AppShell.inline_result/1 (.inline-result, .inline-result__region,
+     .inline-result__dismiss), ManualQuotes.note/1, AppShell.invisible_text_note/1,
+     the Tax budget notes (tax_live.ex), the native dialogs' heads (.modal,
+     .modal-head, .modal-head__step, .icon-button; .filter-sheet__head; the
+     booking drawer's .detail-pane-head__actions), and the Overview's
+     .attention-list / .attention-item / .attention-item__sub /
+     .drift-bar (dashboard_live.ex). -->
+<style id="proposal">
+  /* ① #1013 (variant A, recommended): a remedy inside a data note keeps its
+     place in the sentence and gains the 44 px floor as its hit area. The
+     padding grows the button's box to 44 px; the negative margin gives the
+     line its 18 px back (the note's 12 px × 1.5), so nothing reflows — the
+     technique .positions-toggle already uses. 13 px = (44 − 18) / 2. */
+  @media (pointer: coarse) {
+    .data-note__body .link-button {
+      padding-block: 13px;
+      margin-block: -13px;
+    }
+  }
+
+  /* ② #1033: every native dialog's close button takes the release dialog's
+     rule (Sprint 17, closing act γ D6): it keeps its width beside a title
+     that wraps, and it is 44 × 44 under a coarse pointer. Replaces the three
+     `.quote-release-dialog .modal-head` rules, which this subsumes. */
+  .modal-head,
+  .filter-sheet__head {
+    gap: var(--space-2);
+  }
+
+  .modal-head > .icon-button,
+  .filter-sheet__head > .icon-button,
+  .booking-drawer .detail-pane-head__actions > .icon-button {
+    flex: none;
+  }
+
+  @media (pointer: coarse) {
+    .modal-head > .icon-button,
+    .filter-sheet__head > .icon-button,
+    .booking-drawer .detail-pane-head__actions > .icon-button {
+      width: 44px;
+      height: 44px;
+    }
+  }
+
+  /* ③ #1033: an attention row (Overview: "Abgeschlossene Trades",
+     "Ziel-Abweichungen", "Fällig") draws the shared 2 px accent ring, not the
+     browser's. The radius keeps the ring off the row's text corners. */
+  .attention-item:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* ④ #1033: the dismiss stops raising its line. `.inline-result__dismiss`
+     declares 1.4rem, but the base `button { min-height: 34px }` wins, so the
+     × was a 22 × 34 box and a one-line result grew from 36 to 52 px with the
+     severity word left at the top. A 1rem-high box fits the 18 px line. Under
+     a coarse pointer it keeps a 44 px target the way ① does — without that
+     half, dropping the 34 px floor would shrink the touch target to 16 px. */
+  .inline-result__dismiss {
+    min-height: 0;
+    height: 1rem;
+  }
+
+  @media (pointer: coarse) {
+    .inline-result__dismiss {
+      width: 44px;
+      height: 44px;
+      padding-block: 14px;
+      margin-block: -14px;
+    }
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: visible; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ol, .notes ul { margin: 0; }
+  .notes ol, .notes ul { padding-left: 18px; }
+  ol.pins { list-style: none; padding: 0; }
+  .notes li { margin: 0 0 6px; }
+  .notes code, .mock-note code, .pickbar code, .callout code { font-size: 11.5px; }
+  .elide { margin: 0; font-size: 12px; color: var(--mock-ink); font-style: italic; }
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; text-transform: none; flex: none; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  i.pin.o { background: var(--mock-ink); }
+  .notes li > i.pin:first-child { margin: 0 4px 0 0; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .rec { color: var(--color-positive); font-weight: 760; }
+  .callout { border: 1px solid var(--color-border); border-left: 4px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-bg-elevated); padding: 10px 14px; display: grid; gap: 6px; font-size: 12.5px; }
+  .callout h4 { margin: 0; font-size: 13px; }
+  .callout p, .callout ul { margin: 0; }
+  .callout ul { padding-left: 18px; }
+  .stage { padding: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .lbl { margin: 0 0 -6px; font-size: 11px; color: var(--mock-ink); }
+  .w-frame { flex: 1 1 340px; min-width: 0; }
+  .w-notes { flex: 1 1 300px; }
+  .w-half { flex: 1 1 460px; min-width: 0; }
+  .phone-only { display: none; }
+
+  /* Drawing aid: the hit box of a control, as the browser lays it out.
+     Red = under 44 px, green = at the floor. Not app UI. */
+  .hit { outline: 1.5px dashed var(--color-danger) !important; outline-offset: 0 !important; background: color-mix(in srgb, var(--color-danger) 10%, transparent) !important; }
+  .hit-ok { outline: 1.5px dashed var(--color-positive) !important; outline-offset: 0 !important; background: color-mix(in srgb, var(--color-positive) 12%, transparent) !important; }
+
+  /* The coarse-pointer state, applied unconditionally. The renderer has a
+     mouse, so `@media (pointer: coarse)` never matches here; the "after"
+     frames carry .as-coarse and get the proposal's coarse rules as written.
+     The "before" frames need nothing: no coarse rule reaches these controls
+     today (measured with Playwright hasTouch, which does match
+     `pointer: coarse`). */
+  .as-coarse .data-note__body .link-button { padding-block: 13px; margin-block: -13px; }
+  .as-coarse.var-b .data-note__body .link-button { display: flex; align-items: center; min-height: 44px; padding-block: 0; margin-block: 0; }
+  .as-coarse .modal-head > .icon-button,
+  .as-coarse .filter-sheet__head > .icon-button,
+  .as-coarse .booking-drawer .detail-pane-head__actions > .icon-button { width: 44px; height: 44px; }
+  .as-coarse .inline-result__dismiss { width: 44px; height: 44px; padding-block: 14px; margin-block: -14px; }
+  .as-coarse .detail-pane-tab { min-height: 44px; }
+
+  /* "Before" frames show the stylesheet as shipped: the proposal rules ②–④
+     above would otherwise reach them too, so they are undone here. */
+  .today .modal-head, .today .filter-sheet__head { gap: normal; }
+  .today .modal-head > .icon-button,
+  .today .filter-sheet__head > .icon-button,
+  .today .booking-drawer .detail-pane-head__actions > .icon-button { flex: 0 1 auto; }
+  .today .quote-release-dialog .modal-head { gap: var(--space-2); }
+  .today .quote-release-dialog .modal-head > .icon-button { flex: none; }
+  .today.as-touch .quote-release-dialog .modal-head > .icon-button { width: 44px; height: 44px; }
+  .today .attention-item.ua-focus { outline: auto 1px -webkit-focus-ring-color; outline-offset: 0; border-radius: 0; }
+  .today .inline-result__dismiss { min-height: 34px; height: 1.4rem; }
+
+  /* the focused row in the "after" frames (the state :focus-visible draws) */
+  .attention-item.kb-focus { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+  /* dialogs drawn in flow (no <dialog> positioning) */
+  .dlg-stack { display: grid; gap: 12px; padding: 14px; background: var(--color-bg-muted); }
+  .dlg-stack .modal { max-width: none; box-shadow: var(--shadow-md); }
+  .dlg-stack .modal-head { border-bottom: 0; }
+  .dlg-stack .filter-sheet-mock { background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 8px 8px 0 0; padding: 12px 16px; box-shadow: var(--shadow-md); }
+  .dlg-stack .filter-sheet__head { margin-bottom: 0; }
+  .dlg-stack .booking-drawer { margin: 0; }
+  .dlg-stack .booking-drawer .detail-pane-head h2 { font-size: 15px; margin: 0; }
+  .dlg-cap { margin: 0 0 -6px; font-size: 11px; color: var(--mock-ink); }
+
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-board > p.mock-note { padding: 0 12px; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .stage { padding: 10px; }
+    .dlg-stack { padding: 10px; }
+    .notes { padding: 0 12px; }
+    .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+    i.pin { display: none; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-ast" viewBox="0 0 24 24"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></symbol>
+    <symbol id="i-att" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar desk-only"><b>Entscheidung H6 — Touch-Ziele und Fokus (#1013, #1033).</b> Vier Konformitätsreparaturen gegen UX&#8209;DR6 (44&nbsp;px unter <code>pointer: coarse</code>) und den 2&#8209;px-Akzentring. <b>H6.2, H6.3 und H6.4 sind vorher/nachher</b>: Die Spezifikation legt die Antwort fest. <b>H6.1 hat eine echte Wahl</b>, weil UX&#8209;DR6 den Mechanismus offenlässt und die beiden Mechanismen verschieden aussehen: <b>A</b> die Trefferfläche wächst, der Satz bleibt · <b>B</b> die Abhilfe bekommt auf Touch eine eigene 44&#8209;px-Zeile. <span class="rec">Empfehlung A.</span> Ein Kommentar mit Code und Buchstabe auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. <b>Der Renderer hat eine Maus:</b> Die Nachher-Rahmen wenden die vorgeschlagenen Coarse-Regeln ohne Medienabfrage an (Board-Klasse <code>.as-coarse</code>); die Vorher-Rahmen zeigen, was ein Touch-Gerät heute bekommt — gemessen mit Playwright <code>hasTouch</code>, das <code>pointer: coarse</code> erfüllt. Gestrichelt rot/grün = die Trefferfläche, wie der Browser sie legt (Zeichenhilfe). Alle Namen und Zahlen sind erfunden. Die Darstellung bei 390&nbsp;px ist <code>06-touch-focus--390.png</code>.</div>
+<p class="phone-only phone-cap"><b>H6 bei 390&nbsp;px.</b> Dieselben Rahmen in einem echten 390-px-Viewport. Nachher-Rahmen: Coarse-Regeln ohne Medienabfrage angewandt (der Renderer hat eine Maus). Gestrichelt = Trefferfläche. H6.1: Empfehlung A. Alle Daten erfunden.</p>
+
+<!-- ============================ H6.1 ============================ -->
+<section class="mock-board">
+  <h2>H6.1 · #1013 — eine Abhilfe in einer Datennotiz ist auf Touch 18&nbsp;px hoch <small>UX&#8209;DR6 · <code>.link-button</code> · Wahl A / B</small></h2>
+  <p class="mock-note desk-only">Seit F26 trägt <code>.link-button</code> nichts vom Button: <code>min-height: 0</code>, kein Innenabstand. Im Satz einer Notiz (12&nbsp;px, Zeilenhöhe 1,5) ist die Abhilfe deshalb eine 18&nbsp;px hohe Trefferfläche, mit oder ohne <code>pointer: coarse</code> — kein Coarse-Block erreicht sie. Acht Aufrufstellen in fünf Arten von Notiz rendern so eine Abhilfe; vier davon unten. Desktop bleibt in beiden Varianten unverändert.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-frame today as-touch"><span class="mock-tag">Heute · Touch</span>
+      <div class="stage">
+        <p class="lbl">Wertpapier → Kurse (Sprint 17)</p>
+        <div class="data-note data-note--note">
+          <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+          <span class="data-note__word">Hinweis</span>
+          <div class="data-note__body">7 manuelle Kurse in der gespeicherten Historie, vom <time datetime="2026-06-30">2026-06-30</time> bis <time datetime="2026-09-16">2026-09-16</time>. Ein manueller Kurs hat Vorrang: Die Kursaktualisierung lässt ihn stehen, bis er freigegeben wird. <button type="button" class="link-button hit">Freigeben…</button><i class="pin b">1</i></div>
+        </div>
+        <p class="lbl">Wertpapier-Kopf · gespeicherter Name mit unsichtbaren Zeichen</p>
+        <div class="data-note data-note--attention">
+          <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-att"/></svg></span>
+          <span class="data-note__word">Achtung</span>
+          <div class="data-note__body">Der Name enthält 1 unsichtbares Zeichen. Neu eingegeben ist er sauber. <button type="button" class="link-button hit">Stammdaten bearbeiten</button></div>
+        </div>
+        <p class="lbl">Steuern → Budget</p>
+        <div class="data-note data-note--attention">
+          <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-att"/></svg></span>
+          <span class="data-note__word">Achtung</span>
+          <div class="data-note__body">Veraltet — 4 steuerrelevante Buchungen seit dem Abrechnungsdatum verbrauchen Verlusttöpfe oder Freistellungsauftrag. <button type="button" class="link-button hit">Neue Abrechnung erfassen</button></div>
+        </div>
+        <p class="lbl">Wertpapier → Kurse · Ergebnis der Freigabe</p>
+        <div class="inline-result"><div role="status" class="inline-result__region">
+          <div class="data-note data-note--note">
+            <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+            <span class="data-note__word">Hinweis</span>
+            <div class="data-note__body">4 manuelle Kurse freigegeben, vom <time datetime="2026-06-30">2026-06-30</time> bis <time datetime="2026-07-03">2026-07-03</time>. Die nächste Kursaktualisierung speichert für diese Tage den Schlusskurs des Anbieters. <button type="button" class="link-button hit">Kurse aktualisieren</button><button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button></div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after w-frame as-coarse"><span class="mock-tag">A · empfohlen — 44&nbsp;px Trefferfläche, der Satz bleibt</span>
+      <div class="stage">
+        <p class="lbl">Wertpapier → Kurse</p>
+        <div class="data-note data-note--note">
+          <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+          <span class="data-note__word">Hinweis</span>
+          <div class="data-note__body">7 manuelle Kurse in der gespeicherten Historie, vom <time datetime="2026-06-30">2026-06-30</time> bis <time datetime="2026-09-16">2026-09-16</time>. Ein manueller Kurs hat Vorrang: Die Kursaktualisierung lässt ihn stehen, bis er freigegeben wird. <button type="button" class="link-button hit-ok">Freigeben…</button><i class="pin a">2</i></div>
+        </div>
+        <p class="lbl">Wertpapier-Kopf</p>
+        <div class="data-note data-note--attention">
+          <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-att"/></svg></span>
+          <span class="data-note__word">Achtung</span>
+          <div class="data-note__body">Der Name enthält 1 unsichtbares Zeichen. Neu eingegeben ist er sauber. <button type="button" class="link-button hit-ok">Stammdaten bearbeiten</button></div>
+        </div>
+        <p class="lbl">Steuern → Budget</p>
+        <div class="data-note data-note--attention">
+          <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-att"/></svg></span>
+          <span class="data-note__word">Achtung</span>
+          <div class="data-note__body">Veraltet — 4 steuerrelevante Buchungen seit dem Abrechnungsdatum verbrauchen Verlusttöpfe oder Freistellungsauftrag. <button type="button" class="link-button hit-ok">Neue Abrechnung erfassen</button></div>
+        </div>
+        <p class="lbl">Ergebnis der Freigabe (mit H6.4)</p>
+        <div class="inline-result"><div role="status" class="inline-result__region">
+          <div class="data-note data-note--note">
+            <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+            <span class="data-note__word">Hinweis</span>
+            <div class="data-note__body">4 manuelle Kurse freigegeben, vom <time datetime="2026-06-30">2026-06-30</time> bis <time datetime="2026-07-03">2026-07-03</time>. Die nächste Kursaktualisierung speichert für diese Tage den Schlusskurs des Anbieters. <button type="button" class="link-button hit-ok">Kurse aktualisieren</button><button type="button" class="inline-result__dismiss hit-ok" aria-label="Schließen" title="Schließen">&times;</button><i class="pin a">3</i></div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="mock-frame w-frame as-coarse var-b"><span class="mock-tag" style="color:var(--mock-ink);background:var(--color-bg-muted)">B — auf Touch eine eigene 44&nbsp;px-Zeile</span>
+      <div class="stage">
+        <p class="lbl">Wertpapier → Kurse</p>
+        <div class="data-note data-note--note">
+          <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+          <span class="data-note__word">Hinweis</span>
+          <div class="data-note__body">7 manuelle Kurse in der gespeicherten Historie, vom <time datetime="2026-06-30">2026-06-30</time> bis <time datetime="2026-09-16">2026-09-16</time>. Ein manueller Kurs hat Vorrang: Die Kursaktualisierung lässt ihn stehen, bis er freigegeben wird. <button type="button" class="link-button hit-ok">Freigeben…</button><i class="pin o">4</i></div>
+        </div>
+        <p class="lbl">Wertpapier-Kopf</p>
+        <div class="data-note data-note--attention">
+          <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-att"/></svg></span>
+          <span class="data-note__word">Achtung</span>
+          <div class="data-note__body">Der Name enthält 1 unsichtbares Zeichen. Neu eingegeben ist er sauber. <button type="button" class="link-button hit-ok">Stammdaten bearbeiten</button></div>
+        </div>
+        <p class="elide">Steuern und das Ergebnis der Freigabe genauso: jede Abhilfe unter ihrem Satz, die Notiz um 26&nbsp;px höher.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:14px">
+    <div class="notes w-notes">
+      <p class="cap">Was heute ist</p>
+      <ol class="pins">
+        <li><i class="pin b">1</i><b>18&nbsp;px hoch, auf jedem Gerät.</b> Gemessen bei 1200 und 390&nbsp;px, mit und ohne <code>pointer: coarse</code>: „Freigeben…“ 71&nbsp;×&nbsp;18&nbsp;px. Die Stellen: <code>manual_quotes.ex:40</code> (Freigeben…), <code>securities_live.ex:2815</code> (Kurse aktualisieren im Ergebnis), <code>:1064</code>, <code>:2500</code>, <code>:2682</code> (Hinweis auf unsichtbare Zeichen), <code>tax_live.ex:618</code>, <code>:894</code>, <code>:900</code> (Steuer-Notizen). Nicht betroffen: <code>.policy-rule__name</code> hat seine 44&nbsp;px schon, die Regel-Listen auf „Risiko“ und die Jahre in der Einkommenstabelle sind keine Abhilfe in einer Notiz.</li>
+      </ol>
+    </div>
+    <div class="notes w-notes">
+      <p class="cap">A und B</p>
+      <ol class="pins">
+        <li><i class="pin a">2</i><b>A: Die Trefferfläche wächst, die Zeile nicht.</b> 13&nbsp;px Innenabstand oben und unten, 13&nbsp;px negativer Außenabstand: Der Knopf ist 44&nbsp;px hoch, seine Zeile bleibt 18&nbsp;px, die Notiz behält ihre Höhe (gemessen). Die Fläche ragt in die Nachbarzeilen, die nur Text sind; am Rand der Notiz 4&nbsp;px über ihren Rahmen. Ruhebild identisch — der Unterschied liegt in der Fläche und im Fokusring auf Touch.</li>
+        <li><i class="pin a">3</i>Im Ergebnis stehen zwei Ziele nebeneinander: „Kurse aktualisieren“ und das ×. Beide bekommen ihre 44&nbsp;px nach oben und unten, nicht zur Seite, also überlappen sie sich nicht (Regel ④, H6.4).</li>
+        <li><i class="pin o">4</i><b>B: eine eigene Zeile, 44&nbsp;px hoch.</b> Robust und ohne Überlappung, aber die Abhilfe verlässt den Satz, jede Notiz wird auf Touch 26&nbsp;px höher, und Desktop und Touch zeigen dieselbe Notiz verschieden.</li>
+        <li><span class="rec">Warum A:</span> Die Abhilfe bleibt ein Kind des Satzes (UX&#8209;DR17), keine Notiz ändert ihre Höhe, und die Technik ist schon im Haus (<code>.positions-toggle</code>).</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ H6.2 ============================ -->
+<section class="mock-board">
+  <h2>H6.2 · #1033 — der Schließen-Knopf jedes Dialogs bleibt auf Touch 30&nbsp;px breit <small>UX&#8209;DR6 · vorher/nachher</small></h2>
+  <p class="mock-note desk-only">Siebzehn <code>&lt;dialog&gt;</code>-Elemente; ihr × ist ein <code>&lt;button class="icon-button"&gt;</code>. <code>.icon-button</code> setzt 30&nbsp;×&nbsp;30, aber die Grundregel <code>button { min-height: 34px }</code> gewinnt die Höhe — jedes × ist 30&nbsp;×&nbsp;34&nbsp;px, das des Zusammenführens wie alle anderen. Neben einem Titel, der umbricht, schrumpft es außerdem in der Breite (gemessen 24&nbsp;px bei 1200, 18&nbsp;px bei 390). Nur der Freigabe-Dialog hat seit Sprint 17 <code>flex: none</code> und 44&nbsp;×&nbsp;44 unter <code>pointer: coarse</code>. Nachher gilt seine Regel für alle.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-frame today as-touch"><span class="mock-tag">Heute · Touch</span>
+      <div class="dlg-stack">
+        <p class="dlg-cap">Konto zusammenführen (<code>portfolio_accounts/merge_dialog.ex</code>) · 30&nbsp;×&nbsp;34</p>
+        <div class="modal merge-dialog merge-dialog--target"><header class="modal-head"><h2>Tagesgeld (alt) zusammenführen<span class="modal-head__step">Schritt 1 von 2 · Ziel</span></h2><button type="button" class="icon-button hit" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></header></div>
+        <p class="dlg-cap">Wertpapier zusammenführen, langer Name · schrumpft in der Breite</p>
+        <div class="modal merge-dialog security-merge-dialog"><header class="modal-head"><h2>Meridian Global Equity ETF Thesaurierend (Anteilsklasse B) zusammenführen<span class="modal-head__step">Schritt 2 von 2 · Vorschau</span></h2><button type="button" class="icon-button hit" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></header></div>
+        <p class="dlg-cap">Saldo setzen, Umbenennen, Regel, Logo, Buckets, Split, Wertpapier/Konto anlegen, Löschen gesperrt · 30&nbsp;×&nbsp;34</p>
+        <div class="modal"><header class="modal-head"><h2>Saldo setzen — Girokonto</h2><button type="button" class="icon-button hit" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></header></div>
+        <p class="dlg-cap">Filter-Blatt (Wertpapiere, Transaktionen) · 30&nbsp;×&nbsp;34</p>
+        <div class="filter-sheet-mock"><header class="filter-sheet__head"><h2>Filter</h2><button type="button" class="icon-button hit" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></header></div>
+        <p class="dlg-cap">Buchungs-Schublade · 30&nbsp;×&nbsp;34</p>
+        <div class="detail-pane booking-drawer"><header class="detail-pane-head"><div class="detail-pane-head__title"><div><h2>Transaktion bearbeiten</h2><p class="detail-pane-sub">Korrigiert die Buchung an Ort und Stelle; die abgeleiteten Bestände folgen, die Änderung wird journalisiert.</p></div></div><div class="detail-pane-head__actions"><button type="button" class="icon-button hit" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></div></header></div>
+        <p class="dlg-cap">Zum Vergleich: der Freigabe-Dialog (Sprint 17) · 44&nbsp;×&nbsp;44</p>
+        <div class="modal quote-release-dialog"><header class="modal-head"><h2>Manuelle Kurse freigeben — Nordwind Industrie AG</h2><button type="button" class="icon-button hit-ok" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></header></div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after w-frame as-coarse"><span class="mock-tag">Nachher · Touch — die Regel des Freigabe-Dialogs für alle</span>
+      <div class="dlg-stack">
+        <p class="dlg-cap">Konto zusammenführen · 44&nbsp;×&nbsp;44</p>
+        <div class="modal merge-dialog merge-dialog--target"><header class="modal-head"><h2>Tagesgeld (alt) zusammenführen<span class="modal-head__step">Schritt 1 von 2 · Ziel</span></h2><button type="button" class="icon-button hit-ok" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></header></div>
+        <p class="dlg-cap">Wertpapier zusammenführen, langer Name · behält seine Breite</p>
+        <div class="modal merge-dialog security-merge-dialog"><header class="modal-head"><h2>Meridian Global Equity ETF Thesaurierend (Anteilsklasse B) zusammenführen<span class="modal-head__step">Schritt 2 von 2 · Vorschau</span></h2><button type="button" class="icon-button hit-ok" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></header></div>
+        <p class="dlg-cap">Alle übrigen <code>.modal-head</code></p>
+        <div class="modal"><header class="modal-head"><h2>Saldo setzen — Girokonto</h2><button type="button" class="icon-button hit-ok" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></header></div>
+        <p class="dlg-cap">Filter-Blatt</p>
+        <div class="filter-sheet-mock"><header class="filter-sheet__head"><h2>Filter</h2><button type="button" class="icon-button hit-ok" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></header></div>
+        <p class="dlg-cap">Buchungs-Schublade</p>
+        <div class="detail-pane booking-drawer"><header class="detail-pane-head"><div class="detail-pane-head__title"><div><h2>Transaktion bearbeiten</h2><p class="detail-pane-sub">Korrigiert die Buchung an Ort und Stelle; die abgeleiteten Bestände folgen, die Änderung wird journalisiert.</p></div></div><div class="detail-pane-head__actions"><button type="button" class="icon-button hit-ok" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></div></header></div>
+      </div>
+    </div>
+
+    <div class="notes w-notes">
+      <p class="cap">Was sich ändert</p>
+      <ul>
+        <li><b>Regel ②:</b> die drei Regeln, mit denen der Freigabe-Dialog in Sprint 17 repariert wurde (<code>gap</code> im Kopf, <code>flex: none</code> am ×, 44&nbsp;×&nbsp;44 unter <code>pointer: coarse</code>), mit dem Selektor aller Dialogköpfe statt nur <code>.quote-release-dialog</code>. Die drei alten Regeln entfallen.</li>
+        <li><b>Erfasst:</b> zwölf <code>.modal-head</code> (Konto- und Wertpapier-Zusammenführen, Saldo, Umbenennen, Konto anlegen, Wertpapier anlegen, Regel, Logo, Buckets, Split, zweimal „Kann nicht gelöscht werden“), zwei <code>.filter-sheet__head</code>, die Buchungs-Schublade (zwei Renderpfade).</li>
+        <li><b>Desktop:</b> unverändert 30&nbsp;×&nbsp;34, nur schrumpft das × nicht mehr neben einem umbrechenden Titel.</li>
+        <li><b>Größer als das Issue:</b> UX&#8209;DR6s Tabelle (EXPERIENCE.md) nennt <code>.icon-button</code> selbst als nicht abgedeckte Klasse, und Nachtrag 1 sagt, die Untergrenze gilt für jede Aufrufstelle einer Klasse. Eine Klassenregel <code>@media (pointer: coarse) { .icon-button { min-width: 44px; min-height: 44px } }</code> deckte die Dialoge <i>und</i> die Werkzeugleisten ab (Wertpapiere: Neu, Kurse aktualisieren, Spalten …). Das Dialog-Bild oben ist in beiden Fällen dasselbe; der Plan entscheidet den Umfang.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ H6.3 ============================ -->
+<section class="mock-board">
+  <h2>H6.3 · #1033 — eine Zeile der Übersicht zeigt den Fokusring des Browsers <small>DESIGN.md → Colors: „solid 2px accent outline“ · vorher/nachher</small></h2>
+  <p class="mock-note desk-only"><code>.attention-item</code> hat keine <code>:focus-visible</code>-Regel. Wer mit der Tabulatortaste durch die Übersicht geht, sieht auf „Abgeschlossene Trades“, „Ziel-Abweichungen“ und „Fällig“ den Ring des Browsers (in Chromium dunkel/weiß, 1&nbsp;px, eng um den Text, im Dunkeln kaum sichtbar), überall sonst den 2&#8209;px-Akzentring mit 2&nbsp;px Abstand. Nachher: der Akzentring, wie <code>.stat--link</code> und <code>.kpi-strip__cell</code> ihn tragen.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half today"><span class="mock-tag">Heute · Fokus auf einer Zeile</span>
+      <section class="workspace-section" id="dashboard-trades">
+        <div class="section-head"><h2>Abgeschlossene Trades</h2><a class="kpi-summary__link" href="#">Alle Trades →</a></div>
+        <p class="summary-basis">Die 3 zuletzt abgeschlossenen · Ergebnis in EUR · FIFO über alle Depots, unabhängig von der Ansicht · p. a. erst ab 365 Tagen Haltedauer</p>
+        <ul class="attention-list">
+          <li><a href="#" class="attention-item"><span class="attention-name">Helios Solar Systems SE<small class="attention-item__sub">verkauft 24.09.2026 · 412 Tage</small></span><span class="num"><span class="is-positive">+1.284,50</span><small class="value-suffix">EUR</small><small class="attention-item__sub"><span class="is-positive">+9,8%</span> p. a.</small></span></a></li>
+          <li><a href="#" class="attention-item ua-focus"><span class="attention-name">Harborline Freight Inc<small class="attention-item__sub">verkauft 11.09.2026 · 96 Tage</small></span><span class="num"><span class="is-negative">−312,40</span><small class="value-suffix">EUR</small><small class="attention-item__sub"><span class="is-negative">−4,1%</span> gesamt</small></span></a><i class="pin b">1</i></li>
+          <li><a href="#" class="attention-item"><span class="attention-name">Alder Creek Timber Fund<small class="attention-item__sub">verkauft 02.09.2026 · 731 Tage</small></span><span class="num"><span class="is-positive">+2.006,10</span><small class="value-suffix">EUR</small><small class="attention-item__sub"><span class="is-positive">+6,3%</span> p. a.</small></span></a></li>
+        </ul>
+      </section>
+      <section class="workspace-section">
+        <h2>Ziel-Abweichungen</h2>
+        <p class="hint">Ansicht Alles · Plan „Grundplan“ auf Anlageklasse · Kategorien, die mehr als ±5 pp von ihrem Soll-Gewicht abweichen.</p>
+        <ul class="attention-list">
+          <li><a href="#" class="attention-item ua-focus"><span class="attention-name">Aktien Europa</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-over" style="width: 100%"></span></span><span class="num is-positive">6,2 pp über dem Soll · 8.140,00 EUR</span></a></li>
+          <li><a href="#" class="attention-item"><span class="attention-name">Anleihen</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-under" style="width: 87%"></span></span><span class="num is-negative">5,4 pp unter dem Soll · 7.090,00 EUR</span></a></li>
+        </ul>
+      </section>
+    </div>
+
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">Nachher · der 2&#8209;px-Akzentring</span>
+      <section class="workspace-section" id="dashboard-trades">
+        <div class="section-head"><h2>Abgeschlossene Trades</h2><a class="kpi-summary__link" href="#">Alle Trades →</a></div>
+        <p class="summary-basis">Die 3 zuletzt abgeschlossenen · Ergebnis in EUR · FIFO über alle Depots, unabhängig von der Ansicht · p. a. erst ab 365 Tagen Haltedauer</p>
+        <ul class="attention-list">
+          <li><a href="#" class="attention-item"><span class="attention-name">Helios Solar Systems SE<small class="attention-item__sub">verkauft 24.09.2026 · 412 Tage</small></span><span class="num"><span class="is-positive">+1.284,50</span><small class="value-suffix">EUR</small><small class="attention-item__sub"><span class="is-positive">+9,8%</span> p. a.</small></span></a></li>
+          <li><a href="#" class="attention-item kb-focus"><span class="attention-name">Harborline Freight Inc<small class="attention-item__sub">verkauft 11.09.2026 · 96 Tage</small></span><span class="num"><span class="is-negative">−312,40</span><small class="value-suffix">EUR</small><small class="attention-item__sub"><span class="is-negative">−4,1%</span> gesamt</small></span></a><i class="pin a">2</i></li>
+          <li><a href="#" class="attention-item"><span class="attention-name">Alder Creek Timber Fund<small class="attention-item__sub">verkauft 02.09.2026 · 731 Tage</small></span><span class="num"><span class="is-positive">+2.006,10</span><small class="value-suffix">EUR</small><small class="attention-item__sub"><span class="is-positive">+6,3%</span> p. a.</small></span></a></li>
+        </ul>
+      </section>
+      <section class="workspace-section">
+        <h2>Ziel-Abweichungen</h2>
+        <p class="hint">Ansicht Alles · Plan „Grundplan“ auf Anlageklasse · Kategorien, die mehr als ±5 pp von ihrem Soll-Gewicht abweichen.</p>
+        <ul class="attention-list">
+          <li><a href="#" class="attention-item kb-focus"><span class="attention-name">Aktien Europa</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-over" style="width: 100%"></span></span><span class="num is-positive">6,2 pp über dem Soll · 8.140,00 EUR</span></a></li>
+          <li><a href="#" class="attention-item"><span class="attention-name">Anleihen</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-under" style="width: 87%"></span></span><span class="num is-negative">5,4 pp unter dem Soll · 7.090,00 EUR</span></a></li>
+        </ul>
+      </section>
+    </div>
+
+  </div>
+  <div class="mock-row" style="margin-top:14px">
+    <div class="notes" style="flex:1 1 100%">
+      <ol class="pins">
+        <li><i class="pin b">1</i><b>Heute:</b> der Ring des Browsers (<code>outline: auto</code>), auf dem Board so gezeichnet, wie Chromium ihn malt. Zwei Fokussprachen auf einer Seite: Die KPI-Leiste darüber trägt den Akzentring.</li>
+        <li><i class="pin a">2</i><b>Nachher, Regel ③:</b> 2&nbsp;px Akzent, 2&nbsp;px Abstand, Radius <code>--radius-sm</code>. Die Liste hat 6&nbsp;px Zeilenabstand, also berührt der Ring die Nachbarzeile nicht. Eine Regel für alle drei Karten, „Fällig“ eingeschlossen (dieselbe Klasse; das Issue nennt zwei).</li>
+        <li>Hover bleibt, was er ist (der Name unterstrichen), sodass Hover und Fokus unterscheidbar bleiben.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ H6.4 ============================ -->
+<section class="mock-board">
+  <h2>H6.4 · #1033 — das × hebt die Zeile eines einzeiligen Ergebnisses <small>vorher/nachher</small></h2>
+  <p class="mock-note desk-only"><code>.inline-result__dismiss</code> setzt <code>height: 1.4rem</code>, aber die Grundregel <code>button { min-height: 34px }</code> gewinnt: Das × ist ein 22&nbsp;×&nbsp;34&nbsp;px-Kasten, mittig ausgerichtet. Ein einzeiliges Ergebnis wird dadurch 52 statt 36&nbsp;px hoch, und das Schweregrad-Wort, oben ausgerichtet, steht 8&nbsp;px über der Zeile seines Satzes. Ursache ist also das 34&#8209;px-Minimum, nicht die 1,4&nbsp;rem selbst. Nachher: 1&nbsp;rem hoch, die Zeile bleibt 18&nbsp;px; auf Touch 44&nbsp;px Trefferfläche wie in H6.1.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-frame today"><span class="mock-tag">Heute</span>
+      <div class="stage">
+        <p class="lbl">Wertpapiere · Ergebnis der Kursaktualisierung (<code>#securities-action-result</code>)</p>
+        <div class="inline-result"><div role="status" class="inline-result__region">
+          <div class="data-note data-note--note">
+            <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+            <span class="data-note__word">Hinweis</span><i class="pin b">1</i>
+            <div class="data-note__body">Kurse aktualisiert.<button type="button" class="inline-result__dismiss hit" aria-label="Schließen" title="Schließen">&times;</button></div>
+          </div>
+        </div></div>
+        <p class="lbl">Zum Vergleich: dieselbe Notiz ohne ×</p>
+        <div class="data-note data-note--note">
+          <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+          <span class="data-note__word">Hinweis</span>
+          <div class="data-note__body">Kurse aktualisiert.</div>
+        </div>
+        <p class="lbl">Ein Fehler, einzeilig</p>
+        <div class="inline-result"><div role="alert" class="inline-result__region">
+          <div class="data-note data-note--problem">
+            <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-att"/></svg></span>
+            <span class="data-note__word">Problem</span>
+            <div class="data-note__body">Notizen konnten nicht gespeichert werden.<button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button></div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after w-frame"><span class="mock-tag">Nachher · Desktop</span>
+      <div class="stage">
+        <p class="lbl">Ergebnis der Kursaktualisierung</p>
+        <div class="inline-result"><div role="status" class="inline-result__region">
+          <div class="data-note data-note--note">
+            <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+            <span class="data-note__word">Hinweis</span><i class="pin a">2</i>
+            <div class="data-note__body">Kurse aktualisiert.<button type="button" class="inline-result__dismiss hit-ok is-new" aria-label="Schließen" title="Schließen">&times;</button></div>
+          </div>
+        </div></div>
+        <p class="lbl">Ein Fehler, einzeilig</p>
+        <div class="inline-result"><div role="alert" class="inline-result__region">
+          <div class="data-note data-note--problem">
+            <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-att"/></svg></span>
+            <span class="data-note__word">Problem</span>
+            <div class="data-note__body">Notizen konnten nicht gespeichert werden.<button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button></div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after w-frame as-coarse"><span class="mock-tag">Nachher · Touch</span>
+      <div class="stage">
+        <p class="lbl">Ergebnis der Kursaktualisierung</p>
+        <div class="inline-result"><div role="status" class="inline-result__region">
+          <div class="data-note data-note--note">
+            <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+            <span class="data-note__word">Hinweis</span><i class="pin a">3</i>
+            <div class="data-note__body">Kurse aktualisiert.<button type="button" class="inline-result__dismiss hit-ok" aria-label="Schließen" title="Schließen">&times;</button></div>
+          </div>
+        </div></div>
+      </div>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:14px">
+    <div class="notes" style="flex:1 1 100%">
+      <ol class="pins">
+        <li><i class="pin b">1</i><b>Heute</b> (gemessen): Notiz 52&nbsp;px statt 36, Satzzeile 34&nbsp;px, das Wort „Hinweis“ steht oben. Jedes <code>inline_result</code> der App zeigt es, sobald es einzeilig ist; beim zweizeiligen Freigabe-Ergebnis fällt es weniger auf, weil nur die letzte Zeile wächst.</li>
+        <li><i class="pin a">2</i><b>Nachher, Regel ④:</b> <code>min-height: 0</code> nimmt das 34&#8209;px-Minimum, <code>height: 1rem</code> passt das × in die 18&#8209;px-Zeile; Notiz 36&nbsp;px, Wort und Satz auf einer Linie. Breite (1,4&nbsp;rem), Abstand (8&nbsp;px) und Hover bleiben.</li>
+        <li><i class="pin a">3</i><b>Touch:</b> 44&nbsp;px breit, 44&nbsp;px Trefferfläche nach oben und unten, die Zeile bleibt 18&nbsp;px. Ohne diese Hälfte würde Regel ④ das × auf Touch von 34 auf 16&nbsp;px schrumpfen lassen.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

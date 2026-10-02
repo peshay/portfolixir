@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Eine Buchung löschen (#912, H2)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL (variant A): the rules the story adds to app.css.
+     Everything else inside the frames is markup and classes that already
+     ship: transaction_management_live.ex (the history #transaction-list with
+     .tx-group-head, .row-actions, AppShell.row_kebab / .row-actions__kebab,
+     AppShell.row_menu / .row-context-menu, .row-context-menu__item--danger,
+     .row-context-menu__caption, the phone rows #transaction-phone-rows /
+     .phone-row and its parts, the page's .alert-success / .alert-error, the
+     booking drawer .detail-pane.booking-drawer with .form-grid, .form-help,
+     .booking-drawer__foot), the narrow destructive modal of the quote
+     release (.modal, .modal-head, .modal-body, .modal-footer--band,
+     .modal-footer__spacer, .button-danger, .button-ghost), AppShell.data_note
+     (.data-note--attention), .hint, .link-button, and the split wizard
+     (split_wizard_dialog.ex: .modal, .dialog-help, .alert-warning). -->
+<style id="proposal">
+  /* ① The delete dialog is the quote release's narrow modal: one subject,
+     two or three sentences, a band foot whose danger button names the act.
+     Under 720 px it is the same bottom sheet. In app.css this is not a copy:
+     `.booking-delete-dialog` joins the selector lists of the
+     `.quote-release-dialog` rules (the narrow width, the head's gap and
+     close-button floor, and the 720 px block after them). Drawn here as
+     rules so the board renders them; the fixed positioning only applies to
+     the real <dialog>. */
+  .booking-delete-dialog { max-width: 460px; }
+  .booking-delete-dialog .modal-head { gap: var(--space-2); }
+  .booking-delete-dialog .modal-head > .icon-button { flex: none; }
+  @media (max-width: 720px) {
+    dialog.modal.booking-delete-dialog { position: fixed; inset: auto 0 0 0; width: 100%; max-width: none; max-height: 88vh; margin: 0; border-radius: var(--radius-md, 8px) var(--radius-md, 8px) 0 0; box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18); }
+    .booking-delete-dialog > .modal-body { padding: 12px 16px; }
+    .booking-delete-dialog .modal-footer--band { flex-direction: column; align-items: stretch; gap: 6px; padding: 10px 16px calc(18px + env(safe-area-inset-bottom, 0px)); border-radius: 0; }
+    .booking-delete-dialog .modal-footer--band > button { width: 100%; min-height: 44px; justify-content: center; }
+    .booking-delete-dialog .modal-footer__spacer { display: none; }
+    .booking-delete-dialog .modal-footer--band > .button-danger { order: 2; }
+    .booking-delete-dialog .modal-footer--band > .button-ghost { order: 3; }
+  }
+
+  /* ② The booking is named in the history's own phone-row shape — date ·
+     kind over the subject, the signed amount over its size — at every
+     width: the same .phone-row parts the history renders under 560 px, in a
+     bordered box. The row is the one the operator just chose; the box says
+     it back in the words the list used. */
+  .booking-delete__subject { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; column-gap: 10px; margin: 0; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); }
+  .booking-delete__subject .phone-row__figure { white-space: nowrap; }
+  .booking-delete-dialog .hint { margin: 0; }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: visible; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; min-width: 0; }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ol, .notes ul { margin: 0; }
+  .notes ol, .notes ul { padding-left: 18px; }
+  ol.pins { list-style: none; padding: 0; }
+  ol.pins.two { columns: 2; column-gap: 28px; }
+  ol.pins.two li { break-inside: avoid; }
+  .notes li { margin: 0 0 6px; }
+  .notes code, .mock-note code, .pickbar code, .callout code { font-size: 11.5px; }
+  .elide { margin: 0; font-size: 12px; color: var(--mock-ink); font-style: italic; }
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; text-transform: none; flex: none; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  i.pin.o { background: var(--mock-ink); }
+  .notes li > i.pin:first-child { margin: 0 4px 0 0; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .rec { color: var(--color-positive); font-weight: 760; }
+  .callout { border: 1px solid var(--color-border); border-left: 4px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-bg-elevated); padding: 10px 14px; display: grid; gap: 6px; font-size: 12.5px; align-content: start; }
+  .callout.open { border-left-color: var(--color-warning); }
+  .callout h4 { margin: 0; font-size: 13px; }
+  .callout p, .callout ul { margin: 0; }
+  .callout ul { padding-left: 18px; }
+
+  /* the history at board scale: the transactions page's list section */
+  .hist { padding: 14px 16px; }
+  .hist .workspace-section { padding: 0; border: 0; }
+  .hist .section-head { margin-bottom: 8px; }
+  .rel { position: relative; }
+  /* the row menu: fixed-positioned on its kebab by the PositionedMenu hook
+     in the app, drawn absolute here (as board 12 of 2026-09-24) */
+  .menu-at { position: absolute !important; z-index: 5; }
+  tr.is-menu-open td { background: var(--color-hover) !important; }
+  .row-context-menu__item.is-new { outline-offset: -2px; }
+  /* a row that is gone after the delete (drawing aid, not app UI) */
+  tr.gone td { padding: 3px 9px !important; font-size: 11px; color: var(--mock-ink) !important; font-style: italic; border-bottom-style: dashed !important; background: transparent !important; }
+  li.gone { padding: 4px 0; font-size: 11px; color: var(--mock-ink); font-style: italic; border-top: 1px dashed var(--color-border); }
+
+  /* a dialog on a muted field standing in for the backdrop (as board 03 of
+     2026-10-01) */
+  .dlg-field { background: var(--color-bg-muted); padding: 16px; display: grid; justify-items: center; align-content: start; }
+  .dlg-field .modal { width: 100%; }
+  .w-dlg { flex: 1 1 360px; min-width: 0; }
+  .w-wide { flex: 1 1 100%; min-width: 0; }
+  .w-half { flex: 1 1 520px; min-width: 0; }
+
+  /* the booking drawer at its desktop width: the second column of
+     .transactions-columns--drawer, minmax(320px, 380px) (as board 12) */
+  .booking-drawer.desk { width: 380px; margin: 0 auto; box-sizing: border-box; }
+  .booking-drawer.desk.w368 { width: 368px; }
+  /* variant B: drawing aids for the danger zone in the drawer's foot */
+  .b-foot { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }
+  .b-foot .sp { flex: 1 1 auto; }
+  .b-confirm { display: grid; gap: 8px; margin-top: var(--space-2); padding: 10px 12px; border: 1px solid var(--color-danger); border-radius: var(--radius-md); background: var(--color-danger-soft); font-size: 12.5px; color: var(--color-text); }
+  .b-confirm .row { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+
+  .phone-only { display: none; }
+  .phone-only-contents { display: none; }
+
+  /* ===== 390 px: the board becomes the phone =====
+     The same A markup renders in a true 390 px viewport, so app.css's 720 px
+     and 560 px rules (row menu sheet with its caption, phone rows) and
+     proposal ① fire as on a phone. */
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .phone-only-contents { display: contents; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 14px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .hist { padding: 10px 12px; }
+    .booking-drawer.desk, .booking-drawer.desk.w368 { width: auto; }
+    .dlg-field { padding: 56px 0 0; background: rgba(15, 23, 42, .4); }
+    .dlg-field .modal { border-radius: 8px 8px 0 0; box-shadow: 0 -8px 24px rgba(0, 0, 0, .18); }
+    .dlg-field .booking-delete-dialog .modal-footer--band { border-radius: 0; }
+    /* the row menu's sheet, drawn in flow under its rows: app.css pins it
+       with !important to the viewport's foot */
+    .row-context-menu.sheet-static { position: static !important; box-shadow: 0 -8px 24px rgba(0,0,0,.18); margin-top: 8px; }
+    .phone-cap { margin: 0; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+    i.pin { display: none; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-att" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-keb" viewBox="0 0 24 24"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16Z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7"/><path d="M10 11v7M14 11v7"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 9v6l-4-2v-4Z"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar desk-only"><b>Entscheidung H2 — offen (#912).</b> Keine Buchung lässt sich auf dem Bildschirm löschen. <code>Ledger.delete_transaction/2</code> erreichen nur <code>DELETE /api/v1/transactions/:id</code> und <code>portfolixir.transactions.delete</code>; der Weg, einen falschen Split zu korrigieren (löschen und neu erfassen), gehört darum allein dem Agenten, und die Hilfezeile von G12.3 nennt API und MCP ohne Link. Die fehlende menschliche Sicht schuldet die zweiseitige Abdeckungsregel. Zwei Fragen: <b>Wo sitzt „Löschen“, und was sagt die Rückfrage?</b> <b>A</b> „Löschen…“ im Zeilenmenü jeder Buchung, eine Rückfrage, die die Buchung nennt · <b>B</b> nur in der Schublade „Transaktion bearbeiten“, als Gefahrenzone im Fuß · <b>C</b> nur „Split löschen“. <span class="rec">Empfehlung A.</span> In A verlinken „Split erfassen“ und die Hilfezeile von G12.3 auf dieselbe Rückfrage. <b>Zusatzfrage H2b</b> am Ende: was „Bearbeiten“ an den zwölf Arten tut, die die Schublade nicht bucht — <b>A</b> eine Notiz-Schublade mit festen Angaben · <b>B</b> nur „Löschen…“; <span class="rec">Empfehlung A.</span> Ein Kommentar mit Code und Buchstabe auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. Alle Namen, Beträge und Daten sind erfunden. <b>Gestrichelt = neu.</b> Die Darstellung bei 390&nbsp;px ist <code>02-booking-delete--390.png</code>.</div>
+<p class="phone-only phone-cap"><b>H2 · Variante A (empfohlen) bei 390&nbsp;px.</b> Dieselben Rahmen wie im Board, in einem echten 390-px-Viewport: die Regeln von app.css unter 720 und 560&nbsp;px und Vorschlag ① greifen. Der Kebab jeder Telefonzeile steht heute auf einer eigenen Zeile unter dem Datum: ein vorhandener Fehler der Historie, nicht Teil von H2 (Scope Lock in Teil&nbsp;2). Am Ende H2b, Variante A (empfohlen). Alle Daten erfunden.</p>
+
+<!-- ============================ HEUTE ============================ -->
+<section class="mock-board desk-only">
+  <h2>Heute · Transaktionen → Historie, die Split-Schublade, „Split erfassen“ <small><code>transaction_management_live.ex</code> · <code>split_wizard_dialog.ex</code></small></h2>
+  <p class="mock-note">Das Zeilenmenü jeder Buchung hat einen Eintrag, „Bearbeiten“. Ein Split erscheint in der Historie als eine Zeile je Portfolio, das den Titel am Stichtag hielt — hier zwei. Wer einen falschen Split korrigieren will, liest in der Schublade, dass das nur über API oder MCP geht, und in „Split erfassen“, dass das bestehende Ereignis „zuvor zu löschen“ sei, ohne einen Weg dorthin.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-wide"><span class="mock-tag">Heute · /transactions · Menü der Kauf-Zeile offen</span>
+      <div class="hist">
+        <section id="transaction-list-panel" class="workspace-section">
+          <header class="section-head"><h2>Transaktionshistorie</h2><div class="section-head-controls"><button type="button" class="button-primary"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><use href="#i-plus"/></svg> Transaktion erfassen</button></div></header>
+          <div class="data-table-wrapper" style="overflow:visible">
+            <table id="transaction-list">
+              <thead><tr><th>Datum</th><th>Typ</th><th>Wertpapier</th><th class="num">Stückzahl</th><th class="num">Preis</th><th class="num">Betrag</th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead>
+              <tbody>
+                <tr class="tx-group-head"><th colspan="7" scope="colgroup"><span class="tx-group-month">September 2026</span> <span class="tx-group-subtotal">5 Transaktionen · <span class="currency-total">-956,15 <small>EUR</small></span></span></th></tr>
+                <tr><td>26.09.2026</td><td>Dividende</td><td>Nordwind Industrie AG</td><td class="num">25</td><td class="num">—</td><td class="num" data-role="amount">48,75<small class="value-suffix">EUR</small></td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Dividende, Nordwind Industrie AG, 26.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr>
+                <tr class="is-menu-open"><td>22.09.2026</td><td>Kauf</td><td>Global Aktien ETF</td><td class="num">40</td><td class="num">62,50</td><td class="num" data-role="amount">-2.504,90<small class="value-suffix">EUR</small></td><td class="row-actions rel"><button type="button" class="row-actions__kebab" aria-expanded="true" aria-label="Aktionen für Kauf, Global Aktien ETF, 22.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button>
+                  <div class="row-context-menu menu-at" role="menu" aria-label="Transaktionsaktionen" style="right:6px; top:calc(100% - 4px)">
+                    <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-edit"/></svg>Bearbeiten<i class="pin b">1</i></button>
+                  </div></td></tr>
+                <tr><td>15.09.2026</td><td>Split</td><td>Kestrel Robotik SE</td><td data-role="split-ratio">2:1</td><td class="num">—</td><td class="num" data-role="amount">—</td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Split, Kestrel Robotik SE, 15.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr>
+                <tr><td>15.09.2026</td><td>Split</td><td>Kestrel Robotik SE<i class="pin b">2</i></td><td data-role="split-ratio">2:1</td><td class="num">—</td><td class="num" data-role="amount">—</td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Split, Kestrel Robotik SE, 15.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr>
+                <tr><td>03.09.2026</td><td>Einlage</td><td></td><td class="num">—</td><td class="num">—</td><td class="num" data-role="amount">1.500,00<small class="value-suffix">EUR</small></td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Einlage, Girokonto, 03.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:16px">
+    <div class="mock-frame mock-before" style="flex:0 1 420px"><span class="mock-tag">Heute · „Bearbeiten“ an einer Split-Zeile (G12.3-A)</span>
+      <div class="hist">
+        <div class="detail-pane booking-drawer desk">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title"><div>
+              <h2>Transaktion bearbeiten</h2>
+              <p class="detail-pane-sub">Ein Split ist eine Tatsache am Wertpapier; hier ändert sich nur die Notiz, und die Änderung wird journalisiert.</p>
+            </div></div>
+            <div class="detail-pane-head__actions"><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+          </header>
+          <form>
+            <p class="elide">Typ, Stichtag, Wertpapier, Verhältnis — gesperrt.</p>
+            <p class="form-help">Stichtag, Verhältnis und Wertpapier eines gebuchten Splits stehen fest. Ein falscher Split lässt sich hier nicht korrigieren; er wird über API oder MCP gelöscht und danach am Wertpapier mit „Split erfassen“ neu erfasst.<i class="pin b">3</i></p>
+            <p class="elide">Notizen · Notiz speichern · Abbrechen</p>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-before" style="flex:0 1 460px"><span class="mock-tag">Heute · „Split erfassen“ am Wertpapier, anderes Verhältnis am selben Tag</span>
+      <div class="dlg-field">
+        <div class="modal" role="dialog" aria-labelledby="sw-title">
+          <header class="modal-head"><h2 id="sw-title">Split erfassen</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button></header>
+          <div class="modal-body">
+            <p class="elide">Neue Aktien 3 · Alte Aktien 1 · Stichtag 2026-09-15</p>
+            <p class="alert-warning" role="alert">Für dieses Wertpapier ist an diesem Datum bereits ein Split mit anderem Verhältnis gebucht. Die Buchung wird abgelehnt — das bestehende Ereignis zuvor löschen, falls es falsch ist.<i class="pin b">4</i></p>
+            <div class="modal-footer"><button type="button" class="button-ghost">Abbrechen</button><button type="submit" class="button-primary" disabled>Split buchen</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes" style="flex:1 1 240px">
+      <p class="cap">Was heute fehlt</p>
+      <ol class="pins">
+        <li><i class="pin b">1</i><b>Ein Eintrag, „Bearbeiten“.</b> Für keine der 15 Buchungsarten gibt es auf dem Bildschirm „Löschen“.</li>
+        <li><i class="pin b">2</i><b>Ein Split, zwei Zeilen.</b> <code>Splits.book_split/2</code> schreibt eine Zeile je Portfolio mit Bestand am Stichtag; die Historie zeigt beide.</li>
+        <li><i class="pin b">3</i><b>Die Grenze ohne Weg</b> (UX&#8209;DR26), weil es keinen gab: G12.3-A ließ den Link für „Split löschen“ offen.</li>
+        <li><i class="pin b">4</i><b>„zuvor löschen“ — wo?</b> Der Knopf ist gesperrt, der Satz verweist auf eine Aktion, die die Oberfläche nicht hat.</li>
+      </ol>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:16px">
+    <div class="callout w-half">
+      <h4>Was Löschen heute tut (<code>Ledger.delete_transaction/2</code>)</h4>
+      <ul>
+        <li><b>Eine Zeile</b>, in einer Datenbanktransaktion, mit einem Journaleintrag (<code>delete</code>, <code>transaction</code>), der die ganze Zeile als Vorher-Bild hält. Das Journal lesen nur API und MCP (<code>GET /api/v1/journal</code>); nichts in der Oberfläche schreibt eine Buchung daraus zurück.</li>
+        <li><b>Alles Abgeleitete folgt beim nächsten Lesen:</b> Bestände, Kontostände, Rendite, Trades und realisierte Gewinne, Snapshot-Vergleiche (ein Snapshot ist eine Marke, keine Kopie). Eine Umbuchung oder Wertpapierumbuchung ist <b>eine</b> Zeile; beide Seiten entfallen.</li>
+        <li><b>Der Inhalts-Hash geht mit.</b> Eine importierte Buchung trägt <code>import_hash</code>; gelöscht, wird er nicht stillgelegt (das tut nur eine Zusammenführung, ADR&#8209;0050 §3). Ein erneuter Import derselben Datei bucht sie wieder.</li>
+        <li><b>Ein Split: nur diese Zeile.</b> Die Zeile des anderen Portfolios bleibt — und mit ihr das Split-Ereignis, nach dem das Diagramm die Kurse bereinigt (<code>Quotes.split_events/1</code> fasst die Zeilen zusammen). „Split erfassen“ lehnt ein anderes Verhältnis am selben Tag ab, solange eine Zeile steht.</li>
+      </ul>
+    </div>
+    <div class="callout open w-half">
+      <h4>Was API und MCP ablehnen — fast nichts</h4>
+      <ul>
+        <li><b>404</b>, wenn die Buchung unbekannt oder schon gelöscht ist (auch wenn sie verschwand, bevor das Löschen ihre Sperre bekam). Die Oberfläche hat dafür schon einen Satz: „Diese Transaktion existiert nicht mehr.“</li>
+        <li><b>409</b> nur bei einem Changeset-Fehler; ein Löschen erzeugt heute keinen.</li>
+        <li><b>Keine Prüfung, was davon abhängt.</b> Ein Kauf, dessen Stücke ein späterer Verkauf verbraucht hat, lässt sich löschen; der Verkauf hat danach keinen zugeordneten Kauf mehr, und der Bestand kann unter null fallen. Kein Fremdschlüssel verweist auf eine Buchung.</li>
+      </ul>
+      <p>Die Rückfrage nennt deshalb keine Ablehnung, die es nicht gibt, und warnt vor nichts, was die API nicht auch prüft (siehe „Zweifel“ in Teil&nbsp;2).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE A ============================ -->
+<section class="mock-board">
+  <h2>A · empfohlen — „Löschen…“ im Zeilenmenü jeder Buchung <small>eine Rückfrage, die die Buchung nennt · Splits als Ganzes · die zwei Links</small></h2>
+  <p class="mock-note desk-only">Das Zeilenmenü bekommt nach „Bearbeiten“ den Eintrag „Löschen…“, zuletzt, in Gefahrfarbe, mit dem Papierkorb — die Reihenfolge nach Folge, wie im Menü der Konten und der Wertpapiere. Er steht an jeder Zeile, gleich welcher Art; die Auslassungspunkte sagen, dass erst ein Dialog folgt. Der Dialog nennt die Buchung so, wie die Liste sie zeigt, sagt in einem Satz, was sich danach ändert, und hat einen Knopf, der die Tat benennt.</p>
+
+  <div class="mock-row">
+    <div class="mock-frame mock-after w-wide"><span class="mock-tag">A1 · /transactions · Menü der Kauf-Zeile offen</span>
+      <div class="hist">
+        <section class="workspace-section desk-only">
+          <header class="section-head"><h2>Transaktionshistorie</h2><div class="section-head-controls"><button type="button" class="button-primary"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><use href="#i-plus"/></svg> Transaktion erfassen</button></div></header>
+          <div class="data-table-wrapper" style="overflow:visible">
+            <table id="transaction-list">
+              <thead><tr><th>Datum</th><th>Typ</th><th>Wertpapier</th><th class="num">Stückzahl</th><th class="num">Preis</th><th class="num">Betrag</th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead>
+              <tbody>
+                <tr class="tx-group-head"><th colspan="7" scope="colgroup"><span class="tx-group-month">September 2026</span> <span class="tx-group-subtotal">5 Transaktionen · <span class="currency-total">-956,15 <small>EUR</small></span></span></th></tr>
+                <tr><td>26.09.2026</td><td>Dividende</td><td>Nordwind Industrie AG</td><td class="num">25</td><td class="num">—</td><td class="num" data-role="amount">48,75<small class="value-suffix">EUR</small></td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Dividende, Nordwind Industrie AG, 26.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr>
+                <tr class="is-menu-open"><td>22.09.2026</td><td>Kauf</td><td>Global Aktien ETF</td><td class="num">40</td><td class="num">62,50</td><td class="num" data-role="amount">-2.504,90<small class="value-suffix">EUR</small></td><td class="row-actions rel"><button type="button" class="row-actions__kebab" aria-expanded="true" aria-label="Aktionen für Kauf, Global Aktien ETF, 22.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button>
+                  <div class="row-context-menu menu-at" role="menu" aria-label="Transaktionsaktionen" style="right:6px; top:calc(100% - 4px)">
+                    <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-edit"/></svg>Bearbeiten</button>
+                    <button type="button" class="row-context-menu__item row-context-menu__item--danger is-new" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-trash"/></svg>Löschen…<i class="pin a">1</i></button>
+                  </div></td></tr>
+                <tr><td>15.09.2026</td><td>Split</td><td>Kestrel Robotik SE</td><td data-role="split-ratio">2:1</td><td class="num">—</td><td class="num" data-role="amount">—</td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Split, Kestrel Robotik SE, 15.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr>
+                <tr><td>15.09.2026</td><td>Split</td><td>Kestrel Robotik SE</td><td data-role="split-ratio">2:1</td><td class="num">—</td><td class="num" data-role="amount">—</td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Split, Kestrel Robotik SE, 15.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr>
+                <tr><td>03.09.2026</td><td>Einlage</td><td></td><td class="num">—</td><td class="num">—</td><td class="num" data-role="amount">1.500,00<small class="value-suffix">EUR</small></td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Einlage, Girokonto, 03.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+        <!-- 390 px: the history's phone rows and the row menu as its sheet -->
+        <div class="phone-only">
+          <ul id="transaction-phone-rows" class="phone-rows" aria-label="Transaktionen">
+            <li class="phone-rows__group"><span class="tx-group-month">September 2026</span> <span class="tx-group-subtotal">5 Transaktionen · <span class="currency-total">-956,15 <small>EUR</small></span></span></li>
+            <li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">26.09.2026 · Dividende</span><span class="phone-row__ids">Nordwind Industrie AG</span></span><span class="phone-row__figures"><span class="phone-row__figure">48,75 EUR</span><span class="phone-row__figure2">25 Stück</span></span><button type="button" class="row-actions__kebab" aria-label="Aktionen für Dividende, Nordwind Industrie AG, 26.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></li>
+            <li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">22.09.2026 · Kauf</span><span class="phone-row__ids">Global Aktien ETF</span></span><span class="phone-row__figures"><span class="phone-row__figure">-2.504,90 EUR</span><span class="phone-row__figure2">40 × 62,50</span></span><button type="button" class="row-actions__kebab" aria-expanded="true" aria-label="Aktionen für Kauf, Global Aktien ETF, 22.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></li>
+            <li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">15.09.2026 · Split</span><span class="phone-row__ids">Kestrel Robotik SE</span></span><span class="phone-row__figures"><span class="phone-row__figure">—</span><span class="phone-row__figure2">2:1</span></span><button type="button" class="row-actions__kebab" aria-label="Aktionen für Split, Kestrel Robotik SE, 15.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></li>
+          </ul>
+          <div class="row-context-menu sheet-static" role="menu" aria-label="Transaktionsaktionen">
+            <div class="row-context-menu__caption is-new" aria-hidden="true"><b>Kauf, Global Aktien ETF, 22.09.2026</b> · Transaktion</div>
+            <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-edit"/></svg>Bearbeiten</button>
+            <button type="button" class="row-context-menu__item row-context-menu__item--danger is-new" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-trash"/></svg>Löschen…</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="mock-frame mock-after w-dlg"><span class="mock-tag">A2 · „Löschen…“ an der Kauf-Zeile</span>
+      <div class="dlg-field">
+        <div class="modal booking-delete-dialog is-new" role="dialog" aria-labelledby="bd-title" aria-describedby="bd-subject">
+          <header class="modal-head"><h2 id="bd-title">Transaktion löschen</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button></header>
+          <div class="modal-body">
+            <p id="bd-subject" class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">22.09.2026 · Kauf</span><span class="phone-row__ids">Global Aktien ETF · Depot 1</span></span><span class="phone-row__figures"><span class="phone-row__figure">-2.504,90 EUR</span><span class="phone-row__figure2">40 × 62,50</span></span><i class="pin a" style="position:absolute;margin:-18px 0 0 -18px">2</i></p>
+            <p class="hint">Danach hält Depot 1 40 Stück Global Aktien ETF weniger, und Girokonto hat 2.504,90 EUR mehr. Bestände, Kontostände, Rendite und Trades werden ohne diese Buchung neu berechnet.<i class="pin a">3</i></p>
+            <p class="hint">Das Journal behält die Buchung mit allen Werten; zurückholen kann die Oberfläche sie nicht.<i class="pin a">4</i></p>
+          </div>
+          <div class="modal-footer modal-footer--band">
+            <button type="button" class="button-ghost">Abbrechen</button>
+            <span class="modal-footer__spacer"></span>
+            <button type="button" class="button-danger">Transaktion löschen</button><i class="pin a desk-only" style="align-self:center">5</i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after w-dlg desk-only"><span class="mock-tag">A3 · eine importierte Buchung</span>
+      <div class="dlg-field">
+        <div class="modal booking-delete-dialog" role="dialog" aria-labelledby="bd3-title">
+          <header class="modal-head"><h2 id="bd3-title">Transaktion löschen</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button></header>
+          <div class="modal-body">
+            <p class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">26.09.2026 · Dividende</span><span class="phone-row__ids">Nordwind Industrie AG · Girokonto</span></span><span class="phone-row__figures"><span class="phone-row__figure">48,75 EUR</span><span class="phone-row__figure2">25 Stück</span></span></p>
+            <div class="data-note data-note--attention is-new">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-att"/></svg></span>
+              <span class="data-note__word">Achtung</span>
+              <div class="data-note__body">Diese Buchung stammt aus einem Import. Mit ihr geht ihr Inhalts-Hash: Ein erneuter Import derselben Datei bucht sie wieder.<i class="pin a">6</i></div>
+            </div>
+            <p class="hint">Danach hat Girokonto 48,75 EUR weniger. Bestände, Kontostände, Rendite und Trades werden ohne diese Buchung neu berechnet.</p>
+            <p class="elide">Journalsatz wie A2.</p>
+          </div>
+          <div class="modal-footer modal-footer--band">
+            <button type="button" class="button-ghost">Abbrechen</button>
+            <span class="modal-footer__spacer"></span>
+            <button type="button" class="button-danger">Transaktion löschen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after w-dlg"><span class="mock-tag">A4 · „Löschen…“ an einer Split-Zeile: der Split als Ganzes</span>
+      <div class="dlg-field">
+        <div class="modal booking-delete-dialog is-new" role="dialog" aria-labelledby="bd4-title">
+          <header class="modal-head"><h2 id="bd4-title">Split löschen</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button></header>
+          <div class="modal-body">
+            <p class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">15.09.2026 · Split</span><span class="phone-row__ids">Kestrel Robotik SE</span></span><span class="phone-row__figures"><span class="phone-row__figure">2:1</span><span class="phone-row__figure2">2 Zeilen</span></span></p>
+            <p class="hint">Der Split ist in 2 Portfolios gebucht, Hauptportfolio und Sparplan-Portfolio; beide Zeilen werden in einem Schritt gelöscht.<i class="pin a">7</i></p>
+            <p class="hint">Danach zählen die Bestände von Kestrel Robotik SE ab dem 15.09.2026 wieder ohne den Split, und das Diagramm rechnet seine Kursreihe ohne ihn; gespeicherte Kurse bleiben, wie sie sind. Das Journal behält beide Zeilen.</p>
+          </div>
+          <div class="modal-footer modal-footer--band">
+            <button type="button" class="button-ghost">Abbrechen</button>
+            <span class="modal-footer__spacer"></span>
+            <button type="button" class="button-danger">Split löschen (2 Zeilen)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mock-row desk-only" style="margin-top:16px">
+    <div class="notes" style="flex:1 1 100%">
+      <p class="cap">A — was jedes Teil tut</p>
+      <ol class="pins two">
+        <li><i class="pin a">1</i><b>„Löschen…“ zuletzt, in Gefahrfarbe</b> (<code>.row-context-menu__item--danger</code>, das Papierkorb-Glyph), an jeder Zeile, gleich welcher Art — auch an Split und an Einlage, Umbuchung oder „Saldo gesetzt“, die „Bearbeiten“ (noch) nicht sinnvoll öffnet. Die Auslassungspunkte: Es folgt ein Dialog, wie bei „Zusammenführen in…“. Unter 720&nbsp;px ist das Menü das vorhandene Blatt und nennt seine Zeile (<code>caption_name</code> aus <code>row_name/2</code>, das die Kebab-Beschriftung schon bildet; heute gibt die Seite keine Überschrift mit).</li>
+        <li><i class="pin a">2</i><b>Die Buchung, wie die Liste sie zeigt:</b> Datum · Art über dem Gegenstand und dem Depot (bzw. Konto), rechts der vorzeichenbehaftete Betrag über seiner Größe — die Teile der Telefonzeile der Historie (Regel&nbsp;②), in einem Kasten, bei jeder Breite. Das Menü hängt nicht mehr an seiner Zeile, sobald der Dialog offen ist; der Kasten sagt, welche gemeint ist.</li>
+        <li><i class="pin a">3</i><b>Was sich ändert, konkret:</b> die Wirkung der Buchung auf Depot und Konto, umgekehrt gelesen — „hält 40 Stück weniger“, „hat 2.504,90 EUR mehr“. Die Story bildet den Satz aus <code>Projection.effects/1</code>, dem einen Reduzierer je Buchungsart (Bargeld- und Stückzahl-Beine), also ohne Text je Art; nur Split (Verhältnis) und Saldo gesetzt (Anker) brauchen einen eigenen. Dann der allgemeine Satz: Alles Abgeleitete wird neu berechnet.</li>
+        <li><i class="pin a">4</i><b>Das Journal, ehrlich:</b> Es behält die Buchung, aber die Oberfläche holt sie nicht zurück — darum Gefahr, nicht Primär, wie bei der Freigabe manueller Kurse (G3-A).</li>
+        <li><i class="pin a">5</i><b>Eine Bestätigung, die die Tat benennt.</b> <code>.button-danger</code> im Bandfuß; kein <code>data-confirm</code> danach — zerstörend einmal bestätigen, nie zweimal (EXPERIENCE.md, Forms). Der Fokus öffnet auf „Abbrechen“.</li>
+        <li><i class="pin a">6</i><b>A3, importiert</b> (<code>import_hash</code> gesetzt): eine Notiz <i>Achtung</i>, weil die Folge überrascht — ein erneuter Import bringt die Buchung zurück. Die Story ändert das Verhalten nicht, sie sagt es.</li>
+        <li><i class="pin a">7</i><b>A4, ein Split als Ganzes.</b> Für den Operator ist ein Split eine Tatsache am Wertpapier (ADR&#8209;0028 §1); seine Zeilen teilen den Schlüssel (Wertpapier, Datum, gekürztes Verhältnis). „Löschen…“ an einer Zeile löscht sie alle, in einem Schritt — sonst bliebe das Ereignis mit einer Zeile stehen, das Diagramm bereinigte weiter, und „Split erfassen“ lehnte das richtige Verhältnis ab. Braucht einen Schreibweg, den es nicht gibt (siehe „Zweifel“ in Teil&nbsp;2). Ein Split in einem Portfolio liest „Split löschen“ ohne Zeilenzahl.</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">A5 · danach — das Ergebnis auf der Seite, die Zeile fort</span>
+      <div class="hist">
+        <p class="alert-success is-new" role="status" style="margin:0 0 10px">Transaktion gelöscht: Kauf · Global Aktien ETF · 22.09.2026.<i class="pin a">8</i></p>
+        <div class="data-table-wrapper desk-only">
+          <table id="transaction-list">
+            <thead><tr><th>Datum</th><th>Typ</th><th>Wertpapier</th><th class="num">Betrag</th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead>
+            <tbody>
+              <tr class="tx-group-head"><th colspan="5" scope="colgroup"><span class="tx-group-month">September 2026</span> <span class="tx-group-subtotal">4 Transaktionen · <span class="currency-total">1.548,75 <small>EUR</small></span></span></th></tr>
+              <tr><td>26.09.2026</td><td>Dividende</td><td>Nordwind Industrie AG</td><td class="num">48,75<small class="value-suffix">EUR</small></td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr>
+              <tr class="gone"><td colspan="5">22.09.2026 · Kauf · Global Aktien ETF: gelöscht</td></tr>
+              <tr><td>15.09.2026</td><td>Split</td><td>Kestrel Robotik SE</td><td class="num">—</td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul id="transaction-phone-rows" class="phone-rows phone-only" aria-label="Transaktionen">
+          <li class="phone-rows__group"><span class="tx-group-month">September 2026</span> <span class="tx-group-subtotal">4 Transaktionen · <span class="currency-total">1.548,75 <small>EUR</small></span></span></li>
+          <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">26.09.2026 · Dividende</span><span class="phone-row__ids">Nordwind Industrie AG</span></span><span class="phone-row__figures"><span class="phone-row__figure">48,75 EUR</span><span class="phone-row__figure2">25 Stück</span></span><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></li>
+          <li class="gone">22.09.2026 · Kauf · Global Aktien ETF: gelöscht</li>
+        </ul>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half desk-only"><span class="mock-tag">A6 · inzwischen gelöscht (vom Agenten oder in einem anderen Tab)</span>
+      <div class="hist">
+        <p class="alert-error" role="alert" style="margin:0 0 10px">Diese Transaktion existiert nicht mehr.<i class="pin a">9</i></p>
+        <p class="elide">Der Dialog ist zu, die Historie neu geladen; die Zeile fehlt.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:20px">
+    <div class="mock-frame mock-after" style="flex:0 1 420px"><span class="mock-tag">A7 · die Hilfezeile von G12.3, mit ihrem Weg</span>
+      <div class="hist">
+        <div class="detail-pane booking-drawer desk">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title"><div>
+              <h2>Transaktion bearbeiten</h2>
+              <p class="detail-pane-sub">Ein Split ist eine Tatsache am Wertpapier; hier ändert sich nur die Notiz, und die Änderung wird journalisiert.</p>
+            </div></div>
+            <div class="detail-pane-head__actions"><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+          </header>
+          <form>
+            <p class="elide">Typ, Stichtag, Wertpapier, Verhältnis — gesperrt.</p>
+            <p class="form-help is-new">Stichtag, Verhältnis und Wertpapier eines gebuchten Splits stehen fest. Ein falscher Split wird gelöscht und danach am Wertpapier mit „Split erfassen“ neu erfasst. <button type="button" class="link-button">Split löschen…</button><i class="pin a">10</i></p>
+            <p class="elide">Notizen · Notiz speichern · Abbrechen</p>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after" style="flex:0 1 460px"><span class="mock-tag">A8 · „Split erfassen“, anderes Verhältnis am selben Tag</span>
+      <div class="dlg-field">
+        <div class="modal" role="dialog" aria-labelledby="sw2-title">
+          <header class="modal-head"><h2 id="sw2-title">Split erfassen</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button></header>
+          <div class="modal-body">
+            <p class="elide">Neue Aktien 3 · Alte Aktien 1 · Stichtag 2026-09-15</p>
+            <div class="alert-warning is-new" role="alert"><span>Für dieses Wertpapier ist an diesem Datum bereits ein Split mit anderem Verhältnis gebucht (2:1). Die Buchung wird abgelehnt, solange er steht.<i class="pin a">11</i></span><span><button type="button" class="link-button">Gebuchten Split löschen…</button></span></div>
+            <div class="modal-footer"><button type="button" class="button-ghost">Abbrechen</button><button type="submit" class="button-primary" disabled>Split buchen</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes desk-only" style="flex:1 1 240px">
+      <p class="cap">A — danach und die zwei Links</p>
+      <ol class="pins">
+        <li><i class="pin a">8</i><b>A5:</b> der vorhandene Platz der Seite (<code>.alert-success</code>, wie „Transaktion erfasst“), mit dem Namen der Buchung; die Zeile fehlt, die Monatssumme stimmt. Ein Split liest „Split gelöscht: Kestrel Robotik SE · 2:1 · 15.09.2026, 2 Zeilen.“</li>
+        <li><i class="pin a">9</i><b>A6:</b> die eine Ablehnung, die die API kennt (404), mit dem Satz, den die Seite schon hat.</li>
+        <li><i class="pin a">10</i><b>A7, G12.3 bekommt seinen Link.</b> Die Abhilfe als <code>.link-button</code> am Ende der Zeile. Sie schließt die Schublade und öffnet den Dialog von A4 — nie ein Dialog aus einem Dialog (UX&#8209;DR9).</li>
+        <li><i class="pin a">11</i><b>A8, „Split erfassen“ verlinkt.</b> Die Warnung nennt das gebuchte Verhältnis und trägt „Gebuchten Split löschen…“. Der Link schließt den Assistenten und öffnet denselben Dialog auf der Wertpapierseite; nach dem Löschen steht „Split erfassen“ im Kopf daneben, die Korrektur bleibt an einem Ort. Dieselbe Abhilfe bekommt die Ablehnung beim Buchen (<code>{:conflicting_split_ratio, _}</code>).</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE B ============================ -->
+<section class="mock-board desk-only">
+  <h2>B — nur in der Schublade „Transaktion bearbeiten“, als Gefahrenzone im Fuß <small>kein Eintrag im Zeilenmenü · eine Rückfrage in der Schublade</small></h2>
+  <p class="mock-note">„Bearbeiten“ öffnet die Schublade wie heute; ihr Fuß bekommt rechts, abgesetzt, „Löschen…“. Weil die Schublade unter 720&nbsp;px selbst ein modaler Dialog ist, wird die Rückfrage kein zweiter Dialog, sondern ein Streifen, der den Fuß ersetzt.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-after" style="flex:0 1 420px"><span class="mock-tag">B1 · Kauf bearbeiten, der Fuß</span>
+      <div class="hist">
+        <div class="detail-pane booking-drawer desk">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title"><div><h2>Transaktion bearbeiten</h2><p class="detail-pane-sub">Korrigiert die Buchung an Ort und Stelle; die abgeleiteten Bestände folgen, die Änderung wird journalisiert.</p></div></div>
+            <div class="detail-pane-head__actions"><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+          </header>
+          <form>
+            <p class="elide">Typ Kauf · Datum 2026-09-22 · Depot 1 · Global Aktien ETF · 40 × 62,50 · Kosten und Notiz</p>
+            <div class="b-foot is-new"><button type="submit" class="button-primary">Änderungen speichern</button><button type="button" class="button-ghost">Abbrechen</button><span class="sp"></span><button type="button" class="button-danger">Löschen…</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after" style="flex:0 1 420px"><span class="mock-tag">B2 · nach „Löschen…“: die Rückfrage ersetzt den Fuß</span>
+      <div class="hist">
+        <div class="detail-pane booking-drawer desk">
+          <p class="elide">Kopf und Felder wie B1.</p>
+          <div class="b-confirm is-new" role="group" aria-label="Transaktion löschen">
+            <span><b>Diese Transaktion löschen?</b> Danach hält Depot 1 40 Stück Global Aktien ETF weniger, und Girokonto hat 2.504,90 EUR mehr. Das Journal behält sie; zurückholen kann die Oberfläche sie nicht.</span>
+            <span class="row"><button type="button" class="button-danger">Transaktion löschen</button><button type="button" class="button-ghost">Zurück</button></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-before" style="flex:0 1 420px"><span class="mock-tag">B3 · „Bearbeiten“ an der Dividende — die Schublade heute</span>
+      <div class="hist">
+        <div class="detail-pane booking-drawer desk">
+          <header class="detail-pane-head"><div class="detail-pane-head__title"><div><h2>Transaktion bearbeiten</h2></div></div></header>
+          <form>
+            <div class="form-grid">
+              <label><span>Typ</span><select><option selected>Kauf</option><option>Verkauf</option></select></label>
+              <label><span>Datum</span><input type="text" value="2026-09-26" maxlength="10"></label>
+            </div>
+            <p class="elide">… die Felder eines Kaufs. Der Fuß trüge in B „Löschen…“ für eine Buchung, die hier als Kauf erscheint.</p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:12px">
+    <div class="notes" style="flex:1 1 100%">
+      <p><b>Für B.</b> Wer löscht, sieht vorher die ganze Buchung, Feld für Feld; das Menü bleibt bei einem Eintrag. Die Split-Schublade hätte den Knopf direkt unter ihrer Hilfezeile.</p>
+      <p><b>Gegen B.</b> Löschen steckt hinter „Bearbeiten“ — wer löschen will, muss raten. Die Schublade kennt nur Kauf, Verkauf und (seit G12.3) Split: „Bearbeiten“ an einer der zwölf übrigen Arten öffnet heute das Kauf-Formular mit „Kauf“ vorgewählt (B3; die Auswahl „Typ“ bietet nur Kauf und Verkauf). B löscht also entweder aus einem Formular, das die Buchung falsch zeigt, oder muss die Schublade erst jede Art lehren — eine viel größere Story. Die Rückfrage braucht eine eigene Form (B2), weil ein Dialog aus der modalen Schublade UX&#8209;DR9 bricht; die App hätte danach zwei Formen der zerstörenden Rückfrage. Und „Split erfassen“ müsste in die Schublade auf einer anderen Seite verlinken.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ VARIANTE C ============================ -->
+<section class="mock-board desk-only">
+  <h2>C — nur „Split löschen“ <small>in der Split-Schublade und aus „Split erfassen“ · keine andere Buchung</small></h2>
+  <p class="mock-note">Der Titel von #912 wörtlich: Die Split-Schublade bekommt im Fuß „Split löschen…“ (denselben Dialog wie A4), „Split erfassen“ verlinkt dorthin, alle anderen Buchungen bleiben, wie sie sind.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-after" style="flex:0 1 420px"><span class="mock-tag">C · die Split-Schublade</span>
+      <div class="hist">
+        <div class="detail-pane booking-drawer desk">
+          <header class="detail-pane-head"><div class="detail-pane-head__title"><div><h2>Transaktion bearbeiten</h2><p class="detail-pane-sub">Ein Split ist eine Tatsache am Wertpapier; hier ändert sich nur die Notiz, und die Änderung wird journalisiert.</p></div></div></header>
+          <form>
+            <p class="elide">Typ, Stichtag, Wertpapier, Verhältnis — gesperrt.</p>
+            <p class="form-help">Stichtag, Verhältnis und Wertpapier eines gebuchten Splits stehen fest. Ein falscher Split wird gelöscht und danach am Wertpapier mit „Split erfassen“ neu erfasst.</p>
+            <p class="elide">Notizen</p>
+            <div class="b-foot is-new"><button type="submit" class="button-primary">Notiz speichern</button><button type="button" class="button-ghost">Abbrechen</button><span class="sp"></span><button type="button" class="button-danger">Split löschen…</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+    <div class="notes" style="flex:1 1 520px">
+      <p><b>Für C.</b> Das Kleinste, was #912 wörtlich verlangt: Der Korrekturweg für einen Split ist erreichbar, die Hilfezeile hat ihr Ziel, und eine Buchung mit Geld lässt sich auf dem Bildschirm weiterhin nicht löschen — wer das für sicherer hält, findet hier sein Argument.</p>
+      <p><b>Gegen C.</b> Die Lücke, die #912 im ersten Satz nennt („No booking can be deleted from the screen“), bleibt für 14 von 15 Arten offen: <code>DELETE /api/v1/transactions/:id</code> löscht jede Buchung, der Bildschirm keine. Ein doppelt importierter oder falsch erfasster Kauf braucht weiter den Agenten. Der Dialog, den C baut, ist derselbe wie in A; A stellt ihn nur an jede Zeile. Und „Löschen“ nur in einer Schublade, die man über „Bearbeiten“ erreicht, hat die Auffindbarkeit von B.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ A, B ODER C ============================ -->
+<section class="mock-board desk-only">
+  <h2>A, B oder C</h2>
+  <div class="mock-row">
+    <div class="notes" style="flex:1 1 520px">
+      <p><b>Für A.</b> A gibt der Oberfläche, was API und MCP können, für jede Buchungsart, dort, wo jede andere Zeilenaktion der App schon sitzt: im Zeilenmenü, zuletzt, in Gefahrfarbe, wie „Löschen“ bei Konten, Depots und Wertpapieren. Die Rückfrage ist die schmale zerstörende Form, die die App für Schreibvorgänge mit Folgen schon hat (Freigabe manueller Kurse, G3-A); <code>data-confirm</code> bleibt den folgenlosen Löschungen, denn jedes vorhandene <code>data-confirm</code>-Löschen fragt nur, wenn nichts davon abhängt („Delete asks only when it can succeed“). Eine Buchung zu löschen hat immer Folgen. Splits werden als Ganzes gelöscht, wie der Operator sie gebucht hat, und beide Stellen, an denen ein falscher Split auffällt, führen dorthin.</p>
+      <p><b>Gegen A.</b> Ein zweiter Eintrag im Menü jeder Zeile, und ein Löschen ist zwei Klicks von jeder Zeile entfernt — die Rückfrage mit Namen, Folge und benanntem Knopf ist die Bremse. A braucht einen Schreibweg für den ganzen Split, den es nicht gibt, und dessen Abdeckung auf API und MCP (rechts).</p>
+    </div>
+    <div class="callout open" style="flex:1 1 440px">
+      <h4>Was die Story dafür bauen muss — es gibt es noch nicht</h4>
+      <ul>
+        <li><b>Den Split als Ganzes löschen:</b> eine Funktion, die die Zeilen eines Splits (Schlüssel Wertpapier, Datum, gekürztes Verhältnis, wie <code>Splits</code> ihn nennt) in einer Transaktion löscht, jede journalisiert. Und ihr Gegenstück auf API und MCP — heute löscht der Agent Zeile für Zeile und hat dazwischen den halben Zustand —, oder die Story begründet, warum das genügt.</li>
+        <li><b>Den Satz „Danach …“</b> aus <code>Projection.effects/1</code> der Buchung; Split und Saldo gesetzt mit eigenem Satz.</li>
+        <li><b>Die Zeilenzahl eines Splits</b> und die Namen seiner Portfolios für A4; ob <code>import_hash</code> gesetzt ist für A3 (das Feld liegt an der Zeile).</li>
+        <li><b>Den Dialog als geteiltes Bauteil</b> auf zwei Seiten (Historie, Wertpapier), damit A8 nicht die Seite wechselt.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ H2b · BEARBEITEN AN NICHT BUCHBAREN ARTEN ============================ -->
+<section class="mock-board">
+  <h2>H2b — „Bearbeiten“ an einer Buchungsart, die die Schublade nicht bucht <small>Zusatzfrage zu H2 · A Notiz-Schublade mit festen Angaben · B kein „Bearbeiten“, nur „Löschen…“</small></h2>
+  <p class="mock-note desk-only">Die Schublade bucht nur Kauf und Verkauf (Ziel&nbsp;4 in AGENTS.md); die übrigen Arten kommen aus dem Import oder über API und MCP, „Saldo gesetzt“ zusätzlich aus Konten &amp; Depots. „Bearbeiten“ an einer dieser zwölf Arten öffnet heute das Kauf-Formular, das nur ablehnen kann — geprüft mit einem Wegwerf-Test an einer Einlage: nichts wird geändert. Mit „Löschen…“ aus H2-A wird die Frage, was „Bearbeiten“ dort noch soll, eine echte Wahl. <span class="rec">Empfehlung A.</span> Ohne Kommentar „H2b“ mit Buchstabe gilt sie.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before desk-only" style="flex:0 1 340px;min-width:0"><span class="mock-tag">Heute · „Bearbeiten“ an der Einlage vom 03.09.2026, gespeichert</span>
+      <div class="hist">
+        <p class="alert-error" role="alert" style="margin:0 0 10px">Wertpapier darf nicht leer sein, Depot darf nicht leer sein, Stückzahl darf nicht leer sein, Preis darf nicht leer sein<i class="pin b">1</i></p>
+        <div class="detail-pane booking-drawer desk" style="width:auto">
+          <header class="detail-pane-head"><div class="detail-pane-head__title"><div><h2>Transaktion bearbeiten</h2><p class="detail-pane-sub">Korrigiert die Buchung an Ort und Stelle; die abgeleiteten Bestände folgen, die Änderung wird journalisiert.</p></div></div></header>
+          <form>
+            <div class="form-grid">
+              <label><span>Typ<i class="pin b">2</i></span><select><option selected>Kauf</option><option>Verkauf</option></select></label>
+              <label><span>Datum</span><input type="text" value="2026-09-03" maxlength="10"></label>
+              <label><span>Bucht auf Depot</span><select><option selected>Depot auswählen</option></select></label>
+              <label><span>Wertpapier</span><select><option selected>Wertpapier auswählen</option></select></label>
+              <label><span>Stückzahl</span><input value="" inputmode="decimal"></label>
+              <label><span>Preis</span><input value="" inputmode="decimal"></label>
+            </div>
+            <div class="booking-drawer__foot"><button type="submit" class="button-primary">Änderungen speichern</button><button type="button" class="button-ghost">Abbrechen</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after" style="flex:0 1 400px;min-width:0"><span class="mock-tag">A · empfohlen · „Bearbeiten“ an der importierten Dividende</span>
+      <div class="hist">
+        <div class="detail-pane booking-drawer desk w368 is-new">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title"><div>
+              <h2>Transaktion bearbeiten</h2>
+              <p class="detail-pane-sub">Eine Dividende bucht die Oberfläche nicht; hier ändert sich nur die Notiz, und die Änderung wird journalisiert.<i class="pin a">3</i></p>
+            </div></div>
+            <div class="detail-pane-head__actions"><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+          </header>
+          <form>
+            <div class="form-grid">
+              <label><span>Typ</span><select disabled><option selected>Dividende</option></select></label>
+              <label><span>Datum</span><input type="text" value="2026-09-26" disabled></label>
+              <label><span>Wertpapier</span><select disabled><option selected>Nordwind Industrie AG (NWI)</option></select></label>
+              <label><span>Verrechnungskonto<i class="pin a">4</i></span><select disabled><option selected>Girokonto</option></select></label>
+              <label><span>Betrag (EUR)</span><input class="num" value="48,75" disabled></label>
+              <label><span>Steuern</span><input class="num" value="8,61" disabled></label>
+            </div>
+            <p class="form-help">Datum, Beträge und Konten einer Dividende korrigiert die Oberfläche nicht: Sie bucht nur Käufe und Verkäufe. Korrigiert wird die Buchung über API oder MCP, oder sie wird gelöscht und neu importiert. <button type="button" class="link-button">Löschen…</button><i class="pin a">5</i></p>
+            <label><span>Notizen</span><textarea rows="2">Quellensteuer laut Abrechnung vom 28.09.2026.</textarea></label>
+            <div class="booking-drawer__foot"><button type="submit" class="button-primary">Notiz speichern</button><button type="button" class="button-ghost">Abbrechen</button></div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after desk-only" style="flex:1 1 300px;min-width:0"><span class="mock-tag">B · das Zeilenmenü der Dividende</span>
+      <div class="hist">
+        <div class="data-table-wrapper" style="overflow:visible">
+          <table id="transaction-list" style="font-size:12px">
+            <thead><tr><th>Datum</th><th>Typ</th><th class="num">Betrag</th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead>
+            <tbody>
+              <tr class="is-menu-open"><td>26.09.2026</td><td>Dividende</td><td class="num">48,75<small class="value-suffix">EUR</small></td><td class="row-actions rel"><button type="button" class="row-actions__kebab" aria-expanded="true" aria-label="Aktionen für Dividende, Nordwind Industrie AG, 26.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button>
+                <div class="row-context-menu menu-at" role="menu" aria-label="Transaktionsaktionen" style="right:6px; top:calc(100% - 4px); min-width:180px">
+                  <button type="button" class="row-context-menu__item row-context-menu__item--danger is-new" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-trash"/></svg>Löschen…<i class="pin o">6</i></button>
+                </div></td></tr>
+              <tr><td>22.09.2026</td><td>Kauf</td><td class="num">-2.504,90<small class="value-suffix">EUR</small></td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Kauf, Global Aktien ETF, 22.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr>
+              <tr><td>03.09.2026</td><td>Einlage</td><td class="num">1.500,00<small class="value-suffix">EUR</small></td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Einlage, Girokonto, 03.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="elide" style="margin-top:46px">Die Kauf-Zeile behält „Bearbeiten“ · „Löschen…“.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="mock-row desk-only" style="margin-top:14px">
+    <div class="notes" style="flex:1 1 520px">
+      <ol class="pins">
+        <li><i class="pin b">1</i><i class="pin b" style="margin:0 4px 0 0">2</i><b>Heute:</b> Die Auswahl „Typ“ kennt nur Kauf und Verkauf, keine Option ist gewählt, also steht „Kauf“; Speichern lehnt ab, die Einlage bleibt, wie sie war. Kein Datenschaden, aber ein Formular, das nur ablehnen kann — für zwölf der fünfzehn Arten.</li>
+        <li><i class="pin a">3</i><b>A, die Schublade von G12.3, verallgemeinert:</b> derselbe Zustand wie für den Split (<code>editing_split</code>), für jede Art, die die Schublade nicht bucht. Die Kopfzeile sagt vorher, was geht.</li>
+        <li><i class="pin a">4</i><b>Die Angaben der Buchung, gesperrt</b>, mit den Wörtern, die die Historie und die Schublade schon tragen; welche Felder, folgt der Art (die Pflichtfelder je Art in <code>Transaction</code>): eine Umbuchung zeigt beide Konten, eine Einlieferung Depot, Stückzahl und Preis, „Saldo gesetzt“ Konto und Saldo.</li>
+        <li><i class="pin a">5</i><b>Die Grenze und beide Wege, wo die Korrektur versucht wird</b> (UX&#8209;DR26), mit „Löschen…“ als Abhilfe, das die Schublade schließt und den Dialog aus H2-A öffnet. „Saldo gesetzt“ liest „…oder er wird gelöscht und unter Konten &amp; Depots neu gesetzt“ — dort gibt es den Weg auf dem Bildschirm.</li>
+        <li><i class="pin o">6</i><b>B:</b> Für diese Arten fehlt „Bearbeiten“; das Menü hat einen Eintrag, und der ist zerstörend.</li>
+      </ol>
+    </div>
+    <div class="callout" style="flex:1 1 440px">
+      <h4>Was API und MCP an diesen Arten ändern dürfen</h4>
+      <p><code>PATCH /api/v1/transactions/:id</code> und <code>portfolixir.transactions.update</code> (<code>Ledger.update_transaction/3</code>) setzen jedes öffentliche Feld einer Buchung, die kein Split ist: Datum, Konten, Wertpapier, Stückzahl, Preis, Betrag, Gebühren, Steuern, Abrechnung, Notiz — auch die Art. Abgelehnt werden eine Änderung zum Split (der Endpunkt, 422), eine importierte Zeile, die Split oder Saldo werden soll, ein ungültiger Wert je Art und eine Abrechnung, die nicht zum Bargeld passt (#395). Jede Änderung wird journalisiert.</p>
+      <p><b>Der Agent korrigiert eine Dividende also an Ort und Stelle; der Bildschirm kann es in A und B nicht.</b> A verspricht darum weniger, als der Agent kann, aber nie mehr, und sagt es in der Hilfezeile. Die menschliche Sicht dieser Korrektur ist eine eigene Lücke der zweiseitigen Regel, nicht Teil von #912 (Scope Lock in Teil&nbsp;2).</p>
+    </div>
+  </div>
+  <div class="mock-row desk-only" style="margin-top:10px">
+    <div class="notes" style="flex:1 1 100%">
+      <p><b>Für A.</b> Jede Zeile hat dasselbe Menü, „Bearbeiten“ · „Löschen…“. Die Notiz bleibt änderbar wie auf API und MCP, und die Schublade zeigt die gespeicherten Angaben, die die Historie nur zum Teil als Spalten führt. Der Vorgänger ist gebaut und abgenommen (G12.3-A). <b>Gegen A:</b> Ein dritter Zustand der Schublade und eine Feldliste je Art; die Hilfezeile nennt API und MCP als Weg, den der Operator nur über seinen Agenten hat.</p>
+      <p><b>Für B.</b> Das Kleinste: kein neuer Zustand, kein Versprechen. <b>Gegen B.</b> Das Menü springt je Zeile zwischen zwei und einem Eintrag, und bei zwölf Arten ist der einzige Eintrag hinter dem Kebab zerstörend. Die Notiz einer Dividende bleibt auf dem Bildschirm unänderbar, während der Agent sie ändert. Und wer eine Buchung prüfen will, ohne sie zu löschen, hat keinen Ort, der alle ihre Felder zeigt.</p>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

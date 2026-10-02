@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Telefon bei 390 px (Pick H7)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the rules the stories would add to app.css. Everything else
+     inside the frames is markup and classes that already ship:
+     securities_live.ex (render_detail_pane/1: .detail-pane, .detail-pane-head,
+     .detail-pane-head__title, .detail-pane-head__actions, .detail-pane-sub,
+     .detail-pane-tabs, .detail-pane-tab; the chart toolbar's .range-buttons /
+     .range-button and the custom range's .period-disclosure; quotes_tab_panel/1:
+     .detail-tab-panel--quotes, .summary-basis, .data-table-wrap,
+     .detail-quotes-table, .badge.quote-source; the page-level
+     AppShell.inline_result #securities-action-result), the phone rows of
+     UX-DR27 (.phone-rows, .phone-row, .phone-row__body, .phone-row__name,
+     .phone-row__ids, .phone-row__figures, .phone-row__figure,
+     .phone-row__figure2 — the trades rows of Sprint 17 are the precedent),
+     .col-subject (#730), and the import result (imports_live.ex render_done/1:
+     .import-done, .success-icon, .summary, .import-stat-card). -->
+<style id="proposal">
+  /* ① H7.1 (#1012), variant A: under 560 px the quote table gives way to
+     two-line rows, as the securities list, the history and the trades list
+     do (UX-DR27): the date over its source, the close over the stored value
+     where a split adjusted it. The story adds id="quotes-table-wrapper" to
+     the table's wrapper and the <ul id="quote-phone-rows" class="phone-rows">
+     beside it; `.phone-rows { display: block }` under 560 px already ships. */
+  #quote-phone-rows .phone-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  @media (max-width: 560px) {
+    #quotes-table-wrapper {
+      display: none;
+    }
+  }
+
+  /* ② H7.2 (#1033): the detail tab row's fades follow its edges, as the area
+     tab row's do (#857, #876). The DetailTabs hook gains AreaTabs' mount
+     half: it scrolls the selected tab into the row's view (the row, never
+     the page; no animation under prefers-reduced-motion), marks
+     data-scroll-start / data-scroll-end, and sets the trailing inset so the
+     row's end is a tab boundary. In app.css `.detail-pane-tabs` joins the
+     three `.area-tabs` selector lists rather than copying them. */
+  .detail-pane-tabs {
+    --detail-tabs-tail: 0px;
+    padding-inline-end: var(--detail-tabs-tail);
+  }
+
+  .detail-pane-tabs:not([data-scroll-start]) {
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      black 24px,
+      black calc(100% - 40px),
+      transparent 100%
+    );
+  }
+
+  .detail-pane-tabs[data-scroll-end] {
+    mask-image: linear-gradient(to right, transparent 0, black 24px);
+  }
+
+  .detail-pane-tabs[data-scroll-start][data-scroll-end] {
+    mask-image: none;
+  }
+
+  /* ③ H7.5 (#909), variant A: a card label that is one long word may break.
+     The German label carries a soft hyphen at its compound joint
+     ("Verrechnungs&shy;konten", U+00AD in the msgstr), so it breaks there, with a
+     hyphen, in every browser; the rule is the floor for any other
+     unbreakable word in any locale (it breaks without a hyphen, never past
+     the card). */
+  .import-stat-card .label {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* ④ H7.6: the history's phone row has three children since its kebab
+     joined it — the body, the figures, the kebab — and the rule still
+     declares two tracks, so the kebab is auto-placed on a second line under
+     the date. EDITS the existing `#transaction-phone-rows .phone-row` rule
+     (app.css:7757) and its comment ("the row has no kebab"). */
+  #transaction-phone-rows .phone-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: visible; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ol, .notes ul { margin: 0; }
+  .notes ol, .notes ul { padding-left: 18px; }
+  ol.pins { list-style: none; padding: 0; }
+  .notes li { margin: 0 0 6px; }
+  .notes code, .mock-note code, .pickbar code, .callout code { font-size: 11.5px; }
+  .elide { margin: 0; font-size: 12px; color: var(--mock-ink); font-style: italic; }
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; text-transform: none; flex: none; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  i.pin.o { background: var(--mock-ink); }
+  .notes li > i.pin:first-child { margin: 0 4px 0 0; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .rec { color: var(--color-positive); font-weight: 760; }
+  .callout { border: 1px solid var(--color-border); border-left: 4px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-bg-elevated); padding: 10px 14px; display: grid; gap: 6px; font-size: 12.5px; }
+  .callout h4 { margin: 0; font-size: 13px; }
+  .callout p, .callout ul { margin: 0; }
+  .callout ul { padding-left: 18px; }
+  .phone-only { display: none; }
+  .w-pane { flex: 1 1 340px; min-width: 0; }
+  .w-wide { flex: 1 1 600px; min-width: 0; }
+  .w-q { flex: 1 1 460px; min-width: 0; }
+  .today.detail-pane-tabs { mask-image: linear-gradient(to right, black calc(100% - 40px), transparent 100%); }
+  .w-notes { flex: 1 1 300px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .stage { padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .stage .detail-pane { margin-top: 0; }
+  td.elide-row { text-align: center; font-style: italic; color: var(--mock-ink); font-size: 11.5px; }
+  li.elide-row { padding: 6px 0; text-align: center; font-style: italic; color: var(--mock-ink); font-size: 11.5px; border-top: 1px solid var(--color-border); }
+  .shell { background: var(--color-bg-elevated); display: grid; }
+  .shell > .inline-result { min-width: 0; }
+  .off-note { margin: 0; font-size: 11px; color: var(--color-danger); }
+  .ok-note { margin: 0; font-size: 11px; color: var(--color-positive); }
+  .kpi-ref { display: inline-grid; gap: 2px; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); font-size: 12px; }
+  .kpi-ref b { font-size: 18px; }
+  .import-frame .import-done { border-bottom: 0; padding: 2rem 1rem; }
+  /* Variant B of H7.1 (drawing aid): #730's pin on the source column, plus
+     the opaque background the zebra rule otherwise takes from it. */
+  .var-b .data-table tbody tr td.col-subject { background: var(--color-bg-elevated); }
+  /* Variant B of H7.5: the browser's own hyphenation instead of the soft
+     hyphen (this renderer has no German dictionary — see the note). */
+  .var-hy .import-stat-card .label { hyphens: auto; -webkit-hyphens: auto; }
+  /* H7.6 (drawing aid): the history's phone rows shown at every board width
+     (app.css shows them under 560 px only), the kebab at its coarse-pointer
+     floor as on a phone, and the "before" frame on the shipped two tracks. */
+  .force-phone .phone-rows { display: block; }
+  .force-phone .row-actions__kebab { min-width: 44px; min-height: 44px; }
+  .today #transaction-phone-rows .phone-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .w-phone { flex: 0 1 390px; min-width: 0; }
+
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-board > p.mock-note { padding: 0 12px; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .stage { padding: 0; gap: 0; }
+    .stage > .lbl-p { padding: 8px 12px 4px; }
+    .notes { padding: 0 12px; }
+    .callout { margin: 0 12px; }
+    .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+    i.pin { display: none; }
+    .stage .detail-pane { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    /* The renderer has a mouse: the detail tabs' coarse 44 px floor is
+       applied by hand, as on a phone. */
+    .detail-pane-tab { min-height: 44px; }
+  }
+  .lbl-p { margin: 0; font-size: 11px; color: var(--mock-ink); }
+</style>
+</head>
+<body data-widths="390,1200">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-ast" viewBox="0 0 24 24"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-max" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar desk-only"><b>Entscheidung H7 — das Telefon bei 390&nbsp;px (#1012, #1033, #909).</b> Das Board ist für 390&nbsp;px gezeichnet (<code>07-phone-390--390.png</code>); diese Breite zeigt dieselben Rahmen am Desktop, wo sie sich nicht ändern sollen. <b>H7.2, H7.3, H7.1b sind vorher/nachher</b>: D6/UX&#8209;DR22 und das eine Zeitraum-Vokabular legen die Antwort fest. <b>Zwei echte Wahlen:</b> <b>H7.1</b> die Quelle der Kurse auf dem Telefon — <b>A</b> zweizeilige Zeilen (UX&#8209;DR27) · <b>B</b> die Spalte „Quelle“ angeheftet (#730), <span class="rec">Empfehlung A</span>; <b>H7.5</b> „Verrechnungskonten“ in seiner Karte — <b>A</b> ein weiches Trennzeichen an der Wortfuge · <b>B</b> die Silbentrennung des Browsers, <span class="rec">Empfehlung A</span>. <b>H7.4</b> ist reiner Code, ohne Bild. <b>H7.6</b> (das Kebab-Menü der Historie) ist vorher/nachher. Ein Kommentar mit Code und Buchstabe (z.&nbsp;B. „H7.1 B“) entscheidet; ohne Kommentar gilt die Empfehlung. Alle Namen, Kurse und Daten sind erfunden. <b>Gestrichelt = neu.</b></div>
+<p class="phone-only phone-cap"><b>H7 bei 390&nbsp;px.</b> Echter 390-px-Viewport: app.css' Regeln unter 720 und 560&nbsp;px greifen; die 44&#8209;px-Reiter von <code>pointer: coarse</code> sind von Hand gesetzt (der Renderer hat eine Maus). Empfehlungen: H7.1 A, H7.5 A. Alle Daten erfunden.</p>
+
+<!-- ============================ H7.1 ============================ -->
+<section class="mock-board">
+  <h2>H7.1 · #1012 — die Spalte „Quelle“ liegt bei 390&nbsp;px außerhalb des Bildes <small>Wertpapier → Kurse · Wahl A / B</small></h2>
+  <p class="mock-note desk-only">Unter 560&nbsp;px wird jede Tabelle ihr eigener waagerechter Scroller (<code>table { display: block; overflow-x: auto }</code>). Die Kurstabelle braucht bei 390&nbsp;px rund 470&nbsp;px, ihr Rahmen hat 368: „Quelle“ — das einzige Merkmal je Zeile, ob ein Kurs manuell ist — beginnt bei x&nbsp;327 und ist erst nach einem Wischen ganz zu sehen. Desktop bleibt in beiden Varianten unverändert.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-q"><span class="mock-tag">Heute</span>
+      <div class="stage">
+        <div class="detail-pane">
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--quotes">
+            <div class="data-note data-note--note">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+              <span class="data-note__word">Hinweis</span>
+              <div class="data-note__body">3 manuelle Kurse in der gespeicherten Historie, vom <time datetime="2026-09-14">2026-09-14</time> bis <time datetime="2026-09-16">2026-09-16</time>. Ein manueller Kurs hat Vorrang: Die Kursaktualisierung lässt ihn stehen, bis er freigegeben wird. <button type="button" class="link-button">Freigeben…</button></div>
+            </div>
+            <p class="summary-basis">Zeitraum 1M · wie im Diagramm</p>
+            <div class="data-table-wrap">
+              <table class="data-table detail-quotes-table">
+                <thead><tr><th>Datum</th><th class="num">Schlusskurs</th><th class="num">Gespeichert</th><th>Quelle</th></tr></thead>
+                <tbody>
+                  <tr><td>2026-09-30</td><td class="num">112,40 <small>EUR</small></td><td class="num">112,40</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td>2026-09-29</td><td class="num">111,85 <small>EUR</small></td><td class="num">111,85</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td>2026-09-17</td><td class="num">107,35 <small>EUR</small></td><td class="num">107,35</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td>2026-09-16</td><td class="num">106,80 <small>EUR</small></td><td class="num">106,80</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                  <tr><td>2026-09-15</td><td class="num">106,10 <small>EUR</small></td><td class="num">106,10</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                  <tr><td>2026-09-14</td><td class="num">105,95 <small>EUR</small></td><td class="num">105,95</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                  <tr><td>2026-09-11</td><td class="num">104,88 <small>EUR</small></td><td class="num">104,88</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+        <p class="off-note phone-only" style="padding:6px 12px">„Quelle“ beginnt bei x&nbsp;327: Welche drei Kurse manuell sind, zeigt erst ein Wischen nach links.</p>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after w-q"><span class="mock-tag">A · empfohlen — zweizeilige Zeilen (UX&#8209;DR27)</span>
+      <div class="stage">
+        <div class="detail-pane">
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--quotes">
+            <div class="data-note data-note--note">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+              <span class="data-note__word">Hinweis</span>
+              <div class="data-note__body">3 manuelle Kurse in der gespeicherten Historie, vom <time datetime="2026-09-14">2026-09-14</time> bis <time datetime="2026-09-16">2026-09-16</time>. Ein manueller Kurs hat Vorrang: Die Kursaktualisierung lässt ihn stehen, bis er freigegeben wird. <button type="button" class="link-button">Freigeben…</button></div>
+            </div>
+            <p class="summary-basis">Zeitraum 1M · wie im Diagramm</p>
+            <div class="data-table-wrap" id="quotes-table-wrapper">
+              <table class="data-table detail-quotes-table">
+                <thead><tr><th>Datum</th><th class="num">Schlusskurs</th><th class="num">Gespeichert</th><th>Quelle</th></tr></thead>
+                <tbody>
+                  <tr><td>2026-09-30</td><td class="num">112,40 <small>EUR</small></td><td class="num">112,40</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td>2026-09-29</td><td class="num">111,85 <small>EUR</small></td><td class="num">111,85</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td>2026-09-17</td><td class="num">107,35 <small>EUR</small></td><td class="num">107,35</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td>2026-09-16</td><td class="num">106,80 <small>EUR</small></td><td class="num">106,80</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                  <tr><td>2026-09-15</td><td class="num">106,10 <small>EUR</small></td><td class="num">106,10</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                  <tr><td>2026-09-14</td><td class="num">105,95 <small>EUR</small></td><td class="num">105,95</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                  <tr><td>2026-09-11</td><td class="num">104,88 <small>EUR</small></td><td class="num">104,88</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <ul id="quote-phone-rows" class="phone-rows is-new" aria-label="Kurse">
+              <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">2026-09-30</span><span class="phone-row__ids"><span class="badge quote-source">Portfolio Performance</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">112,40<small class="value-suffix">EUR</small></span></span></li>
+              <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">2026-09-29</span><span class="phone-row__ids"><span class="badge quote-source">Portfolio Performance</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">111,85<small class="value-suffix">EUR</small></span></span></li>
+              <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">2026-09-17</span><span class="phone-row__ids"><span class="badge quote-source">Portfolio Performance</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">107,35<small class="value-suffix">EUR</small></span></span></li>
+              <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">2026-09-16</span><span class="phone-row__ids"><span class="badge quote-source">Manuell</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">106,80<small class="value-suffix">EUR</small></span></span></li>
+              <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">2026-09-15</span><span class="phone-row__ids"><span class="badge quote-source">Manuell</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">106,10<small class="value-suffix">EUR</small></span></span></li>
+              <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">2026-09-14</span><span class="phone-row__ids"><span class="badge quote-source">Manuell</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">105,95<small class="value-suffix">EUR</small></span></span></li>
+              <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">2026-09-11</span><span class="phone-row__ids"><span class="badge quote-source">Portfolio Performance</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">104,88<small class="value-suffix">EUR</small></span></span></li>
+            </ul>
+          </section>
+        </div>
+        <p class="lbl-p desk-only" style="padding:4px 2px">Desktop: unverändert die Tabelle. Die Zeilen erscheinen unter 560&nbsp;px — <code>07-phone-390--390.png</code>.</p>
+        <p class="lbl-p phone-only" style="padding:10px 12px 4px">A nach einem Split: die Kursbasis-Zeile wie heute, der gespeicherte Wert unter dem Kurs, wo er abweicht.</p>
+        <div class="detail-pane phone-only">
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--quotes">
+            <p class="detail-tab-hint">Kursbasis: an den Split vom 2026-07-01 (2:1) angepasst. Die Spalte Gespeichert zeigt die unveränderten Werte.</p>
+            <ul class="phone-rows" style="display:block">
+              <li class="phone-row" style="grid-template-columns:minmax(0,1fr) auto"><span class="phone-row__body"><span class="phone-row__name">2026-06-30</span><span class="phone-row__ids"><span class="badge quote-source">Portfolio Performance</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">51,20<small class="value-suffix">EUR</small></span><span class="phone-row__figure2 is-new">gespeichert 102,40</span></span></li>
+              <li class="phone-row" style="grid-template-columns:minmax(0,1fr) auto"><span class="phone-row__body"><span class="phone-row__name">2026-06-29</span><span class="phone-row__ids"><span class="badge quote-source">Manuell</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">50,95<small class="value-suffix">EUR</small></span><span class="phone-row__figure2">gespeichert 101,90</span></span></li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="mock-frame w-q var-b"><span class="mock-tag vtag">B — „Quelle“ angeheftet (<code>.col-subject</code>, #730)</span>
+      <div class="stage">
+        <div class="detail-pane">
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--quotes">
+            <p class="summary-basis">Zeitraum 1M · wie im Diagramm</p>
+            <div class="data-table-wrap">
+              <table class="data-table detail-quotes-table">
+                <thead><tr><th>Datum</th><th class="num">Schlusskurs</th><th class="num">Gespeichert</th><th class="col-subject is-new">Quelle</th></tr></thead>
+                <tbody>
+                  <tr><td>2026-09-30</td><td class="num">112,40 <small>EUR</small></td><td class="num">112,40</td><td class="col-subject"><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td>2026-09-29</td><td class="num">111,85 <small>EUR</small></td><td class="num">111,85</td><td class="col-subject"><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td>2026-09-17</td><td class="num">107,35 <small>EUR</small></td><td class="num">107,35</td><td class="col-subject"><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td>2026-09-16</td><td class="num">106,80 <small>EUR</small></td><td class="num">106,80</td><td class="col-subject"><span class="badge quote-source">Manuell</span></td></tr>
+                  <tr><td>2026-09-15</td><td class="num">106,10 <small>EUR</small></td><td class="num">106,10</td><td class="col-subject"><span class="badge quote-source">Manuell</span></td></tr>
+                  <tr><td>2026-09-14</td><td class="num">105,95 <small>EUR</small></td><td class="num">105,95</td><td class="col-subject"><span class="badge quote-source">Manuell</span></td></tr>
+                  <tr><td>2026-09-11</td><td class="num">104,88 <small>EUR</small></td><td class="num">104,88</td><td class="col-subject"><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:14px">
+    <div class="notes" style="flex:1 1 100%">
+      <ul>
+        <li><b>A</b> folgt der Regel, die das Telefon schon für Listen hat: Unter 560&nbsp;px weicht eine Listentabelle zweizeiligen Zeilen, nichts scrollt seitwärts (UX&#8209;DR27; Wertpapiere, Historie, seit Sprint 17 die Trades). Links das Datum über der Quelle als Wort, rechts der Schlusskurs; „gespeichert …“ steht nur, wo ein Split den Kurs angepasst hat — sonst wäre es dieselbe Zahl zweimal. Kosten: eine Zeile ist 61 statt 34&nbsp;px hoch, ein Jahr Kurse (rund 250 Zeilen) wird entsprechend länger.</li>
+        <li><b>B</b> heftet „Quelle“ an den rechten Rand des Scrollers (#730). Unter 560&nbsp;px klebt sie tatsächlich (gemessen), aber die 153&nbsp;px breite Plakette „Portfolio Performance“ nimmt 40&nbsp;% der Breite, „Gespeichert“ liegt darunter, und in geraden Zeilen schlägt die Zebra-Regel (<code>.data-table tbody tr:nth-child(even) td</code>) den undurchsichtigen Hintergrund von <code>.col-subject</code> — ohne eine zweite Regel scheint der Wert darunter durch.</li>
+        <li><span class="rec">Warum A:</span> Die Quelle steht dort, wo das Auge eine Zeile beginnt, die Regel gilt schon für drei Listen, und keine Spalte wird verdeckt. Verworfen ohne Bild: „Gespeichert“ unter 560&nbsp;px ausblenden — passt nur ohne Split, und mit Split ist es die Spalte, die zählt.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ H7.1b ============================ -->
+<section class="mock-board">
+  <h2>H7.1b · #1012 — „Kurse aktualisiert.“ zählt die manuellen Kurse nicht, die stehen blieben <small>vorher/nachher</small></h2>
+  <p class="mock-note desk-only">Die Kursaktualisierung lässt einen manuellen Kurs stehen, wo der Anbieter für denselben Tag einen Schlusskurs liefert (<code>Quotes.upsert_many(…, protect_manual: true)</code>), und zählt das je Wertpapier (<code>skipped_manual</code>). <code>sync_flash/1</code> liest nur <code>ok</code>, <code>skipped</code>, <code>error</code>: Die Meldung schweigt. Sie ist seit #566 kein Toast mehr, sondern das seitenweite Inline-Ergebnis <code>#securities-action-result</code>, bei 390&nbsp;px über dem Detail.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-pane"><span class="mock-tag">Heute</span>
+      <div class="stage">
+        <div class="shell">
+          <div class="inline-result"><div role="status" class="inline-result__region">
+            <div class="data-note data-note--note">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+              <span class="data-note__word">Hinweis</span>
+              <div class="data-note__body">Kurse aktualisiert.<button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button></div>
+            </div>
+          </div></div>
+          <div class="inline-result"><div role="status" class="inline-result__region">
+            <div class="data-note data-note--note">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+              <span class="data-note__word">Hinweis</span>
+              <div class="data-note__body">Kurssync abgeschlossen: 12 synchronisiert, 2 übersprungen, 0 fehlgeschlagen.<button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button></div>
+            </div>
+          </div></div>
+        </div>
+        <p class="lbl-p" style="padding:4px 12px">Beide Fassungen, je nachdem, ob ein Wertpapier übersprungen wurde. Dass an 3 Tagen ein manueller Kurs stehen blieb, steht in keiner.</p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-pane"><span class="mock-tag">Nachher</span>
+      <div class="stage">
+        <div class="shell">
+          <div class="inline-result"><div role="status" class="inline-result__region">
+            <div class="data-note data-note--note">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+              <span class="data-note__word">Hinweis</span>
+              <div class="data-note__body">Kurse aktualisiert. <span class="is-new">3 manuelle Kurse blieben stehen, wo der Anbieter einen Schlusskurs lieferte.</span><button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button></div>
+            </div>
+          </div></div>
+          <div class="inline-result"><div role="status" class="inline-result__region">
+            <div class="data-note data-note--note">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+              <span class="data-note__word">Hinweis</span>
+              <div class="data-note__body">Kurssync abgeschlossen: 12 synchronisiert, 2 übersprungen, 0 fehlgeschlagen. <span class="is-new">Ein manueller Kurs blieb stehen, wo der Anbieter einen Schlusskurs lieferte.</span><button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button></div>
+            </div>
+          </div></div>
+        </div>
+        <p class="lbl-p" style="padding:4px 12px">Kein manueller Kurs stehen geblieben: der Satz fehlt, die Meldung ist die von heute.</p>
+      </div>
+    </div>
+    <div class="notes w-notes">
+      <ul>
+        <li><b>Der Satz</b> ist die Summe von <code>skipped_manual</code> über die Ergebnisse, Singular und Plural über <code>ngettext</code>. „blieben stehen“ nimmt das Verb der Notiz über der Tabelle auf („lässt ihn stehen, bis er freigegeben wird“). „übersprungen“ bleibt den Wertpapieren vorbehalten, die die Aktualisierung gar nicht abfragt; ein manueller Kurs ist nicht übersprungen, er hat Vorrang.</li>
+        <li><b>„wo der Anbieter einen Schlusskurs lieferte“</b> sagt, was gezählt wird: die Tage, an denen Anbieter und manueller Kurs kollidierten — nicht alle manuellen Kurse (die zählt die Notiz im Tab).</li>
+        <li>Wo er steht, bleibt: das seitenweite Ergebnis. Die Meldung des Betriebssystems (<code>notify_os</code>, nur bei verborgenem Tab) trägt denselben Text.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ H7.2 ============================ -->
+<section class="mock-board">
+  <h2>H7.2 · #1033 — der gewählte Reiter „Kurse“ liegt unter dem Rand, und nichts rollt ihn ins Bild <small>D6 / UX&#8209;DR22 · vorher/nachher</small></h2>
+  <p class="mock-note desk-only">Die Reiterzeile des Details (neun Reiter, rund 760&nbsp;px) scrollt wie D6 es verlangt, öffnet aber immer bei <code>scrollLeft: 0</code>: Der <code>DetailTabs</code>-Hook hat nur die Tastaturhälfte. Wer auf dem Telefon mit <code>?tab=quotes</code> ankommt — der gewählte Reiter steht in der URL, also nach einem Neuladen oder Zurück —, sieht „Kurse“ halb unter der rechten Blende (gemessen x&nbsp;350–410 in einer bei 380 endenden Zeile); bei „Termine“, wohin die Übersicht unter „Fällig“ verlinkt, ist der Reiter ganz außerhalb. D6 legt die Antwort fest: „the active tab is in view on arrival“, und keine Reiterzeile bricht um oder klappt in ein Menü (UX&#8209;DR22). Nachher bekommt der Hook die Einstiegshälfte von <code>AreaTabs</code>.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-pane"><span class="mock-tag">Heute · Ankunft mit ?tab=quotes</span>
+      <div class="stage">
+        <div class="detail-pane">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title">
+              <span class="security-logo security-logo--lg security-logo--initial">N</span>
+              <div><h2>Nordwind Industrie AG</h2><p class="detail-pane-sub">DE000000000A · NWI · EUR · Letzter 112,40 (2026-09-30)</p></div>
+            </div>
+            <div class="detail-pane-head__actions">
+              <span class="icon-button" aria-label="Detail schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-x"/></svg></span>
+            </div>
+          </header>
+          <nav class="detail-pane-tabs today" role="tablist" aria-label="Wertpapier-Detailansicht">
+            <button type="button" role="tab" class="detail-pane-tab">Übersicht</button><button type="button" role="tab" class="detail-pane-tab">Diagramm</button><button type="button" role="tab" class="detail-pane-tab">Transaktionen</button><button type="button" role="tab" class="detail-pane-tab">Trades</button><button type="button" role="tab" aria-selected="true" class="detail-pane-tab is-active">Kurse</button><button type="button" role="tab" class="detail-pane-tab">Bestände</button><button type="button" role="tab" class="detail-pane-tab">Klassifizierungen</button><button type="button" role="tab" class="detail-pane-tab">Research</button><button type="button" role="tab" class="detail-pane-tab">Termine</button>
+          </nav>
+          <p class="summary-basis">Zeitraum 1M · wie im Diagramm</p>
+        </div>
+        <p class="off-note" style="padding:6px 12px">Der gewählte Reiter liegt halb unter der Blende; die Zeile sagt nicht, wo man ist.</p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-pane"><span class="mock-tag">Nachher · Ankunft mit ?tab=quotes</span>
+      <div class="stage">
+        <div class="detail-pane">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title">
+              <span class="security-logo security-logo--lg security-logo--initial">N</span>
+              <div><h2>Nordwind Industrie AG</h2><p class="detail-pane-sub">DE000000000A · NWI · EUR · Letzter 112,40 (2026-09-30)</p></div>
+            </div>
+            <div class="detail-pane-head__actions">
+              <span class="icon-button" aria-label="Detail schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-x"/></svg></span>
+            </div>
+          </header>
+          <nav class="detail-pane-tabs js-reveal is-new" role="tablist" aria-label="Wertpapier-Detailansicht">
+            <button type="button" role="tab" class="detail-pane-tab">Übersicht</button><button type="button" role="tab" class="detail-pane-tab">Diagramm</button><button type="button" role="tab" class="detail-pane-tab">Transaktionen</button><button type="button" role="tab" class="detail-pane-tab">Trades</button><button type="button" role="tab" aria-selected="true" class="detail-pane-tab is-active">Kurse</button><button type="button" role="tab" class="detail-pane-tab">Bestände</button><button type="button" role="tab" class="detail-pane-tab">Klassifizierungen</button><button type="button" role="tab" class="detail-pane-tab">Research</button><button type="button" role="tab" class="detail-pane-tab">Termine</button>
+          </nav>
+          <p class="summary-basis">Zeitraum 1M · wie im Diagramm</p>
+        </div>
+        <p class="ok-note" style="padding:6px 12px">Der gewählte Reiter ganz im Bild; die linke Blende sagt: davor liegt mehr.</p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-pane"><span class="mock-tag">Nachher · über „Fällig“ auf „Termine“</span>
+      <div class="stage">
+        <div class="detail-pane">
+          <nav class="detail-pane-tabs js-reveal" role="tablist" aria-label="Wertpapier-Detailansicht">
+            <button type="button" role="tab" class="detail-pane-tab">Übersicht</button><button type="button" role="tab" class="detail-pane-tab">Diagramm</button><button type="button" role="tab" class="detail-pane-tab">Transaktionen</button><button type="button" role="tab" class="detail-pane-tab">Trades</button><button type="button" role="tab" class="detail-pane-tab">Kurse</button><button type="button" role="tab" class="detail-pane-tab">Bestände</button><button type="button" role="tab" class="detail-pane-tab">Klassifizierungen</button><button type="button" role="tab" class="detail-pane-tab">Research</button><button type="button" role="tab" aria-selected="true" class="detail-pane-tab is-active">Termine</button>
+          </nav>
+        </div>
+        <p class="ok-note" style="padding:6px 12px">Am Ende: keine rechte Blende, das Zeilenende ist eine Reitergrenze (#876).</p>
+      </div>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:14px">
+    <div class="notes" style="flex:1 1 100%">
+      <ul>
+        <li><b>Wann es greift:</b> beim Einhängen der Zeile, also bei jeder Ankunft mit <code>?tab=</code>: ein Link („Fällig“ auf der Übersicht nach <code>?tab=events</code>, Trades-Karte und Trades-Liste nach <code>?tab=trades</code>, Vermögen nach <code>?tab=transactions</code>), ein Neuladen, Zurück und Vor, ein geteilter Link. Ein Wertpapier aus der Liste öffnet auf „Übersicht“ und braucht nichts. Ein Tipp auf einen Reiter rollt nichts: Er ist schon im Bild.</li>
+        <li><b>Wie es greift:</b> wie <code>AreaTabs</code> (#857, #876): <code>scrollTo</code> auf der Zeile, nie <code>scrollIntoView</code>; ohne Animation unter <code>prefers-reduced-motion</code>; der Ruheplatz ist der letzte Reiteranfang vor dem Zentrierziel, an dem der gewählte Reiter ganz ist; die Blenden folgen den Rändern (Regel ②). Auf dem Board rechnet ein kleines Skript genau das; ohne Skript bleibt die rechte Blende von heute.</li>
+        <li><b>Desktop:</b> Das Detail liegt unter der Liste in voller Breite; bei 1200&nbsp;px mit Seitenleiste passen die neun Reiter (rund 760 von 930&nbsp;px). Unter rund 1000&nbsp;px Fensterbreite — Tablet, schmales Fenster — läuft die Zeile über wie auf dem Telefon, und die Reparatur greift dort genauso. Die Rahmen dieses Boards sind bei 1200&nbsp;px rund 360&nbsp;px breit, zeigen also das schmale Fenster.</li>
+        <li><b>Erster Anstrich:</b> Der Server rendert <code>data-scroll-start</code> auf die Zeile (sie beginnt bei 0), damit das Bild vor dem Hook nur die rechte Blende trägt. Ohne das zeichnete Regel ② vor dem Einhängen auch links eine Blende über „Übersicht“ — wie es <code>.area-tabs</code> heute tut (siehe Teil 7, Scope Lock).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ H7.3 ============================ -->
+<section class="mock-board">
+  <h2>H7.3 · #1033 — „Zeitraum 1Y“ auf Deutsch, wo die Übersicht „1J“ sagt <small>ein Zeitraum-Vokabular · vorher/nachher</small></h2>
+  <p class="mock-note desk-only">Die Basiszeile des Tabs „Kurse“ setzt den rohen Code ein (<code>range: @range</code>), und das Diagramm, auf das sie verweist („wie im Diagramm“), beschriftet seine Knöpfe ebenso roh (<code>&lt;%= range %&gt;</code>): „1Y 3Y 5Y MAX“. Vermögen und die KPI-Leiste der Übersicht übersetzen dieselben Marken (<code>gettext("1Y")</code> → „1J“, „Max“). <b>Nur die Basiszeile zu übersetzen hieße „Zeitraum 1J · wie im Diagramm“ neben einem Knopf „1Y“</b> — die Reparatur nimmt die Knöpfe mit: eine Beschriftungsfunktion für beide.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-pane"><span class="mock-tag">Heute</span>
+      <div class="stage">
+        <p class="lbl-p" style="padding:6px 12px 0">Tab „Diagramm“</p>
+        <div class="detail-pane">
+          <div class="detail-pane-toolbar" role="toolbar" aria-label="Chart-Optionen">
+            <div class="range-buttons" role="group" aria-label="Zeitraum">
+              <button type="button" class="range-button">1M</button><button type="button" class="range-button">3M</button><button type="button" class="range-button">6M</button><button type="button" class="range-button">YTD</button><button type="button" class="range-button is-active">1Y</button><button type="button" class="range-button">3Y</button><button type="button" class="range-button">5Y</button><button type="button" class="range-button">MAX</button>
+            </div>
+          </div>
+        </div>
+        <p class="lbl-p" style="padding:6px 12px 0">Tab „Kurse“</p>
+        <div class="detail-pane">
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--quotes"><p class="summary-basis">Zeitraum 1Y · wie im Diagramm</p></section>
+        </div>
+        <p class="lbl-p" style="padding:6px 12px 0">Übersicht, KPI-Leiste (zum Vergleich)</p>
+        <div style="padding:0 12px 8px"><span class="kpi-ref"><span class="kpi-strip__label">TTWROR 1J</span><b class="is-positive">+7,4%</b></span></div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-pane"><span class="mock-tag">Nachher</span>
+      <div class="stage">
+        <p class="lbl-p" style="padding:6px 12px 0">Tab „Diagramm“</p>
+        <div class="detail-pane">
+          <div class="detail-pane-toolbar" role="toolbar" aria-label="Chart-Optionen">
+            <div class="range-buttons" role="group" aria-label="Zeitraum">
+              <button type="button" class="range-button">1M</button><button type="button" class="range-button">3M</button><button type="button" class="range-button">6M</button><button type="button" class="range-button">YTD</button><button type="button" class="range-button is-active is-new">1J</button><button type="button" class="range-button is-new">3J</button><button type="button" class="range-button is-new">5J</button><button type="button" class="range-button is-new">Max</button>
+            </div>
+          </div>
+        </div>
+        <p class="lbl-p" style="padding:6px 12px 0">Tab „Kurse“</p>
+        <div class="detail-pane">
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--quotes"><p class="summary-basis">Zeitraum <span class="is-new">1J</span> · wie im Diagramm</p></section>
+        </div>
+        <p class="lbl-p" style="padding:6px 12px 8px">Englisch unverändert: „1M 3M 6M YTD 1Y 3Y 5Y Max“, „Range 1Y · as on the Chart tab“.</p>
+      </div>
+    </div>
+    <div class="notes w-notes">
+      <ul>
+        <li><b>Eine Funktion</b> für die acht Marken des Details, über <code>gettext</code>, für Knopf und Basiszeile. „YTD“, „1Y“, „3Y“, „5Y“, „Max“ haben ihre Übersetzungen schon (<code>portfolio_live.ex</code>, <code>dashboard_live.ex</code>); „1M“, „3M“, „6M“ kommen dazu und bleiben auf Deutsch gleich.</li>
+        <li><b>„MAX“ wird „Max“</b> — in beiden Sprachen, wie EXPERIENCE.md es für genau diese Liste seit 2026-08-05 sagt („only the <code>MAX</code> casing changes“). Der Wert in der URL und im Ereignis (<code>phx-value-range</code>) bleibt der Code.</li>
+        <li>Der Fallback „Standard“ (kein Zeitraum gesetzt) bleibt.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ H7.4 ============================ -->
+<section class="mock-board">
+  <h2>H7.4 · #1033 — „Kurse aktualisieren“ im Ergebnis der Freigabe aktualisiert alle Wertpapiere <small>nur Code · kein Bild</small></h2>
+  <div class="callout">
+    <h4>Was heute passiert, und was eine Reparatur am Text ändert</h4>
+    <ul>
+      <li>Die Folgeaktion im Ergebnis der Freigabe ist <code>phx-click="sync_now"</code> (<code>securities_live.ex:2815</code>). <code>handle_event("sync_now", …)</code> ruft <code>QuoteSync.sync_all()</code> (<code>:4320</code>): jedes Wertpapier des Katalogs, nicht das eben freigegebene. Für eines gibt es <code>QuoteSync.sync_security/2</code>.</li>
+      <li><b>Ja, die Reparatur ändert gerenderten Text.</b> Heute antwortet die Folgeaktion mit dem Satz über den ganzen Katalog — sobald irgendein Wertpapier keinen Kursanbieter hat (jeder Bestand ohne Anbieter, z.&nbsp;B. aus einem Import), lautet er „Kurssync abgeschlossen: 12 synchronisiert, 2 übersprungen, 0 fehlgeschlagen.“ Mit <code>sync_security/2</code> ist das Ergebnis eine Einzel-Map, und <code>sync_flash/1</code> sagt „Kurse aktualisiert.“ oder „Kurssync fehlgeschlagen: …“ über dieses eine Wertpapier. Mit H7.1b kommt die Zahl der stehen gebliebenen manuellen Kurse dieses Wertpapiers dazu.</li>
+      <li>Der Einzelpfad kann einen rohen Grund zeigen: <code>sync_flash/1</code> setzt ihn mit <code>Atom.to_string</code> bzw. <code>inspect</code> ein. Läuft gerade die geplante Aktualisierung, antwortet <code>sync_security/2</code> mit <code>:sync_in_progress</code> (Single-Flight), und die Meldung hieße „Kurssync übersprungen: sync_in_progress“. Die Story übersetzt die Gründe, die der Einzelpfad erreichen kann.</li>
+      <li>Wo das Ergebnis landet, ändert sich nicht von selbst: Die Folgeaktion löscht das Ergebnis der Freigabe (<code>assign(:quotes_release_result, nil)</code>) und das neue Ergebnis landet seitenweit in <code>#securities-action-result</code>, nicht neben ihrem Auslöser. Ob es in den Tab gehört (EXPERIENCE.md: „immediately after the control that triggered the action“), entscheidet die Story.</li>
+      <li>Auch die beiden anderen Auslöser (Kopf der Liste, Tab „Diagramm“) rufen <code>sync_all</code>; dort ist das gewollt — der Kopf der Liste meint alle. Die Story ändert nur die Folgeaktion der Freigabe.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ H7.5 ============================ -->
+<section class="mock-board">
+  <h2>H7.5 · #909 — „Verrechnungskonten“ läuft über seine Karte hinaus <small>Import → Ergebnis · Wahl A / B</small></h2>
+  <p class="mock-note desk-only">Die Beschriftung einer <code>.import-stat-card</code> ist 13,6&nbsp;px, Großbuchstaben, 0,04&nbsp;em gesperrt, und ein Rasterelement mit <code>min-width: auto</code>: Ein langes Wort kann weder umbrechen noch schrumpfen. „VERRECHNUNGSKONTEN“ braucht in diesem Renderer 180&nbsp;px; die Karte bietet innen bei 390&nbsp;px 140 (zwei Spalten), am Desktop 152 (drei Spalten in <code>max-width: 36rem</code>). Gemessen: Das Wort ragt am Desktop 12&nbsp;px, bei 390&nbsp;px 23&nbsp;px über den Kartenrand — bei 390 auch über den Bildschirmrand. Dieselbe Klasse trägt die Kennzahlen der Vorschau; dort passt es meist, weil die Spalten breiter sind. Die Spezifikation hat keine Regel dafür; das Issue lässt offen, ob umbrechen, trennen oder passen.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-wide import-frame" style="overflow-x: clip"><span class="mock-tag">Heute <span style="font-weight:500;text-transform:none;letter-spacing:0">· bei 390&nbsp;px läuft das Wort auch über den Bildschirmrand (hier am Rahmen abgeschnitten)</span></span>
+      <section class="workspace-section import-done">
+        <svg class="success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>
+        <h2>Import abgeschlossen</h2>
+        <p class="muted">Erzeugte Transaktionen: 148 · Übersprungene Duplikate: 0</p>
+        <div class="summary">
+          <div class="import-stat-card"><span class="label" style="min-width:auto;overflow-wrap:normal">Wertpapiere</span><span class="value">6</span></div>
+          <div class="import-stat-card"><span class="label" style="min-width:auto;overflow-wrap:normal">Verrechnungskonten</span><span class="value">2</span></div>
+          <div class="import-stat-card"><span class="label" style="min-width:auto;overflow-wrap:normal">Depots</span><span class="value">1</span></div>
+        </div>
+      </section>
+    </div>
+    <div class="mock-frame mock-after w-wide import-frame"><span class="mock-tag">A · empfohlen — weiches Trennzeichen an der Wortfuge</span>
+      <section class="workspace-section import-done">
+        <svg class="success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>
+        <h2>Import abgeschlossen</h2>
+        <p class="muted">Erzeugte Transaktionen: 148 · Übersprungene Duplikate: 0</p>
+        <div class="summary">
+          <div class="import-stat-card"><span class="label">Wertpapiere</span><span class="value">6</span></div>
+          <div class="import-stat-card is-new"><span class="label">Verrechnungs&shy;konten</span><span class="value">2</span></div>
+          <div class="import-stat-card"><span class="label">Depots</span><span class="value">1</span></div>
+        </div>
+      </section>
+    </div>
+    <div class="mock-frame w-wide import-frame var-hy"><span class="mock-tag vtag">B — Silbentrennung des Browsers (<code>hyphens: auto</code>)</span>
+      <section class="workspace-section import-done">
+        <svg class="success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7" /></svg>
+        <h2>Import abgeschlossen</h2>
+        <p class="muted">Erzeugte Transaktionen: 148 · Übersprungene Duplikate: 0</p>
+        <div class="summary">
+          <div class="import-stat-card"><span class="label">Wertpapiere</span><span class="value">6</span></div>
+          <div class="import-stat-card"><span class="label">Verrechnungskonten</span><span class="value">2</span></div>
+          <div class="import-stat-card"><span class="label">Depots</span><span class="value">1</span></div>
+        </div>
+      </section>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:14px">
+    <div class="notes" style="flex:1 1 100%">
+      <ul>
+        <li><b>A</b> setzt ein weiches Trennzeichen (U+00AD) in die deutsche Übersetzung, an die Fuge „Verrechnungs|konten“: Ist die Karte breit genug, sieht man nichts; sonst bricht das Wort dort, mit Bindestrich, in jedem Browser. Regel ③ ist die Untergrenze für jedes andere lange Wort in jeder Sprache: Es bricht ohne Bindestrich, aber nie über den Rand. „Cash accounts“ im Englischen bricht ohnehin am Leerzeichen.</li>
+        <li><b>B</b> überlässt die Trennung dem Browser (<code>hyphens: auto</code>, <code>lang="de"</code> ist gesetzt). Safari, Firefox und Chrome auf macOS und Android trennen Deutsch; dieser Renderer (Chromium ohne deutsches Wörterbuch) trennt nicht, also greift die Untergrenze und das Wort bricht an beliebiger Stelle ohne Bindestrich — so wie hier gezeichnet. Ob die Karte gut aussieht, hinge vom Gerät ab.</li>
+        <li><span class="rec">Warum A:</span> deterministisch auf jedem Gerät, ein Zeichen in einer Übersetzung und eine Regel, keine Abhängigkeit vom Wörterbuch des Browsers. Verworfen ohne Bild: „passen“ (Beschriftung auf <code>stat-label</code>, 12&nbsp;px, und eine Karte je Zeile auf dem Telefon) — es passt für dieses Wort in dieser Schrift, beim nächsten langen Wort nicht mehr.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ H7.6 ============================ -->
+<section class="mock-board">
+  <h2>H7.6 — Transaktionen bei 390&nbsp;px: das Kebab-Menü rutscht unter das Datum <small>UX&#8209;DR27 · vorher/nachher</small></h2>
+  <p class="mock-note desk-only">Die zweizeilige Zeile der Historie hat drei Kinder: Text, Beträge und inzwischen das Kebab-Menü (<code>tx-phone-kebab-…</code>, <code>transaction_management_live.ex:443</code>). <code>#transaction-phone-rows .phone-row</code> erklärt aber nur zwei Spalten (<code>minmax(0, 1fr) auto</code>; ihr Kommentar sagt noch „the row has no kebab“). Das Raster setzt das dritte Kind in eine neue Zeile, erste Spalte: Das Kebab-Menü steht links unter dem Text, jede Zeile wird um seine Höhe (44&nbsp;px auf Touch) länger. Nachher: drei Spalten, das Menü am Zeilenende wie bei den Wertpapieren. Die Rahmen zeigen die Telefonzeilen bei jeder Board-Breite; das Kebab-Menü hat seine 44&nbsp;px von <code>pointer: coarse</code> von Hand.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-phone force-phone today"><span class="mock-tag">Heute</span>
+      <div class="stage" style="padding:0 16px">
+        <ul id="transaction-phone-rows" class="phone-rows" aria-label="Transaktionen">
+          <li class="phone-rows__group"><span class="tx-group-month">September 2026</span><span class="tx-group-subtotal">3 Transaktionen · <span class="currency-total">-645,40 EUR</span></span></li>
+          <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">24.09.2026 · Kauf</span><span class="phone-row__ids">Nordwind Industrie AG</span></span><span class="phone-row__figures"><span class="phone-row__figure">-1.230,00 EUR</span><span class="phone-row__figure2">12 × 102,50</span></span><button type="button" class="row-actions__kebab" aria-label="Aktionen für Kauf, Nordwind Industrie AG, 24.09.2026" aria-haspopup="menu" aria-expanded="false"><svg width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="8" cy="3" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="8" cy="13" r="1.4"/></svg></button><i class="pin b" style="align-self:center">1</i></li>
+          <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">15.09.2026 · Dividende</span><span class="phone-row__ids">Helios Solar Systems SE</span></span><span class="phone-row__figures"><span class="phone-row__figure">84,60 EUR</span></span><button type="button" class="row-actions__kebab" aria-label="Aktionen für Dividende, Helios Solar Systems SE, 15.09.2026" aria-haspopup="menu" aria-expanded="false"><svg width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="8" cy="3" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="8" cy="13" r="1.4"/></svg></button></li>
+          <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">01.09.2026 · Einlage</span><span class="phone-row__ids">Girokonto</span></span><span class="phone-row__figures"><span class="phone-row__figure">500,00 EUR</span></span><button type="button" class="row-actions__kebab" aria-label="Aktionen für Einlage, Girokonto, 01.09.2026" aria-haspopup="menu" aria-expanded="false"><svg width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="8" cy="3" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="8" cy="13" r="1.4"/></svg></button></li>
+        </ul>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-phone force-phone"><span class="mock-tag">Nachher</span>
+      <div class="stage" style="padding:0 16px">
+        <ul id="transaction-phone-rows" class="phone-rows" aria-label="Transaktionen">
+          <li class="phone-rows__group"><span class="tx-group-month">September 2026</span><span class="tx-group-subtotal">3 Transaktionen · <span class="currency-total">-645,40 EUR</span></span></li>
+          <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">24.09.2026 · Kauf</span><span class="phone-row__ids">Nordwind Industrie AG</span></span><span class="phone-row__figures"><span class="phone-row__figure">-1.230,00 EUR</span><span class="phone-row__figure2">12 × 102,50</span></span><button type="button" class="row-actions__kebab is-new" aria-label="Aktionen für Kauf, Nordwind Industrie AG, 24.09.2026" aria-haspopup="menu" aria-expanded="false"><svg width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="8" cy="3" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="8" cy="13" r="1.4"/></svg></button></li>
+          <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">15.09.2026 · Dividende</span><span class="phone-row__ids">Helios Solar Systems SE</span></span><span class="phone-row__figures"><span class="phone-row__figure">84,60 EUR</span></span><button type="button" class="row-actions__kebab" aria-label="Aktionen für Dividende, Helios Solar Systems SE, 15.09.2026" aria-haspopup="menu" aria-expanded="false"><svg width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="8" cy="3" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="8" cy="13" r="1.4"/></svg></button></li>
+          <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">01.09.2026 · Einlage</span><span class="phone-row__ids">Girokonto</span></span><span class="phone-row__figures"><span class="phone-row__figure">500,00 EUR</span></span><button type="button" class="row-actions__kebab" aria-label="Aktionen für Einlage, Girokonto, 01.09.2026" aria-haspopup="menu" aria-expanded="false"><svg width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="8" cy="3" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="8" cy="13" r="1.4"/></svg></button></li>
+        </ul>
+      </div>
+    </div>
+    <div class="notes w-notes">
+      <ol class="pins">
+        <li><i class="pin b">1</i><b>Heute:</b> Das Kebab-Menü steht auf einer eigenen Zeile links unter dem Wertpapier; jede Buchung wird 44&nbsp;px höher, und das Menü sieht aus, als gehöre es zur nächsten Zeile.</li>
+        <li><b>Nachher, Regel ④:</b> drei Spalten — Text (elastisch), Beträge, Menü —, die Form, die <code>.phone-row</code> für die Wertpapiere schon hat, ohne deren Logo-Spalte. <code>.phone-row .row-actions__kebab { align-self: center }</code> steht schon in app.css. Mit dem laufenden Saldo (drei Zeilen rechts) bleibt das Menü mittig.</li>
+        <li>Die Trades-Zeilen (Sprint 17) haben kein Kebab-Menü; ihre zwei Spalten stimmen.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Drawing aid: the DetailTabs mount half the story adds (rule ②), run once
+  // on the "after" rows. Same arithmetic as the shipped AreaTabs hook in
+  // layout_view.ex (fitTail, restingLeft, markEdges), without animation.
+  document.querySelectorAll('.js-reveal').forEach(function (nav) {
+    var tabs = Array.prototype.slice.call(nav.querySelectorAll('.detail-pane-tab'));
+    function starts() {
+      var origin = nav.getBoundingClientRect().left - nav.scrollLeft;
+      return tabs.map(function (t) { var r = t.getBoundingClientRect(); return { left: r.left - origin, width: r.width }; });
+    }
+    var inset = parseFloat(getComputedStyle(nav).paddingInlineEnd) || 0;
+    var max = nav.scrollWidth - inset - nav.clientWidth, tail = 0;
+    if (max > 0) { var next = starts().find(function (t) { return t.left >= max - 0.5; }); if (next) tail = Math.ceil(next.left - max); }
+    nav.style.setProperty('--detail-tabs-tail', tail + 'px');
+    var index = tabs.findIndex(function (t) { return t.getAttribute('aria-selected') === 'true'; });
+    if (index >= 0 && nav.scrollWidth > nav.clientWidth) {
+      var width = nav.clientWidth, all = starts(), active = all[index];
+      var target = active.left - (width - active.width) / 2;
+      var fits = all.filter(function (t) { return t.left <= active.left + 0.5 && active.left + active.width <= t.left + width + 0.5; });
+      var before = fits.filter(function (t) { return t.left <= target; }).pop();
+      var after = fits.find(function (t) { return t.left > target; });
+      var rest = before || after;
+      nav.scrollLeft = rest ? Math.max(0, rest.left) : 0;
+    }
+    var atStart = nav.scrollLeft <= 2, atEnd = nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 2;
+    nav.toggleAttribute('data-scroll-start', atStart);
+    nav.toggleAttribute('data-scroll-end', atEnd);
+  });
+</script>
+</body>
+</html>

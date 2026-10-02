@@ -46,11 +46,13 @@ a comment naming its issue.
 2. **The backlog grows faster than sprints close it.** Sprint 17 filed 40
    issues it did not close and closed 16 older ones. Most of the 40 are
    honest Scope Lock notes, and growth alone does not block a launch.
-   **Two of them do: they put wrong money figures in front of a stranger
-   without saying so.** #1023: a Portfolio Performance CSV that carries both
-   sides of a cash transfer books it twice, once in reverse, and the preview
-   shows no error. #1031: the money-weighted return reads "n/a" for large
-   amounts where a rate exists. Both go first (PR α).
+   **Two of them do: they can put wrong money figures in front of a
+   stranger without saying so.** #1023: a Portfolio Performance CSV that
+   carries both sides of a cash transfer books it twice, once in reverse,
+   and the preview shows no error. Whether Portfolio Performance exports
+   both sides is the first thing α establishes (D-4). #1031: the
+   money-weighted return reads "n/a" for large amounts where a rate exists.
+   Both go first (PR α).
 3. **The Sprint 18 that Sprint 17's D-2 sketched does not fit in one sprint.**
    It held FR-41 (risk-tier money math, nine identities), about twenty UI
    repairs, the human documentation with its screenshots, #330, #899, #900
@@ -112,8 +114,9 @@ a comment naming its issue.
 - **C4, an unknown write outcome is reported (#955, G31).** A connection
   reset during a write makes the companion answer "outcome unknown, check
   before retrying", as the API's G31 error already does. This is the gap a
-  stranger's agent would retry through. It is cheaper than #899 and covers
-  the same failure (D-2).
+  stranger's agent would retry through. It does not make a retry safe, as
+  #899's key would; it makes the agent check before it retries, at a
+  fraction of the cost (D-2).
 - **C5, the release's outbound fetches can be switched off, and a build can
   trust a proxy's CA (#1026; D-7).** `PORTFOLIXIR_BACKGROUND_FETCH=off` is
   honoured by a release as it is by the development stack. The screens say
@@ -184,8 +187,13 @@ All of it is boarded on this PR. A pick's code is its board's number.
     throwaway LiveView test: for every kind except buy, sell and split, the
     row menu opens the buy/sell drawer with no type selected, and saving is
     refused with "Security can't be blank, …". Nothing is corrupted, but the
-    form can only refuse. Pick H2's second question decides what those rows
-    offer instead.
+    form can only refuse. **Pick H2b, A:** those rows open a notes-only
+    drawer, the split's G12.3 precedent applied to every kind the drawer
+    does not book, with the facts read-only and "Löschen…" as the correction
+    path. The API's update can correct those facts in place and the screen
+    still cannot. That two-way gap is filed at γ's opening and is not built
+    in this sprint: the correction path a stranger needs (delete, then
+    re-import a corrected file) exists once U1 lands.
 - **U2, tables (pick H4):** the sticky subject column that sticks nowhere
   (#1009, which needs three companion rules beside its one-line fix, as the
   board shows), sign colour lost in table cells (#1010, which makes Sprint
@@ -200,12 +208,28 @@ All of it is boarded on this PR. A pick's code is its board's number.
   for light mode. DESIGN.md's contrast table gets its wrong verdict
   corrected and the data-note surfaces added.
 - **U4, touch and focus (pick H6):** the data-note remedies under 44 px
-  (#1013), dialog close buttons, the attention rows' focus ring, and the
-  inline result's dismiss (#1033).
-- **U5, the phone (pick H7):** the Quotes tab at 390 px and its toast (#1012),
-  the selected tab off-screen, "1Y" in German, the sync scope (#1033), and
-  the import result's label overflow (#909). **One defect the design pass
-  found, filed at γ's opening:** on a security's Overview at phone width the
+  (#1013; pick A: a 44 px tap area by padding and an equal negative margin,
+  so the note's line height stays), dialog close buttons, the attention
+  rows' focus ring, and the inline result's dismiss (#1033). **The close
+  buttons are a class defect, not a dialog defect:** every `.icon-button` is
+  30×34, because the base `button { min-height: 34px }` overrides its
+  height, and UX-DR6's call-site table already lists the class as uncovered.
+  U4 fixes it on the class. Board 06 draws the dialogs; the story adds the
+  toolbar buttons' before/after to the board before its code. The dismiss's
+  cause is the same 34 px floor, so its fix keeps a 44 px touch target.
+- **U5, the phone (pick H7):** the Quotes tab at 390 px (#1012; pick A:
+  two-line phone rows) and its result count, the selected tab scrolled into
+  view on arrival (UX-DR22 and D6 leave no other option), "1Y" in German, the
+  sync scope (#1033), the import result's label overflow (#909; pick A: a
+  soft hyphen with an `overflow-wrap` fallback; the raw U+00AD in the msgstr
+  needs an entry in `.unicode-allowlist.txt` with its reason, the gate's own
+  mechanism, not an exception to it), and the transaction
+  history's phone-row kebab, which drops to its own line because the row
+  declares two grid tracks for three children. **"1Y" is bigger than the
+  issue:** the chart tab's range buttons show the raw codes "1Y 3Y 5Y MAX"
+  too, on the tab's default range. One label function serves both.
+  **One defect the design pass found, filed at γ's opening:** on a
+  security's Overview at phone width the
   six figures stay in three columns ("Durchschnittseinstand" spills out of
   its cell), because `.overview-reading .overview-metrics` (`app.css:8331`)
   outranks the two-column rule under 720 px (`app.css:2810`). Board 03 draws
@@ -232,12 +256,15 @@ All of it is boarded on this PR. A pick's code is its board's number.
 
 This PR is written after β and γ merge, from what they shipped.
 
-- **D1, what is better here.** A features page, in English and German, built
-  around what the 2026-09-30 research found peers lack: the calculation
-  breakdown, trades with their annualized figure, the append-only research
-  log, policy rules, the MCP companion with its profiles, and auditable
-  imports. Each claim links to the page that shows it. The page says what
-  Portfolixir is not, as `llms.txt` does.
+- **D1, what is better here.** A features page, in English and German,
+  built around the open ground the 2026-09-30 research names (its executive
+  summary and cross-dimension insight 4): an app that never calls a language
+  model itself, a sourced memory the agent reads and writes under
+  confirmation (the research log), MCP prompts that carry the no-advice
+  stance, and figures that state their computation basis (insight 1:
+  "whether it can say why"). Beside them, the calculation breakdown (FR-41),
+  the research's top parity item. Each claim links to the page that shows
+  it, and the page says what Portfolixir is not, as `llms.txt` does.
 - **D2, the human first run.** The README quick start, home deployment, and
   the first import, made safe and complete: a backup step before every
   `down -v` and the contributor workflow pointed at the development stack
@@ -419,12 +446,12 @@ Eight boards, under
 | Pick | Item | Board | Kind | Recommended |
 |---|---|---|---|---|
 | **H1** | The security's Trades tab: the p. a. column (#1029, F6) | `01-trades-tab-pa` | before/after | after |
-| **H2** | Deleting a booking from the screen (#912, U1) | `02-booking-delete` | variants | **A** |
+| **H2** | Deleting a booking from the screen, and "Bearbeiten" on the kinds the drawer cannot book (#912, U1) | `02-booking-delete` | variants, two questions (H2, H2b) | **A**, **A** |
 | **H3** | Bond master data and metrics (#330, U7) | `03-bond-master-data` | variants | **A** |
 | **H4** | Tables (#1009, #1010, #913, #911, #1011; U2) | `04-tables-conformance` | before/after, one pick (#911) | after; **A** for #911 |
 | **H5** | Light-mode contrast (#908, U3) | `05-light-contrast` | before/after | after |
-| **H6** | Touch and focus (#1013, #1033; U4) | `06-touch-focus` | before/after | after |
-| **H7** | The phone at 390 px (#1012, #1033, #909; U5) | `07-phone-390` | before/after | after |
+| **H6** | Touch and focus (#1013, #1033; U4) | `06-touch-focus` | before/after, one pick (#1013) | after; **A** for #1013 |
+| **H7** | The phone at 390 px (#1012, #1033, #909, the history's phone rows; U5) | `07-phone-390` | before/after, two picks (#1012, #909) | after; **A** for each pick |
 | **H8** | Dialogs and copy (#910, #918, #921, #969, #966, #920, #1032, #968; U6) | `08-dialogs-copy` | before/after, four picks (#918, #969, #966, #920) | after; **A** for each pick |
 
 **FR-41's screen** is ADR-0051's own board (`mockups/fr41-2026-09-25/`, pick
@@ -462,9 +489,10 @@ entry, because each merge is a release.
 
 The ceilings leave 149, 36 and 167 bytes (read, book, full) as measured on
 this branch. β adds FR-41's two tools, #901's parameter and D-5's optional
-view. γ adds #330's fields. **Each of those PRs trims existing descriptions
-to pay for what it adds, then lowers the ceiling to the new figure**, as the
-rule in `schema-budget.ts` says. A raised ceiling is a weakened gate and a
+view. γ adds U1's whole-split delete (admin profile) and #330's fields.
+**Each of those PRs trims existing descriptions to pay for what it adds,
+then lowers the ceiling to the new figure**, as the rule in
+`schema-budget.ts` says. A raised ceiling is a weakened gate and a
 review reject. The Sprint 17 retrospective's lesson holds: words are added
 tightly from the start, and each PR measures against the PRs ahead of it at
 its closing act. #1027's check makes "only down" a test in α, before β needs
