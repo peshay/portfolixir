@@ -182,7 +182,12 @@ All of it is boarded on this PR. A pick's code is its board's number.
   inline result's dismiss (#1033).
 - **U5, the phone (pick H7):** the Quotes tab at 390 px and its toast (#1012),
   the selected tab off-screen, "1Y" in German, the sync scope (#1033), and
-  the import result's label overflow (#909).
+  the import result's label overflow (#909). **One defect the design pass
+  found, filed at γ's opening:** on a security's Overview at phone width the
+  six figures stay in three columns ("Durchschnittseinstand" spills out of
+  its cell), because `.overview-reading .overview-metrics` (`app.css:8331`)
+  outranks the two-column rule under 720 px (`app.css:2810`). Board 03 draws
+  its before and after. It lands here, or with U7 if U7 comes first.
 - **U6, dialogs and copy (pick H8):** #910, #918, #921, #969, #966, #920, the
   UI half of #1032, and #968's isolation of stored names.
 - **U7, bond master data and display-only metrics (#330, as rescoped by
