@@ -171,12 +171,34 @@ All of it is boarded on this PR. A pick's code is its board's number.
 
 - **U1, deleting a booking from the screen (#912; pick H2).** This is the
   missing human view of an existing API and MCP capability. "Split erfassen"
-  and pick G12.3's help line link to it. **It does not shrink.**
+  and pick G12.3's help line link to it. **It does not shrink.** The design
+  pass found it bigger than the issue says, in two ways:
+  - **A split cannot be deleted whole today.** It is stored as one row per
+    portfolio (`Ledger.Splits`, ADR-0028 §1), and the existing delete removes
+    one row. The rows left behind keep the split event alive, and "Split
+    erfassen" then refuses the corrected ratio. So U1 adds an atomic write
+    that deletes a split's rows together, journaled, with its API and MCP
+    counterpart in the admin profile. This is risk-tier attention (ledger
+    invariants): its own commit, and a verification pass in γ's closing act.
+  - **"Bearbeiten" fails for most kinds.** Verified on this branch with a
+    throwaway LiveView test: for every kind except buy, sell and split, the
+    row menu opens the buy/sell drawer with no type selected, and saving is
+    refused with "Security can't be blank, …". Nothing is corrupted, but the
+    form can only refuse. Pick H2's second question decides what those rows
+    offer instead.
 - **U2, tables (pick H4):** the sticky subject column that sticks nowhere
-  (#1009), sign colour lost in table cells (#1010), the split-ratio cell
-  (#913), Allocation → Positions (#911), and the stylesheet drift where it
-  shows (#1011).
-- **U3, light-mode contrast (pick H5; #908).**
+  (#1009, which needs three companion rules beside its one-line fix, as the
+  board shows), sign colour lost in table cells (#1010, which makes Sprint
+  17's trades-table copy of the rule redundant), the split-ratio cell (#913,
+  together with its sibling: the Balance column's `numeric` class has no CSS
+  rule), Allocation → Positions (#911; **the one pick on this board: A, the
+  hint moves into the Drift cell**), and the stylesheet drift (#1011). Every
+  disclosure summary moves to the spec's 12 px/500, so #1011 is a rendered
+  change at 24 places, not a dedupe.
+- **U3, light-mode contrast (pick H5; #908).** Only coral fails, so the fix
+  is one token (`--color-accent-coral`), changed in both places it is set
+  for light mode. DESIGN.md's contrast table gets its wrong verdict
+  corrected and the data-note surfaces added.
 - **U4, touch and focus (pick H6):** the data-note remedies under 44 px
   (#1013), dialog close buttons, the attention rows' focus ring, and the
   inline result's dismiss (#1033).
@@ -188,8 +210,15 @@ All of it is boarded on this PR. A pick's code is its board's number.
   its cell), because `.overview-reading .overview-metrics` (`app.css:8331`)
   outranks the two-column rule under 720 px (`app.css:2810`). Board 03 draws
   its before and after. It lands here, or with U7 if U7 comes first.
-- **U6, dialogs and copy (pick H8):** #910, #918, #921, #969, #966, #920, the
-  UI half of #1032, and #968's isolation of stored names.
+- **U6, dialogs and copy (pick H8):** #910, #918 (pick A: the refusal names
+  what blocks, with counts), #921 (German field errors; the two formal-address
+  "Sie" strings it reuses become impersonal, as `EXPERIENCE.md` binds), #969
+  (pick A: a muted "Nicht verteilt" row, ✓ only at exactly 100 %), #966
+  (pick A), #920 (pick A: reload, and a note naming the vanished row), the UI
+  half of #1032, and #968's isolation of stored names. **#1032 is bigger than
+  it reads:** the cash merge's check dates include the target's own booking
+  dates, so the story chooses between the wording and what the writer
+  counts. The second option is a payload change and takes a contract entry.
 - **U7, bond master data and display-only metrics (#330, as rescoped by
   Sprint 17's D-13; pick H3).** Master data, remaining term, current yield,
   an optional linear yield to maturity with its formula stated, and the
@@ -356,6 +385,17 @@ outside Sprint 17's two-way list because it predates the agent-first
 shipping that list tracks. Pick H2 decides where the action sits and what
 its confirmation says. The confirm states every refusal the API states.
 
+**What a delete does to an imported booking stays as it is.** Deleting a
+booking removes its import hash with it, so a re-import of the same file
+books it again. A merge retires the hash instead (ADR-0050). U1 does not
+change that: the screen gets the capability the API has, and the confirm
+says so in one sentence. Making a delete retire the hash would change what
+the API's delete means, and that is import-idempotency semantics, which
+needs its record signed before the batch (ADR-0036, point 4).
+
+**To flip by comment:** "retire on delete" files that record for Sprint 19.
+The confirm's sentence then changes with it.
+
 ### D-7: the decisions Sprint 17 left waiting (recommended; each row flips by naming its issue)
 
 | Issue | Answer | Reason |
@@ -381,11 +421,11 @@ Eight boards, under
 | **H1** | The security's Trades tab: the p. a. column (#1029, F6) | `01-trades-tab-pa` | before/after | after |
 | **H2** | Deleting a booking from the screen (#912, U1) | `02-booking-delete` | variants | **A** |
 | **H3** | Bond master data and metrics (#330, U7) | `03-bond-master-data` | variants | **A** |
-| **H4** | Tables (#1009, #1010, #913, #911, #1011; U2) | `04-tables-conformance` | before/after | after |
+| **H4** | Tables (#1009, #1010, #913, #911, #1011; U2) | `04-tables-conformance` | before/after, one pick (#911) | after; **A** for #911 |
 | **H5** | Light-mode contrast (#908, U3) | `05-light-contrast` | before/after | after |
 | **H6** | Touch and focus (#1013, #1033; U4) | `06-touch-focus` | before/after | after |
 | **H7** | The phone at 390 px (#1012, #1033, #909; U5) | `07-phone-390` | before/after | after |
-| **H8** | Dialogs and copy (#910, #918, #921, #969, #966, #920, #1032, #968; U6) | `08-dialogs-copy` | before/after | after |
+| **H8** | Dialogs and copy (#910, #918, #921, #969, #966, #920, #1032, #968; U6) | `08-dialogs-copy` | before/after, four picks (#918, #969, #966, #920) | after; **A** for each pick |
 
 **FR-41's screen** is ADR-0051's own board (`mockups/fr41-2026-09-25/`, pick
 A), adopted with the record. It is not redrawn.
