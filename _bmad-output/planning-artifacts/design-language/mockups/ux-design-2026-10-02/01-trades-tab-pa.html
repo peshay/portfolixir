@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Wertpapier → Trades: die Spalte „p. a.“ (#1029, H1)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the rules the building story adds to app.css. Everything
+     else inside the frames is markup and classes that already ship:
+     securities_live.ex (render_detail_pane/1: .detail-pane,
+     .detail-pane-head, .detail-pane-head__title, .detail-pane-head__actions,
+     .detail-pane-sub, .detail-pane-tabs, .detail-pane-tab;
+     trades_tab_panel/1: .detail-tab-panel--trades, .detail-section-title,
+     .data-table-wrap, .data-table.detail-trades-table, .detail-tab-empty,
+     .detail-tab-warning, .metric-tooltip), the pane's basis voice
+     .detail-tab-hint, AppShell.data_note/1 (.data-note--attention), and from
+     the Trades facet (income_live.ex, Sprint 17 G1-A): .trade-pa,
+     .trade-pa--na, .excluded-list, details.perf-table-disclosure,
+     .phone-rows / .phone-row and its parts. The "Vorher" frames render
+     app.css as shipped; the proposal's selectors name ids only the "Nachher"
+     markup carries, so they do not touch "Vorher". -->
+<style id="proposal">
+  /* ① The p. a. column of the tab's closed-trades table: its sign colour and
+     its muted dash. `.data-table tbody td { color }` outranks the bare
+     .is-positive / .is-negative / .trade-pa--na (#1010), so the rules are
+     scoped to this table, as the facet's rule ⑥ is to its own. They also
+     restore the colour of "Realisierter G/V" and "%" in this table; the
+     open-lots table above keeps the text colour until #1010. If pick H4's
+     general #1010 rule (`.data-table td.is-positive / .is-negative`, board
+     04 of this pass) lands first, the two sign lines are redundant and the
+     story drops them; the muted-dash line stays, or becomes
+     `.data-table td.trade-pa--na` and retires the facet's own. */
+  #detail-closed-trades-table td.is-positive { color: var(--color-positive); }
+  #detail-closed-trades-table td.is-negative { color: var(--color-danger); }
+  #detail-closed-trades-table td.trade-pa--na { color: var(--color-text-muted); }
+
+  /* ② The unmatched-sells note leads the closed-trades section (UX-DR25),
+     the facet's anatomy. The security is the page's own, so its list has
+     two columns, date and quantity, at every width: the facet's 560 px rule
+     gives the first child a line of its own, which here would be the date. */
+  #detail-closed-trades-note { margin: 0 0 var(--space-2); }
+  #detail-closed-trades-note .excluded-list { grid-template-columns: auto auto; }
+  @media (max-width: 560px) {
+    #detail-closed-trades-note .excluded-list li > :first-child { grid-column: auto; margin-top: 0; }
+  }
+
+  /* ③ The basis line is the pane's own .detail-tab-hint (12 px, muted);
+     only its distance to the list above is new. */
+  #detail-closed-trades-basis { margin-top: var(--space-2); }
+
+  /* ④ UX-DR27: under 560 px the closed trades give way to two-line rows —
+     the facet's trades phone row without the name (the page names the
+     security): two children, no logo, no kebab. The 560 px block of the
+     phone lists already shows every .phone-rows. */
+  #detail-closed-trades-phone-rows .phone-row { grid-template-columns: minmax(0, 1fr) auto; }
+  @media (max-width: 560px) { #detail-closed-trades-table-wrap { display: none; } }
+
+  /* Removed by the story: .detail-tab-warning (app.css, after
+     .detail-trades-table) has no user once the note replaces it. */
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: visible; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ol, .notes ul { margin: 0; }
+  .notes ol, .notes ul { padding-left: 18px; }
+  ol.pins { list-style: none; padding: 0; }
+  .notes li { margin: 0 0 6px; }
+  .notes code, .mock-note code, .pickbar code, .callout code { font-size: 11.5px; }
+  .elide { margin: 0; font-size: 12px; color: var(--mock-ink); font-style: italic; }
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; text-transform: none; flex: none; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  i.pin.o { background: var(--mock-ink); }
+  .notes li > i.pin:first-child { margin: 0 4px 0 0; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  th.is-new, td.is-new { outline-offset: -2px; border-radius: 0; }
+  .callout { border: 1px solid var(--color-border); border-left: 4px solid var(--color-accent); border-radius: var(--radius-md); background: var(--color-bg-elevated); padding: 10px 14px; display: grid; gap: 6px; font-size: 12.5px; }
+  .callout h4 { margin: 0; font-size: 13px; }
+  .callout p, .callout ul { margin: 0; }
+  .callout ul { padding-left: 18px; }
+  .callout pre { margin: 0; padding: 8px 10px; border-radius: 6px; background: var(--color-bg-muted); font: 11.5px/1.5 var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .callout del { color: var(--color-danger); }
+  .callout ins { color: var(--color-positive); text-decoration: none; }
+
+  /* the securities detail pane at board scale (as board 03 of 2026-10-01) */
+  .stage { padding: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .stage .detail-pane { margin-top: 0; }
+  .stage .detail-pane-tabs { overflow: hidden; }
+  /* at 1200 px with the sidebar open the detail pane is about 930 px wide
+     (980 px of main minus the section's padding) */
+  .w-pane { flex: 1 1 100%; min-width: 0; }
+  .w-pane .stage .detail-pane { max-width: 930px; }
+  .w-side { flex: 1 1 100%; min-width: 0; }
+  .w-half { flex: 1 1 520px; min-width: 0; }
+  ol.pins.two { columns: 2; column-gap: 28px; }
+  ol.pins.two li { break-inside: avoid; }
+
+  /* a native title tooltip, drawn: the renderer has no pointer (as board 01
+     of 2026-10-01) */
+  .mock-title-anchor { position: relative; }
+  .mock-title { position: absolute; z-index: 9; bottom: calc(100% - 4px); right: 2px; padding: 3px 7px; border: 1px solid #a8aeb9; background: #fbfbf8; color: #1f2430; font: 12px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif; white-space: nowrap; box-shadow: 0 2px 6px rgba(15,23,42,.18); text-transform: none; letter-spacing: 0; font-weight: 400; }
+
+  .phone-only { display: none; }
+  .phone-only-contents { display: none; }
+
+  /* ===== 390 px: the board becomes the phone =====
+     The same markup renders in a true 390 px viewport, so app.css's 720 px
+     and 560 px rules (detail pane, table font, phone rows) and the proposal
+     fire as on a phone. The renderer has a mouse, so the coarse-pointer
+     floor of the tabs is applied by hand. */
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .phone-only-contents { display: contents; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 14px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .stage { padding: 8px; }
+    .phone-cap { margin: 0; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+    .detail-pane-tab { min-height: 44px; }
+    i.pin { display: none; }
+    .mock-title { display: none; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-ast" viewBox="0 0 24 24"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></symbol>
+    <symbol id="i-att" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-max" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar desk-only"><b>Vorher / Nachher — keine Variantenwahl (H1, #1029).</b> Seit Sprint 17 trägt <code>GET /api/v1/securities/:id/trades</code> je abgeschlossenem Trade <code>annualized_return</code> mit seinem Grund, und die Facette „Trades“ und die Übersichtskarte zeigen die Zahl. Jede Zeile dort führt auf den Tab „Trades“ des Wertpapiers — und dessen Tabelle „Abgeschlossene Trades (FIFO)“ hat keine Spalte „p.&nbsp;a.“. Die zweiseitige Abdeckungsregel verlangt diese Sicht bis Ende Sprint&nbsp;18. Die Anatomie steht in <code>DESIGN.md</code> → „Amendment 2026-10-01 — Trades“ (die Spalte links vom Ergebnis, ab 365 Tagen; darunter ein gedämpfter Strich, sein Grund im <code>title</code>, als versteckter Satz und in der Grundlagenzeile). Mit dabei zwei Textreparaturen: die Warnung zu Verkäufen ohne Kauf nennt keine Einlieferung (sie bekommt Wortlaut und Form der Notiz aus der Facette), und ein Kommentar in <code>RealizedGains</code> verspricht Lots, die der Tab nicht zeigt (nur Code). Alle Namen, Kurse und Daten sind erfunden. <b>Gestrichelt = neu.</b> Die Darstellung bei 390&nbsp;px ist <code>01-trades-tab-pa--390.png</code>.</div>
+<p class="phone-only phone-cap"><b>H1 · Vorher / Nachher bei 390&nbsp;px.</b> Dieselben Rahmen wie im Board, in einem echten 390-px-Viewport: die Regeln von app.css unter 720 und 560&nbsp;px und der Vorschlag greifen. Alle Daten erfunden.</p>
+
+<!-- ============================ VORHER ============================ -->
+<section class="mock-board">
+  <h2>Vorher · Wertpapier → Trades <small><code>securities_live.ex</code> <code>trades_tab_panel/1</code> (Z. 2019–2157)</small></h2>
+  <p class="mock-note desk-only">Zwei Tabellen, beide FIFO über alle Depots: die offenen Lots und die abgeschlossenen Trades. Die zweite zeigt Haltedauer, realisiertes Ergebnis und die Rendite über die ganze Haltedauer; ob sich ein Trade über 863 Tage mehr gelohnt hat als einer über 128 Tage, sagt sie nicht. Darunter steht eine Warnung ohne Zahl und ohne Namen.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-pane"><span class="mock-tag">Vorher · /securities/42?tab=trades</span>
+      <div class="stage">
+        <div class="detail-pane" aria-label="Ausgewähltes Wertpapier">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title">
+              <span class="security-logo security-logo--lg security-logo--initial">N</span>
+              <div><h2>Nordwind Industrie AG</h2><p class="detail-pane-sub">DE000000000A · NWI · EUR · Letzter 92,40 (2026-10-01)</p></div>
+            </div>
+            <div class="detail-pane-head__actions">
+              <button type="button" class="button-ghost" aria-label="Stammdaten bearbeiten">Bearbeiten</button>
+              <button type="button" class="button-ghost">Split erfassen</button>
+              <span class="icon-button" aria-label="Maximieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-max"/></svg></span>
+              <span class="icon-button" aria-label="Detail schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-x"/></svg></span>
+            </div>
+          </header>
+          <nav class="detail-pane-tabs" role="tablist" aria-label="Wertpapier-Detailansicht">
+            <button type="button" role="tab" class="detail-pane-tab">Übersicht</button><button type="button" role="tab" class="detail-pane-tab">Diagramm</button><button type="button" role="tab" class="detail-pane-tab">Transaktionen</button><button type="button" role="tab" aria-selected="true" class="detail-pane-tab is-active">Trades</button><button type="button" role="tab" class="detail-pane-tab">Kurse</button><button type="button" role="tab" class="detail-pane-tab">Bestände</button><button type="button" role="tab" class="detail-pane-tab">Klassifizierungen</button><button type="button" role="tab" class="detail-pane-tab">Research</button><button type="button" role="tab" class="detail-pane-tab">Termine</button>
+          </nav>
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--trades">
+            <h3 class="detail-section-title">Offene Positionen (FIFO)</h3>
+            <details class="metric-tooltip metric-tooltip--inline metric-tooltip--labelled"><summary aria-label="Zu Kurs- und Währungsbeitrag">ⓘ Kurs- &amp; Währungsbeitrag</summary></details>
+            <div class="data-table-wrap">
+              <table class="data-table detail-trades-table">
+                <thead><tr><th>Eröffnungsdatum</th><th class="num">Stückzahl</th><th class="num">Ø Kauf</th><th class="num">Letzter</th><th class="num">Unrealisierter G/V</th><th class="num">%</th><th class="num">Kursbeitrag</th><th class="num">Währungsbeitrag</th><th class="num">Gesamt (Basis)</th></tr></thead>
+                <tbody>
+                  <tr><td>2026-06-03</td><td class="num">25,0000</td><td class="num">84,20</td><td class="num">92,40</td><td class="num is-positive">+205,00</td><td class="num is-positive">+9,74</td><td class="num is-positive">+205,00</td><td class="num">0,00</td><td class="num is-positive">+205,00 <small>EUR</small></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 class="detail-section-title">Abgeschlossene Trades (FIFO)<i class="pin b">1</i></h3>
+            <div class="data-table-wrap">
+              <table class="data-table detail-trades-table">
+                <thead><tr><th>Eröffnet</th><th>Geschlossen</th><th class="num">Stückzahl</th><th class="num">Ø Kauf</th><th class="num">Ø Verkauf</th><th class="num">Tage</th><th class="num">Realisierter G/V</th><th class="num">%</th></tr></thead>
+                <tbody>
+                  <tr><td>2023-02-06</td><td>2025-06-18</td><td class="num">30,0000</td><td class="num">61,50</td><td class="num">78,90</td><td class="num">863</td><td class="num is-positive">+502,20<i class="pin b">2</i></td><td class="num is-positive">+27,07</td></tr>
+                  <tr><td>2024-04-22</td><td>2025-09-30</td><td class="num">20,0000</td><td class="num">72,10</td><td class="num">69,40</td><td class="num">526</td><td class="num is-negative">-73,80</td><td class="num is-negative">-5,08</td></tr>
+                  <tr><td>2025-03-03</td><td>2026-04-15</td><td class="num">10,0000</td><td class="num">76,00</td><td class="num">91,20</td><td class="num">408</td><td class="num is-positive">+142,20</td><td class="num is-positive">+18,59</td></tr>
+                  <tr><td>2026-01-12</td><td>2026-05-20</td><td class="num">15,0000</td><td class="num">80,40</td><td class="num">88,60</td><td class="num">128</td><td class="num is-positive">+103,20</td><td class="num is-positive">+8,49</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <p class="detail-tab-warning">Einige Verkäufe konnten keinem vorangegangenen Kauf zugeordnet werden — möglicherweise fehlen Daten.<i class="pin b">3</i></p>
+          </section>
+        </div>
+      </div>
+    </div>
+    <div class="notes w-side desk-only">
+      <p class="cap">Was heute fehlt</p>
+      <ol class="pins two">
+        <li><i class="pin b">1</i><b>Keine Spalte „p.&nbsp;a.“.</b> Die Daten hat der Tab schon: <code>Ledger.list_trades_for_security/2</code> legt jedem abgeschlossenen Trade <code>annualized_return</code> und <code>annualized_return_reason</code> bei (<code>TradeReturn.annualized/2</code>, seit Sprint 17 T1); die Vorlage liest sie nur nicht. Hierher führen jede Zeile der Facette und jede Zeile der Übersichtskarte („Alle Trades →“ zur Facette, die Zeile zum Wertpapier).</li>
+        <li><i class="pin b">2</i><b>Die Vorzeichenfarbe kommt nicht an.</b> Die Zellen tragen <code>is-positive</code> / <code>is-negative</code>, aber <code>.data-table tbody td { color }</code> schlägt die nackte Klasse (#1010): Ergebnis und Prozent stehen in Textfarbe, in beiden Tabellen.</li>
+        <li><i class="pin b">3</i><b>Die Warnung rät, statt zu nennen.</b> „möglicherweise fehlen Daten“ — der gewöhnliche und legitime Grund ist eine Einlieferung, die keinen Lot eröffnet. Keine Zahl, kein Datum, keine Stückzahl (UX&#8209;DR25 verlangt beides), und sie steht unter beiden Tabellen statt dort, wo der Verkauf fehlt. Die Facette sagt es seit Sprint 17 richtig, mit Anzahl und Liste.</li>
+        <li><b>Bei 390&nbsp;px</b> rollt die Tabelle seitwärts; „Realisierter G/V“ und „%“ liegen außerhalb des Bildes (UX&#8209;DR27 verlangt für eine Liste von Einträgen dort zweizeilige Zeilen).</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NACHHER ============================ -->
+<section class="mock-board">
+  <h2>Nachher · die Spalte „p.&nbsp;a.“, die Notiz, die Grundlagenzeile <small>Anatomie aus <code>DESIGN.md</code> → „Amendment 2026-10-01 — Trades“</small></h2>
+  <p class="mock-note desk-only">Dieselbe Tabelle mit einer Spalte mehr, direkt links vom Ergebnis. Die Notiz zu Verkäufen ohne Kauf führt den Abschnitt an, in Wortlaut und Form der Facette, mit Datum und Stückzahl je Verkauf. Unter der Tabelle die Grundlagenzeile in der Stimme des Detailbereichs. Unter 560&nbsp;px werden die Trades zweizeilige Zeilen (siehe <code>--390.png</code>).</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-after w-pane"><span class="mock-tag">Nachher · /securities/42?tab=trades</span>
+      <div class="stage">
+        <div class="detail-pane" aria-label="Ausgewähltes Wertpapier">
+          <p class="elide desk-only">Kopf und Tabs wie vorher.</p>
+          <div class="phone-only-contents">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title">
+              <span class="security-logo security-logo--lg security-logo--initial">N</span>
+              <div><h2>Nordwind Industrie AG</h2><p class="detail-pane-sub">DE000000000A · NWI · EUR · Letzter 92,40 (2026-10-01)</p></div>
+            </div>
+            <div class="detail-pane-head__actions">
+              <button type="button" class="button-ghost" aria-label="Stammdaten bearbeiten">Bearbeiten</button>
+              <button type="button" class="button-ghost">Split erfassen</button>
+              <span class="icon-button" aria-label="Maximieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-max"/></svg></span>
+              <span class="icon-button" aria-label="Detail schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-x"/></svg></span>
+            </div>
+          </header>
+          <nav class="detail-pane-tabs" role="tablist" aria-label="Wertpapier-Detailansicht">
+            <button type="button" role="tab" class="detail-pane-tab">Übersicht</button><button type="button" role="tab" class="detail-pane-tab">Diagramm</button><button type="button" role="tab" class="detail-pane-tab">Transaktionen</button><button type="button" role="tab" aria-selected="true" class="detail-pane-tab is-active">Trades</button><button type="button" role="tab" class="detail-pane-tab">Kurse</button><button type="button" role="tab" class="detail-pane-tab">Bestände</button>
+          </nav>
+          </div>
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--trades">
+            <h3 class="detail-section-title">Offene Positionen (FIFO)</h3>
+            <details class="metric-tooltip metric-tooltip--inline metric-tooltip--labelled"><summary aria-label="Zu Kurs- und Währungsbeitrag">ⓘ Kurs- &amp; Währungsbeitrag</summary></details>
+            <div class="data-table-wrap">
+              <table class="data-table detail-trades-table">
+                <thead><tr><th>Eröffnungsdatum</th><th class="num">Stückzahl</th><th class="num">Ø Kauf</th><th class="num">Letzter</th><th class="num">Unrealisierter G/V</th><th class="num">%</th><th class="num">Kursbeitrag</th><th class="num">Währungsbeitrag</th><th class="num">Gesamt (Basis)</th></tr></thead>
+                <tbody>
+                  <tr><td>2026-06-03</td><td class="num">25,0000</td><td class="num">84,20</td><td class="num">92,40</td><td class="num is-positive">+205,00</td><td class="num is-positive">+9,74</td><td class="num is-positive">+205,00</td><td class="num">0,00</td><td class="num is-positive">+205,00 <small>EUR</small></td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <h3 class="detail-section-title">Abgeschlossene Trades (FIFO)</h3>
+            <div id="detail-closed-trades-note" class="data-note data-note--attention is-new" data-role="trades-unmatched">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-att"/></svg></span>
+              <span class="data-note__word">Achtung</span>
+              <div class="data-note__body">2 Verkäufe haben für ihre ganze Stückzahl oder einen Teil davon keinen zugeordneten Kauf (z.&nbsp;B. aus Einlieferungen): Diese Stückzahl ist in keinem abgeschlossenen Trade enthalten.<i class="pin a">3</i>
+                <details class="perf-table-disclosure" open>
+                  <summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>Die 2 Verkäufe</summary>
+                  <ul class="excluded-list">
+                    <li><span class="num">2026-05-28</span><span class="num">12,0000 Stück</span></li>
+                    <li><span class="num">2022-11-15</span><span class="num">8,0000 Stück</span></li>
+                  </ul>
+                </details>
+              </div>
+            </div>
+            <div id="detail-closed-trades-table-wrap" class="data-table-wrap">
+              <table id="detail-closed-trades-table" class="data-table detail-trades-table">
+                <thead><tr><th>Eröffnet</th><th>Geschlossen</th><th class="num">Stückzahl</th><th class="num">Ø Kauf</th><th class="num">Ø Verkauf</th><th class="num">Tage</th><th class="num is-new">p.&nbsp;a.<i class="pin a">1</i></th><th class="num">Realisierter G/V</th><th class="num">%</th></tr></thead>
+                <tbody>
+                  <tr><td>2023-02-06</td><td>2025-06-18</td><td class="num">30,0000</td><td class="num">61,50</td><td class="num">78,90</td><td class="num">863</td><td class="num trade-pa is-positive is-new">+10,7%</td><td class="num is-positive">+502,20<i class="pin a">5</i></td><td class="num is-positive">+27,07</td></tr>
+                  <tr><td>2024-04-22</td><td>2025-09-30</td><td class="num">20,0000</td><td class="num">72,10</td><td class="num">69,40</td><td class="num">526</td><td class="num trade-pa is-negative is-new">-3,6%</td><td class="num is-negative">-73,80</td><td class="num is-negative">-5,08</td></tr>
+                  <tr><td>2025-03-03</td><td>2026-04-15</td><td class="num">10,0000</td><td class="num">76,00</td><td class="num">91,20</td><td class="num">408</td><td class="num trade-pa is-positive is-new">+16,5%</td><td class="num is-positive">+142,20</td><td class="num is-positive">+18,59</td></tr>
+                  <tr><td>2026-01-12</td><td>2026-05-20</td><td class="num">15,0000</td><td class="num">80,40</td><td class="num">88,60</td><td class="num">128</td><td class="num trade-pa trade-pa--na mock-title-anchor is-new" title="Unter einem Jahr Haltedauer nicht annualisiert"><span aria-hidden="true">—</span><span class="visually-hidden">nicht annualisiert, unter einem Jahr Haltedauer</span><span class="mock-title">Unter einem Jahr Haltedauer nicht annualisiert</span><i class="pin a">2</i></td><td class="num is-positive">+103,20</td><td class="num is-positive">+8,49</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <ul id="detail-closed-trades-phone-rows" class="phone-rows is-new" aria-label="Abgeschlossene Trades">
+              <li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">2023-02-06 → 2025-06-18</span><span class="phone-row__ids">30,0000 Stück · 863 Tage</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+502,20<small class="value-suffix">EUR</small></span><span class="phone-row__figure2"><span class="decimal-positive">+27,1%</span> · <span class="decimal-positive">+10,7%</span> p.&nbsp;a.</span></span></li>
+              <li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">2024-04-22 → 2025-09-30</span><span class="phone-row__ids">20,0000 Stück · 526 Tage</span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">-73,80<small class="value-suffix">EUR</small></span><span class="phone-row__figure2"><span class="decimal-negative">-5,1%</span> · <span class="decimal-negative">-3,6%</span> p.&nbsp;a.</span></span></li>
+              <li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">2025-03-03 → 2026-04-15</span><span class="phone-row__ids">10,0000 Stück · 408 Tage</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+142,20<small class="value-suffix">EUR</small></span><span class="phone-row__figure2"><span class="decimal-positive">+18,6%</span> · <span class="decimal-positive">+16,5%</span> p.&nbsp;a.</span></span></li>
+              <li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">2026-01-12 → 2026-05-20</span><span class="phone-row__ids">15,0000 Stück · 128 Tage</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+103,20<small class="value-suffix">EUR</small></span><span class="phone-row__figure2"><span class="decimal-positive">+8,5%</span></span></span></li>
+            </ul>
+            <p id="detail-closed-trades-basis" class="detail-tab-hint is-new" data-role="trades-basis">Über alle Depots · Einlieferungen eröffnen keinen Lot · Gebühren und Steuern im G/V, nicht in Ø Kauf und Ø Verkauf · Erträge während der Haltedauer nicht enthalten · p.&nbsp;a. erst ab 365 Tagen Haltedauer<i class="pin a">4</i></p>
+          </section>
+        </div>
+      </div>
+    </div>
+    <div class="notes w-side desk-only">
+      <p class="cap">Nachher — was jedes Teil tut</p>
+      <ol class="pins two">
+        <li><i class="pin a">1</i><b>„p.&nbsp;a.“ direkt links vom Ergebnis</b>, wie in der Facette; hier ist „Realisierter G/V“ das Ergebnis, „%“ rechts daneben die Rendite über die Haltedauer, die „p.&nbsp;a.“ annualisiert. „Tage“ steht direkt links: Die Schwelle und die Zahl, an der sie gemessen wird, stehen nebeneinander und können nie verschieden urteilen. Die Zahl ist <code>annualized_return</code> in der Währung des Trades, wie „%“ daneben. Mit Vorzeichen und Farbe wie jede Zahl dieser Tabelle (Regel&nbsp;①, die auch Ergebnis und Prozent repariert, siehe <i class="pin a" style="margin:0">5</i>).</li>
+        <li><i class="pin a">2</i><b>Unter 365 Tagen der gedämpfte Strich</b>, <code>aria-hidden</code>, mit <code>cursor: help</code>; der Grund im <code>title</code> (gezeichnet) und als versteckter Satz — dieselben zwei Texte wie in der Facette. Kein ⓘ im Kopf: <code>.data-table-wrap</code> ist ein eigener Scroller und würde es abschneiden.</li>
+        <li><i class="pin a">3</i><b>Die Notiz der Facette, im Tab.</b> <code>AppShell.data_note</code>, <i>Achtung</i>, am Kopf des Abschnitts, dort, wo der Verkauf fehlt (UX&#8209;DR25): Anzahl, der gewöhnliche Grund (Einlieferung), was fehlt. Die Aufklappliste zu, gezeichnet offen: Datum · Stückzahl je Verkauf, die Daten aus <code>orphan_sells</code>, die der Tab schon lädt. Das Wertpapier ist das der Seite, also zwei Spalten statt drei (Regel&nbsp;②). Keine Abhilfe (UX&#8209;DR25, Satz&nbsp;3): Nichts auf der Seite kann den fehlenden Kauf liefern.</li>
+        <li><i class="pin a">4</i><b>Die Grundlagenzeile</b> unter der Liste, in <code>.detail-tab-hint</code>, der Stimme des Detailbereichs (keine neue Regel nötig). Sie steht, wann immer Tabelle oder Notiz stehen, weil sie die Grenze ist, auf die die Notiz zeigt (UX&#8209;DR26). Sie weicht von der Zeile der Facette in einem Glied ab: Hier gibt es kein „Einstand“ und „Erlös“, sondern „Ø Kauf“ und „Ø Verkauf“, und die sind Preise ohne Gebühren.</li>
+        <li><i class="pin a">5</i><b>Die Vorzeichenfarbe dieser Tabelle kommt zurück</b> — die Regel, die „p.&nbsp;a.“ braucht, greift für jede Zelle der Tabelle. Die Tabelle der offenen Lots darüber bleibt in Textfarbe, bis #1010 die Familie repariert (Pick H4, Board 04 dieser Runde). Landet H4 zuerst, entfallen die zwei Vorzeichenzeilen von Regel&nbsp;①; die Zeile für den gedämpften Strich bleibt.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ZUSTÄNDE ============================ -->
+<section class="mock-board">
+  <h2>Nachher · zwei Zustände <small>nur eingelieferte Stücke verkauft · ein Trade ohne lösbaren Zinssatz</small></h2>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half desk-only"><span class="mock-tag">N1 vorher · nur eingelieferte Stücke verkauft</span>
+      <div class="stage">
+        <div class="detail-pane">
+          <p class="elide">Birkenhain Wasser AG · Kopf und Tabs wie oben.</p>
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--trades">
+            <p class="detail-tab-empty">Noch keine zugeordneten Trades — erfasse zuerst Käufe und Verkäufe.<i class="pin b">6</i></p>
+            <p class="detail-tab-warning">Einige Verkäufe konnten keinem vorangegangenen Kauf zugeordnet werden — möglicherweise fehlen Daten.</p>
+          </section>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">N1 nachher · nur eingelieferte Stücke verkauft</span>
+      <div class="stage">
+        <div class="detail-pane">
+          <p class="elide">Birkenhain Wasser AG · Kopf und Tabs wie oben.</p>
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--trades">
+            <h3 class="detail-section-title">Abgeschlossene Trades (FIFO)</h3>
+            <div id="detail-closed-trades-note" class="data-note data-note--attention is-new">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-att"/></svg></span>
+              <span class="data-note__word">Achtung</span>
+              <div class="data-note__body">1 Verkauf hat für seine ganze Stückzahl oder einen Teil davon keinen zugeordneten Kauf (z.&nbsp;B. aus einer Einlieferung): Diese Stückzahl ist in keinem abgeschlossenen Trade enthalten.<i class="pin a">6</i>
+                <details class="perf-table-disclosure" open>
+                  <summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>Der Verkauf</summary>
+                  <ul class="excluded-list">
+                    <li><span class="num">2026-03-09</span><span class="num">40,0000 Stück</span></li>
+                  </ul>
+                </details>
+              </div>
+            </div>
+            <p id="detail-closed-trades-basis" class="detail-tab-hint">Über alle Depots · Einlieferungen eröffnen keinen Lot · Gebühren und Steuern im G/V, nicht in Ø Kauf und Ø Verkauf · Erträge während der Haltedauer nicht enthalten · p.&nbsp;a. erst ab 365 Tagen Haltedauer</p>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:20px">
+    <div class="mock-frame mock-after w-pane"><span class="mock-tag">N2 · lange gehalten, kein Zinssatz löst die Zahlungen (Totalverlust)</span>
+      <div class="stage">
+        <div class="detail-pane">
+          <p class="elide">Halvorsen Shipping AS · Kopf, Tabs und offene Lots wie oben.</p>
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--trades">
+            <h3 class="detail-section-title">Abgeschlossene Trades (FIFO)</h3>
+            <div id="detail-closed-trades-table-wrap" class="data-table-wrap">
+              <table id="detail-closed-trades-table" class="data-table detail-trades-table">
+                <thead><tr><th>Eröffnet</th><th>Geschlossen</th><th class="num">Stückzahl</th><th class="num">Ø Kauf</th><th class="num">Ø Verkauf</th><th class="num">Tage</th><th class="num">p.&nbsp;a.</th><th class="num">Realisierter G/V</th><th class="num">%</th></tr></thead>
+                <tbody>
+                  <tr><td>2021-03-01</td><td>2025-12-01</td><td class="num">50,0000</td><td class="num">12,40</td><td class="num">0,00</td><td class="num">1736</td><td class="num trade-pa trade-pa--na mock-title-anchor is-new" title="Keine annualisierte Rendite: kein Zinssatz löst die Zahlungen dieses Trades"><span aria-hidden="true">—</span><span class="visually-hidden">keine annualisierte Rendite, kein Zinssatz löst die Zahlungen dieses Trades</span><span class="mock-title">Keine annualisierte Rendite: kein Zinssatz löst die Zahlungen dieses Trades</span><i class="pin a">7</i></td><td class="num is-negative">-624,90</td><td class="num is-negative">-100,00</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <ul id="detail-closed-trades-phone-rows" class="phone-rows" aria-label="Abgeschlossene Trades">
+              <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">2021-03-01 → 2025-12-01</span><span class="phone-row__ids">50,0000 Stück · 1736 Tage</span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">-624,90<small class="value-suffix">EUR</small></span><span class="phone-row__figure2"><span class="decimal-negative">-100,0%</span></span></span></li>
+            </ul>
+            <p id="detail-closed-trades-basis" class="detail-tab-hint">Über alle Depots · Einlieferungen eröffnen keinen Lot · Gebühren und Steuern im G/V, nicht in Ø Kauf und Ø Verkauf · Erträge während der Haltedauer nicht enthalten · p.&nbsp;a. erst ab 365 Tagen Haltedauer</p>
+          </section>
+        </div>
+      </div>
+    </div>
+    <div class="notes w-side desk-only">
+      <p class="cap">Die Zustände</p>
+      <ol class="pins two">
+        <li><i class="pin b">6</i><i class="pin a" style="margin:0 4px 0 0">6</i><b>N1, nur eingelieferte Stücke verkauft:</b> Heute sagt der Tab „erfasse zuerst Käufe und Verkäufe“ — falsch, denn es gibt keinen Kauf zu erfassen, die Stücke kamen per Einlieferung — und darunter „möglicherweise fehlen Daten“. Nachher steht der Abschnitt mit seiner Notiz, ohne Tabelle, und der Leersatz entfällt, sobald ein Verkauf ohne Kauf existiert: Die Notiz sagt, was da ist. Der Leersatz bleibt für ein Wertpapier ganz ohne Kauf und Verkauf.</li>
+        <li><i class="pin a">7</i><b>N2, kein lösbarer Zinssatz:</b> derselbe Strich mit dem anderen Grund, wie in der Facette (<code>annualized_return_reason</code> ≠ <code>:holding_period_under_365_days</code>, z.&nbsp;B. ein Totalverlust). Auf dem Telefon steht dann nur die Rendite über die Haltedauer, wie unter 365 Tagen.</li>
+        <li><b>Bei 390&nbsp;px</b> (siehe <code>--390.png</code>): Die abgeschlossenen Trades werden zweizeilige Zeilen (Regel&nbsp;④) — die Zeile der Facette ohne Namen, denn die Seite nennt das Wertpapier: „Eröffnet → Geschlossen“ über „Stückzahl · Tage“, rechts das Ergebnis über „Rendite · p.&nbsp;a.“. Ø Kauf und Ø Verkauf entfallen auf dem Telefon, wie Einstand und Erlös in der Facette. Die offenen Lots bleiben ein Scroller (UX&#8209;DR15); siehe Scope Lock in Teil&nbsp;1.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ NUR CODE ============================ -->
+<section class="mock-board desk-only">
+  <h2>Ohne Bild · der Kommentar in <code>RealizedGains.closed_trades/2</code> <small><code>lib/portfolixir/portfolios/realized_gains.ex</code>, Z. 196–203</small></h2>
+  <div class="mock-row">
+    <div class="callout" style="flex:1 1 640px">
+      <h4>Ein Kommentar verspricht, was der Tab nicht zeigt</h4>
+      <p>Die private Funktion begründet das mitgeführte <code>security_id</code> mit einem Tab, der „dieselbe Runde mit ihren Lots“ zeige. Der Tab „Trades“ zeigt je abgeschlossenem Trade eine Zeile mit Ø Kauf und Ø Verkauf, keine verbrauchten Lots (<code>lots</code> fließen nur in <code>TradeReturn</code>). Die Story korrigiert den Satz; nichts auf dem Bildschirm ändert sich.</p>
+<pre>  # `security_id` rides along so each row can link to that security's
+<del>  # Trades tab, where the same round-trip is shown with its lots.</del>
+<ins>  # Trades tab, where the same round-trip is a row of its closed trades.</ins></pre>
+    </div>
+    <div class="notes" style="flex:1 1 360px">
+      <p class="cap">Keine Variantenwahl — warum</p>
+      <p>Der Ort der Spalte, ihre Schwelle, der Strich und seine Gründe stehen in <code>DESIGN.md</code>; die Notiz und ihre Wörter auch, für die Facette. Die Story überträgt sie in eine zweite Tabelle derselben Familie. Was die Übertragung offenlässt, steht als Zweifel in Teil&nbsp;1 der Entwurfsrunde: das Vorzeichen, die Nachkommastellen, der Ort der Notiz, die Grundlagenzeile.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+  /* Drawing aid: at phone width the DetailTabs hook keeps the selected tab
+     in view; without the hook the board scrolls the row to it once. */
+  if (window.innerWidth < 600) {
+    for (const row of document.querySelectorAll('.detail-pane-tabs')) {
+      const on = row.querySelector('.is-active');
+      if (on) row.scrollLeft = on.offsetLeft - row.offsetLeft - 48;
+    }
+  }
+</script>
+</body>
+</html>

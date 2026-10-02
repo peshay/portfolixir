@@ -1,0 +1,604 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Dialoge und Meldungen (Pick H8)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- Pick H8: eight conformance and copy repairs in dialogs and messages
+     (#910, #918, #921, #969, #966, #920, #1032 UI half, #968). Everything
+     inside the frames is markup and classes that already ship:
+     policy_rule_dialog.ex (.modal.policy-rule-dialog, .modal-head,
+     .modal-body, .hint, .perf-table-disclosure, .policy-rule-versions),
+     securities/row_context_menu.ex (delete item's data-confirm,
+     delete_blocked_dialog/1: .modal.confirm-delete-blocked, p.muted),
+     portfolio_accounts/account_form_dialog.ex (.form-grid, .field-error),
+     classifications_live.ex soll_editor/1 (.soll-editor, .soll-table,
+     .soll-row, .soll-row--cash, .soll-row--sum, .is-target-mismatch,
+     .soll-ok, .soll-bad), portfolio_accounts/rename_dialog.ex
+     (.modal.rename-dialog, .former-names, .former-names__origin),
+     AppShell.invisible_text_note/1 and data_note/1 (.data-note,
+     .data-note--attention, .data-note__icon, .data-note__word,
+     .data-note__body, .data-note__body .mono), AppShell.inline_result/1
+     (.inline-result, .inline-result__region, .inline-result__dismiss),
+     securities_live.ex (.data-table, .security-row, .row-actions__kebab,
+     .row-target, .security-logo, .phone-rows, .phone-row, RowContextMenu:
+     .row-context-menu, .row-context-menu__item), merge_records.ex
+     (.merge-records-table, .merge-record__*, .merge-manifest*,
+     .merge-records__rows) and the merge dialogs' .modal-head__step.
+     Dialogs are drawn as <div class="modal"> because a closed <dialog>
+     does not paint. All names, ISINs, figures and dates are invented.
+     Stored invisible characters are written as entities (&#8203; and
+     &#x202E;), never raw (the Trojan Source pre-commit hook). -->
+<style id="proposal">
+  /* ① #910: the version list keeps one numbering, the label ("Version 3"),
+     which the version note above and the retire confirmation name. The
+     rule extends the existing `.policy-rule-versions` block in app.css. */
+  .policy-rule-versions.h8-after { list-style: none; padding-left: 0; }
+
+  /* ② #969: the unallocated remainder (ADR-0040 §3, DESIGN.md D3) is the
+     table's last row, under the Σ: the category row's rhythm, the label
+     muted because the row is derived, the figure at ordinary weight in the
+     same tabular slot, no divider of its own and no input. */
+  .soll-row--remainder th,
+  .soll-row--remainder td { font-weight: 400; border-bottom: none; padding-top: 0; }
+  .soll-row--remainder th { color: var(--color-text-muted); }
+
+  /* ③ #966: a note inside the "Former names" disclosure sits one step
+     below its summary, as the list beneath it does. */
+  .rename-dialog details > .data-note { margin-top: var(--space-1); }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: visible; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; min-width: 0; }
+  .notes { display: grid; gap: 6px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul { margin: 0; }
+  .notes ul { padding-left: 18px; }
+  .notes li { margin: 0 0 4px; }
+  .notes li + li { margin-top: 0; }
+  .notes code, .mock-note code, .pickbar code, table.t code { font-size: 11.5px; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .rec { color: var(--color-positive); font-weight: 760; }
+  .frame-cap { margin: 0; padding: 8px 12px 0; font-size: 12px; color: var(--mock-ink); }
+  .elide { margin: 0; font-size: 12px; color: var(--mock-ink); font-style: italic; }
+  .mock-board > h2 code { font-size: 12px; }
+  .mock-frame > .mock-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .mock-tag.var { color: var(--color-accent) !important; background: var(--color-accent-soft) !important; }
+  .mock-tag.var.rec-tag { color: var(--color-positive) !important; background: #ecfdf5 !important; }
+
+  /* the dialog on a muted field standing in for the backdrop */
+  .dlg-field { background: var(--color-bg-muted); padding: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; justify-items: stretch; align-content: start; }
+  .dlg-field .modal { width: 100%; max-width: 520px; justify-self: center; }
+  .modal .modal-body .elide { padding: 0; }
+
+  /* the browser's own confirm() box, which data-confirm opens */
+  .native-confirm { justify-self: center; width: 100%; max-width: 420px; box-sizing: border-box; border: 1px solid #c9ced6; border-radius: 10px; background: #fff; color: #1f2937; box-shadow: 0 8px 24px rgba(0, 0, 0, .16); padding: 12px 14px; font: 13px/1.45 system-ui, sans-serif; }
+  .native-confirm p { margin: 0 0 8px; }
+  .native-confirm .origin { font-weight: 600; font-size: 12.5px; }
+  .native-confirm .btns { display: flex; justify-content: flex-end; gap: 8px; }
+  .native-confirm .btns span { padding: 4px 14px; border-radius: 6px; border: 1px solid #c9ced6; font-size: 12.5px; }
+  .native-confirm .btns span.ok { background: #2563eb; border-color: #2563eb; color: #fff; }
+
+  /* page frames */
+  .pg { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg); }
+  .pg-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-elevated); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .pg-top h3 { margin: 0; font-size: 17px; }
+  .pg-top span { font-size: 12px; color: var(--color-text-muted); }
+  .pg-body { padding: 10px 14px 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+  .security-row td { vertical-align: middle; }
+  .list-wrap { position: relative; }
+  .row-context-menu.static { position: absolute; left: 34px; top: 92px; z-index: 5; box-shadow: var(--shadow-md); }
+  .row-context-menu__item.hot { background: var(--color-bg-muted); }
+  tr.stale td { background: color-mix(in srgb, var(--color-warning) 7%, var(--color-bg-elevated)); }
+  .stage { padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; }
+  .soll-editor.workspace-section { padding: 14px 16px; border: 0; }
+  .soll-editor h2 { font-size: 16px; margin: 0; }
+  .soll-mini { margin-top: 10px; border-top: 1px dashed var(--color-border-strong); padding-top: 6px; }
+  .soll-mini .soll-table { margin-top: 0; }
+  .soll-mini caption { caption-side: top; text-align: left; font-size: 11px; color: var(--mock-ink); padding: 4px 0; }
+  .merge-records.workspace-section { padding: 12px 14px; border: 0; }
+  .merge-records h2 { font-size: 16px; margin: 0; }
+  .ok-same { font-size: 12px; color: var(--mock-ink); margin: 0; }
+  table.t td, table.t th { font-size: 12px; }
+  .w-third { flex: 1 1 330px; min-width: 0; }
+  .w-half { flex: 1 1 520px; min-width: 0; }
+  .w-wide { flex: 1 1 640px; min-width: 0; }
+  .w-full { flex: 1 1 100%; min-width: 0; }
+  .w-notes { flex: 1 1 300px; min-width: 0; }
+  .phone-only { display: none; }
+
+  /* ===== 390 px: the board becomes the phone =====
+     Only the recommended or after states render; app.css' own 720 px and
+     560 px rules (phone rows, merge-record rows) fire as on a phone. */
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .dlg-field { padding: 10px 8px; }
+    .stage { padding: 8px; }
+    .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+    .row-context-menu.static { display: none; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-att" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></symbol>
+    <symbol id="i-ast" viewBox="0 0 24 24"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></symbol>
+    <symbol id="i-keb" viewBox="0 0 24 24"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16Z"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 4v5h-5"/></symbol>
+    <symbol id="i-open" viewBox="0 0 24 24"><path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/></symbol>
+    <symbol id="i-merge" viewBox="0 0 24 24"><path d="M4 6h4.5l5.5 6h6"/><path d="M4 18h4.5l5.5-6"/><path d="m17 9 3 3-3 3"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7"/><path d="M10 11v7M14 11v7"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar desk-only"><b>Pick H8 — acht Reparaturen in Dialogen und Meldungen.</b> Ein Abschnitt je Issue. Vier sind Konformitäts- oder Textreparaturen, bei denen Spezifikation oder ADR die Antwort festlegen; sie zeigen <b>Vorher/Nachher</b>: H8.1 #910, H8.3 #921, H8.7 #1032 (UI-Hälfte), H8.8 #968. Vier enthalten eine echte Wahl und zeigen Varianten: <b>H8.2</b> #918 (A: der Dialog nennt gezählt, was blockiert · B: er nennt die Arten allgemein), <b>H8.4</b> #969 (A: kein Zeichen unter 100&nbsp;% · B: ✓ bis 100&nbsp;%), <b>H8.5</b> #966 (A: frühere Namen ebenfalls markiert · B: nur der aktuelle Name), <b>H8.6</b> #920 (A: neu laden mit Hinweis · B: still neu laden). <span class="rec">Empfehlung: jeweils A.</span> Ein Kommentar mit Code und Buchstabe auf der Planungs-PR (etwa „H8.5 B“) ändert eine Wahl; ohne Kommentar gilt die Empfehlung. <b>Gestrichelt = neu.</b> Alle Namen, ISINs und Zahlen sind erfunden. Die Darstellung bei 390&nbsp;px ist <code>08-dialogs-copy--390.png</code>.</div>
+<p class="phone-only phone-cap"><b>H8 bei 390&nbsp;px.</b> Nur die Nachher- und empfohlenen Zustände, in einem echten 390-px-Viewport, damit die Telefonregeln aus app.css greifen. Alle Daten erfunden.</p>
+
+<!-- ============================ H8.1 #910 ============================ -->
+<section class="mock-board">
+  <h2>H8.1 · #910 — Regel ändern: die Versionsliste nummeriert jede Version zweimal <small><code>risk/policy_rule_dialog.ex:403–412</code> · Vorher/Nachher</small></h2>
+  <p class="mock-note desk-only">Die Liste ist ein <code>&lt;ol&gt;</code>, und app.css setzt nur Schriftgröße und Farbe; der Browser schreibt also „1.“ vor das Label „Version 1“. Der Versionshinweis darüber und die Bestätigung beim Beenden nennen Versionen beim Label („Version 3 (7,5 %) gilt seit …“): Das Label bleibt, die Listennummer geht.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half desk-only"><span class="mock-tag">Vorher · Risiko → eigene Regel → Ändern</span>
+      <div class="dlg-field">
+        <div class="modal policy-rule-dialog">
+          <header class="modal-head"><h2>Regel ändern — „Klumpengrenze Einzelwert“</h2><span class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></span></header>
+          <div class="modal-body">
+            <p class="elide">… Messgröße, Bezug, Art, Schwelle, Schwere, gültig ab, Notiz …</p>
+            <p class="hint">Speichern legt Version 4 an. Version 3 (7,5&nbsp;%) gilt seit 01.10.2026, endet am Tag vor der neuen und bleibt lesbar.</p>
+            <details class="perf-table-disclosure" open>
+              <summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>Versionen</summary>
+              <ol class="policy-rule-versions">
+                <li>Version 1 · 01.02.2026 – 31.05.2026 · 12,5&nbsp;% · hart · Operator</li>
+                <li>Version 2 · 01.06.2026 – 30.09.2026 · 10&nbsp;% · hart · Agent</li>
+                <li>Version 3 · ab 01.10.2026 · 7,5&nbsp;% · Warnung · Operator</li>
+              </ol>
+            </details>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">Nachher · eine Zählung, das Label</span>
+      <div class="dlg-field">
+        <div class="modal policy-rule-dialog">
+          <header class="modal-head"><h2>Regel ändern — „Klumpengrenze Einzelwert“</h2><span class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></span></header>
+          <div class="modal-body">
+            <p class="elide">… Messgröße, Bezug, Art, Schwelle, Schwere, gültig ab, Notiz …</p>
+            <p class="hint">Speichern legt Version 4 an. Version 3 (7,5&nbsp;%) gilt seit 01.10.2026, endet am Tag vor der neuen und bleibt lesbar.</p>
+            <details class="perf-table-disclosure" open>
+              <summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>Versionen</summary>
+              <ol class="policy-rule-versions h8-after is-new" role="list">
+                <li>Version 1 · 01.02.2026 – 31.05.2026 · 12,5&nbsp;% · hart · Operator</li>
+                <li>Version 2 · 01.06.2026 – 30.09.2026 · 10&nbsp;% · hart · Agent</li>
+                <li>Version 3 · ab 01.10.2026 · 7,5&nbsp;% · Warnung · Operator</li>
+              </ol>
+            </details>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes desk-only" style="margin-top:8px"><p><b>Nicht andersherum:</b> „1.“ behalten und „Version“ streichen ließe das „Version 3“ des Hinweises ohne Gegenstück in der Liste. <code>role="list"</code> erhält die Listensemantik, die Safari einer Liste ohne Marker nimmt. Der Urheber aus G12.1 („· Operator“, „· Agent“) bleibt, wo das Amendment ihn hinsetzt.</p></div>
+</section>
+
+<!-- ============================ H8.2 #918 ============================ -->
+<section class="mock-board">
+  <h2>H8.2 · #918 — Wertpapier löschen: die Bestätigung und „Kann nicht gelöscht werden“ <small><code>securities/row_context_menu.ex:180, 201–277</code> · <code>securities_live.ex:4905–4958</code> · Varianten</small></h2>
+  <p class="mock-note desk-only">Die heutige Bestätigung sagt, Notizen „gehen verloren“; Research-Einträge <b>blockieren</b> das Löschen aber (ADR-0044; <code>security_notes</code> ist <code>delete: :restrict</code> in <code>Lifecycle.ForeignKeys</code>), ebenso Kurse und Termine. Der Ablehnungsdialog nennt nur „Transaktionen oder Kursdaten“. Die Ablehnung trägt schon eine Zählung je Tabelle (<code>{:referenced, counts}</code>); die Seite liest sie nur, um über das Angebot der Zusammenführung zu entscheiden. Die Bestätigung erscheint vor der Prüfung (anders als das Kontenmenü liest das Wertpapiermenü die Verweise nicht vorab), sie kann also nur allgemein sprechen. Die echte Wahl ist der Dialog.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half desk-only"><span class="mock-tag">Vorher · Bestätigung, dann die Ablehnung</span>
+      <div class="dlg-field">
+          <div class="native-confirm"><p class="origin">localhost:4000 meldet</p><p>Dieses Wertpapier löschen? Vorhandene Buchungen blockieren das Löschen; Notizen und Logo gehen verloren.</p><div class="btns"><span>Abbrechen</span><span class="ok">OK</span></div></div>
+          <div class="modal confirm-delete-blocked">
+            <header class="modal-head"><h2>Kann nicht gelöscht werden</h2><span class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></span></header>
+            <div class="modal-body">
+              <p>Nordwind Industrie AG wird von bestehenden Transaktionen oder Kursdaten referenziert und kann nicht gelöscht werden. Stilllegen verbirgt das Wertpapier aus der aktiven Liste, der historische Eintrag bleibt erhalten.</p>
+            </div>
+            <div class="modal-footer"><button type="button" class="button-ghost">Abbrechen</button><button type="button" class="button-primary">Stattdessen stilllegen</button></div>
+          </div>
+      </div>
+      <p class="frame-cap" style="padding-bottom:10px">Hier blockieren Research-Einträge, darum keine Zusammenführung, und der Dialog sagt nicht, warum. Ohne Einträge erscheinen eine zweite Zeile und „Zusammenführen in…“, ebenfalls ohne Grund.</p>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag var rec-tag">A · empfohlen — Research-Einträge blockieren: der Grund, und Stilllegen</span>
+      <div class="dlg-field">
+          <div class="native-confirm is-new"><p class="origin">localhost:4000 meldet</p><p>Dieses Wertpapier löschen? Buchungen, Kurse, Termine, Research-Einträge und eigene Regeln blockieren das Löschen. Mit entfernt werden seine Klassifizierungen, Positionsziele, Bucket-Zuordnungen und früheren ISINs, jede im Journal, und das Logo.</p><div class="btns"><span>Abbrechen</span><span class="ok">OK</span></div></div>
+          <div class="modal confirm-delete-blocked">
+            <header class="modal-head"><h2>Kann nicht gelöscht werden</h2><span class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></span></header>
+            <div class="modal-body">
+              <p class="is-new">„Nordwind Industrie AG“ hat noch 12 Buchungen, 840 Kurse und 3 Research-Einträge.</p>
+              <p class="muted is-new">Research-Einträge werden nie entfernt und ziehen bei keiner Zusammenführung mit. Stilllegen blendet das Wertpapier aus der aktiven Liste aus; alles bleibt erhalten.</p>
+            </div>
+            <div class="modal-footer"><button type="button" class="button-ghost">Abbrechen</button><button type="button" class="button-primary">Stattdessen stilllegen</button></div>
+          </div>
+      </div>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:14px">
+    <div class="mock-frame mock-after w-half"><span class="mock-tag var rec-tag">A · empfohlen — nur, was eine Zusammenführung mitnimmt, blockiert: zusammenführen oder stilllegen</span>
+      <div class="dlg-field">
+          <div class="modal confirm-delete-blocked">
+            <header class="modal-head"><h2>Kann nicht gelöscht werden</h2><span class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></span></header>
+            <div class="modal-body">
+              <p class="is-new">„Meridian Global Equity ETF“ hat noch 142 Buchungen, 410 Kurse und 2 Termine.</p>
+              <p class="muted is-new">Ist es ein Duplikat, führt „Zusammenführen in…“ seine Buchungen, Kurse und Termine in das andere Wertpapier. Stilllegen blendet es aus der aktiven Liste aus; alles bleibt erhalten.</p>
+            </div>
+            <div class="modal-footer"><button type="button" class="button-ghost">Abbrechen</button><button type="button" class="button-ghost">Zusammenführen in…</button><button type="button" class="button-primary">Stattdessen stilllegen</button></div>
+          </div>
+      </div>
+    </div>
+    <div class="col w-half desk-only">
+      <div class="mock-frame"><span class="mock-tag var">B — die Arten allgemein</span>
+        <div class="dlg-field">
+          <div class="modal confirm-delete-blocked">
+            <header class="modal-head"><h2>Kann nicht gelöscht werden</h2><span class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></span></header>
+            <div class="modal-body">
+              <p>„Nordwind Industrie AG“ hat Buchungen, Kurse, Termine oder Research-Einträge und kann nicht gelöscht werden. Stilllegen blendet das Wertpapier aus der aktiven Liste aus; alles bleibt erhalten.</p>
+            </div>
+            <div class="modal-footer"><button type="button" class="button-ghost">Abbrechen</button><button type="button" class="button-primary">Stattdessen stilllegen</button></div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+          <p><b>Für B:</b> ein Satz für jeden Fall, ohne Aufzählung und Pluralformen.</p>
+          <p><b>Gegen B:</b> Der Operator sieht weiterhin nicht, welche Art blockiert; „Zusammenführen in…“ erscheint beim einen Wertpapier und beim nächsten nicht, ohne Grund. „Kann nicht gelöscht werden“ auf der Kontenseite zählt schon („„Girokonto“ hat noch 42 Buchungen — zuerst zusammenführen.“).</p>
+          <p><b>Warum A.</b> Die Zählung steckt schon in der Ablehnung, die Kontenseite ist das Vorbild, und der Grund der Abhilfe wird sichtbar: Research-Einträge heißt stilllegen, sonst zusammenführen.</p>
+        </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ H8.3 #921 ============================ -->
+<section class="mock-board">
+  <h2>H8.3 · #921 — Feldfehler in den Wertpapier- und Kontodialogen auf Deutsch <small><code>portfolio_accounts/account_form_dialog.ex:436–464</code> · <code>securities/security_form_dialog.ex:843–851</code> · Vorher/Nachher</small></h2>
+  <p class="mock-note desk-only">Beide Dialoge zeigen Changeset-Meldungen roh, ohne die gettext-Domäne <code>errors</code>; eine deutsche Seite zeigt also Englisch, samt der internen „#4“. Das Beispiel ist die Depotnamen-Prüfung in „Neues Depot mit Verrechnungskonto“. Der Umbenennen-Dialog sagt dasselbe schon auf Deutsch, abgebildet aus <code>AccountNames.conflict/4</code>; das Nachher übernimmt diesen Text.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half desk-only"><span class="mock-tag">Vorher · Konten &amp; Depots → + → Depot mit Verrechnungskonto</span>
+      <div class="dlg-field">
+        <div class="modal">
+          <header class="modal-head"><h2>Neues Depot mit Verrechnungskonto</h2><span class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></span></header>
+          <div class="modal-body">
+            <div class="form-grid">
+              <label><span>Depotname</span><input type="text" value="Depot 1" aria-invalid="true"><span class="field-error">is already the name of securities account #4 in this portfolio</span></label>
+              <label><span>Verrechnungskonto</span><select><option>Neues Verrechnungskonto anlegen</option></select></label>
+            </div>
+            <p class="elide">… Name des Verrechnungskontos, Währung, Buckets …</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">Nachher · der Text des Umbenennen-Dialogs, unpersönlich</span>
+      <div class="dlg-field">
+        <div class="modal">
+          <header class="modal-head"><h2>Neues Depot mit Verrechnungskonto</h2><span class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></span></header>
+          <div class="modal-body">
+            <div class="form-grid">
+              <label><span>Depotname</span><input type="text" value="Depot 1" aria-invalid="true"><span class="field-error is-new">„Depot 1“ heißt bereits ein anderes Depot. Einen anderen Namen wählen oder jenes Depot zusammenführen oder umbenennen.</span></label>
+              <label><span>Verrechnungskonto</span><select><option>Neues Verrechnungskonto anlegen</option></select></label>
+            </div>
+            <p class="elide">… Name des Verrechnungskontos, Währung, Buckets …</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes desk-only" style="margin-top:8px">
+    <p class="cap">Die übrigen Meldungen der beiden Dialoge</p>
+    <table class="t">
+      <thead><tr><th>Meldung (Feld)</th><th>Heute, auf einer deutschen Seite</th><th>Nachher</th></tr></thead>
+      <tbody>
+        <tr><td>Ecto: leer (Name)</td><td>can't be blank</td><td>darf nicht leer sein <span class="u-muted">(steht schon in <code>errors.po</code>)</span></td></tr>
+        <tr><td>ISIN-Prüfung (ISIN, beim Bearbeiten)</td><td>is not an ISIN (two letters, nine letters or digits and a check digit)</td><td>ist keine ISIN (zwei Buchstaben, neun Buchstaben oder Ziffern und eine Prüfziffer) <span class="u-muted">(steht schon in <code>errors.po</code>)</span></td></tr>
+        <tr><td>Festschreibung (Währung, beim Bearbeiten)</td><td>is frozen once referenced (12 transactions, 840 quotes)</td><td>steht fest, sobald etwas darauf verweist (12 Buchungen, 840 Kurse) <span class="u-muted">(neuer Text; die Zählung kommt aus der Domäne)</span></td></tr>
+        <tr><td>Früherer Name (Depotname)</td><td>is a former name of securities account #3 ("Depot Süd"): an import naming it books there. …</td><td>„Depot 1“ ist ein früherer Name von „Depot Süd“ — ein Import unter diesem Namen bucht dorthin. Einen anderen Namen wählen oder ihn bei „Depot Süd“ entfernen. <span class="u-muted">(Text des Umbenennen-Dialogs)</span></td></tr>
+      </tbody>
+    </table>
+    <p>Der Text für einen vergebenen Namen spricht den Leser heute an („Wählen Sie …, oder führen Sie … zusammen“), gegen die verbindliche unpersönliche Stimme in <code>EXPERIENCE.md</code>. Die beiden <code>msgstr</code> (Verrechnungskonto und Depot) sind die einzigen „Sie“-Texte in <code>default.po</code>, und diese Story übernimmt sie; das Nachher zeigt sie darum unpersönlich. API und MCP behalten die englischen Meldungen.</p>
+  </div>
+</section>
+
+<!-- ============================ H8.4 #969 ============================ -->
+<section class="mock-board">
+  <h2>H8.4 · #969 — Soll-Plan: eine Summe unter 100 % ist kein Fehler <small><code>classifications_live.ex:1029–1037, 1704</code> · ADR-0040 §3 · DESIGN.md D3 · Varianten</small></h2>
+  <p class="mock-note desk-only"><code>put_sum/1</code> setzt <code>mismatch?</code> für jedes Σ, das nicht genau 100 ist; ein Plan, der bewusst kürzer ist, bekommt ✗ und Warnfarbe. ADR-0040 §3 behält dieses Signal einer Summe über 100&nbsp;% (und dem Konflikt Position gegen Kategorie) vor und verlangt den Rest als Zeile ohne Warnfarbe. DESIGN.md D3 legt die Zeile fest: letzte Zeile, Rhythmus einer Kategoriezeile, Bezeichnung gedämpft, Zahl im tabellarischen Platz, nicht editierbar. Offen bleibt eins: Was zeigt die Σ-Zelle unter 100&nbsp;%?</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-third desk-only"><span class="mock-tag">Vorher · Σ 92&nbsp;% liest sich als Fehler</span>
+      <section class="workspace-section soll-editor">
+        <header class="soll-editor__head"><h2>Soll-Plan</h2><span class="soll-view-picker"><span class="soll-view-picker__label">Soll-Plan für Sicht:</span><select><option>Gesamt</option></select></span></header>
+        <div class="data-table-wrapper"><table class="soll-table">
+          <thead><tr><th scope="col">Kategorie</th><th scope="col" class="num">Soll %</th></tr></thead>
+          <tbody>
+            <tr class="soll-row"><th scope="row" class="soll-row__name">Aktien Welt</th><td class="num"><input type="number" value="55"></td></tr>
+            <tr class="soll-row"><th scope="row" class="soll-row__name">Anleihen</th><td class="num"><input type="number" value="25"></td></tr>
+            <tr class="soll-row"><th scope="row" class="soll-row__name">Satelliten</th><td class="num"><input type="number" value="7"></td></tr>
+            <tr class="soll-row soll-row--cash"><th scope="row" class="soll-row__name">Cash</th><td class="num"><input type="number" value="5"></td></tr>
+          </tbody>
+          <tfoot><tr class="soll-row soll-row--sum is-target-mismatch"><th scope="row">Σ</th><td class="num">92% <span class="soll-bad">✗</span></td></tr></tfoot>
+        </table></div>
+      </section>
+    </div>
+    <div class="mock-frame mock-after w-third"><span class="mock-tag var rec-tag">A · empfohlen — kein Zeichen unter 100&nbsp;%, die Restzeile</span>
+      <section class="workspace-section soll-editor">
+        <header class="soll-editor__head"><h2>Soll-Plan</h2><span class="soll-view-picker"><span class="soll-view-picker__label">Soll-Plan für Sicht:</span><select><option>Gesamt</option></select></span></header>
+        <div class="data-table-wrapper"><table class="soll-table">
+          <thead><tr><th scope="col">Kategorie</th><th scope="col" class="num">Soll %</th></tr></thead>
+          <tbody>
+            <tr class="soll-row"><th scope="row" class="soll-row__name">Aktien Welt</th><td class="num"><input type="number" value="55"></td></tr>
+            <tr class="soll-row"><th scope="row" class="soll-row__name">Anleihen</th><td class="num"><input type="number" value="25"></td></tr>
+            <tr class="soll-row"><th scope="row" class="soll-row__name">Satelliten</th><td class="num"><input type="number" value="7"></td></tr>
+            <tr class="soll-row soll-row--cash"><th scope="row" class="soll-row__name">Cash</th><td class="num"><input type="number" value="5"></td></tr>
+          </tbody>
+          <tfoot>
+            <tr class="soll-row soll-row--sum"><th scope="row">Σ</th><td class="num" data-role="soll-sum">92%</td></tr>
+            <tr class="soll-row soll-row--remainder is-new"><th scope="row">Nicht verteilt</th><td class="num" data-role="soll-remainder">8%</td></tr>
+          </tfoot>
+        </table></div>
+        <div class="soll-mini">
+          <table class="soll-table"><caption>Genau 100&nbsp;%: unverändert, keine Restzeile</caption><tfoot><tr class="soll-row soll-row--sum"><th scope="row">Σ</th><td class="num">100% <span class="soll-ok">✓</span></td></tr></tfoot></table>
+          <table class="soll-table"><caption>Über 100&nbsp;%: unverändert (Satelliten 19)</caption><tfoot><tr class="soll-row soll-row--sum is-target-mismatch"><th scope="row">Σ</th><td class="num">104% <span class="soll-bad">✗</span></td></tr></tfoot></table>
+        </div>
+      </section>
+    </div>
+    <div class="col w-third desk-only">
+      <div class="mock-frame"><span class="mock-tag var">B — ✓ für jede Summe bis 100&nbsp;%</span>
+        <section class="workspace-section soll-editor">
+          <table class="soll-table"><tfoot>
+            <tr class="soll-row soll-row--sum"><th scope="row">Σ</th><td class="num">92% <span class="soll-ok">✓</span></td></tr>
+            <tr class="soll-row soll-row--remainder"><th scope="row">Nicht verteilt</th><td class="num">8%</td></tr>
+          </tfoot></table>
+        </section>
+      </div>
+      <div class="notes">
+        <p><b>Für B:</b> Nach ADR-0040 ist ein kürzerer Plan gültig, und das ✓ würde das sagen.</p>
+        <p><b>Gegen B:</b> Seit #467 heißt ✓ „ergibt 100“. Neben 92&nbsp;% sagt es das Gegenteil der Zeile darunter, und ein ✓, das in einem Zustand „vollständig“ und im anderen „nicht falsch“ heißt, heißt zweierlei.</p>
+        <p><b>Warum A.</b> Die Restzeile erklärt die Lücke, das Σ braucht kein Zeichen. ✓ behält eine Bedeutung (genau 100), ✗ seine (über 100, unverändert, wie das Issue verlangt).</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ H8.5 #966 ============================ -->
+<section class="mock-board">
+  <h2>H8.5 · #966 — Umbenennen (Konten &amp; Depots): der Hinweis auf unsichtbare Zeichen <small><code>portfolio_accounts/rename_dialog.ex:62–135</code> · G20-Hinweis <code>AppShell.invisible_text_note/1</code> · Varianten</small></h2>
+  <p class="mock-note desk-only">Der G20-Hinweis (Pick G12.2-B) markiert gespeicherten Text dort, wo er umbenannt wird: unter dem Kopf des Wertpapierdetails, im Regeldialog, nach dem Umbenennen einer Sicht, eines Buckets und einer Kategorie. Der Umbenennen-Dialog aus L5a hat keinen, und der Name unten trägt ein U+200B ZERO WIDTH SPACE, gespeichert vor der Regel. Wo der Hinweis zum aktuellen Namen steht, legt G20 fest. Offen lässt das Issue eine Frage: Werden auch <b>frühere Namen</b> markiert? Die Abhilfe ist, den Namen neu einzugeben; dabei wird die alte Schreibung ein früherer Name (frühere Namen werden nicht geprüft). Nach der Abhilfe zeigt die Liste also einen Namen, der genau wie der aktuelle aussieht.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half desk-only"><span class="mock-tag">Vorher · Depot „Depot Nord“, gespeichert mit einem U+200B</span>
+      <div class="dlg-field">
+        <div class="modal rename-dialog">
+          <header class="modal-head"><h2>Umbenennen — Depot&#8203; Nord</h2><span class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></span></header>
+          <div class="modal-body">
+            <form><div class="form-grid"><label><span>Name</span><input type="text" value="Depot&#8203; Nord"></label></div></form>
+            <p class="hint">Der bisherige Name „Depot&#8203; Nord“ bleibt als früherer Name gespeichert: Ein Import, der ihn noch nennt, bucht weiter auf dieses Depot.</p>
+            <details class="perf-table-disclosure" open><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>Frühere Namen</summary>
+              <ul class="former-names"><li><span><span>Depot 2</span><small class="former-names__origin">zusammengeführt am 12.08.2026</small></span><button type="button" class="button-ghost">Entfernen</button></li></ul>
+            </details>
+            <div class="modal-footer"><button type="button" class="button-ghost">Abbrechen</button><button type="submit" class="button-primary">Umbenennen</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">A und B · der aktuelle Name: der Hinweis unter dem Feld</span>
+      <div class="dlg-field">
+        <div class="modal rename-dialog">
+          <header class="modal-head"><h2>Umbenennen — Depot&#8203; Nord</h2><span class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></span></header>
+          <div class="modal-body">
+            <form><div class="form-grid"><label><span>Name</span><input type="text" value="Depot&#8203; Nord"></label></div></form>
+            <div class="data-note data-note--attention is-new" data-role="invisible-text-note"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-att"/></svg></span><span class="data-note__word">Achtung</span><div class="data-note__body">Der Name enthält 1 unsichtbares Zeichen. Neu eingegeben ist er sauber.
+              <details class="perf-table-disclosure" open><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>Name mit sichtbar gemachten Zeichen</summary><p class="mono">Depot[U+200B] Nord</p></details></div></div>
+            <p class="hint">Der bisherige Name „Depot&#8203; Nord“ bleibt als früherer Name gespeichert: Ein Import, der ihn noch nennt, bucht weiter auf dieses Depot.</p>
+            <details class="perf-table-disclosure" open><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>Frühere Namen</summary>
+              <ul class="former-names"><li><span><span>Depot 2</span><small class="former-names__origin">zusammengeführt am 12.08.2026</small></span><button type="button" class="button-ghost">Entfernen</button></li></ul>
+            </details>
+            <div class="modal-footer"><button type="button" class="button-ghost">Abbrechen</button><button type="submit" class="button-primary">Umbenennen</button></div>
+          </div>
+        </div>
+      </div>
+      <p class="frame-cap" style="padding-bottom:10px">Der Hinweis folgt dem Feld (<code>texts={[@name]}</code>), wie im Regeldialog: neu eingegeben, verschwindet er.</p>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:14px">
+    <div class="mock-frame mock-after w-half"><span class="mock-tag var rec-tag">A · empfohlen — nach dem Neueingeben ist auch der frühere Name markiert</span>
+      <div class="dlg-field">
+        <div class="modal rename-dialog">
+          <header class="modal-head"><h2>Umbenennen — Depot Nord</h2><span class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></span></header>
+          <div class="modal-body">
+            <form><div class="form-grid"><label><span>Name</span><input type="text" value="Depot Nord"></label></div></form>
+            <p class="hint">Der bisherige Name „Depot Nord“ bleibt als früherer Name gespeichert: Ein Import, der ihn noch nennt, bucht weiter auf dieses Depot.</p>
+            <details class="perf-table-disclosure" open><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>Frühere Namen</summary>
+              <div class="data-note data-note--attention is-new" data-role="invisible-text-note"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><use href="#i-att"/></svg></span><span class="data-note__word">Achtung</span><div class="data-note__body">Ein früherer Name enthält 1 unsichtbares Zeichen. Ein Import, der ihn genau so schreibt, bucht weiter auf dieses Depot.
+                <details class="perf-table-disclosure"><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>Namen mit sichtbar gemachten Zeichen</summary></details></div></div>
+              <ul class="former-names"><li><span><span>Depot&#8203; Nord</span></span><button type="button" class="button-ghost">Entfernen</button></li><li><span><span>Depot 2</span><small class="former-names__origin">zusammengeführt am 12.08.2026</small></span><button type="button" class="button-ghost">Entfernen</button></li></ul>
+            </details>
+            <div class="modal-footer"><button type="button" class="button-ghost">Abbrechen</button><button type="submit" class="button-primary">Umbenennen</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col w-half desk-only">
+      <div class="mock-frame"><span class="mock-tag var">B — nur der aktuelle Name; frühere Namen bleiben unmarkiert</span>
+        <div class="dlg-field">
+          <div class="modal rename-dialog">
+            <header class="modal-head"><h2>Umbenennen — Depot Nord</h2><span class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></span></header>
+            <div class="modal-body">
+              <form><div class="form-grid"><label><span>Name</span><input type="text" value="Depot Nord"></label></div></form>
+              <p class="hint">Der bisherige Name „Depot Nord“ bleibt als früherer Name gespeichert: Ein Import, der ihn noch nennt, bucht weiter auf dieses Depot.</p>
+              <details class="perf-table-disclosure" open><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>Frühere Namen</summary>
+                <ul class="former-names"><li><span><span>Depot&#8203; Nord</span></span><button type="button" class="button-ghost">Entfernen</button></li><li><span><span>Depot 2</span><small class="former-names__origin">zusammengeführt am 12.08.2026</small></span><button type="button" class="button-ghost">Entfernen</button></li></ul>
+              </details>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <p><b>Für B:</b> Das G20-Amendment lässt Listen unmarkiert, und ein zweiter Hinweis kostet in einem kleinen Dialog Platz.</p>
+        <p><b>Gegen B:</b> Ein Depot namens „Depot Nord“ mit dem früheren Namen „Depot Nord“ sieht wie ein Fehler aus, und ob dieser Eintrag entfernt wird, entscheidet, ob ein Import das Depot noch findet. Der MCP-Begleiter gibt dem Agenten die maskierte Schreibung; der Operator hätte nichts.</p>
+        <p><b>Warum A.</b> Die Liste der früheren Namen ist hier die eine Liste, die sich bearbeiten lässt, und dort hinterlässt die Abhilfe die alte Schreibung. Ein Hinweis je Gegenstand, wie der Regeldialog es für Name und Notiz hält.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ H8.6 #920 ============================ -->
+<section class="mock-board">
+  <h2>H8.6 · #920 — Wertpapiere: eine Zeilenaktion findet ihr Wertpapier nicht mehr <small><code>securities_live.ex:4784–4793</code> · Varianten</small></h2>
+  <p class="mock-note desk-only"><code>row_action</code> schlägt das Wertpapier zuerst nach. Ist es weg (gelöscht oder zusammengeführt über API, MCP oder einen anderen Tab), schließt der Handler nur das Menü; die Zeile bleibt, und jede Aktion darauf tut nichts. Das Issue verlangt ein Neuladen, das auch eine Auswahl oder ein Detail auf diese Zeile fallen lässt. Offen ist, ob das Neuladen etwas sagt. Die Seite unterscheidet Zusammenführung und Löschung schon (<code>Lifecycle.merged_into/2</code>, das ihre Linkbehandlung nutzt), und die veraltete Liste kennt noch den Namen, den der Operator sah, samt dem Zusatz, der Zwillinge unterscheidet (<code>SecurityNames</code>).</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half desk-only"><span class="mock-tag">Vorher · „Bearbeiten“ auf einer anderswo zusammengeführten Zeile</span>
+      <div class="stage">
+        <div class="pg">
+          <div class="pg-top"><h3>Wertpapiere</h3><span>Suchen, filtern und pflegen des investierbaren Universums.</span></div>
+          <div class="pg-body">
+            <div class="list-wrap">
+              <div class="data-table-wrapper"><table class="data-table">
+                <thead><tr><th class="row-actions-head" aria-label="Zeilenaktionen"></th><th>Name</th><th>ISIN</th><th class="num">Letzter Kurs</th></tr></thead>
+                <tbody>
+                  <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">H</span><span class="row-target__label">Helios Solar Systems SE</span></span></td><td>XS0000000010</td><td class="num">18,42</td></tr>
+                  <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">M</span><span class="row-target__label">Meridian Global Equity ETF</span></span></td><td>XS0000000001</td><td class="num">75,90</td></tr>
+                  <tr class="security-row stale"><td class="row-actions"><button type="button" class="row-actions__kebab is-open" aria-expanded="true"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">M</span><span class="row-target__label">Meridian Global Equity ETF</span></span></td><td>XS0000000002</td><td class="num">76,20</td></tr>
+                  <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">N</span><span class="row-target__label">Nordic Timber Holdings AB</span></span></td><td>XS0000000005</td><td class="num">9,86</td></tr>
+                </tbody>
+              </table></div>
+              <div class="row-context-menu static" role="menu" style="top:118px">
+                <button type="button" class="row-context-menu__item hot" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-edit"/></svg><span>Bearbeiten</span></button>
+                <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-refresh"/></svg><span>Kurse aktualisieren</span></button>
+                <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-open"/></svg><span>Detail öffnen</span></button>
+                <p class="elide" style="padding:4px 10px">… bis „Löschen“</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="ok-same">Das Menü schließt, die Zeile bleibt. Ein zweiter Versuch tut dasselbe, ebenso jeder andere Eintrag. Die Zeile geht erst mit dem nächsten vollen Neuladen.</p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag var rec-tag">A · empfohlen — neu laden, und ein Hinweis sagt, warum die Zeile ging</span>
+      <div class="stage">
+        <div class="pg">
+          <div class="pg-top"><h3>Wertpapiere</h3><span>Suchen, filtern und pflegen des investierbaren Universums.</span></div>
+          <div class="pg-body">
+            <div class="inline-result" data-role="action-result"><div role="status" class="inline-result__region">
+              <div class="data-note data-note--note is-new"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-ast"/></svg></span><span class="data-note__word">Hinweis</span><div class="data-note__body">„Meridian Global Equity ETF · XS0000000002“ wurde inzwischen in <a href="#">Meridian Global Equity ETF · XS0000000001</a> zusammengeführt; die Liste ist neu geladen.<button type="button" class="inline-result__dismiss" aria-label="Schließen">&times;</button></div></div>
+            </div></div>
+            <div class="data-table-wrapper" id="securities-table"><table class="data-table">
+              <thead><tr><th class="row-actions-head" aria-label="Zeilenaktionen"></th><th>Name</th><th>ISIN</th><th class="num">Letzter Kurs</th></tr></thead>
+              <tbody>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">H</span><span class="row-target__label">Helios Solar Systems SE</span></span></td><td>XS0000000010</td><td class="num">18,42</td></tr>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">M</span><span class="row-target__label">Meridian Global Equity ETF</span></span></td><td>XS0000000001</td><td class="num">75,90</td></tr>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">N</span><span class="row-target__label">Nordic Timber Holdings AB</span></span></td><td>XS0000000005</td><td class="num">9,86</td></tr>
+              </tbody>
+            </table></div>
+            <ul class="phone-rows" aria-label="Wertpapiere">
+              <li class="phone-row"><span class="security-logo security-logo--row security-logo--initial">H</span><span class="phone-row__body"><a class="phone-row__target"><span class="phone-row__name">Helios Solar Systems SE</span></a><span class="phone-row__ids">HSS · XS0000000010 · Aktie</span></span><span class="phone-row__figures"><span class="phone-row__figure">18,42<small class="value-suffix">EUR</small></span><span class="phone-row__figure2"><span class="decimal-negative">−0,6 %</span></span></span><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></li>
+              <li class="phone-row"><span class="security-logo security-logo--row security-logo--initial">M</span><span class="phone-row__body"><a class="phone-row__target"><span class="phone-row__name">Meridian Global Equity ETF</span></a><span class="phone-row__ids">MGEQ · XS0000000001 · ETF</span></span><span class="phone-row__figures"><span class="phone-row__figure">75,90<small class="value-suffix">EUR</small></span><span class="phone-row__figure2"><span class="decimal-positive">+0,3 %</span></span></span><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></li>
+              <li class="phone-row"><span class="security-logo security-logo--row security-logo--initial">N</span><span class="phone-row__body"><a class="phone-row__target"><span class="phone-row__name">Nordic Timber Holdings AB</span></a><span class="phone-row__ids">NTH · XS0000000005 · Aktie</span></span><span class="phone-row__figures"><span class="phone-row__figure">9,86<small class="value-suffix">EUR</small></span><span class="phone-row__figure2">±0,0 %</span></span><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></li>
+            </ul>
+          </div>
+        </div>
+        <p class="ok-same">Eine gelöschte Zeile: „„Helios Solar Systems SE“ wurde inzwischen gelöscht; die Liste ist neu geladen.“ Ein Detail auf der verschwundenen Zeile schließt mit. Der eigene „nicht gefunden“-Zweig des Löschens zeigt denselben Hinweis.</p>
+      </div>
+    </div>
+  </div>
+  <div class="mock-row desk-only" style="margin-top:12px">
+    <div class="mock-frame w-half"><span class="mock-tag var">B — still neu laden (was der Löschpfad heute bei seinem eigenen „nicht gefunden“ tut)</span>
+      <div class="stage"><p class="ok-same">Dieselbe Liste ohne die Zeile und ohne Hinweis. Auswahl und Detail fallen weg wie bei A.</p></div>
+    </div>
+    <div class="notes w-half">
+      <p><b>Für B:</b> Das ist genau der Wortlaut des Issues („the outcome the delete path already intends“) und braucht keinen neuen Text.</p>
+      <p><b>Gegen B:</b> Beim Löschen ist das Verschwinden der Zeile das, worum der Operator gebeten hat. Bei „Bearbeiten“, „Stilllegen“ oder „Zusammenführen in…“ bat er um etwas anderes und sieht eine Zeile wortlos verschwinden; das liest sich wie ein verlorener Klick oder eine verlorene Zeile.</p>
+      <p><b>Warum A.</b> Ein Satz im vorhandenen Ergebnisplatz der Seite (<code>put_action_result(:note, …)</code>) macht aus der verschwundenen Zeile eine Tatsache. Bei einer Zusammenführung verlinkt er das Wertpapier, das die Geschichte jetzt trägt; <code>/securities/:id</code> folgt solchen Links schon.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ H8.7 #1032 ============================ -->
+<section class="mock-board">
+  <h2>H8.7 · #1032 (UI-Hälfte) — Zusammenführungen: Ergebnissatz und leere Zusammenführungen <small><code>portfolio_accounts/merge_records.ex:410–436, 673–708</code> · <code>securities/merge_preview.ex:1424–1450</code> · Vorher/Nachher</small></h2>
+  <p class="mock-note desk-only">Der Satz einer Wertpapier-Zusammenführung zählt nur <code>collapsed_duplicate</code> als entfernt; ein Split, den beide Wertpapiere am selben Tag trugen (<code>collapsed_split</code>), steht in der aufgeklappten Zählung, aber nicht im Satz. Derselbe Satz ist das Ergebnis direkt nach der Zusammenführung. Eine leere Konto-Zusammenführung liest sich „Saldo an 1 Tag bestätigt“, weil der Kontoschreiber immer heute prüft (<code>check_dates</code> beginnt mit <code>Clock.today()</code>); eine leere Depot-Zusammenführung liest sich „nichts zu prüfen“, weil kein Wertpapier geprüft wurde.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-full desk-only"><span class="mock-tag">Vorher · Konten &amp; Depots → Zusammenführungen</span>
+      <section class="workspace-section merge-records">
+        <h2>Zusammenführungen</h2>
+        <details class="section-disclosure" open><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>3 Einträge · zuletzt 30.09.2026</summary>
+          <div class="data-table-wrapper merge-records__table"><table class="data-table merge-records-table">
+            <thead><tr><th>Datum</th><th>Art</th><th>Quelle → Ziel</th><th>Ergebnis</th><th>Von</th></tr></thead>
+            <tbody>
+              <tr><td class="cell-date">30.09.2026</td><td class="cell-kind">Wertpapier</td><td class="merge-record__pair"><span class="merge-record__source">Kestrel Industrial Group NV</span><span class="merge-record__arrow">→</span><a class="merge-record__target" href="#">Kestrel Industrial Group NV</a></td><td><details class="merge-manifest" open><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>142 Buchungen verschoben, 2 Duplikate entfernt, 30 Kurse ergänzt</summary><dl class="merge-manifest__counts"><dt>Buchungen</dt><dd>142 verschoben · 2 Duplikate entfernt · 1 Split zusammengelegt</dd><dt>Prüfung</dt><dd>Stückzahl an 38 Tagen in 2 Depots bestätigt</dd></dl></details></td><td class="cell-actor">Operator</td></tr>
+              <tr><td class="cell-date">24.09.2026</td><td class="cell-kind">Verrechnungskonto</td><td class="merge-record__pair"><span class="merge-record__source">Tagesgeld alt</span><span class="merge-record__arrow">→</span><a class="merge-record__target" href="#">Tagesgeld</a></td><td><details class="merge-manifest" open><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>0 Buchungen verschoben</summary><dl class="merge-manifest__counts"><dt>Buchungen</dt><dd>0 verschoben</dd><dt>Prüfung</dt><dd>Saldo an 1 Tag bestätigt</dd></dl></details></td><td class="cell-actor">Agent</td></tr>
+              <tr><td class="cell-date">22.09.2026</td><td class="cell-kind">Depot</td><td class="merge-record__pair"><span class="merge-record__source">Depot 3</span><span class="merge-record__arrow">→</span><a class="merge-record__target" href="#">Depot 1</a></td><td><details class="merge-manifest" open><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>0 Buchungen verschoben</summary><dl class="merge-manifest__counts"><dt>Buchungen</dt><dd>0 verschoben</dd><dt>Prüfung</dt><dd>nichts zu prüfen</dd></dl></details></td><td class="cell-actor">Operator</td></tr>
+            </tbody>
+          </table></div>
+        </details>
+      </section>
+      <p class="frame-cap" style="padding:0 14px 12px">Ergebnis direkt nach der Zusammenführung (Wertpapiere): „Zusammengeführt in Kestrel Industrial Group NV: 142 Buchungen verschoben, 2 Duplikate entfernt, 30 Kurse ergänzt.“</p>
+    </div>
+    <div class="mock-frame mock-after w-full"><span class="mock-tag">Nachher · der Satz zählt jede Entfernung, leer liest sich gleich</span>
+      <section class="workspace-section merge-records">
+        <h2>Zusammenführungen</h2>
+        <details class="section-disclosure" open><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>3 Einträge · zuletzt 30.09.2026</summary>
+          <div class="data-table-wrapper merge-records__table"><table class="data-table merge-records-table">
+            <thead><tr><th>Datum</th><th>Art</th><th>Quelle → Ziel</th><th>Ergebnis</th><th>Von</th></tr></thead>
+            <tbody>
+              <tr><td class="cell-date">30.09.2026</td><td class="cell-kind">Wertpapier</td><td class="merge-record__pair"><span class="merge-record__source">Kestrel Industrial Group NV</span><span class="merge-record__arrow">→</span><a class="merge-record__target" href="#">Kestrel Industrial Group NV</a></td><td><details class="merge-manifest" open><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg><span>142 Buchungen verschoben, 2 Duplikate entfernt, <span class="is-new">1 Split zusammengelegt</span>, 30 Kurse ergänzt</span></summary><dl class="merge-manifest__counts"><dt>Buchungen</dt><dd>142 verschoben · 2 Duplikate entfernt · 1 Split zusammengelegt</dd><dt>Prüfung</dt><dd>Stückzahl an 38 Tagen in 2 Depots bestätigt</dd></dl></details></td><td class="cell-actor">Operator</td></tr>
+              <tr><td class="cell-date">24.09.2026</td><td class="cell-kind">Verrechnungskonto</td><td class="merge-record__pair"><span class="merge-record__source">Tagesgeld alt</span><span class="merge-record__arrow">→</span><a class="merge-record__target" href="#">Tagesgeld</a></td><td><details class="merge-manifest" open><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>0 Buchungen verschoben</summary><dl class="merge-manifest__counts"><dt>Buchungen</dt><dd>0 verschoben</dd><dt>Prüfung</dt><dd><span class="is-new">nichts zu prüfen</span></dd></dl></details></td><td class="cell-actor">Agent</td></tr>
+              <tr><td class="cell-date">22.09.2026</td><td class="cell-kind">Depot</td><td class="merge-record__pair"><span class="merge-record__source">Depot 3</span><span class="merge-record__arrow">→</span><a class="merge-record__target" href="#">Depot 1</a></td><td><details class="merge-manifest" open><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>0 Buchungen verschoben</summary><dl class="merge-manifest__counts"><dt>Buchungen</dt><dd>0 verschoben</dd><dt>Prüfung</dt><dd>nichts zu prüfen</dd></dl></details></td><td class="cell-actor">Operator</td></tr>
+            </tbody>
+          </table></div>
+          <ul class="phone-rows merge-records__rows" aria-label="Zusammenführungen">
+            <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name merge-record__pair"><span class="merge-record__source">Kestrel Industrial Group NV</span><span class="merge-record__arrow">→</span><a class="merge-record__target" href="#">Kestrel Industrial Group NV</a></span><span class="phone-row__ids">30.09.2026 · Wertpapier · Operator</span></span><details class="merge-manifest" open><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg><span>142 Buchungen verschoben, 2 Duplikate entfernt, <span class="is-new">1 Split zusammengelegt</span>, 30 Kurse ergänzt</span></summary><dl class="merge-manifest__counts"><dt>Buchungen</dt><dd>142 verschoben · 2 Duplikate entfernt · 1 Split zusammengelegt</dd><dt>Prüfung</dt><dd>Stückzahl an 38 Tagen in 2 Depots bestätigt</dd></dl></details></li>
+            <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name merge-record__pair"><span class="merge-record__source">Tagesgeld alt</span><span class="merge-record__arrow">→</span><a class="merge-record__target" href="#">Tagesgeld</a></span><span class="phone-row__ids">24.09.2026 · Verrechnungskonto · Agent</span></span><details class="merge-manifest" open><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>0 Buchungen verschoben</summary><dl class="merge-manifest__counts"><dt>Buchungen</dt><dd>0 verschoben</dd><dt>Prüfung</dt><dd><span class="is-new">nichts zu prüfen</span></dd></dl></details></li>
+            <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name merge-record__pair"><span class="merge-record__source">Depot 3</span><span class="merge-record__arrow">→</span><a class="merge-record__target" href="#">Depot 1</a></span><span class="phone-row__ids">22.09.2026 · Depot · Operator</span></span><details class="merge-manifest" open><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>0 Buchungen verschoben</summary><dl class="merge-manifest__counts"><dt>Buchungen</dt><dd>0 verschoben</dd><dt>Prüfung</dt><dd>nichts zu prüfen</dd></dl></details></li>
+          </ul>
+        </details>
+      </section>
+      <p class="frame-cap" style="padding:0 14px 12px">Ergebnis direkt nach der Zusammenführung: „Zusammengeführt in Kestrel Industrial Group NV: 142 Buchungen verschoben, 2 Duplikate entfernt, <span class="is-new">1 Split zusammengelegt</span>, 30 Kurse ergänzt.“</p>
+    </div>
+  </div>
+  <div class="notes desk-only" style="margin-top:8px">
+    <p><b>Das eigene Wort der Entfernung, keine Summe:</b> „3 entfernt“, wie eine Konto-Zusammenführung liest, würfe die Wahl des Operators (Duplikate) und den automatischen Schritt (ein gleichzeitiger Split) zusammen. Der Satz übernimmt das Wort der aufgeklappten Zeile, „zusammengelegt“. <b>Die Hälfte zur Lebendigkeit ändert kein Bild:</b> Die Seite löst „jetzt in einem inzwischen gelöschten …“ schon aus ihren eigenen Zeilen auf (<code>MergeRecords.target/4</code>). Ein Merkmal in <code>GET /api/v1/merges</code> ließe die Seite es stattdessen lesen, mit denselben Worten.</p>
+  </div>
+</section>
+
+<!-- ============================ H8.8 #968 ============================ -->
+<section class="mock-board">
+  <h2>H8.8 · #968 — gespeicherte Namen in Meldungen und Überschriften isoliert (<code>&lt;bdi&gt;</code>) <small>Zeilenaktionen, Ergebnisse von Zusammenführungen, die Zusammenführen-Dialoge für Konten und Wertpapiere, der Umbenennen-Dialog · Vorher/Nachher</small></h2>
+  <p class="mock-note desk-only">Ein gespeicherter Name wird als einfacher Text in einen übersetzten Satz gesetzt. Der Name unten wurde vor der Ablehnung aus G20 gespeichert und trägt ein U+202E RIGHT-TO-LEFT OVERRIDE ohne Ende; alles danach in der Zeile wird rückwärts gezeichnet, auch die Worte der App. Steht der Name in <code>&lt;bdi&gt;</code>, wie im Regeldialog schon, endet die Umkehr mit dem Namen: Nur der Name selbst liest sich noch seltsam, und der G20-Hinweis markiert ihn, wo er umbenannt wird. Eine app.css-Regel braucht es nicht, <code>&lt;bdi&gt;</code> isoliert von sich aus.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half desk-only"><span class="mock-tag">Vorher · die Umkehr läuft bis zum Zeilenende</span>
+      <div class="stage">
+        <p class="cap">Wertpapiere · nach „Stilllegen“</p>
+        <div class="inline-result"><div role="status" class="inline-result__region"><div class="data-note data-note--note"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-ast"/></svg></span><span class="data-note__word">Hinweis</span><div class="data-note__body">Nordwind &#x202E;Industrie AG stillgelegt</div></div></div></div>
+        <p class="cap">Konten &amp; Depots · „Zusammenführen in…“</p>
+        <div class="modal"><header class="modal-head"><h2>Depot &#x202E;Nord zusammenführen <span class="modal-head__step">Schritt 1 von 2 · Ziel</span></h2><span class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></span></header><div class="modal-body"><p class="elide">… die Zielauswahl …</p></div></div>
+        <p class="cap">Ein gewöhnlicher Name</p>
+        <div class="data-note data-note--note"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-ast"/></svg></span><span class="data-note__word">Hinweis</span><div class="data-note__body">Global Aktien ETF stillgelegt</div></div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">Nachher · der Name ist isoliert, der Satz liest sich normal</span>
+      <div class="stage">
+        <p class="cap">Wertpapiere · nach „Stilllegen“</p>
+        <div class="inline-result"><div role="status" class="inline-result__region"><div class="data-note data-note--note"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-ast"/></svg></span><span class="data-note__word">Hinweis</span><div class="data-note__body"><bdi class="is-new">Nordwind &#x202E;Industrie AG</bdi> stillgelegt</div></div></div></div>
+        <p class="cap">Konten &amp; Depots · „Zusammenführen in…“</p>
+        <div class="modal"><header class="modal-head"><h2><bdi class="is-new">Depot &#x202E;Nord</bdi> zusammenführen <span class="modal-head__step">Schritt 1 von 2 · Ziel</span></h2><span class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></span></header><div class="modal-body"><p class="elide">… die Zielauswahl …</p></div></div>
+        <p class="cap">Ein gewöhnlicher Name: vorher wie nachher</p>
+        <div class="data-note data-note--note"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><use href="#i-ast"/></svg></span><span class="data-note__word">Hinweis</span><div class="data-note__body"><bdi>Global Aktien ETF</bdi> stillgelegt</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="notes desk-only" style="margin-top:8px"><p><b>Wo sich das Bild ändert:</b> nur, wo ein gespeicherter Name ein Richtungszeichen (gespeichert vor der Regel) oder Buchstaben einer Rechts-nach-links-Schrift trägt und der Satz danach weitergeht. „Umbenennen — %{name}“ endet mit dem Namen und sieht so oder so gleich aus, wird aber trotzdem isoliert, damit die Regel keine Ausnahmen kennt. Jeder gewöhnliche Name sieht genau aus wie heute; darum hielt das Issue kein Board für nötig.</p></div>
+</section>
+
+</body>
+</html>

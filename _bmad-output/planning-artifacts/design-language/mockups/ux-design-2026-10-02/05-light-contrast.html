@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Linktext im hellen Modus (Pick H5, #908)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: one token, two lines of app.css. The story changes
+       :root               { --color-accent-coral: #e11d48; }   app.css:15
+       [data-theme="light"] { --color-accent-coral: #e11d48; }   app.css:126
+     to #ce1b42. The dark blocks (prefers-color-scheme: dark, app.css:92, and
+     [data-theme="dark"], app.css:159) keep #fb7185 and are not touched.
+     On this board every frame sets its own data-theme and data-accent; the
+     rule below applies the new value to the light "Nachher" frames only, and
+     wins over [data-theme="light"] by source order, as the edited line
+     will. --brand-coral-2 (app.css:10, the logo gradient) stays #e11d48. -->
+<style id="proposal">
+@scope (.after[data-theme="light"]) {
+  :scope {
+    --color-accent-coral: #ce1b42;
+  }
+}
+</style>
+<style>
+  /* Board chrome only. */
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .argue { max-width: 96ch; font-size: 12.5px; display: grid; gap: 6px; margin-top: 12px; }
+  .argue p { margin: 0; }
+  code { font-size: 11.5px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+  .themed { background: var(--color-bg); color: var(--color-text); }
+  .themed .workspace-section { background: var(--color-bg-elevated); }
+  /* the swatch grid */
+  table.sw { width: 100%; border-collapse: separate; border-spacing: 6px; font-size: 12px; overflow: visible; }
+  table.sw th { background: none; color: var(--mock-ink); font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; text-align: left; padding: 2px 4px; border: 0; }
+  table.sw td { padding: 0; border: 0; }
+  table.sw th.sub { text-transform: none; letter-spacing: 0; font-weight: 600; color: var(--color-text); }
+  table.sw th.sub small { display: block; font-weight: 500; color: var(--mock-ink); font-family: var(--font-mono); font-size: 10.5px; }
+  .cell { display: grid; gap: 4px; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--color-border); min-height: 54px; }
+  .cell .lk { font-size: 13px; color: var(--color-accent); text-decoration: underline; text-underline-offset: 2px; }
+  .cell .lk.muted-t { color: var(--color-text-muted); text-decoration: none; }
+  .cell .lk.subtle-t { color: var(--color-text-subtle); text-decoration: none; }
+  .ratio { font: 600 11.5px/1.2 var(--font-mono); color: #0e141b; background: rgb(255 255 255 / .82); justify-self: start; padding: 1px 6px; border-radius: 4px; }
+  .ratio.fail { color: #fff; background: #b91c1c; }
+  .ratio.pass { color: #fff; background: #047857; }
+  .bg-bg { background: var(--color-bg); }
+  .bg-el { background: var(--color-bg-elevated); }
+  .bg-mu { background: var(--color-bg-muted); }
+  .bg-so { background: var(--color-accent-soft); }
+  .bg-ws { background: var(--color-warning-soft); }
+  .bg-ds { background: var(--color-danger-soft); }
+  .base-el { background: var(--color-bg-elevated); border-radius: 8px; }
+  .base-bg { background: var(--color-bg); border-radius: 8px; }
+  .colhead { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 12px; height: 12px; border-radius: 999px; background: var(--color-accent); display: inline-block; }
+  .measured { display: inline-block; margin-top: 4px; font: 600 11px/1.2 var(--font-mono); padding: 1px 6px; border-radius: 4px; color: #fff; }
+  .measured.pass { background: #047857; }
+  .measured.fail { background: #b91c1c; }
+  .tok { font-family: var(--font-mono); font-size: 12px; }
+  table.t td.n, table.t th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  table.t td.bad { color: var(--color-danger); font-weight: 700; }
+  table.t td.ok { color: var(--color-positive); font-weight: 700; }
+  .pg-mini { padding: 16px 18px; display: grid; gap: 12px; }
+  .tag-neutral { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-muted); background: var(--color-bg-muted); }
+  .pg-mini h3 { margin: 0; font-size: 15px; }
+  .acc-line { font-size: 13px; }
+</style>
+</head>
+<body data-widths="1200">
+
+<div class="pickbar"><b>Pick H5 — #908, Linktext im hellen Modus.</b> Vorher/Nachher: DESIGN.md setzt die Latte — „Normal-size text ≥ 4.5:1 on its surface in both modes“ — und ein Link ist Akzentfarbe in Fließtextgröße (<code>.link-button</code>, <code>.merge-date-link</code>, <code>.policy-rule__name</code>, <code>.kpi-summary__link</code>, <code>.alert-success</code>). Nachgerechnet aus den Tokens in app.css (WCAG 2.x, relative Leuchtdichte): <b>Violett und Petrol bestehen auf jeder hellen Fläche, nur Koralle nicht</b> — auf der Leinwand, in einer Notiz, auf ihrem eigenen Tint und in einer Problem-Notiz. Vorschlag: <b>ein Token</b>, <code>--color-accent-coral</code> hell <span class="tok">#e11d48 → #ce1b42</span>, die kleinste Verdunklung bei gleichem Farbton (HSL-Helligkeit 49,8&nbsp;% → 45,7&nbsp;%), die auf allen sechs Flächen 4,5:1 hält. Dunkel bleibt unberührt. Die Verhältnisse unten rechnet die Seite selbst aus den gerenderten Farben. Alles erfunden. <b>Gestrichelt = neu.</b></div>
+
+<!-- ===================================================== 1. swatches -->
+<section class="mock-board">
+  <h2>1 · Akzent als Linktext auf jeder hellen Fläche <small>gerechnet aus den gerenderten Farben, data-theme="light"</small></h2>
+  <p class="mock-note">Jede Zelle setzt die Fläche als Hintergrund und ein unterstrichenes „Freigeben…“ in <code>var(--color-accent)</code> darüber, 13&nbsp;px wie ein Link im Text. Die Plakette ist das gemessene Verhältnis: grün ab 4,5:1, rot darunter. „Akzent-Tint“ ist die <code>-soft</code>-Fläche des jeweiligen Akzents (aktive Navigation, <code>.alert-success</code>, ausgewählte Zeile).</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <table class="sw" id="swatches">
+      <thead><tr>
+        <th>Fläche</th>
+        <th><span class="colhead"><span class="dot" data-theme="light" data-accent="violet"></span>Violett · heute = nachher</span></th>
+        <th><span class="colhead"><span class="dot" data-theme="light" data-accent="teal"></span>Petrol · heute = nachher</span></th>
+        <th><span class="colhead"><span class="dot" data-theme="light" data-accent="coral"></span>Koralle · heute #e11d48</span></th>
+        <th class="is-new"><span class="colhead"><span class="dot after" data-theme="light" data-accent="coral"></span>Koralle · nachher #ce1b42</span></th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div></div>
+  <div class="argue">
+    <p><b>Warum nur Koralle.</b> Violett (#7c3aed) hat seine schwächste helle Fläche auf der Problem-Notiz (4,75) und auf dem eigenen Tint (4,80), Petrol (#0f766e) ebenfalls auf der Problem-Notiz (4,56). Koralle (#e11d48) besteht nur auf Weiß (4,70) und auf der Achtung-Notiz (4,53) und fällt auf der Leinwand (4,38), in der Hinweis-Notiz (4,15) und auf ihrem eigenen Tint, der zugleich der Problem-Tint ist (beide #ffe4e6: 3,91).</p>
+  </div>
+</section>
+
+<section class="mock-board">
+  <h2>1b · Gedämpfter und subtiler Text, hell und dunkel <small>vom Vorschlag nicht berührt; gerechnet wie oben</small></h2>
+  <p class="mock-note">{colors.text-muted} ist laut DESIGN.md die Untergrenze für alles Lesbare, {colors.text-subtle} nur für Deaktiviertes und Dekor. Die Tints sind die ausgewählte Zeile je Akzent (<code>--color-selected</code> ist seit #644 <code>var(--color-accent-soft)</code>); dunkel sind sie durchscheinend und hier über {colors.bg-elevated} verrechnet, wo die Listen stehen.</p>
+  <div class="mock-frame"><div class="workspace-section">
+    <table class="sw" id="textsw">
+      <thead><tr><th>Fläche</th><th>Gedämpft · hell</th><th>Subtil · hell</th><th>Gedämpft · dunkel</th><th>Subtil · dunkel</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div></div>
+  <div class="argue">
+    <p><b>Beim Nachrechnen gefunden, außerhalb von #908:</b> Gedämpfter Text auf dem Petrol-Tint im dunklen Modus misst 4,25:1 (gerendert #17383c; die Plakette rechnet den Tint unverrundet, 4,26) — der Meta-Text einer ausgewählten Zeile, wenn der Operator Petrol wählt. DESIGN.md führt dort noch „selected-dark #1f2c42“ mit 4,74; den Wert gibt es in app.css nicht mehr. Subtil fällt überall, wie DESIGN.md es sagt; es trägt keinen Inhalt.</p>
+  </div>
+</section>
+
+<!-- ===================================================== 2. real content -->
+<section class="mock-board">
+  <h2>2 · Wo Linktext wirklich steht — Akzent Koralle, heller Modus <small>Absatz mit Links, Abhilfe in einer Datennotiz, Link in einer Tabelle, Bestätigung auf dem Tint</small></h2>
+  <p class="mock-note">Echte Klassen der App. Unter jedem Link das gemessene Verhältnis gegen seine Fläche. Links Koralle wie gebaut, rechts mit dem neuen Token; sonst ist nichts verschieden.</p>
+  <div class="two">
+    <div class="mock-frame mock-before themed" data-theme="light" data-accent="coral"><span class="mock-tag">Heute — #e11d48</span>
+      <div class="pg-mini" data-content></div>
+    </div>
+    <div class="mock-frame mock-after themed after" data-theme="light" data-accent="coral"><span class="mock-tag">Nachher — #ce1b42</span>
+      <div class="pg-mini" data-content></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== 3. dark -->
+<section class="mock-board">
+  <h2>3 · Dunkler Modus: unberührt <small>dieselben Inhalte, data-theme="dark", Akzent Koralle</small></h2>
+  <p class="mock-note">Der Vorschlag ändert nur die beiden hellen Zeilen. <code>[data-theme="dark"]</code> und der <code>prefers-color-scheme: dark</code>-Block setzen <code>--color-accent-coral: #fb7185</code> selbst; beide Rahmen tragen die Klasse des Nachher, und die Messwerte sind gleich.</p>
+  <div class="two">
+    <div class="mock-frame themed" data-theme="dark" data-accent="coral"><span class="mock-tag tag-neutral">Dunkel, heute</span>
+      <div class="pg-mini" data-content></div>
+    </div>
+    <div class="mock-frame themed after" data-theme="dark" data-accent="coral"><span class="mock-tag tag-neutral">Dunkel, nachher (mit Vorschlag)</span>
+      <div class="pg-mini" data-content></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== 4. DESIGN.md table re-check -->
+<section class="mock-board">
+  <h2>4 · DESIGN.md → „Computed contrast table“ nachgerechnet <small>jede Zahl der Tabelle stimmt; ein Urteil ist verkehrt, Flächen fehlen, zwei Zeilen sind veraltet</small></h2>
+  <div class="mock-frame"><div class="workspace-section">
+    <table class="t">
+      <thead><tr><th>Paar</th><th class="n">DESIGN.md</th><th>Urteil dort</th><th class="n">nachgerechnet</th><th>richtig</th><th class="n">mit #ce1b42</th><th>Wo</th></tr></thead>
+      <tbody>
+        <tr><td>accent-coral / bg-elevated #ffffff</td><td class="n">4,70</td><td>fail normal text</td><td class="n">4,70</td><td class="ok">pass (≥ 4,5) — Urteil verkehrt</td><td class="n">5,44</td><td>Links und Tabs auf Panels</td></tr>
+        <tr><td>accent-coral / bg #f6f7fa</td><td class="n">4,38</td><td>fail normal text</td><td class="n">4,38</td><td class="bad">fail</td><td class="n">5,08</td><td>Leinwand</td></tr>
+        <tr><td>accent-coral / coral-soft #ffe4e6</td><td class="n">3,91</td><td>fail normal text</td><td class="n">3,91</td><td class="bad">fail</td><td class="n">4,53</td><td>aktive Navigation, <code>.alert-success</code></td></tr>
+        <tr><td>accent-coral / bg-muted #eef1f6</td><td class="n">—</td><td>fehlt</td><td class="n">4,15</td><td class="bad">fail</td><td class="n">4,81</td><td>Abhilfe in einer Hinweis-Notiz</td></tr>
+        <tr><td>accent-coral / danger-soft #ffe4e6</td><td class="n">—</td><td>fehlt</td><td class="n">3,91</td><td class="bad">fail</td><td class="n">4,53</td><td>Abhilfe in einer Problem-Notiz</td></tr>
+        <tr><td>accent-coral / warning-soft #fffbeb</td><td class="n">—</td><td>fehlt</td><td class="n">4,53</td><td class="ok">pass, knapp</td><td class="n">5,25</td><td>Abhilfe in einer Achtung-Notiz</td></tr>
+        <tr><td>on-accent #ffffff / accent-coral</td><td class="n">4,70</td><td>pass</td><td class="n">4,70</td><td class="ok">pass</td><td class="n">5,44</td><td><code>.button-primary</code>, aktive Segmente</td></tr>
+        <tr><td>accent-violet / bg-muted · / danger-soft</td><td class="n">—</td><td>fehlt</td><td class="n">5,03 · 4,75</td><td class="ok">pass</td><td class="n">—</td><td>Notizen</td></tr>
+        <tr><td>accent-teal / bg-muted · / danger-soft</td><td class="n">—</td><td>fehlt</td><td class="n">4,83 · 4,56</td><td class="ok">pass, knapp</td><td class="n">—</td><td>Notizen</td></tr>
+        <tr><td>text-muted / selected #ede9fe (hell)</td><td class="n">4,96</td><td>pass</td><td class="n">4,96 · 5,23 · 4,91</td><td class="ok">pass, alle drei Tints</td><td class="n">—</td><td>veraltet: selected = accent-soft (#644)</td></tr>
+        <tr><td>text-muted-dark / selected-dark #1f2c42</td><td class="n">4,74</td><td>pass</td><td class="n"><b>4,25</b> (Petrol-Tint über bg-elevated)</td><td class="bad">fail</td><td class="n">—</td><td>veraltet: #1f2c42 gibt es nicht mehr; Meta-Text einer ausgewählten Zeile, dunkel, Petrol</td></tr>
+      </tbody>
+    </table>
+  </div></div>
+  <div class="argue">
+    <p>Alle übrigen Zeilen der Tabelle (Text, Gedämpft, Subtil, Soft, Semantik, tx-Marker, on-accent dunkel, die Warn-Tints) stimmen auf zwei Stellen. Die letzte Zeile ist ein Befund außerhalb von #908 (dunkler Modus, nicht Linktext) und gehört in eine eigene Notiz; das Board ändert sie nicht.</p>
+  </div>
+</section>
+
+<template id="content">
+  <div>
+    <p class="cap">Absatz mit Links · Konten &amp; Depots, Wertpapier-Übersicht</p>
+    <div class="workspace-section" style="padding:12px 14px;border:1px solid var(--color-border);border-radius:8px">
+      <div class="acc-line"><span class="account-cash-name">Girokonto</span><span class="account-sub account-sub--merged">zusammengeführt aus Tagesgeld · <a href="#" class="merge-date-link" data-m>28.09.2026</a></span></div>
+      <p class="summary-basis" style="margin:8px 0 0;font-size:12px;color:var(--color-text-muted)">Zuletzt 61,85 EUR · Stand 30.09.2026 · zusammengeführt am <a href="#" class="merge-date-link" data-m>28.09.2026</a> aus „Nordwind Industrie AG (alt)“</p>
+    </div>
+  </div>
+  <div>
+    <p class="cap">Abhilfe in einer Datennotiz · Hinweis, Achtung</p>
+    <div class="data-note data-note--note"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></svg></span><span class="data-note__word">Hinweis</span><div class="data-note__body">7 manuelle Kurse in der gespeicherten Historie, vom 14.09.2026 bis 16.09.2026. Ein manueller Kurs hat Vorrang: Die Kursaktualisierung lässt ihn stehen, bis er freigegeben wird. <button type="button" class="link-button" data-m>Freigeben…</button></div></div>
+    <div class="data-note data-note--attention" style="margin-top:8px"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></svg></span><span class="data-note__word">Achtung</span><div class="data-note__body">Der Name enthält 1 unsichtbares Zeichen. Neu eingegeben ist er sauber. <button type="button" class="link-button" data-m>Stammdaten bearbeiten</button></div></div>
+  </div>
+  <div>
+    <p class="cap">Link in einer Tabelle · Risiko → Eigene Regeln</p>
+    <div class="data-table-wrapper">
+      <table class="data-table policy-findings-table">
+        <thead><tr><th>Regel</th><th class="num">Gemessen</th><th>Zustand</th></tr></thead>
+        <tbody>
+          <tr><td><button type="button" class="link-button policy-rule__name" data-m>Einzeltitel höchstens 10 %</button><span class="policy-rule__words">Gewicht je Wertpapier · Grenze 10,0 %</span></td><td class="num">14,6 %</td><td><span class="badge badge-warning">verletzt · 4,6 Pp</span></td></tr>
+          <tr><td><button type="button" class="link-button policy-rule__name" data-m>Cash mindestens 3 %</button><span class="policy-rule__words">Gewicht Cash · Grenze 3,0 %</span></td><td class="num">5,0 %</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <p class="cap">Akzent auf dem Tint · Bestätigung</p>
+    <p class="alert-success" role="status" style="margin:0"><span data-m>Regel gespeichert.</span></p>
+  </div>
+</template>
+
+<script>
+  // Board helper: fills the content frames from one template, and measures
+  // every contrast on the page from the RENDERED colours (WCAG 2.x relative
+  // luminance; translucent backgrounds composited over their parents in
+  // sRGB). Not part of the proposal.
+  const tpl = document.getElementById('content');
+  document.querySelectorAll('[data-content]').forEach(slot => slot.appendChild(tpl.content.cloneNode(true)));
+
+  const parse = s => { const m = s.match(/rgba?\(([^)]+)\)/); if (!m) return null; const p = m[1].split(/[\s,\/]+/).filter(Boolean).map(Number); return { r: p[0], g: p[1], b: p[2], a: p.length > 3 ? p[3] : 1 }; };
+  const over = (top, base) => ({ r: top.r * top.a + base.r * (1 - top.a), g: top.g * top.a + base.g * (1 - top.a), b: top.b * top.a + base.b * (1 - top.a), a: 1 });
+  function effBg(el) {
+    const stack = [];
+    for (let e = el; e; e = e.parentElement) {
+      const c = parse(getComputedStyle(e).backgroundColor);
+      if (c && c.a > 0) { stack.push(c); if (c.a >= 1) break; }
+    }
+    let base = { r: 255, g: 255, b: 255, a: 1 };
+    for (let i = stack.length - 1; i >= 0; i--) base = over(stack[i], base);
+    return base;
+  }
+  const lin = v => { v /= 255; return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+  const L = c => 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
+  const ratio = (a, b) => { const x = L(a), y = L(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
+  const fmt = r => r.toFixed(2).replace('.', ',') + ' : 1';
+  const hex = c => '#' + [c.r, c.g, c.b].map(v => Math.round(v).toString(16).padStart(2, '0')).join('');
+
+  // 1 · swatch grid
+  const surfaces = [
+    ['bg-bg', 'Leinwand', '--color-bg'], ['bg-el', 'Panel, Tabelle', '--color-bg-elevated'], ['bg-mu', 'Hinweis-Notiz, Tabellenkopf', '--color-bg-muted'],
+    ['bg-so', 'Akzent-Tint', '--color-accent-soft'], ['bg-ws', 'Achtung-Notiz', '--color-warning-soft'], ['bg-ds', 'Problem-Notiz', '--color-danger-soft']
+  ];
+  const cols = [['violet', false], ['teal', false], ['coral', false], ['coral', true]];
+  const tbody = document.querySelector('#swatches tbody');
+  surfaces.forEach(([cls, label, tok]) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<th class="sub">' + label + '<small>' + tok + '</small></th>';
+    cols.forEach(([acc, after]) => {
+      const td = document.createElement('td');
+      td.innerHTML = '<div class="base-el' + (after ? ' after' : '') + '" data-theme="light" data-accent="' + acc + '"><div class="cell ' + cls + '"><span class="lk">Freigeben…</span><span class="ratio"></span></div></div>';
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('.cell').forEach(cell => {
+    const fg = parse(getComputedStyle(cell.querySelector('.lk')).color);
+    const r = ratio(fg, effBg(cell));
+    const out = cell.querySelector('.ratio');
+    out.textContent = fmt(r) + '  ' + hex(fg);
+    out.classList.add(r >= 4.5 ? 'pass' : 'fail');
+  });
+
+  // 1b · muted and subtle text
+  const trows = [['bg-bg', 'Leinwand', 'violet'], ['bg-el', 'Panel, Tabelle', 'violet'], ['bg-mu', 'Tabellenkopf, Notiz', 'violet'],
+    ['bg-so', 'Tint Violett (Auswahl)', 'violet'], ['bg-so', 'Tint Petrol (Auswahl)', 'teal'], ['bg-so', 'Tint Koralle (Auswahl)', 'coral']];
+  const tcols = [['light', 'muted-t'], ['light', 'subtle-t'], ['dark', 'muted-t'], ['dark', 'subtle-t']];
+  const tb2 = document.querySelector('#textsw tbody');
+  trows.forEach(([cls, label, acc]) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = '<th class="sub">' + label + '</th>';
+    tcols.forEach(([theme, t]) => {
+      const td = document.createElement('td');
+      td.innerHTML = '<div class="base-el" data-theme="' + theme + '" data-accent="' + acc + '"><div class="cell ' + cls + '"><span class="lk ' + t + '">Stand 30.09.2026</span><span class="ratio"></span></div></div>';
+      tr.appendChild(td);
+    });
+    tb2.appendChild(tr);
+  });
+  tb2.querySelectorAll('.cell').forEach(cell => {
+    const fg = parse(getComputedStyle(cell.querySelector('.lk')).color);
+    const r = ratio(fg, effBg(cell));
+    const out = cell.querySelector('.ratio');
+    out.textContent = fmt(r) + '  ' + hex(fg);
+    out.classList.add(r >= 4.5 ? 'pass' : 'fail');
+  });
+
+  // 2 · 3 · every link in the content frames
+  document.querySelectorAll('[data-content] [data-m]').forEach(el => {
+    const fg = parse(getComputedStyle(el).color);
+    const r = ratio(fg, effBg(el));
+    const b = document.createElement('span');
+    b.className = 'measured ' + (r >= 4.5 ? 'pass' : 'fail');
+    b.textContent = fmt(r);
+    el.insertAdjacentElement('afterend', b);
+    b.insertAdjacentText('beforebegin', ' ');
+  });
+</script>
+</body>
+</html>
