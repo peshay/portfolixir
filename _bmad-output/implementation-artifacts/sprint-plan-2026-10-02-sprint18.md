@@ -279,6 +279,10 @@ This PR is written after β and γ merge, from what they shipped.
 
 ### Lane Z — registry (small)
 
+- **Right after the merge:** #1038 and #1025 are closed by hand as not
+  planned, each with D-7's reason and what reopens it. #1014, #1016, #1020
+  and #1026 lose `needs-decision` and gain `agentic`, because D-7 answered
+  them. #1002–#1004, #899 and #900 stay open with D-2's reason in a comment.
 - **At PR α's branch opening:** the operator's first-look test is filed under
   E26's tracker #991, as #998 was for the launch test. The issues α builds
   (#1023, #1031, #1015, #1016, #955, #1026 and Lane D's) move under #991 when
@@ -539,7 +543,7 @@ A closing keyword is checked against the diff before a PR body names it.
 ## Sequencing
 
 ```text
-after the merge ── Lane Z: nothing to close by hand
+after the merge ── Lane Z: #1038 and #1025 closed by hand; D-7's labels
 PR α opens ─────▶ C1 #1023 ─▶ C2 #1031 ─▶ C3 #1015/#1016 ─▶ C4 #955 ─▶ C5 #1026
                    Lane D hygiene (with #1027's enforced ceiling early)
                    Lane M: version report, sobelow, Node 26 on its date
