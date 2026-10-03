@@ -827,6 +827,8 @@ Colour is never the only channel (UX-DR7/UX-DR17). Consequence for the data-qual
 
 **Placement is testable, not aspirational:** a data note lives **inside the same `<section>` element as the data it describes**, and its remedy control is a child of the note. The failing case is Wealth data quality, where the remedy button for one bullet sits ~1100px below it; a reviewer checks the element boundary, not the pixel distance.
 
+**The remedy's touch target** *(Sprint 18 U4, issue 1013, board `ux-design-2026-10-02/06-touch-focus` H6.1, pick A)*: a `.link-button` remedy stays inside its sentence, and under `pointer: coarse` its hit area is 44 px tall — `padding-block: 13px` grows the box, `margin-block: -13px` gives the 18 px line back, so no note changes height. The box reaches into the neighbouring lines, which hold only text, and on a note's first or last line about 4 px past its border. Desktop is unchanged.
+
 ### Data quality — two surfaces, two components
 
 The phrase "data quality" names two different blocks and they are not the same component.
@@ -2952,7 +2954,8 @@ the released rows), run as the operator.
   breaks an ISO date at its hyphen.
 - **Stated, not settled here:** the remedy link-button is below the 44 px
   coarse-pointer floor, as every `.link-button` remedy in a note is (the
-  board's Part 4 finding, filed rather than fixed here). The dialog's title
+  board's Part 4 finding, filed rather than fixed here; settled by Sprint 18
+  U4, Data note → the remedy's touch target). The dialog's title
   interpolates the stored name without `<bdi>` isolation, as the merge
   dialog's does (G12.2-B's named follow-up). Dialog count: one more native
   dialog; the lifecycle's record above now reads seventeen `<dialog>`
@@ -3350,3 +3353,20 @@ search field's 36); board 06 H6.2b draws it. `.modal-head` and
 `.filter-sheet__head` carry `gap: {spacing.2}` between the title and the ×.
 The release dialog's three head rules (closing act γ D6) and the detail
 head's ID rule for its two buttons are gone: the class covers them.
+
+### The remedy inside a data note *(H6.1, pick A, rule ①; issue 1013)*
+
+Under `pointer: coarse`, `.data-note__body .link-button` takes
+`padding-block: 13px; margin-block: -13px` — (44 − 18) / 2 — so its hit
+area is 44 px tall while its line stays the note's 18 px and no note
+reflows; picture at rest identical (Components → Data note). It grows in the
+block direction only, so beside the inline result's dismiss, the other
+44 px target in the release result, the two never overlap. Eight call
+sites in five kinds of note take it: the manual-quotes note's "Release…",
+the release result's "Sync prices", the invisible-characters notes' remedies
+(the head's "Edit master data", the research log's two "Append an entry
+that supersedes #n"), and the three Tax notes. Not covered, and left as a
+follow-up: a remedy written as an `<a>` inside a note (the Overview's
+data-quality links) — issue 1013 names the button. Under a coarse pointer
+the keyboard focus ring of a remedy wraps the 44 px box; `.link-button` has
+no `:focus-visible` rule of its own (the pass's Scope Lock).
