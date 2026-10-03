@@ -117,7 +117,14 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
           },
           totals: %{result: Decimal.t(), positions: Decimal.t(), remainder: Decimal.t()},
           as_of: DateTime.t(),
-          stale: boolean()
+          stale: boolean(),
+          computation_basis: %{
+            input_series: String.t(),
+            window: %{start_date: Date.t() | nil, end_date: Date.t()},
+            reference: nil,
+            gaps: String.t(),
+            assumptions: String.t()
+          }
         }
 
   @doc """
@@ -137,7 +144,9 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
   `period`, `base_currency`, the window's `start_date` and `end_date`,
   `positions`, `remainder` and `totals`, the instant its walk was computed
   as `as_of`, and `stale: false`: a memoised table is only served while the
-  portfolio's data version is unchanged (ADR-0039 C4).
+  portfolio's data version is unchanged (ADR-0039 C4). `computation_basis`
+  states the metric's input series, window, reference (none), gap treatment
+  and assumptions in the payload (AGENTS.md metric rule, ADR-0051 §11).
 
   Each position carries `security_id`, `name`, `isin`, `start_value`,
   `end_value`, `net_flows`, `income`, `costs`, `contribution`,
@@ -303,7 +312,8 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
         positions: position_total,
         remainder: remainder_total
       },
-      as_of: summary.as_of
+      as_of: summary.as_of,
+      computation_basis: computation_basis(summary.start_date, summary.end_date)
     }
   end
 
@@ -320,7 +330,60 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
         cash_currency_effect: @zero
       },
       totals: %{result: money_result(summary), positions: @zero, remainder: @zero},
-      as_of: summary.as_of
+      as_of: summary.as_of,
+      computation_basis: computation_basis(nil, summary.end_date)
+    }
+  end
+
+  # The metric's basis IN the payload (AGENTS.md metric rule, ADR-0051 §11):
+  # input series, window, reference and the treatment of gaps, plus the
+  # assumptions (ADR-0046's key) a reader needs to check a row by hand. Two
+  # precisions ride along that the record left implicit: the identity is exact
+  # only while the conversion quotients terminate, and the currency line holds
+  # a trade's settlement difference.
+  defp computation_basis(start_date, end_date) do
+    %{
+      input_series:
+        "the daily valuation walk of ADR-0010 per position: recorded transactions, " <>
+          "stored quotes and stored EUR-hub exchange rates, each position's figures kept " <>
+          "apart inside the window (ADR-0051 §5), the walk the TTWROR and the money " <>
+          "result of this scope read",
+      window: %{start_date: start_date, end_date: end_date},
+      reference: nil,
+      gaps:
+        "a day on which a held position has no price, or no rate path to the base " <>
+          "currency, counts zero, as in the walk; the position stays in the sum, and the " <>
+          "affected positions are listed with their days (unvalued_days, and " <>
+          "unvalued_reason no_price or no_rate; ADR-0051 §10). Prices and rates carry the " <>
+          "most recent stored point on or before each day forward, and a security with no " <>
+          "quote yet is priced by its own latest trade (ADR-0010). A window holding no " <>
+          "walked day is empty: start_date null and no positions, never a table of zeros " <>
+          "(ADR-0051 §4)",
+      assumptions:
+        "per position, in the base currency, contribution = end_value − start_value − " <>
+          "net_flows + income − costs over the window (ADR-0051 §1): start_value is the " <>
+          "close of the last day the walk covers before the window (0 when not held then, " <>
+          "or when the walk starts inside it) and end_value the window's last day (0 when " <>
+          "sold out); net_flows counts a buy + price × quantity and a sell − price × " <>
+          "quantity at the booking day's rate, a delivery ± the value the walk's external " <>
+          "flow gives it, a split and a transfer inside the scope 0, and a leg crossing a " <>
+          "view's edge as its boundary flow (ADR-0019); income is the dividends as " <>
+          "credited; costs are the fees and taxes on the position's own trades (#708). " <>
+          "The positions plus the remainder lines sum to totals.result, end value − start " <>
+          "value − net external flows of the scope over the window, the money result " <>
+          "beside the TTWROR (ADR-0051 §3). Each line is summed from its own bookings and " <>
+          "is never a plug: interest is every interest booking; standalone_fees_and_taxes " <>
+          "the fee, tax and tax refund bookings no trade carries; cash_currency_effect the " <>
+          "revaluation of foreign-currency cash, plus the settlement difference of a trade " <>
+          "between its cash leg and price × quantity plus costs on the booking day, plus " <>
+          "what a cash transfer between currencies leaves. Every figure is in the base " <>
+          "currency, currency move included: a foreign-currency position's contribution " <>
+          "is its money result in the base currency, not split into price and currency " <>
+          "(ADR-0051 §7). Exact in " <>
+          "Decimal whenever every conversion quotient terminates; otherwise the walk's sums " <>
+          "round at Decimal's 34 significant digits, the identity holds to that precision, " <>
+          "and nothing balances the difference. Positions are sorted by contribution, " <>
+          "largest first; there is no share, rank or label (ADR-0051 §2)"
     }
   end
 

@@ -1726,6 +1726,38 @@ Example account payloads:
   in the window, answers `null` figures with `window.start_date: null` and
   every flow named in `excluded_flows`. Nothing is persisted: the comparison
   is derived on read and memoised like the walk it depends on.
+- `GET /api/v1/portfolios/:portfolio_id/performance/contribution` returns the
+  **contribution analysis** (FR-41, ADR-0051): which position made how much of
+  the period's money result, the "+x EUR in the period" figure beside the
+  TTWROR. `period`, `year`, `from`/`to` and `view=` behave like the
+  performance read, and so do its errors (a malformed `view` or period `422`,
+  an unknown portfolio or view `404`). Each row of `positions` carries
+  `security_id`, `name`, `isin`, `start_value`, `end_value`, `net_flows`,
+  `income`, `costs` and `contribution` — `end_value − start_value − net_flows
+  + income − costs`, in the base currency with the currency move included —
+  plus `held_at_start`, `held_at_end`, `unvalued_days` and `unvalued_reason`
+  (`no_price`, `no_rate` or `null`). A position bought and sold inside the
+  window is listed although it is held at neither end. A day on which a held
+  position has no price or no rate path counts zero, as in the walk, and the
+  position stays in the sum, named with its days. The rows are sorted by
+  contribution, largest first, with no share, rank or label. `remainder`
+  holds what no position does, each line summed from its own bookings and
+  never a plug: `interest` (every interest booking, bond coupons included),
+  `standalone_fees_and_taxes` (fee, tax and tax-refund bookings no trade
+  carries) and `cash_currency_effect` (the revaluation of foreign-currency
+  cash, a trade's settlement difference between its cash leg and price ×
+  quantity plus costs, and what a cash transfer between currencies leaves).
+  `totals` carries `result` (`end_value −
+  start_value − net_external_flows` of the performance read over the same
+  window), `positions` and `remainder`, and `positions + remainder =
+  result`, exact in Decimal while the conversion quotients terminate and to
+  34 significant digits otherwise. The response carries `portfolio_id`,
+  `view_id` (`null` unscoped; a `view` also echoes `view: {id, name}`),
+  `period`, `base_currency`, `start_date`/`end_date`, `as_of`/`stale` and
+  `computation_basis` with `assumptions`; all financial values are Decimal
+  strings. A window holding no walked day — a future year, a range before the
+  history — answers `start_date: null`, no positions and `"0"` lines and
+  totals, as the performance read answers it. Nothing is persisted.
 - `GET /api/v1/portfolios/:portfolio_id/income` returns the **retrospective
   income report**: the dividends and interest already booked in the ledger,
   aggregated three ways (no forecast — the dividend calendar is a separate
@@ -2616,6 +2648,14 @@ a view is not journaled: no rule can read it yet.
   and `series=true` behave like the portfolio benchmark read; the shape
   mirrors it with `view_id` in place of `portfolio_id`. Unknown and
   malformed view ids return `404`; a bad period or benchmark `422`.
+- `GET /api/v1/views/:view_id/performance/contribution` returns the view's
+  contribution analysis **across all portfolios** (FR-41, ADR-0051 §6): the
+  same deduplicated account scope the view performance covers, in EUR, so
+  `totals.result` is that read's money result and a position held in several
+  portfolios is one row. `period`, `year` and `from`/`to` behave like the
+  portfolio contribution read; the shape is its shape with `portfolio_id:
+  null`, `view_id` and the view echoed. Unknown and malformed view ids return
+  `404`; a bad period `422`.
 - `GET /api/v1/views/:view_id/category-results?classification_id=<id>`
   returns the per-category result (ADR-0041) of the positions matching the
   view **across all portfolios**, each account counted once (#901). The shape
@@ -2655,6 +2695,7 @@ scope the result to the holdings matching that view:
 - `GET /api/v1/portfolios/:portfolio_id/valuation?view=<id>`
 - `GET /api/v1/portfolios/:portfolio_id/allocation?classification_id=<id>&view=<id>`
 - `GET /api/v1/portfolios/:portfolio_id/performance?view=<id>`
+- `GET /api/v1/portfolios/:portfolio_id/performance/contribution?view=<id>`
 - `GET /api/v1/portfolios/:portfolio_id/risk?view=<id>`
 - `GET /api/v1/portfolios/:portfolio_id/category-results?classification_id=<id>&view=<id>`
 

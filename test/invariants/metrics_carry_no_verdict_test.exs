@@ -13,14 +13,19 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   the payload is what a reviewer and an agent both read. Since Sprint 14 it
   walks the **portfolio-scope** payload as well — the `metrics` block FR-40's
   figures added to the risk read (ADR-0047 §9) — so the boundary covers both
-  surfaces the record created.
+  surfaces the record created. Since Sprint 18 it walks the two contribution
+  reads too (ADR-0051 §11, I8): a level (b) decomposition carries no ranking
+  label either.
   """
   use PortfolixirWeb.ConnCase, async: true
 
   import Portfolixir.WorldFixtures,
     only: [base_world: 0, buy!: 3, create_security!: 1, deposit!: 3, sell!: 3]
 
+  alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog.Quotes
+  alias Portfolixir.Ledger
 
   # The five words ADR-0047 §7 names, plus the two the neighbouring gates use
   # for the same thing (B3.6 rules, B3.7 push delivery). Matched as substrings
@@ -202,6 +207,77 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
       assert offenders(data) == [],
              "the trade reads carry verdict keys #{inspect(offenders(data))}: the " <>
                "annualized return is a figure, not a rating of the trade."
+    end
+  end
+
+  # User story (FR-41, ADR-0051 §11, identity I8):
+  # As the maintainer holding the scope ladder,
+  # I want the contribution reads checked the same way,
+  # so that "which position made how much" stays a decomposition of a result
+  # that happened and never becomes a ranking of the positions.
+  #
+  # Acceptance criteria:
+  # - No key of either contribution read — the portfolio form, narrowed by a
+  #   view or not, and the view form across every portfolio — contains
+  #   signal, recommend, rating, score, action, alert, verdict or advice,
+  #   over a table with positions, remainder lines and an unvalued position
+  #   AND over an empty window.
+  test "the contribution reads carry no verdict key", %{conn: conn} do
+    world = base_world()
+    gain = create_security!(name: "Verdict Gainer", ticker: "VGN")
+    loss = create_security!(name: "Verdict Loser", ticker: "VLS")
+    unpriced = create_security!(name: "Verdict Unpriced", ticker: "VUP")
+    deposit!(world, "5000", ~D[2025-01-02])
+    buy!(world, gain, quantity: "10", price: "100", date: ~D[2025-01-02])
+    buy!(world, loss, quantity: "10", price: "100", date: ~D[2025-01-02])
+    sell!(world, loss, quantity: "10", price: "80", date: ~D[2025-06-02])
+    seed_series!(gain.id, ["100", "120"], ~D[2025-12-31])
+
+    owner = Actor.owner_ui()
+
+    {:ok, _delivery} =
+      Ledger.create_transaction(owner, %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: unpriced.id,
+        type: "inbound_delivery",
+        date: ~D[2025-03-03],
+        quantity: "2",
+        currency_code: "EUR"
+      })
+
+    {:ok, bucket} = Buckets.create_bucket(owner, %{name: "Verdict Bucket"})
+    :ok = Buckets.set_depot_default_buckets(owner, world.depot, [bucket.id])
+    :ok = Buckets.set_cash_account_buckets(owner, world.cash, [bucket.id])
+    {:ok, view} = Buckets.create_view(owner, %{name: "Verdict View", include_all: false})
+    :ok = Buckets.set_view_buckets(owner, view, [bucket.id], [])
+
+    portfolio = "/api/v1/portfolios/#{world.portfolio.id}/performance/contribution"
+    across = "/api/v1/views/#{view.id}/performance/contribution"
+
+    payloads =
+      for path <- [
+            "#{portfolio}?year=2025",
+            "#{portfolio}?year=2025&view=#{view.id}",
+            "#{across}?year=2025",
+            "#{portfolio}?from=2001-01-01&to=2001-12-31",
+            "#{across}?from=2001-01-01&to=2001-12-31"
+          ] do
+        %{"data" => data} = conn |> get(path) |> json_response(200)
+        {path, data}
+      end
+
+    # Both shapes are in the walk: a table with an unvalued row and the
+    # remainder, and the empty window.
+    {_path, rich} = hd(payloads)
+    assert length(rich["positions"]) == 3
+    assert Enum.any?(rich["positions"], &(&1["unvalued_reason"] == "no_price"))
+    assert Enum.any?(payloads, fn {_path, data} -> data["positions"] == [] end)
+
+    for {path, data} <- payloads do
+      assert offenders(data) == [],
+             "#{path} carries verdict keys #{inspect(offenders(data))}: a contribution " <>
+               "decomposes a result that happened; it ranks and recommends nothing (ADR-0051 I8)."
     end
   end
 end
