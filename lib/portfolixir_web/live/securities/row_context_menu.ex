@@ -13,6 +13,8 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
 
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.PolicyRuleReferences
+  alias PortfolixirWeb.ReferenceCounts
+  alias PortfolixirWeb.StoredText
 
   attr(:security, :map, required: true)
   attr(:has_transactions?, :boolean, default: false)
@@ -177,7 +179,11 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
         phx-click="row_action"
         phx-value-action="delete"
         phx-value-id={@security.id}
-        data-confirm={gettext("Delete this security? Its bookings block the deletion; its notes and logo do not survive it.")}
+        data-confirm={
+          gettext(
+            "Delete this security? Bookings, quotes, events, research entries and policy rules block the deletion. Removed with it: its classifications, position targets, bucket assignments and former ISINs, each journaled, and its logo."
+          )
+        }
       >
         <AppShell.icon name={:trash} />
         <span><%= gettext("Delete") %></span>
@@ -197,6 +203,10 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
   # "Retire instead"; where a rule or a research entry holds the security,
   # a merge would be refused as well, and the dialog stays as it is.
   attr(:merge?, :boolean, default: false)
+  # #918, pick H8.2 = A (board 08-dialogs-copy): what blocks the delete,
+  # counted per referencing table from the refusal ({:referenced, counts});
+  # nil when the refusal carried no count.
+  attr(:counts, :map, default: nil)
 
   def delete_blocked_dialog(assigns) do
     ~H"""
@@ -222,20 +232,27 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
         </header>
 
         <div class="modal-body">
-          <%= if @rules == [] do %>
-            <p>
-              <%= gettext(
-                "%{name} is referenced by existing transactions or quote history and cannot be deleted. Retire it instead to hide it from the active list while keeping the historical record intact.",
-                name: @security.name
-              ) %>
-            </p>
-            <p :if={@merge?} class="muted">
-              <%= gettext(
-                "If it is a duplicate, “Merge into…” moves its bookings and quotes into the other security."
-              ) %>
-            </p>
-          <% else %>
-            <p><%= gettext("%{name} is read by policy rules:", name: @security.name) %></p>
+          <%= cond do %>
+            <% @rules == [] and is_map(@counts) and map_size(@counts) > 0 -> %>
+              <p><%= blocked_by(@security, @counts) %></p>
+              <p class="muted"><%= blocked_remedy(@counts, @merge?) %></p>
+            <% @rules == [] -> %>
+              <p>
+                <%= StoredText.isolate(
+                  gettext(
+                    "“%{name}” has bookings, quotes, events or research entries and cannot be deleted. Retiring hides the security from the active list; everything is kept.",
+                    name: StoredText.slot(:name)
+                  ),
+                  name: @security.name
+                ) %>
+              </p>
+            <% true -> %>
+              <p>
+                <%= StoredText.isolate(
+                  gettext("%{name} is read by policy rules:", name: StoredText.slot(:name)),
+                  name: @security.name
+                ) %>
+              </p>
             <ul>
               <li :for={reference <- @rules}><PolicyRuleReferences.rule reference={reference} /></li>
             </ul>
@@ -274,5 +291,39 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
         </div>
     </dialog>
     """
+  end
+
+  # #918, pick H8.2 = A: "“Nordwind Industrie AG” still has 12 bookings,
+  # 840 quotes and 3 research entries." — the refusal's own counts, the
+  # accounts page's "still has" (`blocked_sentence/1`) as the precedent.
+  defp blocked_by(security, counts) do
+    StoredText.isolate(
+      gettext("“%{name}” still has %{references}.",
+        name: StoredText.slot(:name),
+        references: counts |> ReferenceCounts.parts() |> ReferenceCounts.and_list()
+      ),
+      name: security.name
+    )
+  end
+
+  # The reason for the way out (`Delete.remedy/2`): research entries never
+  # go and no merge carries them, so retire; a rule version neither; what a
+  # merge carries — bookings, quotes, events — offers the merge first.
+  defp blocked_remedy(%{"security_notes" => n}, _merge?) when n > 0 do
+    gettext(
+      "Research entries are never removed, and no merge carries them. Retiring hides the security from the active list; everything is kept."
+    )
+  end
+
+  defp blocked_remedy(_counts, true) do
+    gettext(
+      "If it is a duplicate, “Merge into…” moves its bookings, quotes and events into the other security. Retiring hides it from the active list; everything is kept."
+    )
+  end
+
+  defp blocked_remedy(_counts, false) do
+    gettext(
+      "A rule version keeps the security as part of its rule's history, and no merge carries it. Retiring hides the security from the active list; everything is kept."
+    )
   end
 end

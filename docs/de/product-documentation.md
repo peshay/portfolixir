@@ -264,8 +264,13 @@ mit einer zweiten Kopie der Historie an, oder ein von Hand angelegtes
 Wertpapier wurde vom nächsten Import noch einmal angelegt —, führt man das
 Duplikat in das Wertpapier zusammen, das bleibt: **Zusammenführen in…** im
 Zeilenmenü des Duplikats auf der Wertpapierseite, oder derselbe Knopf im
-Dialog *Kann nicht gelöscht werden*, wenn Buchungen oder Kurse das Löschen
-verhindern. Ihr Agent hat dieselbe Zusammenführung
+Dialog *Kann nicht gelöscht werden*, wenn Buchungen, Kurse oder Termine das
+Löschen verhindern. Dieser Dialog zählt, was noch auf das Wertpapier verweist
+(„„…“ hat noch 12 Buchungen, 840 Kurse und 3 Research-Einträge.“), und sagt,
+warum der Ausweg der ist, der er ist: Research-Einträge werden nie entfernt
+und ziehen bei keiner Zusammenführung mit, ein Wertpapier mit
+Research-Einträgen wird darum stattdessen stillgelegt. Ihr Agent hat dieselbe
+Zusammenführung
 (`GET /api/v1/securities/:id/merge_preview` und
 `POST /api/v1/securities/:id/merge` oder die MCP-Tools
 `portfolixir.securities.merge_preview` und `portfolixir.securities.merge`),

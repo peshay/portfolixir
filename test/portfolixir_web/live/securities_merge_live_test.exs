@@ -686,8 +686,10 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
 
     assert has_element?(view, "#delete-blocked-dialog [data-role='delete-blocked-merge']")
 
+    # Since #918 (pick H8.2 = A) the sentence names the events a merge
+    # carries too, and what retiring keeps.
     assert view |> element("#delete-blocked-dialog") |> render() =~
-             "If it is a duplicate, “Merge into…” moves its bookings and quotes into the other security."
+             "If it is a duplicate, “Merge into…” moves its bookings, quotes and events into the other security."
 
     view |> element("#delete-blocked-dialog [data-role='delete-blocked-merge']") |> render_click()
     refute has_element?(view, "#delete-blocked-dialog")
