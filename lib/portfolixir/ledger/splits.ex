@@ -39,6 +39,14 @@ defmodule Portfolixir.Ledger.Splits do
   and with `:no_position_at_effective_date` when no row is bookable (the
   preview would otherwise diverge silently from a `:no_position` booking).
 
+  **A split is deleted the way it was booked, as one fact** (Sprint 18 U1,
+  #912): `delete_split/2` removes every row of the event a given row belongs
+  to, in every portfolio, in one transaction, each row journaled. Deleting a
+  single row (`Ledger.delete_transaction/2`) leaves the others and with them
+  the event — the chart keeps adjusting and a corrected ratio on that day is
+  refused as conflicting. `event_rows/1` names the rows before anything is
+  written, and `booked_on/2` the split rows a security carries on a day.
+
   The PP round-trip marker mapping of ADR-0028 §1 is dropped (FR-29 rescope,
   see the ADR's dated 2026-07-22 note): no marker or export code exists here.
   """
@@ -117,6 +125,127 @@ defmodule Portfolixir.Ledger.Splits do
         missing -> insert_rows(actor, params, missing)
       end
     end
+  end
+
+  @doc """
+  Deletes the split event `row` belongs to on behalf of `actor`: every
+  `split` row sharing its group identity `(security_id, date, normalized
+  ratio)`, in every portfolio, in one transaction, one journal entry per row
+  with the row as its before-image (ADR-0017, ADR-0028 §1).
+
+  The rows are locked in id order before any is deleted, so two deletes of
+  one event cannot each hold half of it; `row` itself must still be stored
+  then. A failure on any row rolls every row back — nothing is deleted and
+  nothing journaled.
+
+  Returns `{:ok, deleted_rows}` ordered by portfolio, each with its
+  `:portfolio` preloaded, `{:error, :not_found}` when `row` is gone, and
+  `{:error, :not_a_split}` when it is a booking of another kind. What the
+  rows did follows at read time: holdings, the quote adjustment and every
+  other fold read the ledger without them.
+  """
+  def delete_split(%Actor{} = actor, %Transaction{id: id}) when is_integer(id) do
+    Multi.new()
+    |> Multi.run(:rows, fn repo, _changes -> lock_event_rows(repo, id) end)
+    |> Multi.run(:deleted, fn _repo, %{rows: rows} -> delete_rows(actor, rows) end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{deleted: deleted}} -> {:ok, deleted}
+      {:error, _step, reason, _changes} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  The rows of the split event `row` belongs to — the split rows sharing its
+  `(security_id, date, normalized ratio)` — ordered by portfolio, each with
+  its `:portfolio` preloaded. Reads only; `[]` when none is stored any more.
+  """
+  def event_rows(%Transaction{type: "split"} = row) do
+    Repo.all(
+      from(t in Transaction,
+        where: t.type == "split" and t.security_id == ^row.security_id and t.date == ^row.date,
+        order_by: [t.portfolio_id, t.id],
+        preload: [:portfolio]
+      )
+    )
+    |> same_event(row)
+  end
+
+  @doc """
+  The split rows `security_id` carries on `date`, ordered by portfolio, each
+  with its `:portfolio` preloaded — the rows a new split on that day is
+  checked against.
+  """
+  def booked_on(security_id, %Date{} = date) when is_integer(security_id) do
+    Repo.all(
+      from(t in Transaction,
+        where: t.type == "split" and t.security_id == ^security_id and t.date == ^date,
+        order_by: [t.portfolio_id, t.id],
+        preload: [:portfolio]
+      )
+    )
+  end
+
+  # The anchor is read without a lock and the whole day's split rows of its
+  # security are then locked in id order: every delete of the event locks in
+  # the same order, so two cannot deadlock on each other's halves. The anchor
+  # must be among the locked rows — gone by then is gone.
+  defp lock_event_rows(repo, id) do
+    case repo.get(Transaction, id) do
+      nil ->
+        {:error, :not_found}
+
+      %Transaction{type: "split"} = anchor ->
+        locked =
+          repo.all(
+            from(t in Transaction,
+              where:
+                t.type == "split" and t.security_id == ^anchor.security_id and
+                  t.date == ^anchor.date,
+              order_by: t.id,
+              lock: "FOR UPDATE"
+            )
+          )
+
+        case Enum.find(locked, &(&1.id == id)) do
+          nil ->
+            {:error, :not_found}
+
+          locked_anchor ->
+            rows =
+              locked
+              |> same_event(locked_anchor)
+              |> repo.preload(:portfolio)
+              |> Enum.sort_by(&{&1.portfolio_id, &1.id})
+
+            {:ok, rows}
+        end
+
+      %Transaction{} ->
+        {:error, :not_a_split}
+    end
+  end
+
+  # Each row through the one journaled delete every other path uses; it runs
+  # inside this transaction, so the first refusal rolls back the rows before
+  # it as well.
+  defp delete_rows(actor, rows) do
+    rows
+    |> Enum.reduce_while({:ok, []}, fn row, {:ok, deleted} ->
+      case Ledger.delete_transaction(actor, row) do
+        {:ok, gone} -> {:cont, {:ok, [gone | deleted]}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+    |> case do
+      {:ok, deleted} -> {:ok, Enum.reverse(deleted)}
+      error -> error
+    end
+  end
+
+  defp same_event(rows, %Transaction{} = anchor) do
+    ratio = normalized_row_ratio(anchor)
+    Enum.filter(rows, &(normalized_row_ratio(&1) == ratio))
   end
 
   ## Validation
