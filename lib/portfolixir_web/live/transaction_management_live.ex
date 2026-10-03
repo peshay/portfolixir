@@ -2007,7 +2007,19 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     do: %{label: label, field: field, control: control, value: value, num?: false}
 
   defp amount_fact(label, value, field \\ "gross_amount"),
-    do: %{fact(label, field, :input, PortfolixirWeb.Format.decimal(value, 2)) | num?: true}
+    do: %{fact(label, field, :input, stored_figure(value)) | num?: true}
+
+  # A stored figure with the digits it was stored with — trailing zeros
+  # trimmed, at least two places — never rounded to two (the closing act,
+  # R10c): a price of 41.1234 reads 41.1234, an amount of 1500 1,500.00.
+  defp stored_figure(value) do
+    places =
+      if is_struct(value, Decimal),
+        do: value |> Decimal.normalize() |> Map.fetch!(:exp) |> Kernel.-() |> max(2),
+        else: 2
+
+    PortfolixirWeb.Format.decimal(value, places)
+  end
 
   defp quantity_fact(quantity),
     do: %{fact(gettext("Quantity"), "quantity", :input, format_quantity(quantity)) | num?: true}
