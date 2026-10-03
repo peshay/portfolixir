@@ -7526,9 +7526,14 @@ select:disabled {
    the button's box to 44 px; the equal negative margin gives the line its
    18 px back (the note's 12 px x 1.5), so no note reflows — the technique
    .positions-toggle uses. 13 px = (44 - 18) / 2. It grows in the block
-   direction only, so it never overlaps the dismiss beside it. */
+   direction only, so it never overlaps the dismiss beside it. The bond
+   block's empty-state remedy stands in its sentence the same way, on a
+   13 px .detail-tab-empty line of the same 18 px, and takes the same rule,
+   scoped to that remedy (issue 330, closing act on U7, finding 5; board
+   ux-review-2026-10-03/04-bond-repairs B4). */
 @media (pointer: coarse) {
-  .data-note__body .link-button {
+  .data-note__body .link-button,
+  .bond-strip .detail-tab-empty .link-button {
     padding-block: 13px;
     margin-block: -13px;
   }
