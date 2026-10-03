@@ -218,4 +218,101 @@ defmodule Portfolixir.Portfolios.Performance.IRRTest do
     assert IRR.solve([cf(~D[2024-01-01], "-1000"), cf(~D[2025-01-01], "-1")]) ==
              {:error, :no_sign_change}
   end
+
+  # User story:
+  # As an operator whose book is large in a high-nominal currency,
+  # I want the money-weighted return to read the rate its flows have,
+  # so that a large portfolio never shows "n/a" where a smaller one with the
+  # same flows shows a rate.
+  #
+  # Acceptance criteria (ADR-0034 amendment of 2026-10-02, #1031; risk-tier):
+  # - Identity 2: flows whose largest amount runs to about 1e8 or 1e9 return
+  #   the rate the same flows return at one millionth of the amounts, within
+  #   the six-decimal rounding. Unscaled, the solver answers no_root for most
+  #   of them, so removing the scaling turns this red (the mutation check).
+  # - The portfolio and view read (`for_summary/2`) carries the same property.
+  # - Identity 1: under a largest flow of one million nothing is scaled, so
+  #   every fixture of this file, the walk's, the benchmark's and the trade
+  #   return's keeps its rate byte for byte.
+  # - Identity 3: no rate is ever at or below -1.
+  describe "large flows (ADR-0034 amendment 2026-10-02)" do
+    defp synthetic_flows(i, base) do
+      d0 = ~D[2020-01-01]
+      b = Decimal.add(dec(base), Decimal.mult(dec("3.7"), i))
+
+      [
+        {d0, Decimal.negate(b)},
+        {Date.add(d0, 90 + i), Decimal.negate(Decimal.add(Decimal.mult(b, dec("0.3")), i))},
+        {Date.add(d0, 400 + 3 * i), Decimal.add(Decimal.mult(b, dec("0.2")), 7 * i)},
+        {Date.add(d0, 700 + 5 * i), Decimal.negate(Decimal.mult(b, dec("0.1")))},
+        {Date.add(d0, 1100 + 11 * i),
+         Decimal.mult(b, Decimal.add(dec("1.4"), Decimal.div(i, 100)))}
+      ]
+    end
+
+    defp times(flows, factor),
+      do: Enum.map(flows, fn {date, amount} -> {date, Decimal.mult(amount, dec(factor))} end)
+
+    defp within_rounding?(a, b),
+      do: Decimal.compare(Decimal.abs(Decimal.sub(a, b)), dec("0.000001")) != :gt
+
+    test "flows at about 1e8 and 1e9 solve to their millionth's rate" do
+      for base <- ["100", "1000"], i <- 1..40 do
+        small = synthetic_flows(i, base)
+        assert {:ok, small_rate} = IRR.solve(small)
+        assert {:ok, large_rate} = IRR.solve(times(small, "1000000")), "case #{base}/#{i}"
+        assert within_rounding?(large_rate, small_rate), "case #{base}/#{i}"
+      end
+    end
+
+    test "a large portfolio's money-weighted return reads the same rate" do
+      summary = fn factor ->
+        %{
+          start_date: ~D[2021-01-01],
+          end_date: ~D[2024-06-30],
+          start_value: Decimal.mult(dec("4000"), dec(factor)),
+          end_value: Decimal.mult(dec("6100"), dec(factor)),
+          series: [
+            %{date: ~D[2022-03-01], flow: Decimal.mult(dec("1200"), dec(factor))},
+            %{date: ~D[2023-05-15], flow: Decimal.mult(dec("-300"), dec(factor))}
+          ]
+        }
+      end
+
+      small = IRR.for_summary(summary.("1"))
+      assert %Decimal{} = small
+
+      for factor <- ["100000", "1000000"] do
+        assert %Decimal{} = large = IRR.for_summary(summary.(factor)), "factor #{factor}"
+        assert within_rounding?(large, small), "factor #{factor}"
+      end
+    end
+
+    test "flows up to a largest amount of one million are not scaled" do
+      # At a largest flow of exactly one million the flows go in as they are.
+      flows = [cf(~D[2025-01-01], "-1000000"), cf(~D[2026-01-01], "1000000")]
+      assert IRR.solve(flows) == {:ok, Decimal.round(dec("0"), 6)}
+
+      flows = [cf(~D[2025-01-01], "-500000"), cf(~D[2026-01-01], "550000")]
+      assert IRR.solve(flows) == {:ok, dec("0.100000")}
+    end
+
+    test "a large flow next to a vanishing one never raises" do
+      # Scaled to a largest flow of one million, the 1e-290 cashflow falls
+      # far below the float range; it is negligible, never a raise.
+      flows = [
+        cf(~D[2025-01-01], "-1e290"),
+        cf(~D[2025-06-01], "1e-290"),
+        cf(~D[2026-01-01], "1.1e290")
+      ]
+
+      assert IRR.solve(flows) == {:ok, dec("0.100000")}
+    end
+
+    test "no rate is ever at or below -1" do
+      # A ten-year window at the bracket's floor compounds to a period rate a
+      # hair above -1, which six decimals round to -1.000000.
+      assert IRR.period_rate(dec("-0.999999"), 3650) == dec("-0.999999")
+    end
+  end
 end
