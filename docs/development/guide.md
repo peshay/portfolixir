@@ -103,13 +103,17 @@ to be compared against.
 ## Upgrade migrations over legacy rows
 
 Tests and CI migrate an empty database; a release migrates the database an
-instance already holds, at boot. A migration that adds a CHECK, a NOT NULL or
-a backfill can therefore pass every test and still stop an upgrade on a row
-only an older instance has. So every new migration that adds one of the three
-needs a **seeded case**: a test that inserts, with plain SQL, the rows an
-instance on an earlier release can hold, migrates to head and asserts the
-migrated shape. `test/portfolixir/seeded_upgrade/rule_test.exs` fails, naming
-the migration, until the case exists.
+instance already holds, at boot. A migration that adds a CHECK, a NOT NULL, a
+backfill, a UNIQUE index, a foreign key or an exclusion constraint to a table
+that already exists can therefore pass every test and still stop an upgrade
+on a row only an older instance has: a value the check refuses, a duplicate
+the index refuses, an orphan the foreign key refuses. So every new migration
+that adds one of the six needs a **seeded case**: a test that inserts, with
+plain SQL, the rows an instance on an earlier release can hold, migrates to
+head and asserts the migrated shape. An index built `CONCURRENTLY` or behind a
+cleanup step is no exception, because the cleanup is what the case proves.
+`test/portfolixir/seeded_upgrade/rule_test.exs` fails, naming the migration,
+until the case exists.
 
 A case uses `Portfolixir.SeededUpgrade`. `from:` is the version the scratch
 database is migrated to before the seed (the last migration of the release
@@ -140,6 +144,7 @@ so the cases run in the default `mix test` and, on their own, in CI's
 `migration-roundtrip` job (`mix test --only seeded_upgrade`). Prove a new
 case once by putting the defect back locally and watching it fail;
 `test/portfolixir/seeded_upgrade/sprint16_test.exs` holds the first two.
+
 
 ## Scope guardrails
 
