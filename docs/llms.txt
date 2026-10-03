@@ -120,9 +120,9 @@ into context; one that defers schemas pays only for the names. Measured per
 profile as the serialized `tools/list` answer, with tokens approximated as bytes
 / 4 to bytes / 3.5:
 
-- `read`: 67 tools, at most 105,807 bytes, about 26,000 to 31,000 tokens
-- `book`: 114 tools, at most 178,920 bytes, about 44,000 to 52,000 tokens
-- `full`: 142 tools, at most 208,789 bytes, about 52,000 to 60,000 tokens
+- `read`: 67 tools, at most 105,308 bytes, about 26,000 to 31,000 tokens
+- `book`: 114 tools, at most 178,155 bytes, about 44,000 to 52,000 tokens
+- `full`: 143 tools, at most 208,768 bytes, about 52,000 to 60,000 tokens
 
 A test holds the companion under these byte figures, and they only ever move
 down. They count the tool list only: the server instructions a client also
