@@ -2365,9 +2365,18 @@ security:
   again.
 
 After the release the tab says how many quotes were released from when to
-when, with **Sync prices** as the next step where a sync can help, until you
-dismiss it or move on. Nothing on the page restores a released quote; the
-journal keeps it. On a phone the dialog opens as a sheet from the bottom.
+when, with **Sync prices** as the next step where a sync can help — it syncs
+this security only — until you dismiss it or move on. Nothing on the page
+restores a released quote; the journal keeps it. On a phone the dialog opens
+as a sheet from the bottom.
+
+A sync's result says how many manual quotes it left standing where the
+provider returned a close for the same day (*2 manual quotes were left
+standing where the provider returned a close.*); a sync that skipped a
+security says why in words. On a phone the Quotes tab shows each quote as a
+two-line row — the date over its source, the close on the right, and the
+stored value under it where a split adjusted the close — so the source of
+every quote is readable without swiping the table.
 Your agent reads the same summary with
 `GET /api/v1/securities/:security_id/quotes/manual` (MCP
 `portfolixir.quotes.manual`) and releases with
@@ -2384,11 +2393,14 @@ desktop; mobile uses a stacked layout.
 The detail pane's tab row is a single keyboard stop: **Tab** lands on the
 selected tab, **Arrow Left/Right** move to the previous or next tab (wrapping
 at the ends), **Home** and **End** jump to the first and last, and the tab
-that receives focus opens its panel.
+that receives focus opens its panel. When the page opens on a tab — from a link, a
+reload, back or forward, or a shared URL — the row scrolls that tab into
+view, which matters on a phone, where the nine tabs do not fit.
 
 The detail pane shows a server-rendered SVG price chart with:
 
-- Time-range buttons (1M / 3M / 6M / YTD / 1Y / 3Y / 5Y / MAX).
+- Time-range buttons (1M / 3M / 6M / YTD / 1Y / 3Y / 5Y / Max; in German
+  1J / 3J / 5J). The Quotes tab names the same range.
 - A *Log scale* toggle (logarithmic Y-axis).
 - A *Show transactions* toggle that overlays buy/sell markers from the
   ledger — shape-coded triangles (▲ buy, ▼ sell), so the direction is
