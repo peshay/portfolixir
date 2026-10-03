@@ -2648,6 +2648,14 @@ The open-lots table above is unchanged.
   directly left of the result, with "Tage", the threshold it is judged by,
   directly left of it — the facet's placement. No ⓘ in the header: the
   wrapper is its own scroller.
+- **"p. a." is one word:** on this tab the header, the phone row's
+  "· +10,7% p. a." and the basis line set the abbreviation with a no-break
+  space (U+00A0, in the gettext msgids and the German msgstrs), so it never
+  breaks between "p." and "a." — the basis line did at 1280 px on the German
+  page (repair R6, board
+  `mockups/ux-review-2026-10-03/01-contribution-repairs`). The facet and
+  the Overview card share the plain "p. a." message and are outside that
+  repair.
 - **The figure:** `annualized_return`, in the trade's currency like the "%"
   beside it, **signed** with one decimal and the percent sign glued on
   ("+10,7%", "-3,6%"), in its sign colour (`td.trade-pa.is-positive` /
