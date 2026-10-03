@@ -721,6 +721,10 @@ newest first. The list starts collapsed under a line that counts it
 - **by**: *Operator* for a merge made on these pages, *Agent* for one an API
   or MCP token made.
 
+[![The Merges list opened: six merges of depots, cash accounts and a security, a target deleted since and a target now in a later merge's survivor, and a security merge's result opened into its bookings, ISIN, choice and check](screenshots/merges.png)](screenshots/merges.png)
+
+*Merges on the synthetic demo dataset, in the German interface.*
+
 The date in a survivor's *merged from … · date* line, and in a security's
 *merged on … from …* basis line, opens the list at that merge's result; a
 merge older than the newest 100 is said to be past the list. The
@@ -837,6 +841,10 @@ another tab) reads "That transaction no longer exists." — the one refusal
 the API knows. Nothing is checked beyond that, as over the API: deleting a
 buy whose shares a later sale consumed leaves that sale without its
 purchase.
+
+[![The delete confirmation for a buy over the transaction history: the booking's date, kind, security, depot and signed amount, the sentence saying the depot holds 10 fewer units and the cash account has 240.00 EUR more, the journal sentence, Cancel and Delete transaction](screenshots/booking-delete.png)](screenshots/booking-delete.png)
+
+*Deleting a booking on the synthetic demo dataset, in the German interface.*
 
 - **An imported booking** says so: once deleted, the import no longer knows
   it, so importing the same file again books it again. Only merging an
@@ -1373,6 +1381,12 @@ badge). There is deliberately no activity feed: the audit journal owns the
 forensic detail, and the Closed trades card shows what a sale realised, never
 the booking itself.
 
+[![The Overview: the total value card, the key-figure strip, the Closed trades card with four round-trips, the Off target list, the due dates and the data-quality line](screenshots/dashboard.png)](screenshots/dashboard.png)
+
+*The Overview on the synthetic demo dataset, in the German interface. Every
+screenshot in this handbook comes from that dataset (`priv/demo`), never from
+a real instance.*
+
 ## Wealth Page
 
 The **Wealth** entry in the navigation opens the wealth overview, organised
@@ -1763,6 +1777,11 @@ the sum, carries the number of those days on its row, and is named in a note
 under the table. A period with nothing in it shows a sentence instead of a
 table of zeros, and on a phone the table becomes two-line rows.
 
+[![Contribution by position over one year: start value, flows, income, costs, end value and contribution for the ten largest positions with their bars, Show all 30, the three lines not attributed to a position, the sum row, and a note naming the positions that counted zero on some days](screenshots/contribution.png)](screenshots/contribution.png)
+
+*Contribution by position on the synthetic demo dataset, in the German
+interface.*
+
 ## Cash flow
 
 The **Cash flow** area (`/cashflow`) is where money movements are read
@@ -1840,6 +1859,10 @@ note says how many sells have such a quantity, and its disclosure lists each
 as security · date · unmatched quantity. It carries no control, because nothing on the page can supply the
 missing buy.
 
+[![The Trades facet of Cash flow: the note on a sale with no rate on its close date and its backfill control, the note on sells with no matched buy, the realised total, hit rate and average holding period, and four closed round-trips with their p. a. column](screenshots/income.png)](screenshots/income.png)
+
+*Cash flow → Trades on the synthetic demo dataset, in the German interface.*
+
 **The security's own Trades tab** (issue #1029) is where every row of the
 facet and of the Overview card leads, and since Sprint 18 it shows the same
 figure: its **Closed trades (FIFO)** table carries the **p. a.** column
@@ -1857,6 +1880,11 @@ prices, income received while a trade was open is not included, and p. a.
 only from 365 days of holding. On a phone the table gives way to two-line
 rows: opened → closed over the quantity and the days, the result over its
 percent and, from a year of holding, the p. a. figure.
+
+[![A security's Trades tab under the securities list: one closed trade held 780 days, with its average buy and sell prices, its p. a. return and its realised P&L, and the rules line under it](screenshots/trades-tab.png)](screenshots/trades-tab.png)
+
+*A security's Trades tab on the synthetic demo dataset, in the German
+interface.*
 
 **Deposits & withdrawals** (`/cashflow?tab=flows`, issue #725) is the
 owner's "Ersparnis": what was put in and taken out, per period, as two
@@ -2521,6 +2549,11 @@ security:
   you confirm (your agent wrote or released one meanwhile), nothing is
   written either: the dialog says the new count and asks you to confirm
   again.
+
+[![The Release manual quotes dialog over a security's Quotes tab: From and To, the All chip and the five newest stretches with their counts, the line saying there are seven stretches, the sentence on what happens, and the confirm naming 13 manual quotes](screenshots/quote-release.png)](screenshots/quote-release.png)
+
+*Releasing manual quotes on the synthetic demo dataset, in the German
+interface.*
 
 After the release the tab says how many quotes were released from when to
 when, with **Sync prices** as the next step where a sync can help — it syncs

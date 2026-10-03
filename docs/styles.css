@@ -315,6 +315,16 @@ pre code {
   color: var(--color-muted);
 }
 
+/* Screenshots (docs/screenshots/, 1220-1440 px wide) fit the text column and
+   link to the full-size image. */
+.docs-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
 .docs-footer {
   width: min(100% - 40px, var(--content-width));
   margin: 0 auto;

@@ -150,18 +150,28 @@ for what that means in practice.
 
 ## See it in action
 
+The Overview, the start page: the total value, the key figures, the most
+recently closed trades with their result and return, the categories off
+target, what falls due, and what needs attention in the data:
+
+![The Overview: total value, key-figure strip, closed trades card, off-target list, due dates and data-quality line](docs/screenshots/dashboard.png)
+
 A quick tour of the portfolio view — switching the accent colour (violet, teal,
 coral), flipping to dark mode, and a custom strategy classification showing the
 target-vs-actual allocation with per-category drift for rebalancing:
 
 ![Portfolixir tour: accent colours, dark mode, and target-vs-actual rebalancing](docs/screenshots/tour.gif)
 
-| Portfolio & allocation | Securities |
+| Wealth: valuation and performance | Contribution by position |
 | --- | --- |
-| ![Portfolio valuation and allocation](docs/screenshots/portfolio.png) | ![Securities list](docs/screenshots/securities.png) |
+| ![Wealth holdings: valuation cards, data-quality notes and the performance chart](docs/screenshots/portfolio.png) | ![Contribution by position: what each position added to the period's result, with the lines no position owns](docs/screenshots/contribution.png) |
+| **Closed trades** | **Securities** |
+| ![Cash flow, Trades: realised total, hit rate, average holding period and the closed round-trips](docs/screenshots/income.png) | ![Securities list with its filter chips](docs/screenshots/securities.png) |
 
 _All screenshots use the synthetic demo dataset in
-[`priv/demo/`](priv/demo/) — no real financial data._
+[`priv/demo/`](priv/demo/) — no real financial data — and show the German
+interface; [`priv/demo/screenshots.mjs`](priv/demo/screenshots.mjs)
+regenerates them._
 
 ## Quick start
 

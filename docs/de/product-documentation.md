@@ -786,6 +786,10 @@ heißt es *die neuesten 100*. Jede Zeile nennt:
 - **Von**: *Operator* für eine Zusammenführung auf diesen Seiten, *Agent* für
   eine, die ein API- oder MCP-Token ausgeführt hat.
 
+[![Die aufgeklappte Liste der Zusammenführungen: sechs Zusammenführungen von Depots, Verrechnungskonten und einem Wertpapier, ein inzwischen gelöschtes Ziel und ein Ziel, das jetzt in einem späteren Überlebenden steht, und das aufgeklappte Ergebnis einer Wertpapier-Zusammenführung mit Buchungen, ISIN, Wahl und Prüfung](../screenshots/merges.png)](../screenshots/merges.png)
+
+*Zusammenführungen auf dem synthetischen Demo-Datensatz.*
+
 Das Datum in der Zeile *zusammengeführt aus … · Datum* eines Überlebenden und
 in der Grundlagenzeile *zusammengeführt am … aus …* eines Wertpapiers öffnet
 die Liste beim Ergebnis dieser Zusammenführung; eine, die älter ist als die
@@ -912,6 +916,10 @@ existiert nicht mehr.“ — die eine Ablehnung, die die API kennt. Darüber
 hinaus wird nichts geprüft, wie über die API: Wird ein Kauf gelöscht, dessen
 Stücke ein späterer Verkauf verbraucht hat, fehlt diesem Verkauf danach sein
 Kauf.
+
+[![Die Rückfrage zum Löschen eines Kaufs über der Transaktionshistorie: Datum, Art, Wertpapier, Depot und Betrag der Buchung, der Satz, dass das Depot 10 Stück weniger hält und das Verrechnungskonto 240,00 EUR mehr hat, der Satz zum Journal, Abbrechen und Transaktion löschen](../screenshots/booking-delete.png)](../screenshots/booking-delete.png)
+
+*Eine Buchung löschen, auf dem synthetischen Demo-Datensatz.*
 
 - **Eine importierte Buchung** sagt es: Gelöscht, kennt der Import sie nicht
   mehr, ein erneuter Import derselben Datei bucht sie also wieder. Diesen
@@ -1497,6 +1505,12 @@ gibt bewusst keinen Aktivitäts-Feed: die forensischen Details gehören dem
 Audit-Journal, und die Karte Abgeschlossene Trades zeigt, was ein Verkauf
 realisiert hat, nie die Buchung selbst.
 
+[![Die Übersicht: die Wert-Karte, die Kennzahlenleiste, die Karte Abgeschlossene Trades mit vier Rundläufen, die Ziel-Abweichungen, die fälligen Termine und die Datenqualitätszeile](../screenshots/dashboard.png)](../screenshots/dashboard.png)
+
+*Die Übersicht auf dem synthetischen Demo-Datensatz. Jeder Screenshot in
+diesem Handbuch stammt aus diesem Datensatz (`priv/demo`), nie von einer
+echten Instanz.*
+
 ## Vermögens-Seite
 
 Der Eintrag **Vermögen** in der Navigation öffnet die Vermögensübersicht,
@@ -1920,6 +1934,10 @@ wird in einem Hinweis unter der Tabelle genannt. Ein Zeitraum ohne Inhalt zeigt
 einen Satz statt einer Tabelle voller Nullen, und auf dem Telefon wird die
 Tabelle zu zweizeiligen Einträgen.
 
+[![Beitrag je Position über ein Jahr: Anfangswert, Zu-/Abflüsse, Erträge, Kosten, Endwert und Beitrag der zehn größten Positionen mit ihren Balken, Alle 30 anzeigen, die drei Posten ohne Position, die Summenzeile und ein Hinweis auf die Positionen, die an einigen Tagen null zählten](../screenshots/contribution.png)](../screenshots/contribution.png)
+
+*Beitrag je Position auf dem synthetischen Demo-Datensatz.*
+
 ## Cashflow
 
 Der Bereich **Cashflow** (`/cashflow`) ist der Ort, an dem Geldbewegungen
@@ -2005,6 +2023,10 @@ Wertpapier · Datum · Stückzahl ohne Gegenstück. Sie trägt
 keine Schaltfläche, denn nichts auf der Seite kann den fehlenden Kauf
 liefern.
 
+[![Die Facette Trades im Cashflow: der Hinweis auf einen Verkauf ohne Kurs an seinem Schlussdatum mit der Nachlade-Schaltfläche, der Hinweis auf Verkäufe ohne zugeordneten Kauf, realisierte Summe, Trefferquote und durchschnittliche Haltedauer und vier abgeschlossene Rundläufe mit ihrer Spalte p. a.](../screenshots/income.png)](../screenshots/income.png)
+
+*Cashflow → Trades auf dem synthetischen Demo-Datensatz.*
+
 **Der Trades-Tab des Wertpapiers** (Issue #1029) ist das Ziel jeder Zeile
 der Facette und der Übersichtskarte, und seit Sprint 18 zeigt er dieselbe
 Zahl: Seine Tabelle **Abgeschlossene Trades (FIFO)** trägt die Spalte
@@ -2024,6 +2046,10 @@ erst ab 365 Tagen Haltedauer. Auf dem Telefon wird die Tabelle zu
 zweizeiligen Zeilen: Eröffnet → Geschlossen über der Stückzahl und den
 Tagen, das Ergebnis über seiner Rendite und, ab einem Jahr Haltedauer, der
 p.-a.-Zahl.
+
+[![Der Trades-Tab eines Wertpapiers unter der Wertpapierliste: ein abgeschlossener Trade über 780 Tage mit Ø Kauf und Ø Verkauf, seiner Rendite p. a. und seinem realisierten G/V, darunter die Regelzeile](../screenshots/trades-tab.png)](../screenshots/trades-tab.png)
+
+*Der Trades-Tab eines Wertpapiers auf dem synthetischen Demo-Datensatz.*
 
 **Ein- & Auszahlungen** (`/cashflow?tab=flows`, Issue #725) ist die
 „Ersparnis": was eingezahlt und entnommen wurde, je Periode, als zwei Serien
@@ -2745,6 +2771,10 @@ mit dem Wertpapier im Titel:
   inzwischen eine andere Zahl manueller Kurse (Ihr Agent hat einen
   geschrieben oder freigegeben), wird ebenfalls nichts geschrieben: Der
   Dialog nennt die neue Zahl und bittet, erneut zu bestätigen.
+
+[![Der Dialog Manuelle Kurse freigeben über dem Kurse-Tab eines Wertpapiers: Von und Bis, der Chip Alle und die fünf jüngsten Abschnitte mit ihrer Zahl, die Zeile, dass es sieben Abschnitte sind, der Satz, was geschieht, und die Bestätigung, die 13 manuelle Kurse nennt](../screenshots/quote-release.png)](../screenshots/quote-release.png)
+
+*Manuelle Kurse freigeben, auf dem synthetischen Demo-Datensatz.*
 
 Nach der Freigabe sagt der Tab, wie viele Kurse von wann bis wann freigegeben
 wurden, mit **Kurse aktualisieren** als nächstem Schritt, wo eine
