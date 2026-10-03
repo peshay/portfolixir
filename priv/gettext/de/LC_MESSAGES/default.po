@@ -4906,12 +4906,12 @@ msgstr "Info zur MWR"
 msgid "computing"
 msgstr "wird berechnet"
 
-#: lib/portfolixir_web/components/security_chart.ex:99
+#: lib/portfolixir_web/components/security_chart.ex:104
 #, elixir-autogen, elixir-format
 msgid "No price history yet."
 msgstr "Noch keine Kurshistorie."
 
-#: lib/portfolixir_web/components/security_chart.ex:84
+#: lib/portfolixir_web/components/security_chart.ex:89
 #, elixir-autogen, elixir-format
 msgid "Price chart"
 msgstr "Kurschart"

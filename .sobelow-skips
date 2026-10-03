@@ -1,0 +1,17 @@
+# Sobelow skips for findings that have no function or pipeline to carry a
+# `# sobelow_skip` annotation (sobelow 0.16, #1006). Each one is a decision
+# already on record; a fingerprint changes when its site changes, which makes
+# the finding come back for a fresh reading.
+#
+# Config.HTTPS (config/prod.exs): TLS is terminated by the operator's reverse
+# proxy (ADR-0045 2), and PHX_FORCE_SSL is the runtime opt-in that redirects
+# and sets HSTS (PortfolixirWeb.OptionalSsl; D-2 of the Sprint 11 plan, #382).
+# A loopback instance without TLS is the safe default, so prod.exs states the
+# posture as configured and not forced.
+#
+# Config.CSWH (lib/portfolixir_web/endpoint.ex): the LiveView socket inherits
+# the endpoint's check_origin, which config/runtime.exs sets in a release to
+# the Host guard's allow-list (PHX_HOST, loopback and PORTFOLIXIR_ALLOWED_HOSTS,
+# #758). Sobelow reads that list as dynamic and reports it at low confidence.
+Config.CSWH: Cross-Site Websocket Hijacking,lib/portfolixir_web/endpoint.ex:20,3F5BF3D
+Config.HTTPS: HTTPS Not Enabled,config/prod.exs:0,2B5C077

@@ -226,12 +226,13 @@ jobs:
         run: npm run build --prefix mcp-server
 
       # Credo, Sobelow and Dialyzer are blocking quality gates. Sobelow skips
-      # are per-function `# sobelow_skip` annotations with a written reason,
-      # and since Sprint 11 (#382) there is no --ignore: the browser
-      # pipelines carry a nonce-bearing Content-Security-Policy
-      # (PortfolixirWeb.ContentSecurityPolicy), and config/prod.exs states
-      # the HTTPS posture — TLS at the operator's reverse proxy,
-      # PHX_FORCE_SSL as the runtime opt-in (D-2 of the Sprint 11 plan).
+      # are per-function or per-pipeline `# sobelow_skip` annotations with a
+      # written reason, and since Sprint 11 (#382) there is no --ignore. The
+      # two findings sobelow 0.16 raises where nothing can carry an annotation
+      # -- the HTTPS posture in config/prod.exs (TLS at the operator's reverse
+      # proxy, PHX_FORCE_SSL as the runtime opt-in, D-2 of the Sprint 11 plan)
+      # and the LiveView socket's origin check, set at runtime -- are skipped
+      # by fingerprint in .sobelow-skips, each with its reason (#1006).
       - name: Credo
         run: mix credo --strict
 

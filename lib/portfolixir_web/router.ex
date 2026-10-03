@@ -17,6 +17,10 @@ defmodule PortfolixirWeb.Router do
     "cross-origin-resource-policy" => "same-origin"
   }
 
+  # The Content-Security-Policy is set by PortfolixirWeb.ContentSecurityPolicy,
+  # with a nonce per request, not in put_secure_browser_headers' static map,
+  # which sobelow 0.16 reads alone (#382, #1006).
+  # sobelow_skip ["Config.CSP"]
   pipeline :browser do
     plug(:accepts, ["html"])
     plug(:fetch_session)
@@ -33,6 +37,7 @@ defmodule PortfolixirWeb.Router do
   end
 
   # The login and logout routes: the browser pipeline without the login gate.
+  # sobelow_skip ["Config.CSP"]
   pipeline :browser_open do
     plug(:accepts, ["html"])
     plug(:fetch_session)

@@ -54,6 +54,11 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   # attr default cannot go through gettext with the caller's locale.
   attr(:aria_label, :string, default: nil)
 
+  # raw/1 writes the chart's JSON payload into its <script type=
+  # "application/json"> block. Jason encodes it with escape: :html_safe, so
+  # "<", ">", "&" and "/" are \u-escaped and no stored name or note can
+  # close the script element (sobelow 0.16, #1006).
+  # sobelow_skip ["XSS.Raw"]
   def chart(assigns) do
     geometry =
       build_geometry(assigns.quotes, assigns.log_scale?,
