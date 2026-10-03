@@ -157,9 +157,10 @@ case once by putting the defect back locally and watching it fail;
 schema of its own version. A column a later migration adds to a table that
 code reads or writes (the journal's `audit_journal` is the usual one) then
 stops every upgrade from before that version, and every fresh install too if
-the call runs on an empty database. Avoid it: write the migration with plain
-SQL, naming only the columns its version has. Where a migration already does
-it, one of two answers holds (#1015):
+the call runs on an empty database. So a new migration does not call
+application code: write it with plain SQL, naming only the columns its
+version has. A migration that calls it anyway needs one of two answers
+(#1015):
 
 - **freeze it**: the migration file itself is immutable (CI rejects any
   change to it), so freeze the code it calls instead, in a module that names
@@ -170,6 +171,14 @@ it, one of two answers holds (#1015):
   rows that reach the call, so the later schema change turns that case red
   in the pull request that makes it. The policy-rule author backfill
   (`20260926121500`) is pinned this way, by `sprint16_test.exs`.
+
+Older migrations are still being brought under the rule. Five predate it
+and call application code with neither answer yet (two of them,
+`20260523120000` and `20260608120000`, run the same asset-class backfill).
+One of them is known to break: the bucket seed of `20260712130000` reads
+depots and cash accounts through today's schemas, so an upgrade from
+`20260712120000` or earlier over an instance holding a depot or a cash
+account stops there with `column s0.former_names does not exist`.
 
 ## Scope guardrails
 

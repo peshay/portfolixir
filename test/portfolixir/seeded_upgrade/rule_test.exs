@@ -280,6 +280,116 @@ defmodule Portfolixir.SeededUpgrade.RuleTest do
     end
   end
 
+  # The review round of #1016 (Sprint 18 C3): SQL the patterns did not read,
+  # and `references/2` calls they read as a new foreign key although none is
+  # added. Same story and criteria as above; a false positive costs a seeded
+  # case, a miss a release that does not boot.
+  describe "the heuristic, its review round" do
+    test "SQL in lower case is read as SQL" do
+      for {body, change} <- [
+            {~s|execute("alter table t add constraint c check (x > 0)")|, :check},
+            {~s|execute("alter table t add check (x > 0)")|, :check},
+            {~s|execute("alter table t add column x integer check (x > 0)")|, :check},
+            {~s|execute("alter table t validate constraint c")|, :check},
+            {~s|execute("alter table t alter column c set not null")|, :not_null},
+            {~s|execute("alter table t add column c text not null")|, :not_null},
+            {~s|execute("update accounts set former_names = '{}'")|, :backfill},
+            {~s|execute("update only accounts as a set x = 1")|, :backfill},
+            {~s|execute("insert into buckets (name) select name from portfolios")|, :backfill},
+            {~s|execute("create unique index t_a_index on t (a)")|, :unique},
+            {~s|execute("alter table t add constraint t_a_key unique (a)")|, :unique},
+            {~s|execute("alter table t add unique (a)")|, :unique},
+            {~s|execute("alter table t add constraint t_owner_fkey foreign key (owner_id) | <>
+               ~s|references owners (id)")|, :foreign_key},
+            {~s|execute("alter table t add column owner_id bigint references owners (id)")|,
+             :foreign_key},
+            {~s|execute("alter table t add owner_id bigint references owners (id)")|,
+             :foreign_key},
+            {~s|execute("alter table t add constraint t_no_overlap exclude using gist (a with =)")|,
+             :exclusion}
+          ] do
+        assert Rule.changes(migration(body)) == [change], body
+      end
+    end
+
+    test "prose in lower case is still not SQL" do
+      for body <- [
+            ~s|Logger.info("add check (ADR-0050) by hand")|,
+            ~s|Logger.info("update the set of rows by hand")|,
+            ~s|Logger.info("add a note where the value is not null")|,
+            ~s|Logger.info("add unique names first")|,
+            ~s|Logger.info("a foreign key is dropped first")|,
+            ~s|Logger.info("add the references to the note")|
+          ] do
+        assert Rule.changes(migration(body)) == [], body
+      end
+    end
+
+    test "a UNIQUE constraint without a name, or with a quoted one, is one" do
+      for body <- [
+            ~s|execute("ALTER TABLE t ADD UNIQUE (a)")|,
+            ~s|execute("ALTER TABLE t ADD UNIQUE NULLS NOT DISTINCT (a)")|,
+            ~s|execute("ALTER TABLE t ADD CONSTRAINT t_a_key UNIQUE USING INDEX t_a_index")|,
+            ~S|execute(~s[ALTER TABLE t ADD CONSTRAINT "t a key" UNIQUE (a)])|
+          ] do
+        assert Rule.changes(migration(body)) == [:unique], body
+      end
+    end
+
+    test "a CHECK named by a quoted name with spaces is one" do
+      assert Rule.changes(
+               migration(~S|execute(~s[alter table t add constraint "t x check" check (x > 0)])|)
+             ) == [:check]
+    end
+
+    test "a column added without the COLUMN keyword, or with a type of two arguments, is one" do
+      for {body, change} <- [
+            {~s|execute("ALTER TABLE t ADD owner_id bigint REFERENCES owners (id)")|,
+             :foreign_key},
+            {~s|execute("ALTER TABLE t ADD x integer, ADD owner_id bigint REFERENCES owners")|,
+             :foreign_key},
+            {~s|execute("ALTER TABLE t ADD c text NOT NULL DEFAULT ''")|, :not_null},
+            {~s|execute("ALTER TABLE t ADD COLUMN amount numeric(20, 8) NOT NULL DEFAULT 0")|,
+             :not_null},
+            {~s|execute("ALTER TABLE t ADD amount numeric(20, 8) REFERENCES amounts")|,
+             :foreign_key},
+            {~S|execute(~s[ALTER TABLE "my t" ADD "owner id" bigint REFERENCES owners])|,
+             :foreign_key}
+          ] do
+        assert Rule.changes(migration(body)) == [change], body
+      end
+
+      # A table constraint is not a column: its NOT NULL is the CHECK's.
+      assert Rule.changes(
+               migration(~s|execute("ALTER TABLE t ADD CONSTRAINT c CHECK (a IS NOT NULL)")|)
+             ) == [:check]
+    end
+
+    test "only a column whose new type is references/2 adds a foreign key" do
+      for body <- [
+            "alter table(:t) do\nadd_if_not_exists :owner_id, references(:owners)\nend",
+            "alter table(:t) do\nmodify :owner_id, references(:owners), from: :bigint\nend"
+          ] do
+        assert Rule.changes(migration(body)) == [:foreign_key], body
+      end
+
+      # The type a remove names, and a modify's `from:`, are what a rollback
+      # restores; neither adds a foreign key.
+      for body <- [
+            "alter table(:t) do\nremove :owner_id, references(:owners)\nend",
+            "alter table(:t) do\nremove_if_exists :owner_id, references(:owners)\nend",
+            "alter table(:t) do\nmodify :owner_id, :bigint, from: references(:owners)\nend"
+          ] do
+        assert Rule.changes(migration(body)) == [], body
+      end
+    end
+
+    test "an index on an existing table by one atom column is not unique" do
+      assert Rule.changes(migration("create index(:t, :a)")) == []
+      assert Rule.changes(migration("create unique_index(:t, :a)")) == [:unique]
+    end
+  end
+
   # #1022: a tag named in a comment is no seeded case.
   test "a seeded_upgrade tag inside a comment covers nothing" do
     dir = Path.join(System.tmp_dir!(), "rule-comment-#{System.unique_integer([:positive])}")
