@@ -5401,7 +5401,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_info({:sync_done, result}, socket) do
-    summary = sync_flash(result)
+    summary = sync_summary(result)
 
     {:noreply,
      socket
@@ -5795,6 +5795,35 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp notify_os(socket, title, body, tag) do
     push_event(socket, "os-notify", %{title: title, body: body, tag: tag})
   end
+
+  # #1012 (Sprint 18 U5, board ux-design-2026-10-02/07-phone-390, H7.1b): the
+  # sync keeps a manual quote wherever the provider returns a close for the
+  # same day (`protect_manual: true`) and counts it per security as
+  # `skipped_manual`. The result says so, summed over every security the sync
+  # touched — the collisions, not every manual quote (the Quotes tab's note
+  # counts those). "Skipped" stays reserved for a security the sync did not
+  # query at all.
+  defp sync_summary(result) do
+    case kept_manual(result) do
+      0 ->
+        sync_flash(result)
+
+      kept ->
+        sync_flash(result) <>
+          " " <>
+          ngettext(
+            "One manual quote was left standing where the provider returned a close.",
+            "%{count} manual quotes were left standing where the provider returned a close.",
+            kept
+          )
+    end
+  end
+
+  defp kept_manual({:ok, %{results: results}}) when is_list(results),
+    do: results |> Enum.map(&kept_manual/1) |> Enum.sum()
+
+  defp kept_manual(%{skipped_manual: kept}) when is_integer(kept), do: kept
+  defp kept_manual(_result), do: 0
 
   defp sync_flash({:ok, %{ok: ok, skipped: 0, error: 0}}) when ok > 0 do
     gettext("Prices synced.")

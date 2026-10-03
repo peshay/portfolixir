@@ -22,6 +22,24 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
   alias Portfolixir.Lifecycle
   alias Portfolixir.Repo
 
+  # A provider that answers every security with a close on each of the six
+  # to four days before today — the days the setup pins by hand among them.
+  # A module, not the per-process Fake: the sync runs in a Task the test's
+  # process dictionary does not reach.
+  defmodule ClosingAdapter do
+    @moduledoc false
+    @behaviour Portfolixir.Catalog.QuoteSync.Provider
+
+    @impl true
+    def id, do: :closing
+
+    @impl true
+    def fetch(_security, _opts) do
+      today = Portfolixir.Clock.today()
+      {:ok, Enum.map(-6..-4, &%{date: Date.add(today, &1), close: "101.00"})}
+    end
+  end
+
   setup do
     today = Clock.today()
     day = &Date.add(today, &1)
@@ -65,6 +83,34 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
 
     on_exit(fn -> Application.put_env(:portfolixir, QuoteSync, config) end)
     :ok
+  end
+
+  defp with_closing_adapter(_ctx) do
+    config = Application.get_env(:portfolixir, QuoteSync, [])
+
+    Application.put_env(
+      :portfolixir,
+      QuoteSync,
+      Keyword.put(config, :adapter_for, %{"portfolio_performance" => ClosingAdapter})
+    )
+
+    on_exit(fn -> Application.put_env(:portfolixir, QuoteSync, config) end)
+    :ok
+  end
+
+  # The sync runs in a Task and answers with :sync_done; the busy flag on
+  # the toolbar's sync button clears when it has landed.
+  defp await_sync(view, tries \\ 100)
+
+  defp await_sync(view, 0), do: refute(has_element?(view, "button#sync-prices[disabled]"))
+
+  defp await_sync(view, tries) do
+    if has_element?(view, "button#sync-prices[disabled]") do
+      Process.sleep(20)
+      await_sync(view, tries - 1)
+    else
+      :ok
+    end
   end
 
   defp quotes_tab(conn, security),
@@ -557,5 +603,66 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
 
     assert text(view, "#detail-tab-panel-quotes #quotes-release-result") =~
              "Ein manueller Kurs freigegeben, am #{ctx.iso.(-7)}. Die nächste Kursaktualisierung speichert für diesen Tag den Schlusskurs des Anbieters."
+  end
+
+  # User story (#1012; board ux-design-2026-10-02/07-phone-390, H7.1b):
+  # As the operator who pinned closes by hand,
+  # I want the sync's result to say how many manual quotes stayed where the
+  # provider returned a close for the same day,
+  # so that I know why a manual day did not change, instead of reading
+  # "Kurse aktualisiert." and wondering.
+  #
+  # Acceptance criteria:
+  # - Where the sync kept manual quotes against a provider close, the result
+  #   adds "N manuelle Kurse blieben stehen, wo der Anbieter einen
+  #   Schlusskurs lieferte." — the sum of `skipped_manual` over every
+  #   security the sync touched, singular "Ein manueller Kurs blieb stehen,
+  #   …" for one.
+  # - The manual quotes are untouched; the day without one takes the
+  #   provider's close.
+  # - Without such a collision the result is today's sentence alone.
+  test "the sync's result counts the manual quotes that stayed", ctx do
+    with_closing_adapter(ctx)
+    {:ok, view, _html} = live(ctx.conn, "/securities?locale=de")
+
+    {_result, log} =
+      ExUnit.CaptureLog.with_log(fn ->
+        view |> element("button#sync-prices") |> render_click()
+        await_sync(view)
+      end)
+
+    assert log =~ "manual quote row(s)"
+
+    assert text(view, "#securities-action-result") =~
+             "Kurse aktualisiert. 2 manuelle Kurse blieben stehen, wo der Anbieter einen Schlusskurs lieferte."
+
+    assert manual_dates(ctx.security) == [
+             ctx.day.(-1100),
+             ctx.day.(-1099),
+             ctx.day.(-5),
+             ctx.day.(-4)
+           ]
+
+    # One pin left in the provider's days: the singular.
+    {:ok, _} =
+      Quotes.release_manual(Actor.owner_ui(), ctx.security.id, ctx.day.(-5), ctx.day.(-5))
+
+    ExUnit.CaptureLog.with_log(fn ->
+      view |> element("button#sync-prices") |> render_click()
+      await_sync(view)
+    end)
+
+    assert text(view, "#securities-action-result") =~
+             "Kurse aktualisiert. Ein manueller Kurs blieb stehen, wo der Anbieter einen Schlusskurs lieferte."
+
+    # No pin left there: the sentence of today, alone.
+    {:ok, _} =
+      Quotes.release_manual(Actor.owner_ui(), ctx.security.id, ctx.day.(-4), ctx.day.(-4))
+
+    view |> element("button#sync-prices") |> render_click()
+    await_sync(view)
+
+    assert text(view, "#securities-action-result") =~ "Kurse aktualisiert."
+    refute text(view, "#securities-action-result") =~ "blieb"
   end
 end
