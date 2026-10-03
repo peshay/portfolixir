@@ -16,9 +16,11 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecuritySearch
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
+  alias Portfolixir.Lifecycle.Freeze
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.ReferenceCounts
 
   @impl true
   def mount(socket) do
@@ -840,14 +842,28 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     end
   end
 
-  defp changeset_errors(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
-      Enum.reduce(opts, msg, fn {k, v}, acc ->
-        String.replace(acc, "%{#{k}}", to_string(v))
-      end)
-    end)
-    |> Enum.map(fn {field, msgs} -> {Atom.to_string(field), Enum.join(msgs, ", ")} end)
-    |> Map.new()
+  # #921, pick H8.3 (board 08-dialogs-copy): every field error in the page's
+  # language. A plain changeset message goes through the `errors` domain, as
+  # on the other surfaces; the currency freeze (ADR-0050 §11) is built in the
+  # domain with English nouns for the API and MCP, so the dialog states it
+  # with its own words and counts what freezes the security now.
+  defp changeset_errors(%Ecto.Changeset{data: data} = changeset) do
+    changeset
+    |> Ecto.Changeset.traverse_errors(&translate_error(&1, data))
+    |> Map.new(fn {field, msgs} -> {Atom.to_string(field), Enum.join(msgs, ", ")} end)
+  end
+
+  defp translate_error({msg, opts}, data) do
+    cond do
+      opts[:validation] == :frozen and match?(%Security{id: id} when is_integer(id), data) ->
+        data |> Freeze.freezing_references() |> ReferenceCounts.frozen()
+
+      count = opts[:count] ->
+        Gettext.dngettext(PortfolixirWeb.Gettext, "errors", msg, msg, count, opts)
+
+      true ->
+        Gettext.dgettext(PortfolixirWeb.Gettext, "errors", msg, opts)
+    end
   end
 
   defp notify_parent(socket, message) do

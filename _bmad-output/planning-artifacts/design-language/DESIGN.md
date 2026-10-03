@@ -3618,3 +3618,36 @@ D3 above fixed the remainder row; this is the editor's half of it, built in
 - **The finding surface moves above 100 %.** The review rubric's walkthrough
   alarm is "a plan above 100 %", and `priv/demo/finding_surfaces_seed.exs`
   seeds one (a 20 % cash target on the demo's 85 % categories).
+
+### Field errors in the security and account dialogs *(H8.3, issue 921)*
+
+German at the field (EXPERIENCE.md, "Language (binding)"); the API and MCP
+keep the English messages the domain builds. The mechanism is the dialog's:
+it maps by the error's `validation:` key, as the rename dialog already did,
+and the domain is unchanged.
+
+- **A plain changeset message goes through the `errors` domain**, as on the
+  transaction, rule and research surfaces: "can't be blank" reads "darf
+  nicht leer sein", the ISIN check its German sentence.
+- **The name guard** (`validation: :name_taken`) reads the rename dialog's
+  words, now shared by both dialogs (`PortfolioAccounts.NameConflict`):
+  "„Depot 1“ heißt bereits ein anderes Depot. Einen anderen Namen wählen
+  oder jenes Depot zusammenführen oder umbenennen." — and for a former name
+  "„Depot 2“ ist ein früherer Name von „Depot Süd“ — ein Import unter diesem
+  Namen bucht dorthin. Einen anderen Namen wählen oder ihn bei „Depot Süd“
+  entfernen." The holder is named by its name, never by its internal number.
+- **The two taken-name sentences address no one.** They were the only
+  `msgstr`s in `default.po` that said "Sie" ("Wählen Sie …, oder führen Sie
+  … zusammen"); EXPERIENCE.md's impersonal voice binds, so they now read as
+  above, in the rename dialog too.
+- **The currency freeze** (`validation: :frozen`) has words of its own,
+  with the page's nouns and counts (`PortfolixirWeb.ReferenceCounts`): "is
+  frozen once referenced (2 bookings, 1 quote)" / "steht fest, sobald etwas
+  darauf verweist (2 Buchungen, 1 Kurs)". The counts are read when the
+  error is shown, as the domain read them when it refused.
+- **Not covered here, named:** the security merge dialog's refusal line,
+  the tax statement form and the snapshot form also interpolate changeset
+  messages by hand, and they print the raw field key in front of each
+  ("name can't be blank"). Translating the message alone would leave a
+  half-German line, so they wait for a story that gives their fields labels
+  too.

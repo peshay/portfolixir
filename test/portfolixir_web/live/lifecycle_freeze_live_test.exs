@@ -66,7 +66,7 @@ defmodule PortfolixirWeb.LifecycleFreezeLiveTest do
     assert has_element?(
              view,
              "#security-form-dialog .field-error",
-             "is frozen once referenced (1 transaction)"
+             "is frozen once referenced (1 booking)"
            )
 
     assert Catalog.get_security(security.id).currency_code == "EUR"
@@ -135,7 +135,7 @@ defmodule PortfolixirWeb.LifecycleFreezeLiveTest do
     assert has_element?(
              view,
              "#security-form-dialog .field-error",
-             "is frozen once referenced (1 transaction)"
+             "is frozen once referenced (1 booking)"
            )
 
     view
@@ -155,7 +155,7 @@ defmodule PortfolixirWeb.LifecycleFreezeLiveTest do
     assert has_element?(
              view,
              "#security-form-dialog .field-error",
-             "is frozen once referenced (1 transaction)"
+             "is frozen once referenced (1 booking)"
            )
 
     assert %{currency_code: "USD", ticker_symbol: "ARBL", exchange_code: nil} =

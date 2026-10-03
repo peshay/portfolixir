@@ -35,6 +35,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.RenameDialog do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.PortfolioAccounts.NameConflict
 
   @impl true
   def mount(socket) do
@@ -312,37 +313,10 @@ defmodule PortfolixirWeb.PortfolioAccounts.RenameDialog do
     )
   end
 
-  defp conflict_message(kind, %schema{} = account, name) do
-    case AccountNames.conflict(schema, account.portfolio_id, name, account.id) do
-      nil -> nil
-      {:former, holder} -> former_conflict(name, holder.name)
-      {:live, _holder} -> live_conflict(kind, name)
-    end
-  end
-
-  defp former_conflict(name, holder) do
-    gettext(
-      "“%{name}” is a former name of “%{holder}”: an import under this name books there. Choose another name or remove it from “%{holder}”.",
-      name: name,
-      holder: holder
-    )
-  end
-
   # DESIGN.md G1-A: a taken name is refused at the field with the way out
-  # (board 14 ⑤).
-  defp live_conflict("cash", name),
-    do:
-      gettext(
-        "“%{name}” is already the name of another cash account. Choose another name, or merge or rename that account.",
-        name: name
-      )
-
-  defp live_conflict("depot", name),
-    do:
-      gettext(
-        "“%{name}” is already the name of another depot. Choose another name, or merge or rename that depot.",
-        name: name
-      )
+  # (board 14 ⑤), in the words the account create dialog shares (#921).
+  defp conflict_message(kind, %schema{} = account, name),
+    do: NameConflict.message(kind, schema, account.portfolio_id, name, account.id)
 
   defp changeset_error(changeset) do
     changeset.errors

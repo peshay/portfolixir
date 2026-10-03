@@ -9,6 +9,8 @@ msgstr ""
 msgid "is invalid"
 msgstr "ist ungültig"
 
+#: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:452
+#, elixir-autogen
 msgid "can't be blank"
 msgstr "darf nicht leer sein"
 

@@ -16,9 +16,11 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog.Currencies
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.SecuritiesAccount
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.PortfolioAccounts.NameConflict
 
   @empty_form %{
     "depot_name" => "",
@@ -387,7 +389,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
       "currency_code" => form["currency_code"],
       "portfolio_id" => Portfolios.default_portfolio(Actor.owner_ui()).id
     })
-    |> map_changeset_errors(%{"name" => "cash_name"})
+    |> map_changeset_errors("cash", %{"name" => "cash_name"})
   end
 
   defp create_depot(form, cash) do
@@ -396,7 +398,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
       "cash_account_id" => cash.id,
       "portfolio_id" => Portfolios.default_portfolio(Actor.owner_ui()).id
     })
-    |> map_changeset_errors(%{"name" => "depot_name"})
+    |> map_changeset_errors("depot", %{"name" => "depot_name"})
   end
 
   defp assign_initial_buckets(_records, []), do: :ok
@@ -433,10 +435,13 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
 
   defp normalize_form(form, _params), do: form
 
+  # #921, pick H8.3 (board 08-dialogs-copy): a name another depot answers
+  # to is refused in the rename dialog's words, naming the holder by its
+  # name, never by its internal number.
   defp require_free_depot_name(form) do
     portfolio_id = Portfolios.default_portfolio(Actor.owner_ui()).id
 
-    case Portfolios.securities_account_name_error(portfolio_id, form["depot_name"]) do
+    case NameConflict.message("depot", SecuritiesAccount, portfolio_id, form["depot_name"], nil) do
       nil -> :ok
       message -> {:error, {:field_errors, %{"depot_name" => message}}}
     end
@@ -444,23 +449,39 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
 
   defp require_field(form, field) do
     if String.trim(form[field] || "") == "" do
-      {:error, {:field_errors, %{field => gettext("can't be blank")}}}
+      {:error, {:field_errors, %{field => dgettext("errors", "can't be blank")}}}
     else
       :ok
     end
   end
 
-  defp map_changeset_errors({:ok, record}, _mapping), do: {:ok, record}
+  defp map_changeset_errors({:ok, record}, _kind, _mapping), do: {:ok, record}
 
-  defp map_changeset_errors({:error, %Ecto.Changeset{} = changeset}, mapping) do
+  # #921: the field errors in the page's language — the name guard
+  # (`validation: :name_taken`) in the rename dialog's words, every other
+  # message through the `errors` domain. The API and MCP keep the English.
+  defp map_changeset_errors({:error, %Ecto.Changeset{} = changeset}, kind, mapping) do
     errors =
-      changeset.errors
-      |> Map.new(fn {field, {message, _opts}} ->
+      Map.new(changeset.errors, fn {field, error} ->
         key = Atom.to_string(field)
-        {Map.get(mapping, key, key), message}
+        {Map.get(mapping, key, key), field_message(kind, changeset, error)}
       end)
 
     {:error, {:field_errors, errors}}
+  end
+
+  defp field_message(kind, %Ecto.Changeset{data: %schema{}} = changeset, {message, opts}) do
+    name = Ecto.Changeset.get_field(changeset, :name)
+    portfolio_id = Ecto.Changeset.get_field(changeset, :portfolio_id)
+
+    with :name_taken <- opts[:validation],
+         true <- is_binary(name),
+         conflict when is_binary(conflict) <-
+           NameConflict.message(kind, schema, portfolio_id, name, nil) do
+      conflict
+    else
+      _plain -> Gettext.dgettext(PortfolixirWeb.Gettext, "errors", message, opts)
+    end
   end
 
   defp notify_parent(socket, message) do

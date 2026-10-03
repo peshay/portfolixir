@@ -1191,7 +1191,18 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
         |> render_submit()
 
       assert html =~ "field-error"
-      assert html =~ "securities account ##{depot.id}"
+
+      # Since #921 (pick H8.3) the refusal names the depot by its name, in
+      # the rename dialog's words, never by its internal number.
+      error =
+        view
+        |> element("#account-dialog-form .field-error")
+        |> render()
+        |> Floki.parse_fragment!()
+        |> Floki.text()
+
+      assert error =~ "“Broker depot”"
+      refute error =~ "##{depot.id}"
       assert Enum.map(Portfolios.list_cash_accounts(), & &1.name) == ["Giro"]
 
       view |> element("#account-form-dialog header button.icon-button") |> render_click()
