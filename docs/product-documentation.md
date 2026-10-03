@@ -641,14 +641,16 @@ newest first. The list starts collapsed under a line that counts it
   today; a target deleted since reads *a depot (cash account, security)
   deleted since*;
 - the **result** in the words the confirmation used (*142 bookings moved,
-  6 removed*; for a security also the duplicates removed, the quotes added
-  and the settings dropped). It opens into one line per table the merge
+  6 removed*; for a security also the duplicates removed, the splits
+  collapsed with the target's, the quotes added and the settings dropped).
+  It opens into one line per table the merge
   changed — bookings moved and removed, each removal with its reason
   (*duplicate removed*, *internal transfer dropped*, *same-day set balance
   dropped*, *split collapsed*), set balances, former names, quotes,
   classifications, position buckets and the like — then the choice you made
   for equal bookings and, for a security, the ISIN, and the check the merge
-  passed (*Balance confirmed on 211 days*);
+  passed (*Balance confirmed on 211 days*; *nothing to check* for a merge
+  whose source moved nothing, whatever its kind);
 - **by**: *Operator* for a merge made on these pages, *Agent* for one an API
   or MCP token made.
 

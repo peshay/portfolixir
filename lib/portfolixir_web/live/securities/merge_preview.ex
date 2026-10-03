@@ -1440,6 +1440,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     outcome = Map.fetch!(preview.outcomes, choices.collapse == true)
     moved = length(outcome.moved_transaction_ids)
     removed = Enum.count(outcome.deleted, &(&1.reason == :collapsed_duplicate))
+    collapsed_splits = Enum.count(outcome.deleted, &(&1.reason == :collapsed_split))
     quotes = preview.quotes.moved_count
 
     dropped =
@@ -1450,6 +1451,15 @@ defmodule PortfolixirWeb.Securities.MergePreview do
         ngettext("%{count} booking moved", "%{count} bookings moved", moved),
         removed > 0 &&
           ngettext("%{count} duplicate removed", "%{count} duplicates removed", removed),
+        # #1032, pick H8.7: a same-day split collapsed with the target's, in
+        # the merge record's own word.
+        collapsed_splits > 0 &&
+          pngettext(
+            "merge record",
+            "%{count} split collapsed",
+            "%{count} splits collapsed",
+            collapsed_splits
+          ),
         quotes > 0 && ngettext("%{count} quote added", "%{count} quotes added", quotes),
         dropped > 0 && ngettext("%{count} setting dropped", "%{count} settings dropped", dropped)
       ]

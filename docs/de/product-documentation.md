@@ -699,15 +699,17 @@ heißt es *die neuesten 100*. Jede Zeile nennt:
   dorthin, wo die Buchungen heute stehen; ein inzwischen gelöschtes Ziel liest
   *ein inzwischen gelöschtes Depot (Verrechnungskonto, Wertpapier)*;
 - das **Ergebnis** in den Worten der Bestätigung (*142 Buchungen verschoben,
-  6 entfernt*; bei einem Wertpapier auch die entfernten Duplikate, die
-  ergänzten Kurse und die entfallenen Einstellungen). Aufgeklappt zeigt es
+  6 entfernt*; bei einem Wertpapier auch die entfernten Duplikate, die mit
+  denen des Ziels zusammengelegten Splits, die ergänzten Kurse und die
+  entfallenen Einstellungen). Aufgeklappt zeigt es
   eine Zeile je Tabelle, die die Zusammenführung geändert hat — verschobene
   und entfernte Buchungen, jede Entfernung mit ihrem Grund (*Duplikat
   entfernt*, *interne Umbuchung entfallen*, *gesetzter Saldo desselben Tages
   entfallen*, *Split zusammengelegt*), gesetzte Salden, frühere Namen, Kurse,
   Klassifizierungen, Buckets der Position und Ähnliches —, dann Ihre Wahl für
   gleiche Buchungen und bei einem Wertpapier die ISIN, und die bestandene
-  Prüfung (*Saldo an 211 Tagen bestätigt*);
+  Prüfung (*Saldo an 211 Tagen bestätigt*; *nichts zu prüfen* für eine
+  Zusammenführung, deren Quelle nichts bewegt hat, gleich welcher Art);
 - **Von**: *Operator* für eine Zusammenführung auf diesen Seiten, *Agent* für
   eine, die ein API- oder MCP-Token ausgeführt hat.
 

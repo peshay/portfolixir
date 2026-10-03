@@ -403,8 +403,11 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
   @doc """
   The result in the words the confirmation used when the merge ran: for an
   account or a depot "N bookings moved, M removed", for a security the moved
-  bookings, the duplicates removed, the quotes added and the settings
-  dropped. A part that is zero is left out, the moved bookings never.
+  bookings, the duplicates removed, the splits collapsed with the target's
+  (#1032, pick H8.7: in the open line's own word, no total that would mix the
+  operator's choice with the automatic step), the quotes added and the
+  settings dropped. A part that is zero is left out, the moved bookings
+  never.
   """
   @spec result_phrase(atom(), map()) :: String.t()
   def result_phrase(:security, summary) do
@@ -421,6 +424,10 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
         fn n ->
           ngettext("%{count} duplicate removed", "%{count} duplicates removed", n)
         end
+      ),
+      nonzero(
+        count(summary, ["transactions", "deleted_by_reason", "collapsed_split"]),
+        &removed_for("collapsed_split", &1)
       ),
       nonzero(count(summary, ["quotes", "moved"]), fn n ->
         ngettext("%{count} quote added", "%{count} quotes added", n)
@@ -668,14 +675,21 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
     end
   end
 
-  # The identity check the merge passed (§10). A merge of an account that
-  # held nothing had nothing to check, and says so rather than "on 0 days".
+  # The identity check the merge passed (§10). A merge whose source moved
+  # nothing — no booking moved, none removed — had nothing to check, and says
+  # so for every kind (#1032, pick H8.7): the cash writer checks today and
+  # the target's own booking dates too, so its count alone would read "on 3
+  # days" for an empty source. The record's payload is unchanged.
   defp line_value(:check, kind, summary) do
     dates = count(summary, ["linearity", "dates_checked"])
     days = pngettext("merge check", "on %{count} day", "on %{count} days", dates)
+    empty? = moved_nothing?(summary)
 
     case {kind, dates} do
       {_kind, 0} ->
+        gettext("nothing to check")
+
+      _empty when empty? ->
         gettext("nothing to check")
 
       {:cash_account, _dates} ->
@@ -707,6 +721,10 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
         end
     end
   end
+
+  defp moved_nothing?(summary),
+    do:
+      count(summary, ["transactions", "moved"]) + count(summary, ["transactions", "deleted"]) == 0
 
   defp removed_for("collapsed_duplicate", n),
     do: ngettext("%{count} duplicate removed", "%{count} duplicates removed", n)
