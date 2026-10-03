@@ -178,9 +178,9 @@ packages from hex.pm and npm packages from the npm registry. Behind a proxy, pas
 it into the build with Docker's predefined proxy build arguments (`HTTP_PROXY`,
 `HTTPS_PROXY`, `NO_PROXY`; for example
 `docker compose build --build-arg HTTPS_PROXY=http://proxy.example:3128`) or the
-Docker client's proxy configuration; behind a proxy that intercepts TLS, its CA
-must also be trusted inside the build stages, which the Dockerfiles do not do by
-themselves.
+Docker client's proxy configuration; behind a proxy that intercepts TLS, pass
+its CA to the build as the build secret `build_ca`
+([Home Deployment](docs/home-deployment.md#prerequisites) shows how).
 
 ### Run with Docker Compose
 

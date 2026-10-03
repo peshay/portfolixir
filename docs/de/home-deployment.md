@@ -35,9 +35,31 @@ Hex-Pakete von hex.pm und npm-Pakete aus der npm-Registry. Hinter einem Proxy
 gib ihn mit Dockers vordefinierten Proxy-Build-Argumenten in den Build
 (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`; etwa
 `docker compose build --build-arg HTTPS_PROXY=http://proxy.example:3128`) oder
-über die Proxy-Konfiguration des Docker-Clients; hinter einem Proxy, der TLS
-aufbricht, muss seine CA außerdem in den Build-Stufen vertrauenswürdig sein, was
-die Dockerfiles nicht von selbst tun.
+über die Proxy-Konfiguration des Docker-Clients. Hinter einem Proxy, der TLS
+aufbricht, gib seine CA als Build-Secret `build_ca` in den Build: Beide
+Dockerfiles vertrauen ihr für ihre Downloads und lassen sie aus den Images
+heraus, die sie ausliefern. Ohne das Secret bleiben die Builds unverändert.
+
+```bash
+docker build --secret id=build_ca,src=/pfad/zu/proxy-ca.crt -f Dockerfile.release .
+docker build --secret id=build_ca,src=/pfad/zu/proxy-ca.crt mcp-server
+```
+
+Mit Compose nenne das Secret in einer `docker-compose.override.yml` neben der
+`docker-compose.yml`, die Compose von selbst liest, und baue wie gewohnt:
+
+```yaml
+services:
+  app:
+    build:
+      secrets: [build_ca]
+  mcp:
+    build:
+      secrets: [build_ca]
+secrets:
+  build_ca:
+    file: /pfad/zu/proxy-ca.crt
+```
 
 ## Geheimnisse und Einstellungen
 

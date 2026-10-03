@@ -1353,6 +1353,63 @@ defmodule Portfolixir.CITest do
     end
   end
 
+  # User story (#1026, Sprint 18 C5, decided by the plan's D-7):
+  # As an operator building behind a proxy that re-signs TLS,
+  # I want to hand the image builds my proxy's CA without editing a
+  # Dockerfile,
+  # so that the first package download does not stop the build.
+  #
+  # Acceptance criteria:
+  # - Every step of Dockerfile.release's build stage that downloads (Hex,
+  #   then the dependencies) mounts an optional build secret `build_ca` and
+  #   trusts it first, itself: BuildKit keeps no secret in its cache key, so
+  #   a step cached from a build without the secret would otherwise go on
+  #   without the CA. Hex reads the system store it lands in. Without the
+  #   secret nothing changes.
+  # - The companion's npm install runs with the secret as an extra CA, in the
+  #   same instruction.
+  # - No runtime stage names the secret: the CA never reaches an image that
+  #   ships.
+  # - The deployment guide (EN, DE) names the secret and how to pass it.
+  test "a build can trust a proxy's CA, passed as an optional build secret" do
+    mount = "--mount=type=secret,id=build_ca"
+
+    assert [_header, release_build, release_runtime] =
+             "Dockerfile.release" |> File.read!() |> String.split(~r/^FROM /m)
+
+    steps = release_build |> String.replace("\\\n", " ") |> String.split("\n")
+
+    for download <- ["mix local.hex", "mix deps.get"] do
+      assert [step] = Enum.filter(steps, &(&1 =~ download)), download
+      assert step =~ ~r/^RUN #{mount}\s+trust-build-ca && /, step
+    end
+
+    assert release_build =~
+             "COPY --chmod=0755 docker/trust-build-ca.sh /usr/local/bin/trust-build-ca"
+
+    assert File.read!("docker/trust-build-ca.sh") =~ "update-ca-certificates"
+
+    assert release_build =~
+             ~r/^(?:ENV)?\s+HEX_CACERTS_PATH=\/etc\/ssl\/certs\/ca-certificates\.crt\b/m
+
+    refute release_runtime =~ "build_ca"
+    refute release_runtime =~ "trust-build-ca"
+
+    assert [_header, mcp_build, mcp_runtime] =
+             "mcp-server/Dockerfile" |> File.read!() |> String.split(~r/^FROM /m)
+
+    assert mcp_build =~
+             ~r/^RUN #{mount}[^\n]*(?:\\\n[^\n]*)*NODE_EXTRA_CA_CERTS[^\n]*(?:\\\n[^\n]*)*npm ci --ignore-scripts/m
+
+    refute mcp_runtime =~ "build_ca"
+
+    for guide <- ["docs/home-deployment.md", "docs/de/home-deployment.md"] do
+      text = File.read!(guide)
+      assert text =~ "--secret id=build_ca,src=", guide
+      assert text =~ "docker-compose.override.yml", guide
+    end
+  end
+
   defp git!(dir, args) do
     {output, 0} = System.cmd("git", args, cd: dir, env: @git_env, stderr_to_stdout: true)
     output
