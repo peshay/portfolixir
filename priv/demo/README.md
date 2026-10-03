@@ -88,3 +88,36 @@ the way down — no real holdings, no real institution, no real person.
 
 The screenshots and the tour GIF under `docs/screenshots/` were produced from
 this dataset.
+
+## Regenerating the screenshots
+
+`screenshots.mjs` rewrites every PNG under `docs/screenshots/` from an
+instance seeded as above — **never from a live instance**: the images are
+committed to a public repository, and the script photographs whatever the
+instance shows. It needs Node 22 or newer and Playwright with its Chromium.
+The tour GIF (`tour.gif`) is not produced by the script.
+
+Seed a throwaway database as in "Review walkthrough surfaces", then start the
+server on it, offline and with a throwaway UI password:
+
+```bash
+DATABASE_NAME=portfolixir_review PORT=4003 PORTFOLIXIR_BACKGROUND_FETCH=off PORTFOLIXIR_UI_PASSWORD=demo-only-password mix phx.server
+```
+
+and, in a second shell from the repository root:
+
+```bash
+PORT=4003 PORTFOLIXIR_UI_PASSWORD=demo-only-password node priv/demo/screenshots.mjs
+```
+
+`PLAYWRIGHT_MODULE` names Playwright's entry point when the package is not
+resolvable from the repository (a global install, for example
+`PLAYWRIGHT_MODULE=/usr/lib/node_modules/playwright/index.mjs`), and
+`SCREENSHOTS_DIR` writes somewhere other than `docs/screenshots/`.
+
+The script talks to `http://127.0.0.1:$PORT` only — the browser aborts every
+request to another host or port — and changes nothing on the instance: the
+dialogs it photographs are opened, never confirmed. Every image is 1440 px
+wide (the contribution table and the merge list are cropped to their section
+of the page, 1220 px), in the light theme with the violet accent, and in
+German, the locale the set has always used.
