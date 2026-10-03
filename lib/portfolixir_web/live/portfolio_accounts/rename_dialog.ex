@@ -26,6 +26,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.RenameDialog do
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias Portfolixir.Actor
+  alias Portfolixir.Input.Text
   alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Portfolios
@@ -106,12 +107,28 @@ defmodule PortfolixirWeb.PortfolioAccounts.RenameDialog do
             </label>
           </div>
         </form>
+        <%!-- #966, pick H8.5 = A (board 08-dialogs-copy; G12.2-B): a name
+             stored before the refusal, marked where it is renamed; the note
+             follows the field, so typed in anew it goes. --%>
+        <AppShell.invisible_text_note id="rename-name-note" subject={:name} texts={[@name]}>
+          <%= gettext("Typed in anew, it is clean.") %>
+        </AppShell.invisible_text_note>
         <p class="hint" data-role="rename-former-case"><%= former_case(@kind, @account, @outcome) %></p>
         <details :if={@former != []} class="perf-table-disclosure" open>
           <summary class="disclosure-summary">
             <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
             <%= gettext("Former names") %>
           </summary>
+          <%!-- Retyping leaves the old spelling here, and an import that
+               writes it exactly so still books to this account: the one list
+               of the dialog that can be edited is marked too (#966, A). --%>
+          <AppShell.invisible_text_note
+            id="rename-former-names-note"
+            subject={:former_name}
+            texts={Enum.map(@former, & &1.name)}
+          >
+            <%= former_remedy(@kind, @former) %>
+          </AppShell.invisible_text_note>
           <ul class="former-names" data-role="former-names">
             <li :for={entry <- @former}>
               <span>
@@ -300,6 +317,26 @@ defmodule PortfolixirWeb.PortfolioAccounts.RenameDialog do
       "Another depot is also named “%{name}”, so the current name is not kept: an import that names it books to that depot. Merge or rename that depot to change this.",
       name: account.name
     )
+  end
+
+  defp former_remedy(kind, former) do
+    marked = Enum.count(former, &(Text.invisible_count(&1.name) > 0))
+
+    case kind do
+      "cash" ->
+        ngettext(
+          "An import that writes it exactly so keeps booking to this account.",
+          "An import that writes one of them exactly so keeps booking to this account.",
+          marked
+        )
+
+      "depot" ->
+        ngettext(
+          "An import that writes it exactly so keeps booking to this depot.",
+          "An import that writes one of them exactly so keeps booking to this depot.",
+          marked
+        )
+    end
   end
 
   defp removal_confirmation("cash", name) do

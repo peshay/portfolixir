@@ -32,7 +32,7 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_accounts/merge_dialog.ex:122
 #: lib/portfolixir_web/live/portfolio_accounts/merge_dialog.ex:213
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:116
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:81
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:82
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:397
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:668
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:189
@@ -224,7 +224,7 @@ msgstr ""
 #: lib/portfolixir_web/live/classifications_live.ex:436
 #: lib/portfolixir_web/live/classifications_live.ex:737
 #: lib/portfolixir_web/live/classifications_live.ex:2517
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:92
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:93
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:121
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:328
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:217
@@ -993,7 +993,7 @@ msgstr ""
 #: lib/portfolixir_web/live/buckets_live.ex:484
 #: lib/portfolixir_web/live/classifications_live.ex:753
 #: lib/portfolixir_web/live/portfolio_accounts/merge_dialog.ex:213
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:140
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:157
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:680
 #: lib/portfolixir_web/live/portfolio_live.ex:1513
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:435
@@ -1075,7 +1075,7 @@ msgstr ""
 msgid "ISIN copied"
 msgstr ""
 
-#: lib/portfolixir_web/components/app_shell.ex:664
+#: lib/portfolixir_web/components/app_shell.ex:683
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:592
 #, elixir-autogen, elixir-format
 msgid "Actions for %{row}"
@@ -3807,7 +3807,7 @@ msgstr ""
 #: lib/portfolixir_web/live/buckets_live.ex:524
 #: lib/portfolixir_web/live/buckets_live.ex:558
 #: lib/portfolixir_web/live/classifications_live.ex:861
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:143
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:160
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:606
 #, elixir-autogen, elixir-format
 msgid "Rename"
@@ -4997,19 +4997,19 @@ msgid_plural "%{count} without an asset class"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/components/app_shell.ex:712
+#: lib/portfolixir_web/components/app_shell.ex:731
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Attention"
 msgstr ""
 
-#: lib/portfolixir_web/components/app_shell.ex:711
+#: lib/portfolixir_web/components/app_shell.ex:730
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Note"
 msgstr ""
 
-#: lib/portfolixir_web/components/app_shell.ex:713
+#: lib/portfolixir_web/components/app_shell.ex:732
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Problem"
@@ -6193,7 +6193,7 @@ msgstr[1] ""
 msgid "no exchange rate"
 msgstr ""
 
-#: lib/portfolixir_web/components/app_shell.ex:698
+#: lib/portfolixir_web/components/app_shell.ex:717
 #, elixir-autogen, elixir-format
 msgctxt "price freshness"
 msgid "stale"
@@ -8109,68 +8109,68 @@ msgstr ""
 msgid "A merge moves the bookings into a depot with the same default buckets; the name stays there as a former name."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:76
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:77
 #, elixir-autogen, elixir-format
 msgid "Rename — %{name}"
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:133
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:113
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:120
 #, elixir-autogen, elixir-format
 msgid "Former names"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:120
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:137
 #, elixir-autogen, elixir-format
 msgid "merged on %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:130
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:147
 #, elixir-autogen, elixir-format
 msgid "Remove “%{name}”"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:133
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:150
 #, elixir-autogen, elixir-format
 msgid "Remove"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:193
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:210
 #, elixir-autogen, elixir-format
 msgid "Enter a name."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:222
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:239
 #, elixir-autogen, elixir-format
 msgid "That account no longer exists."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:278
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:295
 #, elixir-autogen, elixir-format
 msgid "The current name “%{name}” stays a former name: an import that still names it keeps booking to this account."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:285
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:302
 #, elixir-autogen, elixir-format
 msgid "The current name “%{name}” stays a former name: an import that still names it keeps booking to this depot."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:292
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:309
 #, elixir-autogen, elixir-format
 msgid "Another cash account is also named “%{name}”, so the current name is not kept: an import that names it books to that account. Merge or rename that account to change this."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:299
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:316
 #, elixir-autogen, elixir-format
 msgid "Another depot is also named “%{name}”, so the current name is not kept: an import that names it books to that depot. Merge or rename that depot to change this."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:306
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:343
 #, elixir-autogen, elixir-format
 msgid "Remove “%{name}” as a former name? An import that still names '%{name}' will then create a new account."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:313
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:350
 #, elixir-autogen, elixir-format
 msgid "Remove “%{name}” as a former name? An import that still names '%{name}' will then create a new depot."
 msgstr ""
@@ -9791,26 +9791,26 @@ msgstr ""
 msgid "%{field} contains invisible characters (%{characters})"
 msgstr ""
 
-#: lib/portfolixir_web/components/app_shell.ex:576
+#: lib/portfolixir_web/components/app_shell.ex:578
 #, elixir-autogen, elixir-format
 msgid "The text contains %{count} invisible character."
 msgid_plural "The text contains %{count} invisible characters."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/components/app_shell.ex:584
+#: lib/portfolixir_web/components/app_shell.ex:586
 #, elixir-autogen, elixir-format
 msgid "The name contains %{count} invisible character."
 msgid_plural "The name contains %{count} invisible characters."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/components/app_shell.ex:590
+#: lib/portfolixir_web/components/app_shell.ex:608
 #, elixir-autogen, elixir-format
 msgid "Text with the characters made visible"
 msgstr ""
 
-#: lib/portfolixir_web/components/app_shell.ex:591
+#: lib/portfolixir_web/components/app_shell.ex:609
 #, elixir-autogen, elixir-format
 msgid "Name with the characters made visible"
 msgstr ""
@@ -9835,6 +9835,7 @@ msgstr ""
 #: lib/portfolixir_web/live/buckets_live.ex:154
 #: lib/portfolixir_web/live/buckets_live.ex:267
 #: lib/portfolixir_web/live/classifications_live.ex:757
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:114
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:207
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:210
 #: lib/portfolixir_web/live/securities_live.ex:1064
@@ -10928,4 +10929,37 @@ msgstr ""
 #: lib/portfolixir_web/live/securities_live.ex:5745
 #, elixir-autogen, elixir-format
 msgid "“%{name}” was merged into %{target} meanwhile; the list is reloaded."
+msgstr ""
+
+#: lib/portfolixir_web/components/app_shell.ex:594
+#, elixir-autogen, elixir-format
+msgid "A former name contains %{count} invisible character."
+msgid_plural "A former name contains %{count} invisible characters."
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:327
+#, elixir-autogen, elixir-format
+msgid "An import that writes it exactly so keeps booking to this account."
+msgid_plural "An import that writes one of them exactly so keeps booking to this account."
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:334
+#, elixir-autogen, elixir-format
+msgid "An import that writes it exactly so keeps booking to this depot."
+msgid_plural "An import that writes one of them exactly so keeps booking to this depot."
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/portfolixir_web/components/app_shell.ex:602
+#, elixir-autogen, elixir-format
+msgid "Former names contain %{count} invisible character."
+msgid_plural "Former names contain %{count} invisible characters."
+msgstr[0] ""
+msgstr[1] ""
+
+#: lib/portfolixir_web/components/app_shell.ex:610
+#, elixir-autogen, elixir-format
+msgid "Names with the characters made visible"
 msgstr ""

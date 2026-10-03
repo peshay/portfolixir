@@ -2496,13 +2496,13 @@ variation selectors); the note marks a row stored before that rule.
   split state (G12.3-A), which has no such disclosure, above the open Notes
   field (the Sprint 16 closing act); in the rule
   dialog under its first hint (the name and the version's note, each its own
-  note); after the inline rename form of a view, a bucket and a category.
-  Lists, selects, headings and the history's "Notes" column stay unmarked.
-  Cash accounts and depots had no rename on screen when this pick was drawn;
-  Lane L5a's rename dialog (G1-A above) now is one, and it carries no note
-  yet: its field refuses such a name like every writer, and the note for a
-  name stored before the rule waits for the follow-up that names it, boarded
-  before it is built.
+  note); after the inline rename form of a view, a bucket and a category;
+  in the rename dialog of a cash account or a depot (Lane L5a, G1-A above)
+  after its form, following the field, and — the one list that is marked —
+  inside its open "Former names" disclosure, above the list, when a former
+  name carries such characters (Sprint 18 H8.5 = A, issue 966; see that
+  amendment). Other lists, selects, headings and the history's "Notes"
+  column stay unmarked.
 - **Stored text inside running text is isolated in `<bdi>`**: the stored
   subject of a rule's words line, a retraction's reason in the thesis card,
   and in the rule dialog the rule's name in its heading and the view's name
@@ -3700,6 +3700,41 @@ D3 above fixed the remainder row; this is the editor's half of it, built in
 - **The finding surface moves above 100 %.** The review rubric's walkthrough
   alarm is "a plan above 100 %", and `priv/demo/finding_surfaces_seed.exs`
   seeds one (a 20 % cash target on the demo's 85 % categories).
+
+### The accounts rename dialog: the invisible-character notes *(H8.5 = A, issue 966)*
+
+The G20 note (`AppShell.invisible_text_note/1`) in the rename dialog of
+Accounts & depots, `portfolio_accounts/rename_dialog.ex`.
+
+- **The current name** (A and B alike): one `attention` note after the form,
+  before the former-name hint, `subject: :name`, following the field
+  (`texts={[@name]}`) as in the rule dialog: "The name contains 1 invisible
+  character. Typed in anew, it is clean." (de "Der Name enthält 1
+  unsichtbares Zeichen. Neu eingegeben ist er sauber."), the name spelled
+  `[U+XXXX]` behind "Name with the characters made visible". Typed in anew,
+  it goes.
+- **Former names are marked too (A).** Retyping is the remedy, and it turns
+  the old spelling into a former name (former names are written without the
+  text check), so after it the list shows "Depot Nord" under an account
+  named "Depot Nord". When any former name carries such characters, a
+  second note sits inside the open "Former names", above the list: "A
+  former name contains 1 invisible character. An import that writes it
+  exactly so keeps booking to this depot." (de "Ein früherer Name enthält 1
+  unsichtbares Zeichen. Ein Import, der ihn genau so schreibt, bucht weiter
+  auf dieses Depot."; "… to this account." / "… dieses Konto." for a cash
+  account). Several marked: "Former names contain 3 invisible characters. An
+  import that writes one of them exactly so …". Its disclosure "Names with
+  the characters made visible" (de "Namen mit sichtbar gemachten Zeichen")
+  spells each affected former name, those that arrived by a merge included.
+  The list row carries no mark: the disclosure says which name it is.
+- **The third subject of the note**, `:former_name`, with its sentence,
+  plural and summary; the remedy sentence is the dialog's, per kind. The
+  `app.css` rule of the part: `.rename-dialog details > .data-note {
+  margin-top: var(--space-1) }`, one step below the summary, as the list.
+- **Why A:** the former-name list is the one list in this dialog that can be
+  edited, and whether that entry is removed decides whether an import still
+  finds the account; the MCP companion already gives the agent the escaped
+  spelling.
 
 ### The securities list when a row action finds its security gone *(H8.6 = A, issue 920)*
 

@@ -482,8 +482,13 @@ gemachten Zeichen*, dem Text in der Schreibweise, die der Agent bekommt
 anhängen, der #n ersetzt**, das den Eintrag im Formular vorwählt; der Name
 eines Wertpapiers wird mit **Stammdaten bearbeiten** korrigiert; die Notizen
 einer Buchung, Name und Notiz einer Regel sowie die Namen von Ansichten,
-Buckets und Kategorien tragen die Notiz dort, wo sie bearbeitet werden, und
-eine saubere Neueingabe entfernt sie.
+Buckets, Kategorien, Verrechnungskonten und Depots tragen die Notiz dort, wo
+sie bearbeitet werden, und eine saubere Neueingabe entfernt sie. Weil der neu
+eingegebene Name die alte Schreibweise als früheren Namen behält, markiert der
+Umbenennen-Dialog eines Verrechnungskontos oder Depots auch dessen frühere
+Namen — „Ein früherer Name enthält 1 unsichtbares Zeichen. Ein Import, der
+ihn genau so schreibt, bucht weiter auf dieses Depot.“ —, sodass das
+Entfernen dieses Eintrags eine Wahl ist, die man sieht.
 
 **Benchmark-Wertpapiere.** Ein Wertpapier lässt sich aus seinem Zeilenmenü
 als Benchmark markieren („Als Benchmark markieren“): eine Referenzreihe, mit
