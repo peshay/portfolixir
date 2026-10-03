@@ -75,6 +75,14 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "computation_basis" and &1 =~ "#330")
            )
 
+    # The closing act on U7, finding 9: a yield is a ratio rounded at scale
+    # 6, which the JSON then writes without trailing zeros, not a ratio "at
+    # scale 6"; the two bond decimals follow the stored-amount rule.
+    bond_entry = Enum.find(newest["parameters"], &(&1 =~ "coupon_rate" and &1 =~ "#330"))
+    assert bond_entry =~ "rounded half up at scale 6"
+    refute bond_entry =~ "a ratio at scale 6"
+    assert bond_entry =~ "coupon_rate and face_value keep 6 decimal places"
+
     # Its MCP half: the two security writes take the fields, the detail tool
     # names the reading; no tool is added.
     assert Enum.any?(

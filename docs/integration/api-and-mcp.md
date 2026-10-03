@@ -128,7 +128,8 @@ the field instead of failing in the database.
 stores: a quote's `close` (6 decimal places), an exchange rate (15), and the
 tax writes' money fields (6) and rates (4) — a statement snapshot's pots and
 withheld taxes, an allowance order's `amount_granted`, a tax year's
-allowances and rates, a profile's `church_tax_rate`. A finer value is rounded
+allowances and rates, a profile's `church_tax_rate` — and a bond's
+`coupon_rate` and `face_value` (6). A finer value is rounded
 half up to its scale before it is checked, so a positive `close` that rounds
 to `0` answers `422` and is never stored as zero; a money value with more than
 14 digits before the decimal point answers `422` naming the field.
@@ -795,6 +796,12 @@ every security payload (and selectable with `fields=`):
 - `face_value` — the denomination, a Decimal string above 0;
 - `face_value_currency_code` — the denomination's currency.
 
+`coupon_rate` and `face_value` keep 6 decimal places, under the rule every
+stored amount follows (**Other stored amounts** above): a finer value is
+rounded half up before it is checked, so `"3.1234567"` is stored and
+answered as `"3.123457"`. Send them as strings, as every decimal; a JSON
+number is cast the way every decimal field casts one.
+
 `null` clears a field, nothing is required, an impossible value is a `422`
 naming its field with nothing written, and the fields are kept when the
 asset class changes. They are read only while the effective asset class is
@@ -811,12 +818,13 @@ security and on listings and write responses:
   percent-quoted bond's quantity as **a hundredth of its face amount**, so a
   quote is both percent of face and the price per unit;
 - `remaining_term` — `days` from `as_of` to the maturity, `years` (days ÷
-  365, scale 6), `whole_years` and `whole_months`, `matured` on and after
-  the maturity date;
+  365, rounded half up at scale 6), `whole_years` and `whole_months`,
+  `matured` on and after the maturity date;
 - `current_yield` — coupon ÷ price, and `yield_to_maturity` — the **linear
   approximation** (coupon + (100 − price) ÷ remaining years) ÷ price,
-  without compounding; each a ratio at scale 6 (`0.025707` is 2.5707 %),
-  with the `price` it used (`value`, `date`, `source`: `quote` for the latest
+  without compounding; each a ratio rounded half up at scale 6 (`0.025707`
+  is 2.5707 %), sent without trailing zeros like every decimal (`"0.03685"`,
+  `"0"`), with the `price` it used (`value`, `date`, `source`: `quote` for the latest
   stored quote, `trade` for the last own trade price while there is none);
 - `two_scales` — `null`, or the finding that the bond is **priced on two
   scales**: its `latest_quote`, the count of `unit_scale_bookings` and the
