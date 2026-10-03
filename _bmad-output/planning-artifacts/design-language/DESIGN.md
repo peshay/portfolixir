@@ -3006,7 +3006,10 @@ of the contribution read (`Performance.Contribution.for_view/2`), and it is
 - **The remainder** under its own head row, "Keiner Position zugeordnet" (11
   px/700 uppercase, letter-spaced, muted, on {colors.bg-muted}); its three
   lines on the same band, each with a 12 px muted sub-line and "—" in the
-  five position columns, the figure signed in its colour:
+  five position columns, the figure signed in its colour. The band is one
+  rule over the four rows that outranks the zebra stripe and the row hover
+  (0,3,3 against 0,2,3), so it stays solid however many positions sit above
+  it (repair R2, board `mockups/ux-review-2026-10-03/01-contribution-repairs`):
   - **Zinsen** — "Konto und Kupons; eine Zinsbuchung trägt kein Wertpapier";
   - **Einzelne Gebühren und Steuern** — "Ohne Handelsbezug, auch mit
     Wertpapier";

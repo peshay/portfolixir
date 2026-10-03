@@ -9880,19 +9880,23 @@ dialog.merge-dialog {
   margin-left: var(--space-2);
 }
 
-/* The remainder: its own head on the muted band, then its three lines. */
+/* The remainder: its own head on the muted band, then its three lines. The
+   band outranks the zebra stripe `.data-table tbody tr:nth-child(even) td`
+   (0,2,3) and the row hover at 0,3,3, so all four rows sit on one solid band
+   whatever the number of positions above them (board
+   ux-review-2026-10-03/01-contribution-repairs, R2). */
+.data-table.contribution-table tbody tr.contribution-table__rest-head td,
+.data-table.contribution-table tbody tr.contribution-table__rest td {
+  background: var(--color-bg-muted);
+}
+
 .contribution-table tr.contribution-table__rest-head td {
   padding-top: 10px;
-  background: var(--color-bg-muted);
   color: var(--color-text-muted);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-}
-
-.contribution-table tr.contribution-table__rest td {
-  background: var(--color-bg-muted);
 }
 
 .contribution-table td.contribution-table__none {

@@ -701,8 +701,14 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
     assert css =~
              ~r/\.contribution-table td\.contribution-table__figure \.drift-bar\s*\{[^}]*display:\s*block;[^}]*width:\s*110px;[^}]*margin:\s*5px 0 0 auto/
 
+    # R2 (board ux-review-2026-10-03): the band outranks the zebra stripe
+    # `.data-table tbody tr:nth-child(even) td` (0,2,3) at 0,3,3, so the head
+    # row and every remainder line sit on it whatever the row count.
     assert css =~
-             ~r/\.contribution-table tr\.contribution-table__rest td\s*\{[^}]*background:\s*var\(--color-bg-muted\)/
+             ~r/\.data-table\.contribution-table tbody tr\.contribution-table__rest-head td,\s*\.data-table\.contribution-table tbody tr\.contribution-table__rest td\s*\{\s*background:\s*var\(--color-bg-muted\);/
+
+    refute css =~
+             ~r/\.contribution-table tr\.contribution-table__rest(-head)? td\s*\{[^}]*background/
 
     assert css =~
              ~r/\.contribution-table tr\.contribution-table__sum td\s*\{[^}]*font-weight:\s*700;[^}]*border-top:\s*2px solid var\(--color-border-strong\)/
