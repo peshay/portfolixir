@@ -1084,7 +1084,7 @@ msgstr "Wertpapier bearbeiten"
 msgid "ISIN copied"
 msgstr "ISIN kopiert"
 
-#: lib/portfolixir_web/components/app_shell.ex:695
+#: lib/portfolixir_web/components/app_shell.ex:698
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:592
 #, elixir-autogen, elixir-format
 msgid "Actions for %{row}"
@@ -5004,19 +5004,19 @@ msgid_plural "%{count} without an asset class"
 msgstr[0] "eins ohne Anlageklasse"
 msgstr[1] "%{count} ohne Anlageklasse"
 
-#: lib/portfolixir_web/components/app_shell.ex:743
+#: lib/portfolixir_web/components/app_shell.ex:746
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Attention"
 msgstr "Achtung"
 
-#: lib/portfolixir_web/components/app_shell.ex:742
+#: lib/portfolixir_web/components/app_shell.ex:745
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Note"
 msgstr "Hinweis"
 
-#: lib/portfolixir_web/components/app_shell.ex:744
+#: lib/portfolixir_web/components/app_shell.ex:747
 #, elixir-autogen, elixir-format
 msgctxt "data-note severity"
 msgid "Problem"
@@ -6200,7 +6200,7 @@ msgstr[1] "%{count} gehaltene Positionen haben einen Preis, aber keinen gespeich
 msgid "no exchange rate"
 msgstr "kein Wechselkurs"
 
-#: lib/portfolixir_web/components/app_shell.ex:729
+#: lib/portfolixir_web/components/app_shell.ex:732
 #, elixir-autogen, elixir-format
 msgctxt "price freshness"
 msgid "stale"

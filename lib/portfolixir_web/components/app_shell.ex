@@ -661,8 +661,11 @@ defmodule PortfolixirWeb.AppShell do
       phx-hook="PositionedMenu"
       data-trigger={@trigger}
     >
+      <%!-- The kind keeps its separator: glued to the name's last word by a
+           no-break space and unwrapped, so no line starts with "·" or holds
+           the kind alone (U1, #912, the closing act R10g). --%>
       <div :if={@caption_name} class="row-context-menu__caption" aria-hidden="true">
-        <b><%= @caption_name %></b><%= if @caption_kind, do: " · " <> @caption_kind %>
+        <b><%= @caption_name %></b><span :if={@caption_kind} class="row-context-menu__kind"><%= "\u00a0· " <> @caption_kind %></span>
       </div>
       <%= render_slot(@inner_block) %>
     </div>

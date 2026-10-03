@@ -98,6 +98,12 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
 
     menu = view |> open_menu(buy) |> element("#tx-row-menu-#{buy.id}") |> render()
     assert menu =~ "Buy, Global Aktien ETF, 2026-09-22"
+    # The phone sheet's caption keeps its separator with the date and the
+    # kind: a no-break space before it, the kind in a span that does not
+    # wrap (the closing act, R10g).
+    assert menu =~
+             ~s(</b><span class="row-context-menu__kind">\u00a0· Transaction</span>)
+
     assert [_, after_edit] = String.split(menu, "tx-edit-#{buy.id}", parts: 2)
     assert after_edit =~ "tx-delete-#{buy.id}"
 
