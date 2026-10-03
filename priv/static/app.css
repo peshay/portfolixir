@@ -9681,9 +9681,33 @@ dialog.merge-dialog {
 
 /* ① A narrow modal: one date pair, one chip row, one consequence and a band
    foot (the merge dialog's first step plus the room the chip row needs).
-   Under 720 px it is the merge dialog's bottom sheet (the 720 px block). */
-.quote-release-dialog {
+   Under 720 px it is the merge dialog's bottom sheet (the 720 px block).
+   The booking delete (Sprint 18 U1, issue 912, pick H2-A rule ①) is the same
+   narrow destructive modal: one subject, two or three sentences, a band
+   foot whose danger button names the act — it joins these lists. */
+.quote-release-dialog,
+.booking-delete-dialog {
   max-width: 460px;
+}
+
+/* ② The booking is named in the history's own phone-row shape — date ·
+   kind over the subject, the signed amount over its size — at every width,
+   in a bordered box: the row the operator chose, said back in the words
+   the list used (pick H2-A rule ②). */
+.booking-delete__subject {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+}
+
+.booking-delete-dialog .hint {
+  margin: 0;
 }
 
 /* The close button keeps its size beside a title that wraps and takes the
@@ -9704,7 +9728,8 @@ dialog.merge-dialog {
 
 @media (max-width: 720px) {
   dialog.modal.merge-dialog,
-  dialog.modal.quote-release-dialog {
+  dialog.modal.quote-release-dialog,
+  dialog.modal.booking-delete-dialog {
     position: fixed;
     inset: auto 0 0 0;
     width: 100%;
@@ -9716,14 +9741,16 @@ dialog.merge-dialog {
   }
 
   .merge-dialog > .modal-body,
-  .quote-release-dialog > .modal-body {
+  .quote-release-dialog > .modal-body,
+  .booking-delete-dialog > .modal-body {
     padding: 12px 16px;
   }
 
   /* The foot stays; the confirm takes a full line, Back the next (board
      02 at 390 px), so no account name breaks inside the button. */
   .merge-dialog .modal-footer--band,
-  .quote-release-dialog .modal-footer--band {
+  .quote-release-dialog .modal-footer--band,
+  .booking-delete-dialog .modal-footer--band {
     flex-direction: column;
     align-items: stretch;
     gap: 6px;
@@ -9732,14 +9759,16 @@ dialog.merge-dialog {
   }
 
   .merge-dialog .modal-footer--band > button,
-  .quote-release-dialog .modal-footer--band > button {
+  .quote-release-dialog .modal-footer--band > button,
+  .booking-delete-dialog .modal-footer--band > button {
     width: 100%;
     min-height: 44px;
     justify-content: center;
   }
 
   .merge-dialog .modal-footer__spacer,
-  .quote-release-dialog .modal-footer__spacer {
+  .quote-release-dialog .modal-footer__spacer,
+  .booking-delete-dialog .modal-footer__spacer {
     display: none;
   }
 
@@ -9749,12 +9778,14 @@ dialog.merge-dialog {
 
   .merge-dialog .modal-footer--band > .button-primary,
   .merge-dialog .modal-footer--band > .button-danger,
-  .quote-release-dialog .modal-footer--band > .button-danger {
+  .quote-release-dialog .modal-footer--band > .button-danger,
+  .booking-delete-dialog .modal-footer--band > .button-danger {
     order: 2;
   }
 
   .merge-dialog .modal-footer--band > .button-ghost,
-  .quote-release-dialog .modal-footer--band > .button-ghost {
+  .quote-release-dialog .modal-footer--band > .button-ghost,
+  .booking-delete-dialog .modal-footer--band > .button-ghost {
     order: 3;
   }
 

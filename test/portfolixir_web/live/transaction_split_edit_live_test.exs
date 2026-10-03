@@ -4,7 +4,10 @@ defmodule PortfolixirWeb.TransactionSplitEditLiveTest do
   # drawer — "Buy", an empty quantity and price, a depot the row does not
   # have — and a save there went past the split flow's checks. The drawer
   # now shows the split's facts fixed and only its note editable, with one
-  # help line naming how a wrong split is corrected, and no link.
+  # help line naming how a wrong split is corrected. Since Sprint 18 U1
+  # (#912, H2-A A7) the help line carries "Delete split…", and the state is
+  # the notes-only drawer every kind outside buy and sell opens (H2b-A), so
+  # its ids are the general ones.
   use PortfolixirWeb.ConnCase
 
   import Phoenix.LiveViewTest
@@ -47,36 +50,37 @@ defmodule PortfolixirWeb.TransactionSplitEditLiveTest do
   # Acceptance criteria:
   # - The drawer shows type Split, the effective date, the security and the
   #   ratio as disabled fields, and no depot, quantity or price.
-  # - One help line states the limit and names API and MCP, with no link.
+  # - One help line states the limit and the correction: delete the split
+  #   and record it again, with "Delete split…" (since U1, #912).
   # - "Save note" stores the note, journaled, and leaves the facts unchanged.
   test "a split row's edit shows its facts fixed and saves only the note",
        %{conn: conn, security: security, split: split} do
     view = open_split_edit(conn, split)
 
-    assert has_element?(view, "dialog#booking-drawer #split-note-form")
+    assert has_element?(view, "dialog#booking-drawer #note-form")
     refute has_element?(view, "#transaction-form")
 
     drawer = view |> element("#booking-drawer") |> render()
     assert drawer =~ "only the note changes here"
 
-    assert has_element?(view, "#split-facts select[name='split[type]'][disabled]")
+    assert has_element?(view, "#booking-facts select[name='note[type]'][disabled]")
 
     assert has_element?(
              view,
-             "#split-facts input[name='split[date]'][disabled][value='2026-02-01']"
+             "#booking-facts input[name='note[date]'][disabled][value='2026-02-01']"
            )
 
-    assert has_element?(view, "#split-facts select[name='split[security_id]'][disabled]")
-    assert has_element?(view, "#split-facts input[name='split[ratio]'][disabled][value='2:1']")
+    assert has_element?(view, "#booking-facts select[name='note[security_id]'][disabled]")
+    assert has_element?(view, "#booking-facts input[name='note[ratio]'][disabled][value='2:1']")
     assert drawer =~ security.name
     refute drawer =~ "Books to depot"
-    refute has_element?(view, "#booking-drawer input[name='split[quantity]']")
+    refute has_element?(view, "#booking-drawer input[name='note[quantity]']")
 
-    assert view |> element("#split-edit-help") |> render() =~ "API or MCP"
-    refute has_element?(view, "#split-edit-help a")
+    assert view |> element("#booking-edit-help") |> render() =~ "A wrong split is deleted"
+    assert has_element?(view, "#booking-edit-help button.link-button", "Delete split…")
 
     view
-    |> form("#split-note-form", %{"split" => %{"notes" => "per the broker statement"}})
+    |> form("#note-form", %{"note" => %{"notes" => "per the broker statement"}})
     |> render_submit()
 
     refute has_element?(view, "#booking-drawer")
@@ -124,12 +128,12 @@ defmodule PortfolixirWeb.TransactionSplitEditLiveTest do
     typed = "typed " <> String.duplicate("x", 10_001)
 
     view
-    |> form("#split-note-form", %{"split" => %{"notes" => typed}})
+    |> form("#note-form", %{"note" => %{"notes" => typed}})
     |> render_submit()
 
     assert has_element?(view, "#booking-drawer")
-    assert view |> element("#split-note-form textarea[name='split[notes]']") |> render() =~ typed
-    assert has_element?(view, "#split-note-form textarea[aria-invalid='true']")
+    assert view |> element("#note-form textarea[name='note[notes]']") |> render() =~ typed
+    assert has_element?(view, "#note-form textarea[aria-invalid='true']")
     assert Ledger.get_transaction(split.id).notes == split.notes
   end
 
@@ -169,7 +173,7 @@ defmodule PortfolixirWeb.TransactionSplitEditLiveTest do
 
     marked =
       view
-      |> element("#split-note-form [data-role='invisible-text-note']")
+      |> element("#note-form [data-role='invisible-text-note']")
       |> render()
 
     assert marked =~ "The text contains 2 invisible characters."
