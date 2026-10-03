@@ -102,6 +102,58 @@ defmodule PortfolixirWeb.TransactionDeleteConsequenceLiveTest do
              "Afterwards Depot 1 holds 6 more units of Kestrel Robotik SE, and Depot 2 holds 6 fewer units of Kestrel Robotik SE."
   end
 
+  # User story (U1, #912; H2-A, A2; ADR-0009; the closing act, R2):
+  # As the operator deleting a buy on an account whose balance I set later,
+  # I want the dialog to say until when the account has more and from when
+  # nothing changes,
+  # so that it never promises today's balance a change the set balance
+  # overrides.
+  #
+  # Acceptance criteria:
+  # - With a balance set on 2026-10-01 after a buy of 2026-09-22, the cash
+  #   clause is bounded "until 2026-09-30", and the next sentence says that
+  #   from the balance set on 2026-10-01 on, the account's balance stays
+  #   unchanged.
+  # - With the balance set on the buy's own day, the clause says the
+  #   balance stays as set that day and names no amount.
+  # - The German page reads "bis zum 30.09.2026" and "Ab dem am 01.10.2026
+  #   gesetzten Saldo bleibt der Stand von … unverändert."
+  test "a later set balance bounds the cash clause",
+       %{conn: conn, world: world, security: security} do
+    buy =
+      buy!(world, security, quantity: "40", price: "62.50", fees: "4.90", date: ~D[2026-09-22])
+
+    {:ok, anchor} =
+      Ledger.set_cash_balance(Actor.owner_ui(), world.cash, %{date: ~D[2026-10-01], amount: "900"})
+
+    assert consequence(conn, buy) =~
+             "Afterwards Depot 1 holds 40 fewer units of Kestrel Robotik SE, and Girokonto has 2,504.90 EUR more until 2026-09-30. " <>
+               "From the balance set on 2026-10-01 on, the balance of Girokonto stays unchanged. " <>
+               "Holdings, balances, returns and trades are recomputed without this booking."
+
+    german = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+
+    assert consequence(german, buy) =~
+             "Danach hält Depot 1 40 Stück Kestrel Robotik SE weniger, und Girokonto hat bis zum 30.09.2026 2.504,90 EUR mehr. " <>
+               "Ab dem am 01.10.2026 gesetzten Saldo bleibt der Stand von Girokonto unverändert."
+
+    {:ok, _} = Ledger.delete_transaction(Actor.owner_ui(), anchor)
+
+    {:ok, _same_day} =
+      Ledger.set_cash_balance(Actor.owner_ui(), world.cash, %{date: ~D[2026-09-22], amount: "900"})
+
+    text = consequence(conn, buy)
+
+    assert text =~
+             "Afterwards Depot 1 holds 40 fewer units of Kestrel Robotik SE, and the balance of Girokonto stays as set on 2026-09-22. " <>
+               "Holdings, balances"
+
+    refute text =~ "2,504.90"
+
+    assert consequence(german, buy) =~
+             "und der Stand von Girokonto bleibt, wie er am 22.09.2026 gesetzt wurde."
+  end
+
   # User story (U1, #912; H2-A, A2; the closing act, R1):
   # As the operator deleting a buy that a later reverse split shrank,
   # I want the dialog not to overstate what the depot loses,
