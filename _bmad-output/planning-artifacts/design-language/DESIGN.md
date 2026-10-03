@@ -2949,6 +2949,12 @@ the released rows), run as the operator.
   keep the note under it, with the new count. `inline_result` gained an
   optional `follow_up` slot and `dismiss_event` for this; the message may be
   safe markup (the `<time>` dates).
+- **The sync's own result** *(Sprint 18 U5, issue 1012, H7.1b)*: where the
+  sync kept manual quotes against a provider close for the same day, its
+  result adds "3 manual quotes were left standing where the provider
+  returned a close." (German "3 manuelle Kurse blieben stehen, wo der
+  Anbieter einen Schlusskurs lieferte."; "One manual quote was left
+  standing …" for one) — Amendment 2026-10-03, the sync's count.
 - **Under 720 px** the dialog is the merge dialog's bottom sheet:
   `.quote-release-dialog` joins the selector lists of the `.merge-dialog`
   phone rules (full width, at most 88 % high, the foot stacked — the reason
@@ -3426,3 +3432,20 @@ doubt, UX-DR26): the rows are the table rendered a second time, as every
 phone list is, and the table itself carries the whole range; capping the
 phone alone would make it say less than the desktop without a stated reason
 of its own. "Max" on a long history renders accordingly.
+
+### The sync's count of the manual quotes that stayed *(H7.1b; issue 1012)*
+
+The quote sync keeps a manual quote wherever the provider returns a close
+for the same day (`Quotes.upsert_many(…, protect_manual: true)`) and counts
+it per security as `skipped_manual`. The page-level result
+(`#securities-action-result`) now says so after either form of its first
+sentence ("Kurse aktualisiert." or "Kurssync abgeschlossen: …"), summed over
+every security the sync touched, through `ngettext`: "2 manuelle Kurse
+blieben stehen, wo der Anbieter einen Schlusskurs lieferte." / "Ein
+manueller Kurs blieb stehen, …". The verb repeats the Quotes tab's note
+("lässt ihn stehen"); "übersprungen" stays reserved for a security the sync
+does not query at all; the clause names what is counted — collisions, not
+every manual quote, which the note counts. With none the result is the
+first sentence alone. The OS notification carries the same text. Naming the
+securities that kept them is possible from the per-security results and not
+proposed.

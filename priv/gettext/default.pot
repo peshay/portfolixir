@@ -960,8 +960,8 @@ msgstr ""
 msgid "Log scale"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5800
-#: lib/portfolixir_web/live/securities_live.ex:5811
+#: lib/portfolixir_web/live/securities_live.ex:5829
+#: lib/portfolixir_web/live/securities_live.ex:5840
 #, elixir-autogen, elixir-format
 msgid "Prices synced."
 msgstr ""
@@ -1737,22 +1737,22 @@ msgstr ""
 msgid "Price sync complete"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5804
+#: lib/portfolixir_web/live/securities_live.ex:5833
 #, elixir-autogen, elixir-format
 msgid "Price sync finished: %{ok} synced, %{skipped} skipped, %{error} failed."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5814
+#: lib/portfolixir_web/live/securities_live.ex:5843
 #, elixir-autogen, elixir-format
 msgid "Price sync skipped: %{reason}"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5818
+#: lib/portfolixir_web/live/securities_live.ex:5847
 #, elixir-autogen, elixir-format
 msgid "Price sync failed: %{reason}"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:5821
+#: lib/portfolixir_web/live/securities_live.ex:5850
 #, elixir-autogen, elixir-format
 msgid "Price sync failed."
 msgstr ""
@@ -3004,7 +3004,7 @@ msgid "Income per month in %{year}"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:232
-#: lib/portfolixir_web/live/securities_live.ex:6003
+#: lib/portfolixir_web/live/securities_live.ex:6032
 #, elixir-autogen, elixir-format
 msgid "No logo"
 msgstr ""
@@ -4968,7 +4968,7 @@ msgid "Last known value —"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:231
-#: lib/portfolixir_web/live/securities_live.ex:6002
+#: lib/portfolixir_web/live/securities_live.ex:6031
 #, elixir-autogen, elixir-format
 msgid "No quote at all"
 msgstr ""
@@ -5262,7 +5262,7 @@ msgid "Any"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:229
-#: lib/portfolixir_web/live/securities_live.ex:6000
+#: lib/portfolixir_web/live/securities_live.ex:6029
 #, elixir-autogen, elixir-format
 msgid "No quote in %{days} days"
 msgstr ""
@@ -5383,23 +5383,23 @@ msgstr ""
 msgid "Filter the list"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:6015
+#: lib/portfolixir_web/live/securities_live.ex:6044
 #, elixir-autogen, elixir-format
 msgid "Missing FX"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:233
-#: lib/portfolixir_web/live/securities_live.ex:6004
+#: lib/portfolixir_web/live/securities_live.ex:6033
 #, elixir-autogen, elixir-format
 msgid "Missing FX rate"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:6014
+#: lib/portfolixir_web/live/securities_live.ex:6043
 #, elixir-autogen, elixir-format
 msgid "No price"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:6013
+#: lib/portfolixir_web/live/securities_live.ex:6042
 #, elixir-autogen, elixir-format
 msgid "Stale quote"
 msgstr ""
@@ -5421,14 +5421,14 @@ msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:4675
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:398
-#: lib/portfolixir_web/live/securities_live.ex:5997
+#: lib/portfolixir_web/live/securities_live.ex:6026
 #, elixir-autogen, elixir-format
 msgid "Not a date — use YYYY-MM-DD."
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_live.ex:4672
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:425
-#: lib/portfolixir_web/live/securities_live.ex:5994
+#: lib/portfolixir_web/live/securities_live.ex:6023
 #, elixir-autogen, elixir-format
 msgid "The end date is before the start date."
 msgstr ""
@@ -10810,3 +10810,10 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "stored %{value}"
 msgstr ""
+
+#: lib/portfolixir_web/live/securities_live.ex:5814
+#, elixir-autogen, elixir-format
+msgid "One manual quote was left standing where the provider returned a close."
+msgid_plural "%{count} manual quotes were left standing where the provider returned a close."
+msgstr[0] ""
+msgstr[1] ""
