@@ -9940,7 +9940,12 @@ dialog.merge-dialog {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
+/* The band bleeds into the list's gutter by its own padding, so the
+   remainder's name and figure keep the other rows' edges and the figures
+   stay one right-aligned column (board
+   ux-review-2026-10-03/01-contribution-repairs, R5). */
 #contribution-phone-rows .contribution-phone-rows__rest {
+  margin-inline: calc(-1 * var(--space-2));
   padding-inline: var(--space-2);
   background: var(--color-bg-muted);
 }

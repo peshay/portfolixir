@@ -792,4 +792,26 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
 
     assert conn |> get("/portfolio?locale=de") |> html_response(200) =~ ~s(<html lang="de")
   end
+
+  # User story (Sprint 18 PR β design critic, R5; board
+  # ux-review-2026-10-03/01-contribution-repairs; UX-DR27):
+  # As a local portfolio maintainer reading the contribution on a phone,
+  # I want the remainder row's name and figure on the same edges as every
+  # other row's,
+  # so that the right-aligned figures read as one column down to the sum.
+  #
+  # Acceptance criteria:
+  # - The remainder row keeps its {colors.bg-muted} band, bled into the
+  #   list's gutter by a negative inline margin equal to its inline padding,
+  #   so its content sits where the other rows' content sits.
+  test "under 560 px the remainder keeps the rows' edges" do
+    css = File.read!("priv/static/app.css")
+
+    [rest_rule] =
+      Regex.run(~r/#contribution-phone-rows \.contribution-phone-rows__rest \{[^}]*\}/, css)
+
+    assert rest_rule =~ "margin-inline: calc(-1 * var(--space-2));"
+    assert rest_rule =~ "padding-inline: var(--space-2);"
+    assert rest_rule =~ "background: var(--color-bg-muted);"
+  end
 end
