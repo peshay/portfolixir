@@ -1119,7 +1119,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                     is_nil(@detail_custom_range) and @detail_range == range && "is-active"
                   ]}
                 >
-                  <%= range %>
+                  <%= range_label(range) %>
                 </button>
               <% end %>
               <%!-- #721 (D5): an applied custom range shows itself in the
@@ -2983,7 +2983,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         </p>
       <% else %>
         <p class="summary-basis" data-role="quotes-range-basis">
-          <%= gettext("Range %{range} · as on the Chart tab", range: @range || gettext("default")) %>
+          <%= gettext("Range %{range} · as on the Chart tab", range: range_label(@range)) %>
         </p>
         <p
           :if={series_basis_label(@series_basis, @split_events)}
@@ -5906,6 +5906,24 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   defp ranges, do: @ranges
+
+  # #1033 (Sprint 18 U5, board ux-design-2026-10-02/07-phone-390, H7.3): one
+  # label for the detail's range tokens, used by the Chart tab's buttons and
+  # the Quotes tab's basis line that points at them, so the two agree. The
+  # app's one period vocabulary in the reader's language ("1J" in German, as
+  # Wealth and the Overview's KPI strip say), with "Max" cased as
+  # EXPERIENCE.md → Period control has it. The URL and the event value stay
+  # the code.
+  defp range_label("1M"), do: gettext("1M")
+  defp range_label("3M"), do: gettext("3M")
+  defp range_label("6M"), do: gettext("6M")
+  defp range_label("YTD"), do: gettext("YTD")
+  defp range_label("1Y"), do: gettext("1Y")
+  defp range_label("3Y"), do: gettext("3Y")
+  defp range_label("5Y"), do: gettext("5Y")
+  defp range_label("MAX"), do: gettext("Max")
+  defp range_label(nil), do: gettext("default")
+  defp range_label(range), do: range
 
   defp load_securities(socket) do
     dq = socket.assigns.dq

@@ -829,8 +829,17 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       assert render(view) =~ "Log scale"
 
-      for range <- ~w(1M 3M 6M YTD 1Y MAX) do
-        assert has_element?(view, "button[phx-value-range='#{range}']", range)
+      # #1033 (H7.3): the value stays the code, the label is the app's
+      # vocabulary — "MAX" reads "Max".
+      for {range, label} <- [
+            {"1M", "1M"},
+            {"3M", "3M"},
+            {"6M", "6M"},
+            {"YTD", "YTD"},
+            {"1Y", "1Y"},
+            {"MAX", "Max"}
+          ] do
+        assert has_element?(view, "button[phx-value-range='#{range}']", label)
       end
     end
 
