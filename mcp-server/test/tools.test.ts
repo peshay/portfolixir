@@ -3905,9 +3905,13 @@ describe("Portfolixir MCP tools", () => {
       "valid_from",
       "valid_until",
       "time_stop",
-      "changed_on"
+      "changed_on",
+      "maturity_date",
+      "issue_date"
     ]);
     const writeTools = [
+      "portfolixir.securities.create",
+      "portfolixir.securities.update",
       "portfolixir.securities.isin_change",
       "portfolixir.events.create",
       "portfolixir.events.update",
@@ -3956,6 +3960,8 @@ describe("Portfolixir MCP tools", () => {
     assert.ok(found.includes("portfolixir.transactions.create transaction.date"));
     assert.ok(found.includes("portfolixir.policy_rules.create rule.version.valid_from"));
     assert.ok(found.includes("portfolixir.snapshots.create as_of"));
+    assert.ok(found.includes("portfolixir.securities.update security.maturity_date"));
+    assert.ok(found.includes("portfolixir.securities.create security.issue_date"));
   });
 
   // E25 S4, G11 (#889): a target batch is bounded, and the schema says so
@@ -4096,6 +4102,110 @@ describe("Portfolixir MCP tools", () => {
 
   // E25 S4, G12 (#889): a security's splits, each by its own magnitude,
   // multiply to at most 10^12; the split tools say so.
+  // User story (#330, ADR-0052):
+  // As the operator's agent recording a bond from a statement and reading it
+  // back,
+  // I want the bond's master data on the security write tools and its
+  // reading named on securities.get,
+  // so that what I set is what the Overview shows, and I know which figures
+  // the detail read carries and how they were made.
+  //
+  // Acceptance criteria:
+  // - securities.create and securities.update take coupon_rate and
+  //   face_value as Decimal strings, coupon_frequency as annual or
+  //   semi_annual, maturity_date and issue_date as bounded ISO dates, and
+  //   face_value_currency_code, and forward them unchanged.
+  // - securities.get names bond with nominal_held under the hundredth
+  //   convention, the remaining term, both yields with their
+  //   computation_basis, and two_scales.
+  // - The fields whitelist mirrors the API's: the six fields and bond.
+  it("carries a bond's master data on the security writes and its reading on securities.get", async () => {
+    const tools = listTools();
+    const bondKeys = [
+      "coupon_rate",
+      "coupon_frequency",
+      "maturity_date",
+      "issue_date",
+      "face_value",
+      "face_value_currency_code"
+    ];
+
+    // An update takes null to clear a field; a create has nothing to clear.
+    for (const [name, type] of [
+      ["portfolixir.securities.create", "string"],
+      ["portfolixir.securities.update", ["string", "null"]]
+    ] as const) {
+      const security = tools.find((tool) => tool.name === name)?.inputSchema.properties.security;
+
+      for (const key of bondKeys) {
+        assert.deepEqual(security?.properties[key]?.type, type, `${name} ${key}`);
+      }
+
+      assert.ok(security?.properties.coupon_frequency.enum.includes("annual"));
+      assert.ok(security?.properties.coupon_frequency.enum.includes("semi_annual"));
+      assert.match(security?.properties.coupon_rate.description ?? "", /percent of face/);
+    }
+
+    const get = tools.find((tool) => tool.name === "portfolixir.securities.get")?.description ?? "";
+
+    for (const fragment of [
+      /bond/,
+      /nominal_held \(quantity × 100/,
+      /hundredth of the face amount/,
+      /remaining_term/,
+      /current_yield/,
+      /yield_to_maturity/,
+      /computation_basis/,
+      /two_scales/
+    ]) {
+      assert.match(get, fragment);
+    }
+
+    const fields =
+      tools.find((tool) => tool.name === "portfolixir.securities.list")?.inputSchema.properties
+        .fields.items.enum ?? [];
+
+    for (const key of [...bondKeys, "bond"]) {
+      assert.ok(fields.includes(key), `fields enum misses ${key}`);
+    }
+
+    const { client, requests } = createRecordingClient({ data: {} });
+    const bond = {
+      coupon_rate: "2.5",
+      coupon_frequency: "annual",
+      maturity_date: "2031-06-15",
+      issue_date: "2021-06-15",
+      face_value: "1000",
+      face_value_currency_code: "EUR"
+    };
+
+    await callTool(client, "portfolixir.securities.create", {
+      security: { name: "Musterland Anleihe 2031", currency_code: "EUR", ...bond }
+    });
+    await callTool(client, "portfolixir.securities.update", { id: 7, security: bond });
+
+    assert.deepEqual(requests[0].body, {
+      security: { name: "Musterland Anleihe 2031", currency_code: "EUR", ...bond }
+    });
+    assert.deepEqual(requests[1].body, { security: bond });
+
+    await assert.rejects(
+      callTool(client, "portfolixir.securities.update", {
+        id: 7,
+        security: { coupon_frequency: "monthly" }
+      })
+    );
+    await assert.rejects(
+      callTool(client, "portfolixir.securities.update", { id: 7, security: { coupon_rate: 2.5 } })
+    );
+
+    await callTool(client, "portfolixir.securities.update", {
+      id: 7,
+      security: { coupon_rate: null, issue_date: null }
+    });
+    assert.deepEqual(requests[2].body, { security: { coupon_rate: null, issue_date: null } });
+  });
+
   it("states the cumulative split bound on the split tools", () => {
     for (const name of ["portfolixir.splits.preview", "portfolixir.splits.create"]) {
       const description = listTools().find((tool) => tool.name === name)?.description ?? "";
