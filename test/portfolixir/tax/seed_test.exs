@@ -1,6 +1,15 @@
 defmodule Portfolixir.Tax.SeedTest do
   use Portfolixir.DataCase, async: true
 
+  # These tests run the frozen seed (`Portfolixir.Tax.BuiltinSeed`, frozen
+  # at migration 20260725140000's schema on purpose) against today's schema.
+  # A later migration that adds a NOT NULL column to `audit_journal` or
+  # `tax_parameters` can turn them red while every install is fine, because
+  # the migration runs the seed at its own version. If that happens, move
+  # these tests into a seeded case at 20260725140000
+  # (`Portfolixir.SeededUpgrade`) instead of changing `BuiltinSeed`, whose
+  # moduledoc says why it never changes.
+
   alias Portfolixir.Actor
   alias Portfolixir.Journal
   alias Portfolixir.Tax
@@ -154,6 +163,28 @@ defmodule Portfolixir.Tax.SeedTest do
              "inserted_at" => NaiveDateTime.to_iso8601(row.inserted_at),
              "updated_at" => NaiveDateTime.to_iso8601(row.updated_at)
            }
+  end
+
+  # The guard's setting for an actor without a label is its type alone, and
+  # the journal stores no label for it.
+  test "a seed under an actor without a label journals its type and no label" do
+    :ok = Tax.rollback_builtin_parameters(@seed_actor)
+    owner_entries_before = owner_entries()
+
+    {:ok, summary} = Tax.seed_builtin_parameters(Actor.owner_ui())
+
+    entries = owner_entries() -- owner_entries_before
+    assert summary.inserted == 2026 - 2009 + 1
+    assert length(entries) == summary.inserted
+    assert Enum.all?(entries, &(&1.actor_type == :owner_ui and is_nil(&1.actor_label)))
+  end
+
+  defp owner_entries do
+    Journal.list_entries(
+      resource_type: "tax_parameters",
+      actor_type: "owner_ui",
+      operation: :create
+    )
   end
 
   defp seed_entry_count(operation) do

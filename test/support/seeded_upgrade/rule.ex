@@ -21,14 +21,15 @@ defmodule Portfolixir.SeededUpgrade.Rule do
   seeded case, a miss costs a release that does not boot.
 
     * **CHECK** -- `constraint(table, name, check: ...)` on a table the
-      migration does not create itself, or SQL text with `CHECK (` or
-      `VALIDATE CONSTRAINT` (which makes a constraint added `NOT VALID`
-      bind the rows already stored).
+      migration does not create itself, or SQL text with `CHECK (`,
+      `ALTER TABLE ... ADD ... CHECK (` or `VALIDATE CONSTRAINT` (which
+      makes a constraint added `NOT VALID` bind the rows already stored).
     * **NOT NULL** -- `add`, `modify` or `add_if_not_exists` with
       `null: false`, or `timestamps` without `null: true` (Ecto makes both
       columns NOT NULL by default), inside `alter table(...)` of a table the
-      migration does not create; or SQL text with `SET NOT NULL` or
-      `ADD COLUMN ... NOT NULL`.
+      migration does not create; or SQL text with `SET NOT NULL` or a
+      column added `NOT NULL` (`ADD COLUMN ... NOT NULL`, or `ADD` without
+      `COLUMN` in an `ALTER TABLE`, as SQL allows).
     * **backfill** -- SQL text with `UPDATE <table> SET` or
       `INSERT INTO ... SELECT`; a write through a repo (`repo()`, a `repo`
       variable or `Repo`: `update_all`, `insert_all`, `update`, `insert` and
@@ -37,10 +38,15 @@ defmodule Portfolixir.SeededUpgrade.Rule do
       backfill ran.
     * **UNIQUE index** -- `unique_index(table, ...)`, or `index(table, ...,
       unique: true)`, created on a table the migration does not create; or
-      SQL text with `CREATE UNIQUE INDEX` or `ADD CONSTRAINT <name> UNIQUE`.
-    * **foreign key** -- `references(...)` inside `alter table(...)` of a
-      table the migration does not create; or SQL text with `FOREIGN KEY` or
-      `ADD COLUMN ... REFERENCES`.
+      SQL text with `CREATE UNIQUE INDEX` or `ADD UNIQUE (`, named
+      (`ADD CONSTRAINT <name> UNIQUE (`) or not, `NULLS NOT DISTINCT` and
+      `UNIQUE USING INDEX` included.
+    * **foreign key** -- `add` or `add_if_not_exists` with `references(...)`
+      as the column's type, or `modify` to `references(...)`, inside
+      `alter table(...)` of a table the migration does not create (the type
+      a `remove` names and a `modify`'s `from:` are what a rollback restores,
+      and add none); or SQL text with `FOREIGN KEY` or a column added with
+      `REFERENCES`, with `COLUMN` or without.
     * **exclusion constraint** -- `constraint(table, name, exclude: ...)` on
       a table the migration does not create; or SQL text with
       `EXCLUDE USING`.
@@ -48,13 +54,29 @@ defmodule Portfolixir.SeededUpgrade.Rule do
   An index built `CONCURRENTLY` or behind a cleanup step (a `DELETE` of the
   duplicates first) is no exception: the cleanup is what the case proves.
 
-  SQL is matched in upper case, the way every migration here writes it, so
-  prose such as a log message's "kind check (" is not read as SQL. A string
-  built by interpolation (`"UPDATE \#{table} SET ..."`, the house style for
-  a table named in a module attribute) or by `<>` is matched as one text,
-  each interpolated or concatenated expression standing in as an
+  SQL keywords are matched in either case wherever the pattern asks for
+  enough SQL that prose cannot read as it. Three are also matched on their
+  own, and those in upper case only, the way every migration here writes
+  them, because their lower-case reading is English: `CHECK (` (a log
+  message's "the kind check (ADR-0050)"), `UPDATE <table> SET` ("update the
+  set of rows") and `FOREIGN KEY` ("a foreign key"). In lower case they
+  count with the SQL around them: `ALTER TABLE ... ADD ... CHECK (`,
+  `UPDATE <table> SET <column> =` and `FOREIGN KEY (...) REFERENCES`. A name
+  may be quoted, spaces and all, and a column type's parenthesised
+  arguments (`numeric(20, 8)`) do not end the column it adds.
+
+  A string built by interpolation (`"UPDATE \#{table} SET ..."`, the house
+  style for a table named in a module attribute) or by `<>` is matched as
+  one text, each interpolated or concatenated expression standing in as an
   identifier: matched piece by piece, `UPDATE \#{table} SET` would read as
   two strings and no backfill.
+
+  SQL text is read without its table, so a constraint or a UNIQUE index
+  that SQL adds to a table the same migration creates with `create table`
+  still counts. That false positive is accepted: telling the two apart
+  would mean splitting the text into statements and naming each one's
+  table, which a function body's own semicolons and an interpolated table
+  name defeat.
   """
 
   alias Portfolixir.ScratchDatabase
@@ -74,18 +96,40 @@ defmodule Portfolixir.SeededUpgrade.Rule do
     :insert_or_update!
   ]
 
+  # The pieces the SQL patterns share. A name, quoted (spaces and all) or
+  # bare, schema-qualified or not.
+  @name ~S{(?:"[^"]+"|\w+)(?:\.(?:"[^"]+"|\w+))*}
+  # The rest of one `ADD` action, up to the comma or semicolon that ends it;
+  # a parenthesised group without nesting, such as `numeric(20, 8)`, is read
+  # whole, so its comma does not end the action.
+  @action ~S{(?>\([^()]*\)|[^,;])*}
+  # A column being added: `ADD COLUMN`, or `ADD` in an `ALTER TABLE` where no
+  # table constraint's keyword follows it (`COLUMN` is optional in SQL).
+  @add_column ~S{(?:\bADD\s+COLUMN\b|\bALTER\s+TABLE\b[^;]*?\bADD\s+(?!(?:CONSTRAINT|CHECK|UNIQUE|PRIMARY|FOREIGN|EXCLUDE)\b))}
+
+  # Case-insensitive (`i`) unless marked: three upper-case-only patterns
+  # read English when lower-cased, and each has a case-insensitive twin that
+  # asks for the SQL around it.
   @sql [
+    # upper case only: "the kind check (ADR-0050)" is prose.
     check: ~r/\bCHECK\s*\(/,
-    check: ~r/\bVALIDATE\s+CONSTRAINT\b/,
-    not_null: ~r/\bSET\s+NOT\s+NULL\b/,
-    not_null: ~r/\bADD\s+COLUMN\b[^,;]*\bNOT\s+NULL\b/,
-    backfill: ~r/\bUPDATE\s+(?:ONLY\s+)?[\w."]+\s+(?:AS\s+)?(?:\w+\s+)?SET\b/,
-    backfill: ~r/\bINSERT\s+INTO\b[^;]*\bSELECT\b/,
-    unique: ~r/\bCREATE\s+UNIQUE\s+INDEX\b/,
-    unique: ~r/\bADD\s+CONSTRAINT\s+[\w."]+\s+UNIQUE\b/,
+    check: ~r/\bALTER\s+TABLE\b[^;]*?\bADD\b#{@action}\bCHECK\s*\(/i,
+    check: ~r/\bVALIDATE\s+CONSTRAINT\b/i,
+    not_null: ~r/\bSET\s+NOT\s+NULL\b/i,
+    not_null: ~r/#{@add_column}#{@action}\bNOT\s+NULL\b/i,
+    # upper case only: "update the set of rows" is prose.
+    backfill: ~r/\bUPDATE\s+(?:ONLY\s+)?#{@name}\s+(?:AS\s+)?(?:\w+\s+)?SET\b/,
+    backfill:
+      ~r/\bUPDATE\s+(?:ONLY\s+)?#{@name}\s+(?:AS\s+)?(?:\w+\s+)?SET\s+(?:#{@name}|\([^)]*\))\s*=/i,
+    backfill: ~r/\bINSERT\s+INTO\b[^;]*\bSELECT\b/i,
+    unique: ~r/\bCREATE\s+UNIQUE\s+INDEX\b/i,
+    unique:
+      ~r/\bADD\s+(?:CONSTRAINT\s+#{@name}\s+)?UNIQUE\s*(?:NULLS\s+(?:NOT\s+)?DISTINCT\s*)?(?:\(|USING\s+INDEX\b)/i,
+    # upper case only: "a foreign key" is prose.
     foreign_key: ~r/\bFOREIGN\s+KEY\b/,
-    foreign_key: ~r/\bADD\s+COLUMN\b[^,;]*\bREFERENCES\b/,
-    exclusion: ~r/\bEXCLUDE\s+USING\b/
+    foreign_key: ~r/\bFOREIGN\s+KEY\s*\([^)]*\)\s*REFERENCES\b/i,
+    foreign_key: ~r/#{@add_column}#{@action}\bREFERENCES\b/i,
+    exclusion: ~r/\bEXCLUDE\s+USING\b/i
   ]
 
   @changes [:check, :not_null, :backfill, :unique, :foreign_key, :exclusion]
@@ -340,11 +384,18 @@ defmodule Portfolixir.SeededUpgrade.Rule do
     found?
   end
 
+  # A column whose new type is `references(...)`: the type `add` gives, or
+  # the one `modify` changes to. The type `remove` names and a `modify`'s
+  # `from:` are what a rollback restores; neither adds a foreign key.
   defp reference?(block) do
     {_ast, found?} =
       Macro.prewalk(block, false, fn
-        {:references, _meta, args} = node, _found? when is_list(args) -> {node, true}
-        node, found? -> {node, found?}
+        {column, _meta, [_name, {:references, _ref_meta, ref_args} | _opts]} = node, _found?
+        when column in [:add, :add_if_not_exists, :modify] and is_list(ref_args) ->
+          {node, true}
+
+        node, found? ->
+          {node, found?}
       end)
 
     found?
