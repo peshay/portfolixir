@@ -2977,6 +2977,12 @@ of the contribution read (`Performance.Contribution.for_view/2`), and it is
   Kosten · Endwert · Beitrag, the six figures `.num`. A reading table, not a
   matrix (`min-width: 0` on the wrapper's table, the figures `nowrap`, the
   name at least 14ch and wrapping), with UX-DR15's scroller as the fallback.
+  The name and its sub-line wrap between words — `overflow-wrap: break-word`
+  with `hyphens: auto`, so a browser with the page language's dictionary
+  breaks a German compound at a syllable with a hyphen, and one without
+  keeps the word whole and widens the column to it. Never `anywhere`, which
+  split "Fremdwährungsko|nten" at 561–1024 px (repair R4, board
+  `mockups/ux-review-2026-10-03/01-contribution-repairs`).
 - **A position row**, largest contribution first (the payload's order): the
   name; under it, in 12 px muted, the payload's two flags in words where a
   position was not held at both ends — "zu Beginn nicht im Bestand", "am

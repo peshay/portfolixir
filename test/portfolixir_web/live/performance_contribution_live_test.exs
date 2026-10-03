@@ -766,4 +766,30 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
 
     assert phone_block =~ "#contribution-table-wrap"
   end
+
+  # User story (Sprint 18 PR β design critic, R4; board
+  # ux-review-2026-10-03/01-contribution-repairs):
+  # As a local portfolio maintainer reading German at tablet width,
+  # I want a name and its sub-line to wrap between words,
+  # so that "Fremdwährungskonten" never reads as "Fremdwährungsko" over "nten".
+  #
+  # Acceptance criteria:
+  # - The name cell wraps with `overflow-wrap: break-word` and
+  #   `hyphens: auto`, never `anywhere`, keeping its 14ch floor.
+  # - The page names its language, so the browser hyphenates German as
+  #   German.
+  test "a name wraps between words, never mid-word", %{conn: conn} do
+    css = File.read!("priv/static/app.css")
+
+    [name_rule] =
+      Regex.run(~r/\.contribution-table td\.contribution-table__name \{[^}]*\}/, css)
+
+    assert name_rule =~ "min-width: 14ch;"
+    assert name_rule =~ "overflow-wrap: break-word;"
+    assert name_rule =~ "-webkit-hyphens: auto;"
+    assert name_rule =~ ~r/[^-]hyphens: auto;/
+    refute name_rule =~ "anywhere"
+
+    assert conn |> get("/portfolio?locale=de") |> html_response(200) =~ ~s(<html lang="de")
+  end
 end
