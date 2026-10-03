@@ -15,6 +15,7 @@ defmodule Portfolixir.DocsTest do
     "docs/de/features.md",
     "docs/product-documentation.md",
     "docs/guides/buckets-and-views.md",
+    "docs/guides/own-rules.md",
     "docs/home-deployment.md",
     "docs/integration/api-and-mcp.md",
     "docs/development/story-workflow.md",
@@ -2233,5 +2234,131 @@ defmodule Portfolixir.DocsTest do
     for fragment <- ["`_isin`", "#408", "`changeset/2`", "`is_nil`" | leaf_classes] do
       assert note =~ fragment, "ADR-0012's note: #{fragment}"
     end
+  end
+
+  # User story (#943):
+  # As the operator who keeps a limit on Wealth → Risk,
+  # I want a guide to the Own rules section in English and German, beside
+  # the Buckets & Views Guide,
+  # so that I can write, change and read a rule without the agent's API page.
+  #
+  # Acceptance criteria:
+  # - The guide exists as an EN baseline with a DE counterpart, carries the
+  #   docs layout and the language-switcher front matter, links ADR-0049 and
+  #   the API's policy-rule section with .html links only, and sits in the App
+  #   Handbook navigation right after the Buckets & Views Guide.
+  # - Each page names the section's controls, kinds, measures, severities and
+  #   states as the screen does: the English label, and in German the
+  #   catalogue's translation of it.
+  # - It covers cap, floor and band; effective-dated versions; the rename
+  #   that creates no version; why undetermined is never met; the refusal's
+  #   link to Risk in the rule's view; and the agent's "Agent" word.
+  # - The handbook's Risk section links the guide in both languages, and the
+  #   guide links back.
+  test "docs provide an own-rules guide for the Risk page in English and German (#943)" do
+    en = File.read!("docs/guides/own-rules.md")
+    de = File.read!("docs/de/guides/own-rules.md")
+    navigation = File.read!("docs/_data/navigation.yml")
+    en_product = File.read!("docs/product-documentation.md")
+    de_product = File.read!("docs/de/product-documentation.md")
+
+    for page <- [en, de] do
+      assert page =~ ~r/\A---\nlayout: docs\n/
+      assert page =~ "lang_en: /guides/own-rules.html"
+      assert page =~ "lang_de: /de/guides/own-rules.html"
+      assert page =~ "/decisions/0049-policy-rules-as-first-class-objects.html"
+      refute page =~ ~r/\]\([^)\n]+\.md(?:#[^)\n]+)?\)/
+    end
+
+    assert en =~ "lang: en"
+    assert de =~ "lang: de"
+    assert en =~ "/integration/api-and-mcp.html#policy-rules-adr-0049"
+    assert de =~ "/de/integration/api-and-mcp.html#eigene-regeln-adr-0049"
+
+    assert navigation =~
+             "    - title: Buckets & Views Guide\n      url: /guides/buckets-and-views.html\n" <>
+               "    - title: Own Rules Guide\n      url: /guides/own-rules.html\n"
+
+    en_normalized = String.replace(en, ~r/\s+/, " ")
+    de_normalized = String.replace(de, ~r/\s+/, " ")
+
+    labels = [
+      "Own rules",
+      "New rule",
+      "Measure",
+      "Subject",
+      "Plan of the classification",
+      "Window",
+      "Kind",
+      "Severity",
+      "In force from",
+      "Weight",
+      "Drift",
+      "Concentration (HHI)",
+      "Volatility",
+      "Maximum drawdown",
+      "Whole basis",
+      "Cap",
+      "Floor",
+      "Band",
+      "Warning",
+      "Hard",
+      "Line",
+      "breached",
+      "undetermined",
+      "met",
+      "Save rule",
+      "Save new version",
+      "Save name",
+      "Retire rule",
+      "Delete rule",
+      "Scheduled rules",
+      "Versions",
+      "Agent",
+      "Operator",
+      "Cannot delete"
+    ]
+
+    for label <- labels do
+      german =
+        Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+          Gettext.gettext(PortfolixirWeb.Gettext, label)
+        end)
+
+      assert en_normalized =~ "**#{label}**", "EN guide lacks **#{label}**"
+      assert de_normalized =~ "**#{german}**", "DE guide lacks **#{german}** (#{label})"
+    end
+
+    for {page, fragments} <- [
+          {en_normalized,
+           [
+             "strictly above",
+             "strictly below",
+             "a new version",
+             "creates no version",
+             "never counted as met",
+             "links to Risk in the view the rule applies in",
+             "ends its words with “· Agent”"
+           ]},
+          {de_normalized,
+           [
+             "echt darüber",
+             "echt darunter",
+             "eine neue Version",
+             "entsteht keine Version",
+             "nie als eingehalten gezählt",
+             "führt auf „Risiko“ in der Ansicht, in der die Regel gilt",
+             "endet ihre Wortzeile mit „· Agent“"
+           ]}
+        ] do
+      for fragment <- fragments do
+        assert page =~ fragment, fragment
+      end
+    end
+
+    assert en_product =~ "guides/own-rules.html"
+    assert de_product =~ "guides/own-rules.html"
+    assert en =~ "/product-documentation.html#risk-concentration-and-movement"
+    assert de =~ "/de/product-documentation.html#risiko-konzentration-und-schwankung"
   end
 end
