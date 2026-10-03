@@ -97,6 +97,53 @@ defmodule PortfolixirWeb.ApiV1SecurityBondTest do
     assert Decimal.equal?(Decimal.new(unchanged["data"]["coupon_rate"]), Decimal.new("2.5"))
   end
 
+  # User story (#330, closing act on U7, finding 3):
+  # As the operator's agent reading a bond bought at its nominal before any
+  # quote was stored,
+  # I want both yields refused with the reason in the payload,
+  # so that I never report a current yield of 254 % from a price per unit
+  # of 0.984.
+  #
+  # Acceptance criteria:
+  # - current_yield and yield_to_maturity are null with
+  #   price_on_unit_scale true, insufficient_data false, and the trade price
+  #   they refused; a computed yield carries price_on_unit_scale false.
+  # - Each computation_basis.gaps names the rule.
+  test "the detail read refuses the yields over an own trade price on the unit scale", %{
+    conn: conn
+  } do
+    %{"data" => %{"id" => id}} =
+      create_bond!(conn, %{"name" => "Musterland Anleihe 2033", "isin" => "XSAPIBND0334"})
+
+    world = base_world()
+    buy!(world, id, quantity: "10000", price: "0.984", date: ~D[2026-03-12])
+
+    %{"data" => %{"bond" => bond}} =
+      conn |> get("/api/v1/securities/#{id}") |> json_response(200)
+
+    for metric <- ~w(current_yield yield_to_maturity) do
+      assert %{
+               "value" => nil,
+               "price_on_unit_scale" => true,
+               "insufficient_data" => false,
+               "matured" => false,
+               "missing" => [],
+               "price" => %{"value" => "0.984", "source" => "trade"},
+               "computation_basis" => %{"gaps" => gaps}
+             } = bond[metric]
+
+      assert gaps =~ "price_on_unit_scale"
+    end
+
+    buy!(world, id, quantity: "1", price: "98.50", date: ~D[2026-03-13])
+
+    %{"data" => %{"bond" => priced}} =
+      conn |> get("/api/v1/securities/#{id}") |> json_response(200)
+
+    assert priced["current_yield"]["price_on_unit_scale"] == false
+    assert priced["current_yield"]["value"] != nil
+  end
+
   # User story (#330, ADR-0052 §2–§4):
   # As the operator's agent reading a bond,
   # I want the detail read to carry the nominal held, the remaining term,

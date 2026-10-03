@@ -869,8 +869,16 @@ Jede Kennzahl trägt ihre eigene `computation_basis` (`input_series`,
 `window`, `reference`, `gaps`, `assumptions`). Eine Zahl ohne ihren Eingang
 ist `null` mit `insufficient_data: true` und den fehlenden Eingängen in
 `missing` (`coupon_rate`, `maturity_date`, `price`); die Renditen einer
-fälligen Anleihe sind `null` mit `matured: true`. Stückzinsen, Gebühren und
-Steuern sind nicht enthalten; die Lesung berichtet, sie bewertet nicht.
+fälligen Anleihe sind `null` mit `matured: true`. Eine Rendite, deren Kurs
+der letzte eigene Handelspreis von **höchstens 5** ist — das Spiegelbild
+des Zwei-Skalen-Bands, 100 ÷ 20, der Preis je Stück einer Buchung, die das
+Nominal als Stückzahl erfasst hat —, ist `null` mit
+`price_on_unit_scale: true`, weder `insufficient_data` noch `matured`: Ein
+solcher Preis ist kein Prozent vom Nennwert, Kupon ÷ Kurs wäre also keine
+Rendite. Ein gespeicherter Kurs ist in jeder Höhe ein Prozentkurs und wird
+immer verwendet; bei jeder anderen Rendite ist `price_on_unit_scale`
+`false`. Stückzinsen, Gebühren und Steuern sind nicht enthalten; die Lesung
+berichtet, sie bewertet nicht.
 
 ## Kurse
 

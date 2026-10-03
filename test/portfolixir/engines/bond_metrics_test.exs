@@ -126,6 +126,50 @@ defmodule Portfolixir.Engines.BondMetricsTest do
     assert Decimal.equal?(zero.current_yield.value, dec("0"))
   end
 
+  # User story (#330, closing act on U7, finding 3):
+  # As the operator whose export booked a bond's nominal as its quantity,
+  # before any quote is stored,
+  # I want no yield computed from my own trade price of about 1 per unit,
+  # and the reason said instead,
+  # so that a current yield of 254 % and a yield to maturity of about
+  # 2,400 % never stand on the page or in the payload.
+  #
+  # Acceptance criteria:
+  # - With the last own trade price at most 5 (the two-scales band's
+  #   mirror, 100 ÷ 20), both yields are null with price_on_unit_scale true,
+  #   neither insufficient data nor matured, and they keep the price they
+  #   refused.
+  # - A trade price above 5 computes; a stored quote at any level computes,
+  #   since a quote is a percent price; a computed yield says
+  #   price_on_unit_scale false.
+  test "refuses the yields when the price is an own trade price on the unit scale" do
+    assert Decimal.equal?(BondMetrics.unit_scale_price_ceiling(), dec("5"))
+
+    for value <- ["0.984", "5"] do
+      price = %{value: dec(value), date: ~D[2026-03-12], source: :trade}
+      metrics = BondMetrics.compute(@terms, price, dec("10000"), @as_of)
+
+      for yield <- [metrics.current_yield, metrics.yield_to_maturity] do
+        assert yield.value == nil, value
+        assert yield.price_on_unit_scale
+        refute yield.insufficient_data
+        refute yield.matured
+        assert yield.missing == []
+        assert yield.price == price
+      end
+    end
+
+    above = %{value: dec("5.01"), date: ~D[2026-03-12], source: :trade}
+    computed = BondMetrics.compute(@terms, above, dec("100"), @as_of)
+    assert_scale_6(computed.current_yield.value, "0.499002")
+    refute computed.current_yield.price_on_unit_scale
+
+    quoted = %{value: dec("0.984"), date: ~D[2026-09-30], source: :quote}
+    from_quote = BondMetrics.compute(@terms, quoted, dec("100"), @as_of)
+    assert from_quote.current_yield.value != nil
+    refute from_quote.yield_to_maturity.price_on_unit_scale
+  end
+
   # User story (#330, the two-scales guard; bond discovery, point 5):
   # As the operator whose export may have booked a bond's nominal as its
   # quantity,

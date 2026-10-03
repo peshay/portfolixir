@@ -417,6 +417,14 @@ evaluated**. A figure whose input is missing reads *not entered* or *not
 computable* with the reason, never a number. With no master data at all,
 one sentence says what is missing and **Enter bond data…** opens the dialog.
 
+**No yield from a price per unit.** While no quote is stored and the last
+own trade price is **at most 5**, both yields read *not computable* with
+the reason "trade price … per unit, not percent of face": a bond bought at
+0.984 per unit was booked with its nominal as the quantity, and 2.5 ÷ 0.984
+would read as a yield of 254 %. The limit is the two-scales band below
+mirrored, 100 ÷ 20. A stored quote is a percent price at any level and is
+always used.
+
 **Priced on two scales.** If an export booked a bond's nominal as its
 quantity, every money figure of the bond — value, gain, weight — is a
 hundred times too high from the first quote on, and the TTWROR cannot show

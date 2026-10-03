@@ -4092,8 +4092,14 @@ but `bond` and `government_bond`, read as the effective class.
 - **Partly entered:** the grid; a cell whose input is missing reads *nicht
   erfasst*.
 - **Not computable:** *nicht berechenbar*, the reason in the sub-line —
-  *fällig*, *kein Kupon erfasst*, *keine Fälligkeit erfasst* or *kein
-  Kurs*.
+  *fällig*, *kein Kupon erfasst*, *keine Fälligkeit erfasst*, *kein Kurs*,
+  or "Handelspreis 0,984 je Stück, keine Prozentnotiz" when the yields
+  would fall back to an own trade price of at most 5 (the two-scales band's
+  mirror, 100 ÷ 20; closing act on U7, finding 3, board
+  `ux-review-2026-10-03/04-bond-repairs` B2). No percent figure stands in
+  either cell then: "254,07 %" from 2,5 ÷ 0,984 is a booking of the
+  nominal, not a yield. The guard is silent without a quote, so the reason
+  is the only place the unit scale shows before one is stored.
 - **Matured** (on and after the maturity date): the term reads *fällig*,
   sub-line "seit <date>", and both yields *nicht berechenbar · fällig*. No
   redemption amount is computed; a redemption is a booking.

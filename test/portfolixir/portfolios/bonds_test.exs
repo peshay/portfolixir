@@ -158,6 +158,42 @@ defmodule Portfolixir.Portfolios.BondsTest do
     assert finding.unit_scale_buys == 1
   end
 
+  # User story (#330, closing act on U7, finding 3):
+  # As the operator's agent reading a bond whose export booked the nominal
+  # as the quantity, with no quote stored yet,
+  # I want the reading to refuse both yields and say why in the payload,
+  # so that a ratio of a coupon to a price per unit of about 1 is never
+  # read as a yield.
+  #
+  # Acceptance criteria:
+  # - Bought 10000 at 0.984 without a quote: both yields are null with
+  #   price_on_unit_scale true and the trade price they refused; the
+  #   nominal held is shown as booked, 1000000.
+  # - Each yield's computation basis states the rule: an own trade price of
+  #   at most 5, the two-scales band's mirror.
+  # - The guard stays silent: it needs a quote.
+  test "a bond priced only by an own trade on the unit scale has no yield, and says why" do
+    bond = bond!()
+    buy!(base_world(), bond, quantity: "10000", price: "0.984", date: ~D[2026-03-12])
+
+    reading = Bonds.reading(bond, as_of: @as_of)
+    assert Decimal.equal?(reading.nominal_held.amount, dec("1000000"))
+
+    for metric <- [:current_yield, :yield_to_maturity] do
+      yield = Map.fetch!(reading, metric)
+
+      assert yield.value == nil
+      assert yield.price_on_unit_scale
+      refute yield.insufficient_data
+      assert yield.price.source == :trade
+      assert Decimal.equal?(yield.price.value, dec("0.984"))
+      assert yield.computation_basis.gaps =~ "price_on_unit_scale"
+      assert yield.computation_basis.gaps =~ "at most 5"
+    end
+
+    assert reading.two_scales == nil
+  end
+
   # User story (#330, ADR-0052 §1):
   # As the operator whose security is not a bond,
   # I want no bond reading for it, whatever master data it carries,

@@ -213,11 +213,25 @@ defmodule Portfolixir.Portfolios.Bonds do
       reference: "percent of face: #{@hundredth}",
       gaps:
         "without a coupon_rate or a price above 0 it is null with insufficient_data and " <>
-          "missing naming the input; a matured bond has none (matured)",
+          "missing naming the input; a matured bond has none (matured); " <> unit_scale_gap(),
       assumptions:
         "coupon_rate ÷ price, a ratio (0.025707 is 2.5707 %) rounded half up at scale 6; " <>
           "no accrued interest, fees or taxes; reported, not evaluated"
     }
+  end
+
+  # The closing act on U7, finding 3: the trade-price fallback on the unit
+  # scale, which the guard cannot name without a quote.
+  defp unit_scale_gap do
+    ceiling = BondMetrics.unit_scale_price_ceiling()
+    {low, _high} = BondMetrics.two_scales_band()
+
+    "while the price is the last own trade price (price.source trade) at most " <>
+      "#{ceiling} — the two-scales band's mirror, 100 ÷ #{low}, the price per unit of a " <>
+      "booking that recorded the nominal as the quantity — it is null with " <>
+      "price_on_unit_scale true and neither insufficient_data nor matured: such a price " <>
+      "is not percent of face, so coupon ÷ price would be no yield; a stored quote is " <>
+      "a percent price at any level and is always used"
   end
 
   defp yield_to_maturity_basis(as_of) do
@@ -230,7 +244,8 @@ defmodule Portfolixir.Portfolios.Bonds do
       reference: "percent of face, redeemed at 100",
       gaps:
         "without a coupon_rate, a price above 0 or a maturity_date it is null with " <>
-          "insufficient_data and missing naming each; a matured bond has none (matured)",
+          "insufficient_data and missing naming each; a matured bond has none (matured); " <>
+          unit_scale_gap(),
       assumptions:
         "the linear approximation (coupon + (100 − price) ÷ remaining years) ÷ price, the " <>
           "remaining years being calendar days ÷ #{BondMetrics.days_per_year()} at full " <>
