@@ -2023,7 +2023,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
       role="tabpanel"
       class="detail-tab-panel detail-tab-panel--trades"
     >
-      <%= if @trades.open_lots == [] and @trades.closed_trades == [] do %>
+      <%!-- #1029 (board N1): a sell of delivered-in shares is no trade, but
+           it is something to say — the note below says it, so the empty
+           sentence is kept for a security with no trade and no such sell. --%>
+      <%= if @trades.open_lots == [] and @trades.closed_trades == [] and @trades.orphan_sells == [] do %>
         <p class="detail-tab-empty">
           <%= gettext("No matched trades yet — record some buys and sells first.") %>
         </p>
@@ -2105,10 +2108,51 @@ defmodule PortfolixirWeb.SecuritiesLive do
         </div>
       <% end %>
 
-      <%= if @trades.closed_trades != [] do %>
+      <%= if @trades.closed_trades != [] or @trades.orphan_sells != [] do %>
         <h3 class="detail-section-title"><%= gettext("Closed trades (FIFO)") %></h3>
-        <div class="data-table-wrap">
-          <table class="data-table detail-trades-table">
+
+        <%!-- #1029 (board H1 pin 3; UX-DR25): the sells the matcher could
+             not pair with a buy lead the section where their quantity is
+             missing — the facet's note, in the tab. The security is the
+             page's own, so each sell is date · unmatched quantity, newest
+             first. No remedy control (UX-DR25 clause 3): nothing on the
+             page can supply the missing buy; the basis line states the
+             limit (UX-DR26). --%>
+        <AppShell.data_note
+          :if={@trades.orphan_sells != []}
+          severity={:attention}
+          id="detail-closed-trades-note"
+          data-role="trades-unmatched"
+        >
+          <%= ngettext(
+            "%{count} sale has no matched buy for all or part of its quantity (shares from an inbound delivery, for example): that quantity is not included in any closed trade.",
+            "%{count} sales have no matched buy for all or part of their quantity (shares from inbound deliveries, for example): that quantity is not included in any closed trade.",
+            length(@trades.orphan_sells)
+          ) %>
+          <details class="perf-table-disclosure" data-role="trades-unmatched-list">
+            <summary class="disclosure-summary">
+              <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+              <%= ngettext("The sale", "The %{count} sales", length(@trades.orphan_sells)) %>
+            </summary>
+            <ul class="excluded-list">
+              <li :for={sell <- Enum.sort_by(@trades.orphan_sells, & &1.date, {:desc, Date})}>
+                <span class="num"><%= Date.to_iso8601(sell.date) %></span>
+                <span class="num">
+                  <%= gettext("%{quantity} units", quantity: Format.decimal(sell.quantity, 4)) %>
+                </span>
+              </li>
+            </ul>
+          </details>
+        </AppShell.data_note>
+
+        <%!-- #1029 (board H1 rule ④): the wrapper carries an id so the phone
+             width can give the table way to the rows below (UX-DR27). --%>
+        <div
+          :if={@trades.closed_trades != []}
+          id="detail-closed-trades-table-wrap"
+          class="data-table-wrap"
+        >
+          <table id="detail-closed-trades-table" class="data-table detail-trades-table">
             <thead>
               <tr>
                 <th><%= gettext("Opened") %></th>
@@ -2117,6 +2161,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <th class="num"><%= gettext("Avg buy") %></th>
                 <th class="num"><%= gettext("Avg sell") %></th>
                 <th class="num"><%= gettext("Days") %></th>
+                <%!-- #1029 (board H1 pin 1): directly left of the result,
+                     with "Days", the threshold it is judged by, beside it.
+                     No ⓘ in the header: the wrapper's own scroller would
+                     clip it; the reason rides each dash instead. --%>
+                <th class="num"><%= gettext("p. a.") %></th>
                 <th class="num"><%= gettext("Realised P&L") %></th>
                 <th class="num">%</th>
               </tr>
@@ -2130,6 +2179,26 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   <td class="num"><%= Format.decimal(trade.avg_buy_price, 2) %></td>
                   <td class="num"><%= Format.decimal(trade.avg_sell_price, 2) %></td>
                   <td class="num"><%= trade.holding_period_days %></td>
+                  <%!-- The annualized return of the trade-currency percent
+                       beside it (Ledger.TradeReturn), signed like every
+                       figure of this table; under 365 days of holding, or
+                       with no rate, a muted dash whose reason is the cell's
+                       title and a sentence for the screen reader. --%>
+                  <td
+                    :if={trade.annualized_return}
+                    class={["num", "trade-pa", pnl_class(trade.annualized_return)]}
+                  >
+                    <%= signed_pa(trade.annualized_return) %>
+                  </td>
+                  <td
+                    :if={is_nil(trade.annualized_return)}
+                    class="num trade-pa trade-pa--na"
+                    title={pa_absent_title(trade.annualized_return_reason)}
+                  >
+                    <span aria-hidden="true">—</span><span class="visually-hidden"><%= pa_absent_sentence(
+                      trade.annualized_return_reason
+                    ) %></span>
+                  </td>
                   <td class={["num", pnl_class(trade.realized_pnl_abs)]}>
                     <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %>
                   </td>
@@ -2141,18 +2210,98 @@ defmodule PortfolixirWeb.SecuritiesLive do
             </tbody>
           </table>
         </div>
-      <% end %>
 
-      <%= if @trades.orphan_sells != [] do %>
-        <p class="detail-tab-warning">
+        <%!-- UX-DR27 (board H1 rule ④): under 560 px the closed trades give
+             way to two-line rows — the facet's trades row without the name,
+             which the page already says. Opened → closed over quantity ·
+             days; the result over the period return and, from 365 days, the
+             p. a. figure. Avg buy and avg sell stay on the table, as cost
+             and proceeds do on the facet; a shorter trade shows no dash, the
+             basis line says why. --%>
+        <ul
+          :if={@trades.closed_trades != []}
+          id="detail-closed-trades-phone-rows"
+          class="phone-rows"
+          aria-label={gettext("Closed trades")}
+        >
+          <li :for={trade <- @trades.closed_trades} class="phone-row" data-role="phone-row">
+            <span class="phone-row__body">
+              <span class="phone-row__name">
+                <%= Date.to_iso8601(trade.open_date) %> → <%= Date.to_iso8601(trade.close_date) %>
+              </span>
+              <span class="phone-row__ids">
+                <%= gettext("%{quantity} units", quantity: Format.decimal(trade.quantity, 4)) %> · <%= ngettext(
+                  "%{count} day",
+                  "%{count} days",
+                  trade.holding_period_days
+                ) %>
+              </span>
+            </span>
+            <span class="phone-row__figures">
+              <span class={["phone-row__figure", pnl_class(trade.realized_pnl_abs)]}>
+                <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %><small class="value-suffix"><%= trade.currency_code || @currency_code %></small>
+              </span>
+              <span class="phone-row__figure2">
+                <span class={decimal_sign_class(trade.realized_pnl_pct)}><%= signed_pa(
+                  trade.realized_pnl_pct
+                ) %></span><%= if trade.annualized_return do %> · <span class={
+                  decimal_sign_class(trade.annualized_return)
+                }><%= signed_pa(trade.annualized_return) %></span> <%= gettext("p. a.") %><% end %>
+              </span>
+            </span>
+          </li>
+        </ul>
+
+        <%!-- #1029 (board H1 pin 4; UX-DR26): the list's basis in the
+             pane's own basis voice — whenever the table or the note
+             renders, because it is the limit the note points to. --%>
+        <p id="detail-closed-trades-basis" class="detail-tab-hint" data-role="trades-basis">
           <%= gettext(
-            "Some sell transactions could not be matched to a preceding buy — they may indicate missing data."
+            "Across every depot · deliveries open no lot · fees and taxes in the realised P&L, not in avg buy and avg sell · income received while a trade was open not included · p. a. only from 365 days of holding"
           ) %>
         </p>
       <% end %>
     </section>
     """
   end
+
+  # #1029: a trade's percent with its sign and one decimal, the percent sign
+  # glued on — the Overview card's form of the same figure (DESIGN.md →
+  # Amendment 2026-10-01 — Trades).
+  defp signed_pa(%Decimal{} = fraction) do
+    formatted = Format.percent(fraction) <> "%"
+    if Decimal.compare(fraction, 0) == :gt, do: "+" <> formatted, else: formatted
+  end
+
+  defp signed_pa(_none), do: "—"
+
+  # The phone row's percent colours (DESIGN.md → Two-line phone rows: the
+  # second figure line is muted, its signed numbers carry their colour).
+  defp decimal_sign_class(%Decimal{} = value) do
+    case Decimal.compare(value, 0) do
+      :gt -> "decimal-positive"
+      :lt -> "decimal-negative"
+      :eq -> nil
+    end
+  end
+
+  defp decimal_sign_class(_value), do: nil
+
+  # #1029: why a trade's p. a. cell is a dash — the facet's two reasons and
+  # their words. Under 365 days of holding the figure is withheld by rule
+  # (ADR-0034 §2); any other reason means no rate solves the trade's flows,
+  # a total loss among them.
+  defp pa_absent_title(:holding_period_under_365_days),
+    do: gettext("Not annualized under one year of holding")
+
+  defp pa_absent_title(_reason),
+    do: gettext("No annualized return: no rate solves this trade's flows")
+
+  defp pa_absent_sentence(:holding_period_under_365_days),
+    do: gettext("not annualized, under one year of holding")
+
+  defp pa_absent_sentence(_reason),
+    do: gettext("no annualized return, no rate solves this trade's flows")
 
   attr(:holdings, :list, required: true)
   attr(:currency_code, :string, default: nil)

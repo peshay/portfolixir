@@ -3187,16 +3187,6 @@ img.security-logo {
   font-variant-numeric: tabular-nums;
 }
 
-.detail-tab-warning {
-  margin: 8px 0 0;
-  padding: 8px 10px;
-  background: rgba(180, 83, 9, 0.1);
-  border: 1px solid rgba(180, 83, 9, 0.35);
-  color: var(--color-warning);
-  border-radius: var(--radius-md);
-  font-size: 12px;
-}
-
 .is-positive {
   color: var(--color-positive);
 }
@@ -7968,7 +7958,8 @@ dialog.filter-sheet::backdrop {
 
   #securities-table,
   #transaction-table-wrapper,
-  #realized-trades-table-wrapper {
+  #realized-trades-table-wrapper,
+  #detail-closed-trades-table-wrap {
     display: none;
   }
 
@@ -9738,4 +9729,59 @@ dialog.merge-dialog {
     grid-column: 1 / -1;
     margin-top: 2px;
   }
+}
+
+/* ===== The security's Trades tab: the p. a. column, the unmatched-sells
+   note, the basis line and the phone rows (issue 1029, Sprint 18 pick H1;
+   board ux-design-2026-10-02/01-trades-tab-pa, "after") ===== */
+/* Rule ①: the closed-trades table's sign colour and its muted dash.
+   `.data-table tbody td { color }` outranks the bare .is-positive /
+   .is-negative / .trade-pa--na (issue 1010), so the rules are scoped to this
+   table, as the facet's rule ⑥ is to its own; they also restore the colour
+   of "Realised P&L" and "%" here. The open-lots table above keeps the text
+   colour until issue 1010 repairs the family. */
+#detail-closed-trades-table td.is-positive {
+  color: var(--color-positive);
+}
+
+#detail-closed-trades-table td.is-negative {
+  color: var(--color-danger);
+}
+
+#detail-closed-trades-table td.trade-pa--na {
+  color: var(--color-text-muted);
+}
+
+/* Rule ②: the unmatched-sells note leads the closed-trades section
+   (UX-DR25), the facet's anatomy. The security is the page's own, so its
+   list has two columns, date and quantity, at every width: the facet's
+   560 px rule gives the first child a line of its own, which here would be
+   the date. */
+#detail-closed-trades-note {
+  margin: 0 0 var(--space-2);
+}
+
+#detail-closed-trades-note .excluded-list {
+  grid-template-columns: auto auto;
+}
+
+@media (max-width: 560px) {
+  #detail-closed-trades-note .excluded-list li > :first-child {
+    grid-column: auto;
+    margin-top: 0;
+  }
+}
+
+/* Rule ③: the basis line is the pane's own .detail-tab-hint (12 px,
+   muted); only its distance to the list above is new. */
+#detail-closed-trades-basis {
+  margin-top: var(--space-2);
+}
+
+/* Rule ④ (UX-DR27): under 560 px the closed trades give way to two-line
+   rows — the facet's trades row without the name, which the page already
+   says: two children, no logo, no kebab. The phone lists' 560 px block
+   shows the rows and hides the table's wrapper. */
+#detail-closed-trades-phone-rows .phone-row {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
