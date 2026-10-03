@@ -157,6 +157,18 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
     doc: "where the focus goes when the dialog closes and its opener is gone"
   )
 
+  attr(:focus_return, :string,
+    default: nil,
+    doc:
+      "the row's kebabs, where the focus returns while the row exists " <>
+        "(the closing act, R3); the fallback takes it once the row is gone"
+  )
+
+  attr(:focus_result, :string,
+    default: nil,
+    doc: "the page's result slot, brought into view when the dialog closes"
+  )
+
   @doc "The dialog for what `prepare/2` built."
   def dialog(assigns) do
     ~H"""
@@ -166,6 +178,8 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
       phx-hook="ModalDialog"
       data-close-event="cancel_delete"
       data-focus-fallback={@focus_fallback}
+      data-focus-return={@focus_return}
+      data-focus-result={@focus_result}
       aria-labelledby="booking-delete-dialog-title"
       aria-describedby="booking-delete-subject"
     >
