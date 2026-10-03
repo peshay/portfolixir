@@ -39,6 +39,17 @@ defmodule Portfolixir.Derived.Registry do
   @analytics %{
     performance_analysis: %{computation_version: 3, default_lifetime: :request},
     performance_view_analysis: %{computation_version: 3, default_lifetime: :request},
+    # The contribution analysis (FR-41, ADR-0051 §12, Sprint 18 PR β): the
+    # walk keeping each position apart inside a period's window. Its own
+    # analytic per scope and period, keyed like the two walk analytics plus
+    # the period -- the portfolio basis for a portfolio (optionally narrowed
+    # by a view), the global basis for a view across all portfolios -- so the
+    # walk analytics above keep their payload and their computation version
+    # (ADR-0051 I9). `:request` by default; the ADR-0039 C3 measurement
+    # decides any move to `:durable`. Only the fixed periods are memoised: a
+    # custom range is computed on every read (E25 S4, G03).
+    performance_contribution: %{computation_version: 1, default_lifetime: :request},
+    performance_view_contribution: %{computation_version: 1, default_lifetime: :request},
     # The benchmark comparison (ADR-0046 §5, Sprint 11 Lane B): a read model
     # over a walk and a benchmark's price series, keyed under the global
     # basis because a benchmark the portfolio never held is outside the
