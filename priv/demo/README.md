@@ -3,8 +3,8 @@
 `portfolio_performance_demo.json` is a **synthetic** Portfolio Performance
 JSON v1 export used to seed a demo instance for screenshots and documentation.
 It contains no personal data — only well-known public companies/ETFs with full
-legal names (so asset-class inference and logo lookup behave realistically) and
-round, made-up amounts.
+legal names (so asset-class inference reads them as it would real holdings, and
+the screenshots look like a real instance) and round, made-up amounts.
 
 Contents: one cash account ("Demo Cash"), one depot ("Demo Depot"), and ~12
 transactions (deposit, purchases, dividends, a sale, interest) across 7

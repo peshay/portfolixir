@@ -86,7 +86,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
       assert {:error, %Ecto.Changeset{} = changeset} =
                Catalog.record_isin_change(Actor.owner_ui(), security, "de0001234565")
 
-      assert {"must differ from the current ISIN", _} = changeset.errors[:new_isin]
+      assert "must differ from the current ISIN" in errors_on(changeset).new_isin
       assert Catalog.get_security!(security.id).isin == "DE0001234565"
       assert Catalog.list_identifier_aliases(security) == []
     end
@@ -98,7 +98,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
       assert {:error, %Ecto.Changeset{} = changeset} =
                Catalog.record_isin_change(Actor.owner_ui(), security, "DE0009999995")
 
-      assert {message, _} = changeset.errors[:new_isin]
+      assert [message] = errors_on(changeset).new_isin
       assert message =~ "Other AG"
     end
 
@@ -112,7 +112,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
       assert {:error, %Ecto.Changeset{} = changeset} =
                Catalog.record_isin_change(Actor.owner_ui(), security, "DE0009999995")
 
-      assert {message, _} = changeset.errors[:new_isin]
+      assert [message] = errors_on(changeset).new_isin
       assert message =~ "Other AG"
     end
 
@@ -122,7 +122,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
       assert {:error, %Ecto.Changeset{} = changeset} =
                Catalog.record_isin_change(Actor.owner_ui(), security, "DE0001234565")
 
-      assert changeset.errors[:new_isin]
+      assert errors_on(changeset)[:new_isin]
     end
 
     test "rejects a blank new ISIN" do
@@ -268,7 +268,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
                  former_isin: "DE0009999995"
                })
 
-      assert {message, _} = changeset.errors[:former_isin]
+      assert [message] = errors_on(changeset).former_isin
       assert message =~ "Other AG"
     end
   end
@@ -304,7 +304,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
                  isin: "DE0001234565"
                })
 
-      assert {message, _} = changeset.errors[:isin]
+      assert [message] = errors_on(changeset).isin
       assert message =~ aliased.name
     end
 
@@ -316,7 +316,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
                  isin: "de0001234565"
                })
 
-      assert {message, _} = changeset.errors[:isin]
+      assert [message] = errors_on(changeset).isin
       assert message =~ aliased.name
     end
 
@@ -326,7 +326,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
       assert {:error, %Ecto.Changeset{} = changeset} =
                Catalog.update_security(Actor.owner_ui(), other, %{isin: "DE0001234565"})
 
-      assert {message, _} = changeset.errors[:isin]
+      assert [message] = errors_on(changeset).isin
       assert message =~ aliased.name
     end
 
@@ -398,7 +398,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
                  former_isin: first.former_isin
                })
 
-      assert {"is already recorded as a former ISIN", _} = changeset.errors[:former_isin]
+      assert "is already recorded as a former ISIN" in errors_on(changeset).former_isin
       assert Repo.get!(IdentifierAlias, second.id).former_isin == "DE0007654329"
     end
   end
@@ -451,7 +451,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
       assert {:error, %Ecto.Changeset{} = changeset} =
                IdentifierAliases.record_merged_isin(Actor.owner_ui(), kept, "DE0001111110")
 
-      assert {message, _} = changeset.errors[:former_isin]
+      assert [message] = errors_on(changeset).former_isin
       assert message =~ ~s|is still the current ISIN of "Live AG" (security ##{live.id})|
 
       assert {:error, %Ecto.Changeset{} = changeset} =
@@ -459,7 +459,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
                  changed_on: ~D[2025-01-02]
                )
 
-      assert {"is already recorded as a former ISIN", _} = changeset.errors[:former_isin]
+      assert "is already recorded as a former ISIN" in errors_on(changeset).former_isin
       assert Catalog.list_identifier_aliases(kept) == []
       assert Repo.aggregate(Journal.Entry, :count) == entries
     end

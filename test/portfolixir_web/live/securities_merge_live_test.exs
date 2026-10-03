@@ -298,6 +298,50 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     assert {"class", "summary-basis__text"} in span_attrs
   end
 
+  # User story (#1022: the preview reads the buckets it names by id):
+  # As the operator merging two securities whose positions sit in buckets,
+  # I want the preview to name each bucket it talks about,
+  # so that I see which views a merge would change, by name.
+  #
+  # Acceptance criteria:
+  # - A refusal for differing position buckets names the depot and each
+  #   side's buckets by name ("no buckets" for none).
+  # - A position the merge moves into a depot the target does not hold lists
+  #   its buckets by name among the settings the merge carries.
+  test "the preview names the buckets of a refused and of a carried position", ctx do
+    alias Portfolixir.Buckets
+    import Portfolixir.WorldFixtures, only: [printable_bucket!: 1]
+
+    spec = printable_bucket!(%{name: "Speculative #{System.unique_integer([:positive])}"})
+    buy!(ctx, ctx.source, "3", "105.00", ~D[2025-02-12])
+    buy!(ctx, ctx.target, "10", "100.00", ~D[2025-01-10])
+    :ok = Buckets.set_position_override(Actor.owner_ui(), ctx.depot, ctx.source, [spec.id])
+
+    {:ok, view, _html} = live(ctx.conn, "/securities")
+    to_preview(view, ctx.source, ctx.target)
+
+    refusal = view |> element("#security-merge-dialog [data-role='merge-refused']") |> render()
+    assert refusal =~ "Depot 1 — source: #{spec.name} · target: no buckets"
+
+    {:ok, depot2} =
+      Portfolios.create_securities_account(Actor.owner_ui(), %{
+        portfolio_id: ctx.portfolio.id,
+        cash_account_id: ctx.cash.id,
+        name: "Depot 2"
+      })
+
+    other = security!("Meridian Global Equity ETF", isin: "XS0000000041")
+    buy!(%{ctx | depot: depot2}, other, "4", "101.00", ~D[2025-03-03])
+    :ok = Buckets.set_position_override(Actor.owner_ui(), depot2, other, [spec.id])
+
+    {:ok, view, _html} = live(ctx.conn, "/securities")
+    to_preview(view, other, ctx.target)
+
+    dialog = view |> element("#security-merge-dialog") |> render()
+    assert dialog =~ "Position buckets"
+    assert dialog =~ spec.name
+  end
+
   # User story:
   # As the operator who opened the menu on the security that carries the
   # research log,

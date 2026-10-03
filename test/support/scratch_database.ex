@@ -51,6 +51,7 @@ defmodule Portfolixir.ScratchDatabase do
   def start!(opts \\ []) do
     base = Keyword.fetch!(Repo.config(), :database)
     suffix = Keyword.get(opts, :suffix, "scratch")
+    sweep_once!()
     database = "#{base}_#{suffix}_#{System.pid()}_#{System.unique_integer([:positive])}"
 
     config =
@@ -73,6 +74,64 @@ defmodule Portfolixir.ScratchDatabase do
 
     repo = start_supervised!({Repo, Keyword.put(config, :name, nil)})
     %__MODULE__{database: database, repo: repo}
+  end
+
+  @doc """
+  Drops the scratch databases a test VM left behind when it was killed before
+  its `on_exit` ran (#1022): each one named as a scratch database of this test
+  database (`<base>_<suffix>_<OS pid>_<n>`) whose VM, the OS process its name
+  carries, no longer runs, and to which nothing is connected. A database of a
+  VM that still runs, in this checkout or another one sharing the server, is
+  never touched. `start!/1` runs it once per VM. Answers the names dropped.
+  """
+  @spec sweep!() :: [String.t()]
+  def sweep! do
+    base = Keyword.fetch!(Repo.config(), :database)
+    shape = ~r/^#{Regex.escape(base)}_[a-z]+_(\d+)_\d+$/
+
+    {:ok, conn} =
+      Postgrex.start_link(
+        Keyword.merge(Repo.config(),
+          database: "postgres",
+          pool: DBConnection.ConnectionPool,
+          pool_size: 1
+        )
+      )
+
+    try do
+      %{rows: rows} =
+        Postgrex.query!(
+          conn,
+          """
+          SELECT d.datname FROM pg_database d
+          WHERE NOT EXISTS (SELECT 1 FROM pg_stat_activity a WHERE a.datname = d.datname)
+          """,
+          []
+        )
+
+      for [name] <- rows,
+          [_name, os_pid] <- [Regex.run(shape, name)],
+          not running?(os_pid) do
+        Postgrex.query!(conn, ~s(DROP DATABASE IF EXISTS "#{name}"), [])
+        name
+      end
+    after
+      GenServer.stop(conn)
+    end
+  end
+
+  defp sweep_once! do
+    unless :persistent_term.get({__MODULE__, :swept}, false) do
+      sweep!()
+      :persistent_term.put({__MODULE__, :swept}, true)
+    end
+  end
+
+  # Whether the OS process `os_pid` still runs: `kill -0` signals nothing and
+  # answers whether the process exists (and may be signalled).
+  defp running?(os_pid) do
+    os_pid == System.pid() or
+      match?({_, 0}, System.cmd("kill", ["-0", os_pid], stderr_to_stdout: true))
   end
 
   @doc """

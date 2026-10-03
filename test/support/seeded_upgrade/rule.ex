@@ -122,18 +122,32 @@ defmodule Portfolixir.SeededUpgrade.Rule do
   end
 
   @doc """
-  The versions the seeded cases cover: every `seeded_upgrade: <version>` (or
-  a list of versions) tag in the test files `glob` matches.
+  The versions the seeded cases cover: every `@tag seeded_upgrade: <version>`
+  (or a list of versions) in the test files `glob` matches. Read from the
+  parsed source, so a tag named in a comment or a string covers nothing
+  (#1022).
   """
   @spec covered_versions(String.t()) :: MapSet.t(pos_integer())
   def covered_versions(glob \\ "test/**/*_test.exs") do
     for file <- Path.wildcard(glob),
-        [_tag, value] <-
-          Regex.scan(~r/seeded_upgrade:\s*(\[[^\]]*\]|\d[\d_]*)/, File.read!(file)),
-        [digits] <- Regex.scan(~r/\d[\d_]*/, value),
-        into: MapSet.new() do
-      digits |> String.replace("_", "") |> String.to_integer()
-    end
+        version <- tagged_versions(File.read!(file)),
+        into: MapSet.new(),
+        do: version
+  end
+
+  defp tagged_versions(source) do
+    {_ast, versions} =
+      source
+      |> Code.string_to_quoted!()
+      |> Macro.prewalk([], fn
+        {:@, _meta, [{:tag, _tag_meta, [tags]}]} = node, acc when is_list(tags) ->
+          {node, acc ++ (tags |> Keyword.get_values(:seeded_upgrade) |> List.flatten())}
+
+        node, acc ->
+          {node, acc}
+      end)
+
+    Enum.filter(versions, &is_integer/1)
   end
 
   @doc "What a migration's source adds that legacy rows can break, by the heuristic above."
