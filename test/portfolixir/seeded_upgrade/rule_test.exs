@@ -280,6 +280,24 @@ defmodule Portfolixir.SeededUpgrade.RuleTest do
     end
   end
 
+  # #1022: a tag named in a comment is no seeded case.
+  test "a seeded_upgrade tag inside a comment covers nothing" do
+    dir = Path.join(System.tmp_dir!(), "rule-comment-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(dir)
+    on_exit(fn -> File.rm_rf!(dir) end)
+
+    File.write!(Path.join(dir, "commented_test.exs"), """
+    # @tag seeded_upgrade: 20_990_101_000_007
+    @tag seeded_upgrade: [20_990_101_000_008]
+    test "covers one" do
+      # once tagged seeded_upgrade: 20_990_101_000_009
+      :ok
+    end
+    """)
+
+    assert Rule.covered_versions(Path.join(dir, "*_test.exs")) == MapSet.new([20_990_101_000_008])
+  end
+
   describe "the rule over a migrations directory of its own" do
     setup do
       dir =

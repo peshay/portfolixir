@@ -50,20 +50,28 @@ Start the project with either:
   the same values. Logo discovery and the quote and FX sync run in
   development as they do in production; `PORTFOLIXIR_BACKGROUND_FETCH=off`
   leaves all three off, and every demo seed command in `priv/demo/README.md`
-  sets it, so a seed run makes no outbound call.
+  sets it, so a seed run makes no outbound call. A release reads the same
+  switch ([Home Deployment](../home-deployment.html)).
+
+- The test suite on a database of its own, for a second checkout or git
+  worktree running it at the same time: `mix test` neither creates nor
+  migrates a database, so create and migrate it once, then run the suite with
+  the same name.
+
+  ```bash
+  DATABASE_NAME=portfolixir_test_2 MIX_ENV=test mix ecto.create
+  DATABASE_NAME=portfolixir_test_2 MIX_ENV=test mix ecto.migrate
+  DATABASE_NAME=portfolixir_test_2 mix test
+  ```
 
 ## Required local checks
 
-Run before opening a PR:
+Run the list in `AGENTS.md` at the repository root ("Required Local Checks")
+before opening a PR. It is CI's `pre-commit`, `test`
+and `quality` jobs, so a branch that passes it locally passes them; it is not
+copied here, because a copy is what fell behind before (#1022).
 
-- `mix format`
-- `mix test`
-- `mix coveralls`
-- `pre-commit run --all-files`
-- `npm test --prefix mcp-server`
-- `npm run build --prefix mcp-server`
-
-The two `npm` checks need **Node 24** (the Active LTS line). That version is
+The `npm` checks need **Node 24** (the Active LTS line). That version is
 pinned in three places that must agree: `actions/setup-node` in CI,
 `engines.node` in `mcp-server/package.json`, and the Node 24 base image in
 `mcp-server/Dockerfile` (an exact tag pinned by digest) —

@@ -183,17 +183,18 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   defp body(assigns) do
     preview = assigns.preview
     collapse? = assigns.choices.collapse == true
+    settings = settings(preview)
 
     assigns =
       assign(assigns,
+        bucket_names: Buckets.names_by_id(setting_bucket_ids(settings)),
         outcome: Map.fetch!(preview.outcomes, collapse?),
         keep: Map.fetch!(preview.outcomes, false),
         collapsed: Map.fetch!(preview.outcomes, true),
         pairs: preview.key_equal_pairs,
         holdings: holdings(preview, assigns.totals),
         names: account_names(preview),
-        bucket_names: Map.new(Buckets.list_buckets(), &{&1.id, &1.name}),
-        settings: settings(preview)
+        settings: settings
       )
 
     ~H"""
@@ -772,6 +773,12 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     """
   end
 
+  # The buckets the settings table names, read by id rather than every bucket
+  # the instance holds (#1022).
+  defp setting_bucket_ids(settings) do
+    for %{value: {:buckets, ids}} <- settings, id <- ids, do: id
+  end
+
   defp setting_value({:text, text}, _names), do: text
   defp setting_value({:buckets, []}, _names), do: gettext("no buckets")
 
@@ -1302,9 +1309,14 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   # The facts a reason lists line by line: the positions whose buckets
   # differ.
   defp detail_lines(%{code: :position_buckets_mismatch} = guard) do
-    names = Map.new(Buckets.list_buckets(), &{&1.id, &1.name})
+    positions = Map.get(guard, :positions, [])
 
-    for position <- Map.get(guard, :positions, []) do
+    names =
+      positions
+      |> Enum.flat_map(&(&1.source_buckets ++ &1.target_buckets))
+      |> Buckets.names_by_id()
+
+    for position <- positions do
       gettext("%{depot} — source: %{source} · target: %{target}",
         depot: position.securities_account_name,
         source: bucket_list(position.source_buckets, names),

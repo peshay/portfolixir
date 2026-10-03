@@ -50,8 +50,6 @@ services:
       MIX_ENV: dev
       DATABASE_HOST: db
       DATABASE_NAME: portfolixir_dev
-      DATABASE_USER: postgres
-      DATABASE_PASSWORD: postgres
       PHX_BIND_ALL: true
       # "app" is the name the MCP companion reaches the app under.
       PORTFOLIXIR_ALLOWED_HOSTS: app
