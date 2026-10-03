@@ -62,6 +62,35 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     assert tab =~ ~r/white-space:\s*nowrap/
   end
 
+  # User story (#1033; board ux-design-2026-10-02/07-phone-390, H7.2, rule
+  # ②; DESIGN.md → D6, "the active tab is in view on arrival"):
+  # As the operator arriving on a security's tab on a phone,
+  # I want the detail tab row's fades to follow its edges, as the area tab
+  # row's do,
+  # so that the selected tab, now scrolled into view, does not rest under a
+  # fixed right fade, and a left fade says there are tabs before it.
+  #
+  # Acceptance criteria:
+  # - `.detail-pane-tabs` joins the three `.area-tabs` edge rules: a 24 px
+  #   left fade away from the start, no right fade at the end, no mask on a
+  #   row that rests on both edges.
+  # - The row carries a trailing inset from `--detail-tabs-tail`, zero
+  #   without script; the one-sided right fade stays its scriptless form.
+  test "the detail tab row's fades follow its edges, and its end is a tab boundary" do
+    row = block(".detail-pane-tabs")
+    assert row =~ ~r/--detail-tabs-tail:\s*0px;/
+    assert row =~ ~r/padding-inline-end:\s*var\(--detail-tabs-tail\);/
+
+    assert @css =~
+             ~r/\n\.detail-pane-tabs:not\(\[data-scroll-start\]\),\n\.area-tabs:not\(\[data-scroll-start\]\) \{\s*mask-image: linear-gradient\(\s*to right,\s*transparent 0,\s*black 24px,/
+
+    assert @css =~
+             ~r/\n\.detail-pane-tabs\[data-scroll-end\],\n\.area-tabs\[data-scroll-end\] \{\s*mask-image: linear-gradient\(to right, transparent 0, black 24px\);/
+
+    assert @css =~
+             ~r/\n\.detail-pane-tabs\[data-scroll-start\]\[data-scroll-end\],\n\.area-tabs\[data-scroll-start\]\[data-scroll-end\] \{\s*mask-image: none;/
+  end
+
   # User story (#873; board ux-design-2026-09-24/08-classification-detail, ①
   # and pick G8 = A; DESIGN.md → Layout & Spacing and Classification tree
   # rows; EXPERIENCE.md → App shell, "nothing is flush with the screen edge"):

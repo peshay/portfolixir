@@ -285,14 +285,122 @@ defmodule PortfolixirWeb.LayoutView do
             // hook moves focus along the row with Arrow Left/Right (wrapping)
             // and Home/End, and activates the focused tab, so the tab stop and
             // the selection never disagree after the patch.
+            //
+            // And AreaTabs' mount half (#1033, Sprint 18 U5, board
+            // ux-design-2026-10-02/07-phone-390 H7.2; DESIGN.md -> D6, "the
+            // active tab is in view on arrival"). The selected tab is in the
+            // URL, so a reload, back or forward, a shared link or the
+            // Overview's "Faellig" rows (?tab=events) arrived on a row resting
+            // at scrollLeft 0 with the tab off-screen. On mount the selected
+            // tab is scrolled into the row's view (the row, never the page),
+            // to the last tab start at or before its centring target at which
+            // it is whole; the row's end is a tab boundary
+            // (--detail-tabs-tail); the edges it rests on are marked, so the
+            // fades follow them. After a patch the inset, the rest and the
+            // marks are restored, and a selection the server changed is
+            // revealed; a tapped tab is already in view and scrolls nothing.
+            // The arithmetic is AreaTabs', copied rather than shared so that
+            // hook keeps its tested form.
             Hooks.DetailTabs = {
               mounted: function () {
                 var self = this;
                 this.onKeydown = function (e) { self.keydown(e); };
                 this.el.addEventListener("keydown", this.onKeydown);
+
+                this.lastLeft = 0;
+                this.onScroll = function () {
+                  self.lastLeft = self.el.scrollLeft;
+                  self.markEdges();
+                };
+                this.onResize = function () {
+                  self.fitTail();
+                  self.markEdges();
+                };
+                this.el.addEventListener("scroll", this.onScroll, { passive: true });
+                window.addEventListener("resize", this.onResize);
+                this.fitTail();
+                this.reveal();
+                this.markEdges();
+              },
+              updated: function () {
+                var nav = this.el;
+                var left = this.lastLeft;
+                var clamped = left > nav.scrollLeft + 1 &&
+                  nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 2;
+
+                this.fitTail();
+                if (clamped) nav.scrollLeft = left;
+                if (!this.selectedWhole()) this.reveal();
+                this.markEdges();
               },
               destroyed: function () {
                 this.el.removeEventListener("keydown", this.onKeydown);
+                this.el.removeEventListener("scroll", this.onScroll);
+                window.removeEventListener("resize", this.onResize);
+              },
+              tabStarts: function () {
+                var nav = this.el;
+                var origin = nav.getBoundingClientRect().left - nav.scrollLeft;
+                return Array.prototype.map.call(nav.querySelectorAll(".detail-pane-tab"), function (tab) {
+                  var rect = tab.getBoundingClientRect();
+                  return { left: rect.left - origin, width: rect.width };
+                });
+              },
+              fitTail: function () {
+                var nav = this.el;
+                var inset = parseFloat(window.getComputedStyle(nav).paddingInlineEnd) || 0;
+                var max = nav.scrollWidth - inset - nav.clientWidth;
+                var tail = 0;
+
+                if (max > 0) {
+                  var next = this.tabStarts().find(function (tab) { return tab.left >= max - 0.5; });
+                  if (next) tail = Math.ceil(next.left - max);
+                }
+
+                nav.style.setProperty("--detail-tabs-tail", tail + "px");
+              },
+              restingLeft: function (index) {
+                var width = this.el.clientWidth;
+                var tabs = this.tabStarts();
+                var active = tabs[index];
+                var target = active.left - (width - active.width) / 2;
+                var whole = function (tab) {
+                  return tab.left <= active.left + 0.5 &&
+                    active.left + active.width <= tab.left + width + 0.5;
+                };
+                var fits = tabs.filter(whole);
+                var before = fits.filter(function (tab) { return tab.left <= target; }).pop();
+                var after = fits.find(function (tab) { return tab.left > target; });
+                var rest = before || after;
+
+                return rest ? Math.max(0, rest.left) : 0;
+              },
+              selectedWhole: function () {
+                var tab = this.el.querySelector('[aria-selected="true"]');
+                if (!tab) return true;
+                var row = this.el.getBoundingClientRect();
+                var rect = tab.getBoundingClientRect();
+                return rect.left >= row.left - 0.5 && rect.right <= row.right + 0.5;
+              },
+              reveal: function () {
+                var nav = this.el;
+                var tab = nav.querySelector('[aria-selected="true"]');
+                if (!tab || nav.scrollWidth <= nav.clientWidth) return;
+
+                var index = Array.prototype.indexOf.call(nav.querySelectorAll(".detail-pane-tab"), tab);
+                if (index < 0) return;
+                var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+                nav.scrollTo({ left: this.restingLeft(index), behavior: reduce ? "auto" : "smooth" });
+              },
+              markEdges: function () {
+                var nav = this.el;
+                var slack = 2;
+                var atStart = nav.scrollLeft <= slack;
+                var atEnd = nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - slack;
+
+                nav.toggleAttribute("data-scroll-start", atStart);
+                nav.toggleAttribute("data-scroll-end", atEnd);
               },
               keydown: function (e) {
                 var tabs = Array.prototype.slice.call(

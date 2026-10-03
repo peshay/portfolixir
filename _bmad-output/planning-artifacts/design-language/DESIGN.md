@@ -1263,7 +1263,12 @@ Shipped as #702; recorded here so every tab row is held to it.
   at the end the right fade goes, because on Risk the last tab *is* the active
   one and a fixed right fade would cover it; a row resting on both edges (no
   overflow, desktop) carries no mask. Without script the row keeps the
-  one-sided right fade above;
+  one-sided right fade above. **The detail pane's row is held to the same
+  clause** *(Sprint 18 U5, issue 1033, board `ux-design-2026-10-02/07-phone-390`
+  H7.2)*: its `DetailTabs` hook carries the same mount half for the
+  `aria-selected` tab, `.detail-pane-tabs` joins the three edge rules, and the
+  server renders the row with `data-scroll-start`, so its first paint, before
+  the hook runs, carries only the right fade;
 - **the row's end is a tab boundary** *(issue 876, pick G10 = A of board
   `ux-design-2026-09-24/10-area-tab-end`)*: when the row overflows, the
   `AreaTabs` hook gives it a trailing inset (`padding-inline-end` from
@@ -1276,7 +1281,8 @@ Shipped as #702; recorded here so every tab row is held to it.
   the left fade. The inset is re-measured on resize and restored after a patch,
   like the edge marks; its cost is a little empty space after the last tab at
   the row's end. Measured in Chromium at 390 px: every Wealth page rests with a
-  whole tab at the left, on arrival and when swiped to the end;
+  whole tab at the left, on arrival and when swiped to the end. The detail
+  pane's row takes the same inset from `--detail-tabs-tail` (Sprint 18, H7.2);
 - **no scrollbar** — a phone renders none anyway, and the fade plus snap carry
   it; keyboard users reach off-screen tabs by tabbing, which scrolls them in;
 - **the baseline is an inset box-shadow, not `border-bottom`.** This is the
@@ -3486,3 +3492,27 @@ in both languages, the one casing EXPERIENCE.md → Period control changes.
 msgids that read the same in German; the fallback "Standard" stays. Not
 changed here, and not on the board: the Overview's "1Y" figure label, which
 is a literal in the template, not a range token.
+
+### The selected detail tab is in view on arrival *(H7.2, rule ②; issue 1033)*
+
+The detail pane's nine tabs (about 760 px) overflow a phone's row, and the
+selected tab is in the URL, so a reload, back or forward, a shared link,
+the trades links (`?tab=trades`), Wealth (`?tab=transactions`) or the
+Overview's "Fällig" rows (`?tab=events`) arrived on a row resting at
+`scrollLeft: 0`: "Kurse" half under the right fade, "Termine" wholly outside.
+No variant: D6 says the active tab is in view on arrival, and UX-DR22
+rejects a wrapping row and an overflow menu. `DetailTabs` (the keyboard half
+since #837) gains `AreaTabs`' mount half, copied rather than shared so that
+hook keeps its tested form: on mount it scrolls the `aria-selected` tab into
+the row's view with `scrollTo` on the row (never `scrollIntoView`, so the
+page does not move), without animation under `prefers-reduced-motion`, to
+the last tab start at or before its centring target at which the tab is
+whole; it writes the trailing inset `--detail-tabs-tail` so the row's end is
+a tab boundary; it marks `data-scroll-start` / `data-scroll-end` and the
+fades follow (`.detail-pane-tabs` joins the three `.area-tabs` edge rules).
+After a patch it restores the inset, the rest and the marks, and reveals a
+selection the server changed; a tapped tab is already in view and scrolls
+nothing. The server renders the row with `data-scroll-start`. Measured in
+Chromium at 390 px on the seeded demo: "Kurse" rests with "Transaktionen"
+first under a left fade; "Termine" rests at the end with no right fade.
+At 1200 px with the sidebar the nine tabs fit and the row carries no mask.
