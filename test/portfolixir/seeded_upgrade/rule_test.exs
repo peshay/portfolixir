@@ -1,7 +1,8 @@
 defmodule Portfolixir.SeededUpgrade.RuleTest do
-  # The seeded-upgrade rule (Sprint 17, Lane G-1, #995): a migration newer
-  # than the harness that adds a CHECK, a NOT NULL or a backfill ships with a
-  # seeded case. Tagged :seeded_upgrade so the migration-roundtrip job, which
+  # The seeded-upgrade rule (Sprint 17, Lane G-1, #995; widened by #1016): a
+  # migration newer than the harness that adds a CHECK, a NOT NULL, a
+  # backfill, a UNIQUE index, a foreign key or an exclusion constraint ships
+  # with a seeded case. Tagged :seeded_upgrade so the migration-roundtrip job, which
   # runs the cases, enforces it too; it reads source files only.
   use ExUnit.Case, async: true
 
@@ -23,7 +24,7 @@ defmodule Portfolixir.SeededUpgrade.RuleTest do
   #   which names the migration, what it adds and how to add its case.
   # - Migrations up to the cutoff are not listed anywhere; they are older
   #   than the rule.
-  test "every migration since the rule that adds a CHECK, a NOT NULL or a backfill has a seeded case" do
+  test "every migration since the rule that can trip over a legacy row has a seeded case" do
     case Rule.uncovered() do
       [] -> :ok
       uncovered -> flunk(Rule.explain(uncovered))
@@ -174,6 +175,108 @@ defmodule Portfolixir.SeededUpgrade.RuleTest do
       """
 
       assert Rule.changes(documented) == []
+    end
+  end
+
+  # User story (#1016, decided by the Sprint 18 plan's D-7):
+  # As the operator upgrading a self-hosted instance,
+  # I want a migration that adds a UNIQUE index, a foreign key or an
+  # exclusion constraint to a table my instance already fills to have run
+  # over such rows before it ships,
+  # so that a legacy duplicate or orphan never stops a release at boot unseen.
+  #
+  # Acceptance criteria:
+  # - On a table the migration does not create, each counts: a UNIQUE index
+  #   (`unique_index/3`, `index/3` with `unique: true`, SQL `CREATE UNIQUE
+  #   INDEX`, `ADD CONSTRAINT ... UNIQUE`), a foreign key (`references/2` in
+  #   `alter table`, SQL `FOREIGN KEY`, `ADD COLUMN ... REFERENCES`) and an
+  #   exclusion constraint (`constraint/3` with `exclude:`, SQL `EXCLUDE
+  #   USING`).
+  # - Built CONCURRENTLY or behind a cleanup step, it still counts: the
+  #   cleanup is what the case proves.
+  # - The same on a table the migration creates, and a plain index, are none.
+  describe "the heuristic, widened (#1016)" do
+    test "a UNIQUE index on an existing table, in Ecto or in SQL, is one" do
+      for body <- [
+            "create unique_index(:t, [:a, :b])",
+            "create_if_not_exists unique_index(:t, [:a], where: \"a IS NOT NULL\")",
+            "create unique_index(:t, [:a], concurrently: true)",
+            "create index(:t, [:a], unique: true)",
+            ~s|execute("CREATE UNIQUE INDEX t_a_index ON t (a)")|,
+            ~s|execute("CREATE UNIQUE INDEX CONCURRENTLY t_a_index ON t (a)")|,
+            ~s|execute("ALTER TABLE t ADD CONSTRAINT t_a_key UNIQUE (a)")|,
+            ~S|repo().query!("CREATE UNIQUE INDEX #{@index} ON t (a) WHERE a IS NOT NULL")|
+          ] do
+        assert Rule.changes(migration(body)) == [:unique], body
+      end
+    end
+
+    test "a cleanup ahead of the index does not exempt it" do
+      body =
+        ~s|execute("DELETE FROM t WHERE id NOT IN (SELECT min(id) FROM t GROUP BY a)")\n| <>
+          "create unique_index(:t, [:a])"
+
+      assert Rule.changes(migration(body)) == [:unique]
+    end
+
+    test "a foreign key on an existing table, in Ecto or in SQL, is one" do
+      for body <- [
+            "alter table(:t) do\nadd :owner_id, references(:owners)\nend",
+            "alter table(:t) do\nmodify :owner_id, references(:owners, on_delete: :restrict)\nend",
+            ~s|execute("ALTER TABLE t ADD CONSTRAINT t_owner_fkey FOREIGN KEY (owner_id) REFERENCES owners (id)")|,
+            ~s|execute("ALTER TABLE t ADD COLUMN owner_id bigint REFERENCES owners (id)")|
+          ] do
+        assert Rule.changes(migration(body)) == [:foreign_key], body
+      end
+    end
+
+    test "an exclusion constraint on an existing table, in Ecto or in SQL, is one" do
+      for body <- [
+            ~s|create constraint(:t, :t_no_overlap, exclude: ~s"gist (a WITH =, period WITH &&)")|,
+            ~s|execute("ALTER TABLE t ADD CONSTRAINT t_no_overlap EXCLUDE USING gist (a WITH =)")|
+          ] do
+        assert Rule.changes(migration(body)) == [:exclusion], body
+      end
+    end
+
+    test "a new table's own UNIQUE index, foreign key and exclusion constraint are none" do
+      for body <- [
+            "create table(:t) do\nadd :a, :string\nend\ncreate unique_index(:t, [:a])",
+            "create table(:t) do\nadd :a, :string\nend\ncreate index(:t, [:a], unique: true)",
+            "create table(:t) do\nadd :owner_id, references(:owners)\nend",
+            "create table(:t) do\nadd :a, :string\nend\n" <>
+              "alter table(:t) do\nadd :owner_id, references(:owners)\nend",
+            "create table(:t) do\nadd :a, :string\nend\n" <>
+              ~s|create constraint(:t, :t_no_overlap, exclude: ~s"gist (a WITH =)")|,
+            "create index(:t, [:a])",
+            "create index(:t, [:a], concurrently: true)",
+            "drop unique_index(:t, [:a])",
+            ~s|execute("DROP INDEX IF EXISTS t_a_index")|
+          ] do
+        assert Rule.changes(migration(body)) == [], body
+      end
+    end
+
+    test "the heuristic sees the UNIQUE index the decision names" do
+      # D-7 (#1016): the example the rule did not see. It is older than the
+      # cutoff, so the rule lists it nowhere; its refusal of legacy duplicates
+      # is pinned by its own test (position_target_unique_test.exs).
+      assert changes_of(20_260_925_210_000) == [:unique]
+    end
+
+    test "the message names what each new kind adds" do
+      message =
+        Rule.explain([
+          {20_260_926_121_500, "20260926121500_add_author.exs",
+           [:unique, :foreign_key, :exclusion]}
+        ])
+
+      assert message =~
+               "20260926121500_add_author.exs -- adds a UNIQUE index and a foreign key and " <>
+                 "an exclusion constraint"
+
+      assert String.replace(message, ~r/\s+/, " ") =~
+               "a UNIQUE index, a foreign key or an exclusion constraint"
     end
   end
 

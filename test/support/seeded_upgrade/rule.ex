@@ -1,10 +1,13 @@
 defmodule Portfolixir.SeededUpgrade.Rule do
   @moduledoc """
   The rule the seeded-upgrade harness exists for (Sprint 17, Lane G-1,
-  #995): every migration newer than `since/0` that adds a CHECK, a NOT NULL
-  or a backfill has a seeded case -- a test tagged
-  `@tag seeded_upgrade: <its version>` that seeds the rows an older instance
-  holds and migrates over them with `Portfolixir.SeededUpgrade`.
+  #995): every migration newer than `since/0` that adds a CHECK, a NOT NULL,
+  a backfill, a UNIQUE index, a foreign key or an exclusion constraint has a
+  seeded case -- a test tagged `@tag seeded_upgrade: <its version>` that
+  seeds the rows an older instance holds and migrates over them with
+  `Portfolixir.SeededUpgrade`. The last three joined with #1016 (the Sprint
+  18 plan's D-7): a legacy duplicate or orphan stops an upgrade exactly as a
+  row a CHECK refuses does.
 
   Such a migration is exactly what a database migrated from empty cannot
   test: it holds no legacy row for the constraint to refuse or the backfill
@@ -32,6 +35,18 @@ defmodule Portfolixir.SeededUpgrade.Rule do
       their bang forms); or any call into application code (a `Portfolixir`
       module other than the repo), which is how the policy-rule author
       backfill ran.
+    * **UNIQUE index** -- `unique_index(table, ...)`, or `index(table, ...,
+      unique: true)`, created on a table the migration does not create; or
+      SQL text with `CREATE UNIQUE INDEX` or `ADD CONSTRAINT <name> UNIQUE`.
+    * **foreign key** -- `references(...)` inside `alter table(...)` of a
+      table the migration does not create; or SQL text with `FOREIGN KEY` or
+      `ADD COLUMN ... REFERENCES`.
+    * **exclusion constraint** -- `constraint(table, name, exclude: ...)` on
+      a table the migration does not create; or SQL text with
+      `EXCLUDE USING`.
+
+  An index built `CONCURRENTLY` or behind a cleanup step (a `DELETE` of the
+  duplicates first) is no exception: the cleanup is what the case proves.
 
   SQL is matched in upper case, the way every migration here writes it, so
   prose such as a log message's "kind check (" is not read as SQL. A string
@@ -65,21 +80,28 @@ defmodule Portfolixir.SeededUpgrade.Rule do
     not_null: ~r/\bSET\s+NOT\s+NULL\b/,
     not_null: ~r/\bADD\s+COLUMN\b[^,;]*\bNOT\s+NULL\b/,
     backfill: ~r/\bUPDATE\s+(?:ONLY\s+)?[\w."]+\s+(?:AS\s+)?(?:\w+\s+)?SET\b/,
-    backfill: ~r/\bINSERT\s+INTO\b[^;]*\bSELECT\b/
+    backfill: ~r/\bINSERT\s+INTO\b[^;]*\bSELECT\b/,
+    unique: ~r/\bCREATE\s+UNIQUE\s+INDEX\b/,
+    unique: ~r/\bADD\s+CONSTRAINT\s+[\w."]+\s+UNIQUE\b/,
+    foreign_key: ~r/\bFOREIGN\s+KEY\b/,
+    foreign_key: ~r/\bADD\s+COLUMN\b[^,;]*\bREFERENCES\b/,
+    exclusion: ~r/\bEXCLUDE\s+USING\b/
   ]
+
+  @changes [:check, :not_null, :backfill, :unique, :foreign_key, :exclusion]
 
   # What an interpolated or concatenated expression reads as in SQL text.
   @placeholder "interpolated"
 
-  @type change :: :check | :not_null | :backfill
+  @type change :: :check | :not_null | :backfill | :unique | :foreign_key | :exclusion
 
   @doc "The last migration older than the rule."
   @spec since() :: pos_integer()
   def since, do: @since
 
   @doc """
-  The migrations newer than `since/0` that add a CHECK, a NOT NULL or a
-  backfill and that no seeded case names, as `{version, file, changes}`.
+  The migrations newer than `since/0` that add one of the six changes and
+  that no seeded case names, as `{version, file, changes}`.
   Options, for the rule's own tests: `:migrations` (the directory, by default
   `priv/repo/migrations`), `:since` (the cutoff, by default `since/0`) and
   `:tests` (the test files read for tags, by default `test/**/*_test.exs`).
@@ -126,7 +148,7 @@ defmodule Portfolixir.SeededUpgrade.Rule do
         {node, MapSet.union(found, detect(node, created, app_aliases))}
       end)
 
-    Enum.filter([:check, :not_null, :backfill], &(&1 in found))
+    Enum.filter(@changes, &(&1 in found))
   end
 
   @doc """
@@ -146,7 +168,8 @@ defmodule Portfolixir.SeededUpgrade.Rule do
 
     """
     These migrations are newer than the seeded-upgrade rule (#{@since}) and add a
-    CHECK, a NOT NULL or a backfill, but no seeded-upgrade case covers them:
+    CHECK, a NOT NULL, a backfill, a UNIQUE index, a foreign key or an exclusion
+    constraint, but no seeded-upgrade case covers them:
 
     #{entries}
 
@@ -229,14 +252,34 @@ defmodule Portfolixir.SeededUpgrade.Rule do
 
   defp detect({:constraint, _meta, [table, _name, opts]}, created, _app_aliases)
        when is_list(opts) do
-    if Keyword.has_key?(opts, :check) and table_name(table) not in created,
-      do: MapSet.new([:check]),
-      else: MapSet.new()
+    if table_name(table) in created do
+      MapSet.new()
+    else
+      for {key, change} <- [check: :check, exclude: :exclusion],
+          Keyword.has_key?(opts, key),
+          into: MapSet.new(),
+          do: change
+    end
   end
 
   defp detect({:alter, _meta, [{:table, _table_meta, [table | _opts]}, [do: block]]}, created, _) do
-    if table_name(table) not in created and not_null_column?(block),
-      do: MapSet.new([:not_null]),
+    if table_name(table) in created do
+      MapSet.new()
+    else
+      for {change, true} <- [not_null: not_null_column?(block), foreign_key: reference?(block)],
+          into: MapSet.new(),
+          do: change
+    end
+  end
+
+  # `create unique_index(...)` and `create index(..., unique: true)`; a drop
+  # adds nothing an older row can trip on.
+  defp detect({create, _meta, [{index, _index_meta, [table | args]} | _rest]}, created, _)
+       when create in [:create, :create_if_not_exists] and index in [:unique_index, :index] do
+    unique? = index == :unique_index or unique_option?(args)
+
+    if unique? and table_name(table) not in created,
+      do: MapSet.new([:unique]),
       else: MapSet.new()
   end
 
@@ -283,6 +326,23 @@ defmodule Portfolixir.SeededUpgrade.Rule do
     found?
   end
 
+  defp reference?(block) do
+    {_ast, found?} =
+      Macro.prewalk(block, false, fn
+        {:references, _meta, args} = node, _found? when is_list(args) -> {node, true}
+        node, found? -> {node, found?}
+      end)
+
+    found?
+  end
+
+  defp unique_option?(args) do
+    case List.last(args) do
+      opts when is_list(opts) -> Keyword.keyword?(opts) and Keyword.get(opts, :unique) == true
+      _other -> false
+    end
+  end
+
   defp null_false?(args) do
     case List.last(args) do
       opts when is_list(opts) -> Keyword.keyword?(opts) and Keyword.get(opts, :null) == false
@@ -311,6 +371,9 @@ defmodule Portfolixir.SeededUpgrade.Rule do
   defp describe(:check), do: "a CHECK"
   defp describe(:not_null), do: "a NOT NULL"
   defp describe(:backfill), do: "a backfill"
+  defp describe(:unique), do: "a UNIQUE index"
+  defp describe(:foreign_key), do: "a foreign key"
+  defp describe(:exclusion), do: "an exclusion constraint"
 
   defp seed_at(versions, version) do
     case versions |> Enum.filter(&(&1 < version)) |> List.last() do
