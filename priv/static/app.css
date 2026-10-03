@@ -9880,6 +9880,22 @@ dialog.merge-dialog {
   margin-left: var(--space-2);
 }
 
+/* The show-all control stands on its own after the sentence, so it takes
+   the standalone link-button's treatment `.policy-rule__name` has: the 2 px
+   accent ring on keyboard focus and 44 px under a coarse pointer (UX-DR6;
+   board ux-review-2026-10-03/01-contribution-repairs, R3). Scoped to this
+   control: a remedy inside a note's sentence is a different case. */
+.link-button.contribution-show-all:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .link-button.contribution-show-all {
+    min-height: 44px;
+  }
+}
+
 /* The remainder: its own head on the muted band, then its three lines. The
    band outranks the zebra stripe `.data-table tbody tr:nth-child(even) td`
    (0,2,3) and the row hover at 0,3,3, so all four rows sit on one solid band

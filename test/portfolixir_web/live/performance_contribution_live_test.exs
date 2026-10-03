@@ -293,6 +293,47 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
     assert text_of(view, "[data-role='contribution-sum-figure']") == "-35.00 EUR"
   end
 
+  # User story (Sprint 18 PR β design critic, R3; board
+  # ux-review-2026-10-03/01-contribution-repairs; UX-DR6, the Accessibility
+  # Floor):
+  # As a local portfolio maintainer on a touch screen or a keyboard,
+  # I want the "Show all N" control to be a target I can hit and a focus I
+  # can see,
+  # so that opening the hidden positions is not a 20 px aim or a guess.
+  #
+  # Acceptance criteria:
+  # - In the table and in the phone rows the control carries its own class,
+  #   `contribution-show-all`, beside `.link-button`.
+  # - The stylesheet gives that control — not every `.link-button` — 44 px
+  #   under a coarse pointer and the 2 px accent ring on `:focus-visible`,
+  #   the treatment a rule's name on Risk has.
+  test "the show-all control meets the touch floor and draws the accent ring", %{conn: conn} do
+    twelve_world()
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    assert has_element?(
+             view,
+             ~s(#contribution-table button.link-button.contribution-show-all[data-role="contribution-show-all"])
+           )
+
+    assert has_element?(
+             view,
+             ~s(#contribution-phone-rows button.link-button.contribution-show-all[data-role="contribution-show-all"])
+           )
+
+    css = File.read!("priv/static/app.css")
+
+    assert css =~
+             ~r/\.link-button\.contribution-show-all:focus-visible\s*\{\s*outline:\s*2px solid var\(--color-accent\);\s*outline-offset:\s*2px;/
+
+    assert css =~
+             ~r/@media \(pointer: coarse\) \{\s*\.link-button\.contribution-show-all \{\s*min-height: 44px;/
+
+    refute css =~ ~r/@media \(pointer: coarse\) \{\s*\.link-button \{/
+  end
+
   # User story (FR-41, ADR-0051 §10, UX-DR25):
   # As a local portfolio maintainer whose history has a position without a
   # price,
