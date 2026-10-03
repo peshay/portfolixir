@@ -84,6 +84,16 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 103_991,
     book: 177_091,
     full: 207_454
+  },
+  {
+    since: "2026-10-03",
+    why:
+      "Sprint 18 PR γ, U7 closing act (#330): face_value_currency_code describes itself, " +
+      "paid for by tightening the bond fields' and securities.update's property " +
+      "descriptions, and lowered to the figure measured with it",
+    read: 103_991,
+    book: 177_085,
+    full: 207_448
   }
 ];
 

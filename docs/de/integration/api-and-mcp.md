@@ -831,7 +831,8 @@ in jeder Wertpapier-Antwort enthalten (und mit `fields=` wählbar):
 - `maturity_date` und `issue_date` — ISO-Daten, die Fälligkeit nach dem
   Emissionstag;
 - `face_value` — die Stückelung, ein Decimal-String über 0;
-- `face_value_currency_code` — die Währung der Stückelung.
+- `face_value_currency_code` — die Währung der Stückelung, ein ISO-4217-Code
+  aus der Menge, die `currency_code` annimmt.
 
 `coupon_rate` und `face_value` halten 6 Nachkommastellen, nach der Regel,
 der jeder gespeicherte Betrag folgt (**Andere gespeicherte Beträge** oben):
