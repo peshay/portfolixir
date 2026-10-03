@@ -103,8 +103,10 @@ describe("the companion's prompts", () => {
   // Acceptance criteria:
   // - The text embeds the active profile and what it admits.
   // - It checks the instance first, reads before it proposes, writes nothing
-  //   without the operator's confirmation, and groups with buckets and views
-  //   (one view matching every account included), not portfolios.
+  //   without the operator's confirmation, and groups with buckets and views,
+  //   not portfolios.
+  // - The total across everything is a read with no view (#1007, Sprint 18
+  //   plan D-5): it proposes no catch-all view to get it.
   // - It names the intake paths: a Portfolio Performance file on the Imports
   //   page, the import_converter prompt, manual booking; and no broker sync.
   // - It carries the no-advice framing, and names only tools that exist.
@@ -124,8 +126,10 @@ describe("the companion's prompts", () => {
     assert.match(text, /portfolixir\.securities_accounts\.list/);
     assert.match(text, /portfolixir\.views\.list/);
     assert.match(text, /portfolixir\.buckets\.create/);
-    assert.match(text, /portfolixir\.views\.create with only a name \(include_all is true by default\)/);
-    assert.match(text, /portfolixir\.views\.valuation/);
+    assert.match(text, /portfolixir\.views\.valuation without an id/);
+    assert.match(text, /needs no view/);
+    assert.doesNotMatch(text, /one view that includes everything/);
+    assert.doesNotMatch(text, /views\.create with only a name/);
     assert.match(text, /portfolixir\.portfolios\.create is deprecated/);
     assert.match(text, /Imports page of the instance \(\/imports\)/);
     assert.match(text, /import_converter prompt/);

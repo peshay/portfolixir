@@ -820,6 +820,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   shape with `view_id` in place of `portfolio_id`, plus account-level `overlap`
   data (which depots/cash accounts carry more than one of the view's included
   buckets — badge data; the totals are already deduplicated).
+
+  With `view_id` nil it serializes the view-less total of every account
+  (`Valuation.for_view(nil)`, #1007) in the same shape, its note naming that
+  scope.
   """
   def view_valuation(%{positions: positions} = valuation, opts \\ []) do
     include_positions? = Keyword.get(opts, :include_positions, true)
@@ -830,7 +834,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # FR-13: `as_of` documents the read date (no stored snapshot exists) and
       # the note states the cross-portfolio, count-once basis of the totals.
       as_of: date(Clock.today()),
-      valuation_note: view_valuation_note(valuation.base_currency),
+      valuation_note: view_valuation_note(valuation.base_currency, valuation.view_id),
       total_value: decimal(valuation.total_value),
       total_cash: decimal(valuation.total_cash),
       counting_cash: decimal(valuation.counting_cash),
@@ -857,11 +861,23 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     end
   end
 
-  defp view_valuation_note(base_currency) do
+  # #1007 (D-5): the view-less read, `view_id` nil, is the total of every
+  # account, and its note says so instead of describing a view.
+  defp view_valuation_note(base_currency, nil) do
+    "Totals are in #{base_currency} across ALL portfolios and every account, " <>
+      "each counted once, with no view: the unscoped total the dashboard's " <>
+      "Gesamt shows, converted via the EUR hub. " <> price_flags_note()
+  end
+
+  defp view_valuation_note(base_currency, _view_id) do
     "Totals are in #{base_currency} across ALL portfolios, converted via the " <>
       "EUR hub; each account matching the view counts exactly once, however " <>
       "many included buckets it carries (`overlap` lists the multi-bucket " <>
-      "accounts). `price_source`, `price_date` and `valued` indicate " <>
+      "accounts). " <> price_flags_note()
+  end
+
+  defp price_flags_note do
+    "`price_source`, `price_date` and `valued` indicate " <>
       "per-position price staleness (stale_priced_count counts quoted " <>
       "positions whose quote is older than the data-quality threshold; " <>
       "newest_quote_date is the newest stored quote date across the quoted, " <>

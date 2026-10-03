@@ -371,6 +371,8 @@ defmodule PortfolixirWeb.Router do
     delete("/views/:id", ViewController, :delete)
     put("/views/:id/buckets", ViewController, :set_buckets)
     get("/views/:view_id/valuation", ViewValuationController, :show)
+    # #1007 (D-5): the total across every portfolio, the view read with no view.
+    get("/valuation", ViewValuationController, :total)
     get("/views/:view_id/performance", ViewPerformanceController, :show)
     get("/views/:view_id/performance/benchmark", ViewBenchmarkController, :show)
     # #901 (ADR-0051 §6): the category result's view form, beside the

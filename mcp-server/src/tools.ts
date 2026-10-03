@@ -64,30 +64,34 @@ const TAX_AMOUNTS =
 // (Portfolixir.Portfolios.Valuation, Performance and Performance.Benchmark:
 // for_portfolio values one portfolio's accounts in its base currency, its view
 // narrowing within them; for_view values the accounts a view matches in every
-// portfolio, each once, in the EUR hub). The view routes take an existing view
-// id; there is no API read of the view-less union.
-const VIEW_SCOPE =
-  "a view across EVERY portfolio, each account counted once, in EUR, and needs an existing " +
-  "view id (portfolixir.views.list; a view created with include_all, the default, and " +
-  "no exclusion matches every account)";
+// portfolio, each once, in the EUR hub). The view valuation without an id reads
+// the view-less union, the total of every account (#1007, Sprint 18 plan D-5);
+// the view performance and benchmark take an existing view id.
+const VIEW_SCOPE = "a view across EVERY portfolio, each account counted once, in EUR";
+const VIEW_SCOPE_OF = {
+  totals: `${VIEW_SCOPE} or, with no id, the total of every account`,
+  returns:
+    `${VIEW_SCOPE}, and needs an existing view id (portfolixir.views.list; one with ` +
+    "include_all, the default, and no exclusion matches every account)"
+};
 const PORTFOLIO_SCOPE =
   "ONE portfolio record in its base currency, its view narrowing within that portfolio";
 
 function portfolioScopeTwin(twin: string, figures: "totals" | "returns"): string {
-  const sum =
+  const steer =
     figures === "totals"
-      ? "its totals over several portfolios add up only when they share one base currency, " +
-        "as each account belongs to one portfolio"
-      : "returns of several portfolios do not add up to the return across them";
+      ? "For a total, read that, not a sum of portfolios"
+      : "Until a view exists this tool is the only read, and returns of several portfolios " +
+        "do not add up to the return across them";
 
   return (
     ` Scope twin: ${twin} — this tool answers ${PORTFOLIO_SCOPE}; the twin answers ` +
-    `${VIEW_SCOPE}. Until a view exists this tool is the only read, and ${sum}.`
+    `${VIEW_SCOPE_OF[figures]}. ${steer}.`
   );
 }
 
-function viewScopeTwin(twin: string): string {
-  return ` Scope twin: ${twin} — this tool answers ${VIEW_SCOPE}; the twin answers ${PORTFOLIO_SCOPE}.`;
+function viewScopeTwin(twin: string, figures: "totals" | "returns"): string {
+  return ` Scope twin: ${twin} — this tool answers ${VIEW_SCOPE_OF[figures]}; the twin answers ${PORTFOLIO_SCOPE}.`;
 }
 
 const emptyObjectSchema = {
@@ -1089,10 +1093,10 @@ const positionTargetsListZ = z.object({
 });
 
 // #740: the view valuation takes the same roll-up switch as the portfolio one.
+// #1007 (D-5): with no id it reads the total of every account.
 const viewValuationSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["id"],
   properties: {
     id: { type: "integer", minimum: 1 },
     include_positions: { type: "boolean" }
@@ -1100,7 +1104,7 @@ const viewValuationSchema = {
 };
 
 const viewValuationZ = z.object({
-  id: z.number().int().positive(),
+  id: z.number().int().positive().optional(),
   include_positions: z.boolean().optional()
 });
 
@@ -3701,8 +3705,8 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.views.valuation",
     "Value view (cross-portfolio)",
-    "Live valuation of a bucket view across ALL portfolios (id is the view id): the deduplicated union of every depot, position and cash account matching the view — an account tagged into several included buckets counts exactly once. Totals, weights, cash balances and the cash quote are in EUR (converted via the EUR hub); the valued/price_source flags mark stale or unpriceable positions, price_date says when each position's price is from, stale_priced_count counts the quoted positions whose quote is older than the data-quality threshold with retired holdings left out, newest_quote_date is the newest stored quote date across the quoted, non-retired positions (null when none is quote-priced), and unvalued_reason distinguishes no_price from missing_fx, exactly as in portfolixir.portfolios.valuation. The overlap object lists the depots/cash accounts carrying more than one included bucket (badge data — the totals are already deduplicated). matches_no_accounts is true when the view's resolution matches no account at all (an empty include set or orphaned buckets), explaining a 0 total. All financial values are Decimal strings. Use this, not a client-side sum of portfolio valuations, for a view's total wealth. Pass include_positions=false (FR-37, #740) for a roll-up-only read — totals, cash balances and cash quote without the per-position rows; the response states positions_included. Prefer it for the routine cross-portfolio total." +
-      viewScopeTwin("portfolixir.portfolios.valuation"),
+    "Live valuation of a bucket view across ALL portfolios (id is the view id): the deduplicated union of every depot, position and cash account matching the view — an account tagged into several included buckets counts exactly once. Omit id for the total of every account, the dashboard's Gesamt (view_id null; no view needed). Totals, weights, cash balances and the cash quote are in EUR (converted via the EUR hub); valued, price_source, price_date, stale_priced_count, newest_quote_date and unvalued_reason (no_price | missing_fx) read exactly as in portfolixir.portfolios.valuation. The overlap object lists the depots/cash accounts carrying more than one included bucket (badge data — the totals are already deduplicated). matches_no_accounts is true when the view's resolution matches no account at all (an empty include set or orphaned buckets), explaining a 0 total. All financial values are Decimal strings. Use this, not a client-side sum of portfolio valuations, for a view's total or the instance's. Pass include_positions=false (FR-37, #740) for a roll-up-only read — totals, cash balances and cash quote without the per-position rows; the response states positions_included. Prefer it for the routine total." +
+      viewScopeTwin("portfolixir.portfolios.valuation", "totals"),
     viewValuationSchema,
     viewValuationZ
   ),
@@ -3710,7 +3714,7 @@ const declaredTools: DeclaredTool[] = [
     "portfolixir.views.performance",
     "View performance (cross-portfolio TTWROR + IRR)",
     "True time-weighted return (TTWROR) and money-weighted IRR of a bucket view across ALL portfolios (id is the view id): the same deduplicated account scope as portfolixir.views.valuation, so the view's total and its return always cover the same accounts. Money crossing the view boundary counts as an external flow (a deposit/withdrawal to the slice); money moving between two in-scope accounts nets out. The response also carries invested_capital (start_value plus net_external_flows), wealth_multiple (end_value / invested_capital; null when net invested is zero or negative) and mwr, the non-annualized period money-weighted return — read mwr instead of irr for windows shorter than a year (ADR-0034). period is ytd|1y|3y|5y|max (default max), or year=YYYY for one calendar year, or from/to ISO dates for a custom range; series=true adds the daily points. All financial values are Decimal strings. The response also carries as_of (the walk's compute instant), a stale flag (a superseded value served while a fresh one computes) and computation_basis (input series, window, reference, gap treatment) — ADR-0039." +
-      viewScopeTwin("portfolixir.portfolios.performance"),
+      viewScopeTwin("portfolixir.portfolios.performance", "returns"),
     viewPerformanceSchema,
     viewPerformanceZ
   ),
@@ -3718,7 +3722,7 @@ const declaredTools: DeclaredTool[] = [
     "portfolixir.views.benchmark",
     "View benchmark comparison (cross-portfolio)",
     "The benchmark comparison of a bucket view across ALL portfolios (id is the view id; ADR-0046 §3): the same deduplicated account scope as portfolixir.views.valuation and portfolixir.views.performance, so the view's total, its return and its benchmark speak about the same accounts. benchmark is required — rate:<decimal> or security:<id> — and the response is the portfolixir.portfolios.benchmark shape keyed by view_id: bought_once (benchmark_return next to portfolio_ttwror; series=true adds the daily cumulative_return points), savings_plan (invested_capital, portfolio_end_value, benchmark_end_value, end_value_delta, portfolio_irr, benchmark_irr, portfolio_mwr, benchmark_mwr, benchmark_units), requested_window and window (with rebase_day) and the flows before the benchmark's first priced day listed in excluded_flows, all financial values as Decimal strings, as_of and stale (ADR-0039) and computation_basis with the frictionless assumption stated (frictionless: true). period, year, from/to and series behave like portfolixir.views.performance." +
-      viewScopeTwin("portfolixir.portfolios.benchmark"),
+      viewScopeTwin("portfolixir.portfolios.benchmark", "returns"),
     viewBenchmarkSchema,
     viewBenchmarkZ
   ),
@@ -4592,10 +4596,15 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request("PATCH", `/api/v1/views/${args.id}`, { view: args.view });
     case "portfolixir.views.delete":
       return client.request("DELETE", `/api/v1/views/${args.id}`);
+    // #1007: no id reads the view-less total, GET /api/v1/valuation.
     case "portfolixir.views.valuation":
       return client.request(
         "GET",
-        withQuery(`/api/v1/views/${args.id}/valuation`, args, ["include_positions"])
+        withQuery(
+          `/api/v1/${args.id === undefined ? "" : `views/${args.id}/`}valuation`,
+          args,
+          ["include_positions"]
+        )
       );
     case "portfolixir.views.performance":
       return client.request(

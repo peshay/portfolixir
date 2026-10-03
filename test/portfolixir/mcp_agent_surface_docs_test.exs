@@ -242,6 +242,9 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
   #   the view side needs an existing view id and how a view matching every
   #   account is made, and name each tool of the three pairs as the other's
   #   twin.
+  # - Since #1007 (Sprint 18 plan D-5) they state that the total across every
+  #   portfolio needs no view, and no longer send the reader to create one
+  #   for it.
   test "the twin scope tools are explained as pairs" do
     assert_fragments([
       {"docs/integration/api-and-mcp.md",
@@ -251,6 +254,7 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
          "a view across every portfolio, each account counted once, in EUR",
          "needs an existing view id",
          "a view created with `include_all` (the default) and nothing excluded matches every account",
+         "The total across every portfolio needs no view: `portfolixir.views.valuation` without an id reads it",
          "- `portfolixir.portfolios.valuation` — scope twin of `portfolixir.views.valuation`",
          "- `portfolixir.views.valuation` — scope twin of `portfolixir.portfolios.valuation`",
          "- `portfolixir.portfolios.performance` — scope twin of `portfolixir.views.performance`",
@@ -265,6 +269,7 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
          "eine View über jedes Portfolio, jedes Konto einmal gezählt, in EUR",
          "braucht eine bestehende View-ID",
          "eine mit `include_all` (Standard) und ohne Ausschluss angelegte View erfasst jedes Konto",
+         "Die Summe über jedes Portfolio braucht keine View: `portfolixir.views.valuation` ohne id liest sie",
          "- `portfolixir.portfolios.valuation` — Bereichs-Zwilling von `portfolixir.views.valuation`",
          "- `portfolixir.views.valuation` — Bereichs-Zwilling von `portfolixir.portfolios.valuation`",
          "- `portfolixir.portfolios.performance` — Bereichs-Zwilling von `portfolixir.views.performance`",
@@ -273,6 +278,15 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
          "- `portfolixir.views.benchmark` — Bereichs-Zwilling von `portfolixir.portfolios.benchmark`"
        ]}
     ])
+
+    for {path, workaround} <- [
+          {"docs/integration/api-and-mcp.md", "gives the total across everything"},
+          {"docs/integration/api-and-mcp.md", "one view with `include_all` for the total"},
+          {"docs/de/integration/api-and-mcp.md", "die Summe über alles"}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+      refute doc =~ workaround, "#{path}: #{workaround}"
+    end
   end
 
   # User story (Sprint 17 A4, #983):

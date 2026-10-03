@@ -48,11 +48,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "Sprint 18, the operator's money surface: F4, the category result takes the view " <>
           "scope in the performance family's two forms, the portfolio read narrowed with " <>
           "view= and a view read across every portfolio, and states the scope it was " <>
-          "computed over (#901).",
-      endpoints: ["GET /api/v1/views/:view_id/category-results"],
+          "computed over (#901); F5, the total across every portfolio, the figure the " <>
+          "dashboard's Gesamt shows, is one read with no view to create first (#1007).",
+      endpoints: ["GET /api/v1/views/:view_id/category-results", "GET /api/v1/valuation"],
       tools: [],
       parameters: [
-        "GET /api/v1/portfolios/:portfolio_id/category-results (portfolixir.portfolios.category_results) takes view= (a view id): only the portfolio's positions matching the view roll up, and the active view is echoed as view: {id, name}; a malformed view is a 422, an unknown one a 404. GET /api/v1/views/:view_id/category-results, new, rolls up the positions matching the view across every portfolio, each account counted once, in EUR, a member whose cost was not paid in EUR excluded as missing_base_cost; the MCP tool reaches it with view and no portfolio_id, which is now optional (one of the two is required). Both forms answer scope (portfolio or view), portfolio_id, view_id and base_currency, and basis_note closes on a sentence naming it; every other field the read served before is unchanged (F4, #901)"
+        "GET /api/v1/portfolios/:portfolio_id/category-results (portfolixir.portfolios.category_results) takes view= (a view id): only the portfolio's positions matching the view roll up, and the active view is echoed as view: {id, name}; a malformed view is a 422, an unknown one a 404. GET /api/v1/views/:view_id/category-results, new, rolls up the positions matching the view across every portfolio, each account counted once, in EUR, a member whose cost was not paid in EUR excluded as missing_base_cost; the MCP tool reaches it with view and no portfolio_id, which is now optional (one of the two is required). Both forms answer scope (portfolio or view), portfolio_id, view_id and base_currency, and basis_note closes on a sentence naming it; every other field the read served before is unchanged (F4, #901)",
+        "GET /api/v1/valuation, new: the total across every portfolio and every account, each counted once, in EUR, with no view — the unscoped union the dashboard's Gesamt shows — in the view valuation's shape with view_id null and no view echo; include_positions=false returns the roll-up only, as on the view read. portfolixir.views.valuation reads it when id is omitted, id being optional now; with an id it is unchanged. No view-less performance or benchmark read is added (F5, #1007, D-5)"
       ],
       removed_endpoints: [],
       removed_tools: []

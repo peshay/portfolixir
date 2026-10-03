@@ -71,6 +71,9 @@ defmodule Portfolixir.AgentEntryDocsTest do
   # - Every link it carries is the repository or a page of the docs site that
   #   exists in docs/, the API and MCP reference and the Connect page among
   #   them.
+  # - It names the total across every portfolio as a read with no view
+  #   (#1007, Sprint 18 plan D-5) and no longer sends the agent to create a
+  #   view for it.
   test "llms.txt is the agent's entry and links only to pages that exist" do
     entry = File.read!("docs/llms.txt")
     flat = String.replace(entry, ~r/\s+/, " ")
@@ -96,10 +99,14 @@ defmodule Portfolixir.AgentEntryDocsTest do
           "`first_setup`",
           "`import_converter`",
           "## What connecting costs",
-          "## Read on"
+          "## Read on",
+          "The total across every portfolio needs no view: `portfolixir.views.valuation` without an id"
         ] do
       assert flat =~ fragment, fragment
     end
+
+    refute flat =~ "one created with `portfolixir.views.create`"
+    refute flat =~ "The view tools need a view."
 
     links =
       ~r/\]\((https?:\/\/[^)\s]+)\)/

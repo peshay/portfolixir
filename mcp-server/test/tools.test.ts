@@ -2647,6 +2647,36 @@ describe("Portfolixir MCP tools", () => {
     assert.equal((result.structuredContent as any).data.total_with_cash, "750");
   });
 
+  // User story (#1007; Sprint 18 plan D-5):
+  // As the agent meeting a fresh instance, which has no view,
+  // I want the total across every portfolio from the view valuation tool
+  // with no id,
+  // so that my first figure costs one read, not a catch-all view created
+  // first or a sum of portfolios.
+  //
+  // Acceptance criteria:
+  // - Without id the tool reads GET /api/v1/valuation, include_positions
+  //   passed on as on the view read; with an id it is unchanged.
+  // - The schema requires nothing, and the description says what an omitted
+  //   id reads.
+  it("reads the total across every portfolio when views.valuation has no id", async () => {
+    const { client, requests } = createRecordingClient({ data: { view_id: null } });
+
+    await callTool(client, "portfolixir.views.valuation", {});
+    await callTool(client, "portfolixir.views.valuation", { include_positions: false });
+    await callTool(client, "portfolixir.views.valuation", { id: 2 });
+
+    assert.deepEqual(
+      requests.map((request) => request.path),
+      ["/api/v1/valuation", "/api/v1/valuation?include_positions=false", "/api/v1/views/2/valuation"]
+    );
+
+    const tool = listTools().find((candidate) => candidate.name === "portfolixir.views.valuation");
+    assert.equal(tool?.inputSchema.required, undefined);
+    assert.equal(tool?.inputSchema.properties.id.type, "integer");
+    assert.match(tool?.description ?? "", /Omit id for the total of every account/);
+  });
+
   // User story (#577): as an MCP client I want a view's cross-portfolio
   // TTWROR/IRR from one tool, so that the performance figures cover exactly
   // the accounts the view valuation covers.
