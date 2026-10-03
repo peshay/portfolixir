@@ -15,8 +15,10 @@ defmodule PortfolixirWeb.SecuritiesDeleteRefusalTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Knowledge
   alias Portfolixir.Knowledge.Events
+  alias PortfolixirWeb.Securities.RowContextMenu
 
   defp german(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
 
@@ -180,5 +182,57 @@ defmodule PortfolixirWeb.SecuritiesDeleteRefusalTest do
            ]
 
     assert footer(view) == ["Abbrechen", "Zusammenführen in…", "Stattdessen stilllegen"]
+  end
+
+  defp dialog_paragraphs(html) do
+    html
+    |> Floki.parse_fragment!()
+    |> Floki.find("#delete-blocked-dialog .modal-body p")
+    |> Enum.map(&(&1 |> Floki.text() |> String.split() |> Enum.join(" ")))
+  end
+
+  # User story (#918; pick H8.2 = A, board 08-dialogs-copy):
+  # As the operator whose delete is held by a rule version alone, or refused
+  # without a count,
+  # I want "Cannot delete" to name the rule versions and why no merge helps,
+  # and without a count to say in general terms what holds a security,
+  # so that the dialog neither offers a merge that would be refused nor
+  # invents a number.
+  #
+  # The page passes these two refusals only when a rule version lands
+  # between the rule check and the delete (the rule check answers first
+  # otherwise), or when the delete refuses for a reason it does not count,
+  # so the dialog is rendered here with the refusal as the page passes it.
+  #
+  # Acceptance criteria:
+  # - Counts of rule versions only: "“Nordwind Industrie AG” still has
+  #   2 rule versions.", then "A rule version keeps the security as part of
+  #   its rule's history, and no merge carries it. …"; no "Merge into…".
+  # - No count: "“Nordwind Industrie AG” has bookings, quotes, events or
+  #   research entries and cannot be deleted. Retiring hides the security
+  #   from the active list; everything is kept.", the name in <bdi>.
+  test "Cannot delete for rule versions alone, and for a refusal without a count" do
+    security = %Security{id: 7, name: "Nordwind Industrie AG"}
+
+    html =
+      render_component(&RowContextMenu.delete_blocked_dialog/1,
+        security: security,
+        counts: %{"policy_rule_versions" => 2}
+      )
+
+    assert dialog_paragraphs(html) == [
+             "“Nordwind Industrie AG” still has 2 rule versions.",
+             "A rule version keeps the security as part of its rule's history, and no merge carries it. Retiring hides the security from the active list; everything is kept."
+           ]
+
+    refute html =~ "delete-blocked-merge"
+
+    html = render_component(&RowContextMenu.delete_blocked_dialog/1, security: security)
+
+    assert dialog_paragraphs(html) == [
+             "“Nordwind Industrie AG” has bookings, quotes, events or research entries and cannot be deleted. Retiring hides the security from the active list; everything is kept."
+           ]
+
+    assert html =~ "<bdi>Nordwind Industrie AG</bdi>"
   end
 end

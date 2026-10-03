@@ -68,6 +68,15 @@ defmodule PortfolixirWeb.StoredNamesIsolatedTest do
       assert html(StoredText.isolate("no slot", name: "x")) == "no slot"
       assert html(StoredText.bdi("a" <> rlo() <> "b")) == "<bdi>a" <> rlo() <> "b</bdi>"
     end
+
+    # The moduledoc's contract: a slot without a stored value is left out,
+    # never printed as its NUL-delimited key and never an empty <bdi>.
+    test "leaves out a slot that has no stored value" do
+      translated = "Merged " <> StoredText.slot(:source) <> " into " <> StoredText.slot(:target)
+
+      assert html(StoredText.isolate(translated, target: "Depot 1")) ==
+               "Merged  into <bdi>Depot 1</bdi>"
+    end
   end
 
   # User story (#968; pick H8.8, board 08-dialogs-copy):

@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.SecuritiesVanishedRowTest do
   use PortfolixirWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
+  import Portfolixir.WorldFixtures, only: [put_quotes!: 2]
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
@@ -139,5 +140,75 @@ defmodule PortfolixirWeb.SecuritiesVanishedRowTest do
              "„Helios Solar Systems SE“ wurde inzwischen gelöscht; die Liste ist neu geladen."
 
     assert row?(view, other)
+  end
+
+  # User story (#920; pick H8.6 = A, with #918's "Cannot delete"):
+  # As the operator taking "Cannot delete"'s way out on a security another
+  # writer merged away while the dialog stood open,
+  # I want the dialog to close and the note to say where the security went,
+  # so that "Merge into…" does not open a merge for a row that is gone.
+  #
+  # Acceptance criteria:
+  # - "Merge into…" in "Cannot delete" on a security merged away meanwhile
+  #   closes the dialog, opens no merge dialog, drops the row, and the note
+  #   names the survivor and links it.
+  test "Cannot delete's way out on a security merged away meanwhile closes and says why",
+       %{conn: conn} do
+    target = security!("Meridian Global Equity ETF", "XS0000000017")
+    source = security!("Meridian Global Equity ETF", "XS0000000025")
+    put_quotes!(source, [{~D[2026-01-05], "100"}, {~D[2026-01-06], "101"}])
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    open_menu(view, source)
+    click(view, source, "delete")
+    assert has_element?(view, "#delete-blocked-dialog [data-role='delete-blocked-merge']")
+
+    merge!(source, target)
+
+    view
+    |> element("#delete-blocked-dialog [data-role='delete-blocked-merge']")
+    |> render_click()
+
+    refute has_element?(view, "#delete-blocked-dialog")
+    refute has_element?(view, "#security-merge-dialog")
+    refute row?(view, source)
+
+    assert note_text(view) =~
+             "“Meridian Global Equity ETF · XS0000000025” was merged into Meridian Global Equity ETF · XS0000000017 meanwhile; the list is reloaded."
+
+    assert has_element?(view, ~s(#securities-action-result a[href^="/securities/#{target.id}"]))
+  end
+
+  # User story (#920; pick H8.6 = A):
+  # As the operator acting on a row that was merged into a security created
+  # after the list loaded,
+  # I want the note to name that survivor all the same,
+  # so that the link leads somewhere I can recognise.
+  #
+  # Acceptance criteria:
+  # - The survivor, absent from the list the page showed, is named by its
+  #   stored name and linked to its detail.
+  test "a survivor the list did not show yet is named from the catalog", %{conn: conn} do
+    source = security!("Halvorsen Shipping Bond 2031", "XS0000000025")
+
+    {:ok, view, _html} = live(conn, "/securities")
+
+    survivor = security!("Halvorsen Shipping Bond 2031 (EUR)", "XS0000000017")
+    open_menu(view, source)
+    merge!(source, survivor)
+    click(view, source, "edit")
+
+    refute row?(view, source)
+    assert row?(view, survivor)
+
+    assert note_text(view) =~
+             "“Halvorsen Shipping Bond 2031” was merged into Halvorsen Shipping Bond 2031 (EUR) meanwhile; the list is reloaded."
+
+    assert has_element?(
+             view,
+             ~s(#securities-action-result a[href^="/securities/#{survivor.id}"] bdi),
+             "Halvorsen Shipping Bond 2031 (EUR)"
+           )
   end
 end

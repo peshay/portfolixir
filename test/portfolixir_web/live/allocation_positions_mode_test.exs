@@ -259,6 +259,42 @@ defmodule PortfolixirWeb.AllocationPositionsModeTest do
            )
   end
 
+  # User story (#911 (c), ADR-0040 §2):
+  # As the operator whose plan for a tree steers only the cash share,
+  # I want the drift ⓘ to name the allocated portion without a worked
+  # figure,
+  # so that it never scales a category target the plan does not have.
+  #
+  # Acceptance criteria:
+  # - A tree without category targets under a 10 % cash target measures
+  #   against the allocated portion, and the ⓘ says "The plan allocates
+  #   10.0%: each target is scaled up to that portion before the
+  #   comparison. The unallocated rest does not show as drift." — no
+  #   "counts as".
+  test "a plan steering only cash names its portion without a worked figure",
+       %{conn: conn} do
+    w = world()
+    owner = Actor.owner_ui()
+    {:ok, region} = Classifications.create_classification(owner, %{name: "Region"})
+
+    {:ok, europe} =
+      Classifications.create_category(owner, %{classification_id: region.id, name: "Europe"})
+
+    {:ok, _} = Classifications.assign_security(owner, w.gold.id, region.id, europe.id)
+    :ok = Targets.set_cash_target(owner, w.portfolio.id, "0.1")
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation&classification=#{region.id}")
+    render_async(view)
+
+    assert has_element?(
+             view,
+             ~s(#tip-soll-ist [data-role="drift-basis-tip"]),
+             "The plan allocates 10.0%: each target is scaled up to that portion before the comparison. The unallocated rest does not show as drift."
+           )
+
+    refute view |> element(~s([data-role="drift-basis-tip"])) |> render() =~ "counts as"
+  end
+
   # User story (#875, Lane C review round DC-C2; board 09 ④, DESIGN.md →
   # {components.selected-segment}):
   # As the operator moving through Allocation with the keyboard,
