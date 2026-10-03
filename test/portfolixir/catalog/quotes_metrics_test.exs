@@ -40,7 +40,7 @@ defmodule Portfolixir.Catalog.QuotesMetricsTest do
   end
 
   test "attaches latest price, date and day-change for two recent quotes" do
-    sec = security_fixture("Apple")
+    sec = security_fixture("Arbolia")
     insert_quote(sec, ~D[2026-05-14], "120.00")
     insert_quote(sec, ~D[2026-05-15], "126.00")
 

@@ -44,8 +44,8 @@ defmodule Portfolixir.Portfolios.ValuationTest do
   test "prices held positions, totals them, and weights each share of the total" do
     world = base_world()
 
-    equity = equity!("Apple Inc.", "AAPL")
-    etf = etf!("World ETF", "EUNL")
+    equity = equity!("Arbolia Inc.", "ARBL")
+    etf = etf!("World ETF", "XWLD")
     no_quote = equity!("Quiet Co.", "QUIET")
     no_price = equity!("Delivered Co.", "DLVR")
 
@@ -167,7 +167,7 @@ defmodule Portfolixir.Portfolios.ValuationTest do
 
   test "injects prices for tests without touching quote history" do
     world = base_world()
-    security = equity!("Apple Inc.", "AAPL")
+    security = equity!("Arbolia Inc.", "ARBL")
     buy!(world, security, quantity: "4", price: "10")
 
     valuation =
@@ -191,7 +191,7 @@ defmodule Portfolixir.Portfolios.ValuationTest do
   # - Fully sold securities are absent from the map.
   test "holdings_by_security reports quantity and EUR value per held security" do
     world = base_world()
-    held = equity!("Apple Inc.", "AAPL")
+    held = equity!("Arbolia Inc.", "ARBL")
     unvalued = equity!("Delivered Co.", "DLVR")
     sold = equity!("Gone Co.", "GONE")
 
@@ -229,7 +229,7 @@ defmodule Portfolixir.Portfolios.ValuationTest do
 
   test "holdings_by_security accepts injected prices without touching quotes" do
     world = base_world()
-    security = equity!("Apple Inc.", "AAPL")
+    security = equity!("Arbolia Inc.", "ARBL")
     deposit!(world, "10000", ~D[2026-01-01])
     buy!(world, security, quantity: "4", price: "10")
 
@@ -250,7 +250,7 @@ defmodule Portfolixir.Portfolios.ValuationTest do
   # - An unvalued security (no quote, no trade price) is listed valued: false.
   test "holdings_by_security_report wraps the global view self-describingly" do
     world = base_world()
-    held = equity!("Apple Inc.", "AAPL")
+    held = equity!("Arbolia Inc.", "ARBL")
     unvalued = equity!("Delivered Co.", "DLVR")
 
     deposit!(world, "10000", ~D[2026-01-01])

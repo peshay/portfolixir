@@ -122,7 +122,7 @@ defmodule Portfolixir.Imports.ApplierTest do
     } do
       assert {:ok, %Result{} = result} = Imports.apply(preview, %{portfolio_id: portfolio.id})
 
-      # Sample has 2 distinct ISINs (Apple, iShares MSCI World).
+      # Sample has 2 distinct ISINs (Arbolia, iShares Examplia World).
       assert result.created_securities == 2
 
       # Sample has 3 distinct cash account names (Test-Cash, Test-Cash-2)
@@ -211,7 +211,7 @@ defmodule Portfolixir.Imports.ApplierTest do
     # User story:
     # As a local portfolio maintainer importing Portfolio Performance history,
     # I want import-created securities to start logo enrichment after commit,
-    # so that Apple, Nvidia, Tesla, and ETF-provider logos appear without
+    # so that Arbolia, Novarix, Torvane, and ETF-provider logos appear without
     # clicking "Update logo" row by row.
     #
     # Acceptance criteria:
@@ -370,9 +370,9 @@ defmodule Portfolixir.Imports.ApplierTest do
     } do
       {:ok, existing} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
-          isin: "US0378331005",
-          ticker_symbol: "AAPL",
+          name: "Arbolia Inc.",
+          isin: "USEXMPL10014",
+          ticker_symbol: "ARBL",
           currency_code: "EUR"
         })
 
@@ -382,9 +382,9 @@ defmodule Portfolixir.Imports.ApplierTest do
       assert result.created_securities == 1
 
       txs = Ledger.list_transactions_for_portfolio(portfolio.id)
-      apple_txs = Enum.filter(txs, &(&1.security_id == existing.id))
-      # buy + sell + dividend on Apple in the fixture
-      assert length(apple_txs) == 3
+      arbolia_txs = Enum.filter(txs, &(&1.security_id == existing.id))
+      # buy + sell + dividend on Arbolia in the fixture
+      assert length(arbolia_txs) == 3
     end
   end
 
@@ -612,10 +612,10 @@ defmodule Portfolixir.Imports.ApplierTest do
       portfolio = setup_portfolio()
 
       security_ref = %{
-        name: "Apple Inc.",
-        isin: "US0378331005",
-        wkn: "865985",
-        ticker: "AAPL",
+        name: "Arbolia Inc.",
+        isin: "USEXMPL10014",
+        wkn: "ARBOL1",
+        ticker: "ARBL",
         currency: "EUR"
       }
 
@@ -663,10 +663,10 @@ defmodule Portfolixir.Imports.ApplierTest do
       portfolio = setup_portfolio()
 
       ref = %{
-        name: "Apple Inc.",
-        isin: "US0378331005",
-        wkn: "865985",
-        ticker: "AAPL",
+        name: "Arbolia Inc.",
+        isin: "USEXMPL10014",
+        wkn: "ARBOL1",
+        ticker: "ARBL",
         currency: "EUR"
       }
 
@@ -700,7 +700,7 @@ defmodule Portfolixir.Imports.ApplierTest do
             Decimal.new("10"),
             Decimal.new("150.00"),
             ~T[10:00:00],
-            "Apple Inc."
+            "Arbolia Inc."
           ),
           %{portfolio_id: portfolio.id}
         )
@@ -717,7 +717,7 @@ defmodule Portfolixir.Imports.ApplierTest do
             Decimal.new("10.0"),
             Decimal.new("150.000"),
             ~T[11:11:11],
-            "Apple Inc"
+            "Arbolia Inc"
           ),
           %{portfolio_id: portfolio.id}
         )
@@ -731,10 +731,10 @@ defmodule Portfolixir.Imports.ApplierTest do
       portfolio = setup_portfolio()
 
       ref = %{
-        name: "Apple Inc.",
-        isin: "US0378331005",
-        wkn: "865985",
-        ticker: "AAPL",
+        name: "Arbolia Inc.",
+        isin: "USEXMPL10014",
+        wkn: "ARBOL1",
+        ticker: "ARBL",
         currency: "EUR"
       }
 
@@ -775,10 +775,10 @@ defmodule Portfolixir.Imports.ApplierTest do
       portfolio = setup_portfolio()
 
       ref = %{
-        name: "Apple Inc.",
-        isin: "US0378331005",
-        wkn: "865985",
-        ticker: "AAPL",
+        name: "Arbolia Inc.",
+        isin: "USEXMPL10014",
+        wkn: "ARBOL1",
+        ticker: "ARBL",
         currency: "EUR"
       }
 
@@ -937,7 +937,7 @@ defmodule Portfolixir.Imports.ApplierTest do
             gross_amount: Decimal.new("19235.74"),
             fees: Decimal.new("0"),
             taxes: Decimal.new("0"),
-            pp_account_name: "Bunq Savings USD"
+            pp_account_name: "Example Savings USD"
           },
           %Entry{
             source_row: 2,
@@ -955,7 +955,7 @@ defmodule Portfolixir.Imports.ApplierTest do
       params = %{
         portfolio: {:create, %{name: "FX-Import", base_currency_code: "EUR"}},
         cash_accounts: %{
-          "Bunq Savings USD" => {:create, "Bunq Savings USD"},
+          "Example Savings USD" => {:create, "Example Savings USD"},
           "Giro EUR" => {:create, "Giro EUR"}
         },
         depots: %{}
@@ -970,7 +970,7 @@ defmodule Portfolixir.Imports.ApplierTest do
         |> Portfolios.list_cash_accounts_for_portfolio()
         |> Map.new(fn c -> {c.name, c.currency_code} end)
 
-      assert currencies["Bunq Savings USD"] == "USD"
+      assert currencies["Example Savings USD"] == "USD"
       assert currencies["Giro EUR"] == "EUR"
 
       # Both deposits were accepted (USD matched the created USD account).
@@ -1074,10 +1074,10 @@ defmodule Portfolixir.Imports.ApplierTest do
     # account (delivery rows carry no cash side).
     @delivery_csv """
     Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
-    2024-01-15 10:01:00;Kauf;Apple Inc.;10;150,25;1.502,50;2,50;;1.502,50;Test-Depot;Test-Cash;;
-    2024-09-04 00:00:00;Einlieferung;iShares Core MSCI World UCITS ETF;5;100,50;502,50;;;502,50;Test-Depot;;;
-    2024-10-01 00:00:00;Auslieferung;iShares Core MSCI World UCITS ETF;2;110,00;220,00;;;220,00;Test-Depot;;;
-    2024-11-01 00:00:00;Einlieferung;iShares Core MSCI World UCITS ETF;1;;0,00;;;0,00;Test-Depot;;;
+    2024-01-15 10:01:00;Kauf;Arbolia Inc.;10;150,25;1.502,50;2,50;;1.502,50;Test-Depot;Test-Cash;;
+    2024-09-04 00:00:00;Einlieferung;iShares Core Examplia World UCITS ETF;5;100,50;502,50;;;502,50;Test-Depot;;;
+    2024-10-01 00:00:00;Auslieferung;iShares Core Examplia World UCITS ETF;2;110,00;220,00;;;220,00;Test-Depot;;;
+    2024-11-01 00:00:00;Einlieferung;iShares Core Examplia World UCITS ETF;1;;0,00;;;0,00;Test-Depot;;;
     """
 
     test "stores the delivery prices and folds them into the holdings cost basis" do

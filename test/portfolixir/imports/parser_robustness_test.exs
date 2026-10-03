@@ -173,7 +173,7 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
   # - The sound rows next to it are entries.
   test "a security reference that names nothing is a row warning, a partial one stays" do
     blank = Map.put(base_tx(), "security", %{"currency" => "EUR", "name" => "  "})
-    wkn_only = Map.put(base_tx(), "security", %{"wkn" => "A0RPWH", "currency" => "EUR"})
+    wkn_only = Map.put(base_tx(), "security", %{"wkn" => "WORLD1", "currency" => "EUR"})
     ticker_only = Map.put(base_tx(), "security", %{"ticker" => "SYN", "currency" => "EUR"})
 
     assert {:ok, %Preview{entries: entries, errors: [%{row: 2, message: message}]}} =

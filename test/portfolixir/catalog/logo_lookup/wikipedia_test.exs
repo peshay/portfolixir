@@ -26,18 +26,18 @@ defmodule Portfolixir.Catalog.LogoLookup.WikipediaTest do
   test "URL-encodes the title in the request path" do
     stub =
       plug_stub(fn conn ->
-        # Apple Inc. -> Apple%20Inc.
-        assert conn.request_path =~ "Apple%20Inc."
+        # Arbolia Inc. -> Arbolia%20Inc.
+        assert conn.request_path =~ "Arbolia%20Inc."
 
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
         |> Plug.Conn.send_resp(
           200,
-          Jason.encode!(%{"originalimage" => %{"source" => "https://wikipedia/Apple.png"}})
+          Jason.encode!(%{"originalimage" => %{"source" => "https://wikipedia/Arbolia.png"}})
         )
       end)
 
-    assert {:ok, "https://wikipedia/Apple.png"} = Wikipedia.lookup("Apple Inc.", req: stub)
+    assert {:ok, "https://wikipedia/Arbolia.png"} = Wikipedia.lookup("Arbolia Inc.", req: stub)
   end
 
   test "returns :not_found when the response has no originalimage" do
@@ -45,14 +45,14 @@ defmodule Portfolixir.Catalog.LogoLookup.WikipediaTest do
       plug_stub(fn conn ->
         conn
         |> Plug.Conn.put_resp_content_type("application/json")
-        |> Plug.Conn.send_resp(200, Jason.encode!(%{"title" => "Apple Inc."}))
+        |> Plug.Conn.send_resp(200, Jason.encode!(%{"title" => "Arbolia Inc."}))
       end)
 
-    assert :not_found = Wikipedia.lookup("Apple Inc.", req: stub)
+    assert :not_found = Wikipedia.lookup("Arbolia Inc.", req: stub)
   end
 
   # User story:
-  # As a local portfolio maintainer updating the Alphabet logo,
+  # As a local portfolio maintainer updating the Alderbright logo,
   # I want Wikipedia lookup to use the logo image from Wikidata instead of
   # the page's generic campus photo,
   # so that the logo update stores a small actual logo and does not hit the
@@ -66,32 +66,32 @@ defmodule Portfolixir.Catalog.LogoLookup.WikipediaTest do
     stub =
       plug_stub(fn conn ->
         cond do
-          conn.request_path =~ "/api/rest_v1/page/summary/Alphabet%20Inc." ->
+          conn.request_path =~ "/api/rest_v1/page/summary/Alderbright%20Inc." ->
             conn
             |> Plug.Conn.put_resp_content_type("application/json")
             |> Plug.Conn.send_resp(
               200,
               Jason.encode!(%{
-                "wikibase_item" => "Q20800404",
+                "wikibase_item" => "Q0000042",
                 "thumbnail" => %{"source" => "https://wikipedia/Campus-small.jpg"},
                 "originalimage" => %{"source" => "https://wikipedia/Campus-large.jpg"}
               })
             )
 
-          conn.request_path =~ "/wiki/Special:EntityData/Q20800404.json" ->
+          conn.request_path =~ "/wiki/Special:EntityData/Q0000042.json" ->
             conn
             |> Plug.Conn.put_resp_content_type("application/json")
             |> Plug.Conn.send_resp(
               200,
               Jason.encode!(%{
                 "entities" => %{
-                  "Q20800404" => %{
+                  "Q0000042" => %{
                     "claims" => %{
                       "P154" => [
                         %{
                           "mainsnak" => %{
                             "datavalue" => %{
-                              "value" => "Alphabet Inc Logo 2015.svg"
+                              "value" => "Alderbright Inc Logo 2015.svg"
                             }
                           }
                         }
@@ -107,8 +107,8 @@ defmodule Portfolixir.Catalog.LogoLookup.WikipediaTest do
     # Special:FilePath with a width renders an SVG logo to PNG, so the logo
     # store accepts it instead of rejecting the raw SVG (#483).
     assert {:ok,
-            "https://commons.wikimedia.org/wiki/Special:FilePath/Alphabet%20Inc%20Logo%202015.svg?width=256"} =
-             Wikipedia.lookup("Alphabet Inc.", req: stub)
+            "https://commons.wikimedia.org/wiki/Special:FilePath/Alderbright%20Inc%20Logo%202015.svg?width=256"} =
+             Wikipedia.lookup("Alderbright Inc.", req: stub)
   end
 
   test "prefers summary thumbnail over originalimage when no Wikidata logo exists" do
@@ -125,7 +125,7 @@ defmodule Portfolixir.Catalog.LogoLookup.WikipediaTest do
         )
       end)
 
-    assert {:ok, "https://wikipedia/thumb.png"} = Wikipedia.lookup("Alphabet Inc.", req: stub)
+    assert {:ok, "https://wikipedia/thumb.png"} = Wikipedia.lookup("Alderbright Inc.", req: stub)
   end
 
   test "returns :not_found on 404 so callers can try fallback titles" do
@@ -186,8 +186,8 @@ defmodule Portfolixir.Catalog.LogoLookup.WikipediaTest do
             Jason.encode!(%{
               "pages" => [
                 %{
-                  "title" => "Apple Inc.",
-                  "key" => "Apple_Inc.",
+                  "title" => "Arbolia Inc.",
+                  "key" => "Arbolia_Inc.",
                   "description" => "American technology company"
                 }
               ]
@@ -198,11 +198,12 @@ defmodule Portfolixir.Catalog.LogoLookup.WikipediaTest do
           |> Plug.Conn.put_resp_content_type("application/json")
           |> Plug.Conn.send_resp(
             200,
-            Jason.encode!(%{"originalimage" => %{"source" => "https://wikipedia/Apple.png"}})
+            Jason.encode!(%{"originalimage" => %{"source" => "https://wikipedia/Arbolia.png"}})
           )
         end
       end)
 
-    assert {:ok, "https://wikipedia/Apple.png"} = Wikipedia.search_logo("Apple Inc.", req: stub)
+    assert {:ok, "https://wikipedia/Arbolia.png"} =
+             Wikipedia.search_logo("Arbolia Inc.", req: stub)
   end
 end

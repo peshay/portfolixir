@@ -5,31 +5,31 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformanceTest do
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
 
   describe "search/2 — defensive mapping" do
-    test "maps a typical Apple-style payload from the live API shape" do
+    test "maps a typical Arbolia-style payload from the live API shape" do
       body = [
         %{
-          "description" => "APPLE INC",
-          "isin" => "US0378331005",
-          "wkn" => "865985",
+          "description" => "ARBOLIA INC",
+          "isin" => "USEXMPL10014",
+          "wkn" => "ARBOL1",
           "type" => "Common Stock",
           "provider" => "PP",
           "markets" => [
-            %{"symbol" => "AAPL", "currency" => "USD", "exchange" => "XNAS"},
-            %{"symbol" => "APC.DE", "currency" => "EUR", "exchange" => "XETR"}
+            %{"symbol" => "ARBL", "currency" => "USD", "exchange" => "XNAS"},
+            %{"symbol" => "AR8.DE", "currency" => "EUR", "exchange" => "XETR"}
           ]
         }
       ]
 
       {:ok, [result]} =
-        PortfolioPerformance.search("apple", req: req_stub(body))
+        PortfolioPerformance.search("arbolia", req: req_stub(body))
 
       assert %SearchResult{provider: :portfolio_performance} = result
       # online_id is the ISIN (PP doesn't return a stable per-result id)
-      assert result.online_id == "US0378331005"
-      assert result.name == "Apple Inc"
-      assert result.isin == "US0378331005"
-      assert result.wkn == "865985"
-      assert result.ticker_symbol == "AAPL"
+      assert result.online_id == "USEXMPL10014"
+      assert result.name == "Arbolia Inc"
+      assert result.isin == "USEXMPL10014"
+      assert result.wkn == "ARBOL1"
+      assert result.ticker_symbol == "ARBL"
       assert result.currency_code == "USD"
       assert result.asset_class == "equity"
       assert length(result.markets) == 2
@@ -38,10 +38,10 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformanceTest do
     test "maps ETP type to etf" do
       body = [
         %{
-          "description" => "LEVERAGE SHARES 3X APPLE",
-          "isin" => "IE00BK5BZS07",
+          "description" => "LEVERAGE SHARES 3X ARBOLIA",
+          "isin" => "IEEXMPL20059",
           "type" => "ETP",
-          "markets" => [%{"symbol" => "3APE.DE", "currency" => "EUR", "exchange" => "XETR"}]
+          "markets" => [%{"symbol" => "3ARB.DE", "currency" => "EUR", "exchange" => "XETR"}]
         }
       ]
 

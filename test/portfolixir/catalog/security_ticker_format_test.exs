@@ -11,10 +11,10 @@ defmodule Portfolixir.Catalog.SecurityTickerFormatTest do
   # so that a mistyped or imported value can never reach a provider as anything but a symbol.
   #
   # Acceptance criteria:
-  # - Real-world shapes pass: BRK-B, ^GDAXI, EURUSD=X, SAP.DE, 0005.HK, BTC-USD.
+  # - Real-world shapes pass: XMPL-B, ^GXMPL, EURUSD=X, VMR.DE, 0000.HK, BTC-USD.
   # - Whitespace, "/", "?", "#", "%" and over-long values are refused.
   test "accepts real ticker shapes and refuses URL syntax" do
-    for ticker <- ["BRK-B", "^GDAXI", "EURUSD=X", "SAP.DE", "0005.HK", "BTC-USD", "AAPL"] do
+    for ticker <- ["XMPL-B", "^GXMPL", "EURUSD=X", "VMR.DE", "0000.HK", "BTC-USD", "ARBL"] do
       changeset =
         Security.changeset(%Security{}, %{name: "S", currency_code: "EUR", ticker_symbol: ticker})
 

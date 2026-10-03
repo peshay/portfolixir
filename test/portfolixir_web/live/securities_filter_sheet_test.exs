@@ -29,8 +29,8 @@ defmodule PortfolixirWeb.SecuritiesFilterSheetTest do
   setup do
     {:ok, _} =
       Catalog.create_security(Actor.owner_ui(), %{
-        name: "Apple Inc.",
-        ticker_symbol: "AAPL",
+        name: "Arbolia Inc.",
+        ticker_symbol: "ARBL",
         currency_code: "USD",
         asset_class: "equity"
       })

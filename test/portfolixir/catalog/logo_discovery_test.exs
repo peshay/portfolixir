@@ -75,9 +75,9 @@ defmodule Portfolixir.Catalog.LogoDiscoveryTest do
 
     Application.put_env(:portfolixir, :enable_logo_discovery, false)
 
-    {:ok, apple} =
+    {:ok, arbolia} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "Apple Inc.",
+        name: "Arbolia Inc.",
         currency_code: "USD",
         provider: "portfolio_performance",
         feed: "PORTFOLIO_PERFORMANCE"
@@ -85,7 +85,7 @@ defmodule Portfolixir.Catalog.LogoDiscoveryTest do
 
     {:ok, etf} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "iShares Core MSCI World UCITS ETF",
+        name: "iShares Core Examplia World UCITS ETF",
         currency_code: "EUR",
         provider: "portfolio_performance",
         feed: "PORTFOLIO_PERFORMANCE"
@@ -107,19 +107,19 @@ defmodule Portfolixir.Catalog.LogoDiscoveryTest do
       assert :ok = LogoDiscovery.enqueue_missing_security_logos()
 
       assert wait_until(fn ->
-               [apple.id, etf.id]
+               [arbolia.id, etf.id]
                |> Enum.map(&Catalog.get_security!/1)
                |> Enum.all?(& &1.attributes["logo_path"])
              end)
 
-      assert Catalog.get_security!(apple.id).attributes["logo_path"] ==
-               "/security_logos/#{apple.id}.png"
+      assert Catalog.get_security!(arbolia.id).attributes["logo_path"] ==
+               "/security_logos/#{arbolia.id}.png"
 
       assert Catalog.get_security!(etf.id).attributes["logo_path"] ==
                "/security_logos/#{etf.id}.png"
 
       refute Catalog.get_security!(bond.id).attributes["logo_path"]
-      assert File.exists?(Path.join(tmp, "#{apple.id}.png"))
+      assert File.exists?(Path.join(tmp, "#{arbolia.id}.png"))
       assert File.exists?(Path.join(tmp, "#{etf.id}.png"))
       refute File.exists?(Path.join(tmp, "#{bond.id}.png"))
     after
@@ -153,7 +153,7 @@ defmodule Portfolixir.Catalog.LogoDiscoveryTest do
 
     {:ok, security} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "Tesla, Inc.",
+        name: "Torvane, Inc.",
         currency_code: "USD",
         provider: "portfolio_performance",
         feed: "PORTFOLIO_PERFORMANCE"
@@ -197,7 +197,7 @@ defmodule Portfolixir.Catalog.LogoDiscoveryTest do
 
     {:ok, candidate} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "Apple Inc.",
+        name: "Arbolia Inc.",
         currency_code: "USD",
         provider: "portfolio_performance",
         feed: "PORTFOLIO_PERFORMANCE"

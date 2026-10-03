@@ -3,7 +3,7 @@ defmodule Portfolixir.Catalog.SecuritySearch.Fake do
   Test-only adapter for SecuritySearch. Used in `config :test` so the test
   suite never makes real HTTP calls.
 
-  Default behaviour returns canned results for a few well-known queries. Tests
+  Default behaviour returns canned results for a few fixed queries. Tests
   can override the response with `put_response/2` (registered via the process
   dictionary so each async test is isolated).
 
@@ -49,32 +49,32 @@ defmodule Portfolixir.Catalog.SecuritySearch.Fake do
 
   defp get_override(normalized), do: Process.get({__MODULE__, normalized})
 
-  defp canned("apple") do
+  defp canned("arbolia") do
     [
       %SearchResult{
         provider: :portfolio_performance,
-        online_id: "us0378331005",
-        name: "Apple Inc.",
-        isin: "US0378331005",
-        wkn: "865985",
-        ticker_symbol: "AAPL",
+        online_id: "usexmpl10014",
+        name: "Arbolia Inc.",
+        isin: "USEXMPL10014",
+        wkn: "ARBOL1",
+        ticker_symbol: "ARBL",
         asset_class: "equity",
         currency_code: "USD",
         feed: "PORTFOLIO_PERFORMANCE",
         markets: [
           %Market{
-            symbol: "AAPL",
+            symbol: "ARBL",
             currency_code: "USD",
             exchange_code: "XNAS",
             exchange_name: "NASDAQ",
-            url: "https://api.portfolio-performance.info/v1/quotes/us0378331005/xnas"
+            url: "https://api.portfolio-performance.info/v1/quotes/usexmpl10014/xnas"
           },
           %Market{
-            symbol: "APC",
+            symbol: "AR8",
             currency_code: "EUR",
             exchange_code: "XETR",
             exchange_name: "Xetra",
-            url: "https://api.portfolio-performance.info/v1/quotes/us0378331005/xetr"
+            url: "https://api.portfolio-performance.info/v1/quotes/usexmpl10014/xetr"
           }
         ],
         raw: %{"type" => "share"}

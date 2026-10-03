@@ -40,8 +40,8 @@ defmodule PortfolixirWeb.ApiV1HoldingsReconcileTest do
     {:ok, security} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Reconciled AG",
-        isin: "DE0007100000",
-        wkn: "710000",
+        isin: "DEEXMPL30018",
+        wkn: "IDENT7",
         currency_code: "EUR",
         asset_class: "equity"
       })
@@ -83,7 +83,7 @@ defmodule PortfolixirWeb.ApiV1HoldingsReconcileTest do
     {:ok, absent} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Absent AG",
-        isin: "US0378331005",
+        isin: "USEXMPL10014",
         currency_code: "USD",
         asset_class: "equity"
       })
@@ -122,7 +122,7 @@ defmodule PortfolixirWeb.ApiV1HoldingsReconcileTest do
       |> api_conn()
       |> post("/api/v1/holdings/reconcile", %{
         "rows" => [
-          %{"identifier" => "DE0007100000", "quantity" => "12.5"},
+          %{"identifier" => "DEEXMPL30018", "quantity" => "12.5"},
           %{"identifier" => "unknown thing", "quantity" => "1"}
         ]
       })
@@ -193,7 +193,7 @@ defmodule PortfolixirWeb.ApiV1HoldingsReconcileTest do
       conn
       |> api_conn()
       |> post("/api/v1/holdings/reconcile", %{
-        "rows" => [%{"identifier" => "DE0007100000", "quantity" => "12,5"}]
+        "rows" => [%{"identifier" => "DEEXMPL30018", "quantity" => "12,5"}]
       })
       |> json_response(422)
 
@@ -223,7 +223,7 @@ defmodule PortfolixirWeb.ApiV1HoldingsReconcileTest do
     seed!()
 
     rows =
-      for _ <- 1..10_001, do: %{"identifier" => "DE0007100000", "quantity" => "1"}
+      for _ <- 1..10_001, do: %{"identifier" => "DEEXMPL30018", "quantity" => "1"}
 
     body =
       conn
@@ -286,7 +286,7 @@ defmodule PortfolixirWeb.ApiV1HoldingsReconcileTest do
       |> api_conn()
       |> post("/api/v1/holdings/reconcile", %{
         "portfolio_id" => portfolio.id,
-        "rows" => [%{"identifier" => "DE0007100000", "quantity" => "10"}]
+        "rows" => [%{"identifier" => "DEEXMPL30018", "quantity" => "10"}]
       })
       |> json_response(200)
       |> Map.fetch!("data")
@@ -301,7 +301,7 @@ defmodule PortfolixirWeb.ApiV1HoldingsReconcileTest do
     |> api_conn()
     |> post("/api/v1/holdings/reconcile", %{
       "portfolio_id" => other.id + 1_000_000,
-      "rows" => [%{"identifier" => "DE0007100000", "quantity" => "10"}]
+      "rows" => [%{"identifier" => "DEEXMPL30018", "quantity" => "10"}]
     })
     |> json_response(404)
   end
@@ -332,7 +332,7 @@ defmodule PortfolixirWeb.ApiV1HoldingsReconcileTest do
     |> api_conn()
     |> post("/api/v1/holdings/reconcile", %{
       "rows" => [
-        %{"identifier" => "DE0007100000", "quantity" => "999"},
+        %{"identifier" => "DEEXMPL30018", "quantity" => "999"},
         %{"identifier" => "Never Seen Before AG", "quantity" => "1", "currency" => "EUR"}
       ]
     })
@@ -343,7 +343,7 @@ defmodule PortfolixirWeb.ApiV1HoldingsReconcileTest do
     conn
     |> put_req_header("accept", "application/json")
     |> post("/api/v1/holdings/reconcile", %{
-      "rows" => [%{"identifier" => "DE0007100000", "quantity" => "1"}]
+      "rows" => [%{"identifier" => "DEEXMPL30018", "quantity" => "1"}]
     })
     |> json_response(401)
   end
@@ -437,7 +437,7 @@ defmodule PortfolixirWeb.ApiV1HoldingsReconcileTest do
   # - A valid string portfolio_id resolves and bounds the compare.
   test "scope params reject both-given and malformed portfolio ids", %{conn: conn} do
     %{portfolio: portfolio} = seed!()
-    rows = [%{"identifier" => "DE0007100000", "quantity" => "10"}]
+    rows = [%{"identifier" => "DEEXMPL30018", "quantity" => "10"}]
 
     both =
       conn
@@ -502,7 +502,7 @@ defmodule PortfolixirWeb.ApiV1HoldingsReconcileTest do
         include_all: true
       })
 
-    rows = [%{"identifier" => "DE0007100000", "quantity" => "10"}]
+    rows = [%{"identifier" => "DEEXMPL30018", "quantity" => "10"}]
 
     scoped =
       conn
@@ -634,7 +634,7 @@ defmodule PortfolixirWeb.ApiV1HoldingsReconcileTest do
     {:ok, second} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Second AG",
-        isin: "DE0008404005",
+        isin: "DEEXMPL30034",
         currency_code: "EUR",
         asset_class: "equity"
       })

@@ -62,8 +62,8 @@ defmodule Portfolixir.Imports.PreviewTest do
   test "unique_securities/1 keys a reference with only a WKN or a ticker by what it carries" do
     pv =
       preview([
-        entry(security: %{isin: nil, wkn: "A0RPWH", ticker: nil, name: nil, currency: "EUR"}),
-        entry(security: %{isin: nil, wkn: "A0RPWH", ticker: nil, name: nil, currency: "EUR"}),
+        entry(security: %{isin: nil, wkn: "WORLD1", ticker: nil, name: nil, currency: "EUR"}),
+        entry(security: %{isin: nil, wkn: "WORLD1", ticker: nil, name: nil, currency: "EUR"}),
         entry(security: %{isin: nil, wkn: nil, ticker: "SYN", name: nil, currency: "EUR"})
       ])
 

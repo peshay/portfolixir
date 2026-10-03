@@ -47,11 +47,11 @@ defmodule Portfolixir.Net.PathSegmentTest do
       assert PathSegment.encode(value) == {:error, :invalid_path_segment}, inspect(value)
     end
 
-    assert PathSegment.encode("SAP.DE") == {:ok, "SAP.DE"}
-    assert PathSegment.encode("BRK-B") == {:ok, "BRK-B"}
+    assert PathSegment.encode("VMR.DE") == {:ok, "VMR.DE"}
+    assert PathSegment.encode("XMPL-B") == {:ok, "XMPL-B"}
     assert PathSegment.encode("A/B?x#y") == {:ok, "A%2FB%3Fx%23y"}
     assert PathSegment.encode("..a") == {:ok, "..a"}
-    assert PathSegment.encode("Apple (company)") == {:ok, "Apple%20%28company%29"}
+    assert PathSegment.encode("Arbolia (company)") == {:ok, "Arbolia%20%28company%29"}
   end
 
   # Acceptance criteria:
@@ -145,7 +145,7 @@ defmodule Portfolixir.Net.PathSegmentTest do
   #
   # Acceptance criteria:
   # - A dot-only ticker or online id is a field error on the security
-  #   changeset; real shapes with dots (SAP.DE, 0005.HK) still pass.
+  #   changeset; real shapes with dots (VMR.DE, 0000.HK) still pass.
   # - An online id carrying whitespace or URL syntax is refused like a ticker.
   test "the security changeset refuses dot-only tickers and ids" do
     base = %{name: "Synthetic", currency_code: "EUR"}
@@ -176,7 +176,7 @@ defmodule Portfolixir.Net.PathSegmentTest do
       assert errors_on(changeset)[:online_id]
     end
 
-    for {ticker, id} <- [{"SAP.DE", "US0378331005"}, {"0005.HK", "usd-coin"}] do
+    for {ticker, id} <- [{"VMR.DE", "USEXMPL10014"}, {"0000.HK", "usd-coin"}] do
       changeset =
         Security.changeset(
           %Security{},

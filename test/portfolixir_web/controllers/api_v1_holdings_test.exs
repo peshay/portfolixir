@@ -130,8 +130,8 @@ defmodule PortfolixirWeb.ApiV1HoldingsTest do
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Identified Equity",
         ticker_symbol: "IDN",
-        isin: "DE0007100000",
-        wkn: "710000",
+        isin: "DEEXMPL30018",
+        wkn: "IDENT7",
         currency_code: "EUR",
         asset_class: "equity"
       })
@@ -169,8 +169,8 @@ defmodule PortfolixirWeb.ApiV1HoldingsTest do
       |> Map.fetch!("data")
 
     identified = Enum.find(data, &(&1["security_id"] == with_isin.id))
-    assert identified["isin"] == "DE0007100000"
-    assert identified["wkn"] == "710000"
+    assert identified["isin"] == "DEEXMPL30018"
+    assert identified["wkn"] == "IDENT7"
 
     unidentified = Enum.find(data, &(&1["security_id"] == without_isin.id))
     # Keys must be PRESENT with null (contract: additive fields, never absent).

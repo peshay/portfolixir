@@ -33,7 +33,7 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
 
     {:ok, sec} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "Apple Inc.",
+        name: "Arbolia Inc.",
         currency_code: "USD",
         provider: "manual",
         asset_class: "equity"

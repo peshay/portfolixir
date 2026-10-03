@@ -24,19 +24,19 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
 
   describe "equity heuristics — legal-form suffixes" do
     for {name, description} <- [
-          {"NVIDIA Corporation", "Corporation"},
-          {"McDonald's Corporation", "Corporation with apostrophe"},
-          {"The Kraft Heinz Company", "Company"},
-          {"Coca-Cola Co.", "Co. (with period)"},
-          {"Software Aktiengesellschaft", "Aktiengesellschaft"},
-          {"Prysmian S.p.A.", "S.p.A."},
-          {"Leonardo S.p.A. Azioni", "S.p.A. with Azioni"},
-          {"Orsted A/S", "A/S"},
-          {"Telenor ASA", "ASA"},
-          {"Merck KGaA", "KGaA"},
-          {"Iberdrola S.A. Acciones", "Acciones"},
-          {"Ørsted A/S Aktier", "Aktier"},
-          {"Pirelli & C. S.p.A. Azioni", "Azioni"}
+          {"NOVARIX Corporation", "Corporation"},
+          {"Kittredge's Corporation", "Corporation with apostrophe"},
+          {"The Brandt Holloway Company", "Company"},
+          {"Kora-Vela Co.", "Co. (with period)"},
+          {"Datenwerk Aktiengesellschaft", "Aktiengesellschaft"},
+          {"Ravelli S.p.A.", "S.p.A."},
+          {"Caravella S.p.A. Azioni", "S.p.A. with Azioni"},
+          {"Skovlund A/S", "A/S"},
+          {"Fjordnett ASA", "ASA"},
+          {"Hessler KGaA", "KGaA"},
+          {"Ventisca S.A. Acciones", "Acciones"},
+          {"Ølstrup A/S Aktier", "Aktier"},
+          {"Bertelli & C. S.p.A. Azioni", "Azioni"}
         ] do
       test "classifies #{description} as equity" do
         assert {:ok, security} =
@@ -53,10 +53,10 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
 
   describe "equity heuristics — ADR / GDR / depositary receipts" do
     for {name, ticker, description} <- [
-          {"Hyundai Motor Co GDRs", nil, "GDRs"},
-          {"Kongsberg Gruppen Sp.ADR", nil, "Sp.ADR"},
-          {"Procter & Gamble Canad.Depos.Receipts", nil, "Depos.Receipts compact"},
-          {"SEVERSTAL GDR", nil, "GDR standalone"}
+          {"Daeyang Motor Co GDRs", nil, "GDRs"},
+          {"Fjellberg Gruppen Sp.ADR", nil, "Sp.ADR"},
+          {"Thatcher & Bramble Canad.Depos.Receipts", nil, "Depos.Receipts compact"},
+          {"KAMSTAL GDR", nil, "GDR standalone"}
         ] do
       test "classifies #{description} as equity" do
         assert {:ok, security} =
@@ -76,7 +76,7 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
     test "classifies INH.ON suffix as equity" do
       assert {:ok, security} =
                Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-                 name: "IBU-TEC ADV.MATER. INH.ON",
+                 name: "KERA-TEC ADV.MATER. INH.ON",
                  currency_code: "EUR"
                })
 
@@ -86,9 +86,9 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
 
   describe "knock-out heuristics — TurboP and single-letter Turbo variants" do
     for name <- [
-          "Société Générale TurboP 20.06.25 DAX 23450",
-          "DZ BANK TurboC DAX 20000",
-          "UniCredit TurboA 19.12.25 NASDAQ"
+          "Société Générale TurboP 20.06.25 Examplia 40 23450",
+          "DZ BANK TurboC Examplia 40 20000",
+          "UniCredit TurboA 19.12.25 Examplia Tech 100"
         ] do
       test "classifies '#{name}' as knock_out" do
         assert {:ok, security} =
@@ -146,10 +146,10 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
       end
     end
 
-    test "does not classify 'Barrick Gold Corp' as commodity" do
+    test "does not classify 'Talmont Gold Corp' as commodity" do
       assert {:ok, security} =
                Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-                 name: "Barrick Gold Corp",
+                 name: "Talmont Gold Corp",
                  currency_code: "CAD"
                })
 
@@ -159,12 +159,12 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
 
   describe "fund heuristics — issuer prefix without ETF token" do
     for {name, description} <- [
-          {"AIS-AM.MSCI EM A. EOC", "AIS-AM prefix"},
-          {"Amundi Index MSCI World", "Amundi without ETF"},
-          {"iShares MSCI World Fund", "iShares without ETF"},
-          {"Xtrackers MSCI World", "Xtrackers without ETF"},
-          {"Invesco MSCI Europe", "Invesco without ETF"},
-          {"WisdomTree MSCI Europe", "WisdomTree without ETF"}
+          {"AIS-AM.EXMPL EM A. EOC", "AIS-AM prefix"},
+          {"Amundi Index Examplia World", "Amundi without ETF"},
+          {"iShares Examplia World Fund", "iShares without ETF"},
+          {"Xtrackers Examplia World", "Xtrackers without ETF"},
+          {"Invesco Examplia Europe", "Invesco without ETF"},
+          {"WisdomTree Examplia Europe", "WisdomTree without ETF"}
         ] do
       test "classifies '#{description}' as fund" do
         assert {:ok, security} =
@@ -181,7 +181,7 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
     test "still classifies an iShares UCITS ETF as etf (not downgraded to fund)" do
       assert {:ok, security} =
                Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-                 name: "iShares Core MSCI World UCITS ETF",
+                 name: "iShares Core Examplia World UCITS ETF",
                  currency_code: "USD"
                })
 
@@ -201,8 +201,8 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
             "amount" => 500.0,
             "shares" => 100.0,
             "security" => %{
-              "name" => "I b e r d r o l a S . A . A c c i o n e s",
-              "isin" => "ES0144580Y14",
+              "name" => "V e n t i s c a S . A . A c c i o n e s",
+              "isin" => "ESEXMPL30065",
               "currency" => "EUR"
             }
           }
@@ -212,7 +212,7 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
       {:ok, preview} = JsonParser.parse(Jason.encode!(body))
 
       [entry] = preview.entries
-      assert entry.security.name == "IberdrolaS.A.Acciones"
+      assert entry.security.name == "VentiscaS.A.Acciones"
     end
 
     test "handles missing security name (nil) without error" do
@@ -226,7 +226,7 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
             "amount" => 500.0,
             "shares" => 10.0,
             "security" => %{
-              "isin" => "ES0144580Y14",
+              "isin" => "ESEXMPL30065",
               "currency" => "EUR"
             }
           }
@@ -250,8 +250,8 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
             "amount" => 200.0,
             "shares" => 1.0,
             "security" => %{
-              "name" => "Apple Inc.",
-              "isin" => "US0378331005",
+              "name" => "Arbolia Inc.",
+              "isin" => "USEXMPL10014",
               "currency" => "USD"
             }
           }
@@ -260,16 +260,16 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
 
       {:ok, preview} = JsonParser.parse(Jason.encode!(body))
       [entry] = preview.entries
-      assert entry.security.name == "Apple Inc."
+      assert entry.security.name == "Arbolia Inc."
     end
   end
 
   describe "effective_asset_class — read-time inference on stored nil" do
     test "infers correct class at read time even if stored class is nil" do
       security = %Security{
-        name: "NVIDIA Corporation",
-        isin: "US67066G1040",
-        ticker_symbol: "NVDA",
+        name: "NOVARIX Corporation",
+        isin: "USEXMPL10030",
+        ticker_symbol: "NVRX",
         asset_class: nil
       }
 
@@ -278,7 +278,7 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
 
     test "returns nil for pure brand name with no legal suffix" do
       security = %Security{
-        name: "Amazon",
+        name: "Amblewick",
         isin: nil,
         ticker_symbol: nil,
         asset_class: nil
@@ -290,17 +290,17 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
 
   # User story:
   # As a maintainer importing securities with friendly short names (e.g.
-  # "Amazon", "Microsoft") that carry no legal-form token, I want a resolved
+  # "Amblewick", "Mirelund") that carry no legal-form token, I want a resolved
   # company logo plus an ISIN to classify them as equity (#408), so the
   # "Unsorted"/"Unassigned" bucket isn't full of obvious equities.
   describe "equity fallback from a resolved company logo (#408)" do
     test "a name-unresolved security with an ISIN and a company logo is equity" do
       security = %Security{
-        name: "Amazon",
-        isin: "US0231351067",
+        name: "Amblewick",
+        isin: "USEXMPL10022",
         ticker_symbol: nil,
         asset_class: nil,
-        attributes: %{"logo_path" => "logos/amazon.png"}
+        attributes: %{"logo_path" => "logos/amblewick.png"}
       }
 
       assert Security.effective_asset_class(security) == "equity"
@@ -308,8 +308,8 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
 
     test "stays nil without a logo (heuristics still ambiguous)" do
       security = %Security{
-        name: "Amazon",
-        isin: "US0231351067",
+        name: "Amblewick",
+        isin: "USEXMPL10022",
         asset_class: nil,
         attributes: %{}
       }
@@ -319,10 +319,10 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
 
     test "stays nil with a logo but no ISIN (logo alone is not enough)" do
       security = %Security{
-        name: "Amazon",
+        name: "Amblewick",
         isin: nil,
         asset_class: nil,
-        attributes: %{"logo_path" => "logos/amazon.png"}
+        attributes: %{"logo_path" => "logos/amblewick.png"}
       }
 
       assert is_nil(Security.effective_asset_class(security))
@@ -330,10 +330,10 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
 
     test "a user-set class always wins over the logo fallback" do
       security = %Security{
-        name: "Amazon",
-        isin: "US0231351067",
+        name: "Amblewick",
+        isin: "USEXMPL10022",
         asset_class: "fund",
-        attributes: %{"logo_path" => "logos/amazon.png"}
+        attributes: %{"logo_path" => "logos/amblewick.png"}
       }
 
       assert Security.effective_asset_class(security) == "fund"

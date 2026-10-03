@@ -85,10 +85,10 @@ defmodule Portfolixir.Portfolios.ReconcileTest do
   describe "identity ladder matching" do
     test "matches by current ISIN with an exact positive delta" do
       accounts = accounts!("Isin")
-      security = security!(%{name: "Identified AG", isin: "DE0007100000"})
+      security = security!(%{name: "Identified AG", isin: "DEEXMPL30018"})
       buy!(accounts, security, "10")
 
-      result = Reconcile.run([row("de0007100000", "12.5")])
+      result = Reconcile.run([row("deexmpl30018", "12.5")])
 
       assert result.guidance == @guidance
       assert [matched] = result.matched
@@ -103,12 +103,12 @@ defmodule Portfolixir.Portfolios.ReconcileTest do
 
     test "matches by recorded former ISIN with matched_via :former_isin" do
       accounts = accounts!("Alias")
-      security = security!(%{name: "Renamed AG", isin: "DE0007100000"})
+      security = security!(%{name: "Renamed AG", isin: "DEEXMPL30018"})
       buy!(accounts, security, "3")
 
-      {:ok, _} = Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007164600")
+      {:ok, _} = Catalog.record_isin_change(Actor.owner_ui(), security, "DEEXMPL30026")
 
-      result = Reconcile.run([row("DE0007100000", "3")])
+      result = Reconcile.run([row("DEEXMPL30018", "3")])
 
       assert [matched] = result.matched
       assert matched.security.id == security.id
@@ -120,23 +120,23 @@ defmodule Portfolixir.Portfolios.ReconcileTest do
       accounts = accounts!("IsinOnly")
       # A security literally NAMED like a valid ISIN must not be name-matched
       # by an ISIN-shaped identifier: tier 1 only, per ADR-0029 6.
-      decoy = security!(%{name: "US0378331005", currency_code: "EUR"})
+      decoy = security!(%{name: "USEXMPL10014", currency_code: "EUR"})
       buy!(accounts, decoy, "1")
 
-      result = Reconcile.run([row("US0378331005", "1", %{currency: "EUR"})])
+      result = Reconcile.run([row("USEXMPL10014", "1", %{currency: "EUR"})])
 
       assert result.matched == []
       assert [unmatched] = result.unmatched
-      assert unmatched.identifier == "US0378331005"
+      assert unmatched.identifier == "USEXMPL10014"
       assert unmatched.reason == :no_match
     end
 
     test "matches by WKN with matched_via :wkn, no weak-match caveat" do
       accounts = accounts!("Wkn")
-      security = security!(%{name: "Wkn AG", wkn: "710000"})
+      security = security!(%{name: "Wkn AG", wkn: "IDENT7"})
       buy!(accounts, security, "7")
 
-      result = Reconcile.run([row(" 710000 ", "7")])
+      result = Reconcile.run([row(" IDENT7 ", "7")])
 
       assert [matched] = result.matched
       assert matched.security.id == security.id
@@ -248,10 +248,10 @@ defmodule Portfolixir.Portfolios.ReconcileTest do
   # - The aggregation is noted (aggregated flag, contributing rows listed).
   test "duplicate identifiers aggregate into one row with summed external quantity" do
     accounts = accounts!("Aggregate")
-    security = security!(%{name: "Split Lot AG", isin: "DE0008404005"})
+    security = security!(%{name: "Split Lot AG", isin: "DEEXMPL30034"})
     buy!(accounts, security, "10")
 
-    result = Reconcile.run([row("DE0008404005", "4.25"), row("DE0008404005", "5.75")])
+    result = Reconcile.run([row("DEEXMPL30034", "4.25"), row("DEEXMPL30034", "5.75")])
 
     assert [matched] = result.matched
     assert matched.aggregated
@@ -272,12 +272,12 @@ defmodule Portfolixir.Portfolios.ReconcileTest do
   # - Matched securities do not appear there.
   test "held ledger positions absent from the list are surfaced" do
     accounts = accounts!("Missing")
-    listed = security!(%{name: "Listed AG", isin: "DE0005557508"})
-    absent = security!(%{name: "Forgotten AG", isin: "FR0000120271"})
+    listed = security!(%{name: "Listed AG", isin: "DEEXMPL30042"})
+    absent = security!(%{name: "Forgotten AG", isin: "FREXMPL30056"})
     buy!(accounts, listed, "2")
     buy!(accounts, absent, "6.5")
 
-    result = Reconcile.run([row("DE0005557508", "2")])
+    result = Reconcile.run([row("DEEXMPL30042", "2")])
 
     assert [missing] = result.missing_from_list
     assert missing.security.id == absent.id
@@ -324,18 +324,18 @@ defmodule Portfolixir.Portfolios.ReconcileTest do
   test "the portfolio scope bounds the compare and the basis states it" do
     first = accounts!("ScopeOne")
     second = accounts!("ScopeTwo")
-    security = security!(%{name: "Everywhere AG", isin: "DE0007164600"})
+    security = security!(%{name: "Everywhere AG", isin: "DEEXMPL30026"})
     buy!(first, security, "10")
     buy!(second, security, "4")
 
-    unscoped = Reconcile.run([row("DE0007164600", "14")])
+    unscoped = Reconcile.run([row("DEEXMPL30026", "14")])
     assert unscoped.basis.scope == :instance
     assert unscoped.basis.portfolio_id == nil
     assert [matched] = unscoped.matched
     assert Decimal.eq?(matched.ledger_quantity, Decimal.new("14"))
     assert Decimal.eq?(matched.delta, Decimal.new("0"))
 
-    scoped = Reconcile.run([row("DE0007164600", "14")], portfolio_id: first.portfolio.id)
+    scoped = Reconcile.run([row("DEEXMPL30026", "14")], portfolio_id: first.portfolio.id)
     assert scoped.basis.scope == :portfolio
     assert scoped.basis.portfolio_id == first.portfolio.id
     assert scoped.basis.as_of == Date.utc_today()
@@ -368,8 +368,8 @@ defmodule Portfolixir.Portfolios.ReconcileTest do
   # - isin?/1 accepts a valid ISIN, rejects a bad check digit, a wrong shape,
   #   and any non-string value.
   test "isin?/1 accepts valid ISINs and rejects bad ones and non-strings" do
-    assert Reconcile.isin?("DE0007100000")
-    refute Reconcile.isin?("DE0007100001")
+    assert Reconcile.isin?("DEEXMPL30018")
+    refute Reconcile.isin?("DEEXMPL30019")
     refute Reconcile.isin?("NOTANISIN")
     refute Reconcile.isin?(nil)
     refute Reconcile.isin?(123)

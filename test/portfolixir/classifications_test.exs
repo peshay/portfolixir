@@ -12,7 +12,7 @@ defmodule Portfolixir.ClassificationsTest do
   # groupings I can already derive.
 
   defp security!(attrs) do
-    base = %{name: "Apple", ticker_symbol: "AAPL", currency_code: "USD", asset_class: "equity"}
+    base = %{name: "Arbolia", ticker_symbol: "ARBL", currency_code: "USD", asset_class: "equity"}
 
     {:ok, security} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), Map.merge(base, attrs))
@@ -496,19 +496,22 @@ defmodule Portfolixir.ClassificationsTest do
   end
 
   test "infers certificate and leverage asset classes from the security name" do
-    assert infer("HVB Turbo Long DAX O.End") == "knock_out"
-    assert infer("Optionsschein Call auf BMW") == "warrant"
+    assert infer("HVB Turbo Long Examplia 40 O.End") == "knock_out"
+    assert infer("Optionsschein Call auf OMW") == "warrant"
     assert infer("DZ BANK Faktor 4x Long") == "factor_certificate"
-    assert infer("Aktienanleihe auf BMW AG") == "reverse_convertible"
-    assert infer("Discount-Zertifikat auf SAP") == "discount_certificate"
-    assert infer("HVB DiscC SAP 100") == "discount_certificate"
-    assert infer("DiscP BASF 40") == "discount_certificate"
-    assert infer("SG Call 15000 DAX") == "warrant"
-    assert infer("BNP Paribas Em.-u.Handelsg.mbH TurboL 17.01.23 CrudeOil 58") == "knock_out"
+    assert infer("Aktienanleihe auf OMW AG") == "reverse_convertible"
+    assert infer("Discount-Zertifikat auf VELMORA") == "discount_certificate"
+    assert infer("HVB DiscC VELMORA 100") == "discount_certificate"
+    assert infer("DiscP KALVO 40") == "discount_certificate"
+    assert infer("SG Call 15000 Examplia 40") == "warrant"
+
+    assert infer("BNP Paribas Em.-u.Handelsg.mbH TurboL 17.01.23 Examplia Crude 58") ==
+             "knock_out"
+
     assert infer("Boerse Stuttgart Commodities EUWAX Gold II 2017(17/Und)") == "commodity"
 
     # Ordinary equities are never misread as certificates.
-    refute infer("American Express Co.") == "express_certificate"
-    assert infer("Apple Inc.") == "equity"
+    refute infer("Northern Express Co.") == "express_certificate"
+    assert infer("Arbolia Inc.") == "equity"
   end
 end

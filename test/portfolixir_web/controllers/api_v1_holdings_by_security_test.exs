@@ -29,7 +29,7 @@ defmodule PortfolixirWeb.ApiV1HoldingsBySecurityTest do
     world = WorldFixtures.base_world(currency: "EUR")
 
     held =
-      WorldFixtures.create_security!(name: "Apple Inc.", ticker: "AAPL", asset_class: "equity")
+      WorldFixtures.create_security!(name: "Arbolia Inc.", ticker: "ARBL", asset_class: "equity")
 
     unvalued =
       WorldFixtures.create_security!(name: "Delivered Co.", ticker: "DLVR", asset_class: "equity")

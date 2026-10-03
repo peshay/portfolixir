@@ -98,13 +98,13 @@ defmodule PortfolixirWeb.LifecycleFreezeLiveTest do
 
     {:ok, existing} =
       Catalog.create_security(Actor.owner_ui(), %{
-        name: "Apple Inc.",
-        ticker_symbol: "AAPL",
-        isin: "US0378331005",
+        name: "Arbolia Inc.",
+        ticker_symbol: "ARBL",
+        isin: "USEXMPL10014",
         currency_code: "USD",
         asset_class: "equity",
         provider: "portfolio_performance",
-        online_id: "us0378331005",
+        online_id: "usexmpl10014",
         feed: "PORTFOLIO_PERFORMANCE"
       })
 
@@ -116,7 +116,7 @@ defmodule PortfolixirWeb.LifecycleFreezeLiveTest do
 
     view
     |> element("#security-form-dialog form")
-    |> render_change(%{"dialog_query" => "apple"})
+    |> render_change(%{"dialog_query" => "arbolia"})
 
     view |> element("#security-form-dialog .search-result") |> render_click()
 
@@ -142,9 +142,9 @@ defmodule PortfolixirWeb.LifecycleFreezeLiveTest do
     |> element("#security-form-dialog form")
     |> render_submit(%{
       "security" => %{
-        "name" => "Apple Inc.",
-        "ticker_symbol" => "APC",
-        "isin" => "US0378331005",
+        "name" => "Arbolia Inc.",
+        "ticker_symbol" => "AR8",
+        "isin" => "USEXMPL10014",
         "currency_code" => "EUR",
         "exchange_code" => "XETR",
         "asset_class" => "equity",
@@ -158,7 +158,7 @@ defmodule PortfolixirWeb.LifecycleFreezeLiveTest do
              "is frozen once referenced (1 transaction)"
            )
 
-    assert %{currency_code: "USD", ticker_symbol: "AAPL", exchange_code: nil} =
+    assert %{currency_code: "USD", ticker_symbol: "ARBL", exchange_code: nil} =
              Catalog.get_security(existing.id)
   end
 

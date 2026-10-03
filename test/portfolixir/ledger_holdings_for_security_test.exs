@@ -16,7 +16,12 @@ defmodule Portfolixir.LedgerHoldingsForSecurityTest do
 
   defp setup_world do
     security =
-      create_security!(name: "Apple Inc.", ticker: "AAPL", currency: "USD", asset_class: "equity")
+      create_security!(
+        name: "Arbolia Inc.",
+        ticker: "ARBL",
+        currency: "USD",
+        asset_class: "equity"
+      )
 
     %{portfolio: portfolio_a, cash: cash_a, depot: depot_a} =
       base_world(

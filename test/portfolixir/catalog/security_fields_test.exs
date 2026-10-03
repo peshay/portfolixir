@@ -18,15 +18,15 @@ defmodule Portfolixir.Catalog.SecurityFieldsTest do
   describe "value/2" do
     test "extracts column values" do
       field = SecurityFields.get!(:name)
-      security = %Security{name: "Apple Inc."}
-      assert SecurityFields.value(field, security) == "Apple Inc."
+      security = %Security{name: "Arbolia Inc."}
+      assert SecurityFields.value(field, security) == "Arbolia Inc."
     end
 
     test "infers asset class display value for imported securities with blank asset_class" do
       field = SecurityFields.get!(:asset_class)
 
       assert SecurityFields.value(field, %Security{
-               name: "iShares Core MSCI Emerging Markets IMI UCITS ETF",
+               name: "iShares Core Examplia Emerging Markets IMI UCITS ETF",
                asset_class: nil
              }) == "etf"
 
