@@ -1684,7 +1684,7 @@ Die Seite zeichnet sich sofort und berechnet ihre Zahlen **asynchron**; jeder
 Abschnitt füllt sich, sobald seine Daten bereit sind. Der teure tägliche
 Performance-Lauf läuft einmal und wird auf der Seite zwischengespeichert — ein
 Zeitraumwechsel verkettet die zwischengespeicherte Reihe neu, sodass die
-Zeitraumauswahl sofort reagiert. Die Zeitraum-Tokens (YTD, 1Y, 3Y, 5Y, Max)
+Zeitraumauswahl sofort reagiert. Die Zeitraum-Tokens (YTD, 1J, 3J, 5J, Max)
 und der %/Wert-Umschalter sind segmentierte Controls; ein Von/Bis-Zeitraum
 (ISO-Daten, `YYYY-MM-DD`) und die durchlaufenen Kalenderjahre liegen hinter
 dem Bedienelement **Benutzerdefinierter Zeitraum …** daneben. Es öffnet ein
