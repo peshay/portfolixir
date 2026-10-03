@@ -2919,14 +2919,15 @@ oder die Beschreibungen sich bewegt haben.
   und Beschreibungen neu lesen, wenn `changed` `true` ist. Ein ungültiges
   `since` ist ein `422`.
 - Das Manifest wird **im Code gepflegt** (`PortfolixirWeb.Api.V1.Contract`),
-  und ein Meta-Test bindet das `/api/v1`-Inventar des Routers und das
-  Tool-Inventar des MCP-Begleitdienstes in beiden Richtungen daran, sodass
-  eine ohne Manifest-Eintrag hinzugefügte, umbenannte oder entfernte Route
-  oder ein solches Tool den Build scheitern lässt. Der erste Eintrag hält die
-  Sprint-9-Ergänzungen fest — das Research-Log, den Thesenstand, die
-  Parameter `include_positions` / `min_drift` auf View-Ebene und
-  Positionsebene (#740), den historischen Backfill-Scope (#737) und diesen
-  Read.
+  und ein Meta-Test bindet das `/api/v1`-Inventar des Routers und das Tool-
+  und das Prompt-Inventar des MCP-Begleitdienstes in beiden Richtungen daran,
+  sodass eine ohne Manifest-Eintrag hinzugefügte, umbenannte oder entfernte
+  Route, ein solches Tool oder ein solcher MCP-Prompt den Build scheitern
+  lässt; ein Eintrag nennt einen Prompt in seinem `summary` und seinen
+  `parameters`. Der erste Eintrag hält die Sprint-9-Ergänzungen fest — das
+  Research-Log, den Thesenstand, die Parameter `include_positions` /
+  `min_drift` auf View-Ebene und Positionsebene (#740), den historischen
+  Backfill-Scope (#737) und diesen Read.
 
 ## Audit-Journal
 

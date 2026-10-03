@@ -2941,12 +2941,13 @@ how an agent learns that the list or the descriptions moved.
   a `422`.
 - The manifest is **code-maintained** (`PortfolixirWeb.Api.V1.Contract`) and
   a meta-test ties the router's `/api/v1` inventory and the MCP companion's
-  tool inventory to it in both directions, so a route or tool added, renamed
-  or removed without a manifest entry fails the build. Its first entry
-  records the Sprint 9 additions — the research log, the thesis state, the
-  `include_positions` / `min_drift` parameters that reached the view scope
-  and the position level (#740), the historical backfill scope (#737), and
-  this read.
+  tool and prompt inventories to it in both directions, so a route, tool or
+  MCP prompt added, renamed or removed without a manifest entry fails the
+  build; an entry names a prompt in its `summary` and `parameters`. Its first
+  entry records the Sprint 9 additions — the research log, the thesis state,
+  the `include_positions` / `min_drift` parameters that reached the view
+  scope and the position level (#740), the historical backfill scope (#737),
+  and this read.
 
 ## Audit Journal
 

@@ -60,6 +60,51 @@ defmodule PortfolixirWeb.ApiV1ContractMetaTest do
              Enum.join(MapSet.difference(manifest, companion), "\n")
   end
 
+  # User story (#1024):
+  # As the operating agent that read the companion's prompts at connect time,
+  # I want the manifest to name every MCP prompt the companion offers, as it
+  # names every tool,
+  # so that a prompt added, renamed or removed without an entry fails the
+  # build instead of changing what my agent is told unannounced.
+  #
+  # Acceptance criteria:
+  # - The union of the manifest's prompts, removals applied, equals the
+  #   companion's prompt inventory (PROMPTS in mcp-server/src/prompts.ts)
+  #   exactly, in both directions.
+  # - Sprint 17's entry (version 9), which introduced first_setup and
+  #   import_converter, names both; every entry carries both lists.
+  test "the manifest's prompts are exactly the MCP companion's prompt inventory" do
+    source = File.read!("mcp-server/src/prompts.ts")
+    [prompts] = Regex.run(~r/^export const PROMPTS: Prompt\[\] = \[$.*?^\];$/ms, source)
+
+    # A prompt's own name sits four spaces in; an argument's name eight.
+    companion =
+      ~r/^ {4}name: "([a-z0-9_]+)",$/m
+      |> Regex.scan(prompts, capture: :all_but_first)
+      |> List.flatten()
+      |> MapSet.new()
+
+    assert MapSet.size(companion) > 0, "no prompt found in mcp-server/src/prompts.ts"
+
+    manifest = Contract.prompts()
+
+    assert MapSet.difference(companion, manifest) |> Enum.sort() == [],
+           "MCP prompts without a manifest entry — add them to the newest Contract entry:\n" <>
+             Enum.join(MapSet.difference(companion, manifest), "\n")
+
+    assert MapSet.difference(manifest, companion) |> Enum.sort() == [],
+           "manifest prompts the companion no longer offers — record the removal:\n" <>
+             Enum.join(MapSet.difference(manifest, companion), "\n")
+
+    sprint17 = Enum.find(Contract.entries(), &(&1.version == 9))
+    assert sprint17.prompts == ["first_setup", "import_converter"]
+
+    for entry <- Contract.entries() do
+      assert is_list(entry.prompts), "entry #{entry.version} has no prompts list"
+      assert is_list(entry.removed_prompts), "entry #{entry.version} has no removed_prompts list"
+    end
+  end
+
   test "entries are well-formed, newest first, and the newest names the contract read" do
     entries = Contract.entries()
     versions = Enum.map(entries, & &1.version)
