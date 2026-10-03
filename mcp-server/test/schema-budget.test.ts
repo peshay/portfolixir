@@ -57,6 +57,16 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 105_807,
     book: 178_920,
     full: 208_789
+  },
+  {
+    since: "2026-10-03",
+    why:
+      "Sprint 18 PR γ, U1 (#912): the whole-split delete, an admin tool, paid for by " +
+      "trimming the split family's and transactions.list's descriptions, and lowered to the " +
+      "figure measured with it (D-10)",
+    read: 105_308,
+    book: 178_155,
+    full: 208_768
   }
 ];
 
