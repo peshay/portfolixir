@@ -13,8 +13,6 @@ defmodule PortfolixirWeb.LiveEventPayloadTest do
   alias Portfolixir.DataCase
   alias PortfolixirWeb.LiveSource
 
-  @moduletag :capture_log
-
   @past_bigint "99999999999999999999999"
 
   # Every page of the live session, read from the router rather than listed

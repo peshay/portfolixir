@@ -7,6 +7,10 @@ defmodule Portfolixir.Fx.RateSync.Fake do
 
   @behaviour Portfolixir.Fx.RateSync.Provider
 
+  # The application-env key of the shared history response: an atom, since
+  # Elixir 1.18 deprecates any other key (#1019).
+  @shared_history :fx_rate_sync_fake_shared_history
+
   @impl true
   def id, do: :fake
 
@@ -26,7 +30,7 @@ defmodule Portfolixir.Fx.RateSync.Fake do
   @impl true
   def fetch_history(_opts) do
     case Process.get({__MODULE__, :history}) ||
-           Application.get_env(:portfolixir, {__MODULE__, :history}) do
+           Application.get_env(:portfolixir, @shared_history) do
       {:ok, _} = ok -> ok
       {:error, _} = err -> err
       nil -> {:ok, []}
@@ -51,13 +55,13 @@ defmodule Portfolixir.Fx.RateSync.Fake do
   `clear_shared_history_response/0` in `on_exit`, and run the test `async: false`.
   """
   def put_shared_history_response(response) do
-    Application.put_env(:portfolixir, {__MODULE__, :history}, response)
+    Application.put_env(:portfolixir, @shared_history, response)
     :ok
   end
 
   @doc "Removes the shared history response."
   def clear_shared_history_response do
-    Application.delete_env(:portfolixir, {__MODULE__, :history})
+    Application.delete_env(:portfolixir, @shared_history)
     :ok
   end
 

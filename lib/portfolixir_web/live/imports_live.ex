@@ -724,6 +724,12 @@ defmodule PortfolixirWeb.ImportsLive do
     {:noreply, socket}
   end
 
+  # A push from a stale tab before any file is parsed has nothing to apply:
+  # the import task would crash on the missing preview (#1019).
+  def handle_event("apply", _params, socket) when is_nil(socket.assigns.preview) do
+    {:noreply, socket}
+  end
+
   def handle_event("apply", params, socket) do
     mapping = mapping_from_params(params, socket.assigns)
     socket = assign(socket, :mapping, mapping)
