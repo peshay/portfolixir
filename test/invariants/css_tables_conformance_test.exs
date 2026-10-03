@@ -138,6 +138,25 @@ defmodule Portfolixir.Invariants.CssTablesConformanceTest do
     refute manifest =~ "font-weight"
   end
 
+  # User story (#1053, the closing act's H4 ④c finding; board
+  # ux-review-2026-10-03/03-gamma-surface-repairs, G2):
+  # As the operator opening the allocation tree's Drift ⓘ on a 390 px phone,
+  # I want its sentence to wrap inside its box,
+  # so that I can read what drift means and against which portion it is
+  # measured, instead of one line running out of the box and off the screen.
+  #
+  # Acceptance criteria:
+  # - A tooltip's paragraph sets `white-space: normal` itself, so the phone
+  #   block's `table { white-space: nowrap }` (or any table cell's `nowrap`)
+  #   no longer reaches it by inheritance — at every width, on the class.
+  # - The phone table rule itself is unchanged.
+  test "a tooltip's sentence wraps inside its box inside a table at phone width" do
+    assert block(".metric-tooltip p") =~ ~r/white-space:\s*normal;/
+
+    assert @css =~
+             ~r/@media \(max-width: 560px\) \{.*?\n  table \{\s*display: block;\s*overflow-x: auto;\s*white-space: nowrap;\s*\}/s
+  end
+
   defp position(selector) do
     case :binary.match(@css, "\n" <> selector <> " {") do
       {at, _} -> at
