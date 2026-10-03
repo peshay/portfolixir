@@ -3595,6 +3595,50 @@ messages; each part names what was built.
   a list without markers. The author of G12.1-A ("· Operator", "· Agent")
   stays the last word of each entry.
 
+### Deleting a security: the confirmation and "Cannot delete" *(H8.2 = A, issue 918)*
+
+Both texts now say what actually blocks a security's delete (ADR-0044, the
+`:restrict` keys of `Lifecycle.ForeignKeys`); the delete path, the API and
+MCP are unchanged. Built in `securities/row_context_menu.ex`.
+
+- **The confirmation** (`data-confirm`, before any check, so in general
+  terms): "Delete this security? Bookings, quotes, events, research entries
+  and policy rules block the deletion. Removed with it: its
+  classifications, position targets, bucket assignments and former ISINs,
+  each journaled, and its logo." (de "Dieses Wertpapier löschen? Buchungen,
+  Kurse, Termine, Research-Einträge und eigene Regeln blockieren das
+  Löschen. Mit entfernt werden seine Klassifizierungen, Positionsziele,
+  Bucket-Zuordnungen und früheren ISINs, jede im Journal, und das Logo.")
+  It no longer says research notes are lost: they block.
+- **"Cannot delete" names what blocks, counted** from the refusal's
+  `{:referenced, counts}` (`PortfolixirWeb.ReferenceCounts`, the accounts
+  page's "still has" as the precedent): "“Nordwind Industrie AG” still has
+  12 bookings, 840 quotes and 3 research entries." (de "„…“ hat noch …"),
+  the name in `<bdi>`, the parts in a fixed order (bookings, quotes,
+  events, research entries, rule versions), joined "a, b and c" (de "und").
+- **The second line, `p.muted`, gives the reason for the way out**, keyed
+  on `Delete.remedy/2`:
+  - research entries block it: "Research entries are never removed, and no
+    merge carries them. Retiring hides the security from the active list;
+    everything is kept." — footer Cancel, **Retire instead**;
+  - only what a merge carries blocks it: "If it is a duplicate, “Merge
+    into…” moves its bookings, quotes and events into the other security.
+    Retiring hides it from the active list; everything is kept." — footer
+    Cancel, **Merge into…**, **Retire instead** (events move in a merge,
+    `merge: :repoint`, so the sentence names them);
+  - a rule version without a research entry (rules are refused before the
+    count, so only a race reaches it): "A rule version keeps the security
+    as part of its rule's history, and no merge carries it. …"
+- **Without counts** (a refusal that carried none) one sentence in general
+  terms, variant B's: "“…” has bookings, quotes, events or research entries
+  and cannot be deleted. Retiring hides the security from the active list;
+  everything is kept." The policy-rule state (the rule list) is unchanged
+  but for its name, now in `<bdi>`.
+- **Words:** "events" / "Termine" for security events, as the merge record
+  says; "research entries" / "Research-Einträge"; "policy rules" / "eigene
+  Regeln" in the confirmation. At 390 px the three-button footer still
+  wraps two labels (the design pass's Scope Lock note, a follow-up).
+
 ### Field errors in the security and account dialogs *(H8.3, issue 921)*
 
 German at the field (EXPERIENCE.md, "Language (binding)"); the API and MCP

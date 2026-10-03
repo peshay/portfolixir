@@ -242,8 +242,12 @@ imported before the ISIN change was recorded and created a second copy with
 a second copy of the history, or a security created by hand was created again
 by the next import — merge the duplicate into the security you keep:
 **Merge into…** in the duplicate's row menu on the securities page, or the
-same button in the *Cannot delete* dialog when bookings or quotes are what
-block the delete. Your agent has the same merge
+same button in the *Cannot delete* dialog when bookings, quotes or events are
+what block the delete. That dialog counts what still references the security
+("“…” still has 12 bookings, 840 quotes and 3 research entries.") and says
+why its way out is what it is: research entries are never removed and no
+merge carries them, so a security with research entries is retired instead.
+Your agent has the same merge
 (`GET /api/v1/securities/:id/merge_preview` and
 `POST /api/v1/securities/:id/merge`, or the
 `portfolixir.securities.merge_preview` and `portfolixir.securities.merge` MCP

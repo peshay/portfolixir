@@ -163,6 +163,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:delete_blocked, nil)
      |> assign(:delete_blocked_rules, [])
      |> assign(:delete_blocked_merge?, false)
+     |> assign(:delete_blocked_counts, nil)
      # ADR-0050 §9 (board 03): the security whose merge dialog is open.
      |> assign(:merge_source_id, nil)
      # A merge's result survives the one patch that opens its survivor.
@@ -912,6 +913,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           security={@delete_blocked}
           rules={@delete_blocked_rules}
           merge?={@delete_blocked_merge?}
+          counts={@delete_blocked_counts}
         />
       <% end %>
 
@@ -5100,7 +5102,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
          socket
          |> assign(:delete_blocked, sec)
          |> assign(:delete_blocked_rules, PolicyRuleReferences.references(rules))
-         |> assign(:delete_blocked_merge?, false)}
+         |> assign(:delete_blocked_merge?, false)
+         |> assign(:delete_blocked_counts, nil)}
 
       # ADR-0050 §11: gone already (another writer deleted it) — the row just
       # goes; nothing references a security that is not there.
@@ -5115,7 +5118,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
          socket
          |> assign(:delete_blocked, sec)
          |> assign(:delete_blocked_rules, [])
-         |> assign(:delete_blocked_merge?, Delete.remedy(sec, counts) == :merge)}
+         |> assign(:delete_blocked_merge?, Delete.remedy(sec, counts) == :merge)
+         |> assign(:delete_blocked_counts, counts)}
 
       # A lost race (#954): the security changed under the delete and
       # nothing references it now. Nothing was deleted and nothing blocks
@@ -5132,7 +5136,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
          socket
          |> assign(:delete_blocked, sec)
          |> assign(:delete_blocked_rules, [])
-         |> assign(:delete_blocked_merge?, false)}
+         |> assign(:delete_blocked_merge?, false)
+         |> assign(:delete_blocked_counts, nil)}
     end
   end
 
