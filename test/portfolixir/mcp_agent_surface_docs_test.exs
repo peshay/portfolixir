@@ -245,11 +245,13 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
   # - Since #1007 (Sprint 18 plan D-5) they state that the total across every
   #   portfolio needs no view, and no longer send the reader to create one
   #   for it.
+  # - Since FR-41 (ADR-0051 §6) the contribution analysis is a fourth pair,
+  #   named as such on both pages.
   test "the twin scope tools are explained as pairs" do
     assert_fragments([
       {"docs/integration/api-and-mcp.md",
        [
-         "**Scope twins.** Valuation, performance and the benchmark comparison exist at two scopes",
+         "**Scope twins.** Valuation, performance, the benchmark comparison and the contribution analysis exist at two scopes",
          "one portfolio record in its base currency, its `view` narrowing within that portfolio",
          "a view across every portfolio, each account counted once, in EUR",
          "needs an existing view id",
@@ -260,11 +262,13 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
          "- `portfolixir.portfolios.performance` — scope twin of `portfolixir.views.performance`",
          "- `portfolixir.views.performance` — scope twin of `portfolixir.portfolios.performance`",
          "- `portfolixir.portfolios.benchmark` — scope twin of `portfolixir.views.benchmark`",
-         "- `portfolixir.views.benchmark` — scope twin of `portfolixir.portfolios.benchmark`"
+         "- `portfolixir.views.benchmark` — scope twin of `portfolixir.portfolios.benchmark`",
+         "- `portfolixir.portfolios.contribution` — scope twin of `portfolixir.views.contribution`",
+         "- `portfolixir.views.contribution` — scope twin of `portfolixir.portfolios.contribution`"
        ]},
       {"docs/de/integration/api-and-mcp.md",
        [
-         "**Bereichs-Zwillinge.** Bewertung, Performance und Benchmark-Vergleich gibt es in zwei Bereichen",
+         "**Bereichs-Zwillinge.** Bewertung, Performance, Benchmark-Vergleich und Beitragsanalyse gibt es in zwei Bereichen",
          "einen Portfolio-Datensatz in seiner Basiswährung, sein `view` grenzt innerhalb dieses Portfolios ein",
          "eine View über jedes Portfolio, jedes Konto einmal gezählt, in EUR",
          "braucht eine bestehende View-ID",
@@ -275,7 +279,9 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
          "- `portfolixir.portfolios.performance` — Bereichs-Zwilling von `portfolixir.views.performance`",
          "- `portfolixir.views.performance` — Bereichs-Zwilling von `portfolixir.portfolios.performance`",
          "- `portfolixir.portfolios.benchmark` — Bereichs-Zwilling von `portfolixir.views.benchmark`",
-         "- `portfolixir.views.benchmark` — Bereichs-Zwilling von `portfolixir.portfolios.benchmark`"
+         "- `portfolixir.views.benchmark` — Bereichs-Zwilling von `portfolixir.portfolios.benchmark`",
+         "- `portfolixir.portfolios.contribution` — Bereichs-Zwilling von `portfolixir.views.contribution`",
+         "- `portfolixir.views.contribution` — Bereichs-Zwilling von `portfolixir.portfolios.contribution`"
        ]}
     ])
 

@@ -88,6 +88,10 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
              &(&1 =~ "computation_basis" and &1 =~ "FR-41")
            )
 
+    # Their MCP twins, read tools in every profile.
+    assert "portfolixir.portfolios.contribution" in newest["tools"]
+    assert "portfolixir.views.contribution" in newest["tools"]
+
     # Sprint 17, PR γ (version 10, after PR β's 9): the operator's due
     # surfaces — the annualized return on both closed-trade reads and the
     # unmatched sells (#984), the merge list's removed bookings per reason

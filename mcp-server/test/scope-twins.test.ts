@@ -5,12 +5,15 @@ import { publishedTools } from "./support/companion.js";
 
 // Sprint 17, Lane A2 (#993; plan D-6): three reads exist at two scopes. They
 // are steered, not merged: each names its twin, with the scope difference.
+// The contribution analysis (FR-41, ADR-0051 §6) is a fourth pair since
+// Sprint 18.
 // Since #1007 (Sprint 18 plan D-5) the view valuation also reads the total of
 // every account when it is given no id, so its pair no longer needs a view.
 const PAIRS = [
   ["portfolixir.portfolios.valuation", "portfolixir.views.valuation"],
   ["portfolixir.portfolios.performance", "portfolixir.views.performance"],
-  ["portfolixir.portfolios.benchmark", "portfolixir.views.benchmark"]
+  ["portfolixir.portfolios.benchmark", "portfolixir.views.benchmark"],
+  ["portfolixir.portfolios.contribution", "portfolixir.views.contribution"]
 ] as const;
 
 describe("the twin scope tools", () => {
@@ -33,6 +36,10 @@ describe("the twin scope tools", () => {
   //   without an id reads the total of every account, and the portfolio side
   //   sends a total there rather than to a sum of portfolios; neither asks
   //   for a view to be created.
+  // - The contribution pair (FR-41) is steered as the returns are: the view
+  //   side needs an existing view id, and until a view exists the portfolio
+  //   side is the only read; a contribution is money, so the portfolio side
+  //   does not speak of returns that do not add up.
   // - No tool is removed or renamed.
   it("names its twin on both sides, with the scope difference", async () => {
     const published = await publishedTools();
@@ -74,6 +81,12 @@ describe("the twin scope tools", () => {
       assert.match(description(name), /Until a view exists this tool is the only read/, name);
       assert.match(description(name), /returns of several portfolios do not add up/, name);
     }
+
+    assert.match(
+      description("portfolixir.portfolios.contribution"),
+      /Until a view exists this tool is the only read\./
+    );
+    assert.doesNotMatch(description("portfolixir.portfolios.contribution"), /returns of several/);
 
     for (const [portfolioTool] of PAIRS) {
       assert.doesNotMatch(description(portfolioTool), /Without a view/);
