@@ -17,10 +17,12 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.QuoteSync
   alias Portfolixir.Catalog.QuoteSync.Fake
+  alias Portfolixir.Catalog.QuoteSync.Yahoo
   alias Portfolixir.Clock
   alias Portfolixir.Journal.Entry
   alias Portfolixir.Lifecycle
   alias Portfolixir.Repo
+  alias Portfolixir.SingleFlight
 
   # A provider that answers every security with a close on each of the six
   # to four days before today — the days the setup pins by hand among them.
@@ -38,6 +40,21 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
       today = Portfolixir.Clock.today()
       {:ok, Enum.map(-6..-4, &%{date: Date.add(today, &1), close: "101.00"})}
     end
+  end
+
+  # A provider whose precondition is the security's currency, answering with
+  # the provider contract's skip reason (`QuoteSync.Provider`): every stored
+  # security carries a currency, so no stored security makes the shipped
+  # adapter answer it.
+  defmodule CurrencyBoundAdapter do
+    @moduledoc false
+    @behaviour Portfolixir.Catalog.QuoteSync.Provider
+
+    @impl true
+    def id, do: :currency_bound
+
+    @impl true
+    def fetch(_security, _opts), do: {:error, :missing_currency}
   end
 
   setup do
@@ -750,5 +767,65 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
              "Kurssync übersprungen: Für dieses Wertpapier gibt es keinen Kursanbieter."
 
     refute text(view, "#securities-action-result") =~ "no_provider_adapter"
+  end
+
+  # User story (#1033; board 07, H7.4 — the story above, its other three
+  # reasons):
+  # As the operator syncing one security,
+  # I want every skip the single path can reach to say why in words,
+  # so that no reason reaches me as an atom.
+  #
+  # Acceptance criteria:
+  # - A provider that needs the ticker, on a security without one: "Der
+  #   Kursanbieter braucht den Ticker des Wertpapiers."
+  # - A provider that needs the currency: "Das Wertpapier hat keine
+  #   Währung."
+  # - A sync of the security already running (the single-flight lock held
+  #   by another sync): "Eine Kursaktualisierung dieses Wertpapiers läuft
+  #   bereits."
+  test "the other skip reasons of a single sync read as words, too", ctx do
+    config = Application.get_env(:portfolixir, QuoteSync, [])
+    on_exit(fn -> Application.put_env(:portfolixir, QuoteSync, config) end)
+
+    sync = fn adapter ->
+      Application.put_env(
+        :portfolixir,
+        QuoteSync,
+        Keyword.put(config, :adapter_for, %{"portfolio_performance" => adapter})
+      )
+
+      {:ok, view, _html} = live(ctx.conn, "/securities?locale=de")
+      render_click(view, "row_action", %{"action" => "sync", "id" => to_string(ctx.security.id)})
+      await_sync(view)
+      text(view, "#securities-action-result")
+    end
+
+    # The shipped adapter refuses a security without a ticker before it
+    # makes any request.
+    assert sync.(Yahoo) =~
+             "Kurssync übersprungen: Der Kursanbieter braucht den Ticker des Wertpapiers."
+
+    assert sync.(CurrencyBoundAdapter) =~
+             "Kurssync übersprungen: Das Wertpapier hat keine Währung."
+
+    test_pid = self()
+
+    holder =
+      spawn_link(fn ->
+        SingleFlight.run({:quote_sync, ctx.security.id}, fn ->
+          send(test_pid, :holding)
+
+          receive do
+            :release -> :ok
+          end
+        end)
+      end)
+
+    assert_receive :holding
+
+    assert sync.(ClosingAdapter) =~
+             "Kurssync übersprungen: Eine Kursaktualisierung dieses Wertpapiers läuft bereits."
+
+    send(holder, :release)
   end
 end

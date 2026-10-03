@@ -162,6 +162,37 @@ defmodule PortfolixirWeb.DialogFieldErrorsDeTest do
              "steht fest, sobald etwas darauf verweist (1 Buchung, 1 Kurs)"
   end
 
+  # User story (#921; pick H8.3):
+  # As the operator pasting an over-long name into the security dialog on a
+  # German page,
+  # I want the length refusal in German, with the limit,
+  # so that a counted message reads in the page's language as well.
+  #
+  # Acceptance criteria:
+  # - A name of 256 characters reads "darf höchstens 255 Zeichen lang sein"
+  #   (the `errors` domain's plural form, counted); nothing is created.
+  test "a counted field error reads in German", %{conn: conn} do
+    {:ok, view, _html} = live(german(conn), "/securities")
+
+    view |> element("#open-new-dialog") |> render_click()
+
+    view
+    |> element(~s(button[phx-click="choose_mode"][phx-value-mode="manual"]))
+    |> render_click()
+
+    name = String.duplicate("Nordwind ", 28) <> "AG I"
+    assert String.length(name) == 256
+
+    view
+    |> form("#security-dialog-form", %{"security" => %{"name" => name, "currency_code" => "EUR"}})
+    |> render_submit()
+
+    assert field_error(view, "#security-dialog-form", "name") ==
+             "darf höchstens 255 Zeichen lang sein"
+
+    assert Portfolixir.Catalog.list_securities() == []
+  end
+
   test "the freeze's counts read in English on an English page", %{conn: conn} do
     world = base_world(name: "Securities")
     security = create_security!(name: "Nordwind Industrie AG", ticker: "NWI")
