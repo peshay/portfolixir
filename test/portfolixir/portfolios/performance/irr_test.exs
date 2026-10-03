@@ -289,6 +289,27 @@ defmodule Portfolixir.Portfolios.Performance.IRRTest do
     end
 
     test "flows up to a largest amount of one million are not scaled" do
+      # The rate is scale-free, so no solved figure can tell whether flows
+      # were scaled: the threshold and the places are pinned on scaled/1.
+      at_threshold = [cf(~D[2025-01-01], "-1000000"), cf(~D[2026-01-01], "123.456")]
+      assert IRR.scaled(at_threshold) == at_threshold
+
+      # One cent above it, the largest flow becomes exactly one million.
+      assert [{_, largest}, _] =
+               IRR.scaled([cf(~D[2025-01-01], "-1000000.01"), cf(~D[2026-01-01], "1")])
+
+      assert Decimal.equal?(largest, dec("-1000000"))
+
+      # A flow keeps 18 places after scaling: beside a largest flow of 1e12
+      # (a factor of 1e-6), 1.23456789012345678901 reads 0.000001234567890123.
+      assert [_, {_, small}] =
+               IRR.scaled([
+                 cf(~D[2025-01-01], "-1e12"),
+                 cf(~D[2026-01-01], "1.23456789012345678901")
+               ])
+
+      assert Decimal.to_string(small, :normal) == "0.000001234567890123"
+
       # At a largest flow of exactly one million the flows go in as they are.
       flows = [cf(~D[2025-01-01], "-1000000"), cf(~D[2026-01-01], "1000000")]
       assert IRR.solve(flows) == {:ok, Decimal.round(dec("0"), 6)}
@@ -313,6 +334,11 @@ defmodule Portfolixir.Portfolios.Performance.IRRTest do
       # A ten-year window at the bracket's floor compounds to a period rate a
       # hair above -1, which six decimals round to -1.000000.
       assert IRR.period_rate(dec("-0.999999"), 3650) == dec("-0.999999")
+
+      # Not only at the floor: a ten-year window at -80 % a year compounds to
+      # 0.2^10 - 1, which also rounds to -1.000000. The period figure reads
+      # the floor, and the payload's computation basis says so.
+      assert IRR.period_rate(dec("-0.8"), 3650) == dec("-0.999999")
     end
   end
 end

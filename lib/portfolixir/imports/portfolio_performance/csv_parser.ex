@@ -62,12 +62,16 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
   # transfer alike (`labels_de.properties`: account.TRANSFER_OUT and
   # portfolio.TRANSFER_OUT are both "Umbuchung (Ausgang)"), so the side comes
   # from the label and the kind from whether the row names a security.
-  # "Umbuchung (Wertpapier)" above is not a PP label: it is the one
-  # Portfolixir's converter prompt writes, and it stays a sending side.
   @transfer_sides %{
     "Umbuchung (Ausgang)" => :sending,
     "Umbuchung (Eingang)" => :receiving
   }
+
+  # "Umbuchung (Wertpapier)" above is not a PP label: it is the one
+  # Portfolixir's converter prompt writes, always a security transfer read
+  # like PP's sending row (Konto the sender), so a PP receiving row of the
+  # same transfer pairs with it as with PP's own.
+  @sending_kind_labels ["Umbuchung (Wertpapier)"]
 
   # Deliveries and security transfers move shares but settle no cash; they carry
   # no gross_amount so a 0/blank amount does not trip the ledger's
@@ -180,7 +184,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
           else: {:ok, "cash_transfer", side}
 
       :error ->
-        with {:ok, kind} <- Map.fetch(@kind_map, pp_type), do: {:ok, kind, nil}
+        side = if pp_type in @sending_kind_labels, do: :sending
+
+        with {:ok, kind} <- Map.fetch(@kind_map, pp_type), do: {:ok, kind, side}
     end
   end
 

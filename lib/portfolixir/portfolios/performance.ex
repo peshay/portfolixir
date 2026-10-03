@@ -511,7 +511,8 @@ defmodule Portfolixir.Portfolios.Performance do
           "cashflows: fewer than two, one shared date, no sign change, no root in " <>
           "the solver's budget, or an amount outside the range its one float step " <>
           "carries (a non-zero magnitude below 1e-300 or above 1e300, which only " <>
-          "implausible stored data reaches)"
+          "implausible stored data reaches). irr and mwr never read at or below -1: " <>
+          "a rate that rounds there reads -0.999999, the solver's floor"
     }
   end
 

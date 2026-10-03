@@ -446,7 +446,8 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
           "flow dated before the benchmark's first priced day is not replayed on its own day: " <>
           "it enters through the window's opening value and is listed in excluded_flows " <>
           "(#{length(excluded)} listed); window states the days the comparison covers and the " <>
-          "portfolio figures are chained over the same window",
+          "portfolio figures are chained over the same window. The irr and mwr pairs never " <>
+          "read at or below -1: a rate that rounds there reads -0.999999, the solver's floor",
       assumptions:
         "the synthetic portfolio is frictionless — no fees, no taxes, every flow invested " <>
           "at that day's close (a fixed rate: at par) — which biases the comparison against " <>

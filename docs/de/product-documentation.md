@@ -2189,14 +2189,18 @@ gelesen.** Drei Arten von Buchungen daraus sind falsch:
 Um eine früher importierte Datei zu prüfen, diese auf der Seite Importe erneut
 ablegen. Eine bereits importierte Datei zeigt in der Vorschau *nichts
 anzulegen*; eine Zeile, die die Vorschau jetzt als neu zählt, ist eine
-Umbuchung, die der frühere Import anders gelesen hat (Fälle 1 und 2). Die
+Umbuchung, die der frühere Import anders gelesen hat (Fälle 1 und 2 und Fall 3
+zwischen zwei Depots). Die
 falsche Buchung vor dem Übernehmen entfernen: über die API oder den
 MCP-Begleiter löschen (`DELETE /api/v1/transactions/:id`,
 `portfolixir.transactions.delete`), dann die Datei übernehmen, die die
 Umbuchung so bucht, wie sie ging. Ein Verrechnungskonto mit dem Namen eines
-Depots hält danach nichts mehr und kann gelöscht werden. Fall 3 braucht keinen
-erneuten Import: die Buchung in der falschen Richtung löschen; die
-Ausgangszeile der Datei bleibt die bereits importierte. Ob eine Instanz solche
+Depots hält danach nichts mehr und kann gelöscht werden. Fall 3 zwischen zwei
+Verrechnungskonten braucht keinen erneuten Import: die Buchung in der falschen
+Richtung löschen; die Ausgangszeile der Datei bleibt die bereits importierte.
+Fall 3 zwischen zwei Depots hat beide Seiten als Umbuchungen der Art gebucht,
+die Fall 1 beschreibt: beide löschen, dann die Datei übernehmen, die eine
+Wertpapierumbuchung bucht. Ob eine Instanz solche
 Buchungen hat, sagt Portfolixir nicht von selbst; die Prüfung oben ist Sache
 des Betreibers.
 
