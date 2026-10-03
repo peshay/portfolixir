@@ -77,6 +77,9 @@ services:
       # The zone that decides what "today" is; each database session takes
       # the same zone on connect (docs/home-deployment.md).
       TZ: ${TZ:-}
+      # "off" leaves logo discovery and the scheduled quote and FX downloads
+      # off from boot, for a host that must not call out (#1026).
+      PORTFOLIXIR_BACKGROUND_FETCH: ${PORTFOLIXIR_BACKGROUND_FETCH:-}
     ports:
       - "127.0.0.1:4000:4000"
     volumes:

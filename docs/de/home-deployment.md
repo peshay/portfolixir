@@ -76,6 +76,7 @@ Base64 die Verbindungszeichenkette zerlegen würde.
 | `PORTFOLIXIR_MCP_READ_ONLY` | nein | `true` macht den MCP-Begleitdienst nur lesend: Er listet und ruft nur die Tools auf, die nichts ändern (standardmäßig aus; jeder andere Wert als `true`, `false`, `1`, `0` oder leer stoppt ihn mit dem Namen der Variable). Er schränkt den Begleitdienst ein, nicht `PORTFOLIXIR_API_TOKEN`, das über die API weiterhin schreiben kann. Er ist dasselbe wie `PORTFOLIXIR_MCP_PROFILE=read`. |
 | `PORTFOLIXIR_MCP_PROFILE` | nein | Das Tool-Profil des MCP-Begleitdienstes: `read` (nur die Tools, die nichts ändern), `book` (die Lesezugriffe, das Anlegen und die ersetzenden Schreibzugriffe, die derselbe Schreibzugriff mit dem früheren Wert rückgängig macht, außer dass eine Rückbenennung den Zwischennamen als früheren Namen behält und ein Upsert über einem Anbieterdatum bis zur Admin-Kursfreigabe manuell bleibt; kein Entfernen, Zusammenführen, keine ISIN-Änderung und kein Stilllegen einer Regel) oder `full` (jedes Tool). Leer ist `full`, oder `read` bei `PORTFOLIXIR_MCP_READ_ONLY=true`; neben diesem Schalter stoppen `book` oder `full` den Begleitdienst mit beiden Variablennamen, ebenso jeder andere Wert. Es schränkt den Begleitdienst ein, nicht `PORTFOLIXIR_API_TOKEN`. Siehe [API und MCP](integration/api-and-mcp.html). |
 | `TZ` | nein | Die Zeitzone, die entscheidet, welcher Tag „heute“ ist, als tz-Name (`Europe/Berlin`); leer ist UTC. Jede Datumsprüfung — eine Abrechnung oder ein Kurs nicht in der Zukunft, eine Regelversion nicht rückdatiert — liest den Kalendertag der Anwendung in dieser Zone, und jede Datenbanksitzung übernimmt beim Verbinden dieselbe Zone, sodass die Datumsprüfungen der Datenbank mit ihr übereinstimmen; die Einstellung `timezone` des Datenbankservers spielt dann keine Rolle. Ein Wert, den die Datenbank nicht als Zonennamen kennt, wird beim Start einmal protokolliert, und die Sitzung behält die Zone des Servers. |
+| `PORTFOLIXIR_BACKGROUND_FETCH` | nein | `off` (oder `0`, `false`, `no`) lässt die Logo-Suche und die geplanten Kurs- und Devisen-Downloads ab dem Start aus, für einen Host, der nicht nach außen verbinden darf. Nicht gesetzt oder jeder andere Wert lässt sie an; der Schalter kann das Laden nur abschalten. |
 | `PORTFOLIXIR_LOGO_DIR` | nein | Das absolute Verzeichnis, in dem gespeicherte Logos liegen. Das Release-Image setzt es auf `/var/lib/portfolixir/logos`, das Volume `portfolixir-logos`, weil das Release selbst für den Benutzer, unter dem es läuft, schreibgeschützt ist; in Compose nicht ändern. |
 
 Ohne UI-Passwort und mit einem über Loopback hinaus geöffneten Port
@@ -105,10 +106,11 @@ Release außerdem die Euro-Referenzkurse der EZB
 (`https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml`), fünf
 Sekunden nach dem Start und dann alle 12 Stunden, und alle 6 Stunden die
 Kurshistorie jedes Wertpapiers, das einen Kursanbieter hat. Beide Zeitpläne
-sind in der Build-Konfiguration des Release eingeschaltet (`config/prod.exs`);
-keine Umgebungsvariable schaltet sie ab, ein Host, der diese Anbieter nicht
-erreichen darf, sperrt also den ausgehenden Verkehr. Nutze auf einem reinen
-IPv6-Host hinter DNS64 das bekannte NAT64-Präfix `64:ff9b::/96`: Eine Adresse
+und die Logo-Suche sind in einem Release eingeschaltet (`config/prod.exs`).
+`PORTFOLIXIR_BACKGROUND_FETCH=off` lässt alle drei ab dem Start aus, für einen
+Host, der diese Anbieter nicht erreichen darf: Die schon gespeicherten Kurse
+bleiben, wie sie sind, und jede Zahl wird aus ihnen berechnet. Nutze auf einem
+reinen IPv6-Host hinter DNS64 das bekannte NAT64-Präfix `64:ff9b::/96`: Eine Adresse
 darin wird nach der IPv4-Adresse beurteilt, die sie trägt. Das Präfix für
 lokale Übersetzung `64:ff9b:1::/48` ist wie die privaten Bereiche ein Block für
 besondere Zwecke; jede Adresse, die ein DNS64 darin bildet, wird deshalb

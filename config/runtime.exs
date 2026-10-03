@@ -53,6 +53,16 @@ if config_env() == :prod do
   # MCP companion calls over plain HTTP) are never redirected (E25 S7, F23).
   config :portfolixir, :force_ssl, Portfolixir.RuntimeConfig.force_ssl_opts()
 
+  # PORTFOLIXIR_BACKGROUND_FETCH=off leaves logo discovery and the scheduled
+  # quote and FX sync off from boot, as it does in development (#963): a host
+  # that must not call out needs no firewall rule for it (#1026). Unset, the
+  # release keeps all three as config/prod.exs sets them. It only turns off.
+  unless Portfolixir.RuntimeConfig.background_fetch?() do
+    config :portfolixir, :enable_logo_discovery, false
+    config :portfolixir, Portfolixir.Catalog.QuoteSync, enabled?: false
+    config :portfolixir, Portfolixir.Fx.RateSync, enabled?: false
+  end
+
   # Stored logos live outside the release, which stays read-only for the user
   # it runs as (E25 S2, F59); the release image names a volume's directory.
   if logo_dir = Portfolixir.RuntimeConfig.logo_dir() do
