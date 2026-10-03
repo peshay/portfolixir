@@ -9833,9 +9833,16 @@ dialog.merge-dialog {
   white-space: nowrap;
 }
 
+/* The name wraps between words and, where the browser has the page
+   language's dictionary (the root carries `lang`), at a syllable with a
+   hyphen; it breaks inside a word only when the word alone is wider than
+   the cell. `anywhere` split German compounds at whatever letter met the
+   edge (board ux-review-2026-10-03/01-contribution-repairs, R4). */
 .contribution-table td.contribution-table__name {
   min-width: 14ch;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  -webkit-hyphens: auto;
+  hyphens: auto;
 }
 
 /* The line under a name: held at one end or neither, or what a remainder
