@@ -4135,6 +4135,11 @@ but `bond` and `government_bond`, read as the effective class.
   message of `DecimalInput` under a grouped figure, "muss nach dem
   Emissionstag liegen" under a maturity on or before the issue date, the
   bounded-date and range messages likewise. Nothing is stored on a refusal.
+  **One round:** a figure `DecimalInput` refuses stops the write, but the
+  rest of the form is still checked by the security's changeset, writing
+  nothing, so "1.000" as the coupon and a maturity before the issue date
+  show both errors after one save, as board 03 draws them (closing act on
+  U7, finding 7; board `ux-review-2026-10-03/04-bond-repairs` B5).
 - **Nothing is required**; while editing, an emptied field clears its
   value; the values are kept when the class changes away from a bond, and
   the screen then hides them.

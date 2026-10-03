@@ -408,6 +408,47 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     assert cleared.maturity_date == ~D[2031-06-15]
   end
 
+  # User story (#330, closing act on U7, finding 7; board
+  # ux-review-2026-10-03/04-bond-repairs, B5):
+  # As the operator correcting a bond's master data on a German page,
+  # I want every refusal of one save shown at once, a figure the page
+  # cannot read and a date the security cannot carry alike,
+  # so that I fix the form in one round instead of meeting the next error
+  # after the first is fixed.
+  #
+  # Acceptance criteria:
+  # - "1.000" as the coupon with a maturity before the issue date: the
+  #   coupon's ambiguity and "muss nach dem Emissionstag liegen" under the
+  #   maturity stand together after one save.
+  # - Nothing is stored.
+  test "the dialog names a refused figure and the changeset's errors in one round", %{
+    conn: conn
+  } do
+    bond = bond!()
+
+    {:ok, view, _html} = live(german(conn), "/securities/#{bond.id}")
+    view |> element("#detail-edit") |> render_click()
+
+    refused =
+      view
+      |> form("#security-dialog-form",
+        security: %{coupon_rate: "1.000", maturity_date: "2020-06-15", issue_date: "2021-06-15"}
+      )
+      |> render_submit()
+
+    assert refused =~ "ist mehrdeutig: ohne Tausendertrennzeichen eingeben"
+    assert refused =~ "muss nach dem Emissionstag liegen"
+
+    assert has_element?(
+             view,
+             ~s(#security-dialog-form input[name="security[maturity_date]"][aria-invalid="true"])
+           )
+
+    stored = Repo.reload!(bond)
+    assert Decimal.equal?(stored.coupon_rate, Decimal.new("2.5"))
+    assert stored.maturity_date == @maturity
+  end
+
   # The fake search provider's one listing (`arbolia`, NASDAQ in USD) matches
   # this bond by provider and online id, so picking it shows the conflict.
   # The bond's terms are invented.

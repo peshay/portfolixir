@@ -423,7 +423,7 @@ aktualisieren** und **Online-Felder übernehmen** nur die ausgefüllten
 Anleihefelder: Ein leeres Feld lässt den gespeicherten Wert stehen. Ein
 Wert, den keine Anleihe trägt — ein Kupon über 100 %, eine Fälligkeit am
 Emissionstag, eine gruppierte Zahl —, wird an seinem eigenen Feld
-abgelehnt.
+abgelehnt, und alle Ablehnungen eines Speicherns stehen zugleich da.
 
 **Die Mengenkonvention.** Ein Portfolio-Performance-Export bucht die
 Stückzahl einer prozentnotierten Anleihe als **ein Hundertstel des

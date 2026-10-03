@@ -808,7 +808,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
 
     case read_params(params, blank_mode(socket)) do
       {:ok, attrs} -> save(socket, attrs)
-      {:error, errors} -> {:noreply, assign(socket, :errors, errors)}
+      {:error, refused, attrs} -> {:noreply, refuse(socket, refused, attrs)}
     end
   end
 
@@ -830,6 +830,9 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     else
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :errors, changeset_errors(changeset))}
+
+      {:error, refused, attrs} ->
+        {:noreply, refuse(socket, refused, attrs)}
 
       {:error, errors} ->
         {:noreply, assign(socket, :errors, errors)}
@@ -979,13 +982,34 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   # a blank field is no change, and so is the denomination's currency
   # without a denomination: its select only starts on the security's
   # currency (#330, closing act on U7).
+  #
+  # A refused figure answers `{:error, refused, attrs}`: the refusals, and
+  # the attributes the rest of the form reads as, for `refuse/3`.
   defp read_params(params, blank) do
     {bond, rest} = Map.split(params, Map.keys(@bond_fields))
+    attrs = &(rest |> to_overrides() |> Map.merge(bond_attrs(&1, blank)))
 
     case DecimalInput.cast(bond, @bond_decimals) do
-      {:ok, bond} -> {:ok, rest |> to_overrides() |> Map.merge(bond_attrs(bond, blank))}
-      {:error, errors} -> {:error, errors}
+      {:ok, bond} ->
+        {:ok, attrs.(bond)}
+
+      {:error, refused} ->
+        {:ok, readable} = DecimalInput.cast(Map.drop(bond, Map.keys(refused)), @bond_decimals)
+        {:error, refused, attrs.(readable)}
     end
+  end
+
+  # A figure the page cannot read stops the write, but the rest of the form
+  # is checked in the same round (closing act on U7, finding 7): the
+  # security's changeset runs over what was readable, writing nothing, and
+  # its errors stand beside the refusals, a refusal keeping its own field.
+  defp refuse(socket, refused, attrs) do
+    checked =
+      (socket.assigns.editing || socket.assigns.conflict || %Security{})
+      |> Security.changeset(attrs)
+      |> changeset_errors()
+
+    assign(socket, :errors, Map.merge(checked, refused))
   end
 
   defp bond_attrs(bond, :clear),

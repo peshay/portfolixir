@@ -389,7 +389,7 @@ finds a security the catalog already holds, **Update existing** and **Merge
 online fields** write only the bond fields that are filled in: a blank field
 leaves the stored value alone. A value no bond carries — a coupon above
 100 %, a maturity on the issue date, a grouped figure — is refused on its
-own field.
+own field, and every refusal of one save shows at once.
 
 **The quantity convention.** A Portfolio Performance export books a
 percent-quoted bond's quantity as **a hundredth of its face amount**: 100
