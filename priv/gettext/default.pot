@@ -42,7 +42,7 @@ msgstr ""
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:127
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:227
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:124
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:60
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:61
 #: lib/portfolixir_web/live/securities_live.ex:577
 #: lib/portfolixir_web/live/transaction_management_live.ex:222
 #: lib/portfolixir_web/live/transaction_management_live.ex:1740
@@ -90,7 +90,7 @@ msgstr ""
 #: lib/portfolixir_web/live/securities/merge_preview.ex:554
 #: lib/portfolixir_web/live/securities/merge_preview.ex:632
 #: lib/portfolixir_web/live/securities/merge_preview.ex:803
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:243
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:252
 #: lib/portfolixir_web/live/securities_live.ex:2004
 #: lib/portfolixir_web/live/securities_live.ex:3053
 #: lib/portfolixir_web/live/snapshots_live.ex:515
@@ -1009,7 +1009,7 @@ msgstr ""
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:236
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:269
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:476
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:132
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:141
 #: lib/portfolixir_web/live/securities_live.ex:1237
 #: lib/portfolixir_web/live/securities_live.ex:1791
 #: lib/portfolixir_web/live/securities_live.ex:2624
@@ -1390,7 +1390,7 @@ msgid "Sell"
 msgstr ""
 
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:331
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:245
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:254
 #: lib/portfolixir_web/live/securities_live.ex:1501
 #: lib/portfolixir_web/live/securities_live.ex:3056
 #, elixir-autogen, elixir-format
@@ -1446,7 +1446,7 @@ msgstr ""
 msgid "Closed"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:244
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:253
 #: lib/portfolixir_web/live/securities_live.ex:3054
 #, elixir-autogen, elixir-format
 msgid "Closing price"
@@ -3925,78 +3925,78 @@ msgstr ""
 msgid "split-adjusted"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:503
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:512
 #, elixir-autogen, elixir-format
 msgid " for portfolio \"%{name}\""
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:479
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:488
 #, elixir-autogen, elixir-format
 msgid "A split for this security is already booked on %{date}: transaction #%{id} records ratio %{ratio}%{portfolio}. Delete that event first if it is wrong."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:141
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:150
 #, elixir-autogen, elixir-format
 msgid "Book split"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:500
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:509
 #, elixir-autogen, elixir-format
 msgid "Could not book the split."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:201
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:210
 #, elixir-autogen, elixir-format
 msgid "Effect of the %{ratio} split per portfolio:"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:101
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:110
 #: lib/portfolixir_web/live/transaction_management_live.ex:1857
 #, elixir-autogen, elixir-format
 msgid "Effective date"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:463
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:472
 #, elixir-autogen, elixir-format
 msgid "This ratio, together with the splits already booked for this security, would scale it by more than 10^12."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:459
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:468
 #, elixir-autogen, elixir-format
 msgid "Enter a valid effective date."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:454
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:463
 #, elixir-autogen, elixir-format
 msgid "Enter the ratio as two positive whole numbers, e.g. 2:1."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:424
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:433
 #, elixir-autogen, elixir-format
 msgid "Insufficient quotes around the effective date to verify the price basis."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:76
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:85
 #, elixir-autogen, elixir-format
 msgid "New shares"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:471
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:480
 #, elixir-autogen, elixir-format
 msgid "No portfolio holds a position in this security at the effective date."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:89
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:98
 #, elixir-autogen, elixir-format
 msgid "Old shares"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:207
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:216
 #, elixir-autogen, elixir-format
 msgid "Portfolio"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:208
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:217
 #, elixir-autogen, elixir-format
 msgid "Quantity before"
 msgstr ""
@@ -4006,7 +4006,7 @@ msgstr ""
 msgid "Record a stock split for this security"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:59
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:60
 #: lib/portfolixir_web/live/securities_live.ex:1049
 #, elixir-autogen, elixir-format
 msgid "Record split"
@@ -4019,52 +4019,52 @@ msgid_plural "Split booked for %{count} portfolios."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:240
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:249
 #, elixir-autogen, elixir-format
 msgid "Stored closes around the effective date:"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:404
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:413
 #, elixir-autogen, elixir-format
 msgid "The effective date is before this security's earliest recorded transaction. An imported history may already contain post-split quantities — booking the split again would double-apply it."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:468
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:477
 #, elixir-autogen, elixir-format
 msgid "The effective date must not be in the future."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:457
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:466
 #, elixir-autogen, elixir-format
 msgid "The ratio must change the share count — a 1:1 split does nothing."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:473
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:482
 #, elixir-autogen, elixir-format
 msgid "This security no longer exists."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:446
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:455
 #, elixir-autogen, elixir-format
 msgid "A split with a different ratio is already booked for this security on this date. Booking will be rejected — delete the existing event first if it is wrong."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:491
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:500
 #, elixir-autogen, elixir-format
 msgid "A split with a different ratio is already booked on %{date}: transaction #%{id} records ratio %{ratio}%{portfolio}. Delete that event first if it is wrong."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:430
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:439
 #, elixir-autogen, elixir-format
 msgid "An identical split is already booked on this date. Portfolios that already carry it are shown as booked and will be skipped — only newly positioned portfolios would get a row."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:139
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:148
 #, elixir-autogen, elixir-format
 msgid "Booking…"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:438
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:447
 #, elixir-autogen, elixir-format
 msgid "No portfolio holds a position at the effective date — booking would create no rows and be rejected."
 msgstr ""
@@ -4079,37 +4079,37 @@ msgstr ""
 msgid "as recorded"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:376
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:385
 #, elixir-autogen, elixir-format
 msgid "Booking is blocked: a split with a different ratio is already booked on this date."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:389
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:398
 #, elixir-autogen, elixir-format
 msgid "Booking is blocked: no portfolio holds a position at the effective date."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:384
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:393
 #, elixir-autogen, elixir-format
 msgid "Booking is blocked: this split is already booked for every positioned portfolio."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:209
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:218
 #, elixir-autogen, elixir-format
 msgid "Quantity after (at date)"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:210
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:219
 #, elixir-autogen, elixir-format
 msgid "Resulting position (today)"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:397
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:406
 #, elixir-autogen, elixir-format
 msgid "already booked"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:398
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:407
 #, elixir-autogen, elixir-format
 msgid "no position at date"
 msgstr ""
@@ -4374,12 +4374,7 @@ msgstr ""
 msgid "For providers that never back-adjust pre-split quotes — the display applies the split factors instead."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:67
-#, elixir-autogen, elixir-format
-msgid "Stock split for %{security}. Ratio as new:old shares — 2:1 doubles the count, 1:10 is a reverse split."
-msgstr ""
-
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:418
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:427
 #, elixir-autogen, elixir-format
 msgid "The stored closes around the effective date contradict their price-basis classification. Nothing is adjusted silently — review the quotes below; if they are raw (as traded), force it via the security's \"Treat synced quotes as raw\" setting."
 msgstr ""
@@ -10993,7 +10988,7 @@ msgstr ""
 msgid "A balance is set under Accounts & depots; only the note changes here, and the change is journaled."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:159
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:168
 #, elixir-autogen, elixir-format
 msgid "A split with a different ratio is already booked for this security on this date (%{ratio}). Booking is refused while it stands."
 msgstr ""
@@ -11057,7 +11052,7 @@ msgstr[1] ""
 msgid "Delete split…"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:188
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:197
 #, elixir-autogen, elixir-format
 msgid "Delete the booked split…"
 msgstr ""
@@ -11409,4 +11404,9 @@ msgstr ""
 #: lib/portfolixir_web/live/securities_live.ex:3043
 #, elixir-autogen, elixir-format
 msgid "Price basis: %{basis}. Where a split adjusted a close, “stored” under it shows the unmodified value."
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:74
+#, elixir-autogen, elixir-format
+msgid "Stock split for “%{security}”, the ratio as new:old shares — 2:1 doubles the count, 1:10 is a reverse split."
 msgstr ""
