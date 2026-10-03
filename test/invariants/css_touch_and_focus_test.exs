@@ -87,6 +87,26 @@ defmodule Portfolixir.Invariants.CssTouchAndFocusTest do
     assert link =~ ~r/min-height:\s*0;/
   end
 
+  # User story (#1033; board 06, H6.3, rule ③):
+  # As the operator moving through the Overview by keyboard,
+  # I want a row of "Abgeschlossene Trades", "Ziel-Abweichungen" or "Fällig"
+  # to show the same 2 px accent ring as the KPI strip above it,
+  # so that one page speaks one focus language, and the ring stays visible
+  # in the dark theme.
+  #
+  # Acceptance criteria:
+  # - `.attention-item:focus-visible` draws `outline: 2px solid` in the
+  #   accent with a 2 px offset and the small radius — the form
+  #   `.stat--link`, `.filter-chip` and `.row-actions__kebab` carry.
+  # - One rule for all three cards: they share the class.
+  test "an attention row draws the 2 px accent focus ring" do
+    ring = block(".attention-item:focus-visible")
+
+    assert ring =~ ~r/outline:\s*2px solid var\(--color-accent\);/
+    assert ring =~ ~r/outline-offset:\s*2px;/
+    assert ring =~ ~r/border-radius:\s*var\(--radius-sm\);/
+  end
+
   defp block(selector) do
     case Regex.run(~r/\n#{Regex.escape(selector)} \{([^}]*)\}/, @css) do
       [_, body] -> body

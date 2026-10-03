@@ -1041,6 +1041,17 @@ textarea {
   text-decoration: underline;
 }
 
+/* The shared 2 px accent ring (DESIGN.md -> Colors), not the browser's:
+   the KPI strip above draws it, so the Overview speaks one focus language
+   (Sprint 18 U4, board ux-design-2026-10-02/06-touch-focus, H6.3). The
+   list's 6 px row gap keeps the ring clear of the next row; hover stays
+   the underlined name, so the two remain distinguishable. */
+.attention-item:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 .attention-item .num {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

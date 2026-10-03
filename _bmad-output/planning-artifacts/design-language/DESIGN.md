@@ -433,6 +433,7 @@ components:
     container: '{components.panel} as a workspace section; heading on the {typography.section-title} step'
     basis-line: 'directly under the heading, {typography.stat-label} in {colors.text-muted}: the view, the plan, and the threshold the count is computed against. Where the allocation carries several plans the line names that fact instead of a plan. Built today as the threshold clause alone (dashboard_live.ex, data-role="attention-explainer") — view and plan are the missing half.'
     item-row: 'a full-width link row: category name at {typography.body} in {colors.text}, then the drift figure right-aligned in tabular numerals. The figure is signed money semantics — {colors.positive}/{colors.danger} plus the direction word, never the accent (UX-DR7).'
+    focus: 'the row (`.attention-item`) draws the shared 2px {colors.accent} outline at a 2px offset with {rounded.sm} corners under :focus-visible, never the browser ring; hover stays the underlined name. The same rule serves "Abgeschlossene Trades" and "Fällig" (Sprint 18 U4, H6.3, issue 1033).'
     severity: 'items do NOT each become a {components.data-note}. The card IS one attention-severity surface; its heading carries the severity, the rows carry the facts. A row that needs its own severity is a data-quality finding and belongs in the data-quality line instead.'
     cap: 'at most five rows (dashboard_live.ex @max_alerts); no "show all" affordance — the surface that owns the full list is Wealth → Allocation & targets, which every row links to'
     empty: 'one line at {typography.body} in {colors.text-muted} stating the condition is clear. No badge, no icon, no colour — an all-clear is not a finding.'
@@ -3370,3 +3371,13 @@ follow-up: a remedy written as an `<a>` inside a note (the Overview's
 data-quality links) — issue 1013 names the button. Under a coarse pointer
 the keyboard focus ring of a remedy wraps the 44 px box; `.link-button` has
 no `:focus-visible` rule of its own (the pass's Scope Lock).
+
+### The attention row's focus ring *(H6.3, rule ③; issue 1033)*
+
+`.attention-item:focus-visible` draws `outline: 2px solid {colors.accent};
+outline-offset: 2px` with `{rounded.sm}` corners — the ring the KPI strip
+directly above already draws, where Chromium's 1 px `outline: auto` was
+nearly invisible in the dark theme. One rule for the three Overview cards
+that share the class ("Abgeschlossene Trades", "Ziel-Abweichungen",
+"Fällig"); the list's 6 px row gap keeps the ring clear of the next row.
+Front matter: `needs-attention-card.focus`.
