@@ -226,7 +226,9 @@ Liste geladen wurde, lädt eine Zeilenaktion auf dieser Zeile die Liste neu,
 statt nichts zu tun, schließt ein darauf geöffnetes Detail und sagt, warum
 die Zeile ging: „„…“ wurde inzwischen gelöscht; die Liste ist neu geladen.“
 oder „„…“ wurde inzwischen in … zusammengeführt; die Liste ist neu geladen.“,
-das Wertpapier, das die Historie jetzt trägt, verlinkt.
+das Wertpapier, das die Historie jetzt trägt, verlinkt. Der Hinweis rückt an
+den oberen Fensterrand und erhält den Tastaturfokus, denn das Menü, das ihn
+hatte, ging mit der Zeile.
 
 ### Klassifikations-Spalten
 

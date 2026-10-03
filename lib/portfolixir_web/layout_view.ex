@@ -1663,6 +1663,21 @@ defmodule PortfolixirWeb.LayoutView do
               window.Portfolixir.osNotify(event.detail || {});
             });
 
+            // A result that answers a click whose control left the page with
+            // it (#920: a row action on a security deleted or merged away
+            // meanwhile; the menu item went with the row and the focus fell
+            // to <body>). The server names the result slot; it is scrolled
+            // to the top of the window — below the sticky top bar, by its
+            // `scroll-margin-top` — and takes the focus without a second
+            // scroll. Never <body> (WCAG 2.4.3).
+            window.addEventListener("phx:focus-into-view", function (event) {
+              var id = event.detail && event.detail.id;
+              var target = id && document.getElementById(id);
+              if (!target || typeof target.focus !== "function") return;
+              target.scrollIntoView({ block: "start" });
+              target.focus({ preventScroll: true });
+            });
+
             // Content-Security-Policy (#382): the pages carry no inline event
             // handlers. The controls that used to call into window.Portfolixir
             // from an inline click attribute say what they want with a data

@@ -116,6 +116,57 @@ defmodule PortfolixirWeb.SecuritiesVanishedRowTest do
              "“Helios Solar Systems SE” was deleted meanwhile; the list is reloaded."
   end
 
+  # User story (#920, the closing act's H8.6 finding; board
+  # ux-review-2026-10-03/03-gamma-surface-repairs, G1):
+  # As the operator using the keyboard or a screen reader on a row whose
+  # security vanished,
+  # I want the note brought into view and the focus put on it,
+  # so that I read why the row went instead of losing the focus to the page
+  # with the note 1142 px above the window (WCAG 2.4.3).
+  #
+  # Acceptance criteria:
+  # - The result slot can take the focus without joining the tab order:
+  #   `#securities-action-result[tabindex="-1"]`.
+  # - The vanished-row path asks the page to bring the slot into view and
+  #   focus it (`focus-into-view`, the slot's id); the page's listener
+  #   scrolls it to the top of the window, below the sticky top bar
+  #   (`scroll-margin-top`), and focuses it without scrolling again — never
+  #   `<body>`.
+  # - An ordinary result does not move the focus: its control is still on
+  #   the page.
+  test "the vanished row's note is brought into view and takes the focus", %{conn: conn} do
+    helios = security!("Helios Solar Systems SE", nil)
+    other = security!("Nordic Timber Holdings AB", nil)
+
+    {:ok, view, _html} = live(conn, "/securities")
+    assert has_element?(view, ~s(#securities-action-result[tabindex="-1"]))
+
+    open_menu(view, other)
+    click(view, other, "retire")
+    refute_push_event(view, "focus-into-view", %{id: "securities-action-result"})
+
+    open_menu(view, helios)
+    {:ok, _} = Catalog.delete_security(agent(), helios)
+    click(view, helios, "retire")
+
+    assert_push_event(view, "focus-into-view", %{id: "securities-action-result"})
+    assert note_text(view) =~ "“Helios Solar Systems SE” was deleted meanwhile"
+
+    layout = File.read!("lib/portfolixir_web/layout_view.ex")
+    [_, listener] = String.split(layout, ~s{"phx:focus-into-view"}, parts: 2)
+    listener = listener |> String.split("\n            });\n", parts: 2) |> hd()
+    assert listener =~ ~s[scrollIntoView({ block: "start" })]
+    assert listener =~ "focus({ preventScroll: true })"
+
+    css = File.read!("priv/static/app.css")
+
+    assert css =~
+             ~r/\n#securities-action-result \{\s*scroll-margin-top: calc\(var\(--topbar-height\) \+ var\(--space-3\)\);/
+
+    assert css =~
+             ~r/\n#securities-action-result:focus-visible \{\s*outline: 2px solid var\(--color-accent\);/
+  end
+
   # Acceptance criteria:
   # - A detail pane open on the security that vanished closes with the
   #   reload (the URL drops its id) and the note stays.

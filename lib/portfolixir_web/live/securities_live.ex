@@ -681,8 +681,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
         <%!-- Inline busy/result slot (#566): action feedback lands in flow,
              beside the toolbar and list the actions belong to; the regions
-             exist before any action runs. --%>
-        <AppShell.inline_result id="securities-action-result" result={@action_result} />
+             exist before any action runs. Focusable (#920): a row action on
+             a security gone meanwhile brings it into view and focuses it,
+             because the menu item that had the focus went with the row. --%>
+        <AppShell.inline_result
+          id="securities-action-result"
+          result={@action_result}
+          focusable
+        />
 
         <div
           id="securities-workspace"
@@ -5787,7 +5793,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     socket =
       socket
       |> drop_vanished(id)
-      |> then(&if note, do: put_action_result(&1, :note, note), else: &1)
+      |> then(&if note, do: put_vanished_note(&1, note), else: &1)
 
     case socket.assigns.selected_security do
       %Security{id: ^id} ->
@@ -5798,6 +5804,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
       _other ->
         load_securities(socket)
     end
+  end
+
+  # The note answers a click whose control went with the row: the page
+  # brings the result slot into view and focuses it (the closing act's H8.6
+  # finding; board ux-review-2026-10-03/03-gamma-surface-repairs, G1), as
+  # the history's heading takes the focus after a booking gone meanwhile
+  # (H2's A6) — never <body> (WCAG 2.4.3).
+  defp put_vanished_note(socket, note) do
+    socket
+    |> put_action_result(:note, note)
+    |> push_event("focus-into-view", %{id: "securities-action-result"})
   end
 
   defp drop_vanished(socket, id) do
