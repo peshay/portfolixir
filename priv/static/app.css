@@ -9824,6 +9824,17 @@ dialog.merge-dialog {
   margin: 0;
 }
 
+/* A stored name with no break opportunity — a security, a depot, a cash
+   account — wraps inside the dialog instead of widening it past the phone
+   (the closing act R8; 390 px measured the sheet 28 px too wide). The
+   box's subject line is one span, the one flex item of `.phone-row__ids`,
+   so it may shrink and break. */
+.booking-delete-dialog .hint,
+.booking-delete__subject .phone-row__ids > span {
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
 /* The close button keeps its size beside a title that wraps and takes the
    44 px floor under a coarse pointer from `.icon-button` itself since
    Sprint 18 U4, which subsumed the three rules closing act γ D6 wrote
