@@ -32,6 +32,17 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 106_000,
     book: 179_000,
     full: 209_000
+  },
+  {
+    since: "2026-10-03",
+    why:
+      "Sprint 18 PR β, F4 and F5 (#901, #1007): paid for by trimming, and lowered to the " +
+      "figure measured when β opened, giving up the slack above it; the 1,420 bytes now " +
+      "measured under it are left for F2's two tools in the same PR, which lower it to " +
+      "their own figure (D-10)",
+    read: 105_851,
+    book: 178_964,
+    full: 208_833
   }
 ];
 
