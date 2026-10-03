@@ -1378,8 +1378,8 @@ defmodule Portfolixir.Ledger do
         acc,
         field,
         "is fixed on a booked split; only its note changes here. A wrong split is " <>
-          "deleted (DELETE /api/v1/transactions/:id, each of its rows) and booked " <>
-          "again (POST /api/v1/splits)",
+          "deleted whole (DELETE /api/v1/splits/:transaction_id, from any of its rows) " <>
+          "and booked again (POST /api/v1/splits)",
         validation: :split_fact
       )
     end)

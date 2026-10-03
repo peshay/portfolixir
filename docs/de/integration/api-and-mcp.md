@@ -1451,10 +1451,15 @@ Beispiel-Payloads für Konten:
   `portfolio_id`, `type` oder am Verhältnis antwortet mit 422 und nennt das
   Feld, denn ein Split wird über `POST /api/v1/splits` gebucht, dessen
   Prüfungen eine allgemeine Änderung umgehen würde. Ein falscher Split wird
-  gelöscht (jede seiner Zeilen) und neu gebucht.
+  als Ganzes gelöscht (`DELETE /api/v1/splits/:transaction_id`, unten) und
+  neu gebucht.
 - `DELETE /api/v1/transactions/:id` löscht eine Transaktion. Da Trades und
   Bestände abgeleitet sind, korrigiert oder entfernt das Korrigieren oder Entfernen
-  der Transaktion auch sie.
+  der Transaktion auch sie. Mit einer importierten Buchung geht ihr
+  Inhalts-Hash, ein erneuter Import derselben Datei bucht sie also wieder
+  (einen Hash legt nur eine Zusammenführung still, ADR-0050 §3). An einer
+  Split-Zeile löscht der Aufruf nur diese Zeile; die übrigen Zeilen des
+  Splits halten das Ereignis.
 - `POST /api/v1/splits/preview` zeigt eine Aktiensplit-Buchung (ADR-0028) als
   Vorschau, ohne etwas zu schreiben. Die Anfrage trägt `security_id`, das
   Wirksamkeitsdatum `date` (ISO, nicht in der Zukunft) und das Verhältnis als
@@ -1493,8 +1498,21 @@ Beispiel-Payloads für Konten:
   einschließlich des neuen auf höchstens `10^12` multiplizieren; ein
   Verhältnis darüber liefert bei Vorschau und Buchung `422` an `ratio`, und
   nichts wird geschrieben (E25 S4). Der generische Endpunkt
-  `POST /api/v1/transactions` lehnt die Art `split` ab — diese beiden Routen
-  sind der einzige Schreibpfad für Splits.
+  `POST /api/v1/transactions` lehnt die Art `split` ab — nur diese beiden
+  Routen buchen einen Split.
+- `DELETE /api/v1/splits/:transaction_id` löscht einen Split so, wie er
+  gebucht wurde, als eine Tatsache (Sprint 18 U1, #912): von einer beliebigen
+  seiner Zeilen aus jede `split`-Zeile mit demselben Wertpapier, Datum und
+  gekürzten Verhältnis — eine je Portfolio — in einer Transaktion, jede Zeile
+  mit ihrem Vorher-Bild journalisiert. Die Antwort ist `200` mit
+  `data.transactions`, den gelöschten Zeilen im regulären Transaktionsformat,
+  nach Portfolio geordnet. Danach trägt kein Portfolio das Ereignis mehr:
+  Bestände zählen ohne ihn, die Kurs-Lesepfade bereinigen nicht mehr um ihn,
+  und `POST /api/v1/splits` bucht das korrigierte Verhältnis am selben Tag.
+  Eine unbekannte oder schon gelöschte Zeile liefert `404`; eine Buchung
+  anderer Art liefert `422` an `transaction_id` und nennt
+  `DELETE /api/v1/transactions/:id`; scheitert eine Zeile, wird nichts
+  gelöscht. Die übrigen Splits des Wertpapiers bleiben.
 - `GET /api/v1/portfolios/:portfolio_id/holdings` listet abgeleitete Bestände
   eines Portfolios, eine Zeile je (Depot, Wertpapier). Jede Zeile trägt
   `quantity`, einen gleitenden Durchschnitt `avg_cost` und `cost_basis`
