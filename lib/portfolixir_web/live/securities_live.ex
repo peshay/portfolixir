@@ -2987,7 +2987,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             basis: series_basis_label(@series_basis, @split_events)
           ) %>
         </p>
-        <div class="data-table-wrap">
+        <div class="data-table-wrap" id="quotes-table-wrapper">
           <table class="data-table detail-quotes-table">
             <thead>
               <tr>
@@ -3014,6 +3014,32 @@ defmodule PortfolixirWeb.SecuritiesLive do
             </tbody>
           </table>
         </div>
+        <%!-- #1012 (Sprint 18 U5, pick H7.1 = A, board
+             ux-design-2026-10-02/07-phone-390 rule ①): under 560 px the
+             table gives way to two-line rows (UX-DR27) — the date over its
+             source, the close on the right, and the stored value under it
+             only where a split adjusted the close; elsewhere it would be
+             the same number twice. The phone lists' 560 px block swaps the
+             two. --%>
+        <ul id="quote-phone-rows" class="phone-rows" aria-label={gettext("Quotes")}>
+          <li :for={q <- @rows} class="phone-row">
+            <span class="phone-row__body">
+              <span class="phone-row__name"><%= Date.to_iso8601(q.date) %></span>
+              <span class="phone-row__ids">
+                <span class="badge quote-source"><%= quote_source_label(q.source) %></span>
+              </span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">
+                <%= Format.decimal(q.close, 2) %>
+                <small class="value-suffix"><%= @currency_code %></small>
+              </span>
+              <span :if={q.adjusted?} class="phone-row__figure2">
+                <%= gettext("stored %{value}", value: Format.decimal(q.stored_close, 2)) %>
+              </span>
+            </span>
+          </li>
+        </ul>
       <% end %>
     </section>
     """
