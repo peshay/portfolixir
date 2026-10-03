@@ -32,7 +32,11 @@ colors:
   accent-teal-soft: '#ccfbf1'
   accent-teal-dark: '#2dd4bf'
   accent-teal-soft-dark: 'rgb(45 212 191 / 0.16)'
-  accent-coral: '#e11d48'
+  # Darkened from #e11d48 on 2026-10-03 (Sprint 18 pick H5, issue 908): the
+  # same hue one step darker, the smallest step that clears 4.5:1 as body
+  # text on every light surface — Colors, the computed contrast table.
+  # brand-coral-2 above keeps #e11d48 for the logo gradient.
+  accent-coral: '#ce1b42'
   accent-coral-soft: '#ffe4e6'
   accent-coral-dark: '#fb7185'
   accent-coral-soft-dark: 'rgb(225 29 72 / 0.16)'
@@ -519,7 +523,7 @@ The accent system is the identity anchor (owner-loved, binding): the operator pi
 **Contrast commitments (binding):**
 
 - Normal-size text ≥ 4.5:1 on its surface in both modes — satisfied by {colors.text} and {colors.text-muted} only; the other text steps are barred from content (above).
-- Accent as text: violet and teal pass at body size in both modes; **coral passes only as large text** (≥ 24px, or 19px bold — the 30px stat values qualify). Body-size coral text in light mode is barred (4.38:1).
+- Accent as text: **all three accents pass at body size in both modes**, on every surface a link or an accent word sits on — the canvas, panels, muted wells, the accent's own tint and the attention and problem notes (computed table below). Until Sprint 18 coral passed only as large text in light mode (`#e11d48`, 4.38:1 on the canvas) while the build used it as body-size link text everywhere; issue 908 (pick H5) moved {colors.accent-coral} to `#ce1b42`, and the closest row is now coral on its own tint and on {colors.danger-soft} at 4.53:1.
 - Semantic colors ({colors.positive} / {colors.danger} / {colors.warning}) pass ≥ 4.5:1 on all standard surfaces in both modes — including {colors.warning} on {colors.warning-soft} (4.84:1 light, 8.45:1 dark once the dark tint exists).
 - **A label on an accent fill is normal text and takes the 4.5:1 bar** — it is not an "indicator" exempt at 3:1. This is why {colors.on-accent} is theme-dependent (added 2026-08-05).
 - Meaningful graphics (chart lines, buy/sell markers) ≥ 3:1 against {colors.chart-surface}.
@@ -597,6 +601,8 @@ Until the token lands in `app.css`, `.alert-error`'s 4.02:1 stands as a live con
 
 Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI components/graphics 3:1. "Large-only" = passes 3:1 but not 4.5:1.
 
+**Recomputed 2026-10-03 (Sprint 18 pick H5, issue 908): the coral rows, after {colors.accent-coral} was darkened from `#e11d48` to `#ce1b42` in light mode.** Every other figure in the table was re-checked to two decimals and is correct. One verdict was inverted and is corrected ("accent-coral / bg-elevated 4.70 — fail normal text": 4.70 passed). New rows give every accent on the surfaces where a remedy link actually sits — {colors.bg-muted} (note-severity data note), {colors.warning-soft} (attention) and {colors.danger-soft} (problem). The "selected" rows are re-keyed to the accent tints: since issue 644 `--color-selected` is `var(--color-accent-soft)`, so `#ede9fe` was only the violet case, and `selected-dark #1f2c42` cited a colour `app.css` no longer has. **The thinnest margins are stated, not absorbed:** coral on coral-soft and on danger-soft (the same `#ffe4e6`) clears the bar by 0.03, teal on danger-soft by 0.06; lightening either tint later reopens those rows.
+
 **Recomputed 2026-08-05 (accessibility pass): the four `{colors.danger}` rows**, after the token was darkened from `#dc2626` to `#b91c1c` to close the danger-tint gate. The `#dc2626` figures are kept in the gate section above as the before/after evidence and are wrong everywhere else. The `{colors.tx-sell}` rows below still cite `#ef4444`, the declared token; the build resolves `--color-danger` for that marker and defines no `--color-tx-*` (Violations), so the shipped light-mode sell marker now measures 6.47:1 on {colors.chart-surface}, not the 3.76:1 this table records for the token.
 
 | Pair | Ratio | Verdict | Where used |
@@ -614,11 +620,20 @@ Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI compo
 | accent-violet / bg-elevated | 5.70 | pass | stat values on cards |
 | accent-teal #0f766e / bg | 5.11 | pass | teal accent text |
 | accent-teal / bg-elevated | 5.47 | pass | teal stat values |
-| accent-coral #e11d48 / bg | **4.38** | **fail normal text** — pass large (30px stats OK) | coral accent text |
-| accent-coral / bg-elevated | **4.70** | **fail normal text** — pass large | coral stat values OK |
+| accent-coral #ce1b42 / bg | 5.08 | pass (was 4.38 at `#e11d48`, fail) | coral accent text, link text |
+| accent-coral / bg-elevated | 5.44 | pass (was 4.70 at `#e11d48` — a pass the table had marked "fail") | coral stat values, links in panels and tables |
 | accent-violet / violet-soft #ede9fe | 4.80 | pass | active nav, alert-success |
 | accent-teal / teal-soft #ccfbf1 | 4.86 | pass | active nav, alert-success |
-| accent-coral / coral-soft #ffe4e6 | **3.91** | **fail normal text** — pass large/UI | active nav wash, alert-success |
+| accent-coral / coral-soft #ffe4e6 | 4.53 | pass, 0.03 of headroom (was 3.91, fail) | active nav wash, alert-success |
+| accent-violet / bg-muted #eef1f6 | 5.03 | pass | a remedy link in a note-severity data note |
+| accent-teal / bg-muted | 4.83 | pass | same |
+| accent-coral / bg-muted | 4.81 | pass (was 4.15, fail) | same |
+| accent-violet / warning-soft #fffbeb | 5.50 | pass | a remedy link in an attention data note |
+| accent-teal / warning-soft | 5.28 | pass | same |
+| accent-coral / warning-soft | 5.25 | pass (was 4.53) | same |
+| accent-violet / danger-soft #ffe4e6 | 4.75 | pass | a remedy link in a problem data note |
+| accent-teal / danger-soft | 4.56 | pass, 0.06 of headroom | same |
+| accent-coral / danger-soft | 4.53 | pass, 0.03 of headroom (was 3.91, fail) | same |
 | positive #047857 / bg | 5.12 | pass | gains on canvas |
 | positive / bg-elevated | 5.48 | pass | gains in tables/cards |
 | danger #b91c1c / bg | 6.04 | pass | losses, destructive |
@@ -629,8 +644,8 @@ Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI compo
 | warning / bg-elevated | 5.02 | pass | warning alerts |
 | tx-buy #10b981 / chart-surface #ffffff | **2.54** | **fail 3:1 graphics** | buy markers on light charts |
 | tx-sell #ef4444 / chart-surface | 3.76 | pass 3:1 graphics (fail as text) | sell markers |
-| text / selected #ede9fe | 15.59 | pass | selected-row content |
-| text-muted / selected | 4.96 | pass | selected-row meta |
+| text / accent-soft (selected): violet #ede9fe · teal #ccfbf1 · coral #ffe4e6 | 15.59 · 16.43 · 15.42 | pass | selected-row content |
+| text-muted / accent-soft (selected): violet · teal · coral | 4.96 · 5.23 · 4.91 | pass | selected-row meta |
 | **Dark mode** | | | |
 | text-dark #e6eaf1 / bg-dark #0b0f14 | 15.93 | pass | body copy |
 | text-dark / bg-elevated-dark #131a23 | 14.51 | pass | panels |
@@ -651,8 +666,10 @@ Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI compo
 | warning-dark #fbbf24 / bg-dark | 11.51 | pass | stale timestamps |
 | tx-buy #10b981 / chart-surface-dark #131a23 | 6.90 | pass | buy markers (dark) |
 | tx-sell #ef4444 / chart-surface-dark | 4.65 | pass | sell markers (dark) |
-| text-dark / selected-dark #1f2c42 | 11.62 | pass | selected-row content |
-| text-muted-dark / selected-dark | 4.74 | pass | selected-row meta |
+| accent-teal-dark / teal-soft-dark composite (#17383c over bg-elevated-dark) | 6.77 | pass | active nav text in wash, teal |
+| accent-coral-dark / coral-soft-dark composite (#341a29 over bg-elevated-dark) | 5.89 | pass | active nav text in wash, coral |
+| text-dark / accent-soft-dark composites over bg-elevated-dark (selected): violet #2b2c45 · teal #17383c · coral #341a29 | 11.24 · 10.44 · 13.13 | pass | selected-row content |
+| text-muted-dark / the same composites (selected): violet · teal · coral | 4.58 · **4.25** · 5.35 | pass · **fail normal text** · pass | selected-row meta — the teal case is a recorded defect, not repaired by pick H5 (the Sprint 18 design pass, Part 9, lists it for filing) |
 
 Reference (non-normative, decorative): light `border` 1.23:1 and `border-strong` 1.39:1 vs surfaces — fine as decoration since "surface tone first, border second" means borders never solely delineate interactive components; if a control's boundary relies on border alone (quiet buttons do: bg-elevated on bg is near-1:1), the 3:1 UI-component rule technically applies — covered by the focus-indicator finding for the interactive states that matter.
 
@@ -663,7 +680,7 @@ Reference (non-normative, decorative): light `border` 1.23:1 and `border-strong`
 | **on-accent on the accent fills — light** | | | |
 | on-accent #ffffff / accent-violet #7c3aed | 5.70 | pass | active segmented option, `.button-primary`, active view chip |
 | on-accent #ffffff / accent-teal #0f766e | 5.47 | pass | same |
-| on-accent #ffffff / accent-coral #e11d48 | 4.70 | pass | same |
+| on-accent #ffffff / accent-coral #ce1b42 | 5.44 | pass (4.70 at `#e11d48`) | same |
 | **on-accent on the accent fills — dark** | | | |
 | on-accent #ffffff / accent-violet-dark #a78bfa | **2.72** | **fail — all text sizes** | active segmented option, `.button-primary`, active view chip |
 | on-accent #ffffff / accent-teal-dark #2dd4bf | **1.86** | **fail — all text sizes** | same |
@@ -1938,7 +1955,9 @@ D-6, ADR-0049 §4 as amended). Built by Sprint 16 Lane D in
   its three columns. Colour and underline are two cues, so the control does
   not rest on colour alone, `forced-colors` included. The coral accent's
   light-mode contrast for body-size link text is the token question every
-  `.link-button` already has, not a property of this pick.
+  `.link-button` already has, not a property of this pick. *(Closed by issue
+  908, Sprint 18 pick H5: {colors.accent-coral} is `#ce1b42` in light mode,
+  5.44:1 on a panel.)*
 - **The dialog names the rule on edit too.** The name field is the first
   field of `.form-grid` on create **and** on edit (`maxlength` 255). The
   heading keeps the stored name until the rename is saved.
@@ -3264,3 +3283,41 @@ Three halves, and all three change the picture:
   a plan with no such category gets the sentence without the figure. A full
   plan, or one over 100 %, measures against the full plan and shows no
   second sentence. Percentages glue their sign, as everywhere in the app.
+
+## Amendment 2026-10-03 — Coral passes light-mode contrast *(Sprint 18 pick H5, issue 908)*
+
+Board `mockups/ux-design-2026-10-02/05-light-contrast`, "after" (before/after,
+no variant). Link text is the accent colour at body size, at rest, plus an
+underline (G7-A): `.link-button` (and `.policy-rule__name`),
+`.merge-date-link`, `.merge-record__target`, `.kpi-summary__link`; accent
+text on the accent tint is the same case (`.alert-success`, the active
+navigation). Violet and teal cleared 4.5:1 on every light surface; **coral
+did not** — 4.38 on the canvas, 4.15 in a note's muted well, 3.91 on its own
+tint and in a problem note — so with the coral accent picked, every link
+was body-size text the spec itself barred.
+
+- **One token, two lines:** `--color-accent-coral` goes from `#e11d48` to
+  `#ce1b42` in `:root` and in `[data-theme="light"]`, the two places light
+  mode sets it. Same hue (HSL 347°, saturation 77 %), lightness 49.8 % →
+  45.7 %: the smallest step that clears 4.5:1 on all six light surfaces; the
+  binding one is coral-soft, which is also {colors.danger-soft}, at 4.53. The
+  dark blocks keep `#fb7185` and measure as before. `--brand-coral-2` (the
+  logo gradient) keeps `#e11d48`. The documentation site's stylesheet
+  (`docs/styles.css`) shares the accent palette and takes the same light
+  value.
+- **What moves with it:** the coral fills (`.button-primary`, the active
+  segment; white labels on them 4.70 → 5.44), the accent picker's coral
+  swatch, the accent dot, the SMA-200 line and the second benchmark
+  overlay — all slightly darker, all with more contrast. The operator sees
+  this.
+- **Not taken:** `#be123c` (rose-700, the step teal uses) leaves more margin
+  (5.24 on coral-soft) but changes the look more; a separate `--color-link`
+  token would leave the fills and chart lines alone but needs a token in
+  five blocks and a sweep of every rule that colours text with the accent,
+  and would still miss `.alert-success` and the active navigation.
+- **Pinned by tests:** `CssAccentContrastTest` computes every accent's
+  ratio from the token values in `app.css` (WCAG 2.x relative luminance,
+  translucent tints composited in sRGB over the panel colour) on the six
+  light surfaces and the white label, and on the three dark surfaces and the
+  accent's own dark tint, and fails below 4.5:1; the decided value itself is
+  pinned beside the other decided tokens in `CssThemeTokenParityTest`.

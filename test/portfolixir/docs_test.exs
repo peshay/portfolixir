@@ -270,7 +270,7 @@ defmodule Portfolixir.DocsTest do
     for token <- [
           "--color-accent-violet: #7c3aed",
           "--color-accent-teal: #0f766e",
-          "--color-accent-coral: #e11d48"
+          "--color-accent-coral: #ce1b42"
         ] do
       assert docs_css =~ token
     end
@@ -450,7 +450,7 @@ defmodule Portfolixir.DocsTest do
     for token <- [
           "--color-accent-violet: #7c3aed",
           "--color-accent-teal: #0f766e",
-          "--color-accent-coral: #e11d48"
+          "--color-accent-coral: #ce1b42"
         ] do
       assert docs_css =~ token
       assert app_css =~ token
