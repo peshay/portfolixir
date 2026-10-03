@@ -94,18 +94,61 @@ defmodule Portfolixir.Invariants.CssTouchAndFocusTest do
   #   rule, scoped to that remedy: its sentence (`.detail-tab-empty`, 13 px
   #   on the 1.4 line) is 18 px high, as a note's line is, so the rule's
   #   13 px fit it unchanged.
-  # - No other `.link-button` outside a note is reached: the rule names the
-  #   note's remedy and the bond block's, nothing broader.
+  # - No `.link-button` beyond the named remedies is reached: the rule names
+  #   the note's remedy, the bond block's and the three U1 holders below,
+  #   nothing broader.
   test "the bond block's empty-state remedy is a 44 px target on touch" do
     {selectors, rule} = remedy_rule()
 
     assert selectors == [
              ".data-note__body .link-button",
-             ".bond-strip .detail-tab-empty .link-button"
+             ".bond-strip .detail-tab-empty .link-button",
+             ".form-help .link-button",
+             ".alert-warning .link-button",
+             ".alert-error .link-button"
            ]
 
     assert rule =~ ~r/padding-block:\s*13px;/
     assert rule =~ ~r/margin-block:\s*-13px;/
+  end
+
+  # User story (U1, #912; the closing act, R9; board
+  # ux-review-2026-10-03/02-delete-dialog-repairs):
+  # As the operator on a phone in the notes-only drawer or in "Record split",
+  # I want "Delete…", "Delete split…" and "Delete the booked split…" to be
+  # 44 px targets where they stand, and on the keyboard to draw the accent
+  # ring every control draws,
+  # so that the remedy a limit carries is as reachable as the note's.
+  #
+  # Acceptance criteria:
+  # - The coarse rule of the data note's remedy (H6.1) also takes a
+  #   `.link-button` inside `.form-help`, `.alert-warning` and `.alert-error`:
+  #   13 px of block padding given back as a negative block margin, so the
+  #   line keeps its height.
+  # - On keyboard focus the three draw `outline: 2px solid` in the accent
+  #   with a 2 px offset, not the browser's 1 px ring.
+  test "a remedy in a help line or a split wizard's alert is a 44 px target with the accent ring" do
+    [_, list, body] =
+      Regex.run(
+        ~r/@media \(pointer: coarse\) \{\s*(\.data-note__body \.link-button[^{]*)\{([^}]*)\}\s*\}/,
+        @css
+      ) || flunk("no coarse rule for the remedies")
+
+    for holder <- ~w(.form-help .alert-warning .alert-error) do
+      assert list =~ "#{holder} .link-button", "#{holder}'s remedy has no 44 px floor"
+    end
+
+    assert body =~ ~r/padding-block:\s*13px;/
+    assert body =~ ~r/margin-block:\s*-13px;/
+
+    [_, ring] =
+      Regex.run(
+        ~r/\n\.form-help \.link-button:focus-visible,\s*\.alert-warning \.link-button:focus-visible,\s*\.alert-error \.link-button:focus-visible \{([^}]*)\}/,
+        @css
+      ) || flunk("no focus ring for the remedies")
+
+    assert ring =~ ~r/outline:\s*2px solid var\(--color-accent\);/
+    assert ring =~ ~r/outline-offset:\s*2px;/
   end
 
   # User story (#1033; board 06, H6.3, rule ③):

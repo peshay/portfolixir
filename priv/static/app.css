@@ -7530,13 +7530,30 @@ select:disabled {
    block's empty-state remedy stands in its sentence the same way, on a
    13 px .detail-tab-empty line of the same 18 px, and takes the same rule,
    scoped to that remedy (issue 330, closing act on U7, finding 5; board
-   ux-review-2026-10-03/04-bond-repairs B4). */
+   ux-review-2026-10-03/04-bond-repairs B4). The remedy a limit carries in a
+   form's help line (the notes-only drawer's "Delete…") and in the split
+   wizard's warning and refusal ("Delete the booked split…") joins the rule
+   too (Sprint 18 U1, issue 912, the closing act R9; board
+   ux-review-2026-10-03/02-delete-dialog-repairs). */
 @media (pointer: coarse) {
   .data-note__body .link-button,
-  .bond-strip .detail-tab-empty .link-button {
+  .bond-strip .detail-tab-empty .link-button,
+  .form-help .link-button,
+  .alert-warning .link-button,
+  .alert-error .link-button {
     padding-block: 13px;
     margin-block: -13px;
   }
+}
+
+/* Those three remedies draw the shared 2 px accent ring on keyboard focus,
+   not the browser's 1 px default (DESIGN.md → Colors, the Accessibility
+   Floor; R9). */
+.form-help .link-button:focus-visible,
+.alert-warning .link-button:focus-visible,
+.alert-error .link-button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 .badge-warning {
   background: var(--color-warning-soft);
