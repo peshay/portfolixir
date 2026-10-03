@@ -4,7 +4,8 @@ import { describe, it } from "node:test";
 
 import { MCP_PROFILES } from "../src/profiles.js";
 import { publishedToolList } from "../src/server.js";
-import { SCHEMA_CEILINGS, schemaBytes, tokenRange } from "./support/schema-budget.js";
+import { publishedInstructions } from "./support/companion.js";
+import { instructionsBytes, SCHEMA_CEILINGS, schemaBytes, tokenRange } from "./support/schema-budget.js";
 
 // Sprint 17 A5 (#982) with A3 (#994): docs/llms.txt tells an agent what
 // connecting costs per profile. The figures are measured here, so this test
@@ -51,5 +52,49 @@ describe("the LLM-facing entry's schema figures", () => {
         `${profile}: states at most ${high} tokens, measured up to ${tokenRange(measured).high}`
       );
     }
+  });
+
+  // User story (#1027 review round):
+  // As an agent reading llms.txt before I connect,
+  // I want the size it states for the server instructions to be measured
+  // like the tool list's,
+  // so that a change to the instructions cannot leave the entry stale.
+  //
+  // Acceptance criteria:
+  // - The entry states the instructions' size as a range of bytes across the
+  //   profiles, and an approximate size in KB inside that range.
+  // - The range's ends are exactly the smallest and the largest instructions
+  //   a host receives under any profile, counted in UTF-8 bytes; changing
+  //   the instructions without the entry fails here.
+  it("states the server instructions' size as measured", async () => {
+    const entry = readFileSync(ENTRY, "utf8");
+    const stated =
+      /the server instructions[\s\S]*?add about ([\d.]+) KB more \(([\d,]+) to ([\d,]+) bytes,\s+depending on the profile\)/.exec(
+        entry
+      );
+
+    assert.ok(stated, "llms.txt states no byte range for the server instructions");
+
+    const [, about, low, high] = stated;
+    const measured: number[] = [];
+
+    for (const profile of MCP_PROFILES) {
+      const bytes = instructionsBytes(profile);
+      assert.equal(
+        Buffer.byteLength((await publishedInstructions({ profile })) ?? "", "utf8"),
+        bytes,
+        `${profile}: the measured instructions are the published ones`
+      );
+      measured.push(bytes);
+    }
+
+    const [least, most] = [Math.min(...measured), Math.max(...measured)];
+
+    assert.equal(number(low), least, `llms.txt states ${low} bytes at least, measured ${least}`);
+    assert.equal(number(high), most, `llms.txt states ${high} bytes at most, measured ${most}`);
+    assert.ok(
+      Number(about) * 1000 >= least && Number(about) * 1000 <= most,
+      `llms.txt says about ${about} KB, outside the measured ${least} to ${most} bytes`
+    );
   });
 });

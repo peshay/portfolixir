@@ -43,6 +43,53 @@ defmodule Portfolixir.ScratchDatabaseSweepTest do
     assert exists?(stranger)
   end
 
+  # User story (#1022 review round):
+  # As the maintainer whose run shares the database server with another,
+  # I want the sweep to leave a database alone the moment anything uses it,
+  # and to finish its pass when a database it meant to drop is busy or gone,
+  # so that a sweep neither drops a database in use nor fails a test run.
+  #
+  # Acceptance criteria:
+  # - A database shaped like an orphan, with a dead VM's pid, survives while
+  #   a connection to it is open.
+  # - A database something connects to between the sweep's look and its
+  #   DROP survives, and the sweep returns normally without it.
+  # - A database a concurrent sweep dropped first is skipped, not raised.
+  test "the sweep keeps a database in use, and skips one that turns busy or goes" do
+    base = Keyword.fetch!(Repo.config(), :database)
+    dead_pid = dead_os_pid()
+
+    held = "#{base}_upgrade_#{dead_pid}_3"
+    turns_busy = "#{base}_upgrade_#{dead_pid}_4"
+    goes = "#{base}_upgrade_#{dead_pid}_5"
+
+    for name <- [held, turns_busy, goes], do: :ok = create!(name)
+
+    on_exit(fn -> for name <- [held, turns_busy, goes], do: drop!(name) end)
+
+    # Open from the start, so the sweep's look already sees it.
+    connect!(held)
+
+    test = self()
+
+    dropped =
+      ScratchDatabase.sweep!(
+        before_drop: fn
+          ^turns_busy -> send(test, {:holding, connect!(turns_busy)})
+          ^goes -> drop!(goes)
+          _other -> :ok
+        end
+      )
+
+    assert_received {:holding, _conn}
+    refute held in dropped
+    refute turns_busy in dropped
+    refute goes in dropped
+    assert exists?(held)
+    assert exists?(turns_busy)
+    refute exists?(goes)
+  end
+
   # The pid of a shell that printed it and has exited by the time
   # System.cmd/2 returns.
   defp dead_os_pid do
@@ -58,6 +105,20 @@ defmodule Portfolixir.ScratchDatabaseSweepTest do
       :ok -> :ok
       {:error, :already_down} -> :ok
     end
+  end
+
+  # A connection to `name` that stays open until the test ends. The pool's
+  # one connection is up when this returns.
+  defp connect!(name) do
+    {:ok, conn} =
+      Postgrex.start_link(
+        Keyword.merge(config(name), pool: DBConnection.ConnectionPool, pool_size: 1)
+      )
+
+    Postgrex.query!(conn, "SELECT 1", [])
+    Process.unlink(conn)
+    on_exit(fn -> GenServer.stop(conn) end)
+    conn
   end
 
   defp exists?(name) do
