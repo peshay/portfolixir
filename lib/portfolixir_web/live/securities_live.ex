@@ -5384,7 +5384,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
     socket = assign(socket, :split_dialog_open?, false)
 
     with %Transaction{type: "split"} = row <- Ledger.get_transaction(id),
-         %{} = deleting <- BookingDeleteDialog.prepare(row, %{}) do
+         %{} = deleting <-
+           BookingDeleteDialog.prepare(row, %{twin_tags: Map.get(socket.assigns, :twin_tags, %{})}) do
       {:noreply, assign(socket, :deleting_split, deleting)}
     else
       _gone ->
