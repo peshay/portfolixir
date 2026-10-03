@@ -4269,13 +4269,13 @@ msgstr ""
 msgid "Row %{row}: %{message}"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:285
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:385
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:224
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (before 1900) — fix the booking in the source and re-import"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:303
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:403
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:236
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
@@ -4346,7 +4346,7 @@ msgstr ""
 msgid "missing transaction type"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:151
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:171
 #, elixir-autogen, elixir-format
 msgid "unknown PP CSV type %{type}"
 msgstr ""
@@ -10581,3 +10581,8 @@ msgid "The merge the link names is not among the newest %{count} listed here."
 msgid_plural "The merge the link names is not among the newest %{count} listed here."
 msgstr[0] ""
 msgstr[1] ""
+
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:208
+#, elixir-autogen, elixir-format
+msgid "receiving side of the transfer in row %{row} — booked once, from that row"
+msgstr ""
