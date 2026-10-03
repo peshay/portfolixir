@@ -37,8 +37,7 @@ defmodule PortfolixirWeb.ApiV1TotalValuationTest do
 
   # User story (#1007; Sprint 18 plan D-5):
   # As the agent meeting a fresh instance,
-  # I want the total across every portfolio in one read, the figure the
-  # dashboard's "Gesamt" shows,
+  # I want the total across every portfolio in one read,
   # so that my first answer does not need a structural write (a catch-all
   # view) or a client-side sum of portfolios.
   #
@@ -48,6 +47,10 @@ defmodule PortfolixirWeb.ApiV1TotalValuationTest do
   #   without any view existing.
   # - It has the view valuation's shape with view_id null and no view echo,
   #   financial decimals as strings, and a valuation_note naming the scope.
+  # - The note claims the dashboard's figure only under the conditions that
+  #   make it true (PR beta review): the dashboard values its card in the
+  #   first portfolio's base currency and follows the default view, while
+  #   this read is always EUR over every account.
   # - include_positions=false returns the roll-up only, as on the view read;
   #   an invalid value is a 422.
   test "answers the total across every portfolio without a view", %{conn: conn} do
@@ -76,13 +79,20 @@ defmodule PortfolixirWeb.ApiV1TotalValuationTest do
     assert data["valuation_note"] =~
              "across ALL portfolios and every account, each counted once, with no view"
 
+    assert data["valuation_note"] =~
+             "It equals the dashboard's total when the first portfolio's base currency " <>
+               "is EUR and no default view is set."
+
+    refute data["valuation_note"] =~ "Gesamt"
+
     assert [alpha_row, beta_row] = Enum.sort_by(data["positions"], & &1["securities_account_id"])
     assert alpha_row["securities_account_id"] == world.alpha.depot.id
     assert alpha_row["market_value"] == "100"
     assert beta_row["market_value"] == "50"
     assert length(data["cash_balances"]) == 2
 
-    # The figure the dashboard's "Gesamt" reads, value for value.
+    # The unscoped union Valuation.for_view(nil) reads in EUR, value for
+    # value.
     expected =
       nil
       |> Valuation.for_view()

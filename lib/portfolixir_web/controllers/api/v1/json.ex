@@ -862,11 +862,15 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   end
 
   # #1007 (D-5): the view-less read, `view_id` nil, is the total of every
-  # account, and its note says so instead of describing a view.
+  # account, and its note says so instead of describing a view. The
+  # dashboard's card is valued in the first portfolio's base currency and
+  # follows the default view, so the note names the conditions under which
+  # the two figures agree rather than claiming they always do.
   defp view_valuation_note(base_currency, nil) do
     "Totals are in #{base_currency} across ALL portfolios and every account, " <>
-      "each counted once, with no view: the unscoped total the dashboard's " <>
-      "Gesamt shows, converted via the EUR hub. " <> price_flags_note()
+      "each counted once, with no view, converted via the EUR hub. It equals " <>
+      "the dashboard's total when the first portfolio's base currency is EUR " <>
+      "and no default view is set. " <> price_flags_note()
   end
 
   defp view_valuation_note(base_currency, _view_id) do
