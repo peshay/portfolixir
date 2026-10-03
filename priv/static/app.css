@@ -8588,6 +8588,18 @@ dialog.booking-drawer {
   }
 }
 
+@media (max-width: 720px) {
+  /* overview reading on a phone: two figures per row, as DESIGN.md gives
+     the grid under 720px. The three-column rule above outranks the
+     two-column `.overview-metrics` of the 720 px block by specificity, so
+     the six figures stood in three columns of about 105 px at 390 px and
+     their labels collided (Sprint 18 U5, board
+     ux-design-2026-10-02/03-bond-master-data rule 4; issue 1050). */
+  .overview-reading .overview-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* --- section disclosure (DESIGN.md -> Components -> disclosure) ---------
    A section's secondary table behind the spec'd chevron. It exists because
    .more-filters was carrying three jobs at once and its summary renders no

@@ -206,6 +206,33 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
              ~r/#securities-table,\s*#transaction-table-wrapper,\s*#realized-trades-table-wrapper,\s*#detail-closed-trades-table-wrap,\s*#contribution-table-wrap,\s*#quotes-table-wrapper \{\s*display: none;/
   end
 
+  # User story (#1050; board ux-design-2026-10-02/03-bond-master-data, rule
+  # ④, a conformance repair; DESIGN.md gives the grid "two per row under
+  # 720px"):
+  # As the operator reading a security's Overview on a 390 px phone,
+  # I want its six figures in two columns,
+  # so that "TAGESÄNDERUNG" does not run into "1Y" and "Durchschnittseinstand"
+  # stays inside its cell.
+  #
+  # Acceptance criteria:
+  # - Under 720 px `.overview-reading .overview-metrics` goes to two
+  #   columns: the reading surface's three-column rule (issue 804) outranked
+  #   the spec'd two-column rule by specificity, so the repair restates it
+  #   at the same specificity inside the breakpoint.
+  test "under 720 px the Overview's figures stand in two columns" do
+    phone =
+      case Regex.run(
+             ~r/@media \(max-width: 720px\) \{\n  \/\* overview reading on a phone[^\n]*\n(.*?)\n\}\n/s,
+             @css
+           ) do
+        [_, body] -> body
+        nil -> flunk("no 720 px block for the overview reading's figures")
+      end
+
+    assert phone =~
+             ~r/\.overview-reading \.overview-metrics \{\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/
+  end
+
   # User story (board ux-design-2026-10-02/07-phone-390, H7.6, rule ④;
   # UX-DR27 places the kebab at the row's end):
   # As the operator reading the transaction history on a 390 px phone,
