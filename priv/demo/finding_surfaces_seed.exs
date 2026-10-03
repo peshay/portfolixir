@@ -127,16 +127,18 @@ Code.eval_file("priv/demo/quotes_seed.exs")
 Code.eval_file("priv/demo/strategies_seed.exs")
 
 # The demo seed's plan is complete: 85 % across the categories plus a 15 %
-# cash target. The review instance needs the other state — a plan that does
-# not add up — because the walkthrough conditions name it as one of the three
-# alarms that must fire (pr-review-checklist.md → G). Lowering the cash target
-# leaves five points unallocated and renders the sum warning, without touching
-# the demo seed the README screenshots come from.
+# cash target. The review instance needs the other state — a plan above 100 %
+# — because the walkthrough conditions name it as one of the three alarms
+# that must fire (pr-review-checklist.md → G). A plan under 100 % is a
+# choice, not an alarm (ADR-0040 §3, #969): it renders a muted remainder row
+# and no warning. Raising the cash target to 20 % puts the plan at 105 % and
+# renders the sum warning, without touching the demo seed the README
+# screenshots come from.
 :ok =
   Portfolixir.Portfolios.Targets.set_cash_target(
     owner,
     portfolio.id,
-    Decimal.new("0.10")
+    Decimal.new("0.20")
   )
 
 depot = Enum.find(Portfolios.list_securities_accounts(), &(&1.name == "Demo Depot"))

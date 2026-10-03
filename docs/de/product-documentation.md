@@ -1038,8 +1038,11 @@ Die Zustände sind:
 - **Ein Plan existiert.** Jede Kategorie erhält ein **Soll %**-Feld, und darunter
   steht ein **Cash**-Zielfeld; **Plan speichern** schreibt den gesamten
   `(Sicht, Klassifizierung)`-Plan auf einmal. Eine Live-**Σ**-Fußzeile summiert
-  die Kategoriegewichte plus das Cash-Ziel und zeigt bei genau 100 % ein ✓, sonst
-  ein ✗ mit dem gelben Abweichungshinweis — und aktualisiert sich beim Tippen.
+  die Kategoriegewichte plus das Cash-Ziel und aktualisiert sich beim Tippen:
+  bei genau 100 % ein ✓, über 100 % ein ✗ mit dem gelben Abweichungshinweis.
+  Ein Plan unter 100 % ist eine Wahl, kein Fehler (ADR-0040): Die Σ trägt kein
+  Zeichen, und eine gedämpfte letzte Zeile **Nicht verteilt** zeigt, was der
+  Plan nicht verteilt.
   Eine Elternkategorie, deren Kinder Gewichte tragen, zeigt deren Summe neben
   ihrem Namen (**Kinder Σ**), in der Abweichungsfarbe, wenn sie vom eigenen
   Gewicht der Elternkategorie abweicht; sie folgt jeder Eingabe wie die

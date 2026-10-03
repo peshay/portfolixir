@@ -108,9 +108,10 @@ data that triggers no finding surface.
   control row reaches a release.
 - **Seed data that triggers every finding surface on the touched screens.** Not
   "some data" — data chosen so the warning states render. The three that must be
-  present: an unclassified security, a stale quote, and a plan that
-  does not sum to 100 %. A screen whose alarm never fires during the walkthrough
-  was not reviewed, it was visited.
+  present: an unclassified security, a stale quote, and a plan above 100 %
+  (a plan under 100 % is a choice, not an alarm: ADR-0040 §3, #969). A screen
+  whose alarm never fires during the walkthrough was not reviewed, it was
+  visited.
 
 A **skipped condition is itself a finding**, at Should-fix, and it is recorded
 against the review rather than against the diff: the reviewer states in the
