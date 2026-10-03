@@ -10,10 +10,35 @@ import { publishedToolList } from "../../src/server.js";
 // new figure; never raise it. A tool or a description that needs more room
 // pays for it by trimming another, so connecting never silently costs more.
 // docs/llms.txt states figures no higher than these (test/llms-entry.test.ts).
+//
+// Lowering a ceiling appends a row below, with its date and why; a row is
+// history and is never edited. The test refuses a row that sets any profile
+// above the row before it (#1027), and the ceilings in force are the last
+// row's.
+export interface CeilingRow {
+  since: string;
+  why: string;
+  read: number;
+  book: number;
+  full: number;
+}
+
+export const CEILING_HISTORY: readonly CeilingRow[] = [
+  {
+    since: "2026-10-01",
+    why: "the budget lands (Sprint 17 A3, #994)",
+    read: 106_000,
+    book: 179_000,
+    full: 209_000
+  }
+];
+
+const inForce = CEILING_HISTORY[CEILING_HISTORY.length - 1];
+
 export const SCHEMA_CEILINGS: Record<McpProfile, number> = {
-  read: 106_000,
-  book: 179_000,
-  full: 209_000
+  read: inForce.read,
+  book: inForce.book,
+  full: inForce.full
 };
 
 /**

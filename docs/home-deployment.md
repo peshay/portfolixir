@@ -705,10 +705,12 @@ on your machine — the same install CI and the companion's image run:
 ```bash
 npm ci --ignore-scripts --prefix mcp-server
 npm run build --prefix mcp-server
-PORTFOLIXIR_API_BASE_URL=http://127.0.0.1:4000 \
-PORTFOLIXIR_API_TOKEN=replace-me \
-npm start --prefix mcp-server
 ```
+
+Over stdio, the companion is started by the MCP client, not from a shell: the
+client runs `node mcp-server/dist/index.js` with the API's address and token in
+its environment. [Connect an Agent](integration/connect-an-agent.html) gives
+the client configuration for each transport.
 
 ## Versions And Rollback
 

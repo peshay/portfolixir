@@ -747,10 +747,12 @@ die CI und das Image des Begleitdienstes ausführen:
 ```bash
 npm ci --ignore-scripts --prefix mcp-server
 npm run build --prefix mcp-server
-PORTFOLIXIR_API_BASE_URL=http://127.0.0.1:4000 \
-PORTFOLIXIR_API_TOKEN=replace-me \
-npm start --prefix mcp-server
 ```
+
+Über stdio startet der MCP-Client den Begleitdienst, nicht eine Shell: Der
+Client führt `node mcp-server/dist/index.js` mit der Adresse und dem Token der
+API in seiner Umgebung aus. [Einen Agenten verbinden](integration/connect-an-agent.html)
+gibt die Client-Konfiguration für jeden Transport.
 
 ## Versionen und Rollback
 
