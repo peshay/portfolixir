@@ -9029,6 +9029,13 @@ input.num {
   }
 }
 
+/* The caption's kind stays one piece with its separator, which a no-break
+   space glues to the name: a line never starts with "· Transaktion" nor
+   leaves the kind alone (Sprint 18 U1, issue 912, the closing act R10g). */
+.row-context-menu__kind {
+  white-space: nowrap;
+}
+
 /* Under 640 px every entity's kebab sits at the end of its own name line,
    now that a band carries two (board 01 ④). */
 @media (max-width: 640px) {

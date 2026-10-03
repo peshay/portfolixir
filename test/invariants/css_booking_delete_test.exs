@@ -29,4 +29,21 @@ defmodule Portfolixir.Invariants.CssBookingDeleteTest do
     assert rule =~ ~r/overflow-wrap:\s*anywhere;/
     assert rule =~ ~r/min-width:\s*0;/
   end
+
+  # User story (U1, #912; the closing act, R10g):
+  # As the operator opening a row's menu on the phone,
+  # I want the sheet's caption never to start a line with "· Transaktion"
+  # nor to leave the kind alone on one,
+  # so that the caption reads as one name and its kind.
+  #
+  # Acceptance criteria:
+  # - The kind after the row's name is one span that does not wrap; the
+  #   markup glues it to the name's last word with a no-break space.
+  test "the row menu's caption keeps its separator with the kind" do
+    [_, rule] =
+      Regex.run(~r/\n\.row-context-menu__kind \{([^}]*)\}/, @css) ||
+        flunk("no rule for the caption's kind")
+
+    assert rule =~ ~r/white-space:\s*nowrap;/
+  end
 end
