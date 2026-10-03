@@ -12,9 +12,32 @@ defmodule PortfolixirWeb.ApiV1ReadParamBoundsTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Clock
 
   @outside ["-5000-01-01", "1899-12-31", "3000-01-01", "20260102", "2026-1-2"]
   @nul "a\u0000b"
+
+  # Every GET route under /api/v1, read from the router when this file
+  # compiles, so the walk below is one test per route: each has its own
+  # timeout, and a slow or failing route names itself. A path routed twice
+  # answers from its first route, so it is walked once.
+  @api_reads PortfolixirWeb.Router
+             |> Phoenix.Router.routes()
+             |> Enum.filter(&(&1.verb == :get and String.starts_with?(&1.path, "/api/v1")))
+             |> Enum.map(& &1.path)
+             |> Enum.uniq()
+
+  @text_keys ~w(query holder institution resource_type resource_id name type kind status
+                jurisdiction direction scope series projection period fields view)
+
+  @date_keys ~w(from to as_of since date)
+
+  @malformed_filters Enum.map(@text_keys, &{&1, @nul}) ++
+                       for(
+                         key <- @date_keys,
+                         value <- ["-5000-01-01", "5874898-01-01"],
+                         do: {key, value}
+                       )
 
   setup %{conn: conn} do
     conn =
@@ -24,10 +47,14 @@ defmodule PortfolixirWeb.ApiV1ReadParamBoundsTest do
 
     world = base_world(name: "Read filters")
     security = create_security!(name: "Sable Ridge Minerals", ticker: "SRM")
-    buy!(world, security, date: ~D[2026-01-05])
+    # Dated a week before today rather than on a fixed day: the reads that
+    # walk the ledger day by day walk from the first booking to today, so a
+    # fixed date made the route walk below slower every day it aged.
+    booked_on = Date.add(Clock.today(), -7)
+    buy!(world, security, date: booked_on)
     {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Core"})
 
-    %{conn: conn, world: world, security: security, view: view}
+    %{conn: conn, world: world, security: security, view: view, booked_on: booked_on}
   end
 
   defp status_and_errors(conn, path) do
@@ -49,7 +76,7 @@ defmodule PortfolixirWeb.ApiV1ReadParamBoundsTest do
   #   2999-12-31, or in another form, with 422 naming the parameter.
   # - A date inside the range still filters.
   test "a dated read refuses a date outside the bounded range",
-       %{conn: conn, world: world, security: security} do
+       %{conn: conn, world: world, security: security, booked_on: booked_on} do
     reads = [
       {"/api/v1/transactions", "from"},
       {"/api/v1/transactions", "to"},
@@ -68,11 +95,14 @@ defmodule PortfolixirWeb.ApiV1ReadParamBoundsTest do
       assert Map.has_key?(errors, key), "#{path}?#{key}=#{value}: #{inspect(errors)}"
     end
 
+    before_the_buy = Date.add(booked_on, -4)
+    after_the_buy = Date.add(booked_on, 1)
+
     assert %{"data" => [_booked]} =
-             conn |> get("/api/v1/transactions?from=2026-01-01") |> json_response(200)
+             conn |> get("/api/v1/transactions?from=#{before_the_buy}") |> json_response(200)
 
     assert %{"data" => []} =
-             conn |> get("/api/v1/transactions?from=2026-02-01") |> json_response(200)
+             conn |> get("/api/v1/transactions?from=#{after_the_buy}") |> json_response(200)
   end
 
   # User story:
@@ -119,37 +149,30 @@ defmodule PortfolixirWeb.ApiV1ReadParamBoundsTest do
   # Acceptance criteria:
   # - Across every API read, a malformed date or text value in any of the
   #   filter names the reads take answers something other than a 500.
-  test "no API read answers a malformed date or text filter with a server error",
-       %{conn: conn, world: world, security: security, view: view} do
-    routes =
-      PortfolixirWeb.Router
-      |> Phoenix.Router.routes()
-      |> Enum.filter(&(&1.verb == :get and String.starts_with?(&1.path, "/api/v1")))
+  # - The walk covers every GET route under /api/v1, more than 50 of them,
+  #   one test per route.
+  test "the route walk covers every API read" do
+    assert length(@api_reads) > 50
+  end
 
-    assert length(routes) > 50
+  for route_path <- @api_reads do
+    test "GET #{route_path} answers a malformed date or text filter without a server error",
+         %{conn: conn, world: world, security: security, view: view} do
+      route_path = unquote(route_path)
 
-    text_keys =
-      ~w(query holder institution resource_type resource_id name type kind status
-         jurisdiction direction scope series projection period fields view)
-
-    date_keys = ~w(from to as_of since date)
-
-    values =
-      Enum.map(text_keys, &{&1, @nul}) ++
-        for key <- date_keys, value <- ["-5000-01-01", "5874898-01-01"], do: {key, value}
-
-    for route <- routes, {key, value} <- values do
       path =
-        route.path
+        route_path
         |> String.replace(":portfolio_id", "#{world.portfolio.id}")
         |> String.replace(":security_id", "#{security.id}")
         |> String.replace(":view_id", "#{view.id}")
         |> String.replace(":id", "#{security.id}")
         |> String.replace(":file", "missing.png")
 
-      query = URI.encode_query(%{key => value, "tax_year" => "2025"})
-      conn = get(conn, path <> "?" <> query)
-      assert conn.status != 500, "#{route.path}?#{key}: #{conn.status}"
+      for {key, value} <- @malformed_filters do
+        query = URI.encode_query(%{key => value, "tax_year" => "2025"})
+        conn = get(conn, path <> "?" <> query)
+        assert conn.status != 500, "#{route_path}?#{key}: #{conn.status}"
+      end
     end
   end
 end
