@@ -1706,4 +1706,38 @@ defmodule Portfolixir.DocsTest do
       end
     end
   end
+
+  # User story (#330, closing act on U7, finding 6):
+  # As the maintainer reading ADR-0052 after the merge,
+  # I want its status to say plainly what kind of decision it is and which
+  # merge adopted it, and its consequences to name the cases its two rules
+  # get wrong,
+  # so that the record does not borrow a planning PR's adoption rule, and a
+  # distressed bond named by the guard is a known case, not a surprise.
+  #
+  # Acceptance criteria:
+  # - The status names a story-level decision recorded by #330's story and
+  #   adopted by the merge of Sprint 18's PR γ (#1054); it no longer cites
+  #   ADR-0026 step 1 or PR #780, which concern planning PRs.
+  # - The consequences name the guard's known false positive (a distressed
+  #   bond legitimately booked at about 3 % of par and quoted at 65) and the
+  #   price-at-most-5 rule's.
+  test "ADR-0052 states its adoption plainly and names its known false positives" do
+    adr =
+      "docs/decisions/0052-bond-master-data-in-dedicated-columns.md"
+      |> File.read!()
+      |> String.replace(~r/\s+/, " ")
+
+    [status] = Regex.run(~r/\*\*Status:\*\*[^*]*/, adr)
+
+    assert status =~ "a story-level decision, recorded by #330's story"
+    assert status =~ "adopted by the merge of Sprint 18's PR γ (#1054)"
+    refute status =~ "ADR-0026"
+    refute status =~ "#780"
+
+    [consequences] = Regex.run(~r/## Consequences.*/s, adr)
+    assert consequences =~ "a known false positive"
+    assert consequences =~ "about 3 % of par and quoted at 65"
+    assert consequences =~ "at most 5"
+  end
 end

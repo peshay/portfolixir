@@ -6,10 +6,10 @@ description: "The decision #330 asks for, recorded by its story (Sprint 18 PR γ
 
 # ADR-0052: bond master data in dedicated columns, read with display-only metrics
 
-- **Status:** Accepted. Recorded by the story that builds it, #330 (Sprint 18
-  PR γ, U7, as rescoped by the Sprint 17 plan's D-13); the merge of PR γ
-  adopts it (ADR-0026 step 1, as amended on PR #780: the merge is the
-  signature). Not risk-tier: nothing here changes how a position is valued.
+- **Status:** Accepted: a story-level decision, recorded by #330's story
+  (Sprint 18 PR γ, U7, as rescoped by the Sprint 17 plan's D-13) and
+  adopted by the merge of Sprint 18's PR γ (#1054). Not risk-tier: nothing
+  here changes how a position is valued.
 - **Date:** 2026-10-03
 
 ## Context
@@ -96,3 +96,15 @@ sweeps.
   name the inference does not recognise escapes it. The reverse case (quotes
   near 1, bookings near 100) is not named: it needs a quote stored in a
   convention the catalog does not have.
+- Both rules read a price, not the intent behind it, and each has a known
+  false positive. A distressed bond legitimately booked at about 3 % of par
+  and quoted at 65 sits inside the guard's band (65 ÷ 3 ≈ 22) and is named
+  as priced on two scales; the note asks for the quantity to be checked
+  against the statement and converts nothing, so the false positive costs
+  one check. The same bond before its first quote meets §3's rule: its own
+  trade price is at most 5, so both yields read *not computable* with the
+  reason rather than a figure, and the first stored quote restores them.
+  Neither is fixed by a threshold: a bond near par booked at its nominal
+  (about 1 per unit) and a distressed bond booked in hundredths at about 3 %
+  of par (3 per unit) both sit under 5, and only the statement tells them
+  apart.
