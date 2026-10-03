@@ -3423,7 +3423,12 @@ block direction only, so beside the inline result's dismiss, the other
 sites in five kinds of note take it: the manual-quotes note's "Release…",
 the release result's "Sync prices", the invisible-characters notes' remedies
 (the head's "Edit master data", the research log's two "Append an entry
-that supersedes #n"), and the three Tax notes. Not covered, and left as a
+that supersedes #n"), and the three Tax notes. One remedy outside a note
+takes it as a second selector, scoped to itself: the bond block's "Enter
+bond data…" (`.bond-strip .detail-tab-empty .link-button`), which stands in
+its sentence the same way on a 13 px line of the same 18 px (closing act on
+U7, finding 5; board `ux-review-2026-10-03/04-bond-repairs` B4, measured
+18.2 px before and 44.2 px after). Not covered, and left as a
 follow-up: a remedy written as an `<a>` inside a note (the Overview's
 data-quality links) — issue 1013 names the button. Under a coarse pointer
 the keyboard focus ring of a remedy wraps the 44 px box; `.link-button` has
@@ -4087,7 +4092,9 @@ but `bond` and `government_bond`, read as the effective class.
   Stückelung sind nicht erfasst; ohne sie gibt es keine Restlaufzeit und
   keine Rendite.", whose remedy **Anleihedaten erfassen…** is a
   `.link-button` opening the same dialog as *Edit* (UX-DR17: the remedy is
-  a child of its sentence). The nominal stands under it as a hint, with the
+  a child of its sentence). Under a coarse pointer it is a 44 px target in
+  place, by the H6.1 rule (*The remedy inside a data note*), of which it is
+  the second selector. The nominal stands under it as a hint, with the
   convention, since it needs no master data.
 - **Partly entered:** the grid; a cell whose input is missing reads *nicht
   erfasst*.

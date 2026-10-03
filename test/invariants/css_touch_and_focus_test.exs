@@ -68,14 +68,7 @@ defmodule Portfolixir.Invariants.CssTouchAndFocusTest do
   # - On the desktop nothing changes: `.link-button` keeps no padding and no
   #   floor (F26).
   test "a remedy inside a data note is a 44 px target on touch, and its line stays" do
-    rule =
-      case Regex.run(
-             ~r/@media \(pointer: coarse\) \{\s*\.data-note__body \.link-button \{([^}]*)\}\s*\}/,
-             @css
-           ) do
-        [_, body] -> body
-        nil -> flunk("no coarse rule for a remedy inside a data note")
-      end
+    {_selectors, rule} = remedy_rule()
 
     assert rule =~ ~r/padding-block:\s*13px;/
     assert rule =~ ~r/margin-block:\s*-13px;/
@@ -85,6 +78,34 @@ defmodule Portfolixir.Invariants.CssTouchAndFocusTest do
     link = block(".link-button")
     assert link =~ ~r/padding:\s*0;/
     assert link =~ ~r/min-height:\s*0;/
+  end
+
+  # User story (#330, closing act on U7, finding 5; board
+  # ux-review-2026-10-03/04-bond-repairs, B4):
+  # As the operator on a phone reading a bond whose master data is not
+  # entered,
+  # I want its remedy "Anleihedaten erfassen…" to be a 44 px target where it
+  # stands in the sentence,
+  # so that I can open the dialog with a thumb, and the sentence does not
+  # reflow to make room for it.
+  #
+  # Acceptance criteria:
+  # - The bond block's empty-state remedy is one more selector of the H6.1
+  #   rule, scoped to that remedy: its sentence (`.detail-tab-empty`, 13 px
+  #   on the 1.4 line) is 18 px high, as a note's line is, so the rule's
+  #   13 px fit it unchanged.
+  # - No other `.link-button` outside a note is reached: the rule names the
+  #   note's remedy and the bond block's, nothing broader.
+  test "the bond block's empty-state remedy is a 44 px target on touch" do
+    {selectors, rule} = remedy_rule()
+
+    assert selectors == [
+             ".data-note__body .link-button",
+             ".bond-strip .detail-tab-empty .link-button"
+           ]
+
+    assert rule =~ ~r/padding-block:\s*13px;/
+    assert rule =~ ~r/margin-block:\s*-13px;/
   end
 
   # User story (#1033; board 06, H6.3, rule ③):
@@ -142,6 +163,20 @@ defmodule Portfolixir.Invariants.CssTouchAndFocusTest do
     assert touch =~ ~r/\n\s*height:\s*44px;/
     assert touch =~ ~r/padding-block:\s*14px;/
     assert touch =~ ~r/margin-block:\s*-14px;/
+  end
+
+  # H6.1's coarse-pointer rule: its selector list and its declarations.
+  defp remedy_rule do
+    case Regex.run(
+           ~r/@media \(pointer: coarse\) \{\s*(\.data-note__body \.link-button[^{]*)\{([^}]*)\}\s*\}/,
+           @css
+         ) do
+      [_, selectors, body] ->
+        {selectors |> String.split(",") |> Enum.map(&String.trim/1), body}
+
+      nil ->
+        flunk("no coarse rule for a remedy inside a data note")
+    end
   end
 
   defp block(selector) do
