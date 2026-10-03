@@ -6145,6 +6145,12 @@ button.income-bar-label.is-active {
   box-shadow: var(--shadow-md);
   text-transform: none;
   letter-spacing: 0;
+  /* A tooltip is a paragraph wherever it sits: the phone block's
+     table rule (white-space: nowrap) reached the ⓘ inside a table head by
+     inheritance and set the allocation tree's Drift sentence on one line,
+     out of its box (issue 1053; H4 ④c, board
+     ux-review-2026-10-03/03-gamma-surface-repairs, G2). */
+  white-space: normal;
 }
 /* Show the tooltip panel when the <details> is open (pointer or keyboard). */
 .metric-tooltip:not([open]) p {

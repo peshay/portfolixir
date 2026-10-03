@@ -3319,6 +3319,17 @@ Three halves, and all three change the picture:
   a plan with no such category gets the sentence without the figure. A full
   plan, or one over 100 %, measures against the full plan and shows no
   second sentence. Percentages glue their sign, as everywhere in the app.
+- **(c′) The ⓘ wraps at phone width** (issue 1053, the closing act's
+  finding; board `mockups/ux-review-2026-10-03/03-gamma-surface-repairs`,
+  G2). Under 560 px the phone block's `table { white-space: nowrap }` was
+  inherited by the ⓘ in the table's head, so its sentence ran on one line
+  out of its 18 rem box (measured `scrollWidth` 2196 px in a 288 px box with
+  (c)'s second sentence). `.metric-tooltip p` now sets `white-space:
+  normal` itself — on the class, at every width, so any ⓘ inside a table
+  cell is a wrapping paragraph; where nothing set `nowrap` the picture is
+  identical. Seen while drawing and left for its own change: inside a
+  numeric head cell (`th.num`) the paragraph also inherits `text-align:
+  right`, at every width.
 
 ## Amendment 2026-10-03 — Coral passes light-mode contrast *(Sprint 18 pick H5, issue 908)*
 
