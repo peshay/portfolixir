@@ -1,0 +1,285 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — the bond block, its note and the dialog's bond section: the closing act's repairs (Sprint 18 PR γ, U7)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the one rule the repairs add to app.css, inside
+     @scope (.after) so the "Before" frames keep rendering with app.css as
+     built at Sprint 18 PR γ's head 11798c96 and only the "After" frames get
+     it. The repair writes it WITHOUT the @scope wrapper, as one more selector
+     of the existing H6.1 rule. Every other difference on this board is copy
+     or a figure's format, and the frames carry it as markup. Everything else
+     inside the frames is markup and classes that already ship:
+     PortfolixirWeb.Securities.BondStrip (.bond-strip, .bond-strip__head,
+     .overview-metrics, .overview-metric, .overview-metric__unit,
+     .overview-metric__sub, .nowrap, .detail-tab-hint, .detail-tab-empty,
+     .link-button), AppShell.data_note/1 (.data-note--problem and its parts),
+     SecurityFormDialog (.bond-fieldset, .form-grid, .field-error) and
+     .overview-reading / .overview-reading__main. -->
+<style id="proposal">
+@scope (.after) {
+  /* B4: the empty state's remedy joins the H6.1 rule. EDITS the coarse
+     `.data-note__body .link-button` rule (app.css, the remedy inside a data
+     note) by adding this selector to it; the declarations are its own. The
+     sentence is `.detail-tab-empty`, 13 px at the 1.4 line, so its line is
+     18 px as a note's is, and (44 − 18) / 2 = 13 again. */
+  @media (pointer: coarse) {
+    .bond-strip .detail-tab-empty .link-button {
+      padding-block: 13px;
+      margin-block: -13px;
+    }
+  }
+}
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: visible; }
+  .pair2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .mock-note code, .pickbar code { font-size: 11.5px; }
+  .measure { font-size: 11.5px; color: var(--mock-ink); margin: 6px 0 0; }
+  .stage { padding: 16px 20px; display: grid; gap: 10px; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .phone-only { display: none; }
+  /* The Overview's main column alone: the block stands in it on the page. */
+  .solo { grid-template-columns: minmax(0, 1fr); }
+
+  /* Drawing aid: the hit box of a control, as the browser lays it out.
+     Red = under 44 px, green = at the floor. Not app UI. */
+  .hit { outline: 1.5px dashed var(--color-danger) !important; outline-offset: 0 !important; background: color-mix(in srgb, var(--color-danger) 10%, transparent) !important; }
+  .hit-ok { outline: 1.5px dashed var(--color-positive) !important; outline-offset: 0 !important; background: color-mix(in srgb, var(--color-positive) 12%, transparent) !important; }
+
+  /* The coarse-pointer state, applied unconditionally: the renderer has a
+     mouse, so `@media (pointer: coarse)` never matches here. The After frame
+     carries .as-coarse and gets the proposal's declarations as written. */
+  .as-coarse .bond-strip .detail-tab-empty .link-button { padding-block: 13px; margin-block: -13px; }
+
+  @media (max-width: 560px) {
+    body { padding: 0; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-board > p.mock-note { padding: 0 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .pair2 { grid-template-columns: 1fr; }
+    .wide-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 16px; border-radius: 0; }
+    .stage { padding: 12px 16px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-oct" viewBox="0 0 24 24"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar"><b>Sprint 18 PR γ, U7 (#330) — the closing act's repairs to the bond block, its note and the dialog's bond section.</b> Before/after for each rendered repair: ADR-0052, the 2026-10-03 bond amendment of DESIGN.md and H6.1 already fix every answer, so there is no choice to pick. “Before” is <code>app.css</code> and the markup as built at the PR's head; “After” adds the rule in <code>&lt;style id="proposal"&gt;</code> and the copy or format each section names. Not drawn, because the picture does not change: the security dialog no longer wipes a bond's master data on “Vorhandenes aktualisieren” or “Online-Felder übernehmen”, and the denomination's currency select still starts on the security's currency but is written only with a denomination. The UI is the German page; every bond, ISIN, figure and date is invented. <b>Dashed = new.</b></div>
+
+<!-- ===================================================== B1 -->
+<section class="mock-board" id="b1">
+  <h2>B1 — The coupon and the price read as stored <small>Wertpapier → Übersicht → Anleihe · Kupon, Laufende Rendite</small></h2>
+  <p class="mock-note">The coupon is an input and the price the yield used is a stored quote, but both went through <code>Format.decimal(_, 2)</code>: a coupon of 4,125 % read “4,13 %”, and its ratio line “4,13 ÷ 97,13” for a quote of 97,125 — two figures the statement does not carry, with a current yield computed from the unrounded ones beside them. After: the coupon and the price in the ratio line are shown as stored, trailing zeros trimmed (<code>Format.exact</code>, as the quantity, the denomination and the two-scales note already are); the computed figures keep their two places. A coupon of 2,5 % reads “2,5 %”, as the dialog shows it.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before — 4,125 % reads 4,13 %</span>
+      <div class="stage">
+        <div class="overview-reading solo"><div class="overview-reading__main">
+          <section class="bond-strip" aria-labelledby="b1-before">
+            <div class="bond-strip__head"><h3 id="b1-before">Anleihe</h3></div>
+            <dl class="overview-metrics">
+              <div class="overview-metric"><dt>Fälligkeit</dt><dd>2031-06-15 <small class="overview-metric__sub">Emission <time datetime="2021-06-15">2021-06-15</time></small></dd></div>
+              <div class="overview-metric"><dt>Kupon</dt><dd>4,13 % <small class="overview-metric__unit">p. a.</small> <small class="overview-metric__sub">jährlich</small></dd></div>
+              <div class="overview-metric"><dt>Nominal im Bestand</dt><dd>10.000,00 <small class="overview-metric__unit">EUR</small> <small class="overview-metric__sub"><span class="nowrap">100 Stück × 100 EUR</span> · Stückelung <span class="nowrap">1.000 EUR</span></small></dd></div>
+              <div class="overview-metric"><dt>Restlaufzeit</dt><dd>4 J. 8 M. <small class="overview-metric__sub">4,70 Jahre ab <time datetime="2026-10-02">2026-10-02</time></small></dd></div>
+              <div class="overview-metric"><dt>Laufende Rendite</dt><dd>4,25 % <small class="overview-metric__sub"><span class="nowrap">4,13 ÷ 97,13</span> (<time datetime="2026-09-30">2026-09-30</time>)</small></dd></div>
+              <div class="overview-metric"><dt>Rendite bis Fälligkeit</dt><dd>≈ 4,88 % <small class="overview-metric__sub">linear angenähert</small></dd></div>
+            </dl>
+          </section>
+        </div></div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After — 4,125 % and 97,125 as stored</span>
+      <div class="stage">
+        <div class="overview-reading solo"><div class="overview-reading__main">
+          <section class="bond-strip" aria-labelledby="b1-after">
+            <div class="bond-strip__head"><h3 id="b1-after">Anleihe</h3></div>
+            <dl class="overview-metrics">
+              <div class="overview-metric"><dt>Fälligkeit</dt><dd>2031-06-15 <small class="overview-metric__sub">Emission <time datetime="2021-06-15">2021-06-15</time></small></dd></div>
+              <div class="overview-metric"><dt>Kupon</dt><dd><span class="is-new">4,125 %</span> <small class="overview-metric__unit">p. a.</small> <small class="overview-metric__sub">jährlich</small></dd></div>
+              <div class="overview-metric"><dt>Nominal im Bestand</dt><dd>10.000,00 <small class="overview-metric__unit">EUR</small> <small class="overview-metric__sub"><span class="nowrap">100 Stück × 100 EUR</span> · Stückelung <span class="nowrap">1.000 EUR</span></small></dd></div>
+              <div class="overview-metric"><dt>Restlaufzeit</dt><dd>4 J. 8 M. <small class="overview-metric__sub">4,70 Jahre ab <time datetime="2026-10-02">2026-10-02</time></small></dd></div>
+              <div class="overview-metric"><dt>Laufende Rendite</dt><dd>4,25 % <small class="overview-metric__sub"><span class="nowrap is-new">4,125 ÷ 97,125</span> (<time datetime="2026-09-30">2026-09-30</time>)</small></dd></div>
+              <div class="overview-metric"><dt>Rendite bis Fälligkeit</dt><dd>≈ 4,88 % <small class="overview-metric__sub">linear angenähert</small></dd></div>
+            </dl>
+          </section>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== B2 -->
+<section class="mock-board" id="b2">
+  <h2>B2 — No yield from a trade price on the unit scale <small>the same block, a bond booked at its nominal with no quote yet</small></h2>
+  <p class="mock-note">10.000 Stück bought at 0,984 — the export booked the nominal as the quantity — and no quote stored. The two-scales guard needs a quote, so it is silent, and the yields fall back to the last own trade price: “2,50 ÷ 0,98” is a current yield of 254 % and the linear yield to maturity reads about 2.400 %. After: when the yields would use the own trade price and that price is at most 5 — the mirror of the guard's band, 100 ÷ 20 — they are not computed. Each cell reads <i>nicht berechenbar</i> with the reason under it, in the tone of the other reasons, and the API says the same (<code>price_on_unit_scale: true</code>, stated in the computation basis). The nominal stays as stored: the block shows what was booked. A quote, once stored, is a percent price, the yields compute from it, and the guard names the two scales.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before — 254,07 % and ≈ 2.393,17 %</span>
+      <div class="stage">
+        <div class="overview-reading solo"><div class="overview-reading__main">
+          <section class="bond-strip" aria-labelledby="b2-before">
+            <div class="bond-strip__head"><h3 id="b2-before">Anleihe</h3></div>
+            <dl class="overview-metrics">
+              <div class="overview-metric"><dt>Fälligkeit</dt><dd>2031-06-15 <small class="overview-metric__sub">Emission <time datetime="2021-06-15">2021-06-15</time></small></dd></div>
+              <div class="overview-metric"><dt>Kupon</dt><dd>2,50 % <small class="overview-metric__unit">p. a.</small> <small class="overview-metric__sub">jährlich</small></dd></div>
+              <div class="overview-metric"><dt>Nominal im Bestand</dt><dd>1.000.000,00 <small class="overview-metric__unit">EUR</small> <small class="overview-metric__sub"><span class="nowrap">10.000 Stück × 100 EUR</span> · Stückelung <span class="nowrap">1.000 EUR</span></small></dd></div>
+              <div class="overview-metric"><dt>Restlaufzeit</dt><dd>4 J. 8 M. <small class="overview-metric__sub">4,70 Jahre ab <time datetime="2026-10-02">2026-10-02</time></small></dd></div>
+              <div class="overview-metric"><dt>Laufende Rendite</dt><dd>254,07 % <small class="overview-metric__sub"><span class="nowrap">2,50 ÷ 0,98</span>, letzter eigener Handelspreis</small></dd></div>
+              <div class="overview-metric"><dt>Rendite bis Fälligkeit</dt><dd>≈ 2.393,17 % <small class="overview-metric__sub">linear angenähert</small></dd></div>
+            </dl>
+          </section>
+        </div></div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After — not computable, and why</span>
+      <div class="stage">
+        <div class="overview-reading solo"><div class="overview-reading__main">
+          <section class="bond-strip" aria-labelledby="b2-after">
+            <div class="bond-strip__head"><h3 id="b2-after">Anleihe</h3></div>
+            <dl class="overview-metrics">
+              <div class="overview-metric"><dt>Fälligkeit</dt><dd>2031-06-15 <small class="overview-metric__sub">Emission <time datetime="2021-06-15">2021-06-15</time></small></dd></div>
+              <div class="overview-metric"><dt>Kupon</dt><dd>2,5 % <small class="overview-metric__unit">p. a.</small> <small class="overview-metric__sub">jährlich</small></dd></div>
+              <div class="overview-metric"><dt>Nominal im Bestand</dt><dd>1.000.000,00 <small class="overview-metric__unit">EUR</small> <small class="overview-metric__sub"><span class="nowrap">10.000 Stück × 100 EUR</span> · Stückelung <span class="nowrap">1.000 EUR</span></small></dd></div>
+              <div class="overview-metric"><dt>Restlaufzeit</dt><dd>4 J. 8 M. <small class="overview-metric__sub">4,70 Jahre ab <time datetime="2026-10-02">2026-10-02</time></small></dd></div>
+              <div class="overview-metric is-new"><dt>Laufende Rendite</dt><dd><span>nicht berechenbar</span> <small class="overview-metric__sub">Handelspreis <span class="nowrap">0,984 je Stück</span>, keine Prozentnotiz</small></dd></div>
+              <div class="overview-metric is-new"><dt>Rendite bis Fälligkeit</dt><dd><span>nicht berechenbar</span> <small class="overview-metric__sub">Handelspreis <span class="nowrap">0,984 je Stück</span>, keine Prozentnotiz</small></dd></div>
+            </dl>
+          </section>
+        </div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== B3 -->
+<section class="mock-board" id="b3">
+  <h2>B3 — An inbound delivery's booked price is read by the guard <small>Wertpapier → Übersicht, the two-scales note · Vermögen → Bestände → Datenqualität</small></h2>
+  <p class="mock-note">Since #779 a priced inbound delivery opens a lot and drives the day's flow at its booked price, exactly as a buy does, but the guard read buys only: a bond delivered in at 0,985 per unit and quoted 97,25 stood at a nominal of 1.000.000 with no note at all. After: the guard reads every booked price per unit — a buy's and a priced inbound delivery's — and the note counts “Buchungen”, not “Käufe”. The rule in the payload says “a booked price per unit (a buy or a priced inbound delivery)”, and its keys become <code>unit_scale_bookings</code> and <code>last_unit_scale_booking</code>. The Wealth note asks for the quantity of the bond's bookings.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before — delivered at 0,985, quoted 97,25: silent</span>
+      <div class="stage">
+        <p class="cap">Top of the Overview panel</p>
+        <p class="measure">No note. The block below reads “Nominal im Bestand 1.000.000,00 EUR, 10.000 Stück × 100 EUR”, the value 972.500,00 EUR.</p>
+        <p class="cap">Vermögen → Bestände → Datenqualität</p>
+        <p class="measure">No two-scales note.</p>
+        <p class="cap">With a buy, the note reads</p>
+        <div class="data-note data-note--problem">
+          <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-oct"/></svg></span>
+          <span class="data-note__word">Problem</span>
+          <div class="data-note__body"><strong>Auf zwei Skalen bepreist:</strong> Kurse um 100 (zuletzt 97,25 am 2026-09-30), gebuchter Preis je Stück um 1 (1 Kauf: 0,985 am 2026-03-12). Dann ist das Nominal als Stückzahl gebucht, und Wert, Gewinn und Gewicht sind hundertfach zu hoch; die Rendite (TTWROR) zeigt es nicht. Stückzahl gegen das Nominal der Abrechnung prüfen: <a href="#">Transaktionen</a></div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After — named, counted as bookings</span>
+      <div class="stage">
+        <p class="cap">Top of the Overview panel</p>
+        <div class="data-note data-note--problem">
+          <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-oct"/></svg></span>
+          <span class="data-note__word">Problem</span>
+          <div class="data-note__body"><strong>Auf zwei Skalen bepreist:</strong> Kurse um 100 (zuletzt 97,25 am 2026-09-30), gebuchter Preis je Stück um 1 <span class="is-new">(1 Buchung: 0,985 am 2026-03-12)</span>. Dann ist das Nominal als Stückzahl gebucht, und Wert, Gewinn und Gewicht sind hundertfach zu hoch; die Rendite (TTWROR) zeigt es nicht. Stückzahl gegen das Nominal der Abrechnung prüfen: <a href="#">Transaktionen</a></div>
+        </div>
+        <p class="measure">With several: “(3 Buchungen, zuletzt 0,985 am 2026-03-12)”.</p>
+        <p class="cap">Vermögen → Bestände → Datenqualität</p>
+        <div class="data-note data-note--problem">
+          <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-oct"/></svg></span>
+          <span class="data-note__word">Problem</span>
+          <div class="data-note__body">Eine Anleihe ist auf zwei Skalen bepreist (Kurse um 100, gebuchter Preis je Stück um 1) und zählt hundertfach zu hoch in den Summen; die Rendite zeigt es nicht. <span class="is-new">Stückzahl ihrer Buchungen</span> gegen das Nominal der Abrechnung prüfen: <span class="dq-negative-entry"><a href="#">Musterland Anleihe 2031</a> (Kurs 97,25 · Preis je Stück 0,985)</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== B4 -->
+<section class="mock-board" id="b4">
+  <h2>B4 — “Anleihedaten erfassen…” is a 44 px target on touch <small>H6.1 · UX-DR6 · the bond block's empty state</small></h2>
+  <p class="mock-note">The empty state's remedy is a <code>.link-button</code> inside its sentence, as a data note's remedy is, but the sentence is a <code>p.detail-tab-empty</code>, not a <code>.data-note__body</code>, so H6.1's coarse rule never reached it: 18 px tall under a touch pointer. After: the rule takes this remedy as one more selector, scoped to the bond block's empty state — the same 13 px of block padding and the same 13 px given back, so the sentence keeps its 18 px line and nothing reflows. Desktop with a mouse is unchanged. Dashed red/green = the hit box as the browser lays it out (drawing aid); the After frame applies the coarse declarations without the media query, because the renderer has a mouse.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before · touch</span>
+      <div class="stage" data-hit="before">
+        <section class="bond-strip" aria-labelledby="b4-before">
+          <div class="bond-strip__head"><h3 id="b4-before">Anleihe</h3></div>
+          <p class="detail-tab-empty">Kupon, Fälligkeit und Stückelung sind nicht erfasst; ohne sie gibt es keine Restlaufzeit und keine Rendite. <button type="button" class="link-button hit">Anleihedaten erfassen…</button></p>
+          <p class="detail-tab-hint">Nominal im Bestand: 10.000,00 EUR, 100 Stück × 100 EUR (ein Stück ist ein Hundertstel des Nominals).</p>
+        </section>
+        <p class="measure" data-hit-out="before"></p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after as-coarse"><span class="mock-tag">After · touch</span>
+      <div class="stage" data-hit="after">
+        <section class="bond-strip" aria-labelledby="b4-after">
+          <div class="bond-strip__head"><h3 id="b4-after">Anleihe</h3></div>
+          <p class="detail-tab-empty">Kupon, Fälligkeit und Stückelung sind nicht erfasst; ohne sie gibt es keine Restlaufzeit und keine Rendite. <button type="button" class="link-button hit-ok">Anleihedaten erfassen…</button></p>
+          <p class="detail-tab-hint">Nominal im Bestand: 10.000,00 EUR, 100 Stück × 100 EUR (ein Stück ist ein Hundertstel des Nominals).</p>
+        </section>
+        <p class="measure" data-hit-out="after"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== B5 -->
+<section class="mock-board" id="b5">
+  <h2>B5 — The dialog names every refusal in one round <small>Wertpapier bearbeiten → Anleihedaten</small></h2>
+  <p class="mock-note">“1.000” typed as a coupon on a German page and a maturity before the issue date: the figure is read by <code>DecimalInput</code> before the changeset runs, and a refusal there returned at once, so only the coupon's error showed; the maturity's came on the next save. Board 03 draws both. After: the refused figure stays refused, the rest of the form is checked by the security's changeset in the same round without writing anything, and both errors stand on their fields.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before — one error, then the next</span>
+      <div class="stage">
+        <fieldset class="bond-fieldset" style="margin:0">
+          <legend>Anleihedaten</legend>
+          <div class="form-grid">
+            <label><span>Kupon p. a. (%)</span><input type="text" inputmode="decimal" class="num" value="1.000" aria-invalid="true"><span class="field-error">ist mehrdeutig: ohne Tausendertrennzeichen eingeben</span></label>
+            <label><span>Zinszahlung</span><select><option>jährlich</option></select></label>
+            <label><span>Fälligkeit</span><input type="text" placeholder="YYYY-MM-DD" value="2020-06-15"></label>
+            <label><span>Emissionstag (optional)</span><input type="text" placeholder="YYYY-MM-DD" value="2021-06-15"></label>
+          </div>
+        </fieldset>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After — both, on their fields</span>
+      <div class="stage">
+        <fieldset class="bond-fieldset" style="margin:0">
+          <legend>Anleihedaten</legend>
+          <div class="form-grid">
+            <label><span>Kupon p. a. (%)</span><input type="text" inputmode="decimal" class="num" value="1.000" aria-invalid="true"><span class="field-error">ist mehrdeutig: ohne Tausendertrennzeichen eingeben</span></label>
+            <label><span>Zinszahlung</span><select><option>jährlich</option></select></label>
+            <label><span>Fälligkeit</span><input type="text" placeholder="YYYY-MM-DD" value="2020-06-15" aria-invalid="true"><span class="field-error is-new">muss nach dem Emissionstag liegen</span></label>
+            <label><span>Emissionstag (optional)</span><input type="text" placeholder="YYYY-MM-DD" value="2021-06-15"></label>
+          </div>
+        </fieldset>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Board helper: it writes the measured hit box beside each B4 frame, so
+  // the before/after claim is a number. Not part of the proposal.
+  const px = (n) => (Math.round(n * 10) / 10).toString().replace('.', ',') + ' px';
+
+  document.querySelectorAll('[data-hit]').forEach((stage) => {
+    const out = stage.querySelector('[data-hit-out]');
+    const button = stage.querySelector('.link-button');
+    const line = stage.querySelector('.detail-tab-empty');
+    const r = button.getBoundingClientRect();
+    out.textContent = 'Measured hit box: ' + px(r.width) + ' × ' + px(r.height) +
+      ' · the sentence ' + px(line.getBoundingClientRect().height) + ' tall.';
+  });
+</script>
+</body>
+</html>
