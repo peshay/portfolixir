@@ -13,7 +13,9 @@ Portfolixir keeps your transactions, holdings, valuation, returns and research
 notes on your own machine. Everything it knows is on a screen and behind a
 local JSON API and an MCP companion, so your agent reads and books the same
 figures you look at. No cloud, no broker connection, no advice: it prepares
-decisions, and you make them.
+decisions, and you make them. [Features](https://portfolixir.app/features.html)
+says what it does that you should know first, each claim with the page that
+shows it.
 
 ## How your data gets in
 
@@ -280,6 +282,8 @@ pre-commit install --install-hooks
 
 - Product documentation
   - [Product docs home](docs/index.md)
+  - [Features](docs/features.md): what it does that you should know first, and
+    what it is not
   - [Product feature documentation](docs/product-documentation.md)
   - [Home Deployment](docs/home-deployment.md)
 - Integration documentation
