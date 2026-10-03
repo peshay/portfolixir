@@ -389,6 +389,38 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
     refute note =~ "Inhalts-Hash"
   end
 
+  # User story (U1, #912; H2-A, A2; the closing act, R10f):
+  # As the operator deleting a dividend whose import recorded the depot too,
+  # I want the box to name the cash account the sentence names,
+  # so that the box and the sentence speak of the same account.
+  #
+  # Acceptance criteria:
+  # - A kind that moves only cash names its cash account in the box even
+  #   when it carries a depot; a buy keeps its depot.
+  test "a cash-only booking names its cash account in the box",
+       %{conn: conn, world: world, security: security} do
+    {:ok, dividend} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        type: "dividend",
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        securities_account_id: world.depot.id,
+        security_id: security.id,
+        gross_amount: "48.75",
+        currency_code: "EUR",
+        date: ~D[2026-09-26]
+      })
+
+    {:ok, view, _html} = live(conn, "/transactions")
+    ask_delete(view, dividend)
+
+    assert view |> element("#booking-delete-subject") |> render() |> text() =~
+             "Global Aktien ETF · Girokonto"
+
+    assert view |> element("[data-role='booking-delete-consequence']") |> render() |> text() =~
+             "Afterwards Girokonto has 48.75 EUR less."
+  end
+
   # User story (U1, #912; H2-A, A6):
   # As the operator confirming a delete in one tab while the agent (or
   # another tab) already deleted the booking,
