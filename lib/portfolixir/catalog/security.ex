@@ -6,10 +6,18 @@ defmodule Portfolixir.Catalog.Security do
   alias Portfolixir.Catalog.Currencies
   alias Portfolixir.Catalog.Feeds
   alias Portfolixir.Catalog.Isin
+  alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Input.Text
   alias Portfolixir.Lifecycle.Freeze
 
   @providers ~w(portfolio_performance coingecko manual)
+
+  # #330 (ADR-0052 §1): a bond's master data. Kept whatever the asset class,
+  # read only for the two bond classes (`Portfolixir.Portfolios.Bonds`).
+  @coupon_frequencies ~w(annual semi_annual)
+  @coupon_rate_column {9, 6}
+  @face_value_column {20, 6}
 
   @type t :: %__MODULE__{}
 
@@ -37,6 +45,17 @@ defmodule Portfolixir.Catalog.Security do
     field(:provider, :string)
     field(:attributes, :map, default: %{})
 
+    # #330 (ADR-0052 §1): the bond master data, typed columns rather than
+    # keys of `attributes`. The coupon is percent of face per year (2.5, not
+    # 0.025); the face value is the denomination, and under the hundredth
+    # convention one unit of a holding is a hundredth of the face amount.
+    field(:coupon_rate, :decimal)
+    field(:coupon_frequency, :string)
+    field(:maturity_date, :date)
+    field(:issue_date, :date)
+    field(:face_value, :decimal)
+    field(:face_value_currency_code, :string)
+
     has_many(:identifier_aliases, Portfolixir.Catalog.IdentifierAlias)
 
     # ADR-0044 §1 (#749): the current thesis state, a projection over the
@@ -51,7 +70,8 @@ defmodule Portfolixir.Catalog.Security do
   @castable ~w(
     name ticker_symbol isin wkn currency_code exchange_code asset_class
     note feed feed_url latest_feed latest_feed_url is_retired is_benchmark
-    treat_quotes_as_raw online_id provider attributes
+    treat_quotes_as_raw online_id provider attributes coupon_rate
+    coupon_frequency maturity_date issue_date face_value face_value_currency_code
   )a
 
   @logo_keys ~w(logo_path logo_source logo_locked)
@@ -95,6 +115,7 @@ defmodule Portfolixir.Catalog.Security do
     |> normalize_text(:exchange_code, &String.upcase/1)
     |> normalize_text(:wkn, &String.upcase/1)
     |> normalize_text(:isin, &String.upcase/1)
+    |> normalize_text(:face_value_currency_code, &String.upcase/1)
     |> empty_to_nil([
       :ticker_symbol,
       :isin,
@@ -107,7 +128,9 @@ defmodule Portfolixir.Catalog.Security do
       :latest_feed,
       :latest_feed_url,
       :online_id,
-      :provider
+      :provider,
+      :coupon_frequency,
+      :face_value_currency_code
     ])
     |> default_attributes()
     |> infer_asset_class()
@@ -149,6 +172,7 @@ defmodule Portfolixir.Catalog.Security do
     |> validate_inclusion(:provider, @providers, message: "is invalid")
     |> validate_feed(:feed)
     |> validate_feed(:latest_feed)
+    |> validate_bond_terms()
     |> unique_constraint([:provider, :online_id],
       name: :securities_provider_online_id_unique_index
     )
@@ -211,6 +235,35 @@ defmodule Portfolixir.Catalog.Security do
 
   def asset_classes, do: AssetClasses.codes()
   def providers, do: @providers
+
+  @doc "The coupon payment frequencies a bond's master data may name (ADR-0052 §1)."
+  def coupon_frequencies, do: @coupon_frequencies
+
+  # #330 (ADR-0052 §1): each value a bond can carry, refused on its own field.
+  # Nothing is required: a cell whose input is missing says so on the screen.
+  defp validate_bond_terms(changeset) do
+    changeset
+    |> BoundedDecimal.bound_to_column(:coupon_rate, @coupon_rate_column)
+    |> validate_number(:coupon_rate, greater_than_or_equal_to: 0, less_than_or_equal_to: 100)
+    |> BoundedDecimal.bound_to_column(:face_value, @face_value_column)
+    |> validate_number(:face_value, greater_than: 0)
+    |> validate_inclusion(:coupon_frequency, @coupon_frequencies, message: "is invalid")
+    |> validate_inclusion(:face_value_currency_code, Currencies.codes(), message: "is invalid")
+    |> BoundedDate.validate([:maturity_date, :issue_date])
+    |> validate_maturity_after_issue()
+  end
+
+  defp validate_maturity_after_issue(changeset) do
+    issue_date = get_field(changeset, :issue_date)
+    maturity_date = get_field(changeset, :maturity_date)
+
+    if match?(%Date{}, issue_date) and match?(%Date{}, maturity_date) and
+         Date.compare(maturity_date, issue_date) != :gt do
+      add_error(changeset, :maturity_date, "must be after the issue date")
+    else
+      changeset
+    end
+  end
 
   def effective_asset_class(%__MODULE__{asset_class: asset_class}) when is_binary(asset_class),
     do: asset_class
