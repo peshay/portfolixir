@@ -7412,6 +7412,19 @@ select:disabled {
   text-decoration: underline;
   cursor: pointer;
 }
+/* A remedy inside a data note keeps its place in the sentence and gains the
+   44 px floor as its hit area under a coarse pointer (UX-DR6; Sprint 18 U4,
+   board ux-design-2026-10-02/06-touch-focus, H6.1 pick A). The padding grows
+   the button's box to 44 px; the equal negative margin gives the line its
+   18 px back (the note's 12 px x 1.5), so no note reflows — the technique
+   .positions-toggle uses. 13 px = (44 - 18) / 2. It grows in the block
+   direction only, so it never overlaps the dismiss beside it. */
+@media (pointer: coarse) {
+  .data-note__body .link-button {
+    padding-block: 13px;
+    margin-block: -13px;
+  }
+}
 .badge-warning {
   background: var(--color-warning-soft);
   color: var(--color-warning);

@@ -49,6 +49,44 @@ defmodule Portfolixir.Invariants.CssTouchAndFocusTest do
            "the detail head's two icon buttons take the floor from the class"
   end
 
+  # User story (#1013; board 06, H6.1, pick A, rule ①):
+  # As the operator on a phone reading a data note,
+  # I want its remedy ("Freigeben…", "Neue Abrechnung erfassen", "Kurse
+  # aktualisieren") to be a 44 px target where it stands in the sentence,
+  # so that I can tap it with a thumb, and the note does not reflow to make
+  # room for it.
+  #
+  # Acceptance criteria:
+  # - Under a coarse pointer a `.link-button` inside a note's body gains
+  #   13 px of block padding — (44 − 18) / 2, the note's 12 px × 1.5 line —
+  #   and gives the same 13 px back as a negative block margin, so its line
+  #   stays 18 px and no note changes height (the `.positions-toggle`
+  #   technique).
+  # - The box grows only in the block direction, so beside the inline
+  #   result's dismiss (H6.4), the other 44 px target in the release result,
+  #   the two never overlap.
+  # - On the desktop nothing changes: `.link-button` keeps no padding and no
+  #   floor (F26).
+  test "a remedy inside a data note is a 44 px target on touch, and its line stays" do
+    rule =
+      case Regex.run(
+             ~r/@media \(pointer: coarse\) \{\s*\.data-note__body \.link-button \{([^}]*)\}\s*\}/,
+             @css
+           ) do
+        [_, body] -> body
+        nil -> flunk("no coarse rule for a remedy inside a data note")
+      end
+
+    assert rule =~ ~r/padding-block:\s*13px;/
+    assert rule =~ ~r/margin-block:\s*-13px;/
+    refute rule =~ ~r/(padding|margin)(-inline|-left|-right)?:/
+    refute rule =~ ~r/min-height/
+
+    link = block(".link-button")
+    assert link =~ ~r/padding:\s*0;/
+    assert link =~ ~r/min-height:\s*0;/
+  end
+
   defp block(selector) do
     case Regex.run(~r/\n#{Regex.escape(selector)} \{([^}]*)\}/, @css) do
       [_, body] -> body
