@@ -2979,13 +2979,18 @@ changed before retrying. A blind retry of a write that adds a record can store
 a duplicate, and every such tool (each write that is not idempotent) says so
 in its description; the server instructions say it once for every write.
 
-**A write that loses its connection** after the request was sent (a reset,
-or a socket closed while the answer arrives) answers `ApiOutcomeUnknownError`
-the same way, with the connection's code in its message: the server may have
-committed it. A failure that shows the request never reached the API (the
-connection refused, the name not resolved, the host unreachable, the connect
-itself timing out) stays a plain error and is safe to retry, as is any
-failure of a read.
+**A write whose connection fails** in a way that does not show the request
+never left (a reset, a socket closed while the answer arrives, a TLS failure,
+a failure with no code) answers `ApiOutcomeUnknownError` the same way, with
+the failure's code in its message: the request may have been sent, and the
+server may have committed it. A failure that shows the request never reached
+the API (the connection refused, the name not resolved, the host or network
+unreachable, the address family unsupported or no local address available,
+the connect itself timing out, a base URL that does not parse as a URL) stays
+a plain error and is safe to retry, as is any failure of a read. For a name
+that resolves to several addresses, the request counts as never sent only
+when the connect failed that way on every one of them; otherwise the message
+names each address's code.
 
 - `portfolixir.contract.get` — the contract-version read (ADR-0044 §8):
   what the surface offers and when it last changed, pollable with `since=`.
