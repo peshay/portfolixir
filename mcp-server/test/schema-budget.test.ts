@@ -37,6 +37,16 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 105_851,
     book: 178_964,
     full: 208_833
+  },
+  {
+    since: "2026-10-03",
+    why:
+      "Sprint 18 PR β, F2 (FR-41): the two contribution tools, paid for by trimming the " +
+      "performance family's descriptions and #831's re-import sentence, and lowered to the " +
+      "figure measured with them (D-10)",
+    read: 105_808,
+    book: 178_921,
+    full: 208_790
   }
 ];
 
