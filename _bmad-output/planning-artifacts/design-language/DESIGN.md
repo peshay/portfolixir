@@ -4128,7 +4128,10 @@ but `bond` and `government_bond`, read as the effective class.
   a select of two words, *jährlich* and *halbjährlich*, never the stored
   value; *Fälligkeit* and *Emissionstag (optional)* ISO text fields
   (UX-DR19); *Währung des Nennwerts* a currency select that starts on the
-  security's currency. One `.form-help` line states the convention ("Im
+  security's currency and is written only beside a *Stückelung*: a save
+  that sets no denomination stores no currency, so the preset is never
+  written behind the operator's back (closing act on U7, finding 8; the
+  select's picture is unchanged). One `.form-help` line states the convention ("Im
   Bestand ist ein Stück ein Hundertstel des Nominals: 100 Stück sind 10.000
   Nominal. …").
 - **Errors on their field**, in the page's language (F2): the ambiguity

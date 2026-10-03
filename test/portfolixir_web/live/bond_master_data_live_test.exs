@@ -449,6 +449,47 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     assert stored.maturity_date == @maturity
   end
 
+  # User story (#330, closing act on U7, finding 8):
+  # As the operator editing a bond that has no denomination,
+  # I want a save that touches no denomination to write no denomination
+  # currency,
+  # so that the currency select starting on the security's currency is a
+  # convenience, not a value stored behind my back.
+  #
+  # Acceptance criteria:
+  # - Editing a bond without a denomination and saving a new coupon leaves
+  #   face_value_currency_code empty, though the select showed EUR.
+  # - Entering a denomination writes the currency the select shows with it.
+  test "the denomination's currency is written only with a denomination", %{conn: conn} do
+    bond = bond!(%{face_value: nil})
+
+    {:ok, view, _html} = live(german(conn), "/securities/#{bond.id}")
+    view |> element("#detail-edit") |> render_click()
+
+    assert has_element?(
+             view,
+             ~s(#security-dialog-form select[name="security[face_value_currency_code]"] option[value="EUR"][selected])
+           )
+
+    view |> form("#security-dialog-form", security: %{coupon_rate: "3"}) |> render_submit()
+
+    plain = Repo.reload!(bond)
+    assert Decimal.equal?(plain.coupon_rate, Decimal.new("3"))
+    assert plain.face_value_currency_code == nil
+
+    view |> element("#detail-edit") |> render_click()
+
+    view
+    |> form("#security-dialog-form",
+      security: %{face_value: "1000", face_value_currency_code: "USD"}
+    )
+    |> render_submit()
+
+    denominated = Repo.reload!(bond)
+    assert Decimal.equal?(denominated.face_value, Decimal.new("1000"))
+    assert denominated.face_value_currency_code == "USD"
+  end
+
   # The fake search provider's one listing (`arbolia`, NASDAQ in USD) matches
   # this bond by provider and online id, so picking it shows the conflict.
   # The bond's terms are invented.

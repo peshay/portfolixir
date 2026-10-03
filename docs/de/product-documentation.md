@@ -415,7 +415,9 @@ Felder sind der **Kupon p. a. in Prozent** (2,5, nicht 0,025), die
 **Zinszahlung** (jährlich oder halbjährlich), die **Fälligkeit** und ein
 optionaler **Emissionstag** (ISO-Datum, die Fälligkeit nach dem
 Emissionstag) sowie die **Stückelung** (Nennwert) mit ihrer **Währung**, die
-auf der Währung des Wertpapiers beginnt. Pflicht ist nichts; beim
+auf der Währung des Wertpapiers beginnt und nur mit einer Stückelung
+gespeichert wird: Ein Speichern ohne Stückelung speichert keine Währung, und
+das Nominal steht dann in der Währung des Wertpapiers. Pflicht ist nichts; beim
 Bearbeiten löscht ein geleertes Feld seinen Wert, und die Werte bleiben
 erhalten, wenn die Anlageklasse von einer Anleihe weg wechselt. Findet eine
 Suche ein Wertpapier, das der Katalog schon führt, schreiben **Vorhandenes

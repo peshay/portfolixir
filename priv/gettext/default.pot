@@ -455,7 +455,7 @@ msgstr ""
 msgid "Add filter"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:677
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:678
 #: lib/portfolixir_web/live/securities_live.ex:482
 #: lib/portfolixir_web/live/securities_live.ex:483
 #, elixir-autogen, elixir-format
@@ -482,7 +482,7 @@ msgstr ""
 msgid "Choose columns"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:680
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:681
 #, elixir-autogen, elixir-format
 msgid "Choose market"
 msgstr ""
@@ -500,7 +500,7 @@ msgstr ""
 msgid "Columns"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:683
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:684
 #, elixir-autogen, elixir-format
 msgid "Confirm details"
 msgstr ""
@@ -534,7 +534,7 @@ msgstr ""
 msgid "Market"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:696
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:697
 #, elixir-autogen, elixir-format
 msgid "Matching existing entry: %{summary}"
 msgstr ""
@@ -637,7 +637,7 @@ msgstr ""
 msgid "Search coins via CoinGecko."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:678
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:679
 #, elixir-autogen, elixir-format
 msgid "Search cryptocurrency"
 msgstr ""
@@ -647,7 +647,7 @@ msgstr ""
 msgid "Search securities"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:679
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:680
 #, elixir-autogen, elixir-format
 msgid "Search security"
 msgstr ""
@@ -752,7 +752,7 @@ msgstr ""
 msgid "starts with"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:658
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:659
 #, elixir-autogen, elixir-format
 msgid "—"
 msgstr ""
@@ -1074,7 +1074,7 @@ msgstr ""
 msgid "Edit"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:681
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:682
 #, elixir-autogen, elixir-format
 msgid "Edit security"
 msgstr ""
@@ -4522,7 +4522,7 @@ msgstr ""
 msgid "This allowance order no longer exists: it was deleted while the new one was recorded, so nothing was saved. Record it again."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:1067
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:1071
 #, elixir-autogen, elixir-format
 msgid "This security no longer exists: it was deleted after the dialog opened, so nothing was saved."
 msgstr ""
@@ -5067,7 +5067,7 @@ msgstr ""
 msgid "The comparison is gross and price development only — dividends are not yet included."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:682
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:683
 #, elixir-autogen, elixir-format
 msgid "Enter security details"
 msgstr ""
@@ -11221,7 +11221,7 @@ msgstr ""
 msgid ", last own trade price"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:517
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:518
 #, elixir-autogen, elixir-format
 msgid "Bond data"
 msgstr ""
@@ -11236,7 +11236,7 @@ msgstr ""
 msgid "Coupon and price in percent of face: one unit held is a hundredth of the nominal, so the price is also the price per unit. Current yield = coupon ÷ price. Remaining term in calendar days from today, a year of 365 days. Yield to maturity linearly approximated: (coupon + (100 − price) ÷ remaining term in years) ÷ price, without compounding. Without accrued interest, fees and taxes. Reported, not evaluated."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:521
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:522
 #, elixir-autogen, elixir-format
 msgid "Coupon p. a. (%)"
 msgstr ""
@@ -11256,7 +11256,7 @@ msgstr ""
 msgid "Denomination"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:546
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:547
 #, elixir-autogen, elixir-format
 msgid "Denomination (face value)"
 msgstr ""
@@ -11266,22 +11266,22 @@ msgstr ""
 msgid "Enter bond data…"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:552
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:553
 #, elixir-autogen, elixir-format
 msgid "Face value currency"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:559
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:560
 #, elixir-autogen, elixir-format
 msgid "In the holding, one unit is a hundredth of the nominal: 100 units are a nominal of 10,000. That is how a Portfolio Performance export books a percent-quoted bond, and why its price reads as percent of face."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:527
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:528
 #, elixir-autogen, elixir-format
 msgid "Interest payment"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:540
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:541
 #, elixir-autogen, elixir-format
 msgid "Issue date (optional)"
 msgstr ""
@@ -11292,7 +11292,7 @@ msgid "Issued"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/bond_strip.ex:86
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:534
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:535
 #, elixir-autogen, elixir-format
 msgid "Maturity"
 msgstr ""
@@ -11328,7 +11328,7 @@ msgid "Yield to maturity"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/bond_strip.ex:325
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:529
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:530
 #, elixir-autogen, elixir-format
 msgid "annual"
 msgstr ""
@@ -11377,7 +11377,7 @@ msgid "quotes around 100 (latest %{close} on %{date}),"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/bond_strip.ex:326
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:529
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:530
 #, elixir-autogen, elixir-format
 msgid "semi-annual"
 msgstr ""

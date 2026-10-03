@@ -503,7 +503,8 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   # reads one of the two bond classes, on create and on edit alike. Its
   # anatomy is the booking drawer's settlement block: a block that stands
   # only when it applies. The denomination's currency starts on the
-  # security's until someone changes it.
+  # security's until someone changes it, and is written only beside a
+  # denomination (read_params/2).
   defp bond_fieldset(assigns) do
     assigns =
       assign(
@@ -979,9 +980,10 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   # where the section was filled from the security being saved. On every
   # other path (`:drop`), a create and above all the two conflict paths,
   # whose section starts blank over a security that may carry master data,
-  # a blank field is no change, and so is the denomination's currency
-  # without a denomination: its select only starts on the security's
-  # currency (#330, closing act on U7).
+  # a blank field is no change. On every path the denomination's currency
+  # is written only beside a denomination: its select only starts on the
+  # security's currency, and a save that sets no face value must not store
+  # that preset (#330, closing act on U7, findings 1 and 8).
   #
   # A refused figure answers `{:error, refused, attrs}`: the refusals, and
   # the attributes the rest of the form reads as, for `refuse/3`.
@@ -1012,24 +1014,26 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     assign(socket, :errors, Map.merge(checked, refused))
   end
 
-  defp bond_attrs(bond, :clear),
+  defp bond_attrs(bond, blank), do: bond |> read_bond(blank) |> currency_with_denomination()
+
+  defp read_bond(bond, :clear),
     do: Map.new(bond, fn {key, value} -> {@bond_fields[key], blank_to_nil(value)} end)
 
-  defp bond_attrs(bond, :drop) do
-    attrs =
-      bond
-      |> Enum.flat_map(fn {key, value} ->
-        case blank_to_nil(value) do
-          nil -> []
-          value -> [{@bond_fields[key], value}]
-        end
-      end)
-      |> Map.new()
-
-    if Map.has_key?(attrs, :face_value),
-      do: attrs,
-      else: Map.delete(attrs, :face_value_currency_code)
+  defp read_bond(bond, :drop) do
+    bond
+    |> Enum.flat_map(fn {key, value} ->
+      case blank_to_nil(value) do
+        nil -> []
+        value -> [{@bond_fields[key], value}]
+      end
+    end)
+    |> Map.new()
   end
+
+  defp currency_with_denomination(%{face_value: %Decimal{}} = attrs), do: attrs
+
+  defp currency_with_denomination(attrs),
+    do: Map.delete(attrs, :face_value_currency_code)
 
   # Only an edit's section starts on the stored values, so only there does
   # a blank field mean "clear it".
