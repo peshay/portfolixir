@@ -56,6 +56,9 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "U1"
     assert newest["endpoints"] == ["DELETE /api/v1/splits/:transaction_id"]
 
+    # Its MCP twin, an admin tool (the full profile only).
+    assert newest["tools"] == ["portfolixir.splits.delete"]
+
     assert Enum.any?(
              newest["parameters"],
              &(&1 =~ "DELETE /api/v1/splits/:transaction_id" and &1 =~ "#912")

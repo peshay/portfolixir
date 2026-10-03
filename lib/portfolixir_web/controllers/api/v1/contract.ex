@@ -49,11 +49,13 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "Sprint 18, the screens a stranger meets: U1, a split is deleted the way it was " <>
           "booked, as one fact — every portfolio's row of the event in one journaled step, " <>
           "from any of its rows — so the corrected ratio can be booked right after; the " <>
-          "screen's delete of a split row runs the same write (#912, ADR-0028 §1).",
+          "screen's delete of a split row runs the same write, and the agent's tool is an " <>
+          "admin tool (#912, ADR-0028 §1).",
       endpoints: ["DELETE /api/v1/splits/:transaction_id"],
-      tools: [],
+      tools: ["portfolixir.splits.delete"],
       parameters: [
-        "DELETE /api/v1/splits/:transaction_id, new: deletes the split event the row belongs to, every split row sharing its security, date and normalized ratio in every portfolio, in one transaction, each row journaled with its before-image under the token; answers 200 with data.transactions, the removed rows in the transaction shape ordered by portfolio; an unknown or already deleted row is a 404, a booking of another kind a 422 on transaction_id naming DELETE /api/v1/transactions/:id; a failure on any row deletes nothing. DELETE /api/v1/transactions/:id on a split row still removes that row alone. PATCH /api/v1/transactions/:id on a split row's date, security, portfolio, type or ratio still answers 422, its message now naming DELETE /api/v1/splits/:transaction_id where it named a row-by-row delete (U1, #912)"
+        "DELETE /api/v1/splits/:transaction_id, new: deletes the split event the row belongs to, every split row sharing its security, date and normalized ratio in every portfolio, in one transaction, each row journaled with its before-image under the token; answers 200 with data.transactions, the removed rows in the transaction shape ordered by portfolio; an unknown or already deleted row is a 404, a booking of another kind a 422 on transaction_id naming DELETE /api/v1/transactions/:id; a failure on any row deletes nothing. DELETE /api/v1/transactions/:id on a split row still removes that row alone. PATCH /api/v1/transactions/:id on a split row's date, security, portfolio, type or ratio still answers 422, its message now naming DELETE /api/v1/splits/:transaction_id where it named a row-by-row delete (U1, #912)",
+        "portfolixir.splits.delete, new: transaction_id (any row of the split) to DELETE /api/v1/splits/:transaction_id, hinted destructive and idempotent, in the admin set, so the full profile lists it and book and read do not; portfolixir.transactions.delete and portfolixir.transactions.update name it for a split (U1, #912)"
       ],
       removed_endpoints: [],
       removed_tools: []

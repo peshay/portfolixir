@@ -62,6 +62,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.transactions.delete",
       "portfolixir.splits.preview",
       "portfolixir.splits.create",
+      "portfolixir.splits.delete",
       "portfolixir.holdings.list",
       "portfolixir.cashflow.realized_gains",
       "portfolixir.cashflow.external_flows",
@@ -1651,6 +1652,66 @@ describe("Portfolixir MCP tools", () => {
       ratio_numerator: 2,
       ratio_denominator: 1
     });
+  });
+
+  // User story (Sprint 18 U1, #912; ADR-0028 §1):
+  // As the agent correcting a split booked with the wrong ratio,
+  // I want one tool that deletes the split as the one fact it is, from any
+  // of its rows,
+  // so that I never leave the ledger with the event half deleted between
+  // calls, and an unattended book run cannot remove it.
+  //
+  // Acceptance criteria:
+  // - portfolixir.splits.delete takes transaction_id (a positive integer, a
+  //   closed schema) and routes to DELETE /api/v1/splits/:transaction_id.
+  // - It is hinted destructive and idempotent, sits in the admin set, and is
+  //   listed by the full profile only.
+  // - Its description says every portfolio's row goes in one step, that the
+  //   corrected ratio can then be booked, that transactions.delete removes
+  //   one row only, and that the answer's decimals are strings.
+  // - A missing or non-integer id never leaves the companion.
+  it("deletes a split whole through DELETE /splits/:transaction_id, an admin tool", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { transactions: [{ id: 7, type: "split", fees: "0" }] }
+    });
+
+    const result = await callTool(client, "portfolixir.splits.delete", { transaction_id: 7 });
+
+    assert.equal(requests[0].method, "DELETE");
+    assert.equal(requests[0].path, "/api/v1/splits/7");
+    assert.equal((result.structuredContent as any).data.transactions[0].fees, "0");
+
+    await assert.rejects(callTool(client, "portfolixir.splits.delete", {}));
+    await assert.rejects(callTool(client, "portfolixir.splits.delete", { transaction_id: "7" }));
+    await assert.rejects(callTool(client, "portfolixir.splits.delete", { transaction_id: 0 }));
+    assert.equal(requests.length, 1);
+
+    const tool = listTools().find((candidate) => candidate.name === "portfolixir.splits.delete");
+    assert.ok(tool, "portfolixir.splits.delete is missing");
+    assert.equal(tool?.inputSchema.additionalProperties, false);
+    assert.deepEqual(tool?.inputSchema.required, ["transaction_id"]);
+    assert.equal(tool?.inputSchema.properties.transaction_id.type, "integer");
+    assert.equal(tool?.annotations.readOnlyHint, false);
+    assert.equal(tool?.annotations.destructiveHint, true);
+    assert.equal(tool?.annotations.idempotentHint, true);
+
+    assert.ok(listTools({ profile: "full" }).some((listed) => listed.name === tool?.name));
+    assert.ok(!listTools({ profile: "book" }).some((listed) => listed.name === tool?.name));
+    assert.ok(!listTools({ profile: "read" }).some((listed) => listed.name === tool?.name));
+
+    const text = tool?.description ?? "";
+    for (const fragment of [
+      /every portfolio/,
+      /one step/,
+      /portfolixir\.splits\.create/,
+      /portfolixir\.transactions\.delete removes one row/,
+      /Decimal strings/
+    ]) {
+      assert.match(text, fragment);
+    }
+
+    const update = listTools().find((candidate) => candidate.name === "portfolixir.transactions.update");
+    assert.match(update?.description ?? "", /portfolixir\.splits\.delete/);
   });
 
   // ADR-0050 §11 (#831's lesson: agents read descriptions, not docs): the

@@ -3197,9 +3197,13 @@ names each address's code.
 - `portfolixir.transactions.list`
 - `portfolixir.transactions.create`
 - `portfolixir.transactions.update`
-- `portfolixir.transactions.delete`
+- `portfolixir.transactions.delete` — one row; on a split it names
+  `portfolixir.splits.delete`
 - `portfolixir.splits.preview`
 - `portfolixir.splits.create`
+- `portfolixir.splits.delete` — the whole split from any of its rows, every
+  portfolio's row in one journaled step (#912); an admin tool, so the `book`
+  profile leaves it out
 - `portfolixir.holdings.list`
 - `portfolixir.cashflow.realized_gains` — the #724 roll-up with its stated
   FX basis and the excluded-and-named gap treatment, and each trade's

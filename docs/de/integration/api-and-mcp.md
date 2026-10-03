@@ -3204,9 +3204,13 @@ Adresse.
 - `portfolixir.transactions.list`
 - `portfolixir.transactions.create`
 - `portfolixir.transactions.update`
-- `portfolixir.transactions.delete`
+- `portfolixir.transactions.delete` — eine Zeile; an einem Split nennt es
+  `portfolixir.splits.delete`
 - `portfolixir.splits.preview`
 - `portfolixir.splits.create`
+- `portfolixir.splits.delete` — den ganzen Split von einer beliebigen seiner
+  Zeilen aus, die Zeile jedes Portfolios in einem journalisierten Schritt
+  (#912); ein Admin-Werkzeug, das Profil `book` lässt es also weg
 - `portfolixir.holdings.list`
 - `portfolixir.cashflow.realized_gains` — das #724-Rollup mit erklärter
   FX-Basis und Ausschluss-und-Benennung bei Kurslücken, und der annualisierten
