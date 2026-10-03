@@ -150,14 +150,13 @@ function bondProperties(nullable: boolean): JsonSchema {
   return {
     coupon_rate: {
       type,
-      description:
-        "Bond master data (ADR-0052): the coupon in percent of face per year, a Decimal string from 0 to 100 (2.5, not 0.025)."
+      description: "Bond coupon (ADR-0052) in percent of face per year, a Decimal string from 0 to 100 (2.5, not 0.025)."
     },
     coupon_frequency: { type, enum: nullable ? [...bondFrequencies, null] : [...bondFrequencies] },
     maturity_date: { type, format: "date", description: boundedDate("After issue_date.") },
     issue_date: { type, format: "date", description: boundedDate() },
-    face_value: { type, description: "The denomination, a Decimal string above 0." },
-    face_value_currency_code: { type }
+    face_value: { type, description: "Denomination, a Decimal string above 0." },
+    face_value_currency_code: { type, description: "ISO 4217, from the codes currency_code takes." }
   };
 }
 
@@ -868,12 +867,12 @@ const securityUpdateSchema = {
         treat_quotes_as_raw: {
           type: "boolean",
           description:
-            "ADR-0028 escape hatch: treat this security's provider-synced quote history as raw (as-traded). Set it when the provider never back-adjusts closes after a stock split, so the split-adjustment factors apply to its synced rows too. Default false (synced rows are trusted as an already-adjusted provider mirror)."
+            "ADR-0028: treat this security's provider-synced quotes as raw (as-traded), for a provider that never back-adjusts closes after a split, so the split factors apply to its synced rows too. Default false (synced rows are trusted as already adjusted)."
         },
         is_benchmark: {
           type: "boolean",
           description:
-            "ADR-0046: mark this security as a benchmark — a price series the portfolio is compared against (an index proxied by an ETF, gold by an ETC), fed by the ordinary quote sync. A benchmark is never offered for booking and is left alone by the catalog-hygiene data-quality checks; it may still be held."
+            "ADR-0046: mark this security as a benchmark, a price series the portfolio is compared against (an index proxied by an ETF, gold by an ETC), fed by the quote sync. A benchmark is never offered for booking and is left out of the catalog-hygiene checks; it may still be held."
         },
         attributes: { type: "object", additionalProperties: true },
         ...bondProperties(true)

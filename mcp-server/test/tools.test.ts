@@ -4119,6 +4119,8 @@ describe("Portfolixir MCP tools", () => {
   //   convention, the remaining term, both yields with their
   //   computation_basis, and two_scales.
   // - The fields whitelist mirrors the API's: the six fields and bond.
+  // - face_value_currency_code describes itself: an ISO 4217 code from the
+  //   set the security's currency_code takes (closing act on U7, finding 10).
   it("carries a bond's master data on the security writes and its reading on securities.get", async () => {
     const tools = listTools();
     const bondKeys = [
@@ -4144,6 +4146,12 @@ describe("Portfolixir MCP tools", () => {
       assert.ok(security?.properties.coupon_frequency.enum.includes("annual"));
       assert.ok(security?.properties.coupon_frequency.enum.includes("semi_annual"));
       assert.match(security?.properties.coupon_rate.description ?? "", /percent of face/);
+
+      // The closing act on U7, finding 10: the denomination's currency says
+      // what it takes, the code set the security's own currency takes.
+      const faceCurrency = security?.properties.face_value_currency_code.description ?? "";
+      assert.match(faceCurrency, /ISO 4217/, `${name} face_value_currency_code`);
+      assert.match(faceCurrency, /currency_code/, `${name} face_value_currency_code`);
     }
 
     const get = tools.find((tool) => tool.name === "portfolixir.securities.get")?.description ?? "";

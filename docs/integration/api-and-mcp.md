@@ -794,7 +794,8 @@ every security payload (and selectable with `fields=`):
 - `maturity_date` and `issue_date` — ISO dates, the maturity after the issue
   date;
 - `face_value` — the denomination, a Decimal string above 0;
-- `face_value_currency_code` — the denomination's currency.
+- `face_value_currency_code` — the denomination's currency, an ISO 4217 code
+  from the set `currency_code` takes.
 
 `coupon_rate` and `face_value` keep 6 decimal places, under the rule every
 stored amount follows (**Other stored amounts** above): a finer value is
