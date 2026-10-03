@@ -39,6 +39,7 @@ defmodule Portfolixir.Tax do
   alias Portfolixir.Repo
   alias Portfolixir.Tax.AllowanceOrder
   alias Portfolixir.Tax.Budget
+  alias Portfolixir.Tax.BuiltinSeed
   alias Portfolixir.Tax.Consistency
   alias Portfolixir.Tax.Identity
   alias Portfolixir.Tax.Parameters
@@ -46,22 +47,6 @@ defmodule Portfolixir.Tax do
   alias Portfolixir.Tax.StatementSnapshot
 
   @default_jurisdiction "DE"
-
-  # German history, seeded by `20260725140000_seed_tax_parameters`. Starts at
-  # the introduction of the Abgeltungsteuer and stops at the current year:
-  # inventing a ceiling for a year whose law is not written is the same class of
-  # fabrication this epic exists to avoid — `fetch_parameters/2` makes the gap
-  # explicit instead.
-  @seed_first_year 2009
-  @seed_last_year 2026
-  @seed_allowance_change_year 2023
-
-  # The 2021 partial Soli abolition did not touch the Abgeltungsteuer, so these
-  # hold for every seeded year. String literals: `Decimal.new/1` raises on a
-  # float, and `Decimal.from_float/1` belongs at display boundaries only.
-  @seed_capital_gains_tax_rate "0.25"
-  @seed_solidarity_surcharge_rate "0.055"
-  @seed_church_tax_rates ["0.08", "0.09"]
 
   # -- parameters ------------------------------------------------------------
 
@@ -135,100 +120,27 @@ defmodule Portfolixir.Tax do
   end
 
   @doc """
-  Seeds the built-in German statutory history, idempotently.
-
-  An existing `(jurisdiction, tax_year)` row is skipped entirely, so a re-run
-  inserts nothing, writes no journal entries, and never overwrites a value the
-  operator has edited (the classifications precedent: backfill, never
-  overwrite). Returns `{:ok, %{inserted: n, skipped: n}}`.
+  Seeds the built-in German statutory history, idempotently: an existing
+  `(jurisdiction, tax_year)` row is skipped entirely, so a re-run inserts
+  nothing, writes no journal entries, and never overwrites a value the
+  operator has edited. Returns `{:ok, %{inserted: n, skipped: n}}`.
 
   Referenced from the immutable migration `20260725140000_seed_tax_parameters`
-  — keep this signature stable.
+  — keep this signature stable. The work is `Portfolixir.Tax.BuiltinSeed`'s,
+  frozen to that migration's schema (#1015).
   """
   @spec seed_builtin_parameters(Actor.t()) :: {:ok, %{inserted: integer(), skipped: integer()}}
-  def seed_builtin_parameters(%Actor{} = actor) do
-    summary =
-      Enum.reduce(@seed_first_year..@seed_last_year, %{inserted: 0, skipped: 0}, fn year, acc ->
-        seed_year(actor, year, acc)
-      end)
-
-    {:ok, summary}
-  end
-
-  defp seed_year(actor, year, acc) do
-    case fetch_parameters(@default_jurisdiction, year) do
-      {:ok, _existing} ->
-        Map.update!(acc, :skipped, &(&1 + 1))
-
-      {:error, :not_found} ->
-        {:ok, _seeded} = insert_builtin_parameters(actor, year)
-        Map.update!(acc, :inserted, &(&1 + 1))
-    end
-  end
-
-  defp insert_builtin_parameters(actor, year) do
-    changeset = Parameters.builtin_changeset(%Parameters{}, builtin_attrs(year))
-
-    Multi.new()
-    |> Multi.insert(:parameters, changeset,
-      on_conflict: :nothing,
-      conflict_target: [:jurisdiction, :tax_year]
-    )
-    |> Journal.record(actor,
-      resource_type: "tax_parameters",
-      operation: :create,
-      source: :parameters
-    )
-    |> Repo.transaction()
-    |> normalize(:parameters)
-  end
-
-  defp builtin_attrs(year) do
-    {single, joint} = builtin_allowances(year)
-
-    %{
-      jurisdiction: @default_jurisdiction,
-      tax_year: year,
-      capital_gains_tax_rate: Decimal.new(@seed_capital_gains_tax_rate),
-      solidarity_surcharge_rate: Decimal.new(@seed_solidarity_surcharge_rate),
-      saver_allowance_single: single,
-      saver_allowance_joint: joint,
-      church_tax_rates: Enum.map(@seed_church_tax_rates, &Decimal.new/1)
-    }
-  end
-
-  defp builtin_allowances(year) when year >= @seed_allowance_change_year,
-    do: {Decimal.new("1000.00"), Decimal.new("2000.00")}
-
-  defp builtin_allowances(_year), do: {Decimal.new("801.00"), Decimal.new("1602.00")}
+  def seed_builtin_parameters(%Actor{} = actor), do: BuiltinSeed.seed(Repo, actor)
 
   @doc """
   Removes the seeded rows, and only those: a parameter row the operator added
   survives the rollback.
 
   Referenced from the immutable migration `20260725140000_seed_tax_parameters`
-  — keep this signature stable.
+  — keep this signature stable. The work is `Portfolixir.Tax.BuiltinSeed`'s.
   """
   @spec rollback_builtin_parameters(Actor.t()) :: :ok
-  def rollback_builtin_parameters(%Actor{} = actor) do
-    Parameters
-    |> where([p], p.built_in)
-    |> Repo.all()
-    |> Enum.each(fn parameters -> {:ok, _} = delete_parameters(actor, parameters) end)
-  end
-
-  defp delete_parameters(actor, %Parameters{} = parameters) do
-    Multi.new()
-    |> Multi.delete(:parameters, parameters)
-    |> Journal.record(actor,
-      resource_type: "tax_parameters",
-      operation: :delete,
-      source: :parameters,
-      before: parameters
-    )
-    |> Repo.transaction()
-    |> normalize(:parameters)
-  end
+  def rollback_builtin_parameters(%Actor{} = actor), do: BuiltinSeed.rollback(Repo, actor)
 
   # -- profiles --------------------------------------------------------------
 

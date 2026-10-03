@@ -22,6 +22,15 @@ defmodule Portfolixir.Portfolios.PolicyRuleAuthorBackfill do
   It reads and writes the table schemaless, naming only the columns it has at
   this migration, so the immutable migration keeps running when a later one
   adds a column the schema then knows.
+
+  Its journal read and write still go through `Portfolixir.Journal`, today's
+  code, and so does the invalidation they trigger. That dependency is pinned
+  rather than frozen (#1015): the seeded-upgrade case in
+  `test/portfolixir/seeded_upgrade/sprint16_test.exs` runs this backfill over
+  legacy versions, so a later column in `audit_journal` or a change to the
+  journal's write path turns that case red in the pull request that makes it.
+  On an empty database the backfill finds no version and calls no journal
+  code at all.
   """
 
   import Ecto.Query

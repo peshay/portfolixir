@@ -145,6 +145,23 @@ so the cases run in the default `mix test` and, on their own, in CI's
 case once by putting the defect back locally and watching it fail;
 `test/portfolixir/seeded_upgrade/sprint16_test.exs` holds the first two.
 
+**A migration that calls application code** runs today's code against the
+schema of its own version. A column a later migration adds to a table that
+code reads or writes (the journal's `audit_journal` is the usual one) then
+stops every upgrade from before that version, and every fresh install too if
+the call runs on an empty database. Avoid it: write the migration with plain
+SQL, naming only the columns its version has. Where a migration already does
+it, one of two answers holds (#1015):
+
+- **freeze it**: the migration file itself is immutable (CI rejects any
+  change to it), so freeze the code it calls instead, in a module that names
+  only the columns of the migration's version and no schema, as
+  `Portfolixir.Tax.BuiltinSeed` does for `20260725140000` with the statutory
+  data, its columns and its journal write; or
+- **pin it**: keep the call and give the migration a seeded case over the
+  rows that reach the call, so the later schema change turns that case red
+  in the pull request that makes it. The policy-rule author backfill
+  (`20260926121500`) is pinned this way, by `sprint16_test.exs`.
 
 ## Scope guardrails
 
