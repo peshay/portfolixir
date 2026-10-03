@@ -168,7 +168,9 @@ defmodule PortfolixirWeb.ImportsLive do
           <span class="value"><%= @unique_securities_count %></span>
         </div>
         <div class="import-stat-card">
-          <span class="label"><%= gettext("Cash accounts") %></span>
+          <%!-- #909 (H7.5 = A): a card-scoped msgid, so the German label's
+               soft hyphen stays on the two summary cards. --%>
+          <span class="label"><%= pgettext("import summary", "Cash accounts") %></span>
           <span class="value"><%= length(@cash_pp_names) %></span>
         </div>
         <div class="import-stat-card">
@@ -676,7 +678,7 @@ defmodule PortfolixirWeb.ImportsLive do
           <span class="value"><%= @result.created_securities %></span>
         </div>
         <div class="import-stat-card">
-          <span class="label"><%= gettext("Cash accounts") %></span>
+          <span class="label"><%= pgettext("import summary", "Cash accounts") %></span>
           <span class="value"><%= @result.created_cash_accounts %></span>
         </div>
         <div class="import-stat-card">

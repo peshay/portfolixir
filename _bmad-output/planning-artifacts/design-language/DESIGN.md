@@ -3516,3 +3516,24 @@ nothing. The server renders the row with `data-scroll-start`. Measured in
 Chromium at 390 px on the seeded demo: "Kurse" rests with "Transaktionen"
 first under a left fade; "Termine" rests at the end with no right fade.
 At 1200 px with the sidebar the nine tabs fit and the row carries no mask.
+
+### A long label inside an import summary card *(H7.5, pick A, rule ③; issue 909)*
+
+`.import-stat-card .label` (13.6 px, uppercase, 0.04 em tracking) is a grid
+item with `min-width: auto`, so "VERRECHNUNGSKONTEN" (about 180 px) could
+neither wrap nor shrink: it ran 12 px past its card on the desktop and 23 px
+past it — and past the screen — at 390 px. Pick A: the German label carries
+a soft hyphen (U+00AD) at the compound joint, "Verrechnungs|konten" (the bar
+marks it), so a card too narrow for the word breaks it there as
+"VERRECHNUNGS-" / "KONTEN" in every browser, and a wide card shows nothing;
+the rule `min-width: 0; overflow-wrap: anywhere` is the floor for any other
+unbreakable word in any locale (it breaks without a hyphen, never past the
+card). The soft hyphen lives in a card-scoped msgid,
+`pgettext("import summary", "Cash accounts")`, used by the preview's and the
+result's cards only, so the five other "Cash accounts" keep a plain msgstr.
+The invisible-Unicode gate refuses a raw U+00AD; its own mechanism admits it,
+an entry in `.unicode-allowlist.txt` with a written reason, and because that
+entry can only name a file and a code point,
+`test/invariants/soft_hyphen_scope_test.exs` holds it to the one msgstr.
+Copying the label may carry the U+00AD in some browsers. The label's size
+(13.6 px where the spec's `stat-label` is 12 px) is unchanged here.

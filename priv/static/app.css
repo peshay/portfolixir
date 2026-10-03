@@ -3912,7 +3912,15 @@ input[pattern]:invalid:not(:placeholder-shown) {
   gap: 0.25rem;
 }
 
+/* A label that is one long word breaks inside its card (Sprint 18 U5,
+   board ux-design-2026-10-02/07-phone-390 H7.5, pick A): the German
+   "Verrechnungskonten" carries a soft hyphen at its joint in the catalog, so
+   it breaks there, with a hyphen, in every browser; this is the floor for
+   any other unbreakable word in any locale — a grid item may shrink below
+   its content and break anywhere, never past the card. */
 .import-stat-card .label {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--color-text-muted);
   font-size: 0.85rem;
   text-transform: uppercase;

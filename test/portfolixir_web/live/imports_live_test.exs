@@ -1225,6 +1225,63 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
   # E25 S5 (F42): the page addresses cash and depot rows by an opaque key;
   # these tests name the rows by their file name and translate here.
+  # User story (#909; board ux-design-2026-10-02/07-phone-390, H7.5, pick A):
+  # As the operator importing in German, on a phone or on the desktop,
+  # I want "Verrechnungskonten" to stay inside its summary card,
+  # so that the label does not run past the card's edge — and at 390 px past
+  # the screen's.
+  #
+  # Acceptance criteria:
+  # - The import's summary cards (the preview's and the result's) name the
+  #   cash accounts through a card-scoped msgid (context "import summary"),
+  #   whose German carries a soft hyphen at the compound joint:
+  #   "Verrechnungs|konten" (the bar marks U+00AD), so a card too narrow for the word breaks
+  #   it there, with a hyphen, in every browser; a wide card shows nothing.
+  # - English keeps "Cash accounts", and every other "Cash accounts" in the
+  #   app keeps its own msgstr without the soft hyphen.
+  test "the import cards' German cash-account label breaks at its joint", %{conn: conn} do
+    soft = "Verrechnungs\u00ADkonten"
+
+    {:ok, view, _html} = live(conn, "/imports?locale=de")
+
+    upload_payload(
+      view,
+      "zero_amount_tax.json",
+      File.read!(Path.join(@fixtures, "zero_amount_tax.json")),
+      "application/json"
+    )
+
+    assert view |> element(".import-stats") |> render() =~
+             ~s(<span class="label">#{soft}</span>)
+
+    submit_params = %{
+      "cash" => %{"Cash" => "create:Cash"},
+      "depot" => %{"Depot" => %{"target" => "create:Depot", "cash" => "pp:Cash"}}
+    }
+
+    view |> element("form#pp-import-apply") |> render_change(keyed(submit_params))
+    view |> element("form#pp-import-apply") |> render_submit(keyed(submit_params))
+    done_html = render_async(view, 1_000)
+
+    assert done_html =~ "Import abgeschlossen"
+    assert done_html =~ ~s(<span class="label">#{soft}</span>)
+
+    {:ok, _view, accounts_html} = live(conn, "/portfolios?locale=de")
+    refute accounts_html =~ "\u00AD"
+
+    {:ok, view, _html} = live(conn, "/imports?locale=en")
+
+    upload_payload(
+      view,
+      "zero_amount_tax.json",
+      File.read!(Path.join(@fixtures, "zero_amount_tax.json")),
+      "application/json"
+    )
+
+    assert view |> element(".import-stats") |> render() =~
+             ~s(<span class="label">Cash accounts</span>)
+  end
+
   defp row_key(kind, name), do: Mapping.row_key(kind, name)
 
   defp keyed(%{} = params) do

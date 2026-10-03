@@ -18,3 +18,11 @@
 # treated as a real violation by the repo-wide gate.
 test/fixtures/unicode/bidi_sample.txt U+202E # test fixture: deliberate RIGHT-TO-LEFT OVERRIDE used to verify the scanner flags Trojan Source bidi controls
 test/fixtures/unicode/zero_width_sample.txt U+200B # test fixture: deliberate ZERO WIDTH SPACE used to verify the scanner flags zero-width characters
+
+# A SOFT HYPHEN at the compound joint of one German label (issue 909, Sprint
+# 18 U5, board ux-design-2026-10-02/07-phone-390 H7.5 pick A): the import
+# summary cards' "Verrechnungskonten" is wider than its card, and U+00AD lets
+# the browser break it there, with a visible hyphen, only when it does not
+# fit. The gate scopes an entry to a file and a code point;
+# test/invariants/soft_hyphen_scope_test.exs holds it to that one msgstr.
+priv/gettext/de/LC_MESSAGES/default.po U+00AD # SOFT HYPHEN in the msgstr of msgctxt "import summary" / msgid "Cash accounts" only ("Verrechnungs|konten"): a deliberate, visible-when-used break point for a label wider than its card (issue 909, pick H7.5 A)

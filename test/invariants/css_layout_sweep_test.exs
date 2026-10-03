@@ -157,6 +157,23 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     assert hint =~ ~r/justify-content:\s*end;/
   end
 
+  # User story (#909; board ux-design-2026-10-02/07-phone-390, H7.5, pick A,
+  # rule ③):
+  # As the operator reading the import's summary cards in any language,
+  # I want a label that is one long word to break inside its card,
+  # so that it never runs past the card's edge — the soft hyphen in the
+  # German "Verrechnungskonten" decides where that word breaks, and this rule
+  # is the floor for any other long word in any locale.
+  #
+  # Acceptance criteria:
+  # - `.import-stat-card .label` may shrink below its content (`min-width:
+  #   0`, it is a grid item) and break anywhere (`overflow-wrap: anywhere`).
+  test "an import card's label breaks inside its card" do
+    label = block(".import-stat-card .label")
+    assert label =~ ~r/min-width:\s*0;/
+    assert label =~ ~r/overflow-wrap:\s*anywhere;/
+  end
+
   test "a labelled tooltip summary grows with its label" do
     assert block(".metric-tooltip--labelled summary") =~ ~r/width:\s*auto/
   end
