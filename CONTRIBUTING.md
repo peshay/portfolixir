@@ -46,13 +46,19 @@ Out of scope unless a reviewed story explicitly changes it:
 
 ## Local Setup
 
-Docker workflow:
+Docker workflow, on the development stack (source mounted, Mix present):
 
 ```bash
-docker compose up --build
+docker compose -f docker-compose.dev.yml up --build
 ```
 
-The Compose setup starts PostgreSQL, the Phoenix app, and the MCP companion.
+The root `docker-compose.yml` is the production release, an operator's
+instance ([Home Deployment](docs/home-deployment.md)); a contributor works on
+`docker-compose.dev.yml`, a Compose project of its own, `portfolixir-dev`, with
+a database volume of its own, so its reset never reaches a production database
+in the same checkout ([Development Guide](docs/development/guide.md) covers a
+second checkout). The development setup starts PostgreSQL, the Phoenix app, and
+the MCP companion.
 Both local bearer tokens must be at least 32 bytes and not a placeholder, or
 the app and the companion refuse to start. In `.env`, paste the output of
 `openssl rand -base64 48` as each value: Compose reads `.env` literally and
@@ -63,11 +69,12 @@ export PORTFOLIXIR_API_TOKEN="$(openssl rand -base64 48)"
 export PORTFOLIXIR_MCP_TOKEN="$(openssl rand -base64 48)"
 ```
 
-Reset local Docker volumes when you need a clean database:
+Reset the development stack's volumes when you need a clean database; this
+deletes the development database only, which holds synthetic data:
 
 ```bash
-docker compose down -v
-docker compose up --build
+docker compose -f docker-compose.dev.yml down -v
+docker compose -f docker-compose.dev.yml up --build
 ```
 
 Host workflow:

@@ -204,7 +204,28 @@ http://127.0.0.1:4001/mcp
 The development stack (source mounted, Mix present) is
 `docker compose -f docker-compose.dev.yml up --build`.
 
-Stop and remove local volumes:
+Stop the instance with `docker compose down`; its data stays in its volumes.
+`docker compose down -v` deletes them: the database volume
+`portfolixir-postgres-data` with every record, and the logo volume
+`portfolixir-logos`. Back both up first, while the instance runs, into
+`~/portfolixir-backups` outside the checkout
+([Backup and restore](docs/home-deployment.md#backup-and-restore) restores
+them):
+
+```sh
+umask 077
+mkdir -p ~/portfolixir-backups
+docker compose exec -T db \
+  pg_dump -U portfolixir -d portfolixir_prod --format=custom \
+  > ~/portfolixir-backups/portfolixir-$(date +%F).dump
+docker compose exec -T app tar -C /var/lib/portfolixir/logos -cf - . \
+  > ~/portfolixir-backups/portfolixir-logos-$(date +%F).tar
+docker compose exec -T db \
+  pg_restore --list < ~/portfolixir-backups/portfolixir-$(date +%F).dump \
+  > /dev/null && echo "backup reads"
+```
+
+Only after it printed `backup reads`, delete:
 
 ```sh
 docker compose down -v
