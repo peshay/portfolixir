@@ -29,6 +29,7 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.SecuritiesLive
+  alias PortfolixirWeb.StoredText
 
   @impl true
   def mount(socket) do
@@ -63,9 +64,17 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
         </header>
 
         <div class="modal-body">
+          <%!-- The name is quoted, in <bdi>, and the sentence goes on after
+               it: a name ending in an abbreviation ("… o.N.") met the
+               sentence's own full stop as "o.N.." (the closing act's
+               finding; board ux-review-2026-10-03/03-gamma-surface-repairs,
+               G7). --%>
           <p class="dialog-help">
-            <%= gettext(
-              "Stock split for %{security}. Ratio as new:old shares — 2:1 doubles the count, 1:10 is a reverse split.",
+            <%= StoredText.isolate(
+              gettext(
+                "Stock split for “%{security}”, the ratio as new:old shares — 2:1 doubles the count, 1:10 is a reverse split.",
+                security: StoredText.slot(:security)
+              ),
               security: @security.name
             ) %>
           </p>

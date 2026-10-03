@@ -3876,6 +3876,14 @@ its own `<bdi>`. An inline result's message may be that markup (it was
   text inside a dialog's body that names a stored name (the merge previews'
   sentences, the plan editor's labels) is not a result or a heading and is
   left as it is.
+- **One body sentence joined, for its punctuation:** the split wizard's
+  first sentence ended with the security's name and added its own full stop,
+  so a name ending in an abbreviation read "… Namens-Aktien o.N..". It now
+  quotes the name, in `<bdi>`, and goes on after it with a comma — "Stock
+  split for “%{security}”, the ratio as new:old shares — …" (de "Aktiensplit
+  für „…“, das Verhältnis als neue:alte Aktien — …") — so no name's last
+  character meets a full stop of the app's (the closing act's finding;
+  board `mockups/ux-review-2026-10-03/03-gamma-surface-repairs`, G7).
 
 ## Amendment 2026-10-03 — Deleting a booking, and Edit on the kinds the drawer does not book *(Sprint 18 picks H2 = A and H2b = A, U1; issue 912)*
 
