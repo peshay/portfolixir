@@ -333,7 +333,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
       case transaction.type do
         "cash_transfer" -> [names.cash, names.counter_cash]
         "security_transfer" -> [names.depot, names.counter_depot]
-        _kind -> [names.depot || names.cash]
+        _kind -> [account_named(transaction, names)]
       end
       |> Enum.reject(&is_nil/1)
       |> Enum.map(&bdi/1)
@@ -351,6 +351,16 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
       figure: TransactionManagementLive.phone_amount(transaction),
       figure2: TransactionManagementLive.phone_size(transaction)
     }
+  end
+
+  # The account the box names: the depot of a booking that moves shares,
+  # the cash account of one that moves only cash — the account the sentence
+  # below it names, even when the booking carries a depot too (a dividend an
+  # import recorded with its depot; the closing act, R10f).
+  defp account_named(transaction, names) do
+    if Projection.effects(transaction).quantities == [],
+      do: names.cash || names.depot,
+      else: names.depot || names.cash
   end
 
   # What changes, concretely: the booking's own legs read in reverse — a
