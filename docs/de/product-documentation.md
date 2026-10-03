@@ -2766,8 +2766,12 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
 - Theme, Akzent und Sprache sind Nutzerpräferenzen und beeinflussen gespeicherte
   Finanzwerte nicht.
 - Datumsfelder nehmen ISO-Daten (`YYYY-MM-DD`) entgegen und zeigen sie auch so
-  an — dasselbe Format wie jedes angezeigte Datum; der lokalisierte
-  Browser-Datumswähler kommt nicht zum Einsatz.
+  an; der lokalisierte Browser-Datumswähler kommt nicht zum Einsatz. Ein Datum,
+  das die Seite nur anzeigt, folgt ihrer Sprache: `TT.MM.JJJJ` auf einer
+  deutschen Seite, ISO auf einer englischen. Einige Ansichten zeigen dort noch
+  ISO — der Kopf und die Reiter der Wertpapier-Detailseite sowie die
+  Zusammenführungsdialoge —, bis sie angeglichen sind. API, MCP und jede
+  Datei, die die App liest oder schreibt, bleiben bei ISO.
 - Zahlenfelder (Stückzahl, Preis, Gebühren und Steuern, Abrechnungsbetrag und
   Kurs, die Grenze einer Regel, die Zahlen unter Steuern, ein Kontosaldo)
   zeigen und lesen Zahlen in der Sprache der Seite: auf einer deutschen Seite

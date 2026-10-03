@@ -406,7 +406,7 @@ Rules whose nature is **visual** are defined in `DESIGN.md` and only summarised 
 | UX-DR16 | Three selected-state classes; one icon vocabulary | mapping here — **new**; appearance in `DESIGN.md` → **Components → Selected state** and `{components.selected-nav}` / `{components.selected-segment}` / `{components.selected-row}` |
 | UX-DR17 | Data notes carry one of three severities in one component | here — **new**; appearance in `DESIGN.md` → **Components → Data note** and `{components.data-note}` |
 | UX-DR18 | Active states are width-reserved | `DESIGN.md` → **`{components.width-reserve}`**, one mechanism per selected-state class — **new** |
-| UX-DR19 | Native controls inherit the design language; ISO dates | `DESIGN.md` → **Components → Native controls** and `{components.native-control}` — **new** |
+| UX-DR19 | Native controls inherit the design language; ISO date inputs, the locale's date in display (amended 2026-10-03) | `DESIGN.md` → **Components → Native controls** and `{components.native-control}` — **new** |
 | UX-DR20 | Pending and settling are different states | here — **new**; appearance in `DESIGN.md` → **Components → Value slot**, `{components.value-slot}` and `{components.recomputing-cue}` |
 
 ### UX-DR1 — Decluttered Classifications
@@ -586,7 +586,9 @@ Bold-on-active must reserve its metrics so rows and columns do not shift when se
 
 ### UX-DR19 — Native controls inherit the design language *(new)*
 
-Date inputs, selects, `<details>` disclosures and checkboxes get defined appearances instead of browser defaults, and this is where the "unfinished" impression concentrates. **Dates render ISO in input as well as in display**; the built date input shows `MM/DD/YYYY` in a product whose every display date is ISO. Appearance defined in `DESIGN.md` → Components → Native controls.
+Date inputs, selects, `<details>` disclosures and checkboxes get defined appearances instead of browser defaults, and this is where the "unfinished" impression concentrates. **Dates render ISO in input; in display they follow the locale** (`Format.date`: `DD.MM.YYYY` in German, ISO in English); the built date input shows `MM/DD/YYYY`, which is neither. Appearance defined in `DESIGN.md` → Components → Native controls.
+
+*Amended 2026-10-03 (Sprint 18 plan D-7, adopted by its planning PR's merge; #1014):* the 2026-08-05 sentence read "ISO in input as well as in display", while most built screens and three design passes' boards print the locale's date through `Format.date`. **The spec follows those screens.** ISO stays where a date is entered or exchanged: date inputs (the custom range's pair included), the JSON API and MCP payloads, imported and exported files. Moving the screens to ISO instead would have been a rendered change on almost every surface for the sake of a spec sentence. This amendment changes no rendered output. Some screens still print ISO where they only show a date — the security detail's head and its Quotes, Transactions, Trades and Holdings tabs, and the merge dialogs among them. They are drift against this rule, filed to be moved to `Format.date`, not exceptions to it.
 
 **Scope warning.** "One date input, three selects, three `<details>`, one checkbox" describes the six 2026-08-01 UAT screenshots, not the codebase. App-wide there are **11 date inputs, 29 selects, 25 `<details>` and 13 checkboxes** — 78 call sites. A story cut from the screenshot numbers under-scopes by an order of magnitude. Per-file line numbers in the Alignment inventory → UX-DR19.
 
