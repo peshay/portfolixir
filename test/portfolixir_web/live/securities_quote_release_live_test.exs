@@ -410,7 +410,11 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
     assert text(view, result) =~
              "2 manuelle Kurse freigegeben, vom #{ctx.iso.(-5)} bis #{ctx.iso.(-4)}. Die nächste Kursaktualisierung speichert für diese Tage den Schlusskurs des Anbieters."
 
-    assert has_element?(view, "#{result} button[phx-click='sync_now']", "Kurse aktualisieren")
+    assert has_element?(
+             view,
+             "#{result} button[phx-click='sync_quotes_released']",
+             "Kurse aktualisieren"
+           )
 
     assert text(view, "[data-role='manual-quotes-note']") =~
              "2 manuelle Kurse in der gespeicherten Historie, vom #{ctx.iso.(-1100)} bis #{ctx.iso.(-1099)}."
@@ -448,7 +452,7 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
     assert text(view, result) =~
              "4 manuelle Kurse freigegeben, vom #{ctx.iso.(-1100)} bis #{ctx.iso.(-4)}. Für dieses Wertpapier holt die Kursaktualisierung keine Kurse: Diese Tage bleiben ohne Kurs."
 
-    refute has_element?(view, "#{result} button[phx-click='sync_now']")
+    refute has_element?(view, "#{result} [data-role='release-sync']")
     refute has_element?(view, "[data-role='manual-quotes-note']")
   end
 
@@ -664,5 +668,87 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
 
     assert text(view, "#securities-action-result") =~ "Kurse aktualisiert."
     refute text(view, "#securities-action-result") =~ "blieb"
+  end
+
+  # User story (#1033; board ux-design-2026-10-02/07-phone-390, H7.4, code
+  # only):
+  # As the operator who just released manual quotes of one security,
+  # I want "Kurse aktualisieren" in the release result to sync that
+  # security,
+  # so that the follow-up refills the released days without querying every
+  # provider in the catalog, and its answer is about the security I am
+  # looking at.
+  #
+  # Acceptance criteria:
+  # - The follow-up syncs the released security only
+  #   (`QuoteSync.sync_security/2`): another security with the same
+  #   provider gets no quote from it.
+  # - The released day takes the provider's close; a manual quote the
+  #   release left keeps its place and is counted (H7.1b).
+  # - The follow-up clears the release result, and its own result lands in
+  #   the page-level slot, as before: "Kurse aktualisiert. Ein manueller
+  #   Kurs blieb stehen, …".
+  test "the release result's sync syncs the released security only", ctx do
+    with_closing_adapter(ctx)
+
+    other = create_security!(name: "Halvorsen Shipping ASA", ticker: nil)
+
+    {:ok, other} =
+      Catalog.update_security(Actor.owner_ui(), other, %{provider: "portfolio_performance"})
+
+    {:ok, view, _html} = quotes_tab(ctx.conn, ctx.security)
+    view |> element("[data-role='release-manual-quotes']") |> render_click()
+
+    view
+    |> form("#quote-release-form", release: %{from: ctx.iso.(-5), to: ctx.iso.(-5)})
+    |> render_change()
+
+    view |> element("[data-role='quote-release-confirm']") |> render_click()
+
+    result = "#detail-tab-panel-quotes #quotes-release-result"
+    follow_up = "#{result} button[phx-click='sync_quotes_released'][data-role='release-sync']"
+    assert has_element?(view, follow_up, "Kurse aktualisieren")
+
+    {_result, log} =
+      ExUnit.CaptureLog.with_log(fn ->
+        view |> element(follow_up) |> render_click()
+        await_sync(view)
+      end)
+
+    assert log =~ "manual quote row(s) for security ##{ctx.security.id}"
+
+    assert Repo.all(from(q in SecurityQuote, where: q.security_id == ^other.id)) == []
+
+    assert Repo.get_by!(SecurityQuote, security_id: ctx.security.id, date: ctx.day.(-5)).source ==
+             "portfolio_performance"
+
+    assert manual_dates(ctx.security) == [ctx.day.(-1100), ctx.day.(-1099), ctx.day.(-4)]
+
+    refute text(view, result) =~ "freigegeben"
+
+    assert text(view, "#securities-action-result") =~
+             "Kurse aktualisiert. Ein manueller Kurs blieb stehen, wo der Anbieter einen Schlusskurs lieferte."
+  end
+
+  # User story (#1033; board 07, H7.4, "stated for the story"):
+  # As the operator syncing one security,
+  # I want a skipped sync to say why in words,
+  # so that "Kurssync übersprungen: no_provider_adapter" does not ask me to
+  # read an atom.
+  #
+  # Acceptance criteria:
+  # - The reasons the single path can reach read as words:
+  #   `:no_provider_adapter`, `:missing_ticker`, `:missing_currency` and
+  #   `:sync_in_progress` (the single-flight lock held by another sync).
+  test "a skipped single sync says why in words", ctx do
+    {:ok, view, _html} = live(ctx.conn, "/securities?locale=de")
+
+    render_click(view, "row_action", %{"action" => "sync", "id" => to_string(ctx.security.id)})
+    await_sync(view)
+
+    assert text(view, "#securities-action-result") =~
+             "Kurssync übersprungen: Für dieses Wertpapier gibt es keinen Kursanbieter."
+
+    refute text(view, "#securities-action-result") =~ "no_provider_adapter"
   end
 end

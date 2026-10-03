@@ -2938,8 +2938,10 @@ the released rows), run as the operator.
   quotes released, from 2026-06-30 to 2026-07-03." — the count and dates of
   the write's answer (`released`), not of the dialog — then "The next quote
   sync stores the provider's close for these days." ("for this day" for one)
-  with **Sync prices** (the Chart tab's own action, `sync_now`) as its
-  follow-up, or, where the sync cannot fetch the security, "The quote sync
+  with **Sync prices** as its follow-up — the Chart tab's words, but since
+  Sprint 18 (U5, H7.4, issue 1033) syncing this security only
+  (`sync_quotes_released`, `QuoteSync.sync_security/2`), where it once ran the
+  catalog's `sync_now` — or, where the sync cannot fetch the security, "The quote sync
   fetches no quotes for this security: these days stay without a quote." and
   no button (γ D7, n6). Where the release took the last manual quote, and with
   it the note's **Release…** that opened the dialog, the focus goes to the
@@ -3449,3 +3451,23 @@ every manual quote, which the note counts. With none the result is the
 first sentence alone. The OS notification carries the same text. Naming the
 securities that kept them is possible from the per-security results and not
 proposed.
+
+### The release result's sync, and the single sync's reasons *(H7.4, code only; issue 1033)*
+
+The release result's **Sync prices** (`data-role="release-sync"`) sends
+`sync_quotes_released`: it syncs the selected security with
+`QuoteSync.sync_security/2`, the row menu's path, where it ran the whole
+catalog through `sync_now`. It clears the release result, as its next
+action, and its own answer lands in the page-level `#securities-action-result`
+— "Kurse aktualisiert." about this one security, with H7.1b's count of the
+manual quotes that stayed. The toolbar's and the Chart tab's sync keep
+`sync_now`: they mean every security. The single path's answer no longer
+prints an atom where it skipped the security: "Kurssync übersprungen: Für
+dieses Wertpapier gibt es keinen Kursanbieter." (`:no_provider_adapter`),
+"… Der Kursanbieter braucht den Ticker des Wertpapiers."
+(`:missing_ticker`), "… Das Wertpapier hat keine Währung."
+(`:missing_currency`), "… Eine Kursaktualisierung dieses Wertpapiers läuft
+bereits." (`:sync_in_progress`, the single-flight lock). A provider's own
+error is printed as it answered. Whether the follow-up's result belongs in
+the tab, beside its trigger, stays open; it lands where every sync result
+lands.

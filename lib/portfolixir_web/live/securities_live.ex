@@ -2964,7 +2964,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
         dismiss_event="dismiss_release_result"
       >
         <:follow_up :if={@sync_adapter?}>
-          <button type="button" class="link-button" phx-click="sync_now" data-role="release-sync">
+          <%!-- #1033 (H7.4): the follow-up syncs the security just
+               released, not the catalog. --%>
+          <button
+            type="button"
+            class="link-button"
+            phx-click="sync_quotes_released"
+            data-role="release-sync"
+          >
             <%= gettext("Sync prices") %>
           </button>
         </:follow_up>
@@ -4524,6 +4531,25 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:quotes_release_result, nil)}
   end
 
+  # #1033 (Sprint 18 U5, board ux-design-2026-10-02/07-phone-390, H7.4): the
+  # release result's "Sync prices" refills the days just released, so it
+  # syncs that one security (`QuoteSync.sync_security/2`), not the catalog.
+  # It is that result's next action, so the result goes; the sync's own
+  # answer lands in the page-level slot. The toolbar and the Chart tab keep
+  # `sync_now`, which means every security.
+  def handle_event("sync_quotes_released", _params, socket) do
+    case socket.assigns.selected_security do
+      %Security{} = sec ->
+        {:noreply,
+         socket
+         |> start_security_sync(sec)
+         |> assign(:quotes_release_result, nil)}
+
+      nil ->
+        {:noreply, socket}
+    end
+  end
+
   def handle_event("toggle_detail_fullscreen", _params, socket) do
     {:noreply, update(socket, :detail_fullscreen?, &(!&1))}
   end
@@ -4982,39 +5008,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:delete_blocked, nil)}
   end
 
-  defp dispatch_row_action(socket, "sync", %Security{} = sec) do
-    parent = self()
-
-    Task.start(fn ->
-      result =
-        try do
-          QuoteSync.sync_security(sec)
-        rescue
-          exception ->
-            Logger.error(
-              "QuoteSync.sync_security crashed for ##{sec.id}: " <>
-                Exception.format(:error, exception, __STACKTRACE__)
-            )
-
-            %{status: :error, reason: :crashed}
-        catch
-          kind, reason ->
-            Logger.error(
-              "QuoteSync.sync_security exited for ##{sec.id}: #{inspect({kind, reason})}"
-            )
-
-            %{status: :error, reason: :exited}
-        end
-
-      send(parent, {:sync_done, result})
-    end)
-
-    # Progress is shown by the busy sync button (`sync_running?`); no toast.
-    {:noreply,
-     socket
-     |> assign(:sync_running?, true)
-     |> assign(:action_result, nil)}
-  end
+  defp dispatch_row_action(socket, "sync", %Security{} = sec),
+    do: {:noreply, start_security_sync(socket, sec)}
 
   # ADR-0046 §1 (#572): the benchmark flag from the row menu.
   defp dispatch_row_action(socket, "benchmark", %Security{} = sec) do
@@ -5796,6 +5791,42 @@ defmodule PortfolixirWeb.SecuritiesLive do
     push_event(socket, "os-notify", %{title: title, body: body, tag: tag})
   end
 
+  # One security's sync, in the background (the row menu's "Sync prices"
+  # and the release result's follow-up): the busy sync button shows the
+  # progress, no toast, and `:sync_done` brings the answer.
+  defp start_security_sync(socket, %Security{} = sec) do
+    parent = self()
+
+    Task.start(fn ->
+      result =
+        try do
+          QuoteSync.sync_security(sec)
+        rescue
+          exception ->
+            Logger.error(
+              "QuoteSync.sync_security crashed for ##{sec.id}: " <>
+                Exception.format(:error, exception, __STACKTRACE__)
+            )
+
+            %{status: :error, reason: :crashed}
+        catch
+          kind, reason ->
+            Logger.error(
+              "QuoteSync.sync_security exited for ##{sec.id}: #{inspect({kind, reason})}"
+            )
+
+            %{status: :error, reason: :exited}
+        end
+
+      send(parent, {:sync_done, result})
+    end)
+
+    # Progress is shown by the busy sync button (`sync_running?`); no toast.
+    socket
+    |> assign(:sync_running?, true)
+    |> assign(:action_result, nil)
+  end
+
   # #1012 (Sprint 18 U5, board ux-design-2026-10-02/07-phone-390, H7.1b): the
   # sync keeps a manual quote wherever the provider returns a close for the
   # same day (`protect_manual: true`) and counts it per security as
@@ -5848,6 +5879,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   defp sync_flash(_), do: gettext("Price sync failed.")
+
+  # #1033 (H7.4): the reasons a single security's sync can reach before it
+  # fetches anything (QuoteSync's skips and its single-flight lock) read as
+  # words; a provider's own error stays as it answered.
+  defp sync_reason(:no_provider_adapter),
+    do: gettext("No quote provider fetches this security.")
+
+  defp sync_reason(:missing_ticker),
+    do: gettext("The quote provider needs the security's ticker.")
+
+  defp sync_reason(:missing_currency),
+    do: gettext("The security has no currency.")
+
+  defp sync_reason(:sync_in_progress),
+    do: gettext("A sync of this security is already running.")
 
   defp sync_reason(reason) when is_atom(reason), do: Atom.to_string(reason)
   defp sync_reason(reason), do: inspect(reason)
