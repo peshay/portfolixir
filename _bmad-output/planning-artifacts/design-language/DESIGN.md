@@ -2551,8 +2551,10 @@ under "Trades: reach, the p. a. column and the unmatched sells".
 ### The list's basis line
 
 `p.summary-basis[data-role="trades-basis"]` directly under the list (rule
-②: 12 px, muted, no margin — `.summary-basis` has no context-free rule, so
-the rule is scoped to `#realized-trades > .summary-basis` and the card):
+②: 12 px, muted, no margin — `.summary-basis` had no context-free rule, so
+the rule is scoped to `#realized-trades > .summary-basis` and the card;
+since Sprint 18 the context-free rule exists, issue 1011, and the scoped one
+repeats it):
 "Einlieferungen eröffnen keinen Lot · Gebühren und Steuern in Einstand und
 Erlös · Erträge während der Haltedauer nicht enthalten · p. a. erst ab 365
 Tagen Haltedauer". It renders whenever the list or the unmatched-sells note
@@ -3200,3 +3202,34 @@ match it.
 - **Under 560 px nothing changes:** the table gives way to the two-line
   phone rows (UX-DR27), where the ratio and the balance already sit right in
   the figures column.
+
+### One basis voice, one disclosure summary *(issue 1011, rule ⑤)*
+
+Three halves, and all three change the picture:
+
+- **⑤a the basis voice has a context-free rule:** `.summary-basis { margin:
+  0; font-size: 12px; color: {colors.text-muted} }`, placed before every
+  scoped basis rule. Nineteen basis lines rendered as body text (13 px, text
+  colour, a paragraph's margins) — the four Cash-flow facets, Risk ×2, Tax
+  ×3, Views and Buckets ×3, Snapshots, the Quotes tab, the KPI strip,
+  Classifications, the allocation (issue 911's basis line) and the two
+  "since" notes. The scoped rules with their own layout keep it:
+  `.detail-tab-panel--overview .summary-basis` stays a flex row, and the
+  later single-class `.kpi-strip__basis` and `.tree-basis` keep their own
+  margins by source order — they gain the 12 px muted voice for the first
+  time.
+- **⑤b one `.disclosure-summary`, at the spec's control label:** the class
+  was defined twice, and the second definition (0.85rem / 600) won, so every
+  quiet disclosure summary read at 13.6 px / 600 instead of
+  {typography.control-label} (12 px / 500 / 0.04em). The second definition
+  is gone and the first carries weight 500 — **not** pixel-identical,
+  because the identical picture would have kept the violation. Every
+  summary of the class changes, 26 in 16 modules counted with ⑤c's: "Daten
+  als Tabelle", the Cash-flow matrices, the merge records, the import, Tax,
+  Risk, the dialogs. `.merge-manifest > .disclosure-summary` loses its now redundant
+  local 12 px / 500; `.dup-group`'s local 12.5 px stays its own decision.
+- **⑤c the compatibility records' summary is a `.disclosure-summary`** with
+  the 12 px chevron (Accounts & depots, "Portfoliodatensätze
+  (Kompatibilität)"), where it was a bare `<summary>` with the browser's
+  triangle (UX-DR19); `details[open] > .disclosure-summary
+  .disclosure-chevron` turns it.

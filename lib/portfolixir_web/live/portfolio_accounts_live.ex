@@ -309,7 +309,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
              Deliberately collapsed and without any create/edit control: the
              records are internal compatibility bindings, not a grouping. --%>
         <details :if={@portfolio_records != []} id="portfolio-admin" class="workspace-section">
-          <summary>
+          <%!-- #1011: the spec'd quiet summary with the defined chevron
+               (UX-DR19), never the browser's triangle. --%>
+          <summary class="disclosure-summary">
+            <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
             <%= gettext("Portfolio records (compatibility)") %>
           </summary>
           <p class="hint">

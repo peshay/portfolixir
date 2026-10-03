@@ -4904,6 +4904,11 @@ details[open] > .cat-summary::before {
 .period-disclosure {
   position: relative;
 }
+/* The one definition of the quiet disclosure summary, at
+   {typography.control-label}: 12 px, weight 500, 0.04em, muted (issue 1011,
+   board ux-design-2026-10-02/04-tables-conformance ⑤b). A second
+   definition further down (0.85rem / 600) won by source order and set every
+   summary at 13.6 px / 600; it is gone. */
 .disclosure-summary {
   display: inline-flex;
   align-items: center;
@@ -4911,6 +4916,7 @@ details[open] > .cat-summary::before {
   min-height: 30px;
   color: var(--color-text-muted);
   font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0.04em;
   cursor: pointer;
   list-style: none;
@@ -5213,6 +5219,18 @@ thead .col-subject {
 }
 .transaction-summary .summary-type {
   font-variant-numeric: tabular-nums;
+}
+/* The basis voice without a context (issue 1011, and the allocation's basis
+   line of issue 911; Sprint 18 pick H4, board
+   ux-design-2026-10-02/04-tables-conformance ⑤a): outside the scoped rules
+   below, nineteen basis lines rendered as body text. It sets only margin,
+   size and colour, and precedes every scoped rule, so the later
+   single-class rules with their own margin or layout (`.kpi-strip__basis`,
+   `.tree-basis`) keep winning by source order. */
+.summary-basis {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 /* UX-DR21: the surface states what it aggregates, on its own line so it reads
    as a caption rather than as another figure. */
@@ -8480,29 +8498,13 @@ dialog.booking-drawer {
    A section's secondary table behind the spec'd chevron. It exists because
    .more-filters was carrying three jobs at once and its summary renders no
    marker at all, so a content disclosure built on it had no expand
-   affordance. Same chevron as .cat-summary, which is the compliant one. */
+   affordance. Same chevron as .cat-summary, which is the compliant one. The
+   summary is the one `.disclosure-summary` above (issue 1011). One marker
+   (issue 854, DESIGN.md → Data as table — one disclosure): the templates
+   render the chevron icon, which turns when the details open; a CSS
+   triangle as well drew "▸ ›". */
 .section-disclosure {
   margin-top: var(--space-2);
-}
-.disclosure-summary {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  list-style: none;
-}
-.disclosure-summary::-webkit-details-marker {
-  display: none;
-}
-/* One marker (issue 854, DESIGN.md → Data as table — one disclosure): the
-   templates render the chevron icon, which turns when the details open
-   (`.disclosure-chevron` above). A CSS triangle here as well drew "▸ ›". */
-.disclosure-summary:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
 }
 
 /* ===== Wealth → Risk: own rules (ADR-0049 §9, Sprint 15 pick F1-A) =====
@@ -9465,8 +9467,6 @@ dialog.merge-dialog {
    per table, the choice and the check open under it. Read-only. */
 .merge-manifest > .disclosure-summary {
   align-items: flex-start;
-  font-size: 12px;
-  font-weight: 500;
   text-align: left;
 }
 
