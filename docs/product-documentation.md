@@ -2017,13 +2017,15 @@ differently.** Three kinds of booking they made are wrong:
 To check a file imported before, drop it on the Imports page again. A file
 already imported previews as *nothing to create*, so a row the preview now
 counts as new is a transfer the earlier import read differently (cases 1 and
-2). Remove the wrong booking before you apply: delete it through the API or
+2, and case 3 between two depots). Remove the wrong booking before you apply: delete it through the API or
 the MCP companion (`DELETE /api/v1/transactions/:id`,
 `portfolixir.transactions.delete`), then apply the file, which books the
 transfer as it moved. A cash account named after a depot holds nothing else
-once its transfer is gone and can be deleted. Case 3 needs no re-import: delete
-the booking whose direction is wrong, and the file's sending row stays the one
-already imported. Nothing in Portfolixir tells whether an instance has such
+once its transfer is gone and can be deleted. Case 3 between two cash accounts
+needs no re-import: delete the booking whose direction is wrong, and the file's
+sending row stays the one already imported. Case 3 between two depots booked
+both sides as cash transfers of the kind case 1 describes: delete both, then
+apply the file, which books one security transfer. Nothing in Portfolixir tells whether an instance has such
 bookings; the check above is the operator's.
 
 ### What a re-import preserves

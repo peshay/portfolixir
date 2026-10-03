@@ -28,6 +28,40 @@ defmodule PortfolixirWeb.ApiV1BenchmarkTest do
 
   # A small world whose figures are exact: 1000 deposited and invested on the
   # first day, 500 more cash later, the holding quoted at 100 → 120.
+  # User story (#1031, Sprint 18 C2, the closing act's review round):
+  # As an agent reading a money-weighted figure,
+  # I want the payload to say that no rate reads at or below -1,
+  # so that a total loss reported as -0.999999 is read as the floor it is,
+  # not as a measured rate.
+  #
+  # Acceptance criteria:
+  # - computation_basis.gaps of a performance response and of a benchmark
+  #   response states the floor: irr and mwr never read at or below -1, and a
+  #   rate that rounds there reads -0.999999 (ADR-0034 amendment).
+  test "the basis states that no money-weighted rate reads at or below -1", %{conn: conn} do
+    world = seeded_world("F")
+    conn = api_conn(conn)
+
+    performance =
+      conn
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/performance")
+      |> json_response(200)
+      |> get_in(["data", "computation_basis", "gaps"])
+
+    benchmark =
+      conn
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/performance/benchmark", %{
+        "benchmark" => "rate:0"
+      })
+      |> json_response(200)
+      |> get_in(["data", "computation_basis", "gaps"])
+
+    for gaps <- [performance, benchmark] do
+      assert gaps =~ "never read at or below -1"
+      assert gaps =~ "-0.999999"
+    end
+  end
+
   defp seeded_world(name) do
     world = base_world(name: name, cash_name: "#{name} Cash", depot_name: "#{name} Depot")
     security = create_security!(name: "World ETF", ticker: "WLD")

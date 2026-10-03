@@ -394,5 +394,33 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       assert first =~ "row 1"
       assert second =~ "row 2"
     end
+
+    # The closing act's review round (Sprint 18 C1): a file assembled from
+    # two lists may write the same amount in two ways, and the converter's
+    # security-transfer label is a sending row like PP's own.
+    test "pairs the two sides whatever way each row writes the amount" do
+      preview =
+        transfers("""
+        2024-08-12 10:00:00;Umbuchung (Ausgang);;;;1.000,00;;;1.000,00;Cash-A;Cash-B;;
+        2024-08-12 10:00:00;Umbuchung (Eingang);;;;1000;;;1000;Cash-B;Cash-A;;
+        """)
+
+      assert %Preview{entries: [entry], errors: [%{row: 2, message: message}]} = preview
+      assert entry.source_row == 1
+      assert message =~ "row 1"
+    end
+
+    test "pairs a receiving row with the converter's security-transfer row" do
+      preview =
+        transfers("""
+        2024-11-15 21:00:00;Umbuchung (Wertpapier);Example Fund;3;20,00;60,00;;;60,00;Depot-A;Depot-B;;
+        2024-11-15 21:00:00;Umbuchung (Eingang);Example Fund;3;20,00;60,00;;;60,00;Depot-B;Depot-A;;
+        """)
+
+      assert %Preview{entries: [entry], errors: [%{row: 2, message: message}]} = preview
+      assert entry.source_row == 1
+      assert direction(entry) == {"security_transfer", "Depot-A", nil, "Depot-B", nil}
+      assert message =~ "row 1"
+    end
   end
 end

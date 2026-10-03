@@ -327,11 +327,16 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
     end
   end
 
+  @doc false
   # ADR-0034 amendment 2026-10-02 (#1031): above a largest flow of one
   # million, every flow is scaled so the largest is one million, in Decimal.
-  # The places kept make a flow that scales below the float range a zero,
-  # which it already was beside a million in the float sum, never a raise.
-  defp scaled(cashflows) do
+  # The places kept turn a flow that scales below the float range into a
+  # zero, never a raise. Such a flow is at least 1e18 times smaller than the
+  # largest: only at a rate close to -1, where discounting magnifies a late
+  # flow, could it have moved the root, and amounts that far apart lie beyond
+  # what the ledger's columns hold. Public for its test only.
+  @spec scaled([cashflow()]) :: [cashflow()]
+  def scaled(cashflows) do
     largest =
       cashflows
       |> Enum.map(fn {_date, amount} -> Decimal.abs(amount) end)
