@@ -3821,3 +3821,144 @@ its own `<bdi>`. An inline result's message may be that markup (it was
   text inside a dialog's body that names a stored name (the merge previews'
   sentences, the plan editor's labels) is not a result or a heading and is
   left as it is.
+
+## Amendment 2026-10-03 — Deleting a booking, and Edit on the kinds the drawer does not book *(Sprint 18 picks H2 = A and H2b = A, U1; issue 912)*
+
+Board `mockups/ux-design-2026-10-02/02-booking-delete`, variant A of both
+questions (plan D-8; silence adopted them). The missing human view of the
+API's and MCP's delete (plan D-6): the screen now deletes every kind of
+booking, a split as the one fact it was booked as. Built in
+`PortfolixirWeb.Transactions.BookingDeleteDialog` (the dialog, its words and
+its write), `TransactionManagementLive` (the row menu, the notes-only
+drawer) and, for the link from **Record split**, `SplitWizardDialog` and
+`SecuritiesLive`. The writes are the API's: `Ledger.delete_transaction/2`
+for a booking, `Splits.delete_split/2` for a split — every row of the event,
+in every portfolio, in one journaled step (its API and MCP twins are
+`DELETE /api/v1/splits/:transaction_id` and `portfolixir.splits.delete`, an
+admin tool).
+
+### The row menu *(A1)*
+
+- **Edit · Delete…** on every history row of every kind, Delete last, in
+  `.row-context-menu__item--danger` with the trash glyph: the order by
+  consequence of the accounts and securities menus. The ellipsis says a
+  dialog follows, as in "Merge into…".
+- **The phone sheet names its row**: the menu passes `caption_name`, the
+  `row_name/2` the kebab's label already composes, and `caption_kind`
+  "Transaction" — "Kauf, Global Aktien ETF, 22.09.2026 · Transaktion". The
+  sheet said nothing about its row before.
+
+### The dialog *(A2–A6)*
+
+- **Shape.** A native `<dialog class="modal booking-delete-dialog">` on the
+  `ModalDialog` hook, titled "Delete transaction" ("Transaktion löschen"),
+  the quote release's narrow destructive modal: `.booking-delete-dialog`
+  joins the `.quote-release-dialog` selector lists (460 px; under 720 px the
+  merge dialog's bottom sheet, the confirm on its own line above Cancel,
+  44 px buttons) — rule ①, a list membership, not a copy.
+- **The booking, said back** (rule ②): `.booking-delete__subject`, a
+  bordered box (`--color-border`, `--radius-md`, `--color-bg`, padding
+  `--space-2` `--space-3`) holding the history's own phone-row parts at every
+  width — "22.09.2026 · Kauf" over "Global Aktien ETF · Depot 1" (a transfer
+  "Girokonto → Tagesgeld"), and on the right the signed amount the history
+  shows over its size ("40 × 62,50"). The menu no longer hangs at its row
+  once the dialog is open; the box says which row was meant.
+- **What changes, concretely** — one `.hint` sentence built from
+  `Projection.effects/1`, the one reducer per kind, read in reverse, so no
+  sentence is written per kind: the quantity legs first, then the cash legs,
+  "Danach hält Depot 1 40 Stück Global Aktien ETF weniger, und Girokonto hat
+  2.504,90 EUR mehr." (the cash leg is the cash the booking moved, fees
+  included). A set balance has its own sentence ("Danach trägt Girokonto
+  keinen am 30.09.2026 gesetzten Saldo mehr; sein Stand folgt wieder den
+  Buchungen."). **Where a later set balance anchors an account the booking
+  moves** (the doubt the design pass left to the story), a sentence says the
+  anchor still holds from its day on — the booking's effect on that balance
+  ends there. Then the general sentence: "Bestände, Kontostände, Rendite und
+  Trades werden ohne diese Buchung neu berechnet." Stored names sit in
+  `<bdi>` (H8.8).
+- **The journal, honestly:** "Das Journal behält die Buchung mit allen
+  Werten; zurückholen kann die Oberfläche sie nicht." — hence danger, not
+  primary, as in the quote release.
+- **An imported booking (A3)**: one `attention` data note — "Diese Buchung
+  stammt aus einem Import. Mit ihr geht ihr Inhalts-Hash: Ein erneuter Import
+  derselben Datei bucht sie wieder." The behaviour is unchanged (plan D-6);
+  the note says it.
+- **The band foot**: Cancel (ghost, `autofocus`, so the dialog opens on it),
+  the spacer, then `.button-danger` naming the act. **One confirmation**:
+  no `data-confirm` after it. The issue-765 rule ("every destructive control
+  carries data-confirm") keeps its exception where a destructive dialog is
+  itself the confirmation — the quote release, this delete — and the
+  `layout_view.ex` note says so.
+- **After (A5)**: the page's own `.alert-success` slot, "Transaktion
+  gelöscht: Kauf · Global Aktien ETF · 22.09.2026."; the row is gone and the
+  month subtotal follows. **Gone meanwhile (A6)**: `.alert-error` "Diese
+  Transaktion existiert nicht mehr.", the history reloaded — the one refusal
+  the API states. The dialog warns about nothing the API does not check (no
+  dependency check: a later sale may lose its purchase).
+- **Focus.** The dialog's opener, the menu item, is gone when it opens, and
+  after a delete so is the row. The `ModalDialog` hook no longer takes
+  `<body>` for an opener, so `data-focus-fallback` applies: the history's
+  heading (`#transaction-history-heading`, `tabindex="-1"`), or **Record
+  split** on the security's page — never `<body>` (WCAG 2.4.3).
+
+### A split, deleted whole *(A4, A7, A8)*
+
+- **"Delete…" on any split row** opens the same dialog titled "Split
+  löschen": the box reads "15.09.2026 · Split" over the security, "2:1" over
+  "2 Zeilen"; "Der Split ist in 2 Portfolios gebucht, Hauptportfolio und
+  Sparplan-Portfolio; beide Zeilen werden in einem Schritt gelöscht." (one
+  portfolio: "…in 1 Portfolio gebucht, Hauptportfolio; seine Zeile wird
+  gelöscht."); "Danach zählen die Bestände von Kestrel Robotik SE ab dem
+  15.09.2026 wieder ohne den Split, und das Diagramm rechnet seine Kursreihe
+  ohne ihn; gespeicherte Kurse bleiben, wie sie sind."; the journal keeps
+  both rows. The confirm reads "Split löschen (2 Zeilen)", one row "Split
+  löschen". The result: "Split gelöscht: Kestrel Robotik SE · 2:1 ·
+  15.09.2026, 2 Zeilen."
+- **A7, the split drawer's help line gets its way**: "Stichtag, Verhältnis
+  und Wertpapier eines gebuchten Splits stehen fest. Ein falscher Split wird
+  gelöscht und danach am Wertpapier mit „Split erfassen“ neu erfasst." and
+  the `.link-button` **Split löschen…**, which closes the drawer and opens
+  the dialog — never a dialog from a dialog (UX-DR9). This supersedes the
+  "without a link" of the G12.3 amendment.
+- **A8, "Record split" links to it.** The conflicting-ratio warning names
+  the booked ratio — "Für dieses Wertpapier ist an diesem Datum bereits ein
+  Split mit anderem Verhältnis gebucht (2:1). Die Buchung wird abgelehnt,
+  solange er steht." — and carries **Gebuchten Split löschen…**; the booking
+  refusal (a conflicting or an already booked split) carries the same link.
+  It closes the wizard and opens the dialog on the security's page, so the
+  delete and the rebooking happen in one place. The board's fallback (a link
+  to the history) was not needed: the dialog is one function component
+  with one handler per page.
+
+### Edit on the kinds the drawer does not book *(H2b = A)*
+
+- **The notes-only drawer** is the G12.3-A split state, generalised to
+  every kind outside buy and sell (the drawer books only those, AGENTS.md
+  goal 4). The same `dialog.detail-pane.booking-drawer`, titled "Edit
+  transaction"; the sub line says the limit before anything is tried — "Die
+  Art „Dividende“ bucht die Oberfläche nicht; hier ändert sich nur die
+  Notiz, und die Änderung wird journalisiert." (a set balance: "Ein Saldo
+  wird unter Konten & Depots gesetzt; …"; a split keeps its own).
+- **The facts, disabled**, with the words the history and the drawer
+  already use, the fields following the kind's stored fields: Typ and Datum
+  (a split: Stichtag), then the security where the booking has one, and per
+  kind — a cash kind its Verrechnungskonto, "Betrag (EUR)" and, for a
+  dividend or interest, Steuern; a cash transfer "Von Konto" and "An Konto"
+  and its amount; a delivery its Depot, Stückzahl and Preis; a security
+  transfer "Von Depot", "An Depot" and Stückzahl; a set balance its account
+  and "Saldo (EUR)"; a split its ratio. Ids are general now: `#note-form`,
+  `#booking-facts`, `#booking-edit-help`, the fields `note[…]`.
+- **The help line** states the limit and both correction paths where the
+  correction is tried (UX-DR26): "Datum, Beträge und Konten dieser Buchung
+  stehen hier fest; die Oberfläche bucht nur Käufe und Verkäufe. Korrigiert
+  wird die Buchung über API oder MCP, oder sie wird gelöscht und neu
+  importiert." — a set balance "…oder er wird gelöscht und unter Konten &
+  Depots neu gesetzt" — and carries **Löschen…**, opening the delete dialog.
+  The Notes field stands open under it, with **Notiz speichern** and
+  **Abbrechen**; a booking save pushed at this drawer changes nothing.
+- **Stated, not settled here:** the API's and MCP's update corrects every
+  field of these kinds in place; the screen changes only the note. That
+  two-way gap is outside this pick (the design pass's Scope Lock) and the
+  help line is its stated limit until it is built. Dialog count: one more
+  native dialog — eighteen `<dialog>` elements in `lib/portfolixir_web/`,
+  still with zero `aria-modal`.

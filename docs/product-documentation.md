@@ -718,15 +718,64 @@ previous values as its before-image. This is the human view of a capability
 the API and the MCP companion have had since before the two-way coverage
 rule; nothing new was added to either.
 
-**A booked split** is the exception (E25 S6): a split is a fact about the
+**The kinds the drawer does not book** (issue #912): the drawer records and
+corrects buys and sells. **Edit** on any other booking — a dividend, a
+deposit, a transfer, a delivery, a set balance, a split — opens the drawer
+**notes-only**: the booking's own facts are shown and fixed (the type, the
+date and whatever the kind stores — the security, the cash account or both
+accounts of a transfer, the depot, the amount, the taxes, the quantity and
+price), and only its **note** is editable (**Save note**, journaled like
+every change). One help line says how such a booking is corrected: in place
+over the API or the MCP companion, or by deleting it and importing it again
+— a set balance is set again under **Accounts & depots** — and carries
+**Delete…**, which closes the drawer and opens the delete confirmation
+below.
+
+**A booked split** is notes-only too (E25 S6): a split is a fact about the
 security, booked through **Record split** on the security, whose checks
 (the effective date, the positions, a conflicting ratio on the same day)
-an ordinary edit would pass by. **Edit** on a split row therefore opens the
-drawer with the split's type, effective date, security and ratio shown and
-fixed, and only its **note** editable (**Save note**). A wrong split is not
-corrected in place: its rows are deleted over the API or the MCP companion
-and the split is recorded again with **Record split**. The API and MCP
-answer a change to anything but the note of a split row with `422`.
+an ordinary edit would pass by. Its drawer shows the split's type,
+effective date, security and ratio, fixed. A wrong split is not corrected
+in place: it is deleted — **Delete split…** in that help line — and
+recorded again with **Record split**. The API and MCP answer a change to
+anything but the note of a split row with `422`.
+
+**Deleting a booking** (issue #912): the kebab of every row carries
+**Delete…** after **Edit**, in red. It opens one confirmation that names the
+booking the way the history's phone row does — the date and the kind over
+the security and the depot (or the account), the signed amount over its
+size — and says what changes: for example "Afterwards Depot 1 holds 40 fewer
+units of Global Equity ETF, and Checking has 2,504.90 EUR more.", that
+holdings, balances, returns and trades are recomputed without the booking,
+and that the audit journal keeps the booking with all its values while the
+screen cannot bring it back. Where a later set balance anchors that cash
+account, the confirmation says the anchor still holds from its day on.
+**Delete transaction** deletes it; **Cancel**, Esc or the close button
+change nothing. The row disappears, the month subtotal follows, and the
+result reads "Transaction deleted: Buy · Global Equity ETF · 2026-09-22."; a
+booking deleted meanwhile (by the agent, or in another tab) reads "That
+transaction no longer exists." — the one refusal the API knows. Nothing is
+checked beyond that, as over the API: deleting a buy whose shares a later
+sale consumed leaves that sale without its purchase.
+
+- **An imported booking** says so: its content hash goes with it, so
+  importing the same file again books it again. Only merging an account,
+  depot or security retires a content hash.
+- **A split** is deleted the way it was booked, as one fact: **Delete…** on
+  any of its rows opens **Delete split**, naming the ratio, the number of
+  rows and the portfolios whose rows go — "Delete split (2 rows)" deletes
+  them all in one step, journaled. Afterwards the holdings count without the
+  split from its date, the chart's price series is computed without it, and
+  stored quotes stay as they are; **Record split** then accepts the
+  corrected ratio. **Record split** itself leads here: where a split with
+  another ratio is already booked on the day, its warning names that ratio
+  and carries **Delete the booked split…**, which opens the same
+  confirmation on the security's page.
+
+The API and MCP companion have the same two deletes:
+`DELETE /api/v1/transactions/:id` (`portfolixir.transactions.delete`) for
+one booking, and `DELETE /api/v1/splits/:transaction_id`
+(`portfolixir.splits.delete`, an admin tool) for a split as a whole.
 
 While entering a **sell**, the form previews which FIFO purchase tranches
 (lots) the sale would consume and the resulting **gross gain** per tranche
@@ -2093,8 +2142,9 @@ differently.** Three kinds of booking they made are wrong:
 To check a file imported before, drop it on the Imports page again. A file
 already imported previews as *nothing to create*, so a row the preview now
 counts as new is a transfer the earlier import read differently (cases 1 and
-2, and case 3 between two depots). Remove the wrong booking before you apply: delete it through the API or
-the MCP companion (`DELETE /api/v1/transactions/:id`,
+2, and case 3 between two depots). Remove the wrong booking before you apply:
+delete it with **Delete…** in its row menu in the history, or through the API
+or the MCP companion (`DELETE /api/v1/transactions/:id`,
 `portfolixir.transactions.delete`), then apply the file, which books the
 transfer as it moved. A cash account named after a depot holds nothing else
 once its transfer is gone and can be deleted. Case 3 between two cash accounts
