@@ -23,8 +23,8 @@ descriptions document the rest.
   weights with their drift, and a research log per security. Every figure is on
   a page and over the API and the MCP companion.
 - History gets in as a Portfolio Performance CSV or JSON v1 file dropped on the
-  instance's Imports page (a preview, then an atomic apply; dropping the same
-  file again books nothing twice), or one booking at a time.
+  instance's Imports page, at `/imports` (a preview, then an atomic apply;
+  dropping the same file again books nothing twice), or one booking at a time.
 - An open-source project under the MIT license, written with LLM coding agents,
   every commit owned by an accountable human. It makes no claim of production
   readiness.
@@ -57,14 +57,17 @@ can bring the history in from a Portfolio Performance export.
    `PORTFOLIXIR_MCP_TOKEN` each from `openssl rand -base64 48`, and
    `POSTGRES_PASSWORD` from `openssl rand -hex 32`. A token shorter than 32
    bytes, or left as the placeholder, stops the stack at start.
-3. Run `docker compose up --build`. The app answers at http://127.0.0.1:4000 and
-   the MCP companion at http://127.0.0.1:4001/mcp, both on the host's loopback
-   only.
+3. Run `docker compose up --build -d`: it builds and starts the stack in the
+   background and returns once the stack is up (without `-d` the command stays
+   attached to the logs and does not return). The app answers at
+   http://127.0.0.1:4000 and the MCP companion at http://127.0.0.1:4001/mcp,
+   both on the host's loopback only.
 
 Set `PORTFOLIXIR_UI_PASSWORD` for a Compose install: the port mapping keeps the
 instance on the host's loopback, but every process on that host and the stack's
-other containers reach the web UI, which is open without it. The deployment
-guide covers the reverse proxy and backups.
+other containers reach the web UI, which is open without it. The login, at
+`/login`, asks only for `PORTFOLIXIR_UI_PASSWORD`: there is no user name. The
+deployment guide covers the reverse proxy and backups.
 
 The first build pulls the pinned base images and downloads Debian packages, Hex
 packages from hex.pm and npm packages from the npm registry. Behind a proxy, pass

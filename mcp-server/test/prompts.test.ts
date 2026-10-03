@@ -243,4 +243,32 @@ describe("the companion's prompts", () => {
       /bank-export-2025\.csv/
     );
   });
+
+  // User story (the launch test's second run, #1037):
+  // As the user's agent converting an export whose dividends name a depot,
+  // I want the import_converter prompt to say which depot the importer books a
+  // dividend to, and what to write when one security sits in two depots,
+  // so that I do not guess at where a dividend lands.
+  //
+  // Acceptance criteria:
+  // - The Konto rules say a Dividende from the CSV is booked to its cash
+  //   account and its security with no depot: the row names none, and the
+  //   importer reads no Gegenkonto on it (csv_parser.ex, map_accounts/3).
+  // - The JSON v1 variant's portfolio field names a DIVIDEND's depot
+  //   (json_parser.ex), and the prompt says to write that variant when the
+  //   same security sits in two depots and each dividend should name its own.
+  it("import_converter says which depot a dividend is booked to", async () => {
+    const text = await promptText("import_converter");
+
+    assert.match(
+      text,
+      /a Dividende from the CSV is booked to its cash account and its security with no depot/
+    );
+    assert.match(text, /The importer reads no Gegenkonto on these rows, so the CSV gives them no depot/);
+    assert.match(text, /on a DIVIDEND, the depot the dividend is booked to/);
+    assert.match(
+      text,
+      /When the same security sits in two depots and each dividend should name the depot that held the shares, write the JSON v1 variant below/
+    );
+  });
 });
