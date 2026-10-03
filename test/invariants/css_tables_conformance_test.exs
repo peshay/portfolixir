@@ -138,6 +138,28 @@ defmodule Portfolixir.Invariants.CssTablesConformanceTest do
     refute manifest =~ "font-weight"
   end
 
+  # User story (the closing act's H4 ①d finding; board
+  # ux-review-2026-10-03/03-gamma-surface-repairs, G5):
+  # As the operator hovering a booking in the history filtered to one
+  # account,
+  # I want the row's hover wash to run through the pinned Balance,
+  # so that the one figure the filter was chosen for reads as part of the
+  # row I point at.
+  #
+  # Acceptance criteria:
+  # - `#transaction-list` is not a `.data-table`; its hover is the global
+  #   `tbody tr:hover` wash (42 % accent-soft over transparent, on the row).
+  # - The pinned Balance takes the same 42 % accent-soft over
+  #   {colors.bg-elevated}, so it follows the wash and stays opaque while
+  #   the figures scroll beneath it.
+  test "the history's hover wash reaches the pinned Balance" do
+    assert block("tbody tr:hover") =~
+             ~r/background:\s*color-mix\(in srgb, var\(--color-accent-soft\) 42%, transparent\);/
+
+    assert block("#transaction-list tbody tr:hover td.col-subject") =~
+             ~r/background:\s*color-mix\(in srgb, var\(--color-accent-soft\) 42%, var\(--color-bg-elevated\)\);/
+  end
+
   # User story (the closing act's H4 ⑤b finding; board
   # ux-review-2026-10-03/03-gamma-surface-repairs, G4):
   # As the operator on Snapshots,
