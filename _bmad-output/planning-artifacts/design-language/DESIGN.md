@@ -1630,7 +1630,8 @@ composition per surface that the column picker does not touch.
   subject (security, else cash account, else depot), the signed amount with
   its currency over the size — quantity × price, the quantity alone, a
   split's ratio — and the running balance beneath while the chips narrow to
-  one account.
+  one account; the row's kebab at its end, in a third track (Sprint 18 U5,
+  H7.6).
 - **A security's quotes** *(Sprint 18 U5, issue 1012, pick H7.1 = A)*: the
   date (ISO) over the source badge; on the right the close with the
   security's currency, over "stored <value>" only where a split adjusted the
@@ -3537,3 +3538,17 @@ entry can only name a file and a code point,
 `test/invariants/soft_hyphen_scope_test.exs` holds it to the one msgstr.
 Copying the label may carry the U+00AD in some browsers. The label's size
 (13.6 px where the spec's `stat-label` is 12 px) is unchanged here.
+
+### The history's phone row keeps its kebab at its end *(H7.6, rule ④; no issue)*
+
+The history's two-line row has had three children since its row menu
+reached the phone — the body, the figures and the kebab
+(`#tx-phone-kebab-…`) — while `#transaction-phone-rows .phone-row` still
+declared two tracks and a comment saying the row had no kebab. Grid
+auto-placement put the kebab on a line of its own under the date, at the
+left: every booking grew by the kebab's height (44 px on touch), and the
+kebab read as the next row's. The rule now declares `minmax(0, 1fr) auto
+auto`, its comment says why, and `.phone-row .row-actions__kebab
+{ align-self: center }` keeps the kebab centred when the running balance
+adds a third line on the right. The trades rows have no kebab and keep two
+tracks.

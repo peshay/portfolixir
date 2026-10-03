@@ -7899,13 +7899,17 @@ select:disabled {
   border-top: 1px solid var(--color-border);
 }
 
-/* The transactions row carries two children, not four: the body has no logo
-   beside it and the row has no kebab. Without its own tracks the body would
-   land in the logo's `auto` column and the un-wrappable figures in the
-   elastic one, which is the wrong way round — a long subject would then
-   push the figures into the clipped edge. */
+/* The transactions row carries three children, not four: the body has no
+   logo beside it, and since the row menu reached the phone it ends in its
+   kebab. Without its own tracks the body would land in the logo's `auto`
+   column and the un-wrappable figures in the elastic one, which is the wrong
+   way round — a long subject would then push the figures into the clipped
+   edge. With two tracks the kebab was auto-placed on a line of its own under
+   the date (Sprint 18 U5, board ux-design-2026-10-02/07-phone-390 H7.6);
+   the third track keeps it at the row's end (UX-DR27), centred by
+   `.phone-row .row-actions__kebab`. */
 #transaction-phone-rows .phone-row {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
 .phone-rows > li:first-child {
