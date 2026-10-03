@@ -649,7 +649,7 @@ Five `@media (pointer: coarse)` blocks ship (app.css:4589, 4887, 4998, 5330, 552
 | `.chart-toggle` | `min-height: 32px` | app.css:2973-2986 |
 | `.period-buttons .button-mini` | **no `min-height`** — `padding: 0.25rem 0.6rem` | app.css:3973-3980 |
 | `.locale-link` | `min-width: 30px`, `min-height: 26px` | app.css:743-750 |
-| `.icon-button` | `30 × 30px` | app.css:1438-1445 |
+| `.icon-button` | `30 × 30px` — *rendered 30 × 34 as a `<button>`, because the base button's 34px floor won the height; shipped 2026-10-03 (Sprint 18 U4, issue 1033, board `ux-design-2026-10-02/06-touch-focus` H6.2b): `min-height: 0` makes the 30 × 30 hold, and `min-width` and `min-height` of 44px under `@media (pointer: coarse)`, on the class* | app.css:1438-1445 |
 | `.theme-choice` / `.accent-choice` | `width: 28px`, `min-height: 28px` | app.css:656-671 |
 | `.row-actions__kebab` | **no `min-height`** — `padding: {spacing.1}` — *shipped 2026-09-23 (Sprint 14, issue 834): `min-width` and `min-height` of 44px under `@media (pointer: coarse)`* | app.css:2110-2117 |
 | `.icon-mini` outside `.bucket-list__actions` | **no `min-height`** — `padding: 0.12rem 0.3rem` | app.css:3873-3879 |

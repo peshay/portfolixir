@@ -2907,7 +2907,9 @@ the released rows), run as the operator.
   carrying the pair and the count it shows; Enter in a field submits the
   form, which re-counts and checks the pair (the field errors below) and
   writes nothing. The close button keeps its 30 px beside a title that
-  wraps, 44 px under a coarse pointer (UX-DR6, γ D6).
+  wraps, 44 px under a coarse pointer (UX-DR6, γ D6) — since Sprint 18 the
+  rule of every `.icon-button`, not of this dialog (Amendment 2026-10-03,
+  the icon button).
 - **States.** A valid range with no manual quote: the confirm reads "Release",
   disabled, its reason beside it as text — `.merge-footer__why` "No manual
   quote in the range.", the merge dialog's rule (disabled, never merely
@@ -3321,3 +3323,30 @@ was body-size text the spec itself barred.
   light surfaces and the white label, and on the three dark surfaces and the
   accent's own dark tint, and fails below 4.5:1; the decided value itself is
   pinned beside the other decided tokens in `CssThemeTokenParityTest`.
+
+## Amendment 2026-10-03 — Touch targets and focus *(Sprint 18 pick H6, U4; issues 1013 and 1033)*
+
+Board `mockups/ux-design-2026-10-02/06-touch-focus`, "after" and pick
+H6.1 = A (plan D-8, silence adopts the recommendations). Each rule is in
+`app.css` beside the class it repairs; `test/invariants/css_touch_and_focus_test.exs`
+pins them.
+
+### The icon button *(H6.2 and H6.2b, rule ②, on the class)*
+
+`.icon-button` is the 30 × 30 square it declares at every call site: the
+class sets `min-height: 0`, because the base `button { min-height: 34px }`
+made every `<button>` of the class 30 × 34 while every `<a>` of it stayed
+30 × 30 (the detail head showed both side by side). It is `flex: none`, so
+a close button beside a title that wraps keeps its width. Under
+`pointer: coarse` the class takes `min-width: 44px; min-height: 44px` —
+**on the class, not per dialog**, as the Sprint 18 plan decided (U4):
+UX-DR6's call-site table lists `.icon-button` itself as uncovered, and its
+amendment 1 binds the floor to every call site of a class. So the floor
+reaches every dialog's ×, the filter sheets, the booking drawer, and every
+toolbar icon: Securities' New, Sync prices and Columns, the detail head's
+Maximize and Close, Classifications' New, the import's "copy warnings" and
+the column picker's ×. On touch a toolbar grows by 8 px (44 against the
+search field's 36); board 06 H6.2b draws it. `.modal-head` and
+`.filter-sheet__head` carry `gap: {spacing.2}` between the title and the ×.
+The release dialog's three head rules (closing act γ D6) and the detail
+head's ID rule for its two buttons are gone: the class covers them.

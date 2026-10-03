@@ -1736,12 +1736,21 @@ li + li {
   }
 }
 
+/* The icon button is the 30 px square it declares (Sprint 18 U4, board
+   ux-design-2026-10-02/06-touch-focus, H6.2 and H6.2b): `min-height: 0`
+   takes back the base button's 34 px floor, which made every <button> of
+   the class 30 x 34 while an <a> of the class stayed 30 x 30. It never
+   shrinks beside a title that wraps, and under a coarse pointer it is a
+   44 px target at every call site — dialog heads and toolbars alike
+   (UX-DR6 lists the class itself as uncovered). */
 .icon-button {
   display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
   width: 30px;
   height: 30px;
+  min-height: 0;
   border: 1px solid var(--color-border);
   background: var(--color-bg-elevated);
   border-radius: var(--radius-md);
@@ -1761,6 +1770,13 @@ li + li {
   background: var(--color-selected);
   color: var(--color-accent);
   border-color: var(--color-accent);
+}
+
+@media (pointer: coarse) {
+  .icon-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 .popover-container {
@@ -2192,10 +2208,13 @@ dialog.modal::backdrop {
   flex-direction: column;
 }
 
+/* The gap keeps a title that wraps clear of the close button (board
+   ux-design-2026-10-02/06-touch-focus, H6.2). */
 .modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-2);
   padding: 14px 18px;
   border-bottom: 1px solid var(--color-border);
 }
@@ -6170,15 +6189,14 @@ button.income-bar-label.is-active {
   }
 
   /* Comfortable tap targets on the securities surface (UX-DR6, issue 413):
-     taller list rows and >=44px detail controls for thumbs. */
+     taller list rows and >=44px detail controls for thumbs. The head's two
+     icon buttons take theirs from `.icon-button` (Sprint 18 U4). */
   .security-row td {
     padding-top: var(--space-3);
     padding-bottom: var(--space-3);
   }
 
-  .detail-pane-tab,
-  #detail-pane-close,
-  #detail-pane-fullscreen-toggle {
+  .detail-pane-tab {
     min-height: 44px;
     min-width: 44px;
   }
@@ -7976,6 +7994,7 @@ dialog.filter-sheet::backdrop {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-2);
   margin-bottom: var(--space-2);
 }
 
@@ -9552,23 +9571,10 @@ dialog.merge-dialog {
   max-width: 460px;
 }
 
-/* The close button keeps its size beside a title that wraps (a long
-   security name), and the 44 px floor under a coarse pointer (UX-DR6;
-   closing act, γ D6). */
-.quote-release-dialog .modal-head {
-  gap: var(--space-2);
-}
-
-.quote-release-dialog .modal-head > .icon-button {
-  flex: none;
-}
-
-@media (pointer: coarse) {
-  .quote-release-dialog .modal-head > .icon-button {
-    width: 44px;
-    height: 44px;
-  }
-}
+/* The close button keeps its size beside a title that wraps and takes the
+   44 px floor under a coarse pointer from `.icon-button` itself since
+   Sprint 18 U4, which subsumed the three rules closing act γ D6 wrote
+   here. */
 
 .quote-release-form {
   display: grid;
