@@ -33,6 +33,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Positions
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.Splits
   alias Portfolixir.Ledger.Transaction
@@ -307,7 +308,10 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
 
   defp booking_consequence(transaction, names, context) do
     effects = Projection.effects(transaction)
-    clauses = quantity_clauses(effects.quantities, names) ++ cash_clauses(effects.cash, names)
+
+    clauses =
+      quantity_clauses(transaction, effects.quantities, names) ++
+        cash_clauses(effects.cash, names)
 
     lead =
       case clauses do
@@ -329,17 +333,32 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
   defp recompute_sentence,
     do: gettext("Holdings, balances, returns and trades are recomputed without this booking.")
 
-  defp quantity_clauses(legs, names) do
-    for {_depot_id, _security_id, %Decimal{} = delta} = leg <- legs,
-        not Decimal.equal?(delta, @zero) do
-      {:quantity, depot_for(leg, names), names.security || "—", delta}
-    end
+  # What each depot the booking moved holds less (or more) today without it:
+  # the holdings' own fold over the security's bookings, with the row and
+  # without it, so a later split's scale is in the figure (the closing act,
+  # R1) — the leg alone is the quantity on the booking's day. A security
+  # transfer moves the shares between its two depots: each leg names its
+  # own.
+  defp quantity_clauses(_transaction, [], _names), do: []
+
+  defp quantity_clauses(transaction, legs, names) do
+    history = Ledger.list_transactions(security_id: transaction.security_id)
+    with_row = Positions.calculate(history)
+    without_row = Positions.calculate(Enum.reject(history, &(&1.id == transaction.id)))
+
+    Enum.flat_map(legs, fn {depot_id, security_id, _delta} ->
+      key = {depot_id, security_id}
+      delta = Decimal.sub(held(with_row, key), held(without_row, key))
+
+      if Decimal.equal?(delta, @zero),
+        do: [],
+        else: [{:quantity, depot_name(depot_id, names), names.security || "—", delta}]
+    end)
   end
 
-  # A security transfer moves the shares between its two depots, a cash
-  # transfer the money between its two accounts: each leg names its own.
-  defp depot_for({depot_id, _security_id, _delta}, names),
-    do: Map.get(names.depots_by_id, depot_id) || "—"
+  defp held(positions, key), do: Map.get(positions, key, @zero)
+
+  defp depot_name(depot_id, names), do: Map.get(names.depots_by_id, depot_id) || "—"
 
   defp cash_clauses(legs, names) do
     for {account_id, {:add, %Decimal{} = delta}} <- legs,
