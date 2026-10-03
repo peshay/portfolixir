@@ -57,8 +57,13 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
   @spec prepare(%Transaction{}, map()) :: map() | nil
   def prepare(%Transaction{type: "split"} = row, context) do
     case Splits.event_rows(row) do
-      [] -> nil
-      rows -> split_view(row, rows, context)
+      [] ->
+        nil
+
+      rows ->
+        security = security(row)
+        names = %{security: security.name, security_label: twin_label(security, context)}
+        split_view(row, rows, names)
     end
   end
 
@@ -77,30 +82,61 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
         ),
       imported?: is_binary(transaction.import_hash),
       confirm: gettext("Delete transaction"),
-      done: booking_done(transaction, names)
+      done: booking_done(transaction, names),
+      changed?: false,
+      opened_from: transaction.id
     }
   end
 
   @doc """
   Runs the delete `deleting` (what `prepare/2` built) confirmed, as `actor`:
-  `{:ok, message}` for the page's result slot, `:gone` when the booking no
-  longer exists, `{:error, message}` when the ledger refused.
+  `{:ok, message}` for the page's result slot, `:gone` when nothing of it is
+  stored any more, `{:error, message}` when the ledger refused, and — for a
+  split that gained a row the dialog did not list — `{:changed, deleting}`,
+  the dialog's new state, with nothing deleted.
   """
   @spec delete(Portfolixir.Actor.t(), map()) ::
-          {:ok, String.t() | Phoenix.HTML.safe()} | :gone | {:error, String.t()}
+          {:ok, String.t() | Phoenix.HTML.safe()}
+          | :gone
+          | {:changed, map()}
+          | {:error, String.t()}
+  def delete(actor, %{kind: :split} = deleting), do: delete_event(actor, deleting)
+
   def delete(actor, %{id: id} = deleting) do
     case Ledger.get_transaction(id) do
       nil -> :gone
-      %Transaction{type: "split"} = row -> delete_split(actor, row, deleting)
       %Transaction{} = transaction -> delete_booking(actor, transaction, deleting)
     end
   end
 
-  defp delete_split(actor, row, deleting) do
-    case Splits.delete_split(actor, row) do
-      {:ok, rows} -> {:ok, split_done(deleting, length(rows))}
-      {:error, :not_found} -> :gone
-      {:error, _refused} -> {:error, gettext("The booking could not be deleted.")}
+  # A split is deleted as the event the dialog listed (the closing act, R5):
+  # its rows are read again by the event's identity — security, date,
+  # normalized ratio — and the delete is anchored on any of them still
+  # stored and held to the listed ones under the event's lock. A row the
+  # dialog did not list deletes nothing and shows the new state; an anchor
+  # gone before the lock is read again.
+  defp delete_event(actor, %{event: event, row_ids: listed} = deleting) do
+    case Splits.event_rows(event) do
+      [] ->
+        :gone
+
+      [anchor | _rows] ->
+        case Splits.delete_split(actor, anchor, only: listed) do
+          {:ok, rows} -> {:ok, split_done(deleting, length(rows))}
+          {:error, :not_found} -> delete_event(actor, deleting)
+          {:error, :changed} -> changed(deleting)
+        end
+    end
+  end
+
+  defp changed(%{event: event} = deleting) do
+    case Splits.event_rows(event) do
+      [] ->
+        :gone
+
+      [anchor | _] = rows ->
+        view = split_view(anchor, rows, deleting.names)
+        {:changed, %{view | changed?: true, opened_from: deleting.opened_from}}
     end
   end
 
@@ -145,6 +181,16 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
         </button>
       </header>
       <div class="modal-body">
+        <%!-- The closing act, R5: a split that changed while the dialog was
+             open is shown anew, nothing deleted — the merge dialogs'
+             changed-plan note, in one status region (UX-DR17). --%>
+        <div role="status" class="booking-delete__region"><AppShell.data_note
+            :if={@deleting.changed?}
+            severity={:attention}
+            data-role="booking-delete-changed"
+          ><%= gettext(
+              "The split changed while this dialog was open. Nothing was deleted; the dialog now shows the new state."
+            ) %></AppShell.data_note></div>
         <p id="booking-delete-subject" class="booking-delete__subject">
           <span class="phone-row__body">
             <span class="phone-row__name"><%= @deleting.subject.name %></span>
@@ -575,13 +621,14 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
 
   # -- a split ---------------------------------------------------------------------
 
-  defp split_view(row, rows, context) do
+  # `names` carries the security's plain name for the sentence and its twin
+  # label for the box and the result, so a re-read (R5) names it the same.
+  defp split_view(row, rows, names) do
     count = length(rows)
-    security = security(row)
-    name = security.name
-    label = twin_label(security, context)
+    name = names.security
+    label = names.security_label
     ratio = "#{row.split_ratio_numerator}:#{row.split_ratio_denominator}"
-    names = Enum.map(rows, &portfolio_name/1)
+    portfolios = Enum.map(rows, &portfolio_name/1)
 
     %{
       id: row.id,
@@ -594,7 +641,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
         figure2: ngettext("%{count} row", "%{count} rows", count)
       },
       consequence: [
-        portfolios_sentence(count, names),
+        portfolios_sentence(count, portfolios),
         StoredText.isolate(
           gettext(
             "Afterwards the holdings of %{security} count without the split from %{date} on, and the chart computes its price series without it; stored quotes stay as they are.",
@@ -610,7 +657,18 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
       security: label,
       ratio: ratio,
       date: row.date,
-      done: nil
+      done: nil,
+      changed?: false,
+      opened_from: row.id,
+      names: names,
+      event: %Transaction{
+        type: "split",
+        security_id: row.security_id,
+        date: row.date,
+        split_ratio_numerator: row.split_ratio_numerator,
+        split_ratio_denominator: row.split_ratio_denominator
+      },
+      row_ids: Enum.map(rows, & &1.id)
     }
   end
 

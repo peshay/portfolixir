@@ -4557,15 +4557,22 @@ defmodule PortfolixirWeb.SecuritiesLive do
          {:ok, ^id} <- LiveParam.fetch_id(id_str) do
       socket = assign(socket, :deleting_split, nil)
 
+      # The closing act, R5: a split that gained a row stays open, anew.
       result =
         case BookingDeleteDialog.delete(Actor.owner_ui(), deleting) do
           {:ok, message} -> {:note, message}
+          {:changed, fresh} -> {:changed, fresh}
           :gone -> {:problem, gettext("That transaction no longer exists.")}
           {:error, message} -> {:problem, message}
         end
 
-      {:noreply,
-       socket |> put_action_result(elem(result, 0), elem(result, 1)) |> load_detail_data()}
+      case result do
+        {:changed, fresh} ->
+          {:noreply, assign(socket, :deleting_split, fresh)}
+
+        {severity, message} ->
+          {:noreply, socket |> put_action_result(severity, message) |> load_detail_data()}
+      end
     else
       _stale -> {:noreply, socket}
     end

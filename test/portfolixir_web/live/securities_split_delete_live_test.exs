@@ -107,6 +107,45 @@ defmodule PortfolixirWeb.SecuritiesSplitDeleteLiveTest do
     assert id != row.id
   end
 
+  # User story (U1, #912; H2-A, A4 and A8; the closing act, R5):
+  # As the operator deleting the booked split from "Record split" while the
+  # agent extends it to another portfolio,
+  # I want the confirm to delete nothing and show the split as it now is,
+  # so that I never delete more than the dialog listed.
+  #
+  # Acceptance criteria:
+  # - A row added meanwhile keeps the dialog open on the security's page
+  #   with the changed-split note and the new row count; nothing is deleted.
+  test "a split extended while its dialog was open is shown anew", %{
+    conn: conn,
+    security: security,
+    date: date
+  } do
+    view = open_wizard(conn, security)
+    view |> fill("3", "1", date) |> render_change()
+
+    view
+    |> element("#split-wizard-warnings button.link-button", "Delete the booked split…")
+    |> render_click()
+
+    other = base_world(name: "Sparplan-Portfolio", cash_name: "Tagesgeld", depot_name: "Depot 2")
+    buy!(other, security, quantity: "4", price: "80", date: Date.add(date, -20))
+
+    {:ok, [_added]} =
+      Splits.book_split(Actor.owner_ui(), %{
+        security_id: security.id,
+        date: date,
+        ratio_numerator: 2,
+        ratio_denominator: 1
+      })
+
+    view |> element("#booking-delete-confirm") |> render_click()
+
+    assert has_element?(view, "dialog#booking-delete-dialog [data-role='booking-delete-changed']")
+    assert view |> element("#booking-delete-subject") |> render() |> text() =~ "2 rows"
+    assert length(Splits.booked_on(security.id, date)) == 2
+  end
+
   # User story (U1, #912; H2-A, A8, the booking refusal):
   # As the operator whose booking was refused as conflicting,
   # I want the refusal to carry the same way out,
