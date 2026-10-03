@@ -250,6 +250,47 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
     assert Ledger.count_transactions() == 1
   end
 
+  # User story (U1, #912; H2-A, A2 and A6; the closing act, R6):
+  # As the operator choosing "Delete…" on a row the agent changed or
+  # deleted after the history loaded,
+  # I want the dialog built from the booking as it is stored now,
+  # so that it never names figures that are gone, and a row deleted
+  # meanwhile is said so at once instead of in a dialog for nothing.
+  #
+  # Acceptance criteria:
+  # - A booking changed after the page loaded opens a dialog with its stored
+  #   figures, not the ones the history showed.
+  # - A booking deleted after the page loaded opens no dialog: the page says
+  #   "That transaction no longer exists." and reloads the history.
+  test "Delete… reads the booking as stored now", %{conn: conn, buy: buy} do
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    {:ok, _changed} =
+      Ledger.update_transaction(Actor.api_token_rw("agent"), buy, %{quantity: "50"})
+
+    ask_delete(view, buy)
+
+    assert view |> element("#booking-delete-subject") |> render() |> text() =~ "50 × 62.50"
+
+    assert view |> element("[data-role='booking-delete-consequence']") |> render() |> text() =~
+             "Afterwards Depot 1 holds 50 fewer units of Global Aktien ETF"
+
+    view |> element("[data-role='booking-delete-cancel']") |> render_click()
+    view |> open_menu(buy)
+
+    {:ok, _} =
+      Ledger.delete_transaction(Actor.api_token_rw("agent"), Ledger.get_transaction(buy.id))
+
+    view |> element("#tx-delete-#{buy.id}") |> render_click()
+
+    refute has_element?(view, "#booking-delete-dialog")
+
+    assert view |> element(".alert-error") |> render() |> text() =~
+             "That transaction no longer exists."
+
+    refute has_element?(view, "tr[data-transaction='#{buy.id}']")
+  end
+
   # User story (U1, #912; H2-A, A7; G12.3-A):
   # As the operator reading in the split drawer that a wrong split is
   # deleted and recorded again,
