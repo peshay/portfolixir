@@ -313,6 +313,82 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
              "That transaction no longer exists."
   end
 
+  # User story (U1, #912; H2-A, A3 and A4; the closing act, R10b and R10d):
+  # As the operator reading the delete dialog,
+  # I want one unit called a unit, a split in one portfolio named without
+  # rows, and the import's consequence without the word "content hash",
+  # so that the dialog speaks my words, not the ledger's.
+  #
+  # Acceptance criteria:
+  # - A delivery of 1 without a price reads "1 unit" in the box and "holds 1
+  #   fewer unit of …" in the sentence.
+  # - A split booked in one portfolio shows no row count in its box, says it
+  #   is booked only in that portfolio, that the journal keeps the split, and
+  #   its result names no row count.
+  # - The German import note reads "Gelöscht, kennt der Import sie nicht
+  #   mehr: …", never "Inhalts-Hash".
+  test "the dialog says one unit, one portfolio and the import plainly",
+       %{conn: conn, world: world, security: security} do
+    {:ok, delivery} =
+      Ledger.create_transaction(
+        Actor.owner_ui(),
+        %{
+          type: "inbound_delivery",
+          portfolio_id: world.portfolio.id,
+          securities_account_id: world.depot.id,
+          security_id: security.id,
+          quantity: "1",
+          currency_code: "EUR",
+          date: ~D[2026-09-24]
+        },
+        import_hash: String.duplicate("c3", 32)
+      )
+
+    single = create_security!(name: "Nordwind Industrie AG", ticker: "NWI")
+    buy!(world, single, quantity: "8", price: "30", date: ~D[2026-09-01])
+
+    {:ok, [split_row]} =
+      Splits.book_split(Actor.owner_ui(), %{
+        security_id: single.id,
+        date: ~D[2026-09-15],
+        ratio_numerator: 2,
+        ratio_denominator: 1
+      })
+
+    {:ok, view, _html} = live(conn, "/transactions")
+    ask_delete(view, delivery)
+
+    assert view |> element("#booking-delete-subject") |> render() |> text() =~ "1 unit "
+
+    assert view |> element("[data-role='booking-delete-consequence']") |> render() |> text() =~
+             "Afterwards Depot 1 holds 1 fewer unit of Global Aktien ETF."
+
+    view |> element("[data-role='booking-delete-cancel']") |> render_click()
+    ask_delete(view, split_row)
+
+    refute has_element?(view, "#booking-delete-subject .phone-row__figure2")
+    dialog = view |> element("#booking-delete-dialog") |> render() |> text()
+    assert dialog =~ "The split is booked only in Hauptportfolio."
+    assert dialog =~ "The journal keeps the split."
+    refute dialog =~ "row"
+
+    view |> element("#booking-delete-confirm") |> render_click()
+
+    assert view |> element(".alert-success") |> render() |> text() =~
+             "Split deleted: Nordwind Industrie AG · 2:1 · 2026-09-15."
+
+    german = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    {:ok, view, _html} = live(german, "/transactions")
+    ask_delete(view, delivery)
+
+    note = view |> element("[data-role='booking-delete-imported']") |> render() |> text()
+
+    assert note =~
+             "Diese Buchung stammt aus einem Import. Gelöscht, kennt der Import sie nicht mehr: Ein erneuter Import derselben Datei bucht sie wieder."
+
+    refute note =~ "Inhalts-Hash"
+  end
+
   # User story (U1, #912; H2-A, A6):
   # As the operator confirming a delete in one tab while the agent (or
   # another tab) already deleted the booking,

@@ -223,7 +223,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
           data-role="booking-delete-imported"
         >
           <%= gettext(
-            "This booking came from an import. Its content hash goes with it: a re-import of the same file books it again."
+            "This booking came from an import. Once deleted, the import no longer knows it: a re-import of the same file books it again."
           ) %>
         </AppShell.data_note>
         <p class="hint" data-role="booking-delete-consequence">
@@ -477,38 +477,46 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
   defp cash_name(account_id, names), do: Map.get(names.cash_by_id, account_id) || "—"
 
   # The quantity a leg added is what the delete takes away, and the reverse.
+  # One unit is a unit (the closing act, R10b): the plural follows the
+  # quantity, which may be a fraction.
   defp clause({:quantity, depot, security, delta}, position) do
-    quantity = format_quantity(Decimal.abs(delta))
-    fewer? = Decimal.compare(delta, @zero) == :gt
+    quantity = Decimal.abs(delta)
+    n = TransactionManagementLive.plural_count(quantity)
+    bindings = [depot: StoredText.slot(:depot), quantity: format_quantity(quantity)]
+    bindings = bindings ++ [security: StoredText.slot(:security)]
 
     text =
-      case {position, fewer?} do
+      case {position, Decimal.compare(delta, @zero) == :gt} do
         {:lead, true} ->
-          gettext("Afterwards %{depot} holds %{quantity} fewer units of %{security}",
-            depot: StoredText.slot(:depot),
-            quantity: quantity,
-            security: StoredText.slot(:security)
+          ngettext(
+            "Afterwards %{depot} holds %{quantity} fewer unit of %{security}",
+            "Afterwards %{depot} holds %{quantity} fewer units of %{security}",
+            n,
+            bindings
           )
 
         {:lead, false} ->
-          gettext("Afterwards %{depot} holds %{quantity} more units of %{security}",
-            depot: StoredText.slot(:depot),
-            quantity: quantity,
-            security: StoredText.slot(:security)
+          ngettext(
+            "Afterwards %{depot} holds %{quantity} more unit of %{security}",
+            "Afterwards %{depot} holds %{quantity} more units of %{security}",
+            n,
+            bindings
           )
 
         {:follow, true} ->
-          gettext("and %{depot} holds %{quantity} fewer units of %{security}",
-            depot: StoredText.slot(:depot),
-            quantity: quantity,
-            security: StoredText.slot(:security)
+          ngettext(
+            "and %{depot} holds %{quantity} fewer unit of %{security}",
+            "and %{depot} holds %{quantity} fewer units of %{security}",
+            n,
+            bindings
           )
 
         {:follow, false} ->
-          gettext("and %{depot} holds %{quantity} more units of %{security}",
-            depot: StoredText.slot(:depot),
-            quantity: quantity,
-            security: StoredText.slot(:security)
+          ngettext(
+            "and %{depot} holds %{quantity} more unit of %{security}",
+            "and %{depot} holds %{quantity} more units of %{security}",
+            n,
+            bindings
           )
       end
 
@@ -652,7 +660,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
         name: Format.date(row.date) <> " · " <> TransactionKindLabel.label("split"),
         ids: StoredText.bdi(label),
         figure: ratio,
-        figure2: ngettext("%{count} row", "%{count} rows", count)
+        figure2: split_rows(count)
       },
       consequence: [
         portfolios_sentence(count, portfolios),
@@ -688,6 +696,18 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
 
   defp portfolio_name(%{portfolio: %{name: name}}) when is_binary(name), do: name
   defp portfolio_name(_row), do: "—"
+
+  # A split in one portfolio is that portfolio's row: the dialog names no
+  # row for it (the closing act, R10d).
+  defp split_rows(1), do: nil
+  defp split_rows(count), do: ngettext("%{count} row", "%{count} rows", count)
+
+  defp portfolios_sentence(1, [name]) do
+    StoredText.isolate(
+      gettext("The split is booked only in %{name}.", name: StoredText.slot(:name)),
+      name: name
+    )
+  end
 
   defp portfolios_sentence(2, names) do
     StoredText.isolate(
@@ -728,6 +748,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
     )
   end
 
+  defp split_journal(1), do: gettext("The journal keeps the split.")
   defp split_journal(2), do: gettext("The journal keeps both rows.")
 
   defp split_journal(count),
@@ -738,6 +759,17 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
 
   defp split_confirm(count),
     do: ngettext("Delete split (%{count} row)", "Delete split (%{count} rows)", count)
+
+  defp split_done(deleting, 1) do
+    StoredText.isolate(
+      gettext("Split deleted: %{security} · %{ratio} · %{date}.",
+        security: StoredText.slot(:security),
+        ratio: deleting.ratio,
+        date: Format.date(deleting.date)
+      ),
+      security: deleting.security
+    )
+  end
 
   defp split_done(deleting, count) do
     StoredText.isolate(

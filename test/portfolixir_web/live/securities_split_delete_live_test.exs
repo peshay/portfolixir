@@ -99,7 +99,7 @@ defmodule PortfolixirWeb.SecuritiesSplitDeleteLiveTest do
     assert Splits.booked_on(security.id, date) == []
 
     assert view |> element("#securities-action-result") |> render() |> text() =~
-             "Split deleted: Kestrel Robotik SE · 2:1 · #{Date.to_iso8601(date)}, 1 row."
+             "Split deleted: Kestrel Robotik SE · 2:1 · #{Date.to_iso8601(date)}."
 
     view = open_wizard(conn, security)
     view |> fill("3", "1", date) |> render_submit()
