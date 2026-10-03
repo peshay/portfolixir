@@ -5244,6 +5244,15 @@ thead .col-subject {
 .data-table tbody tr:hover td.col-subject {
   background: var(--color-hover);
 }
+/* ①d on the history, which is no `.data-table`: its hover is the global
+   `tbody tr:hover` wash on the row, which stopped at the opaque pinned
+   Balance (the closing act's finding, board
+   ux-review-2026-10-03/03-gamma-surface-repairs, G5). The pinned cell takes
+   the same 42 % over the elevated surface instead of over nothing, so it
+   follows the wash and stays opaque. */
+#transaction-list tbody tr:hover td.col-subject {
+  background: color-mix(in srgb, var(--color-accent-soft) 42%, var(--color-bg-elevated));
+}
 
 /* Issue 717 (D2): the demoted builder's entry point — a quiet text control at
    the end of the securities chip row, deliberately NOT a chip so it never

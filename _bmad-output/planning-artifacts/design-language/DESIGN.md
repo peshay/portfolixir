@@ -3225,10 +3225,18 @@ match it.
     stripe is 24 % {colors.bg-muted} over transparent, so on
     `.data-table` an even row's pinned cell takes the same 24 % over
     {colors.bg-elevated}, and the hover rule comes after it.
-- **Kept, as the board's stated doubts left them:** on `#transaction-list`
-  the row's hover wash sits on the `tr` and stops at the opaque Balance
-  cell (①d covers `.data-table` only). The wrapper, not the table, now
-  clips a header popover; the tree's Drift ⓘ opens over the rows as before.
+- **①d reaches the history** (the closing act's finding; board
+  `mockups/ux-review-2026-10-03/03-gamma-surface-repairs`, G5), which the
+  board's stated doubts had first left: `#transaction-list` is no
+  `.data-table`, its hover is the global `tbody tr:hover` wash on the `tr`
+  (42 % {colors.accent-soft} over transparent), and the wash stopped at the
+  opaque pinned Balance of an account-filtered history.
+  `#transaction-list tbody tr:hover td.col-subject` gives the cell the same
+  42 % over {colors.bg-elevated}: it follows the wash and stays opaque.
+  Under 560 px the history is two-line rows with no pinned column.
+- **Kept, as the board's stated doubts left them:** the wrapper, not the
+  table, now clips a header popover; the tree's Drift ⓘ opens over the rows
+  as before.
 
 ### Sign colour holds in every data table *(issue 1010, rule ②)*
 
