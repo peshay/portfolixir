@@ -131,6 +131,11 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
 
   defp row(security), do: "#contribution-table tr[data-security-id='#{security.id}']"
 
+  # Every load the page starts, and every load a landing one starts in turn:
+  # a result that finds the other read on older data reloads it (FR-41
+  # review round), so one `render_async/1` can leave a second load running.
+  defp settle(view), do: Enum.each(1..4, fn _round -> render_async(view) end)
+
   # User story (FR-41, ADR-0051 §1–§3 and §12, board pick A):
   # As a local portfolio maintainer reading my period result on Wealth,
   # I want a table directly under the performance chart that says which
@@ -412,6 +417,85 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
              "Delta Shipping ASA not held at the start 0.00 +1,000.00 0.00 0.00 1,500.00 +500.00"
 
     assert text_of(view, "[data-role='contribution-sum-figure']") == "+500.00 EUR"
+
+    assert text_of(view, "[data-role='contribution-sum-figure']") ==
+             text_of(view, "[data-role='period-badge'] [data-role='period-badge-money']")
+  end
+
+  # User story (FR-41 review round, ADR-0051 §12, ADR-0032 §6):
+  # As a local portfolio maintainer whose data changes while the page is open
+  # (a second tab, an agent's booking, an import, the background quote sync),
+  # I want a period switch to keep the table's sum on the badge's figure,
+  # so that the two never answer from different data.
+  #
+  # Acceptance criteria:
+  # - After a booking lands behind the open page, a period switch shows a sum
+  #   row equal to the badge's money figure, both reading the new booking.
+  # - After the page's view is deleted in another tab, a period switch shows
+  #   the Everything table under the Everything badge, the sum equal to it.
+  test "data that changes behind the open page: a period switch keeps the sum on the badge",
+       %{conn: conn} do
+    world = base_world(name: "Moving World", cash_name: "Giro", depot_name: "Depot")
+    delta = create_security!(name: "Delta Shipping ASA", ticker: "DLTA")
+
+    deposit!(world, "1000", days_ago(500))
+    buy!(world, delta, quantity: "10", price: "100", date: days_ago(500))
+    put_quotes!(delta, [{days_ago(500), "100"}, {days_ago(400), "150"}, {today(), "150"}])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    settle(view)
+
+    # Booked behind the open page, as an agent or a second tab would.
+    cash!(world, "interest", "50", days_ago(10))
+
+    view |> element("button[phx-value-period='max']") |> render_click()
+    settle(view)
+
+    assert text_of(view, "[data-role='contribution-sum-figure']") == "+550.00 EUR"
+
+    assert text_of(view, "[data-role='contribution-sum-figure']") ==
+             text_of(view, "[data-role='period-badge'] [data-role='period-badge-money']")
+  end
+
+  test "a view deleted behind the open page: the period switch reads Everything on both",
+       %{conn: conn} do
+    world = base_world(name: "Shrinking World", cash_name: "Giro A", depot_name: "Depot A")
+
+    other =
+      world.portfolio
+      |> Portfolixir.WorldFixtures.add_depot(cash_name: "Giro B", depot_name: "Depot B")
+      |> Map.put(:portfolio, world.portfolio)
+
+    inside = create_security!(name: "Inside Holdings AG", ticker: "INSD")
+    outside = create_security!(name: "Outside Holdings AG", ticker: "OUTS")
+    d0 = days_ago(30)
+
+    deposit!(world, "1000", d0)
+    deposit!(other, "1000", d0)
+    buy!(world, inside, quantity: "5", price: "100", date: d0)
+    buy!(other, outside, quantity: "5", price: "100", date: d0)
+    put_quotes!(inside, [{d0, "100"}, {today(), "104"}])
+    put_quotes!(outside, [{d0, "100"}, {today(), "90"}])
+
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Inside bucket"})
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), world.depot, [bucket.id])
+    :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), world.cash, [bucket.id])
+    {:ok, scoped} = Buckets.create_view(Actor.owner_ui(), %{name: "Inside", include_all: false})
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), scoped, [bucket.id], [])
+
+    conn = get(conn, "/portfolio?view=#{scoped.id}")
+    {:ok, view, _html} = live(conn, "/portfolio?view=#{scoped.id}")
+    settle(view)
+
+    assert text_of(view, "[data-role='contribution-sum-figure']") == "+20.00 EUR"
+
+    {:ok, _deleted} = Buckets.delete_view(Actor.owner_ui(), scoped)
+
+    view |> element("button[phx-value-period='max']") |> render_click()
+    settle(view)
+
+    assert row_ids(view) == [inside.id, outside.id]
+    assert text_of(view, "[data-role='contribution-sum-figure']") == "-30.00 EUR"
 
     assert text_of(view, "[data-role='contribution-sum-figure']") ==
              text_of(view, "[data-role='period-badge'] [data-role='period-badge-money']")

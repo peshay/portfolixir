@@ -2940,9 +2940,10 @@ of the contribution read (`Performance.Contribution.for_view/2`), and it is
   portfolio's base currency. The sum row is therefore the money figure of
   the badge, "+x EUR in the period" (ADR-0051 §3, I1), printed by the
   badge's own rule (a plus before a positive amount, two decimals), so the
-  two read the same characters. LiveView tests pin the equality on five
+  two read the same characters. LiveView tests pin the equality on seven
   worlds: remainder lines and a sold position, more than ten positions, an
-  unvalued position, a view, and before and after a period change.
+  unvalued position, a view, before and after a period change, a booking
+  behind the open page, and a view deleted behind it.
 - **It loads on its own.** The badge re-chains the cached walk; the table
   runs a windowed walk per period (ADR-0051 §5), async, with the block
   skeleton and the "computing" cue (UX-DR20) while it does. While the badge
@@ -2950,6 +2951,13 @@ of the contribution read (`Performance.Contribution.for_view/2`), and it is
   its sum never answers a figure the badge no longer shows; a failed walk is
   a `problem` note, "Computation failed. Reload retries.". Holdings only:
   the Allocation tab never computes it.
+- **Both answer from one data state.** Each read notes its view, its day
+  and the global data version before and after it ran. Once both have
+  landed, the one that read older data is read again — a superseded badge
+  becomes the labelled stale series, so the table waits on its skeleton —
+  and a read a write landed in the middle of is read again too. A booking
+  behind the open page, a view deleted in another tab or midnight passing
+  therefore never leaves the sum and the badge on two different figures.
 
 ### Anatomy, top to bottom
 
@@ -3009,9 +3017,10 @@ of the contribution read (`Performance.Contribution.for_view/2`), and it is
   included: the anatomy does not change with the data.
 - **The sum row** "Summe = Ergebnis im Zeitraum", 700 under a 2 px
   {colors.border-strong} rule: Anfangswert, Zu-/Abflüsse, Erträge, Kosten
-  and Endwert summed over **all** positions; the Beitrag over the positions
-  and the three lines, signed in its colour with the currency as
-  `.value-suffix`.
+  and Endwert summed over **all** positions; the Beitrag is the period's
+  result (`totals.result`, the figure the badge's walk computes), which the
+  positions and the three lines add up to (I1), signed in its colour with
+  the currency as `.value-suffix`.
 - **The basis line** (`p.summary-basis`, 12 px muted, UX-DR11), the board's
   four sentences in the house's dot-separated basis voice: "Beitrag =
   Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten · je Position in

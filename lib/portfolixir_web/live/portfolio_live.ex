@@ -164,12 +164,14 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:negative_report, nil)
           |> assign(:allocation, nil)
           |> assign(:analysis, nil)
+          |> assign(:analysis_read, nil)
           |> assign(:performance, nil)
           |> assign(:performance_stale, false)
           |> assign(:performance_failed, false)
           # FR-41 (ADR-0051 §12): the contribution table under the chart,
           # computed per period and view; "show all" survives a period switch.
           |> assign(:contribution, nil)
+          |> assign(:contribution_read, nil)
           |> assign(:contribution_failed, false)
           |> assign(:contribution_show_all, false)
           # ADR-0046 §4: the remembered benchmark selection, resolved against
@@ -525,9 +527,10 @@ defmodule PortfolixirWeb.PortfolioLive do
     base_currency = socket.assigns.portfolio.base_currency_code
 
     socket
+    |> assign(:analysis_read, nil)
     |> serve_previous_analysis(view_id, base_currency)
     |> start_async(:performance, fn ->
-      Performance.view_analysis(view_id, base_currency: base_currency)
+      read(view_id, fn -> Performance.view_analysis(view_id, base_currency: base_currency) end)
     end)
   end
 
@@ -547,14 +550,68 @@ defmodule PortfolixirWeb.PortfolioLive do
     period = socket.assigns.period
 
     socket
-    |> assign(contribution: nil, contribution_failed: false)
+    |> assign(contribution: nil, contribution_read: nil, contribution_failed: false)
     |> start_async(:contribution, fn ->
-      {period, view_id,
-       Contribution.for_view(view_id, period: period, base_currency: base_currency)}
+      {period,
+       read(view_id, fn ->
+         Contribution.for_view(view_id, period: period, base_currency: base_currency)
+       end)}
     end)
   end
 
   defp load_contribution(socket), do: socket
+
+  # Which data a read answered from (FR-41 review round): its view, and the
+  # day and the global data version (`Performance.data_state/0`) taken before
+  # and after it ran. A write that lands while it runs makes it `:unsettled`
+  # — the walk reads in several queries, so it may have seen part of that
+  # write.
+  defp read(view_id, fun) do
+    before = Performance.data_state()
+    result = fun.()
+    {result, %{view: view_id, state: settled(before, Performance.data_state())}}
+  end
+
+  defp settled(state, state), do: state
+  defp settled(_before, _after), do: :unsettled
+
+  # The table's sum is the badge's money figure only when both answer from
+  # the same data (ADR-0051 §12), but the badge re-chains the walk the page
+  # cached while the table walks afresh per period: a write behind the open
+  # page (a second tab, an agent, an import, the background sync), a view
+  # deleted in another tab or midnight passing would let the two disagree
+  # without a word. Once both have landed, the one that read older data is
+  # read again: a superseded badge as ADR-0032 §6's labelled stale series,
+  # which keeps the table on its skeleton until the fresh walk lands.
+  defp reconcile_reads(%{assigns: %{analysis_read: a, contribution_read: c}} = socket)
+       when is_nil(a) or is_nil(c),
+       do: socket
+
+  defp reconcile_reads(%{assigns: %{analysis_read: a, contribution_read: c}} = socket) do
+    cond do
+      a.view != socket.assigns[:active_view_id] -> supersede_performance(socket)
+      c.state == :unsettled -> load_contribution(socket)
+      a.state == :unsettled -> supersede_performance(socket)
+      a.state == c.state -> socket
+      newer?(c.state, a.state) -> supersede_performance(socket)
+      true -> load_contribution(socket)
+    end
+  end
+
+  defp newer?({day, version}, {other_day, other_version}) do
+    case Date.compare(day, other_day) do
+      :eq -> version > other_version
+      order -> order == :gt
+    end
+  end
+
+  # The shown series is superseded: it stays on screen, labelled stale, until
+  # the fresh walk lands (ADR-0032 §6) — even when no memoised previous walk
+  # exists to serve in its place.
+  defp supersede_performance(socket) do
+    socket = load_performance(socket)
+    assign(socket, :performance_stale, not is_nil(socket.assigns.analysis))
+  end
 
   # ADR-0032 §6: while the fresh walk computes, render the superseded series
   # instead of a skeleton -- ALWAYS labelled (as-of, booking basis, recomputing
@@ -639,26 +696,29 @@ defmodule PortfolixirWeb.PortfolioLive do
     {:noreply, socket |> degrade_to_everything() |> load_allocation()}
   end
 
-  def handle_async(:performance, {:ok, {:error, :view_not_found}}, socket) do
+  def handle_async(:performance, {:ok, {{:error, :view_not_found}, _read}}, socket) do
     {:noreply, socket |> degrade_to_everything() |> load_performance()}
   end
 
-  def handle_async(:contribution, {:ok, {_period, _view, {:error, :view_not_found}}}, socket) do
+  def handle_async(:contribution, {:ok, {_period, {{:error, :view_not_found}, _read}}}, socket) do
     {:noreply, socket |> degrade_to_everything() |> load_contribution()}
   end
 
   # FR-41: the table lands only for the period and view the page still
   # shows; a result for another (the view degraded to Everything meanwhile)
   # is recomputed for the current one rather than left as a skeleton.
-  def handle_async(:contribution, {:ok, {period, view_id, {:ok, contribution}}}, socket) do
-    if period == socket.assigns.period and view_id == socket.assigns[:active_view_id] do
-      {:noreply, assign(socket, contribution: contribution, contribution_failed: false)}
+  def handle_async(:contribution, {:ok, {period, {{:ok, contribution}, read}}}, socket) do
+    if period == socket.assigns.period and read.view == socket.assigns[:active_view_id] do
+      {:noreply,
+       socket
+       |> assign(contribution: contribution, contribution_read: read, contribution_failed: false)
+       |> reconcile_reads()}
     else
       {:noreply, load_contribution(socket)}
     end
   end
 
-  def handle_async(:contribution, {:ok, {_period, _view, {:error, _reason}}}, socket) do
+  def handle_async(:contribution, {:ok, {_period, {{:error, _reason}, _read}}}, socket) do
     {:noreply, assign(socket, :contribution_failed, true)}
   end
 
@@ -708,18 +768,20 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # A summary the walk cannot give is the failed-performance state, the same
   # one a dead recomputation lands in, never a crash (E25 S4, G12).
-  def handle_async(:performance, {:ok, analysis}, socket) do
+  def handle_async(:performance, {:ok, {analysis, read}}, socket) do
     case Performance.summarise(analysis, socket.assigns.period) do
       {:ok, performance} ->
         {:noreply,
          socket
          |> assign(
            analysis: analysis,
+           analysis_read: read,
            performance: performance,
            performance_stale: false,
            performance_failed: false
          )
-         |> assign_comparisons()}
+         |> assign_comparisons()
+         |> reconcile_reads()}
 
       {:error, _reason} ->
         {:noreply, assign(socket, performance_failed: true)}

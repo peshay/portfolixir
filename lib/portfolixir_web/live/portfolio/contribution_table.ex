@@ -26,8 +26,9 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
     * the remainder under its own head — interest, standalone fees and
       taxes, the currency effect on cash — each from its own bookings, never
       a plug (ADR-0051 §3);
-    * the sum row: every column summed over all positions, the contribution
-      column over the positions and the remainder lines;
+    * the sum row: every column summed over all positions; in the
+      contribution column the period's result itself, which the positions
+      and the remainder lines add up to (I1);
     * the basis line (UX-DR11) and, where a position counted zero, the
       attention note naming each one (UX-DR25);
     * under 560 px two-line rows beside the table (UX-DR27).
@@ -369,7 +370,11 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
       lines: @lines,
       remainder: contribution.remainder,
       remainder_total: contribution.totals.remainder,
-      sum: Decimal.add(contribution.totals.positions, contribution.totals.remainder),
+      # The walk's own result, which the badge's walk reads too (I9): the
+      # positions and the three lines add up to it (I1), but a rate whose
+      # reciprocal does not terminate leaves a residue near the 34th digit
+      # that could tip a cent the badge does not round the same way.
+      sum: contribution.totals.result,
       column_sums: column_sums(positions),
       currency: contribution.base_currency,
       unvalued: Enum.filter(positions, &(&1.unvalued_days > 0))

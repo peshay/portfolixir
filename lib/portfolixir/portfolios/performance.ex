@@ -293,6 +293,16 @@ defmodule Portfolixir.Portfolios.Performance do
     end
   end
 
+  @doc """
+  The data a view read answers from (FR-41 review round): the day and the
+  global data version (ADR-0039 §5). Two reads that each saw the same state
+  before and after they ran answered from the same data, so a surface that
+  shows two of them side by side can tell when one must be read again. A
+  version, never a value: nothing is served from it.
+  """
+  @spec data_state() :: {Date.t(), non_neg_integer()}
+  def data_state, do: {Clock.today(), Derived.current_version(Derived.global_basis())}
+
   @doc "The most recent superseded view analysis for a scope, or `nil` (ADR-0032 §6)."
   def previous_view_analysis(view_id, opts \\ []) when is_integer(view_id) or is_nil(view_id) do
     case Derived.peek(
