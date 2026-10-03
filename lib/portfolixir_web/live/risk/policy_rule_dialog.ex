@@ -400,7 +400,11 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
                 <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
                 <%= gettext("Versions") %>
               </summary>
-              <ol class="policy-rule-versions">
+              <%!-- #910, pick H8.1 (board 08-dialogs-copy): one numbering,
+                   the label the version note and the retire confirmation
+                   name; app.css drops the marker, and role="list" keeps the
+                   list semantics Safari takes from a list without one. --%>
+              <ol class="policy-rule-versions" role="list">
                 <li :for={{version, index} <- Enum.with_index(@rule.versions, 1)}>
                   <%= gettext("Version %{n}", n: index) %> · <%= PolicyRuleFormat.period(version) %> ·
                   <%= PolicyRuleFormat.line(version) %> · <%= PolicyRuleLabel.severity(version.severity) %>

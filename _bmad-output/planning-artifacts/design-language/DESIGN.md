@@ -3569,3 +3569,23 @@ minmax(0, 1fr)) }`. Board `03-bond-master-data` draws the before (its
 phone-only frame) and the after; the bond strip U7 adds is the same grid in
 the same column and inherits the rule. Filed at PR γ's opening as issue
 1050, under Scope Lock.
+
+## Amendment 2026-10-03 — Dialogs and messages *(Sprint 18 pick H8, Lane U6)*
+
+Board `mockups/ux-design-2026-10-02/08-dialogs-copy` (plan D-8: the after
+states, and **A** for the four picks H8.2, H8.4, H8.5 and H8.6; silence
+adopted them). Eight repairs of words and small anatomy in dialogs, rows and
+messages; each part names what was built.
+
+### The rule dialog's version list *(H8.1, issue 910)*
+
+- **One numbering, the label.** Each entry of "Versions" starts with
+  "Version n", the label the version note above the list ("Saving creates
+  version 4. Version 3 (7.5 %) is in force since …") and the retire
+  confirmation name. The `<ol>` keeps its order but loses the browser's marker and indent:
+  `.policy-rule-versions { list-style: none; padding-left: 0 }`, the one
+  `app.css` rule of the part. Keeping "1." and dropping the label would have
+  left the note's "Version 3" without a counterpart in the list.
+- **`role="list"` on the `<ol>`**, because Safari drops the list semantics of
+  a list without markers. The author of G12.1-A ("· Operator", "· Agent")
+  stays the last word of each entry.

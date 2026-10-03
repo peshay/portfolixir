@@ -8659,6 +8659,16 @@ dialog.booking-drawer {
   color: var(--color-text-muted);
 }
 
+/* Issue 910, pick H8.1 (board ux-design-2026-10-02/08-dialogs-copy): each
+   version is numbered once, by its label ("Version 3"), which the version
+   note above the list and the retire confirmation name; the browser's marker
+   and its indent go. The <ol> carries role="list" for the semantics a list
+   without markers loses in Safari. */
+.policy-rule-versions {
+  list-style: none;
+  padding-left: 0;
+}
+
 .modal-footer__spacer {
   flex: 1 1 auto;
 }
