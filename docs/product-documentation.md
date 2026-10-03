@@ -2157,6 +2157,32 @@ uses stable `Row N: message` lines so the diagnostics can be kept with the
 source export. Applying the import is atomic and uses content hashes to skip
 duplicates on re-run.
 
+### What a Portfolio Performance CSV requires
+
+The CSV path reads Portfolio Performance's German export. It has one
+requirement, and two assumptions that stand for what the CSV cannot say:
+
+- **German column names and type labels only.** The header names the columns
+  in German (`Datum`, `Typ`, `Wertpapier`, `Stück`, `Kurs`, `Betrag`,
+  `Gebühren`, `Steuern`, `Konto`), each row carries a German type label
+  (`Kauf`, `Verkauf`, `Dividende` and so on), and numbers are written the
+  German way (`1.234,56`). An export from Portfolio Performance running in
+  English names its columns in English and is refused as a whole, with the
+  columns it lacks named (*CSV missing columns: Datum, Typ, …*): switch
+  Portfolio Performance to German and export again.
+- **Every row in EUR.** The CSV has no currency column: every amount is read
+  as euros, and the cash accounts and securities the import creates from it
+  are EUR.
+- **Securities by name only.** The CSV carries no ISIN, WKN or ticker, so the
+  import matches a security by its name alone, the last tier of the matching
+  ladder (see "Security matching and the mapping step" below). A security
+  renamed in Portfolio Performance is not found and is offered as a new one,
+  which you can remap in the preview; two securities of one name are a
+  decision the preview asks you to make.
+
+For other currencies and for matching by ISIN, export **JSON v1** instead: it
+carries a currency per row and each security's ISIN, WKN and ticker.
+
 ### Files and rows the preview refuses
 
 A file the preview cannot hold safely is refused as a whole, before anything

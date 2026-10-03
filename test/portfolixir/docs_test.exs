@@ -1362,6 +1362,56 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (#1024):
+  # As an operator about to drop a Portfolio Performance CSV,
+  # I want the handbook to say, in English and German, what the CSV path
+  # requires and what it assumes,
+  # so that an English export, an account in another currency or a renamed
+  # security does not surprise me in the preview, and I know when to export
+  # JSON v1 instead.
+  #
+  # Acceptance criteria:
+  # - The handbook, both languages, states that the CSV path takes German
+  #   column names and type labels only and refuses an English export with
+  #   the columns it lacks, reads every row as EUR (no currency column), and
+  #   matches a security by its name only (no ISIN), and points to JSON v1 for
+  #   other currencies and for ISINs.
+  # - The import_converter prompt states the same two assumptions, so the
+  #   handbook and the agent's instructions do not drift apart.
+  test "the handbook states what the CSV path requires and assumes, in English and German" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "### What a Portfolio Performance CSV requires",
+             "**German column names and type labels only.**",
+             "*CSV missing columns: Datum, Typ, …*",
+             "**Every row in EUR.** The CSV has no currency column",
+             "**Securities by name only.** The CSV carries no ISIN",
+             "For other currencies and for matching by ISIN, export **JSON v1**"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "### Was eine Portfolio-Performance-CSV voraussetzt",
+             "**Nur deutsche Spaltennamen und Typ-Bezeichnungen.**",
+             "*CSV-Spalten fehlen: Datum, Typ, …*",
+             "**Jede Zeile in EUR.** Die CSV hat keine Währungsspalte",
+             "**Wertpapiere nur über den Namen.** Die CSV enthält keine ISIN",
+             "Für andere Währungen und die Zuordnung über die ISIN exportiere **JSON v1**"
+           ]},
+          {"mcp-server/src/prompts.ts",
+           [
+             "The CSV books every row in EUR: it has no currency column.",
+             "The CSV carries no ISIN, so the importer matches a security by its name"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
+
   # User story:
   # As the operator or the agent renaming an imported account, or mapping an
   # export's account onto one of another name,
