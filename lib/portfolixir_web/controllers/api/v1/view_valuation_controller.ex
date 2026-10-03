@@ -7,10 +7,13 @@ defmodule PortfolixirWeb.Api.V1.ViewValuationController do
   (FR-13). Financial decimals are serialized as strings.
 
   `total/2` serves the same read with no view (#1007, Sprint 18 plan D-5):
-  `GET /api/v1/valuation`, the unscoped union `Valuation.for_view(nil)` that
-  the dashboard's "Gesamt" shows, every account of every portfolio counted
-  once, in EUR, with `view_id` null and no view echo. A fresh instance has no
-  view, so this is the first figure an agent can read without a write.
+  `GET /api/v1/valuation`, the unscoped union `Valuation.for_view(nil)`,
+  every account of every portfolio counted once, always in EUR, with
+  `view_id` null and no view echo. It equals the dashboard's total when the
+  first portfolio's base currency is EUR and no default view is set; it need
+  not otherwise, since the dashboard values its card in that currency and
+  follows the default view. A fresh instance has no view, so this is the
+  first figure an agent can read without a write.
   """
   use PortfolixirWeb, :controller
 

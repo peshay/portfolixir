@@ -47,6 +47,16 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 105_808,
     book: 178_921,
     full: 208_790
+  },
+  {
+    since: "2026-10-03",
+    why:
+      "Sprint 18 PR β review: views.valuation names the conditions under which the " +
+      "view-less total is the dashboard's, paid for by trimming its own description, and " +
+      "lowered to the figure measured with it",
+    read: 105_807,
+    book: 178_920,
+    full: 208_789
   }
 ];
 

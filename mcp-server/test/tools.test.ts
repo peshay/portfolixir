@@ -2661,6 +2661,9 @@ describe("Portfolixir MCP tools", () => {
   //   passed on as on the view read; with an id it is unchanged.
   // - The schema requires nothing, and the description says what an omitted
   //   id reads.
+  // - It claims the dashboard's figure only under the conditions that make
+  //   it true (PR β review): the dashboard values its card in the first
+  //   portfolio's base currency and follows the default view.
   it("reads the total across every portfolio when views.valuation has no id", async () => {
     const { client, requests } = createRecordingClient({ data: { view_id: null } });
 
@@ -2677,6 +2680,11 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(tool?.inputSchema.required, undefined);
     assert.equal(tool?.inputSchema.properties.id.type, "integer");
     assert.match(tool?.description ?? "", /Omit id for the total of every account/);
+    assert.match(
+      tool?.description ?? "",
+      /the dashboard's total if the first portfolio is in EUR and no default view is set/
+    );
+    assert.doesNotMatch(tool?.description ?? "", /Gesamt/);
   });
 
   // User story (#577): as an MCP client I want a view's cross-portfolio

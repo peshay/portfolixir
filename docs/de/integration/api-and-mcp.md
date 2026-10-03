@@ -2565,9 +2565,12 @@ nicht journalisiert: Noch keine Regel kann sie lesen.
   `positions_included`. Ein ungültiger Wert ist ein `422`.
 - `GET /api/v1/valuation` liefert die **Summe über jedes Portfolio** ohne View
   (#1007): die unbegrenzte Vereinigung aller Depots, Positionen und
-  Geldkonten, jedes einmal gezählt, in EUR — die Zahl, die „Gesamt“ im
-  Dashboard zeigt, und die erste, die eine frische Instanz beantworten kann,
-  da sie noch keine View hat. Die Form ist die der View-Bewertung mit
+  Geldkonten, jedes einmal gezählt, immer in EUR, und die erste Zahl, die eine
+  frische Instanz beantworten kann, da sie noch keine View hat. Sie entspricht
+  der Summe der Übersicht, wenn das erste Portfolio die Basiswährung EUR hat
+  und keine Standard-Ansicht gesetzt ist; die Übersicht bewertet ihre Karte in
+  dieser Währung und folgt der Standard-Ansicht, sonst können beide Zahlen
+  abweichen. Die Form ist die der View-Bewertung mit
   `view_id: null` und ohne `view`-Spiegelung (`overlap` meldet keine
   Überschneidung, `matches_no_accounts` ist `false`), und die
   `valuation_note` benennt den Bereich. `include_positions=false` liefert nur
@@ -2991,8 +2994,10 @@ gilt für einen Portfolio-Datensatz in seiner Basiswährung, sein `view` grenzt
 innerhalb dieses Portfolios ein; `portfolixir.views.*` gilt für eine View über
 jedes Portfolio, jedes Konto einmal gezählt, in EUR. Die Summe über jedes
 Portfolio braucht keine View: `portfolixir.views.valuation` ohne id liest sie
-(`GET /api/v1/valuation`, #1007), die Zahl, die das Dashboard zeigt, also ist
-eine Summe von Portfolio-Bewertungen nie der Weg dorthin. Jedes der Tools für
+(`GET /api/v1/valuation`, #1007), immer in EUR über jedes Konto — die Summe der
+Übersicht, wenn das erste Portfolio die Basiswährung EUR hat und keine
+Standard-Ansicht gesetzt ist —, also ist eine Summe von Portfolio-Bewertungen
+nie der Weg dorthin. Jedes der Tools für
 View-Performance, View-Benchmark und View-Beitragsanalyse braucht eine
 bestehende View-ID — eine mit `include_all` (Standard) und ohne Ausschluss
 angelegte View erfasst jedes Konto —, und solange keine View besteht, ist das

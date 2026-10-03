@@ -2622,8 +2622,11 @@ a view is not journaled: no rule can read it yet.
   `positions_included`. An invalid value is a `422`.
 - `GET /api/v1/valuation` returns the **total across every portfolio** with no
   view (#1007): the unscoped union of every depot, position and cash account,
-  each counted once, in EUR — the figure the dashboard's "Gesamt" shows, and
-  the first one a fresh instance can answer, since it has no view yet. The
+  each counted once, always in EUR, and the first figure a fresh instance can
+  answer, since it has no view yet. It equals the dashboard's total when the
+  first portfolio's base currency is EUR and no default view is set; the
+  dashboard values its card in that currency and follows the default view, so
+  otherwise the two can differ. The
   shape is the view valuation's with `view_id: null` and no `view` echo
   (`overlap` reports no overlap, `matches_no_accounts` is `false`), and the
   `valuation_note` names the scope. `include_positions=false` returns the
@@ -3003,8 +3006,9 @@ record in its base currency, its `view` narrowing within that portfolio;
 `portfolixir.views.*` answers a view across every portfolio, each account
 counted once, in EUR. The total across every portfolio needs no view:
 `portfolixir.views.valuation` without an id reads it (`GET /api/v1/valuation`,
-#1007), the figure the dashboard shows, so a sum of portfolio valuations is
-never the route to it. Each of the view performance, benchmark and
+#1007), always in EUR over every account — the dashboard's total when the first
+portfolio's base currency is EUR and no default view is set — so a sum of
+portfolio valuations is never the route to it. Each of the view performance, benchmark and
 contribution tools needs an existing view id — a view created with
 `include_all` (the default) and nothing excluded matches every account — and
 until a view exists the portfolio tool is the only read of a return or a
