@@ -1650,9 +1650,19 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     do: "#{format_quantity(quantity)} × #{PortfolixirWeb.Format.decimal(price, 2)}"
 
   def phone_size(%{quantity: %Decimal{} = quantity}),
-    do: gettext("%{quantity} units", quantity: format_quantity(quantity))
+    do:
+      ngettext("%{quantity} unit", "%{quantity} units", plural_count(quantity),
+        quantity: format_quantity(quantity)
+      )
 
   def phone_size(_transaction), do: nil
+
+  @doc """
+  The count a quantity's plural follows: one unit is a unit, any other
+  quantity — a fraction included — is units (U1 closing act, R10b).
+  """
+  def plural_count(%Decimal{} = quantity),
+    do: if(Decimal.equal?(quantity, 1), do: 1, else: 2)
 
   # The booking's money on the same basis as the month subtotal (the stored
   # gross amount, else quantity × price); a split or a transfer without a
