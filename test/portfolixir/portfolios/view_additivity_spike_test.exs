@@ -45,8 +45,17 @@ defmodule Portfolixir.Portfolios.ViewAdditivitySpikeTest do
     bucket
   end
 
+  # View names are unique instance-wide, and async test modules write at
+  # the same time: a name another module also uses makes one test's insert
+  # wait on the other's uncommitted row (#1018, the class of #947). Each
+  # view here gets a name of its own.
   defp view_including!(name, buckets) do
-    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: name, include_all: false})
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "#{name} #{System.unique_integer([:positive])}",
+        include_all: false
+      })
+
     :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, Enum.map(buckets, & &1.id), [])
     view
   end
@@ -181,12 +190,15 @@ defmodule Portfolixir.Portfolios.ViewAdditivitySpikeTest do
     trade_sec = create_security!(name: "Trade-Priced Co.", ticker: "TRDP", asset_class: "equity")
 
     # 1 EUR = 1.25 USD (ECB semantics), the EUR-hub rate used by valuation.
+    # A rate day of this module's own: rates are unique per (base, quote,
+    # date), and another async module storing the same day would wait on
+    # this test's uncommitted row (#1018).
     {:ok, _} =
       Fx.upsert_many([
         %{
           base_currency: "EUR",
           quote_currency: "USD",
-          date: ~D[2026-06-01],
+          date: ~D[2026-05-08],
           rate: "1.25",
           source: "manual"
         }

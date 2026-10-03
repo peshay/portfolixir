@@ -42,7 +42,10 @@ defmodule Portfolixir.Fx.RateSyncTest do
     assert_receive :synced, 1_000
   end
 
-  defp row(quote, value, date \\ ~D[2026-06-04]) do
+  # The rows' default day is this module's own: rates are unique per (base,
+  # quote, date), and another async module storing the same day would wait
+  # on this test's uncommitted rows (#1018).
+  defp row(quote, value, date \\ ~D[2026-05-04]) do
     %{base_currency: "EUR", quote_currency: quote, date: date, rate: value, source: "ecb"}
   end
 
@@ -73,7 +76,7 @@ defmodule Portfolixir.Fx.RateSyncTest do
     xml = """
     <gesmes:Envelope>
       <Cube>
-        <Cube time='2026-06-04'>
+        <Cube time='2026-05-04'>
           <Cube currency='USD' rate='1.0856'/>
           <Cube currency='GBP' rate='0.8412'/>
           <Cube currency='XYZ' rate='9.9'/>
@@ -222,7 +225,7 @@ defmodule Portfolixir.Fx.RateSyncTest do
   test "fetch/1 parses the daily feed through the bounded client, no network" do
     assert Ecb.id() == :ecb
 
-    xml = "<Cube><Cube time='2026-06-04'><Cube currency='USD' rate='1.25'/></Cube></Cube>"
+    xml = "<Cube><Cube time='2026-05-04'><Cube currency='USD' rate='1.25'/></Cube></Cube>"
     ok_plug = fn conn -> Plug.Conn.send_resp(conn, 200, xml) end
     assert {:ok, [row]} = Ecb.fetch(req: [plug: ok_plug])
     assert row == row("USD", "1.25")

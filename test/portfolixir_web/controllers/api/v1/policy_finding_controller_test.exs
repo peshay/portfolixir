@@ -131,7 +131,8 @@ defmodule PortfolixirWeb.Api.V1.PolicyFindingControllerTest do
       severity: "hard"
     })
 
-    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Kern"})
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{name: "Kern #{System.unique_integer([:positive])}"})
 
     rule!(
       world,

@@ -131,7 +131,10 @@ defmodule Portfolixir.Portfolios.PlanVersionsTest do
     assert Enum.map(visible, & &1.category_id) == [core.id]
 
     # A view whose only plan is a draft has no plan for the SOLL surface.
-    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Stocks"})
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Stocks #{System.unique_integer([:positive])}"
+      })
 
     {:ok, _view_draft} =
       Targets.duplicate_plan(Actor.owner_ui(), active.id, %{name: "V", view_id: view.id})
@@ -378,7 +381,11 @@ defmodule Portfolixir.Portfolios.PlanVersionsContractTest do
 
   test "list_plans filters by view scope, nil meaning Gesamt" do
     %{portfolio: portfolio, classification: classification, category: category} = world()
-    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Stocks"})
+
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Stocks #{System.unique_integer([:positive])}"
+      })
 
     {:ok, _} =
       Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [

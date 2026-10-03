@@ -62,8 +62,17 @@ defmodule Portfolixir.Portfolios.PerformanceViewTest do
     %{a: a, b: b, sec_a: sec_a, sec_b: sec_b, bucket_a: bucket_a, bucket_b: bucket_b}
   end
 
+  # View names are unique instance-wide, and async test modules write at
+  # the same time: a name another module also uses makes one test's insert
+  # wait on the other's uncommitted row (#1018, the class of #947). Each
+  # view here gets a name of its own.
   defp view_including!(bucket_ids, name) do
-    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: name, include_all: false})
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "#{name} #{System.unique_integer([:positive])}",
+        include_all: false
+      })
+
     :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, bucket_ids, [])
     view
   end

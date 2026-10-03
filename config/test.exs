@@ -15,6 +15,10 @@ config :portfolixir, Portfolixir.Repo,
   # a connection while a queued case's sandbox checkout is dropped.
   pool_size: System.schedulers_online() * 2
 
+# Preloads run on the calling process: under the sandbox a test has one
+# connection, which parallel preload tasks could only queue for (#1018).
+config :portfolixir, :preload_in_parallel, false
+
 config :portfolixir, PortfolixirWeb.Endpoint,
   url: [host: System.get_env("PHX_HOST", "localhost"), port: 4002],
   http: [

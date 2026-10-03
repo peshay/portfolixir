@@ -38,7 +38,20 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
   # All cross-table ISIN uniqueness checks take this advisory transaction lock
   # first, so two concurrent security-ISIN writes serialize instead of both
   # passing the check before either commits (ADR-0029 §3 "serialized check").
+  #
+  # The lock is the two-key form (key, scope). The scope is 0 -- one lock for
+  # the whole database -- unless the transaction has set
+  # `portfolixir.isin_write_lock_scope`, which only the test sandbox does
+  # (#1018): a sandboxed test never commits, so it held the one lock until it
+  # ended and every other async test writing an ISIN waited for it. Each test's
+  # transaction scopes the lock to itself; its own writers still serialize. A
+  # session that once set the value reads it back as '' afterwards, hence the
+  # nullif.
   @isin_write_lock_key 727_202_907
+  @isin_write_lock_sql """
+  SELECT pg_advisory_xact_lock($1,
+    coalesce(nullif(current_setting('portfolixir.isin_write_lock_scope', true), '')::integer, 0))
+  """
 
   @doc """
   Records an ISIN change on behalf of `actor` (ADR-0029 §3): the security's
@@ -422,8 +435,12 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
     {:ok, :locked}
   end
 
+  @doc "The first key of the ISIN write lock (`pg_advisory_xact_lock(int, int)`)."
+  @spec isin_write_lock_key() :: integer()
+  def isin_write_lock_key, do: @isin_write_lock_key
+
   defp acquire_isin_write_lock(repo) do
-    repo.query!("SELECT pg_advisory_xact_lock($1)", [@isin_write_lock_key])
+    repo.query!(@isin_write_lock_sql, [@isin_write_lock_key])
     :ok
   end
 

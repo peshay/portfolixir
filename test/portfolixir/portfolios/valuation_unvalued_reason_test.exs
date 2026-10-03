@@ -309,12 +309,15 @@ defmodule Portfolixir.Portfolios.ValuationUnvaluedReasonTest do
     assert usd_row.price_currency == "USD"
 
     # A missing-FX position becomes valued once the rate arrives.
+    # A rate day of this module's own: rates are unique per (base, quote,
+    # date), and another async module storing the same day would wait on
+    # this test's uncommitted row (#1018).
     {:ok, _} =
       Fx.upsert_many([
         %{
           base_currency: "EUR",
           quote_currency: "USD",
-          date: ~D[2026-06-04],
+          date: ~D[2026-05-06],
           rate: "1.20",
           source: "manual"
         }

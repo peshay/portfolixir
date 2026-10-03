@@ -349,12 +349,15 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
     trade_sec = create_security!(name: "Trade-Priced Co.", ticker: "TRDP", asset_class: "equity")
 
     # 1 EUR = 1.25 USD (ECB semantics), the EUR-hub rate used by valuation.
+    # A rate day of this module's own: rates are unique per (base, quote,
+    # date), and another async module storing the same day would wait on
+    # this test's uncommitted row (#1018).
     {:ok, _} =
       Fx.upsert_many([
         %{
           base_currency: "EUR",
           quote_currency: "USD",
-          date: ~D[2026-06-01],
+          date: ~D[2026-05-07],
           rate: "1.25",
           source: "manual"
         }

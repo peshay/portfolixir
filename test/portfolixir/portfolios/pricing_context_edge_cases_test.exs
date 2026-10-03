@@ -36,27 +36,30 @@ defmodule Portfolixir.Portfolios.PricingContextEdgeCasesTest do
   alias Portfolixir.Portfolios.PricingContext
   alias Portfolixir.Portfolios.Valuation
 
+  # The rates' day is this module's own: rates are unique per (base, quote,
+  # date), and another async module storing the same day would wait on
+  # this test's uncommitted rows (#1018).
   defp rates do
     {:ok, _} =
       Fx.upsert_many([
         %{
           base_currency: "EUR",
           quote_currency: "USD",
-          date: ~D[2026-06-05],
+          date: ~D[2026-05-12],
           rate: "1.25",
           source: "manual"
         },
         %{
           base_currency: "EUR",
           quote_currency: "GBP",
-          date: ~D[2026-06-05],
+          date: ~D[2026-05-12],
           rate: "0.80",
           source: "manual"
         },
         %{
           base_currency: "EUR",
           quote_currency: "CHF",
-          date: ~D[2026-06-05],
+          date: ~D[2026-05-12],
           rate: "0.95",
           source: "manual"
         }

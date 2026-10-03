@@ -283,7 +283,11 @@ defmodule PortfolixirWeb.ApiV1IdRangeTest do
     {:ok, bucket} =
       Buckets.create_bucket(Actor.owner_ui(), %{name: "B #{System.unique_integer([:positive])}"})
 
-    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "V", include_all: true})
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "V #{System.unique_integer([:positive])}",
+        include_all: true
+      })
 
     %{
       "portfolio_id" => world.portfolio.id,

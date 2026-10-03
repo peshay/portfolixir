@@ -426,7 +426,9 @@ defmodule PortfolixirWeb.RiskPolicyRulesLiveTest do
         name: "Wachstum"
       })
 
-    {:ok, kern} = Buckets.create_view(Actor.owner_ui(), %{name: "Kern"})
+    {:ok, kern} =
+      Buckets.create_view(Actor.owner_ui(), %{name: "Kern #{System.unique_integer([:positive])}"})
+
     {:ok, view, _html} = live(conn, "/risk")
 
     submit = fn attrs ->
@@ -564,7 +566,9 @@ defmodule PortfolixirWeb.RiskPolicyRulesLiveTest do
   #   not shown, and the section says which view it evaluates.
   test "is scoped by the active view", %{conn: conn} do
     world = rules_world()
-    {:ok, kern} = Buckets.create_view(Actor.owner_ui(), %{name: "Kern"})
+
+    {:ok, kern} =
+      Buckets.create_view(Actor.owner_ui(), %{name: "Kern #{System.unique_integer([:positive])}"})
 
     rule!(world, "Portfolioweit", single_cap(world))
     rule!(world, "Nur im Kern", single_cap(world), view_id: kern.id)

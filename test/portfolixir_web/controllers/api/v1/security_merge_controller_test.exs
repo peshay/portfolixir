@@ -26,8 +26,11 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
   alias Portfolixir.Portfolios.Targets
 
   # Synthetic ISINs whose check digits agree (ISO 6166).
-  @isin_source "XS00EXSRCE01"
-  @isin_target "XS00EXTGTF03"
+  # ISINs are unique instance-wide, and async test modules write at the same
+  # time: an ISIN another module also writes makes one test's write wait on
+  # the other's uncommitted row (#1018). These two are this module's own.
+  @isin_source "XS00EXSRCF00"
+  @isin_target "XS00EXTGTG02"
 
   setup %{conn: conn} do
     conn =

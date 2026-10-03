@@ -37,9 +37,22 @@ defmodule Portfolixir.DataCase do
   def setup_sandbox(tags) do
     owner = Sandbox.start_owner!(Portfolixir.Repo, shared: not tags[:async])
     on_exit(fn -> stop_sandbox(owner) end)
+    scope_isin_write_lock()
     # A log event the run did not capture names the tests around it (#927).
     Portfolixir.LogNoise.track(tags)
     owner
+  end
+
+  # Every ISIN writer takes the ISIN write lock, one transaction-scoped
+  # advisory lock for the whole database (`Portfolixir.Catalog.IdentifierAliases`).
+  # A sandboxed test never commits, so it held that lock until it ended, and
+  # every other async test writing an ISIN waited for it (#1018). The setting,
+  # local to the test's transaction, scopes the lock to the test's connection:
+  # the test's own writers still serialize, another test's never wait.
+  defp scope_isin_write_lock do
+    Portfolixir.Repo.query!(
+      "SELECT set_config('portfolixir.isin_write_lock_scope', pg_backend_pid()::text, true)"
+    )
   end
 
   @doc """

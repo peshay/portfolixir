@@ -857,8 +857,17 @@ defmodule Portfolixir.Portfolios.AllocationTest do
   # - Two views with different plans over the same classification never produce a
   #   Σ above 100%; each view's Σ is its own plan only.
   describe "view-bound SOLL plans (ADR-0020, #465)" do
+    # View names are unique instance-wide, and async test modules write at
+    # the same time: a name another module also uses makes one test's insert
+    # wait on the other's uncommitted row (#1018, the class of #947). Each
+    # view here gets a name of its own.
     defp named_view(name) do
-      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: name, include_all: true})
+      {:ok, view} =
+        Buckets.create_view(Actor.owner_ui(), %{
+          name: "#{name} #{System.unique_integer([:positive])}",
+          include_all: true
+        })
+
       view
     end
 

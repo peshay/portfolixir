@@ -57,7 +57,11 @@ defmodule Portfolixir.LaunchTestFixtureTest do
     assert Decimal.equal?(total, answers["total_value_eur"])
     assert Decimal.equal?(Valuation.for_view(nil).total_with_cash, answers["total_value_eur"])
 
-    {:ok, everything} = Buckets.create_view(Actor.owner_ui(), %{name: "Everything"})
+    {:ok, everything} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Everything #{System.unique_integer([:positive])}"
+      })
+
     assert Decimal.equal?(Valuation.for_view(everything.id).total_with_cash, total)
 
     realized_2026 =

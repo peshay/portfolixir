@@ -279,7 +279,8 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
         Map.put(weight_cap(security), "threshold", "12")
       )
 
-    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Kern"})
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{name: "Kern #{System.unique_integer([:positive])}"})
 
     {:ok, _scoped} =
       PolicyRules.create_rule(Actor.owner_ui(), %{
@@ -401,7 +402,10 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
         name: "Bonds"
       })
 
-    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Spekulativ"})
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Spekulativ #{System.unique_integer([:positive])}"
+      })
 
     {:ok, security_rule} =
       PolicyRules.create_rule(Actor.owner_ui(), %{

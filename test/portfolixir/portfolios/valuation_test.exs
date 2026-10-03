@@ -143,7 +143,10 @@ defmodule Portfolixir.Portfolios.ValuationTest do
     :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), world.cash, [krypto_bucket.id])
 
     {:ok, everything} =
-      Buckets.create_view(Actor.owner_ui(), %{name: "Everything", include_all: true})
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Everything #{System.unique_integer([:positive])}",
+        include_all: true
+      })
 
     unscoped = Valuation.for_portfolio(world.portfolio.id, prices: prices)
     permissive = Valuation.for_portfolio(world.portfolio.id, prices: prices, view: everything.id)

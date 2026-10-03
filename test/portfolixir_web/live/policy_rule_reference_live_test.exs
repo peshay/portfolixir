@@ -93,7 +93,10 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
     assert html =~ "Anleihen im Band"
     assert Classifications.get_classification(tree.id)
 
-    {:ok, spekulativ} = Buckets.create_view(Actor.owner_ui(), %{name: "Spekulativ"})
+    {:ok, spekulativ} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Spekulativ #{System.unique_integer([:positive])}"
+      })
 
     rule!(world, "Spielgeld klein halten", %{
       subject_type: "view",
@@ -142,7 +145,11 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
   #   the securities delete-blocked dialog.
   test "a refusal links each rule to Risk in the view it applies in", %{conn: conn} do
     world = base_world(name: "Refs")
-    {:ok, spekulativ} = Buckets.create_view(Actor.owner_ui(), %{name: "Spekulativ"})
+
+    {:ok, spekulativ} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Spekulativ #{System.unique_integer([:positive])}"
+      })
 
     wide =
       rule!(world, "Spielgeld <b>klein</b> halten", %{
@@ -197,7 +204,7 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
     assert band =~ "&lt;b&gt;klein&lt;/b&gt;"
     refute band =~ "<b>klein</b>"
     assert band =~ "(in force, view “Everything”)"
-    assert band =~ "(in force, view “Spekulativ”)"
+    assert band =~ "(in force, view “#{spekulativ.name}”)"
     assert band =~ "retiring it on Wealth → Risk stops its evaluation."
     assert Buckets.get_view(spekulativ.id)
 
@@ -268,14 +275,18 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
            )
 
     assert securities |> element("#delete-blocked-dialog") |> render() =~
-             "(in force, view “Spekulativ”)"
+             "(in force, view “#{spekulativ.name}”)"
   end
 
   # Acceptance criteria (#871, G6-A): on a German page the band reads
   # „name“ (gilt, Ansicht „Alles“), the name still the only link.
   test "the refusal's links read in German on a German page", %{conn: conn} do
     world = base_world(name: "Refs")
-    {:ok, spekulativ} = Buckets.create_view(Actor.owner_ui(), %{name: "Spekulativ"})
+
+    {:ok, spekulativ} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Spekulativ #{System.unique_integer([:positive])}"
+      })
 
     wide =
       rule!(world, "Spielgeld klein halten", %{

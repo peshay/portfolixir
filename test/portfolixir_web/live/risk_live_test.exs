@@ -153,20 +153,23 @@ defmodule PortfolixirWeb.RiskLiveTest do
   # - The pair whose correlation cannot be computed reads "not computable"
   #   with its observations, the table's treatment for a missing value.
   test "a correlation pair that cannot be computed reads as not computable", %{conn: conn} do
-    world = base_world(currency: "USD", cash_currency: "JPY")
+    # A year of daily rates in currencies no other async module stores:
+    # rates are unique per (base, quote, date), and a module writing the
+    # same day would wait on this test's uncommitted rows (#1018).
+    world = base_world(currency: "SEK", cash_currency: "NOK")
 
-    gbp =
-      add_depot(world.portfolio, currency: "GBP", cash_name: "GBP Cash", depot_name: "GBP Depot")
+    dkk =
+      add_depot(world.portfolio, currency: "DKK", cash_name: "DKK Cash", depot_name: "DKK Depot")
 
-    gbp_world = %{portfolio: world.portfolio, cash: gbp.cash, depot: gbp.depot}
+    dkk_world = %{portfolio: world.portfolio, cash: dkk.cash, depot: dkk.depot}
 
-    a = create_security!(name: "Kestrel Industrial Group NV", ticker: "KIG", currency: "JPY")
-    b = create_security!(name: "Harbor Light Utilities SE", ticker: "HLU", currency: "GBP")
+    a = create_security!(name: "Kestrel Industrial Group NV", ticker: "KIG", currency: "NOK")
+    b = create_security!(name: "Harbor Light Utilities SE", ticker: "HLU", currency: "DKK")
 
-    deposit!(world, "10", day(-370), currency: "JPY")
-    buy!(world, a, quantity: "1", price: "1", date: day(-370), currency: "JPY")
-    deposit!(gbp_world, "10", day(-370), currency: "GBP")
-    buy!(gbp_world, b, quantity: "1", price: "1", date: day(-370), currency: "GBP")
+    deposit!(world, "10", day(-370), currency: "NOK")
+    buy!(world, a, quantity: "1", price: "1", date: day(-370), currency: "NOK")
+    deposit!(dkk_world, "10", day(-370), currency: "DKK")
+    buy!(dkk_world, b, quantity: "1", price: "1", date: day(-370), currency: "DKK")
 
     even? = &(rem(&1, 2) == 0)
 
@@ -178,7 +181,7 @@ defmodule PortfolixirWeb.RiskLiveTest do
 
     rates =
       for offset <- -371..0,
-          {currency, high_on_even?} <- [{"JPY", false}, {"GBP", false}, {"USD", true}] do
+          {currency, high_on_even?} <- [{"NOK", false}, {"DKK", false}, {"SEK", true}] do
         high? = if high_on_even?, do: even?.(offset), else: not even?.(offset)
 
         %{
