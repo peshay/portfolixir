@@ -3962,3 +3962,138 @@ admin tool).
   help line is its stated limit until it is built. Dialog count: one more
   native dialog — eighteen `<dialog>` elements in `lib/portfolixir_web/`,
   still with zero `aria-modal`.
+
+## Amendment 2026-10-03 — Securities detail: bond master data and key metrics *(Sprint 18 pick H3 = A, U7; issue 330)*
+
+Board `mockups/ux-design-2026-10-02/03-bond-master-data`, variant A (plan
+D-8; silence adopted it): the bond's data in the Overview, not a tab of its
+own. Built in `PortfolixirWeb.Securities.BondStrip` (the block and the
+two-scales note), `SecurityFormDialog` (the bond section) and
+`PortfolioLive.data_quality/1` (the Wealth finding), over
+`Portfolixir.Portfolios.Bonds.reading/2` — the reading the API's
+`GET /api/v1/securities/:id` serves as `bond`, so the screen and the agent
+read one set of figures (ADR-0052). Nothing renders for any asset class
+but `bond` and `government_bond`, read as the effective class.
+
+### The bond block *(A1, rule ①)*
+
+- **Placement.** One more block in the Overview's main column, directly
+  under the six figures and above the chart: `section.bond-strip`
+  (`data-role="bond-strip"`). Its heading "Anleihe" is an `h3` in the
+  overview-card head voice — `.bond-strip__head h3` joins the
+  `.overview-card__head h3` rule — because it is the one thing that tells
+  the two grids apart. The grid **is** `.overview-metrics`, three by two,
+  two per row under 720 px (rule ④, which issue 1050 carried); the basis
+  line **is** `.detail-tab-hint`, as under the ADR-0047 grid.
+- **First row, what was entered:** *Fälligkeit* (the ISO date; sub-line
+  "Emission <date>" when an issue date is set), *Kupon* ("2,50 %" with the
+  unit "p. a."; sub-line *jährlich* or *halbjährlich*, or *keine
+  Zinszahlung* for a zero coupon), *Nominal im Bestand* ("10.000,00" with
+  the face value's currency; sub-line "100 Stück × 100 EUR · Stückelung
+  1.000 EUR" — the hundredth convention as a sum, the denomination beside it
+  so "Stück" and "Stückelung" are not read as one unit; "—" while nothing is
+  held).
+- **Second row, what follows, each under its input:** *Restlaufzeit* ("4 J.
+  8 M."; sub-line "4,70 Jahre ab <today>"), *Laufende Rendite* ("2,57 %";
+  sub-line "2,50 ÷ 97,25 (<quote date>)", or "2,50 ÷ 98,50, letzter eigener
+  Handelspreis" while the valuation prices by the own trade, board A4),
+  *Rendite bis Fälligkeit* ("≈ 3,17 %"; sub-line *linear angenähert*).
+  Percent figures and the years at two places; the quantity and the
+  denomination as stored (`Format.exact`).
+- **The basis line** (`data-role="bond-basis"`) says once what the figures
+  are, how they are made and what they leave out: coupon and price in
+  percent of face, one unit a hundredth of the nominal, so the price is also
+  the price per unit; current yield = coupon ÷ price; the remaining term in
+  calendar days from today, a year of 365 days; the yield to maturity
+  linearly approximated, (Kupon + (100 − Kurs) ÷ Restlaufzeit in Jahren) ÷
+  Kurs, without compounding; without accrued interest, fees and taxes;
+  reported, not evaluated.
+- **One deliberate departure from the board:** the coupon's sub-line names
+  the frequency, not a payment day ("am 15.06."). The master data carries no
+  coupon date, and taking it from the maturity is an assumption the screen
+  does not make.
+
+### Its states *(A2–A4)*
+
+- **Nothing entered** (no coupon, no maturity, no denomination — a fresh
+  import): one sentence instead of six dashes, "Kupon, Fälligkeit und
+  Stückelung sind nicht erfasst; ohne sie gibt es keine Restlaufzeit und
+  keine Rendite.", whose remedy **Anleihedaten erfassen…** is a
+  `.link-button` opening the same dialog as *Edit* (UX-DR17: the remedy is
+  a child of its sentence). The nominal stands under it as a hint, with the
+  convention, since it needs no master data.
+- **Partly entered:** the grid; a cell whose input is missing reads *nicht
+  erfasst*.
+- **Not computable:** *nicht berechenbar*, the reason in the sub-line —
+  *fällig*, *kein Kupon erfasst*, *keine Fälligkeit erfasst* or *kein
+  Kurs*.
+- **Matured** (on and after the maturity date): the term reads *fällig*,
+  sub-line "seit <date>", and both yields *nicht berechenbar · fällig*. No
+  redemption amount is computed; a redemption is a booking.
+- `.overview-metric__sub time` and `.overview-metric__sub .nowrap` keep a
+  date and a figure with its unit whole at 390 px (rule ③).
+
+### The dialog's bond section *(F1, F2, rule ②)*
+
+- `fieldset.bond-fieldset` (`data-role="bond-fields"`), legend
+  "Anleihedaten", between the master data grid and the raw-quotes toggle,
+  present while the asset-class select reads *Anleihe* or *Staatsanleihe* —
+  on create (search, manual) and on edit alike; the dialog's `form_change`
+  re-renders it as the select changes. `.bond-fieldset` **joins the
+  `.settlement-fieldset` selector lists**: the same block shown only when it
+  applies, not a copy.
+- Fields: *Kupon p. a. (%)* and *Stückelung (Nennwert)* follow the
+  numeric-input rule (`inputmode="decimal"`, `class="num"`, read by
+  `DecimalInput` in the page's locale — "2,5", not "0,025"); *Zinszahlung*
+  a select of two words, *jährlich* and *halbjährlich*, never the stored
+  value; *Fälligkeit* and *Emissionstag (optional)* ISO text fields
+  (UX-DR19); *Währung des Nennwerts* a currency select that starts on the
+  security's currency. One `.form-help` line states the convention ("Im
+  Bestand ist ein Stück ein Hundertstel des Nominals: 100 Stück sind 10.000
+  Nominal. …").
+- **Errors on their field**, in the page's language (F2): the ambiguity
+  message of `DecimalInput` under a grouped figure, "muss nach dem
+  Emissionstag liegen" under a maturity on or before the issue date, the
+  bounded-date and range messages likewise. Nothing is stored on a refusal.
+- **Nothing is required**; an emptied field clears its value; the values
+  are kept when the class changes away from a bond, and the screen then
+  hides them.
+
+### The two-scales note *(W1 and W2)*
+
+- **On the Overview** (W1): a **problem** data note at the top of the
+  Overview panel, above the figures it concerns (`data-role=
+  "two-scales-note"`): "**Auf zwei Skalen bepreist:** Kurse um 100 (zuletzt
+  97,25 am <date>), gebuchter Preis je Stück um 1 (1 Kauf: 0,985 am <date>).
+  Dann ist das Nominal als Stückzahl gebucht, und Wert, Gewinn und Gewicht
+  sind hundertfach zu hoch; die Rendite (TTWROR) zeigt es nicht. Stückzahl
+  gegen das Nominal der Abrechnung prüfen: Transaktionen" — the last word a
+  link to the security's Transactions tab. With several such buys: "(3
+  Käufe, zuletzt 0,985 am …)". The figures stay as stored and the block
+  shows the consequence (1.000.000,00 nominal for a purchase of 9.850,00);
+  nothing is converted and no rescale is offered.
+- **Where the total is read** (W2, UX-DR25): the seventh condition of Wealth
+  → Holdings → *Datenqualität*, a problem note after the negative holdings
+  (`data-role="dq-two-scales"`), naming each bond the valuation holds with
+  "(Kurs 97,25 · Preis je Stück 0,985)" and linking each name to its
+  Transactions tab, as the negative-holdings note does.
+- **Silent** without a quote, when the scales agree, and for every other
+  asset class. The rule: the latest stored quote is 20 to 500 times a
+  booked buy price per unit (ADR-0052 §4).
+
+### Settled here, from the board's stated doubts
+
+- The linear approximation is (C + (100 − P) ÷ n) ÷ P, named in the basis
+  line and the payload; the other common form is not shown.
+- A trade-priced bond's yields use the valuation's price, the last own trade
+  price, and say so; the guard compares the latest quote with each booked
+  buy, so a mixed history is named by the buys on the unit scale.
+- The reverse case (quotes near 1, bookings near 100) is not named; the
+  guard keys on the effective asset class, so a bond the inference does not
+  recognise escapes it (ADR-0052, Consequences).
+- The dashboard's data-quality line does not count the finding: that line
+  counts the catalog's hygiene sets, and the two scales are read where the
+  total they inflate is read.
+- The six figures' cells stay as they are: "Bestand 100 Stück" and "Letzter
+  Kurs 97,25 EUR" are not relabelled; the block and its basis line carry the
+  convention.

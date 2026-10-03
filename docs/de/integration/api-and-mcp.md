@@ -818,6 +818,60 @@ Nachkommastellen.
 Empfehlung, kein Rating, keinen Score und keine Handlung in der Antwort. Eine
 Regel über einer Kennzahl ist FR-43 und bleibt verschlossen.
 
+### Anleihen: Stammdaten und Anleihe-Lesung (ADR-0052)
+
+Die Stammdaten einer Anleihe sind sechs nullbare Felder des Wertpapiers,
+setzbar mit `POST /api/v1/securities` und `PATCH /api/v1/securities/:id`,
+in jeder Wertpapier-Antwort enthalten (und mit `fields=` wählbar):
+
+- `coupon_rate` — der Kupon in **Prozent vom Nennwert pro Jahr**, ein
+  Decimal-String von 0 bis 100 (`"2.5"`, nicht `"0.025"`);
+- `coupon_frequency` — `annual` oder `semi_annual`;
+- `maturity_date` und `issue_date` — ISO-Daten, die Fälligkeit nach dem
+  Emissionstag;
+- `face_value` — die Stückelung, ein Decimal-String über 0;
+- `face_value_currency_code` — die Währung der Stückelung.
+
+`null` löscht ein Feld, Pflicht ist keines, ein unmöglicher Wert ist ein
+`422`, der sein Feld nennt, ohne dass etwas geschrieben wird, und die Felder
+bleiben erhalten, wenn die Anlageklasse wechselt. Gelesen werden sie nur,
+solange die effektive Anlageklasse `bond` oder `government_bond` ist. Die
+MCP-Tools `portfolixir.securities.create` und `portfolixir.securities.update`
+nehmen sie entgegen (das Update auch `null`).
+
+`GET /api/v1/securities/:id` eines solchen Wertpapiers trägt `bond`, beim
+Lesen berechnet und nie gespeichert (Stufe (a) der Scope-Leiter); für jedes
+andere Wertpapier und in Listen und Schreibantworten ist es `null`:
+
+- `as_of` und `quantity` (die gehaltenen Stück über alle Depots);
+- `nominal_held` — `amount`, **Stück × 100**, in `currency_code` (der des
+  Nennwerts, sonst der des Wertpapiers): Ein Portfolio-Performance-Export
+  bucht die Stückzahl einer prozentnotierten Anleihe als **ein Hundertstel
+  des Nominals**, darum ist ein Kurs zugleich Prozent vom Nennwert und Preis
+  je Stück;
+- `remaining_term` — `days` von `as_of` bis zur Fälligkeit, `years` (Tage ÷
+  365, sechs Nachkommastellen), `whole_years` und `whole_months`, `matured`
+  ab dem Fälligkeitstag;
+- `current_yield` — Kupon ÷ Kurs, und `yield_to_maturity` — die **lineare
+  Näherung** (Kupon + (100 − Kurs) ÷ Restlaufzeit in Jahren) ÷ Kurs, ohne
+  Zinseszins; jeweils eine Verhältniszahl mit sechs Nachkommastellen
+  (`0.025707` ist 2,5707 %), mit dem verwendeten `price` (`value`, `date`,
+  `source`: `quote` für den letzten gespeicherten Kurs, `trade` für den
+  letzten eigenen Handelspreis, solange es keinen gibt);
+- `two_scales` — `null` oder der Befund, dass die Anleihe **auf zwei Skalen
+  bepreist** ist: ihr `latest_quote`, die Zahl der `unit_scale_buys` und der
+  `last_unit_scale_buy` sowie die `rule` (ein letzter Kurs vom 20- bis
+  500-Fachen eines gebuchten Kaufpreises je Stück). Jeder Geldbetrag einer
+  solchen Anleihe ist hundertfach zu hoch, und die TTWROR zeigt es nicht;
+  umgerechnet wird nichts.
+
+Jede Kennzahl trägt ihre eigene `computation_basis` (`input_series`,
+`window`, `reference`, `gaps`, `assumptions`). Eine Zahl ohne ihren Eingang
+ist `null` mit `insufficient_data: true` und den fehlenden Eingängen in
+`missing` (`coupon_rate`, `maturity_date`, `price`); die Renditen einer
+fälligen Anleihe sind `null` mit `matured: true`. Stückzinsen, Gebühren und
+Steuern sind nicht enthalten; die Lesung berichtet, sie bewertet nicht.
+
 ## Kurse
 
 - `GET /api/v1/securities/:security_id/quotes` listet die Kurshistorie eines
@@ -3095,12 +3149,16 @@ Adresse.
 - `portfolixir.securities.list`
 - `portfolixir.securities.get` — vollständiger Datensatz eines Wertpapiers
   einschließlich seiner `identifier_aliases` (aufgezeichnete frühere ISINs)
-  und seines abgeleiteten `thesis_state` (ADR-0044); ein zusammengeführtes
+  und seines abgeleiteten `thesis_state` (ADR-0044), für eine Anleihe ihre
+  Lesung `bond` mit der `computation_basis` jeder Kennzahl und dem
+  Zwei-Skalen-Befund (ADR-0052); ein zusammengeführtes
   Wertpapier antwortet `404` mit `errors.merged_into`, und die Beschreibung
   sagt das (ADR-0050 §12).
-- `portfolixir.securities.create`
+- `portfolixir.securities.create` — nimmt die Stammdaten einer Anleihe
+  entgegen (#330, ADR-0052).
 - `portfolixir.securities.update` — Beschreibung und `currency_code`-Eigenschaft
-  nennen das Einfrieren der Währung (ADR-0050 §11).
+  nennen das Einfrieren der Währung (ADR-0050 §11); nimmt die Stammdaten
+  einer Anleihe entgegen, `null` löscht ein Feld.
 - `portfolixir.securities.delete`
 - `portfolixir.securities.isin_change` — zeichnet einen
   Kapitalmaßnahmen-ISIN-Wechsel auf, damit Importe über die frühere ISIN

@@ -781,6 +781,56 @@ above an SMA-200 is two numbers and a distance. A rule over a metric is FR-43
 and is gated; backtesting one is out of scope. A meta-test walks the rendered
 key set so the boundary holds mechanically.
 
+### Bonds: master data and the bond reading (ADR-0052)
+
+A bond's master data is six nullable fields of the security, settable with
+`POST /api/v1/securities` and `PATCH /api/v1/securities/:id` and answered by
+every security payload (and selectable with `fields=`):
+
+- `coupon_rate` — the coupon in **percent of face per year**, a Decimal
+  string from 0 to 100 (`"2.5"`, not `"0.025"`);
+- `coupon_frequency` — `annual` or `semi_annual`;
+- `maturity_date` and `issue_date` — ISO dates, the maturity after the issue
+  date;
+- `face_value` — the denomination, a Decimal string above 0;
+- `face_value_currency_code` — the denomination's currency.
+
+`null` clears a field, nothing is required, an impossible value is a `422`
+naming its field with nothing written, and the fields are kept when the
+asset class changes. They are read only while the effective asset class is
+`bond` or `government_bond`. The MCP tools `portfolixir.securities.create`
+and `portfolixir.securities.update` take them (the update also `null`).
+
+`GET /api/v1/securities/:id` of such a security carries `bond`, computed on
+read and never stored (scope-ladder level (a)); it is `null` for any other
+security and on listings and write responses:
+
+- `as_of` and `quantity` (the units held across every depot);
+- `nominal_held` — `amount`, **quantity × 100**, in `currency_code` (the
+  face value's, else the security's): a Portfolio Performance export books a
+  percent-quoted bond's quantity as **a hundredth of its face amount**, so a
+  quote is both percent of face and the price per unit;
+- `remaining_term` — `days` from `as_of` to the maturity, `years` (days ÷
+  365, scale 6), `whole_years` and `whole_months`, `matured` on and after
+  the maturity date;
+- `current_yield` — coupon ÷ price, and `yield_to_maturity` — the **linear
+  approximation** (coupon + (100 − price) ÷ remaining years) ÷ price,
+  without compounding; each a ratio at scale 6 (`0.025707` is 2.5707 %),
+  with the `price` it used (`value`, `date`, `source`: `quote` for the latest
+  stored quote, `trade` for the last own trade price while there is none);
+- `two_scales` — `null`, or the finding that the bond is **priced on two
+  scales**: its `latest_quote`, the count of `unit_scale_buys` and the
+  `last_unit_scale_buy`, and the `rule` (a latest quote 20 to 500 times a
+  booked buy price per unit). Every money figure of such a bond is a hundred
+  times too high, and the TTWROR does not show it; nothing is converted.
+
+Every metric carries its own `computation_basis` (`input_series`, `window`,
+`reference`, `gaps`, `assumptions`). A figure without its input is `null`
+with `insufficient_data: true` and the inputs it lacks in `missing`
+(`coupon_rate`, `maturity_date`, `price`); a matured bond's yields are
+`null` with `matured: true`. Accrued interest, fees and taxes are excluded;
+the reading reports, it does not evaluate.
+
 ### Logos
 
 Each security can carry a logo, resolved automatically (CoinGecko for crypto,
@@ -3093,11 +3143,15 @@ names each address's code.
 - `portfolixir.securities.list`
 - `portfolixir.securities.get` — one security's full record including its
   `identifier_aliases` (recorded former ISINs) and its derived
-  `thesis_state` (ADR-0044); a merged-away security answers `404` with
-  `errors.merged_into`, and the description says so (ADR-0050 §12).
-- `portfolixir.securities.create`
+  `thesis_state` (ADR-0044) and, for a bond, its `bond` reading with each
+  metric's `computation_basis` and the two-scales finding (ADR-0052); a
+  merged-away security answers `404` with `errors.merged_into`, and the
+  description says so (ADR-0050 §12).
+- `portfolixir.securities.create` — takes a bond's master data (#330,
+  ADR-0052).
 - `portfolixir.securities.update` — its description and its `currency_code`
-  property state the currency freeze (ADR-0050 §11).
+  property state the currency freeze (ADR-0050 §11); it takes a bond's
+  master data, `null` clearing a field.
 - `portfolixir.securities.delete`
 - `portfolixir.securities.isin_change` — records a corporate-action ISIN
   change so imports keep matching via the former ISIN (ADR-0029).
