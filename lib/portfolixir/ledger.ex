@@ -222,6 +222,58 @@ defmodule Portfolixir.Ledger do
   end
 
   @doc """
+  The FIFO matcher's closed round-trips of every security with a sell
+  booked, as `[{%Security{}, closed_trades}]`: the securities in the order
+  `RealizedGains.report/1` reads them (by their newest sell, newest first),
+  each security's trades in the matcher's order.
+
+  For a reader that shows a few closed trades and needs the others only to
+  know which are the newest and which a missing rate excludes (the Overview
+  card, #1030). It feeds the matcher the same input as
+  `list_trades_for_security/2`, read in three queries whatever the number
+  of securities, and leaves out everything that read adds: no latest close,
+  no open-lot decoration, no orphan sells and no `annualized_return` — the
+  caller annualizes the trades it shows through the same
+  `TradeReturn.annualized/2`.
+  """
+  @spec closed_trades_of_sold_securities() :: [{Security.t(), [map()]}]
+  def closed_trades_of_sold_securities do
+    sold_ids =
+      from(transaction in ordered_transactions(),
+        where: transaction.type == "sell" and not is_nil(transaction.security_id),
+        select: transaction.security_id
+      )
+      |> Repo.all()
+      |> Enum.uniq()
+
+    securities =
+      from(security in Security, where: security.id in ^sold_ids)
+      |> Repo.all()
+      |> Map.new(&{&1.id, &1})
+
+    # The one association `transaction_for_matcher/2` reads (the settlement
+    # leg's currency), as `list_transactions_for_security/1` preloads it.
+    transactions =
+      from(transaction in Transaction,
+        where: transaction.security_id in ^sold_ids,
+        order_by: [asc: transaction.date, asc: transaction.id],
+        preload: [:cash_account]
+      )
+      |> Repo.all()
+      |> Enum.group_by(& &1.security_id)
+
+    for id <- sold_ids, %Security{} = security <- [Map.get(securities, id)] do
+      matched =
+        transactions
+        |> Map.get(id, [])
+        |> Enum.map(&transaction_for_matcher(&1, security.currency_code))
+        |> TradeMatcher.match()
+
+      {security, matched.closed_trades}
+    end
+  end
+
+  @doc """
   Returns the current holdings of a whole portfolio, one row per
   (depot, security), enriched with a moving-average cost basis and the
   unrealised P&L against each security's latest known quote close.
