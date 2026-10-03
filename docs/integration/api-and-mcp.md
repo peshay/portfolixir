@@ -1385,10 +1385,13 @@ Example account payloads:
   **split** row changes only its `notes` (E25 S6): a change of its `date`,
   `security_id`, `portfolio_id`, `type` or ratio answers 422 naming the field,
   because a split is booked through `POST /api/v1/splits`, whose checks a
-  generic update would pass by. A wrong split is deleted (each of its rows)
-  and booked again.
+  generic update would pass by. A wrong split is deleted whole
+  (`DELETE /api/v1/splits/:transaction_id`, below) and booked again.
 - `DELETE /api/v1/transactions/:id` deletes a transaction. Because trades and
   holdings are derived, correcting or removing the transaction fixes them too.
+  An imported booking's content hash goes with it, so a re-import of the same
+  file books it again (only a merge retires a hash, ADR-0050 §3). On a split
+  row it removes that row alone; the split's other rows keep the event.
 - `POST /api/v1/splits/preview` previews a stock split booking (ADR-0028)
   without writing anything. The request carries `security_id`, the effective
   `date` (ISO, not in the future) and the ratio as a pair of positive
@@ -1424,7 +1427,19 @@ Example account payloads:
   on `ratio` from preview and booking alike, and nothing is written (E25 S4).
   The generic
   `POST /api/v1/transactions` endpoint rejects the `split` kind — these two
-  routes are the only split write path.
+  routes are the only way a split is booked.
+- `DELETE /api/v1/splits/:transaction_id` deletes a split the way it was
+  booked, as one fact (Sprint 18 U1, #912): from any of its rows, every
+  `split` row sharing that row's security, date and normalized ratio — one
+  per portfolio — in one transaction, each row journaled with its
+  before-image. It answers `200` with `data.transactions`, the removed rows
+  in the regular transaction shape, ordered by portfolio. Afterwards no
+  portfolio carries the event: holdings count without it, the quote reads no
+  longer adjust for it, and `POST /api/v1/splits` books the corrected ratio
+  on the same day. An unknown or already deleted row answers `404`; a
+  booking of another kind answers `422` on `transaction_id` naming
+  `DELETE /api/v1/transactions/:id`; a failure on any row deletes nothing.
+  The security's other splits stay.
 - `GET /api/v1/portfolios/:portfolio_id/holdings` lists derived holdings for a
   portfolio, one row per (depot, security). Each row carries `quantity`, a
   moving-average `avg_cost` and `cost_basis` (price-based, so fees and taxes are

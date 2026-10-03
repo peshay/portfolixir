@@ -5,16 +5,21 @@ defmodule PortfolixirWeb.Api.V1.SplitController do
   `POST /api/v1/splits/preview` shows the per-portfolio fan-out (quantities
   before/after the effective date, resulting current position, warnings)
   without writing anything; `POST /api/v1/splits` books one `split` row per
-  positioned portfolio atomically. The generic transaction endpoint rejects
-  the `split` kind — this controller is the only write path for it.
-  Financial decimals serialize as strings; the ratio parts stay integers.
+  positioned portfolio atomically. `DELETE /api/v1/splits/:transaction_id`
+  deletes the split event a row belongs to — every portfolio's row in one
+  journaled step (Sprint 18 U1, #912). The generic transaction endpoint
+  rejects the `split` kind — this controller is the only write path that
+  books it. Financial decimals serialize as strings; the ratio parts stay
+  integers.
   """
 
   use PortfolixirWeb, :controller
 
   alias Portfolixir.Input.BoundedDate
+  alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Splits
   alias Portfolixir.Ledger.Transaction
+  alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
 
   def preview(conn, params) do
@@ -33,6 +38,31 @@ defmodule PortfolixirWeb.Api.V1.SplitController do
 
       {:error, reason} ->
         error_response(conn, reason)
+    end
+  end
+
+  # The split a row belongs to, deleted whole: every row sharing its
+  # security, date and normalized ratio, in every portfolio (ADR-0028 §1).
+  # Answered with the removed rows, as the booking answers the created ones.
+  def delete(conn, %{"transaction_id" => id}) do
+    with {:ok, tid} <- IdParam.parse(id),
+         %Transaction{} = row <- Ledger.get_transaction(tid),
+         {:ok, deleted} <- Splits.delete_split(conn.assigns.actor, row) do
+      json(conn, %{data: %{transactions: Enum.map(deleted, &JSON.transaction/1)}})
+    else
+      {:error, :not_a_split} ->
+        unprocessable(conn, %{
+          transaction_id: [
+            "is not a split; a booking of another kind is deleted with " <>
+              "DELETE /api/v1/transactions/:id"
+          ]
+        })
+
+      {:error, %Ecto.Changeset{} = changeset} ->
+        unprocessable(conn, JSON.errors(changeset))
+
+      _unknown_or_gone ->
+        not_found(conn)
     end
   end
 

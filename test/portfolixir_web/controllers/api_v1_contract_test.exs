@@ -49,48 +49,61 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # Sprint 18, PR β (version 11): the operator's money surface, one entry
-    # for the lane PR. F4 opened it: the category result takes the view scope
-    # in the performance family's two forms (#901).
-    assert newest["version"] == 11
-    assert newest["summary"] =~ "F4"
-    assert "GET /api/v1/views/:view_id/category-results" in newest["endpoints"]
+    # Sprint 18, PR γ (version 12, after PR β's 11): the screens a stranger
+    # meets, one entry for the lane PR. U1 opened it: a split is deleted
+    # whole, from any of its rows, in one journaled step (#912, ADR-0028 §1).
+    assert newest["version"] == 12
+    assert newest["summary"] =~ "U1"
+    assert newest["endpoints"] == ["DELETE /api/v1/splits/:transaction_id"]
 
     assert Enum.any?(
              newest["parameters"],
+             &(&1 =~ "DELETE /api/v1/splits/:transaction_id" and &1 =~ "#912")
+           )
+
+    # Sprint 18, PR β (version 11): the operator's money surface, one entry
+    # for the lane PR. F4 opened it: the category result takes the view scope
+    # in the performance family's two forms (#901). Found by version from
+    # here on.
+    sprint18_beta = Enum.find(data["entries"], &(&1["version"] == 11))
+    assert sprint18_beta["summary"] =~ "F4"
+    assert "GET /api/v1/views/:view_id/category-results" in sprint18_beta["endpoints"]
+
+    assert Enum.any?(
+             sprint18_beta["parameters"],
              &(&1 =~ "portfolixir.portfolios.category_results" and &1 =~ "view" and
                  &1 =~ "#901")
            )
 
     # F5 extends it: the total across every portfolio, a read with no view,
     # reached by the view valuation tool without an id (#1007, D-5).
-    assert newest["summary"] =~ "F5"
-    assert "GET /api/v1/valuation" in newest["endpoints"]
+    assert sprint18_beta["summary"] =~ "F5"
+    assert "GET /api/v1/valuation" in sprint18_beta["endpoints"]
 
     assert Enum.any?(
-             newest["parameters"],
+             sprint18_beta["parameters"],
              &(&1 =~ "portfolixir.views.valuation" and &1 =~ "#1007")
            )
 
     # F2 extends it: which position made how much of a period's result, in
     # the performance family's two forms (FR-41, ADR-0051 §6 and §11).
-    assert newest["summary"] =~ "F2"
+    assert sprint18_beta["summary"] =~ "F2"
 
     for endpoint <- [
           "GET /api/v1/portfolios/:portfolio_id/performance/contribution",
           "GET /api/v1/views/:view_id/performance/contribution"
         ] do
-      assert endpoint in newest["endpoints"]
+      assert endpoint in sprint18_beta["endpoints"]
     end
 
     assert Enum.any?(
-             newest["parameters"],
+             sprint18_beta["parameters"],
              &(&1 =~ "computation_basis" and &1 =~ "FR-41")
            )
 
     # Their MCP twins, read tools in every profile.
-    assert "portfolixir.portfolios.contribution" in newest["tools"]
-    assert "portfolixir.views.contribution" in newest["tools"]
+    assert "portfolixir.portfolios.contribution" in sprint18_beta["tools"]
+    assert "portfolixir.views.contribution" in sprint18_beta["tools"]
 
     # Sprint 17, PR γ (version 10, after PR β's 9): the operator's due
     # surfaces — the annualized return on both closed-trade reads and the

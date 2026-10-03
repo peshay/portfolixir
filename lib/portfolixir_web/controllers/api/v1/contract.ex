@@ -39,6 +39,26 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 12,
+      # Sprint 18's PR γ (the screens a stranger meets), after PR β's 11: the
+      # lane PR's one entry, opened by its first surface change (U1); every
+      # later surface change of the PR extends it, each item named by its
+      # story.
+      date: ~D[2026-10-03],
+      summary:
+        "Sprint 18, the screens a stranger meets: U1, a split is deleted the way it was " <>
+          "booked, as one fact — every portfolio's row of the event in one journaled step, " <>
+          "from any of its rows — so the corrected ratio can be booked right after; the " <>
+          "screen's delete of a split row runs the same write (#912, ADR-0028 §1).",
+      endpoints: ["DELETE /api/v1/splits/:transaction_id"],
+      tools: [],
+      parameters: [
+        "DELETE /api/v1/splits/:transaction_id, new: deletes the split event the row belongs to, every split row sharing its security, date and normalized ratio in every portfolio, in one transaction, each row journaled with its before-image under the token; answers 200 with data.transactions, the removed rows in the transaction shape ordered by portfolio; an unknown or already deleted row is a 404, a booking of another kind a 422 on transaction_id naming DELETE /api/v1/transactions/:id; a failure on any row deletes nothing. DELETE /api/v1/transactions/:id on a split row still removes that row alone. PATCH /api/v1/transactions/:id on a split row's date, security, portfolio, type or ratio still answers 422, its message now naming DELETE /api/v1/splits/:transaction_id where it named a row-by-row delete (U1, #912)"
+      ],
+      removed_endpoints: [],
+      removed_tools: []
+    },
+    %{
       version: 11,
       # Sprint 18's PR β (the operator's money surface): the lane PR's one
       # entry, opened by its first surface change (F4); every later surface

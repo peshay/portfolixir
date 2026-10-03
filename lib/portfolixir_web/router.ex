@@ -403,9 +403,11 @@ defmodule PortfolixirWeb.Router do
 
     # Dedicated split booking flow (ADR-0028 §1): the generic transaction
     # endpoint rejects the `split` kind; these two routes preview and book
-    # the per-portfolio fan-out.
+    # the per-portfolio fan-out, and the delete removes it whole from any of
+    # its rows (Sprint 18 U1, #912).
     post("/splits/preview", SplitController, :preview)
     post("/splits", SplitController, :create)
+    delete("/splits/:transaction_id", SplitController, :delete)
 
     get("/transactions", TransactionController, :index)
     post("/transactions", TransactionController, :create)
