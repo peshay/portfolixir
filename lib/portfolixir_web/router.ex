@@ -17,9 +17,11 @@ defmodule PortfolixirWeb.Router do
     "cross-origin-resource-policy" => "same-origin"
   }
 
-  # The Content-Security-Policy is set by PortfolixirWeb.ContentSecurityPolicy,
-  # with a nonce per request, not in put_secure_browser_headers' static map,
-  # which sobelow 0.16 reads alone (#382, #1006).
+  # The Content-Security-Policy is set per request, with a nonce, by
+  # PortfolixirWeb.ContentSecurityPolicy after put_secure_browser_headers.
+  # sobelow 0.16 reads the static map alone and cannot evaluate its
+  # static_policy/0 call, so it reports no CSP. content_security_policy_test.exs
+  # pins the header on both pipelines' pages (#382, #1006).
   # sobelow_skip ["Config.CSP"]
   pipeline :browser do
     plug(:accepts, ["html"])

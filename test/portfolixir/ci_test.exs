@@ -804,21 +804,31 @@ defmodule Portfolixir.CITest do
   # so that the skip file never turns into a list of waived findings.
   #
   # Acceptance criteria:
-  # - .sobelow-skips holds only Config.HTTPS and Config.CSWH entries, the
-  #   findings on config/prod.exs and on the endpoint's socket, which have no
-  #   function or pipeline to annotate.
+  # - .sobelow-skips holds exactly two entries: the Config.HTTPS finding on
+  #   config/prod.exs and the Config.CSWH finding on the endpoint's socket,
+  #   which have no function or pipeline to annotate. A fingerprint names the
+  #   finding's type, file and line only, so an entry added, moved or
+  #   replaced is a change to this test, not a quiet line in the skip file.
   # - Each skipped finding's type heads a comment in the file giving its
-  #   reason.
+  #   reason and the test that pins what the waiver relies on.
   test "the sobelow skip file holds only findings no annotation can carry, with reasons" do
     lines = ".sobelow-skips" |> File.read!() |> String.split("\n", trim: true)
     {comments, entries} = Enum.split_with(lines, &String.starts_with?(&1, "#"))
 
-    types = entries |> Enum.map(&(&1 |> String.split(":", parts: 2) |> hd())) |> Enum.uniq()
-    assert Enum.sort(types) == ["Config.CSWH", "Config.HTTPS"]
+    assert entries == [
+             "Config.CSWH: Cross-Site Websocket Hijacking,lib/portfolixir_web/endpoint.ex:20,3F5BF3D",
+             "Config.HTTPS: HTTPS Not Enabled,config/prod.exs:0,2B5C077"
+           ]
 
-    for type <- types do
+    for {type, test_file} <- [
+          {"Config.HTTPS", "session_hardening_test.exs"},
+          {"Config.CSWH", "live_socket_origin_test.exs"}
+        ] do
       assert Enum.any?(comments, &String.starts_with?(&1, "# #{type} (")),
              "#{type} has no reason in .sobelow-skips"
+
+      assert Enum.any?(comments, &String.contains?(&1, test_file)),
+             "#{type}'s reason names no test that pins it"
     end
   end
 

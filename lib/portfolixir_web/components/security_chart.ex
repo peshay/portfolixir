@@ -55,9 +55,10 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   attr(:aria_label, :string, default: nil)
 
   # raw/1 writes the chart's JSON payload into its <script type=
-  # "application/json"> block. Jason encodes it with escape: :html_safe, so
-  # "<", ">", "&" and "/" are \u-escaped and no stored name or note can
-  # close the script element (sobelow 0.16, #1006).
+  # "application/json"> block, and it is the only raw/1 here. Jason encodes
+  # it with escape: :html_safe, which escapes "<" as \u003C and "/" as \/,
+  # so no stored name or note can write "</script" and close the element
+  # (sobelow 0.16, #1006).
   # sobelow_skip ["XSS.Raw"]
   def chart(assigns) do
     geometry =

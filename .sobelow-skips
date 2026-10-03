@@ -1,17 +1,24 @@
-# Sobelow skips for findings that have no function or pipeline to carry a
-# `# sobelow_skip` annotation (sobelow 0.16, #1006). Each one is a decision
-# already on record; a fingerprint changes when its site changes, which makes
-# the finding come back for a fresh reading.
+# Sobelow skips for the two findings that have no function or pipeline to
+# carry a `# sobelow_skip` annotation (sobelow 0.16, #1006). sobelow builds a
+# fingerprint from the finding's type, file and line alone, so neither entry
+# comes back when its site changes in place: each waives its check at that
+# site, and a test pins what the waiver relies on instead.
+# test/portfolixir/ci_test.exs holds this file to exactly these two lines.
 #
 # Config.HTTPS (config/prod.exs): TLS is terminated by the operator's reverse
 # proxy (ADR-0045 2), and PHX_FORCE_SSL is the runtime opt-in that redirects
 # and sets HSTS (PortfolixirWeb.OptionalSsl; D-2 of the Sprint 11 plan, #382).
-# A loopback instance without TLS is the safe default, so prod.exs states the
-# posture as configured and not forced.
+# sobelow 0.16 clears the check only for TLS forced in prod.exs, so this entry
+# waives it for good: its fingerprint names line 0 and never changes. The
+# posture is pinned by ci_test.exs ("prod.exs states the HTTPS posture") and
+# session_hardening_test.exs (the PHX_FORCE_SSL opt-in).
 #
 # Config.CSWH (lib/portfolixir_web/endpoint.ex): the LiveView socket inherits
 # the endpoint's check_origin, which config/runtime.exs sets in a release to
 # the Host guard's allow-list (PHX_HOST, loopback and PORTFOLIXIR_ALLOWED_HOSTS,
-# #758). Sobelow reads that list as dynamic and reports it at low confidence.
+# #758). sobelow cannot read a list built at runtime and reports it at low
+# confidence. An override on the socket line would keep this fingerprint, so
+# live_socket_origin_test.exs pins the behaviour: a foreign Origin is refused,
+# and a release's check_origin is the allow-list.
 Config.CSWH: Cross-Site Websocket Hijacking,lib/portfolixir_web/endpoint.ex:20,3F5BF3D
 Config.HTTPS: HTTPS Not Enabled,config/prod.exs:0,2B5C077
