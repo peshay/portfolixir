@@ -1424,19 +1424,24 @@ einig. Die Grundlagenzeile sagt das dort, wo die Zahl gelesen wird: Hinter der
 Σ der obersten Ebene steht **„— Abweichung gegen den verteilten Anteil"**,
 sobald der Plan weniger als 100 % verteilt, und die Σ steht nur dann in der
 Warnfarbe, wenn der Plan **mehr** als 100 % verteilt — ein Plan mit bewusstem
-Rest ist kein Fehler (Issue #875). Ein Umschalter **Baum |
+Rest ist kein Fehler (Issue #875). Das ⓘ der Drift-Spalte sagt es ebenfalls und
+rechnet eine Zahl vor: In einem Plan, der 80 % verteilt, zählen 40 % Soll als
+50 % (Issue #911). Ein Umschalter **Baum |
 Positionen** — ein Segment-Schalter, dessen aktive Option gefüllt ist —
 tauscht die Hierarchie gegen eine flache Rebalancing-Arbeitsliste:
 eine Zeile je Wertpapier (inkl. Cash) mit der Kategorie als Kontext,
 standardmäßig nach vorzeichenbehafteter Drift sortiert (stärkstes Übergewicht
 zuerst, stärkstes Untergewicht zuletzt) und über die Spaltenköpfe (Wert, Drift
-oder Kategorie) umsortierbar. Die Kategorie der Cash-Zeile lautet „—": Cash hat
+oder Kategorie) umsortierbar. Unter der Drift jeder Zeile steht ihr
+Rebalancing-Hinweis, in einer Zelle, die am rechten Rand der Tabelle angeheftet
+bleibt, wenn die Liste auf einem schmalen Bildschirm seitlich scrollt (Issue
+#911). Die Kategorie der Cash-Zeile lautet „—": Cash hat
 ein eigenes Soll und ist nie „Nicht zugeordnet". Eine Kategorie mit direkt zugeordneten Wertpapieren klappt in
 ihre Wertpapiere auf — jedes mit Wert, Gewicht, seinem Anteil an der
 Kategorie-Drift und einem reinen **Anzeige-Rebalancing-Hinweis**: die indikative
 Stückzahl, die zum Bewertungskurs zu verkaufen (positive Drift) oder zu kaufen
 (negative) wäre, um die Lücke zu schließen (ADR-0023). Ein Hinweis, der auf
-zwei Stellen gerundet null Stück ergibt, wird nicht gezeigt („—"); die Drift
+zwei Stellen gerundet null Stück ergibt, wird nicht gezeigt; die Drift
 bleibt. Der Hinweis modelliert
 keine Gebühren oder Steuern, und hinter ihm steht bewusst kein Order-Knopf —
 das Handeln bleibt vollständig manuell.

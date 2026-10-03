@@ -1990,6 +1990,17 @@ defmodule PortfolixirWeb.PortfolioLive do
                           <summary aria-label={gettext("Target/actual drift info")}>ⓘ</summary>
                           <p id="tip-soll-ist" role="tooltip">
                             <%= gettext("Target vs. actual: drift is actual weight minus target weight. Positive = overweight (reduce to reach the target), negative = underweight (add to reach it).") %>
+                            <%!-- #911 (c), ADR-0040 §2: a plan allocating
+                                 less than 100 % measures each target
+                                 against the allocated portion, while the
+                                 Target column shows the raw target; the ⓘ
+                                 says so, with one worked figure. --%>
+                            <span
+                              :if={Map.get(@allocation, :drift_basis) == "allocated_portion"}
+                              data-role="drift-basis-tip"
+                            >
+                              <%= drift_basis_tip(@allocation) %>
+                            </span>
                           </p>
                         </details>
                       </th>
@@ -2295,8 +2306,11 @@ defmodule PortfolixirWeb.PortfolioLive do
                         </button>
                       </th>
                       <th class="num"><%= gettext("Actual") %></th>
+                      <%!-- #911 (pick H4, variant A): the subject is the
+                           drift with its hint beneath it — one pinned
+                           column, the tree's position-row anatomy. --%>
                       <%= if @allocation.has_plan do %>
-                        <th class="num">
+                        <th class="num col-subject">
                           <button
                             type="button"
                             class="table-sort"
@@ -2307,7 +2321,6 @@ defmodule PortfolixirWeb.PortfolioLive do
                             <%= gettext("Drift") %><%= flat_sort_marker(@flat_sort, :drift) %>
                           </button>
                         </th>
-                        <th class="num"><%= gettext("Hint") %></th>
                       <% end %>
                     </tr>
                   </thead>
@@ -2365,16 +2378,10 @@ defmodule PortfolixirWeb.PortfolioLive do
                           <% else %>
                             —
                           <% end %>
-                        </td>
-                        <td class="num">
-                          <%= if rebalance_hint_parts(entry.rebalance_quantity) do %>
-                            <.rebalance_hint
-                              quantity={entry.rebalance_quantity}
-                              quote_date={Map.get(entry, :quote_date)}
-                            />
-                          <% else %>
-                            —
-                          <% end %>
+                          <.rebalance_hint
+                            quantity={entry.rebalance_quantity}
+                            quote_date={Map.get(entry, :quote_date)}
+                          />
                         </td>
                       <% end %>
                     </tr>
@@ -3734,6 +3741,35 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp flat_sort_marker({key, :desc}, key), do: " ↓"
   defp flat_sort_marker({key, :asc}, key), do: " ↑"
   defp flat_sort_marker(_sort, _key), do: ""
+
+  # #911 (c): the ⓘ sentence for a plan that allocates less than 100 %
+  # (ADR-0040 §2). The worked figure is the first top-level category the plan
+  # steers, its target divided by the allocated sum — the division the drift
+  # takes (`Allocation.drift_target/2`); without such a category the sentence
+  # names the portion alone.
+  defp drift_basis_tip(allocation) do
+    sum = allocation.top_level_target_sum
+
+    example =
+      Enum.find(allocation.categories, fn row ->
+        row.depth == 0 and Map.get(row, :has_target, false) and
+          Decimal.gt?(row.target_weight, 0)
+      end)
+
+    if example do
+      gettext(
+        "The plan allocates %{sum}%: each target is scaled up to that portion before the comparison, so %{target}% counts as %{scaled}%. The unallocated rest does not show as drift.",
+        sum: Format.percent(sum),
+        target: Format.percent(example.target_weight),
+        scaled: Format.percent(Decimal.div(example.target_weight, sum))
+      )
+    else
+      gettext(
+        "The plan allocates %{sum}%: each target is scaled up to that portion before the comparison. The unallocated rest does not show as drift.",
+        sum: Format.percent(sum)
+      )
+    end
+  end
 
   # Display-only rebalancing hint (ADR-0023), rendered in aligned parts —
   # verb | ≈ | right-aligned quantity | unit — so the columns line up

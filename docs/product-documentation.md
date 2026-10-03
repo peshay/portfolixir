@@ -1312,18 +1312,22 @@ and `min_drift=` all agree on that number. The basis line says so where the
 figure is read: behind the plan's top-level Σ it adds **"— drift against the
 allocated portion"** whenever the plan allocates less than 100 %, and it shows
 that Σ in the warning colour only when the plan allocates **more** than 100 %
-— a plan with a deliberate remainder is not a mistake (issue #875).
+— a plan with a deliberate remainder is not a mistake (issue #875). The Drift
+column's ⓘ says it too and works one figure through: in a plan allocating
+80 %, a 40 % target counts as 50 % (issue #911).
 A **Tree | Positions** switch — a segmented control whose active option is
 filled — swaps the hierarchy for a flat
 rebalancing worklist: one row per security (cash included) with its category
 as context, sorted by signed drift by default (most overweight first, most
 underweight last) and re-sortable via the column heads (value, drift, or
-category). The cash row's category reads "—": cash has its own target and is
-never "Unassigned". A category with directly assigned securities expands into its member securities, each with its value,
+category). Each row's drift carries its rebalancing hint beneath it, in one
+cell that stays pinned at the right edge of the table when the list scrolls
+sideways on a narrow screen (issue #911). The cash row's category reads "—":
+cash has its own target and is never "Unassigned". A category with directly assigned securities expands into its member securities, each with its value,
 weight, its share of the category drift, and a display-only **rebalancing
 hint**: the indicative number of units to sell (positive drift) or buy
 (negative) at the valuation's price to close the gap (ADR-0023). A hint that
-rounds to zero units at two decimals is not shown ("—"); the drift stays. The hint
+rounds to zero units at two decimals is not shown; the drift stays. The hint
 models no fees or taxes, and there is deliberately no order button behind it —
 acting on it stays entirely manual.
 
