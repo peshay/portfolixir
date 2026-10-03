@@ -289,9 +289,11 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
     }
   end
 
-  # What changes, concretely: the booking's own legs read in reverse, then
-  # the set balance a later anchor keeps, then the general recompute
-  # sentence. A set balance has its own sentence: it is a level, not a flow.
+  # What changes, concretely: the booking's own legs read in reverse — a
+  # cash leg bounded by the first balance set on its account from the
+  # booking's day on — then from when such a set balance keeps the account
+  # unchanged, then the general recompute sentence. A set balance has its
+  # own sentence: it is a level, not a flow.
   defp booking_consequence(%Transaction{type: "balance_adjustment"} = anchor, names, _context) do
     [
       StoredText.isolate(
@@ -308,10 +310,8 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
 
   defp booking_consequence(transaction, names, context) do
     effects = Projection.effects(transaction)
-
-    clauses =
-      quantity_clauses(transaction, effects.quantities, names) ++
-        cash_clauses(effects.cash, names)
+    cash = cash_clauses(transaction, effects.cash, names, context)
+    clauses = quantity_clauses(transaction, effects.quantities, names) ++ cash
 
     lead =
       case clauses do
@@ -327,7 +327,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
           [{:safe, [pieces, "."]}]
       end
 
-    lead ++ later_anchors(transaction, effects.cash, names, context) ++ [recompute_sentence()]
+    lead ++ unchanged_from(cash) ++ [recompute_sentence()]
   end
 
   defp recompute_sentence,
@@ -360,11 +360,53 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
 
   defp depot_name(depot_id, names), do: Map.get(names.depots_by_id, depot_id) || "—"
 
-  defp cash_clauses(legs, names) do
+  defp cash_clauses(transaction, legs, names, context) do
+    anchors = first_anchors(transaction, context)
+
     for {account_id, {:add, %Decimal{} = delta}} <- legs,
         not is_nil(account_id),
         not Decimal.equal?(delta, @zero) do
-      {:cash, cash_name(account_id, names), delta, Map.get(names.currencies, account_id)}
+      {:cash, cash_name(account_id, names), delta, Map.get(names.currencies, account_id),
+       bound(Map.get(anchors, account_id), transaction.date)}
+    end
+  end
+
+  # A set balance anchors its account from its date on (ADR-0009), so the
+  # first one on or after the booking's day bounds what the delete changes
+  # there (the closing act, R2): from the booking's day to the day before
+  # it — or, set on the booking's own day, on no day at all, because a
+  # snapshot applies last in its day.
+  defp first_anchors(transaction, context) do
+    context
+    |> Map.get(:transactions, [])
+    |> Enum.filter(fn other ->
+      other.type == "balance_adjustment" and other.id != transaction.id and
+        Date.compare(other.date, transaction.date) != :lt
+    end)
+    |> Enum.sort_by(& &1.date, Date)
+    |> Enum.uniq_by(& &1.cash_account_id)
+    |> Map.new(&{&1.cash_account_id, &1.date})
+  end
+
+  defp bound(nil, _date), do: :none
+
+  defp bound(anchored, date) do
+    if Date.compare(anchored, date) == :eq,
+      do: {:same_day, anchored},
+      else: {:until, Date.add(anchored, -1), anchored}
+  end
+
+  # From when a later set balance keeps an account the booking moved as
+  # it was set: one sentence per bounded account.
+  defp unchanged_from(cash_clauses) do
+    for {:cash, account, _delta, _currency, {:until, _until, anchored}} <- cash_clauses do
+      StoredText.isolate(
+        gettext("From the balance set on %{date} on, the balance of %{account} stays unchanged.",
+          account: StoredText.slot(:account),
+          date: Format.date(anchored)
+        ),
+        account: account
+      )
     end
   end
 
@@ -409,12 +451,32 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
     StoredText.isolate(text, depot: depot, security: security)
   end
 
-  defp clause({:cash, account, delta, currency}, position) do
-    amount = Format.money(Decimal.abs(delta)) <> if(currency, do: " " <> currency, else: "")
-    more? = Decimal.compare(delta, @zero) == :lt
+  # Set on the booking's own day, the balance changes on no day: the clause
+  # names no amount.
+  defp clause({:cash, account, _delta, _currency, {:same_day, date}}, position) do
+    text =
+      case position do
+        :lead ->
+          gettext("Afterwards the balance of %{account} stays as set on %{date}",
+            account: StoredText.slot(:account),
+            date: Format.date(date)
+          )
+
+        :follow ->
+          gettext("and the balance of %{account} stays as set on %{date}",
+            account: StoredText.slot(:account),
+            date: Format.date(date)
+          )
+      end
+
+    StoredText.isolate(text, account: account)
+  end
+
+  defp clause({:cash, account, delta, currency, :none}, position) do
+    amount = cash_amount(delta, currency)
 
     text =
-      case {position, more?} do
+      case {position, more?(delta)} do
         {:lead, true} ->
           gettext("Afterwards %{account} has %{amount} more",
             account: StoredText.slot(:account),
@@ -443,33 +505,49 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
     StoredText.isolate(text, account: account)
   end
 
-  # A set balance on an account the booking moves anchors that account from
-  # its date on (ADR-0009): the booking's own effect ends there, and the
-  # sentence says so rather than promise a balance the anchor overrides.
-  defp later_anchors(transaction, cash_legs, names, context) do
-    account_ids = for {id, {:add, _delta}} <- cash_legs, not is_nil(id), do: id
+  defp clause({:cash, account, delta, currency, {:until, until, _anchored}}, position) do
+    amount = cash_amount(delta, currency)
+    until = Format.date(until)
 
-    context
-    |> Map.get(:transactions, [])
-    |> Enum.filter(fn other ->
-      other.type == "balance_adjustment" and other.id != transaction.id and
-        other.cash_account_id in account_ids and Date.compare(other.date, transaction.date) != :lt
-    end)
-    |> Enum.sort_by(& &1.date, Date)
-    |> Enum.uniq_by(& &1.cash_account_id)
-    |> Enum.map(fn anchor ->
-      StoredText.isolate(
-        gettext("The balance set for %{account} on %{date} still holds from that day on.",
-          account: StoredText.slot(:account),
-          date: Format.date(anchor.date)
-        ),
-        account: anchor_account_name(anchor, names)
-      )
-    end)
+    text =
+      case {position, more?(delta)} do
+        {:lead, true} ->
+          gettext("Afterwards %{account} has %{amount} more until %{until}",
+            account: StoredText.slot(:account),
+            amount: amount,
+            until: until
+          )
+
+        {:lead, false} ->
+          gettext("Afterwards %{account} has %{amount} less until %{until}",
+            account: StoredText.slot(:account),
+            amount: amount,
+            until: until
+          )
+
+        {:follow, true} ->
+          gettext("and %{account} has %{amount} more until %{until}",
+            account: StoredText.slot(:account),
+            amount: amount,
+            until: until
+          )
+
+        {:follow, false} ->
+          gettext("and %{account} has %{amount} less until %{until}",
+            account: StoredText.slot(:account),
+            amount: amount,
+            until: until
+          )
+      end
+
+    StoredText.isolate(text, account: account)
   end
 
-  defp anchor_account_name(anchor, names),
-    do: Map.get(names.cash_by_id, anchor.cash_account_id) || "—"
+  defp cash_amount(delta, currency),
+    do: Format.money(Decimal.abs(delta)) <> if(currency, do: " " <> currency, else: "")
+
+  # The cash a leg took out is what the delete gives back, and the reverse.
+  defp more?(delta), do: Decimal.compare(delta, @zero) == :lt
 
   defp booking_done(transaction, names) do
     kind = TransactionKindLabel.label(transaction.type)
