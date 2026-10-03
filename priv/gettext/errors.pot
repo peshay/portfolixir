@@ -73,6 +73,9 @@ msgstr ""
 msgid "must be after %{date}, the start of the version in force"
 msgstr ""
 
+msgid "must be after the issue date"
+msgstr ""
+
 msgid "overlaps another version of this rule"
 msgstr ""
 

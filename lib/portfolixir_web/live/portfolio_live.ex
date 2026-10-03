@@ -24,6 +24,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
+  alias Portfolixir.Portfolios.Bonds
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Performance.Benchmark
   alias Portfolixir.Portfolios.Performance.Contribution
@@ -162,6 +163,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:classification_id, param_classification_id(params, classifications))
           |> assign(:valuation, nil)
           |> assign(:negative_report, nil)
+          |> assign(:two_scales, [])
           |> assign(:allocation, nil)
           |> assign(:analysis, nil)
           |> assign(:analysis_read, nil)
@@ -490,8 +492,11 @@ defmodule PortfolixirWeb.PortfolioLive do
              ) do
         # Negative-holdings debris (#570) is a property of the dataset, not
         # of the active view, so the report is global and loads with the
-        # other data-quality inputs.
-        {valuation, classification_id, allocation, Ledger.negative_holdings_report()}
+        # other data-quality inputs. A bond priced on two scales (#330,
+        # ADR-0052) is named where it inflates this total: among the
+        # positions the valuation holds.
+        {valuation, classification_id, allocation, Ledger.negative_holdings_report(),
+         two_scales_in(valuation)}
       else
         {:error, :view_not_found} -> :view_not_found
         {:error, :not_found} -> :classification_not_found
@@ -738,13 +743,14 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def handle_async(
         :overview,
-        {:ok, {valuation, classification_id, allocation, negative_report}},
+        {:ok, {valuation, classification_id, allocation, negative_report, two_scales}},
         socket
       ) do
     socket =
       socket
       |> assign(:valuation, valuation)
       |> assign(:negative_report, negative_report)
+      |> assign(:two_scales, two_scales)
 
     # Cross-key staleness guard (async-hardening round): LiveView's ref pruning
     # only cancels same-key tasks, so a mount-era :overview can land after the
@@ -1351,6 +1357,7 @@ defmodule PortfolixirWeb.PortfolioLive do
             valuation={@valuation}
             analysis={@analysis}
             negative={@negative_report}
+            two_scales={@two_scales}
             fx_syncing={@fx_syncing}
             fx_sync_flash={@fx_sync_flash}
             fx_sync_result={@fx_sync_result}
@@ -2635,13 +2642,14 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> assign(:suspect_dates, suspect_dates(assigns.analysis))
       |> assign(:unvalued_cash, unvalued_cash(assigns.valuation))
       |> assign(:negative_entries, negative_entries(assigns.negative))
+      |> assign_new(:two_scales, fn -> [] end)
 
     ~H"""
     <section
       :if={
         @no_price.count > 0 or @missing_fx.count > 0 or @trade_priced.count > 0 or
           @stale_priced.count > 0 or @suspect_dates != [] or @unvalued_cash != [] or
-          @negative_entries != []
+          @negative_entries != [] or @two_scales != []
       }
       id="portfolio-data-quality"
       class="workspace-section data-quality"
@@ -2750,6 +2758,30 @@ defmodule PortfolixirWeb.PortfolioLive do
               ", ",
               &"#{&1.depot_name}: #{Format.decimal(&1.quantity, 2)}"
             ) %> · <%= gettext("total across depots") %> <%= Format.decimal(entry.total, 2) %>)
+          </span>
+        </AppShell.data_note>
+        <%!-- #330 (pick H3, W2): a bond priced on two scales counts a hundred
+             times too high in the totals read here, and the return cannot
+             show it (bond discovery, point 5). Each name links to where its
+             buys are checked against the statement; nothing is converted. --%>
+        <AppShell.data_note
+          :if={@two_scales != []}
+          severity={:problem}
+          data-role="dq-two-scales"
+        >
+          <%= ngettext(
+            "One bond is priced on two scales (quotes around 100, booked price per unit around 1) and counts a hundred times too high in the totals; the return does not show it. Check the quantity of its buys against the nominal on the statement:",
+            "%{count} bonds are priced on two scales (quotes around 100, booked price per unit around 1) and count a hundred times too high in the totals; the return does not show it. Check the quantity of their buys against the nominal on the statement:",
+            length(@two_scales)
+          ) %>
+          <span :for={finding <- @two_scales} class="dq-negative-entry">
+            <.link navigate={"/securities/#{finding.security_id}?tab=transactions"}>
+              <%= finding.name %>
+            </.link>
+            (<%= gettext("quote %{close} · price per unit %{price}",
+              close: Format.exact(finding.latest_quote.close),
+              price: Format.exact(finding.last_unit_scale_buy.price)
+            ) %>)
           </span>
         </AppShell.data_note>
       </div>
@@ -4006,6 +4038,15 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp unvalued_entry_label(position, _reason),
     do: position.security_name || gettext("Unsorted")
+
+  # #330 (ADR-0052 §4): the bonds among the valued positions whose quotes and
+  # booked unit prices sit on two scales.
+  defp two_scales_in(%{positions: positions}) do
+    positions
+    |> Enum.map(& &1.security_id)
+    |> Enum.reject(&is_nil/1)
+    |> Bonds.two_scales_findings()
+  end
 
   # Negative-holdings debris grouped per security (#570): each entry keeps
   # its negative depot rows and the security's total across all depots, so
