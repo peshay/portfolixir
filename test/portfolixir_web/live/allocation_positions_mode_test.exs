@@ -64,7 +64,7 @@ defmodule PortfolixirWeb.AllocationPositionsModeTest do
   end
 
   defp open(conn, w) do
-    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation&classification_id=#{w.tree.id}")
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation&classification=#{w.tree.id}")
     render_async(view)
     view
   end
