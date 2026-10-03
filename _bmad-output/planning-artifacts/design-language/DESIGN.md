@@ -3066,9 +3066,15 @@ children (body and figures), no logo, no kebab, no bar.
   "Erträge x" where not zero and the "N Tage null" marker; on the right the
   Beitrag (14 px/600, sign colour).
 - **"N kleinere Positionen …"** and the same control, as a row of its own.
-- **The remainder** as one row on the {colors.bg-muted} band (padded
-  `--space-2` inline): "Keiner Position zugeordnet" over "Zinsen +x · Gebühren/Steuern
-  −y · Währung +z", the remainder's total on the right.
+- **The remainder** as one row on the {colors.bg-muted} band: "Keiner
+  Position zugeordnet" over "Zinsen +x · Gebühren/Steuern −y · Währung +z",
+  the remainder's total on the right. The band bleeds `--space-2` into the
+  list's gutter on both sides (`margin-inline: calc(-1 * var(--space-2))`)
+  and is padded by the same amount, so its name starts and its figure ends
+  on the same edges as every other row's and the figures stay one
+  right-aligned column (repair R5, board
+  `mockups/ux-review-2026-10-03/01-contribution-repairs`; padded inside the
+  list, it had moved both 8 px in).
 - **The sum** under the 2 px rule: "Summe = Ergebnis im Zeitraum" (700) over
   "Positionen und Restposten", the total with its currency suffix (700).
 - The head, the basis line and the note stay as they are, wrapping.
