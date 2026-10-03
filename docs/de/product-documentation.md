@@ -2383,7 +2383,8 @@ beantworten — wie konzentriert ist das Portfolio, und wie stark schwankt es �
   ebenso —, und die Versionsliste im Dialog nennt bei jeder Version den Autor,
   „Operator“ oder „Agent“ (E25). Eigene Regeln tragen kein Wort. Die Regeln
   des Agenten gelten wie die eigenen; das Wort sagt nur, wer die Linie gezogen
-  hat.
+  hat. Wie man eine Regel Schritt für Schritt anlegt, liest, ändert und
+  beendet, steht im [Leitfaden Eigene Regeln](guides/own-rules.html).
 - **Kennzahlen des Portfolios**, ein Jahr: die annualisierte **Volatilität**,
   der **maximale Rückgang** mit Beginn, Tiefpunkt und Erholung, die
   **risikoadjustierte Rendite** (bei einem risikofreien Satz von 0 ist sie
