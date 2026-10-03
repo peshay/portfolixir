@@ -206,6 +206,21 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
              ~r/#securities-table,\s*#transaction-table-wrapper,\s*#realized-trades-table-wrapper,\s*#detail-closed-trades-table-wrap,\s*#contribution-table-wrap,\s*#quotes-table-wrapper \{\s*display: none;/
   end
 
+  # User story (board ux-design-2026-10-02/07-phone-390, H7.6, rule ④;
+  # UX-DR27 places the kebab at the row's end):
+  # As the operator reading the transaction history on a 390 px phone,
+  # I want each booking's kebab at the end of its row,
+  # so that it does not drop under the date onto a line of its own, where
+  # every booking grows by its height and the kebab reads as the next row's.
+  #
+  # Acceptance criteria:
+  # - The history's phone row declares three tracks for its three children
+  #   — the body, the figures, the kebab: `minmax(0, 1fr) auto auto`.
+  test "the history's phone row has a track for its kebab" do
+    assert block("#transaction-phone-rows .phone-row") =~
+             ~r/grid-template-columns:\s*minmax\(0, 1fr\) auto auto;/
+  end
+
   # User story (#1012; board ux-design-2026-10-02/07-phone-390, H7.1 pick A,
   # rule ①): a quote's phone row is the trades row's shape — two children,
   # the date over its source and the close on the right, no logo and no
