@@ -186,15 +186,27 @@ defmodule Portfolixir.Ledger.Splits do
   the lock and the commit; `row` itself must still be stored then. A failure on any row rolls every row back — nothing is deleted and
   nothing journaled.
 
+  `opts` takes `only:`, the ids of the rows a caller showed before the
+  delete was confirmed (the screen's dialog lists them, Sprint 18 U1
+  closing act R5): an event that carries a row outside them by the time it
+  is locked — a re-book added a portfolio — is refused with
+  `{:error, :changed}`, nothing deleted and nothing journaled; rows of the
+  list deleted since are simply not there to delete.
+
   Returns `{:ok, deleted_rows}` ordered by portfolio, each with its
-  `:portfolio` preloaded, `{:error, :not_found}` when `row` is gone, and
-  `{:error, :not_a_split}` when it is a booking of another kind. What the
-  rows did follows at read time: holdings, the quote adjustment and every
-  other fold read the ledger without them.
+  `:portfolio` preloaded, `{:error, :not_found}` when `row` is gone,
+  `{:error, :not_a_split}` when it is a booking of another kind, and
+  `{:error, :changed}` as above. What the rows did follows at read time:
+  holdings, the quote adjustment and every other fold read the ledger
+  without them.
   """
-  def delete_split(%Actor{} = actor, %Transaction{id: id}) when is_integer(id) do
+  def delete_split(%Actor{} = actor, %Transaction{id: id}, opts \\ [])
+      when is_integer(id) and is_list(opts) do
+    only = Keyword.get(opts, :only)
+
     Multi.new()
     |> Multi.run(:rows, fn repo, _changes -> lock_event_rows(repo, id) end)
+    |> Multi.run(:shown, fn _repo, %{rows: rows} -> only_shown(rows, only) end)
     |> Multi.run(:deleted, fn _repo, %{rows: rows} -> delete_rows(actor, rows) end)
     |> Repo.transaction()
     |> case do
@@ -274,6 +286,14 @@ defmodule Portfolixir.Ledger.Splits do
       %Transaction{} ->
         {:error, :not_a_split}
     end
+  end
+
+  # Without a list every row of the event goes; with one, a row the caller
+  # was not shown refuses the whole delete.
+  defp only_shown(rows, nil), do: {:ok, rows}
+
+  defp only_shown(rows, only) when is_list(only) do
+    if Enum.all?(rows, &(&1.id in only)), do: {:ok, rows}, else: {:error, :changed}
   end
 
   # Each row through the one journaled delete every other path uses; it runs
