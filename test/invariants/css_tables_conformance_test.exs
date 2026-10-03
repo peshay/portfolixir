@@ -82,6 +82,62 @@ defmodule Portfolixir.Invariants.CssTablesConformanceTest do
     end
   end
 
+  # User story (#1011, and #911's basis line; Sprint 18 pick H4, board
+  # ux-design-2026-10-02/04-tables-conformance ⑤ "after"; DESIGN.md → the
+  # basis voice and {components.disclosure}, UX-DR19):
+  # As the operator reading what a surface aggregates and opening its
+  # secondary tables,
+  # I want every basis line in the muted 12 px voice and every disclosure
+  # summary in the control label the spec names,
+  # so that a basis line does not read as body text and one disclosure does
+  # not look heavier than the next.
+  #
+  # Acceptance criteria:
+  # - ⑤a A context-free `.summary-basis` sets margin 0, 12 px and the muted
+  #   colour. It precedes every scoped basis rule, so the later single-class
+  #   rules with their own margin or layout (`.kpi-strip__basis`,
+  #   `.tree-basis`) keep winning by source order.
+  # - ⑤b `.disclosure-summary` is defined once, at {typography.control-label}
+  #   (12 px, weight 500, 0.04em) in the muted colour; its second definition
+  #   (0.85rem / 600), which won by source order, is gone, and the merge
+  #   manifest's local 12 px / 500 with it.
+  test "one basis voice and one disclosure summary" do
+    basis = block(".summary-basis")
+    assert basis =~ ~r/margin:\s*0;/
+    assert basis =~ ~r/font-size:\s*12px;/
+    assert basis =~ ~r/color:\s*var\(--color-text-muted\);/
+
+    for scoped <- [
+          ".transaction-summary .summary-basis",
+          "#portfolio-positions .summary-basis",
+          ".kpi-strip__basis",
+          ".tree-basis",
+          ".detail-tab-panel--overview .summary-basis"
+        ] do
+      assert position(".summary-basis") < position(scoped),
+             "the context-free basis rule must precede #{scoped}"
+    end
+
+    for selector <- [
+          ".disclosure-summary",
+          ".disclosure-summary::-webkit-details-marker",
+          ".disclosure-summary:focus-visible"
+        ] do
+      assert length(Regex.scan(~r/\n#{Regex.escape(selector)} \{/, @css)) == 1,
+             "#{selector} is defined more than once"
+    end
+
+    summary = block(".disclosure-summary")
+    assert summary =~ ~r/font-size:\s*12px;/
+    assert summary =~ ~r/font-weight:\s*500;/
+    assert summary =~ ~r/letter-spacing:\s*0\.04em;/
+    assert summary =~ ~r/color:\s*var\(--color-text-muted\);/
+
+    manifest = block(".merge-manifest > .disclosure-summary")
+    refute manifest =~ "font-size"
+    refute manifest =~ "font-weight"
+  end
+
   defp position(selector) do
     case :binary.match(@css, "\n" <> selector <> " {") do
       {at, _} -> at

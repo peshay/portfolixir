@@ -463,6 +463,35 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     refute panel =~ "<input"
   end
 
+  # User story (#1011 c; Sprint 18 pick H4, board
+  # ux-design-2026-10-02/04-tables-conformance ⑤ "after"; UX-DR19,
+  # {components.disclosure}):
+  # As the operator on Accounts & depots,
+  # I want the compatibility records' disclosure to look like every other
+  # disclosure of the app,
+  # so that it reads as a quiet section toggle, not the browser's triangle.
+  #
+  # Acceptance criteria:
+  # - The panel's summary is a `.disclosure-summary` with the defined
+  #   chevron, which turns when the panel opens.
+  test "the compatibility records open behind the spec'd disclosure", %{conn: conn} do
+    {:ok, _portfolio} =
+      Portfolios.create_portfolio(Actor.owner_ui(), %{name: "Mine", base_currency_code: "EUR"})
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    assert has_element?(
+             view,
+             "#portfolio-admin > summary.disclosure-summary .disclosure-chevron"
+           )
+
+    assert has_element?(
+             view,
+             "#portfolio-admin > summary.disclosure-summary",
+             "Portfolio records (compatibility)"
+           )
+  end
+
   # User story (ADR-0024, #491):
   # As a local portfolio maintainer whose depots settle against one shared
   # cash account,
