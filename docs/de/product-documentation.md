@@ -79,39 +79,96 @@ Bestandsberechnungen.
 
 ### Inferenz der Anlageklasse
 
-Jedes Wertpapier trägt ein Feld **asset class** (Anlageklasse). Sein Wert wird
-zur Lesezeit von `Security.effective_asset_class/1` bestimmt: ist der gespeicherte
-Wert nicht nil, wird er unverändert zurückgegeben; andernfalls werden Name, ISIN
-und Ticker in dieser Prioritätsreihenfolge untersucht:
+Jedes Wertpapier hat eine **Anlageklasse** (asset class). Eine am Wertpapier
+gespeicherte Klasse gewinnt immer: `Security.effective_asset_class/1` gibt sie
+unverändert zurück. Nur bei einem Wertpapier ohne gespeicherte Klasse wird
+eine beim Lesen abgeleitet, aus seinem **Namen** und, für Krypto, seinem
+**Ticker**. Die ISIN gehört nicht zu den Signalen: Ihr Aufbau allein sagt
+nicht, um welche Art Instrument es sich handelt (#408), deshalb übergeht die
+Inferenz sie bis auf die letzte Regel unten. Die Regeln laufen in dieser
+Reihenfolge, und die erste, die greift, entscheidet:
 
-1. **government_bond** — ISIN-Länderpräfix in der Liste bekannter
-   Staatsanleihen-Emittenten (DE, US, GB, FR, IT, ES, JP, …).
-2. **etf** — Name enthält `ETF`, `UCITS ETF`, oder eine exakte ISIN, die mit
-   `IE00` beginnt, kombiniert mit einem bekannten Fonds-Emittentenpräfix.
-3. **crypto** — Name passt zu einem bekannten Coin-Namen (Bitcoin, Ethereum,
-   Ripple, Cardano, Solana, Dogecoin, Avalanche, Tron, …) oder der Ticker passt
-   zu einem bekannten Krypto-Symbol (BTC, ETH, XRP, ADA, SOL, DOGE, AVAX, TRX, …).
-4. **commodity** — Name ist ein exakter, reiner Metallname: Gold, Silber, Silver,
-   Platin, Platinum. (Zusammengesetzte Namen wie „Barrick Gold Corp" greifen hier
-   nicht und fallen auf equity durch.)
-5. **derivative** — Name enthält `Knock-Out`, `Zertifikat` oder `Turbo`
-   (einschließlich einbuchstabiger Suffixe wie TurboP, TurboC, TurboA).
-6. **knock_out** — Name enthält `Turbo` (beliebiges einbuchstabiges Suffix),
-   `Knockout` oder ein `KO`-Muster. In der Praxis wird die Turbo-Prüfung mit dem
-   derivative-Zweig geteilt; die Klasse `knock_out` wird explizit gespeichert,
-   wenn die Nutzerin die Inferenz korrigiert.
-7. **equity** — Name enthält ein Rechtsform-Suffix (Corporation, Company, Co.,
-   Aktiengesellschaft, AG, S.A., S.p.A., A/S, ASA, KGaA, Azioni, Acciones,
-   Aktier, Ltd., PLC, Inc., GmbH, NV, SA) oder einen Hinterlegungsschein-Marker
-   (ADR, GDR, Sp.ADR, Depos. Receipts, INH.ON, Registered Part. Shares).
-8. **fund** — Name beginnt mit oder enthält ein bekanntes
-   Fonds-Emittentenpräfix (iShares, Vanguard, Lyxor, Amundi, AIS-AM, Xtrackers,
-   SPDR, Invesco, WisdomTree, VanEck, Fidelity, Deka), passte aber nicht zum
-   ETF-Muster oben.
-9. **nil** — keine Heuristik griff; das Wertpapier gilt als nicht klassifiziert.
+1. **government_bond** — der Name sagt, dass es eine Staatsanleihe ist:
+   Bundesrepublik, Bundesanleihe, Bundesobligation, Bundesschatz,
+   Staatsanleihe, Treasury Note, Treasury Bond, Treasury Bill, Government
+   Bond, Sovereign Bond, „Republic of“, „Kingdom of“ oder „Anleihe“ am Anfang,
+   gefolgt von einem Land (Australien, Belgien, Deutschland, Frankreich,
+   Italien, Kanada, Niederlande, Norwegen, Österreich, Singapur, Spanien, USA,
+   Vereinigte Staaten, United States).
+2. **etf** — der Name trägt ETF, UCITS ETF, U.ETF, UETF, ETC, ETN oder ETP als
+   Wort.
+3. **crypto** — der ganze Name ist ein bekannter Coin (Bitcoin, Ethereum,
+   Ether, Solana, Cardano, Polkadot, Litecoin, Chainlink, Ripple, XRP,
+   Dogecoin, Avalanche, Tron), oder der Ticker ist ein bekanntes Symbol (BTC,
+   ETH, SOL, ADA, DOT, LTC, LINK, XRP, DOGE, AVAX, TRX), allein oder mit einer
+   Währung nach Bindestrich oder Punkt (`BTC-EUR`).
+4. **commodity** — ein physisch hinterlegtes Edelmetallprodukt (EUWAX Gold,
+   Xetra-Gold, Physical Gold, Physical Silver, Physical Platinum, Physical
+   Palladium, Gold Bullion) oder ein Name, der nur ein Metall ist: Gold,
+   Silber, Silver, Platin oder Platinum. Ein Unternehmen mit einem Metall im
+   Namen („Muster Gold Corp“) greift hier nicht und geht weiter zur
+   Aktien-Regel.
+5. Ein **strukturiertes oder Hebelprodukt**, jeweils als eigene Klasse. Diese
+   Regeln kommen vor den Aktien, weil solche Namen oft auch die Rechtsform
+   eines Emittenten tragen:
+   - **knock_out** — Turbo, allein oder mit einem Buchstaben dahinter
+     (TurboC, TurboP), Knock-Out, KO, Mini Future, O.End, Open End Turbo,
+     WAVE, Unlimited Turbo;
+   - **discount_certificate** — DiscC, DiscP, Discount-Zertifikat, Discount
+     Cap;
+   - **warrant** — Optionsschein, Warrant;
+   - **factor_certificate** — Faktor;
+   - **reverse_convertible** — Aktienanleihe, Reverse Convertible;
+   - **bonus_certificate** — Bonus-Zertifikat, Bonus Cap;
+   - **express_certificate** — Express-Zertifikat;
+   - und zuletzt ein bloßes Call oder Put, das Broker als Kürzel für einen
+     Optionsschein verwenden, also ebenfalls ein **warrant** („Turbo Call“
+     bleibt ein Knock-out).
 
-Da die Inferenz zur Lesezeit läuft, klassifiziert eine verbesserte Heuristik im
-Code alle passenden Wertpapiere rückwirkend neu, ohne Datenmigration.
+   Eine allgemeine Derivate-Klasse gibt es nicht: Ein Zertifikat, auf das
+   keines dieser Wörter passt (etwa ein Indexzertifikat), bleibt ohne Klasse.
+6. **equity** — der Name trägt eine Aktien- oder Rechtsform-Markierung —
+   Registered Shares, Reg. Shares, Registered Part. Shares, Inhaber-Aktien,
+   Namens-Aktien, Vorzugsaktien, Actions, Aandelen, Common Stock, Inc., Corp.,
+   Corporation, Company, Co., Ltd., AG, SE, PLC, S.p.A., S.A. oder SA, SA/NV,
+   Aktiengesellschaft, A/S, ASA, KGaA, Azioni, Acciones, Aktier — oder eine
+   Hinterlegungsschein-Markierung (ADR, Sp.ADR, GDR, Depos. Receipts) oder
+   INH.ON, **und** kein Wort eines strukturierten Produkts (Turbo, Disc,
+   Discount, Call, Put, Optionsschein, Zertifikat, O.End,
+   Em.-u.Handelsg.mbH).
+7. **fund** — der Name trägt einen Fondsanbieter (iShares, Vanguard, Lyxor,
+   Amundi, AIS-AM, Xtrackers, SPDR, Invesco, WisdomTree, VanEck, Fidelity,
+   Deka), und keine Regel oben griff; ein Name, der zusätzlich eine
+   Rechtsform trägt, ist nach Regel 6, die vorher läuft, eine Aktie.
+8. **equity, aus dem Logo** (#408) — ein Wertpapier, das keine Regel
+   aufgelöst hat und das eine ISIN **und** ein gespeichertes Firmen-Logo hat,
+   gilt als Aktie: Die Logo-Suche hat schon entschieden, dass es ein
+   Unternehmen ist, und die ISIN kennzeichnet ein börsennotiertes Instrument.
+9. Sonst hat das Wertpapier keine Klasse: Es ist nicht klassifiziert.
+
+Die Regeln unterscheiden nicht zwischen Groß- und Kleinschreibung, und die
+meisten passen nur auf ganze Wörter. Einige Aktien-Markierungen nicht, und
+das erklärt die Überraschungen: „SA“ und „Actions“ passen auch mitten im
+Wort, ein Name mit den Buchstaben „sa“ gilt also als Aktie, sofern keine
+frühere Regel griff und kein Ausschluss zutrifft; und jeder Ausschluss passt
+ebenfalls mitten im Wort, ein Unternehmen, dessen Name bloß „put“ oder „disc“
+enthält („Muster Computer Corp“), gilt also nicht als Aktie und bleibt ohne
+Klasse. Die Klasse von Hand zu setzen, klärt jeden solchen Fall.
+
+**Wann eine Klasse gespeichert wird.** Die Klasse wird nicht nur beim Lesen
+abgeleitet. Jedes Anlegen oder Ändern der Stammdaten eines Wertpapiers — in
+der App, über die API oder MCP oder durch einen Import — speichert die
+Klasse, die die Regeln 1–7 ergeben, solange noch keine gespeichert ist (die
+Logo-Regel läuft nur beim Lesen), und das Speichern des Formulars eines
+Wertpapiers speichert die Klasse, die das Formular zeigt, ob abgeleitet oder
+nicht. Eine gespeicherte Klasse, gleich wer sie gespeichert hat, wird
+unverändert zurückgegeben; eine spätere Verbesserung einer Regel erreicht
+dieses Wertpapier also **nicht**. Eine verbesserte Regel erreicht nur die
+Wertpapiere ohne gespeicherte Klasse: die, auf die beim letzten Schreiben
+keine Namensregel passte (die Logo-Regel kann sie beim Lesen noch auflösen),
+und die, die mit **Zuordnung entfernen** im eingebauten Anlageklassen-Baum
+(Klassifizierungen) auf automatisch zurückgesetzt wurden — das leert die
+gespeicherte Klasse, ohne eine abzuleiten.
 
 #### Nicht klassifizierte Wertpapiere finden und korrigieren
 
@@ -120,13 +177,16 @@ Eine Suche oder Filterkombination ohne Treffer zeigt einen
 Bedienelemente bleiben sichtbar; der Onboarding-Hinweis „noch keine
 Wertpapiere" erscheint nur bei leerer Datenbank.
 
-Die Wertpapierliste akzeptiert einen Filter **„is unclassified"** auf der
-Anlageklasse-Spalte (`operator: :is_nil`). Er liefert alle Zeilen, bei denen der
-gespeicherte Wert nil ist und `effective_asset_class` ebenfalls nil ergab — d. h.
-die Heuristiken haben keine sichere Übereinstimmung. Für jede solche Zeile zeigt
-die Anlageklasse-Zelle ein eingebettetes **Schnellzuweisungs-Dropdown**, sodass
-sich die Klasse direkt aus der Liste setzen lässt, ohne die
-Wertpapier-Detailseite zu öffnen.
+Die Wertpapierliste akzeptiert einen Filter **„ist nicht klassifiziert“** auf
+der Anlageklasse-Spalte (`operator: :is_nil`), dieselbe Bedingung wie der Chip
+**Ohne Anlageklasse**: Er trifft jedes Wertpapier **ohne gespeicherte
+Klasse**, ob eine Regel eine ableitet oder nicht, denn eine abgeleitete Klasse
+ist eine Vermutung und keine erklärte Tatsache (#700). Eine solche Zeile zeigt
+ihre abgeleitete Klasse, als abgeleitet markiert (≈), oder nichts, wenn keine
+Regel griff, und in beiden Fällen ein eingebettetes
+**Schnellzuweisungs-Dropdown**, sodass sich die Klasse direkt aus der Liste
+setzen lässt, ohne die Wertpapier-Detailseite zu öffnen. Eine Zeile mit
+gespeicherter Klasse zeigt sie als einfaches Badge.
 
 Eine gespeicherte Klasse ist eine dauerhafte Überschreibung: einmal gesetzt, wird
 sie von `effective_asset_class` zurückgegeben, unabhängig davon, was die
