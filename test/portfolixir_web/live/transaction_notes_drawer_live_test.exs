@@ -50,10 +50,13 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
   #
   # Acceptance criteria:
   # - The drawer is the notes-only state: no booking form; the sub line says
-  #   the screen does not book this kind and only the note changes, journaled.
+  #   the screen does not book this kind and only the note changes, and that
+  #   the journal records the change (the closing act, R10a and R10d: no
+  #   "a “Deposit”", no "journaled").
   # - Type, date, cash account and amount show as disabled fields.
-  # - The help line states the limit and both correction paths, with
-  #   "Delete…" as a link-button.
+  # - The help line states the limit and both correction paths — for a
+  #   booking that came over the API, booking it again there, never
+  #   "imported again" (R10e) — with "Delete…" as a link-button.
   # - "Save note" stores the note alone and closes the drawer with "Note
   #   saved"; the deposit's facts are unchanged.
   test "a deposit's edit shows its facts fixed and saves only the note",
@@ -64,7 +67,9 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
     refute has_element?(view, "#transaction-form")
 
     drawer = view |> element("#booking-drawer") |> render() |> text()
-    assert drawer =~ "The screen does not book a “Deposit”; only the note changes here"
+
+    assert drawer =~
+             "The screen does not book the kind “Deposit”; only the note changes here, and the journal records the change."
 
     assert has_element?(view, "#booking-facts select[name='note[type]'][disabled]")
 
@@ -83,7 +88,8 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
     refute has_element?(view, "#booking-facts [name='note[security_id]']")
 
     help = view |> element("#booking-edit-help") |> render() |> text()
-    assert help =~ "corrected over the API or MCP, or it is deleted and imported again"
+    assert help =~ "corrected over the API or MCP, or it is deleted and booked again there"
+    refute help =~ "imported"
     assert has_element?(view, "#booking-edit-help button.link-button[phx-click='ask_delete']")
 
     view
@@ -192,6 +198,55 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
 
     assert view |> element("#booking-edit-help") |> render() |> text() =~
              "deleted and set again under Accounts & depots"
+  end
+
+  # User story (U1, #912; H2b-A; the closing act, R10d and R10e):
+  # As the operator opening Edit on a dividend an import brought in, and on
+  # a split,
+  # I want the help line to name the import as the way back only for an
+  # imported booking, and every sub line in plain words,
+  # so that the drawer tells me what actually corrects this booking.
+  #
+  # Acceptance criteria:
+  # - An imported dividend's help line names deleting and importing again.
+  # - The German sub lines say "das Journal hält die Änderung fest" — a
+  #   kind, a split and a set balance alike — never "journalisiert".
+  test "the help line names the import only for an imported booking",
+       %{conn: conn, world: world, security: security} do
+    {:ok, dividend} =
+      Ledger.create_transaction(
+        Actor.owner_ui(),
+        %{
+          type: "dividend",
+          portfolio_id: world.portfolio.id,
+          security_id: security.id,
+          cash_account_id: world.cash.id,
+          gross_amount: "48.75",
+          currency_code: "EUR",
+          date: ~D[2026-09-26]
+        },
+        import_hash: String.duplicate("b2", 32)
+      )
+
+    view = open_edit(conn, dividend)
+
+    assert view |> element("#booking-edit-help") |> render() |> text() =~
+             "corrected over the API or MCP, or it is deleted and imported again"
+
+    {:ok, anchor} =
+      Ledger.set_cash_balance(Actor.owner_ui(), world.cash, %{date: ~D[2026-09-30], amount: "900"})
+
+    german = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+
+    for {tx, sub} <- [
+          {dividend, "Die Art „Dividende“ bucht die Oberfläche nicht;"},
+          {anchor, "Ein Saldo wird unter Konten & Depots gesetzt;"}
+        ] do
+      drawer = german |> open_edit(tx) |> element(".detail-pane-sub") |> render() |> text()
+      assert drawer =~ sub
+      assert drawer =~ "hier ändert sich nur die Notiz, und das Journal hält die Änderung fest."
+      refute drawer =~ "journalisiert"
+    end
   end
 
   # User story (U1, #912; H2b-A, pin 5):

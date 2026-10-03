@@ -1812,7 +1812,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           </label>
         </div>
         <p id="booking-edit-help" class="form-help">
-          <%= notes_drawer_help(@kind) %>
+          <%= notes_drawer_help(@transaction) %>
           <button
             type="button"
             class="link-button"
@@ -1849,41 +1849,53 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     """
   end
 
+  # The closing act, R10a and R10d: the kind named as a kind, never with an
+  # article that fits no label ("a “Interest”"), and the journal named in
+  # plain words, never "journaled".
   defp notes_drawer_sub("split"),
     do:
       gettext(
-        "A split is a fact about the security; only the note changes here, and the change is journaled."
+        "A split is a fact about the security; only the note changes here, and the journal records the change."
       )
 
   defp notes_drawer_sub("balance_adjustment"),
     do:
       gettext(
-        "A balance is set under Accounts & depots; only the note changes here, and the change is journaled."
+        "A balance is set under Accounts & depots; only the note changes here, and the journal records the change."
       )
 
   defp notes_drawer_sub(kind),
     do:
       gettext(
-        "The screen does not book a “%{kind}”; only the note changes here, and the change is journaled.",
+        "The screen does not book the kind “%{kind}”; only the note changes here, and the journal records the change.",
         kind: tx_type_label(kind)
       )
 
-  defp notes_drawer_help("split"),
+  defp notes_drawer_help(%Transaction{type: "split"}),
     do:
       gettext(
         "The effective date, ratio and security of a booked split are fixed. A wrong split is deleted and then recorded again on the security with “Record split”."
       )
 
-  defp notes_drawer_help("balance_adjustment"),
+  defp notes_drawer_help(%Transaction{type: "balance_adjustment"}),
     do:
       gettext(
         "The date, balance and account of a set balance are fixed here. It is corrected over the API or MCP, or it is deleted and set again under Accounts & depots."
       )
 
-  defp notes_drawer_help(_kind),
+  # The way back through the import exists only for a booking an import
+  # brought in; any other came over the API or MCP, and is booked again
+  # there (the closing act, R10e).
+  defp notes_drawer_help(%Transaction{import_hash: hash}) when is_binary(hash),
     do:
       gettext(
         "The date, amounts and accounts of this booking are fixed here; the screen books only buys and sells. The booking is corrected over the API or MCP, or it is deleted and imported again."
+      )
+
+  defp notes_drawer_help(%Transaction{}),
+    do:
+      gettext(
+        "The date, amounts and accounts of this booking are fixed here; the screen books only buys and sells. The booking is corrected over the API or MCP, or it is deleted and booked again there."
       )
 
   # The facts a kind stores, in the drawer's order: type and date, then the
