@@ -180,15 +180,26 @@ defmodule Portfolixir.Portfolios.Performance do
 
   defp scoped_analysis(portfolio_id, scope, opts) do
     today = Keyword.get(opts, :today, Clock.today())
-    walk_portfolio(portfolio_id, scope, base_currency(portfolio_id), today)
+
+    walk_portfolio(
+      portfolio_id,
+      sorted_transactions(portfolio_id),
+      scope,
+      base_currency(portfolio_id),
+      today,
+      nil
+    )
   end
 
   # One portfolio's daily walk under `scope`, valued in an explicit `base`
   # currency. The per-portfolio entry point (`analysis/2`) passes the
   # portfolio's own base; the cross-portfolio view walk (#577) passes one
   # common base so the slices are summable.
-  defp walk_portfolio(portfolio_id, scope, base, today) do
-    transactions = sorted_transactions(portfolio_id)
+  #
+  # `window` is `nil` for every walk except the contribution's (ADR-0051 §5):
+  # given one, the walk also keeps each position's figures apart inside it
+  # and returns them under `:contribution`. Nothing else in the result moves.
+  defp walk_portfolio(portfolio_id, transactions, scope, base, today, window) do
     suspects = suspect_dates(transactions)
 
     case walk_start(transactions, today) do
@@ -196,6 +207,9 @@ defmodule Portfolixir.Portfolios.Performance do
         empty_analysis(portfolio_id, today, base, suspects)
 
       start ->
+        {daily, kept} =
+          daily_series(portfolio_id, transactions, start, today, base, scope, window)
+
         %{
           portfolio_id: portfolio_id,
           base_currency: base,
@@ -203,10 +217,14 @@ defmodule Portfolixir.Portfolios.Performance do
           first_date: start,
           suspect_dates: suspects,
           basis: basis(transactions),
-          daily: daily_series(portfolio_id, transactions, start, today, base, scope)
+          daily: daily
         }
+        |> put_kept(kept)
     end
   end
+
+  defp put_kept(analysis, nil), do: analysis
+  defp put_kept(analysis, kept), do: Map.put(analysis, :contribution, kept)
 
   # -- cross-portfolio view walk (#577) ---------------------------------------
 
@@ -279,24 +297,81 @@ defmodule Portfolixir.Portfolios.Performance do
     end
   end
 
+  # -- the walk that keeps each position apart (ADR-0051 §5) -------------------
+
+  @doc false
+  # The contribution's walk (FR-41): `analysis/2`'s walk over an already
+  # loaded `scope`, keeping each position's figures apart inside `period`'s
+  # window. Returns the analysis map `analysis/2` computes -- its daily series
+  # byte-identical (ADR-0051 I9) -- plus `:contribution`, the kept figures, or
+  # `nil` when the window holds no walked day. Never memoised as a walk:
+  # `Portfolixir.Portfolios.Performance.Contribution` registers its own
+  # analytic. The period is validated by the caller.
+  @spec contribution_analysis(integer(), :unscoped | map(), term(), keyword()) :: map()
+  def contribution_analysis(portfolio_id, scope, period, opts \\ [])
+      when is_integer(portfolio_id) do
+    today = Keyword.get(opts, :today, Clock.today())
+    transactions = sorted_transactions(portfolio_id)
+    window = contribution_window(period, today, walk_start(transactions, today))
+
+    portfolio_id
+    |> walk_portfolio(transactions, scope, base_currency(portfolio_id), today, window)
+    |> Map.put_new(:contribution, nil)
+  end
+
+  @doc false
+  # The cross-portfolio twin of `contribution_analysis/4` over
+  # `view_analysis/2`'s walk: the window is clamped to the merged history,
+  # exactly as `summarise/2` clamps the merged series, and each portfolio's
+  # kept figures are summed per position. Options: `:base_currency`, `:today`.
+  @spec view_contribution_analysis(integer() | nil, :unscoped | map(), term(), keyword()) :: map()
+  def view_contribution_analysis(view_id, scope, period, opts \\ [])
+      when is_integer(view_id) or is_nil(view_id) do
+    base = Keyword.get(opts, :base_currency, @hub)
+    today = Keyword.get(opts, :today, Clock.today())
+    ledgers = view_scope_ledgers(scope)
+
+    first =
+      ledgers
+      |> Enum.map(fn {_portfolio_id, txs} -> walk_start(txs, today) end)
+      |> Enum.reject(&is_nil/1)
+      |> Enum.min(Date, fn -> nil end)
+
+    window = contribution_window(period, today, first)
+
+    analyses =
+      Enum.map(ledgers, fn {portfolio_id, txs} ->
+        walk_portfolio(portfolio_id, txs, scope, base, today, window)
+      end)
+
+    analyses
+    |> merge_analyses(view_id, base, today)
+    |> Map.put(:contribution, merge_kept(analyses, window))
+  end
+
   defp view_scoped_analysis(view_id, scope, base, today) do
-    # Only portfolios with at least one transaction touching an in-scope
-    # account are walked (#577 fix round): a fully out-of-scope portfolio
-    # contributes an all-zero walk whose sums would not change the merged
-    # series — but its span would, inheriting an older history as leading
-    # zero-value days, a wrong start_date and dataless year-picker entries.
-    # Membership is decided on legs, not values: an in-scope portfolio whose
-    # net value happens to be zero every day still walks.
-    Portfolios.list_portfolios()
-    |> Enum.filter(&portfolio_scope_activity?(&1.id, scope))
-    |> Enum.map(&walk_portfolio(&1.id, scope, base, today))
+    scope
+    |> view_scope_ledgers()
+    |> Enum.map(fn {portfolio_id, txs} ->
+      walk_portfolio(portfolio_id, txs, scope, base, today, nil)
+    end)
     |> merge_analyses(view_id, base, today)
   end
 
-  defp portfolio_scope_activity?(portfolio_id, scope) do
-    portfolio_id
-    |> sorted_transactions()
-    |> Enum.any?(&transaction_in_scope?(scope, &1))
+  # Only portfolios with at least one transaction touching an in-scope
+  # account are walked (#577 fix round): a fully out-of-scope portfolio
+  # contributes an all-zero walk whose sums would not change the merged
+  # series — but its span would, inheriting an older history as leading
+  # zero-value days, a wrong start_date and dataless year-picker entries.
+  # Membership is decided on legs, not values: an in-scope portfolio whose
+  # net value happens to be zero every day still walks. Each ledger is read
+  # once and walked as read.
+  defp view_scope_ledgers(scope) do
+    Portfolios.list_portfolios()
+    |> Enum.map(&{&1.id, sorted_transactions(&1.id)})
+    |> Enum.filter(fn {_portfolio_id, txs} ->
+      Enum.any?(txs, &transaction_in_scope?(scope, &1))
+    end)
   end
 
   defp transaction_in_scope?(scope, tx) do
@@ -614,7 +689,12 @@ defmodule Portfolixir.Portfolios.Performance do
   # maintaining held quantities and per-account cash, and records each day's
   # portfolio value (base currency) and net external flow. All pricing data
   # (quotes, own trade prices, FX rates) is preloaded; the walk is pure.
-  defp daily_series(portfolio_id, transactions, walk_start, today, base, scope) do
+  #
+  # Returns `{series, kept}`: `kept` is `nil` unless a contribution `window`
+  # was given, in which case it holds the per-position figures the walk kept
+  # apart inside it (ADR-0051 §5). They ride in the state under `:kept`, a key
+  # no walk output reads.
+  defp daily_series(portfolio_id, transactions, walk_start, today, base, scope, window) do
     by_day = Enum.group_by(transactions, &effective_date(&1, walk_start))
     currencies = account_currencies(portfolio_id)
 
@@ -626,12 +706,12 @@ defmodule Portfolixir.Portfolios.Performance do
       fx: init_fx(transactions, currencies, base, walk_start)
     }
 
-    state = %{qty: %{}, cash: %{}}
+    state = open_kept(%{qty: %{}, cash: %{}}, window, transactions)
 
-    {series, _state, _context} =
+    {series, state, _context} =
       Enum.reduce(Date.range(walk_start, today), {[], state, context}, &walk_day(by_day, &1, &2))
 
-    Enum.reverse(series)
+    {Enum.reverse(series), Map.get(state, :kept)}
   end
 
   defp effective_date(tx, walk_start) do
@@ -649,8 +729,8 @@ defmodule Portfolixir.Portfolios.Performance do
     # The quantities held *before* the day's bookings: the sleeve a basis step
     # restates. Captured here because `apply_transactions/3` mutates them.
     opening = state.qty
-    {state, flow, legs} = apply_transactions(day_txs, state, context)
-    value = portfolio_value(state, context)
+    {closing, flow, legs} = apply_transactions(day_txs, state, context)
+    value = portfolio_value(closing, context)
     basis = basis_adjustment(steps, opening, legs, context, carried_fx)
 
     {[
@@ -662,7 +742,7 @@ defmodule Portfolixir.Portfolios.Performance do
          trade_costs: trade_costs(day_txs, context)
        }
        | acc
-     ], state, context}
+     ], keep_day(closing, state, context, carried_fx), context}
   end
 
   # The fees and taxes carried BY A TRADE, per day, in the base currency
@@ -1548,6 +1628,119 @@ defmodule Portfolixir.Portfolios.Performance do
   from an older stored payload never reads as `nil` in arithmetic.
   """
   def trade_costs_of(point), do: Map.get(point, :trade_costs) || @zero
+
+  # -- kept figures: each position apart inside a window (ADR-0051 §5) --------
+  #
+  # The contribution walk is this walk with one more key in its state,
+  # `:kept`. Everything below only READS what the walk already holds -- the
+  # day's quantities, cash, prices and rates -- and writes into `:kept`, which
+  # no walk output reads. That is ADR-0051 I9 by construction: the daily
+  # points, and everything chained from them, are computed by the same
+  # expressions from the same inputs whether or not a window is kept.
+
+  @no_position %{
+    start_value: Decimal.new("0"),
+    end_value: Decimal.new("0"),
+    held_at_start: false,
+    held_at_end: false
+  }
+
+  # The window a contribution is kept over: exactly the window `do_summarise/2`
+  # chains -- the start clamped to the first walked day, the end clamped to
+  # today -- or `nil` when it holds no walked day (an empty result, never a
+  # table of zeros, ADR-0051 §4).
+  defp contribution_window(_period, _today, nil), do: nil
+
+  defp contribution_window(period, today, first_date) do
+    start_date = clamp_start(period_start(period, today), first_date)
+    end_date = period_end(period, today)
+
+    if Date.compare(start_date, end_date) == :gt,
+      do: nil,
+      else: %{start: start_date, end: end_date}
+  end
+
+  defp open_kept(state, nil, _transactions), do: state
+
+  defp open_kept(state, window, transactions) do
+    Map.put(state, :kept, %{
+      window: window,
+      # The walk's baseline rule (ADR-0051 §4): the start value is the close
+      # of the last walked day before the window. A walk that starts inside
+      # the window never sees this day, so its positions start at 0.
+      baseline: Date.add(window.start, -1),
+      positions: %{},
+      securities: security_labels(transactions)
+    })
+  end
+
+  # Name and ISIN of every security the ledger names, from the preloaded rows.
+  defp security_labels(transactions) do
+    for %{security_id: id, security: %Portfolixir.Catalog.Security{} = security} <- transactions,
+        into: %{},
+        do: {id, %{name: security.name, isin: security.isin}}
+  end
+
+  # The day's observations, made after its bookings: the close of the
+  # baseline day gives the start values, the window's last day the end values.
+  defp keep_day(%{kept: kept} = closing, _opening, context, _carried_fx),
+    do: %{closing | kept: observe_day(kept, closing.qty, context)}
+
+  defp keep_day(closing, _opening, _context, _carried_fx), do: closing
+
+  defp observe_day(%{baseline: day} = kept, held, %{day: day} = context),
+    do: record_values(kept, held, context, :start_value, :held_at_start)
+
+  defp observe_day(%{window: %{end: day}} = kept, held, %{day: day} = context),
+    do: record_values(kept, held, context, :end_value, :held_at_end)
+
+  defp observe_day(kept, _held, _context), do: kept
+
+  # Each held position's value, exactly the term `portfolio_value/2` adds up.
+  defp record_values(kept, held, context, value_key, held_key) do
+    Enum.reduce(held, kept, fn {security_id, quantity}, acc ->
+      value = security_value(security_id, quantity, context)
+      update_position(acc, security_id, &Map.merge(&1, %{value_key => value, held_key => true}))
+    end)
+  end
+
+  defp update_position(kept, security_id, fun) do
+    position = Map.get(kept.positions, security_id, @no_position)
+    %{kept | positions: Map.put(kept.positions, security_id, fun.(position))}
+  end
+
+  # One view's kept figures: each walked portfolio's, summed per position.
+  defp merge_kept(_analyses, nil), do: nil
+
+  defp merge_kept(analyses, window) do
+    merged = %{
+      window: window,
+      baseline: Date.add(window.start, -1),
+      positions: %{},
+      securities: %{}
+    }
+
+    analyses
+    |> Enum.map(&Map.get(&1, :contribution))
+    |> Enum.reject(&is_nil/1)
+    |> Enum.reduce(merged, fn kept, acc ->
+      %{
+        acc
+        | positions:
+            Map.merge(acc.positions, kept.positions, fn _id, a, b -> merge_position(a, b) end),
+          securities: Map.merge(acc.securities, kept.securities)
+      }
+    end)
+  end
+
+  defp merge_position(a, b) do
+    %{
+      start_value: Decimal.add(a.start_value, b.start_value),
+      end_value: Decimal.add(a.end_value, b.end_value),
+      held_at_start: a.held_at_start or b.held_at_start,
+      held_at_end: a.held_at_end or b.held_at_end
+    }
+  end
 
   # -- periods ----------------------------------------------------------------
 
