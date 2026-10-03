@@ -3487,6 +3487,47 @@ describe("Portfolixir MCP tools", () => {
     assert.match(viewValuation?.description ?? "", /positions_included/);
   });
 
+  // User story (#901; ADR-0051 §6):
+  // As the agent asked for a category's result at the operator's scope,
+  // I want the category-result tool to take the view scope in the API's two
+  // forms,
+  // so that a view's figure is one call, whether the view narrows one
+  // portfolio or spans every portfolio.
+  //
+  // Acceptance criteria:
+  // - portfolio_id alone reads the shipped route unchanged; with view, the
+  //   same route narrowed with view=.
+  // - view without portfolio_id reads /views/:view_id/category-results.
+  // - Neither is refused before any request is made.
+  // - The schema requires only classification_id, types view as an id, and
+  //   the description states both scopes and where the payload names its own.
+  it("routes category_results to the portfolio or the view form by its scope", async () => {
+    const { client, requests } = createRecordingClient({ data: {} });
+    const name = "portfolixir.portfolios.category_results";
+
+    await callTool(client, name, { portfolio_id: 3, classification_id: 5 });
+    await callTool(client, name, { portfolio_id: 3, classification_id: 5, view: 7 });
+    await callTool(client, name, { classification_id: 5, view: 7 });
+    await assert.rejects(callTool(client, name, { classification_id: 5 }), /portfolio_id or view/);
+
+    assert.deepEqual(
+      requests.map((request) => request.path),
+      [
+        "/api/v1/portfolios/3/category-results?classification_id=5",
+        "/api/v1/portfolios/3/category-results?classification_id=5&view=7",
+        "/api/v1/views/7/category-results?classification_id=5"
+      ]
+    );
+
+    const tool = listTools().find((candidate) => candidate.name === name);
+    assert.deepEqual(tool?.inputSchema.required, ["classification_id"]);
+    assert.equal(tool?.inputSchema.properties.view.type, "integer");
+    assert.match(tool?.description ?? "", /view narrowing within/);
+    assert.match(tool?.description ?? "", /across EVERY portfolio, each account counted once, in EUR/);
+    assert.match(tool?.description ?? "", /missing_base_cost/);
+    assert.match(tool?.description ?? "", /scope, view_id and base_currency/);
+  });
+
   // User story (issue #737): the one-shot historical backfill rides the
   // existing sync tool as scope=history; the default stays the daily feed.
   it("passes scope=history to exchange_rates.sync and keeps the empty body by default", async () => {

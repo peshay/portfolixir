@@ -2,9 +2,18 @@ defmodule PortfolixirWeb.ApiV1CategoryResultsTest do
   use PortfolixirWeb.ConnCase
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 0, create_security!: 1, buy!: 3, deposit!: 3]
+    only: [
+      add_depot: 2,
+      base_world: 0,
+      base_world: 1,
+      create_security!: 1,
+      buy!: 3,
+      deposit!: 3,
+      put_quote!: 3
+    ]
 
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Classifications
 
   @auth {"authorization", "Bearer test-api-token"}
@@ -104,6 +113,144 @@ defmodule PortfolixirWeb.ApiV1CategoryResultsTest do
     assert position["invested"] == "1000"
     assert position["result_abs"] == "500"
     assert position["result_pct"] == "0.5"
+  end
+
+  # User story (#901; ADR-0041 §1, ADR-0051 §6):
+  # As the LLM agent maintaining this portfolio,
+  # I want the category result at the scopes the performance family reads —
+  # one portfolio narrowed with view=, or a view across every portfolio —
+  # so that I can answer "how is Core doing in my retirement view?" in one
+  # call, at the scope the operator's question names.
+  #
+  # Acceptance criteria:
+  # - GET /api/v1/portfolios/:portfolio_id/category-results takes view= and
+  #   rolls up only the portfolio's positions matching it, echoing the view.
+  # - GET /api/v1/views/:view_id/category-results rolls up the positions
+  #   matching the view across every portfolio, each account once, in EUR.
+  # - Financial values stay Decimal strings, and the payload states its scope:
+  #   scope, portfolio_id, view_id, base_currency, and a basis_note naming it.
+  # - The unscoped read is unchanged but for the scope it now states.
+  test "takes the view scope in the performance family's two forms", %{conn: conn} do
+    world = seed()
+
+    second =
+      base_world(name: "Second", cash_name: "Second Cash", depot_name: "Second Depot")
+
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Retirement"})
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Retired", include_all: false})
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+
+    # The first depot holds Alpha and Dark; a second depot of the same
+    # portfolio holds Gamma, untagged; the second portfolio holds Alpha, tagged.
+    %{depot: untagged, cash: untagged_cash} =
+      add_depot(world.portfolio, depot_name: "Untagged", cash_name: "Untagged Cash")
+
+    gamma = create_security!(name: "Gamma AG", ticker: "GAM")
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Actor.owner_ui(),
+        gamma.id,
+        world.classification.id,
+        world.core.id
+      )
+
+    deposit!(%{world | depot: untagged, cash: untagged_cash}, "10000", ~D[2026-01-01])
+    buy!(%{world | depot: untagged, cash: untagged_cash}, gamma, quantity: "4", price: "25")
+    put_quote!(gamma, Date.utc_today(), "25")
+
+    deposit!(second, "10000", ~D[2026-01-01])
+    buy!(second, world.alpha, quantity: "5", price: "120")
+
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), world.depot, [bucket.id])
+    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), second.depot, [bucket.id])
+
+    path = "/category-results?classification_id=#{world.classification.id}"
+
+    # The shipped read, unscoped: Alpha 1000 and Gamma 100; it states its scope.
+    unscoped =
+      get_json(conn, "/api/v1/portfolios/#{world.portfolio.id}" <> path)
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert [core] = unscoped["categories"]
+    assert core["invested"] == "1100"
+    assert unscoped["scope"] == "portfolio"
+    assert unscoped["portfolio_id"] == world.portfolio.id
+    assert unscoped["view_id"] == nil
+    assert unscoped["base_currency"] == "EUR"
+    refute Map.has_key?(unscoped, "view")
+    assert unscoped["basis_note"] =~ "Scope: the positions of portfolio #{world.portfolio.id}"
+
+    # Form one: the portfolio narrowed with view=. Gamma's depot is untagged.
+    narrowed =
+      get_json(conn, "/api/v1/portfolios/#{world.portfolio.id}" <> path <> "&view=#{view.id}")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert [core] = narrowed["categories"]
+    assert core["invested"] == "1000"
+    assert core["current_value"] == "1500"
+    assert core["result_abs"] == "500"
+    assert core["result_pct"] == "0.5"
+    assert core["member_count"] == 2
+    assert [%{"security_name" => "Dark AG"}] = core["excluded"]
+    assert narrowed["scope"] == "portfolio"
+    assert narrowed["portfolio_id"] == world.portfolio.id
+    assert narrowed["view_id"] == view.id
+    assert narrowed["view"] == %{"id" => view.id, "name" => "Retired"}
+    assert narrowed["basis"] == "current_composition"
+    assert narrowed["basis_note"] =~ "that match view #{view.id}"
+
+    # Form two: the view across every portfolio, each account once, in EUR.
+    across =
+      get_json(conn, "/api/v1/views/#{view.id}" <> path)
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert [core] = across["categories"]
+    # Alpha 10 at 100 plus 5 at 120; 15 units at 150.
+    assert core["invested"] == "1600"
+    assert core["current_value"] == "2250"
+    assert core["result_abs"] == "650"
+    assert core["result_pct"] == "0.40625"
+    assert [position] = core["positions"]
+    assert position["quantity"] == "15"
+    assert across["scope"] == "view"
+    assert across["portfolio_id"] == nil
+    assert across["view_id"] == view.id
+    assert across["base_currency"] == "EUR"
+    assert across["view"] == %{"id" => view.id, "name" => "Retired"}
+    assert across["basis_note"] =~ "across every portfolio, each account counted once, in EUR"
+  end
+
+  test "answers the view scope's errors as the performance family does", %{conn: conn} do
+    world = seed()
+    portfolio_path = "/api/v1/portfolios/#{world.portfolio.id}/category-results"
+    classification = "classification_id=#{world.classification.id}"
+
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Everything"})
+
+    # Form one: a malformed view is a 422 naming it, an unknown one a 404.
+    assert get_json(conn, portfolio_path <> "?#{classification}&view=abc")
+           |> json_response(422) == %{"errors" => %{"view" => ["is invalid"]}}
+
+    assert get_json(conn, portfolio_path <> "?#{classification}&view=9999999")
+           |> json_response(404)
+
+    # Form two: an unknown or malformed view id is a 404, a missing
+    # classification a 422, an unknown classification a 404.
+    assert get_json(conn, "/api/v1/views/9999999/category-results?#{classification}")
+           |> json_response(404)
+
+    assert get_json(conn, "/api/v1/views/abc/category-results?#{classification}")
+           |> json_response(404)
+
+    assert get_json(conn, "/api/v1/views/#{view.id}/category-results")
+           |> json_response(422) == %{"errors" => %{"classification_id" => ["is required"]}}
+
+    assert get_json(conn, "/api/v1/views/#{view.id}/category-results?classification_id=9999999")
+           |> json_response(404)
   end
 
   test "requires a classification and 404s an unknown portfolio", %{conn: conn} do

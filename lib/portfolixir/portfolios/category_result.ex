@@ -36,13 +36,20 @@ defmodule Portfolixir.Portfolios.CategoryResult do
   other by a rounding step (ADR-0016: no rounding between steps).
   """
 
+  alias Portfolixir.Buckets
   alias Portfolixir.Classifications
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Portfolio
 
   @zero Decimal.new("0")
 
   @basis "current_composition"
+
+  # The view scope's currency (#901): a view spans every portfolio, so its
+  # figures are in the EUR hub, as the view valuation's and the view
+  # performance's are.
+  @hub "EUR"
 
   @doc """
   Rolls the current holdings of `portfolio_id` up the tree of
@@ -51,28 +58,113 @@ defmodule Portfolixir.Portfolios.CategoryResult do
   Returns `{:ok, result}` where `result.categories` carries one entry per
   category in the tree — including categories with no members, which report
   zeroes and a `nil` percentage rather than claiming to be flat — plus
-  `result.basis`, the one-line computation basis of ADR-0041 §1.
+  `result.basis`, the one-line computation basis of ADR-0041 §1, and the
+  scope it was computed over (`scope: :portfolio`, `view_id`,
+  `base_currency`: the portfolio's).
 
-  Options are passed through to `Ledger.holdings_for_portfolio/2`: `:prices`
-  and `:fx_rates` for deterministic fixtures.
+  Options: `:view` (a view id, #901) narrows the roll-up to the portfolio's
+  positions matching that view, the way it narrows the valuation and the
+  performance walk (ADR-0018); an unknown view is
+  `{:error, :view_not_found}`. `:prices` and `:fx_rates` are passed through
+  to `Ledger.holdings_for_portfolio/2` for deterministic fixtures.
   """
   def for_portfolio(portfolio_id, classification_id, opts \\ [])
       when is_integer(portfolio_id) and is_integer(classification_id) do
-    case Classifications.security_category_map(classification_id) do
-      {:error, reason} ->
-        {:error, reason}
+    view_id = Keyword.get(opts, :view)
 
-      {:ok, security_categories} ->
-        categories = Classifications.list_categories(classification_id)
-        holdings = Ledger.holdings_for_portfolio(portfolio_id, opts)
+    with {:ok, security_categories} <- Classifications.security_category_map(classification_id),
+         scope when not is_tuple(scope) <- Buckets.load_scope(portfolio_id, view_id) do
+      holdings =
+        portfolio_id
+        |> Ledger.holdings_for_portfolio(opts)
+        |> in_scope(scope)
 
-        {:ok,
-         %{
-           portfolio_id: portfolio_id,
-           classification_id: classification_id,
-           basis: @basis,
-           categories: roll_up(categories, security_categories, holdings)
-         }}
+      {:ok,
+       %{
+         portfolio_id: portfolio_id,
+         view_id: view_id,
+         scope: :portfolio,
+         base_currency: base_currency(portfolio_id),
+         classification_id: classification_id,
+         basis: @basis,
+         categories:
+           roll_up(
+             Classifications.list_categories(classification_id),
+             security_categories,
+             holdings
+           )
+       }}
+    end
+  end
+
+  @doc """
+  The roll-up of a bucket **view across every portfolio** (#901; ADR-0051
+  §6): the positions matching `view_id` in every portfolio, each account
+  counted once — an account belongs to exactly one portfolio — the scope the
+  view valuation and the view performance cover (ADR-0024).
+
+  The figures are in EUR (`base_currency: "EUR"`). A member's invested amount
+  is the settlement leg actually paid (ADR-0033), so a member held in a
+  portfolio whose base currency is not EUR has no EUR cost to add: it is
+  excluded and named with `missing_base_cost`, never summed across
+  currencies.
+
+  An unknown view is `{:error, :view_not_found}`, an unknown classification
+  `{:error, :not_found}`. Options as `for_portfolio/3`.
+  """
+  def for_view(view_id, classification_id, opts \\ [])
+      when is_integer(view_id) and is_integer(classification_id) do
+    with {:ok, security_categories} <- Classifications.security_category_map(classification_id),
+         scope when not is_tuple(scope) <- Buckets.load_global_scope(view_id) do
+      holdings =
+        Enum.flat_map(Portfolios.list_portfolios(), fn portfolio ->
+          portfolio.id
+          |> Ledger.holdings_for_portfolio(opts)
+          |> in_scope(scope)
+          |> Enum.map(&in_hub_currency(&1, portfolio.base_currency_code))
+        end)
+
+      {:ok,
+       %{
+         portfolio_id: nil,
+         view_id: view_id,
+         scope: :view,
+         base_currency: @hub,
+         classification_id: classification_id,
+         basis: @basis,
+         categories:
+           roll_up(
+             Classifications.list_categories(classification_id),
+             security_categories,
+             holdings
+           )
+       }}
+    end
+  end
+
+  defp in_scope(holdings, scope) do
+    Enum.filter(
+      holdings,
+      &Buckets.position_in_scope?(scope, &1.securities_account_id, &1.security_id)
+    )
+  end
+
+  # A holding's base-currency figures are its portfolio's currency. Outside
+  # EUR they cannot enter a EUR sum, so the row is reported the way any
+  # holding without a cost in the base currency is: not decomposed, for
+  # missing_base_cost (ADR-0033), which excludes and names it (§4). A row
+  # already undecomposed keeps the reason it has.
+  defp in_hub_currency(holding, @hub), do: holding
+
+  defp in_hub_currency(%{decomposed: true} = holding, _other_currency),
+    do: %{holding | decomposed: false, undecomposed_reason: :missing_base_cost}
+
+  defp in_hub_currency(holding, _other_currency), do: holding
+
+  defp base_currency(portfolio_id) do
+    case Portfolios.get_portfolio(portfolio_id) do
+      %Portfolio{base_currency_code: code} -> code
+      nil -> nil
     end
   end
 

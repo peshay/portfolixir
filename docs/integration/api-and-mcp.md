@@ -1994,6 +1994,17 @@ church tax withheld at a zero church-tax rate.
   having nothing to measure is a different claim from being flat. MCP:
   `portfolixir.portfolios.category_results`.
 
+  **The view scope (#901)** comes in the performance family's two forms
+  (ADR-0051 §6). `?view=<id>` narrows the portfolio read to the portfolio's
+  positions matching that view and echoes it as `view: {id, name}`; a
+  malformed view is a `422`, an unknown one a `404`. The view read below spans
+  every portfolio. Every answer states the scope it was computed over:
+  `scope` (`portfolio` or `view`), `portfolio_id`, `view_id`, `base_currency`
+  (the currency of every money figure: the portfolio's, or `EUR` for a view),
+  and a closing sentence of `basis_note` that names it. The MCP tool takes the
+  same scope: `portfolio_id`, which `view` narrows, or `view` alone for the
+  view across every portfolio; one of the two is required.
+
 - `GET /api/v1/portfolios/:portfolio_id/allocation` returns the target/actual
   breakdown for one classification (required `classification_id` query param; a
   missing one returns `422 Unprocessable Entity`). For each category it reports
@@ -2595,6 +2606,17 @@ a view is not journaled: no rule can read it yet.
   and `series=true` behave like the portfolio benchmark read; the shape
   mirrors it with `view_id` in place of `portfolio_id`. Unknown and
   malformed view ids return `404`; a bad period or benchmark `422`.
+- `GET /api/v1/views/:view_id/category-results?classification_id=<id>`
+  returns the per-category result (ADR-0041) of the positions matching the
+  view **across all portfolios**, each account counted once (#901). The shape
+  is the portfolio read's with `scope: "view"`, `portfolio_id: null` and the
+  view echoed. Its figures are in EUR: a member's invested amount is the
+  settlement leg actually paid (ADR-0033), so a member held in a portfolio
+  whose base currency is not EUR has no EUR cost to add and is excluded with
+  `missing_base_cost`, never summed across currencies. Unknown and malformed
+  view ids return `404`, a missing `classification_id` `422`, an unknown one
+  `404`. MCP: `portfolixir.portfolios.category_results` with `view` and no
+  `portfolio_id`.
 - `PUT /api/v1/securities_accounts/:id/buckets` replaces a depot's default
   bucket set (the buckets each position inherits unless overridden). Body:
   `{"bucket_ids": [..]}`. At most one of the ids may be a scope-dimension
@@ -2624,6 +2646,7 @@ scope the result to the holdings matching that view:
 - `GET /api/v1/portfolios/:portfolio_id/allocation?classification_id=<id>&view=<id>`
 - `GET /api/v1/portfolios/:portfolio_id/performance?view=<id>`
 - `GET /api/v1/portfolios/:portfolio_id/risk?view=<id>`
+- `GET /api/v1/portfolios/:portfolio_id/category-results?classification_id=<id>&view=<id>`
 
 When a `view` is supplied, the response echoes the active view as
 `view: {id, name}` (FR-13); the unscoped/default call is unchanged and carries
@@ -3147,6 +3170,8 @@ names each address's code.
 - `portfolixir.targets.list_positions`
 - `portfolixir.targets.delete_position`
 - `portfolixir.portfolios.allocation`
+- `portfolixir.portfolios.category_results` — one portfolio, which `view`
+  narrows, or `view` alone for the view across every portfolio (#901).
 - `portfolixir.portfolios.risk`
 - `portfolixir.policy_rules.list` — the stored rules with the version in
   force on `as_of` (ADR-0049); the description tells the agent to read them
@@ -3225,9 +3250,12 @@ names each address's code.
 - `portfolixir.tax_snapshots.trim_budget`
 
 The `portfolixir.portfolios.valuation`, `portfolixir.portfolios.allocation`,
-`portfolixir.portfolios.performance` and `portfolixir.portfolios.risk` tools
-accept an optional `view` (a view id) that scopes the result to the holdings
-matching that bucket view; the response then echoes the active view.
+`portfolixir.portfolios.performance`, `portfolixir.portfolios.risk` and
+`portfolixir.portfolios.category_results` tools accept an optional `view` (a
+view id) that scopes the result to the holdings matching that bucket view; the
+response then echoes the active view. `portfolixir.portfolios.category_results`
+also takes `view` without `portfolio_id`: the view across every portfolio, in
+EUR (#901).
 `portfolixir.views.valuation` values a view **across all portfolios** in one
 call (each matching account counted once, EUR totals, `overlap` badge data) —
 use it instead of summing per-portfolio valuations client-side.
