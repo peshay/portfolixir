@@ -2531,11 +2531,13 @@ under "Trades: reach, the p. a. column and the unmatched sells".
   own reason ("Keine annualisierte Rendite: kein Zinssatz löst die
   Zahlungen dieses Trades").
 - **Sign colour in this table** (rule ⑥): `#realized-trades-table
-  td.is-positive / td.is-negative` restore the colour that `.data-table
+  td.is-positive / td.is-negative` restored the colour that `.data-table
   tbody td { color }` took from the bare classes, for p. a. and Result alike;
   `#realized-trades-table td.trade-pa--na` does the same for the muted dash,
-  which printed in the text colour (closing act γ D4). Scoped to this table;
-  the other tables with the same pattern are a follow-up.
+  which printed in the text colour (closing act γ D4). *Since Sprint 18
+  (issue 1010, pick H4) the sign half is the general `.data-table
+  td.is-positive / .is-negative` and the scoped copy is gone; the dash line
+  stays — see Amendment 2026-10-03.*
 - **A reading table** (rule ⑦, settled by the story as board 01 left it,
   closing act γ D9): `.data-table-wrapper > #realized-trades-table {
   min-width: 0 }`, the `.num` cells `nowrap`, the security cell at least 12ch
@@ -2670,12 +2672,12 @@ The open-lots table above is unchanged.
   `.visually-hidden` sentences — under 365 days of holding, and "Keine
   annualisierte Rendite: kein Zinssatz löst die Zahlungen dieses Trades"
   for a trade held long enough whose flows no rate solves (a total loss).
-- **Sign colour** (rule ①): `#detail-closed-trades-table td.is-positive /
-  td.is-negative / td.trade-pa--na` restore what `.data-table tbody td
-  { color }` takes from the bare classes (#1010), for p. a., the result and
-  "%" alike. The open-lots table keeps the text colour until #1010 repairs
-  the family (pick H4); when that lands, the two sign lines are redundant
-  and the dash line stays.
+- **Sign colour** (rule ①): `#detail-closed-trades-table td.trade-pa--na`
+  restores the muted dash that `.data-table tbody td { color }` takes from
+  the bare class. The sign colour of p. a., the result and "%" — and of the
+  open lots above — is the general `.data-table td.is-positive /
+  .is-negative` of issue 1010 (pick H4, Amendment 2026-10-03), which made
+  this rule's two sign lines redundant; they are gone.
 - **The unmatched-sells note** (rule ②, UX-DR25): the facet's `attention`
   data note (`#detail-closed-trades-note`, `data-role="trades-unmatched"`),
   leading the section where the quantity is missing, in the facet's words
@@ -3167,3 +3169,21 @@ match it.
   the row's hover wash sits on the `tr` and stops at the opaque Balance
   cell (①d covers `.data-table` only). The wrapper, not the table, now
   clips a header popover; the tree's Drift ⓘ opens over the rows as before.
+
+### Sign colour holds in every data table *(issue 1010, rule ②)*
+
+- **One general rule:** `.data-table td.is-positive` / `.is-negative`
+  (specificity 0,2,1) outrank `.data-table tbody td { color }` (0,1,2), so
+  every signed cell of a data table carries its sign colour — the
+  security's open lots, closed trades and holdings, the Cash-flow trades.
+  The colour rule of Colors ("wherever a sign exists, at every level of a
+  table") is now true of the build.
+- **A muted drift row keeps a red loss:** `.drift-table tr.is-muted
+  td.is-negative` (0,3,2) outranks the row's grey, so a position row's
+  negative drift is red while its name stays muted.
+- **The table-scoped copies are gone, pixel-identical:** Sprint 17's
+  `#realized-trades-table td.is-positive / .is-negative` (board 01 rule ⑥)
+  and pick H1's `#detail-closed-trades-table` pair. Their muted-dash lines
+  stay: a muted class in a cell is outranked the same way, but it is not a
+  sign, and a general muted rule is outside this issue.
+- A `<span>` carrying a sign class inside a cell was never affected.

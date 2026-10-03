@@ -359,7 +359,9 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
 
   # Acceptance criteria (board rules ① to ④, the CSS the pick adds):
   # - Sign colour and the muted dash inside this table (`.data-table tbody td
-  #   { color }` outranks the bare classes, #1010).
+  #   { color }` outranks the bare classes): since #1010 the sign colour is
+  #   the general `.data-table td.is-positive / .is-negative`, the dash keeps
+  #   its table-scoped rule.
   # - The note's list has two columns at every width; the basis line keeps
   #   its distance from the list; the phone rows take the two-child track and
   #   the 560 px block hides the table's wrapper.
@@ -367,8 +369,8 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
   test "the stylesheet carries the pick's rules" do
     css = File.read!("priv/static/app.css")
 
-    assert css =~ ~r/#detail-closed-trades-table td\.is-positive\s*\{[^}]*var\(--color-positive\)/
-    assert css =~ ~r/#detail-closed-trades-table td\.is-negative\s*\{[^}]*var\(--color-danger\)/
+    assert css =~ ~r/\n\.data-table td\.is-positive\s*\{[^}]*var\(--color-positive\)/
+    assert css =~ ~r/\n\.data-table td\.is-negative\s*\{[^}]*var\(--color-danger\)/
 
     assert css =~
              ~r/#detail-closed-trades-table td\.trade-pa--na\s*\{[^}]*var\(--color-text-muted\)/
