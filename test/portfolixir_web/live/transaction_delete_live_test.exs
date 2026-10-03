@@ -119,6 +119,9 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
     assert subject =~ "2026-09-22 · Buy"
     assert subject =~ "Global Aktien ETF"
     assert subject =~ "Depot 1"
+    # One span holds the subject line, so a long name wraps inside the box
+    # (the closing act, R8).
+    assert has_element?(view, "#booking-delete-subject .phone-row__ids > span")
     # The figure the history shows (quantity × price); the cash the
     # booking moved, fees included, is the consequence sentence's.
     assert subject =~ "-2,500.00 EUR"
