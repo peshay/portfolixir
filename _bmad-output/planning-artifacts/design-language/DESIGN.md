@@ -3763,6 +3763,21 @@ Built in `securities_live.ex` (`vanished/2`); the API and MCP are unchanged.
 - **Why not silent (variant B):** for a delete the row going is what was
   asked for; for Edit, Retire or Merge into… it is not, and a row vanishing
   without a word reads as a lost click.
+- **The note is brought to the operator, and takes the focus** (the
+  closing act's finding; board
+  `mockups/ux-review-2026-10-03/03-gamma-surface-repairs`, G1). The slot
+  sits above the filters, so the note landed far above the window (measured
+  −1142 px at 1280, −2611 px at 390) while the focus fell to `<body>` with
+  the menu item. As H2's A6 does for a booking gone meanwhile: the slot
+  carries `tabindex="-1"` (`AppShell.inline_result`'s `focusable`), and on
+  this path only the page pushes `focus-into-view` with the slot's id; the
+  layout's listener scrolls it to the top of the window — below the sticky
+  top bar, by `#securities-action-result { scroll-margin-top }` — and
+  focuses it without a second scroll. A keyboard user sees the house ring
+  (`:focus-visible`, 2 px accent, offset 2 px); the next Tab reaches the
+  survivor's link and the dismiss. Ordinary results land where they always
+  did and move no focus: their control is still on the page. Never `<body>`
+  (WCAG 2.4.3).
 
 ### Merge records: the result phrase and empty merges *(H8.7, issue 1032, the UI half)*
 

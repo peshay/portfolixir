@@ -441,15 +441,27 @@ defmodule PortfolixirWeb.AppShell do
   The message is text or safe markup; an optional `follow_up` slot renders a
   remedy inside a note or attention result, before the dismiss control (the
   data note's rule: the remedy is a child of the note).
+
+  `focusable` gives the slot `tabindex="-1"`: never in the tab order, but a
+  target the page can move the focus to when the control that triggered the
+  action left the page with it (#920, a row action on a security gone
+  meanwhile) — so the focus lands on the answer, never on `<body>`
+  (WCAG 2.4.3).
   """
   attr(:id, :string, required: true)
   attr(:result, :any, default: nil)
   attr(:dismiss_event, :string, default: "dismiss_result")
+  attr(:focusable, :boolean, default: false)
   slot(:follow_up)
 
   def inline_result(assigns) do
     ~H"""
-    <div id={@id} class="inline-result" data-role="action-result">
+    <div
+      id={@id}
+      class="inline-result"
+      data-role="action-result"
+      tabindex={@focusable && "-1"}
+    >
       <div id={"#{@id}-status"} role="status" class="inline-result__region">
         <%= case @result do %>
           <% {:busy, message} -> %>

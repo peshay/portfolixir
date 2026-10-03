@@ -6305,6 +6305,20 @@ button.income-bar-label.is-active {
   background: color-mix(in srgb, currentColor 12%, transparent);
 }
 
+/* The securities page's result slot takes the focus when a row action finds
+   its security gone (issue 920; the closing act's H8.6 finding, board
+   ux-review-2026-10-03/03-gamma-surface-repairs, G1): brought into view, it
+   stops below the sticky top bar, and a keyboard user sees the house ring. */
+#securities-action-result {
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-3));
+}
+
+#securities-action-result:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
 /* Under a coarse pointer the dismiss keeps a 44 px target the way a note's
    remedy does: 14 px of block padding given back as a negative margin, so
    the line stays 18 px (UX-DR6). Without it, dropping the floor would have

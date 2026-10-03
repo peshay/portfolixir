@@ -199,7 +199,9 @@ tab deleted or merged a security after the list loaded, a row action on its
 row reloads the list instead of doing nothing, closes a detail pane open on
 it, and says why the row went: "“…” was deleted meanwhile; the list is
 reloaded." or "“…” was merged into … meanwhile; the list is reloaded.", the
-security that now carries the history linked.
+security that now carries the history linked. The note is brought to the top
+of the window and takes the keyboard focus, since the menu that had it went
+with the row.
 
 ### Classification columns
 
