@@ -62,6 +62,16 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "#901")
            )
 
+    # F5 extends it: the total across every portfolio, a read with no view,
+    # reached by the view valuation tool without an id (#1007, D-5).
+    assert newest["summary"] =~ "F5"
+    assert "GET /api/v1/valuation" in newest["endpoints"]
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "portfolixir.views.valuation" and &1 =~ "#1007")
+           )
+
     # Sprint 17, PR γ (version 10, after PR β's 9): the operator's due
     # surfaces — the annualized return on both closed-trade reads and the
     # unmatched sells (#984), the merge list's removed bookings per reason

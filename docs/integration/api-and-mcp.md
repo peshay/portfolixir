@@ -2588,6 +2588,16 @@ a view is not journaled: no rule can read it yet.
   portfolio valuation has) returns the roll-up only: totals, cash balances
   and cash quote without the per-position rows, and the response states
   `positions_included`. An invalid value is a `422`.
+- `GET /api/v1/valuation` returns the **total across every portfolio** with no
+  view (#1007): the unscoped union of every depot, position and cash account,
+  each counted once, in EUR — the figure the dashboard's "Gesamt" shows, and
+  the first one a fresh instance can answer, since it has no view yet. The
+  shape is the view valuation's with `view_id: null` and no `view` echo
+  (`overlap` reports no overlap, `matches_no_accounts` is `false`), and the
+  `valuation_note` names the scope. `include_positions=false` returns the
+  roll-up only, as on the view read; an invalid value is a `422`. MCP:
+  `portfolixir.views.valuation` without an `id`. There is no view-less
+  performance or benchmark read: those take a view or a portfolio.
 - `GET /api/v1/views/:view_id/performance` returns the view's TTWROR and
   money-weighted IRR **across all portfolios**: exactly the deduplicated
   account scope the view valuation covers, so the total and the return always
@@ -2949,12 +2959,14 @@ two scopes, and each tool of a pair names the other in its description with
 the difference (Sprint 17, D-6): `portfolixir.portfolios.*` answers one portfolio
 record in its base currency, its `view` narrowing within that portfolio;
 `portfolixir.views.*` answers a view across every portfolio, each account
-counted once, in EUR, and needs an existing view id — a view created with
-`include_all` (the default) and nothing excluded matches every account, so one
-`portfolixir.views.create` gives the total across everything. Until a view
-exists the portfolio tool is the only read: its totals over several portfolios
-add up only when they share one base currency (an account belongs to exactly
-one portfolio), and returns of several portfolios never add up.
+counted once, in EUR. The total across every portfolio needs no view:
+`portfolixir.views.valuation` without an id reads it (`GET /api/v1/valuation`,
+#1007), the figure the dashboard shows, so a sum of portfolio valuations is
+never the route to it. Each of the view performance and benchmark tools
+needs an existing view id — a view created with `include_all` (the default)
+and nothing excluded matches every account — and until a view exists the
+portfolio tool is the only read of a return: returns of several portfolios
+never add up.
 
 **Prompts.** The companion offers two MCP prompts (`prompts/list`,
 `prompts/get`), the same under every profile, each carrying the no-advice
@@ -2963,7 +2975,7 @@ executes them, and nothing places, proposes or sizes a trade.
 
 - `first_setup` checks the instance (`portfolixir.contract.get`) and names the
   active profile, reads what exists, proposes cash accounts, depots, buckets
-  and views (one view with `include_all` for the total across everything),
+  and views (none for the total across everything, which needs no view),
   explains how data gets in, and writes nothing without the operator's
   confirmation.
 - `import_converter` (optional argument `export_file`) guides the user's
@@ -3215,7 +3227,8 @@ names each address's code.
   sets, every target plan scoped to it and every depot snapshot taken in its
   scope; each is journaled as its own delete before the view's.
 - `portfolixir.views.set_buckets`
-- `portfolixir.views.valuation` — scope twin of `portfolixir.portfolios.valuation`.
+- `portfolixir.views.valuation` — scope twin of `portfolixir.portfolios.valuation`;
+  without an `id`, the total of every account (#1007).
 - `portfolixir.views.performance` — scope twin of `portfolixir.portfolios.performance`.
 - `portfolixir.views.benchmark` — scope twin of `portfolixir.portfolios.benchmark`.
 - `portfolixir.securities_accounts.set_buckets`
@@ -3257,8 +3270,9 @@ response then echoes the active view. `portfolixir.portfolios.category_results`
 also takes `view` without `portfolio_id`: the view across every portfolio, in
 EUR (#901).
 `portfolixir.views.valuation` values a view **across all portfolios** in one
-call (each matching account counted once, EUR totals, `overlap` badge data) —
-use it instead of summing per-portfolio valuations client-side.
+call (each matching account counted once, EUR totals, `overlap` badge data),
+and without an `id` the total of every account (#1007) — use it instead of
+summing per-portfolio valuations client-side.
 `portfolixir.views.performance` computes the matching cross-portfolio
 TTWROR/IRR for the same account scope, with boundary-crossing money treated
 as an external flow (ADR-0019).

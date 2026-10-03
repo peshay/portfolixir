@@ -2527,6 +2527,18 @@ nicht journalisiert: Noch keine Regel kann sie lesen.
   Portfolio-Bewertung) liefert nur den Roll-up: Summen, Cash-Salden und
   Cash-Quote ohne die Positionszeilen; die Antwort benennt
   `positions_included`. Ein ungültiger Wert ist ein `422`.
+- `GET /api/v1/valuation` liefert die **Summe über jedes Portfolio** ohne View
+  (#1007): die unbegrenzte Vereinigung aller Depots, Positionen und
+  Geldkonten, jedes einmal gezählt, in EUR — die Zahl, die „Gesamt“ im
+  Dashboard zeigt, und die erste, die eine frische Instanz beantworten kann,
+  da sie noch keine View hat. Die Form ist die der View-Bewertung mit
+  `view_id: null` und ohne `view`-Spiegelung (`overlap` meldet keine
+  Überschneidung, `matches_no_accounts` ist `false`), und die
+  `valuation_note` benennt den Bereich. `include_positions=false` liefert nur
+  den Roll-up, wie bei der View-Abfrage; ein ungültiger Wert ist ein `422`.
+  MCP: `portfolixir.views.valuation` ohne `id`. Eine Performance- oder
+  Benchmark-Abfrage ohne View gibt es nicht: Sie nehmen eine View oder ein
+  Portfolio.
 - `GET /api/v1/views/:view_id/performance` liefert TTWROR und geldgewichtete
   Rendite (IRR) der View **über alle Portfolios**: exakt der deduplizierte
   Konten-Scope, den auch die View-Bewertung abdeckt, sodass Gesamtwert und
@@ -2930,14 +2942,14 @@ in zwei Bereichen, und jedes Tool eines Paares nennt das andere in seiner
 Beschreibung mit dem Unterschied (Sprint 17, D-6): `portfolixir.portfolios.*`
 gilt für einen Portfolio-Datensatz in seiner Basiswährung, sein `view` grenzt
 innerhalb dieses Portfolios ein; `portfolixir.views.*` gilt für eine View über
-jedes Portfolio, jedes Konto einmal gezählt, in EUR, und braucht eine
-bestehende View-ID — eine mit
+jedes Portfolio, jedes Konto einmal gezählt, in EUR. Die Summe über jedes
+Portfolio braucht keine View: `portfolixir.views.valuation` ohne id liest sie
+(`GET /api/v1/valuation`, #1007), die Zahl, die das Dashboard zeigt, also ist
+eine Summe von Portfolio-Bewertungen nie der Weg dorthin. Jedes der Tools für
+View-Performance und View-Benchmark braucht eine bestehende View-ID — eine mit
 `include_all` (Standard) und ohne Ausschluss angelegte View erfasst jedes
-Konto, also ergibt ein `portfolixir.views.create` die Summe über alles. Solange
-keine View besteht, ist das Portfolio-Tool der einzige Lesezugriff: Seine
-Summen über mehrere Portfolios addieren sich nur, wenn sie eine Basiswährung
-teilen (ein Konto gehört genau einem Portfolio), und Renditen mehrerer
-Portfolios addieren sich nie.
+Konto —, und solange keine View besteht, ist das Portfolio-Tool der einzige
+Lesezugriff auf eine Rendite: Renditen mehrerer Portfolios addieren sich nie.
 
 **Prompts.** Der Begleitdienst bietet zwei MCP-Prompts (`prompts/list`,
 `prompts/get`), unter jedem Profil dieselben, und jeder trägt den Rahmen ohne
@@ -2947,9 +2959,9 @@ Trade.
 
 - `first_setup` prüft die Instanz (`portfolixir.contract.get`) und nennt das
   aktive Profil, liest, was vorhanden ist, schlägt Cash-Konten, Depots, Buckets
-  und Views vor (eine View mit `include_all` für die Summe über alles), erklärt,
-  wie Daten hineinkommen, und schreibt nichts ohne die Bestätigung des
-  Betreibers.
+  und Views vor (keine für die Summe über jedes Portfolio, die keine View
+  braucht), erklärt, wie Daten hineinkommen, und schreibt nichts ohne die
+  Bestätigung des Betreibers.
 - `import_converter` (optionales Argument `export_file`) leitet den Agenten
   des Nutzers an, auf dem Rechner des Betreibers einen Konverter von einem
   Bank- oder Broker-Export zu schreiben und auszuführen, der eine
@@ -3216,7 +3228,8 @@ Adresse.
   angelegten Depot-Snapshot; das Journal hält jede als eigene Löschung vor
   der View fest.
 - `portfolixir.views.set_buckets`
-- `portfolixir.views.valuation` — Bereichs-Zwilling von `portfolixir.portfolios.valuation`.
+- `portfolixir.views.valuation` — Bereichs-Zwilling von `portfolixir.portfolios.valuation`;
+  ohne `id` die Summe aller Konten (#1007).
 - `portfolixir.views.performance` — Bereichs-Zwilling von `portfolixir.portfolios.performance`.
 - `portfolixir.views.benchmark` — Bereichs-Zwilling von `portfolixir.portfolios.benchmark`.
 - `portfolixir.securities_accounts.set_buckets`

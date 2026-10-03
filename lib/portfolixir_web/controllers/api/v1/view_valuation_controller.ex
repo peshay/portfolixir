@@ -5,6 +5,12 @@ defmodule PortfolixirWeb.Api.V1.ViewValuationController do
   how many of the view's included buckets it carries. The response includes
   account-level `overlap` data for UI badges and echoes the active view
   (FR-13). Financial decimals are serialized as strings.
+
+  `total/2` serves the same read with no view (#1007, Sprint 18 plan D-5):
+  `GET /api/v1/valuation`, the unscoped union `Valuation.for_view(nil)` that
+  the dashboard's "Gesamt" shows, every account of every portfolio counted
+  once, in EUR, with `view_id` null and no view echo. A fresh instance has no
+  view, so this is the first figure an agent can read without a write.
   """
   use PortfolixirWeb, :controller
 
@@ -32,6 +38,17 @@ defmodule PortfolixirWeb.Api.V1.ViewValuationController do
     else
       {:error, :include_positions} -> unprocessable(conn, %{include_positions: ["is invalid"]})
       _ -> not_found(conn)
+    end
+  end
+
+  def total(conn, params) do
+    case include_positions_param(params) do
+      {:ok, include_positions} ->
+        data = JSON.view_valuation(Valuation.for_view(nil), include_positions: include_positions)
+        json(conn, %{data: data})
+
+      {:error, :include_positions} ->
+        unprocessable(conn, %{include_positions: ["is invalid"]})
     end
   end
 
