@@ -2944,6 +2944,13 @@ of the contribution read (`Performance.Contribution.for_view/2`), and it is
   worlds: remainder lines and a sold position, more than ten positions, an
   unvalued position, a view, before and after a period change, a booking
   behind the open page, and a view deleted behind it.
+- **The two read the same colour, too** (repair R1, board
+  `mockups/ux-review-2026-10-03/01-contribution-repairs`): the badge's money
+  span carries the sign class of the money figure, not the TTWROR's, so a
+  deposit before a fall — a positive return beside a money loss — prints the
+  loss in {colors.danger} above the sum row's red, and a zero takes the
+  badge's flat {colors.text-muted} (`.perf-badge .is-flat`). The `<p>` keeps
+  the TTWROR's class for the percentage.
 - **It loads on its own.** The badge re-chains the cached walk; the table
   runs a windowed walk per period (ADR-0051 §5), async, with the block
   skeleton and the "computing" cue (UX-DR20) while it does. While the badge

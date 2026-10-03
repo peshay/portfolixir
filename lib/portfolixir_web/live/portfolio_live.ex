@@ -1651,7 +1651,14 @@ defmodule PortfolixirWeb.PortfolioLive do
             >
               <strong><%= signed_percent(@performance.ttwror) %>%</strong>
               <span class="perf-badge-sep">·</span>
-              <span data-role="period-badge-money"><%= signed_money(period_value_gain(@performance)) %> <%= @performance.base_currency %></span>
+              <%!-- The money figure's sign is its own: a deposit before a
+                   fall gives a positive TTWROR and a money loss, and the
+                   loss must read red, as the contribution table's sum of
+                   the same figure does (DESIGN.md → Colors). --%>
+              <span
+                class={perf_sign_class(period_value_gain(@performance))}
+                data-role="period-badge-money"
+              ><%= signed_money(period_value_gain(@performance)) %> <%= @performance.base_currency %></span>
               <span class="perf-badge-period">(<%= period_label(@period) %>)</span>
             </p>
             <.performance_chart

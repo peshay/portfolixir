@@ -407,6 +407,10 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
     assert text_of(view, row(delta)) =~ "Delta Shipping ASA 1,500.00 0.00 0.00 0.00 1,500.00 0.00"
     assert text_of(view, "[data-role='contribution-sum-figure']") == "0.00 EUR"
 
+    # R1 (board ux-review-2026-10-03): a zero money figure takes the badge's
+    # flat colour from its own class, whatever the TTWROR beside it.
+    assert has_element?(view, "[data-role='period-badge-money'].is-flat", "0.00 EUR")
+
     view |> element("button[phx-value-period='max']") |> render_click()
     render_async(view)
 
@@ -559,6 +563,57 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
 
     assert text_of(view, "[data-role='contribution-sum-figure']") ==
              text_of(view, "[data-role='period-badge'] [data-role='period-badge-money']")
+  end
+
+  # User story (Sprint 18 PR β design critic, R1; board
+  # ux-review-2026-10-03/01-contribution-repairs; DESIGN.md → Colors,
+  # "Semantic color applies wherever a sign exists"):
+  # As a local portfolio maintainer whose return and money result point in
+  # different directions,
+  # I want the badge's money figure in the colour of its own sign,
+  # so that a loss never reads green above the table's red sum of the same
+  # figure.
+  #
+  # Acceptance criteria:
+  # - With a positive TTWROR and a negative money result, the badge's money
+  #   span carries `is-negative`, as the contribution table's sum figure
+  #   does; the TTWROR keeps its own colour.
+  # - A zero money result takes the badge's flat colour, never the TTWROR's.
+  test "the badge's money figure carries its own sign's colour", %{conn: conn} do
+    # A doubling on 100, then a deposit of 10,000 bought at the top and a 5 %
+    # fall: the time-weighted return is about +90 %, the money result
+    # 51 × 190 − 0 − 10,100 = −410.
+    world = base_world(name: "Timing World", cash_name: "Giro", depot_name: "Depot")
+    echo = create_security!(name: "Echo Rail AG", ticker: "ECHR")
+    d0 = days_ago(100)
+
+    deposit!(world, "100", d0)
+    buy!(world, echo, quantity: "1", price: "100", date: d0)
+    deposit!(world, "10000", Date.add(d0, 31))
+    buy!(world, echo, quantity: "50", price: "200", date: Date.add(d0, 31))
+
+    put_quotes!(echo, [
+      {d0, "100"},
+      {Date.add(d0, 30), "200"},
+      {Date.add(d0, 31), "200"},
+      {today(), "190"}
+    ])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    assert has_element?(view, "[data-role='period-badge'].is-positive")
+
+    assert has_element?(
+             view,
+             "[data-role='period-badge'] [data-role='period-badge-money'].is-negative",
+             "-410.00 EUR"
+           )
+
+    assert has_element?(view, "[data-role='contribution-sum-figure'] span.is-negative", "-410.00")
+
+    css = File.read!("priv/static/app.css")
+    assert css =~ ~r/\.perf-badge \.is-flat\s*\{[^}]*color:\s*var\(--color-text-muted\)/
   end
 
   # User story (FR-41, board pick A, UX-DR27):

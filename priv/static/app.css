@@ -4955,6 +4955,13 @@ details[open] > .disclosure-summary .disclosure-chevron {
 .perf-badge.is-flat {
   color: var(--color-text-muted);
 }
+/* The money figure carries its own sign class (board
+   ux-review-2026-10-03/01-contribution-repairs, R1): the bare .is-positive /
+   .is-negative colour it; a zero takes the badge's flat colour rather than
+   inheriting the TTWROR's. */
+.perf-badge .is-flat {
+  color: var(--color-text-muted);
+}
 .perf-badge-sep,
 .perf-badge-period {
   color: var(--color-text-muted);
