@@ -44,6 +44,17 @@ export async function connectCompanion(
   };
 }
 
+/** The server instructions an MCP host receives with the `initialize` answer. */
+export async function publishedInstructions(options: CompanionOptions = {}) {
+  const companion = await connectCompanion(unreachableApi, options);
+
+  try {
+    return companion.mcp.getInstructions();
+  } finally {
+    await companion.close();
+  }
+}
+
 /** The tool list an MCP host receives from `tools/list`. */
 export async function publishedTools(options: CompanionOptions = {}) {
   const companion = await connectCompanion(unreachableApi, options);

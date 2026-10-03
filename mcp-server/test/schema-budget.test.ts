@@ -6,6 +6,7 @@ import { publishedToolList } from "../src/server.js";
 import { publishedTools } from "./support/companion.js";
 import {
   CEILING_HISTORY,
+  type CeilingRow,
   SCHEMA_CEILINGS as CEILINGS,
   schemaBytes,
   tokenRange
@@ -13,6 +14,20 @@ import {
 
 // The ceilings and the rule that they only ever move down live with the
 // measurement, in ./support/schema-budget.ts.
+//
+// The ceiling history as it must read, row for row (#1027 review round): a
+// literal copy, so no row there can be deleted or edited, the last one
+// included, without this test going red. Lowering a ceiling appends the same
+// row in both places; nothing else changes either list.
+const PINNED_HISTORY: readonly CeilingRow[] = [
+  {
+    since: "2026-10-01",
+    why: "the budget lands (Sprint 17 A3, #994)",
+    read: 106_000,
+    book: 179_000,
+    full: 209_000
+  }
+];
 
 describe("the schema budget", () => {
   // User story (A3, #994):
@@ -61,14 +76,19 @@ describe("the schema budget", () => {
   // - Every ceiling the budget has had is recorded, oldest first, with its
   //   date and its reason; no row sets any profile above the row before it.
   // - The ceilings in force are the last row's.
-  // - The first row is the budget's own baseline (Sprint 17 A3, #994), so a
-  //   history rewritten from its start fails here as well.
+  // - The whole history equals the copy pinned in this file, row for row,
+  //   from the budget's own baseline (Sprint 17 A3, #994) to the last row
+  //   (#1027 review round). Deleting a row or editing one, upward or not,
+  //   fails here; lowering a ceiling means appending its row in both places,
+  //   and the copy is held to the same rule as the history.
   it("only ever lowers a ceiling", () => {
     assert.ok(CEILING_HISTORY.length > 0);
 
     assert.deepEqual(
-      { ...CEILING_HISTORY[0], why: undefined },
-      { since: "2026-10-01", read: 106_000, book: 179_000, full: 209_000, why: undefined }
+      CEILING_HISTORY,
+      PINNED_HISTORY,
+      "the ceiling history differs from the copy pinned in this test: a row is never deleted " +
+        "or edited, and lowering a ceiling appends the same row in both places"
     );
 
     for (let i = 1; i < CEILING_HISTORY.length; i++) {

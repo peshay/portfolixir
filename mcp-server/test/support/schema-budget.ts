@@ -1,5 +1,5 @@
 import type { McpProfile } from "../../src/profiles.js";
-import { publishedToolList } from "../../src/server.js";
+import { publishedToolList, serverInstructions } from "../../src/server.js";
 
 // THE SCHEMA BUDGET (Sprint 17 A3, #994). The ceilings were set at the
 // figures measured on 2026-10-01, the day the budget landed, each rounded up
@@ -12,9 +12,11 @@ import { publishedToolList } from "../../src/server.js";
 // docs/llms.txt states figures no higher than these (test/llms-entry.test.ts).
 //
 // Lowering a ceiling appends a row below, with its date and why; a row is
-// history and is never edited. The test refuses a row that sets any profile
-// above the row before it (#1027), and the ceilings in force are the last
-// row's.
+// history and is never edited or deleted. The test refuses a row that sets
+// any profile above the row before it (#1027), and the ceilings in force are
+// the last row's. It also holds a literal copy of every row (#1027 review
+// round), so the same row is appended there too, and a row deleted or edited
+// here alone fails it.
 export interface CeilingRow {
   since: string;
   why: string;
@@ -51,6 +53,17 @@ export const SCHEMA_CEILINGS: Record<McpProfile, number> = {
  */
 export function schemaBytes(profile: McpProfile): number {
   return Buffer.byteLength(JSON.stringify(publishedToolList({ profile })), "utf8");
+}
+
+/**
+ * The rest of what connecting costs (#1027 review round): the server
+ * instructions an `initialize` answer carries under a profile, counted in
+ * UTF-8 bytes like the tool list. They hold no budget of their own;
+ * docs/llms.txt states their range across the profiles
+ * (test/llms-entry.test.ts).
+ */
+export function instructionsBytes(profile: McpProfile): number {
+  return Buffer.byteLength(serverInstructions({ profile }), "utf8");
 }
 
 /**

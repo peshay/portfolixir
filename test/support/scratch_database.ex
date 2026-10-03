@@ -80,12 +80,27 @@ defmodule Portfolixir.ScratchDatabase do
   Drops the scratch databases a test VM left behind when it was killed before
   its `on_exit` ran (#1022): each one named as a scratch database of this test
   database (`<base>_<suffix>_<OS pid>_<n>`) whose VM, the OS process its name
-  carries, no longer runs, and to which nothing is connected. A database of a
-  VM that still runs, in this checkout or another one sharing the server, is
-  never touched. `start!/1` runs it once per VM. Answers the names dropped.
+  carries, no longer runs, and to which nothing is connected. `start!/1` runs
+  it once per VM. Answers the names dropped.
+
+  The pid check only holds for VMs that the same user runs in this host's PID
+  namespace. `kill -0` cannot see a process in another container or on another
+  host, and reads one it may not signal (another user's) as gone; for such a
+  VM, the only guard left is that nothing is connected, and a fresh scratch
+  database has no connection between its creation and its first connect. A
+  run that shares the database server from elsewhere must therefore use a base
+  of its own (`DATABASE_NAME`, as the development guide's recipe for a second
+  checkout shows), so that none of its scratch databases is named like this
+  base's.
+
+  A database that something connects to between the sweep's look and its DROP,
+  or one a concurrent sweep dropped first, is skipped rather than raised (#1022
+  review round). `:before_drop`, a function called with each name just before
+  its DROP, lets a test stage that race.
   """
-  @spec sweep!() :: [String.t()]
-  def sweep! do
+  @spec sweep!(keyword()) :: [String.t()]
+  def sweep!(opts \\ []) do
+    before_drop = Keyword.get(opts, :before_drop, fn _name -> :ok end)
     base = Keyword.fetch!(Repo.config(), :database)
     shape = ~r/^#{Regex.escape(base)}_[a-z]+_(\d+)_\d+$/
 
@@ -111,12 +126,30 @@ defmodule Portfolixir.ScratchDatabase do
 
       for [name] <- rows,
           [_name, os_pid] <- [Regex.run(shape, name)],
-          not running?(os_pid) do
-        Postgrex.query!(conn, ~s(DROP DATABASE IF EXISTS "#{name}"), [])
-        name
-      end
+          not running?(os_pid),
+          drop_unused(conn, name, before_drop) == :dropped,
+          do: name
     after
       GenServer.stop(conn)
+    end
+  end
+
+  # Postgres refuses to drop a database a session is connected to (55006
+  # object_in_use, after waiting up to five seconds for it to leave), and one
+  # already dropped is gone (3D000 invalid_catalog_name). Either is skipped.
+  defp drop_unused(conn, name, before_drop) do
+    before_drop.(name)
+
+    case Postgrex.query(conn, ~s(DROP DATABASE "#{name}"), []) do
+      {:ok, _result} ->
+        :dropped
+
+      {:error, %Postgrex.Error{postgres: %{code: code}}}
+      when code in [:object_in_use, :invalid_catalog_name] ->
+        :skipped
+
+      {:error, error} ->
+        raise error
     end
   end
 
