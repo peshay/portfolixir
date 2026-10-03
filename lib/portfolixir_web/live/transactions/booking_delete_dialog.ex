@@ -91,15 +91,14 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
   @doc """
   Runs the delete `deleting` (what `prepare/2` built) confirmed, as `actor`:
   `{:ok, message}` for the page's result slot, `:gone` when nothing of it is
-  stored any more, `{:error, message}` when the ledger refused, and — for a
-  split that gained a row the dialog did not list — `{:changed, deleting}`,
-  the dialog's new state, with nothing deleted.
+  stored any more, and — for a split that gained a row the dialog did not
+  list — `{:changed, deleting}`, the dialog's new state, with nothing
+  deleted. The ledger refuses a delete of nothing but a row that is gone
+  (`Ledger.delete_transaction/2` and `Splits.delete_split/3` answer
+  `{:error, :not_found}` and, held to listed rows, `{:error, :changed}`).
   """
   @spec delete(Portfolixir.Actor.t(), map()) ::
-          {:ok, String.t() | Phoenix.HTML.safe()}
-          | :gone
-          | {:changed, map()}
-          | {:error, String.t()}
+          {:ok, Phoenix.HTML.safe()} | :gone | {:changed, map()}
   def delete(actor, %{kind: :split} = deleting), do: delete_event(actor, deleting)
 
   def delete(actor, %{id: id} = deleting) do
@@ -144,7 +143,6 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
     case Ledger.delete_transaction(actor, transaction) do
       {:ok, _deleted} -> {:ok, deleting.done}
       {:error, :not_found} -> :gone
-      {:error, _changeset} -> {:error, gettext("The booking could not be deleted.")}
     end
   end
 
@@ -387,19 +385,13 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
     cash = cash_clauses(transaction, effects.cash, names, context)
     clauses = quantity_clauses(transaction, effects.quantities, names) ++ cash
 
-    lead =
-      case clauses do
-        [] ->
-          []
+    # The first clause leads ("Afterwards …"), the rest follow ("and …").
+    pieces =
+      clauses
+      |> Enum.with_index()
+      |> Enum.map(fn {c, i} -> c |> clause(if(i == 0, do: :lead, else: :follow)) |> elem(1) end)
 
-        [first | rest] ->
-          pieces =
-            [clause(first, :lead) | Enum.map(rest, &clause(&1, :follow))]
-            |> Enum.map(fn {:safe, iodata} -> iodata end)
-            |> Enum.intersperse(", ")
-
-          [{:safe, [pieces, "."]}]
-      end
+    lead = if pieces == [], do: [], else: [{:safe, [Enum.intersperse(pieces, ", "), "."]}]
 
     lead ++ unchanged_from(cash) ++ [recompute_sentence()]
   end
@@ -513,18 +505,13 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
             bindings
           )
 
+        # A quantity clause follows another only as a security transfer's
+        # counter leg, which the transfer added shares to: the delete takes
+        # them away (Projection.effects/1 lists the leg that gives first).
         {:follow, true} ->
           ngettext(
             "and %{depot} holds %{quantity} fewer unit of %{security}",
             "and %{depot} holds %{quantity} fewer units of %{security}",
-            n,
-            bindings
-          )
-
-        {:follow, false} ->
-          ngettext(
-            "and %{depot} holds %{quantity} more unit of %{security}",
-            "and %{depot} holds %{quantity} more units of %{security}",
             n,
             bindings
           )
@@ -635,20 +622,16 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
     kind = TransactionKindLabel.label(transaction.type)
     date = Format.date(transaction.date)
 
-    case booking_subject(transaction, names).ids do
-      nil ->
-        gettext("Transaction deleted: %{kind} · %{date}.", kind: kind, date: date)
-
-      _ids ->
-        StoredText.isolate(
-          gettext("Transaction deleted: %{kind} · %{subject} · %{date}.",
-            kind: kind,
-            subject: StoredText.slot(:subject),
-            date: date
-          ),
-          subject: names.security_label || names.cash || names.depot
-        )
-    end
+    # Every kind names a security or an account: the page's lists hold
+    # every account a booking can carry.
+    StoredText.isolate(
+      gettext("Transaction deleted: %{kind} · %{subject} · %{date}.",
+        kind: kind,
+        subject: StoredText.slot(:subject),
+        date: date
+      ),
+      subject: names.security_label || names.cash || names.depot
+    )
   end
 
   # -- a split ---------------------------------------------------------------------
@@ -704,8 +687,9 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
     }
   end
 
-  defp portfolio_name(%{portfolio: %{name: name}}) when is_binary(name), do: name
-  defp portfolio_name(_row), do: "—"
+  # Splits.event_rows/1 preloads each row's portfolio, which a split row
+  # always has.
+  defp portfolio_name(%{portfolio: %{name: name}}), do: name
 
   # A split in one portfolio is that portfolio's row: the dialog names no
   # row for it (the closing act, R10d).
@@ -740,9 +724,8 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
     )
   end
 
-  # "A, B and C", each name isolated (the list is markup a slot takes).
-  defp name_list([name]), do: name
-
+  # "A, B and C", each name isolated (the list is markup a slot takes); a
+  # split in one portfolio has its own sentence.
   defp name_list(names) do
     {init, [last]} = Enum.split(names, -1)
 

@@ -803,7 +803,6 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         {:ok, message} -> {:noreply, socket |> success(message) |> load_state()}
         {:changed, fresh} -> {:noreply, socket |> assign(:deleting, fresh) |> load_state()}
         :gone -> {:noreply, socket |> failure(gone_message()) |> load_state()}
-        {:error, message} -> {:noreply, socket |> failure(message) |> load_state()}
       end
     else
       _stale -> {:noreply, socket}
