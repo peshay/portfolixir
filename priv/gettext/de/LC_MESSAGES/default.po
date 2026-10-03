@@ -8616,8 +8616,8 @@ msgstr[0] "Wählen, was mit der gleichen Buchung geschieht."
 msgstr[1] "Wählen, was mit den %{count} gleichen Buchungen geschieht."
 
 #: lib/portfolixir_web/live/portfolio_accounts/merge_dialog.ex:403
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:449
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1450
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:456
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1451
 #, elixir-autogen, elixir-format
 msgid "%{count} booking moved"
 msgid_plural "%{count} bookings moved"
@@ -8625,9 +8625,9 @@ msgstr[0] "%{count} Buchung verschoben"
 msgstr[1] "%{count} Buchungen verschoben"
 
 #: lib/portfolixir_web/live/portfolio_accounts/merge_dialog.ex:404
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:440
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:481
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:591
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:447
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:488
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:598
 #, elixir-autogen, elixir-format
 msgid "%{count} removed"
 msgid_plural "%{count} removed"
@@ -8958,9 +8958,9 @@ msgid_plural "the name of %{count} accounts"
 msgstr[0] "Name von %{count} Konto"
 msgstr[1] "Name von %{count} Konten"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:422
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:712
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1452
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:425
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:730
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1453
 #, elixir-autogen, elixir-format
 msgid "%{count} duplicate removed"
 msgid_plural "%{count} duplicates removed"
@@ -8988,16 +8988,16 @@ msgid_plural "%{count} move"
 msgstr[0] "%{count} wechselt"
 msgstr[1] "%{count} wechseln"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:426
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1453
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:433
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1463
 #, elixir-autogen, elixir-format
 msgid "%{count} quote added"
 msgid_plural "%{count} quotes added"
 msgstr[0] "%{count} Kurs ergänzt"
 msgstr[1] "%{count} Kurse ergänzt"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:429
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1454
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:436
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1464
 #, elixir-autogen, elixir-format
 msgid "%{count} setting dropped"
 msgid_plural "%{count} settings dropped"
@@ -9138,7 +9138,7 @@ msgstr "ISIN danach"
 msgid "ISIN change on"
 msgstr "ISIN-Wechsel am"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1468
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1478
 #, elixir-autogen, elixir-format
 msgid "ISIN now %{isin}."
 msgstr "ISIN jetzt %{isin}."
@@ -9163,7 +9163,7 @@ msgstr "Stammdaten, die sich unterscheiden"
 msgid "Merge the other way"
 msgstr "Andersherum zusammenführen"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1465
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1475
 #, elixir-autogen, elixir-format
 msgid "Merged into %{target}: %{parts}."
 msgstr "Zusammengeführt in %{target}: %{parts}."
@@ -9460,12 +9460,12 @@ msgid_plural "bookings move to the target"
 msgstr[0] "Buchung wechselt zum Ziel"
 msgstr[1] "Buchungen wechseln zum Ziel"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1482
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1492
 #, elixir-autogen, elixir-format
 msgid "bookings of the source"
 msgstr "Buchungen der Quelle"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1483
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1493
 #, elixir-autogen, elixir-format
 msgid "bookings of the target"
 msgstr "Buchungen des Ziels"
@@ -9566,7 +9566,7 @@ msgid_plural "quotes of the source fill gaps in the target"
 msgstr[0] "Kurs der Quelle füllt eine Lücke im Ziel"
 msgstr[1] "Kurse der Quelle füllen Lücken im Ziel"
 
-#: lib/portfolixir_web/live/securities/merge_preview.ex:1493
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1503
 #, elixir-autogen, elixir-format
 msgid "quotes of the source"
 msgstr "Kurse der Quelle"
@@ -10038,22 +10038,22 @@ msgid_plural "%{count} entries · latest %{date}"
 msgstr[0] "%{count} Eintrag · zuletzt %{date}"
 msgstr[1] "%{count} Einträge · zuletzt %{date}"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:654
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:661
 #, elixir-autogen, elixir-format
 msgid "%{isin} adopted from the source"
 msgstr "%{isin} von der Quelle übernommen"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:649
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:656
 #, elixir-autogen, elixir-format
 msgid "%{isin} adopted; %{former} is now a former ISIN"
 msgstr "%{isin} übernommen; %{former} ist jetzt frühere ISIN"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:645
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:652
 #, elixir-autogen, elixir-format
 msgid "%{isin} stays; %{former} is now a former ISIN"
 msgstr "%{isin} bleibt; %{former} ist jetzt frühere ISIN"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:682
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:696
 #, elixir-autogen, elixir-format
 msgid "Balance confirmed %{days}"
 msgstr "Saldo %{days} bestätigt"
@@ -10074,12 +10074,12 @@ msgstr "Zusammenführungen"
 msgid "No merge yet — “Merge into…” is in the row menu of every account, depot and security."
 msgstr "Noch keine Zusammenführung — „Zusammenführen in…“ steht im Zeilenmenü jedes Kontos, Depots und Wertpapiers."
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:690
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:704
 #, elixir-autogen, elixir-format
 msgid "Quantity confirmed %{days} for %{securities}"
 msgstr "Stückzahl %{days} für %{securities} bestätigt"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:703
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:717
 #, elixir-autogen, elixir-format
 msgid "Quantity confirmed %{days} in %{depots}"
 msgstr "Stückzahl %{days} in %{depots} bestätigt"
@@ -10109,24 +10109,25 @@ msgstr "ein inzwischen gelöschtes Depot"
 msgid "a security deleted since"
 msgstr "ein inzwischen gelöschtes Wertpapier"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:650
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:657
 #, elixir-autogen, elixir-format
 msgid "change dated %{date}"
 msgstr "Änderung vom %{date}"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:666
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:673
 #, elixir-autogen, elixir-format
 msgid "equal bookings: both kept"
 msgstr "gleiche Buchungen: beide behalten"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:665
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:672
 #, elixir-autogen, elixir-format
 msgid "equal bookings: removed as duplicates"
 msgstr "gleiche Buchungen: als Duplikate entfernt"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:679
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:687
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:700
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:690
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:693
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:701
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:714
 #, elixir-autogen, elixir-format
 msgid "nothing to check"
 msgstr "nichts zu prüfen"
@@ -10158,7 +10159,7 @@ msgid_plural "the newest %{count} · latest %{date}"
 msgstr[0] "die neuesten %{count} · zuletzt %{date}"
 msgstr[1] "die neuesten %{count} · zuletzt %{date}"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:705
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:719
 #, elixir-autogen, elixir-format
 msgctxt "merge check"
 msgid "%{count} depot"
@@ -10166,7 +10167,7 @@ msgid_plural "%{count} depots"
 msgstr[0] "%{count} Depot"
 msgstr[1] "%{count} Depots"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:693
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:707
 #, elixir-autogen, elixir-format
 msgctxt "merge check"
 msgid "%{count} security"
@@ -10174,7 +10175,7 @@ msgid_plural "%{count} securities"
 msgstr[0] "%{count} Wertpapier"
 msgstr[1] "%{count} Wertpapiere"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:675
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:685
 #, elixir-autogen, elixir-format
 msgctxt "merge check"
 msgid "on %{count} day"
@@ -10182,7 +10183,7 @@ msgid_plural "on %{count} days"
 msgstr[0] "an %{count} Tag"
 msgstr[1] "an %{count} Tagen"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:517
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:524
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} added"
@@ -10190,7 +10191,7 @@ msgid_plural "%{count} added"
 msgstr[0] "%{count} ergänzt"
 msgstr[1] "%{count} ergänzt"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:488
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:495
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} adjusted"
@@ -10198,7 +10199,7 @@ msgid_plural "%{count} adjusted"
 msgstr[0] "%{count} angepasst"
 msgstr[1] "%{count} angepasst"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:533
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:540
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} assignment moved"
@@ -10206,7 +10207,7 @@ msgid_plural "%{count} assignments moved"
 msgstr[0] "%{count} Zuordnung verschoben"
 msgstr[1] "%{count} Zuordnungen verschoben"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:739
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:757
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} carried over"
@@ -10214,7 +10215,7 @@ msgid_plural "%{count} carried over"
 msgstr[0] "%{count} übernommen"
 msgstr[1] "%{count} übernommen"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:576
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:583
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} cleared on the target"
@@ -10222,7 +10223,7 @@ msgid_plural "%{count} cleared on the target"
 msgstr[0] "%{count} beim Ziel geleert"
 msgstr[1] "%{count} beim Ziel geleert"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:633
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:640
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} difference"
@@ -10230,7 +10231,7 @@ msgid_plural "%{count} differences"
 msgstr[0] "%{count} Abweichung"
 msgstr[1] "%{count} Abweichungen"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:620
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:627
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} differs, the target's stands"
@@ -10238,7 +10239,7 @@ msgid_plural "%{count} differ, the target's stand"
 msgstr[0] "%{count} abweichend, das des Ziels gilt"
 msgstr[1] "%{count} abweichend, die des Ziels gelten"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:736
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:754
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} dropped"
@@ -10246,7 +10247,7 @@ msgid_plural "%{count} dropped"
 msgstr[0] "%{count} entfallen"
 msgstr[1] "%{count} entfallen"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:520
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:527
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} dropped, the target had one on that day"
@@ -10254,7 +10255,7 @@ msgid_plural "%{count} dropped, the target had one on those days"
 msgstr[0] "%{count} verworfen, das Ziel hatte an diesem Tag einen"
 msgstr[1] "%{count} verworfen, das Ziel hatte an diesen Tagen einen"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:612
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:619
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} field adopted, the target had none"
@@ -10262,7 +10263,7 @@ msgid_plural "%{count} fields adopted, the target had none"
 msgstr[0] "%{count} Feld übernommen, das Ziel hatte keins"
 msgstr[1] "%{count} Felder übernommen, das Ziel hatte keine"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:716
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:734
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} internal transfer dropped"
@@ -10270,8 +10271,8 @@ msgid_plural "%{count} internal transfers dropped"
 msgstr[0] "%{count} interne Umbuchung entfallen"
 msgstr[1] "%{count} interne Umbuchungen entfallen"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:473
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:735
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:480
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:753
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} moved"
@@ -10279,7 +10280,7 @@ msgid_plural "%{count} moved"
 msgstr[0] "%{count} verschoben"
 msgstr[1] "%{count} verschoben"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:504
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:511
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} moved to the target"
@@ -10287,7 +10288,7 @@ msgid_plural "%{count} moved to the target"
 msgstr[0] "%{count} zum Ziel verschoben"
 msgstr[1] "%{count} zum Ziel verschoben"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:600
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:607
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} not kept"
@@ -10295,7 +10296,7 @@ msgid_plural "%{count} not kept"
 msgstr[0] "%{count} nicht übernommen"
 msgstr[1] "%{count} nicht übernommen"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:491
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:498
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} now covers both accounts"
@@ -10303,7 +10304,7 @@ msgid_plural "%{count} now cover both accounts"
 msgstr[0] "%{count} gilt jetzt für beide Konten"
 msgstr[1] "%{count} gelten jetzt für beide Konten"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:563
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:570
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} of the source"
@@ -10311,7 +10312,7 @@ msgid_plural "%{count} of the source"
 msgstr[0] "%{count} der Quelle"
 msgstr[1] "%{count} der Quelle"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:566
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:573
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} of the target"
@@ -10319,7 +10320,7 @@ msgid_plural "%{count} of the target"
 msgstr[0] "%{count} des Ziels"
 msgstr[1] "%{count} des Ziels"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:550
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:557
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} possibly twice now"
@@ -10327,7 +10328,7 @@ msgid_plural "%{count} possibly twice now"
 msgstr[0] "%{count} jetzt möglicherweise doppelt"
 msgstr[1] "%{count} jetzt möglicherweise doppelt"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:725
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:743
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} same-day set balance dropped"
@@ -10335,7 +10336,8 @@ msgid_plural "%{count} same-day set balances dropped"
 msgstr[0] "%{count} gesetzter Saldo desselben Tages entfallen"
 msgstr[1] "%{count} gesetzte Salden desselben Tages entfallen"
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:733
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:751
+#: lib/portfolixir_web/live/securities/merge_preview.ex:1457
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} split collapsed"

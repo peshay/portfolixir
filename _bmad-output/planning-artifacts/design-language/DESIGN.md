@@ -2795,9 +2795,10 @@ be the two-way gap in the other direction.
   until tokens carry names people chose (FU-6).
 - **The result** is a `<details class="merge-manifest">` whose summary is the
   confirmation's own phrase: for an account or a depot "142 bookings moved,
-  6 removed", for a security "21 bookings moved, 1 duplicate removed, 380
-  quotes added, 2 settings dropped". A part that is zero is left out, the
-  moved bookings never. Opened, a `<dl class="merge-manifest__counts">` names
+  6 removed", for a security "21 bookings moved, 1 duplicate removed, 1
+  split collapsed, 380 quotes added, 2 settings dropped" (the collapsed
+  split since Sprint 18 H8.7, issue 1032). A part that is zero is left out,
+  the moved bookings never. Opened, a `<dl class="merge-manifest__counts">` names
   one line per table with a figure other than zero, then the choice and the
   check, and the basis line "Counted from the merge's record; every single
   row is in the audit journal." Every manifest key has a fixed label; a raw
@@ -3762,6 +3763,30 @@ Built in `securities_live.ex` (`vanished/2`); the API and MCP are unchanged.
 - **Why not silent (variant B):** for a delete the row going is what was
   asked for; for Edit, Retire or Merge into… it is not, and a row vanishing
   without a word reads as a lost click.
+
+### Merge records: the result phrase and empty merges *(H8.7, issue 1032, the UI half)*
+
+Built in `portfolio_accounts/merge_records.ex` and
+`securities/merge_preview.ex`; the merge record's payload and
+`GET /api/v1/merges` are unchanged.
+
+- **The security phrase counts every removal**: "142 bookings moved, 2
+  duplicates removed, **1 split collapsed**, 30 quotes added" (de "… 2
+  Duplikate entfernt, 1 Split zusammengelegt, 30 Kurse ergänzt"), in the
+  merge record list and in the result right after the merge ("Merged into
+  …: …"). It uses the open line's own msgid (`pngettext("merge record",
+  "%{count} split collapsed", …)`), after the duplicates. No total ("3
+  removed") as an account merge reads: it would mix the operator's choice
+  (duplicates) with an automatic step (a same-day split).
+- **An empty merge reads "nothing to check" for every kind** (de "nichts zu
+  prüfen"). The rule is in the words: the check line keys on the source
+  having moved nothing — no booking moved, none removed. The cash writer
+  checks today and the target's own booking dates, so its day count alone
+  read "Balance confirmed on 3 days" for an empty source merged into an
+  account with history; a payload change (the writer counting nothing when
+  nothing moves) would have needed a contract entry and was not taken.
+- **The liveness half changes no picture** and is not built here: the page
+  already resolves a later-merged or deleted target from its own rows.
 
 ### Stored names in results and headings *(H8.8, issue 968)*
 
