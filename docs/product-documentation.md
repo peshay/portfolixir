@@ -791,12 +791,16 @@ deposit, a transfer, a delivery, a set balance, a split — opens the drawer
 **notes-only**: the booking's own facts are shown and fixed (the type, the
 date and whatever the kind stores — the security, the cash account or both
 accounts of a transfer, the depot, the amount, the taxes, the quantity and
-price), and only its **note** is editable (**Save note**, journaled like
-every change). One help line says how such a booking is corrected: in place
-over the API or the MCP companion, or by deleting it and importing it again
-— a set balance is set again under **Accounts & depots** — and carries
-**Delete…**, which closes the drawer and opens the delete confirmation
-below.
+price, each figure with the digits it was stored with), and only its
+**note** is editable (**Save note**; the audit journal records the change
+like every other). One help line says how such a booking is corrected: in
+place over the API or the MCP companion, or by deleting it and importing it
+again — for a booking an import brought in; one booked over the API or MCP
+is deleted and booked again there, and a set balance is set again under
+**Accounts & depots** — and carries **Delete…**, which closes the drawer
+and opens the delete confirmation below. Closing the drawer — **Cancel**,
+Esc, the close button or **Save note** — returns the focus to the row's
+menu button, with "Note saved" in view.
 
 **A booked split** is notes-only too (E25 S6): a split is a fact about the
 security, booked through **Record split** on the security, whose checks
@@ -815,26 +819,40 @@ size — and says what changes: for example "Afterwards Depot 1 holds 40 fewer
 units of Global Equity ETF, and Checking has 2,504.90 EUR more.", that
 holdings, balances, returns and trades are recomputed without the booking,
 and that the audit journal keeps the booking with all its values while the
-screen cannot bring it back. Where a later set balance anchors that cash
-account, the confirmation says the anchor still holds from its day on.
-**Delete transaction** deletes it; **Cancel**, Esc or the close button
-change nothing. The row disappears, the month subtotal follows, and the
-result reads "Transaction deleted: Buy · Global Equity ETF · 2026-09-22."; a
-booking deleted meanwhile (by the agent, or in another tab) reads "That
-transaction no longer exists." — the one refusal the API knows. Nothing is
-checked beyond that, as over the API: deleting a buy whose shares a later
-sale consumed leaves that sale without its purchase.
+screen cannot bring it back. The confirmation is built from the booking as
+it is stored when **Delete…** is chosen. A quantity is stated at today's
+count: a buy of 10 before a 2:1 split reads "20 fewer units", which is what
+the holdings lose. Where a later set balance anchors that cash account, the
+clause says until when the account changes and the next sentence from when
+it stays as set: "… and Checking has 2,504.90 EUR more until 2026-09-30.
+From the balance set on 2026-10-01 on, the balance of Checking stays
+unchanged."; a balance set on the booking's own day means the account's
+balance stays as set. A security whose name another security also carries
+is named with its ISIN, as the row's menu names it. **Delete transaction**
+deletes it; **Cancel**, Esc or the close button change nothing and return
+the focus to the row's menu button. The row disappears, the month subtotal
+follows, and the result reads "Transaction deleted: Buy · Global Equity
+ETF · 2026-09-22."; a booking deleted meanwhile (by the agent, or in
+another tab) reads "That transaction no longer exists." — the one refusal
+the API knows. Nothing is checked beyond that, as over the API: deleting a
+buy whose shares a later sale consumed leaves that sale without its
+purchase.
 
-- **An imported booking** says so: its content hash goes with it, so
-  importing the same file again books it again. Only merging an account,
-  depot or security retires a content hash.
+- **An imported booking** says so: once deleted, the import no longer knows
+  it, so importing the same file again books it again. Only merging an
+  account, depot or security retires that record.
 - **A split** is deleted the way it was booked, as one fact: **Delete…** on
   any of its rows opens **Delete split**, naming the ratio, the number of
   rows and the portfolios whose rows go — "Delete split (2 rows)" deletes
-  them all in one step, journaled. Afterwards the holdings count without the
-  split from its date, the chart's price series is computed without it, and
-  stored quotes stay as they are; **Record split** then accepts the
-  corrected ratio. **Record split** itself leads here: where a split with
+  them all in one step, journaled; a split in one portfolio is named without
+  a row count. The confirm deletes the rows the confirmation listed: one of
+  them deleted meanwhile, the rest still go; a row added meanwhile (a
+  re-book in another portfolio) deletes nothing, and the confirmation shows
+  the split as it now is — "The split changed while this dialog was open.
+  Nothing was deleted; the dialog now shows the new state." — to be
+  confirmed again. Afterwards the holdings count without the split from its
+  date, the chart's price series is computed without it, and stored quotes
+  stay as they are; **Record split** then accepts the corrected ratio. **Record split** itself leads here: where a split with
   another ratio is already booked on the day, its warning names that ratio
   and carries **Delete the booked split…**, which opens the same
   confirmation on the security's page.

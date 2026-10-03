@@ -861,12 +861,17 @@ Einlieferung, einem gesetzten Saldo, einem Split — öffnet die Schublade
 **nur für die Notiz**: Die Angaben der Buchung stehen fest da (Typ, Datum und
 was die Art speichert — das Wertpapier, das Verrechnungskonto oder beide
 Konten einer Umbuchung, das Depot, den Betrag, die Steuern, Stückzahl und
-Preis), und nur die **Notiz** ist änderbar (**Notiz speichern**,
-journalisiert wie jede Änderung). Eine Hilfezeile sagt, wie eine solche
+Preis, jede Zahl mit den Stellen, mit denen sie gespeichert ist), und nur
+die **Notiz** ist änderbar (**Notiz speichern**; das Audit-Journal hält die
+Änderung fest wie jede andere). Eine Hilfezeile sagt, wie eine solche
 Buchung korrigiert wird: an Ort und Stelle über die API oder den
-MCP-Begleiter, oder indem sie gelöscht und neu importiert wird — ein
-gesetzter Saldo wird unter **Konten & Depots** neu gesetzt —, und trägt
-**Löschen…**, das die Schublade schließt und die Rückfrage unten öffnet.
+MCP-Begleiter, oder indem sie gelöscht und neu importiert wird — bei einer
+Buchung aus einem Import; eine über API oder MCP gebuchte wird gelöscht und
+dort neu gebucht, ein gesetzter Saldo unter **Konten & Depots** neu
+gesetzt —, und trägt **Löschen…**, das die Schublade schließt und die
+Rückfrage unten öffnet. Wer die Schublade schließt — **Abbrechen**, Esc,
+die Schließen-Schaltfläche oder **Notiz speichern** —, findet den Fokus
+wieder auf der Menü-Schaltfläche der Zeile, „Notiz gespeichert“ im Blick.
 
 **Ein gebuchter Split** öffnet ebenfalls nur die Notiz (E25 S6): Ein Split
 ist eine Tatsache am Wertpapier, gebucht über **Split erfassen** am
@@ -886,29 +891,47 @@ Vorzeichen über seiner Größe — und sagt, was sich ändert: zum Beispiel
 „Danach hält Depot 1 40 Stück Global Aktien ETF weniger, und Girokonto hat
 2.504,90 EUR mehr.“, dass Bestände, Kontostände, Rendite und Trades ohne die
 Buchung neu berechnet werden und dass das Audit-Journal die Buchung mit allen
-Werten behält, die Oberfläche sie aber nicht zurückholen kann. Wo ein später
-gesetzter Saldo dieses Verrechnungskonto verankert, sagt die Rückfrage, dass
-er ab seinem Tag unverändert gilt. **Transaktion löschen** löscht sie;
-**Abbrechen**, Esc oder die Schließen-Schaltfläche ändern nichts. Die Zeile
-verschwindet, die Monatssumme folgt, und das Ergebnis lautet „Transaktion
-gelöscht: Kauf · Global Aktien ETF · 22.09.2026.“; eine inzwischen gelöschte
+Werten behält, die Oberfläche sie aber nicht zurückholen kann. Die Rückfrage
+entsteht aus der Buchung, wie sie beim Wählen von **Löschen…** gespeichert
+ist. Eine Stückzahl nennt sie zum heutigen Stand: Ein Kauf von 10 Stück vor
+einem 2:1-Split liest „20 Stück weniger“, so viel verlieren die Bestände. Wo
+ein später gesetzter Saldo dieses Verrechnungskonto verankert, sagt der
+Satz, bis wann sich das Konto ändert, und der nächste, ab wann es bleibt,
+wie gesetzt: „… und Girokonto hat bis zum 30.09.2026 2.504,90 EUR mehr. Ab
+dem am 01.10.2026 gesetzten Saldo bleibt der Stand von Girokonto
+unverändert.“; ein am Tag der Buchung gesetzter Saldo heißt, der Stand des
+Kontos bleibt, wie er gesetzt wurde. Ein Wertpapier, dessen Namen ein
+anderes auch trägt, wird mit seiner ISIN genannt, wie das Zeilenmenü es
+nennt. **Transaktion löschen** löscht sie; **Abbrechen**, Esc oder die
+Schließen-Schaltfläche ändern nichts und geben den Fokus an die
+Menü-Schaltfläche der Zeile zurück. Die Zeile verschwindet, die Monatssumme
+folgt, und das Ergebnis lautet „Transaktion gelöscht: Kauf · Global Aktien
+ETF · 22.09.2026.“; eine inzwischen gelöschte
 Buchung (vom Agenten oder in einem anderen Tab) liest „Diese Transaktion
 existiert nicht mehr.“ — die eine Ablehnung, die die API kennt. Darüber
 hinaus wird nichts geprüft, wie über die API: Wird ein Kauf gelöscht, dessen
 Stücke ein späterer Verkauf verbraucht hat, fehlt diesem Verkauf danach sein
 Kauf.
 
-- **Eine importierte Buchung** sagt es: Mit ihr geht ihr Inhalts-Hash, ein
-  erneuter Import derselben Datei bucht sie also wieder. Einen Inhalts-Hash
-  legt nur das Zusammenführen eines Kontos, Depots oder Wertpapiers still.
+- **Eine importierte Buchung** sagt es: Gelöscht, kennt der Import sie nicht
+  mehr, ein erneuter Import derselben Datei bucht sie also wieder. Diesen
+  Vermerk legt nur das Zusammenführen eines Kontos, Depots oder Wertpapiers
+  still.
 - **Ein Split** wird so gelöscht, wie er gebucht wurde, als eine Tatsache:
   **Löschen…** an einer beliebigen seiner Zeilen öffnet **Split löschen**
   mit dem Verhältnis, der Zahl der Zeilen und den Portfolios, deren Zeilen
   mitgehen — „Split löschen (2 Zeilen)“ löscht sie alle in einem Schritt,
-  journalisiert. Danach zählen die Bestände ab seinem Stichtag ohne den
-  Split, das Diagramm rechnet die Kursreihe ohne ihn, und gespeicherte Kurse
-  bleiben, wie sie sind; **Split erfassen** nimmt danach das korrigierte
-  Verhältnis an. **Split erfassen** selbst führt hierher: Ist am Tag schon
+  im Audit-Journal festgehalten; ein Split in einem Portfolio wird ohne
+  Zeilenzahl genannt. Die Bestätigung löscht die Zeilen, die die Rückfrage
+  aufgezählt hat: Ist eine davon inzwischen gelöscht, gehen die übrigen
+  trotzdem; ist inzwischen eine hinzugekommen (ein erneutes Buchen in einem
+  weiteren Portfolio), wird nichts gelöscht, und die Rückfrage zeigt den
+  Split, wie er jetzt ist — „Der Split hat sich geändert, während dieser
+  Dialog offen war. Nichts wurde gelöscht; der Dialog zeigt jetzt den neuen
+  Stand.“ —, zum erneuten Bestätigen. Danach zählen die Bestände ab seinem
+  Stichtag ohne den Split, das Diagramm rechnet die Kursreihe ohne ihn, und
+  gespeicherte Kurse bleiben, wie sie sind; **Split erfassen** nimmt danach
+  das korrigierte Verhältnis an. **Split erfassen** selbst führt hierher: Ist am Tag schon
   ein Split mit anderem Verhältnis gebucht, nennt seine Warnung dieses
   Verhältnis und trägt **Gebuchten Split löschen…**, das dieselbe Rückfrage
   auf der Seite des Wertpapiers öffnet.
