@@ -770,6 +770,82 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     assert_remainder_zero(result)
   end
 
+  # User story (FR-41 review round, ADR-0051 §5 and §10):
+  # As a local portfolio maintainer who buys a security priced in a currency
+  # the instance holds no rate for yet,
+  # I want the trade to bring its units in at the cash it cost,
+  # so that the position is not credited with its whole value the day a rate
+  # arrives, and the currency line does not book the purchase as a loss.
+  #
+  # Acceptance criteria:
+  # - A trade whose price currency has no rate path to the base on the
+  #   booking day is a flow into its position at its cash leg in the base
+  #   currency: the position's net flows are what it cost, and the currency
+  #   effect on cash holds no settlement difference for it.
+  # - Once the first rate arrives, the position contributes its value against
+  #   that cost; if none ever arrives, it contributes minus that cost, and it
+  #   is named as unvalued with its days (I7).
+  # - The positions plus the remainder lines still sum to the money result (I1).
+  test "a trade whose price currency has no rate yet flows in at its cash leg" do
+    world = base_world(name: "Rateless", cash_name: "Cash", depot_name: "Depot")
+    yen = create_security!(name: "Yen Late Co", ticker: "YLC", currency: "JPY")
+    franc = create_security!(name: "Franc Never AG", ticker: "FNA", currency: "CHF")
+
+    deposit!(world, "1000", ~D[2025-12-01])
+
+    settled_buy = fn security, quantity, price, currency, amount, settled ->
+      book!(%{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        cash_account_id: world.cash.id,
+        security_id: security.id,
+        type: "buy",
+        date: ~D[2026-02-03],
+        quantity: quantity,
+        price: price,
+        currency_code: currency,
+        security_amount: amount,
+        settlement_amount: settled,
+        settlement_fx_rate: Decimal.div(Decimal.new(settled), Decimal.new(amount)),
+        gross_amount: settled
+      })
+    end
+
+    # 10 @ 1000 JPY settled 62 EUR; the first JPY rate (160) arrives on
+    # 2026-04-01 and values the position at 10 x 1000 / 160 = 62.5.
+    settled_buy.(yen, "10", "1000", "JPY", "10000", "62")
+    WorldFixtures.put_quotes!(yen, [{~D[2026-02-03], "1000"}])
+    rate!("JPY", ~D[2026-04-01], "160")
+
+    # 1 @ 50 CHF settled 65 EUR; no CHF rate ever arrives.
+    settled_buy.(franc, "1", "50", "CHF", "50", "65")
+    WorldFixtures.put_quotes!(franc, [{~D[2026-02-03], "50"}])
+
+    {:ok, result} = Contribution.for_portfolio(world.portfolio.id, period: "ytd", today: @today)
+
+    yen_row = row(result, yen)
+    assert equal?(yen_row.net_flows, "62")
+    assert zero?(yen_row.costs)
+    assert equal?(yen_row.end_value, "62.5")
+    assert equal?(yen_row.contribution, "0.5")
+    # 2026-02-03 to 2026-03-31.
+    assert yen_row.unvalued_days == 57
+    assert yen_row.unvalued_reason == :no_rate
+
+    franc_row = row(result, franc)
+    assert equal?(franc_row.net_flows, "65")
+    assert zero?(franc_row.end_value)
+    assert equal?(franc_row.contribution, "-65")
+    # 2026-02-03 to 2026-06-30.
+    assert franc_row.unvalued_days == 148
+    assert franc_row.unvalued_reason == :no_rate
+
+    assert_remainder_zero(result)
+    # 873 cash + 62.5 - the 1000 held at the start.
+    assert equal?(result.totals.result, "-64.5")
+    assert equal?(result.totals.positions, "-64.5")
+  end
+
   # -- I1 -------------------------------------------------------------------------
 
   # The contribution and the performance read of one scope, side by side.

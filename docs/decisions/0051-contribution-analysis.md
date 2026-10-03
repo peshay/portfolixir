@@ -355,11 +355,11 @@ story that builds it.
 
 | | Identity |
 |---|---|
-| I1 | The positions plus the remainder lines sum to `end − start − net external flows`, exact in `Decimal`, for every period and every scope. |
+| I1 | The positions plus the remainder lines sum to `end − start − net external flows`, exact in `Decimal`, for every period and every scope. *Precision stated by the 2026-10-03 amendment.* |
 | I2 | With unchanging prices and exchange rates, and no bookings inside the window except deposits and removals, every position contributes exactly `0`, and so does every remainder line. |
 | I3 | A position in the base currency, bought and sold entirely inside the window with no quote in between, contributes exactly `(sell price − buy price) × quantity − costs`. It appears in the table although it is held at neither end. |
-| I4 | A deposit or a removal changes no contribution and no remainder line. |
-| I5 | A split inside the window changes no contribution. |
+| I4 | A deposit or a removal changes no contribution and no remainder line. *Worded for the booking by the 2026-10-03 amendment.* |
+| I5 | A split inside the window changes no contribution. *ADR-0028's quantity rounding stated by the 2026-10-03 amendment.* |
 | I6 | A transfer between two depots of one portfolio changes no contribution. In a view that sees only one of the two depots, the moved value is a boundary flow of that position. |
 | I7 | A position that counted zero keeps its place in the sum and carries its `unvalued_days`, and the payload lists it. |
 | I8 | The payload carries no signal, recommendation, rating, score or action key (the meta-test). |
@@ -409,3 +409,61 @@ metric-basis rule in `AGENTS.md`.
   version (I9), and the category result is untouched (§9).
 - Nothing here creates, stores or transmits an order, and nothing acquires
   data the instance does not already hold.
+
+## Amendment (2026-10-03): what the building batch's review round found the record left open
+
+**Why.** The money lens of PR β's closing act took I1 to I9 one at a time
+on fixtures the batch's own tests did not build. Nothing broke the money
+result: every position and line still summed to it. Three identities are
+worded more strongly than the arithmetic can carry, and one booking had no
+row in §5's table. This amendment states them; it changes no figure the
+signed sections define.
+
+**§5 gains a row: a trade with no rate.** A buy or a sell priced in a
+currency with no rate path to the base on its booking day would bring its
+units in at zero. The position would then be credited with its whole value
+the day a rate arrives, and the currency effect on cash would book the
+purchase as a loss. Such a trade's flow into the position is **its cash leg
+in the base currency** instead: what it cost, or what it raised. No
+settlement difference is left for it, and its fees and taxes, priced in the
+same currency, ride inside that cash rather than as costs. The position
+counts zero until a rate arrives and is named for it (§10), as before.
+
+**I1 is exact while the conversion quotients terminate.** The walk divides
+by stored rates. A rate whose reciprocal does not terminate (1.0856, 0.9413)
+makes the walk's own sums round at `Decimal`'s 34 significant digits, and
+the positions plus the lines then differ from the money result by about
+`1E-30`. Nothing balances the difference. The payload's basis already says
+so; I1 now reads: *exact in `Decimal` whenever every conversion quotient
+terminates, and to `Decimal`'s precision otherwise.* The screen's sum row
+prints the walk's own result, so the sum and the badge never differ by that
+residue.
+
+**I4 holds for the booking, not for what the balance does afterwards.** A
+deposit or a removal is kept nowhere (§3), so the booking itself changes no
+contribution and no line. A deposit into a foreign-currency account becomes
+part of the balance §3's currency effect on cash revalues from the next day
+on, and that line moves with the rate. I4 now reads: *a deposit or a
+removal is kept in no contribution and no remainder line; a foreign-currency
+balance it changes is revalued from the next day on, like any balance.*
+
+**I5 inherits ADR-0028's quantity rounding.** A split whose ratio does not
+divide the held quantity rounds the post-split quantity at the volume
+scale (six places), ADR-0028's named exception: ten units split 1:3 become
+3.333333, and the position's contribution then differs from its unsplit
+twin by the rounded units' value. I5 now reads: *a split inside the window
+changes no contribution, save for ADR-0028's quantity rounding.*
+
+**Stated, not changed.**
+
+- The currency effect on cash holds a trade's settlement difference in a
+  single-currency portfolio too, when the booked cash differs from price ×
+  quantity plus costs (a gross amount entered by hand, an import that keeps
+  the broker's rounding). §3 and the screen's sub-line already name
+  settlement differences; the line's name is about cash, not about a
+  currency having moved.
+- A foreign-currency cash balance held before its currency's first stored
+  rate counts zero, as in the walk, and the first rate brings its whole
+  value into the currency effect on cash. The payload's basis states it, but
+  §10 names positions only, so no account is named. Naming such accounts on
+  the performance and the contribution reads is filed as its own story.
