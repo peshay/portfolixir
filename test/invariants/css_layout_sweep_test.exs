@@ -62,6 +62,35 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     assert tab =~ ~r/white-space:\s*nowrap/
   end
 
+  # User story (#1033; board ux-design-2026-10-02/07-phone-390, H7.2, rule
+  # ②; DESIGN.md → D6, "the active tab is in view on arrival"):
+  # As the operator arriving on a security's tab on a phone,
+  # I want the detail tab row's fades to follow its edges, as the area tab
+  # row's do,
+  # so that the selected tab, now scrolled into view, does not rest under a
+  # fixed right fade, and a left fade says there are tabs before it.
+  #
+  # Acceptance criteria:
+  # - `.detail-pane-tabs` joins the three `.area-tabs` edge rules: a 24 px
+  #   left fade away from the start, no right fade at the end, no mask on a
+  #   row that rests on both edges.
+  # - The row carries a trailing inset from `--detail-tabs-tail`, zero
+  #   without script; the one-sided right fade stays its scriptless form.
+  test "the detail tab row's fades follow its edges, and its end is a tab boundary" do
+    row = block(".detail-pane-tabs")
+    assert row =~ ~r/--detail-tabs-tail:\s*0px;/
+    assert row =~ ~r/padding-inline-end:\s*var\(--detail-tabs-tail\);/
+
+    assert @css =~
+             ~r/\n\.detail-pane-tabs:not\(\[data-scroll-start\]\),\n\.area-tabs:not\(\[data-scroll-start\]\) \{\s*mask-image: linear-gradient\(\s*to right,\s*transparent 0,\s*black 24px,/
+
+    assert @css =~
+             ~r/\n\.detail-pane-tabs\[data-scroll-end\],\n\.area-tabs\[data-scroll-end\] \{\s*mask-image: linear-gradient\(to right, transparent 0, black 24px\);/
+
+    assert @css =~
+             ~r/\n\.detail-pane-tabs\[data-scroll-start\]\[data-scroll-end\],\n\.area-tabs\[data-scroll-start\]\[data-scroll-end\] \{\s*mask-image: none;/
+  end
+
   # User story (#873; board ux-design-2026-09-24/08-classification-detail, ①
   # and pick G8 = A; DESIGN.md → Layout & Spacing and Classification tree
   # rows; EXPERIENCE.md → App shell, "nothing is flush with the screen edge"):
@@ -128,6 +157,23 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     assert hint =~ ~r/justify-content:\s*end;/
   end
 
+  # User story (#909; board ux-design-2026-10-02/07-phone-390, H7.5, pick A,
+  # rule ③):
+  # As the operator reading the import's summary cards in any language,
+  # I want a label that is one long word to break inside its card,
+  # so that it never runs past the card's edge — the soft hyphen in the
+  # German "Verrechnungskonten" decides where that word breaks, and this rule
+  # is the floor for any other long word in any locale.
+  #
+  # Acceptance criteria:
+  # - `.import-stat-card .label` may shrink below its content (`min-width:
+  #   0`, it is a grid item) and break anywhere (`overflow-wrap: anywhere`).
+  test "an import card's label breaks inside its card" do
+    label = block(".import-stat-card .label")
+    assert label =~ ~r/min-width:\s*0;/
+    assert label =~ ~r/overflow-wrap:\s*anywhere;/
+  end
+
   test "a labelled tooltip summary grows with its label" do
     assert block(".metric-tooltip--labelled summary") =~ ~r/width:\s*auto/
   end
@@ -154,9 +200,75 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     # list surface to give way to its rows; #1029 (pick H1, board rule ④):
     # the security's closed trades are the fourth; FR-41 (ADR-0051 §12,
     # board pick A): the contribution table under the Wealth performance
-    # chart is the fifth.
+    # chart is the fifth; #1012 (pick H7.1 = A, board
+    # ux-design-2026-10-02/07-phone-390 rule ①): a security's quotes the sixth.
     assert phone_block() =~
-             ~r/#securities-table,\s*#transaction-table-wrapper,\s*#realized-trades-table-wrapper,\s*#detail-closed-trades-table-wrap,\s*#contribution-table-wrap \{\s*display: none;/
+             ~r/#securities-table,\s*#transaction-table-wrapper,\s*#realized-trades-table-wrapper,\s*#detail-closed-trades-table-wrap,\s*#contribution-table-wrap,\s*#quotes-table-wrapper \{\s*display: none;/
+  end
+
+  # User story (#1050; board ux-design-2026-10-02/03-bond-master-data, rule
+  # ④, a conformance repair; DESIGN.md gives the grid "two per row under
+  # 720px"):
+  # As the operator reading a security's Overview on a 390 px phone,
+  # I want its six figures in two columns,
+  # so that "TAGESÄNDERUNG" does not run into "1Y" and "Durchschnittseinstand"
+  # stays inside its cell.
+  #
+  # Acceptance criteria:
+  # - Under 720 px `.overview-reading .overview-metrics` goes to two
+  #   columns: the reading surface's three-column rule (issue 804) outranked
+  #   the spec'd two-column rule by specificity, so the repair restates it
+  #   at the same specificity inside the breakpoint.
+  test "under 720 px the Overview's figures stand in two columns" do
+    phone =
+      case Regex.run(
+             ~r/@media \(max-width: 720px\) \{\n  \/\* overview reading on a phone[^\n]*\n(.*?)\n\}\n/s,
+             @css
+           ) do
+        [_, body] -> body
+        nil -> flunk("no 720 px block for the overview reading's figures")
+      end
+
+    assert phone =~
+             ~r/\.overview-reading \.overview-metrics \{\s*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/
+  end
+
+  # User story (board ux-design-2026-10-02/07-phone-390, H7.6, rule ④;
+  # UX-DR27 places the kebab at the row's end):
+  # As the operator reading the transaction history on a 390 px phone,
+  # I want each booking's kebab at the end of its row,
+  # so that it does not drop under the date onto a line of its own, where
+  # every booking grows by its height and the kebab reads as the next row's.
+  #
+  # Acceptance criteria:
+  # - The history's phone row declares three tracks for its three children
+  #   — the body, the figures, the kebab: `minmax(0, 1fr) auto auto`.
+  test "the history's phone row has a track for its kebab" do
+    assert block("#transaction-phone-rows .phone-row") =~
+             ~r/grid-template-columns:\s*minmax\(0, 1fr\) auto auto;/
+  end
+
+  # User story (#1012; board ux-design-2026-10-02/07-phone-390, H7.1 pick A,
+  # rule ①): a quote's phone row is the trades row's shape — two children,
+  # the date over its source and the close on the right, no logo and no
+  # kebab — so it needs its own two tracks, or the body would land in the
+  # logo's `auto` column.
+  test "the quote phone row has two tracks" do
+    assert block("#quote-phone-rows .phone-row") =~
+             ~r/grid-template-columns:\s*minmax\(0, 1fr\) auto;/
+  end
+
+  # User story (the closing act's H7 finding; board
+  # ux-review-2026-10-03/03-gamma-surface-repairs, G6): the Quotes tab's
+  # basis line names the "Gespeichert" column, which the phone rows do not
+  # have. The phone lists' block swaps the table's sentence for the rows'
+  # as it swaps the table for the rows; above 560 px the rows' sentence is
+  # out of the layout.
+  test "under 560 px the quotes' basis line names the rows, not the column" do
+    assert block(".quotes-basis__rows") =~ ~r/display:\s*none;/
+
+    assert phone_block() =~
+             ~r/\.quotes-basis__table \{\s*display: none;\s*\}\s*\.quotes-basis__rows \{\s*display: inline;\s*\}/
   end
 
   test "under 560 px the chip row yields to the Filter control" do

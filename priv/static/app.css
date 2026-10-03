@@ -12,7 +12,13 @@
   --color-accent-violet-soft: #ede9fe;
   --color-accent-teal: #0f766e;
   --color-accent-teal-soft: #ccfbf1;
-  --color-accent-coral: #e11d48;
+  /* Coral one step darker in the same hue (HSL 347°, lightness 49.8 % to
+     45.7 %), the smallest step that clears 4.5:1 as body text on every
+     light surface; the logo gradient's --brand-coral-2 keeps the brand
+     value (issue 908, Sprint 18 pick H5, board
+     ux-design-2026-10-02/05-light-contrast). Set again in
+     [data-theme="light"]; the dark blocks keep their own value. */
+  --color-accent-coral: #ce1b42;
   --color-accent-coral-soft: #ffe4e6;
   --color-accent: var(--color-accent-violet);
   --color-accent-soft: var(--color-accent-violet-soft);
@@ -123,7 +129,7 @@
   --color-accent-violet-soft: #ede9fe;
   --color-accent-teal: #0f766e;
   --color-accent-teal-soft: #ccfbf1;
-  --color-accent-coral: #e11d48;
+  --color-accent-coral: #ce1b42;
   --color-accent-coral-soft: #ffe4e6;
   --color-positive: #047857;
   --color-danger: #b91c1c;
@@ -1035,6 +1041,17 @@ textarea {
   text-decoration: underline;
 }
 
+/* The shared 2 px accent ring (DESIGN.md -> Colors), not the browser's:
+   the KPI strip above draws it, so the Overview speaks one focus language
+   (Sprint 18 U4, board ux-design-2026-10-02/06-touch-focus, H6.3). The
+   list's 6 px row gap keeps the ring clear of the next row; hover stays
+   the underlined name, so the two remain distinguishable. */
+.attention-item:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
 .attention-item .num {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -1238,8 +1255,11 @@ li + li {
 
 /* Cross-currency settlement (issue 395, board 03 variant A): shown only when
    the security and the cash account differ in currency, so it is marked as
-   the one block that asks for something the ordinary booking does not. */
-.settlement-fieldset {
+   the one block that asks for something the ordinary booking does not. The
+   security dialog's bond section (issue 330, pick H3 rule 2) is the same kind
+   of block, shown only for the two bond classes, so it joins these lists. */
+.settlement-fieldset,
+.bond-fieldset {
   margin: var(--space-2) 0;
   padding: var(--space-3);
   border: 1px solid var(--color-accent);
@@ -1249,7 +1269,8 @@ li + li {
 
 /* The legend sits inside the box as its heading (board 03), not across the
    border: floated legends are laid out as ordinary content. */
-.settlement-fieldset legend {
+.settlement-fieldset legend,
+.bond-fieldset legend {
   float: left;
   width: 100%;
   padding: 0;
@@ -1258,7 +1279,8 @@ li + li {
   font-weight: 600;
 }
 
-.settlement-fieldset > .form-grid {
+.settlement-fieldset > .form-grid,
+.bond-fieldset > .form-grid {
   clear: both;
 }
 
@@ -1266,7 +1288,8 @@ li + li {
   font-weight: 400;
 }
 
-.settlement-fieldset .form-help {
+.settlement-fieldset .form-help,
+.bond-fieldset .form-help {
   margin: var(--space-2) 0 0;
   padding: 0;
 }
@@ -1730,12 +1753,21 @@ li + li {
   }
 }
 
+/* The icon button is the 30 px square it declares (Sprint 18 U4, board
+   ux-design-2026-10-02/06-touch-focus, H6.2 and H6.2b): `min-height: 0`
+   takes back the base button's 34 px floor, which made every <button> of
+   the class 30 x 34 while an <a> of the class stayed 30 x 30. It never
+   shrinks beside a title that wraps, and under a coarse pointer it is a
+   44 px target at every call site — dialog heads and toolbars alike
+   (UX-DR6 lists the class itself as uncovered). */
 .icon-button {
   display: inline-flex;
+  flex: none;
   align-items: center;
   justify-content: center;
   width: 30px;
   height: 30px;
+  min-height: 0;
   border: 1px solid var(--color-border);
   background: var(--color-bg-elevated);
   border-radius: var(--radius-md);
@@ -1755,6 +1787,13 @@ li + li {
   background: var(--color-selected);
   color: var(--color-accent);
   border-color: var(--color-accent);
+}
+
+@media (pointer: coarse) {
+  .icon-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 .popover-container {
@@ -2005,9 +2044,17 @@ li + li {
    a sticky column pins over the clipped cells instead of beside them.
    Measured on the Cash-flow year x month matrices at 390 px. Any table
    inside the wrapper, not only .data-table: the UX-DR15 tail (issue 788)
-   put the drift, cash, plan and history tables in the same scroller. */
+   put the drift, cash, plan and history tables in the same scroller.
+   Nor is the table a scroll container of its own (issue 1009, Sprint 18
+   pick H4, board ux-design-2026-10-02/04-tables-conformance ①): the
+   global `table { overflow: hidden }` and, under 560 px, `table {
+   overflow-x: auto }` made every table the container `.col-subject`
+   sticks in, and a table exactly as wide as its content never moves, so
+   the subject column stuck nowhere. The wrapper is the sticky container; a
+   bare table outside a wrapper keeps the fallback. */
 .data-table-wrapper > table {
   min-width: max-content;
+  overflow: visible;
 }
 
 .data-table thead th {
@@ -2178,10 +2225,13 @@ dialog.modal::backdrop {
   flex-direction: column;
 }
 
+/* The gap keeps a title that wraps clear of the close button (board
+   ux-design-2026-10-02/06-touch-focus, H6.2). */
 .modal-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-2);
   padding: 14px 18px;
   border-bottom: 1px solid var(--color-border);
 }
@@ -2890,6 +2940,12 @@ img.security-logo {
   mask-image: linear-gradient(to right, black calc(100% - 40px), transparent 100%);
   scrollbar-width: none;
   flex-shrink: 0;
+  /* The row's end is a tab boundary, as on the area tab row (issue 876):
+     the DetailTabs hook writes the inset when the row overflows (Sprint 18
+     U5, board ux-design-2026-10-02/07-phone-390 H7.2). Zero without
+     script. */
+  --detail-tabs-tail: 0px;
+  padding-inline-end: var(--detail-tabs-tail);
 }
 
 /* Edge-aware fades (issue 857, board 04). The AreaTabs hook marks the edges
@@ -2897,7 +2953,12 @@ img.security-logo {
    above. Away from its start the row gains a 24 px left fade, so the tabs
    before the active one read as there; at its end the right fade goes, so it
    no longer covers the last tab — which is the active one on Risk. A row that
-   does not overflow rests on both edges and is not masked at all. */
+   does not overflow rests on both edges and is not masked at all. Since
+   Sprint 18 (U5, H7.2) the detail pane's row follows the same edges: its
+   DetailTabs hook reveals the selected tab on arrival and marks them, and
+   the server renders it resting at its start, so its first paint keeps the
+   one-sided fade. */
+.detail-pane-tabs:not([data-scroll-start]),
 .area-tabs:not([data-scroll-start]) {
   mask-image: linear-gradient(
     to right,
@@ -2907,9 +2968,11 @@ img.security-logo {
     transparent 100%
   );
 }
+.detail-pane-tabs[data-scroll-end],
 .area-tabs[data-scroll-end] {
   mask-image: linear-gradient(to right, transparent 0, black 24px);
 }
+.detail-pane-tabs[data-scroll-start][data-scroll-end],
 .area-tabs[data-scroll-start][data-scroll-end] {
   mask-image: none;
 }
@@ -3067,6 +3130,14 @@ img.security-logo {
   margin-top: 2px;
 }
 
+/* A date or a figure with its unit inside a sub-line stays whole at 390 px:
+   "2031-06-15" would otherwise break at a hyphen (issue 330, pick H3
+   rule 3). */
+.overview-metric__sub time,
+.overview-metric__sub .nowrap {
+  white-space: nowrap;
+}
+
 .overview-notes {
   display: flex;
   flex-direction: column;
@@ -3192,6 +3263,26 @@ img.security-logo {
 }
 
 .is-negative {
+  color: var(--color-danger);
+}
+
+/* Sign colour in table cells (issue 1010, Sprint 18 pick H4, board
+   ux-design-2026-10-02/04-tables-conformance ②): `.data-table tbody td
+   { color }` (0,1,2) outranks the bare classes above, so a signed cell in
+   any data table printed in the text colour, and a position row's
+   `.drift-table tr.is-muted td` (0,2,2) turned its negative drift grey.
+   Semantic colour applies wherever a sign exists, at every level of a
+   table (DESIGN.md → Colors). A <span> carrying the class inside a cell was
+   never affected. */
+.data-table td.is-positive {
+  color: var(--color-positive);
+}
+
+.data-table td.is-negative {
+  color: var(--color-danger);
+}
+
+.drift-table tr.is-muted td.is-negative {
   color: var(--color-danger);
 }
 
@@ -3835,7 +3926,15 @@ input[pattern]:invalid:not(:placeholder-shown) {
   gap: 0.25rem;
 }
 
+/* A label that is one long word breaks inside its card (Sprint 18 U5,
+   board ux-design-2026-10-02/07-phone-390 H7.5, pick A): the German
+   "Verrechnungskonten" carries a soft hyphen at its joint in the catalog, so
+   it breaks there, with a hyphen, in every browser; this is the floor for
+   any other unbreakable word in any locale — a grid item may shrink below
+   its content and break anywhere, never past the card. */
 .import-stat-card .label {
+  min-width: 0;
+  overflow-wrap: anywhere;
   color: var(--color-text-muted);
   font-size: 0.85rem;
   text-transform: uppercase;
@@ -4876,6 +4975,11 @@ details[open] > .cat-summary::before {
 .period-disclosure {
   position: relative;
 }
+/* The one definition of the quiet disclosure summary, at
+   {typography.control-label}: 12 px, weight 500, 0.04em, muted (issue 1011,
+   board ux-design-2026-10-02/04-tables-conformance ⑤b). A second
+   definition further down (0.85rem / 600) won by source order and set every
+   summary at 13.6 px / 600; it is gone. */
 .disclosure-summary {
   display: inline-flex;
   align-items: center;
@@ -4883,6 +4987,7 @@ details[open] > .cat-summary::before {
   min-height: 30px;
   color: var(--color-text-muted);
   font-size: 12px;
+  font-weight: 500;
   letter-spacing: 0.04em;
   cursor: pointer;
   list-style: none;
@@ -5109,16 +5214,44 @@ details[open] > .disclosure-summary .disclosure-chevron {
    screen at the moment it is asked for; the context columns scroll beneath
    it. Sticky is inert while the table fits, so no media query: the rule is
    about the scroller, not the viewport. An opaque background covers the
-   scrolled-under cells; the border marks the seam (no hue-only signal,
-   UX-DR7). */
+   scrolled-under cells; a line marks the seam (no hue-only signal,
+   UX-DR7). The scroller is `.data-table-wrapper` (issue 1009, rule ①
+   there); the three companion rules of the board's ① ride here.
+   ①b: the seam is an inset shadow, not a border: in a collapsed table
+   (the drift tables) the table paints a cell's border and leaves it behind
+   when the cell sticks, while the shadow moves with the cell. */
 .col-subject {
   position: sticky;
   right: 0;
   background: var(--color-bg-elevated);
-  border-left: 1px solid var(--color-border);
+  border-left: 0;
+  box-shadow: inset 1px 0 0 var(--color-border);
 }
+/* ①c: the pinned head cell keeps the head row's grey; it took the cell's
+   white and stood out of it (the drift tables, the history's Balance).
+   `.data-table thead th` outranks this and keeps its own head colour. */
 thead .col-subject {
   z-index: 2;
+  background: var(--color-bg-muted);
+}
+/* ①d: opaque on striped and hovered rows. The stripe is 24 % bg-muted over
+   TRANSPARENT and outranks `.col-subject`, so the figures scrolling beneath
+   a pinned cell showed through every second row; the hover comes after the
+   stripe, which carries the same specificity. */
+.data-table tbody tr:nth-child(even) td.col-subject {
+  background: color-mix(in srgb, var(--color-bg-muted) 24%, var(--color-bg-elevated));
+}
+.data-table tbody tr:hover td.col-subject {
+  background: var(--color-hover);
+}
+/* ①d on the history, which is no `.data-table`: its hover is the global
+   `tbody tr:hover` wash on the row, which stopped at the opaque pinned
+   Balance (the closing act's finding, board
+   ux-review-2026-10-03/03-gamma-surface-repairs, G5). The pinned cell takes
+   the same 42 % over the elevated surface instead of over nothing, so it
+   follows the wash and stays opaque. */
+#transaction-list tbody tr:hover td.col-subject {
+  background: color-mix(in srgb, var(--color-accent-soft) 42%, var(--color-bg-elevated));
 }
 
 /* Issue 717 (D2): the demoted builder's entry point — a quiet text control at
@@ -5166,6 +5299,18 @@ thead .col-subject {
 }
 .transaction-summary .summary-type {
   font-variant-numeric: tabular-nums;
+}
+/* The basis voice without a context (issue 1011, and the allocation's basis
+   line of issue 911; Sprint 18 pick H4, board
+   ux-design-2026-10-02/04-tables-conformance ⑤a): outside the scoped rules
+   below, nineteen basis lines rendered as body text. It sets only margin,
+   size and colour, and precedes every scoped rule, so the later
+   single-class rules with their own margin or layout (`.kpi-strip__basis`,
+   `.tree-basis`) keep winning by source order. */
+.summary-basis {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
 }
 /* UX-DR21: the surface states what it aggregates, on its own line so it reads
    as a caption rather than as another figure. */
@@ -6009,6 +6154,12 @@ button.income-bar-label.is-active {
   box-shadow: var(--shadow-md);
   text-transform: none;
   letter-spacing: 0;
+  /* A tooltip is a paragraph wherever it sits: the phone block's
+     table rule (white-space: nowrap) reached the ⓘ inside a table head by
+     inheritance and set the allocation tree's Drift sentence on one line,
+     out of its box (issue 1053; H4 ④c, board
+     ux-review-2026-10-03/03-gamma-surface-repairs, G2). */
+  white-space: normal;
 }
 /* Show the tooltip panel when the <details> is open (pointer or keyboard). */
 .metric-tooltip:not([open]) p {
@@ -6099,15 +6250,14 @@ button.income-bar-label.is-active {
   }
 
   /* Comfortable tap targets on the securities surface (UX-DR6, issue 413):
-     taller list rows and >=44px detail controls for thumbs. */
+     taller list rows and >=44px detail controls for thumbs. The head's two
+     icon buttons take theirs from `.icon-button` (Sprint 18 U4). */
   .security-row td {
     padding-top: var(--space-3);
     padding-bottom: var(--space-3);
   }
 
-  .detail-pane-tab,
-  #detail-pane-close,
-  #detail-pane-fullscreen-toggle {
+  .detail-pane-tab {
     min-height: 44px;
     min-width: 44px;
   }
@@ -6139,13 +6289,19 @@ button.income-bar-label.is-active {
   color: var(--color-text-muted);
 }
 
+/* The dismiss sits on its sentence's line (Sprint 18 U4, board
+   ux-design-2026-10-02/06-touch-focus, H6.4): the base button's 34 px floor
+   made it a 22 x 34 box, so a one-line result grew from 36 to 52 px and its
+   severity word stood 8 px above the sentence. `min-height: 0` removes the
+   cause; 1rem fits the 18 px line. */
 .inline-result__dismiss {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 1.4rem;
-  height: 1.4rem;
+  height: 1rem;
+  min-height: 0;
   margin-left: 8px;
   padding: 0;
   border: 0;
@@ -6162,6 +6318,33 @@ button.income-bar-label.is-active {
 .inline-result__dismiss:hover {
   opacity: 1;
   background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+/* The securities page's result slot takes the focus when a row action finds
+   its security gone (issue 920; the closing act's H8.6 finding, board
+   ux-review-2026-10-03/03-gamma-surface-repairs, G1): brought into view, it
+   stops below the sticky top bar, and a keyboard user sees the house ring. */
+#securities-action-result {
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-3));
+}
+
+#securities-action-result:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
+/* Under a coarse pointer the dismiss keeps a 44 px target the way a note's
+   remedy does: 14 px of block padding given back as a negative margin, so
+   the line stays 18 px (UX-DR6). Without it, dropping the floor would have
+   shrunk the touch target from 34 to 16 px. */
+@media (pointer: coarse) {
+  .inline-result__dismiss {
+    width: 44px;
+    height: 44px;
+    padding-block: 14px;
+    margin-block: -14px;
+  }
 }
 
 /* Inline spinner: import confirm while Imports.apply/2 runs async, and the
@@ -6515,6 +6698,23 @@ button.income-bar-label.is-active {
 
 .soll-row--sum.is-target-mismatch td {
   color: var(--color-warning);
+}
+
+/* Issue 969, pick H8.4 = A (board ux-design-2026-10-02/08-dialogs-copy;
+   ADR-0040 §3, DESIGN.md D3): the unallocated remainder is the table's last
+   row, under the Σ: a category row's rhythm, its label muted because the row
+   is derived, its figure at ordinary weight in the same tabular slot, no
+   divider of its own and no input. No warning colour: a plan under 100 % is
+   a choice. */
+.soll-row--remainder th,
+.soll-row--remainder td {
+  font-weight: 400;
+  border-bottom: none;
+  padding-top: 0;
+}
+
+.soll-row--remainder th {
+  color: var(--color-text-muted);
 }
 
 .soll-ok {
@@ -7003,13 +7203,11 @@ select:disabled {
   color: var(--color-text-muted);
   cursor: not-allowed;
 }
+/* "Neuer Snapshot" is a `.disclosure-summary` and nothing else (H4 ⑤b; the
+   closing act's finding, board ux-review-2026-10-03/03-gamma-surface-repairs,
+   G4): a local summary rule (accent, 600) outranked the class. */
 .snapshot-create {
   margin: var(--space-3) 0;
-}
-.snapshot-create > summary {
-  cursor: pointer;
-  color: var(--color-accent);
-  font-weight: 600;
 }
 .snapshot-create__form {
   display: flex;
@@ -7087,7 +7285,6 @@ select:disabled {
   .button-primary,
   .button-ghost,
   .login-form input,
-  .snapshot-create > summary,
   .workspace-section > details > summary,
   .soll-plan-versions select,
   .plan-rename summary {
@@ -7322,6 +7519,41 @@ select:disabled {
   color: var(--color-accent);
   text-decoration: underline;
   cursor: pointer;
+}
+/* A remedy inside a data note keeps its place in the sentence and gains the
+   44 px floor as its hit area under a coarse pointer (UX-DR6; Sprint 18 U4,
+   board ux-design-2026-10-02/06-touch-focus, H6.1 pick A). The padding grows
+   the button's box to 44 px; the equal negative margin gives the line its
+   18 px back (the note's 12 px x 1.5), so no note reflows — the technique
+   .positions-toggle uses. 13 px = (44 - 18) / 2. It grows in the block
+   direction only, so it never overlaps the dismiss beside it. The bond
+   block's empty-state remedy stands in its sentence the same way, on a
+   13 px .detail-tab-empty line of the same 18 px, and takes the same rule,
+   scoped to that remedy (issue 330, closing act on U7, finding 5; board
+   ux-review-2026-10-03/04-bond-repairs B4). The remedy a limit carries in a
+   form's help line (the notes-only drawer's "Delete…") and in the split
+   wizard's warning and refusal ("Delete the booked split…") joins the rule
+   too (Sprint 18 U1, issue 912, the closing act R9; board
+   ux-review-2026-10-03/02-delete-dialog-repairs). */
+@media (pointer: coarse) {
+  .data-note__body .link-button,
+  .bond-strip .detail-tab-empty .link-button,
+  .form-help .link-button,
+  .alert-warning .link-button,
+  .alert-error .link-button {
+    padding-block: 13px;
+    margin-block: -13px;
+  }
+}
+
+/* Those three remedies draw the shared 2 px accent ring on keyboard focus,
+   not the browser's 1 px default (DESIGN.md → Colors, the Accessibility
+   Floor; R9). */
+.form-help .link-button:focus-visible,
+.alert-warning .link-button:focus-visible,
+.alert-error .link-button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 .badge-warning {
   background: var(--color-warning-soft);
@@ -7737,6 +7969,14 @@ select:disabled {
   list-style: none;
 }
 
+/* The Quotes tab's basis line carries one sentence per layout (the closing
+   act's H7 finding, board ux-review-2026-10-03/03-gamma-surface-repairs,
+   G6): the rows' sentence is out of the layout until the phone lists' block
+   swaps it in for the table's. Before that block, so it wins there. */
+.quotes-basis__rows {
+  display: none;
+}
+
 .phone-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
@@ -7746,13 +7986,17 @@ select:disabled {
   border-top: 1px solid var(--color-border);
 }
 
-/* The transactions row carries two children, not four: the body has no logo
-   beside it and the row has no kebab. Without its own tracks the body would
-   land in the logo's `auto` column and the un-wrappable figures in the
-   elastic one, which is the wrong way round — a long subject would then
-   push the figures into the clipped edge. */
+/* The transactions row carries three children, not four: the body has no
+   logo beside it, and since the row menu reached the phone it ends in its
+   kebab. Without its own tracks the body would land in the logo's `auto`
+   column and the un-wrappable figures in the elastic one, which is the wrong
+   way round — a long subject would then push the figures into the clipped
+   edge. With two tracks the kebab was auto-placed on a line of its own under
+   the date (Sprint 18 U5, board ux-design-2026-10-02/07-phone-390 H7.6);
+   the third track keeps it at the row's end (UX-DR27), centred by
+   `.phone-row .row-actions__kebab`. */
 #transaction-phone-rows .phone-row {
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
 .phone-rows > li:first-child {
@@ -7905,6 +8149,7 @@ dialog.filter-sheet::backdrop {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-2);
   margin-bottom: var(--space-2);
 }
 
@@ -7967,8 +8212,19 @@ dialog.filter-sheet::backdrop {
   #transaction-table-wrapper,
   #realized-trades-table-wrapper,
   #detail-closed-trades-table-wrap,
-  #contribution-table-wrap {
+  #contribution-table-wrap,
+  #quotes-table-wrapper {
     display: none;
+  }
+
+  /* The Quotes tab's basis line swaps with the table: the rows have no
+     "Stored" column, so their sentence names the line under the close. */
+  .quotes-basis__table {
+    display: none;
+  }
+
+  .quotes-basis__rows {
+    display: inline;
   }
 
   /* The chip rows give way to the Filter control on BOTH list surfaces
@@ -7991,6 +8247,16 @@ dialog.filter-sheet::backdrop {
   .filter-sheet-toggle {
     display: inline-flex;
   }
+}
+
+/* Where a closing dialog or drawer brings the history into view — the
+   page's result, a row's kebab, the heading — it lands below the sticky top
+   bar, not under it (U1, issue 912, the closing act R3; WCAG 2.4.11). */
+#transactions-workspace > [data-role="page-result"],
+#transaction-history-heading,
+#transaction-list .row-actions__kebab,
+#transaction-phone-rows .row-actions__kebab {
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-3));
 }
 
 /* ===== Booking drawer (issue 803, review C6 variant C) ===== */
@@ -8331,6 +8597,27 @@ dialog.booking-drawer {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+/* The bond block on a bond's Overview (issue 330, pick H3 rule 1): its grid is
+   .overview-metrics and its basis line .detail-tab-hint, as under the metric
+   grid of ADR-0047; only the heading that tells the two grids apart is new. */
+.bond-strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.bond-strip__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.bond-strip .detail-tab-hint {
+  margin: 0;
+}
+
 .overview-reading__main,
 .overview-reading__side {
   display: flex;
@@ -8376,7 +8663,8 @@ dialog.booking-drawer {
   gap: var(--space-2);
 }
 
-.overview-card__head h3 {
+.overview-card__head h3,
+.bond-strip__head h3 {
   margin: 0;
   font-size: 11px;
   font-weight: 650;
@@ -8429,33 +8717,29 @@ dialog.booking-drawer {
   }
 }
 
+@media (max-width: 720px) {
+  /* overview reading on a phone: two figures per row, as DESIGN.md gives
+     the grid under 720px. The three-column rule above outranks the
+     two-column `.overview-metrics` of the 720 px block by specificity, so
+     the six figures stood in three columns of about 105 px at 390 px and
+     their labels collided (Sprint 18 U5, board
+     ux-design-2026-10-02/03-bond-master-data rule 4; issue 1050). */
+  .overview-reading .overview-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* --- section disclosure (DESIGN.md -> Components -> disclosure) ---------
    A section's secondary table behind the spec'd chevron. It exists because
    .more-filters was carrying three jobs at once and its summary renders no
    marker at all, so a content disclosure built on it had no expand
-   affordance. Same chevron as .cat-summary, which is the compliant one. */
+   affordance. Same chevron as .cat-summary, which is the compliant one. The
+   summary is the one `.disclosure-summary` above (issue 1011). One marker
+   (issue 854, DESIGN.md → Data as table — one disclosure): the templates
+   render the chevron icon, which turns when the details open; a CSS
+   triangle as well drew "▸ ›". */
 .section-disclosure {
   margin-top: var(--space-2);
-}
-.disclosure-summary {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  cursor: pointer;
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--color-text-muted);
-  list-style: none;
-}
-.disclosure-summary::-webkit-details-marker {
-  display: none;
-}
-/* One marker (issue 854, DESIGN.md → Data as table — one disclosure): the
-   templates render the chevron icon, which turns when the details open
-   (`.disclosure-chevron` above). A CSS triangle here as well drew "▸ ›". */
-.disclosure-summary:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
 }
 
 /* ===== Wealth → Risk: own rules (ADR-0049 §9, Sprint 15 pick F1-A) =====
@@ -8502,6 +8786,16 @@ dialog.booking-drawer {
 .policy-rule-versions {
   font-size: 12px;
   color: var(--color-text-muted);
+}
+
+/* Issue 910, pick H8.1 (board ux-design-2026-10-02/08-dialogs-copy): each
+   version is numbered once, by its label ("Version 3"), which the version
+   note above the list and the retire confirmation name; the browser's marker
+   and its indent go. The <ol> carries role="list" for the semantics a list
+   without markers loses in Safari. */
+.policy-rule-versions {
+  list-style: none;
+  padding-left: 0;
 }
 
 .modal-footer__spacer {
@@ -8672,6 +8966,13 @@ input.num {
   overflow-wrap: anywhere;
 }
 
+/* Issue 966, pick H8.5 = A (board ux-design-2026-10-02/08-dialogs-copy): a
+   note inside the rename dialog's "Former names" disclosure sits one step
+   below its summary, as the list beneath it does. */
+.rename-dialog details > .data-note {
+  margin-top: var(--space-1);
+}
+
 /* The former-names list inside the rename dialog (board 01 ②). */
 .former-names {
   list-style: none;
@@ -8726,6 +9027,13 @@ input.num {
     color: var(--color-text);
     font-weight: 600;
   }
+}
+
+/* The caption's kind stays one piece with its separator, which a no-break
+   space glues to the name: a line never starts with "· Transaktion" nor
+   leaves the kind alone (Sprint 18 U1, issue 912, the closing act R10g). */
+.row-context-menu__kind {
+  white-space: nowrap;
 }
 
 /* Under 640 px every entity's kebab sits at the end of its own name line,
@@ -9297,8 +9605,10 @@ dialog.merge-dialog {
   }
 }
 
-/* An empty live region takes no room in the body's gap. */
-.merge-region:empty {
+/* An empty live region takes no room in the body's gap — the merge
+   dialogs' and the booking delete's (the closing act, R5). */
+.merge-region:empty,
+.booking-delete__region:empty {
   display: none;
 }
 
@@ -9418,8 +9728,6 @@ dialog.merge-dialog {
    per table, the choice and the check open under it. Read-only. */
 .merge-manifest > .disclosure-summary {
   align-items: flex-start;
-  font-size: 12px;
-  font-weight: 500;
   text-align: left;
 }
 
@@ -9494,28 +9802,50 @@ dialog.merge-dialog {
 
 /* ① A narrow modal: one date pair, one chip row, one consequence and a band
    foot (the merge dialog's first step plus the room the chip row needs).
-   Under 720 px it is the merge dialog's bottom sheet (the 720 px block). */
-.quote-release-dialog {
+   Under 720 px it is the merge dialog's bottom sheet (the 720 px block).
+   The booking delete (Sprint 18 U1, issue 912, pick H2-A rule ①) is the same
+   narrow destructive modal: one subject, two or three sentences, a band
+   foot whose danger button names the act — it joins these lists. */
+.quote-release-dialog,
+.booking-delete-dialog {
   max-width: 460px;
 }
 
-/* The close button keeps its size beside a title that wraps (a long
-   security name), and the 44 px floor under a coarse pointer (UX-DR6;
-   closing act, γ D6). */
-.quote-release-dialog .modal-head {
-  gap: var(--space-2);
+/* ② The booking is named in the history's own phone-row shape — date ·
+   kind over the subject, the signed amount over its size — at every width,
+   in a bordered box: the row the operator chose, said back in the words
+   the list used (pick H2-A rule ②). */
+.booking-delete__subject {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  column-gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
 }
 
-.quote-release-dialog .modal-head > .icon-button {
-  flex: none;
+.booking-delete-dialog .hint {
+  margin: 0;
 }
 
-@media (pointer: coarse) {
-  .quote-release-dialog .modal-head > .icon-button {
-    width: 44px;
-    height: 44px;
-  }
+/* A stored name with no break opportunity — a security, a depot, a cash
+   account — wraps inside the dialog instead of widening it past the phone
+   (the closing act R8; 390 px measured the sheet 28 px too wide). The
+   box's subject line is one span, the one flex item of `.phone-row__ids`,
+   so it may shrink and break. */
+.booking-delete-dialog .hint,
+.booking-delete__subject .phone-row__ids > span {
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
+
+/* The close button keeps its size beside a title that wraps and takes the
+   44 px floor under a coarse pointer from `.icon-button` itself since
+   Sprint 18 U4, which subsumed the three rules closing act γ D6 wrote
+   here. */
 
 .quote-release-form {
   display: grid;
@@ -9530,7 +9860,8 @@ dialog.merge-dialog {
 
 @media (max-width: 720px) {
   dialog.modal.merge-dialog,
-  dialog.modal.quote-release-dialog {
+  dialog.modal.quote-release-dialog,
+  dialog.modal.booking-delete-dialog {
     position: fixed;
     inset: auto 0 0 0;
     width: 100%;
@@ -9542,14 +9873,16 @@ dialog.merge-dialog {
   }
 
   .merge-dialog > .modal-body,
-  .quote-release-dialog > .modal-body {
+  .quote-release-dialog > .modal-body,
+  .booking-delete-dialog > .modal-body {
     padding: 12px 16px;
   }
 
   /* The foot stays; the confirm takes a full line, Back the next (board
      02 at 390 px), so no account name breaks inside the button. */
   .merge-dialog .modal-footer--band,
-  .quote-release-dialog .modal-footer--band {
+  .quote-release-dialog .modal-footer--band,
+  .booking-delete-dialog .modal-footer--band {
     flex-direction: column;
     align-items: stretch;
     gap: 6px;
@@ -9558,14 +9891,16 @@ dialog.merge-dialog {
   }
 
   .merge-dialog .modal-footer--band > button,
-  .quote-release-dialog .modal-footer--band > button {
+  .quote-release-dialog .modal-footer--band > button,
+  .booking-delete-dialog .modal-footer--band > button {
     width: 100%;
     min-height: 44px;
     justify-content: center;
   }
 
   .merge-dialog .modal-footer__spacer,
-  .quote-release-dialog .modal-footer__spacer {
+  .quote-release-dialog .modal-footer__spacer,
+  .booking-delete-dialog .modal-footer__spacer {
     display: none;
   }
 
@@ -9575,12 +9910,14 @@ dialog.merge-dialog {
 
   .merge-dialog .modal-footer--band > .button-primary,
   .merge-dialog .modal-footer--band > .button-danger,
-  .quote-release-dialog .modal-footer--band > .button-danger {
+  .quote-release-dialog .modal-footer--band > .button-danger,
+  .booking-delete-dialog .modal-footer--band > .button-danger {
     order: 2;
   }
 
   .merge-dialog .modal-footer--band > .button-ghost,
-  .quote-release-dialog .modal-footer--band > .button-ghost {
+  .quote-release-dialog .modal-footer--band > .button-ghost,
+  .booking-delete-dialog .modal-footer--band > .button-ghost {
     order: 3;
   }
 
@@ -9686,22 +10023,11 @@ dialog.merge-dialog {
   margin-bottom: 0;
 }
 
-/* Rule ⑥: sign colour inside the trades table. `.data-table tbody td
-   { color }` outranks the bare is-positive / is-negative, so the result
-   printed in the text colour; the p. a. column needs the sign colour
-   (semantic colour wherever a sign exists, at every level of a table), and
-   the same rule repairs the result cell. Scoped to this table: the other
-   tables with the same pattern are a follow-up. */
-#realized-trades-table td.is-positive {
-  color: var(--color-positive);
-}
-
-#realized-trades-table td.is-negative {
-  color: var(--color-danger);
-}
-
-/* Rule ① inside the table (closing act γ D4): the same td rule outranked
-   the muted dash, which printed in the text colour. */
+/* Rule ⑥, the sign colour inside the trades table, was retired by issue
+   1010 (Sprint 18 pick H4): the general `.data-table td.is-positive /
+   .is-negative` gives every data table the colour this table had alone.
+   Rule ① inside the table (closing act γ D4): `.data-table tbody td
+   { color }` outranked the muted dash, which printed in the text colour. */
 #realized-trades-table td.trade-pa--na {
   color: var(--color-text-muted);
 }
@@ -9742,20 +10068,11 @@ dialog.merge-dialog {
 /* ===== The security's Trades tab: the p. a. column, the unmatched-sells
    note, the basis line and the phone rows (issue 1029, Sprint 18 pick H1;
    board ux-design-2026-10-02/01-trades-tab-pa, "after") ===== */
-/* Rule ①: the closed-trades table's sign colour and its muted dash.
-   `.data-table tbody td { color }` outranks the bare .is-positive /
-   .is-negative / .trade-pa--na (issue 1010), so the rules are scoped to this
-   table, as the facet's rule ⑥ is to its own; they also restore the colour
-   of "Realised P&L" and "%" here. The open-lots table above keeps the text
-   colour until issue 1010 repairs the family. */
-#detail-closed-trades-table td.is-positive {
-  color: var(--color-positive);
-}
-
-#detail-closed-trades-table td.is-negative {
-  color: var(--color-danger);
-}
-
+/* Rule ①: the closed-trades table's muted dash. `.data-table tbody td
+   { color }` outranks the bare .trade-pa--na, so the rule is scoped to this
+   table, as the facet's is to its own. Its two sign lines went with issue
+   1010 (pick H4): the general `.data-table td.is-positive / .is-negative`
+   colours p. a., "Realised P&L" and "%" here and the open lots above. */
 #detail-closed-trades-table td.trade-pa--na {
   color: var(--color-text-muted);
 }
@@ -9957,4 +10274,14 @@ dialog.merge-dialog {
 #contribution-phone-rows .contribution-phone-rows__sum .phone-row__name,
 #contribution-phone-rows .contribution-phone-rows__sum .phone-row__figure {
   font-weight: 700;
+}
+
+/* The Quotes tab at 390 px (Sprint 18 U5, board
+   ux-design-2026-10-02/07-phone-390 rule ①, pick H7.1 = A): under 560 px a
+   quote is a two-line row — the date over its source badge, the close on
+   the right, the stored value under it where a split adjusted it. Two
+   children, no logo, no kebab: the trades row's two tracks. The phone
+   lists' 560 px block hides the table's wrapper. */
+#quote-phone-rows .phone-row {
+  grid-template-columns: minmax(0, 1fr) auto;
 }

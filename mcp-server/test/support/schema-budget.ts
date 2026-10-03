@@ -63,6 +63,37 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 105_807,
     book: 178_920,
     full: 208_789
+  },
+  {
+    since: "2026-10-03",
+    why:
+      "Sprint 18 PR γ, U1 (#912): the whole-split delete, an admin tool, paid for by " +
+      "trimming the split family's and transactions.list's descriptions, and lowered to the " +
+      "figure measured with it (D-10)",
+    read: 105_308,
+    book: 178_155,
+    full: 208_768
+  },
+  {
+    since: "2026-10-03",
+    why:
+      "Sprint 18 PR γ, U7 (#330): a bond's master data on the security writes and its " +
+      "reading on securities.get, paid for by tightening the shared bounded-date sentence " +
+      "and the securities family's descriptions, and lowered to the figure measured with " +
+      "it (D-10)",
+    read: 103_991,
+    book: 177_091,
+    full: 207_454
+  },
+  {
+    since: "2026-10-03",
+    why:
+      "Sprint 18 PR γ, U7 closing act (#330): face_value_currency_code describes itself, " +
+      "paid for by tightening the bond fields' and securities.update's property " +
+      "descriptions, and lowered to the figure measured with it",
+    read: 103_991,
+    book: 177_085,
+    full: 207_448
   }
 ];
 

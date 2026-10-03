@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.TransactionKindLabel
+  alias PortfolixirWeb.Transactions.BookingDeleteDialog
   alias PortfolixirWeb.Transactions.SettlementForm
 
   # Two chip families (#707 D2, Part 4) plus the conditions the "More filters"
@@ -66,7 +67,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:column_picker_open?, false)
      |> assign(:booking_open?, false)
      |> assign(:editing_id, nil)
-     |> assign(:editing_split, nil)
+     |> assign(:editing_fixed, nil)
+     |> assign(:deleting, nil)
      |> assign(:row_menu_id, nil)
      |> assign(:filter_sheet_open?, false)
      |> load_state()}
@@ -96,10 +98,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         <AppShell.area_tabs tabs={AppShell.transactions_tabs(:history)} />
 
         <%= if @error do %>
-          <p class="alert-error" role="alert"><%= @error %></p>
+          <p class="alert-error" role="alert" data-role="page-result"><%= @error %></p>
         <% end %>
         <%= if @success do %>
-          <p class="alert-success" role="status"><%= @success %></p>
+          <p class="alert-success" role="status" data-role="page-result"><%= @success %></p>
         <% end %>
 
         <%!-- ADR-0024: no portfolio strip — the depot choice alone decides
@@ -118,7 +120,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         <div class={["transactions-columns", @booking_open? && "transactions-columns--drawer"]}>
         <section id="transaction-list-panel" class="workspace-section">
           <header class="section-head">
-            <h2><%= gettext("Transaction history") %></h2>
+            <%!-- U1 (#912): where the focus goes when the delete dialog
+                 closes — its opener, the row menu, is gone by then, and
+                 after a delete the row is too (WCAG 2.4.3). --%>
+            <h2 id="transaction-history-heading" tabindex="-1"><%= gettext("Transaction history") %></h2>
             <div class="section-head-controls">
               <button
                 :if={@transactions != []}
@@ -319,7 +324,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                             account, so the column appears exactly when the
                             chips narrow to one and not before — never via the
                             picker. --%>
-                      <th :if={@balance_account} class="col-subject">
+                      <th :if={@balance_account} class="num col-subject">
                         <%= gettext("Balance") %>
                         <small><%= @balance_account.currency_code %></small>
                       </th>
@@ -353,8 +358,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                                   <%!-- A split carries no quantity/price of
                                         its own: show the ratio where the
                                         quantity would be (E17 review,
-                                        finding 7). --%>
-                                  <td data-role="split-ratio">
+                                        finding 7), in the column's `.num`
+                                        alignment (#913). --%>
+                                  <td class="num" data-role="split-ratio">
                                     <%= split_ratio_label(transaction) %>
                                   </td>
                                 <% else %>
@@ -382,7 +388,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                                 <td {num_attrs(key)}><%= tx_cell(transaction, key) %></td>
                             <% end %>
                           <% end %>
-                          <td :if={@balance_account} class="numeric col-subject" data-role="running-balance">
+                          <td :if={@balance_account} class="num col-subject" data-role="running-balance">
                             <%!-- Absent, never repeated: a row that does not
                                   move this account carries no balance, because
                                   the previous row's figure would read as
@@ -462,11 +468,16 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                one below it. --%>
           <% open_menu_transaction =
             @row_menu_id && Enum.find(@filtered_transactions, &(&1.id == @row_menu_id)) %>
+          <%!-- U1 (#912), pick H2-A: Edit, then Delete… last, in the
+               danger colour, on every row of every kind; the ellipsis says
+               a dialog follows. Under 720 px the sheet names its row. --%>
           <AppShell.row_menu
             :if={open_menu_transaction}
             id={"tx-row-menu-#{open_menu_transaction.id}"}
             trigger={"tx-kebab-#{open_menu_transaction.id}"}
             label={gettext("Transaction actions")}
+            caption_name={row_name(open_menu_transaction, @twin_tags)}
+            caption_kind={gettext("Transaction")}
           >
             <button
               type="button"
@@ -479,16 +490,34 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               <AppShell.icon name={:edit} />
               <%= gettext("Edit") %>
             </button>
+            <button
+              type="button"
+              id={"tx-delete-#{open_menu_transaction.id}"}
+              class="row-context-menu__item row-context-menu__item--danger"
+              role="menuitem"
+              phx-click="ask_delete"
+              phx-value-id={open_menu_transaction.id}
+            >
+              <AppShell.icon name={:trash} />
+              <%= gettext("Delete…") %>
+            </button>
           </AppShell.row_menu>
         </section>
-        <.split_drawer
-          :if={@booking_open? and @editing_split != nil}
-          split={@editing_split}
+        <%!-- U1 (#912), the closing act R3: an Edit drawer opened from a
+             row's menu returns the focus to that row's kebab on every exit,
+             the heading only when the row is gone (WCAG 2.4.3). --%>
+        <.notes_drawer
+          :if={@booking_open? and @editing_fixed != nil}
+          focus_return={row_kebabs(@editing_id)}
+          transaction={@editing_fixed}
           securities={@securities}
+          cash_accounts={@cash_accounts}
+          securities_accounts={@securities_accounts}
           form_errors={@form_errors}
         />
         <.booking_drawer
-          :if={@booking_open? and @editing_split == nil}
+          :if={@booking_open? and @editing_fixed == nil}
+          focus_return={row_kebabs(@editing_id)}
           editing?={@editing_id != nil}
           transaction_form={@transaction_form}
           form_errors={@form_errors}
@@ -497,6 +526,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           sell_preview={@sell_preview}
         />
         </div>
+        <BookingDeleteDialog.dialog
+          :if={@deleting}
+          deleting={@deleting}
+          focus_fallback="#transaction-history-heading"
+          focus_return={row_kebabs(@deleting.opened_from)}
+          focus_result="[data-role='page-result']"
+        />
       </div>
     </AppShell.shell>
     """
@@ -511,6 +547,15 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     {:noreply, failure(socket, gettext("A booking needs a depot with a cash account."))}
   end
 
+  # U1 (#912), H2b-A: the notes-only drawer has no booking form, so a
+  # booking save pushed at it changes nothing.
+  def handle_event(
+        "save_transaction",
+        _params,
+        %{assigns: %{editing_fixed: %Transaction{}}} = socket
+      ),
+      do: {:noreply, socket}
+
   # #803: the drawer's state is socket state; Cancel and the hook's close
   # event discard the draft, and a recorded booking closes it.
   def handle_event("open_booking", _params, socket) do
@@ -522,7 +567,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      socket
      |> assign(:booking_open?, false)
      |> assign(:editing_id, nil)
-     |> assign(:editing_split, nil)
+     |> assign(:editing_fixed, nil)
      |> assign(:transaction_form, @transaction_form)
      |> assign(:form_errors, %{})
      |> assign(:sell_preview, nil)}
@@ -614,9 +659,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
        socket
        |> assign(:row_menu_id, nil)
        |> assign(:editing_id, id)
-       # E25 S6 (G07, pick G12.3 = A): a split row opens its own drawer
-       # state — the facts fixed, only the note editable.
-       |> assign(:editing_split, if(transaction.type == "split", do: transaction))
+       # E25 S6 (G07, pick G12.3 = A), generalised by U1 (#912, pick
+       # H2b = A): every kind the drawer does not book — all but buy and
+       # sell — opens the notes-only state, the facts fixed and only the
+       # note editable.
+       |> assign(:editing_fixed, fixed_booking(transaction, socket.assigns.transactions))
        |> assign(:transaction_form, form_from_transaction(transaction, socket.assigns.securities))
        |> assign(:form_errors, %{})
        |> assign(:sell_preview, nil)
@@ -712,13 +759,53 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     end
   end
 
-  # E25 S6 (G07): the split drawer's one write, the note. The ledger refuses
-  # every other change to a split row, so nothing else is sent.
-  def handle_event("save_split_note", %{"split" => %{"notes" => notes}}, socket)
+  # E25 S6 (G07), U1 (#912, H2b-A): the notes-only drawer's one write, the
+  # note. Nothing else is sent: the drawer books no other field.
+  def handle_event("save_note", %{"note" => %{"notes" => notes}}, socket)
       when is_binary(notes) do
-    case socket.assigns.editing_split do
-      %Transaction{id: id} -> save_split_note(socket, id, notes)
+    case socket.assigns.editing_fixed do
+      %Transaction{id: id} -> save_note(socket, id, notes)
       nil -> {:noreply, socket}
+    end
+  end
+
+  # U1 (#912), pick H2-A: "Delete…" from a row's menu, or from the
+  # notes-only drawer's help line (A7), which closes the drawer first — no
+  # dialog opens from a dialog (UX-DR9). The dialog is built from the row as
+  # it is stored now, as Edit reads it (the closing act, R6); a row gone
+  # since is said so at once (A6).
+  def handle_event("ask_delete", %{"id" => id_str}, socket) do
+    socket =
+      socket
+      |> assign(:row_menu_id, nil)
+      |> close_drawer()
+
+    with {:ok, id} <- LiveParam.fetch_id(id_str),
+         %Transaction{} = transaction <- stored_row(id, socket.assigns),
+         %{} = deleting <- BookingDeleteDialog.prepare(transaction, delete_context(socket)) do
+      {:noreply, assign(socket, :deleting, deleting)}
+    else
+      _gone -> {:noreply, socket |> failure(gone_message()) |> load_state()}
+    end
+  end
+
+  def handle_event("cancel_delete", _params, socket),
+    do: {:noreply, assign(socket, :deleting, nil)}
+
+  # The one confirmation (EXPERIENCE.md: a destructive action confirms once).
+  # Only the dialog's own booking is deleted: a stale confirm changes nothing.
+  def handle_event("confirm_delete", %{"id" => id_str}, socket) do
+    with %{id: id} = deleting <- socket.assigns.deleting,
+         {:ok, ^id} <- LiveParam.fetch_id(id_str) do
+      socket = assign(socket, :deleting, nil)
+
+      case BookingDeleteDialog.delete(Actor.owner_ui(), deleting) do
+        {:ok, message} -> {:noreply, socket |> success(message) |> load_state()}
+        {:changed, fresh} -> {:noreply, socket |> assign(:deleting, fresh) |> load_state()}
+        :gone -> {:noreply, socket |> failure(gone_message()) |> load_state()}
+      end
+    else
+      _stale -> {:noreply, socket}
     end
   end
 
@@ -726,16 +813,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # nothing (E25 S4, F17).
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
-  defp save_split_note(socket, id, notes) do
+  defp save_note(socket, id, notes) do
     case book(id, %{"notes" => notes}) do
       {:ok, _transaction} ->
         {:noreply,
          socket
-         |> assign(:transaction_form, @transaction_form)
-         |> assign(:form_errors, %{})
-         |> assign(:booking_open?, false)
-         |> assign(:editing_id, nil)
-         |> assign(:editing_split, nil)
+         |> close_drawer()
          |> success(gettext("Note saved"))
          |> load_state()}
 
@@ -744,19 +827,90 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       {:error, changeset} ->
         {:noreply,
          socket
-         |> assign(:editing_split, %{socket.assigns.editing_split | notes: notes})
+         |> assign(:editing_fixed, %{socket.assigns.editing_fixed | notes: notes})
          |> assign(:form_errors, field_errors(changeset))
          |> failure(changeset_error(changeset))}
 
       :gone ->
         {:noreply,
          socket
-         |> assign(:booking_open?, false)
-         |> assign(:editing_id, nil)
-         |> assign(:editing_split, nil)
-         |> failure(gettext("That transaction no longer exists."))
+         |> close_drawer()
+         |> failure(gone_message())
          |> load_state()}
     end
+  end
+
+  defp close_drawer(socket) do
+    socket
+    |> assign(:transaction_form, @transaction_form)
+    |> assign(:form_errors, %{})
+    |> assign(:sell_preview, nil)
+    |> assign(:booking_open?, false)
+    |> assign(:editing_id, nil)
+    |> assign(:editing_fixed, nil)
+  end
+
+  defp gone_message, do: gettext("That transaction no longer exists.")
+
+  # The kinds the drawer books are buy and sell (AGENTS.md goal 4); every
+  # other row opens notes-only: the row as stored now (its note current),
+  # with the security the history loaded for it, which may be one the
+  # booking form does not offer (a benchmark).
+  defp fixed_booking(%Transaction{type: type}, _loaded)
+       when type in ["buy", "sell"],
+       do: nil
+
+  defp fixed_booking(%Transaction{} = transaction, loaded) do
+    case Enum.find(loaded, &(&1.id == transaction.id)) do
+      %Transaction{security_id: id, security: security} when id == transaction.security_id ->
+        %{transaction | security: security}
+
+      _not_loaded ->
+        transaction
+    end
+  end
+
+  # The row as stored now (R6), with the accounts and the security the
+  # history names it by — an account from the page's lists carries its
+  # currency, the security a loaded row of it — so the dialog says the row
+  # back in the list's words. `nil` when it is gone.
+  defp stored_row(id, assigns) do
+    case Ledger.get_transaction(id) do
+      nil ->
+        nil
+
+      %Transaction{} = row ->
+        %{
+          row
+          | cash_account: Enum.find(assigns.cash_accounts, &(&1.id == row.cash_account_id)),
+            securities_account:
+              Enum.find(assigns.securities_accounts, &(&1.id == row.securities_account_id)),
+            security: loaded_security(row.security_id, assigns.transactions)
+        }
+    end
+  end
+
+  defp loaded_security(nil, _loaded), do: nil
+
+  defp loaded_security(id, loaded) do
+    Enum.find_value(loaded, fn
+      %Transaction{security: %{id: ^id} = security} -> security
+      _other -> nil
+    end) || Catalog.get_security(id)
+  end
+
+  # The row's two kebabs, the table's and the phone row's; the hook takes
+  # the one that is visible at this width.
+  defp row_kebabs(nil), do: nil
+  defp row_kebabs(id), do: "#tx-kebab-#{id}, #tx-phone-kebab-#{id}"
+
+  defp delete_context(socket) do
+    %{
+      cash_accounts: socket.assigns.cash_accounts,
+      securities_accounts: socket.assigns.securities_accounts,
+      transactions: socket.assigns.transactions,
+      twin_tags: socket.assigns.twin_tags
+    }
   end
 
   defp refuse(socket, params, errors, message) do
@@ -777,7 +931,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> assign(:booking_open?, false)
          |> success(saved_message(socket.assigns.editing_id))
          |> assign(:editing_id, nil)
-         |> assign(:editing_split, nil)
+         |> assign(:editing_fixed, nil)
          |> load_state()}
 
       {:error, changeset} ->
@@ -792,7 +946,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          socket
          |> assign(:booking_open?, false)
          |> assign(:editing_id, nil)
-         |> failure(gettext("That transaction no longer exists."))
+         |> failure(gone_message())
          |> load_state()}
     end
   end
@@ -1472,22 +1626,42 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp phone_subject(%{securities_account: %{name: name}}) when is_binary(name), do: name
   defp phone_subject(_transaction), do: nil
 
-  defp phone_amount(transaction) do
+  @doc """
+  The booking's money as the history's phone row shows it — signed as the
+  cash account sees it, with its currency — or "—" (#799). The delete
+  dialog names a booking with it (U1, #912).
+  """
+  def phone_amount(transaction) do
     case tx_money(transaction) do
       nil -> "—"
       amount -> signed_money(transaction.type, amount) <> " " <> money_currency(transaction)
     end
   end
 
-  defp phone_size(%{type: "split"} = transaction), do: split_ratio_label(transaction)
+  @doc """
+  The booking's size as the history's phone row shows it — quantity × price,
+  the quantity alone, a split's ratio — or `nil` (#799); the delete dialog's
+  second figure (U1, #912).
+  """
+  def phone_size(%{type: "split"} = transaction), do: split_ratio_label(transaction)
 
-  defp phone_size(%{quantity: %Decimal{} = quantity, price: %Decimal{} = price}),
+  def phone_size(%{quantity: %Decimal{} = quantity, price: %Decimal{} = price}),
     do: "#{format_quantity(quantity)} × #{PortfolixirWeb.Format.decimal(price, 2)}"
 
-  defp phone_size(%{quantity: %Decimal{} = quantity}),
-    do: gettext("%{quantity} units", quantity: format_quantity(quantity))
+  def phone_size(%{quantity: %Decimal{} = quantity}),
+    do:
+      ngettext("%{quantity} unit", "%{quantity} units", plural_count(quantity),
+        quantity: format_quantity(quantity)
+      )
 
-  defp phone_size(_transaction), do: nil
+  def phone_size(_transaction), do: nil
+
+  @doc """
+  The count a quantity's plural follows: one unit is a unit, any other
+  quantity — a fraction included — is units (U1 closing act, R10b).
+  """
+  def plural_count(%Decimal{} = quantity),
+    do: if(Decimal.equal?(quantity, 1), do: 1, else: 2)
 
   # The booking's money on the same basis as the month subtotal (the stored
   # gross amount, else quantity × price); a split or a transfer without a
@@ -1573,23 +1747,28 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     end
   end
 
-  # E25 S6 (G07), pick G12.3 = A (board 12): a booked split in the drawer.
-  # A split is a fact about the security, booked through "Record split"
-  # (`Splits.book_split/2`); its type, effective date, security and ratio are
-  # shown with that flow's words, disabled, and only the note is a field. No
-  # depot: the row has none. The help line states the limit where the
-  # correction is tried, without a link, because no screen deletes a booking
-  # yet (UX-DR26; DESIGN.md, "The booking drawer's split state").
-  attr(:split, Transaction, required: true)
+  # The notes-only drawer: E25 S6 (G07), pick G12.3 = A (board 12) for a
+  # booked split, generalised by U1 (#912, pick H2b = A, board
+  # `ux-design-2026-10-02/02-booking-delete`) to every kind the drawer does
+  # not book — all but buy and sell. The booking's facts are shown with the
+  # words the history and the drawer already use, disabled, the fields
+  # following the kind (a dividend its security, cash account, amount and
+  # taxes; a transfer both accounts; a delivery its depot, quantity and
+  # price); only the note is a field. The help line states the limit where
+  # the correction is tried and carries its remedy, "Delete…" (UX-DR26;
+  # DESIGN.md, "The booking drawer's split state" and "Deleting a booking").
+  attr(:transaction, Transaction, required: true)
   attr(:securities, :list, required: true)
+  attr(:cash_accounts, :list, required: true)
+  attr(:securities_accounts, :list, required: true)
   attr(:form_errors, :map, required: true)
+  attr(:focus_return, :string, default: nil)
 
-  defp split_drawer(assigns) do
+  defp notes_drawer(assigns) do
     assigns =
-      assign(
-        assigns,
-        :security,
-        Enum.find(assigns.securities, &(&1.id == assigns.split.security_id))
+      assign(assigns,
+        facts: booking_facts(assigns.transaction, assigns),
+        kind: assigns.transaction.type
       )
 
     ~H"""
@@ -1599,17 +1778,16 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       phx-hook="ModalDialog"
       data-close-event="close_booking"
       data-sheet-below="720"
+      data-focus-return={@focus_return}
+      data-focus-fallback="#transaction-history-heading"
+      data-focus-result="[data-role='page-result']"
       aria-labelledby="booking-drawer-title"
     >
       <header class="detail-pane-head">
         <div class="detail-pane-head__title">
           <div>
             <h2 id="booking-drawer-title"><%= gettext("Edit transaction") %></h2>
-            <p class="detail-pane-sub">
-              <%= gettext(
-                "A split is a fact about the security; only the note changes here, and the change is journaled."
-              ) %>
-            </p>
+            <p class="detail-pane-sub"><%= notes_drawer_sub(@kind) %></p>
           </div>
         </div>
         <div class="detail-pane-head__actions">
@@ -1623,50 +1801,50 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           </button>
         </div>
       </header>
-      <form id="split-note-form" phx-submit="save_split_note">
-        <div id="split-facts" class="form-grid">
-          <label>
-            <span><%= gettext("Type") %></span>
-            <select name="split[type]" disabled>
-              <option value="split" selected><%= tx_type_label("split") %></option>
-            </select>
-          </label>
-          <label>
-            <span><%= gettext("Effective date") %></span>
-            <input type="text" name="split[date]" value={Date.to_iso8601(@split.date)} disabled />
-          </label>
-          <label>
-            <span><%= gettext("Security") %></span>
-            <select name="split[security_id]" disabled>
-              <option value={@split.security_id} selected>
-                <%= if @security, do: security_option_label(@security), else: "—" %>
-              </option>
-            </select>
-          </label>
-          <label>
-            <span><%= gettext("Ratio (new:old shares)") %></span>
-            <input type="text" name="split[ratio]" value={split_ratio_label(@split)} disabled />
+      <form id="note-form" phx-submit="save_note">
+        <div id="booking-facts" class="form-grid">
+          <label :for={fact <- @facts}>
+            <span><%= fact.label %></span>
+            <%= if fact.control == :select do %>
+              <select name={"note[#{fact.field}]"} disabled>
+                <option selected><%= fact.value %></option>
+              </select>
+            <% else %>
+              <input
+                type="text"
+                name={"note[#{fact.field}]"}
+                value={fact.value}
+                class={fact.num? && "num"}
+                disabled
+              />
+            <% end %>
           </label>
         </div>
-        <p id="split-edit-help" class="form-help">
-          <%= gettext(
-            "The effective date, ratio and security of a booked split are fixed. A wrong split cannot be corrected here; it is deleted over the API or MCP and then recorded again on the security with “Record split”."
-          ) %>
+        <p id="booking-edit-help" class="form-help">
+          <%= notes_drawer_help(@transaction) %>
+          <button
+            type="button"
+            class="link-button"
+            phx-click="ask_delete"
+            phx-value-id={@transaction.id}
+          >
+            <%= if @kind == "split", do: gettext("Delete split…"), else: gettext("Delete…") %>
+          </button>
         </p>
-        <%!-- G12.2-B in the G12.3-A state: a note stored before invisible
+        <%!-- G12.2-B in the notes-only state: a note stored before invisible
              characters were refused is marked above the field that holds
-             it — the split drawer has no "Costs and note" disclosure, its
-             Notes field stands open (the closing act, DC-9). --%>
-        <AppShell.invisible_text_note texts={[@split.notes]}>
+             it — this drawer has no "Costs and note" disclosure, its Notes
+             field stands open (the closing act, DC-9). --%>
+        <AppShell.invisible_text_note texts={[@transaction.notes]}>
           <%= gettext("Typed in anew, it is clean.") %>
         </AppShell.invisible_text_note>
         <label>
           <span><%= gettext("Notes") %></span>
           <textarea
-            name="split[notes]"
+            name="note[notes]"
             aria-invalid={@form_errors["notes"] && "true"}
             aria-describedby={@form_errors["notes"] && "tx-error-notes"}
-          ><%= @split.notes %></textarea>
+          ><%= @transaction.notes %></textarea>
           <.field_error errors={@form_errors} field="notes" />
         </label>
         <div class="booking-drawer__foot">
@@ -1679,6 +1857,176 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     </dialog>
     """
   end
+
+  # The closing act, R10a and R10d: the kind named as a kind, never with an
+  # article that fits no label ("a “Interest”"), and the journal named in
+  # plain words, never "journaled".
+  defp notes_drawer_sub("split"),
+    do:
+      gettext(
+        "A split is a fact about the security; only the note changes here, and the journal records the change."
+      )
+
+  defp notes_drawer_sub("balance_adjustment"),
+    do:
+      gettext(
+        "A balance is set under Accounts & depots; only the note changes here, and the journal records the change."
+      )
+
+  defp notes_drawer_sub(kind),
+    do:
+      gettext(
+        "The screen does not book the kind “%{kind}”; only the note changes here, and the journal records the change.",
+        kind: tx_type_label(kind)
+      )
+
+  defp notes_drawer_help(%Transaction{type: "split"}),
+    do:
+      gettext(
+        "The effective date, ratio and security of a booked split are fixed. A wrong split is deleted and then recorded again on the security with “Record split”."
+      )
+
+  defp notes_drawer_help(%Transaction{type: "balance_adjustment"}),
+    do:
+      gettext(
+        "The date, balance and account of a set balance are fixed here. It is corrected over the API or MCP, or it is deleted and set again under Accounts & depots."
+      )
+
+  # The way back through the import exists only for a booking an import
+  # brought in; any other came over the API or MCP, and is booked again
+  # there (the closing act, R10e).
+  defp notes_drawer_help(%Transaction{import_hash: hash}) when is_binary(hash),
+    do:
+      gettext(
+        "The date, amounts and accounts of this booking are fixed here; the screen books only buys and sells. The booking is corrected over the API or MCP, or it is deleted and imported again."
+      )
+
+  defp notes_drawer_help(%Transaction{}),
+    do:
+      gettext(
+        "The date, amounts and accounts of this booking are fixed here; the screen books only buys and sells. The booking is corrected over the API or MCP, or it is deleted and booked again there."
+      )
+
+  # The facts a kind stores, in the drawer's order: type and date, then the
+  # security, the accounts and the figures the kind carries (the per-kind
+  # required fields of `Transaction`), each as the disabled control the
+  # booking form uses for it.
+  defp booking_facts(%Transaction{} = tx, assigns) do
+    cash = &account_label(&1, assigns.cash_accounts)
+    depot = &account_label(&1, assigns.securities_accounts)
+
+    [
+      fact(gettext("Type"), "type", :select, tx_type_label(tx.type)),
+      fact(date_label(tx.type), "date", :input, Date.to_iso8601(tx.date))
+    ] ++
+      security_fact(tx, assigns.securities) ++
+      kind_facts(tx, cash, depot)
+  end
+
+  defp date_label("split"), do: gettext("Effective date")
+  defp date_label(_kind), do: gettext("Date")
+
+  defp security_fact(%Transaction{security_id: nil}, _securities), do: []
+
+  defp security_fact(%Transaction{} = tx, securities) do
+    security =
+      case tx.security do
+        %{name: _} = loaded -> loaded
+        _not_loaded -> Enum.find(securities, &(&1.id == tx.security_id))
+      end
+
+    label = if security, do: security_option_label(security), else: "—"
+    [fact(gettext("Security"), "security_id", :select, label)]
+  end
+
+  defp kind_facts(%Transaction{type: "split"} = tx, _cash, _depot),
+    do: [fact(gettext("Ratio (new:old shares)"), "ratio", :input, split_ratio_label(tx))]
+
+  defp kind_facts(%Transaction{type: "cash_transfer"} = tx, cash, _depot) do
+    [
+      fact(gettext("From account"), "cash_account_id", :select, cash.(tx.cash_account_id)),
+      fact(
+        gettext("To account"),
+        "counter_cash_account_id",
+        :select,
+        cash.(tx.counter_cash_account_id)
+      ),
+      amount_fact(gettext("Amount (%{currency})", currency: tx.currency_code), tx.gross_amount)
+    ]
+  end
+
+  defp kind_facts(%Transaction{type: "balance_adjustment"} = tx, cash, _depot) do
+    [
+      fact(gettext("Cash account"), "cash_account_id", :select, cash.(tx.cash_account_id)),
+      amount_fact(gettext("Balance (%{currency})", currency: tx.currency_code), tx.gross_amount)
+    ]
+  end
+
+  defp kind_facts(%Transaction{type: type} = tx, _cash, depot)
+       when type in ["inbound_delivery", "outbound_delivery"] do
+    [
+      fact(gettext("Depot"), "securities_account_id", :select, depot.(tx.securities_account_id)),
+      quantity_fact(tx.quantity)
+    ] ++ if(tx.price, do: [amount_fact(gettext("Price"), tx.price, "price")], else: [])
+  end
+
+  defp kind_facts(%Transaction{type: "security_transfer"} = tx, _cash, depot) do
+    [
+      fact(
+        gettext("From depot"),
+        "securities_account_id",
+        :select,
+        depot.(tx.securities_account_id)
+      ),
+      fact(
+        gettext("To depot"),
+        "counter_securities_account_id",
+        :select,
+        depot.(tx.counter_securities_account_id)
+      ),
+      quantity_fact(tx.quantity)
+    ]
+  end
+
+  # The cash kinds: dividend, interest, deposit, removal, fee, tax and tax
+  # refund — the account and the amount, and the taxes a dividend or
+  # interest withheld.
+  defp kind_facts(%Transaction{} = tx, cash, _depot) do
+    [
+      fact(gettext("Cash account"), "cash_account_id", :select, cash.(tx.cash_account_id)),
+      amount_fact(gettext("Amount (%{currency})", currency: tx.currency_code), tx.gross_amount)
+    ] ++
+      if(tx.type in ["dividend", "interest"],
+        do: [amount_fact(gettext("Taxes"), tx.taxes, "taxes")],
+        else: []
+      )
+  end
+
+  defp fact(label, field, control, value),
+    do: %{label: label, field: field, control: control, value: value, num?: false}
+
+  defp amount_fact(label, value, field \\ "gross_amount"),
+    do: %{fact(label, field, :input, stored_figure(value)) | num?: true}
+
+  # A stored figure with the digits it was stored with — trailing zeros
+  # trimmed, at least two places — never rounded to two (the closing act,
+  # R10c): a price of 41.1234 reads 41.1234, an amount of 1500 1,500.00.
+  defp stored_figure(value) do
+    places =
+      if is_struct(value, Decimal),
+        do: value |> Decimal.normalize() |> Map.fetch!(:exp) |> Kernel.-() |> max(2),
+        else: 2
+
+    PortfolixirWeb.Format.decimal(value, places)
+  end
+
+  defp quantity_fact(quantity),
+    do: %{fact(gettext("Quantity"), "quantity", :input, format_quantity(quantity)) | num?: true}
+
+  defp account_label(nil, _accounts), do: "—"
+
+  defp account_label(id, accounts),
+    do: Enum.find_value(accounts, "—", fn account -> account.id == id && account.name end)
 
   defp security_option_label(%{ticker_symbol: ticker} = security) when ticker in [nil, ""],
     do: security.name
@@ -1697,6 +2045,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   attr(:securities, :list, required: true)
   attr(:sell_preview, :any, required: true)
   attr(:editing?, :boolean, default: false)
+  attr(:focus_return, :string, default: nil)
 
   defp booking_drawer(assigns) do
     assigns =
@@ -1717,6 +2066,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       phx-hook="ModalDialog"
       data-close-event="close_booking"
       data-sheet-below="720"
+      data-focus-return={@focus_return}
+      data-focus-fallback="#transaction-history-heading"
+      data-focus-result="[data-role='page-result']"
       aria-labelledby="booking-drawer-title"
     >
       <header class="detail-pane-head">

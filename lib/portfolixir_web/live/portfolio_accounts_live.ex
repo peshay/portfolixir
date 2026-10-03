@@ -32,6 +32,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   alias PortfolixirWeb.PortfolioAccounts.MergeDialog
   alias PortfolixirWeb.PortfolioAccounts.MergeRecords
   alias PortfolixirWeb.PortfolioAccounts.RenameDialog
+  alias PortfolixirWeb.StoredText
 
   @color_format ~r/^#[0-9a-fA-F]{3,8}$/
 
@@ -309,7 +310,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
              Deliberately collapsed and without any create/edit control: the
              records are internal compatibility bindings, not a grouping. --%>
         <details :if={@portfolio_records != []} id="portfolio-admin" class="workspace-section">
-          <summary>
+          <%!-- #1011: the spec'd quiet summary with the defined chevron
+               (UX-DR19), never the browser's triangle. --%>
+          <summary class="disclosure-summary">
+            <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
             <%= gettext("Portfolio records (compatibility)") %>
           </summary>
           <p class="hint">
@@ -382,7 +386,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
           >
             <header class="modal-head">
               <h2 id="balance-dialog-title">
-                <%= gettext("Set balance — %{name}", name: @balance_dialog.name) %>
+                <%= StoredText.isolate(
+                  gettext("Set balance — %{name}", name: StoredText.slot(:name)),
+                  name: @balance_dialog.name
+                ) %>
               </h2>
               <button
                 type="button"
@@ -1192,9 +1199,13 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     end
   end
 
+  # #968, pick H8.8: the stored name isolated in <bdi>.
   defp raced_delete(account) do
     {:problem,
-     gettext("%{name} changed while it was being deleted; nothing was deleted. Try again.",
+     StoredText.isolate(
+       gettext("%{name} changed while it was being deleted; nothing was deleted. Try again.",
+         name: StoredText.slot(:name)
+       ),
        name: account.name
      )}
   end

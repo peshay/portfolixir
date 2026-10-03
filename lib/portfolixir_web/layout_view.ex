@@ -46,10 +46,13 @@ defmodule PortfolixirWeb.LayoutView do
         </script>
         <script id="live-view-client-script" nonce={@csp_nonce}>
           (function () {
-            // Every destructive control carries data-confirm (#765). The page
-            // loads no phoenix_html script, so the attribute is honoured here:
-            // one capture-phase listener ahead of LiveView's own, cancelling
-            // the click before phx-click can see it.
+            // Every destructive control carries data-confirm (#765), unless a
+            // destructive dialog is itself its one confirmation — the release
+            // of manual quotes, the delete of a booking (U1, #912): one
+            // confirmation, never two. The page loads no phoenix_html script,
+            // so the attribute is honoured here: one capture-phase listener
+            // ahead of LiveView's own, cancelling the click before phx-click
+            // can see it.
             document.addEventListener("click", function (event) {
               var target = event.target && event.target.closest && event.target.closest("[data-confirm]");
               if (!target) { return; }
@@ -285,14 +288,122 @@ defmodule PortfolixirWeb.LayoutView do
             // hook moves focus along the row with Arrow Left/Right (wrapping)
             // and Home/End, and activates the focused tab, so the tab stop and
             // the selection never disagree after the patch.
+            //
+            // And AreaTabs' mount half (#1033, Sprint 18 U5, board
+            // ux-design-2026-10-02/07-phone-390 H7.2; DESIGN.md -> D6, "the
+            // active tab is in view on arrival"). The selected tab is in the
+            // URL, so a reload, back or forward, a shared link or the
+            // Overview's "Faellig" rows (?tab=events) arrived on a row resting
+            // at scrollLeft 0 with the tab off-screen. On mount the selected
+            // tab is scrolled into the row's view (the row, never the page),
+            // to the last tab start at or before its centring target at which
+            // it is whole; the row's end is a tab boundary
+            // (--detail-tabs-tail); the edges it rests on are marked, so the
+            // fades follow them. After a patch the inset, the rest and the
+            // marks are restored, and a selection the server changed is
+            // revealed; a tapped tab is already in view and scrolls nothing.
+            // The arithmetic is AreaTabs', copied rather than shared so that
+            // hook keeps its tested form.
             Hooks.DetailTabs = {
               mounted: function () {
                 var self = this;
                 this.onKeydown = function (e) { self.keydown(e); };
                 this.el.addEventListener("keydown", this.onKeydown);
+
+                this.lastLeft = 0;
+                this.onScroll = function () {
+                  self.lastLeft = self.el.scrollLeft;
+                  self.markEdges();
+                };
+                this.onResize = function () {
+                  self.fitTail();
+                  self.markEdges();
+                };
+                this.el.addEventListener("scroll", this.onScroll, { passive: true });
+                window.addEventListener("resize", this.onResize);
+                this.fitTail();
+                this.reveal();
+                this.markEdges();
+              },
+              updated: function () {
+                var nav = this.el;
+                var left = this.lastLeft;
+                var clamped = left > nav.scrollLeft + 1 &&
+                  nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - 2;
+
+                this.fitTail();
+                if (clamped) nav.scrollLeft = left;
+                if (!this.selectedWhole()) this.reveal();
+                this.markEdges();
               },
               destroyed: function () {
                 this.el.removeEventListener("keydown", this.onKeydown);
+                this.el.removeEventListener("scroll", this.onScroll);
+                window.removeEventListener("resize", this.onResize);
+              },
+              tabStarts: function () {
+                var nav = this.el;
+                var origin = nav.getBoundingClientRect().left - nav.scrollLeft;
+                return Array.prototype.map.call(nav.querySelectorAll(".detail-pane-tab"), function (tab) {
+                  var rect = tab.getBoundingClientRect();
+                  return { left: rect.left - origin, width: rect.width };
+                });
+              },
+              fitTail: function () {
+                var nav = this.el;
+                var inset = parseFloat(window.getComputedStyle(nav).paddingInlineEnd) || 0;
+                var max = nav.scrollWidth - inset - nav.clientWidth;
+                var tail = 0;
+
+                if (max > 0) {
+                  var next = this.tabStarts().find(function (tab) { return tab.left >= max - 0.5; });
+                  if (next) tail = Math.ceil(next.left - max);
+                }
+
+                nav.style.setProperty("--detail-tabs-tail", tail + "px");
+              },
+              restingLeft: function (index) {
+                var width = this.el.clientWidth;
+                var tabs = this.tabStarts();
+                var active = tabs[index];
+                var target = active.left - (width - active.width) / 2;
+                var whole = function (tab) {
+                  return tab.left <= active.left + 0.5 &&
+                    active.left + active.width <= tab.left + width + 0.5;
+                };
+                var fits = tabs.filter(whole);
+                var before = fits.filter(function (tab) { return tab.left <= target; }).pop();
+                var after = fits.find(function (tab) { return tab.left > target; });
+                var rest = before || after;
+
+                return rest ? Math.max(0, rest.left) : 0;
+              },
+              selectedWhole: function () {
+                var tab = this.el.querySelector('[aria-selected="true"]');
+                if (!tab) return true;
+                var row = this.el.getBoundingClientRect();
+                var rect = tab.getBoundingClientRect();
+                return rect.left >= row.left - 0.5 && rect.right <= row.right + 0.5;
+              },
+              reveal: function () {
+                var nav = this.el;
+                var tab = nav.querySelector('[aria-selected="true"]');
+                if (!tab || nav.scrollWidth <= nav.clientWidth) return;
+
+                var index = Array.prototype.indexOf.call(nav.querySelectorAll(".detail-pane-tab"), tab);
+                if (index < 0) return;
+                var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+                nav.scrollTo({ left: this.restingLeft(index), behavior: reduce ? "auto" : "smooth" });
+              },
+              markEdges: function () {
+                var nav = this.el;
+                var slack = 2;
+                var atStart = nav.scrollLeft <= slack;
+                var atEnd = nav.scrollLeft + nav.clientWidth >= nav.scrollWidth - slack;
+
+                nav.toggleAttribute("data-scroll-start", atStart);
+                nav.toggleAttribute("data-scroll-end", atEnd);
               },
               keydown: function (e) {
                 var tabs = Array.prototype.slice.call(
@@ -932,8 +1043,12 @@ defmodule PortfolixirWeb.LayoutView do
               mounted: function () {
                 // The trigger that had focus when the dialog opened; restored
                 // on close because the server removes the dialog from the DOM,
-                // which forfeits the native focus-restore (UX-DR9).
-                this.opener = document.activeElement;
+                // which forfeits the native focus-restore (UX-DR9). A dialog
+                // opened from a row menu finds the menu gone and the focus on
+                // <body> (U1, #912): that is no opener, so the fallback below
+                // takes the focus, never <body> (WCAG 2.4.3).
+                var active = document.activeElement;
+                this.opener = active && active !== document.body ? active : null;
                 // Where the dialog's own write takes its trigger off the page
                 // (the release of the last manual quote, closing act γ D2),
                 // `data-focus-fallback` names where the focus goes instead.
@@ -990,13 +1105,47 @@ defmodule PortfolixirWeb.LayoutView do
                 if (this.el.open && typeof this.el.close === "function") {
                   this.el.close();
                 }
-                if (this.opener && this.opener.isConnected &&
-                    typeof this.opener.focus === "function") {
-                  this.opener.focus();
-                } else if (this.focusFallback) {
-                  var fallback = document.querySelector(this.focusFallback);
-                  if (fallback && typeof fallback.focus === "function") fallback.focus();
+                this.returnFocus();
+              },
+              // Where the focus goes once the server has removed the dialog
+              // (UX-DR9, WCAG 2.4.3) — only when it went with the dialog: a
+              // dialog that opened from this one keeps it. A result the
+              // close shows (`data-focus-result`, the page's result slot)
+              // comes into view first; the target then takes the focus
+              // without scrolling, and is brought into view only when it is
+              // out of it — so closing never jumps the page to its top
+              // (U1, #912, the closing act R3).
+              returnFocus: function () {
+                var active = document.activeElement;
+                if (active && active !== document.body && active.isConnected) return;
+                var target = this.returnTarget();
+                if (!target || typeof target.focus !== "function") return;
+                var shown = this.el.getAttribute("data-focus-result");
+                var result = shown && document.querySelector(shown);
+                if (result) result.scrollIntoView({ block: "nearest" });
+                target.focus({ preventScroll: true });
+                // In view means below the sticky top bar, which the
+                // target's scroll-margin-top states.
+                var box = target.getBoundingClientRect();
+                var top = parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+                if (box.top < top || box.bottom > window.innerHeight) {
+                  target.scrollIntoView({ block: "nearest" });
                 }
+              },
+              // The opener while it is on the page; else the first of
+              // `data-focus-return` — a history row's two kebabs, the
+              // table's and the phone row's — that is on the page and
+              // visible; else `data-focus-fallback`, for a target the
+              // dialog's own write took off the page (the row it deleted,
+              // the last manual quote it released).
+              returnTarget: function () {
+                if (this.opener && this.opener.isConnected) return this.opener;
+                var list = this.el.getAttribute("data-focus-return");
+                var candidates = list ? document.querySelectorAll(list) : [];
+                for (var i = 0; i < candidates.length; i++) {
+                  if (candidates[i].getClientRects().length > 0) return candidates[i];
+                }
+                return this.focusFallback ? document.querySelector(this.focusFallback) : null;
               },
               modal: function () {
                 return !this.sheetBelow ||
@@ -1546,6 +1695,21 @@ defmodule PortfolixirWeb.LayoutView do
 
             window.addEventListener("phx:os-notify", function (event) {
               window.Portfolixir.osNotify(event.detail || {});
+            });
+
+            // A result that answers a click whose control left the page with
+            // it (#920: a row action on a security deleted or merged away
+            // meanwhile; the menu item went with the row and the focus fell
+            // to <body>). The server names the result slot; it is scrolled
+            // to the top of the window — below the sticky top bar, by its
+            // `scroll-margin-top` — and takes the focus without a second
+            // scroll. Never <body> (WCAG 2.4.3).
+            window.addEventListener("phx:focus-into-view", function (event) {
+              var id = event.detail && event.detail.id;
+              var target = id && document.getElementById(id);
+              if (!target || typeof target.focus !== "function") return;
+              target.scrollIntoView({ block: "start" });
+              target.focus({ preventScroll: true });
             });
 
             // Content-Security-Policy (#382): the pages carry no inline event

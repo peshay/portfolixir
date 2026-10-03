@@ -236,9 +236,9 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
     assert Repo.get(Security, sec.id)
 
     # A blocked dialog explains why and offers retire as an alternative
-    assert html =~ ~s(class="confirm-delete-blocked) or
-             html =~ "referenced" or
-             html =~ "referenz"
+    # (since #918, pick H8.2 = A: by naming what still references it).
+    assert has_element?(view, "#delete-blocked-dialog.confirm-delete-blocked")
+    assert html =~ "still has 1 booking"
 
     assert html =~ ~s(phx-value-action="retire")
   end

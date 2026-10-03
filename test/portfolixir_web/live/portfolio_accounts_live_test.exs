@@ -463,6 +463,35 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
     refute panel =~ "<input"
   end
 
+  # User story (#1011 c; Sprint 18 pick H4, board
+  # ux-design-2026-10-02/04-tables-conformance ⑤ "after"; UX-DR19,
+  # {components.disclosure}):
+  # As the operator on Accounts & depots,
+  # I want the compatibility records' disclosure to look like every other
+  # disclosure of the app,
+  # so that it reads as a quiet section toggle, not the browser's triangle.
+  #
+  # Acceptance criteria:
+  # - The panel's summary is a `.disclosure-summary` with the defined
+  #   chevron, which turns when the panel opens.
+  test "the compatibility records open behind the spec'd disclosure", %{conn: conn} do
+    {:ok, _portfolio} =
+      Portfolios.create_portfolio(Actor.owner_ui(), %{name: "Mine", base_currency_code: "EUR"})
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    assert has_element?(
+             view,
+             "#portfolio-admin > summary.disclosure-summary .disclosure-chevron"
+           )
+
+    assert has_element?(
+             view,
+             "#portfolio-admin > summary.disclosure-summary",
+             "Portfolio records (compatibility)"
+           )
+  end
+
   # User story (ADR-0024, #491):
   # As a local portfolio maintainer whose depots settle against one shared
   # cash account,
@@ -1162,7 +1191,18 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
         |> render_submit()
 
       assert html =~ "field-error"
-      assert html =~ "securities account ##{depot.id}"
+
+      # Since #921 (pick H8.3) the refusal names the depot by its name, in
+      # the rename dialog's words, never by its internal number.
+      error =
+        view
+        |> element("#account-dialog-form .field-error")
+        |> render()
+        |> Floki.parse_fragment!()
+        |> Floki.text()
+
+      assert error =~ "“Broker depot”"
+      refute error =~ "##{depot.id}"
       assert Enum.map(Portfolios.list_cash_accounts(), & &1.name) == ["Giro"]
 
       view |> element("#account-form-dialog header button.icon-button") |> render_click()

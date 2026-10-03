@@ -220,6 +220,16 @@ Familien untereinander unter ihren Namen, dem Weitere-Filter-Builder,
 **Zurücksetzen** und **Fertig**; ein Chip im Sheet wirkt sofort, genau wie
 in der Zeile.
 
+**Eine Zeile, deren Wertpapier anderswo verschwand.** Hat der Agent, die API
+oder ein anderer Tab ein Wertpapier gelöscht oder zusammengeführt, nachdem die
+Liste geladen wurde, lädt eine Zeilenaktion auf dieser Zeile die Liste neu,
+statt nichts zu tun, schließt ein darauf geöffnetes Detail und sagt, warum
+die Zeile ging: „„…“ wurde inzwischen gelöscht; die Liste ist neu geladen.“
+oder „„…“ wurde inzwischen in … zusammengeführt; die Liste ist neu geladen.“,
+das Wertpapier, das die Historie jetzt trägt, verlinkt. Der Hinweis rückt an
+den oberen Fensterrand und erhält den Tastaturfokus, denn das Menü, das ihn
+hatte, ging mit der Zeile.
+
 ### Klassifikations-Spalten
 
 Neben den Attribut- und Kursspalten bietet die Spaltenauswahl der
@@ -264,8 +274,13 @@ mit einer zweiten Kopie der Historie an, oder ein von Hand angelegtes
 Wertpapier wurde vom nächsten Import noch einmal angelegt —, führt man das
 Duplikat in das Wertpapier zusammen, das bleibt: **Zusammenführen in…** im
 Zeilenmenü des Duplikats auf der Wertpapierseite, oder derselbe Knopf im
-Dialog *Kann nicht gelöscht werden*, wenn Buchungen oder Kurse das Löschen
-verhindern. Ihr Agent hat dieselbe Zusammenführung
+Dialog *Kann nicht gelöscht werden*, wenn Buchungen, Kurse oder Termine das
+Löschen verhindern. Dieser Dialog zählt, was noch auf das Wertpapier verweist
+(„„…“ hat noch 12 Buchungen, 840 Kurse und 3 Research-Einträge.“), und sagt,
+warum der Ausweg der ist, der er ist: Research-Einträge werden nie entfernt
+und ziehen bei keiner Zusammenführung mit, ein Wertpapier mit
+Research-Einträgen wird darum stattdessen stillgelegt. Ihr Agent hat dieselbe
+Zusammenführung
 (`GET /api/v1/securities/:id/merge_preview` und
 `POST /api/v1/securities/:id/merge` oder die MCP-Tools
 `portfolixir.securities.merge_preview` und `portfolixir.securities.merge`),
@@ -390,6 +405,77 @@ Die Zahlen stehen über den **eigenen** splitbereinigten Schlusskursen in der
 erzeugt keine Renditebeobachtung. **Der Block berichtet, er bewertet nicht** —
 es gibt kein Signal, kein Rating und keine Empfehlung darin.
 
+### Anleihen: Stammdaten und Kennzahlen (ADR-0052)
+
+Ein Wertpapier der Anlageklasse **Anleihe** oder **Staatsanleihe** — gesetzt
+oder aus dem Namen abgeleitet — trägt seine Stammdaten im Wertpapierdialog
+hinter **Bearbeiten**: Der Abschnitt *Anleihedaten* erscheint, solange die
+Anlageklasse eine der beiden ist, beim Anlegen wie beim Bearbeiten. Seine
+Felder sind der **Kupon p. a. in Prozent** (2,5, nicht 0,025), die
+**Zinszahlung** (jährlich oder halbjährlich), die **Fälligkeit** und ein
+optionaler **Emissionstag** (ISO-Datum, die Fälligkeit nach dem
+Emissionstag) sowie die **Stückelung** (Nennwert) mit ihrer **Währung**, die
+auf der Währung des Wertpapiers beginnt und nur mit einer Stückelung
+gespeichert wird: Ein Speichern ohne Stückelung speichert keine Währung, und
+das Nominal steht dann in der Währung des Wertpapiers. Pflicht ist nichts; beim
+Bearbeiten löscht ein geleertes Feld seinen Wert, und die Werte bleiben
+erhalten, wenn die Anlageklasse von einer Anleihe weg wechselt. Findet eine
+Suche ein Wertpapier, das der Katalog schon führt, schreiben **Vorhandenes
+aktualisieren** und **Online-Felder übernehmen** nur die ausgefüllten
+Anleihefelder: Ein leeres Feld lässt den gespeicherten Wert stehen. Ein
+Wert, den keine Anleihe trägt — ein Kupon über 100 %, eine Fälligkeit am
+Emissionstag, eine gruppierte Zahl —, wird an seinem eigenen Feld
+abgelehnt, und alle Ablehnungen eines Speicherns stehen zugleich da.
+
+**Die Mengenkonvention.** Ein Portfolio-Performance-Export bucht die
+Stückzahl einer prozentnotierten Anleihe als **ein Hundertstel des
+Nominals**: 100 Stück sind 10.000 Nominal, und ein Kurs von 97,25 ist
+zugleich 97,25 % vom Nennwert und der Preis je Stück. Stück × Kurs ist also
+schon der Marktwert, und **das Nominal im Bestand ist Stück × 100**. Jede
+Stelle, die das Nominal ableitet, sagt das.
+
+Die **Übersicht** der Anleihe zeigt unter den sechs Werten einen Block mehr,
+überschrieben mit *Anleihe*: die Fälligkeit mit dem Emissionstag, den Kupon
+mit seiner Zahlung und das **Nominal im Bestand** („100 Stück × 100 EUR“,
+die Stückelung daneben), darunter, was daraus folgt —
+
+- **Restlaufzeit**: Kalendertage von heute bis zur Fälligkeit, in Jahren zu
+  365 Tagen und in ganzen Jahren und Monaten; *fällig* ab dem
+  Fälligkeitstag;
+- **laufende Rendite** = Kupon ÷ Kurs;
+- **Rendite bis Fälligkeit**, linear angenähert: (Kupon + (100 − Kurs) ÷
+  Restlaufzeit in Jahren) ÷ Kurs, ohne Zinseszins.
+
+Der Kurs ist der, mit dem die Bewertung rechnet: der letzte gespeicherte
+Kurs oder, solange es keinen gibt, der letzte eigene Handelspreis, und die
+Zahl sagt, welcher. Stückzinsen, Gebühren und Steuern sind nicht enthalten;
+die Zahlen werden **berichtet, nicht bewertet**. Eine Zahl, der ein Eingang
+fehlt, liest sich *nicht erfasst* oder *nicht berechenbar* mit dem Grund,
+nie als Zahl. Ganz ohne Stammdaten sagt ein Satz, was fehlt, und
+**Anleihedaten erfassen…** öffnet den Dialog.
+
+**Keine Rendite aus einem Preis je Stück.** Solange kein Kurs gespeichert
+ist und der letzte eigene Handelspreis **höchstens 5** beträgt, lesen sich
+beide Renditen *nicht berechenbar* mit dem Grund „Handelspreis … je Stück,
+keine Prozentnotiz“: Eine zu 0,984 je Stück gekaufte Anleihe wurde mit dem
+Nominal als Stückzahl gebucht, und 2,5 ÷ 0,984 läse sich als Rendite von
+254 %. Die Grenze ist das Zwei-Skalen-Band unten gespiegelt, 100 ÷ 20. Ein
+gespeicherter Kurs ist in jeder Höhe ein Prozentkurs und wird immer
+verwendet.
+
+**Auf zwei Skalen bepreist.** Hat ein Export das Nominal einer Anleihe als
+Stückzahl gebucht, ist ab dem ersten Kurs jeder Geldbetrag der Anleihe —
+Wert, Gewinn, Gewicht — hundertfach zu hoch, und die TTWROR kann es nicht
+zeigen. Eine Anleihe, deren letzter gespeicherter Kurs das 20- bis 500-Fache
+eines gebuchten Preises je Stück beträgt — eines Kaufs oder einer mit Preis
+erfassten Einlieferung — (Kurse um 100, Buchungen um 1), wird deshalb in
+einem **Problem**-Hinweis oben in ihrer Übersicht genannt, mit dem Kurs, der
+Buchung und einem Link auf ihren Tab **Transaktionen**, wo
+die Stückzahl gegen das Nominal der Abrechnung geprüft wird, und im
+**Datenqualitäts**-Panel unter Vermögen → Bestände, wo die Summe gelesen
+wird, die sie aufbläht. Umgerechnet wird nichts: Die Zahlen bleiben wie
+gebucht, bis die Buchungen korrigiert sind.
+
 ### Tab „Termine" (der Kalender des Wertpapiers, ADR-0048)
 
 Der Tab **Termine** listet die datierten Kalenderfakten des Wertpapiers —
@@ -469,8 +555,13 @@ gemachten Zeichen*, dem Text in der Schreibweise, die der Agent bekommt
 anhängen, der #n ersetzt**, das den Eintrag im Formular vorwählt; der Name
 eines Wertpapiers wird mit **Stammdaten bearbeiten** korrigiert; die Notizen
 einer Buchung, Name und Notiz einer Regel sowie die Namen von Ansichten,
-Buckets und Kategorien tragen die Notiz dort, wo sie bearbeitet werden, und
-eine saubere Neueingabe entfernt sie.
+Buckets, Kategorien, Verrechnungskonten und Depots tragen die Notiz dort, wo
+sie bearbeitet werden, und eine saubere Neueingabe entfernt sie. Weil der neu
+eingegebene Name die alte Schreibweise als früheren Namen behält, markiert der
+Umbenennen-Dialog eines Verrechnungskontos oder Depots auch dessen frühere
+Namen — „Ein früherer Name enthält 1 unsichtbares Zeichen. Ein Import, der
+ihn genau so schreibt, bucht weiter auf dieses Depot.“ —, sodass das
+Entfernen dieses Eintrags eine Wahl ist, die man sieht.
 
 **Benchmark-Wertpapiere.** Ein Wertpapier lässt sich aus seinem Zeilenmenü
 als Benchmark markieren („Als Benchmark markieren“): eine Referenzreihe, mit
@@ -681,15 +772,17 @@ heißt es *die neuesten 100*. Jede Zeile nennt:
   dorthin, wo die Buchungen heute stehen; ein inzwischen gelöschtes Ziel liest
   *ein inzwischen gelöschtes Depot (Verrechnungskonto, Wertpapier)*;
 - das **Ergebnis** in den Worten der Bestätigung (*142 Buchungen verschoben,
-  6 entfernt*; bei einem Wertpapier auch die entfernten Duplikate, die
-  ergänzten Kurse und die entfallenen Einstellungen). Aufgeklappt zeigt es
+  6 entfernt*; bei einem Wertpapier auch die entfernten Duplikate, die mit
+  denen des Ziels zusammengelegten Splits, die ergänzten Kurse und die
+  entfallenen Einstellungen). Aufgeklappt zeigt es
   eine Zeile je Tabelle, die die Zusammenführung geändert hat — verschobene
   und entfernte Buchungen, jede Entfernung mit ihrem Grund (*Duplikat
   entfernt*, *interne Umbuchung entfallen*, *gesetzter Saldo desselben Tages
   entfallen*, *Split zusammengelegt*), gesetzte Salden, frühere Namen, Kurse,
   Klassifizierungen, Buckets der Position und Ähnliches —, dann Ihre Wahl für
   gleiche Buchungen und bei einem Wertpapier die ISIN, und die bestandene
-  Prüfung (*Saldo an 211 Tagen bestätigt*);
+  Prüfung (*Saldo an 211 Tagen bestätigt*; *nichts zu prüfen* für eine
+  Zusammenführung, deren Quelle nichts bewegt hat, gleich welcher Art);
 - **Von**: *Operator* für eine Zusammenführung auf diesen Seiten, *Agent* für
   eine, die ein API- oder MCP-Token ausgeführt hat.
 
@@ -761,16 +854,92 @@ den vorherigen Werten im Audit-Journal festgehalten. Das ist die menschliche
 Sicht auf eine Fähigkeit, die API und MCP-Begleiter schon vor der
 Zwei-Wege-Regel hatten; an beiden wurde nichts ergänzt.
 
-**Ein gebuchter Split** ist die Ausnahme (E25 S6): Ein Split ist eine
-Tatsache am Wertpapier, gebucht über **Split erfassen** am Wertpapier, dessen
-Prüfungen (der Stichtag, die Bestände, ein anderes Verhältnis am selben Tag)
-eine gewöhnliche Änderung umgehen würde. **Bearbeiten** an einer Split-Zeile
-öffnet die Schublade daher mit Typ, Stichtag, Wertpapier und Verhältnis des
-Splits, fest, und nur die **Notiz** ist änderbar (**Notiz speichern**). Ein
-falscher Split wird nicht an Ort und Stelle korrigiert: Seine Zeilen werden
-über die API oder den MCP-Begleiter gelöscht, und der Split wird mit **Split
-erfassen** neu erfasst. API und MCP antworten auf eine Änderung an etwas
-anderem als der Notiz einer Split-Zeile mit `422`.
+**Die Arten, die die Schublade nicht bucht** (Issue #912): Die Schublade
+erfasst und korrigiert Käufe und Verkäufe. **Bearbeiten** an jeder anderen
+Buchung — einer Dividende, einer Einlage, einer Umbuchung, einer
+Einlieferung, einem gesetzten Saldo, einem Split — öffnet die Schublade
+**nur für die Notiz**: Die Angaben der Buchung stehen fest da (Typ, Datum und
+was die Art speichert — das Wertpapier, das Verrechnungskonto oder beide
+Konten einer Umbuchung, das Depot, den Betrag, die Steuern, Stückzahl und
+Preis, jede Zahl mit den Stellen, mit denen sie gespeichert ist), und nur
+die **Notiz** ist änderbar (**Notiz speichern**; das Audit-Journal hält die
+Änderung fest wie jede andere). Eine Hilfezeile sagt, wie eine solche
+Buchung korrigiert wird: an Ort und Stelle über die API oder den
+MCP-Begleiter, oder indem sie gelöscht und neu importiert wird — bei einer
+Buchung aus einem Import; eine über API oder MCP gebuchte wird gelöscht und
+dort neu gebucht, ein gesetzter Saldo unter **Konten & Depots** neu
+gesetzt —, und trägt **Löschen…**, das die Schublade schließt und die
+Rückfrage unten öffnet. Wer die Schublade schließt — **Abbrechen**, Esc,
+die Schließen-Schaltfläche oder **Notiz speichern** —, findet den Fokus
+wieder auf der Menü-Schaltfläche der Zeile, „Notiz gespeichert“ im Blick.
+
+**Ein gebuchter Split** öffnet ebenfalls nur die Notiz (E25 S6): Ein Split
+ist eine Tatsache am Wertpapier, gebucht über **Split erfassen** am
+Wertpapier, dessen Prüfungen (der Stichtag, die Bestände, ein anderes
+Verhältnis am selben Tag) eine gewöhnliche Änderung umgehen würde. Seine
+Schublade zeigt Typ, Stichtag, Wertpapier und Verhältnis des Splits, fest.
+Ein falscher Split wird nicht an Ort und Stelle korrigiert: Er wird gelöscht
+— **Split löschen…** in dieser Hilfezeile — und mit **Split erfassen** neu
+erfasst. API und MCP antworten auf eine Änderung an etwas anderem als der
+Notiz einer Split-Zeile mit `422`.
+
+**Eine Buchung löschen** (Issue #912): Das Kebab-Menü jeder Zeile trägt nach
+**Bearbeiten** den Eintrag **Löschen…**, in Rot. Er öffnet eine Rückfrage,
+die die Buchung so nennt, wie die Telefonzeile der Historie sie zeigt —
+Datum und Art über Wertpapier und Depot (oder Konto), der Betrag mit
+Vorzeichen über seiner Größe — und sagt, was sich ändert: zum Beispiel
+„Danach hält Depot 1 40 Stück Global Aktien ETF weniger, und Girokonto hat
+2.504,90 EUR mehr.“, dass Bestände, Kontostände, Rendite und Trades ohne die
+Buchung neu berechnet werden und dass das Audit-Journal die Buchung mit allen
+Werten behält, die Oberfläche sie aber nicht zurückholen kann. Die Rückfrage
+entsteht aus der Buchung, wie sie beim Wählen von **Löschen…** gespeichert
+ist. Eine Stückzahl nennt sie zum heutigen Stand: Ein Kauf von 10 Stück vor
+einem 2:1-Split liest „20 Stück weniger“, so viel verlieren die Bestände. Wo
+ein später gesetzter Saldo dieses Verrechnungskonto verankert, sagt der
+Satz, bis wann sich das Konto ändert, und der nächste, ab wann es bleibt,
+wie gesetzt: „… und Girokonto hat bis zum 30.09.2026 2.504,90 EUR mehr. Ab
+dem am 01.10.2026 gesetzten Saldo bleibt der Stand von Girokonto
+unverändert.“; ein am Tag der Buchung gesetzter Saldo heißt, der Stand des
+Kontos bleibt, wie er gesetzt wurde. Ein Wertpapier, dessen Namen ein
+anderes auch trägt, wird mit seiner ISIN genannt, wie das Zeilenmenü es
+nennt. **Transaktion löschen** löscht sie; **Abbrechen**, Esc oder die
+Schließen-Schaltfläche ändern nichts und geben den Fokus an die
+Menü-Schaltfläche der Zeile zurück. Die Zeile verschwindet, die Monatssumme
+folgt, und das Ergebnis lautet „Transaktion gelöscht: Kauf · Global Aktien
+ETF · 22.09.2026.“; eine inzwischen gelöschte
+Buchung (vom Agenten oder in einem anderen Tab) liest „Diese Transaktion
+existiert nicht mehr.“ — die eine Ablehnung, die die API kennt. Darüber
+hinaus wird nichts geprüft, wie über die API: Wird ein Kauf gelöscht, dessen
+Stücke ein späterer Verkauf verbraucht hat, fehlt diesem Verkauf danach sein
+Kauf.
+
+- **Eine importierte Buchung** sagt es: Gelöscht, kennt der Import sie nicht
+  mehr, ein erneuter Import derselben Datei bucht sie also wieder. Diesen
+  Vermerk legt nur das Zusammenführen eines Kontos, Depots oder Wertpapiers
+  still.
+- **Ein Split** wird so gelöscht, wie er gebucht wurde, als eine Tatsache:
+  **Löschen…** an einer beliebigen seiner Zeilen öffnet **Split löschen**
+  mit dem Verhältnis, der Zahl der Zeilen und den Portfolios, deren Zeilen
+  mitgehen — „Split löschen (2 Zeilen)“ löscht sie alle in einem Schritt,
+  im Audit-Journal festgehalten; ein Split in einem Portfolio wird ohne
+  Zeilenzahl genannt. Die Bestätigung löscht die Zeilen, die die Rückfrage
+  aufgezählt hat: Ist eine davon inzwischen gelöscht, gehen die übrigen
+  trotzdem; ist inzwischen eine hinzugekommen (ein erneutes Buchen in einem
+  weiteren Portfolio), wird nichts gelöscht, und die Rückfrage zeigt den
+  Split, wie er jetzt ist — „Der Split hat sich geändert, während dieser
+  Dialog offen war. Nichts wurde gelöscht; der Dialog zeigt jetzt den neuen
+  Stand.“ —, zum erneuten Bestätigen. Danach zählen die Bestände ab seinem
+  Stichtag ohne den Split, das Diagramm rechnet die Kursreihe ohne ihn, und
+  gespeicherte Kurse bleiben, wie sie sind; **Split erfassen** nimmt danach
+  das korrigierte Verhältnis an. **Split erfassen** selbst führt hierher: Ist am Tag schon
+  ein Split mit anderem Verhältnis gebucht, nennt seine Warnung dieses
+  Verhältnis und trägt **Gebuchten Split löschen…**, das dieselbe Rückfrage
+  auf der Seite des Wertpapiers öffnet.
+
+API und MCP-Begleiter haben dieselben zwei Löschwege:
+`DELETE /api/v1/transactions/:id` (`portfolixir.transactions.delete`) für eine
+Buchung und `DELETE /api/v1/splits/:transaction_id` (`portfolixir.splits.delete`,
+ein Admin-Werkzeug) für einen Split als Ganzes.
 
 Während ein **Verkauf** erfasst wird, zeigt das Formular eine Vorschau,
 welche FIFO-Kauftranchen (Lots) der Verkauf verbrauchen würde und den
@@ -1038,8 +1207,11 @@ Die Zustände sind:
 - **Ein Plan existiert.** Jede Kategorie erhält ein **Soll %**-Feld, und darunter
   steht ein **Cash**-Zielfeld; **Plan speichern** schreibt den gesamten
   `(Sicht, Klassifizierung)`-Plan auf einmal. Eine Live-**Σ**-Fußzeile summiert
-  die Kategoriegewichte plus das Cash-Ziel und zeigt bei genau 100 % ein ✓, sonst
-  ein ✗ mit dem gelben Abweichungshinweis — und aktualisiert sich beim Tippen.
+  die Kategoriegewichte plus das Cash-Ziel und aktualisiert sich beim Tippen:
+  bei genau 100 % ein ✓, über 100 % ein ✗ mit dem gelben Abweichungshinweis.
+  Ein Plan unter 100 % ist eine Wahl, kein Fehler (ADR-0040): Die Σ trägt kein
+  Zeichen, und eine gedämpfte letzte Zeile **Nicht verteilt** zeigt, was der
+  Plan nicht verteilt.
   Eine Elternkategorie, deren Kinder Gewichte tragen, zeigt deren Summe neben
   ihrem Namen (**Kinder Σ**), in der Abweichungsfarbe, wenn sie vom eigenen
   Gewicht der Elternkategorie abweicht; sie folgt jeder Eingabe wie die
@@ -1424,19 +1596,24 @@ einig. Die Grundlagenzeile sagt das dort, wo die Zahl gelesen wird: Hinter der
 Σ der obersten Ebene steht **„— Abweichung gegen den verteilten Anteil"**,
 sobald der Plan weniger als 100 % verteilt, und die Σ steht nur dann in der
 Warnfarbe, wenn der Plan **mehr** als 100 % verteilt — ein Plan mit bewusstem
-Rest ist kein Fehler (Issue #875). Ein Umschalter **Baum |
+Rest ist kein Fehler (Issue #875). Das ⓘ der Drift-Spalte sagt es ebenfalls und
+rechnet eine Zahl vor: In einem Plan, der 80 % verteilt, zählen 40 % Soll als
+50 % (Issue #911). Ein Umschalter **Baum |
 Positionen** — ein Segment-Schalter, dessen aktive Option gefüllt ist —
 tauscht die Hierarchie gegen eine flache Rebalancing-Arbeitsliste:
 eine Zeile je Wertpapier (inkl. Cash) mit der Kategorie als Kontext,
 standardmäßig nach vorzeichenbehafteter Drift sortiert (stärkstes Übergewicht
 zuerst, stärkstes Untergewicht zuletzt) und über die Spaltenköpfe (Wert, Drift
-oder Kategorie) umsortierbar. Die Kategorie der Cash-Zeile lautet „—": Cash hat
+oder Kategorie) umsortierbar. Unter der Drift jeder Zeile steht ihr
+Rebalancing-Hinweis, in einer Zelle, die am rechten Rand der Tabelle angeheftet
+bleibt, wenn die Liste auf einem schmalen Bildschirm seitlich scrollt (Issue
+#911). Die Kategorie der Cash-Zeile lautet „—": Cash hat
 ein eigenes Soll und ist nie „Nicht zugeordnet". Eine Kategorie mit direkt zugeordneten Wertpapieren klappt in
 ihre Wertpapiere auf — jedes mit Wert, Gewicht, seinem Anteil an der
 Kategorie-Drift und einem reinen **Anzeige-Rebalancing-Hinweis**: die indikative
 Stückzahl, die zum Bewertungskurs zu verkaufen (positive Drift) oder zu kaufen
 (negative) wäre, um die Lücke zu schließen (ADR-0023). Ein Hinweis, der auf
-zwei Stellen gerundet null Stück ergibt, wird nicht gezeigt („—"); die Drift
+zwei Stellen gerundet null Stück ergibt, wird nicht gezeigt; die Drift
 bleibt. Der Hinweis modelliert
 keine Gebühren oder Steuern, und hinter ihm steht bewusst kein Order-Knopf —
 das Handeln bleibt vollständig manuell.
@@ -1546,7 +1723,7 @@ Die Seite zeichnet sich sofort und berechnet ihre Zahlen **asynchron**; jeder
 Abschnitt füllt sich, sobald seine Daten bereit sind. Der teure tägliche
 Performance-Lauf läuft einmal und wird auf der Seite zwischengespeichert — ein
 Zeitraumwechsel verkettet die zwischengespeicherte Reihe neu, sodass die
-Zeitraumauswahl sofort reagiert. Die Zeitraum-Tokens (YTD, 1Y, 3Y, 5Y, Max)
+Zeitraumauswahl sofort reagiert. Die Zeitraum-Tokens (YTD, 1J, 3J, 5J, Max)
 und der %/Wert-Umschalter sind segmentierte Controls; ein Von/Bis-Zeitraum
 (ISO-Daten, `YYYY-MM-DD`) und die durchlaufenen Kalenderjahre liegen hinter
 dem Bedienelement **Benutzerdefinierter Zeitraum …** daneben. Es öffnet ein
@@ -1582,11 +1759,14 @@ modellierten Kapitalmaßnahme — je Depot gelistet mit der Gesamtmenge des
 Wertpapiers über alle Depots und verlinkt auf die Transaktionen des
 Wertpapiers, damit sich die Historie reparieren lässt (nichts wird
 automatisch repariert; der Split-Assistent bleibt die einzige geführte
-Reparatur), sowie Buchungen mit unplausiblen Daten (vor 1970), die
-stattdessen am ersten plausiblen Tag angewendet wurden. Jeder Befund ist
+Reparatur), Buchungen mit unplausiblen Daten (vor 1970), die
+stattdessen am ersten plausiblen Tag angewendet wurden, sowie Anleihen, die
+**auf zwei Skalen bepreist** sind — Kurse um 100 neben gebuchten
+Stückpreisen um 1, sodass sie hundertfach zu hoch zählen (siehe *Anleihen*
+unter Wertpapiere), jede verlinkt auf ihre Transaktionen. Jeder Befund ist
 eine Notiz in seiner eigenen Stufe — Hinweis für den Handelspreis-Rückfall,
 Achtung für ausgenommene und veraltete Positionen, Problem für negative
-Bestände — und trägt sein Mittel in der Notiz: das Bedienelement
+Bestände und für zwei Skalen — und trägt sein Mittel in der Notiz: das Bedienelement
 **Wechselkurse synchronisieren** steht im Befund zum fehlenden Wechselkurs,
 und ein Verrechnungskonto, das mangels Kurs ausgenommen ist, ist auch in der
 Cash-Tabelle mit *kein Wechselkurs* markiert. Positionen mit
@@ -2248,9 +2428,10 @@ ablegen. Eine bereits importierte Datei zeigt in der Vorschau *nichts
 anzulegen*; eine Zeile, die die Vorschau jetzt als neu zählt, ist eine
 Umbuchung, die der frühere Import anders gelesen hat (Fälle 1 und 2 und Fall 3
 zwischen zwei Depots). Die
-falsche Buchung vor dem Übernehmen entfernen: über die API oder den
-MCP-Begleiter löschen (`DELETE /api/v1/transactions/:id`,
-`portfolixir.transactions.delete`), dann die Datei übernehmen, die die
+falsche Buchung vor dem Übernehmen entfernen: mit **Löschen…** in ihrem
+Zeilenmenü in der Historie oder über die API oder den MCP-Begleiter löschen
+(`DELETE /api/v1/transactions/:id`, `portfolixir.transactions.delete`), dann
+die Datei übernehmen, die die
 Umbuchung so bucht, wie sie ging. Ein Verrechnungskonto mit dem Namen eines
 Depots hält danach nichts mehr und kann gelöscht werden. Fall 3 zwischen zwei
 Verrechnungskonten braucht keinen erneuten Import: die Buchung in der falschen
@@ -2567,9 +2748,20 @@ mit dem Wertpapier im Titel:
 
 Nach der Freigabe sagt der Tab, wie viele Kurse von wann bis wann freigegeben
 wurden, mit **Kurse aktualisieren** als nächstem Schritt, wo eine
-Aktualisierung helfen kann, bis Sie die Meldung schließen oder weitergehen.
-Nichts auf der Seite stellt einen freigegebenen Kurs wieder her; das Journal
-hält ihn fest. Auf dem Telefon öffnet sich der Dialog als Blatt von unten.
+Aktualisierung helfen kann — sie aktualisiert nur dieses Wertpapier —, bis Sie
+die Meldung schließen oder weitergehen. Nichts auf der Seite stellt einen
+freigegebenen Kurs wieder her; das Journal hält ihn fest. Auf dem Telefon
+öffnet sich der Dialog als Blatt von unten.
+
+Das Ergebnis einer Kursaktualisierung sagt, wie viele manuelle Kurse stehen
+blieben, wo der Anbieter für denselben Tag einen Schlusskurs lieferte (*2
+manuelle Kurse blieben stehen, wo der Anbieter einen Schlusskurs lieferte.*);
+eine Aktualisierung, die ein Wertpapier übersprungen hat, sagt in Worten,
+warum. Auf dem Telefon zeigt der Kurse-Tab jeden Kurs als zweizeilige Zeile —
+das Datum über seiner Quelle, rechts der Schlusskurs und darunter der
+gespeicherte Wert, wo ein Split den Kurs angepasst hat —, sodass die Quelle
+jedes Kurses ohne Wischen durch die Tabelle lesbar ist, und die Kursbasis-Zeile
+über den Zeilen nennt diese Zeile statt der Spalte Gespeichert der Tabelle.
 Ihr Agent liest dieselbe Zusammenfassung mit
 `GET /api/v1/securities/:security_id/quotes/manual` (MCP
 `portfolixir.quotes.manual`) und gibt mit `portfolixir.quotes.release` frei.
@@ -2587,11 +2779,15 @@ Die Reiterzeile des Detailbereichs ist ein einziger Tastaturstopp: **Tab**
 landet auf dem gewählten Reiter, **Pfeil links/rechts** wechseln zum vorigen
 oder nächsten Reiter (am Ende geht es von vorn weiter), **Pos1** und **Ende**
 springen zum ersten und letzten, und der Reiter, der den Fokus erhält, öffnet
-seinen Bereich.
+seinen Bereich. Öffnet die Seite auf einem Reiter — über einen Link, ein
+Neuladen, Zurück oder Vor oder eine geteilte Adresse —, rollt die Zeile diesen
+Reiter ins Bild; das zählt auf dem Telefon, wo die neun Reiter nicht
+hineinpassen.
 
 Der Detailbereich zeigt einen serverseitig gerenderten SVG-Preischart mit:
 
-- Zeitraum-Buttons (1M / 3M / 6M / YTD / 1Y / 3Y / 5Y / MAX).
+- Zeitraum-Buttons (1M / 3M / 6M / YTD / 1J / 3J / 5J / Max). Der Kurse-Tab
+  nennt denselben Zeitraum.
 - Einem Schalter *Log scale* (logarithmische Y-Achse).
 - Einem Schalter *Show transactions*, der Kauf-/Verkauf-Marker aus dem Ledger
   überlagert — formcodierte Dreiecke (▲ Kauf, ▼ Verkauf), die Richtung ist
@@ -2724,8 +2920,12 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
 - Theme, Akzent und Sprache sind Nutzerpräferenzen und beeinflussen gespeicherte
   Finanzwerte nicht.
 - Datumsfelder nehmen ISO-Daten (`YYYY-MM-DD`) entgegen und zeigen sie auch so
-  an — dasselbe Format wie jedes angezeigte Datum; der lokalisierte
-  Browser-Datumswähler kommt nicht zum Einsatz.
+  an; der lokalisierte Browser-Datumswähler kommt nicht zum Einsatz. Ein Datum,
+  das die Seite nur anzeigt, folgt ihrer Sprache: `TT.MM.JJJJ` auf einer
+  deutschen Seite, ISO auf einer englischen. Einige Ansichten zeigen dort noch
+  ISO — der Kopf und die Reiter der Wertpapier-Detailseite sowie die
+  Zusammenführungsdialoge —, bis sie angeglichen sind. API, MCP und jede
+  Datei, die die App liest oder schreibt, bleiben bei ISO.
 - Zahlenfelder (Stückzahl, Preis, Gebühren und Steuern, Abrechnungsbetrag und
   Kurs, die Grenze einer Regel, die Zahlen unter Steuern, ein Kontosaldo)
   zeigen und lesen Zahlen in der Sprache der Seite: auf einer deutschen Seite

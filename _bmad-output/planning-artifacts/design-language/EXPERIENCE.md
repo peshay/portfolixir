@@ -406,7 +406,7 @@ Rules whose nature is **visual** are defined in `DESIGN.md` and only summarised 
 | UX-DR16 | Three selected-state classes; one icon vocabulary | mapping here — **new**; appearance in `DESIGN.md` → **Components → Selected state** and `{components.selected-nav}` / `{components.selected-segment}` / `{components.selected-row}` |
 | UX-DR17 | Data notes carry one of three severities in one component | here — **new**; appearance in `DESIGN.md` → **Components → Data note** and `{components.data-note}` |
 | UX-DR18 | Active states are width-reserved | `DESIGN.md` → **`{components.width-reserve}`**, one mechanism per selected-state class — **new** |
-| UX-DR19 | Native controls inherit the design language; ISO dates | `DESIGN.md` → **Components → Native controls** and `{components.native-control}` — **new** |
+| UX-DR19 | Native controls inherit the design language; ISO date inputs, the locale's date in display (amended 2026-10-03) | `DESIGN.md` → **Components → Native controls** and `{components.native-control}` — **new** |
 | UX-DR20 | Pending and settling are different states | here — **new**; appearance in `DESIGN.md` → **Components → Value slot**, `{components.value-slot}` and `{components.recomputing-cue}` |
 
 ### UX-DR1 — Decluttered Classifications
@@ -586,7 +586,9 @@ Bold-on-active must reserve its metrics so rows and columns do not shift when se
 
 ### UX-DR19 — Native controls inherit the design language *(new)*
 
-Date inputs, selects, `<details>` disclosures and checkboxes get defined appearances instead of browser defaults, and this is where the "unfinished" impression concentrates. **Dates render ISO in input as well as in display**; the built date input shows `MM/DD/YYYY` in a product whose every display date is ISO. Appearance defined in `DESIGN.md` → Components → Native controls.
+Date inputs, selects, `<details>` disclosures and checkboxes get defined appearances instead of browser defaults, and this is where the "unfinished" impression concentrates. **Dates render ISO in input; in display they follow the locale** (`Format.date`: `DD.MM.YYYY` in German, ISO in English); the built date input shows `MM/DD/YYYY`, which is neither. Appearance defined in `DESIGN.md` → Components → Native controls.
+
+*Amended 2026-10-03 (Sprint 18 plan D-7, adopted by its planning PR's merge; #1014):* the 2026-08-05 sentence read "ISO in input as well as in display", while most built screens and three design passes' boards print the locale's date through `Format.date`. **The spec follows those screens.** ISO stays where a date is entered or exchanged: date inputs (the custom range's pair included), the JSON API and MCP payloads, imported and exported files. Moving the screens to ISO instead would have been a rendered change on almost every surface for the sake of a spec sentence. This amendment changes no rendered output. Some screens still print ISO where they only show a date — the security detail's head and its Quotes, Transactions, Trades and Holdings tabs, and the merge dialogs among them. They are drift against this rule, filed to be moved to `Format.date`, not exceptions to it.
 
 **Scope warning.** "One date input, three selects, three `<details>`, one checkbox" describes the six 2026-08-01 UAT screenshots, not the codebase. App-wide there are **11 date inputs, 29 selects, 25 `<details>` and 13 checkboxes** — 78 call sites. A story cut from the screenshot numbers under-scopes by an order of magnitude. Per-file line numbers in the Alignment inventory → UX-DR19.
 
@@ -649,7 +651,7 @@ Five `@media (pointer: coarse)` blocks ship (app.css:4589, 4887, 4998, 5330, 552
 | `.chart-toggle` | `min-height: 32px` | app.css:2973-2986 |
 | `.period-buttons .button-mini` | **no `min-height`** — `padding: 0.25rem 0.6rem` | app.css:3973-3980 |
 | `.locale-link` | `min-width: 30px`, `min-height: 26px` | app.css:743-750 |
-| `.icon-button` | `30 × 30px` | app.css:1438-1445 |
+| `.icon-button` | `30 × 30px` — *rendered 30 × 34 as a `<button>`, because the base button's 34px floor won the height; shipped 2026-10-03 (Sprint 18 U4, issue 1033, board `ux-design-2026-10-02/06-touch-focus` H6.2b): `min-height: 0` makes the 30 × 30 hold, and `min-width` and `min-height` of 44px under `@media (pointer: coarse)`, on the class* | app.css:1438-1445 |
 | `.theme-choice` / `.accent-choice` | `width: 28px`, `min-height: 28px` | app.css:656-671 |
 | `.row-actions__kebab` | **no `min-height`** — `padding: {spacing.1}` — *shipped 2026-09-23 (Sprint 14, issue 834): `min-width` and `min-height` of 44px under `@media (pointer: coarse)`* | app.css:2110-2117 |
 | `.icon-mini` outside `.bucket-list__actions` | **no `min-height`** — `padding: 0.12rem 0.3rem` | app.css:3873-3879 |

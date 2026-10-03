@@ -53,6 +53,12 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
   #                    invariant 12). The writes it replays go through
   #                    `Catalog.update_security/3` and the ISIN change, both
   #                    classified above, where the freeze runs.
+  #   :check_no_write  — `changeset/2` built only to read its errors, never
+  #                    handed to a Repo write: the security dialog checks the
+  #                    rest of its form in the round a figure was refused
+  #                    (#330, closing act on U7, finding 7). The save that
+  #                    follows goes through `Catalog.create_security/2` or
+  #                    `Catalog.update_security/3`, classified above.
   @expected_writers %{
     {"lib/portfolixir/portfolios.ex", :create_cash_account, "CashAccount.changeset"} => :insert,
     {"lib/portfolixir/portfolios.ex", :update_cash_account, "CashAccount.changeset"} => :update,
@@ -76,7 +82,9 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
     {"lib/portfolixir/lifecycle/merge_writer.ex", :reassign_depot,
      "SecuritiesAccount.reassign_changeset"} => :cash_link_only,
     {"lib/portfolixir/lifecycle/security_merge.ex", :stored_asset_class, "Security.changeset"} =>
-      :replay_no_write
+      :replay_no_write,
+    {"lib/portfolixir_web/live/securities/security_form_dialog.ex", :refuse, "Security.changeset"} =>
+      :check_no_write
   }
 
   @changeset_writes ~w(put_change force_change change)a

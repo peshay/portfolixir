@@ -143,8 +143,9 @@ defmodule Portfolixir.WorkflowDocsTest do
   #   conditions from issue #706: DE locale, a pass at 390 px or narrower, and
   #   seed data that triggers the finding surfaces on the touched screens.
   # - The rubric names the finding surfaces concretely (unclassified security,
-  #   stale quote, a plan that does not sum to 100 %), so "triggering data" is
-  #   checkable rather than aspirational.
+  #   stale quote, a plan above 100 % — under 100 % is a choice, not a
+  #   finding, since #969), so "triggering data" is checkable rather than
+  #   aspirational.
   # - The conditions are binding on the walkthroughs, not advisory: a
   #   user-visible batch whose review skipped one of them is a finding.
   test "the review rubric binds the design-critic and UAT walkthrough conditions" do
@@ -155,7 +156,7 @@ defmodule Portfolixir.WorkflowDocsTest do
           "390 px",
           "unclassified security",
           "stale quote",
-          "does not sum to 100"
+          "a plan above 100 %"
         ] do
       assert rubric =~ condition
     end

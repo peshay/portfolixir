@@ -32,7 +32,11 @@ colors:
   accent-teal-soft: '#ccfbf1'
   accent-teal-dark: '#2dd4bf'
   accent-teal-soft-dark: 'rgb(45 212 191 / 0.16)'
-  accent-coral: '#e11d48'
+  # Darkened from #e11d48 on 2026-10-03 (Sprint 18 pick H5, issue 908): the
+  # same hue one step darker, the smallest step that clears 4.5:1 as body
+  # text on every light surface — Colors, the computed contrast table.
+  # brand-coral-2 above keeps #e11d48 for the logo gradient.
+  accent-coral: '#ce1b42'
   accent-coral-soft: '#ffe4e6'
   accent-coral-dark: '#fb7185'
   accent-coral-soft-dark: 'rgb(225 29 72 / 0.16)'
@@ -429,6 +433,7 @@ components:
     container: '{components.panel} as a workspace section; heading on the {typography.section-title} step'
     basis-line: 'directly under the heading, {typography.stat-label} in {colors.text-muted}: the view, the plan, and the threshold the count is computed against. Where the allocation carries several plans the line names that fact instead of a plan. Built today as the threshold clause alone (dashboard_live.ex, data-role="attention-explainer") — view and plan are the missing half.'
     item-row: 'a full-width link row: category name at {typography.body} in {colors.text}, then the drift figure right-aligned in tabular numerals. The figure is signed money semantics — {colors.positive}/{colors.danger} plus the direction word, never the accent (UX-DR7).'
+    focus: 'the row (`.attention-item`) draws the shared 2px {colors.accent} outline at a 2px offset with {rounded.sm} corners under :focus-visible, never the browser ring; hover stays the underlined name. The same rule serves "Abgeschlossene Trades" and "Fällig" (Sprint 18 U4, H6.3, issue 1033).'
     severity: 'items do NOT each become a {components.data-note}. The card IS one attention-severity surface; its heading carries the severity, the rows carry the facts. A row that needs its own severity is a data-quality finding and belongs in the data-quality line instead.'
     cap: 'at most five rows (dashboard_live.ex @max_alerts); no "show all" affordance — the surface that owns the full list is Wealth → Allocation & targets, which every row links to'
     empty: 'one line at {typography.body} in {colors.text-muted} stating the condition is clear. No badge, no icon, no colour — an all-clear is not a finding.'
@@ -444,6 +449,7 @@ components:
     busy: 'while the action runs, the trigger carries the busy state and the slot reserves the result footprint, so nothing reflows when the result lands'
     persistence: 'persists until the next action on the same control, a navigation, or an explicit dismiss. It does NOT self-dismiss on a timer — the 4.5s auto-dismiss of .status-toast (AutoDismissToast hook) is exactly the behaviour #566 retires.'
     aria: 'the result region is `role="status"` (polite) for note and attention, `role="alert"` for problem; the region exists in the DOM before the action so the announcement is not lost'
+    dismiss: 'the × (`.inline-result__dismiss`) sits on the sentence line: 1.4rem wide, 1rem high, no 34px button floor, so a one-line result is one line (36px) with its severity word beside the sentence; under `pointer: coarse` 44 × 44 with 14px block padding given back as a negative block margin, so the target is 44px and the line stays 18px (Sprint 18 U4, H6.4, issue 1033)'
   budget-meter:
     scope: 'the Tax allowance-order "fill level" — the only meter in the product'
     track: 'full-width bar, height {spacing.2}, radius {rounded.full}, background {colors.bg-muted}, 1px {colors.border}'
@@ -519,7 +525,7 @@ The accent system is the identity anchor (owner-loved, binding): the operator pi
 **Contrast commitments (binding):**
 
 - Normal-size text ≥ 4.5:1 on its surface in both modes — satisfied by {colors.text} and {colors.text-muted} only; the other text steps are barred from content (above).
-- Accent as text: violet and teal pass at body size in both modes; **coral passes only as large text** (≥ 24px, or 19px bold — the 30px stat values qualify). Body-size coral text in light mode is barred (4.38:1).
+- Accent as text: **all three accents pass at body size in both modes**, on every surface a link or an accent word sits on — the canvas, panels, muted wells, the accent's own tint and the attention and problem notes (computed table below). Until Sprint 18 coral passed only as large text in light mode (`#e11d48`, 4.38:1 on the canvas) while the build used it as body-size link text everywhere; issue 908 (pick H5) moved {colors.accent-coral} to `#ce1b42`, and the closest row is now coral on its own tint and on {colors.danger-soft} at 4.53:1.
 - Semantic colors ({colors.positive} / {colors.danger} / {colors.warning}) pass ≥ 4.5:1 on all standard surfaces in both modes — including {colors.warning} on {colors.warning-soft} (4.84:1 light, 8.45:1 dark once the dark tint exists).
 - **A label on an accent fill is normal text and takes the 4.5:1 bar** — it is not an "indicator" exempt at 3:1. This is why {colors.on-accent} is theme-dependent (added 2026-08-05).
 - Meaningful graphics (chart lines, buy/sell markers) ≥ 3:1 against {colors.chart-surface}.
@@ -597,6 +603,8 @@ Until the token lands in `app.css`, `.alert-error`'s 4.02:1 stands as a live con
 
 Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI components/graphics 3:1. "Large-only" = passes 3:1 but not 4.5:1.
 
+**Recomputed 2026-10-03 (Sprint 18 pick H5, issue 908): the coral rows, after {colors.accent-coral} was darkened from `#e11d48` to `#ce1b42` in light mode.** Every other figure in the table was re-checked to two decimals and is correct. One verdict was inverted and is corrected ("accent-coral / bg-elevated 4.70 — fail normal text": 4.70 passed). New rows give every accent on the surfaces where a remedy link actually sits — {colors.bg-muted} (note-severity data note), {colors.warning-soft} (attention) and {colors.danger-soft} (problem). The "selected" rows are re-keyed to the accent tints: since issue 644 `--color-selected` is `var(--color-accent-soft)`, so `#ede9fe` was only the violet case, and `selected-dark #1f2c42` cited a colour `app.css` no longer has. **The thinnest margins are stated, not absorbed:** coral on coral-soft and on danger-soft (the same `#ffe4e6`) clears the bar by 0.03, teal on danger-soft by 0.06; lightening either tint later reopens those rows.
+
 **Recomputed 2026-08-05 (accessibility pass): the four `{colors.danger}` rows**, after the token was darkened from `#dc2626` to `#b91c1c` to close the danger-tint gate. The `#dc2626` figures are kept in the gate section above as the before/after evidence and are wrong everywhere else. The `{colors.tx-sell}` rows below still cite `#ef4444`, the declared token; the build resolves `--color-danger` for that marker and defines no `--color-tx-*` (Violations), so the shipped light-mode sell marker now measures 6.47:1 on {colors.chart-surface}, not the 3.76:1 this table records for the token.
 
 | Pair | Ratio | Verdict | Where used |
@@ -614,11 +622,20 @@ Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI compo
 | accent-violet / bg-elevated | 5.70 | pass | stat values on cards |
 | accent-teal #0f766e / bg | 5.11 | pass | teal accent text |
 | accent-teal / bg-elevated | 5.47 | pass | teal stat values |
-| accent-coral #e11d48 / bg | **4.38** | **fail normal text** — pass large (30px stats OK) | coral accent text |
-| accent-coral / bg-elevated | **4.70** | **fail normal text** — pass large | coral stat values OK |
+| accent-coral #ce1b42 / bg | 5.08 | pass (was 4.38 at `#e11d48`, fail) | coral accent text, link text |
+| accent-coral / bg-elevated | 5.44 | pass (was 4.70 at `#e11d48` — a pass the table had marked "fail") | coral stat values, links in panels and tables |
 | accent-violet / violet-soft #ede9fe | 4.80 | pass | active nav, alert-success |
 | accent-teal / teal-soft #ccfbf1 | 4.86 | pass | active nav, alert-success |
-| accent-coral / coral-soft #ffe4e6 | **3.91** | **fail normal text** — pass large/UI | active nav wash, alert-success |
+| accent-coral / coral-soft #ffe4e6 | 4.53 | pass, 0.03 of headroom (was 3.91, fail) | active nav wash, alert-success |
+| accent-violet / bg-muted #eef1f6 | 5.03 | pass | a remedy link in a note-severity data note |
+| accent-teal / bg-muted | 4.83 | pass | same |
+| accent-coral / bg-muted | 4.81 | pass (was 4.15, fail) | same |
+| accent-violet / warning-soft #fffbeb | 5.50 | pass | a remedy link in an attention data note |
+| accent-teal / warning-soft | 5.28 | pass | same |
+| accent-coral / warning-soft | 5.25 | pass (was 4.53) | same |
+| accent-violet / danger-soft #ffe4e6 | 4.75 | pass | a remedy link in a problem data note |
+| accent-teal / danger-soft | 4.56 | pass, 0.06 of headroom | same |
+| accent-coral / danger-soft | 4.53 | pass, 0.03 of headroom (was 3.91, fail) | same |
 | positive #047857 / bg | 5.12 | pass | gains on canvas |
 | positive / bg-elevated | 5.48 | pass | gains in tables/cards |
 | danger #b91c1c / bg | 6.04 | pass | losses, destructive |
@@ -629,8 +646,8 @@ Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI compo
 | warning / bg-elevated | 5.02 | pass | warning alerts |
 | tx-buy #10b981 / chart-surface #ffffff | **2.54** | **fail 3:1 graphics** | buy markers on light charts |
 | tx-sell #ef4444 / chart-surface | 3.76 | pass 3:1 graphics (fail as text) | sell markers |
-| text / selected #ede9fe | 15.59 | pass | selected-row content |
-| text-muted / selected | 4.96 | pass | selected-row meta |
+| text / accent-soft (selected): violet #ede9fe · teal #ccfbf1 · coral #ffe4e6 | 15.59 · 16.43 · 15.42 | pass | selected-row content |
+| text-muted / accent-soft (selected): violet · teal · coral | 4.96 · 5.23 · 4.91 | pass | selected-row meta |
 | **Dark mode** | | | |
 | text-dark #e6eaf1 / bg-dark #0b0f14 | 15.93 | pass | body copy |
 | text-dark / bg-elevated-dark #131a23 | 14.51 | pass | panels |
@@ -651,8 +668,10 @@ Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI compo
 | warning-dark #fbbf24 / bg-dark | 11.51 | pass | stale timestamps |
 | tx-buy #10b981 / chart-surface-dark #131a23 | 6.90 | pass | buy markers (dark) |
 | tx-sell #ef4444 / chart-surface-dark | 4.65 | pass | sell markers (dark) |
-| text-dark / selected-dark #1f2c42 | 11.62 | pass | selected-row content |
-| text-muted-dark / selected-dark | 4.74 | pass | selected-row meta |
+| accent-teal-dark / teal-soft-dark composite (#17383c over bg-elevated-dark) | 6.77 | pass | active nav text in wash, teal |
+| accent-coral-dark / coral-soft-dark composite (#341a29 over bg-elevated-dark) | 5.89 | pass | active nav text in wash, coral |
+| text-dark / accent-soft-dark composites over bg-elevated-dark (selected): violet #2b2c45 · teal #17383c · coral #341a29 | 11.24 · 10.44 · 13.13 | pass | selected-row content |
+| text-muted-dark / the same composites (selected): violet · teal · coral | 4.58 · **4.25** · 5.35 | pass · **fail normal text** · pass | selected-row meta — the teal case is a recorded defect, not repaired by pick H5 (the Sprint 18 design pass, Part 9, lists it for filing) |
 
 Reference (non-normative, decorative): light `border` 1.23:1 and `border-strong` 1.39:1 vs surfaces — fine as decoration since "surface tone first, border second" means borders never solely delineate interactive components; if a control's boundary relies on border alone (quiet buttons do: bg-elevated on bg is near-1:1), the 3:1 UI-component rule technically applies — covered by the focus-indicator finding for the interactive states that matter.
 
@@ -663,7 +682,7 @@ Reference (non-normative, decorative): light `border` 1.23:1 and `border-strong`
 | **on-accent on the accent fills — light** | | | |
 | on-accent #ffffff / accent-violet #7c3aed | 5.70 | pass | active segmented option, `.button-primary`, active view chip |
 | on-accent #ffffff / accent-teal #0f766e | 5.47 | pass | same |
-| on-accent #ffffff / accent-coral #e11d48 | 4.70 | pass | same |
+| on-accent #ffffff / accent-coral #ce1b42 | 5.44 | pass (4.70 at `#e11d48`) | same |
 | **on-accent on the accent fills — dark** | | | |
 | on-accent #ffffff / accent-violet-dark #a78bfa | **2.72** | **fail — all text sizes** | active segmented option, `.button-primary`, active view chip |
 | on-accent #ffffff / accent-teal-dark #2dd4bf | **1.86** | **fail — all text sizes** | same |
@@ -810,6 +829,8 @@ Colour is never the only channel (UX-DR7/UX-DR17). Consequence for the data-qual
 
 **Placement is testable, not aspirational:** a data note lives **inside the same `<section>` element as the data it describes**, and its remedy control is a child of the note. The failing case is Wealth data quality, where the remedy button for one bullet sits ~1100px below it; a reviewer checks the element boundary, not the pixel distance.
 
+**The remedy's touch target** *(Sprint 18 U4, issue 1013, board `ux-design-2026-10-02/06-touch-focus` H6.1, pick A)*: a `.link-button` remedy stays inside its sentence, and under `pointer: coarse` its hit area is 44 px tall — `padding-block: 13px` grows the box, `margin-block: -13px` gives the 18 px line back, so no note changes height. The box reaches into the neighbouring lines, which hold only text, and on a note's first or last line about 4 px past its border. Desktop is unchanged.
+
 ### Data quality — two surfaces, two components
 
 The phrase "data quality" names two different blocks and they are not the same component.
@@ -841,6 +862,8 @@ The phrase "data quality" names two different blocks and they are not the same c
 ### Period control *(appearance of UX-DR16 class 2; the vocabulary and per-surface subsets are in EXPERIENCE.md)*
 
 {components.period-control}. One appearance — the segmented group — and one token vocabulary app-wide: **1M · 3M · 6M · YTD · 1Y · 3Y · 5Y · Max**. Each surface declares which subset it offers; no surface invents a token outside the set. "Custom range…" is a disclosure, not permanent chrome, and its date fields are {components.native-control}. This retires four patterns, two divergent token sets (`Performance.periods()` = `ytd 1y 3y 5y max`; `securities_live.ex:35` `@ranges` = `1M 3M 6M YTD 1Y 3Y 5Y MAX`) and the four bare `type="date"` inputs that sit *inside period controls* (`portfolio_live.ex:853`/`:860`, `securities_live.ex:534`/`:541`). The other seven date inputs in the app are UX-DR19 work, not period-control work.
+
+**The labels are the vocabulary in the reader's language** *(Sprint 18 U5, issue 1033, H7.3)*: a token's label is its gettext — German "1M 3M 6M YTD 1J 3J 5J Max", English "1M 3M 6M YTD 1Y 3Y 5Y Max" — while the URL and the event value stay the code. On the security detail one label function (`range_label/1`) serves the Chart tab's buttons and the Quotes tab's basis line that points at them ("Zeitraum 1J · wie im Diagramm"), so the line and the button never disagree.
 
 ### Data as table — one disclosure *(UX-DR10 appearance; rule defined in EXPERIENCE.md)*
 
@@ -1178,8 +1201,9 @@ before/after):*
   that portion, so the number is not repeated. A plan at 0 % on top with targets
   deeper in the tree keeps its own clause and no colour.
 - **A rebalancing hint that rounds to nothing is not shown** — "Sell ≈ 0.00
-  units" asks for nothing. The cell reads "—" in the worklist and the tree shows
-  no hint; the drift stays, and the API keeps the unrounded quantity.
+  units" asks for nothing. The worklist's Drift cell shows the drift alone
+  (since issue 911 the hint sits in that cell, under the figure) and the tree
+  shows no hint; the drift stays, and the API keeps the unrounded quantity.
 - **The hint's verb track is `max-content`** (`.rebalance-hint`), so "Verkauf"
   fits; the ≈, quantity and unit tracks keep their widths, the grid packs to the
   end, and the ≈ stays on one vertical line.
@@ -1239,7 +1263,12 @@ Shipped as #702; recorded here so every tab row is held to it.
   at the end the right fade goes, because on Risk the last tab *is* the active
   one and a fixed right fade would cover it; a row resting on both edges (no
   overflow, desktop) carries no mask. Without script the row keeps the
-  one-sided right fade above;
+  one-sided right fade above. **The detail pane's row is held to the same
+  clause** *(Sprint 18 U5, issue 1033, board `ux-design-2026-10-02/07-phone-390`
+  H7.2)*: its `DetailTabs` hook carries the same mount half for the
+  `aria-selected` tab, `.detail-pane-tabs` joins the three edge rules, and the
+  server renders the row with `data-scroll-start`, so its first paint, before
+  the hook runs, carries only the right fade;
 - **the row's end is a tab boundary** *(issue 876, pick G10 = A of board
   `ux-design-2026-09-24/10-area-tab-end`)*: when the row overflows, the
   `AreaTabs` hook gives it a trailing inset (`padding-inline-end` from
@@ -1252,7 +1281,8 @@ Shipped as #702; recorded here so every tab row is held to it.
   the left fade. The inset is re-measured on resize and restored after a patch,
   like the edge marks; its cost is a little empty space after the last tab at
   the row's end. Measured in Chromium at 390 px: every Wealth page rests with a
-  whole tab at the left, on arrival and when swiped to the end;
+  whole tab at the left, on arrival and when swiped to the end. The detail
+  pane's row takes the same inset from `--detail-tabs-tail` (Sprint 18, H7.2);
 - **no scrollbar** — a phone renders none anyway, and the fade plus snap carry
   it; keyboard users reach off-screen tabs by tabbing, which scrolls them in;
 - **the baseline is an inset box-shadow, not `border-bottom`.** This is the
@@ -1439,7 +1469,10 @@ interaction is about — pins to the right edge of its own scroller**
 (`.col-subject`: `position: sticky; right: 0`, opaque background, a border
 for the seam). The middle columns scroll beneath it, so the summoned figure
 is on screen at the moment it is asked for, at every width — sticky is inert
-while the table fits, which is why the rule needs no media query.
+while the table fits, which is why the rule needs no media query. *(Built
+as stated only since Sprint 18, issue 1009: the table, not
+`.data-table-wrapper`, was the sticky container, and the seam is now an
+inset shadow — see Amendment 2026-10-03.)*
 
 The issue's draft wording ("the subject column *sorts before* its context
 columns under narrow width") was deliberately not taken: CSS cannot reorder
@@ -1449,8 +1482,10 @@ hides data. Pinning keeps one column order and hides nothing.
 
 Applied to: the transaction history's Balance column (when summoned) and the
 allocation drift table's Drift column (header, category, position, cash and
-unassigned cells). The flat positions table keeps its order — its Drift is
-followed by the Hint column, which is part of the same subject.
+unassigned cells). The flat positions table's subject is its Drift **with the
+hint beneath it in the same cell** — one pinned column, the anatomy of the
+tree's position rows (issue 911, pick H4 variant A, Amendment 2026-10-03);
+there is no separate Hint column.
 
 ## Amendment 2026-09-12 — appearance decisions from the whole-surface UX review
 
@@ -1595,7 +1630,12 @@ composition per surface that the column picker does not touch.
   subject (security, else cash account, else depot), the signed amount with
   its currency over the size — quantity × price, the quantity alone, a
   split's ratio — and the running balance beneath while the chips narrow to
-  one account.
+  one account; the row's kebab at its end, in a third track (Sprint 18 U5,
+  H7.6).
+- **A security's quotes** *(Sprint 18 U5, issue 1012, pick H7.1 = A)*: the
+  date (ISO) over the source badge; on the right the close with the
+  security's currency, over "stored <value>" only where a split adjusted the
+  close. Two children, no kebab (Amendment 2026-10-03, the phone at 390 px).
 - **Rules kept:** nothing scrolls sideways; matrices and dialog tables keep
   UX-DR15's scroller; the desktop tables are unchanged.
 
@@ -1638,7 +1678,9 @@ Wealth → Holdings.
 ### Securities detail overview — a reading surface *(C7-A / A8, issue 804)*
 
 The detail pane's first tab reads. Its main column carries the six figures in
-a `{components.stat-card}`-quiet grid of three by two (latest price with its
+a `{components.stat-card}`-quiet grid of three by two — two per row under
+720 px, the grid's own phone rule, which the reading surface's three-column
+rule outranked until Sprint 18 (U5, issue 1050) — (latest price with its
 date or the stale marker, day change, the one-year price return, then the
 held quantity with its depot, the position's value and the unrealised result
 with its percentage), the neighbouring tab's price chart at 200 px without
@@ -1932,7 +1974,9 @@ D-6, ADR-0049 §4 as amended). Built by Sprint 16 Lane D in
   its three columns. Colour and underline are two cues, so the control does
   not rest on colour alone, `forced-colors` included. The coral accent's
   light-mode contrast for body-size link text is the token question every
-  `.link-button` already has, not a property of this pick.
+  `.link-button` already has, not a property of this pick. *(Closed by issue
+  908, Sprint 18 pick H5: {colors.accent-coral} is `#ce1b42` in light mode,
+  5.44:1 on a panel.)*
 - **The dialog names the rule on edit too.** The name field is the first
   field of `.form-grid` on create **and** on edit (`maxlength` 255). The
   heading keeps the stored name until the rename is saved.
@@ -2452,21 +2496,22 @@ variation selectors); the note marks a row stored before that rule.
   split state (G12.3-A), which has no such disclosure, above the open Notes
   field (the Sprint 16 closing act); in the rule
   dialog under its first hint (the name and the version's note, each its own
-  note); after the inline rename form of a view, a bucket and a category.
-  Lists, selects, headings and the history's "Notes" column stay unmarked.
-  Cash accounts and depots had no rename on screen when this pick was drawn;
-  Lane L5a's rename dialog (G1-A above) now is one, and it carries no note
-  yet: its field refuses such a name like every writer, and the note for a
-  name stored before the rule waits for the follow-up that names it, boarded
-  before it is built.
+  note); after the inline rename form of a view, a bucket and a category;
+  in the rename dialog of a cash account or a depot (Lane L5a, G1-A above)
+  after its form, following the field, and — the one list that is marked —
+  inside its open "Former names" disclosure, above the list, when a former
+  name carries such characters (Sprint 18 H8.5 = A, issue 966; see that
+  amendment). Other lists, selects, headings and the history's "Notes"
+  column stay unmarked.
 - **Stored text inside running text is isolated in `<bdi>`**: the stored
   subject of a rule's words line, a retraction's reason in the thesis card,
   and in the rule dialog the rule's name in its heading and the view's name
   in its first hint (the S7 review round), so a direction control reorders
   at most the stored text. The translated sentence is split around its
   placeholder before the stored text is put in. No picture changes by it.
-  Flash messages and other headings that interpolate a stored name are not
-  isolated yet (a follow-up).
+  Since Sprint 18 (H8.8, issue 968) the results and dialog headings that
+  name a stored name are isolated too, through one shared helper
+  (`PortfolixirWeb.StoredText`); see that amendment.
 
 ## Amendment 2026-09-26 — The error page follows the theme *(the Sprint 16 closing act; board 11 part 4, E25 S2, F68)*
 
@@ -2528,11 +2573,13 @@ under "Trades: reach, the p. a. column and the unmatched sells".
   own reason ("Keine annualisierte Rendite: kein Zinssatz löst die
   Zahlungen dieses Trades").
 - **Sign colour in this table** (rule ⑥): `#realized-trades-table
-  td.is-positive / td.is-negative` restore the colour that `.data-table
+  td.is-positive / td.is-negative` restored the colour that `.data-table
   tbody td { color }` took from the bare classes, for p. a. and Result alike;
   `#realized-trades-table td.trade-pa--na` does the same for the muted dash,
-  which printed in the text colour (closing act γ D4). Scoped to this table;
-  the other tables with the same pattern are a follow-up.
+  which printed in the text colour (closing act γ D4). *Since Sprint 18
+  (issue 1010, pick H4) the sign half is the general `.data-table
+  td.is-positive / .is-negative` and the scoped copy is gone; the dash line
+  stays — see Amendment 2026-10-03.*
 - **A reading table** (rule ⑦, settled by the story as board 01 left it,
   closing act γ D9): `.data-table-wrapper > #realized-trades-table {
   min-width: 0 }`, the `.num` cells `nowrap`, the security cell at least 12ch
@@ -2546,8 +2593,10 @@ under "Trades: reach, the p. a. column and the unmatched sells".
 ### The list's basis line
 
 `p.summary-basis[data-role="trades-basis"]` directly under the list (rule
-②: 12 px, muted, no margin — `.summary-basis` has no context-free rule, so
-the rule is scoped to `#realized-trades > .summary-basis` and the card):
+②: 12 px, muted, no margin — `.summary-basis` had no context-free rule, so
+the rule is scoped to `#realized-trades > .summary-basis` and the card;
+since Sprint 18 the context-free rule exists, issue 1011, and the scoped one
+repeats it):
 "Einlieferungen eröffnen keinen Lot · Gebühren und Steuern in Einstand und
 Erlös · Erträge während der Haltedauer nicht enthalten · p. a. erst ab 365
 Tagen Haltedauer". It renders whenever the list or the unmatched-sells note
@@ -2667,12 +2716,12 @@ The open-lots table above is unchanged.
   `.visually-hidden` sentences — under 365 days of holding, and "Keine
   annualisierte Rendite: kein Zinssatz löst die Zahlungen dieses Trades"
   for a trade held long enough whose flows no rate solves (a total loss).
-- **Sign colour** (rule ①): `#detail-closed-trades-table td.is-positive /
-  td.is-negative / td.trade-pa--na` restore what `.data-table tbody td
-  { color }` takes from the bare classes (#1010), for p. a., the result and
-  "%" alike. The open-lots table keeps the text colour until #1010 repairs
-  the family (pick H4); when that lands, the two sign lines are redundant
-  and the dash line stays.
+- **Sign colour** (rule ①): `#detail-closed-trades-table td.trade-pa--na`
+  restores the muted dash that `.data-table tbody td { color }` takes from
+  the bare class. The sign colour of p. a., the result and "%" — and of the
+  open lots above — is the general `.data-table td.is-positive /
+  .is-negative` of issue 1010 (pick H4, Amendment 2026-10-03), which made
+  this rule's two sign lines redundant; they are gone.
 - **The unmatched-sells note** (rule ②, UX-DR25): the facet's `attention`
   data note (`#detail-closed-trades-note`, `data-role="trades-unmatched"`),
   leading the section where the quantity is missing, in the facet's words
@@ -2746,9 +2795,10 @@ be the two-way gap in the other direction.
   until tokens carry names people chose (FU-6).
 - **The result** is a `<details class="merge-manifest">` whose summary is the
   confirmation's own phrase: for an account or a depot "142 bookings moved,
-  6 removed", for a security "21 bookings moved, 1 duplicate removed, 380
-  quotes added, 2 settings dropped". A part that is zero is left out, the
-  moved bookings never. Opened, a `<dl class="merge-manifest__counts">` names
+  6 removed", for a security "21 bookings moved, 1 duplicate removed, 1
+  split collapsed, 380 quotes added, 2 settings dropped" (the collapsed
+  split since Sprint 18 H8.7, issue 1032). A part that is zero is left out,
+  the moved bookings never. Opened, a `<dl class="merge-manifest__counts">` names
   one line per table with a figure other than zero, then the choice and the
   check, and the basis line "Counted from the merge's record; every single
   row is in the audit journal." Every manifest key has a fixed label; a raw
@@ -2878,7 +2928,9 @@ the released rows), run as the operator.
   carrying the pair and the count it shows; Enter in a field submits the
   form, which re-counts and checks the pair (the field errors below) and
   writes nothing. The close button keeps its 30 px beside a title that
-  wraps, 44 px under a coarse pointer (UX-DR6, γ D6).
+  wraps, 44 px under a coarse pointer (UX-DR6, γ D6) — since Sprint 18 the
+  rule of every `.icon-button`, not of this dialog (Amendment 2026-10-03,
+  the icon button).
 - **States.** A valid range with no manual quote: the confirm reads "Release",
   disabled, its reason beside it as text — `.merge-footer__why` "No manual
   quote in the range.", the merge dialog's rule (disabled, never merely
@@ -2899,8 +2951,10 @@ the released rows), run as the operator.
   quotes released, from 2026-06-30 to 2026-07-03." — the count and dates of
   the write's answer (`released`), not of the dialog — then "The next quote
   sync stores the provider's close for these days." ("for this day" for one)
-  with **Sync prices** (the Chart tab's own action, `sync_now`) as its
-  follow-up, or, where the sync cannot fetch the security, "The quote sync
+  with **Sync prices** as its follow-up — the Chart tab's words, but since
+  Sprint 18 (U5, H7.4, issue 1033) syncing this security only
+  (`sync_quotes_released`, `QuoteSync.sync_security/2`), where it once ran the
+  catalog's `sync_now` — or, where the sync cannot fetch the security, "The quote sync
   fetches no quotes for this security: these days stay without a quote." and
   no button (γ D7, n6). Where the release took the last manual quote, and with
   it the note's **Release…** that opened the dialog, the focus goes to the
@@ -2910,6 +2964,12 @@ the released rows), run as the operator.
   keep the note under it, with the new count. `inline_result` gained an
   optional `follow_up` slot and `dismiss_event` for this; the message may be
   safe markup (the `<time>` dates).
+- **The sync's own result** *(Sprint 18 U5, issue 1012, H7.1b)*: where the
+  sync kept manual quotes against a provider close for the same day, its
+  result adds "3 manual quotes were left standing where the provider
+  returned a close." (German "3 manuelle Kurse blieben stehen, wo der
+  Anbieter einen Schlusskurs lieferte."; "One manual quote was left
+  standing …" for one) — Amendment 2026-10-03, the sync's count.
 - **Under 720 px** the dialog is the merge dialog's bottom sheet:
   `.quote-release-dialog` joins the selector lists of the `.merge-dialog`
   phone rules (full width, at most 88 % high, the foot stacked — the reason
@@ -2921,9 +2981,14 @@ the released rows), run as the operator.
   breaks an ISO date at its hyphen.
 - **Stated, not settled here:** the remedy link-button is below the 44 px
   coarse-pointer floor, as every `.link-button` remedy in a note is (the
-  board's Part 4 finding, filed rather than fixed here). The dialog's title
+  board's Part 4 finding, filed rather than fixed here; settled by Sprint 18
+  U4, Data note → the remedy's touch target). The dialog's title
   interpolates the stored name without `<bdi>` isolation, as the merge
   dialog's does (G12.2-B's named follow-up). Dialog count: one more native
+
+  board's Part 4 finding, filed rather than fixed here). The dialog's title
+  isolates the stored name in `<bdi>` since Sprint 18 (H8.8, issue 968), as
+  the merge dialogs' do. Dialog count: one more native
   dialog; the lifecycle's record above now reads seventeen `<dialog>`
   elements in `lib/portfolixir_web/`, still with zero `aria-modal`.
 
@@ -3127,3 +3192,1090 @@ children (body and figures), no logo, no kebab, no bar.
 - A security stored twice under one name (a duplicate awaiting a merge)
   reads as two rows with the same name; the ISIN is in the payload but not
   on the row.
+
+## Amendment 2026-10-03 — Tables: five conformance repairs *(Sprint 18 pick H4; issues 1009, 1010, 913, 911, 1011)*
+
+Board `mockups/ux-design-2026-10-02/04-tables-conformance`, "after", and
+**A** for the positions worklist (plan D-8, adopted by the planning PR's
+merge). The spec already fixed every answer but one; this records how each
+repair is built, so the next reader holds the screen against words that
+match it.
+
+### The subject column sticks to its scroller *(issue 1009, rule ①)*
+
+- **The scroller is the sticky container.** `.data-table-wrapper > table`
+  sets `overflow: visible`, beside its `min-width: max-content`: the global
+  `table { overflow: hidden }` (and, under 560 px, `overflow-x: auto`) made
+  every table its own scroll container, and a table exactly as wide as its
+  content never moves, so `.col-subject` stuck nowhere. A bare table outside
+  a wrapper keeps the global fallback. Measured on the board: the
+  realized matrix's "Gesamt" ended 87 px outside its scroller at 1200 px and
+  677 px outside at 390 px; after, it stands flush with the scroller's edge
+  and the months scroll beneath it.
+- **Three companion rules ship with it**, because a column that really
+  sticks shows what an inert one hid:
+  - **①b the seam is an inset shadow** (`.col-subject { border-left: 0;
+    box-shadow: inset 1px 0 0 {colors.border} }`): a collapsed table (the
+    drift tables) paints a cell's border itself and leaves it behind when
+    the cell sticks;
+  - **①c the pinned head cell keeps the head row's grey** (`thead
+    .col-subject { background: {colors.bg-muted} }`); `.data-table thead
+    th` outranks it and keeps its own head colour;
+  - **①d the pinned cell is opaque on striped and hovered rows**: the
+    stripe is 24 % {colors.bg-muted} over transparent, so on
+    `.data-table` an even row's pinned cell takes the same 24 % over
+    {colors.bg-elevated}, and the hover rule comes after it.
+- **①d reaches the history** (the closing act's finding; board
+  `mockups/ux-review-2026-10-03/03-gamma-surface-repairs`, G5), which the
+  board's stated doubts had first left: `#transaction-list` is no
+  `.data-table`, its hover is the global `tbody tr:hover` wash on the `tr`
+  (42 % {colors.accent-soft} over transparent), and the wash stopped at the
+  opaque pinned Balance of an account-filtered history.
+  `#transaction-list tbody tr:hover td.col-subject` gives the cell the same
+  42 % over {colors.bg-elevated}: it follows the wash and stays opaque.
+  Under 560 px the history is two-line rows with no pinned column.
+- **Kept, as the board's stated doubts left them:** the wrapper, not the
+  table, now clips a header popover; the tree's Drift ⓘ opens over the rows
+  as before.
+
+### Sign colour holds in every data table *(issue 1010, rule ②)*
+
+- **One general rule:** `.data-table td.is-positive` / `.is-negative`
+  (specificity 0,2,1) outrank `.data-table tbody td { color }` (0,1,2), so
+  every signed cell of a data table carries its sign colour — the
+  security's open lots, closed trades and holdings, the Cash-flow trades.
+  The colour rule of Colors ("wherever a sign exists, at every level of a
+  table") is now true of the build.
+- **A muted drift row keeps a red loss:** `.drift-table tr.is-muted
+  td.is-negative` (0,3,2) outranks the row's grey, so a position row's
+  negative drift is red while its name stays muted.
+- **The table-scoped copies are gone, pixel-identical:** Sprint 17's
+  `#realized-trades-table td.is-positive / .is-negative` (board 01 rule ⑥)
+  and pick H1's `#detail-closed-trades-table` pair. Their muted-dash lines
+  stay: a muted class in a cell is outranked the same way, but it is not a
+  sign, and a general muted rule is outside this issue.
+- A `<span>` carrying a sign class inside a cell was never affected.
+
+### The split ratio and the Balance join the `.num` family *(issue 913, rule ③)*
+
+- **Markup only, no CSS:** the history's split-ratio cell
+  (`td[data-role="split-ratio"]`) carries `num`, which `#transaction-list
+  td.num` already right-aligns in tabular figures, so "2:1" stands in the
+  Quantity column's alignment instead of at its left edge.
+- **The Balance column, found while drawing:** its header carried only
+  `col-subject` and its cells `numeric`, a class no rule backs, so header
+  and figures sat left. Both now carry `num col-subject`.
+- **Under 560 px nothing changes:** the table gives way to the two-line
+  phone rows (UX-DR27), where the ratio and the balance already sit right in
+  the figures column.
+
+### One basis voice, one disclosure summary *(issue 1011, rule ⑤)*
+
+Three halves, and all three change the picture:
+
+- **⑤a the basis voice has a context-free rule:** `.summary-basis { margin:
+  0; font-size: 12px; color: {colors.text-muted} }`, placed before every
+  scoped basis rule. Nineteen basis lines rendered as body text (13 px, text
+  colour, a paragraph's margins) — the four Cash-flow facets, Risk ×2, Tax
+  ×3, Views and Buckets ×3, Snapshots, the Quotes tab, the KPI strip,
+  Classifications, the allocation (issue 911's basis line) and the two
+  "since" notes. The scoped rules with their own layout keep it:
+  `.detail-tab-panel--overview .summary-basis` stays a flex row, and the
+  later single-class `.kpi-strip__basis` and `.tree-basis` keep their own
+  margins by source order — they gain the 12 px muted voice for the first
+  time.
+- **⑤b one `.disclosure-summary`, at the spec's control label:** the class
+  was defined twice, and the second definition (0.85rem / 600) won, so every
+  quiet disclosure summary read at 13.6 px / 600 instead of
+  {typography.control-label} (12 px / 500 / 0.04em). The second definition
+  is gone and the first carries weight 500 — **not** pixel-identical,
+  because the identical picture would have kept the violation. Every
+  summary of the class changes, 26 in 16 modules counted with ⑤c's: "Daten
+  als Tabelle", the Cash-flow matrices, the merge records, the import, Tax,
+  Risk, the dialogs. `.merge-manifest > .disclosure-summary` loses its now redundant
+  local 12 px / 500; `.dup-group`'s local 12.5 px stays its own decision.
+  **"Neuer Snapshot" joined them at the closing act** (board
+  `mockups/ux-review-2026-10-03/03-gamma-surface-repairs`, G4): its summary
+  carried the class and the chevron, but `.snapshot-create > summary`
+  (0,1,1: accent colour, weight 600) outranked `.disclosure-summary`
+  (0,1,0), so it read 12 px / 600 in the accent and never took the hover's
+  text colour. The local rule is gone, and with it the summary's entry in
+  the ADR-0027 coarse-pointer list, which the class's own 44 px floor
+  covers; `.snapshot-create` keeps only its margin.
+- **⑤c the compatibility records' summary is a `.disclosure-summary`** with
+  the 12 px chevron (Accounts & depots, "Portfoliodatensätze
+  (Kompatibilität)"), where it was a bare `<summary>` with the browser's
+  triangle (UX-DR19); `details[open] > .disclosure-summary
+  .disclosure-chevron` turns it.
+
+### Allocation → Positions *(issue 911, section ④; pick **A**)*
+
+- **(a) The hint moves into the Drift cell** (variant A, recommended and
+  adopted): the worklist's subject spans what were two columns, Drift and
+  Hint, and `right: 0` can hold only one. The Drift head now carries
+  `col-subject`; each Drift cell shows the figure with the hint beneath it
+  (`.rebalance-hint`, unchanged), which is the anatomy the tree's position
+  rows already have. The "Hinweis" head and the "—" of a row without a hint
+  are gone; sorting is still by Drift. Rows get taller by the hint's line.
+  Measured on the board at 390 px: 186 px stay for the name, more than the
+  144 px name column. Variant B (pin both columns with a coupled
+  `right: 10.5rem`) was not taken: a wider quantity widens the Hint column
+  and the Drift cell then covers it.
+- **(b) The basis line** (`p.summary-basis.allocation-basis`) takes the
+  basis voice through the context-free rule of ⑤a: 12 px, muted, no
+  paragraph margins.
+- **(c) The tree's Drift ⓘ names the portion.** While the payload's
+  `drift_basis` is `allocated_portion` (ADR-0040 §2), the ⓘ's sentence gains
+  a second one (`data-role="drift-basis-tip"`), the board's draft: "Der Plan
+  verteilt 85,0%: Jedes Soll wird vor dem Vergleich auf diesen Anteil
+  hochgerechnet, 34,0% zählen als 40,0%. Der unverteilte Rest erscheint
+  nicht als Abweichung."
+  The worked figure is the first top-level category the plan steers, its
+  target divided by the allocated sum — the same division the drift takes;
+  a plan with no such category gets the sentence without the figure. A full
+  plan, or one over 100 %, measures against the full plan and shows no
+  second sentence. Percentages glue their sign, as everywhere in the app.
+- **(c′) The ⓘ wraps at phone width** (issue 1053, the closing act's
+  finding; board `mockups/ux-review-2026-10-03/03-gamma-surface-repairs`,
+  G2). Under 560 px the phone block's `table { white-space: nowrap }` was
+  inherited by the ⓘ in the table's head, so its sentence ran on one line
+  out of its 18 rem box (measured `scrollWidth` 2196 px in a 288 px box with
+  (c)'s second sentence). `.metric-tooltip p` now sets `white-space:
+  normal` itself — on the class, at every width, so any ⓘ inside a table
+  cell is a wrapping paragraph; where nothing set `nowrap` the picture is
+  identical. Seen while drawing and left for its own change: inside a
+  numeric head cell (`th.num`) the paragraph also inherits `text-align:
+  right`, at every width.
+
+## Amendment 2026-10-03 — Coral passes light-mode contrast *(Sprint 18 pick H5, issue 908)*
+
+Board `mockups/ux-design-2026-10-02/05-light-contrast`, "after" (before/after,
+no variant). Link text is the accent colour at body size, at rest, plus an
+underline (G7-A): `.link-button` (and `.policy-rule__name`),
+`.merge-date-link`, `.merge-record__target`, `.kpi-summary__link`; accent
+text on the accent tint is the same case (`.alert-success`, the active
+navigation). Violet and teal cleared 4.5:1 on every light surface; **coral
+did not** — 4.38 on the canvas, 4.15 in a note's muted well, 3.91 on its own
+tint and in a problem note — so with the coral accent picked, every link
+was body-size text the spec itself barred.
+
+- **One token, two lines:** `--color-accent-coral` goes from `#e11d48` to
+  `#ce1b42` in `:root` and in `[data-theme="light"]`, the two places light
+  mode sets it. Same hue (HSL 347°, saturation 77 %), lightness 49.8 % →
+  45.7 %: the smallest step that clears 4.5:1 on all six light surfaces; the
+  binding one is coral-soft, which is also {colors.danger-soft}, at 4.53. The
+  dark blocks keep `#fb7185` and measure as before. `--brand-coral-2` (the
+  logo gradient) keeps `#e11d48`. The documentation site's stylesheet
+  (`docs/styles.css`) shares the accent palette and takes the same light
+  value.
+- **What moves with it:** the coral fills (`.button-primary`, the active
+  segment; white labels on them 4.70 → 5.44), the accent picker's coral
+  swatch, the accent dot, the SMA-200 line and the second benchmark
+  overlay — all slightly darker, all with more contrast. The operator sees
+  this.
+- **Not taken:** `#be123c` (rose-700, the step teal uses) leaves more margin
+  (5.24 on coral-soft) but changes the look more; a separate `--color-link`
+  token would leave the fills and chart lines alone but needs a token in
+  five blocks and a sweep of every rule that colours text with the accent,
+  and would still miss `.alert-success` and the active navigation.
+- **Pinned by tests:** `CssAccentContrastTest` computes every accent's
+  ratio from the token values in `app.css` (WCAG 2.x relative luminance,
+  translucent tints composited in sRGB over the panel colour) on the six
+  light surfaces and the white label, and on the three dark surfaces and the
+  accent's own dark tint, and fails below 4.5:1; the decided value itself is
+  pinned beside the other decided tokens in `CssThemeTokenParityTest`.
+
+## Amendment 2026-10-03 — Touch targets and focus *(Sprint 18 pick H6, U4; issues 1013 and 1033)*
+
+Board `mockups/ux-design-2026-10-02/06-touch-focus`, "after" and pick
+H6.1 = A (plan D-8, silence adopts the recommendations). Each rule is in
+`app.css` beside the class it repairs; `test/invariants/css_touch_and_focus_test.exs`
+pins them.
+
+### The icon button *(H6.2 and H6.2b, rule ②, on the class)*
+
+`.icon-button` is the 30 × 30 square it declares at every call site: the
+class sets `min-height: 0`, because the base `button { min-height: 34px }`
+made every `<button>` of the class 30 × 34 while every `<a>` of it stayed
+30 × 30 (the detail head showed both side by side). It is `flex: none`, so
+a close button beside a title that wraps keeps its width. Under
+`pointer: coarse` the class takes `min-width: 44px; min-height: 44px` —
+**on the class, not per dialog**, as the Sprint 18 plan decided (U4):
+UX-DR6's call-site table lists `.icon-button` itself as uncovered, and its
+amendment 1 binds the floor to every call site of a class. So the floor
+reaches every dialog's ×, the filter sheets, the booking drawer, and every
+toolbar icon: Securities' New, Sync prices and Columns, the detail head's
+Maximize and Close, Classifications' New, the import's "copy warnings" and
+the column picker's ×. On touch a toolbar grows by 8 px (44 against the
+search field's 36); board 06 H6.2b draws it. `.modal-head` and
+`.filter-sheet__head` carry `gap: {spacing.2}` between the title and the ×.
+The release dialog's three head rules (closing act γ D6) and the detail
+head's ID rule for its two buttons are gone: the class covers them.
+
+### The remedy inside a data note *(H6.1, pick A, rule ①; issue 1013)*
+
+Under `pointer: coarse`, `.data-note__body .link-button` takes
+`padding-block: 13px; margin-block: -13px` — (44 − 18) / 2 — so its hit
+area is 44 px tall while its line stays the note's 18 px and no note
+reflows; picture at rest identical (Components → Data note). It grows in the
+block direction only, so beside the inline result's dismiss, the other
+44 px target in the release result, the two never overlap. Eight call
+sites in five kinds of note take it: the manual-quotes note's "Release…",
+the release result's "Sync prices", the invisible-characters notes' remedies
+(the head's "Edit master data", the research log's two "Append an entry
+that supersedes #n"), and the three Tax notes. One remedy outside a note
+takes it as a second selector, scoped to itself: the bond block's "Enter
+bond data…" (`.bond-strip .detail-tab-empty .link-button`), which stands in
+its sentence the same way on a 13 px line of the same 18 px (closing act on
+U7, finding 5; board `ux-review-2026-10-03/04-bond-repairs` B4, measured
+18.2 px before and 44.2 px after). Not covered, and left as a
+follow-up: a remedy written as an `<a>` inside a note (the Overview's
+data-quality links) — issue 1013 names the button. Under a coarse pointer
+the keyboard focus ring of a remedy wraps the 44 px box; `.link-button` has
+no `:focus-visible` rule of its own (the pass's Scope Lock). The delete's
+remedies join the rule (U1's closing act R9, Amendment "Deleting a
+booking" below): `.form-help .link-button` (the notes-only drawer's
+"Löschen…") and `.alert-warning .link-button` / `.alert-error .link-button`
+(Record split's "Gebuchten Split löschen…") take the same coarse padding
+and, those three, the 2 px accent `:focus-visible` ring.
+
+### The attention row's focus ring *(H6.3, rule ③; issue 1033)*
+
+`.attention-item:focus-visible` draws `outline: 2px solid {colors.accent};
+outline-offset: 2px` with `{rounded.sm}` corners — the ring the KPI strip
+directly above already draws, where Chromium's 1 px `outline: auto` was
+nearly invisible in the dark theme. One rule for the three Overview cards
+that share the class ("Abgeschlossene Trades", "Ziel-Abweichungen",
+"Fällig"); the list's 6 px row gap keeps the ring clear of the next row.
+Front matter: `needs-attention-card.focus`.
+
+### The inline result's dismiss *(H6.4, rule ④; issue 1033)*
+
+The cause was the base button's 34 px floor, not the 1.4rem the issue
+named: `.inline-result__dismiss` declared `height: 1.4rem`, `button
+{ min-height: 34px }` won, and the × became a 22 × 34 box middle-aligned on
+its line, so a one-line result ("Kurse aktualisiert.") measured 52 px
+instead of 36 and its severity word sat 8 px above the sentence. The dismiss
+now sets `min-height: 0; height: 1rem` (width, margin and hover unchanged).
+Under `pointer: coarse` it is `width: 44px; height: 44px; padding-block:
+14px; margin-block: -14px` — a 44 px target whose line stays 18 px; without
+that half the floor's removal would have shrunk the touch target to 16 px.
+In the release result it stands beside the remedy "Sync prices", both 44 px
+tall and grown only vertically, so they do not overlap. Front matter:
+`inline-result.dismiss`.
+
+## Amendment 2026-10-03 — The phone at 390 px *(Sprint 18 pick H7, U5; issues 1012, 1033, 909 and 1050)*
+
+Board `mockups/ux-design-2026-10-02/07-phone-390`, "after" and picks
+H7.1 = A and H7.5 = A (plan D-8, silence adopts the recommendations); the
+security Overview's figures are board `03-bond-master-data`'s rule ④. The
+CSS rules are pinned in `test/invariants/css_layout_sweep_test.exs`.
+
+### The quote phone row *(H7.1, pick A, rule ①; issue 1012)*
+
+Under 560 px the Quotes tab's table wrapper (`#quotes-table-wrapper`) joins
+the phone lists' hidden wrappers and `ul#quote-phone-rows.phone-rows`
+(labelled "Quotes") shows one two-line row per quote of the range, in the
+table's order: the date (ISO, `.phone-row__name`) over the source badge
+(`.phone-row__ids .badge.quote-source`) — the only per-row mark of a manual
+close, which sat off-screen in the table's own scroller — and on the right
+the close with the security's currency (`.phone-row__figure`), over
+"stored <value>" (`.phone-row__figure2`) only where a split adjusted the
+close, because elsewhere it would repeat the same number. Two tracks,
+`minmax(0, 1fr) auto`, as the trades rows: no logo, no kebab. A row is
+61 px against the table's 34. **No cap** on the rows (the board's stated
+doubt, UX-DR26): the rows are the table rendered a second time, as every
+phone list is, and the table itself carries the whole range; capping the
+phone alone would make it say less than the desktop without a stated reason
+of its own. "Max" on a long history renders accordingly.
+
+**The basis line follows the layout** (the closing act's finding; board
+`mockups/ux-review-2026-10-03/03-gamma-surface-repairs`, G6). The price-basis
+line (`data-role="quotes-basis"`) said "Die Spalte Gespeichert zeigt die
+unveränderten Werte." above rows that have no such column. It now carries
+two spans: `.quotes-basis__table`, the table's sentence, and
+`.quotes-basis__rows`, the rows' — "Kursbasis: … Wo ein Split einen Kurs
+angepasst hat, zeigt „gespeichert“ darunter den unveränderten Wert." The
+rows' span is out of the layout above 560 px; the phone lists' 560 px block
+swaps the two as it swaps the table for the rows, so a screen reader reads
+the one on screen.
+
+### The sync's count of the manual quotes that stayed *(H7.1b; issue 1012)*
+
+The quote sync keeps a manual quote wherever the provider returns a close
+for the same day (`Quotes.upsert_many(…, protect_manual: true)`) and counts
+it per security as `skipped_manual`. The page-level result
+(`#securities-action-result`) now says so after either form of its first
+sentence ("Kurse aktualisiert." or "Kurssync abgeschlossen: …"), summed over
+every security the sync touched, through `ngettext`: "2 manuelle Kurse
+blieben stehen, wo der Anbieter einen Schlusskurs lieferte." / "Ein
+manueller Kurs blieb stehen, …". The verb repeats the Quotes tab's note
+("lässt ihn stehen"); "übersprungen" stays reserved for a security the sync
+does not query at all; the clause names what is counted — collisions, not
+every manual quote, which the note counts. With none the result is the
+first sentence alone. The OS notification carries the same text. Naming the
+securities that kept them is possible from the per-security results and not
+proposed.
+
+### The release result's sync, and the single sync's reasons *(H7.4, code only; issue 1033)*
+
+The release result's **Sync prices** (`data-role="release-sync"`) sends
+`sync_quotes_released`: it syncs the selected security with
+`QuoteSync.sync_security/2`, the row menu's path, where it ran the whole
+catalog through `sync_now`. It clears the release result, as its next
+action, and its own answer lands in the page-level `#securities-action-result`
+— "Kurse aktualisiert." about this one security, with H7.1b's count of the
+manual quotes that stayed. The toolbar's and the Chart tab's sync keep
+`sync_now`: they mean every security. The single path's answer no longer
+prints an atom where it skipped the security: "Kurssync übersprungen: Für
+dieses Wertpapier gibt es keinen Kursanbieter." (`:no_provider_adapter`),
+"… Der Kursanbieter braucht den Ticker des Wertpapiers."
+(`:missing_ticker`), "… Das Wertpapier hat keine Währung."
+(`:missing_currency`), "… Eine Kursaktualisierung dieses Wertpapiers läuft
+bereits." (`:sync_in_progress`, the single-flight lock). A provider's own
+error is printed as it answered. Whether the follow-up's result belongs in
+the tab, beside its trigger, stays open; it lands where every sync result
+lands.
+
+### The detail's range labels *(H7.3; issue 1033)*
+
+The Chart tab's range buttons printed the raw codes ("1M 3M 6M YTD 1Y 3Y 5Y
+MAX") and the Quotes tab's basis line interpolated the same code, so a German
+reader saw "Zeitraum 1Y" on every first visit while Wealth and the Overview's
+KPI strip said "1J". One label function now serves both — German
+"1M 3M 6M YTD 1J 3J 5J Max", English "…1Y 3Y 5Y Max"; "MAX" becomes "Max"
+in both languages, the one casing EXPERIENCE.md → Period control changes.
+`phx-value-range` and the URL keep the code; "1M", "3M" and "6M" are new
+msgids that read the same in German; the fallback "Standard" stays. The
+Overview's one-year figure label, a literal "1Y" in the template that this
+part first left, goes through the same function since the closing act
+(board `mockups/ux-review-2026-10-03/03-gamma-surface-repairs`, G3): "1J"
+on the German Overview, as on the chart and the Quotes tab.
+
+### The selected detail tab is in view on arrival *(H7.2, rule ②; issue 1033)*
+
+The detail pane's nine tabs (about 760 px) overflow a phone's row, and the
+selected tab is in the URL, so a reload, back or forward, a shared link,
+the trades links (`?tab=trades`), Wealth (`?tab=transactions`) or the
+Overview's "Fällig" rows (`?tab=events`) arrived on a row resting at
+`scrollLeft: 0`: "Kurse" half under the right fade, "Termine" wholly outside.
+No variant: D6 says the active tab is in view on arrival, and UX-DR22
+rejects a wrapping row and an overflow menu. `DetailTabs` (the keyboard half
+since #837) gains `AreaTabs`' mount half, copied rather than shared so that
+hook keeps its tested form: on mount it scrolls the `aria-selected` tab into
+the row's view with `scrollTo` on the row (never `scrollIntoView`, so the
+page does not move), without animation under `prefers-reduced-motion`, to
+the last tab start at or before its centring target at which the tab is
+whole; it writes the trailing inset `--detail-tabs-tail` so the row's end is
+a tab boundary; it marks `data-scroll-start` / `data-scroll-end` and the
+fades follow (`.detail-pane-tabs` joins the three `.area-tabs` edge rules).
+After a patch it restores the inset, the rest and the marks, and reveals a
+selection the server changed; a tapped tab is already in view and scrolls
+nothing. The server renders the row with `data-scroll-start`. Measured in
+Chromium at 390 px on the seeded demo: "Kurse" rests with "Transaktionen"
+first under a left fade; "Termine" rests at the end with no right fade.
+At 1200 px with the sidebar the nine tabs fit and the row carries no mask.
+
+### A long label inside an import summary card *(H7.5, pick A, rule ③; issue 909)*
+
+`.import-stat-card .label` (13.6 px, uppercase, 0.04 em tracking) is a grid
+item with `min-width: auto`, so "VERRECHNUNGSKONTEN" (about 180 px) could
+neither wrap nor shrink: it ran 12 px past its card on the desktop and 23 px
+past it — and past the screen — at 390 px. Pick A: the German label carries
+a soft hyphen (U+00AD) at the compound joint, "Verrechnungs|konten" (the bar
+marks it), so a card too narrow for the word breaks it there as
+"VERRECHNUNGS-" / "KONTEN" in every browser, and a wide card shows nothing;
+the rule `min-width: 0; overflow-wrap: anywhere` is the floor for any other
+unbreakable word in any locale (it breaks without a hyphen, never past the
+card). The soft hyphen lives in a card-scoped msgid,
+`pgettext("import summary", "Cash accounts")`, used by the preview's and the
+result's cards only, so the five other "Cash accounts" keep a plain msgstr.
+The invisible-Unicode gate refuses a raw U+00AD; its own mechanism admits it,
+an entry in `.unicode-allowlist.txt` with a written reason, and because that
+entry can only name a file and a code point,
+`test/invariants/soft_hyphen_scope_test.exs` holds it to the one msgstr.
+Copying the label may carry the U+00AD in some browsers. The label's size
+(13.6 px where the spec's `stat-label` is 12 px) is unchanged here.
+
+### The history's phone row keeps its kebab at its end *(H7.6, rule ④; no issue)*
+
+The history's two-line row has had three children since its row menu
+reached the phone — the body, the figures and the kebab
+(`#tx-phone-kebab-…`) — while `#transaction-phone-rows .phone-row` still
+declared two tracks and a comment saying the row had no kebab. Grid
+auto-placement put the kebab on a line of its own under the date, at the
+left: every booking grew by the kebab's height (44 px on touch), and the
+kebab read as the next row's. The rule now declares `minmax(0, 1fr) auto
+auto`, its comment says why, and `.phone-row .row-actions__kebab
+{ align-self: center }` keeps the kebab centred when the running balance
+adds a third line on the right. The trades rows have no kebab and keep two
+tracks.
+
+### The security Overview's figures at phone width *(board 03, rule ④, a conformance repair; issue 1050)*
+
+`.overview-metrics` is two per row under 720 px (this document, and the
+`.overview-metrics` rule of `app.css`'s 720 px block), but the reading
+surface's `.overview-reading .overview-metrics { repeat(3, minmax(0, 1fr)) }`
+(issue 804) outranked it by specificity, so at 390 px the Overview's six
+figures stood in three columns of about 105 px: "TAGESÄNDERUNG" ran into
+"1Y" and "Durchschnittseinstand" spilled out of its cell. A 720 px block
+restates the two columns at the reading surface's specificity,
+`.overview-reading .overview-metrics { grid-template-columns: repeat(2,
+minmax(0, 1fr)) }`. Board `03-bond-master-data` draws the before (its
+phone-only frame) and the after; the bond strip U7 adds is the same grid in
+the same column and inherits the rule. Filed at PR γ's opening as issue
+1050, under Scope Lock.
+
+## Amendment 2026-10-03 — Dialogs and messages *(Sprint 18 pick H8, Lane U6)*
+
+Board `mockups/ux-design-2026-10-02/08-dialogs-copy` (plan D-8: the after
+states, and **A** for the four picks H8.2, H8.4, H8.5 and H8.6; silence
+adopted them). Eight repairs of words and small anatomy in dialogs, rows and
+messages; each part names what was built.
+
+### The rule dialog's version list *(H8.1, issue 910)*
+
+- **One numbering, the label.** Each entry of "Versions" starts with
+  "Version n", the label the version note above the list ("Saving creates
+  version 4. Version 3 (7.5 %) is in force since …") and the retire
+  confirmation name. The `<ol>` keeps its order but loses the browser's marker and indent:
+  `.policy-rule-versions { list-style: none; padding-left: 0 }`, the one
+  `app.css` rule of the part. Keeping "1." and dropping the label would have
+  left the note's "Version 3" without a counterpart in the list.
+- **`role="list"` on the `<ol>`**, because Safari drops the list semantics of
+  a list without markers. The author of G12.1-A ("· Operator", "· Agent")
+  stays the last word of each entry.
+
+### Deleting a security: the confirmation and "Cannot delete" *(H8.2 = A, issue 918)*
+
+Both texts now say what actually blocks a security's delete (ADR-0044, the
+`:restrict` keys of `Lifecycle.ForeignKeys`); the delete path, the API and
+MCP are unchanged. Built in `securities/row_context_menu.ex`.
+
+- **The confirmation** (`data-confirm`, before any check, so in general
+  terms): "Delete this security? Bookings, quotes, events, research entries
+  and policy rules block the deletion. Removed with it: its
+  classifications, position targets, bucket assignments and former ISINs,
+  each journaled, and its logo." (de "Dieses Wertpapier löschen? Buchungen,
+  Kurse, Termine, Research-Einträge und eigene Regeln blockieren das
+  Löschen. Mit entfernt werden seine Klassifizierungen, Positionsziele,
+  Bucket-Zuordnungen und früheren ISINs, jede im Journal, und das Logo.")
+  It no longer says research notes are lost: they block.
+- **"Cannot delete" names what blocks, counted** from the refusal's
+  `{:referenced, counts}` (`PortfolixirWeb.ReferenceCounts`, the accounts
+  page's "still has" as the precedent): "“Nordwind Industrie AG” still has
+  12 bookings, 840 quotes and 3 research entries." (de "„…“ hat noch …"),
+  the name in `<bdi>`, the parts in a fixed order (bookings, quotes,
+  events, research entries, rule versions), joined "a, b and c" (de "und").
+- **The second line, `p.muted`, gives the reason for the way out**, keyed
+  on `Delete.remedy/2`:
+  - research entries block it: "Research entries are never removed, and no
+    merge carries them. Retiring hides the security from the active list;
+    everything is kept." — footer Cancel, **Retire instead**;
+  - only what a merge carries blocks it: "If it is a duplicate, “Merge
+    into…” moves its bookings, quotes and events into the other security.
+    Retiring hides it from the active list; everything is kept." — footer
+    Cancel, **Merge into…**, **Retire instead** (events move in a merge,
+    `merge: :repoint`, so the sentence names them);
+  - a rule version without a research entry (rules are refused before the
+    count, so only a race reaches it): "A rule version keeps the security
+    as part of its rule's history, and no merge carries it. …"
+- **Without counts** (a refusal that carried none) one sentence in general
+  terms, variant B's: "“…” has bookings, quotes, events or research entries
+  and cannot be deleted. Retiring hides the security from the active list;
+  everything is kept." The policy-rule state (the rule list) is unchanged
+  but for its name, now in `<bdi>`.
+- **Words:** "events" / "Termine" for security events, as the merge record
+  says; "research entries" / "Research-Einträge"; "policy rules" / "eigene
+  Regeln" in the confirmation. At 390 px the three-button footer still
+  wraps two labels (the design pass's Scope Lock note, a follow-up).
+
+### Field errors in the security and account dialogs *(H8.3, issue 921)*
+
+German at the field (EXPERIENCE.md, "Language (binding)"); the API and MCP
+keep the English messages the domain builds. The mechanism is the dialog's:
+it maps by the error's `validation:` key, as the rename dialog already did,
+and the domain is unchanged.
+
+- **A plain changeset message goes through the `errors` domain**, as on the
+  transaction, rule and research surfaces: "can't be blank" reads "darf
+  nicht leer sein", the ISIN check its German sentence.
+- **The name guard** (`validation: :name_taken`) reads the rename dialog's
+  words, now shared by both dialogs (`PortfolioAccounts.NameConflict`):
+  "„Depot 1“ heißt bereits ein anderes Depot. Einen anderen Namen wählen
+  oder jenes Depot zusammenführen oder umbenennen." — and for a former name
+  "„Depot 2“ ist ein früherer Name von „Depot Süd“ — ein Import unter diesem
+  Namen bucht dorthin. Einen anderen Namen wählen oder ihn bei „Depot Süd“
+  entfernen." The holder is named by its name, never by its internal number.
+- **The two taken-name sentences address no one.** They were the only
+  `msgstr`s in `default.po` that said "Sie" ("Wählen Sie …, oder führen Sie
+  … zusammen"); EXPERIENCE.md's impersonal voice binds, so they now read as
+  above, in the rename dialog too.
+- **The currency freeze** (`validation: :frozen`) has words of its own,
+  with the page's nouns and counts (`PortfolixirWeb.ReferenceCounts`): "is
+  frozen once referenced (2 bookings, 1 quote)" / "steht fest, sobald etwas
+  darauf verweist (2 Buchungen, 1 Kurs)". The counts are read when the
+  error is shown, as the domain read them when it refused.
+- **Not covered here, named:** the security merge dialog's refusal line,
+  the tax statement form and the snapshot form also interpolate changeset
+  messages by hand, and they print the raw field key in front of each
+  ("name can't be blank"). Translating the message alone would leave a
+  half-German line, so they wait for a story that gives their fields labels
+  too.
+
+### The plan editor's Σ under 100 % *(H8.4 = A, issue 969)*
+
+D3 above fixed the remainder row; this is the editor's half of it, built in
+`classifications_live.ex` `soll_editor/1` and `put_sum/1`.
+
+- **✓ means exactly 100 %, ✗ means above it.** The Σ row's cell reads
+  "100% ✓" at exactly 100 %, and "104% ✗" with `is-target-mismatch` (the
+  warning colour) above it, unchanged. **Under 100 % the Σ carries no glyph
+  and no colour** ("92%"): next to 92 % a ✓ would contradict the row below
+  it, and a ✓ that means "complete" in one state and "not wrong" in another
+  means two things.
+- **The remainder row** `tr.soll-row--remainder` is the `<tfoot>`'s last
+  row, under the Σ, only while the Σ is under 100 % (no row reads "0 %"):
+  "Not allocated" (de "Nicht verteilt" — not "Nicht zugeordnet", which is
+  Allocation's Unassigned bucket; it matches the basis line's "allocated
+  portion") and 100 − Σ in the page's number format, in the Σ's tabular
+  slot (`data-role="soll-remainder"`). No input, not selectable. The `app.css`
+  rule of the part: the row at ordinary weight, no border of its own, no top
+  padding, the label in `{colors.text-muted}`.
+- **One formula.** The remainder is 100 − the live Σ, cash target included,
+  as `Allocation.unallocated_remainder/1` reads it from a top-level sum that
+  includes cash — except on the built-in currency tree, where Allocation
+  distributes cash into the currency categories and leaves the cash target
+  out of its sum while the editor still counts it. That divergence predates
+  this part and is recorded as a follow-up, not settled here.
+- **The finding surface moves above 100 %.** The review rubric's walkthrough
+  alarm is "a plan above 100 %", and `priv/demo/finding_surfaces_seed.exs`
+  seeds one (a 20 % cash target on the demo's 85 % categories).
+
+### The accounts rename dialog: the invisible-character notes *(H8.5 = A, issue 966)*
+
+The G20 note (`AppShell.invisible_text_note/1`) in the rename dialog of
+Accounts & depots, `portfolio_accounts/rename_dialog.ex`.
+
+- **The current name** (A and B alike): one `attention` note after the form,
+  before the former-name hint, `subject: :name`, following the field
+  (`texts={[@name]}`) as in the rule dialog: "The name contains 1 invisible
+  character. Typed in anew, it is clean." (de "Der Name enthält 1
+  unsichtbares Zeichen. Neu eingegeben ist er sauber."), the name spelled
+  `[U+XXXX]` behind "Name with the characters made visible". Typed in anew,
+  it goes.
+- **Former names are marked too (A).** Retyping is the remedy, and it turns
+  the old spelling into a former name (former names are written without the
+  text check), so after it the list shows "Depot Nord" under an account
+  named "Depot Nord". When any former name carries such characters, a
+  second note sits inside the open "Former names", above the list: "A
+  former name contains 1 invisible character. An import that writes it
+  exactly so keeps booking to this depot." (de "Ein früherer Name enthält 1
+  unsichtbares Zeichen. Ein Import, der ihn genau so schreibt, bucht weiter
+  auf dieses Depot."; "… to this account." / "… dieses Konto." for a cash
+  account). Several marked: "Former names contain 3 invisible characters. An
+  import that writes one of them exactly so …". Its disclosure "Names with
+  the characters made visible" (de "Namen mit sichtbar gemachten Zeichen")
+  spells each affected former name, those that arrived by a merge included.
+  The list row carries no mark: the disclosure says which name it is.
+- **The third subject of the note**, `:former_name`, with its sentence,
+  plural and summary; the remedy sentence is the dialog's, per kind. The
+  `app.css` rule of the part: `.rename-dialog details > .data-note {
+  margin-top: var(--space-1) }`, one step below the summary, as the list.
+- **Why A:** the former-name list is the one list in this dialog that can be
+  edited, and whether that entry is removed decides whether an import still
+  finds the account; the MCP companion already gives the agent the escaped
+  spelling.
+
+### The securities list when a row action finds its security gone *(H8.6 = A, issue 920)*
+
+Built in `securities_live.ex` (`vanished/2`); the API and MCP are unchanged.
+
+- **Reload, with one note.** A row action whose security was deleted or
+  merged away since the list loaded (the API, MCP, another tab) no longer
+  just closes the menu: the list reloads, and the page's inline result slot
+  carries a `note` (UX-DR17: context, nothing is wrong): "“Meridian Global
+  Equity ETF · XS0000000025” was merged into Meridian Global Equity ETF ·
+  XS0000000017 meanwhile; the list is reloaded." (de "„…“ wurde inzwischen
+  in … zusammengeführt; die Liste ist neu geladen."), or "“Helios Solar
+  Systems SE” was deleted meanwhile; the list is reloaded." (de "„…“ wurde
+  inzwischen gelöscht; die Liste ist neu geladen."). The delete's own "not
+  found" branch says the same.
+- **The names are the stale list's**, twins told apart as its rows were
+  (`SecurityNames.label/2`); each sits in `<bdi>` (H8.8). A merge links the
+  survivor, the end of `Lifecycle.merge_chain_end/2`'s chain, to its detail
+  with the list's filters; a chain that ends at a deleted row reads as
+  deleted.
+- **What pointed at the security goes with the row:** a detail pane on it
+  closes (the URL drops its id; the note stays across that patch), and an
+  open edit dialog, "Cannot delete", the logo dialog or a merge's first step
+  on it close too.
+- **Why not silent (variant B):** for a delete the row going is what was
+  asked for; for Edit, Retire or Merge into… it is not, and a row vanishing
+  without a word reads as a lost click.
+- **The note is brought to the operator, and takes the focus** (the
+  closing act's finding; board
+  `mockups/ux-review-2026-10-03/03-gamma-surface-repairs`, G1). The slot
+  sits above the filters, so the note landed far above the window (measured
+  −1142 px at 1280, −2611 px at 390) while the focus fell to `<body>` with
+  the menu item. As H2's A6 does for a booking gone meanwhile: the slot
+  carries `tabindex="-1"` (`AppShell.inline_result`'s `focusable`), and on
+  this path only the page pushes `focus-into-view` with the slot's id; the
+  layout's listener scrolls it to the top of the window — below the sticky
+  top bar, by `#securities-action-result { scroll-margin-top }` — and
+  focuses it without a second scroll. A keyboard user sees the house ring
+  (`:focus-visible`, 2 px accent, offset 2 px); the next Tab reaches the
+  survivor's link and the dismiss. Ordinary results land where they always
+  did and move no focus: their control is still on the page. Never `<body>`
+  (WCAG 2.4.3).
+
+### Merge records: the result phrase and empty merges *(H8.7, issue 1032, the UI half)*
+
+Built in `portfolio_accounts/merge_records.ex` and
+`securities/merge_preview.ex`; the merge record's payload and
+`GET /api/v1/merges` are unchanged.
+
+- **The security phrase counts every removal**: "142 bookings moved, 2
+  duplicates removed, **1 split collapsed**, 30 quotes added" (de "… 2
+  Duplikate entfernt, 1 Split zusammengelegt, 30 Kurse ergänzt"), in the
+  merge record list and in the result right after the merge ("Merged into
+  …: …"). It uses the open line's own msgid (`pngettext("merge record",
+  "%{count} split collapsed", …)`), after the duplicates. No total ("3
+  removed") as an account merge reads: it would mix the operator's choice
+  (duplicates) with an automatic step (a same-day split).
+- **An empty merge reads "nothing to check" for every kind** (de "nichts zu
+  prüfen"). The rule is in the words: the check line keys on the source
+  having moved nothing — no booking moved, none removed. The cash writer
+  checks today and the target's own booking dates, so its day count alone
+  read "Balance confirmed on 3 days" for an empty source merged into an
+  account with history; a payload change (the writer counting nothing when
+  nothing moves) would have needed a contract entry and was not taken.
+- **The liveness half changes no picture** and is not built here: the page
+  already resolves a later-merged or deleted target from its own rows.
+
+### Stored names in results and headings *(H8.8, issue 968)*
+
+The `<bdi>` bullet of the G20 amendment above, carried to the results and
+headings it named as a follow-up. One helper, `PortfolixirWeb.StoredText`,
+replaces the rule dialog's own `frame/1` and `isolated/1`: the caller
+translates with `StoredText.slot(:name)` in place of each stored value, and
+`StoredText.isolate/2` escapes the translation and sets each stored value in
+its own `<bdi>`. An inline result's message may be that markup (it was
+`:any` already).
+
+- **Results:** the securities row actions ("Retired %{name}", "Reactivated
+  …", "Marked … as benchmark", "… is no longer a benchmark", "Deleted …",
+  "Created …", "Updated …", the raced delete), the security merge's "Merged
+  into %{target}: …", the account merge's "Merged %{source} into %{target}:
+  …", the account page's raced delete, and the import's remembered-name
+  lines (each of their names).
+- **Headings:** "Rename — %{name}", "Merge %{name}" (accounts and
+  securities), "Set balance — %{name}", "Release manual quotes — %{name}",
+  "Buckets for %{name}", "Comparison against “%{name}”", and the rule
+  dialog's "Change rule — “%{name}”" as before. A heading that ends with the
+  name renders the same either way and is isolated anyway, so the rule has
+  no exceptions.
+- **The picture changes only for such a name**: a stored U+202E with no
+  U+202C after it reverses up to the end of the `<bdi>`, so "Nordwind
+  Industrie AG stillgelegt" keeps "stillgelegt", and "Depot Nord
+  zusammenführen" keeps "zusammenführen"; the name itself still reads oddly,
+  and the G20 note marks it where it is renamed. No `app.css` rule:
+  `<bdi>` isolates by itself.
+- **Not covered, stated:** attribute strings — `aria-label`, `title`,
+  `data-confirm` — cannot hold `<bdi>`; they keep the plain name. Running
+  text inside a dialog's body that names a stored name (the merge previews'
+  sentences, the plan editor's labels) is not a result or a heading and is
+  left as it is.
+- **One body sentence joined, for its punctuation:** the split wizard's
+  first sentence ended with the security's name and added its own full stop,
+  so a name ending in an abbreviation read "… Namens-Aktien o.N..". It now
+  quotes the name, in `<bdi>`, and goes on after it with a comma — "Stock
+  split for “%{security}”, the ratio as new:old shares — …" (de "Aktiensplit
+  für „…“, das Verhältnis als neue:alte Aktien — …") — so no name's last
+  character meets a full stop of the app's (the closing act's finding;
+  board `mockups/ux-review-2026-10-03/03-gamma-surface-repairs`, G7).
+
+## Amendment 2026-10-03 — Deleting a booking, and Edit on the kinds the drawer does not book *(Sprint 18 picks H2 = A and H2b = A, U1; issue 912)*
+
+Board `mockups/ux-design-2026-10-02/02-booking-delete`, variant A of both
+questions (plan D-8; silence adopted them). The closing act's repairs —
+R1–R10, cited below where they change the anatomy — are boarded before and
+after in `mockups/ux-review-2026-10-03/02-delete-dialog-repairs`. The missing human view of the
+API's and MCP's delete (plan D-6): the screen now deletes every kind of
+booking, a split as the one fact it was booked as. Built in
+`PortfolixirWeb.Transactions.BookingDeleteDialog` (the dialog, its words and
+its write), `TransactionManagementLive` (the row menu, the notes-only
+drawer) and, for the link from **Record split**, `SplitWizardDialog` and
+`SecuritiesLive`. The writes are the API's: `Ledger.delete_transaction/2`
+for a booking, `Splits.delete_split/2` for a split — every row of the event,
+in every portfolio, in one journaled step (its API and MCP twins are
+`DELETE /api/v1/splits/:transaction_id` and `portfolixir.splits.delete`, an
+admin tool).
+
+### The row menu *(A1)*
+
+- **Edit · Delete…** on every history row of every kind, Delete last, in
+  `.row-context-menu__item--danger` with the trash glyph: the order by
+  consequence of the accounts and securities menus. The ellipsis says a
+  dialog follows, as in "Merge into…".
+- **The phone sheet names its row**: the menu passes `caption_name`, the
+  `row_name/2` the kebab's label already composes, and `caption_kind`
+  "Transaction" — "Kauf, Global Aktien ETF, 22.09.2026 · Transaktion". The
+  sheet said nothing about its row before. The kind is one span
+  (`.row-context-menu__kind`, `white-space: nowrap`) glued to the name's
+  last word by a no-break space, so a long name — a twin's — wraps inside
+  itself and "22.09.2026 · Transaktion" moves as one piece: no line starts
+  with "·" or holds the kind alone (closing act R10g; `AppShell.row_menu`,
+  so the accounts' sheet too).
+
+### The dialog *(A2–A6)*
+
+- **Shape.** A native `<dialog class="modal booking-delete-dialog">` on the
+  `ModalDialog` hook, titled "Delete transaction" ("Transaktion löschen"),
+  the quote release's narrow destructive modal: `.booking-delete-dialog`
+  joins the `.quote-release-dialog` selector lists (460 px; under 720 px the
+  merge dialog's bottom sheet, the confirm on its own line above Cancel,
+  44 px buttons) — rule ①, a list membership, not a copy.
+- **The booking, said back** (rule ②): `.booking-delete__subject`, a
+  bordered box (`--color-border`, `--radius-md`, `--color-bg`, padding
+  `--space-2` `--space-3`) holding the history's own phone-row parts at every
+  width — "22.09.2026 · Kauf" over "Global Aktien ETF · Depot 1" (a transfer
+  "Girokonto → Tagesgeld"), and on the right the signed amount the history
+  shows over its size ("40 × 62,50"; one unit "1 Stück", English "1 unit").
+  The menu no longer hangs at its row once the dialog is open; the box says
+  which row was meant. It is built from the row **as stored now** (R6): the
+  booking is read again when "Löschen…" is chosen, as Edit reads it, and a
+  row gone since answers A6 at once.
+  - **A twin security** (a name another security carries) is named as the
+    row's kebab names it, with its ISIN — else its ticker, else "Nr. …":
+    "Global Aktien ETF · DE000SYN0A17 · Depot 1", for a booking and a split
+    alike, and so is the result (R4).
+  - **The account it names** is the one the sentence names: a booking that
+    moves shares names its depot, one that moves only cash its cash account,
+    even when it carries a depot (an imported dividend; R10f).
+  - **Each stored name sits in its own `<bdi>`** (H8.8), the " · " and
+    " → " outside (R7); the subject line is one inner span, the single flex
+    item of `.phone-row__ids`.
+  - **A long unbroken name wraps inside the dialog**: `.booking-delete-dialog
+    .hint` and `.booking-delete__subject .phone-row__ids > span` take
+    `overflow-wrap: anywhere; min-width: 0`, so at 390 px nothing widens the
+    sheet (R8; the closing act measured 28 px over).
+- **What changes, concretely** — one `.hint` sentence built from
+  `Projection.effects/1`, the one reducer per kind, read in reverse, so no
+  sentence is written per kind: the quantity legs first, then the cash legs,
+  "Danach hält Depot 1 40 Stück Global Aktien ETF weniger, und Girokonto hat
+  2.504,90 EUR mehr." (the cash leg is the cash the booking moved, fees
+  included). **A quantity is stated at today's count** (R1): each depot's
+  position today with and without the booking, the holdings' own fold, so a
+  buy of 10 before a 2:1 split reads "20 Stück weniger" (a 1:2 reverse
+  split "5"), for sells, deliveries and transfers alike; the box keeps the
+  booking's own figures. A set balance has its own sentence ("Danach trägt
+  Girokonto keinen am 30.09.2026 gesetzten Saldo mehr; sein Stand folgt
+  wieder den Buchungen."). **Where a later set balance anchors an account
+  the booking moves** (ADR-0009), that account's clause carries its bound
+  and the next sentence says from when nothing changes (R2): "… und
+  Girokonto hat bis zum 30.09.2026 2.504,90 EUR mehr. Ab dem am 01.10.2026
+  gesetzten Saldo bleibt der Stand von Girokonto unverändert." — each
+  account bounded by its own first set balance on or after the booking's
+  day. A balance set on the booking's own day applies after it, so the
+  account changes on no day and the clause names no amount: "… und der
+  Stand von Girokonto bleibt, wie er am 22.09.2026 gesetzt wurde." Then the
+  general sentence: "Bestände, Kontostände, Rendite und Trades werden ohne
+  diese Buchung neu berechnet." Stored names sit in `<bdi>` (H8.8).
+- **The journal, honestly:** "Das Journal behält die Buchung mit allen
+  Werten; zurückholen kann die Oberfläche sie nicht." — hence danger, not
+  primary, as in the quote release.
+- **An imported booking (A3)**: one `attention` data note — "Diese Buchung
+  stammt aus einem Import. Gelöscht, kennt der Import sie nicht mehr: Ein
+  erneuter Import derselben Datei bucht sie wieder." (plain words, R10d; it
+  said "Inhalts-Hash" before). The behaviour is unchanged (plan D-6); the
+  note says it.
+- **The band foot**: Cancel (ghost, `autofocus`, so the dialog opens on it),
+  the spacer, then `.button-danger` naming the act. **One confirmation**:
+  no `data-confirm` after it. The issue-765 rule ("every destructive control
+  carries data-confirm") keeps its exception where a destructive dialog is
+  itself the confirmation — the quote release, this delete — and the
+  `layout_view.ex` note says so.
+- **After (A5)**: the page's own `.alert-success` slot, "Transaktion
+  gelöscht: Kauf · Global Aktien ETF · 22.09.2026."; the row is gone and the
+  month subtotal follows. **Gone meanwhile (A6)**: `.alert-error` "Diese
+  Transaktion existiert nicht mehr.", the history reloaded — the one refusal
+  the API states. The dialog warns about nothing the API does not check (no
+  dependency check: a later sale may lose its purchase).
+- **Focus** (R3, WCAG 2.4.3). The dialog's opener, the menu item, is gone
+  when it opens, and after a delete so is the row. The `ModalDialog` hook
+  takes the opener while it is on the page; else the first visible of
+  `data-focus-return` — the row's kebabs, `#tx-kebab-<id>` and
+  `#tx-phone-kebab-<id>`, whichever this width shows — so Abbrechen, Esc
+  and × leave the page where it was with the ring on the row's kebab; only
+  when the row is gone (a confirmed delete, A6) does `data-focus-fallback`
+  take it: the history's heading (`#transaction-history-heading`,
+  `tabindex="-1"`), or **Record split** on the security's page. The focus
+  moves only when it went with the dialog. A result the close shows
+  (`data-focus-result`, the page's `[data-role="page-result"]`) comes into
+  view first, then the target takes the focus without scrolling and is
+  brought into view only when it is out of it; the result, the heading and
+  the kebabs land below the sticky top bar (`scroll-margin-top:
+  calc(var(--topbar-height) + var(--space-3))`). The Edit drawer, buy/sell
+  and notes-only, returns the focus the same way on every exit — it fell to
+  `<body>` before — and "Notiz gespeichert" is in view when it shows.
+
+### A split, deleted whole *(A4, A7, A8)*
+
+- **"Delete…" on any split row** opens the same dialog titled "Split
+  löschen": the box reads "15.09.2026 · Split" over the security, "2:1" over
+  "2 Zeilen"; "Der Split ist in 2 Portfolios gebucht, Hauptportfolio und
+  Sparplan-Portfolio; beide Zeilen werden in einem Schritt gelöscht.";
+  "Danach zählen die Bestände von Kestrel Robotik SE ab dem 15.09.2026
+  wieder ohne den Split, und das Diagramm rechnet seine Kursreihe ohne ihn;
+  gespeicherte Kurse bleiben, wie sie sind."; the journal keeps both rows.
+  The confirm reads "Split löschen (2 Zeilen)". The result: "Split
+  gelöscht: Kestrel Robotik SE · 2:1 · 15.09.2026, 2 Zeilen." **A split in
+  one portfolio names no row** (R10d): the box shows the ratio alone, "Der
+  Split ist nur in Hauptportfolio gebucht.", "Das Journal behält den
+  Split.", the confirm "Split löschen", the result "Split gelöscht: Kestrel
+  Robotik SE · 2:1 · 15.09.2026."
+- **The confirm keeps to the rows the dialog listed** (R5). The dialog
+  carries the event — security, date, normalized ratio — and the ids it
+  listed; the confirm reads the event's rows again, anchors the delete on
+  any of them still stored, and holds it to the listed ones under the
+  event's lock (`Splits.delete_split/3`, `only:`). The row it was opened
+  from deleted alone meanwhile: the rest are deleted as promised. A row the
+  dialog did not list (a re-book in another portfolio): nothing is deleted
+  and the dialog shows the new state with the merge dialogs' changed-plan
+  note, an `attention` data note in a `role="status"` region at the head of
+  the body (`.booking-delete__region`, which takes no room while empty):
+  "Der Split hat sich geändert, während dieser Dialog offen war. Nichts
+  wurde gelöscht; der Dialog zeigt jetzt den neuen Stand." — confirmed
+  again, it deletes what it now lists. No row left: A6.
+- **A7, the split drawer's help line gets its way**: "Stichtag, Verhältnis
+  und Wertpapier eines gebuchten Splits stehen fest. Ein falscher Split wird
+  gelöscht und danach am Wertpapier mit „Split erfassen“ neu erfasst." and
+  the `.link-button` **Split löschen…**, which closes the drawer and opens
+  the dialog — never a dialog from a dialog (UX-DR9). This supersedes the
+  "without a link" of the G12.3 amendment. Under `pointer: coarse` the
+  remedy is a 44 px target — `.form-help .link-button` joins the coarse
+  rule of `.data-note__body .link-button` (H6.1: 13 px block padding given
+  back as a negative margin, so the line keeps its height) — and on
+  keyboard focus it draws the 2 px accent ring (R9).
+- **A8, "Record split" links to it.** The conflicting-ratio warning names
+  the booked ratio — "Für dieses Wertpapier ist an diesem Datum bereits ein
+  Split mit anderem Verhältnis gebucht (2:1). Die Buchung wird abgelehnt,
+  solange er steht." — and carries **Gebuchten Split löschen…**; the booking
+  refusal (a conflicting or an already booked split) carries the same link.
+  It closes the wizard and opens the dialog on the security's page, so the
+  delete and the rebooking happen in one place. `.alert-warning
+  .link-button` and `.alert-error .link-button` take the same 44 px coarse
+  floor and accent `:focus-visible` ring as the drawer's remedy (R9). The board's fallback (a link
+  to the history) was not needed: the dialog is one function component
+  with one handler per page.
+
+### Edit on the kinds the drawer does not book *(H2b = A)*
+
+- **The notes-only drawer** is the G12.3-A split state, generalised to
+  every kind outside buy and sell (the drawer books only those, AGENTS.md
+  goal 4). The same `dialog.detail-pane.booking-drawer`, titled "Edit
+  transaction"; the sub line says the limit before anything is tried — "Die
+  Art „Dividende“ bucht die Oberfläche nicht; hier ändert sich nur die
+  Notiz, und das Journal hält die Änderung fest." (a set balance: "Ein Saldo
+  wird unter Konten & Depots gesetzt; …"; a split keeps its own). English
+  names the kind as a kind — "The screen does not book the kind
+  “Interest”; …" — never with an article that fits no label (R10a), and all
+  three say "the journal records the change", never "journaled" (R10d).
+- **The facts, disabled**, with the words the history and the drawer
+  already use, the fields following the kind's stored fields: Typ and Datum
+  (a split: Stichtag), then the security where the booking has one, and per
+  kind — a cash kind its Verrechnungskonto, "Betrag (EUR)" and, for a
+  dividend or interest, Steuern; a cash transfer "Von Konto" and "An Konto"
+  and its amount; a delivery its Depot, Stückzahl and Preis; a security
+  transfer "Von Depot", "An Depot" and Stückzahl; a set balance its account
+  and "Saldo (EUR)"; a split its ratio. Ids are general now: `#note-form`,
+  `#booking-facts`, `#booking-edit-help`, the fields `note[…]`. A figure
+  reads with the digits it was stored with, trailing zeros trimmed and at
+  least two places — a price of 41,1234 stays 41,1234, an amount of 1500
+  reads 1.500,00 (R10c; it was rounded to two before).
+- **The help line** states the limit and both correction paths where the
+  correction is tried (UX-DR26): "Datum, Beträge und Konten dieser Buchung
+  stehen hier fest; die Oberfläche bucht nur Käufe und Verkäufe. Korrigiert
+  wird die Buchung über API oder MCP, oder sie wird gelöscht und neu
+  importiert." — for a booking an import brought in (`import_hash` set);
+  any other came over the API or MCP and reads "…, oder sie wird gelöscht
+  und dort neu gebucht." (R10e); a set balance "…oder er wird gelöscht und
+  unter Konten & Depots neu gesetzt" — and carries **Löschen…**, opening
+  the delete dialog.
+  The Notes field stands open under it, with **Notiz speichern** and
+  **Abbrechen**; a booking save pushed at this drawer changes nothing.
+- **Stated, not settled here:** the API's and MCP's update corrects every
+  field of these kinds in place; the screen changes only the note. That
+  two-way gap is outside this pick (the design pass's Scope Lock) and the
+  help line is its stated limit until it is built. Dialog count: one more
+  native dialog — eighteen `<dialog>` elements in `lib/portfolixir_web/`,
+  still with zero `aria-modal`.
+
+## Amendment 2026-10-03 — Securities detail: bond master data and key metrics *(Sprint 18 pick H3 = A, U7; issue 330)*
+
+Board `mockups/ux-design-2026-10-02/03-bond-master-data`, variant A (plan
+D-8; silence adopted it): the bond's data in the Overview, not a tab of its
+own. Built in `PortfolixirWeb.Securities.BondStrip` (the block and the
+two-scales note), `SecurityFormDialog` (the bond section) and
+`PortfolioLive.data_quality/1` (the Wealth finding), over
+`Portfolixir.Portfolios.Bonds.reading/2` — the reading the API's
+`GET /api/v1/securities/:id` serves as `bond`, so the screen and the agent
+read one set of figures (ADR-0052). Nothing renders for any asset class
+but `bond` and `government_bond`, read as the effective class.
+
+### The bond block *(A1, rule ①)*
+
+- **Placement.** One more block in the Overview's main column, directly
+  under the six figures and above the chart: `section.bond-strip`
+  (`data-role="bond-strip"`). Its heading "Anleihe" is an `h3` in the
+  overview-card head voice — `.bond-strip__head h3` joins the
+  `.overview-card__head h3` rule — because it is the one thing that tells
+  the two grids apart. The grid **is** `.overview-metrics`, three by two,
+  two per row under 720 px (rule ④, which issue 1050 carried); the basis
+  line **is** `.detail-tab-hint`, as under the ADR-0047 grid.
+- **First row, what was entered:** *Fälligkeit* (the ISO date; sub-line
+  "Emission <date>" when an issue date is set), *Kupon* ("2,5 %" with the
+  unit "p. a."; sub-line *jährlich* or *halbjährlich*, or *keine
+  Zinszahlung* for a zero coupon), *Nominal im Bestand* ("10.000,00" with
+  the face value's currency; sub-line "100 Stück × 100 EUR · Stückelung
+  1.000 EUR" — the hundredth convention as a sum, the denomination beside it
+  so "Stück" and "Stückelung" are not read as one unit; "—" while nothing is
+  held).
+- **Second row, what follows, each under its input:** *Restlaufzeit* ("4 J.
+  8 M."; sub-line "4,70 Jahre ab <today>"), *Laufende Rendite* ("2,57 %";
+  sub-line "2,5 ÷ 97,25 (<quote date>)", or "2,5 ÷ 98,5, letzter eigener
+  Handelspreis" while the valuation prices by the own trade, board A4),
+  *Rendite bis Fälligkeit* ("≈ 3,17 %"; sub-line *linear angenähert*).
+  What is computed — the yields and the years — at two places; what is
+  stored — the coupon, the price in the ratio line, the quantity and the
+  denomination — as stored, trailing zeros trimmed (`Format.exact`): a
+  coupon of 4,125 % reads "4,125 %" and its ratio "4,125 ÷ 97,125", never
+  "4,13 ÷ 97,13" beside a yield computed from 4,125 (closing act on U7,
+  finding 2; board `ux-review-2026-10-03/04-bond-repairs` B1).
+- **The basis line** (`data-role="bond-basis"`) says once what the figures
+  are, how they are made and what they leave out: coupon and price in
+  percent of face, one unit a hundredth of the nominal, so the price is also
+  the price per unit; current yield = coupon ÷ price; the remaining term in
+  calendar days from today, a year of 365 days; the yield to maturity
+  linearly approximated, (Kupon + (100 − Kurs) ÷ Restlaufzeit in Jahren) ÷
+  Kurs, without compounding; without accrued interest, fees and taxes;
+  reported, not evaluated.
+- **One deliberate departure from the board:** the coupon's sub-line names
+  the frequency, not a payment day ("am 15.06."). The master data carries no
+  coupon date, and taking it from the maturity is an assumption the screen
+  does not make.
+
+### Its states *(A2–A4)*
+
+- **Nothing entered** (no coupon, no maturity, no denomination — a fresh
+  import): one sentence instead of six dashes, "Kupon, Fälligkeit und
+  Stückelung sind nicht erfasst; ohne sie gibt es keine Restlaufzeit und
+  keine Rendite.", whose remedy **Anleihedaten erfassen…** is a
+  `.link-button` opening the same dialog as *Edit* (UX-DR17: the remedy is
+  a child of its sentence). Under a coarse pointer it is a 44 px target in
+  place, by the H6.1 rule (*The remedy inside a data note*), of which it is
+  the second selector. The nominal stands under it as a hint, with the
+  convention, since it needs no master data.
+- **Partly entered:** the grid; a cell whose input is missing reads *nicht
+  erfasst*.
+- **Not computable:** *nicht berechenbar*, the reason in the sub-line —
+  *fällig*, *kein Kupon erfasst*, *keine Fälligkeit erfasst*, *kein Kurs*,
+  or "Handelspreis 0,984 je Stück, keine Prozentnotiz" when the yields
+  would fall back to an own trade price of at most 5 (the two-scales band's
+  mirror, 100 ÷ 20; closing act on U7, finding 3, board
+  `ux-review-2026-10-03/04-bond-repairs` B2). No percent figure stands in
+  either cell then: "254,07 %" from 2,5 ÷ 0,984 is a booking of the
+  nominal, not a yield. The guard is silent without a quote, so the reason
+  is the only place the unit scale shows before one is stored.
+- **Matured** (on and after the maturity date): the term reads *fällig*,
+  sub-line "seit <date>", and both yields *nicht berechenbar · fällig*. No
+  redemption amount is computed; a redemption is a booking.
+- `.overview-metric__sub time` and `.overview-metric__sub .nowrap` keep a
+  date and a figure with its unit whole at 390 px (rule ③).
+
+### The dialog's bond section *(F1, F2, rule ②)*
+
+- `fieldset.bond-fieldset` (`data-role="bond-fields"`), legend
+  "Anleihedaten", between the master data grid and the raw-quotes toggle,
+  present while the asset-class select reads *Anleihe* or *Staatsanleihe* —
+  on create (search, manual) and on edit alike; the dialog's `form_change`
+  re-renders it as the select changes. `.bond-fieldset` **joins the
+  `.settlement-fieldset` selector lists**: the same block shown only when it
+  applies, not a copy.
+- Fields: *Kupon p. a. (%)* and *Stückelung (Nennwert)* follow the
+  numeric-input rule (`inputmode="decimal"`, `class="num"`, read by
+  `DecimalInput` in the page's locale — "2,5", not "0,025"); *Zinszahlung*
+  a select of two words, *jährlich* and *halbjährlich*, never the stored
+  value; *Fälligkeit* and *Emissionstag (optional)* ISO text fields
+  (UX-DR19); *Währung des Nennwerts* a currency select that starts on the
+  security's currency and is written only beside a *Stückelung*: a save
+  that sets no denomination stores no currency, so the preset is never
+  written behind the operator's back (closing act on U7, finding 8; the
+  select's picture is unchanged). One `.form-help` line states the convention ("Im
+  Bestand ist ein Stück ein Hundertstel des Nominals: 100 Stück sind 10.000
+  Nominal. …").
+- **Errors on their field**, in the page's language (F2): the ambiguity
+  message of `DecimalInput` under a grouped figure, "muss nach dem
+  Emissionstag liegen" under a maturity on or before the issue date, the
+  bounded-date and range messages likewise. Nothing is stored on a refusal.
+  **One round:** a figure `DecimalInput` refuses stops the write, but the
+  rest of the form is still checked by the security's changeset, writing
+  nothing, so "1.000" as the coupon and a maturity before the issue date
+  show both errors after one save, as board 03 draws them (closing act on
+  U7, finding 7; board `ux-review-2026-10-03/04-bond-repairs` B5).
+- **Nothing is required**; while editing, an emptied field clears its
+  value; the values are kept when the class changes away from a bond, and
+  the screen then hides them.
+- **Only an edit clears** *(closing act on U7, finding 1)*. The section
+  starts on the stored values only while editing. On create and on the two
+  conflict paths — "Vorhandenes aktualisieren" and "Online-Felder
+  übernehmen", whose section starts blank over a security that may already
+  carry master data — a blank field is no change, so resolving a duplicate
+  never wipes a bond's coupon, maturity or denomination.
+
+### The two-scales note *(W1 and W2)*
+
+- **On the Overview** (W1): a **problem** data note at the top of the
+  Overview panel, above the figures it concerns (`data-role=
+  "two-scales-note"`): "**Auf zwei Skalen bepreist:** Kurse um 100 (zuletzt
+  97,25 am <date>), gebuchter Preis je Stück um 1 (1 Buchung: 0,985 am
+  <date>).
+  Dann ist das Nominal als Stückzahl gebucht, und Wert, Gewinn und Gewicht
+  sind hundertfach zu hoch; die Rendite (TTWROR) zeigt es nicht. Stückzahl
+  gegen das Nominal der Abrechnung prüfen: Transaktionen" — the last word a
+  link to the security's Transactions tab. With several such bookings: "(3
+  Buchungen, zuletzt 0,985 am …)" — a booking is a buy or a priced inbound
+  delivery (closing act on U7, finding 4, board
+  `ux-review-2026-10-03/04-bond-repairs` B3). The figures stay as stored and
+  the block
+  shows the consequence (1.000.000,00 nominal for a purchase of 9.850,00);
+  nothing is converted and no rescale is offered.
+- **Where the total is read** (W2, UX-DR25): the seventh condition of Wealth
+  → Holdings → *Datenqualität*, a problem note after the negative holdings
+  (`data-role="dq-two-scales"`), naming each bond the valuation holds with
+  "(Kurs 97,25 · Preis je Stück 0,985)" and linking each name to its
+  Transactions tab, as the negative-holdings note does; the sentence asks
+  for "Stückzahl ihrer Buchungen".
+- **Silent** without a quote, when the scales agree, and for every other
+  asset class. The rule: the latest stored quote is 20 to 500 times a
+  booked price per unit, a buy's or a priced inbound delivery's (ADR-0052
+  §4).
+
+### Settled here, from the board's stated doubts
+
+- The linear approximation is (C + (100 − P) ÷ n) ÷ P, named in the basis
+  line and the payload; the other common form is not shown.
+- A trade-priced bond's yields use the valuation's price, the last own trade
+  price, and say so; the guard compares the latest quote with each booked
+  price per unit, so a mixed history is named by the bookings on the unit
+  scale.
+- The reverse case (quotes near 1, bookings near 100) is not named; the
+  guard keys on the effective asset class, so a bond the inference does not
+  recognise escapes it (ADR-0052, Consequences).
+- The dashboard's data-quality line does not count the finding: that line
+  counts the catalog's hygiene sets, and the two scales are read where the
+  total they inflate is read.
+- The six figures' cells stay as they are: "Bestand 100 Stück" and "Letzter
+  Kurs 97,25 EUR" are not relabelled; the block and its basis line carry the
+  convention.

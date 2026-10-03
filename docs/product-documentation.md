@@ -194,6 +194,15 @@ bottom sheet — a dialog with the families stacked under their names, the
 More-filters builder, **Reset** and **Done**; a chip in the sheet applies at
 once, exactly as in the row.
 
+**A row whose security went elsewhere.** When the agent, the API or another
+tab deleted or merged a security after the list loaded, a row action on its
+row reloads the list instead of doing nothing, closes a detail pane open on
+it, and says why the row went: "“…” was deleted meanwhile; the list is
+reloaded." or "“…” was merged into … meanwhile; the list is reloaded.", the
+security that now carries the history linked. The note is brought to the top
+of the window and takes the keyboard focus, since the menu that had it went
+with the row.
+
 ### Classification columns
 
 Next to the attribute and price columns, the securities list's column picker
@@ -242,8 +251,12 @@ imported before the ISIN change was recorded and created a second copy with
 a second copy of the history, or a security created by hand was created again
 by the next import — merge the duplicate into the security you keep:
 **Merge into…** in the duplicate's row menu on the securities page, or the
-same button in the *Cannot delete* dialog when bookings or quotes are what
-block the delete. Your agent has the same merge
+same button in the *Cannot delete* dialog when bookings, quotes or events are
+what block the delete. That dialog counts what still references the security
+("“…” still has 12 bookings, 840 quotes and 3 research entries.") and says
+why its way out is what it is: research entries are never removed and no
+merge carries them, so a security with research entries is retired instead.
+Your agent has the same merge
 (`GET /api/v1/securities/:id/merge_preview` and
 `POST /api/v1/securities/:id/merge`, or the
 `portfolixir.securities.merge_preview` and `portfolixir.securities.merge` MCP
@@ -360,6 +373,71 @@ instrument. A day without a stored close produces no return observation, so
 nothing is carried forward and then differenced. **The block reports; it does
 not evaluate** — there is no signal, rating or recommendation anywhere in it.
 
+### Bonds: master data and key metrics (ADR-0052)
+
+A security whose asset class is **Bond** or **Government bond** — set, or
+inferred from its name — carries its master data in the security dialog
+behind **Edit**: the section *Bond data* appears while the asset class
+reads one of the two, when creating and when editing. Its fields are the
+**coupon p. a. in percent** (2.5, not 0.025), the **interest payment**
+(annual or semi-annual), the **maturity** and an optional **issue date**
+(ISO dates, the maturity after the issue date), and the **denomination**
+(face value) with its **currency**, which starts on the security's and is
+stored only with a denomination: a save without one stores no currency, and
+the nominal then reads in the security's. Nothing is required; while editing, an emptied field clears its value, and the
+values are kept if the asset class changes away from a bond. When a search
+finds a security the catalog already holds, **Update existing** and **Merge
+online fields** write only the bond fields that are filled in: a blank field
+leaves the stored value alone. A value no bond carries — a coupon above
+100 %, a maturity on the issue date, a grouped figure — is refused on its
+own field, and every refusal of one save shows at once.
+
+**The quantity convention.** A Portfolio Performance export books a
+percent-quoted bond's quantity as **a hundredth of its face amount**: 100
+units are a nominal of 10,000, and a quote of 97.25 is both 97.25 % of face
+and the price per unit. So quantity × quote is already the market value,
+and **the nominal held is quantity × 100**. Every place the face amount is
+derived says so.
+
+The bond's **Overview** shows one more block under the six figures, headed
+*Bond*: the maturity with the issue date, the coupon with its payment, and
+the **nominal held** ("100 units × 100 EUR", the denomination beside it),
+then what follows from them —
+
+- **remaining term**: calendar days from today to the maturity, in years of
+  365 days and in whole years and months; *matured* on and after the
+  maturity date;
+- **current yield** = coupon ÷ price;
+- **yield to maturity**, linearly approximated: (coupon + (100 − price) ÷
+  remaining term in years) ÷ price, without compounding.
+
+The price is the one the valuation uses: the latest stored quote, or the
+last own trade price while there is none, and the figure says which. Accrued
+interest, fees and taxes are not included; the figures are **reported, not
+evaluated**. A figure whose input is missing reads *not entered* or *not
+computable* with the reason, never a number. With no master data at all,
+one sentence says what is missing and **Enter bond data…** opens the dialog.
+
+**No yield from a price per unit.** While no quote is stored and the last
+own trade price is **at most 5**, both yields read *not computable* with
+the reason "trade price … per unit, not percent of face": a bond bought at
+0.984 per unit was booked with its nominal as the quantity, and 2.5 ÷ 0.984
+would read as a yield of 254 %. The limit is the two-scales band below
+mirrored, 100 ÷ 20. A stored quote is a percent price at any level and is
+always used.
+
+**Priced on two scales.** If an export booked a bond's nominal as its
+quantity, every money figure of the bond — value, gain, weight — is a
+hundred times too high from the first quote on, and the TTWROR cannot show
+it. A bond whose latest stored quote is 20 to 500 times a booked price
+per unit — a buy's, or a priced inbound delivery's — (quotes near 100,
+bookings near 1) is therefore named in a **problem** note at the top of its
+Overview, with the quote, the booking and a link to its **Transactions**
+tab, where the quantity is checked against the nominal on the statement;
+and in the **data-quality** panel of Wealth → Holdings, where the total it
+inflates is read. Nothing is converted: the
+figures stay as booked until the bookings are corrected.
+
 ### Dates tab (the security's calendar, ADR-0048)
 
 The **Dates** tab (German: *Termine*) lists the dated calendar facts recorded
@@ -436,9 +514,13 @@ and, behind *Text with the characters made visible*, the text spelled the
 way the agent receives it (`Auftrags[U+200B]bestand`). In the research log
 the remedy is **Append an entry that supersedes #n**, which preselects the
 entry in the form; a security's name is corrected with **Edit master data**;
-a booking's notes, a rule's name and note, and the names of views, buckets
-and categories carry the note where they are edited, and a clean retype
-removes it.
+a booking's notes, a rule's name and note, and the names of views, buckets,
+categories, cash accounts and depots carry the note where they are edited,
+and a clean retype removes it. Because the retyped name keeps the old
+spelling as a former name, the rename dialog of a cash account or a depot
+also marks its former names — "A former name contains 1 invisible
+character. An import that writes it exactly so keeps booking to this
+depot." — so removing that entry is a choice made seeing it.
 
 **Benchmark securities.** A security can be marked as a benchmark from its
 row menu ("Mark as benchmark"): a reference series the portfolio is compared
@@ -626,14 +708,16 @@ newest first. The list starts collapsed under a line that counts it
   today; a target deleted since reads *a depot (cash account, security)
   deleted since*;
 - the **result** in the words the confirmation used (*142 bookings moved,
-  6 removed*; for a security also the duplicates removed, the quotes added
-  and the settings dropped). It opens into one line per table the merge
+  6 removed*; for a security also the duplicates removed, the splits
+  collapsed with the target's, the quotes added and the settings dropped).
+  It opens into one line per table the merge
   changed — bookings moved and removed, each removal with its reason
   (*duplicate removed*, *internal transfer dropped*, *same-day set balance
   dropped*, *split collapsed*), set balances, former names, quotes,
   classifications, position buckets and the like — then the choice you made
   for equal bookings and, for a security, the ISIN, and the check the merge
-  passed (*Balance confirmed on 211 days*);
+  passed (*Balance confirmed on 211 days*; *nothing to check* for a merge
+  whose source moved nothing, whatever its kind);
 - **by**: *Operator* for a merge made on these pages, *Agent* for one an API
   or MCP token made.
 
@@ -701,15 +785,82 @@ previous values as its before-image. This is the human view of a capability
 the API and the MCP companion have had since before the two-way coverage
 rule; nothing new was added to either.
 
-**A booked split** is the exception (E25 S6): a split is a fact about the
+**The kinds the drawer does not book** (issue #912): the drawer records and
+corrects buys and sells. **Edit** on any other booking — a dividend, a
+deposit, a transfer, a delivery, a set balance, a split — opens the drawer
+**notes-only**: the booking's own facts are shown and fixed (the type, the
+date and whatever the kind stores — the security, the cash account or both
+accounts of a transfer, the depot, the amount, the taxes, the quantity and
+price, each figure with the digits it was stored with), and only its
+**note** is editable (**Save note**; the audit journal records the change
+like every other). One help line says how such a booking is corrected: in
+place over the API or the MCP companion, or by deleting it and importing it
+again — for a booking an import brought in; one booked over the API or MCP
+is deleted and booked again there, and a set balance is set again under
+**Accounts & depots** — and carries **Delete…**, which closes the drawer
+and opens the delete confirmation below. Closing the drawer — **Cancel**,
+Esc, the close button or **Save note** — returns the focus to the row's
+menu button, with "Note saved" in view.
+
+**A booked split** is notes-only too (E25 S6): a split is a fact about the
 security, booked through **Record split** on the security, whose checks
 (the effective date, the positions, a conflicting ratio on the same day)
-an ordinary edit would pass by. **Edit** on a split row therefore opens the
-drawer with the split's type, effective date, security and ratio shown and
-fixed, and only its **note** editable (**Save note**). A wrong split is not
-corrected in place: its rows are deleted over the API or the MCP companion
-and the split is recorded again with **Record split**. The API and MCP
-answer a change to anything but the note of a split row with `422`.
+an ordinary edit would pass by. Its drawer shows the split's type,
+effective date, security and ratio, fixed. A wrong split is not corrected
+in place: it is deleted — **Delete split…** in that help line — and
+recorded again with **Record split**. The API and MCP answer a change to
+anything but the note of a split row with `422`.
+
+**Deleting a booking** (issue #912): the kebab of every row carries
+**Delete…** after **Edit**, in red. It opens one confirmation that names the
+booking the way the history's phone row does — the date and the kind over
+the security and the depot (or the account), the signed amount over its
+size — and says what changes: for example "Afterwards Depot 1 holds 40 fewer
+units of Global Equity ETF, and Checking has 2,504.90 EUR more.", that
+holdings, balances, returns and trades are recomputed without the booking,
+and that the audit journal keeps the booking with all its values while the
+screen cannot bring it back. The confirmation is built from the booking as
+it is stored when **Delete…** is chosen. A quantity is stated at today's
+count: a buy of 10 before a 2:1 split reads "20 fewer units", which is what
+the holdings lose. Where a later set balance anchors that cash account, the
+clause says until when the account changes and the next sentence from when
+it stays as set: "… and Checking has 2,504.90 EUR more until 2026-09-30.
+From the balance set on 2026-10-01 on, the balance of Checking stays
+unchanged."; a balance set on the booking's own day means the account's
+balance stays as set. A security whose name another security also carries
+is named with its ISIN, as the row's menu names it. **Delete transaction**
+deletes it; **Cancel**, Esc or the close button change nothing and return
+the focus to the row's menu button. The row disappears, the month subtotal
+follows, and the result reads "Transaction deleted: Buy · Global Equity
+ETF · 2026-09-22."; a booking deleted meanwhile (by the agent, or in
+another tab) reads "That transaction no longer exists." — the one refusal
+the API knows. Nothing is checked beyond that, as over the API: deleting a
+buy whose shares a later sale consumed leaves that sale without its
+purchase.
+
+- **An imported booking** says so: once deleted, the import no longer knows
+  it, so importing the same file again books it again. Only merging an
+  account, depot or security retires that record.
+- **A split** is deleted the way it was booked, as one fact: **Delete…** on
+  any of its rows opens **Delete split**, naming the ratio, the number of
+  rows and the portfolios whose rows go — "Delete split (2 rows)" deletes
+  them all in one step, journaled; a split in one portfolio is named without
+  a row count. The confirm deletes the rows the confirmation listed: one of
+  them deleted meanwhile, the rest still go; a row added meanwhile (a
+  re-book in another portfolio) deletes nothing, and the confirmation shows
+  the split as it now is — "The split changed while this dialog was open.
+  Nothing was deleted; the dialog now shows the new state." — to be
+  confirmed again. Afterwards the holdings count without the split from its
+  date, the chart's price series is computed without it, and stored quotes
+  stay as they are; **Record split** then accepts the corrected ratio. **Record split** itself leads here: where a split with
+  another ratio is already booked on the day, its warning names that ratio
+  and carries **Delete the booked split…**, which opens the same
+  confirmation on the security's page.
+
+The API and MCP companion have the same two deletes:
+`DELETE /api/v1/transactions/:id` (`portfolixir.transactions.delete`) for
+one booking, and `DELETE /api/v1/splits/:transaction_id`
+(`portfolixir.splits.delete`, an admin tool) for a split as a whole.
 
 While entering a **sell**, the form previews which FIFO purchase tranches
 (lots) the sale would consume and the resulting **gross gain** per tranche
@@ -954,8 +1105,11 @@ The states are:
 - **A plan exists.** Each category gets a **Target %** input and there is a
   **Cash** target input below them; **Save plan** writes the whole
   `(view, classification)` plan at once. A live **Σ** footer sums the category
-  weights plus the cash target and shows a ✓ at exactly 100% or a ✗ with the
-  yellow mismatch cue otherwise, updating on input. A parent category whose
+  weights plus the cash target, updating on input: a ✓ at exactly 100%, a ✗
+  with the yellow mismatch cue above 100%. A plan under 100% is a choice, not
+  an error (ADR-0040): the Σ carries no mark, and a muted last row **Not
+  allocated** (*Nicht verteilt*) shows what the plan leaves unallocated. A
+  parent category whose
   children carry weights shows their sum beside its name (**children Σ**),
   in the mismatch colour when it disagrees with the parent's own weight; it
   follows every input as the Σ footer does (a child that follows its position
@@ -1312,18 +1466,22 @@ and `min_drift=` all agree on that number. The basis line says so where the
 figure is read: behind the plan's top-level Σ it adds **"— drift against the
 allocated portion"** whenever the plan allocates less than 100 %, and it shows
 that Σ in the warning colour only when the plan allocates **more** than 100 %
-— a plan with a deliberate remainder is not a mistake (issue #875).
+— a plan with a deliberate remainder is not a mistake (issue #875). The Drift
+column's ⓘ says it too and works one figure through: in a plan allocating
+80 %, a 40 % target counts as 50 % (issue #911).
 A **Tree | Positions** switch — a segmented control whose active option is
 filled — swaps the hierarchy for a flat
 rebalancing worklist: one row per security (cash included) with its category
 as context, sorted by signed drift by default (most overweight first, most
 underweight last) and re-sortable via the column heads (value, drift, or
-category). The cash row's category reads "—": cash has its own target and is
-never "Unassigned". A category with directly assigned securities expands into its member securities, each with its value,
+category). Each row's drift carries its rebalancing hint beneath it, in one
+cell that stays pinned at the right edge of the table when the list scrolls
+sideways on a narrow screen (issue #911). The cash row's category reads "—":
+cash has its own target and is never "Unassigned". A category with directly assigned securities expands into its member securities, each with its value,
 weight, its share of the category drift, and a display-only **rebalancing
 hint**: the indicative number of units to sell (positive drift) or buy
 (negative) at the valuation's price to close the gap (ADR-0023). A hint that
-rounds to zero units at two decimals is not shown ("—"); the drift stays. The hint
+rounds to zero units at two decimals is not shown; the drift stays. The hint
 models no fees or taxes, and there is deliberately no order button behind it —
 acting on it stays entirely manual.
 
@@ -1455,10 +1613,13 @@ real holding, usually import debris from an unmodeled corporate action —
 listed per depot with the security's total across all depots and linked to
 the security's transactions so the history can be repaired (nothing is
 repaired automatically; the split wizard remains the only guided repair),
-and bookings with implausible dates (before 1970) that were applied on the
-first plausible day instead. Each finding is a note at its own severity — a
-hint for the trade-price fallback, attention for excluded and stale
-positions, a problem for negative holdings — and carries its remedy inside
+bookings with implausible dates (before 1970) that were applied on the
+first plausible day instead, and bonds **priced on two scales** — quotes near
+100 beside booked unit prices near 1, so they count a hundred times too high
+(see *Bonds* under Securities), each linked to its transactions. Each
+finding is a note at its own severity — a hint for the trade-price fallback,
+attention for excluded and stale positions, a problem for negative holdings
+and for two scales — and carries its remedy inside
 the note: the **Sync exchange rates** control sits in the missing-rate
 finding, and a cash account left out for want of a rate is also marked
 *no exchange rate* in the cash table. Negative-quantity positions are also marked
@@ -2069,8 +2230,9 @@ differently.** Three kinds of booking they made are wrong:
 To check a file imported before, drop it on the Imports page again. A file
 already imported previews as *nothing to create*, so a row the preview now
 counts as new is a transfer the earlier import read differently (cases 1 and
-2, and case 3 between two depots). Remove the wrong booking before you apply: delete it through the API or
-the MCP companion (`DELETE /api/v1/transactions/:id`,
+2, and case 3 between two depots). Remove the wrong booking before you apply:
+delete it with **Delete…** in its row menu in the history, or through the API
+or the MCP companion (`DELETE /api/v1/transactions/:id`,
 `portfolixir.transactions.delete`), then apply the file, which books the
 transfer as it moved. A cash account named after a depot holds nothing else
 once its transfer is gone and can be deleted. Case 3 between two cash accounts
@@ -2361,9 +2523,19 @@ security:
   again.
 
 After the release the tab says how many quotes were released from when to
-when, with **Sync prices** as the next step where a sync can help, until you
-dismiss it or move on. Nothing on the page restores a released quote; the
-journal keeps it. On a phone the dialog opens as a sheet from the bottom.
+when, with **Sync prices** as the next step where a sync can help — it syncs
+this security only — until you dismiss it or move on. Nothing on the page
+restores a released quote; the journal keeps it. On a phone the dialog opens
+as a sheet from the bottom.
+
+A sync's result says how many manual quotes it left standing where the
+provider returned a close for the same day (*2 manual quotes were left
+standing where the provider returned a close.*); a sync that skipped a
+security says why in words. On a phone the Quotes tab shows each quote as a
+two-line row — the date over its source, the close on the right, and the
+stored value under it where a split adjusted the close — so the source of
+every quote is readable without swiping the table, and the price-basis line
+above the rows names that line instead of the table's Stored column.
 Your agent reads the same summary with
 `GET /api/v1/securities/:security_id/quotes/manual` (MCP
 `portfolixir.quotes.manual`) and releases with
@@ -2380,11 +2552,14 @@ desktop; mobile uses a stacked layout.
 The detail pane's tab row is a single keyboard stop: **Tab** lands on the
 selected tab, **Arrow Left/Right** move to the previous or next tab (wrapping
 at the ends), **Home** and **End** jump to the first and last, and the tab
-that receives focus opens its panel.
+that receives focus opens its panel. When the page opens on a tab — from a link, a
+reload, back or forward, or a shared URL — the row scrolls that tab into
+view, which matters on a phone, where the nine tabs do not fit.
 
 The detail pane shows a server-rendered SVG price chart with:
 
-- Time-range buttons (1M / 3M / 6M / YTD / 1Y / 3Y / 5Y / MAX).
+- Time-range buttons (1M / 3M / 6M / YTD / 1Y / 3Y / 5Y / Max; in German
+  1J / 3J / 5J). The Quotes tab names the same range.
 - A *Log scale* toggle (logarithmic Y-axis).
 - A *Show transactions* toggle that overlays buy/sell markers from the
   ledger — shape-coded triangles (▲ buy, ▼ sell), so the direction is
@@ -2505,8 +2680,12 @@ naming the already-booked event) stays inline in the dialog.
   choice.
 - Theme, accent, and language are user preferences and do not affect stored
   financial values.
-- Date fields accept and display ISO dates (`YYYY-MM-DD`) — the same format
-  every displayed date uses; the browser's locale date picker is not used.
+- Date fields accept and display ISO dates (`YYYY-MM-DD`); the browser's
+  locale date picker is not used. A date the page only shows follows the
+  page's language: `DD.MM.YYYY` on a German page, ISO on an English one. A
+  few screens still print ISO there — the security detail's head and tabs,
+  and the merge dialogs — until they are aligned. The API, MCP and every file
+  the app reads or writes keep ISO.
 - Number fields (quantity, price, fees and taxes, the settlement amount and
   rate, a rule's line, the Tax figures, a cash balance) show and accept figures
   in the page's language: a decimal comma on a German page (`1664,40`), a

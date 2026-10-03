@@ -28,6 +28,7 @@ defmodule Portfolixir.Portfolios.ValuationBondCharacterizationTest do
   alias Portfolixir.Imports.Applier.Result
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Bonds
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Valuation
 
@@ -96,8 +97,9 @@ defmodule Portfolixir.Portfolios.ValuationBondCharacterizationTest do
   #
   # Acceptance criteria:
   # - The invented bond imports as one security, classified government_bond
-  #   from its name; nothing bond-specific (coupon, maturity, face amount,
-  #   quotation type) is stored anywhere.
+  #   from its name; the export carries no bond master data, so the import
+  #   stores none (#330's columns, ADR-0052, stay empty), and no quotation
+  #   type exists: the hundredth convention makes one unnecessary.
   # - The position's quantity is the export's shares figure, unchanged; the
   #   buy's per-share price is derived as (amount - fees - taxes) / shares.
   # - Without a quote, the valuation prices the bond at that trade price.
@@ -116,9 +118,13 @@ defmodule Portfolixir.Portfolios.ValuationBondCharacterizationTest do
     assert %Security{name: "Republic of Examplia 2.25% 2035", currency_code: "EUR"} = bond
     assert Security.effective_asset_class(bond) == "government_bond"
 
+    # #330 (ADR-0052) added the master data as columns on purpose; the
+    # import leaves them empty, and valuation reads none of them.
+    assert %Security{coupon_rate: nil, maturity_date: nil, face_value: nil} = bond
+
     refute Enum.any?(
              Security.__schema__(:fields),
-             &(Atom.to_string(&1) =~ ~r/coupon|maturity|nominal|face|quotation/)
+             &(Atom.to_string(&1) =~ ~r/nominal|quotation/)
            )
 
     # Trade-priced: the buy's derived price, per hundredth of face amount.
@@ -151,6 +157,9 @@ defmodule Portfolixir.Portfolios.ValuationBondCharacterizationTest do
     assert coupon.security_id == nil
     assert_dec(coupon.gross_amount, "225.00")
 
+    # #330's guard (ADR-0052 §4) stays silent: both scales agree.
+    assert Bonds.reading(bond, as_of: @today).two_scales == nil
+
     walk = walk(portfolio.id)
     assert_dec(walk.end_value, "10095.00")
     assert_dec(walk.ttwror, "0.022")
@@ -173,7 +182,8 @@ defmodule Portfolixir.Portfolios.ValuationBondCharacterizationTest do
   #   the performance walk's end value and wealth multiple alike.
   # - The TTWROR is the same as in the hundredth reading: the first quote's
   #   hundredfold step is neutralised as a basis step (#545), so the return
-  #   figure cannot show the error that every money figure shows.
+  #   figure cannot show the error that every money figure shows. Since
+  #   #330 the two-scales guard names the bond instead (ADR-0052 §4).
   test "the same bond booked at its face amount: a percent quote is multiplied as if it were a unit price" do
     %{portfolio: portfolio, bond: bond} = import_bond!(face_amount_body())
 
@@ -196,6 +206,10 @@ defmodule Portfolixir.Portfolios.ValuationBondCharacterizationTest do
     assert_dec(holding.avg_cost, "0.985")
     assert_dec(holding.cost_basis, "9850.00")
     assert_dec(holding.market_value, "972500.00")
+
+    # #330's guard (ADR-0052 §4): what the TTWROR below cannot show is
+    # named — the quote near 100 beside the booked 0.985 per unit.
+    assert %{unit_scale_bookings: 1} = Bonds.reading(bond, as_of: @today).two_scales
 
     walk = walk(portfolio.id)
     assert_dec(walk.end_value, "972870.00")

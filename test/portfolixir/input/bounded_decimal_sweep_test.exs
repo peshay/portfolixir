@@ -9,6 +9,7 @@ defmodule Portfolixir.Input.BoundedDecimalSweepTest do
   use Portfolixir.DataCase, async: true
 
   alias Portfolixir.Catalog.Quote
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Fx.ExchangeRate
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Tax.AllowanceOrder
@@ -22,6 +23,12 @@ defmodule Portfolixir.Input.BoundedDecimalSweepTest do
   defp builders do
     %{
       Quote => &Quote.changeset(%Quote{}, &1),
+      # #330 (ADR-0052): a bond's coupon and denomination.
+      Security =>
+        &Security.changeset(
+          %Security{},
+          Map.merge(%{"name" => "Sweep", "currency_code" => "EUR"}, &1)
+        ),
       ExchangeRate => &ExchangeRate.changeset(%ExchangeRate{}, &1),
       Transaction => &Transaction.changeset(%Transaction{}, &1),
       AllowanceOrder => &AllowanceOrder.changeset(%AllowanceOrder{}, &1),
@@ -107,5 +114,7 @@ defmodule Portfolixir.Input.BoundedDecimalSweepTest do
     assert {StatementSnapshot, :taxable_income} in swept
     assert {AllowanceOrder, :amount_granted} in swept
     assert {Transaction, :gross_amount} in swept
+    assert {Security, :coupon_rate} in swept
+    assert {Security, :face_value} in swept
   end
 end

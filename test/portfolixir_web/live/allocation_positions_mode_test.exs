@@ -64,7 +64,7 @@ defmodule PortfolixirWeb.AllocationPositionsModeTest do
   end
 
   defp open(conn, w) do
-    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation&classification_id=#{w.tree.id}")
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation&classification=#{w.tree.id}")
     render_async(view)
     view
   end
@@ -94,8 +94,9 @@ defmodule PortfolixirWeb.AllocationPositionsModeTest do
   # so that the worklist can be acted on without a second guess.
   #
   # Acceptance criteria:
-  # - A hint whose quantity rounds to 0.00 is not shown; the row's hint cell
-  #   reads "—" and its drift stays. The tree shows no hint for it either.
+  # - A hint whose quantity rounds to 0.00 is not shown; the row's drift stays
+  #   and its Drift cell carries no hint (since #911 the hint sits in the
+  #   Drift cell, under the figure). The tree shows no hint for it either.
   # - The cash row's category reads "—"; a held security filed nowhere keeps
   #   "Unassigned".
   # - The Tree/Positions toggle is the segmented control: the active option is
@@ -130,18 +131,17 @@ defmodule PortfolixirWeb.AllocationPositionsModeTest do
 
     view |> element(~s([data-role="allocation-mode-flat"])) |> render_click()
 
-    [_name, category, _value, _weight, drift, hint] = cells(position_row(view, "Corvid"))
+    [_name, category, _value, _weight, drift] = cells(position_row(view, "Corvid"))
     assert category =~ "Commodities"
     assert drift =~ "EUR"
-    assert hint == "—"
+    refute drift =~ "≈"
 
     refute view |> element(~s([data-role="flat-positions"])) |> render() =~
              ~s(class="rebalance-qty">0.00<)
 
-    [_name, _category, _value, _weight, _drift, kestrel_hint] =
-      cells(position_row(view, "Kestrel"))
+    [_name, _category, _value, _weight, kestrel_drift] = cells(position_row(view, "Kestrel"))
 
-    assert kestrel_hint =~ "Buy"
+    assert kestrel_drift =~ "Buy"
 
     [cash] = flat_row(view, ~s(tr[data-role="flat-cash"]))
     assert Enum.at(cells(cash), 1) == "—"
@@ -180,6 +180,65 @@ defmodule PortfolixirWeb.AllocationPositionsModeTest do
     refute has_element?(view, ~s([data-role="drift-basis"]))
   end
 
+  # User story (#911; Sprint 18 pick H4, board
+  # ux-design-2026-10-02/04-tables-conformance ④, variant A for (a) and the
+  # "after" of (c); DESIGN.md → Amendment 2026-08-22, the subject column, and
+  # ADR-0040 §2):
+  # As the operator working the Positions list on a phone,
+  # I want a position's drift and its rebalancing hint to stay on screen
+  # together, pinned at the scroller's edge, and the tree's drift ⓘ to say
+  # that a plan allocating less than 100 % is measured against its
+  # allocated portion,
+  # so that I can act on the list without scrolling sideways and reconcile
+  # the target, the actual weight and the drift.
+  #
+  # Acceptance criteria:
+  # - (a, variant A) The worklist's Drift head carries `col-subject` and the
+  #   Hint column is gone: the hint sits in the Drift cell beneath the
+  #   figure, as in the tree's position rows. A row without a hint shows its
+  #   drift alone, with no dash for the missing hint.
+  # - (c) While `drift_basis` is `allocated_portion`, the tree's drift ⓘ adds
+  #   the allocated sum and the first steered category's target as scaled
+  #   for the comparison (40 % of an 80 % plan counts as 50 %); a plan over
+  #   100 % measures against the full plan and the sentence is absent.
+  test "the worklist pins drift and hint together, and the ⓘ names the portion",
+       %{conn: conn} do
+    w = world()
+    view = open(conn, w)
+    view |> element(~s([data-role="allocation-mode-flat"])) |> render_click()
+
+    assert has_element?(
+             view,
+             ~s([data-role="flat-positions"] thead th.num.col-subject [data-role="flat-sort-drift"])
+           )
+
+    refute view |> element(~s([data-role="flat-positions"] thead)) |> render() =~ "Hint"
+
+    kestrel = position_row(view, "Kestrel")
+    assert length(cells(kestrel)) == 5
+    [drift] = Floki.find(kestrel, "td.col-subject")
+    assert Floki.text(drift) =~ "EUR"
+    assert [_hint] = Floki.find(drift, ~s([data-role="rebalance-hint"]))
+
+    [gold_drift] = Floki.find(position_row(view, "Corvid"), "td.col-subject")
+    assert Floki.find(gold_drift, ~s([data-role="rebalance-hint"])) == []
+    refute Floki.text(gold_drift) =~ "—"
+
+    # The ⓘ sits on the tree's Drift head.
+    view = open(conn, w)
+
+    assert has_element?(
+             view,
+             ~s(#tip-soll-ist [data-role="drift-basis-tip"]),
+             "The plan allocates 80.0%: each target is scaled up to that portion before the comparison, so 40.0% counts as 50.0%. The unallocated rest does not show as drift."
+           )
+
+    plan!(w, w.tree, w.commodities, w.growth, "0.6")
+    view = open(conn, w)
+    assert has_element?(view, "#tip-soll-ist")
+    refute has_element?(view, ~s([data-role="drift-basis-tip"]))
+  end
+
   # The basis clause in the page's language.
   test "the drift's basis clause is German on a German page", %{conn: conn} do
     w = world()
@@ -191,6 +250,49 @@ defmodule PortfolixirWeb.AllocationPositionsModeTest do
              ~s([data-role="drift-basis"]),
              "Abweichung gegen den verteilten Anteil"
            )
+
+    # #911 (c): the ⓘ's sentence, in the board's German.
+    assert has_element?(
+             view,
+             ~s([data-role="drift-basis-tip"]),
+             "Der Plan verteilt 80,0%: Jedes Soll wird vor dem Vergleich auf diesen Anteil hochgerechnet, 40,0% zählen als 50,0%. Der unverteilte Rest erscheint nicht als Abweichung."
+           )
+  end
+
+  # User story (#911 (c), ADR-0040 §2):
+  # As the operator whose plan for a tree steers only the cash share,
+  # I want the drift ⓘ to name the allocated portion without a worked
+  # figure,
+  # so that it never scales a category target the plan does not have.
+  #
+  # Acceptance criteria:
+  # - A tree without category targets under a 10 % cash target measures
+  #   against the allocated portion, and the ⓘ says "The plan allocates
+  #   10.0%: each target is scaled up to that portion before the
+  #   comparison. The unallocated rest does not show as drift." — no
+  #   "counts as".
+  test "a plan steering only cash names its portion without a worked figure",
+       %{conn: conn} do
+    w = world()
+    owner = Actor.owner_ui()
+    {:ok, region} = Classifications.create_classification(owner, %{name: "Region"})
+
+    {:ok, europe} =
+      Classifications.create_category(owner, %{classification_id: region.id, name: "Europe"})
+
+    {:ok, _} = Classifications.assign_security(owner, w.gold.id, region.id, europe.id)
+    :ok = Targets.set_cash_target(owner, w.portfolio.id, "0.1")
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation&classification=#{region.id}")
+    render_async(view)
+
+    assert has_element?(
+             view,
+             ~s(#tip-soll-ist [data-role="drift-basis-tip"]),
+             "The plan allocates 10.0%: each target is scaled up to that portion before the comparison. The unallocated rest does not show as drift."
+           )
+
+    refute view |> element(~s([data-role="drift-basis-tip"])) |> render() =~ "counts as"
   end
 
   # User story (#875, Lane C review round DC-C2; board 09 ④, DESIGN.md →

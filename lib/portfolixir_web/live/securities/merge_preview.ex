@@ -36,6 +36,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   alias PortfolixirWeb.PortfolioAccounts.MergePreview, as: AccountMergePreview
   alias PortfolixirWeb.SecuritiesLive
   alias PortfolixirWeb.SecurityEventLabel
+  alias PortfolixirWeb.StoredText
   alias PortfolixirWeb.TransactionKindLabel
 
   @visible_pairs 3
@@ -1431,13 +1432,15 @@ defmodule PortfolixirWeb.Securities.MergePreview do
 
   @doc """
   The inline result of an applied merge, from the preview whose digest it
-  matched and the choices it applied (board 03, "Danach").
+  matched and the choices it applied (board 03, "Danach"), the target's name
+  isolated in `<bdi>` (#968, pick H8.8).
   """
-  @spec result_message(map(), map()) :: String.t()
+  @spec result_message(map(), map()) :: Phoenix.HTML.safe()
   def result_message(preview, choices) do
     outcome = Map.fetch!(preview.outcomes, choices.collapse == true)
     moved = length(outcome.moved_transaction_ids)
     removed = Enum.count(outcome.deleted, &(&1.reason == :collapsed_duplicate))
+    collapsed_splits = Enum.count(outcome.deleted, &(&1.reason == :collapsed_split))
     quotes = preview.quotes.moved_count
 
     dropped =
@@ -1448,6 +1451,15 @@ defmodule PortfolixirWeb.Securities.MergePreview do
         ngettext("%{count} booking moved", "%{count} bookings moved", moved),
         removed > 0 &&
           ngettext("%{count} duplicate removed", "%{count} duplicates removed", removed),
+        # #1032, pick H8.7: a same-day split collapsed with the target's, in
+        # the merge record's own word.
+        collapsed_splits > 0 &&
+          pngettext(
+            "merge record",
+            "%{count} split collapsed",
+            "%{count} splits collapsed",
+            collapsed_splits
+          ),
         quotes > 0 && ngettext("%{count} quote added", "%{count} quotes added", quotes),
         dropped > 0 && ngettext("%{count} setting dropped", "%{count} settings dropped", dropped)
       ]
@@ -1460,9 +1472,12 @@ defmodule PortfolixirWeb.Securities.MergePreview do
       |> Map.get(:isin)
 
     message =
-      gettext("Merged into %{target}: %{parts}.", target: preview.target.name, parts: parts)
+      gettext("Merged into %{target}: %{parts}.", target: StoredText.slot(:target), parts: parts)
 
-    if isin, do: message <> " " <> gettext("ISIN now %{isin}.", isin: isin), else: message
+    message =
+      if isin, do: message <> " " <> gettext("ISIN now %{isin}.", isin: isin), else: message
+
+    StoredText.isolate(message, target: preview.target.name)
   end
 
   @doc """

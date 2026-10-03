@@ -39,7 +39,7 @@ export interface ToolResult {
 // E25 S4, F70: every date a write stores is one ISO calendar date inside one
 // range; the API refuses anything else with a 422 naming the field.
 const BOUNDED_DATE =
-  "An ISO date (YYYY-MM-DD) from 1900-01-01 to 2999-12-31; outside that range, or in any other form, the API answers 422 naming the field and stores nothing.";
+  "An ISO date (YYYY-MM-DD) from 1900-01-01 to 2999-12-31, else a 422 naming the field with nothing stored.";
 const boundedDate = (description?: string) =>
   description ? `${description} ${BOUNDED_DATE}` : BOUNDED_DATE;
 
@@ -140,6 +140,40 @@ const cappedText = (max: number) =>
   });
 const capNote = (max: number) => `At most ${max} characters (Unicode code points), else 422.`;
 
+// #330 (ADR-0052): a bond's master data on the two security writes; an update
+// takes null to clear a field. Factories, so each property stays inline.
+const bondFrequencies = ["annual", "semi_annual"] as const;
+
+function bondProperties(nullable: boolean): JsonSchema {
+  const type = nullable ? ["string", "null"] : "string";
+
+  return {
+    coupon_rate: {
+      type,
+      description: "Bond coupon (ADR-0052) in percent of face per year, a Decimal string from 0 to 100 (2.5, not 0.025)."
+    },
+    coupon_frequency: { type, enum: nullable ? [...bondFrequencies, null] : [...bondFrequencies] },
+    maturity_date: { type, format: "date", description: boundedDate("After issue_date.") },
+    issue_date: { type, format: "date", description: boundedDate() },
+    face_value: { type, description: "Denomination, a Decimal string above 0." },
+    face_value_currency_code: { type, description: "ISO 4217, from the codes currency_code takes." }
+  };
+}
+
+function bondZ(nullable: boolean) {
+  const field = <T extends ZodTypeAny>(schema: T) =>
+    nullable ? schema.nullable().optional() : schema.optional();
+
+  return {
+    coupon_rate: field(z.string()),
+    coupon_frequency: field(z.enum(bondFrequencies)),
+    maturity_date: field(z.string()),
+    issue_date: field(z.string()),
+    face_value: field(z.string()),
+    face_value_currency_code: field(z.string())
+  };
+}
+
 const securityZ = z.object({
   security: z.object({
     name: z.string(),
@@ -155,7 +189,8 @@ const securityZ = z.object({
     provider: optionalString(),
     online_id: optionalString(),
     is_benchmark: z.boolean().optional(),
-    attributes: z.record(z.string(), z.unknown()).optional()
+    attributes: z.record(z.string(), z.unknown()).optional(),
+    ...bondZ(false)
   })
 });
 
@@ -318,8 +353,15 @@ const securityFieldNames = [
   "online_id",
   "provider",
   "attributes",
+  "coupon_rate",
+  "coupon_frequency",
+  "maturity_date",
+  "issue_date",
+  "face_value",
+  "face_value_currency_code",
   "identifier_aliases",
   "thesis_state",
+  "bond",
   "inserted_at",
   "updated_at"
 ] as const;
@@ -396,6 +438,10 @@ const idSchema = {
   properties: { id: { type: "integer", minimum: 1 } }
 };
 
+// Sprint 18 U1 (#912): a split is deleted whole from any one of its rows.
+const splitDeleteSchema = objectWith("transaction_id", { type: "integer", minimum: 1 });
+const splitDeleteZ = z.object({ transaction_id: z.number().int().positive() });
+
 // ISIN-change recording (ADR-0029 §3): the current ISIN moves into a journaled
 // former-ISIN alias and the new ISIN is written onto the security.
 const isinChangeSchema = {
@@ -464,7 +510,7 @@ const splitRequestSchema = {
       type: "integer",
       minimum: 1,
       maximum: INT4_MAX,
-      description: "New share count per ratio_denominator old shares (10 for a 10:1 forward split, 1 for a 1:10 reverse split)."
+      description: "New shares per ratio_denominator old ones (10 for 10:1, 1 for 1:10)."
     },
     ratio_denominator: { type: "integer", minimum: 1, maximum: INT4_MAX }
   }
@@ -495,7 +541,8 @@ const securitySchema = objectWith("security", {
     provider: { type: "string" },
     online_id: { type: "string" },
     is_benchmark: { type: "boolean" },
-    attributes: { type: "object", additionalProperties: true }
+    attributes: { type: "object", additionalProperties: true },
+    ...bondProperties(false)
   }
 });
 
@@ -820,14 +867,15 @@ const securityUpdateSchema = {
         treat_quotes_as_raw: {
           type: "boolean",
           description:
-            "ADR-0028 escape hatch: treat this security's provider-synced quote history as raw (as-traded). Set it when the provider never back-adjusts closes after a stock split, so the split-adjustment factors apply to its synced rows too. Default false (synced rows are trusted as an already-adjusted provider mirror)."
+            "ADR-0028: treat this security's provider-synced quotes as raw (as-traded), for a provider that never back-adjusts closes after a split, so the split factors apply to its synced rows too. Default false (synced rows are trusted as already adjusted)."
         },
         is_benchmark: {
           type: "boolean",
           description:
-            "ADR-0046: mark this security as a benchmark — a price series the portfolio is compared against (an index proxied by an ETF, gold by an ETC), fed by the ordinary quote sync. A benchmark is never offered for booking and is left alone by the catalog-hygiene data-quality checks; it may still be held."
+            "ADR-0046: mark this security as a benchmark, a price series the portfolio is compared against (an index proxied by an ETF, gold by an ETC), fed by the quote sync. A benchmark is never offered for booking and is left out of the catalog-hygiene checks; it may still be held."
         },
-        attributes: { type: "object", additionalProperties: true }
+        attributes: { type: "object", additionalProperties: true },
+        ...bondProperties(true)
       }
     }
   }
@@ -850,7 +898,8 @@ const securityUpdateZ = z.object({
     online_id: optionalString(),
     treat_quotes_as_raw: z.boolean().optional(),
     is_benchmark: z.boolean().optional(),
-    attributes: z.record(z.string(), z.unknown()).optional()
+    attributes: z.record(z.string(), z.unknown()).optional(),
+    ...bondZ(true)
   })
 });
 
@@ -2932,7 +2981,7 @@ const declaredTools: DeclaredTool[] = [
     contractGetSchema,
     contractGetZ
   ),
-  tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class) to keep responses small; pass projection=full only when you need notes, feed config, attributes or timestamps. Optional fields (#732, extending FR-37) selects a sparse fieldset from the FULL projection's field list — each row then carries exactly those fields, and a present fields supersedes projection entirely (a sparse fieldset IS a projection). Use limit/offset to page large catalogs. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant return, and the response carries as_of (use it as the next since; it lies no later than the start of the oldest write still in flight, so the next read may re-deliver a row but never skips one) plus a delta_note — deletions are NOT represented, so a sync that must detect deletions does a full read. Pull-only; there is no push delivery. Optional data_quality narrows to one of the catalog's data-quality sets — stale_quote (no quote newer than 7 days, INCLUDING never-priced securities), missing_quote (no quote at all, the narrower set inside it), missing_logo (no stored logo and not deliberately locked to none), missing_fx (#717: priced, but no stored rate from its currency to the EUR hub — storing the rate empties the set). These are the same predicates the dashboard counts and the securities page links to, so a count of N addresses a list of N; combine with query/holding_status to narrow further. Optional is_benchmark=true lists only the securities flagged as benchmarks (ADR-0046 — the reference series for portfolixir.portfolios.benchmark and portfolixir.views.benchmark), is_benchmark=false leaves them out; the flag itself is a field of the full projection and is settable through securities.create and securities.update.", {
+  tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class); projection=full adds notes, feed config, attributes, a bond's master data and timestamps. Optional fields (#732) selects a sparse fieldset from the full projection's fields and supersedes projection. Page with limit/offset. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant, plus as_of (the next since; it lies no later than the start of the oldest write in flight, so the next read may re-deliver a row but never skips one) and a delta_note — deletions are NOT represented, so a sync that must see them does a full read. Pull-only. Optional data_quality narrows to one of the catalog's data-quality sets — stale_quote (no quote newer than 7 days, INCLUDING never-priced securities), missing_quote (no quote at all), missing_logo (no stored logo, not locked to none), missing_fx (#717: priced, but no stored rate to the EUR hub). They are the predicates the dashboard counts, so a count of N addresses a list of N. is_benchmark=true lists only the benchmarks (ADR-0046, the reference series of portfolixir.portfolios.benchmark and portfolixir.views.benchmark), false leaves them out; securities.create and securities.update set the flag.", {
     type: "object",
     additionalProperties: false,
     properties: {
@@ -2961,9 +3010,9 @@ const declaredTools: DeclaredTool[] = [
     offset: z.number().int().min(0).optional(),
     since: optionalString()
   })),
-  tool("portfolixir.securities.get", "Get security", "Read one security's full record, including its identifier_aliases — the former ISINs recorded via portfolixir.securities.isin_change that keep old exports matching this security — and its thesis_state (ADR-0044): the current thesis derived from the research log (status none|intact|retracted, thesis text, conviction tier, invalidation_condition, time_stop, as_of, last_reviewed_at/by, the derived_from_entry_id and, when retracted, the retracted_by_entry_id whose body carries the reason). The state is a projection over portfolixir.notes.list entries, never stored; read the log itself for the evidence. A security merged into another (portfolixir.securities.merge) answers 404 with errors.merged_into {kind, id}: the security its history lives on now, following later merges to the live one (ADR-0050 §12).", idSchema, idZ),
-  tool("portfolixir.securities.create", "Create security", "Create a local security. When the instance's enrichment is enabled, a create also queues a quote backfill from the configured provider and a logo lookup, so it reaches outside the instance (openWorldHint). To keep a position (e.g. Bitcoin) in the totals and performance but out of the allocation steering basis (the 100%) and drift, tag it with a bucket and exclude that bucket from the active view. Every key of attributes, at any depth, is one-line text of at most 255 characters, and every text value carries no control character other than tab and line break; otherwise the API answers 422 on attributes.", securitySchema, securityZ),
-  tool("portfolixir.securities.update", "Update security", "Patch a local security's master data. To keep a position visible in totals/performance but out of the allocation steering basis and drift, tag it with a bucket and exclude that bucket from the active view. Do NOT use this to change an ISIN after a corporate action — use portfolixir.securities.isin_change instead, which keeps the former ISIN as an import-matching alias; a plain rename is just a name edit here. The currency_code freezes once the security has a transaction or a quote (ADR-0050 §11): a change then answers 422 with errors.currency_code counting them (e.g. \"is frozen once referenced (120 quotes, 3 transactions)\") and writes nothing — a listing in another currency is a different price series, not a correction. Every key of attributes, at any depth, is one-line text of at most 255 characters, and every text value carries no control character other than tab and line break; otherwise the API answers 422 on attributes. An identifier changed here meets the catalog's rules or answers 422 naming the field: an isin of two letters, nine letters or digits and a check digit that agrees, a WKN of six letters or digits, a ticker_symbol of printable ASCII only; resending the stored value is no change. The name is stored without format characters (zero-width spaces and joiners, bidirectional controls).", securityUpdateSchema, securityUpdateZ),
+  tool("portfolixir.securities.get", "Get security", "Read one security's full record. identifier_aliases: the former ISINs portfolixir.securities.isin_change recorded, which keep old exports matching. thesis_state (ADR-0044): the current thesis projected from portfolixir.notes.list entries, never stored (status none|intact|retracted, thesis, conviction, invalidation_condition, time_stop, as_of, last_reviewed_at/by, derived_from_entry_id and, when retracted, the retracted_by_entry_id whose body gives the reason); read the log for the evidence. bond (ADR-0052), for asset class bond or government_bond, else null: nominal_held (quantity × 100, a unit being a hundredth of the face amount), remaining_term, current_yield and yield_to_maturity (linear), ratios, each with computation_basis, and two_scales, set when quotes near 100 meet booked unit prices near 1 (every money figure then 100× too high). A security merged into another (portfolixir.securities.merge) answers 404 with errors.merged_into {kind, id}: the live security its history lives on (ADR-0050 §12).", idSchema, idZ),
+  tool("portfolixir.securities.create", "Create security", "Create a local security. With the instance's enrichment on, a create also queues a quote backfill from the configured provider and a logo lookup, reaching outside the instance (openWorldHint). To keep a position (e.g. Bitcoin) in totals and performance but out of the allocation basis (the 100%) and drift, tag it with a bucket the active view excludes. Every key of attributes, at any depth, is one-line text of at most 255 characters, and no text value carries a control character but tab and line break; else 422 on attributes.", securitySchema, securityZ),
+  tool("portfolixir.securities.update", "Update security", "Patch a security's master data; null clears a bond field. To keep a position in totals and performance but out of the allocation basis and drift, tag it with a bucket the active view excludes. An ISIN change after a corporate action is portfolixir.securities.isin_change, which keeps the former ISIN as an import-matching alias; a rename is a name edit here. The currency_code freezes once the security has a transaction or a quote (ADR-0050 §11): a change then answers 422 with errors.currency_code counting them (\"is frozen once referenced (120 quotes, 3 transactions)\") and writes nothing. Every key of attributes, at any depth, is one-line text of at most 255 characters, and no text value carries a control character but tab and line break; else 422 on attributes. A changed identifier meets the catalog's rules or answers 422 naming the field: an isin of two letters, nine letters or digits and a check digit that agrees, a WKN of six letters or digits, a ticker_symbol of printable ASCII; resending the stored value is no change. The name is stored without format characters (zero-width spaces and joiners, bidirectional controls).", securityUpdateSchema, securityUpdateZ),
   tool(
     "portfolixir.securities.delete",
     "Delete security",
@@ -3060,7 +3109,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.securities.metrics",
     "Derived price metrics of one security",
-    "One security's derived metrics (ADR-0047, FR-39) over ITS OWN split-adjusted close series, in the security's own currency — deliberately not converted to the base currency, because a price metric is a statement about the instrument. sma_50 and sma_200 with the latest close's distance to each; volatility over 30d/90d/365d (the population standard deviation of simple daily returns, annualized by the square root of 252); max_drawdown over the same windows with peak_date, trough_date and recovery_date (recovery_date null while the series is still below the peak); momentum over 3m/6m/12m; distance_to_extremes, the 52-week high and low with their dates and the distance to each. Every metric carries the window it was measured over and its observations count, plus required — the minimum observations it needs (n for sma_n, 20 for volatility, 2 for max_drawdown and momentum, 1 for distance_to_extremes) — whether it computed or refused, so the threshold is on the metric and not only in the prose; a refused sma_n has window null because its span is an output, and momentum and distance_to_extremes additionally need a close at each end of the window (stated in computation_basis.gaps). The payload carries computation_basis (input series, gaps, assumptions) once — read it before comparing two securities. A gap produces NO observation rather than a zero return: a day with no stored close is not carried forward and then differenced. Below its minimum a metric is null with insufficient_data true and its observation count, at HTTP 200 — that is a gap marker, not an error, and NOT a reason to retry. A volatility whose square root lies outside the double range (a magnitude only implausible stored closes reach) is null WITHOUT insufficient_data: undefined, not short of data. THIS READ REPORTS, IT DOES NOT EVALUATE: there is no signal, recommendation, rating, score or action in the payload and none is coming from this tool; an SMA-50 above an SMA-200 is two numbers and a distance, and what to do about it is yours to decide. Decimals are strings.",
+    "One security's derived metrics (ADR-0047, FR-39) over its own split-adjusted closes, in its own currency, never converted: a price metric describes the instrument. sma_50 and sma_200 with the latest close's distance to each; volatility over 30d/90d/365d (the population standard deviation of simple daily returns, annualized by the square root of 252); max_drawdown over the same windows with peak_date, trough_date and recovery_date (null while below the peak); momentum over 3m/6m/12m; distance_to_extremes, the 52-week high and low with their dates and distances. Each metric carries its window, its observations and required, the minimum it needs (n for sma_n, 20 for volatility, 2 for max_drawdown and momentum, 1 for distance_to_extremes), computed or refused; a refused sma_n has window null, and momentum and distance_to_extremes also need a close at each end of the window (computation_basis.gaps). computation_basis (input series, gaps, assumptions) comes once: read it before comparing two securities. A gap is NO observation, never a zero return: a missing close is not carried forward. Below its minimum a metric is null with insufficient_data true at HTTP 200, a gap marker and NOT a reason to retry; a volatility whose square root leaves the double range is null WITHOUT insufficient_data: undefined. THIS READ REPORTS, IT DOES NOT EVALUATE: there is no signal, recommendation, rating, score or action in the payload; an SMA-50 above an SMA-200 is two numbers, and what to do is yours to decide. Decimals are strings.",
     securityMetricsSchema,
     securityMetricsZ
   ),
@@ -3369,7 +3418,7 @@ const declaredTools: DeclaredTool[] = [
     depotMergeSchema,
     depotMergeZ
   ),
-  tool("portfolixir.transactions.list", "List transactions", "List transactions. Optional filters: from/to (ISO dates), portfolio_id, security_id, securities_account_id. Optional fields (FR-37) selects a sparse fieldset: each row then carries exactly those fields — prefer a small selection (e.g. id, type, date, security_id, gross_amount) for routine reads and request the full rows only when auditing a booking. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant return, and the response carries as_of (use it as the next since; it lies no later than the start of the oldest write still in flight, so the next read may re-deliver a row but never skips one) plus a delta_note — deletions are NOT represented, so a sync that must detect deletions does a full read. Pull-only; there is no push delivery. Optional running_balance_for (a cash account id) adds a running_balance to each row: the balance of that account after the booking, in the account's own currency, and a running_balance_basis block naming the account. Two properties worth knowing before you read the numbers: the fold always covers the account's WHOLE history, so a narrowed read (from/to, a filter) still shows true balances rather than a partial sum; and a row that does not move that account carries null, not the previous balance.", {
+  tool("portfolixir.transactions.list", "List transactions", "List transactions. Optional filters: from/to (ISO dates), portfolio_id, security_id, securities_account_id. Optional fields (FR-37) selects a sparse fieldset: each row then carries exactly those fields — prefer a small selection (e.g. id, type, date, security_id, gross_amount), full rows only to audit a booking. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant return, and the response carries as_of (use it as the next since; it lies no later than the start of the oldest write still in flight, so the next read may re-deliver a row but never skips one) plus a delta_note — deletions are NOT represented, so a sync that must detect deletions does a full read. Pull-only; there is no push delivery. Optional running_balance_for (a cash account id) adds a running_balance to each row: the balance of that account after the booking, in the account's own currency, and a running_balance_basis block naming the account. The fold covers the account's WHOLE history, so a narrowed read (from/to, a filter) still shows true balances, not a partial sum; a row that does not move that account carries null, not the previous balance.", {
     type: "object",
     additionalProperties: false,
     properties: {
@@ -3395,21 +3444,28 @@ const declaredTools: DeclaredTool[] = [
     limit: z.number().int().min(1).optional()
   })),
   tool("portfolixir.transactions.create", "Create transaction", "Create a transaction of any bookable kind: buy, sell, dividend, interest, deposit, removal, fee, tax, tax_refund, cash_transfer, inbound_delivery, outbound_delivery, security_transfer (absolute balance anchors are set via set_balance instead). Required fields depend on the kind: buy/sell need securities_account_id, security_id, quantity and price; dividend needs security_id, cash_account_id and gross_amount; interest/deposit/removal/fee/tax/tax_refund need cash_account_id and gross_amount; cash_transfer needs cash_account_id, counter_cash_account_id and gross_amount; deliveries need securities_account_id, security_id and quantity — inbound_delivery additionally REQUIRES price (an unpriced inbound delivery enters the cost basis at zero), while outbound_delivery removes cost at the position's running average and treats price as informational; security_transfer needs securities_account_id, counter_securities_account_id, security_id and quantity. For buy/sell, omit cash_account_id — it is derived from the depot's linked account. Amounts are positive magnitudes; the kind implies the direction (removal/fee/tax debit, deposit/dividend/interest/tax_refund credit) — never send negative values: a refunded tax (e.g. from a loss sale) is a separate tax_refund transaction with a positive gross_amount, never a negative taxes field (set_balance is the only negative-capable amount). Semantics: for dividend/interest/tax_refund bookings, gross_amount is the NET cash credited to the account — record withheld taxes in the taxes field; the income report reconstructs gross as net plus withheld tax. For a security settled through a different-currency cash account (e.g. a USD security via a EUR account), book it in the security currency and supply the cross-currency settlement fields: security_amount (trade amount in the security currency), settlement_amount (the trade amount in the account currency, before fees and taxes) and settlement_fx_rate (account units per 1 security unit; derived from the two amounts when omitted). All Decimal strings. The cash and the settlement must agree (#395): a cross-currency buy's gross_amount (cash paid, fees and taxes included) must equal settlement_amount + fees + taxes, a sell's (cash received) settlement_amount - fees - taxes, within 0.01 — otherwise a 422 on gross_amount names the implied amount. Always send gross_amount on a cross-currency trade: without it the ledger books quantity × price (with fees and taxes) as the account's cash, which is checked the same way, so a trade priced in the security currency and sent without its cash amount answers 422 on gross_amount." + LEDGER_AMOUNTS, transactionSchema, transactionZ),
-  tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction (e.g. fix a mis-imported booking). Semantics as on create: a dividend's gross_amount is the NET cash credited (withheld taxes ride in the taxes field), and an unpriced inbound delivery enters the cost basis at zero (changing a type to inbound_delivery therefore requires a price). A patch that changes gross_amount, settlement_amount, fees, taxes or type — or, on a booking without gross_amount, quantity or price, which then change the cash booked — re-checks the cross-currency settlement agreement (#395); a patch of notes or date on an older booking is never refused by it. A stored split row changes only its notes: its date, security, portfolio, type or ratio answers 422 naming the field — delete each of its rows and book it again with portfolixir.splits.create." + LEDGER_AMOUNTS, transactionUpdateSchema, transactionUpdateZ),
-  tool("portfolixir.transactions.delete", "Delete transaction", "Delete a transaction.", idSchema, idZ),
+  tool("portfolixir.transactions.update", "Update transaction", "Patch a transaction (e.g. fix a mis-imported booking). Semantics as on create: a dividend's gross_amount is the NET cash credited (withheld taxes ride in the taxes field), and an unpriced inbound delivery enters the cost basis at zero (changing a type to inbound_delivery therefore requires a price). A patch that changes gross_amount, settlement_amount, fees, taxes or type — or, on a booking without gross_amount, quantity or price, which then change the cash booked — re-checks the cross-currency settlement agreement (#395); a patch of notes or date on an older booking is never refused by it. A stored split row changes only its notes (any other field answers 422); a wrong split: portfolixir.splits.delete, then book it again." + LEDGER_AMOUNTS, transactionUpdateSchema, transactionUpdateZ),
+  tool("portfolixir.transactions.delete", "Delete transaction", "Delete a transaction; a split: portfolixir.splits.delete.", idSchema, idZ),
   tool(
     "portfolixir.splits.preview",
     "Preview stock split",
-    "Read-only preview of a stock split booking (ADR-0028): shows, per portfolio holding the security, the quantity immediately before and after the effective date and the resulting current position, plus warnings — nothing is written. ALWAYS call this before portfolixir.splits.create and read the numbers: the effective_date_before_history warning means the effective date predates the security's earliest recorded transaction, so the stored quantities may already be post-split (Portfolio Performance's split wizard rewrites history destructively before export) — booking the split then would double-adjust; do not book when before/after are 0 and the current position already looks post-split. The preview also renders the stored closes around the effective date (quotes_around) and a quote_basis_check comparing the observed jump against each row's basis classification: a quote_basis_contradiction warning means the stored series contradicts its source classification (e.g. a synced series that never back-adjusted) — resolve it (for never-adjusting providers set the security's treat_quotes_as_raw flag via portfolixir.securities.update) instead of booking blindly; insufficient_quotes_to_verify_basis means too few closes existed to verify. Each portfolio row carries a bookable flag: false means the portfolio held nothing at the effective date, so booking would create no row for it — when NO row is bookable the preview warns no_position_at_effective_date and splits.create would fail with a no-position error. The ratio is a pair of positive integers (10:1 forward, 1:10 reverse), normalized to lowest terms; the security's splits, each counted by its own magnitude (2:1 and 1:2 both count 2), may multiply to at most 10^12 with this one included, and a ratio past that answers 422 on ratio. All quantities in the response are Decimal strings.",
+    "Read-only preview of a stock split (ADR-0028), nothing written: per portfolio holding the security, the quantity just before and after the effective date and the resulting current position, plus warnings. ALWAYS call it before portfolixir.splits.create and read the numbers. effective_date_before_history: the date predates the security's first transaction, so stored quantities may already be post-split (Portfolio Performance's split wizard rewrites history) and booking would double-adjust; do not book when before/after are 0 and the current position already looks post-split. quotes_around shows the stored closes around the date and quote_basis_check compares the jump with each row's basis: quote_basis_contradiction means the series contradicts its source classification (e.g. a synced series that never back-adjusted) — resolve it (for a never-adjusting provider set the security's treat_quotes_as_raw via portfolixir.securities.update) instead of booking blindly; insufficient_quotes_to_verify_basis means too few closes to check. A row's bookable flag is false when the portfolio held nothing on the date, so booking creates no row for it; with no bookable row the preview warns no_position_at_effective_date and splits.create fails. The ratio is two positive integers (10:1 forward, 1:10 reverse), normalized to lowest terms; the security's splits, each by its own magnitude (2:1 and 1:2 both count 2), may multiply to at most 10^12 with this one, else 422 on ratio. Quantities are Decimal strings.",
     splitRequestSchema,
     splitRequestZ()
   ),
   tool(
     "portfolixir.splits.create",
     "Book stock split",
-    "Book a stock split as a first-class ledger event (ADR-0028): ONE call fans the split out across all portfolios holding a position in the security at the effective date — one journaled split row per portfolio, inserted atomically; do not call once per portfolio. A second same-day split for the same security is rejected with the existing event named (write idempotency — a retried timeout cannot compound the split), so a 422 naming an existing transaction means the split is already booked. A future-dated effective date is rejected, and a security nobody held at the effective date returns a no-position error. Check portfolixir.splits.preview first — especially its effective_date_before_history warning, which signals quantities that may already be post-split. The ratio parts are positive integers (never Decimal strings); a ratio that would take the security's splits, each counted by its own magnitude, past a combined 10^12 answers 422 on ratio and writes nothing. The response returns the created transactions with all financial values as strings.",
+    "Book a stock split as a ledger event (ADR-0028): ONE call fans it out across all portfolios holding a position in the security at the effective date, one journaled split row per portfolio, inserted atomically; do not call once per portfolio. A second same-day split for the same security is rejected naming the existing event (a retried timeout cannot compound it), so a 422 naming an existing transaction means it is already booked; a wrong one is removed with portfolixir.splits.delete. A future effective date, and a security nobody held on it, are rejected. Check portfolixir.splits.preview first, above all its effective_date_before_history warning. Ratio parts are positive integers (never Decimal strings); past a combined 10^12 of the security's splits, each by its own magnitude, it answers 422 on ratio and writes nothing. Answers the created transactions, financial values as strings.",
     splitRequestSchema,
     splitRequestZ()
+  ),
+  tool(
+    "portfolixir.splits.delete",
+    "Delete stock split",
+    "Delete a booked split whole (ADR-0028) from any of its rows: every portfolio's row of the event goes in one step, each journaled, and a corrected ratio can then be booked with portfolixir.splits.create; portfolixir.transactions.delete removes one row only and leaves the event. Answers the removed rows, Decimal strings; 404 if the row is gone, 422 if it is no split.",
+    splitDeleteSchema,
+    splitDeleteZ
   ),
   tool("portfolixir.holdings.list", "List holdings", "Per-portfolio derived holdings with moving-average cost basis, latest price, market value and unrealized P&L in each security's OWN currency, plus the ADR-0033 base-currency P&L decomposition per row: base_cost (the settlement-leg amount actually paid, in base_currency), price_return_* (the security's own price move at today's rate), currency_return_* (the FX effect on the invested amount) and total_return_base_* — total = price + currency exactly. decomposed false with undecomposed_reason (missing_native_cost | missing_base_cost | missing_fx | no_price) marks a row whose figure is honestly unavailable, never guessed; the response's currency_basis_note states which field is in which currency. All financial values are Decimal strings. Each row carries the security's stable identifiers isin and wkn (null when absent), so reconciling against broker data needs no join over securities.list. For FX-converted base-currency totals and the cash quote use portfolixir.portfolios.valuation; for a global per-security EUR view across all portfolios use portfolixir.holdings.by_security. Optional filters: security_id, securities_account_id. Optional fields (FR-37) selects a sparse fieldset: each row then carries exactly those fields — prefer a small selection (e.g. security_id, quantity, market_value) for routine reads.", {
     type: "object",
@@ -4383,6 +4439,8 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request("POST", "/api/v1/splits/preview", splitRequestBody(args));
     case "portfolixir.splits.create":
       return client.request("POST", "/api/v1/splits", splitRequestBody(args));
+    case "portfolixir.splits.delete":
+      return client.request("DELETE", `/api/v1/splits/${args.transaction_id}`);
     case "portfolixir.holdings.list":
       return client.request(
         "GET",

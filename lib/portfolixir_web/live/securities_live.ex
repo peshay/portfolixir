@@ -31,9 +31,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Knowledge.ThesisState
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.Delete
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Bonds
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ChangedSince
@@ -43,6 +45,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleReferences
+  alias PortfolixirWeb.Securities.BondStrip
   alias PortfolixirWeb.Securities.FilterPopover
   alias PortfolixirWeb.Securities.LogoOverrideDialog
   alias PortfolixirWeb.Securities.ManualQuotes
@@ -53,6 +56,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.Securities.SplitWizardDialog
   alias PortfolixirWeb.SecurityEventLabel
   alias PortfolixirWeb.SecurityNames
+  alias PortfolixirWeb.StoredText
+  alias PortfolixirWeb.Transactions.BookingDeleteDialog
 
   @ranges ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX)
   @default_range "1Y"
@@ -113,6 +118,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:filter_sheet_open?, false)
      |> assign(:dialog_open?, false)
      |> assign(:split_dialog_open?, false)
+     |> assign(:deleting_split, nil)
      |> assign(:action_result, nil)
      |> assign(:sync_running?, false)
      |> assign(:selected_security, nil)
@@ -153,6 +159,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_new_category_for, nil)
      |> assign(:detail_notes, [])
      |> assign(:detail_thesis_state, ThesisState.none())
+     |> assign(:detail_bond, nil)
      |> assign(:detail_note_editing?, false)
      |> assign(:research_form_kind, "evidence")
      |> assign(:research_form_errors, [])
@@ -162,6 +169,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:delete_blocked, nil)
      |> assign(:delete_blocked_rules, [])
      |> assign(:delete_blocked_merge?, false)
+     |> assign(:delete_blocked_counts, nil)
      # ADR-0050 §9 (board 03): the security whose merge dialog is open.
      |> assign(:merge_source_id, nil)
      # A merge's result survives the one patch that opens its survivor.
@@ -673,8 +681,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
         <%!-- Inline busy/result slot (#566): action feedback lands in flow,
              beside the toolbar and list the actions belong to; the regions
-             exist before any action runs. --%>
-        <AppShell.inline_result id="securities-action-result" result={@action_result} />
+             exist before any action runs. Focusable (#920): a row action on
+             a security gone meanwhile brings it into view and focuses it,
+             because the menu item that had the focus went with the row. --%>
+        <AppShell.inline_result
+          id="securities-action-result"
+          result={@action_result}
+          focusable
+        />
 
         <div
           id="securities-workspace"
@@ -906,11 +920,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
         />
       <% end %>
 
+      <%!-- U1 (#912), pick H2-A A8: the split "Record split" found standing,
+           deleted whole on this page, so the corrected ratio is booked in
+           the same place; the focus returns to "Record split". --%>
+      <BookingDeleteDialog.dialog
+        :if={@deleting_split}
+        deleting={@deleting_split}
+        focus_fallback="#detail-record-split"
+      />
+
       <%= if @delete_blocked do %>
         <RowContextMenu.delete_blocked_dialog
           security={@delete_blocked}
           rules={@delete_blocked_rules}
           merge?={@delete_blocked_merge?}
+          counts={@delete_blocked_counts}
         />
       <% end %>
 
@@ -1074,12 +1098,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
            one pane and changes no route — so the role stays and the pattern
            is completed: one tab stop (roving tabindex), Arrow Left/Right and
            Home/End through the DetailTabs hook, and aria-controls only on the
-           selected tab, because the other panels are not in the DOM. --%>
+           selected tab, because the other panels are not in the DOM.
+           #1033 (H7.2): the row is rendered resting at its start, so the
+           first paint carries only the right fade; the hook then scrolls the
+           selected tab into view and marks the edges it rests on. --%>
       <nav
         id="detail-pane-tabs"
         class="detail-pane-tabs"
         role="tablist"
         data-tab-level="2"
+        data-scroll-start
         phx-hook="DetailTabs"
         aria-label={gettext("Security detail tabs")}
       >
@@ -1119,7 +1147,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                     is_nil(@detail_custom_range) and @detail_range == range && "is-active"
                   ]}
                 >
-                  <%= range %>
+                  <%= range_label(range) %>
                 </button>
               <% end %>
               <%!-- #721 (D5): an applied custom range shows itself in the
@@ -1367,6 +1395,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           lineage={@detail_lineage}
           thesis_state={@detail_thesis_state}
           note_editing?={@detail_note_editing?}
+          bond={@detail_bond}
         />
       <% end %>
 
@@ -1555,6 +1584,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
   attr(:lineage, :map, default: %{former_isins: [], merged_from: []})
   attr(:thesis_state, :map, required: true)
   attr(:note_editing?, :boolean, default: false)
+  # #330 (ADR-0052, pick H3-A): a bond's reading, nil for any other security.
+  attr(:bond, :map, default: nil)
 
   # #804 (review C7/A8, owner's pick 2026-09-14): the first tab answers "what
   # is this, how does it stand, what do I think about it" — six figures, the
@@ -1571,6 +1602,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
       aria-labelledby="detail-tab-overview"
       class="detail-tab-panel detail-tab-panel--overview"
     >
+      <%!-- #330 (W1): above the figures it concerns, inside the section
+           whose data it describes (UX-DR17). --%>
+      <BondStrip.two_scales_note security={@security} bond={@bond} />
       <div class="overview-reading">
         <div class="overview-reading__main">
           <dl class="overview-metrics">
@@ -1611,8 +1645,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 </dd>
               <% end %>
             </div>
+            <%!-- The detail's one range vocabulary (H7.3): "1J" in German,
+                 as the chart's button and the Quotes tab's basis line. --%>
             <div class="overview-metric" data-role="overview-1y">
-              <dt>1Y</dt>
+              <dt><%= range_label("1Y") %></dt>
               <dd class={pnl_class(@metrics[:performance_1y])}>
                 <%= signed_percent_or_dash(@metrics[:performance_1y]) %>
                 <small class="overview-metric__sub"><%= gettext("price only") %></small>
@@ -1654,6 +1690,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
               </dd>
             </div>
           </dl>
+
+          <%!-- #330 (pick H3-A): the bond's block, directly under the six
+               figures it is computed beside; nothing for any other class. --%>
+          <BondStrip.strip security={@security} bond={@bond} />
 
           <%!-- The chart of the tab beside it, small and without its toolbar:
                the shape of the history, not a second chart surface. --%>
@@ -2964,7 +3004,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
         dismiss_event="dismiss_release_result"
       >
         <:follow_up :if={@sync_adapter?}>
-          <button type="button" class="link-button" phx-click="sync_now" data-role="release-sync">
+          <%!-- #1033 (H7.4): the follow-up syncs the security just
+               released, not the catalog. --%>
+          <button
+            type="button"
+            class="link-button"
+            phx-click="sync_quotes_released"
+            data-role="release-sync"
+          >
             <%= gettext("Sync prices") %>
           </button>
         </:follow_up>
@@ -2976,18 +3023,30 @@ defmodule PortfolixirWeb.SecuritiesLive do
         </p>
       <% else %>
         <p class="summary-basis" data-role="quotes-range-basis">
-          <%= gettext("Range %{range} · as on the Chart tab", range: @range || gettext("default")) %>
+          <%= gettext("Range %{range} · as on the Chart tab", range: range_label(@range)) %>
         </p>
         <p
           :if={series_basis_label(@series_basis, @split_events)}
           class="detail-tab-hint"
           data-role="quotes-basis"
         >
-          <%= gettext("Price basis: %{basis}. The stored column keeps the unmodified values.",
-            basis: series_basis_label(@series_basis, @split_events)
-          ) %>
+          <%!-- One sentence per layout (the closing act's H7 finding, board
+               ux-review-2026-10-03/03-gamma-surface-repairs, G6): the phone
+               rows have no "Stored" column, so the phone lists' 560 px
+               block shows the rows' sentence instead of the table's. --%>
+          <span class="quotes-basis__table">
+            <%= gettext("Price basis: %{basis}. The stored column keeps the unmodified values.",
+              basis: series_basis_label(@series_basis, @split_events)
+            ) %>
+          </span>
+          <span class="quotes-basis__rows">
+            <%= gettext(
+              "Price basis: %{basis}. Where a split adjusted a close, “stored” under it shows the unmodified value.",
+              basis: series_basis_label(@series_basis, @split_events)
+            ) %>
+          </span>
         </p>
-        <div class="data-table-wrap">
+        <div class="data-table-wrap" id="quotes-table-wrapper">
           <table class="data-table detail-quotes-table">
             <thead>
               <tr>
@@ -3014,6 +3073,32 @@ defmodule PortfolixirWeb.SecuritiesLive do
             </tbody>
           </table>
         </div>
+        <%!-- #1012 (Sprint 18 U5, pick H7.1 = A, board
+             ux-design-2026-10-02/07-phone-390 rule ①): under 560 px the
+             table gives way to two-line rows (UX-DR27) — the date over its
+             source, the close on the right, and the stored value under it
+             only where a split adjusted the close; elsewhere it would be
+             the same number twice. The phone lists' 560 px block swaps the
+             two. --%>
+        <ul id="quote-phone-rows" class="phone-rows" aria-label={gettext("Quotes")}>
+          <li :for={q <- @rows} class="phone-row">
+            <span class="phone-row__body">
+              <span class="phone-row__name"><%= Date.to_iso8601(q.date) %></span>
+              <span class="phone-row__ids">
+                <span class="badge quote-source"><%= quote_source_label(q.source) %></span>
+              </span>
+            </span>
+            <span class="phone-row__figures">
+              <span class="phone-row__figure">
+                <%= Format.decimal(q.close, 2) %>
+                <small class="value-suffix"><%= @currency_code %></small>
+              </span>
+              <span :if={q.adjusted?} class="phone-row__figure2">
+                <%= gettext("stored %{value}", value: Format.decimal(q.stored_close, 2)) %>
+              </span>
+            </span>
+          </li>
+        </ul>
       <% end %>
     </section>
     """
@@ -4463,6 +4548,35 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply, assign(socket, :split_dialog_open?, true)}
   end
 
+  # U1 (#912), A8: the split's delete dialog, opened from "Record split".
+  def handle_event("cancel_delete", _params, socket),
+    do: {:noreply, assign(socket, :deleting_split, nil)}
+
+  def handle_event("confirm_delete", %{"id" => id_str}, socket) do
+    with %{id: id} = deleting <- socket.assigns.deleting_split,
+         {:ok, ^id} <- LiveParam.fetch_id(id_str) do
+      socket = assign(socket, :deleting_split, nil)
+
+      # The closing act, R5: a split that gained a row stays open, anew.
+      result =
+        case BookingDeleteDialog.delete(Actor.owner_ui(), deleting) do
+          {:ok, message} -> {:note, message}
+          {:changed, fresh} -> {:changed, fresh}
+          :gone -> {:problem, gettext("That transaction no longer exists.")}
+        end
+
+      case result do
+        {:changed, fresh} ->
+          {:noreply, assign(socket, :deleting_split, fresh)}
+
+        {severity, message} ->
+          {:noreply, socket |> put_action_result(severity, message) |> load_detail_data()}
+      end
+    else
+      _stale -> {:noreply, socket}
+    end
+  end
+
   def handle_event("sync_now", _params, socket) do
     parent = self()
 
@@ -4496,6 +4610,25 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:sync_running?, true)
      |> assign(:action_result, nil)
      |> assign(:quotes_release_result, nil)}
+  end
+
+  # #1033 (Sprint 18 U5, board ux-design-2026-10-02/07-phone-390, H7.4): the
+  # release result's "Sync prices" refills the days just released, so it
+  # syncs that one security (`QuoteSync.sync_security/2`), not the catalog.
+  # It is that result's next action, so the result goes; the sync's own
+  # answer lands in the page-level slot. The toolbar and the Chart tab keep
+  # `sync_now`, which means every security.
+  def handle_event("sync_quotes_released", _params, socket) do
+    case socket.assigns.selected_security do
+      %Security{} = sec ->
+        {:noreply,
+         socket
+         |> start_security_sync(sec)
+         |> assign(:quotes_release_result, nil)}
+
+      nil ->
+        {:noreply, socket}
+    end
   end
 
   def handle_event("toggle_detail_fullscreen", _params, socket) do
@@ -4934,13 +5067,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("row_action", %{"action" => action, "id" => id_str}, socket) do
-    with {:ok, id} <- LiveParam.fetch_id(id_str),
-         %Security{} = sec <- Catalog.get_security(id) do
-      socket
-      |> assign(:row_menu_id, nil)
-      |> dispatch_row_action(action, sec)
-    else
-      _ -> {:noreply, assign(socket, :row_menu_id, nil)}
+    case LiveParam.fetch_id(id_str) do
+      {:ok, id} ->
+        case Catalog.get_security(id) do
+          %Security{} = sec ->
+            socket
+            |> assign(:row_menu_id, nil)
+            |> dispatch_row_action(action, sec)
+
+          nil ->
+            {:noreply, socket |> assign(:row_menu_id, nil) |> vanished(id)}
+        end
+
+      _invalid ->
+        {:noreply, assign(socket, :row_menu_id, nil)}
     end
   end
 
@@ -4956,39 +5096,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:delete_blocked, nil)}
   end
 
-  defp dispatch_row_action(socket, "sync", %Security{} = sec) do
-    parent = self()
-
-    Task.start(fn ->
-      result =
-        try do
-          QuoteSync.sync_security(sec)
-        rescue
-          exception ->
-            Logger.error(
-              "QuoteSync.sync_security crashed for ##{sec.id}: " <>
-                Exception.format(:error, exception, __STACKTRACE__)
-            )
-
-            %{status: :error, reason: :crashed}
-        catch
-          kind, reason ->
-            Logger.error(
-              "QuoteSync.sync_security exited for ##{sec.id}: #{inspect({kind, reason})}"
-            )
-
-            %{status: :error, reason: :exited}
-        end
-
-      send(parent, {:sync_done, result})
-    end)
-
-    # Progress is shown by the busy sync button (`sync_running?`); no toast.
-    {:noreply,
-     socket
-     |> assign(:sync_running?, true)
-     |> assign(:action_result, nil)}
-  end
+  defp dispatch_row_action(socket, "sync", %Security{} = sec),
+    do: {:noreply, start_security_sync(socket, sec)}
 
   # ADR-0046 §1 (#572): the benchmark flag from the row menu.
   defp dispatch_row_action(socket, "benchmark", %Security{} = sec) do
@@ -4996,12 +5105,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:ok, _updated} ->
         flash =
           if sec.is_benchmark,
-            do: gettext("%{name} is no longer a benchmark", name: sec.name),
-            else: gettext("Marked %{name} as benchmark", name: sec.name)
+            do: gettext("%{name} is no longer a benchmark", name: StoredText.slot(:name)),
+            else: gettext("Marked %{name} as benchmark", name: StoredText.slot(:name))
 
         {:noreply,
          socket
-         |> put_action_result(:note, flash)
+         |> put_action_result(:note, StoredText.isolate(flash, name: sec.name))
          |> load_securities()}
 
       {:error, _changeset} ->
@@ -5014,12 +5123,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:ok, _updated} ->
         flash =
           if sec.is_retired,
-            do: gettext("Reactivated %{name}", name: sec.name),
-            else: gettext("Retired %{name}", name: sec.name)
+            do: gettext("Reactivated %{name}", name: StoredText.slot(:name)),
+            else: gettext("Retired %{name}", name: StoredText.slot(:name))
 
         {:noreply,
          socket
-         |> put_action_result(:note, flash)
+         |> put_action_result(:note, StoredText.isolate(flash, name: sec.name))
          |> assign(:delete_blocked, nil)
          |> load_securities()}
 
@@ -5059,7 +5168,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:ok, _} ->
         {:noreply,
          socket
-         |> put_action_result(:note, gettext("Deleted %{name}", name: sec.name))
+         |> put_action_result(
+           :note,
+           stored_result(gettext("Deleted %{name}", name: StoredText.slot(:name)), sec.name)
+         )
          |> assign(:delete_blocked, nil)
          |> load_securities()}
 
@@ -5071,12 +5183,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
          socket
          |> assign(:delete_blocked, sec)
          |> assign(:delete_blocked_rules, PolicyRuleReferences.references(rules))
-         |> assign(:delete_blocked_merge?, false)}
+         |> assign(:delete_blocked_merge?, false)
+         |> assign(:delete_blocked_counts, nil)}
 
       # ADR-0050 §11: gone already (another writer deleted it) — the row just
-      # goes; nothing references a security that is not there.
+      # goes; nothing references a security that is not there. The note says
+      # why, as for every row action that finds its security gone (#920).
       {:error, :not_found} ->
-        {:noreply, socket |> assign(:delete_blocked, nil) |> load_securities()}
+        {:noreply, vanished(socket, sec.id)}
 
       # Referenced by bookings, quotes, notes, events or rule versions
       # ({:referenced, counts}): nothing was written. Where a merge could
@@ -5086,7 +5200,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
          socket
          |> assign(:delete_blocked, sec)
          |> assign(:delete_blocked_rules, [])
-         |> assign(:delete_blocked_merge?, Delete.remedy(sec, counts) == :merge)}
+         |> assign(:delete_blocked_merge?, Delete.remedy(sec, counts) == :merge)
+         |> assign(:delete_blocked_counts, counts)}
 
       # A lost race (#954): the security changed under the delete and
       # nothing references it now. Nothing was deleted and nothing blocks
@@ -5103,7 +5218,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
          socket
          |> assign(:delete_blocked, sec)
          |> assign(:delete_blocked_rules, [])
-         |> assign(:delete_blocked_merge?, false)}
+         |> assign(:delete_blocked_merge?, false)
+         |> assign(:delete_blocked_counts, nil)}
     end
   end
 
@@ -5268,6 +5384,24 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply, assign(socket, :split_dialog_open?, false)}
   end
 
+  # U1 (#912), A8: "Delete the booked split…" closes the wizard and opens the
+  # split's delete dialog here — never a dialog from a dialog (UX-DR9).
+  def handle_info({:dialog, "split-wizard-dialog", {:delete_split, id}}, socket) do
+    socket = assign(socket, :split_dialog_open?, false)
+
+    with %Transaction{type: "split"} = row <- Ledger.get_transaction(id),
+         %{} = deleting <-
+           BookingDeleteDialog.prepare(row, %{twin_tags: Map.get(socket.assigns, :twin_tags, %{})}) do
+      {:noreply, assign(socket, :deleting_split, deleting)}
+    else
+      _gone ->
+        {:noreply,
+         socket
+         |> put_action_result(:problem, gettext("That transaction no longer exists."))
+         |> load_detail_data()}
+    end
+  end
+
   # A booked split changes holdings, chart basis and the transactions list —
   # reload the whole detail pane from the ledger (single source of truth).
   def handle_info({:dialog, "split-wizard-dialog", {:split_booked, count}}, socket) do
@@ -5325,7 +5459,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
      socket
      |> assign(:dialog_open?, false)
      |> assign(:editing_security, nil)
-     |> put_action_result(:note, gettext("Created %{name}", name: security.name))
+     |> put_action_result(
+       :note,
+       stored_result(gettext("Created %{name}", name: StoredText.slot(:name)), security.name)
+     )
      |> load_securities()}
   end
 
@@ -5334,8 +5471,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
      socket
      |> assign(:dialog_open?, false)
      |> assign(:editing_security, nil)
-     |> put_action_result(:note, gettext("Updated %{name}", name: security.name))
-     |> load_securities()}
+     |> put_action_result(
+       :note,
+       stored_result(gettext("Updated %{name}", name: StoredText.slot(:name)), security.name)
+     )
+     |> load_securities()
+     |> refresh_selected(security)}
   end
 
   def handle_info({:dialog, _id, {:open_existing, _security}}, socket) do
@@ -5375,7 +5516,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_info({:sync_done, result}, socket) do
-    summary = sync_flash(result)
+    summary = sync_summary(result)
 
     {:noreply,
      socket
@@ -5385,6 +5526,19 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> load_securities()
      |> load_detail_data()}
   end
+
+  # #330: the open detail shows the master data just saved — the bond block
+  # reads the dialog's fields — so the edited security is re-read into it.
+  defp refresh_selected(%{assigns: %{selected_security: %Security{id: id}}} = socket, %Security{
+         id: id
+       }) do
+    case Catalog.get_security(id) do
+      %Security{} = fresh -> select_security(socket, fresh)
+      nil -> socket
+    end
+  end
+
+  defp refresh_selected(socket, _security), do: socket
 
   defp select_security(socket, %Security{} = security) do
     socket
@@ -5415,6 +5569,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_new_category_for, nil)
     |> assign(:detail_notes, [])
     |> assign(:detail_thesis_state, ThesisState.none())
+    |> assign(:detail_bond, nil)
     |> assign(:detail_note_editing?, false)
     |> assign(:research_form_errors, [])
     |> assign(:research_form_values, %{})
@@ -5466,6 +5621,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
     holdings = decorate_holdings_with_buckets(Ledger.holdings_for_security(id), id)
 
+    # The shared price-resolution status (#406): computed by the valuation's
+    # own semantics, against the base currencies of the portfolios actually
+    # holding the security, so this pane and those portfolios' totals cannot
+    # disagree (review fix: a USD-base portfolio counts a USD position
+    # without any stored rate).
+    status = Valuation.security_status(id, holding_base_currencies(holdings))
+
     socket
     |> assign(:detail_quotes, quotes)
     # T-9 (Sprint 17 V2, G3-A): the note counts the whole history, not the
@@ -5487,12 +5649,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
     # of the security this pane is open on.
     |> assign(:detail_metric_block, load_metric_block(id))
     |> assign(:detail_events, Events.list_for_security(id))
-    # The shared price-resolution status (#406): computed by the valuation's
-    # own semantics, against the base currencies of the portfolios actually
-    # holding the security, so this pane and those portfolios' totals cannot
-    # disagree (review fix: a USD-base portfolio counts a USD position
-    # without any stored rate).
-    |> assign(:detail_status, Valuation.security_status(id, holding_base_currencies(holdings)))
+    |> assign(:detail_status, status)
+    # #330 (ADR-0052): a bond's reading from the rows and the price this pane
+    # already holds, so its yields use the price the value beside them uses.
+    |> assign(
+      :detail_bond,
+      Bonds.reading(socket.assigns.selected_security,
+        transactions: transaction_rows,
+        status: status
+      )
+    )
     |> assign(:detail_classifications, load_security_classifications(id))
     |> assign(:detail_lineage, %{
       former_isins: Catalog.list_identifier_aliases(socket.assigns.selected_security),
@@ -5635,11 +5801,117 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp research_field_label(:time_stop), do: gettext("Time stop")
   defp research_field_label(field), do: Atom.to_string(field)
 
+  # #920, pick H8.6 = A (board 08-dialogs-copy): a row action that finds its
+  # security gone — deleted or merged away by the API, MCP or another tab
+  # since the list loaded — reloads the list, drops whatever pointed at the
+  # security (a detail pane, a dialog, "Cannot delete") and says in one note
+  # why the row went. The names are the ones the stale list showed, twins
+  # told apart; a merge links the survivor (`Lifecycle.merged_into/2`'s
+  # chain), a chain that ends at a deleted row reads as deleted.
+  defp vanished(socket, id) do
+    note = vanished_note(socket.assigns, id)
+
+    socket =
+      socket
+      |> drop_vanished(id)
+      |> then(&if note, do: put_vanished_note(&1, note), else: &1)
+
+    case socket.assigns.selected_security do
+      %Security{id: ^id} ->
+        socket
+        |> assign(:keep_result_once, true)
+        |> push_patch(to: securities_path(socket.assigns, id: nil))
+
+      _other ->
+        load_securities(socket)
+    end
+  end
+
+  # The note answers a click whose control went with the row: the page
+  # brings the result slot into view and focuses it (the closing act's H8.6
+  # finding; board ux-review-2026-10-03/03-gamma-surface-repairs, G1), as
+  # the history's heading takes the focus after a booking gone meanwhile
+  # (H2's A6) — never <body> (WCAG 2.4.3).
+  defp put_vanished_note(socket, note) do
+    socket
+    |> put_action_result(:note, note)
+    |> push_event("focus-into-view", %{id: "securities-action-result"})
+  end
+
+  defp drop_vanished(socket, id) do
+    socket
+    |> assign(:delete_blocked, unless_vanished(socket.assigns.delete_blocked, id))
+    |> assign(:logo_dialog_security, unless_vanished(socket.assigns.logo_dialog_security, id))
+    |> then(fn socket ->
+      case socket.assigns.editing_security do
+        %Security{id: ^id} -> assign(socket, editing_security: nil, dialog_open?: false)
+        _other -> socket
+      end
+    end)
+    |> then(fn socket ->
+      if socket.assigns.merge_source_id == id,
+        do: assign(socket, :merge_source_id, nil),
+        else: socket
+    end)
+  end
+
+  defp unless_vanished(%{id: id}, id), do: nil
+  defp unless_vanished(value, _id), do: value
+
+  defp vanished_note(assigns, id) do
+    stale = Enum.map(assigns.securities, &security_from_row/1)
+
+    case Enum.find(stale, &(&1.id == id)) do
+      nil ->
+        nil
+
+      security ->
+        name = SecurityNames.label(assigns.twin_tags, security)
+
+        case Lifecycle.merge_chain_end(:security, id) do
+          {:live, survivor} ->
+            StoredText.isolate(
+              gettext("“%{name}” was merged into %{target} meanwhile; the list is reloaded.",
+                name: StoredText.slot(:name),
+                target: StoredText.slot(:target)
+              ),
+              name: name,
+              target:
+                StoredText.link(
+                  securities_path(assigns, id: survivor),
+                  survivor_label(assigns, stale, survivor)
+                )
+            )
+
+          _deleted_or_none ->
+            StoredText.isolate(
+              gettext("“%{name}” was deleted meanwhile; the list is reloaded.",
+                name: StoredText.slot(:name)
+              ),
+              name: name
+            )
+        end
+    end
+  end
+
+  defp survivor_label(assigns, stale, survivor) do
+    case Enum.find(stale, &(&1.id == survivor)) do
+      nil -> survivor |> Catalog.get_security() |> then(&((&1 && &1.name) || ""))
+      security -> SecurityNames.label(assigns.twin_tags, security)
+    end
+  end
+
   defp raced_delete_message(name) do
     gettext("%{name} changed while it was being deleted; nothing was deleted. Try again.",
-      name: name
+      name: StoredText.slot(:name)
     )
+    |> stored_result(name)
   end
+
+  # #968, pick H8.8 (board 08-dialogs-copy): a result line that names a
+  # stored name sets it in <bdi>, so a direction control it still carries
+  # reorders at most the name, never the words after it.
+  defp stored_result(translated, name), do: StoredText.isolate(translated, name: name)
 
   # A security merged away since the page showed it (closing act, γ CR-1)
   # opens no dialog: the page re-reads its own link, which follows the merge
@@ -5770,6 +6042,71 @@ defmodule PortfolixirWeb.SecuritiesLive do
     push_event(socket, "os-notify", %{title: title, body: body, tag: tag})
   end
 
+  # One security's sync, in the background (the row menu's "Sync prices"
+  # and the release result's follow-up): the busy sync button shows the
+  # progress, no toast, and `:sync_done` brings the answer.
+  defp start_security_sync(socket, %Security{} = sec) do
+    parent = self()
+
+    Task.start(fn ->
+      result =
+        try do
+          QuoteSync.sync_security(sec)
+        rescue
+          exception ->
+            Logger.error(
+              "QuoteSync.sync_security crashed for ##{sec.id}: " <>
+                Exception.format(:error, exception, __STACKTRACE__)
+            )
+
+            %{status: :error, reason: :crashed}
+        catch
+          kind, reason ->
+            Logger.error(
+              "QuoteSync.sync_security exited for ##{sec.id}: #{inspect({kind, reason})}"
+            )
+
+            %{status: :error, reason: :exited}
+        end
+
+      send(parent, {:sync_done, result})
+    end)
+
+    # Progress is shown by the busy sync button (`sync_running?`); no toast.
+    socket
+    |> assign(:sync_running?, true)
+    |> assign(:action_result, nil)
+  end
+
+  # #1012 (Sprint 18 U5, board ux-design-2026-10-02/07-phone-390, H7.1b): the
+  # sync keeps a manual quote wherever the provider returns a close for the
+  # same day (`protect_manual: true`) and counts it per security as
+  # `skipped_manual`. The result says so, summed over every security the sync
+  # touched — the collisions, not every manual quote (the Quotes tab's note
+  # counts those). "Skipped" stays reserved for a security the sync did not
+  # query at all.
+  defp sync_summary(result) do
+    case kept_manual(result) do
+      0 ->
+        sync_flash(result)
+
+      kept ->
+        sync_flash(result) <>
+          " " <>
+          ngettext(
+            "One manual quote was left standing where the provider returned a close.",
+            "%{count} manual quotes were left standing where the provider returned a close.",
+            kept
+          )
+    end
+  end
+
+  defp kept_manual({:ok, %{results: results}}) when is_list(results),
+    do: results |> Enum.map(&kept_manual/1) |> Enum.sum()
+
+  defp kept_manual(%{skipped_manual: kept}) when is_integer(kept), do: kept
+  defp kept_manual(_result), do: 0
+
   defp sync_flash({:ok, %{ok: ok, skipped: 0, error: 0}}) when ok > 0 do
     gettext("Prices synced.")
   end
@@ -5794,6 +6131,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp sync_flash(_), do: gettext("Price sync failed.")
 
+  # #1033 (H7.4): the reasons a single security's sync can reach before it
+  # fetches anything (QuoteSync's skips and its single-flight lock) read as
+  # words; a provider's own error stays as it answered.
+  defp sync_reason(:no_provider_adapter),
+    do: gettext("No quote provider fetches this security.")
+
+  defp sync_reason(:missing_ticker),
+    do: gettext("The quote provider needs the security's ticker.")
+
+  defp sync_reason(:missing_currency),
+    do: gettext("The security has no currency.")
+
+  defp sync_reason(:sync_in_progress),
+    do: gettext("A sync of this security is already running.")
+
   defp sync_reason(reason) when is_atom(reason), do: Atom.to_string(reason)
   defp sync_reason(reason), do: inspect(reason)
 
@@ -5805,6 +6157,24 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   defp ranges, do: @ranges
+
+  # #1033 (Sprint 18 U5, board ux-design-2026-10-02/07-phone-390, H7.3): one
+  # label for the detail's range tokens, used by the Chart tab's buttons and
+  # the Quotes tab's basis line that points at them, so the two agree. The
+  # app's one period vocabulary in the reader's language ("1J" in German, as
+  # Wealth and the Overview's KPI strip say), with "Max" cased as
+  # EXPERIENCE.md → Period control has it. The URL and the event value stay
+  # the code.
+  defp range_label("1M"), do: gettext("1M")
+  defp range_label("3M"), do: gettext("3M")
+  defp range_label("6M"), do: gettext("6M")
+  defp range_label("YTD"), do: gettext("YTD")
+  defp range_label("1Y"), do: gettext("1Y")
+  defp range_label("3Y"), do: gettext("3Y")
+  defp range_label("5Y"), do: gettext("5Y")
+  defp range_label("MAX"), do: gettext("Max")
+  defp range_label(nil), do: gettext("default")
+  defp range_label(range), do: range
 
   defp load_securities(socket) do
     dq = socket.assigns.dq

@@ -30,27 +30,30 @@
     }
   }
 
-  /* ② #1033: every native dialog's close button takes the release dialog's
-     rule (Sprint 17, closing act γ D6): it keeps its width beside a title
-     that wraps, and it is 44 × 44 under a coarse pointer. Replaces the three
-     `.quote-release-dialog .modal-head` rules, which this subsumes. */
+  /* ② #1033, on the class (Sprint 18 plan U4; added to the board by the
+     story, H6.2b below): every `.icon-button` — each dialog's close button
+     and each toolbar icon — takes the release dialog's rule (Sprint 17,
+     closing act γ D6). It is the 30 × 30 the class declares (the base
+     `button { min-height: 34px }` made every <button> of the class
+     30 × 34, while an <a> of the class stayed 30 × 30), it keeps its width
+     beside a title that wraps, and it is 44 × 44 under a coarse pointer
+     (UX-DR6; EXPERIENCE.md's call-site table lists the class as uncovered).
+     Replaces the three `.quote-release-dialog .modal-head` rules, which
+     this subsumes; the dialog heads keep the gap. */
+  .icon-button {
+    flex: none;
+    min-height: 0;
+  }
+
   .modal-head,
   .filter-sheet__head {
     gap: var(--space-2);
   }
 
-  .modal-head > .icon-button,
-  .filter-sheet__head > .icon-button,
-  .booking-drawer .detail-pane-head__actions > .icon-button {
-    flex: none;
-  }
-
   @media (pointer: coarse) {
-    .modal-head > .icon-button,
-    .filter-sheet__head > .icon-button,
-    .booking-drawer .detail-pane-head__actions > .icon-button {
-      width: 44px;
-      height: 44px;
+    .icon-button {
+      min-width: 44px;
+      min-height: 44px;
     }
   }
 
@@ -116,6 +119,15 @@
      Red = under 44 px, green = at the floor. Not app UI. */
   .hit { outline: 1.5px dashed var(--color-danger) !important; outline-offset: 0 !important; background: color-mix(in srgb, var(--color-danger) 10%, transparent) !important; }
   .hit-ok { outline: 1.5px dashed var(--color-positive) !important; outline-offset: 0 !important; background: color-mix(in srgb, var(--color-positive) 12%, transparent) !important; }
+  /* Grey = a desktop hit box, where the 44 px floor does not apply (H6.2b). */
+  .hit-n { outline: 1.5px dashed var(--mock-ink) !important; outline-offset: 0 !important; }
+
+  /* H6.2b: the toolbar drawn in flow (no full-height panel), and the ghost
+     buttons' existing coarse floor applied by hand in the touch frames, as
+     app.css's coarse block gives it to them on a phone today. */
+  .tb-panel { min-height: 0 !important; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+  .tb-panel > .toolbar { margin: 0; }
+  .as-touch .button-ghost, .as-coarse .button-ghost { min-height: 44px; display: inline-flex; align-items: center; }
 
   /* The coarse-pointer state, applied unconditionally. The renderer has a
      mouse, so `@media (pointer: coarse)` never matches here; the "after"
@@ -125,18 +137,17 @@
      `pointer: coarse`). */
   .as-coarse .data-note__body .link-button { padding-block: 13px; margin-block: -13px; }
   .as-coarse.var-b .data-note__body .link-button { display: flex; align-items: center; min-height: 44px; padding-block: 0; margin-block: 0; }
-  .as-coarse .modal-head > .icon-button,
-  .as-coarse .filter-sheet__head > .icon-button,
-  .as-coarse .booking-drawer .detail-pane-head__actions > .icon-button { width: 44px; height: 44px; }
+  .as-coarse .icon-button { min-width: 44px; min-height: 44px; }
   .as-coarse .inline-result__dismiss { width: 44px; height: 44px; padding-block: 14px; margin-block: -14px; }
   .as-coarse .detail-pane-tab { min-height: 44px; }
 
   /* "Before" frames show the stylesheet as shipped: the proposal rules ②–④
      above would otherwise reach them too, so they are undone here. */
   .today .modal-head, .today .filter-sheet__head { gap: normal; }
-  .today .modal-head > .icon-button,
-  .today .filter-sheet__head > .icon-button,
-  .today .booking-drawer .detail-pane-head__actions > .icon-button { flex: 0 1 auto; }
+  .today .icon-button { flex: 0 1 auto; }
+  .today button.icon-button { min-height: 34px; }
+  .today.as-touch #detail-pane-close,
+  .today.as-touch #detail-pane-fullscreen-toggle { min-width: 44px; min-height: 44px; }
   .today .quote-release-dialog .modal-head { gap: var(--space-2); }
   .today .quote-release-dialog .modal-head > .icon-button { flex: none; }
   .today.as-touch .quote-release-dialog .modal-head > .icon-button { width: 44px; height: 44px; }
@@ -181,10 +192,16 @@
     <symbol id="i-ast" viewBox="0 0 24 24"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></symbol>
     <symbol id="i-att" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 4v5h-5"/></symbol>
+    <symbol id="i-columns" viewBox="0 0 24 24"><rect x="3" y="4" width="6" height="16" rx="1"/><rect x="11" y="4" width="6" height="16" rx="1"/><rect x="19" y="4" width="2" height="16" rx="1"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></symbol>
+    <symbol id="i-filter" viewBox="0 0 24 24"><path d="M3 5h18l-7 9v6l-4-2v-4Z"/></symbol>
+    <symbol id="i-max" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
   </defs>
 </svg>
 
-<div class="pickbar desk-only"><b>Entscheidung H6 — Touch-Ziele und Fokus (#1013, #1033).</b> Vier Konformitätsreparaturen gegen UX&#8209;DR6 (44&nbsp;px unter <code>pointer: coarse</code>) und den 2&#8209;px-Akzentring. <b>H6.2, H6.3 und H6.4 sind vorher/nachher</b>: Die Spezifikation legt die Antwort fest. <b>H6.1 hat eine echte Wahl</b>, weil UX&#8209;DR6 den Mechanismus offenlässt und die beiden Mechanismen verschieden aussehen: <b>A</b> die Trefferfläche wächst, der Satz bleibt · <b>B</b> die Abhilfe bekommt auf Touch eine eigene 44&#8209;px-Zeile. <span class="rec">Empfehlung A.</span> Ein Kommentar mit Code und Buchstabe auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. <b>Der Renderer hat eine Maus:</b> Die Nachher-Rahmen wenden die vorgeschlagenen Coarse-Regeln ohne Medienabfrage an (Board-Klasse <code>.as-coarse</code>); die Vorher-Rahmen zeigen, was ein Touch-Gerät heute bekommt — gemessen mit Playwright <code>hasTouch</code>, das <code>pointer: coarse</code> erfüllt. Gestrichelt rot/grün = die Trefferfläche, wie der Browser sie legt (Zeichenhilfe). Alle Namen und Zahlen sind erfunden. Die Darstellung bei 390&nbsp;px ist <code>06-touch-focus--390.png</code>.</div>
+<div class="pickbar desk-only"><b>Entscheidung H6 — Touch-Ziele und Fokus (#1013, #1033).</b> Vier Konformitätsreparaturen gegen UX&#8209;DR6 (44&nbsp;px unter <code>pointer: coarse</code>) und den 2&#8209;px-Akzentring. <b>H6.2, H6.3 und H6.4 sind vorher/nachher</b>: Die Spezifikation legt die Antwort fest. <b>H6.2b</b> (die Werkzeugleisten) hat Story U4 nachgetragen, bevor sie Regel ② an die Klasse setzt, wie der Plan es entschieden hat. <b>H6.1 hat eine echte Wahl</b>, weil UX&#8209;DR6 den Mechanismus offenlässt und die beiden Mechanismen verschieden aussehen: <b>A</b> die Trefferfläche wächst, der Satz bleibt · <b>B</b> die Abhilfe bekommt auf Touch eine eigene 44&#8209;px-Zeile. <span class="rec">Empfehlung A.</span> Ein Kommentar mit Code und Buchstabe auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. <b>Der Renderer hat eine Maus:</b> Die Nachher-Rahmen wenden die vorgeschlagenen Coarse-Regeln ohne Medienabfrage an (Board-Klasse <code>.as-coarse</code>); die Vorher-Rahmen zeigen, was ein Touch-Gerät heute bekommt — gemessen mit Playwright <code>hasTouch</code>, das <code>pointer: coarse</code> erfüllt. Gestrichelt rot/grün = die Trefferfläche, wie der Browser sie legt (Zeichenhilfe). Alle Namen und Zahlen sind erfunden. Die Darstellung bei 390&nbsp;px ist <code>06-touch-focus--390.png</code>.</div>
 <p class="phone-only phone-cap"><b>H6 bei 390&nbsp;px.</b> Dieselben Rahmen in einem echten 390-px-Viewport. Nachher-Rahmen: Coarse-Regeln ohne Medienabfrage angewandt (der Renderer hat eine Maus). Gestrichelt = Trefferfläche. H6.1: Empfehlung A. Alle Daten erfunden.</p>
 
 <!-- ============================ H6.1 ============================ -->
@@ -332,11 +349,110 @@
     <div class="notes w-notes">
       <p class="cap">Was sich ändert</p>
       <ul>
-        <li><b>Regel ②:</b> die drei Regeln, mit denen der Freigabe-Dialog in Sprint 17 repariert wurde (<code>gap</code> im Kopf, <code>flex: none</code> am ×, 44&nbsp;×&nbsp;44 unter <code>pointer: coarse</code>), mit dem Selektor aller Dialogköpfe statt nur <code>.quote-release-dialog</code>. Die drei alten Regeln entfallen.</li>
-        <li><b>Erfasst:</b> zwölf <code>.modal-head</code> (Konto- und Wertpapier-Zusammenführen, Saldo, Umbenennen, Konto anlegen, Wertpapier anlegen, Regel, Logo, Buckets, Split, zweimal „Kann nicht gelöscht werden“), zwei <code>.filter-sheet__head</code>, die Buchungs-Schublade (zwei Renderpfade).</li>
-        <li><b>Desktop:</b> unverändert 30&nbsp;×&nbsp;34, nur schrumpft das × nicht mehr neben einem umbrechenden Titel.</li>
-        <li><b>Größer als das Issue:</b> UX&#8209;DR6s Tabelle (EXPERIENCE.md) nennt <code>.icon-button</code> selbst als nicht abgedeckte Klasse, und Nachtrag 1 sagt, die Untergrenze gilt für jede Aufrufstelle einer Klasse. Eine Klassenregel <code>@media (pointer: coarse) { .icon-button { min-width: 44px; min-height: 44px } }</code> deckte die Dialoge <i>und</i> die Werkzeugleisten ab (Wertpapiere: Neu, Kurse aktualisieren, Spalten …). Das Dialog-Bild oben ist in beiden Fällen dasselbe; der Plan entscheidet den Umfang.</li>
+        <li><b>Regel ②:</b> die drei Regeln, mit denen der Freigabe-Dialog in Sprint 17 repariert wurde (<code>gap</code> im Kopf, <code>flex: none</code> am ×, 44&nbsp;×&nbsp;44 unter <code>pointer: coarse</code>) — <b>an der Klasse</b> <code>.icon-button</code>, wie der Sprint-18-Plan (U4) entschieden hat, statt am Selektor der Dialogköpfe. Die drei alten Regeln entfallen; der <code>gap</code> bleibt an <code>.modal-head</code> und <code>.filter-sheet__head</code>.</li>
+        <li><b>Erfasst:</b> zwölf <code>.modal-head</code> (Konto- und Wertpapier-Zusammenführen, Saldo, Umbenennen, Konto anlegen, Wertpapier anlegen, Regel, Logo, Buckets, Split, zweimal „Kann nicht gelöscht werden“), zwei <code>.filter-sheet__head</code>, die Buchungs-Schublade (zwei Renderpfade) — und jede Werkzeugleiste (H6.2b).</li>
+        <li><b>Desktop:</b> das × ist 30&nbsp;×&nbsp;30, wie die Klasse es erklärt (vorher 30&nbsp;×&nbsp;34, weil die Grundregel <code>button { min-height: 34px }</code> die Höhe gewann), und es schrumpft nicht mehr neben einem umbrechenden Titel.</li>
+        <li><b>Größer als das Issue, entschieden:</b> UX&#8209;DR6s Tabelle (EXPERIENCE.md) nennt <code>.icon-button</code> selbst als nicht abgedeckte Klasse, und Nachtrag 1 sagt, die Untergrenze gilt für jede Aufrufstelle einer Klasse. Das Dialog-Bild oben ist bei Klassen- und Dialogregel dasselbe; was die Klassenregel zusätzlich ändert, zeigt H6.2b.</li>
       </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ H6.2b =========================== -->
+<!-- Added by the story that builds H6.2 (Sprint 18 plan U4), before its
+     code: the plan put rule ② on the class, so every toolbar icon button
+     changes too, and the board draws that before the stylesheet does. -->
+<section class="mock-board">
+  <h2>H6.2b · #1033 — dieselbe Regel an der Klasse: die Werkzeugleisten <small>UX&#8209;DR6 · vorher/nachher · nachgetragen von Story U4</small></h2>
+  <p class="mock-note desk-only">Der Sprint-18-Plan (U4) setzt Regel ② an die Klasse <code>.icon-button</code>, nicht an die Dialogköpfe: UX&#8209;DR6s Tabelle nennt die Klasse selbst als nicht abgedeckt. Damit ändern sich auch die Symbolknöpfe der Werkzeugleisten. Heute ist jeder <code>&lt;button class="icon-button"&gt;</code> 30&nbsp;×&nbsp;34 (die Grundregel <code>button { min-height: 34px }</code> gewinnt die Höhe), jedes <code>&lt;a class="icon-button"&gt;</code> 30&nbsp;×&nbsp;30 — im Kopf des Wertpapier-Details stehen beide Größen nebeneinander. Auf Touch bleiben sie unter 44&nbsp;px, außer den zwei Knöpfen des Detail-Kopfs, die eine eigene ID-Regel haben.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half today"><span class="mock-tag">Heute · Desktop</span>
+      <div class="stage">
+        <p class="lbl">Wertpapiere · Werkzeugleiste</p>
+        <div class="workspace-panel tb-panel">
+          <div class="toolbar" role="toolbar" aria-label="Wertpapier-Werkzeugleiste">
+            <form class="search-field"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-search"/></svg><input type="search" placeholder="Nach Name, ISIN, WKN oder Ticker suchen…" aria-label="Wertpapiere suchen"></form>
+            <button type="button" class="filter-sheet-toggle"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-filter"/></svg>Filter</button>
+            <div class="toolbar-actions">
+              <button type="button" class="icon-button hit-n" aria-label="Neu anlegen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-plus"/></svg></button>
+              <button type="button" class="icon-button hit-n" aria-label="Kurse aktualisieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-refresh"/></svg></button>
+              <button type="button" id="toggle-column-popover" class="icon-button hit-n" aria-label="Spalten"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-columns"/></svg></button>
+            </div>
+          </div>
+        </div>
+        <p class="lbl">Wertpapier-Detail · Kopf · 30&nbsp;×&nbsp;34 neben 30&nbsp;×&nbsp;30<i class="pin b">1</i></p>
+        <div class="detail-pane"><header class="detail-pane-head"><div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial">N</span><div><h2>Nordwind Industrie AG</h2><p class="detail-pane-sub">DE000000000A · NWI · EUR</p></div></div><div class="detail-pane-head__actions"><button type="button" class="button-ghost">Bearbeiten</button><button type="button" id="detail-pane-fullscreen-toggle" class="icon-button hit-n" aria-label="Maximieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-max"/></svg></button><a href="#" id="detail-pane-close" class="icon-button hit-n" aria-label="Detail schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg></a></div></header></div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">Nachher · Desktop — 30&nbsp;×&nbsp;30, wie die Klasse es erklärt</span>
+      <div class="stage">
+        <p class="lbl">Wertpapiere · Werkzeugleiste</p>
+        <div class="workspace-panel tb-panel">
+          <div class="toolbar" role="toolbar" aria-label="Wertpapier-Werkzeugleiste">
+            <form class="search-field"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-search"/></svg><input type="search" placeholder="Nach Name, ISIN, WKN oder Ticker suchen…" aria-label="Wertpapiere suchen"></form>
+            <button type="button" class="filter-sheet-toggle"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-filter"/></svg>Filter</button>
+            <div class="toolbar-actions">
+              <button type="button" class="icon-button hit-n" aria-label="Neu anlegen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-plus"/></svg></button>
+              <button type="button" class="icon-button hit-n" aria-label="Kurse aktualisieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-refresh"/></svg></button>
+              <button type="button" id="toggle-column-popover" class="icon-button hit-n" aria-label="Spalten"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-columns"/></svg></button>
+            </div>
+          </div>
+        </div>
+        <p class="lbl">Wertpapier-Detail · Kopf · zweimal 30&nbsp;×&nbsp;30<i class="pin a">2</i></p>
+        <div class="detail-pane"><header class="detail-pane-head"><div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial">N</span><div><h2>Nordwind Industrie AG</h2><p class="detail-pane-sub">DE000000000A · NWI · EUR</p></div></div><div class="detail-pane-head__actions"><button type="button" class="button-ghost">Bearbeiten</button><button type="button" id="detail-pane-fullscreen-toggle" class="icon-button hit-n" aria-label="Maximieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-max"/></svg></button><a href="#" id="detail-pane-close" class="icon-button hit-n" aria-label="Detail schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg></a></div></header></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:14px">
+    <div class="mock-frame mock-before w-half today as-touch"><span class="mock-tag">Heute · Touch</span>
+      <div class="stage">
+        <p class="lbl">Wertpapiere · Werkzeugleiste · 30&nbsp;×&nbsp;34<i class="pin b">3</i></p>
+        <div class="workspace-panel tb-panel">
+          <div class="toolbar" role="toolbar" aria-label="Wertpapier-Werkzeugleiste">
+            <form class="search-field"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-search"/></svg><input type="search" placeholder="Nach Name, ISIN, WKN oder Ticker suchen…" aria-label="Wertpapiere suchen"></form>
+            <button type="button" class="filter-sheet-toggle"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-filter"/></svg>Filter</button>
+            <div class="toolbar-actions">
+              <button type="button" class="icon-button hit" aria-label="Neu anlegen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-plus"/></svg></button>
+              <button type="button" class="icon-button hit" aria-label="Kurse aktualisieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-refresh"/></svg></button>
+              <button type="button" id="toggle-column-popover" class="icon-button hit" aria-label="Spalten"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-columns"/></svg></button>
+            </div>
+          </div>
+        </div>
+        <p class="lbl">Wertpapier-Detail · Kopf · per ID-Regel schon 44&nbsp;×&nbsp;44</p>
+        <div class="detail-pane"><header class="detail-pane-head"><div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial">N</span><div><h2>Nordwind Industrie AG</h2><p class="detail-pane-sub">DE000000000A · NWI · EUR</p></div></div><div class="detail-pane-head__actions"><button type="button" class="button-ghost">Bearbeiten</button><button type="button" id="detail-pane-fullscreen-toggle" class="icon-button hit-ok" aria-label="Maximieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-max"/></svg></button><a href="#" id="detail-pane-close" class="icon-button hit-ok" aria-label="Detail schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg></a></div></header></div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after w-half as-coarse"><span class="mock-tag">Nachher · Touch — 44&nbsp;×&nbsp;44 an jeder Aufrufstelle</span>
+      <div class="stage">
+        <p class="lbl">Wertpapiere · Werkzeugleiste · die Zeile wird 8&nbsp;px höher<i class="pin a">4</i></p>
+        <div class="workspace-panel tb-panel">
+          <div class="toolbar" role="toolbar" aria-label="Wertpapier-Werkzeugleiste">
+            <form class="search-field"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-search"/></svg><input type="search" placeholder="Nach Name, ISIN, WKN oder Ticker suchen…" aria-label="Wertpapiere suchen"></form>
+            <button type="button" class="filter-sheet-toggle"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-filter"/></svg>Filter</button>
+            <div class="toolbar-actions">
+              <button type="button" class="icon-button hit-ok" aria-label="Neu anlegen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-plus"/></svg></button>
+              <button type="button" class="icon-button hit-ok" aria-label="Kurse aktualisieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-refresh"/></svg></button>
+              <button type="button" id="toggle-column-popover" class="icon-button hit-ok" aria-label="Spalten"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-columns"/></svg></button>
+            </div>
+          </div>
+        </div>
+        <p class="lbl">Wertpapier-Detail · Kopf · unverändert 44&nbsp;×&nbsp;44, jetzt aus der Klasse</p>
+        <div class="detail-pane"><header class="detail-pane-head"><div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial">N</span><div><h2>Nordwind Industrie AG</h2><p class="detail-pane-sub">DE000000000A · NWI · EUR</p></div></div><div class="detail-pane-head__actions"><button type="button" class="button-ghost">Bearbeiten</button><button type="button" id="detail-pane-fullscreen-toggle" class="icon-button hit-ok" aria-label="Maximieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-max"/></svg></button><a href="#" id="detail-pane-close" class="icon-button hit-ok" aria-label="Detail schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-x"/></svg></a></div></header></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mock-row" style="margin-top:14px">
+    <div class="notes" style="flex:1 1 100%">
+      <ol class="pins">
+        <li><i class="pin b">1</i><b>Heute, Desktop:</b> „Maximieren“ ist ein <code>&lt;button&gt;</code> und 30&nbsp;×&nbsp;34, „Detail schließen“ ein <code>&lt;a&gt;</code> und 30&nbsp;×&nbsp;30 — dieselbe Klasse, zwei Höhen nebeneinander. In den Werkzeugleisten sind alle Symbolknöpfe 30&nbsp;×&nbsp;34.</li>
+        <li><i class="pin a">2</i><b>Nachher, Desktop:</b> 30&nbsp;×&nbsp;30 an jeder Aufrufstelle, die Größe, die <code>.icon-button</code> seit jeher erklärt und die DESIGN.md („keeps its 30&nbsp;px“) und EXPERIENCE.md (UX&#8209;DR6-Tabelle, „30&nbsp;×&nbsp;30px“) nennen. Die Werkzeugleiste behält ihre Höhe: Das Suchfeld (36&nbsp;px) bestimmt sie. Gestrichelt grau = die Trefferfläche am Desktop, wo die 44&#8209;px-Untergrenze nicht gilt.</li>
+        <li><i class="pin b">3</i><b>Heute, Touch:</b> Neu, Kurse aktualisieren, Spalten (unter 560&nbsp;px ausgeblendet), Klassifizierung anlegen (+), Parser-Warnungen kopieren und das × des Spalten-Popovers bleiben 30&nbsp;breit, unter 44&nbsp;px. Nur die zwei Knöpfe des Detail-Kopfs haben eine eigene Regel (<code>#detail-pane-close</code>, <code>#detail-pane-fullscreen-toggle</code>).</li>
+        <li><i class="pin a">4</i><b>Nachher, Touch:</b> 44&nbsp;×&nbsp;44 an jeder Aufrufstelle der Klasse (<code>min-width</code>/<code>min-height</code> unter <code>pointer: coarse</code>); die Leiste wird 8&nbsp;px höher. Die ID-Regel des Detail-Kopfs entfällt, die Klasse deckt ihn ab. Der Plan nimmt diese Kosten bewusst in Kauf: Die Untergrenze gilt für jede Aufrufstelle einer Klasse (UX&#8209;DR6, Nachtrag 1).</li>
+      </ol>
     </div>
   </div>
 </section>

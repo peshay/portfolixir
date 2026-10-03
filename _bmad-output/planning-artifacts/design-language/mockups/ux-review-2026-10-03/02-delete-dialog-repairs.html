@@ -1,0 +1,504 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — deleting a booking and the notes-only drawer: the closing act's repairs (Sprint 18 PR γ, U1)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the rules the repairs add to (or change in) app.css. On
+     this board they sit inside @scope (.after), so the "Before" frames keep
+     rendering with app.css exactly as built (Sprint 18 PR γ head 11798c96)
+     and only the "After" frames get them. The repairs write the rules
+     WITHOUT the @scope wrapper; where a rule edits an existing one, the
+     comment names it. @scope adds no specificity, so every rule competes here
+     as it will in app.css. Everything else inside the frames is markup and
+     classes that already ship: PortfolixirWeb.Transactions.BookingDeleteDialog
+     (.modal.booking-delete-dialog, .booking-delete__subject with the
+     .phone-row parts, .hint, AppShell.data_note, the band foot), the
+     notes-only drawer of TransactionManagementLive (.detail-pane.booking-drawer,
+     #booking-facts, #booking-edit-help.form-help, .link-button), the split
+     wizard's warning (.alert-warning) and refusal (.alert-error), the history
+     (#transaction-list, .row-actions__kebab, AppShell.row_menu with
+     .row-context-menu__caption) and the page's .alert-success. -->
+<style id="proposal">
+@scope (.after) {
+  /* R8: a stored name with no break opportunity wraps inside the dialog
+     instead of widening it past the phone. EDITS `.booking-delete-dialog
+     .hint` (adds the two declarations); the subject's ids get an inner
+     span (markup), the one flex item of `.phone-row__ids`, that takes
+     them too. */
+  .booking-delete-dialog .hint,
+  .booking-delete__subject .phone-row__ids > span {
+    overflow-wrap: anywhere;
+    min-width: 0;
+  }
+
+  /* R9: the remedy inside a form's help line and inside the split wizard's
+     warning and refusal gains the 44 px floor under a coarse pointer, the
+     way the remedy inside a data note does (H6.1). EDITS the coarse block of
+     `.data-note__body .link-button` (adds three selectors to its list). The
+     line keeps its height: the negative margin gives back what the padding
+     adds. */
+  @media (pointer: coarse) {
+    .data-note__body .link-button,
+    .form-help .link-button,
+    .alert-warning .link-button,
+    .alert-error .link-button {
+      padding-block: 13px;
+      margin-block: -13px;
+    }
+  }
+
+  /* R9: and the shared 2 px accent ring on keyboard focus, the ring
+     `.row-actions__kebab` and `.policy-rule__name` draw, instead of the
+     browser's 1 px default. NEW. */
+  .form-help .link-button:focus-visible,
+  .alert-warning .link-button:focus-visible,
+  .alert-error .link-button:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* R10g: the phone sheet's caption keeps its separator and the row's
+     kind on one line, glued to the name's last word by a no-break space
+     (markup: the kind in its own span). NEW. */
+  .row-context-menu__kind {
+    white-space: nowrap;
+  }
+}
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: visible; }
+  .pair { display: grid; gap: 12px; }
+  .pair2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .measure { font-size: 11.5px; color: var(--mock-ink); margin: 6px 0 0; }
+  .stage { padding: 16px 20px; display: grid; gap: 10px; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .mock-note code, .pickbar code, .notes code { font-size: 11.5px; }
+  .notes { display: grid; gap: 6px; font-size: 12.5px; max-width: 96ch; margin-top: 10px; }
+  .notes p { margin: 0; }
+  .elide { margin: 0; font-size: 12px; color: var(--mock-ink); font-style: italic; }
+  mark.diff { background: color-mix(in srgb, var(--color-accent) 18%, transparent); color: inherit; border-radius: 3px; padding: 0 2px; }
+  mark.gone { background: color-mix(in srgb, var(--color-danger) 16%, transparent); color: inherit; border-radius: 3px; padding: 0 2px; text-decoration: line-through; }
+
+  /* A dialog on a muted field standing in for the backdrop (board 02 of
+     2026-10-02). The real dialog is fixed-positioned; drawn in flow here. */
+  .dlg-field { background: var(--color-bg-muted); padding: 16px; display: grid; justify-items: center; align-content: start; }
+  .dlg-field .modal { width: 100%; position: static; }
+  .hist { padding: 12px 14px; }
+  .hist .workspace-section { padding: 0; border: 0; }
+  .hist .section-head { margin-bottom: 8px; }
+  .booking-drawer.desk { width: 380px; margin: 0 auto; box-sizing: border-box; position: static; max-height: none; }
+
+  /* Drawing aid: the hit box of a control, as the browser lays it out.
+     Red = under 44 px, green = at the floor. Not app UI. */
+  .hit { outline: 1.5px dashed var(--color-danger) !important; outline-offset: 0 !important; background: color-mix(in srgb, var(--color-danger) 10%, transparent) !important; }
+  .hit-ok { outline: 1.5px dashed var(--color-positive) !important; outline-offset: 0 !important; background: color-mix(in srgb, var(--color-positive) 12%, transparent) !important; }
+
+  /* The coarse-pointer state, applied unconditionally: the renderer has a
+     mouse, so `@media (pointer: coarse)` never matches here. The "After"
+     frames carry .as-coarse and get the proposal's coarse rule as written;
+     the "Before" frames need nothing, no coarse rule reaches these
+     controls today. */
+  .as-coarse .form-help .link-button,
+  .as-coarse .alert-warning .link-button { padding-block: 13px; margin-block: -13px; }
+
+  /* The keyboard-focus state: the browser's default ring today, the
+     proposal's ring after, and the kebab's ring as app.css draws it. */
+  .ua-focus { outline: auto 1px -webkit-focus-ring-color; }
+  .after .form-help .link-button.kb-focus,
+  .after .alert-warning .link-button.kb-focus { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  .row-actions__kebab.kb-focus { color: var(--color-text); outline: 2px solid var(--color-accent); outline-offset: 2px; }
+  h2.kb-focus { outline: auto 1px -webkit-focus-ring-color; }
+
+  /* R3: a page frame cut to its top and to a row far below it. */
+  .viewport { border: 1px dashed var(--mock-ink); border-radius: 6px; padding: 8px 10px; display: grid; gap: 8px; }
+  .viewport > .vp-tag { font-size: 10.5px; color: var(--mock-ink); font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+  .cut { margin: 0; font-size: 11px; color: var(--mock-ink); text-align: center; letter-spacing: .1em; }
+
+  /* R8: the phone at 390 px, the dialog as its bottom sheet, drawn in flow. */
+  .phone-frame { width: 390px; max-width: 100%; border: 1px solid var(--color-border); background: rgba(15, 23, 42, .4); padding-top: 40px; box-sizing: border-box; overflow: hidden; }
+  .phone-frame .modal.booking-delete-dialog { position: static; width: 100%; max-width: none; margin: 0; border-radius: 8px 8px 0 0; }
+  .phone-frame .booking-delete-dialog > .modal-body { padding: 12px 16px; }
+
+  /* R10g: the phone sheet, drawn in flow. */
+  .row-context-menu.sheet-static { position: static !important; width: 390px; box-sizing: border-box; max-width: 100%; box-shadow: 0 -8px 24px rgba(0,0,0,.18); }
+  .row-context-menu.sheet-static .row-context-menu__caption { display: block; padding: var(--space-1) var(--space-3) var(--space-2); margin-bottom: var(--space-1); border-bottom: 1px solid var(--color-border); font-size: 13px; color: var(--color-text-muted); }
+  .row-context-menu.sheet-static .row-context-menu__caption b { color: var(--color-text); font-weight: 600; }
+
+  table.copy { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.copy th { text-align: left; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); background: var(--color-bg-muted); padding: 6px 10px; }
+  table.copy td { padding: 8px 10px; border-bottom: 1px solid var(--color-border); vertical-align: top; }
+  table.copy td:first-child { white-space: nowrap; font-weight: 700; }
+
+  .phone-only { display: none; }
+
+  @media (max-width: 560px) {
+    body { padding: 0; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-board > p.mock-note, .notes { padding: 0 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .pair2 { grid-template-columns: 1fr; }
+    .wide-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 16px; border-radius: 0; }
+    .stage { padding: 12px 12px; }
+    .dlg-field { padding: 12px 0 0; }
+    .booking-drawer.desk { width: auto; }
+    table.copy td:first-child { white-space: normal; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-att" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-keb" viewBox="0 0 24 24"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16Z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7"/><path d="M10 11v7M14 11v7"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar"><b>Sprint 18 PR γ — the closing act's repairs to deleting a booking and the notes-only drawer (U1, #912).</b> Before/after for each repair: the picked anatomy (H2 = A, H2b = A; DESIGN.md, the amendment of 2026-10-03), the Accessibility Floor, UX-DR6 and WCAG 2.4.3 already fix every answer, and the one new state — a split that changed while its dialog was open (R5) — takes the merge dialogs' existing form, so there is no choice to pick. “Before” is <code>app.css</code> and the markup as built at the PR's head; “After” adds the rules in <code>&lt;style id="proposal"&gt;</code> and the copy and markup each section names. Not drawn, because the picture does not change: re-reading the row when “Löschen…” is chosen (R6, a row gone meanwhile shows A6 at once) and the stored names in the subject box set in <code>&lt;bdi&gt;</code> (R7; only a name with a direction control renders differently, as in H8.8). The UI is the German page; every name, ISIN, figure and date is invented. <b>Highlighted = changed text. Dashed = new.</b></div>
+
+<!-- ===================================================== R1 -->
+<section class="mock-board" id="r1">
+  <h2>R1 — The sentence states the quantity at today's count <small>the delete dialog, “Danach …”, a booking before a split</small></h2>
+  <p class="mock-note">The quantity leg was read raw from <code>Projection.effects/1</code>: a buy of 10 on 01.09.2026, then a 2:1 split on 15.09.2026, and the dialog promised 10 fewer units while the holdings fall by 20; a reverse split overstates it the other way. After: the depot's position today with and without the booking — the holdings' own fold — so the figure is what the holdings will show. The same for sells, deliveries and security transfers.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before · a buy of 10 before a 2:1 split, and before a 1:2 reverse split</span>
+      <div class="dlg-field">
+        <div class="modal booking-delete-dialog" role="dialog" aria-label="Transaktion löschen">
+          <header class="modal-head"><h2>Transaktion löschen</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button></header>
+          <div class="modal-body">
+            <p class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">01.09.2026 · Kauf</span><span class="phone-row__ids">Kestrel Robotik SE · Depot 1</span></span><span class="phone-row__figures"><span class="phone-row__figure">-800,00 EUR</span><span class="phone-row__figure2">10 × 80,00</span></span></p>
+            <p class="hint">Danach hält Depot 1 <mark class="gone">10</mark> Stück Kestrel Robotik SE weniger, und Girokonto hat 800,00 EUR mehr. Bestände, Kontostände, Rendite und Trades werden ohne diese Buchung neu berechnet.</p>
+            <p class="hint">Reverse-Split 1:2 statt 2:1: Danach hält Depot 1 <mark class="gone">10</mark> Stück Kestrel Robotik SE weniger, …</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After · the same two bookings</span>
+      <div class="dlg-field">
+        <div class="modal booking-delete-dialog" role="dialog" aria-label="Transaktion löschen">
+          <header class="modal-head"><h2>Transaktion löschen</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button></header>
+          <div class="modal-body">
+            <p class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">01.09.2026 · Kauf</span><span class="phone-row__ids"><span>Kestrel Robotik SE · Depot 1</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">-800,00 EUR</span><span class="phone-row__figure2">10 × 80,00</span></span></p>
+            <p class="hint">Danach hält Depot 1 <mark class="diff">20</mark> Stück Kestrel Robotik SE weniger, und Girokonto hat 800,00 EUR mehr. Bestände, Kontostände, Rendite und Trades werden ohne diese Buchung neu berechnet.</p>
+            <p class="hint">Reverse-Split 1:2 statt 2:1: Danach hält Depot 1 <mark class="diff">5</mark> Stück Kestrel Robotik SE weniger, …</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes"><p>The box keeps the booking's own figures (10 × 80,00): it says the row back as the history shows it. Only the sentence about what changes moves to today's count. The cash leg is not scaled by a split; it keeps the cash the booking moved.</p></div>
+</section>
+
+<!-- ===================================================== R2 -->
+<section class="mock-board" id="r2">
+  <h2>R2 — A later set balance bounds the cash clause <small>the delete dialog, a booking on an account with a balance set after it</small></h2>
+  <p class="mock-note">A balance set on 01.10.2026 anchors Girokonto from that day on (ADR-0009), so deleting the buy of 22.09.2026 changes the account's balance only from 22.09. to 30.09.; today's balance stays. The sentence said “hat 2.504,90 EUR mehr” and then, separately, that the set balance holds — two claims a reader has to reconcile, the first one false for today. After: the clause carries its bound, and the next sentence says from when nothing changes. A balance set on the booking's own day applies after it (snapshots last in their day), so the account's balance does not change on any day: the clause says so instead of naming an amount.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before · a balance set on 01.10.2026</span>
+      <div class="stage">
+        <p class="hint">Danach hält Depot 1 40 Stück Global Aktien ETF weniger, und Girokonto hat <mark class="gone">2.504,90 EUR mehr</mark>. <mark class="gone">Der am 01.10.2026 für Girokonto gesetzte Saldo gilt ab diesem Tag unverändert.</mark> Bestände, Kontostände, Rendite und Trades werden ohne diese Buchung neu berechnet.</p>
+        <p class="cap">… and with the balance set on 22.09.2026, the buy's own day</p>
+        <p class="hint">Danach hält Depot 1 40 Stück Global Aktien ETF weniger, und Girokonto hat <mark class="gone">2.504,90 EUR mehr</mark>. <mark class="gone">Der am 22.09.2026 für Girokonto gesetzte Saldo gilt ab diesem Tag unverändert.</mark> …</p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After · the clause bounded, then from when nothing changes</span>
+      <div class="stage">
+        <p class="hint">Danach hält Depot 1 40 Stück Global Aktien ETF weniger, und Girokonto hat <mark class="diff">bis zum 30.09.2026</mark> 2.504,90 EUR mehr. <mark class="diff">Ab dem am 01.10.2026 gesetzten Saldo bleibt der Stand von Girokonto unverändert.</mark> Bestände, Kontostände, Rendite und Trades werden ohne diese Buchung neu berechnet.</p>
+        <p class="cap">… and with the balance set on 22.09.2026, the buy's own day</p>
+        <p class="hint">Danach hält Depot 1 40 Stück Global Aktien ETF weniger, und <mark class="diff">der Stand von Girokonto bleibt, wie er am 22.09.2026 gesetzt wurde</mark>. …</p>
+      </div>
+    </div>
+  </div>
+  <div class="notes"><p>Each account carries its own bound: a transfer from Girokonto, set on 01.10., to Tagesgeld, set never, reads “Danach hat Girokonto bis zum 30.09.2026 200,00 EUR mehr, und Tagesgeld hat 200,00 EUR weniger. Ab dem am 01.10.2026 gesetzten Saldo bleibt der Stand von Girokonto unverändert.” English: “… and Girokonto has 2,504.90 EUR more until 2026-09-30. From the balance set on 2026-10-01 on, the balance of Girokonto stays unchanged.” / “… and the balance of Girokonto stays as set on 2026-09-22.”</p></div>
+</section>
+
+<!-- ===================================================== R3 -->
+<section class="mock-board" id="r3">
+  <h2>R3 — Focus returns to the row's kebab <small>closing the delete dialog and the Edit drawer · WCAG 2.4.3</small></h2>
+  <p class="mock-note">The dialog's opener, the row menu's item, is gone when the dialog opens, so every exit — Abbrechen, Esc, × — sent the focus to the history's heading, and the browser scrolled the page to the top: the operator lost the row they were on. The Edit drawer (buy/sell and notes-only) has no fallback at all and dropped the focus on <code>&lt;body&gt;</code>. After: the <code>ModalDialog</code> hook returns the focus to the row's kebab while the row exists — the table's at the desktop, the phone row's under 560 px, whichever is visible — and falls back to the heading only when the row is gone (a confirmed delete, A6). A result the close shows (“Notiz gespeichert”, “Transaktion gelöscht: …”) is brought into view below the top bar first; the focus target is then brought into view only if that scroll hid it.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before · “Abbrechen” in the dialog of a row far down</span>
+      <div class="stage">
+        <div class="viewport"><span class="vp-tag">Viewport after the close</span>
+          <section class="workspace-section hist"><header class="section-head"><h2 class="kb-focus" tabindex="-1">Transaktionshistorie</h2><div class="section-head-controls"><button type="button" class="button-primary"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><use href="#i-plus"/></svg> Transaktion erfassen</button></div></header>
+          <p class="elide">Filter, Summen, die ersten Monate …</p></section>
+        </div>
+        <p class="cut">⋮ 60 Zeilen tiefer, außer Sicht ⋮</p>
+        <table id="transaction-list"><tbody><tr><td>14.03.2026</td><td>Kauf</td><td>Nordwind Industrie AG</td><td class="num">25</td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Kauf, Nordwind Industrie AG, 14.03.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr></tbody></table>
+        <p class="measure">Edit drawer, every exit (Abbrechen, Esc, ×, Notiz speichern): the focus on &lt;body&gt;, no ring anywhere.</p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After · the page stays; the ring on the row's kebab</span>
+      <div class="stage">
+        <p class="cut">⋮ die Seite bleibt, wo sie war ⋮</p>
+        <div class="viewport"><span class="vp-tag">Viewport after the close</span>
+          <table id="transaction-list"><tbody>
+            <tr><td>17.03.2026</td><td>Dividende</td><td>Nordwind Industrie AG</td><td class="num">25</td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen für Dividende, Nordwind Industrie AG, 17.03.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr>
+            <tr><td>14.03.2026</td><td>Kauf</td><td>Nordwind Industrie AG</td><td class="num">25</td><td class="row-actions"><button type="button" class="row-actions__kebab kb-focus is-new" aria-label="Aktionen für Kauf, Nordwind Industrie AG, 14.03.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr>
+          </tbody></table>
+        </div>
+        <p class="cap">“Notiz speichern” on a row near the top: the result in view, the ring on the kebab</p>
+        <div class="viewport"><span class="vp-tag">Viewport after the save</span>
+          <p class="alert-success" role="status" style="margin:0">Notiz gespeichert</p>
+          <section class="workspace-section hist" style="padding:0"><header class="section-head"><h2>Transaktionshistorie</h2></header>
+            <table id="transaction-list"><tbody><tr><td>26.09.2026</td><td>Dividende</td><td>Nordwind Industrie AG</td><td class="num">25</td><td class="row-actions"><button type="button" class="row-actions__kebab kb-focus is-new" aria-label="Aktionen für Dividende, Nordwind Industrie AG, 26.09.2026"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><use href="#i-keb"/></svg></button></td></tr></tbody></table>
+          </section>
+        </div>
+        <p class="measure">A confirmed delete: the row is gone, so the heading takes the focus, and the result “Transaktion gelöscht: …” directly above it is in view.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== R4 -->
+<section class="mock-board" id="r4">
+  <h2>R4 — A twin security is named with its ISIN <small>the dialog's subject box and the result, as the row's kebab label already does</small></h2>
+  <p class="mock-note">Two securities named “Global Aktien ETF” with different ISINs: the kebab's label tells their rows apart (UAT-13, “Kauf, Global Aktien ETF · DE000SYN0A17, 22.09.2026”), but the two dialogs were identical and so were the two results. After: the box and the result carry the same tag — the ISIN, else the ticker, else “Nr. …” — wherever the row's label does; a security with a unique name is unchanged.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before · either twin</span>
+      <div class="stage">
+        <p class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">22.09.2026 · Kauf</span><span class="phone-row__ids">Global Aktien ETF · Depot 1</span></span><span class="phone-row__figures"><span class="phone-row__figure">-2.500,00 EUR</span><span class="phone-row__figure2">40 × 62,50</span></span></p>
+        <p class="alert-success" role="status" style="margin:0">Transaktion gelöscht: Kauf · Global Aktien ETF · 22.09.2026.</p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After · the twin with DE000SYN0A17</span>
+      <div class="stage">
+        <p class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">22.09.2026 · Kauf</span><span class="phone-row__ids"><span>Global Aktien ETF · <mark class="diff">DE000SYN0A17</mark> · Depot 1</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">-2.500,00 EUR</span><span class="phone-row__figure2">40 × 62,50</span></span></p>
+        <p class="alert-success" role="status" style="margin:0">Transaktion gelöscht: Kauf · Global Aktien ETF · <mark class="diff">DE000SYN0A17</mark> · 22.09.2026.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== R5 -->
+<section class="mock-board" id="r5">
+  <h2>R5 — A split that changed while its dialog was open <small>the split delete, A4 · the merge dialogs' changed-plan form</small></h2>
+  <p class="mock-note">The confirm ran on the row the dialog was opened from. Deleted alone elsewhere meanwhile, it was “gone” — “Diese Transaktion existiert nicht mehr.” — and the split's other rows stayed, against the dialog's promise; extended meanwhile to a third portfolio, the dialog listed 2 rows and 3 were deleted. After: the dialog carries the event (security, date, ratio) and the rows it listed. On confirm the rows are read again under the split's lock: the same rows are deleted, whichever of them still anchors the event; a different set deletes nothing and the dialog shows the new state with the attention note the merge dialogs use, in a status region at the head of the body (“… Nichts wurde zusammengeführt; die Vorschau zeigt jetzt den neuen Stand.”), to be confirmed again. No row left: A6.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before · listed 2 rows, a third booked meanwhile</span>
+      <div class="dlg-field">
+        <div class="modal booking-delete-dialog" role="dialog" aria-label="Split löschen">
+          <header class="modal-head"><h2>Split löschen</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button></header>
+          <div class="modal-body">
+            <p class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">15.09.2026 · Split</span><span class="phone-row__ids">Kestrel Robotik SE</span></span><span class="phone-row__figures"><span class="phone-row__figure">2:1</span><span class="phone-row__figure2">2 Zeilen</span></span></p>
+            <p class="hint">Der Split ist in 2 Portfolios gebucht, Hauptportfolio und Sparplan-Portfolio; beide Zeilen werden in einem Schritt gelöscht.</p>
+          </div>
+          <div class="modal-footer modal-footer--band"><button type="button" class="button-ghost">Abbrechen</button><span class="modal-footer__spacer"></span><button type="button" class="button-danger">Split löschen (2 Zeilen)</button></div>
+        </div>
+        <p class="alert-success" role="status" style="margin:10px 0 0; width:100%">Split gelöscht: Kestrel Robotik SE · 2:1 · 15.09.2026, <mark class="gone">3 Zeilen</mark>.</p>
+        <p class="alert-error" role="alert" style="margin:10px 0 0; width:100%">Diese Transaktion existiert nicht mehr. <span class="u-muted">— the opened row deleted alone meanwhile; <mark class="gone">its other row stays</mark></span></p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After · the confirm found 3 rows: nothing deleted, the new state</span>
+      <div class="dlg-field">
+        <div class="modal booking-delete-dialog" role="dialog" aria-label="Split löschen">
+          <header class="modal-head"><h2>Split löschen</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button></header>
+          <div class="modal-body">
+            <div class="data-note data-note--attention is-new" data-role="booking-delete-changed">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-att"/></svg></span>
+              <span class="data-note__word">Achtung</span>
+              <div class="data-note__body">Der Split hat sich geändert, während dieser Dialog offen war. Nichts wurde gelöscht; der Dialog zeigt jetzt den neuen Stand.</div>
+            </div>
+            <p class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">15.09.2026 · Split</span><span class="phone-row__ids"><span>Kestrel Robotik SE</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">2:1</span><span class="phone-row__figure2"><mark class="diff">3 Zeilen</mark></span></span></p>
+            <p class="hint">Der Split ist in 3 Portfolios gebucht, Hauptportfolio, Sparplan-Portfolio und Depot-Portfolio; alle 3 Zeilen werden in einem Schritt gelöscht.</p>
+          </div>
+          <div class="modal-footer modal-footer--band"><button type="button" class="button-ghost">Abbrechen</button><span class="modal-footer__spacer"></span><button type="button" class="button-danger">Split löschen (3 Zeilen)</button></div>
+        </div>
+        <p class="cap" style="margin:12px 0 4px; justify-self:start">… and the opened row deleted alone meanwhile, its other row still stored</p>
+        <p class="alert-success is-new" role="status" style="margin:0; width:100%">Split gelöscht: Kestrel Robotik SE · 2:1 · 15.09.2026.</p>
+      </div>
+    </div>
+  </div>
+  <div class="notes"><p>Precisely: the set the dialog listed, less rows deleted meanwhile, is what the confirm may delete. A row added (a re-book in another portfolio) or a different set is a new question and shows the note. The kebab's focus return (R3) follows the row the dialog was opened from.</p></div>
+</section>
+
+<!-- ===================================================== R8 -->
+<section class="mock-board" id="r8">
+  <h2>R8 — A long name wraps inside the dialog on the phone <small>390 px, the dialog as its bottom sheet</small></h2>
+  <p class="mock-note">A stored name with no space — a security, a depot, a cash account — widened the sentence and the box past the sheet: the closing act measured the dialog's scroll width 28 px over its client width at 390 px, with the danger button pushed sideways. After: the hint and the box's ids break anywhere and may shrink, as the history's phone row name already does (<code>.phone-row__name</code>).</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before · 390 px</span>
+      <div class="stage" style="justify-items:center">
+        <div class="phone-frame" data-overflow="before">
+          <div class="modal booking-delete-dialog" role="dialog" aria-label="Transaktion löschen">
+            <header class="modal-head"><h2>Transaktion löschen</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button></header>
+            <div class="modal-body">
+              <p class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">22.09.2026 · Kauf</span><span class="phone-row__ids">Kestrelrobotikautomatisierungsundbeteiligungsholdinggesellschaft · Depot 1</span></span><span class="phone-row__figures"><span class="phone-row__figure">-800,00 EUR</span><span class="phone-row__figure2">10 × 80,00</span></span></p>
+              <p class="hint">Danach hält Depot 1 10 Stück Kestrelrobotikautomatisierungsundbeteiligungsholdinggesellschaft weniger, und Girokonto hat 800,00 EUR mehr.</p>
+            </div>
+            <div class="modal-footer modal-footer--band"><button type="button" class="button-danger">Transaktion löschen</button><button type="button" class="button-ghost">Abbrechen</button></div>
+          </div>
+        </div>
+        <p class="measure" data-overflow-out="before"></p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After · 390 px</span>
+      <div class="stage" style="justify-items:center">
+        <div class="phone-frame" data-overflow="after">
+          <div class="modal booking-delete-dialog" role="dialog" aria-label="Transaktion löschen">
+            <header class="modal-head"><h2>Transaktion löschen</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><use href="#i-x"/></svg></button></header>
+            <div class="modal-body">
+              <p class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">22.09.2026 · Kauf</span><span class="phone-row__ids"><span>Kestrelrobotikautomatisierungsundbeteiligungsholdinggesellschaft · Depot 1</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">-800,00 EUR</span><span class="phone-row__figure2">10 × 80,00</span></span></p>
+              <p class="hint">Danach hält Depot 1 10 Stück Kestrelrobotikautomatisierungsundbeteiligungsholdinggesellschaft weniger, und Girokonto hat 800,00 EUR mehr.</p>
+            </div>
+            <div class="modal-footer modal-footer--band"><button type="button" class="button-danger">Transaktion löschen</button><button type="button" class="button-ghost">Abbrechen</button></div>
+          </div>
+        </div>
+        <p class="measure" data-overflow-out="after"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== R9 -->
+<section class="mock-board" id="r9">
+  <h2>R9 — The new remedies get the 44 px floor and the accent ring <small>UX-DR6 · the Accessibility Floor · <code>.link-button</code> in a help line and in the split wizard's warning</small></h2>
+  <p class="mock-note">The notes-only drawer's “Löschen…” / “Split löschen…” (<code>#booking-edit-help.form-help</code>) and A8's “Gebuchten Split löschen…” (in <code>.alert-warning</code>, and in the refusal's <code>.alert-error</code>) are bare <code>.link-button</code>s: about 18 px tall under a touch pointer, and the browser's 1 px ring on keyboard focus. The remedy inside a data note already has the floor (H6.1); these join its rule — padding grows the hit box to 44 px, the equal negative margin keeps the line — and take the 2 px accent ring the kebab and a rule's name draw. Desktop with a mouse is unchanged. Dashed red/green = the hit box (drawing aid); the After frames apply the coarse rule without the media query, because the renderer has a mouse.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before · touch, then keyboard focus</span>
+      <div class="stage" data-hits="before">
+        <p class="form-help">Datum, Beträge und Konten dieser Buchung stehen hier fest; die Oberfläche bucht nur Käufe und Verkäufe. Korrigiert wird die Buchung über API oder MCP, oder sie wird gelöscht und neu importiert. <button type="button" class="link-button hit">Löschen…</button></p>
+        <div class="alert-warning" role="alert"><span>Für dieses Wertpapier ist an diesem Datum bereits ein Split mit anderem Verhältnis gebucht (2:1). Die Buchung wird abgelehnt, solange er steht.</span><span><button type="button" class="link-button hit">Gebuchten Split löschen…</button></span></div>
+        <p class="form-help">Stichtag, Verhältnis und Wertpapier eines gebuchten Splits stehen fest. … <button type="button" class="link-button ua-focus">Split löschen…</button></p>
+        <p class="measure" data-hit-out="before"></p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After · touch, then keyboard focus</span>
+      <div class="stage" data-hits="after">
+        <div class="as-coarse" style="display:grid; gap:10px">
+        <p class="form-help">Datum, Beträge und Konten dieser Buchung stehen hier fest; die Oberfläche bucht nur Käufe und Verkäufe. Korrigiert wird die Buchung über API oder MCP, oder sie wird gelöscht und neu importiert. <button type="button" class="link-button hit-ok">Löschen…</button></p>
+        <div class="alert-warning" role="alert"><span>Für dieses Wertpapier ist an diesem Datum bereits ein Split mit anderem Verhältnis gebucht (2:1). Die Buchung wird abgelehnt, solange er steht.</span><span><button type="button" class="link-button hit-ok">Gebuchten Split löschen…</button></span></div>
+        </div>
+        <p class="form-help">Stichtag, Verhältnis und Wertpapier eines gebuchten Splits stehen fest. … <button type="button" class="link-button kb-focus">Split löschen…</button></p>
+        <p class="measure" data-hit-out="after"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== R10 -->
+<section class="mock-board" id="r10">
+  <h2>R10 — Copy and small repairs <small>the dialog, the notes-only drawer, the phone sheet</small></h2>
+  <p class="mock-note">(c), (f) and (g) change a picture and are drawn below; the rest is copy, in German where the page shows it and in English where only the English page was wrong.</p>
+  <table class="copy">
+    <thead><tr><th>Repair</th><th>Before</th><th>After</th></tr></thead>
+    <tbody>
+      <tr><td>(a) EN article</td><td>The screen does not book a <mark class="gone">“Interest”</mark>; only the note changes here, and the change is journaled.</td><td>The screen does not book <mark class="diff">the kind</mark> “Interest”; only the note changes here, and <mark class="diff">the journal records the change</mark>. <span class="u-muted">(German: „Die Art „Zinsen“ bucht die Oberfläche nicht; …“ already avoided it.)</span></td></tr>
+      <tr><td>(b) EN plural</td><td>Afterwards Depot 1 holds 1 more <mark class="gone">units</mark> of …; the box: “1 <mark class="gone">units</mark>”</td><td>Afterwards Depot 1 holds 1 more <mark class="diff">unit</mark> of …; “1 <mark class="diff">unit</mark>” <span class="u-muted">(German „Stück“ has one form.)</span></td></tr>
+      <tr><td>(d) plain words</td><td>Diese Buchung stammt aus einem Import. <mark class="gone">Mit ihr geht ihr Inhalts-Hash</mark>: Ein erneuter Import derselben Datei bucht sie wieder.</td><td>Diese Buchung stammt aus einem Import. <mark class="diff">Gelöscht, kennt der Import sie nicht mehr</mark>: Ein erneuter Import derselben Datei bucht sie wieder.</td></tr>
+      <tr><td></td><td>A split in one portfolio — the box: 2:1 · <mark class="gone">1 Zeile</mark>; „Der Split ist in 1 Portfolio gebucht, Hauptportfolio; <mark class="gone">seine Zeile wird gelöscht</mark>.“ „Das Journal behält <mark class="gone">seine Zeile</mark>.“ Result „…, <mark class="gone">1 Zeile</mark>.“</td><td>The box: 2:1, no count; „Der Split ist <mark class="diff">nur in Hauptportfolio</mark> gebucht.“ „Das Journal behält <mark class="diff">den Split</mark>.“ Result „Split gelöscht: Kestrel Robotik SE · 2:1 · 15.09.2026.“ Two or more portfolios keep their rows as built — the history shows them as rows: „beide Zeilen werden in einem Schritt gelöscht“, „alle 3 Zeilen …“.</td></tr>
+      <tr><td></td><td>The drawer's sub line: „hier ändert sich nur die Notiz, <mark class="gone">und die Änderung wird journalisiert</mark>.“</td><td>„hier ändert sich nur die Notiz, <mark class="diff">und das Journal hält die Änderung fest</mark>.“ — the three notes-only sub lines (a kind, a split, a set balance).</td></tr>
+      <tr><td>(e) help line</td><td>A deposit booked over the API: „…, oder sie wird gelöscht und <mark class="gone">neu importiert</mark>.“</td><td>Imported: „…, oder sie wird gelöscht und neu importiert.“ (unchanged) · not imported: „…, oder sie wird gelöscht und <mark class="diff">dort neu gebucht</mark>.“ — “there”: the API or MCP the sentence just named.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="pair2" style="margin-top:14px">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before · (c) a delivery's price, (f) a dividend that carries a depot</span>
+      <div class="stage">
+        <div class="form-grid" style="grid-template-columns: repeat(2, minmax(0, 1fr))">
+          <label><span>Stückzahl</span><input class="num" value="5" disabled></label>
+          <label><span>Preis</span><input class="num" value="41,12" disabled></label>
+        </div>
+        <p class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">26.09.2026 · Dividende</span><span class="phone-row__ids">Nordwind Industrie AG · <mark class="gone">Depot 1</mark></span></span><span class="phone-row__figures"><span class="phone-row__figure">48,75 EUR</span></span></p>
+        <p class="hint">Danach hat Girokonto 48,75 EUR weniger. …</p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After · the stored price; the box names the account the sentence names</span>
+      <div class="stage">
+        <div class="form-grid" style="grid-template-columns: repeat(2, minmax(0, 1fr))">
+          <label><span>Stückzahl</span><input class="num" value="5" disabled></label>
+          <label><span>Preis</span><input class="num" value="41,1234" disabled></label>
+        </div>
+        <p class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">26.09.2026 · Dividende</span><span class="phone-row__ids"><span>Nordwind Industrie AG · <mark class="diff">Girokonto</mark></span></span></span><span class="phone-row__figures"><span class="phone-row__figure">48,75 EUR</span></span></p>
+        <p class="hint">Danach hat Girokonto 48,75 EUR weniger. …</p>
+      </div>
+    </div>
+  </div>
+  <div class="notes"><p>(c) A stored figure shows its stored digits, trailing zeros trimmed, at least two places: 41,1234 stays 41,1234, 48,75 stays 48,75, 900 reads 900,00. (f) A kind that moves only cash names its cash account in the box, as the sentence does; a booking that moves shares keeps its depot.</p></div>
+
+  <div class="pair2" style="margin-top:14px">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before · (g) the phone sheet's caption, a twin's name</span>
+      <div class="stage">
+        <div class="row-context-menu sheet-static" role="menu" aria-label="Transaktionsaktionen" data-caption="before">
+          <div class="row-context-menu__caption" aria-hidden="true"><b>Kauf, Global Aktien ETF · DE000SYN0A17, 22.09.2026</b> · Transaktion</div>
+          <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-edit"/></svg>Bearbeiten</button>
+          <button type="button" class="row-context-menu__item row-context-menu__item--danger" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-trash"/></svg>Löschen…</button>
+        </div>
+        <p class="measure" data-caption-out="before"></p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After · the separator stays with the date and the kind</span>
+      <div class="stage">
+        <div class="row-context-menu sheet-static" role="menu" aria-label="Transaktionsaktionen" data-caption="after">
+          <div class="row-context-menu__caption" aria-hidden="true"><b>Kauf, Global Aktien ETF · DE000SYN0A17, 22.09.2026</b><span class="row-context-menu__kind is-new">&nbsp;· Transaktion</span></div>
+          <button type="button" class="row-context-menu__item" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-edit"/></svg>Bearbeiten</button>
+          <button type="button" class="row-context-menu__item row-context-menu__item--danger" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-trash"/></svg>Löschen…</button>
+        </div>
+        <p class="measure" data-caption-out="after"></p>
+      </div>
+    </div>
+  </div>
+  <div class="notes"><p>(g) is the shared <code>AppShell.row_menu</code>, so the accounts' sheet (“… · Depot”) gets it too.</p></div>
+</section>
+
+<script>
+  const px = (n) => (Math.round(n * 10) / 10).toString().replace('.', ',') + ' px';
+
+  // R8: how far the dialog overflows the phone frame.
+  document.querySelectorAll('[data-overflow]').forEach((frame) => {
+    const dialog = frame.querySelector('.booking-delete-dialog');
+    const over = dialog.scrollWidth - dialog.clientWidth;
+    document.querySelector('[data-overflow-out="' + frame.dataset.overflow + '"]').textContent =
+      'Measured: the dialog\'s scroll width − client width = ' + px(over) + '.';
+  });
+
+  // R9: the remedies' hit boxes.
+  document.querySelectorAll('[data-hits]').forEach((stage) => {
+    const boxes = [...stage.querySelectorAll('.hit, .hit-ok')]
+      .map((b) => { const r = b.getBoundingClientRect(); return '„' + b.textContent.trim() + '“ ' + px(r.width) + ' × ' + px(r.height); });
+    stage.querySelector('[data-hit-out]').textContent = 'Measured hit boxes: ' + boxes.join(' · ') + '.';
+  });
+
+  // R10g: find the widest sheet at which the Before caption breaks around
+  // its "·" — the separator starting a line, or ending one with the kind
+  // alone on the next (a twin's name on the 390 px phone, as the closing
+  // act saw it) — give both sheets that width, and report each caption.
+  (function () {
+    const sheets = { before: document.querySelector('[data-caption="before"]'), after: document.querySelector('[data-caption="after"]') };
+    const rect = (node, i) => { const r = document.createRange(); r.setStart(node, i); r.setEnd(node, i + 1); return r.getClientRects()[0]; };
+    const read = (sheet) => {
+      const cap = sheet.querySelector('.row-context-menu__caption');
+      const node = sheet === sheets.before ? cap.lastChild : cap.querySelector('.row-context-menu__kind').firstChild;
+      const d = rect(node, node.textContent.indexOf('·'));
+      const k = rect(node, node.textContent.indexOf('T'));
+      const lines = cap.querySelector('b').getClientRects();
+      const date = lines[lines.length - 1];
+      if (d.left - cap.getBoundingClientRect().left < 20) return '“·” starts a line';
+      if (Math.abs(d.top - k.top) > 2) return '“·” ends a line, the kind alone on the next';
+      return Math.abs(d.top - date.top) < 2 ? 'date, “·” and kind on one line' : 'the kind on its own line with its “·”';
+    };
+    let found = null;
+    for (let w = 390; w >= 260; w--) {
+      sheets.before.style.width = w + 'px';
+      if (read(sheets.before).indexOf('“·” ') === 0) { found = w; break; }
+    }
+    if (found) sheets.after.style.width = found + 'px';
+    document.querySelector('[data-caption-out="before"]').textContent = 'Measured at a ' + (found || '—') + ' px sheet: ' + read(sheets.before) + '.';
+    document.querySelector('[data-caption-out="after"]').textContent = 'Measured at a ' + (found || '—') + ' px sheet: ' + read(sheets.after) + '.';
+  })();
+</script>
+</body>
+</html>

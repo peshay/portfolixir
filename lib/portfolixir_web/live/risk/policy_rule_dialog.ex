@@ -37,6 +37,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleLabel
   alias PortfolixirWeb.Risk.PolicyRuleFormat
+  alias PortfolixirWeb.StoredText
 
   @metric_measures ~w(volatility max_drawdown)
 
@@ -136,29 +137,6 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
   defp decimal_input(%Decimal{} = value),
     do: value |> Decimal.normalize() |> DecimalInput.value()
 
-  # A translated sentence around one stored name (E25 S7 review round,
-  # S7E-8; pick G12.2 = B): the template is split on a placeholder no
-  # translation carries, before any stored text is put in, and the name is
-  # set in <bdi>, so a direction control a legacy name still carries
-  # reorders at most the name, never the sentence around it.
-  @stored_marker "\u0000stored\u0000"
-
-  defp frame(translated) do
-    case String.split(translated, @stored_marker, parts: 2) do
-      [before, rest] -> {before, rest}
-      [whole] -> {whole, nil}
-    end
-  end
-
-  attr(:frame, :any, required: true)
-  attr(:text, :string, required: true)
-
-  defp isolated(assigns) do
-    ~H"""
-    <%= case @frame do %><% {before, rest} when is_binary(rest) -> %><%= before %><bdi><%= @text %></bdi><%= rest %><% {whole, nil} -> %><%= whole %><% end %>
-    """
-  end
-
   @impl true
   def render(assigns) do
     name_changed? = name_changed?(assigns.rule, assigns.form)
@@ -172,12 +150,22 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
         unit: PolicyRuleFormat.unit(assigns.form["measure"]),
         name_changed?: name_changed?,
         rename_only?: name_changed? and predicate(assigns.form) == assigns.baseline,
-        title_frame: frame(gettext("Change rule — “%{name}”", name: @stored_marker)),
-        view_frame:
-          frame(
+        # A translated sentence around one stored name (E25 S7 review
+        # round, S7E-8; pick G12.2 = B), the helper shared since #968: the
+        # name is set in <bdi>, so a direction control a legacy name still
+        # carries reorders at most the name, never the sentence around it.
+        title:
+          assigns.rule &&
+            StoredText.isolate(
+              gettext("Change rule — “%{name}”", name: StoredText.slot(:name)),
+              name: assigns.rule.name
+            ),
+        view_line:
+          StoredText.isolate(
             gettext("Evaluated in the view “%{view}”, on its steerable basis.",
-              view: @stored_marker
-            )
+              view: StoredText.slot(:view)
+            ),
+            view: assigns.view_name
           )
       )
 
@@ -193,7 +181,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
     >
       <header class="modal-head">
         <h2 id={"#{@id}-title"}>
-          <%= if @rule do %><.isolated frame={@title_frame} text={@rule.name} /><% else %><%= gettext("New rule") %><% end %>
+          <%= if @rule do %><%= @title %><% else %><%= gettext("New rule") %><% end %>
         </h2>
         <button
           type="button"
@@ -209,7 +197,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
         <div class="modal-body">
           <p :if={@alert} class="alert-error" role="alert"><%= @alert %></p>
           <p class="hint">
-            <.isolated frame={@view_frame} text={@view_name} />
+            <%= @view_line %>
           </p>
 
           <%!-- E25 S7, G20; pick G12.2 = B: a name or a note stored before
@@ -400,7 +388,11 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
                 <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
                 <%= gettext("Versions") %>
               </summary>
-              <ol class="policy-rule-versions">
+              <%!-- #910, pick H8.1 (board 08-dialogs-copy): one numbering,
+                   the label the version note and the retire confirmation
+                   name; app.css drops the marker, and role="list" keeps the
+                   list semantics Safari takes from a list without one. --%>
+              <ol class="policy-rule-versions" role="list">
                 <li :for={{version, index} <- Enum.with_index(@rule.versions, 1)}>
                   <%= gettext("Version %{n}", n: index) %> · <%= PolicyRuleFormat.period(version) %> ·
                   <%= PolicyRuleFormat.line(version) %> · <%= PolicyRuleLabel.severity(version.severity) %>

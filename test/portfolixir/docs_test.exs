@@ -270,7 +270,7 @@ defmodule Portfolixir.DocsTest do
     for token <- [
           "--color-accent-violet: #7c3aed",
           "--color-accent-teal: #0f766e",
-          "--color-accent-coral: #e11d48"
+          "--color-accent-coral: #ce1b42"
         ] do
       assert docs_css =~ token
     end
@@ -450,7 +450,7 @@ defmodule Portfolixir.DocsTest do
     for token <- [
           "--color-accent-violet: #7c3aed",
           "--color-accent-teal: #0f766e",
-          "--color-accent-coral: #e11d48"
+          "--color-accent-coral: #ce1b42"
         ] do
       assert docs_css =~ token
       assert app_css =~ token
@@ -1633,5 +1633,117 @@ defmodule Portfolixir.DocsTest do
         assert doc =~ fragment, "#{path}: #{fragment}"
       end
     end
+  end
+
+  # User story (#330, ADR-0052; pick H3 = A):
+  # As a local portfolio maintainer holding bonds,
+  # I want the handbook and the API reference, in English and German, to say
+  # what a bond's master data is, the quantity convention, how the remaining
+  # term and both yields are computed, and what "priced on two scales" means,
+  # so that I can read the figures and check a bond against its statement.
+  #
+  # Acceptance criteria:
+  # - The handbooks name the section, the hundredth convention (the nominal
+  #   is quantity × 100), both formulas, the 365-day year, what is excluded,
+  #   and the two-scales note with its place in the Wealth data quality.
+  # - The API references name the six fields, the bond block with each
+  #   metric's computation basis, and the two-scales rule.
+  test "the docs describe bond master data, its metrics and the two scales in English and German" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "### Bonds: master data and key metrics (ADR-0052)",
+             "a hundredth of its face amount",
+             "the nominal held is quantity × 100",
+             "current yield** = coupon ÷ price",
+             "(coupon + (100 − price) ÷ remaining term in years) ÷ price",
+             "in years of 365 days",
+             "Accrued interest, fees and taxes are not included",
+             "20 to 500 times a booked price per unit",
+             "bonds **priced on two scales**",
+             "**No yield from a price per unit.**"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "### Anleihen: Stammdaten und Kennzahlen (ADR-0052)",
+             "ein Hundertstel des Nominals",
+             "das Nominal im Bestand ist Stück × 100",
+             "laufende Rendite** = Kupon ÷ Kurs",
+             "(Kupon + (100 − Kurs) ÷ Restlaufzeit in Jahren) ÷ Kurs",
+             "in Jahren zu 365 Tagen",
+             "Stückzinsen, Gebühren und Steuern sind nicht enthalten",
+             "20- bis 500-Fache eines gebuchten Preises je Stück",
+             "**auf zwei Skalen bepreist**",
+             "**Keine Rendite aus einem Preis je Stück.**"
+           ]},
+          {"docs/integration/api-and-mcp.md",
+           [
+             "### Bonds: master data and the bond reading (ADR-0052)",
+             "`coupon_rate`",
+             "`coupon_frequency`",
+             "`face_value_currency_code`",
+             "**quantity × 100**",
+             "Every metric carries its own `computation_basis`",
+             "a latest quote 20 to 500 times a booked price per unit",
+             "`null` with `price_on_unit_scale: true`",
+             "each a ratio rounded half up at scale 6",
+             "`coupon_rate` and `face_value` keep 6 decimal places",
+             "a bond's `coupon_rate` and `face_value` (6)"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "### Anleihen: Stammdaten und Anleihe-Lesung (ADR-0052)",
+             "`coupon_rate`",
+             "`coupon_frequency`",
+             "`face_value_currency_code`",
+             "**Stück × 100**",
+             "Jede Kennzahl trägt ihre eigene `computation_basis`",
+             "ein letzter Kurs vom 20- bis 500-Fachen eines gebuchten Preises je Stück",
+             "`null` mit `price_on_unit_scale: true`",
+             "jeweils eine Verhältniszahl, kaufmännisch auf sechs Nachkommastellen gerundet",
+             "`coupon_rate` und `face_value` halten 6 Nachkommastellen",
+             "`coupon_rate` und `face_value` einer Anleihe (6)"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
+
+  # User story (#330, closing act on U7, finding 6):
+  # As the maintainer reading ADR-0052 after the merge,
+  # I want its status to say plainly what kind of decision it is and which
+  # merge adopted it, and its consequences to name the cases its two rules
+  # get wrong,
+  # so that the record does not borrow a planning PR's adoption rule, and a
+  # distressed bond named by the guard is a known case, not a surprise.
+  #
+  # Acceptance criteria:
+  # - The status names a story-level decision recorded by #330's story and
+  #   adopted by the merge of Sprint 18's PR γ (#1054); it no longer cites
+  #   ADR-0026 step 1 or PR #780, which concern planning PRs.
+  # - The consequences name the guard's known false positive (a distressed
+  #   bond legitimately booked at about 3 % of par and quoted at 65) and the
+  #   price-at-most-5 rule's.
+  test "ADR-0052 states its adoption plainly and names its known false positives" do
+    adr =
+      "docs/decisions/0052-bond-master-data-in-dedicated-columns.md"
+      |> File.read!()
+      |> String.replace(~r/\s+/, " ")
+
+    [status] = Regex.run(~r/\*\*Status:\*\*[^*]*/, adr)
+
+    assert status =~ "a story-level decision, recorded by #330's story"
+    assert status =~ "adopted by the merge of Sprint 18's PR γ (#1054)"
+    refute status =~ "ADR-0026"
+    refute status =~ "#780"
+
+    [consequences] = Regex.run(~r/## Consequences.*/s, adr)
+    assert consequences =~ "a known false positive"
+    assert consequences =~ "about 3 % of par and quoted at 65"
+    assert consequences =~ "at most 5"
   end
 end

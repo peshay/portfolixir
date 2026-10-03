@@ -140,7 +140,8 @@ den ein Schreibzugriff speichert: den `close` eines Kurses (6
 Nachkommastellen), einen Wechselkurs (15) sowie die Geldfelder (6) und Sätze
 (4) der Steuer-Schreibzugriffe — die Töpfe und einbehaltenen Steuern einer
 Steuerbescheinigung, `amount_granted` eines Freistellungsauftrags, die
-Freibeträge und Sätze eines Steuerjahrs, `church_tax_rate` eines Profils. Ein
+Freibeträge und Sätze eines Steuerjahrs, `church_tax_rate` eines Profils —
+sowie `coupon_rate` und `face_value` einer Anleihe (6). Ein
 feinerer Wert wird vor der Prüfung kaufmännisch auf seine Stellenzahl
 gerundet; ein positiver `close`, der auf `0` rundet, liefert also `422` und
 wird nie als Null gespeichert. Ein Geldwert mit mehr als 14 Stellen vor dem
@@ -818,6 +819,79 @@ Nachkommastellen.
 Empfehlung, kein Rating, keinen Score und keine Handlung in der Antwort. Eine
 Regel über einer Kennzahl ist FR-43 und bleibt verschlossen.
 
+### Anleihen: Stammdaten und Anleihe-Lesung (ADR-0052)
+
+Die Stammdaten einer Anleihe sind sechs nullbare Felder des Wertpapiers,
+setzbar mit `POST /api/v1/securities` und `PATCH /api/v1/securities/:id`,
+in jeder Wertpapier-Antwort enthalten (und mit `fields=` wählbar):
+
+- `coupon_rate` — der Kupon in **Prozent vom Nennwert pro Jahr**, ein
+  Decimal-String von 0 bis 100 (`"2.5"`, nicht `"0.025"`);
+- `coupon_frequency` — `annual` oder `semi_annual`;
+- `maturity_date` und `issue_date` — ISO-Daten, die Fälligkeit nach dem
+  Emissionstag;
+- `face_value` — die Stückelung, ein Decimal-String über 0;
+- `face_value_currency_code` — die Währung der Stückelung, ein ISO-4217-Code
+  aus der Menge, die `currency_code` annimmt.
+
+`coupon_rate` und `face_value` halten 6 Nachkommastellen, nach der Regel,
+der jeder gespeicherte Betrag folgt (**Andere gespeicherte Beträge** oben):
+Ein feinerer Wert wird vor der Prüfung kaufmännisch gerundet, `"3.1234567"`
+wird also als `"3.123457"` gespeichert und gemeldet. Gesendet werden sie als
+Strings, wie jedes Decimal; eine JSON-Zahl wird so umgewandelt, wie jedes
+Decimal-Feld eine umwandelt.
+
+`null` löscht ein Feld, Pflicht ist keines, ein unmöglicher Wert ist ein
+`422`, der sein Feld nennt, ohne dass etwas geschrieben wird, und die Felder
+bleiben erhalten, wenn die Anlageklasse wechselt. Gelesen werden sie nur,
+solange die effektive Anlageklasse `bond` oder `government_bond` ist. Die
+MCP-Tools `portfolixir.securities.create` und `portfolixir.securities.update`
+nehmen sie entgegen (das Update auch `null`).
+
+`GET /api/v1/securities/:id` eines solchen Wertpapiers trägt `bond`, beim
+Lesen berechnet und nie gespeichert (Stufe (a) der Scope-Leiter); für jedes
+andere Wertpapier und in Listen und Schreibantworten ist es `null`:
+
+- `as_of` und `quantity` (die gehaltenen Stück über alle Depots);
+- `nominal_held` — `amount`, **Stück × 100**, in `currency_code` (der des
+  Nennwerts, sonst der des Wertpapiers): Ein Portfolio-Performance-Export
+  bucht die Stückzahl einer prozentnotierten Anleihe als **ein Hundertstel
+  des Nominals**, darum ist ein Kurs zugleich Prozent vom Nennwert und Preis
+  je Stück;
+- `remaining_term` — `days` von `as_of` bis zur Fälligkeit, `years` (Tage ÷
+  365, kaufmännisch auf sechs Nachkommastellen gerundet), `whole_years` und
+  `whole_months`, `matured` ab dem Fälligkeitstag;
+- `current_yield` — Kupon ÷ Kurs, und `yield_to_maturity` — die **lineare
+  Näherung** (Kupon + (100 − Kurs) ÷ Restlaufzeit in Jahren) ÷ Kurs, ohne
+  Zinseszins; jeweils eine Verhältniszahl, kaufmännisch auf sechs
+  Nachkommastellen gerundet (`0.025707` ist 2,5707 %) und wie jedes Decimal
+  ohne nachgestellte Nullen gesendet (`"0.03685"`, `"0"`), mit dem
+  verwendeten `price` (`value`, `date`,
+  `source`: `quote` für den letzten gespeicherten Kurs, `trade` für den
+  letzten eigenen Handelspreis, solange es keinen gibt);
+- `two_scales` — `null` oder der Befund, dass die Anleihe **auf zwei Skalen
+  bepreist** ist: ihr `latest_quote`, die Zahl der `unit_scale_bookings`
+  und die `last_unit_scale_booking` sowie die `rule` (ein letzter Kurs vom
+  20- bis 500-Fachen eines gebuchten Preises je Stück, eines Kaufs oder
+  einer mit Preis erfassten Einlieferung). Jeder Geldbetrag einer
+  solchen Anleihe ist hundertfach zu hoch, und die TTWROR zeigt es nicht;
+  umgerechnet wird nichts.
+
+Jede Kennzahl trägt ihre eigene `computation_basis` (`input_series`,
+`window`, `reference`, `gaps`, `assumptions`). Eine Zahl ohne ihren Eingang
+ist `null` mit `insufficient_data: true` und den fehlenden Eingängen in
+`missing` (`coupon_rate`, `maturity_date`, `price`); die Renditen einer
+fälligen Anleihe sind `null` mit `matured: true`. Eine Rendite, deren Kurs
+der letzte eigene Handelspreis von **höchstens 5** ist — das Spiegelbild
+des Zwei-Skalen-Bands, 100 ÷ 20, der Preis je Stück einer Buchung, die das
+Nominal als Stückzahl erfasst hat —, ist `null` mit
+`price_on_unit_scale: true`, weder `insufficient_data` noch `matured`: Ein
+solcher Preis ist kein Prozent vom Nennwert, Kupon ÷ Kurs wäre also keine
+Rendite. Ein gespeicherter Kurs ist in jeder Höhe ein Prozentkurs und wird
+immer verwendet; bei jeder anderen Rendite ist `price_on_unit_scale`
+`false`. Stückzinsen, Gebühren und Steuern sind nicht enthalten; die Lesung
+berichtet, sie bewertet nicht.
+
 ## Kurse
 
 - `GET /api/v1/securities/:security_id/quotes` listet die Kurshistorie eines
@@ -1451,10 +1525,15 @@ Beispiel-Payloads für Konten:
   `portfolio_id`, `type` oder am Verhältnis antwortet mit 422 und nennt das
   Feld, denn ein Split wird über `POST /api/v1/splits` gebucht, dessen
   Prüfungen eine allgemeine Änderung umgehen würde. Ein falscher Split wird
-  gelöscht (jede seiner Zeilen) und neu gebucht.
+  als Ganzes gelöscht (`DELETE /api/v1/splits/:transaction_id`, unten) und
+  neu gebucht.
 - `DELETE /api/v1/transactions/:id` löscht eine Transaktion. Da Trades und
   Bestände abgeleitet sind, korrigiert oder entfernt das Korrigieren oder Entfernen
-  der Transaktion auch sie.
+  der Transaktion auch sie. Mit einer importierten Buchung geht ihr
+  Inhalts-Hash, ein erneuter Import derselben Datei bucht sie also wieder
+  (einen Hash legt nur eine Zusammenführung still, ADR-0050 §3). An einer
+  Split-Zeile löscht der Aufruf nur diese Zeile; die übrigen Zeilen des
+  Splits halten das Ereignis.
 - `POST /api/v1/splits/preview` zeigt eine Aktiensplit-Buchung (ADR-0028) als
   Vorschau, ohne etwas zu schreiben. Die Anfrage trägt `security_id`, das
   Wirksamkeitsdatum `date` (ISO, nicht in der Zukunft) und das Verhältnis als
@@ -1493,8 +1572,21 @@ Beispiel-Payloads für Konten:
   einschließlich des neuen auf höchstens `10^12` multiplizieren; ein
   Verhältnis darüber liefert bei Vorschau und Buchung `422` an `ratio`, und
   nichts wird geschrieben (E25 S4). Der generische Endpunkt
-  `POST /api/v1/transactions` lehnt die Art `split` ab — diese beiden Routen
-  sind der einzige Schreibpfad für Splits.
+  `POST /api/v1/transactions` lehnt die Art `split` ab — nur diese beiden
+  Routen buchen einen Split.
+- `DELETE /api/v1/splits/:transaction_id` löscht einen Split so, wie er
+  gebucht wurde, als eine Tatsache (Sprint 18 U1, #912): von einer beliebigen
+  seiner Zeilen aus jede `split`-Zeile mit demselben Wertpapier, Datum und
+  gekürzten Verhältnis — eine je Portfolio — in einer Transaktion, jede Zeile
+  mit ihrem Vorher-Bild journalisiert. Die Antwort ist `200` mit
+  `data.transactions`, den gelöschten Zeilen im regulären Transaktionsformat,
+  nach Portfolio geordnet. Danach trägt kein Portfolio das Ereignis mehr:
+  Bestände zählen ohne ihn, die Kurs-Lesepfade bereinigen nicht mehr um ihn,
+  und `POST /api/v1/splits` bucht das korrigierte Verhältnis am selben Tag.
+  Eine unbekannte oder schon gelöschte Zeile liefert `404`; eine Buchung
+  anderer Art liefert `422` an `transaction_id` und nennt
+  `DELETE /api/v1/transactions/:id`; scheitert eine Zeile, wird nichts
+  gelöscht. Die übrigen Splits des Wertpapiers bleiben.
 - `GET /api/v1/portfolios/:portfolio_id/holdings` listet abgeleitete Bestände
   eines Portfolios, eine Zeile je (Depot, Wertpapier). Jede Zeile trägt
   `quantity`, einen gleitenden Durchschnitt `avg_cost` und `cost_basis`
@@ -3077,12 +3169,16 @@ Adresse.
 - `portfolixir.securities.list`
 - `portfolixir.securities.get` — vollständiger Datensatz eines Wertpapiers
   einschließlich seiner `identifier_aliases` (aufgezeichnete frühere ISINs)
-  und seines abgeleiteten `thesis_state` (ADR-0044); ein zusammengeführtes
+  und seines abgeleiteten `thesis_state` (ADR-0044), für eine Anleihe ihre
+  Lesung `bond` mit der `computation_basis` jeder Kennzahl und dem
+  Zwei-Skalen-Befund (ADR-0052); ein zusammengeführtes
   Wertpapier antwortet `404` mit `errors.merged_into`, und die Beschreibung
   sagt das (ADR-0050 §12).
-- `portfolixir.securities.create`
+- `portfolixir.securities.create` — nimmt die Stammdaten einer Anleihe
+  entgegen (#330, ADR-0052).
 - `portfolixir.securities.update` — Beschreibung und `currency_code`-Eigenschaft
-  nennen das Einfrieren der Währung (ADR-0050 §11).
+  nennen das Einfrieren der Währung (ADR-0050 §11); nimmt die Stammdaten
+  einer Anleihe entgegen, `null` löscht ein Feld.
 - `portfolixir.securities.delete`
 - `portfolixir.securities.isin_change` — zeichnet einen
   Kapitalmaßnahmen-ISIN-Wechsel auf, damit Importe über die frühere ISIN
@@ -3186,9 +3282,13 @@ Adresse.
 - `portfolixir.transactions.list`
 - `portfolixir.transactions.create`
 - `portfolixir.transactions.update`
-- `portfolixir.transactions.delete`
+- `portfolixir.transactions.delete` — eine Zeile; an einem Split nennt es
+  `portfolixir.splits.delete`
 - `portfolixir.splits.preview`
 - `portfolixir.splits.create`
+- `portfolixir.splits.delete` — den ganzen Split von einer beliebigen seiner
+  Zeilen aus, die Zeile jedes Portfolios in einem journalisierten Schritt
+  (#912); ein Admin-Werkzeug, das Profil `book` lässt es also weg
 - `portfolixir.holdings.list`
 - `portfolixir.cashflow.realized_gains` — das #724-Rollup mit erklärter
   FX-Basis und Ausschluss-und-Benennung bei Kurslücken, und der annualisierten

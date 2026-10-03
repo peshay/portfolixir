@@ -9,7 +9,8 @@ defmodule PortfolixirWeb.InvisibleTextNotesLiveTest do
   import Ecto.Query
   import Phoenix.LiveViewTest
 
-  import Portfolixir.WorldFixtures, only: [base_world: 1, create_security!: 1, deposit!: 3]
+  import Portfolixir.WorldFixtures,
+    only: [base_world: 1, buy!: 3, create_security!: 1]
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
@@ -179,9 +180,14 @@ defmodule PortfolixirWeb.InvisibleTextNotesLiveTest do
   # Acceptance criteria:
   # - Editing a booking whose notes carry invisible characters shows the
   #   note above "Costs and note", and that disclosure stands open.
+  # - A buy, because the booking form books buys and sells only: since
+  #   Sprint 18 U1 (#912, H2b-A) a deposit opens the notes-only drawer, where
+  #   the note stands above the open Notes field
+  #   (transaction_split_edit_live_test.exs pins that state).
   test "a booking's notes with invisible characters are marked in the drawer", %{conn: conn} do
     world = base_world(name: "Invisible notes")
-    tx = deposit!(world, "100", Date.add(today(), -3))
+    security = create_security!(name: "Invisible Notes ETF", ticker: "INV")
+    tx = buy!(world, security, quantity: "1", price: "100", date: Date.add(today(), -3))
     rename!(Portfolixir.Ledger.Transaction, tx.id, notes: "Bonus" <> zwsp())
 
     {:ok, view, _html} = live(conn, "/transactions")

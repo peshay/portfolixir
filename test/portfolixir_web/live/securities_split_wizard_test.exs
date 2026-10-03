@@ -91,6 +91,45 @@ defmodule PortfolixirWeb.SecuritiesSplitWizardTest do
     refute has_element?(view, "#split-wizard-dialog")
   end
 
+  # User story (the closing act's finding; board
+  # ux-review-2026-10-03/03-gamma-surface-repairs, G7):
+  # As the operator recording a split for a security whose name ends in an
+  # abbreviation ("… Namens-Aktien o.N."),
+  # I want the dialog's first sentence to read cleanly,
+  # so that the name's own full stop and the sentence's do not stand side
+  # by side as "o.N..".
+  #
+  # Acceptance criteria:
+  # - The name is quoted and set in <bdi>, as stored names inside a
+  #   translated sentence are elsewhere, and the sentence goes on after it
+  #   with a comma: "Aktiensplit für „<name>“, das Verhältnis als neue:alte
+  #   Aktien — 2:1 verdoppelt die Anzahl, 1:10 ist ein Reverse-Split."
+  test "the intro sentence does not put a full stop after a name ending in one", %{conn: conn} do
+    world = base_world(name: "Wizard World", cash_name: "Wizard Cash", depot_name: "Wizard Depot")
+
+    security =
+      create_security!(
+        name: "Nordwind Industrie AG Namens-Aktien o.N.",
+        ticker: "NWI",
+        asset_class: "equity"
+      )
+
+    buy!(world, security, quantity: "10", price: "100", date: Date.add(Date.utc_today(), -40))
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?locale=de")
+    view |> element("#detail-record-split") |> render_click()
+
+    help = view |> element("#split-wizard-dialog .dialog-help") |> render()
+    refute help =~ "o.N.."
+
+    text = help |> Floki.parse_fragment!() |> Floki.text() |> String.split() |> Enum.join(" ")
+
+    assert text ==
+             "Aktiensplit für „Nordwind Industrie AG Namens-Aktien o.N.“, das Verhältnis als neue:alte Aktien — 2:1 verdoppelt die Anzahl, 1:10 ist ein Reverse-Split."
+
+    assert help =~ "<bdi>Nordwind Industrie AG Namens-Aktien o.N.</bdi>"
+  end
+
   # User story (ADR-0028 §1 + §2, issue #591):
   # As a local portfolio maintainer entering a split,
   # I want a live preview of the per-portfolio fan-out with every warning,

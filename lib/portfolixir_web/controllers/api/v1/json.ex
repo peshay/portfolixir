@@ -69,8 +69,15 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     :online_id,
     :provider,
     :attributes,
+    :coupon_rate,
+    :coupon_frequency,
+    :maturity_date,
+    :issue_date,
+    :face_value,
+    :face_value_currency_code,
     :identifier_aliases,
     :thesis_state,
+    :bond,
     :inserted_at,
     :updated_at
   ]
@@ -103,6 +110,14 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       online_id: security.online_id,
       provider: security.provider,
       attributes: security.attributes || %{},
+      # #330 (ADR-0052 §1): a bond's master data, settable here and read for
+      # the two bond classes; the coupon is percent of face per year.
+      coupon_rate: decimal(security.coupon_rate),
+      coupon_frequency: security.coupon_frequency,
+      maturity_date: date(security.maturity_date),
+      issue_date: date(security.issue_date),
+      face_value: decimal(security.face_value),
+      face_value_currency_code: security.face_value_currency_code,
       # Recorded former-ISIN aliases (ADR-0029 §3); a list only when preloaded
       # (the detail route), `null` on responses that did not load them.
       identifier_aliases: identifier_aliases_field(security),
@@ -110,6 +125,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # a map only on the detail read (which computes it), `null` on
       # listings, which never do.
       thesis_state: thesis_state_field(security),
+      # #330 (ADR-0052 §2–§4): the bond reading — a map only on the detail
+      # read of a bond, `null` for any other security and on listings.
+      bond: bond_field(security),
       inserted_at: timestamp(security.inserted_at),
       updated_at: timestamp(security.updated_at)
     }
@@ -117,6 +135,74 @@ defmodule PortfolixirWeb.Api.V1.JSON do
 
   defp thesis_state_field(%Security{thesis_state: %{status: _} = state}), do: thesis_state(state)
   defp thesis_state_field(_security), do: nil
+
+  defp bond_field(%Security{bond: %{as_of: _} = reading}), do: bond_reading(reading)
+  defp bond_field(_security), do: nil
+
+  @doc """
+  A bond's reading (#330, ADR-0052): the nominal held under the hundredth
+  convention, the remaining term, the current yield and the linear yield to
+  maturity, each with its `computation_basis`, and the two-scales finding
+  (`null` unless the bond is priced on two scales). Decimals are strings,
+  yields ratios.
+  """
+  def bond_reading(reading) do
+    %{
+      as_of: date(reading.as_of),
+      quantity: decimal(reading.quantity),
+      nominal_held: %{
+        amount: decimal(reading.nominal_held.amount),
+        currency_code: reading.nominal_held.currency_code,
+        computation_basis: reading.nominal_held.computation_basis
+      },
+      remaining_term: %{
+        days: reading.remaining_term.days,
+        years: decimal(reading.remaining_term.years),
+        whole_years: reading.remaining_term.whole_years,
+        whole_months: reading.remaining_term.whole_months,
+        matured: reading.remaining_term.matured,
+        insufficient_data: reading.remaining_term.insufficient_data,
+        missing: reading.remaining_term.missing,
+        computation_basis: reading.remaining_term.computation_basis
+      },
+      current_yield: bond_yield(reading.current_yield),
+      yield_to_maturity: bond_yield(reading.yield_to_maturity),
+      two_scales: two_scales(reading.two_scales)
+    }
+  end
+
+  defp bond_yield(yield) do
+    %{
+      value: decimal(yield.value),
+      price: %{
+        value: decimal(yield.price.value),
+        date: date(yield.price.date),
+        source: enum_string(yield.price.source)
+      },
+      matured: yield.matured,
+      insufficient_data: yield.insufficient_data,
+      missing: yield.missing,
+      price_on_unit_scale: yield.price_on_unit_scale,
+      computation_basis: yield.computation_basis
+    }
+  end
+
+  defp two_scales(nil), do: nil
+
+  defp two_scales(finding) do
+    %{
+      latest_quote: %{
+        close: decimal(finding.latest_quote.close),
+        date: date(finding.latest_quote.date)
+      },
+      unit_scale_bookings: finding.unit_scale_bookings,
+      last_unit_scale_booking: %{
+        price: decimal(finding.last_unit_scale_booking.price),
+        date: date(finding.last_unit_scale_booking.date)
+      },
+      rule: finding.rule
+    }
+  end
 
   @doc """
   The B4.1 thesis state (ADR-0044 §1) as a projection over the research log:

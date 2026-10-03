@@ -8,6 +8,14 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
   effective date, resulting current position, all warnings including the §2
   quote-basis guard), and confirming calls `Splits.book_split/2` — the same
   single write path the API and MCP shells use, never a second one.
+
+  Where a split already stands on the day — a different ratio the preview
+  warns about, or the booking's refusal naming the existing event — the
+  wizard names the booked ratio and carries "Delete the booked split…"
+  (Sprint 18 U1, #912, pick H2-A A8): the parent hears
+  `{:dialog, id, {:delete_split, transaction_id}}`, closes the wizard and
+  opens the split's delete dialog on the same page, so deleting and booking
+  again happen in one place.
   """
   use Phoenix.LiveComponent
   use Gettext, backend: PortfolixirWeb.Gettext
@@ -21,6 +29,7 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.SecuritiesLive
+  alias PortfolixirWeb.StoredText
 
   @impl true
   def mount(socket) do
@@ -29,7 +38,9 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
      |> LiveEventGuard.attach()
      |> assign(:form, %{"ratio_numerator" => "", "ratio_denominator" => "", "date" => ""})
      |> assign(:preview, nil)
-     |> assign(:error, nil)}
+     |> assign(:booked_split, nil)
+     |> assign(:error, nil)
+     |> assign(:error_split, nil)}
   end
 
   @impl true
@@ -53,9 +64,17 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
         </header>
 
         <div class="modal-body">
+          <%!-- The name is quoted, in <bdi>, and the sentence goes on after
+               it: a name ending in an abbreviation ("… o.N.") met the
+               sentence's own full stop as "o.N.." (the closing act's
+               finding; board ux-review-2026-10-03/03-gamma-surface-repairs,
+               G7). --%>
           <p class="dialog-help">
-            <%= gettext(
-              "Stock split for %{security}. Ratio as new:old shares — 2:1 doubles the count, 1:10 is a reverse split.",
+            <%= StoredText.isolate(
+              gettext(
+                "Stock split for “%{security}”, the ratio as new:old shares — 2:1 doubles the count, 1:10 is a reverse split.",
+                security: StoredText.slot(:security)
+              ),
               security: @security.name
             ) %>
           </p>
@@ -103,7 +122,12 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
             </div>
 
             <%= if @error do %>
-              <p id="split-wizard-error" class="alert-error" role="alert"><%= @error %></p>
+              <div id="split-wizard-error" class="alert-error" role="alert">
+                <span><%= @error %></span>
+                <span :if={@error_split}>
+                  <.delete_link split={@error_split} myself={@myself} />
+                </span>
+              </div>
             <% end %>
 
             <%= if @preview do %>
@@ -135,12 +159,48 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
   defp render_warnings(assigns) do
     ~H"""
     <div :if={@preview.warnings != []} id="split-wizard-warnings">
-      <p :for={warning <- @preview.warnings} class="alert-warning" role="alert" data-warning={warning}>
-        <%= warning_message(warning) %>
-      </p>
+      <%= for warning <- @preview.warnings do %>
+        <%= if warning == :conflicting_split_ratio and @booked_split do %>
+          <%!-- U1 (#912), A8: the booked ratio named, and the way to delete
+               it where the refusal is read (UX-DR26). --%>
+          <div class="alert-warning" role="alert" data-warning={warning}>
+            <span>
+              <%= gettext(
+                "A split with a different ratio is already booked for this security on this date (%{ratio}). Booking is refused while it stands.",
+                ratio: ratio_label(@booked_split)
+              ) %>
+            </span>
+            <span><.delete_link split={@booked_split} myself={@myself} /></span>
+          </div>
+        <% else %>
+          <p class="alert-warning" role="alert" data-warning={warning}>
+            <%= warning_message(warning) %>
+          </p>
+        <% end %>
+      <% end %>
     </div>
     """
   end
+
+  attr(:split, Transaction, required: true)
+  attr(:myself, :any, required: true)
+
+  defp delete_link(assigns) do
+    ~H"""
+    <button
+      type="button"
+      class="link-button"
+      phx-click="delete_booked_split"
+      phx-value-id={@split.id}
+      phx-target={@myself}
+    >
+      <%= gettext("Delete the booked split…") %>
+    </button>
+    """
+  end
+
+  defp ratio_label(%Transaction{split_ratio_numerator: p, split_ratio_denominator: q}),
+    do: "#{p}:#{q}"
 
   defp render_preview(assigns) do
     ~H"""
@@ -217,6 +277,19 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
     {:noreply, socket}
   end
 
+  # U1 (#912), A8: the parent closes the wizard and opens the split's delete
+  # dialog — never a dialog from a dialog (UX-DR9).
+  def handle_event("delete_booked_split", %{"id" => id_str}, socket) do
+    case LiveParam.id(id_str) do
+      nil ->
+        {:noreply, socket}
+
+      id ->
+        notify_parent(socket, {:delete_split, id})
+        {:noreply, socket}
+    end
+  end
+
   # The wizard's fields, as the strings its inputs send (E25 S4, F17).
   def handle_event("preview", %{"split" => params}, socket) do
     {:noreply, socket |> assign(:form, split_form(params)) |> run_preview()}
@@ -231,13 +304,22 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
         {:noreply, socket}
 
       {:error, reason} ->
-        {:noreply, socket |> assign(:error, error_message(reason)) |> assign(:preview, nil)}
+        {:noreply,
+         socket
+         |> assign(:error, error_message(reason))
+         |> assign(:error_split, standing_split(reason))
+         |> assign(:preview, nil)}
     end
   end
 
   # An event this component does not know, or a payload it cannot read,
   # changes nothing (E25 S4, F17).
   def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  # The split a refusal names, for its "Delete the booked split…".
+  defp standing_split({:conflicting_split_ratio, %Transaction{} = row}), do: row
+  defp standing_split({:existing_split, %Transaction{} = row}), do: row
+  defp standing_split(_reason), do: nil
 
   defp split_form(params) do
     Map.merge(
@@ -247,17 +329,39 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
   end
 
   defp run_preview(%{assigns: %{form: form}} = socket) do
+    socket = assign(socket, booked_split: nil, error_split: nil)
+
     if Enum.any?(Map.values(form), &(&1 in [nil, ""])) do
       socket |> assign(:preview, nil) |> assign(:error, nil)
     else
       case Splits.preview_split(split_attrs(socket)) do
         {:ok, preview} ->
-          socket |> assign(:preview, preview) |> assign(:error, nil)
+          socket
+          |> assign(:preview, preview)
+          |> assign(:booked_split, conflicting_row(preview))
+          |> assign(:error, nil)
 
         {:error, reason} ->
           socket |> assign(:preview, nil) |> assign(:error, error_message(reason))
       end
     end
+  end
+
+  # The split standing on the previewed day with another ratio: the row the
+  # A8 link deletes (with its whole event), and whose ratio the warning names.
+  defp conflicting_row(%{warnings: warnings} = preview) do
+    if :conflicting_split_ratio in warnings do
+      ratio = {preview.ratio_numerator, preview.ratio_denominator}
+
+      preview.security_id
+      |> Splits.booked_on(preview.date)
+      |> Enum.find(&(normalized({&1.split_ratio_numerator, &1.split_ratio_denominator}) != ratio))
+    end
+  end
+
+  defp normalized({p, q}) do
+    gcd = Integer.gcd(p, q)
+    {div(p, gcd), div(q, gcd)}
   end
 
   defp split_attrs(%{assigns: %{form: form, security: security}}) do

@@ -128,7 +128,8 @@ the field instead of failing in the database.
 stores: a quote's `close` (6 decimal places), an exchange rate (15), and the
 tax writes' money fields (6) and rates (4) — a statement snapshot's pots and
 withheld taxes, an allowance order's `amount_granted`, a tax year's
-allowances and rates, a profile's `church_tax_rate`. A finer value is rounded
+allowances and rates, a profile's `church_tax_rate` — and a bond's
+`coupon_rate` and `face_value` (6). A finer value is rounded
 half up to its scale before it is checked, so a positive `close` that rounds
 to `0` answers `422` and is never stored as zero; a money value with more than
 14 digits before the decimal point answers `422` naming the field.
@@ -781,6 +782,72 @@ above an SMA-200 is two numbers and a distance. A rule over a metric is FR-43
 and is gated; backtesting one is out of scope. A meta-test walks the rendered
 key set so the boundary holds mechanically.
 
+### Bonds: master data and the bond reading (ADR-0052)
+
+A bond's master data is six nullable fields of the security, settable with
+`POST /api/v1/securities` and `PATCH /api/v1/securities/:id` and answered by
+every security payload (and selectable with `fields=`):
+
+- `coupon_rate` — the coupon in **percent of face per year**, a Decimal
+  string from 0 to 100 (`"2.5"`, not `"0.025"`);
+- `coupon_frequency` — `annual` or `semi_annual`;
+- `maturity_date` and `issue_date` — ISO dates, the maturity after the issue
+  date;
+- `face_value` — the denomination, a Decimal string above 0;
+- `face_value_currency_code` — the denomination's currency, an ISO 4217 code
+  from the set `currency_code` takes.
+
+`coupon_rate` and `face_value` keep 6 decimal places, under the rule every
+stored amount follows (**Other stored amounts** above): a finer value is
+rounded half up before it is checked, so `"3.1234567"` is stored and
+answered as `"3.123457"`. Send them as strings, as every decimal; a JSON
+number is cast the way every decimal field casts one.
+
+`null` clears a field, nothing is required, an impossible value is a `422`
+naming its field with nothing written, and the fields are kept when the
+asset class changes. They are read only while the effective asset class is
+`bond` or `government_bond`. The MCP tools `portfolixir.securities.create`
+and `portfolixir.securities.update` take them (the update also `null`).
+
+`GET /api/v1/securities/:id` of such a security carries `bond`, computed on
+read and never stored (scope-ladder level (a)); it is `null` for any other
+security and on listings and write responses:
+
+- `as_of` and `quantity` (the units held across every depot);
+- `nominal_held` — `amount`, **quantity × 100**, in `currency_code` (the
+  face value's, else the security's): a Portfolio Performance export books a
+  percent-quoted bond's quantity as **a hundredth of its face amount**, so a
+  quote is both percent of face and the price per unit;
+- `remaining_term` — `days` from `as_of` to the maturity, `years` (days ÷
+  365, rounded half up at scale 6), `whole_years` and `whole_months`,
+  `matured` on and after the maturity date;
+- `current_yield` — coupon ÷ price, and `yield_to_maturity` — the **linear
+  approximation** (coupon + (100 − price) ÷ remaining years) ÷ price,
+  without compounding; each a ratio rounded half up at scale 6 (`0.025707`
+  is 2.5707 %), sent without trailing zeros like every decimal (`"0.03685"`,
+  `"0"`), with the `price` it used (`value`, `date`, `source`: `quote` for the latest
+  stored quote, `trade` for the last own trade price while there is none);
+- `two_scales` — `null`, or the finding that the bond is **priced on two
+  scales**: its `latest_quote`, the count of `unit_scale_bookings` and the
+  `last_unit_scale_booking`, and the `rule` (a latest quote 20 to 500 times a
+  booked price per unit, a buy's or a priced inbound delivery's). Every
+  money figure of such a bond is a hundred
+  times too high, and the TTWROR does not show it; nothing is converted.
+
+Every metric carries its own `computation_basis` (`input_series`, `window`,
+`reference`, `gaps`, `assumptions`). A figure without its input is `null`
+with `insufficient_data: true` and the inputs it lacks in `missing`
+(`coupon_rate`, `maturity_date`, `price`); a matured bond's yields are
+`null` with `matured: true`. A yield whose price is the last own trade
+price at **at most 5** — the two-scales band's mirror, 100 ÷ 20, the price
+per unit of a booking that recorded the nominal as the quantity — is `null`
+with `price_on_unit_scale: true`, neither `insufficient_data` nor
+`matured`: such a price is not percent of face, so coupon ÷ price would be
+no yield. A stored quote is a percent price at any level and is always
+used; `price_on_unit_scale` is `false` on every other yield. Accrued
+interest, fees and taxes are excluded; the reading reports, it does not
+evaluate.
+
 ### Logos
 
 Each security can carry a logo, resolved automatically (CoinGecko for crypto,
@@ -1385,10 +1452,13 @@ Example account payloads:
   **split** row changes only its `notes` (E25 S6): a change of its `date`,
   `security_id`, `portfolio_id`, `type` or ratio answers 422 naming the field,
   because a split is booked through `POST /api/v1/splits`, whose checks a
-  generic update would pass by. A wrong split is deleted (each of its rows)
-  and booked again.
+  generic update would pass by. A wrong split is deleted whole
+  (`DELETE /api/v1/splits/:transaction_id`, below) and booked again.
 - `DELETE /api/v1/transactions/:id` deletes a transaction. Because trades and
   holdings are derived, correcting or removing the transaction fixes them too.
+  An imported booking's content hash goes with it, so a re-import of the same
+  file books it again (only a merge retires a hash, ADR-0050 §3). On a split
+  row it removes that row alone; the split's other rows keep the event.
 - `POST /api/v1/splits/preview` previews a stock split booking (ADR-0028)
   without writing anything. The request carries `security_id`, the effective
   `date` (ISO, not in the future) and the ratio as a pair of positive
@@ -1424,7 +1494,19 @@ Example account payloads:
   on `ratio` from preview and booking alike, and nothing is written (E25 S4).
   The generic
   `POST /api/v1/transactions` endpoint rejects the `split` kind — these two
-  routes are the only split write path.
+  routes are the only way a split is booked.
+- `DELETE /api/v1/splits/:transaction_id` deletes a split the way it was
+  booked, as one fact (Sprint 18 U1, #912): from any of its rows, every
+  `split` row sharing that row's security, date and normalized ratio — one
+  per portfolio — in one transaction, each row journaled with its
+  before-image. It answers `200` with `data.transactions`, the removed rows
+  in the regular transaction shape, ordered by portfolio. Afterwards no
+  portfolio carries the event: holdings count without it, the quote reads no
+  longer adjust for it, and `POST /api/v1/splits` books the corrected ratio
+  on the same day. An unknown or already deleted row answers `404`; a
+  booking of another kind answers `422` on `transaction_id` naming
+  `DELETE /api/v1/transactions/:id`; a failure on any row deletes nothing.
+  The security's other splits stay.
 - `GET /api/v1/portfolios/:portfolio_id/holdings` lists derived holdings for a
   portfolio, one row per (depot, security). Each row carries `quantity`, a
   moving-average `avg_cost` and `cost_basis` (price-based, so fees and taxes are
@@ -3078,11 +3160,15 @@ names each address's code.
 - `portfolixir.securities.list`
 - `portfolixir.securities.get` — one security's full record including its
   `identifier_aliases` (recorded former ISINs) and its derived
-  `thesis_state` (ADR-0044); a merged-away security answers `404` with
-  `errors.merged_into`, and the description says so (ADR-0050 §12).
-- `portfolixir.securities.create`
+  `thesis_state` (ADR-0044) and, for a bond, its `bond` reading with each
+  metric's `computation_basis` and the two-scales finding (ADR-0052); a
+  merged-away security answers `404` with `errors.merged_into`, and the
+  description says so (ADR-0050 §12).
+- `portfolixir.securities.create` — takes a bond's master data (#330,
+  ADR-0052).
 - `portfolixir.securities.update` — its description and its `currency_code`
-  property state the currency freeze (ADR-0050 §11).
+  property state the currency freeze (ADR-0050 §11); it takes a bond's
+  master data, `null` clearing a field.
 - `portfolixir.securities.delete`
 - `portfolixir.securities.isin_change` — records a corporate-action ISIN
   change so imports keep matching via the former ISIN (ADR-0029).
@@ -3182,9 +3268,13 @@ names each address's code.
 - `portfolixir.transactions.list`
 - `portfolixir.transactions.create`
 - `portfolixir.transactions.update`
-- `portfolixir.transactions.delete`
+- `portfolixir.transactions.delete` — one row; on a split it names
+  `portfolixir.splits.delete`
 - `portfolixir.splits.preview`
 - `portfolixir.splits.create`
+- `portfolixir.splits.delete` — the whole split from any of its rows, every
+  portfolio's row in one journaled step (#912); an admin tool, so the `book`
+  profile leaves it out
 - `portfolixir.holdings.list`
 - `portfolixir.cashflow.realized_gains` — the #724 roll-up with its stated
   FX basis and the excluded-and-named gap treatment, and each trade's

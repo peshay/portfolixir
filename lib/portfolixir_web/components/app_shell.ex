@@ -441,15 +441,27 @@ defmodule PortfolixirWeb.AppShell do
   The message is text or safe markup; an optional `follow_up` slot renders a
   remedy inside a note or attention result, before the dismiss control (the
   data note's rule: the remedy is a child of the note).
+
+  `focusable` gives the slot `tabindex="-1"`: never in the tab order, but a
+  target the page can move the focus to when the control that triggered the
+  action left the page with it (#920, a row action on a security gone
+  meanwhile) — so the focus lands on the answer, never on `<body>`
+  (WCAG 2.4.3).
   """
   attr(:id, :string, required: true)
   attr(:result, :any, default: nil)
   attr(:dismiss_event, :string, default: "dismiss_result")
+  attr(:focusable, :boolean, default: false)
   slot(:follow_up)
 
   def inline_result(assigns) do
     ~H"""
-    <div id={@id} class="inline-result" data-role="action-result">
+    <div
+      id={@id}
+      class="inline-result"
+      data-role="action-result"
+      tabindex={@focusable && "-1"}
+    >
       <div id={"#{@id}-status"} role="status" class="inline-result__region">
         <%= case @result do %>
           <% {:busy, message} -> %>
@@ -537,7 +549,9 @@ defmodule PortfolixirWeb.AppShell do
   the note only ever marks a row stored before the rule. It is ONE
   `attention` data note, whatever the count, placed where the stored text
   renders: the sentence ("The text contains 2 invisible characters." or, for
-  `subject: :name`, "The name contains …"), the caller's remedy as a child
+  `subject: :name`, "The name contains …"; for `subject: :former_name`, an
+  account's former names, "A former name contains …" — #966, pick H8.5 = A),
+  the caller's remedy as a child
   (`inner_block`: a sentence and the control), and the text in a disclosure
   with every such character spelled `[U+XXXX]` — the spelling the MCP
   companion gives the agent. `texts` are the stored texts the note is about
@@ -545,7 +559,7 @@ defmodule PortfolixirWeb.AppShell do
   """
   attr(:id, :string, default: nil)
   attr(:texts, :list, required: true)
-  attr(:subject, :atom, values: [:text, :name], default: :text)
+  attr(:subject, :atom, values: [:text, :name, :former_name], default: :text)
   slot(:inner_block)
 
   def invisible_text_note(assigns) do
@@ -558,7 +572,7 @@ defmodule PortfolixirWeb.AppShell do
 
     ~H"""
     <.data_note :if={@count > 0} severity={:attention} id={@id} data-role="invisible-text-note">
-      <%= invisible_sentence(@subject, @count) %>
+      <%= invisible_sentence(@subject, @count, length(@marked)) %>
       <%= render_slot(@inner_block) %>
       <details class="perf-table-disclosure">
         <summary class="disclosure-summary">
@@ -571,7 +585,7 @@ defmodule PortfolixirWeb.AppShell do
     """
   end
 
-  defp invisible_sentence(:text, count),
+  defp invisible_sentence(:text, count, _marked),
     do:
       ngettext(
         "The text contains %{count} invisible character.",
@@ -579,7 +593,7 @@ defmodule PortfolixirWeb.AppShell do
         count
       )
 
-  defp invisible_sentence(:name, count),
+  defp invisible_sentence(:name, count, _marked),
     do:
       ngettext(
         "The name contains %{count} invisible character.",
@@ -587,8 +601,25 @@ defmodule PortfolixirWeb.AppShell do
         count
       )
 
+  defp invisible_sentence(:former_name, count, 1),
+    do:
+      ngettext(
+        "A former name contains %{count} invisible character.",
+        "A former name contains %{count} invisible characters.",
+        count
+      )
+
+  defp invisible_sentence(:former_name, count, _marked),
+    do:
+      ngettext(
+        "Former names contain %{count} invisible character.",
+        "Former names contain %{count} invisible characters.",
+        count
+      )
+
   defp invisible_summary(:text), do: gettext("Text with the characters made visible")
   defp invisible_summary(:name), do: gettext("Name with the characters made visible")
+  defp invisible_summary(:former_name), do: gettext("Names with the characters made visible")
 
   @doc """
   The row menu's shell (Part 4 rule 11 of the 2026-09-12 review): a row's
@@ -630,8 +661,11 @@ defmodule PortfolixirWeb.AppShell do
       phx-hook="PositionedMenu"
       data-trigger={@trigger}
     >
+      <%!-- The kind keeps its separator: glued to the name's last word by a
+           no-break space and unwrapped, so no line starts with "·" or holds
+           the kind alone (U1, #912, the closing act R10g). --%>
       <div :if={@caption_name} class="row-context-menu__caption" aria-hidden="true">
-        <b><%= @caption_name %></b><%= if @caption_kind, do: " · " <> @caption_kind %>
+        <b><%= @caption_name %></b><span :if={@caption_kind} class="row-context-menu__kind"><%= "\u00a0· " <> @caption_kind %></span>
       </div>
       <%= render_slot(@inner_block) %>
     </div>

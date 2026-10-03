@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.ImportsLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.StoredText
   alias PortfolixirWeb.TransactionKindLabel
 
   @max_upload_bytes 20_000_000
@@ -168,7 +169,9 @@ defmodule PortfolixirWeb.ImportsLive do
           <span class="value"><%= @unique_securities_count %></span>
         </div>
         <div class="import-stat-card">
-          <span class="label"><%= gettext("Cash accounts") %></span>
+          <%!-- #909 (H7.5 = A): a card-scoped msgid, so the German label's
+               soft hyphen stays on the two summary cards. --%>
+          <span class="label"><%= pgettext("import summary", "Cash accounts") %></span>
           <span class="value"><%= length(@cash_pp_names) %></span>
         </div>
         <div class="import-stat-card">
@@ -676,7 +679,7 @@ defmodule PortfolixirWeb.ImportsLive do
           <span class="value"><%= @result.created_securities %></span>
         </div>
         <div class="import-stat-card">
-          <span class="label"><%= gettext("Cash accounts") %></span>
+          <span class="label"><%= pgettext("import summary", "Cash accounts") %></span>
           <span class="value"><%= @result.created_cash_accounts %></span>
         </div>
         <div class="import-stat-card">
@@ -1446,22 +1449,29 @@ defmodule PortfolixirWeb.ImportsLive do
     accounts = if kind == :cash_account, do: cash, else: depots
     account = account_name(accounts, id)
 
+    # #968, pick H8.8: every stored name of the line isolated in <bdi>.
     case outcome do
       :appended ->
-        gettext("“%{name}” is now a former name of %{account}.", name: name, account: account)
+        gettext("“%{name}” is now a former name of %{account}.",
+          name: StoredText.slot(:name),
+          account: StoredText.slot(:account)
+        )
+        |> StoredText.isolate(name: name, account: account)
 
       {:moved, from_id} ->
         gettext("“%{name}” is now a former name of %{account} and no longer of %{from}.",
-          name: name,
-          account: account,
-          from: account_name(accounts, from_id)
+          name: StoredText.slot(:name),
+          account: StoredText.slot(:account),
+          from: StoredText.slot(:from)
         )
+        |> StoredText.isolate(name: name, account: account, from: account_name(accounts, from_id))
 
       {:not_offered, holder_id} ->
         gettext("“%{name}” was not remembered: it is the name of %{holder}.",
-          name: name,
-          holder: account_name(accounts, holder_id)
+          name: StoredText.slot(:name),
+          holder: StoredText.slot(:holder)
         )
+        |> StoredText.isolate(name: name, holder: account_name(accounts, holder_id))
     end
   end
 

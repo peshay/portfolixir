@@ -9,6 +9,8 @@ msgstr ""
 msgid "is invalid"
 msgstr "ist ungültig"
 
+#: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:452
+#, elixir-autogen
 msgid "can't be blank"
 msgstr "darf nicht leer sein"
 
@@ -68,6 +70,9 @@ msgstr "ist keine Kategorie dieser Klassifizierung"
 
 msgid "must be after %{date}, the start of the version in force"
 msgstr "muss nach dem %{date} liegen, dem Beginn der geltenden Version"
+
+msgid "must be after the issue date"
+msgstr "muss nach dem Emissionstag liegen"
 
 msgid "overlaps another version of this rule"
 msgstr "überschneidet sich mit einer anderen Version dieser Regel"

@@ -153,6 +153,10 @@ export const ADMIN_TOOLS: ReadonlyMap<string, string> = new Map([
     "Removes a booking; one booked again by hand has no import hash, so a re-import books it twice."
   ],
   [
+    "portfolixir.splits.delete",
+    "Removes a split from every portfolio at once; booking it again makes new rows."
+  ],
+  [
     "portfolixir.classifications.delete",
     "Removes the tree with every category, assignment and target weight on it in one call."
   ],

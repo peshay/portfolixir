@@ -17,10 +17,45 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.QuoteSync
   alias Portfolixir.Catalog.QuoteSync.Fake
+  alias Portfolixir.Catalog.QuoteSync.Yahoo
   alias Portfolixir.Clock
   alias Portfolixir.Journal.Entry
   alias Portfolixir.Lifecycle
   alias Portfolixir.Repo
+  alias Portfolixir.SingleFlight
+
+  # A provider that answers every security with a close on each of the six
+  # to four days before today — the days the setup pins by hand among them.
+  # A module, not the per-process Fake: the sync runs in a Task the test's
+  # process dictionary does not reach.
+  defmodule ClosingAdapter do
+    @moduledoc false
+    @behaviour Portfolixir.Catalog.QuoteSync.Provider
+
+    @impl true
+    def id, do: :closing
+
+    @impl true
+    def fetch(_security, _opts) do
+      today = Portfolixir.Clock.today()
+      {:ok, Enum.map(-6..-4, &%{date: Date.add(today, &1), close: "101.00"})}
+    end
+  end
+
+  # A provider whose precondition is the security's currency, answering with
+  # the provider contract's skip reason (`QuoteSync.Provider`): every stored
+  # security carries a currency, so no stored security makes the shipped
+  # adapter answer it.
+  defmodule CurrencyBoundAdapter do
+    @moduledoc false
+    @behaviour Portfolixir.Catalog.QuoteSync.Provider
+
+    @impl true
+    def id, do: :currency_bound
+
+    @impl true
+    def fetch(_security, _opts), do: {:error, :missing_currency}
+  end
 
   setup do
     today = Clock.today()
@@ -65,6 +100,34 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
 
     on_exit(fn -> Application.put_env(:portfolixir, QuoteSync, config) end)
     :ok
+  end
+
+  defp with_closing_adapter(_ctx) do
+    config = Application.get_env(:portfolixir, QuoteSync, [])
+
+    Application.put_env(
+      :portfolixir,
+      QuoteSync,
+      Keyword.put(config, :adapter_for, %{"portfolio_performance" => ClosingAdapter})
+    )
+
+    on_exit(fn -> Application.put_env(:portfolixir, QuoteSync, config) end)
+    :ok
+  end
+
+  # The sync runs in a Task and answers with :sync_done; the busy flag on
+  # the toolbar's sync button clears when it has landed.
+  defp await_sync(view, tries \\ 100)
+
+  defp await_sync(view, 0), do: refute(has_element?(view, "button#sync-prices[disabled]"))
+
+  defp await_sync(view, tries) do
+    if has_element?(view, "button#sync-prices[disabled]") do
+      Process.sleep(20)
+      await_sync(view, tries - 1)
+    else
+      :ok
+    end
   end
 
   defp quotes_tab(conn, security),
@@ -364,7 +427,11 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
     assert text(view, result) =~
              "2 manuelle Kurse freigegeben, vom #{ctx.iso.(-5)} bis #{ctx.iso.(-4)}. Die nächste Kursaktualisierung speichert für diese Tage den Schlusskurs des Anbieters."
 
-    assert has_element?(view, "#{result} button[phx-click='sync_now']", "Kurse aktualisieren")
+    assert has_element?(
+             view,
+             "#{result} button[phx-click='sync_quotes_released']",
+             "Kurse aktualisieren"
+           )
 
     assert text(view, "[data-role='manual-quotes-note']") =~
              "2 manuelle Kurse in der gespeicherten Historie, vom #{ctx.iso.(-1100)} bis #{ctx.iso.(-1099)}."
@@ -402,7 +469,7 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
     assert text(view, result) =~
              "4 manuelle Kurse freigegeben, vom #{ctx.iso.(-1100)} bis #{ctx.iso.(-4)}. Für dieses Wertpapier holt die Kursaktualisierung keine Kurse: Diese Tage bleiben ohne Kurs."
 
-    refute has_element?(view, "#{result} button[phx-click='sync_now']")
+    refute has_element?(view, "#{result} [data-role='release-sync']")
     refute has_element?(view, "[data-role='manual-quotes-note']")
   end
 
@@ -557,5 +624,208 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
 
     assert text(view, "#detail-tab-panel-quotes #quotes-release-result") =~
              "Ein manueller Kurs freigegeben, am #{ctx.iso.(-7)}. Die nächste Kursaktualisierung speichert für diesen Tag den Schlusskurs des Anbieters."
+  end
+
+  # User story (#1012; board ux-design-2026-10-02/07-phone-390, H7.1b):
+  # As the operator who pinned closes by hand,
+  # I want the sync's result to say how many manual quotes stayed where the
+  # provider returned a close for the same day,
+  # so that I know why a manual day did not change, instead of reading
+  # "Kurse aktualisiert." and wondering.
+  #
+  # Acceptance criteria:
+  # - Where the sync kept manual quotes against a provider close, the result
+  #   adds "N manuelle Kurse blieben stehen, wo der Anbieter einen
+  #   Schlusskurs lieferte." — the sum of `skipped_manual` over every
+  #   security the sync touched, singular "Ein manueller Kurs blieb stehen,
+  #   …" for one.
+  # - The manual quotes are untouched; the day without one takes the
+  #   provider's close.
+  # - Without such a collision the result is today's sentence alone.
+  test "the sync's result counts the manual quotes that stayed", ctx do
+    with_closing_adapter(ctx)
+    {:ok, view, _html} = live(ctx.conn, "/securities?locale=de")
+
+    {_result, log} =
+      ExUnit.CaptureLog.with_log(fn ->
+        view |> element("button#sync-prices") |> render_click()
+        await_sync(view)
+      end)
+
+    assert log =~ "manual quote row(s)"
+
+    assert text(view, "#securities-action-result") =~
+             "Kurse aktualisiert. 2 manuelle Kurse blieben stehen, wo der Anbieter einen Schlusskurs lieferte."
+
+    assert manual_dates(ctx.security) == [
+             ctx.day.(-1100),
+             ctx.day.(-1099),
+             ctx.day.(-5),
+             ctx.day.(-4)
+           ]
+
+    # One pin left in the provider's days: the singular.
+    {:ok, _} =
+      Quotes.release_manual(Actor.owner_ui(), ctx.security.id, ctx.day.(-5), ctx.day.(-5))
+
+    ExUnit.CaptureLog.with_log(fn ->
+      view |> element("button#sync-prices") |> render_click()
+      await_sync(view)
+    end)
+
+    assert text(view, "#securities-action-result") =~
+             "Kurse aktualisiert. Ein manueller Kurs blieb stehen, wo der Anbieter einen Schlusskurs lieferte."
+
+    # No pin left there: the sentence of today, alone.
+    {:ok, _} =
+      Quotes.release_manual(Actor.owner_ui(), ctx.security.id, ctx.day.(-4), ctx.day.(-4))
+
+    view |> element("button#sync-prices") |> render_click()
+    await_sync(view)
+
+    assert text(view, "#securities-action-result") =~ "Kurse aktualisiert."
+    refute text(view, "#securities-action-result") =~ "blieb"
+  end
+
+  # User story (#1033; board ux-design-2026-10-02/07-phone-390, H7.4, code
+  # only):
+  # As the operator who just released manual quotes of one security,
+  # I want "Kurse aktualisieren" in the release result to sync that
+  # security,
+  # so that the follow-up refills the released days without querying every
+  # provider in the catalog, and its answer is about the security I am
+  # looking at.
+  #
+  # Acceptance criteria:
+  # - The follow-up syncs the released security only
+  #   (`QuoteSync.sync_security/2`): another security with the same
+  #   provider gets no quote from it.
+  # - The released day takes the provider's close; a manual quote the
+  #   release left keeps its place and is counted (H7.1b).
+  # - The follow-up clears the release result, and its own result lands in
+  #   the page-level slot, as before: "Kurse aktualisiert. Ein manueller
+  #   Kurs blieb stehen, …".
+  test "the release result's sync syncs the released security only", ctx do
+    with_closing_adapter(ctx)
+
+    other = create_security!(name: "Halvorsen Shipping ASA", ticker: nil)
+
+    {:ok, other} =
+      Catalog.update_security(Actor.owner_ui(), other, %{provider: "portfolio_performance"})
+
+    {:ok, view, _html} = quotes_tab(ctx.conn, ctx.security)
+    view |> element("[data-role='release-manual-quotes']") |> render_click()
+
+    view
+    |> form("#quote-release-form", release: %{from: ctx.iso.(-5), to: ctx.iso.(-5)})
+    |> render_change()
+
+    view |> element("[data-role='quote-release-confirm']") |> render_click()
+
+    result = "#detail-tab-panel-quotes #quotes-release-result"
+    follow_up = "#{result} button[phx-click='sync_quotes_released'][data-role='release-sync']"
+    assert has_element?(view, follow_up, "Kurse aktualisieren")
+
+    {_result, log} =
+      ExUnit.CaptureLog.with_log(fn ->
+        view |> element(follow_up) |> render_click()
+        await_sync(view)
+      end)
+
+    assert log =~ "manual quote row(s) for security ##{ctx.security.id}"
+
+    assert Repo.all(from(q in SecurityQuote, where: q.security_id == ^other.id)) == []
+
+    assert Repo.get_by!(SecurityQuote, security_id: ctx.security.id, date: ctx.day.(-5)).source ==
+             "portfolio_performance"
+
+    assert manual_dates(ctx.security) == [ctx.day.(-1100), ctx.day.(-1099), ctx.day.(-4)]
+
+    refute text(view, result) =~ "freigegeben"
+
+    assert text(view, "#securities-action-result") =~
+             "Kurse aktualisiert. Ein manueller Kurs blieb stehen, wo der Anbieter einen Schlusskurs lieferte."
+  end
+
+  # User story (#1033; board 07, H7.4, "stated for the story"):
+  # As the operator syncing one security,
+  # I want a skipped sync to say why in words,
+  # so that "Kurssync übersprungen: no_provider_adapter" does not ask me to
+  # read an atom.
+  #
+  # Acceptance criteria:
+  # - The reasons the single path can reach read as words:
+  #   `:no_provider_adapter`, `:missing_ticker`, `:missing_currency` and
+  #   `:sync_in_progress` (the single-flight lock held by another sync).
+  test "a skipped single sync says why in words", ctx do
+    {:ok, view, _html} = live(ctx.conn, "/securities?locale=de")
+
+    render_click(view, "row_action", %{"action" => "sync", "id" => to_string(ctx.security.id)})
+    await_sync(view)
+
+    assert text(view, "#securities-action-result") =~
+             "Kurssync übersprungen: Für dieses Wertpapier gibt es keinen Kursanbieter."
+
+    refute text(view, "#securities-action-result") =~ "no_provider_adapter"
+  end
+
+  # User story (#1033; board 07, H7.4 — the story above, its other three
+  # reasons):
+  # As the operator syncing one security,
+  # I want every skip the single path can reach to say why in words,
+  # so that no reason reaches me as an atom.
+  #
+  # Acceptance criteria:
+  # - A provider that needs the ticker, on a security without one: "Der
+  #   Kursanbieter braucht den Ticker des Wertpapiers."
+  # - A provider that needs the currency: "Das Wertpapier hat keine
+  #   Währung."
+  # - A sync of the security already running (the single-flight lock held
+  #   by another sync): "Eine Kursaktualisierung dieses Wertpapiers läuft
+  #   bereits."
+  test "the other skip reasons of a single sync read as words, too", ctx do
+    config = Application.get_env(:portfolixir, QuoteSync, [])
+    on_exit(fn -> Application.put_env(:portfolixir, QuoteSync, config) end)
+
+    sync = fn adapter ->
+      Application.put_env(
+        :portfolixir,
+        QuoteSync,
+        Keyword.put(config, :adapter_for, %{"portfolio_performance" => adapter})
+      )
+
+      {:ok, view, _html} = live(ctx.conn, "/securities?locale=de")
+      render_click(view, "row_action", %{"action" => "sync", "id" => to_string(ctx.security.id)})
+      await_sync(view)
+      text(view, "#securities-action-result")
+    end
+
+    # The shipped adapter refuses a security without a ticker before it
+    # makes any request.
+    assert sync.(Yahoo) =~
+             "Kurssync übersprungen: Der Kursanbieter braucht den Ticker des Wertpapiers."
+
+    assert sync.(CurrencyBoundAdapter) =~
+             "Kurssync übersprungen: Das Wertpapier hat keine Währung."
+
+    test_pid = self()
+
+    holder =
+      spawn_link(fn ->
+        SingleFlight.run({:quote_sync, ctx.security.id}, fn ->
+          send(test_pid, :holding)
+
+          receive do
+            :release -> :ok
+          end
+        end)
+      end)
+
+    assert_receive :holding
+
+    assert sync.(ClosingAdapter) =~
+             "Kurssync übersprungen: Eine Kursaktualisierung dieses Wertpapiers läuft bereits."
+
+    send(holder, :release)
   end
 end
