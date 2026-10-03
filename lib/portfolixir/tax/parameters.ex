@@ -62,16 +62,6 @@ defmodule Portfolixir.Tax.Parameters do
     |> validate_common()
   end
 
-  @doc """
-  Builds a changeset for the seed migration, which is the only writer allowed
-  to set the `built_in` marker.
-  """
-  def builtin_changeset(parameters, attrs) do
-    parameters
-    |> changeset(attrs)
-    |> put_change(:built_in, true)
-  end
-
   defp validate_common(changeset) do
     changeset
     |> validate_required([
