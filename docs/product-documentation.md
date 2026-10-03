@@ -194,6 +194,13 @@ bottom sheet — a dialog with the families stacked under their names, the
 More-filters builder, **Reset** and **Done**; a chip in the sheet applies at
 once, exactly as in the row.
 
+**A row whose security went elsewhere.** When the agent, the API or another
+tab deleted or merged a security after the list loaded, a row action on its
+row reloads the list instead of doing nothing, closes a detail pane open on
+it, and says why the row went: "“…” was deleted meanwhile; the list is
+reloaded." or "“…” was merged into … meanwhile; the list is reloaded.", the
+security that now carries the history linked.
+
 ### Classification columns
 
 Next to the attribute and price columns, the securities list's column picker

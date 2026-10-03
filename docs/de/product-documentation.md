@@ -220,6 +220,14 @@ Familien untereinander unter ihren Namen, dem Weitere-Filter-Builder,
 **Zurücksetzen** und **Fertig**; ein Chip im Sheet wirkt sofort, genau wie
 in der Zeile.
 
+**Eine Zeile, deren Wertpapier anderswo verschwand.** Hat der Agent, die API
+oder ein anderer Tab ein Wertpapier gelöscht oder zusammengeführt, nachdem die
+Liste geladen wurde, lädt eine Zeilenaktion auf dieser Zeile die Liste neu,
+statt nichts zu tun, schließt ein darauf geöffnetes Detail und sagt, warum
+die Zeile ging: „„…“ wurde inzwischen gelöscht; die Liste ist neu geladen.“
+oder „„…“ wurde inzwischen in … zusammengeführt; die Liste ist neu geladen.“,
+das Wertpapier, das die Historie jetzt trägt, verlinkt.
+
 ### Klassifikations-Spalten
 
 Neben den Attribut- und Kursspalten bietet die Spaltenauswahl der
