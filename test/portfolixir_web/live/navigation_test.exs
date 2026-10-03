@@ -333,7 +333,7 @@ defmodule PortfolixirWeb.NavigationTest do
     for token <- [
           "--color-accent-violet: #7c3aed",
           "--color-accent-teal: #0f766e",
-          "--color-accent-coral: #e11d48",
+          "--color-accent-coral: #ce1b42",
           "--color-positive",
           "--color-danger"
         ] do

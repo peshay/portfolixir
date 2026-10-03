@@ -131,6 +131,26 @@ defmodule Portfolixir.Invariants.CssThemeTokenParityTest do
     assert dark["color-on-accent"] == "#0b0f14"
   end
 
+  # User story (#908; Sprint 18 pick H5, board
+  # ux-design-2026-10-02/05-light-contrast, "after"):
+  # As the operator reading coral links in light mode,
+  # I want the coral accent one step darker in the same hue,
+  # so that it clears 4.5:1 on every light surface (the ratios themselves are
+  # computed in CssAccentContrastTest).
+  #
+  # Acceptance criteria:
+  # - `--color-accent-coral` is `#ce1b42` in both places light mode sets it:
+  #   `:root` and `[data-theme="light"]`.
+  # - The dark value stays `#fb7185` in both dark blocks, and the logo
+  #   gradient's `--brand-coral-2` stays `#e11d48`.
+  test "the coral accent's light value is the decided one (issue 908)" do
+    assert root_block()["color-accent-coral"] == "#ce1b42"
+    assert data_light()["color-accent-coral"] == "#ce1b42"
+    assert dark_media()["color-accent-coral"] == "#fb7185"
+    assert data_dark()["color-accent-coral"] == "#fb7185"
+    assert root_block()["brand-coral-2"] == "#e11d48"
+  end
+
   test "--color-selected aliases the active accent's soft variant (issue 644)" do
     assert root_block()["color-selected"] == "var(--color-accent-soft)"
 

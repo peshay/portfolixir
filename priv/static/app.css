@@ -12,7 +12,13 @@
   --color-accent-violet-soft: #ede9fe;
   --color-accent-teal: #0f766e;
   --color-accent-teal-soft: #ccfbf1;
-  --color-accent-coral: #e11d48;
+  /* Coral one step darker in the same hue (HSL 347°, lightness 49.8 % to
+     45.7 %), the smallest step that clears 4.5:1 as body text on every
+     light surface; the logo gradient's --brand-coral-2 keeps the brand
+     value (issue 908, Sprint 18 pick H5, board
+     ux-design-2026-10-02/05-light-contrast). Set again in
+     [data-theme="light"]; the dark blocks keep their own value. */
+  --color-accent-coral: #ce1b42;
   --color-accent-coral-soft: #ffe4e6;
   --color-accent: var(--color-accent-violet);
   --color-accent-soft: var(--color-accent-violet-soft);
@@ -123,7 +129,7 @@
   --color-accent-violet-soft: #ede9fe;
   --color-accent-teal: #0f766e;
   --color-accent-teal-soft: #ccfbf1;
-  --color-accent-coral: #e11d48;
+  --color-accent-coral: #ce1b42;
   --color-accent-coral-soft: #ffe4e6;
   --color-positive: #047857;
   --color-danger: #b91c1c;
