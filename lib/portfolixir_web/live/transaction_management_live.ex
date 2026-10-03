@@ -896,7 +896,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     %{
       cash_accounts: socket.assigns.cash_accounts,
       securities_accounts: socket.assigns.securities_accounts,
-      transactions: socket.assigns.transactions
+      transactions: socket.assigns.transactions,
+      twin_tags: socket.assigns.twin_tags
     }
   end
 

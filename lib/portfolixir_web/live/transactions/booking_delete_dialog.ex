@@ -39,6 +39,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
   alias Portfolixir.Ledger.Transaction
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.StoredText
   alias PortfolixirWeb.TransactionKindLabel
   alias PortfolixirWeb.TransactionManagementLive
@@ -48,15 +49,16 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
   @doc """
   What the dialog shows for `transaction`, or `nil` when it is gone (a split
   whose rows were all deleted since). `context` names the page's cash
-  accounts, depots and transactions, each optional: the accounts name a
-  transfer's counter side, the transactions find a later set balance on an
-  affected cash account.
+  accounts, depots, transactions and twin tags, each optional: the accounts
+  name a transfer's counter side, the transactions find a later set balance
+  on an affected cash account, and the tags (`SecurityNames.tags/1`) name a
+  twin security with its ISIN, as the row's kebab does.
   """
   @spec prepare(%Transaction{}, map()) :: map() | nil
-  def prepare(%Transaction{type: "split"} = row, _context) do
+  def prepare(%Transaction{type: "split"} = row, context) do
     case Splits.event_rows(row) do
       [] -> nil
-      rows -> split_view(row, rows)
+      rows -> split_view(row, rows, context)
     end
   end
 
@@ -213,8 +215,11 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
     depots_by_id =
       by_id(Map.get(context, :securities_accounts, []), transaction, :securities_account)
 
+    security = security(transaction)
+
     %{
-      security: security_name(transaction),
+      security: security && security.name,
+      security_label: security && twin_label(security, context),
       cash: Map.get(cash_by_id, transaction.cash_account_id),
       counter_cash: Map.get(cash_by_id, transaction.counter_cash_account_id),
       depot: Map.get(depots_by_id, transaction.securities_account_id),
@@ -247,15 +252,17 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
 
   defp put_preloaded_currency(map, _transaction), do: map
 
-  defp security_name(%{security: %{name: name}}) when is_binary(name), do: name
-  defp security_name(%{security_id: nil}), do: nil
+  defp security(%{security: %{name: name} = security}) when is_binary(name), do: security
+  defp security(%{security_id: nil}), do: nil
+  defp security(%{security_id: id}), do: Catalog.get_security(id)
 
-  defp security_name(%{security_id: id}) do
-    case Catalog.get_security(id) do
-      %{name: name} -> name
-      nil -> nil
-    end
-  end
+  # A twin security — a name another security of the page also carries — is
+  # named with what tells it apart, its ISIN first, wherever the row's kebab
+  # label names it so (UAT-13; the closing act, R4): in the box and the
+  # result. The sentences keep the plain name; the box above them says
+  # which twin.
+  defp twin_label(security, context),
+    do: SecurityNames.label(Map.get(context, :twin_tags, %{}), security)
 
   # The history's phone row, said back: date · kind over the subject and the
   # account it touched; the signed amount over its size (DESIGN.md rule ②).
@@ -276,7 +283,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
       end
 
     ids =
-      [names.security, account_line]
+      [names.security_label, account_line]
       |> Enum.reject(&is_nil/1)
       |> Enum.join(" · ")
 
@@ -564,16 +571,18 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
             subject: StoredText.slot(:subject),
             date: date
           ),
-          subject: names.security || names.cash || names.depot
+          subject: names.security_label || names.cash || names.depot
         )
     end
   end
 
   # -- a split ---------------------------------------------------------------------
 
-  defp split_view(row, rows) do
+  defp split_view(row, rows, context) do
     count = length(rows)
-    security = security_name(row) || "—"
+    security = security(row)
+    name = security.name
+    label = twin_label(security, context)
     ratio = "#{row.split_ratio_numerator}:#{row.split_ratio_denominator}"
     names = Enum.map(rows, &portfolio_name/1)
 
@@ -583,7 +592,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
       title: gettext("Delete split"),
       subject: %{
         name: Format.date(row.date) <> " · " <> TransactionKindLabel.label("split"),
-        ids: security,
+        ids: label,
         figure: ratio,
         figure2: ngettext("%{count} row", "%{count} rows", count)
       },
@@ -595,13 +604,13 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
             security: StoredText.slot(:security),
             date: Format.date(row.date)
           ),
-          security: security
+          security: name
         )
       ],
       journal: split_journal(count),
       imported?: false,
       confirm: split_confirm(count),
-      security: security,
+      security: label,
       ratio: ratio,
       date: row.date,
       done: nil

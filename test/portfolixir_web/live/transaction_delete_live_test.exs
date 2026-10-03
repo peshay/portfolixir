@@ -291,6 +291,55 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
     refute has_element?(view, "tr[data-transaction='#{buy.id}']")
   end
 
+  # User story (U1, #912; H2-A, A2 and A5; UAT-13; the closing act, R4):
+  # As the operator holding two securities of the same name,
+  # I want the delete dialog and its result to name the one I chose with
+  # its ISIN, as the row's kebab does,
+  # so that I can tell which twin's booking I am deleting.
+  #
+  # Acceptance criteria:
+  # - A twin's booking names the security with its ISIN in the dialog's box
+  #   and in the result; a split of a twin names it so in its box.
+  # - A security with a unique name is named as before.
+  test "a twin security is named with its ISIN", %{conn: conn, world: world, buy: buy} do
+    twin = create_security!(name: "Kestrel Robotik SE", ticker: "KRS", isin: "DE000SYN0A17")
+    other = create_security!(name: "Kestrel Robotik SE", ticker: "KRS", isin: "DE000SYN0B24")
+    tx = buy!(world, twin, quantity: "10", price: "80", date: ~D[2026-09-10])
+    buy!(world, other, quantity: "5", price: "80", date: ~D[2026-09-10])
+
+    {:ok, [split_row]} =
+      Splits.book_split(Actor.owner_ui(), %{
+        security_id: twin.id,
+        date: ~D[2026-09-15],
+        ratio_numerator: 2,
+        ratio_denominator: 1
+      })
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    ask_delete(view, split_row)
+
+    assert view |> element("#booking-delete-subject") |> render() |> text() =~
+             "Kestrel Robotik SE · DE000SYN0A17"
+
+    view |> element("[data-role='booking-delete-cancel']") |> render_click()
+    ask_delete(view, buy)
+
+    assert view |> element("#booking-delete-subject") |> render() |> text() =~
+             "Global Aktien ETF · Depot 1"
+
+    view |> element("[data-role='booking-delete-cancel']") |> render_click()
+    ask_delete(view, tx)
+
+    assert view |> element("#booking-delete-subject") |> render() |> text() =~
+             "Kestrel Robotik SE · DE000SYN0A17 · Depot 1"
+
+    view |> element("#booking-delete-confirm") |> render_click()
+
+    assert view |> element(".alert-success") |> render() |> text() =~
+             "Transaction deleted: Buy · Kestrel Robotik SE · DE000SYN0A17 · 2026-09-10."
+  end
+
   # User story (U1, #912; H2-A, A7; G12.3-A):
   # As the operator reading in the split drawer that a wrong split is
   # deleted and recorded again,
