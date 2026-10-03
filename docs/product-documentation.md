@@ -371,6 +371,58 @@ instrument. A day without a stored close produces no return observation, so
 nothing is carried forward and then differenced. **The block reports; it does
 not evaluate** — there is no signal, rating or recommendation anywhere in it.
 
+### Bonds: master data and key metrics (ADR-0052)
+
+A security whose asset class is **Bond** or **Government bond** — set, or
+inferred from its name — carries its master data in the security dialog
+behind **Edit**: the section *Bond data* appears while the asset class
+reads one of the two, when creating and when editing. Its fields are the
+**coupon p. a. in percent** (2.5, not 0.025), the **interest payment**
+(annual or semi-annual), the **maturity** and an optional **issue date**
+(ISO dates, the maturity after the issue date), and the **denomination**
+(face value) with its **currency**, which starts on the security's. Nothing
+is required; an emptied field clears its value, and the values are kept if
+the asset class changes away from a bond. A value no bond carries — a
+coupon above 100 %, a maturity on the issue date, a grouped figure — is
+refused on its own field.
+
+**The quantity convention.** A Portfolio Performance export books a
+percent-quoted bond's quantity as **a hundredth of its face amount**: 100
+units are a nominal of 10,000, and a quote of 97.25 is both 97.25 % of face
+and the price per unit. So quantity × quote is already the market value,
+and **the nominal held is quantity × 100**. Every place the face amount is
+derived says so.
+
+The bond's **Overview** shows one more block under the six figures, headed
+*Bond*: the maturity with the issue date, the coupon with its payment, and
+the **nominal held** ("100 units × 100 EUR", the denomination beside it),
+then what follows from them —
+
+- **remaining term**: calendar days from today to the maturity, in years of
+  365 days and in whole years and months; *matured* on and after the
+  maturity date;
+- **current yield** = coupon ÷ price;
+- **yield to maturity**, linearly approximated: (coupon + (100 − price) ÷
+  remaining term in years) ÷ price, without compounding.
+
+The price is the one the valuation uses: the latest stored quote, or the
+last own trade price while there is none, and the figure says which. Accrued
+interest, fees and taxes are not included; the figures are **reported, not
+evaluated**. A figure whose input is missing reads *not entered* or *not
+computable* with the reason, never a number. With no master data at all,
+one sentence says what is missing and **Enter bond data…** opens the dialog.
+
+**Priced on two scales.** If an export booked a bond's nominal as its
+quantity, every money figure of the bond — value, gain, weight — is a
+hundred times too high from the first quote on, and the TTWROR cannot show
+it. A bond whose latest stored quote is 20 to 500 times a booked buy price
+per unit (quotes near 100, bookings near 1) is therefore named in a
+**problem** note at the top of its Overview, with the quote, the buy and a
+link to its **Transactions** tab, where the quantity is checked against the
+nominal on the statement; and in the **data-quality** panel of Wealth →
+Holdings, where the total it inflates is read. Nothing is converted: the
+figures stay as booked until the bookings are corrected.
+
 ### Dates tab (the security's calendar, ADR-0048)
 
 The **Dates** tab (German: *Termine*) lists the dated calendar facts recorded
@@ -1528,10 +1580,13 @@ real holding, usually import debris from an unmodeled corporate action —
 listed per depot with the security's total across all depots and linked to
 the security's transactions so the history can be repaired (nothing is
 repaired automatically; the split wizard remains the only guided repair),
-and bookings with implausible dates (before 1970) that were applied on the
-first plausible day instead. Each finding is a note at its own severity — a
-hint for the trade-price fallback, attention for excluded and stale
-positions, a problem for negative holdings — and carries its remedy inside
+bookings with implausible dates (before 1970) that were applied on the
+first plausible day instead, and bonds **priced on two scales** — quotes near
+100 beside booked unit prices near 1, so they count a hundred times too high
+(see *Bonds* under Securities), each linked to its transactions. Each
+finding is a note at its own severity — a hint for the trade-price fallback,
+attention for excluded and stale positions, a problem for negative holdings
+and for two scales — and carries its remedy inside
 the note: the **Sync exchange rates** control sits in the missing-rate
 finding, and a cash account left out for want of a rate is also marked
 *no exchange rate* in the cash table. Negative-quantity positions are also marked

@@ -403,6 +403,61 @@ Die Zahlen stehen über den **eigenen** splitbereinigten Schlusskursen in der
 erzeugt keine Renditebeobachtung. **Der Block berichtet, er bewertet nicht** —
 es gibt kein Signal, kein Rating und keine Empfehlung darin.
 
+### Anleihen: Stammdaten und Kennzahlen (ADR-0052)
+
+Ein Wertpapier der Anlageklasse **Anleihe** oder **Staatsanleihe** — gesetzt
+oder aus dem Namen abgeleitet — trägt seine Stammdaten im Wertpapierdialog
+hinter **Bearbeiten**: Der Abschnitt *Anleihedaten* erscheint, solange die
+Anlageklasse eine der beiden ist, beim Anlegen wie beim Bearbeiten. Seine
+Felder sind der **Kupon p. a. in Prozent** (2,5, nicht 0,025), die
+**Zinszahlung** (jährlich oder halbjährlich), die **Fälligkeit** und ein
+optionaler **Emissionstag** (ISO-Datum, die Fälligkeit nach dem
+Emissionstag) sowie die **Stückelung** (Nennwert) mit ihrer **Währung**, die
+auf der Währung des Wertpapiers beginnt. Pflicht ist nichts; ein geleertes
+Feld löscht seinen Wert, und die Werte bleiben erhalten, wenn die
+Anlageklasse von einer Anleihe weg wechselt. Ein Wert, den keine Anleihe
+trägt — ein Kupon über 100 %, eine Fälligkeit am Emissionstag, eine
+gruppierte Zahl —, wird an seinem eigenen Feld abgelehnt.
+
+**Die Mengenkonvention.** Ein Portfolio-Performance-Export bucht die
+Stückzahl einer prozentnotierten Anleihe als **ein Hundertstel des
+Nominals**: 100 Stück sind 10.000 Nominal, und ein Kurs von 97,25 ist
+zugleich 97,25 % vom Nennwert und der Preis je Stück. Stück × Kurs ist also
+schon der Marktwert, und **das Nominal im Bestand ist Stück × 100**. Jede
+Stelle, die das Nominal ableitet, sagt das.
+
+Die **Übersicht** der Anleihe zeigt unter den sechs Werten einen Block mehr,
+überschrieben mit *Anleihe*: die Fälligkeit mit dem Emissionstag, den Kupon
+mit seiner Zahlung und das **Nominal im Bestand** („100 Stück × 100 EUR“,
+die Stückelung daneben), darunter, was daraus folgt —
+
+- **Restlaufzeit**: Kalendertage von heute bis zur Fälligkeit, in Jahren zu
+  365 Tagen und in ganzen Jahren und Monaten; *fällig* ab dem
+  Fälligkeitstag;
+- **laufende Rendite** = Kupon ÷ Kurs;
+- **Rendite bis Fälligkeit**, linear angenähert: (Kupon + (100 − Kurs) ÷
+  Restlaufzeit in Jahren) ÷ Kurs, ohne Zinseszins.
+
+Der Kurs ist der, mit dem die Bewertung rechnet: der letzte gespeicherte
+Kurs oder, solange es keinen gibt, der letzte eigene Handelspreis, und die
+Zahl sagt, welcher. Stückzinsen, Gebühren und Steuern sind nicht enthalten;
+die Zahlen werden **berichtet, nicht bewertet**. Eine Zahl, der ein Eingang
+fehlt, liest sich *nicht erfasst* oder *nicht berechenbar* mit dem Grund,
+nie als Zahl. Ganz ohne Stammdaten sagt ein Satz, was fehlt, und
+**Anleihedaten erfassen…** öffnet den Dialog.
+
+**Auf zwei Skalen bepreist.** Hat ein Export das Nominal einer Anleihe als
+Stückzahl gebucht, ist ab dem ersten Kurs jeder Geldbetrag der Anleihe —
+Wert, Gewinn, Gewicht — hundertfach zu hoch, und die TTWROR kann es nicht
+zeigen. Eine Anleihe, deren letzter gespeicherter Kurs das 20- bis 500-Fache
+eines gebuchten Kaufpreises je Stück beträgt (Kurse um 100, Buchungen um 1),
+wird deshalb in einem **Problem**-Hinweis oben in ihrer Übersicht genannt,
+mit dem Kurs, dem Kauf und einem Link auf ihren Tab **Transaktionen**, wo
+die Stückzahl gegen das Nominal der Abrechnung geprüft wird, und im
+**Datenqualitäts**-Panel unter Vermögen → Bestände, wo die Summe gelesen
+wird, die sie aufbläht. Umgerechnet wird nichts: Die Zahlen bleiben wie
+gebucht, bis die Buchungen korrigiert sind.
+
 ### Tab „Termine" (der Kalender des Wertpapiers, ADR-0048)
 
 Der Tab **Termine** listet die datierten Kalenderfakten des Wertpapiers —
@@ -1663,11 +1718,14 @@ modellierten Kapitalmaßnahme — je Depot gelistet mit der Gesamtmenge des
 Wertpapiers über alle Depots und verlinkt auf die Transaktionen des
 Wertpapiers, damit sich die Historie reparieren lässt (nichts wird
 automatisch repariert; der Split-Assistent bleibt die einzige geführte
-Reparatur), sowie Buchungen mit unplausiblen Daten (vor 1970), die
-stattdessen am ersten plausiblen Tag angewendet wurden. Jeder Befund ist
+Reparatur), Buchungen mit unplausiblen Daten (vor 1970), die
+stattdessen am ersten plausiblen Tag angewendet wurden, sowie Anleihen, die
+**auf zwei Skalen bepreist** sind — Kurse um 100 neben gebuchten
+Stückpreisen um 1, sodass sie hundertfach zu hoch zählen (siehe *Anleihen*
+unter Wertpapiere), jede verlinkt auf ihre Transaktionen. Jeder Befund ist
 eine Notiz in seiner eigenen Stufe — Hinweis für den Handelspreis-Rückfall,
 Achtung für ausgenommene und veraltete Positionen, Problem für negative
-Bestände — und trägt sein Mittel in der Notiz: das Bedienelement
+Bestände und für zwei Skalen — und trägt sein Mittel in der Notiz: das Bedienelement
 **Wechselkurse synchronisieren** steht im Befund zum fehlenden Wechselkurs,
 und ein Verrechnungskonto, das mangels Kurs ausgenommen ist, ist auch in der
 Cash-Tabelle mit *kein Wechselkurs* markiert. Positionen mit
