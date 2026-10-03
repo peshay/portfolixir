@@ -46,13 +46,15 @@ export class ApiRedirectError extends Error {
 }
 
 /**
- * A write got no answer before its deadline (E25 S7, G31), or lost its
- * connection after the request was sent (#955): a reset, a socket closed
- * while the answer arrived. The companion has no answer, but the server may
- * still commit the request, so the outcome is unknown: a retry without a
- * re-read can store a second record. A read that fails changes nothing and
- * is not this error. `cause` is the deadline in milliseconds, or the lost
- * connection's code.
+ * A write got no answer before its deadline (E25 S7, G31), or its connection
+ * failed in a way that does not prove the request never left (#955): a
+ * reset, a socket closed while the answer arrived, a TLS failure, a failure
+ * with no code. The companion has no answer and cannot tell whether the
+ * request was sent, but the server may still commit it, so the outcome is
+ * unknown: a retry without a re-read can store a second record. A read that
+ * fails changes nothing and is not this error. `cause` is the deadline in
+ * milliseconds, or the failure's code (each address's, joined, when a connect
+ * failed on several).
  */
 export class ApiOutcomeUnknownError extends Error {
   override readonly name = "ApiOutcomeUnknownError";
@@ -65,7 +67,7 @@ export class ApiOutcomeUnknownError extends Error {
     const what =
       typeof cause === "number"
         ? `got no answer within ${cause / 1000} s`
-        : `lost its connection after the request was sent (${cause.connection})`;
+        : `got no complete answer (${cause.connection}); the request may have been sent`;
 
     super(
       `Portfolixir API outcome unknown: ${method} ${path} ${what}, and the server may still ` +
@@ -114,14 +116,28 @@ function isAbort(error: unknown): boolean {
 // #955: the failures that prove the request never reached the server. The
 // connection was refused, the name did not resolve, the host or network was
 // unreachable, or the connect itself timed out. Nothing was sent, so a
-// retry is safe. Every other lost connection may have carried the request.
+// retry is safe. Every other failure may have carried the request.
+//
+// The #955 review round added three, each raised before a byte of the
+// request can leave:
+// - EAFNOSUPPORT: the kernel refuses a socket of the address's family (an
+//   IPv6 address on a host without IPv6), so no socket exists to send on.
+// - EADDRNOTAVAIL: connect() finds no local address or port to bind for the
+//   destination (::1 in a container without IPv6, ephemeral ports used up)
+//   and fails before the handshake's first packet; a TCP socket that has
+//   connected never reports it.
+// - ERR_INVALID_URL: the base URL does not parse, so the client never resolves a
+//   host, let alone connects to one.
 const NEVER_SENT = new Set([
   "ECONNREFUSED",
   "ENOTFOUND",
   "EAI_AGAIN",
   "EHOSTUNREACH",
   "ENETUNREACH",
-  "UND_ERR_CONNECT_TIMEOUT"
+  "EAFNOSUPPORT",
+  "EADDRNOTAVAIL",
+  "UND_ERR_CONNECT_TIMEOUT",
+  "ERR_INVALID_URL"
 ]);
 
 // A failure of the transport itself (#955): the request on its way out, or
@@ -140,21 +156,42 @@ async function transport<T>(step: () => Promise<T>): Promise<T> {
   }
 }
 
-// The lost connection's code, on the error or on its cause (where the Fetch
-// API puts the socket's), or "unknown" when neither carries one.
-function connectionCode(error: unknown): string {
+function codeOf(candidate: unknown): string | undefined {
+  const code =
+    typeof candidate === "object" && candidate !== null
+      ? (candidate as { code?: unknown }).code
+      : undefined;
+
+  return typeof code === "string" ? code : undefined;
+}
+
+// The failed connection's codes, on the error or on its cause (where the
+// Fetch API puts the socket's), "unknown" standing for one that carries none.
+// One code, except for a connect that failed on every address a name
+// resolves to (Node's happy eyeballs): its AggregateError carries one member
+// per address and copies only the first member's code onto itself, which
+// speaks for the first address alone. Its members' codes are read instead
+// (#955 review round), so a later address that may have carried the request
+// is never hidden behind a first one that was refused.
+function connectionCodes(error: unknown): string[] {
   for (const candidate of [error, (error as { cause?: unknown } | null)?.cause]) {
-    const code =
+    const members =
       typeof candidate === "object" && candidate !== null
-        ? (candidate as { code?: unknown }).code
+        ? (candidate as { errors?: unknown }).errors
         : undefined;
 
-    if (typeof code === "string") {
-      return code;
+    if (Array.isArray(members) && members.length > 0) {
+      return members.map((member) => codeOf(member) ?? "unknown");
+    }
+
+    const code = codeOf(candidate);
+
+    if (code !== undefined) {
+      return [code];
     }
   }
 
-  return "unknown";
+  return ["unknown"];
 }
 
 export function createApiClient(options: ApiClientOptions): ApiClient {
@@ -221,13 +258,15 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
           throw new ApiOutcomeUnknownError(method, path, timeoutMs);
         }
 
-        // A write whose connection was lost once it may have been sent
-        // (#955): the same unknown outcome as a timeout.
+        // A write whose connection failed once it may have been sent
+        // (#955): the same unknown outcome as a timeout. A connect tried on
+        // several addresses was never sent only if no address carried it.
         if (failure instanceof TransportFailure && !read) {
-          const code = connectionCode(error);
+          const codes = connectionCodes(error);
 
-          if (!NEVER_SENT.has(code)) {
-            throw new ApiOutcomeUnknownError(method, path, { connection: code });
+          if (!codes.every((code) => NEVER_SENT.has(code))) {
+            const connection = [...new Set(codes)].join(", ");
+            throw new ApiOutcomeUnknownError(method, path, { connection });
           }
         }
 

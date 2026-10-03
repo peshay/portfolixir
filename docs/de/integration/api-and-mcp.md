@@ -2953,14 +2953,20 @@ Datensatz anfügt, kann ein Duplikat speichern, und jedes solche Tool (jeder
 nicht idempotente Schreibvorgang) sagt das in seiner Beschreibung; die
 Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
 
-**Ein Schreibvorgang, dessen Verbindung abreißt**, nachdem die Anfrage gesendet
-war (ein Reset oder ein Socket, der sich schließt, während die Antwort ankommt),
-ergibt ebenso `ApiOutcomeUnknownError`, mit dem Code der Verbindung in der
-Meldung: Der Server kann ihn übernommen haben. Ein Fehler, der zeigt, dass die
-Anfrage die API nie erreicht hat (Verbindung abgelehnt, Name nicht aufgelöst,
-Host nicht erreichbar, Verbindungsaufbau selbst abgelaufen), bleibt ein
-gewöhnlicher Fehler und darf wiederholt werden, ebenso jeder Fehler eines
-Lesezugriffs.
+**Ein Schreibvorgang, dessen Verbindung scheitert**, ohne dass sich zeigt,
+dass die Anfrage nie abging (ein Reset, ein Socket, der sich schließt, während
+die Antwort ankommt, ein TLS-Fehler, ein Fehler ohne Code), ergibt ebenso
+`ApiOutcomeUnknownError`, mit dem Code des Fehlers in der Meldung: Die Anfrage
+kann gesendet worden sein, und der Server kann sie übernommen haben. Ein
+Fehler, der zeigt, dass die Anfrage die API nie erreicht hat (Verbindung
+abgelehnt, Name nicht aufgelöst, Host oder Netz nicht erreichbar,
+Adressfamilie nicht unterstützt oder keine lokale Adresse verfügbar,
+Verbindungsaufbau selbst abgelaufen, eine Basis-URL, die sich nicht als URL
+lesen lässt), bleibt ein gewöhnlicher Fehler und darf wiederholt werden,
+ebenso jeder Fehler eines Lesezugriffs. Löst ein Name in mehrere Adressen auf,
+gilt die Anfrage nur dann als nie gesendet, wenn der Verbindungsaufbau an
+jeder von ihnen so gescheitert ist; sonst nennt die Meldung den Code jeder
+Adresse.
 
 - `portfolixir.contract.get` — der Kontraktversions-Read (ADR-0044 §8): was
   die Oberfläche bietet und wann sie sich zuletzt geändert hat, abfragbar mit

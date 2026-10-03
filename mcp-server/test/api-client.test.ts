@@ -180,19 +180,28 @@ describe("the companion's API client", () => {
   // server had already committed.
   //
   // Acceptance criteria:
-  // - A POST, PUT, PATCH or DELETE whose connection fails after the request
-  //   was sent (a reset, a socket closed while the answer arrives, any
-  //   failure the request cannot be shown to have missed the server by)
-  //   answers ApiOutcomeUnknownError, naming the request, the lost
-  //   connection, its code and the re-read.
+  // - A POST, PUT, PATCH or DELETE whose connection fails in any way the
+  //   request cannot be shown to have missed the server by (a reset, a
+  //   socket closed while the answer arrives, a TLS failure, a failure that
+  //   carries no code) answers ApiOutcomeUnknownError, naming the request,
+  //   the failure's code, that the request may have been sent, and the
+  //   re-read. It never claims the request was sent: it cannot know.
   // - A failure that proves the request never reached the server (connection
-  //   refused, name not resolved, host unreachable, the connect timing out)
-  //   stays a plain error, which is safe to retry.
+  //   refused, name not resolved, host or network unreachable, the address
+  //   family unsupported or the local address unavailable, the connect
+  //   timing out, a base URL that does not parse) stays a plain error, which
+  //   is safe to retry.
+  // - A connect that failed on every address a name resolves to (Node's
+  //   happy eyeballs, one AggregateError whose own code is only its first
+  //   member's) is never sent only when every member is such a failure; one
+  //   member that may have carried the request makes the write's outcome
+  //   unknown, and the message names every member's code (#955 review round).
   // - A read's failure stays a plain error, whatever its cause: a read
   //   changes nothing.
   // - Against real sockets: a server that drops the connection after reading
   //   the request, and one that drops it mid-answer, both answer outcome
-  //   unknown for a POST; a closed port answers a plain refusal.
+  //   unknown for a POST; a closed port answers a plain refusal, and so does
+  //   a base URL that does not parse.
   describe("a lost connection", () => {
     const failing = (error: unknown) =>
       createApiClient({
@@ -206,7 +215,18 @@ describe("the companion's API client", () => {
     const fetchFailed = (code: string) =>
       new TypeError("fetch failed", { cause: Object.assign(new Error(code), { code }) });
 
-    it("answers a write cut off after it was sent as outcome unknown", async () => {
+    // What undici raises when Node's happy eyeballs (autoSelectFamily) fails
+    // on every address a name resolves to: one AggregateError, one member per
+    // address tried, whose own code Node copies from the first member only.
+    const allAddressesFailed = (...codes: Array<string | undefined>) =>
+      new TypeError("fetch failed", {
+        cause: Object.assign(
+          new AggregateError(codes.map((code) => Object.assign(new Error(code ?? "no code"), { code }))),
+          { code: codes[0] }
+        )
+      });
+
+    it("answers a write that may have been sent as outcome unknown", async () => {
       const cutOff = [
         fetchFailed("ECONNRESET"),
         fetchFailed("UND_ERR_SOCKET"),
@@ -215,6 +235,8 @@ describe("the companion's API client", () => {
         new TypeError("terminated", {
           cause: Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" })
         }),
+        fetchFailed("ERR_SSL_WRONG_VERSION_NUMBER"),
+        new TypeError("fetch failed", { cause: new Error("unknown scheme") }),
         new TypeError("fetch failed")
       ];
 
@@ -226,7 +248,8 @@ describe("the companion's API client", () => {
               assert.ok(raised instanceof ApiOutcomeUnknownError, `${method}: ${String(raised)}`);
               assert.match(raised.message, new RegExp(`${method} /api/v1/transactions/9`));
               assert.match(raised.message, /outcome unknown/);
-              assert.match(raised.message, /lost its connection/);
+              assert.match(raised.message, /the request may have been sent/);
+              assert.doesNotMatch(raised.message, /after the request was sent/);
               assert.match(raised.message, /may still have committed it/);
               assert.match(raised.message, /Re-read/);
               return true;
@@ -245,7 +268,10 @@ describe("the companion's API client", () => {
         "EAI_AGAIN",
         "EHOSTUNREACH",
         "ENETUNREACH",
-        "UND_ERR_CONNECT_TIMEOUT"
+        "EAFNOSUPPORT",
+        "EADDRNOTAVAIL",
+        "UND_ERR_CONNECT_TIMEOUT",
+        "ERR_INVALID_URL"
       ]) {
         const error = fetchFailed(code);
 
@@ -254,6 +280,54 @@ describe("the companion's API client", () => {
           return true;
         });
       }
+    });
+
+    it("keeps a connect that failed on every address a plain, retryable error", async () => {
+      for (const codes of [
+        ["EAFNOSUPPORT", "ECONNREFUSED"],
+        ["EADDRNOTAVAIL", "ECONNREFUSED"],
+        ["ECONNREFUSED", "ECONNREFUSED"],
+        ["ENETUNREACH", "EHOSTUNREACH"]
+      ]) {
+        const error = allAddressesFailed(...codes);
+
+        await assert.rejects(failing(error).request("POST", "/api/v1/transactions", {}), (raised) => {
+          assert.equal(raised, error, codes.join(", "));
+          return true;
+        });
+
+        // The aggregate thrown as it is, not wrapped by fetch, reads the same.
+        const bare = (error as { cause: unknown }).cause;
+        await assert.rejects(failing(bare).request("POST", "/api/v1/transactions", {}), (raised) => {
+          assert.equal(raised, bare, codes.join(", "));
+          return true;
+        });
+      }
+    });
+
+    it("answers a connect on every address with one member that may have been sent as outcome unknown", async () => {
+      for (const [codes, named] of [
+        [["EAFNOSUPPORT", "ECONNRESET"], /\(EAFNOSUPPORT, ECONNRESET\)/],
+        [["ECONNREFUSED", "ETIMEDOUT"], /\(ECONNREFUSED, ETIMEDOUT\)/],
+        [["ECONNREFUSED", undefined], /\(ECONNREFUSED, unknown\)/]
+      ] as const) {
+        await assert.rejects(
+          failing(allAddressesFailed(...codes)).request("POST", "/api/v1/transactions", {}),
+          (raised: unknown) => {
+            assert.ok(raised instanceof ApiOutcomeUnknownError, `${codes.join(", ")}: ${String(raised)}`);
+            assert.match(raised.message, named);
+            assert.match(raised.message, /the request may have been sent/);
+            assert.match(raised.message, /Re-read/);
+            return true;
+          }
+        );
+      }
+
+      // An aggregate with no members proves nothing about any address.
+      await assert.rejects(
+        failing(new TypeError("fetch failed", { cause: new AggregateError([]) })).request("POST", "/x", {}),
+        ApiOutcomeUnknownError
+      );
     });
 
     it("keeps a read's failure a plain error", async () => {
@@ -314,6 +388,17 @@ describe("the companion's API client", () => {
 
       await assert.rejects(client.request("POST", "/api/v1/transactions", {}), (raised: unknown) => {
         assert.ok(!(raised instanceof ApiOutcomeUnknownError), String(raised));
+        return true;
+      });
+    });
+
+    it("keeps a base URL that does not parse a plain error", async () => {
+      // The real fetch: the URL fails to parse before any connect is tried.
+      const client = createApiClient({ baseUrl: "not a url", token: "t" });
+
+      await assert.rejects(client.request("POST", "/api/v1/transactions", {}), (raised: unknown) => {
+        assert.ok(!(raised instanceof ApiOutcomeUnknownError), String(raised));
+        assert.equal((raised as { cause?: { code?: unknown } }).cause?.code, "ERR_INVALID_URL");
         return true;
       });
     });
