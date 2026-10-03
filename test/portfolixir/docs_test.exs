@@ -1594,4 +1594,44 @@ defmodule Portfolixir.DocsTest do
       end
     end
   end
+
+  # User story (FR-41, ADR-0051 §12, board pick A):
+  # As a local portfolio maintainer reading the handbook's performance
+  # section,
+  # I want it to say what the contribution table under the chart shows and
+  # that it adds up to the period's money result,
+  # so that I can read the table without reverse-engineering it.
+  #
+  # Acceptance criteria:
+  # - The English and German handbooks name the table, its formula, the three
+  #   remainder lines, the ten-largest limit with "show all", the unvalued
+  #   note, and that the sum row equals the money figure beside the TTWROR.
+  test "the docs describe the contribution table and its sum in English and German" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "### Contribution by position",
+             "end value − start value − flows + income − costs",
+             "interest, standalone fees and taxes, and the currency effect on cash",
+             "the sum row equals the money figure in the badge",
+             "the ten largest by absolute amount",
+             "counted zero"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "### Beitrag je Position",
+             "Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten",
+             "Zinsen, einzelne Gebühren und Steuern sowie der Währungseffekt auf Bargeld",
+             "die Summenzeile ist genau der Betrag im Abzeichen",
+             "die zehn mit dem größten Betrag",
+             "null gezählt"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
 end

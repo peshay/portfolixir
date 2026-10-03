@@ -2918,3 +2918,164 @@ the released rows), run as the operator.
   dialog's does (G12.2-B's named follow-up). Dialog count: one more native
   dialog; the lifecycle's record above now reads seventeen `<dialog>`
   elements in `lib/portfolixir_web/`, still with zero `aria-modal`.
+
+## Amendment 2026-10-03 — Wealth → Holdings → Performance: the contribution table *(Sprint 18 PR β F3, ADR-0051 §12 pick A, FR-41)*
+
+Board `mockups/fr41-2026-09-25/01-contribution-surface`, variant A (signed
+with ADR-0051 by the merge of the Sprint 17 planning PR; B and C not built).
+Built in `PortfolixirWeb.Portfolio.ContributionTable`, placed by
+`PortfolixirWeb.PortfolioLive`; the rules are in `app.css` under "The
+contribution table under the Wealth performance chart". It is the human view
+of the contribution read (`Performance.Contribution.for_view/2`), and it is
+**never in the classifications tree** (ADR-0051 §8).
+
+### Placement and scope
+
+- **Inside `#portfolio-performance`, directly under the chart** and its basis
+  lines (the date range with "computed", the view's composition label), so
+  the badge, the chart and the table share one section head: the series
+  toggle, the period control and the custom-range disclosure.
+- **The scope is the walk's own:** the page's view across all portfolios
+  (Everything when none is picked), the period the control shows, the
+  portfolio's base currency. The sum row is therefore the money figure of
+  the badge, "+x EUR in the period" (ADR-0051 §3, I1), printed by the
+  badge's own rule (a plus before a positive amount, two decimals), so the
+  two read the same characters. LiveView tests pin the equality on five
+  worlds: remainder lines and a sold position, more than ten positions, an
+  unvalued position, a view, and before and after a period change.
+- **It loads on its own.** The badge re-chains the cached walk; the table
+  runs a windowed walk per period (ADR-0051 §5), async, with the block
+  skeleton and the "computing" cue (UX-DR20) while it does. While the badge
+  shows a superseded series (ADR-0032 §6) the table keeps its skeleton, so
+  its sum never answers a figure the badge no longer shows; a failed walk is
+  a `problem` note, "Computation failed. Reload retries.". Holdings only:
+  the Allocation tab never computes it.
+
+### Anatomy, top to bottom
+
+- **The head** (`.contribution__head`): the section's `h3` "Beitrag je
+  Position" and, right-aligned on the same row, the scope line in the basis
+  voice (12 px, muted): "1J · Ansicht Alles · sortiert nach Beitrag" — the
+  page's period label and its existing "Ansicht %{name}" words.
+- **The table** (`#contribution-table-wrap > table#contribution-table.data-table`,
+  labelled by the `h3`): Wertpapier · Anfangswert · Zu-/Abflüsse · Erträge ·
+  Kosten · Endwert · Beitrag, the six figures `.num`. A reading table, not a
+  matrix (`min-width: 0` on the wrapper's table, the figures `nowrap`, the
+  name at least 14ch and wrapping), with UX-DR15's scroller as the fallback.
+- **A position row**, largest contribution first (the payload's order): the
+  name; under it, in 12 px muted, the payload's two flags in words where a
+  position was not held at both ends — "zu Beginn nicht im Bestand", "am
+  Ende nicht mehr im Bestand", "weder zu Beginn noch am Ende im Bestand" (a
+  position sold inside the period is a row; so is one with income held at
+  neither end). Anfangswert, Kosten and Endwert unsigned; Zu-/Abflüsse and
+  Erträge signed and **uncoloured** — a flow's sign is a direction, not a
+  gain. The Beitrag signed in its sign colour (`span.is-positive` /
+  `.is-negative`, zero uncoloured), with the **drift bar under it**:
+  `.drift-bar` at 110 px, block, right-aligned under the figure (`margin: 5px
+  0 0 auto`), the fill right of the zero line in {colors.positive} for a
+  gain and left in {colors.danger} for a loss, scaled so the largest
+  absolute contribution fills 45 % of the track (Drift bars, issue 798). A
+  zero contribution keeps the track with no fill. Decorative and
+  `aria-hidden`: the figure carries sign and colour (UX-DR7).
+- **The unvalued marker** (UX-DR25): a row that counted zero on some days
+  carries `.contribution-unvalued-mark` after its name — "240 Tage null", 11
+  px/600 in {colors.warning} inside a dashed {colors.warning} pill. The word
+  is the channel; the colour is the third.
+- **More than ten positions:** the ten largest **by absolute amount**, in
+  the table's order, then a row (`td[colspan=7]`, muted) "20 kleinere
+  Positionen sind ausgeblendet; die Summe enthält sie." and the
+  `.link-button` "Alle 30 anzeigen" (`aria-expanded`), which opens every row
+  and then reads "Nur die zehn größten anzeigen". Pure presentation — nothing
+  recomputes — and the choice survives a period switch. The sum row always
+  covers every position.
+- **The remainder** under its own head row, "Keiner Position zugeordnet" (11
+  px/700 uppercase, letter-spaced, muted, on {colors.bg-muted}); its three
+  lines on the same band, each with a 12 px muted sub-line and "—" in the
+  five position columns, the figure signed in its colour:
+  - **Zinsen** — "Konto und Kupons; eine Zinsbuchung trägt kein Wertpapier";
+  - **Einzelne Gebühren und Steuern** — "Ohne Handelsbezug, auch mit
+    Wertpapier";
+  - **Währungseffekt auf Bargeld** — "Fremdwährungskonten und
+    Abrechnungsdifferenzen von Käufen und Verkäufen": the engine puts a
+    trade's settlement difference between its cash and its security leg in
+    this line (ADR-0051 §3), and the sub-line says so rather than leaving
+    "Bargeld" to suggest balances only.
+
+  English: "Not attributed to a position"; "Interest" — "Account interest
+  and coupons; an interest booking carries no security"; "Standalone fees
+  and taxes" — "Not part of a trade, even when one names a security";
+  "Currency effect on cash" — "Foreign-currency balances and the settlement
+  differences of buys and sells". All three lines always render, a zero
+  included: the anatomy does not change with the data.
+- **The sum row** "Summe = Ergebnis im Zeitraum", 700 under a 2 px
+  {colors.border-strong} rule: Anfangswert, Zu-/Abflüsse, Erträge, Kosten
+  and Endwert summed over **all** positions; the Beitrag over the positions
+  and the three lines, signed in its colour with the currency as
+  `.value-suffix`.
+- **The basis line** (`p.summary-basis`, 12 px muted, UX-DR11), the board's
+  four sentences in the house's dot-separated basis voice: "Beitrag =
+  Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten · je Position in
+  EUR, einschließlich der Währungsbewegung · Anfangswert: der Schluss des
+  Vortags · Positionen und Restposten ergeben genau das Ergebnis im
+  Zeitraum; Einzahlungen und Entnahmen sind kein Ergebnis".
+- **The unvalued note** (UX-DR25 clauses 1 and 3), last: one `attention`
+  data note with the count and every name in bold, each with its days and
+  reason — "3 Positionen zählten an einigen Tagen des Zeitraums null:
+  **Saltmarsh Logistics SE** (240 Tage, kein Kurs gespeichert), … Sie bleiben
+  in der Summe, so wie im Ergebnis darüber." No remedy control: nothing here
+  can supply a past price or rate.
+- **The empty window** (ADR-0051 §4): no walked day in the period, or nothing
+  held and no remainder line moved — the `.empty-state` sentence "In diesem
+  Zeitraum gibt es nichts aufzuschlüsseln: Keine Position war im Bestand, und
+  weder Zinsen noch Gebühren noch Währungseffekte fielen an." No table, no
+  sum row, never a table of zeros.
+
+### Under 560 px *(UX-DR27)*
+
+`#contribution-table-wrap` joins the phone lists' 560 px block and
+`ul#contribution-phone-rows.phone-rows` shows: the transactions shape, two
+children (body and figures), no logo, no kebab, no bar.
+
+- **A position:** the name (600, wrapping) over "Anfang → Ende" — or, not
+  held at both ends, the held words — then "Zufluss x" / "Abfluss x" and
+  "Erträge x" where not zero and the "N Tage null" marker; on the right the
+  Beitrag (14 px/600, sign colour).
+- **"N kleinere Positionen …"** and the same control, as a row of its own.
+- **The remainder** as one row on the {colors.bg-muted} band (padded
+  `--space-2` inline): "Keiner Position zugeordnet" over "Zinsen +x · Gebühren/Steuern
+  −y · Währung +z", the remainder's total on the right.
+- **The sum** under the 2 px rule: "Summe = Ergebnis im Zeitraum" (700) over
+  "Positionen und Restposten", the total with its currency suffix (700).
+- The head, the basis line and the note stay as they are, wrapping.
+
+### Kept apart from the board, and why
+
+- **Held words, not "verkauft 2026-04-17" / "gekauft 2026-01-12".** The
+  payload carries `held_at_start` and `held_at_end`, not the dates, and a
+  position can arrive by delivery or leave by transfer: the words stay true
+  for every way in and out.
+- **The basis line** keeps the board's content in the basis voice instead of
+  four sentences (UX-DR11), and the scope line reuses the page's existing
+  "Ansicht %{name}" words (no colon).
+- **The phone rows** carry no avatar: the board's initials were the mock
+  frame's stand-in for the securities list's logo, and the remainder and sum
+  rows would need glyph avatars of their own. The rows follow the trades
+  rows instead. The sum row's second line names what it adds up rather than
+  "= Abzeichen oben".
+- **The unvalued note** names each position with its own days and reason,
+  because several positions can count zero for different reasons; the board
+  drew one.
+- **Signs** are the house formats (`Format`): a hyphen-minus, not the
+  board's typographic minus, as the badge prints them.
+- **The "show all" control**, which the board named but did not draw, is a
+  table row between the positions and the remainder, where the hidden rows
+  would appear.
+
+### Stated, not settled here
+
+- The show-all control is a `.link-button` and so below the 44 px
+  coarse-pointer floor, as every `.link-button` is (the finding already
+  filed for the remedy links in notes).
+- A security stored twice under one name (a duplicate awaiting a merge)
+  reads as two rows with the same name; the ISIN is in the payload but not
+  on the row.

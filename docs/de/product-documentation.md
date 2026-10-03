@@ -1703,6 +1703,43 @@ Zeitraum und je View, und stehen über die API (`…/performance/benchmark`)
 und die MCP-Tools `portfolixir.portfolios.benchmark` und
 `portfolixir.views.benchmark` bereit.
 
+### Beitrag je Position
+
+Direkt unter dem Performance-Diagramm unter **Vermögen → Bestände**
+beantwortet eine Tabelle, welche Position wie viel zum Ergebnis des Zeitraums
+beigetragen hat ([ADR-0051](/decisions/0051-contribution-analysis.html),
+FR-41). Sie folgt der Zeitraum-Steuerung des Abschnitts und der Ansicht der
+Seite, wie das Abzeichen darüber. Je Position, in der Basiswährung und
+einschließlich der Währungsbewegung, gilt: Beitrag = Endwert − Anfangswert −
+Zu-/Abflüsse + Erträge − Kosten. Das ist der Wert am Ende des Zeitraums,
+abzüglich des Werts zum Schluss des Vortags, abzüglich der Käufe und zuzüglich
+der Verkäufe (jeweils zum Kurs des Buchungstags), zuzüglich der gutgeschriebenen
+Dividenden und abzüglich der Gebühren und Steuern der eigenen Käufe und
+Verkäufe der Position. Jede Zeile zeigt diese fünf Zahlen neben dem Beitrag,
+sodass sich jede Zahl von Hand nachprüfen lässt. Die Zeilen sind nach Beitrag
+sortiert, der größte zuerst, und ein Balken unter jeder Zahl zeigt ihre Größe
+im Vergleich zur größten. Auch eine im Zeitraum verkaufte Position hat ihre
+Zeile; sie ist als weder zu Beginn noch am Ende im Bestand gekennzeichnet.
+
+Was keiner Position gehört, steht getrennt unter „Keiner Position
+zugeordnet“: Zinsen, einzelne Gebühren und Steuern sowie der Währungseffekt
+auf Bargeld (die Neubewertung von Fremdwährungskonten und die
+Abrechnungsdifferenzen von Käufen und Verkäufen). Jeder Posten wird aus seinen
+eigenen Buchungen summiert, und keiner ist ein Ausgleichsbetrag. Die Positionen
+und diese drei Posten ergeben zusammen genau das Geldergebnis des Zeitraums:
+die Summenzeile ist genau der Betrag im Abzeichen („+x EUR im Zeitraum“) neben
+der TTWROR. Einzahlungen und Entnahmen sind kein Ergebnis und stehen
+deshalb nirgends.
+
+Bei mehr als zehn Positionen zeigt die Tabelle die zehn mit dem größten Betrag
+(nach Absolutwert) und **Alle N anzeigen**; die Summenzeile umfasst immer alle
+Positionen. Eine Position, die an einigen Tagen des Zeitraums null gezählt
+wurde, weil kein Kurs oder kein Wechselkurs gespeichert war, behält ihren Platz
+in der Tabelle und in der Summe, trägt die Zahl dieser Tage in ihrer Zeile und
+wird in einem Hinweis unter der Tabelle genannt. Ein Zeitraum ohne Inhalt zeigt
+einen Satz statt einer Tabelle voller Nullen, und auf dem Telefon wird die
+Tabelle zu zweizeiligen Einträgen.
+
 ## Cashflow
 
 Der Bereich **Cashflow** (`/cashflow`) ist der Ort, an dem Geldbewegungen
