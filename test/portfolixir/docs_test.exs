@@ -1971,4 +1971,101 @@ defmodule Portfolixir.DocsTest do
 
     ids
   end
+
+  # User story (#952):
+  # As the operator's agent relying on the audit journal, or a German-speaking
+  # reader of the API reference,
+  # I want the journal's coverage stated as the code has it, and the German
+  # reference to carry the recorded tax statements and their tools,
+  # so that neither language understates the guarantee agent writes rely on,
+  # and the tax surface is not documented in English alone.
+  #
+  # Acceptance criteria:
+  # - No API or product page, in English or German, still says the journal
+  #   covers only security master data with the rest to follow; each says
+  #   that every financial write context journals.
+  # - The German reference has the recorded-tax-statements section with each
+  #   of its routes, and its MCP list names each tax tool.
+  # - The German sentence on a recorded statement's system-set `source` sits
+  #   with the statement's POST, not in the Audit-Journal section.
+  test "the docs state the journal's coverage and the German tax reference (#952)" do
+    for {path, stale, current} <- [
+          {"docs/integration/api-and-mcp.md",
+           ["covers the Catalog/Fx contexts", "armed in sequence"],
+           "Every financial write context journals"},
+          {"docs/de/integration/api-and-mcp.md",
+           ["deckt derzeit die Kontexte Catalog/Fx ab", "nacheinander scharfgeschaltet"],
+           "Jeder Schreibkontext mit Finanzdaten journalisiert"},
+          {"docs/product-documentation.md",
+           ["currently covers security master-data writes", "covered in sequence"],
+           "It covers every area that writes financial data"},
+          {"docs/de/product-documentation.md",
+           ["deckt derzeit Wertpapier-Stammdaten ab", "folgen nacheinander"],
+           "Es deckt jeden Bereich ab, der Finanzdaten schreibt"}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- stale do
+        refute doc =~ fragment, "#{path} still says: #{fragment}"
+      end
+
+      assert doc =~ current, "#{path}: #{current}"
+    end
+
+    de_api = File.read!("docs/de/integration/api-and-mcp.md")
+
+    [_, tax_section] =
+      String.split(de_api, "### Erfasste Steuerbescheinigungen (ADR-0031)\n", parts: 2)
+
+    [tax_section, _] = String.split(tax_section, "\n## ", parts: 2)
+
+    for route <- [
+          "GET /api/v1/tax/parameters",
+          "PUT /api/v1/tax/parameters",
+          "GET /api/v1/tax/profiles",
+          "POST /api/v1/tax/profiles",
+          "PATCH /api/v1/tax/profiles/:id",
+          "DELETE /api/v1/tax/profiles/:id",
+          "GET /api/v1/tax/allowance_orders",
+          "PUT /api/v1/tax/allowance_orders",
+          "DELETE /api/v1/tax/allowance_orders/:id",
+          "GET /api/v1/tax/statement_snapshots",
+          "POST /api/v1/tax/statement_snapshots",
+          "GET /api/v1/tax/trim_budget",
+          "GET /api/v1/tax/statement_snapshots/:id",
+          "PATCH /api/v1/tax/statement_snapshots/:id",
+          "DELETE /api/v1/tax/statement_snapshots/:id"
+        ] do
+      assert tax_section =~ "`#{route}", "German tax section lacks #{route}"
+    end
+
+    [_, mcp_list] = String.split(de_api, "\n## MCP-Tools\n", parts: 2)
+
+    for tool <- [
+          "tax_parameters.list",
+          "tax_parameters.upsert",
+          "tax_profiles.list",
+          "tax_profiles.create",
+          "tax_profiles.update",
+          "tax_profiles.delete",
+          "allowance_orders.list",
+          "allowance_orders.put",
+          "allowance_orders.delete",
+          "tax_snapshots.list",
+          "tax_snapshots.get",
+          "tax_snapshots.create",
+          "tax_snapshots.update",
+          "tax_snapshots.delete",
+          "tax_snapshots.trim_budget"
+        ] do
+      assert mcp_list =~ "- `portfolixir.#{tool}`", "German MCP list lacks #{tool}"
+    end
+
+    [_, journal_section] = String.split(de_api, "\n## Audit-Journal\n", parts: 2)
+    [journal_section, _] = String.split(journal_section, "\n## ", parts: 2)
+    source_rule = "Die Quelle einer erfassten Steuerbescheinigung setzt das System (`manual`)"
+
+    refute String.replace(journal_section, ~r/\s+/, " ") =~ source_rule
+    assert String.replace(tax_section, ~r/\s+/, " ") =~ source_rule
+  end
 end

@@ -2754,9 +2754,11 @@ values) — the safety net for letting an agent write data through the API/MCP.
 Market-data sync (quotes and exchange rates) is operational and is not journaled.
 The journal is queryable through `GET /api/v1/journal` and the matching
 `portfolixir.journal.list` MCP tool (see
-[API and MCP](integration/api-and-mcp.html)). It currently covers security
-master-data writes; the remaining write areas are covered in sequence. A
-dedicated in-app viewer is a planned follow-up.
+[API and MCP](integration/api-and-mcp.html)). It covers every area that writes
+financial data: securities and the quotes someone enters, portfolios, cash
+accounts and depots, bookings (an import's included), classifications and SOLL
+plans, tax records, research notes and events, policy rules, merges, and
+buckets and views. A dedicated in-app viewer is a planned follow-up.
 
 Deleting a cash account, a depot or a security never takes anything with it
 silently (ADR-0050 §11). A row that bookings still reference — or, for a
