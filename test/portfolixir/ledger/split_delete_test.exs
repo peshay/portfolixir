@@ -216,6 +216,40 @@ defmodule Portfolixir.Ledger.SplitDeleteTest do
     assert single.resource_id == to_string(row_a.id)
   end
 
+  # User story (U1, #912; pick H2-A, state A4; the closing act, R5):
+  # As the operator confirming a split's delete after the dialog listed its
+  # rows,
+  # I want the delete to remove no row the dialog did not list,
+  # so that a split extended meanwhile is never deleted further than I
+  # confirmed.
+  #
+  # Acceptance criteria:
+  # - With `only:` naming the listed rows, an event that carries a row
+  #   outside them (a re-book added a portfolio) answers {:error, :changed}:
+  #   nothing is deleted and nothing journaled.
+  # - The listed rows less one deleted since are deleted, from any listed
+  #   row still stored.
+  test "deletes no row outside the ones it was shown" do
+    %{security: security} = two_portfolio_world()
+    [row_a, row_b] = split!(security, ~D[2026-09-15], {2, 1})
+    listed = [row_a.id, row_b.id]
+
+    c = base_world(name: "Depot-Portfolio", cash_name: "Kasse", depot_name: "Depot 3")
+    buy!(c, security, quantity: "5", price: "61", date: ~D[2026-09-03])
+    [row_c] = split!(security, ~D[2026-09-15], {2, 1})
+
+    assert {:error, :changed} = Splits.delete_split(Actor.owner_ui(), row_a, only: listed)
+    assert length(split_rows(security)) == 3
+    assert Journal.list_entries(resource_type: "transaction", operation: :delete) == []
+
+    {:ok, _} = Ledger.delete_transaction(Actor.owner_ui(), row_a)
+    shown = [row_a.id, row_b.id, row_c.id]
+
+    assert {:ok, deleted} = Splits.delete_split(Actor.owner_ui(), row_c, only: shown)
+    assert deleted |> Enum.map(& &1.id) |> Enum.sort() == Enum.sort([row_b.id, row_c.id])
+    assert split_rows(security) == []
+  end
+
   # User story (U1, #912; pick H2-A, state A4):
   # As the operator about to delete a split,
   # I want to see which portfolios' rows go with it,
