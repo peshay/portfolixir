@@ -165,6 +165,7 @@ Portfolixir.Portfolios   # portfolios, cash accounts, depots
 Portfolixir.Ledger       # transactions (13 PP kinds + balance snapshot) and holdings
 Portfolixir.Tax          # recorded tax-statement snapshots and consistency checks
 Portfolixir.Knowledge    # append-only security research log and the thesis-state projection
+Portfolixir.Lifecycle    # rename, merge and delete of accounts, depots and securities (ADR-0050)
 PortfolixirWeb           # LiveViews, router, JSON API, components
 mcp-server/              # TypeScript MCP server wrapping the JSON API only
 ```
