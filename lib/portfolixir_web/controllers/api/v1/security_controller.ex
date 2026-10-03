@@ -7,6 +7,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Knowledge
+  alias Portfolixir.Portfolios.Bonds
   alias PortfolixirWeb.Api.V1.FieldSelection
   alias PortfolixirWeb.Api.V1.IntegerParam
   alias PortfolixirWeb.Api.V1.JSON
@@ -103,12 +104,14 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
         MergedAway.not_found(conn, :security, id)
 
       security ->
-        # The detail carries the recorded former-ISIN aliases (ADR-0029 §3)
-        # and the thesis state derived from the research log (ADR-0044 §1).
+        # The detail carries the recorded former-ISIN aliases (ADR-0029 §3),
+        # the thesis state derived from the research log (ADR-0044 §1) and,
+        # for a bond, its reading with each metric's basis (#330, ADR-0052).
         detail =
           security
           |> Catalog.with_identifier_aliases()
           |> Knowledge.with_thesis_state()
+          |> Bonds.with_reading()
 
         json(conn, %{data: JSON.security(detail)})
     end

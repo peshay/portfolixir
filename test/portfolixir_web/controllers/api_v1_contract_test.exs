@@ -64,6 +64,17 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
              &(&1 =~ "DELETE /api/v1/splits/:transaction_id" and &1 =~ "#912")
            )
 
+    # U7 extends it: a bond's master data on the securities routes, and the
+    # bond reading with each metric's computation basis on the detail read
+    # (#330, ADR-0052). No endpoint is added.
+    assert newest["summary"] =~ "U7"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "GET /api/v1/securities/:id" and &1 =~ "coupon_rate" and
+                 &1 =~ "computation_basis" and &1 =~ "#330")
+           )
+
     # Sprint 18, PR β (version 11): the operator's money surface, one entry
     # for the lane PR. F4 opened it: the category result takes the view scope
     # in the performance family's two forms (#901). Found by version from
