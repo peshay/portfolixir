@@ -7194,13 +7194,11 @@ select:disabled {
   color: var(--color-text-muted);
   cursor: not-allowed;
 }
+/* "Neuer Snapshot" is a `.disclosure-summary` and nothing else (H4 ⑤b; the
+   closing act's finding, board ux-review-2026-10-03/03-gamma-surface-repairs,
+   G4): a local summary rule (accent, 600) outranked the class. */
 .snapshot-create {
   margin: var(--space-3) 0;
-}
-.snapshot-create > summary {
-  cursor: pointer;
-  color: var(--color-accent);
-  font-weight: 600;
 }
 .snapshot-create__form {
   display: flex;
@@ -7278,7 +7276,6 @@ select:disabled {
   .button-primary,
   .button-ghost,
   .login-form input,
-  .snapshot-create > summary,
   .workspace-section > details > summary,
   .soll-plan-versions select,
   .plan-rename summary {

@@ -3286,6 +3286,14 @@ Three halves, and all three change the picture:
   als Tabelle", the Cash-flow matrices, the merge records, the import, Tax,
   Risk, the dialogs. `.merge-manifest > .disclosure-summary` loses its now redundant
   local 12 px / 500; `.dup-group`'s local 12.5 px stays its own decision.
+  **"Neuer Snapshot" joined them at the closing act** (board
+  `mockups/ux-review-2026-10-03/03-gamma-surface-repairs`, G4): its summary
+  carried the class and the chevron, but `.snapshot-create > summary`
+  (0,1,1: accent colour, weight 600) outranked `.disclosure-summary`
+  (0,1,0), so it read 12 px / 600 in the accent and never took the hover's
+  text colour. The local rule is gone, and with it the summary's entry in
+  the ADR-0027 coarse-pointer list, which the class's own 44 px floor
+  covers; `.snapshot-create` keeps only its margin.
 - **⑤c the compatibility records' summary is a `.disclosure-summary`** with
   the 12 px chevron (Accounts & depots, "Portfoliodatensätze
   (Kompatibilität)"), where it was a bare `<summary>` with the browser's

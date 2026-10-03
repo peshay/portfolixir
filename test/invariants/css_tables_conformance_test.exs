@@ -138,6 +138,26 @@ defmodule Portfolixir.Invariants.CssTablesConformanceTest do
     refute manifest =~ "font-weight"
   end
 
+  # User story (the closing act's H4 ⑤b finding; board
+  # ux-review-2026-10-03/03-gamma-surface-repairs, G4):
+  # As the operator on Snapshots,
+  # I want "Neuer Snapshot" to read as the quiet disclosure summary every
+  # other disclosure is,
+  # so that one summary on the page does not look like a link in the accent
+  # colour and a heavier weight than "Daten als Tabelle" beside it.
+  #
+  # Acceptance criteria:
+  # - No rule targets `.snapshot-create > summary`: the summary's
+  #   `.disclosure-summary` (12 px / 500 / muted, its chevron, its hover and
+  #   its 44 px coarse floor) is the whole of its anatomy. The local rule
+  #   (0,1,1: accent, weight 600) outranked the class (0,1,0).
+  test "the new-snapshot summary has no local override of the disclosure summary" do
+    refute @css =~ ".snapshot-create > summary",
+           "a rule still overrides the new-snapshot summary's .disclosure-summary"
+
+    assert block(".snapshot-create") =~ ~r/margin:\s*var\(--space-3\) 0;/
+  end
+
   # User story (#1053, the closing act's H4 ④c finding; board
   # ux-review-2026-10-03/03-gamma-surface-repairs, G2):
   # As the operator opening the allocation tree's Drift ⓘ on a 390 px phone,
