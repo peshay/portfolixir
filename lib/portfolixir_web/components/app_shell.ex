@@ -718,8 +718,9 @@ defmodule PortfolixirWeb.AppShell do
   attr(:class, :string, default: nil)
 
   # raw/1 renders path literals fixed at compile time, chosen by the icon's
-  # atom name; no value from a request or the database reaches them, and an
-  # unknown name has no clause (sobelow 0.16, #1006).
+  # atom name: every icon_paths/1 clause, the catch-all for an unknown name
+  # included, returns a literal with no interpolation, so no value from a
+  # request or the database reaches it (sobelow 0.16, #1006).
   # sobelow_skip ["XSS.Raw"]
   def icon(assigns) do
     ~H"""
