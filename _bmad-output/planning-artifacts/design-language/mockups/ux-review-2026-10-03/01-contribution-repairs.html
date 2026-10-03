@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — the contribution table and the Trades tab: the design critic's repairs (Sprint 18 PR β)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the rules the repairs add to (or change in) app.css. On
+     this board they sit inside @scope (.after), so the "Before" frames keep
+     rendering with app.css exactly as built (Sprint 18 PR β head 237dc728)
+     and only the "After" frames get them. The repairs write the rules
+     WITHOUT the @scope wrapper; where a rule edits an existing one, the
+     comment names it. @scope adds no specificity, so every rule competes here
+     as it will in app.css. Everything else inside the frames is markup and
+     classes that already ship: PortfolixirWeb.Portfolio.ContributionTable
+     (.contribution, .contribution__head, .contribution__scope,
+     .contribution-table and its parts, .contribution-phone-rows), the period
+     badge of PortfolioLive (.perf-badge, .perf-badge-sep, .perf-badge-period),
+     the Trades tab of SecuritiesLive (#detail-closed-trades-table,
+     #detail-closed-trades-basis), .data-table, .drift-bar, .phone-rows,
+     .link-button and .empty-state. -->
+<style id="proposal">
+@scope (.after) {
+  /* R1: the badge's money figure carries its own sign class (markup:
+     span[data-role=period-badge-money] takes is-positive / is-negative /
+     is-flat from the money figure, not the TTWROR). The bare .is-positive /
+     .is-negative already colour it; a zero takes the badge's flat colour,
+     which `.perf-badge.is-flat` gives only the whole badge today. */
+  .perf-badge .is-flat {
+    color: var(--color-text-muted);
+  }
+
+  /* R2: the remainder band outranks the zebra stripe and the hover.
+     REPLACES `.contribution-table tr.contribution-table__rest td` (0,2,2),
+     which `.data-table tbody tr:nth-child(even) td` (0,2,3) beat on every
+     second row; the head row's background moves into the same rule. */
+  .data-table.contribution-table tbody tr.contribution-table__rest-head td,
+  .data-table.contribution-table tbody tr.contribution-table__rest td {
+    background: var(--color-bg-muted);
+  }
+
+  /* R3: the show-all control is the house's standalone link-button, as
+     `.policy-rule__name` is: the 2 px accent ring on keyboard focus and 44 px
+     under a coarse pointer (UX-DR6). Scoped to this control, not every
+     .link-button (the markup adds the class contribution-show-all). */
+  .link-button.contribution-show-all:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  @media (pointer: coarse) {
+    .link-button.contribution-show-all {
+      min-height: 44px;
+    }
+  }
+
+  /* R4: a name wraps between words and, where the browser has the page
+     language's dictionary, at a syllable with a hyphen — never mid-word.
+     EDITS `.contribution-table td.contribution-table__name`
+     (overflow-wrap: anywhere). */
+  .contribution-table td.contribution-table__name {
+    overflow-wrap: break-word;
+    -webkit-hyphens: auto;
+    hyphens: auto;
+  }
+
+  /* R5: the remainder's band bleeds into the list's gutter, so its content
+     keeps the rows' edges: name at the left edge, figure at the right edge.
+     EDITS `#contribution-phone-rows .contribution-phone-rows__rest`
+     (adds margin-inline; padding and background stay). */
+  #contribution-phone-rows .contribution-phone-rows__rest {
+    margin-inline: calc(-1 * var(--space-2));
+    padding-inline: var(--space-2);
+    background: var(--color-bg-muted);
+  }
+}
+/* R6 and R7a need no CSS: R6 is a no-break space inside "p. a." (gettext
+   msgids and the German msgstrs); R7a drops the order phrase from the scope
+   line when the empty state shows. R7b (aria-busy on the skeleton) has no
+   rendered difference and is not drawn. */
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: visible; }
+  .pair { display: grid; gap: 12px; }
+  .pair2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .argue { max-width: 92ch; font-size: 12.5px; display: grid; gap: 6px; margin-top: 12px; }
+  .argue p { margin: 0; }
+  .argue code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .measure { font-size: 11.5px; color: var(--mock-ink); margin: 6px 0 0; }
+  .stage { padding: 16px 20px; display: grid; gap: 10px; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .phone-only { display: none; }
+
+  /* The phone rows at every board width: the 560 px block shows them only
+     under 560 px of viewport, and these frames draw the phone at 1200 too. */
+  .force-phone .phone-rows { display: block; }
+  .mock-phone .stage { padding: 12px 16px; }
+
+  /* Drawing aid: the hit box of a control, as the browser lays it out.
+     Red = under 44 px, green = at the floor. Not app UI. */
+  .hit { outline: 1.5px dashed var(--color-danger) !important; outline-offset: 0 !important; background: color-mix(in srgb, var(--color-danger) 10%, transparent) !important; }
+  .hit-ok { outline: 1.5px dashed var(--color-positive) !important; outline-offset: 0 !important; background: color-mix(in srgb, var(--color-positive) 12%, transparent) !important; }
+
+  /* The coarse-pointer state, applied unconditionally. The renderer has a
+     mouse, so `@media (pointer: coarse)` never matches here; the "After"
+     frames carry .as-coarse and get the proposal's coarse rule as written.
+     The "Before" frames need nothing: no coarse rule reaches this control
+     today (the design critic measured 116 × 19.6 px with a touch pointer). */
+  .as-coarse .link-button.contribution-show-all { min-height: 44px; }
+
+  /* The keyboard-focus state: what the browser draws today (the default
+     ring) and what the proposal's :focus-visible draws. */
+  .ua-focus { outline: auto 1px -webkit-focus-ring-color; }
+  .after .link-button.contribution-show-all.kb-focus { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+  /* R4's narrow frame: the table at the width the design critic measured
+     the split at (561–1024 px of viewport leave the table this little). */
+  .narrow { max-width: 600px; }
+
+  @media (max-width: 560px) {
+    body { padding: 0; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-board > p.mock-note, .argue { padding: 0 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .pair2 { grid-template-columns: 1fr; }
+    .wide-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 16px; border-radius: 0; }
+    .stage { padding: 12px 16px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar"><b>Sprint 18 PR β — the design critic's repairs to the contribution table and the Trades tab.</b> Before/after for each repair: the living spec already fixes every answer (DESIGN.md → Colors “Semantic color applies wherever a sign exists… money semantics outrank brand”, the contribution-table amendment of 2026-10-03, UX-DR6 and the Accessibility Floor), so there is no choice to pick. “Before” is <code>app.css</code> as built at the PR's head; “After” adds the rules in <code>&lt;style id="proposal"&gt;</code> and the markup changes each section names. Not drawn: the skeleton's <code>aria-busy="true"</code> (R7b), which has no rendered difference. The UI is the German page, where the defects were seen; every name, figure and date is invented. <b>Dashed = new.</b></div>
+
+<!-- ===================================================== R1 -->
+<section class="mock-board" id="r1">
+  <h2>R1 — The badge's money figure takes the colour of its own sign <small>Wealth → Holdings → Performance, the period badge</small></h2>
+  <p class="mock-note">The badge colours its whole <code>&lt;p&gt;</code> by the TTWROR's sign (<code>perf_sign_class(@performance.ttwror)</code>), so a positive time-weighted return paints a money loss green — while the contribution table's sum row right below prints the same figure red. A deposit before a fall makes the two signs differ: here the return is +8,5 % and the period's money result −900,90 EUR. After: the money span carries the sign class of the money figure; a zero takes the badge's flat colour.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before — the loss reads green above, red below</span>
+      <div class="stage">
+        <p class="perf-badge is-positive" data-role="period-badge">
+          <strong>+8,5%</strong>
+          <span class="perf-badge-sep">·</span>
+          <span data-role="period-badge-money">-900,90 EUR</span>
+          <span class="perf-badge-period">(1J)</span>
+        </p>
+        <p class="cap">… the chart, then the contribution table's sum row</p>
+        <table class="data-table contribution-table">
+          <tbody>
+            <tr class="contribution-table__sum"><td>Summe = Ergebnis im Zeitraum</td><td class="num"><span class="is-negative">-900,90</span> <small class="value-suffix">EUR</small></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After — each figure in its own sign's colour</span>
+      <div class="stage">
+        <p class="perf-badge is-positive" data-role="period-badge">
+          <strong>+8,5%</strong>
+          <span class="perf-badge-sep">·</span>
+          <span data-role="period-badge-money" class="is-negative is-new">-900,90 EUR</span>
+          <span class="perf-badge-period">(1J)</span>
+        </p>
+        <p class="cap">… the chart, then the contribution table's sum row</p>
+        <table class="data-table contribution-table">
+          <tbody>
+            <tr class="contribution-table__sum"><td>Summe = Ergebnis im Zeitraum</td><td class="num"><span class="is-negative">-900,90</span> <small class="value-suffix">EUR</small></td></tr>
+          </tbody>
+        </table>
+        <p class="cap">A zero money result beside a positive return</p>
+        <p class="perf-badge is-positive">
+          <strong>+0,4%</strong>
+          <span class="perf-badge-sep">·</span>
+          <span class="is-flat is-new">0,00 EUR</span>
+          <span class="perf-badge-period">(YTD)</span>
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== R2 -->
+<section class="mock-board wide-only" id="r2">
+  <h2>R2 — The remainder sits on one solid band <small>the contribution table, “Keiner Position zugeordnet”</small></h2>
+  <p class="mock-note">The zebra stripe <code>.data-table tbody tr:nth-child(even) td</code> (specificity 0,2,3) outranks the band <code>.contribution-table tr.contribution-table__rest td</code> (0,2,2), so every second line of the remainder — and the head row, when it lands on an even row — gets the 24 % stripe instead of {colors.bg-muted}. Which lines break depends on how many positions sit above: the anatomy changes with the data, which the amendment rules out (“its three lines on the same band”). Three positions here, so the head row and “Einzelne Gebühren und Steuern” are the even ones. After: one rule at 0,3,3 holds the band on all four rows, whatever the count.</p>
+  <div class="pair">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before — the band alternates with the row count</span>
+      <div class="stage">
+        <div class="data-table-wrapper" data-band="before">
+          <table class="data-table contribution-table">
+            <thead><tr><th scope="col">Wertpapier</th><th scope="col" class="num">Anfangswert</th><th scope="col" class="num">Zu-/Abflüsse</th><th scope="col" class="num">Erträge</th><th scope="col" class="num">Kosten</th><th scope="col" class="num">Endwert</th><th scope="col" class="num">Beitrag</th></tr></thead>
+            <tbody>
+              <tr><td class="contribution-table__name">Nordwind Industrie AG</td><td class="num">6.420,00</td><td class="num">0,00</td><td class="num">+42,00</td><td class="num">0,00</td><td class="num">7.662,60</td><td class="num contribution-table__figure"><span class="is-positive">+1.284,60</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-over" style="width: 30.9%"></span></span></td></tr>
+              <tr><td class="contribution-table__name">Kestrel Bay Shipping ASA<small class="contribution-table__note">am Ende nicht mehr im Bestand</small></td><td class="num">2.150,00</td><td class="num">-1.837,60</td><td class="num">0,00</td><td class="num">0,00</td><td class="num">0,00</td><td class="num contribution-table__figure"><span class="is-negative">-312,40</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-under" style="width: 7.5%"></span></span></td></tr>
+              <tr><td class="contribution-table__name">Østergaard Wind A/S</td><td class="num">9.880,00</td><td class="num">+2.000,00</td><td class="num">0,00</td><td class="num">4,90</td><td class="num">10.012,70</td><td class="num contribution-table__figure"><span class="is-negative">-1.872,20</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-under" style="width: 45.0%"></span></span></td></tr>
+              <tr class="contribution-table__rest-head"><td colspan="7">Keiner Position zugeordnet</td></tr>
+              <tr class="contribution-table__rest"><td class="contribution-table__name">Zinsen<small class="contribution-table__note">Konto und Kupons; eine Zinsbuchung trägt kein Wertpapier</small></td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num"><span class="is-positive">+3,40</span></td></tr>
+              <tr class="contribution-table__rest"><td class="contribution-table__name">Einzelne Gebühren und Steuern<small class="contribution-table__note">Ohne Handelsbezug, auch mit Wertpapier</small></td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num"><span class="is-negative">-4,50</span></td></tr>
+              <tr class="contribution-table__rest"><td class="contribution-table__name">Währungseffekt auf Bargeld<small class="contribution-table__note">Fremdwährungskonten und Abrechnungsdifferenzen von Käufen und Verkäufen</small></td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num"><span class="is-positive">+0,20</span></td></tr>
+              <tr class="contribution-table__sum"><td>Summe = Ergebnis im Zeitraum</td><td class="num">18.450,00</td><td class="num">+162,40</td><td class="num">+42,00</td><td class="num">4,90</td><td class="num">17.675,30</td><td class="num"><span class="is-negative">-900,90</span> <small class="value-suffix">EUR</small></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="measure" data-band-out="before"></p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After — the head row and its three lines on one band</span>
+      <div class="stage">
+        <div class="data-table-wrapper" data-band="after">
+          <table class="data-table contribution-table">
+            <thead><tr><th scope="col">Wertpapier</th><th scope="col" class="num">Anfangswert</th><th scope="col" class="num">Zu-/Abflüsse</th><th scope="col" class="num">Erträge</th><th scope="col" class="num">Kosten</th><th scope="col" class="num">Endwert</th><th scope="col" class="num">Beitrag</th></tr></thead>
+            <tbody>
+              <tr><td class="contribution-table__name">Nordwind Industrie AG</td><td class="num">6.420,00</td><td class="num">0,00</td><td class="num">+42,00</td><td class="num">0,00</td><td class="num">7.662,60</td><td class="num contribution-table__figure"><span class="is-positive">+1.284,60</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-over" style="width: 30.9%"></span></span></td></tr>
+              <tr><td class="contribution-table__name">Kestrel Bay Shipping ASA<small class="contribution-table__note">am Ende nicht mehr im Bestand</small></td><td class="num">2.150,00</td><td class="num">-1.837,60</td><td class="num">0,00</td><td class="num">0,00</td><td class="num">0,00</td><td class="num contribution-table__figure"><span class="is-negative">-312,40</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-under" style="width: 7.5%"></span></span></td></tr>
+              <tr><td class="contribution-table__name">Østergaard Wind A/S</td><td class="num">9.880,00</td><td class="num">+2.000,00</td><td class="num">0,00</td><td class="num">4,90</td><td class="num">10.012,70</td><td class="num contribution-table__figure"><span class="is-negative">-1.872,20</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-under" style="width: 45.0%"></span></span></td></tr>
+              <tr class="contribution-table__rest-head"><td colspan="7">Keiner Position zugeordnet</td></tr>
+              <tr class="contribution-table__rest"><td class="contribution-table__name">Zinsen<small class="contribution-table__note">Konto und Kupons; eine Zinsbuchung trägt kein Wertpapier</small></td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num"><span class="is-positive">+3,40</span></td></tr>
+              <tr class="contribution-table__rest"><td class="contribution-table__name">Einzelne Gebühren und Steuern<small class="contribution-table__note">Ohne Handelsbezug, auch mit Wertpapier</small></td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num"><span class="is-negative">-4,50</span></td></tr>
+              <tr class="contribution-table__rest"><td class="contribution-table__name">Währungseffekt auf Bargeld<small class="contribution-table__note">Fremdwährungskonten und Abrechnungsdifferenzen von Käufen und Verkäufen</small></td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num"><span class="is-positive">+0,20</span></td></tr>
+              <tr class="contribution-table__sum"><td>Summe = Ergebnis im Zeitraum</td><td class="num">18.450,00</td><td class="num">+162,40</td><td class="num">+42,00</td><td class="num">4,90</td><td class="num">17.675,30</td><td class="num"><span class="is-negative">-900,90</span> <small class="value-suffix">EUR</small></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="measure" data-band-out="after"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== R3 -->
+<section class="mock-board" id="r3">
+  <h2>R3 — “Alle N anzeigen” gets the 44 px floor and the accent ring <small>UX-DR6 · the Accessibility Floor · <code>.link-button</code></small></h2>
+  <p class="mock-note">The show-all control is a bare <code>.link-button</code>: 116 × 19,6 px under a touch pointer (UX-DR6 asks 44 px) and, on keyboard focus, the browser's default ring instead of the shared 2 px accent outline. It stands on its own after the sentence, like a rule's name on Risk, so it takes <code>.policy-rule__name</code>'s treatment — scoped to this control (class <code>contribution-show-all</code>), not to every <code>.link-button</code>. Desktop with a mouse is unchanged. Dashed red/green = the hit box as the browser lays it out (drawing aid); the After frames apply the coarse rule without the media query, because the renderer has a mouse.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before · touch, then keyboard focus</span>
+      <div class="stage">
+        <table class="data-table contribution-table wide-only">
+          <tbody>
+            <tr class="contribution-table__more"><td colspan="7"><span>20 kleinere Positionen sind ausgeblendet; die Summe enthält sie.</span> <button type="button" class="link-button hit" aria-expanded="false">Alle 30 anzeigen</button></td></tr>
+            <tr class="contribution-table__more"><td colspan="7"><span>20 kleinere Positionen sind ausgeblendet; die Summe enthält sie.</span> <button type="button" class="link-button ua-focus" aria-expanded="false">Alle 30 anzeigen</button></td></tr>
+          </tbody>
+        </table>
+        <div class="force-phone">
+          <p class="cap">Under 560 px</p>
+          <ul class="phone-rows contribution-phone-rows" id="contribution-phone-rows">
+            <li class="phone-row contribution-phone-rows__more"><span class="phone-row__body"><span class="phone-row__ids">20 kleinere Positionen sind ausgeblendet; die Summe enthält sie.</span><span><button type="button" class="link-button hit" aria-expanded="false">Alle 30 anzeigen</button></span></span></li>
+          </ul>
+        </div>
+        <p class="measure" data-hit-out="before"></p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after as-coarse"><span class="mock-tag">After · touch, then keyboard focus</span>
+      <div class="stage">
+        <table class="data-table contribution-table wide-only">
+          <tbody>
+            <tr class="contribution-table__more"><td colspan="7"><span>20 kleinere Positionen sind ausgeblendet; die Summe enthält sie.</span> <button type="button" class="link-button contribution-show-all hit-ok" aria-expanded="false">Alle 30 anzeigen</button></td></tr>
+            <tr class="contribution-table__more"><td colspan="7"><span>20 kleinere Positionen sind ausgeblendet; die Summe enthält sie.</span> <button type="button" class="link-button contribution-show-all kb-focus" aria-expanded="false">Alle 30 anzeigen</button></td></tr>
+          </tbody>
+        </table>
+        <div class="force-phone">
+          <p class="cap">Under 560 px</p>
+          <ul class="phone-rows contribution-phone-rows" id="contribution-phone-rows">
+            <li class="phone-row contribution-phone-rows__more"><span class="phone-row__body"><span class="phone-row__ids">20 kleinere Positionen sind ausgeblendet; die Summe enthält sie.</span><span><button type="button" class="link-button contribution-show-all hit-ok" aria-expanded="false">Alle 30 anzeigen</button></span></span></li>
+          </ul>
+        </div>
+        <p class="measure" data-hit-out="after"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== R4 -->
+<section class="mock-board wide-only" id="r4">
+  <h2>R4 — A name wraps between words, never mid-word <small>the contribution table's name cell, 561–1024 px</small></h2>
+  <p class="mock-note"><code>overflow-wrap: anywhere</code> lets the table shrink the name column to its 14ch floor by splitting a word anywhere, and German compounds split at whatever letter reaches the edge: “Fremdwährungsko|nten”, “Abrechnungsdiffer|enzen”. After: <code>break-word</code> breaks inside a word only when the word alone is wider than the cell, and <code>hyphens: auto</code> (the page carries <code>lang</code>) breaks at a syllable with a hyphen where the browser has the language's dictionary — Firefox and Safari ship one, Chrome fetches it. This board's renderer has none, so the After frame shows the plainer result: whole words, and a name column as wide as its longest word (the table's scroller stays the fallback, UX-DR15). Frames at 600 px, the table's width in a ~768 px viewport.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before narrow"><span class="mock-tag">Before — compounds split mid-word</span>
+      <div class="stage">
+        <div class="data-table-wrapper">
+          <table class="data-table contribution-table">
+            <thead><tr><th scope="col">Wertpapier</th><th scope="col" class="num">Anfangswert</th><th scope="col" class="num">Zu-/Abflüsse</th><th scope="col" class="num">Erträge</th><th scope="col" class="num">Kosten</th><th scope="col" class="num">Endwert</th><th scope="col" class="num">Beitrag</th></tr></thead>
+            <tbody>
+              <tr><td class="contribution-table__name">Østergaard Wind A/S</td><td class="num">9.880,00</td><td class="num">+2.000,00</td><td class="num">0,00</td><td class="num">4,90</td><td class="num">10.012,70</td><td class="num"><span class="is-negative">-1.872,20</span></td></tr>
+              <tr class="contribution-table__rest"><td class="contribution-table__name">Währungseffekt auf Bargeld<small class="contribution-table__note">Fremdwährungskonten und Abrechnungsdifferenzen von Käufen und Verkäufen</small></td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num"><span class="is-positive">+0,20</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after narrow"><span class="mock-tag">After — whole words (hyphenated where a dictionary is)</span>
+      <div class="stage">
+        <div class="data-table-wrapper">
+          <table class="data-table contribution-table">
+            <thead><tr><th scope="col">Wertpapier</th><th scope="col" class="num">Anfangswert</th><th scope="col" class="num">Zu-/Abflüsse</th><th scope="col" class="num">Erträge</th><th scope="col" class="num">Kosten</th><th scope="col" class="num">Endwert</th><th scope="col" class="num">Beitrag</th></tr></thead>
+            <tbody>
+              <tr><td class="contribution-table__name is-new">Østergaard Wind A/S</td><td class="num">9.880,00</td><td class="num">+2.000,00</td><td class="num">0,00</td><td class="num">4,90</td><td class="num">10.012,70</td><td class="num"><span class="is-negative">-1.872,20</span></td></tr>
+              <tr class="contribution-table__rest"><td class="contribution-table__name is-new">Währungseffekt auf Bargeld<small class="contribution-table__note">Fremdwährungskonten und Abrechnungsdifferenzen von Käufen und Verkäufen</small></td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num"><span class="is-positive">+0,20</span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== R5 -->
+<section class="mock-board" id="r5">
+  <h2>R5 — Under 560 px the remainder keeps the rows' edges <small>the contribution phone rows</small></h2>
+  <p class="mock-note">The remainder row is padded <code>--space-2</code> inline inside the list, so its name starts 8 px right of every other name and its figure ends 8 px left of every other figure — the right-aligned figure column breaks at the one row that sums three lines. After: the band bleeds 8 px into the gutter on both sides (a negative inline margin) and keeps the 8 px padding, so the band stays and its content sits on the rows' edges.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before mock-phone force-phone"><span class="mock-tag">Before — name and figure 8 px in</span>
+      <div class="stage" data-edges="before">
+        <ul id="contribution-phone-rows" class="phone-rows contribution-phone-rows">
+          <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Nordwind Industrie AG</span><span class="phone-row__ids">6.420,00 → 7.662,60 · Erträge 42,00</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+1.284,60</span></span></li>
+          <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Kestrel Bay Shipping ASA</span><span class="phone-row__ids">am Ende nicht mehr im Bestand · Abfluss 1.837,60</span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">-312,40</span></span></li>
+          <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Østergaard Wind A/S</span><span class="phone-row__ids">9.880,00 → 10.012,70 · Zufluss 2.000,00</span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">-1.872,20</span></span></li>
+          <li class="phone-row contribution-phone-rows__rest" data-rest><span class="phone-row__body"><span class="phone-row__name">Keiner Position zugeordnet</span><span class="phone-row__ids">Zinsen +3,40 · Gebühren/Steuern -4,50 · Währung +0,20</span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">-0,90</span></span></li>
+          <li class="phone-row contribution-phone-rows__sum"><span class="phone-row__body"><span class="phone-row__name">Summe = Ergebnis im Zeitraum</span><span class="phone-row__ids">Positionen und Restposten</span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">-900,90 <small class="value-suffix">EUR</small></span></span></li>
+        </ul>
+        <p class="measure" data-edges-out="before"></p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after mock-phone force-phone"><span class="mock-tag">After — the band bleeds, the content aligns</span>
+      <div class="stage" data-edges="after">
+        <ul id="contribution-phone-rows" class="phone-rows contribution-phone-rows">
+          <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Nordwind Industrie AG</span><span class="phone-row__ids">6.420,00 → 7.662,60 · Erträge 42,00</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+1.284,60</span></span></li>
+          <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Kestrel Bay Shipping ASA</span><span class="phone-row__ids">am Ende nicht mehr im Bestand · Abfluss 1.837,60</span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">-312,40</span></span></li>
+          <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Østergaard Wind A/S</span><span class="phone-row__ids">9.880,00 → 10.012,70 · Zufluss 2.000,00</span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">-1.872,20</span></span></li>
+          <li class="phone-row contribution-phone-rows__rest" data-rest><span class="phone-row__body"><span class="phone-row__name">Keiner Position zugeordnet</span><span class="phone-row__ids">Zinsen +3,40 · Gebühren/Steuern -4,50 · Währung +0,20</span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">-0,90</span></span></li>
+          <li class="phone-row contribution-phone-rows__sum"><span class="phone-row__body"><span class="phone-row__name">Summe = Ergebnis im Zeitraum</span><span class="phone-row__ids">Positionen und Restposten</span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">-900,90 <small class="value-suffix">EUR</small></span></span></li>
+        </ul>
+        <p class="measure" data-edges-out="after"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== R6 -->
+<section class="mock-board" id="r6">
+  <h2>R6 — “p. a.” stays on one line <small>Securities → a security → Trades, the closed trades (#1029)</small></h2>
+  <p class="mock-note">The basis line breaks between “p.” and “a.” wherever the line ends there — at 1280 px on the German page it did. The column header can do the same when the column is squeezed to its dashes (a security whose trades are all under a year), and the phone row's “· +20,0% p. a.” shares that header's message. After: the three strings carry a no-break space inside “p. a.” (U+00A0, in the gettext msgids and the German msgstrs), so the abbreviation wraps as one word. The frames below are set to the width where the Before line breaks there, measured on the page.</p>
+  <div class="pair">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before — “p.” ends one line, “a.” starts the next</span>
+      <div class="stage">
+        <p class="detail-tab-hint" data-pa="before">Über alle Depots · Einlieferungen eröffnen keinen Lot · Gebühren und Steuern im G/V, nicht in Ø Kauf und Ø Verkauf · Erträge während der Haltedauer nicht enthalten · p. a. erst ab 365 Tagen Haltedauer</p>
+        <table class="data-table detail-trades-table" style="width: auto">
+          <thead><tr><th class="num">Tage</th><th class="num" style="width: 1px">p. a.</th><th class="num">Realisierter G/V</th></tr></thead>
+          <tbody><tr><td class="num">207</td><td class="num trade-pa trade-pa--na">—</td><td class="num"><span class="is-negative">-1.400,00</span></td></tr></tbody>
+        </table>
+        <p class="measure" data-pa-out="before"></p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After — “p. a.” wraps as one word</span>
+      <div class="stage">
+        <p class="detail-tab-hint is-new" data-pa="after">Über alle Depots · Einlieferungen eröffnen keinen Lot · Gebühren und Steuern im G/V, nicht in Ø Kauf und Ø Verkauf · Erträge während der Haltedauer nicht enthalten · p.&nbsp;a. erst ab 365 Tagen Haltedauer</p>
+        <table class="data-table detail-trades-table" style="width: auto">
+          <thead><tr><th class="num">Tage</th><th class="num is-new" style="width: 1px">p.&nbsp;a.</th><th class="num">Realisierter G/V</th></tr></thead>
+          <tbody><tr><td class="num">207</td><td class="num trade-pa trade-pa--na">—</td><td class="num"><span class="is-negative">-1.400,00</span></td></tr></tbody>
+        </table>
+        <p class="measure" data-pa-out="after"></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== R7a -->
+<section class="mock-board" id="r7">
+  <h2>R7a — An empty period names no order <small>the contribution table's empty state</small></h2>
+  <p class="mock-note">With nothing to break down, the scope line still ends “· sortiert nach Beitrag” over a sentence that lists nothing. After: the order phrase leaves the scope line while the empty state shows; period and view stay, because they say which window was empty. (R7b, not drawn: the skeleton that says “wird berechnet” gains <code>aria-busy="true"</code> beside its <code>role="status"</code>.)</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before</span>
+      <div class="stage">
+        <div class="contribution">
+          <div class="contribution__head"><h3>Beitrag je Position</h3><span class="contribution__scope">01.01.2024 – 31.03.2024 · Ansicht Alles · sortiert nach Beitrag</span></div>
+          <p class="empty-state">In diesem Zeitraum gibt es nichts aufzuschlüsseln: Keine Position war im Bestand, und weder Zinsen noch Gebühren noch Währungseffekte fielen an.</p>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After</span>
+      <div class="stage">
+        <div class="contribution">
+          <div class="contribution__head"><h3>Beitrag je Position</h3><span class="contribution__scope is-new">01.01.2024 – 31.03.2024 · Ansicht Alles</span></div>
+          <p class="empty-state">In diesem Zeitraum gibt es nichts aufzuschlüsseln: Keine Position war im Bestand, und weder Zinsen noch Gebühren noch Währungseffekte fielen an.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  // Board helpers: they write measured values beside the frames, so each
+  // before/after claim is a number. Not part of the proposal.
+  const px = (n) => (Math.round(n * 10) / 10).toString().replace('.', ',') + ' px';
+
+  // R2: the computed background of the band's four rows.
+  document.querySelectorAll('[data-band]').forEach((w) => {
+    const out = document.querySelector('[data-band-out="' + w.dataset.band + '"]');
+    const rows = [...w.querySelectorAll('tr.contribution-table__rest-head, tr.contribution-table__rest')];
+    const colours = rows.map((r) => getComputedStyle(r.querySelector('td')).backgroundColor);
+    const solid = getComputedStyle(document.body).getPropertyValue('--color-bg-muted').trim();
+    const distinct = [...new Set(colours)];
+    out.textContent = 'Measured: the head row and the three lines paint ' +
+      colours.join(' · ') + (distinct.length === 1 ? ' — one band ({colors.bg-muted} = ' + solid + ').' : ' — two fills.');
+  });
+
+  // R3: the show-all control's hit box.
+  document.querySelectorAll('[data-hit-out]').forEach((out) => {
+    const frame = out.closest('.mock-frame');
+    const boxes = [...frame.querySelectorAll('.hit, .hit-ok')]
+      .filter((b) => b.offsetParent !== null)
+      .map((b) => { const r = b.getBoundingClientRect(); return px(r.width) + ' × ' + px(r.height); });
+    out.textContent = 'Measured hit box: ' + boxes.join(' (table) · ') + (boxes.length > 1 ? ' (phone row).' : '.');
+  });
+
+  // R5: the left edge of each name and the right edge of each figure,
+  // relative to the list.
+  document.querySelectorAll('[data-edges]').forEach((stage) => {
+    const list = stage.querySelector('ul');
+    const lr = list.getBoundingClientRect();
+    const rest = stage.querySelector('[data-rest]');
+    const other = stage.querySelector('li:first-child');
+    const at = (li) => ({
+      left: li.querySelector('.phone-row__name').getBoundingClientRect().left - lr.left,
+      right: lr.right - li.querySelector('.phone-row__figure').getBoundingClientRect().right
+    });
+    const a = at(other), b = at(rest);
+    const out = stage.querySelector('[data-edges-out]');
+    out.textContent = 'Measured from the list\'s edges: a position row\'s name at ' + px(a.left) +
+      ' and figure at ' + px(a.right) + ' from the right; the remainder\'s at ' + px(b.left) + ' and ' + px(b.right) + '.';
+  });
+
+  // R6: find the widest frame width at which the Before line breaks between
+  // "p." and "a.", give both lines that width, and report the line of each.
+  (function () {
+    const before = document.querySelector('[data-pa="before"]');
+    const after = document.querySelector('[data-pa="after"]');
+    const lineTops = (p, needle) => {
+      const node = p.firstChild;
+      const i = node.textContent.indexOf(needle);
+      const r = document.createRange();
+      r.setStart(node, i); r.setEnd(node, i + 2);
+      const p1 = r.getClientRects()[0].top;
+      r.setStart(node, i + 3); r.setEnd(node, i + 5);
+      const a1 = r.getClientRects()[0].top;
+      return [p1, a1];
+    };
+    const max = before.parentElement.getBoundingClientRect().width - 40;
+    let found = null;
+    for (let w = Math.floor(max); w >= 260; w--) {
+      before.style.width = w + 'px';
+      const [p1, a1] = lineTops(before, 'p. a.');
+      if (Math.abs(p1 - a1) > 1) { found = w; break; }
+    }
+    if (found) after.style.width = found + 'px';
+    const [bp, ba] = lineTops(before, 'p. a.');
+    const [ap, aa] = lineTops(after, 'p.\u00a0a.');
+    document.querySelector('[data-pa-out="before"]').textContent = 'Measured at ' + (found || '—') +
+      ' px: "p." and "a." on ' + (Math.abs(bp - ba) > 1 ? 'two lines' : 'one line') + '.';
+    document.querySelector('[data-pa-out="after"]').textContent = 'Measured at ' + (found || '—') +
+      ' px: "p. a." on ' + (Math.abs(ap - aa) > 1 ? 'two lines' : 'one line') + '.';
+  })();
+</script>
+</body>
+</html>
