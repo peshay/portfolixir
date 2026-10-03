@@ -9,10 +9,10 @@
       "amount": 181.49,
       "shares": 400.0,
       "security": {
-        "name": "Apple Inc.",
-        "isin": "US0378331005",
-        "wkn": "865985",
-        "ticker": "AAPL",
+        "name": "Arbolia Inc.",
+        "isin": "USEXMPL10014",
+        "wkn": "ARBOL1",
+        "ticker": "ARBL",
         "currency": "EUR"
       },
       "units": [

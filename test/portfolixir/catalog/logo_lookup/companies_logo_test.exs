@@ -2,7 +2,7 @@ defmodule Portfolixir.Catalog.LogoLookup.CompaniesLogoTest do
   # User story:
   # As a maintainer whose equities get no logo from CoinGecko/Wikipedia,
   # I want companieslogo.com tried as a fallback, so well-known companies
-  # (e.g. Baozun) still get a logo without manual work.
+  # (e.g. Lanzhuo) still get a logo without manual work.
   use ExUnit.Case, async: true
 
   alias Portfolixir.Catalog.LogoLookup.CompaniesLogo
@@ -18,35 +18,35 @@ defmodule Portfolixir.Catalog.LogoLookup.CompaniesLogoTest do
   test "returns the og:image from the company logo page" do
     stub =
       plug_stub(fn conn ->
-        assert conn.request_path =~ "/baozun/logo/"
+        assert conn.request_path =~ "/lanzhuo/logo/"
 
         html(
           conn,
-          ~s(<html><head><meta property="og:image" content="https://companieslogo.com/img/baozun.png"></head></html>)
+          ~s(<html><head><meta property="og:image" content="https://companieslogo.com/img/lanzhuo.png"></head></html>)
         )
       end)
 
-    assert {:ok, "https://companieslogo.com/img/baozun.png"} =
-             CompaniesLogo.fetch_image_url("Baozun Inc.", req: stub)
+    assert {:ok, "https://companieslogo.com/img/lanzhuo.png"} =
+             CompaniesLogo.fetch_image_url("Lanzhuo Inc.", req: stub)
   end
 
   test "falls back to the first-token slug when the full slug 404s" do
     stub =
       plug_stub(fn conn ->
         cond do
-          conn.request_path =~ "/advanced-micro-devices/logo/" ->
+          conn.request_path =~ "/coastal-micro-devices/logo/" ->
             Plug.Conn.send_resp(conn, 404, "")
 
-          conn.request_path =~ "/advanced/logo/" ->
-            html(conn, ~s(<meta content="https://x/amd.png" property="og:image">))
+          conn.request_path =~ "/coastal/logo/" ->
+            html(conn, ~s(<meta content="https://x/cmd.png" property="og:image">))
 
           true ->
             Plug.Conn.send_resp(conn, 404, "")
         end
       end)
 
-    assert {:ok, "https://x/amd.png"} =
-             CompaniesLogo.fetch_image_url("Advanced Micro Devices", req: stub)
+    assert {:ok, "https://x/cmd.png"} =
+             CompaniesLogo.fetch_image_url("Coastal Micro Devices", req: stub)
   end
 
   test "a page without og:image yields :not_found" do
@@ -55,11 +55,14 @@ defmodule Portfolixir.Catalog.LogoLookup.CompaniesLogoTest do
   end
 
   test "slug_candidates drops legal suffixes and parentheticals" do
-    assert CompaniesLogo.slug_candidates("Apple Inc.") == ["apple"]
+    assert CompaniesLogo.slug_candidates("Arbolia Inc.") == ["arbolia"]
 
-    assert CompaniesLogo.slug_candidates("Advanced Micro Devices") ==
-             ["advanced-micro-devices", "advanced"]
+    assert CompaniesLogo.slug_candidates("Coastal Micro Devices") ==
+             ["coastal-micro-devices", "coastal"]
 
-    assert CompaniesLogo.slug_candidates("Alphabet A (ex Google)") == ["alphabet-a", "alphabet"]
+    assert CompaniesLogo.slug_candidates("Alderbright A (ex Glimmerline)") == [
+             "alderbright-a",
+             "alderbright"
+           ]
   end
 end

@@ -29,9 +29,9 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
 
   defp create_security!(overrides \\ %{}) do
     base = %{
-      name: "Apple Inc.",
-      ticker_symbol: "AAPL",
-      isin: "US0378331005",
+      name: "Arbolia Inc.",
+      ticker_symbol: "ARBL",
+      isin: "USEXMPL10014",
       currency_code: "USD",
       asset_class: "equity",
       provider: "manual"
@@ -138,8 +138,8 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
     html = render(view)
 
     assert html =~ ~s(id="security-form-dialog")
-    assert html =~ ~s(value="Apple Inc.")
-    assert html =~ ~s(value="AAPL")
+    assert html =~ ~s(value="Arbolia Inc.")
+    assert html =~ ~s(value="ARBL")
   end
 
   test "Retire action toggles is_retired", %{conn: conn} do
@@ -171,7 +171,7 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
   end
 
   test "Copy ISIN emits a copy-to-clipboard event with the ISIN", %{conn: conn} do
-    sec = create_security!(%{isin: "US0378331005"})
+    sec = create_security!(%{isin: "USEXMPL10014"})
     {:ok, view, _html} = live(conn, "/securities")
 
     view
@@ -182,11 +182,11 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
     |> element(~s(button[phx-value-action="copy_isin"][phx-value-id="#{sec.id}"]))
     |> render_click()
 
-    assert_push_event(view, "copy-to-clipboard", %{text: "US0378331005"})
+    assert_push_event(view, "copy-to-clipboard", %{text: "USEXMPL10014"})
   end
 
   test "Copy ticker emits a copy-to-clipboard event with the ticker", %{conn: conn} do
-    sec = create_security!(%{ticker_symbol: "AAPL"})
+    sec = create_security!(%{ticker_symbol: "ARBL"})
     {:ok, view, _html} = live(conn, "/securities")
 
     view
@@ -197,7 +197,7 @@ defmodule PortfolixirWeb.SecuritiesContextMenuTest do
     |> element(~s(button[phx-value-action="copy_ticker"][phx-value-id="#{sec.id}"]))
     |> render_click()
 
-    assert_push_event(view, "copy-to-clipboard", %{text: "AAPL"})
+    assert_push_event(view, "copy-to-clipboard", %{text: "ARBL"})
   end
 
   test "Delete without transactions removes the security", %{conn: conn} do

@@ -17,13 +17,13 @@ defmodule Portfolixir.CatalogTest do
     test "creates with required fields and normalises codes" do
       assert {:ok, security} =
                Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-                 name: "Apple Inc.",
-                 ticker_symbol: "aapl",
+                 name: "Arbolia Inc.",
+                 ticker_symbol: "arbl",
                  currency_code: "usd",
                  asset_class: "equity"
                })
 
-      assert security.ticker_symbol == "AAPL"
+      assert security.ticker_symbol == "ARBL"
       assert security.currency_code == "USD"
       assert security.asset_class == "equity"
       assert security.is_retired == false
@@ -75,10 +75,11 @@ defmodule Portfolixir.CatalogTest do
 
     test "infers Portfolio Performance style ETF, crypto and state-bond names" do
       examples = [
-        {"iShares Core MSCI Emerging Markets IMI UCITS ETF", "IE00BD45KH83", "etf"},
-        {"Vanguard FTSE Em.Markets U.ETF Registered Shares USD Acc.oN", "IE00BK5BR733", "etf"},
-        {"AIS-Amundi Index MSCI World Act.Nom.UCITS ETF DR D oN", "LU1737652237", "etf"},
-        {"Amu.S&P Wld Inds Screened UETF Reg.Shs UCITS ETF Acc o.N.", "IE000LTA2082", "etf"},
+        {"iShares Core Examplia Emerging Markets IMI UCITS ETF", "IEEXMPL20026", "etf"},
+        {"Vanguard Examplia Em.Markets U.ETF Registered Shares USD Acc.oN", "IEEXMPL20034",
+         "etf"},
+        {"AIS-Amundi Index Examplia World Act.Nom.UCITS ETF DR D oN", "LUEXMPL20067", "etf"},
+        {"Amu.Examplia Wld Inds Screened UETF Reg.Shs UCITS ETF Acc o.N.", "IEEXMPL20042", "etf"},
         {"Bitcoin", nil, "crypto"},
         {"Anleihe USA 21/47", "USEXMPL21490", "government_bond"},
         {"Anleihe Norwegen 23/41", "XSEXMPL23417", "government_bond"},
@@ -167,9 +168,9 @@ defmodule Portfolixir.CatalogTest do
     setup do
       {:ok, a} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
-          ticker_symbol: "AAPL",
-          isin: "US0378331005",
+          name: "Arbolia Inc.",
+          ticker_symbol: "ARBL",
+          isin: "USEXMPL10014",
           currency_code: "USD",
           asset_class: "equity"
         })
@@ -185,8 +186,8 @@ defmodule Portfolixir.CatalogTest do
 
       {:ok, c} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Caterpillar",
-          ticker_symbol: "CAT",
+          name: "Cragmoor",
+          ticker_symbol: "CRGM",
           currency_code: "USD",
           asset_class: "equity",
           is_retired: true
@@ -196,8 +197,8 @@ defmodule Portfolixir.CatalogTest do
     end
 
     test "query filters by name/ticker/isin/wkn (case-insensitive)", %{a: a} do
-      assert [^a] = Catalog.list_securities(query: "apple")
-      assert [^a] = Catalog.list_securities(query: "us03783")
+      assert [^a] = Catalog.list_securities(query: "arbolia")
+      assert [^a] = Catalog.list_securities(query: "usexmpl")
     end
 
     # User story (closing act, EH-3):
@@ -211,7 +212,7 @@ defmodule Portfolixir.CatalogTest do
     # - A query and a text filter value carrying NUL or invalid UTF-8 match
     #   nothing; the rest of the list is unaffected.
     test "a query or filter value the database cannot hold matches nothing", %{a: a} do
-      for bad <- ["a\u0000b", "Apple" <> <<0>>, <<0xFF, 0xFE>>] do
+      for bad <- ["a\u0000b", "Arbolia" <> <<0>>, <<0xFF, 0xFE>>] do
         assert Catalog.list_securities(query: bad) == []
 
         assert Catalog.list_securities(filters: [%{key: :name, op: :contains, value: bad}]) ==
@@ -220,7 +221,7 @@ defmodule Portfolixir.CatalogTest do
         assert Catalog.list_securities(filters: [%{key: :name, op: :eq, value: bad}]) == []
       end
 
-      assert [^a] = Catalog.list_securities(query: "apple")
+      assert [^a] = Catalog.list_securities(query: "arbolia")
     end
 
     test "enum filter on asset_class returns matching rows", %{b: b} do
@@ -459,7 +460,7 @@ defmodule Portfolixir.CatalogTest do
     # - After backfill, the column-backed asset_class filter returns the row.
     # - Rows with an explicit class, or no inferable class, are left unchanged.
     test "persists inferred classes so display and filters agree" do
-      legacy = legacy_security_without_asset_class("iShares Core MSCI World UCITS ETF")
+      legacy = legacy_security_without_asset_class("iShares Core Examplia World UCITS ETF")
       etf_filter = [%{key: :asset_class, op: :eq, value: "etf"}]
 
       assert Security.effective_asset_class(legacy) == "etf"
@@ -476,8 +477,8 @@ defmodule Portfolixir.CatalogTest do
     test "leaves explicit and non-inferable asset classes unchanged" do
       {:ok, explicit} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
-          ticker_symbol: "AAPL",
+          name: "Arbolia Inc.",
+          ticker_symbol: "ARBL",
           currency_code: "USD",
           asset_class: "equity"
         })

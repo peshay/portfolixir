@@ -15,9 +15,9 @@ defmodule Portfolixir.LedgerTradesTest do
   defp setup_world do
     security =
       create_security!(
-        name: "Apple Inc.",
-        ticker: "AAPL",
-        isin: "US0378331005",
+        name: "Arbolia Inc.",
+        ticker: "ARBL",
+        isin: "USEXMPL10014",
         currency: "USD",
         asset_class: "equity"
       )

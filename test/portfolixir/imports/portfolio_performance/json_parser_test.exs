@@ -76,9 +76,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
 
     test "parses ISIN/WKN/ticker on the security ref", %{preview: preview} do
       buy = Enum.find(preview.entries, &(&1.kind == "buy"))
-      assert buy.security.isin == "US0378331005"
-      assert buy.security.wkn == "865985"
-      assert buy.security.ticker == "AAPL"
+      assert buy.security.isin == "USEXMPL10014"
+      assert buy.security.wkn == "ARBOL1"
+      assert buy.security.ticker == "ARBL"
     end
 
     test "stores monetary values as Decimal and never as float", %{preview: preview} do

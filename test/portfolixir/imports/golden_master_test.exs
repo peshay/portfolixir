@@ -75,7 +75,7 @@ defmodule Portfolixir.Imports.GoldenMasterTest do
   # Acceptance criteria:
   # - Importing sample.json yields the exact expected per-account cash balances.
   # - Importing sample.json yields the exact expected per-depot positions, with
-  #   Apple netted to zero (dropped) and MSCI World ending in Test-Depot-2.
+  #   Arbolia netted to zero (dropped) and Examplia World ending in Test-Depot-2.
   # - The portfolio valuation (cash + a priced position) is Decimal-exact.
   describe "golden master: sample.json" do
     setup do
@@ -105,30 +105,30 @@ defmodule Portfolixir.Imports.GoldenMasterTest do
     end
 
     test "derives exact positions per depot", %{portfolio: portfolio} do
-      apple = &(&1.isin == "US0378331005")
-      msci = &(&1.isin == "IE00B4L5Y983")
+      arbolia = &(&1.isin == "USEXMPL10014")
+      world = &(&1.isin == "IEEXMPL20018")
 
-      # Apple (US0378331005): buy 10, sell 10 => 0, dropped from positions.
-      assert position_quantity(portfolio.id, "Test-Depot", apple) == nil
+      # Arbolia (USEXMPL10014): buy 10, sell 10 => 0, dropped from positions.
+      assert position_quantity(portfolio.id, "Test-Depot", arbolia) == nil
 
-      # MSCI World (IE00B4L5Y983): inbound 5, outbound 2 => 3 in Test-Depot,
+      # Examplia World (IEEXMPL20018): inbound 5, outbound 2 => 3 in Test-Depot,
       # then security_transfer 3 to Test-Depot-2 => Test-Depot 0 (dropped),
       # Test-Depot-2 holds 3.
-      assert position_quantity(portfolio.id, "Test-Depot", msci) == nil
+      assert position_quantity(portfolio.id, "Test-Depot", world) == nil
 
       assert Decimal.equal?(
-               position_quantity(portfolio.id, "Test-Depot-2", msci),
+               position_quantity(portfolio.id, "Test-Depot-2", world),
                Decimal.new("3.0")
              )
     end
 
-    test "derives exact valuation with an injected MSCI World price", %{portfolio: portfolio} do
-      msci_id = security_id(portfolio.id, &(&1.isin == "IE00B4L5Y983"))
+    test "derives exact valuation with an injected Examplia World price", %{portfolio: portfolio} do
+      world_id = security_id(portfolio.id, &(&1.isin == "IEEXMPL20018"))
 
       valuation =
-        Valuation.for_portfolio(portfolio.id, prices: %{msci_id => Decimal.new("90.00")})
+        Valuation.for_portfolio(portfolio.id, prices: %{world_id => Decimal.new("90.00")})
 
-      # The only currently-held position is MSCI World: 3.0 @ 90.00 = 270.00,
+      # The only currently-held position is Examplia World: 3.0 @ 90.00 = 270.00,
       # already in the EUR base currency (no FX conversion needed).
       assert Decimal.equal?(valuation.total_value, Decimal.new("270.00"))
       assert valuation.unvalued_count == 0
@@ -149,7 +149,7 @@ defmodule Portfolixir.Imports.GoldenMasterTest do
   #
   # Acceptance criteria:
   # - Importing sample.csv yields the same exact cash balances as sample.json.
-  # - Importing sample.csv yields the same exact MSCI World position.
+  # - Importing sample.csv yields the same exact Examplia World position.
   describe "golden master: sample.csv matches sample.json" do
     setup do
       portfolio = import_target()
@@ -163,11 +163,11 @@ defmodule Portfolixir.Imports.GoldenMasterTest do
       assert Decimal.equal?(cash_balance(portfolio.id, "Test-Cash-2"), Decimal.new("1000.00"))
     end
 
-    test "derives the same exact MSCI World position", %{portfolio: portfolio} do
-      msci = &(&1.name == "iShares Core MSCI World UCITS ETF")
+    test "derives the same exact Examplia World position", %{portfolio: portfolio} do
+      world = &(&1.name == "iShares Core Examplia World UCITS ETF")
 
       assert Decimal.equal?(
-               position_quantity(portfolio.id, "Test-Depot-2", msci),
+               position_quantity(portfolio.id, "Test-Depot-2", world),
                Decimal.new("3")
              )
     end

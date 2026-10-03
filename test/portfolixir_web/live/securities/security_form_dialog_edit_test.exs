@@ -25,9 +25,9 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialogEditTest do
   defp create_security! do
     {:ok, sec} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "Apple Inc.",
-        ticker_symbol: "AAPL",
-        isin: "US0378331005",
+        name: "Arbolia Inc.",
+        ticker_symbol: "ARBL",
+        isin: "USEXMPL10014",
         currency_code: "USD",
         asset_class: "equity",
         provider: "manual"
@@ -50,9 +50,9 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialogEditTest do
     refute html =~ ~s(phx-value-mode="crypto")
 
     # Form is prefilled
-    assert html =~ ~s(value="Apple Inc.")
-    assert html =~ ~s(value="AAPL")
-    assert html =~ ~s(value="US0378331005")
+    assert html =~ ~s(value="Arbolia Inc.")
+    assert html =~ ~s(value="ARBL")
+    assert html =~ ~s(value="USEXMPL10014")
   end
 
   test "renders the edit title when in edit mode" do
@@ -109,9 +109,9 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialogEditTest do
     |> element("#security-form-dialog form")
     |> render_submit(%{
       "security" => %{
-        "name" => "Apple",
-        "ticker_symbol" => "AAPL",
-        "isin" => "US0378331005",
+        "name" => "Arbolia",
+        "ticker_symbol" => "ARBL",
+        "isin" => "USEXMPL10014",
         "currency_code" => "USD",
         "exchange_code" => "NASDAQ",
         "asset_class" => "equity",

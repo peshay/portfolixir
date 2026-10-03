@@ -60,18 +60,18 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
           assert conn.request_path =~ "/api/rest_v1/page/summary/"
 
           json_response(conn, 200, %{
-            "originalimage" => %{"source" => "https://wikipedia/Apple_Inc..png"}
+            "originalimage" => %{"source" => "https://wikipedia/Arbolia_Inc..png"}
           })
         end)
 
       security = %Security{
         provider: "manual",
         asset_class: "equity",
-        name: "Apple Inc.",
-        ticker_symbol: "AAPL"
+        name: "Arbolia Inc.",
+        ticker_symbol: "ARBL"
       }
 
-      assert {:ok, "https://wikipedia/Apple_Inc..png", :wikipedia} =
+      assert {:ok, "https://wikipedia/Arbolia_Inc..png", :wikipedia} =
                LogoLookup.find_url(security, req: stub)
     end
 
@@ -117,25 +117,26 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
     end
 
     test "ambiguous bare names get the (company) disambiguator on Wikipedia" do
-      # "Apple" alone resolves to the fruit; "Apple (company)" redirects to
-      # Apple Inc. The dispatcher must prefer the (company) variant for
-      # names without a corporate suffix to avoid picking up the wrong page.
+      # A bare brand name like "Arbolia" may resolve to an unrelated article
+      # (a plant, a place); "Arbolia (company)" points at the company. The
+      # dispatcher must prefer the (company) variant for names without a
+      # corporate suffix to avoid picking up the wrong page.
       stub =
         plug_stub(fn conn ->
-          assert conn.request_path =~ "Apple%20%28company%29"
+          assert conn.request_path =~ "Arbolia%20%28company%29"
 
           json_response(conn, 200, %{
-            "originalimage" => %{"source" => "https://wikipedia/Apple_logo.png"}
+            "originalimage" => %{"source" => "https://wikipedia/Arbolia_logo.png"}
           })
         end)
 
       security = %Security{
         provider: "manual",
         asset_class: "equity",
-        name: "Apple"
+        name: "Arbolia"
       }
 
-      assert {:ok, "https://wikipedia/Apple_logo.png", :wikipedia} =
+      assert {:ok, "https://wikipedia/Arbolia_logo.png", :wikipedia} =
                LogoLookup.find_url(security, req: stub)
     end
 
@@ -176,7 +177,7 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
 
     # User story:
     # As a local portfolio maintainer with imported securities,
-    # I want logo lookup to recover from all-caps names like "ALPHABET INC",
+    # I want logo lookup to recover from all-caps names like "ALDERBRIGHT INC",
     # so that updating a logo does not fail just because the Wikipedia title
     # uses normal company punctuation.
     #
@@ -197,12 +198,12 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
           Agent.update(calls, &(&1 ++ [title]))
 
           case title do
-            "ALPHABET INC" ->
+            "ALDERBRIGHT INC" ->
               Plug.Conn.send_resp(conn, 404, "not found")
 
-            "Alphabet Inc." ->
+            "Alderbright Inc." ->
               json_response(conn, 200, %{
-                "originalimage" => %{"source" => "https://wikipedia/Alphabet_Inc..png"}
+                "originalimage" => %{"source" => "https://wikipedia/Alderbright_Inc..png"}
               })
           end
         end)
@@ -210,13 +211,13 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
       security = %Security{
         provider: "manual",
         asset_class: "equity",
-        name: "ALPHABET INC"
+        name: "ALDERBRIGHT INC"
       }
 
-      assert {:ok, "https://wikipedia/Alphabet_Inc..png", :wikipedia} =
+      assert {:ok, "https://wikipedia/Alderbright_Inc..png", :wikipedia} =
                LogoLookup.find_url(security, req: stub)
 
-      assert Agent.get(calls, & &1) == ["ALPHABET INC", "Alphabet Inc."]
+      assert Agent.get(calls, & &1) == ["ALDERBRIGHT INC", "Alderbright Inc."]
     end
 
     # User story:
@@ -252,7 +253,7 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
       security = %Security{
         provider: "manual",
         asset_class: "etf",
-        name: "iShares Core MSCI World UCITS ETF"
+        name: "iShares Core Examplia World UCITS ETF"
       }
 
       assert {:ok, "https://wikipedia/iShares.png", :wikipedia} =
@@ -277,10 +278,10 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
             "The Vanguard Group" ->
               json_response(conn, 200, %{"title" => "The Vanguard Group"})
 
-            "Vanguard FTSE All-World UCITS ETF (company)" ->
-              json_response(conn, 200, %{"title" => "Vanguard FTSE All-World UCITS ETF"})
+            "Vanguard Examplia All-World UCITS ETF (company)" ->
+              json_response(conn, 200, %{"title" => "Vanguard Examplia All-World UCITS ETF"})
 
-            "Vanguard FTSE All-World UCITS ETF" ->
+            "Vanguard Examplia All-World UCITS ETF" ->
               json_response(conn, 200, %{
                 "originalimage" => %{"source" => "https://wikipedia/VanguardFund.png"}
               })
@@ -290,7 +291,7 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
       security = %Security{
         provider: "manual",
         asset_class: "etf",
-        name: "Vanguard FTSE All-World UCITS ETF"
+        name: "Vanguard Examplia All-World UCITS ETF"
       }
 
       assert {:ok, "https://wikipedia/VanguardFund.png", :wikipedia} =
@@ -298,8 +299,8 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
 
       assert Agent.get(calls, & &1) == [
                "The Vanguard Group",
-               "Vanguard FTSE All-World UCITS ETF (company)",
-               "Vanguard FTSE All-World UCITS ETF"
+               "Vanguard Examplia All-World UCITS ETF (company)",
+               "Vanguard Examplia All-World UCITS ETF"
              ]
     end
 
@@ -337,7 +338,7 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
       security = %Security{
         provider: "portfolio_performance",
         asset_class: nil,
-        name: "iShares Core MSCI Emerging Markets IMI UCITS ETF"
+        name: "iShares Core Examplia Emerging Markets IMI UCITS ETF"
       }
 
       assert {:ok, "https://wikipedia/iShares.png", :wikipedia} =
@@ -349,15 +350,15 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
     test "names that already carry a corporate suffix go straight to the bare lookup" do
       stub =
         plug_stub(fn conn ->
-          # No (company) suffix appended for names like "SAP SE" or "Apple Inc."
+          # No (company) suffix appended for names like "Velmora SE" or "Arbolia Inc."
           refute conn.request_path =~ "company"
 
           json_response(conn, 200, %{
-            "originalimage" => %{"source" => "https://wikipedia/SAP.png"}
+            "originalimage" => %{"source" => "https://wikipedia/Velmora.png"}
           })
         end)
 
-      for name <- ["SAP SE", "Apple Inc.", "Tesla, Inc", "Siemens AG"] do
+      for name <- ["Velmora SE", "Arbolia Inc.", "Torvane, Inc", "Stahlmond AG"] do
         security = %Security{provider: "manual", asset_class: "equity", name: name}
         assert {:ok, _url, :wikipedia} = LogoLookup.find_url(security, req: stub)
       end
@@ -445,7 +446,7 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
 
   describe "find_url/2 Wikipedia search fallback" do
     # User story:
-    # As a maintainer with broker-spelled names ("GILEAD SCIENCES") that don't
+    # As a maintainer with broker-spelled names ("HALDEN SCIENCES") that don't
     # resolve to an exact Wikipedia title, I want a name search to recover the
     # logo, without ever matching an unrelated topic.
     test "searches Wikipedia when no deterministic title resolves" do
@@ -456,16 +457,16 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
               json_response(conn, 200, %{
                 "pages" => [
                   %{
-                    "key" => "Gilead_Sciences",
-                    "title" => "Gilead Sciences",
+                    "key" => "Halden_Sciences",
+                    "title" => "Halden Sciences",
                     "description" => "American biotechnology company"
                   }
                 ]
               })
 
-            conn.request_path =~ "/api/rest_v1/page/summary/Gilead_Sciences" ->
+            conn.request_path =~ "/api/rest_v1/page/summary/Halden_Sciences" ->
               json_response(conn, 200, %{
-                "originalimage" => %{"source" => "https://wikipedia/Gilead.png"}
+                "originalimage" => %{"source" => "https://wikipedia/Halden.png"}
               })
 
             conn.request_path =~ "/api/rest_v1/page/summary/" ->
@@ -473,9 +474,9 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
           end
         end)
 
-      security = %Security{provider: "manual", asset_class: "equity", name: "GILEAD SCIENCES"}
+      security = %Security{provider: "manual", asset_class: "equity", name: "HALDEN SCIENCES"}
 
-      assert {:ok, "https://wikipedia/Gilead.png", :wikipedia} =
+      assert {:ok, "https://wikipedia/Halden.png", :wikipedia} =
                LogoLookup.find_url(security, req: stub)
     end
 
@@ -529,11 +530,11 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
       security = %Security{
         provider: "manual",
         asset_class: "equity",
-        name: "VESTAS WIND SYS. DK -,20"
+        name: "FJORDAN WIND SYS. DK -,20"
       }
 
       assert :skip = LogoLookup.find_url(security, req: stub)
-      assert Agent.get(captured, & &1) == "VESTAS WIND SYS"
+      assert Agent.get(captured, & &1) == "FJORDAN WIND SYS"
     end
   end
 
@@ -548,12 +549,12 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
             conn.request_path =~ "/api/rest_v1/page/summary/" ->
               Plug.Conn.send_resp(conn, 404, "not found")
 
-            conn.request_path =~ "/baozun/logo/" ->
+            conn.request_path =~ "/lanzhuo/logo/" ->
               conn
               |> Plug.Conn.put_resp_content_type("text/html")
               |> Plug.Conn.send_resp(
                 200,
-                ~s(<meta property="og:image" content="https://logos/baozun.png">)
+                ~s(<meta property="og:image" content="https://logos/lanzhuo.png">)
               )
 
             true ->
@@ -561,9 +562,9 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
           end
         end)
 
-      security = %Security{provider: "manual", asset_class: "equity", name: "Baozun"}
+      security = %Security{provider: "manual", asset_class: "equity", name: "Lanzhuo"}
 
-      assert {:ok, "https://logos/baozun.png", :companieslogo} =
+      assert {:ok, "https://logos/lanzhuo.png", :companieslogo} =
                LogoLookup.find_url(security, req: stub)
     end
 
@@ -584,7 +585,7 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
       security = %Security{
         provider: "portfolio_performance",
         asset_class: "knock_out",
-        name: "BNP Paribas Issuance B.V. Call Turbo o.End DAX"
+        name: "BNP Paribas Issuance B.V. Call Turbo o.End Examplia 40"
       }
 
       assert {:ok, "https://wikipedia/BNP_Paribas.png", :wikipedia} =
@@ -615,7 +616,7 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
       security = %Security{
         provider: "portfolio_performance",
         asset_class: "knock_out",
-        name: "Société Générale Effekten GmbH MiniL O.End DAX 14881,465523"
+        name: "Société Générale Effekten GmbH MiniL O.End Examplia 40 14881,465523"
       }
 
       assert {:ok, "https://wikipedia/SocGen.png", :wikipedia} =
@@ -638,19 +639,19 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
 
     # User story:
     # As a maintainer, imported companies whose PP name carries no legal form
-    # ("Amazon", "Zalando", "XINJIANG GOLDWIND") infer no asset class but are
+    # ("Amblewick", "Zelvaro", "XUNMAO WINDFORGE") infer no asset class but are
     # still companies — background discovery must try them, like the manual
     # "Update logo" already does. Commodities/bonds stay flag/initials.
     test "candidate?/1 includes untagged imported equities, not commodities/bonds" do
-      assert LogoLookup.candidate?(%Security{provider: "portfolio_performance", name: "Zalando"})
+      assert LogoLookup.candidate?(%Security{provider: "portfolio_performance", name: "Zelvaro"})
 
       assert LogoLookup.candidate?(%Security{
                provider: "portfolio_performance",
-               name: "XINJIANG GOLDWIND"
+               name: "XUNMAO WINDFORGE"
              })
 
       # Only for imported rows — a manual untagged row is not auto-discovered.
-      refute LogoLookup.candidate?(%Security{provider: "manual", name: "Zalando"})
+      refute LogoLookup.candidate?(%Security{provider: "manual", name: "Zelvaro"})
 
       # Imported commodities/bonds keep their flag/initials fallback.
       refute LogoLookup.candidate?(%Security{
@@ -671,16 +672,16 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
         plug_stub(fn conn ->
           if conn.request_path =~ "/api/rest_v1/page/summary/" do
             json_response(conn, 200, %{
-              "originalimage" => %{"source" => "https://wikipedia/Zalando.png"}
+              "originalimage" => %{"source" => "https://wikipedia/Zelvaro.png"}
             })
           else
             Plug.Conn.send_resp(conn, 404, "not found")
           end
         end)
 
-      security = %Security{provider: "portfolio_performance", asset_class: nil, name: "Zalando"}
+      security = %Security{provider: "portfolio_performance", asset_class: nil, name: "Zelvaro"}
 
-      assert {:ok, "https://wikipedia/Zalando.png", :wikipedia} =
+      assert {:ok, "https://wikipedia/Zelvaro.png", :wikipedia} =
                LogoLookup.find_url(security, req: stub)
     end
 
@@ -691,12 +692,12 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
             conn.request_path =~ "/api/rest_v1/page/summary/" ->
               Plug.Conn.send_resp(conn, 500, "boom")
 
-            conn.request_path =~ "/baozun/logo/" ->
+            conn.request_path =~ "/lanzhuo/logo/" ->
               conn
               |> Plug.Conn.put_resp_content_type("text/html")
               |> Plug.Conn.send_resp(
                 200,
-                ~s(<meta property="og:image" content="https://logos/baozun.png">)
+                ~s(<meta property="og:image" content="https://logos/lanzhuo.png">)
               )
 
             true ->
@@ -704,9 +705,9 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
           end
         end)
 
-      security = %Security{provider: "manual", asset_class: "equity", name: "Baozun"}
+      security = %Security{provider: "manual", asset_class: "equity", name: "Lanzhuo"}
 
-      assert {:ok, "https://logos/baozun.png", :companieslogo} =
+      assert {:ok, "https://logos/lanzhuo.png", :companieslogo} =
                LogoLookup.find_url(security, req: stub)
     end
 
@@ -716,16 +717,16 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
     # the issuer rather than resolved by the raw fund name.
     test "abbreviated ETF-issuer spellings resolve the issuer logo" do
       cases = [
-        {"iShsII-Gl.Clean Ener.Tra.U.ETF Reg. Shs USD Acc. oN", "iShares", "etf"},
-        {"Amu.S&P Wld Inds Screened UETF Reg.Shs UCITS ETF Acc o.N.", "Amundi", "etf"},
-        {"MUL-Am.MSCI Smart Mobil.Filt. UCITS ETF USD Acc.oN", "Amundi", "etf"},
-        {"Gl.X-Eur.DEFENCE TECH ETF Reg.Shs EUR Acc. oN", "Global", "etf"},
-        {"Glbl X ETFs-DEFENCE TECH ETF Reg.Shs EUR Acc. oN", "Global", "etf"},
-        {"Xtr.(IE) - MSCI World Quality Registered Shares 1C USD o.N.", "DWS", "equity"},
-        {"L&G Health.Tech.& Innov.U.ETF Reg.Shs USD Dis. o.N.", "Legal", "etf"},
+        {"iShsII-Gl.Tidal Ener.Tra.U.ETF Reg. Shs USD Acc. oN", "iShares", "etf"},
+        {"Amu.Examplia Wld Inds Screened UETF Reg.Shs UCITS ETF Acc o.N.", "Amundi", "etf"},
+        {"MUL-Am.Examplia Smart Mobil.Filt. UCITS ETF USD Acc.oN", "Amundi", "etf"},
+        {"Gl.X-Eur.TIDAL TECH ETF Reg.Shs EUR Acc. oN", "Global", "etf"},
+        {"Glbl X ETFs-TIDAL TECH ETF Reg.Shs EUR Acc. oN", "Global", "etf"},
+        {"Xtr.(IE) - Examplia World Quality Registered Shares 1C USD o.N.", "DWS", "equity"},
+        {"L&G Tidal Tech.& Innov.U.ETF Reg.Shs USD Dis. o.N.", "Legal", "etf"},
         # Issuer ETFs that infer as "equity" (carry "Registered Shares", no ETF
         # token) must still reach the issuer logo via the Wikipedia title path.
-        {"WisdomTree Battery Soluti.U.E. Registered Shares USD Acc.o.N.", "WisdomTree", "equity"}
+        {"WisdomTree Tidal Soluti.U.E. Registered Shares USD Acc.o.N.", "WisdomTree", "equity"}
       ]
 
       for {name, issuer_title_fragment, class} <- cases do
@@ -784,8 +785,8 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
   describe "find_url/2 search resilience" do
     # User story:
     # As a maintainer, I want companies whose Wikipedia article lives under a
-    # different title than their brokerage name (BMW vs "Bayerische Motoren
-    # Werke", Goldwind vs "Xinjiang Goldwind") to still get a logo — the search
+    # different title than their brokerage name (OMW vs "Oberland Motoren
+    # Werke", Windforge vs "Xunmao Windforge") to still get a logo — the search
     # accepts the first company-like result regardless of title word overlap.
     test "search accepts a company under a differently-titled article" do
       stub =
@@ -795,16 +796,16 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
               json_response(conn, 200, %{
                 "pages" => [
                   %{
-                    "key" => "BMW",
-                    "title" => "BMW",
+                    "key" => "OMW",
+                    "title" => "OMW",
                     "description" => "German multinational manufacturer of vehicles"
                   }
                 ]
               })
 
-            conn.request_path =~ "/api/rest_v1/page/summary/BMW" ->
+            conn.request_path =~ "/api/rest_v1/page/summary/OMW" ->
               json_response(conn, 200, %{
-                "originalimage" => %{"source" => "https://wikipedia/BMW.png"}
+                "originalimage" => %{"source" => "https://wikipedia/OMW.png"}
               })
 
             conn.request_path =~ "/api/rest_v1/page/summary/" ->
@@ -818,10 +819,10 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
       security = %Security{
         provider: "manual",
         asset_class: "equity",
-        name: "Bayerische Motoren Werke AG Vorzugsaktien o.St. EO 1"
+        name: "Oberland Motoren Werke AG Vorzugsaktien o.St. EO 1"
       }
 
-      assert {:ok, "https://wikipedia/BMW.png", :wikipedia} =
+      assert {:ok, "https://wikipedia/OMW.png", :wikipedia} =
                LogoLookup.find_url(security, req: stub)
     end
 
@@ -841,11 +842,11 @@ defmodule Portfolixir.Catalog.LogoLookupTest do
       security = %Security{
         provider: "manual",
         asset_class: "equity",
-        name: "AMC ENTERTAINMENT HLDGS A"
+        name: "QMX ENTERTAINMENT HLDGS A"
       }
 
       assert :skip = LogoLookup.find_url(security, req: stub)
-      assert Agent.get(captured, & &1) == "AMC ENTERTAINMENT"
+      assert Agent.get(captured, & &1) == "QMX ENTERTAINMENT"
     end
   end
 end

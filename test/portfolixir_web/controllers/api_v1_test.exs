@@ -95,8 +95,8 @@ defmodule PortfolixirWeb.ApiV1Test do
       Portfolixir.Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
         name: "Slim Equity",
         ticker_symbol: "SLIM",
-        isin: "DE0007100000",
-        wkn: "710000",
+        isin: "DEEXMPL30018",
+        wkn: "IDENT7",
         currency_code: "EUR",
         asset_class: "equity",
         note: "verbose note that must not ride along in listings"
@@ -113,8 +113,8 @@ defmodule PortfolixirWeb.ApiV1Test do
              "id" => security.id,
              "name" => "Slim Equity",
              "ticker_symbol" => "SLIM",
-             "isin" => "DE0007100000",
-             "wkn" => "710000",
+             "isin" => "DEEXMPL30018",
+             "wkn" => "IDENT7",
              "currency_code" => "EUR",
              "asset_class" => "equity"
            }
@@ -479,11 +479,11 @@ defmodule PortfolixirWeb.ApiV1Test do
     search =
       conn
       |> api_conn()
-      |> get("/api/v1/securities/search?query=apple&type=security")
+      |> get("/api/v1/securities/search?query=arbolia&type=security")
       |> json_response(200)
       |> Map.fetch!("data")
 
-    assert [%{"name" => "Apple Inc.", "provider" => "portfolio_performance"}] = search
+    assert [%{"name" => "Arbolia Inc.", "provider" => "portfolio_performance"}] = search
 
     {:ok, security} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
@@ -1218,7 +1218,7 @@ defmodule PortfolixirWeb.ApiV1Test do
 
     {:ok, security} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "Apple",
+        name: "Arbolia",
         currency_code: "USD",
         asset_class: "equity"
       })
@@ -1507,7 +1507,7 @@ defmodule PortfolixirWeb.ApiV1Test do
     invalid_search =
       conn
       |> api_conn()
-      |> get("/api/v1/securities/search?query=apple&type=__bad__")
+      |> get("/api/v1/securities/search?query=arbolia&type=__bad__")
       |> json_response(422)
 
     assert invalid_search == %{"errors" => %{"type" => ["is invalid"]}}
@@ -1599,8 +1599,8 @@ defmodule PortfolixirWeb.ApiV1Test do
   test "exposes FIFO trades through GET /api/v1/securities/:id/trades", %{conn: _conn} do
     {:ok, security} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "Apple Inc.",
-        ticker_symbol: "AAPL",
+        name: "Arbolia Inc.",
+        ticker_symbol: "ARBL",
         currency_code: "USD",
         asset_class: "equity"
       })

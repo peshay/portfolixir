@@ -1087,14 +1087,14 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     # - The stored security is unchanged.
     test "a matched row notes a name that differs in the file", %{conn: conn} do
       _portfolio = setup_portfolio()
-      stored = create_security!(%{name: "Renamed Long Ago AG", isin: "US0378331005"})
+      stored = create_security!(%{name: "Renamed Long Ago AG", isin: "USEXMPL10014"})
 
       {:ok, view, _html} = live(conn, "/imports")
       upload_sample(view)
 
       html = render(view)
 
-      assert html =~ "file name: Apple Inc.; stored name kept"
+      assert html =~ "file name: Arbolia Inc.; stored name kept"
       assert Portfolixir.Catalog.get_security(stored.id).name == "Renamed Long Ago AG"
     end
 

@@ -43,7 +43,7 @@ defmodule Portfolixir.Catalog.QuoteSync.YahooTest do
     security = %Security{
       id: 1,
       provider: "portfolio_performance",
-      ticker_symbol: "AAPL"
+      ticker_symbol: "ARBL"
     }
 
     {:ok, rows} = Yahoo.fetch(security, req: req_stub(body))
@@ -58,7 +58,7 @@ defmodule Portfolixir.Catalog.QuoteSync.YahooTest do
   end
 
   test "returns empty when chart.result is missing or empty" do
-    security = %Security{id: 1, ticker_symbol: "AAPL"}
+    security = %Security{id: 1, ticker_symbol: "ARBL"}
 
     assert {:ok, []} =
              Yahoo.fetch(security, req: req_stub(%{"chart" => %{"result" => []}}))
@@ -75,7 +75,7 @@ defmodule Portfolixir.Catalog.QuoteSync.YahooTest do
   test "non-200 responses surface as http_status errors" do
     plug = fn conn -> Plug.Conn.send_resp(conn, 429, "") end
 
-    security = %Security{id: 1, ticker_symbol: "AAPL"}
+    security = %Security{id: 1, ticker_symbol: "ARBL"}
     assert {:error, {:http_status, 429}} = Yahoo.fetch(security, req: [plug: plug])
   end
 
@@ -92,11 +92,11 @@ defmodule Portfolixir.Catalog.QuoteSync.YahooTest do
       |> Plug.Conn.send_resp(200, Jason.encode!(%{"chart" => %{"result" => []}}))
     end
 
-    security = %Security{id: 1, ticker_symbol: "AAPL", provider: "portfolio_performance"}
+    security = %Security{id: 1, ticker_symbol: "ARBL", provider: "portfolio_performance"}
     assert {:ok, []} = Yahoo.fetch(security, req: [plug: plug])
 
     assert_receive {^ref, params, path}
-    assert path =~ "AAPL"
+    assert path =~ "ARBL"
     assert params["period1"] == "0"
     assert params["interval"] == "1d"
     {now_ish, ""} = Integer.parse(params["period2"])

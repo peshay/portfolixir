@@ -102,7 +102,7 @@ defmodule Portfolixir.Portfolios.ValuationUnvaluedReasonTest do
 
   test "a valued position carries no unvalued reason" do
     world = base_world()
-    equity = create_security!(name: "Apple Inc.", ticker: "AAPL", asset_class: "equity")
+    equity = create_security!(name: "Arbolia Inc.", ticker: "ARBL", asset_class: "equity")
     buy!(world, equity, quantity: "10", price: "80")
     put_quote!(equity, ~D[2026-06-01], "100")
 

@@ -34,7 +34,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
   test "renders an img tag when the security has a logo_path", %{conn: conn} do
     {:ok, sec} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "Apple Inc.",
+        name: "Arbolia Inc.",
         currency_code: "USD",
         provider: "manual",
         asset_class: "equity"
@@ -57,7 +57,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
        %{conn: conn} do
     {:ok, _sec} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "Apple Inc.",
+        name: "Arbolia Inc.",
         currency_code: "USD",
         provider: "manual",
         asset_class: "equity"
@@ -171,7 +171,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
 
     {:ok, sec} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "Baozun",
+        name: "Lanzhuo",
         currency_code: "USD",
         provider: "manual",
         asset_class: "equity"
@@ -218,7 +218,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
 
     {:ok, sec} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "Baozun",
+        name: "Lanzhuo",
         currency_code: "USD",
         provider: "manual",
         asset_class: "equity"

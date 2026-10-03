@@ -27,14 +27,14 @@ defmodule PortfolixirWeb.SecuritiesUrlFiltersTest do
   # - Invalid filter params are dropped without crashing.
   describe "URL-addressable filters (#651)" do
     test "?q= opens the list pre-searched", %{conn: conn} do
-      create_security(%{name: "Apple Inc.", ticker_symbol: "AAPL"})
+      create_security(%{name: "Arbolia Inc.", ticker_symbol: "ARBL"})
       create_security(%{name: "Bitcoin", ticker_symbol: "BTC", asset_class: "crypto"})
 
-      {:ok, view, _html} = live(conn, "/securities?q=Apple")
+      {:ok, view, _html} = live(conn, "/securities?q=Arbolia")
 
-      assert has_element?(view, "td", "Apple Inc.")
+      assert has_element?(view, "td", "Arbolia Inc.")
       refute has_element?(view, "td", "Bitcoin")
-      assert has_element?(view, "#securities-search-form input[name='query'][value='Apple']")
+      assert has_element?(view, "#securities-search-form input[name='query'][value='Arbolia']")
     end
 
     test "?holding= opens the list pre-filtered by holding status", %{conn: conn} do
@@ -98,19 +98,19 @@ defmodule PortfolixirWeb.SecuritiesUrlFiltersTest do
     end
 
     test "applying a search patches the URL so the state is linkable", %{conn: conn} do
-      create_security(%{name: "Apple Inc.", ticker_symbol: "AAPL"})
+      create_security(%{name: "Arbolia Inc.", ticker_symbol: "ARBL"})
 
       {:ok, view, _html} = live(conn, "/securities")
 
       view
-      |> form("#securities-search-form", %{"query" => "Apple"})
+      |> form("#securities-search-form", %{"query" => "Arbolia"})
       |> render_change()
 
-      assert_patch(view, "/securities?q=Apple")
+      assert_patch(view, "/securities?q=Arbolia")
     end
 
     test "changing the holding status patches the URL", %{conn: conn} do
-      create_security(%{name: "Apple Inc.", ticker_symbol: "AAPL"})
+      create_security(%{name: "Arbolia Inc.", ticker_symbol: "ARBL"})
 
       {:ok, view, _html} = live(conn, "/securities")
 
@@ -122,16 +122,16 @@ defmodule PortfolixirWeb.SecuritiesUrlFiltersTest do
     end
 
     test "selecting a row keeps the active filters in the URL", %{conn: conn} do
-      apple = create_security(%{name: "Apple Inc.", ticker_symbol: "AAPL"})
+      arbolia = create_security(%{name: "Arbolia Inc.", ticker_symbol: "ARBL"})
 
-      {:ok, view, _html} = live(conn, "/securities?q=Apple")
+      {:ok, view, _html} = live(conn, "/securities?q=Arbolia")
 
       view
-      |> element("#security-row-#{apple.id} .row-target")
+      |> element("#security-row-#{arbolia.id} .row-target")
       |> render_click()
 
-      assert_patch(view, "/securities/#{apple.id}?q=Apple")
-      assert has_element?(view, "#securities-search-form input[name='query'][value='Apple']")
+      assert_patch(view, "/securities/#{arbolia.id}?q=Arbolia")
+      assert has_element?(view, "#securities-search-form input[name='query'][value='Arbolia']")
     end
   end
 

@@ -11,10 +11,10 @@
       "amount": 1502.50,
       "shares": 10.0,
       "security": {
-        "name": "Apple Inc.",
-        "isin": "US0378331005",
-        "wkn": "865985",
-        "ticker": "AAPL",
+        "name": "Arbolia Inc.",
+        "isin": "USEXMPL10014",
+        "wkn": "ARBOL1",
+        "ticker": "ARBL",
         "currency": "EUR"
       },
       "units": [
@@ -31,10 +31,10 @@
       "amount": 1800.00,
       "shares": 10.0,
       "security": {
-        "name": "Apple Inc.",
-        "isin": "US0378331005",
-        "wkn": "865985",
-        "ticker": "AAPL",
+        "name": "Arbolia Inc.",
+        "isin": "USEXMPL10014",
+        "wkn": "ARBOL1",
+        "ticker": "ARBL",
         "currency": "EUR"
       },
       "units": [
@@ -50,10 +50,10 @@
       "amount": 9.13,
       "shares": 50.0,
       "security": {
-        "name": "Apple Inc.",
-        "isin": "US0378331005",
-        "wkn": "865985",
-        "ticker": "AAPL",
+        "name": "Arbolia Inc.",
+        "isin": "USEXMPL10014",
+        "wkn": "ARBOL1",
+        "ticker": "ARBL",
         "currency": "EUR"
       },
       "units": [
@@ -123,10 +123,10 @@
       "amount": 100.00,
       "shares": 5.0,
       "security": {
-        "name": "iShares Core MSCI World UCITS ETF",
-        "isin": "IE00B4L5Y983",
-        "wkn": "A0RPWH",
-        "ticker": "EUNL",
+        "name": "iShares Core Examplia World UCITS ETF",
+        "isin": "IEEXMPL20018",
+        "wkn": "WORLD1",
+        "ticker": "XWLD",
         "currency": "EUR"
       }
     },
@@ -138,10 +138,10 @@
       "amount": 80.00,
       "shares": 2.0,
       "security": {
-        "name": "iShares Core MSCI World UCITS ETF",
-        "isin": "IE00B4L5Y983",
-        "wkn": "A0RPWH",
-        "ticker": "EUNL",
+        "name": "iShares Core Examplia World UCITS ETF",
+        "isin": "IEEXMPL20018",
+        "wkn": "WORLD1",
+        "ticker": "XWLD",
         "currency": "EUR"
       }
     },
@@ -155,10 +155,10 @@
       "amount": 200.00,
       "shares": 3.0,
       "security": {
-        "name": "iShares Core MSCI World UCITS ETF",
-        "isin": "IE00B4L5Y983",
-        "wkn": "A0RPWH",
-        "ticker": "EUNL",
+        "name": "iShares Core Examplia World UCITS ETF",
+        "isin": "IEEXMPL20018",
+        "wkn": "WORLD1",
+        "ticker": "XWLD",
         "currency": "EUR"
       }
     }

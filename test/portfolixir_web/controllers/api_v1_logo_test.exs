@@ -46,7 +46,7 @@ defmodule PortfolixirWeb.ApiV1LogoTest do
 
     {:ok, security} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-        name: "Baozun Inc.",
+        name: "Lanzhuo Inc.",
         currency_code: "USD",
         provider: "manual",
         asset_class: "equity"

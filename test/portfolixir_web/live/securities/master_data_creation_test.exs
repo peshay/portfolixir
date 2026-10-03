@@ -92,7 +92,7 @@ defmodule PortfolixirWeb.Securities.MasterDataCreationTest do
       |> render_click()
 
       view
-      |> form("#security-dialog-search-form", %{"dialog_query" => "apple"})
+      |> form("#security-dialog-search-form", %{"dialog_query" => "arbolia"})
       |> render_change()
 
       view

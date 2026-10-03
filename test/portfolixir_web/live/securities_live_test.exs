@@ -106,8 +106,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "search filters the list", %{conn: conn} do
       {:ok, _} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
-          ticker_symbol: "AAPL",
+          name: "Arbolia Inc.",
+          ticker_symbol: "ARBL",
           currency_code: "USD",
           asset_class: "equity"
         })
@@ -121,14 +121,14 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         })
 
       {:ok, view, _html} = live(conn, "/securities")
-      assert has_element?(view, "td", "Apple Inc.")
+      assert has_element?(view, "td", "Arbolia Inc.")
       assert has_element?(view, "td", "Bitcoin")
 
       view
-      |> form("#securities-search-form", %{"query" => "Apple"})
+      |> form("#securities-search-form", %{"query" => "Arbolia"})
       |> render_change()
 
-      assert has_element?(view, "td", "Apple Inc.")
+      assert has_element?(view, "td", "Arbolia Inc.")
       refute has_element?(view, "td", "Bitcoin")
     end
 
@@ -144,22 +144,22 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "a NUL in any securities search matches nothing and never crashes", %{conn: conn} do
       {:ok, security} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
-          ticker_symbol: "AAPL",
+          name: "Arbolia Inc.",
+          ticker_symbol: "ARBL",
           currency_code: "USD",
           asset_class: "equity"
         })
 
       {:ok, view, _html} = live(conn, "/securities?q=%00")
-      refute has_element?(view, "td", "Apple Inc.")
+      refute has_element?(view, "td", "Arbolia Inc.")
 
       {:ok, view, _html} = live(conn, "/securities")
 
       view
-      |> form("#securities-search-form", %{"query" => "Ap\u0000ple"})
+      |> form("#securities-search-form", %{"query" => "Arb\u0000olia"})
       |> render_change()
 
-      refute has_element?(view, "td", "Apple Inc.")
+      refute has_element?(view, "td", "Arbolia Inc.")
 
       {:ok, view, _html} = live(conn, "/securities")
       view |> element("#more-filters-toggle") |> render_click()
@@ -168,7 +168,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       |> element("#securities-filter-form")
       |> render_submit(%{"field" => "name", "operator" => "contains", "value" => "a\u0000"})
 
-      refute has_element?(view, "td", "Apple Inc.")
+      refute has_element?(view, "td", "Arbolia Inc.")
 
       {:ok, view, _html} = live(conn, "/securities")
 
@@ -201,8 +201,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
          %{conn: conn} do
       {:ok, _} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
-          ticker_symbol: "AAPL",
+          name: "Arbolia Inc.",
+          ticker_symbol: "ARBL",
           currency_code: "USD",
           asset_class: "equity"
         })
@@ -361,19 +361,19 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       # Typing in the dialog returns results from the provider.
       view
       |> element("#security-form-dialog form")
-      |> render_change(%{"dialog_query" => "apple"})
+      |> render_change(%{"dialog_query" => "arbolia"})
 
-      assert has_element?(view, "#security-form-dialog", "Apple Inc.")
+      assert has_element?(view, "#security-form-dialog", "Arbolia Inc.")
 
       # Submitting the dialog search (Enter) uses the same field and works too.
       view
       |> element("#security-form-dialog form")
-      |> render_submit(%{"dialog_query" => "apple"})
+      |> render_submit(%{"dialog_query" => "arbolia"})
 
-      assert has_element?(view, "#security-form-dialog", "Apple Inc.")
+      assert has_element?(view, "#security-form-dialog", "Arbolia Inc.")
     end
 
-    test "creates an Apple security via Portfolio Performance fake", %{conn: conn} do
+    test "creates an Arbolia security via Portfolio Performance fake", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/securities")
 
       view |> element("#open-new-dialog") |> render_click()
@@ -381,13 +381,13 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       view
       |> element("#security-form-dialog form")
-      |> render_change(%{"dialog_query" => "apple"})
+      |> render_change(%{"dialog_query" => "arbolia"})
 
-      assert has_element?(view, "#security-form-dialog", "Apple Inc.")
+      assert has_element?(view, "#security-form-dialog", "Arbolia Inc.")
 
       view |> element("#security-form-dialog .search-result") |> render_click()
 
-      # Apple fixture has two markets, expect the market step
+      # Arbolia fixture has two markets, expect the market step
       assert has_element?(view, "#security-form-dialog", "NASDAQ")
 
       view
@@ -400,9 +400,9 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       |> element("#security-form-dialog form")
       |> render_submit(%{
         "security" => %{
-          "name" => "Apple Inc.",
-          "ticker_symbol" => "AAPL",
-          "isin" => "US0378331005",
+          "name" => "Arbolia Inc.",
+          "ticker_symbol" => "ARBL",
+          "isin" => "USEXMPL10014",
           "currency_code" => "USD",
           "asset_class" => "equity",
           "feed" => "PORTFOLIO_PERFORMANCE"
@@ -410,7 +410,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       })
 
       refute has_element?(view, "#security-form-dialog")
-      assert has_element?(view, "#securities-table", "Apple Inc.")
+      assert has_element?(view, "#securities-table", "Arbolia Inc.")
       assert Catalog.list_securities() |> length() == 1
     end
 
@@ -424,13 +424,13 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       # having to find a separate edit screen.
       {:ok, existing} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
-          ticker_symbol: "AAPL",
-          isin: "US0378331005",
+          name: "Arbolia Inc.",
+          ticker_symbol: "ARBL",
+          isin: "USEXMPL10014",
           currency_code: "USD",
           asset_class: "equity",
           provider: "portfolio_performance",
-          online_id: "us0378331005",
+          online_id: "usexmpl10014",
           feed: "PORTFOLIO_PERFORMANCE"
         })
 
@@ -440,7 +440,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       view
       |> element("#security-form-dialog form")
-      |> render_change(%{"dialog_query" => "apple"})
+      |> render_change(%{"dialog_query" => "arbolia"})
 
       view |> element("#security-form-dialog .search-result") |> render_click()
 
@@ -456,9 +456,9 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       |> element("#security-form-dialog form")
       |> render_submit(%{
         "security" => %{
-          "name" => "Apple Inc.",
-          "ticker_symbol" => "AAPL",
-          "isin" => "US0378331005",
+          "name" => "Arbolia Inc.",
+          "ticker_symbol" => "ARBL",
+          "isin" => "USEXMPL10014",
           "currency_code" => "USD",
           "asset_class" => "equity",
           "feed" => "MANUAL"
@@ -474,13 +474,13 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
          %{conn: conn} do
       {:ok, existing} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
-          ticker_symbol: "AAPL",
-          isin: "US0378331005",
+          name: "Arbolia Inc.",
+          ticker_symbol: "ARBL",
+          isin: "USEXMPL10014",
           currency_code: "USD",
           asset_class: "equity",
           provider: "portfolio_performance",
-          online_id: "us0378331005",
+          online_id: "usexmpl10014",
           feed: "PORTFOLIO_PERFORMANCE",
           note: "kept across merges"
         })
@@ -491,7 +491,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       view
       |> element("#security-form-dialog form")
-      |> render_change(%{"dialog_query" => "apple"})
+      |> render_change(%{"dialog_query" => "arbolia"})
 
       view |> element("#security-form-dialog .search-result") |> render_click()
 
@@ -517,13 +517,13 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "duplicate insert surfaces a conflict banner instead of an exception", %{conn: conn} do
       {:ok, _existing} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
-          ticker_symbol: "AAPL",
-          isin: "US0378331005",
+          name: "Arbolia Inc.",
+          ticker_symbol: "ARBL",
+          isin: "USEXMPL10014",
           currency_code: "USD",
           asset_class: "equity",
           provider: "portfolio_performance",
-          online_id: "us0378331005",
+          online_id: "usexmpl10014",
           feed: "PORTFOLIO_PERFORMANCE"
         })
 
@@ -534,7 +534,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       view
       |> element("#security-form-dialog form")
-      |> render_change(%{"dialog_query" => "apple"})
+      |> render_change(%{"dialog_query" => "arbolia"})
 
       view |> element("#security-form-dialog .search-result") |> render_click()
 
@@ -600,15 +600,15 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     alias Portfolixir.Repo
 
     setup do
-      {:ok, apple} =
+      {:ok, arbolia} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
-          ticker_symbol: "AAPL",
-          isin: "US0378331005",
+          name: "Arbolia Inc.",
+          ticker_symbol: "ARBL",
+          isin: "USEXMPL10014",
           currency_code: "USD",
           asset_class: "equity",
           provider: "portfolio_performance",
-          online_id: "us0378331005"
+          online_id: "usexmpl10014"
         })
 
       # Two recent closes: a day change only renders from a fresh close
@@ -621,11 +621,11 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       ]
       |> Enum.each(fn row ->
         %SecurityQuote{}
-        |> SecurityQuote.changeset(Map.merge(row, %{security_id: apple.id, source: "manual"}))
+        |> SecurityQuote.changeset(Map.merge(row, %{security_id: arbolia.id, source: "manual"}))
         |> Repo.insert!()
       end)
 
-      %{apple: apple}
+      %{arbolia: arbolia}
     end
 
     # User story:
@@ -641,7 +641,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     # - Clicking a row navigates to /securities/:id.
     # - A "Sync prices" toolbar button is available.
     test "shows latest price and day-change for a security with quote history",
-         %{conn: conn, apple: _apple} do
+         %{conn: conn, arbolia: _arbolia} do
       {:ok, view, _html} = live(conn, "/securities")
 
       html = render(view)
@@ -753,21 +753,24 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       end
     end
 
-    test "rows are navigable to the detail page", %{conn: conn, apple: apple} do
+    test "rows are navigable to the detail page", %{conn: conn, arbolia: arbolia} do
       {:ok, view, _html} = live(conn, "/securities")
 
       assert has_element?(
                view,
-               ~s|tr#security-row-#{apple.id} a[href="/securities/#{apple.id}"]|
+               ~s|tr#security-row-#{arbolia.id} a[href="/securities/#{arbolia.id}"]|
              )
     end
 
-    test "opens the detail pane when the URL points at a security", %{conn: conn, apple: apple} do
-      {:ok, view, html} = live(conn, "/securities/#{apple.id}")
+    test "opens the detail pane when the URL points at a security", %{
+      conn: conn,
+      arbolia: arbolia
+    } do
+      {:ok, view, html} = live(conn, "/securities/#{arbolia.id}")
 
       assert html =~ "security-detail-pane"
-      assert html =~ "Apple Inc."
-      assert has_element?(view, "tr#security-row-#{apple.id}.is-selected")
+      assert html =~ "Arbolia Inc."
+      assert has_element?(view, "tr#security-row-#{arbolia.id}.is-selected")
     end
 
     # User story:
@@ -800,9 +803,9 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     # - The split height is browser-local through a stable storage key.
     test "selected security renders split workspace with accessible separator", %{
       conn: conn,
-      apple: apple
+      arbolia: arbolia
     } do
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}")
 
       assert has_element?(view, "#securities-workspace.securities-workspace--split")
       assert has_element?(view, "#securities-list-pane")
@@ -821,8 +824,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
 
     test "chart tab exposes the range buttons and Log scale toggle",
-         %{conn: conn, apple: apple} do
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=chart")
+         %{conn: conn, arbolia: arbolia} do
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}?tab=chart")
 
       assert render(view) =~ "Log scale"
 
@@ -845,8 +848,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     # - The applied range echoes into the range group as an active chip
     #   carrying the resolved dates.
     test "the detail chart's custom range is labelled, validates, and shows itself",
-         %{conn: conn, apple: apple} do
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=chart")
+         %{conn: conn, arbolia: arbolia} do
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}?tab=chart")
 
       form = view |> element("#detail-custom-range") |> render()
       assert form =~ "<label"
@@ -869,17 +872,17 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
 
     test "patching to a row id opens the pane without a full navigation",
-         %{conn: conn, apple: apple} do
+         %{conn: conn, arbolia: arbolia} do
       {:ok, view, html_before} = live(conn, "/securities")
       refute html_before =~ "security-detail-pane"
 
-      view |> element("tr#security-row-#{apple.id} a") |> render_click()
+      view |> element("tr#security-row-#{arbolia.id} a") |> render_click()
 
       assert has_element?(view, "#security-detail-pane")
     end
 
-    test "patching back to /securities closes the pane", %{conn: conn, apple: apple} do
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+    test "patching back to /securities closes the pane", %{conn: conn, arbolia: arbolia} do
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}")
       assert has_element?(view, "#security-detail-pane")
 
       view |> element("#detail-pane-close") |> render_click()
@@ -910,20 +913,20 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     # - Only the active tab's panel content is visible.
 
     setup do
-      {:ok, apple} =
+      {:ok, arbolia} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
-          ticker_symbol: "AAPL",
-          isin: "US0378331005",
+          name: "Arbolia Inc.",
+          ticker_symbol: "ARBL",
+          isin: "USEXMPL10014",
           currency_code: "USD",
           asset_class: "equity"
         })
 
-      {:ok, apple: apple}
+      {:ok, arbolia: arbolia}
     end
 
-    test "renders a tablist with the six known tabs", %{conn: conn, apple: apple} do
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+    test "renders a tablist with the six known tabs", %{conn: conn, arbolia: arbolia} do
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}")
 
       assert has_element?(view, "#detail-pane-tabs[role='tablist']")
 
@@ -953,8 +956,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     #   the DOM.
     # - The row carries the `DetailTabs` hook, which handles Arrow Left/Right
     #   (wrapping) and Home/End.
-    test "the tab row is one tab stop with a roving tabindex", %{conn: conn, apple: apple} do
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=chart")
+    test "the tab row is one tab stop with a roving tabindex", %{conn: conn, arbolia: arbolia} do
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}?tab=chart")
 
       assert has_element?(view, ~s(#detail-pane-tabs[role="tablist"][phx-hook="DetailTabs"]))
 
@@ -1012,7 +1015,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
 
     test "classifications tab assigns the security to a custom category",
-         %{conn: conn, apple: apple} do
+         %{conn: conn, arbolia: arbolia} do
       {:ok, classification} =
         Portfolixir.Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{
           name: "Strategy"
@@ -1024,7 +1027,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
           name: "Core"
         })
 
-      {:ok, view, html} = live(conn, "/securities/#{apple.id}?tab=classifications")
+      {:ok, view, html} = live(conn, "/securities/#{arbolia.id}?tab=classifications")
 
       assert html =~ "Strategy"
       assert html =~ "Core"
@@ -1041,17 +1044,17 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
         |> Enum.find(&(&1.classification.id == classification.id))
         |> Map.fetch!(:assignments)
 
-      assert assignments == [%{security_id: apple.id, category_id: category.id}]
+      assert assignments == [%{security_id: arbolia.id, category_id: category.id}]
     end
 
     test "classifications tab creates a category inline and assigns the security",
-         %{conn: conn, apple: apple} do
+         %{conn: conn, arbolia: arbolia} do
       {:ok, classification} =
         Portfolixir.Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{
           name: "Strategy"
         })
 
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=classifications")
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}?tab=classifications")
 
       view
       |> element("form.sc-form")
@@ -1072,11 +1075,11 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       assert [category] = tree.categories
       assert category.name == "Core"
-      assert tree.assignments == [%{security_id: apple.id, category_id: category.id}]
+      assert tree.assignments == [%{security_id: arbolia.id, category_id: category.id}]
     end
 
     test "classifications tab unassigns the security when the category is cleared",
-         %{conn: conn, apple: apple} do
+         %{conn: conn, arbolia: arbolia} do
       {:ok, classification} =
         Portfolixir.Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{
           name: "Strategy"
@@ -1088,7 +1091,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
           name: "Core"
         })
 
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=classifications")
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}?tab=classifications")
 
       form = element(view, "form.sc-form")
 
@@ -1118,8 +1121,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
 
     test "overview tab is active by default and chart content is hidden",
-         %{conn: conn, apple: apple} do
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+         %{conn: conn, arbolia: arbolia} do
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}")
 
       assert has_element?(
                view,
@@ -1131,8 +1134,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
 
     test "?tab=transactions selects the transactions tab on load",
-         %{conn: conn, apple: apple} do
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=transactions")
+         %{conn: conn, arbolia: arbolia} do
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}?tab=transactions")
 
       assert has_element?(
                view,
@@ -1144,15 +1147,15 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
 
     test "localized Chart and Transactions tab clicks patch the URL and swap panels",
-         %{conn: conn, apple: apple} do
+         %{conn: conn, arbolia: arbolia} do
       conn = put_req_header(conn, "accept-language", "de")
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}")
 
       view
       |> element("#detail-pane-tabs [role='tab']", "Diagramm")
       |> render_click()
 
-      assert_patched(view, "/securities/#{apple.id}?tab=chart")
+      assert_patched(view, "/securities/#{arbolia.id}?tab=chart")
       assert has_element?(view, "#detail-tab-chart[aria-selected='true']", "Diagramm")
       assert has_element?(view, "#detail-tab-panel-chart")
       refute has_element?(view, "#detail-tab-panel-overview")
@@ -1161,7 +1164,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       |> element("#detail-pane-tabs [role='tab']", "Transaktionen")
       |> render_click()
 
-      assert_patched(view, "/securities/#{apple.id}?tab=transactions")
+      assert_patched(view, "/securities/#{arbolia.id}?tab=transactions")
 
       assert has_element?(
                view,
@@ -1183,8 +1186,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     #   the built-in `phx-click-loading` state immediately.
     # - The compact app stylesheet defines a visible loading state for tabs.
     test "tab buttons expose immediate loading feedback while patching",
-         %{conn: conn, apple: apple} do
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+         %{conn: conn, arbolia: arbolia} do
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}")
 
       assert has_element?(
                view,
@@ -1197,14 +1200,14 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
 
     test "clicking a tab patches the URL and swaps the active panel",
-         %{conn: conn, apple: apple} do
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+         %{conn: conn, arbolia: arbolia} do
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}")
 
       view
       |> element("#detail-pane-tabs button[phx-value-tab='trades']")
       |> render_click()
 
-      assert_patched(view, "/securities/#{apple.id}?tab=trades")
+      assert_patched(view, "/securities/#{arbolia.id}?tab=trades")
 
       assert has_element?(
                view,
@@ -1216,9 +1219,9 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
 
     test "unknown ?tab=… value silently falls back to the default overview tab",
-         %{conn: conn, apple: apple} do
+         %{conn: conn, arbolia: arbolia} do
       # Guards against `String.to_atom/1` on external input.
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}?tab=__bogus__")
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}?tab=__bogus__")
 
       assert has_element?(
                view,
@@ -1245,8 +1248,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     setup do
       {:ok, security} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
-          ticker_symbol: "AAPL",
+          name: "Arbolia Inc.",
+          ticker_symbol: "ARBL",
           currency_code: "USD",
           asset_class: "equity"
         })
@@ -1390,19 +1393,19 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     # - Clicking the X button still closes the pane in either mode.
 
     setup do
-      {:ok, apple} =
+      {:ok, arbolia} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
-          ticker_symbol: "AAPL",
+          name: "Arbolia Inc.",
+          ticker_symbol: "ARBL",
           currency_code: "USD",
           asset_class: "equity"
         })
 
-      {:ok, apple: apple}
+      {:ok, arbolia: arbolia}
     end
 
-    test "toggles fullscreen via the maximize button", %{conn: conn, apple: apple} do
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+    test "toggles fullscreen via the maximize button", %{conn: conn, arbolia: arbolia} do
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}")
 
       refute has_element?(view, "#security-detail-pane.detail-pane--fullscreen")
 
@@ -1416,8 +1419,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
 
     test "X button still closes the pane while fullscreen is active",
-         %{conn: conn, apple: apple} do
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+         %{conn: conn, arbolia: arbolia} do
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}")
 
       view |> element("#detail-pane-fullscreen-toggle") |> render_click()
 
@@ -1429,11 +1432,11 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
 
     test "the detail pane DOES NOT bind a window-level Escape handler — strict X-only close",
-         %{conn: conn, apple: apple} do
+         %{conn: conn, arbolia: arbolia} do
       # If a future change accidentally wires `phx-window-keydown` on the
       # detail pane, this test catches it. The strict rule from the user's
       # ask is: in fullscreen only the X must close the pane.
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}")
 
       view |> element("#detail-pane-fullscreen-toggle") |> render_click()
 
@@ -1460,28 +1463,28 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     #   Catalog.update_security/2.
 
     setup do
-      {:ok, apple} =
+      {:ok, arbolia} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
-          ticker_symbol: "AAPL",
-          isin: "US0378331005",
-          wkn: "865985",
+          name: "Arbolia Inc.",
+          ticker_symbol: "ARBL",
+          isin: "USEXMPL10014",
+          wkn: "ARBOL1",
           currency_code: "USD",
           exchange_code: "XNAS",
           asset_class: "equity",
           note: "Bellwether holding"
         })
 
-      {:ok, apple: apple}
+      {:ok, arbolia: arbolia}
     end
 
-    test "renders master data fields", %{conn: conn, apple: apple} do
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+    test "renders master data fields", %{conn: conn, arbolia: arbolia} do
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}")
 
       html = render(view)
-      assert html =~ "US0378331005"
-      assert html =~ "865985"
-      assert html =~ "AAPL"
+      assert html =~ "USEXMPL10014"
+      assert html =~ "ARBOL1"
+      assert html =~ "ARBL"
       assert html =~ "XNAS"
       assert html =~ "USD"
       # asset class is rendered through the existing AssetClasses copy
@@ -1489,13 +1492,13 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
 
     test "shows the retired badge when the security is retired",
-         %{conn: conn, apple: apple} do
+         %{conn: conn, arbolia: arbolia} do
       {:ok, _} =
-        Portfolixir.Catalog.update_security(Portfolixir.Actor.owner_ui(), apple, %{
+        Portfolixir.Catalog.update_security(Portfolixir.Actor.owner_ui(), arbolia, %{
           is_retired: true
         })
 
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}")
 
       assert has_element?(view, "#detail-tab-panel-overview .badge", "Retired")
     end
@@ -1503,17 +1506,17 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     # #804: the overview's period figure is the one-year return; 1M left with
     # the master-data form when the tab became a reading surface.
     test "renders the 1Y performance metric when quotes are present",
-         %{conn: conn, apple: apple} do
+         %{conn: conn, arbolia: arbolia} do
       today = Date.utc_today()
 
       {:ok, _} =
-        Quotes.upsert_many(apple.id, [
+        Quotes.upsert_many(arbolia.id, [
           %{date: Date.add(today, -400), close: "100.00", source: "manual"},
           %{date: Date.add(today, -45), close: "120.00", source: "manual"},
           %{date: today, close: "150.00", source: "manual"}
         ])
 
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}")
 
       panel = element(view, "#detail-tab-panel-overview") |> render()
       assert panel =~ "1Y"
@@ -1522,8 +1525,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
 
     test "saving the notes form persists via Catalog.update_security/2",
-         %{conn: conn, apple: apple} do
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+         %{conn: conn, arbolia: arbolia} do
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}")
 
       view |> element("#overview-note-edit") |> render_click()
 
@@ -1531,26 +1534,26 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       |> form("#overview-notes-form", %{"security" => %{"note" => "Long-term core position."}})
       |> render_submit()
 
-      assert Catalog.get_security(apple.id).note == "Long-term core position."
+      assert Catalog.get_security(arbolia.id).note == "Long-term core position."
     end
 
     # #804: master data is saved through the dialog the header's Edit control
     # opens — the overview no longer carries a form of its own.
     test "saving the dialog persists master data via Catalog.update_security/2",
-         %{conn: conn, apple: apple} do
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+         %{conn: conn, arbolia: arbolia} do
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}")
 
       view |> element("#detail-edit") |> render_click()
 
       view
       |> form("#security-dialog-form", %{
-        "security" => %{"name" => "Apple Inc. (edited)", "ticker_symbol" => "AAPL2"}
+        "security" => %{"name" => "Arbolia Inc. (edited)", "ticker_symbol" => "ARBL2"}
       })
       |> render_submit()
 
-      updated = Catalog.get_security(apple.id)
-      assert updated.name == "Apple Inc. (edited)"
-      assert updated.ticker_symbol == "AAPL2"
+      updated = Catalog.get_security(arbolia.id)
+      assert updated.name == "Arbolia Inc. (edited)"
+      assert updated.ticker_symbol == "ARBL2"
     end
 
     # User story (E25 S6 review round, R5):
@@ -1563,15 +1566,15 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     # - The dialog shows a form-level alert naming the gone security, and no
     #   error on the Name field.
     test "saving the dialog for a security deleted meanwhile names it as gone",
-         %{conn: conn, apple: apple} do
-      {:ok, view, _html} = live(conn, "/securities/#{apple.id}")
+         %{conn: conn, arbolia: arbolia} do
+      {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}")
 
       view |> element("#detail-edit") |> render_click()
-      {:ok, _} = Catalog.delete_security(Portfolixir.Actor.owner_ui(), apple)
+      {:ok, _} = Catalog.delete_security(Portfolixir.Actor.owner_ui(), arbolia)
 
       html =
         view
-        |> form("#security-dialog-form", %{"security" => %{"name" => "Apple Inc. (edited)"}})
+        |> form("#security-dialog-form", %{"security" => %{"name" => "Arbolia Inc. (edited)"}})
         |> render_submit()
 
       assert html =~ "This security no longer exists"
@@ -1600,9 +1603,9 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     setup do
       {:ok, security} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
-          ticker_symbol: "AAPL",
-          isin: "US0378331005",
+          name: "Arbolia Inc.",
+          ticker_symbol: "ARBL",
+          isin: "USEXMPL10014",
           currency_code: "USD",
           asset_class: "equity"
         })
@@ -1914,14 +1917,14 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "renders select form for unclassified security", %{conn: conn} do
       {:ok, _classified} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
+          name: "Arbolia Inc.",
           currency_code: "USD",
           asset_class: "equity"
         })
 
       {:ok, _unclassified} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Amazon",
+          name: "Amblewick",
           currency_code: "USD"
         })
 
@@ -1934,7 +1937,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "changing the select saves the asset class", %{conn: conn} do
       {:ok, security} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Amazon",
+          name: "Amblewick",
           currency_code: "USD"
         })
 
@@ -1955,7 +1958,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "selecting empty value is a no-op", %{conn: conn} do
       {:ok, _} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Amazon",
+          name: "Amblewick",
           currency_code: "USD"
         })
 
@@ -1971,7 +1974,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "invalid security id is silently ignored", %{conn: conn} do
       {:ok, _} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Amazon",
+          name: "Amblewick",
           currency_code: "USD"
         })
 
@@ -1989,8 +1992,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "filter on asset_class adds a chip and narrows the list", %{conn: conn} do
       {:ok, _} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
-          ticker_symbol: "AAPL",
+          name: "Arbolia Inc.",
+          ticker_symbol: "ARBL",
           currency_code: "USD",
           asset_class: "equity"
         })
@@ -2016,12 +2019,12 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       assert has_element?(view, "#filter-chips .chip", "Cryptocurrency")
       assert has_element?(view, "td", "Bitcoin")
-      refute has_element?(view, "td", "Apple Inc.")
+      refute has_element?(view, "td", "Arbolia Inc.")
 
       # Remove the chip again
       view |> element("#filter-chips .chip-remove") |> render_click()
       refute has_element?(view, "#filter-chips")
-      assert has_element?(view, "td", "Apple Inc.")
+      assert has_element?(view, "td", "Arbolia Inc.")
     end
 
     test "filter popover renders is_nil operator for asset_class field", %{conn: conn} do
@@ -2039,20 +2042,20 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     test "is_nil filter on asset_class shows only unclassified securities", %{conn: conn} do
       {:ok, _classified} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Apple Inc.",
+          name: "Arbolia Inc.",
           currency_code: "USD",
           asset_class: "equity"
         })
 
       {:ok, _unclassified} =
         Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
-          name: "Amazon",
+          name: "Amblewick",
           currency_code: "USD"
         })
 
       {:ok, view, _html} = live(conn, "/securities")
-      assert has_element?(view, "td", "Apple Inc.")
-      assert has_element?(view, "td", "Amazon")
+      assert has_element?(view, "td", "Arbolia Inc.")
+      assert has_element?(view, "td", "Amblewick")
 
       view |> element("#more-filters-toggle") |> render_click()
 
@@ -2066,8 +2069,8 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       # #717: the is_nil condition is chip-expressible — its state shows on
       # the one-tap Unclassified chip, not as a removable chip.
       assert view |> element("#sec-chip-unclassified") |> render() =~ ~s(aria-pressed="true")
-      refute has_element?(view, "td", "Apple Inc.")
-      assert has_element?(view, "td", "Amazon")
+      refute has_element?(view, "td", "Arbolia Inc.")
+      assert has_element?(view, "td", "Amblewick")
     end
   end
 

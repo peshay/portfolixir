@@ -158,7 +158,7 @@ defmodule PortfolixirWeb.ImportsFileErrorsTest do
 
     export =
       json_export([
-        purchase(%{"wkn" => "A0RPWH", "currency" => "EUR"}),
+        purchase(%{"wkn" => "WORLD1", "currency" => "EUR"}),
         purchase(%{"ticker" => "SYN", "currency" => "EUR"}),
         purchase(%{"currency" => "EUR"})
       ])

@@ -13,8 +13,8 @@ defmodule Portfolixir.Catalog.SecuritySearchTest do
   end
 
   test "returns canned Fake results for known queries" do
-    {:ok, [hit]} = SecuritySearch.search("apple")
-    assert %SearchResult{provider: :portfolio_performance, isin: "US0378331005"} = hit
+    {:ok, [hit]} = SecuritySearch.search("arbolia")
+    assert %SearchResult{provider: :portfolio_performance, isin: "USEXMPL10014"} = hit
   end
 
   test "merges results from multiple providers and dedupes by provider+online_id" do

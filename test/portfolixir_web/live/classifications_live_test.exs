@@ -30,7 +30,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   end
 
   defp security!(attrs \\ %{}) do
-    base = %{name: "Apple", currency_code: "USD", asset_class: "equity"}
+    base = %{name: "Arbolia", currency_code: "USD", asset_class: "equity"}
 
     {:ok, security} =
       Catalog.create_security(Portfolixir.Actor.owner_ui(), Map.merge(base, attrs))
@@ -391,23 +391,23 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   end
 
   test "filters the tree to securities matching the search", %{conn: conn} do
-    security!(%{name: "Apple"})
-    security!(%{name: "Microsoft"})
+    security!(%{name: "Arbolia"})
+    security!(%{name: "Mirelund"})
 
     {:ok, classification} =
       Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Strategy"})
 
     {:ok, view, html} = live_drained(conn, "/classifications/#{classification.id}")
-    assert html =~ "Apple"
-    assert html =~ "Microsoft"
+    assert html =~ "Arbolia"
+    assert html =~ "Mirelund"
 
     filtered =
       view
-      |> form("form.tree-search", %{"query" => "micro"})
+      |> form("form.tree-search", %{"query" => "mirel"})
       |> render_change()
 
-    assert filtered =~ "Microsoft"
-    refute filtered =~ "Apple"
+    assert filtered =~ "Mirelund"
+    refute filtered =~ "Arbolia"
   end
 
   test "edits an existing category's name and description inline", %{conn: conn} do

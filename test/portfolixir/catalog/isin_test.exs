@@ -17,17 +17,17 @@ defmodule Portfolixir.Catalog.IsinTest do
   #   character and lowercase are refused.
   # - The reconcile's ISIN typing is the same predicate.
   test "valid?/1 checks the shape and the check digit" do
-    for isin <- ["US0378331005", "DE000ACME008", "DE000EXMPL09"] do
+    for isin <- ["USEXMPL10014", "DE000ACME008", "DE000EXMPL09"] do
       assert Isin.valid?(isin), isin
     end
 
     for isin <- [
-          "US0378331006",
+          "USEXMPL10015",
           "DE000ACME001",
           "D\u0415000ACME008",
           "DE000ACME008\u200B",
           "DE000A\u200BCME08",
-          "us0378331005",
+          "usexmpl10014",
           "DE000ACME08",
           nil,
           42
@@ -37,7 +37,7 @@ defmodule Portfolixir.Catalog.IsinTest do
   end
 
   test "the reconcile's ISIN typing is the catalog predicate" do
-    for value <- ["US0378331005", "US0378331006", "D\u0415000ACME008", "DE000ACME008"] do
+    for value <- ["USEXMPL10014", "USEXMPL10015", "D\u0415000ACME008", "DE000ACME008"] do
       assert Reconcile.isin?(value) == Isin.valid?(value), value
     end
   end
