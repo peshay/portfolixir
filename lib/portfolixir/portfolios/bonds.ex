@@ -6,7 +6,8 @@ defmodule Portfolixir.Portfolios.Bonds do
 
   For a security whose effective asset class is `bond` or `government_bond`
   it loads what the engine needs — the master data, the units held, the
-  price the valuation uses and the booked buys — and wraps every figure in
+  price the valuation uses and the booked prices per unit — and wraps every
+  figure in
   its computation basis, as the `AGENTS.md` metric rule requires in the
   payload. Any other security has no reading, whatever master data it
   carries. Nothing is stored; the reading is computed when it is read.
@@ -87,7 +88,7 @@ defmodule Portfolixir.Portfolios.Bonds do
       current_yield: Map.put(metrics.current_yield, :computation_basis, current_yield_basis()),
       yield_to_maturity:
         Map.put(metrics.yield_to_maturity, :computation_basis, yield_to_maturity_basis(as_of)),
-      two_scales: two_scales(latest_quote(status), buys(transactions))
+      two_scales: two_scales(latest_quote(status), bookings(transactions))
     }
   end
 
@@ -114,10 +115,11 @@ defmodule Portfolixir.Portfolios.Bonds do
 
     ids = Enum.map(bonds, & &1.id)
     quotes = Quotes.latest_by_security_ids(ids)
-    buys = buys_by_security(ids)
+    bookings = bookings_by_security(ids)
 
     for security <- Enum.sort_by(bonds, &{&1.name, &1.id}),
-        finding = two_scales(quote_point(quotes[security.id]), Map.get(buys, security.id, [])),
+        finding =
+          two_scales(quote_point(quotes[security.id]), Map.get(bookings, security.id, [])),
         finding != nil do
       Map.merge(finding, %{security_id: security.id, name: security.name})
     end
@@ -133,11 +135,11 @@ defmodule Portfolixir.Portfolios.Bonds do
   defp two_scales_rule do
     {low, high} = BondMetrics.two_scales_band()
 
-    "named when the latest stored quote is between #{low} and #{high} times a booked buy " <>
-      "price per unit (both included): quotes near 100 beside bookings near 1 mean the " <>
-      "export booked the nominal as the quantity, so value, gain and weight are a hundred " <>
-      "times too high while the TTWROR shows nothing; the figures are shown as stored, " <>
-      "nothing is converted"
+    "named when the latest stored quote is between #{low} and #{high} times a booked price " <>
+      "per unit (a buy or a priced inbound delivery), both ends included: quotes near 100 " <>
+      "beside bookings near 1 mean the export booked the nominal as the quantity, so " <>
+      "value, gain and weight are a hundred times too high while the TTWROR shows nothing; " <>
+      "the figures are shown as stored, nothing is converted"
   end
 
   defp held_quantity(transactions) do
@@ -147,16 +149,22 @@ defmodule Portfolixir.Portfolios.Bonds do
     |> Enum.reduce(Decimal.new(0), &Decimal.add/2)
   end
 
-  defp buys(transactions) do
-    for %Transaction{type: "buy", price: %Decimal{} = price, date: date} <- transactions,
+  # The booked prices per unit the guard reads (closing act on U7, finding
+  # 4): a buy's, and since #779 a priced inbound delivery's, which opens its
+  # lot and drives its flow at that price as a buy does.
+  @priced_kinds ~w(buy inbound_delivery)
+
+  defp bookings(transactions) do
+    for %Transaction{type: type, price: %Decimal{} = price, date: date} <- transactions,
+        type in @priced_kinds,
         do: %{price: price, date: date}
   end
 
-  defp buys_by_security([]), do: %{}
+  defp bookings_by_security([]), do: %{}
 
-  defp buys_by_security(ids) do
+  defp bookings_by_security(ids) do
     Transaction
-    |> where([t], t.security_id in ^ids and t.type == "buy" and not is_nil(t.price))
+    |> where([t], t.security_id in ^ids and t.type in @priced_kinds and not is_nil(t.price))
     |> select([t], {t.security_id, %{price: t.price, date: t.date}})
     |> Repo.all()
     |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))

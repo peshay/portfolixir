@@ -275,7 +275,8 @@ defmodule PortfolixirWeb.Securities.BondStrip do
 
   @doc """
   The two-scales problem note (W1): at the top of the Overview panel, above
-  the figures it concerns. It names both scales and the buy, says what
+  the figures it concerns. It names both scales and the booking (a buy or a
+  priced inbound delivery), says what
   follows, and links to the security's Transactions tab, where the quantity
   is checked against the statement. It converts nothing.
   """
@@ -290,11 +291,11 @@ defmodule PortfolixirWeb.Securities.BondStrip do
         date: Date.to_iso8601(@finding.latest_quote.date)
       ) %>
       <%= ngettext(
-        "booked price per unit around 1 (1 buy: %{price} on %{date}).",
-        "booked price per unit around 1 (%{count} buys, the last %{price} on %{date}).",
-        @finding.unit_scale_buys,
-        price: Format.exact(@finding.last_unit_scale_buy.price),
-        date: Date.to_iso8601(@finding.last_unit_scale_buy.date)
+        "booked price per unit around 1 (1 booking: %{price} on %{date}).",
+        "booked price per unit around 1 (%{count} bookings, the last %{price} on %{date}).",
+        @finding.unit_scale_bookings,
+        price: Format.exact(@finding.last_unit_scale_booking.price),
+        date: Date.to_iso8601(@finding.last_unit_scale_booking.date)
       ) %>
       <%= gettext(
         "That means the nominal was booked as the quantity, and value, gain and weight are a hundred times too high; the return (TTWROR) does not show it. Check the quantity against the nominal on the statement:"

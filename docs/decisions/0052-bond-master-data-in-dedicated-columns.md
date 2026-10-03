@@ -61,11 +61,14 @@ percent-quoted bond's quantity as a hundredth of its face amount, so quantity
    quote. A stored quote is used at any level. Each metric carries its
    computation basis in the API and MCP payload.
 4. **The two-scales guard names; it does not convert.** A bond whose latest
-   stored quote is between 20 and 500 times a booked buy price per unit is
+   stored quote is between 20 and 500 times a booked price per unit is
    named as priced on two scales: the export then booked the nominal as the
    quantity, and every money figure of the bond is a hundred times too high
-   while the TTWROR hides it (bond discovery, point 5). The guard is silent
-   without a quote, for agreeing scales and for every other asset class.
+   while the TTWROR hides it (bond discovery, point 5). A booked price per
+   unit is a buy's or a priced inbound delivery's: since #779 a delivery's
+   booked price opens its lot and drives its flow as a buy's does. The guard
+   is silent without a quote, for agreeing scales and for every other asset
+   class.
 
 **Why columns.** Typed columns give field errors for free: the security
 dialog and the API's 422 already name the failing field, and an impossible

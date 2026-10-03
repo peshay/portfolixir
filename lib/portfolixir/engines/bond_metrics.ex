@@ -46,9 +46,11 @@ defmodule Portfolixir.Engines.BondMetrics do
   ## The two-scales guard
 
   `two_scales/2` names a bond whose latest stored quote is between #{20} and
-  #{500} times a booked buy price per unit (both ends included): quotes near
+  #{500} times a booked price per unit (both ends included): quotes near
   100 beside bookings near 1, which is what an export that booked the
-  nominal as the quantity looks like. Every money figure of such a bond is a
+  nominal as the quantity looks like. A booking is a buy or a priced inbound
+  delivery: since #779 a delivery's booked price opens its lot and drives
+  its flow as a buy's does (closing act on U7, finding 4). Every money figure of such a bond is a
   hundred times too high, and the TTWROR does not show it (bond discovery,
   point 5). The guard names; it converts nothing.
   """
@@ -66,7 +68,7 @@ defmodule Portfolixir.Engines.BondMetrics do
   @spec days_per_year() :: pos_integer()
   def days_per_year, do: @days_per_year
 
-  @doc "The two-scales band: the ratios of quote to buy price that are named."
+  @doc "The two-scales band: the ratios of quote to booked price per unit that are named."
   @spec two_scales_band() :: {Decimal.t(), Decimal.t()}
   def two_scales_band, do: {@band_low, @band_high}
 
@@ -208,22 +210,23 @@ defmodule Portfolixir.Engines.BondMetrics do
 
   @doc """
   The two-scales finding for one bond, or `nil`: `latest_quote` is
-  `%{close, date}` (or `nil` without a quote), `buys` the booked buys as
-  `%{price, date}`.
+  `%{close, date}` (or `nil` without a quote), `bookings` the booked prices
+  per unit (buys and priced inbound deliveries) as `%{price, date}`.
   """
   @spec two_scales(map() | nil, [map()]) :: map() | nil
-  def two_scales(nil, _buys), do: nil
+  def two_scales(nil, _bookings), do: nil
 
-  def two_scales(%{close: %Decimal{} = close} = latest_quote, buys) when is_list(buys) do
-    case Enum.filter(buys, &unit_scale?(close, &1)) do
+  def two_scales(%{close: %Decimal{} = close} = latest_quote, bookings)
+      when is_list(bookings) do
+    case Enum.filter(bookings, &unit_scale?(close, &1)) do
       [] ->
         nil
 
       on_unit_scale ->
         %{
           latest_quote: latest_quote,
-          unit_scale_buys: length(on_unit_scale),
-          last_unit_scale_buy: Enum.max_by(on_unit_scale, & &1.date, Date)
+          unit_scale_bookings: length(on_unit_scale),
+          last_unit_scale_booking: Enum.max_by(on_unit_scale, & &1.date, Date)
         }
     end
   end
@@ -237,7 +240,7 @@ defmodule Portfolixir.Engines.BondMetrics do
     end
   end
 
-  defp unit_scale?(_close, _buy), do: false
+  defp unit_scale?(_close, _booking), do: false
 
   defp round_out(%Decimal{} = value), do: Decimal.round(value, @scale, :half_up)
 end

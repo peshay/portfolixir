@@ -819,9 +819,10 @@ security and on listings and write responses:
   with the `price` it used (`value`, `date`, `source`: `quote` for the latest
   stored quote, `trade` for the last own trade price while there is none);
 - `two_scales` — `null`, or the finding that the bond is **priced on two
-  scales**: its `latest_quote`, the count of `unit_scale_buys` and the
-  `last_unit_scale_buy`, and the `rule` (a latest quote 20 to 500 times a
-  booked buy price per unit). Every money figure of such a bond is a hundred
+  scales**: its `latest_quote`, the count of `unit_scale_bookings` and the
+  `last_unit_scale_booking`, and the `rule` (a latest quote 20 to 500 times a
+  booked price per unit, a buy's or a priced inbound delivery's). Every
+  money figure of such a bond is a hundred
   times too high, and the TTWROR does not show it; nothing is converted.
 
 Every metric carries its own `computation_basis` (`input_series`, `window`,

@@ -262,7 +262,7 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     note = text(view, ~s([data-role="two-scales-note"]))
     assert note =~ "Problem"
     assert note =~ "Auf zwei Skalen bepreist: Kurse um 100 (zuletzt 97,25 am 2026-09-30)"
-    assert note =~ "gebuchter Preis je Stück um 1 (1 Kauf: 0,985 am 2026-03-12)"
+    assert note =~ "gebuchter Preis je Stück um 1 (1 Buchung: 0,985 am 2026-03-12)"
     assert note =~ "Wert, Gewinn und Gewicht sind hundertfach zu hoch"
     assert note =~ "die Rendite (TTWROR) zeigt es nicht"
 
@@ -278,6 +278,7 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
 
     dq = text(wealth, ~s([data-role="dq-two-scales"]))
     assert dq =~ "Eine Anleihe ist auf zwei Skalen bepreist"
+    assert dq =~ "Stückzahl ihrer Buchungen gegen das Nominal der Abrechnung prüfen"
     assert dq =~ "Musterland Anleihe 2031 (Kurs 97,25 · Preis je Stück 0,985)"
 
     assert has_element?(

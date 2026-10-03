@@ -195,10 +195,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
         close: decimal(finding.latest_quote.close),
         date: date(finding.latest_quote.date)
       },
-      unit_scale_buys: finding.unit_scale_buys,
-      last_unit_scale_buy: %{
-        price: decimal(finding.last_unit_scale_buy.price),
-        date: date(finding.last_unit_scale_buy.date)
+      unit_scale_bookings: finding.unit_scale_bookings,
+      last_unit_scale_booking: %{
+        price: decimal(finding.last_unit_scale_booking.price),
+        date: date(finding.last_unit_scale_booking.date)
       },
       rule: finding.rule
     }

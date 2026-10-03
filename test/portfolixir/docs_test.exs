@@ -1659,7 +1659,7 @@ defmodule Portfolixir.DocsTest do
              "(coupon + (100 − price) ÷ remaining term in years) ÷ price",
              "in years of 365 days",
              "Accrued interest, fees and taxes are not included",
-             "20 to 500 times a booked buy price per unit",
+             "20 to 500 times a booked price per unit",
              "bonds **priced on two scales**",
              "**No yield from a price per unit.**"
            ]},
@@ -1672,7 +1672,7 @@ defmodule Portfolixir.DocsTest do
              "(Kupon + (100 − Kurs) ÷ Restlaufzeit in Jahren) ÷ Kurs",
              "in Jahren zu 365 Tagen",
              "Stückzinsen, Gebühren und Steuern sind nicht enthalten",
-             "20- bis 500-Fache eines gebuchten Kaufpreises je Stück",
+             "20- bis 500-Fache eines gebuchten Preises je Stück",
              "**auf zwei Skalen bepreist**",
              "**Keine Rendite aus einem Preis je Stück.**"
            ]},
@@ -1684,7 +1684,7 @@ defmodule Portfolixir.DocsTest do
              "`face_value_currency_code`",
              "**quantity × 100**",
              "Every metric carries its own `computation_basis`",
-             "a latest quote 20 to 500 times a booked buy price per unit",
+             "a latest quote 20 to 500 times a booked price per unit",
              "`null` with `price_on_unit_scale: true`"
            ]},
           {"docs/de/integration/api-and-mcp.md",
@@ -1695,7 +1695,7 @@ defmodule Portfolixir.DocsTest do
              "`face_value_currency_code`",
              "**Stück × 100**",
              "Jede Kennzahl trägt ihre eigene `computation_basis`",
-             "ein letzter Kurs vom 20- bis 500-Fachen eines gebuchten Kaufpreises je Stück",
+             "ein letzter Kurs vom 20- bis 500-Fachen eines gebuchten Preises je Stück",
              "`null` mit `price_on_unit_scale: true`"
            ]}
         ] do
