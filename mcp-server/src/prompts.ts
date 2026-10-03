@@ -182,7 +182,7 @@ Any language the operator can run. Make it deterministic, so the same input alwa
   Every other row needs a Betrag greater than zero, or the import skips it. Keep Stück × Kurs consistent with Betrag to the cent: a trade's realised result is computed from Stück, Kurs, Gebühren and Steuern, the cash balance from Betrag. Where the source's figures disagree, keep the source's cash amount as Betrag and its price as Kurs, and tell the operator about the difference.
 - Konto and Gegenkonto name accounts by the name the account has, or will have, in Portfolixir; spell each account one way throughout:
   - Kauf and Verkauf: Konto is the depot, Gegenkonto the cash account the trade settles against;
-  - Dividende, Zinsen, Einlage, Entnahme, Gebühren, Steuern and Steuerrückerstattung: Konto is the cash account;
+  - Dividende, Zinsen, Einlage, Entnahme, Gebühren, Steuern and Steuerrückerstattung: Konto is the cash account. The importer reads no Gegenkonto on these rows, so the CSV gives them no depot: a Dividende from the CSV is booked to its cash account and its security with no depot. When the same security sits in two depots and each dividend should name the depot that held the shares, write the JSON v1 variant below, whose portfolio field names it;
   - Umbuchung (Ausgang): Konto is the account the money leaves, Gegenkonto the account it reaches; write one row per transfer, never a second row for the receiving side;
   - Einlieferung and Auslieferung: Konto is the depot;
   - Umbuchung (Wertpapier): Konto is the depot the shares leave, Gegenkonto the depot they reach.
@@ -201,7 +201,7 @@ Here Example Bank Cash ends at 5.895,56 EUR (10.000,00 − 3.221,00 − 501,50 +
 Portfolio Performance's JSON v1 export carries a currency per row and a security's ISIN, WKN and ticker, and the Imports page reads it as well. The file is one object, {"version": 1, "transactions": [...]}; the file name ends in .json; each transaction has:
 - type: PURCHASE, SALE, DIVIDEND, INTEREST, DEPOSIT, REMOVAL, FEE, TAX, TAX_REFUND, CASH_TRANSFER, INBOUND_DELIVERY, OUTBOUND_DELIVERY or SECURITY_TRANSFER;
 - date (YYYY-MM-DD) and, when known, time (HH:MM);
-- account (the cash account), portfolio (the depot), otherAccount (where a CASH_TRANSFER's money arrives), otherPortfolio (where a SECURITY_TRANSFER's shares arrive);
+- account (the cash account), portfolio (the depot; on a DIVIDEND, the depot the dividend is booked to), otherAccount (where a CASH_TRANSFER's money arrives), otherPortfolio (where a SECURITY_TRANSFER's shares arrive);
 - currency: the cash account's currency, one currency per account;
 - amount: the cash effect, as Betrag above (a PURCHASE's total including its fees and taxes, a SALE's net proceeds, a DIVIDEND's net credit), and shares: the quantity, both written as strings with a decimal point, such as "1203.00"; the price is derived from them;
 - units: the fees and taxes inside amount, as [{"type": "FEE", "amount": "3.00"}, {"type": "TAX", "amount": "1.20"}];

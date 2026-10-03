@@ -74,7 +74,7 @@ keep that file readable by you only.
 
 ## Over HTTP: the companion the Compose stack runs
 
-`docker compose up --build` starts the companion with the application, on the
+`docker compose up --build -d` starts the companion with the application, on the
 host's loopback interface. Set the profile in `.env`
 (`PORTFOLIXIR_MCP_PROFILE=book`), recreate the service with
 `docker compose up -d mcp`, and point the client at it:
@@ -134,4 +134,4 @@ profile, reads what exists, proposes a structure of accounts, depots, buckets
 and views, and writes nothing without your confirmation. To bring in a bank or
 broker export Portfolixir does not read, use the `import_converter` prompt:
 the agent writes a converter that runs on your machine and hands you a file for
-the Imports page, where you preview it and apply it.
+the Imports page (`/imports`), where you preview it and apply it.

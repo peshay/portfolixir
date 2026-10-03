@@ -80,7 +80,7 @@ Konfigurationsdatei des Clients: Halten Sie diese Datei nur für Sie lesbar.
 
 ## Über HTTP: Der Begleitdienst des Compose-Stacks
 
-`docker compose up --build` startet den Begleitdienst mit der Anwendung, auf
+`docker compose up --build -d` startet den Begleitdienst mit der Anwendung, auf
 der Loopback-Schnittstelle des Hosts. Setzen Sie das Profil in der `.env`
 (`PORTFOLIXIR_MCP_PROFILE=book`), erstellen Sie den Dienst mit
 `docker compose up -d mcp` neu und richten Sie den Client darauf aus:
@@ -141,4 +141,4 @@ Konten, Depots, Buckets und Views vor und schreibt nichts ohne Ihre
 Bestätigung. Für einen Bank- oder Broker-Export, den Portfolixir nicht liest,
 nutzen Sie den Prompt `import_converter`: Der Agent schreibt einen Konverter,
 der auf Ihrem Rechner läuft, und übergibt Ihnen eine Datei für die
-Import-Seite, wo Sie sie in der Vorschau prüfen und übernehmen.
+Import-Seite (`/imports`), wo Sie sie in der Vorschau prüfen und übernehmen.

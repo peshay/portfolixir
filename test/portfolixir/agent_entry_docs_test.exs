@@ -196,6 +196,43 @@ defmodule Portfolixir.AgentEntryDocsTest do
     end
   end
 
+  # User story (the launch test's second run, #1037):
+  # As the fresh agent installing Portfolixir from the README and llms.txt
+  # through a shell,
+  # I want the start command to return, and the Imports page's address and
+  # the login's one field written where I read,
+  # so that I do not have to find them by trying.
+  #
+  # Acceptance criteria:
+  # - The README, llms.txt and the Connect pages (EN, DE) start the stack
+  #   detached, `docker compose up --build -d`, and none of them starts it in
+  #   the foreground.
+  # - Each names the Imports page's address, `/imports`, a route the router
+  #   serves.
+  # - The README and llms.txt say the login, `/login`, asks only for
+  #   `PORTFOLIXIR_UI_PASSWORD`, with no user name.
+  test "the entry points start Compose detached and name the Imports address and the login" do
+    paths = PortfolixirWeb.Router.__routes__() |> Enum.map(& &1.path) |> MapSet.new()
+    assert "/imports" in paths
+    assert "/login" in paths
+
+    for path <- ["README.md", "docs/llms.txt", @connect_en, @connect_de] do
+      doc = normalized(path)
+      assert doc =~ "docker compose up --build -d", path
+
+      refute doc =~ ~r/docker compose up --build(?! -d)/,
+             "#{path} starts Compose in the foreground"
+
+      assert doc =~ "`/imports`", path
+    end
+
+    for path <- ["README.md", "docs/llms.txt"] do
+      doc = normalized(path)
+      assert doc =~ "The login, at `/login`, asks only for `PORTFOLIXIR_UI_PASSWORD`", path
+      assert doc =~ "there is no user name", path
+    end
+  end
+
   # User story (A5, #982):
   # As the operator connecting my agent's MCP client,
   # I want a page with configurations I can copy, for stdio and for HTTP,
