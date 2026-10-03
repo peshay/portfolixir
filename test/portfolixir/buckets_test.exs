@@ -38,8 +38,9 @@ defmodule Portfolixir.BucketsTest do
   # Bucket names are unique instance-wide, and async test modules write at the
   # same time: a literal name another module also uses makes one test's write
   # wait on the other's uncommitted row (#947). Each bucket here gets a name of
-  # its own.
+  # its own, and so does each view whose name another module uses too (#1018).
   defp bucket_name(base), do: "#{base} #{System.unique_integer([:positive])}"
+  defp view_name(base), do: bucket_name(base)
 
   # User story:
   # As a local portfolio maintainer,
@@ -268,7 +269,7 @@ defmodule Portfolixir.BucketsTest do
 
     test "include_all yields an :all include filter" do
       {:ok, view} =
-        Buckets.create_view(Actor.owner_ui(), %{name: "Everything", include_all: true})
+        Buckets.create_view(Actor.owner_ui(), %{name: view_name("Everything"), include_all: true})
 
       assert Buckets.view_filter(view.id) == {:ok, %{include: :all, exclude: []}}
     end
@@ -320,7 +321,9 @@ defmodule Portfolixir.BucketsTest do
     # - `view_filter/1`, `load_scope/2` and `load_global_scope/1` return
     #   `{:error, :view_not_found}` for a vanished view id — no raise.
     test "view_filter and scope loaders return a not-found error for a deleted view" do
-      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Gone", include_all: true})
+      {:ok, view} =
+        Buckets.create_view(Actor.owner_ui(), %{name: view_name("Gone"), include_all: true})
+
       {:ok, _} = Buckets.delete_view(Actor.owner_ui(), view)
 
       assert Buckets.view_filter(view.id) == {:error, :view_not_found}
@@ -469,7 +472,8 @@ defmodule Portfolixir.BucketsTest do
                security.id
              )
 
-      {:ok, everything} = Buckets.create_view(Actor.owner_ui(), %{name: "All", include_all: true})
+      {:ok, everything} =
+        Buckets.create_view(Actor.owner_ui(), %{name: view_name("All"), include_all: true})
 
       assert Buckets.position_in_scope?(
                Buckets.load_scope(depot.portfolio_id, everything.id),
@@ -521,7 +525,8 @@ defmodule Portfolixir.BucketsTest do
     end
 
     test "set_view_buckets rejects unknown include/exclude ids" do
-      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "V", include_all: false})
+      {:ok, view} =
+        Buckets.create_view(Actor.owner_ui(), %{name: view_name("V"), include_all: false})
 
       assert {:error, :bucket_ids} =
                Buckets.set_view_buckets(Actor.owner_ui(), view, [@unknown_bucket_id], [])
@@ -597,7 +602,8 @@ defmodule Portfolixir.BucketsTest do
     end
 
     test "include_all views and the Everything scope always match" do
-      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "All", include_all: true})
+      {:ok, view} =
+        Buckets.create_view(Actor.owner_ui(), %{name: view_name("All"), include_all: true})
 
       assert Buckets.scope_matches_any_account?(Buckets.load_global_scope(view.id))
       assert Buckets.scope_matches_any_account?(:unscoped)

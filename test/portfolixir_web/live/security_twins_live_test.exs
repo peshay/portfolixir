@@ -13,8 +13,11 @@ defmodule PortfolixirWeb.SecurityTwinsLiveTest do
   alias Portfolixir.WorldFixtures
   alias PortfolixirWeb.SecurityNames
 
-  @isin_old "XS0000000017"
-  @isin_new "XS0000000025"
+  # ISINs are unique instance-wide, and async test modules write at the same
+  # time: an ISIN another module also writes makes one test's write wait on
+  # the other's uncommitted row (#1018). These two are this module's own.
+  @isin_old "XSEXMPL40031"
+  @isin_new "XSEXMPL40049"
 
   setup do
     world = WorldFixtures.base_world(name: "Twins")

@@ -176,7 +176,10 @@ defmodule PortfolixirWeb.ApiV1BoundedDatesTest do
       Portfolixir.Catalog.create_security(Actor.owner_ui(), %{
         name: "Kestrel Industrial Group NV",
         currency_code: "EUR",
-        isin: "NL0000000016"
+        # ISINs of this module's own (this one and the change's below): ISINs
+        # are unique instance-wide, and another async module writing the same
+        # one would wait on this test's uncommitted row (#1018).
+        isin: "NLEXMPL40011"
       })
 
     {:ok, rule} =
@@ -266,7 +269,7 @@ defmodule PortfolixirWeb.ApiV1BoundedDatesTest do
            }
          }},
         {:post, "/api/v1/securities/#{isin_security.id}/isin-change",
-         %{"isin_change" => %{"new_isin" => "NL0000000024", "changed_on" => date}}},
+         %{"isin_change" => %{"new_isin" => "NLEXMPL40029", "changed_on" => date}}},
         {:put, "/api/v1/securities/#{security.id}/quotes",
          %{"quotes" => [%{"date" => date, "close" => "10", "source" => "manual"}]}},
         {:post, "/api/v1/splits",

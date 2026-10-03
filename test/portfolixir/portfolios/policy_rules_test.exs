@@ -509,7 +509,10 @@ defmodule Portfolixir.Portfolios.PolicyRulesTest do
 
     assert %{category_id: [_ | _]} = errors_on(changeset)
 
-    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Spekulativ"})
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Spekulativ #{System.unique_integer([:positive])}"
+      })
 
     rule =
       rule!(

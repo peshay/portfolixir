@@ -13,7 +13,10 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
   alias Portfolixir.Ledger.SettlementBackfill
   alias Portfolixir.Repo
 
-  # Synthetic ADR-0033 fixture figures only.
+  # Synthetic ADR-0033 fixture figures only. The booking and rate day,
+  # 2026-01-16, is this module's own: rates are unique per (base, quote,
+  # date), and another async module storing the same day would wait on
+  # this test's uncommitted row (#1018).
 
   defp world do
     world = base_world(name: "Backfill World", cash_name: "BF Cash", depot_name: "BF Depot")
@@ -31,7 +34,7 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
         cash_account_id: w.cash.id,
         security_id: w.security.id,
         type: Keyword.get(opts, :type, "buy"),
-        date: Keyword.get(opts, :date, ~D[2026-01-15]),
+        date: Keyword.get(opts, :date, ~D[2026-01-16]),
         quantity: Keyword.get(opts, :quantity, "10"),
         price: Keyword.get(opts, :price, "80.00"),
         currency_code: "EUR"
@@ -63,7 +66,7 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
   test "backfills derivable rows, journaled and idempotent" do
     w = world()
     tx = legacy_import_buy!(w)
-    seed_rate!(~D[2026-01-15], "1.25")
+    seed_rate!(~D[2026-01-16], "1.25")
 
     assert {:ok, summary} = SettlementBackfill.run(Actor.system_job("settlement_backfill"))
     assert summary.updated == 1
@@ -104,7 +107,7 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
         cash_account_id: w.cash.id,
         security_id: w.security.id,
         type: "buy",
-        date: ~D[2026-01-15],
+        date: ~D[2026-01-16],
         quantity: "13",
         price: "61.54",
         fees: "4.95",
@@ -112,7 +115,7 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
         currency_code: "EUR"
       })
 
-    seed_rate!(~D[2026-01-15], "1.25")
+    seed_rate!(~D[2026-01-16], "1.25")
 
     assert {:ok, %{updated: 1}} = SettlementBackfill.run(Actor.system_job("settlement_backfill"))
 
@@ -170,7 +173,7 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
         cash_account_id: world.cash.id,
         security_id: usd.id,
         type: "buy",
-        date: ~D[2026-01-15],
+        date: ~D[2026-01-16],
         quantity: "10",
         price: "100.00",
         currency_code: "USD",

@@ -177,20 +177,23 @@ defmodule Portfolixir.Portfolios.RiskMetricsTest do
   # so that two holdings sharing an FX leg show that shared movement.
   #
   # Acceptance criteria:
-  # - A USD security whose USD price never moves, held by a EUR portfolio,
+  # - A foreign (AUD) security whose AUD price never moves, held by a EUR
+  #   portfolio,
   #   correlates exactly 1 with a EUR security that tracks the converted
   #   price: the matrix converted first.
   # - A security whose currency has no stored rate path is absent from the
   #   matrix and listed in `excluded`, never silently unconverted.
   test "I7: correlations convert to the base currency first, and exclude what cannot be converted" do
     world = base_world()
-    usd = create_security!(name: "Dollar Co", ticker: "USDC", currency: "USD")
+    usd = create_security!(name: "Dollar Co", ticker: "AUDC", currency: "AUD")
     tracker = create_security!(name: "Tracker Co", ticker: "TRK")
     no_rate = create_security!(name: "Franc Co", ticker: "CHFC", currency: "CHF")
 
-    # EUR/USD moves every day; 1 USD = 1/rate EUR.
+    # EUR/AUD moves every day; 1 AUD = 1/rate EUR. The AUD rates are this
+    # module's own: rates are unique per (base, quote, date), and another
+    # async module storing the same day would wait on these rows (#1018).
     rate_of = fn offset -> Decimal.add(Decimal.new("1.1"), Decimal.div(offset + 100, 1000)) end
-    for offset <- -100..0, do: rate!("USD", day(offset), rate_of.(offset))
+    for offset <- -100..0, do: rate!("AUD", day(offset), rate_of.(offset))
 
     daily_closes(usd, -100, fn _ -> "100" end)
     daily_closes(tracker, -100, fn offset -> Decimal.div(Decimal.new(100), rate_of.(offset)) end)

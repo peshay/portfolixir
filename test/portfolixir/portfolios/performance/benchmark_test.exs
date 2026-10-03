@@ -303,15 +303,16 @@ defmodule Portfolixir.Portfolios.Performance.BenchmarkTest do
   test "a foreign-currency benchmark is priced in the base currency at each day's stored rate" do
     world = base_world(name: "B5", cash_name: "B5 Cash", depot_name: "B5 Depot")
     deposit!(world, "1000", ~D[2026-01-01])
-    bench = benchmark_security!(name: "US Bench", ticker: "USB", currency: "USD")
+    # CAD, a currency no other async module stores a rate for (#1018).
+    bench = benchmark_security!(name: "CA Bench", ticker: "CAB", currency: "CAD")
     put_quotes!(bench, [{~D[2026-01-01], "100"}, {~D[2026-01-11], "100"}])
-    rate!(~D[2026-01-01], "1.0")
-    rate!(~D[2026-01-11], "1.25")
+    rate!(~D[2026-01-01], "1.0", "CAD")
+    rate!(~D[2026-01-11], "1.25", "CAD")
 
     {:ok, cmp} =
       Benchmark.for_portfolio(world.portfolio.id, {:security, bench}, today: ~D[2026-01-11])
 
-    # 100 USD is 100 EUR at 1.0 and 80 EUR at 1.25: -20 % for a EUR holder.
+    # 100 CAD is 100 EUR at 1.0 and 80 EUR at 1.25: -20 % for a EUR holder.
     assert Decimal.equal?(cmp.bought_once.benchmark_return, d("-0.2"))
     assert Decimal.equal?(cmp.savings_plan.benchmark_units, d("10"))
     assert Decimal.equal?(cmp.savings_plan.benchmark_end_value, d("800"))

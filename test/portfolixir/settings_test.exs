@@ -40,7 +40,9 @@ defmodule Portfolixir.SettingsTest do
   test "default view preference round-trips and degrades gracefully" do
     assert Settings.default_view_id() == nil
 
-    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Mine"})
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{name: "Mine #{System.unique_integer([:positive])}"})
+
     :ok = Settings.set_default_view(view.id)
     assert Settings.default_view_id() == view.id
 

@@ -100,12 +100,15 @@ defmodule Portfolixir.Portfolios.ValuationFxTest do
     |> buy!(jpy, "3", "1000")
 
     # 1 EUR = 1.25 USD, so 1 USD = 0.8 EUR. No JPY rate on purpose.
+    # A rate day of this module's own: rates are unique per (base, quote,
+    # date), and another async module storing the same day would wait on
+    # this test's uncommitted row (#1018).
     {:ok, _} =
       Fx.upsert_many([
         %{
           base_currency: "EUR",
           quote_currency: "USD",
-          date: ~D[2026-06-04],
+          date: ~D[2026-05-05],
           rate: "1.25",
           source: "manual"
         }

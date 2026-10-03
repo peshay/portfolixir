@@ -90,7 +90,12 @@ defmodule Portfolixir.Portfolios.PerformanceTest do
     {:ok, no_other} = Buckets.create_view(Actor.owner_ui(), %{name: "NoOther", include_all: true})
     :ok = Buckets.set_view_buckets(Actor.owner_ui(), no_other, [], [excl.id])
     :ok = Buckets.set_position_override(Actor.owner_ui(), world.depot, other, [excl.id])
-    {:ok, everything} = Buckets.create_view(Actor.owner_ui(), %{name: "All", include_all: true})
+
+    {:ok, everything} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "All #{System.unique_integer([:positive])}",
+        include_all: true
+      })
 
     {:ok, unscoped} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-10])
 

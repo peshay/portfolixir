@@ -112,9 +112,12 @@ defmodule Portfolixir.Engines.StatisticsTotalTest do
   #   correlation pair is a figure in [-1, 1] or null, and the volatility is
   #   a figure or null.
   test "the risk read survives implausible stored rates" do
-    world = base_world(currency: "USD")
-    a = create_security!(name: "Synthetic Alpha", ticker: "SYNA", currency: "JPY")
-    b = create_security!(name: "Synthetic Beta", ticker: "SYNB", currency: "GBP")
+    # A year of daily rates in currencies no other async module stores:
+    # rates are unique per (base, quote, date), and a module writing the
+    # same day would wait on this test's uncommitted rows (#1018).
+    world = base_world(currency: "PLN")
+    a = create_security!(name: "Synthetic Alpha", ticker: "SYNA", currency: "CZK")
+    b = create_security!(name: "Synthetic Beta", ticker: "SYNB", currency: "HUF")
 
     high_close = "99999999999999"
     low_close = "0.000001"
@@ -134,7 +137,7 @@ defmodule Portfolixir.Engines.StatisticsTotalTest do
 
     rates =
       for offset <- -366..0,
-          {currency, high_on_even?} <- [{"JPY", false}, {"GBP", false}, {"USD", true}] do
+          {currency, high_on_even?} <- [{"CZK", false}, {"HUF", false}, {"PLN", true}] do
         high? = if high_on_even?, do: even?.(offset), else: not even?.(offset)
 
         %{

@@ -62,31 +62,39 @@ defmodule Portfolixir.DerivedTest do
     {fun, fn -> :counters.get(calls, 1) end}
   end
 
+  # A portfolio's basis: its version events live in the test's own sandbox
+  # transaction. The memo tests read one too rather than the global basis
+  # (#1018), which also counts rows another test commits outside the sandbox
+  # (the commit-order test's writers, and its cleanup): a version that moved
+  # between two reads failed a memo hit the mechanism never broke. The
+  # mechanism is the same on every basis.
   defp basis(portfolio), do: Derived.portfolio_basis(portfolio.id)
 
   test "the :request lifetime computes on a miss and remembers on the next read" do
+    own = basis(portfolio!())
     {compute, calls} = counting(%{daily: [:computed]})
 
-    assert Derived.fetch(:performance_view_analysis, "global", "k=1", compute) ==
+    assert Derived.fetch(:performance_view_analysis, own, "k=1", compute) ==
              {:fresh, %{daily: [:computed]}}
 
-    assert Derived.fetch(:performance_view_analysis, "global", "k=1", compute) ==
+    assert Derived.fetch(:performance_view_analysis, own, "k=1", compute) ==
              {:fresh, %{daily: [:computed]}}
 
     assert calls.() == 1
   end
 
   test "the entry key separates walks: a different key misses" do
+    own = basis(portfolio!())
     {compute_a, _} = counting(:a)
     {compute_b, calls_b} = counting(:b)
 
-    assert {:fresh, :a} = Derived.fetch(:performance_view_analysis, "global", "k=a", compute_a)
-    assert {:fresh, :b} = Derived.fetch(:performance_view_analysis, "global", "k=b", compute_b)
+    assert {:fresh, :a} = Derived.fetch(:performance_view_analysis, own, "k=a", compute_a)
+    assert {:fresh, :b} = Derived.fetch(:performance_view_analysis, own, "k=b", compute_b)
     assert calls_b.() == 1
 
     # The original entry is untouched.
     assert {:fresh, :a} =
-             Derived.fetch(:performance_view_analysis, "global", "k=a", fn -> :recomputed end)
+             Derived.fetch(:performance_view_analysis, own, "k=a", fn -> :recomputed end)
   end
 
   test "a :durable value survives a restart (memo wiped) without recomputing" do
@@ -218,29 +226,27 @@ defmodule Portfolixir.DerivedTest do
   # computation replaces it (the same until-replaced shape as the durable
   # tier's stale row).
   test "the request tier keeps the superseded generation readable until replaced" do
-    {:fresh, :first} =
-      Derived.fetch(:performance_view_analysis, "global", "k=1", fn -> :first end)
+    portfolio = portfolio!()
+    own = basis(portfolio)
 
-    assert Derived.peek(:performance_view_analysis, "global", "k=1") == {:fresh, :first}
+    {:fresh, :first} = Derived.fetch(:performance_view_analysis, own, "k=1", fn -> :first end)
 
-    DataVersion.bump([])
+    assert Derived.peek(:performance_view_analysis, own, "k=1") == {:fresh, :first}
 
-    assert {:stale, :first, %DateTime{}} =
-             Derived.peek(:performance_view_analysis, "global", "k=1")
+    DataVersion.bump([portfolio.id])
 
-    {:fresh, :second} =
-      Derived.fetch(:performance_view_analysis, "global", "k=1", fn -> :second end)
+    assert {:stale, :first, %DateTime{}} = Derived.peek(:performance_view_analysis, own, "k=1")
 
-    DataVersion.bump([])
+    {:fresh, :second} = Derived.fetch(:performance_view_analysis, own, "k=1", fn -> :second end)
 
-    assert {:stale, :second, %DateTime{}} =
-             Derived.peek(:performance_view_analysis, "global", "k=1")
+    DataVersion.bump([portfolio.id])
+
+    assert {:stale, :second, %DateTime{}} = Derived.peek(:performance_view_analysis, own, "k=1")
 
     # Only ONE superseded generation: :first is archaeology and unreachable.
-    {:fresh, :third} =
-      Derived.fetch(:performance_view_analysis, "global", "k=1", fn -> :third end)
+    {:fresh, :third} = Derived.fetch(:performance_view_analysis, own, "k=1", fn -> :third end)
 
-    assert Derived.peek(:performance_view_analysis, "global", "k=1") == {:fresh, :third}
+    assert Derived.peek(:performance_view_analysis, own, "k=1") == {:fresh, :third}
   end
 
   test "a superseded durable value stays peekable with its as_of until replaced" do

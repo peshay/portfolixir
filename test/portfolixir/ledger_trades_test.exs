@@ -17,7 +17,10 @@ defmodule Portfolixir.LedgerTradesTest do
       create_security!(
         name: "Arbolia Inc.",
         ticker: "ARBL",
-        isin: "USEXMPL10014",
+        # An ISIN of this module's own: ISINs are unique instance-wide, and
+        # another async module writing the same one would wait on this
+        # test's uncommitted row (#1018).
+        isin: "XSEXMPL40056",
         currency: "USD",
         asset_class: "equity"
       )

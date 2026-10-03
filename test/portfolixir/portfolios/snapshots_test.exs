@@ -22,7 +22,10 @@ defmodule Portfolixir.Portfolios.SnapshotsTest do
   # - Deleting a view removes its snapshots; "everything" snapshots survive.
 
   test "creates, lists and deletes a snapshot marker" do
-    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Stocks"})
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Stocks #{System.unique_integer([:positive])}"
+      })
 
     {:ok, snapshot} =
       Snapshots.create_snapshot(Actor.owner_ui(), %{
@@ -68,7 +71,10 @@ defmodule Portfolixir.Portfolios.SnapshotsTest do
   end
 
   test "snapshot writes are journaled; deleting a view deletes its snapshots, journaled" do
-    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Crypto"})
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Crypto #{System.unique_integer([:positive])}"
+      })
 
     {:ok, scoped} =
       Snapshots.create_snapshot(Actor.owner_ui(), %{
@@ -103,7 +109,10 @@ defmodule Portfolixir.Portfolios.SnapshotsTest do
   end
 
   test "struct-addressed listing and deletion work like id addressing" do
-    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Stocks"})
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Stocks #{System.unique_integer([:positive])}"
+      })
 
     {:ok, scoped} =
       Snapshots.create_snapshot(Actor.owner_ui(), %{

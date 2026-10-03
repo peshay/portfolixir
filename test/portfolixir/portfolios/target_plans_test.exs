@@ -48,7 +48,10 @@ defmodule Portfolixir.Portfolios.TargetPlansTest do
         name: "Satellite"
       })
 
-    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Stocks"})
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Stocks #{System.unique_integer([:positive])}"
+      })
 
     %{
       portfolio: portfolio,
@@ -89,7 +92,10 @@ defmodule Portfolixir.Portfolios.TargetPlansTest do
     %{portfolio: p, classification: c, core: core, satellite: satellite, view: view} =
       setup_world()
 
-    {:ok, other_view} = Buckets.create_view(Actor.owner_ui(), %{name: "Crypto"})
+    {:ok, other_view} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Crypto #{System.unique_integer([:positive])}"
+      })
 
     {:ok, _} =
       Targets.set_targets(

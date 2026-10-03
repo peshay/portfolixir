@@ -400,8 +400,14 @@ defmodule Portfolixir.Portfolios.PolicyFindingsTest do
     :ok = Buckets.set_position_override(Actor.owner_ui(), world.depot, alpha, [a.id])
     :ok = Buckets.set_position_override(Actor.owner_ui(), world.depot, beta, [b.id])
 
+    # A view name of its own (#1018): view names are unique instance-wide.
     view_of = fn name, include ->
-      {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: name, include_all: false})
+      {:ok, view} =
+        Buckets.create_view(Actor.owner_ui(), %{
+          name: "#{name} #{System.unique_integer([:positive])}",
+          include_all: false
+        })
+
       :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, include, [])
       view
     end
