@@ -39,7 +39,7 @@ export interface ToolResult {
 // E25 S4, F70: every date a write stores is one ISO calendar date inside one
 // range; the API refuses anything else with a 422 naming the field.
 const BOUNDED_DATE =
-  "An ISO date (YYYY-MM-DD) from 1900-01-01 to 2999-12-31; outside that range, or in any other form, the API answers 422 naming the field and stores nothing.";
+  "An ISO date (YYYY-MM-DD) from 1900-01-01 to 2999-12-31, else a 422 naming the field with nothing stored.";
 const boundedDate = (description?: string) =>
   description ? `${description} ${BOUNDED_DATE}` : BOUNDED_DATE;
 
@@ -140,6 +140,41 @@ const cappedText = (max: number) =>
   });
 const capNote = (max: number) => `At most ${max} characters (Unicode code points), else 422.`;
 
+// #330 (ADR-0052): a bond's master data on the two security writes; an update
+// takes null to clear a field. Factories, so each property stays inline.
+const bondFrequencies = ["annual", "semi_annual"] as const;
+
+function bondProperties(nullable: boolean): JsonSchema {
+  const type = nullable ? ["string", "null"] : "string";
+
+  return {
+    coupon_rate: {
+      type,
+      description:
+        "Bond master data (ADR-0052): the coupon in percent of face per year, a Decimal string from 0 to 100 (2.5, not 0.025)."
+    },
+    coupon_frequency: { type, enum: nullable ? [...bondFrequencies, null] : [...bondFrequencies] },
+    maturity_date: { type, format: "date", description: boundedDate("After issue_date.") },
+    issue_date: { type, format: "date", description: boundedDate() },
+    face_value: { type, description: "The denomination, a Decimal string above 0." },
+    face_value_currency_code: { type }
+  };
+}
+
+function bondZ(nullable: boolean) {
+  const field = <T extends ZodTypeAny>(schema: T) =>
+    nullable ? schema.nullable().optional() : schema.optional();
+
+  return {
+    coupon_rate: field(z.string()),
+    coupon_frequency: field(z.enum(bondFrequencies)),
+    maturity_date: field(z.string()),
+    issue_date: field(z.string()),
+    face_value: field(z.string()),
+    face_value_currency_code: field(z.string())
+  };
+}
+
 const securityZ = z.object({
   security: z.object({
     name: z.string(),
@@ -155,7 +190,8 @@ const securityZ = z.object({
     provider: optionalString(),
     online_id: optionalString(),
     is_benchmark: z.boolean().optional(),
-    attributes: z.record(z.string(), z.unknown()).optional()
+    attributes: z.record(z.string(), z.unknown()).optional(),
+    ...bondZ(false)
   })
 });
 
@@ -318,8 +354,15 @@ const securityFieldNames = [
   "online_id",
   "provider",
   "attributes",
+  "coupon_rate",
+  "coupon_frequency",
+  "maturity_date",
+  "issue_date",
+  "face_value",
+  "face_value_currency_code",
   "identifier_aliases",
   "thesis_state",
+  "bond",
   "inserted_at",
   "updated_at"
 ] as const;
@@ -499,7 +542,8 @@ const securitySchema = objectWith("security", {
     provider: { type: "string" },
     online_id: { type: "string" },
     is_benchmark: { type: "boolean" },
-    attributes: { type: "object", additionalProperties: true }
+    attributes: { type: "object", additionalProperties: true },
+    ...bondProperties(false)
   }
 });
 
@@ -831,7 +875,8 @@ const securityUpdateSchema = {
           description:
             "ADR-0046: mark this security as a benchmark — a price series the portfolio is compared against (an index proxied by an ETF, gold by an ETC), fed by the ordinary quote sync. A benchmark is never offered for booking and is left alone by the catalog-hygiene data-quality checks; it may still be held."
         },
-        attributes: { type: "object", additionalProperties: true }
+        attributes: { type: "object", additionalProperties: true },
+        ...bondProperties(true)
       }
     }
   }
@@ -854,7 +899,8 @@ const securityUpdateZ = z.object({
     online_id: optionalString(),
     treat_quotes_as_raw: z.boolean().optional(),
     is_benchmark: z.boolean().optional(),
-    attributes: z.record(z.string(), z.unknown()).optional()
+    attributes: z.record(z.string(), z.unknown()).optional(),
+    ...bondZ(true)
   })
 });
 
@@ -2936,7 +2982,7 @@ const declaredTools: DeclaredTool[] = [
     contractGetSchema,
     contractGetZ
   ),
-  tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class) to keep responses small; pass projection=full only when you need notes, feed config, attributes or timestamps. Optional fields (#732, extending FR-37) selects a sparse fieldset from the FULL projection's field list — each row then carries exactly those fields, and a present fields supersedes projection entirely (a sparse fieldset IS a projection). Use limit/offset to page large catalogs. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant return, and the response carries as_of (use it as the next since; it lies no later than the start of the oldest write still in flight, so the next read may re-deliver a row but never skips one) plus a delta_note — deletions are NOT represented, so a sync that must detect deletions does a full read. Pull-only; there is no push delivery. Optional data_quality narrows to one of the catalog's data-quality sets — stale_quote (no quote newer than 7 days, INCLUDING never-priced securities), missing_quote (no quote at all, the narrower set inside it), missing_logo (no stored logo and not deliberately locked to none), missing_fx (#717: priced, but no stored rate from its currency to the EUR hub — storing the rate empties the set). These are the same predicates the dashboard counts and the securities page links to, so a count of N addresses a list of N; combine with query/holding_status to narrow further. Optional is_benchmark=true lists only the securities flagged as benchmarks (ADR-0046 — the reference series for portfolixir.portfolios.benchmark and portfolixir.views.benchmark), is_benchmark=false leaves them out; the flag itself is a field of the full projection and is settable through securities.create and securities.update.", {
+  tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class); projection=full adds notes, feed config, attributes, a bond's master data and timestamps. Optional fields (#732) selects a sparse fieldset from the full projection's fields and supersedes projection. Page with limit/offset. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant, plus as_of (the next since; it lies no later than the start of the oldest write in flight, so the next read may re-deliver a row but never skips one) and a delta_note — deletions are NOT represented, so a sync that must see them does a full read. Pull-only. Optional data_quality narrows to one of the catalog's data-quality sets — stale_quote (no quote newer than 7 days, INCLUDING never-priced securities), missing_quote (no quote at all), missing_logo (no stored logo, not locked to none), missing_fx (#717: priced, but no stored rate to the EUR hub). They are the predicates the dashboard counts, so a count of N addresses a list of N. is_benchmark=true lists only the benchmarks (ADR-0046, the reference series of portfolixir.portfolios.benchmark and portfolixir.views.benchmark), false leaves them out; securities.create and securities.update set the flag.", {
     type: "object",
     additionalProperties: false,
     properties: {
@@ -2965,9 +3011,9 @@ const declaredTools: DeclaredTool[] = [
     offset: z.number().int().min(0).optional(),
     since: optionalString()
   })),
-  tool("portfolixir.securities.get", "Get security", "Read one security's full record, including its identifier_aliases — the former ISINs recorded via portfolixir.securities.isin_change that keep old exports matching this security — and its thesis_state (ADR-0044): the current thesis derived from the research log (status none|intact|retracted, thesis text, conviction tier, invalidation_condition, time_stop, as_of, last_reviewed_at/by, the derived_from_entry_id and, when retracted, the retracted_by_entry_id whose body carries the reason). The state is a projection over portfolixir.notes.list entries, never stored; read the log itself for the evidence. A security merged into another (portfolixir.securities.merge) answers 404 with errors.merged_into {kind, id}: the security its history lives on now, following later merges to the live one (ADR-0050 §12).", idSchema, idZ),
-  tool("portfolixir.securities.create", "Create security", "Create a local security. When the instance's enrichment is enabled, a create also queues a quote backfill from the configured provider and a logo lookup, so it reaches outside the instance (openWorldHint). To keep a position (e.g. Bitcoin) in the totals and performance but out of the allocation steering basis (the 100%) and drift, tag it with a bucket and exclude that bucket from the active view. Every key of attributes, at any depth, is one-line text of at most 255 characters, and every text value carries no control character other than tab and line break; otherwise the API answers 422 on attributes.", securitySchema, securityZ),
-  tool("portfolixir.securities.update", "Update security", "Patch a local security's master data. To keep a position visible in totals/performance but out of the allocation steering basis and drift, tag it with a bucket and exclude that bucket from the active view. Do NOT use this to change an ISIN after a corporate action — use portfolixir.securities.isin_change instead, which keeps the former ISIN as an import-matching alias; a plain rename is just a name edit here. The currency_code freezes once the security has a transaction or a quote (ADR-0050 §11): a change then answers 422 with errors.currency_code counting them (e.g. \"is frozen once referenced (120 quotes, 3 transactions)\") and writes nothing — a listing in another currency is a different price series, not a correction. Every key of attributes, at any depth, is one-line text of at most 255 characters, and every text value carries no control character other than tab and line break; otherwise the API answers 422 on attributes. An identifier changed here meets the catalog's rules or answers 422 naming the field: an isin of two letters, nine letters or digits and a check digit that agrees, a WKN of six letters or digits, a ticker_symbol of printable ASCII only; resending the stored value is no change. The name is stored without format characters (zero-width spaces and joiners, bidirectional controls).", securityUpdateSchema, securityUpdateZ),
+  tool("portfolixir.securities.get", "Get security", "Read one security's full record. identifier_aliases: the former ISINs portfolixir.securities.isin_change recorded, which keep old exports matching. thesis_state (ADR-0044): the current thesis projected from portfolixir.notes.list entries, never stored (status none|intact|retracted, thesis, conviction, invalidation_condition, time_stop, as_of, last_reviewed_at/by, derived_from_entry_id and, when retracted, the retracted_by_entry_id whose body gives the reason); read the log for the evidence. bond (ADR-0052), for asset class bond or government_bond, else null: nominal_held (quantity × 100, a unit being a hundredth of the face amount), remaining_term, current_yield and yield_to_maturity (linear), ratios, each with computation_basis, and two_scales, set when quotes near 100 meet booked unit prices near 1 (every money figure then 100× too high). A security merged into another (portfolixir.securities.merge) answers 404 with errors.merged_into {kind, id}: the live security its history lives on (ADR-0050 §12).", idSchema, idZ),
+  tool("portfolixir.securities.create", "Create security", "Create a local security. With the instance's enrichment on, a create also queues a quote backfill from the configured provider and a logo lookup, reaching outside the instance (openWorldHint). To keep a position (e.g. Bitcoin) in totals and performance but out of the allocation basis (the 100%) and drift, tag it with a bucket the active view excludes. Every key of attributes, at any depth, is one-line text of at most 255 characters, and no text value carries a control character but tab and line break; else 422 on attributes.", securitySchema, securityZ),
+  tool("portfolixir.securities.update", "Update security", "Patch a security's master data; null clears a bond field. To keep a position in totals and performance but out of the allocation basis and drift, tag it with a bucket the active view excludes. An ISIN change after a corporate action is portfolixir.securities.isin_change, which keeps the former ISIN as an import-matching alias; a rename is a name edit here. The currency_code freezes once the security has a transaction or a quote (ADR-0050 §11): a change then answers 422 with errors.currency_code counting them (\"is frozen once referenced (120 quotes, 3 transactions)\") and writes nothing. Every key of attributes, at any depth, is one-line text of at most 255 characters, and no text value carries a control character but tab and line break; else 422 on attributes. A changed identifier meets the catalog's rules or answers 422 naming the field: an isin of two letters, nine letters or digits and a check digit that agrees, a WKN of six letters or digits, a ticker_symbol of printable ASCII; resending the stored value is no change. The name is stored without format characters (zero-width spaces and joiners, bidirectional controls).", securityUpdateSchema, securityUpdateZ),
   tool(
     "portfolixir.securities.delete",
     "Delete security",
@@ -3064,7 +3110,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.securities.metrics",
     "Derived price metrics of one security",
-    "One security's derived metrics (ADR-0047, FR-39) over ITS OWN split-adjusted close series, in the security's own currency — deliberately not converted to the base currency, because a price metric is a statement about the instrument. sma_50 and sma_200 with the latest close's distance to each; volatility over 30d/90d/365d (the population standard deviation of simple daily returns, annualized by the square root of 252); max_drawdown over the same windows with peak_date, trough_date and recovery_date (recovery_date null while the series is still below the peak); momentum over 3m/6m/12m; distance_to_extremes, the 52-week high and low with their dates and the distance to each. Every metric carries the window it was measured over and its observations count, plus required — the minimum observations it needs (n for sma_n, 20 for volatility, 2 for max_drawdown and momentum, 1 for distance_to_extremes) — whether it computed or refused, so the threshold is on the metric and not only in the prose; a refused sma_n has window null because its span is an output, and momentum and distance_to_extremes additionally need a close at each end of the window (stated in computation_basis.gaps). The payload carries computation_basis (input series, gaps, assumptions) once — read it before comparing two securities. A gap produces NO observation rather than a zero return: a day with no stored close is not carried forward and then differenced. Below its minimum a metric is null with insufficient_data true and its observation count, at HTTP 200 — that is a gap marker, not an error, and NOT a reason to retry. A volatility whose square root lies outside the double range (a magnitude only implausible stored closes reach) is null WITHOUT insufficient_data: undefined, not short of data. THIS READ REPORTS, IT DOES NOT EVALUATE: there is no signal, recommendation, rating, score or action in the payload and none is coming from this tool; an SMA-50 above an SMA-200 is two numbers and a distance, and what to do about it is yours to decide. Decimals are strings.",
+    "One security's derived metrics (ADR-0047, FR-39) over its own split-adjusted closes, in its own currency, never converted: a price metric describes the instrument. sma_50 and sma_200 with the latest close's distance to each; volatility over 30d/90d/365d (the population standard deviation of simple daily returns, annualized by the square root of 252); max_drawdown over the same windows with peak_date, trough_date and recovery_date (null while below the peak); momentum over 3m/6m/12m; distance_to_extremes, the 52-week high and low with their dates and distances. Each metric carries its window, its observations and required, the minimum it needs (n for sma_n, 20 for volatility, 2 for max_drawdown and momentum, 1 for distance_to_extremes), computed or refused; a refused sma_n has window null, and momentum and distance_to_extremes also need a close at each end of the window (computation_basis.gaps). computation_basis (input series, gaps, assumptions) comes once: read it before comparing two securities. A gap is NO observation, never a zero return: a missing close is not carried forward. Below its minimum a metric is null with insufficient_data true at HTTP 200, a gap marker and NOT a reason to retry; a volatility whose square root leaves the double range is null WITHOUT insufficient_data: undefined. THIS READ REPORTS, IT DOES NOT EVALUATE: there is no signal, recommendation, rating, score or action in the payload; an SMA-50 above an SMA-200 is two numbers, and what to do is yours to decide. Decimals are strings.",
     securityMetricsSchema,
     securityMetricsZ
   ),

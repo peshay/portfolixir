@@ -75,6 +75,14 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "computation_basis" and &1 =~ "#330")
            )
 
+    # Its MCP half: the two security writes take the fields, the detail tool
+    # names the reading; no tool is added.
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "portfolixir.securities.update" and &1 =~ "portfolixir.securities.get" and
+                 &1 =~ "#330")
+           )
+
     # Sprint 18, PR β (version 11): the operator's money surface, one entry
     # for the lane PR. F4 opened it: the category result takes the view scope
     # in the performance family's two forms (#901). Found by version from
