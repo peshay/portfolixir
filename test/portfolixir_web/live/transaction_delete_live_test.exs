@@ -61,6 +61,19 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
     %{split_security: security, split_rows: rows}
   end
 
+  # The same 2:1 split on 2026-09-15 booked again: the rows it adds.
+  defp rebook!(security) do
+    {:ok, rows} =
+      Splits.book_split(Actor.owner_ui(), %{
+        security_id: security.id,
+        date: ~D[2026-09-15],
+        ratio_numerator: 2,
+        ratio_denominator: 1
+      })
+
+    rows
+  end
+
   # User story (U1, #912; H2-A, A1 and A2):
   # As the operator who booked a transaction by mistake,
   # I want to delete it from its row in the history, after one confirmation
@@ -225,6 +238,76 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
 
     assert view |> element(".alert-success") |> render() |> text() =~
              "Split deleted: Kestrel Robotik SE · 2:1 · 2026-09-15, 2 rows."
+  end
+
+  # User story (U1, #912; H2-A, A4 and A6; the closing act, R5):
+  # As the operator confirming a split's delete while the agent changes
+  # that split,
+  # I want the confirm to delete the rows the dialog listed — or, when the
+  # split gained a row, nothing, with the dialog showing the new state,
+  # so that the dialog's promise and the delete never differ.
+  #
+  # Acceptance criteria:
+  # - The row the dialog opened from deleted alone meanwhile: the confirm
+  #   deletes the split's other listed row and says so.
+  # - A row added meanwhile (a re-book in a third portfolio): the confirm
+  #   deletes nothing; the dialog stays open with an attention note saying
+  #   the split changed and nothing was deleted, and names the 3 rows; a
+  #   second confirm deletes all 3.
+  # - Every row gone meanwhile: "That transaction no longer exists."
+  test "a split changed while its dialog was open is deleted as listed, or shown anew",
+       %{conn: conn} = ctx do
+    %{split_security: security, split_rows: [row_a, row_b]} = split_in_two_portfolios(ctx)
+
+    {:ok, view, _html} = live(conn, "/transactions")
+    ask_delete(view, row_b)
+    {:ok, _} = Ledger.delete_transaction(Actor.api_token_rw("agent"), row_b)
+    view |> element("#booking-delete-confirm") |> render_click()
+
+    assert Splits.booked_on(security.id, ~D[2026-09-15]) == []
+    assert Ledger.get_transaction(row_a.id) == nil
+
+    assert view |> element(".alert-success") |> render() |> text() =~
+             "Split deleted: Kestrel Robotik SE · 2:1 · 2026-09-15"
+
+    [row_a, row_b] = rebook!(security)
+    {:ok, view, _html} = live(conn, "/transactions")
+    ask_delete(view, row_a)
+    third = base_world(name: "Depot-Portfolio", cash_name: "Kasse", depot_name: "Depot 3")
+    buy!(third, security, quantity: "5", price: "80", date: ~D[2026-09-03])
+    [row_c] = rebook!(security)
+    view |> element("#booking-delete-confirm") |> render_click()
+
+    assert length(Splits.booked_on(security.id, ~D[2026-09-15])) == 3
+    assert has_element?(view, "dialog#booking-delete-dialog")
+
+    assert view |> element("[data-role='booking-delete-changed']") |> render() |> text() =~
+             "The split changed while this dialog was open. Nothing was deleted; the dialog now shows the new state."
+
+    assert view |> element("#booking-delete-subject") |> render() |> text() =~ "3 rows"
+
+    assert view |> element("#booking-delete-dialog") |> render() |> text() =~
+             "Hauptportfolio, Sparplan-Portfolio and Depot-Portfolio"
+
+    view |> element("#booking-delete-confirm", "Delete split (3 rows)") |> render_click()
+
+    assert Splits.booked_on(security.id, ~D[2026-09-15]) == []
+    refute has_element?(view, "#booking-delete-dialog")
+
+    for row <- [row_a, row_b, row_c], do: refute(Ledger.get_transaction(row.id))
+
+    [row_a | _] = rebook!(security)
+    {:ok, view, _html} = live(conn, "/transactions")
+    ask_delete(view, row_a)
+
+    {:ok, _} =
+      Splits.delete_split(Actor.api_token_rw("agent"), Ledger.get_transaction(row_a.id))
+
+    view |> element("#booking-delete-confirm") |> render_click()
+    refute has_element?(view, "#booking-delete-dialog")
+
+    assert view |> element(".alert-error") |> render() |> text() =~
+             "That transaction no longer exists."
   end
 
   # User story (U1, #912; H2-A, A6):

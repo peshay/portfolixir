@@ -9571,8 +9571,10 @@ dialog.merge-dialog {
   }
 }
 
-/* An empty live region takes no room in the body's gap. */
-.merge-region:empty {
+/* An empty live region takes no room in the body's gap — the merge
+   dialogs' and the booking delete's (the closing act, R5). */
+.merge-region:empty,
+.booking-delete__region:empty {
   display: none;
 }
 

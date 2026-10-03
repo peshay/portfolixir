@@ -794,6 +794,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
       case BookingDeleteDialog.delete(Actor.owner_ui(), deleting) do
         {:ok, message} -> {:noreply, socket |> success(message) |> load_state()}
+        {:changed, fresh} -> {:noreply, socket |> assign(:deleting, fresh) |> load_state()}
         :gone -> {:noreply, socket |> failure(gone_message()) |> load_state()}
         {:error, message} -> {:noreply, socket |> failure(message) |> load_state()}
       end
