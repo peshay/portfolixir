@@ -486,9 +486,11 @@ defmodule Portfolixir.RuntimeConfig do
   Whether the release fetches from public hosts by itself, from
   `PORTFOLIXIR_BACKGROUND_FETCH` (#1026): logo discovery and the scheduled
   quote and FX sync. The words development reads turn it off (`0`, `false`,
-  `no`, `off`, in any case, around any blank; `config/dev.exs`, #963);
-  anything else, or nothing, leaves the release as `config/prod.exs` sets
-  it. The switch can only turn fetching off.
+  `no`, `off`, in any case; `config/dev.exs`, #963), and the release also
+  reads them around a blank; anything else, or nothing, leaves the release as
+  `config/prod.exs` sets it. The switch can only turn fetching off, and only
+  what the release does by itself: a sync, logo update or search someone
+  starts still calls out.
   """
   @spec background_fetch?(String.t() | nil) :: boolean()
   def background_fetch?(value \\ System.get_env("PORTFOLIXIR_BACKGROUND_FETCH"))

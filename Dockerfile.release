@@ -27,20 +27,20 @@ RUN apt-get update && \
 # build secret `build_ca`, and each step below that downloads trusts it first
 # (docker/trust-build-ca.sh, which says why each step does it itself),
 #   docker build --secret id=build_ca,src=proxy-ca.crt -f Dockerfile.release .
-# Without the secret nothing is added. Hex reads the system store rather than
-# its own bundle, so the CA reaches it too. The runtime stage never sees it.
+# Each step sources the script, so with the secret its Hex reads the system
+# store the CA lands in. Without the secret nothing is added and Hex keeps its
+# own bundle. The runtime stage never sees it.
 COPY --chmod=0755 docker/trust-build-ca.sh /usr/local/bin/trust-build-ca
-ENV HEX_CACERTS_PATH=/etc/ssl/certs/ca-certificates.crt
 
 RUN --mount=type=secret,id=build_ca \
-    trust-build-ca && mix local.hex ${HEX_VERSION} --force && mix local.rebar --force
+    . /usr/local/bin/trust-build-ca && mix local.hex ${HEX_VERSION} --force && mix local.rebar --force
 
 WORKDIR /app
 
 COPY mix.exs mix.lock ./
 COPY config config
 RUN --mount=type=secret,id=build_ca \
-    trust-build-ca && mix deps.get --only prod && mix deps.compile
+    . /usr/local/bin/trust-build-ca && mix deps.get --only prod && mix deps.compile
 
 COPY lib lib
 COPY priv priv
