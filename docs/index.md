@@ -41,7 +41,9 @@ companion.
   performance (TTWROR) and income (dividends/interest) reports.
 - Audit every financial write through an append-only journal.
 
-Open the [App Handbook](product-documentation.html) for the product walkthrough,
+Read [Features](features.html) first for what Portfolixir does that a newcomer
+should know, each claim with the page that shows it, and what it is not. Open
+the [App Handbook](product-documentation.html) for the product walkthrough,
 [Home Deployment](home-deployment.html) for a local Docker Compose setup, or
 [API and MCP](integration/api-and-mcp.html) for integration details.
 

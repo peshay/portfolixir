@@ -11,6 +11,8 @@ defmodule Portfolixir.DocsTest do
 
   @public_doc_files [
     "docs/index.md",
+    "docs/features.md",
+    "docs/de/features.md",
     "docs/product-documentation.md",
     "docs/guides/buckets-and-views.md",
     "docs/home-deployment.md",
@@ -1795,5 +1797,228 @@ defmodule Portfolixir.DocsTest do
     assert consequences =~ "a known false positive"
     assert consequences =~ "about 3 % of par and quoted at 65"
     assert consequences =~ "at most 5"
+  end
+
+  @features_en "docs/features.md"
+  @features_de "docs/de/features.md"
+
+  # The four claims the 2026-09-30 research names as open ground (its
+  # executive summary and cross-dimension insights 1 and 4), then the
+  # calculation breakdown (FR-41), then what Portfolixir is not -- in this
+  # order, per language.
+  @features_sections %{
+    @features_en => [
+      "## The app never calls a language model; your agent does",
+      "## A research log your agent reads and writes, on the record",
+      "## Prompts that carry the no-advice stance",
+      "## Figures that say how they were computed",
+      "## The calculation breakdown: which position made how much",
+      "## What Portfolixir is not"
+    ],
+    @features_de => [
+      "## Die App ruft nie ein Sprachmodell auf; Ihr Agent tut es",
+      "## Ein Research-Log, das Ihr Agent liest und schreibt, nachvollziehbar",
+      "## Prompts, die die Haltung ohne Beratung mittragen",
+      "## Zahlen, die sagen, wie sie berechnet wurden",
+      "## Die Aufschlüsselung: welche Position wie viel beigetragen hat",
+      "## Was Portfolixir nicht ist"
+    ]
+  }
+
+  # User story (Sprint 18 plan, PR δ, D1 "what is better here"):
+  # As a stranger deciding whether Portfolixir fits -- or the agent reading
+  # the documentation for them --
+  # I want one page, in English and German, that says first what Portfolixir
+  # does that I should know, each claim with the page that shows it, and
+  # then what Portfolixir is not,
+  # so that I can check every claim instead of believing it.
+  #
+  # Acceptance criteria:
+  # - docs/features.md and docs/de/features.md exist with the docs layout and
+  #   the language-switcher front matter, and the navigation lists the page
+  #   under Home.
+  # - Each page leads with the four open-ground claims (no in-app model call,
+  #   the research log, the prompts' no-advice stance, figures that state their
+  #   computation basis), then the calculation breakdown (FR-41), then "What
+  #   Portfolixir is not", in that order; every claim section links at least
+  #   one page that shows it.
+  # - Every link is a page of the docs site that exists in docs/ (or the
+  #   repository), and every #anchor is a heading id Jekyll gives its target.
+  # - The "not" section names the non-goals llms.txt and AGENTS.md name and
+  #   claims no production readiness; no other product is named.
+  # - The docs home and the README link the page; the README's first screen
+  #   still carries no picture but the logo.
+  test "a features page leads with the open ground, links what it shows, and says what it is not" do
+    navigation = File.read!("docs/_data/navigation.yml")
+    assert navigation =~ "title: Features"
+    assert navigation =~ "url: /features.html"
+
+    for {path, lang} <- [{@features_en, "en"}, {@features_de, "de"}] do
+      page = File.read!(path)
+
+      assert page =~ ~r/\A---\nlayout: docs\n/, path
+      assert page =~ "lang: #{lang}", path
+      assert page =~ "lang_en: /features.html", path
+      assert page =~ "lang_de: /de/features.html", path
+
+      headings = Map.fetch!(@features_sections, path)
+      positions = Enum.map(headings, &position_of(page, &1, path))
+      assert positions == Enum.sort(positions), "#{path}: the sections are out of order"
+
+      for section <- page |> String.split("\n## ") |> Enum.drop(1) do
+        assert section =~ "](",
+               "#{path}: section without a link: #{hd(String.split(section, "\n"))}"
+      end
+
+      for target <- links_of(page) do
+        assert_link_resolves(path, target)
+      end
+
+      refute page =~ ~r/Ghostfolio|Wealthfolio|Parqet|getquin|Finanzfluss|rotki|unlike /i, path
+    end
+
+    en = normalized_text(@features_en)
+    de = normalized_text(@features_de)
+
+    for fragment <- [
+          "never calls a language model",
+          "`computation_basis`",
+          "`portfolixir.notes.append`",
+          "`first_setup`",
+          "`import_converter`",
+          "Do not recommend buying, selling or weighting anything; describe what is recorded.",
+          "`portfolixir.portfolios.contribution`",
+          "`portfolixir.views.contribution`",
+          "**Wealth → Holdings**",
+          "no order-placing broker connection",
+          "no bank or broker sync",
+          "no advice",
+          "no hosted service",
+          "no phone app",
+          "There is no upgrade guarantee and no claim of production readiness."
+        ] do
+      assert en =~ fragment, "#{@features_en}: #{fragment}"
+    end
+
+    for fragment <- [
+          "nie ein Sprachmodell auf",
+          "`computation_basis`",
+          "`portfolixir.notes.append`",
+          "`first_setup`",
+          "`import_converter`",
+          "Do not recommend buying, selling or weighting anything; describe what is recorded.",
+          "`portfolixir.portfolios.contribution`",
+          "`portfolixir.views.contribution`",
+          "**Vermögen → Bestände**",
+          "keine Broker-Anbindung, die Orders platziert",
+          "keine Bank- oder Broker-Synchronisierung",
+          "keine Beratung",
+          "keinen gehosteten Dienst",
+          "keine Telefon-App",
+          "Es gibt keine Upgrade-Garantie und keinen Anspruch auf Produktionsreife."
+        ] do
+      assert de =~ fragment, "#{@features_de}: #{fragment}"
+    end
+
+    assert File.read!("docs/index.md") =~ "](features.html)"
+
+    readme = File.read!("README.md")
+    [first_screen, _rest] = String.split(readme, "[![CI]", parts: 2)
+    assert first_screen =~ "(https://portfolixir.app/features.html)"
+    refute first_screen =~ "![", "a picture above the badges"
+    assert readme =~ "[Features](docs/features.md)"
+  end
+
+  defp normalized_text(path), do: path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+  defp position_of(page, heading, path) do
+    case :binary.match(page, "\n" <> heading <> "\n") do
+      {position, _length} -> position
+      :nomatch -> flunk("#{path}: no heading #{heading}")
+    end
+  end
+
+  defp links_of(page) do
+    ~r/\]\(([^)\s]+)\)/
+    |> Regex.scan(page, capture: :all_but_first)
+    |> List.flatten()
+  end
+
+  # A link from a docs page resolves when it is the repository, or a page of
+  # the site whose source exists in docs/ -- a .html page from its .md, any
+  # other file as itself -- and its #anchor, if any, is a heading id of that
+  # source.
+  defp assert_link_resolves(page_path, target) do
+    if String.starts_with?(target, "https://github.com/peshay/portfolixir") do
+      :ok
+    else
+      refute target =~ ~r/\A[a-z]+:/, "#{page_path}: #{target} leaves the docs site"
+
+      [path | anchor] = String.split(target, "#", parts: 2)
+
+      source =
+        cond do
+          path == "" -> page_path
+          String.starts_with?(path, "/") -> "docs" <> path
+          true -> path |> Path.expand("/" <> Path.dirname(page_path)) |> String.trim_leading("/")
+        end
+        |> String.replace_suffix(".html", ".md")
+
+      assert File.exists?(source), "#{page_path}: #{target} has no page (#{source})"
+
+      for id <- anchor do
+        # kramdown's own id scheme drops non-ASCII letters and leading digits
+        # where its GFM scheme keeps them; an anchor both agree on survives a
+        # change of the site's Markdown input.
+        assert id =~ ~r/\A[a-z][a-z0-9-]*\z/,
+               "#{page_path}: #{target} needs an ASCII anchor that starts with a letter"
+
+        assert id in heading_ids(File.read!(source)),
+               "#{page_path}: #{target} names no heading of #{source}"
+      end
+    end
+  end
+
+  # The ids Jekyll's kramdown gives headings under GitHub Pages' default GFM
+  # input: the raw heading text lowercased, every character that is neither a
+  # word character, a hyphen nor a space dropped, each space a hyphen, and a
+  # repeat numbered -1, -2 and so on. A line inside fenced code is no heading.
+  defp heading_ids(markdown) do
+    {_fenced, headings} =
+      markdown
+      |> String.split("\n")
+      |> Enum.reduce({false, []}, fn line, {fenced, headings} ->
+        cond do
+          String.starts_with?(String.trim_leading(line), "```") ->
+            {not fenced, headings}
+
+          fenced ->
+            {fenced, headings}
+
+          match = Regex.run(~r/\A#+[ \t]+(.+?)[ \t]*\z/, line) ->
+            {fenced, [List.last(match) | headings]}
+
+          true ->
+            {fenced, headings}
+        end
+      end)
+
+    {ids, _seen} =
+      headings
+      |> Enum.reverse()
+      |> Enum.map(fn text ->
+        text
+        |> String.downcase()
+        |> String.replace(~r/[^\w\- \t]/u, "")
+        |> String.replace(~r/[ \t]/, "-")
+      end)
+      |> Enum.map_reduce(%{}, fn id, seen ->
+        case Map.fetch(seen, id) do
+          :error -> {id, Map.put(seen, id, 0)}
+          {:ok, count} -> {"#{id}-#{count + 1}", Map.put(seen, id, count + 1)}
+        end
+      end)
+
+    ids
   end
 end
