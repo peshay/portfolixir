@@ -3092,9 +3092,15 @@ children (body and figures), no logo, no kebab, no bar.
 
 ### Stated, not settled here
 
-- The show-all control is a `.link-button` and so below the 44 px
-  coarse-pointer floor, as every `.link-button` is (the finding already
-  filed for the remedy links in notes).
+- The show-all control is a standalone `.link-button` and takes the
+  treatment a rule's name on Risk has (`.policy-rule__name`), through its
+  own class `.contribution-show-all`: 44 px high under a coarse pointer
+  (UX-DR6) and the 2 px {colors.accent} ring at a 2 px offset on
+  `:focus-visible`, in the table's row and in the phone row alike (repair
+  R3, board `mockups/ux-review-2026-10-03/01-contribution-repairs`). Scoped
+  to this control: a remedy link inside a note's sentence keeps its own
+  finding and its own remedy, because growing its line would reflow the
+  sentence.
 - A security stored twice under one name (a duplicate awaiting a merge)
   reads as two rows with the same name; the ISIN is in the payload but not
   on the row.

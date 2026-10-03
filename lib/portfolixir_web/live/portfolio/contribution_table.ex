@@ -311,11 +311,14 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
   attr(:show_all?, :boolean, required: true)
   attr(:total, :integer, required: true)
 
+  # A standalone link-button, as a rule's name on Risk is: its own class
+  # carries the 44 px coarse-pointer floor and the accent focus ring (board
+  # ux-review-2026-10-03/01-contribution-repairs, R3).
   defp show_all_button(assigns) do
     ~H"""
     <button
       type="button"
-      class="link-button"
+      class="link-button contribution-show-all"
       data-role="contribution-show-all"
       phx-click="toggle_contribution_all"
       aria-expanded={to_string(@show_all?)}
