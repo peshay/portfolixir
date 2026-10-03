@@ -2,6 +2,8 @@
   items:
     - title: Home
       url: /index.html
+    - title: Features
+      url: /features.html
 
 - title: App Handbook
   items:
