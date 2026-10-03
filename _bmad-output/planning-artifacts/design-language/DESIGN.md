@@ -3509,9 +3509,11 @@ KPI strip said "1J". One label function now serves both — German
 "1M 3M 6M YTD 1J 3J 5J Max", English "…1Y 3Y 5Y Max"; "MAX" becomes "Max"
 in both languages, the one casing EXPERIENCE.md → Period control changes.
 `phx-value-range` and the URL keep the code; "1M", "3M" and "6M" are new
-msgids that read the same in German; the fallback "Standard" stays. Not
-changed here, and not on the board: the Overview's "1Y" figure label, which
-is a literal in the template, not a range token.
+msgids that read the same in German; the fallback "Standard" stays. The
+Overview's one-year figure label, a literal "1Y" in the template that this
+part first left, goes through the same function since the closing act
+(board `mockups/ux-review-2026-10-03/03-gamma-surface-repairs`, G3): "1J"
+on the German Overview, as on the chart and the Quotes tab.
 
 ### The selected detail tab is in view on arrival *(H7.2, rule ②; issue 1033)*
 
