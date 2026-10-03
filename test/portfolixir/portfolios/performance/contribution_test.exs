@@ -50,20 +50,24 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
   #   2025-06-02  interest 12 EUR
   #   2025-07-01  custody fee 7 EUR naming Euro Fund (standalone)
   #   2025-08-01  split Euro Fund 2:1
-  #   2025-10-01  transfer 40 Euro Fund from Depot A to Depot B
+  #   2025-10-01  transfer 40 Euro Fund from Depot A to Depot D
   #   2025-11-03  sell US Corp 4 @ 130 USD, fees 2 USD
   #   2025-12-01  removal 1000 EUR
   #   2026-01-15  interest 3 USD
+  #               sell Euro Fund 10 @ 66, fees 2, from Depot D into Cash EUR
   #   2026-02-02  tax refund 6 EUR; delivery Yen Co 100 @ 1000 JPY (no JPY rate)
+  #   2026-03-02  buy US Tech 4 @ 55 USD, fees 1 USD, into Depot C from Cash USD
   #   2026-04-01  dividend US Corp 8 USD
   #   2026-05-04  buy Flip Share 10 @ 20, fees 1 (never quoted)
-  #   2026-05-15  balance snapshot Cash USD 1530 (a residual jump of 1 USD)
+  #   2026-05-15  balance snapshot Cash USD 1309 (a residual jump of 1 USD)
   #   2026-05-20  sell Flip Share 10 @ 25, fees 1
   #   2026-06-01  deposit 500 EUR
   #
-  # The side portfolio deposits 1000 EUR and buys Euro Fund 5 @ 100 on
-  # 2025-01-02. The view "Core" sees Depot A, Cash EUR and the side
-  # portfolio's two accounts: Depot B and Cash USD are out of view.
+  # Depot C settles through Cash USD, Depot D through Cash EUR. The side
+  # portfolio deposits 1000 EUR and buys Euro Fund 5 @ 100 on 2025-01-02.
+  # The view "Core" sees Depot A, Depot C, Cash EUR and the side portfolio's
+  # two accounts; Depot B, Depot D and Cash USD are out of view, so the depot
+  # transfer and the two 2026 trades straddle its boundary.
   defp rich_world do
     rich = base_world(name: "Rich", cash_name: "Cash EUR", depot_name: "Depot A")
 
@@ -72,6 +76,8 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
       |> add_depot(cash_currency: "USD", cash_name: "Cash USD", depot_name: "Depot B")
       |> Map.put(:portfolio, rich.portfolio)
 
+    depot_c = depot!(rich.portfolio, usd.cash, "Depot C")
+    depot_d = depot!(rich.portfolio, rich.cash, "Depot D")
     side = base_world(name: "Side", cash_name: "Side Cash", depot_name: "Side Depot")
 
     euro = create_security!(name: "Euro Fund", ticker: "EUF", isin: "DE000CONTR01")
@@ -126,7 +132,7 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     book!(%{
       portfolio_id: rich.portfolio.id,
       securities_account_id: rich.depot.id,
-      counter_securities_account_id: usd.depot.id,
+      counter_securities_account_id: depot_d.id,
       security_id: euro.id,
       type: "security_transfer",
       date: ~D[2025-10-01],
@@ -144,11 +150,28 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
 
     cash!(rich, "removal", "1000", ~D[2025-12-01])
     cash!(usd, "interest", "3", ~D[2026-01-15], currency: "USD")
+
+    WorldFixtures.sell!(%{rich | depot: depot_d}, euro,
+      quantity: "10",
+      price: "66",
+      fees: "2",
+      date: ~D[2026-01-15]
+    )
+
     cash!(rich, "tax_refund", "6", ~D[2026-02-02])
     delivery!(rich, yen, "100", ~D[2026-02-02], price: "1000", currency: "JPY")
+
+    WorldFixtures.buy!(%{usd | depot: depot_c}, us_tech,
+      quantity: "4",
+      price: "55",
+      fees: "1",
+      date: ~D[2026-03-02],
+      currency: "USD"
+    )
+
     cash!(usd, "dividend", "8", ~D[2026-04-01], security_id: us_corp.id, currency: "USD")
     WorldFixtures.buy!(rich, flip, quantity: "10", price: "20", fees: "1", date: ~D[2026-05-04])
-    snapshot!(usd.cash, "1530", ~D[2026-05-15])
+    snapshot!(usd.cash, "1309", ~D[2026-05-15])
     WorldFixtures.sell!(rich, flip, quantity: "10", price: "25", fees: "1", date: ~D[2026-05-20])
     deposit!(rich, "500", ~D[2026-06-01])
 
@@ -176,7 +199,7 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
 
     WorldFixtures.put_quotes!(gift, [{~D[2025-03-03], "30"}, {~D[2026-06-30], "33"}])
 
-    view = core_view!([rich.depot, side.depot], [rich.cash, side.cash])
+    view = core_view!([rich.depot, depot_c, side.depot], [rich.cash, side.cash])
 
     %{
       rich: rich,
@@ -198,6 +221,18 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
   defp book!(attrs) do
     {:ok, tx} = Ledger.create_transaction(Actor.owner_ui(), attrs)
     tx
+  end
+
+  # A depot settling through an existing cash account.
+  defp depot!(portfolio, cash, name) do
+    {:ok, depot} =
+      Portfolios.create_securities_account(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        cash_account_id: cash.id,
+        name: name
+      })
+
+    depot
   end
 
   defp cash!(world, type, amount, date, opts \\ []) do
@@ -733,5 +768,167 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     assert equal?(result.totals.result, "250")
     assert equal?(result.totals.positions, "250")
     assert_remainder_zero(result)
+  end
+
+  # -- I1 -------------------------------------------------------------------------
+
+  # The contribution and the performance read of one scope, side by side.
+  defp scoped_reads(world) do
+    pid = world.rich.portfolio.id
+    view = world.view.id
+
+    [
+      {"portfolio", &Contribution.for_portfolio(pid, period: &1, today: @today),
+       &Performance.for_portfolio(pid, period: &1, today: @today)},
+      {"portfolio narrowed by a view",
+       &Contribution.for_portfolio(pid, view: view, period: &1, today: @today),
+       &Performance.for_portfolio(pid, view: view, period: &1, today: @today)},
+      {"view across portfolios", &Contribution.for_view(view, period: &1, today: @today),
+       &Performance.for_view(view, period: &1, today: @today)},
+      {"Everything view", &Contribution.for_view(nil, period: &1, today: @today),
+       &Performance.for_view(nil, period: &1, today: @today)}
+    ]
+  end
+
+  defp sum(decimals), do: Enum.reduce(decimals, Decimal.new("0"), &Decimal.add/2)
+
+  defp assert_lines(result, interest, standalone, currency) do
+    assert equal?(result.remainder.interest, interest)
+    assert equal?(result.remainder.standalone_fees_and_taxes, standalone)
+    assert equal?(result.remainder.cash_currency_effect, currency)
+  end
+
+  # User story (FR-41, ADR-0051 §1, §3, §4, §6):
+  # As a local portfolio maintainer (and the agent I run),
+  # I want the positions and three itemised remainder lines to add up to the
+  # period's money result to the cent and beyond, for any period and scope,
+  # so that the table agrees with the "+x EUR in the period" figure beside my
+  # TTWROR instead of being a third number nobody can reconcile.
+  #
+  # Acceptance criteria (ADR-0051 I1):
+  # - The positions plus the remainder lines sum to end − start − net external
+  #   flows, exact in Decimal, for every period (ytd, 1y, 3y, 5y, max, a
+  #   calendar year, a custom range) and every scope (a portfolio, a portfolio
+  #   narrowed by a view, a view across portfolios, the Everything view), on a
+  #   world with a cross-currency position, a dividend, interest, a standalone
+  #   fee, deliveries, a split, a transfer, a snapshot and unvalued positions.
+  # - The money result is the one the performance read shows for the same
+  #   period and scope.
+  # - No line is a plug: each remainder line equals the sum of its own
+  #   bookings, pinned for three periods; each position's contribution is
+  #   end − start − net flows + income − costs; positions are sorted largest
+  #   first.
+  # - A window holding no walked day is empty: no positions, never zeros.
+  test "positions plus remainder sum exactly to the money result, every period and scope (I1)" do
+    world = rich_world()
+
+    for {scope, contribution, performance} <- scoped_reads(world), period <- @periods do
+      label = "#{scope} #{inspect(period)}"
+      {:ok, result} = contribution.(period)
+      {:ok, read} = performance.(period)
+
+      money_result =
+        read.end_value |> Decimal.sub(read.start_value) |> Decimal.sub(read.net_external_flows)
+
+      assert Decimal.equal?(result.totals.result, money_result), label
+
+      assert Decimal.equal?(
+               Decimal.add(result.totals.positions, result.totals.remainder),
+               result.totals.result
+             ),
+             label
+
+      assert Decimal.equal?(
+               result.totals.positions,
+               sum(Enum.map(result.positions, & &1.contribution))
+             )
+
+      assert Decimal.equal?(result.totals.remainder, sum(Map.values(result.remainder)))
+      assert result.start_date == read.start_date, label
+
+      for position <- result.positions do
+        assert Decimal.equal?(
+                 position.contribution,
+                 position.end_value
+                 |> Decimal.sub(position.start_value)
+                 |> Decimal.sub(position.net_flows)
+                 |> Decimal.add(position.income)
+                 |> Decimal.sub(position.costs)
+               ),
+               label
+      end
+
+      contributions = Enum.map(result.positions, & &1.contribution)
+      assert contributions == Enum.sort(contributions, &(Decimal.compare(&1, &2) != :lt)), label
+
+      if is_nil(read.start_date), do: assert(result.positions == [], label)
+    end
+
+    pid = world.rich.portfolio.id
+    s = world.securities
+
+    # The whole history, by hand (see the world's comment for the bookings).
+    {:ok, max} = Contribution.for_portfolio(pid, period: "max", today: @today)
+
+    # 90 units at 70 (100 after the split, 40 of them moved to Depot B, 10
+    # sold from there at 66): bought for 5000, sold for 660, a 40 dividend,
+    # fees of 5 and 2.
+    assert equal?(row(max, s.euro).contribution, "1993")
+    assert equal?(row(max, s.euro).net_flows, "4340")
+    assert equal?(row(max, s.euro).income, "40")
+    assert equal?(row(max, s.euro).costs, "7")
+    # 6 left at 125 USD x 0.78125, bought 800, sold 325 (4 x 130 x 0.625),
+    # an 8 USD dividend at 0.78125, fees of 2 USD at 0.625.
+    assert equal?(row(max, s.us_corp).contribution, "115.9375")
+    assert equal?(row(max, s.us_corp).net_flows, "475")
+    assert equal?(row(max, s.us_corp).income, "6.25")
+    assert equal?(row(max, s.us_corp).costs, "1.25")
+    # 20 x 50 USD at the hub rate (800, settled at 820 EUR) and 4 x 55 USD at
+    # 0.625 (137.5, a fee of 1 USD); 24 end at 60 USD x 0.78125.
+    assert equal?(row(max, s.us_tech).net_flows, "937.5")
+    assert equal?(row(max, s.us_tech).costs, "0.625")
+    assert equal?(row(max, s.us_tech).contribution, "186.875")
+    # Delivered at its booked 30, ends at 33.
+    assert equal?(row(max, s.gift).net_flows, "300")
+    assert equal?(row(max, s.gift).contribution, "30")
+    assert equal?(row(max, s.flip).contribution, "48")
+    assert zero?(row(max, s.ghost).contribution)
+    assert row(max, s.ghost).unvalued_reason == :no_price
+    assert zero?(row(max, s.yen).contribution)
+    assert row(max, s.yen).unvalued_reason == :no_rate
+    assert equal?(max.totals.positions, "2373.8125")
+
+    # Interest 12 EUR + 3 USD x 0.625; fee -7 and refund +6; the settlement
+    # difference -20 (800 at the hub rate, 820 paid) and the USD balance's
+    # revaluation: 1000 x (0.625 - 0.8) + 1300 x (0.78125 - 0.625).
+    assert_lines(max, "13.875", "-1", "8.125")
+    assert equal?(max.totals.result, "2394.8125")
+
+    {:ok, year} = Contribution.for_portfolio(pid, period: {:year, 2025}, today: @today)
+    assert_lines(year, "12", "-7", "-195")
+
+    {:ok, ytd} = Contribution.for_portfolio(pid, period: "ytd", today: @today)
+    assert_lines(ytd, "1.875", "6", "203.125")
+
+    # The view sees Depot A and Cash EUR. 40 Euro Fund leave at 60 on the
+    # transfer; the sale from Depot B only brings cash in; the US Tech bought
+    # with USD arrives at the cash it cost (221 USD x 0.625, the fee
+    # included); the USD account and its interest stay outside.
+    {:ok, core} =
+      Contribution.for_portfolio(pid, view: world.view.id, period: "max", today: @today)
+
+    assert equal?(row(core, s.euro).net_flows, "2600")
+    assert equal?(row(core, s.euro).contribution, "1635")
+    assert equal?(row(core, s.us_tech).net_flows, "938.125")
+    assert equal?(row(core, s.us_tech).contribution, "186.875")
+    assert row(core, s.us_corp) == nil
+    assert_lines(core, "12", "-1", "-20")
+    assert equal?(core.totals.result, "1890.875")
+
+    # Nothing walked yet in 2027: empty, never a table of zeros.
+    {:ok, empty} = Contribution.for_view(nil, period: {:year, 2027}, today: @today)
+    assert empty.positions == []
+    assert empty.start_date == nil
+    assert empty.view_id == nil
   end
 end

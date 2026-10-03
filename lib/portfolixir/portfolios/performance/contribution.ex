@@ -47,7 +47,23 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
 
   Deposits, removals, the value of deliveries and the residual jump of a
   balance snapshot are external flows: they never reach the result, so they
-  never reach the remainder either.
+  never reach the remainder either. Money paid into a foreign-currency
+  account is no contribution; what the larger balance does with the rate
+  afterwards is the currency effect on cash.
+
+  Scoped to a view, a booking is read through the legs the walk keeps
+  (ADR-0019): a dividend credited to an in-view account is its security's
+  income even when the position sits outside the view (the view received
+  it); a trade whose cash leg is outside the view brings its units in at the
+  cash they cost, fees included, as a boundary flow, so it carries no cost
+  line of its own; a trade whose units leave the view only moves cash across
+  the edge and is kept nowhere.
+
+  **Exactness.** Every term is computed by the walk's own arithmetic, in
+  `Decimal`. With conversion rates whose quotients terminate the identity is
+  exact to the last digit; with a rate quotient that does not terminate, the
+  walk's own sums round at the `Decimal` context's precision, and the
+  identity holds to that precision. Nothing balances the difference.
 
   Missing data contributes zero, as it does in the walk, and the affected
   positions are named (§10). Nothing is stored: everything is derived on
@@ -151,6 +167,39 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
         |> Performance.contribution_analysis(scope, period, today: today)
         |> build(period)
         |> Map.merge(%{portfolio_id: portfolio_id, view_id: view})
+
+      {:ok, result}
+    end
+  end
+
+  @doc """
+  The contribution of every position of a bucket view **across all
+  portfolios** (ADR-0024), over the scope `Performance.for_view/2` walks:
+  each account counted once, money crossing the view's edge a boundary flow
+  (ADR-0019). `view_id == nil` is the Everything scope.
+
+  Options: `:period` and `:today` as in `for_portfolio/2`, and
+  `:base_currency` (default the EUR hub), the one currency every portfolio's
+  slice is valued in. A position held in several portfolios is one row, its
+  figures summed.
+
+  Returns `{:ok, result}` — `for_portfolio/2`'s shape with `portfolio_id:
+  nil` and `view_id` set — or `{:error, :invalid_period | :view_not_found}`.
+  """
+  @spec for_view(integer() | nil, keyword()) :: {:ok, result()} | {:error, atom()}
+  def for_view(view_id, opts \\ []) when is_integer(view_id) or is_nil(view_id) do
+    period = Keyword.get(opts, :period, "max")
+
+    walk_opts =
+      [today: Keyword.get(opts, :today, Clock.today())] ++ Keyword.take(opts, [:base_currency])
+
+    with :ok <- Performance.validate_period(period),
+         {:ok, scope} <- loaded(Buckets.load_global_scope(view_id)) do
+      result =
+        view_id
+        |> Performance.view_contribution_analysis(scope, period, walk_opts)
+        |> build(period)
+        |> Map.merge(%{portfolio_id: nil, view_id: view_id})
 
       {:ok, result}
     end

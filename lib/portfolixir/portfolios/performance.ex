@@ -61,6 +61,14 @@ defmodule Portfolixir.Portfolios.Performance do
   every period (`ytd`/`1y`/…) is then a cheap pure `summarise/2` over that
   series, so callers can switch periods without re-walking.
 
+  The contribution analysis (FR-41, ADR-0051,
+  `Portfolixir.Portfolios.Performance.Contribution`) runs this same walk with
+  a window: inside it, the walk also keeps each position's values at the two
+  ends, its flows, income and costs, and the remainder lines, apart instead
+  of summing them away. They ride in one extra key of the walk's state that
+  no output reads, so every existing output is byte-identical with or without
+  a window (ADR-0051 I9), and the stored walk analytics never carry them.
+
   All quote, FX-rate and transaction data is preloaded up front; the walk
   itself issues no queries.
   """
@@ -1733,10 +1741,41 @@ defmodule Portfolixir.Portfolios.Performance do
 
   # The day's observations, made after its bookings: the close of the
   # baseline day gives the start values, the window's last day the end values.
-  defp keep_day(%{kept: kept} = closing, _opening, context, _carried_fx),
-    do: %{closing | kept: observe_day(kept, closing.qty, context)}
+  defp keep_day(%{kept: kept} = closing, opening, context, carried_fx) do
+    kept =
+      kept
+      |> observe_day(closing.qty, context)
+      |> revalue_cash(opening.cash, context, carried_fx)
+
+    %{closing | kept: kept}
+  end
 
   defp keep_day(closing, _opening, _context, _carried_fx), do: closing
+
+  # The currency effect on cash (ADR-0051 §3): each in-scope account's balance
+  # carried in from yesterday, valued at today's rate minus at yesterday's --
+  # the rates `portfolio_value/2` valued it at on each day. The day's bookings
+  # are converted at today's rate where they are kept, so the two together
+  # are the account's whole change in base value. A balance in the base
+  # currency revalues by exactly zero.
+  defp revalue_cash(kept, opening_cash, context, carried_fx) do
+    if in_window?(kept.window, context.day) do
+      yesterday = %{context | fx: carried_fx}
+
+      revaluation =
+        Enum.reduce(opening_cash, @zero, fn {account_id, balance}, acc ->
+          currency = Map.get(context.currencies, account_id)
+
+          acc
+          |> Decimal.add(to_base(balance, currency, context))
+          |> Decimal.sub(to_base(balance, currency, yesterday))
+        end)
+
+      add_line(kept, :cash_currency_effect, revaluation)
+    else
+      kept
+    end
+  end
 
   defp observe_day(%{baseline: day} = kept, held, %{day: day} = context),
     do: record_values(kept, held, context, :start_value, :held_at_start)
@@ -1828,10 +1867,14 @@ defmodule Portfolixir.Portfolios.Performance do
   # Nothing of the booking is inside the scope.
   defp keep_legs(kept, _tx, %{cash: [], quantities: []}, _context), do: kept
 
-  # An external booking moved money or units across the portfolio's edge: its
-  # value is in the day's flow, so it is no contribution. Deposits, removals
-  # and snapshots move cash only.
-  defp keep_legs(kept, _tx, %{effect: %{external: true}}, _context), do: kept
+  # An external booking moved money or units across the portfolio's edge, and
+  # its value is in the day's flow. A delivery's units are a flow into (or
+  # out of) the position at exactly the value the walk's flow gives them: the
+  # booked price, else the day's price (#779). Deposits, removals and a
+  # snapshot's jump move cash only; they never reach the result, so they are
+  # kept nowhere (ADR-0051 §3, I4).
+  defp keep_legs(kept, tx, %{effect: %{external: true}} = legs, context),
+    do: add_flows(kept, market_leg_values(legs.quantities, tx, context))
 
   # A booking straddling a view's boundary (ADR-0019): the walk books the
   # kept quantity legs' value as the day's boundary flow, so each is a flow
@@ -1846,14 +1889,47 @@ defmodule Portfolixir.Portfolios.Performance do
 
   # A trade moved its units at its own price (ADR-0051 §5): `+ price ×
   # quantity` into the position for a buy, `−` for a sell, at the booking
-  # day's rate, and its fees and taxes are the position's costs.
+  # day's rate, and its fees and taxes are the position's costs. What its
+  # cash leg moved beyond that is the trade's settlement difference: for a
+  # cross-currency trade the broker's rate against the hub rate (ADR-0015,
+  # ADR-0033), which the currency effect on cash holds (§3). A same-currency
+  # trade whose cash agrees with price × quantity and its costs leaves
+  # exactly zero.
   defp keep_internal(kept, type, tx, legs, context) when type in ["buy", "sell"] do
     cost = trade_cost(tx, context) || @zero
+    flows = trade_leg_values(legs.quantities, tx, context)
+
+    settlement =
+      legs.cash
+      |> total_add_cash_base(tx, context)
+      |> Decimal.add(sum_leg_values(flows))
+      |> Decimal.add(cost)
 
     kept
-    |> add_flows(trade_leg_values(legs.quantities, tx, context))
+    |> add_flows(flows)
     |> add_to_position(tx.security_id, :costs, cost)
+    |> add_line(:cash_currency_effect, settlement)
   end
+
+  # A dividend as credited: the booking's amount, net of the withholding
+  # recorded on it, at the booking day's rate (§1, the Income facet's "net").
+  defp keep_internal(kept, "dividend", tx, legs, context),
+    do:
+      add_to_position(kept, tx.security_id, :income, total_add_cash_base(legs.cash, tx, context))
+
+  # Interest carries no security, a bond's coupon included (§3).
+  defp keep_internal(kept, "interest", tx, legs, context),
+    do: add_line(kept, :interest, total_add_cash_base(legs.cash, tx, context))
+
+  # Fees and taxes no trade carries, even when one names a security: #708's
+  # definition of a standalone cost (§3).
+  defp keep_internal(kept, type, tx, legs, context) when type in ["fee", "tax", "tax_refund"],
+    do: add_line(kept, :standalone_fees_and_taxes, total_add_cash_base(legs.cash, tx, context))
+
+  # A transfer between two accounts inside the scope nets out, except for
+  # what its two legs leave in the base currency.
+  defp keep_internal(kept, "cash_transfer", tx, legs, context),
+    do: add_line(kept, :cash_currency_effect, total_add_cash_base(legs.cash, tx, context))
 
   # A split is a scale leg (ADR-0028): nothing enters or leaves the position,
   # so it is no flow. The end value counts the post-split units at the
@@ -1865,10 +1941,8 @@ defmodule Portfolixir.Portfolios.Performance do
   # position is held throughout (I6). Across a view's boundary it straddles.
   defp keep_internal(kept, "security_transfer", _tx, _legs, _context), do: kept
 
-  # Not kept yet: the remainder lines and income.
-  defp keep_internal(kept, type, _tx, _legs, _context)
-       when type in ["dividend", "interest", "fee", "tax", "tax_refund", "cash_transfer"],
-       do: kept
+  defp add_line(kept, line, amount),
+    do: %{kept | lines: Map.update!(kept.lines, line, &Decimal.add(&1, amount))}
 
   defp trade_leg_values(quantities, tx, context) do
     for {_account_id, security_id, delta} <- quantities,
