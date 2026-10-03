@@ -6,7 +6,8 @@ description: Heuristic asset class classification runs at read time on name/ISIN
 
 # ADR-0012: Asset class inference at read time
 
-- **Status:** Accepted
+- **Status:** Accepted; its summary of the pipeline is corrected to the code
+  by the note of 2026-10-03 below (#929), the decision unchanged
 - **Date:** 2026-06-11
 
 ## Context
@@ -44,6 +45,46 @@ schema change.
 The user can pin a class by setting it explicitly via the quick-assign dropdown
 or the security detail form. A stored non-nil value short-circuits the
 inference entirely.
+
+> **Note 2026-10-03 (#929, the summary reconciled with the code):** the
+> decision stands — a stored class wins, and only a security without one is
+> classified by heuristics when it is read — but the summary above, and two
+> of the consequences below, say more than `Security.effective_asset_class/1`
+> does. The code is what runs, and this note changes none of it:
+>
+> - **The ISIN is not a heuristic signal.** `infer_asset_class_code/3`
+>   ignores it (`_isin`) and reads the name and, for crypto, the ticker,
+>   because the structure of an ISIN alone is not a reliable asset-class
+>   signal (#408). The ISIN is read only by the logo fallback below.
+> - **There is no `derivative` class.** That step is `derivative_class/1`,
+>   which returns a leaf class: `knock_out`, `discount_certificate`,
+>   `warrant`, `factor_certificate`, `reverse_convertible`,
+>   `bonus_certificate` or `express_certificate`, a bare Call or Put being a
+>   `warrant`.
+> - **A logo fallback follows `fund_or_nil`** (#408, `inferred_from_logo/1`):
+>   a security the name rules leave unresolved that has an ISIN and a stored
+>   company logo (`logo_path`) is `equity`. The pipeline as the code runs it:
+>
+>   ```
+>   stored class → government_bond → etf → crypto → commodity →
+>     derivative leaf class → equity_or_nil → fund_or_nil →
+>     logo fallback (equity) → nil
+>   ```
+>
+>   `fund_or_nil` also knows the issuer prefix AIS-AM beside Amundi.
+> - **Not every improvement reaches every security.** `changeset/2` stores
+>   the class the name rules give whenever a write leaves the class empty,
+>   and the security form saves the class it shows, so a security created or
+>   saved through the catalog usually carries a stored class that then
+>   short-circuits the inference like the user's own choice. "Zero-migration
+>   and retroactive" holds only for the securities that store no class: those
+>   no name rule matched at their last write, and those reset to automatic on
+>   the asset-class tree, which clears the stored class without inferring
+>   one. Whether an inferred class should be stored at write time at all is
+>   a question for triage that this note does not decide.
+> - **The `is_nil` filter is keyed on the stored class** (#700): it lists
+>   every security with no stored class, including those whose class is
+>   inferred (shown as derived), not only those no heuristic resolves.
 
 ## Consequences
 

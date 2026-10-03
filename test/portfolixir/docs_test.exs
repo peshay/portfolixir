@@ -2092,4 +2092,96 @@ defmodule Portfolixir.DocsTest do
     assert note =~ "`POST /api/v1/securities/:id/merge`"
     assert note =~ "`portfolixir.securities.merge`"
   end
+
+  # User story (#929):
+  # As the operator wondering why a security shows the asset class it shows,
+  # I want the handbook's inference section, in English and German, and
+  # ADR-0012's pipeline to describe what `Security.effective_asset_class/1`
+  # runs,
+  # so that I can predict a class instead of reading the code.
+  #
+  # Acceptance criteria:
+  # - Each section names the classes the inference returns in the code's
+  #   order, every leaf class `derivative_class/1` returns among them, and the
+  #   company-logo equity fallback (#408) after the fund rule.
+  # - Neither section claims an ISIN prefix (or `IE00`) as a signal, a generic
+  #   `derivative` class, GmbH or NV as a legal form, or that a better
+  #   heuristic reclassifies every security retroactively.
+  # - ADR-0012 carries a dated note that corrects its pipeline summary the
+  #   same way, leaving the decision as it was taken.
+  test "the asset-class inference docs and ADR-0012 match the code (#929)" do
+    source = File.read!("lib/portfolixir/catalog/security.ex")
+
+    [_, cond_body] =
+      Regex.run(
+        ~r/defp infer_asset_class_code\(name, _isin, ticker_symbol\) do(.*?)\n  end/s,
+        source
+      )
+
+    [_, derivative_body] =
+      Regex.run(~r/defp derivative_class\(name\) when is_binary\(name\) do(.*?)\n  end/s, source)
+
+    classes_of = fn body ->
+      ~r/-> "([a-z_]+)"/ |> Regex.scan(body) |> Enum.map(fn [_, class] -> class end)
+    end
+
+    leaf_classes = Enum.uniq(classes_of.(derivative_body))
+    ordered = classes_of.(cond_body) ++ [hd(leaf_classes), "equity", "fund"]
+
+    assert ordered == [
+             "government_bond",
+             "etf",
+             "crypto",
+             "commodity",
+             "knock_out",
+             "equity",
+             "fund"
+           ]
+
+    for {path, heading, logo} <- [
+          {"docs/product-documentation.md", "### Asset class inference\n", "logo"},
+          {"docs/de/product-documentation.md", "### Inferenz der Anlageklasse\n", "Logo"}
+        ] do
+      [_, section] = path |> File.read!() |> String.split(heading, parts: 2)
+      [section, _] = String.split(section, "\n### ", parts: 2)
+      section = String.replace(section, ~r/\s+/, " ")
+
+      positions = Enum.map(ordered, fn class -> :binary.match(section, "**#{class}**") end)
+
+      refute :nomatch in positions, "#{path}: a class of #{inspect(ordered)} is missing"
+      assert positions == Enum.sort(positions), "#{path}: classes out of the code's order"
+
+      for class <- leaf_classes do
+        assert section =~ "**#{class}**", "#{path}: #{class}"
+      end
+
+      assert section =~ "#408"
+      assert section =~ logo
+
+      for stale <- [
+            "IE00",
+            "**derivative**",
+            "GmbH",
+            ", NV,",
+            "country-code prefix",
+            "Länderpräfix"
+          ] do
+        refute section =~ stale, "#{path} still says: #{stale}"
+      end
+
+      refute section =~ "retroactively reclassifies all matching securities"
+      refute section =~ "klassifiziert eine verbesserte Heuristik im Code alle passenden"
+    end
+
+    adr =
+      "docs/decisions/0012-asset-class-inference-at-read-time.md"
+      |> File.read!()
+      |> String.replace(~r/\s*\n\s*>?\s*/, " ")
+
+    [note] = Regex.run(~r/\*\*Note 2026-10-03 \(#929.*/, adr)
+
+    for fragment <- ["`_isin`", "#408", "`changeset/2`", "`is_nil`" | leaf_classes] do
+      assert note =~ fragment, "ADR-0012's note: #{fragment}"
+    end
+  end
 end

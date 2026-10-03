@@ -73,38 +73,87 @@ They are the basis for all transaction and holdings calculations.
 
 ### Asset class inference
 
-Every security carries an **asset class** field. Its value is determined at
-read time by `Security.effective_asset_class/1`: if the stored value is
-non-nil it is returned as-is; otherwise the name, ISIN, and ticker are
-inspected in priority order:
+Every security has an **asset class**. A class stored on the security always
+wins: `Security.effective_asset_class/1` returns it as it is. Only a security
+with no stored class gets one inferred, when it is read, from its **name** and,
+for crypto, its **ticker**. The ISIN is not one of the signals: the structure
+of an ISIN alone does not say what kind of instrument it is (#408), so the
+inference ignores it except in the last rule below. The rules run in this
+order, and the first that matches decides:
 
-1. **government_bond** — ISIN country-code prefix in the two-letter list of known
-   government-bond issuers (DE, US, GB, FR, IT, ES, JP, …).
-2. **etf** — name contains `ETF`, `UCITS ETF`, or an exact ISIN starting with
-   `IE00` combined with a known fund-issuer prefix.
-3. **crypto** — name matches a known coin name (Bitcoin, Ethereum, Ripple, Cardano,
-   Solana, Dogecoin, Avalanche, Tron, …) or ticker matches a known crypto symbol
-   (BTC, ETH, XRP, ADA, SOL, DOGE, AVAX, TRX, …).
-4. **commodity** — name is an exact bare metal name: Gold, Silber, Silver, Platin,
-   Platinum. (Compound names like "Barrick Gold Corp" are not matched here and
-   pass through to equity.)
-5. **derivative** — name contains `Knock-Out`, `Zertifikat`, or `Turbo` (including
-   single-letter suffixes such as TurboP, TurboC, TurboA).
-6. **knock_out** — name contains `Turbo` (any single-letter suffix), `Knockout`,
-   or `KO` pattern. In practice the Turbo check is shared with the derivative
-   branch; the `knock_out` class is stored explicitly when the user corrects the
-   inference.
-7. **equity** — name contains a legal-form suffix (Corporation, Company, Co.,
-   Aktiengesellschaft, AG, S.A., S.p.A., A/S, ASA, KGaA, Azioni, Acciones,
-   Aktier, Ltd., PLC, Inc., GmbH, NV, SA) or a depositary-receipt marker
-   (ADR, GDR, Sp.ADR, Depos. Receipts, INH.ON, Registered Part. Shares).
-8. **fund** — name starts with or contains a known fund-issuer prefix (iShares,
-   Vanguard, Lyxor, Amundi, AIS-AM, Xtrackers, SPDR, Invesco, WisdomTree,
-   VanEck, Fidelity, Deka) but did not match the ETF pattern above.
-9. **nil** — no heuristic fired; the security is considered unclassified.
+1. **government_bond** — the name says it is a sovereign bond: Bundesrepublik,
+   Bundesanleihe, Bundesobligation, Bundesschatz, Staatsanleihe, Treasury
+   Note, Treasury Bond, Treasury Bill, Government Bond, Sovereign Bond,
+   "Republic of", "Kingdom of", or "Anleihe" at the start followed by a
+   country (Australien, Belgien, Deutschland, Frankreich, Italien, Kanada,
+   Niederlande, Norwegen, Österreich, Singapur, Spanien, USA, Vereinigte
+   Staaten, United States).
+2. **etf** — the name carries ETF, UCITS ETF, U.ETF, UETF, ETC, ETN or ETP as
+   a word.
+3. **crypto** — the whole name is a known coin (Bitcoin, Ethereum, Ether,
+   Solana, Cardano, Polkadot, Litecoin, Chainlink, Ripple, XRP, Dogecoin,
+   Avalanche, Tron), or the ticker is a known symbol (BTC, ETH, SOL, ADA,
+   DOT, LTC, LINK, XRP, DOGE, AVAX, TRX), alone or with a currency after a
+   dash or a dot (`BTC-EUR`).
+4. **commodity** — a physically backed precious-metal product (EUWAX Gold,
+   Xetra-Gold, Physical Gold, Physical Silver, Physical Platinum, Physical
+   Palladium, Gold Bullion), or a name that is only a metal: Gold, Silber,
+   Silver, Platin or Platinum. A company with a metal in its name ("Muster
+   Gold Corp") is not matched here and goes on to the equity rule.
+5. A **structured or leverage product**, as its own class. These come before
+   equity because their names often carry an issuer's legal form as well:
+   - **knock_out** — Turbo, alone or with one letter after it (TurboC,
+     TurboP), Knock-Out, KO, Mini Future, O.End, Open End Turbo, WAVE,
+     Unlimited Turbo;
+   - **discount_certificate** — DiscC, DiscP, Discount-Zertifikat, Discount
+     Cap;
+   - **warrant** — Optionsschein, Warrant;
+   - **factor_certificate** — Faktor;
+   - **reverse_convertible** — Aktienanleihe, Reverse Convertible;
+   - **bonus_certificate** — Bonus-Zertifikat, Bonus Cap;
+   - **express_certificate** — Express-Zertifikat;
+   - and last, a bare Call or Put, which brokers use as shorthand for a
+     warrant, so it is a **warrant** too ("Turbo Call" stays a knock-out).
 
-Because inference runs at read time, improving a heuristic in the code
-retroactively reclassifies all matching securities without a data migration.
+   There is no generic derivative class: a certificate that matches none of
+   these words (an index certificate, say) stays unclassified.
+6. **equity** — the name carries a share or legal-form marker — Registered
+   Shares, Reg. Shares, Registered Part. Shares, Inhaber-Aktien,
+   Namens-Aktien, Vorzugsaktien, Actions, Aandelen, Common Stock, Inc., Corp.,
+   Corporation, Company, Co., Ltd., AG, SE, PLC, S.p.A., S.A. or SA, SA/NV,
+   Aktiengesellschaft, A/S, ASA, KGaA, Azioni, Acciones, Aktier — or a
+   depositary-receipt marker (ADR, Sp.ADR, GDR, Depos. Receipts) or INH.ON,
+   **and** no structured-product word (Turbo, Disc, Discount, Call, Put,
+   Optionsschein, Zertifikat, O.End, Em.-u.Handelsg.mbH).
+7. **fund** — the name carries a fund issuer (iShares, Vanguard, Lyxor,
+   Amundi, AIS-AM, Xtrackers, SPDR, Invesco, WisdomTree, VanEck, Fidelity,
+   Deka) and none of the rules above matched; a name that also carries a
+   legal form is equity by rule 6, which runs first.
+8. **equity, from the logo** (#408) — a security none of the rules resolved
+   that has an ISIN **and** a stored company logo is read as equity: the logo
+   lookup already decided it is a company, and the ISIN marks a listed
+   instrument.
+9. Otherwise the security has no class: it is unclassified.
+
+The rules ignore case, and most of them match whole words. A few equity
+markers do not, and they explain the surprises: "SA" and "Actions" also match
+inside a word, so a name with the letters "sa" in it reads as equity unless an
+earlier rule matched or an exclusion applies; and every exclusion matches
+inside a word as well, so a company whose name merely contains "put" or
+"disc" ("Muster Computer Corp") is not read as equity and stays
+unclassified. Setting the class by hand settles any such case.
+
+**When a class is stored.** The class is not only inferred at read time. Each
+create or update of a security's master data — in the app, over the API or
+MCP, or by an import — stores the class rules 1–7 give when no class is stored
+yet (the logo rule runs at read time only), and saving a security's form
+stores the class the form shows, inferred or not. A stored class, whoever
+stored it, is returned as it is, so a later improvement to a rule does **not**
+reach that security. An improved rule reaches only the securities that store
+no class: those no name rule matched at their last write (the logo rule may
+still resolve them when they are read), and those reset to automatic with
+**Unassign** on the built-in asset-class tree (Classifications), which clears
+the stored class without inferring one.
 
 #### Finding and fixing unclassified securities
 
@@ -114,11 +163,13 @@ visible; the "no securities yet" onboarding hint appears only when the
 database holds no securities at all.
 
 The securities list accepts an **"is unclassified"** filter on the asset-class
-column (`operator: :is_nil`). It returns all rows where the stored value is nil
-and `effective_asset_class` also returned nil — i.e. the heuristics have no
-confident match. For each such row the asset-class cell shows an inline
-**quick-assign** dropdown, so the class can be set directly from the list
-without opening the security detail page.
+column (`operator: :is_nil`), the same condition as the **Unclassified** chip:
+it matches every security with **no stored class**, whether or not a rule
+infers one, because an inferred class is a guess and not a stated fact
+(#700). Such a row shows its inferred class, marked as derived (≈), or nothing
+when no rule fired, and either way an inline **quick-assign** dropdown, so the
+class can be set directly from the list without opening the security detail
+page. A row with a stored class shows it as a plain badge.
 
 A stored class is a permanent override: once set it is returned by
 `effective_asset_class` regardless of what the heuristics would produce, so the
