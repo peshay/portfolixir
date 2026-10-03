@@ -23,13 +23,24 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends build-essential git ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
-RUN mix local.hex ${HEX_VERSION} --force && mix local.rebar --force
+# A build behind a proxy that re-signs TLS (#1026): pass the proxy's CA as the
+# build secret `build_ca`, and each step below that downloads trusts it first
+# (docker/trust-build-ca.sh, which says why each step does it itself),
+#   docker build --secret id=build_ca,src=proxy-ca.crt -f Dockerfile.release .
+# Without the secret nothing is added. Hex reads the system store rather than
+# its own bundle, so the CA reaches it too. The runtime stage never sees it.
+COPY --chmod=0755 docker/trust-build-ca.sh /usr/local/bin/trust-build-ca
+ENV HEX_CACERTS_PATH=/etc/ssl/certs/ca-certificates.crt
+
+RUN --mount=type=secret,id=build_ca \
+    trust-build-ca && mix local.hex ${HEX_VERSION} --force && mix local.rebar --force
 
 WORKDIR /app
 
 COPY mix.exs mix.lock ./
 COPY config config
-RUN mix deps.get --only prod && mix deps.compile
+RUN --mount=type=secret,id=build_ca \
+    trust-build-ca && mix deps.get --only prod && mix deps.compile
 
 COPY lib lib
 COPY priv priv

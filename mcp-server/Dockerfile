@@ -17,8 +17,13 @@ WORKDIR /app
 # script (preinstall, install, postinstall) runs, because each is arbitrary
 # code execution at build time and nothing in this tree needs one. The
 # folder's .npmrc says the same for every npm command, the prune included.
+# A build behind a proxy that re-signs TLS (#1026) passes the proxy's CA as
+# the build secret `build_ca`; the install trusts it as an extra CA, and
+# nothing of it stays in a layer. Without the secret nothing changes.
 COPY package.json package-lock.json tsconfig.json .npmrc ./
-RUN npm ci --ignore-scripts
+RUN --mount=type=secret,id=build_ca \
+    if [ -s /run/secrets/build_ca ]; then export NODE_EXTRA_CA_CERTS=/run/secrets/build_ca; fi && \
+    npm ci --ignore-scripts
 
 COPY src ./src
 RUN npm run build && npm prune --omit=dev
