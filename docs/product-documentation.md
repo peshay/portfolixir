@@ -2503,7 +2503,8 @@ standing where the provider returned a close.*); a sync that skipped a
 security says why in words. On a phone the Quotes tab shows each quote as a
 two-line row — the date over its source, the close on the right, and the
 stored value under it where a split adjusted the close — so the source of
-every quote is readable without swiping the table.
+every quote is readable without swiping the table, and the price-basis line
+above the rows names that line instead of the table's Stored column.
 Your agent reads the same summary with
 `GET /api/v1/securities/:security_id/quotes/manual` (MCP
 `portfolixir.quotes.manual`) and releases with

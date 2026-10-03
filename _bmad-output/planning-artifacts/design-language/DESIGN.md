@@ -3479,6 +3479,17 @@ phone list is, and the table itself carries the whole range; capping the
 phone alone would make it say less than the desktop without a stated reason
 of its own. "Max" on a long history renders accordingly.
 
+**The basis line follows the layout** (the closing act's finding; board
+`mockups/ux-review-2026-10-03/03-gamma-surface-repairs`, G6). The price-basis
+line (`data-role="quotes-basis"`) said "Die Spalte Gespeichert zeigt die
+unveränderten Werte." above rows that have no such column. It now carries
+two spans: `.quotes-basis__table`, the table's sentence, and
+`.quotes-basis__rows`, the rows' — "Kursbasis: … Wo ein Split einen Kurs
+angepasst hat, zeigt „gespeichert“ darunter den unveränderten Wert." The
+rows' span is out of the layout above 560 px; the phone lists' 560 px block
+swaps the two as it swaps the table for the rows, so a screen reader reads
+the one on screen.
+
 ### The sync's count of the manual quotes that stayed *(H7.1b; issue 1012)*
 
 The quote sync keeps a manual quote wherever the provider returns a close

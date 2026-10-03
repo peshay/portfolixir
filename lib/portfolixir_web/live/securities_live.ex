@@ -3030,9 +3030,21 @@ defmodule PortfolixirWeb.SecuritiesLive do
           class="detail-tab-hint"
           data-role="quotes-basis"
         >
-          <%= gettext("Price basis: %{basis}. The stored column keeps the unmodified values.",
-            basis: series_basis_label(@series_basis, @split_events)
-          ) %>
+          <%!-- One sentence per layout (the closing act's H7 finding, board
+               ux-review-2026-10-03/03-gamma-surface-repairs, G6): the phone
+               rows have no "Stored" column, so the phone lists' 560 px
+               block shows the rows' sentence instead of the table's. --%>
+          <span class="quotes-basis__table">
+            <%= gettext("Price basis: %{basis}. The stored column keeps the unmodified values.",
+              basis: series_basis_label(@series_basis, @split_events)
+            ) %>
+          </span>
+          <span class="quotes-basis__rows">
+            <%= gettext(
+              "Price basis: %{basis}. Where a split adjusted a close, “stored” under it shows the unmodified value.",
+              basis: series_basis_label(@series_basis, @split_events)
+            ) %>
+          </span>
         </p>
         <div class="data-table-wrap" id="quotes-table-wrapper">
           <table class="data-table detail-quotes-table">
