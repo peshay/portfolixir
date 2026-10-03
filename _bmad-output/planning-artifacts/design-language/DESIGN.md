@@ -4049,7 +4049,7 @@ but `bond` and `government_bond`, read as the effective class.
   two per row under 720 px (rule ④, which issue 1050 carried); the basis
   line **is** `.detail-tab-hint`, as under the ADR-0047 grid.
 - **First row, what was entered:** *Fälligkeit* (the ISO date; sub-line
-  "Emission <date>" when an issue date is set), *Kupon* ("2,50 %" with the
+  "Emission <date>" when an issue date is set), *Kupon* ("2,5 %" with the
   unit "p. a."; sub-line *jährlich* or *halbjährlich*, or *keine
   Zinszahlung* for a zero coupon), *Nominal im Bestand* ("10.000,00" with
   the face value's currency; sub-line "100 Stück × 100 EUR · Stückelung
@@ -4058,11 +4058,15 @@ but `bond` and `government_bond`, read as the effective class.
   held).
 - **Second row, what follows, each under its input:** *Restlaufzeit* ("4 J.
   8 M."; sub-line "4,70 Jahre ab <today>"), *Laufende Rendite* ("2,57 %";
-  sub-line "2,50 ÷ 97,25 (<quote date>)", or "2,50 ÷ 98,50, letzter eigener
+  sub-line "2,5 ÷ 97,25 (<quote date>)", or "2,5 ÷ 98,5, letzter eigener
   Handelspreis" while the valuation prices by the own trade, board A4),
   *Rendite bis Fälligkeit* ("≈ 3,17 %"; sub-line *linear angenähert*).
-  Percent figures and the years at two places; the quantity and the
-  denomination as stored (`Format.exact`).
+  What is computed — the yields and the years — at two places; what is
+  stored — the coupon, the price in the ratio line, the quantity and the
+  denomination — as stored, trailing zeros trimmed (`Format.exact`): a
+  coupon of 4,125 % reads "4,125 %" and its ratio "4,125 ÷ 97,125", never
+  "4,13 ÷ 97,13" beside a yield computed from 4,125 (closing act on U7,
+  finding 2; board `ux-review-2026-10-03/04-bond-repairs` B1).
 - **The basis line** (`data-role="bond-basis"`) says once what the figures
   are, how they are made and what they leave out: coupon and price in
   percent of face, one unit a hundredth of the nominal, so the price is also
