@@ -172,4 +172,60 @@ defmodule Portfolixir.Imports.GoldenMasterTest do
              )
     end
   end
+
+  # User story:
+  # As a maintainer whose Portfolio Performance CSV moves money and shares
+  # between my own accounts and depots,
+  # I want every transfer in the file to land once, in the direction it
+  # moved, whichever export shape carried it,
+  # so that no transfer books twice, none books reversed, and none turns a
+  # depot into a cash account.
+  #
+  # Acceptance criteria (#1023, Sprint 18 C1):
+  # - transfers.csv carries both sides of one cash transfer, a receiving side
+  #   alone, and a depot transfer in the shape PP's "All transactions" export
+  #   writes it ("Umbuchung (Ausgang)" with the security).
+  # - Cash balances and depot positions are Decimal-exact, and the import
+  #   creates no cash account named after a depot.
+  describe "golden master: transfers.csv, every PP transfer shape" do
+    setup do
+      portfolio = import_target()
+
+      {:ok, preview} =
+        PortfolioPerformance.parse(read!("transfers.csv"), filename: "transfers.csv")
+
+      {:ok, _result} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+      {:ok, portfolio: portfolio}
+    end
+
+    test "books each transfer once, in the direction it moved", %{portfolio: portfolio} do
+      # Example-Cash:   +5000.00 deposit, -500.00 buy,
+      #                 -1000.00 to Example-Cash-2 (both sides in the file, booked once),
+      #                 +300.00 from Example-Cash-2 (the receiving side alone)
+      #                 => 3800.00
+      assert Decimal.equal?(cash_balance(portfolio.id, "Example-Cash"), Decimal.new("3800.00"))
+
+      # Example-Cash-2: -100.00 buy, +1000.00, -300.00 => 600.00
+      assert Decimal.equal?(cash_balance(portfolio.id, "Example-Cash-2"), Decimal.new("600.00"))
+
+      names = portfolio.id |> Portfolios.list_cash_accounts_for_portfolio() |> Enum.map(& &1.name)
+      assert Enum.sort(names) == ["Example-Cash", "Example-Cash-2"]
+    end
+
+    test "moves the depot transfer's shares between the depots", %{portfolio: portfolio} do
+      fund = &(&1.name == "Example World Fund")
+
+      # Example-Depot: 10 bought, 4 transferred out => 6.
+      assert Decimal.equal?(
+               position_quantity(portfolio.id, "Example-Depot", fund),
+               Decimal.new("6")
+             )
+
+      # Example-Depot-2: 2 bought, 4 transferred in => 6.
+      assert Decimal.equal?(
+               position_quantity(portfolio.id, "Example-Depot-2", fund),
+               Decimal.new("6")
+             )
+    end
+  end
 end

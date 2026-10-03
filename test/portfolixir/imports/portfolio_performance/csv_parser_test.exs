@@ -241,4 +241,158 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       assert message =~ Integer.to_string(max)
     end
   end
+
+  # User story:
+  # As a maintainer importing a Portfolio Performance CSV that moves money or
+  # shares between two of my accounts or depots,
+  # I want every transfer booked exactly once, in the direction it moved,
+  # whichever of PP's export shapes the file has,
+  # so that both cash balances and both depot positions come out right.
+  #
+  # Acceptance criteria (#1023, Sprint 18 C1; established from Portfolio
+  # Performance's source at commit bcae360b, 2026-10-02):
+  # - PP's "All transactions" export writes ONE row per transfer, the sending
+  #   side: "Umbuchung (Ausgang)", `Konto` the sender, `Gegenkonto` the
+  #   receiver (`Client.getAllTransactions/0` leaves out every TRANSFER_IN).
+  #   It is booked as it reads.
+  # - A depot-to-depot transfer in that export is also "Umbuchung (Ausgang)",
+  #   carrying the security (PP labels a portfolio TRANSFER_OUT the same way):
+  #   a row naming a security is a security transfer, never a cash transfer.
+  # - An account's or a security's own transaction list in PP exports the
+  #   receiving side too: "Umbuchung (Eingang)", `Konto` the receiver,
+  #   `Gegenkonto` the sender. It is booked from `Gegenkonto` to `Konto`.
+  # - A file carrying both sides of one transfer books it once, from the
+  #   sending row; the receiving row is named in the parser warnings with the
+  #   row it was booked from. Sides pair only on equal date, time, security,
+  #   shares, amount and accounts, so two different transfers never merge.
+  describe "parse/2 transfers in every Portfolio Performance export shape" do
+    @header "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n"
+
+    defp transfers(rows) do
+      {:ok, preview} = CsvParser.parse(@header <> rows)
+      preview
+    end
+
+    defp direction(entry) do
+      {entry.kind, entry.pp_portfolio_name, entry.pp_account_name,
+       entry.pp_counter_portfolio_name, entry.pp_counter_account_name}
+    end
+
+    test "books the sending side of a cash transfer from Konto to Gegenkonto" do
+      preview =
+        transfers(
+          "2024-08-12 10:00:00;Umbuchung (Ausgang);;;;1.000,00;;;1.000,00;Cash-A;Cash-B;;\n"
+        )
+
+      assert %Preview{errors: [], entries: [entry]} = preview
+      assert direction(entry) == {"cash_transfer", nil, "Cash-A", nil, "Cash-B"}
+      assert Decimal.equal?(entry.gross_amount, Decimal.new("1000.00"))
+    end
+
+    test "books the receiving side of a cash transfer from Gegenkonto to Konto" do
+      preview =
+        transfers(
+          "2024-08-12 10:00:00;Umbuchung (Eingang);;;;1.000,00;;;1.000,00;Cash-B;Cash-A;;\n"
+        )
+
+      assert %Preview{errors: [], entries: [entry]} = preview
+      assert direction(entry) == {"cash_transfer", nil, "Cash-A", nil, "Cash-B"}
+      assert Decimal.equal?(entry.gross_amount, Decimal.new("1000.00"))
+    end
+
+    test "books PP's sending-side depot transfer as a security transfer" do
+      preview =
+        transfers(
+          "2024-11-15 21:00:00;Umbuchung (Ausgang);Example Fund;3;20,00;60,00;;;60,00;Depot-A;Depot-B;;\n"
+        )
+
+      assert %Preview{errors: [], entries: [entry]} = preview
+      assert direction(entry) == {"security_transfer", "Depot-A", nil, "Depot-B", nil}
+      assert Decimal.equal?(entry.quantity, Decimal.new("3"))
+      assert entry.gross_amount == nil
+      assert entry.security.name == "Example Fund"
+    end
+
+    test "books the receiving side of a depot transfer from Gegenkonto to Konto" do
+      preview =
+        transfers(
+          "2024-11-15 21:00:00;Umbuchung (Eingang);Example Fund;3;20,00;60,00;;;60,00;Depot-B;Depot-A;;\n"
+        )
+
+      assert %Preview{errors: [], entries: [entry]} = preview
+      assert direction(entry) == {"security_transfer", "Depot-A", nil, "Depot-B", nil}
+    end
+
+    test "keeps the security-transfer label Portfolixir's converter writes" do
+      preview =
+        transfers(
+          "2024-11-15 21:00:00;Umbuchung (Wertpapier);Example Fund;3;;60,00;;;60,00;Depot-A;Depot-B;;\n"
+        )
+
+      assert %Preview{errors: [], entries: [entry]} = preview
+      assert direction(entry) == {"security_transfer", "Depot-A", nil, "Depot-B", nil}
+    end
+
+    test "books both sides of one cash transfer once, from the sending row" do
+      preview =
+        transfers("""
+        2024-08-12 10:00:00;Umbuchung (Eingang);;;;1.000,00;;;1.000,00;Cash-B;Cash-A;;
+        2024-08-12 10:00:00;Umbuchung (Ausgang);;;;1.000,00;;;1.000,00;Cash-A;Cash-B;;
+        """)
+
+      assert %Preview{entries: [entry], errors: [%{row: 1, message: message}]} = preview
+      assert entry.source_row == 2
+      assert direction(entry) == {"cash_transfer", nil, "Cash-A", nil, "Cash-B"}
+      assert message =~ "receiving side of the transfer in row 2"
+    end
+
+    test "books both sides of one depot transfer once, from the sending row" do
+      preview =
+        transfers("""
+        2024-11-15 21:00:00;Umbuchung (Ausgang);Example Fund;3;20,00;60,00;;;60,00;Depot-A;Depot-B;;
+        2024-11-15 21:00:00;Umbuchung (Eingang);Example Fund;3;20,00;60,00;;;60,00;Depot-B;Depot-A;;
+        """)
+
+      assert %Preview{entries: [entry], errors: [%{row: 2, message: message}]} = preview
+      assert entry.source_row == 1
+      assert direction(entry) == {"security_transfer", "Depot-A", nil, "Depot-B", nil}
+      assert message =~ "row 1"
+    end
+
+    test "never pairs two different transfers between the same accounts" do
+      preview =
+        transfers("""
+        2024-08-12 10:00:00;Umbuchung (Ausgang);;;;1.000,00;;;1.000,00;Cash-A;Cash-B;;
+        2024-08-12 10:00:00;Umbuchung (Eingang);;;;250,00;;;250,00;Cash-B;Cash-A;;
+        2024-08-13 10:00:00;Umbuchung (Eingang);;;;1.000,00;;;1.000,00;Cash-B;Cash-A;;
+        2024-08-12 10:00:00;Umbuchung (Eingang);;;;1.000,00;;;1.000,00;Cash-A;Cash-B;;
+        """)
+
+      assert %Preview{errors: [], entries: entries} = preview
+      assert Enum.map(entries, & &1.source_row) == [1, 2, 3, 4]
+
+      assert Enum.map(entries, &direction/1) == [
+               {"cash_transfer", nil, "Cash-A", nil, "Cash-B"},
+               {"cash_transfer", nil, "Cash-A", nil, "Cash-B"},
+               {"cash_transfer", nil, "Cash-A", nil, "Cash-B"},
+               {"cash_transfer", nil, "Cash-B", nil, "Cash-A"}
+             ]
+    end
+
+    test "pairs each receiving row with one sending row, never two" do
+      preview =
+        transfers("""
+        2024-08-12 10:00:00;Umbuchung (Ausgang);;;;1.000,00;;;1.000,00;Cash-A;Cash-B;;
+        2024-08-12 10:00:00;Umbuchung (Ausgang);;;;1.000,00;;;1.000,00;Cash-A;Cash-B;;
+        2024-08-12 10:00:00;Umbuchung (Eingang);;;;1.000,00;;;1.000,00;Cash-B;Cash-A;;
+        2024-08-12 10:00:00;Umbuchung (Eingang);;;;1.000,00;;;1.000,00;Cash-B;Cash-A;;
+        2024-08-12 10:00:00;Umbuchung (Eingang);;;;1.000,00;;;1.000,00;Cash-B;Cash-A;;
+        """)
+
+      assert Enum.map(preview.entries, & &1.source_row) == [1, 2, 5]
+      assert [%{row: 3, message: first}, %{row: 4, message: second}] = preview.errors
+      assert first =~ "row 1"
+      assert second =~ "row 2"
+    end
+  end
 end

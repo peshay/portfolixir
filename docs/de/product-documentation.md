@@ -2146,6 +2146,60 @@ Wertpapier wie jedes andere und wird über die Zuordnungsleiter unten
 aufgelöst. Eine Vorschau wird für den nächsten Besuch (Sprachwechsel,
 Neuladen) erst aufbewahrt, wenn sie einmal angezeigt wurde.
 
+### Umbuchungen in einer Portfolio-Performance-CSV
+
+Portfolio Performance benennt eine Umbuchung nach ihrer Seite: *Umbuchung
+(Ausgang)* ist die Seite, die das Geld oder die Stücke verlassen, *Umbuchung
+(Eingang)* die Seite, die sie erreichen. `Konto` ist immer das eigene Konto
+oder Depot der Zeile, `Gegenkonto` die andere Seite. Eine Umbuchungszeile, die
+ein Wertpapier nennt, bewegt Stücke zwischen zwei Depots; eine ohne Wertpapier
+bewegt Geld zwischen zwei Verrechnungskonten. Der Import bucht jede Umbuchung
+einmal, in der Richtung, in die sie ging:
+
+- Der Export **Alle Buchungen** von Portfolio Performance schreibt nur die
+  Ausgangsseite, eine Zeile je Umbuchung. Er ist der Export der Wahl.
+- Die eigene Buchungsliste eines Kontos oder eines Wertpapiers in Portfolio
+  Performance schreibt auch die Eingangsseite. Eine Datei, die nur diese Seite
+  trägt, bucht die Umbuchung von `Gegenkonto` nach `Konto`.
+- Eine Datei mit **beiden Seiten** einer Umbuchung, etwa aus den Listen zweier
+  Konten zusammengesetzt, bucht sie einmal, aus der Ausgangszeile. Die
+  Eingangszeile steht unter den Parser-Warnungen, mit der Zeile, aus der
+  gebucht wurde. Zwei Seiten gehören nur zusammen, wenn Datum, Uhrzeit,
+  Wertpapier, Stückzahl, Betrag und beide Namen übereinstimmen; zwei
+  verschiedene Umbuchungen werden also nie eins. Eine Umbuchung zwischen
+  Konten in zwei Währungen trägt zwei verschiedene Beträge und wird nicht
+  gepaart; der CSV-Import bucht ohnehin nur in EUR, JSON v1 ist das Format für
+  andere Währungen.
+
+**Importe mit Release 2026.10.3 oder früher haben Umbuchungen anders
+gelesen.** Drei Arten von Buchungen daraus sind falsch:
+
+1. **Eine Umbuchung zwischen zwei Depots** aus dem Export Alle Buchungen
+   wurde als Geldumbuchung zwischen zwei Verrechnungskonten mit den Namen der
+   Depots gebucht, und die Stücke blieben im abgebenden Depot. Das Zeichen
+   dafür ist ein Verrechnungskonto mit dem Namen eines Depots auf der Seite
+   Konten.
+2. **Eine Eingangsseite allein** wurde in der Gegenrichtung gebucht.
+3. **Beide Seiten einer Umbuchung** wurden zweimal gebucht, je einmal in jede
+   Richtung. Die beiden heben sich auf, also zeigt kein Saldo die Umbuchung.
+   In der Buchungshistorie nach dem Typ *Umbuchung* filtern: Zwei Umbuchungen
+   an einem Datum, mit einem Betrag, zwischen denselben zwei Konten in
+   Gegenrichtung sind ein solches Paar.
+
+Um eine früher importierte Datei zu prüfen, diese auf der Seite Importe erneut
+ablegen. Eine bereits importierte Datei zeigt in der Vorschau *nichts
+anzulegen*; eine Zeile, die die Vorschau jetzt als neu zählt, ist eine
+Umbuchung, die der frühere Import anders gelesen hat (Fälle 1 und 2). Die
+falsche Buchung vor dem Übernehmen entfernen: über die API oder den
+MCP-Begleiter löschen (`DELETE /api/v1/transactions/:id`,
+`portfolixir.transactions.delete`), dann die Datei übernehmen, die die
+Umbuchung so bucht, wie sie ging. Ein Verrechnungskonto mit dem Namen eines
+Depots hält danach nichts mehr und kann gelöscht werden. Fall 3 braucht keinen
+erneuten Import: die Buchung in der falschen Richtung löschen; die
+Ausgangszeile der Datei bleibt die bereits importierte. Ob eine Instanz solche
+Buchungen hat, sagt Portfolixir nicht von selbst; die Prüfung oben ist Sache
+des Betreibers.
+
 ### Was ein erneuter Import bewahrt
 
 Das erneute Anwenden **desselben** Portfolio-Performance-Exports ist ein

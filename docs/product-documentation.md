@@ -1977,6 +1977,55 @@ second security. An entry with only a WKN or only a ticker is a security like
 any other and resolves through the matching ladder below. A preview is kept
 for your next visit (a language switch, a reload) only once it has been shown.
 
+### Transfers in a Portfolio Performance CSV
+
+Portfolio Performance names a transfer by its side: *Umbuchung (Ausgang)* is
+the side the money or the shares leave, *Umbuchung (Eingang)* the side they
+reach. `Konto` is always the row's own account or depot and `Gegenkonto` the
+other one. A transfer row that names a security moves shares between two
+depots; one without moves money between two cash accounts. The import books
+each transfer once, in the direction it moved:
+
+- Portfolio Performance's **All transactions** export writes the sending side
+  only, one row per transfer. It is the export to use.
+- An account's or a security's own transaction list in Portfolio Performance
+  writes the receiving side as well. A file that carries only that side books
+  the transfer from `Gegenkonto` to `Konto`.
+- A file that carries **both sides** of one transfer, for example two
+  accounts' lists put together, books it once, from the sending row. The
+  receiving row is listed among the parser warnings with the row it was
+  booked from. Two sides pair only when date, time, security, shares, amount
+  and both names agree, so two different transfers never merge. A transfer
+  between accounts in two currencies carries two different amounts and does
+  not pair; the CSV import books in EUR only, and JSON v1 is the format for
+  other currencies.
+
+**Imports made with release 2026.10.3 or earlier read transfers
+differently.** Three kinds of booking they made are wrong:
+
+1. **A transfer between two depots** from the All transactions export was
+   booked as a cash transfer between two cash accounts named after the
+   depots, and the shares stayed in the sending depot. A cash account that
+   carries a depot's name, on the Accounts page, is the sign.
+2. **A receiving side on its own** was booked in the opposite direction.
+3. **Both sides of one transfer** were booked twice, once in each direction.
+   The two cancel, so neither balance shows the transfer. In the transaction
+   history, filter by the type *Cash transfer*: two transfers on one date,
+   with one amount, between the same two accounts in opposite directions are
+   such a pair.
+
+To check a file imported before, drop it on the Imports page again. A file
+already imported previews as *nothing to create*, so a row the preview now
+counts as new is a transfer the earlier import read differently (cases 1 and
+2). Remove the wrong booking before you apply: delete it through the API or
+the MCP companion (`DELETE /api/v1/transactions/:id`,
+`portfolixir.transactions.delete`), then apply the file, which books the
+transfer as it moved. A cash account named after a depot holds nothing else
+once its transfer is gone and can be deleted. Case 3 needs no re-import: delete
+the booking whose direction is wrong, and the file's sending row stays the one
+already imported. Nothing in Portfolixir tells whether an instance has such
+bookings; the check above is the operator's.
+
 ### What a re-import preserves
 
 Re-applying the **same** Portfolio Performance export is a **content-hash

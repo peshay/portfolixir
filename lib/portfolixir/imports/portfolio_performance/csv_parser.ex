@@ -22,6 +22,15 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     "portfolio") and `Gegenkonto` is the cash account. For cash-only
     entries, `Konto` is the cash account. The parser maps fields based
     on the German type label.
+  - Transfers (#1023), as Portfolio Performance writes them: `Konto` is the
+    row's own account or depot and `Gegenkonto` the other side. "Umbuchung
+    (Ausgang)" is the sending side and "Umbuchung (Eingang)" the receiving
+    side, for a cash account and a depot alike; a row naming a security is a
+    depot's. PP's "All transactions" export writes the sending side only; an
+    account's or a security's own list writes the receiving side too, so a
+    file assembled from such lists can carry both. Each transfer is booked
+    once, from the sending row, and the receiving row it pairs with is a row
+    warning naming that row.
   """
 
   use Gettext, backend: PortfolixirWeb.Gettext
@@ -44,11 +53,20 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     "Gebühren" => "fee",
     "Steuern" => "tax",
     "Steuerrückerstattung" => "tax_refund",
-    "Umbuchung (Ausgang)" => "cash_transfer",
-    "Umbuchung (Eingang)" => "cash_transfer",
     "Einlieferung" => "inbound_delivery",
     "Auslieferung" => "outbound_delivery",
     "Umbuchung (Wertpapier)" => "security_transfer"
+  }
+
+  # #1023: Portfolio Performance labels a cash account's and a depot's
+  # transfer alike (`labels_de.properties`: account.TRANSFER_OUT and
+  # portfolio.TRANSFER_OUT are both "Umbuchung (Ausgang)"), so the side comes
+  # from the label and the kind from whether the row names a security.
+  # "Umbuchung (Wertpapier)" above is not a PP label: it is the one
+  # Portfolixir's converter prompt writes, and it stays a sending side.
+  @transfer_sides %{
+    "Umbuchung (Ausgang)" => :sending,
+    "Umbuchung (Eingang)" => :receiving
   }
 
   # Deliveries and security transfers move shares but settle no cash; they carry
@@ -69,25 +87,27 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
         with :ok <- validate_header(header_row),
              :ok <- validate_row_count(data_rows),
              :ok <- validate_entry_count(header_row, data_rows) do
-          {entries, errors} =
+          {tagged, errors} =
             data_rows
             |> Enum.with_index(1)
             |> Enum.reduce({[], []}, fn {raw, row}, {acc_entries, acc_errors} ->
               case to_entry(header_row, raw, row) do
-                {:ok, entry} ->
-                  {[entry | acc_entries], acc_errors}
+                {:ok, entry, side} ->
+                  {[{entry, side} | acc_entries], acc_errors}
 
                 {:error, message} ->
                   {acc_entries, [%{row: row, message: message} | acc_errors]}
               end
             end)
 
+          {entries, paired} = pair_transfer_sides(Enum.reverse(tagged))
+
           {:ok,
            %Preview{
              format: :csv,
              source_filename: Keyword.get(opts, :filename),
-             entries: Enum.reverse(entries),
-             errors: Enum.reverse(errors)
+             entries: entries,
+             errors: Enum.sort_by(Enum.reverse(errors) ++ paired, & &1.row)
            }}
         end
     end
@@ -143,16 +163,91 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     cells = Enum.zip(header, row) |> Map.new()
     pp_type = Map.get(cells, "Typ", "") |> String.trim()
 
-    case Map.fetch(@kind_map, pp_type) do
-      {:ok, kind} ->
-        build_entry(kind, cells, source_row)
+    case kind(pp_type, cells) do
+      {:ok, kind, side} ->
+        with {:ok, entry} <- build_entry(kind, side, cells, source_row), do: {:ok, entry, side}
 
       :error ->
         {:error, gettext("unknown PP CSV type %{type}", type: inspect(pp_type))}
     end
   end
 
-  defp build_entry(kind, cells, source_row) do
+  defp kind(pp_type, cells) do
+    case Map.fetch(@transfer_sides, pp_type) do
+      {:ok, side} ->
+        if present_string(Map.get(cells, "Wertpapier")),
+          do: {:ok, "security_transfer", side},
+          else: {:ok, "cash_transfer", side}
+
+      :error ->
+        with {:ok, kind} <- Map.fetch(@kind_map, pp_type), do: {:ok, kind, nil}
+    end
+  end
+
+  # #1023: both sides of one transfer in one file. A receiving row, its
+  # direction turned, equals the sending row in every field the ledger books,
+  # so it pairs one to one with such a row and is left out, named as a row
+  # warning with the row it was booked from. Different transfers between the
+  # same accounts differ in a booked field and never pair.
+  defp pair_transfer_sides(tagged) do
+    sending =
+      tagged
+      |> Enum.filter(fn {_entry, side} -> side == :sending end)
+      |> Enum.group_by(fn {entry, _} -> transfer_key(entry) end, fn {entry, _} ->
+        entry.source_row
+      end)
+
+    {kept, paired, _sending} =
+      Enum.reduce(tagged, {[], [], sending}, fn
+        {entry, :receiving}, {kept, paired, sending} ->
+          key = transfer_key(entry)
+
+          case Map.get(sending, key, []) do
+            [booked_row | rest] ->
+              message =
+                gettext(
+                  "receiving side of the transfer in row %{row} — booked once, from that row",
+                  row: booked_row
+                )
+
+              {kept, [%{row: entry.source_row, message: message} | paired],
+               Map.put(sending, key, rest)}
+
+            [] ->
+              {[entry | kept], paired, sending}
+          end
+
+        {entry, _side}, {kept, paired, sending} ->
+          {[entry | kept], paired, sending}
+      end)
+
+    {Enum.reverse(kept), Enum.reverse(paired)}
+  end
+
+  defp transfer_key(%Entry{} = entry) do
+    entry
+    |> Map.take([
+      :kind,
+      :date,
+      :time,
+      :security,
+      :quantity,
+      :price,
+      :gross_amount,
+      :fees,
+      :taxes,
+      :pp_portfolio_name,
+      :pp_account_name,
+      :pp_counter_portfolio_name,
+      :pp_counter_account_name
+    ])
+    |> Map.new(fn
+      {field, %Decimal{} = value} -> {field, Decimal.normalize(value)}
+      pair -> pair
+    end)
+  end
+
+  defp build_entry(kind, side, cells, source_row) do
     with {:ok, date_time} <- parse_datetime(Map.get(cells, "Datum")),
          {:ok, quantity} <- Decimals.parse_de(Map.get(cells, "Stück")),
          {:ok, price} <- Decimals.parse_de(Map.get(cells, "Kurs")),
@@ -161,8 +256,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
          {:ok, raw_taxes} <- Decimals.parse_de(Map.get(cells, "Steuern")) do
       {date, time} = date_time
       security_name = present_string(Map.get(cells, "Wertpapier"))
-      konto = present_string(Map.get(cells, "Konto"))
-      gegenkonto = present_string(Map.get(cells, "Gegenkonto"))
+
+      {konto, gegenkonto} =
+        own_and_other(
+          side,
+          present_string(Map.get(cells, "Konto")),
+          present_string(Map.get(cells, "Gegenkonto"))
+        )
 
       {pp_portfolio, pp_account, pp_counter_portfolio, pp_counter_account} =
         map_accounts(kind, konto, gegenkonto)
@@ -306,6 +406,11 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
       latest: Date.to_iso8601(BoundedDate.latest())
     )
   end
+
+  # A receiving row names itself in `Konto` and the sender in `Gegenkonto`:
+  # turned, it reads as the sending row does (#1023).
+  defp own_and_other(:receiving, konto, gegenkonto), do: {gegenkonto, konto}
+  defp own_and_other(_side, konto, gegenkonto), do: {konto, gegenkonto}
 
   # For trades (Kauf/Verkauf) the PP CSV uses Konto=depot,
   # Gegenkonto=cash. For cash-only entries Konto=cash. For
