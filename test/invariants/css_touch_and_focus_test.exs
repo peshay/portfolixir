@@ -107,6 +107,43 @@ defmodule Portfolixir.Invariants.CssTouchAndFocusTest do
     assert ring =~ ~r/border-radius:\s*var\(--radius-sm\);/
   end
 
+  # User story (#1033; board 06, H6.4, rule ④):
+  # As the operator reading a one-line result ("Kurse aktualisiert."),
+  # I want its × to sit on the sentence's line,
+  # so that the note is one line high and the severity word stands beside
+  # its sentence instead of 8 px above it — and the × stays a 44 px target
+  # on touch.
+  #
+  # Acceptance criteria:
+  # - On the desktop the dismiss drops the base button's 34 px floor
+  #   (`min-height: 0`, the cause, not the 1.4rem) and is 1rem high, so it
+  #   fits the 18 px line; its width, margin and hover stay.
+  # - Under a coarse pointer it is 44 × 44 with 14 px of block padding given
+  #   back as a negative block margin, so the touch target is 44 px and the
+  #   line stays 18 px. Without this half, dropping the floor would shrink
+  #   the touch target from 34 to 16 px.
+  test "the inline result's dismiss fits its line and keeps a 44 px touch target" do
+    dismiss = block(".inline-result__dismiss")
+
+    assert dismiss =~ ~r/min-height:\s*0;/
+    assert dismiss =~ ~r/\n\s*height:\s*1rem;/
+    assert dismiss =~ ~r/width:\s*1\.4rem;/
+
+    touch =
+      case Regex.run(
+             ~r/@media \(pointer: coarse\) \{\s*\.inline-result__dismiss \{([^}]*)\}\s*\}/,
+             @css
+           ) do
+        [_, body] -> body
+        nil -> flunk("no coarse rule for the inline result's dismiss")
+      end
+
+    assert touch =~ ~r/width:\s*44px;/
+    assert touch =~ ~r/\n\s*height:\s*44px;/
+    assert touch =~ ~r/padding-block:\s*14px;/
+    assert touch =~ ~r/margin-block:\s*-14px;/
+  end
+
   defp block(selector) do
     case Regex.run(~r/\n#{Regex.escape(selector)} \{([^}]*)\}/, @css) do
       [_, body] -> body

@@ -449,6 +449,7 @@ components:
     busy: 'while the action runs, the trigger carries the busy state and the slot reserves the result footprint, so nothing reflows when the result lands'
     persistence: 'persists until the next action on the same control, a navigation, or an explicit dismiss. It does NOT self-dismiss on a timer — the 4.5s auto-dismiss of .status-toast (AutoDismissToast hook) is exactly the behaviour #566 retires.'
     aria: 'the result region is `role="status"` (polite) for note and attention, `role="alert"` for problem; the region exists in the DOM before the action so the announcement is not lost'
+    dismiss: 'the × (`.inline-result__dismiss`) sits on the sentence line: 1.4rem wide, 1rem high, no 34px button floor, so a one-line result is one line (36px) with its severity word beside the sentence; under `pointer: coarse` 44 × 44 with 14px block padding given back as a negative block margin, so the target is 44px and the line stays 18px (Sprint 18 U4, H6.4, issue 1033)'
   budget-meter:
     scope: 'the Tax allowance-order "fill level" — the only meter in the product'
     track: 'full-width bar, height {spacing.2}, radius {rounded.full}, background {colors.bg-muted}, 1px {colors.border}'
@@ -3381,3 +3382,18 @@ nearly invisible in the dark theme. One rule for the three Overview cards
 that share the class ("Abgeschlossene Trades", "Ziel-Abweichungen",
 "Fällig"); the list's 6 px row gap keeps the ring clear of the next row.
 Front matter: `needs-attention-card.focus`.
+
+### The inline result's dismiss *(H6.4, rule ④; issue 1033)*
+
+The cause was the base button's 34 px floor, not the 1.4rem the issue
+named: `.inline-result__dismiss` declared `height: 1.4rem`, `button
+{ min-height: 34px }` won, and the × became a 22 × 34 box middle-aligned on
+its line, so a one-line result ("Kurse aktualisiert.") measured 52 px
+instead of 36 and its severity word sat 8 px above the sentence. The dismiss
+now sets `min-height: 0; height: 1rem` (width, margin and hover unchanged).
+Under `pointer: coarse` it is `width: 44px; height: 44px; padding-block:
+14px; margin-block: -14px` — a 44 px target whose line stays 18 px; without
+that half the floor's removal would have shrunk the touch target to 16 px.
+In the release result it stands beside the remedy "Sync prices", both 44 px
+tall and grown only vertically, so they do not overlap. Front matter:
+`inline-result.dismiss`.
