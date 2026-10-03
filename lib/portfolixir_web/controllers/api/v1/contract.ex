@@ -39,6 +39,25 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 11,
+      # Sprint 18's PR β (the operator's money surface): the lane PR's one
+      # entry, opened by its first surface change (F4); every later surface
+      # change of the PR extends it, each item named by its story.
+      date: ~D[2026-10-03],
+      summary:
+        "Sprint 18, the operator's money surface: F4, the category result takes the view " <>
+          "scope in the performance family's two forms, the portfolio read narrowed with " <>
+          "view= and a view read across every portfolio, and states the scope it was " <>
+          "computed over (#901).",
+      endpoints: ["GET /api/v1/views/:view_id/category-results"],
+      tools: [],
+      parameters: [
+        "GET /api/v1/portfolios/:portfolio_id/category-results (portfolixir.portfolios.category_results) takes view= (a view id): only the portfolio's positions matching the view roll up, and the active view is echoed as view: {id, name}; a malformed view is a 422, an unknown one a 404. GET /api/v1/views/:view_id/category-results, new, rolls up the positions matching the view across every portfolio, each account counted once, in EUR, a member whose cost was not paid in EUR excluded as missing_base_cost; the MCP tool reaches it with view and no portfolio_id, which is now optional (one of the two is required). Both forms answer scope (portfolio or view), portfolio_id, view_id and base_currency, and basis_note closes on a sentence naming it; every other field the read served before is unchanged (F4, #901)"
+      ],
+      removed_endpoints: [],
+      removed_tools: []
+    },
+    %{
       version: 10,
       # PR γ's one entry (Sprint 17, the operator's due surfaces), after PR β's
       # 9: every later surface change of the PR extends it.

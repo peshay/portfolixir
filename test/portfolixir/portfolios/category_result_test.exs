@@ -2,9 +2,18 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
   use Portfolixir.DataCase, async: true
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 0, base_world: 1, create_security!: 1, buy!: 3, deposit!: 3]
+    only: [
+      add_depot: 2,
+      base_world: 0,
+      base_world: 1,
+      create_security!: 1,
+      buy!: 3,
+      deposit!: 3,
+      deposit!: 4
+    ]
 
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Classifications
   alias Portfolixir.Portfolios.CategoryResult
 
@@ -41,6 +50,17 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
 
   defp fetch(result, category_id),
     do: Enum.find(result.categories, &(&1.category_id == category_id))
+
+  # A bucket, the depot it tags and a view that includes only it (#901).
+  defp tagged_bucket! do
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Retirement"})
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Retired", include_all: false})
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+    {bucket, view}
+  end
+
+  defp tag!(%{depot: depot}, bucket),
+    do: :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [bucket.id])
 
   # User story (#712, ADR-0041 §§1-4):
   # As a local portfolio maintainer (and the LLM I connect over MCP),
@@ -364,6 +384,16 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
       assert {:error, :not_found} = CategoryResult.for_portfolio(world.portfolio.id, 9_999_999)
     end
 
+    test "states the scope it was computed over" do
+      world = world_with_tree()
+
+      {:ok, result} = CategoryResult.for_portfolio(world.portfolio.id, world.classification.id)
+
+      assert result.scope == :portfolio
+      assert result.view_id == nil
+      assert result.base_currency == "EUR"
+    end
+
     test "a category with no members reports zeroes rather than nil" do
       world = world_with_tree()
 
@@ -388,6 +418,149 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
       assert is_nil(satellite.result_pct)
       assert satellite.member_count == 0
       assert satellite.positions == []
+    end
+  end
+
+  # User story (#901; ADR-0041 §1, ADR-0051 §6):
+  # As the operator's agent reading the category result,
+  # I want it at the scopes the performance family reads — one portfolio,
+  # narrowed by a view, or a view across every portfolio —
+  # so that "how is Core doing in my retirement view?" is one read, not a
+  # join of holdings to buckets I would do myself.
+  #
+  # Acceptance criteria:
+  # - for_portfolio/3 with `view:` rolls up only that portfolio's positions
+  #   matching the view; without it the result is unchanged.
+  # - for_view/3 rolls up the positions matching the view across every
+  #   portfolio, each account once, in EUR: a member whose cost was not paid
+  #   in EUR is excluded and named (missing_base_cost), never summed across
+  #   currencies.
+  # - The result states its scope, its view and its base currency; an
+  #   unknown view is {:error, :view_not_found}.
+  describe "the view scope (#901)" do
+    test "narrows one portfolio to the positions matching a view" do
+      world = world_with_tree()
+
+      %{depot: other_depot, cash: other_cash} =
+        add_depot(world.portfolio, depot_name: "Other", cash_name: "Other Cash")
+
+      other = %{world | depot: other_depot, cash: other_cash}
+      {bucket, view} = tagged_bucket!()
+      tag!(world, bucket)
+
+      alpha = create_security!(name: "Alpha AG", ticker: "ALP")
+      beta = create_security!(name: "Beta AG", ticker: "BET")
+      assign!(alpha, world.classification, world.core)
+      assign!(beta, world.classification, world.core)
+
+      deposit!(world, "10000", ~D[2026-01-01])
+      deposit!(other, "10000", ~D[2026-01-01])
+      buy!(world, alpha, quantity: "10", price: "100")
+      buy!(other, beta, quantity: "10", price: "50")
+
+      prices = %{alpha.id => Decimal.new("150"), beta.id => Decimal.new("40")}
+
+      {:ok, scoped} =
+        CategoryResult.for_portfolio(world.portfolio.id, world.classification.id,
+          view: view.id,
+          prices: prices
+        )
+
+      core = fetch(scoped, world.core.id)
+
+      # Only the tagged depot's Alpha: 10 at 100, now 10 at 150.
+      assert Decimal.equal?(core.invested, Decimal.new("1000"))
+      assert Decimal.equal?(core.current_value, Decimal.new("1500"))
+      assert Decimal.equal?(core.result_abs, Decimal.new("500"))
+      assert core.member_count == 1
+      assert [%{security_name: "Alpha AG"}] = core.positions
+
+      assert scoped.scope == :portfolio
+      assert scoped.portfolio_id == world.portfolio.id
+      assert scoped.view_id == view.id
+      assert scoped.base_currency == "EUR"
+
+      # Without the view nothing is narrowed: 1000 + 500 invested.
+      {:ok, unscoped} =
+        CategoryResult.for_portfolio(world.portfolio.id, world.classification.id, prices: prices)
+
+      assert Decimal.equal?(fetch(unscoped, world.core.id).invested, Decimal.new("1500"))
+      assert unscoped.view_id == nil
+    end
+
+    test "rolls a view up across every portfolio, each account once, in EUR" do
+      first = world_with_tree()
+      second = base_world(name: "Second", cash_name: "Second Cash", depot_name: "Second Depot")
+
+      outside =
+        base_world(name: "Outside", cash_name: "Outside Cash", depot_name: "Outside Depot")
+
+      dollar =
+        base_world(
+          name: "Dollar",
+          currency: "USD",
+          cash_name: "Dollar Cash",
+          depot_name: "Dollar Depot"
+        )
+
+      {bucket, view} = tagged_bucket!()
+      for world <- [first, second, dollar], do: tag!(world, bucket)
+
+      alpha = create_security!(name: "Alpha AG", ticker: "ALP")
+      yankee = create_security!(name: "Yankee Inc", ticker: "YNK", currency: "USD")
+      assign!(alpha, first.classification, first.core)
+      assign!(yankee, first.classification, first.core)
+
+      for world <- [first, second, outside], do: deposit!(world, "10000", ~D[2026-01-01])
+      deposit!(dollar, "10000", ~D[2026-01-01], currency: "USD")
+
+      buy!(first, alpha, quantity: "10", price: "100")
+      buy!(second, alpha, quantity: "5", price: "200")
+      # Outside the view: never counted.
+      buy!(outside, alpha, quantity: "100", price: "1")
+      # Paid in USD: the view's figures are in EUR, so this cost has no EUR
+      # amount to add.
+      buy!(dollar, yankee, quantity: "3", price: "10", currency: "USD")
+
+      prices = %{alpha.id => Decimal.new("150"), yankee.id => Decimal.new("12")}
+
+      {:ok, result} = CategoryResult.for_view(view.id, first.classification.id, prices: prices)
+
+      core = fetch(result, first.core.id)
+
+      # 1000 in the first portfolio + 1000 in the second; 15 units at 150.
+      assert Decimal.equal?(core.invested, Decimal.new("2000"))
+      assert Decimal.equal?(core.current_value, Decimal.new("2250"))
+      assert Decimal.equal?(core.result_abs, Decimal.new("250"))
+      assert Decimal.equal?(core.result_pct, Decimal.new("0.125"))
+
+      assert core.covered_count == 1
+      assert core.member_count == 2
+      assert [%{security_name: "Alpha AG", quantity: quantity}] = core.positions
+      assert Decimal.equal?(quantity, Decimal.new("15"))
+
+      assert [%{security_name: "Yankee Inc", reason: :missing_base_cost}] = core.excluded
+
+      assert result.scope == :view
+      assert result.portfolio_id == nil
+      assert result.view_id == view.id
+      assert result.base_currency == "EUR"
+      assert result.basis == "current_composition"
+    end
+
+    test "an unknown view is a not-found rather than a crash" do
+      world = world_with_tree()
+
+      assert {:error, :view_not_found} =
+               CategoryResult.for_portfolio(world.portfolio.id, world.classification.id,
+                 view: 9_999_999
+               )
+
+      assert {:error, :view_not_found} =
+               CategoryResult.for_view(9_999_999, world.classification.id)
+
+      {_bucket, view} = tagged_bucket!()
+      assert {:error, :not_found} = CategoryResult.for_view(view.id, 9_999_999)
     end
   end
 end

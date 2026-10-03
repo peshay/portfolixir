@@ -1148,10 +1148,18 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   COMPOSITION, with no period, no membership variant and no as-of — and every
   category names how many of its members it covers plus the rows it could not,
   so an aggregate always resolves into the rows behind it.
+
+  The scope travels with it too (#901): `scope` is `portfolio` (one
+  portfolio, `view_id` set when a view narrows it) or `view` (a view across
+  every portfolio, `portfolio_id` null), `base_currency` is the currency of
+  every money figure, and `basis_note` closes on the scope in words.
   """
   def category_result(result) do
     %{
       portfolio_id: result.portfolio_id,
+      view_id: result.view_id,
+      scope: Atom.to_string(result.scope),
+      base_currency: result.base_currency,
       classification_id: result.classification_id,
       # ADR-0041 §1: one line, and it travels with the numbers.
       basis: result.basis,
@@ -1160,10 +1168,26 @@ defmodule PortfolixirWeb.Api.V1.JSON do
           "each category today. A statement about the current composition: " <>
           "no period, no membership basis, no as-of. The percentage is the " <>
           "sum of results divided by the sum of invested, never a mean of the " <>
-          "members' percentages.",
+          "members' percentages. " <> category_result_scope(result),
       categories: Enum.map(result.categories, &category_result_row/1)
     }
   end
+
+  defp category_result_scope(%{scope: :portfolio, view_id: nil} = result),
+    do:
+      "Scope: the positions of portfolio #{result.portfolio_id}, in its base " <>
+        "currency #{result.base_currency}."
+
+  defp category_result_scope(%{scope: :portfolio} = result),
+    do:
+      "Scope: the positions of portfolio #{result.portfolio_id} that match view " <>
+        "#{result.view_id}, in its base currency #{result.base_currency}."
+
+  defp category_result_scope(%{scope: :view} = result),
+    do:
+      "Scope: the positions matching view #{result.view_id} across every portfolio, " <>
+        "each account counted once, in EUR; a member whose cost was not paid in " <>
+        "EUR is excluded as missing_base_cost."
 
   defp category_result_row(row) do
     %{

@@ -1871,6 +1871,31 @@ Beispiel-Payloads für Konten:
 - `DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id` entfernt das
   Zielgewicht eines Portfolios für eine Kategorie und liefert `{deleted}` (die Zahl
   der entfernten Zeilen). Optionales `view` wählt den Plan (weggelassen = Gesamt).
+- `GET /api/v1/portfolios/:portfolio_id/category-results?classification_id=<id>` —
+  das **Ergebnis** je Kategorie (ADR-0041 Teil eins, #712): `invested` (die
+  Summe der Einstandskosten der Mitglieder in Basiswährung), `current_value`,
+  `result_abs` und `result_pct` je Kategorie, dazu die `positions`, die es
+  ergeben, und die `excluded`-Zeilen, die es nicht abdecken konnte. Die Basis
+  steht in einer Zeile (`basis: "current_composition"`, ausgeschrieben in
+  `basis_note`): eine Aussage über die Positionen, die **heute** unter jeder
+  Kategorie stehen, ohne Zeitraum und ohne Stichtag, und keine zeitgewichtete
+  Renditereihe. `result_pct` ist `Σ Ergebnis ÷ Σ investiert`, **nie** ein
+  Mittel der Prozente der Mitglieder. Ein Mitglied, dessen Ergebnis nicht
+  ableitbar ist, fehlt auf **beiden** Seiten der Summe und steht mit seinem
+  `reason` unter `excluded`; es zählt nie als null. MCP:
+  `portfolixir.portfolios.category_results`.
+
+  **Der View-Bereich (#901)** kommt in den zwei Formen der Performance-Familie
+  (ADR-0051 §6). `?view=<id>` grenzt die Portfolio-Abfrage auf die zur View
+  passenden Positionen des Portfolios ein und spiegelt sie als
+  `view: {id, name}`; eine fehlerhafte View ist ein `422`, eine unbekannte ein
+  `404`. Die View-Abfrage unten reicht über jedes Portfolio. Jede Antwort
+  nennt den Bereich, über den sie gerechnet wurde: `scope` (`portfolio` oder
+  `view`), `portfolio_id`, `view_id`, `base_currency` (die Währung jedes
+  Geldwerts: die des Portfolios, oder `EUR` für eine View) und einen
+  Schlusssatz von `basis_note`, der ihn benennt. Das MCP-Tool nimmt denselben
+  Bereich: `portfolio_id`, das `view` eingrenzt, oder `view` allein für die
+  View über jedes Portfolio; eines von beiden ist Pflicht.
 - `GET /api/v1/portfolios/:portfolio_id/allocation` liefert die
   SOLL/IST-Aufschlüsselung für eine Klassifizierung (erforderlicher
   `classification_id`-Query-Parameter; ein fehlender liefert
@@ -2523,6 +2548,18 @@ nicht journalisiert: Noch keine Regel kann sie lesen.
   `view_id` statt `portfolio_id`. Unbekannte und fehlerhafte View-ids
   liefern `404`, ein fehlerhafter Zeitraum oder eine fehlerhafte Benchmark
   `422`.
+- `GET /api/v1/views/:view_id/category-results?classification_id=<id>`
+  liefert das Ergebnis je Kategorie (ADR-0041) der zur View passenden
+  Positionen **über alle Portfolios**, jedes Konto einmal gezählt (#901). Die
+  Form ist die der Portfolio-Abfrage mit `scope: "view"`, `portfolio_id: null`
+  und gespiegelter View. Die Werte sind in EUR: Der investierte Betrag eines
+  Mitglieds ist der tatsächlich gezahlte Abrechnungsbetrag (ADR-0033), also
+  hat ein Mitglied aus einem Portfolio mit anderer Basiswährung als EUR keine
+  EUR-Kosten zum Addieren und fehlt mit `missing_base_cost`, statt über
+  Währungen hinweg summiert zu werden. Unbekannte und fehlerhafte View-ids
+  liefern `404`, eine fehlende `classification_id` `422`, eine unbekannte
+  `404`. MCP: `portfolixir.portfolios.category_results` mit `view` und ohne
+  `portfolio_id`.
 - `PUT /api/v1/securities_accounts/:id/buckets` ersetzt das Standard-Bucket-Set
   eines Depots (die Buckets, die jede Position erbt, sofern nicht überschrieben).
   Body: `{"bucket_ids": [..]}`.
@@ -2553,6 +2590,7 @@ View-id), um das Ergebnis auf die Bestände der View einzugrenzen:
 - `GET /api/v1/portfolios/:portfolio_id/allocation?classification_id=<id>&view=<id>`
 - `GET /api/v1/portfolios/:portfolio_id/performance?view=<id>`
 - `GET /api/v1/portfolios/:portfolio_id/risk?view=<id>`
+- `GET /api/v1/portfolios/:portfolio_id/category-results?classification_id=<id>&view=<id>`
 
 Bei gesetztem `view` spiegelt die Antwort die aktive View als `view: {id, name}`
 wider (FR-13); der Aufruf ohne View ist unverändert und trägt kein `view`-Feld.
@@ -3127,6 +3165,8 @@ Adresse.
 - `portfolixir.targets.set`
 - `portfolixir.targets.delete`
 - `portfolixir.portfolios.allocation`
+- `portfolixir.portfolios.category_results` — ein Portfolio, das `view`
+  eingrenzt, oder `view` allein für die View über jedes Portfolio (#901).
 - `portfolixir.portfolios.risk`
 - `portfolixir.policy_rules.list` — die gespeicherten Regeln mit der am
   `as_of` geltenden Version (ADR-0049); die Beschreibung weist den Agenten an,
@@ -3203,10 +3243,12 @@ Standard-Ansicht-Voreinstellung (ADR-0024): eine `view_id` pinnt eine Ansicht,
 `null` (oder weglassen) setzt auf die eingebaute Alles-Sicht zurück.
 
 Die Tools `portfolixir.portfolios.valuation`,
-`portfolixir.portfolios.allocation`, `portfolixir.portfolios.performance` und
-`portfolixir.portfolios.risk` akzeptieren ein optionales `view` (eine View-id),
-das das Ergebnis auf die Bestände der Bucket-View eingrenzt; die Antwort spiegelt
-dann die aktive View wider.
+`portfolixir.portfolios.allocation`, `portfolixir.portfolios.performance`,
+`portfolixir.portfolios.risk` und `portfolixir.portfolios.category_results`
+akzeptieren ein optionales `view` (eine View-id), das das Ergebnis auf die
+Bestände der Bucket-View eingrenzt; die Antwort spiegelt dann die aktive View
+wider. `portfolixir.portfolios.category_results` nimmt `view` auch ohne
+`portfolio_id`: die View über jedes Portfolio, in EUR (#901).
 
 Seit ADR-0020 akzeptieren auch die SOLL-Ziel-Tools (`portfolixir.targets.list`,
 `portfolixir.targets.set`, `portfolixir.targets.delete`) und die Cash-Ziel-Tools

@@ -8,29 +8,57 @@ defmodule PortfolixirWeb.Api.V1.CategoryResultController do
   against target, this compares current value against cost — and merging them
   would couple `Allocation` to the cost side for no consumer that needs both in
   one call.
+
+  The view scope (#901; ADR-0051 §6) comes in the performance family's two
+  forms: the portfolio read narrowed with `?view=` (`index/2`), and the view
+  read across every portfolio (`show/2`), each echoing the active view.
   """
   use PortfolixirWeb, :controller
 
+  alias Portfolixir.Buckets
+  alias Portfolixir.Buckets.View
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CategoryResult
   alias Portfolixir.Portfolios.Portfolio
   alias PortfolixirWeb.Api.V1.IdParam
   alias PortfolixirWeb.Api.V1.JSON
+  alias PortfolixirWeb.Api.V1.ViewParam
 
   def index(conn, %{"portfolio_id" => portfolio_id} = params) do
     with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
+         {:ok, view} <- ViewParam.resolve(params),
          {:ok, cid} <- classification_id(Map.get(params, "classification_id")) do
-      case CategoryResult.for_portfolio(pid, cid) do
-        {:ok, result} -> json(conn, %{data: JSON.category_result(result)})
-        {:error, :not_found} -> not_found(conn)
-      end
+      pid
+      |> CategoryResult.for_portfolio(cid, ViewParam.opts(view))
+      |> respond(conn, view)
     else
-      :missing -> unprocessable(conn, %{classification_id: ["is required"]})
-      :error -> not_found(conn)
-      nil -> not_found(conn)
+      {:error, :view} -> unprocessable(conn, %{view: ["is invalid"]})
+      failure -> refuse(conn, failure)
     end
   end
+
+  def show(conn, %{"view_id" => view_id} = params) do
+    with {:ok, vid} <- IdParam.parse(view_id),
+         %View{} = view <- Buckets.get_view(vid),
+         {:ok, cid} <- classification_id(Map.get(params, "classification_id")) do
+      vid
+      |> CategoryResult.for_view(cid)
+      |> respond(conn, view)
+    else
+      failure -> refuse(conn, failure)
+    end
+  end
+
+  # An unknown classification, or a view deleted between the lookup and the
+  # read (TOCTOU), is a plain 404, never a 500.
+  defp respond({:ok, result}, conn, view),
+    do: json(conn, %{data: result |> JSON.category_result() |> ViewParam.put_active(view)})
+
+  defp respond({:error, _not_found}, conn, _view), do: not_found(conn)
+
+  defp refuse(conn, :missing), do: unprocessable(conn, %{classification_id: ["is required"]})
+  defp refuse(conn, _not_found), do: not_found(conn)
 
   defp classification_id(nil), do: :missing
   defp classification_id(value), do: IdParam.parse(value)

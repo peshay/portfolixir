@@ -373,6 +373,9 @@ defmodule PortfolixirWeb.Router do
     get("/views/:view_id/valuation", ViewValuationController, :show)
     get("/views/:view_id/performance", ViewPerformanceController, :show)
     get("/views/:view_id/performance/benchmark", ViewBenchmarkController, :show)
+    # #901 (ADR-0051 §6): the category result's view form, beside the
+    # portfolio read's view= narrowing.
+    get("/views/:view_id/category-results", CategoryResultController, :show)
 
     get("/settings/default_view", SettingsController, :show_default_view)
     put("/settings/default_view", SettingsController, :set_default_view)

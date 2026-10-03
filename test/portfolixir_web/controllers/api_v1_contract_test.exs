@@ -49,16 +49,34 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # Sprint 17, PR γ (version 10, after PR β's 9): the operator's due surfaces — the annualized
-    # return on both closed-trade reads and the unmatched sells (#984), the
-    # merge list's removed bookings per reason (ADR-0050 §12), and the new
-    # read of a security's manual quotes with its MCP twin (T-9).
-    assert newest["version"] == 10
-    assert newest["endpoints"] == ["GET /api/v1/securities/:security_id/quotes/manual"]
-    assert newest["tools"] == ["portfolixir.quotes.manual"]
-    assert Enum.any?(newest["parameters"], &(&1 =~ "annualized_return"))
-    assert Enum.any?(newest["parameters"], &(&1 =~ "unmatched_sells"))
-    assert Enum.any?(newest["parameters"], &(&1 =~ "deleted_by_reason"))
+    # Sprint 18, PR β (version 11): the operator's money surface, one entry
+    # for the lane PR. F4 opened it: the category result takes the view scope
+    # in the performance family's two forms (#901).
+    assert newest["version"] == 11
+    assert newest["summary"] =~ "F4"
+    assert "GET /api/v1/views/:view_id/category-results" in newest["endpoints"]
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "portfolixir.portfolios.category_results" and &1 =~ "view" and
+                 &1 =~ "#901")
+           )
+
+    # Sprint 17, PR γ (version 10, after PR β's 9): the operator's due
+    # surfaces — the annualized return on both closed-trade reads and the
+    # unmatched sells (#984), the merge list's removed bookings per reason
+    # (ADR-0050 §12), and the new read of a security's manual quotes with its
+    # MCP twin (T-9). Found by version from here on.
+    sprint17_gamma = Enum.find(data["entries"], &(&1["version"] == 10))
+
+    assert sprint17_gamma["endpoints"] == [
+             "GET /api/v1/securities/:security_id/quotes/manual"
+           ]
+
+    assert sprint17_gamma["tools"] == ["portfolixir.quotes.manual"]
+    assert Enum.any?(sprint17_gamma["parameters"], &(&1 =~ "annualized_return"))
+    assert Enum.any?(sprint17_gamma["parameters"], &(&1 =~ "unmatched_sells"))
+    assert Enum.any?(sprint17_gamma["parameters"], &(&1 =~ "deleted_by_reason"))
 
     # Sprint 17's PR β (version 9): the lane's one entry, opened by the MCP
     # companion's tool profiles (A1, #992). It moves no route. Found by
