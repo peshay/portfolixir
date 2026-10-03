@@ -2721,7 +2721,8 @@ eine Aktualisierung, die ein Wertpapier übersprungen hat, sagt in Worten,
 warum. Auf dem Telefon zeigt der Kurse-Tab jeden Kurs als zweizeilige Zeile —
 das Datum über seiner Quelle, rechts der Schlusskurs und darunter der
 gespeicherte Wert, wo ein Split den Kurs angepasst hat —, sodass die Quelle
-jedes Kurses ohne Wischen durch die Tabelle lesbar ist.
+jedes Kurses ohne Wischen durch die Tabelle lesbar ist, und die Kursbasis-Zeile
+über den Zeilen nennt diese Zeile statt der Spalte Gespeichert der Tabelle.
 Ihr Agent liest dieselbe Zusammenfassung mit
 `GET /api/v1/securities/:security_id/quotes/manual` (MCP
 `portfolixir.quotes.manual`) und gibt mit `portfolixir.quotes.release` frei.

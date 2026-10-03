@@ -108,6 +108,11 @@ defmodule PortfolixirWeb.SecuritiesQuotePhoneRowsTest do
   # Acceptance criteria:
   # - A row whose close the split adjusted carries "gespeichert <stored>"
   #   under the close; a row the split did not touch carries none.
+  # - The basis line names what the screen shows (the closing act's H7
+  #   finding, board 07's rule ①): beside the table's sentence ("Die Spalte
+  #   Gespeichert zeigt …") it carries the rows' ("Wo ein Split einen Kurs
+  #   angepasst hat, zeigt „gespeichert“ darunter den unveränderten Wert."),
+  #   and under 560 px only the rows' shows — the phone has no column.
   test "after a split the stored value stands under an adjusted close", %{conn: conn} do
     world = base_world(name: "Phone World", cash_name: "Phone Cash", depot_name: "Phone Depot")
 
@@ -135,5 +140,21 @@ defmodule PortfolixirWeb.SecuritiesQuotePhoneRowsTest do
     assert Floki.find(after_split, ".phone-row__figure2") == []
     assert text(before_split, ".phone-row__figure") =~ "11,00"
     assert text(before_split, ".phone-row__figures .phone-row__figure2") == "gespeichert 110,00"
+
+    # The closing act's H7 finding (board
+    # ux-review-2026-10-03/03-gamma-surface-repairs, G6): the basis line
+    # carries a sentence for the table and one for the rows, and the phone
+    # lists' 560 px block shows the one that matches the screen.
+    basis =
+      view
+      |> element("#detail-tab-panel-quotes [data-role='quotes-basis']")
+      |> render()
+      |> Floki.parse_fragment!()
+
+    assert text(basis, ".quotes-basis__table") ==
+             "Kursbasis: split-bereinigt. Die Spalte Gespeichert zeigt die unveränderten Werte."
+
+    assert text(basis, ".quotes-basis__rows") ==
+             "Kursbasis: split-bereinigt. Wo ein Split einen Kurs angepasst hat, zeigt „gespeichert“ darunter den unveränderten Wert."
   end
 end

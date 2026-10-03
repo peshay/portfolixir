@@ -7947,6 +7947,14 @@ select:disabled {
   list-style: none;
 }
 
+/* The Quotes tab's basis line carries one sentence per layout (the closing
+   act's H7 finding, board ux-review-2026-10-03/03-gamma-surface-repairs,
+   G6): the rows' sentence is out of the layout until the phone lists' block
+   swaps it in for the table's. Before that block, so it wins there. */
+.quotes-basis__rows {
+  display: none;
+}
+
 .phone-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
@@ -8185,6 +8193,16 @@ dialog.filter-sheet::backdrop {
   #contribution-table-wrap,
   #quotes-table-wrapper {
     display: none;
+  }
+
+  /* The Quotes tab's basis line swaps with the table: the rows have no
+     "Stored" column, so their sentence names the line under the close. */
+  .quotes-basis__table {
+    display: none;
+  }
+
+  .quotes-basis__rows {
+    display: inline;
   }
 
   /* The chip rows give way to the Filter control on BOTH list surfaces
