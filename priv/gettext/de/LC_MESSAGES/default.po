@@ -9795,12 +9795,12 @@ msgstr "Ein Split der Quelle trägt noch einen Import-Hash aus der Zeit vor der 
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:335
 #, elixir-autogen, elixir-format
 msgid "“%{name}” is already the name of another cash account. Choose another name, or merge or rename that account."
-msgstr "„%{name}“ heißt bereits ein anderes Verrechnungskonto. Wählen Sie einen anderen Namen, oder führen Sie jenes Konto zusammen oder benennen Sie es um."
+msgstr "„%{name}“ heißt bereits ein anderes Verrechnungskonto. Einen anderen Namen wählen oder jenes Konto zusammenführen oder umbenennen."
 
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:342
 #, elixir-autogen, elixir-format
 msgid "“%{name}” is already the name of another depot. Choose another name, or merge or rename that depot."
-msgstr "„%{name}“ heißt bereits ein anderes Depot. Wählen Sie einen anderen Namen, oder führen Sie jenes Depot zusammen oder benennen Sie es um."
+msgstr "„%{name}“ heißt bereits ein anderes Depot. Einen anderen Namen wählen oder jenes Depot zusammenführen oder umbenennen."
 
 #: lib/portfolixir_web/live/risk_live.ex:498
 #, elixir-autogen, elixir-format
