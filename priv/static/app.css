@@ -6239,13 +6239,19 @@ button.income-bar-label.is-active {
   color: var(--color-text-muted);
 }
 
+/* The dismiss sits on its sentence's line (Sprint 18 U4, board
+   ux-design-2026-10-02/06-touch-focus, H6.4): the base button's 34 px floor
+   made it a 22 x 34 box, so a one-line result grew from 36 to 52 px and its
+   severity word stood 8 px above the sentence. `min-height: 0` removes the
+   cause; 1rem fits the 18 px line. */
 .inline-result__dismiss {
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 1.4rem;
-  height: 1.4rem;
+  height: 1rem;
+  min-height: 0;
   margin-left: 8px;
   padding: 0;
   border: 0;
@@ -6262,6 +6268,19 @@ button.income-bar-label.is-active {
 .inline-result__dismiss:hover {
   opacity: 1;
   background: color-mix(in srgb, currentColor 12%, transparent);
+}
+
+/* Under a coarse pointer the dismiss keeps a 44 px target the way a note's
+   remedy does: 14 px of block padding given back as a negative margin, so
+   the line stays 18 px (UX-DR6). Without it, dropping the floor would have
+   shrunk the touch target from 34 to 16 px. */
+@media (pointer: coarse) {
+  .inline-result__dismiss {
+    width: 44px;
+    height: 44px;
+    padding-block: 14px;
+    margin-block: -14px;
+  }
 }
 
 /* Inline spinner: import confirm while Imports.apply/2 runs async, and the
