@@ -1645,8 +1645,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 </dd>
               <% end %>
             </div>
+            <%!-- The detail's one range vocabulary (H7.3): "1J" in German,
+                 as the chart's button and the Quotes tab's basis line. --%>
             <div class="overview-metric" data-role="overview-1y">
-              <dt>1Y</dt>
+              <dt><%= range_label("1Y") %></dt>
               <dd class={pnl_class(@metrics[:performance_1y])}>
                 <%= signed_percent_or_dash(@metrics[:performance_1y]) %>
                 <small class="overview-metric__sub"><%= gettext("price only") %></small>

@@ -88,4 +88,23 @@ defmodule PortfolixirWeb.SecuritiesRangeLabelsTest do
     view |> element("#detail-tab-quotes") |> render_click()
     assert basis(view) == "Range Max · as on the Chart tab"
   end
+
+  # User story (the closing act's finding on H7.3; board
+  # ux-review-2026-10-03/03-gamma-surface-repairs, G3):
+  # As the operator reading a security's Overview in German,
+  # I want the one-year figure labelled "1J", as the chart's button and the
+  # Quotes tab's basis line label the same year,
+  # so that the Overview does not keep the one English token H7.3 left.
+  #
+  # Acceptance criteria:
+  # - The Overview's one-year figure is labelled through the detail's range
+  #   label function: "1J" in German, "1Y" in English.
+  test "the Overview's one-year figure is labelled in the reader's language",
+       %{conn: conn, security: security} do
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=overview&locale=de")
+    assert view |> element("[data-role='overview-1y'] dt") |> render() =~ ~r{<dt>\s*1J\s*</dt>}
+
+    {:ok, view, _html} = live(conn, "/securities/#{security.id}?tab=overview&locale=en")
+    assert view |> element("[data-role='overview-1y'] dt") |> render() =~ ~r{<dt>\s*1Y\s*</dt>}
+  end
 end
