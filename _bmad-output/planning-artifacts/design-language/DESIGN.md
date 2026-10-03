@@ -1178,8 +1178,9 @@ before/after):*
   that portion, so the number is not repeated. A plan at 0 % on top with targets
   deeper in the tree keeps its own clause and no colour.
 - **A rebalancing hint that rounds to nothing is not shown** — "Sell ≈ 0.00
-  units" asks for nothing. The cell reads "—" in the worklist and the tree shows
-  no hint; the drift stays, and the API keeps the unrounded quantity.
+  units" asks for nothing. The worklist's Drift cell shows the drift alone
+  (since issue 911 the hint sits in that cell, under the figure) and the tree
+  shows no hint; the drift stays, and the API keeps the unrounded quantity.
 - **The hint's verb track is `max-content`** (`.rebalance-hint`), so "Verkauf"
   fits; the ≈, quantity and unit tracks keep their widths, the grid packs to the
   end, and the ≈ stays on one vertical line.
@@ -1452,8 +1453,10 @@ hides data. Pinning keeps one column order and hides nothing.
 
 Applied to: the transaction history's Balance column (when summoned) and the
 allocation drift table's Drift column (header, category, position, cash and
-unassigned cells). The flat positions table keeps its order — its Drift is
-followed by the Hint column, which is part of the same subject.
+unassigned cells). The flat positions table's subject is its Drift **with the
+hint beneath it in the same cell** — one pinned column, the anatomy of the
+tree's position rows (issue 911, pick H4 variant A, Amendment 2026-10-03);
+there is no separate Hint column.
 
 ## Amendment 2026-09-12 — appearance decisions from the whole-surface UX review
 
@@ -3233,3 +3236,31 @@ Three halves, and all three change the picture:
   (Kompatibilität)"), where it was a bare `<summary>` with the browser's
   triangle (UX-DR19); `details[open] > .disclosure-summary
   .disclosure-chevron` turns it.
+
+### Allocation → Positions *(issue 911, section ④; pick **A**)*
+
+- **(a) The hint moves into the Drift cell** (variant A, recommended and
+  adopted): the worklist's subject spans what were two columns, Drift and
+  Hint, and `right: 0` can hold only one. The Drift head now carries
+  `col-subject`; each Drift cell shows the figure with the hint beneath it
+  (`.rebalance-hint`, unchanged), which is the anatomy the tree's position
+  rows already have. The "Hinweis" head and the "—" of a row without a hint
+  are gone; sorting is still by Drift. Rows get taller by the hint's line.
+  Measured on the board at 390 px: 186 px stay for the name, more than the
+  144 px name column. Variant B (pin both columns with a coupled
+  `right: 10.5rem`) was not taken: a wider quantity widens the Hint column
+  and the Drift cell then covers it.
+- **(b) The basis line** (`p.summary-basis.allocation-basis`) takes the
+  basis voice through the context-free rule of ⑤a: 12 px, muted, no
+  paragraph margins.
+- **(c) The tree's Drift ⓘ names the portion.** While the payload's
+  `drift_basis` is `allocated_portion` (ADR-0040 §2), the ⓘ's sentence gains
+  a second one (`data-role="drift-basis-tip"`), the board's draft: "Der Plan
+  verteilt 85,0%: Jedes Soll wird vor dem Vergleich auf diesen Anteil
+  hochgerechnet, 34,0% zählen als 40,0%. Der unverteilte Rest erscheint
+  nicht als Abweichung."
+  The worked figure is the first top-level category the plan steers, its
+  target divided by the allocated sum — the same division the drift takes;
+  a plan with no such category gets the sentence without the figure. A full
+  plan, or one over 100 %, measures against the full plan and shows no
+  second sentence. Percentages glue their sign, as everywhere in the app.
