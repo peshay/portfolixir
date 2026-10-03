@@ -66,7 +66,10 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
   identity holds to that precision. Nothing balances the difference.
 
   Missing data contributes zero, as it does in the walk, and the affected
-  positions are named (§10).
+  positions are named (§10). A trade priced in a currency with no rate path
+  on its booking day flows into its position at its cash leg, so the
+  position is not credited with its whole value when a rate arrives (§5, as
+  amended 2026-10-03).
 
   Nothing is persisted (§12). Each read runs its own walk with a window, and
   the table is a derived value of its own (ADR-0039): the
@@ -358,14 +361,17 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
           "most recent stored point on or before each day forward, and a security with no " <>
           "quote yet is priced by its own latest trade (ADR-0010). A window holding no " <>
           "walked day is empty: start_date null and no positions, never a table of zeros " <>
-          "(ADR-0051 §4)",
+          "(ADR-0051 §4). A foreign-currency cash balance likewise counts zero on a day " <>
+          "its currency has no rate path; when the first rate arrives, the balance's whole " <>
+          "value enters cash_currency_effect, and no account is named for it",
       assumptions:
         "per position, in the base currency, contribution = end_value − start_value − " <>
           "net_flows + income − costs over the window (ADR-0051 §1): start_value is the " <>
           "close of the last day the walk covers before the window (0 when not held then, " <>
           "or when the walk starts inside it) and end_value the window's last day (0 when " <>
           "sold out); net_flows counts a buy + price × quantity and a sell − price × " <>
-          "quantity at the booking day's rate, a delivery ± the value the walk's external " <>
+          "quantity at the booking day's rate (a trade priced in a currency with no rate " <>
+          "path that day: its cash leg), a delivery ± the value the walk's external " <>
           "flow gives it, a split and a transfer inside the scope 0, and a leg crossing a " <>
           "view's edge as its boundary flow (ADR-0019); income is the dividends as " <>
           "credited; costs are the fees and taxes on the position's own trades (#708). " <>

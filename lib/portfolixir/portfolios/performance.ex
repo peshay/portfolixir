@@ -1907,11 +1907,11 @@ defmodule Portfolixir.Portfolios.Performance do
   # exactly zero.
   defp keep_internal(kept, type, tx, legs, context) when type in ["buy", "sell"] do
     cost = trade_cost(tx, context) || @zero
-    flows = trade_leg_values(legs.quantities, tx, context)
+    cash = total_add_cash_base(legs.cash, tx, context)
+    flows = trade_flows(legs.quantities, tx, cash, context)
 
     settlement =
-      legs.cash
-      |> total_add_cash_base(tx, context)
+      cash
       |> Decimal.add(sum_leg_values(flows))
       |> Decimal.add(cost)
 
@@ -1953,6 +1953,24 @@ defmodule Portfolixir.Portfolios.Performance do
 
   defp add_line(kept, line, amount),
     do: %{kept | lines: Map.update!(kept.lines, line, &Decimal.add(&1, amount))}
+
+  # A trade priced in a currency with no rate path to the base on its
+  # booking day would bring its units in at zero, and the position would be
+  # credited with its whole value the day a rate arrives while the currency
+  # line booked the purchase as a loss (review round). Its one unit leg
+  # takes the cash leg instead, so what the trade cost or raised is its flow
+  # and no settlement difference is left; its costs, priced in the same
+  # currency, convert to zero and ride inside that cash. The position counts
+  # zero until a rate arrives and is named for it (§10).
+  defp trade_flows([{_account_id, security_id, _delta}] = quantities, tx, cash, context) do
+    case conversion_rate(tx.currency_code, context.base, context.fx) do
+      {:ok, _rate} -> trade_leg_values(quantities, tx, context)
+      {:error, _reason} -> [{security_id, Decimal.negate(cash)}]
+    end
+  end
+
+  defp trade_flows(quantities, tx, _cash, context),
+    do: trade_leg_values(quantities, tx, context)
 
   defp trade_leg_values(quantities, tx, context) do
     for {_account_id, security_id, delta} <- quantities,
