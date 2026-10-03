@@ -316,9 +316,10 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
   # Acceptance criteria (board G1 rules 1, 2, 3 and 6, the CSS the pick adds):
   # - The dash is muted; the list's basis line has the basis voice; under
   #   560 px the table's wrapper gives way to the rows, which take the
-  #   two-child track; the sign colour of Result and p. a. is restored in
-  #   #realized-trades-table only (`.data-table tbody td { color }`
-  #   outranks the bare class elsewhere, a follow-up).
+  #   two-child track; the sign colour of Result and p. a. holds in the
+  #   table (`.data-table tbody td { color }` outranks the bare class; since
+  #   #1010 the general `.data-table td.is-positive / .is-negative` restores
+  #   it in every data table and rule 6's scoped copy is retired).
   # - The dash is muted inside the table too, where the same td rule
   #   outranked it (closing act γ D4); the table is a reading table that
   #   fits its wrapper, the name and dates wrapping and the figures not, so
@@ -335,8 +336,8 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
 
     assert css =~ ~r/#realized-trades > \.summary-basis[^{]*\{[^}]*font-size:\s*12px/
     assert css =~ ~r/#realized-trades-phone-rows \.phone-row\s*\{[^}]*minmax\(0, 1fr\) auto/
-    assert css =~ ~r/#realized-trades-table td\.is-positive\s*\{[^}]*var\(--color-positive\)/
-    assert css =~ ~r/#realized-trades-table td\.is-negative\s*\{[^}]*var\(--color-danger\)/
+    assert css =~ ~r/\n\.data-table td\.is-positive\s*\{[^}]*var\(--color-positive\)/
+    assert css =~ ~r/\n\.data-table td\.is-negative\s*\{[^}]*var\(--color-danger\)/
 
     [phone_block] =
       Regex.run(~r/@media \(max-width: 560px\) \{\s*\/\* phone lists.*?\n\}/s, css)

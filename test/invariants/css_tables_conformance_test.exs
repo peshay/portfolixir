@@ -49,6 +49,39 @@ defmodule Portfolixir.Invariants.CssTablesConformanceTest do
              position(".data-table tbody tr:nth-child(even) td.col-subject")
   end
 
+  # User story (#1010; Sprint 18 pick H4, board
+  # ux-design-2026-10-02/04-tables-conformance, ② "after"; DESIGN.md →
+  # Colors, "semantic color applies wherever a sign exists, at every level
+  # of a table"):
+  # As the operator reading gains and losses in a table — a security's open
+  # lots and closed trades, the drift of a position row —
+  # I want every signed cell in its sign colour,
+  # so that a loss in a row looks like the loss it is, not like body text.
+  #
+  # Acceptance criteria:
+  # - `.data-table td.is-positive` / `.is-negative` outrank `.data-table tbody
+  #   td { color }`, in every data table at once.
+  # - A muted drift row keeps its negative drift red:
+  #   `.drift-table tr.is-muted td.is-negative` outranks the row's grey.
+  # - The table-scoped copies of the sign rule are gone, because the general
+  #   rule makes them redundant: Sprint 17's `#realized-trades-table` copy
+  #   (board 01 rule ⑥) and the security Trades tab's
+  #   `#detail-closed-trades-table` copy (pick H1, rule ①). Their muted-dash
+  #   lines stay: a muted class in a cell is not a sign.
+  test "a signed cell keeps its sign colour in every data table" do
+    assert block(".data-table td.is-positive") =~ ~r/color:\s*var\(--color-positive\);/
+    assert block(".data-table td.is-negative") =~ ~r/color:\s*var\(--color-danger\);/
+
+    assert block(".drift-table tr.is-muted td.is-negative") =~
+             ~r/color:\s*var\(--color-danger\);/
+
+    for table <- ["#realized-trades-table", "#detail-closed-trades-table"] do
+      refute @css =~ "#{table} td.is-positive", "#{table} still carries its own sign rule"
+      refute @css =~ "#{table} td.is-negative", "#{table} still carries its own sign rule"
+      assert block("#{table} td.trade-pa--na") =~ ~r/color:\s*var\(--color-text-muted\);/
+    end
+  end
+
   defp position(selector) do
     case :binary.match(@css, "\n" <> selector <> " {") do
       {at, _} -> at

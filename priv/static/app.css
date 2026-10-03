@@ -3203,6 +3203,26 @@ img.security-logo {
   color: var(--color-danger);
 }
 
+/* Sign colour in table cells (issue 1010, Sprint 18 pick H4, board
+   ux-design-2026-10-02/04-tables-conformance ②): `.data-table tbody td
+   { color }` (0,1,2) outranks the bare classes above, so a signed cell in
+   any data table printed in the text colour, and a position row's
+   `.drift-table tr.is-muted td` (0,2,2) turned its negative drift grey.
+   Semantic colour applies wherever a sign exists, at every level of a
+   table (DESIGN.md → Colors). A <span> carrying the class inside a cell was
+   never affected. */
+.data-table td.is-positive {
+  color: var(--color-positive);
+}
+
+.data-table td.is-negative {
+  color: var(--color-danger);
+}
+
+.drift-table tr.is-muted td.is-negative {
+  color: var(--color-danger);
+}
+
 /* Sort triggers inside a table header are header text, not buttons (issue
    634): a cell is not a card and nothing inside a table gets a shadow. The
    base button rule would otherwise paint them as floating boxes. */
@@ -9713,22 +9733,11 @@ dialog.merge-dialog {
   margin-bottom: 0;
 }
 
-/* Rule ⑥: sign colour inside the trades table. `.data-table tbody td
-   { color }` outranks the bare is-positive / is-negative, so the result
-   printed in the text colour; the p. a. column needs the sign colour
-   (semantic colour wherever a sign exists, at every level of a table), and
-   the same rule repairs the result cell. Scoped to this table: the other
-   tables with the same pattern are a follow-up. */
-#realized-trades-table td.is-positive {
-  color: var(--color-positive);
-}
-
-#realized-trades-table td.is-negative {
-  color: var(--color-danger);
-}
-
-/* Rule ① inside the table (closing act γ D4): the same td rule outranked
-   the muted dash, which printed in the text colour. */
+/* Rule ⑥, the sign colour inside the trades table, was retired by issue
+   1010 (Sprint 18 pick H4): the general `.data-table td.is-positive /
+   .is-negative` gives every data table the colour this table had alone.
+   Rule ① inside the table (closing act γ D4): `.data-table tbody td
+   { color }` outranked the muted dash, which printed in the text colour. */
 #realized-trades-table td.trade-pa--na {
   color: var(--color-text-muted);
 }
@@ -9769,20 +9778,11 @@ dialog.merge-dialog {
 /* ===== The security's Trades tab: the p. a. column, the unmatched-sells
    note, the basis line and the phone rows (issue 1029, Sprint 18 pick H1;
    board ux-design-2026-10-02/01-trades-tab-pa, "after") ===== */
-/* Rule ①: the closed-trades table's sign colour and its muted dash.
-   `.data-table tbody td { color }` outranks the bare .is-positive /
-   .is-negative / .trade-pa--na (issue 1010), so the rules are scoped to this
-   table, as the facet's rule ⑥ is to its own; they also restore the colour
-   of "Realised P&L" and "%" here. The open-lots table above keeps the text
-   colour until issue 1010 repairs the family. */
-#detail-closed-trades-table td.is-positive {
-  color: var(--color-positive);
-}
-
-#detail-closed-trades-table td.is-negative {
-  color: var(--color-danger);
-}
-
+/* Rule ①: the closed-trades table's muted dash. `.data-table tbody td
+   { color }` outranks the bare .trade-pa--na, so the rule is scoped to this
+   table, as the facet's is to its own. Its two sign lines went with issue
+   1010 (pick H4): the general `.data-table td.is-positive / .is-negative`
+   colours p. a., "Realised P&L" and "%" here and the open lots above. */
 #detail-closed-trades-table td.trade-pa--na {
   color: var(--color-text-muted);
 }
