@@ -781,16 +781,69 @@ den vorherigen Werten im Audit-Journal festgehalten. Das ist die menschliche
 Sicht auf eine Fähigkeit, die API und MCP-Begleiter schon vor der
 Zwei-Wege-Regel hatten; an beiden wurde nichts ergänzt.
 
-**Ein gebuchter Split** ist die Ausnahme (E25 S6): Ein Split ist eine
-Tatsache am Wertpapier, gebucht über **Split erfassen** am Wertpapier, dessen
-Prüfungen (der Stichtag, die Bestände, ein anderes Verhältnis am selben Tag)
-eine gewöhnliche Änderung umgehen würde. **Bearbeiten** an einer Split-Zeile
-öffnet die Schublade daher mit Typ, Stichtag, Wertpapier und Verhältnis des
-Splits, fest, und nur die **Notiz** ist änderbar (**Notiz speichern**). Ein
-falscher Split wird nicht an Ort und Stelle korrigiert: Seine Zeilen werden
-über die API oder den MCP-Begleiter gelöscht, und der Split wird mit **Split
-erfassen** neu erfasst. API und MCP antworten auf eine Änderung an etwas
-anderem als der Notiz einer Split-Zeile mit `422`.
+**Die Arten, die die Schublade nicht bucht** (Issue #912): Die Schublade
+erfasst und korrigiert Käufe und Verkäufe. **Bearbeiten** an jeder anderen
+Buchung — einer Dividende, einer Einlage, einer Umbuchung, einer
+Einlieferung, einem gesetzten Saldo, einem Split — öffnet die Schublade
+**nur für die Notiz**: Die Angaben der Buchung stehen fest da (Typ, Datum und
+was die Art speichert — das Wertpapier, das Verrechnungskonto oder beide
+Konten einer Umbuchung, das Depot, den Betrag, die Steuern, Stückzahl und
+Preis), und nur die **Notiz** ist änderbar (**Notiz speichern**,
+journalisiert wie jede Änderung). Eine Hilfezeile sagt, wie eine solche
+Buchung korrigiert wird: an Ort und Stelle über die API oder den
+MCP-Begleiter, oder indem sie gelöscht und neu importiert wird — ein
+gesetzter Saldo wird unter **Konten & Depots** neu gesetzt —, und trägt
+**Löschen…**, das die Schublade schließt und die Rückfrage unten öffnet.
+
+**Ein gebuchter Split** öffnet ebenfalls nur die Notiz (E25 S6): Ein Split
+ist eine Tatsache am Wertpapier, gebucht über **Split erfassen** am
+Wertpapier, dessen Prüfungen (der Stichtag, die Bestände, ein anderes
+Verhältnis am selben Tag) eine gewöhnliche Änderung umgehen würde. Seine
+Schublade zeigt Typ, Stichtag, Wertpapier und Verhältnis des Splits, fest.
+Ein falscher Split wird nicht an Ort und Stelle korrigiert: Er wird gelöscht
+— **Split löschen…** in dieser Hilfezeile — und mit **Split erfassen** neu
+erfasst. API und MCP antworten auf eine Änderung an etwas anderem als der
+Notiz einer Split-Zeile mit `422`.
+
+**Eine Buchung löschen** (Issue #912): Das Kebab-Menü jeder Zeile trägt nach
+**Bearbeiten** den Eintrag **Löschen…**, in Rot. Er öffnet eine Rückfrage,
+die die Buchung so nennt, wie die Telefonzeile der Historie sie zeigt —
+Datum und Art über Wertpapier und Depot (oder Konto), der Betrag mit
+Vorzeichen über seiner Größe — und sagt, was sich ändert: zum Beispiel
+„Danach hält Depot 1 40 Stück Global Aktien ETF weniger, und Girokonto hat
+2.504,90 EUR mehr.“, dass Bestände, Kontostände, Rendite und Trades ohne die
+Buchung neu berechnet werden und dass das Audit-Journal die Buchung mit allen
+Werten behält, die Oberfläche sie aber nicht zurückholen kann. Wo ein später
+gesetzter Saldo dieses Verrechnungskonto verankert, sagt die Rückfrage, dass
+er ab seinem Tag unverändert gilt. **Transaktion löschen** löscht sie;
+**Abbrechen**, Esc oder die Schließen-Schaltfläche ändern nichts. Die Zeile
+verschwindet, die Monatssumme folgt, und das Ergebnis lautet „Transaktion
+gelöscht: Kauf · Global Aktien ETF · 22.09.2026.“; eine inzwischen gelöschte
+Buchung (vom Agenten oder in einem anderen Tab) liest „Diese Transaktion
+existiert nicht mehr.“ — die eine Ablehnung, die die API kennt. Darüber
+hinaus wird nichts geprüft, wie über die API: Wird ein Kauf gelöscht, dessen
+Stücke ein späterer Verkauf verbraucht hat, fehlt diesem Verkauf danach sein
+Kauf.
+
+- **Eine importierte Buchung** sagt es: Mit ihr geht ihr Inhalts-Hash, ein
+  erneuter Import derselben Datei bucht sie also wieder. Einen Inhalts-Hash
+  legt nur das Zusammenführen eines Kontos, Depots oder Wertpapiers still.
+- **Ein Split** wird so gelöscht, wie er gebucht wurde, als eine Tatsache:
+  **Löschen…** an einer beliebigen seiner Zeilen öffnet **Split löschen**
+  mit dem Verhältnis, der Zahl der Zeilen und den Portfolios, deren Zeilen
+  mitgehen — „Split löschen (2 Zeilen)“ löscht sie alle in einem Schritt,
+  journalisiert. Danach zählen die Bestände ab seinem Stichtag ohne den
+  Split, das Diagramm rechnet die Kursreihe ohne ihn, und gespeicherte Kurse
+  bleiben, wie sie sind; **Split erfassen** nimmt danach das korrigierte
+  Verhältnis an. **Split erfassen** selbst führt hierher: Ist am Tag schon
+  ein Split mit anderem Verhältnis gebucht, nennt seine Warnung dieses
+  Verhältnis und trägt **Gebuchten Split löschen…**, das dieselbe Rückfrage
+  auf der Seite des Wertpapiers öffnet.
+
+API und MCP-Begleiter haben dieselben zwei Löschwege:
+`DELETE /api/v1/transactions/:id` (`portfolixir.transactions.delete`) für eine
+Buchung und `DELETE /api/v1/splits/:transaction_id` (`portfolixir.splits.delete`,
+ein Admin-Werkzeug) für einen Split als Ganzes.
 
 Während ein **Verkauf** erfasst wird, zeigt das Formular eine Vorschau,
 welche FIFO-Kauftranchen (Lots) der Verkauf verbrauchen würde und den
@@ -2276,9 +2329,10 @@ ablegen. Eine bereits importierte Datei zeigt in der Vorschau *nichts
 anzulegen*; eine Zeile, die die Vorschau jetzt als neu zählt, ist eine
 Umbuchung, die der frühere Import anders gelesen hat (Fälle 1 und 2 und Fall 3
 zwischen zwei Depots). Die
-falsche Buchung vor dem Übernehmen entfernen: über die API oder den
-MCP-Begleiter löschen (`DELETE /api/v1/transactions/:id`,
-`portfolixir.transactions.delete`), dann die Datei übernehmen, die die
+falsche Buchung vor dem Übernehmen entfernen: mit **Löschen…** in ihrem
+Zeilenmenü in der Historie oder über die API oder den MCP-Begleiter löschen
+(`DELETE /api/v1/transactions/:id`, `portfolixir.transactions.delete`), dann
+die Datei übernehmen, die die
 Umbuchung so bucht, wie sie ging. Ein Verrechnungskonto mit dem Namen eines
 Depots hält danach nichts mehr und kann gelöscht werden. Fall 3 zwischen zwei
 Verrechnungskonten braucht keinen erneuten Import: die Buchung in der falschen
