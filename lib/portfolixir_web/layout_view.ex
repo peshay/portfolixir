@@ -46,10 +46,13 @@ defmodule PortfolixirWeb.LayoutView do
         </script>
         <script id="live-view-client-script" nonce={@csp_nonce}>
           (function () {
-            // Every destructive control carries data-confirm (#765). The page
-            // loads no phoenix_html script, so the attribute is honoured here:
-            // one capture-phase listener ahead of LiveView's own, cancelling
-            // the click before phx-click can see it.
+            // Every destructive control carries data-confirm (#765), unless a
+            // destructive dialog is itself its one confirmation — the release
+            // of manual quotes, the delete of a booking (U1, #912): one
+            // confirmation, never two. The page loads no phoenix_html script,
+            // so the attribute is honoured here: one capture-phase listener
+            // ahead of LiveView's own, cancelling the click before phx-click
+            // can see it.
             document.addEventListener("click", function (event) {
               var target = event.target && event.target.closest && event.target.closest("[data-confirm]");
               if (!target) { return; }
@@ -1040,8 +1043,12 @@ defmodule PortfolixirWeb.LayoutView do
               mounted: function () {
                 // The trigger that had focus when the dialog opened; restored
                 // on close because the server removes the dialog from the DOM,
-                // which forfeits the native focus-restore (UX-DR9).
-                this.opener = document.activeElement;
+                // which forfeits the native focus-restore (UX-DR9). A dialog
+                // opened from a row menu finds the menu gone and the focus on
+                // <body> (U1, #912): that is no opener, so the fallback below
+                // takes the focus, never <body> (WCAG 2.4.3).
+                var active = document.activeElement;
+                this.opener = active && active !== document.body ? active : null;
                 // Where the dialog's own write takes its trigger off the page
                 // (the release of the last manual quote, closing act γ D2),
                 // `data-focus-fallback` names where the focus goes instead.

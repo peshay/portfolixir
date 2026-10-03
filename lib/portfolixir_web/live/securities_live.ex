@@ -31,6 +31,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Knowledge.ThesisState
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.Delete
   alias Portfolixir.Portfolios
@@ -54,6 +55,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.SecurityEventLabel
   alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.StoredText
+  alias PortfolixirWeb.Transactions.BookingDeleteDialog
 
   @ranges ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX)
   @default_range "1Y"
@@ -114,6 +116,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:filter_sheet_open?, false)
      |> assign(:dialog_open?, false)
      |> assign(:split_dialog_open?, false)
+     |> assign(:deleting_split, nil)
      |> assign(:action_result, nil)
      |> assign(:sync_running?, false)
      |> assign(:selected_security, nil)
@@ -907,6 +910,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
           security={@selected_security}
         />
       <% end %>
+
+      <%!-- U1 (#912), pick H2-A A8: the split "Record split" found standing,
+           deleted whole on this page, so the corrected ratio is booked in
+           the same place; the focus returns to "Record split". --%>
+      <BookingDeleteDialog.dialog
+        :if={@deleting_split}
+        deleting={@deleting_split}
+        focus_fallback="#detail-record-split"
+      />
 
       <%= if @delete_blocked do %>
         <RowContextMenu.delete_blocked_dialog
@@ -4503,6 +4515,29 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply, assign(socket, :split_dialog_open?, true)}
   end
 
+  # U1 (#912), A8: the split's delete dialog, opened from "Record split".
+  def handle_event("cancel_delete", _params, socket),
+    do: {:noreply, assign(socket, :deleting_split, nil)}
+
+  def handle_event("confirm_delete", %{"id" => id_str}, socket) do
+    with %{id: id} = deleting <- socket.assigns.deleting_split,
+         {:ok, ^id} <- LiveParam.fetch_id(id_str) do
+      socket = assign(socket, :deleting_split, nil)
+
+      result =
+        case BookingDeleteDialog.delete(Actor.owner_ui(), deleting) do
+          {:ok, message} -> {:note, message}
+          :gone -> {:problem, gettext("That transaction no longer exists.")}
+          {:error, message} -> {:problem, message}
+        end
+
+      {:noreply,
+       socket |> put_action_result(elem(result, 0), elem(result, 1)) |> load_detail_data()}
+    else
+      _stale -> {:noreply, socket}
+    end
+  end
+
   def handle_event("sync_now", _params, socket) do
     parent = self()
 
@@ -5308,6 +5343,23 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   def handle_info({:dialog, "split-wizard-dialog", :close}, socket) do
     {:noreply, assign(socket, :split_dialog_open?, false)}
+  end
+
+  # U1 (#912), A8: "Delete the booked split…" closes the wizard and opens the
+  # split's delete dialog here — never a dialog from a dialog (UX-DR9).
+  def handle_info({:dialog, "split-wizard-dialog", {:delete_split, id}}, socket) do
+    socket = assign(socket, :split_dialog_open?, false)
+
+    with %Transaction{type: "split"} = row <- Ledger.get_transaction(id),
+         %{} = deleting <- BookingDeleteDialog.prepare(row, %{}) do
+      {:noreply, assign(socket, :deleting_split, deleting)}
+    else
+      _gone ->
+        {:noreply,
+         socket
+         |> put_action_result(:problem, gettext("That transaction no longer exists."))
+         |> load_detail_data()}
+    end
   end
 
   # A booked split changes holdings, chart basis and the transactions list —

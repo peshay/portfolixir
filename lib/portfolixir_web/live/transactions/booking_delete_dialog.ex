@@ -1,0 +1,586 @@
+defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
+  @moduledoc """
+  Deleting a booking from the screen (Sprint 18 U1, #912; pick H2 = A,
+  board `ux-design-2026-10-02/02-booking-delete`; DESIGN.md, "Deleting a
+  booking").
+
+  One narrow destructive dialog, a native dialog element (`.modal
+  .booking-delete-dialog`) on the `ModalDialog` hook, opened from a history
+  row's "Delete…", from the notes-only drawer's help line, and — for a split
+  — from "Record split" on the security. It names the booking the way the
+  history's phone row does, says in one sentence what changes (built from
+  `Portfolixir.Ledger.Projection.effects/1`, the one reducer per kind, read
+  in reverse), says that everything derived is recomputed and that the
+  journal keeps the booking while the screen cannot bring it back, and
+  confirms once with a danger button that names the act. An imported booking
+  says that its content hash goes with it, so a re-import of the same file
+  books it again (plan D-6: that semantics does not change here).
+
+  A split is deleted the way it was booked, as one fact: the dialog names
+  its portfolios and its rows, and the confirm runs
+  `Portfolixir.Ledger.Splits.delete_split/2`, every row in one journaled
+  step. Every other kind runs `Portfolixir.Ledger.delete_transaction/2`. The
+  writes are the API's and MCP's own (`DELETE /api/v1/transactions/:id`,
+  `DELETE /api/v1/splits/:transaction_id`), run as the operator.
+
+  The page that shows the dialog owns its state (`prepare/2` builds what it
+  shows), handles `cancel_delete` and `confirm_delete`, and runs `delete/2`.
+  The API refuses nothing but a booking that is gone, so that is the one
+  refusal the page states ("That transaction no longer exists.").
+  """
+  use Phoenix.Component
+  use Gettext, backend: PortfolixirWeb.Gettext
+
+  alias Portfolixir.Catalog
+  alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Projection
+  alias Portfolixir.Ledger.Splits
+  alias Portfolixir.Ledger.Transaction
+  alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.Format
+  alias PortfolixirWeb.StoredText
+  alias PortfolixirWeb.TransactionKindLabel
+  alias PortfolixirWeb.TransactionManagementLive
+
+  @zero Decimal.new("0")
+
+  @doc """
+  What the dialog shows for `transaction`, or `nil` when it is gone (a split
+  whose rows were all deleted since). `context` names the page's cash
+  accounts, depots and transactions, each optional: the accounts name a
+  transfer's counter side, the transactions find a later set balance on an
+  affected cash account.
+  """
+  @spec prepare(%Transaction{}, map()) :: map() | nil
+  def prepare(%Transaction{type: "split"} = row, _context) do
+    case Splits.event_rows(row) do
+      [] -> nil
+      rows -> split_view(row, rows)
+    end
+  end
+
+  def prepare(%Transaction{} = transaction, context) do
+    names = names(transaction, context)
+
+    %{
+      id: transaction.id,
+      kind: :booking,
+      title: gettext("Delete transaction"),
+      subject: booking_subject(transaction, names),
+      consequence: booking_consequence(transaction, names, context),
+      journal:
+        gettext(
+          "The journal keeps the booking with all its values; the screen cannot bring it back."
+        ),
+      imported?: is_binary(transaction.import_hash),
+      confirm: gettext("Delete transaction"),
+      done: booking_done(transaction, names)
+    }
+  end
+
+  @doc """
+  Runs the delete `deleting` (what `prepare/2` built) confirmed, as `actor`:
+  `{:ok, message}` for the page's result slot, `:gone` when the booking no
+  longer exists, `{:error, message}` when the ledger refused.
+  """
+  @spec delete(Portfolixir.Actor.t(), map()) ::
+          {:ok, String.t() | Phoenix.HTML.safe()} | :gone | {:error, String.t()}
+  def delete(actor, %{id: id} = deleting) do
+    case Ledger.get_transaction(id) do
+      nil -> :gone
+      %Transaction{type: "split"} = row -> delete_split(actor, row, deleting)
+      %Transaction{} = transaction -> delete_booking(actor, transaction, deleting)
+    end
+  end
+
+  defp delete_split(actor, row, deleting) do
+    case Splits.delete_split(actor, row) do
+      {:ok, rows} -> {:ok, split_done(deleting, length(rows))}
+      {:error, :not_found} -> :gone
+      {:error, _refused} -> {:error, gettext("The booking could not be deleted.")}
+    end
+  end
+
+  defp delete_booking(actor, transaction, deleting) do
+    case Ledger.delete_transaction(actor, transaction) do
+      {:ok, _deleted} -> {:ok, deleting.done}
+      {:error, :not_found} -> :gone
+      {:error, _changeset} -> {:error, gettext("The booking could not be deleted.")}
+    end
+  end
+
+  # -- the dialog ----------------------------------------------------------------
+
+  attr(:deleting, :map, required: true)
+
+  attr(:focus_fallback, :string,
+    required: true,
+    doc: "where the focus goes when the dialog closes and its opener is gone"
+  )
+
+  @doc "The dialog for what `prepare/2` built."
+  def dialog(assigns) do
+    ~H"""
+    <dialog
+      id="booking-delete-dialog"
+      class="modal booking-delete-dialog"
+      phx-hook="ModalDialog"
+      data-close-event="cancel_delete"
+      data-focus-fallback={@focus_fallback}
+      aria-labelledby="booking-delete-dialog-title"
+      aria-describedby="booking-delete-subject"
+    >
+      <header class="modal-head">
+        <h2 id="booking-delete-dialog-title"><%= @deleting.title %></h2>
+        <button
+          type="button"
+          class="icon-button"
+          aria-label={gettext("Close")}
+          phx-click="cancel_delete"
+        >
+          <AppShell.icon name={:x} />
+        </button>
+      </header>
+      <div class="modal-body">
+        <p id="booking-delete-subject" class="booking-delete__subject">
+          <span class="phone-row__body">
+            <span class="phone-row__name"><%= @deleting.subject.name %></span>
+            <span :if={@deleting.subject.ids} class="phone-row__ids"><%= @deleting.subject.ids %></span>
+          </span>
+          <span class="phone-row__figures">
+            <span class="phone-row__figure"><%= @deleting.subject.figure %></span>
+            <span :if={@deleting.subject.figure2} class="phone-row__figure2">
+              <%= @deleting.subject.figure2 %>
+            </span>
+          </span>
+        </p>
+        <AppShell.data_note
+          :if={@deleting.imported?}
+          severity={:attention}
+          data-role="booking-delete-imported"
+        >
+          <%= gettext(
+            "This booking came from an import. Its content hash goes with it: a re-import of the same file books it again."
+          ) %>
+        </AppShell.data_note>
+        <p class="hint" data-role="booking-delete-consequence">
+          <%= sentences(@deleting.consequence) %>
+        </p>
+        <p class="hint" data-role="booking-delete-journal"><%= @deleting.journal %></p>
+      </div>
+      <div class="modal-footer modal-footer--band">
+        <button
+          type="button"
+          class="button-ghost"
+          data-role="booking-delete-cancel"
+          phx-click="cancel_delete"
+          autofocus
+        >
+          <%= gettext("Cancel") %>
+        </button>
+        <span class="modal-footer__spacer"></span>
+        <button
+          type="button"
+          id="booking-delete-confirm"
+          class="button-danger"
+          phx-click="confirm_delete"
+          phx-value-id={@deleting.id}
+        >
+          <%= @deleting.confirm %>
+        </button>
+      </div>
+    </dialog>
+    """
+  end
+
+  # The sentences of one paragraph, each escaped unless it is markup already
+  # (a stored name isolated in `<bdi>`), one space between them.
+  defp sentences(list) do
+    {:safe,
+     list
+     |> Enum.map(fn sentence -> sentence |> Phoenix.HTML.html_escape() |> elem(1) end)
+     |> Enum.intersperse(" ")}
+  end
+
+  # -- a booking ------------------------------------------------------------------
+
+  # The names a booking's sentences use: its security, its accounts and a
+  # transfer's counter side, from the row's preloads and the page's lists.
+  defp names(transaction, context) do
+    cash_by_id = by_id(Map.get(context, :cash_accounts, []), transaction, :cash_account)
+
+    depots_by_id =
+      by_id(Map.get(context, :securities_accounts, []), transaction, :securities_account)
+
+    %{
+      security: security_name(transaction),
+      cash: Map.get(cash_by_id, transaction.cash_account_id),
+      counter_cash: Map.get(cash_by_id, transaction.counter_cash_account_id),
+      depot: Map.get(depots_by_id, transaction.securities_account_id),
+      counter_depot: Map.get(depots_by_id, transaction.counter_securities_account_id),
+      cash_by_id: cash_by_id,
+      depots_by_id: depots_by_id,
+      currencies:
+        context
+        |> Map.get(:cash_accounts, [])
+        |> Map.new(&{&1.id, &1.currency_code})
+        |> put_preloaded_currency(transaction)
+    }
+  end
+
+  # The page's accounts by id, the row's own preloaded one included.
+  defp by_id(accounts, transaction, assoc) do
+    accounts
+    |> Map.new(&{&1.id, &1.name})
+    |> then(fn map ->
+      case Map.get(transaction, assoc) do
+        %{id: id, name: name} when is_binary(name) -> Map.put(map, id, name)
+        _not_loaded -> map
+      end
+    end)
+  end
+
+  defp put_preloaded_currency(map, %{cash_account: %{id: id, currency_code: code}})
+       when is_binary(code),
+       do: Map.put_new(map, id, code)
+
+  defp put_preloaded_currency(map, _transaction), do: map
+
+  defp security_name(%{security: %{name: name}}) when is_binary(name), do: name
+  defp security_name(%{security_id: nil}), do: nil
+
+  defp security_name(%{security_id: id}) do
+    case Catalog.get_security(id) do
+      %{name: name} -> name
+      nil -> nil
+    end
+  end
+
+  # The history's phone row, said back: date · kind over the subject and the
+  # account it touched; the signed amount over its size (DESIGN.md rule ②).
+  defp booking_subject(transaction, names) do
+    accounts =
+      case transaction.type do
+        "cash_transfer" -> [names.cash, names.counter_cash]
+        "security_transfer" -> [names.depot, names.counter_depot]
+        _kind -> [names.depot || names.cash]
+      end
+      |> Enum.reject(&is_nil/1)
+
+    account_line =
+      case accounts do
+        [] -> nil
+        [one] -> one
+        [from, to] -> from <> " → " <> to
+      end
+
+    ids =
+      [names.security, account_line]
+      |> Enum.reject(&is_nil/1)
+      |> Enum.join(" · ")
+
+    %{
+      name:
+        Format.date(transaction.date) <> " · " <> TransactionKindLabel.label(transaction.type),
+      ids: if(ids == "", do: nil, else: ids),
+      figure: TransactionManagementLive.phone_amount(transaction),
+      figure2: TransactionManagementLive.phone_size(transaction)
+    }
+  end
+
+  # What changes, concretely: the booking's own legs read in reverse, then
+  # the set balance a later anchor keeps, then the general recompute
+  # sentence. A set balance has its own sentence: it is a level, not a flow.
+  defp booking_consequence(%Transaction{type: "balance_adjustment"} = anchor, names, _context) do
+    [
+      StoredText.isolate(
+        gettext(
+          "Afterwards %{account} carries no balance set on %{date}; its balance follows the bookings again.",
+          account: StoredText.slot(:account),
+          date: Format.date(anchor.date)
+        ),
+        account: names.cash || "—"
+      ),
+      recompute_sentence()
+    ]
+  end
+
+  defp booking_consequence(transaction, names, context) do
+    effects = Projection.effects(transaction)
+    clauses = quantity_clauses(effects.quantities, names) ++ cash_clauses(effects.cash, names)
+
+    lead =
+      case clauses do
+        [] ->
+          []
+
+        [first | rest] ->
+          pieces =
+            [clause(first, :lead) | Enum.map(rest, &clause(&1, :follow))]
+            |> Enum.map(fn {:safe, iodata} -> iodata end)
+            |> Enum.intersperse(", ")
+
+          [{:safe, [pieces, "."]}]
+      end
+
+    lead ++ later_anchors(transaction, effects.cash, names, context) ++ [recompute_sentence()]
+  end
+
+  defp recompute_sentence,
+    do: gettext("Holdings, balances, returns and trades are recomputed without this booking.")
+
+  defp quantity_clauses(legs, names) do
+    for {_depot_id, _security_id, %Decimal{} = delta} = leg <- legs,
+        not Decimal.equal?(delta, @zero) do
+      {:quantity, depot_for(leg, names), names.security || "—", delta}
+    end
+  end
+
+  # A security transfer moves the shares between its two depots, a cash
+  # transfer the money between its two accounts: each leg names its own.
+  defp depot_for({depot_id, _security_id, _delta}, names),
+    do: Map.get(names.depots_by_id, depot_id) || "—"
+
+  defp cash_clauses(legs, names) do
+    for {account_id, {:add, %Decimal{} = delta}} <- legs,
+        not is_nil(account_id),
+        not Decimal.equal?(delta, @zero) do
+      {:cash, cash_name(account_id, names), delta, Map.get(names.currencies, account_id)}
+    end
+  end
+
+  defp cash_name(account_id, names), do: Map.get(names.cash_by_id, account_id) || "—"
+
+  # The quantity a leg added is what the delete takes away, and the reverse.
+  defp clause({:quantity, depot, security, delta}, position) do
+    quantity = format_quantity(Decimal.abs(delta))
+    fewer? = Decimal.compare(delta, @zero) == :gt
+
+    text =
+      case {position, fewer?} do
+        {:lead, true} ->
+          gettext("Afterwards %{depot} holds %{quantity} fewer units of %{security}",
+            depot: StoredText.slot(:depot),
+            quantity: quantity,
+            security: StoredText.slot(:security)
+          )
+
+        {:lead, false} ->
+          gettext("Afterwards %{depot} holds %{quantity} more units of %{security}",
+            depot: StoredText.slot(:depot),
+            quantity: quantity,
+            security: StoredText.slot(:security)
+          )
+
+        {:follow, true} ->
+          gettext("and %{depot} holds %{quantity} fewer units of %{security}",
+            depot: StoredText.slot(:depot),
+            quantity: quantity,
+            security: StoredText.slot(:security)
+          )
+
+        {:follow, false} ->
+          gettext("and %{depot} holds %{quantity} more units of %{security}",
+            depot: StoredText.slot(:depot),
+            quantity: quantity,
+            security: StoredText.slot(:security)
+          )
+      end
+
+    StoredText.isolate(text, depot: depot, security: security)
+  end
+
+  defp clause({:cash, account, delta, currency}, position) do
+    amount = Format.money(Decimal.abs(delta)) <> if(currency, do: " " <> currency, else: "")
+    more? = Decimal.compare(delta, @zero) == :lt
+
+    text =
+      case {position, more?} do
+        {:lead, true} ->
+          gettext("Afterwards %{account} has %{amount} more",
+            account: StoredText.slot(:account),
+            amount: amount
+          )
+
+        {:lead, false} ->
+          gettext("Afterwards %{account} has %{amount} less",
+            account: StoredText.slot(:account),
+            amount: amount
+          )
+
+        {:follow, true} ->
+          gettext("and %{account} has %{amount} more",
+            account: StoredText.slot(:account),
+            amount: amount
+          )
+
+        {:follow, false} ->
+          gettext("and %{account} has %{amount} less",
+            account: StoredText.slot(:account),
+            amount: amount
+          )
+      end
+
+    StoredText.isolate(text, account: account)
+  end
+
+  # A set balance on an account the booking moves anchors that account from
+  # its date on (ADR-0009): the booking's own effect ends there, and the
+  # sentence says so rather than promise a balance the anchor overrides.
+  defp later_anchors(transaction, cash_legs, names, context) do
+    account_ids = for {id, {:add, _delta}} <- cash_legs, not is_nil(id), do: id
+
+    context
+    |> Map.get(:transactions, [])
+    |> Enum.filter(fn other ->
+      other.type == "balance_adjustment" and other.id != transaction.id and
+        other.cash_account_id in account_ids and Date.compare(other.date, transaction.date) != :lt
+    end)
+    |> Enum.sort_by(& &1.date, Date)
+    |> Enum.uniq_by(& &1.cash_account_id)
+    |> Enum.map(fn anchor ->
+      StoredText.isolate(
+        gettext("The balance set for %{account} on %{date} still holds from that day on.",
+          account: StoredText.slot(:account),
+          date: Format.date(anchor.date)
+        ),
+        account: anchor_account_name(anchor, names)
+      )
+    end)
+  end
+
+  defp anchor_account_name(anchor, names),
+    do: Map.get(names.cash_by_id, anchor.cash_account_id) || "—"
+
+  defp booking_done(transaction, names) do
+    kind = TransactionKindLabel.label(transaction.type)
+    date = Format.date(transaction.date)
+
+    case booking_subject(transaction, names).ids do
+      nil ->
+        gettext("Transaction deleted: %{kind} · %{date}.", kind: kind, date: date)
+
+      _ids ->
+        StoredText.isolate(
+          gettext("Transaction deleted: %{kind} · %{subject} · %{date}.",
+            kind: kind,
+            subject: StoredText.slot(:subject),
+            date: date
+          ),
+          subject: names.security || names.cash || names.depot
+        )
+    end
+  end
+
+  # -- a split ---------------------------------------------------------------------
+
+  defp split_view(row, rows) do
+    count = length(rows)
+    security = security_name(row) || "—"
+    ratio = "#{row.split_ratio_numerator}:#{row.split_ratio_denominator}"
+    names = Enum.map(rows, &portfolio_name/1)
+
+    %{
+      id: row.id,
+      kind: :split,
+      title: gettext("Delete split"),
+      subject: %{
+        name: Format.date(row.date) <> " · " <> TransactionKindLabel.label("split"),
+        ids: security,
+        figure: ratio,
+        figure2: ngettext("%{count} row", "%{count} rows", count)
+      },
+      consequence: [
+        portfolios_sentence(count, names),
+        StoredText.isolate(
+          gettext(
+            "Afterwards the holdings of %{security} count without the split from %{date} on, and the chart computes its price series without it; stored quotes stay as they are.",
+            security: StoredText.slot(:security),
+            date: Format.date(row.date)
+          ),
+          security: security
+        )
+      ],
+      journal: split_journal(count),
+      imported?: false,
+      confirm: split_confirm(count),
+      security: security,
+      ratio: ratio,
+      date: row.date,
+      done: nil
+    }
+  end
+
+  defp portfolio_name(%{portfolio: %{name: name}}) when is_binary(name), do: name
+  defp portfolio_name(_row), do: "—"
+
+  defp portfolios_sentence(2, names) do
+    StoredText.isolate(
+      gettext("The split is booked in 2 portfolios, %{names}; both rows are deleted in one step.",
+        names: StoredText.slot(:names)
+      ),
+      names: name_list(names)
+    )
+  end
+
+  defp portfolios_sentence(count, names) do
+    StoredText.isolate(
+      ngettext(
+        "The split is booked in %{count} portfolio, %{names}; its row is deleted.",
+        "The split is booked in %{count} portfolios, %{names}; all %{count} rows are deleted in one step.",
+        count,
+        names: StoredText.slot(:names)
+      ),
+      names: name_list(names)
+    )
+  end
+
+  # "A, B and C", each name isolated (the list is markup a slot takes).
+  defp name_list([name]), do: name
+
+  defp name_list(names) do
+    {init, [last]} = Enum.split(names, -1)
+
+    list =
+      init
+      |> Enum.map(fn name -> StoredText.bdi(name) |> elem(1) end)
+      |> Enum.intersperse(", ")
+
+    StoredText.isolate(
+      gettext("%{list} and %{last}", list: StoredText.slot(:list), last: StoredText.slot(:last)),
+      list: {:safe, list},
+      last: last
+    )
+  end
+
+  defp split_journal(2), do: gettext("The journal keeps both rows.")
+
+  defp split_journal(count),
+    do: ngettext("The journal keeps its row.", "The journal keeps all %{count} rows.", count)
+
+  # One row reads "Delete split", without a count (board A4).
+  defp split_confirm(1), do: gettext("Delete split")
+
+  defp split_confirm(count),
+    do: ngettext("Delete split (%{count} row)", "Delete split (%{count} rows)", count)
+
+  defp split_done(deleting, count) do
+    StoredText.isolate(
+      ngettext(
+        "Split deleted: %{security} · %{ratio} · %{date}, %{count} row.",
+        "Split deleted: %{security} · %{ratio} · %{date}, %{count} rows.",
+        count,
+        security: StoredText.slot(:security),
+        ratio: deleting.ratio,
+        date: Format.date(deleting.date)
+      ),
+      security: deleting.security
+    )
+  end
+
+  defp format_quantity(%Decimal{} = quantity) do
+    normalized = Decimal.normalize(quantity)
+    places = normalized.exp |> Kernel.-() |> max(0) |> min(8)
+    Format.decimal(normalized, places)
+  end
+end
