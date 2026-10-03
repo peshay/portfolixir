@@ -2541,8 +2541,12 @@ naming the already-booked event) stays inline in the dialog.
   choice.
 - Theme, accent, and language are user preferences and do not affect stored
   financial values.
-- Date fields accept and display ISO dates (`YYYY-MM-DD`) — the same format
-  every displayed date uses; the browser's locale date picker is not used.
+- Date fields accept and display ISO dates (`YYYY-MM-DD`); the browser's
+  locale date picker is not used. A date the page only shows follows the
+  page's language: `DD.MM.YYYY` on a German page, ISO on an English one. A
+  few screens still print ISO there — the security detail's head and tabs,
+  and the merge dialogs — until they are aligned. The API, MCP and every file
+  the app reads or writes keep ISO.
 - Number fields (quantity, price, fees and taxes, the settlement amount and
   rate, a rule's line, the Tax figures, a cash balance) show and accept figures
   in the page's language: a decimal comma on a German page (`1664,40`), a
