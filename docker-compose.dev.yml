@@ -85,6 +85,10 @@ services:
       PORTFOLIXIR_MCP_TRANSPORT: http
       PORTFOLIXIR_MCP_HOST: 0.0.0.0
       PORTFOLIXIR_MCP_PORT: 4001
+      # The same switches the production file passes (#1027), so the
+      # development companion can run as read, book or full.
+      PORTFOLIXIR_MCP_READ_ONLY: ${PORTFOLIXIR_MCP_READ_ONLY:-false}
+      PORTFOLIXIR_MCP_PROFILE: ${PORTFOLIXIR_MCP_PROFILE:-}
     ports:
       - "127.0.0.1:4001:4001"
 

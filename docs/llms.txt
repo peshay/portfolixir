@@ -125,7 +125,9 @@ profile as the serialized `tools/list` answer, with tokens approximated as bytes
 - `full`: 140 tools, at most 209,000 bytes, about 52,000 to 60,000 tokens
 
 A test holds the companion under these byte figures, and they only ever move
-down.
+down. They count the tool list only: the server instructions a client also
+receives when it connects add about 1.5 KB more (1,437 to 1,632 bytes,
+depending on the profile).
 
 ## Before the first figure
 

@@ -4,7 +4,12 @@ import { describe, it } from "node:test";
 import { MCP_PROFILES } from "../src/profiles.js";
 import { publishedToolList } from "../src/server.js";
 import { publishedTools } from "./support/companion.js";
-import { SCHEMA_CEILINGS as CEILINGS, schemaBytes, tokenRange } from "./support/schema-budget.js";
+import {
+  CEILING_HISTORY,
+  SCHEMA_CEILINGS as CEILINGS,
+  schemaBytes,
+  tokenRange
+} from "./support/schema-budget.js";
 
 // The ceilings and the rule that they only ever move down live with the
 // measurement, in ./support/schema-budget.ts.
@@ -44,5 +49,45 @@ describe("the schema budget", () => {
 
     assert.ok(schemaBytes("read") < schemaBytes("book"));
     assert.ok(schemaBytes("book") < schemaBytes("full"));
+  });
+
+  // User story (#1027):
+  // As the operator whose agent pays for the tool list at connect time,
+  // I want "a ceiling only ever moves down" to be a test rather than a
+  // comment,
+  // so that a commit cannot raise a ceiling and stay green.
+  //
+  // Acceptance criteria:
+  // - Every ceiling the budget has had is recorded, oldest first, with its
+  //   date and its reason; no row sets any profile above the row before it.
+  // - The ceilings in force are the last row's.
+  // - The first row is the budget's own baseline (Sprint 17 A3, #994), so a
+  //   history rewritten from its start fails here as well.
+  it("only ever lowers a ceiling", () => {
+    assert.ok(CEILING_HISTORY.length > 0);
+
+    assert.deepEqual(
+      { ...CEILING_HISTORY[0], why: undefined },
+      { since: "2026-10-01", read: 106_000, book: 179_000, full: 209_000, why: undefined }
+    );
+
+    for (let i = 1; i < CEILING_HISTORY.length; i++) {
+      const before = CEILING_HISTORY[i - 1];
+      const row = CEILING_HISTORY[i];
+      assert.ok(row.since >= before.since, `row ${i}: dated before the row it follows`);
+
+      for (const profile of MCP_PROFILES) {
+        assert.ok(
+          row[profile] <= before[profile],
+          `row ${i} (${row.since}) raises ${profile} from ${before[profile]} to ${row[profile]}: ` +
+            "a ceiling only ever moves down; trim a description instead"
+        );
+      }
+    }
+
+    const last = CEILING_HISTORY[CEILING_HISTORY.length - 1];
+    for (const profile of MCP_PROFILES) {
+      assert.equal(CEILINGS[profile], last[profile], `${profile}: the ceiling in force is the last row's`);
+    }
   });
 });
