@@ -92,6 +92,15 @@ defmodule Portfolixir.Portfolios.Bonds do
   end
 
   @doc """
+  `security` with its reading in the virtual `bond` field (`nil` for any
+  other security): the detail read's attachment, as
+  `Portfolixir.Knowledge.with_thesis_state/1` attaches the thesis state.
+  """
+  @spec with_reading(Security.t(), keyword()) :: Security.t()
+  def with_reading(%Security{} = security, opts \\ []),
+    do: %{security | bond: reading(security, opts)}
+
+  @doc """
   The bonds among `security_ids` that are priced on two scales, sorted by
   name, each the engine's finding with its `security_id` and `name`.
   """

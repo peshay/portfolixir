@@ -50,12 +50,17 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "booked, as one fact — every portfolio's row of the event in one journaled step, " <>
           "from any of its rows — so the corrected ratio can be booked right after; the " <>
           "screen's delete of a split row runs the same write, and the agent's tool is an " <>
-          "admin tool (#912, ADR-0028 §1).",
+          "admin tool (#912, ADR-0028 §1); U7, a bond's master data (coupon, payment " <>
+          "frequency, maturity, issue date, denomination) is set and read on the securities " <>
+          "routes, and the detail read of a bond carries the nominal held, the remaining term " <>
+          "and two display-only yields, each with its computation basis, and names a bond " <>
+          "priced on two scales (#330, ADR-0052).",
       endpoints: ["DELETE /api/v1/splits/:transaction_id"],
       tools: ["portfolixir.splits.delete"],
       parameters: [
         "DELETE /api/v1/splits/:transaction_id, new: deletes the split event the row belongs to, every split row sharing its security, date and normalized ratio in every portfolio, in one transaction, each row journaled with its before-image under the token; answers 200 with data.transactions, the removed rows in the transaction shape ordered by portfolio; an unknown or already deleted row is a 404, a booking of another kind a 422 on transaction_id naming DELETE /api/v1/transactions/:id; a failure on any row deletes nothing. DELETE /api/v1/transactions/:id on a split row still removes that row alone. PATCH /api/v1/transactions/:id on a split row's date, security, portfolio, type or ratio still answers 422, its message now naming DELETE /api/v1/splits/:transaction_id where it named a row-by-row delete (U1, #912)",
-        "portfolixir.splits.delete, new: transaction_id (any row of the split) to DELETE /api/v1/splits/:transaction_id, hinted destructive and idempotent, in the admin set, so the full profile lists it and book and read do not; portfolixir.transactions.delete and portfolixir.transactions.update name it for a split (U1, #912)"
+        "portfolixir.splits.delete, new: transaction_id (any row of the split) to DELETE /api/v1/splits/:transaction_id, hinted destructive and idempotent, in the admin set, so the full profile lists it and book and read do not; portfolixir.transactions.delete and portfolixir.transactions.update name it for a split (U1, #912)",
+        "POST /api/v1/securities and PATCH /api/v1/securities/:id take, and every security payload answers, coupon_rate (percent of face per year, a Decimal string from 0 to 100, 2.5 not 0.025), coupon_frequency (annual or semi_annual), maturity_date and issue_date (ISO dates, the maturity after the issue date), face_value (the denomination, a Decimal string above 0) and face_value_currency_code; each is nullable, null clears it, an impossible value is a 422 naming its field, and they are kept when the asset class changes. GET /api/v1/securities/:id of a security whose effective asset class is bond or government_bond carries bond: as_of, quantity, nominal_held {amount = quantity × 100 under the hundredth convention, currency_code}, remaining_term {days, years, whole_years, whole_months, matured}, current_yield and yield_to_maturity {value as a ratio at scale 6, price {value, date, source quote|trade}, matured, insufficient_data, missing} — the yield to maturity the linear approximation (coupon + (100 − price) ÷ remaining years) ÷ price — each with computation_basis (input_series, window, reference, gaps, assumptions), and two_scales (null, or the latest quote, the count and last of the buys booked on the unit scale, and the rule: a quote 20 to 500 times a buy price per unit); bond is null for any other security and on every other read (U7, #330, ADR-0052)"
       ],
       removed_endpoints: [],
       removed_tools: []

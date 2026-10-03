@@ -64,6 +64,12 @@ defmodule Portfolixir.Catalog.Security do
     # never journaled; `nil` on reads that did not compute it.
     field(:thesis_state, :map, virtual: true)
 
+    # #330 (ADR-0052): the bond reading — nominal held, remaining term, the
+    # two yields and the two-scales finding — attached to the detail read by
+    # `Portfolixir.Portfolios.Bonds.with_reading/2`. Virtual, computed at
+    # read; `nil` for any other security and on reads that did not compute it.
+    field(:bond, :map, virtual: true)
+
     timestamps()
   end
 
