@@ -1439,7 +1439,10 @@ interaction is about — pins to the right edge of its own scroller**
 (`.col-subject`: `position: sticky; right: 0`, opaque background, a border
 for the seam). The middle columns scroll beneath it, so the summoned figure
 is on screen at the moment it is asked for, at every width — sticky is inert
-while the table fits, which is why the rule needs no media query.
+while the table fits, which is why the rule needs no media query. *(Built
+as stated only since Sprint 18, issue 1009: the table, not
+`.data-table-wrapper`, was the sticky container, and the seam is now an
+inset shadow — see Amendment 2026-10-03.)*
 
 The issue's draft wording ("the subject column *sorts before* its context
 columns under narrow width") was deliberately not taken: CSS cannot reorder
@@ -3127,3 +3130,40 @@ children (body and figures), no logo, no kebab, no bar.
 - A security stored twice under one name (a duplicate awaiting a merge)
   reads as two rows with the same name; the ISIN is in the payload but not
   on the row.
+
+## Amendment 2026-10-03 — Tables: five conformance repairs *(Sprint 18 pick H4; issues 1009, 1010, 913, 911, 1011)*
+
+Board `mockups/ux-design-2026-10-02/04-tables-conformance`, "after", and
+**A** for the positions worklist (plan D-8, adopted by the planning PR's
+merge). The spec already fixed every answer but one; this records how each
+repair is built, so the next reader holds the screen against words that
+match it.
+
+### The subject column sticks to its scroller *(issue 1009, rule ①)*
+
+- **The scroller is the sticky container.** `.data-table-wrapper > table`
+  sets `overflow: visible`, beside its `min-width: max-content`: the global
+  `table { overflow: hidden }` (and, under 560 px, `overflow-x: auto`) made
+  every table its own scroll container, and a table exactly as wide as its
+  content never moves, so `.col-subject` stuck nowhere. A bare table outside
+  a wrapper keeps the global fallback. Measured on the board: the
+  realized matrix's "Gesamt" ended 87 px outside its scroller at 1200 px and
+  677 px outside at 390 px; after, it stands flush with the scroller's edge
+  and the months scroll beneath it.
+- **Three companion rules ship with it**, because a column that really
+  sticks shows what an inert one hid:
+  - **①b the seam is an inset shadow** (`.col-subject { border-left: 0;
+    box-shadow: inset 1px 0 0 {colors.border} }`): a collapsed table (the
+    drift tables) paints a cell's border itself and leaves it behind when
+    the cell sticks;
+  - **①c the pinned head cell keeps the head row's grey** (`thead
+    .col-subject { background: {colors.bg-muted} }`); `.data-table thead
+    th` outranks it and keeps its own head colour;
+  - **①d the pinned cell is opaque on striped and hovered rows**: the
+    stripe is 24 % {colors.bg-muted} over transparent, so on
+    `.data-table` an even row's pinned cell takes the same 24 % over
+    {colors.bg-elevated}, and the hover rule comes after it.
+- **Kept, as the board's stated doubts left them:** on `#transaction-list`
+  the row's hover wash sits on the `tr` and stops at the opaque Balance
+  cell (①d covers `.data-table` only). The wrapper, not the table, now
+  clips a header popover; the tree's Drift ⓘ opens over the rows as before.

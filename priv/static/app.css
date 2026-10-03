@@ -2005,9 +2005,17 @@ li + li {
    a sticky column pins over the clipped cells instead of beside them.
    Measured on the Cash-flow year x month matrices at 390 px. Any table
    inside the wrapper, not only .data-table: the UX-DR15 tail (issue 788)
-   put the drift, cash, plan and history tables in the same scroller. */
+   put the drift, cash, plan and history tables in the same scroller.
+   Nor is the table a scroll container of its own (issue 1009, Sprint 18
+   pick H4, board ux-design-2026-10-02/04-tables-conformance ①): the
+   global `table { overflow: hidden }` and, under 560 px, `table {
+   overflow-x: auto }` made every table the container `.col-subject`
+   sticks in, and a table exactly as wide as its content never moves, so
+   the subject column stuck nowhere. The wrapper is the sticky container; a
+   bare table outside a wrapper keeps the fallback. */
 .data-table-wrapper > table {
   min-width: max-content;
+  overflow: visible;
 }
 
 .data-table thead th {
@@ -5109,16 +5117,35 @@ details[open] > .disclosure-summary .disclosure-chevron {
    screen at the moment it is asked for; the context columns scroll beneath
    it. Sticky is inert while the table fits, so no media query: the rule is
    about the scroller, not the viewport. An opaque background covers the
-   scrolled-under cells; the border marks the seam (no hue-only signal,
-   UX-DR7). */
+   scrolled-under cells; a line marks the seam (no hue-only signal,
+   UX-DR7). The scroller is `.data-table-wrapper` (issue 1009, rule ①
+   there); the three companion rules of the board's ① ride here.
+   ①b: the seam is an inset shadow, not a border: in a collapsed table
+   (the drift tables) the table paints a cell's border and leaves it behind
+   when the cell sticks, while the shadow moves with the cell. */
 .col-subject {
   position: sticky;
   right: 0;
   background: var(--color-bg-elevated);
-  border-left: 1px solid var(--color-border);
+  border-left: 0;
+  box-shadow: inset 1px 0 0 var(--color-border);
 }
+/* ①c: the pinned head cell keeps the head row's grey; it took the cell's
+   white and stood out of it (the drift tables, the history's Balance).
+   `.data-table thead th` outranks this and keeps its own head colour. */
 thead .col-subject {
   z-index: 2;
+  background: var(--color-bg-muted);
+}
+/* ①d: opaque on striped and hovered rows. The stripe is 24 % bg-muted over
+   TRANSPARENT and outranks `.col-subject`, so the figures scrolling beneath
+   a pinned cell showed through every second row; the hover comes after the
+   stripe, which carries the same specificity. */
+.data-table tbody tr:nth-child(even) td.col-subject {
+  background: color-mix(in srgb, var(--color-bg-muted) 24%, var(--color-bg-elevated));
+}
+.data-table tbody tr:hover td.col-subject {
+  background: var(--color-hover);
 }
 
 /* Issue 717 (D2): the demoted builder's entry point — a quiet text control at
