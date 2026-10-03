@@ -97,6 +97,40 @@ defmodule PortfolixirWeb.ApiV1SecurityBondTest do
     assert Decimal.equal?(Decimal.new(unchanged["data"]["coupon_rate"]), Decimal.new("2.5"))
   end
 
+  # User story (#330, closing act on U7, finding 9):
+  # As the operator's agent writing a bond's coupon and denomination,
+  # I want them to follow the rule every other stored amount follows,
+  # so that a coupon with seven places or a JSON number behaves as a price
+  # or a close would, and nothing about the bond fields is a special case.
+  #
+  # Acceptance criteria:
+  # - A coupon of "3.1234567" is rounded half up to the column's 6 places
+  #   before it is checked and answered as "3.123457"; a face value of
+  #   "1000.0000004" as "1000" (ADR-0016's rule, "Other stored amounts").
+  # - A JSON number is cast as every decimal field casts one: a coupon of
+  #   2.5 is answered "2.5", a string.
+  test "the coupon and the denomination follow the stored-amount rule", %{conn: conn} do
+    %{"data" => created} =
+      create_bond!(conn, %{
+        "isin" => "XSAPIBND0359",
+        "coupon_rate" => "3.1234567",
+        "face_value" => "1000.0000004"
+      })
+
+    assert created["coupon_rate"] == "3.123457"
+    assert created["face_value"] == "1000"
+
+    patched =
+      conn
+      |> patch(
+        "/api/v1/securities/#{created["id"]}",
+        Jason.encode!(%{"security" => %{"coupon_rate" => 2.5}})
+      )
+      |> json_response(200)
+
+    assert patched["data"]["coupon_rate"] == "2.5"
+  end
+
   # User story (#330, closing act on U7, finding 3):
   # As the operator's agent reading a bond bought at its nominal before any
   # quote was stored,

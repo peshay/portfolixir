@@ -140,7 +140,8 @@ den ein Schreibzugriff speichert: den `close` eines Kurses (6
 Nachkommastellen), einen Wechselkurs (15) sowie die Geldfelder (6) und Sätze
 (4) der Steuer-Schreibzugriffe — die Töpfe und einbehaltenen Steuern einer
 Steuerbescheinigung, `amount_granted` eines Freistellungsauftrags, die
-Freibeträge und Sätze eines Steuerjahrs, `church_tax_rate` eines Profils. Ein
+Freibeträge und Sätze eines Steuerjahrs, `church_tax_rate` eines Profils —
+sowie `coupon_rate` und `face_value` einer Anleihe (6). Ein
 feinerer Wert wird vor der Prüfung kaufmännisch auf seine Stellenzahl
 gerundet; ein positiver `close`, der auf `0` rundet, liefert also `422` und
 wird nie als Null gespeichert. Ein Geldwert mit mehr als 14 Stellen vor dem
@@ -832,6 +833,13 @@ in jeder Wertpapier-Antwort enthalten (und mit `fields=` wählbar):
 - `face_value` — die Stückelung, ein Decimal-String über 0;
 - `face_value_currency_code` — die Währung der Stückelung.
 
+`coupon_rate` und `face_value` halten 6 Nachkommastellen, nach der Regel,
+der jeder gespeicherte Betrag folgt (**Andere gespeicherte Beträge** oben):
+Ein feinerer Wert wird vor der Prüfung kaufmännisch gerundet, `"3.1234567"`
+wird also als `"3.123457"` gespeichert und gemeldet. Gesendet werden sie als
+Strings, wie jedes Decimal; eine JSON-Zahl wird so umgewandelt, wie jedes
+Decimal-Feld eine umwandelt.
+
 `null` löscht ein Feld, Pflicht ist keines, ein unmöglicher Wert ist ein
 `422`, der sein Feld nennt, ohne dass etwas geschrieben wird, und die Felder
 bleiben erhalten, wenn die Anlageklasse wechselt. Gelesen werden sie nur,
@@ -850,12 +858,14 @@ andere Wertpapier und in Listen und Schreibantworten ist es `null`:
   des Nominals**, darum ist ein Kurs zugleich Prozent vom Nennwert und Preis
   je Stück;
 - `remaining_term` — `days` von `as_of` bis zur Fälligkeit, `years` (Tage ÷
-  365, sechs Nachkommastellen), `whole_years` und `whole_months`, `matured`
-  ab dem Fälligkeitstag;
+  365, kaufmännisch auf sechs Nachkommastellen gerundet), `whole_years` und
+  `whole_months`, `matured` ab dem Fälligkeitstag;
 - `current_yield` — Kupon ÷ Kurs, und `yield_to_maturity` — die **lineare
   Näherung** (Kupon + (100 − Kurs) ÷ Restlaufzeit in Jahren) ÷ Kurs, ohne
-  Zinseszins; jeweils eine Verhältniszahl mit sechs Nachkommastellen
-  (`0.025707` ist 2,5707 %), mit dem verwendeten `price` (`value`, `date`,
+  Zinseszins; jeweils eine Verhältniszahl, kaufmännisch auf sechs
+  Nachkommastellen gerundet (`0.025707` ist 2,5707 %) und wie jedes Decimal
+  ohne nachgestellte Nullen gesendet (`"0.03685"`, `"0"`), mit dem
+  verwendeten `price` (`value`, `date`,
   `source`: `quote` für den letzten gespeicherten Kurs, `trade` für den
   letzten eigenen Handelspreis, solange es keinen gibt);
 - `two_scales` — `null` oder der Befund, dass die Anleihe **auf zwei Skalen

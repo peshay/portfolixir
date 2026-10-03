@@ -1685,7 +1685,10 @@ defmodule Portfolixir.DocsTest do
              "**quantity × 100**",
              "Every metric carries its own `computation_basis`",
              "a latest quote 20 to 500 times a booked price per unit",
-             "`null` with `price_on_unit_scale: true`"
+             "`null` with `price_on_unit_scale: true`",
+             "each a ratio rounded half up at scale 6",
+             "`coupon_rate` and `face_value` keep 6 decimal places",
+             "a bond's `coupon_rate` and `face_value` (6)"
            ]},
           {"docs/de/integration/api-and-mcp.md",
            [
@@ -1696,7 +1699,10 @@ defmodule Portfolixir.DocsTest do
              "**Stück × 100**",
              "Jede Kennzahl trägt ihre eigene `computation_basis`",
              "ein letzter Kurs vom 20- bis 500-Fachen eines gebuchten Preises je Stück",
-             "`null` mit `price_on_unit_scale: true`"
+             "`null` mit `price_on_unit_scale: true`",
+             "jeweils eine Verhältniszahl, kaufmännisch auf sechs Nachkommastellen gerundet",
+             "`coupon_rate` und `face_value` halten 6 Nachkommastellen",
+             "`coupon_rate` und `face_value` einer Anleihe (6)"
            ]}
         ] do
       doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
