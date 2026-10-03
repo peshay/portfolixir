@@ -1105,13 +1105,47 @@ defmodule PortfolixirWeb.LayoutView do
                 if (this.el.open && typeof this.el.close === "function") {
                   this.el.close();
                 }
-                if (this.opener && this.opener.isConnected &&
-                    typeof this.opener.focus === "function") {
-                  this.opener.focus();
-                } else if (this.focusFallback) {
-                  var fallback = document.querySelector(this.focusFallback);
-                  if (fallback && typeof fallback.focus === "function") fallback.focus();
+                this.returnFocus();
+              },
+              // Where the focus goes once the server has removed the dialog
+              // (UX-DR9, WCAG 2.4.3) — only when it went with the dialog: a
+              // dialog that opened from this one keeps it. A result the
+              // close shows (`data-focus-result`, the page's result slot)
+              // comes into view first; the target then takes the focus
+              // without scrolling, and is brought into view only when it is
+              // out of it — so closing never jumps the page to its top
+              // (U1, #912, the closing act R3).
+              returnFocus: function () {
+                var active = document.activeElement;
+                if (active && active !== document.body && active.isConnected) return;
+                var target = this.returnTarget();
+                if (!target || typeof target.focus !== "function") return;
+                var shown = this.el.getAttribute("data-focus-result");
+                var result = shown && document.querySelector(shown);
+                if (result) result.scrollIntoView({ block: "nearest" });
+                target.focus({ preventScroll: true });
+                // In view means below the sticky top bar, which the
+                // target's scroll-margin-top states.
+                var box = target.getBoundingClientRect();
+                var top = parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+                if (box.top < top || box.bottom > window.innerHeight) {
+                  target.scrollIntoView({ block: "nearest" });
                 }
+              },
+              // The opener while it is on the page; else the first of
+              // `data-focus-return` — a history row's two kebabs, the
+              // table's and the phone row's — that is on the page and
+              // visible; else `data-focus-fallback`, for a target the
+              // dialog's own write took off the page (the row it deleted,
+              // the last manual quote it released).
+              returnTarget: function () {
+                if (this.opener && this.opener.isConnected) return this.opener;
+                var list = this.el.getAttribute("data-focus-return");
+                var candidates = list ? document.querySelectorAll(list) : [];
+                for (var i = 0; i < candidates.length; i++) {
+                  if (candidates[i].getClientRects().length > 0) return candidates[i];
+                }
+                return this.focusFallback ? document.querySelector(this.focusFallback) : null;
               },
               modal: function () {
                 return !this.sheetBelow ||

@@ -8232,6 +8232,16 @@ dialog.filter-sheet::backdrop {
   }
 }
 
+/* Where a closing dialog or drawer brings the history into view — the
+   page's result, a row's kebab, the heading — it lands below the sticky top
+   bar, not under it (U1, issue 912, the closing act R3; WCAG 2.4.11). */
+#transactions-workspace > [data-role="page-result"],
+#transaction-history-heading,
+#transaction-list .row-actions__kebab,
+#transaction-phone-rows .row-actions__kebab {
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-3));
+}
+
 /* ===== Booking drawer (issue 803, review C6 variant C) ===== */
 /* The history fills the page; the booking form slides in beside it as a
    native dialog in the securities detail pane's shape (`.detail-pane`),

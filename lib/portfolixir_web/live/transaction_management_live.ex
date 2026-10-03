@@ -98,10 +98,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         <AppShell.area_tabs tabs={AppShell.transactions_tabs(:history)} />
 
         <%= if @error do %>
-          <p class="alert-error" role="alert"><%= @error %></p>
+          <p class="alert-error" role="alert" data-role="page-result"><%= @error %></p>
         <% end %>
         <%= if @success do %>
-          <p class="alert-success" role="status"><%= @success %></p>
+          <p class="alert-success" role="status" data-role="page-result"><%= @success %></p>
         <% end %>
 
         <%!-- ADR-0024: no portfolio strip — the depot choice alone decides
@@ -503,8 +503,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             </button>
           </AppShell.row_menu>
         </section>
+        <%!-- U1 (#912), the closing act R3: an Edit drawer opened from a
+             row's menu returns the focus to that row's kebab on every exit,
+             the heading only when the row is gone (WCAG 2.4.3). --%>
         <.notes_drawer
           :if={@booking_open? and @editing_fixed != nil}
+          focus_return={row_kebabs(@editing_id)}
           transaction={@editing_fixed}
           securities={@securities}
           cash_accounts={@cash_accounts}
@@ -513,6 +517,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         />
         <.booking_drawer
           :if={@booking_open? and @editing_fixed == nil}
+          focus_return={row_kebabs(@editing_id)}
           editing?={@editing_id != nil}
           transaction_form={@transaction_form}
           form_errors={@form_errors}
@@ -525,6 +530,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           :if={@deleting}
           deleting={@deleting}
           focus_fallback="#transaction-history-heading"
+          focus_return={row_kebabs(@deleting.opened_from)}
+          focus_result="[data-role='page-result']"
         />
       </div>
     </AppShell.shell>
@@ -892,6 +899,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       _other -> nil
     end) || Catalog.get_security(id)
   end
+
+  # The row's two kebabs, the table's and the phone row's; the hook takes
+  # the one that is visible at this width.
+  defp row_kebabs(nil), do: nil
+  defp row_kebabs(id), do: "#tx-kebab-#{id}, #tx-phone-kebab-#{id}"
 
   defp delete_context(socket) do
     %{
@@ -1741,6 +1753,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   attr(:cash_accounts, :list, required: true)
   attr(:securities_accounts, :list, required: true)
   attr(:form_errors, :map, required: true)
+  attr(:focus_return, :string, default: nil)
 
   defp notes_drawer(assigns) do
     assigns =
@@ -1756,6 +1769,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       phx-hook="ModalDialog"
       data-close-event="close_booking"
       data-sheet-below="720"
+      data-focus-return={@focus_return}
+      data-focus-fallback="#transaction-history-heading"
+      data-focus-result="[data-role='page-result']"
       aria-labelledby="booking-drawer-title"
     >
       <header class="detail-pane-head">
@@ -1996,6 +2012,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   attr(:securities, :list, required: true)
   attr(:sell_preview, :any, required: true)
   attr(:editing?, :boolean, default: false)
+  attr(:focus_return, :string, default: nil)
 
   defp booking_drawer(assigns) do
     assigns =
@@ -2016,6 +2033,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       phx-hook="ModalDialog"
       data-close-event="close_booking"
       data-sheet-below="720"
+      data-focus-return={@focus_return}
+      data-focus-fallback="#transaction-history-heading"
+      data-focus-result="[data-role='page-result']"
       aria-labelledby="booking-drawer-title"
     >
       <header class="detail-pane-head">
