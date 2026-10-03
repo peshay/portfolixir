@@ -10971,14 +10971,14 @@ msgstr[1] ""
 msgid "Names with the characters made visible"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:597
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:594
 #, elixir-autogen, elixir-format
 msgid "%{count} row"
 msgid_plural "%{count} rows"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:656
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:653
 #, elixir-autogen, elixir-format
 msgid "%{list} and %{last}"
 msgstr ""
@@ -10993,32 +10993,32 @@ msgstr ""
 msgid "A split with a different ratio is already booked for this security on this date (%{ratio}). Booking is refused while it stands."
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:307
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:304
 #, elixir-autogen, elixir-format
 msgid "Afterwards %{account} carries no balance set on %{date}; its balance follows the bookings again."
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:494
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:491
 #, elixir-autogen, elixir-format
 msgid "Afterwards %{account} has %{amount} less"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:488
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:485
 #, elixir-autogen, elixir-format
 msgid "Afterwards %{account} has %{amount} more"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:430
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:427
 #, elixir-autogen, elixir-format
 msgid "Afterwards %{depot} holds %{quantity} fewer units of %{security}"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:437
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:434
 #, elixir-autogen, elixir-format
 msgid "Afterwards %{depot} holds %{quantity} more units of %{security}"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:602
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:599
 #, elixir-autogen, elixir-format
 msgid "Afterwards the holdings of %{security} count without the split from %{date} on, and the chart computes its price series without it; stored quotes stay as they are."
 msgstr ""
@@ -11034,13 +11034,13 @@ msgstr ""
 msgid "Balance (%{currency})"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:592
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:668
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:589
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:665
 #, elixir-autogen, elixir-format
 msgid "Delete split"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:671
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:668
 #, elixir-autogen, elixir-format
 msgid "Delete split (%{count} row)"
 msgid_plural "Delete split (%{count} rows)"
@@ -11079,12 +11079,12 @@ msgstr ""
 msgid "From depot"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:341
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:338
 #, elixir-autogen, elixir-format
 msgid "Holdings, balances, returns and trades are recomputed without this booking."
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:675
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:672
 #, elixir-autogen, elixir-format
 msgid "Split deleted: %{security} · %{ratio} · %{date}, %{count} row."
 msgid_plural "Split deleted: %{security} · %{ratio} · %{date}, %{count} rows."
@@ -11112,12 +11112,12 @@ msgstr ""
 msgid "The effective date, ratio and security of a booked split are fixed. A wrong split is deleted and then recorded again on the security with “Record split”."
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:662
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:659
 #, elixir-autogen, elixir-format
 msgid "The journal keeps both rows."
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:665
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:662
 #, elixir-autogen, elixir-format
 msgid "The journal keeps its row."
 msgid_plural "The journal keeps all %{count} rows."
@@ -11134,14 +11134,14 @@ msgstr ""
 msgid "The screen does not book a “%{kind}”; only the note changes here, and the change is journaled."
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:634
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:631
 #, elixir-autogen, elixir-format
 msgid "The split is booked in %{count} portfolio, %{names}; its row is deleted."
 msgid_plural "The split is booked in %{count} portfolios, %{names}; all %{count} rows are deleted in one step."
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:625
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:622
 #, elixir-autogen, elixir-format
 msgid "The split is booked in 2 portfolios, %{names}; both rows are deleted in one step."
 msgstr ""
@@ -11166,32 +11166,32 @@ msgstr ""
 msgid "Transaction"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:565
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:562
 #, elixir-autogen, elixir-format
 msgid "Transaction deleted: %{kind} · %{date}."
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:569
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:566
 #, elixir-autogen, elixir-format
 msgid "Transaction deleted: %{kind} · %{subject} · %{date}."
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:506
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:503
 #, elixir-autogen, elixir-format
 msgid "and %{account} has %{amount} less"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:500
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:497
 #, elixir-autogen, elixir-format
 msgid "and %{account} has %{amount} more"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:444
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:441
 #, elixir-autogen, elixir-format
 msgid "and %{depot} holds %{quantity} fewer units of %{security}"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:451
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:448
 #, elixir-autogen, elixir-format
 msgid "and %{depot} holds %{quantity} more units of %{security}"
 msgstr ""
@@ -11411,37 +11411,37 @@ msgid_plural "booked price per unit around 1 (%{count} bookings, the last %{pric
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:529
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:526
 #, elixir-autogen, elixir-format
 msgid "Afterwards %{account} has %{amount} less until %{until}"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:522
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:519
 #, elixir-autogen, elixir-format
 msgid "Afterwards %{account} has %{amount} more until %{until}"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:467
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:464
 #, elixir-autogen, elixir-format
 msgid "Afterwards the balance of %{account} stays as set on %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:411
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:408
 #, elixir-autogen, elixir-format
 msgid "From the balance set on %{date} on, the balance of %{account} stays unchanged."
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:543
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:540
 #, elixir-autogen, elixir-format
 msgid "and %{account} has %{amount} less until %{until}"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:536
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:533
 #, elixir-autogen, elixir-format
 msgid "and %{account} has %{amount} more until %{until}"
 msgstr ""
 
-#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:473
+#: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:470
 #, elixir-autogen, elixir-format
 msgid "and the balance of %{account} stays as set on %{date}"
 msgstr ""

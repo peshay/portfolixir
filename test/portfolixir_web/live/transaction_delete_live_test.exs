@@ -10,15 +10,18 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
   # Every name, figure and date is synthetic.
   use PortfolixirWeb.ConnCase
 
+  import Ecto.Query
   import Phoenix.LiveViewTest
 
   import Portfolixir.WorldFixtures,
     only: [base_world: 1, buy!: 3, create_security!: 1, deposit!: 3]
 
   alias Portfolixir.Actor
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Journal
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Splits
+  alias Portfolixir.Repo
 
   setup do
     world = base_world(name: "Hauptportfolio", cash_name: "Girokonto", depot_name: "Depot 1")
@@ -338,6 +341,35 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
 
     assert view |> element(".alert-success") |> render() |> text() =~
              "Transaction deleted: Buy · Kestrel Robotik SE · DE000SYN0A17 · 2026-09-10."
+  end
+
+  # User story (U1, #912; H2-A, A2; H8.8, #968; the closing act, R7):
+  # As the operator whose security name was stored before direction
+  # controls were refused,
+  # I want each stored name in the dialog's box isolated on its own,
+  # so that a direction control reorders at most that name, never the
+  # depot after it.
+  #
+  # Acceptance criteria:
+  # - The box's subject line sets the security and the depot each in its
+  #   own <bdi>; the app's separator stays outside both.
+  test "the box isolates each stored name", %{conn: conn, buy: buy, security: security} do
+    rlo = <<0x202E::utf8>>
+
+    {:ok, _} =
+      Repo.transaction(fn ->
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', 'system_job', true)")
+
+        Repo.update_all(from(s in Security, where: s.id == ^security.id),
+          set: [name: "Global Aktien ETF" <> rlo]
+        )
+      end)
+
+    {:ok, view, _html} = live(conn, "/transactions")
+    ask_delete(view, buy)
+
+    ids = view |> element("#booking-delete-subject .phone-row__ids") |> render()
+    assert ids =~ "<bdi>Global Aktien ETF" <> rlo <> "</bdi> · <bdi>Depot 1</bdi>"
   end
 
   # User story (U1, #912; H2-A, A7; G12.3-A):
