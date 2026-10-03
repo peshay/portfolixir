@@ -32,6 +32,11 @@ defmodule Portfolixir.Invariants.DerivedNeverAWriteSourceTest do
     # a walk and a benchmark price series, memoised through the same
     # facade the walk uses. It has no write path.
     "lib/portfolixir/portfolios/performance/benchmark.ex" => [[:Portfolixir, :Derived]],
+    # The contribution analysis (ADR-0051 §12, FR-41): a registered read model
+    # over the walk kept apart per position inside a period's window, keyed
+    # under the portfolio basis (or the global basis for a view across
+    # portfolios) at lifetime `:request`. It has no write path.
+    "lib/portfolixir/portfolios/performance/contribution.ex" => [[:Portfolixir, :Derived]],
     # The per-security derived metrics (ADR-0047 §8, FR-39): a registered read
     # model over one security's stored close series, served through the same
     # facade at lifetime `:none` — it has no write path, and the reason its

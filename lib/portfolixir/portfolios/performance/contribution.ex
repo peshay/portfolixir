@@ -66,15 +66,24 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
   identity holds to that precision. Nothing balances the difference.
 
   Missing data contributes zero, as it does in the walk, and the affected
-  positions are named (§10). Nothing is stored: everything is derived on
-  read.
+  positions are named (§10).
+
+  Nothing is persisted (§12). Each read runs its own walk with a window, and
+  the table is a derived value of its own (ADR-0039): the
+  `:performance_contribution` analytic under the portfolio's basis, and
+  `:performance_view_contribution` under the global basis for a view across
+  portfolios, computation version 1, lifetime `:request` by default, keyed
+  by scope, walk end date and period. The stored walk analytics never carry
+  the per-position figures.
   """
 
   alias Portfolixir.Buckets
   alias Portfolixir.Clock
+  alias Portfolixir.Derived
   alias Portfolixir.Portfolios.Performance
 
   @zero Decimal.new("0")
+  @hub "EUR"
 
   @typedoc "One position's row (ADR-0051 §11)."
   @type position :: %{
@@ -126,8 +135,9 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
 
   The result carries `portfolio_id`, `view_id` (the `:view` given, or `nil`),
   `period`, `base_currency`, the window's `start_date` and `end_date`,
-  `positions`, `remainder` and `totals`, and the walk's `as_of` with
-  `stale: false` (ADR-0039 C4: the walk is computed for this read).
+  `positions`, `remainder` and `totals`, the instant its walk was computed
+  as `as_of`, and `stale: false`: a memoised table is only served while the
+  portfolio's data version is unchanged (ADR-0039 C4).
 
   Each position carries `security_id`, `name`, `isin`, `start_value`,
   `end_value`, `net_flows`, `income`, `costs`, `contribution`,
@@ -162,13 +172,23 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
 
     with :ok <- Performance.validate_period(period),
          {:ok, scope} <- loaded(Buckets.load_scope(portfolio_id, view)) do
-      result =
+      compute = fn ->
         portfolio_id
         |> Performance.contribution_analysis(scope, period, today: today)
         |> build(period)
         |> Map.merge(%{portfolio_id: portfolio_id, view_id: view})
+      end
 
-      {:ok, result}
+      key = "view=#{view || "unscoped"}|today=#{today}|period=#{period_key(period)}"
+
+      {:ok,
+       served(
+         :performance_contribution,
+         Derived.portfolio_basis(portfolio_id),
+         key,
+         {period, today},
+         compute
+       )}
     end
   end
 
@@ -189,24 +209,66 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
   @spec for_view(integer() | nil, keyword()) :: {:ok, result()} | {:error, atom()}
   def for_view(view_id, opts \\ []) when is_integer(view_id) or is_nil(view_id) do
     period = Keyword.get(opts, :period, "max")
-
-    walk_opts =
-      [today: Keyword.get(opts, :today, Clock.today())] ++ Keyword.take(opts, [:base_currency])
+    base = Keyword.get(opts, :base_currency, @hub)
+    today = Keyword.get(opts, :today, Clock.today())
 
     with :ok <- Performance.validate_period(period),
          {:ok, scope} <- loaded(Buckets.load_global_scope(view_id)) do
-      result =
+      compute = fn ->
         view_id
-        |> Performance.view_contribution_analysis(scope, period, walk_opts)
+        |> Performance.view_contribution_analysis(scope, period,
+          base_currency: base,
+          today: today
+        )
         |> build(period)
         |> Map.merge(%{portfolio_id: nil, view_id: view_id})
+      end
 
-      {:ok, result}
+      key =
+        "view=#{view_id || "unscoped"}|base=#{base}|today=#{today}|period=#{period_key(period)}"
+
+      {:ok,
+       served(
+         :performance_view_contribution,
+         Derived.global_basis(),
+         key,
+         {period, today},
+         compute
+       )}
     end
   end
 
   defp loaded({:error, :view_not_found} = error), do: error
   defp loaded(scope), do: {:ok, scope}
+
+  # -- the analytic (ADR-0051 §12, ADR-0039) ------------------------------------
+
+  # Its own analytic per scope and period, keyed like the walk analytics --
+  # the walk's end date within the basis -- plus the period. Only the fixed
+  # periods are memoised: a custom range, or a calendar year past today, is
+  # computed on every read, so a sweep of distinct ranges adds nothing to the
+  # memo (E25 S4, G03). Freshness is annotated outside the memoised value
+  # (ADR-0039 C4): a memo hit counts only while its basis's data version is
+  # current, so whatever is served here is fresh.
+  defp served(analytic, basis, key, {period, today}, compute) do
+    value =
+      if fixed_period?(period, today) do
+        {:fresh, value} = Derived.fetch(analytic, basis, key, compute)
+        value
+      else
+        compute.()
+      end
+
+    Map.put(value, :stale, false)
+  end
+
+  defp fixed_period?({:year, year}, today), do: year <= today.year
+  defp fixed_period?(period, _today) when is_binary(period), do: true
+  defp fixed_period?(_range, _today), do: false
+
+  defp period_key({:year, year}), do: "year:#{year}"
+  defp period_key({:range, from, to}), do: "range:#{from}..#{to}"
+  defp period_key(period) when is_binary(period), do: period
 
   # -- the table -----------------------------------------------------------------
 
@@ -241,8 +303,7 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
         positions: position_total,
         remainder: remainder_total
       },
-      as_of: summary.as_of,
-      stale: false
+      as_of: summary.as_of
     }
   end
 
@@ -259,8 +320,7 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
         cash_currency_effect: @zero
       },
       totals: %{result: money_result(summary), positions: @zero, remainder: @zero},
-      as_of: summary.as_of,
-      stale: false
+      as_of: summary.as_of
     }
   end
 
