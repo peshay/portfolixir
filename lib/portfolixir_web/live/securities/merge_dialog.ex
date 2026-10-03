@@ -40,6 +40,7 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.Securities.MergePreview
+  alias PortfolixirWeb.StoredText
 
   @max_candidates 25
   @max_query 100
@@ -111,7 +112,7 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
     >
       <header class="modal-head">
         <h2 id={"#{@id}-title"}>
-          <%= gettext("Merge %{name}", name: @source.name) %>
+          <%= StoredText.isolate(gettext("Merge %{name}", name: StoredText.slot(:name)), name: @source.name) %>
           <span class="modal-head__step"><%= step_label(@step) %></span>
         </h2>
         <button

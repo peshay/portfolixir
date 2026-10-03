@@ -53,6 +53,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.Securities.SplitWizardDialog
   alias PortfolixirWeb.SecurityEventLabel
   alias PortfolixirWeb.SecurityNames
+  alias PortfolixirWeb.StoredText
 
   @ranges ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX)
   @default_range "1Y"
@@ -5021,12 +5022,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:ok, _updated} ->
         flash =
           if sec.is_benchmark,
-            do: gettext("%{name} is no longer a benchmark", name: sec.name),
-            else: gettext("Marked %{name} as benchmark", name: sec.name)
+            do: gettext("%{name} is no longer a benchmark", name: StoredText.slot(:name)),
+            else: gettext("Marked %{name} as benchmark", name: StoredText.slot(:name))
 
         {:noreply,
          socket
-         |> put_action_result(:note, flash)
+         |> put_action_result(:note, StoredText.isolate(flash, name: sec.name))
          |> load_securities()}
 
       {:error, _changeset} ->
@@ -5039,12 +5040,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:ok, _updated} ->
         flash =
           if sec.is_retired,
-            do: gettext("Reactivated %{name}", name: sec.name),
-            else: gettext("Retired %{name}", name: sec.name)
+            do: gettext("Reactivated %{name}", name: StoredText.slot(:name)),
+            else: gettext("Retired %{name}", name: StoredText.slot(:name))
 
         {:noreply,
          socket
-         |> put_action_result(:note, flash)
+         |> put_action_result(:note, StoredText.isolate(flash, name: sec.name))
          |> assign(:delete_blocked, nil)
          |> load_securities()}
 
@@ -5084,7 +5085,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:ok, _} ->
         {:noreply,
          socket
-         |> put_action_result(:note, gettext("Deleted %{name}", name: sec.name))
+         |> put_action_result(
+           :note,
+           stored_result(gettext("Deleted %{name}", name: StoredText.slot(:name)), sec.name)
+         )
          |> assign(:delete_blocked, nil)
          |> load_securities()}
 
@@ -5350,7 +5354,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
      socket
      |> assign(:dialog_open?, false)
      |> assign(:editing_security, nil)
-     |> put_action_result(:note, gettext("Created %{name}", name: security.name))
+     |> put_action_result(
+       :note,
+       stored_result(gettext("Created %{name}", name: StoredText.slot(:name)), security.name)
+     )
      |> load_securities()}
   end
 
@@ -5359,7 +5366,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
      socket
      |> assign(:dialog_open?, false)
      |> assign(:editing_security, nil)
-     |> put_action_result(:note, gettext("Updated %{name}", name: security.name))
+     |> put_action_result(
+       :note,
+       stored_result(gettext("Updated %{name}", name: StoredText.slot(:name)), security.name)
+     )
      |> load_securities()}
   end
 
@@ -5662,9 +5672,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp raced_delete_message(name) do
     gettext("%{name} changed while it was being deleted; nothing was deleted. Try again.",
-      name: name
+      name: StoredText.slot(:name)
     )
+    |> stored_result(name)
   end
+
+  # #968, pick H8.8 (board 08-dialogs-copy): a result line that names a
+  # stored name sets it in <bdi>, so a direction control it still carries
+  # reorders at most the name, never the words after it.
+  defp stored_result(translated, name), do: StoredText.isolate(translated, name: name)
 
   # A security merged away since the page showed it (closing act, γ CR-1)
   # opens no dialog: the page re-reads its own link, which follows the merge

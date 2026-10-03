@@ -171,7 +171,11 @@ defmodule Portfolixir.Lifecycle.DeleteLockCycleTest do
     |> render_click()
 
     html = render(view)
-    assert html =~ "Cycle Screen Fund changed while it was being deleted; nothing was deleted."
+
+    # The name sits in <bdi> since #968 (pick H8.8); the words read as before.
+    assert result_text(view, "#securities-action-result") =~
+             "Cycle Screen Fund changed while it was being deleted; nothing was deleted."
+
     refute html =~ "confirm-delete-blocked"
     assert Catalog.get_security(security.id)
 
@@ -179,11 +183,15 @@ defmodule Portfolixir.Lifecycle.DeleteLockCycleTest do
     view |> element("#cash-kebab-#{cash.id}") |> render_click()
     view |> element("#cash-row-menu-#{cash.id} [data-role='menu-delete']") |> render_click()
 
-    assert render(view) =~
+    assert result_text(view, "#accounts-result") =~
              "Cycle Screen Cash changed while it was being deleted; nothing was deleted."
 
     refute has_element?(view, "#delete-blocked-dialog")
     assert Portfolios.get_cash_account(cash.id)
+  end
+
+  defp result_text(view, selector) do
+    view |> element(selector) |> render() |> Floki.parse_fragment!() |> Floki.text()
   end
 
   # A BEFORE DELETE trigger that raises the given SQLSTATE: the database's own

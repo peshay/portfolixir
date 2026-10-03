@@ -43,6 +43,7 @@ defmodule PortfolixirWeb.Securities.QuoteReleaseDialog do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.StoredText
 
   # Chips beside "All": the newest stretches (board 03, ④).
   @chips 5
@@ -115,7 +116,10 @@ defmodule PortfolixirWeb.Securities.QuoteReleaseDialog do
     >
       <header class="modal-head">
         <h2 id={"#{@id}-title"}>
-          <%= gettext("Release manual quotes — %{name}", name: @security.name) %>
+          <%= StoredText.isolate(
+            gettext("Release manual quotes — %{name}", name: StoredText.slot(:name)),
+            name: @security.name
+          ) %>
         </h2>
         <button
           type="button"

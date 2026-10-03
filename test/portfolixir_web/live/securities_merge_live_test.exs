@@ -274,7 +274,14 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
 
     refute has_element?(view, "#security-merge-dialog")
 
-    assert view |> element("#securities-action-result") |> render() =~
+    # The target's name sits in <bdi> since #968 (pick H8.8).
+    assert has_element?(view, "#securities-action-result bdi", "Meridian Global Equity ETF")
+
+    assert view
+           |> element("#securities-action-result")
+           |> render()
+           |> Floki.parse_fragment!()
+           |> Floki.text() =~
              "Merged into Meridian Global Equity ETF: 1 booking moved, 1 duplicate removed. ISIN now XS0000000025."
 
     assert_patch(view, "/securities/#{ctx.target.id}")

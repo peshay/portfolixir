@@ -278,7 +278,12 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
 
       refute has_element?(view, "#merge-dialog")
 
-      assert view |> element("#accounts-result") |> render() =~
+      # The names sit in <bdi> since #968 (pick H8.8); the words read as before.
+      assert view
+             |> element("#accounts-result")
+             |> render()
+             |> Floki.parse_fragment!()
+             |> Floki.text() =~
                "Merged Tagesgeld (alt) into Tagesgeld: 3 bookings moved, 3 removed."
     end
 
@@ -642,7 +647,11 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
       render(view)
       refute has_element?(view, "#merge-dialog")
 
-      assert view |> element("#accounts-result") |> render() =~
+      assert view
+             |> element("#accounts-result")
+             |> render()
+             |> Floki.parse_fragment!()
+             |> Floki.text() =~
                "Merged Depot 2 into Depot 1: 3 bookings moved, 0 removed."
 
       refute has_element?(view, "#account-kebab-#{ctx.source.id}")
