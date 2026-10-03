@@ -2979,8 +2979,41 @@ they replaced or released as the before-image.
   second's `before` is the first's `after`. A write to a record deleted in
   the meantime answers `404` and leaves no entry.
 
-The journal currently covers the Catalog/Fx contexts (security master-data
-writes); the remaining write contexts are armed in sequence.
+Every financial write context journals: the rollout ADR-0017 sequenced is
+complete. Each table that holds financial records carries a guard trigger that
+refuses a write made without an actor, so a write path that forgets the
+journal fails instead of leaving a gap. The entries are filed under these
+`resource_type` codes:
+
+- securities and their ISIN aliases: `security`, `security_identifier_alias`;
+  the quotes someone writes: `security_quotes`;
+- portfolios, cash accounts and depots: `portfolio`, `cash_account`,
+  `securities_account`;
+- bookings, an applied import's included (actor `import_session`):
+  `transaction`;
+- classifications: `classification`, `category`,
+  `security_category_assignment`;
+- SOLL plans: `target`, `target_plan`;
+- tax records: `tax_parameters`, `tax_profile`, `allowance_order`,
+  `tax_statement_snapshot`;
+- the research log and security events: `security_note`, `security_event`;
+- policy rules: `policy_rule`, `policy_rule_version`;
+- the lifecycle merges: `merge_record`, `retired_import_hash`;
+- buckets, views and depot snapshot markers: `bucket`, `view`,
+  `depot_bucket_assignment`, `cash_account_bucket_assignment`,
+  `position_bucket_override`, `snapshot`.
+
+Two kinds of table carry no guard trigger, so for them the journal rests on
+their writers: `security_quotes`, which the sync writes too, and the scope
+tables behind views, bucket assignments, position overrides and snapshot
+markers, which say what a view reads rather than hold financial records
+(ADR-0018 §5).
+
+Outside the journal, deliberately: the quote and exchange-rate sync; the
+quotes a security merge moves or drops, which its merge manifest records
+instead (ADR-0050 §13); the stored settings (the default view); and the
+derived values of ADR-0039, which can be rebuilt from the stored records at
+any time.
 
 ## MCP Tools
 

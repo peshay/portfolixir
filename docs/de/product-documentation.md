@@ -3026,9 +3026,12 @@ nachvollziehbar bleibt (Werte vorher/nachher) — das Sicherheitsnetz dafür, ei
 Agenten über die API/MCP schreiben zu lassen. Marktdaten-Synchronisierung (Kurse
 und Wechselkurse) ist betrieblich und wird nicht journalisiert. Das Journal ist
 über `GET /api/v1/journal` und das passende MCP-Tool `portfolixir.journal.list`
-abfragbar (siehe [API und MCP](integration/api-and-mcp.html)). Es deckt derzeit
-Wertpapier-Stammdaten ab; die übrigen Schreibbereiche folgen nacheinander. Eine
-eigene Ansicht in der App ist als Folgeschritt geplant.
+abfragbar (siehe [API und MCP](integration/api-and-mcp.html)). Es deckt jeden
+Bereich ab, der Finanzdaten schreibt: Wertpapiere und die Kurse, die jemand
+eingibt, Portfolios, Geldkonten und Depots, Buchungen (auch die eines Imports),
+Klassifizierungen und SOLL-Pläne, Steuerdaten, Recherche-Notizen und Termine,
+eigene Regeln, Zusammenführungen sowie Buckets und Views. Eine eigene Ansicht
+in der App ist als Folgeschritt geplant.
 
 Das Löschen eines Geldkontos, eines Depots oder eines Wertpapiers nimmt nie
 stillschweigend etwas mit (ADR-0050 §11). Eine Zeile, auf die noch Buchungen
