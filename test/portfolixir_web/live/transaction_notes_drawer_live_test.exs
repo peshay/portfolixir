@@ -249,6 +249,34 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
     end
   end
 
+  # User story (U1, #912; H2b-A, pin 4; the closing act, R10c):
+  # As the operator reading a booking's stored facts in the drawer,
+  # I want each figure with the digits it was stored with,
+  # so that the drawer shows the booking, not a rounding of it.
+  #
+  # Acceptance criteria:
+  # - A price stored as 41.1234 reads 41.1234; an amount stored as 1500
+  #   reads 1,500.00 — trailing zeros trimmed, at least two places.
+  test "a stored figure keeps its digits", %{conn: conn, world: world, security: security} do
+    delivery =
+      book!(%{
+        type: "inbound_delivery",
+        portfolio_id: world.portfolio.id,
+        security_id: security.id,
+        securities_account_id: world.depot.id,
+        quantity: "5",
+        price: "41.1234",
+        date: ~D[2026-09-11]
+      })
+
+    view = open_edit(conn, delivery)
+    assert has_element?(view, "#booking-facts input[name='note[price]'][value='41.1234']")
+
+    german = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    view = open_edit(german, delivery)
+    assert has_element?(view, "#booking-facts input[name='note[price]'][value='41,1234']")
+  end
+
   # User story (U1, #912; H2b-A, pin 5):
   # As the operator who decides a booking the screen cannot correct must go,
   # I want the help line's "Delete…" to lead to the same confirmation as the
