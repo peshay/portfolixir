@@ -271,7 +271,12 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     for cash <- cash_accounts,
         do: :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), cash, [core.id])
 
-    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Core", include_all: false})
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Core #{System.unique_integer([:positive])}",
+        include_all: false
+      })
+
     :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [core.id], [])
     view
   end
@@ -534,5 +539,199 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     # The prices did move: 10 x (110 - 100) and 5 x 90 x 0.625 - 5 x 80 x 0.8.
     assert equal?(row(later, eur_fund).contribution, "100")
     assert equal?(row(later, usd_fund).contribution, "-38.75")
+  end
+
+  # User story (FR-41, ADR-0051 §5, ADR-0028):
+  # As a local portfolio maintainer,
+  # I want a stock split inside the period to leave the position's
+  # contribution exactly where the market move puts it,
+  # so that doubling my share count never reads as a gain or a loss.
+  #
+  # Acceptance criteria (ADR-0051 I5):
+  # - A split inside the window changes no contribution: a position that
+  #   splits 2:1 contributes exactly what the same position without a split
+  #   contributes over the same prices.
+  # - The split is no flow: net flows stay 0, and the end value counts the
+  #   post-split units at the post-split price.
+  test "a split inside the window changes no contribution (I5)" do
+    world = base_world(name: "Split", cash_name: "Cash", depot_name: "Depot")
+    plain = create_security!(name: "Plain Share", ticker: "PLN")
+    splitter = create_security!(name: "Split Share", ticker: "SPL")
+
+    deposit!(world, "3000", ~D[2025-12-01])
+    WorldFixtures.buy!(world, plain, quantity: "10", price: "100", date: ~D[2025-12-01])
+    WorldFixtures.buy!(world, splitter, quantity: "10", price: "100", date: ~D[2025-12-01])
+
+    WorldFixtures.put_quotes!(plain, [
+      {~D[2025-12-01], "100"},
+      {~D[2026-02-02], "110"},
+      {~D[2026-05-04], "120"}
+    ])
+
+    # As-traded closes: 110 before the split, 60 after it (= 120 pre-split).
+    WorldFixtures.put_quotes!(splitter, [
+      {~D[2025-12-01], "100"},
+      {~D[2026-02-02], "110"},
+      {~D[2026-05-04], "60"}
+    ])
+
+    split!(splitter, ~D[2026-03-02], {2, 1})
+
+    {:ok, result} = Contribution.for_portfolio(world.portfolio.id, period: "ytd", today: @today)
+
+    plain_row = row(result, plain)
+    split_row = row(result, splitter)
+
+    assert equal?(plain_row.contribution, "200")
+    assert split_row.contribution == plain_row.contribution
+    assert zero?(split_row.net_flows)
+    assert equal?(split_row.start_value, "1000")
+    # 20 units at 60.
+    assert equal?(split_row.end_value, "1200")
+    assert equal?(result.totals.result, "400")
+  end
+
+  # User story (FR-41, ADR-0051 §6, ADR-0019):
+  # As a local portfolio maintainer with two depots,
+  # I want moving shares between my depots to change no contribution, and a
+  # view that sees one depot to treat the move as money crossing its edge,
+  # so that a position is never charged with its own transfer.
+  #
+  # Acceptance criteria (ADR-0051 I6):
+  # - A transfer between two depots of one portfolio changes no contribution.
+  # - In a view that sees only one of the two depots, the moved value is a
+  #   boundary flow of that position, at the day's price: out of the
+  #   sending depot's view, into the receiving one's.
+  # - The two views' contributions add up to the portfolio's.
+  test "a transfer between depots changes no contribution; a view sees a boundary flow (I6)" do
+    world = base_world(name: "Depots", cash_name: "Cash A", depot_name: "Depot A")
+    other = add_depot(world.portfolio, cash_name: "Cash B", depot_name: "Depot B")
+    mover = create_security!(name: "Mover", ticker: "MOV")
+
+    deposit!(world, "2000", ~D[2025-12-01])
+    WorldFixtures.buy!(world, mover, quantity: "10", price: "100", date: ~D[2025-12-01])
+
+    WorldFixtures.put_quotes!(mover, [
+      {~D[2025-12-01], "100"},
+      {~D[2026-02-02], "110"},
+      {~D[2026-05-04], "120"}
+    ])
+
+    pid = world.portfolio.id
+    {:ok, before} = Contribution.for_portfolio(pid, period: "ytd", today: @today)
+
+    book!(%{
+      portfolio_id: pid,
+      securities_account_id: world.depot.id,
+      counter_securities_account_id: other.depot.id,
+      security_id: mover.id,
+      type: "security_transfer",
+      date: ~D[2026-03-02],
+      quantity: "4",
+      currency_code: "EUR"
+    })
+
+    {:ok, later} = Contribution.for_portfolio(pid, period: "ytd", today: @today)
+
+    assert later.positions == before.positions
+    assert later.remainder == before.remainder
+    assert equal?(row(later, mover).contribution, "200")
+
+    view_a = core_view!([world.depot], [world.cash])
+    view_b = core_view!([other.depot], [])
+
+    {:ok, in_a} = Contribution.for_portfolio(pid, view: view_a.id, period: "ytd", today: @today)
+    {:ok, in_b} = Contribution.for_portfolio(pid, view: view_b.id, period: "ytd", today: @today)
+
+    # Depot A: 10 held at 100, 4 leave at 110 (a boundary outflow of 440),
+    # 6 end at 120.
+    sender = row(in_a, mover)
+    assert equal?(sender.start_value, "1000")
+    assert equal?(sender.net_flows, "-440")
+    assert equal?(sender.end_value, "720")
+    assert equal?(sender.contribution, "160")
+    assert equal?(in_a.totals.result, "160")
+    assert in_a.view_id == view_a.id
+
+    # Depot B: 4 arrive at 110 (a boundary inflow) and end at 120.
+    receiver = row(in_b, mover)
+    refute receiver.held_at_start
+    assert equal?(receiver.net_flows, "440")
+    assert equal?(receiver.end_value, "480")
+    assert equal?(receiver.contribution, "40")
+    assert equal?(in_b.totals.result, "40")
+
+    assert Decimal.equal?(
+             Decimal.add(sender.contribution, receiver.contribution),
+             row(later, mover).contribution
+           )
+  end
+
+  # User story (FR-41, ADR-0051 §10):
+  # As a local portfolio maintainer,
+  # I want a position the walk could not value to stay in the table, named,
+  # with the number of days it counted zero and why,
+  # so that the sum still agrees with my money result and I know which price
+  # or rate to add.
+  #
+  # Acceptance criteria (ADR-0051 I7):
+  # - A position that counted zero keeps its place in the sum: the positions
+  #   plus the remainder still equal the money result.
+  # - It carries `unvalued_days`, the window days on which it was held and
+  #   counted zero, and `unvalued_reason`: `:no_price` without any price,
+  #   `:no_rate` without a rate path to the base currency.
+  # - A position unvalued for part of the window counts only those days; a
+  #   valued position carries 0 days and no reason.
+  test "a position that counted zero keeps its place and carries its days (I7)" do
+    world = base_world(name: "Gaps", cash_name: "Cash", depot_name: "Depot")
+    valued = create_security!(name: "Valued Fund", ticker: "VAL")
+    ghost = create_security!(name: "Ghost Fund", ticker: "GHO")
+    late = create_security!(name: "Late Quote", ticker: "LTQ")
+    yen = create_security!(name: "Yen Co", ticker: "YEN", currency: "JPY")
+
+    deposit!(world, "1000", ~D[2025-12-01])
+    WorldFixtures.buy!(world, valued, quantity: "5", price: "100", date: ~D[2025-12-01])
+    WorldFixtures.put_quotes!(valued, [{~D[2025-12-01], "100"}, {~D[2026-04-01], "110"}])
+
+    # Never priced: no booked price, no quote.
+    delivery!(world, ghost, "5", ~D[2026-02-02])
+    # Unpriced until its first quote lands on 2026-04-01.
+    delivery!(world, late, "10", ~D[2026-02-02])
+    WorldFixtures.put_quote!(late, ~D[2026-04-01], "20")
+    # Priced in JPY, but no JPY rate is stored.
+    delivery!(world, yen, "100", ~D[2026-03-02], price: "1000", currency: "JPY")
+
+    {:ok, result} = Contribution.for_portfolio(world.portfolio.id, period: "ytd", today: @today)
+
+    assert length(result.positions) == 4
+
+    ghost_row = row(result, ghost)
+    assert ghost_row.held_at_end
+    assert zero?(ghost_row.end_value)
+    assert zero?(ghost_row.contribution)
+    # 2026-02-02 to 2026-06-30.
+    assert ghost_row.unvalued_days == 149
+    assert ghost_row.unvalued_reason == :no_price
+
+    yen_row = row(result, yen)
+    assert zero?(yen_row.contribution)
+    # 2026-03-02 to 2026-06-30.
+    assert yen_row.unvalued_days == 121
+    assert yen_row.unvalued_reason == :no_rate
+
+    late_row = row(result, late)
+    # 2026-02-02 to 2026-03-31; delivered at no value, it ends at 10 x 20.
+    assert late_row.unvalued_days == 58
+    assert late_row.unvalued_reason == :no_price
+    assert equal?(late_row.contribution, "200")
+
+    valued_row = row(result, valued)
+    assert valued_row.unvalued_days == 0
+    assert valued_row.unvalued_reason == nil
+    assert equal?(valued_row.contribution, "50")
+
+    assert equal?(result.totals.result, "250")
+    assert equal?(result.totals.positions, "250")
+    assert_remainder_zero(result)
   end
 end

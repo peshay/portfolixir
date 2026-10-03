@@ -952,30 +952,44 @@ defmodule Portfolixir.Portfolios.Performance do
 
   # External quantity legs (deliveries) are valued like the unscoped path: at
   # the booked price when the delivery carries one, else at market (#779).
-  defp kept_qty_market_value(kept_qty, tx, context) do
-    Enum.reduce(kept_qty, @zero, fn {_acct, security_id, delta}, acc ->
-      Decimal.add(acc, leg_value(tx, security_id, delta, context))
-    end)
-  end
+  defp kept_qty_market_value(kept_qty, tx, context),
+    do: kept_qty |> market_leg_values(tx, context) |> sum_leg_values()
 
   # Booked value of the kept quantity legs for an internal straddle. For a trade
   # (the transaction also moves cash) the quantity side is worth the negated total
   # cash delta, apportioned by quantity, so a fully-in-view trade nets to zero. For
   # a cashless transfer the moved quantity is valued at market.
-  defp kept_qty_booked_value(%{cash: []} = _effect, kept_qty, tx, context),
-    do: kept_qty_market_value(kept_qty, tx, context)
+  defp kept_qty_booked_value(effect, kept_qty, tx, context),
+    do: effect |> booked_leg_values(kept_qty, tx, context) |> sum_leg_values()
 
-  defp kept_qty_booked_value(effect, kept_qty, tx, context) do
+  # The two valuations above, leg by leg as `{security_id, value}`: the walk
+  # sums them into the day's flow, and the contribution keeps each against
+  # its position (ADR-0051 §5, §6). One definition, so the two cannot drift.
+  defp market_leg_values(kept_qty, tx, context) do
+    Enum.map(kept_qty, fn {_acct, security_id, delta} ->
+      {security_id, leg_value(tx, security_id, delta, context)}
+    end)
+  end
+
+  defp booked_leg_values(%{cash: []} = _effect, kept_qty, tx, context),
+    do: market_leg_values(kept_qty, tx, context)
+
+  defp booked_leg_values(effect, kept_qty, tx, context) do
     total_cash_base = total_add_cash_base(effect.cash, tx, context)
     # A trade's security legs always carry positive quantity (changeset-validated),
     # so the apportionment denominator is never zero.
     total_abs_qty = effect.quantities |> Enum.map(&Decimal.abs(elem(&1, 2))) |> sum()
 
-    Enum.reduce(kept_qty, @zero, fn {_acct, _sec, delta}, acc ->
+    Enum.map(kept_qty, fn {_acct, security_id, delta} ->
       share = Decimal.div(Decimal.abs(delta), total_abs_qty)
-      Decimal.add(acc, Decimal.mult(Decimal.negate(total_cash_base), share))
+      {security_id, Decimal.mult(Decimal.negate(total_cash_base), share)}
     end)
   end
+
+  # Summed in leg order from zero, exactly as the walk always summed them.
+  defp sum_leg_values(leg_values),
+    do:
+      Enum.reduce(leg_values, @zero, fn {_security_id, value}, acc -> Decimal.add(acc, value) end)
 
   # The transaction's total `{:add, delta}` cash movement in base. Trades use
   # additive legs; balance snapshots ({:set}) are external and never reach here,
@@ -1667,7 +1681,10 @@ defmodule Portfolixir.Portfolios.Performance do
     income: Decimal.new("0"),
     costs: Decimal.new("0"),
     held_at_start: false,
-    held_at_end: false
+    held_at_end: false,
+    # window day => :no_price | :no_rate, for each day the position was held
+    # and counted zero (ADR-0051 §10)
+    unvalued: %{}
   }
 
   # The remainder lines (ADR-0051 §3), each summed from its own bookings.
@@ -1724,10 +1741,47 @@ defmodule Portfolixir.Portfolios.Performance do
   defp observe_day(%{baseline: day} = kept, held, %{day: day} = context),
     do: record_values(kept, held, context, :start_value, :held_at_start)
 
-  defp observe_day(%{window: %{end: day}} = kept, held, %{day: day} = context),
+  defp observe_day(kept, held, context) do
+    if in_window?(kept.window, context.day) do
+      kept
+      |> record_unvalued(held, context)
+      |> record_end(held, context)
+    else
+      kept
+    end
+  end
+
+  defp record_end(%{window: %{end: day}} = kept, held, %{day: day} = context),
     do: record_values(kept, held, context, :end_value, :held_at_end)
 
-  defp observe_day(kept, _held, _context), do: kept
+  defp record_end(kept, _held, _context), do: kept
+
+  # A held position the walk valued at zero today is named with the day and
+  # the reason (ADR-0051 §10). It keeps contributing zero, exactly as the
+  # walk counts it, so the identity holds.
+  defp record_unvalued(kept, held, context) do
+    Enum.reduce(held, kept, fn {security_id, _quantity}, acc ->
+      case unvalued_reason(security_id, context) do
+        nil -> acc
+        reason -> update_position(acc, security_id, &put_in(&1, [:unvalued, context.day], reason))
+      end
+    end)
+  end
+
+  # The two ways `security_value/3` counts a held position zero: no price at
+  # all, or no rate path from the price's currency to the base.
+  defp unvalued_reason(security_id, context) do
+    case Map.get(context.pricing, security_id) do
+      %{price: %{close: %Decimal{}, currency: currency}} ->
+        case conversion_rate(currency, context.base, context.fx) do
+          {:ok, _rate} -> nil
+          {:error, _reason} -> :no_rate
+        end
+
+      _unpriced ->
+        :no_price
+    end
+  end
 
   # Each held position's value, exactly the term `portfolio_value/2` adds up.
   defp record_values(kept, held, context, value_key, held_key) do
@@ -1779,8 +1833,14 @@ defmodule Portfolixir.Portfolios.Performance do
   # and snapshots move cash only.
   defp keep_legs(kept, _tx, %{effect: %{external: true}}, _context), do: kept
 
-  # A booking straddling a view's boundary.
-  defp keep_legs(kept, _tx, %{straddle?: true}, _context), do: kept
+  # A booking straddling a view's boundary (ADR-0019): the walk books the
+  # kept quantity legs' value as the day's boundary flow, so each is a flow
+  # into (or out of) its position. A depot transfer to an out-of-view depot
+  # is a flow out at the moved value, so the position is not charged with the
+  # move (ADR-0051 §6). A straddle's kept cash leg is flow and balance at
+  # once: it nets out of the result, and nothing is kept for it.
+  defp keep_legs(kept, tx, %{straddle?: true} = legs, context),
+    do: add_flows(kept, booked_leg_values(legs.effect, legs.quantities, tx, context))
 
   defp keep_legs(kept, tx, legs, context), do: keep_internal(kept, tx.type, tx, legs, context)
 
@@ -1795,18 +1855,19 @@ defmodule Portfolixir.Portfolios.Performance do
     |> add_to_position(tx.security_id, :costs, cost)
   end
 
-  # Not kept yet: the remainder lines, income, splits and transfers.
+  # A split is a scale leg (ADR-0028): nothing enters or leaves the position,
+  # so it is no flow. The end value counts the post-split units at the
+  # post-split price, and what is left is the market's move alone (I5).
+  defp keep_internal(kept, "split", _tx, _legs, _context), do: kept
+
+  # A transfer between two depots inside the scope moves units of one
+  # security from one depot to the other: its two legs cancel, and the
+  # position is held throughout (I6). Across a view's boundary it straddles.
+  defp keep_internal(kept, "security_transfer", _tx, _legs, _context), do: kept
+
+  # Not kept yet: the remainder lines and income.
   defp keep_internal(kept, type, _tx, _legs, _context)
-       when type in [
-              "dividend",
-              "interest",
-              "fee",
-              "tax",
-              "tax_refund",
-              "cash_transfer",
-              "security_transfer",
-              "split"
-            ],
+       when type in ["dividend", "interest", "fee", "tax", "tax_refund", "cash_transfer"],
        do: kept
 
   defp trade_leg_values(quantities, tx, context) do
@@ -1840,11 +1901,19 @@ defmodule Portfolixir.Portfolios.Performance do
     end)
   end
 
-  # Amounts add up; a position is held at an end when any portfolio holds it.
+  # Amounts add up; a position is held at an end when any portfolio holds it;
+  # a day is unvalued when any portfolio counted it zero, and a missing price
+  # names the day before a missing rate does (without a price, no rate helps).
   defp merge_position(a, b) do
     Map.merge(a, b, fn
-      held, x, y when held in [:held_at_start, :held_at_end] -> x or y
-      _amount, x, y -> Decimal.add(x, y)
+      held, x, y when held in [:held_at_start, :held_at_end] ->
+        x or y
+
+      :unvalued, x, y ->
+        Map.merge(x, y, fn _day, r, s -> if :no_price in [r, s], do: :no_price, else: r end)
+
+      _amount, x, y ->
+        Decimal.add(x, y)
     end)
   end
 
