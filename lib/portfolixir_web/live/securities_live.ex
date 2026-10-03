@@ -4563,7 +4563,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
           {:ok, message} -> {:note, message}
           {:changed, fresh} -> {:changed, fresh}
           :gone -> {:problem, gettext("That transaction no longer exists.")}
-          {:error, message} -> {:problem, message}
         end
 
       case result do

@@ -169,4 +169,118 @@ defmodule PortfolixirWeb.TransactionDeleteConsequenceLiveTest do
     assert consequence(conn, buy) =~
              "Afterwards Depot 1 holds 5 fewer units of Kestrel Robotik SE, and Girokonto has 800.00 EUR more."
   end
+
+  # User story (U1, #912; H2-A, A2):
+  # As the operator deleting a transfer between my cash accounts,
+  # I want the box to name both accounts and the sentence what each has
+  # afterwards,
+  # so that both sides of the move are named before I confirm.
+  #
+  # Acceptance criteria:
+  # - The box reads "Girokonto → Tagesgeld"; the sentence says Girokonto has
+  #   the amount more and Tagesgeld has it less.
+  # - With balances set later on both accounts, each clause is bounded by
+  #   its own account's set balance, and one sentence per account says from
+  #   when its balance stays unchanged.
+  test "a cash transfer names both accounts, each bounded by its own set balance",
+       %{conn: conn, world: world} do
+    savings = add_depot(world.portfolio, cash_name: "Tagesgeld", depot_name: "Depot 2")
+
+    {:ok, transfer} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        type: "cash_transfer",
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        counter_cash_account_id: savings.cash.id,
+        gross_amount: "200",
+        currency_code: "EUR",
+        date: ~D[2026-09-10]
+      })
+
+    {:ok, view, _html} = live(conn, "/transactions")
+    view |> element("#tx-kebab-#{transfer.id}") |> render_click()
+    view |> element("#tx-delete-#{transfer.id}") |> render_click()
+
+    assert view |> element("#booking-delete-subject") |> render() |> text() =~
+             "Girokonto → Tagesgeld"
+
+    assert view |> element("[data-role='booking-delete-consequence']") |> render() |> text() =~
+             "Afterwards Girokonto has 200.00 EUR more, and Tagesgeld has 200.00 EUR less."
+
+    for {cash, date} <- [{world.cash, ~D[2026-09-20]}, {savings.cash, ~D[2026-09-25]}] do
+      {:ok, _} = Ledger.set_cash_balance(Actor.owner_ui(), cash, %{date: date, amount: "900"})
+    end
+
+    assert consequence(conn, transfer) =~
+             "Afterwards Girokonto has 200.00 EUR more until 2026-09-19, and Tagesgeld has 200.00 EUR less until 2026-09-24. " <>
+               "From the balance set on 2026-09-20 on, the balance of Girokonto stays unchanged. " <>
+               "From the balance set on 2026-09-25 on, the balance of Tagesgeld stays unchanged."
+  end
+
+  # User story (U1, #912; H2-A, A2; the closing act, R2):
+  # As the operator deleting a deposit or a removal on an account whose
+  # balance I set,
+  # I want the lead clause bounded the same way as one after a trade,
+  # so that every kind says until when its account changes.
+  #
+  # Acceptance criteria:
+  # - A deposit before a later set balance: "has … less until …".
+  # - A removal before it: "has … more until …".
+  # - A deposit on the set balance's own day: the balance stays as set.
+  # - A sell before it: "… and Girokonto has … less until …".
+  test "every cash clause carries the bound of a later set balance",
+       %{conn: conn, world: world, security: security} do
+    removal = book!(world, "removal", "300", ~D[2026-09-12])
+    deposit = book!(world, "deposit", "400", ~D[2026-09-14])
+    same_day = book!(world, "deposit", "50", ~D[2026-09-30])
+    buy!(world, security, quantity: "10", price: "80", date: ~D[2026-09-01])
+    sell = sell!(world, security, quantity: "4", price: "90", date: ~D[2026-09-05])
+
+    {:ok, _} =
+      Ledger.set_cash_balance(Actor.owner_ui(), world.cash, %{date: ~D[2026-09-30], amount: "900"})
+
+    assert consequence(conn, deposit) =~
+             "Afterwards Girokonto has 400.00 EUR less until 2026-09-29."
+
+    assert consequence(conn, removal) =~
+             "Afterwards Girokonto has 300.00 EUR more until 2026-09-29."
+
+    assert consequence(conn, same_day) =~
+             "Afterwards the balance of Girokonto stays as set on 2026-09-30."
+
+    assert consequence(conn, sell) =~
+             "and Girokonto has 360.00 EUR less until 2026-09-29."
+  end
+
+  # User story (U1, #912; H2-A, A2, the set balance's own sentence):
+  # As the operator deleting a balance I set,
+  # I want the dialog to say the account then follows its bookings again,
+  # so that I know the level I set stops holding.
+  #
+  # Acceptance criteria:
+  # - Deleting a set balance says the account carries no balance set on its
+  #   day and follows the bookings again, then the recompute sentence.
+  test "a set balance's delete says the account follows its bookings again",
+       %{conn: conn, world: world} do
+    {:ok, anchor} =
+      Ledger.set_cash_balance(Actor.owner_ui(), world.cash, %{date: ~D[2026-09-30], amount: "900"})
+
+    assert consequence(conn, anchor) =~
+             "Afterwards Girokonto carries no balance set on 2026-09-30; its balance follows the bookings again. " <>
+               "Holdings, balances, returns and trades are recomputed without this booking."
+  end
+
+  defp book!(world, type, amount, date) do
+    {:ok, tx} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        type: type,
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        gross_amount: amount,
+        currency_code: "EUR",
+        date: date
+      })
+
+    tx
+  end
 end
