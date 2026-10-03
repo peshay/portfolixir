@@ -1026,14 +1026,22 @@ defmodule PortfolixirWeb.ClassificationsLive do
                   </td>
                 </tr>
               </tbody>
+              <%!-- #969, pick H8.4 = A (board 08-dialogs-copy; ADR-0040 §3,
+                   DESIGN.md D3): ✓ only at exactly 100 %, ✗ and the warning
+                   colour only above it; under 100 % the Σ carries no mark and
+                   the gap is the last row, muted, arithmetic, not an input. --%>
               <tfoot>
                 <tr class={["soll-row", "soll-row--sum", @soll.mismatch? && "is-target-mismatch"]}>
                   <th scope="row"><%= gettext("Σ") %></th>
                   <td class="num" data-role="soll-sum">
                     <%= @soll.sum %>%
-                    <span :if={not @soll.mismatch?} class="soll-ok" aria-hidden="true">✓</span>
+                    <span :if={@soll.complete?} class="soll-ok" aria-hidden="true">✓</span>
                     <span :if={@soll.mismatch?} class="soll-bad" aria-hidden="true">✗</span>
                   </td>
+                </tr>
+                <tr :if={@soll.remainder} class="soll-row soll-row--remainder">
+                  <th scope="row"><%= gettext("Not allocated") %></th>
+                  <td class="num" data-role="soll-remainder"><%= @soll.remainder %>%</td>
                 </tr>
               </tfoot>
             </table>
@@ -1701,7 +1709,16 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
     soll
     |> Map.put(:sum, format_sum(sum))
-    |> Map.put(:mismatch?, not Decimal.equal?(sum, @hundred))
+    |> Map.put(:complete?, Decimal.equal?(sum, @hundred))
+    |> Map.put(:mismatch?, Decimal.gt?(sum, @hundred))
+    |> Map.put(:remainder, remainder(sum))
+  end
+
+  # ADR-0040 §1, §3: what a plan under 100 % leaves unallocated, 100 − Σ
+  # with the cash target counted like `Allocation`'s top-level sum; nothing
+  # at or above 100 %, so no row reads "0 %" (#969, pick H8.4 = A).
+  defp remainder(sum) do
+    if Decimal.lt?(sum, @hundred), do: format_sum(Decimal.sub(@hundred, sum))
   end
 
   defp effective_top_level_sum(soll, %MapSet{} = top_level_ids, children_by_parent)

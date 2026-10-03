@@ -3589,3 +3589,32 @@ messages; each part names what was built.
 - **`role="list"` on the `<ol>`**, because Safari drops the list semantics of
   a list without markers. The author of G12.1-A ("· Operator", "· Agent")
   stays the last word of each entry.
+
+### The plan editor's Σ under 100 % *(H8.4 = A, issue 969)*
+
+D3 above fixed the remainder row; this is the editor's half of it, built in
+`classifications_live.ex` `soll_editor/1` and `put_sum/1`.
+
+- **✓ means exactly 100 %, ✗ means above it.** The Σ row's cell reads
+  "100% ✓" at exactly 100 %, and "104% ✗" with `is-target-mismatch` (the
+  warning colour) above it, unchanged. **Under 100 % the Σ carries no glyph
+  and no colour** ("92%"): next to 92 % a ✓ would contradict the row below
+  it, and a ✓ that means "complete" in one state and "not wrong" in another
+  means two things.
+- **The remainder row** `tr.soll-row--remainder` is the `<tfoot>`'s last
+  row, under the Σ, only while the Σ is under 100 % (no row reads "0 %"):
+  "Not allocated" (de "Nicht verteilt" — not "Nicht zugeordnet", which is
+  Allocation's Unassigned bucket; it matches the basis line's "allocated
+  portion") and 100 − Σ in the page's number format, in the Σ's tabular
+  slot (`data-role="soll-remainder"`). No input, not selectable. The `app.css`
+  rule of the part: the row at ordinary weight, no border of its own, no top
+  padding, the label in `{colors.text-muted}`.
+- **One formula.** The remainder is 100 − the live Σ, cash target included,
+  as `Allocation.unallocated_remainder/1` reads it from a top-level sum that
+  includes cash — except on the built-in currency tree, where Allocation
+  distributes cash into the currency categories and leaves the cash target
+  out of its sum while the editor still counts it. That divergence predates
+  this part and is recorded as a follow-up, not settled here.
+- **The finding surface moves above 100 %.** The review rubric's walkthrough
+  alarm is "a plan above 100 %", and `priv/demo/finding_surfaces_seed.exs`
+  seeds one (a 20 % cash target on the demo's 85 % categories).

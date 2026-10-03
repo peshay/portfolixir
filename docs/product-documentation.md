@@ -954,8 +954,11 @@ The states are:
 - **A plan exists.** Each category gets a **Target %** input and there is a
   **Cash** target input below them; **Save plan** writes the whole
   `(view, classification)` plan at once. A live **Σ** footer sums the category
-  weights plus the cash target and shows a ✓ at exactly 100% or a ✗ with the
-  yellow mismatch cue otherwise, updating on input. A parent category whose
+  weights plus the cash target, updating on input: a ✓ at exactly 100%, a ✗
+  with the yellow mismatch cue above 100%. A plan under 100% is a choice, not
+  an error (ADR-0040): the Σ carries no mark, and a muted last row **Not
+  allocated** (*Nicht verteilt*) shows what the plan leaves unallocated. A
+  parent category whose
   children carry weights shows their sum beside its name (**children Σ**),
   in the mismatch colour when it disagrees with the parent's own weight; it
   follows every input as the Σ footer does (a child that follows its position

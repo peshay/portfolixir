@@ -6657,6 +6657,23 @@ button.income-bar-label.is-active {
   color: var(--color-warning);
 }
 
+/* Issue 969, pick H8.4 = A (board ux-design-2026-10-02/08-dialogs-copy;
+   ADR-0040 §3, DESIGN.md D3): the unallocated remainder is the table's last
+   row, under the Σ: a category row's rhythm, its label muted because the row
+   is derived, its figure at ordinary weight in the same tabular slot, no
+   divider of its own and no input. No warning colour: a plan under 100 % is
+   a choice. */
+.soll-row--remainder th,
+.soll-row--remainder td {
+  font-weight: 400;
+  border-bottom: none;
+  padding-top: 0;
+}
+
+.soll-row--remainder th {
+  color: var(--color-text-muted);
+}
+
 .soll-ok {
   color: var(--color-positive);
   margin-left: 0.35rem;
