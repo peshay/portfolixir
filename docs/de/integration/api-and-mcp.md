@@ -2953,6 +2953,15 @@ Datensatz anfügt, kann ein Duplikat speichern, und jedes solche Tool (jeder
 nicht idempotente Schreibvorgang) sagt das in seiner Beschreibung; die
 Server-Anweisungen sagen es einmal für jeden Schreibvorgang.
 
+**Ein Schreibvorgang, dessen Verbindung abreißt**, nachdem die Anfrage gesendet
+war (ein Reset oder ein Socket, der sich schließt, während die Antwort ankommt),
+ergibt ebenso `ApiOutcomeUnknownError`, mit dem Code der Verbindung in der
+Meldung: Der Server kann ihn übernommen haben. Ein Fehler, der zeigt, dass die
+Anfrage die API nie erreicht hat (Verbindung abgelehnt, Name nicht aufgelöst,
+Host nicht erreichbar, Verbindungsaufbau selbst abgelaufen), bleibt ein
+gewöhnlicher Fehler und darf wiederholt werden, ebenso jeder Fehler eines
+Lesezugriffs.
+
 - `portfolixir.contract.get` — der Kontraktversions-Read (ADR-0044 §8): was
   die Oberfläche bietet und wann sie sich zuletzt geändert hat, abfragbar mit
   `since=`.

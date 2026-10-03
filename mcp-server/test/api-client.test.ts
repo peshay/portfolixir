@@ -170,4 +170,152 @@ describe("the companion's API client", () => {
       await shut(target);
     }
   });
+
+  // User story (#955, the G31 finding widened):
+  // As the agent whose write lost its connection after the request had left
+  // the companion,
+  // I want the companion to tell me the outcome is unknown, as it does for a
+  // timeout,
+  // so that I re-read before retrying instead of storing a duplicate the
+  // server had already committed.
+  //
+  // Acceptance criteria:
+  // - A POST, PUT, PATCH or DELETE whose connection fails after the request
+  //   was sent (a reset, a socket closed while the answer arrives, any
+  //   failure the request cannot be shown to have missed the server by)
+  //   answers ApiOutcomeUnknownError, naming the request, the lost
+  //   connection, its code and the re-read.
+  // - A failure that proves the request never reached the server (connection
+  //   refused, name not resolved, host unreachable, the connect timing out)
+  //   stays a plain error, which is safe to retry.
+  // - A read's failure stays a plain error, whatever its cause: a read
+  //   changes nothing.
+  // - Against real sockets: a server that drops the connection after reading
+  //   the request, and one that drops it mid-answer, both answer outcome
+  //   unknown for a POST; a closed port answers a plain refusal.
+  describe("a lost connection", () => {
+    const failing = (error: unknown) =>
+      createApiClient({
+        baseUrl: "http://portfolixir.test",
+        token: "api-token",
+        fetch: async () => {
+          throw error;
+        }
+      });
+
+    const fetchFailed = (code: string) =>
+      new TypeError("fetch failed", { cause: Object.assign(new Error(code), { code }) });
+
+    it("answers a write cut off after it was sent as outcome unknown", async () => {
+      const cutOff = [
+        fetchFailed("ECONNRESET"),
+        fetchFailed("UND_ERR_SOCKET"),
+        fetchFailed("EPIPE"),
+        fetchFailed("ETIMEDOUT"),
+        new TypeError("terminated", {
+          cause: Object.assign(new Error("other side closed"), { code: "UND_ERR_SOCKET" })
+        }),
+        new TypeError("fetch failed")
+      ];
+
+      for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+        for (const error of cutOff) {
+          await assert.rejects(
+            failing(error).request(method, "/api/v1/transactions/9", {}),
+            (raised: unknown) => {
+              assert.ok(raised instanceof ApiOutcomeUnknownError, `${method}: ${String(raised)}`);
+              assert.match(raised.message, new RegExp(`${method} /api/v1/transactions/9`));
+              assert.match(raised.message, /outcome unknown/);
+              assert.match(raised.message, /lost its connection/);
+              assert.match(raised.message, /may still have committed it/);
+              assert.match(raised.message, /Re-read/);
+              return true;
+            }
+          );
+        }
+      }
+
+      await assert.rejects(failing(fetchFailed("ECONNRESET")).request("POST", "/x", {}), /ECONNRESET/);
+    });
+
+    it("keeps a failure that never reached the server a plain, retryable error", async () => {
+      for (const code of [
+        "ECONNREFUSED",
+        "ENOTFOUND",
+        "EAI_AGAIN",
+        "EHOSTUNREACH",
+        "ENETUNREACH",
+        "UND_ERR_CONNECT_TIMEOUT"
+      ]) {
+        const error = fetchFailed(code);
+
+        await assert.rejects(failing(error).request("POST", "/api/v1/transactions", {}), (raised) => {
+          assert.equal(raised, error, code);
+          return true;
+        });
+      }
+    });
+
+    it("keeps a read's failure a plain error", async () => {
+      const error = fetchFailed("ECONNRESET");
+
+      await assert.rejects(failing(error).request("GET", "/api/v1/transactions"), (raised) => {
+        assert.equal(raised, error);
+        return true;
+      });
+
+      await assert.rejects(
+        failing(error).request("POST", "/api/v1/holdings/reconcile", {}, { readOnly: true }),
+        (raised) => {
+          assert.equal(raised, error);
+          return true;
+        }
+      );
+    });
+
+    it("answers a write whose socket a real server drops as outcome unknown", async () => {
+      const received: string[] = [];
+      const dropping = createServer((req, res) => {
+        received.push(`${req.method} ${req.url}`);
+
+        if (req.url === "/mid-answer") {
+          res.writeHead(201, { "content-type": "application/json" });
+          res.write('{"data": {"id"');
+          setTimeout(() => res.socket?.destroy(), 10);
+        } else {
+          req.resume();
+          req.on("end", () => req.socket.destroy());
+        }
+      });
+      const port = await listen(dropping);
+
+      try {
+        const client = createApiClient({ baseUrl: `http://127.0.0.1:${port}`, token: "t" });
+
+        for (const path of ["/before-answer", "/mid-answer"]) {
+          await assert.rejects(client.request("POST", path, { amount: "1" }), (raised: unknown) => {
+            assert.ok(raised instanceof ApiOutcomeUnknownError, `${path}: ${String(raised)}`);
+            return true;
+          });
+        }
+
+        assert.deepEqual(received, ["POST /before-answer", "POST /mid-answer"]);
+      } finally {
+        await shut(dropping);
+      }
+    });
+
+    it("keeps a refused connection to a real port a plain error", async () => {
+      const closed = createServer();
+      const port = await listen(closed);
+      await shut(closed);
+
+      const client = createApiClient({ baseUrl: `http://127.0.0.1:${port}`, token: "t" });
+
+      await assert.rejects(client.request("POST", "/api/v1/transactions", {}), (raised: unknown) => {
+        assert.ok(!(raised instanceof ApiOutcomeUnknownError), String(raised));
+        return true;
+      });
+    });
+  });
 });
