@@ -53,8 +53,13 @@ percent-quoted bond's quantity as a hundredth of its face amount, so quantity
    years) ÷ price, without compounding. The price is the one the valuation
    uses: the latest stored quote, or the last own trade price when there is
    none. Yields are ratios rounded at scale 6, as in ADR-0047. Accrued
-   interest, fees and taxes are excluded. A matured bond has no yield. Each
-   metric carries its computation basis in the API and MCP payload.
+   interest, fees and taxes are excluded. A matured bond has no yield. Nor
+   has a bond whose price is the last own trade price at **at most 5**
+   (`price_on_unit_scale`): the two-scales band's mirror, 100 ÷ 20, the
+   price per unit of a booking that recorded the nominal as the quantity,
+   which is not percent of face; the guard of §4 cannot name it without a
+   quote. A stored quote is used at any level. Each metric carries its
+   computation basis in the API and MCP payload.
 4. **The two-scales guard names; it does not convert.** A bond whose latest
    stored quote is between 20 and 500 times a booked buy price per unit is
    named as priced on two scales: the export then booked the nominal as the

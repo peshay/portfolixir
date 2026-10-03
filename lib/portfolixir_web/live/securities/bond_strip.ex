@@ -243,7 +243,8 @@ defmodule PortfolixirWeb.Securities.BondStrip do
   attr(:metric, :map, required: true)
 
   # A figure that cannot be computed says so in the tone of "not entered",
-  # with the reason under it: matured, a missing input, or no price.
+  # with the reason under it: matured, a missing input, no price, or a trade
+  # price on the unit scale.
   defp unavailable(assigns) do
     ~H"""
     <span data-role="metric-na"><%= gettext("not computable") %></span>
@@ -252,6 +253,14 @@ defmodule PortfolixirWeb.Securities.BondStrip do
   end
 
   defp unavailable_reason(%{matured: true}), do: gettext("matured")
+
+  # The trade-price fallback on the unit scale (closing act on U7, finding
+  # 3): the price per unit of a booking of the nominal, not percent of face.
+  defp unavailable_reason(%{price_on_unit_scale: true, price: price}),
+    do:
+      gettext("trade price %{price} per unit, not percent of face",
+        price: Format.exact(price.value)
+      )
 
   defp unavailable_reason(%{missing: missing}) do
     cond do

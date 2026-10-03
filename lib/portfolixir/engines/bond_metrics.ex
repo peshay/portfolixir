@@ -35,6 +35,14 @@ defmodule Portfolixir.Engines.BondMetrics do
   with `insufficient_data` and the inputs it lacks in `missing`; a matured
   bond has no yield (`matured`, not insufficient data).
 
+  A yield over the last own **trade** price is refused when that price is at
+  most #{5} (`price_on_unit_scale`): the two-scales band's mirror, 100 ÷ #{20}.
+  Such a price per unit is what a booking of the nominal as the quantity
+  looks like, and it is not percent of face, so coupon ÷ price is no yield
+  (a 2.5 coupon over 0.984 read 254 %). The guard below cannot name that
+  case: it needs a quote. A stored quote is a percent price at any level and
+  is always used (closing act on U7, finding 3).
+
   ## The two-scales guard
 
   `two_scales/2` names a bond whose latest stored quote is between #{20} and
@@ -50,6 +58,7 @@ defmodule Portfolixir.Engines.BondMetrics do
   @hundred Decimal.new(100)
   @band_low Decimal.new(20)
   @band_high Decimal.new(500)
+  @unit_scale_ceiling Decimal.div(@hundred, @band_low)
 
   @type price :: %{value: Decimal.t() | nil, date: Date.t() | nil, source: atom() | nil}
 
@@ -60,6 +69,13 @@ defmodule Portfolixir.Engines.BondMetrics do
   @doc "The two-scales band: the ratios of quote to buy price that are named."
   @spec two_scales_band() :: {Decimal.t(), Decimal.t()}
   def two_scales_band, do: {@band_low, @band_high}
+
+  @doc """
+  The highest own trade price a yield is refused over (`price_on_unit_scale`):
+  par over the band's lower end, 100 ÷ 20 = 5.
+  """
+  @spec unit_scale_price_ceiling() :: Decimal.t()
+  def unit_scale_price_ceiling, do: @unit_scale_ceiling
 
   @doc """
   Every metric of one bond: `terms` carries `:coupon_rate` and
@@ -158,14 +174,29 @@ defmodule Portfolixir.Engines.BondMetrics do
   end
 
   defp yield(price, missing, term, compute) do
-    base = %{price: price, missing: missing, matured: term.matured}
+    base = %{price: price, missing: missing, matured: term.matured, price_on_unit_scale: false}
 
     cond do
-      term.matured -> Map.merge(base, %{value: nil, insufficient_data: false, missing: []})
-      missing != [] -> Map.merge(base, %{value: nil, insufficient_data: true})
-      true -> Map.merge(base, %{value: round_out(compute.()), insufficient_data: false})
+      term.matured ->
+        Map.merge(base, %{value: nil, insufficient_data: false, missing: []})
+
+      missing != [] ->
+        Map.merge(base, %{value: nil, insufficient_data: true})
+
+      unit_scale_trade_price?(price) ->
+        Map.merge(base, %{value: nil, insufficient_data: false, price_on_unit_scale: true})
+
+      true ->
+        Map.merge(base, %{value: round_out(compute.()), insufficient_data: false})
     end
   end
+
+  # The own trade price fallback on the unit scale; reached only with a
+  # price above 0 (missing_inputs/2 names any other).
+  defp unit_scale_trade_price?(%{source: :trade, value: %Decimal{} = value}),
+    do: Decimal.compare(value, @unit_scale_ceiling) != :gt
+
+  defp unit_scale_trade_price?(_price), do: false
 
   # A coupon of 0 is a zero-coupon bond, an input; a price of zero or below
   # is no price at all (as a close is not in ADR-0047's series).

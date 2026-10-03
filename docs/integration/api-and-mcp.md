@@ -828,8 +828,15 @@ Every metric carries its own `computation_basis` (`input_series`, `window`,
 `reference`, `gaps`, `assumptions`). A figure without its input is `null`
 with `insufficient_data: true` and the inputs it lacks in `missing`
 (`coupon_rate`, `maturity_date`, `price`); a matured bond's yields are
-`null` with `matured: true`. Accrued interest, fees and taxes are excluded;
-the reading reports, it does not evaluate.
+`null` with `matured: true`. A yield whose price is the last own trade
+price at **at most 5** — the two-scales band's mirror, 100 ÷ 20, the price
+per unit of a booking that recorded the nominal as the quantity — is `null`
+with `price_on_unit_scale: true`, neither `insufficient_data` nor
+`matured`: such a price is not percent of face, so coupon ÷ price would be
+no yield. A stored quote is a percent price at any level and is always
+used; `price_on_unit_scale` is `false` on every other yield. Accrued
+interest, fees and taxes are excluded; the reading reports, it does not
+evaluate.
 
 ### Logos
 

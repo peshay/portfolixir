@@ -182,6 +182,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       matured: yield.matured,
       insufficient_data: yield.insufficient_data,
       missing: yield.missing,
+      price_on_unit_scale: yield.price_on_unit_scale,
       computation_basis: yield.computation_basis
     }
   end

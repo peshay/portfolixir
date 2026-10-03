@@ -452,6 +452,15 @@ fehlt, liest sich *nicht erfasst* oder *nicht berechenbar* mit dem Grund,
 nie als Zahl. Ganz ohne Stammdaten sagt ein Satz, was fehlt, und
 **Anleihedaten erfassen…** öffnet den Dialog.
 
+**Keine Rendite aus einem Preis je Stück.** Solange kein Kurs gespeichert
+ist und der letzte eigene Handelspreis **höchstens 5** beträgt, lesen sich
+beide Renditen *nicht berechenbar* mit dem Grund „Handelspreis … je Stück,
+keine Prozentnotiz“: Eine zu 0,984 je Stück gekaufte Anleihe wurde mit dem
+Nominal als Stückzahl gebucht, und 2,5 ÷ 0,984 läse sich als Rendite von
+254 %. Die Grenze ist das Zwei-Skalen-Band unten gespiegelt, 100 ÷ 20. Ein
+gespeicherter Kurs ist in jeder Höhe ein Prozentkurs und wird immer
+verwendet.
+
 **Auf zwei Skalen bepreist.** Hat ein Export das Nominal einer Anleihe als
 Stückzahl gebucht, ist ab dem ersten Kurs jeder Geldbetrag der Anleihe —
 Wert, Gewinn, Gewicht — hundertfach zu hoch, und die TTWROR kann es nicht

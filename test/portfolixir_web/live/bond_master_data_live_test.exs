@@ -200,6 +200,35 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     refute has_element?(view, ~s([data-role="bond-strip"]))
   end
 
+  # User story (#330, closing act on U7, finding 3; board
+  # ux-review-2026-10-03/04-bond-repairs, B2):
+  # As the operator whose export booked a bond's nominal as its quantity,
+  # with no quote stored yet,
+  # I want the block to say the yields cannot be computed from my trade
+  # price of 0,984 per unit, and why,
+  # so that "254,07 %" and "≈ 2.393,17 %" never stand beside the bond.
+  #
+  # Acceptance criteria:
+  # - Both yield cells read "nicht berechenbar" with the reason
+  #   "Handelspreis 0,984 je Stück, keine Prozentnotiz"; no percent figure
+  #   stands in either.
+  # - The nominal held stays as booked, 1.000.000,00 EUR.
+  test "a trade price on the unit scale gives no yield, and the block says why", %{conn: conn} do
+    bond = bond!()
+    buy!(base_world(), bond, quantity: "10000", price: "0.984", date: ~D[2026-03-12])
+
+    {:ok, view, _html} = live(german(conn), "/securities/#{bond.id}")
+
+    for cell <- ~w(bond-current-yield bond-yield-to-maturity) do
+      reading = text(view, ~s([data-role="#{cell}"]))
+      assert reading =~ "nicht berechenbar"
+      assert reading =~ "Handelspreis 0,984 je Stück, keine Prozentnotiz"
+      refute reading =~ "%"
+    end
+
+    assert text(view, ~s([data-role="bond-nominal"])) =~ "1.000.000,00 EUR"
+  end
+
   # User story (#330, the two-scales guard W1 and W2; bond discovery,
   # point 5):
   # As the operator whose export booked a bond's nominal as its quantity,

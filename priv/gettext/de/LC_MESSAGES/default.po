@@ -387,7 +387,7 @@ msgstr "Transaktion erfasst"
 
 #: lib/portfolixir_web/components/app_shell.ex:315
 #: lib/portfolixir_web/live/dashboard_live.ex:1057
-#: lib/portfolixir_web/live/securities/bond_strip.ex:294
+#: lib/portfolixir_web/live/securities/bond_strip.ex:303
 #: lib/portfolixir_web/live/securities_live.ex:3574
 #: lib/portfolixir_web/live/transaction_management_live.ex:94
 #: lib/portfolixir_web/live/transaction_management_live.ex:411
@@ -6673,7 +6673,7 @@ msgstr "Bestand"
 msgid "Reset"
 msgstr "Zurücksetzen"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:260
+#: lib/portfolixir_web/live/securities/bond_strip.ex:269
 #: lib/portfolixir_web/live/securities_live.ex:4218
 #, elixir-autogen, elixir-format
 msgid "no price"
@@ -7131,7 +7131,7 @@ msgstr "kein Fenster gemessen"
 #: lib/portfolixir_web/live/risk_live.ex:418
 #: lib/portfolixir_web/live/risk_live.ex:645
 #: lib/portfolixir_web/live/risk_live.ex:686
-#: lib/portfolixir_web/live/securities/bond_strip.ex:249
+#: lib/portfolixir_web/live/securities/bond_strip.ex:250
 #: lib/portfolixir_web/live/securities_live.ex:3460
 #: lib/portfolixir_web/live/securities_live.ex:3491
 #, elixir-autogen, elixir-format
@@ -11224,7 +11224,7 @@ msgstr "%{years} J. %{months} M."
 msgid "%{years} years from"
 msgstr "%{years} Jahre ab"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:339
+#: lib/portfolixir_web/live/securities/bond_strip.ex:348
 #, elixir-autogen, elixir-format
 msgid ", last own trade price"
 msgstr ", letzter eigener Handelspreis"
@@ -11322,7 +11322,7 @@ msgid_plural "%{count} bonds are priced on two scales (quotes around 100, booked
 msgstr[0] "Eine Anleihe ist auf zwei Skalen bepreist (Kurse um 100, gebuchter Preis je Stück um 1) und zählt hundertfach zu hoch in den Summen; die Rendite zeigt es nicht. Stückzahl der Käufe gegen das Nominal der Abrechnung prüfen:"
 msgstr[1] "%{count} Anleihen sind auf zwei Skalen bepreist (Kurse um 100, gebuchter Preis je Stück um 1) und zählen hundertfach zu hoch in den Summen; die Rendite zeigt es nicht. Stückzahl der Käufe gegen das Nominal der Abrechnung prüfen:"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:278
+#: lib/portfolixir_web/live/securities/bond_strip.ex:287
 #, elixir-autogen, elixir-format
 msgid "Priced on two scales:"
 msgstr "Auf zwei Skalen bepreist:"
@@ -11332,7 +11332,7 @@ msgstr "Auf zwei Skalen bepreist:"
 msgid "Remaining term"
 msgstr "Restlaufzeit"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:290
+#: lib/portfolixir_web/live/securities/bond_strip.ex:299
 #, elixir-autogen, elixir-format
 msgid "That means the nominal was booked as the quantity, and value, gain and weight are a hundred times too high; the return (TTWROR) does not show it. Check the quantity against the nominal on the statement:"
 msgstr "Dann ist das Nominal als Stückzahl gebucht, und Wert, Gewinn und Gewicht sind hundertfach zu hoch; die Rendite (TTWROR) zeigt es nicht. Stückzahl gegen das Nominal der Abrechnung prüfen:"
@@ -11342,13 +11342,13 @@ msgstr "Dann ist das Nominal als Stückzahl gebucht, und Wert, Gewinn und Gewich
 msgid "Yield to maturity"
 msgstr "Rendite bis Fälligkeit"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:315
+#: lib/portfolixir_web/live/securities/bond_strip.ex:324
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:529
 #, elixir-autogen, elixir-format
 msgid "annual"
 msgstr "jährlich"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:283
+#: lib/portfolixir_web/live/securities/bond_strip.ex:292
 #, elixir-autogen, elixir-format
 msgid "booked price per unit around 1 (1 buy: %{price} on %{date})."
 msgid_plural "booked price per unit around 1 (%{count} buys, the last %{price} on %{date})."
@@ -11361,22 +11361,22 @@ msgid "linear approximation"
 msgstr "linear angenähert"
 
 #: lib/portfolixir_web/live/securities/bond_strip.ex:171
-#: lib/portfolixir_web/live/securities/bond_strip.ex:254
+#: lib/portfolixir_web/live/securities/bond_strip.ex:255
 #, elixir-autogen, elixir-format
 msgid "matured"
 msgstr "fällig"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:258
+#: lib/portfolixir_web/live/securities/bond_strip.ex:267
 #, elixir-autogen, elixir-format
 msgid "no coupon entered"
 msgstr "kein Kupon erfasst"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:314
+#: lib/portfolixir_web/live/securities/bond_strip.ex:323
 #, elixir-autogen, elixir-format
 msgid "no interest payment"
 msgstr "keine Zinszahlung"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:259
+#: lib/portfolixir_web/live/securities/bond_strip.ex:268
 #, elixir-autogen, elixir-format
 msgid "no maturity entered"
 msgstr "keine Fälligkeit erfasst"
@@ -11393,12 +11393,12 @@ msgstr "nicht erfasst"
 msgid "quote %{close} · price per unit %{price}"
 msgstr "Kurs %{close} · Preis je Stück %{price}"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:279
+#: lib/portfolixir_web/live/securities/bond_strip.ex:288
 #, elixir-autogen, elixir-format
 msgid "quotes around 100 (latest %{close} on %{date}),"
 msgstr "Kurse um 100 (zuletzt %{close} am %{date}),"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:316
+#: lib/portfolixir_web/live/securities/bond_strip.ex:325
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:529
 #, elixir-autogen, elixir-format
 msgid "semi-annual"
@@ -11418,3 +11418,8 @@ msgstr "Kursbasis: %{basis}. Wo ein Split einen Kurs angepasst hat, zeigt „ges
 #, elixir-autogen, elixir-format
 msgid "Stock split for “%{security}”, the ratio as new:old shares — 2:1 doubles the count, 1:10 is a reverse split."
 msgstr "Aktiensplit für „%{security}“, das Verhältnis als neue:alte Aktien — 2:1 verdoppelt die Anzahl, 1:10 ist ein Reverse-Split."
+
+#: lib/portfolixir_web/live/securities/bond_strip.ex:261
+#, elixir-autogen, elixir-format
+msgid "trade price %{price} per unit, not percent of face"
+msgstr "Handelspreis %{price} je Stück, keine Prozentnotiz"
