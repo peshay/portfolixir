@@ -1434,7 +1434,7 @@ msgstr "Trades"
 msgid "Unrealised P&L"
 msgstr "Unrealisierter G/V"
 
-#: lib/portfolixir_web/live/securities_live.ex:2986
+#: lib/portfolixir_web/live/securities_live.ex:5925
 #, elixir-autogen, elixir-format
 msgid "default"
 msgstr "Standard"
@@ -1936,6 +1936,7 @@ msgstr "Saldo setzen"
 #: lib/portfolixir_web/live/dashboard_live.ex:326
 #: lib/portfolixir_web/live/dashboard_live.ex:329
 #: lib/portfolixir_web/live/portfolio_live.ex:4629
+#: lib/portfolixir_web/live/securities_live.ex:5920
 #, elixir-autogen
 msgid "YTD"
 msgstr "YTD"
@@ -1944,21 +1945,25 @@ msgstr "YTD"
 #: lib/portfolixir_web/live/dashboard_live.ex:758
 #: lib/portfolixir_web/live/dashboard_live.ex:761
 #: lib/portfolixir_web/live/portfolio_live.ex:4630
+#: lib/portfolixir_web/live/securities_live.ex:5921
 #, elixir-autogen
 msgid "1Y"
 msgstr "1J"
 
 #: lib/portfolixir_web/live/portfolio_live.ex:4631
+#: lib/portfolixir_web/live/securities_live.ex:5922
 #, elixir-autogen
 msgid "3Y"
 msgstr "3J"
 
 #: lib/portfolixir_web/live/portfolio_live.ex:4632
+#: lib/portfolixir_web/live/securities_live.ex:5923
 #, elixir-autogen
 msgid "5Y"
 msgstr "5J"
 
 #: lib/portfolixir_web/live/portfolio_live.ex:4633
+#: lib/portfolixir_web/live/securities_live.ex:5924
 #, elixir-autogen
 msgid "Max"
 msgstr "Max"
@@ -3005,7 +3010,7 @@ msgid "Income per month in %{year}"
 msgstr "Erträge pro Monat in %{year}"
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:232
-#: lib/portfolixir_web/live/securities_live.ex:6078
+#: lib/portfolixir_web/live/securities_live.ex:6096
 #, elixir-autogen, elixir-format
 msgid "No logo"
 msgstr "Kein Logo"
@@ -4969,7 +4974,7 @@ msgid "Last known value —"
 msgstr "Letzter bekannter Wert —"
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:231
-#: lib/portfolixir_web/live/securities_live.ex:6077
+#: lib/portfolixir_web/live/securities_live.ex:6095
 #, elixir-autogen, elixir-format
 msgid "No quote at all"
 msgstr "Gar kein Kurs"
@@ -5263,7 +5268,7 @@ msgid "Any"
 msgstr "Alle"
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:229
-#: lib/portfolixir_web/live/securities_live.ex:6075
+#: lib/portfolixir_web/live/securities_live.ex:6093
 #, elixir-autogen, elixir-format
 msgid "No quote in %{days} days"
 msgstr "Kein Kurs seit %{days} Tagen"
@@ -5384,23 +5389,23 @@ msgstr "Heute"
 msgid "Filter the list"
 msgstr "Liste filtern"
 
-#: lib/portfolixir_web/live/securities_live.ex:6090
+#: lib/portfolixir_web/live/securities_live.ex:6108
 #, elixir-autogen, elixir-format
 msgid "Missing FX"
 msgstr "Kein Wechselkurs"
 
 #: lib/portfolixir_web/live/securities/filter_popover.ex:233
-#: lib/portfolixir_web/live/securities_live.ex:6079
+#: lib/portfolixir_web/live/securities_live.ex:6097
 #, elixir-autogen, elixir-format
 msgid "Missing FX rate"
 msgstr "Kein Wechselkurs hinterlegt"
 
-#: lib/portfolixir_web/live/securities_live.ex:6089
+#: lib/portfolixir_web/live/securities_live.ex:6107
 #, elixir-autogen, elixir-format
 msgid "No price"
 msgstr "Kein Kurs"
 
-#: lib/portfolixir_web/live/securities_live.ex:6088
+#: lib/portfolixir_web/live/securities_live.ex:6106
 #, elixir-autogen, elixir-format
 msgid "Stale quote"
 msgstr "Kurs veraltet"
@@ -5422,14 +5427,14 @@ msgstr "Diese Ansicht trifft keine Konten — ihre eingeschlossenen Buckets sind
 
 #: lib/portfolixir_web/live/portfolio_live.ex:4675
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:398
-#: lib/portfolixir_web/live/securities_live.ex:6072
+#: lib/portfolixir_web/live/securities_live.ex:6090
 #, elixir-autogen, elixir-format
 msgid "Not a date — use YYYY-MM-DD."
 msgstr "Kein Datum — Format JJJJ-MM-TT (ISO: YYYY-MM-DD)."
 
 #: lib/portfolixir_web/live/portfolio_live.ex:4672
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:425
-#: lib/portfolixir_web/live/securities_live.ex:6069
+#: lib/portfolixir_web/live/securities_live.ex:6087
 #, elixir-autogen, elixir-format
 msgid "The end date is before the start date."
 msgstr "Das Enddatum liegt vor dem Startdatum."
@@ -10845,3 +10850,18 @@ msgstr "Der Kursanbieter braucht den Ticker des Wertpapiers."
 #, elixir-autogen, elixir-format
 msgid "The security has no currency."
 msgstr "Das Wertpapier hat keine Währung."
+
+#: lib/portfolixir_web/live/securities_live.ex:5917
+#, elixir-autogen, elixir-format
+msgid "1M"
+msgstr "1M"
+
+#: lib/portfolixir_web/live/securities_live.ex:5918
+#, elixir-autogen, elixir-format
+msgid "3M"
+msgstr "3M"
+
+#: lib/portfolixir_web/live/securities_live.ex:5919
+#, elixir-autogen, elixir-format
+msgid "6M"
+msgstr "6M"

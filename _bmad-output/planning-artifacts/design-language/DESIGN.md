@@ -863,6 +863,8 @@ The phrase "data quality" names two different blocks and they are not the same c
 
 {components.period-control}. One appearance — the segmented group — and one token vocabulary app-wide: **1M · 3M · 6M · YTD · 1Y · 3Y · 5Y · Max**. Each surface declares which subset it offers; no surface invents a token outside the set. "Custom range…" is a disclosure, not permanent chrome, and its date fields are {components.native-control}. This retires four patterns, two divergent token sets (`Performance.periods()` = `ytd 1y 3y 5y max`; `securities_live.ex:35` `@ranges` = `1M 3M 6M YTD 1Y 3Y 5Y MAX`) and the four bare `type="date"` inputs that sit *inside period controls* (`portfolio_live.ex:853`/`:860`, `securities_live.ex:534`/`:541`). The other seven date inputs in the app are UX-DR19 work, not period-control work.
 
+**The labels are the vocabulary in the reader's language** *(Sprint 18 U5, issue 1033, H7.3)*: a token's label is its gettext — German "1M 3M 6M YTD 1J 3J 5J Max", English "1M 3M 6M YTD 1Y 3Y 5Y Max" — while the URL and the event value stay the code. On the security detail one label function (`range_label/1`) serves the Chart tab's buttons and the Quotes tab's basis line that points at them ("Zeitraum 1J · wie im Diagramm"), so the line and the button never disagree.
+
 ### Data as table — one disclosure *(UX-DR10 appearance; rule defined in EXPERIENCE.md)*
 
 {components.disclosure}, mandatory under every chart surface (UX-DR10), same control, same label — **"Data as table"**, decided 2026-08-05 (designer); it names the thing rather than instructing the reader — same styling — rendered as a quiet text control rather than the raw browser triangle, with a purpose line of at most one sentence so it is visible why it exists. De-emphasised, not deleted: it is the accessibility fallback that lets the 9px chart axis stand.
@@ -3471,3 +3473,16 @@ bereits." (`:sync_in_progress`, the single-flight lock). A provider's own
 error is printed as it answered. Whether the follow-up's result belongs in
 the tab, beside its trigger, stays open; it lands where every sync result
 lands.
+
+### The detail's range labels *(H7.3; issue 1033)*
+
+The Chart tab's range buttons printed the raw codes ("1M 3M 6M YTD 1Y 3Y 5Y
+MAX") and the Quotes tab's basis line interpolated the same code, so a German
+reader saw "Zeitraum 1Y" on every first visit while Wealth and the Overview's
+KPI strip said "1J". One label function now serves both — German
+"1M 3M 6M YTD 1J 3J 5J Max", English "…1Y 3Y 5Y Max"; "MAX" becomes "Max"
+in both languages, the one casing EXPERIENCE.md → Period control changes.
+`phx-value-range` and the URL keep the code; "1M", "3M" and "6M" are new
+msgids that read the same in German; the fallback "Standard" stays. Not
+changed here, and not on the board: the Overview's "1Y" figure label, which
+is a literal in the template, not a range token.
