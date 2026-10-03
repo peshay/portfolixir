@@ -43,6 +43,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PortfolioAccounts.MergePreview
+  alias PortfolixirWeb.StoredText
 
   @impl true
   def mount(socket) do
@@ -112,7 +113,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
     >
       <header class="modal-head">
         <h2 id={"#{@id}-title"}>
-          <%= gettext("Merge %{name}", name: @source.name) %>
+          <%= StoredText.isolate(gettext("Merge %{name}", name: StoredText.slot(:name)), name: @source.name) %>
           <span class="modal-head__step"><%= step_label(@step) %></span>
         </h2>
         <button
@@ -397,11 +398,12 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
     removed = length(Map.get(transactions, "deleted", []))
 
     gettext("Merged %{source} into %{target}: %{moved}, %{removed}.",
-      source: source.name,
-      target: target.name,
+      source: StoredText.slot(:source),
+      target: StoredText.slot(:target),
       moved: ngettext("%{count} booking moved", "%{count} bookings moved", moved),
       removed: ngettext("%{count} removed", "%{count} removed", removed)
     )
+    |> StoredText.isolate(source: source.name, target: target.name)
   end
 
   # -- candidates (step 1) ----------------------------------------------------------

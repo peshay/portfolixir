@@ -1687,7 +1687,12 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       assert [%{cash_account_id: cash_id}] = Ledger.list_transactions()
       assert cash_id == household.id
 
-      assert view |> element("[data-role='remembered-names']") |> render() =~
+      # The names sit in <bdi> since #968 (pick H8.8); the words read as before.
+      assert view
+             |> element("[data-role='remembered-names']")
+             |> render()
+             |> Floki.parse_fragment!()
+             |> Floki.text() =~
                "“Giro” is now a former name of Household and no longer of Main account."
 
       assert Repo.get!(Portfolixir.Portfolios.CashAccount, main.id).former_names == []
@@ -2112,7 +2117,11 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       view |> element("form#pp-import-apply") |> render_submit()
       assert render_async(view, 1_000) =~ "Created transactions: 1"
 
-      assert view |> element("[data-role='remembered-names']") |> render() =~
+      assert view
+             |> element("[data-role='remembered-names']")
+             |> render()
+             |> Floki.parse_fragment!()
+             |> Floki.text() =~
                "“Cash EUR” is now a former name of Broker EUR."
     end
 

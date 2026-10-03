@@ -37,6 +37,7 @@ defmodule PortfolixirWeb.BucketsLive do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleReferences
+  alias PortfolixirWeb.StoredText
 
   @impl true
   def mount(_params, _session, socket) do
@@ -420,7 +421,9 @@ defmodule PortfolixirWeb.BucketsLive do
     >
       <header class="modal-head">
         <h2 id="view-bucket-modal-title">
-          <%= gettext("Buckets for %{name}", name: @view.name) %>
+          <%= StoredText.isolate(gettext("Buckets for %{name}", name: StoredText.slot(:name)),
+            name: @view.name
+          ) %>
         </h2>
         <button
           type="button"

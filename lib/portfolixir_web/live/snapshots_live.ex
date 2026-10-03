@@ -33,6 +33,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.StoredText
 
   @impl true
   def mount(_params, _session, socket) do
@@ -363,7 +364,10 @@ defmodule PortfolixirWeb.SnapshotsLive do
           <section class="workspace-section" data-role="snapshot-comparison">
             <header class="section-head">
               <h2>
-                <%= gettext("Comparison against “%{name}”", name: @comparison.snapshot.name) %>
+                <%= StoredText.isolate(
+                  gettext("Comparison against “%{name}”", name: StoredText.slot(:name)),
+                  name: @comparison.snapshot.name
+                ) %>
               </h2>
               <span class="badge" data-role="comparison-scope">
                 <%= view_name(@views, @comparison.snapshot.view_id) %>

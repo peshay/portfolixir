@@ -36,6 +36,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.RenameDialog do
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PortfolioAccounts.NameConflict
+  alias PortfolixirWeb.StoredText
 
   @impl true
   def mount(socket) do
@@ -71,7 +72,9 @@ defmodule PortfolixirWeb.PortfolioAccounts.RenameDialog do
       aria-labelledby={"#{@id}-title"}
     >
       <header class="modal-head">
-        <h2 id={"#{@id}-title"}><%= gettext("Rename — %{name}", name: @account.name) %></h2>
+        <h2 id={"#{@id}-title"}>
+          <%= StoredText.isolate(gettext("Rename — %{name}", name: StoredText.slot(:name)), name: @account.name) %>
+        </h2>
         <button
           type="button"
           class="icon-button"
