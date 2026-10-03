@@ -14,10 +14,10 @@ defmodule Portfolixir.ReleaseBackgroundFetchTest do
   }
 
   # User story (#1026, Sprint 18 C5, decided by the plan's D-7):
-  # As an operator whose host must not call out,
+  # As an operator who wants the instance to call out only when asked,
   # I want PORTFOLIXIR_BACKGROUND_FETCH=off to leave the release's scheduled
   # fetches off, as it already does in development,
-  # so that the instance sends nothing out without a firewall rule.
+  # so that the instance calls out only when someone asks it to.
   #
   # Acceptance criteria:
   # - With the switch off, the release's runtime configuration turns logo
@@ -25,7 +25,7 @@ defmodule Portfolixir.ReleaseBackgroundFetchTest do
   # - Unset, or set to anything but an off word, the release keeps all three
   #   as config/prod.exs sets them: on. The switch can only turn fetching off.
   # - It reads the words development reads: 0, false, no and off, in any case,
-  #   around any blank.
+  #   and, unlike development, around a blank too.
   test "the switch turns the release's logo discovery and quote and FX sync off" do
     assert prod_fetch() == %{logos: true, quotes: true, fx: true}
 

@@ -36,7 +36,8 @@ it into the build with Docker's predefined proxy build arguments (`HTTP_PROXY`,
 Docker client's proxy configuration. Behind a proxy that intercepts TLS, pass
 its CA to the build as the build secret `build_ca`: both Dockerfiles trust it
 for their downloads and leave it out of the images they ship. Without the
-secret, the builds are unchanged.
+secret, the builds are unchanged. Docker does not count a secret in its build
+cache, so after changing or dropping the CA, build once with `--no-cache`.
 
 ```bash
 docker build --secret id=build_ca,src=/path/to/proxy-ca.crt -f Dockerfile.release .
@@ -96,7 +97,7 @@ base64 would break the connection string.
 | `PORTFOLIXIR_MCP_READ_ONLY` | no | `true` makes the MCP companion read-only: it lists and calls only the tools that change nothing (off by default; any value other than `true`, `false`, `1`, `0` or empty stops it with the variable named). It narrows the companion, not `PORTFOLIXIR_API_TOKEN`, which can still write through the API. It is the same as `PORTFOLIXIR_MCP_PROFILE=read`. |
 | `PORTFOLIXIR_MCP_PROFILE` | no | The MCP companion's tool profile: `read` (only the tools that change nothing), `book` (the reads, the creates and the replace-shaped writes, which the same write sent the former value undoes, except that a rename back keeps the in-between name as a former name and an upsert over a provider date stays manual until the admin quote release; no removal, merge, ISIN change or rule retirement) or `full` (every tool). Empty is `full`, or `read` when `PORTFOLIXIR_MCP_READ_ONLY=true`; beside that switch, `book` or `full` stops the companion naming both variables, as does any other value. It narrows the companion, not `PORTFOLIXIR_API_TOKEN`. See [API and MCP](integration/api-and-mcp.html). |
 | `TZ` | no | The zone that decides what "today" is, as a tz name (`Europe/Berlin`); empty is UTC. Every date check — a statement or a quote not in the future, a rule version not backdated — reads the application's calendar day in this zone, and each database session takes the same zone when it connects, so the database's own date checks agree with it; the database server's `timezone` setting then does not matter. A value the database does not know as a zone name is logged once at startup and the session keeps the server's zone. |
-| `PORTFOLIXIR_BACKGROUND_FETCH` | no | `off` (or `0`, `false`, `no`) leaves logo discovery and the scheduled quote and FX downloads off from boot, for a host that must not call out. Unset or anything else keeps them on; it can only turn fetching off. |
+| `PORTFOLIXIR_BACKGROUND_FETCH` | no | `off` (or `0`, `false`, `no`) leaves logo discovery and the scheduled quote and FX downloads off from boot, so the instance calls out only when someone asks it to. Unset or anything else keeps them on; it can only turn fetching off. |
 | `PORTFOLIXIR_LOGO_DIR` | no | The absolute directory stored logos are kept in. The release image sets it to `/var/lib/portfolixir/logos`, the `portfolixir-logos` volume, because the release itself is read-only for the user it runs as; leave it alone in Compose. |
 
 Without a UI password and with the port opened beyond loopback, the
@@ -125,9 +126,12 @@ the ECB's euro reference rates
 after it starts and then every 12 hours, and the quote history of every
 security that has a quote provider, every 6 hours. Both schedules and logo
 discovery are on in a release (`config/prod.exs`). `PORTFOLIXIR_BACKGROUND_FETCH=off` leaves all
-three off from boot, for a host that must not reach these providers: the
-quotes and rates already stored stay as they are, and every figure is computed
-from them. On an IPv6-only host behind DNS64, use the
+three off from boot: the quotes and rates already stored stay as they are, and
+every figure is computed from them. The switch stops what the instance does by
+itself, not what someone asks of it. A quote or rate sync started on a screen
+or by the agent, a logo update and the security search still reach their
+providers, so a host that must not reach them at all still needs its egress
+blocked. On an IPv6-only host behind DNS64, use the
 well-known NAT64 prefix `64:ff9b::/96`: an address in it is judged by the IPv4
 address it carries. The local-use translation prefix `64:ff9b:1::/48` is a
 special-purpose block like the private ranges, so every address a DNS64 builds

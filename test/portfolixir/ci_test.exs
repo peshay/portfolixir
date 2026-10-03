@@ -1399,8 +1399,9 @@ defmodule Portfolixir.CITest do
   #   then the dependencies) mounts an optional build secret `build_ca` and
   #   trusts it first, itself: BuildKit keeps no secret in its cache key, so
   #   a step cached from a build without the secret would otherwise go on
-  #   without the CA. Hex reads the system store it lands in. Without the
-  #   secret nothing changes.
+  #   without the CA. The step sources the script, so with the secret its Hex
+  #   reads the system store the CA lands in. Without the secret nothing
+  #   changes: no CA is added, and Hex keeps its own bundle.
   # - The companion's npm install runs with the secret as an extra CA, in the
   #   same instruction.
   # - No runtime stage names the secret: the CA never reaches an image that
@@ -1416,16 +1417,21 @@ defmodule Portfolixir.CITest do
 
     for download <- ["mix local.hex", "mix deps.get"] do
       assert [step] = Enum.filter(steps, &(&1 =~ download)), download
-      assert step =~ ~r/^RUN #{mount}\s+trust-build-ca && /, step
+      assert step =~ ~r/^RUN #{mount}\s+\. \/usr\/local\/bin\/trust-build-ca && /, step
     end
 
     assert release_build =~
              "COPY --chmod=0755 docker/trust-build-ca.sh /usr/local/bin/trust-build-ca"
 
-    assert File.read!("docker/trust-build-ca.sh") =~ "update-ca-certificates"
+    # Hex is pointed at the system store inside the secret's branch only.
+    assert [_before, with_secret] =
+             "docker/trust-build-ca.sh"
+             |> File.read!()
+             |> String.split("if [ -s /run/secrets/build_ca ]; then")
 
-    assert release_build =~
-             ~r/^(?:ENV)?\s+HEX_CACERTS_PATH=\/etc\/ssl\/certs\/ca-certificates\.crt\b/m
+    assert with_secret =~ "update-ca-certificates"
+    assert with_secret =~ "export HEX_CACERTS_PATH=/etc/ssl/certs/ca-certificates.crt"
+    refute release_build =~ "HEX_CACERTS_PATH"
 
     refute release_runtime =~ "build_ca"
     refute release_runtime =~ "trust-build-ca"

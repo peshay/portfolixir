@@ -54,9 +54,9 @@ if config_env() == :prod do
   config :portfolixir, :force_ssl, Portfolixir.RuntimeConfig.force_ssl_opts()
 
   # PORTFOLIXIR_BACKGROUND_FETCH=off leaves logo discovery and the scheduled
-  # quote and FX sync off from boot, as it does in development (#963): a host
-  # that must not call out needs no firewall rule for it (#1026). Unset, the
-  # release keeps all three as config/prod.exs sets them. It only turns off.
+  # quote and FX sync off from boot, as it does in development (#963), so the
+  # release calls out only when someone asks it to (#1026). Unset, the release
+  # keeps all three as config/prod.exs sets them. It only turns off.
   unless Portfolixir.RuntimeConfig.background_fetch?() do
     config :portfolixir, :enable_logo_discovery, false
     config :portfolixir, Portfolixir.Catalog.QuoteSync, enabled?: false
