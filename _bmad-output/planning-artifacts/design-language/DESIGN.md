@@ -3187,3 +3187,16 @@ match it.
   stay: a muted class in a cell is outranked the same way, but it is not a
   sign, and a general muted rule is outside this issue.
 - A `<span>` carrying a sign class inside a cell was never affected.
+
+### The split ratio and the Balance join the `.num` family *(issue 913, rule ③)*
+
+- **Markup only, no CSS:** the history's split-ratio cell
+  (`td[data-role="split-ratio"]`) carries `num`, which `#transaction-list
+  td.num` already right-aligns in tabular figures, so "2:1" stands in the
+  Quantity column's alignment instead of at its left edge.
+- **The Balance column, found while drawing:** its header carried only
+  `col-subject` and its cells `numeric`, a class no rule backs, so header
+  and figures sat left. Both now carry `num col-subject`.
+- **Under 560 px nothing changes:** the table gives way to the two-line
+  phone rows (UX-DR27), where the ratio and the balance already sit right in
+  the figures column.

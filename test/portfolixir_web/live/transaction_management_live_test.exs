@@ -1081,6 +1081,45 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert html =~ "10:1"
   end
 
+  # User story (#913, with its sibling the Balance column; Sprint 18 pick H4,
+  # board ux-design-2026-10-02/04-tables-conformance ③ "after"; DESIGN.md →
+  # Data tables, the `.num` alignment family):
+  # As a maintainer reading the history's figures down a column,
+  # I want a split's ratio and the summoned Balance to stand right-aligned in
+  # tabular digits like every other figure of their column,
+  # so that "2:1" and the balance do not sit at the left of a right-aligned
+  # column in proportional digits.
+  #
+  # Acceptance criteria:
+  # - The split-ratio cell carries `num`, which `#transaction-list td.num`
+  #   right-aligns with tabular figures.
+  # - Narrowed to one account, the Balance header and its cells carry `num`
+  #   beside `col-subject`; the class `numeric`, which no stylesheet rule
+  #   backs, is gone.
+  test "a split's ratio and the balance join the num family", %{conn: conn} do
+    world = WorldFixtures.base_world()
+    security = WorldFixtures.create_security!(name: "Ratio Co", ticker: "RTO")
+    WorldFixtures.buy!(world, security, quantity: "10", price: "100", date: ~D[2026-01-03])
+
+    {:ok, _split_txs} =
+      Splits.book_split(Actor.owner_ui(), %{
+        security_id: security.id,
+        date: ~D[2026-01-10],
+        ratio_numerator: 2,
+        ratio_denominator: 1
+      })
+
+    {:ok, view, _html} = live(conn, "/transactions")
+
+    assert has_element?(view, "#transaction-list td.num[data-role='split-ratio']", "2:1")
+
+    toggle(view, "account", world.cash.id)
+
+    assert has_element?(view, "#transaction-list thead th.num.col-subject", "Balance")
+    assert has_element?(view, "#transaction-list td.num.col-subject[data-role='running-balance']")
+    refute render(view) =~ ~r/class="[^"]*\bnumeric\b/
+  end
+
   # #803: the booking form lives in a drawer opened from the history's head;
   # the tests that book open it first. Opening is idempotent.
   defp open_booking(view), do: view |> element("#open-booking") |> render_click()
