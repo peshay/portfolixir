@@ -8100,7 +8100,8 @@ dialog.filter-sheet::backdrop {
   #transaction-table-wrapper,
   #realized-trades-table-wrapper,
   #detail-closed-trades-table-wrap,
-  #contribution-table-wrap {
+  #contribution-table-wrap,
+  #quotes-table-wrapper {
     display: none;
   }
 
@@ -10039,4 +10040,14 @@ dialog.merge-dialog {
 #contribution-phone-rows .contribution-phone-rows__sum .phone-row__name,
 #contribution-phone-rows .contribution-phone-rows__sum .phone-row__figure {
   font-weight: 700;
+}
+
+/* The Quotes tab at 390 px (Sprint 18 U5, board
+   ux-design-2026-10-02/07-phone-390 rule ①, pick H7.1 = A): under 560 px a
+   quote is a two-line row — the date over its source badge, the close on
+   the right, the stored value under it where a split adjusted it. Two
+   children, no logo, no kebab: the trades row's two tracks. The phone
+   lists' 560 px block hides the table's wrapper. */
+#quote-phone-rows .phone-row {
+  grid-template-columns: minmax(0, 1fr) auto;
 }

@@ -154,9 +154,20 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     # list surface to give way to its rows; #1029 (pick H1, board rule ④):
     # the security's closed trades are the fourth; FR-41 (ADR-0051 §12,
     # board pick A): the contribution table under the Wealth performance
-    # chart is the fifth.
+    # chart is the fifth; #1012 (pick H7.1 = A, board
+    # ux-design-2026-10-02/07-phone-390 rule ①): a security's quotes the sixth.
     assert phone_block() =~
-             ~r/#securities-table,\s*#transaction-table-wrapper,\s*#realized-trades-table-wrapper,\s*#detail-closed-trades-table-wrap,\s*#contribution-table-wrap \{\s*display: none;/
+             ~r/#securities-table,\s*#transaction-table-wrapper,\s*#realized-trades-table-wrapper,\s*#detail-closed-trades-table-wrap,\s*#contribution-table-wrap,\s*#quotes-table-wrapper \{\s*display: none;/
+  end
+
+  # User story (#1012; board ux-design-2026-10-02/07-phone-390, H7.1 pick A,
+  # rule ①): a quote's phone row is the trades row's shape — two children,
+  # the date over its source and the close on the right, no logo and no
+  # kebab — so it needs its own two tracks, or the body would land in the
+  # logo's `auto` column.
+  test "the quote phone row has two tracks" do
+    assert block("#quote-phone-rows .phone-row") =~
+             ~r/grid-template-columns:\s*minmax\(0, 1fr\) auto;/
   end
 
   test "under 560 px the chip row yields to the Filter control" do

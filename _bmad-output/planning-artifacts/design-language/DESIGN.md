@@ -1623,6 +1623,10 @@ composition per surface that the column picker does not touch.
   its currency over the size — quantity × price, the quantity alone, a
   split's ratio — and the running balance beneath while the chips narrow to
   one account.
+- **A security's quotes** *(Sprint 18 U5, issue 1012, pick H7.1 = A)*: the
+  date (ISO) over the source badge; on the right the close with the
+  security's currency, over "stored <value>" only where a split adjusted the
+  close. Two children, no kebab (Amendment 2026-10-03, the phone at 390 px).
 - **Rules kept:** nothing scrolls sideways; matrices and dialog tables keep
   UX-DR15's scroller; the desktop tables are unchanged.
 
@@ -3397,3 +3401,28 @@ that half the floor's removal would have shrunk the touch target to 16 px.
 In the release result it stands beside the remedy "Sync prices", both 44 px
 tall and grown only vertically, so they do not overlap. Front matter:
 `inline-result.dismiss`.
+
+## Amendment 2026-10-03 — The phone at 390 px *(Sprint 18 pick H7, U5; issues 1012, 1033, 909 and 1050)*
+
+Board `mockups/ux-design-2026-10-02/07-phone-390`, "after" and picks
+H7.1 = A and H7.5 = A (plan D-8, silence adopts the recommendations); the
+security Overview's figures are board `03-bond-master-data`'s rule ④. The
+CSS rules are pinned in `test/invariants/css_layout_sweep_test.exs`.
+
+### The quote phone row *(H7.1, pick A, rule ①; issue 1012)*
+
+Under 560 px the Quotes tab's table wrapper (`#quotes-table-wrapper`) joins
+the phone lists' hidden wrappers and `ul#quote-phone-rows.phone-rows`
+(labelled "Quotes") shows one two-line row per quote of the range, in the
+table's order: the date (ISO, `.phone-row__name`) over the source badge
+(`.phone-row__ids .badge.quote-source`) — the only per-row mark of a manual
+close, which sat off-screen in the table's own scroller — and on the right
+the close with the security's currency (`.phone-row__figure`), over
+"stored <value>" (`.phone-row__figure2`) only where a split adjusted the
+close, because elsewhere it would repeat the same number. Two tracks,
+`minmax(0, 1fr) auto`, as the trades rows: no logo, no kebab. A row is
+61 px against the table's 34. **No cap** on the rows (the board's stated
+doubt, UX-DR26): the rows are the table rendered a second time, as every
+phone list is, and the table itself carries the whole range; capping the
+phone alone would make it say less than the desktop without a stated reason
+of its own. "Max" on a long history renders accordingly.
