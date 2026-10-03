@@ -2572,9 +2572,19 @@ mit dem Wertpapier im Titel:
 
 Nach der Freigabe sagt der Tab, wie viele Kurse von wann bis wann freigegeben
 wurden, mit **Kurse aktualisieren** als nächstem Schritt, wo eine
-Aktualisierung helfen kann, bis Sie die Meldung schließen oder weitergehen.
-Nichts auf der Seite stellt einen freigegebenen Kurs wieder her; das Journal
-hält ihn fest. Auf dem Telefon öffnet sich der Dialog als Blatt von unten.
+Aktualisierung helfen kann — sie aktualisiert nur dieses Wertpapier —, bis Sie
+die Meldung schließen oder weitergehen. Nichts auf der Seite stellt einen
+freigegebenen Kurs wieder her; das Journal hält ihn fest. Auf dem Telefon
+öffnet sich der Dialog als Blatt von unten.
+
+Das Ergebnis einer Kursaktualisierung sagt, wie viele manuelle Kurse stehen
+blieben, wo der Anbieter für denselben Tag einen Schlusskurs lieferte (*2
+manuelle Kurse blieben stehen, wo der Anbieter einen Schlusskurs lieferte.*);
+eine Aktualisierung, die ein Wertpapier übersprungen hat, sagt in Worten,
+warum. Auf dem Telefon zeigt der Kurse-Tab jeden Kurs als zweizeilige Zeile —
+das Datum über seiner Quelle, rechts der Schlusskurs und darunter der
+gespeicherte Wert, wo ein Split den Kurs angepasst hat —, sodass die Quelle
+jedes Kurses ohne Wischen durch die Tabelle lesbar ist.
 Ihr Agent liest dieselbe Zusammenfassung mit
 `GET /api/v1/securities/:security_id/quotes/manual` (MCP
 `portfolixir.quotes.manual`) und gibt mit `portfolixir.quotes.release` frei.
@@ -2592,11 +2602,15 @@ Die Reiterzeile des Detailbereichs ist ein einziger Tastaturstopp: **Tab**
 landet auf dem gewählten Reiter, **Pfeil links/rechts** wechseln zum vorigen
 oder nächsten Reiter (am Ende geht es von vorn weiter), **Pos1** und **Ende**
 springen zum ersten und letzten, und der Reiter, der den Fokus erhält, öffnet
-seinen Bereich.
+seinen Bereich. Öffnet die Seite auf einem Reiter — über einen Link, ein
+Neuladen, Zurück oder Vor oder eine geteilte Adresse —, rollt die Zeile diesen
+Reiter ins Bild; das zählt auf dem Telefon, wo die neun Reiter nicht
+hineinpassen.
 
 Der Detailbereich zeigt einen serverseitig gerenderten SVG-Preischart mit:
 
-- Zeitraum-Buttons (1M / 3M / 6M / YTD / 1Y / 3Y / 5Y / MAX).
+- Zeitraum-Buttons (1M / 3M / 6M / YTD / 1J / 3J / 5J / Max). Der Kurse-Tab
+  nennt denselben Zeitraum.
 - Einem Schalter *Log scale* (logarithmische Y-Achse).
 - Einem Schalter *Show transactions*, der Kauf-/Verkauf-Marker aus dem Ledger
   überlagert — formcodierte Dreiecke (▲ Kauf, ▼ Verkauf), die Richtung ist
