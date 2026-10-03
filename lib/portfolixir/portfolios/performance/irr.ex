@@ -38,6 +38,17 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
   (Excel-compatible), iteration cap 200. Deterministic given the same inputs
   and options.
 
+  **Large flows** (ADR-0034 amendment of 2026-10-02, #1031): the tolerance is
+  absolute, and the one float step cannot meet it once the amounts run to
+  about `1e8`. So when the largest absolute cashflow exceeds one million,
+  every cashflow is multiplied by `1,000,000 ÷ that amount`, in `Decimal`,
+  before the float step, and kept to 18 decimal places, far below what a
+  float carries next to a million. The rate is scale-free, so the root is the
+  same root. Under that threshold nothing is scaled, so every figure for
+  flows up to a million is the one it was, by construction. No rate is ever
+  at or below `−1`: one that rounds there is returned as `−0.999999`, the
+  bracket's own floor.
+
   Returns `Decimal.t()` on success and `nil` for every degenerate case —
   fewer than two cashflows, all flows the same sign, one shared date, an
   amount outside the range the one float step carries (a non-zero magnitude
@@ -66,6 +77,12 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
   # discount: a non-zero amount outside them is not converted (E25 S4, G12).
   @min_amount Decimal.new("1e-300")
   @max_amount Decimal.new("1e300")
+  # ADR-0034 amendment 2026-10-02: the largest flow the solver takes as it
+  # is, and the places a scaled flow keeps (a million carries 7 integer
+  # digits; 7 + 18 stays inside Decimal's 28-digit context).
+  @scale_threshold Decimal.new("1000000")
+  @scaled_places 18
+  @floor_rate Decimal.new("-0.999999")
 
   @doc """
   Computes the IRR for a period summary (a `summarise/2` result).
@@ -292,17 +309,42 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
   # Converts the dated Decimal cashflows to `{years_from_first, amount_float}`
   # once, at the solver boundary; the bisection then works purely on floats.
   # An amount the float step cannot carry is refused here, before the
-  # conversion would raise (E25 S4, G12).
+  # conversion would raise (E25 S4, G12). The range is read on the flows as
+  # given, so the degenerate reasons are the ones they were; the scaling
+  # comes after it and before the float step.
   defp numeric_points(cashflows) do
     {first_date, _amount} = hd(cashflows)
 
     if Enum.all?(cashflows, fn {_date, amount} -> float_range?(amount) end) do
       {:ok,
-       Enum.map(cashflows, fn {date, amount} ->
+       cashflows
+       |> scaled()
+       |> Enum.map(fn {date, amount} ->
          {Date.diff(date, first_date) / @days_per_year, Decimal.to_float(amount)}
        end)}
     else
       {:error, :amount_out_of_range}
+    end
+  end
+
+  # ADR-0034 amendment 2026-10-02 (#1031): above a largest flow of one
+  # million, every flow is scaled so the largest is one million, in Decimal.
+  # The places kept make a flow that scales below the float range a zero,
+  # which it already was beside a million in the float sum, never a raise.
+  defp scaled(cashflows) do
+    largest =
+      cashflows
+      |> Enum.map(fn {_date, amount} -> Decimal.abs(amount) end)
+      |> Enum.max(Decimal)
+
+    if Decimal.compare(largest, @scale_threshold) == :gt do
+      factor = Decimal.div(@scale_threshold, largest)
+
+      Enum.map(cashflows, fn {date, amount} ->
+        {date, amount |> Decimal.mult(factor) |> Decimal.round(@scaled_places)}
+      end)
+    else
+      cashflows
     end
   end
 
@@ -349,13 +391,19 @@ defmodule Portfolixir.Portfolios.Performance.IRR do
   end
 
   # A root a hair below zero rounds to a signed zero (`-0.000000`), which
-  # reads as "-0" on the wire and is not a return: a zero is a zero.
+  # reads as "-0" on the wire and is not a return: a zero is a zero. A rate
+  # is never at or below −1 (ADR-0034 amendment 2026-10-02): one that rounds
+  # there is the bracket's floor, −0.999999.
   defp finalize(rate) do
     rounded =
       rate
       |> Decimal.from_float()
       |> Decimal.round(@scale)
 
-    if Decimal.equal?(rounded, @zero), do: Decimal.round(@zero, @scale), else: rounded
+    cond do
+      Decimal.equal?(rounded, @zero) -> Decimal.round(@zero, @scale)
+      Decimal.compare(rounded, @floor_rate) == :lt -> @floor_rate
+      true -> rounded
+    end
   end
 end

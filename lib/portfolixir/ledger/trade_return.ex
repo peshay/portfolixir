@@ -27,18 +27,16 @@ defmodule Portfolixir.Ledger.TradeReturn do
 
   ## Float boundary
 
-  Nothing here is a float. The cashflows go to `IRR.solve/2` as `Decimal`s
-  — scaled to a cost of one million where the trade cost more, because the
-  solver's tolerance is absolute and the rate is scale-free — and the rate
-  comes back as a `Decimal` rounded to six places; the one float step stays
-  inside the solver, which is all ADR-0034 §2's exception grants. Nothing is
-  persisted.
+  Nothing here is a float. The cashflows go to `IRR.solve/2` as `Decimal`s,
+  as they are: the solver scales a large trade's flows itself, for every
+  caller (ADR-0034 amendment of 2026-10-02, #1031). The rate comes back as a
+  `Decimal` rounded to six places; the one float step stays inside the
+  solver, which is all ADR-0034 §2's exception grants. Nothing is persisted.
   """
 
   alias Portfolixir.Portfolios.Performance.IRR
 
   @min_holding_days 365
-  @scaled_cost Decimal.new("1000000")
 
   @type reason ::
           :holding_period_under_365_days | IRR.reason()
@@ -60,31 +58,14 @@ defmodule Portfolixir.Ledger.TradeReturn do
 
   def annualized(%{lots: lots, close_date: close_date, proceeds: proceeds}, opts) do
     buys = Enum.map(lots, fn lot -> {lot.open_date, Decimal.negate(lot.cost)} end)
-    cost = Enum.reduce(lots, Decimal.new(0), &Decimal.add(&1.cost, &2))
 
-    case IRR.solve(scaled(buys ++ [{close_date, proceeds}], cost), opts) do
+    case IRR.solve(buys ++ [{close_date, proceeds}], opts) do
       {:ok, rate} -> %{annualized_return: rate, annualized_return_reason: nil}
       {:error, reason} -> none(reason)
     end
   end
 
   defp none(reason), do: %{annualized_return: nil, annualized_return_reason: reason}
-
-  # The solver accepts a root at an absolute |NPV| below 1e-7 (ADR-0034 §2),
-  # which its one float step cannot meet once the amounts run to about 1e8:
-  # a large trade in a high-nominal currency would read no_root where a rate
-  # exists. The rate is scale-free, so a trade costing more than a million in
-  # its own currency is solved over its flows scaled to a cost of one million
-  # (closing act γ, money lens M3); a smaller one goes in as it is. Scaling to
-  # a cost of one would loosen the same absolute tolerance instead.
-  defp scaled(flows, cost) do
-    if Decimal.compare(cost, @scaled_cost) == :gt do
-      factor = Decimal.div(@scaled_cost, cost)
-      Enum.map(flows, fn {date, amount} -> {date, Decimal.mult(amount, factor)} end)
-    else
-      flows
-    end
-  end
 
   @doc """
   The rule as one sentence, carried by every payload that serves the figure
