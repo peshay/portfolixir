@@ -4523,7 +4523,7 @@ msgstr "Diese Abrechnung gibt es nicht mehr: Sie wurde nach dem Öffnen gelösch
 msgid "This allowance order no longer exists: it was deleted while the new one was recorded, so nothing was saved. Record it again."
 msgstr "Diesen Freistellungsauftrag gibt es nicht mehr: Er wurde während des Hinterlegens gelöscht, es wurde nichts gespeichert. Bitte erneut hinterlegen."
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:1017
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:1043
 #, elixir-autogen, elixir-format
 msgid "This security no longer exists: it was deleted after the dialog opened, so nothing was saved."
 msgstr "Dieses Wertpapier gibt es nicht mehr: Es wurde nach dem Öffnen gelöscht, es wurde nichts gespeichert."

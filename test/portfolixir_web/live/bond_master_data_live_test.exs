@@ -353,4 +353,123 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     assert cleared.issue_date == nil
     assert cleared.maturity_date == ~D[2031-06-15]
   end
+
+  # The fake search provider's one listing (`arbolia`, NASDAQ in USD) matches
+  # this bond by provider and online id, so picking it shows the conflict.
+  # The bond's terms are invented.
+  defp listed_bond! do
+    {:ok, bond} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Arbolia Inc. Anleihe 2031",
+        ticker_symbol: "ARBL",
+        isin: "USEXMPL10014",
+        currency_code: "USD",
+        asset_class: "bond",
+        provider: "portfolio_performance",
+        online_id: "usexmpl10014",
+        coupon_rate: "3.75",
+        coupon_frequency: "annual",
+        maturity_date: ~D[2031-06-15],
+        issue_date: ~D[2021-06-15],
+        face_value: "1000"
+      })
+
+    bond
+  end
+
+  # Search, pick the listing and its market: the dialog shows the conflict.
+  # The listing reads as a share, so the asset class is set back to bond,
+  # and the bond section stands with blank fields, its currency select on
+  # the listing's currency.
+  defp conflict_dialog(conn) do
+    {:ok, view, _html} = live(conn, "/securities")
+    view |> element("#open-new-dialog") |> render_click()
+    view |> element("button[phx-value-mode='security']") |> render_click()
+
+    view
+    |> element("#security-form-dialog form")
+    |> render_change(%{"dialog_query" => "arbolia"})
+
+    view |> element("#security-form-dialog .search-result") |> render_click()
+
+    view
+    |> element("#security-form-dialog .market-list button[phx-value-idx='0']")
+    |> render_click()
+
+    assert has_element?(view, "#security-form-dialog", "This security already exists")
+
+    view
+    |> element("#security-dialog-form")
+    |> render_change(%{"security" => %{"asset_class" => "bond"}})
+
+    assert has_element?(
+             view,
+             ~s(#security-dialog-form input[name="security[coupon_rate]"][value=""])
+           )
+
+    view
+  end
+
+  defp assert_terms_kept(bond) do
+    kept = Repo.reload!(bond)
+
+    assert Decimal.equal?(kept.coupon_rate, Decimal.new("3.75"))
+    assert kept.maturity_date == ~D[2031-06-15]
+    assert kept.issue_date == ~D[2021-06-15]
+    assert Decimal.equal?(kept.face_value, Decimal.new("1000"))
+    assert kept.face_value_currency_code == nil, "a denomination currency nobody chose"
+    kept
+  end
+
+  # User story (#330, closing act on U7, finding 1):
+  # As the operator adding a listing of a bond the catalog already holds,
+  # I want "Update existing" to leave the bond's master data alone unless I
+  # type a value into its section,
+  # so that resolving a duplicate never wipes the coupon, maturity and
+  # denomination entered before.
+  #
+  # Acceptance criteria:
+  # - With the conflict shown and the bond section blank, "Update existing"
+  #   keeps the coupon, maturity, issue date and denomination, and writes no
+  #   denomination currency: the select only starts on the listing's.
+  # - A bond field chosen in that form is written: the payment becomes
+  #   semi-annual.
+  test "Update existing keeps a bond's master data the form left blank", %{conn: conn} do
+    bond = listed_bond!()
+    view = conflict_dialog(conn)
+
+    view
+    |> form("#security-dialog-form", security: %{coupon_frequency: "semi_annual"})
+    |> render_submit()
+
+    refute has_element?(view, "#security-dialog-form")
+    assert assert_terms_kept(bond).coupon_frequency == "semi_annual"
+  end
+
+  # User story (#330, closing act on U7, finding 1):
+  # As the operator merging a listing's online fields into a bond the
+  # catalog already holds,
+  # I want the merge to leave the bond's master data alone,
+  # so that "Merge online fields" brings the listing's fields and nothing
+  # else changes.
+  #
+  # Acceptance criteria:
+  # - With the conflict shown and the bond section blank, "Merge online
+  #   fields" keeps the coupon, its payment, the maturity, the issue date and
+  #   the denomination, and writes no denomination currency.
+  test "Merge online fields keeps a bond's master data the form left blank", %{conn: conn} do
+    bond = listed_bond!()
+    view = conflict_dialog(conn)
+
+    # Every field of the form as the page holds it, the blank bond fields
+    # and the preset currency select included.
+    view |> form("#security-dialog-form") |> render_change()
+
+    view
+    |> element("#security-form-dialog button", "Merge online fields")
+    |> render_click()
+
+    refute has_element?(view, "#security-dialog-form")
+    assert assert_terms_kept(bond).coupon_frequency == "annual"
+  end
 end
