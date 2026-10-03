@@ -2185,7 +2185,8 @@ The **Risk** tab of the Wealth area shows two things that answer one question
   and retired rules too — and the dialog's version list names the author of
   every version, "Operator" or "Agent" (E25). Your own rules carry no word.
   The agent's rules are in force like yours; the word only says who drew the
-  line.
+  line. How to write, read, change and end a rule, step by step, is in the
+  [Own Rules Guide](guides/own-rules.html).
 - **Portfolio metrics**, one year: the annualized **volatility**, the
   **maximum drawdown** with the day it started, its low and the day it
   recovered, the **risk-adjusted return** (at a risk-free rate of 0 it is
