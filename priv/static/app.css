@@ -8854,6 +8854,13 @@ input.num {
   overflow-wrap: anywhere;
 }
 
+/* Issue 966, pick H8.5 = A (board ux-design-2026-10-02/08-dialogs-copy): a
+   note inside the rename dialog's "Former names" disclosure sits one step
+   below its summary, as the list beneath it does. */
+.rename-dialog details > .data-note {
+  margin-top: var(--space-1);
+}
+
 /* The former-names list inside the rename dialog (board 01 ②). */
 .former-names {
   list-style: none;

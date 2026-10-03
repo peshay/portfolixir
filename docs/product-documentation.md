@@ -447,9 +447,13 @@ and, behind *Text with the characters made visible*, the text spelled the
 way the agent receives it (`Auftrags[U+200B]bestand`). In the research log
 the remedy is **Append an entry that supersedes #n**, which preselects the
 entry in the form; a security's name is corrected with **Edit master data**;
-a booking's notes, a rule's name and note, and the names of views, buckets
-and categories carry the note where they are edited, and a clean retype
-removes it.
+a booking's notes, a rule's name and note, and the names of views, buckets,
+categories, cash accounts and depots carry the note where they are edited,
+and a clean retype removes it. Because the retyped name keeps the old
+spelling as a former name, the rename dialog of a cash account or a depot
+also marks its former names — "A former name contains 1 invisible
+character. An import that writes it exactly so keeps booking to this
+depot." — so removing that entry is a choice made seeing it.
 
 **Benchmark securities.** A security can be marked as a benchmark from its
 row menu ("Mark as benchmark"): a reference series the portfolio is compared
