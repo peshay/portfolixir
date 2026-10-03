@@ -96,16 +96,12 @@ defmodule PortfolixirWeb.DashboardLive do
   # overview's — the realized report covers every depot whatever the view,
   # so it shares nothing with the view-scoped pricing pass and must not wait
   # for it. Data only: the task has no user locale, the card's words are
-  # rendered at render time.
+  # rendered at render time. #1030: the card computes only what it shows —
+  # the report's newest five, its exclusions and its base currency — not
+  # the whole report it used to cut down.
   defp start_closed_trades(%{assigns: %{has_sells: true}} = socket) do
     start_async(socket, :closed_trades, fn ->
-      report = RealizedGains.report()
-
-      %{
-        trades: Enum.take(report.trades, @closed_trades_shown),
-        excluded: report.excluded,
-        base_currency: report.base_currency
-      }
+      RealizedGains.newest_trades(@closed_trades_shown)
     end)
   end
 

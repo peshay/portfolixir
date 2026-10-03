@@ -48,6 +48,13 @@ defmodule Portfolixir.Portfolios.RealizedGains do
   was missing from every figure. They are named now in `unmatched_sells`
   (count, and per sell the security, date and unmatched quantity), the
   UX-DR25 shape of `excluded`, and stay out of every figure.
+
+  ## The newest trades alone (#1030)
+
+  `newest_trades/2` serves the Overview card: the report's newest rows,
+  its exclusions and its base currency, computed without the rest — one
+  read of every sold security's transactions instead of the trades read
+  per security, and the annualized return only for the rows returned.
   """
 
   alias Portfolixir.Catalog
@@ -99,10 +106,7 @@ defmodule Portfolixir.Portfolios.RealizedGains do
       trades: trades,
       summary: summary(trades),
       limit: limit,
-      excluded: %{
-        count: length(excluded),
-        securities: excluded |> Enum.map(& &1.security_name) |> Enum.uniq() |> Enum.sort()
-      },
+      excluded: excluded_summary(excluded),
       # #984 (T1b, UX-DR25): the matcher's orphan sells, named rather than
       # dropped — a sell with no lot is no trade, so it is in no figure.
       unmatched_sells: %{count: length(unmatched), sells: unmatched},
@@ -137,6 +141,55 @@ defmodule Portfolixir.Portfolios.RealizedGains do
             "shares bought closes what it can and leaves the rest. unmatched_sells names each, " <>
             "newest first, with the quantity no lot covered."
       }
+    }
+  end
+
+  @doc """
+  The newest `limit` closed trades of `report/1`, with its `excluded` and
+  its `base_currency`: what the Overview card shows (#1030), computed
+  without the rest of the report.
+
+  The rows, their order (equal close dates included), their figures and the
+  exclusions are the report's own — the same matcher input, the same
+  conversion at each close date, the same stable sort — but the
+  transactions are read once for every sold security, no open lot is
+  decorated, no latest close is looked up, only the `limit` trades returned
+  are annualized, and neither the matrix nor the three figures are built.
+  Every closed trade is still converted, because a sale the rates cannot
+  convert is named in `excluded` whether or not it would be among the
+  newest.
+
+  Options: `:base_currency`, as for `report/1`.
+  """
+  def newest_trades(limit, opts \\ []) when is_integer(limit) and limit > 0 do
+    base = Keyword.get_lazy(opts, :base_currency, &default_base/0)
+
+    {converted, excluded} =
+      Ledger.closed_trades_of_sold_securities()
+      |> Enum.flat_map(fn {security, closed} ->
+        Enum.map(closed, &{trade_row(security, &1), &1})
+      end)
+      |> Enum.map(fn {row, trade} -> {convert_trade(row, base), trade} end)
+      |> Enum.split_with(&match?({{:ok, _row}, _trade}, &1))
+
+    trades =
+      converted
+      |> Enum.map(fn {{:ok, row}, trade} -> {row, trade} end)
+      |> Enum.sort_by(fn {row, _trade} -> row.close_date end, {:desc, Date})
+      |> Enum.take(limit)
+      |> Enum.map(fn {row, trade} -> Map.merge(row, TradeReturn.annualized(trade)) end)
+
+    %{
+      base_currency: base,
+      trades: trades,
+      excluded: excluded_summary(Enum.map(excluded, fn {{:excluded, row}, _trade} -> row end))
+    }
+  end
+
+  defp excluded_summary(excluded) do
+    %{
+      count: length(excluded),
+      securities: excluded |> Enum.map(& &1.security_name) |> Enum.uniq() |> Enum.sort()
     }
   end
 
@@ -195,28 +248,38 @@ defmodule Portfolixir.Portfolios.RealizedGains do
 
   defp closed_trades(security, closed) do
     Enum.map(closed, fn trade ->
-      # #807: the row the facet lists, beside the figure the matrix sums.
-      # `security_id` rides along so each row can link to that security's
-      # Trades tab, where the same round-trip is a row of its closed trades.
-      %{
-        security_id: security.id,
-        security_name: security.name,
-        open_date: trade.open_date,
-        close_date: trade.close_date,
-        quantity: trade.quantity,
-        basis: trade.basis,
-        proceeds: trade.proceeds,
-        holding_period_days: trade.holding_period_days,
-        realized_pnl_pct: trade.realized_pnl_pct,
-        currency_code: trade.currency_code || security.currency_code,
-        realized_pnl_abs: trade.realized_pnl_abs,
+      security
+      |> trade_row(trade)
+      |> Map.merge(%{
         # #984: the per-trade figure the security's own read serves, so the
         # two never disagree; it annualizes realized_pnl_pct in the trade's
         # currency, not realized_base.
         annualized_return: trade.annualized_return,
         annualized_return_reason: trade.annualized_return_reason
-      }
+      })
     end)
+  end
+
+  # #807: the row the facet lists, beside the figure the matrix sums.
+  # `security_id` rides along so each row can link to that security's
+  # Trades tab, where the same round-trip is a row of its closed trades.
+  # The annualized return is merged by the caller: `report/1` takes the one
+  # the trades read attached, `newest_trades/2` computes it for the rows it
+  # returns only (#1030).
+  defp trade_row(security, trade) do
+    %{
+      security_id: security.id,
+      security_name: security.name,
+      open_date: trade.open_date,
+      close_date: trade.close_date,
+      quantity: trade.quantity,
+      basis: trade.basis,
+      proceeds: trade.proceeds,
+      holding_period_days: trade.holding_period_days,
+      realized_pnl_pct: trade.realized_pnl_pct,
+      currency_code: trade.currency_code || security.currency_code,
+      realized_pnl_abs: trade.realized_pnl_abs
+    }
   end
 
   # #807: the three figures, over the converted trades and nothing wider.
