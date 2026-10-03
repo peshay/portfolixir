@@ -178,8 +178,10 @@ defmodule Portfolixir.Engines.BondMetricsTest do
   # so that a hundredfold value the TTWROR cannot show is visible.
   #
   # Acceptance criteria:
-  # - A latest quote of 97.25 against a buy at 0.985 is named, with the
-  #   quote, the count of buys on the unit scale and the last of them.
+  # - A latest quote of 97.25 against a booking at 0.985 per unit is named,
+  #   with the quote, the count of bookings on the unit scale and the last
+  #   of them (closing act on U7, finding 4: a booking is a buy or a priced
+  #   inbound delivery).
   # - A buy at 98.50 (the hundredth reading) is not named, nor is a bond
   #   without a quote.
   # - The band is 20 to 500 times, both ends included; a ratio just under
@@ -187,18 +189,18 @@ defmodule Portfolixir.Engines.BondMetricsTest do
   test "names a bond priced on two scales, and nothing else" do
     latest = %{close: dec("97.25"), date: ~D[2026-09-30]}
 
-    buys = [
+    bookings = [
       %{price: dec("0.98"), date: ~D[2026-02-01]},
       %{price: dec("0.985"), date: ~D[2026-03-12]}
     ]
 
-    finding = BondMetrics.two_scales(latest, buys)
+    finding = BondMetrics.two_scales(latest, bookings)
     assert finding.latest_quote == latest
-    assert finding.unit_scale_buys == 2
-    assert finding.last_unit_scale_buy == %{price: dec("0.985"), date: ~D[2026-03-12]}
+    assert finding.unit_scale_bookings == 2
+    assert finding.last_unit_scale_booking == %{price: dec("0.985"), date: ~D[2026-03-12]}
 
     assert BondMetrics.two_scales(latest, [%{price: dec("98.50"), date: ~D[2026-03-12]}]) == nil
-    assert BondMetrics.two_scales(nil, buys) == nil
+    assert BondMetrics.two_scales(nil, bookings) == nil
     assert BondMetrics.two_scales(latest, []) == nil
 
     at = fn close, price ->

@@ -465,9 +465,10 @@ verwendet.
 Stückzahl gebucht, ist ab dem ersten Kurs jeder Geldbetrag der Anleihe —
 Wert, Gewinn, Gewicht — hundertfach zu hoch, und die TTWROR kann es nicht
 zeigen. Eine Anleihe, deren letzter gespeicherter Kurs das 20- bis 500-Fache
-eines gebuchten Kaufpreises je Stück beträgt (Kurse um 100, Buchungen um 1),
-wird deshalb in einem **Problem**-Hinweis oben in ihrer Übersicht genannt,
-mit dem Kurs, dem Kauf und einem Link auf ihren Tab **Transaktionen**, wo
+eines gebuchten Preises je Stück beträgt — eines Kaufs oder einer mit Preis
+erfassten Einlieferung — (Kurse um 100, Buchungen um 1), wird deshalb in
+einem **Problem**-Hinweis oben in ihrer Übersicht genannt, mit dem Kurs, der
+Buchung und einem Link auf ihren Tab **Transaktionen**, wo
 die Stückzahl gegen das Nominal der Abrechnung geprüft wird, und im
 **Datenqualitäts**-Panel unter Vermögen → Bestände, wo die Summe gelesen
 wird, die sie aufbläht. Umgerechnet wird nichts: Die Zahlen bleiben wie

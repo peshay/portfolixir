@@ -2763,15 +2763,16 @@ defmodule PortfolixirWeb.PortfolioLive do
         <%!-- #330 (pick H3, W2): a bond priced on two scales counts a hundred
              times too high in the totals read here, and the return cannot
              show it (bond discovery, point 5). Each name links to where its
-             buys are checked against the statement; nothing is converted. --%>
+             bookings are checked against the statement; nothing is
+             converted. --%>
         <AppShell.data_note
           :if={@two_scales != []}
           severity={:problem}
           data-role="dq-two-scales"
         >
           <%= ngettext(
-            "One bond is priced on two scales (quotes around 100, booked price per unit around 1) and counts a hundred times too high in the totals; the return does not show it. Check the quantity of its buys against the nominal on the statement:",
-            "%{count} bonds are priced on two scales (quotes around 100, booked price per unit around 1) and count a hundred times too high in the totals; the return does not show it. Check the quantity of their buys against the nominal on the statement:",
+            "One bond is priced on two scales (quotes around 100, booked price per unit around 1) and counts a hundred times too high in the totals; the return does not show it. Check the quantity of its bookings against the nominal on the statement:",
+            "%{count} bonds are priced on two scales (quotes around 100, booked price per unit around 1) and count a hundred times too high in the totals; the return does not show it. Check the quantity of their bookings against the nominal on the statement:",
             length(@two_scales)
           ) %>
           <span :for={finding <- @two_scales} class="dq-negative-entry">
@@ -2780,7 +2781,7 @@ defmodule PortfolixirWeb.PortfolioLive do
             </.link>
             (<%= gettext("quote %{close} · price per unit %{price}",
               close: Format.exact(finding.latest_quote.close),
-              price: Format.exact(finding.last_unit_scale_buy.price)
+              price: Format.exact(finding.last_unit_scale_booking.price)
             ) %>)
           </span>
         </AppShell.data_note>

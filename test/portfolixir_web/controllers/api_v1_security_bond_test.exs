@@ -220,12 +220,12 @@ defmodule PortfolixirWeb.ApiV1SecurityBondTest do
 
     assert %{
              "latest_quote" => %{"close" => "97.25", "date" => "2026-09-30"},
-             "unit_scale_buys" => 1,
-             "last_unit_scale_buy" => %{"price" => "0.985", "date" => "2026-03-12"},
+             "unit_scale_bookings" => 1,
+             "last_unit_scale_booking" => %{"price" => "0.985", "date" => "2026-03-12"},
              "rule" => rule
            } = face["two_scales"]
 
-    assert rule =~ "between 20 and 500 times"
+    assert rule =~ "between 20 and 500 times a booked price per unit"
 
     %{"data" => %{"id" => etf_id}} =
       conn

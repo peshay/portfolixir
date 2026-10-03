@@ -428,12 +428,13 @@ always used.
 **Priced on two scales.** If an export booked a bond's nominal as its
 quantity, every money figure of the bond — value, gain, weight — is a
 hundred times too high from the first quote on, and the TTWROR cannot show
-it. A bond whose latest stored quote is 20 to 500 times a booked buy price
-per unit (quotes near 100, bookings near 1) is therefore named in a
-**problem** note at the top of its Overview, with the quote, the buy and a
-link to its **Transactions** tab, where the quantity is checked against the
-nominal on the statement; and in the **data-quality** panel of Wealth →
-Holdings, where the total it inflates is read. Nothing is converted: the
+it. A bond whose latest stored quote is 20 to 500 times a booked price
+per unit — a buy's, or a priced inbound delivery's — (quotes near 100,
+bookings near 1) is therefore named in a **problem** note at the top of its
+Overview, with the quote, the booking and a link to its **Transactions**
+tab, where the quantity is checked against the nominal on the statement;
+and in the **data-quality** panel of Wealth → Holdings, where the total it
+inflates is read. Nothing is converted: the
 figures stay as booked until the bookings are corrected.
 
 ### Dates tab (the security's calendar, ADR-0048)

@@ -8,6 +8,7 @@ defmodule Portfolixir.Portfolios.BondsTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Ledger
   alias Portfolixir.Portfolios.Bonds
 
   @as_of ~D[2026-10-02]
@@ -37,6 +38,22 @@ defmodule Portfolixir.Portfolios.BondsTest do
   end
 
   defp dec(value), do: Decimal.new(value)
+
+  defp deliver!(world, security, opts) do
+    {:ok, delivery} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        security_id: security.id,
+        type: "inbound_delivery",
+        date: Keyword.fetch!(opts, :date),
+        quantity: Keyword.fetch!(opts, :quantity),
+        price: Keyword.fetch!(opts, :price),
+        currency_code: "EUR"
+      })
+
+    delivery
+  end
 
   defp assert_scale_6(actual, expected),
     do: assert(Decimal.to_string(actual, :normal) == expected)
@@ -126,8 +143,8 @@ defmodule Portfolixir.Portfolios.BondsTest do
 
     assert %{
              latest_quote: %{close: close, date: ~D[2026-09-30]},
-             unit_scale_buys: 1,
-             last_unit_scale_buy: %{price: price, date: ~D[2026-03-12]}
+             unit_scale_bookings: 1,
+             last_unit_scale_booking: %{price: price, date: ~D[2026-03-12]}
            } = reading.two_scales
 
     assert Decimal.equal?(close, dec("97.25"))
@@ -155,7 +172,42 @@ defmodule Portfolixir.Portfolios.BondsTest do
 
     assert finding.security_id == face.id
     assert finding.name == "Musterland Anleihe 2031"
-    assert finding.unit_scale_buys == 1
+    assert finding.unit_scale_bookings == 1
+  end
+
+  # User story (#330, closing act on U7, finding 4):
+  # As the operator whose export delivered a bond in at its nominal rather
+  # than buying it,
+  # I want a priced inbound delivery read by the guard as a buy is,
+  # so that a bond delivered at 0.985 per unit and quoted 97.25 is named,
+  # since #779 the delivery's booked price opens its lot and drives its flow
+  # exactly as a buy's does.
+  #
+  # Acceptance criteria:
+  # - Delivered in at 0.985 and quoted 97.25: the reading names one booking
+  #   on the unit scale and that booking, and two_scales_findings/1 lists the
+  #   bond; the rule says "booked price per unit" and names the delivery.
+  # - A delivery without a price is not a price per unit and is not read.
+  test "a priced inbound delivery on the unit scale is named as a buy is" do
+    world = base_world()
+    delivered = bond!()
+    deliver!(world, delivered, quantity: "10000", price: "0.985", date: ~D[2026-03-12])
+    put_quote!(delivered, ~D[2026-09-30], "97.25")
+
+    assert %{unit_scale_bookings: 1, last_unit_scale_booking: %{price: price}, rule: rule} =
+             Bonds.reading(delivered, as_of: @as_of).two_scales
+
+    assert Decimal.equal?(price, dec("0.985"))
+    assert rule =~ "a booked price per unit (a buy or a priced inbound delivery)"
+
+    unpriced = bond!(%{name: "Musterland Anleihe 2029", isin: "XSMUSTRL0295"})
+    deliver!(world, unpriced, quantity: "10000", price: nil, date: ~D[2026-03-12])
+    put_quote!(unpriced, ~D[2026-09-30], "97.25")
+
+    assert Bonds.reading(unpriced, as_of: @as_of).two_scales == nil
+
+    assert [%{security_id: id}] = Bonds.two_scales_findings([delivered.id, unpriced.id])
+    assert id == delivered.id
   end
 
   # User story (#330, closing act on U7, finding 3):

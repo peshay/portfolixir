@@ -859,9 +859,10 @@ andere Wertpapier und in Listen und Schreibantworten ist es `null`:
   `source`: `quote` für den letzten gespeicherten Kurs, `trade` für den
   letzten eigenen Handelspreis, solange es keinen gibt);
 - `two_scales` — `null` oder der Befund, dass die Anleihe **auf zwei Skalen
-  bepreist** ist: ihr `latest_quote`, die Zahl der `unit_scale_buys` und der
-  `last_unit_scale_buy` sowie die `rule` (ein letzter Kurs vom 20- bis
-  500-Fachen eines gebuchten Kaufpreises je Stück). Jeder Geldbetrag einer
+  bepreist** ist: ihr `latest_quote`, die Zahl der `unit_scale_bookings`
+  und die `last_unit_scale_booking` sowie die `rule` (ein letzter Kurs vom
+  20- bis 500-Fachen eines gebuchten Preises je Stück, eines Kaufs oder
+  einer mit Preis erfassten Einlieferung). Jeder Geldbetrag einer
   solchen Anleihe ist hundertfach zu hoch, und die TTWROR zeigt es nicht;
   umgerechnet wird nichts.
 

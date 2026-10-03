@@ -209,7 +209,7 @@ defmodule Portfolixir.Portfolios.ValuationBondCharacterizationTest do
 
     # #330's guard (ADR-0052 §4): what the TTWROR below cannot show is
     # named — the quote near 100 beside the booked 0.985 per unit.
-    assert %{unit_scale_buys: 1} = Bonds.reading(bond, as_of: @today).two_scales
+    assert %{unit_scale_bookings: 1} = Bonds.reading(bond, as_of: @today).two_scales
 
     walk = walk(portfolio.id)
     assert_dec(walk.end_value, "972870.00")

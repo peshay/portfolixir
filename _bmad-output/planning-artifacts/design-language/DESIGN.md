@@ -4143,22 +4143,28 @@ but `bond` and `government_bond`, read as the effective class.
 - **On the Overview** (W1): a **problem** data note at the top of the
   Overview panel, above the figures it concerns (`data-role=
   "two-scales-note"`): "**Auf zwei Skalen bepreist:** Kurse um 100 (zuletzt
-  97,25 am <date>), gebuchter Preis je Stück um 1 (1 Kauf: 0,985 am <date>).
+  97,25 am <date>), gebuchter Preis je Stück um 1 (1 Buchung: 0,985 am
+  <date>).
   Dann ist das Nominal als Stückzahl gebucht, und Wert, Gewinn und Gewicht
   sind hundertfach zu hoch; die Rendite (TTWROR) zeigt es nicht. Stückzahl
   gegen das Nominal der Abrechnung prüfen: Transaktionen" — the last word a
-  link to the security's Transactions tab. With several such buys: "(3
-  Käufe, zuletzt 0,985 am …)". The figures stay as stored and the block
+  link to the security's Transactions tab. With several such bookings: "(3
+  Buchungen, zuletzt 0,985 am …)" — a booking is a buy or a priced inbound
+  delivery (closing act on U7, finding 4, board
+  `ux-review-2026-10-03/04-bond-repairs` B3). The figures stay as stored and
+  the block
   shows the consequence (1.000.000,00 nominal for a purchase of 9.850,00);
   nothing is converted and no rescale is offered.
 - **Where the total is read** (W2, UX-DR25): the seventh condition of Wealth
   → Holdings → *Datenqualität*, a problem note after the negative holdings
   (`data-role="dq-two-scales"`), naming each bond the valuation holds with
   "(Kurs 97,25 · Preis je Stück 0,985)" and linking each name to its
-  Transactions tab, as the negative-holdings note does.
+  Transactions tab, as the negative-holdings note does; the sentence asks
+  for "Stückzahl ihrer Buchungen".
 - **Silent** without a quote, when the scales agree, and for every other
   asset class. The rule: the latest stored quote is 20 to 500 times a
-  booked buy price per unit (ADR-0052 §4).
+  booked price per unit, a buy's or a priced inbound delivery's (ADR-0052
+  §4).
 
 ### Settled here, from the board's stated doubts
 
@@ -4166,7 +4172,8 @@ but `bond` and `government_bond`, read as the effective class.
   line and the payload; the other common form is not shown.
 - A trade-priced bond's yields use the valuation's price, the last own trade
   price, and say so; the guard compares the latest quote with each booked
-  buy, so a mixed history is named by the buys on the unit scale.
+  price per unit, so a mixed history is named by the bookings on the unit
+  scale.
 - The reverse case (quotes near 1, bookings near 100) is not named; the
   guard keys on the effective asset class, so a bond the inference does not
   recognise escapes it (ADR-0052, Consequences).
