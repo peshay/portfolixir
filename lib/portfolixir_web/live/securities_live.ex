@@ -2164,8 +2164,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 <%!-- #1029 (board H1 pin 1): directly left of the result,
                      with "Days", the threshold it is judged by, beside it.
                      No ⓘ in the header: the wrapper's own scroller would
-                     clip it; the reason rides each dash instead. --%>
-                <th class="num"><%= gettext("p. a.") %></th>
+                     clip it; the reason rides each dash instead. "p. a."
+                     carries a no-break space here, in the phone row and in
+                     the basis line, so it never breaks across lines (board
+                     ux-review-2026-10-03/01-contribution-repairs, R6). --%>
+                <th class="num"><%= gettext("p.\u00A0a.") %></th>
                 <th class="num"><%= gettext("Realised P&L") %></th>
                 <th class="num">%</th>
               </tr>
@@ -2246,7 +2249,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   trade.realized_pnl_pct
                 ) %></span><%= if trade.annualized_return do %> · <span class={
                   decimal_sign_class(trade.annualized_return)
-                }><%= signed_pa(trade.annualized_return) %></span> <%= gettext("p. a.") %><% end %>
+                }><%= signed_pa(trade.annualized_return) %></span> <%= gettext("p.\u00A0a.") %><% end %>
               </span>
             </span>
           </li>
@@ -2257,7 +2260,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
              renders, because it is the limit the note points to. --%>
         <p id="detail-closed-trades-basis" class="detail-tab-hint" data-role="trades-basis">
           <%= gettext(
-            "Across every depot · deliveries open no lot · fees and taxes in the realised P&L, not in avg buy and avg sell · income received while a trade was open not included · p. a. only from 365 days of holding"
+            "Across every depot · deliveries open no lot · fees and taxes in the realised P&L, not in avg buy and avg sell · income received while a trade was open not included · p.\u00A0a. only from 365 days of holding"
           ) %>
         </p>
       <% end %>

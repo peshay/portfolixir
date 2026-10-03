@@ -203,8 +203,19 @@ defmodule Portfolixir.LocalizationTest do
   # Does not attempt to match multiline or interpolated strings.
   defp extract_gettext_literals(content) do
     Regex.scan(~r/gettext\("((?:[^"\\]|\\.)*)"\s*(?:,|\))/, content)
-    |> Enum.map(fn [_full, msgid] -> msgid end)
+    |> Enum.map(fn [_full, msgid] -> decode_unicode_escapes(msgid) end)
     |> Enum.uniq()
+  end
+
+  # A `\uXXXX` escape in the source compiles to its character, and that
+  # character is what `mix gettext.extract` writes into the .pot (a PO file
+  # has no such escape): "p.\u00A0a." is extracted with a literal no-break
+  # space (design critic R6). Only this escape is decoded — `\"` and `\\` are
+  # spelled the same way in the source and in the .pot.
+  defp decode_unicode_escapes(msgid) do
+    Regex.replace(~r/\\u([0-9A-Fa-f]{4})/, msgid, fn _escape, hex ->
+      <<String.to_integer(hex, 16)::utf8>>
+    end)
   end
 
   # User story (#701; feedback triage 2026-08-15 F2):

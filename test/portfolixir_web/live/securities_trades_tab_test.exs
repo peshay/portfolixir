@@ -88,6 +88,9 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
   # - A basis line under the list states the rules: across every depot,
   #   deliveries open no lot, fees and taxes in the P&L and not in the
   #   average prices, income while open not included, p. a. from 365 days.
+  # - "p. a." is set with a no-break space (U+00A0) in the header, the basis
+  #   line and the phone row, so the abbreviation never breaks across lines
+  #   (design critic R6, board ux-review-2026-10-03/01-contribution-repairs).
   test "the closed trades carry p. a. directly left of the realised P&L", %{conn: conn} do
     %{nordwind: nordwind} = seed_nordwind!()
 
@@ -109,7 +112,7 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
              "Avg buy",
              "Avg sell",
              "Days",
-             "p. a.",
+             "p.\u00A0a.",
              "Realised P&L",
              "%"
            ]
@@ -147,7 +150,7 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
     assert text(basis) ==
              "Across every depot · deliveries open no lot · fees and taxes in the realised P&L, " <>
                "not in avg buy and avg sell · income received while a trade was open not " <>
-               "included · p. a. only from 365 days of holding"
+               "included · p.\u00A0a. only from 365 days of holding"
   end
 
   # Acceptance criteria (board N2, a trade held long enough that no rate
@@ -285,13 +288,13 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
     assert [figure] = Floki.find(long, ".phone-row__figure")
     assert class_of(figure) =~ "is-positive"
     assert text(figure) == "+440.00 EUR"
-    assert text(Floki.find(long, ".phone-row__figure2")) == "+44.0% · +20.0% p. a."
+    assert text(Floki.find(long, ".phone-row__figure2")) == "+44.0% · +20.0% p.\u00A0a."
 
     assert long |> Floki.find(".phone-row__figure2 span") |> Enum.map(&class_of/1) ==
              ["decimal-positive", "decimal-positive"]
 
     fade = phone_row(doc, "2023-06-01")
-    assert text(Floki.find(fade, ".phone-row__figure2")) == "-36.0% · -20.0% p. a."
+    assert text(Floki.find(fade, ".phone-row__figure2")) == "-36.0% · -20.0% p.\u00A0a."
 
     quick = phone_row(doc, "2026-02-01")
     assert text(Floki.find(quick, ".phone-row__figure2")) == "-10.0%"
@@ -312,7 +315,7 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
     {:ok, view, _html} = live(conn, "/securities/#{level.id}?tab=trades")
     even = phone_row(document(view), "2024-02-01")
 
-    assert text(Floki.find(even, ".phone-row__figure2")) == "0.0% · 0.0% p. a."
+    assert text(Floki.find(even, ".phone-row__figure2")) == "0.0% · 0.0% p.\u00A0a."
 
     assert even |> Floki.find(".phone-row__figure2 span") |> Enum.map(&class_of/1) == ["", ""]
   end
@@ -327,7 +330,7 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
     doc = document(view)
 
     headers = doc |> Floki.find("#detail-closed-trades-table thead th") |> Enum.map(&text/1)
-    assert Enum.slice(headers, 5, 3) == ["Tage", "p. a.", "Realisierter G/V"]
+    assert Enum.slice(headers, 5, 3) == ["Tage", "p.\u00A0a.", "Realisierter G/V"]
 
     assert text(Floki.find(closed_row(doc, "2024-01-02"), "td.trade-pa")) == "+20,0%"
 
@@ -347,11 +350,11 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
     assert text(Floki.find(doc, "#detail-closed-trades-basis")) ==
              "Über alle Depots · Einlieferungen eröffnen keinen Lot · Gebühren und Steuern im " <>
                "G/V, nicht in Ø Kauf und Ø Verkauf · Erträge während der Haltedauer nicht " <>
-               "enthalten · p. a. erst ab 365 Tagen Haltedauer"
+               "enthalten · p.\u00A0a. erst ab 365 Tagen Haltedauer"
 
     long = phone_row(doc, "2024-01-02")
     assert text(Floki.find(long, ".phone-row__ids")) == "10,0000 Stück · 730 Tage"
-    assert text(Floki.find(long, ".phone-row__figure2")) == "+44,0% · +20,0% p. a."
+    assert text(Floki.find(long, ".phone-row__figure2")) == "+44,0% · +20,0% p.\u00A0a."
   end
 
   # Acceptance criteria (board rules ① to ④, the CSS the pick adds):
