@@ -2068,4 +2068,28 @@ defmodule Portfolixir.DocsTest do
     refute String.replace(journal_section, ~r/\s+/, " ") =~ source_rule
     assert String.replace(tax_section, ~r/\s+/, " ") =~ source_rule
   end
+
+  # User story (#960):
+  # As a reader of ADR-0029 after Sprint 16,
+  # I want its ADR-0050 §9 note to name the security merge dialog as shipped,
+  # so that the one record still written in the future tense agrees with the
+  # API reference and the handbook, which describe the dialog as built.
+  #
+  # Acceptance criteria:
+  # - The note no longer says the operator's dialog follows.
+  # - It names **Merge into…** in the securities row menu beside the API
+  #   route and the MCP tool.
+  test "ADR-0029's ADR-0050 §9 note names the shipped security merge dialog (#960)" do
+    adr =
+      "docs/decisions/0029-stable-identities-and-reimport-survival.md"
+      |> File.read!()
+      |> String.replace(~r/\s*\n\s*>?\s*/, " ")
+
+    [note] = Regex.run(~r/\*\*Amended by \[ADR-0050\]\([^)]*\) §9 .*?\*\*Rejected/, adr)
+
+    refute note =~ "follows in the same batch"
+    assert note =~ "**Merge into…** in the securities row menu"
+    assert note =~ "`POST /api/v1/securities/:id/merge`"
+    assert note =~ "`portfolixir.securities.merge`"
+  end
 end
