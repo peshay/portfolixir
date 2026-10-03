@@ -2432,6 +2432,35 @@ kopierte Text nutzt stabile `Row N: message`-Zeilen, sodass die Diagnose beim
 Quell-Export verbleiben kann. Das Anwenden des Imports ist atomar und nutzt
 Inhalts-Hashes, um Duplikate bei erneutem Lauf zu überspringen.
 
+### Was eine Portfolio-Performance-CSV voraussetzt
+
+Der CSV-Weg liest den deutschen Export von Portfolio Performance. Er hat eine
+Voraussetzung und zwei Annahmen, die für das stehen, was die CSV nicht sagen
+kann:
+
+- **Nur deutsche Spaltennamen und Typ-Bezeichnungen.** Die Kopfzeile nennt die
+  Spalten auf Deutsch (`Datum`, `Typ`, `Wertpapier`, `Stück`, `Kurs`, `Betrag`,
+  `Gebühren`, `Steuern`, `Konto`), jede Zeile trägt eine deutsche
+  Typ-Bezeichnung (`Kauf`, `Verkauf`, `Dividende` und so weiter), und Zahlen
+  stehen im deutschen Format (`1.234,56`). Ein Export aus einem englisch
+  eingestellten Portfolio Performance nennt seine Spalten auf Englisch und wird
+  als Ganzes abgelehnt, mit den fehlenden Spalten benannt (*CSV-Spalten fehlen:
+  Datum, Typ, …*): Portfolio Performance auf Deutsch umstellen und erneut
+  exportieren.
+- **Jede Zeile in EUR.** Die CSV hat keine Währungsspalte: Jeder Betrag wird
+  als Euro gelesen, und die Geldkonten und Wertpapiere, die der Import aus ihr
+  anlegt, sind EUR.
+- **Wertpapiere nur über den Namen.** Die CSV enthält keine ISIN, WKN und
+  kein Tickersymbol, also ordnet der Import ein Wertpapier allein über seinen
+  Namen zu, die letzte Stufe der Zuordnungsleiter (siehe „Wertpapier-Matching
+  und der Zuordnungsschritt“ unten). Ein in Portfolio Performance umbenanntes
+  Wertpapier wird nicht gefunden und als neues angeboten, das du in der
+  Vorschau umordnen kannst; zwei Wertpapiere mit einem Namen sind eine
+  Entscheidung, nach der die Vorschau fragt.
+
+Für andere Währungen und die Zuordnung über die ISIN exportiere **JSON v1**:
+Es trägt eine Währung je Zeile und je Wertpapier ISIN, WKN und Tickersymbol.
+
 ### Dateien und Zeilen, die die Vorschau ablehnt
 
 Eine Datei, die die Vorschau nicht sicher halten kann, wird als Ganzes
