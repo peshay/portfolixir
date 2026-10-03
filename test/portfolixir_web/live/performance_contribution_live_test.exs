@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
   alias Portfolixir.Clock
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios.Performance.Contribution
+  alias PortfolixirWeb.Portfolio.ContributionTable
 
   setup do
     Classifications.ensure_builtins()
@@ -398,6 +399,9 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
   # Acceptance criteria:
   # - A custom range before the history shows the empty-state sentence and
   #   no table, no remainder lines and no sum row.
+  # - The scope line names the period and the view but no order: nothing is
+  #   listed to be sorted (design critic R7a, board
+  #   ux-review-2026-10-03/01-contribution-repairs).
   test "an empty window is the empty-state sentence, never a table of zeros", %{conn: conn} do
     sum_world()
 
@@ -422,6 +426,36 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
 
     refute has_element?(view, "#contribution-table")
     refute has_element?(view, "#contribution-phone-rows")
+
+    scope = text_of(view, "#performance-contribution [data-role='contribution-scope']")
+    assert scope =~ ~r/ · View Everything$/
+    refute scope =~ "sorted by contribution"
+  end
+
+  # User story (Sprint 18 PR β design critic, R7b):
+  # As a local portfolio maintainer using a screen reader,
+  # I want the contribution table's placeholder to say it is busy,
+  # so that "computing" is announced as a region still loading, not as its
+  # content.
+  #
+  # Acceptance criteria:
+  # - While the contribution computes, the block's skeleton is a status
+  #   region with `aria-busy="true"`; the table, once there, carries neither.
+  test "the skeleton is a busy status region" do
+    html =
+      render_component(&ContributionTable.table/1,
+        contribution: nil,
+        period_label: "1Y",
+        view_name: "Everything"
+      )
+
+    assert [skeleton] =
+             html
+             |> Floki.parse_fragment!()
+             |> Floki.find("[data-role='contribution-skeleton']")
+
+    assert Floki.attribute(skeleton, "role") == ["status"]
+    assert Floki.attribute(skeleton, "aria-busy") == ["true"]
   end
 
   # User story (FR-41, ADR-0051 §4, board pick A):

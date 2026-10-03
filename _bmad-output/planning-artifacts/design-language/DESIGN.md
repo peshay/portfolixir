@@ -2961,7 +2961,8 @@ of the contribution read (`Performance.Contribution.for_view/2`), and it is
   the TTWROR's class for the percentage.
 - **It loads on its own.** The badge re-chains the cached walk; the table
   runs a windowed walk per period (ADR-0051 §5), async, with the block
-  skeleton and the "computing" cue (UX-DR20) while it does. While the badge
+  skeleton and the "computing" cue (UX-DR20) while it does — a
+  `role="status"` region with `aria-busy="true"` (repair R7b). While the badge
   shows a superseded series (ADR-0032 §6) the table keeps its skeleton, so
   its sum never answers a figure the badge no longer shows; a failed walk is
   a `problem` note, "Computation failed. Reload retries.". Holdings only:
@@ -2979,7 +2980,9 @@ of the contribution read (`Performance.Contribution.for_view/2`), and it is
 - **The head** (`.contribution__head`): the section's `h3` "Beitrag je
   Position" and, right-aligned on the same row, the scope line in the basis
   voice (12 px, muted): "1J · Ansicht Alles · sortiert nach Beitrag" — the
-  page's period label and its existing "Ansicht %{name}" words.
+  page's period label and its existing "Ansicht %{name}" words. Over the
+  empty state the line ends after the view: nothing is listed to be sorted
+  (repair R7a, board `mockups/ux-review-2026-10-03/01-contribution-repairs`).
 - **The table** (`#contribution-table-wrap > table#contribution-table.data-table`,
   labelled by the `h3`): Wertpapier · Anfangswert · Zu-/Abflüsse · Erträge ·
   Kosten · Endwert · Beitrag, the six figures `.num`. A reading table, not a
