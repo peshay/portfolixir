@@ -1074,12 +1074,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
            one pane and changes no route — so the role stays and the pattern
            is completed: one tab stop (roving tabindex), Arrow Left/Right and
            Home/End through the DetailTabs hook, and aria-controls only on the
-           selected tab, because the other panels are not in the DOM. --%>
+           selected tab, because the other panels are not in the DOM.
+           #1033 (H7.2): the row is rendered resting at its start, so the
+           first paint carries only the right fade; the hook then scrolls the
+           selected tab into view and marks the edges it rests on. --%>
       <nav
         id="detail-pane-tabs"
         class="detail-pane-tabs"
         role="tablist"
         data-tab-level="2"
+        data-scroll-start
         phx-hook="DetailTabs"
         aria-label={gettext("Security detail tabs")}
       >

@@ -2934,6 +2934,12 @@ img.security-logo {
   mask-image: linear-gradient(to right, black calc(100% - 40px), transparent 100%);
   scrollbar-width: none;
   flex-shrink: 0;
+  /* The row's end is a tab boundary, as on the area tab row (issue 876):
+     the DetailTabs hook writes the inset when the row overflows (Sprint 18
+     U5, board ux-design-2026-10-02/07-phone-390 H7.2). Zero without
+     script. */
+  --detail-tabs-tail: 0px;
+  padding-inline-end: var(--detail-tabs-tail);
 }
 
 /* Edge-aware fades (issue 857, board 04). The AreaTabs hook marks the edges
@@ -2941,7 +2947,12 @@ img.security-logo {
    above. Away from its start the row gains a 24 px left fade, so the tabs
    before the active one read as there; at its end the right fade goes, so it
    no longer covers the last tab — which is the active one on Risk. A row that
-   does not overflow rests on both edges and is not masked at all. */
+   does not overflow rests on both edges and is not masked at all. Since
+   Sprint 18 (U5, H7.2) the detail pane's row follows the same edges: its
+   DetailTabs hook reveals the selected tab on arrival and marks them, and
+   the server renders it resting at its start, so its first paint keeps the
+   one-sided fade. */
+.detail-pane-tabs:not([data-scroll-start]),
 .area-tabs:not([data-scroll-start]) {
   mask-image: linear-gradient(
     to right,
@@ -2951,9 +2962,11 @@ img.security-logo {
     transparent 100%
   );
 }
+.detail-pane-tabs[data-scroll-end],
 .area-tabs[data-scroll-end] {
   mask-image: linear-gradient(to right, transparent 0, black 24px);
 }
+.detail-pane-tabs[data-scroll-start][data-scroll-end],
 .area-tabs[data-scroll-start][data-scroll-end] {
   mask-image: none;
 }
