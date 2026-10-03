@@ -71,15 +71,22 @@ defmodule Portfolixir.Net.HttpPoolTest do
   test "a request to an IPv6-literal host keeps IPv6 in its pool options" do
     test = self()
 
-    adapter = fn request ->
-      send(test, {:finch, request.url.host, request.options[:finch]})
-      {request, Req.Response.new(status: 200, body: "")}
-    end
+    # The pool options as the adapter receives them: a request step appended
+    # after every other one reports them, and a plug answers in place of the
+    # network (#1019: Req deprecates a function as the adapter).
+    req =
+      Http.new(max_bytes: 1_000, allowed_hosts: :any)
+      |> Req.Request.append_request_steps(
+        report_finch: fn request ->
+          send(test, {:finch, request.url.host, request.options[:finch]})
+          request
+        end
+      )
 
-    req = Http.new(max_bytes: 1_000, allowed_hosts: :any)
+    answer = fn conn -> Plug.Conn.send_resp(conn, 200, "") end
 
-    assert {:ok, _} = Http.get(req, url: "https://[2606:4700::1]/logo.png", adapter: adapter)
-    assert {:ok, _} = Http.get(req, url: "https://upstream.test/logo.png", adapter: adapter)
+    assert {:ok, _} = Http.get(req, url: "https://[2606:4700::1]/logo.png", plug: answer)
+    assert {:ok, _} = Http.get(req, url: "https://upstream.test/logo.png", plug: answer)
 
     assert_receive {:finch, "2606:4700::1", literal}
     assert get_in(literal, [:conn_opts, :transport_opts, :inet6]) == true

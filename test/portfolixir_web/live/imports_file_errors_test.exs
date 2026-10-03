@@ -13,8 +13,6 @@ defmodule PortfolixirWeb.ImportsFileErrorsTest do
   alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Portfolios
 
-  @moduletag :capture_log
-
   @session_token "CCCCCCCCCCCCCCCCCCCCCCCC"
   @csv_header "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle"
   @csv_ok "2024-01-15 10:01:00;Kauf;Synthetic AG;10;150,25;1.502,50;2,50;;1.502,50;Test-Depot;Test-Cash;;"

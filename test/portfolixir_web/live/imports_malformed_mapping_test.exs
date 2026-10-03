@@ -12,8 +12,6 @@ defmodule PortfolixirWeb.ImportsMalformedMappingTest do
   alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Portfolios
 
-  @moduletag :capture_log
-
   @fixtures Path.expand("../../support/fixtures/portfolio_performance", __DIR__)
   @past_bigint "99999999999999999999999"
   @session_token "BBBBBBBBBBBBBBBBBBBBBBBB"
@@ -102,6 +100,26 @@ defmodule PortfolixirWeb.ImportsMalformedMappingTest do
     assert {:ok, view, html} = live(conn, "/imports")
     assert html =~ "Preview"
     render_async(view)
+  end
+
+  # User story (#1019):
+  # As the operator whose stale tab pushes "apply" to an Imports page that
+  # holds no parsed file,
+  # I want the push ignored,
+  # so that no import starts on nothing and fails.
+  #
+  # Acceptance criteria:
+  # - An apply event on the drop zone leaves the drop zone in place with no
+  #   error in the band, and starts no import (whose task crashed on the
+  #   missing preview, a crash a module-wide log capture used to hide).
+  test "an apply pushed before any file is parsed is ignored", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/imports")
+
+    render_hook(view, "apply", %{})
+    render_async(view)
+
+    assert has_element?(view, "form#pp-import-form.import-drop-zone")
+    refute has_element?(view, ".alert-error[role=alert]")
   end
 
   defp upload_sample(view) do

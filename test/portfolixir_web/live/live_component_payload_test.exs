@@ -11,8 +11,6 @@ defmodule PortfolixirWeb.LiveComponentPayloadTest do
   alias Portfolixir.Portfolios.PolicyRules
   alias PortfolixirWeb.LiveSource
 
-  @moduletag :capture_log
-
   @past_bigint "99999999999999999999999"
 
   # Every LiveComponent of the application, from the compiled modules, so a

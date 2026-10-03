@@ -10,8 +10,6 @@ defmodule PortfolixirWeb.LiveUrlParamsTest do
   alias Portfolixir.Portfolios.Snapshots
   alias PortfolixirWeb.LiveSource
 
-  @moduletag :capture_log
-
   @past_bigint "99999999999999999999999"
   @past_int4 "2147483648"
 
