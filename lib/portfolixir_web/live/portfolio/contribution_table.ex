@@ -12,7 +12,8 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
 
   The anatomy (DESIGN.md → Amendment 2026-10-03 → the contribution table):
 
-    * a head — the `h3` and a muted scope line: period · view · order;
+    * a head — the `h3` and a muted scope line: period · view · order, the
+      order left out where the empty state lists nothing;
     * one row per position, largest contribution first: start value, flows
       (signed, uncoloured: a direction, not a gain), income, costs, end value
       and the contribution, signed in its sign colour with the drift bar's
@@ -94,17 +95,18 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
 
   @doc "The block, placed by the page directly under the performance chart."
   def table(assigns) do
-    assigns = assign(assigns, :f, figures(assigns.contribution, assigns.show_all?))
+    f = figures(assigns.contribution, assigns.show_all?)
+
+    assigns =
+      assigns
+      |> assign(:f, f)
+      |> assign(:scope, scope_line(assigns.period_label, assigns.view_name, f))
 
     ~H"""
     <div id="performance-contribution" class="contribution" data-role="contribution">
       <div class="contribution__head">
         <h3 id="contribution-title"><%= gettext("Contribution by position") %></h3>
-        <span class="contribution__scope" data-role="contribution-scope">
-          <%= @period_label %> · <%= gettext("View %{name}", name: @view_name) %> · <%= gettext(
-            "sorted by contribution"
-          ) %>
-        </span>
+        <span class="contribution__scope" data-role="contribution-scope"><%= @scope %></span>
       </div>
       <%= cond do %>
         <% @failed? -> %>
@@ -112,7 +114,12 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
             <%= gettext("Computation failed. Reload retries.") %>
           </AppShell.data_note>
         <% is_nil(@f) -> %>
-          <div class="section-skeleton" data-role="contribution-skeleton" role="status">
+          <div
+            class="section-skeleton"
+            data-role="contribution-skeleton"
+            role="status"
+            aria-busy="true"
+          >
             <span class="recomputing-cue">
               <span class="spinner"></span> <%= gettext("computing") %>
             </span>
@@ -405,6 +412,14 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
   defp max_decimal(decimals), do: Enum.max(decimals, Decimal, fn -> Decimal.new(0) end)
 
   # -- words ------------------------------------------------------------------------
+
+  # The head's scope line: period · view · order. The order phrase only where
+  # rows can be listed: an empty window sorts nothing (board
+  # ux-review-2026-10-03/01-contribution-repairs, R7a).
+  defp scope_line(period_label, view_name, figures) do
+    order = if figures && figures.empty?, do: [], else: [gettext("sorted by contribution")]
+    Enum.join([period_label, gettext("View %{name}", name: view_name) | order], " · ")
+  end
 
   defp position_name(%{name: name}) when is_binary(name), do: name
   defp position_name(%{isin: isin}) when is_binary(isin), do: isin
