@@ -1788,6 +1788,26 @@ Wertpapier · Datum · Stückzahl ohne Gegenstück. Sie trägt
 keine Schaltfläche, denn nichts auf der Seite kann den fehlenden Kauf
 liefern.
 
+**Der Trades-Tab des Wertpapiers** (Issue #1029) ist das Ziel jeder Zeile
+der Facette und der Übersichtskarte, und seit Sprint 18 zeigt er dieselbe
+Zahl: Seine Tabelle **Abgeschlossene Trades (FIFO)** trägt die Spalte
+**p. a.** zwischen **Tage** und **Realisierter G/V** — die annualisierte
+Rendite des Trades, mit Vorzeichen, ab 365 Tagen Haltedauer, darunter
+derselbe gedämpfte Strich mit seinem Grund als Tooltip. Ein länger
+gehaltener Trade, dessen Zahlungen kein Zinssatz löst (ein Totalverlust),
+trägt den Strich ebenfalls, mit diesem Grund. Verkäufe eingelieferter
+Stücke nennt dieselbe Achtung-Notiz am Kopf des Abschnitts, jeden als
+Datum · Stückzahl ohne Gegenstück — das Wertpapier ist das der Seite —
+statt der früheren Warnung „möglicherweise fehlen Daten“; gibt es nur
+solche Verkäufe, steht die Notiz allein, ohne Tabelle. Eine Zeile unter der
+Liste nennt die Regeln: über alle Depots, Einlieferungen eröffnen keinen
+Lot, Gebühren und Steuern stehen im realisierten G/V, nicht in Ø Kauf und
+Ø Verkauf, Erträge während der Haltedauer sind nicht enthalten, und p. a.
+erst ab 365 Tagen Haltedauer. Auf dem Telefon wird die Tabelle zu
+zweizeiligen Zeilen: Eröffnet → Geschlossen über der Stückzahl und den
+Tagen, das Ergebnis über seiner Rendite und, ab einem Jahr Haltedauer, der
+p.-a.-Zahl.
+
 **Ein- & Auszahlungen** (`/cashflow?tab=flows`, Issue #725) ist die
 „Ersparnis": was eingezahlt und entnommen wurde, je Periode, als zwei Serien
 mit Jahresnetto — getrennt von dem, was das Portfolio erwirtschaftet hat.

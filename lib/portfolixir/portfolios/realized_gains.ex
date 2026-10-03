@@ -197,7 +197,7 @@ defmodule Portfolixir.Portfolios.RealizedGains do
     Enum.map(closed, fn trade ->
       # #807: the row the facet lists, beside the figure the matrix sums.
       # `security_id` rides along so each row can link to that security's
-      # Trades tab, where the same round-trip is shown with its lots.
+      # Trades tab, where the same round-trip is a row of its closed trades.
       %{
         security_id: security.id,
         security_name: security.name,

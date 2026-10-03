@@ -2628,6 +2628,82 @@ shows no dash on the phone; the basis line under the rows says why.
   matched buy is no trade, so it is not missing from the five; the facet
   names it where the totals are read.
 
+### The security's Trades tab: the closed trades *(Sprint 18 pick H1, issue 1029)*
+
+Board `mockups/ux-design-2026-10-02/01-trades-tab-pa`, "after" (before/after,
+no variant), as built in `PortfolixirWeb.SecuritiesLive`
+(`trades_tab_panel/1`). Every row of the facet and of the card links here,
+and since Sprint 18 the figure they show is on the page they land on — the
+human view of `GET /api/v1/securities/:id/trades`'s `annualized_return`. The
+board's rules ① to ④ are in `app.css` under "The security's Trades tab".
+The open-lots table above is unchanged.
+
+- **Section order:** the heading "Abgeschlossene Trades (FIFO)", the
+  unmatched-sells note when there is one, the table
+  (`#detail-closed-trades-table-wrap > #detail-closed-trades-table`), the
+  phone rows, the basis line. The heading renders whenever there is a closed
+  trade or an unmatched sell.
+- **Columns:** Eröffnet · Geschlossen · Stückzahl · Ø Kauf · Ø Verkauf ·
+  Tage · **p. a.** · Realisierter G/V · %. "p. a." is a `.num` column
+  directly left of the result, with "Tage", the threshold it is judged by,
+  directly left of it — the facet's placement. No ⓘ in the header: the
+  wrapper is its own scroller.
+- **The figure:** `annualized_return`, in the trade's currency like the "%"
+  beside it, **signed** with one decimal and the percent sign glued on
+  ("+10,7%", "-3,6%"), in its sign colour (`td.trade-pa.is-positive` /
+  `.is-negative`). Signed because every figure of this table is signed and
+  the Overview card signs the same figure; the facet's p. a. cells stay
+  unsigned, the board's stated doubt settled for this table only.
+- **The dash:** the facet's (`.trade-pa--na`, muted, `aria-hidden`,
+  `cursor: help`), with the same two reasons in the `title` and the same
+  `.visually-hidden` sentences — under 365 days of holding, and "Keine
+  annualisierte Rendite: kein Zinssatz löst die Zahlungen dieses Trades"
+  for a trade held long enough whose flows no rate solves (a total loss).
+- **Sign colour** (rule ①): `#detail-closed-trades-table td.is-positive /
+  td.is-negative / td.trade-pa--na` restore what `.data-table tbody td
+  { color }` takes from the bare classes (#1010), for p. a., the result and
+  "%" alike. The open-lots table keeps the text colour until #1010 repairs
+  the family (pick H4); when that lands, the two sign lines are redundant
+  and the dash line stays.
+- **The unmatched-sells note** (rule ②, UX-DR25): the facet's `attention`
+  data note (`#detail-closed-trades-note`, `data-role="trades-unmatched"`),
+  leading the section where the quantity is missing, in the facet's words
+  adapted to the tab: "2 Verkäufe haben für ihre ganze Stückzahl oder einen
+  Teil davon keinen zugeordneten Kauf (z. B. aus Einlieferungen): Diese
+  Stückzahl ist in keinem abgeschlossenen Trade enthalten." ("1 Verkauf hat
+  … (z. B. aus einer Einlieferung) …" for one). Its closed disclosure "Die 2
+  Verkäufe" ("Der Verkauf") lists each sell, newest first, as date ·
+  quantity ("12,0000 Stück") in `.excluded-list` — **two columns at every
+  width**, because the security is the page's own. No remedy control. It
+  replaces `.detail-tab-warning` ("möglicherweise fehlen Daten"), whose rule
+  is gone with its last user.
+- **The basis line** (rule ③, UX-DR26): `p#detail-closed-trades-basis`, the
+  pane's own `.detail-tab-hint` voice with a top margin: "Über alle Depots ·
+  Einlieferungen eröffnen keinen Lot · Gebühren und Steuern im G/V, nicht in
+  Ø Kauf und Ø Verkauf · Erträge während der Haltedauer nicht enthalten ·
+  p. a. erst ab 365 Tagen Haltedauer". It differs from the facet's line in
+  one link: this table shows gross average prices, not cost and proceeds. It
+  renders whenever the table or the note does.
+- **Only delivered-in shares sold** (state N1): the heading, the note and
+  the basis line, no table. The empty sentence ("erfasse zuerst Käufe und
+  Verkäufe") is kept only for a security with no trade, no open lot and no
+  unmatched sell.
+- **Under 560 px** (rule ④, UX-DR27): the wrapper is hidden by the phone
+  lists' 560 px block and `ul#detail-closed-trades-phone-rows` shows the
+  facet's trades row **without the name**, which the page already says —
+  two children, no logo, no kebab: "2023-02-06 → 2025-06-18" over
+  "30,0000 Stück · 863 Tage"; on the right the result with the trade's
+  currency ("+502,20 EUR", 14 px/600, sign colour) over "+27,1% · +10,7%
+  p. a." (one decimal, signed, each number in its colour). Under 365 days, or
+  with no rate, only the period return; no dash on the phone, the basis line
+  says why. Ø Kauf and Ø Verkauf are not on the phone, as cost and proceeds
+  are not on the facet's.
+- **Kept as built:** the tab's dates stay ISO (`Date.to_iso8601`), the note's
+  list and the phone rows included, and the table's "%" column keeps its two
+  decimals and its spaced sign ("+27,07 %"), so the same return reads
+  "+27,1%" in the phone row. Aligning both with `Format.date` and
+  `Format.percent` is a follow-up outside this pick.
+
 ## Amendment 2026-10-01 — Accounts & depots: the merge records *(Sprint 17 pick G2-A, Lane V1, ADR-0050 §12)*
 
 Board `mockups/ux-design-2026-10-01/02-merge-records`, variant A (plan D-9,

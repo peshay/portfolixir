@@ -1645,6 +1645,24 @@ note says how many sells have such a quantity, and its disclosure lists each
 as security · date · unmatched quantity. It carries no control, because nothing on the page can supply the
 missing buy.
 
+**The security's own Trades tab** (issue #1029) is where every row of the
+facet and of the Overview card leads, and since Sprint 18 it shows the same
+figure: its **Closed trades (FIFO)** table carries the **p. a.** column
+between **Days** and **Realised P&L** — the trade's annualized return,
+signed, from 365 days of holding, and below that the same muted dash with
+its reason as a tooltip. A trade held longer whose flows no rate solves (a
+total loss) carries the dash too, with that reason. Sells of delivered-in
+shares are named at the head of the section in the same attention note,
+with each sell as date · unmatched quantity — the security is the page's
+own — instead of the former "may indicate missing data" warning; when such
+sells are all there is, the note stands alone, without a table. A line
+under the list states the rules: across every depot, deliveries open no lot,
+fees and taxes are in the realised P&L but not in the average buy and sell
+prices, income received while a trade was open is not included, and p. a.
+only from 365 days of holding. On a phone the table gives way to two-line
+rows: opened → closed over the quantity and the days, the result over its
+percent and, from a year of holding, the p. a. figure.
+
 **Deposits & withdrawals** (`/cashflow?tab=flows`, issue #725) is the
 owner's "Ersparnis": what was put in and taken out, per period, as two
 series with a yearly net — separate from what the portfolio earned. It
