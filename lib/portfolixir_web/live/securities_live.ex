@@ -4993,13 +4993,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   def handle_event("row_action", %{"action" => action, "id" => id_str}, socket) do
-    with {:ok, id} <- LiveParam.fetch_id(id_str),
-         %Security{} = sec <- Catalog.get_security(id) do
-      socket
-      |> assign(:row_menu_id, nil)
-      |> dispatch_row_action(action, sec)
-    else
-      _ -> {:noreply, assign(socket, :row_menu_id, nil)}
+    case LiveParam.fetch_id(id_str) do
+      {:ok, id} ->
+        case Catalog.get_security(id) do
+          %Security{} = sec ->
+            socket
+            |> assign(:row_menu_id, nil)
+            |> dispatch_row_action(action, sec)
+
+          nil ->
+            {:noreply, socket |> assign(:row_menu_id, nil) |> vanished(id)}
+        end
+
+      _invalid ->
+        {:noreply, assign(socket, :row_menu_id, nil)}
     end
   end
 
@@ -5106,9 +5113,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
          |> assign(:delete_blocked_counts, nil)}
 
       # ADR-0050 §11: gone already (another writer deleted it) — the row just
-      # goes; nothing references a security that is not there.
+      # goes; nothing references a security that is not there. The note says
+      # why, as for every row action that finds its security gone (#920).
       {:error, :not_found} ->
-        {:noreply, socket |> assign(:delete_blocked, nil) |> load_securities()}
+        {:noreply, vanished(socket, sec.id)}
 
       # Referenced by bookings, quotes, notes, events or rule versions
       # ({:referenced, counts}): nothing was written. Where a merge could
@@ -5674,6 +5682,95 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp research_field_label(:invalidation_condition), do: gettext("Invalidation condition")
   defp research_field_label(:time_stop), do: gettext("Time stop")
   defp research_field_label(field), do: Atom.to_string(field)
+
+  # #920, pick H8.6 = A (board 08-dialogs-copy): a row action that finds its
+  # security gone — deleted or merged away by the API, MCP or another tab
+  # since the list loaded — reloads the list, drops whatever pointed at the
+  # security (a detail pane, a dialog, "Cannot delete") and says in one note
+  # why the row went. The names are the ones the stale list showed, twins
+  # told apart; a merge links the survivor (`Lifecycle.merged_into/2`'s
+  # chain), a chain that ends at a deleted row reads as deleted.
+  defp vanished(socket, id) do
+    note = vanished_note(socket.assigns, id)
+
+    socket =
+      socket
+      |> drop_vanished(id)
+      |> then(&if note, do: put_action_result(&1, :note, note), else: &1)
+
+    case socket.assigns.selected_security do
+      %Security{id: ^id} ->
+        socket
+        |> assign(:keep_result_once, true)
+        |> push_patch(to: securities_path(socket.assigns, id: nil))
+
+      _other ->
+        load_securities(socket)
+    end
+  end
+
+  defp drop_vanished(socket, id) do
+    socket
+    |> assign(:delete_blocked, unless_vanished(socket.assigns.delete_blocked, id))
+    |> assign(:logo_dialog_security, unless_vanished(socket.assigns.logo_dialog_security, id))
+    |> then(fn socket ->
+      case socket.assigns.editing_security do
+        %Security{id: ^id} -> assign(socket, editing_security: nil, dialog_open?: false)
+        _other -> socket
+      end
+    end)
+    |> then(fn socket ->
+      if socket.assigns.merge_source_id == id,
+        do: assign(socket, :merge_source_id, nil),
+        else: socket
+    end)
+  end
+
+  defp unless_vanished(%{id: id}, id), do: nil
+  defp unless_vanished(value, _id), do: value
+
+  defp vanished_note(assigns, id) do
+    stale = Enum.map(assigns.securities, &security_from_row/1)
+
+    case Enum.find(stale, &(&1.id == id)) do
+      nil ->
+        nil
+
+      security ->
+        name = SecurityNames.label(assigns.twin_tags, security)
+
+        case Lifecycle.merge_chain_end(:security, id) do
+          {:live, survivor} ->
+            StoredText.isolate(
+              gettext("“%{name}” was merged into %{target} meanwhile; the list is reloaded.",
+                name: StoredText.slot(:name),
+                target: StoredText.slot(:target)
+              ),
+              name: name,
+              target:
+                StoredText.link(
+                  securities_path(assigns, id: survivor),
+                  survivor_label(assigns, stale, survivor)
+                )
+            )
+
+          _deleted_or_none ->
+            StoredText.isolate(
+              gettext("“%{name}” was deleted meanwhile; the list is reloaded.",
+                name: StoredText.slot(:name)
+              ),
+              name: name
+            )
+        end
+    end
+  end
+
+  defp survivor_label(assigns, stale, survivor) do
+    case Enum.find(stale, &(&1.id == survivor)) do
+      nil -> survivor |> Catalog.get_security() |> then(&((&1 && &1.name) || ""))
+      security -> SecurityNames.label(assigns.twin_tags, security)
+    end
+  end
 
   defp raced_delete_message(name) do
     gettext("%{name} changed while it was being deleted; nothing was deleted. Try again.",

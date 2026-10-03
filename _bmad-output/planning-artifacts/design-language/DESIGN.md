@@ -3701,6 +3701,33 @@ D3 above fixed the remainder row; this is the editor's half of it, built in
   alarm is "a plan above 100 %", and `priv/demo/finding_surfaces_seed.exs`
   seeds one (a 20 % cash target on the demo's 85 % categories).
 
+### The securities list when a row action finds its security gone *(H8.6 = A, issue 920)*
+
+Built in `securities_live.ex` (`vanished/2`); the API and MCP are unchanged.
+
+- **Reload, with one note.** A row action whose security was deleted or
+  merged away since the list loaded (the API, MCP, another tab) no longer
+  just closes the menu: the list reloads, and the page's inline result slot
+  carries a `note` (UX-DR17: context, nothing is wrong): "“Meridian Global
+  Equity ETF · XS0000000025” was merged into Meridian Global Equity ETF ·
+  XS0000000017 meanwhile; the list is reloaded." (de "„…“ wurde inzwischen
+  in … zusammengeführt; die Liste ist neu geladen."), or "“Helios Solar
+  Systems SE” was deleted meanwhile; the list is reloaded." (de "„…“ wurde
+  inzwischen gelöscht; die Liste ist neu geladen."). The delete's own "not
+  found" branch says the same.
+- **The names are the stale list's**, twins told apart as its rows were
+  (`SecurityNames.label/2`); each sits in `<bdi>` (H8.8). A merge links the
+  survivor, the end of `Lifecycle.merge_chain_end/2`'s chain, to its detail
+  with the list's filters; a chain that ends at a deleted row reads as
+  deleted.
+- **What pointed at the security goes with the row:** a detail pane on it
+  closes (the URL drops its id; the note stays across that patch), and an
+  open edit dialog, "Cannot delete", the logo dialog or a merge's first step
+  on it close too.
+- **Why not silent (variant B):** for a delete the row going is what was
+  asked for; for Edit, Retire or Merge into… it is not, and a row vanishing
+  without a word reads as a lost click.
+
 ### Stored names in results and headings *(H8.8, issue 968)*
 
 The `<bdi>` bullet of the G20 amendment above, carried to the results and
