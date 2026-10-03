@@ -72,7 +72,9 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
           costs: Decimal.t(),
           contribution: Decimal.t(),
           held_at_start: boolean(),
-          held_at_end: boolean()
+          held_at_end: boolean(),
+          unvalued_days: non_neg_integer(),
+          unvalued_reason: :no_price | :no_rate | nil
         }
 
   @type result :: %{
@@ -113,9 +115,16 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
 
   Each position carries `security_id`, `name`, `isin`, `start_value`,
   `end_value`, `net_flows`, `income`, `costs`, `contribution`,
-  `held_at_start` and `held_at_end`. Positions are sorted by contribution,
-  largest first; equal contributions by name, then id. A position sold
-  inside the window is listed with an end value of 0.
+  `held_at_start`, `held_at_end`, `unvalued_days` and `unvalued_reason`.
+  Positions are sorted by contribution, largest first; equal contributions
+  by name, then id. A position sold inside the window is listed with an end
+  value of 0.
+
+  `unvalued_days` counts the window days on which the position was held and
+  the walk valued it at zero; `unvalued_reason` is `:no_price` (no price at
+  all) or `:no_rate` (no rate path to the base currency), `:no_price` when
+  both occurred, and `nil` when every day was valued. Such a position stays
+  in the table and in the sum (ADR-0051 §10, I7).
 
   `remainder` carries `interest`, `standalone_fees_and_taxes` and
   `cash_currency_effect`. `totals.result` is `end value − start value − net
@@ -235,9 +244,18 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
       costs: figures.costs,
       contribution: contribution,
       held_at_start: figures.held_at_start,
-      held_at_end: figures.held_at_end
+      held_at_end: figures.held_at_end,
+      unvalued_days: map_size(figures.unvalued),
+      unvalued_reason: unvalued_reason(Map.values(figures.unvalued))
     }
   end
+
+  # Without a price no rate helps, so a missing price names the position
+  # before a missing rate does.
+  defp unvalued_reason([]), do: nil
+
+  defp unvalued_reason(reasons),
+    do: if(:no_price in reasons, do: :no_price, else: :no_rate)
 
   # Largest contribution first; ties by name, then id, so the order is stable.
   defp before?(a, b) do
