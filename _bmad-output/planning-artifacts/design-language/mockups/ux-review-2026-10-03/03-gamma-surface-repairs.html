@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — PR γ's surfaces: the closing act's repairs off the delete flow (Sprint 18)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the rules the repairs add to (or remove from) app.css. On
+     this board they sit inside @scope (.after), so the "Before" frames keep
+     rendering with app.css exactly as built (Sprint 18 PR γ head 11798c96)
+     and only the "After" frames get them. The repairs write the rules
+     WITHOUT the @scope wrapper; where a rule edits or removes an existing
+     one, the comment names it. @scope adds no specificity, so every rule
+     competes here as it will in app.css. Everything else inside the frames
+     is markup and classes that already ship: AppShell.inline_result and
+     data_note (.inline-result, .data-note--note, .inline-result__dismiss),
+     the drift tree's header ⓘ (.drift-table, .metric-tooltip, #tip-soll-ist),
+     the security Overview's figures (.overview-metrics, .overview-metric),
+     the Snapshots section (.snapshot-create, .disclosure-summary,
+     .disclosure-chevron), the history (#transaction-list, .col-subject,
+     .tx-group-head), the Quotes tab (.detail-tab-hint, #quote-phone-rows,
+     .phone-row) and the split wizard (.modal, .modal-head, .dialog-help). -->
+<style id="proposal">
+@scope (.after) {
+  /* G1 (#920, H8.6): the page's result slot can take the focus the
+     vanished row's menu item had — `tabindex="-1"` in the markup, never in
+     the tab order — and stops below the sticky top bar when it is brought
+     into view. Its ring is the house's 2 px accent ring, on keyboard focus
+     only. NEW rules. */
+  #securities-action-result {
+    scroll-margin-top: calc(var(--topbar-height) + var(--space-3));
+  }
+
+  #securities-action-result:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-md);
+  }
+
+  /* G2 (H4 ④c, issue 1053): a tooltip's sentence wraps inside its 18 rem
+     box at every width. The phone block's `table { white-space: nowrap }`
+     was inherited by the ⓘ inside a table head. EDITS `.metric-tooltip p`
+     (adds the declaration). */
+  .metric-tooltip p {
+    white-space: normal;
+  }
+
+  /* G4 (H4 ⑤b): "Neuer Snapshot" is the one quiet disclosure summary.
+     REMOVES `.snapshot-create > summary { cursor; color: accent;
+     font-weight: 600 }` and its entry in the ADR-0027 coarse-pointer list
+     (`.disclosure-summary` carries its own 44 px floor). A board cannot
+     delete a rule of the linked stylesheet, so the two lines below restate
+     `.disclosure-summary`'s own values at the removed rule's specificity;
+     the repair writes nothing here. */
+  .snapshot-create > summary {
+    color: var(--color-text-muted);
+    font-weight: 500;
+  }
+
+  /* G5 (H4 ①d, extended): the history's pinned Balance follows the row's
+     hover wash. The history is not a `.data-table`; its hover is the global
+     `tbody tr:hover` (42 % accent-soft over transparent, on the row), which
+     the opaque pinned cell covered. The pinned cell takes the same 42 % over
+     {colors.bg-elevated}, so it stays opaque while the figures scroll
+     beneath it. NEW rule, after `.data-table tbody tr:hover td.col-subject`. */
+  #transaction-list tbody tr:hover td.col-subject {
+    background: color-mix(in srgb, var(--color-accent-soft) 42%, var(--color-bg-elevated));
+  }
+
+  /* G6 (H7, board 07 rule ①): the phone gets the basis sentence that
+     matches its rows; the 560 px phone-lists block swaps the two spans as it
+     swaps the table and the rows. NEW rules. */
+  .quotes-basis__rows {
+    display: none;
+  }
+}
+/* G3 (the Overview's "1Y") and G7 (the split wizard's sentence) need no CSS:
+   one is the range-label function H7.3 introduced, the other a msgid. The
+   phone half of G6 sits in the 560 px block of app.css; on this board the
+   frames that show the phone carry .as-phone, below. */
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .stack { display: grid; gap: 12px; max-width: 820px; }
+  .pair2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+  .argue { max-width: 92ch; font-size: 12.5px; display: grid; gap: 6px; margin-top: 12px; }
+  .argue p { margin: 0; }
+  .argue code, .mock-note code, .pickbar code, .measure code { font-size: 11.5px; }
+  .measure { font-size: 11.5px; color: var(--mock-ink); margin: 6px 0 0; }
+  .stage { padding: 16px 20px; display: grid; gap: 10px; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  td.is-new, th.is-new { outline-offset: -2px; border-radius: 0; }
+  .mock-phone { width: 390px; max-width: 100%; overflow: hidden; }
+  .phone-pair { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+
+  /* G1's viewport: the window after the click, at its own height, so what is
+     outside it is outside the picture. The bar stands in for the sticky top
+     bar (52 px). */
+  .vp { position: relative; height: 330px; overflow: hidden; border-top: 1px solid var(--color-border); }
+  .vp__bar { position: absolute; inset: 0 0 auto 0; height: 52px; z-index: 3; display: flex; align-items: center; padding: 0 16px; gap: 10px; background: var(--color-bg-elevated); border-bottom: 1px solid var(--color-border); font-size: 15px; font-weight: 700; }
+  .vp__bar small { font-size: 12px; font-weight: 500; color: var(--color-text-muted); }
+  .vp__page { position: absolute; left: 0; right: 0; padding: 0 16px; }
+  .vp__off { position: absolute; inset: 52px 0 auto 0; z-index: 2; padding: 6px 16px; font-size: 11.5px; color: var(--color-danger); background: color-mix(in srgb, var(--color-danger-soft) 70%, transparent); }
+  .vp__focus { position: absolute; right: 12px; bottom: 10px; z-index: 2; padding: 3px 8px; border-radius: 999px; font: 600 11px/1.4 var(--font-mono); background: var(--color-bg-muted); color: var(--mock-ink); }
+  .vp .data-table { width: 100%; }
+  /* The keyboard path's ring, as the proposal's :focus-visible draws it. */
+  .after #securities-action-result.kb-focus { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: var(--radius-md); }
+
+  /* G2: the phone block's table rule, applied at every board width; under
+     560 px of viewport app.css applies the same rule itself. The open ⓘ
+     needs room below the head row. */
+  .as-phone table { display: block; overflow-x: auto; white-space: nowrap; }
+  .tip-stage { padding: 12px 16px 16px; }
+
+  /* G5: the hover state, applied unconditionally. The renderer's pointer is
+     not on a row, so `tbody tr:hover` never matches here; .as-hover mirrors
+     the global rule, and in the "After" frame the proposal's rule. */
+  #transaction-list tbody tr.as-hover { background: color-mix(in srgb, var(--color-accent-soft) 42%, transparent); }
+  .after #transaction-list tbody tr.as-hover td.col-subject { background: color-mix(in srgb, var(--color-accent-soft) 42%, var(--color-bg-elevated)); }
+
+  /* G6: the phone-lists block, at every board width. */
+  .as-phone .phone-rows { display: block; }
+  .as-phone .quotes-table-wrap-stub { display: none; }
+  .after.as-phone .quotes-basis__table { display: none; }
+  .after.as-phone .quotes-basis__rows { display: inline; }
+
+  /* G7: the dialog drawn as a <div>, since a closed <dialog> renders nothing. */
+  .dlg-field { background: var(--color-bg-muted); padding: 14px; display: grid; gap: 12px; }
+  .dlg-field .modal { width: 100%; max-width: 520px; justify-self: center; }
+
+  @media (max-width: 560px) {
+    body { padding: 0; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-board > p.mock-note, .argue { padding: 0 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .pair2 { grid-template-columns: 1fr; }
+    .wide-only { display: none !important; }
+    .pickbar { margin: 0 0 16px; border-radius: 0; }
+    .stage { padding: 12px 16px; }
+    .phone-pair { gap: 12px; }
+    .mock-phone { width: 100%; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-note" viewBox="0 0 24 24"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></symbol>
+  <symbol id="i-kebab" viewBox="0 0 24 24"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></symbol>
+</svg>
+
+<div class="pickbar"><b>Sprint 18 PR γ — the closing act's repairs on the surfaces outside the booking delete.</b> Before/after for each repair: the living spec already fixes every answer (EXPERIENCE.md → Accessibility Floor and WCAG 2.4.3, H2's A6 for the focus after a vanished row; DESIGN.md's 2026-10-03 amendments H4 ①d, ④c and ⑤b, H7 rule ① and H7.3; Language (binding)), so there is no choice to pick. “Before” is <code>app.css</code> and the markup as built at the PR's head; “After” adds the rules in <code>&lt;style id="proposal"&gt;</code> and the markup changes each section names. The UI is the German page, where the defects were seen; every name, figure and date is invented. Not drawn: #918's refusal by policy rules, which the spec keeps as it is (last section). <b>Dashed = new.</b></div>
+
+<!-- ===================================================== G1 -->
+<section class="mock-board" id="g1">
+  <h2>G1 — After a row action finds its security gone, the note is in view and has the focus <small>Wertpapiere, H8.6 (#920) · WCAG 2.4.3</small></h2>
+  <p class="mock-note">Retire, Edit, Merge into… or Delete on a security another writer deleted or merged away reloads the list and puts the note into <code>#securities-action-result</code> — at the top of the page, above the filters, while the operator is at the row. The design critic measured the note at −1142&nbsp;px of the viewport at 1280 and at −2611&nbsp;px at 390, and the focus on <code>&lt;body&gt;</code>: the menu item that had it went with the menu. After, as H2's A6 does for a booking gone meanwhile: the slot carries <code>tabindex="-1"</code>, and on the vanished-row path only the server asks the page to bring it into view (below the sticky top bar, <code>scroll-margin-top</code>) and to focus it. A keyboard user sees the house ring; the next Tab reaches the survivor's link and the dismiss. Ordinary results land where they always did and take no focus: their control is still on the page.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before — the window after the click: the list, no note, focus on &lt;body&gt;</span>
+      <div class="vp">
+        <div class="vp__bar">Wertpapiere <small>Katalog und Kurse</small></div>
+        <div class="vp__off">↑ Die Notiz steht über diesem Ausschnitt: 1142&nbsp;px bei 1280, 2611&nbsp;px bei 390 (gemessen).</div>
+        <div class="vp__page" style="top: 52px">
+          <div class="data-table-wrapper" style="margin-top: 30px">
+            <table class="data-table">
+              <tbody>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16"><use href="#i-kebab"/></svg></button></td><td>Kestrel Industrial Group NV</td><td>KIG</td><td>EUR</td><td class="num">24,00</td></tr>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16"><use href="#i-kebab"/></svg></button></td><td>Linden Bay Bond 2029</td><td></td><td>EUR</td><td class="num">99,80</td></tr>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16"><use href="#i-kebab"/></svg></button></td><td>Meridian Global Equity ETF · XS0000000017</td><td>MGE</td><td>EUR</td><td class="num">61,85</td></tr>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16"><use href="#i-kebab"/></svg></button></td><td>Nordic Timber Holdings AB</td><td>NTH</td><td>SEK</td><td class="num">142,10</td></tr>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16"><use href="#i-kebab"/></svg></button></td><td>Orchid Bay Pharmaceuticals plc</td><td>OBP</td><td>GBP</td><td class="num">8,42</td></tr>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16"><use href="#i-kebab"/></svg></button></td><td>Pinecrest Utilities SA</td><td>PCU</td><td>EUR</td><td class="num">17,35</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <span class="vp__focus">document.activeElement = &lt;body&gt;</span>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After — the note under the top bar, focused; the list follows</span>
+      <div class="vp">
+        <div class="vp__bar">Wertpapiere <small>Katalog und Kurse</small></div>
+        <div class="vp__page" style="top: 64px">
+          <div id="securities-action-result" class="inline-result kb-focus" data-role="action-result" tabindex="-1">
+            <div id="securities-action-result-status" role="status" class="inline-result__region">
+              <div class="data-note data-note--note">
+                <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14"><use href="#i-note"/></svg></span>
+                <span class="data-note__word">Hinweis</span>
+                <div class="data-note__body">„<bdi>Meridian Global Equity ETF · XS0000000025</bdi>“ wurde inzwischen in <a href="#"><bdi>Meridian Global Equity ETF · XS0000000017</bdi></a> zusammengeführt; die Liste ist neu geladen. <button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button></div>
+              </div>
+            </div>
+            <div id="securities-action-result-alert" role="alert" class="inline-result__region"></div>
+          </div>
+          <div class="data-table-wrapper" style="margin-top: 12px">
+            <table class="data-table">
+              <tbody>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16"><use href="#i-kebab"/></svg></button></td><td>Alder Creek Timber Fund</td><td></td><td>EUR</td><td class="num">31,20</td></tr>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16"><use href="#i-kebab"/></svg></button></td><td>Brightwater Utilities plc</td><td>BWU</td><td>GBP</td><td class="num">33,00</td></tr>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16"><use href="#i-kebab"/></svg></button></td><td>Cobalt Ridge Logistics SE</td><td>CRL</td><td>EUR</td><td class="num">48,15</td></tr>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16"><use href="#i-kebab"/></svg></button></td><td>Helios Solar Systems SE</td><td>HSS</td><td>EUR</td><td class="num">12,90</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <span class="vp__focus">document.activeElement = #securities-action-result</span>
+      </div>
+    </div>
+  </div>
+  <div class="argue">
+    <p><b>Why the slot, not the list's heading.</b> The securities page has no list heading of its own (the top bar's title is the page's), and the note is what the operator needs to read: the slot sits directly above the list, so bringing it to the top of the window also shows the first rows. The slot's live region still announces the note; the focus makes sure a screen-reader user who missed it lands on it, and that the next Tab does not start from the top of the page.</p>
+    <p><b>Where it applies.</b> Every row action that finds its security gone — the menu's own path and the delete's “not found” branch — and “Cannot delete”'s way out on a security merged away while the dialog stood open (the dialog closes, its opener is gone too). When the vanished row was open in the detail pane the URL drops its id first; the note and the focus survive that patch.</p>
+  </div>
+</section>
+
+<!-- ===================================================== G2 -->
+<section class="mock-board" id="g2">
+  <h2>G2 — The Drift ⓘ wraps on the phone <small>Vermögen → Allokation &amp; Ziele, the tree's head · H4 ④c · issue 1053</small></h2>
+  <p class="mock-note">Under 560&nbsp;px <code>table { display: block; overflow-x: auto; white-space: nowrap }</code> (the phone block of <code>app.css</code>) is inherited by everything inside a table, and the tree's Drift ⓘ sits in the table's head: its sentence stands on one line and runs out of its 18&nbsp;rem box and off the screen. The design critic measured a <code>scrollWidth</code> of 2196&nbsp;px in a 288&nbsp;px box with ④c's second sentence; the seeded demo, whose plan is above 100&nbsp;%, gives 1131&nbsp;px with the first sentence alone. After: the tooltip's paragraph sets <code>white-space: normal</code> itself, at every width, so no table rule reaches it. Both frames are drawn at a phone's width with the phone rule applied.</p>
+  <div class="phone-pair">
+    <div class="mock-frame mock-before mock-phone as-phone"><span class="mock-tag">Before — one line, out of its box</span>
+      <div class="tip-stage">
+        <div class="data-table-wrapper">
+          <table class="drift-table" aria-label="Kopf der Baum-Tabelle"><thead><tr><th>Kategorie</th><th class="num">Wert</th><th class="num">Ist</th><th class="num">Soll</th><th class="num col-subject">Drift <details class="metric-tooltip" open><summary aria-label="Info SOLL-IST-Abweichung">ⓘ</summary><p role="tooltip" data-tip="before">Soll vs. Ist: Die Drift ist Ist-Gewicht minus Soll-Gewicht. Positiv = übergewichtet (reduzieren, um das Ziel zu erreichen), negativ = untergewichtet (aufstocken, um es zu erreichen). <span data-role="drift-basis-tip">Der Plan verteilt 85,0%: Jedes Soll wird vor dem Vergleich auf diesen Anteil hochgerechnet, 34,0% zählen als 40,0%. Der unverteilte Rest erscheint nicht als Abweichung.</span></p></details></th></tr></thead><tbody><tr><td>Stability</td><td class="num">7.011,60</td><td class="num">11,2%</td><td class="num">15,0%</td><td class="num col-subject is-negative">-3,8%</td></tr><tr><td>Growth</td><td class="num">26.320,60</td><td class="num">42,0%</td><td class="num">40,0%</td><td class="num col-subject is-positive">+2,0%</td></tr><tr><td>Income</td><td class="num">12.408,20</td><td class="num">19,8%</td><td class="num">20,0%</td><td class="num col-subject">-0,2%</td></tr><tr><td>Crypto</td><td class="num">2.569,68</td><td class="num">4,1%</td><td class="num">5,0%</td><td class="num col-subject is-negative">-0,9%</td></tr><tr><td>Cash</td><td class="num">14.329,02</td><td class="num">22,9%</td><td class="num">20,0%</td><td class="num col-subject is-positive">+2,9%</td></tr><tr><td>Reserve</td><td class="num">0,00</td><td class="num">0,0%</td><td class="num">0,0%</td><td class="num col-subject">0,0%</td></tr><tr><td>Sonstiges</td><td class="num">0,00</td><td class="num">0,0%</td><td class="num">0,0%</td><td class="num col-subject">0,0%</td></tr></tbody></table>
+        </div>
+        <p class="measure" data-tip-out="before"></p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after mock-phone as-phone"><span class="mock-tag">After — the sentence wraps inside the box</span>
+      <div class="tip-stage">
+        <div class="data-table-wrapper">
+          <table class="drift-table" aria-label="Kopf der Baum-Tabelle"><thead><tr><th>Kategorie</th><th class="num">Wert</th><th class="num">Ist</th><th class="num">Soll</th><th class="num col-subject">Drift <details class="metric-tooltip" open><summary aria-label="Info SOLL-IST-Abweichung">ⓘ</summary><p role="tooltip" class="is-new" data-tip="after">Soll vs. Ist: Die Drift ist Ist-Gewicht minus Soll-Gewicht. Positiv = übergewichtet (reduzieren, um das Ziel zu erreichen), negativ = untergewichtet (aufstocken, um es zu erreichen). <span data-role="drift-basis-tip">Der Plan verteilt 85,0%: Jedes Soll wird vor dem Vergleich auf diesen Anteil hochgerechnet, 34,0% zählen als 40,0%. Der unverteilte Rest erscheint nicht als Abweichung.</span></p></details></th></tr></thead><tbody><tr><td>Stability</td><td class="num">7.011,60</td><td class="num">11,2%</td><td class="num">15,0%</td><td class="num col-subject is-negative">-3,8%</td></tr><tr><td>Growth</td><td class="num">26.320,60</td><td class="num">42,0%</td><td class="num">40,0%</td><td class="num col-subject is-positive">+2,0%</td></tr><tr><td>Income</td><td class="num">12.408,20</td><td class="num">19,8%</td><td class="num">20,0%</td><td class="num col-subject">-0,2%</td></tr><tr><td>Crypto</td><td class="num">2.569,68</td><td class="num">4,1%</td><td class="num">5,0%</td><td class="num col-subject is-negative">-0,9%</td></tr><tr><td>Cash</td><td class="num">14.329,02</td><td class="num">22,9%</td><td class="num">20,0%</td><td class="num col-subject is-positive">+2,9%</td></tr><tr><td>Reserve</td><td class="num">0,00</td><td class="num">0,0%</td><td class="num">0,0%</td><td class="num col-subject">0,0%</td></tr><tr><td>Sonstiges</td><td class="num">0,00</td><td class="num">0,0%</td><td class="num">0,0%</td><td class="num col-subject">0,0%</td></tr></tbody></table>
+        </div>
+        <p class="measure" data-tip-out="after"></p>
+      </div>
+    </div>
+  </div>
+  <div class="argue">
+    <p><b>Why on the class, not in the phone block.</b> A tooltip is a paragraph wherever it sits; every ⓘ inside a table cell — the tree's Drift, the target-plan badges, a stat header — inherits the cell's <code>white-space</code>, and a desktop table that sets <code>nowrap</code> on a head cell would do the same at 1280. One declaration on <code>.metric-tooltip p</code> covers all of them; where nothing set <code>nowrap</code>, the picture is identical.</p>
+    <p><b>Seen while drawing, not repaired here (Scope Lock).</b> The same inheritance sets the paragraph <code>text-align: right</code> inside a numeric head cell (<code>th.num</code>), at every width: the tree's Drift ⓘ reads ragged on the left on the desktop too. That is a separate change to every ⓘ in a numeric head, reported as a follow-up.</p>
+  </div>
+</section>
+
+<!-- ===================================================== G3 -->
+<section class="mock-board" id="g3">
+  <h2>G3 — The Overview's “1Y” reads “1J” <small>Wertpapier → Übersicht · H7.3's follow-up</small></h2>
+  <p class="mock-note">H7.3 gave the Chart tab's buttons and the Quotes tab's basis line one label function (“1J” in German); the Overview's figure label is a literal <code>&lt;dt&gt;1Y&lt;/dt&gt;</code> in the template, which H7.3 named and left. After: the label goes through the same function, so the Overview, the chart and the Quotes tab say the same word. English is unchanged (“1Y”).</p>
+  <div class="stack">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before</span>
+      <div class="stage detail-tab-panel detail-tab-panel--overview"><div class="overview-reading"><div class="overview-reading__main">
+        <dl class="overview-metrics">
+          <div class="overview-metric"><dt>Letzter Kurs</dt><dd>61,85 <small class="overview-metric__unit">EUR</small><small class="overview-metric__sub">(2026-10-02)</small></dd></div>
+          <div class="overview-metric"><dt>Tagesänderung</dt><dd class="is-positive">+0,4%</dd></div>
+          <div class="overview-metric"><dt>1Y</dt><dd class="is-positive">+12,3% <small class="overview-metric__sub">nur Kurs</small></dd></div>
+          <div class="overview-metric"><dt>Bestand</dt><dd>40,0000 <small class="overview-metric__unit">Stück</small><small class="overview-metric__sub">Depot 1</small></dd></div>
+        </dl>
+      </div></div></div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After — the detail's one range vocabulary</span>
+      <div class="stage detail-tab-panel detail-tab-panel--overview"><div class="overview-reading"><div class="overview-reading__main">
+        <dl class="overview-metrics">
+          <div class="overview-metric"><dt>Letzter Kurs</dt><dd>61,85 <small class="overview-metric__unit">EUR</small><small class="overview-metric__sub">(2026-10-02)</small></dd></div>
+          <div class="overview-metric"><dt>Tagesänderung</dt><dd class="is-positive">+0,4%</dd></div>
+          <div class="overview-metric"><dt class="is-new">1J</dt><dd class="is-positive">+12,3% <small class="overview-metric__sub">nur Kurs</small></dd></div>
+          <div class="overview-metric"><dt>Bestand</dt><dd>40,0000 <small class="overview-metric__unit">Stück</small><small class="overview-metric__sub">Depot 1</small></dd></div>
+        </dl>
+      </div></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== G4 -->
+<section class="mock-board" id="g4">
+  <h2>G4 — “Neuer Snapshot” is a quiet disclosure summary like every other <small>Snapshots · H4 ⑤b</small></h2>
+  <p class="mock-note">The summary carries <code>.disclosure-summary</code> and its chevron, but <code>.snapshot-create &gt; summary</code> (specificity 0,1,1) outranks the class (0,1,0) and sets the accent colour and weight 600: measured 12&nbsp;px / 600 / violet, where ⑤b's one definition is 12&nbsp;px / 500 / muted, and the hover to the text colour never shows. After: the local rule goes (and its entry in the ADR-0027 coarse-pointer list, which <code>.disclosure-summary</code>'s own 44&nbsp;px floor covers), so the summary is ⑤b's control label like “Daten als Tabelle” two sections up.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before — accent, 600</span>
+      <section class="workspace-section">
+        <header class="section-head"><h2>Snapshots</h2></header>
+        <details class="snapshot-create"><summary class="disclosure-summary" data-sum="before"><svg width="12" height="12" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>Neuer Snapshot</summary></details>
+        <details class="perf-table-disclosure"><summary class="disclosure-summary"><svg width="12" height="12" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>Daten als Tabelle</summary></details>
+        <p class="measure" data-sum-out="before"></p>
+      </section>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After — the spec's control label, as its neighbours</span>
+      <section class="workspace-section">
+        <header class="section-head"><h2>Snapshots</h2></header>
+        <details class="snapshot-create"><summary class="disclosure-summary is-new" data-sum="after"><svg width="12" height="12" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>Neuer Snapshot</summary></details>
+        <details class="perf-table-disclosure"><summary class="disclosure-summary"><svg width="12" height="12" class="disclosure-chevron" aria-hidden="true"><use href="#i-chev"/></svg>Daten als Tabelle</summary></details>
+        <p class="measure" data-sum-out="after"></p>
+      </section>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== G5 -->
+<section class="mock-board wide-only" id="g5">
+  <h2>G5 — The history's hover reaches the pinned Balance <small>Transaktionen → Historie, filtered to one account · H4 ①d</small></h2>
+  <p class="mock-note">With an account filter the history shows the running Balance, pinned (<code>.col-subject</code>, opaque so the figures scroll beneath it). The history is not a <code>.data-table</code>: its hover is the global <code>tbody tr:hover</code>, a wash on the row, and ①d's hover rule covers <code>.data-table</code> only — so the wash stopped at the Balance, the one figure the filter was chosen for. DESIGN.md's H4 amendment kept this as the board's stated doubt; the closing act asks for it. After: the pinned cell takes the same 42&nbsp;% accent-soft, over {colors.bg-elevated} instead of over nothing, so it stays opaque. Under 560&nbsp;px the history is two-line rows and has no pinned column; nothing changes there.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before — the wash stops at the Balance</span>
+      <div class="stage"><div class="data-table-wrapper">
+        <table id="transaction-list">
+          <thead><tr><th>Datum</th><th>Typ</th><th>Wertpapier</th><th class="num">Betrag</th><th class="num col-subject">Saldo <small>EUR</small></th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead>
+          <tbody>
+            <tr class="tx-group-head"><th colspan="6" scope="colgroup"><span class="tx-group-month">September 2026</span><span class="tx-group-subtotal">3 Transaktionen</span></th></tr>
+            <tr><td>28.09.2026</td><td>Kauf</td><td>Nordwind Industrie AG</td><td class="num">-2.474,00<small class="value-suffix">EUR</small></td><td class="num col-subject">1.646,35</td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16"><use href="#i-kebab"/></svg></button></td></tr>
+            <tr class="as-hover"><td>25.09.2026</td><td>Einlage</td><td></td><td class="num">+500,00<small class="value-suffix">EUR</small></td><td class="num col-subject" data-hov="before">4.120,35</td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16"><use href="#i-kebab"/></svg></button></td></tr>
+            <tr><td>02.09.2026</td><td>Kauf</td><td>Global Aktien ETF</td><td class="num">-4,77<small class="value-suffix">EUR</small></td><td class="num col-subject">3.620,35</td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16"><use href="#i-kebab"/></svg></button></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="measure" data-hov-out="before"></p></div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After — one wash across the row</span>
+      <div class="stage"><div class="data-table-wrapper">
+        <table id="transaction-list">
+          <thead><tr><th>Datum</th><th>Typ</th><th>Wertpapier</th><th class="num">Betrag</th><th class="num col-subject">Saldo <small>EUR</small></th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead>
+          <tbody>
+            <tr class="tx-group-head"><th colspan="6" scope="colgroup"><span class="tx-group-month">September 2026</span><span class="tx-group-subtotal">3 Transaktionen</span></th></tr>
+            <tr><td>28.09.2026</td><td>Kauf</td><td>Nordwind Industrie AG</td><td class="num">-2.474,00<small class="value-suffix">EUR</small></td><td class="num col-subject">1.646,35</td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16"><use href="#i-kebab"/></svg></button></td></tr>
+            <tr class="as-hover"><td>25.09.2026</td><td>Einlage</td><td></td><td class="num">+500,00<small class="value-suffix">EUR</small></td><td class="num col-subject is-new" data-hov="after">4.120,35</td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16"><use href="#i-kebab"/></svg></button></td></tr>
+            <tr><td>02.09.2026</td><td>Kauf</td><td>Global Aktien ETF</td><td class="num">-4,77<small class="value-suffix">EUR</small></td><td class="num col-subject">3.620,35</td><td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Aktionen"><svg width="16" height="16"><use href="#i-kebab"/></svg></button></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="measure" data-hov-out="after"></p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== G6 -->
+<section class="mock-board" id="g6">
+  <h2>G6 — The phone's basis line names what the phone rows show <small>Wertpapier → Kurse at 390 px · H7 rule ①</small></h2>
+  <p class="mock-note">Under 560&nbsp;px the Quotes tab is two-line rows (H7.1 = A); the stored value stands under the close as “gespeichert …” where a split adjusted it. The basis line above the rows still says “Die Spalte Gespeichert zeigt die unveränderten Werte.” — a column the phone does not have. After: the line carries both sentences, and the phone-lists block that swaps the table for the rows swaps the sentence too: “Wo ein Split einen Kurs angepasst hat, zeigt „gespeichert“ darunter den unveränderten Wert.” The desktop sentence is unchanged. Both frames are drawn at a phone's width with the phone-lists block applied.</p>
+  <div class="phone-pair">
+    <div class="mock-frame mock-before mock-phone as-phone"><span class="mock-tag">Before — the sentence names a column that is not there</span>
+      <div class="stage detail-tab-panel detail-tab-panel--quotes">
+        <p class="summary-basis">Zeitraum Max · wie im Diagramm</p>
+        <p class="detail-tab-hint">Kursbasis: split-bereinigt. Die Spalte Gespeichert zeigt die unveränderten Werte.</p>
+        <ul class="phone-rows" aria-label="Kurse">
+          <li class="phone-row" style="grid-template-columns: minmax(0, 1fr) auto"><span class="phone-row__body"><span class="phone-row__name">2026-07-02</span><span class="phone-row__ids"><span class="badge quote-source">Portfolio Performance</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">51,40<small class="value-suffix">EUR</small></span></span></li>
+          <li class="phone-row" style="grid-template-columns: minmax(0, 1fr) auto"><span class="phone-row__body"><span class="phone-row__name">2026-06-30</span><span class="phone-row__ids"><span class="badge quote-source">Portfolio Performance</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">51,20<small class="value-suffix">EUR</small></span><span class="phone-row__figure2">gespeichert 102,40</span></span></li>
+          <li class="phone-row" style="grid-template-columns: minmax(0, 1fr) auto"><span class="phone-row__body"><span class="phone-row__name">2026-06-29</span><span class="phone-row__ids"><span class="badge quote-source">Manuell</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">50,95<small class="value-suffix">EUR</small></span><span class="phone-row__figure2">gespeichert 101,90</span></span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="mock-frame mock-after after mock-phone as-phone"><span class="mock-tag">After — the sentence says where the stored value is</span>
+      <div class="stage detail-tab-panel detail-tab-panel--quotes">
+        <p class="summary-basis">Zeitraum Max · wie im Diagramm</p>
+        <p class="detail-tab-hint"><span class="quotes-basis__table">Kursbasis: split-bereinigt. Die Spalte Gespeichert zeigt die unveränderten Werte.</span><span class="quotes-basis__rows is-new">Kursbasis: split-bereinigt. Wo ein Split einen Kurs angepasst hat, zeigt „gespeichert“ darunter den unveränderten Wert.</span></p>
+        <ul class="phone-rows" aria-label="Kurse">
+          <li class="phone-row" style="grid-template-columns: minmax(0, 1fr) auto"><span class="phone-row__body"><span class="phone-row__name">2026-07-02</span><span class="phone-row__ids"><span class="badge quote-source">Portfolio Performance</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">51,40<small class="value-suffix">EUR</small></span></span></li>
+          <li class="phone-row" style="grid-template-columns: minmax(0, 1fr) auto"><span class="phone-row__body"><span class="phone-row__name">2026-06-30</span><span class="phone-row__ids"><span class="badge quote-source">Portfolio Performance</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">51,20<small class="value-suffix">EUR</small></span><span class="phone-row__figure2">gespeichert 102,40</span></span></li>
+          <li class="phone-row" style="grid-template-columns: minmax(0, 1fr) auto"><span class="phone-row__body"><span class="phone-row__name">2026-06-29</span><span class="phone-row__ids"><span class="badge quote-source">Manuell</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">50,95<small class="value-suffix">EUR</small></span><span class="phone-row__figure2">gespeichert 101,90</span></span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+  <div class="argue">
+    <p><b>Why two sentences, not one for both.</b> One sentence true of both layouts (“the unmodified value is kept as ‘stored’”) would name neither the column nor the line, and the reader looks for the word on the screen in front of them. The swap is the one the phone lists already make for the table and the rows; a screen reader reads whichever is displayed, never both.</p>
+  </div>
+</section>
+
+<!-- ===================================================== G7 -->
+<section class="mock-board" id="g7">
+  <h2>G7 — The split wizard's sentence does not stop twice <small>Wertpapier → Split erfassen</small></h2>
+  <p class="mock-note">The dialog's first sentence ends with the security's name and adds its own full stop, so a name that ends in an abbreviation (“… Namens-Aktien o.N.”) reads “o.N..”. After: the name is quoted and set in <code>&lt;bdi&gt;</code>, as stored names inside a translated sentence are elsewhere (“„…“ hat noch …”, H8.2 and H8.8), and the sentence continues after it with a comma instead of ending there, so no name's last character meets a full stop of the app's.</p>
+  <div class="pair2">
+    <div class="mock-frame mock-before"><span class="mock-tag">Before — “o.N..”</span>
+      <div class="dlg-field"><div class="modal">
+        <header class="modal-head"><h2>Split erfassen</h2><span class="icon-button" aria-label="Schließen"><svg width="16" height="16"><use href="#i-x"/></svg></span></header>
+        <div class="modal-body"><p class="dialog-help">Aktiensplit für Nordwind Industrie AG Namens-Aktien o.N.. Verhältnis als neue:alte Aktien — 2:1 verdoppelt die Anzahl, 1:10 ist ein Reverse-Split.</p></div>
+      </div></div>
+    </div>
+    <div class="mock-frame mock-after after"><span class="mock-tag">After — the name quoted, the sentence goes on</span>
+      <div class="dlg-field"><div class="modal">
+        <header class="modal-head"><h2>Split erfassen</h2><span class="icon-button" aria-label="Schließen"><svg width="16" height="16"><use href="#i-x"/></svg></span></header>
+        <div class="modal-body"><p class="dialog-help is-new">Aktiensplit für „<bdi>Nordwind Industrie AG Namens-Aktien o.N.</bdi>“, das Verhältnis als neue:alte Aktien — 2:1 verdoppelt die Anzahl, 1:10 ist ein Reverse-Split.</p></div>
+      </div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================================================== #918 -->
+<section class="mock-board" id="i918">
+  <h2>Not drawn — “Cannot delete” when policy rules refuse <small>Wertpapiere → Löschen · H8.2 (#918)</small></h2>
+  <p class="mock-note">The design critic saw a refusal by policy rules name only the rules, not the security's bookings and quotes. The spec decides this case and keeps it: DESIGN.md → H8.2 counts what blocks “from the refusal's <code>{:referenced, counts}</code>”, and states that “the policy-rule state (the rule list) is unchanged but for its name, now in <code>&lt;bdi&gt;</code>”, because rules are refused before anything is counted (ADR-0049 §8). Board 08 draws the research-entry and the merge states only. Counting bookings and quotes beside the rules would be a new decision about the refusal's payload, not a repair; it is reported back, not built here.</p>
+</section>
+
+<script>
+  // Board helpers: they write measured values beside the frames, so each
+  // before/after claim is a number. Not part of the proposal.
+  const px = (n) => Math.round(n).toString() + ' px';
+
+  document.querySelectorAll('[data-tip]').forEach((p) => {
+    const out = document.querySelector('[data-tip-out="' + p.dataset.tip + '"]');
+    const cs = getComputedStyle(p);
+    out.textContent = 'Measured: white-space ' + cs.whiteSpace + ', scrollWidth ' + px(p.scrollWidth) +
+      ' in a ' + px(p.clientWidth) + ' box.';
+  });
+
+  document.querySelectorAll('[data-sum]').forEach((s) => {
+    const out = document.querySelector('[data-sum-out="' + s.dataset.sum + '"]');
+    const cs = getComputedStyle(s);
+    const chev = s.querySelector('.disclosure-chevron').getBoundingClientRect().width;
+    out.textContent = 'Measured: ' + cs.fontSize + ' / ' + cs.fontWeight + ' / ' + cs.color + ', chevron ' + px(chev) + '.';
+  });
+
+  document.querySelectorAll('[data-hov]').forEach((td) => {
+    const out = document.querySelector('[data-hov-out="' + td.dataset.hov + '"]');
+    const first = td.parentElement.querySelector('td');
+    const row = getComputedStyle(td.parentElement).backgroundColor;
+    out.textContent = 'Measured on the hovered row: the row ' + row + ' (its cells transparent: ' +
+      getComputedStyle(first).backgroundColor + '); the Balance ' + getComputedStyle(td).backgroundColor + '.';
+  });
+</script>
+</body>
+</html>
