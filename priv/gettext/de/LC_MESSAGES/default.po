@@ -11224,7 +11224,7 @@ msgstr "%{years} J. %{months} M."
 msgid "%{years} years from"
 msgstr "%{years} Jahre ab"
 
-#: lib/portfolixir_web/live/securities/bond_strip.ex:337
+#: lib/portfolixir_web/live/securities/bond_strip.ex:339
 #, elixir-autogen, elixir-format
 msgid ", last own trade price"
 msgstr ", letzter eigener Handelspreis"

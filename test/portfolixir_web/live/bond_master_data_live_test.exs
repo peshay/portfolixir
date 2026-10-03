@@ -63,10 +63,10 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
   #
   # Acceptance criteria:
   # - Under the six figures a block headed "Anleihe" shows Fälligkeit with
-  #   the issue date, Kupon 2,50 % p. a. jährlich, Nominal im Bestand
+  #   the issue date, Kupon 2,5 % p. a. jährlich, Nominal im Bestand
   #   10.000,00 EUR from 100 Stück × 100 EUR with the Stückelung 1.000 EUR.
   # - The second row shows the remaining term in years and months, the
-  #   current yield 2,57 % from 2,50 ÷ 97,25 with the quote's date, and the
+  #   current yield 2,57 % from 2,5 ÷ 97,25 with the quote's date, and the
   #   yield to maturity with "≈" and "linear angenähert".
   # - One basis line states the hundredth convention, both formulas, the
   #   365-day year and what is excluded.
@@ -83,12 +83,12 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     strip = text(view, ~s([data-role="bond-strip"]))
     assert strip =~ "Anleihe"
     assert strip =~ "Fälligkeit 2031-06-15 Emission 2021-06-15"
-    assert strip =~ "Kupon 2,50 % p. a. jährlich"
+    assert strip =~ "Kupon 2,5 % p. a. jährlich"
     assert strip =~ "Nominal im Bestand 10.000,00 EUR 100 Stück × 100 EUR · Stückelung 1.000 EUR"
 
     term = BondMetrics.remaining_term(@maturity, Clock.today())
     assert strip =~ "Restlaufzeit #{term.whole_years} J. #{term.whole_months} M."
-    assert strip =~ "Laufende Rendite 2,57 % 2,50 ÷ 97,25 (2026-09-30)"
+    assert strip =~ "Laufende Rendite 2,57 % 2,5 ÷ 97,25 (2026-09-30)"
     assert strip =~ "Rendite bis Fälligkeit ≈"
     assert strip =~ "linear angenähert"
 
@@ -99,6 +99,30 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     assert basis =~ "Ohne Stückzinsen, Gebühren und Steuern"
 
     refute has_element?(view, ~s([data-role="two-scales-note"]))
+  end
+
+  # User story (#330, closing act on U7, finding 2):
+  # As the operator checking a bond's coupon and price against the statement,
+  # I want the block to show the coupon I entered and the price the yield
+  # used as they are stored,
+  # so that a 4,125 % coupon does not read as 4,13 % beside a yield computed
+  # from 4,125.
+  #
+  # Acceptance criteria:
+  # - A coupon of 4.125 reads "Kupon 4,125 %", trailing zeros trimmed.
+  # - The current yield's ratio line reads "4,125 ÷ 97,125" for a quote of
+  #   97.125; the computed yields keep their two places.
+  test "the coupon and the price in the ratio line read as stored", %{conn: conn} do
+    bond = bond!(%{coupon_rate: "4.125"})
+    buy!(base_world(), bond, quantity: "100", price: "98.50", date: ~D[2026-03-12])
+    put_quote!(bond, ~D[2026-09-30], "97.125")
+
+    {:ok, view, _html} = live(german(conn), "/securities/#{bond.id}")
+
+    assert text(view, ~s([data-role="bond-coupon"])) == "Kupon 4,125 % p. a. jährlich"
+
+    assert text(view, ~s([data-role="bond-current-yield"])) ==
+             "Laufende Rendite 4,25 % 4,125 ÷ 97,125 (2026-09-30)"
   end
 
   # User story (#330, board A2, A3 and A4):
@@ -148,7 +172,7 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     {:ok, view, _html} = live(german(conn), "/securities/#{trade_priced.id}")
 
     assert text(view, ~s([data-role="bond-current-yield"])) =~
-             "2,54 % 2,50 ÷ 98,50, letzter eigener Handelspreis"
+             "2,54 % 2,5 ÷ 98,5, letzter eigener Handelspreis"
 
     matured =
       bond!(%{
@@ -335,7 +359,7 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     assert stored.maturity_date == ~D[2031-06-15]
     assert Decimal.equal?(stored.face_value, Decimal.new("1000"))
 
-    assert text(view, ~s([data-role="bond-strip"])) =~ "Kupon 2,50 % p. a. jährlich"
+    assert text(view, ~s([data-role="bond-strip"])) =~ "Kupon 2,5 % p. a. jährlich"
 
     view |> element("#detail-edit") |> render_click()
 

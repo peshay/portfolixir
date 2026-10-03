@@ -109,7 +109,7 @@ defmodule PortfolixirWeb.Securities.BondStrip do
       <dt><%= gettext("Coupon") %></dt>
       <dd>
         <%= if @security.coupon_rate do %>
-          <%= Format.decimal(@security.coupon_rate, 2) %> %
+          <%= Format.exact(@security.coupon_rate) %> %
           <small class="overview-metric__unit"><%= gettext("p. a.") %></small>
           <small :if={payment(@security)} class="overview-metric__sub">
             <%= payment(@security) %>
@@ -322,9 +322,11 @@ defmodule PortfolixirWeb.Securities.BondStrip do
 
   defp percent(ratio), do: ratio |> Decimal.mult(100) |> Format.decimal(2)
 
-  # "2,50 ÷ 97,25": the coupon over the price the valuation uses.
+  # "2,5 ÷ 97,25": the coupon over the price the valuation uses, both as
+  # stored (the closing act on U7: a 4,125 % coupon read 4,13, beside a yield
+  # computed from 4,125). Only the computed figures are rounded.
   defp ratio_text(%Decimal{} = coupon_rate, %Decimal{} = price),
-    do: "#{Format.decimal(coupon_rate, 2)} ÷ #{Format.decimal(price, 2)}"
+    do: "#{Format.exact(coupon_rate)} ÷ #{Format.exact(price)}"
 
   defp ratio_text(_coupon_rate, _price), do: ""
 
