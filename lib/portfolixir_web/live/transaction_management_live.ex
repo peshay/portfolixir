@@ -765,7 +765,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # U1 (#912), pick H2-A: "Delete…" from a row's menu, or from the
   # notes-only drawer's help line (A7), which closes the drawer first — no
   # dialog opens from a dialog (UX-DR9). The dialog is built from the row as
-  # the history loaded it; a row gone since is said so at once.
+  # it is stored now, as Edit reads it (the closing act, R6); a row gone
+  # since is said so at once (A6).
   def handle_event("ask_delete", %{"id" => id_str}, socket) do
     socket =
       socket
@@ -773,7 +774,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       |> close_drawer()
 
     with {:ok, id} <- LiveParam.fetch_id(id_str),
-         %Transaction{} = transaction <- Enum.find(socket.assigns.transactions, &(&1.id == id)),
+         %Transaction{} = transaction <- stored_row(id, socket.assigns),
          %{} = deleting <- BookingDeleteDialog.prepare(transaction, delete_context(socket)) do
       {:noreply, assign(socket, :deleting, deleting)}
     else
@@ -860,6 +861,35 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       _not_loaded ->
         transaction
     end
+  end
+
+  # The row as stored now (R6), with the accounts and the security the
+  # history names it by — an account from the page's lists carries its
+  # currency, the security a loaded row of it — so the dialog says the row
+  # back in the list's words. `nil` when it is gone.
+  defp stored_row(id, assigns) do
+    case Ledger.get_transaction(id) do
+      nil ->
+        nil
+
+      %Transaction{} = row ->
+        %{
+          row
+          | cash_account: Enum.find(assigns.cash_accounts, &(&1.id == row.cash_account_id)),
+            securities_account:
+              Enum.find(assigns.securities_accounts, &(&1.id == row.securities_account_id)),
+            security: loaded_security(row.security_id, assigns.transactions)
+        }
+    end
+  end
+
+  defp loaded_security(nil, _loaded), do: nil
+
+  defp loaded_security(id, loaded) do
+    Enum.find_value(loaded, fn
+      %Transaction{security: %{id: ^id} = security} -> security
+      _other -> nil
+    end) || Catalog.get_security(id)
   end
 
   defp delete_context(socket) do
