@@ -415,11 +415,15 @@ Felder sind der **Kupon p. a. in Prozent** (2,5, nicht 0,025), die
 **Zinszahlung** (jährlich oder halbjährlich), die **Fälligkeit** und ein
 optionaler **Emissionstag** (ISO-Datum, die Fälligkeit nach dem
 Emissionstag) sowie die **Stückelung** (Nennwert) mit ihrer **Währung**, die
-auf der Währung des Wertpapiers beginnt. Pflicht ist nichts; ein geleertes
-Feld löscht seinen Wert, und die Werte bleiben erhalten, wenn die
-Anlageklasse von einer Anleihe weg wechselt. Ein Wert, den keine Anleihe
-trägt — ein Kupon über 100 %, eine Fälligkeit am Emissionstag, eine
-gruppierte Zahl —, wird an seinem eigenen Feld abgelehnt.
+auf der Währung des Wertpapiers beginnt. Pflicht ist nichts; beim
+Bearbeiten löscht ein geleertes Feld seinen Wert, und die Werte bleiben
+erhalten, wenn die Anlageklasse von einer Anleihe weg wechselt. Findet eine
+Suche ein Wertpapier, das der Katalog schon führt, schreiben **Vorhandenes
+aktualisieren** und **Online-Felder übernehmen** nur die ausgefüllten
+Anleihefelder: Ein leeres Feld lässt den gespeicherten Wert stehen. Ein
+Wert, den keine Anleihe trägt — ein Kupon über 100 %, eine Fälligkeit am
+Emissionstag, eine gruppierte Zahl —, wird an seinem eigenen Feld
+abgelehnt.
 
 **Die Mengenkonvention.** Ein Portfolio-Performance-Export bucht die
 Stückzahl einer prozentnotierten Anleihe als **ein Hundertstel des

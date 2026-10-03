@@ -4118,9 +4118,15 @@ but `bond` and `government_bond`, read as the effective class.
   message of `DecimalInput` under a grouped figure, "muss nach dem
   Emissionstag liegen" under a maturity on or before the issue date, the
   bounded-date and range messages likewise. Nothing is stored on a refusal.
-- **Nothing is required**; an emptied field clears its value; the values
-  are kept when the class changes away from a bond, and the screen then
-  hides them.
+- **Nothing is required**; while editing, an emptied field clears its
+  value; the values are kept when the class changes away from a bond, and
+  the screen then hides them.
+- **Only an edit clears** *(closing act on U7, finding 1)*. The section
+  starts on the stored values only while editing. On create and on the two
+  conflict paths — "Vorhandenes aktualisieren" and "Online-Felder
+  übernehmen", whose section starts blank over a security that may already
+  carry master data — a blank field is no change, so resolving a duplicate
+  never wipes a bond's coupon, maturity or denomination.
 
 ### The two-scales note *(W1 and W2)*
 

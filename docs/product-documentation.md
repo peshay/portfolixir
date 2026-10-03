@@ -383,10 +383,13 @@ reads one of the two, when creating and when editing. Its fields are the
 (annual or semi-annual), the **maturity** and an optional **issue date**
 (ISO dates, the maturity after the issue date), and the **denomination**
 (face value) with its **currency**, which starts on the security's. Nothing
-is required; an emptied field clears its value, and the values are kept if
-the asset class changes away from a bond. A value no bond carries — a
-coupon above 100 %, a maturity on the issue date, a grouped figure — is
-refused on its own field.
+is required; while editing, an emptied field clears its value, and the
+values are kept if the asset class changes away from a bond. When a search
+finds a security the catalog already holds, **Update existing** and **Merge
+online fields** write only the bond fields that are filled in: a blank field
+leaves the stored value alone. A value no bond carries — a coupon above
+100 %, a maturity on the issue date, a grouped figure — is refused on its
+own field.
 
 **The quantity convention.** A Portfolio Performance export books a
 percent-quoted bond's quantity as **a hundredth of its face amount**: 100

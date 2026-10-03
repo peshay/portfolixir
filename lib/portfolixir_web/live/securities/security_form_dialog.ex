@@ -806,7 +806,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   def handle_event("save", %{"security" => params}, socket) do
     params = LiveParam.form(params)
 
-    case read_params(params) do
+    case read_params(params, blank_mode(socket)) do
       {:ok, attrs} -> save(socket, attrs)
       {:error, errors} -> {:noreply, assign(socket, :errors, errors)}
     end
@@ -822,7 +822,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
       ) do
     market = socket.assigns.selected_market
 
-    with {:ok, form_overrides} <- read_params(socket.assigns.form),
+    with {:ok, form_overrides} <- read_params(socket.assigns.form, :drop),
          {:ok, security} <-
            Catalog.merge_search_result(Actor.owner_ui(), existing, result, market, form_overrides) do
       notify_parent(socket, {:updated, security})
@@ -969,22 +969,48 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
 
   # The form's params as the write's attributes: the bond section's figures
   # read in the page's locale (a refused one is an error on its field, in
-  # the page's language), its emptied fields cleared; every other field as
-  # `to_overrides/1` has always read it.
-  defp read_params(params) do
+  # the page's language); every other field as `to_overrides/1` has always
+  # read it.
+  #
+  # An emptied bond field clears its value only while editing (`:clear`),
+  # where the section was filled from the security being saved. On every
+  # other path (`:drop`), a create and above all the two conflict paths,
+  # whose section starts blank over a security that may carry master data,
+  # a blank field is no change, and so is the denomination's currency
+  # without a denomination: its select only starts on the security's
+  # currency (#330, closing act on U7).
+  defp read_params(params, blank) do
     {bond, rest} = Map.split(params, Map.keys(@bond_fields))
 
     case DecimalInput.cast(bond, @bond_decimals) do
-      {:ok, bond} ->
-        bond_attrs =
-          Map.new(bond, fn {key, value} -> {@bond_fields[key], blank_to_nil(value)} end)
-
-        {:ok, rest |> to_overrides() |> Map.merge(bond_attrs)}
-
-      {:error, errors} ->
-        {:error, errors}
+      {:ok, bond} -> {:ok, rest |> to_overrides() |> Map.merge(bond_attrs(bond, blank))}
+      {:error, errors} -> {:error, errors}
     end
   end
+
+  defp bond_attrs(bond, :clear),
+    do: Map.new(bond, fn {key, value} -> {@bond_fields[key], blank_to_nil(value)} end)
+
+  defp bond_attrs(bond, :drop) do
+    attrs =
+      bond
+      |> Enum.flat_map(fn {key, value} ->
+        case blank_to_nil(value) do
+          nil -> []
+          value -> [{@bond_fields[key], value}]
+        end
+      end)
+      |> Map.new()
+
+    if Map.has_key?(attrs, :face_value),
+      do: attrs,
+      else: Map.delete(attrs, :face_value_currency_code)
+  end
+
+  # Only an edit's section starts on the stored values, so only there does
+  # a blank field mean "clear it".
+  defp blank_mode(%{assigns: %{editing: %Security{}}}), do: :clear
+  defp blank_mode(_socket), do: :drop
 
   defp blank_to_nil(value) when is_binary(value),
     do: if(String.trim(value) == "", do: nil, else: value)
