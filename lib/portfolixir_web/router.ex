@@ -212,6 +212,9 @@ defmodule PortfolixirWeb.Router do
     get("/portfolios/:portfolio_id/valuation", ValuationController, :index)
     get("/portfolios/:portfolio_id/performance", PerformanceController, :index)
     get("/portfolios/:portfolio_id/performance/benchmark", BenchmarkController, :index)
+    # FR-41 (ADR-0051 §6): which position made how much of a period's result,
+    # in the performance family's two forms.
+    get("/portfolios/:portfolio_id/performance/contribution", ContributionController, :index)
     get("/portfolios/:portfolio_id/income", IncomeController, :index)
     get("/portfolios/:portfolio_id/allocation", AllocationController, :index)
 
@@ -375,6 +378,7 @@ defmodule PortfolixirWeb.Router do
     get("/valuation", ViewValuationController, :total)
     get("/views/:view_id/performance", ViewPerformanceController, :show)
     get("/views/:view_id/performance/benchmark", ViewBenchmarkController, :show)
+    get("/views/:view_id/performance/contribution", ViewContributionController, :show)
     # #901 (ADR-0051 §6): the category result's view form, beside the
     # portfolio read's view= narrowing.
     get("/views/:view_id/category-results", CategoryResultController, :show)

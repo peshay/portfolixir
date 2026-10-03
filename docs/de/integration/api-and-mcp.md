@@ -1810,6 +1810,42 @@ Beispiel-Payloads für Konten:
   `window.start_date: null` und jedem Fluss in `excluded_flows`. Nichts wird
   gespeichert: der Vergleich wird beim Lesen abgeleitet und wie der Walk
   memoisiert, von dem er abhängt.
+- `GET /api/v1/portfolios/:portfolio_id/performance/contribution` liefert die
+  **Beitragsanalyse** (FR-41, ADR-0051): welche Position wie viel zum
+  Geldergebnis des Zeitraums beigetragen hat, der Zahl „+x EUR im Zeitraum“
+  neben der TTWROR. `period`, `year`, `from`/`to` und `view=` verhalten sich
+  wie beim Performance-Endpunkt, ebenso seine Fehler (fehlerhafte `view` oder
+  fehlerhafter Zeitraum `422`, unbekanntes Portfolio oder unbekannte View
+  `404`). Jede Zeile von `positions` trägt `security_id`, `name`, `isin`,
+  `start_value`, `end_value`, `net_flows`, `income`, `costs` und
+  `contribution` — `end_value − start_value − net_flows + income − costs`, in
+  der Basiswährung, die Währungsbewegung eingeschlossen — dazu
+  `held_at_start`, `held_at_end`, `unvalued_days` und `unvalued_reason`
+  (`no_price`, `no_rate` oder `null`). Eine im Fenster gekaufte und wieder
+  verkaufte Position steht in der Tabelle, obwohl sie an keinem Ende gehalten
+  wird. Ein Tag, an dem eine gehaltene Position keinen Preis oder keinen
+  Kurspfad hat, zählt null, wie im Walk; die Position bleibt in der Summe und
+  wird mit ihren Tagen benannt. Die Zeilen sind nach Beitrag sortiert, der
+  größte zuerst, ohne Anteil, Rang oder Etikett. `remainder` hält, was keine
+  Position hält, jede Zeile aus ihren eigenen Buchungen summiert und nie ein
+  Ausgleichsposten: `interest` (jede Zinsbuchung, Anleihekupons
+  eingeschlossen), `standalone_fees_and_taxes` (Gebühren-, Steuer- und
+  Steuererstattungsbuchungen, die kein Trade trägt) und
+  `cash_currency_effect` (die Neubewertung von Fremdwährungsguthaben, die
+  Abrechnungsdifferenz eines Trades zwischen seinem Geldbein und Preis ×
+  Stückzahl plus Kosten und was ein Geldübertrag zwischen Währungen
+  hinterlässt). `totals` trägt `result` (`end_value − start_value −
+  net_external_flows` des Performance-Endpunkts über dasselbe Fenster),
+  `positions` und `remainder`, und `positions + remainder = result`, exakt in
+  Decimal, solange die Umrechnungsquotienten abbrechen, sonst auf 34
+  signifikante Stellen. Die Antwort trägt `portfolio_id`, `view_id` (`null`
+  ohne View; eine `view` spiegelt zusätzlich `view: {id, name}`), `period`,
+  `base_currency`, `start_date`/`end_date`, `as_of`/`stale` und
+  `computation_basis` mit `assumptions`; alle Finanzwerte sind
+  Decimal-Strings. Ein Fenster ohne gewalkten Tag — ein künftiges Jahr, ein
+  Zeitraum vor der Historie — liefert `start_date: null`, keine Positionen
+  und `"0"` als Zeilen und Summen, wie der Performance-Endpunkt es liefert.
+  Nichts wird gespeichert.
 - `GET /api/v1/portfolios/:portfolio_id/income` liefert den **retrospektiven
   Ertragsbericht**: die bereits im Ledger gebuchten Dividenden und Zinsen, auf drei
   Arten aggregiert (keine Prognose — der Dividendenkalender ist eine separate
@@ -2560,6 +2596,15 @@ nicht journalisiert: Noch keine Regel kann sie lesen.
   `view_id` statt `portfolio_id`. Unbekannte und fehlerhafte View-ids
   liefern `404`, ein fehlerhafter Zeitraum oder eine fehlerhafte Benchmark
   `422`.
+- `GET /api/v1/views/:view_id/performance/contribution` liefert die
+  Beitragsanalyse der View **über alle Portfolios** (FR-41, ADR-0051 §6):
+  derselbe deduplizierte Konten-Scope, den die View-Performance abdeckt, in
+  EUR, sodass `totals.result` deren Geldergebnis ist und eine in mehreren
+  Portfolios gehaltene Position eine Zeile ist. `period`, `year` und
+  `from`/`to` verhalten sich wie beim Portfolio-Beitragsendpunkt; die Antwort
+  hat dessen Form mit `portfolio_id: null`, `view_id` und der gespiegelten
+  View. Unbekannte und fehlerhafte View-ids liefern `404`, ein fehlerhafter
+  Zeitraum `422`.
 - `GET /api/v1/views/:view_id/category-results?classification_id=<id>`
   liefert das Ergebnis je Kategorie (ADR-0041) der zur View passenden
   Positionen **über alle Portfolios**, jedes Konto einmal gezählt (#901). Die
@@ -2601,6 +2646,7 @@ View-id), um das Ergebnis auf die Bestände der View einzugrenzen:
 - `GET /api/v1/portfolios/:portfolio_id/valuation?view=<id>`
 - `GET /api/v1/portfolios/:portfolio_id/allocation?classification_id=<id>&view=<id>`
 - `GET /api/v1/portfolios/:portfolio_id/performance?view=<id>`
+- `GET /api/v1/portfolios/:portfolio_id/performance/contribution?view=<id>`
 - `GET /api/v1/portfolios/:portfolio_id/risk?view=<id>`
 - `GET /api/v1/portfolios/:portfolio_id/category-results?classification_id=<id>&view=<id>`
 

@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.Api.V1.JsonFreshnessMetaTest do
   alias Portfolixir.Actor
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance
+  alias Portfolixir.Portfolios.Performance.Contribution
   alias PortfolixirWeb.Api.V1.JSON
 
   # User story (ADR-0039 §5 I4, payload half):
@@ -16,7 +17,7 @@ defmodule PortfolixirWeb.Api.V1.JsonFreshnessMetaTest do
   # Acceptance criteria:
   # - JSON.performance/2 and JSON.view_performance/2 carry :as_of, :stale and
   #   :computation_basis in every shape: empty and seeded, with and without
-  #   the series.
+  #   the series; so does JSON.contribution/1 in both scopes (FR-41).
   # - The MCP companion wraps the JSON API 1:1, so the same fields flow to
   #   the agent unmodified (the tools pass the response body through).
 
@@ -31,12 +32,16 @@ defmodule PortfolixirWeb.Api.V1.JsonFreshnessMetaTest do
 
     {:ok, empty_summary} = Performance.for_portfolio(portfolio.id, today: ~D[2024-06-30])
     {:ok, view_summary} = Performance.for_view(nil, today: ~D[2024-06-30])
+    {:ok, contribution} = Contribution.for_portfolio(portfolio.id, today: ~D[2024-06-30])
+    {:ok, view_contribution} = Contribution.for_view(nil, today: ~D[2024-06-30])
 
     payloads = [
       JSON.performance(empty_summary),
       JSON.performance(empty_summary, true),
       JSON.view_performance(view_summary),
-      JSON.view_performance(view_summary, true)
+      JSON.view_performance(view_summary, true),
+      JSON.contribution(contribution),
+      JSON.contribution(view_contribution)
     ]
 
     for payload <- payloads, key <- @freshness_keys do

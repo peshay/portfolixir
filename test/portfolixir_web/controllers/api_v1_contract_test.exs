@@ -72,6 +72,22 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
              &(&1 =~ "portfolixir.views.valuation" and &1 =~ "#1007")
            )
 
+    # F2 extends it: which position made how much of a period's result, in
+    # the performance family's two forms (FR-41, ADR-0051 §6 and §11).
+    assert newest["summary"] =~ "F2"
+
+    for endpoint <- [
+          "GET /api/v1/portfolios/:portfolio_id/performance/contribution",
+          "GET /api/v1/views/:view_id/performance/contribution"
+        ] do
+      assert endpoint in newest["endpoints"]
+    end
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "computation_basis" and &1 =~ "FR-41")
+           )
+
     # Sprint 17, PR γ (version 10, after PR β's 9): the operator's due
     # surfaces — the annualized return on both closed-trade reads and the
     # unmatched sells (#984), the merge list's removed bookings per reason

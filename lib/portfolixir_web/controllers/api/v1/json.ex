@@ -1753,6 +1753,62 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  @doc """
+  The contribution analysis (FR-41, ADR-0051 §11): which position made how
+  much of a period's money result, in both scopes. `portfolio_id` and
+  `view_id` name the scope (the view form's `portfolio_id` is null); every
+  financial value is a Decimal string and every date ISO. Positions keep the
+  engine's order, largest contribution first, and carry no rank or label.
+  An empty window keeps the performance read's emptiness: `start_date` null,
+  no positions, and "0" lines and totals. The computation basis has the
+  performance read's shape plus ADR-0046's `assumptions`.
+  """
+  def contribution(result) do
+    %{
+      portfolio_id: result.portfolio_id,
+      view_id: result.view_id,
+      period: period_field(result.period),
+      base_currency: result.base_currency,
+      start_date: date(result.start_date),
+      end_date: date(result.end_date),
+      positions: Enum.map(result.positions, &contribution_position/1),
+      remainder: %{
+        interest: decimal(result.remainder.interest),
+        standalone_fees_and_taxes: decimal(result.remainder.standalone_fees_and_taxes),
+        cash_currency_effect: decimal(result.remainder.cash_currency_effect)
+      },
+      totals: %{
+        result: decimal(result.totals.result),
+        positions: decimal(result.totals.positions),
+        remainder: decimal(result.totals.remainder)
+      },
+      as_of: datetime(result.as_of),
+      stale: result.stale,
+      computation_basis:
+        result.computation_basis
+        |> computation_basis()
+        |> Map.put(:assumptions, result.computation_basis.assumptions)
+    }
+  end
+
+  defp contribution_position(position) do
+    %{
+      security_id: position.security_id,
+      name: position.name,
+      isin: position.isin,
+      start_value: decimal(position.start_value),
+      end_value: decimal(position.end_value),
+      net_flows: decimal(position.net_flows),
+      income: decimal(position.income),
+      costs: decimal(position.costs),
+      contribution: decimal(position.contribution),
+      held_at_start: position.held_at_start,
+      held_at_end: position.held_at_end,
+      unvalued_days: position.unvalued_days,
+      unvalued_reason: reason(position.unvalued_reason)
+    }
+  end
+
   defp performance_point(point) do
     %{
       date: date(point.date),
