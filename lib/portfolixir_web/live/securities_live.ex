@@ -35,6 +35,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.Delete
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Bonds
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.ChangedSince
@@ -44,6 +45,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleReferences
+  alias PortfolixirWeb.Securities.BondStrip
   alias PortfolixirWeb.Securities.FilterPopover
   alias PortfolixirWeb.Securities.LogoOverrideDialog
   alias PortfolixirWeb.Securities.ManualQuotes
@@ -157,6 +159,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:detail_new_category_for, nil)
      |> assign(:detail_notes, [])
      |> assign(:detail_thesis_state, ThesisState.none())
+     |> assign(:detail_bond, nil)
      |> assign(:detail_note_editing?, false)
      |> assign(:research_form_kind, "evidence")
      |> assign(:research_form_errors, [])
@@ -1386,6 +1389,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
           lineage={@detail_lineage}
           thesis_state={@detail_thesis_state}
           note_editing?={@detail_note_editing?}
+          bond={@detail_bond}
         />
       <% end %>
 
@@ -1574,6 +1578,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
   attr(:lineage, :map, default: %{former_isins: [], merged_from: []})
   attr(:thesis_state, :map, required: true)
   attr(:note_editing?, :boolean, default: false)
+  # #330 (ADR-0052, pick H3-A): a bond's reading, nil for any other security.
+  attr(:bond, :map, default: nil)
 
   # #804 (review C7/A8, owner's pick 2026-09-14): the first tab answers "what
   # is this, how does it stand, what do I think about it" — six figures, the
@@ -1590,6 +1596,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
       aria-labelledby="detail-tab-overview"
       class="detail-tab-panel detail-tab-panel--overview"
     >
+      <%!-- #330 (W1): above the figures it concerns, inside the section
+           whose data it describes (UX-DR17). --%>
+      <BondStrip.two_scales_note security={@security} bond={@bond} />
       <div class="overview-reading">
         <div class="overview-reading__main">
           <dl class="overview-metrics">
@@ -1673,6 +1682,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
               </dd>
             </div>
           </dl>
+
+          <%!-- #330 (pick H3-A): the bond's block, directly under the six
+               figures it is computed beside; nothing for any other class. --%>
+          <BondStrip.strip security={@security} bond={@bond} />
 
           <%!-- The chart of the tab beside it, small and without its toolbar:
                the shape of the history, not a second chart surface. --%>
@@ -5435,7 +5448,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
        :note,
        stored_result(gettext("Updated %{name}", name: StoredText.slot(:name)), security.name)
      )
-     |> load_securities()}
+     |> load_securities()
+     |> refresh_selected(security)}
   end
 
   def handle_info({:dialog, _id, {:open_existing, _security}}, socket) do
@@ -5486,6 +5500,19 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> load_detail_data()}
   end
 
+  # #330: the open detail shows the master data just saved — the bond block
+  # reads the dialog's fields — so the edited security is re-read into it.
+  defp refresh_selected(%{assigns: %{selected_security: %Security{id: id}}} = socket, %Security{
+         id: id
+       }) do
+    case Catalog.get_security(id) do
+      %Security{} = fresh -> select_security(socket, fresh)
+      nil -> socket
+    end
+  end
+
+  defp refresh_selected(socket, _security), do: socket
+
   defp select_security(socket, %Security{} = security) do
     socket
     |> assign(:selected_security, security)
@@ -5515,6 +5542,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     |> assign(:detail_new_category_for, nil)
     |> assign(:detail_notes, [])
     |> assign(:detail_thesis_state, ThesisState.none())
+    |> assign(:detail_bond, nil)
     |> assign(:detail_note_editing?, false)
     |> assign(:research_form_errors, [])
     |> assign(:research_form_values, %{})
@@ -5566,6 +5594,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
     holdings = decorate_holdings_with_buckets(Ledger.holdings_for_security(id), id)
 
+    # The shared price-resolution status (#406): computed by the valuation's
+    # own semantics, against the base currencies of the portfolios actually
+    # holding the security, so this pane and those portfolios' totals cannot
+    # disagree (review fix: a USD-base portfolio counts a USD position
+    # without any stored rate).
+    status = Valuation.security_status(id, holding_base_currencies(holdings))
+
     socket
     |> assign(:detail_quotes, quotes)
     # T-9 (Sprint 17 V2, G3-A): the note counts the whole history, not the
@@ -5587,12 +5622,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
     # of the security this pane is open on.
     |> assign(:detail_metric_block, load_metric_block(id))
     |> assign(:detail_events, Events.list_for_security(id))
-    # The shared price-resolution status (#406): computed by the valuation's
-    # own semantics, against the base currencies of the portfolios actually
-    # holding the security, so this pane and those portfolios' totals cannot
-    # disagree (review fix: a USD-base portfolio counts a USD position
-    # without any stored rate).
-    |> assign(:detail_status, Valuation.security_status(id, holding_base_currencies(holdings)))
+    |> assign(:detail_status, status)
+    # #330 (ADR-0052): a bond's reading from the rows and the price this pane
+    # already holds, so its yields use the price the value beside them uses.
+    |> assign(
+      :detail_bond,
+      Bonds.reading(socket.assigns.selected_security,
+        transactions: transaction_rows,
+        status: status
+      )
+    )
     |> assign(:detail_classifications, load_security_classifications(id))
     |> assign(:detail_lineage, %{
       former_isins: Catalog.list_identifier_aliases(socket.assigns.selected_security),

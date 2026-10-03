@@ -71,6 +71,9 @@ msgstr "ist keine Kategorie dieser Klassifizierung"
 msgid "must be after %{date}, the start of the version in force"
 msgstr "muss nach dem %{date} liegen, dem Beginn der geltenden Version"
 
+msgid "must be after the issue date"
+msgstr "muss nach dem Emissionstag liegen"
+
 msgid "overlaps another version of this rule"
 msgstr "überschneidet sich mit einer anderen Version dieser Regel"
 

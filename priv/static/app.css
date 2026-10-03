@@ -1255,8 +1255,11 @@ li + li {
 
 /* Cross-currency settlement (issue 395, board 03 variant A): shown only when
    the security and the cash account differ in currency, so it is marked as
-   the one block that asks for something the ordinary booking does not. */
-.settlement-fieldset {
+   the one block that asks for something the ordinary booking does not. The
+   security dialog's bond section (issue 330, pick H3 rule 2) is the same kind
+   of block, shown only for the two bond classes, so it joins these lists. */
+.settlement-fieldset,
+.bond-fieldset {
   margin: var(--space-2) 0;
   padding: var(--space-3);
   border: 1px solid var(--color-accent);
@@ -1266,7 +1269,8 @@ li + li {
 
 /* The legend sits inside the box as its heading (board 03), not across the
    border: floated legends are laid out as ordinary content. */
-.settlement-fieldset legend {
+.settlement-fieldset legend,
+.bond-fieldset legend {
   float: left;
   width: 100%;
   padding: 0;
@@ -1275,7 +1279,8 @@ li + li {
   font-weight: 600;
 }
 
-.settlement-fieldset > .form-grid {
+.settlement-fieldset > .form-grid,
+.bond-fieldset > .form-grid {
   clear: both;
 }
 
@@ -1283,7 +1288,8 @@ li + li {
   font-weight: 400;
 }
 
-.settlement-fieldset .form-help {
+.settlement-fieldset .form-help,
+.bond-fieldset .form-help {
   margin: var(--space-2) 0 0;
   padding: 0;
 }
@@ -3122,6 +3128,14 @@ img.security-logo {
   font-weight: 400;
   color: var(--color-text-muted);
   margin-top: 2px;
+}
+
+/* A date or a figure with its unit inside a sub-line stays whole at 390 px:
+   "2031-06-15" would otherwise break at a hyphen (issue 330, pick H3
+   rule 3). */
+.overview-metric__sub time,
+.overview-metric__sub .nowrap {
+  white-space: nowrap;
 }
 
 .overview-notes {
@@ -8507,6 +8521,27 @@ dialog.booking-drawer {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+/* The bond block on a bond's Overview (issue 330, pick H3 rule 1): its grid is
+   .overview-metrics and its basis line .detail-tab-hint, as under the metric
+   grid of ADR-0047; only the heading that tells the two grids apart is new. */
+.bond-strip {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.bond-strip__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.bond-strip .detail-tab-hint {
+  margin: 0;
+}
+
 .overview-reading__main,
 .overview-reading__side {
   display: flex;
@@ -8552,7 +8587,8 @@ dialog.booking-drawer {
   gap: var(--space-2);
 }
 
-.overview-card__head h3 {
+.overview-card__head h3,
+.bond-strip__head h3 {
   margin: 0;
   font-size: 11px;
   font-weight: 650;
