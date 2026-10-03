@@ -2995,19 +2995,20 @@ It keeps an unattended agent run from deleting or merging through the
 companion; an agent that can reach the API with the token can still call every
 route.
 
-**Scope twins.** Valuation, performance and the benchmark comparison exist at
-two scopes, and each tool of a pair names the other in its description with
+**Scope twins.** Valuation, performance, the benchmark comparison and the
+contribution analysis exist at two scopes, and each tool of a pair names the
+other in its description with
 the difference (Sprint 17, D-6): `portfolixir.portfolios.*` answers one portfolio
 record in its base currency, its `view` narrowing within that portfolio;
 `portfolixir.views.*` answers a view across every portfolio, each account
 counted once, in EUR. The total across every portfolio needs no view:
 `portfolixir.views.valuation` without an id reads it (`GET /api/v1/valuation`,
 #1007), the figure the dashboard shows, so a sum of portfolio valuations is
-never the route to it. Each of the view performance and benchmark tools
-needs an existing view id — a view created with `include_all` (the default)
-and nothing excluded matches every account — and until a view exists the
-portfolio tool is the only read of a return: returns of several portfolios
-never add up.
+never the route to it. Each of the view performance, benchmark and
+contribution tools needs an existing view id — a view created with
+`include_all` (the default) and nothing excluded matches every account — and
+until a view exists the portfolio tool is the only read of a return or a
+contribution: returns of several portfolios never add up.
 
 **Prompts.** The companion offers two MCP prompts (`prompts/list`,
 `prompts/get`), the same under every profile, each carrying the no-advice
@@ -3250,6 +3251,8 @@ names each address's code.
 - `portfolixir.portfolios.income`
 - `portfolixir.portfolios.performance` — scope twin of `portfolixir.views.performance`.
 - `portfolixir.portfolios.benchmark` — scope twin of `portfolixir.views.benchmark`.
+- `portfolixir.portfolios.contribution` — scope twin of `portfolixir.views.contribution`;
+  which position made how much of a period's money result (FR-41).
 - `portfolixir.journal.list`
 - `portfolixir.merges.list` — the merge records, newest first, each with
   what went into what, who did it, when, and the manifest summarized
@@ -3272,6 +3275,7 @@ names each address's code.
   without an `id`, the total of every account (#1007).
 - `portfolixir.views.performance` — scope twin of `portfolixir.portfolios.performance`.
 - `portfolixir.views.benchmark` — scope twin of `portfolixir.portfolios.benchmark`.
+- `portfolixir.views.contribution` — scope twin of `portfolixir.portfolios.contribution`.
 - `portfolixir.securities_accounts.set_buckets`
 - `portfolixir.cash_accounts.set_buckets`
 - `portfolixir.securities_accounts.set_position_buckets`
@@ -3304,10 +3308,10 @@ names each address's code.
 - `portfolixir.tax_snapshots.trim_budget`
 
 The `portfolixir.portfolios.valuation`, `portfolixir.portfolios.allocation`,
-`portfolixir.portfolios.performance`, `portfolixir.portfolios.risk` and
-`portfolixir.portfolios.category_results` tools accept an optional `view` (a
-view id) that scopes the result to the holdings matching that bucket view; the
-response then echoes the active view. `portfolixir.portfolios.category_results`
+`portfolixir.portfolios.performance`, `portfolixir.portfolios.contribution`,
+`portfolixir.portfolios.risk` and `portfolixir.portfolios.category_results`
+tools accept an optional `view` (a view id) that scopes the result to the
+holdings matching that bucket view; the response then echoes the active view. `portfolixir.portfolios.category_results`
 also takes `view` without `portfolio_id`: the view across every portfolio, in
 EUR (#901).
 `portfolixir.views.valuation` values a view **across all portfolios** in one
@@ -3327,6 +3331,14 @@ the twins of the two benchmark reads (ADR-0046): `benchmark` is
 are the performance tools', and the response carries both comparisons,
 the covered window, the excluded flows and the computation basis with the
 frictionless assumption stated.
+
+`portfolixir.portfolios.contribution` and `portfolixir.views.contribution`
+are the twins of the two contribution reads (FR-41, ADR-0051): the period and
+view parameters are the performance tools' (there is no `series`), and the
+response carries each position's contribution, the three remainder lines, the
+totals — `positions` plus `remainder` is `result`, the performance read's
+money result — and the computation basis with its assumptions stated. Both
+are reads, so every profile lists them.
 
 Since ADR-0020 the target tools (`portfolixir.targets.list`,
 `portfolixir.targets.set`, `portfolixir.targets.delete`) and the cash-target

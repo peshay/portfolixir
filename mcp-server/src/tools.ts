@@ -66,31 +66,36 @@ const TAX_AMOUNTS =
 // narrowing within them; for_view values the accounts a view matches in every
 // portfolio, each once, in the EUR hub). The view valuation without an id reads
 // the view-less union, the total of every account (#1007, Sprint 18 plan D-5);
-// the view performance and benchmark take an existing view id.
+// the view performance, benchmark and contribution (FR-41, ADR-0051 §6) take
+// an existing view id. A contribution is money, not a return, so its steer
+// keeps only the first half of the returns' sentence.
+type TwinFigures = "totals" | "returns" | "contributions";
 const VIEW_SCOPE = "a view across EVERY portfolio, each account counted once, in EUR";
-const VIEW_SCOPE_OF = {
+const NEEDS_VIEW =
+  `${VIEW_SCOPE}, and needs an existing view id (portfolixir.views.list; ` +
+  "include_all, the default, with no exclusion matches every account)";
+const VIEW_SCOPE_OF: Record<TwinFigures, string> = {
   totals: `${VIEW_SCOPE} or, with no id, the total of every account`,
-  returns:
-    `${VIEW_SCOPE}, and needs an existing view id (portfolixir.views.list; one with ` +
-    "include_all, the default, and no exclusion matches every account)"
+  returns: NEEDS_VIEW,
+  contributions: NEEDS_VIEW
 };
 const PORTFOLIO_SCOPE =
   "ONE portfolio record in its base currency, its view narrowing within that portfolio";
+const ONLY_READ = "Until a view exists this tool is the only read";
+const STEER: Record<TwinFigures, string> = {
+  totals: "For a total, read that, not a sum of portfolios",
+  returns: `${ONLY_READ}, and returns of several portfolios do not add up`,
+  contributions: ONLY_READ
+};
 
-function portfolioScopeTwin(twin: string, figures: "totals" | "returns"): string {
-  const steer =
-    figures === "totals"
-      ? "For a total, read that, not a sum of portfolios"
-      : "Until a view exists this tool is the only read, and returns of several portfolios " +
-        "do not add up to the return across them";
-
+function portfolioScopeTwin(twin: string, figures: TwinFigures): string {
   return (
     ` Scope twin: ${twin} — this tool answers ${PORTFOLIO_SCOPE}; the twin answers ` +
-    `${VIEW_SCOPE_OF[figures]}. ${steer}.`
+    `${VIEW_SCOPE_OF[figures]}. ${STEER[figures]}.`
   );
 }
 
-function viewScopeTwin(twin: string, figures: "totals" | "returns"): string {
+function viewScopeTwin(twin: string, figures: TwinFigures): string {
   return ` Scope twin: ${twin} — this tool answers ${VIEW_SCOPE_OF[figures]}; the twin answers ${PORTFOLIO_SCOPE}.`;
 }
 
@@ -1599,7 +1604,7 @@ const benchmarkSelector = {
   type: "string",
   pattern: "^(security:[0-9]+|rate:-?[0-9]+(\\.[0-9]+)?)$",
   description:
-    "`rate:<decimal>` for a fixed effective annual rate compounding daily from a base of 1 (rate:0.02 is 2 % p.a.; also how inflation is expressed; accepted between -0.999999 and 10, i.e. -99.9999 % to 1000 %), or `security:<id>` for a catalog security flagged is_benchmark (any other security is refused with 422)."
+    "`rate:<decimal>`, a fixed effective annual rate compounding daily from a base of 1 (rate:0.02 is 2 % p.a., the savings or inflation baseline; -0.999999 to 10, i.e. -99.9999 % to 1000 %), or `security:<id>`, a catalog security flagged is_benchmark (any other is refused with 422)."
 };
 
 const benchmarkSelectorZ = z.string().regex(/^(security:\d+|rate:-?\d+(\.\d+)?)$/);
@@ -1622,11 +1627,48 @@ const viewBenchmarkSchema = {
   required: ["id", "benchmark"],
   properties: {
     ...viewPerformanceSchema.properties,
-    benchmark: benchmarkSelector
+    benchmark: {
+      ...benchmarkSelector,
+      description:
+        "As on portfolixir.portfolios.benchmark: `rate:<decimal>`, a fixed effective annual rate, or `security:<id>`, a security flagged is_benchmark."
+    }
   }
 };
 
 const viewBenchmarkZ = viewPerformanceZ.extend({ benchmark: benchmarkSelectorZ });
+
+// Contribution analysis (FR-41, ADR-0051 §6): the performance reads' scope and
+// period parameters, without the series.
+const contributionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["portfolio_id"],
+  properties: {
+    portfolio_id: { type: "integer", minimum: 1 },
+    view: { type: "integer", minimum: 1 },
+    period: { type: "string", enum: ["ytd", "1y", "3y", "5y", "max"] },
+    year: { type: "integer", minimum: 1970 },
+    from: { type: "string", format: "date" },
+    to: { type: "string", format: "date" }
+  }
+};
+
+const contributionZ = performanceZ.omit({ series: true });
+
+const viewContributionSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: ["id"],
+  properties: {
+    id: { type: "integer", minimum: 1 },
+    period: { type: "string", enum: ["ytd", "1y", "3y", "5y", "max"] },
+    year: { type: "integer", minimum: 1970 },
+    from: { type: "string", format: "date" },
+    to: { type: "string", format: "date" }
+  }
+};
+
+const viewContributionZ = viewPerformanceZ.omit({ series: true });
 
 // -- buckets & views (ADR-0018) --------------------------------------------
 
@@ -2710,9 +2752,9 @@ const securityMergeZ = z.object({
 // page. Pinned by test/portfolixir/imports/reimport_preservation_test.exs.
 const REIMPORT_GUARANTEE =
   " A Portfolio Performance re-import does not destroy the research log or the security events: " +
-  "re-applying an export, the same one or a later one with renamed or re-ISINed securities, " +
-  "leaves every entry and every event in place with the same id — there is nothing to back up " +
-  "before an import and nothing to re-create after one.";
+  "re-applying an export, the same or a later one with renamed or re-ISINed securities, leaves " +
+  "every entry and event in place with the same id, so nothing needs a backup before an import " +
+  "or re-creating after it.";
 
 // ADR-0049 §8, #831's lesson: the rules' re-import guarantee, in the
 // description of every read it protects. Pinned by
@@ -3584,7 +3626,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.portfolios.performance",
     "Portfolio performance (TTWROR + IRR)",
-    "Time-weighted (ttwror) and money-weighted (irr) rate of return for a portfolio over a period (ytd, 1y, 3y, 5y, max — default max; or year=YYYY for one calendar year, or from/to ISO dates for a custom range clamped to the available history). TTWROR neutralises external cash flows the Portfolio Performance way; IRR is the annualised money-weighted return solved from the same dated flows and is a Decimal string or null when no rate exists (no sign change / no convergence). The response also carries invested_capital (start_value plus net_external_flows), wealth_multiple (end_value / invested_capital; null when net invested is zero or negative — never a negative multiple) and mwr, the non-annualized period money-weighted return — read mwr instead of irr for windows shorter than a year (ADR-0034). Set series=true to include the daily valuation series. An optional view (a view id) scopes the series to that bucket view's holdings and is echoed. The walk may be served from a durable derived value (ADR-0039), so the response is never silent about freshness: as_of is the walk's compute instant (possibly older than the request when nothing changed since — every write that can affect the value invalidates it), stale marks a superseded value served while a fresh one computes, and computation_basis states the metric's input series, window, reference and gap treatment." +
+    "Time-weighted (ttwror) and money-weighted (irr) rate of return for a portfolio over a period (ytd, 1y, 3y, 5y, max — default max; year=YYYY for one calendar year; from/to ISO dates for a custom range, clamped to the history). TTWROR neutralises external cash flows the Portfolio Performance way; irr is the annualised money-weighted return of the same dated flows, a Decimal string or null when no rate exists (no sign change, no convergence). Also invested_capital (start_value plus net_external_flows), wealth_multiple (end_value / invested_capital; null unless net invested is positive, never negative) and mwr, the non-annualized period rate: read it instead of irr under a year (ADR-0034). series=true adds the daily valuation series; an optional view (a view id) scopes to that bucket view's holdings and is echoed. Freshness (ADR-0039): as_of is the walk's compute instant (older than the request when nothing changed since; any write that can affect it invalidates it), stale marks a superseded value served while a fresh one computes, and computation_basis states input series, window, reference and gaps." +
       portfolioScopeTwin("portfolixir.views.performance", "returns"),
     performanceSchema,
     performanceZ
@@ -3592,10 +3634,18 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.portfolios.benchmark",
     "Portfolio benchmark comparison",
-    "The benchmark comparison of a portfolio (ADR-0046, FR-9): the portfolio's own external flows replayed into a benchmark, answering 'was the effort worth it'. benchmark is required: rate:<decimal> for a fixed effective annual rate compounding daily from a base of 1 (rate:0.02 is 2 % p.a. — the savings-account or inflation baseline) or security:<id> for a catalog security flagged is_benchmark (list them with portfolixir.securities.list is_benchmark=true; any other security is refused with 422). Two comparisons ride the response, both Portfolio Performance's: bought_once — benchmark_return, the benchmark rebased to the close before the window, next to portfolio_ttwror over the same window (series=true adds the daily cumulative_return points for a chart overlay) — and savings_plan — invested_capital, portfolio_end_value, benchmark_end_value (the window's opening value and every external flow invested at that day's price; a fixed rate at par), end_value_delta = real minus synthetic (the figure that answers the question), portfolio_irr and benchmark_irr solved on identical dated flows, portfolio_mwr and benchmark_mwr (the non-annualized period rates a window under a year reads instead), and benchmark_units. requested_window and window state the days the comparison covers, window.rebase_day the close the benchmark is rebased to (the close before the window, or the window's first day when it opens with no value): a flow dated before the benchmark's first priced day (a close and a rate path to the base currency) is not replayed on its own day — it enters through the window's opening value and is listed in excluded_flows — and both sides are chained over the covered window. period (ytd|1y|3y|5y|max, default max), year, from/to and view behave like portfolixir.portfolios.performance. All financial values are Decimal strings; as_of and stale carry the walk's freshness (ADR-0039) and computation_basis states input series, window, reference, gaps and assumptions — the synthetic portfolio is frictionless (no fees, no taxes; frictionless: true), which biases the comparison against the real portfolio. A portfolio with nothing to walk, or a benchmark without a quote in the window, answers null figures with window.start_date null and every flow named." +
+    "The benchmark comparison of a portfolio (ADR-0046, FR-9): its own external flows replayed into a benchmark, answering 'was the effort worth it'. benchmark is required, as its property says (list flagged securities with portfolixir.securities.list is_benchmark=true). Two comparisons, both Portfolio Performance's: bought_once — benchmark_return beside portfolio_ttwror over the same window (series=true adds daily cumulative_return points) — and savings_plan — invested_capital, portfolio_end_value, benchmark_end_value (the opening value and every external flow invested at that day's price; a fixed rate at par), end_value_delta = real minus synthetic (the answer), portfolio_irr and benchmark_irr on identical dated flows, portfolio_mwr and benchmark_mwr (read them under a year), and benchmark_units. requested_window and window give the days covered, window.rebase_day the close the benchmark is rebased to (the close before the window, or its first day when it opens with no value): a flow before the benchmark's first priced day (a close and a rate path to the base currency) is not replayed on its day but enters through the opening value and is listed in excluded_flows; both sides chain over the covered window. period, year, from/to and view as in portfolixir.portfolios.performance. All financial values are Decimal strings; as_of and stale carry the walk's freshness (ADR-0039); computation_basis states input series, window, reference, gaps and assumptions — the synthetic portfolio is frictionless (no fees, no taxes; frictionless: true), biasing the comparison against the real portfolio. Nothing to walk, or no benchmark quote in the window, answers null figures, window.start_date null and every flow named." +
       portfolioScopeTwin("portfolixir.views.benchmark", "returns"),
     benchmarkSchema,
     benchmarkZ
+  ),
+  tool(
+    "portfolixir.portfolios.contribution",
+    "Portfolio contribution analysis",
+    "Which position made how much of a portfolio's money result over a period (FR-41, ADR-0051). Per row, in the base currency, currency move included: contribution = end_value - start_value - net_flows + income - costs, plus held_at_start, held_at_end, unvalued_days and unvalued_reason (no_price|no_rate: such a day counts zero, the row stays in the sum); largest first, sold positions included. remainder: interest, standalone_fees_and_taxes and cash_currency_effect; totals.positions + totals.remainder = totals.result, the performance read's money result. period, year, from/to and view as in portfolixir.portfolios.performance; an empty window has start_date null and no rows. Decimal strings; as_of, stale and computation_basis (with assumptions) as there." +
+      portfolioScopeTwin("portfolixir.views.contribution", "contributions"),
+    contributionSchema,
+    contributionZ
   ),
   tool(
     "portfolixir.journal.list",
@@ -3713,7 +3763,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.views.performance",
     "View performance (cross-portfolio TTWROR + IRR)",
-    "True time-weighted return (TTWROR) and money-weighted IRR of a bucket view across ALL portfolios (id is the view id): the same deduplicated account scope as portfolixir.views.valuation, so the view's total and its return always cover the same accounts. Money crossing the view boundary counts as an external flow (a deposit/withdrawal to the slice); money moving between two in-scope accounts nets out. invested_capital, wealth_multiple, mwr (read it instead of irr under a year), period (default max), year, from/to, series, and as_of, stale and computation_basis (ADR-0039) read as in portfolixir.portfolios.performance. All financial values are Decimal strings." +
+    "TTWROR and money-weighted IRR of a bucket view across ALL portfolios (id is the view id), over the same accounts portfolixir.views.valuation values. Money crossing the view boundary is an external flow (a deposit or withdrawal to the slice); money between two in-scope accounts nets out. invested_capital, wealth_multiple, mwr (read it instead of irr under a year), period (default max), year, from/to, series, as_of, stale and computation_basis read as in portfolixir.portfolios.performance. All financial values are Decimal strings." +
       viewScopeTwin("portfolixir.portfolios.performance", "returns"),
     viewPerformanceSchema,
     viewPerformanceZ
@@ -3721,10 +3771,18 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.views.benchmark",
     "View benchmark comparison (cross-portfolio)",
-    "The benchmark comparison of a bucket view across ALL portfolios (id is the view id; ADR-0046 §3): the same deduplicated account scope as portfolixir.views.valuation and portfolixir.views.performance, so the view's total, its return and its benchmark speak about the same accounts. benchmark is required — rate:<decimal> or security:<id> — and the response is the portfolixir.portfolios.benchmark shape keyed by view_id: bought_once, savings_plan (end_value_delta, benchmark_mwr and the rest), requested_window and window (with rebase_day), excluded_flows, as_of, stale (ADR-0039) and computation_basis with the frictionless assumption stated (frictionless: true); all financial values are Decimal strings. period, year, from/to and series behave like portfolixir.portfolios.performance." +
+    "The benchmark comparison of a bucket view across ALL portfolios (id is the view id; ADR-0046 §3), over the same accounts as portfolixir.views.valuation and portfolixir.views.performance. benchmark is required, as its property says; the response is the portfolixir.portfolios.benchmark shape keyed by view_id: bought_once, savings_plan (end_value_delta, benchmark_mwr and the rest), requested_window and window (with rebase_day), excluded_flows, as_of, stale and computation_basis with the frictionless assumption (frictionless: true); all financial values are Decimal strings. period, year, from/to and series as in portfolixir.portfolios.performance." +
       viewScopeTwin("portfolixir.portfolios.benchmark", "returns"),
     viewBenchmarkSchema,
     viewBenchmarkZ
+  ),
+  tool(
+    "portfolixir.views.contribution",
+    "View contribution analysis (cross-portfolio)",
+    "Contribution analysis of a bucket view (id is the view id): the portfolixir.portfolios.contribution shape with portfolio_id null, over the accounts of portfolixir.views.performance, whose money result totals.result is; a position held in several portfolios is one row. period, year and from/to as there. Decimal strings." +
+      viewScopeTwin("portfolixir.portfolios.contribution", "contributions"),
+    viewContributionSchema,
+    viewContributionZ
   ),
   tool(
     "portfolixir.securities_accounts.set_buckets",
@@ -4562,6 +4620,17 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "view"
         ])
       );
+    case "portfolixir.portfolios.contribution":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/portfolios/${args.portfolio_id}/performance/contribution`, args, [
+          "period",
+          "year",
+          "from",
+          "to",
+          "view"
+        ])
+      );
     case "portfolixir.journal.list":
       return client.request(
         "GET",
@@ -4627,6 +4696,16 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
           "from",
           "to",
           "series"
+        ])
+      );
+    case "portfolixir.views.contribution":
+      return client.request(
+        "GET",
+        withQuery(`/api/v1/views/${args.id}/performance/contribution`, args, [
+          "period",
+          "year",
+          "from",
+          "to"
         ])
       );
     case "portfolixir.views.set_buckets":

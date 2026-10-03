@@ -105,6 +105,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.portfolios.income",
       "portfolixir.portfolios.performance",
       "portfolixir.portfolios.benchmark",
+      "portfolixir.portfolios.contribution",
       "portfolixir.journal.list",
       "portfolixir.merges.list",
       "portfolixir.buckets.list",
@@ -121,6 +122,7 @@ describe("Portfolixir MCP tools", () => {
       "portfolixir.views.valuation",
       "portfolixir.views.performance",
       "portfolixir.views.benchmark",
+      "portfolixir.views.contribution",
       "portfolixir.securities_accounts.set_buckets",
       "portfolixir.cash_accounts.set_buckets",
       "portfolixir.securities_accounts.set_position_buckets",
@@ -2698,6 +2700,123 @@ describe("Portfolixir MCP tools", () => {
 
   // User story (#563): as an MCP client I want a previous year or a custom
   // from/to range as the performance period, matching the UI's period picker.
+  // User story (FR-41, ADR-0051 §6 and §11):
+  // As the operator's agent asking which position made how much of a
+  // period's result,
+  // I want one read-only tool per scope, twins of each other,
+  // so that the answer comes from the API's contribution reads and states
+  // its fields and its basis where I read the tool.
+  //
+  // Acceptance criteria:
+  // - portfolixir.portfolios.contribution routes to GET
+  //   /portfolios/:portfolio_id/performance/contribution with view, period,
+  //   year and from/to; portfolixir.views.contribution to GET
+  //   /views/:id/performance/contribution with period, year and from/to.
+  // - Both are reads (readOnlyHint), so every profile lists them.
+  // - Their schemas take no series and no financial value; the portfolio
+  //   tool requires portfolio_id, the view tool id.
+  // - The descriptions name the definition, the row fields, the remainder
+  //   lines, the totals identity, the empty window, Decimal strings, as_of,
+  //   stale and computation_basis.
+  // - A period outside the enum never leaves the companion.
+  it("issues a GET to /performance/contribution for the two contribution tools", async () => {
+    const { client, requests } = createRecordingClient({
+      data: { portfolio_id: 3, totals: { result: "371", positions: "366", remainder: "5" } }
+    });
+
+    const result = await callTool(client, "portfolixir.portfolios.contribution", {
+      portfolio_id: 3,
+      period: "ytd",
+      view: 5
+    });
+
+    assert.equal(requests[0].method, "GET");
+    assert.equal(
+      requests[0].path,
+      "/api/v1/portfolios/3/performance/contribution?period=ytd&view=5"
+    );
+    assert.equal((result.structuredContent as any).data.totals.result, "371");
+
+    await callTool(client, "portfolixir.portfolios.contribution", {
+      portfolio_id: 3,
+      from: "2025-01-01",
+      to: "2025-06-30"
+    });
+    // The contribution has no series: one passed is not forwarded.
+    await callTool(client, "portfolixir.views.contribution", { id: 2, year: 2025, series: true });
+
+    assert.equal(
+      requests[1].path,
+      "/api/v1/portfolios/3/performance/contribution?from=2025-01-01&to=2025-06-30"
+    );
+    assert.equal(requests[2].method, "GET");
+    assert.equal(requests[2].path, "/api/v1/views/2/performance/contribution?year=2025");
+
+    await assert.rejects(
+      callTool(client, "portfolixir.portfolios.contribution", { portfolio_id: 3, period: "2w" })
+    );
+    assert.equal(requests.length, 3);
+
+    const tools = listTools();
+    const portfolioTool = tools.find((tool) => tool.name === "portfolixir.portfolios.contribution");
+    const viewTool = tools.find((tool) => tool.name === "portfolixir.views.contribution");
+
+    assert.deepEqual(portfolioTool?.inputSchema.required, ["portfolio_id"]);
+    assert.deepEqual(viewTool?.inputSchema.required, ["id"]);
+    assert.deepEqual(Object.keys(portfolioTool?.inputSchema.properties ?? {}).sort(), [
+      "from",
+      "period",
+      "portfolio_id",
+      "to",
+      "view",
+      "year"
+    ]);
+    assert.deepEqual(Object.keys(viewTool?.inputSchema.properties ?? {}).sort(), [
+      "from",
+      "id",
+      "period",
+      "to",
+      "year"
+    ]);
+
+    for (const tool of [portfolioTool, viewTool]) {
+      assert.equal(tool?.annotations.readOnlyHint, true, tool?.name);
+      assert.equal(tool?.annotations.destructiveHint, false, tool?.name);
+
+      for (const profile of ["read", "book", "full"] as const) {
+        assert.ok(
+          listTools({ profile }).some((listed) => listed.name === tool?.name),
+          `${tool?.name} in ${profile}`
+        );
+      }
+    }
+
+    const portfolioText = portfolioTool?.description ?? "";
+    for (const fragment of [
+      /end_value - start_value - net_flows \+ income - costs/,
+      /currency move included/,
+      /held_at_start/,
+      /unvalued_days/,
+      /no_price\|no_rate/,
+      /counts zero/,
+      /largest first/,
+      /interest, standalone_fees_and_taxes and cash_currency_effect/,
+      /totals\.positions \+ totals\.remainder = totals\.result/,
+      /start_date null/,
+      /Decimal strings/,
+      /as_of/,
+      /stale/,
+      /computation_basis/
+    ]) {
+      assert.match(portfolioText, fragment);
+    }
+
+    const viewText = viewTool?.description ?? "";
+    assert.match(viewText, /portfolixir\.portfolios\.contribution shape/);
+    assert.match(viewText, /portfolio_id null/);
+    assert.match(viewText, /Decimal strings/);
+  });
+
   it("forwards year and from/to period params on the performance tools", async () => {
     const { client, requests } = createRecordingClient({
       data: { portfolio_id: 1, ttwror: "0.1" }

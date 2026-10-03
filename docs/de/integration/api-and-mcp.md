@@ -2983,8 +2983,9 @@ Agentenlauf davon ab, über den Begleitdienst zu löschen oder zusammenzuführen
 ein Agent, der die API mit dem Token erreicht, kann weiterhin jede Route
 aufrufen.
 
-**Bereichs-Zwillinge.** Bewertung, Performance und Benchmark-Vergleich gibt es
-in zwei Bereichen, und jedes Tool eines Paares nennt das andere in seiner
+**Bereichs-Zwillinge.** Bewertung, Performance, Benchmark-Vergleich und
+Beitragsanalyse gibt es in zwei Bereichen, und jedes Tool eines Paares nennt
+das andere in seiner
 Beschreibung mit dem Unterschied (Sprint 17, D-6): `portfolixir.portfolios.*`
 gilt für einen Portfolio-Datensatz in seiner Basiswährung, sein `view` grenzt
 innerhalb dieses Portfolios ein; `portfolixir.views.*` gilt für eine View über
@@ -2992,10 +2993,11 @@ jedes Portfolio, jedes Konto einmal gezählt, in EUR. Die Summe über jedes
 Portfolio braucht keine View: `portfolixir.views.valuation` ohne id liest sie
 (`GET /api/v1/valuation`, #1007), die Zahl, die das Dashboard zeigt, also ist
 eine Summe von Portfolio-Bewertungen nie der Weg dorthin. Jedes der Tools für
-View-Performance und View-Benchmark braucht eine bestehende View-ID — eine mit
-`include_all` (Standard) und ohne Ausschluss angelegte View erfasst jedes
-Konto —, und solange keine View besteht, ist das Portfolio-Tool der einzige
-Lesezugriff auf eine Rendite: Renditen mehrerer Portfolios addieren sich nie.
+View-Performance, View-Benchmark und View-Beitragsanalyse braucht eine
+bestehende View-ID — eine mit `include_all` (Standard) und ohne Ausschluss
+angelegte View erfasst jedes Konto —, und solange keine View besteht, ist das
+Portfolio-Tool der einzige Lesezugriff auf eine Rendite oder einen Beitrag:
+Renditen mehrerer Portfolios addieren sich nie.
 
 **Prompts.** Der Begleitdienst bietet zwei MCP-Prompts (`prompts/list`,
 `prompts/get`), unter jedem Profil dieselben, und jeder trägt den Rahmen ohne
@@ -3254,6 +3256,9 @@ Adresse.
 - `portfolixir.portfolios.income`
 - `portfolixir.portfolios.performance` — Bereichs-Zwilling von `portfolixir.views.performance`.
 - `portfolixir.portfolios.benchmark` — Bereichs-Zwilling von `portfolixir.views.benchmark`.
+- `portfolixir.portfolios.contribution` — Bereichs-Zwilling von `portfolixir.views.contribution`;
+  welche Position wie viel zum Geldergebnis eines Zeitraums beigetragen hat
+  (FR-41).
 - `portfolixir.journal.list`
 - `portfolixir.merges.list` — die Zusammenführungsprotokolle, das neueste
   zuerst, jedes mit dem, was wohin ging, wer es tat, wann, und dem
@@ -3278,6 +3283,7 @@ Adresse.
   ohne `id` die Summe aller Konten (#1007).
 - `portfolixir.views.performance` — Bereichs-Zwilling von `portfolixir.portfolios.performance`.
 - `portfolixir.views.benchmark` — Bereichs-Zwilling von `portfolixir.portfolios.benchmark`.
+- `portfolixir.views.contribution` — Bereichs-Zwilling von `portfolixir.portfolios.contribution`.
 - `portfolixir.securities_accounts.set_buckets`
 - `portfolixir.cash_accounts.set_buckets`
 - `portfolixir.securities_accounts.set_position_buckets`
@@ -3296,6 +3302,14 @@ Series-Parameter sind die der Performance-Tools, und die Antwort trägt
 beide Vergleiche, das abgedeckte Fenster, die ausgeschlossenen Flüsse und
 die Berechnungsbasis mit der benannten Reibungsfreiheits-Annahme.
 
+`portfolixir.portfolios.contribution` und `portfolixir.views.contribution`
+sind die Zwillinge der beiden Beitragsendpunkte (FR-41, ADR-0051): die
+Zeitraum- und View-Parameter sind die der Performance-Tools (ein `series`
+gibt es nicht), und die Antwort trägt den Beitrag jeder Position, die drei
+Restzeilen, die Summen — `positions` plus `remainder` ist `result`, das
+Geldergebnis des Performance-Endpunkts — und die Berechnungsbasis mit ihren
+benannten Annahmen. Beide sind Lesezugriffe, also listet jedes Profil sie.
+
 `portfolixir.settings.get_default_view` /
 `portfolixir.settings.set_default_view` lesen und setzen die
 Standard-Ansicht-Voreinstellung (ADR-0024): eine `view_id` pinnt eine Ansicht,
@@ -3303,8 +3317,9 @@ Standard-Ansicht-Voreinstellung (ADR-0024): eine `view_id` pinnt eine Ansicht,
 
 Die Tools `portfolixir.portfolios.valuation`,
 `portfolixir.portfolios.allocation`, `portfolixir.portfolios.performance`,
-`portfolixir.portfolios.risk` und `portfolixir.portfolios.category_results`
-akzeptieren ein optionales `view` (eine View-id), das das Ergebnis auf die
+`portfolixir.portfolios.contribution`, `portfolixir.portfolios.risk` und
+`portfolixir.portfolios.category_results` akzeptieren ein optionales `view`
+(eine View-id), das das Ergebnis auf die
 Bestände der Bucket-View eingrenzt; die Antwort spiegelt dann die aktive View
 wider. `portfolixir.portfolios.category_results` nimmt `view` auch ohne
 `portfolio_id`: die View über jedes Portfolio, in EUR (#901).
