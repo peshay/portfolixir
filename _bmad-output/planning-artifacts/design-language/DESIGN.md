@@ -1678,7 +1678,9 @@ Wealth → Holdings.
 ### Securities detail overview — a reading surface *(C7-A / A8, issue 804)*
 
 The detail pane's first tab reads. Its main column carries the six figures in
-a `{components.stat-card}`-quiet grid of three by two (latest price with its
+a `{components.stat-card}`-quiet grid of three by two — two per row under
+720 px, the grid's own phone rule, which the reading surface's three-column
+rule outranked until Sprint 18 (U5, issue 1050) — (latest price with its
 date or the stale marker, day change, the one-year price return, then the
 held quantity with its depot, the position's value and the unrealised result
 with its percentage), the neighbouring tab's price chart at 200 px without
@@ -3552,3 +3554,18 @@ auto`, its comment says why, and `.phone-row .row-actions__kebab
 { align-self: center }` keeps the kebab centred when the running balance
 adds a third line on the right. The trades rows have no kebab and keep two
 tracks.
+
+### The security Overview's figures at phone width *(board 03, rule ④, a conformance repair; issue 1050)*
+
+`.overview-metrics` is two per row under 720 px (this document, and the
+`.overview-metrics` rule of `app.css`'s 720 px block), but the reading
+surface's `.overview-reading .overview-metrics { repeat(3, minmax(0, 1fr)) }`
+(issue 804) outranked it by specificity, so at 390 px the Overview's six
+figures stood in three columns of about 105 px: "TAGESÄNDERUNG" ran into
+"1Y" and "Durchschnittseinstand" spilled out of its cell. A 720 px block
+restates the two columns at the reading surface's specificity,
+`.overview-reading .overview-metrics { grid-template-columns: repeat(2,
+minmax(0, 1fr)) }`. Board `03-bond-master-data` draws the before (its
+phone-only frame) and the after; the bond strip U7 adds is the same grid in
+the same column and inherits the rule. Filed at PR γ's opening as issue
+1050, under Scope Lock.
