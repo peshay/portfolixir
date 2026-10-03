@@ -6,6 +6,7 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Clock
   alias Portfolixir.Derived.Registry
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
@@ -1006,5 +1007,102 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     assert empty.positions == []
     assert empty.start_date == nil
     assert empty.view_id == nil
+  end
+
+  # -- the edges of the read ------------------------------------------------------
+
+  defp transfer!(portfolio, from, to, amount, date) do
+    book!(%{
+      portfolio_id: portfolio.id,
+      cash_account_id: from.id,
+      counter_cash_account_id: to.id,
+      type: "cash_transfer",
+      date: date,
+      gross_amount: amount,
+      currency_code: from.currency_code
+    })
+  end
+
+  # User story (FR-41, ADR-0051 §3):
+  # As a local portfolio maintainer,
+  # I want money I move between my own cash accounts to contribute nothing,
+  # so that shifting cash from one account to another never reads as a
+  # position earning or losing money.
+  #
+  # Acceptance criteria (ADR-0051 §3):
+  # - A transfer between two accounts inside the scope, in EUR or in a
+  #   foreign currency, is no external flow and changes no position's
+  #   contribution.
+  # - Its two legs cancel in the base currency, so every remainder line and
+  #   the money result stay at 0, and the identity still holds.
+  test "a cash transfer between own accounts contributes nothing" do
+    %{world: world, usd: usd} = steady_world()
+
+    %{cash: second_eur} =
+      add_depot(world.portfolio, cash_name: "Cash EUR 2", depot_name: "Depot EUR 2")
+
+    %{cash: second_usd} =
+      add_depot(world.portfolio,
+        cash_currency: "USD",
+        cash_name: "Cash USD 2",
+        depot_name: "Depot USD 2"
+      )
+
+    {:ok, before} = Contribution.for_portfolio(world.portfolio.id, period: "ytd", today: @today)
+
+    transfer!(world.portfolio, world.cash, second_eur, "300", ~D[2026-02-02])
+    transfer!(world.portfolio, usd.cash, second_usd, "250", ~D[2026-03-02])
+
+    {:ok, moved} = Contribution.for_portfolio(world.portfolio.id, period: "ytd", today: @today)
+
+    assert moved.positions == before.positions
+    for position <- moved.positions, do: assert(zero?(position.contribution))
+    assert_remainder_zero(moved)
+    assert zero?(moved.totals.positions)
+    assert zero?(moved.totals.result)
+  end
+
+  # User story (FR-41, ADR-0051 §6):
+  # As the operator's agent asking about a view that was deleted meanwhile,
+  # I want the contribution read to answer that the view is not found,
+  # so that a stale view id costs me one round trip and never a crash.
+  #
+  # Acceptance criteria:
+  # - An unknown view narrowing a portfolio, and an unknown view across
+  #   every portfolio, are {:error, :view_not_found}.
+  test "an unknown view is a not-found in both forms" do
+    %{world: world} = steady_world()
+
+    assert {:error, :view_not_found} =
+             Contribution.for_portfolio(world.portfolio.id, view: 9_999_999, today: @today)
+
+    assert {:error, :view_not_found} = Contribution.for_view(9_999_999, today: @today)
+  end
+
+  # User story (FR-41, ADR-0051 §5):
+  # As a local portfolio maintainer,
+  # I want the walk behind the contribution table to end today unless told
+  # otherwise, valued in EUR across portfolios,
+  # so that the table and the performance badge beside it speak about the
+  # same days.
+  #
+  # Acceptance criteria:
+  # - Without :today, the portfolio's and the view's windowed walks end on
+  #   the host's today, and the window of a period ending today ends there.
+  # - Without :base_currency, the walk across portfolios is valued in EUR.
+  test "without a today the windowed walks end on the host's today" do
+    %{world: world} = steady_world()
+
+    first_day = Clock.today()
+    portfolio = Performance.contribution_analysis(world.portfolio.id, :unscoped, "ytd")
+    everything = Performance.view_contribution_analysis(nil, :unscoped, "ytd")
+    last_day = Clock.today()
+
+    for analysis <- [portfolio, everything] do
+      assert analysis.today in [first_day, last_day]
+      assert analysis.contribution.window.end == analysis.today
+      assert List.last(analysis.daily).date == analysis.today
+      assert analysis.base_currency == "EUR"
+    end
   end
 end

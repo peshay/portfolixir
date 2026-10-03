@@ -297,6 +297,26 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
     assert text(Floki.find(quick, ".phone-row__figure2")) == "-10.0%"
   end
 
+  # Acceptance criteria (UX-DR27; DESIGN.md → Two-line phone rows):
+  # - A trade sold at exactly its cost, held for more than a year, shows its
+  #   0.0% period return and its 0.0% p. a. on the phone row in neither sign
+  #   colour: a figure that is neither a gain nor a loss is not coloured as
+  #   one.
+  test "a break-even trade's phone figures carry no sign colour", %{conn: conn} do
+    world = base_world(name: "Even World", cash_name: "Girokonto", depot_name: "Depot 1")
+    deposit!(world, "5000", ~D[2024-01-02])
+    level = create_security!(name: "Level Lines AG", ticker: "LVL")
+    buy!(world, level, quantity: "10", price: "50", date: ~D[2024-02-01])
+    sell!(world, level, quantity: "10", price: "50", date: ~D[2025-04-01])
+
+    {:ok, view, _html} = live(conn, "/securities/#{level.id}?tab=trades")
+    even = phone_row(document(view), "2024-02-01")
+
+    assert text(Floki.find(even, ".phone-row__figure2")) == "0.0% · 0.0% p. a."
+
+    assert even |> Floki.find(".phone-row__figure2 span") |> Enum.map(&class_of/1) == ["", ""]
+  end
+
   # Acceptance criteria (the German page, board H1's copy):
   # - The column, the figure, the dash's reason, the note, its list, the
   #   basis line and the phone rows in German.
