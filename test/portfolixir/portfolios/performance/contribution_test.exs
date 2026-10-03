@@ -12,6 +12,7 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
   alias Portfolixir.Ledger.Splits
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance
+  alias Portfolixir.Portfolios.Performance.Contribution
   alias Portfolixir.WorldFixtures
 
   # Every period the walk accepts (`Performance.validate_period/1`), the two
@@ -344,5 +345,194 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
 
     assert Registry.computation_version!(:performance_analysis) == 3
     assert Registry.computation_version!(:performance_view_analysis) == 3
+  end
+
+  # -- I2 to I7: one identity at a time, on small worlds ----------------------
+
+  defp zero?(decimal), do: Decimal.equal?(decimal, Decimal.new("0"))
+  defp equal?(decimal, expected), do: Decimal.equal?(decimal, Decimal.new(expected))
+
+  defp row(result, security), do: Enum.find(result.positions, &(&1.security_id == security.id))
+
+  defp assert_remainder_zero(result) do
+    assert zero?(result.remainder.interest)
+    assert zero?(result.remainder.standalone_fees_and_taxes)
+    assert zero?(result.remainder.cash_currency_effect)
+    assert zero?(result.totals.remainder)
+  end
+
+  # A EUR and a USD position bought before 2026, EUR/USD at 1.25 throughout.
+  defp steady_world do
+    world = base_world(name: "Steady", cash_name: "Cash EUR", depot_name: "Depot EUR")
+
+    usd =
+      world.portfolio
+      |> add_depot(cash_currency: "USD", cash_name: "Cash USD", depot_name: "Depot USD")
+      |> Map.put(:portfolio, world.portfolio)
+
+    eur_fund = create_security!(name: "Steady EUR", ticker: "STE")
+    usd_fund = create_security!(name: "Steady USD", ticker: "STU", currency: "USD")
+
+    rate!("USD", ~D[2025-12-01], "1.25")
+    deposit!(world, "3000", ~D[2025-12-01])
+    deposit!(usd, "1000", ~D[2025-12-01], currency: "USD")
+    WorldFixtures.buy!(world, eur_fund, quantity: "10", price: "100", date: ~D[2025-12-01])
+
+    WorldFixtures.buy!(usd, usd_fund,
+      quantity: "5",
+      price: "80",
+      date: ~D[2025-12-01],
+      currency: "USD"
+    )
+
+    WorldFixtures.put_quotes!(eur_fund, [{~D[2025-12-01], "100"}, {~D[2026-03-02], "100"}])
+    WorldFixtures.put_quotes!(usd_fund, [{~D[2025-12-01], "80"}, {~D[2026-03-02], "80"}])
+
+    %{world: world, usd: usd, eur_fund: eur_fund, usd_fund: usd_fund}
+  end
+
+  # User story (FR-41, ADR-0051 §1):
+  # As a local portfolio maintainer,
+  # I want to see which position made how much of a period's money result,
+  # so that I can tell what moved my wealth and what only sat there.
+  #
+  # Acceptance criteria (ADR-0051 I2):
+  # - With unchanging prices and exchange rates, and no bookings inside the
+  #   window except deposits and removals, every position contributes exactly
+  #   0, and so does every remainder line.
+  # - Each position held across the window is listed with equal start and end
+  #   values (base currency, a USD position at the day's rate), held at both
+  #   ends, with no flows, income or costs.
+  test "nothing moves: every position and every remainder line contributes 0 (I2)" do
+    %{world: world, usd: usd, eur_fund: eur_fund, usd_fund: usd_fund} = steady_world()
+
+    # Inside the window: money in and out, in both currencies, and a rate
+    # point that restates the same rate.
+    deposit!(world, "500", ~D[2026-02-02])
+    cash!(world, "removal", "200", ~D[2026-03-02])
+    deposit!(usd, "100", ~D[2026-04-01], currency: "USD")
+    cash!(usd, "removal", "50", ~D[2026-05-04], currency: "USD")
+    rate!("USD", ~D[2026-03-02], "1.25")
+
+    {:ok, result} =
+      Contribution.for_portfolio(world.portfolio.id, period: "ytd", today: @today)
+
+    assert result.start_date == ~D[2026-01-01]
+    assert result.end_date == @today
+    assert result.base_currency == "EUR"
+    assert length(result.positions) == 2
+
+    eur_row = row(result, eur_fund)
+    usd_row = row(result, usd_fund)
+
+    assert eur_row.name == "Steady EUR"
+    assert equal?(eur_row.start_value, "1000")
+    assert equal?(eur_row.end_value, "1000")
+    # 5 x 80 USD at 0.8 EUR per USD.
+    assert equal?(usd_row.start_value, "320")
+    assert equal?(usd_row.end_value, "320")
+
+    for position <- result.positions do
+      assert zero?(position.contribution)
+      assert zero?(position.net_flows)
+      assert zero?(position.income)
+      assert zero?(position.costs)
+      assert position.held_at_start
+      assert position.held_at_end
+    end
+
+    assert_remainder_zero(result)
+    assert zero?(result.totals.positions)
+    assert zero?(result.totals.result)
+  end
+
+  # User story (FR-41, ADR-0051 §1, §4):
+  # As a local portfolio maintainer,
+  # I want a position I opened and closed inside the period to show what it
+  # made, in money I can check against the two bookings,
+  # so that a round trip is not lost just because I hold nothing at either end.
+  #
+  # Acceptance criteria (ADR-0051 I3):
+  # - A position in the base currency, bought and sold entirely inside the
+  #   window with no quote in between, contributes exactly
+  #   (sell price − buy price) × quantity − costs.
+  # - It appears in the table although it is held at neither end: start and
+  #   end value 0, net flows buy minus sell value, costs the fees and taxes
+  #   of both trades.
+  test "a round trip inside the window contributes its trade result (I3)" do
+    world = base_world(name: "Round", cash_name: "Cash", depot_name: "Depot")
+    share = create_security!(name: "Round Trip", ticker: "RTP")
+
+    deposit!(world, "1000", ~D[2026-01-05])
+
+    WorldFixtures.buy!(world, share,
+      quantity: "10",
+      price: "20",
+      fees: "1.5",
+      taxes: "0.5",
+      date: ~D[2026-02-02]
+    )
+
+    WorldFixtures.sell!(world, share,
+      quantity: "10",
+      price: "26",
+      fees: "1.5",
+      taxes: "0.75",
+      date: ~D[2026-04-01]
+    )
+
+    {:ok, result} = Contribution.for_portfolio(world.portfolio.id, period: "ytd", today: @today)
+
+    assert [position] = result.positions
+    assert position.security_id == share.id
+    refute position.held_at_start
+    refute position.held_at_end
+    assert zero?(position.start_value)
+    assert zero?(position.end_value)
+    # 10 x 20 bought, 10 x 26 sold.
+    assert equal?(position.net_flows, "-60")
+    assert equal?(position.costs, "4.25")
+    assert zero?(position.income)
+    # (26 - 20) x 10 - 4.25
+    assert equal?(position.contribution, "55.75")
+
+    assert_remainder_zero(result)
+    assert equal?(result.totals.result, "55.75")
+  end
+
+  # User story (FR-41, ADR-0051 §3):
+  # As a local portfolio maintainer,
+  # I want money I pay in or take out to leave every position's contribution
+  # and every remainder line alone,
+  # so that topping up my account never reads as a position earning money.
+  #
+  # Acceptance criteria (ADR-0051 I4):
+  # - A deposit or a removal changes no contribution and no remainder line,
+  #   with prices and exchange rates moving around it.
+  # - It leaves the money result alone too: it is an external flow.
+  # - A deposit into a foreign-currency account contributes nothing either
+  #   (booked after the window's last rate move, so no later revaluation of
+  #   the larger balance enters the comparison).
+  test "a deposit or a removal changes no contribution and no remainder line (I4)" do
+    %{world: world, usd: usd, eur_fund: eur_fund, usd_fund: usd_fund} = steady_world()
+    WorldFixtures.put_quote!(eur_fund, ~D[2026-03-02], "110")
+    WorldFixtures.put_quote!(usd_fund, ~D[2026-03-02], "90")
+    rate!("USD", ~D[2026-04-01], "1.6")
+
+    {:ok, before} = Contribution.for_portfolio(world.portfolio.id, period: "ytd", today: @today)
+
+    deposit!(world, "700", ~D[2026-02-02])
+    cash!(world, "removal", "300", ~D[2026-05-04])
+    deposit!(usd, "40", ~D[2026-04-15], currency: "USD")
+    cash!(usd, "removal", "25", ~D[2026-06-01], currency: "USD")
+
+    {:ok, later} = Contribution.for_portfolio(world.portfolio.id, period: "ytd", today: @today)
+
+    assert later.positions == before.positions
+    assert later.remainder == before.remainder
+    assert later.totals == before.totals
+    # The prices did move: 10 x (110 - 100) and 5 x 90 x 0.625 - 5 x 80 x 0.8.
+    assert equal?(row(later, eur_fund).contribution, "100")
+    assert equal?(row(later, usd_fund).contribution, "-38.75")
   end
 end

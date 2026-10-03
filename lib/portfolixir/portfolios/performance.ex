@@ -766,13 +766,21 @@ defmodule Portfolixir.Portfolios.Performance do
   # whose CASH leg is in view moved money the view can see.
   defp trade_costs(day_txs, context) do
     Enum.reduce(day_txs, @zero, fn tx, acc ->
-      if trade_cost_in_scope?(tx, context) do
-        cost = Decimal.add(tx.fees || @zero, tx.taxes || @zero)
-        Decimal.add(acc, to_base(cost, tx.currency_code, context))
-      else
-        acc
+      case trade_cost(tx, context) do
+        nil -> acc
+        cost -> Decimal.add(acc, cost)
       end
     end)
+  end
+
+  # One booking's trade cost in the base currency, or `nil` when the walk does
+  # not count it. Shared with the contribution's per-position costs (ADR-0051
+  # §1: #708's trade costs, kept per security).
+  defp trade_cost(tx, context) do
+    if trade_cost_in_scope?(tx, context) do
+      cost = Decimal.add(tx.fees || @zero, tx.taxes || @zero)
+      to_base(cost, tx.currency_code, context)
+    end
   end
 
   defp trade_cost_in_scope?(%{type: type} = tx, context) when type in ["buy", "sell"] do
@@ -852,7 +860,14 @@ defmodule Portfolixir.Portfolios.Performance do
     {state, qty_flow, legs} =
       apply_quantity_legs(effect.quantities, tx, state, context, effect.external)
 
-    {state, Decimal.add(cash_flow, qty_flow), legs}
+    kept_legs = %{
+      effect: effect,
+      cash: effect.cash,
+      quantities: effect.quantities,
+      straddle?: false
+    }
+
+    {keep_booking(state, tx, kept_legs, context), Decimal.add(cash_flow, qty_flow), legs}
   end
 
   # Scoped walk (#444, ADR-0019): only in-view legs touch the state, so the daily
@@ -896,7 +911,14 @@ defmodule Portfolixir.Portfolios.Performance do
           @zero
       end
 
-    {state, flow, Enum.reverse(legs)}
+    kept_legs = %{
+      effect: effect,
+      cash: kept_cash,
+      quantities: kept_qty,
+      straddle?: not effect.external and straddles?(effect, kept_cash, kept_qty)
+    }
+
+    {keep_booking(state, tx, kept_legs, context), flow, Enum.reverse(legs)}
   end
 
   defp apply_kept_cash(legs, tx, state, context) do
@@ -1641,8 +1663,18 @@ defmodule Portfolixir.Portfolios.Performance do
   @no_position %{
     start_value: Decimal.new("0"),
     end_value: Decimal.new("0"),
+    net_flows: Decimal.new("0"),
+    income: Decimal.new("0"),
+    costs: Decimal.new("0"),
     held_at_start: false,
     held_at_end: false
+  }
+
+  # The remainder lines (ADR-0051 §3), each summed from its own bookings.
+  @no_lines %{
+    interest: Decimal.new("0"),
+    standalone_fees_and_taxes: Decimal.new("0"),
+    cash_currency_effect: Decimal.new("0")
   }
 
   # The window a contribution is kept over: exactly the window `do_summarise/2`
@@ -1670,6 +1702,7 @@ defmodule Portfolixir.Portfolios.Performance do
       # the window never sees this day, so its positions start at 0.
       baseline: Date.add(window.start, -1),
       positions: %{},
+      lines: @no_lines,
       securities: security_labels(transactions)
     })
   end
@@ -1709,6 +1742,78 @@ defmodule Portfolixir.Portfolios.Performance do
     %{kept | positions: Map.put(kept.positions, security_id, fun.(position))}
   end
 
+  defp add_to_position(kept, security_id, key, amount),
+    do:
+      update_position(
+        kept,
+        security_id,
+        &Map.update!(&1, key, fn sum -> Decimal.add(sum, amount) end)
+      )
+
+  defp add_flows(kept, leg_values) do
+    Enum.reduce(leg_values, kept, fn {security_id, value}, acc ->
+      add_to_position(acc, security_id, :net_flows, value)
+    end)
+  end
+
+  # One booking inside the window, read from the legs the walk just applied:
+  # in a scoped walk only the kept (in-view) legs, exactly as the walk keeps
+  # them (ADR-0019). Outside the window, and in every walk that keeps no
+  # window, nothing happens.
+  defp keep_booking(%{kept: kept} = state, tx, legs, context) do
+    if in_window?(kept.window, context.day),
+      do: %{state | kept: keep_legs(kept, tx, legs, context)},
+      else: state
+  end
+
+  defp keep_booking(state, _tx, _legs, _context), do: state
+
+  defp in_window?(%{start: start_date, end: end_date}, day),
+    do: Date.compare(day, start_date) != :lt and Date.compare(day, end_date) != :gt
+
+  # Nothing of the booking is inside the scope.
+  defp keep_legs(kept, _tx, %{cash: [], quantities: []}, _context), do: kept
+
+  # An external booking moved money or units across the portfolio's edge: its
+  # value is in the day's flow, so it is no contribution. Deposits, removals
+  # and snapshots move cash only.
+  defp keep_legs(kept, _tx, %{effect: %{external: true}}, _context), do: kept
+
+  # A booking straddling a view's boundary.
+  defp keep_legs(kept, _tx, %{straddle?: true}, _context), do: kept
+
+  defp keep_legs(kept, tx, legs, context), do: keep_internal(kept, tx.type, tx, legs, context)
+
+  # A trade moved its units at its own price (ADR-0051 §5): `+ price ×
+  # quantity` into the position for a buy, `−` for a sell, at the booking
+  # day's rate, and its fees and taxes are the position's costs.
+  defp keep_internal(kept, type, tx, legs, context) when type in ["buy", "sell"] do
+    cost = trade_cost(tx, context) || @zero
+
+    kept
+    |> add_flows(trade_leg_values(legs.quantities, tx, context))
+    |> add_to_position(tx.security_id, :costs, cost)
+  end
+
+  # Not kept yet: the remainder lines, income, splits and transfers.
+  defp keep_internal(kept, type, _tx, _legs, _context)
+       when type in [
+              "dividend",
+              "interest",
+              "fee",
+              "tax",
+              "tax_refund",
+              "cash_transfer",
+              "security_transfer",
+              "split"
+            ],
+       do: kept
+
+  defp trade_leg_values(quantities, tx, context) do
+    for {_account_id, security_id, delta} <- quantities,
+        do: {security_id, to_base(Decimal.mult(delta, tx.price), tx.currency_code, context)}
+  end
+
   # One view's kept figures: each walked portfolio's, summed per position.
   defp merge_kept(_analyses, nil), do: nil
 
@@ -1717,6 +1822,7 @@ defmodule Portfolixir.Portfolios.Performance do
       window: window,
       baseline: Date.add(window.start, -1),
       positions: %{},
+      lines: @no_lines,
       securities: %{}
     }
 
@@ -1728,18 +1834,18 @@ defmodule Portfolixir.Portfolios.Performance do
         acc
         | positions:
             Map.merge(acc.positions, kept.positions, fn _id, a, b -> merge_position(a, b) end),
+          lines: Map.merge(acc.lines, kept.lines, fn _line, a, b -> Decimal.add(a, b) end),
           securities: Map.merge(acc.securities, kept.securities)
       }
     end)
   end
 
+  # Amounts add up; a position is held at an end when any portfolio holds it.
   defp merge_position(a, b) do
-    %{
-      start_value: Decimal.add(a.start_value, b.start_value),
-      end_value: Decimal.add(a.end_value, b.end_value),
-      held_at_start: a.held_at_start or b.held_at_start,
-      held_at_end: a.held_at_end or b.held_at_end
-    }
+    Map.merge(a, b, fn
+      held, x, y when held in [:held_at_start, :held_at_end] -> x or y
+      _amount, x, y -> Decimal.add(x, y)
+    end)
   end
 
   # -- periods ----------------------------------------------------------------
