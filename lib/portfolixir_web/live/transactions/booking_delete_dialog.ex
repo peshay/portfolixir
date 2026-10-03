@@ -267,30 +267,27 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
   # The history's phone row, said back: date · kind over the subject and the
   # account it touched; the signed amount over its size (DESIGN.md rule ②).
   defp booking_subject(transaction, names) do
-    accounts =
+    # Each stored name in its own <bdi> (H8.8; the closing act, R7), the
+    # app's separators outside them.
+    account_line =
       case transaction.type do
         "cash_transfer" -> [names.cash, names.counter_cash]
         "security_transfer" -> [names.depot, names.counter_depot]
         _kind -> [names.depot || names.cash]
       end
       |> Enum.reject(&is_nil/1)
-
-    account_line =
-      case accounts do
-        [] -> nil
-        [one] -> one
-        [from, to] -> from <> " → " <> to
-      end
+      |> Enum.map(&bdi/1)
+      |> Enum.intersperse(" → ")
 
     ids =
-      [names.security_label, account_line]
-      |> Enum.reject(&is_nil/1)
-      |> Enum.join(" · ")
+      [names.security_label && bdi(names.security_label), account_line]
+      |> Enum.reject(&(&1 in [nil, []]))
+      |> Enum.intersperse(" · ")
 
     %{
       name:
         Format.date(transaction.date) <> " · " <> TransactionKindLabel.label(transaction.type),
-      ids: if(ids == "", do: nil, else: ids),
+      ids: if(ids == [], do: nil, else: {:safe, ids}),
       figure: TransactionManagementLive.phone_amount(transaction),
       figure2: TransactionManagementLive.phone_size(transaction)
     }
@@ -592,7 +589,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
       title: gettext("Delete split"),
       subject: %{
         name: Format.date(row.date) <> " · " <> TransactionKindLabel.label("split"),
-        ids: label,
+        ids: StoredText.bdi(label),
         figure: ratio,
         figure2: ngettext("%{count} row", "%{count} rows", count)
       },
@@ -683,6 +680,8 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
       security: deleting.security
     )
   end
+
+  defp bdi(text), do: text |> StoredText.bdi() |> elem(1)
 
   defp format_quantity(%Decimal{} = quantity) do
     normalized = Decimal.normalize(quantity)
