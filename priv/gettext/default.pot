@@ -4905,12 +4905,12 @@ msgstr ""
 msgid "computing"
 msgstr ""
 
-#: lib/portfolixir_web/components/security_chart.ex:99
+#: lib/portfolixir_web/components/security_chart.ex:104
 #, elixir-autogen, elixir-format
 msgid "No price history yet."
 msgstr ""
 
-#: lib/portfolixir_web/components/security_chart.ex:84
+#: lib/portfolixir_web/components/security_chart.ex:89
 #, elixir-autogen, elixir-format
 msgid "Price chart"
 msgstr ""

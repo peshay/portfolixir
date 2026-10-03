@@ -797,6 +797,31 @@ defmodule Portfolixir.CITest do
     assert prod_config =~ "PHX_FORCE_SSL"
   end
 
+  # User story (#1006, Sprint 18 Lane M):
+  # As a maintainer taking sobelow 0.16,
+  # I want its two findings that no annotation can carry recorded by
+  # fingerprint with their reasons, and nothing else,
+  # so that the skip file never turns into a list of waived findings.
+  #
+  # Acceptance criteria:
+  # - .sobelow-skips holds only Config.HTTPS and Config.CSWH entries, the
+  #   findings on config/prod.exs and on the endpoint's socket, which have no
+  #   function or pipeline to annotate.
+  # - Each skipped finding's type heads a comment in the file giving its
+  #   reason.
+  test "the sobelow skip file holds only findings no annotation can carry, with reasons" do
+    lines = ".sobelow-skips" |> File.read!() |> String.split("\n", trim: true)
+    {comments, entries} = Enum.split_with(lines, &String.starts_with?(&1, "#"))
+
+    types = entries |> Enum.map(&(&1 |> String.split(":", parts: 2) |> hd())) |> Enum.uniq()
+    assert Enum.sort(types) == ["Config.CSWH", "Config.HTTPS"]
+
+    for type <- types do
+      assert Enum.any?(comments, &String.starts_with?(&1, "# #{type} (")),
+             "#{type} has no reason in .sobelow-skips"
+    end
+  end
+
   # User story (#924, Sprint 17 Lane D):
   # As a German-speaking operator,
   # I want the translation catalogs to be exactly what the source extracts,
