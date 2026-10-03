@@ -435,8 +435,12 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
   #   portfolio, each account once, in EUR: a member whose cost was not paid
   #   in EUR is excluded and named (missing_base_cost), never summed across
   #   currencies.
+  # - A member a non-EUR portfolio already excludes for another reason keeps
+  #   that reason: missing_base_cost names only a cost known, but not in EUR.
   # - The result states its scope, its view and its base currency; an
-  #   unknown view is {:error, :view_not_found}.
+  #   unknown view is {:error, :view_not_found}, and a portfolio that no
+  #   longer exists (deleted between the API's lookup and the read) rolls up
+  #   nothing and names no currency instead of failing.
   describe "the view scope (#901)" do
     test "narrows one portfolio to the positions matching a view" do
       world = world_with_tree()
@@ -546,6 +550,54 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
       assert result.view_id == view.id
       assert result.base_currency == "EUR"
       assert result.basis == "current_composition"
+    end
+
+    test "a member already excluded in a non-EUR portfolio keeps its own reason" do
+      first = world_with_tree()
+
+      dollar =
+        base_world(
+          name: "Dollar",
+          currency: "USD",
+          cash_name: "Dollar Cash",
+          depot_name: "Dollar Depot"
+        )
+
+      {bucket, view} = tagged_bucket!()
+      tag!(dollar, bucket)
+
+      # A yen security bought in dollars with no yen amount recorded: its
+      # cost in its own currency is unknown, so the member is excluded for
+      # that, not for its portfolio's currency.
+      kyoto = create_security!(name: "Kyoto Works", ticker: "KYW", currency: "JPY")
+      assign!(kyoto, first.classification, first.core)
+      deposit!(dollar, "1000", ~D[2026-01-01], currency: "USD")
+      buy!(dollar, kyoto, quantity: "4", price: "25", currency: "USD")
+
+      {:ok, result} =
+        CategoryResult.for_view(view.id, first.classification.id,
+          prices: %{kyoto.id => Decimal.new("3000")}
+        )
+
+      core = fetch(result, first.core.id)
+
+      assert [%{security_name: "Kyoto Works", reason: :missing_native_cost}] = core.excluded
+      assert core.covered_count == 0
+      assert core.member_count == 1
+    end
+
+    test "a portfolio that does not exist rolls up nothing and names no currency" do
+      world = world_with_tree()
+
+      assert {:ok, result} = CategoryResult.for_portfolio(9_999_999, world.classification.id)
+
+      assert result.base_currency == nil
+      assert result.scope == :portfolio
+
+      for category <- result.categories do
+        assert category.member_count == 0
+        assert category.positions == []
+      end
     end
 
     test "an unknown view is a not-found rather than a crash" do

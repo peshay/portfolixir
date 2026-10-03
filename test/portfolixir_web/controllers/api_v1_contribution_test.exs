@@ -408,4 +408,63 @@ defmodule PortfolixirWeb.ApiV1ContributionTest do
              base <> query
     end
   end
+
+  # A concurrent delete that commits after the controller looked the view up
+  # and before the contribution read loads it: the hook deletes the view
+  # right after the request's first read of the views table, in the request's
+  # own process.
+  defp with_view_deleted_after_lookup(view, fun) do
+    test_pid = self()
+    handler = "contribution-view-race-#{System.unique_integer([:positive])}"
+
+    :ok =
+      :telemetry.attach(
+        handler,
+        [:portfolixir, :repo, :query],
+        fn _event, _measurements, %{query: query}, _config ->
+          if self() == test_pid and query =~ ~s(FROM "views") and
+               Process.get(handler) == nil do
+            Process.put(handler, :deleted)
+            {:ok, _} = Buckets.delete_view(Actor.owner_ui(), view)
+          end
+        end,
+        nil
+      )
+
+    try do
+      fun.()
+    after
+      :telemetry.detach(handler)
+    end
+  end
+
+  # User story (FR-41, ADR-0051 §6):
+  # As the operator's agent reading a view's contribution while the
+  # operator deletes that view,
+  # I want the read to answer not found,
+  # so that the race costs me one round trip and never a server error.
+  #
+  # Acceptance criteria:
+  # - A view deleted after the portfolio read resolved view= and before the
+  #   contribution loads it answers 404, never a 500.
+  # - The same holds for the view read across every portfolio.
+  test "a view deleted during the read is a 404 in both forms", %{conn: conn} do
+    world = world()
+
+    narrowed = view!(world, "Vanishing View")
+    path = "/api/v1/portfolios/#{world.portfolio.id}/performance/contribution?view=#{narrowed.id}"
+
+    assert with_view_deleted_after_lookup(narrowed, fn -> get_json(conn, path, 404) end) ==
+             %{"errors" => %{"detail" => "not found"}}
+
+    assert Buckets.get_view(narrowed.id) == nil
+
+    across = view!(world, "Vanishing Across")
+
+    assert with_view_deleted_after_lookup(across, fn ->
+             get_json(conn, "/api/v1/views/#{across.id}/performance/contribution", 404)
+           end) == %{"errors" => %{"detail" => "not found"}}
+
+    assert Buckets.get_view(across.id) == nil
+  end
 end
