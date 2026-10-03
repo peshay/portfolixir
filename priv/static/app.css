@@ -7959,7 +7959,8 @@ dialog.filter-sheet::backdrop {
   #securities-table,
   #transaction-table-wrapper,
   #realized-trades-table-wrapper,
-  #detail-closed-trades-table-wrap {
+  #detail-closed-trades-table-wrap,
+  #contribution-table-wrap {
     display: none;
   }
 
@@ -9784,4 +9785,137 @@ dialog.merge-dialog {
    shows the rows and hides the table's wrapper. */
 #detail-closed-trades-phone-rows .phone-row {
   grid-template-columns: minmax(0, 1fr) auto;
+}
+
+/* ===== The contribution table under the Wealth performance chart (FR-41,
+   ADR-0051 §12; board fr41-2026-09-25/01-contribution-surface, pick A) =====
+   Every part is an existing form: .data-table with .num columns, the drift
+   bar's anatomy, the attention data note, the muted basis line and the
+   two-line phone rows (DESIGN.md → Amendment 2026-10-03 → the contribution
+   table). */
+.contribution {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+/* The head: the h3 and, beside it, the scope line — period · view · order. */
+.contribution__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.contribution__scope,
+.contribution > .summary-basis {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* A reading table, not a matrix: it fits its wrapper, the name wraps, the
+   figures never do. UX-DR15's scroller stays the fallback. */
+.data-table-wrapper > .contribution-table {
+  min-width: 0;
+}
+
+.contribution-table td.num,
+.contribution-table th.num {
+  white-space: nowrap;
+}
+
+.contribution-table td.contribution-table__name {
+  min-width: 14ch;
+  overflow-wrap: anywhere;
+}
+
+/* The line under a name: held at one end or neither, or what a remainder
+   line holds. */
+.contribution-table .contribution-table__note {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}
+
+/* The bar rides under its own figure, right-aligned with it: decorative
+   (aria-hidden), the figure carries the sign and the colour (UX-DR7). */
+.contribution-table td.contribution-table__figure .drift-bar {
+  display: block;
+  width: 110px;
+  min-width: 110px;
+  margin: 5px 0 0 auto;
+}
+
+/* A position that counted zero on some days: the count in words, in the
+   attention colour with a dashed edge — the word is the channel (UX-DR25). */
+.contribution-unvalued-mark {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px dashed var(--color-warning);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-warning);
+  white-space: nowrap;
+}
+
+/* Above ten positions: the hidden count and the control, on one line. */
+.contribution-table tr.contribution-table__more td,
+.contribution-phone-rows__more .phone-row__body {
+  color: var(--color-text-muted);
+}
+
+.contribution-table tr.contribution-table__more .link-button {
+  margin-left: var(--space-2);
+}
+
+/* The remainder: its own head on the muted band, then its three lines. */
+.contribution-table tr.contribution-table__rest-head td {
+  padding-top: 10px;
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.contribution-table tr.contribution-table__rest td {
+  background: var(--color-bg-muted);
+}
+
+.contribution-table td.contribution-table__none {
+  color: var(--color-text-muted);
+}
+
+/* The sum row: bold under a strong rule; its contribution is the badge's
+   money figure. */
+.contribution-table tr.contribution-table__sum td {
+  font-weight: 700;
+  border-top: 2px solid var(--color-border-strong);
+}
+
+/* UX-DR27: the phone row is the transactions shape — two children, body
+   and figures, no logo, no kebab. The remainder sits on the muted band, the
+   sum is bold under a strong rule, as in the table. */
+#contribution-phone-rows .phone-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+#contribution-phone-rows .contribution-phone-rows__rest {
+  padding-inline: var(--space-2);
+  background: var(--color-bg-muted);
+}
+
+#contribution-phone-rows .contribution-phone-rows__sum {
+  border-top: 2px solid var(--color-border-strong);
+}
+
+#contribution-phone-rows .contribution-phone-rows__sum .phone-row__name,
+#contribution-phone-rows .contribution-phone-rows__sum .phone-row__figure {
+  font-weight: 700;
 }

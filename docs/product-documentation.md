@@ -1568,6 +1568,40 @@ period and per view, and available over the API
 (`…/performance/benchmark`) and the MCP tools
 `portfolixir.portfolios.benchmark` and `portfolixir.views.benchmark`.
 
+### Contribution by position
+
+Directly under the performance chart on **Wealth → Holdings**, a table
+answers which position made how much of the period's result
+([ADR-0051](decisions/0051-contribution-analysis.html), FR-41). It follows
+the section's period control and the page's view, like the badge above it.
+Per position, in the base currency and with the currency move included, the
+contribution is end value − start value − flows + income − costs: the value
+at the end of the period, minus the value at the close of the day before it,
+minus what was bought and plus what was sold (each at its booking day's
+rate), plus the dividends as credited, minus the fees and taxes of the
+position's own trades. Each row shows those five figures beside the
+contribution, so every number can be checked by hand; the rows are sorted by
+contribution, largest first, and a bar under each figure shows its size
+against the largest. A position sold inside the period has its row too,
+marked as held at neither end.
+
+What no position owns is listed apart, under "Not attributed to a position":
+interest, standalone fees and taxes, and the currency effect on cash (the
+revaluation of foreign-currency balances and the settlement differences of
+buys and sells). Each line is summed from its own bookings, and none is a
+balancing figure. The positions and those three lines add up exactly to the
+period's money result, so the sum row equals the money figure in the badge
+("+x EUR in the period") beside the TTWROR. Deposits and removals are no
+result and appear nowhere.
+
+With more than ten positions, the table shows the ten largest by absolute
+amount and a **Show all N** control; the sum row always covers every
+position. A position that counted zero on some days of the period, because
+no price or no exchange rate was stored, keeps its place in the table and in
+the sum, carries the number of those days on its row, and is named in a note
+under the table. A period with nothing in it shows a sentence instead of a
+table of zeros, and on a phone the table becomes two-line rows.
+
 ## Cash flow
 
 The **Cash flow** area (`/cashflow`) is where money movements are read

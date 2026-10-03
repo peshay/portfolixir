@@ -26,6 +26,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Performance.Benchmark
+  alias Portfolixir.Portfolios.Performance.Contribution
   alias Portfolixir.Portfolios.PricingContext
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
@@ -37,6 +38,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias PortfolixirWeb.Components.SecurityChart
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.Portfolio.ContributionTable
   import PortfolixirWeb.ViewSwitcher
 
   @unassigned_color "#9ca3af"
@@ -165,6 +167,11 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:performance, nil)
           |> assign(:performance_stale, false)
           |> assign(:performance_failed, false)
+          # FR-41 (ADR-0051 §12): the contribution table under the chart,
+          # computed per period and view; "show all" survives a period switch.
+          |> assign(:contribution, nil)
+          |> assign(:contribution_failed, false)
+          |> assign(:contribution_show_all, false)
           # ADR-0046 §4: the remembered benchmark selection, resolved against
           # the catalog; the comparisons follow the performance summary.
           |> assign(:benchmarks, resolve_benchmarks(socket.assigns[:active_benchmark_selectors]))
@@ -443,6 +450,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       socket
       |> load_overview()
       |> load_performance()
+      |> load_contribution()
     else
       socket
     end
@@ -522,6 +530,31 @@ defmodule PortfolixirWeb.PortfolioLive do
       Performance.view_analysis(view_id, base_currency: base_currency)
     end)
   end
+
+  # FR-41 (ADR-0051 §12, board pick A): the contribution table under the
+  # chart reads the section's period and the page's view over the walk's own
+  # scope — the view across all portfolios, Everything when none is picked —
+  # in the same base currency, so its sum row is the badge's money figure.
+  # Unlike the badge it is not a re-chain of the cached walk: each period
+  # runs its own windowed walk (ADR-0051 §5), so it loads async on every
+  # period change. The result names the period and view it was computed
+  # for; one that no longer matches the page reloads instead of landing.
+  # Only Holdings shows the table, so the other tab never pays for it.
+  defp load_contribution(%{assigns: %{wealth_tab: :holdings}} = socket) do
+    socket = ensure_live_view_scope(socket)
+    view_id = socket.assigns[:active_view_id]
+    base_currency = socket.assigns.portfolio.base_currency_code
+    period = socket.assigns.period
+
+    socket
+    |> assign(contribution: nil, contribution_failed: false)
+    |> start_async(:contribution, fn ->
+      {period, view_id,
+       Contribution.for_view(view_id, period: period, base_currency: base_currency)}
+    end)
+  end
+
+  defp load_contribution(socket), do: socket
 
   # ADR-0032 §6: while the fresh walk computes, render the superseded series
   # instead of a skeleton -- ALWAYS labelled (as-of, booking basis, recomputing
@@ -610,6 +643,29 @@ defmodule PortfolixirWeb.PortfolioLive do
     {:noreply, socket |> degrade_to_everything() |> load_performance()}
   end
 
+  def handle_async(:contribution, {:ok, {_period, _view, {:error, :view_not_found}}}, socket) do
+    {:noreply, socket |> degrade_to_everything() |> load_contribution()}
+  end
+
+  # FR-41: the table lands only for the period and view the page still
+  # shows; a result for another (the view degraded to Everything meanwhile)
+  # is recomputed for the current one rather than left as a skeleton.
+  def handle_async(:contribution, {:ok, {period, view_id, {:ok, contribution}}}, socket) do
+    if period == socket.assigns.period and view_id == socket.assigns[:active_view_id] do
+      {:noreply, assign(socket, contribution: contribution, contribution_failed: false)}
+    else
+      {:noreply, load_contribution(socket)}
+    end
+  end
+
+  def handle_async(:contribution, {:ok, {_period, _view, {:error, _reason}}}, socket) do
+    {:noreply, assign(socket, :contribution_failed, true)}
+  end
+
+  def handle_async(:contribution, {:exit, _reason}, socket) do
+    {:noreply, assign(socket, :contribution_failed, true)}
+  end
+
   # The tree vanished mid-read (async-hardening round): degrade to the default
   # tree and re-load the affected section under it.
   def handle_async(:overview, {:ok, :classification_not_found}, socket) do
@@ -687,7 +743,8 @@ defmodule PortfolixirWeb.PortfolioLive do
        fx_sync_result: {:ok, count, NaiveDateTime.local_now()}
      )
      |> load_overview()
-     |> load_performance()}
+     |> load_performance()
+     |> load_contribution()}
   end
 
   def handle_async(:sync_rates, {:ok, {:error, _reason}}, socket) do
@@ -1532,7 +1589,7 @@ defmodule PortfolixirWeb.PortfolioLive do
             >
               <strong><%= signed_percent(@performance.ttwror) %>%</strong>
               <span class="perf-badge-sep">·</span>
-              <span><%= signed_money(period_value_gain(@performance)) %> <%= @performance.base_currency %></span>
+              <span data-role="period-badge-money"><%= signed_money(period_value_gain(@performance)) %> <%= @performance.base_currency %></span>
               <span class="perf-badge-period">(<%= period_label(@period) %>)</span>
             </p>
             <.performance_chart
@@ -1575,6 +1632,18 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%= gettext("Composition as of today") %> —
               <%= gettext("the view's current bucket membership is applied to the whole history.") %>
             </p>
+            <%!-- FR-41 (ADR-0051 §12, board pick A): which position made how
+                 much of the badge's money figure, directly under the chart,
+                 under the same period control and view. While the badge shows
+                 a superseded series the table waits, so its sum never answers
+                 a figure the badge no longer shows. --%>
+            <ContributionTable.table
+              contribution={if @performance_stale, do: nil, else: @contribution}
+              failed?={@contribution_failed or @performance_failed}
+              show_all?={@contribution_show_all}
+              period_label={period_label(@period)}
+              view_name={active_view_name(@active_view)}
+            />
           <% else %>
             <div class="section-skeleton" data-role="performance-skeleton" role="status">
               <span class="recomputing-cue">
@@ -3246,6 +3315,13 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def handle_event("set_chart_mode", _params, socket), do: {:noreply, socket}
 
+  # FR-41 (board pick A): above ten positions the contribution table shows
+  # the ten largest; this opens the rest, or closes them again. Pure
+  # presentation over the loaded table — nothing recomputes.
+  def handle_event("toggle_contribution_all", _params, socket) do
+    {:noreply, update(socket, :contribution_show_all, &(not &1))}
+  end
+
   # Round-trips the chosen tree through the URL (mobile-reconnect fix) so a
   # socket reconnect restores it; handle_params applies the change, resets the
   # tree's transient state (selected segment, expanded rows), refreshes the plan
@@ -4355,7 +4431,8 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   # One landing spot for a validated period term (a button string, a year or a
   # range): re-chain the cached analysis instantly, or — while the walk is
-  # still computing — remember the choice for the async completion.
+  # still computing — remember the choice for the async completion. The
+  # contribution table (FR-41) recomputes for the new period either way.
   defp apply_period(socket, period) do
     socket = assign(socket, :range_error, nil)
 
@@ -4367,6 +4444,7 @@ defmodule PortfolixirWeb.PortfolioLive do
            socket
            |> assign(period: period, performance: performance)
            |> assign_comparisons()
+           |> load_contribution()
            |> push_event("close-popover", %{id: "period-custom"})}
 
         {:error, _reason} ->
@@ -4379,6 +4457,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       {:noreply,
        socket
        |> assign(:period, period)
+       |> load_contribution()
        |> push_event("close-popover", %{id: "period-custom"})}
     end
   end
