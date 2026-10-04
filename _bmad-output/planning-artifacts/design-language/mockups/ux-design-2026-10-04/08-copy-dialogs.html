@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Texte und Dialogzustände (Pick J8)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- Board 08, Sprint 19 design pass: copy and dialog states (#1090, #1074's
+     drawer half, #1066, #1072, #944, #945). Everything inside the frames is
+     markup and classes that already ship: portfolio_live.ex (#portfolio-
+     positions, .summary-basis), AppShell.shell/1 (.topbar-controls,
+     .theme-menu, .accent-menu, .locale-switcher), dashboard_live.ex (the
+     wealth card .stat.stat--link), portfolio_accounts_live.ex (.accounts-table
+     head), AppShell .metric-tooltip--inline, portfolio/contribution_table.ex
+     (#contribution-phone-rows), transactions/booking_delete_dialog.ex,
+     transaction_management_live.ex (the booking drawer's head),
+     securities/split_wizard_dialog.ex, securities/security_form_dialog.ex,
+     securities_live.ex (AppShell.inline_result/1, the list), risk_live.ex
+     (#policy-findings) and classifications_live.ex (soll_editor/1). Dialogs
+     are drawn as <div> because a closed <dialog> does not paint. All names,
+     identifiers, figures and dates are invented. -->
+<style id="proposal">
+  /* This board is copy and dialog state: no app.css rule changes.
+     ① – ⑦ #1090 / #1074: gettext msgid and de.po changes only.
+     ⑧ J8 (#1066), variant A: split_wizard_dialog.ex renders the two "after"
+        cells as the not-computable em dash while :conflicting_split_ratio is
+        among the warnings, and the warning's sentence says why (markup and
+        one msgid, no CSS).
+     ⑨ #1072: the dialog's merge path answers :not_found the way the
+        securities list answers a vanished row (H8.6), no CSS.
+     ⑩ #944: risk_live.ex names a retired subject from the stored row.
+     ⑪ #945: soll_error/2 names the row it read off the refused changeset.
+     The one style below is the not-computable dash's existing voice
+     (.kpi-strip__na), reused in the preview table. */
+  #split-wizard-preview td.split-na {
+    color: var(--color-text-muted);
+  }
+</style>
+<style id="board-chrome">
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: visible; }
+  .mock-frame > .mock-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .mock-tag.var { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .mock-tag.var.rec-tag { color: var(--color-positive) !important; background: #ecfdf5 !important; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ol, .notes ul { margin: 0; }
+  .notes ul { padding-left: 18px; }
+  ol.pins { list-style: none; padding: 0; }
+  .notes li { margin: 0 0 6px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; text-transform: none; flex: none; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  i.pin.o { background: var(--mock-ink); }
+  .notes li > i.pin:first-child { margin: 0 4px 0 0; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .rec { color: var(--color-positive); font-weight: 760; }
+  .stage { padding: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; }
+  .lbl { margin: 0; font-size: 11px; color: var(--mock-ink); }
+  .elide { margin: 0; font-size: 12px; color: var(--mock-ink); font-style: italic; }
+  .w-half { flex: 1 1 460px; min-width: 0; }
+  .w-third { flex: 1 1 300px; min-width: 0; }
+  .w-full { flex: 1 1 100%; min-width: 0; }
+  .w-notes { flex: 1 1 300px; min-width: 0; }
+  .w-phone { flex: 0 1 392px; min-width: 0; }
+  .phone-only { display: none; }
+  .sub-h { margin: 18px 0 6px; font-size: 13px; font-weight: 700; }
+  .where { margin: 0 0 8px; font-size: 12px; color: var(--mock-ink); }
+  .copy-new { background: color-mix(in srgb, var(--color-positive) 14%, transparent); border-radius: 3px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-positive) 14%, transparent); }
+  .copy-old { background: color-mix(in srgb, var(--color-danger) 12%, transparent); border-radius: 3px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-danger) 12%, transparent); }
+
+  /* pages */
+  .pg { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg); min-width: 0; }
+  .pg-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-elevated); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .pg-top h3 { margin: 0; font-size: 17px; }
+  .pg-top span { font-size: 12px; color: var(--color-text-muted); }
+  .pg-body { padding: 10px 14px 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; }
+  .sec { padding: 12px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg-elevated); display: grid; gap: 8px; min-width: 0; }
+  .sec h2 { font-size: 15px; margin: 0; }
+
+  /* the top bar's controls, drawn in flow */
+  .tb-row { display: flex; align-items: flex-start; gap: 18px; flex-wrap: wrap; padding: 14px; }
+  .tb-row .topbar-controls { position: relative; }
+  .tip-box { display: inline-block; padding: 3px 7px; border: 1px solid #c9ced6; border-radius: 4px; background: #fff; color: #1f2937; font: 12px/1.3 system-ui, sans-serif; box-shadow: 0 2px 6px rgba(0,0,0,.12); }
+  .tip-anchor { position: relative; display: grid; gap: 6px; justify-items: start; }
+  .sr-line { font-size: 11.5px; color: var(--mock-ink); }
+  .sr-line b { font-family: var(--font-mono); font-weight: 600; color: var(--color-text); }
+
+  /* the wealth card */
+  .card-row { padding: 14px; display: grid; grid-template-columns: minmax(0, 260px); }
+  .card-row .stat { padding: 16px 18px; }
+
+  /* accounts head with an open info */
+  .acc-head { padding: 96px 14px 14px; }
+  .acc-head .data-table-wrapper { overflow: visible; }
+  .acc-head table { width: 100%; }
+
+  /* dialogs drawn in flow */
+  .dlg-field { background: var(--color-bg-muted); padding: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; justify-items: center; }
+  .dlg-field .modal, .dlg-field .detail-pane { width: 100%; max-width: 520px; box-shadow: var(--shadow-md); }
+  .dlg-field .booking-delete-dialog { max-width: 460px; }
+  .dlg-field .modal-head { border-bottom: 0; }
+  .dlg-field .booking-drawer { margin: 0; }
+  .dlg-field .booking-drawer .detail-pane-head h2 { font-size: 15px; margin: 0; }
+  .dlg-field .modal-body > * + * { margin-top: 10px; }
+  .dlg-field .modal-footer { display: flex; justify-content: flex-end; gap: 8px; }
+  .crash { display: grid; place-items: center; gap: 6px; padding: 16px; border: 1px dashed var(--color-danger); border-radius: var(--radius-md); color: var(--color-danger); font-size: 12px; text-align: center; background: var(--color-bg-elevated); }
+
+  /* phone iframes */
+  .ph-wrap { width: 390px; max-width: 100%; }
+  .ph-wrap iframe { display: block; width: 390px; max-width: 100%; height: 520px; border: 0; background: var(--color-bg-elevated); }
+
+  /* risk and plan */
+  .policy-rules.workspace-section, .soll-editor.workspace-section { padding: 12px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+  .policy-rules .section-head h2, .soll-editor h2 { font-size: 15px; margin: 0; }
+  .soll-editor .soll-table { margin-top: 0; }
+
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-board > p.mock-note, .where, .sub-h { padding: 0 12px; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .stage, .tb-row { padding: 10px; }
+    .dlg-field { padding: 10px 8px; }
+    .notes { padding: 0 12px; }
+    .acc-head { padding: 110px 8px 10px; }
+    .acc-head .data-table-wrapper { overflow-x: auto; }
+    .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+    i.pin { display: none; }
+    .ph-wrap, .ph-wrap iframe { width: 100%; }
+    .w-phone { flex: 1 1 100%; }
+  }
+</style>
+<style id="frame-base">
+  body { min-height: 0; margin: 0; padding: 12px; background: var(--color-bg-elevated); }
+  .copy-new { background: color-mix(in srgb, var(--color-positive) 14%, transparent); border-radius: 3px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-positive) 14%, transparent); }
+  .copy-old { background: color-mix(in srgb, var(--color-danger) 12%, transparent); border-radius: 3px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-danger) 12%, transparent); }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-ast" viewBox="0 0 24 24"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></symbol>
+    <symbol id="i-att" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></symbol>
+    <symbol id="i-oct" viewBox="0 0 24 24"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-keb" viewBox="0 0 24 24"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar desk-only"><b>Board 08 — copy and dialog states (#1090, #1074's drawer half, #1066, #1072, #944, #945).</b> The copy items are held against EXPERIENCE.md → Voice and Tone (explanatory, impersonal, locale-pure, one word per thing) and UX&#8209;DR11, so they are drawn <b>before / after with one recommended wording</b> each; a comment that names a better wording changes it. <b>One pick: J8</b> (#1066, the split preview under a conflict) — <b>A</b> no "after" figure: the not-computable dash, and the warning says why · <b>B</b> the figures stay, the rows flagged "würde abgelehnt". <span class="rec">Recommended: J8 = A.</span> Silence adopts the recommendations. <b>Not on this board:</b> #1090's history subtitle ("Manuelles Kauf- und Verkaufsjournal") sits on the history page and is board 03's; #1074's "1 units" is board 04's. Green highlight = the changed words, red = today's. All names and figures are invented; the 390&nbsp;px rendering is <code>08-copy-dialogs--390.png</code>.</div>
+<p class="phone-only phone-cap"><b>Board 08 at 390&nbsp;px.</b> Copy before / after in context, then the dialog states. J8 = A recommended. Green = new words, red = today's. All data invented.</p>
+
+<!-- ============================ 08.1 copy ============================ -->
+<section class="mock-board" id="copy">
+  <h2>08.1 · #1090 + #1074 — words a newcomer misread <small>Voice and Tone · UX&#8209;DR11 · before / after, one wording each</small></h2>
+  <p class="mock-note desk-only">Seven strings, each a gettext change (msgid and/or <code>de.po</code>). The persona of Sprint 18's first-look test read each one wrong; the after says what the thing is, in the house's nouns, without addressing the reader.</p>
+
+  <!-- (a) Positionen -->
+  <p class="sub-h">① Wealth → Bestände → Positionen: the line under the heading explains the API, not the table</p>
+  <p class="where desk-only"><code>portfolio_live.ex:2444–2448</code> (<code>p.summary-basis[data-role="positions-basis"]</code>)</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half"><span class="mock-tag">Today</span>
+      <div class="stage">
+        <section class="sec" id="portfolio-positions">
+          <header class="section-head"><h2>Positionen</h2></header>
+          <p class="summary-basis"><span class="copy-old">Die Bestandsprojektion, die diese Instanz über die API ausliefert: eine Zeile je Depot und Wertpapier, bewertet zum zuletzt gespeicherten Preis. Die Spalten sind die Felder dieser Projektion.</span></p>
+          <div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Depot</th><th>Wertpapier</th><th class="num">Stückzahl</th></tr></thead><tbody><tr><td>Depot 1</td><td>Nordwind Industrie AG</td><td class="num">40</td></tr><tr><td>Depot 1</td><td>Meridian Global Equity ETF</td><td class="num">72,5</td></tr></tbody></table></div>
+        </section>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">After — a basis line about the rows</span>
+      <div class="stage">
+        <section class="sec" id="portfolio-positions">
+          <header class="section-head"><h2>Positionen</h2></header>
+          <p class="summary-basis"><span class="copy-new">Eine Zeile je Depot und Wertpapier, bewertet zum zuletzt gespeicherten Kurs.</span></p>
+          <div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Depot</th><th>Wertpapier</th><th class="num">Stückzahl</th></tr></thead><tbody><tr><td>Depot 1</td><td>Nordwind Industrie AG</td><td class="num">40</td></tr><tr><td>Depot 1</td><td>Meridian Global Equity ETF</td><td class="num">72,5</td></tr></tbody></table></div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:8px"><p><b>Why:</b> UX&#8209;DR11 — a paragraph is a tooltip, a data note, a basis line or nothing. This one is a basis line that was written for the agent: "Bestandsprojektion", "Instanz", "API", "Felder" are the developer's nouns. What a reader needs is what one row is and what values it. <b>en:</b> "One row per depot and security, valued at the latest stored price." <b>de</b> uses <i>Kurs</i>, the screen's word for a stored price ("Letzter Kurs", "Kurse aktualisieren"). The sameness with the API stays true and stays where it is useful — in the API guide and the column picker's grouping.</p></div>
+
+  <!-- (b) Theme -->
+  <p class="sub-h">② Top bar: the theme menu is named "Theme" in German</p>
+  <p class="where desk-only"><code>app_shell.ex:91–117</code> (<code>aria-label</code>, <code>title</code> and the hidden label of <code>#theme-mode</code>; msgstr "Theme")</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half"><span class="mock-tag">Today</span>
+      <div class="tb-row" data-theme="system">
+        <div class="tip-anchor">
+          <div class="topbar-controls" aria-label="Anzeigeeinstellungen">
+            <details class="theme-menu"><summary class="theme-menu-trigger" title="Theme"><span class="theme-current-icon theme-current-icon-system"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-monitor"/></svg></span><span class="visually-hidden">Theme</span></summary></details>
+            <details class="accent-menu"><summary class="accent-menu-trigger" title="Akzentfarbe"><span class="accent-current-dot accent-current-dot-violet" style="display:inline-block"></span><span class="visually-hidden">Akzentfarbe</span></summary></details>
+            <nav class="locale-switcher" aria-label="Sprache"><a class="locale-link">EN</a><a class="locale-link is-active">DE</a></nav>
+          </div>
+          <span class="tip-box">Theme</span>
+        </div>
+        <p class="sr-line">Screen reader on the trigger: <b>„<span class="copy-old">Theme</span>, Schaltfläche, reduziert“</b>; the open group: <b>„<span class="copy-old">Theme</span>, Gruppe“</b>. Beside it: <b>„Akzentfarbe“</b>.</p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">After</span>
+      <div class="tb-row" data-theme="system">
+        <div class="tip-anchor">
+          <div class="topbar-controls" aria-label="Anzeigeeinstellungen">
+            <details class="theme-menu"><summary class="theme-menu-trigger" title="Erscheinungsbild"><span class="theme-current-icon theme-current-icon-system"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-monitor"/></svg></span><span class="visually-hidden">Erscheinungsbild</span></summary></details>
+            <details class="accent-menu"><summary class="accent-menu-trigger" title="Akzentfarbe"><span class="accent-current-dot accent-current-dot-violet" style="display:inline-block"></span><span class="visually-hidden">Akzentfarbe</span></summary></details>
+            <nav class="locale-switcher" aria-label="Sprache"><a class="locale-link">EN</a><a class="locale-link is-active">DE</a></nav>
+          </div>
+          <span class="tip-box copy-new">Erscheinungsbild</span>
+        </div>
+        <p class="sr-line">Screen reader: <b>„<span class="copy-new">Erscheinungsbild</span>, Schaltfläche, reduziert“</b>; its three choices stay „System“, „Hell“, „Dunkel“.</p>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:8px"><p><b>Why:</b> the source string is English, its German translation is German (Voice and Tone → bilingual labels, rule 1); "Theme" is neither a term of art nor a German word. <b>Erscheinungsbild</b> is the word German system settings use for exactly this light / dark / automatic choice, and it does not collide with "Akzentfarbe" beside it, as "Farbschema" would. en stays "Theme".</p></div>
+
+  <!-- (c) YTD -->
+  <p class="sub-h">③ Overview: the wealth card's change reads "YTD"</p>
+  <p class="where desk-only"><code>dashboard_live.ex:322–330</code> (<code>small[data-role="card-ttwror"]</code>) and the pending line at <code>:282–296</code></p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-third"><span class="mock-tag">Today</span>
+      <div class="card-row">
+        <a class="stat stat--link" href="#"><span>Alles</span><strong>84.120,40<small class="value-suffix">EUR</small></strong><small><span class="is-positive">+4,2%</span> <span class="copy-old">YTD</span></small></a>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-third"><span class="mock-tag">After</span>
+      <div class="card-row">
+        <a class="stat stat--link" href="#"><span>Alles</span><strong>84.120,40<small class="value-suffix">EUR</small></strong><small><span class="is-positive">+4,2%</span> <span class="copy-new">seit Jahresbeginn</span></small></a>
+      </div>
+    </div>
+    <div class="notes w-notes">
+      <p><b>Why:</b> the card is a link, so it cannot carry an ⓘ (a <code>&lt;details&gt;</code> inside an <code>&lt;a&gt;</code> is invalid nesting — the KPI strip's own reason for its single ⓘ). So the card says it in words: <b>"seit Jahresbeginn"</b> (en "year to date"). The pending state's sentence follows: "Letzter Stand: +4,2&nbsp;% seit Jahresbeginn — …".</p>
+      <p><b>Constraint:</b> msgid "YTD" is also the period token of the range buttons and the KPI vocabulary (DESIGN.md → period-control: "1M 3M 6M YTD 1Y 3Y 5Y Max"), where a token is right. The card takes a msgid of its own; the controls keep "YTD".</p>
+    </div>
+  </div>
+
+  <!-- (d) Buckets / Liquiditätsrolle -->
+  <p class="sub-h">④ Konten &amp; Depots: "Liquiditätsrolle" and "Buckets" head their columns with no definition</p>
+  <p class="where desk-only"><code>portfolio_accounts_live.ex:118–132</code> (the table head); TTWROR and IRR checked: each first use per surface carries its ⓘ — the Overview strip's basis line (<code>dashboard_live.ex:433–439</code>), the Wealth band's cards (<code>portfolio_live.ex:1051–1089</code>) — nothing to change there.</p>
+  <p class="phone-only phone-cap" style="margin:0 0 8px"><b>④ at 390&nbsp;px:</b> the accounts table's head is visually hidden under 640&nbsp;px, so neither head nor ⓘ shows here; the definitions are in the note below, and where the ⓘ sits on a phone is said there.</p>
+  <div class="mock-row desk-only">
+    <div class="mock-frame mock-before w-full"><span class="mock-tag">Today</span>
+      <div class="stage">
+        <div class="data-table-wrapper"><table class="data-table accounts-table"><thead><tr><th>Name</th><th>Währung</th><th><span class="copy-old">Liquiditätsrolle</span></th><th>Saldo</th><th><span class="copy-old">Buckets</span></th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead></table></div>
+        <p class="lbl">Two domain words, neither German nor defined where they first appear.</p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-full"><span class="mock-tag">After — an ⓘ on each head</span>
+      <div class="acc-head">
+        <div class="data-table-wrapper"><table class="data-table accounts-table"><thead><tr><th>Name</th><th>Währung</th><th>Liquiditätsrolle<details class="metric-tooltip metric-tooltip--inline" open><summary aria-label="Zur Liquiditätsrolle">ⓘ</summary><p role="tooltip" class="copy-new">Liquiditätsrolle — wie ein Verrechnungskonto zählt: Verfügbares Cash geht in die Cashquote ein, Reserve und Kreditlinie nicht.</p></details></th><th>Saldo</th><th>Buckets<details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zu Buckets">ⓘ</summary></details></th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead></table></div>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:8px">
+    <p><b>The two definitions</b> (one sentence each, method named — Voice and Tone):</p>
+    <ul>
+      <li><b>Liquiditätsrolle</b> — "wie ein Verrechnungskonto zählt: Verfügbares Cash geht in die Cashquote ein, Reserve und Kreditlinie nicht." en: "Liquidity role — how a cash account counts: free cash enters the cash quote; reserve and credit line do not." It is the cash quote's own rule (<code>default.po</code>: "Reserve- und Kreditlinienkonten sind ausgeschlossen").</li>
+      <li><b>Buckets</b> — "Tags für Depots und Verrechnungskonten. Eine Ansicht wählt Buckets aus und grenzt jede Kennzahl auf deren Konten ein; ein Konto kann mehreren angehören." en: "Buckets — tags on depots and cash accounts. A view picks buckets and narrows every figure to their accounts; an account can carry several." "Bucket" stays: it is the product's own term, used on its own page.</li>
+      <li><b>Under 640&nbsp;px</b> the head is hidden; the role's ⓘ rides beside the label that board 07 (#1085, rule ⑦) makes visible, the Buckets ⓘ after the chips' scope line. The story places them; the words are the same.</li>
+    </ul>
+  </div>
+
+  <!-- (e) Contribution phone rows -->
+  <p class="sub-h">⑤ Contribution, phone rows: a sale reads "Abfluss 1.420,00" beside "+420,00"</p>
+  <p class="where desk-only"><code>portfolio/contribution_table.ex:493–499</code> (<code>phone_flow/1</code>); 390&nbsp;px documents below</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-phone"><span class="mock-tag">Today · 390&nbsp;px</span>
+      <div class="ph-wrap"><iframe data-tpl="tpl-contrib-today" data-css="frame-base" title="Today, 390 px"></iframe></div>
+    </div>
+    <div class="mock-frame mock-after w-phone"><span class="mock-tag">After · 390&nbsp;px</span>
+      <div class="ph-wrap"><iframe data-tpl="tpl-contrib-after" data-css="frame-base" title="After, 390 px"></iframe></div>
+    </div>
+    <div class="notes w-notes">
+      <p><b>Why:</b> the figure is the position's net flow — money that went into the position (a buy) or out of it (a sale) — the formula's "Zu-/Abflüsse". Said bare, "Abfluss" reads as money leaving the portfolio, beside a gain. <b>After:</b> the row names the side: <b>"Abfluss aus der Position 1.420,00"</b> / <b>"Zufluss in die Position 2.000,00"</b> (en "outflow from the position …" / "inflow into the position …"). The desktop column keeps "Zu-/Abflüsse" over signed figures: there the basis line's formula stands under it.</p>
+      <p><b>Considered, not taken:</b> "verkauft 1.420,00" / "gekauft 2.000,00" — shorter, but a delivery or a transfer moves a position too, the reason the held words were chosen over dates (DESIGN.md → contribution table, "Kept apart").</p>
+    </div>
+  </div>
+
+  <!-- (f) delete dialog journal -->
+  <p class="sub-h">⑥ The booking delete dialog: "kept" and "gone" in one sentence</p>
+  <p class="where desk-only"><code>transactions/booking_delete_dialog.ex:77–80</code> (<code>journal:</code>) and the split's four sentences at <code>:744–748</code></p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half"><span class="mock-tag">Today</span>
+      <div class="dlg-field">
+        <div class="modal booking-delete-dialog" role="dialog" aria-labelledby="bd1">
+          <header class="modal-head"><h2 id="bd1">Transaktion löschen</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></header>
+          <div class="modal-body">
+            <p class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">22.09.2026 · Kauf</span><span class="phone-row__ids">Nordwind Industrie AG · Depot 1</span></span><span class="phone-row__figures"><span class="phone-row__figure">-2.504,90 EUR</span><span class="phone-row__figure2">40 × 62,50</span></span></p>
+            <p class="hint">Danach hält Depot 1 40 Stück Nordwind Industrie AG weniger, und Girokonto hat 2.504,90 EUR mehr. Bestände, Kontostände, Rendite und Trades werden ohne diese Buchung neu berechnet.</p>
+            <p class="hint"><span class="copy-old">Das Journal behält die Buchung mit allen Werten; zurückholen kann die Oberfläche sie nicht.</span></p>
+          </div>
+          <div class="modal-footer modal-footer--band"><button type="button" class="button-ghost">Abbrechen</button><span class="modal-footer__spacer"></span><button type="button" class="button-danger">Transaktion löschen</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">After — the journal records the deletion</span>
+      <div class="dlg-field">
+        <div class="modal booking-delete-dialog" role="dialog" aria-labelledby="bd2">
+          <header class="modal-head"><h2 id="bd2">Transaktion löschen</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></header>
+          <div class="modal-body">
+            <p class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">22.09.2026 · Kauf</span><span class="phone-row__ids">Nordwind Industrie AG · Depot 1</span></span><span class="phone-row__figures"><span class="phone-row__figure">-2.504,90 EUR</span><span class="phone-row__figure2">40 × 62,50</span></span></p>
+            <p class="hint">Danach hält Depot 1 40 Stück Nordwind Industrie AG weniger, und Girokonto hat 2.504,90 EUR mehr. Bestände, Kontostände, Rendite und Trades werden ohne diese Buchung neu berechnet.</p>
+            <p class="hint"><span class="copy-new">Das Audit-Journal hält die Löschung mit allen Werten fest; wiederherstellen lässt sich die Buchung nicht.</span></p>
+          </div>
+          <div class="modal-footer modal-footer--band"><button type="button" class="button-ghost">Abbrechen</button><span class="modal-footer__spacer"></span><button type="button" class="button-danger">Transaktion löschen</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:8px">
+    <p><b>Why:</b> "behält die Buchung" says the booking stays; the sentence before says every figure is recomputed without it. What stays is a <i>record of the deletion</i> — the journal entry with the row's before-image. <b>en:</b> "The audit journal records the deletion with every value; the booking cannot be restored." "Audit-Journal" is the merge records' word for the same journal ("jede einzelne Zeile steht im Audit-Journal"). The split's four sentences take the same verb: "Das Audit-Journal hält die Löschung beider Zeilen fest." · "… seiner Zeile …" · "… aller %{count} Zeilen …" · "… des Splits …" (<code>default.po</code> 11098–11106, 11458).</p>
+  </div>
+
+  <!-- (g) #1074 drawer -->
+  <p class="sub-h">⑦ #1074 — the buy/sell edit drawer still says "journalisiert"</p>
+  <p class="where desk-only"><code>transaction_management_live.ex:2082–2087</code> (<code>p.detail-pane-sub</code>)</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half"><span class="mock-tag">Today</span>
+      <div class="dlg-field">
+        <div class="detail-pane booking-drawer"><header class="detail-pane-head"><div class="detail-pane-head__title"><div><h2>Transaktion bearbeiten</h2><p class="detail-pane-sub">Korrigiert die Buchung an Ort und Stelle; die abgeleiteten Bestände folgen, <span class="copy-old">die Änderung wird journalisiert.</span></p></div></div><div class="detail-pane-head__actions"><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></div></header></div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">After — the notes-only drawer's words</span>
+      <div class="dlg-field">
+        <div class="detail-pane booking-drawer"><header class="detail-pane-head"><div class="detail-pane-head__title"><div><h2>Transaktion bearbeiten</h2><p class="detail-pane-sub">Korrigiert die Buchung an Ort und Stelle; die abgeleiteten Bestände folgen, <span class="copy-new">und das Journal hält die Änderung fest.</span></p></div></div><div class="detail-pane-head__actions"><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></div></header></div>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:8px"><p><b>Why:</b> the H2b amendment says the drawer says "the journal records the change", never "journaled" (R10d), and the notes-only drawer was changed so in Sprint 18. <b>en:</b> "Corrects the booking in place; the derived holdings follow, and the journal records the change." Three more strings carry the word and are not in #1074 (the rule rename note and the two merge confirmations) — see "found while drawing".</p></div>
+</section>
+
+<!-- ============================ J8 #1066 ============================ -->
+<section class="mock-board" id="b1066">
+  <h2>J8 · #1066 — the split wizard's preview counts a ratio that is about to be refused <small>G12.3 split wizard, H2 A8 · one pick: A / B</small></h2>
+  <p class="mock-note desk-only">A 1:2 reverse split is booked for Nordwind Industrie AG on 15.09.2026 (30 shares became 15). "Split erfassen" with 4:1 on the same day shows A8's warning and the delete link, and the book button is disabled — but the preview still computes the new ratio (<code>Splits.preview_split/1</code>, <code>splits.ex:460–505</code>): "Stückzahl danach" 120 is the 4:1 alone, and "Resultierende Position (heute)" 60 is the 4:1 simulated on top of the booked 1:2 (<code>simulate_current/4</code> adds a row for it, <code>:585–591</code>). Two figures from two worlds, neither of which the refusal lets happen.</p>
+  <p class="phone-only phone-cap" style="margin:0 0 8px"><b>J8 at 390&nbsp;px:</b> the preview table is 769&nbsp;px wide in its own scroller (the phone block's <code>nowrap</code> on long German heads); the board shows each preview scrolled to its end, where the "after" columns are. A reader on a phone has to scroll to find them — see "found while drawing".</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half"><span class="mock-tag">Today</span>
+      <div class="dlg-field">
+        <div class="modal" role="dialog" aria-labelledby="sw1">
+          <header class="modal-head"><h2 id="sw1">Split erfassen</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></header>
+          <div class="modal-body">
+            <p class="dialog-help">Aktiensplit für „<bdi>Nordwind Industrie AG</bdi>“, das Verhältnis als neue:alte Aktien — 2:1 verdoppelt die Anzahl, 1:10 ist ein Reverse-Split.</p>
+            <div class="form-grid"><label><span>Neue Anteile</span><input type="number" value="4"></label><label><span>Alte Anteile</span><input type="number" value="1"></label><label><span>Stichtag</span><input type="text" value="2026-09-15"></label></div>
+            <div class="alert-warning" role="alert"><span>Für dieses Wertpapier ist an diesem Datum bereits ein Split mit anderem Verhältnis gebucht (1:2). Die Buchung wird abgelehnt, solange er steht.</span><span><button type="button" class="link-button">Gebuchten Split löschen…</button></span></div>
+            <div class="data-table-wrap"><table id="split-wizard-preview" class="data-table"><caption class="dialog-help">Wirkung des 4:1-Splits je Portfolio:</caption><thead><tr><th>Portfolio</th><th class="num">Stückzahl davor</th><th class="num">Stückzahl danach (zum Stichtag)</th><th class="num">Resultierende Position (heute)</th></tr></thead><tbody><tr><td>Hauptportfolio</td><td class="num">30</td><td class="num"><span class="copy-old">120</span><i class="pin b">1</i></td><td class="num"><span class="copy-old">60</span></td></tr></tbody></table></div>
+            <div class="data-table-wrap"><table id="split-wizard-quotes" class="data-table"><caption class="dialog-help">Gespeicherte Schlusskurse rund um den Stichtag:</caption><thead><tr><th>Datum</th><th class="num">Schlusskurs</th><th>Quelle</th></tr></thead><tbody><tr><td>12.09.2026</td><td class="num">41,15 <small>EUR</small></td><td>Automatisch</td></tr><tr><td>15.09.2026</td><td class="num">82,40 <small>EUR</small></td><td>Automatisch</td></tr></tbody></table></div>
+          </div>
+          <div class="modal-footer"><button type="button" class="button-ghost">Abbrechen</button><button type="submit" class="button-primary" disabled title="Buchung blockiert: Für diesen Tag ist bereits ein Split mit einem anderen Verhältnis gebucht.">Split buchen</button></div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag var rec-tag">A · recommended — no "after" figure; the warning says why</span>
+      <div class="dlg-field">
+        <div class="modal" role="dialog" aria-labelledby="sw2">
+          <header class="modal-head"><h2 id="sw2">Split erfassen</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></header>
+          <div class="modal-body">
+            <p class="dialog-help">Aktiensplit für „<bdi>Nordwind Industrie AG</bdi>“, das Verhältnis als neue:alte Aktien — 2:1 verdoppelt die Anzahl, 1:10 ist ein Reverse-Split.</p>
+            <div class="form-grid"><label><span>Neue Anteile</span><input type="number" value="4"></label><label><span>Alte Anteile</span><input type="number" value="1"></label><label><span>Stichtag</span><input type="text" value="2026-09-15"></label></div>
+            <div class="alert-warning" role="alert"><span>Für dieses Wertpapier ist an diesem Datum bereits ein Split mit anderem Verhältnis gebucht (1:2). Die Buchung wird abgelehnt, solange er steht<span class="copy-new">, und die Vorschau zeigt keine Stückzahl danach</span>.</span><span><button type="button" class="link-button">Gebuchten Split löschen…</button></span></div>
+            <div class="data-table-wrap"><table id="split-wizard-preview" class="data-table"><caption class="dialog-help">Wirkung des 4:1-Splits je Portfolio:</caption><thead><tr><th>Portfolio</th><th class="num">Stückzahl davor</th><th class="num">Stückzahl danach (zum Stichtag)</th><th class="num">Resultierende Position (heute)</th></tr></thead><tbody><tr><td>Hauptportfolio</td><td class="num">30</td><td class="num split-na"><span class="copy-new">—</span><i class="pin a">2</i></td><td class="num split-na"><span class="copy-new">—</span></td></tr></tbody></table></div>
+            <div class="data-table-wrap"><table id="split-wizard-quotes" class="data-table"><caption class="dialog-help">Gespeicherte Schlusskurse rund um den Stichtag:</caption><thead><tr><th>Datum</th><th class="num">Schlusskurs</th><th>Quelle</th></tr></thead><tbody><tr><td>12.09.2026</td><td class="num">41,15 <small>EUR</small></td><td>Automatisch</td></tr><tr><td>15.09.2026</td><td class="num">82,40 <small>EUR</small></td><td>Automatisch</td></tr></tbody></table></div>
+          </div>
+          <div class="modal-footer"><button type="button" class="button-ghost">Abbrechen</button><button type="submit" class="button-primary" disabled>Split buchen</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:14px">
+    <div class="mock-frame w-half"><span class="mock-tag var">B — the figures stay, the row says it would be refused</span>
+      <div class="dlg-field">
+        <div class="modal" role="dialog" aria-labelledby="sw3">
+          <div class="modal-body">
+            <div class="data-table-wrap"><table id="split-wizard-preview" class="data-table"><caption class="dialog-help">Wirkung des 4:1-Splits je Portfolio:</caption><thead><tr><th>Portfolio</th><th class="num">Stückzahl davor</th><th class="num">Stückzahl danach (zum Stichtag)</th><th class="num">Resultierende Position (heute)</th></tr></thead><tbody><tr class="security-row is-retired"><td>Hauptportfolio <span class="badge badge--retired">würde abgelehnt</span><i class="pin o">3</i></td><td class="num">30</td><td class="num">120</td><td class="num">60</td></tr></tbody></table></div>
+            <p class="elide">Warning, quotes and foot as in A.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="notes w-notes">
+      <ol class="pins">
+        <li><i class="pin b">1</i><b>Today:</b> 120 is the refused split alone; 60 is both splits stacked; what stands is 15. Read together the figures say a 4:1 split halves the position.</li>
+        <li><i class="pin a">2</i><b>A:</b> while <code>:conflicting_split_ratio</code> is in the warnings, both "after" cells are the not-computable em dash in the muted voice (UX&#8209;DR7's value-slot row: the dash <i>and</i> a sentence why), and A8's warning, already above the table, carries the why in one more clause: "… Die Buchung wird abgelehnt, solange er steht, und die Vorschau zeigt keine Stückzahl danach." (en "… Booking is refused while it stands, and the preview shows no quantity after it."). One explanation in one place (Voice and Tone) — and outside the table, which on a phone is a sideways scroller whose caption scrolls with it (see the 390&nbsp;px rendering). "Stückzahl davor" and the stored closes stay: they are what the operator needs to decide which ratio is right — here the closes double across the date, so the booked 1:2 is.</li>
+        <li><i class="pin o">3</i><b>B:</b> the existing skipped-row look (muted row, badge, as for "bereits gebucht") — the cheaper change and a known pattern. But the two contradicting figures stay on screen, which is what the persona misread; a badge does not unsay a number.</li>
+        <li><span class="rec">Why A:</span> a figure that will never exist is not shown (#1066's own first option), and the reason joins the sentence that already names the booked ratio and the delete link, so the operator reads cause, consequence and remedy in one place.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ 08.3 #1072 ============================ -->
+<section class="mock-board" id="b1072">
+  <h2>08.3 · #1072 — "Online-Felder übernehmen" on a security deleted meanwhile <small>H8.6 (#920): reload, and a note naming the vanished row · after state</small></h2>
+  <p class="mock-note desk-only">The create dialog found a match and offers to merge the online fields into it. If that security was deleted in another tab or by the agent while the dialog was open, <code>merge_into_existing</code> (<code>security_form_dialog.ex:818–841</code>) gets <code>{:error, :not_found}</code> and assigns the atom to <code>:errors</code>; the next render reads <code>assigns.errors["_record"]</code> (<code>:334</code>), and <code>Access.get/3</code> on an atom raises <code>FunctionClauseError</code> (verified). The LiveView process dies and the page remounts: the dialog is gone, the search with it, and nothing says why.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half"><span class="mock-tag">Today — the click, then the remount</span>
+      <div class="dlg-field">
+        <div class="modal" role="dialog" aria-labelledby="sf1">
+          <header class="modal-head"><h2 id="sf1">Details bestätigen</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></header>
+          <div class="modal-body">
+            <div class="alert-warning" role="alert"><strong>Dieses Wertpapier existiert bereits</strong><p style="margin:0">Passender vorhandener Eintrag: Nordwind Industrie AG · NWI · DE000000000A</p><div class="alert-actions"><button type="button" class="button-ghost">Online-Felder übernehmen</button><button type="button" class="button-ghost">Vorhandenes öffnen</button></div></div>
+            <p class="elide">Name, Ticker, ISIN, WKN, Währung, Börse … as found by the search.</p>
+          </div>
+          <div class="modal-footer"><button type="button" class="button-ghost">Zurück</button><button type="submit" class="button-primary">Vorhandenes aktualisieren</button></div>
+        </div>
+        <div class="crash">The row was deleted elsewhere; "Online-Felder übernehmen" → the render raises → the LiveView restarts.<i class="pin b">1</i></div>
+        <div class="pg" style="width:100%">
+          <div class="pg-top"><h3>Wertpapiere</h3><span>Suchen, filtern und pflegen des investierbaren Universums.</span></div>
+          <div class="pg-body">
+            <div class="data-table-wrapper" id="securities-table"><table class="data-table"><thead><tr><th class="row-actions-head" aria-label="Zeilenaktionen"></th><th>Name</th><th class="num">Letzter Kurs</th></tr></thead><tbody>
+              <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">H</span><span class="row-target__label">Helios Solar Systems SE</span></span></td><td class="num">18,42</td></tr>
+              <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">M</span><span class="row-target__label">Meridian Global Equity ETF</span></span></td><td class="num">75,90</td></tr>
+            </tbody></table></div>
+            <ul class="phone-rows" aria-label="Wertpapiere">
+              <li class="phone-row"><span class="security-logo security-logo--row security-logo--initial">H</span><span class="phone-row__body"><a class="phone-row__target"><span class="phone-row__name">Helios Solar Systems SE</span></a><span class="phone-row__ids">HSS · XS0000000010 · Aktie</span></span><span class="phone-row__figures"><span class="phone-row__figure">18,42<small class="value-suffix">EUR</small></span></span><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></li>
+              <li class="phone-row"><span class="security-logo security-logo--row security-logo--initial">M</span><span class="phone-row__body"><a class="phone-row__target"><span class="phone-row__name">Meridian Global Equity ETF</span></a><span class="phone-row__ids">MGEQ · XS0000000001 · ETF</span></span><span class="phone-row__figures"><span class="phone-row__figure">75,90<small class="value-suffix">EUR</small></span></span><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></li>
+            </ul>
+          </div>
+        </div>
+        <p class="lbl" style="justify-self:start">The list after the remount: no dialog, no word, the picked search result lost.</p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">After — H8.6: the dialog closes, the list reloads, a note says why</span>
+      <div class="dlg-field">
+        <div class="pg" style="width:100%">
+          <div class="pg-top"><h3>Wertpapiere</h3><span>Suchen, filtern und pflegen des investierbaren Universums.</span></div>
+          <div class="pg-body">
+            <div class="inline-result is-new" data-role="action-result" tabindex="-1"><div role="status" class="inline-result__region">
+              <div class="data-note data-note--note"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span><span class="data-note__word">Hinweis</span><div class="data-note__body">„<bdi>Nordwind Industrie AG</bdi>“ wurde inzwischen gelöscht; die Liste ist neu geladen.<button type="button" class="inline-result__dismiss" aria-label="Schließen">&times;</button></div></div>
+            </div><div role="alert" class="inline-result__region"></div></div>
+            <div class="data-table-wrapper" id="securities-table"><table class="data-table"><thead><tr><th class="row-actions-head" aria-label="Zeilenaktionen"></th><th>Name</th><th class="num">Letzter Kurs</th></tr></thead><tbody>
+              <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">H</span><span class="row-target__label">Helios Solar Systems SE</span></span></td><td class="num">18,42</td></tr>
+              <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">M</span><span class="row-target__label">Meridian Global Equity ETF</span></span></td><td class="num">75,90</td></tr>
+            </tbody></table></div>
+            <ul class="phone-rows" aria-label="Wertpapiere">
+              <li class="phone-row"><span class="security-logo security-logo--row security-logo--initial">H</span><span class="phone-row__body"><a class="phone-row__target"><span class="phone-row__name">Helios Solar Systems SE</span></a><span class="phone-row__ids">HSS · XS0000000010 · Aktie</span></span><span class="phone-row__figures"><span class="phone-row__figure">18,42<small class="value-suffix">EUR</small></span></span><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></li>
+              <li class="phone-row"><span class="security-logo security-logo--row security-logo--initial">M</span><span class="phone-row__body"><a class="phone-row__target"><span class="phone-row__name">Meridian Global Equity ETF</span></a><span class="phone-row__ids">MGEQ · XS0000000001 · ETF</span></span><span class="phone-row__figures"><span class="phone-row__figure">75,90<small class="value-suffix">EUR</small></span></span><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></li>
+            </ul>
+          </div>
+        </div>
+        <p class="lbl" style="justify-self:start">The slot comes into view and takes the focus, as H8.6 built it (<code>put_vanished_note/2</code>).<i class="pin a">2</i></p>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:10px">
+    <ol class="pins">
+      <li><i class="pin b">1</i><b>Today:</b> a crash, not a refusal — LiveView rejoins and mounts the page afresh. No connection band is built either (DESIGN.md → connection-state, "NOT BUILT"), so even the restart is silent.</li>
+      <li><i class="pin a">2</i><b>After:</b> the dialog tells its parent the conflict row vanished; the page runs the path H8.6 already has (<code>vanished/2</code>, <code>securities_live.ex:5811</code>): it closes the dialog, reloads the list and puts the note — "„…“ wurde inzwischen gelöscht; die Liste ist neu geladen.", or, merged meanwhile, "„…“ wurde inzwischen in <u>…</u> zusammengeführt; …" with the survivor linked. The name is the stale list's, in <code>&lt;bdi&gt;</code>. Nothing new is worded.</li>
+      <li><b>One dialog, two answers today:</b> the same conflict's <i>save</i> button, "Vorhandenes aktualisieren", already handles <code>:not_found</code> — it keeps the dialog open with a record-level alert, "Dieses Wertpapier gibt es nicht mehr: Es wurde nach dem Öffnen gelöscht, es wurde nichts gespeichert." (<code>update_security/3</code>, <code>:1059–1074</code>). The story aligns both buttons on one answer; this board recommends H8.6's for both, since neither button has anything left to act on.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============================ 08.4 #944 ============================ -->
+<section class="mock-board" id="b944">
+  <h2>08.4 · #944 — a rule on a retired security reads "Wertpapier" instead of its name <small>DESIGN.md → Risk: the rule's words · before / after</small></h2>
+  <p class="mock-note desk-only">The findings' name map comes from the choices a new rule may pick (<code>risk_live.ex:106–142</code>, <code>options/0</code> and <code>names/1</code>), which leave retired securities out; <code>PolicyRuleFormat.subject/2</code> (<code>policy_rule_format.ex:118–119</code>) then falls back to the type label. The rule dialog already shows the real name for such a rule (<code>with_own_subject/2</code>, <code>policy_rule_dialog.ex:584–602</code>).</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-full"><span class="mock-tag">Today</span>
+      <div class="stage">
+        <section class="workspace-section policy-rules">
+          <header class="section-head"><h2>Eigene Regeln <span class="section-head__meta">· 1 verletzt · 0 nicht bestimmbar · 2 eingehalten</span></h2></header>
+          <div class="data-table-wrapper"><table class="data-table policy-findings-table risk-fit-table"><thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th></tr></thead><tbody>
+            <tr><td><button type="button" class="link-button policy-rule__name">Helios-Grenze</button><span class="policy-rule__words">Gewicht · <bdi>Helios Solar Systems SE</bdi> · Obergrenze · Warnung</span></td><td class="num">11,3&nbsp;%<span class="policy-rule__line-sub">Grenze 10,0&nbsp;%</span></td><td class="num policy-col-line">10,0&nbsp;%</td><td><span class="badge badge-warning">verletzt · +1,3&nbsp;pp</span></td></tr>
+            <tr><td><button type="button" class="link-button policy-rule__name">Einzeltitel Nordwind</button><span class="policy-rule__words">Gewicht · <span class="copy-old">Wertpapier</span> · Obergrenze · Warnung<i class="pin b">1</i></span></td><td class="num">4,2&nbsp;%<span class="policy-rule__line-sub">Grenze 8,0&nbsp;%</span></td><td class="num policy-col-line">8,0&nbsp;%</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+            <tr><td><button type="button" class="link-button policy-rule__name">Anleihen-Boden</button><span class="policy-rule__words">Gewicht · <bdi>Anleihen</bdi> · Untergrenze · hart</span></td><td class="num">23,1&nbsp;%<span class="policy-rule__line-sub">Grenze 20,0&nbsp;%</span></td><td class="num policy-col-line">20,0&nbsp;%</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+          </tbody></table></div>
+        </section>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-full"><span class="mock-tag">After — the stored name</span>
+      <div class="stage">
+        <section class="workspace-section policy-rules">
+          <header class="section-head"><h2>Eigene Regeln <span class="section-head__meta">· 1 verletzt · 0 nicht bestimmbar · 2 eingehalten</span></h2></header>
+          <div class="data-table-wrapper"><table class="data-table policy-findings-table risk-fit-table"><thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th></tr></thead><tbody>
+            <tr><td><button type="button" class="link-button policy-rule__name">Helios-Grenze</button><span class="policy-rule__words">Gewicht · <bdi>Helios Solar Systems SE</bdi> · Obergrenze · Warnung</span></td><td class="num">11,3&nbsp;%<span class="policy-rule__line-sub">Grenze 10,0&nbsp;%</span></td><td class="num policy-col-line">10,0&nbsp;%</td><td><span class="badge badge-warning">verletzt · +1,3&nbsp;pp</span></td></tr>
+            <tr><td><button type="button" class="link-button policy-rule__name">Einzeltitel Nordwind</button><span class="policy-rule__words">Gewicht · <bdi class="copy-new">Nordwind Industrie AG</bdi> · Obergrenze · Warnung<i class="pin a">2</i></span></td><td class="num">4,2&nbsp;%<span class="policy-rule__line-sub">Grenze 8,0&nbsp;%</span></td><td class="num policy-col-line">8,0&nbsp;%</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+            <tr><td><button type="button" class="link-button policy-rule__name">Anleihen-Boden</button><span class="policy-rule__words">Gewicht · <bdi>Anleihen</bdi> · Untergrenze · hart</span></td><td class="num">23,1&nbsp;%<span class="policy-rule__line-sub">Grenze 20,0&nbsp;%</span></td><td class="num policy-col-line">20,0&nbsp;%</td><td><span class="badge badge--neutral">eingehalten</span></td></tr>
+          </tbody></table></div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:10px">
+    <ol class="pins">
+      <li><i class="pin b">1</i><b>Today:</b> "Gewicht · Wertpapier · Obergrenze · Warnung" — which security? The rule's name happens to say it here; a rule named "Einzeltitel-Grenze" would not.</li>
+      <li><i class="pin a">2</i><b>After:</b> the findings' names cover every subject a rule reads — the offered choices plus the subjects of the rules in force, read from the stored rows — so a retired security resolves to its name, in <code>&lt;bdi&gt;</code> like every stored name. The new-rule choices still leave retired securities out. A twin is told apart by its ISIN as elsewhere (<code>SecurityNames.label/2</code>). Whether the words also say "stillgelegt" is not asked by #944 and not drawn; the dialog does not say it either.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============================ 08.5 #945 ============================ -->
+<section class="mock-board" id="b945">
+  <h2>08.5 · #945 — the target-weight refusal names the row it refused <small>DESIGN.md → Position targets in the plan editor · before / after</small></h2>
+  <p class="mock-note desk-only">Two of the three plan-save refusals in <code>soll_error/2</code> (<code>classifications_live.ex:2458–2485</code>) name their security and category; the precision refusal (G14) and the 0–100&nbsp;% refusal beside it are one bare sentence in the page's message band, far above the editor. On a plan with open position rows the operator hunts for the input by eye.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half"><span class="mock-tag">Today</span>
+      <div class="stage">
+        <p class="alert-error" role="alert" style="margin:0"><span class="copy-old">Ein Ziel hat in Prozent höchstens vier Nachkommastellen</span><i class="pin b">1</i></p>
+        <p class="elide">… the tree and its categories …</p>
+        <section class="workspace-section soll-editor">
+          <header class="soll-editor__head"><h2>Soll-Plan</h2><span class="soll-view-picker"><span class="soll-view-picker__label">Soll-Plan für Sicht:</span><select><option>Gesamt</option></select></span></header>
+          <div class="data-table-wrapper"><table class="soll-table">
+            <thead><tr><th scope="col">Kategorie</th><th scope="col" class="num">Soll %</th></tr></thead>
+            <tbody>
+              <tr class="soll-row"><th scope="row" class="soll-row__name">Aktien Welt</th><td class="num"><input type="number" value="45"></td></tr>
+              <tr class="soll-row"><th scope="row" class="soll-row__name">Aktien Europa <span class="hint soll-row__follows">Summe der Positionsziele — das Kategoriefeld folgt ihr</span></th><td class="num"><output class="soll-position-sum">20,33333</output></td></tr>
+              <tr class="soll-row soll-row--position"><th scope="row" class="soll-row__name soll-row__name--position"><span aria-hidden="true">  </span>Nordwind Industrie AG</th><td class="num"><input type="number" value="12.33333"></td></tr>
+              <tr class="soll-row soll-row--position"><th scope="row" class="soll-row__name soll-row__name--position"><span aria-hidden="true">  </span>Wrenfield Gardens AG</th><td class="num"><input type="number" value="8"></td></tr>
+              <tr class="soll-row"><th scope="row" class="soll-row__name">Anleihen</th><td class="num"><input type="number" value="25"></td></tr>
+              <tr class="soll-row soll-row--cash"><th scope="row" class="soll-row__name">Cash</th><td class="num"><input type="number" value="5"></td></tr>
+            </tbody>
+          </table></div>
+        </section>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">After — the row first, then the rule</span>
+      <div class="stage">
+        <p class="alert-error" role="alert" style="margin:0"><span class="copy-new">Positionsziel von „<bdi>Nordwind Industrie AG</bdi>“ unter „<bdi>Aktien Europa</bdi>“: höchstens vier Nachkommastellen in Prozent</span><i class="pin a">2</i></p>
+        <p class="elide">… the tree and its categories …</p>
+        <section class="workspace-section soll-editor">
+          <header class="soll-editor__head"><h2>Soll-Plan</h2><span class="soll-view-picker"><span class="soll-view-picker__label">Soll-Plan für Sicht:</span><select><option>Gesamt</option></select></span></header>
+          <div class="data-table-wrapper"><table class="soll-table">
+            <thead><tr><th scope="col">Kategorie</th><th scope="col" class="num">Soll %</th></tr></thead>
+            <tbody>
+              <tr class="soll-row"><th scope="row" class="soll-row__name">Aktien Welt</th><td class="num"><input type="number" value="45"></td></tr>
+              <tr class="soll-row"><th scope="row" class="soll-row__name">Aktien Europa <span class="hint soll-row__follows">Summe der Positionsziele — das Kategoriefeld folgt ihr</span></th><td class="num"><output class="soll-position-sum">20,33333</output></td></tr>
+              <tr class="soll-row soll-row--position"><th scope="row" class="soll-row__name soll-row__name--position"><span aria-hidden="true">  </span>Nordwind Industrie AG</th><td class="num"><input type="number" value="12.33333"></td></tr>
+              <tr class="soll-row soll-row--position"><th scope="row" class="soll-row__name soll-row__name--position"><span aria-hidden="true">  </span>Wrenfield Gardens AG</th><td class="num"><input type="number" value="8"></td></tr>
+              <tr class="soll-row"><th scope="row" class="soll-row__name">Anleihen</th><td class="num"><input type="number" value="25"></td></tr>
+              <tr class="soll-row soll-row--cash"><th scope="row" class="soll-row__name">Cash</th><td class="num"><input type="number" value="5"></td></tr>
+            </tbody>
+          </table></div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:10px">
+    <ol class="pins">
+      <li><i class="pin b">1</i><b>Today:</b> the sentence names the rule and no row (drawn as #945 states it; see "found while drawing" for what a browser does first).</li>
+      <li><i class="pin a">2</i><b>After:</b> the refusal reads the refused changeset's row and puts it first, in the editor's own names, then the rule: <b>category</b> "Soll von „Aktien Welt“: höchstens vier Nachkommastellen in Prozent" · <b>position</b> as drawn · <b>cash</b> "Cash-Ziel: höchstens vier Nachkommastellen in Prozent". The range refusal the same way: "… : muss zwischen 0 und 100&nbsp;% liegen". en: "Target of “Equities World”: at most four decimal places in percent", "Position target of “…” under “…”: …", "Cash target: …". Stored names in <code>&lt;bdi&gt;</code> (H8.8). The field itself is not marked here: #945 asks for the name, and an <code>aria-invalid</code> mark at the field is H8.3's direction for another story.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ===================== phone frame templates (390 px) ===================== -->
+<template id="tpl-contrib-today">
+<div class="contribution">
+  <div class="contribution__head"><h3>Beitrag je Position</h3><span class="contribution__scope">1J · Ansicht Alles · sortiert nach Beitrag</span></div>
+  <ul id="contribution-phone-rows" class="phone-rows contribution-phone-rows">
+    <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Wrenfield Gardens AG</span><span class="phone-row__ids">am Ende nicht mehr im Bestand · <span class="copy-old">Abfluss 1.420,00</span></span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+420,00</span></span></li>
+    <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Meridian Global Equity ETF</span><span class="phone-row__ids">5.120,00 → 5.480,00</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+360,00</span></span></li>
+    <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Nordwind Industrie AG</span><span class="phone-row__ids">zu Beginn nicht im Bestand · <span class="copy-old">Zufluss 2.000,00</span> · Erträge 36,00</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+148,20</span></span></li>
+    <li class="phone-row contribution-phone-rows__rest"><span class="phone-row__body"><span class="phone-row__name">Keiner Position zugeordnet</span><span class="phone-row__ids">Zinsen +12,40 · Gebühren/Steuern -8,90 · Währung +3,10</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+6,60</span></span></li>
+    <li class="phone-row contribution-phone-rows__sum"><span class="phone-row__body"><span class="phone-row__name">Summe = Ergebnis im Zeitraum</span><span class="phone-row__ids">Positionen und Restposten</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+934,80<small class="value-suffix">EUR</small></span></span></li>
+  </ul>
+</div>
+</template>
+<template id="tpl-contrib-after">
+<div class="contribution">
+  <div class="contribution__head"><h3>Beitrag je Position</h3><span class="contribution__scope">1J · Ansicht Alles · sortiert nach Beitrag</span></div>
+  <ul id="contribution-phone-rows" class="phone-rows contribution-phone-rows">
+    <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Wrenfield Gardens AG</span><span class="phone-row__ids">am Ende nicht mehr im Bestand · <span class="copy-new">Abfluss aus der Position 1.420,00</span></span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+420,00</span></span></li>
+    <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Meridian Global Equity ETF</span><span class="phone-row__ids">5.120,00 → 5.480,00</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+360,00</span></span></li>
+    <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Nordwind Industrie AG</span><span class="phone-row__ids">zu Beginn nicht im Bestand · <span class="copy-new">Zufluss in die Position 2.000,00</span> · Erträge 36,00</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+148,20</span></span></li>
+    <li class="phone-row contribution-phone-rows__rest"><span class="phone-row__body"><span class="phone-row__name">Keiner Position zugeordnet</span><span class="phone-row__ids">Zinsen +12,40 · Gebühren/Steuern -8,90 · Währung +3,10</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+6,60</span></span></li>
+    <li class="phone-row contribution-phone-rows__sum"><span class="phone-row__body"><span class="phone-row__name">Summe = Ergebnis im Zeitraum</span><span class="phone-row__ids">Positionen und Restposten</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+934,80<small class="value-suffix">EUR</small></span></span></li>
+  </ul>
+</div>
+</template>
+
+<script>
+/* Assembly only; nothing here is a proposal. Each phone frame is a 390 px
+   document of its own (srcdoc, so the relative stylesheet link resolves
+   against this board), so app.css's 560 px phone-list rules fire. */
+const CSS_HREF = '../../../../../priv/static/app.css';
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const body = document.getElementById(f.dataset.tpl).innerHTML;
+  const css = (f.dataset.css || '').split(/\s+/).filter(Boolean)
+    .map((id) => document.getElementById(id).outerHTML).join('');
+  f.addEventListener('load', () => {
+    f.style.height = Math.ceil(f.contentDocument.documentElement.scrollHeight) + 'px';
+  });
+  f.srcdoc = `<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${body}</body></html>`;
+}
+/* At phone width the split preview is a sideways scroller (the phone
+   block's nowrap table rule); the board scrolls it to its end, where the
+   "after" columns are, and says so in the caption above. */
+if (window.innerWidth < 600) {
+  for (const t of document.querySelectorAll('#b1066 #split-wizard-preview')) t.scrollLeft = t.scrollWidth;
+}
+</script>
+</body>
+</html>
