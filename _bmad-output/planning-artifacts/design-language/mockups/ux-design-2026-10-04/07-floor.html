@@ -1,0 +1,893 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Touch-, Fokus- und Farbuntergrenze, zweiter Durchgang (Pick J7)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- Board 07, Sprint 19 design pass: the touch, focus and colour floor,
+     second pass (#1062, #1064, #1069, #1071, #1085, #1067, #933). Everything
+     inside the frames is markup and classes that already ship:
+     securities/row_context_menu.ex (.row-context-menu, .row-context-menu__item),
+     securities_live.ex (.detail-pane-toolbar, .range-buttons, .range-button,
+     .chart-toggles, security_logo/1, .security-row, .phone-rows),
+     transactions/booking_delete_dialog.ex (.modal.booking-delete-dialog,
+     .modal-footer--band, .button-ghost, .button-danger),
+     transaction_management_live.ex (the page's .alert-success / .alert-error
+     slot), AppShell.inline_result/1 and data_note/1, portfolio_live.ex (the
+     allocation disclosure, .drift-table, .metric-tooltip),
+     portfolio_accounts_live.ex (.accounts-table, cash_balance_cell/1,
+     liquidity_role_field/1, bucket_chips/1), portfolio_accounts/merge_records.ex
+     (.merge-records-table, .merge-record__*, .merge-manifest) and
+     dashboard_live.ex (#dashboard-data-quality). Dialogs are drawn as <div>
+     because a closed <dialog> does not paint. All names, identifiers, figures
+     and dates are invented. -->
+<style id="proposal">
+  /* ① #1062: a row-menu item is a 44 px target under a coarse pointer. Under
+     720 px the menu is a bottom sheet whose items are 50 px already
+     (app.css .row-context-menu__item at max-width 720); above it — a tablet
+     in landscape — they stay at the base button's 34 px. A real min-height,
+     not H6's padding and negative margin: the items stack, and a hit area
+     grown into the neighbours would overlap them. */
+  @media (pointer: coarse) {
+    .row-context-menu__item {
+      min-height: 44px;
+    }
+  }
+
+  /* ② #1062: a range button is a 44 x 44 target under a coarse pointer,
+     the floor its family already has (.segmented-control__option). Again a
+     real size: .range-buttons clips with overflow: hidden, so a hit area
+     grown past the group's edge would be clipped from hit testing. */
+  @media (pointer: coarse) {
+    .range-button {
+      min-height: 44px;
+      min-width: 44px;
+    }
+  }
+
+  /* ③ #1062: the button family draws the house focus ring, the 2 px accent
+     outline at a 2 px offset (DESIGN.md → Colors, "Focus indicator").
+     .button and .button-secondary ride along: they are the same family and
+     draw the browser's ring today too. */
+  :is(.button, .button-primary, .button-ghost, .button-danger, .button-secondary):focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* ④ J7 (#1064), variant A: no rule. The page result slots move from
+     .alert-success / .alert-error to AppShell.inline_result/1 — a success
+     reads as a note, a refusal as a problem (DESIGN.md → inline-result). */
+
+  /* ⑤ #1069: the drift and cash tables start at their wrapper's top edge.
+     Every call site sits in a .data-table-wrapper (portfolio_live.ex:1985,
+     :2288, :2490; snapshots_live.ex:511, :615), so the 1rem margin is a
+     band inside the border at all five. The declaration goes. */
+  .drift-table,
+  .cash-table {
+    margin-top: 0;
+  }
+
+  /* ⑥ #1071: a tooltip is a paragraph wherever it sits — it no longer
+     inherits a numeric head's right alignment. */
+  .metric-tooltip p {
+    text-align: start;
+  }
+
+  /* ⑦ #1085, the role label under 640 px: the label carries
+     .liquidity-role-field__label (11 px / 600 / muted, in app.css and unused
+     today) and is visually hidden only where the column head states it. */
+  @media (min-width: 641px) {
+    .accounts-table .liquidity-role-field__label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+  }
+
+  /* ⑧ #1085: the chip's two controls take the floor instead of writing a
+     sub-floor value into the coarse block (UX-DR6, amendment 2). The chip
+     gives the remove button its vertical padding and right edge, so the
+     chip is 46 px tall on touch rather than 50. */
+  @media (pointer: coarse) {
+    .bucket-chip-add {
+      width: 44px;
+      height: 44px;
+    }
+
+    .bucket-chip:has(> .bucket-chip__remove) {
+      padding-block: 0;
+      padding-right: 0;
+    }
+
+    .bucket-chip__remove {
+      min-width: 44px;
+      min-height: 44px;
+    }
+  }
+
+  /* ⑨ #1085: the merge record's arrow carries the direction, so it is
+     content and takes the content floor, {colors.text-muted}. */
+  .merge-record__arrow {
+    color: var(--color-text-muted);
+  }
+
+  /* ⑩ #1067 and ⑪ #933: no rule. The ISIN line is left out when neither
+     side carries an ISIN (merge_records.ex); a logo path with no file
+     behind it renders the monogram (security_logo/1 is unchanged). */
+</style>
+<style id="board-chrome">
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: visible; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ol, .notes ul { margin: 0; }
+  .notes ol, .notes ul { padding-left: 18px; }
+  ol.pins { list-style: none; padding: 0; }
+  .notes li { margin: 0 0 6px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .elide { margin: 0; font-size: 12px; color: var(--mock-ink); font-style: italic; }
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; text-transform: none; flex: none; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  i.pin.o { background: var(--mock-ink); }
+  .notes li > i.pin:first-child { margin: 0 4px 0 0; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .rec { color: var(--color-positive); font-weight: 760; }
+  .stage { padding: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; min-width: 0; }
+  .lbl { margin: 0 0 -6px; font-size: 11px; color: var(--mock-ink); }
+  .w-frame { flex: 1 1 340px; min-width: 0; }
+  .w-notes { flex: 1 1 300px; min-width: 0; }
+  .w-half { flex: 1 1 460px; min-width: 0; }
+  .w-third { flex: 1 1 300px; min-width: 0; }
+  .w-full { flex: 1 1 100%; min-width: 0; }
+  .w-phone { flex: 0 1 392px; min-width: 0; }
+  .mock-frame > .mock-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .mock-tag.var { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .mock-tag.var.rec-tag { color: var(--color-positive) !important; background: #ecfdf5 !important; }
+  .phone-only { display: none; }
+  .sub-h { margin: 16px 0 8px; font-size: 13px; font-weight: 700; }
+
+  /* Drawing aid: a control's hit box as the browser lays it out.
+     Red = under 44 px, green = at the floor, grey = a desktop box. */
+  .hit { outline: 1.5px dashed var(--color-danger) !important; outline-offset: 0 !important; background-color: color-mix(in srgb, var(--color-danger) 10%, transparent) !important; }
+  .hit-ok { outline: 1.5px dashed var(--color-positive) !important; outline-offset: 0 !important; background-color: color-mix(in srgb, var(--color-positive) 12%, transparent) !important; }
+
+  /* The coarse-pointer state, applied without the media query. The
+     renderer has a mouse, so `@media (pointer: coarse)` never matches here;
+     the "after · touch" frames carry .as-coarse and get rules ①, ② and ⑧ as
+     written. The "today · touch" frames get what app.css's coarse blocks
+     give these controls today. */
+  .as-coarse .row-context-menu__item { min-height: 44px; }
+  .as-coarse .range-button { min-height: 44px; min-width: 44px; }
+  .as-coarse .chart-toggle { min-height: 32px; }
+  .as-coarse .bucket-chip-add { width: 44px; height: 44px; }
+  .as-coarse .bucket-chip:has(> .bucket-chip__remove) { padding-block: 0; padding-right: 0; }
+  .as-coarse .bucket-chip__remove { min-width: 44px; min-height: 44px; }
+  .as-touch .bucket-chip-add { width: 32px; height: 32px; }
+  .as-touch .bucket-chip__remove { min-width: 24px; min-height: 24px; }
+  .as-touch .bucket-chip--overflow, .as-coarse .bucket-chip--overflow { min-height: 44px; }
+  .as-touch .button-primary, .as-touch .button-ghost, .as-touch .button-danger,
+  .as-coarse .button-primary, .as-coarse .button-ghost, .as-coarse .button-danger { min-height: 44px; display: inline-flex; align-items: center; }
+
+  /* "Today" frames show the stylesheet as shipped: the global proposal
+     rules ⑤, ⑥ and ⑨ would reach them too, so they are undone here. */
+  .today .drift-table, .today .cash-table { margin-top: 1rem; }
+  .today .metric-tooltip p { text-align: inherit; }
+  .today .merge-record__arrow { color: var(--color-text-subtle); }
+
+  /* the focused control: the browser's ring today, the accent ring after */
+  .ua-focus { outline: auto 1px -webkit-focus-ring-color !important; outline-offset: 0 !important; }
+  .kb-focus { outline: 2px solid var(--color-accent) !important; outline-offset: 2px !important; }
+
+  /* the row menu drawn in flow (it is position: fixed on the page) */
+  .row-context-menu.menu-static { position: static !important; width: 250px !important; max-width: 100% !important; min-width: 0 !important; border-radius: var(--radius-md) !important; padding: var(--space-1) !important; box-shadow: var(--shadow-md) !important; }
+  .menu-stage { padding: 14px; display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
+  .menu-stage .meta { font-size: 12px; color: var(--mock-ink); max-width: 30ch; }
+
+  /* toolbar in flow */
+  .tb { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+  /* dialogs drawn in flow */
+  .dlg-field { background: var(--color-bg-muted); padding: 14px; display: grid; gap: 12px; }
+  .dlg-field .modal { max-width: 460px; width: 100%; box-shadow: var(--shadow-md); }
+  .dlg-field .modal-head { border-bottom: 0; }
+
+  /* the J7 alerts on their themes */
+  .theme-pane { padding: 12px; display: grid; gap: 8px; background: var(--color-bg); color: var(--color-text); border-radius: 8px; border: 1px solid var(--color-border); min-width: 0; }
+  .theme-pane .pane-cap { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); }
+  .theme-pane p.alert-success, .theme-pane p.alert-error { margin: 0; }
+  .theme-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  /* variant B only: the severity glyph inside the old alert, no word */
+  .alert-glyph { display: inline-flex; vertical-align: -2px; margin-right: 6px; }
+
+  /* drift table frame */
+  .alloc { padding: 14px 16px; display: grid; gap: 0; }
+  .alloc .tip-room { height: 4px; }
+  .measure { margin: 8px 0 0; font-size: 11.5px; color: var(--mock-ink); }
+
+  /* balance close-ups */
+  .bal-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 24px; padding: 12px 14px; }
+  .bal-row { display: grid; grid-template-columns: 6.2rem minmax(0, 1fr) auto; gap: 8px; align-items: center; font-size: 13px; }
+  .bal-row .nm { font-weight: 600; overflow-wrap: break-word; }
+  .bal-row .nm small { display: block; font-weight: 400; font-size: 11px; color: var(--color-text-muted); }
+  .bal-row .cash-balance__action { margin-left: 0; }
+  .bal-row .cash-balance__asof { white-space: nowrap; }
+
+  /* phone iframes */
+  .ph-wrap { width: 390px; max-width: 100%; }
+  .ph-wrap iframe { display: block; width: 390px; max-width: 100%; height: 600px; border: 0; background: var(--color-bg-elevated); }
+
+  /* chips close-up */
+  .chips-stage { padding: 14px; display: grid; gap: 10px; }
+  .chips-stage .accounts-cell { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 8px 10px; background: var(--color-bg-elevated); max-width: 340px; }
+
+  /* merge records */
+  .merge-records.workspace-section { padding: 12px 14px; border: 0; }
+  .merge-records h2 { font-size: 16px; margin: 0 0 6px; }
+  .arrow-pane { padding: 10px 12px; display: grid; gap: 6px; background: var(--color-bg-elevated); color: var(--color-text); border-radius: 8px; border: 1px solid var(--color-border); font-size: 13px; }
+  .arrow-pane .pane-cap { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); }
+  .ratio { font-size: 11px; color: var(--color-text-muted); }
+
+  /* pages */
+  .pg { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg); min-width: 0; }
+  .pg-top { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--color-border); background: var(--color-bg-elevated); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+  .pg-top h3 { margin: 0; font-size: 17px; }
+  .pg-top span { font-size: 12px; color: var(--color-text-muted); }
+  .pg-body { padding: 10px 14px 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; min-width: 0; }
+  .pg-body .workspace-section { padding: 12px 14px; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+  .pg-body .workspace-section h2 { font-size: 15px; margin: 0 0 6px; }
+
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-board > p.mock-note { padding: 0 12px; }
+    .sub-h { padding: 0 12px; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .stage, .menu-stage, .chips-stage, .bal-list { padding: 10px; }
+    .dlg-field { padding: 10px 8px; }
+    .notes { padding: 0 12px; }
+    .theme-pair { grid-template-columns: 1fr; }
+    .bal-list { grid-template-columns: 1fr; }
+    .bal-row { grid-template-columns: 7rem minmax(0, 1fr) auto; }
+    .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+    i.pin { display: none; }
+    .ph-wrap, .ph-wrap iframe { width: 100%; }
+    .w-phone { flex: 1 1 100%; }
+    .bal-row .cash-balance__asof { white-space: normal; }
+  }
+</style>
+<!-- What a phone frame needs in its own 390 px document (the iframes below):
+     the drawing aid and the coarse state, as above. -->
+<style id="frame-base">
+  body { min-height: 0; margin: 0; padding: 10px 0; background: var(--color-bg-elevated); }
+  .workspace-section { padding: 0; border: 0; }
+  .hit { outline: 1.5px dashed var(--color-danger) !important; outline-offset: 0 !important; background-color: color-mix(in srgb, var(--color-danger) 10%, transparent) !important; }
+  .hit-ok { outline: 1.5px dashed var(--color-positive) !important; outline-offset: 0 !important; background-color: color-mix(in srgb, var(--color-positive) 12%, transparent) !important; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+</style>
+<style id="frame-today-touch">
+  .bucket-chip-add { width: 32px; height: 32px; }
+  .bucket-chip__remove { min-width: 24px; min-height: 24px; }
+  .bucket-chip--overflow { min-height: 44px; }
+  .row-actions__kebab { min-width: 44px; min-height: 44px; }
+</style>
+<style id="frame-after-coarse">
+  .bucket-chip-add { width: 44px; height: 44px; }
+  .bucket-chip:has(> .bucket-chip__remove) { padding-block: 0; padding-right: 0; }
+  .bucket-chip__remove { min-width: 44px; min-height: 44px; }
+  .bucket-chip--overflow { min-height: 44px; }
+  .row-actions__kebab { min-width: 44px; min-height: 44px; }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-ast" viewBox="0 0 24 24"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></symbol>
+    <symbol id="i-att" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></symbol>
+    <symbol id="i-oct" viewBox="0 0 24 24"><path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16Z"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 4v5h-5"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></symbol>
+    <symbol id="i-archive" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4"/><path d="M5 8v12h14V8M10 12h4"/></symbol>
+    <symbol id="i-compass" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m16 8-2 6-6 2 2-6Z"/></symbol>
+    <symbol id="i-merge" viewBox="0 0 24 24"><path d="M4 6h4.5l5.5 6h6"/><path d="M4 18h4.5l5.5-6"/><path d="m17 9 3 3-3 3"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7"/><path d="M10 11v7M14 11v7"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-keb" viewBox="0 0 24 24"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar desk-only"><b>Board 07 — the touch, focus and colour floor, second pass (#1062, #1064, #1069, #1071, #1085, #1067, #933).</b> Most items are conformance repairs, drawn <b>before / after</b>: UX&#8209;DR6 (44&nbsp;px under <code>pointer: coarse</code>), the 2&nbsp;px accent focus ring, UX&#8209;DR7 (never colour alone), the text-subtle rule. <b>Two picks:</b> <b>J7</b> (#1064, a success and an error that look alike under coral) — <b>A</b> the data-note anatomy, glyph <i>and</i> word · <b>B</b> a glyph inside the old alert, no word. <b>J7.2</b> (#1085, what the balance's date says) — <b>A</b> „letzte Buchung 31.03.2026“ · <b>B</b> „unverändert seit 31.03.2026“. <span class="rec">Recommended: J7 = A, J7.2 = A.</span> A comment naming another letter changes a pick; silence adopts the recommendation. <b>The renderer has a mouse:</b> "after · touch" frames apply the proposed coarse rules without the media query (board class <code>.as-coarse</code>); "today · touch" frames show what app.css's coarse blocks give these controls today. Dashed red / green = a control's hit box under / at the 44&nbsp;px floor (drawing aid). All names and figures are invented. The 390&nbsp;px rendering is <code>07-floor--390.png</code>.</div>
+<p class="phone-only phone-cap"><b>Board 07 at 390&nbsp;px.</b> The same frames in a real 390&nbsp;px viewport; the phone cards are 390&nbsp;px documents of their own. After · touch frames apply the coarse rules without the media query. Dashed = hit box. Picks: J7 = A, J7.2 = A recommended. All data invented.</p>
+
+<!-- ============================ 07.1 #1062 ============================ -->
+<section class="mock-board" id="b1062">
+  <h2>07.1 · #1062 — row-menu items and range buttons under 44&nbsp;px, and no accent ring on the button family <small>UX&#8209;DR6 · Accessibility Floor · before / after</small></h2>
+  <p class="mock-note desk-only">Three controls H6 did not reach. A row-menu item is a base <code>&lt;button&gt;</code>: <code>padding: 8px 10px</code> (app.css:2593) on the base 34&nbsp;px floor, and only the 720&nbsp;px sheet rule (app.css:2638–2641) makes it larger — a tablet in landscape gets the 34&nbsp;px popover under a coarse pointer. A range button declares <code>min-height: 32px</code> (app.css:3458) and no coarse clause. And <code>.button-primary</code>, <code>.button-ghost</code>, <code>.button-danger</code> (app.css:1935–1979, 4430–4445) have no <code>:focus-visible</code> rule, so keyboard focus draws the browser's thin ring — on the delete dialog it is the first thing seen, because Cancel carries <code>autofocus</code>.</p>
+
+  <p class="sub-h desk-only">(a) The securities row menu, a tablet above 720&nbsp;px</p>
+  <p class="phone-only phone-cap" style="margin:0 0 8px"><b>(a) Row menu:</b> under 720&nbsp;px it is a bottom sheet whose items are already 50&nbsp;px (14&nbsp;px padding, 16&nbsp;px type) — unchanged, not drawn here. The defect is a coarse pointer above 720&nbsp;px.</p>
+  <div class="mock-row desk-only">
+    <div class="mock-frame mock-before w-third today"><span class="mock-tag">Today · touch, &gt;&nbsp;720&nbsp;px</span>
+      <div class="menu-stage">
+        <div class="row-context-menu menu-static" role="menu" aria-label="Wertpapier-Aktionen">
+          <button type="button" class="row-context-menu__item hit" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-edit"/></svg><span>Bearbeiten</span></button>
+          <button type="button" class="row-context-menu__item hit" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-refresh"/></svg><span>Kurse aktualisieren</span></button>
+          <button type="button" class="row-context-menu__item hit" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chev"/></svg><span>Detail öffnen</span></button>
+          <button type="button" class="row-context-menu__item hit" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-copy"/></svg><span>ISIN kopieren</span></button>
+          <button type="button" class="row-context-menu__item hit" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-copy"/></svg><span>Ticker kopieren</span></button>
+          <button type="button" class="row-context-menu__item hit" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-refresh"/></svg><span>Logo aktualisieren</span></button>
+          <button type="button" class="row-context-menu__item hit" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-image"/></svg><span>Logo verwalten</span></button>
+          <button type="button" class="row-context-menu__item hit" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-archive"/></svg><span>Stilllegen</span></button>
+          <button type="button" class="row-context-menu__item hit" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-compass"/></svg><span>Als Benchmark markieren</span></button>
+          <button type="button" class="row-context-menu__item hit" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-merge"/></svg><span>Zusammenführen in…</span></button>
+          <button type="button" class="row-context-menu__item row-context-menu__item--danger hit" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-trash"/></svg><span>Löschen</span></button>
+        </div>
+        <p class="meta">Eleven items at 34&nbsp;px, the menu 386&nbsp;px tall (measured).<i class="pin b">1</i></p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-third as-coarse"><span class="mock-tag">After · touch — 44&nbsp;px per item</span>
+      <div class="menu-stage">
+        <div class="row-context-menu menu-static" role="menu" aria-label="Wertpapier-Aktionen">
+          <button type="button" class="row-context-menu__item hit-ok" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-edit"/></svg><span>Bearbeiten</span></button>
+          <button type="button" class="row-context-menu__item hit-ok" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-refresh"/></svg><span>Kurse aktualisieren</span></button>
+          <button type="button" class="row-context-menu__item hit-ok" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-chev"/></svg><span>Detail öffnen</span></button>
+          <button type="button" class="row-context-menu__item hit-ok" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-copy"/></svg><span>ISIN kopieren</span></button>
+          <button type="button" class="row-context-menu__item hit-ok" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-copy"/></svg><span>Ticker kopieren</span></button>
+          <button type="button" class="row-context-menu__item hit-ok" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-refresh"/></svg><span>Logo aktualisieren</span></button>
+          <button type="button" class="row-context-menu__item hit-ok" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-image"/></svg><span>Logo verwalten</span></button>
+          <button type="button" class="row-context-menu__item hit-ok" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-archive"/></svg><span>Stilllegen</span></button>
+          <button type="button" class="row-context-menu__item hit-ok" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-compass"/></svg><span>Als Benchmark markieren</span></button>
+          <button type="button" class="row-context-menu__item hit-ok" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-merge"/></svg><span>Zusammenführen in…</span></button>
+          <button type="button" class="row-context-menu__item row-context-menu__item--danger hit-ok" role="menuitem"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-trash"/></svg><span>Löschen</span></button>
+        </div>
+        <p class="meta">Eleven items at 44&nbsp;px, the menu 494&nbsp;px tall (measured). Desktop with a mouse: unchanged.<i class="pin a">2</i></p>
+      </div>
+    </div>
+    <div class="notes w-notes">
+      <p class="cap">What changes</p>
+      <ol class="pins">
+        <li><i class="pin b">1</i><b>Today:</b> every item is the base button's 34&nbsp;px (8&nbsp;px padding on an 18&nbsp;px line, lifted to <code>button { min-height: 34px }</code>). The same class serves eight menus — securities, history, accounts, buckets, classifications, tax, snapshots — so all of them carry it.</li>
+        <li><i class="pin a">2</i><b>Rule ①:</b> <code>min-height: 44px</code> under <code>pointer: coarse</code>. <b>Not H6's padding and negative margin</b>: that mechanism keeps the line and grows the box into its neighbours, which hold only text in a note — here the neighbours are the next items, and eleven overlapping 44&nbsp;px boxes would make every boundary ambiguous. The menu grows 108&nbsp;px; on a tablet it still fits the viewport, and the <code>PositionedMenu</code> hook already flips it above its kebab when it would not (<code>layout_view.ex:664–668</code>).</li>
+      </ol>
+    </div>
+  </div>
+
+  <p class="sub-h">(b) The security's chart toolbar: the range buttons</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half today"><span class="mock-tag">Today · touch</span>
+      <div class="stage">
+        <div class="detail-pane-toolbar tb" role="toolbar" aria-label="Chart-Optionen">
+          <div class="range-buttons" role="group" aria-label="Zeitraum">
+            <button type="button" class="range-button hit">1M</button><button type="button" class="range-button hit">3M</button><button type="button" class="range-button hit">6M</button><button type="button" class="range-button hit">YTD</button><button type="button" class="range-button is-active hit">1J</button><button type="button" class="range-button hit">3J</button><button type="button" class="range-button hit">5J</button><button type="button" class="range-button hit">Max</button>
+          </div>
+          <div class="chart-toggles"><button type="button" class="chart-toggle">Prozent</button><button type="button" class="chart-toggle is-active">MA50</button><button type="button" class="chart-toggle">MA200</button></div>
+        </div>
+        <p class="lbl">Each range button 32&nbsp;px tall, 33–46&nbsp;px wide (measured).<i class="pin b">3</i></p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half as-coarse"><span class="mock-tag">After · touch — 44 × 44</span>
+      <div class="stage">
+        <div class="detail-pane-toolbar tb" role="toolbar" aria-label="Chart-Optionen">
+          <div class="range-buttons" role="group" aria-label="Zeitraum">
+            <button type="button" class="range-button hit-ok">1M</button><button type="button" class="range-button hit-ok">3M</button><button type="button" class="range-button hit-ok">6M</button><button type="button" class="range-button hit-ok">YTD</button><button type="button" class="range-button is-active hit-ok">1J</button><button type="button" class="range-button hit-ok">3J</button><button type="button" class="range-button hit-ok">5J</button><button type="button" class="range-button hit-ok">Max</button>
+          </div>
+          <div class="chart-toggles"><button type="button" class="chart-toggle">Prozent</button><button type="button" class="chart-toggle is-active">MA50</button><button type="button" class="chart-toggle">MA200</button></div>
+        </div>
+        <p class="lbl">Each button 44–46&nbsp;px wide and 44&nbsp;px tall, the group 359&nbsp;px wide (measured); under 720&nbsp;px the toolbar already wraps (app.css:2864).<i class="pin a">4</i></p>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:10px">
+    <ol class="pins">
+      <li><i class="pin b">3</i><b>Today:</b> <code>.range-button { min-height: 32px; padding: 4px 10px }</code> and no coarse clause anywhere — EXPERIENCE.md's UX&#8209;DR6 table lists the class as uncovered. The chart toggles beside them (<code>.chart-toggle</code>, 32&nbsp;px) are on the same list and not in #1062: drawn unchanged, see "found while drawing".</li>
+      <li><i class="pin a">4</i><b>Rule ②:</b> <code>min-height</code> and <code>min-width</code> of 44&nbsp;px under <code>pointer: coarse</code> — the floor <code>.segmented-control__option</code>, the same period family, already has. A real size again, because <code>.range-buttons</code> clips with <code>overflow: hidden</code> for its rounded corners, and a hit area grown past the group by a negative margin is clipped from hit testing too.</li>
+    </ol>
+  </div>
+
+  <p class="sub-h">(c) Keyboard focus on the button family</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half"><span class="mock-tag">Today — the browser's ring</span>
+      <div class="dlg-field">
+        <div class="modal booking-delete-dialog">
+          <div class="modal-footer modal-footer--band"><button type="button" class="button-ghost ua-focus">Abbrechen</button><span class="modal-footer__spacer"></span><button type="button" class="button-danger">Transaktion löschen</button></div>
+        </div>
+        <p class="lbl">The delete dialog opens with the focus on Abbrechen (<code>autofocus</code>).<i class="pin b">5</i></p>
+        <div class="tb"><button type="button" class="button-primary ua-focus">Plan speichern</button><button type="button" class="button-danger">Plan löschen</button></div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">After — 2&nbsp;px accent, 2&nbsp;px offset</span>
+      <div class="dlg-field">
+        <div class="modal booking-delete-dialog">
+          <div class="modal-footer modal-footer--band"><button type="button" class="button-ghost kb-focus">Abbrechen</button><span class="modal-footer__spacer"></span><button type="button" class="button-danger">Transaktion löschen</button></div>
+        </div>
+        <p class="lbl">The same ring every other control carries.<i class="pin a">6</i></p>
+        <div class="tb"><button type="button" class="button-primary kb-focus">Plan speichern</button><button type="button" class="button-danger">Plan löschen</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:10px">
+    <ol class="pins">
+      <li><i class="pin b">5</i><b>Today:</b> Chromium's <code>outline: auto</code>, drawn here as Chromium paints it — a dark ring hugging the button in the system's colour, not the accent; on the dark theme it nearly disappears against the panel. Two focus languages on one dialog: the kebab that opened it and the × carry the accent ring.</li>
+      <li><i class="pin a">6</i><b>Rule ③:</b> one <code>:is(…):focus-visible</code> rule for <code>.button</code>, <code>.button-primary</code>, <code>.button-ghost</code>, <code>.button-danger</code> and <code>.button-secondary</code>. The ring sits outside the fill, so the primary's accent fill and the ring never merge (2&nbsp;px gap of the surface between them). Hover stays the fill change, so hover and focus stay distinguishable.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============================ J7 #1064 ============================ -->
+<section class="mock-board" id="b1064">
+  <h2>J7 · #1064 — under coral, a success and an error look the same and say no word <small>UX&#8209;DR7 · one pick: A / B</small></h2>
+  <p class="mock-note desk-only">The page result slot of Transactions (<code>transaction_management_live.ex:100–105</code>) holds both outcomes of the delete: <code>.alert-success</code> is <code>--color-accent</code> on <code>--color-accent-soft</code> (app.css:1333–1337), <code>.alert-error</code> is <code>--color-danger</code> on <code>--color-accent-coral-soft</code> (app.css:1317–1321). Under coral the soft tint is the same, and in dark mode the ink is too: <code>--color-accent-coral</code> and <code>--color-danger</code> are both <code>#fb7185</code>. Neither carries a word or a glyph. Accounts &amp; depots, Buckets and Classifications have the same two-class slot; Risk has its success half.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-full"><span class="mock-tag">Today · coral accent, light and dark</span>
+      <div class="stage">
+        <div class="theme-pair">
+          <div class="theme-pane" data-theme="light" data-accent="coral">
+            <p class="pane-cap">Light · coral</p>
+            <p class="alert-success" role="status">Transaktion gelöscht: Kauf · Nordwind Industrie AG · 22.09.2026.</p>
+            <p class="alert-error" role="alert">Diese Transaktion existiert nicht mehr.</p>
+          </div>
+          <div class="theme-pane" data-theme="dark" data-accent="coral">
+            <p class="pane-cap">Dark · coral</p>
+            <p class="alert-success" role="status">Transaktion gelöscht: Kauf · Nordwind Industrie AG · 22.09.2026.</p>
+            <p class="alert-error" role="alert">Diese Transaktion existiert nicht mehr.</p>
+          </div>
+        </div>
+        <p class="lbl">Light: #ce1b42 against #b91c1c, both on #ffe4e6. Dark: #fb7185 against #fb7185 on the same tint — the two are pixel-identical.<i class="pin b">1</i></p>
+      </div>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:14px">
+    <div class="mock-frame mock-after w-full"><span class="mock-tag var rec-tag">A · recommended — the data note: glyph and word</span>
+      <div class="stage">
+        <div class="theme-pair">
+          <div class="theme-pane" data-theme="light" data-accent="coral">
+            <p class="pane-cap">Light · coral</p>
+            <div class="inline-result" data-role="action-result"><div role="status" class="inline-result__region">
+              <div class="data-note data-note--note"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span><span class="data-note__word">Hinweis</span><div class="data-note__body">Transaktion gelöscht: Kauf · <bdi>Nordwind Industrie AG</bdi> · 22.09.2026.<button type="button" class="inline-result__dismiss" aria-label="Schließen">&times;</button></div></div>
+            </div><div role="alert" class="inline-result__region"></div></div>
+            <div class="inline-result" data-role="action-result"><div role="status" class="inline-result__region"></div><div role="alert" class="inline-result__region">
+              <div class="data-note data-note--problem"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-oct"/></svg></span><span class="data-note__word">Problem</span><div class="data-note__body">Diese Transaktion existiert nicht mehr.<button type="button" class="inline-result__dismiss" aria-label="Schließen">&times;</button></div></div>
+            </div></div>
+          </div>
+          <div class="theme-pane" data-theme="dark" data-accent="coral">
+            <p class="pane-cap">Dark · coral</p>
+            <div class="inline-result" data-role="action-result"><div role="status" class="inline-result__region">
+              <div class="data-note data-note--note"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span><span class="data-note__word">Hinweis</span><div class="data-note__body">Transaktion gelöscht: Kauf · <bdi>Nordwind Industrie AG</bdi> · 22.09.2026.<button type="button" class="inline-result__dismiss" aria-label="Schließen">&times;</button></div></div>
+            </div><div role="alert" class="inline-result__region"></div></div>
+            <div class="inline-result" data-role="action-result"><div role="status" class="inline-result__region"></div><div role="alert" class="inline-result__region">
+              <div class="data-note data-note--problem"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-oct"/></svg></span><span class="data-note__word">Problem</span><div class="data-note__body">Diese Transaktion existiert nicht mehr.<button type="button" class="inline-result__dismiss" aria-label="Schließen">&times;</button></div></div>
+            </div></div>
+          </div>
+        </div>
+        <p class="lbl">Two outcomes, two words, two glyphs, two tints — under every accent and theme.<i class="pin a">2</i></p>
+      </div>
+    </div>
+    <div class="mock-frame w-full"><span class="mock-tag var">B — a glyph inside the old alert, no word</span>
+      <div class="stage">
+        <div class="theme-pair">
+          <div class="theme-pane" data-theme="light" data-accent="coral">
+            <p class="pane-cap">Light · coral</p>
+            <p class="alert-success" role="status"><span class="alert-glyph" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span><span class="visually-hidden">Hinweis: </span>Transaktion gelöscht: Kauf · Nordwind Industrie AG · 22.09.2026.</p>
+            <p class="alert-error" role="alert"><span class="alert-glyph" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-oct"/></svg></span><span class="visually-hidden">Problem: </span>Diese Transaktion existiert nicht mehr.</p>
+          </div>
+          <div class="theme-pane" data-theme="dark" data-accent="coral">
+            <p class="pane-cap">Dark · coral</p>
+            <p class="alert-success" role="status"><span class="alert-glyph" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span><span class="visually-hidden">Hinweis: </span>Transaktion gelöscht: Kauf · Nordwind Industrie AG · 22.09.2026.</p>
+            <p class="alert-error" role="alert"><span class="alert-glyph" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-oct"/></svg></span><span class="visually-hidden">Problem: </span>Diese Transaktion existiert nicht mehr.</p>
+          </div>
+        </div>
+        <p class="lbl">In the dark, the outcome now rides on a 14&nbsp;px shape alone.<i class="pin o">3</i></p>
+      </div>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:14px">
+    <div class="notes w-notes">
+      <p class="cap">Today</p>
+      <ol class="pins">
+        <li><i class="pin b">1</i>The slot answers the delete twice: "Transaktion gelöscht: …" (A5) and, raced, "Diese Transaktion existiert nicht mehr." (A6). A reader who cannot tell #ce1b42 from #b91c1c — or anyone in the dark theme — reads both the same. UX&#8209;DR7 forbids exactly this.</li>
+      </ol>
+    </div>
+    <div class="notes w-notes">
+      <p class="cap">A and B</p>
+      <ol class="pins">
+        <li><i class="pin a">2</i><b>A — the slot becomes <code>AppShell.inline_result/1</code>.</b> DESIGN.md's frontmatter already settles the words: <i>"reuses {components.data-note} severities verbatim: success reads as note, a recoverable failure as attention, a refused write as problem. No fourth appearance and no success-specific colour."</i> So the success says <b>Hinweis</b> with the asterisk, the gone row says <b>Problem</b> with the octagon — not "Erledigt" / "Fehler", which would be a fourth and fifth severity word (Voice and Tone: "one word per severity, app-wide"; neither is in the catalog). The colour stops carrying the outcome: the note is grey, the problem keeps the danger tint. The dismiss and the two live regions come with the component.</li>
+        <li><i class="pin o">3</i><b>B — a glyph only.</b> Cheaper: two spans in five templates. But the ink stays identical in the dark, so a 14&nbsp;px asterisk against a 14&nbsp;px octagon is the only visible difference; the word lives only in the accessibility tree. And it keeps a second feedback component that DESIGN.md's inventory retires ("{components.data-note} replaces .alert-error / .alert-success").</li>
+        <li><span class="rec">Why A:</span> the house already has the answer and it is in the same page — Accounts &amp; depots renders <code>.alert-*</code> <i>and</i> an <code>inline_result</code> a few lines apart (<code>portfolio_accounts_live.ex:90–110</code>). A makes them one.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<!-- ======================== 07.3 #1069 + #1071 ======================== -->
+<section class="mock-board" id="b1069">
+  <h2>07.3 · #1069 + #1071 — the drift table's empty band, and a tooltip that reads ragged left <small>DESIGN.md → data table, metric tooltip (H4 c′) · before / after</small></h2>
+  <p class="mock-note desk-only"><b>#1069:</b> <code>.drift-table, .cash-table { margin-top: 1rem }</code> (app.css:5692–5697) puts a 17&nbsp;px empty band inside every bordered wrapper they sit in — the allocation tree, the flat positions, the Holdings cash table and both snapshot tables. <b>#1071:</b> the Drift ⓘ sits in <code>th.num</code>, whose <code>text-align: right</code> (app.css:5745–5747) the tooltip's paragraph inherits (<code>.metric-tooltip p</code>, app.css:6138–6162, sets <code>white-space</code> since H4 c′ but not the alignment). The ⓘ is drawn open, as a tap or Enter leaves it.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half today"><span class="mock-tag">Today</span>
+      <div class="alloc">
+        <p class="drift-filter-summary">Alle 5 Kategorien angezeigt.</p>
+        <div class="data-table-wrapper">
+          <table class="drift-table" aria-describedby="tip-a">
+            <thead><tr><th>Kategorie</th><th class="num">Wert</th><th class="num">Ist</th><th class="num">Soll</th><th class="num col-subject">Drift <details class="metric-tooltip" open><summary aria-label="Info SOLL-IST-Abweichung">ⓘ</summary><p id="tip-a" role="tooltip">Soll vs. Ist: Die Drift ist Ist-Gewicht minus Soll-Gewicht. Positiv = übergewichtet (reduzieren, um das Ziel zu erreichen), negativ = untergewichtet (aufstocken, um es zu erreichen).</p></details><i class="pin b">2</i></th></tr></thead>
+            <tbody>
+              <tr><td style="padding-left:.75rem"><span class="cat-swatch" style="background:#7c3aed"></span> Aktien Welt</td><td class="num">41.820,00</td><td class="num">52,3%</td><td class="num">50,0%</td><td class="num col-subject">+1.840,00 EUR</td></tr>
+              <tr><td style="padding-left:.75rem"><span class="cat-swatch" style="background:#0f766e"></span> Anleihen</td><td class="num">18.440,00</td><td class="num">23,1%</td><td class="num">25,0%</td><td class="num col-subject is-negative">-1.550,00 EUR</td></tr>
+              <tr><td style="padding-left:.75rem"><span class="cat-swatch" style="background:#b45309"></span> Rohstoffe</td><td class="num">6.120,00</td><td class="num">7,7%</td><td class="num">8,0%</td><td class="num col-subject is-negative">-280,00 EUR</td></tr>
+              <tr><td style="padding-left:.75rem"><span class="cat-swatch" style="background:#5a6577"></span> Immobilien</td><td class="num">7.560,00</td><td class="num">9,5%</td><td class="num">10,0%</td><td class="num col-subject is-negative">-430,00 EUR</td></tr>
+              <tr><td style="padding-left:.75rem">Cash</td><td class="num">6.020,00</td><td class="num">7,5%</td><td class="num">7,0%</td><td class="num col-subject">+420,00 EUR</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="measure">The band above the head row: 17&nbsp;px inside the wrapper's border.<i class="pin b">1</i></p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">After</span>
+      <div class="alloc">
+        <p class="drift-filter-summary">Alle 5 Kategorien angezeigt.</p>
+        <div class="data-table-wrapper">
+          <table class="drift-table" aria-describedby="tip-b">
+            <thead><tr><th>Kategorie</th><th class="num">Wert</th><th class="num">Ist</th><th class="num">Soll</th><th class="num col-subject">Drift <details class="metric-tooltip" open><summary aria-label="Info SOLL-IST-Abweichung">ⓘ</summary><p id="tip-b" role="tooltip">Soll vs. Ist: Die Drift ist Ist-Gewicht minus Soll-Gewicht. Positiv = übergewichtet (reduzieren, um das Ziel zu erreichen), negativ = untergewichtet (aufstocken, um es zu erreichen).</p></details><i class="pin a">4</i></th></tr></thead>
+            <tbody>
+              <tr><td style="padding-left:.75rem"><span class="cat-swatch" style="background:#7c3aed"></span> Aktien Welt</td><td class="num">41.820,00</td><td class="num">52,3%</td><td class="num">50,0%</td><td class="num col-subject">+1.840,00 EUR</td></tr>
+              <tr><td style="padding-left:.75rem"><span class="cat-swatch" style="background:#0f766e"></span> Anleihen</td><td class="num">18.440,00</td><td class="num">23,1%</td><td class="num">25,0%</td><td class="num col-subject is-negative">-1.550,00 EUR</td></tr>
+              <tr><td style="padding-left:.75rem"><span class="cat-swatch" style="background:#b45309"></span> Rohstoffe</td><td class="num">6.120,00</td><td class="num">7,7%</td><td class="num">8,0%</td><td class="num col-subject is-negative">-280,00 EUR</td></tr>
+              <tr><td style="padding-left:.75rem"><span class="cat-swatch" style="background:#5a6577"></span> Immobilien</td><td class="num">7.560,00</td><td class="num">9,5%</td><td class="num">10,0%</td><td class="num col-subject is-negative">-430,00 EUR</td></tr>
+              <tr><td style="padding-left:.75rem">Cash</td><td class="num">6.020,00</td><td class="num">7,5%</td><td class="num">7,0%</td><td class="num col-subject">+420,00 EUR</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="measure">The head row sits on the wrapper's top border, as in every other data table.<i class="pin a">3</i></p>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:10px">
+    <ol class="pins">
+      <li><i class="pin b">1</i><b>#1069 today:</b> the margin belongs to the table, so it lands inside the border. It predates the wrappers (#788); every call site has had one since.</li>
+      <li><i class="pin b">2</i><b>#1071 today:</b> the paragraph's lines end flush right and start ragged — a sentence set like a figure column. The same happens at 390&nbsp;px, where H4 (c′) already made it wrap.</li>
+      <li><i class="pin a">3</i><b>Rule ⑤:</b> the declaration goes (written as <code>margin-top: 0</code> here so the board can show both). The space above the wrapper is the filter summary's own 8&nbsp;px, as above every other wrapped table. All five call sites change; the cash table on Holdings and the two snapshot tables lose the same band.</li>
+      <li><i class="pin a">4</i><b>Rule ⑥:</b> <code>.metric-tooltip p { text-align: start }</code> on the class, H4 (c′)'s reasoning carried one property further: a tooltip is a paragraph wherever it sits. Where nothing set <code>right</code> the picture is identical (the stat cards, the KPI strip's inline ⓘ).</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============================ 07.4 #1085 ============================ -->
+<section class="mock-board" id="b1085">
+  <h2>07.4 · #1085 — Accounts &amp; depots: the balance's date, the role at 390&nbsp;px, the chip controls, the merge arrow <small>J7.2 wording · UX&#8209;DR6 amendment 2 · text-subtle rule · before / after</small></h2>
+  <p class="mock-note desk-only">Four repairs on one surface. (a) <code>cash_balance_cell/1</code> prints <code>gettext("as of %{date}")</code> — "Stand" — beside the balance (<code>portfolio_accounts_live.ex:478–480</code>); the date is the newest booking on the account (<code>Ledger.cash_activity_dates/1</code>), and a balance nothing has touched since is still today's. (b) Under 640&nbsp;px the head is visually hidden (app.css:7127–7137) and so is the role select's own label (<code>:704</code>), so the card shows "Verfügbares Cash" unlabelled. (c) Inside <code>@media (pointer: coarse)</code> the chip's + is declared 32&nbsp;px and its × 24&nbsp;px (app.css:7106–7120). (d) <code>.merge-record__arrow</code> is <code>--color-text-subtle</code> (app.css:9692–9694).</p>
+
+  <p class="sub-h">(a) The balance's date — pick J7.2</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-full"><span class="mock-tag">Today — "Stand"</span>
+      <div class="bal-list">
+        <div class="bal-row"><span class="nm">Girokonto<small>Depot 1</small></span><span class="cash-balance"><span class="cash-balance__amount num">4.230,15 EUR</span><span class="cash-balance__asof">Stand 22.09.2026</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></div>
+        <div class="bal-row"><span class="nm">Tagesgeld<small>Verrechnungskonto</small></span><span class="cash-balance"><span class="cash-balance__amount num">1.512,40 EUR</span><span class="cash-balance__asof">Stand 31.03.2026<i class="pin b">1</i></span></span><button type="button" class="cash-balance__action">Saldo setzen</button></div>
+        <div class="bal-row"><span class="nm">Broker Verrechnung 1<small>US Broker</small></span><span class="cash-balance"><span class="cash-balance__amount num">812,06 USD</span><span class="cash-balance__asof">Stand 10.02.2026</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-full"><span class="mock-tag var rec-tag">A · recommended — "letzte Buchung"</span>
+      <div class="bal-list">
+        <div class="bal-row"><span class="nm">Girokonto<small>Depot 1</small></span><span class="cash-balance"><span class="cash-balance__amount num">4.230,15 EUR</span><span class="cash-balance__asof is-new">letzte Buchung 22.09.2026</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></div>
+        <div class="bal-row"><span class="nm">Tagesgeld<small>Verrechnungskonto</small></span><span class="cash-balance"><span class="cash-balance__amount num">1.512,40 EUR</span><span class="cash-balance__asof">letzte Buchung 31.03.2026<i class="pin a">2</i></span></span><button type="button" class="cash-balance__action">Saldo setzen</button></div>
+        <div class="bal-row"><span class="nm">Broker Verrechnung 1<small>US Broker</small></span><span class="cash-balance"><span class="cash-balance__amount num">812,06 USD</span><span class="cash-balance__asof">letzte Buchung 10.02.2026</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></div>
+      </div>
+    </div>
+    <div class="mock-frame w-full"><span class="mock-tag var">B — "unverändert seit"</span>
+      <div class="bal-list">
+        <div class="bal-row"><span class="nm">Girokonto<small>Depot 1</small></span><span class="cash-balance"><span class="cash-balance__amount num">4.230,15 EUR</span><span class="cash-balance__asof">unverändert seit 22.09.2026</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></div>
+        <div class="bal-row"><span class="nm">Tagesgeld<small>Verrechnungskonto</small></span><span class="cash-balance"><span class="cash-balance__amount num">1.512,40 EUR</span><span class="cash-balance__asof">unverändert seit 31.03.2026<i class="pin o">3</i></span></span><button type="button" class="cash-balance__action">Saldo setzen</button></div>
+        <div class="bal-row"><span class="nm">Broker Verrechnung 1<small>US Broker</small></span><span class="cash-balance"><span class="cash-balance__amount num">812,06 USD</span><span class="cash-balance__asof">unverändert seit 10.02.2026</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></div>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:10px">
+    <ol class="pins">
+      <li><i class="pin b">1</i><b>Today:</b> "Stand 31.03.2026" on 04.10.2026 reads as "this balance is six months old". It is today's balance; the date is when a booking last moved it.</li>
+      <li><i class="pin a">2</i><b>A — "letzte Buchung %{date}"</b> (en "last booking %{date}"): says what the date is, in the history's noun, and it is the word the Overview's KPI strip already uses for the same kind of date ("Letzte Buchung", <code>dashboard_live.ex:374</code>). A set balance is a booking too, so the words hold for it.</li>
+      <li><i class="pin o">3</i><b>B — "unverändert seit %{date}"</b>: speaks for the balance instead of the ledger and is equally true, but "unverändert" invites the same worry in a new word (has nobody looked since?), and it is wrong for an account whose last booking moved nothing net. <span class="rec">A recommended.</span></li>
+      <li><b>Constraint for the story, either way:</b> the msgid "as of %{date}" is shared by four call sites (<code>default.po</code> references <code>portfolio_live.ex:1821</code>, <code>:4756</code>, <code>tax_live.ex:600</code> and this one), and the other three are real as-of dates. The balance cell takes a msgid of its own; "Stand" stays where it is right.</li>
+    </ol>
+  </div>
+
+  <p class="sub-h">(b) The cash account's card at 390&nbsp;px — and (c) its chip controls under a coarse pointer</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-phone"><span class="mock-tag">Today · 390&nbsp;px, touch</span>
+      <div class="ph-wrap"><iframe data-tpl="tpl-acc-today" data-css="frame-base frame-today-touch" title="Today, 390 px"></iframe></div>
+    </div>
+    <div class="mock-frame mock-after w-phone"><span class="mock-tag">After · 390&nbsp;px, touch (J7.2 = A)</span>
+      <div class="ph-wrap"><iframe data-tpl="tpl-acc-after" data-css="frame-base proposal frame-after-coarse" title="After, 390 px"></iframe></div>
+    </div>
+    <div class="notes w-notes">
+      <p class="cap">What changes</p>
+      <ol class="pins">
+        <li><i class="pin b">4</i><b>(b) Today:</b> "Verfügbares Cash", "Reserve" — values with no name. The frontmatter's reason for hiding the label (<code>bucket-cell.role</code>: "the column head states it once") is false where the head is hidden.</li>
+        <li><i class="pin a">5</i><b>(b) Rule ⑦:</b> the label renders with <code>.liquidity-role-field__label</code> — 11&nbsp;px / 600 / muted, already in app.css (6881–6886) and unused — and is visually hidden only above 640&nbsp;px. The field is <code>inline-flex</code>, so label and select share the line. The frontmatter's <code>role</code> line gets "above 640&nbsp;px".</li>
+        <li><i class="pin b">6</i><b>(c) Today (measured):</b> × 24 × 24, + 32 × 34 — the two sub-floor values UX&#8209;DR6 amendment 2 calls a review reject, still in the coarse block (the + is 34 tall only because the base button's 34&nbsp;px floor wins its declared height, as it did for <code>.icon-button</code>).</li>
+        <li><i class="pin a">7</i><b>(c) Rule ⑧:</b> both raised to 44 × 44; the chip drops its vertical and right padding so the × fills its end, and is 46&nbsp;px tall on touch (measured). Not H6's negative margin: the chips wrap onto several lines 5&nbsp;px apart, so a grown box would reach the next line's chips. <b>Not taken: deleting the × on touch</b> (amendment 2 allows "raised or deleted") — removal would move into the picker, which lists the assigned chips only when there is an overflow (<code>:if={@overflow != []}</code>), so the picker would have to change too.</li>
+      </ol>
+    </div>
+  </div>
+
+  <p class="sub-h">(d) The merge records' arrow</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half today"><span class="mock-tag">Today — text-subtle</span>
+      <div class="stage">
+        <div class="theme-pair">
+          <div class="arrow-pane" data-theme="light"><p class="pane-cap">Light</p>
+            <span class="merge-record__pair"><span class="merge-record__source">Tagesgeld (alt)</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="#">Tagesgeld</a></span>
+            <span class="merge-record__pair"><span class="merge-record__source">Depot 2</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="#">Depot 1</a></span>
+            <span class="ratio">arrow 2.64:1 on the panel<i class="pin b">8</i></span>
+          </div>
+          <div class="arrow-pane" data-theme="dark"><p class="pane-cap">Dark</p>
+            <span class="merge-record__pair"><span class="merge-record__source">Tagesgeld (alt)</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="#">Tagesgeld</a></span>
+            <span class="merge-record__pair"><span class="merge-record__source">Depot 2</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="#">Depot 1</a></span>
+            <span class="ratio">arrow 3.03:1 on the panel</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">After — text-muted</span>
+      <div class="stage">
+        <div class="theme-pair">
+          <div class="arrow-pane" data-theme="light"><p class="pane-cap">Light</p>
+            <span class="merge-record__pair"><span class="merge-record__source">Tagesgeld (alt)</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="#">Tagesgeld</a></span>
+            <span class="merge-record__pair"><span class="merge-record__source">Depot 2</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="#">Depot 1</a></span>
+            <span class="ratio">arrow 5.89:1 on the panel<i class="pin a">9</i></span>
+          </div>
+          <div class="arrow-pane" data-theme="dark"><p class="pane-cap">Dark</p>
+            <span class="merge-record__pair"><span class="merge-record__source">Tagesgeld (alt)</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="#">Tagesgeld</a></span>
+            <span class="merge-record__pair"><span class="merge-record__source">Depot 2</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="#">Depot 1</a></span>
+            <span class="ratio">arrow 5.91:1 on the panel</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:10px">
+    <ol class="pins">
+      <li><i class="pin b">8</i><b>Today:</b> the computed table's text-subtle rows (2.64 light / 3.03 dark on {colors.bg-elevated}). DESIGN.md → Colors bars text-subtle from content, and the arrow is the only thing a sighted reader has for the direction — the hidden "in" serves the screen reader only. The arrow's colour was written into the G2-A amendment itself ("<code>__arrow</code> subtle"), so that sentence changes with the rule.</li>
+      <li><i class="pin a">9</i><b>Rule ⑨:</b> {colors.text-muted}, the source's own colour: the pair reads "muted source, muted arrow, accent target". The merge preview's <code>.merge-route</code> arrow should be checked by the story for the same token.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============================ 07.5 #1067 ============================ -->
+<section class="mock-board" id="b1067">
+  <h2>07.5 · #1067 — a merge of two ISIN-less securities reads "bleibt; ist jetzt frühere ISIN" <small>G2-A merge records · before / after</small></h2>
+  <p class="mock-note desk-only"><code>line_value(:isin, :security, …)</code> (<code>merge_records.ex:645–666</code>) matches on the recorded <code>choices.identity_choice</code> first and only then looks at the ISINs. The manifest records the choice <i>as given</i> (<code>security_merge.ex:489</code>, written at <code>:2573–2577</code>), also when none was required: the API and MCP accept an unneeded <code>keep_target_isin</code> (<code>identity_choice/2</code> answers <code>:no_choice</code> at <code>:508</code> but <code>given</code> keeps the request's value). The screen's own dialog sends none, so the record is an agent's. After: with no ISIN on either side, the line is left out — the record lists only lines with something to say (<code>lines/2</code>).</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-full today"><span class="mock-tag">Today</span>
+      <section class="workspace-section merge-records">
+        <h2>Zusammenführungen</h2>
+        <div class="data-table-wrapper merge-records__table">
+          <table class="data-table merge-records-table">
+            <thead><tr><th>Datum</th><th>Art</th><th>Quelle → Ziel</th><th>Ergebnis</th><th>Von</th></tr></thead>
+            <tbody>
+              <tr><td class="cell-date">30.09.2026</td><td class="cell-kind">Wertpapier</td><td class="merge-record__pair"><span class="merge-record__source">Alder Creek Timber Fund (Kopie)</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="#">Alder Creek Timber Fund</a></td>
+                <td><details class="merge-manifest" open><summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chev"/></svg>12 Buchungen verschoben, 40 Kurse ergänzt</summary>
+                  <dl class="merge-manifest__counts"><dt>Buchungen</dt><dd>12 verschoben</dd><dt>Kurse</dt><dd>40 ergänzt</dd><dt>ISIN</dt><dd>bleibt; ist jetzt frühere ISIN<i class="pin b">1</i></dd><dt>Prüfung</dt><dd>Stückzahl an 6 Tagen in 1 Depot bestätigt</dd></dl>
+                  <p class="merge-manifest__basis">Zählung aus dem Protokoll der Zusammenführung; jede einzelne Zeile steht im Audit-Journal.</p></details></td>
+                <td class="cell-actor">Agent</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="phone-rows merge-records__rows" aria-label="Zusammenführungen">
+          <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name merge-record__pair"><span class="merge-record__source">Alder Creek Timber Fund (Kopie)</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="#">Alder Creek Timber Fund</a></span><span class="phone-row__ids">30.09.2026 · Wertpapier · Agent</span></span>
+            <details class="merge-manifest" open><summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chev"/></svg>12 Buchungen verschoben, 40 Kurse ergänzt</summary>
+              <dl class="merge-manifest__counts"><dt>Buchungen</dt><dd>12 verschoben</dd><dt>Kurse</dt><dd>40 ergänzt</dd><dt>ISIN</dt><dd>bleibt; ist jetzt frühere ISIN</dd><dt>Prüfung</dt><dd>Stückzahl an 6 Tagen in 1 Depot bestätigt</dd></dl>
+              <p class="merge-manifest__basis">Zählung aus dem Protokoll der Zusammenführung; jede einzelne Zeile steht im Audit-Journal.</p></details></li>
+        </ul>
+      </section>
+    </div>
+    <div class="mock-frame mock-after w-full"><span class="mock-tag">After — no ISIN, no ISIN line</span>
+      <section class="workspace-section merge-records">
+        <h2>Zusammenführungen</h2>
+        <div class="data-table-wrapper merge-records__table">
+          <table class="data-table merge-records-table">
+            <thead><tr><th>Datum</th><th>Art</th><th>Quelle → Ziel</th><th>Ergebnis</th><th>Von</th></tr></thead>
+            <tbody>
+              <tr><td class="cell-date">30.09.2026</td><td class="cell-kind">Wertpapier</td><td class="merge-record__pair"><span class="merge-record__source">Alder Creek Timber Fund (Kopie)</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="#">Alder Creek Timber Fund</a></td>
+                <td><details class="merge-manifest" open><summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chev"/></svg>12 Buchungen verschoben, 40 Kurse ergänzt</summary>
+                  <dl class="merge-manifest__counts"><dt>Buchungen</dt><dd>12 verschoben</dd><dt>Kurse</dt><dd>40 ergänzt</dd><dt>Prüfung</dt><dd>Stückzahl an 6 Tagen in 1 Depot bestätigt<i class="pin a">2</i></dd></dl>
+                  <p class="merge-manifest__basis">Zählung aus dem Protokoll der Zusammenführung; jede einzelne Zeile steht im Audit-Journal.</p></details></td>
+                <td class="cell-actor">Agent</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="phone-rows merge-records__rows" aria-label="Zusammenführungen">
+          <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name merge-record__pair"><span class="merge-record__source">Alder Creek Timber Fund (Kopie)</span><span class="merge-record__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><a class="merge-record__target" href="#">Alder Creek Timber Fund</a></span><span class="phone-row__ids">30.09.2026 · Wertpapier · Agent</span></span>
+            <details class="merge-manifest" open><summary class="disclosure-summary"><svg class="disclosure-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-chev"/></svg>12 Buchungen verschoben, 40 Kurse ergänzt</summary>
+              <dl class="merge-manifest__counts"><dt>Buchungen</dt><dd>12 verschoben</dd><dt>Kurse</dt><dd>40 ergänzt</dd><dt>Prüfung</dt><dd>Stückzahl an 6 Tagen in 1 Depot bestätigt</dd></dl>
+              <p class="merge-manifest__basis">Zählung aus dem Protokoll der Zusammenführung; jede einzelne Zeile steht im Audit-Journal.</p></details></li>
+        </ul>
+      </section>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:10px">
+    <ol class="pins">
+      <li><i class="pin b">1</i><b>Today:</b> "%{isin} bleibt; %{former} ist jetzt frühere ISIN" with both slots empty. The arrow here is today's text-subtle (07.4 d).</li>
+      <li><i class="pin a">2</i><b>After:</b> the line keys on the ISINs the record holds, not on the choice it was given: both empty → no line; target only → nothing changed, no line; source only → "XS… von der Quelle übernommen" (the existing third sentence); both → the given choice's sentence as today. The same rule closes the one-sided slot: a given <code>keep_target_isin</code> with one ISIN missing renders "DE000000000A bleibt; ist jetzt frühere ISIN" today, the same empty slot with one side filled. The payload stays as it is; the agent reads <code>choices</code> verbatim.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ============================ 07.6 #933 ============================ -->
+<section class="mock-board" id="b933">
+  <h2>07.6 · #933 — a logo path with no file behind it counts as a missing logo <small>one frame before / after · it changes what renders</small></h2>
+  <p class="mock-note desk-only">After an upgrade into an empty <code>portfolixir-logos</code> volume, every security that had a logo keeps <code>attributes.logo_path</code>. <code>security_logo/1</code> (<code>securities_live.ex:3751–3781</code>) renders an <code>&lt;img&gt;</code> for any local path, so the row shows the white logo plate with the browser's broken-image glyph on it (the image answers 404). The Overview's data-quality line and the "Kein Logo" filter read the attribute and count nothing missing. After: the row renders its fallback — the monogram, or a flag for a bond — and both counts include it. The images below are really missing; the renderer draws what a browser draws.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half"><span class="mock-tag">Today — empty plates, nothing counted</span>
+      <div class="stage">
+        <div class="pg">
+          <div class="pg-top"><h3>Übersicht</h3></div>
+          <div class="pg-body">
+            <p class="elide">Datenqualität: no section — the catalog counts 0 securities without a logo.<i class="pin b">1</i></p>
+          </div>
+        </div>
+        <div class="pg">
+          <div class="pg-top"><h3>Wertpapiere</h3><span>Suchen, filtern und pflegen des investierbaren Universums.</span></div>
+          <div class="pg-body">
+            <div class="data-table-wrapper" id="securities-table"><table class="data-table">
+              <thead><tr><th class="row-actions-head" aria-label="Zeilenaktionen"></th><th>Name</th><th class="num">Letzter Kurs</th></tr></thead>
+              <tbody>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><img class="security-logo security-logo--row" src="logos-volume-empty/helios.png" alt="" /><span class="row-target__label">Helios Solar Systems SE</span></span></td><td class="num">18,42</td></tr>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">M</span><span class="row-target__label">Meridian Global Equity ETF</span></span></td><td class="num">75,90</td></tr>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><img class="security-logo security-logo--row" src="logos-volume-empty/nordwind.png" alt="" /><span class="row-target__label">Nordwind Industrie AG</span></span><i class="pin b">2</i></td><td class="num">41,05</td></tr>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">P</span><span class="row-target__label">Placeholder Anleihe 2031 3,25%</span></span></td><td class="num">98,70</td></tr>
+              </tbody>
+            </table></div>
+            <ul class="phone-rows" aria-label="Wertpapiere">
+              <li class="phone-row"><img class="security-logo security-logo--row" src="logos-volume-empty/helios.png" alt="" /><span class="phone-row__body"><a class="phone-row__target"><span class="phone-row__name">Helios Solar Systems SE</span></a><span class="phone-row__ids">HSS · XS0000000010 · Aktie</span></span><span class="phone-row__figures"><span class="phone-row__figure">18,42<small class="value-suffix">EUR</small></span></span><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></li>
+              <li class="phone-row"><span class="security-logo security-logo--row security-logo--initial">M</span><span class="phone-row__body"><a class="phone-row__target"><span class="phone-row__name">Meridian Global Equity ETF</span></a><span class="phone-row__ids">MGEQ · XS0000000001 · ETF</span></span><span class="phone-row__figures"><span class="phone-row__figure">75,90<small class="value-suffix">EUR</small></span></span><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></li>
+              <li class="phone-row"><img class="security-logo security-logo--row" src="logos-volume-empty/nordwind.png" alt="" /><span class="phone-row__body"><a class="phone-row__target"><span class="phone-row__name">Nordwind Industrie AG</span></a><span class="phone-row__ids">NWI · DE000000000A · Aktie</span></span><span class="phone-row__figures"><span class="phone-row__figure">41,05<small class="value-suffix">EUR</small></span></span><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">After — the monogram, and the line counts them</span>
+      <div class="stage">
+        <div class="pg">
+          <div class="pg-top"><h3>Übersicht</h3></div>
+          <div class="pg-body">
+            <section class="workspace-section" id="dashboard-data-quality"><h2>Datenqualität<i class="pin a">3</i></h2>
+              <div role="status"><div class="data-note data-note--note is-new"><span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span><span class="data-note__word">Hinweis</span><div class="data-note__body"><a href="#" data-role="dq-logo">2 ohne Logo</a></div></div></div>
+            </section>
+          </div>
+        </div>
+        <div class="pg">
+          <div class="pg-top"><h3>Wertpapiere</h3><span>Suchen, filtern und pflegen des investierbaren Universums.</span></div>
+          <div class="pg-body">
+            <div class="data-table-wrapper" id="securities-table"><table class="data-table">
+              <thead><tr><th class="row-actions-head" aria-label="Zeilenaktionen"></th><th>Name</th><th class="num">Letzter Kurs</th></tr></thead>
+              <tbody>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial is-new">H</span><span class="row-target__label">Helios Solar Systems SE</span></span></td><td class="num">18,42</td></tr>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">M</span><span class="row-target__label">Meridian Global Equity ETF</span></span></td><td class="num">75,90</td></tr>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial is-new">N</span><span class="row-target__label">Nordwind Industrie AG</span></span><i class="pin a">4</i></td><td class="num">41,05</td></tr>
+                <tr class="security-row"><td class="row-actions"><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></td><td><span class="row-target row-target--with-logo"><span class="security-logo security-logo--row security-logo--initial">P</span><span class="row-target__label">Placeholder Anleihe 2031 3,25%</span></span></td><td class="num">98,70</td></tr>
+              </tbody>
+            </table></div>
+            <ul class="phone-rows" aria-label="Wertpapiere">
+              <li class="phone-row"><span class="security-logo security-logo--row security-logo--initial is-new">H</span><span class="phone-row__body"><a class="phone-row__target"><span class="phone-row__name">Helios Solar Systems SE</span></a><span class="phone-row__ids">HSS · XS0000000010 · Aktie</span></span><span class="phone-row__figures"><span class="phone-row__figure">18,42<small class="value-suffix">EUR</small></span></span><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></li>
+              <li class="phone-row"><span class="security-logo security-logo--row security-logo--initial">M</span><span class="phone-row__body"><a class="phone-row__target"><span class="phone-row__name">Meridian Global Equity ETF</span></a><span class="phone-row__ids">MGEQ · XS0000000001 · ETF</span></span><span class="phone-row__figures"><span class="phone-row__figure">75,90<small class="value-suffix">EUR</small></span></span><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></li>
+              <li class="phone-row"><span class="security-logo security-logo--row security-logo--initial is-new">N</span><span class="phone-row__body"><a class="phone-row__target"><span class="phone-row__name">Nordwind Industrie AG</span></a><span class="phone-row__ids">NWI · DE000000000A · Aktie</span></span><span class="phone-row__figures"><span class="phone-row__figure">41,05<small class="value-suffix">EUR</small></span></span><button type="button" class="row-actions__kebab"><svg width="16" height="16" fill="currentColor"><use href="#i-keb"/></svg></button></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:10px">
+    <ol class="pins">
+      <li><i class="pin b">1</i><b>Today, Overview:</b> the data-quality block renders only when a finding exists (UX&#8209;DR2, no all-clear badge); <code>DataQuality.count("missing_logo")</code> reads the attribute, so it stays away.</li>
+      <li><i class="pin b">2</i><b>Today, the rows:</b> the white logo plate with the browser's broken-image glyph — an image that answers 404. Neither the monogram nor a remedy reaches the row; "Logo-Suche für alle wiederholen" on the "Kein Logo" list does not list it either.</li>
+      <li><i class="pin a">3</i><b>After, Overview:</b> the existing line, note severity, "2 ohne Logo", linking the filtered list — no new component.</li>
+      <li><i class="pin a">4</i><b>After, the rows:</b> the fallback <code>security_logo/1</code> already draws for a security with no path — the monogram ("N"), or the flag for a bond. An unlocked row goes back to discovery and shows its new logo when one is found; a locked (manual) one stays the monogram and is listed under "Kein Logo" for a re-upload. Whether the check runs at start-up or where the path is read is the implementation's call (#933); the picture is the same.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ===================== phone frame templates (390 px) ===================== -->
+<template id="tpl-acc-today">
+<div class="workspace-section">
+<div class="data-table-wrapper">
+<table class="data-table accounts-table">
+  <thead><tr><th>Name</th><th>Währung</th><th>Liquiditätsrolle</th><th>Saldo</th><th>Buckets</th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead>
+  <tbody class="account-pair">
+    <tr class="account-row--depot">
+      <td class="cell-name cell-name--depot"><span class="account-name">Depot 1</span></td>
+      <td class="cell-currency cell-currency--empty"></td><td class="cell-role cell-role--empty"></td><td class="cell-balance cell-balance--empty"></td>
+      <td class="cell-buckets"><div class="bucket-chip-group"><span class="bucket-chip" style="--chip-color:#0f766e"><span class="bucket-chip__name">Langfristig</span><button type="button" class="bucket-chip__remove hit" aria-label="Bucket Langfristig entfernen">×</button></span><button type="button" class="bucket-chip-add hit" aria-label="Bucket hinzufügen">+</button><span class="bucket-chip-group__scope">Gilt für das Depot</span></div></td>
+      <td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Zeilenaktionen für Depot 1"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+    </tr>
+    <tr class="account-row--cash">
+      <td class="cell-name cell-name--cash"><span class="account-cash-name">Girokonto</span></td>
+      <td class="cell-currency">EUR</td>
+      <td class="cell-role"><form class="liquidity-role-field"><label class="visually-hidden" for="lr-1">Liquiditätsrolle</label><select id="lr-1"><option>Verfügbares Cash</option></select></form><span style="font:700 10px/1 var(--font-sans);color:#fff;background:var(--color-danger);border-radius:999px;padding:3px 6px;margin-left:6px">4</span></td>
+      <td class="cell-balance"><span class="cash-balance"><span class="cash-balance__amount num">4.230,15 EUR</span><span class="cash-balance__asof">Stand 22.09.2026</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></td>
+      <td class="cell-buckets"><div class="bucket-chip-group"><span class="bucket-chip" style="--chip-color:#0f766e"><span class="bucket-chip__name">Langfristig</span><button type="button" class="bucket-chip__remove hit" aria-label="Bucket Langfristig entfernen">×</button></span><span class="bucket-chip" style="--chip-color:#b45309"><span class="bucket-chip__name">Notgroschen</span><button type="button" class="bucket-chip__remove hit" aria-label="Bucket Notgroschen entfernen">×</button></span><button type="button" class="bucket-chip-add hit" aria-label="Bucket hinzufügen">+</button><span style="font:700 10px/1 var(--font-sans);color:#fff;background:var(--color-danger);border-radius:999px;padding:3px 6px">6</span><span class="bucket-chip-group__scope">Gilt für das Verrechnungskonto</span></div></td>
+      <td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Zeilenaktionen für Girokonto"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+    </tr>
+  </tbody>
+  <tbody class="account-pair account-pair--lone">
+    <tr class="account-row--cash account-row--lone-cash">
+      <td class="cell-name cell-name--lone"><span class="account-name">Tagesgeld</span><span class="account-microtag">Verrechnungskonto</span></td>
+      <td class="cell-currency">EUR</td>
+      <td class="cell-role"><form class="liquidity-role-field"><label class="visually-hidden" for="lr-2">Liquiditätsrolle</label><select id="lr-2"><option>Reserve</option></select></form></td>
+      <td class="cell-balance"><span class="cash-balance"><span class="cash-balance__amount num">1.512,40 EUR</span><span class="cash-balance__asof">Stand 31.03.2026</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></td>
+      <td class="cell-buckets"><div class="bucket-chip-group"><span class="bucket-chip-group__empty">Kein Bucket</span><button type="button" class="bucket-chip-add hit" aria-label="Bucket hinzufügen">+</button><span class="bucket-chip-group__scope">Gilt für das Verrechnungskonto</span></div></td>
+      <td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Zeilenaktionen für Tagesgeld"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</div>
+</template>
+
+<template id="tpl-acc-after">
+<div class="workspace-section">
+<div class="data-table-wrapper">
+<table class="data-table accounts-table">
+  <thead><tr><th>Name</th><th>Währung</th><th>Liquiditätsrolle</th><th>Saldo</th><th>Buckets</th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead>
+  <tbody class="account-pair">
+    <tr class="account-row--depot">
+      <td class="cell-name cell-name--depot"><span class="account-name">Depot 1</span></td>
+      <td class="cell-currency cell-currency--empty"></td><td class="cell-role cell-role--empty"></td><td class="cell-balance cell-balance--empty"></td>
+      <td class="cell-buckets"><div class="bucket-chip-group"><span class="bucket-chip" style="--chip-color:#0f766e"><span class="bucket-chip__name">Langfristig</span><button type="button" class="bucket-chip__remove hit-ok" aria-label="Bucket Langfristig entfernen">×</button></span><button type="button" class="bucket-chip-add hit-ok" aria-label="Bucket hinzufügen">+</button><span class="bucket-chip-group__scope">Gilt für das Depot</span></div></td>
+      <td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Zeilenaktionen für Depot 1"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+    </tr>
+    <tr class="account-row--cash">
+      <td class="cell-name cell-name--cash"><span class="account-cash-name">Girokonto</span></td>
+      <td class="cell-currency">EUR</td>
+      <td class="cell-role"><form class="liquidity-role-field"><label class="liquidity-role-field__label is-new" for="lr-3">Liquiditätsrolle</label><select id="lr-3"><option>Verfügbares Cash</option></select></form><span style="font:700 10px/1 var(--font-sans);color:#fff;background:var(--color-positive);border-radius:999px;padding:3px 6px;margin-left:6px">5</span></td>
+      <td class="cell-balance"><span class="cash-balance"><span class="cash-balance__amount num">4.230,15 EUR</span><span class="cash-balance__asof is-new">letzte Buchung 22.09.2026</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></td>
+      <td class="cell-buckets"><div class="bucket-chip-group"><span class="bucket-chip" style="--chip-color:#0f766e"><span class="bucket-chip__name">Langfristig</span><button type="button" class="bucket-chip__remove hit-ok" aria-label="Bucket Langfristig entfernen">×</button></span><span class="bucket-chip" style="--chip-color:#b45309"><span class="bucket-chip__name">Notgroschen</span><button type="button" class="bucket-chip__remove hit-ok" aria-label="Bucket Notgroschen entfernen">×</button></span><button type="button" class="bucket-chip-add hit-ok" aria-label="Bucket hinzufügen">+</button><span style="font:700 10px/1 var(--font-sans);color:#fff;background:var(--color-positive);border-radius:999px;padding:3px 6px">7</span><span class="bucket-chip-group__scope">Gilt für das Verrechnungskonto</span></div></td>
+      <td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Zeilenaktionen für Girokonto"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+    </tr>
+  </tbody>
+  <tbody class="account-pair account-pair--lone">
+    <tr class="account-row--cash account-row--lone-cash">
+      <td class="cell-name cell-name--lone"><span class="account-name">Tagesgeld</span><span class="account-microtag">Verrechnungskonto</span></td>
+      <td class="cell-currency">EUR</td>
+      <td class="cell-role"><form class="liquidity-role-field"><label class="liquidity-role-field__label" for="lr-4">Liquiditätsrolle</label><select id="lr-4"><option>Reserve</option></select></form></td>
+      <td class="cell-balance"><span class="cash-balance"><span class="cash-balance__amount num">1.512,40 EUR</span><span class="cash-balance__asof">letzte Buchung 31.03.2026</span></span><button type="button" class="cash-balance__action">Saldo setzen</button></td>
+      <td class="cell-buckets"><div class="bucket-chip-group"><span class="bucket-chip-group__empty">Kein Bucket</span><button type="button" class="bucket-chip-add hit-ok" aria-label="Bucket hinzufügen">+</button><span class="bucket-chip-group__scope">Gilt für das Verrechnungskonto</span></div></td>
+      <td class="row-actions"><button type="button" class="row-actions__kebab" aria-label="Zeilenaktionen für Tagesgeld"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/></svg></button></td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</div>
+</template>
+
+<script>
+/* Assembly only; nothing here is a proposal. Each phone frame is a 390 px
+   document of its own (srcdoc, so the relative stylesheet link resolves
+   against this board), so app.css's own 640 px rules fire as on a phone. */
+const CSS_HREF = '../../../../../priv/static/app.css';
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const body = document.getElementById(f.dataset.tpl).innerHTML;
+  const css = (f.dataset.css || '').split(/\s+/).filter(Boolean)
+    .map((id) => document.getElementById(id).outerHTML).join('');
+  f.addEventListener('load', () => {
+    f.style.height = Math.ceil(f.contentDocument.documentElement.scrollHeight) + 'px';
+  });
+  f.srcdoc = `<!doctype html><html lang="de"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${body}</body></html>`;
+}
+</script>
+</body>
+</html>
