@@ -555,6 +555,17 @@ refund added to a sale already imported books on the next import; a
 re-export whose sale drifted books no refund twice; a collapsed row's refund
 collapses with its twin's, and books when its twin has none).
 
+## Note (2026-10-04): a CSV row's hash reads the file's Betrag (ADR-0053)
+
+[ADR-0053](0053-a-pp-csv-books-its-gesamtpreis.html) makes a Portfolio
+Performance CSV row book its Gesamtpreis, the cash PP writes, instead of its
+Betrag, PP's gross value. The content hash this record introduced keeps
+reading the **file's Betrag** as its amount input for a CSV row (ADR-0053
+§3), so every hash stored before that record stays byte-identical and a
+re-drop of an already-imported file books nothing. A JSON row's amount input
+stays its `amount`. The #533 economic key of a CSV row is checked under both
+readings (ADR-0053 §4).
+
 ## References
 
 - [ADR-0006](0006-classifications-with-target-weights.html) — built-in trees derived on read; custom assignments stored
