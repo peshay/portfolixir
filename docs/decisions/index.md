@@ -40,7 +40,7 @@ already in force in the codebase.
 | [0009](0009-cash-as-balance-snapshots.html) | Cash as balance snapshots, not a mirrored ledger | Accepted |
 | [0010](0010-ttwror-performance-series.html) | Daily valuation series and TTWROR | Accepted |
 | [0011](0011-unified-ledger-projection.html) | Unified ledger projection (single per-kind reducer) | Accepted |
-| [0012](0012-asset-class-inference-at-read-time.html) | Asset class inference at read time | Accepted |
+| [0012](0012-asset-class-inference-at-read-time.html) | Asset class inference at read time | Accepted (pipeline summary corrected to the code by the note of 2026-10-03) |
 | [0013](0013-exclude-securities-from-allocation-targets.html) | Exclude flagged securities from the allocation steering basis | Superseded by [0018](0018-buckets-tag-based-wealth-scoping.html) |
 | [0014](0014-bilingual-docs-site.html) | Bilingual docs site (EN baseline, DE alongside) without a custom Pages build | Accepted |
 | [0015](0015-cross-currency-settlement-fx-rate.html) | Cross-currency transaction settlement with a stored FX rate | Accepted |

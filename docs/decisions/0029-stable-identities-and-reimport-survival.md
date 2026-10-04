@@ -297,8 +297,11 @@ Guards, made precise by the 2026-07-22 review round:
   > deleted with their content hashes retired) is the repair; the manual
   > steps above stand only until that merge ships. It shipped in Sprint 16
   > over the API and MCP (`POST /api/v1/securities/:id/merge`,
-  > `portfolixir.securities.merge`); the operator's dialog follows in the
-  > same batch.
+  > `portfolixir.securities.merge`) and, for the operator, as
+  > **Merge into…** in the securities row menu: a dialog that reads the same
+  > preview (`GET /api/v1/securities/:id/merge_preview`) and confirms with
+  > the same `plan_digest`, the ISIN choice and the duplicate bookings left
+  > to the operator.
 
 **Rejected: a first-class ledger kind** (`isin_change`). Unlike a split it
 has **no projection effect** — no quantity leg, no cash leg, no external

@@ -4,14 +4,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   MCP surface offers and when it last changed, pollable the way `?since=` is
   pollable for rows.
 
-  A code-maintained manifest: dated entries, each naming the endpoints and
-  tools the change touched (and the parameters it added to existing ones).
-  The newest entry's `version` and `date` are the contract's. A meta-test
-  (`test/portfolixir_web/controllers/api_v1_contract_meta_test.exs`) ties the
-  router's `/api/v1` inventory and the MCP companion's tool inventory to the
-  union of these entries in **both directions**, so a route or tool added,
-  renamed or removed without a manifest entry fails the build — the surface
-  cannot change without saying so.
+  A code-maintained manifest: dated entries, each naming the endpoints,
+  tools and MCP prompts the change touched (and the parameters it added to
+  existing ones). The newest entry's `version` and `date` are the contract's.
+  A meta-test (`test/portfolixir_web/controllers/api_v1_contract_meta_test.exs`)
+  ties the router's `/api/v1` inventory and the MCP companion's tool and
+  prompt inventories to the union of these entries in **both directions**, so
+  a route, tool or prompt added, renamed or removed without a manifest entry
+  fails the build — the surface cannot change without saying so.
 
   Not a changelog document and not a description rewrite: an entry is one
   dated statement of *which parts of the surface moved*, for a consumer that
@@ -19,10 +19,10 @@ defmodule PortfolixirWeb.Api.V1.Contract do
 
   Maintaining it: append a new entry at the **head** of `@entries` with the
   next integer `version`, today's date, a one-sentence `summary`, the
-  `endpoints` ("VERB /api/v1/path") and `tools` it adds, and `parameters`
-  (free text, one per changed read) for a parameter added to an existing
-  surface. Removals are listed under `removed_endpoints` / `removed_tools`
-  so the union stays exact.
+  `endpoints` ("VERB /api/v1/path"), `tools` and `prompts` it adds, and
+  `parameters` (free text, one per changed read) for a parameter added to an
+  existing surface. Removals are listed under `removed_endpoints` /
+  `removed_tools` / `removed_prompts` so the union stays exact.
   """
 
   @type entry :: %{
@@ -33,7 +33,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           tools: [String.t()],
           parameters: [String.t()],
           removed_endpoints: [String.t()],
-          removed_tools: [String.t()]
+          removed_tools: [String.t()],
+          prompts: [String.t()],
+          removed_prompts: [String.t()]
         }
 
   # Newest first.
@@ -64,7 +66,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "portfolixir.securities.create and portfolixir.securities.update take the six bond fields (decimals and dates as strings, coupon_frequency annual or semi_annual, the update also null to clear), each date stating its bounded range; portfolixir.securities.get names the bond reading and its computation_basis; the sparse-fieldset enum of portfolixir.securities.list gains the six fields and bond. The schema budget pays for it: the shared bounded-date sentence and the descriptions of securities.list, .get, .create, .update and .metrics are tightened, every tested statement kept; face_value_currency_code states its code set (ISO 4217, the set currency_code takes), paid for by tightening the bond fields' and securities.update's property descriptions (U7, #330, D-10)"
       ],
       removed_endpoints: [],
-      removed_tools: []
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
     },
     %{
       version: 11,
@@ -95,7 +99,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/portfolios/:portfolio_id/performance/contribution, new, with view=, period=, year= and from=/to= as on the performance read, and GET /api/v1/views/:view_id/performance/contribution, new, across every portfolio in EUR: per position security_id, name, isin, start_value, end_value, net_flows, income, costs, contribution (end_value − start_value − net_flows + income − costs), held_at_start, held_at_end, unvalued_days and unvalued_reason (no_price, no_rate or null; a day without a price or a rate path counts zero and the position stays in the sum), sorted largest first with no rank or label; remainder (interest, standalone_fees_and_taxes, cash_currency_effect, each summed from its own bookings); totals (result, the performance read's end_value − start_value − net_external_flows, positions, remainder; positions + remainder = result). Both forms carry portfolio_id and view_id (portfolio_id null on the view form), echo an active view, carry as_of and stale, and computation_basis with assumptions (the definition, the identity, base currency with the currency move included, exact while conversion quotients terminate and to 34 significant digits otherwise, the settlement difference in the currency line). An empty window answers start_date null, no positions and \"0\" lines and totals. Malformed view= or period is a 422, an unknown portfolio or view a 404. MCP: portfolixir.portfolios.contribution (portfolio_id, view, period, year, from, to) and portfolixir.views.contribution (id, period, year, from, to), read tools in every profile and scope twins of each other (F2, FR-41)"
       ],
       removed_endpoints: [],
-      removed_tools: []
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
     },
     %{
       version: 10,
@@ -120,7 +126,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/securities/:security_id/quotes/manual (portfolixir.quotes.manual), new: count, first and last date and the stretches of the security's manual quotes over its whole stored history, whether the quote sync can fetch it (sync_adapter), and with from and/or to the count in that inclusive range; limit (the list family's bound) caps the stretches. It is what a release of manual quotes (portfolixir.quotes.release) would remove (T-9)"
       ],
       removed_endpoints: [],
-      removed_tools: []
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
     },
     %{
       version: 9,
@@ -145,7 +153,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "The MCP companion takes PORTFOLIXIR_MCP_PROFILE, read, book or full (default full; any case): read lists and calls only the tools with readOnlyHint, as PORTFOLIXIR_MCP_READ_ONLY=true did and still does; book lists and calls every tool but the admin set, an explicit list in mcp-server/src/profiles.ts drawn as implemented, removal-shaped tools are admin (every removal, the three merges, the ISIN change, a rule's retirement and the release of manual quotes) and replace-shaped writes stay in book, the same write sent the former value undoing them (a second explicit list, each with its reason; a plan's activation among them), except two residues the reasons name: a rename back keeps the in-between name as a former name, and an upsert over a provider date stays manual until the admin quote release; full lists and calls every tool. A call outside the profile, listed or not, is refused as a tool error naming the profile and the variable, with no API request, and the server instructions name the active profile in one clause. PORTFOLIXIR_MCP_READ_ONLY=true beside PORTFOLIXIR_MCP_PROFILE=book or full, or any other value of either, stops the companion with the variables named; READ_ONLY=false never conflicts. A profile narrows the companion, not the API token (Sprint 17 A1, #992)"
       ],
       removed_endpoints: [],
-      removed_tools: []
+      removed_tools: [],
+      prompts: ["first_setup", "import_converter"],
+      removed_prompts: []
     },
     %{
       version: 8,
@@ -289,7 +299,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "Every MCP tool's result, and every tool error the companion raises from an API answer, carries each such character of a stored row, in a value or a key at any depth, spelled [U+XXXX] (upper-case hex, at least four digits; a variation selector only within a run of two or more), the spelling the operator's screen shows; the JSON API answers stored text as stored, and the server instructions say so (E25 S7, G20, the MCP boundary)"
       ],
       removed_endpoints: [],
-      removed_tools: []
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
     },
     %{
       version: 7,
@@ -331,7 +343,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "POST /api/v1/transactions and PATCH /api/v1/transactions/:id (portfolixir.transactions.create, .update) answer 422 on gross_amount when a cross-currency buy's cash differs from settlement_amount + fees + taxes, or a sell's from settlement_amount - fees - taxes, by more than 0.01 (#395); a PATCH that changes none of gross_amount, settlement_amount, fees, taxes and type is not re-checked"
       ],
       removed_endpoints: [],
-      removed_tools: []
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
     },
     %{
       version: 6,
@@ -357,7 +371,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "The eight research-log and security-events tools state the re-import guarantee in their descriptions (#831)"
       ],
       removed_endpoints: [],
-      removed_tools: []
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
     },
     %{
       version: 5,
@@ -396,7 +412,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/journal and portfolixir.journal.list take limit= through the family's shared parser (#811): absent is the default 100, an oversized value is capped at 1000 and echoed in meta.filters.limit, and zero, a negative or a non-number is a 422 naming the field — the read carried its own identical copy of that parser until now"
       ],
       removed_endpoints: [],
-      removed_tools: []
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
     },
     %{
       version: 4,
@@ -428,7 +446,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/securities and portfolixir.securities.list take is_benchmark=true|false; the securities read, create and update carry the is_benchmark field (ADR-0046 §1, #572)"
       ],
       removed_endpoints: [],
-      removed_tools: []
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
     },
     %{
       version: 3,
@@ -451,7 +471,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "Every /api/v1 route answers 429 with Retry-After after repeated wrong bearer tokens from one source (#771)"
       ],
       removed_endpoints: [],
-      removed_tools: []
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
     },
     %{
       version: 2,
@@ -484,7 +506,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "POST /api/v1/exchange_rates/sync and portfolixir.exchange_rates.sync take scope=latest|history and answer scope (#737)"
       ],
       removed_endpoints: [],
-      removed_tools: []
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
     },
     %{
       version: 1,
@@ -716,7 +740,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
       ],
       parameters: [],
       removed_endpoints: [],
-      removed_tools: []
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
     }
   ]
 
@@ -748,6 +774,10 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   @doc "Every MCP tool the surface offers today: the union of the entries, removals applied."
   @spec tools() :: MapSet.t(String.t())
   def tools, do: current(:tools, :removed_tools)
+
+  @doc "Every MCP prompt the companion offers today: the union of the entries, removals applied."
+  @spec prompts() :: MapSet.t(String.t())
+  def prompts, do: current(:prompts, :removed_prompts)
 
   # Oldest first: an entry may only remove what an earlier entry added.
   defp current(add_key, remove_key) do

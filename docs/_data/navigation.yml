@@ -2,6 +2,8 @@
   items:
     - title: Home
       url: /index.html
+    - title: Features
+      url: /features.html
 
 - title: App Handbook
   items:
@@ -9,18 +11,20 @@
       url: /product-documentation.html
     - title: Securities
       url: /product-documentation.html#securities
-    - title: Portfolios and Accounts
-      url: /product-documentation.html#portfolios-and-accounts
+    - title: Accounts and Depots
+      url: /product-documentation.html#accounts-and-depots
     - title: Buckets & Views Guide
       url: /guides/buckets-and-views.html
+    - title: Own Rules Guide
+      url: /guides/own-rules.html
     - title: Transactions and Holdings
       url: /product-documentation.html#transactions-and-holdings
     - title: Classifications, Targets, and Allocation
       url: /product-documentation.html#classifications-targets-and-allocation
     - title: Exchange Rates and Valuation
       url: /product-documentation.html#exchange-rates-and-valuation
-    - title: Portfolio Page
-      url: /product-documentation.html#portfolio-page
+    - title: Wealth Page
+      url: /product-documentation.html#wealth-page
     - title: Performance and Income
       url: /product-documentation.html#performance-ttwror
     - title: Imports

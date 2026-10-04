@@ -581,6 +581,57 @@ defmodule Portfolixir.CITest do
     assert dev_guide =~ "`docker compose -f docker-compose.dev.yml down -v`"
   end
 
+  # User story (#1017):
+  # As a stranger following the README or the deployment guide to a reset,
+  # I want every command that deletes the production stack's volumes to come
+  # after a warning and a backup, and the contributor workflow to run and reset
+  # the development stack,
+  # so that no documented step deletes an instance's data without a copy.
+  #
+  # Acceptance criteria:
+  # - In every Markdown document at the root and under docs/, and in
+  #   llms.txt, each production `docker compose down -v` (the development
+  #   reset names its file) comes after a `pg_dump` and a `pg_restore --list`
+  #   of the file it wrote, in its own section.
+  # - The README's Compose section and the deployment guide's reset (EN, DE)
+  #   name the two volumes `down -v` deletes, and back both up with the
+  #   documented commands: the `pg_dump` of the production database and the
+  #   logos' `tar`.
+  # - CONTRIBUTING.md's Docker workflow starts and resets the development
+  #   stack, `portfolixir-dev`, and names no production `up` or `down`.
+  test "every production reset in the docs comes after a backup; contributors reset the development stack" do
+    production_reset = ~r/^docker compose down -v$/m
+    documents = Path.wildcard("*.md") ++ Path.wildcard("docs/**/*.md") ++ ["docs/llms.txt"]
+
+    for path <- documents,
+        part <- markdown_sections(File.read!(path)),
+        part =~ production_reset do
+      [before | _] = String.split(part, production_reset, parts: 2)
+      assert before =~ "pg_dump -U", "#{path}: a `down -v` with no backup before it"
+      assert before =~ "pg_restore --list <", "#{path}: a `down -v` before the backup is read"
+    end
+
+    for {path, heading} <- [
+          {"README.md", "### Run with Docker Compose"},
+          {"docs/home-deployment.md", "## Reset"},
+          {"docs/de/home-deployment.md", "## Zurücksetzen"}
+        ] do
+      [before, _after] =
+        path |> File.read!() |> section(heading) |> String.split(production_reset)
+
+      assert before =~ "pg_dump -U portfolixir -d portfolixir_prod --format=custom", path
+      assert before =~ "tar -C /var/lib/portfolixir/logos -cf - .", path
+      assert before =~ "`portfolixir-postgres-data`", path
+      assert before =~ "`portfolixir-logos`", path
+    end
+
+    contributing = File.read!("CONTRIBUTING.md")
+    assert contributing =~ "docker compose -f docker-compose.dev.yml up --build"
+    assert contributing =~ "docker compose -f docker-compose.dev.yml down -v"
+    assert contributing =~ "`portfolixir-dev`"
+    refute contributing =~ ~r/^docker compose (up|down)\b/m
+  end
+
   # User story (E25 S2, F62):
   # As an operator running the release image beside a database and a
   # companion container,
@@ -1265,6 +1316,22 @@ defmodule Portfolixir.CITest do
     |> Regex.scan(block, capture: :all_but_first)
     |> List.flatten()
     |> MapSet.new()
+  end
+
+  # A Markdown document's sections: a new one starts at every heading outside
+  # a code fence, where a line opening with `# ` is a shell comment.
+  defp markdown_sections(markdown) do
+    markdown
+    |> String.split("\n")
+    |> Enum.reduce({[[]], false}, fn line, {[current | done], fenced} ->
+      cond do
+        String.starts_with?(line, "```") -> {[[line | current] | done], not fenced}
+        not fenced and line =~ ~r/^\#{1,6} / -> {[[line], current | done], fenced}
+        true -> {[[line | current] | done], fenced}
+      end
+    end)
+    |> elem(0)
+    |> Enum.map(&(&1 |> Enum.reverse() |> Enum.join("\n")))
   end
 
   # A Markdown section: from its heading up to the next `##` or `###`

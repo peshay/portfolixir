@@ -11,8 +11,11 @@ defmodule Portfolixir.DocsTest do
 
   @public_doc_files [
     "docs/index.md",
+    "docs/features.md",
+    "docs/de/features.md",
     "docs/product-documentation.md",
     "docs/guides/buckets-and-views.md",
+    "docs/guides/own-rules.md",
     "docs/home-deployment.md",
     "docs/integration/api-and-mcp.md",
     "docs/development/story-workflow.md",
@@ -223,7 +226,7 @@ defmodule Portfolixir.DocsTest do
           "title: App Handbook",
           "title: Overview",
           "title: Securities",
-          "title: Portfolios and Accounts",
+          "title: Accounts and Depots",
           "title: Transactions and Holdings",
           "title: Quotes and Charts",
           "title: Operations",
@@ -693,6 +696,11 @@ defmodule Portfolixir.DocsTest do
     # The four worked use cases, the decision help, and the retroactivity
     # warning use the exact UI labels of each language.
     en_normalized = String.replace(en, ~r/\s+/, " ")
+
+    # The switcher has carried no visible "View:" prefix since #720; the
+    # guide names the row of view chips as the screen shows it.
+    refute en =~ "**View:** switcher"
+    refute de =~ "Umschalter **Ansicht:**"
 
     for expected <- [
           "Which do I need — a bucket or a view?",
@@ -1362,6 +1370,56 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (#1024):
+  # As an operator about to drop a Portfolio Performance CSV,
+  # I want the handbook to say, in English and German, what the CSV path
+  # requires and what it assumes,
+  # so that an English export, an account in another currency or a renamed
+  # security does not surprise me in the preview, and I know when to export
+  # JSON v1 instead.
+  #
+  # Acceptance criteria:
+  # - The handbook, both languages, states that the CSV path takes German
+  #   column names and type labels only and refuses an English export with
+  #   the columns it lacks, reads every row as EUR (no currency column), and
+  #   matches a security by its name only (no ISIN), and points to JSON v1 for
+  #   other currencies and for ISINs.
+  # - The import_converter prompt states the same two assumptions, so the
+  #   handbook and the agent's instructions do not drift apart.
+  test "the handbook states what the CSV path requires and assumes, in English and German" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "### What a Portfolio Performance CSV requires",
+             "**German column names and type labels only.**",
+             "*CSV missing columns: Datum, Typ, …*",
+             "**Every row in EUR.** The CSV has no currency column",
+             "**Securities by name only.** The CSV carries no ISIN",
+             "For other currencies and for matching by ISIN, export **JSON v1**"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "### Was eine Portfolio-Performance-CSV voraussetzt",
+             "**Nur deutsche Spaltennamen und Typ-Bezeichnungen.**",
+             "*CSV-Spalten fehlen: Datum, Typ, …*",
+             "**Jede Zeile in EUR.** Die CSV hat keine Währungsspalte",
+             "**Wertpapiere nur über den Namen.** Die CSV enthält keine ISIN",
+             "Für andere Währungen und die Zuordnung über die ISIN exportiere **JSON v1**"
+           ]},
+          {"mcp-server/src/prompts.ts",
+           [
+             "The CSV books every row in EUR: it has no currency column.",
+             "The CSV carries no ISIN, so the importer matches a security by its name"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
+
   # User story:
   # As the operator or the agent renaming an imported account, or mapping an
   # export's account onto one of another name,
@@ -1745,5 +1803,636 @@ defmodule Portfolixir.DocsTest do
     assert consequences =~ "a known false positive"
     assert consequences =~ "about 3 % of par and quoted at 65"
     assert consequences =~ "at most 5"
+  end
+
+  @features_en "docs/features.md"
+  @features_de "docs/de/features.md"
+
+  # The four claims the 2026-09-30 research names as open ground (its
+  # executive summary and cross-dimension insights 1 and 4), then the
+  # calculation breakdown (FR-41), then what Portfolixir is not -- in this
+  # order, per language.
+  @features_sections %{
+    @features_en => [
+      "## The app never calls a language model; your agent does",
+      "## A research log your agent reads and writes, on the record",
+      "## Prompts that carry the no-advice stance",
+      "## Figures that say how they were computed",
+      "## The calculation breakdown: which position made how much",
+      "## What Portfolixir is not"
+    ],
+    @features_de => [
+      "## Die App ruft nie ein Sprachmodell auf; Ihr Agent tut es",
+      "## Ein Research-Log, das Ihr Agent liest und schreibt, nachvollziehbar",
+      "## Prompts, die die Haltung ohne Beratung mittragen",
+      "## Zahlen, die sagen, wie sie berechnet wurden",
+      "## Die Aufschlüsselung: welche Position wie viel beigetragen hat",
+      "## Was Portfolixir nicht ist"
+    ]
+  }
+
+  # User story (Sprint 18 plan, PR δ, D1 "what is better here"):
+  # As a stranger deciding whether Portfolixir fits -- or the agent reading
+  # the documentation for them --
+  # I want one page, in English and German, that says first what Portfolixir
+  # does that I should know, each claim with the page that shows it, and
+  # then what Portfolixir is not,
+  # so that I can check every claim instead of believing it.
+  #
+  # Acceptance criteria:
+  # - docs/features.md and docs/de/features.md exist with the docs layout and
+  #   the language-switcher front matter, and the navigation lists the page
+  #   under Home.
+  # - Each page leads with the four open-ground claims (no in-app model call,
+  #   the research log, the prompts' no-advice stance, figures that state their
+  #   computation basis), then the calculation breakdown (FR-41), then "What
+  #   Portfolixir is not", in that order; every claim section links at least
+  #   one page that shows it.
+  # - Every link is a page of the docs site that exists in docs/ (or the
+  #   repository), and every #anchor is a heading id Jekyll gives its target.
+  # - The "not" section names the non-goals llms.txt and AGENTS.md name and
+  #   claims no production readiness; no other product is named.
+  # - The docs home and the README link the page; the README's first screen
+  #   still carries no picture but the logo.
+  test "a features page leads with the open ground, links what it shows, and says what it is not" do
+    navigation = File.read!("docs/_data/navigation.yml")
+    assert navigation =~ "title: Features"
+    assert navigation =~ "url: /features.html"
+
+    for {path, lang} <- [{@features_en, "en"}, {@features_de, "de"}] do
+      page = File.read!(path)
+
+      assert page =~ ~r/\A---\nlayout: docs\n/, path
+      assert page =~ "lang: #{lang}", path
+      assert page =~ "lang_en: /features.html", path
+      assert page =~ "lang_de: /de/features.html", path
+
+      headings = Map.fetch!(@features_sections, path)
+      positions = Enum.map(headings, &position_of(page, &1, path))
+      assert positions == Enum.sort(positions), "#{path}: the sections are out of order"
+
+      for section <- page |> String.split("\n## ") |> Enum.drop(1) do
+        assert section =~ "](",
+               "#{path}: section without a link: #{hd(String.split(section, "\n"))}"
+      end
+
+      for target <- links_of(page) do
+        assert_link_resolves(path, target)
+      end
+
+      refute page =~ ~r/Ghostfolio|Wealthfolio|Parqet|getquin|Finanzfluss|rotki|unlike /i, path
+    end
+
+    en = normalized_text(@features_en)
+    de = normalized_text(@features_de)
+
+    for fragment <- [
+          "never calls a language model",
+          "`computation_basis`",
+          "`portfolixir.notes.append`",
+          "`first_setup`",
+          "`import_converter`",
+          "Do not recommend buying, selling or weighting anything; describe what is recorded.",
+          "`portfolixir.portfolios.contribution`",
+          "`portfolixir.views.contribution`",
+          "**Wealth → Holdings**",
+          "no order-placing broker connection",
+          "no bank or broker sync",
+          "no advice",
+          "no hosted service",
+          "no phone app",
+          "There is no upgrade guarantee and no claim of production readiness."
+        ] do
+      assert en =~ fragment, "#{@features_en}: #{fragment}"
+    end
+
+    for fragment <- [
+          "nie ein Sprachmodell auf",
+          "`computation_basis`",
+          "`portfolixir.notes.append`",
+          "`first_setup`",
+          "`import_converter`",
+          "Do not recommend buying, selling or weighting anything; describe what is recorded.",
+          "`portfolixir.portfolios.contribution`",
+          "`portfolixir.views.contribution`",
+          "**Vermögen → Bestände**",
+          "keine Broker-Anbindung, die Orders platziert",
+          "keine Bank- oder Broker-Synchronisierung",
+          "keine Beratung",
+          "keinen gehosteten Dienst",
+          "keine Telefon-App",
+          "Es gibt keine Upgrade-Garantie und keinen Anspruch auf Produktionsreife."
+        ] do
+      assert de =~ fragment, "#{@features_de}: #{fragment}"
+    end
+
+    assert File.read!("docs/index.md") =~ "](features.html)"
+
+    readme = File.read!("README.md")
+    [first_screen, _rest] = String.split(readme, "[![CI]", parts: 2)
+    assert first_screen =~ "(https://portfolixir.app/features.html)"
+    refute first_screen =~ "![", "a picture above the badges"
+    assert readme =~ "[Features](docs/features.md)"
+  end
+
+  defp normalized_text(path), do: path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+  defp position_of(page, heading, path) do
+    case :binary.match(page, "\n" <> heading <> "\n") do
+      {position, _length} -> position
+      :nomatch -> flunk("#{path}: no heading #{heading}")
+    end
+  end
+
+  # User story (Sprint 18 PR δ closing act):
+  # As a newcomer opening the handbook from the site's navigation,
+  # I want every navigation entry to land on the section it names,
+  # so that the sidebar is not where the documentation first misleads me.
+  #
+  # Acceptance criteria:
+  # - Every url in docs/_data/navigation.yml is a page of the docs site that
+  #   exists in docs/, and its #anchor, if any, is a heading id of that page.
+  # - An entry's title names the section it lands on.
+  test "every navigation entry lands on an existing page and heading" do
+    navigation = File.read!("docs/_data/navigation.yml")
+
+    urls =
+      ~r/^\s+url: (\S+)$/m
+      |> Regex.scan(navigation, capture: :all_but_first)
+      |> List.flatten()
+
+    assert length(urls) > 10
+
+    for url <- urls do
+      assert_link_resolves("docs/_data/navigation.yml", url)
+    end
+
+    assert navigation =~
+             "title: Accounts and Depots\n      url: /product-documentation.html#accounts-and-depots"
+
+    assert navigation =~ "title: Wealth Page\n      url: /product-documentation.html#wealth-page"
+  end
+
+  # User story (Sprint 18 PR δ closing act):
+  # As a reader checking the contribution table against the handbook,
+  # I want the handbook to name the three markers a row can carry, in the
+  # screen's own words,
+  # so that a position sold inside the period is not described as a state the
+  # screen does not show it in.
+  #
+  # Acceptance criteria:
+  # - The English handbook's "Contribution by position" names "not held at the
+  #   start", "no longer held at the end" and "held at neither end", each for
+  #   the case the table uses it for.
+  # - The German handbook names the same three markers as the German screen
+  #   shows them.
+  test "the handbook names the contribution table's three held markers as the screen does" do
+    en = File.read!("docs/product-documentation.md")
+    de = File.read!("docs/de/product-documentation.md")
+
+    [_, en_section] = String.split(en, "\n### Contribution by position\n", parts: 2)
+    [en_section, _] = String.split(en_section, "\n## ", parts: 2)
+    en_section = String.replace(en_section, ~r/\s+/, " ")
+
+    for marker <- ["not held at the start", "no longer held at the end", "held at neither end"] do
+      assert en_section =~ ~s("#{marker}"), marker
+    end
+
+    assert en_section =~ "bought and sold inside the period"
+
+    [_, de_section] = String.split(de, "\n### Beitrag je Position\n", parts: 2)
+    [de_section, _] = String.split(de_section, "\n## ", parts: 2)
+    de_section = String.replace(de_section, ~r/\s+/, " ")
+
+    for marker <- [
+          "zu Beginn nicht im Bestand",
+          "am Ende nicht mehr im Bestand",
+          "weder zu Beginn noch am Ende im Bestand"
+        ] do
+      assert de_section =~ "„#{marker}“", marker
+    end
+  end
+
+  defp links_of(page) do
+    ~r/\]\(([^)\s]+)\)/
+    |> Regex.scan(page, capture: :all_but_first)
+    |> List.flatten()
+  end
+
+  # A link from a docs page resolves when it is the repository, or a page of
+  # the site whose source exists in docs/ -- a .html page from its .md, any
+  # other file as itself -- and its #anchor, if any, is a heading id of that
+  # source.
+  defp assert_link_resolves(page_path, target) do
+    if String.starts_with?(target, "https://github.com/peshay/portfolixir") do
+      :ok
+    else
+      refute target =~ ~r/\A[a-z]+:/, "#{page_path}: #{target} leaves the docs site"
+
+      [path | anchor] = String.split(target, "#", parts: 2)
+
+      source =
+        cond do
+          path == "" -> page_path
+          String.starts_with?(path, "/") -> "docs" <> path
+          true -> path |> Path.expand("/" <> Path.dirname(page_path)) |> String.trim_leading("/")
+        end
+        |> String.replace_suffix(".html", ".md")
+
+      assert File.exists?(source), "#{page_path}: #{target} has no page (#{source})"
+
+      for id <- anchor do
+        # kramdown's own id scheme drops non-ASCII letters and leading digits
+        # where its GFM scheme keeps them; an anchor both agree on survives a
+        # change of the site's Markdown input.
+        assert id =~ ~r/\A[a-z][a-z0-9-]*\z/,
+               "#{page_path}: #{target} needs an ASCII anchor that starts with a letter"
+
+        assert id in heading_ids(File.read!(source)),
+               "#{page_path}: #{target} names no heading of #{source}"
+      end
+    end
+  end
+
+  # The ids Jekyll's kramdown gives headings under GitHub Pages' default GFM
+  # input: the raw heading text lowercased, every character that is neither a
+  # word character, a hyphen nor a space dropped, each space a hyphen, and a
+  # repeat numbered -1, -2 and so on. A line inside fenced code is no heading.
+  defp heading_ids(markdown) do
+    {_fenced, headings} =
+      markdown
+      |> String.split("\n")
+      |> Enum.reduce({false, []}, fn line, {fenced, headings} ->
+        cond do
+          String.starts_with?(String.trim_leading(line), "```") ->
+            {not fenced, headings}
+
+          fenced ->
+            {fenced, headings}
+
+          match = Regex.run(~r/\A#+[ \t]+(.+?)[ \t]*\z/, line) ->
+            {fenced, [List.last(match) | headings]}
+
+          true ->
+            {fenced, headings}
+        end
+      end)
+
+    {ids, _seen} =
+      headings
+      |> Enum.reverse()
+      |> Enum.map(fn text ->
+        text
+        |> String.downcase()
+        |> String.replace(~r/[^\w\- \t]/u, "")
+        |> String.replace(~r/[ \t]/, "-")
+      end)
+      |> Enum.map_reduce(%{}, fn id, seen ->
+        case Map.fetch(seen, id) do
+          :error -> {id, Map.put(seen, id, 0)}
+          {:ok, count} -> {"#{id}-#{count + 1}", Map.put(seen, id, count + 1)}
+        end
+      end)
+
+    ids
+  end
+
+  # User story (#952):
+  # As the operator's agent relying on the audit journal, or a German-speaking
+  # reader of the API reference,
+  # I want the journal's coverage stated as the code has it, and the German
+  # reference to carry the recorded tax statements and their tools,
+  # so that neither language understates the guarantee agent writes rely on,
+  # and the tax surface is not documented in English alone.
+  #
+  # Acceptance criteria:
+  # - No API or product page, in English or German, still says the journal
+  #   covers only security master data with the rest to follow; each says
+  #   that every financial write context journals.
+  # - The German reference has the recorded-tax-statements section with each
+  #   of its routes, and its MCP list names each tax tool.
+  # - The German sentence on a recorded statement's system-set `source` sits
+  #   with the statement's POST, not in the Audit-Journal section.
+  test "the docs state the journal's coverage and the German tax reference (#952)" do
+    for {path, stale, current} <- [
+          {"docs/integration/api-and-mcp.md",
+           ["covers the Catalog/Fx contexts", "armed in sequence"],
+           "Every financial write context journals"},
+          {"docs/de/integration/api-and-mcp.md",
+           ["deckt derzeit die Kontexte Catalog/Fx ab", "nacheinander scharfgeschaltet"],
+           "Jeder Schreibkontext mit Finanzdaten journalisiert"},
+          {"docs/product-documentation.md",
+           ["currently covers security master-data writes", "covered in sequence"],
+           "It covers every area that writes financial data"},
+          {"docs/de/product-documentation.md",
+           ["deckt derzeit Wertpapier-Stammdaten ab", "folgen nacheinander"],
+           "Es deckt jeden Bereich ab, der Finanzdaten schreibt"}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- stale do
+        refute doc =~ fragment, "#{path} still says: #{fragment}"
+      end
+
+      assert doc =~ current, "#{path}: #{current}"
+    end
+
+    de_api = File.read!("docs/de/integration/api-and-mcp.md")
+
+    [_, tax_section] =
+      String.split(de_api, "### Erfasste Steuerbescheinigungen (ADR-0031)\n", parts: 2)
+
+    [tax_section, _] = String.split(tax_section, "\n## ", parts: 2)
+
+    for route <- [
+          "GET /api/v1/tax/parameters",
+          "PUT /api/v1/tax/parameters",
+          "GET /api/v1/tax/profiles",
+          "POST /api/v1/tax/profiles",
+          "PATCH /api/v1/tax/profiles/:id",
+          "DELETE /api/v1/tax/profiles/:id",
+          "GET /api/v1/tax/allowance_orders",
+          "PUT /api/v1/tax/allowance_orders",
+          "DELETE /api/v1/tax/allowance_orders/:id",
+          "GET /api/v1/tax/statement_snapshots",
+          "POST /api/v1/tax/statement_snapshots",
+          "GET /api/v1/tax/trim_budget",
+          "GET /api/v1/tax/statement_snapshots/:id",
+          "PATCH /api/v1/tax/statement_snapshots/:id",
+          "DELETE /api/v1/tax/statement_snapshots/:id"
+        ] do
+      assert tax_section =~ "`#{route}", "German tax section lacks #{route}"
+    end
+
+    [_, mcp_list] = String.split(de_api, "\n## MCP-Tools\n", parts: 2)
+
+    for tool <- [
+          "tax_parameters.list",
+          "tax_parameters.upsert",
+          "tax_profiles.list",
+          "tax_profiles.create",
+          "tax_profiles.update",
+          "tax_profiles.delete",
+          "allowance_orders.list",
+          "allowance_orders.put",
+          "allowance_orders.delete",
+          "tax_snapshots.list",
+          "tax_snapshots.get",
+          "tax_snapshots.create",
+          "tax_snapshots.update",
+          "tax_snapshots.delete",
+          "tax_snapshots.trim_budget"
+        ] do
+      assert mcp_list =~ "- `portfolixir.#{tool}`", "German MCP list lacks #{tool}"
+    end
+
+    [_, journal_section] = String.split(de_api, "\n## Audit-Journal\n", parts: 2)
+    [journal_section, _] = String.split(journal_section, "\n## ", parts: 2)
+    source_rule = "Die Quelle einer erfassten Steuerbescheinigung setzt das System (`manual`)"
+
+    refute String.replace(journal_section, ~r/\s+/, " ") =~ source_rule
+    assert String.replace(tax_section, ~r/\s+/, " ") =~ source_rule
+  end
+
+  # User story (#960):
+  # As a reader of ADR-0029 after Sprint 16,
+  # I want its ADR-0050 §9 note to name the security merge dialog as shipped,
+  # so that the one record still written in the future tense agrees with the
+  # API reference and the handbook, which describe the dialog as built.
+  #
+  # Acceptance criteria:
+  # - The note no longer says the operator's dialog follows.
+  # - It names **Merge into…** in the securities row menu beside the API
+  #   route and the MCP tool.
+  test "ADR-0029's ADR-0050 §9 note names the shipped security merge dialog (#960)" do
+    adr =
+      "docs/decisions/0029-stable-identities-and-reimport-survival.md"
+      |> File.read!()
+      |> String.replace(~r/\s*\n\s*>?\s*/, " ")
+
+    [note] = Regex.run(~r/\*\*Amended by \[ADR-0050\]\([^)]*\) §9 .*?\*\*Rejected/, adr)
+
+    refute note =~ "follows in the same batch"
+    assert note =~ "**Merge into…** in the securities row menu"
+    assert note =~ "`POST /api/v1/securities/:id/merge`"
+    assert note =~ "`portfolixir.securities.merge`"
+  end
+
+  # User story (#929):
+  # As the operator wondering why a security shows the asset class it shows,
+  # I want the handbook's inference section, in English and German, and
+  # ADR-0012's pipeline to describe what `Security.effective_asset_class/1`
+  # runs,
+  # so that I can predict a class instead of reading the code.
+  #
+  # Acceptance criteria:
+  # - Each section names the classes the inference returns in the code's
+  #   order, every leaf class `derivative_class/1` returns among them, and the
+  #   company-logo equity fallback (#408) after the fund rule.
+  # - Neither section claims an ISIN prefix (or `IE00`) as a signal, a generic
+  #   `derivative` class, GmbH or NV as a legal form, or that a better
+  #   heuristic reclassifies every security retroactively.
+  # - ADR-0012 carries a dated note that corrects its pipeline summary the
+  #   same way, leaving the decision as it was taken.
+  test "the asset-class inference docs and ADR-0012 match the code (#929)" do
+    source = File.read!("lib/portfolixir/catalog/security.ex")
+
+    [_, cond_body] =
+      Regex.run(
+        ~r/defp infer_asset_class_code\(name, _isin, ticker_symbol\) do(.*?)\n  end/s,
+        source
+      )
+
+    [_, derivative_body] =
+      Regex.run(~r/defp derivative_class\(name\) when is_binary\(name\) do(.*?)\n  end/s, source)
+
+    classes_of = fn body ->
+      ~r/-> "([a-z_]+)"/ |> Regex.scan(body) |> Enum.map(fn [_, class] -> class end)
+    end
+
+    leaf_classes = Enum.uniq(classes_of.(derivative_body))
+    ordered = classes_of.(cond_body) ++ [hd(leaf_classes), "equity", "fund"]
+
+    assert ordered == [
+             "government_bond",
+             "etf",
+             "crypto",
+             "commodity",
+             "knock_out",
+             "equity",
+             "fund"
+           ]
+
+    for {path, heading, logo} <- [
+          {"docs/product-documentation.md", "### Asset class inference\n", "logo"},
+          {"docs/de/product-documentation.md", "### Inferenz der Anlageklasse\n", "Logo"}
+        ] do
+      [_, section] = path |> File.read!() |> String.split(heading, parts: 2)
+      [section, _] = String.split(section, "\n### ", parts: 2)
+      section = String.replace(section, ~r/\s+/, " ")
+
+      positions = Enum.map(ordered, fn class -> :binary.match(section, "**#{class}**") end)
+
+      refute :nomatch in positions, "#{path}: a class of #{inspect(ordered)} is missing"
+      assert positions == Enum.sort(positions), "#{path}: classes out of the code's order"
+
+      for class <- leaf_classes do
+        assert section =~ "**#{class}**", "#{path}: #{class}"
+      end
+
+      assert section =~ "#408"
+      assert section =~ logo
+
+      for stale <- [
+            "IE00",
+            "**derivative**",
+            "GmbH",
+            ", NV,",
+            "country-code prefix",
+            "Länderpräfix"
+          ] do
+        refute section =~ stale, "#{path} still says: #{stale}"
+      end
+
+      refute section =~ "retroactively reclassifies all matching securities"
+      refute section =~ "klassifiziert eine verbesserte Heuristik im Code alle passenden"
+    end
+
+    adr =
+      "docs/decisions/0012-asset-class-inference-at-read-time.md"
+      |> File.read!()
+      |> String.replace(~r/\s*\n\s*>?\s*/, " ")
+
+    [note] = Regex.run(~r/\*\*Note 2026-10-03 \(#929.*/, adr)
+
+    for fragment <- ["`_isin`", "#408", "`changeset/2`", "`is_nil`" | leaf_classes] do
+      assert note =~ fragment, "ADR-0012's note: #{fragment}"
+    end
+  end
+
+  # User story (#943):
+  # As the operator who keeps a limit on Wealth → Risk,
+  # I want a guide to the Own rules section in English and German, beside
+  # the Buckets & Views Guide,
+  # so that I can write, change and read a rule without the agent's API page.
+  #
+  # Acceptance criteria:
+  # - The guide exists as an EN baseline with a DE counterpart, carries the
+  #   docs layout and the language-switcher front matter, links ADR-0049 and
+  #   the API's policy-rule section with .html links only, and sits in the App
+  #   Handbook navigation right after the Buckets & Views Guide.
+  # - Each page names the section's controls, kinds, measures, severities and
+  #   states as the screen does: the English label, and in German the
+  #   catalogue's translation of it.
+  # - It covers cap, floor and band; effective-dated versions; the rename
+  #   that creates no version; why undetermined is never met; the refusal's
+  #   link to Risk in the rule's view; and the agent's "Agent" word.
+  # - The handbook's Risk section links the guide in both languages, and the
+  #   guide links back.
+  test "docs provide an own-rules guide for the Risk page in English and German (#943)" do
+    en = File.read!("docs/guides/own-rules.md")
+    de = File.read!("docs/de/guides/own-rules.md")
+    navigation = File.read!("docs/_data/navigation.yml")
+    en_product = File.read!("docs/product-documentation.md")
+    de_product = File.read!("docs/de/product-documentation.md")
+
+    for page <- [en, de] do
+      assert page =~ ~r/\A---\nlayout: docs\n/
+      assert page =~ "lang_en: /guides/own-rules.html"
+      assert page =~ "lang_de: /de/guides/own-rules.html"
+      assert page =~ "/decisions/0049-policy-rules-as-first-class-objects.html"
+      refute page =~ ~r/\]\([^)\n]+\.md(?:#[^)\n]+)?\)/
+    end
+
+    assert en =~ "lang: en"
+    assert de =~ "lang: de"
+    assert en =~ "/integration/api-and-mcp.html#policy-rules-adr-0049"
+    assert de =~ "/de/integration/api-and-mcp.html#eigene-regeln-adr-0049"
+
+    assert navigation =~
+             "    - title: Buckets & Views Guide\n      url: /guides/buckets-and-views.html\n" <>
+               "    - title: Own Rules Guide\n      url: /guides/own-rules.html\n"
+
+    en_normalized = String.replace(en, ~r/\s+/, " ")
+    de_normalized = String.replace(de, ~r/\s+/, " ")
+
+    labels = [
+      "Own rules",
+      "New rule",
+      "Measure",
+      "Subject",
+      "Plan of the classification",
+      "Window",
+      "Kind",
+      "Severity",
+      "In force from",
+      "Weight",
+      "Drift",
+      "Concentration (HHI)",
+      "Volatility",
+      "Maximum drawdown",
+      "Whole basis",
+      "Cap",
+      "Floor",
+      "Band",
+      "Warning",
+      "Hard",
+      "Line",
+      "breached",
+      "undetermined",
+      "met",
+      "Save rule",
+      "Save new version",
+      "Save name",
+      "Retire rule",
+      "Delete rule",
+      "Scheduled rules",
+      "Versions",
+      "Agent",
+      "Operator",
+      "Cannot delete"
+    ]
+
+    for label <- labels do
+      german =
+        Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+          Gettext.gettext(PortfolixirWeb.Gettext, label)
+        end)
+
+      assert en_normalized =~ "**#{label}**", "EN guide lacks **#{label}**"
+      assert de_normalized =~ "**#{german}**", "DE guide lacks **#{german}** (#{label})"
+    end
+
+    for {page, fragments} <- [
+          {en_normalized,
+           [
+             "strictly above",
+             "strictly below",
+             "a new version",
+             "creates no version",
+             "never counted as met",
+             "links to Risk in the view the rule applies in",
+             "ends its words with “· Agent”"
+           ]},
+          {de_normalized,
+           [
+             "echt darüber",
+             "echt darunter",
+             "eine neue Version",
+             "entsteht keine Version",
+             "nie als eingehalten gezählt",
+             "führt auf „Risiko“ in der Ansicht, in der die Regel gilt",
+             "endet ihre Wortzeile mit „· Agent“"
+           ]}
+        ] do
+      for fragment <- fragments do
+        assert page =~ fragment, fragment
+      end
+    end
+
+    assert en_product =~ "guides/own-rules.html"
+    assert de_product =~ "guides/own-rules.html"
+    assert en =~ "/product-documentation.html#risk-concentration-and-movement"
+    assert de =~ "/de/product-documentation.html#risiko-konzentration-und-schwankung"
   end
 end

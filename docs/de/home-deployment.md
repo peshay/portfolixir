@@ -622,7 +622,29 @@ Wiederherstellung, die gelingt, und an einer, die abgewiesen wird.
 
 ## Zurücksetzen
 
-Soll die lokale Datenbank zurückgesetzt werden, entferne das Compose-Volume:
+Ein Zurücksetzen löscht die Daten der Instanz: `docker compose down -v`
+entfernt die Volumes des Stacks, das Datenbank-Volume
+`portfolixir-postgres-data` mit allen Einträgen und das Logo-Volume
+`portfolixir-logos`, und der nächste Start legt eine leere Datenbank an. Lege
+vorher eine Sicherung an, wie unter „Sicherung anlegen“ oben, solange die
+Instanz noch läuft:
+
+```bash
+umask 077
+mkdir -p ~/portfolixir-backups
+docker compose exec -T db \
+  pg_dump -U portfolixir -d portfolixir_prod --format=custom \
+  > ~/portfolixir-backups/portfolixir-$(date +%F).dump
+docker compose exec -T app tar -C /var/lib/portfolixir/logos -cf - . \
+  > ~/portfolixir-backups/portfolixir-logos-$(date +%F).tar
+docker compose exec -T db \
+  pg_restore --list < ~/portfolixir-backups/portfolixir-$(date +%F).dump \
+  > /dev/null && echo "backup reads"
+```
+
+Erst wenn der letzte Befehl `backup reads` ausgegeben hat, zurücksetzen. Die
+Sicherung ist danach die einzige Kopie der Daten, und „Wiederherstellen“ oben
+spielt sie zurück:
 
 ```bash
 docker compose down -v

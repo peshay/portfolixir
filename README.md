@@ -13,15 +13,17 @@ Portfolixir keeps your transactions, holdings, valuation, returns and research
 notes on your own machine. Everything it knows is on a screen and behind a
 local JSON API and an MCP companion, so your agent reads and books the same
 figures you look at. No cloud, no broker connection, no advice: it prepares
-decisions, and you make them.
+decisions, and you make them. [Features](https://portfolixir.app/features.html)
+says what it does that you should know first, each claim with the page that
+shows it.
 
 ## How your data gets in
 
 - **A Portfolio Performance export.** Export your transactions from Portfolio
   Performance as CSV or JSON v1 (a CSV with the German column names the
-  importer reads, `Datum;Typ;Wertpapier;…`), drop the file on the Imports page,
-  read the preview and apply it. The apply is atomic, and dropping the same
-  file again books nothing twice.
+  importer reads, `Datum;Typ;Wertpapier;…`), drop the file on the Imports page
+  (`/imports`), read the preview and apply it. The apply is atomic, and
+  dropping the same file again books nothing twice.
 - **Your bank's or broker's own export, through your agent.** The MCP
   companion's `import_converter` prompt has your agent write a converter that
   runs on your machine and turns the export into a Portfolio Performance CSV
@@ -148,18 +150,28 @@ for what that means in practice.
 
 ## See it in action
 
+The Overview, the start page: the total value, the key figures, the most
+recently closed trades with their result and return, the categories off
+target, what falls due, and what needs attention in the data:
+
+![The Overview: total value, key-figure strip, closed trades card, off-target list, due dates and data-quality line](docs/screenshots/dashboard.png)
+
 A quick tour of the portfolio view — switching the accent colour (violet, teal,
 coral), flipping to dark mode, and a custom strategy classification showing the
 target-vs-actual allocation with per-category drift for rebalancing:
 
 ![Portfolixir tour: accent colours, dark mode, and target-vs-actual rebalancing](docs/screenshots/tour.gif)
 
-| Portfolio & allocation | Securities |
+| Wealth: valuation and performance | Contribution by position |
 | --- | --- |
-| ![Portfolio valuation and allocation](docs/screenshots/portfolio.png) | ![Securities list](docs/screenshots/securities.png) |
+| ![Wealth holdings: valuation cards, data-quality notes and the performance chart](docs/screenshots/portfolio.png) | ![Contribution by position: what each position added to the period's result, with the lines no position owns](docs/screenshots/contribution.png) |
+| **Closed trades** | **Securities** |
+| ![Cash flow, Trades: realised total, hit rate, average holding period and the closed round-trips](docs/screenshots/income.png) | ![Securities list with its filter chips](docs/screenshots/securities.png) |
 
 _All screenshots use the synthetic demo dataset in
-[`priv/demo/`](priv/demo/) — no real financial data._
+[`priv/demo/`](priv/demo/) — no real financial data — and show the German
+interface; [`priv/demo/screenshots.mjs`](priv/demo/screenshots.mjs)
+regenerates them._
 
 ## Quick start
 
@@ -188,10 +200,11 @@ Create `.env` from `.env.example`, readable by you only
 (`install -m 600 .env.example .env`), and set the secrets:
 `PORTFOLIXIR_API_TOKEN`, `PORTFOLIXIR_MCP_TOKEN` and `SECRET_KEY_BASE` each from
 `openssl rand -base64 48`, `POSTGRES_PASSWORD` from `openssl rand -hex 32`.
-Then:
+Then build and start the stack in the background; the command returns once
+the stack is up (without `-d` it stays attached to the logs until you stop it):
 
 ```sh
-docker compose up --build
+docker compose up --build -d
 ```
 
 Open the app and MCP companion at:
@@ -201,10 +214,35 @@ http://127.0.0.1:4000
 http://127.0.0.1:4001/mcp
 ```
 
+The login, at `/login`, asks only for `PORTFOLIXIR_UI_PASSWORD`: there is no
+user name. A Portfolio Performance file goes onto the Imports page, at
+`/imports`.
+
 The development stack (source mounted, Mix present) is
 `docker compose -f docker-compose.dev.yml up --build`.
 
-Stop and remove local volumes:
+Stop the instance with `docker compose down`; its data stays in its volumes.
+`docker compose down -v` deletes them: the database volume
+`portfolixir-postgres-data` with every record, and the logo volume
+`portfolixir-logos`. Back both up first, while the instance runs, into
+`~/portfolixir-backups` outside the checkout
+([Backup and restore](docs/home-deployment.md#backup-and-restore) restores
+them):
+
+```sh
+umask 077
+mkdir -p ~/portfolixir-backups
+docker compose exec -T db \
+  pg_dump -U portfolixir -d portfolixir_prod --format=custom \
+  > ~/portfolixir-backups/portfolixir-$(date +%F).dump
+docker compose exec -T app tar -C /var/lib/portfolixir/logos -cf - . \
+  > ~/portfolixir-backups/portfolixir-logos-$(date +%F).tar
+docker compose exec -T db \
+  pg_restore --list < ~/portfolixir-backups/portfolixir-$(date +%F).dump \
+  > /dev/null && echo "backup reads"
+```
+
+Only after it printed `backup reads`, delete:
 
 ```sh
 docker compose down -v
@@ -280,6 +318,8 @@ pre-commit install --install-hooks
 
 - Product documentation
   - [Product docs home](docs/index.md)
+  - [Features](docs/features.md): what it does that you should know first, and
+    what it is not
   - [Product feature documentation](docs/product-documentation.md)
   - [Home Deployment](docs/home-deployment.md)
 - Integration documentation

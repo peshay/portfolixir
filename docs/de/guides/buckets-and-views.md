@@ -60,7 +60,7 @@ Gemeinschaftskonto je doppelt zählt.
    <!-- screenshot: views-page-edit-view-buckets -->
 6. Wiederhole das für eine zweite Ansicht `Haushalt`, die `Meins` **und**
    `Partner` einbezieht (oder hake einfach **Alle Buckets einbeziehen** an).
-7. Öffne **Vermögen**, wähle `Mein Vermögen` im Umschalter **Ansicht:** oben
+7. Öffne **Vermögen**, wähle `Mein Vermögen` in der Reihe der Ansichten oben
    auf der Seite und klicke **Als Standard festlegen** unter
    **Standard-Ansicht**. Vermögensseite und Übersicht öffnen jetzt mit der
    persönlichen Zahl; der Umschalter wechselt weiterhin jederzeit zu

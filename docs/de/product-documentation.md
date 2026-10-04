@@ -79,39 +79,96 @@ Bestandsberechnungen.
 
 ### Inferenz der Anlageklasse
 
-Jedes Wertpapier trägt ein Feld **asset class** (Anlageklasse). Sein Wert wird
-zur Lesezeit von `Security.effective_asset_class/1` bestimmt: ist der gespeicherte
-Wert nicht nil, wird er unverändert zurückgegeben; andernfalls werden Name, ISIN
-und Ticker in dieser Prioritätsreihenfolge untersucht:
+Jedes Wertpapier hat eine **Anlageklasse** (asset class). Eine am Wertpapier
+gespeicherte Klasse gewinnt immer: `Security.effective_asset_class/1` gibt sie
+unverändert zurück. Nur bei einem Wertpapier ohne gespeicherte Klasse wird
+eine beim Lesen abgeleitet, aus seinem **Namen** und, für Krypto, seinem
+**Ticker**. Die ISIN gehört nicht zu den Signalen: Ihr Aufbau allein sagt
+nicht, um welche Art Instrument es sich handelt (#408), deshalb übergeht die
+Inferenz sie bis auf die letzte Regel unten. Die Regeln laufen in dieser
+Reihenfolge, und die erste, die greift, entscheidet:
 
-1. **government_bond** — ISIN-Länderpräfix in der Liste bekannter
-   Staatsanleihen-Emittenten (DE, US, GB, FR, IT, ES, JP, …).
-2. **etf** — Name enthält `ETF`, `UCITS ETF`, oder eine exakte ISIN, die mit
-   `IE00` beginnt, kombiniert mit einem bekannten Fonds-Emittentenpräfix.
-3. **crypto** — Name passt zu einem bekannten Coin-Namen (Bitcoin, Ethereum,
-   Ripple, Cardano, Solana, Dogecoin, Avalanche, Tron, …) oder der Ticker passt
-   zu einem bekannten Krypto-Symbol (BTC, ETH, XRP, ADA, SOL, DOGE, AVAX, TRX, …).
-4. **commodity** — Name ist ein exakter, reiner Metallname: Gold, Silber, Silver,
-   Platin, Platinum. (Zusammengesetzte Namen wie „Barrick Gold Corp" greifen hier
-   nicht und fallen auf equity durch.)
-5. **derivative** — Name enthält `Knock-Out`, `Zertifikat` oder `Turbo`
-   (einschließlich einbuchstabiger Suffixe wie TurboP, TurboC, TurboA).
-6. **knock_out** — Name enthält `Turbo` (beliebiges einbuchstabiges Suffix),
-   `Knockout` oder ein `KO`-Muster. In der Praxis wird die Turbo-Prüfung mit dem
-   derivative-Zweig geteilt; die Klasse `knock_out` wird explizit gespeichert,
-   wenn die Nutzerin die Inferenz korrigiert.
-7. **equity** — Name enthält ein Rechtsform-Suffix (Corporation, Company, Co.,
-   Aktiengesellschaft, AG, S.A., S.p.A., A/S, ASA, KGaA, Azioni, Acciones,
-   Aktier, Ltd., PLC, Inc., GmbH, NV, SA) oder einen Hinterlegungsschein-Marker
-   (ADR, GDR, Sp.ADR, Depos. Receipts, INH.ON, Registered Part. Shares).
-8. **fund** — Name beginnt mit oder enthält ein bekanntes
-   Fonds-Emittentenpräfix (iShares, Vanguard, Lyxor, Amundi, AIS-AM, Xtrackers,
-   SPDR, Invesco, WisdomTree, VanEck, Fidelity, Deka), passte aber nicht zum
-   ETF-Muster oben.
-9. **nil** — keine Heuristik griff; das Wertpapier gilt als nicht klassifiziert.
+1. **government_bond** — der Name sagt, dass es eine Staatsanleihe ist:
+   Bundesrepublik, Bundesanleihe, Bundesobligation, Bundesschatz,
+   Staatsanleihe, Treasury Note, Treasury Bond, Treasury Bill, Government
+   Bond, Sovereign Bond, „Republic of“, „Kingdom of“ oder „Anleihe“ am Anfang,
+   gefolgt von einem Land (Australien, Belgien, Deutschland, Frankreich,
+   Italien, Kanada, Niederlande, Norwegen, Österreich, Singapur, Spanien, USA,
+   Vereinigte Staaten, United States).
+2. **etf** — der Name trägt ETF, UCITS ETF, U.ETF, UETF, ETC, ETN oder ETP als
+   Wort.
+3. **crypto** — der ganze Name ist ein bekannter Coin (Bitcoin, Ethereum,
+   Ether, Solana, Cardano, Polkadot, Litecoin, Chainlink, Ripple, XRP,
+   Dogecoin, Avalanche, Tron), oder der Ticker ist ein bekanntes Symbol (BTC,
+   ETH, SOL, ADA, DOT, LTC, LINK, XRP, DOGE, AVAX, TRX), allein oder mit einer
+   Währung nach Bindestrich oder Punkt (`BTC-EUR`).
+4. **commodity** — ein physisch hinterlegtes Edelmetallprodukt (EUWAX Gold,
+   Xetra-Gold, Physical Gold, Physical Silver, Physical Platinum, Physical
+   Palladium, Gold Bullion) oder ein Name, der nur ein Metall ist: Gold,
+   Silber, Silver, Platin oder Platinum. Ein Unternehmen mit einem Metall im
+   Namen („Muster Gold Corp“) greift hier nicht und geht weiter zur
+   Aktien-Regel.
+5. Ein **strukturiertes oder Hebelprodukt**, jeweils als eigene Klasse. Diese
+   Regeln kommen vor den Aktien, weil solche Namen oft auch die Rechtsform
+   eines Emittenten tragen:
+   - **knock_out** — Turbo, allein oder mit einem Buchstaben dahinter
+     (TurboC, TurboP), Knock-Out, KO, Mini Future, O.End, Open End Turbo,
+     WAVE, Unlimited Turbo;
+   - **discount_certificate** — DiscC, DiscP, Discount-Zertifikat, Discount
+     Cap;
+   - **warrant** — Optionsschein, Warrant;
+   - **factor_certificate** — Faktor;
+   - **reverse_convertible** — Aktienanleihe, Reverse Convertible;
+   - **bonus_certificate** — Bonus-Zertifikat, Bonus Cap;
+   - **express_certificate** — Express-Zertifikat;
+   - und zuletzt ein bloßes Call oder Put, das Broker als Kürzel für einen
+     Optionsschein verwenden, also ebenfalls ein **warrant** („Turbo Call“
+     bleibt ein Knock-out).
 
-Da die Inferenz zur Lesezeit läuft, klassifiziert eine verbesserte Heuristik im
-Code alle passenden Wertpapiere rückwirkend neu, ohne Datenmigration.
+   Eine allgemeine Derivate-Klasse gibt es nicht: Ein Zertifikat, auf das
+   keines dieser Wörter passt (etwa ein Indexzertifikat), bleibt ohne Klasse.
+6. **equity** — der Name trägt eine Aktien- oder Rechtsform-Markierung —
+   Registered Shares, Reg. Shares, Registered Part. Shares, Inhaber-Aktien,
+   Namens-Aktien, Vorzugsaktien, Actions, Aandelen, Common Stock, Inc., Corp.,
+   Corporation, Company, Co., Ltd., AG, SE, PLC, S.p.A., S.A. oder SA, SA/NV,
+   Aktiengesellschaft, A/S, ASA, KGaA, Azioni, Acciones, Aktier — oder eine
+   Hinterlegungsschein-Markierung (ADR, Sp.ADR, GDR, Depos. Receipts) oder
+   INH.ON, **und** kein Wort eines strukturierten Produkts (Turbo, Disc,
+   Discount, Call, Put, Optionsschein, Zertifikat, O.End,
+   Em.-u.Handelsg.mbH).
+7. **fund** — der Name trägt einen Fondsanbieter (iShares, Vanguard, Lyxor,
+   Amundi, AIS-AM, Xtrackers, SPDR, Invesco, WisdomTree, VanEck, Fidelity,
+   Deka), und keine Regel oben griff; ein Name, der zusätzlich eine
+   Rechtsform trägt, ist nach Regel 6, die vorher läuft, eine Aktie.
+8. **equity, aus dem Logo** (#408) — ein Wertpapier, das keine Regel
+   aufgelöst hat und das eine ISIN **und** ein gespeichertes Firmen-Logo hat,
+   gilt als Aktie: Die Logo-Suche hat schon entschieden, dass es ein
+   Unternehmen ist, und die ISIN kennzeichnet ein börsennotiertes Instrument.
+9. Sonst hat das Wertpapier keine Klasse: Es ist nicht klassifiziert.
+
+Die Regeln unterscheiden nicht zwischen Groß- und Kleinschreibung, und die
+meisten passen nur auf ganze Wörter. Einige Aktien-Markierungen nicht, und
+das erklärt die Überraschungen: „SA“ und „Actions“ passen auch mitten im
+Wort, ein Name mit den Buchstaben „sa“ gilt also als Aktie, sofern keine
+frühere Regel griff und kein Ausschluss zutrifft; und jeder Ausschluss passt
+ebenfalls mitten im Wort, ein Unternehmen, dessen Name bloß „put“ oder „disc“
+enthält („Muster Computer Corp“), gilt also nicht als Aktie und bleibt ohne
+Klasse. Die Klasse von Hand zu setzen, klärt jeden solchen Fall.
+
+**Wann eine Klasse gespeichert wird.** Die Klasse wird nicht nur beim Lesen
+abgeleitet. Jedes Anlegen oder Ändern der Stammdaten eines Wertpapiers — in
+der App, über die API oder MCP oder durch einen Import — speichert die
+Klasse, die die Regeln 1–7 ergeben, solange noch keine gespeichert ist (die
+Logo-Regel läuft nur beim Lesen), und das Speichern des Formulars eines
+Wertpapiers speichert die Klasse, die das Formular zeigt, ob abgeleitet oder
+nicht. Eine gespeicherte Klasse, gleich wer sie gespeichert hat, wird
+unverändert zurückgegeben; eine spätere Verbesserung einer Regel erreicht
+dieses Wertpapier also **nicht**. Eine verbesserte Regel erreicht nur die
+Wertpapiere ohne gespeicherte Klasse: die, auf die beim letzten Schreiben
+keine Namensregel passte (die Logo-Regel kann sie beim Lesen noch auflösen),
+und die, die mit **Zuordnung entfernen** im eingebauten Anlageklassen-Baum
+(Klassifizierungen) auf automatisch zurückgesetzt wurden — das leert die
+gespeicherte Klasse, ohne eine abzuleiten.
 
 #### Nicht klassifizierte Wertpapiere finden und korrigieren
 
@@ -120,13 +177,16 @@ Eine Suche oder Filterkombination ohne Treffer zeigt einen
 Bedienelemente bleiben sichtbar; der Onboarding-Hinweis „noch keine
 Wertpapiere" erscheint nur bei leerer Datenbank.
 
-Die Wertpapierliste akzeptiert einen Filter **„is unclassified"** auf der
-Anlageklasse-Spalte (`operator: :is_nil`). Er liefert alle Zeilen, bei denen der
-gespeicherte Wert nil ist und `effective_asset_class` ebenfalls nil ergab — d. h.
-die Heuristiken haben keine sichere Übereinstimmung. Für jede solche Zeile zeigt
-die Anlageklasse-Zelle ein eingebettetes **Schnellzuweisungs-Dropdown**, sodass
-sich die Klasse direkt aus der Liste setzen lässt, ohne die
-Wertpapier-Detailseite zu öffnen.
+Die Wertpapierliste akzeptiert einen Filter **„ist nicht klassifiziert“** auf
+der Anlageklasse-Spalte (`operator: :is_nil`), dieselbe Bedingung wie der Chip
+**Ohne Anlageklasse**: Er trifft jedes Wertpapier **ohne gespeicherte
+Klasse**, ob eine Regel eine ableitet oder nicht, denn eine abgeleitete Klasse
+ist eine Vermutung und keine erklärte Tatsache (#700). Eine solche Zeile zeigt
+ihre abgeleitete Klasse, als abgeleitet markiert (≈), oder nichts, wenn keine
+Regel griff, und in beiden Fällen ein eingebettetes
+**Schnellzuweisungs-Dropdown**, sodass sich die Klasse direkt aus der Liste
+setzen lässt, ohne die Wertpapier-Detailseite zu öffnen. Eine Zeile mit
+gespeicherter Klasse zeigt sie als einfaches Badge.
 
 Eine gespeicherte Klasse ist eine dauerhafte Überschreibung: einmal gesetzt, wird
 sie von `effective_asset_class` zurückgegeben, unabhängig davon, was die
@@ -786,6 +846,10 @@ heißt es *die neuesten 100*. Jede Zeile nennt:
 - **Von**: *Operator* für eine Zusammenführung auf diesen Seiten, *Agent* für
   eine, die ein API- oder MCP-Token ausgeführt hat.
 
+[![Die aufgeklappte Liste der Zusammenführungen: sechs Zusammenführungen von Depots, Verrechnungskonten und einem Wertpapier, ein inzwischen gelöschtes Ziel und ein Ziel, das jetzt in einem späteren Überlebenden steht, und das aufgeklappte Ergebnis einer Wertpapier-Zusammenführung mit Buchungen, ISIN, Wahl und Prüfung](../screenshots/merges.png)](../screenshots/merges.png)
+
+*Zusammenführungen auf dem synthetischen Demo-Datensatz.*
+
 Das Datum in der Zeile *zusammengeführt aus … · Datum* eines Überlebenden und
 in der Grundlagenzeile *zusammengeführt am … aus …* eines Wertpapiers öffnet
 die Liste beim Ergebnis dieser Zusammenführung; eine, die älter ist als die
@@ -912,6 +976,10 @@ existiert nicht mehr.“ — die eine Ablehnung, die die API kennt. Darüber
 hinaus wird nichts geprüft, wie über die API: Wird ein Kauf gelöscht, dessen
 Stücke ein späterer Verkauf verbraucht hat, fehlt diesem Verkauf danach sein
 Kauf.
+
+[![Die Rückfrage zum Löschen eines Kaufs über der Transaktionshistorie: Datum, Art, Wertpapier, Depot und Betrag der Buchung, der Satz, dass das Depot 10 Stück weniger hält und das Verrechnungskonto 240,00 EUR mehr hat, der Satz zum Journal, Abbrechen und Transaktion löschen](../screenshots/booking-delete.png)](../screenshots/booking-delete.png)
+
+*Eine Buchung löschen, auf dem synthetischen Demo-Datensatz.*
 
 - **Eine importierte Buchung** sagt es: Gelöscht, kennt der Import sie nicht
   mehr, ein erneuter Import derselben Datei bucht sie also wieder. Diesen
@@ -1497,6 +1565,12 @@ gibt bewusst keinen Aktivitäts-Feed: die forensischen Details gehören dem
 Audit-Journal, und die Karte Abgeschlossene Trades zeigt, was ein Verkauf
 realisiert hat, nie die Buchung selbst.
 
+[![Die Übersicht: die Wert-Karte, die Kennzahlenleiste, die Karte Abgeschlossene Trades mit vier Rundläufen, die Ziel-Abweichungen, die fälligen Termine und die Datenqualitätszeile](../screenshots/dashboard.png)](../screenshots/dashboard.png)
+
+*Die Übersicht auf dem synthetischen Demo-Datensatz. Jeder Screenshot in
+diesem Handbuch stammt aus diesem Datensatz (`priv/demo`), nie von einer
+echten Instanz.*
+
 ## Vermögens-Seite
 
 Der Eintrag **Vermögen** in der Navigation öffnet die Vermögensübersicht,
@@ -1898,8 +1972,12 @@ Dividenden und abzüglich der Gebühren und Steuern der eigenen Käufe und
 Verkäufe der Position. Jede Zeile zeigt diese fünf Zahlen neben dem Beitrag,
 sodass sich jede Zahl von Hand nachprüfen lässt. Die Zeilen sind nach Beitrag
 sortiert, der größte zuerst, und ein Balken unter jeder Zahl zeigt ihre Größe
-im Vergleich zur größten. Auch eine im Zeitraum verkaufte Position hat ihre
-Zeile; sie ist als weder zu Beginn noch am Ende im Bestand gekennzeichnet.
+im Vergleich zur größten. Auch eine Position, die nur einen Teil des
+Zeitraums im Bestand war, hat ihre Zeile, mit einem Vermerk unter ihrem Namen:
+„zu Beginn nicht im Bestand“, wenn sie im Zeitraum gekauft wurde, „am Ende
+nicht mehr im Bestand“, wenn sie im Zeitraum verkauft wurde, und „weder zu
+Beginn noch am Ende im Bestand“, wenn sie im Zeitraum gekauft und verkauft
+wurde.
 
 Was keiner Position gehört, steht getrennt unter „Keiner Position
 zugeordnet“: Zinsen, einzelne Gebühren und Steuern sowie der Währungseffekt
@@ -1919,6 +1997,10 @@ in der Tabelle und in der Summe, trägt die Zahl dieser Tage in ihrer Zeile und
 wird in einem Hinweis unter der Tabelle genannt. Ein Zeitraum ohne Inhalt zeigt
 einen Satz statt einer Tabelle voller Nullen, und auf dem Telefon wird die
 Tabelle zu zweizeiligen Einträgen.
+
+[![Beitrag je Position über ein Jahr: Anfangswert, Zu-/Abflüsse, Erträge, Kosten, Endwert und Beitrag der zehn größten Positionen mit ihren Balken, Alle 30 anzeigen, die drei Posten ohne Position, die Summenzeile und ein Hinweis auf die Positionen, die an einigen Tagen null zählten](../screenshots/contribution.png)](../screenshots/contribution.png)
+
+*Beitrag je Position auf dem synthetischen Demo-Datensatz.*
 
 ## Cashflow
 
@@ -2005,6 +2087,10 @@ Wertpapier · Datum · Stückzahl ohne Gegenstück. Sie trägt
 keine Schaltfläche, denn nichts auf der Seite kann den fehlenden Kauf
 liefern.
 
+[![Die Facette Trades im Cashflow: der Hinweis auf einen Verkauf ohne Kurs an seinem Schlussdatum mit der Nachlade-Schaltfläche, der Hinweis auf Verkäufe ohne zugeordneten Kauf, realisierte Summe, Trefferquote und durchschnittliche Haltedauer und vier abgeschlossene Rundläufe mit ihrer Spalte p. a.](../screenshots/income.png)](../screenshots/income.png)
+
+*Cashflow → Trades auf dem synthetischen Demo-Datensatz.*
+
 **Der Trades-Tab des Wertpapiers** (Issue #1029) ist das Ziel jeder Zeile
 der Facette und der Übersichtskarte, und seit Sprint 18 zeigt er dieselbe
 Zahl: Seine Tabelle **Abgeschlossene Trades (FIFO)** trägt die Spalte
@@ -2024,6 +2110,10 @@ erst ab 365 Tagen Haltedauer. Auf dem Telefon wird die Tabelle zu
 zweizeiligen Zeilen: Eröffnet → Geschlossen über der Stückzahl und den
 Tagen, das Ergebnis über seiner Rendite und, ab einem Jahr Haltedauer, der
 p.-a.-Zahl.
+
+[![Der Trades-Tab eines Wertpapiers unter der Wertpapierliste: ein abgeschlossener Trade über 780 Tage mit Ø Kauf und Ø Verkauf, seiner Rendite p. a. und seinem realisierten G/V, darunter die Regelzeile](../screenshots/trades-tab.png)](../screenshots/trades-tab.png)
+
+*Der Trades-Tab eines Wertpapiers auf dem synthetischen Demo-Datensatz.*
 
 **Ein- & Auszahlungen** (`/cashflow?tab=flows`, Issue #725) ist die
 „Ersparnis": was eingezahlt und entnommen wurde, je Periode, als zwei Serien
@@ -2297,7 +2387,8 @@ beantworten — wie konzentriert ist das Portfolio, und wie stark schwankt es �
   ebenso —, und die Versionsliste im Dialog nennt bei jeder Version den Autor,
   „Operator“ oder „Agent“ (E25). Eigene Regeln tragen kein Wort. Die Regeln
   des Agenten gelten wie die eigenen; das Wort sagt nur, wer die Linie gezogen
-  hat.
+  hat. Wie man eine Regel Schritt für Schritt anlegt, liest, ändert und
+  beendet, steht im [Leitfaden Eigene Regeln](guides/own-rules.html).
 - **Kennzahlen des Portfolios**, ein Jahr: die annualisierte **Volatilität**,
   der **maximale Rückgang** mit Beginn, Tiefpunkt und Erholung, die
   **risikoadjustierte Rendite** (bei einem risikofreien Satz von 0 ist sie
@@ -2344,6 +2435,35 @@ Parser-Warnungen erscheinen in einem scrollbaren Feld mit Kopier-Button. Der
 kopierte Text nutzt stabile `Row N: message`-Zeilen, sodass die Diagnose beim
 Quell-Export verbleiben kann. Das Anwenden des Imports ist atomar und nutzt
 Inhalts-Hashes, um Duplikate bei erneutem Lauf zu überspringen.
+
+### Was eine Portfolio-Performance-CSV voraussetzt
+
+Der CSV-Weg liest den deutschen Export von Portfolio Performance. Er hat eine
+Voraussetzung und zwei Annahmen, die für das stehen, was die CSV nicht sagen
+kann:
+
+- **Nur deutsche Spaltennamen und Typ-Bezeichnungen.** Die Kopfzeile nennt die
+  Spalten auf Deutsch (`Datum`, `Typ`, `Wertpapier`, `Stück`, `Kurs`, `Betrag`,
+  `Gebühren`, `Steuern`, `Konto`), jede Zeile trägt eine deutsche
+  Typ-Bezeichnung (`Kauf`, `Verkauf`, `Dividende` und so weiter), und Zahlen
+  stehen im deutschen Format (`1.234,56`). Ein Export aus einem englisch
+  eingestellten Portfolio Performance nennt seine Spalten auf Englisch und wird
+  als Ganzes abgelehnt, mit den fehlenden Spalten benannt (*CSV-Spalten fehlen:
+  Datum, Typ, …*): Portfolio Performance auf Deutsch umstellen und erneut
+  exportieren.
+- **Jede Zeile in EUR.** Die CSV hat keine Währungsspalte: Jeder Betrag wird
+  als Euro gelesen, und die Geldkonten und Wertpapiere, die der Import aus ihr
+  anlegt, sind EUR.
+- **Wertpapiere nur über den Namen.** Die CSV enthält keine ISIN, WKN und
+  kein Tickersymbol, also ordnet der Import ein Wertpapier allein über seinen
+  Namen zu, die letzte Stufe der Zuordnungsleiter (siehe „Wertpapier-Matching
+  und der Zuordnungsschritt“ unten). Ein in Portfolio Performance umbenanntes
+  Wertpapier wird nicht gefunden und als neues angeboten, das du in der
+  Vorschau umordnen kannst; zwei Wertpapiere mit einem Namen sind eine
+  Entscheidung, nach der die Vorschau fragt.
+
+Für andere Währungen und die Zuordnung über die ISIN exportiere **JSON v1**:
+Es trägt eine Währung je Zeile und je Wertpapier ISIN, WKN und Tickersymbol.
 
 ### Dateien und Zeilen, die die Vorschau ablehnt
 
@@ -2746,6 +2866,10 @@ mit dem Wertpapier im Titel:
   geschrieben oder freigegeben), wird ebenfalls nichts geschrieben: Der
   Dialog nennt die neue Zahl und bittet, erneut zu bestätigen.
 
+[![Der Dialog Manuelle Kurse freigeben über dem Kurse-Tab eines Wertpapiers: Von und Bis, der Chip Alle und die fünf jüngsten Abschnitte mit ihrer Zahl, die Zeile, dass es sieben Abschnitte sind, der Satz, was geschieht, und die Bestätigung, die 13 manuelle Kurse nennt](../screenshots/quote-release.png)](../screenshots/quote-release.png)
+
+*Manuelle Kurse freigeben, auf dem synthetischen Demo-Datensatz.*
+
 Nach der Freigabe sagt der Tab, wie viele Kurse von wann bis wann freigegeben
 wurden, mit **Kurse aktualisieren** als nächstem Schritt, wo eine
 Aktualisierung helfen kann — sie aktualisiert nur dieses Wertpapier —, bis Sie
@@ -2967,9 +3091,12 @@ nachvollziehbar bleibt (Werte vorher/nachher) — das Sicherheitsnetz dafür, ei
 Agenten über die API/MCP schreiben zu lassen. Marktdaten-Synchronisierung (Kurse
 und Wechselkurse) ist betrieblich und wird nicht journalisiert. Das Journal ist
 über `GET /api/v1/journal` und das passende MCP-Tool `portfolixir.journal.list`
-abfragbar (siehe [API und MCP](integration/api-and-mcp.html)). Es deckt derzeit
-Wertpapier-Stammdaten ab; die übrigen Schreibbereiche folgen nacheinander. Eine
-eigene Ansicht in der App ist als Folgeschritt geplant.
+abfragbar (siehe [API und MCP](integration/api-and-mcp.html)). Es deckt jeden
+Bereich ab, der Finanzdaten schreibt: Wertpapiere und die Kurse, die jemand
+eingibt, Portfolios, Geldkonten und Depots, Buchungen (auch die eines Imports),
+Klassifizierungen und SOLL-Pläne, Steuerdaten, Recherche-Notizen und Termine,
+eigene Regeln, Zusammenführungen sowie Buckets und Views. Eine eigene Ansicht
+in der App ist als Folgeschritt geplant.
 
 Das Löschen eines Geldkontos, eines Depots oder eines Wertpapiers nimmt nie
 stillschweigend etwas mit (ADR-0050 §11). Eine Zeile, auf die noch Buchungen

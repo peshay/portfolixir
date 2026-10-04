@@ -588,7 +588,27 @@ succeeds and on one that is refused.
 
 ## Reset
 
-If the local database should be reset, remove the Compose volume:
+A reset deletes the instance's data: `docker compose down -v` removes the
+stack's volumes, the database volume `portfolixir-postgres-data` with every
+record and the logo volume `portfolixir-logos`, and the next start sets up an
+empty database. Take a backup first, as in "Take a backup" above, while the
+instance still runs:
+
+```bash
+umask 077
+mkdir -p ~/portfolixir-backups
+docker compose exec -T db \
+  pg_dump -U portfolixir -d portfolixir_prod --format=custom \
+  > ~/portfolixir-backups/portfolixir-$(date +%F).dump
+docker compose exec -T app tar -C /var/lib/portfolixir/logos -cf - . \
+  > ~/portfolixir-backups/portfolixir-logos-$(date +%F).tar
+docker compose exec -T db \
+  pg_restore --list < ~/portfolixir-backups/portfolixir-$(date +%F).dump \
+  > /dev/null && echo "backup reads"
+```
+
+Only after it printed `backup reads`, reset. The backup is then the only copy
+of the data, and "Restore" above brings it back:
 
 ```bash
 docker compose down -v

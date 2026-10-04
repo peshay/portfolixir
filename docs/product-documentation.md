@@ -73,38 +73,87 @@ They are the basis for all transaction and holdings calculations.
 
 ### Asset class inference
 
-Every security carries an **asset class** field. Its value is determined at
-read time by `Security.effective_asset_class/1`: if the stored value is
-non-nil it is returned as-is; otherwise the name, ISIN, and ticker are
-inspected in priority order:
+Every security has an **asset class**. A class stored on the security always
+wins: `Security.effective_asset_class/1` returns it as it is. Only a security
+with no stored class gets one inferred, when it is read, from its **name** and,
+for crypto, its **ticker**. The ISIN is not one of the signals: the structure
+of an ISIN alone does not say what kind of instrument it is (#408), so the
+inference ignores it except in the last rule below. The rules run in this
+order, and the first that matches decides:
 
-1. **government_bond** — ISIN country-code prefix in the two-letter list of known
-   government-bond issuers (DE, US, GB, FR, IT, ES, JP, …).
-2. **etf** — name contains `ETF`, `UCITS ETF`, or an exact ISIN starting with
-   `IE00` combined with a known fund-issuer prefix.
-3. **crypto** — name matches a known coin name (Bitcoin, Ethereum, Ripple, Cardano,
-   Solana, Dogecoin, Avalanche, Tron, …) or ticker matches a known crypto symbol
-   (BTC, ETH, XRP, ADA, SOL, DOGE, AVAX, TRX, …).
-4. **commodity** — name is an exact bare metal name: Gold, Silber, Silver, Platin,
-   Platinum. (Compound names like "Barrick Gold Corp" are not matched here and
-   pass through to equity.)
-5. **derivative** — name contains `Knock-Out`, `Zertifikat`, or `Turbo` (including
-   single-letter suffixes such as TurboP, TurboC, TurboA).
-6. **knock_out** — name contains `Turbo` (any single-letter suffix), `Knockout`,
-   or `KO` pattern. In practice the Turbo check is shared with the derivative
-   branch; the `knock_out` class is stored explicitly when the user corrects the
-   inference.
-7. **equity** — name contains a legal-form suffix (Corporation, Company, Co.,
-   Aktiengesellschaft, AG, S.A., S.p.A., A/S, ASA, KGaA, Azioni, Acciones,
-   Aktier, Ltd., PLC, Inc., GmbH, NV, SA) or a depositary-receipt marker
-   (ADR, GDR, Sp.ADR, Depos. Receipts, INH.ON, Registered Part. Shares).
-8. **fund** — name starts with or contains a known fund-issuer prefix (iShares,
-   Vanguard, Lyxor, Amundi, AIS-AM, Xtrackers, SPDR, Invesco, WisdomTree,
-   VanEck, Fidelity, Deka) but did not match the ETF pattern above.
-9. **nil** — no heuristic fired; the security is considered unclassified.
+1. **government_bond** — the name says it is a sovereign bond: Bundesrepublik,
+   Bundesanleihe, Bundesobligation, Bundesschatz, Staatsanleihe, Treasury
+   Note, Treasury Bond, Treasury Bill, Government Bond, Sovereign Bond,
+   "Republic of", "Kingdom of", or "Anleihe" at the start followed by a
+   country (Australien, Belgien, Deutschland, Frankreich, Italien, Kanada,
+   Niederlande, Norwegen, Österreich, Singapur, Spanien, USA, Vereinigte
+   Staaten, United States).
+2. **etf** — the name carries ETF, UCITS ETF, U.ETF, UETF, ETC, ETN or ETP as
+   a word.
+3. **crypto** — the whole name is a known coin (Bitcoin, Ethereum, Ether,
+   Solana, Cardano, Polkadot, Litecoin, Chainlink, Ripple, XRP, Dogecoin,
+   Avalanche, Tron), or the ticker is a known symbol (BTC, ETH, SOL, ADA,
+   DOT, LTC, LINK, XRP, DOGE, AVAX, TRX), alone or with a currency after a
+   dash or a dot (`BTC-EUR`).
+4. **commodity** — a physically backed precious-metal product (EUWAX Gold,
+   Xetra-Gold, Physical Gold, Physical Silver, Physical Platinum, Physical
+   Palladium, Gold Bullion), or a name that is only a metal: Gold, Silber,
+   Silver, Platin or Platinum. A company with a metal in its name ("Muster
+   Gold Corp") is not matched here and goes on to the equity rule.
+5. A **structured or leverage product**, as its own class. These come before
+   equity because their names often carry an issuer's legal form as well:
+   - **knock_out** — Turbo, alone or with one letter after it (TurboC,
+     TurboP), Knock-Out, KO, Mini Future, O.End, Open End Turbo, WAVE,
+     Unlimited Turbo;
+   - **discount_certificate** — DiscC, DiscP, Discount-Zertifikat, Discount
+     Cap;
+   - **warrant** — Optionsschein, Warrant;
+   - **factor_certificate** — Faktor;
+   - **reverse_convertible** — Aktienanleihe, Reverse Convertible;
+   - **bonus_certificate** — Bonus-Zertifikat, Bonus Cap;
+   - **express_certificate** — Express-Zertifikat;
+   - and last, a bare Call or Put, which brokers use as shorthand for a
+     warrant, so it is a **warrant** too ("Turbo Call" stays a knock-out).
 
-Because inference runs at read time, improving a heuristic in the code
-retroactively reclassifies all matching securities without a data migration.
+   There is no generic derivative class: a certificate that matches none of
+   these words (an index certificate, say) stays unclassified.
+6. **equity** — the name carries a share or legal-form marker — Registered
+   Shares, Reg. Shares, Registered Part. Shares, Inhaber-Aktien,
+   Namens-Aktien, Vorzugsaktien, Actions, Aandelen, Common Stock, Inc., Corp.,
+   Corporation, Company, Co., Ltd., AG, SE, PLC, S.p.A., S.A. or SA, SA/NV,
+   Aktiengesellschaft, A/S, ASA, KGaA, Azioni, Acciones, Aktier — or a
+   depositary-receipt marker (ADR, Sp.ADR, GDR, Depos. Receipts) or INH.ON,
+   **and** no structured-product word (Turbo, Disc, Discount, Call, Put,
+   Optionsschein, Zertifikat, O.End, Em.-u.Handelsg.mbH).
+7. **fund** — the name carries a fund issuer (iShares, Vanguard, Lyxor,
+   Amundi, AIS-AM, Xtrackers, SPDR, Invesco, WisdomTree, VanEck, Fidelity,
+   Deka) and none of the rules above matched; a name that also carries a
+   legal form is equity by rule 6, which runs first.
+8. **equity, from the logo** (#408) — a security none of the rules resolved
+   that has an ISIN **and** a stored company logo is read as equity: the logo
+   lookup already decided it is a company, and the ISIN marks a listed
+   instrument.
+9. Otherwise the security has no class: it is unclassified.
+
+The rules ignore case, and most of them match whole words. A few equity
+markers do not, and they explain the surprises: "SA" and "Actions" also match
+inside a word, so a name with the letters "sa" in it reads as equity unless an
+earlier rule matched or an exclusion applies; and every exclusion matches
+inside a word as well, so a company whose name merely contains "put" or
+"disc" ("Muster Computer Corp") is not read as equity and stays
+unclassified. Setting the class by hand settles any such case.
+
+**When a class is stored.** The class is not only inferred at read time. Each
+create or update of a security's master data — in the app, over the API or
+MCP, or by an import — stores the class rules 1–7 give when no class is stored
+yet (the logo rule runs at read time only), and saving a security's form
+stores the class the form shows, inferred or not. A stored class, whoever
+stored it, is returned as it is, so a later improvement to a rule does **not**
+reach that security. An improved rule reaches only the securities that store
+no class: those no name rule matched at their last write (the logo rule may
+still resolve them when they are read), and those reset to automatic with
+**Unassign** on the built-in asset-class tree (Classifications), which clears
+the stored class without inferring one.
 
 #### Finding and fixing unclassified securities
 
@@ -114,11 +163,13 @@ visible; the "no securities yet" onboarding hint appears only when the
 database holds no securities at all.
 
 The securities list accepts an **"is unclassified"** filter on the asset-class
-column (`operator: :is_nil`). It returns all rows where the stored value is nil
-and `effective_asset_class` also returned nil — i.e. the heuristics have no
-confident match. For each such row the asset-class cell shows an inline
-**quick-assign** dropdown, so the class can be set directly from the list
-without opening the security detail page.
+column (`operator: :is_nil`), the same condition as the **Unclassified** chip:
+it matches every security with **no stored class**, whether or not a rule
+infers one, because an inferred class is a guess and not a stated fact
+(#700). Such a row shows its inferred class, marked as derived (≈), or nothing
+when no rule fired, and either way an inline **quick-assign** dropdown, so the
+class can be set directly from the list without opening the security detail
+page. A row with a stored class shows it as a plain badge.
 
 A stored class is a permanent override: once set it is returned by
 `effective_asset_class` regardless of what the heuristics would produce, so the
@@ -721,6 +772,10 @@ newest first. The list starts collapsed under a line that counts it
 - **by**: *Operator* for a merge made on these pages, *Agent* for one an API
   or MCP token made.
 
+[![The Merges list opened: six merges of depots, cash accounts and a security, a target deleted since and a target now in a later merge's survivor, and a security merge's result opened into its bookings, ISIN, choice and check](screenshots/merges.png)](screenshots/merges.png)
+
+*Merges on the synthetic demo dataset, in the German interface.*
+
 The date in a survivor's *merged from … · date* line, and in a security's
 *merged on … from …* basis line, opens the list at that merge's result; a
 merge older than the newest 100 is said to be past the list. The
@@ -837,6 +892,10 @@ another tab) reads "That transaction no longer exists." — the one refusal
 the API knows. Nothing is checked beyond that, as over the API: deleting a
 buy whose shares a later sale consumed leaves that sale without its
 purchase.
+
+[![The delete confirmation for a buy over the transaction history: the booking's date, kind, security, depot and signed amount, the sentence saying the depot holds 10 fewer units and the cash account has 240.00 EUR more, the journal sentence, Cancel and Delete transaction](screenshots/booking-delete.png)](screenshots/booking-delete.png)
+
+*Deleting a booking on the synthetic demo dataset, in the German interface.*
 
 - **An imported booking** says so: once deleted, the import no longer knows
   it, so importing the same file again books it again. Only merging an
@@ -1373,6 +1432,12 @@ badge). There is deliberately no activity feed: the audit journal owns the
 forensic detail, and the Closed trades card shows what a sale realised, never
 the booking itself.
 
+[![The Overview: the total value card, the key-figure strip, the Closed trades card with four round-trips, the Off target list, the due dates and the data-quality line](screenshots/dashboard.png)](screenshots/dashboard.png)
+
+*The Overview on the synthetic demo dataset, in the German interface. Every
+screenshot in this handbook comes from that dataset (`priv/demo`), never from
+a real instance.*
+
 ## Wealth Page
 
 The **Wealth** entry in the navigation opens the wealth overview, organised
@@ -1743,8 +1808,10 @@ rate), plus the dividends as credited, minus the fees and taxes of the
 position's own trades. Each row shows those five figures beside the
 contribution, so every number can be checked by hand; the rows are sorted by
 contribution, largest first, and a bar under each figure shows its size
-against the largest. A position sold inside the period has its row too,
-marked as held at neither end.
+against the largest. A position held for only part of the period has its
+row too, with a marker under its name: "not held at the start" when it was
+bought during the period, "no longer held at the end" when it was sold during
+it, and "held at neither end" when it was bought and sold inside the period.
 
 What no position owns is listed apart, under "Not attributed to a position":
 interest, standalone fees and taxes, and the currency effect on cash (the
@@ -1762,6 +1829,11 @@ no price or no exchange rate was stored, keeps its place in the table and in
 the sum, carries the number of those days on its row, and is named in a note
 under the table. A period with nothing in it shows a sentence instead of a
 table of zeros, and on a phone the table becomes two-line rows.
+
+[![Contribution by position over one year: start value, flows, income, costs, end value and contribution for the ten largest positions with their bars, Show all 30, the three lines not attributed to a position, the sum row, and a note naming the positions that counted zero on some days](screenshots/contribution.png)](screenshots/contribution.png)
+
+*Contribution by position on the synthetic demo dataset, in the German
+interface.*
 
 ## Cash flow
 
@@ -1840,6 +1912,10 @@ note says how many sells have such a quantity, and its disclosure lists each
 as security · date · unmatched quantity. It carries no control, because nothing on the page can supply the
 missing buy.
 
+[![The Trades facet of Cash flow: the note on a sale with no rate on its close date and its backfill control, the note on sells with no matched buy, the realised total, hit rate and average holding period, and four closed round-trips with their p. a. column](screenshots/income.png)](screenshots/income.png)
+
+*Cash flow → Trades on the synthetic demo dataset, in the German interface.*
+
 **The security's own Trades tab** (issue #1029) is where every row of the
 facet and of the Overview card leads, and since Sprint 18 it shows the same
 figure: its **Closed trades (FIFO)** table carries the **p. a.** column
@@ -1857,6 +1933,11 @@ prices, income received while a trade was open is not included, and p. a.
 only from 365 days of holding. On a phone the table gives way to two-line
 rows: opened → closed over the quantity and the days, the result over its
 percent and, from a year of holding, the p. a. figure.
+
+[![A security's Trades tab under the securities list: one closed trade held 780 days, with its average buy and sell prices, its p. a. return and its realised P&L, and the rules line under it](screenshots/trades-tab.png)](screenshots/trades-tab.png)
+
+*A security's Trades tab on the synthetic demo dataset, in the German
+interface.*
 
 **Deposits & withdrawals** (`/cashflow?tab=flows`, issue #725) is the
 owner's "Ersparnis": what was put in and taken out, per period, as two
@@ -2106,7 +2187,8 @@ The **Risk** tab of the Wealth area shows two things that answer one question
   and retired rules too — and the dialog's version list names the author of
   every version, "Operator" or "Agent" (E25). Your own rules carry no word.
   The agent's rules are in force like yours; the word only says who drew the
-  line.
+  line. How to write, read, change and end a rule, step by step, is in the
+  [Own Rules Guide](guides/own-rules.html).
 - **Portfolio metrics**, one year: the annualized **volatility**, the
   **maximum drawdown** with the day it started, its low and the day it
   recovered, the **risk-adjusted return** (at a risk-free rate of 0 it is
@@ -2156,6 +2238,32 @@ Parser warnings appear in a scrollable box with a copy button. The copied text
 uses stable `Row N: message` lines so the diagnostics can be kept with the
 source export. Applying the import is atomic and uses content hashes to skip
 duplicates on re-run.
+
+### What a Portfolio Performance CSV requires
+
+The CSV path reads Portfolio Performance's German export. It has one
+requirement, and two assumptions that stand for what the CSV cannot say:
+
+- **German column names and type labels only.** The header names the columns
+  in German (`Datum`, `Typ`, `Wertpapier`, `Stück`, `Kurs`, `Betrag`,
+  `Gebühren`, `Steuern`, `Konto`), each row carries a German type label
+  (`Kauf`, `Verkauf`, `Dividende` and so on), and numbers are written the
+  German way (`1.234,56`). An export from Portfolio Performance running in
+  English names its columns in English and is refused as a whole, with the
+  columns it lacks named (*CSV missing columns: Datum, Typ, …*): switch
+  Portfolio Performance to German and export again.
+- **Every row in EUR.** The CSV has no currency column: every amount is read
+  as euros, and the cash accounts and securities the import creates from it
+  are EUR.
+- **Securities by name only.** The CSV carries no ISIN, WKN or ticker, so the
+  import matches a security by its name alone, the last tier of the matching
+  ladder (see "Security matching and the mapping step" below). A security
+  renamed in Portfolio Performance is not found and is offered as a new one,
+  which you can remap in the preview; two securities of one name are a
+  decision the preview asks you to make.
+
+For other currencies and for matching by ISIN, export **JSON v1** instead: it
+carries a currency per row and each security's ISIN, WKN and ticker.
 
 ### Files and rows the preview refuses
 
@@ -2522,6 +2630,11 @@ security:
   written either: the dialog says the new count and asks you to confirm
   again.
 
+[![The Release manual quotes dialog over a security's Quotes tab: From and To, the All chip and the five newest stretches with their counts, the line saying there are seven stretches, the sentence on what happens, and the confirm naming 13 manual quotes](screenshots/quote-release.png)](screenshots/quote-release.png)
+
+*Releasing manual quotes on the synthetic demo dataset, in the German
+interface.*
+
 After the release the tab says how many quotes were released from when to
 when, with **Sync prices** as the next step where a sync can help — it syncs
 this security only — until you dismiss it or move on. Nothing on the page
@@ -2721,9 +2834,11 @@ values) — the safety net for letting an agent write data through the API/MCP.
 Market-data sync (quotes and exchange rates) is operational and is not journaled.
 The journal is queryable through `GET /api/v1/journal` and the matching
 `portfolixir.journal.list` MCP tool (see
-[API and MCP](integration/api-and-mcp.html)). It currently covers security
-master-data writes; the remaining write areas are covered in sequence. A
-dedicated in-app viewer is a planned follow-up.
+[API and MCP](integration/api-and-mcp.html)). It covers every area that writes
+financial data: securities and the quotes someone enters, portfolios, cash
+accounts and depots, bookings (an import's included), classifications and SOLL
+plans, tax records, research notes and events, policy rules, merges, and
+buckets and views. A dedicated in-app viewer is a planned follow-up.
 
 Deleting a cash account, a depot or a security never takes anything with it
 silently (ADR-0050 §11). A row that bookings still reference — or, for a

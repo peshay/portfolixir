@@ -2308,6 +2308,121 @@ Beispiel-Payloads für Konten:
 - `DELETE /api/v1/snapshots/:id` löscht einen Marker; Transaktionen und
   Bestände bleiben unberührt.
 
+### Erfasste Steuerbescheinigungen (ADR-0031)
+
+**Diese Töpfe werden erfasst, nicht hergeleitet** — und der Grund ist *nicht*
+ein fehlendes FIFO. Portfolixir ordnet Lots bereits nach FIFO zu (`GET
+/api/v1/securities/:id/trades`), und das ergibt einen **Rohgewinn**. Ein
+Rohgewinn ist kein Steuertopf: Teilfreistellung, Vorabpauschale, die
+chronologische Verrechnung des Freistellungsauftrags und der bescheinigte
+Verlustvortrag aus Vorjahren stehen gar nicht in den Transaktionsdaten, und
+die Töpfe werden je meldendem Institut geführt, das Portfolixir nicht
+modelliert. Ein hergeleiteter Topf wäre falsch, und zwar unsichtbar falsch —
+deshalb übernehmen diese Endpunkte eine Bankabrechnung und berechnen nie eine
+aus den Beständen. Jeder Geldwert ist ein Decimal-String als **positiver
+Betrag**: Ein Verlusttopf ist das zur Verrechnung verfügbare Verlustvolumen,
+nicht die negative Zahl, die die Abrechnung druckt, und eine negative Eingabe
+wird abgelehnt statt still umgedreht. Nichts hier ist Steuerberatung, und
+maßgeblich bleibt die erfasste Abrechnung. (Eine Steuer, die einem Geldkonto
+tatsächlich wieder gutgeschrieben wird — etwa nach einem Verlustverkauf —,
+ist ein Ledger-Ereignis, kein Topf: Sie wird als eigene
+`tax_refund`-Transaktion gebucht, wie oben unter „Transaktionen und Bestände“
+beschrieben.)
+
+- `GET /api/v1/tax/parameters` listet die jahresbezogenen gesetzlichen
+  Parameter (optionales `jurisdiction`, derzeit nur `DE`):
+  `capital_gains_tax_rate`, `solidarity_surcharge_rate` und die Höchstbeträge
+  `saver_allowance_single` / `saver_allowance_joint`. Sätze sind
+  Decimal-String-**Brüche** (`"0.25"`, nie `"25"`). Hinterlegt für 2009–2026;
+  ein Jahr ohne Zeile fehlt schlicht — die API setzt nie den Höchstbetrag
+  eines Nachbarjahres ein.
+- `PUT /api/v1/tax/parameters` legt die Parameter eines Jahres an oder
+  ersetzt sie (`{"parameters": {"tax_year": 2027, ...}}`).
+- `GET /api/v1/tax/profiles` listet die zeitlich gültigen Steuerprofile einer
+  Person (Pflichtparameter `holder`; fehlt er, folgt `422 Unprocessable
+  Entity`), das neueste `valid_from` zuerst. Für ein Datum gilt die Zeile mit
+  dem größten `valid_from` an oder vor diesem Datum — nie ein exakter
+  Treffer. Die Kirchensteuerpflicht steht standardmäßig auf **nicht
+  pflichtig** mit Satz `0`.
+- `POST /api/v1/tax/profiles` erfasst ein Profil ab einem Datum
+  (`{"profile": {"holder": "...", "valid_from": "2024-01-01"}}`). Ein
+  `church_tax_rate` ungleich null auf einem nicht pflichtigen Profil wird
+  abgelehnt.
+- `PATCH /api/v1/tax/profiles/:id` korrigiert eine Profilzeile. Um eine
+  *Änderung* der Situation festzuhalten, wird eine neue Zeile mit späterem
+  `valid_from` angelegt — Bearbeiten schreibt die Geschichte um, Hinzufügen
+  nicht.
+- `DELETE /api/v1/tax/profiles/:id` löscht eine Profilzeile. Bereits erfasste
+  Snapshots behalten ihren eingefrorenen Kirchensteuersatz und bleiben
+  unberührt.
+- `GET /api/v1/tax/allowance_orders` listet die Freistellungsaufträge, die die
+  steuerpflichtige Person **erteilt** hat (optionales `holder`, `institution`,
+  `tax_year`; Freitextfilter ignorieren Groß- und Kleinschreibung, sodass
+  `comdirect` und `Comdirect` ein Institut sind). Jedes `holder` und
+  `institution`, das die Steuer-Endpunkte schreiben oder nach dem sie filtern,
+  wird auf eine Weise normalisiert — nach NFC zusammengesetzt, unsichtbare
+  Formatzeichen entfernt, jede Folge von Unicode-Leerzeichen ein Leerzeichen,
+  ein Wert, der nur aus solchen Zeichen besteht, ein `422` — und auf beiden
+  Seiten über die Groß-/Kleinschreibungsfaltung der Datenbank abgeglichen,
+  die Faltung der eindeutigen Indizes (E25 S6).
+- `PUT /api/v1/tax/allowance_orders` erfasst oder ersetzt den erteilten
+  Betrag für ein `(holder, institution, tax_year)`
+  (`{"allowance_order": {...}}`).
+- `DELETE /api/v1/tax/allowance_orders/:id` löscht einen hinterlegten
+  Auftrag.
+- `GET /api/v1/tax/statement_snapshots` listet erfasste Bescheinigungen
+  (optionales `holder`, `institution`, `tax_year`), das neueste `as_of`
+  zuerst. Jede Zeile trägt die elf erfassten Zahlen plus
+  `allowance_remaining`, `tax_free_trim_budget`, `expected_capital_gains_tax`,
+  das `as_of`, auf dem sie beruhen, ein `stale`-Flag und die beratenden
+  `findings`. Jede Zeile trägt außerdem die aktivitätsbewusste
+  `staleness`-Bewertung (#667): Veraltung als Funktion der Aktivität, nicht
+  nur des Kalenders. Sie nennt ihre eigene Berechnungsbasis — `age_days`
+  gegen `age_threshold_days` (90), `activity_since_count` (die
+  Ledger-Transaktionen der `activity_kinds` — `sell`, `dividend`, `interest`,
+  `tax`, `tax_refund` — mit Datum strikt nach `as_of`), die beiden
+  Teilwarnungen und die kombinierte `warning`, dazu einen `basis`-Hinweis,
+  der festhält, dass Buchungen keinem Institut und keinem Steuerjahr
+  zugeordnet werden. `warning` ist das Signal zum Handeln; das bloße
+  `stale`-Flag kippt am Tag nach jedem `as_of` und bleibt aus
+  Kompatibilitätsgründen erhalten.
+- `POST /api/v1/tax/statement_snapshots` erfasst eine Bescheinigung
+  (`{"statement_snapshot": {"institution": "...", "holder": "...",
+  "tax_year": 2025, "as_of": "2025-12-31", ...}}`). `as_of` darf nicht in der
+  Zukunft liegen. Ohne `church_tax_rate` gilt der Satz des zum `as_of`
+  geltenden Profils der Person; der aufgelöste Satz wird dann auf der Zeile
+  eingefroren, sodass eine spätere Profiländerung nie eine erfasste
+  Übertragung umschreibt. Dasselbe `(institution, holder, tax_year, as_of)`
+  erneut zu erfassen ist ein `422`, kein stilles Duplikat. Die Quelle einer
+  erfassten Steuerbescheinigung setzt das System (`manual`); eine `source` im
+  Body einer Anlage oder einer Korrektur wird ignoriert.
+- `GET /api/v1/tax/trim_budget` rollt die jeweils neueste Bescheinigung je
+  Institut zu einer Person und einem Jahr auf (Pflichtparameter `holder` und
+  `tax_year`); Institute werden nach der Groß-/Kleinschreibungsfaltung der
+  Datenbank gruppiert, sodass eine spätere Bescheinigung unter einer anderen
+  Schreibweise derselben Bank die frühere ersetzt. Die Antwort nennt, welche
+  `institutions` sie abdeckt, das `as_of` ihres **ältesten** Bestandteils, die
+  summierten `allowance_granted` und `allowance_used`, aus denen der
+  Füllstand auf der Steuern-Seite gelesen wird (neben `allowance_remaining`),
+  und `complete: false` mit `missing_institutions`, wenn ein hinterlegter
+  Freistellungsauftrag für das Jahr keine erfasste Bescheinigung hat — die
+  Summe ist dann ein Teilbild und sagt das. Die Antwort trägt dieselbe
+  `staleness`-Bewertung, berechnet gegen das (älteste) `as_of` des Rollups.
+- `GET /api/v1/tax/statement_snapshots/:id` liest eine erfasste
+  Bescheinigung.
+- `PATCH /api/v1/tax/statement_snapshots/:id` korrigiert eine erfasste
+  Bescheinigung an Ort und Stelle — der Fall der neu ausgestellten
+  Bescheinigung.
+- `DELETE /api/v1/tax/statement_snapshots/:id` löscht eine erfasste
+  Bescheinigung.
+
+Prüfbefunde sind beratend und werden beim Lesen berechnet. Ein Befund nennt
+die `recorded` und die `expected` Zahl und die `gap`; er schlägt nie einen
+korrigierten Wert vor und blockiert nie einen Schreibvorgang. Zwei Regeln sind
+dagegen hart und kommen als `422`-Changeset-Fehler zurück: verbrauchter
+Freistellungsauftrag über dem erteilten, und einbehaltene Kirchensteuer bei
+einem Kirchensteuersatz von null.
+
 ## Eigene Regeln (ADR-0049)
 
 Eine **eigene Regel** ist ein gespeicherter Maßstab über eine Zahl, die das
@@ -2919,14 +3034,15 @@ oder die Beschreibungen sich bewegt haben.
   und Beschreibungen neu lesen, wenn `changed` `true` ist. Ein ungültiges
   `since` ist ein `422`.
 - Das Manifest wird **im Code gepflegt** (`PortfolixirWeb.Api.V1.Contract`),
-  und ein Meta-Test bindet das `/api/v1`-Inventar des Routers und das
-  Tool-Inventar des MCP-Begleitdienstes in beiden Richtungen daran, sodass
-  eine ohne Manifest-Eintrag hinzugefügte, umbenannte oder entfernte Route
-  oder ein solches Tool den Build scheitern lässt. Der erste Eintrag hält die
-  Sprint-9-Ergänzungen fest — das Research-Log, den Thesenstand, die
-  Parameter `include_positions` / `min_drift` auf View-Ebene und
-  Positionsebene (#740), den historischen Backfill-Scope (#737) und diesen
-  Read.
+  und ein Meta-Test bindet das `/api/v1`-Inventar des Routers und das Tool-
+  und das Prompt-Inventar des MCP-Begleitdienstes in beiden Richtungen daran,
+  sodass eine ohne Manifest-Eintrag hinzugefügte, umbenannte oder entfernte
+  Route, ein solches Tool oder ein solcher MCP-Prompt den Build scheitern
+  lässt; ein Eintrag nennt einen Prompt in seinem `summary` und seinen
+  `parameters`. Der erste Eintrag hält die Sprint-9-Ergänzungen fest — das
+  Research-Log, den Thesenstand, die Parameter `include_positions` /
+  `min_drift` auf View-Ebene und Positionsebene (#740), den historischen
+  Backfill-Scope (#737) und diesen Read.
 
 ## Audit-Journal
 
@@ -2938,9 +3054,7 @@ betriebliche Datenpflege und wird bewusst **nicht** journalisiert. Ein Kurs,
 den jemand schreibt, ist keine Synchronisierung: Der Kurs-Upsert und die
 Freigabe manueller Kurse werden unter `resource_type=security_quotes`
 journalisiert, unter der Id des Wertpapiers, mit den ersetzten oder
-freigegebenen Zeilen als Vorher-Abbild. Die Quelle einer erfassten
-Steuerbescheinigung setzt das System (`manual`); eine `source` im Body wird
-ignoriert.
+freigegebenen Zeilen als Vorher-Abbild.
 
 - `GET /api/v1/journal` listet Journal-Einträge, neueste zuerst. Jeder Eintrag
   trägt `actor_type` (`owner_ui`, `api_token_rw`, `api_token_ro`,
@@ -2956,6 +3070,9 @@ ignoriert.
   selbstbeschreibend: ein `meta`-Objekt nennt den `as_of`-Zeitpunkt, die
   Sortierung `order` (`inserted_at:desc,id:desc`), die Anzahl `count` und die
   angewandten `filters`.
+  SOLL-Ziel-Schreibvorgänge (Kategorie- und Positionszeilen gleichermaßen)
+  werden unter `resource_type=target` journalisiert, Schreibvorgänge an
+  Planversionen unter `resource_type=target_plan`.
 - Das `before` einer Änderung oder Löschung ist die Zeile, wie sie gespeichert
   war, als der Schreibvorgang sie gesperrt hat, und das `after` einer Änderung
   die Zeile, wie sie danach gespeichert ist — Dezimalwerte in der Skala ihrer
@@ -2964,8 +3081,45 @@ ignoriert.
   Schreibvorgang auf einen inzwischen gelöschten Datensatz antwortet mit `404`
   und hinterlässt keinen Eintrag.
 
-Das Journal deckt derzeit die Kontexte Catalog/Fx ab (Wertpapier-Stammdaten);
-die übrigen Schreibkontexte werden nacheinander scharfgeschaltet.
+Jeder Schreibkontext mit Finanzdaten journalisiert: Die Einführung, die
+ADR-0017 in Schritten geplant hat, ist abgeschlossen. Jede Tabelle mit
+Finanzdatensätzen trägt einen Guard-Trigger, der einen Schreibvorgang ohne
+Akteur ablehnt; ein Schreibpfad, der das Journal vergisst, scheitert also,
+statt eine Lücke zu hinterlassen. Die Einträge stehen unter diesen
+`resource_type`-Codes:
+
+- Wertpapiere und ihre ISIN-Aliasse: `security`, `security_identifier_alias`;
+  die Kurse, die jemand schreibt: `security_quotes`;
+- Portfolios, Geldkonten und Depots: `portfolio`, `cash_account`,
+  `securities_account`;
+- Buchungen, auch die eines angewandten Imports (Akteur `import_session`):
+  `transaction`;
+- Klassifizierungen: `classification`, `category`,
+  `security_category_assignment`;
+- SOLL-Pläne: `target`, `target_plan`;
+- Steuerdaten: `tax_parameters`, `tax_profile`, `allowance_order`,
+  `tax_statement_snapshot`;
+- das Research-Log und die Wertpapier-Termine: `security_note`,
+  `security_event`;
+- eigene Regeln: `policy_rule`, `policy_rule_version`;
+- die Zusammenführungen des Lebenszyklus: `merge_record`,
+  `retired_import_hash`;
+- Buckets, Views und Depot-Snapshot-Marker: `bucket`, `view`,
+  `depot_bucket_assignment`, `cash_account_bucket_assignment`,
+  `position_bucket_override`, `snapshot`.
+
+Zwei Arten von Tabellen tragen keinen Guard-Trigger, bei ihnen hängt das
+Journal also an ihren Schreibpfaden: `security_quotes`, die auch die
+Synchronisierung schreibt, und die Scope-Tabellen hinter Views,
+Bucket-Zuordnungen, Positions-Overrides und Snapshot-Markern, die festlegen,
+was eine View liest, statt Finanzdatensätze zu halten (ADR-0018 §5).
+
+Bewusst außerhalb des Journals: die Synchronisierung von Kursen und
+Wechselkursen; die Kurse, die eine Zusammenführung von Wertpapieren
+verschiebt oder verwirft und die stattdessen ihr Manifest festhält (ADR-0050
+§13); die gespeicherten Einstellungen (die Standard-Ansicht); und die
+abgeleiteten Werte nach ADR-0039, die sich jederzeit aus den gespeicherten
+Datensätzen neu berechnen lassen.
 
 ## MCP-Tools
 
@@ -3395,6 +3549,21 @@ Adresse.
 - `portfolixir.securities_accounts.clear_position_buckets`
 - `portfolixir.settings.get_default_view`
 - `portfolixir.settings.set_default_view`
+- `portfolixir.tax_parameters.list`
+- `portfolixir.tax_parameters.upsert`
+- `portfolixir.tax_profiles.list`
+- `portfolixir.tax_profiles.create`
+- `portfolixir.tax_profiles.update`
+- `portfolixir.tax_profiles.delete`
+- `portfolixir.allowance_orders.list`
+- `portfolixir.allowance_orders.put`
+- `portfolixir.allowance_orders.delete`
+- `portfolixir.tax_snapshots.list`
+- `portfolixir.tax_snapshots.get`
+- `portfolixir.tax_snapshots.create`
+- `portfolixir.tax_snapshots.update`
+- `portfolixir.tax_snapshots.delete`
+- `portfolixir.tax_snapshots.trim_budget`
 
 `portfolixir.views.performance` berechnet die passende portfolioübergreifende
 TTWROR/IRR für denselben Konten-Scope; Geld, das die View-Grenze überquert,
