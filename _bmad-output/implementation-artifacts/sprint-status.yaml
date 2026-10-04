@@ -88,7 +88,10 @@ story_location: _bmad-output/implementation-artifacts
 # agent's launch test on the documented build route; fewer than 100 open
 # issues at the close-out. D-5: #1079 and #1080 close as not planned. D-6:
 # #1052's two-way deadline is missed on purpose and recorded. D-14: a
-# closing act's finding on the PR's own surface is fixed, not filed. The
+# closing act's finding on the PR's own surface is fixed, not filed. D-15:
+# #1068 reverses ADR-0052's Consequences and DESIGN.md's data-quality line
+# (the reverse case named, master data as a bond signal, the Overview's
+# line counting the finding), decided rather than passed as a repair. The
 # close-out ends with launch readiness, version 2, for the owner's
 # announcement decision.
 #
