@@ -1968,6 +1968,46 @@ defmodule Portfolixir.DocsTest do
     assert navigation =~ "title: Wealth Page\n      url: /product-documentation.html#wealth-page"
   end
 
+  # User story (Sprint 18 PR δ closing act):
+  # As a reader checking the contribution table against the handbook,
+  # I want the handbook to name the three markers a row can carry, in the
+  # screen's own words,
+  # so that a position sold inside the period is not described as a state the
+  # screen does not show it in.
+  #
+  # Acceptance criteria:
+  # - The English handbook's "Contribution by position" names "not held at the
+  #   start", "no longer held at the end" and "held at neither end", each for
+  #   the case the table uses it for.
+  # - The German handbook names the same three markers as the German screen
+  #   shows them.
+  test "the handbook names the contribution table's three held markers as the screen does" do
+    en = File.read!("docs/product-documentation.md")
+    de = File.read!("docs/de/product-documentation.md")
+
+    [_, en_section] = String.split(en, "\n### Contribution by position\n", parts: 2)
+    [en_section, _] = String.split(en_section, "\n## ", parts: 2)
+    en_section = String.replace(en_section, ~r/\s+/, " ")
+
+    for marker <- ["not held at the start", "no longer held at the end", "held at neither end"] do
+      assert en_section =~ ~s("#{marker}"), marker
+    end
+
+    assert en_section =~ "bought and sold inside the period"
+
+    [_, de_section] = String.split(de, "\n### Beitrag je Position\n", parts: 2)
+    [de_section, _] = String.split(de_section, "\n## ", parts: 2)
+    de_section = String.replace(de_section, ~r/\s+/, " ")
+
+    for marker <- [
+          "zu Beginn nicht im Bestand",
+          "am Ende nicht mehr im Bestand",
+          "weder zu Beginn noch am Ende im Bestand"
+        ] do
+      assert de_section =~ "„#{marker}“", marker
+    end
+  end
+
   defp links_of(page) do
     ~r/\]\(([^)\s]+)\)/
     |> Regex.scan(page, capture: :all_but_first)
