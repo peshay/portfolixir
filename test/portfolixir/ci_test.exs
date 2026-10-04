@@ -1518,6 +1518,67 @@ defmodule Portfolixir.CITest do
     end
   end
 
+  # User story:
+  # As a maintainer starting a BMAD skill in a Claude Code web session,
+  # I want the session to carry the user-scope answers the BMAD installer
+  # keeps in the gitignored `_bmad/config.user.toml`,
+  # so that a fresh cloud clone renders `bmad-build` instead of halting on
+  # "missing config value `communication_language`".
+  #
+  # Acceptance criteria:
+  # - The web session hook runs the seed script.
+  # - The seed script writes `_bmad/config.user.toml` from the committed
+  #   per-module `config.yaml` answers: `user_name` and
+  #   `communication_language` under `[core]`, `user_skill_level` under
+  #   `[modules.bmm]`.
+  # - It never overwrites an existing `_bmad/config.user.toml`, so a local
+  #   checkout keeps its own answers.
+  # - The seeded file stays gitignored.
+  test "a web session seeds the gitignored BMAD user config from the committed module answers" do
+    seed = ".claude/scripts/seed-bmad-user-config.sh"
+
+    assert File.read!(".claude/hooks/session-start.sh") =~
+             ~s(bash "${ROOT}/#{seed}" "${ROOT}")
+
+    assert {"_bmad/config.user.toml\n", 0} =
+             System.cmd("git", ["check-ignore", "_bmad/config.user.toml"])
+
+    dir = Path.join(System.tmp_dir!(), "bmad-seed-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(Path.join(dir, "_bmad/core"))
+    File.mkdir_p!(Path.join(dir, "_bmad/bmm"))
+
+    File.write!(Path.join(dir, "_bmad/core/config.yaml"), """
+    # CORE Module Configuration
+    user_name: Guest
+    project_name: synthetic
+    communication_language: "Esperanto"
+    document_output_language: English
+    """)
+
+    File.write!(Path.join(dir, "_bmad/bmm/config.yaml"), """
+    # BMM Module Configuration
+    user_skill_level: expert
+    planning_artifacts: "{project-root}/_bmad-output/planning-artifacts"
+    user_name: Guest
+    communication_language: Esperanto
+    """)
+
+    user_config = Path.join(dir, "_bmad/config.user.toml")
+
+    try do
+      assert {_, 0} = System.cmd("bash", [seed, dir], stderr_to_stdout: true)
+
+      assert File.read!(user_config) =~
+               ~r/^\[core\]\nuser_name = "Guest"\ncommunication_language = "Esperanto"\n\n\[modules\.bmm\]\nuser_skill_level = "expert"\n\z/m
+
+      File.write!(user_config, "[core]\ncommunication_language = \"Klingon\"\n")
+      assert {_, 0} = System.cmd("bash", [seed, dir], stderr_to_stdout: true)
+      assert File.read!(user_config) == "[core]\ncommunication_language = \"Klingon\"\n"
+    after
+      File.rm_rf!(dir)
+    end
+  end
+
   defp git!(dir, args) do
     {output, 0} = System.cmd("git", args, cd: dir, env: @git_env, stderr_to_stdout: true)
     output

@@ -8,7 +8,8 @@
 #   1. (cold-cache safety net) installs the toolchain if it is missing,
 #   2. exports PATH / locale / Hex CA env for the whole session,
 #   3. starts PostgreSQL with the credentials config/test.exs expects,
-#   4. fetches deps and prepares the test database.
+#   4. fetches deps and prepares the test database,
+#   5. seeds the gitignored BMAD user config the fresh clone lacks.
 #
 # It is a no-op outside the web environment, so it never affects local
 # `claude` terminal sessions.
@@ -67,5 +68,10 @@ mix local.rebar --force >/dev/null 2>&1 || true
 mix deps.get >/dev/null 2>&1 || true
 MIX_ENV=test mix ecto.create >/dev/null 2>&1 || true
 MIX_ENV=test mix ecto.migrate >/dev/null 2>&1 || true
+
+# 5. The clone has no `_bmad/config.user.toml` (personal, gitignored), and
+#    bmad-build's renderer halts without its user-scope answers. Seed it from
+#    the committed module config; an existing file is left alone.
+bash "${ROOT}/.claude/scripts/seed-bmad-user-config.sh" "${ROOT}"
 
 echo "portfolixir web session ready: $(elixir --version 2>/dev/null | tail -1)"
