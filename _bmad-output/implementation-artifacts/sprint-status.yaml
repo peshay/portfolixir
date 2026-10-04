@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-10-04 (Sprint 18 CLOSED OUT: alpha #1040, beta #1049, gamma #1054 and delta #1075 merged in order, releases 2026.10.4-2026.10.7; FR-41 shipped; the operator's first-look test and the agent's launch test both PASS; E26 stays in progress for the owner's announcement decision, with the launch-readiness summary; earlier, Sprint 18 PLANNED: sprint-plan-2026-10-02-sprint18.md, adopted by the merge of its planning PR, which SIGNS the ADR-0034 amendment for #1031 -- the operator's half of E26 in four lane PRs, the two money bugs first, the operator's first-look test as a second exit criterion; earlier the same day, Sprint 17 CLOSED OUT: alpha #1005, beta #1008 and gamma through #1035 merged, releases 2026.10.1-2026.10.3; earlier, Sprint 17 PR alpha opened: E26 tracker #991 and its issues filed; earlier the same day, Sprint 17 PLANNED: sprint-plan-2026-10-01-sprint17.md, adopted by the merge of its planning PR, which SIGNS ADR-0051 (FR-41) and answers the 2026-10-01 triage's OQ-1 to OQ-6 -- the agent's first contact in three lane PRs, the launch test as the exit criterion, FR-41's build in Sprint 18, calendar versions by workflow, the authorship rule kept and its friction removed)
+# last_updated: 2026-10-04 (Sprint 19 PLANNED: sprint-plan-2026-10-04-sprint19.md, adopted by the merge of its planning PR, which SIGNS ADR-0053 (#1076, risk-tier: a PP CSV books its Gesamtpreis, the hash keeps reading Betrag, a separate correction) -- trust before the announcement in three lane PRs, four exit criteria including fewer than 100 open issues; earlier the same day, Sprint 18 CLOSED OUT: alpha #1040, beta #1049, gamma #1054 and delta #1075 merged in order, releases 2026.10.4-2026.10.7; FR-41 shipped; the operator's first-look test and the agent's launch test both PASS; E26 stays in progress for the owner's announcement decision, with the launch-readiness summary; earlier, Sprint 18 PLANNED: sprint-plan-2026-10-02-sprint18.md, adopted by the merge of its planning PR, which SIGNS the ADR-0034 amendment for #1031 -- the operator's half of E26 in four lane PRs, the two money bugs first, the operator's first-look test as a second exit criterion; earlier the same day, Sprint 17 CLOSED OUT: alpha #1005, beta #1008 and gamma through #1035 merged, releases 2026.10.1-2026.10.3; earlier, Sprint 17 PR alpha opened: E26 tracker #991 and its issues filed; earlier the same day, Sprint 17 PLANNED: sprint-plan-2026-10-01-sprint17.md, adopted by the merge of its planning PR, which SIGNS ADR-0051 (FR-41) and answers the 2026-10-01 triage's OQ-1 to OQ-6 -- the agent's first contact in three lane PRs, the launch test as the exit criterion, FR-41's build in Sprint 18, calendar versions by workflow, the authorship rule kept and its friction removed)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -51,6 +51,46 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# PLANNED (2026-10-04, Sprint 19) -- sprint-plan-2026-10-04-sprint19.md,
+# adopted by the merge of the Sprint 19 planning PR, which SIGNS ADR-0053
+# (#1076, risk-tier: money and import idempotency): a Portfolio Performance
+# CSV row books its Gesamtpreis, checked to the cent against Betrag and its
+# units; a row without one (a converter-written file) books its Betrag as
+# before; the content hash keeps reading Betrag, so every stored hash stays
+# valid and a re-drop books nothing; the economic key is checked under both
+# readings; bookings made under the old reading are corrected by a
+# separate, journaled confirm fed by a re-dropped PP CSV. It carries the
+# design pass ux-design-2026-10-04-sprint19.md with ten boards (picks
+# J1-J10).
+# Verification basis: `main` at bfc61010 with CI 1702 and Commit authorship
+# 716 green; 117 open issues (six trackers, 73 agentic, 36 needs-decision,
+# 2 needs-uat) and one Dependabot PR (#977); release 2026.10.7, contract
+# version 12; the companion's schema budget measured on the branch at
+# exactly its ceilings (read 103,991, book 177,085, full 207,448 bytes).
+# Trust before the announcement, in three lane PRs merged in order (D-9),
+# no new feature:
+# - alpha: #1076 under ADR-0053 with #1094 and the correction (pick J9;
+#   shrinkable only by the owner's "JSON" answer, D-2), #1055, #1051,
+#   #1048 (pick J10.2), #1081 (picks J1, J1.2, D-3), #1068 and #1078;
+# - beta: #1042, #1092, #1093, #930, #933, #1043, #1045, #1044, #948, #923
+#   and #917 (risk-tier), #1056 (the Everything scope in EUR, D-7), #1091's
+#   read, #959, #1077, #1046, #1047;
+# - gamma: the screens' second conformance pass, every item boarded:
+#   #1083 (J3, the count alone), #1084, #1073, #1082 (J4, the title
+#   "Trades"), #1089, #1060, #1059, #1074, #1061, #1087, #1088, #1065,
+#   #1057, #1086, #1063, #1062, #1064, #1069, #1071, #1085, #1067, #1090,
+#   #1066, #1072, #944, #945, #1091's screen; the screenshots regenerated.
+# D-1: four exit criteria: every H issue closed (#1076, #1081, #1055,
+# #1051, #1048, #1068, #1042, #1092); the operator's first-look test again
+# at gamma's closing act, with "is this everything?" per figure and a PP
+# CSV round trip (4.017,68 EUR, then a re-drop that books nothing); the
+# agent's launch test on the documented build route; fewer than 100 open
+# issues at the close-out. D-5: #1079 and #1080 close as not planned. D-6:
+# #1052's two-way deadline is missed on purpose and recorded. D-14: a
+# closing act's finding on the PR's own surface is fixed, not filed. The
+# close-out ends with launch readiness, version 2, for the owner's
+# announcement decision.
 #
 # CLOSED OUT (2026-10-04, Sprint 18) -- four lane PRs, rebase-merged in
 # order (D-9):
