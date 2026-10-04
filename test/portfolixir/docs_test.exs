@@ -226,7 +226,7 @@ defmodule Portfolixir.DocsTest do
           "title: App Handbook",
           "title: Overview",
           "title: Securities",
-          "title: Portfolios and Accounts",
+          "title: Accounts and Depots",
           "title: Transactions and Holdings",
           "title: Quotes and Charts",
           "title: Operations",
@@ -1937,6 +1937,35 @@ defmodule Portfolixir.DocsTest do
       {position, _length} -> position
       :nomatch -> flunk("#{path}: no heading #{heading}")
     end
+  end
+
+  # User story (Sprint 18 PR δ closing act):
+  # As a newcomer opening the handbook from the site's navigation,
+  # I want every navigation entry to land on the section it names,
+  # so that the sidebar is not where the documentation first misleads me.
+  #
+  # Acceptance criteria:
+  # - Every url in docs/_data/navigation.yml is a page of the docs site that
+  #   exists in docs/, and its #anchor, if any, is a heading id of that page.
+  # - An entry's title names the section it lands on.
+  test "every navigation entry lands on an existing page and heading" do
+    navigation = File.read!("docs/_data/navigation.yml")
+
+    urls =
+      ~r/^\s+url: (\S+)$/m
+      |> Regex.scan(navigation, capture: :all_but_first)
+      |> List.flatten()
+
+    assert length(urls) > 10
+
+    for url <- urls do
+      assert_link_resolves("docs/_data/navigation.yml", url)
+    end
+
+    assert navigation =~
+             "title: Accounts and Depots\n      url: /product-documentation.html#accounts-and-depots"
+
+    assert navigation =~ "title: Wealth Page\n      url: /product-documentation.html#wealth-page"
   end
 
   defp links_of(page) do
