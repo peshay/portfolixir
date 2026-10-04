@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Trades: erreichen und lesen (J4; #1082, #1089, #1060, #1059, #1074)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: what the J4 / #1089 / #1060 / #1059 / #1074 stories change.
+     The frames are srcdoc iframes built from the live markup of
+     income_live.ex (render/1, the "realized" facet), securities_live.ex
+     (trades_tab_panel/1) and AppShell, so a 390 px frame is a real 390 px
+     viewport and app.css's 560 px and 900 px blocks fire as on a phone.
+     "Heute" frames render app.css as shipped; "Nachher" and variant frames
+     also get this block. Most of the changes are markup and copy, not CSS;
+     each is listed here by its circled number so the board has one index. -->
+<style id="proposal">
+  /* ① J4 = A: no CSS. income_live.ex:236 passes the facet's title —
+     page_title={facet_title(@facet)}, "realized" -> gettext("Trades")
+     (msgid exists, de.po:1430), every other facet gettext("Cash flow").
+     The precedent is classifications_live.ex:207, which titles the page
+     with the tree's name. Sidebar, area tab and facet switch unchanged. */
+
+  /* ② #1089: no CSS. The facet's figures go through a signed formatter —
+     the Overview card's Format.signed_decimal/2 and signed_percent/1
+     (dashboard_live.ex:966) — for the result, its percent and p. a., in the
+     table and in the phone row; a phone row without p. a. ends its period
+     return with gettext("total") ("gesamt", the card's word, de.po:10031),
+     and the list's basis line names the second limit. */
+
+  /* ③ #1060: no CSS. The Trades tab's dates go through Format.date/1 (table,
+     note list, phone rows) and its two "%" columns through the tab's own
+     signed_pa/1 (securities_live.ex:2314): one decimal, the sign glued on. */
+
+  /* ④ #1059: the coarse-pointer ⓘ rule (app.css:6245, `.metric-tooltip
+     summary { width: 1.75rem; height: 1.75rem }`) comes after the labelled
+     pill's `width: auto` (app.css:6117) at the same specificity, so on a
+     touch screen the pill is a 28 px circle and "ⓘ Kurs- & Währungsbeitrag"
+     (189 px) overflows it by ~80 px on both sides, centred: at the pane's
+     left edge its first ~50 px fall off the viewport. The labelled pill keeps its own size under a coarse
+     pointer too. Placed after the coarse ⓘ rule. */
+  @media (pointer: coarse) {
+    .metric-tooltip--labelled summary {
+      width: auto;
+      height: auto;
+      min-height: 1.75rem;
+    }
+  }
+
+  /* ⑤ #1074: no CSS. The three gettext("%{quantity} units", …) call sites
+     (income_live.ex:366, securities_live.ex:2181, :2276) become
+     ngettext("%{quantity} unit", "%{quantity} units", plural_count(q), …),
+     the rule U1 settled (transaction_management_live.ex:1663). */
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: hidden; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul, .notes ol { margin: 0; }
+  .notes ul, .notes ol { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .dkw { width: 1120px; max-width: 100%; }
+  .dkw iframe { display: block; width: 1118px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .stub { padding: 10px 14px; font-size: 12px; color: var(--mock-ink); margin: 0; }
+  .cost { margin: 0; padding-left: 18px; font-size: 12.5px; }
+  .cost li { margin: 0 0 4px; }
+  .verdict { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1120px; margin: 0 auto 32px; }
+  .verdict > div { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 14px; background: var(--color-bg-elevated); font-size: 12.5px; }
+  .verdict h3 { margin: 0 0 6px; font-size: 13px; }
+  .verdict ul { margin: 0; padding-left: 18px; }
+  .verdict li { margin: 0 0 4px; }
+  .phone-only { display: none; }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap { padding: 0 12px; }
+    .mock-row { gap: 10px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph { width: 390px; }
+    .verdict { grid-template-columns: 1fr; padding: 0 12px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar"><b>J4 — wie man die Trades erreicht (#1082).</b> <b>A</b> die Kopfzeile heißt „Trades“, solange die Facette „Trades“ offen ist · <b>B</b> wie gebaut (Sprint 17, G1-A) · <b>C</b> ein eigener Navigationspunkt „Trades“ mit Route <code>/trades</code> (Sprint 17, G1-B). <span class="rec">Empfehlung A</span><br>Dazu Vorher/Nachher ohne Wahl, alle auf den Trades-Flächen: das explizite Vorzeichen und „gesamt“ in der Facette (#1089), Datum und „%“ im Tab „Trades“ des Wertpapiers (#1060), die abgeschnittene ⓘ-Pille am Telefon (#1059), „1 units“ im englischen Text (#1074). Ein Kommentar mit „J4“ und Buchstabe auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. Alle Namen, Beträge und Daten sind erfunden, im Stil des Demo-Seeds (<code>finding_surfaces_seed.exs</code>, Abschnitt 15); wo der Seed ein echtes Wertpapier führt, steht ein erfundener Name. <b>Gestrichelt = neu.</b></div>
+
+<!-- ============================ J4 ============================ -->
+<section class="mock-board">
+  <h2>J4 — Vermögen → Cashflow → Trades (<code>/cashflow?tab=realized</code>) <small>drei Varianten</small></h2>
+  <p class="mock-note">Der Erstbesuch-Test (Sprint 18, D-1) fand die Trades nur über die Karte der Übersicht („Alle Trades →“, <code>dashboard_live.ex:618</code>). Auf der Seite selbst nennt nur der Facettenschalter das Wort: Die Seitenleiste markiert „Vermögen“ (<code>nav_current?/2</code>, <code>app_shell.ex:360–365</code>), der Bereichs-Tab „Cashflow“, die Kopfzeile „Cashflow“ (<code>income_live.ex:236</code>). Der Untertitel nennt die Facette (UX-DR21, erweitert: „a facet's page subtitle names the facet“, EXPERIENCE.md:1117) — aber unter 560&nbsp;px blendet app.css ihn aus (app.css:1567). Am Telefon steht „Trades“ also nirgends oben.</p>
+
+  <p class="cap" style="margin-top:14px">Variante B — wie gebaut (Heute)</p>
+  <div class="col desk-only">
+    <div class="dkw mock-frame mock-before"><span class="mock-tag">B — heute</span><iframe data-tpl="facet" data-o='{"v":"B"}' data-fixed="520" title="B, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">B — heute, 390 px</span><iframe data-tpl="facet" data-o='{"v":"B"}' data-fixed="440" title="B, 390 px"></iframe></div>
+    <div class="notes">
+      <p><b>B, wie gebaut</b> (Sprint 17, G1-A): Der Besitzer landet auf der Übersicht, und die Karte „Abgeschlossene Trades“ führt mit „Alle Trades →“ hierher; der Test zeigt, dass dieser Weg funktioniert. Er zeigt auch, dass kein anderer hierher führt und dass die Seite, einmal erreicht, ihren Namen nicht trägt: oben „Cashflow“, darunter „Cashflow“ als Tab, das Wort „Trades“ nur im dritten Element des Facettenschalters. Am Telefon fehlt der Untertitel, und wer den Schalter nicht beachtet, liest eine Seite namens „Cashflow“ mit Kennzahlen, die „Realisiert gesamt“ heißen. Kosten: keine.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A <span class="rec">empfohlen</span> — die Kopfzeile heißt „Trades“, solange die Facette offen ist</p>
+  <div class="col desk-only">
+    <div class="dkw mock-frame mock-after"><span class="mock-tag">A — empfohlen</span><iframe data-tpl="facet" data-o='{"v":"A"}' data-proposal data-fixed="520" title="A, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — empfohlen, 390 px</span><iframe data-tpl="facet" data-o='{"v":"A"}' data-proposal data-fixed="440" title="A, 390 px"></iframe></div>
+    <div class="notes">
+      <p><b>Warum A.</b> Die kleinste Änderung, die das Gefundene behebt: Die Seite trägt ihren Namen dort, wo jede Seite ihn trägt, auch am Telefon, wo der Untertitel fehlt. Der Pfad bleibt lesbar — Seitenleiste „Vermögen“, Tab „Cashflow“, Schalter „Trades“, und die Kopfzeile nennt das Blatt, nicht den Ast; so titelt schon die Klassifizierung ihre Seite mit dem Namen des Baums (<code>classifications_live.ex:207</code>). Die Kopfzeile ist die <code>aria-live</code>-Region der Seite (<code>app_shell.ex:80</code>): Ein Wechsel auf die Facette sagt jetzt „Trades“ an. <b>Nur diese Facette:</b> Erträge, Ein- &amp; Auszahlungen und Kosten behalten „Cashflow“ — „Trades“ ist die einzige, die ein Link von außen beim Namen nennt („Alle Trades →“), und „Erträge“ als Seitentitel über dem Tab „Cashflow“ öffnete die Mehrdeutigkeit wieder, die die Informationsarchitektur 2026-08-05 geschlossen hat (EXPERIENCE.md:97). <b>Kosten:</b> eine Funktion statt eines festen Titels, ein Test; keine Route, kein Navigationspunkt, kein Symbol, keine ADR-Änderung. Die URL bleibt.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante C — ein Navigationspunkt „Trades“ auf <code>/trades</code> (G1-B von Sprint 17)</p>
+  <div class="col desk-only">
+    <div class="dkw mock-frame mock-after"><span class="mock-tag">C</span><iframe data-tpl="facet" data-o='{"v":"C"}' data-proposal data-fixed="520" title="C, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">C, 390 px — Navigation geöffnet</span><iframe data-tpl="facet" data-o='{"v":"C","drawer":true}' data-proposal data-fixed="440" title="C, 390 px, Navigation offen"></iframe></div>
+    <div class="notes">
+      <p><b>C</b> macht „Trades“ zu einem Bereich neben Übersicht, Vermögen, Wertpapiere und Transaktionen: Navigationspunkt mit einem neuen Symbol (gestrichelt, die Hin-und-zurück-Pfeile des Boards von 2026-10-01), eigene Route, dieselbe Liste. Ein Klick von überall. Am Telefon aber liegt die Seitenleiste hinter dem Burger: Geschlossen sieht C dort genau aus wie A — „Trades“ in der Kopfzeile.</p>
+      <p class="cap" style="padding:0;margin-top:4px">Was C kostet (wie das Board vom 2026-10-01)</p>
+      <ul class="cost">
+        <li><b>Eine Route und ein Navigationspunkt</b> — und eine Änderung an ADR-0022/ADR-0024: „sidebar = tasks, entities = attributes“ (EXPERIENCE.md:68); Cashflow „does not become a sidebar entry“, weil Vermögen schon diese Aufgabe ist (:467). Trades passen heute in Vermögen.</li>
+        <li><b>Ein neues Symbol</b> (UX-DR16: kein vorhandenes darf eine zweite Bedeutung tragen).</li>
+        <li><b>Die Facette entfällt</b>: Umleitung von <code>/cashflow?tab=realized</code>, die Zuordnung in <code>nav_current?/2</code>, der Facettenschalter verliert ein Glied, das UX-DR21-Untertitelpaar eins, die Tests der vier Facetten; der Link der Übersichtskarte zeigt auf die neue Route.</li>
+        <li><b>Die Übersicht</b> bleibt, wie sie ist — die Karte bleibt der Weg, den der Besitzer zuerst sieht.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1089 ============================ -->
+<section class="mock-board">
+  <h2>#1089 — die Facette „Trades“: ein Vorzeichen für jeden Gewinn, „gesamt“ für eine Zahl ohne p.&nbsp;a. <small>Vorher / Nachher</small></h2>
+  <p class="mock-note"><b>(a) Ohne „+“.</b> Ergebnis, Rendite und p.&nbsp;a. gehen durch <code>Format.money/1</code> und <code>Format.percent/1</code> (<code>income_live.ex:473</code>, <code>:493–495</code>, <code>:528–535</code>), die kein „+“ setzen: „420,00 EUR“, „42,0%“, „17,8% p.&nbsp;a.“ — nur die Farbe sagt Gewinn. Die Accessibility Floor (EXPERIENCE.md:356, „signed values render an explicit +/−“) und UX-DR7 („Gain / loss — explicit + / − sign on the value“) verlangen das Zeichen; die Karte der Übersicht druckt dieselben Trades mit „+420,00 EUR“ und „+17,8% p.&nbsp;a.“. Die Zeile im H1-Nachtrag (DESIGN.md, „the facet's p. a. cells stay unsigned“) weicht der Floor; die Story streicht sie. <b>(b) Eine nackte Zahl am Telefon.</b> Ohne p.&nbsp;a. steht rechts nur die Rendite über die Haltedauer: „-38,9%“ (207 Tage) und „-100,0%“ (600 Tage, ein Totalverlust, den kein Zinssatz löst). Nachher trägt sie das Wort der Karte, „gesamt“, und die Grundlagenzeile nennt die zweite Grenze — heute nennt sie nur die erste (UX-DR26).</p>
+  <div class="col desk-only">
+    <p class="cap">Desktop, 980 px Inhalt — die Liste</p>
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „30,00“, „7,9%“, „10,0%“ ohne Zeichen</span><iframe data-tpl="trades" title="#1089 vorher, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — „+30,00“, „+7,9%“, „+10,0%“</span><iframe data-tpl="trades" data-o='{"fix":true}' data-proposal title="#1089 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="trades" title="#1089 vorher, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="trades" data-o='{"fix":true}' data-proposal title="#1089 nachher, 390 px"></iframe></div>
+  </div>
+</section>
+
+<!-- ============================ #1060 ============================ -->
+<section class="mock-board">
+  <h2>#1060 — Wertpapier → Trades: Datum und „%“ wie überall <small>Vorher / Nachher</small></h2>
+  <p class="mock-note">Der Tab druckt ISO-Daten (<code>Date.to_iso8601</code>, <code>securities_live.ex:2105</code>, <code>:2179</code>, <code>:2219–2220</code>, <code>:2273</code>) und in beiden „%“-Spalten zwei Stellen mit Leerzeichen vor dem Prozentzeichen (<code>signed_percent_or_dash/1</code>, :3187: „+27,07 %“), während seine Telefonzeilen und die Spalte „p.&nbsp;a.“ „+27,1%“ lesen. In der schmalen Spalte bricht das abgesetzte „%“ auf eine eigene Zeile; am Telefon bricht ein ISO-Datum an seinem Bindestrich („2025-06-“ / „18“), TT.MM.JJJJ nur am Pfeil. UX-DR19, ergänzt durch #1014 (EXPERIENCE.md:591): angezeigte Daten im Format der Sprache, deutsch TT.MM.JJJJ — der Tab ist dort ausdrücklich als Abweichung genannt. DESIGN.md (H1-Nachtrag, „Kept as built“) nennt die Angleichung als Folgearbeit; das ist sie. Der Kopf des Detailbereichs („Letzter 61,85 (2026-10-01)“, :1018) bleibt hier wie heute — er ist nicht Teil des Tabs.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „2024-03-14“, „+18,71 %“, „+27,07 %“</span><iframe data-tpl="tab" title="#1060 vorher, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — „14.03.2024“, „+18,7%“, „+27,1%“</span><iframe data-tpl="tab" data-o='{"fix":true}' data-proposal title="#1060 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px, die Telefonzeilen</span><iframe data-tpl="tab" data-o='{"scroll":"#detail-closed-trades-phone-rows"}' data-fixed="420" title="#1060 vorher, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="tab" data-o='{"fix":true,"scroll":"#detail-closed-trades-phone-rows"}' data-proposal data-fixed="420" title="#1060 nachher, 390 px"></iframe></div>
+  </div>
+</section>
+
+<!-- ============================ #1059 ============================ -->
+<section class="mock-board">
+  <h2>#1059 — die ⓘ-Pille „Kurs- &amp; Währungsbeitrag“ am Telefon <small>Vorher / Nachher, unter <code>pointer: coarse</code></small></h2>
+  <p class="mock-note">Gemessen in Chromium bei 390&nbsp;px mit Touch-Emulation: Die Pille ist 28 × 28&nbsp;px, ihr Text 189&nbsp;px breit; zentriert läuft er auf jeder Seite ~80&nbsp;px über, und am linken Rand des Detailbereichs fallen seine ersten ~50&nbsp;px aus dem Bild („ⓘ Kurs-“ fehlt). Mit Maus misst die Pille 186&nbsp;px und ist ganz. <b>Der Fehler hängt am Zeiger, nicht an der Breite:</b> Auf einem Tablet läuft die Pille ebenso über, nur in den Rand des Detailbereichs statt aus dem Bild; der Tab „Bestände“ trägt dieselbe Pille (<code>securities_live.ex:2382</code>). Der Renderer dieses Boards hat eine Maus — die beiden Rahmen tragen die Coarse-Regel von app.css:6245 und (nachher) Regel ④ deshalb von Hand.</p>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — „ⓘ Kurs-“ abgeschnitten</span><iframe data-tpl="tab" data-o='{"coarse":true}' data-fixed="330" title="#1059 vorher"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — die Pille wächst mit ihrem Text</span><iframe data-tpl="tab" data-o='{"coarse":true,"pill":true}' data-proposal data-fixed="330" title="#1059 nachher"></iframe></div>
+    <div class="notes">
+      <p><b>Die Regel</b> (④ oben): unter <code>pointer: coarse</code> behält <code>.metric-tooltip--labelled summary</code> <code>width: auto; height: auto</code> und bekommt die Höhe des groben ⓘ (1.75rem) als Mindesthöhe. Die Pille wächst mit ihrem Text seit #790 (app.css:6114: „the 1.25rem circle clipped "Kurs- &amp; Währungsbeitrag" to its first glyph“); die Coarse-Regel hat genau das am Telefon wieder getan. DESIGN.md beschreibt die beschriftete Pille nirgends — die Story schreibt sie zu den ⓘ-Tooltips, mit diesem Fall. Der Rahmen „Nachher“ ändert nur die Pille; die Daten des Tabs bleiben hier ISO (das ist #1060).</p>
+      <p><b>Beim Zeichnen gefunden:</b> Das grobe ⓘ selbst ist 28&nbsp;px groß — unter dem 44-px-Boden von UX-DR6, und in dessen Liste nicht erfasst. Nicht Teil dieser Reparatur (Scope Lock).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1074 ============================ -->
+<section class="mock-board">
+  <h2>#1074 — „units“ nach einer Stückzahl von eins, englische Oberfläche <small>Vorher / Nachher, EN</small></h2>
+  <p class="mock-note">Drei Stellen sagen <code>gettext("%{quantity} units", …)</code>: die Liste der Verkäufe ohne Kauf in der Facette (<code>income_live.ex:366</code>), dieselbe Liste im Tab „Trades“ (<code>securities_live.ex:2181</code>) und dessen Telefonzeile (:2276). Die Stückzahl steht dort mit vier Stellen (<code>Format.decimal(q, 4)</code>): Eine Stückzahl von eins liest „1.0000 units“ — „1 units“ steht so nirgends. Nachher <code>ngettext</code> mit der Zählregel aus U1 (<code>plural_count/1</code>: „one unit is a unit, any other quantity — a fraction included — is units“): „1.0000 unit“, „15.0000 units“. <b>Deutsch ändert sich nicht:</b> „Stück“ hat eine Form („1,0000 Stück“).</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — EN</span><iframe data-tpl="en" title="#1074 vorher"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — EN</span><iframe data-tpl="en" data-o='{"fix":true}' data-proposal title="#1074 nachher"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — EN, 390 px</span><iframe data-tpl="en" title="#1074 vorher, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — EN, 390 px</span><iframe data-tpl="en" data-o='{"fix":true}' data-proposal title="#1074 nachher, 390 px"></iframe></div>
+  </div>
+</section>
+
+<div class="verdict">
+  <div>
+    <h3>Warum A bei J4</h3>
+    <ul>
+      <li>Die Seite trägt ihren Namen auch am Telefon, wo der Untertitel fehlt; der Weg über die Karte bleibt der erste.</li>
+      <li>Keine Route, kein Navigationspunkt, kein Symbol, keine Änderung an ADR-0022/ADR-0024; ein Titel je Facette, für eine Facette.</li>
+      <li>C kostet Route, Symbol, Umleitung und eine ADR-Änderung und sieht am Telefon, Navigation zu, aus wie A.</li>
+    </ul>
+  </div>
+  <div>
+    <h3>Was die Stories in DESIGN.md schreiben</h3>
+    <ul>
+      <li><b>J4 = A:</b> Amendment 2026-10-01 — Trades → „The facet is "Trades"“: die Kopfzeile heißt „Trades“, solange die Facette offen ist; die anderen drei heißen „Cashflow“.</li>
+      <li><b>#1089:</b> dieselbe Stelle → p.&nbsp;a. column und trades phone row: jede Zahl mit Zeichen; ohne p.&nbsp;a. „x,x % gesamt“; die Grundlagenzeile nennt beide Grenzen. Die Zeile „the facet's p. a. cells stay unsigned“ entfällt.</li>
+      <li><b>#1060:</b> der H1-Nachtrag → „Kept as built“ entfällt; Daten mit <code>Format.date</code>, „%“ wie „p.&nbsp;a.“.</li>
+      <li><b>#1059:</b> die ⓘ-Pille mit Beschriftung behält ihre Größe unter <code>pointer: coarse</code>.</li>
+      <li><b>#1074:</b> nichts in DESIGN.md; die Stückzahl in einem Satz folgt der Zählregel aus U1 (EXPERIENCE.md, Pluralregel: <code>ngettext</code>).</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc, so
+   relative links resolve against this board) from the live markup of
+   income_live.ex, securities_live.ex and AppShell. Synthetic data only. */
+const CSS_HREF = '../../../../../priv/static/app.css';
+const IMG = '../../../../../priv/static/images/';
+const P = {
+  dashboard: '<rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/>',
+  chart_line: '<path d="M3 17 9 11l4 4 8-8"/>',
+  layers: '<path d="m12 2 10 6-10 6L2 8Z"/><path d="m2 16 10 6 10-6"/><path d="m2 12 10 6 10-6"/>',
+  bars: '<path d="M4 4h16M4 12h16M4 20h16"/>',
+  briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  filter: '<path d="M3 5h18l-7 9v6l-4-2v-4Z"/>',
+  tag: '<path d="M20.6 11.4 12 2H4v8l9.4 9.4a2 2 0 0 0 2.8 0l4.4-4.4a2 2 0 0 0 0-2.8Z"/><circle cx="7.5" cy="7.5" r="1.2"/>',
+  pie: '<path d="M21 12A9 9 0 1 1 12 3v9Z"/><path d="M21 12a9 9 0 0 0-9-9v9h9Z"/>',
+  chart_bar: '<path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"/>',
+  camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/>',
+  calc: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6"/><circle cx="9" cy="11" r=".6"/><circle cx="12" cy="11" r=".6"/><circle cx="15" cy="11" r=".6"/><circle cx="9" cy="14" r=".6"/><circle cx="12" cy="14" r=".6"/><circle cx="15" cy="14" r=".6"/><path d="M9 17h6"/>',
+  shield: '<path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"/>',
+  chevron_right: '<path d="m9 6 6 6-6 6"/>',
+  alert_triangle: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+  monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  max: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  /* variant C only: a new glyph, a round trip (as the 2026-10-01 board) */
+  roundtrip: '<path d="M4 8h15"/><path d="m15 4 4 4-4 4"/><path d="M20 16H5"/><path d="m9 12-4 4 4 4"/>'
+};
+const svg = (n, s = 14, cls = '') => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"${cls ? ` class="${cls}"` : ''} aria-hidden="true">${P[n]}</svg>`;
+
+/* ---- the shell (AppShell.shell) ---- */
+function sidebar(active, withTrades, open) {
+  const top = [['Übersicht', 'dashboard', 'dashboard'], ['Vermögen', 'chart_line', 'wealth']];
+  if (withTrades) top.push(['Trades', 'roundtrip', 'trades', true]);
+  top.push(['Wertpapiere', 'layers', 'securities'], ['Transaktionen', 'bars', 'transactions']);
+  const admin = [['Konten &amp; Depots', 'briefcase', 'x1'], ['Ansichten', 'filter', 'x2'], ['Klassifizierungen', 'tag', 'x3']];
+  const link = ([l, i, k, isNew]) => `<a class="nav-link${k === active ? ' is-active' : ''}${isNew ? ' is-new' : ''}"${k === active ? ' aria-current="page"' : ''}><span class="nav-marker" aria-hidden="true"></span><span class="nav-ico" aria-hidden="true">${svg(i)}</span><span class="nav-label">${l}</span></a>`;
+  return `<input id="app-sidebar-toggle" class="sidebar-toggle-control" type="checkbox"${open ? ' checked' : ''} aria-label="Navigation umschalten"><aside class="app-sidebar" aria-label="Anwendungsnavigation"><a class="brand" aria-label="Portfolixir"><span class="brand-logo" aria-hidden="true"><img class="brand-mark brand-mark-light" src="${IMG}logo-mark-light.svg" alt=""><img class="brand-mark brand-mark-dark" src="${IMG}logo-mark-dark.svg" alt=""></span><span class="brand-wordmark">Portfolixir</span></a><nav class="primary-nav" aria-label="Hauptnavigation"><div class="nav-group nav-group-unlabeled">${top.map(link).join('')}</div><div class="nav-group"><div class="nav-group-head"><span>Verwaltung</span></div>${admin.map(link).join('')}</div></nav></aside><label class="sidebar-backdrop" for="app-sidebar-toggle" aria-hidden="true"></label>`;
+}
+function topbar(title, titleNew, sub) {
+  return `<header class="topbar"><label class="sidebar-toggle" for="app-sidebar-toggle" aria-label="Navigation öffnen"><span class="burger-bars" aria-hidden="true"></span></label><div class="topbar-primary"><a class="topbar-brand" aria-label="Portfolixir"><span class="brand-logo" aria-hidden="true"><img class="topbar-mark brand-mark-light" src="${IMG}logo-mark-light.svg" alt=""><img class="topbar-mark brand-mark-dark" src="${IMG}logo-mark-dark.svg" alt=""></span><span>Portfolixir</span></a><div class="topbar-page" aria-live="polite"><h1>${titleNew ? `<span class="is-new">${title}</span>` : title}</h1><p>${sub}</p></div></div><div class="topbar-controls" aria-label="Darstellung"><details class="theme-menu"><summary class="theme-menu-trigger" title="Theme"><span class="theme-current-icon theme-current-icon-system" aria-hidden="true">${svg('monitor', 16)}</span><span class="visually-hidden">Theme</span></summary></details><details class="accent-menu"><summary class="accent-menu-trigger"><span class="accent-current-dot accent-current-dot-violet" aria-hidden="true"></span><span class="visually-hidden">Akzentfarbe</span></summary></details><nav class="locale-switcher" aria-label="Sprache"><a class="locale-link">EN</a><a class="locale-link is-active" aria-current="true">DE</a></nav></div></header>`;
+}
+function areaTabs() {
+  const t = [['Bestände', 'chart_line'], ['Allokation &amp; Ziele', 'pie'], ['Cashflow', 'chart_bar', true], ['Snapshots', 'camera'], ['Steuern', 'calc'], ['Risiko', 'shield']];
+  return `<nav class="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs">${t.map(([l, i, on]) => `<a class="area-tab${on ? ' is-active' : ''}"${on ? ' aria-current="page"' : ''}><span class="area-tab__icon" aria-hidden="true">${svg(i)}</span><span class="area-tab__label" data-label="${l}">${l}</span></a>`).join('')}</nav>`;
+}
+function facets() {
+  const f = [['Erträge'], ['Trades', true], ['Ein- &amp; Auszahlungen'], ['Kosten']];
+  return `<div class="workspace-section workspace-section--controls"><nav class="segmented-control" data-role="cashflow-facets" aria-label="Cashflow-Facette">${f.map(([l, on]) => `<a class="segmented-control__option${on ? ' is-active' : ''}"${on ? ' aria-current="true"' : ''}>${l}</a>`).join('')}</nav></div>`;
+}
+
+/* ---- synthetic trades (seed section 15 in shape; invented names) ---- */
+const TR = [
+  { n: 'Brightwater Utilities plc', o: '21.05.2025', c: '24.08.2026', d: 460, q: '10,0000', b: '300,00', p: '330,00', r: '30,00', s: 1, pct: '10,0', pa: '7,9' },
+  { n: 'Tamarisk Mining Ltd', o: '02.11.2024', c: '25.06.2026', d: 600, q: '10,0000', b: '400,00', p: '0,00', r: '400,00', s: -1, pct: '100,0', pa: null, why: 'rate' },
+  { n: 'Wrenfield Gardens AG', o: '16.04.2024', c: '05.06.2026', d: 780, q: '20,0000', b: '1.000,00', p: '1.420,00', r: '420,00', s: 1, pct: '42,0', pa: '17,8' },
+  { n: 'Orchid Bay Pharmaceuticals plc', o: '19.09.2025', c: '14.04.2026', d: 207, q: '25,0000', b: '2.000,00', p: '1.222,00', r: '778,00', s: -1, pct: '38,9', pa: null, why: 'short' }
+];
+const ORPH = [['Brightwater Utilities plc', '24.08.2026', '3,0000'], ['Saltmarsh Logistics SE', '04.08.2026', '15,0000']];
+const fmt = (v, s, fix) => (s < 0 ? '-' + v : (fix && s > 0 ? '+' + v : v));
+const sc = (s) => (s > 0 ? 'is-positive' : s < 0 ? 'is-negative' : '');
+const dc = (s) => (s > 0 ? 'decimal-positive' : 'decimal-negative');
+const NEW = (fix) => (fix ? ' is-new' : '');
+const why = { short: ['Unter einem Jahr Haltedauer nicht annualisiert', 'nicht annualisiert, unter einem Jahr Haltedauer'], rate: ['Keine annualisierte Rendite: kein Zinssatz löst die Zahlungen dieses Trades', 'keine annualisierte Rendite, kein Zinssatz löst die Zahlungen dieses Trades'] };
+
+function notes() {
+  const excluded = `<div id="realized-excluded" class="data-note data-note--attention" data-role="realized-excluded"><span class="data-note__icon" aria-hidden="true">${svg('alert_triangle')}</span><span class="data-note__word">Achtung</span><div class="data-note__body">1 Verkauf konnte nicht konvertiert werden — kein gespeicherter Kurs an seinem Schlussdatum — und ist aus jeder Summe ausgeschlossen: Harborline Freight Inc.<div class="fx-backfill" data-role="fx-backfill"><span class="muted">Die tägliche Kurssynchronisation kann einen vergangenen Tag nicht nachtragen. Das Nachladen holt die historische EZB-Reihe einmalig und speichert jeden veröffentlichten Tag; ein Tag, den die EZB nicht veröffentlicht hat, bleibt ausgeschlossen.</span> <button type="button" class="button-mini">Historische Kurse nachladen</button></div></div></div>`;
+  const unmatched = `<div id="realized-unmatched" class="data-note data-note--attention" data-role="realized-unmatched"><span class="data-note__icon" aria-hidden="true">${svg('alert_triangle')}</span><span class="data-note__word">Achtung</span><div class="data-note__body">2 Verkäufe haben für ihre ganze Stückzahl oder einen Teil davon keinen zugeordneten Kauf (z. B. aus Einlieferungen): Diese Stückzahl ist in keiner der drei Kennzahlen, keiner Zeile und nicht in der Matrix enthalten.<details class="perf-table-disclosure"><summary class="disclosure-summary">${svg('chevron_right', 12, 'disclosure-chevron')} Die 2 Verkäufe</summary><ul class="excluded-list">${ORPH.map(([n, d, q]) => `<li><span>${n}</span><span class="num">${d}</span><span class="num">${q} Stück</span></li>`).join('')}</ul></details></div></div>`;
+  return excluded + unmatched;
+}
+function figures() {
+  return `<div id="realized-figures" class="kpi-band__lead" data-role="realized-figures"><article class="stat stat--lead"><span>Realisiert gesamt</span><strong data-role="realized-total">-728,00<small class="value-suffix">EUR</small></strong></article><article class="stat stat--lead"><span>Trefferquote</span><strong data-role="realized-hit-rate">50,0%</strong><small class="stat__sub">über 4 abgeschlossene Trades</small></article><article class="stat stat--lead"><span>Durchschnittliche Haltedauer</span><strong data-role="realized-holding-period">512 Tage</strong></article></div>`;
+}
+function tradesList(fix) {
+  const head = '<thead><tr><th>Wertpapier</th><th>Gekauft → verkauft</th><th class="num">Haltedauer</th><th class="num">Stückzahl</th><th class="num">Einstand</th><th class="num">Erlös</th><th class="num">p. a.</th><th class="num col-subject">Ergebnis</th></tr></thead>';
+  const pa = (t) => (t.pa ? `<td class="num trade-pa ${sc(t.s)}${NEW(fix && t.s > 0)}">${fmt(t.pa, t.s, fix)}%</td>` : `<td class="num trade-pa trade-pa--na" title="${why[t.why][0]}"><span aria-hidden="true">—</span><span class="visually-hidden">${why[t.why][1]}</span></td>`);
+  const rows = TR.map((t) => `<tr data-role="realized-trade"><td><a href="#">${t.n}</a></td><td>${t.o} → ${t.c}</td><td class="num">${t.d} Tage</td><td class="num">${t.q}</td><td class="num">${t.b}<small class="value-suffix">EUR</small></td><td class="num">${t.p}<small class="value-suffix">EUR</small></td>${pa(t)}<td class="num col-subject ${sc(t.s)}${NEW(fix && t.s > 0)}" data-role="trade-result">${fmt(t.r, t.s, fix)}<small class="value-suffix">EUR</small> <span class="stat__sub">${fmt(t.pct, t.s, fix)}%</span></td></tr>`).join('');
+  const table = `<div id="realized-trades-table-wrapper" class="data-table-wrapper"><table id="realized-trades-table" class="data-table">${head}<tbody>${rows}</tbody></table></div>`;
+  const phone = `<ul id="realized-trades-phone-rows" class="phone-rows" aria-label="Trades">${TR.map((t) => {
+    const total = !t.pa && fix ? ' <span class="is-new">gesamt</span>' : '';
+    const second = t.pa ? ` · <span class="${dc(t.s)}${NEW(fix && t.s > 0)}">${fmt(t.pa, t.s, fix)}%</span> p. a.` : total;
+    return `<li class="phone-row" data-role="phone-row"><span class="phone-row__body"><a class="phone-row__target" href="#"><span class="phone-row__name">${t.n}</span></a><span class="phone-row__ids">${t.o} → ${t.c} · ${t.d} Tage</span></span><span class="phone-row__figures"><span class="phone-row__figure ${sc(t.s)}${NEW(fix && t.s > 0)}">${fmt(t.r, t.s, fix)}<small class="value-suffix">EUR</small></span><span class="phone-row__figure2"><span class="${dc(t.s)}${NEW(fix && t.s > 0)}">${fmt(t.pct, t.s, fix)}%</span>${second}</span></span></li>`;
+  }).join('')}</ul>`;
+  const basis = `<p class="summary-basis" data-role="trades-basis">Einlieferungen eröffnen keinen Lot · Gebühren und Steuern in Einstand und Erlös · Erträge während der Haltedauer nicht enthalten · p. a. erst ab 365 Tagen Haltedauer${fix ? '<span class="is-new"> und nur, wo ein Zinssatz die Zahlungen löst</span>' : ''}</p>`;
+  return table + phone + basis;
+}
+function facetTop() {
+  return `<section class="workspace-section"><div class="summary-basis" data-role="facet-basis">Beträge in EUR · FIFO je Wertpapier · alle Depots<details class="metric-tooltip metric-tooltip--inline" data-role="facet-info"><summary aria-label="Zu dieser Facette">ⓘ</summary><p role="tooltip">…</p></details></div></section>`;
+}
+function facet(o) {
+  const C = o.v === 'C';
+  const title = o.v === 'B' ? 'Cashflow' : 'Trades';
+  const body = (C ? '' : areaTabs() + facets()) + facetTop() + `<section id="realized-trades" class="workspace-section kpi-band">${notes()}${figures()}${tradesList(false)}</section>`;
+  return `<div class="app-shell">${sidebar(C ? 'trades' : 'wealth', C, o.drawer)}<div class="app-frame">${topbar(title, o.v !== 'B', 'Abgeschlossene Trades und ihr realisiertes Ergebnis')}<main class="app-main app-main--workspace"><div class="workspace-page">${body}</div></main></div></div>`;
+}
+function trades(o) {
+  return `<main class="app-main app-main--workspace"><div class="workspace-page"><section id="realized-trades" class="workspace-section kpi-band"><p class="summary-basis" style="font-style:italic">… die beiden Achtung-Notizen über der Liste, unverändert, hier ausgelassen …</p>${figures()}${tradesList(!!o.fix)}</section></div></main>`;
+}
+
+/* ---- the security's Trades tab (securities_live.ex trades_tab_panel/1) ---- */
+const LOTS = [
+  ['2024-03-14', '14.03.2024', '40,0000', '52,10', '61,85', '390,00', 1, '18,71', '18,7', '402,40', 1, '12,40', -1],
+  ['2025-06-02', '02.06.2025', '25,0000', '66,40', '61,85', '113,75', -1, '6,85', '6,9', '106,20', -1, '7,55', -1],
+  ['2026-01-20', '20.01.2026', '10,0000', '58,90', '61,85', '29,50', 1, '5,01', '5,0', '31,05', 1, '1,55', -1]
+];
+const CLOSED = [
+  ['2023-02-06', '06.02.2023', '2025-06-18', '18.06.2025', '30,0000', '61,84', '78,58', 863, '10,7', '502,20', 1, '27,07', '27,1'],
+  ['2024-04-22', '22.04.2024', '2025-09-30', '30.09.2025', '20,0000', '72,35', '68,66', 526, '3,6', '73,80', -1, '5,10', '5,1'],
+  ['2025-03-03', '03.03.2025', '2026-04-15', '15.04.2026', '10,0000', '76,45', '90,67', 408, '16,5', '142,20', 1, '18,60', '18,6'],
+  ['2026-01-12', '12.01.2026', '2026-05-20', '20.05.2026', '15,0000', '80,94', '87,82', 128, null, '103,20', 1, '8,50', '8,5']
+];
+const sg = (v, s) => (s < 0 ? '-' : '+') + v;
+function tab(o) {
+  const fix = !!o.fix;
+  const d = (iso, de) => (fix ? `<span class="is-new">${de}</span>` : iso);
+  const pctOld = (v, s) => `${sg(v, s)} %`;
+  const pctNew = (v, s) => `<span class="is-new">${sg(v, s)}%</span>`;
+  const lots = LOTS.map((l) => `<tr><td>${d(l[0], l[1])}</td><td class="num">${l[2]}</td><td class="num">${l[3]}</td><td class="num">${l[4]}</td><td class="num ${sc(l[6])}">${sg(l[5], l[6])}</td><td class="num ${sc(l[6])}">${fix ? pctNew(l[8], l[6]) : pctOld(l[7], l[6])}</td><td class="num ${sc(l[10])}">${sg(l[9], l[10])}</td><td class="num ${sc(l[12])}">${sg(l[11], l[12])}</td><td class="num ${sc(l[6])}">${sg(l[5], l[6])} <small>EUR</small></td></tr>`).join('');
+  const closed = CLOSED.map((c) => `<tr><td>${d(c[0], c[1])}</td><td>${d(c[2], c[3])}</td><td class="num">${c[4]}</td><td class="num">${c[5]}</td><td class="num">${c[6]}</td><td class="num">${c[7]}</td>${c[8] ? `<td class="num trade-pa ${sc(c[10])}">${sg(c[8], c[10])}%</td>` : '<td class="num trade-pa trade-pa--na" title="Unter einem Jahr Haltedauer nicht annualisiert"><span aria-hidden="true">—</span><span class="visually-hidden">nicht annualisiert, unter einem Jahr Haltedauer</span></td>'}<td class="num ${sc(c[10])}">${sg(c[9], c[10])}</td><td class="num ${sc(c[10])}">${fix ? pctNew(c[12], c[10]) : pctOld(c[11], c[10])}</td></tr>`).join('');
+  const phone = CLOSED.map((c) => `<li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">${fix ? `<span class="is-new">${c[1]} → ${c[3]}</span>` : `${c[0]} → ${c[2]}`}</span><span class="phone-row__ids">${c[4]} Stück · ${c[7]} Tage</span></span><span class="phone-row__figures"><span class="phone-row__figure ${sc(c[10])}">${sg(c[9], c[10])}<small class="value-suffix">EUR</small></span><span class="phone-row__figure2"><span class="${dc(c[10])}">${sg(c[12], c[10])}%</span>${c[8] ? ` · <span class="${dc(c[10])}">${sg(c[8], c[10])}%</span> p.&nbsp;a.` : ''}</span></span></li>`).join('');
+  const pane = `<div class="detail-pane" aria-label="Ausgewähltes Wertpapier"><header class="detail-pane-head"><div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial">N</span><div><h2>Nordwind Industrie AG</h2><p class="detail-pane-sub">DE000000000A · NWI · EUR · Letzter 61,85 (2026-10-01)</p></div></div><div class="detail-pane-head__actions"><button type="button" class="button-ghost">Bearbeiten</button><button type="button" class="button-ghost">Split erfassen</button><button type="button" class="icon-button" aria-label="Maximieren">${svg('max', 16)}</button><button type="button" class="icon-button" aria-label="Detail schließen">${svg('x', 16)}</button></div></header><nav class="detail-pane-tabs" role="tablist" aria-label="Wertpapier-Detailansicht"><button type="button" role="tab" class="detail-pane-tab">Übersicht</button><button type="button" role="tab" class="detail-pane-tab">Diagramm</button><button type="button" role="tab" class="detail-pane-tab">Transaktionen</button><button type="button" role="tab" aria-selected="true" class="detail-pane-tab is-active">Trades</button><button type="button" role="tab" class="detail-pane-tab">Kurse</button><button type="button" role="tab" class="detail-pane-tab">Bestände</button><button type="button" role="tab" class="detail-pane-tab">Klassifizierungen</button><button type="button" role="tab" class="detail-pane-tab">Research</button><button type="button" role="tab" class="detail-pane-tab">Termine</button></nav><section id="detail-tab-panel-trades" role="tabpanel" class="detail-tab-panel detail-tab-panel--trades"><h3 class="detail-section-title">Offene Positionen (FIFO)</h3><details class="metric-tooltip metric-tooltip--inline metric-tooltip--labelled${o.pill ? ' is-new' : ''}" data-role="lot-decomposition-info"><summary aria-label="Über Kurs- und Währungsbeitrag">ⓘ Kurs- &amp; Währungsbeitrag</summary><p role="tooltip">…</p></details><div class="data-table-wrap"><table class="data-table detail-trades-table"><thead><tr><th>Eröffnungsdatum</th><th class="num">Stückzahl</th><th class="num">Ø Kauf</th><th class="num">Letzter</th><th class="num">Unrealisierter G/V</th><th class="num">%</th><th class="num">Kursbeitrag</th><th class="num">Währungsbeitrag</th><th class="num">Gesamt (Basis)</th></tr></thead><tbody>${lots}</tbody></table></div><h3 class="detail-section-title">Abgeschlossene Trades (FIFO)</h3><div id="detail-closed-trades-table-wrap" class="data-table-wrap"><table id="detail-closed-trades-table" class="data-table detail-trades-table"><thead><tr><th>Eröffnet</th><th>Geschlossen</th><th class="num">Stückzahl</th><th class="num">Ø Kauf</th><th class="num">Ø Verkauf</th><th class="num">Tage</th><th class="num">p.&nbsp;a.</th><th class="num">Realisierter G/V</th><th class="num">%</th></tr></thead><tbody>${closed}</tbody></table></div><ul id="detail-closed-trades-phone-rows" class="phone-rows" aria-label="Abgeschlossene Trades">${phone}</ul><p id="detail-closed-trades-basis" class="detail-tab-hint" data-role="trades-basis">Über alle Depots · Einlieferungen eröffnen keinen Lot · Gebühren und Steuern im G/V, nicht in Ø Kauf und Ø Verkauf · Erträge während der Haltedauer nicht enthalten · p.&nbsp;a. erst ab 365 Tagen Haltedauer</p></section></div>`;
+  return `<main class="app-main app-main--workspace"><div class="workspace-page"><section class="workspace-section">${pane}</section></div></main>`;
+}
+
+/* ---- #1074: the same parts in the English UI ---- */
+function en(o) {
+  const fix = !!o.fix;
+  const unit = (q, one) => (one && fix ? `<span class="is-new">${q} unit</span>` : `${q} units`);
+  const note = `<div class="data-note data-note--attention" data-role="realized-unmatched"><span class="data-note__icon" aria-hidden="true">${svg('alert_triangle')}</span><span class="data-note__word">Attention</span><div class="data-note__body">2 sales have no matched buy for all or part of their quantity (shares from inbound deliveries, for example): that quantity is not included in the three figures, the rows or the matrix.<details class="perf-table-disclosure" open><summary class="disclosure-summary">${svg('chevron_right', 12, 'disclosure-chevron')} The 2 sales</summary><ul class="excluded-list"><li><span>Brightwater Utilities plc</span><span class="num">2026-08-24</span><span class="num">${unit('1.0000', true)}</span></li><li><span>Saltmarsh Logistics SE</span><span class="num">2026-08-04</span><span class="num">${unit('15.0000', false)}</span></li></ul></details></div></div>`;
+  const rows = `<ul class="phone-rows" style="display:block" aria-label="Closed trades"><li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">2026-01-12 → 2026-05-20</span><span class="phone-row__ids">${unit('1.0000', true)} · 128 days</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+6.88<small class="value-suffix">EUR</small></span><span class="phone-row__figure2"><span class="decimal-positive">+8.5%</span></span></span></li><li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">2025-03-03 → 2026-04-15</span><span class="phone-row__ids">${unit('10.0000', false)} · 408 days</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+142.20<small class="value-suffix">EUR</small></span><span class="phone-row__figure2"><span class="decimal-positive">+18.6%</span> · <span class="decimal-positive">+16.5%</span> p.&nbsp;a.</span></span></li></ul>`;
+  return `<main class="app-main app-main--workspace"><div class="workspace-page"><section class="workspace-section" style="display:grid;gap:14px"><p class="cap" style="margin:0">Cash flow → Trades: the unmatched-sells note (income_live.ex:366)</p>${note}<p class="cap" style="margin:0">Security → Trades: a closed trade's phone row (securities_live.ex:2276)</p>${rows}</section></div></main>`;
+}
+
+const TPL = { facet, trades, tab, en };
+const CSS_MOCK = '<style>body{background:var(--color-bg);} .is-new{outline:2px dashed var(--color-accent);outline-offset:1px;border-radius:4px;} td.is-new,th.is-new{outline-offset:-2px;border-radius:0;} html.screen,html.screen body{overflow:hidden;} .cap{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5a6577;}</style>';
+/* The renderer has a mouse, so the #1059 frames carry the coarse-pointer
+   rules by hand: app.css:6245-6249 as shipped, and (Nachher) rule ④ of the
+   proposal, both without their @media (pointer: coarse) wrapper. */
+const COARSE = '<style>.metric-tooltip summary{width:1.75rem;height:1.75rem;font-size:.85rem;}</style>';
+const COARSE_FIX = '<style>.metric-tooltip--labelled summary{width:auto;height:auto;min-height:1.75rem;}</style>';
+
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  let css = CSS_MOCK + ('proposal' in f.dataset ? document.getElementById('proposal').outerHTML : '');
+  if (o.coarse) css += COARSE + (o.pill ? COARSE_FIX : '');
+  const fixed = f.dataset.fixed;
+  const lang = f.dataset.tpl === 'en' ? 'en' : 'de';
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument;
+    /* the AreaTabs hook's reveal (layout_view.ex:464): the active tab in view */
+    const nav = doc.querySelector('.area-tabs');
+    const act = nav && nav.querySelector('.is-active');
+    if (nav && act && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = Math.max(0, act.offsetLeft - nav.offsetLeft - 24);
+    /* H7.2's selected detail tab in view on arrival (DESIGN.md:3555) */
+    const dt = doc.querySelector('.detail-pane-tabs');
+    const dta = dt && dt.querySelector('.is-active');
+    if (dt && dta && dt.scrollWidth > dt.clientWidth) dt.scrollLeft = Math.max(0, dta.offsetLeft - dt.offsetLeft - 60);
+    if (fixed) {
+      f.style.height = fixed + 'px';
+      if (o.scroll) {
+        setTimeout(() => {
+          const el = doc.querySelector(o.scroll);
+          const win = f.contentWindow;
+          if (el && el.getBoundingClientRect().height > 0) win.scrollTo(0, el.getBoundingClientRect().top + win.scrollY - 12);
+        }, 100);
+      }
+      return;
+    }
+    f.style.height = Math.ceil(doc.documentElement.scrollHeight) + 'px';
+  });
+  f.srcdoc = `<!doctype html><html lang="${lang}" data-theme="system" data-accent="violet"${fixed ? ' class="screen"' : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>
