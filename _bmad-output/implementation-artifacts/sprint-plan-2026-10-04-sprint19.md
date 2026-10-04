@@ -221,10 +221,20 @@ All of it is boarded on this PR. A pick's code is its board's number.
   - The Trades tab formats through `Format` (#1060) and its ⓘ pill is no
     longer clipped (#1059).
   - "1 units" reads correctly (#1074).
-- **U3, dates and chart axes (board 05).** The ISO dates left on the security
-  detail and in the merge dialogs (#1061), the Wealth notes and basis line
-  (#1087's Wealth half), and the chart axes' locale and phone label size
-  (#1088, pick J5). The Overview half of #1087 rides α's board 01.
+- **U3, dates and chart axes, as one sweep (board 05).**
+  - **What #1061, #1087 and #1088 list:** the ISO dates left on the security
+    detail and in the merge dialogs (#1061), the Wealth notes and basis line
+    (#1087's Wealth half), and the chart axes' locale and phone label size
+    (#1088, pick J5). The Overview half of #1087 rides α's board 01.
+  - **What the issues missed:** the board found ISO displays outside every
+    issue's list: the detail Overview, the Termine tab, the range chips, the
+    metric window, the bond strip and the import result lists. So U3 is a
+    sweep, not a list. Every displayed date goes through `Format.date`
+    (`Format` gains a month form for the Termine tab), and DESIGN.md's eight
+    ISO-for-display sentences are rewritten.
+  - **A test keeps it swept:** no template or LiveView renders
+    `Date.to_iso8601` or an ISO `strftime` outside an allow-list (`<time
+    datetime>`, inputs, the API, files).
 - **U4, Wealth at 390 px and the twin names (board 06).**
   - The Positions table uses two-line phone rows (#1065, pick J6).
   - Two securities with one name are told apart (#1057, pick J6.2).

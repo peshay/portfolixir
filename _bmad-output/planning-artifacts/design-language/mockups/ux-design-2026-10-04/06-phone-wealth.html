@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Vermögen bei 390 px und gleichnamige Wertpapiere (#1065, #1057, #1086, #1063, Picks J6 und J6.2)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL. Everything inside the frames is the markup and the classes
+     that ship: AppShell.shell (.topbar, .topbar-page h1), portfolio_live.ex
+     (#portfolio-positions with #holdings-positions-wrapper and
+     #holdings-positions-table, ColumnPicker.toggle #holdings-column-toggle;
+     the KPI band's .kpi-band__support with #kpi-securities, #kpi-cash,
+     #kpi-invested, #kpi-multiple), portfolio/contribution_table.ex
+     (#contribution-table, #contribution-phone-rows), securities_live.ex
+     (.securities-workspace--split, .detail-pane, .detail-pane-tabs) and the
+     phone rows of UX-DR27 (.phone-rows, .phone-row, .phone-row__body,
+     .phone-row__name, .phone-row__ids, .phone-row__figures,
+     .phone-row__figure). The rules below are what the stories add to
+     app.css; the frames tagged "Nachher" and "A" render with them. -->
+<style id="proposal">
+  /* ① J6, variant A (#1065): under 560 px the Positions table gives way to
+     two-line rows (UX-DR27), as the securities list, the history, the
+     trades and the quotes do: the name over the depot, the quantity on the
+     right. The story renders <ul id="holdings-phone-rows" class="phone-rows">
+     beside the table; the wrapper joins the phone lists' 560 px list
+     (app.css:8211-8218) and the column toggle joins the pickers that hide
+     there (app.css:8242-8245): the rows are a fixed composition. */
+  #holdings-phone-rows .phone-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  @media (max-width: 560px) {
+    #holdings-positions-wrapper,
+    #holdings-column-toggle {
+      display: none;
+    }
+  }
+
+  /* ② J6.2, variant A (#1057): where two rows of one table would read the
+     same, each carries a short identifier after the name — the ISIN, else
+     the WKN, else "Nr. <id>" — in muted mono, the identifier voice of the
+     securities list's row. Only on a collision; a unique name stays bare.
+     A visually hidden "ISIN"/"WKN" before it tells a screen reader which. */
+  .twin-id {
+    margin-left: 6px;
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 400;
+    white-space: nowrap;
+  }
+
+  /* ③ #1086: the top-bar title is a grid item; at min-width: auto it stayed
+     as wide as its text, never overflowed itself, and so never drew its
+     ellipsis while .topbar-page clipped it mid-glyph. */
+  .topbar-page h1 {
+    min-width: 0;
+  }
+
+  /* ④ #1086: on a half-width compact card under 560 px the value steps
+     down from 22 px to 16 px, the ramp's next step down that fits
+     ({typography.subsection-title}), so a six-figure amount and its
+     currency suffix share a line (EXPERIENCE.md, Value slot: a value never
+     wraps inside its slot). The label's own fix is markup: a no-break space
+     binds "·" to the word before it, so the separator ends a line instead
+     of standing alone on one. */
+  @media (max-width: 560px) {
+    .stat--compact strong {
+      font-size: 16px;
+    }
+  }
+
+  /* ⑤ #1063: the split workspace is a grid whose one column was sized
+     `auto`, so the detail pane's min-content — the nine tabs at their
+     intrinsic width, 761 px — set the column's floor, and at 768 px the
+     page scrolled sideways. With a zero floor the column is the window and
+     the tab row scrolls inside itself, as D6 specifies. */
+  .securities-workspace--split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+</style>
+<!-- Variant B of J6, injected into the B frame only (media="not all" keeps it
+     off the board itself). -->
+<style id="variant-b" media="not all">
+  /* J6 B: the name column pins to the LEFT edge of its scroller, one line
+     as every cell under 560 px; swiped, the depot scrolls under it and the
+     quantity comes in beside it. #730's subject column pins to the right;
+     this is a second direction. */
+  #holdings-positions-table .col-name {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--color-bg-elevated);
+    box-shadow: inset -1px 0 0 var(--color-border);
+  }
+
+  #holdings-positions-table thead .col-name {
+    z-index: 2;
+    background: var(--color-bg-muted);
+  }
+
+  .data-table tbody tr:nth-child(even) td.col-name {
+    background: color-mix(in srgb, var(--color-bg-muted) 24%, var(--color-bg-elevated));
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: visible; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ol, .notes ul { margin: 0; }
+  .notes ol, .notes ul { padding-left: 18px; }
+  .notes li { margin: 0 0 6px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .rec { color: var(--color-positive); font-weight: 760; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .mock-frame > .mock-tag.vtag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .stage { padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .lbl-p { margin: 0; font-size: 11px; color: var(--mock-ink); }
+  .w-half { flex: 1 1 520px; min-width: 0; }
+  .w-full { flex: 1 1 100%; min-width: 0; }
+  .w-notes { flex: 1 1 300px; min-width: 0; }
+  .phone-only, .tablet-only { display: none; }
+  .ph { width: 392px; flex: none; border: 1px solid var(--color-border-strong); border-radius: 20px; overflow: hidden; background: var(--color-bg); }
+  .ph iframe { display: block; width: 390px; height: 150px; border: 0; }
+  .tb { width: 770px; flex: none; border: 1px solid var(--color-border-strong); border-radius: 14px; overflow: hidden; background: var(--color-bg); }
+  .tb iframe { display: block; width: 768px; height: 150px; border: 0; }
+  .ph-col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .ph-col .measure { margin: 0; font-size: 11.5px; color: var(--mock-ink); max-width: 390px; }
+  .ph-col .measure b { color: var(--color-text); }
+  .ph-col .measure.bad b { color: var(--color-danger); }
+  .ph-col .measure.good b { color: var(--color-positive); }
+  .ph.mock-before, .tb.mock-before { border-color: var(--color-danger); }
+  .ph.mock-after, .tb.mock-after { border-color: var(--color-positive); }
+  .ph-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .mock-before .ph-tag { color: var(--color-danger); background: var(--color-danger-soft); }
+  .mock-after .ph-tag { color: var(--color-positive); background: #ecfdf5; }
+  .var-b .ph-tag { color: var(--mock-ink); background: var(--color-bg-muted); }
+  td.elide-row { text-align: center; font-style: italic; color: var(--mock-ink); font-size: 11.5px; }
+  .stage .workspace-section { padding: 14px 16px; }
+
+  /* The 768 px render shows #1063 only, full bleed. */
+  @media (min-width: 601px) and (max-width: 900px) {
+    body { padding: 0; }
+    .not-768 { display: none !important; }
+    .tablet-only { display: block; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2, .mock-board > p.mock-note { padding: 0 12px; }
+    .tb { width: 100%; border-radius: 0; border-left: 0; border-right: 0; }
+    .tb iframe { width: 100%; }
+    .ph-col { width: 100%; }
+    .ph-col .measure { padding: 0 12px; max-width: none; }
+    .tablet-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only, .no-phone { display: none !important; }
+    .phone-only { display: block; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-board > p.mock-note { padding: 0 12px; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .notes { padding: 0 12px; }
+    .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+    .ph { width: 100%; border-radius: 0; border-left: 0; border-right: 0; }
+    .ph iframe { width: 100%; }
+    .ph-col { width: 100%; }
+    .ph-col .measure { padding: 0 12px; }
+  }
+</style>
+</head>
+<body data-widths="1200,768,390">
+
+<div class="pickbar desk-only"><b>Board 06 — Wealth at 390&nbsp;px and the twin names (#1065, #1057, #1086, #1063).</b> Rendered at 1200, 768 and 390&nbsp;px: every phone frame is a real 390&nbsp;px viewport and the #1063 frames a real 768&nbsp;px one (iframes), so app.css's breakpoints apply; the 768&nbsp;px render shows #1063 alone. <b>Two real choices:</b> <b>J6</b> the Positions table on the phone (#1065) — <b>A</b> two-line rows (UX&#8209;DR27) · <b>B</b> the name pinned left, the table scrolling, <span class="rec">recommended A</span>; <b>J6.2</b> two securities with one name (#1057, both tables) — <b>A</b> an identifier after the name, on a collision only · <b>B</b> the ISIN on every row, <span class="rec">recommended A</span>. <b>#1086</b> (top-bar title, KPI cards) and <b>#1063</b> (768&nbsp;px sideways scroll) are Heute / Nachher. A comment naming the code and a letter (e.g. "J6 B") decides; silence adopts the recommendation. All names, ISINs, quantities and figures are invented. <b>Dashed = new.</b></div>
+<p class="phone-only phone-cap"><b>Board 06 at 390&nbsp;px.</b> A true 390&nbsp;px viewport; the #1063 frames are drawn at 768&nbsp;px (<code>06-phone-wealth--768.png</code>). Recommended: J6 A, J6.2 A. All data invented.</p>
+<p class="tablet-only tablet-cap"><b>Board 06 at 768&nbsp;px — #1063 only.</b> The frames below are a true 768&nbsp;px window. J6, J6.2 and #1086 are drawn at 1200 and 390&nbsp;px. All data invented.</p>
+
+<!-- ============================ J6 ============================ -->
+<section class="mock-board not-768">
+  <h2>J6 · #1065 — Positionen at 390&nbsp;px: the quantity off-screen, the names cut once scrolled <small>Vermögen → Bestände · Heute / A / B</small></h2>
+  <p class="mock-note desk-only">The holdings projection's table (<code>portfolio_live.ex:2462</code>, default columns Depot · Wertpapier · Stückzahl, <code>:75</code>) sits in a <code>.data-table-wrapper</code> scroller; under 560&nbsp;px <code>table { white-space: nowrap }</code> keeps every name on one line, so the table is wider than the phone and "Stückzahl" starts past the right edge with nothing saying the table scrolls. Swiped to its end, the depot goes, and with one more picked column or a longer name the start of every name goes too — and the four twin pairs of the demo seed (#1057's comment) read as pairs of identical rows either way. #1009's pinned subject column is not on this table. The "Spalten" toggle stays visible on the phone today although UX&#8209;DR27 makes phone rows a fixed composition (the securities and history pickers already hide under 560&nbsp;px). Desktop: unchanged in A and B.</p>
+  <div class="mock-row">
+    <div class="ph-col">
+      <div class="ph mock-before"><span class="ph-tag">Heute</span><iframe data-tpl="positions" data-mode="today" title="Heute, 390 px"></iframe></div>
+      <p class="measure bad" data-measure="positions"></p>
+    </div>
+    <div class="ph-col">
+      <div class="ph mock-before"><span class="ph-tag">Heute · zur Seite gewischt</span><iframe data-tpl="positions" data-mode="today" data-scroll-table="end" title="Heute, gewischt, 390 px"></iframe></div>
+      <p class="measure bad" data-measure="positions-swiped"></p>
+    </div>
+    <div class="notes w-notes desk-only">
+      <p class="cap">What the two variants keep</p>
+      <ul>
+        <li>The desktop table, its column picker and the projection's fields are untouched in both: the change is under 560&nbsp;px only.</li>
+        <li>Both frames carry J6.2 A's identifier on the twin rows, so the variants differ in layout only.</li>
+        <li>The rows are ordered as the table is (<code>holding_rows/1</code>: depot, then name).</li>
+      </ul>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:16px">
+    <div class="ph-col">
+      <div class="ph mock-after"><span class="ph-tag">A — empfohlen · zweizeilige Zeilen</span><iframe data-tpl="positions" data-mode="a" title="A, 390 px"></iframe></div>
+    </div>
+    <div class="ph-col">
+      <div class="ph var-b"><span class="ph-tag">B · Name links angeheftet</span><iframe data-tpl="positions" data-mode="b" data-scroll-table="end" title="B, gewischt, 390 px"></iframe></div>
+      <p class="measure" data-measure="positions-b"></p>
+    </div>
+    <div class="notes w-notes">
+      <ul>
+        <li><b>A</b> is the phone's rule for a list of entities, and UX&#8209;DR27 names holdings in it: the name (600, wrapping) over the depot, the quantity right-aligned as "18 Stück" — the projection's default columns, nothing added. Nothing scrolls sideways, every name is whole, and the twins' identifier has a line to sit on. The "Spalten" toggle hides, as on the securities list and the history. Cost: a row is 59&nbsp;px (79 where the name wraps) instead of 32&nbsp;px, measured in these frames.</li>
+        <li><b>B</b> pins the name to the scroller's left edge, so after a swipe the quantity stands beside it. It keeps the picker's extra columns reachable on the phone. But it still opens on the depot with the quantity off-screen and no cue that the table scrolls; the pinned column is as wide as the longest name — with the identifier, 302 of 356&nbsp;px here, so it covers part of the very column it should stand beside; and it introduces a left-pinned column beside #730's right-pinned subject column, a second rule for one problem.</li>
+        <li><span class="rec">Why A:</span> the spec already answers it (UX&#8209;DR27 lists holdings; Sprint 18 took A for the quotes, H7.1), the trades, quotes and contribution rows are the precedent, and a row needs no gesture to read. Rejected without a picture: hiding the Depot column under 560&nbsp;px — the twins then differ by nothing at all when they sit in different depots.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ J6.2 ============================ -->
+<section class="mock-board not-768">
+  <h2>J6.2 · #1057 — two securities with one name read as two identical rows <small>Beitrag je Position and Positionen · Heute / A / B</small></h2>
+  <p class="mock-note desk-only">The contribution table prints <code>position_name/1</code> only (<code>contribution_table.ex:177</code>, phone row <code>:275</code>), though each position carries its <code>isin</code> (<code>contribution.ex:94–95</code>); the Positions table prints <code>row.security_name</code> (<code>portfolio_live.ex:2595</code>). The demo seed books four such pairs on purpose (<code>finding_surfaces_seed.exs:930–931, 950–951, 975–976, 1049–1050</code>): a duplicate awaiting a merge, or twins that differ by ISIN. DESIGN.md records it under the contribution table's "Stated, not settled here" (<code>DESIGN.md:3192–3194</code>). Here Orchid Bay's pair has the same quantity and price, so its two rows are identical to the cent.</p>
+  <div class="mock-row desk-only">
+    <div class="mock-frame mock-before w-full"><span class="mock-tag">Heute</span><div class="stage" id="contrib-today"></div></div>
+  </div>
+  <div class="mock-row desk-only" style="margin-top:14px">
+    <div class="mock-frame mock-after w-full"><span class="mock-tag">A — empfohlen · Kennung nur bei Namensgleichheit</span><div class="stage" id="contrib-a"></div></div>
+  </div>
+  <div class="mock-row desk-only" style="margin-top:14px">
+    <div class="mock-frame w-full"><span class="mock-tag vtag">B — ISIN in jeder Zeile</span><div class="stage" id="contrib-b"></div></div>
+  </div>
+  <div class="mock-row desk-only" style="margin-top:14px">
+    <div class="mock-frame mock-before w-half"><span class="mock-tag">Heute · Positionen, Desktop</span><div class="stage" id="pos-desk-today"></div></div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">A — empfohlen · Positionen, Desktop</span><div class="stage" id="pos-desk-a"></div></div>
+  </div>
+  <div class="mock-row" style="margin-top:16px">
+    <div class="ph-col">
+      <div class="ph mock-before"><span class="ph-tag">Heute · Beitrag je Position</span><iframe data-tpl="contribution" data-mode="today" title="Heute, Beitrag, 390 px"></iframe></div>
+    </div>
+    <div class="ph-col">
+      <div class="ph mock-after"><span class="ph-tag">A — empfohlen</span><iframe data-tpl="contribution" data-mode="a" title="A, Beitrag, 390 px"></iframe></div>
+    </div>
+    <div class="ph-col">
+      <div class="ph var-b"><span class="ph-tag">B · ISIN in jeder Zeile</span><iframe data-tpl="contribution" data-mode="b" title="B, Beitrag, 390 px"></iframe></div>
+    </div>
+    <div class="notes w-notes">
+      <ul>
+        <li><b>A</b> adds the identifier only where a reader needs it, so it also says something: two rows of one name are worth a look (often a merge waiting). The collision is decided per table over the whole payload, hidden rows included: by name in the contribution table (one row per security), by depot and name in the Positions table (the depot is already part of each row there, so the same name in two depots is no collision — "Nordwind Industrie AG" below). The identifier: the ISIN, else the WKN, else "Nr. &lt;id&gt;", the form the merge preview already uses ("Split am … · Nr. …"). The contribution payload carries no WKN today; the story adds it to the payload, the API and the MCP schema, or the chain there is ISIN, else Nr.</li>
+        <li><b>B</b> prints the ISIN on every row: one rule, no collision logic, and a reader can match a row to a statement. But it adds 12 characters of mono to every row for a case that affects a handful; on the phone the ISIN competes with the row's own second line (the ends, the flows); a security without an ISIN gets nothing, so B still fails exactly on the twins that have none; and on the Positions table it duplicates the picker's ISIN column.</li>
+        <li><span class="rec">Why A:</span> the screen stays as quiet as today for the common case, the twins become distinguishable everywhere they meet (both tables, both widths), and the merge dialog's own way to tell them apart — the ISIN first — is reused rather than a new column invented. Not drawn: a "Zusammenführen…" link beside a twin. It would be an action on a read table, outside #1057.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1086 ============================ -->
+<section class="mock-board not-768">
+  <h2>#1086 — the top-bar title clips mid-word, and the KPI cards break "·" and push "EUR" down <small>390&nbsp;px · Heute / Nachher</small></h2>
+  <p class="mock-note desk-only">Title: <code>.topbar-page</code> clips (<code>app.css:580–589</code>, #784), but the <code>h1</code> is a grid item at <code>min-width: auto</code> (<code>:591–603</code> sets none), so it keeps its text's width, never overflows itself, and its own <code>text-overflow: ellipsis</code> never fires: "Konten &amp; Depots" ends in half a "p". Cards: under 720&nbsp;px the four compact cards pair up (<code>:7681–7683</code>); the label "Anfangswert · Nettoflüsse (1J)" (<code>portfolio_live.ex:1174–1177</code>) breaks at every space, so "·" opens the second line (in Inter, #1086 measured it alone on that line), and the 22&nbsp;px value (<code>:7700</code>) with its suffix is wider than the card, so "EUR" drops under the digits. The area tabs and the lead tier are not part of #1086 and are left out of these frames.</p>
+  <div class="mock-row">
+    <div class="ph-col">
+      <div class="ph mock-before"><span class="ph-tag">Heute · Kopfzeile</span><iframe data-tpl="topbars" data-mode="today" title="Heute, Kopfzeile, 390 px"></iframe></div>
+      <p class="measure bad" data-measure="title-today"></p>
+    </div>
+    <div class="ph-col">
+      <div class="ph mock-after"><span class="ph-tag">Nachher · Kopfzeile</span><iframe data-tpl="topbars" data-mode="a" title="Nachher, Kopfzeile, 390 px"></iframe></div>
+      <p class="measure good" data-measure="title-a"></p>
+    </div>
+    <div class="notes w-notes">
+      <ul>
+        <li><b>The title</b> takes rule ③, <code>min-width: 0</code>, so the ellipsis #784 meant to keep is drawn again: "Konten &amp; Dep…". The line box and the umlaut clearance of #784 are untouched. The subtitle is hidden under 560&nbsp;px, as today.</li>
+        <li>Dark mode is the same geometry and is not drawn twice.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:16px">
+    <div class="ph-col">
+      <div class="ph mock-before"><span class="ph-tag">Heute · Kennzahlen</span><iframe data-tpl="kpi" data-mode="today" title="Heute, Kennzahlen, 390 px"></iframe></div>
+      <p class="measure bad" data-measure="kpi-today"></p>
+    </div>
+    <div class="ph-col">
+      <div class="ph mock-after"><span class="ph-tag">Nachher · Kennzahlen</span><iframe data-tpl="kpi" data-mode="a" title="Nachher, Kennzahlen, 390 px"></iframe></div>
+      <p class="measure good" data-measure="kpi-a"></p>
+    </div>
+    <div class="notes w-notes">
+      <ul>
+        <li><b>The label</b>: a no-break space before "·" — "Anfangswert&nbsp;·" ends the first line, so the separator never stands alone. In the template that is the HEEx text between the two <code>gettext</code> calls, not a msgid. "(1J)" may still take a line of its own where the card is narrow; binding it too was tried on the board and pushed "(1J)" under the ⓘ.</li>
+        <li><b>The value</b>: rule ④, 16&nbsp;px on a compact card under 560&nbsp;px (a ramp step, {typography.subsection-title}; 18&nbsp;px still dropped the suffix in this renderer), keeps "182.450,30" and "EUR" on one line, as EXPERIENCE.md's Value slot says ("a value never wraps inside its slot"). It holds to about 999.999,99; a seven-digit figure still drops its suffix — the digits never break, and that is the fallback, not the design. Rejected without a picture: one column under 560&nbsp;px, which fits any figure but adds about 220&nbsp;px of band.</li>
+        <li><b>The spec disagrees with itself here</b>: DESIGN.md's KPI band clause allows "the suffix may drop to its own line on a narrow card" (<code>DESIGN.md:1557–1559</code>), against EXPERIENCE.md's rule (<code>EXPERIENCE.md:1126–1128</code>) and the template's own comment. The story amends the DESIGN.md clause.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1063 ============================ -->
+<section class="mock-board">
+  <h2>#1063 — at 768&nbsp;px the page scrolls sideways while the detail pane is open <small>Wertpapiere, Detail offen · Heute / Nachher · 768&nbsp;px</small></h2>
+  <p class="mock-note desk-only">Between 721 and 900&nbsp;px the securities workspace is a grid (<code>app.css:2455–2460</code>) with rows set and no column template, so its one column is <code>auto</code> and takes the detail pane's min-content as its floor. The pane's nine tabs keep their intrinsic width (<code>.detail-pane-tab { flex: none }</code>, so D6 scroll-snaps them instead of squeezing), and the row's min-content is its tabs' sum. The column grows past the window and the page scrolls; the tab row's own scroller and fade never get to act. Measured in the frames below. Under 721&nbsp;px the workspace is <code>display: block</code> and the defect does not occur.</p>
+  <div class="mock-row">
+    <div class="ph-col no-phone">
+      <div class="tb mock-before"><span class="ph-tag">Heute · 768&nbsp;px, zur Seite gescrollt</span><iframe data-tpl="split" data-mode="today" title="Heute, 768 px"></iframe></div>
+      <p class="measure bad" data-measure="split-today"></p>
+    </div>
+    <div class="notes w-notes desk-only">
+      <ul>
+        <li><b>Heute</b> is shown scrolled to its right end, the state a swipe or a trackpad leaves it in: the whole page, top bar included, is shifted left by the overflow, so the top bar loses its left gutter and the burger meets the window's edge; at scroll 0 the pane's "×" and the tab row's fade lie past the right edge instead. The red outline marks the row whose width causes it.</li>
+        <li><b>Nachher</b>: rule ⑤ gives the column a zero floor. The page is the window again; the tab row is as wide as the pane and scrolls inside itself with its right fade — D6's form, already shipped for the phone.</li>
+        <li><code>min-width: 0</code> on <code>.detail-pane</code> would work too; the column template is the rule UX&#8209;DR15 states for grid and flex containers ("min-width: 0 on flex children"), written once on the container.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:16px">
+    <div class="ph-col no-phone">
+      <div class="tb mock-after"><span class="ph-tag">Nachher · 768&nbsp;px</span><iframe data-tpl="split" data-mode="a" title="Nachher, 768 px"></iframe></div>
+      <p class="measure good" data-measure="split-a"></p>
+    </div>
+  </div>
+  <p class="phone-only lbl-p" style="padding:0 12px">Drawn at 768&nbsp;px: see <code>06-phone-wealth--768.png</code>.</p>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames from the
+   live markup of AppShell, portfolio_live.ex, contribution_table.ex and
+   securities_live.ex as srcdoc iframes (relative links resolve against this
+   board), and measures each frame after it lays out. */
+const CSS_HREF = '../../../../../priv/static/app.css';
+const IMG = '../../../../../priv/static/images/';
+const ICON = {
+  chev: '<path d="m9 6 6 6-6 6"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  max: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>',
+  columns: '<rect x="3" y="4" width="6" height="16" rx="1"/><rect x="11" y="4" width="6" height="16" rx="1"/><rect x="19" y="4" width="2" height="16" rx="1"/>'
+};
+const ico = (n, s = 14, cls = '') => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"${cls ? ` class="${cls}"` : ''} aria-hidden="true">${ICON[n]}</svg>`;
+
+/* ---- synthetic holdings: names from the demo seeds, invented quantities ---- */
+const HOLDINGS = [
+  ['Demo Depot', 'Juniper Rail AG', 'XS0000000132', '18'],
+  ['Demo Depot', 'Juniper Rail AG', 'XS0000000140', '9'],
+  ['Demo Depot', 'Nordic Timber Holdings AB', 'XS0000000001', '40'],
+  ['Demo Depot', 'Nordwind Industrie AG', 'DE000000000A', '25'],
+  ['Demo Depot', 'Orchid Bay Pharmaceuticals plc', 'XS0000000066', '12'],
+  ['Demo Depot', 'Orchid Bay Pharmaceuticals plc', 'XS0000000074', '12'],
+  ['Demo Depot', 'Pinecrest Utilities SA', 'XS0000000082', '8'],
+  ['Demo Depot', 'Pinecrest Utilities SA', 'XS0000000090', '3'],
+  ['Demo Depot', 'Quarry Lane Materials AG', 'XS0000000108', '12'],
+  ['Demo Depot', 'Quarry Lane Materials AG', 'XS0000000116', '4'],
+  ['Depot 2', 'Birchwood Global Savings Fund Class B', 'XS0000000003', '150'],
+  ['Depot 2', 'Nordwind Industrie AG', 'DE000000000A', '10'],
+  ['Depot 2', 'Placeholder Anleihe 2031 3,25%', 'XS0000000002', '5.000']
+];
+const twinKey = (r) => r[0] + '|' + r[1];
+const holdTwins = new Set(HOLDINGS.map(twinKey).filter((k, i, a) => a.indexOf(k) !== i));
+const twinId = (isin, mark = true) => `<span class="twin-id${mark ? ' is-new' : ''}"><span class="visually-hidden">ISIN </span>${isin}</span>`;
+const isinAlways = (isin) => `<span class="twin-id"><span class="visually-hidden">ISIN </span>${isin}</span>`;
+
+/* ---- synthetic contribution (1J, EUR): invented figures that add up ---- */
+const CONTRIB = [
+  { n: 'Nordwind Industrie AG', isin: 'DE000000000A', s: '2.455,00', fl: '+1.128,90', inc: '+42,50', c: '9,80', e: '3.932,40', k: '+381,20', sign: 1, w: 45, line: '2.455,00 → 3.932,40 · Zufluss 1.128,90 · Erträge 42,50' },
+  { n: 'Orchid Bay Pharmaceuticals plc', isin: 'XS0000000066', s: '360,00', fl: '0,00', inc: '0,00', c: '0,00', e: '498,00', k: '+138,00', sign: 1, w: 16.3, line: '360,00 → 498,00' },
+  { n: 'Orchid Bay Pharmaceuticals plc', isin: 'XS0000000074', s: '360,00', fl: '0,00', inc: '0,00', c: '0,00', e: '498,00', k: '+138,00', sign: 1, w: 16.3, line: '360,00 → 498,00' },
+  { n: 'Juniper Rail AG', isin: 'XS0000000132', s: '1.080,00', fl: '0,00', inc: '0,00', c: '0,00', e: '1.170,00', k: '+90,00', sign: 1, w: 10.6, line: '1.080,00 → 1.170,00' },
+  { n: 'Juniper Rail AG', isin: 'XS0000000140', s: '540,00', fl: '0,00', inc: '0,00', c: '0,00', e: '585,00', k: '+45,00', sign: 1, w: 5.3, line: '540,00 → 585,00' },
+  { n: 'Nordic Timber Holdings AB', isin: 'XS0000000001', s: '1.320,00', fl: '0,00', inc: '0,00', c: '0,00', e: '1.196,00', k: '-124,00', sign: -1, w: 14.6, line: '1.320,00 → 1.196,00' }
+];
+const contribTwins = new Set(CONTRIB.map((p) => p.n).filter((n, i, a) => a.indexOf(n) !== i));
+const nameWith = (p, mode) => p.n + (mode === 'a' && contribTwins.has(p.n) ? twinId(p.isin) : mode === 'b' ? isinAlways(p.isin) : '');
+const sc = (v) => (v > 0 ? 'is-positive' : v < 0 ? 'is-negative' : '');
+
+function contributionDesk(mode) {
+  const rows = CONTRIB.map((p) => `<tr data-role="contribution-row"><td class="contribution-table__name">${nameWith(p, mode)}</td><td class="num">${p.s}</td><td class="num">${p.fl}</td><td class="num">${p.inc}</td><td class="num">${p.c}</td><td class="num">${p.e}</td><td class="num contribution-table__figure"><span class="${sc(p.sign)}">${p.k}</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill ${p.sign < 0 ? 'is-under' : 'is-over'}" style="width: ${p.w}%"></span></span></td></tr>`).join('');
+  return `<div class="contribution" data-role="contribution"><div class="contribution__head"><h3 id="contribution-title">Beitrag je Position</h3><span class="contribution__scope">1J · Ansicht Alles · sortiert nach Beitrag</span></div><div id="contribution-table-wrap" class="data-table-wrapper"><table id="contribution-table" class="data-table contribution-table"><thead><tr><th scope="col">Wertpapier</th><th scope="col" class="num">Anfangswert</th><th scope="col" class="num">Zu-/Abflüsse</th><th scope="col" class="num">Erträge</th><th scope="col" class="num">Kosten</th><th scope="col" class="num">Endwert</th><th scope="col" class="num">Beitrag</th></tr></thead><tbody>${rows}<tr><td colspan="7" class="elide-row">… „Keiner Position zugeordnet“ mit Zinsen, Gebühren/Steuern und Währung — unverändert, hier ausgelassen</td></tr><tr class="contribution-table__sum" data-role="contribution-sum"><td>Summe = Ergebnis im Zeitraum</td><td class="num">6.115,00</td><td class="num">+1.128,90</td><td class="num">+42,50</td><td class="num">9,80</td><td class="num">7.879,40</td><td class="num"><span class="is-positive">+671,50</span><small class="value-suffix">EUR</small></td></tr></tbody></table></div></div>`;
+}
+function contributionPhone(mode) {
+  const rows = CONTRIB.map((p) => `<li class="phone-row" data-role="contribution-row"><span class="phone-row__body"><span class="phone-row__name">${nameWith(p, mode)}</span><span class="phone-row__ids">${p.line}</span></span><span class="phone-row__figures"><span class="phone-row__figure ${sc(p.sign)}">${p.k}</span></span></li>`).join('');
+  return `<div id="performance-contribution" class="contribution" data-role="contribution"><div class="contribution__head"><h3 id="contribution-title">Beitrag je Position</h3><span class="contribution__scope">1J · Ansicht Alles · sortiert nach Beitrag</span></div><ul id="contribution-phone-rows" class="phone-rows contribution-phone-rows" aria-label="Beitrag je Position">${rows}<li class="phone-row contribution-phone-rows__rest"><span class="phone-row__body"><span class="phone-row__name">Keiner Position zugeordnet</span><span class="phone-row__ids">Zinsen +12,40 · Gebühren/Steuern -6,00 · Währung -3,10</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+3,30</span></span></li><li class="phone-row contribution-phone-rows__sum"><span class="phone-row__body"><span class="phone-row__name">Summe = Ergebnis im Zeitraum</span><span class="phone-row__ids">Positionen und Restposten</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+671,50 <small class="value-suffix">EUR</small></span></span></li></ul></div>`;
+}
+
+/* ---- the Positions section (portfolio_live.ex, #portfolio-positions) ---- */
+function positionsSection(mode, phone) {
+  const pinned = mode === 'b';
+  const withIds = mode === 'a' || mode === 'b';
+  /* On J6's phone frames the identifier is J6.2's, so it is not marked new there. */
+  const nameCell = (r) => r[1] + (withIds && holdTwins.has(twinKey(r)) ? twinId(r[2], !phone) : '');
+  const th = `<tr><th>Depot</th><th${pinned ? ' class="col-name is-new"' : ''}>Wertpapier</th><th class="num">Stückzahl</th></tr>`;
+  const rows = HOLDINGS.map((r) => `<tr data-role="holdings-position"><td>${r[0]}</td><td${pinned ? ' class="col-name"' : ''}>${nameCell(r)}</td><td class="num">${r[3]}</td></tr>`).join('');
+  const table = `<div id="holdings-positions-wrapper" class="data-table-wrapper"><table id="holdings-positions-table" class="data-table"><thead>${th}</thead><tbody>${rows}</tbody></table></div>`;
+  const phoneRows = mode === 'a' && phone ? `<ul id="holdings-phone-rows" class="phone-rows is-new" aria-label="Positionen">${HOLDINGS.map((r) => `<li class="phone-row" data-role="holdings-position"><span class="phone-row__body"><span class="phone-row__name">${nameCell(r)}</span><span class="phone-row__ids">${r[0]}</span></span><span class="phone-row__figures"><span class="phone-row__figure">${r[3]} Stück</span></span></li>`).join('')}</ul>` : '';
+  return `<section id="portfolio-positions" class="workspace-section"><header class="section-head"><h2>Positionen</h2><div class="popover-container"><button type="button" id="holdings-column-toggle" class="button-ghost column-picker-toggle" aria-haspopup="dialog" aria-expanded="false">${ico('columns')} Spalten</button></div></header><p class="summary-basis" data-role="positions-basis">Die Bestandsprojektion, die diese Instanz über die API ausliefert: eine Zeile je Depot und Wertpapier, bewertet zum zuletzt gespeicherten Preis. Die Spalten sind die Felder dieser Projektion.</p>${table}${phoneRows}</section>`;
+}
+
+/* ---- the shell (AppShell.shell) ---- */
+function topbar(title, subtitle) {
+  return `<header class="topbar"><label class="sidebar-toggle" aria-label="Navigation öffnen"><span class="burger-bars" aria-hidden="true"></span></label><div class="topbar-primary"><a class="topbar-brand" aria-label="Portfolixir"><span class="brand-logo" aria-hidden="true"><img class="topbar-mark brand-mark-light" src="${IMG}logo-mark-light.svg" alt=""><img class="topbar-mark brand-mark-dark" src="${IMG}logo-mark-dark.svg" alt=""></span><span>Portfolixir</span></a><div class="topbar-page" aria-live="polite"><h1 id="app-topbar-title">${title}</h1>${subtitle ? `<p id="app-topbar-subtitle">${subtitle}</p>` : ''}</div></div><div class="topbar-controls"><details class="theme-menu"><summary class="theme-menu-trigger"><span class="theme-current-icon theme-current-icon-light" aria-hidden="true">${ico('monitor', 16, 'theme-svg-icon')}</span></summary></details><details class="accent-menu"><summary class="accent-menu-trigger"><span class="accent-current-dot accent-current-dot-violet" aria-hidden="true"></span></summary></details><nav class="locale-switcher" aria-label="Sprache"><a class="locale-link">EN</a><a class="locale-link is-active" aria-current="true">DE</a></nav></div></header>`;
+}
+const shell = (title, main, mainClass = '', subtitle = '') => `<div class="app-shell"><div class="app-frame">${topbar(title, subtitle)}<main class="app-main ${mainClass}">${main}</main></div></div>`;
+
+/* ---- the KPI band's compact tier (portfolio_live.ex:1124-1225) ---- */
+function kpiSupport(mode) {
+  const after = mode === 'a';
+  const label = after ? 'Anfangswert<span class="is-new">&nbsp;</span>· Nettoflüsse (1J)' : 'Anfangswert · Nettoflüsse (1J)';
+  const tip = (id) => `<details class="metric-tooltip metric-tooltip--inline"><summary aria-label="${id}">ⓘ</summary></details>`;
+  return `<section class="workspace-section kpi-band" aria-label="Vermögens-Kennzahlen"><div class="kpi-band__support"><article id="kpi-securities" class="stat stat--compact"><span>Wertpapiere</span><strong><span class="count-up"><span data-count-digits>182.450,30</span></span><small class="value-suffix">EUR</small></strong></article><article id="kpi-cash" class="stat stat--compact" role="group"><div class="stat__head"><span>Cashquote</span>${tip('Cashquote')}</div><strong>6,8%</strong><small class="stat__sub" data-role="cash-amount"><b>10.085,80</b> EUR Cash</small></article><article id="kpi-invested" class="stat stat--compact" role="group"><div class="stat__head"><span>${label}</span>${tip('Investiertes Kapital')}</div><strong>168.231,90<small class="value-suffix">EUR</small></strong><small class="stat__sub" data-role="net-flows">Nettoflüsse <b class="is-positive">+4.000,00</b> EUR</small></article><article id="kpi-multiple" class="stat stat--compact" role="group"><div class="stat__head"><span>Vermögens-Multiplikator (1J)</span>${tip('Vermögens-Multiplikator')}</div><strong>×1,06</strong></article></div></section>`;
+}
+
+/* ---- the securities workspace, detail open (securities_live.ex) ---- */
+function splitWorkspace() {
+  const rows = [['N', 'Nordwind Industrie AG', 'DE000000000A', '112,40', 'EUR', true], ['N', 'Nordic Timber Holdings AB', 'XS0000000001', '29,90', 'EUR'], ['J', 'Juniper Rail AG', 'XS0000000132', '65,00', 'EUR'], ['P', 'Placeholder Anleihe 2031 3,25%', 'XS0000000002', '98,75', 'EUR']];
+  const list = `<div id="securities-list-pane" class="securities-list-pane"><div class="data-table-wrapper" id="securities-table"><table class="data-table"><thead><tr><th class="row-actions-head" aria-label="Zeilenaktionen"></th><th>Name</th><th>ISIN</th><th class="num">Letzter Kurs</th><th>Währung</th></tr></thead><tbody>${rows.map((r) => `<tr class="security-row${r[5] ? ' is-selected' : ''}"><td></td><td><span class="security-logo security-logo--row security-logo--initial">${r[0]}</span>${r[1]}</td><td>${r[2]}</td><td class="num">${r[3]}</td><td>${r[4]}</td></tr>`).join('')}</tbody></table></div></div>`;
+  const tabs = ['Übersicht', 'Diagramm', 'Transaktionen', 'Trades', 'Kurse', 'Bestände', 'Klassifizierungen', 'Research', 'Termine'];
+  const pane = `<aside class="detail-pane" id="security-detail-pane" aria-label="Ausgewähltes Wertpapier"><header class="detail-pane-head"><div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial">N</span><div><h2>Nordwind Industrie AG</h2><p class="detail-pane-sub">DE000000000A · NWI · EUR · Letzter 112,40 (2026-09-30)</p></div></div><div class="detail-pane-head__actions"><button type="button" class="button-ghost">Bearbeiten</button><button type="button" class="button-ghost">Split erfassen</button><button type="button" class="icon-button" aria-label="Maximieren">${ico('max', 16)}</button><a class="icon-button" aria-label="Detail schließen">${ico('x', 16)}</a></div></header><nav id="detail-pane-tabs" class="detail-pane-tabs" role="tablist" data-scroll-start aria-label="Wertpapier-Detailansicht">${tabs.map((t) => `<button type="button" role="tab" class="detail-pane-tab${t === 'Kurse' ? ' is-active' : ''}"${t === 'Kurse' ? ' aria-selected="true"' : ''}>${t}</button>`).join('')}</nav><section role="tabpanel" class="detail-tab-panel detail-tab-panel--quotes"><p class="summary-basis">Zeitraum 1J · wie im Diagramm</p><div class="data-table-wrap" id="quotes-table-wrapper"><table class="data-table detail-quotes-table"><thead><tr><th>Datum</th><th class="num">Schlusskurs</th><th class="num">Gespeichert</th><th>Quelle</th></tr></thead><tbody><tr><td>2026-09-30</td><td class="num">112,40 <small>EUR</small></td><td class="num">112,40</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr><tr><td>2026-09-29</td><td class="num">111,85 <small>EUR</small></td><td class="num">111,85</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr></tbody></table></div></section></aside>`;
+  return `<section class="workspace-panel" id="securities-panel"><div id="securities-workspace" class="securities-workspace securities-workspace--split">${list}<div id="securities-detail-splitter" class="securities-detail-splitter" role="separator"><span aria-hidden="true"></span></div>${pane}</div></section>`;
+}
+
+const TPL = {
+  positions: (mode) => shell('Vermögen', `<div class="workspace-page portfolio-overview">${positionsSection(mode, true)}</div>`, '', 'Wert, Performance und Allokation'),
+  contribution: (mode) => shell('Vermögen', `<div class="workspace-page portfolio-overview"><section id="portfolio-performance" class="workspace-section">${contributionPhone(mode)}</section></div>`),
+  topbars: () => `<p class="lbl" style="margin:8px 12px 4px">Konten &amp; Depots</p>${topbar('Konten &amp; Depots', 'Depots, Verrechnungskonten und ihre Buckets')}<p class="lbl" style="margin:12px 12px 4px">Klassifizierungen</p>${topbar('Klassifizierungen', 'Wertpapiere per Drag-and-drop zwischen Kategorien einsortieren')}<div style="height:12px"></div>`,
+  kpi: (mode) => shell('Vermögen', `<div class="workspace-page portfolio-overview">${kpiSupport(mode)}</div>`),
+  split: () => shell('Wertpapiere', splitWorkspace(), 'app-main--workspace', 'Suchen, filtern und pflegen des investierbaren Universums.')
+};
+
+/* ---- frame assembly and measurement ---- */
+const styleOf = (id) => `<style>${document.getElementById(id).textContent}</style>`;
+const BOARD_IN_FRAME = '<style>.lbl{font:700 11px/1.2 var(--font-sans);letter-spacing:.06em;text-transform:uppercase;color:#5a6577}.is-new{outline:2px dashed var(--color-accent);outline-offset:2px;border-radius:4px}.culprit{outline:2px dashed var(--color-danger);outline-offset:-2px}.topbar{position:relative}</style>';
+const frameDoc = (body, css) => `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${BOARD_IN_FRAME}${css}</head><body>${body}</body></html>`;
+/* A B frame carries J6.2 A's identifier too, so it takes rule ② alone from the proposal. */
+const twinRule = () => `<style>${document.getElementById('proposal').textContent.match(/\.twin-id \{[^}]*\}/)[0]}</style>`;
+const cssFor = (mode) => (mode === 'a' ? styleOf('proposal') : mode === 'b' ? twinRule() + styleOf('variant-b') : '');
+const put = (key, html) => { const el = document.querySelector(`[data-measure="${key}"]`); if (el) el.innerHTML = html; };
+
+function measure(f, doc) {
+  const tpl = f.dataset.tpl, mode = f.dataset.mode, win = f.contentWindow;
+  if (tpl === 'positions' && f.dataset.scrollTable) {
+    const wrap = doc.getElementById('holdings-positions-wrapper');
+    const nameTh = doc.querySelectorAll('#holdings-positions-table th')[1].getBoundingClientRect();
+    const cut = Math.round(wrap.getBoundingClientRect().left - nameTh.left);
+    const key = mode === 'b' ? 'positions-b' : 'positions-swiped';
+    put(key, mode === 'b'
+      ? (() => {
+          const qtyW = doc.querySelectorAll('#holdings-positions-table th')[2].getBoundingClientRect().width;
+          const over = Math.round(nameTh.width + qtyW - wrap.clientWidth);
+          return `Swiped <b>${wrap.scrollLeft}&nbsp;px</b> to the end: the depot is under the pinned name. The name column (${Math.round(nameTh.width)}&nbsp;px) and the quantity (${Math.round(qtyW)}&nbsp;px) need more than the ${wrap.clientWidth}&nbsp;px scroller, so the pinned name ${over > 0 ? `covers <b>${over}&nbsp;px</b> of the quantity column — its head reads "…KZAHL"` : 'fits beside it'}. Unswiped, B opens as Heute does.`;
+        })()
+      : cut > 0
+        ? `Swiped <b>${wrap.scrollLeft}&nbsp;px</b> to the end: the depot is gone and every name loses its first <b>${cut}&nbsp;px</b>; the twins are still identical rows.`
+        : `Swiped <b>${wrap.scrollLeft}&nbsp;px</b> to the end: the depot column is cut; the names here stand whole, but one picked column or a longer name pushes them out too. The twins are identical rows either way.`);
+  }
+  if (tpl === 'positions' && mode === 'today' && !f.dataset.scrollTable) {
+    const wrap = doc.getElementById('holdings-positions-wrapper');
+    const qty = doc.querySelector('#holdings-positions-table th.num').getBoundingClientRect();
+    put('positions', `Table <b>${wrap.scrollWidth}&nbsp;px</b> in a <b>${wrap.clientWidth}&nbsp;px</b> scroller; "Stückzahl" starts at x&nbsp;<b>${Math.round(qty.left)}</b> of 390.`);
+  }
+  if (tpl === 'topbars') {
+    const h1 = doc.querySelector('.topbar-page h1');
+    const box = h1.parentElement.getBoundingClientRect().width;
+    const key = mode === 'a' ? 'title-a' : 'title-today';
+    const ell = h1.scrollWidth > h1.clientWidth;
+    put(key, `Title box <b>${Math.round(box)}&nbsp;px</b>; h1 <b>${Math.round(h1.getBoundingClientRect().width)}&nbsp;px</b> wide, text ${Math.round(h1.scrollWidth)}&nbsp;px — ${mode === 'a' ? (ell ? '<b>the h1 overflows itself: ellipsis drawn</b>' : 'no overflow') : '<b>the h1 never overflows itself: no ellipsis, cut by the container</b>'}.`);
+  }
+  if (tpl === 'kpi') {
+    const card = doc.getElementById('kpi-securities');
+    const digits = card.querySelector('[data-count-digits]').getBoundingClientRect();
+    const suf = card.querySelector('.value-suffix').getBoundingClientRect();
+    const label = doc.querySelector('#kpi-invested .stat__head > span');
+    const lines = Math.round(label.getBoundingClientRect().height / parseFloat(win.getComputedStyle(label).lineHeight || 15));
+    const same = Math.abs(suf.bottom - digits.bottom) < 6;
+    const key = mode === 'a' ? 'kpi-a' : 'kpi-today';
+    const walker = doc.createTreeWalker(label, NodeFilter.SHOW_TEXT);
+    let dotTop = null, firstTop = null;
+    for (let n = walker.nextNode(); n; n = walker.nextNode()) {
+      const i = n.data.indexOf('·');
+      if (firstTop === null && n.data.trim()) { const r = doc.createRange(); r.setStart(n, n.data.search(/\S/)); r.setEnd(n, n.data.search(/\S/) + 1); firstTop = r.getBoundingClientRect().top; }
+      if (i >= 0) { const r = doc.createRange(); r.setStart(n, i); r.setEnd(n, i + 1); dotTop = r.getBoundingClientRect().top; }
+    }
+    const dot = Math.abs(dotTop - firstTop) < 3 ? '"·" ends line 1' : '"·" starts line 2';
+    put(key, `"Wertpapiere": suffix top <b>${Math.round(suf.top)}</b>, digits bottom <b>${Math.round(digits.bottom)}</b> — ${same ? '<b>one line</b>' : '<b>EUR under the figure</b>'} · the "Anfangswert" label: <b>${lines} lines, ${dot}</b>.`);
+  }
+  if (tpl === 'split') {
+    const de = doc.documentElement;
+    const tabs = doc.getElementById('detail-pane-tabs');
+    const key = mode === 'a' ? 'split-a' : 'split-today';
+    if (mode === 'today') tabs.classList.add('culprit');
+    put(key, `Page <b>${de.scrollWidth}&nbsp;px</b> wide in a <b>${de.clientWidth}&nbsp;px</b> window · tab row ${Math.round(tabs.getBoundingClientRect().width)}&nbsp;px, its tabs ${tabs.scrollWidth}&nbsp;px${mode === 'a' ? ' — <b>the row scrolls, the page does not</b>' : ' — <b>the page scrolls ' + (de.scrollWidth - de.clientWidth) + '&nbsp;px sideways</b>'}.`);
+    if (mode === 'today') win.scrollTo(de.scrollWidth, 0);
+  }
+}
+
+document.querySelectorAll('iframe[data-tpl]').forEach((f) => {
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument;
+    f.style.height = Math.ceil(doc.documentElement.scrollHeight) + 'px';
+    if (f.dataset.scrollTable === 'end') {
+      const wrap = doc.getElementById('holdings-positions-wrapper');
+      wrap.scrollLeft = wrap.scrollWidth;
+    }
+    setTimeout(() => measure(f, doc), 60);
+  });
+  f.srcdoc = frameDoc(TPL[f.dataset.tpl](f.dataset.mode), cssFor(f.dataset.mode));
+});
+
+/* ---- the desktop frames of J6.2 ---- */
+document.getElementById('contrib-today').innerHTML = contributionDesk('today');
+document.getElementById('contrib-a').innerHTML = contributionDesk('a');
+document.getElementById('contrib-b').innerHTML = contributionDesk('b');
+document.getElementById('pos-desk-today').innerHTML = positionsSection('today', false);
+document.getElementById('pos-desk-a').innerHTML = positionsSection('a', false);
+</script>
+</body>
+</html>
