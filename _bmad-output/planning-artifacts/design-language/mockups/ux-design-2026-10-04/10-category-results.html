@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Klassifizierung: Ansicht und Währung des Kategorie-Ergebnisses (Picks J10, J10.2: #1091, #1048)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the rules the J10 stories add to app.css. Everything else in
+     the frames is markup and classes that already ship: classifications_live.ex
+     (render :show — .classifications-detail, .detail-head, .soll-editor,
+     .soll-editor__head, .soll-view-picker, .tree-search, .tree-toggle,
+     .summary-basis.tree-basis, .tree-head, .tree, category_node/1 —
+     .cat-node, .cat-summary, .cat-name, .cat-swatch, .cat-positions,
+     .cat-value, .cat-invested, .cat-result, .cat-result-partial,
+     .cat-actions), PortfolixirWeb.ViewSwitcher (.view-switcher, .view-chip,
+     .view-chip__plan-dot, .view-switcher__manage, .view-switcher__active,
+     .view-switcher__help) and AppShell.data_note. -->
+<style id="proposal">
+  /* ① J10-A: the Wealth page's view switcher, unchanged, in a controls row
+     under the detail head (`.workspace-section--controls`, issue 790's
+     row). It needs no rule. The plan editor loses its own select; its head
+     states the scope it edits as text, in the picker label's voice. */
+  .soll-editor__scope {
+    font-size: 0.9em;
+    color: var(--color-text-muted);
+  }
+
+  /* ② J10.2-A (#1048): the members the roll-up cannot add in EUR are named
+     where the totals are read — one attention data note between the basis
+     line and the tree head (UX-DR25), inside a role="status" region. The
+     page's blocks already take the band's gutter (`.classifications-detail
+     > :not(.workspace-section)`); the note only needs its distance. */
+  .classifications-detail [data-role="category-result-excluded"] {
+    margin-top: 0.5rem;
+  }
+
+  /* ③ The row's partial count ("1/2") has no rule in app.css today, so it
+     prints as a third line in the result cell's own size and colour. It is
+     the cell's sub-figure: the percentage's size, muted, and it says what
+     it counts in words beside the number (visible on the desktop). */
+  .cat-result-partial {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .app980 { max-width: 980px; }
+  .mock-board > p.mock-note { max-width: 118ch; }
+  .mock-frame { overflow: visible; }
+  .mock-frame .workspace-page { min-height: 0; padding-bottom: 6px; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 3px; border-radius: 6px; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .argue { max-width: 110ch; font-size: 12.5px; display: grid; gap: 6px; margin: 12px 0 0; }
+  .argue p, .argue ul { margin: 0; }
+  .argue ul { padding-left: 18px; }
+  .argue li { margin: 0 0 4px; }
+  .argue code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .elide { margin: 6px 0; font-size: 12px; color: var(--mock-ink); font-style: italic; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; text-transform: none; flex: none; background: var(--color-danger); }
+  .pins { margin: 8px 0 0; padding-left: 0; list-style: none; font-size: 12.5px; display: grid; gap: 5px; max-width: 110ch; }
+  .pins li { display: flex; gap: 6px; align-items: baseline; }
+  .pins li > i.pin { margin: 0; }
+  .mock-title-anchor { position: relative; }
+  .mock-title { position: absolute; z-index: 9; top: calc(100% + 2px); right: 0; padding: 3px 7px; border: 1px solid #a8aeb9; background: #fbfbf8; color: #1f2430; font: 12px/1.35 system-ui, -apple-system, "Segoe UI", sans-serif; white-space: nowrap; box-shadow: 0 2px 6px rgba(15,23,42,.18); text-transform: none; letter-spacing: 0; font-weight: 400; }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  .soll-editor { padding: 16px 22px; }
+  .soll-plan-versions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 12px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-board > p.mock-note { padding: 0 12px; }
+    .cap, .argue, .pins { padding: 0 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .soll-editor { padding: 14px 16px; }
+    .mock-title { display: none; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-tri" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></symbol>
+    <symbol id="i-set" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar desk-only"><b>Pick J10 — where the view scope shows on the classification screen (#1091, the screen half).</b> The category-result read takes a view (#901), the screen never shows it, and the screen's one view picker steers only the plan editor. <b>A</b> — the Wealth page's view switcher becomes the screen's one scope: the tree's figures and the plan editor both follow it · <b>B</b> — the plan editor's select moves up and becomes a page-local scope select for both. <span class="rec">Recommended A</span> <b>Pick J10.2 — the cost basis across portfolios of different base currencies (#1048).</b> <b>A</b> — every scope, „Alles“ included, is in EUR; a member whose cost was not paid in EUR is left out of „Einstand“ and „Ergebnis“ and named with its native figure, as the #901 read does · B — convert through the EUR hub (argued, not drawn). <span class="rec">Recommended A</span> A comment naming „J10 B“ or „J10.2 B“ on the planning PR changes a pick; silence adopts the recommendation. The read half of #1091 ships in another lane; this board draws only the screen. Every name, amount and view is invented. <b>Dashed = new.</b></div>
+<p class="phone-only phone-cap"><b>J10 at 390&nbsp;px.</b> A real 390-px viewport: the tree rows lie on two lines (issue 873), positions and cost hide under 560&nbsp;px. Recommended: J10&nbsp;A, J10.2&nbsp;A. All data invented.</p>
+
+<!-- ============================ HEUTE ============================ -->
+<section class="mock-board" id="today">
+  <h2>Today — the plan editor reads „Langfrist“, the tree reads every portfolio, and „Einstand“ adds EUR and USD <small>Verwaltung → Klassifizierungen → Strategie</small></h2>
+  <p class="mock-note desk-only">The screen's only view control is the plan editor's „Soll-Plan für Sicht:“ (<code>classifications_live.ex:811-824</code>). The tree's figures come from two other reads: „Positionen“ and „Wert“ from the global valuation (<code>:52</code>, EUR), „Einstand“ and „Ergebnis“ from <code>CategoryResult.for_all_portfolios/2</code> (<code>:1854-1860</code>), which no API read serves and which adds each portfolio's cost in its own base currency (#1048). Here the instance has a second portfolio in USD holding Harborline Freight Inc: „Plattformen“ adds 5.800,00 EUR and 1.500,00 USD to „7.300,00“, under a cell whose title promises EUR. „Wert“ minus „Einstand“ (1.920,00) is not „Ergebnis“ (2.067,11).</p>
+  <div class="mock-frame mock-before app980"><span class="mock-tag">Heute</span>
+    <div class="workspace-page classifications-detail">
+      <header class="detail-head">
+        <h2>Strategie</h2>
+        <button type="button" class="button-danger">Klassifizierung löschen</button>
+      </header>
+      <section class="workspace-section soll-editor">
+        <header class="soll-editor__head">
+          <h2>Soll-Plan</h2>
+          <form class="soll-view-picker">
+            <label class="soll-view-picker__label">Soll-Plan für Sicht:</label>
+            <select><option>Gesamt</option><option selected>Langfrist</option><option>Sparplan</option></select><i class="pin">1</i>
+          </form>
+        </header>
+        <div class="soll-plan-versions">
+          <span class="muted">Langfrist-Plan</span>
+          <button type="button" class="button">Plan duplizieren</button>
+          <details class="plan-rename"><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron"><use href="#i-chev"/></svg> Umbenennen</summary></details>
+        </div>
+        <p class="elide">… the plan table (Kategorie · Soll %) as today.</p>
+      </section>
+      <p class="elide">… search, „Nur aktuelle Positionen“ and the „Neue Kategorie“ form as today.</p>
+      <div class="summary-basis tree-basis" data-role="category-result-basis">Ergebnis: heutige Zusammensetzung, keine Periodenrendite<details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zum Ergebnis">ⓘ</summary></details></div>
+      <div class="tree-head" data-role="tree-head"><span class="tree-head__name">Kategorie</span><span class="tree-head__num">Positionen</span><span class="tree-head__num">Wert</span><span class="tree-head__num">Einstand</span><span class="tree-head__num">Ergebnis</span><span class="tree-head__actions" aria-hidden="true"></span></div>
+      <section class="tree">
+        <details class="cat-node" open>
+          <summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#16a34a"></span><span class="cat-name__text">Stabilität</span></span><span class="cat-positions">2</span><span class="cat-value">9.840,00</span><span class="cat-invested">8.900,00</span><span class="cat-result is-positive"><b>+940,00</b><small>+10,6 %</small></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary>
+          <div class="cat-body">
+            <details class="cat-node"><summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#22c55e"></span><span class="cat-name__text">Qualität</span></span><span class="cat-positions">2</span><span class="cat-value">9.840,00</span><span class="cat-invested">8.900,00</span><span class="cat-result is-positive"><b>+940,00</b><small>+10,6 %</small></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary></details>
+          </div>
+        </details>
+        <details class="cat-node" open>
+          <summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#2563eb"></span><span class="cat-name__text">Wachstum</span></span><span class="cat-positions">4</span><span class="cat-value">21.630,00</span><span class="cat-invested">17.700,00</span><span class="cat-result is-positive"><b>+4.077,11</b><small>+23,0 %</small></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary>
+          <div class="cat-body">
+            <details class="cat-node"><summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#1e40af"></span><span class="cat-name__text">Kern global</span></span><span class="cat-positions">2</span><span class="cat-value">12.410,00</span><span class="cat-invested">10.400,00</span><span class="cat-result is-positive"><b>+2.010,00</b><small>+19,3 %</small></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary></details>
+            <details class="cat-node"><summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#3b82f6"></span><span class="cat-name__text">Plattformen</span></span><span class="cat-positions">2</span><span class="cat-value">9.220,00</span><span class="cat-invested mock-title-anchor">7.300,00<i class="pin">2</i><span class="mock-title">Was die hier eingeordneten Positionen gekostet haben, in EUR</span></span><span class="cat-result is-positive"><b>+2.067,11</b><small>+28,3 %</small></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary></details>
+          </div>
+        </details>
+        <details class="cat-node"><summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#0f766e"></span><span class="cat-name__text">Anleihen</span></span><span class="cat-positions">1</span><span class="cat-value">4.915,00</span><span class="cat-invested">5.000,00</span><span class="cat-result is-negative"><b>-85,00</b><small>-1,7 %</small></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary></details>
+      </section>
+      <p class="elide">… „Nicht zugeordnet“ as today.</p>
+    </div>
+  </div>
+  <ul class="pins desk-only">
+    <li><i class="pin">1</i><span>The only view control steers the plan editor alone; the tree below reads every portfolio and says so nowhere — its basis line names neither scope nor currency (EXPERIENCE.md, Flow 3: „every scoped surface states its scope“). The editor calls the no-view scope „Gesamt“ and the view a „Sicht“; the switcher everywhere else says „Alles“ and „Ansicht“.</span></li>
+    <li><i class="pin">2</i><span>„7.300,00“ = 5.800,00 EUR + 1.500,00 USD. The cell's title (drawn) promises EUR. ADR-0041 §1 defines „invested“ as base-currency cost; the #901 view read already refuses this sum and names the member instead.</span></li>
+  </ul>
+</section>
+
+<!-- ============================ J10 — A ============================ -->
+<section class="mock-board" id="j10-a">
+  <h2>J10 — A <span class="rec">recommended</span> The view switcher, one scope for the whole screen <small>view „Langfrist“ chosen</small></h2>
+  <p class="mock-note desk-only"><b>Argument.</b> The app has one scope control, the view switcher of the Wealth page (DESIGN.md D4: chips, no „Ansicht:“ prefix, „Ansichten“ as a quiet link), and one notion of „the active view“, carried across pages by <code>ViewScope</code> (EXPERIENCE.md, Flow 3). A puts that control, unchanged, in a controls row under the detail head, where it governs everything below it: „Positionen“, „Wert“, „Einstand“ and „Ergebnis“ all read the chosen view, and the plan editor edits that view's plan. Plan and result are then about the same scope, which is the only way a reader can hold the plan's weights against the result beside them. The switcher already carries the plan dot per view („Hat einen Soll-Plan für die aktuelle Klassifizierung“) — the marker was built for exactly this screen's question. The editor's own select goes; its head says which plan it edits as text. The basis line names the view and the currency (Voice and Tone: „numbers state their basis … for scoped figures, the view“). Built-in trees, which have no editor, get the same control — in B they would get none without a second build.</p>
+  <div class="mock-frame mock-after app980"><span class="mock-tag">A — Ansicht „Langfrist“</span>
+    <div class="workspace-page classifications-detail">
+      <header class="detail-head">
+        <h2>Strategie</h2>
+        <button type="button" class="button-danger">Klassifizierung löschen</button>
+      </header>
+      <div class="workspace-section workspace-section--controls is-new">
+        <div class="view-switcher" role="group" aria-label="Aktive Filter" style="margin-bottom:0">
+          <nav class="view-switcher__options" aria-label="Aktive Filter">
+            <a class="view-chip" data-has-plan title="Hat einen Soll-Plan für die aktuelle Klassifizierung">Alles<span class="view-chip__plan-dot" aria-hidden="true">•</span></a>
+            <a class="view-chip is-active" aria-current="true" data-has-plan>Langfrist<span class="view-chip__plan-dot" aria-hidden="true">•</span></a>
+            <a class="view-chip">Sparplan</a>
+          </nav>
+          <a class="view-switcher__manage" data-role="manage-views"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-set"/></svg> Ansichten</a>
+          <p class="view-switcher__active" role="status">Eingegrenzt auf Ansicht: Langfrist</p>
+          <details class="view-switcher__help"><summary aria-label="Über Ansichten">ⓘ</summary></details>
+        </div>
+      </div>
+      <section class="workspace-section soll-editor">
+        <header class="soll-editor__head">
+          <h2>Soll-Plan</h2>
+          <span class="soll-editor__scope is-new">für Ansicht Langfrist</span>
+        </header>
+        <div class="soll-plan-versions">
+          <span class="muted">Langfrist-Plan</span>
+          <button type="button" class="button">Plan duplizieren</button>
+          <details class="plan-rename"><summary class="disclosure-summary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="disclosure-chevron"><use href="#i-chev"/></svg> Umbenennen</summary></details>
+        </div>
+        <p class="elide">… the plan table as today; „Kopieren von“ still lists the other views.</p>
+      </section>
+      <p class="elide">… search, „Nur aktuelle Positionen“, the „Neue Kategorie“ form.</p>
+      <div class="summary-basis tree-basis" data-role="category-result-basis"><span class="is-new" style="margin-right:6px">Ansicht Langfrist · in EUR ·</span> Ergebnis: heutige Zusammensetzung, keine Periodenrendite<details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zum Ergebnis">ⓘ</summary></details></div>
+      <div class="tree-head" data-role="tree-head"><span class="tree-head__name">Kategorie</span><span class="tree-head__num">Positionen</span><span class="tree-head__num">Wert</span><span class="tree-head__num">Einstand</span><span class="tree-head__num">Ergebnis</span><span class="tree-head__actions" aria-hidden="true"></span></div>
+      <section class="tree">
+        <details class="cat-node" open>
+          <summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#16a34a"></span><span class="cat-name__text">Stabilität</span></span><span class="cat-positions">2</span><span class="cat-value">9.840,00</span><span class="cat-invested">8.900,00</span><span class="cat-result is-positive"><b>+940,00</b><small>+10,6 %</small></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary>
+          <div class="cat-body">
+            <details class="cat-node"><summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#22c55e"></span><span class="cat-name__text">Qualität</span></span><span class="cat-positions">2</span><span class="cat-value">9.840,00</span><span class="cat-invested">8.900,00</span><span class="cat-result is-positive"><b>+940,00</b><small>+10,6 %</small></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary></details>
+          </div>
+        </details>
+        <details class="cat-node" open>
+          <summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#2563eb"></span><span class="cat-name__text">Wachstum</span><span class="cat-without-holdings">+2 nicht in der Ansicht</span></span><span class="cat-positions">2</span><span class="cat-value">12.827,11</span><span class="cat-invested">10.200,00</span><span class="cat-result is-positive"><b>+2.627,11</b><small>+25,8 %</small></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary>
+          <div class="cat-body">
+            <details class="cat-node"><summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#1e40af"></span><span class="cat-name__text">Kern global</span><span class="cat-without-holdings">+1 nicht in der Ansicht</span></span><span class="cat-positions">1</span><span class="cat-value">5.260,00</span><span class="cat-invested">4.400,00</span><span class="cat-result is-positive"><b>+860,00</b><small>+19,5 %</small></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary></details>
+            <details class="cat-node"><summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#3b82f6"></span><span class="cat-name__text">Plattformen</span><span class="cat-without-holdings">+1 nicht in der Ansicht</span></span><span class="cat-positions">1</span><span class="cat-value">7.567,11</span><span class="cat-invested">5.800,00</span><span class="cat-result is-positive"><b>+1.767,11</b><small>+30,5 %</small></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary></details>
+          </div>
+        </details>
+        <details class="cat-node"><summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#0f766e"></span><span class="cat-name__text">Anleihen</span></span><span class="cat-positions">1</span><span class="cat-value">4.915,00</span><span class="cat-invested">5.000,00</span><span class="cat-result is-negative"><b>-85,00</b><small>-1,7 %</small></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary></details>
+      </section>
+    </div>
+  </div>
+  <div class="argue desk-only">
+    <p><b>What A asks of the build.</b></p>
+    <ul>
+      <li><b>Every figure of the row follows the scope</b>, not only „Einstand“ and „Ergebnis“: today „Positionen“ and „Wert“ come from the global valuation (<code>:52</code>), a different read from the result (<code>:1857</code>). Scoping only the result would put two scopes in one row. „Wert“ reads the view's positions the way the view valuation narrows them (ADR-0018), in EUR.</li>
+      <li><b>Members outside the view</b> stay in the tree — it is a classification, not a holding list — and are counted the way „ohne Bestand“ is today: a muted suffix on the name („+2 nicht in der Ansicht“), hidden rows under „Nur aktuelle Positionen“. Wording proposed; the count is the existing <code>.cat-without-holdings</code> slot.</li>
+      <li><b>A chip is a navigation</b> through <code>ViewScope</code>, as on Wealth, so the classification screen mounts with the active view, and a view chosen here is the active view on Wealth too. The portfolio page's no-plan hint deep-links with <code>?view=</code> instead of <code>?soll_view=</code>.</li>
+      <li><b>„Alles“</b> reads the roll-up the read lane serves for every portfolio, under J10.2's currency rule below.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ J10 — B ============================ -->
+<section class="mock-board" id="j10-b">
+  <h2>J10 — B The plan editor's select becomes a page-local scope select <small>one select, this page only</small></h2>
+  <p class="mock-note desk-only"><b>Argument and costs.</b> B reuses what the screen has: the editor's select moves out of the editor to the top of the page and now steers both the plan and the tree, without a navigation and without touching the cross-page view. That is its whole advantage — a change of scope on an administration screen does not change what Wealth shows next. Its costs: <b>(1) a second form of scope control</b> in an app that has one — a select where every other scoped surface has chips (UX-DR16 class 2 for filters; D4 removed exactly this „Ansicht“ label from the switcher); <b>(2) two vocabularies</b> — the editor's „Gesamt“ and „Sicht“ against „Alles“ and „Ansicht“ everywhere else, which B either keeps or must rename anyway; <b>(3) two answers to „which view is active“</b>: arriving from Wealth on „Langfrist“, the screen opens on „Gesamt“, and the operator reads a different scope's result without having chosen it; <b>(4) no plan dots</b>, unless the select grows them as option text. A gives the same single scope with the control and the words the operator already knows.</p>
+  <div class="mock-frame mock-after app980"><span class="mock-tag vtag">B — Ansicht „Langfrist“, seitenlokal</span>
+    <div class="workspace-page classifications-detail">
+      <header class="detail-head">
+        <h2>Strategie</h2>
+        <button type="button" class="button-danger">Klassifizierung löschen</button>
+      </header>
+      <div class="workspace-section workspace-section--controls is-new">
+        <form class="soll-view-picker">
+          <label class="soll-view-picker__label" for="b-scope">Ansicht</label>
+          <select id="b-scope" style="width:auto; min-width:12rem"><option>Gesamt</option><option selected>Langfrist</option><option>Sparplan</option></select>
+        </form>
+      </div>
+      <section class="workspace-section soll-editor">
+        <header class="soll-editor__head"><h2>Soll-Plan</h2><span class="soll-editor__scope">für Ansicht Langfrist</span></header>
+        <p class="elide">… versions and plan table as in A.</p>
+      </section>
+      <div class="summary-basis tree-basis"><span class="is-new" style="margin-right:6px">Ansicht Langfrist · in EUR ·</span> Ergebnis: heutige Zusammensetzung, keine Periodenrendite<details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zum Ergebnis">ⓘ</summary></details></div>
+      <p class="elide">… the tree with A's figures.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ J10.2 ============================ -->
+<section class="mock-board" id="j10-2">
+  <h2>J10.2 · #1048 — A <span class="rec">recommended</span> „Alles“ in EUR; a member whose cost was not paid in EUR is named, not added <small>view „Alles“ chosen · drawn on A's screen</small></h2>
+  <p class="mock-note desk-only"><b>Argument.</b> #1048 asks the screen to „state one currency the same way“ as the #901 read, which already decided it: a view's roll-up is in EUR, and a member held in a portfolio whose base currency is not EUR has no EUR cost to add, so it is excluded and named (<code>CategoryResult.for_view/3</code>, <code>in_hub_currency/2</code>). The screen follows that rule for every scope, „Alles“ included, so the screen and the agent's read cannot disagree. ADR-0041 §4 is the shape (excluded and named, never counted as zero, the row stating how many it covers) and UX-DR25 the appearance: one <code>attention</code> note where the totals are read, with the count, the name and the <b>native</b> figure (clause 2: never a converted one), and no button (clause 3: there is nothing to fix). Because „Wert“ still includes the member, the note says so (UX-DR26: a stated difference a reader could otherwise reconcile by subtracting). <b>Not drawn — B, convert through the EUR hub:</b> a cost is what was paid (ADR-0033); converting 1.500,00 USD at today's rate states a cost nobody paid, converting at each purchase date's rate is a new derived metric with its own computation basis, and either way the screen would then disagree with the API's view read, which excludes. A per-currency subtotal (two figures per cell) and blanking the whole category's cost for one USD member were also weighed and are worse: the first breaks the column grid of C8-A, the second hides five members to avoid naming one.</p>
+  <div class="mock-frame mock-after app980"><span class="mock-tag">A — Ansicht „Alles“</span>
+    <div class="workspace-page classifications-detail">
+      <header class="detail-head">
+        <h2>Strategie</h2>
+        <button type="button" class="button-danger">Klassifizierung löschen</button>
+      </header>
+      <div class="workspace-section workspace-section--controls">
+        <div class="view-switcher" role="group" aria-label="Aktive Filter" style="margin-bottom:0">
+          <nav class="view-switcher__options" aria-label="Aktive Filter">
+            <a class="view-chip is-active" aria-current="true" data-has-plan>Alles<span class="view-chip__plan-dot" aria-hidden="true">•</span></a>
+            <a class="view-chip" data-has-plan>Langfrist<span class="view-chip__plan-dot" aria-hidden="true">•</span></a>
+            <a class="view-chip">Sparplan</a>
+          </nav>
+          <a class="view-switcher__manage"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-set"/></svg> Ansichten</a>
+          <details class="view-switcher__help"><summary aria-label="Über Ansichten">ⓘ</summary></details>
+        </div>
+      </div>
+      <p class="elide">… „Soll-Plan für Ansicht Alles“, search, toggle, form.</p>
+      <div class="summary-basis tree-basis" data-role="category-result-basis"><span>Ansicht Alles · in EUR ·</span> Ergebnis: heutige Zusammensetzung, keine Periodenrendite<details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zum Ergebnis">ⓘ</summary></details></div>
+      <div role="status">
+        <div class="data-note data-note--attention is-new" data-role="category-result-excluded">
+          <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-tri"/></svg></span>
+          <span class="data-note__word">Achtung</span>
+          <div class="data-note__body">1 Position ist in „Einstand“ und „Ergebnis“ nicht enthalten, weil ihr Einstand nicht in EUR bezahlt wurde: <bdi>Harborline Freight Inc</bdi> (Plattformen), Einstand 1.500,00 USD. Im „Wert“ ist sie enthalten.</div>
+        </div>
+      </div>
+      <div class="tree-head" data-role="tree-head"><span class="tree-head__name">Kategorie</span><span class="tree-head__num">Positionen</span><span class="tree-head__num">Wert</span><span class="tree-head__num">Einstand</span><span class="tree-head__num">Ergebnis</span><span class="tree-head__actions" aria-hidden="true"></span></div>
+      <section class="tree">
+        <details class="cat-node"><summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#16a34a"></span><span class="cat-name__text">Stabilität</span></span><span class="cat-positions">2</span><span class="cat-value">9.840,00</span><span class="cat-invested">8.900,00</span><span class="cat-result is-positive"><b>+940,00</b><small>+10,6 %</small></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary></details>
+        <details class="cat-node" open>
+          <summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#2563eb"></span><span class="cat-name__text">Wachstum</span></span><span class="cat-positions">4</span><span class="cat-value">21.630,00</span><span class="cat-invested is-new">16.200,00</span><span class="cat-result is-positive"><b>+3.777,11</b><small>+23,3 %</small><span class="cat-result-partial" title="Für einige Positionen hier lässt sich kein Ergebnis ableiten; sie bleiben auf beiden Seiten der Summe außen vor, statt als Null zu zählen.">3/4</span></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary>
+          <div class="cat-body">
+            <details class="cat-node"><summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#1e40af"></span><span class="cat-name__text">Kern global</span></span><span class="cat-positions">2</span><span class="cat-value">12.410,00</span><span class="cat-invested">10.400,00</span><span class="cat-result is-positive"><b>+2.010,00</b><small>+19,3 %</small></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary></details>
+            <details class="cat-node"><summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#3b82f6"></span><span class="cat-name__text">Plattformen</span></span><span class="cat-positions">2</span><span class="cat-value">9.220,00</span><span class="cat-invested is-new">5.800,00</span><span class="cat-result is-positive"><b>+1.767,11</b><small>+30,5 %</small><span class="cat-result-partial">1/2</span></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary></details>
+          </div>
+        </details>
+        <details class="cat-node"><summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:#0f766e"></span><span class="cat-name__text">Anleihen</span></span><span class="cat-positions">1</span><span class="cat-value">4.915,00</span><span class="cat-invested">5.000,00</span><span class="cat-result is-negative"><b>-85,00</b><small>-1,7 %</small></span><span class="cat-actions"><button type="button" class="icon-mini">✎</button><button type="button" class="icon-mini">×</button></span></summary></details>
+      </section>
+    </div>
+  </div>
+  <div class="argue desk-only">
+    <p><b>States.</b> No member outside EUR → no note (a note that says „all in EUR“ would be an all-clear, UX-DR2). More than one → the note's count, then the members in a disclosure as aligned lines „name · category · native cost“, the trades facet's unmatched-sells shape. The same note names members excluded for any other reason the read reports (no usable price, no derivable base cost), each with its reason — today those are only a bare „1/2“ with the reason in a title. The figures: „Plattformen“ 5.800,00 / +1.767,11 / +30,5 % (was 7.300,00 / +2.067,11 / +28,3 %); „Wachstum“ 16.200,00 / +3.777,11 / +23,3 % (was 17.700,00 / +4.077,11 / +23,0 %).</p>
+  </div>
+</section>
+
+</body>
+</html>

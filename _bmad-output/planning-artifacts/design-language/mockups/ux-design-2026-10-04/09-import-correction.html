@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Importe: Korrektur gebuchter Beträge, Zeilenfehler, Bestätigen bei Treffern (Pick J9: #1076, #1044, #948, #923)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the rules the J9 stories add to app.css. Everything else in
+     the frames is markup and classes that already ship in imports_live.ex
+     (render_preview/1: .import-stats, .import-stat-card, .kind-chips,
+     .import-warning-box, .panel.inner, .mapping-grid, .mapping-row,
+     .mapping-count, .mapping-basis, .form-help, .actions; render_done/1:
+     .import-done, .import-skipped), AppShell (.area-tabs, .data-note,
+     .inline-result), the history's phone rows (.phone-rows, .phone-row*,
+     UX-DR27) and the booking-delete dialog (.modal, .booking-delete-dialog,
+     .booking-delete__subject, .modal-footer--band). -->
+<style id="proposal">
+  /* ① J9-A: the correction section. A `.panel.inner` of its own, OUTSIDE
+     the apply form (#pp-import-apply), placed after the parser warnings and
+     before the mapping: its button is a different act from "Import
+     bestätigen". Its finding is an attention data note (UX-DR17); the list
+     and the remedy button are children of the note (UX-DR17 rule 3), the
+     shape of the trades facet's unmatched-sells note. The note body holds a
+     table, so it stretches. */
+  #import-correction .data-note__body {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  #import-correction .data-note__body > p {
+    margin: 0;
+  }
+
+  /* ①b The cross-currency row says that its settlement legs change with
+     its cash (ADR-0053 §6), in the basis voice under the subject. */
+  .import-correction__legs {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    white-space: normal;
+  }
+
+  /* ①b' The total, per account, in the body's voice: what the confirm
+     will move. */
+  .import-correction__total {
+    margin: 0;
+    color: var(--color-text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ①c The foot of the note: the remedy, then why it is its own act. */
+  .import-correction__foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+  }
+
+  .import-correction__foot .summary-basis {
+    margin: 0;
+    font-size: 12px;
+    color: var(--color-text-muted);
+  }
+
+  /* ② UX-DR27: under 560 px the list gives way to two-line rows — the
+     history's shape: the subject over "Zeile · Datum · Art · Konto", the
+     difference over "gebucht → laut Datei". `.phone-rows { display: block }`
+     under 560 px already ships. */
+  #import-correction-phone-rows .phone-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  /* The rows are data, not the note's sentence: they take the text colour,
+     as the table's cells do (`.data-table tbody td`). */
+  #import-correction-phone-rows {
+    color: var(--color-text);
+  }
+
+  @media (max-width: 560px) {
+    #import-correction-table-wrapper {
+      display: none;
+    }
+
+    /* ②b A note that carries a list: under 560 px its body takes the
+       note's full width, under the glyph and the word, so the rows get
+       the line (beside the word they kept some 200 px at 390). */
+    #import-correction .data-note {
+      flex-wrap: wrap;
+    }
+
+    #import-correction .data-note__body {
+      flex-basis: 100%;
+    }
+  }
+
+  /* ③ The confirm dialog joins the narrow destructive modal's selector
+     lists (.quote-release-dialog, .booking-delete-dialog: 460 px, the
+     bottom sheet under 720 px, the confirm on its own line) as
+     `.import-correction-dialog` — a list membership, not a copy. On this
+     board it is drawn with `.booking-delete-dialog`, whose rules it joins.
+     Its subject box is `.booking-delete__subject`, joined the same way. */
+  .import-correction-dialog .booking-delete__subject .phone-row__figures {
+    white-space: normal;
+  }
+
+  /* ④ #1044, #948 and ADR-0053 §2 need no CSS: each is one more line in
+     the existing parser-warnings box ("Zeile N: <Grund> — Zeile nicht
+     übernommen"), counted in the existing "Warnungen" card.
+     ⑤ #923 needs no CSS: the security decision row takes the account
+     rows' `.mapping-count` and `.mapping-basis`, which already apply to
+     any `.mapping-row`. */
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .app980 { max-width: 980px; }
+  .mock-board > p.mock-note { max-width: 118ch; }
+  .mock-frame { overflow: visible; }
+  .mock-frame .workspace-page { padding: 0; gap: 0; min-height: 0; }
+  .mock-frame .workspace-section { padding: 18px 22px; }
+  .mock-frame .area-tabs { padding: 0 22px; }
+  .mock-frame > .alert-error { margin: 12px 22px 0; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 3px; border-radius: 6px; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .argue { max-width: 96ch; font-size: 12.5px; display: grid; gap: 6px; margin: 12px 0 0; }
+  .argue p, .argue ul { margin: 0; }
+  .argue ul { padding-left: 18px; }
+  .argue li { margin: 0 0 3px; }
+  .argue code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .elide { margin: 10px 0; font-size: 12px; color: var(--mock-ink); font-style: italic; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+  .stack { display: grid; gap: 14px; }
+  .trio { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; align-items: start; }
+  .backdrop { background: rgba(15, 23, 42, 0.4); padding: 28px 16px; display: grid; justify-items: center; border-radius: 0 0 12px 12px; }
+  .backdrop .modal { width: 100%; }
+  .mini-frame .workspace-section { padding: 14px 16px; }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  .import-warning-box pre { white-space: pre-wrap; }
+  .mapping-row select { min-height: 32px; }
+  .pinlist { margin: 6px 0 0; padding-left: 18px; font-size: 12px; color: var(--mock-ink); }
+  .pinlist li { margin: 0 0 3px; }
+  button[disabled] { cursor: not-allowed; }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 12px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-board > p.mock-note { padding: 0 12px; }
+    .cap { padding: 0 12px; }
+    .argue { padding: 0 12px; }
+    .pair, .trio { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .mock-frame .workspace-section { padding: 14px 16px; }
+    .mock-frame .area-tabs { padding: 0 16px; }
+    .mock-frame > .alert-error { margin: 10px 16px 0; }
+    .backdrop { padding: 120px 0 0; border-radius: 0; }
+    .backdrop .modal { border-radius: 8px 8px 0 0; box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18); }
+    .backdrop .modal-footer--band > button { min-height: 44px; }
+    .import-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-ast" viewBox="0 0 24 24"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></symbol>
+    <symbol id="i-tri" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+    <symbol id="i-bars" viewBox="0 0 24 24"><path d="M4 4h16M4 12h16M4 20h16"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 19h14"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar desk-only"><b>Pick J9 — where the correction of already-booked amounts lives (#1076, ADR-0053 §6).</b> A Portfolio Performance CSV re-dropped after ADR-0053 lands is all hash hits and books nothing; the rows that were booked with PP's gross <code>Betrag</code> instead of the <code>Gesamtpreis</code> are found exactly there (hash hit + stored cash ≠ the file's cash). <b>A</b> — the preview shows them in a section of their own, with its own confirm, separate from „Import bestätigen“ · <b>B</b> — a mode „Beträge prüfen“ on the Imports page that accepts a PP CSV only to check it. <span class="rec">Recommended A</span> <b>Fixed in both:</b> the list's columns, the confirm dialog, the result line, and „nothing differs → no section, no all-clear badge“ (UX-DR2). <b>Two conformance repairs as before/after:</b> ② a row the apply would fail on is named in the preview with its line and reason (#1044, #948, and ADR-0053 §2's new mismatch error); ③ a security decision whose rows are all hash hits no longer blocks Confirm (#923). A comment naming „J9 B“ on the planning PR changes the pick; silence adopts A. Every name, amount, date and ISIN is invented. <b>Dashed = new.</b></div>
+<p class="phone-only phone-cap"><b>J9 at 390&nbsp;px.</b> A real 390-px viewport: app.css' rules under 720 and 560&nbsp;px apply; the dialog is the booking dialog's bottom sheet. Recommended: J9&nbsp;A. All data invented.</p>
+
+<!-- ============================ ① J9 — HEUTE ============================ -->
+<section class="mock-board" id="j9-today">
+  <h2>① J9 · #1076 — Today: a re-dropped PP CSV says „nothing to import“ and nothing else <small>Transaktionen → Import → preview</small></h2>
+  <p class="mock-note desk-only">The file was imported months ago, before ADR-0053. Every row is a hash hit, so the preview says once, above the confirm, that the import creates nothing (board 04, ADR-0050 §2). True — and silent about the five rows whose stored cash is the file's gross <code>Betrag</code>: the buy debited 2,50 too little, the sale, the dividend and the interest credited too much. The balances stay off by 25,51 EUR, and no surface of the app can say so, because no stored row records its source format (ADR-0053 §6). The heading reads „Übersicht“: that is today's German msgstr for „Preview“ (found while drawing; not changed by this board, so every frame keeps it).</p>
+  <div class="mock-frame mock-before app980"><span class="mock-tag">Heute</span>
+    <div class="workspace-page">
+      <nav class="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs"><a class="area-tab"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bars"/></svg></span><span class="area-tab__label" data-label="Historie">Historie</span></a><a class="area-tab is-active" aria-current="page"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload"/></svg></span><span class="area-tab__label" data-label="Import">Import</span></a></nav>
+      <section class="workspace-section">
+        <h2>Übersicht</h2>
+        <p class="muted">Quellformat: CSV</p>
+        <div class="import-stats">
+          <div class="import-stat-card"><span class="label">Einträge</span><span class="value">14</span></div>
+          <div class="import-stat-card"><span class="label">Wertpapiere</span><span class="value">4</span></div>
+          <div class="import-stat-card"><span class="label">Verrechnungs&shy;konten</span><span class="value">2</span></div>
+          <div class="import-stat-card"><span class="label">Depots</span><span class="value">1</span></div>
+        </div>
+        <h3>Anzahl pro Art</h3>
+        <ul class="kind-chips">
+          <li class="kind-chip"><span class="name">Dividende</span><span class="count">3</span></li>
+          <li class="kind-chip"><span class="name">Einlage</span><span class="count">3</span></li>
+          <li class="kind-chip"><span class="name">Kauf</span><span class="count">4</span></li>
+          <li class="kind-chip"><span class="name">Verkauf</span><span class="count">2</span></li>
+          <li class="kind-chip"><span class="name">Zinsen</span><span class="count">2</span></li>
+        </ul>
+        <form>
+          <p class="elide">… „Bucket-Tag für neue Konten“ as today.</p>
+          <section class="panel inner">
+            <h3>Verrechnungskonten aus dem Export</h3>
+            <div class="mapping-grid">
+              <div class="mapping-row">
+                <div class="source"><small>PP-Konto</small>Girokonto<span class="mapping-count" data-role="mapping-count">11 Buchungen bereits importiert · <b>nichts anzulegen</b></span></div>
+                <div class="mapping-target"><select><option selected>Girokonto</option></select></div>
+              </div>
+              <div class="mapping-row">
+                <div class="source"><small>PP-Konto</small>Tagesgeld<span class="mapping-count" data-role="mapping-count">3 Buchungen bereits importiert · <b>nichts anzulegen</b></span></div>
+                <div class="mapping-target"><select><option selected>Tagesgeld</option></select></div>
+              </div>
+            </div>
+          </section>
+          <p class="elide">… „Depots aus dem Export“ (Depot 1: 6 Buchungen bereits importiert · nichts anzulegen) and „Wertpapiere aus dem Export“ (4 match) as today.</p>
+          <div class="data-note data-note--note" data-role="nothing-to-import">
+            <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+            <span class="data-note__word">Hinweis</span>
+            <div class="data-note__body">Alle 14 Einträge sind bereits importiert. Der Import legt nichts an: keine Buchung, kein Konto, kein Depot, kein Wertpapier.</div>
+          </div>
+          <div class="actions u-flex" style="margin-top:12px">
+            <button type="button" class="button-primary">Import bestätigen</button>
+            <button type="button">Verwerfen</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ① J9 — A ============================ -->
+<section class="mock-board" id="j9-a">
+  <h2>① J9 — A <span class="rec">recommended</span> A section of its own in the preview, with its own confirm <small>same file, same page</small></h2>
+  <p class="mock-note desk-only"><b>Argument.</b> The correction is found exactly where the operator already is: dropping the export again is the routine act, and ADR-0053 §6 needs that file anyway. A section of its own — outside the apply's <code>&lt;form&gt;</code>, with its own button and its own dialog — keeps ADR-0050 §3 literal: „Import bestätigen“ still inserts and changes nothing on a hash hit (K8), and the correction never rides it. The section sits after the counts and before the mapping, because it needs no mapping: it addresses stored bookings by their hash. Its finding is an <code>attention</code> data note with the list and the remedy inside it (UX-DR17 rule 3; the shape of the trades facet's unmatched-sells note). Wording proposed: <b>„Bereits importiert, mit anderem Betrag“</b> — the page's own „bereits importiert“ plus what differs; it avoids „falsch“ (the operator did nothing wrong) and the jargon „Hash“. The columns name the booking (line, date, then kind · security · account in one cell, as the history's phone row reads), then „Gebucht“, „Laut Datei“, „Differenz“ as signed cash effects in the sign colours (DESIGN.md: semantic colour wherever a sign exists). The button carries an ellipsis because a dialog follows (DESIGN.md, the row menu's „Löschen…“).</p>
+  <div class="mock-frame mock-after app980"><span class="mock-tag">A — die Vorschau derselben Datei</span>
+    <div class="workspace-page">
+      <nav class="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs"><a class="area-tab"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bars"/></svg></span><span class="area-tab__label" data-label="Historie">Historie</span></a><a class="area-tab is-active" aria-current="page"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload"/></svg></span><span class="area-tab__label" data-label="Import">Import</span></a></nav>
+      <section class="workspace-section">
+        <h2>Übersicht</h2>
+        <p class="muted">Quellformat: CSV</p>
+        <p class="elide">… the four cards and „Anzahl pro Art“ as in „Heute“.</p>
+
+        <section class="panel inner is-new" id="import-correction" aria-labelledby="import-correction-head">
+          <h3 id="import-correction-head">Bereits importiert, mit anderem Betrag</h3>
+          <div role="status">
+            <div class="data-note data-note--attention" data-role="import-correction">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-tri"/></svg></span>
+              <span class="data-note__word">Achtung</span>
+              <div class="data-note__body">
+                <p>5 bereits importierte Buchungen weichen von dieser Datei ab: Gebucht ist der Bruttowert (Spalte „Betrag“); was das Konto bewegt, nennt die Datei als „Gesamtpreis“. Die Differenz sind die Gebühren und Steuern der Zeile.</p>
+                <div class="data-table-wrapper" id="import-correction-table-wrapper">
+                  <table class="data-table" id="import-correction-table">
+                    <thead><tr><th class="num">Zeile</th><th>Datum</th><th>Buchung</th><th class="num">Gebucht</th><th class="num">Laut Datei</th><th class="num">Differenz</th></tr></thead>
+                    <tbody>
+                      <tr><td class="num">2</td><td>14.01.2026</td><td>Kauf · <bdi>Nordwind Industrie AG</bdi> · <bdi>Girokonto</bdi></td><td class="num is-negative">-1.500,00</td><td class="num is-negative">-1.502,50</td><td class="num is-negative">-2,50</td></tr>
+                      <tr><td class="num">5</td><td>16.03.2026</td><td>Dividende · <bdi>Nordwind Industrie AG</bdi> · <bdi>Girokonto</bdi></td><td class="num is-positive">+11,54</td><td class="num is-positive">+9,13</td><td class="num is-negative">-2,41</td></tr>
+                      <tr><td class="num">8</td><td>28.04.2026</td><td>Verkauf · <bdi>Nordic Timber Holdings AB</bdi> · <bdi>Girokonto</bdi></td><td class="num is-positive">+1.814,50</td><td class="num is-positive">+1.800,00</td><td class="num is-negative">-14,50</td></tr>
+                      <tr><td class="num">11</td><td>30.06.2026</td><td>Zinsen · <bdi>Tagesgeld</bdi></td><td class="num is-positive">+5,75</td><td class="num is-positive">+4,55</td><td class="num is-negative">-1,20</td></tr>
+                      <tr><td class="num">13</td><td>12.08.2026</td><td>Kauf · <bdi>Harborline Freight Inc</bdi> · <bdi>Girokonto</bdi><span class="import-correction__legs is-new">Abrechnung gebucht: 1.495,10 EUR = 1.628,16 USD<br>Abrechnung laut Datei: 1.500,00 EUR = 1.633,50 USD</span></td><td class="num is-negative">-1.500,00</td><td class="num is-negative">-1.504,90</td><td class="num is-negative">-4,90</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <ul id="import-correction-phone-rows" class="phone-rows" aria-label="Buchungen mit anderem Betrag">
+                  <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Nordwind Industrie AG</span><span class="phone-row__ids"><span>Zeile 2 · 14.01.2026 · Kauf · Girokonto</span></span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">-2,50</span><span class="phone-row__figure2">-1.500,00 → -1.502,50</span></span></li>
+                  <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Nordwind Industrie AG</span><span class="phone-row__ids"><span>Zeile 5 · 16.03.2026 · Dividende · Girokonto</span></span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">-2,41</span><span class="phone-row__figure2">+11,54 → +9,13</span></span></li>
+                  <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Nordic Timber Holdings AB</span><span class="phone-row__ids"><span>Zeile 8 · 28.04.2026 · Verkauf · Girokonto</span></span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">-14,50</span><span class="phone-row__figure2">+1.814,50 → +1.800,00</span></span></li>
+                  <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Tagesgeld</span><span class="phone-row__ids"><span>Zeile 11 · 30.06.2026 · Zinsen</span></span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">-1,20</span><span class="phone-row__figure2">+5,75 → +4,55</span></span></li>
+                  <li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">Harborline Freight Inc</span><span class="phone-row__ids"><span>Zeile 13 · 12.08.2026 · Kauf · Girokonto</span></span><span class="import-correction__legs">Abrechnung gebucht: 1.495,10 EUR = 1.628,16 USD<br>Abrechnung laut Datei: 1.500,00 EUR = 1.633,50 USD</span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">-4,90</span><span class="phone-row__figure2">-1.500,00 → -1.504,90</span></span></li>
+                </ul>
+                <p class="import-correction__total">Zusammen <b class="is-negative">-25,51 EUR</b>: Girokonto -24,31 EUR, Tagesgeld -1,20 EUR.</p>
+                <div class="import-correction__foot">
+                  <button type="button" class="button" data-role="import-correction-open">5 Buchungen korrigieren…</button>
+                  <p class="summary-basis">ein eigener Schritt, unabhängig von „Import bestätigen“</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <form>
+          <p class="elide">… bucket tag, „Verrechnungskonten“, „Depots“ and „Wertpapiere aus dem Export“ unchanged („nichts anzulegen“ on every row).</p>
+          <div class="data-note data-note--note" data-role="nothing-to-import">
+            <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+            <span class="data-note__word">Hinweis</span>
+            <div class="data-note__body">Alle 14 Einträge sind bereits importiert. Der Import legt nichts an: keine Buchung, kein Konto, kein Depot, kein Wertpapier.</div>
+          </div>
+          <div class="actions u-flex" style="margin-top:12px">
+            <button type="button" class="button-primary">Import bestätigen</button>
+            <button type="button">Verwerfen</button>
+          </div>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  <div class="trio" style="margin-top:14px">
+    <div>
+      <p class="cap">A — the confirm dialog</p>
+      <div class="mock-frame mock-after"><span class="mock-tag">A — „5 Buchungen korrigieren…“ geöffnet</span>
+        <div class="backdrop">
+          <div class="modal booking-delete-dialog import-correction-dialog is-new" role="dialog" aria-labelledby="corr-title">
+            <div class="modal-head"><h2 id="corr-title">Gebuchte Beträge korrigieren</h2><button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><use href="#i-x"/></svg></button></div>
+            <div class="modal-body">
+              <div class="booking-delete__subject">
+                <span class="phone-row__body"><span class="phone-row__name">5 Buchungen</span><span class="phone-row__ids"><span>Zeilen 2, 5, 8, 11, 13 · Girokonto, Tagesgeld</span></span></span>
+                <span class="phone-row__figures"><span class="phone-row__figure is-negative">-25,51 EUR</span><span class="phone-row__figure2">Gebühren und Steuern</span></span>
+              </div>
+              <p class="hint">Danach hat Girokonto 24,31 EUR weniger und Tagesgeld 1,20 EUR weniger. Beim Kauf von Harborline Freight Inc am 12.08.2026 ändert sich die Abrechnung mit: 1.500,00 EUR = 1.633,50 USD. Kontostände, Bewertung, Rendite und Erträge werden neu berechnet.</p>
+              <p class="hint">Jede Änderung wird mit dem bisherigen Betrag im Journal festgehalten; die Import-Hashes bleiben, wie sie sind, also bucht ein erneuter Import derselben Datei nichts.</p>
+            </div>
+            <div class="modal-footer modal-footer--band">
+              <button type="button" class="button-ghost" autofocus>Abbrechen</button>
+              <span class="modal-footer__spacer"></span>
+              <button type="button" class="button-primary">5 Buchungen korrigieren</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ul class="pinlist desk-only">
+        <li>The narrow modal of the booking delete: the act said back in a subject box, one consequence sentence, one sentence on the journal and the hashes (ADR-0053 §6), Cancel focused.</li>
+        <li><b>Primary, not danger:</b> nothing is lost — every replaced value stays in the journal with its before-image and is readable in the file's „Betrag“. Danger marks a loss the UI cannot take back (delete, merge, release).</li>
+        <li>The cross-currency trade's settlement legs are named, because they change in the same write (settlement guard).</li>
+      </ul>
+    </div>
+    <div class="stack">
+      <div>
+        <p class="cap">A — the result line, where the section stood</p>
+        <div class="mock-frame mock-after mini-frame"><span class="mock-tag">A — nach „5 Buchungen korrigieren“</span>
+          <section class="workspace-section">
+            <p class="elide" style="margin-top:0">… heading, format, cards, kinds.</p>
+            <div id="import-correction-result" class="inline-result is-new" data-role="action-result">
+              <div role="status" class="inline-result__region">
+                <div class="data-note data-note--note">
+                  <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+                  <span class="data-note__word">Hinweis</span>
+                  <div class="data-note__body">5 Buchungen korrigiert: Girokonto -24,31 EUR, Tagesgeld -1,20 EUR. Das Journal hält die bisherigen Beträge. <button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button></div>
+                </div>
+              </div>
+            </div>
+            <p class="elide">… the mapping and „Alle 14 Einträge sind bereits importiert …“ unchanged; „Import bestätigen“ still writes nothing.</p>
+          </section>
+        </div>
+      </div>
+      <div>
+        <p class="cap">A — nothing differs: no section at all</p>
+        <div class="mock-frame mock-after mini-frame"><span class="mock-tag">A — jede Buchung stimmt mit der Datei überein</span>
+          <section class="workspace-section">
+            <p class="elide" style="margin-top:0">… heading, format, cards, kinds, mapping — and no „Bereits importiert, mit anderem Betrag“, no „Alle Beträge stimmen“ badge (UX-DR2: an all-clear is not a finding).</p>
+            <div class="data-note data-note--note">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+              <span class="data-note__word">Hinweis</span>
+              <div class="data-note__body">Alle 14 Einträge sind bereits importiert. Der Import legt nichts an: keine Buchung, kein Konto, kein Depot, kein Wertpapier.</div>
+            </div>
+          </section>
+        </div>
+      </div>
+      <div>
+        <p class="cap">A — the import confirmed first: the result says what stayed</p>
+        <div class="mock-frame mock-after mini-frame"><span class="mock-tag">A — „Import abgeschlossen“, ohne Korrektur</span>
+          <section class="workspace-section import-done" style="padding:14px 16px">
+            <h2 style="font-size:1.1rem">Import abgeschlossen</h2>
+            <p class="muted" style="margin:0">Erzeugte Transaktionen: 3 · Übersprungene Duplikate: 14</p>
+            <div class="import-skipped is-new" data-role="correction-not-applied">
+              <p class="muted">5 bereits importierte Buchungen mit anderem Betrag als in der Datei sind nicht korrigiert. Dieselbe Datei erneut ablegen, um sie zu korrigieren.</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="argue desk-only">
+    <p><b>States.</b> The section is computed with the preview's own already-imported count (the apply's run, rolled back) and shows only when at least one hash hit's stored cash differs from what ADR-0053 §1/§5 now read; a file with no <code>Gesamtpreis</code> (a converter file) never shows it. After the confirm the section's place holds the inline result (a <code>note</code>, the merge's „Merged X into Y“ shape) until the next action; dropping the same file again finds nothing to correct (K7) and shows no section. A preview that also carries new rows keeps both acts: confirming the import first leaves the correction undone and the result says so in <code>.import-skipped</code>'s form, so nothing is dropped silently. The section has no API route and no MCP tool (ADR-0053 §6: the import is an operator action; the corrected ledger is what every read serves).</p>
+  </div>
+</section>
+
+<!-- ============================ ① J9 — B ============================ -->
+<section class="mock-board" id="j9-b">
+  <h2>① J9 — B A mode „Beträge prüfen“ on the Imports page <small>the same list, behind a second entry point</small></h2>
+  <p class="mock-note desk-only"><b>Argument and costs.</b> B keeps the import preview exactly as it is and gives the correction a page state of its own: a segmented control under the area tabs, a drop zone that accepts only a Portfolio Performance CSV and says it imports nothing, then the same list and the same dialog as A. It is cleaner in one way — no import mapping is shown for a file that is only being checked. Its costs decide against it: <b>(1) a second entry point.</b> The operator who simply re-drops the export — the routine act — sees exactly today's „nothing to import“ and never learns that five bookings are off; the defect stays invisible unless someone knows the mode exists, which is the failure ADR-0053 §6 is there to end. <b>(2) A mode is state to remember</b> (which drop zone am I on?), and a JSON or converter file dropped in it needs a refusal of its own. <b>(3) One more control class on the page</b>: the segmented control is the facet idiom (UX-DR16 class 2) and the Imports page has no facets. A shows the finding where the file already is, with the same separation of acts.</p>
+  <div class="mock-frame mock-after app980"><span class="mock-tag vtag">B — Modus „Beträge prüfen“, nach dem Ablegen</span>
+    <div class="workspace-page">
+      <nav class="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs"><a class="area-tab"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-bars"/></svg></span><span class="area-tab__label" data-label="Historie">Historie</span></a><a class="area-tab is-active" aria-current="page"><span class="area-tab__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-upload"/></svg></span><span class="area-tab__label" data-label="Import">Import</span></a></nav>
+      <div class="workspace-section workspace-section--controls" style="padding-top:14px">
+        <nav class="segmented-control is-new" aria-label="Importmodus"><a class="segmented-control__option">Importieren</a><a class="segmented-control__option is-active" aria-current="true">Beträge prüfen</a></nav>
+      </div>
+      <section class="workspace-section">
+        <h2>Beträge prüfen</h2>
+        <p class="muted">Portfolio-Performance-CSV · es wird nichts importiert; bereits gebuchte Beträge werden mit dem Gesamtpreis der Datei verglichen</p>
+        <div class="data-note data-note--attention" style="margin-top:10px">
+          <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-tri"/></svg></span>
+          <span class="data-note__word">Achtung</span>
+          <div class="data-note__body">5 bereits importierte Buchungen weichen von dieser Datei ab … <i class="u-muted">(the same list, total and „5 Buchungen korrigieren…“ as A)</i></div>
+        </div>
+        <div class="actions u-flex" style="margin-top:12px">
+          <button type="button" class="button">5 Buchungen korrigieren…</button>
+          <button type="button">Verwerfen</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ② ROW ERRORS ============================ -->
+<section class="mock-board" id="row-errors">
+  <h2>② #1044, #948, ADR-0053 §2 — a row the apply would fail on is named in the preview <small>before/after · the existing row-error anatomy</small></h2>
+  <p class="mock-note desk-only">A conformance repair: Project Goal 9 is „parse, preview, then apply atomically“, and the preview already names a malformed row in the „Parser-Warnungen“ box as „Zeile N: &lt;Grund&gt; — Zeile nicht übernommen“, counted in the „Warnungen“ card, while the rest of the file previews and imports. <b>Today</b> a transfer row with a blank <code>Gegenkonto</code> parses clean; the confirm then fails the whole import with the changeset's raw field name, and fails again on every retry (#1044; for a receiving row it even names the opposite field, <code>cash_account_id</code>, because the parser swaps the sides). <b>After</b> the row is named with its line and reason, in the CSV's own column name, and the confirm never starts on it. The same box takes ADR-0053 §2's new error — a <code>Gesamtpreis</code> that contradicts <code>Betrag</code> ∓ (Gebühren + Steuern) names both readings (K5).</p>
+  <div class="pair">
+    <div class="mock-frame mock-before"><span class="mock-tag">Heute — CSV, nach „Import bestätigen“</span>
+      <p class="alert-error" role="alert">Zeile 7: counter_cash_account_id darf nicht leer sein</p>
+      <div class="workspace-page">
+        <section class="workspace-section">
+          <h2>Übersicht</h2>
+          <p class="muted">Quellformat: CSV</p>
+          <div class="import-stats">
+            <div class="import-stat-card"><span class="label">Einträge</span><span class="value">12</span></div>
+            <div class="import-stat-card"><span class="label">Wertpapiere</span><span class="value">2</span></div>
+            <div class="import-stat-card"><span class="label">Verrechnungs&shy;konten</span><span class="value">2</span></div>
+            <div class="import-stat-card"><span class="label">Depots</span><span class="value">1</span></div>
+          </div>
+          <ul class="kind-chips">
+            <li class="kind-chip"><span class="name">Einlage</span><span class="count">3</span></li>
+            <li class="kind-chip"><span class="name">Kauf</span><span class="count">5</span></li>
+            <li class="kind-chip"><span class="name">Umbuchung</span><span class="count">1</span></li>
+            <li class="kind-chip"><span class="name">Zinsen</span><span class="count">3</span></li>
+          </ul>
+          <p class="elide">… mapping complete; nothing names row 7.</p>
+          <div class="actions u-flex">
+            <button type="button" class="button-primary">Import bestätigen</button>
+            <button type="button">Verwerfen</button>
+          </div>
+        </section>
+      </div>
+    </div>
+    <div class="mock-frame mock-after"><span class="mock-tag">Nachher — CSV, die Vorschau nennt die Zeilen</span>
+      <div class="workspace-page">
+        <section class="workspace-section">
+          <h2>Übersicht</h2>
+          <p class="muted">Quellformat: CSV</p>
+          <div class="import-stats">
+            <div class="import-stat-card"><span class="label">Einträge</span><span class="value">10</span></div>
+            <div class="import-stat-card"><span class="label">Wertpapiere</span><span class="value">2</span></div>
+            <div class="import-stat-card"><span class="label">Verrechnungs&shy;konten</span><span class="value">2</span></div>
+            <div class="import-stat-card"><span class="label">Depots</span><span class="value">1</span></div>
+            <div class="import-stat-card warning"><span class="label">Warnungen</span><span class="value">2</span></div>
+          </div>
+          <ul class="kind-chips">
+            <li class="kind-chip"><span class="name">Einlage</span><span class="count">3</span></li>
+            <li class="kind-chip"><span class="name">Kauf</span><span class="count">4</span></li>
+            <li class="kind-chip"><span class="name">Zinsen</span><span class="count">3</span></li>
+          </ul>
+          <section class="import-warning-box" aria-label="Parser-Warnungen">
+            <div class="import-warning-box__head"><h3>Parser-Warnungen</h3><button type="button" class="icon-button" aria-label="Parser-Warnungen kopieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-copy"/></svg></button></div>
+            <pre class="is-new">Zeile 4: Gesamtpreis 1.505,00 passt nicht zu Betrag 1.502,50 und Gebühren 2,50 — Zeile nicht übernommen
+Zeile 7: Umbuchung ohne Gegenkonto — Zeile nicht übernommen</pre>
+          </section>
+          <p class="elide">… the mapping for the other ten rows, unchanged.</p>
+          <div class="actions u-flex">
+            <button type="button" class="button-primary">Import bestätigen</button>
+            <button type="button">Verwerfen</button>
+          </div>
+        </section>
+      </div>
+    </div>
+  </div>
+  <p class="cap" style="margin-top:14px">The same repair on the JSON path — #948, the booking's currency</p>
+  <div class="pair">
+    <div class="mock-frame mock-before mini-frame"><span class="mock-tag">Heute — JSON, nach „Import bestätigen“</span>
+      <p class="alert-error" role="alert" style="margin:12px 16px 0">Anlegen des Kontos Tagesgeld fehlgeschlagen: currency_code muss genau 3 Zeichen lang sein</p>
+      <section class="workspace-section">
+        <p class="muted" style="margin:0">Quellformat: JSON · Einträge 41 · no „Warnungen“ card</p>
+        <p class="elide" style="margin-bottom:0">A three-letter code outside the catalog's list („XEU“) is not even refused: the apply creates „Tagesgeld“ in XEU and books into it.</p>
+      </section>
+    </div>
+    <div class="mock-frame mock-after mini-frame"><span class="mock-tag">Nachher — JSON</span>
+      <section class="workspace-section">
+        <p class="muted" style="margin:0">Quellformat: JSON · Einträge 39 · Warnungen 2</p>
+        <section class="import-warning-box" aria-label="Parser-Warnungen" style="margin-bottom:0">
+          <div class="import-warning-box__head"><h3>Parser-Warnungen</h3><button type="button" class="icon-button" aria-label="Parser-Warnungen kopieren"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-copy"/></svg></button></div>
+          <pre class="is-new">Zeile 12: Währung „EURO“ wird nicht unterstützt — Zeile nicht übernommen
+Zeile 15: Währung „XEU“ wird nicht unterstützt — Zeile nicht übernommen</pre>
+        </section>
+      </section>
+    </div>
+  </div>
+  <div class="argue desk-only">
+    <p><b>Wording.</b> Each new reason follows the existing ones („ISIN … ist keine gültige ISIN … — Zeile nicht übernommen“): the value as the file wrote it, in „…“, then the consequence. #1044 names the CSV column „Gegenkonto“, which is what the operator finds in Portfolio Performance, never a database field; a receiving row („Umbuchung (Eingang)“) gets the same sentence. #948 checks the booking's and the security's currency against the catalog list (<code>Catalog.Currencies.supported?/1</code>, the rule the exchange-rate changeset already applies: „is not a supported currency“); a security's currency failing names every row that books it. The CSV path is unaffected by #948 (it books EUR). The box keeps today's accent styling — see „Found while drawing“.</p>
+  </div>
+</section>
+
+<!-- ============================ ③ #923 ============================ -->
+<section class="mock-board" id="hash-hits-confirm">
+  <h2>③ #923 — a security decision whose rows are all already imported no longer blocks Confirm <small>before/after · the account rows' rule (board 04, note 4)</small></h2>
+  <p class="mock-note desk-only">ADR-0050 §3: the apply checks the hash before it resolves any security, so a decision on a security whose every row is a hash hit is never used. Today the row still demands one and Confirm stays disabled for the whole file. The cash-account and depot rows already follow the rule (board 04, note 4: „mehrdeutig, aber alles schon gebucht“). <b>After</b>, the security row takes the account rows' anatomy: the count under the file's name („6 Buchungen bereits importiert · nichts anzulegen“), the decision paragraph and the candidate list give way to one <code>.mapping-basis</code> line, the select stays (an explicit choice — a recorded ISIN change — is still carried out at the start of the apply), and the row stops counting as missing. A key-collision row keeps failing closed whatever its hashes (#890, F36): its text and its block stay.</p>
+  <div class="pair">
+    <div class="mock-frame mock-before"><span class="mock-tag">Heute — Bestätigen gesperrt</span>
+      <section class="workspace-section">
+        <section class="panel inner" id="import-security-mapping" style="margin-top:0">
+          <h3>Wertpapiere aus dem Export</h3>
+          <details data-role="matched-securities"><summary>2 Wertpapiere passen zu bestehenden Einträgen</summary></details>
+          <div class="mapping-row" data-role="security-decision" style="margin-top:8px">
+            <div class="source"><small>PP-Wertpapier</small>Nordwind Industrie AG</div>
+            <div>
+              <p class="muted" style="margin-top:0">Mehrere bestehende Wertpapiere teilen diesen Identifikator — das richtige auswählen oder ein neues Wertpapier anlegen.</p>
+              <ul style="margin:0 0 8px; padding-left:18px; font-size:13px"><li>Nordwind Industrie AG · DE000000000A</li><li>Nordwind Industrie AG · DE000000000B</li></ul>
+              <select style="width:100%"><option selected>Entscheiden…</option></select>
+            </div>
+          </div>
+        </section>
+        <p id="import-missing-hint" class="form-help" role="status">Vor dem Import noch zuzuordnen: Wertpapier: Nordwind Industrie AG</p>
+        <div class="actions u-flex">
+          <button type="button" class="button-primary" disabled>Import bestätigen</button>
+          <button type="button">Verwerfen</button>
+        </div>
+      </section>
+    </div>
+    <div class="mock-frame mock-after"><span class="mock-tag">Nachher — keine Entscheidung nötig</span>
+      <section class="workspace-section">
+        <section class="panel inner" style="margin-top:0">
+          <h3>Wertpapiere aus dem Export</h3>
+          <details data-role="matched-securities"><summary>2 Wertpapiere passen zu bestehenden Einträgen</summary></details>
+          <div class="mapping-row" data-role="security-decision" style="margin-top:8px">
+            <div class="source"><small>PP-Wertpapier</small>Nordwind Industrie AG<span class="mapping-count is-new" data-role="mapping-count">6 Buchungen bereits importiert · <b>nichts anzulegen</b></span></div>
+            <div class="mapping-target">
+              <select><option selected>Entscheiden…</option></select>
+              <span class="mapping-basis is-new" data-role="mapping-basis">Keine Entscheidung nötig: Der Import bucht für dieses Wertpapier nichts. Eine gewählte Zuordnung, etwa ein ISIN-Wechsel, wird trotzdem ausgeführt.</span>
+            </div>
+          </div>
+        </section>
+        <p class="elide">… the other rows: 3 new bookings for Helios Solar Systems SE.</p>
+        <div class="actions u-flex">
+          <button type="button" class="button-primary">Import bestätigen</button>
+          <button type="button">Verwerfen</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>
