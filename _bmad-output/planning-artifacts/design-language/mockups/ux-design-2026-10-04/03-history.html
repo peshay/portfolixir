@@ -1,0 +1,424 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Transaktionshistorie: Monatskopf, Konto, Telefonzeile, Preis (J3, J3.2; #1083, #1084, #1073, #1090)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the rules the J3 / J3.2 / #1073 stories add to app.css.
+     The frames are srcdoc iframes built from the live markup of
+     transaction_management_live.ex (render/1, :88-470) and AppShell, so a
+     390 px frame is a real 390 px viewport and app.css's 560 px block
+     (phone rows instead of the table, the Filter button instead of the chip
+     row, the subtitle hidden) fires as on a phone. "Heute" frames render
+     app.css as shipped; "Nachher" and variant frames also get this block.
+     Rules that belong to a variant that is NOT recommended are scoped to a
+     body class on the board (.v-b, .v-j32b); the story writes the chosen
+     ones without the scope. -->
+<style id="proposal">
+  /* ① #1073: a stored name with no break opportunity wraps inside the
+     history's phone row instead of running out of it. `.phone-row__ids` is
+     a flex container whose text is an anonymous flex item; with
+     overflow-wrap: anywhere its min-content width shrinks to a glyph, so the
+     item can shrink and break (the delete dialog's R8 fix, app.css:9839,
+     on the class instead of one box). Applies to every phone row's
+     identifier line; the securities rows' ticker · ISIN · badge are not
+     affected (they already fit). */
+  .phone-row__ids {
+    overflow-wrap: anywhere;
+  }
+
+  /* ② #1073, the price: no CSS. The Price cell (:373) and the phone row's
+     size (phone_size/1, :1649) call the notes-only drawer's
+     stored_figure/1 (:2014) instead of Format.decimal(price, 2). */
+
+  /* ③ J3 = A: no CSS. The month head keeps .tx-group-subtotal and loses
+     the <.currency_totals> after the count. */
+
+  /* ④ J3.2 = A: no CSS. "account" joins @tx_column_keys and
+     @tx_column_defaults; the cell is plain text, like Wertpapier. */
+
+  /* J3 = B only (not recommended): the history is no .data-table, so the
+     sign colour needs its own pair, and the head's figures carry it too
+     (DESIGN.md:518). Scoped to .v-b on the board. */
+  .v-b #transaction-list td.is-positive,
+  .v-b .tx-group-subtotal .is-positive,
+  .v-b .phone-row__figure.is-positive {
+    color: var(--color-positive);
+  }
+
+  .v-b #transaction-list td.is-negative,
+  .v-b .phone-row__figure.is-negative {
+    color: var(--color-danger);
+  }
+
+  /* J3.2 = B only (not recommended): an account in the subject column reads
+     muted, so it does not pass for a security. Scoped to .v-j32b. */
+  .v-j32b .tx-subject--account {
+    color: var(--color-text-muted);
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: hidden; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul, .notes ol { margin: 0; }
+  .notes ul, .notes ol { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .dkw { width: 1120px; max-width: 100%; }
+  .dkw iframe { display: block; width: 1118px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .stub { padding: 10px 14px; font-size: 12px; color: var(--mock-ink); margin: 0; }
+  .verdict { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1120px; margin: 0 auto 32px; }
+  .verdict > div { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 14px; background: var(--color-bg-elevated); font-size: 12.5px; }
+  .verdict h3 { margin: 0 0 6px; font-size: 13px; }
+  .verdict ul { margin: 0; padding-left: 18px; }
+  .verdict li { margin: 0 0 4px; }
+  .phone-only { display: none; }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap { padding: 0 12px; }
+    .mock-row { gap: 10px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph { width: 390px; }
+    .verdict { grid-template-columns: 1fr; padding: 0 12px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar"><b>J3 — der Monatskopf der Historie (#1083).</b> <b>A</b> nur die Anzahl · <b>B</b> der vorzeichenbehaftete Netto-Geldfluss je Währung, ohne „Saldo gesetzt“ · <b>C</b> Umsatz je Art. <span class="rec">Empfehlung A</span><br><b>J3.2 — das Konto am Desktop (#1084).</b> <b>A</b> eine Spalte „Konto“ · <b>B</b> das Konto in der Spalte „Wertpapier“, wie die Telefonzeile. <span class="rec">Empfehlung A</span><br>Dazu Vorher/Nachher ohne Wahl: die Telefonzeile mit einem Namen ohne Umbruchstelle und der Preis mit seinen gespeicherten Stellen (#1073), der Untertitel der Seite (#1090, nur der Punkt dieser Seite). Ein Kommentar mit Pick-Code und Buchstabe auf der Planungs-PR entscheidet; ohne Kommentar gilt die Empfehlung. Die Daten sind erfunden, im Stil des Demo-Seeds (<code>finding_surfaces_seed.exs</code>, Lauf vom 03.10.2026); wo der Seed ein echtes Wertpapier bucht, steht ein erfundener Name. <b>Gestrichelt = neu.</b></div>
+
+<!-- ============================ HEUTE ============================ -->
+<section class="mock-board">
+  <h2>Heute — Transaktionen → Historie, September 2026 <small><code>transaction_management_live.ex</code> render/1</small></h2>
+  <p class="mock-note">„Weitere Filter“ grenzt auf den 01.–30.09.2026 ein, damit die Zusammenfassung über der Tabelle dieselben sechs Zeilen zählt wie der Monatskopf. Der Kopf liest „6 Transaktionen · 2.717,40 EUR · 2.210,00 USD“: <code>totals_by_currency/1</code> (:1430) addiert jeden Bruttobetrag ohne Vorzeichen und gleich welcher Art (<code>tx_amount/1</code>, :1443) — zwei Käufe, die die Zeilen als „-“ zeigen, eine Einlage, eine Dividende, und in USD ein „Saldo gesetzt“ (ein Stand, kein Fluss) plus ein Verkauf. Die Zeilen „Saldo gesetzt“ und „Einlage“ nennen am Desktop kein Konto (#1084). Bei 390&nbsp;px nennt die Zeile das Konto (<code>phone_subject/1</code>, :1624). Der Untertitel „Manuelles Kauf- und Verkaufsjournal“ steht über einer Historie aller Arten (#1090).</p>
+  <div class="col desk-only">
+    <p class="cap">Heute — 1120 px mit Seitenleiste, oberer Rand (der Untertitel, #1090)</p>
+    <div class="dkw mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="shell-top" data-fixed="112" title="Heute, Kopf der Seite"></iframe></div>
+  </div>
+  <div class="col desk-only" style="margin-top:12px">
+    <p class="cap">Heute — 980 px Inhalt (1200 − 220 Seitenleiste)</p>
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="hist" data-o='{"head":"today","acct":"none"}' title="Heute, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="col">
+      <p class="cap">Heute — 390 px</p>
+      <div class="ph mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="hist" data-o='{"head":"today","acct":"none"}' title="Heute, 390 px"></iframe></div>
+    </div>
+    <div class="notes">
+      <p class="cap">Was der Kopf heute zusammenzählt (aus dem Code)</p>
+      <ul>
+        <li><b>EUR 2.717,40</b> = 240,00 (Kauf, „-“) + 12,50 (Dividende) + 964,90 (Kauf, „-“) + 1.500,00 (Einlage). Kein Netto-Geldfluss (der wäre +307,60) und kein Umsatz je Art.</li>
+        <li><b>USD 2.210,00</b> = 1.850,00 „Saldo gesetzt“ (ADR-0009: der Stand ersetzt den abgeleiteten, <code>Projection.effects/1</code>, <code>{:set, …}</code>) + 360,00 Verkauf.</li>
+        <li><b>Die Zeilen</b> tragen ein Vorzeichen nur für <code>@outflow_kinds</code> (:1619), positive Beträge ohne „+“, keine Vorzeichenfarbe (die Zelle hat keine Klasse, :383). „Saldo gesetzt“ druckt wie gespeichert.</li>
+        <li><b>Die Zusammenfassung</b> darüber (:266) nennt dieselben sechs Zeilen je Art und Währung, mit ihrer Grundlagenzeile — die einzige Stelle, die ihre Summe erklärt.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ J3 ============================ -->
+<section class="mock-board">
+  <h2>J3 — was der Monatskopf zeigt (#1083) <small>drei Varianten, dieselben sechs Zeilen</small></h2>
+  <p class="mock-note">EXPERIENCE.md → „Every aggregate names what it aggregates“: Die Zahl im Kopf braucht zuerst eine Bedeutung. Die H2-Spezifikation des Löschdialogs (DESIGN.md:4000–4001, „the row is gone and the month subtotal follows“) bleibt in allen drei Varianten wahr: der Kopf zählt nach dem Löschen eine Zeile weniger. Die Zeilen und die Zusammenfassung sind in A und C unverändert; nur B ändert die Zeilen mit.</p>
+
+  <p class="cap" style="margin-top:14px">Variante A <span class="rec">empfohlen</span> — nur die Anzahl</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — empfohlen</span><iframe data-tpl="hist" data-o='{"head":"A","acct":"none","compact":true}' data-proposal title="Variante A, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — empfohlen</span><iframe data-tpl="hist" data-o='{"head":"A","acct":"none","compact":true}' data-proposal title="Variante A, 390 px"></iframe></div>
+    <div class="notes">
+      <p class="mock-note" style="padding:0"><b>Warum A.</b> Die Summen je Art und Währung stehen schon in der Zusammenfassung direkt über der Tabelle, mit ihrer Grundlagenzeile („Anzahl und gebuchte Bruttobeträge … je Währung summiert und nicht umgerechnet“). Der Kopf gliedert die Liste; er muss keine zweite, unerklärte Zahl tragen. Und eine Kopfzahl mit Vorzeichen setzt Zeilen voraus, deren Vorzeichen stimmen — das tun sie heute nicht (unten, „Beim Zeichnen gefunden“): eine Umbuchung liest „-“ auch dann, wenn der Filter das empfangende Konto zeigt, und eine Einlieferung mit Preis wird summiert, obwohl kein Geld fließt. A kostet eine gelöschte Komponente im Kopf (<code>&lt;.currency_totals&gt;</code> bleibt für die Zusammenfassung), keine neue Zahl, keine Grundlage, die erst definiert werden müsste. Am Telefon wird der Kopf einzeilig.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — der Netto-Geldfluss je Währung, mit Vorzeichen</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">B</span><iframe data-tpl="hist" data-o='{"head":"B","acct":"none","signed":true,"compact":true}' data-proposal data-body="v-b" title="Variante B, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">B</span><iframe data-tpl="hist" data-o='{"head":"B","acct":"none","signed":true,"compact":true}' data-proposal data-body="v-b" title="Variante B, 390 px"></iframe></div>
+    <div class="notes">
+      <p class="mock-note" style="padding:0"><b>B</b> nimmt die Wirkung jeder Zeile auf ihr Verrechnungskonto (<code>Ledger.Projection.effects/1</code>, projection.ex:65–146) und summiert sie je Währung: „netto +307,60 EUR · +360,00 USD“. „Saldo gesetzt“ ist ein Stand und fehlt; Einlieferungen, Auslieferungen und Depotüberträge bewegen kein Geld und fehlen; der Kopf sagt das, wo die Zahl steht (UX-DR26: eine bewusste Grenze wird auf der Fläche genannt). <b>B ist größer, als es aussieht:</b> DESIGN.md:518 („Semantic color applies wherever a sign exists, at every level of a table — data rows, subtotals and totals alike“) und das Anti-Muster :706 („Semantic colour is applied only at total rows“) verlangen dann Farbe in jeder Zeile, und die Accessibility Floor (EXPERIENCE.md:356) ein „+“ vor jedem positiven Betrag — beides fehlt heute. Eine Umbuchung muss ihr Vorzeichen je nach eingegrenztem Konto wechseln und ohne Eingrenzung (beide Konten im Bild) netto 0 sein; eine Umbuchung zwischen Währungen hat zwei Beträge. Das ist eine zweite Story vor der ersten.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante C — Umsatz je Art im Kopf</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">C — nicht empfohlen</span><iframe data-tpl="hist" data-o='{"head":"C","acct":"none","compact":true}' data-proposal title="Variante C, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">C — nicht empfohlen</span><iframe data-tpl="hist" data-o='{"head":"C","acct":"none","compact":true}' data-proposal title="Variante C, 390 px"></iframe></div>
+    <div class="notes">
+      <p class="mock-note" style="padding:0"><b>Gegen C.</b> Der Kopf wiederholt Wort für Wort, was die Zusammenfassung zwei Zentimeter darüber schon sagt (<code>summarise/1</code>, :1412, dieselbe <code>totals_by_currency/1</code>) — nur ohne deren Grundlagenzeile. Am Telefon wird jeder Monatskopf vier bis fünf Zeilen hoch und schiebt die Buchungen aus dem ersten Bild. Und C bestätigt die Mischung, die #1083 bemängelt: „Saldo gesetzt 1.850,00 USD“ steht als Umsatz neben Käufen.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Beim Zeichnen gefunden — die Zeile widerspricht dem Saldo daneben (Juli 2026, eingegrenzt auf „Tagesgeld“)</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — eine Umbuchung an Tagesgeld liest „-200,00“, der Saldo steigt um 200,00</span><iframe data-tpl="hist-transfer" title="Heute, Umbuchung, Desktop"></iframe></div>
+  </div>
+  <p class="stub phone-only">390&nbsp;px: dieselbe Zeile liest „-200,00 EUR“ über „Saldo 4.120,85 EUR“.</p>
+  <div class="notes" style="margin-top:8px">
+    <p><code>signed_money/2</code> (:1691) negiert <code>cash_transfer</code> immer, aus Sicht des Senders; der Filter nimmt die Zeile aber auch für das Empfängerkonto auf (<code>account_match?/2</code>, :1105), und der laufende Saldo rechnet sie richtig (<code>Projection.cash_balance_series/2</code>, :1069). Ein Fehler der Zeile, nicht des Kopfes — unter jeder Variante von J3. Der Grund, warum A die Zahl aus dem Kopf nimmt, statt ihr eine Bedeutung zu geben, die auf diesen Zeilen aufbaut.</p>
+  </div>
+</section>
+
+<!-- ============================ J3.2 ============================ -->
+<section class="mock-board">
+  <h2>J3.2 — welches Konto eine Buchung bewegt, am Desktop (#1084) <small>zwei Varianten; die Telefonzeile bleibt, wie sie ist</small></h2>
+  <p class="mock-note">Heute: Datum · Typ · Wertpapier · Stückzahl · Preis · Betrag (<code>@tx_column_defaults</code>, :37), und der Spaltenwähler bietet kein Konto an (<code>@tx_column_keys</code>, :38). Die Seite filtert nach „Konto“ (die Chips), zeigt den Saldo eines Kontos, sobald auf eines eingegrenzt ist, und ihr Betrag ist der Betrag „as the cash account sees it“ — nur die Zeile selbst nennt das Konto nie. Unter 560&nbsp;px nennt die Zeile es als Subjekt, wenn kein Wertpapier da ist (UX-DR27: „the subject (security, else cash account, else depot)“).</p>
+
+  <p class="cap" style="margin-top:14px">Variante A <span class="rec">empfohlen</span> — eine Spalte „Konto“ nach „Wertpapier“</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — empfohlen</span><iframe data-tpl="hist" data-o='{"head":"today","acct":"col","compact":"all"}' data-proposal title="J3.2 Variante A, Desktop"></iframe></div>
+  </div>
+  <div class="notes" style="margin-top:8px">
+    <p><b>Warum A.</b> Das Register der Spalten ist „the human half of the API's <code>fields=</code>“ (#732, Kommentar :27–29, der sogar schon eine Depot-Spalte vorsieht): eine Spalte je Feld, <code>security</code> ist der Name zu <code>security_id</code>. „Konto“ ist der Name zu <code>cash_account_id</code> — dasselbe Wort wie die Chip-Familie darüber (msgid „Account“), also dieselben Namen wie die Chips: eine Buchung, die der Chip „Demo Cash“ auswählt, sagt in dieser Spalte „Demo Cash“. Eine Umbuchung liest „Demo Cash → Tagesgeld“ (die Form des Löschdialogs, H2), eine Buchung ohne Verrechnungskonto (Einlieferung, Depotübertrag) ihr Depot — die Reihenfolge von <code>phone_subject/1</code> ohne das Wertpapier. So bleibt die Telefonzeile, was UX-DR27 sagt: die feste Verdichtung der Tabelle („Wertpapier, sonst Konto“), und nicht umgekehrt. Sieben Spalten passen in 980&nbsp;px. <b>Kosten:</b> eine Zeile in <code>@tx_column_keys</code> und <code>@tx_column_defaults</code>, ein <code>tx_cell/2</code>-Fall, die Gruppe „Buchung“ im Wähler; wer schon einmal Spalten gewählt hat, behält seine gespeicherte Auswahl (ColumnPrefs, localStorage) und findet „Konto“ im Wähler. <b>Ein bewusster Unterschied:</b> Der Kasten im Löschdialog nennt bei einem Kauf das Depot (R10f, „the account it names is the one the sentence names“); die Spalte nennt das Konto, durch das der Betrag lief — der Betrag daneben ist dessen Sicht.</p>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — das Konto in der Spalte „Wertpapier“</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">B</span><iframe data-tpl="hist" data-o='{"head":"today","acct":"subject","compact":"all"}' data-proposal data-body="v-j32b" title="J3.2 Variante B, Desktop"></iframe></div>
+  </div>
+  <div class="notes" style="margin-top:8px">
+    <p><b>B</b> übernimmt <code>phone_subject/1</code> in <code>tx_cell(_, "security")</code> (:1522): Wo kein Wertpapier ist, steht das Konto, gedämpft; die Spalte heißt „Wertpapier / Konto“. Kleinster Eingriff, keine Breite. <b>Dagegen:</b> eine Spalte mit zwei Arten Wert, deren Schlüssel <code>security</code> dann nicht mehr dem API-Feld entspricht; ein Kauf und eine Dividende nennen ihr Konto weiter nicht, also bleibt die Frage „über welches Konto lief das?“ am Desktop für die meisten Zeilen offen. B macht den Desktop zur Kopie des Telefons, statt das Telefon zur Verdichtung des Desktops.</p>
+  </div>
+  <p class="stub phone-only"><b>390&nbsp;px: kein Unterschied in A und B.</b> Die Telefonzeile nennt das Konto schon, wo kein Wertpapier da ist (siehe „Heute — 390 px“ oben); ihre Zusammensetzung ist fest (UX-DR27) und der Spaltenwähler berührt sie nicht.</p>
+</section>
+
+<!-- ============================ #1073 ============================ -->
+<section class="mock-board">
+  <h2>#1073 — ein Name ohne Umbruchstelle, ein Preis mit vier Stellen <small>Vorher / Nachher, August 2026</small></h2>
+  <p class="mock-note"><b>(a)</b> <code>.phone-row__ids</code> (app.css:8032) hat kein <code>overflow-wrap</code>; ein langer Name ohne Leer- oder Trennzeichen läuft bei 390&nbsp;px über die Beträge und aus dem Bild. γ hat das nur im Löschdialog repariert (app.css:9839). <b>(b)</b> Die Spalte „Preis“ rundet einen gespeicherten Preis auf zwei Stellen (<code>Format.decimal(transaction.price, 2)</code>, :373: 41,1234 liest 41,12), während der Notiz-Drawer gespeicherte Zahlen seit H2 mit ihren Stellen zeigt (DESIGN.md:4093–4096, R10c: „a price of 41,1234 stays 41,1234“, <code>stored_figure/1</code>, :2014). Beim Zeichnen gefunden: Die Telefonzeile rundet denselben Preis in ihrer Größe („12 × 41,12“, <code>phone_size/1</code>, :1649) — und mit ihr der Kasten des Löschdialogs, der dieselbe Funktion liest. Der Monatskopf steht hier wie heute; J3 entscheidet ihn oben.</p>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — der Name läuft hinaus</span><iframe data-tpl="hist-aug" title="#1073 vorher, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — umgebrochen, 41,1234</span><iframe data-tpl="hist-aug" data-o='{"stored":true}' data-proposal title="#1073 nachher, 390 px"></iframe></div>
+  </div>
+  <div class="col desk-only" style="margin-top:12px">
+    <p class="cap">Heute — Preis gerundet</p>
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — 93,10 und 41,12</span><iframe data-tpl="hist-aug" title="#1073 vorher, Desktop"></iframe></div>
+    <p class="cap" style="margin-top:10px">Nachher — Preis mit seinen gespeicherten Stellen</p>
+    <div class="dk mock-frame mock-after"><span class="mock-tag">Nachher — 93,1046 und 41,1234; 24,00 bleibt 24,00</span><iframe data-tpl="hist-aug" data-o='{"stored":true}' data-proposal title="#1073 nachher, Desktop"></iframe></div>
+  </div>
+</section>
+
+<!-- ============================ #1090 ============================ -->
+<section class="mock-board">
+  <h2>#1090 — der Untertitel der Seite <small>Vorher / Nachher; nur der Punkt dieser Seite</small></h2>
+  <p class="mock-note">„Manuelles Kauf- und Verkaufsjournal“ (msgid „Manual buy and sell ledger“, :95) steht über Einlagen, Dividenden, Zinsen, Einlieferungen, Splits und gesetzten Salden. Der neue Satz nennt, was die Seite ist und was sie umfasst, ohne eine Art aufzuzählen: alle Buchungen über alle Konten und Depots — die Historie hat keine Ansichtswahl (DESIGN.md → „Transactions — the target vocabulary“: „no view switcher“), und EXPERIENCE.md verlangt, dass eine Fläche ihren Umfang im Untertitel oder in der Grundlagenzeile nennt. Englisch: „Every booking across accounts and depots“.</p>
+  <div class="col desk-only">
+    <div class="dkw mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="shell-top" data-fixed="112" title="#1090 vorher"></iframe></div>
+    <div class="dkw mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher</span><iframe data-tpl="shell-top" data-o='{"sub":"after"}' data-fixed="112" title="#1090 nachher"></iframe></div>
+  </div>
+  <p class="stub phone-only"><b>390&nbsp;px: kein Bild.</b> Unter 560&nbsp;px blendet app.css den Untertitel aus (<code>.topbar-page p { display: none }</code>, app.css:1567).</p>
+</section>
+
+<!-- ============================ ZUSAMMEN ============================ -->
+<section class="mock-board">
+  <h2>Nachher, alles zusammen — J3 = A, J3.2 = A, #1073 <small>was die Stories bauen</small></h2>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">Nachher</span><iframe data-tpl="hist" data-o='{"head":"A","acct":"col","stored":true}' data-proposal title="Zusammen, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher</span><iframe data-tpl="hist" data-o='{"head":"A","acct":"col","stored":true}' data-proposal title="Zusammen, 390 px"></iframe></div>
+    <div class="notes">
+      <p class="cap">Was die Stories in DESIGN.md schreiben</p>
+      <ul>
+        <li><b>J3 = A:</b> Phone lists (UX-DR27) → Transactions: „the month group heads stay (bg-muted band, the count)“ — „and the per-currency totals“ entfällt; die Summen je Art und Währung stehen in der Zusammenfassung, mit Grundlagenzeile. H2 bleibt wahr.</li>
+        <li><b>J3.2 = A:</b> Transactions — the target vocabulary: die Standardspalten Datum · Typ · Wertpapier · Konto · Stückzahl · Preis · Betrag; Konto = das Verrechnungskonto, eine Umbuchung „A → B“, ohne Verrechnungskonto das Depot.</li>
+        <li><b>#1073:</b> die Preisspalte und die Größe der Telefonzeile zeigen gespeicherte Stellen (mindestens zwei, Nullen gekürzt); <code>.phone-row__ids</code> bricht überall.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<div class="verdict">
+  <div>
+    <h3>Warum A bei J3</h3>
+    <ul>
+      <li>Die Zusammenfassung über der Tabelle trägt die Summen je Art und Währung schon, mit Grundlagenzeile.</li>
+      <li>Eine Kopfzahl mit Vorzeichen braucht erst richtige Zeilenvorzeichen (Umbuchung, Einlieferung mit Preis) und dann Farbe und „+“ in jeder Zeile (DESIGN.md:518, :706; Accessibility Floor) — eine eigene Story.</li>
+      <li>H2 („the month subtotal follows“) bleibt wahr: die Anzahl folgt.</li>
+    </ul>
+  </div>
+  <div>
+    <h3>Warum A bei J3.2</h3>
+    <ul>
+      <li>Eine Spalte je API-Feld (#732); „Konto“ ist das Wort der Chips und zeigt deren Namen.</li>
+      <li>Jede Zeile nennt ihr Konto, nicht nur die ohne Wertpapier.</li>
+      <li>Das Telefon bleibt die Verdichtung der Tabelle (UX-DR27), unverändert.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc, so
+   relative links resolve against this board) from the live markup of
+   transaction_management_live.ex and AppShell. Synthetic data only. */
+const CSS_HREF = '../../../../../priv/static/app.css';
+const IMG = '../../../../../priv/static/images/';
+const P = {
+  dashboard: '<rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="5" rx="1.5"/><rect x="13" y="10" width="8" height="11" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/>',
+  chart_line: '<path d="M3 17 9 11l4 4 8-8"/>',
+  layers: '<path d="m12 2 10 6-10 6L2 8Z"/><path d="m2 16 10 6 10-6"/><path d="m2 12 10 6 10-6"/>',
+  bars: '<path d="M4 4h16M4 12h16M4 20h16"/>',
+  briefcase: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  filter: '<path d="M3 5h18l-7 9v6l-4-2v-4Z"/>',
+  tag: '<path d="M20.6 11.4 12 2H4v8l9.4 9.4a2 2 0 0 0 2.8 0l4.4-4.4a2 2 0 0 0 0-2.8Z"/><circle cx="7.5" cy="7.5" r="1.2"/>',
+  upload: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 19h14"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  columns: '<rect x="3" y="4" width="6" height="16" rx="1"/><rect x="11" y="4" width="6" height="16" rx="1"/><rect x="19" y="4" width="2" height="16" rx="1"/>',
+  kebab: '<circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/>',
+  monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'
+};
+const svg = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+
+/* ---- the shell's top (AppShell.shell, area_tabs) ---- */
+function sidebar() {
+  const top = [['Übersicht', 'dashboard'], ['Vermögen', 'chart_line'], ['Wertpapiere', 'layers'], ['Transaktionen', 'bars', true]];
+  const admin = [['Konten &amp; Depots', 'briefcase'], ['Ansichten', 'filter'], ['Klassifizierungen', 'tag']];
+  const link = ([l, i, on]) => `<a class="nav-link${on ? ' is-active' : ''}"${on ? ' aria-current="page"' : ''}><span class="nav-marker" aria-hidden="true"></span><span class="nav-ico" aria-hidden="true">${svg(i, 14)}</span><span class="nav-label">${l}</span></a>`;
+  return `<input id="app-sidebar-toggle" class="sidebar-toggle-control" type="checkbox" aria-label="Navigation umschalten"><aside class="app-sidebar" aria-label="Anwendungsnavigation"><a class="brand" aria-label="Portfolixir"><span class="brand-logo" aria-hidden="true"><img class="brand-mark brand-mark-light" src="${IMG}logo-mark-light.svg" alt=""><img class="brand-mark brand-mark-dark" src="${IMG}logo-mark-dark.svg" alt=""></span><span class="brand-wordmark">Portfolixir</span></a><nav class="primary-nav" aria-label="Hauptnavigation"><div class="nav-group nav-group-unlabeled">${top.map(link).join('')}</div><div class="nav-group"><div class="nav-group-head"><span>Verwaltung</span></div>${admin.map(link).join('')}</div></nav></aside><label class="sidebar-backdrop" for="app-sidebar-toggle" aria-hidden="true"></label>`;
+}
+function topbar(title, sub, subNew) {
+  return `<header class="topbar"><label class="sidebar-toggle" for="app-sidebar-toggle" aria-label="Navigation öffnen"><span class="burger-bars" aria-hidden="true"></span></label><div class="topbar-primary"><a class="topbar-brand" aria-label="Portfolixir"><span class="brand-logo" aria-hidden="true"><img class="topbar-mark brand-mark-light" src="${IMG}logo-mark-light.svg" alt=""><img class="topbar-mark brand-mark-dark" src="${IMG}logo-mark-dark.svg" alt=""></span><span>Portfolixir</span></a><div class="topbar-page" aria-live="polite"><h1>${title}</h1><p${subNew ? ' class="is-new"' : ''}>${sub}</p></div></div><div class="topbar-controls" aria-label="Darstellung"><details class="theme-menu"><summary class="theme-menu-trigger" title="Theme"><span class="theme-current-icon theme-current-icon-system" aria-hidden="true">${svg('monitor')}</span><span class="visually-hidden">Theme</span></summary></details><details class="accent-menu"><summary class="accent-menu-trigger"><span class="accent-current-dot accent-current-dot-violet" aria-hidden="true"></span><span class="visually-hidden">Akzentfarbe</span></summary></details><nav class="locale-switcher" aria-label="Sprache"><a class="locale-link">EN</a><a class="locale-link is-active" aria-current="true">DE</a></nav></div></header>`;
+}
+function areaTabs() {
+  const t = [['Historie', 'bars', true], ['Import', 'upload']];
+  return `<nav class="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs">${t.map(([l, i, on]) => `<a class="area-tab${on ? ' is-active' : ''}"${on ? ' aria-current="page"' : ''}><span class="area-tab__icon" aria-hidden="true">${svg(i, 14)}</span><span class="area-tab__label" data-label="${l}">${l}</span></a>`).join('')}</nav>`;
+}
+function shellTop(o) {
+  const sub = o.sub === 'after' ? 'Alle Buchungen über alle Konten und Depots' : 'Manuelles Kauf- und Verkaufsjournal';
+  return `<div class="app-shell">${sidebar()}<div class="app-frame">${topbar('Transaktionen', sub, o.sub === 'after')}<main class="app-main app-main--workspace"><div class="workspace-page">${areaTabs()}</div></main></div></div>`;
+}
+
+/* ---- synthetic rows: September 2026 as the seed run of 03.10.2026 books it
+   (a real instrument the seed's imported demo carries is replaced by an
+   invented name) ---- */
+const SEP = [
+  { d: '30.09.2026', k: 'Saldo gesetzt', sec: null, acct: 'USD Settlement', qty: '', price: '—', amt: '1.850,00', cur: 'USD', s: 0, level: true },
+  { d: '30.09.2026', k: 'Kauf', sec: 'Kestrel Industrial Group NV', acct: 'Demo Cash', qty: '10', price: '24,00', amt: '240,00', cur: 'EUR', s: -1, size: '10 × 24,00' },
+  { d: '24.09.2026', k: 'Dividende', sec: 'Nordwind Industrie AG', acct: 'Demo Cash', qty: '50', price: '—', amt: '12,50', cur: 'EUR', s: 1, size: '50 Stück' },
+  { d: '23.09.2026', k: 'Kauf', sec: 'Alpine Test Werke AG', acct: 'Demo Cash', qty: '20', price: '45,60', amt: '964,90', cur: 'EUR', s: -1, size: '20 × 45,60' },
+  { d: '21.09.2026', k: 'Einlage', sec: null, acct: 'Demo Cash', qty: '', price: '—', amt: '1.500,00', cur: 'EUR', s: 1 },
+  { d: '03.09.2026', k: 'Verkauf', sec: 'Harborline Freight Inc', acct: 'US Broker', qty: '10', price: '36,00', amt: '360,00', cur: 'USD', s: 1, size: '10 × 36,00' }
+];
+const AUG = [
+  { d: '28.08.2026', k: 'Kauf', sec: 'Meridian Global Equity ETF', acct: 'Demo Cash', qty: '0,537', price: '93,10', priceStored: '93,1046', amt: '50,00', cur: 'EUR', s: -1, size: '0,537 × 93,10', sizeStored: '0,537 × 93,1046' },
+  { d: '14.08.2026', k: 'Kauf', sec: 'Nordwindkapitalverwaltungsbeteiligungsgesellschaft AG', acct: 'Demo Cash', qty: '12', price: '41,12', priceStored: '41,1234', amt: '493,48', cur: 'EUR', s: -1, size: '12 × 41,12', sizeStored: '12 × 41,1234' },
+  { d: '06.08.2026', k: 'Kauf', sec: 'Kestrel Industrial Group NV', acct: 'Demo Cash', qty: '5', price: '24,00', priceStored: '24,00', amt: '120,00', cur: 'EUR', s: -1, size: '5 × 24,00', sizeStored: '5 × 24,00' },
+  { d: '03.08.2026', k: 'Zinsen', sec: null, acct: 'Tagesgeld', qty: '', price: '—', priceStored: '—', amt: '12,40', cur: 'EUR', s: 1 }
+];
+
+const kebab = (r) => `<button type="button" class="row-actions__kebab" aria-label="Aktionen für ${r.k}, ${r.sec || r.acct}, ${r.d}" aria-haspopup="menu" aria-expanded="false">${svg('kebab')}</button>`;
+const signed = (r, o) => {
+  if (o.signed) return r.level ? r.amt : (r.s < 0 ? '-' : '+') + r.amt;
+  return (r.s < 0 ? '-' : '') + r.amt;
+};
+const signCls = (r, o) => (o.signed && !r.level ? (r.s < 0 ? 'is-negative is-new' : 'is-positive is-new') : '');
+
+function head(o, month, count, totals) {
+  const cnt = `${count} Transaktionen`;
+  if (o.head === 'A') return `<span class="tx-group-month">${month}</span><span class="tx-group-subtotal is-new">${cnt}</span>`;
+  if (o.head === 'B') return `<span class="tx-group-month">${month}</span><span class="tx-group-subtotal is-new">${cnt} · netto <span class="currency-total"><span class="is-positive">+307,60</span> <small>EUR</small></span><span class="currency-total"> · <span class="is-positive">+360,00</span> <small>USD</small></span> · Saldo gesetzt nicht enthalten</span>`;
+  if (o.head === 'C') return `<span class="tx-group-month">${month}</span><span class="tx-group-subtotal is-new">${cnt} · Kauf <span class="currency-total">1.204,90 <small>EUR</small></span> · Einlage <span class="currency-total">1.500,00 <small>EUR</small></span> · Dividende <span class="currency-total">12,50 <small>EUR</small></span> · Verkauf <span class="currency-total">360,00 <small>USD</small></span> · Saldo gesetzt <span class="currency-total">1.850,00 <small>USD</small></span></span>`;
+  return `<span class="tx-group-month">${month}</span><span class="tx-group-subtotal">${cnt} · ${totals.map((t, i) => `<span class="currency-total">${i ? ' · ' : ''}${t[0]}\n<small>${t[1]}</small></span>`).join('')}</span>`;
+}
+
+function deskTable(o, month, rows, totals, balance) {
+  const cols = ['Datum', 'Typ', o.acct === 'subject' ? '<span class="is-new">Wertpapier / Konto</span>' : 'Wertpapier'];
+  if (o.acct === 'col') cols.push('<span class="is-new">Konto</span>');
+  const numCols = ['Stückzahl', 'Preis', 'Betrag'];
+  const n = cols.length + numCols.length + (balance ? 2 : 1);
+  const th = cols.map((c) => `<th>${c}</th>`).join('') + numCols.map((c) => `<th class="num">${c}</th>`).join('') + (balance ? '<th class="num col-subject">Saldo <small>EUR</small></th>' : '') + '<th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th>';
+  const body = rows.map((r) => {
+    let subj = r.sec || '';
+    if (o.acct === 'subject' && !r.sec) subj = `<span class="tx-subject--account is-new">${r.acct}</span>`;
+    const acctCell = o.acct === 'col' ? `<td class="is-new">${r.acctCell || r.acct}</td>` : '';
+    const price = o.stored && r.priceStored ? r.priceStored : r.price;
+    const priceNew = o.stored && r.priceStored && r.priceStored !== r.price;
+    return `<tr data-transaction><td>${r.d}</td><td>${r.k}</td><td>${subj}</td>${acctCell}<td class="num">${r.qty}</td><td class="num${priceNew ? ' is-new' : ''}">${price}</td><td class="num ${signCls(r, o)}" data-role="amount">${signed(r, o)}<small class="value-suffix">${r.cur}</small></td>${balance ? `<td class="num col-subject" data-role="running-balance">${r.bal}</td>` : ''}<td class="row-actions">${kebab(r)}</td></tr>`;
+  }).join('');
+  return `<div id="transaction-table-wrapper" class="data-table-wrapper"><table id="transaction-list"><thead><tr>${th}</tr></thead><tbody><tr class="tx-group-head"><th colspan="${n}" scope="colgroup">${head(o, month, rows.length, totals)}</th></tr>${body}</tbody></table></div>`;
+}
+
+function phoneRows(o, month, rows, totals, balance) {
+  const li = rows.map((r) => {
+    const size = o.stored && r.sizeStored ? r.sizeStored : r.size;
+    const sizeNew = o.stored && r.sizeStored && r.sizeStored !== r.size;
+    const amt = signed(r, o) + ' ' + r.cur;
+    return `<li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">${r.d} · ${r.k}</span><span class="phone-row__ids">${r.sec || r.acct}</span></span><span class="phone-row__figures"><span class="phone-row__figure ${signCls(r, o)}">${amt}</span>${size ? `<span class="phone-row__figure2${sizeNew ? ' is-new' : ''}">${size}</span>` : ''}${balance ? `<span class="phone-row__figure2" data-role="running-balance">Saldo ${r.bal}<small class="value-suffix">EUR</small></span>` : ''}</span>${kebab(r)}</li>`;
+  }).join('');
+  return `<ul id="transaction-phone-rows" class="phone-rows" aria-label="Transaktionen"><li class="phone-rows__group">${head(o, month, rows.length, totals)}</li>${li}</ul>`;
+}
+
+function sectionHead(chipCount) {
+  return `<header class="section-head"><h2 id="transaction-history-heading" tabindex="-1">Transaktionshistorie</h2><div class="section-head-controls"><button type="button" class="filter-sheet-toggle" aria-haspopup="dialog" aria-expanded="false">${svg('filter')} Filter${chipCount ? ` <span class="badge">${chipCount}</span>` : ''}</button><button type="button" class="button-primary" aria-haspopup="dialog" aria-expanded="false">${svg('plus', 14)} Transaktion erfassen</button></div></header>`;
+}
+function chips(active) {
+  const acc = ['Demo Cash', 'Tagesgeld', 'USD Settlement', 'US Broker'];
+  const types = ['Saldo gesetzt', 'Kauf', 'Umbuchung', 'Einlage', 'Dividende', 'Einlieferung', 'Zinsen', 'Verkauf', 'Split'];
+  const chip = (l) => `<button type="button" class="filter-chip${l === active ? ' is-active' : ''}" aria-pressed="${l === active}">${l}</button>`;
+  return `<div id="transaction-chips" class="filter-chips" role="group" aria-label="Historie filtern"><span><span class="filter-chips__family">Konto</span>${acc.map(chip).join('')}</span><span><span class="filter-chips__family">Typ</span>${types.map(chip).join('')}</span><span class="filter-chips__group" role="group" aria-label="Geändert seit"><span class="filter-chips__family">Geändert seit</span>${['Heute', '7 Tage', '30 Tage'].map(chip).join('')}</span></div>`;
+}
+function moreFilters(count) {
+  return `<details id="transaction-more-filters" class="more-filters"><summary>${svg('filter')} Weitere Filter${count ? ` <span class="badge" data-role="more-filters-count">${count}</span>` : ''}</summary></details>`;
+}
+function summary() {
+  const t = [['Saldo gesetzt', 1, '1.850,00', 'USD'], ['Kauf', 2, '1.204,90', 'EUR'], ['Einlage', 1, '1.500,00', 'EUR'], ['Dividende', 1, '12,50', 'EUR'], ['Verkauf', 1, '360,00', 'USD']];
+  return `<div id="transaction-summary" class="transaction-summary" role="status"><span class="summary-total"><strong data-role="summary-total">6</strong>\nTransaktionen</span>${t.map(([k, c, a, cur]) => `<span class="summary-type">${k}:\n<strong data-role="summary-count">${c}</strong>\n· <span class="currency-total">${a}\n<small>${cur}</small></span></span>`).join('')}<p class="summary-basis" data-role="summary-basis">Anzahl und gebuchte Bruttobeträge der Transaktionen, die dieser Filter auswählt — je Währung summiert und nicht umgerechnet.</p></div>`;
+}
+const columnBar = () => `<div class="column-picker-bar popover-container"><button type="button" class="button-ghost column-picker-toggle" aria-haspopup="dialog" aria-expanded="false">${svg('columns', 14)} Spalten</button></div>`;
+
+function hist(o) {
+  const totals = [['2.717,40', 'EUR'], ['2.210,00', 'USD']];
+  const rows = SEP.map((r) => Object.assign({}, r));
+  const elide = (t) => `<p class="summary-basis" style="font-style:italic">… ${t} wie oben, hier ausgelassen …</p>`;
+  const top = o.compact === 'all' ? elide('Chips, Weitere Filter und Zusammenfassung') : o.compact ? elide('Chips') + moreFilters(2) + summary() : chips() + moreFilters(2) + summary();
+  return `<main class="app-main app-main--workspace"><div class="workspace-page"><section id="transaction-list-panel" class="workspace-section">${sectionHead(2)}${top}${columnBar()}${deskTable(o, 'September 2026', rows, totals)}${phoneRows(o, 'September 2026', rows, totals)}</section></div></main>`;
+}
+function histAug(o) {
+  const totals = [['675,88', 'EUR']];
+  return `<main class="app-main app-main--workspace"><div class="workspace-page"><section id="transaction-list-panel" class="workspace-section">${sectionHead(0)}<p class="summary-basis" style="font-style:italic">… Chips, Weitere Filter und Zusammenfassung wie oben, hier ausgelassen …</p>${columnBar()}${deskTable(Object.assign({ head: 'today', acct: 'none' }, o), 'August 2026', AUG, totals)}${phoneRows(Object.assign({ head: 'today' }, o), 'August 2026', AUG, totals)}</section></div></main>`;
+}
+function histTransfer() {
+  const rows = [
+    { d: '15.07.2026', k: 'Umbuchung', sec: null, acct: 'Demo Cash', qty: '', price: '—', amt: '200,00', cur: 'EUR', s: -1, bal: '4.120,85' },
+    { d: '01.07.2026', k: 'Zinsen', sec: null, acct: 'Tagesgeld', qty: '', price: '—', amt: '11,90', cur: 'EUR', s: 1, bal: '3.920,85' }
+  ];
+  const o = { head: 'today', acct: 'none' };
+  return `<main class="app-main app-main--workspace"><div class="workspace-page"><section id="transaction-list-panel" class="workspace-section"><div id="transaction-chips" class="filter-chips" role="group"><span><span class="filter-chips__family">Konto</span><button type="button" class="filter-chip">Demo Cash</button><button type="button" class="filter-chip is-active" aria-pressed="true">Tagesgeld</button><button type="button" class="filter-chip">USD Settlement</button><button type="button" class="filter-chip">US Broker</button></span></div>${deskTable(o, 'Juli 2026', rows, [['211,90', 'EUR']], true)}${phoneRows(o, 'Juli 2026', rows, [['211,90', 'EUR']], true)}</section></div></main>`;
+}
+
+const TPL = { 'shell-top': shellTop, hist, 'hist-aug': histAug, 'hist-transfer': histTransfer };
+const CSS_MOCK = '<style>body{background:var(--color-bg);} .is-new{outline:2px dashed var(--color-accent);outline-offset:1px;border-radius:4px;} td.is-new,th.is-new{outline-offset:-2px;border-radius:0;} html.screen,html.screen body{overflow:hidden;}</style>';
+
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  const css = CSS_MOCK + ('proposal' in f.dataset ? document.getElementById('proposal').outerHTML : '');
+  const fixed = f.dataset.fixed;
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument;
+    f.style.height = (fixed ? fixed : Math.ceil(doc.documentElement.scrollHeight)) + 'px';
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="system" data-accent="violet"${fixed ? ' class="screen"' : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body class="${f.dataset.body || ''}">${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>
