@@ -697,6 +697,11 @@ defmodule Portfolixir.DocsTest do
     # warning use the exact UI labels of each language.
     en_normalized = String.replace(en, ~r/\s+/, " ")
 
+    # The switcher has carried no visible "View:" prefix since #720; the
+    # guide names the row of view chips as the screen shows it.
+    refute en =~ "**View:** switcher"
+    refute de =~ "Umschalter **Ansicht:**"
+
     for expected <- [
           "Which do I need — a bucket or a view?",
           "counted exactly once",
