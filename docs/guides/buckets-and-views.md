@@ -55,8 +55,8 @@ counting twice.
    <!-- screenshot: views-page-edit-view-buckets -->
 6. Repeat for a second view `Household` that includes `Mine` **and**
    `Partner` (or simply check **Include all buckets**).
-7. Open **Wealth**, pick `My wealth` in the **View:** switcher at the top of
-   the page, and click **Set as default** under **Default view**. The Wealth
+7. Open **Wealth**, pick `My wealth` in the row of views at the top of the
+   page, and click **Set as default** under **Default view**. The Wealth
    page and the Overview page now open on the personal number; the switcher
    still flips to `Household` or the built-in **Everything** at any time.
    <!-- screenshot: wealth-view-switcher-set-default -->
