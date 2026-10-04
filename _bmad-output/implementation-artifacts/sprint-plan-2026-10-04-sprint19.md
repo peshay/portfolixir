@@ -93,11 +93,12 @@ Silence builds the correction. "JSON" moves it to the shrink order's top.
   figure, or block install or upgrade for a stranger": #1048, #1051, #1055,
   #1068, #1042 and #1092. #1076 and #1081 join them once decided.
 - **The rest is chosen by surface, not by size.** Of the 26 M issues, every
-  one except #1052 is in (D-6 decides #1052). Of the 41 L issues, 12 are in,
+  one except #1052 is in (D-6 decides #1052). Of the 41 L issues, 16 are in,
   and each rides a file, a board or a verification pass that an H or M issue
   already opens. The other L issues stay open with a reason (D-12).
-- **Every rendered change is boarded on this PR.** Ten boards: most are
-  before/after conformance repairs, and seven questions are genuine choices.
+- **Every rendered change is boarded on this PR.** Ten boards. Most of
+  what they draw is before/after conformance repair, and fifteen questions
+  are genuine choices, each with a recommendation.
 - **The companion's budget has no room left.** Every byte β adds to a tool
   description is paid for by trimming another in the same PR (D-10).
 
@@ -105,8 +106,9 @@ Silence builds the correction. "JSON" moves it to the shrink order's top.
 
 ### PR α — the money a stranger checks first
 
-Risk-tier throughout: each item below is its own commit group, TDD first,
-with exact `Decimal` fixtures.
+M1 to M5 are risk-tier: each is its own commit group, TDD first, with exact
+`Decimal` fixtures. M6 and M7 name and convert nothing (ADR-0052's own
+verdict for the guard), so they are ordinary stories.
 
 - **M1, a PP CSV books its Gesamtpreis (#1076; ADR-0053 §1–§5, §7, §8).**
   - **Order:** the digest list of today's hashes (K2) is the first commit,
@@ -369,12 +371,14 @@ is more specific: "when an aggregate cannot include a row, the surface states
 how many and which — beside the figure". The Overview's total is such an
 aggregate, and today it states nothing.
 
-- **J1, A:** an `attention` data note in its own row under the "Alles" card
-  (the card's section is a grid, so the note spans it):
-  - it names the left-out cash accounts with their **native** balances
-    (UX-DR25 clause 2) and the positions without any price;
-  - it links to Wealth's data-quality section;
-  - it carries no call to action that cannot act.
+- **J1, A:** an `attention` data note in its own row under the "Alles" card.
+  The card's section drops its `grid` class: as a grid item the note would
+  become a second column, and spanning the grid shrinks the card to 221 px
+  (measured on the board). The note:
+  - names the left-out cash accounts with their **native** balances (UX-DR25
+    clause 2) and the positions without any price;
+  - links to Wealth's data-quality section;
+  - carries no call to action that cannot act.
 
   The valuation already carries every name; the helpers that build them move
   out of the Wealth LiveView into a shared module, so the Overview does not
@@ -614,7 +618,8 @@ verdict). The story writes a dated note into ADR-0052 and amends DESIGN.md's
 "Settled here" items.
 
 **To flip by comment:** "keep ADR-0052" leaves #1068 open with this
-decision recorded against it, and M7 builds only #1078.
+decision recorded against it. M7 then builds only #1078, and D-1's first
+criterion drops #1068.
 
 ## Sequencing
 
