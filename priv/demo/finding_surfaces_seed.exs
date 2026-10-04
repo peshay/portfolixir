@@ -132,8 +132,9 @@ Code.eval_file("priv/demo/strategies_seed.exs")
 # that must fire (pr-review-checklist.md → G). A plan under 100 % is a
 # choice, not an alarm (ADR-0040 §3, #969): it renders a muted remainder row
 # and no warning. Raising the cash target to 20 % puts the plan at 105 % and
-# renders the sum warning, without touching the demo seed the README
-# screenshots come from.
+# renders the sum warning, without touching `strategies_seed.exs`, which the
+# minimal demo instance uses as it is. (The screenshots under docs/screenshots/
+# come from this review instance; priv/demo/README.md says how.)
 :ok =
   Portfolixir.Portfolios.Targets.set_cash_target(
     owner,
