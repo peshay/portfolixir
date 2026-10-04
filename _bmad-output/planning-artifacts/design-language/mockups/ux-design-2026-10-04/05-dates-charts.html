@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Daten und Diagrammachsen (#1061, #1087, #1088, Pick J5)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL. Everything inside the frames is the markup and the classes
+     that ship: securities_live.ex (render_detail_pane/1: .detail-pane,
+     .detail-pane-head, .detail-pane-sub, .detail-pane-tabs; the Transactions
+     tab's .detail-transactions-table; quotes_tab_panel/1 with its
+     #quotes-table-wrapper and #quote-phone-rows), securities/manual_quotes.ex
+     (the note), securities/merge_preview.ex (.merge-pair, pair_table/1 with
+     .merge-wide / .merge-narrow), portfolio_live.ex (#portfolio-data-quality,
+     #portfolio-performance with .perf-badge, .perf-figure and
+     p[data-role=performance-basis]) and components/security_chart.ex (the
+     960 x 320 viewBox, the 56/24/16/28 paddings, render_axes/1). The dates,
+     decimals and signs change in the markup only (rule ①); rules ② and ③ are
+     the CSS the J5 story adds to app.css. -->
+<style id="proposal">
+  /* ① #1061, #1087, #1088 (locale half). No CSS: every displayed date goes
+     through Format.date (DD.MM.YYYY in German, ISO in English), the axis
+     values through Format.decimal and the axis percentages through the
+     house's signed percent ("+10,4%", no space, hyphen-minus), as the KPI
+     band prints them. <time datetime>, inputs, the API, MCP and files keep
+     ISO (UX-DR19 as amended 2026-10-03, #1014). */
+
+  /* ② J5, variant A: the axis label keeps the token's size,
+     {typography.chart-axis} = 9 px, in CSS pixels at every chart width.
+     The ChartCrosshair hook already measures the svg (scale = view.width /
+     svgRect.width); it writes that number to --chart-upx on the
+     .chart-frame (ResizeObserver), and the label multiplies by it. Before
+     the hook mounts the factor is 1: today's 9 viewBox units. render_axes/1
+     gives the labels classes: .chart-axis-y (the five values, the top one
+     also .is-top) and .chart-axis-x (the two dates). */
+  .security-chart .chart-axis-labels text {
+    font-size: calc(9px * var(--chart-upx, 1));
+  }
+
+  /* ③ J5, variant A: on a chart narrower than about 760 px the 56-unit
+     gutter is too narrow for a 9 px label ("+10,4%" is about 32 px wide; the
+     gutter is 20 px at 390 px), so the values move inside the plot,
+     left-aligned and sitting on their grid line, the top one centred on it
+     (there is no room above it), with a halo in the chart surface colour over the line and
+     the fill. A container query, so it follows the chart's width, not the
+     window's (the detail pane, the fullscreen detail and the Wealth chart
+     differ at the same window width). SVG paints in document order, so
+     render_axes/1's label group moves after the area and the line (the
+     story's one markup move); in the gutter the order changes nothing. */
+  .chart-frame {
+    container-type: inline-size;
+  }
+
+  @container (max-width: 760px) {
+    .security-chart .chart-axis-y {
+      text-anchor: start;
+      dominant-baseline: alphabetic;
+      transform: translate(calc(6px + 4px * var(--chart-upx, 1)), calc(-3px * var(--chart-upx, 1)));
+      paint-order: stroke;
+      stroke: var(--color-chart-surface);
+      stroke-width: calc(3px * var(--chart-upx, 1));
+      stroke-linejoin: round;
+    }
+
+    .security-chart .chart-axis-y.is-top {
+      dominant-baseline: central;
+      transform: translate(calc(6px + 4px * var(--chart-upx, 1)), 0);
+    }
+  }
+</style>
+<!-- Variant B of J5, injected into the B frames only (media="not all" keeps
+     it off the board itself). B keeps ③, takes no hook (②'s factor stays 1
+     above 560 px) and replaces the measured factor with a breakpoint
+     constant: 2.9 is 960 / 331, the chart's width on a 390 px phone. -->
+<style id="variant-b" media="not all">
+  /* J5 B: under 560 px the label is scaled by a constant and two of the
+     five values are dropped (the second and the fourth from the bottom). */
+  @media (max-width: 560px) {
+    .chart-frame {
+      --chart-upx: 2.9;
+    }
+
+    .security-chart .chart-axis-labels text:nth-child(2),
+    .security-chart .chart-axis-labels text:nth-child(4) {
+      display: none;
+    }
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: visible; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ol, .notes ul { margin: 0; }
+  .notes ol, .notes ul { padding-left: 18px; }
+  .notes li { margin: 0 0 6px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .rec { color: var(--color-positive); font-weight: 760; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .stage { padding: 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .stage .detail-pane { margin-top: 0; }
+  .lbl-p { margin: 0; font-size: 11px; color: var(--mock-ink); }
+  .off-note { margin: 0; font-size: 11.5px; color: var(--color-danger); }
+  .ok-note { margin: 0; font-size: 11.5px; color: var(--color-positive); }
+  .w-half { flex: 1 1 520px; min-width: 0; }
+  .w-full { flex: 1 1 100%; min-width: 0; }
+  .w-notes { flex: 1 1 300px; min-width: 0; }
+  .phone-only { display: none; }
+  .ph { width: 392px; flex: none; border: 1px solid var(--color-border-strong); border-radius: 20px; overflow: hidden; background: var(--color-bg); }
+  .ph iframe { display: block; width: 390px; height: 150px; border: 0; }
+  .ph-col { display: grid; gap: 6px; align-content: start; }
+  .ph-col .measure { margin: 0; font-size: 11.5px; color: var(--mock-ink); max-width: 390px; }
+  .ph-col .measure b { color: var(--color-text); }
+  .ph.mock-before { border-color: var(--color-danger); }
+  .ph.mock-after { border-color: var(--color-positive); }
+  .ph-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .ph.mock-before .ph-tag { color: var(--color-danger); background: var(--color-danger-soft); }
+  .ph.mock-after .ph-tag { color: var(--color-positive); background: #ecfdf5; }
+  .ph.var-b .ph-tag { color: var(--mock-ink); background: var(--color-bg-muted); }
+  .dialog-frame { border: 1px solid var(--color-border); border-radius: var(--radius-lg); background: var(--color-bg-elevated); overflow: hidden; }
+  .dialog-frame .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--color-border); }
+  .dialog-frame .modal-head h2 { margin: 0; font-size: 15px; }
+  .dialog-frame .modal-body { padding: 12px 16px; display: grid; gap: 12px; }
+  table.mt { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  table.mt th, table.mt td { padding: 4px 8px; border-bottom: 1px solid var(--color-border); text-align: right; font-variant-numeric: tabular-nums; }
+  table.mt th:first-child, table.mt td:first-child { text-align: left; }
+  table.mt th { font-size: 11px; color: var(--mock-ink); font-weight: 700; }
+  table.mt td.bad { color: var(--color-danger); font-weight: 700; }
+  table.mt td.ok { color: var(--color-positive); font-weight: 700; }
+  .measure-host { position: absolute; left: -20000px; top: 0; visibility: hidden; }
+  .measure-host iframe { display: block; height: 700px; border: 0; }
+
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-board > p.mock-note { padding: 0 12px; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .stage { padding: 0; gap: 0; }
+    .stage > .lbl-p, .stage > .off-note, .stage > .ok-note { padding: 8px 12px 4px; }
+    .stage > .hint { padding: 0 12px 12px; }
+    .stage .detail-pane, .stage .dialog-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .notes { padding: 0 12px; }
+    .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+    .ph { width: 100%; border-radius: 0; border-left: 0; border-right: 0; }
+    .ph iframe { width: 100%; }
+    .ph-col { width: 100%; }
+    .ph-col .measure { padding: 0 12px; }
+    .stage .workspace-section { padding: 12px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-ast" viewBox="0 0 24 24"><path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/></symbol>
+    <symbol id="i-tri" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+    <symbol id="i-max" viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></symbol>
+    <symbol id="i-chev" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar desk-only"><b>Board 05 — displayed dates and the chart axes (#1061, #1087's Wealth half, #1088).</b> Three conformance repairs drawn as <b>Heute / Nachher</b>: UX-DR19 as amended for #1014 already says a displayed date follows the page's language through <code>Format.date</code> (DD.MM.YYYY in German) and a number its decimal comma; inputs, <code>&lt;time datetime&gt;</code>, the API, MCP and files keep ISO. <b>One real choice, J5</b> — how the axis labels stay legible at 390&nbsp;px: <b>A</b> a non-scaling label (the token's 9&nbsp;px in CSS pixels at every chart width, measured by the existing chart hook) · <b>B</b> fewer ticks at phone width (three of five, the label scaled by a breakpoint constant). <span class="rec">Recommended: J5 A.</span> A comment naming the code and a letter (e.g. "J5 B") decides; silence adopts the recommendation. The Overview's "Fällig" dates (#1087's other half) are drawn on board 01. All names, figures and dates are invented. <b>Dashed = new.</b></div>
+<p class="phone-only phone-cap"><b>Board 05 at 390&nbsp;px.</b> A true 390&nbsp;px viewport: app.css's rules under 720 and 560&nbsp;px apply. The chart frames are 390&nbsp;px iframes in both renders. Recommended: J5 A. All data invented.</p>
+
+<!-- ============================ #1061 detail ============================ -->
+<section class="mock-board">
+  <h2>#1061 — the security detail prints ISO dates where it only shows them <small>head · Transaktionen · Kurse · Heute / Nachher</small></h2>
+  <p class="mock-note desk-only">Three representative spots of the detail pane: the head's "Letzter … (date)" (<code>securities_live.ex:1018</code>), the Transactions tab's date column (<code>:2018</code>) and the Quotes tab — its manual-quotes note (<code>securities/manual_quotes.ex:54</code>), the table (<code>:3062</code>) and the phone rows (<code>:3086</code>). Every one is a display; the <code>&lt;time datetime&gt;</code> attribute stays ISO. The Trades tab's dates (<code>:2105</code>, <code>:2179</code>, <code>:2219–2220</code>, <code>:2273</code>) follow the same rule and are #1060's by #1061's own text; they are not redrawn here. In a narrow pane today's ISO date also breaks at its hyphen ("2026-/09-22", left); the German form does not.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half"><span class="mock-tag">Heute</span>
+      <div class="stage">
+        <div class="detail-pane">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title">
+              <span class="security-logo security-logo--lg security-logo--initial">N</span>
+              <div><h2>Nordwind Industrie AG</h2><p class="detail-pane-sub">DE000000000A · NWI · EUR · Letzter 112,40 (2026-09-30)</p></div>
+            </div>
+            <div class="detail-pane-head__actions">
+              <span class="icon-button" aria-label="Detail schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-x"/></svg></span>
+            </div>
+          </header>
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--transactions">
+            <div class="data-table-wrap">
+              <table class="data-table detail-transactions-table">
+                <thead><tr><th>Datum</th><th>Typ</th><th class="num">Stückzahl</th><th class="num">Preis</th><th class="num">Gebühren</th><th class="num">Brutto</th><th>Depot</th></tr></thead>
+                <tbody>
+                  <tr class="tx-row tx-row--buy"><td>2026-09-22</td><td><span class="badge tx-badge tx-badge--buy">Kauf</span></td><td class="num">10,0000</td><td class="num">112,40</td><td class="num">4,90</td><td class="num">1.128,90</td><td>Depot 1</td></tr>
+                  <tr class="tx-row tx-row--buy"><td>2026-03-02</td><td><span class="badge tx-badge tx-badge--buy">Kauf</span></td><td class="num">15,0000</td><td class="num">101,20</td><td class="num">4,90</td><td class="num">1.522,90</td><td>Depot 1</td></tr>
+                  <tr class="tx-row tx-row--sell"><td>2025-11-18</td><td><span class="badge tx-badge tx-badge--sell">Verkauf</span></td><td class="num">5,0000</td><td class="num">98,60</td><td class="num">4,90</td><td class="num">488,10</td><td>Depot 1</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+        <p class="lbl-p">Tab „Kurse“</p>
+        <div class="detail-pane">
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--quotes">
+            <div class="data-note data-note--note">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+              <span class="data-note__word">Hinweis</span>
+              <div class="data-note__body">3 manuelle Kurse in der gespeicherten Historie, vom <time datetime="2026-09-14">2026-09-14</time> bis <time datetime="2026-09-16">2026-09-16</time>. Ein manueller Kurs hat Vorrang: Die Kursaktualisierung lässt ihn stehen, bis er freigegeben wird. <button type="button" class="link-button">Freigeben…</button></div>
+            </div>
+            <div class="data-table-wrap" id="quotes-table-wrapper">
+              <table class="data-table detail-quotes-table">
+                <thead><tr><th>Datum</th><th class="num">Schlusskurs</th><th class="num">Gespeichert</th><th>Quelle</th></tr></thead>
+                <tbody>
+                  <tr><td>2026-09-30</td><td class="num">112,40 <small>EUR</small></td><td class="num">112,40</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td>2026-09-16</td><td class="num">106,80 <small>EUR</small></td><td class="num">106,80</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                  <tr><td>2026-09-15</td><td class="num">106,10 <small>EUR</small></td><td class="num">106,10</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <ul id="quote-phone-rows" class="phone-rows" aria-label="Kurse">
+              <li class="phone-row" style="grid-template-columns:minmax(0,1fr) auto"><span class="phone-row__body"><span class="phone-row__name">2026-09-30</span><span class="phone-row__ids"><span class="badge quote-source">Portfolio Performance</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">112,40<small class="value-suffix">EUR</small></span></span></li>
+              <li class="phone-row" style="grid-template-columns:minmax(0,1fr) auto"><span class="phone-row__body"><span class="phone-row__name">2026-09-16</span><span class="phone-row__ids"><span class="badge quote-source">Manuell</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">106,80<small class="value-suffix">EUR</small></span></span></li>
+              <li class="phone-row" style="grid-template-columns:minmax(0,1fr) auto"><span class="phone-row__body"><span class="phone-row__name">2026-09-15</span><span class="phone-row__ids"><span class="badge quote-source">Manuell</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">106,10<small class="value-suffix">EUR</small></span></span></li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">Nachher</span>
+      <div class="stage">
+        <div class="detail-pane">
+          <header class="detail-pane-head">
+            <div class="detail-pane-head__title">
+              <span class="security-logo security-logo--lg security-logo--initial">N</span>
+              <div><h2>Nordwind Industrie AG</h2><p class="detail-pane-sub">DE000000000A · NWI · EUR · Letzter 112,40 (<span class="is-new">30.09.2026</span>)</p></div>
+            </div>
+            <div class="detail-pane-head__actions">
+              <span class="icon-button" aria-label="Detail schließen"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><use href="#i-x"/></svg></span>
+            </div>
+          </header>
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--transactions">
+            <div class="data-table-wrap">
+              <table class="data-table detail-transactions-table">
+                <thead><tr><th>Datum</th><th>Typ</th><th class="num">Stückzahl</th><th class="num">Preis</th><th class="num">Gebühren</th><th class="num">Brutto</th><th>Depot</th></tr></thead>
+                <tbody>
+                  <tr class="tx-row tx-row--buy"><td><span class="is-new">22.09.2026</span></td><td><span class="badge tx-badge tx-badge--buy">Kauf</span></td><td class="num">10,0000</td><td class="num">112,40</td><td class="num">4,90</td><td class="num">1.128,90</td><td>Depot 1</td></tr>
+                  <tr class="tx-row tx-row--buy"><td>02.03.2026</td><td><span class="badge tx-badge tx-badge--buy">Kauf</span></td><td class="num">15,0000</td><td class="num">101,20</td><td class="num">4,90</td><td class="num">1.522,90</td><td>Depot 1</td></tr>
+                  <tr class="tx-row tx-row--sell"><td>18.11.2025</td><td><span class="badge tx-badge tx-badge--sell">Verkauf</span></td><td class="num">5,0000</td><td class="num">98,60</td><td class="num">4,90</td><td class="num">488,10</td><td>Depot 1</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+        <p class="lbl-p">Tab „Kurse“</p>
+        <div class="detail-pane">
+          <section role="tabpanel" class="detail-tab-panel detail-tab-panel--quotes">
+            <div class="data-note data-note--note">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-ast"/></svg></span>
+              <span class="data-note__word">Hinweis</span>
+              <div class="data-note__body">3 manuelle Kurse in der gespeicherten Historie, vom <time datetime="2026-09-14" class="is-new">14.09.2026</time> bis <time datetime="2026-09-16">16.09.2026</time>. Ein manueller Kurs hat Vorrang: Die Kursaktualisierung lässt ihn stehen, bis er freigegeben wird. <button type="button" class="link-button">Freigeben…</button></div>
+            </div>
+            <div class="data-table-wrap" id="quotes-table-wrapper">
+              <table class="data-table detail-quotes-table">
+                <thead><tr><th>Datum</th><th class="num">Schlusskurs</th><th class="num">Gespeichert</th><th>Quelle</th></tr></thead>
+                <tbody>
+                  <tr><td><span class="is-new">30.09.2026</span></td><td class="num">112,40 <small>EUR</small></td><td class="num">112,40</td><td><span class="badge quote-source">Portfolio Performance</span></td></tr>
+                  <tr><td>16.09.2026</td><td class="num">106,80 <small>EUR</small></td><td class="num">106,80</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                  <tr><td>15.09.2026</td><td class="num">106,10 <small>EUR</small></td><td class="num">106,10</td><td><span class="badge quote-source">Manuell</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+            <ul id="quote-phone-rows" class="phone-rows" aria-label="Kurse">
+              <li class="phone-row" style="grid-template-columns:minmax(0,1fr) auto"><span class="phone-row__body"><span class="phone-row__name is-new">30.09.2026</span><span class="phone-row__ids"><span class="badge quote-source">Portfolio Performance</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">112,40<small class="value-suffix">EUR</small></span></span></li>
+              <li class="phone-row" style="grid-template-columns:minmax(0,1fr) auto"><span class="phone-row__body"><span class="phone-row__name">16.09.2026</span><span class="phone-row__ids"><span class="badge quote-source">Manuell</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">106,80<small class="value-suffix">EUR</small></span></span></li>
+              <li class="phone-row" style="grid-template-columns:minmax(0,1fr) auto"><span class="phone-row__body"><span class="phone-row__name">15.09.2026</span><span class="phone-row__ids"><span class="badge quote-source">Manuell</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">106,10<small class="value-suffix">EUR</small></span></span></li>
+            </ul>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1061 merge ============================ -->
+<section class="mock-board">
+  <h2>#1061 — the merge dialogs print ISO dates <small>Wertpapiere zusammenführen, Schritt 2 · Heute / Nachher</small></h2>
+  <p class="mock-note desk-only">The pair cards' "angelegt …" (<code>merge_preview.ex:157</code>, from <code>created_on/1</code> at <code>:166</code>), the equal bookings' table (<code>:563</code>) and its two-line form under 720&nbsp;px (<code>:578</code>), and the quote collisions (<code>:639</code>). The accounts' merge preview has the same kind of spots — four cells (<code>portfolio_accounts/merge_preview.ex:250, 269, 489, 501</code>) and five sentences (<code>:408, 618, 723, 742, 750</code>) — and already prints one date through <code>Format.date</code> (<code>:190</code>) — so today one dialog mixes both forms. The ISIN-change date field (<code>merge_dialog.ex:99</code>) is an input and stays ISO.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half"><span class="mock-tag">Heute</span>
+      <div class="stage">
+        <div class="dialog-frame">
+          <header class="modal-head"><h2>Orchid Bay Pharmaceuticals plc zusammenführen <span class="modal-head__step">Schritt 2 von 2 · Vorschau</span></h2></header>
+          <div class="modal-body">
+            <div class="merge-pair" data-role="merge-pair">
+              <div class="merge-pair__side"><span class="merge-pair__role merge-pair__role--gone">Quelle · wird gelöscht</span><b>Orchid Bay Pharmaceuticals plc</b><span class="mono">XS0000000074</span><small>1 Buchung · angelegt 2026-10-03</small></div>
+              <span class="merge-pair__arrow" aria-hidden="true">→</span>
+              <div class="merge-pair__side"><span class="merge-pair__role">Ziel · bleibt</span><b>Orchid Bay Pharmaceuticals plc</b><span class="mono">XS0000000066</span><small>4 Buchungen · angelegt 2025-02-03</small></div>
+            </div>
+            <fieldset class="merge-choice" data-role="merge-pairs">
+              <legend>1 gleiche Buchung in beiden Wertpapieren</legend>
+              <div class="data-table-wrapper merge-wide">
+                <table class="data-table merge-table">
+                  <thead><tr><th>Datum</th><th>Art</th><th class="num">Stückzahl</th><th class="num">Betrag</th><th>Depot / Konto</th></tr></thead>
+                  <tbody><tr><td>2025-02-03</td><td>Kauf</td><td class="num">12</td><td class="num">360,00 EUR</td><td>Depot 1 · Girokonto</td></tr></tbody>
+                </table>
+              </div>
+              <ul class="merge-lines merge-narrow">
+                <li><span class="merge-lines__head">2025-02-03 · Kauf</span><span class="merge-lines__figure num">12 Stück · 360,00 EUR <small>Depot 1 · Girokonto</small></span></li>
+              </ul>
+            </fieldset>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">Nachher</span>
+      <div class="stage">
+        <div class="dialog-frame">
+          <header class="modal-head"><h2>Orchid Bay Pharmaceuticals plc zusammenführen <span class="modal-head__step">Schritt 2 von 2 · Vorschau</span></h2></header>
+          <div class="modal-body">
+            <div class="merge-pair" data-role="merge-pair">
+              <div class="merge-pair__side"><span class="merge-pair__role merge-pair__role--gone">Quelle · wird gelöscht</span><b>Orchid Bay Pharmaceuticals plc</b><span class="mono">XS0000000074</span><small>1 Buchung · angelegt <span class="is-new">03.10.2026</span></small></div>
+              <span class="merge-pair__arrow" aria-hidden="true">→</span>
+              <div class="merge-pair__side"><span class="merge-pair__role">Ziel · bleibt</span><b>Orchid Bay Pharmaceuticals plc</b><span class="mono">XS0000000066</span><small>4 Buchungen · angelegt 03.02.2025</small></div>
+            </div>
+            <fieldset class="merge-choice" data-role="merge-pairs">
+              <legend>1 gleiche Buchung in beiden Wertpapieren</legend>
+              <div class="data-table-wrapper merge-wide">
+                <table class="data-table merge-table">
+                  <thead><tr><th>Datum</th><th>Art</th><th class="num">Stückzahl</th><th class="num">Betrag</th><th>Depot / Konto</th></tr></thead>
+                  <tbody><tr><td><span class="is-new">03.02.2025</span></td><td>Kauf</td><td class="num">12</td><td class="num">360,00 EUR</td><td>Depot 1 · Girokonto</td></tr></tbody>
+                </table>
+              </div>
+              <ul class="merge-lines merge-narrow">
+                <li><span class="merge-lines__head"><span class="is-new">03.02.2025</span> · Kauf</span><span class="merge-lines__figure num">12 Stück · 360,00 EUR <small>Depot 1 · Girokonto</small></span></li>
+              </ul>
+            </fieldset>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1087 Wealth ============================ -->
+<section class="mock-board">
+  <h2>#1087 (Wealth half) — the data-quality notes and the performance basis line <small>Vermögen → Bestände · Heute / Nachher</small></h2>
+  <p class="mock-note desk-only">The stale-quote note names each position with its price date (<code>portfolio_live.ex:4109</code>), the suspect-dates note lists pre-1970 booking dates (<code>:2724</code>), and the basis line under the performance chart prints the period's two dates as raw <code>Date</code> structs (<code>:1693</code>, <code>&lt;%= @performance.start_date %&gt;</code>) and the compute instant through <code>Calendar.strftime(…, "%Y-%m-%d %H:%M UTC")</code> (<code>:1699</code>). After: the dates through <code>Format.date</code>; the instant keeps its time and its "UTC", only its date part changes. A pre-1970 typo reads "07.03.0219" (four-digit year, as <code>Calendar.strftime</code> pads it). At 390&nbsp;px today's "(0219-03-07)" breaks at its hyphen: these dates are plain text, not <code>&lt;time&gt;</code>, so <code>.data-note__body time { white-space: nowrap }</code> (<code>app.css:9857</code>) does not reach them; the German form has no hyphen to break at.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-half"><span class="mock-tag">Heute</span>
+      <div class="stage">
+        <section id="portfolio-data-quality" class="workspace-section data-quality">
+          <h2>Datenqualität</h2>
+          <div role="status" data-role="dq-notes">
+            <div class="data-note data-note--attention" data-role="dq-stale-priced">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-tri"/></svg></span>
+              <span class="data-note__word">Achtung</span>
+              <div class="data-note__body"><a href="#">Eine gehaltene Position wird mit einem Kurs bewertet, der älter als 7 Tage ist; die Summen können daher veraltet sein — stilllegen, wenn die Notierung endete, oder die Kurse aktualisieren:</a> Nordic Timber Holdings AB (2026-08-29)</div>
+            </div>
+            <div class="data-note data-note--attention" data-role="dq-suspect-dates">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-tri"/></svg></span>
+              <span class="data-note__word">Achtung</span>
+              <div class="data-note__body">Buchungen mit Datum vor 1970 (0219-03-07) werden am ersten plausiblen Tag angewendet — korrigiere die Daten in der Quelle und importiere erneut.</div>
+            </div>
+          </div>
+        </section>
+        <p class="lbl-p">Performance, unter dem Diagramm</p>
+        <p class="hint" data-role="performance-basis" style="margin:0">2025-10-04 – 2026-10-04 <span data-role="performance-as-of">· berechnet 2026-10-04 00:09 UTC</span></p>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-half"><span class="mock-tag">Nachher</span>
+      <div class="stage">
+        <section id="portfolio-data-quality" class="workspace-section data-quality">
+          <h2>Datenqualität</h2>
+          <div role="status" data-role="dq-notes">
+            <div class="data-note data-note--attention" data-role="dq-stale-priced">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-tri"/></svg></span>
+              <span class="data-note__word">Achtung</span>
+              <div class="data-note__body"><a href="#">Eine gehaltene Position wird mit einem Kurs bewertet, der älter als 7 Tage ist; die Summen können daher veraltet sein — stilllegen, wenn die Notierung endete, oder die Kurse aktualisieren:</a> Nordic Timber Holdings AB (<span class="is-new">29.08.2026</span>)</div>
+            </div>
+            <div class="data-note data-note--attention" data-role="dq-suspect-dates">
+              <span class="data-note__icon" aria-hidden="true"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><use href="#i-tri"/></svg></span>
+              <span class="data-note__word">Achtung</span>
+              <div class="data-note__body">Buchungen mit Datum vor 1970 (<span class="is-new">07.03.0219</span>) werden am ersten plausiblen Tag angewendet — korrigiere die Daten in der Quelle und importiere erneut.</div>
+            </div>
+          </div>
+        </section>
+        <p class="lbl-p">Performance, unter dem Diagramm</p>
+        <p class="hint" data-role="performance-basis" style="margin:0"><span class="is-new">04.10.2025 – 04.10.2026</span> <span data-role="performance-as-of">· berechnet <span class="is-new">04.10.2026</span> 00:09 UTC</span></p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1088 locale ============================ -->
+<section class="mock-board desk-only">
+  <h2>#1088 (locale half) — the axes print ISO dates and an English decimal point in German <small>Vermögen → Performance at 1200&nbsp;px · Heute / Nachher</small></h2>
+  <p class="mock-note">The y labels come from <code>format_percent/1</code> (<code>security_chart.ex:583–585</code>, <code>:erlang.float_to_binary</code> and a spaced "&nbsp;%") or <code>format_axis_value/1</code> (<code>:573–577</code>), the two dates from <code>Date.to_iso8601</code> (<code>:564</code>, <code>:567</code>), whatever the page's language — "+10.4 %" two lines under a badge that reads "+8,9%". After: the locale's decimal, the house's signed percent without the space, the date through <code>Format.date</code>; a value axis reads "112,40" and "12.500" (thousands grouped) instead of "112.40" and "12500". Both frames are full width so the labels render near desktop size (about 10&nbsp;px here); the "Nachher" frame already carries J5 A's rule ②, which at this width changes nothing visible.</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-full"><span class="mock-tag">Heute</span>
+      <div class="stage" id="locale-before"></div>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:14px">
+    <div class="mock-frame mock-after w-full"><span class="mock-tag">Nachher</span>
+      <div class="stage" id="locale-after"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ J5 ============================ -->
+<div class="pickbar desk-only" style="margin-top:8px"><b>Pick J5 — the axis labels at phone width (#1088, the size half).</b> The labels are 9 units of a 960-unit viewBox that scales to its frame, so they render 9&nbsp;px only on a 960&nbsp;px chart: about 3&nbsp;px on a phone, 6&nbsp;px at 768. <b>A — recommended:</b> a non-scaling label: the token's 9&nbsp;px in CSS pixels at every width (rule ②), the values inside the plot on a narrow chart (rule ③). <b>B:</b> fewer ticks at phone width: under 560&nbsp;px three of five values, the label scaled by a constant tuned for a 390&nbsp;px phone. Both include the locale fix. <span class="rec">Recommended: A.</span></div>
+<section class="mock-board">
+  <h2>J5 · #1088 — the axis labels at 390&nbsp;px <small>Vermögen → Performance, and the security detail chart · Heute / A / B</small></h2>
+  <p class="mock-note desk-only">Each frame is a real 390&nbsp;px viewport (an iframe), so every rule under 720 and 560&nbsp;px applies — including the cascade that keeps the phone chart at 3:1: the 16:9 rule under 720&nbsp;px (<code>app.css:2846–2849</code>) is overridden by the later global <code>.chart-frame { aspect-ratio: 3 / 1 }</code> (<code>:3720–3728</code>), so the chart is about 113&nbsp;px tall. The size printed under each frame is the label's rendered font size (its em, not its glyph height), computed in the frame from the svg's width and the label's computed size; the renderer has neither Inter nor JetBrains Mono, so glyph widths are approximate.</p>
+  <div class="mock-row">
+    <div class="ph-col">
+      <div class="ph mock-before"><span class="ph-tag">Heute</span><iframe data-tpl="wealth" data-mode="today" title="Heute, 390 px"></iframe></div>
+      <p class="measure" data-measure-for="0"></p>
+    </div>
+    <div class="ph-col">
+      <div class="ph mock-after"><span class="ph-tag">A — empfohlen · nicht skalierend</span><iframe data-tpl="wealth" data-mode="a" title="A, 390 px"></iframe></div>
+      <p class="measure" data-measure-for="1"></p>
+    </div>
+    <div class="notes w-notes desk-only">
+      <p class="cap">Measured on this board — label size by window width (Wealth chart)</p>
+      <table class="mt" id="measure-table">
+        <thead><tr><th>Window</th><th>Chart</th><th>Heute</th><th>A</th><th>B</th></tr></thead>
+        <tbody><tr><td colspan="5">measuring…</td></tr></tbody>
+      </table>
+      <p style="font-size:11.5px;color:var(--mock-ink)">Rendered font size in CSS px. "Chart" is the svg's width in that window (sidebar from 901&nbsp;px). Red: under 7&nbsp;px. A's values sit inside the plot where the chart is at most 760&nbsp;px wide (rule ③), in the gutter above.</p>
+    </div>
+  </div>
+  <div class="mock-row" style="margin-top:16px">
+    <div class="ph-col">
+      <div class="ph var-b"><span class="ph-tag">B · weniger Striche</span><iframe data-tpl="wealth" data-mode="b" title="B, 390 px"></iframe></div>
+      <p class="measure" data-measure-for="2"></p>
+    </div>
+    <div class="ph-col">
+      <div class="ph mock-after"><span class="ph-tag">A — Wertpapier-Detail, Werteachse</span><iframe data-tpl="detail" data-mode="a" title="A, Detail, 390 px"></iframe></div>
+      <p class="measure" data-measure-for="3"></p>
+    </div>
+    <div class="notes w-notes">
+      <ul>
+        <li><b>A</b> makes the token true: {typography.chart-axis} says 9&nbsp;px and DESIGN.md calls it "9px mono inside SVG"; the build renders 9 viewBox units, which is 9&nbsp;px only on a 960&nbsp;px chart. The chart hook already computes the scale for its crosshair (<code>layout_view.ex:768</code>, <code>ChartCrosshair</code>: <code>view.width / svgRect.width</code>); it writes it to <code>--chart-upx</code> and rule ② multiplies. Five values and both dates stay. On a chart under about 760&nbsp;px the values move inside the plot on their grid lines with a surface halo (rule ③), because the 56-unit gutter is 20&nbsp;px at 390. Without script the label is exactly today's.</li>
+        <li><b>B</b> is CSS only: under 560&nbsp;px a constant (2.9, the scale of a 390&nbsp;px phone) replaces the measurement, and two of five values go. It fixes the one width it was tuned for: at 560&nbsp;px the same constant renders about 14&nbsp;px, and from 561 to about 960&nbsp;px of window nothing changes — the 768&nbsp;px tablet, the split detail pane and a narrow desktop window keep 5–8&nbsp;px labels (table). Dropping two values costs the reader the 25&nbsp;% and 75&nbsp;% gridlines' figures.</li>
+        <li><span class="rec">Why A:</span> the defect is not a phone defect but a scale defect — the label shrinks continuously below a 960&nbsp;px chart — and A answers it at every width with the number the spec already states. Its cost is a few lines in a hook that exists. The "Daten als Tabelle" disclosure stays the fallback that lets 9&nbsp;px stand (Accessibility Floor → Charts); A keeps the floor's premise true instead of relying on it harder.</li>
+        <li>Not drawn: a bigger token (10 or 11&nbsp;px). A changes where the size is measured, not the size; on a 1440&nbsp;px desktop the labels go from about 11 to 9&nbsp;px (table). If the owner wants today's desktop size kept, the rule becomes a floor — <code>calc(9px * max(1, var(--chart-upx, 1)))</code> — one word in the story.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<div class="measure-host" id="measure-host" aria-hidden="true"></div>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the charts with the
+   geometry of security_chart.ex (viewBox 960 x 320; plot 56..936 x 16..292;
+   five y ticks from y_min to y_max after a 5 % pad; the two dates at the
+   bottom corners) and the 390 px frames as srcdoc iframes, so relative
+   links resolve against this board. The "hook" below stands in for the
+   ChartCrosshair hook's one new line. */
+const CSS_HREF = '../../../../../priv/static/app.css';
+const IMG = '../../../../../priv/static/images/';
+
+/* ---- synthetic series: invented values, invented dates ---- */
+const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+const WEALTH = [0, -0.3, 0.4, 1.1, 0.8, 1.9, 2.6, 2.2, 3.4, 4.1, 3.7, 4.9, 5.6, 5.1, 6.0, 6.8, 6.3, 7.2, 7.9, 8.6, 8.1, 9.0, 9.6, 9.9, 9.2, 9.4, 8.9]
+  .map((v, i, a) => ({ d: i === a.length - 1 ? '2026-10-04' : addDays('2025-10-04', 14 * i), v }));
+const NORDWIND = [98.20, 97.40, 96.10, 95.10, 96.80, 98.90, 100.40, 99.70, 101.80, 103.20, 102.10, 104.60, 106.30, 105.20, 107.90, 109.40, 108.10, 110.60, 112.90, 114.80, 113.20, 111.40, 109.80, 106.10, 107.35, 111.85, 112.40]
+  .map((v, i, a) => ({ d: i === a.length - 1 ? '2026-09-30' : addDays('2025-10-01', 14 * i), v }));
+
+/* ---- the two label formats ---- */
+const deNum = (v, places) => {
+  const neg = v < 0; const s = Math.abs(v).toFixed(places);
+  const [int, frac] = s.split('.');
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return (neg ? '-' : '') + grouped + (frac ? ',' + frac : '');
+};
+const isoToDe = (iso) => iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(0, 4);
+const FMT = {
+  today: {
+    pct: (v) => (v > 0 ? '+' : '') + v.toFixed(1) + ' %',
+    val: (v) => (v >= 1000 ? v.toFixed(0) : v >= 1 ? v.toFixed(2) : v.toFixed(4)),
+    date: (d) => d
+  },
+  after: {
+    pct: (v) => (v > 0 ? '+' : '') + deNum(v, 1) + '%',
+    val: (v) => (v >= 1000 ? deNum(v, 0) : v >= 1 ? deNum(v, 2) : deNum(v, 4)),
+    date: isoToDe
+  }
+};
+
+/* ---- SecurityChart.chart, as rendered ---- */
+function chart(points, { percent, after, aria }) {
+  const W = 960, H = 320, X0 = 56, X1 = 936, Y0 = 16, Y1 = 292;
+  const f = after ? FMT.after : FMT.today;
+  const vals = points.map((p) => p.v);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  const pad = (hi - lo) * 0.05; lo -= pad; hi += pad;
+  const t0 = Date.parse(points[0].d), span = Date.parse(points[points.length - 1].d) - t0;
+  const xy = points.map((p) => [X0 + (X1 - X0) * (Date.parse(p.d) - t0) / span, Y1 - (Y1 - Y0) * (p.v - lo) / (hi - lo)]);
+  const r2 = (n) => Math.round(n * 100) / 100;
+  const poly = xy.map(([x, y]) => `${r2(x)},${r2(y)}`).join(' ');
+  const area = `M${r2(xy[0][0])},${r2(xy[0][1])} ` + xy.map(([x, y]) => `L${r2(x)},${r2(y)}`).join(' ') + ` L${r2(xy[xy.length - 1][0])},${Y1} L${r2(xy[0][0])},${Y1} Z`;
+  const ticks = [0, 1, 2, 3, 4].map((i) => ({ v: lo + (hi - lo) * i / 4, y: Y1 - (Y1 - Y0) * i / 4, i }));
+  const grid = ticks.map((t) => `<line x1="${X0}" y1="${t.y}" x2="${X1}" y2="${t.y}" />`).join('');
+  const yCls = (t) => after ? ` class="chart-axis-y${t.i === 4 ? ' is-top' : ''}"` : '';
+  const xCls = after ? ' class="chart-axis-x"' : '';
+  const ylabels = ticks.map((t) => `<text${yCls(t)} x="${X0 - 6}" y="${t.y}" text-anchor="end" dominant-baseline="central">${percent ? f.pct(t.v) : f.val(t.v)}</text>`).join('');
+  const dates = `<text${xCls} x="${X0}" y="${H - 6}" text-anchor="start">${f.date(points[0].d)}</text><text${xCls} x="${X1}" y="${H - 6}" text-anchor="end">${f.date(points[points.length - 1].d)}</text>`;
+  const zeroY = Y1 - (Y1 - Y0) * (0 - lo) / (hi - lo);
+  const zero = percent && lo < 0 && hi > 0 ? `<line class="chart-zeroline" x1="${X0}" y1="${r2(zeroY)}" x2="${X1}" y2="${r2(zeroY)}" />` : '';
+  const labels = `<g class="chart-axis-labels">${ylabels}${dates}</g>`;
+  const series = `${zero}<path class="quote-area" d="${area}" /><polyline class="quote-line" fill="none" stroke="currentColor" stroke-width="1.6" points="${poly}" />`;
+  /* After: the labels group is emitted after the series (rule ③). */
+  return `<div class="chart-frame"><svg class="security-chart" role="img" aria-label="${aria}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" width="100%"><g class="chart-axes" stroke="currentColor" stroke-opacity="0.15">${grid}</g>${after ? series + labels : labels + series}</svg></div>`;
+}
+
+/* ---- page parts (AppShell.shell, portfolio_live.ex, securities_live.ex) ---- */
+const ICON = {
+  chev: '<path d="m9 6 6 6-6 6"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  max: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'
+};
+const ico = (n, s = 14, cls = '') => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"${cls ? ` class="${cls}"` : ''} aria-hidden="true">${ICON[n]}</svg>`;
+function topbar(title) {
+  return `<header class="topbar"><label class="sidebar-toggle" aria-label="Navigation öffnen"><span class="burger-bars" aria-hidden="true"></span></label><div class="topbar-primary"><a class="topbar-brand" aria-label="Portfolixir"><span class="brand-logo" aria-hidden="true"><img class="topbar-mark brand-mark-light" src="${IMG}logo-mark-light.svg" alt=""><img class="topbar-mark brand-mark-dark" src="${IMG}logo-mark-dark.svg" alt=""></span><span>Portfolixir</span></a><div class="topbar-page" aria-live="polite"><h1>${title}</h1></div></div><div class="topbar-controls"><details class="theme-menu"><summary class="theme-menu-trigger"><span class="theme-current-icon theme-current-icon-light" aria-hidden="true">${ico('monitor', 16, 'theme-svg-icon')}</span></summary></details><details class="accent-menu"><summary class="accent-menu-trigger"><span class="accent-current-dot accent-current-dot-violet" aria-hidden="true"></span></summary></details><nav class="locale-switcher" aria-label="Sprache"><a class="locale-link">EN</a><a class="locale-link is-active" aria-current="true">DE</a></nav></div></header>`;
+}
+const shell = (title, main, mainClass = '') => `<div class="app-shell"><div class="app-frame">${topbar(title)}<main class="app-main ${mainClass}">${main}</main></div></div>`;
+
+function performanceSection(after) {
+  const basis = after ? '04.10.2025 – 04.10.2026 · berechnet 04.10.2026 00:09 UTC' : '2025-10-04 – 2026-10-04 · berechnet 2026-10-04 00:09 UTC';
+  return `<section id="portfolio-performance" class="workspace-section"><header class="section-head"><h2>Performance</h2><div class="section-head-controls"><div class="segmented-control" role="group" aria-label="Diagrammreihe"><button type="button" class="segmented-control__option is-active" aria-pressed="true">% (TTWROR)</button><button type="button" class="segmented-control__option" aria-pressed="false">Wert (EUR)</button></div><div class="segmented-control" role="group" aria-label="Zeitraum"><button type="button" class="segmented-control__option">YTD</button><button type="button" class="segmented-control__option is-active" aria-pressed="true">1J</button><button type="button" class="segmented-control__option">3J</button><button type="button" class="segmented-control__option">5J</button><button type="button" class="segmented-control__option">Max</button></div></div></header><p class="perf-badge is-positive" data-role="period-badge"><strong>+8,9%</strong><span class="perf-badge-sep">·</span><span class="is-positive">+14.218,40 EUR</span><span class="perf-badge-period">(1J)</span></p><figure id="performance-figure" class="perf-figure" data-chart-mode="ttwror">${chart(WEALTH, { percent: true, after, aria: 'Kumulierte TTWROR über die Zeit' })}<details class="perf-table-disclosure"><summary class="disclosure-summary">${ico('chev', 12, 'disclosure-chevron')}Daten als Tabelle</summary></details></figure><p class="hint" data-role="performance-basis">${basis}</p></section>`;
+}
+function detailPane(after) {
+  const tabs = ['Übersicht', 'Diagramm', 'Transaktionen', 'Trades', 'Kurse', 'Bestände', 'Klassifizierungen', 'Research', 'Termine'];
+  const last = after ? '30.09.2026' : '2026-09-30';
+  return `<aside class="detail-pane" aria-label="Ausgewähltes Wertpapier"><header class="detail-pane-head"><div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial">N</span><div><h2>Nordwind Industrie AG</h2><p class="detail-pane-sub">DE000000000A · NWI · EUR · Letzter 112,40 (${last})</p></div></div><div class="detail-pane-head__actions"><span class="icon-button" aria-label="Detail schließen">${ico('x', 16)}</span></div></header><nav class="detail-pane-tabs" role="tablist" data-scroll-start aria-label="Wertpapier-Detailansicht">${tabs.map((t) => `<button type="button" role="tab" class="detail-pane-tab${t === 'Diagramm' ? ' is-active' : ''}"${t === 'Diagramm' ? ' aria-selected="true"' : ''}>${t}</button>`).join('')}</nav><section role="tabpanel" class="detail-tab-panel detail-tab-panel--chart"><div class="detail-pane-toolbar" role="toolbar" aria-label="Chart-Optionen"><div class="range-buttons" role="group" aria-label="Zeitraum">${['1M', '3M', '6M', 'YTD', '1J', '3J', '5J', 'Max'].map((r) => `<button type="button" class="range-button${r === '1J' ? ' is-active' : ''}">${r}</button>`).join('')}</div></div>${chart(NORDWIND, { percent: false, after, aria: 'Kurschart' })}</section></aside>`;
+}
+const TPL = {
+  wealth: (mode) => shell('Vermögen', `<div class="workspace-page portfolio-overview">${performanceSection(mode !== 'today')}</div>`),
+  detail: (mode) => shell('Wertpapiere', `<section class="workspace-panel"><div class="securities-workspace securities-workspace--split"><div class="securities-list-pane"></div><div class="securities-detail-splitter"><span aria-hidden="true"></span></div>${detailPane(mode !== 'today')}</div></section>`, 'app-main--workspace')
+};
+
+/* ---- the hook's new line, and the measurement printed under a frame ---- */
+function scaleHook(doc) {
+  for (const fr of doc.querySelectorAll('.chart-frame')) {
+    const w = fr.querySelector('svg').getBoundingClientRect().width;
+    if (w) fr.style.setProperty('--chart-upx', (960 / w).toFixed(4));
+  }
+}
+function renderedSize(doc) {
+  const svg = doc.querySelector('.security-chart');
+  const w = svg.getBoundingClientRect().width;
+  const t = doc.querySelector('.chart-axis-labels text');
+  const units = parseFloat(doc.defaultView.getComputedStyle(t).fontSize);
+  return { w, px: units * w / 960 };
+}
+const styleOf = (id) => `<style>${document.getElementById(id).textContent}</style>`;
+const frameDoc = (body, css) => `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${body}</body></html>`;
+const cssFor = (mode) => (mode === 'a' ? styleOf('proposal') : mode === 'b' ? styleOf('proposal') + styleOf('variant-b') : '');
+
+/* ---- the 390 px frames ---- */
+document.querySelectorAll('iframe[data-tpl]').forEach((f, idx) => {
+  const mode = f.dataset.mode;
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument;
+    if (mode === 'a') scaleHook(doc);
+    f.style.height = Math.ceil(doc.documentElement.scrollHeight) + 'px';
+    setTimeout(() => {
+      const m = renderedSize(doc);
+      const out = document.querySelector(`[data-measure-for="${idx}"]`);
+      const verdict = mode === 'today' ? 'today' : mode === 'b' ? 'B (constant 2.9, three values)' : 'A (measured, five values)';
+      if (out) out.innerHTML = `Chart <b>${Math.round(m.w)}&nbsp;px</b> wide · label <b>${m.px.toFixed(1).replace('.', ',')}&nbsp;px</b> · ${verdict}`;
+    }, 60);
+  });
+  f.srcdoc = frameDoc(TPL[f.dataset.tpl](mode), cssFor(mode));
+});
+
+/* ---- the full-width desktop frames of #1088's locale half ---- */
+document.getElementById('locale-before').innerHTML = performanceSection(false);
+document.getElementById('locale-after').innerHTML = performanceSection(true);
+scaleHook(document.getElementById('locale-after'));
+
+/* ---- the measurement table: the Wealth page at eight window widths ---- */
+const WIDTHS = [390, 480, 560, 640, 768, 1024, 1200, 1440];
+const host = document.getElementById('measure-host');
+const results = {};
+WIDTHS.forEach((w) => {
+  const f = document.createElement('iframe');
+  f.style.width = w + 'px';
+  host.appendChild(f);
+  f.addEventListener('load', () => {
+    const svg = f.contentDocument.querySelector('.security-chart');
+    results[w] = svg.getBoundingClientRect().width;
+    if (Object.keys(results).length === WIDTHS.length) fillTable();
+  });
+  f.srcdoc = frameDoc(TPL.wealth('today'), '');
+});
+function fillTable() {
+  const fmt = (n) => n.toFixed(1).replace('.', ',');
+  const cls = (n) => (n < 7 ? 'bad' : 'ok');
+  const rows = WIDTHS.map((w) => {
+    const c = results[w];
+    const today = 9 * c / 960;
+    const b = (w <= 560 ? 9 * 2.9 : 9) * c / 960;
+    return `<tr><td>${w}&nbsp;px</td><td>${Math.round(c)}&nbsp;px</td><td class="${cls(today)}">${fmt(today)}</td><td class="ok">9,0${c <= 760 ? ' ·&nbsp;innen' : ''}</td><td class="${cls(b)}">${fmt(b)}</td></tr>`;
+  }).join('');
+  document.querySelector('#measure-table tbody').innerHTML = rows;
+}
+</script>
+</body>
+</html>
