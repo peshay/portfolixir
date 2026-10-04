@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Vermögen: Geld, das nicht bewertet werden kann (Pick J2; #1055, #1068)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL. Everything inside the frames is the live markup of
+     portfolio_live.ex (data_quality/1 at :2635-2793, the performance section
+     at :1368-1730) and Portfolio.ContributionTable (contribution_table.ex)
+     with app.css as shipped. The stories change MARKUP and MESSAGES:
+     ① J2-A (#1055): the contribution note (`contribution-unvalued`,
+        contribution_table.ex:346-362) names a cash account that counted
+        zero, with its native balance, its days and the reason, and says
+        where its value went when the first rate arrived; the "Währungseffekt
+        auf Bargeld" row carries the existing `.contribution-unvalued-mark`
+        with the account's name, as a position row does (ADR-0051 §10).
+     ② UX-DR25 clause 2: `dq-unvalued-cash` prints each account's native
+        balance, "USD Settlement (1.850,00 USD)", where today it prints
+        "(USD)" — the shape `dq-missing-fx` already uses.
+     ③ #1068: the two-scales guard names the reverse case (quotes near 1,
+        bookings near 100) in a problem note of its own, and an unclassed
+        bond in the existing note, tagged with the existing neutral badge.
+     ④ #1087 (rides along): the stale-quote note's date and the performance
+        basis line through Format.date.
+     No CSS rule is new; app.css switches the table for its phone rows
+     under 560 px as built. -->
+<style id="proposal">
+  /* (no new app.css rule) */
+</style>
+<style>
+  /* Board chrome only. Nothing below is a proposal. */
+  .app980 { max-width: 980px; }
+  .mock-frame { overflow: visible; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 6px; }
+  tr.is-new td { outline: none; }
+  tr.is-new td:first-child { box-shadow: inset 2px 0 0 var(--color-accent); }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .argue { max-width: 980px; font-size: 12.5px; display: grid; gap: 6px; margin-top: 10px; }
+  .argue p { margin: 0; }
+  .argue code, .mock-note code, .pickbar code, .stub code, .measure code, .legend code { font-size: 11.5px; }
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; text-transform: none; flex: none; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .stub { padding: 10px 24px; font-size: 12px; font-style: italic; color: var(--mock-ink); border-bottom: 1px solid var(--color-border); background: var(--color-bg); }
+  .stub.bleed { margin: 0 -24px; border-top: 1px solid var(--color-border); }
+  .contribution-unvalued-mark.is-new { outline-offset: 1px; margin-block: 2px; }
+  .chart-stub { display: grid; place-items: center; height: 120px; border: 1px dashed var(--color-border-strong); border-radius: var(--radius-md); font-size: 12px; font-style: italic; color: var(--mock-ink); }
+  .measure { font-size: 11.5px; color: var(--mock-ink); margin: 6px 0 0; }
+  .pair { display: grid; gap: 14px; }
+  .legend { margin: 8px 0 0; padding-left: 0; list-style: none; font-size: 12px; color: var(--color-text); max-width: 980px; }
+  .legend li { margin: 0 0 4px; }
+  .legend li > i.pin:first-child { margin: 0 4px 0 0; }
+  .phone-only { display: none; }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-board > p.mock-note { padding: 0 12px; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; border-top-width: 0; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .mock-frame .workspace-section { padding: 18px 16px; }
+    .stub { padding: 8px 16px; }
+    .stub.bleed { margin: 0 -16px; }
+    .legend { padding: 0 12px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Pick J2 — what Wealth says about money it cannot value (#1055), with two before/afters: the unvalued-cash note's native figure (UX-DR25 clause 2) and the bond two-scales guard's new cases (#1068).</b>
+<b>J2</b> — where a foreign-currency cash balance that counted zero before its first stored rate is named: <b>A</b> in the contribution note under the table that contains its jump, plus a marker on the "Währungseffekt auf Bargeld" row · <b>B</b> in the data-quality section's unvalued-cash note. <span class="rec">Recommended A</span><br>
+②, ③ and #1087's dates are before/after: the spec fixes the answer. A comment on the planning PR naming "J2" and a letter decides; silence adopts the recommendation. "Heute" is app.css and the templates as built; the synthetic data adds a CHF day-money account whose first rate arrived inside the period, and three bonds for #1068. Desktop frames: 980&nbsp;px content. All names, figures and dates are invented. <b>Dashed = new.</b></div>
+<div class="pickbar phone-only"><b>J2 and the data-quality notes at 390&nbsp;px.</b> A real 390-px viewport: the contribution table gives way to its two-line rows (UX-DR27). Recommended: J2 A. Synthetic data only. <b>Dashed = new.</b></div>
+
+<!-- ================================================= ① #1055 Heute -->
+<section class="mock-board desk-only" id="heute">
+  <h2>① #1055 Heute — the period result books a deposit as a currency gain <small>Vermögen → Bestände → Performance, period 1J</small></h2>
+  <p class="mock-note">"Tagesgeld CHF" received 2.000,00 CHF on 14.07.2026; CHF's first stored rate is from 01.08.2026. The walk values the balance at zero for 18 days, then <code>revalue_cash</code> (performance.ex:1771-1788) moves its whole value into "Währungseffekt auf Bargeld": +2.127,66 of that row's +2.131,90 EUR, and the same jump sits in the badge's money figure. The note under the table names positions only (ADR-0051 §10); no account is named anywhere on the page. The basis line prints ISO (#1087).</p>
+  <div class="mock-frame mock-before app980"><span class="mock-tag">Heute</span>
+    <div data-v="perf-before"></div>
+  </div>
+  <ol class="legend">
+    <li><i class="pin b">1</i>"+4.257,30 EUR" and "+2.131,90" contain 2.127,66 EUR that is a deposit, not a currency move. Nothing says so.</li>
+    <li><i class="pin b">2</i>The note names Harborline Freight Inc (a position) and stops: <code>unvalued</code> is filtered from <code>positions</code> only (contribution_table.ex:390).</li>
+    <li><i class="pin b">3</i>Basis line: <code>@performance.start_date</code> raw and <code>Calendar.strftime(…, "%Y-%m-%d %H:%M UTC")</code> (portfolio_live.ex:1692-1701) — #1087.</li>
+  </ol>
+</section>
+
+<!-- ================================================= ② J2 A -->
+<section class="mock-board desk-only" id="j2a">
+  <h2>② J2 A — recommended: named in the contribution note, marked on its row <small>the note ADR-0051 §10 already places under the table</small></h2>
+  <p class="mock-note">The note keeps its first two sentences and gains the accounts in the same shape: count, name in bold, then native balance, days and reason in parentheses (UX-DR25 clauses 1 and 2: "2.000,00 CHF", never "2.127,66 EUR"). One more sentence says where the value went. The row that holds the jump carries the marker a position row carries, with the account's name, because the row itself is not the account.</p>
+  <div class="mock-frame mock-after after app980"><span class="mock-tag">A — empfohlen</span>
+    <div data-v="perf-a"></div>
+  </div>
+  <ol class="legend">
+    <li><i class="pin a">1</i>Marker on "Währungseffekt auf Bargeld": "Tagesgeld CHF: 18 Tage null" — <code>.contribution-unvalued-mark</code> as built (app.css:10185), no new class.</li>
+    <li><i class="pin a">2</i>The account sentence, then "Mit dem ersten Kurs am 01.08.2026 kam sein ganzer Saldo in den „Währungseffekt auf Bargeld“ — das ist kein Währungsgewinn." The second clause renders only when the first rate falls inside the period; an account still without a rate at the period's end reads "… zählt bis zum Ende des Zeitraums null" and Wealth's data-quality note names it as well.</li>
+    <li><i class="pin a">3</i>#1087: "04.10.2025 – 04.10.2026 · berechnet 04.10.2026 00:09 UTC".</li>
+  </ol>
+  <div class="argue">
+    <p><b>Why A.</b> The jump lands in two figures of this section — the row and the badge — so the sentence that explains it belongs to this section (DESIGN.md: "a data note lives inside the same <code>&lt;section&gt;</code> as the data it describes"), under the table, where ADR-0051 §10 already puts the positions that counted zero. It is one finding — a row that counted zero on some days — so it is one note (UX-DR17), and its vocabulary ("Tage", "kein Wechselkurs gespeichert", the marker) is the one the reader has just learned for positions. It follows the period: change 1J to YTD and the account appears or disappears with the jump. The payload half is the issue's own: each read lists the account with <code>unvalued_days</code>, <code>unvalued_reason</code>, the first rate's date and the balance in its currency, and the basis' <code>gaps</code> text stops saying "no account is named".</p>
+  </div>
+</section>
+
+<!-- ================================================= ③ J2 B -->
+<section class="mock-board desk-only" id="j2b">
+  <h2>③ J2 B — named in the data-quality section <small>the unvalued-cash note gains a sentence about the past</small></h2>
+  <div class="mock-frame mock-before app980"><span class="mock-tag vtag">B</span>
+    <div data-v="dq-b"></div>
+  </div>
+  <div class="argue">
+    <p><b>B.</b> "The Wealth note" in #1055 could be read as this one, and it already talks about cash without a rate. It is the wrong home. The data-quality section reports <i>today's</i> state and has no period, while the jump belongs to a period: under "Max" or "1J" it is in the result, under "YTD 2027" it is not, and this note cannot say which. The account has a rate now, so the condition the note exists for is gone. Its remedy is "Wechselkurse synchronisieren", which cannot change a past day (the ECB daily feed; UX-DR25 clause 3: no control that cannot act). And it sits in another section, above the whole performance section: the row that holds the jump is a period control, a chart, a basis line and a table further down, so the placement rule ("inside the same <code>&lt;section&gt;</code> as the data it describes") fails.</p>
+  </div>
+</section>
+
+<!-- ================================================= ④ DQ section -->
+<section class="mock-board desk-only" id="dq">
+  <h2>④ Datenqualität — native figures (UX-DR25 cl. 2) and the guard's new cases (#1068) <small>portfolio_live.ex data_quality/1, :2635-2793</small></h2>
+  <p class="mock-note">The demo seed's notes, plus three bonds for #1068: "Kestrel Anleihe 2030 2,75%" (quotes near 100, booked near 1 — named today), "Birkenhain Wasser Anleihe 2029 1,50%" (quotes near 1, booked near 100 — the reverse case, not named) and "Ostsee Logistik 4,10% 2028/2033" (on two scales, but with no stored asset class; the name inference only recognises government-bond names, so the guard never sees it). Both frames keep today's stacking, defect included: the notes touch, because the status region <code>[data-role="dq-notes"]</code> has no rule (the comparison's stacked notes have one, <code>.comparison-notes</code>, app.css:1411). That is outside this board and is reported, not fixed.</p>
+  <div class="pair">
+    <div class="mock-frame mock-before app980"><span class="mock-tag">Heute</span>
+      <div data-v="dq-before"></div>
+    </div>
+    <ol class="legend">
+      <li><i class="pin b">1</i>"Nordic Timber Holdings AB (2026-08-29)": <code>Date.to_iso8601</code> (portfolio_live.ex:4109) — #1087.</li>
+      <li><i class="pin b">2</i>"USD Settlement (USD), US Broker (USD)": the name and the currency code, no amount (portfolio_live.ex:2733). The balance is in the payload (<code>cash_balances[].balance</code>, valuation.ex:454-462) and in the cash table further down, not in the note that says the total leaves it out.</li>
+      <li><i class="pin b">3</i>Only the forward case: the sentence is fixed to "Kurse um 100, gebuchter Preis je Stück um 1" (default.po:11360-11361). Birkenhain (reverse) and Ostsee (unclassed) are counted in the totals, one a hundred times too low and one too high, and named nowhere.</li>
+    </ol>
+    <div class="mock-frame mock-after after app980"><span class="mock-tag">Nachher</span>
+      <div data-v="dq-after"></div>
+    </div>
+    <ol class="legend">
+      <li><i class="pin a">1</i>#1087: "(29.08.2026)" via <code>Format.date</code>.</li>
+      <li><i class="pin a">2</i>"USD Settlement (1.850,00 USD), US Broker (60,00 USD)" — <code>Format.money(balance)</code> and the code, the shape <code>dq-missing-fx</code> prints a native price in (portfolio_live.ex:4035-4038). Nothing converted.</li>
+      <li><i class="pin a">3</i>The forward note keeps its sentence and gains the unclassed bond, tagged "ohne Anlageklasse" (<code>badge badge--neutral</code>, the Overview's "ohne Bestand" anatomy), so the reader sees why a security the catalog does not call a bond is named.</li>
+      <li><i class="pin a">4</i>The reverse case gets its own problem note (<code>dq-two-scales-reverse</code>): its consequence is the opposite ("hundertfach zu niedrig") and so is its remedy — the stored quotes are on the wrong scale, not the booked quantity — so each name links to the security's Quotes tab, not its Transactions tab. One finding per note, each with its remedy inside (UX-DR17).</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ================================================= phone -->
+<section class="mock-board phone-only" id="phone">
+  <h2>J2 A at 390&nbsp;px <small>the contribution rows and the note</small></h2>
+  <div class="mock-frame mock-before"><span class="mock-tag">Heute</span>
+    <div data-v="perf-before-phone"></div>
+  </div>
+  <div style="height:14px"></div>
+  <div class="mock-frame mock-after after"><span class="mock-tag">Nachher — J2 A</span>
+    <div data-v="perf-a-phone"></div>
+  </div>
+  <div style="height:18px"></div>
+  <h2 style="padding:0 12px;font-size:14px;margin:0 0 6px">Datenqualität at 390&nbsp;px <small style="display:block;font-weight:500;color:var(--mock-ink)">②, ③ and #1087 after</small></h2>
+  <div class="mock-frame mock-after after"><span class="mock-tag">Nachher</span>
+    <div data-v="dq-after-phone"></div>
+  </div>
+  <p class="measure" data-out="phone" style="padding:0 12px"></p>
+</section>
+
+<script>
+(() => {
+  const ICON = {
+    tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+    oct: '<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>',
+    ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>'
+  };
+  const ico = (n, s = 14) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
+  const SEV = { note: ['ast', 'Hinweis'], attention: ['tri', 'Achtung'], problem: ['oct', 'Problem'] };
+  const note = (sev, body, extra = '', cls = '') => `<div class="data-note data-note--${sev}${cls ? ' ' + cls : ''}" ${extra}><span class="data-note__icon" aria-hidden="true">${ico(SEV[sev][0])}</span><span class="data-note__word">${SEV[sev][1]}</span><div class="data-note__body">${body}</div></div>`;
+  const pin = (n, k) => k ? `<i class="pin ${k}">${n}</i>` : '';
+  const wrapNew = (html, on) => on ? `<div class="is-new">${html}</div>` : html;
+
+  // ---- the performance section with the contribution table ---------------
+  const POS = [
+    { n: 'Nordwind Industrie AG', s: '8.420,00', f: '0,00', i: '+96,00', c: '0,00', e: '9.512,40', k: '+1.188,40', w: 45, side: 'is-over', ph: '8.420,00 → 9.512,40 · Erträge 96,00' },
+    { n: 'Kestrel Industrial Group NV', s: '5.130,00', f: '+1.204,90', i: '0,00', c: '4,90', e: '6.988,30', k: '+648,50', w: 24.6, side: 'is-over', ph: '5.130,00 → 6.988,30 · Zufluss 1.204,90' },
+    { n: 'Alder Creek Timber Fund', s: '3.960,00', f: '-4.372,60', i: '0,00', c: '9,80', e: '0,00', k: '+402,80', w: 15.3, side: 'is-over', held: 'am Ende nicht mehr im Bestand', ph: 'am Ende nicht mehr im Bestand · Abfluss 4.372,60' },
+    { n: 'Harborline Freight Inc', s: '0,00', f: '+1.865,40', i: '0,00', c: '0,00', e: '1.912,10', k: '+46,70', w: 1.8, side: 'is-over', held: 'zu Beginn nicht im Bestand', mark: '41 Tage null', ph: 'zu Beginn nicht im Bestand · Zufluss 1.865,40 · 41 Tage null' },
+    { n: 'Nordic Timber Holdings AB', s: '1.386,00', f: '0,00', i: '0,00', c: '0,00', e: '1.218,60', k: '-167,40', w: 6.3, side: 'is-under', ph: '1.386,00 → 1.218,60' }
+  ];
+  const sc = (v) => v.startsWith('-') ? 'is-negative' : (v === '0,00' ? 'is-flat' : 'is-positive');
+
+  const row = (p) => `
+    <tr data-role="contribution-row">
+      <td class="contribution-table__name">${p.n}${p.mark ? ` <span class="contribution-unvalued-mark">${p.mark}</span>` : ''}${p.held ? `<small class="contribution-table__note">${p.held}</small>` : ''}</td>
+      <td class="num">${p.s}</td><td class="num">${p.f}</td><td class="num">${p.i}</td><td class="num">${p.c}</td><td class="num">${p.e}</td>
+      <td class="num contribution-table__figure"><span class="${sc(p.k)}">${p.k}</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill ${p.side}" style="width: ${p.w}%"></span></span></td>
+    </tr>`;
+
+  const rest = (label, sub, val, mark, isNew) => `
+    <tr class="contribution-table__rest" data-role="contribution-remainder">
+      <td class="contribution-table__name">${label}${mark ? ` <span class="contribution-unvalued-mark${isNew ? ' is-new' : ''}">${mark}</span>` : ''}<small class="contribution-table__note">${sub}</small></td>
+      <td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td><td class="num contribution-table__none">—</td>
+      <td class="num"><span class="${sc(val)}">${val}</span></td>
+    </tr>`;
+
+  const NOTE_TODAY = 'Eine Position zählte an einigen Tagen des Zeitraums null: <span><b>Harborline Freight Inc</b> (41 Tage, kein Wechselkurs gespeichert)</span>. Sie bleibt in der Summe, so wie im Ergebnis darüber.';
+  const NOTE_A = NOTE_TODAY + ' Ein Verrechnungskonto zählte an einigen Tagen des Zeitraums null: <span><b>Tagesgeld CHF</b> (2.000,00 CHF, 18 Tage, kein Wechselkurs gespeichert)</span>. Mit dem ersten Kurs am 01.08.2026 kam sein ganzer Saldo in den „Währungseffekt auf Bargeld“ — das ist kein Währungsgewinn.';
+
+  const perf = (o) => `
+    <section id="portfolio-performance" class="workspace-section">
+      <header class="section-head"><h2>Performance</h2></header>
+      <div class="stub bleed">… Reihe (% / Wert) und Zeitraum: 1J …</div>
+      <p class="perf-badge is-positive" data-role="period-badge"><strong>+6,84%</strong><span class="perf-badge-sep">·</span><span class="is-positive" data-role="period-badge-money">+4.257,30 EUR</span><span class="perf-badge-period">(1J)</span>${o.mark ? '' : pin(1, o.pin)}</p>
+      <div class="chart-stub">Diagramm (unverändert)</div>
+      <p class="hint" data-role="performance-basis"><span class="${o.locale && o.mark ? 'is-new' : ''}">${o.locale ? '04.10.2025 – 04.10.2026' : '2025-10-04 – 2026-10-04'} <span data-role="performance-as-of">· berechnet ${o.locale ? '04.10.2026' : '2026-10-04'} 00:09 UTC</span></span>${pin(3, o.pin)}</p>
+      <div id="performance-contribution" class="contribution" data-role="contribution">
+        <div class="contribution__head"><h3 id="contribution-title">Beitrag je Position</h3><span class="contribution__scope" data-role="contribution-scope">1J · Ansicht Alles · sortiert nach Beitrag</span></div>
+        <div id="contribution-table-wrap" class="data-table-wrapper">
+          <table id="contribution-table" class="data-table contribution-table" aria-labelledby="contribution-title">
+            <thead><tr><th scope="col">Wertpapier</th><th scope="col" class="num">Anfangswert</th><th scope="col" class="num">Zu-/Abflüsse</th><th scope="col" class="num">Erträge</th><th scope="col" class="num">Kosten</th><th scope="col" class="num">Endwert</th><th scope="col" class="num">Beitrag</th></tr></thead>
+            <tbody>
+              ${POS.map(row).join('')}
+              <tr class="contribution-table__rest-head"><td colspan="7" data-role="contribution-rest-head">Keiner Position zugeordnet</td></tr>
+              ${rest('Zinsen', 'Konto und Kupons; eine Zinsbuchung trägt kein Wertpapier', '+18,40')}
+              ${rest('Einzelne Gebühren und Steuern', 'Ohne Handelsbezug, auch mit Wertpapier', '-12,00')}
+              ${rest('Währungseffekt auf Bargeld' + (o.mark ? '' : pin(1, o.pin)), 'Fremdwährungskonten und Abrechnungsdifferenzen von Käufen und Verkäufen', '+2.131,90', o.mark ? 'Tagesgeld CHF: 18 Tage null' + pin(1, o.pin) : '', o.mark)}
+              <tr class="contribution-table__sum" data-role="contribution-sum"><td>Summe = Ergebnis im Zeitraum</td><td class="num">18.896,00</td><td class="num">-1.302,30</td><td class="num">+96,00</td><td class="num">14,70</td><td class="num">19.631,40</td><td class="num" data-role="contribution-sum-figure"><span class="is-positive">+4.257,30</span><small class="value-suffix">EUR</small></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <ul id="contribution-phone-rows" class="phone-rows contribution-phone-rows" aria-label="Beitrag je Position">
+          ${POS.map(p => `<li class="phone-row" data-role="contribution-row"><span class="phone-row__body"><span class="phone-row__name">${p.n}</span><span class="phone-row__ids">${p.ph}</span></span><span class="phone-row__figures"><span class="phone-row__figure ${sc(p.k)}">${p.k}</span></span></li>`).join('')}
+          <li class="phone-row contribution-phone-rows__rest" data-role="contribution-phone-rest"><span class="phone-row__body"><span class="phone-row__name">Keiner Position zugeordnet</span><span class="phone-row__ids">Zinsen +18,40 · Gebühren/Steuern -12,00 · Währung +2.131,90${o.mark ? ' · <span class="is-new">Tagesgeld CHF: 18 Tage null</span>' : ''}</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+2.138,30</span></span></li>
+          <li class="phone-row contribution-phone-rows__sum" data-role="contribution-phone-sum"><span class="phone-row__body"><span class="phone-row__name">Summe = Ergebnis im Zeitraum</span><span class="phone-row__ids">Positionen und Restposten</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+4.257,30 <small class="value-suffix">EUR</small></span></span></li>
+        </ul>
+        <p class="summary-basis" data-role="contribution-basis">Beitrag = Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten · je Position in EUR, einschließlich der Währungsbewegung · Anfangswert: der Schluss des Vortags · Positionen und Restposten ergeben genau das Ergebnis im Zeitraum; Einzahlungen und Entnahmen sind kein Ergebnis</p>
+        ${wrapNew(note('attention', (o.mark ? NOTE_A : NOTE_TODAY) + pin(2, o.pin), 'data-role="contribution-unvalued"'), o.mark)}
+      </div>
+    </section>`;
+
+  // ---- Wealth → Holdings → Datenqualität ------------------------------------
+  const sync = '<span class="fx-sync" data-role="fx-sync"><button type="button">Wechselkurse synchronisieren</button></span>';
+  const link = (href, t) => `<a href="${href}">${t}</a>`;
+  const entry = (name, href, detail, badge) => `<span class="dq-negative-entry"><a href="${href}">${name}</a>${badge ? ` <span class="badge badge--neutral">${badge}</span>` : ''} (${detail})</span>`;
+
+  const dq = (o) => {
+    const date = o.after ? '29.08.2026' : '2026-08-29';
+    const cash = o.after ? 'USD Settlement (1.850,00 USD), US Broker (60,00 USD)' : 'USD Settlement (USD), US Broker (USD)';
+    const hist = o.history ? ' <span class="is-new">Ein Verrechnungskonto zählte vor seinem ersten Wechselkurs null: Tagesgeld CHF (2.000,00 CHF, 14.07.–31.07.2026); sein Saldo steht seitdem im Währungseffekt auf Bargeld.</span>' : '';
+    const fwdEntries = [
+      entry('Kestrel Anleihe 2030 2,75%', '#transactions', 'Kurs 97,25 · Preis je Stück 0,985')
+    ];
+    if (o.after) fwdEntries.push(entry('Ostsee Logistik 4,10% 2028/2033', '#transactions', 'Kurs 99,10 · Preis je Stück 0,991', 'ohne Anlageklasse'));
+    const fwd = o.after
+      ? `2 Anleihen sind auf zwei Skalen bepreist (Kurse um 100, gebuchter Preis je Stück um 1) und zählen hundertfach zu hoch in den Summen; die Rendite zeigt es nicht. Stückzahl ihrer Buchungen gegen das Nominal der Abrechnung prüfen: `
+      : `Eine Anleihe ist auf zwei Skalen bepreist (Kurse um 100, gebuchter Preis je Stück um 1) und zählt hundertfach zu hoch in den Summen; die Rendite zeigt es nicht. Stückzahl ihrer Buchungen gegen das Nominal der Abrechnung prüfen: `;
+    const rev = `Eine Anleihe ist auf zwei Skalen bepreist (Kurse um 1, gebuchter Preis je Stück um 100) und zählt hundertfach zu niedrig in den Summen. Ihre gespeicherten Kurse prüfen — ein Kurs um 1 ist kein Prozent vom Nennwert: ${entry('Birkenhain Wasser Anleihe 2029 1,50%', '#quotes', 'Kurs 0,981 · Preis je Stück 98,40')}`;
+    const parts = [];
+    if (!o.only) {
+      parts.push(note('note', `${link('/securities?dq=stale_quote', '10 gehaltene Positionen werden zum letzten Handelspreis bewertet, die Gesamtsumme ist daher nicht aktuell:')} Alder Creek Timber Fund Class B, Birchwood Global Savings Fund, Halvorsen Shipping AS, Kestrel Industrial Group NV, Lindqvist Pumpen AG, Ostsee Logistik SE, +4`, 'data-role="dq-trade-priced"'));
+      parts.push(note('attention', `${link('/securities?dq=stale_quote&amp;holding=held', 'Eine gehaltene Position wird mit einem Kurs bewertet, der älter als 7 Tage ist; die Summen können daher veraltet sein — stilllegen, wenn die Notierung endete, oder die Kurse aktualisieren:')} <span class="${o.after && o.mark ? 'is-new' : ''}">Nordic Timber Holdings AB (${date})</span>${pin(1, o.pin)}`, 'data-role="dq-stale-priced"'));
+      parts.push(note('attention', `${link('/securities?dq=missing_quote', 'Eine gehaltene Position hat gar keinen Preis und fehlt in den Summen:')} Placeholder Anleihe 2031 3,25%`, 'data-role="dq-no-price"'));
+    }
+    parts.push(note('attention', `2 Verrechnungskonten zählen nicht in die Summen, weil kein Wechselkurs zu EUR vorliegt: <span class="${o.after && o.mark ? 'is-new' : ''}">${cash}</span>.${hist}${pin(2, o.pin)} ${sync}`, 'data-role="dq-unvalued-cash"'));
+    if (!o.only) {
+      parts.push(note('problem', fwd + fwdEntries.join(' ') + pin(3, o.pin), 'data-role="dq-two-scales"', o.after && o.mark ? 'is-new' : ''));
+      if (o.after) parts.push(note('problem', rev + pin(4, o.pin), 'data-role="dq-two-scales-reverse"', o.mark ? 'is-new' : ''));
+    }
+    return `
+    <section id="portfolio-data-quality" class="workspace-section data-quality">
+      <h2>Datenqualität</h2>
+      <div role="status" data-role="dq-notes">${parts.join('\n')}</div>
+    </section>`;
+  };
+
+  const V = {
+    'perf-before': () => perf({ pin: 'b' }),
+    'perf-a': () => perf({ pin: 'a', mark: true, locale: true }),
+    'dq-b': () => dq({ only: true, history: true }) + '<div class="stub">… Abschnitt „Performance“: Zeitraum, Diagramm, Basiszeile, dann die Tabelle „Beitrag je Position“ mit der Zeile „Währungseffekt auf Bargeld“ …</div>',
+    'dq-before': () => dq({ pin: 'b' }),
+    'dq-after': () => dq({ after: true, mark: true, pin: 'a' }),
+    'perf-before-phone': () => perf({}),
+    'perf-a-phone': () => perf({ mark: true, locale: true }),
+    'dq-after-phone': () => dq({ after: true, mark: true })
+  };
+  document.querySelectorAll('[data-v]').forEach(el => { el.innerHTML = V[el.dataset.v](); });
+
+  requestAnimationFrame(() => {
+    const ph = document.querySelector('[data-out="phone"]');
+    if (ph && ph.offsetParent !== null) {
+      const frames = [...document.querySelectorAll('#phone .mock-frame')];
+      const over = frames.flatMap(f => [...f.querySelectorAll('*')].filter(e => e.getBoundingClientRect().right > f.getBoundingClientRect().right + 0.5));
+      ph.innerHTML = `Measured: frames ${frames.map(f => Math.round(f.getBoundingClientRect().width)).join(' / ')} px · elements past the frame edge: ${over.length}${over.length ? ' (' + over.slice(0, 3).map(e => e.tagName.toLowerCase() + '.' + [...e.classList].join('.')).join(', ') + ')' : ''}.`;
+    }
+  });
+})();
+</script>
+</body>
+</html>

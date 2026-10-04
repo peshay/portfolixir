@@ -8,7 +8,7 @@ planning PR **signs one decision gate**:
 which is risk-tier (money and import idempotency). It is carried as this PR's
 opening commit. The merge also adopts:
 
-- the lane cut, the three lane PRs and **D-1** to **D-14**;
+- the lane cut, the three lane PRs and **D-1** to **D-15**;
 - answers to the six questions Sprint 18's closing acts put to the owner:
   #1076 (**D-2**), #1081 (**D-3**), #1082 and #1083 (**D-4**), #1079 and
   #1080 (**D-5**);
@@ -142,9 +142,12 @@ with exact `Decimal` fixtures.
     left out of `total_cash` and count it, which takes a contract entry.
   - **The count and its list agree:** both leave out benchmarks.
 - **M7, bonds the guard misses, and inference inside words (#1068, #1078).**
-  The two-scales guard covers the reverse case, the unclassed bond and the
-  Overview's line (pick J2). The asset-class inference stops matching legal
-  forms inside other words.
+  - **#1068:** the two-scales guard covers the reverse case and a bond that
+    carries master data but no class, and the Overview's line counts the
+    finding (pick J2, board 01). This reverses two settled statements, so
+    D-15 carries it as a decision. It is not a conformance repair.
+  - **#1078:** the asset-class inference stops matching legal forms inside
+    other words.
 
 **Contract entry 13** carries M4's computation version and M6's payload.
 
@@ -250,9 +253,14 @@ All of it is boarded on this PR. A pick's code is its board's number.
     because this plan answers them.
   - ADR-0053's two deferred asks are filed under #991: a suspect list
     without a file, and the JSON path's negative tax.
-- **At each lane PR's opening:** its issues move under #991 when they have
-  no parent. **The PR body carries Lane Z as a checklist, ticked before the
-  closing act** (Sprint 18 retrospective).
+- **At each lane PR's opening:**
+  - its issues move under #991 when they have no parent;
+  - the design pass's "Found while drawing" items on that PR's surface are
+    either fixed in the story that touches the surface (D-14) or filed, as
+    the UX document marks each one.
+
+  **The PR body carries Lane Z as a checklist, ticked before the closing
+  act** (Sprint 18 retrospective).
 - **Registry edits already on this PR:**
   - the Tracker Index's E26 line names Sprint 19 as planned;
   - FR-5's row names ADR-0053;
@@ -459,7 +467,7 @@ I, so it does not collide with ADR-0051's identities I1–I9.
 | Pick | Item | Board | Lane | Kind | Recommended |
 |---|---|---|---|---|---|
 | **J1**, **J1.2** | The Overview's total names what it leaves out; the stale count's scope (#1081; #1068's and #1087's Overview halves) | `01-overview-total` | α M6 | variants, two questions | **A**, **A** |
-| **J2** | What Wealth says about money it cannot value (#1055, #1068) | `02-money-notes` | α M3, M7 | before/after with one choice | after; **A** |
+| **J2** | What Wealth says about money it cannot value (#1055, #1068; D-15) | `02-money-notes` | α M3, M7 | before/after with one choice | after; **A** |
 | **J3**, **J3.2** | The history's month head; the account on desktop cash rows (#1083, #1084, #1073) | `03-history` | γ U1 | variants, two questions | **A**, **A** |
 | **J4** | Reaching and reading trades (#1082, #1089, #1060, #1059, #1074) | `04-trades` | γ U2 | variants and before/after | **A** |
 | **J5** | Dates and chart axes (#1061, #1087, #1088) | `05-dates-charts` | γ U3 | before/after, one pick (phone labels) | after; **A** |
@@ -559,6 +567,44 @@ reads, stated because Sprint 18 filed 51 issues:
   filed under Scope Lock, as before.
 - **Nothing is withheld to make D-1's count.** The count measures what is
   left, not what was found.
+
+### D-15: #1068 reverses two settled statements, and the guard gets a positive bond signal (recommended)
+
+The design pass found that #1068 asks for three things, and two of them
+were settled the other way:
+
+- **ADR-0052's Consequences** say that the reverse case (quotes near 1,
+  booked prices per unit near 100) is not named, and that a bond with no
+  class and an unrecognised name escapes the guard.
+- **DESIGN.md** says that the dashboard's data-quality line does not count
+  the finding.
+
+**The merge reverses both, for these reasons:**
+
+1. **The reverse case is named** in a problem note of its own (J2). A bond
+   whose quotes are on the unit scale counts a hundredfold too low in every
+   total. "It needs a convention the catalog does not have" was a reason
+   not to *convert*, not a reason to stay silent. The note names and
+   converts nothing, as §4 of ADR-0052 requires of the forward case.
+2. **The guard reads a security as a bond when its effective class is a
+   bond class, or when it carries ADR-0052's master data** (a maturity date
+   or a coupon). It does **not** widen to every unclassed security: that
+   would flag an unclassed share that rose twentyfold. The board found the
+   inference recognises only government-bond names, so the seed's own
+   corporate bond escapes. The handbook says that a class or master data
+   brings such a bond under the guard.
+3. **The Overview's line counts the finding**, at problem severity, and
+   links to a `dq=two_scales` list, so the count equals the list. A total
+   inflated a hundredfold is exactly the alarm the Overview's line exists
+   for. "The two scales are read where the total they inflate is read" put
+   them on Wealth only, and the Overview's total is inflated too.
+
+**Not risk-tier:** the guard names and converts nothing (ADR-0052's own
+verdict). The story writes a dated note into ADR-0052 and amends DESIGN.md's
+"Settled here" items.
+
+**To flip by comment:** "keep ADR-0052" leaves #1068 open with this
+decision recorded against it, and M7 builds only #1078.
 
 ## Sequencing
 

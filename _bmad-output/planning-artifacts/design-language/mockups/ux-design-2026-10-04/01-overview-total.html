@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Übersicht: Was die Summe auslässt (Pick J1, J1.2; #1081, #1068, #1087)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL. Everything inside the frames is the live markup of
+     dashboard_live.ex (overview/1, closed_trades_card/1, dq_findings/1) and
+     AppShell.data_note/1 with app.css as shipped. The stories change
+     MARKUP and MESSAGES, not CSS:
+     ① J1-A (#1081): one attention data note (AppShell.data_note) inside the
+        value card's section, under the card; the section drops the class
+        `grid` (it holds one card; `.workspace-section` is already a
+        one-column grid with the 16 px gap). Board section ③ shows why
+        `grid-column: 1 / -1` is not the answer.
+     ② J1.2-A (#1081): the stale count keeps its catalog-wide scope and says
+        so: "%{count} veraltet im Katalog" in the strip, "… Wertpapiere im
+        Katalog ohne Kurs seit 7 Tagen" on the line.
+     ③ #1068: the line counts the two-scales guard's findings; the line's
+        one severity is then "problem" (UX-DR17: the highest present).
+     ④ #1087: the "Fällig" dates through Format.date (DD.MM.YYYY).
+     The single CSS rule below is ②'s: the stale sub-line can now wrap in a
+     390 px cell, and the glyph should sit on the first line, not float
+     between the two. -->
+<style id="proposal">
+@scope (.after) {
+  /* ② The stale sub-line wraps at 390 px ("25 veraltet im / Katalog"):
+     the glyph stays on the first line. EDITS the existing
+     `.kpi-strip__sub--attention` rule (app.css:7884), align-items only. */
+  .kpi-strip__sub--attention {
+    align-items: flex-start;
+  }
+
+  .kpi-strip__sub--attention svg {
+    flex: none;
+    margin-top: 2px;
+  }
+}
+</style>
+<style>
+  /* Board chrome only. Nothing below is a proposal. */
+  .app980 { max-width: 980px; }
+  .mock-frame { overflow: visible; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 6px; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .argue { max-width: 980px; font-size: 12.5px; display: grid; gap: 6px; margin-top: 10px; }
+  .argue p { margin: 0; }
+  .argue code, .mock-note code, .pickbar code, .stub code, .measure code { font-size: 11.5px; }
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; text-transform: none; flex: none; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  i.pin.o { background: var(--mock-ink); }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .stub { padding: 10px 24px; font-size: 12px; font-style: italic; color: var(--mock-ink); border-bottom: 1px solid var(--color-border); background: var(--color-bg); }
+  .measure { font-size: 11.5px; color: var(--mock-ink); margin: 6px 0 0; }
+  .measure b.off { color: var(--color-danger); }
+  .measure b.ok { color: var(--color-positive); }
+  .pair { display: grid; gap: 14px; }
+  .legend { margin: 8px 0 0; padding-left: 0; list-style: none; font-size: 12px; color: var(--color-text); max-width: 980px; }
+  .legend li { margin: 0 0 4px; }
+  .legend li > i.pin:first-child { margin: 0 4px 0 0; }
+  .cell-zoom { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; max-width: 980px; }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 10px; padding: 0 12px; font-size: 12px; color: var(--mock-ink); }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-board > p.mock-note { padding: 0 12px; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; border-top-width: 0; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    /* the real gutter at 390 px (app.css: clamp(18px, …) clamp(16px, …)) */
+    .mock-frame .workspace-section { padding: 18px 16px; }
+    .stub { padding: 8px 16px; }
+    .legend { padding: 0 12px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Picks J1 and J1.2 — the Overview's total and its stale count (#1081), with the Overview halves of #1068 and #1087.</b>
+<b>J1</b> — what the Overview owes about a total that leaves rows out: <b>A</b> an <code>attention</code> data note under the value card, naming count, names and native figures (UX-DR25) · <b>B</b> two more counts on the data-quality line, linking to Wealth. <span class="rec">Recommended A</span><br>
+<b>J1.2</b> — the "25 veraltet" under a held-positions basis line: <b>A</b> keep the catalog-wide count and say so ("im Katalog") · <b>B</b> count held positions only. <span class="rec">Recommended A</span><br>
+#1068 (the line counts the bond two-scales guard) and #1087 ("Fällig" in DD.MM.YYYY) are before/after; they ride the "Nachher" frame. A comment on the planning PR naming the code and a letter (e.g. "J1 B") decides; silence adopts the recommendation. "Heute" is app.css and the template as built, on the synthetic demo seed; "Nachher" adds <code>&lt;style id="proposal"&gt;</code>. Desktop frames: 980&nbsp;px content (1200 − 220 sidebar). All names, figures and dates are invented. <b>Dashed = new.</b></div>
+<div class="pickbar phone-only"><b>J1 + J1.2 at 390&nbsp;px.</b> A real 390-px viewport: app.css's rules under 560&nbsp;px apply (strip two by two, drift bars hidden, 16-px gutter). Recommended: J1 A, J1.2 A. #1068 and #1087 ride the "Nachher" frame. Synthetic data only. <b>Dashed = new.</b></div>
+
+<!-- ================================================= ① Heute -->
+<section class="mock-board desk-only" id="heute">
+  <h2>① Heute — the Overview on the demo seed <small>dashboard_live.ex overview/1, top to bottom</small></h2>
+  <p class="mock-note">The value card says 62.639,10 EUR. It leaves out two USD cash accounts with no EUR rate and one held position with no price, and nothing on this page says so: only Wealth → Holdings → Datenqualität names them. The quotes cell's "25 veraltet" and the line's "25 Wertpapiere ohne Kurs seit 7 Tagen" are the catalog-wide <code>stale_quote</code> count (benchmarks excluded), under a basis line that says "Kurse: der neueste über die gehaltenen Positionen". The data-quality line is the last of six blocks. The "Fällig" dates print ISO (#1087). Faithful to today, defects included.</p>
+  <div class="mock-frame mock-before app980"><span class="mock-tag">Heute</span>
+    <div data-ov="before-desk"></div>
+  </div>
+  <ol class="legend">
+    <li><i class="pin b">1</i>The total: 62.639,10 EUR excludes USD Settlement (1.850,00 USD), US Broker (60,00 USD) and Placeholder Anleihe 2031 3,25% (no price). Unnamed here.</li>
+    <li><i class="pin b">2</i>"25 veraltet" counts the catalog (not-held and never-priced securities included) beside a basis line about held positions; Wealth says 10 held positions are trade-priced and 1 held quote is older than 7 days. No sentence explains the difference.</li>
+    <li><i class="pin b">3</i>The trades card already carries a UX-DR25 attention note beside its figure (<code>trades-card-excluded</code>, dashboard_live.ex:628-638): the precedent J1-A follows.</li>
+    <li><i class="pin b">4</i>"Fällig" dates: <code>Date.to_iso8601(row.event.date)</code> (dashboard_live.ex:553) — #1087.</li>
+    <li><i class="pin b">5</i>The data-quality line: catalog hygiene only (stale, class, logo; dashboard_live.ex:983-1015), the last block on the page.</li>
+  </ol>
+</section>
+
+<!-- ================================================= ② Nachher -->
+<section class="mock-board desk-only" id="nachher">
+  <h2>② Nachher — J1 A + J1.2 A, with #1068 and #1087 <small>the recommended picks together</small></h2>
+  <p class="mock-note">One attention note under the value card names what the total leaves out, with each row's native figure (UX-DR25 clauses 1 and 2) and a link to where the remedy is (clause 3: no control here that cannot act; the rate sync lives in Wealth's note). The stale count keeps its scope and states it ("im Katalog"), which makes the difference to the basis line a stated one (UX-DR26). For #1068 the seed is given one bond priced on two scales (synthetic: "Kestrel Anleihe 2030 2,75%"), so the line shows the guard's count and takes the problem severity, the highest present (UX-DR17).</p>
+  <div class="mock-frame mock-after after app980"><span class="mock-tag">Nachher — J1 A · J1.2 A · #1068 · #1087</span>
+    <div data-ov="after-desk"></div>
+  </div>
+  <ol class="legend">
+    <li><i class="pin a">1</i>J1 A: "Nicht in der Summe: …" — count, names and native figures, inside the card's section (DESIGN.md: a data note lives in the same <code>&lt;section&gt;</code> as the data it describes). The names come from the valuation the card already reads (<code>positions[].unvalued_reason</code>, <code>cash_balances[].valued</code>); no new read.</li>
+    <li><i class="pin a">2</i>J1.2 A: "25 veraltet im Katalog" — the cell's fact stays held-scoped, the finding says its own scope. The link is unchanged.</li>
+    <li><i class="pin a">3</i>The trades card's note, unchanged: the Overview now carries two UX-DR25 notes, each beside its own figure.</li>
+    <li><i class="pin a">4</i>#1087: "09.10.2026" via <code>Format.date</code>.</li>
+    <li><i class="pin a">5</i>J1.2 A + #1068: "25 Wertpapiere im Katalog ohne Kurs seit 7 Tagen · … · 1 Anleihe auf zwei Skalen bepreist", severity problem. The new count links to <code>/securities?dq=two_scales</code> — a new <code>DataQuality</code> predicate, so "a count of N links to a list of N" by construction (#705) and the line keeps UX-DR2's "pre-filtered securities list".</li>
+  </ol>
+</section>
+
+<!-- ================================================= ③ J1 placement -->
+<section class="mock-board desk-only" id="placement">
+  <h2>③ J1 A — where the note sits in a <code>.grid</code> section <small>three ways to add a second child</small></h2>
+  <p class="mock-note">The value card's section is <code>workspace-section grid</code>: <code>repeat(auto-fit, minmax(min(100%, 220px), 1fr))</code> (app.css:944). With one card, auto-fit collapses the empty tracks and the card spans the row. A second child changes that. Widths below are measured in Chromium at this board's 980-px frame.</p>
+  <div class="pair">
+    <div>
+      <p class="cap">a — the note as a second grid item (no rule)</p>
+      <div class="mock-frame mock-before app980"><span class="mock-tag vtag">Rejected — the note becomes a second column</span>
+        <div data-place="a"></div>
+      </div>
+      <p class="measure" data-out="a"></p>
+    </div>
+    <div>
+      <p class="cap">b — the note with <code>grid-column: 1 / -1</code></p>
+      <div class="mock-frame mock-before app980"><span class="mock-tag vtag">Rejected — a spanning item stops auto-fit from collapsing the empty tracks, so the card shrinks to one</span>
+        <div data-place="b"></div>
+      </div>
+      <p class="measure" data-out="b"></p>
+    </div>
+    <div>
+      <p class="cap">c — the section drops <code>grid</code> (recommended)</p>
+      <div class="mock-frame mock-after after app980"><span class="mock-tag">Recommended — one column, the note in its own row under the card</span>
+        <div data-place="c"></div>
+      </div>
+      <p class="measure" data-out="c"></p>
+    </div>
+  </div>
+  <div class="argue">
+    <p><b>Why c.</b> The section holds one card in every state (the card, the stale-value article, the skeleton; dashboard_live.ex:271-333). <code>.workspace-section</code> is already <code>display: grid</code> with the 16-px gap (app.css:825), so dropping <code>grid</code> leaves the card exactly as wide as today and puts the note in its own row. No new CSS. The class stays where it does work: the empty state's count cards (dashboard_live.ex:1043) hold several cards.</p>
+    <p><b>Live region.</b> The note arrives with the card (one async read). Following UX-DR17, the section carries one <code>role="status"</code> wrapper that exists before the read lands, as the data-quality line's does (dashboard_live.ex:575).</p>
+  </div>
+</section>
+
+<!-- ================================================= ④ J1 variants -->
+<section class="mock-board desk-only" id="j1">
+  <h2>④ J1 — the variants side by side <small>what the Overview owes about the total</small></h2>
+  <div class="pair">
+    <div>
+      <p class="cap">A — recommended: an attention note under the total (UX-DR25)</p>
+      <div class="mock-frame mock-after after app980"><span class="mock-tag">A — empfohlen</span>
+        <div data-ov="j1a"></div>
+      </div>
+      <p class="mock-note" style="font-size:12.5px;max-width:980px;margin-top:8px"><b>A.</b> UX-DR25 (DESIGN.md, Amendment 2026-08-22) is the rule for exactly this case: "When an aggregate cannot include a row, the surface states how many and which — beside the figure." The note says both (clause 1), prints each row's native figure and never a converted one (clause 2: "1.850,00 USD", not "≈ 1.700 EUR"), and carries no control: the rate sync and the price are fixed on Wealth, so the note links there rather than offering a button that cannot act from here (clause 3). The Overview already does this once, under "Abgeschlossene Trades". #703's split (triage 2026-08-15, F4: the Overview keeps the count as the alarm, Wealth names) was written for the stale-quote row, a condition that is <i>in</i> the total; UX-DR25 is a week newer and is about rows <i>out</i> of it. Cost: the name-building helpers are private to portfolio_live.ex (<code>unvalued_entries/2</code> :4023, <code>unvalued_cash/1</code> :4133, <code>shorten_list/1</code> :4072) and move to a shared module, so both pages print the same names by one rule.</p>
+    </div>
+    <div>
+      <p class="cap">B — the data-quality line gains two counts (option (a) of #1081)</p>
+      <div class="mock-frame mock-before app980"><span class="mock-tag vtag">B</span>
+        <div data-ov="j1b"></div>
+      </div>
+      <p class="mock-note" style="font-size:12.5px;max-width:980px;margin-top:8px"><b>B.</b> Cheaper — two more items in an existing line, no new placement — and it keeps #703's wording of the split. It is weaker on four counts. <b>No names:</b> "2 Konten ohne Wechselkurs" says something is missing without saying what (UX-DR25 clause 1), and no native figure, so the reader cannot judge the size of the gap. <b>Far from the figure:</b> the line is the sixth block, after the strip, the trades, the targets and "Fällig" — 1076&nbsp;px below the total in the "Heute" frame, 1436&nbsp;px (two phone screens) at 390&nbsp;px, both measured; DESIGN.md's placement rule ("inside the same <code>&lt;section&gt;</code> as the data it describes") fails by construction. <b>A new link kind:</b> every count on the line links to a pre-filtered securities list (UX-DR2); a cash account is not a security, so these two would be the line's only links to <code>/portfolio</code>. <b>Scope and severity mixing:</b> the line counts the catalog; these two are the default view's valuation — the line would carry two scopes under one severity and one scope word.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================= ⑤ overflow -->
+<section class="mock-board desk-only" id="overflow">
+  <h2>⑤ J1 A — many names <small>the overflow rule is Wealth's, not a new one</small></h2>
+  <p class="mock-note">Wealth shortens every name list by one rule: <code>shorten_list/1</code> (portfolio_live.ex:4072) keeps six names and appends "+N" (<code>@unpriced_names_shown 6</code>, :97). The count is taken before shortening, so it stays the true size. Each group (accounts, positions without price, positions without rate) is shortened on its own. Synthetic: nine accounts without a rate.</p>
+  <div class="mock-frame mock-after after app980"><span class="mock-tag">A — nine accounts, one position</span>
+    <div data-ov="overflow"></div>
+  </div>
+  <p class="measure">A position with a price but no rate (<code>unvalued_reason: :missing_fx</code>) joins the note the same way, with its native price, as Wealth's <code>dq-missing-fx</code> prints it: "Name (12,40 USD)". The seed has none.</p>
+</section>
+
+<!-- ================================================= ⑥ J1.2 -->
+<section class="mock-board desk-only" id="j12">
+  <h2>⑥ J1.2 — the stale count <small>strip cell and data-quality line, the two places that print it</small></h2>
+  <div class="cell-zoom">
+    <div>
+      <p class="cap">A — recommended: catalog-wide, and it says so</p>
+      <div class="mock-frame mock-after after app980"><span class="mock-tag">A — empfohlen</span>
+        <div data-ov="j12a"></div>
+      </div>
+    </div>
+    <div>
+      <p class="cap">B — held positions only (option (d) of #1081)</p>
+      <div class="mock-frame mock-before app980"><span class="mock-tag vtag">B</span>
+        <div data-ov="j12b"></div>
+      </div>
+    </div>
+  </div>
+  <div class="argue">
+    <p><b>A.</b> The count is the one its link opens: the catalog-wide <code>stale_quote</code> predicate, the same rule as the line's finding and the list (#705; the comment at dashboard_live.ex:399-404 says the scope is deliberate). What was missing is the scope word. "im Katalog" turns a silent contradiction with the basis line into a stated difference (UX-DR26: "a stated difference between two figures a reader could otherwise reconcile"). The app already says "jedem Wertpapier im Katalog" under "Fällig". The cell stays "the fact" (newest quote across held positions) and the sub-line stays "the finding" (UX-DR2, 2026-09-14). At 390&nbsp;px the sub-line wraps to two lines inside its cell (phone frame); the one CSS rule keeps the glyph on the first line.</p>
+    <p><b>A also repairs the count/list agreement</b> — nothing to draw: the count excludes benchmarks (<code>DataQuality.list_opts/1</code>, data_quality.ex:99, <code>is_benchmark: false</code>), but the list the link opens does not (securities_live.ex:6179-6204 builds its options without <code>list_opts/1</code> and only calls <code>refine/2</code>). A catalog with a benchmark that has no fresh quote shows "25" and opens a list of 26. The story merges <code>DataQuality.list_opts(dq)</code> into the list's options.</p>
+    <p><b>B.</b> "Held" sounds like the basis line, but the costs are real. <code>holding=held</code> means held in <i>any</i> depot of any portfolio (catalog.ex:772, <code>HeldSecurities</code>), not the strip's view. It includes never-priced holdings: on the seed that is 10 trade-priced positions, 1 stale quote and 1 with no price at all — 12, a third number beside Wealth's "10" and "1". "veraltet" is the wrong word for a security that never had a quote. And the catalog-hygiene finding the line exists for (watch-list securities with no quote) leaves the Overview entirely.</p>
+  </div>
+</section>
+
+<!-- ================================================= phone -->
+<section class="mock-board phone-only" id="phone">
+  <h2>J1 A + J1.2 A at 390&nbsp;px <small>card, strip, "Fällig" and the line</small></h2>
+  <p class="mock-note">The note sits under the card and wraps to six lines; the stale sub-line wraps inside its 2×2 cell. Closed trades and targets are elided (unchanged).</p>
+  <div class="mock-frame mock-before"><span class="mock-tag">Heute</span>
+    <div data-ov="before-phone"></div>
+  </div>
+  <div style="height:14px"></div>
+  <div class="mock-frame mock-after after"><span class="mock-tag">Nachher — J1 A · J1.2 A · #1068 · #1087</span>
+    <div data-ov="after-phone"></div>
+  </div>
+  <p class="measure" data-out="phone" style="padding:0 12px"></p>
+</section>
+
+<script>
+(() => {
+  const ICON = {
+    tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+    oct: '<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>',
+    ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>'
+  };
+  const ico = (n, s = 14) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
+  const SEV = { note: ['ast', 'Hinweis'], attention: ['tri', 'Achtung'], problem: ['oct', 'Problem'] };
+  const note = (sev, body, extra = '') => `<div class="data-note data-note--${sev}" ${extra}><span class="data-note__icon" aria-hidden="true">${ico(SEV[sev][0])}</span><span class="data-note__word">${SEV[sev][1]}</span><div class="data-note__body">${body}</div></div>`;
+  const pin = (n, k) => `<i class="pin ${k}">${n}</i>`;
+  const sep = '<span aria-hidden="true"> · </span>';
+
+  // ---- blocks ------------------------------------------------------------
+  const EXCLUDED = 'Nicht in der Summe: 2 Verrechnungskonten ohne Wechselkurs zu EUR — USD Settlement (1.850,00 USD), US Broker (60,00 USD) · 1 gehaltene Position ohne Preis — Placeholder Anleihe 2031 3,25%. <a href="/portfolio">Details in Vermögen&nbsp;→</a>';
+  const EXCLUDED_MANY = 'Nicht in der Summe: 9 Verrechnungskonten ohne Wechselkurs zu EUR — USD Settlement (1.850,00 USD), US Broker (60,00 USD), Reisekasse (412,00 CHF), Depotkonto NOK (3.200,00 NOK), Tagesgeld GBP (950,00 GBP), Girokonto SEK (7.480,00 SEK), +3 · 1 gehaltene Position ohne Preis — Placeholder Anleihe 2031 3,25%. <a href="/portfolio">Details in Vermögen&nbsp;→</a>';
+
+  const card = (o) => `
+    <section class="workspace-section${o.grid ? ' grid' : ''}" aria-label="Vermögenswert">
+      <a id="dashboard-wealth-card" href="/portfolio" class="stat stat--link" ${o.cardPin ? 'style="position:relative"' : ''}>
+        <span>Alles${o.cardPin ? pin(1, o.cardPin) : ''}</span>
+        <strong><span class="count-up"><span data-count-digits>62.639,10</span></span><small class="value-suffix">EUR</small></strong>
+        <small data-role="card-ttwror"><span class="is-positive">+4,12%</span> YTD</small>
+      </a>
+      ${o.note ? `<div role="status"${o.noteStyle ? ` style="${o.noteStyle}"` : ''} class="${o.noteNew ? 'is-new' : ''}">${note('attention', o.note + (o.notePin ? pin(1, 'a') : ''), 'data-role="wealth-card-excluded"')}</div>` : ''}
+    </section>`;
+
+  const strip = (o) => `
+    <section id="dashboard-kpi-strip" class="workspace-section kpi-strip" aria-label="Kennzahlen">
+      <div class="kpi-strip__cells">
+        <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-ttwror"><span class="kpi-strip__label">TTWROR 1J</span><strong class="is-positive">+8,37%</strong><small class="kpi-strip__sub">IRR +7,91%</small></a>
+        <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-cash-quote"><span class="kpi-strip__label">Cashquote</span><strong>7,4%</strong><small class="kpi-strip__sub">4.618,25 EUR Cash</small></a>
+        <a href="/transactions" class="kpi-strip__cell" data-role="kpi-last-booking"><span class="kpi-strip__label">Letzte Buchung</span><strong>02.10.2026</strong><small class="kpi-strip__sub">Kauf · Nordwind Industrie AG</small></a>
+        <a href="/securities?dq=stale_quote" class="kpi-strip__cell" data-role="kpi-freshness"><span class="kpi-strip__label">Kurse${o.stalePin ? pin(2, o.stalePin) : ''}</span><strong>02.10.2026</strong><small class="kpi-strip__sub kpi-strip__sub--attention${o.staleNew ? ' is-new' : ''}">${ico('tri', 12)} <span>${o.stale}</span></small></a>
+      </div>
+      <div class="summary-basis kpi-strip__basis" data-role="kpi-strip-basis">Ansicht Alles · Rendite über 1J bis 04.10.2026 · in EUR · Kurse: der neueste über die gehaltenen Positionen <details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zu diesen Kennzahlen">ⓘ</summary><p role="tooltip">…</p></details></div>
+    </section>`;
+
+  const trades = (o) => `
+    <section id="dashboard-trades" class="workspace-section">
+      <div class="section-head"><h2>Abgeschlossene Trades</h2><a class="kpi-summary__link" href="/cashflow?tab=realized">Alle Trades →</a></div>
+      ${note('attention', `1 Verkauf ohne gespeicherten Wechselkurs an seinem Schlussdatum fehlt bei den Trades: Harborline Freight Inc. Das Nachladen der Wechselkurse steht unter „Alle Trades“.${o.tradesPin ? pin(3, o.tradesPin) : ''}`, 'data-role="trades-card-excluded"')}
+      <p class="summary-basis" data-role="trades-card-basis">Die 2 zuletzt abgeschlossenen · Ergebnis in EUR · FIFO über alle Depots, unabhängig von der Ansicht · p. a. erst ab 365 Tagen Haltedauer</p>
+      <ul class="attention-list">
+        <li><a href="#" class="attention-item" data-role="closed-trade"><span class="attention-name">Alder Creek Timber Fund<small class="attention-item__sub">verkauft 18.09.2026 · 780 Tage</small></span><span class="num"><span class="is-positive">+412,60</span><small class="value-suffix">EUR</small><small class="attention-item__sub"><span class="is-positive">+9,4%</span> p. a.</small></span></a></li>
+        <li><a href="#" class="attention-item" data-role="closed-trade"><span class="attention-name">Halvorsen Shipping AS<small class="attention-item__sub">verkauft 03.08.2026 · 128 Tage</small></span><span class="num"><span class="is-negative">-86,15</span><small class="value-suffix">EUR</small><small class="attention-item__sub"><span class="is-negative">-4,8%</span> gesamt</small></span></a></li>
+      </ul>
+    </section>`;
+
+  const offTarget = () => `
+    <section id="dashboard-attention" class="workspace-section">
+      <h2>Ziel-Abweichungen</h2>
+      <p class="hint" data-role="attention-explainer"><span data-role="attention-basis">Ansicht Alles · Plan „Grundaufteilung“ auf Anlageklasse · </span>Kategorien, die mehr als ±5 pp von ihrem Soll-Gewicht abweichen.</p>
+      <ul class="attention-list">
+        <li><a href="#" data-role="drift-alert" class="attention-item"><span class="attention-name">Aktien</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-over" style="width: 45%"></span></span><span class="num">7,2 pp über dem Soll · 4.510,00 EUR</span></a></li>
+        <li><a href="#" data-role="drift-alert" class="attention-item"><span class="attention-name">Anleihen</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-under" style="width: 26%"></span></span><span class="num is-negative">4,1 pp unter dem Soll · 2.568,20 EUR</span></a></li>
+      </ul>
+    </section>`;
+
+  const due = (o) => {
+    const d = o.locale ? ['09.10.2026', '13.10.2026', '27.10.2026'] : ['2026-10-09', '2026-10-13', '2026-10-27'];
+    const nw = o.dueNew ? ' is-new' : '';
+    return `
+    <section id="dashboard-upcoming" class="workspace-section">
+      <h2>Fällig${o.duePin ? pin(4, o.duePin) : ''}</h2>
+      <p class="hint" data-role="upcoming-basis">Datierte Fakten zu jedem Wertpapier im Katalog — gehalten oder nicht —, die in den nächsten 30 Tagen anstehen. Ein als Zeitraum oder Monat angegebener Termin gilt als fällig, sobald irgendein Tag, auf den er fallen kann, im Horizont liegt.</p>
+      <ul class="attention-list">
+        <li><a href="#" data-role="upcoming-event" class="attention-item"><span class="attention-name">Helios Solar Systems SE <span class="badge badge--neutral" data-role="upcoming-unheld">ohne Bestand</span><small class="attention-item__sub">Ende der Haltefrist · Innerhalb eines Zeitraums</small></span><span class="num${nw}">${d[0]}</span></a></li>
+        <li><a href="#" data-role="upcoming-event" class="attention-item"><span class="attention-name">Nordwind Industrie AG<small class="attention-item__sub">Geschäftszahlen · Angekündigt</small></span><span class="num${nw}">${d[1]}</span></a></li>
+        <li><a href="#" data-role="upcoming-event" class="attention-item"><span class="attention-name">Nordwind Industrie AG<small class="attention-item__sub">Ex-Dividenden-Tag · Geschätzt</small></span><span class="num${nw}">${d[2]}</span></a></li>
+      </ul>
+    </section>`;
+  };
+
+  const dqLine = (o) => `
+    <section id="dashboard-data-quality" class="workspace-section">
+      <h2>Datenqualität${o.dqPin ? pin(5, o.dqPin) : ''}</h2>
+      <div role="status"${o.dqNew ? ' class="is-new"' : ''}>${note(o.sev || 'attention', o.findings.join(sep), 'id="dashboard-dq-line" data-role="data-quality-line"')}</div>
+    </section>`;
+
+  const F_TODAY = ['<a href="/securities?dq=stale_quote" data-role="dq-quotes">25 Wertpapiere ohne Kurs seit 7 Tagen</a>', '<a href="#" data-role="dq-class">4 ohne Anlageklasse</a>', '<a href="/securities?dq=missing_logo" data-role="dq-logo">6 ohne Logo</a>'];
+  const F_AFTER = ['<a href="/securities?dq=stale_quote" data-role="dq-quotes">25 Wertpapiere im Katalog ohne Kurs seit 7 Tagen</a>', '<a href="#" data-role="dq-class">4 ohne Anlageklasse</a>', '<a href="/securities?dq=missing_logo" data-role="dq-logo">6 ohne Logo</a>', '<a href="/securities?dq=two_scales" data-role="dq-two-scales">1 Anleihe auf zwei Skalen bepreist</a>'];
+  const F_B = F_TODAY.concat(['<a href="/portfolio" data-role="dq-unvalued-cash">2 Konten ohne Wechselkurs</a>', '<a href="/portfolio" data-role="dq-no-price">1 Position ohne Preis</a>']);
+
+  const stubMid = '<div class="stub">… „Abgeschlossene Trades“ und „Ziel-Abweichungen“ wie oben, unverändert …</div>';
+
+  const V = {
+    'before-desk': () => card({ grid: true, cardPin: 'b' }) + strip({ stale: '25 veraltet', stalePin: 'b' }) + trades({ tradesPin: 'b' }) + offTarget() + due({ duePin: 'b' }) + dqLine({ findings: F_TODAY, dqPin: 'b' }),
+    'after-desk': () => card({ note: EXCLUDED, noteNew: true, notePin: true }) + strip({ stale: '25 veraltet im Katalog', stalePin: 'a', staleNew: true }) + trades({ tradesPin: 'a' }) + offTarget() + due({ locale: true, duePin: 'a', dueNew: true }) + dqLine({ findings: F_AFTER, sev: 'problem', dqPin: 'a', dqNew: true }),
+    'j1a': () => card({ note: EXCLUDED, noteNew: true }) + '<div class="stub">… Kennzahlen, Abgeschlossene Trades, Ziel-Abweichungen, Fällig …</div>' + dqLine({ findings: F_TODAY }),
+    'j1b': () => card({ grid: true }) + '<div class="stub">… Kennzahlen, Abgeschlossene Trades, Ziel-Abweichungen, Fällig — rund 1.100&nbsp;px …</div>' + dqLine({ findings: F_B, dqNew: true }),
+    'overflow': () => card({ note: EXCLUDED_MANY, noteNew: true }),
+    'j12a': () => strip({ stale: '25 veraltet im Katalog', staleNew: true }) + dqLine({ findings: F_AFTER.slice(0, 3), dqNew: true }),
+    'j12b': () => strip({ stale: '12 veraltet' }).replace('/securities?dq=stale_quote', '/securities?dq=stale_quote&amp;holding=held') + dqLine({ findings: ['<a href="/securities?dq=stale_quote&amp;holding=held">12 gehaltene Wertpapiere ohne Kurs seit 7 Tagen</a>', '<a href="#">4 ohne Anlageklasse</a>', '<a href="#">6 ohne Logo</a>'] }),
+    'before-phone': () => card({ grid: true }) + strip({ stale: '25 veraltet' }) + stubMid + due({}) + dqLine({ findings: F_TODAY }),
+    'after-phone': () => card({ note: EXCLUDED, noteNew: true }) + strip({ stale: '25 veraltet im Katalog', staleNew: true }) + stubMid + due({ locale: true, dueNew: true }) + dqLine({ findings: F_AFTER, sev: 'problem', dqNew: true })
+  };
+  document.querySelectorAll('[data-ov]').forEach(el => { el.innerHTML = V[el.dataset.ov](); });
+
+  // ---- placement study: three ways to add the note to the .grid section ---
+  const P = {
+    a: () => card({ grid: true, note: EXCLUDED }),
+    b: () => card({ grid: true, note: EXCLUDED, noteStyle: 'grid-column: 1 / -1' }),
+    c: () => card({ note: EXCLUDED })
+  };
+  document.querySelectorAll('[data-place]').forEach(el => { el.innerHTML = P[el.dataset.place](); });
+
+  // ---- measurements -------------------------------------------------------
+  const w = (el) => Math.round(el.getBoundingClientRect().width);
+  requestAnimationFrame(() => {
+    document.querySelectorAll('[data-place]').forEach(el => {
+      const sec = el.querySelector('section');
+      const cardEl = el.querySelector('.stat');
+      const noteEl = el.querySelector('[role="status"]');
+      const inner = sec.clientWidth - parseFloat(getComputedStyle(sec).paddingLeft) - parseFloat(getComputedStyle(sec).paddingRight);
+      const out = document.querySelector(`[data-out="${el.dataset.place}"]`);
+      const same = Math.abs(cardEl.getBoundingClientRect().top - noteEl.getBoundingClientRect().top) < 2;
+      const full = Math.abs(w(cardEl) - inner) < 2;
+      out.innerHTML = `Measured: section content ${Math.round(inner)} px · card <b class="${full ? 'ok' : 'off'}">${w(cardEl)} px</b> · note ${w(noteEl)} px, ${same ? '<b class="off">beside the card</b>' : '<b class="ok">under the card</b>'}.`;
+    });
+    const ph = document.querySelector('[data-out="phone"]');
+    if (ph && ph.offsetParent !== null) {
+      const frame = document.querySelector('[data-ov="after-phone"]').closest('.mock-frame');
+      const sub = document.querySelector('[data-ov="after-phone"] .kpi-strip__sub--attention');
+      const cell = sub.closest('.kpi-strip__cell');
+      ph.innerHTML = `Measured: frame ${w(frame)} px · quotes cell ${w(cell)} px · stale sub-line ${w(sub)} px wide, ${sub.getBoundingClientRect().height.toFixed(0)} px tall (two lines) · no element wider than the frame: ${[...frame.querySelectorAll('*')].every(e => e.getBoundingClientRect().right <= frame.getBoundingClientRect().right + 0.5) ? '<b class="ok">yes</b>' : '<b class="off">no</b>'}.`;
+    }
+  });
+})();
+</script>
+</body>
+</html>
