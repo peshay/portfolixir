@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-10-02 (Sprint 18 PLANNED: sprint-plan-2026-10-02-sprint18.md, adopted by the merge of its planning PR, which SIGNS the ADR-0034 amendment for #1031 -- the operator's half of E26 in four lane PRs, the two money bugs first, the operator's first-look test as a second exit criterion; earlier the same day, Sprint 17 CLOSED OUT: alpha #1005, beta #1008 and gamma through #1035 merged, releases 2026.10.1-2026.10.3; earlier, Sprint 17 PR alpha opened: E26 tracker #991 and its issues filed; earlier the same day, Sprint 17 PLANNED: sprint-plan-2026-10-01-sprint17.md, adopted by the merge of its planning PR, which SIGNS ADR-0051 (FR-41) and answers the 2026-10-01 triage's OQ-1 to OQ-6 -- the agent's first contact in three lane PRs, the launch test as the exit criterion, FR-41's build in Sprint 18, calendar versions by workflow, the authorship rule kept and its friction removed)
+# last_updated: 2026-10-04 (Sprint 18 CLOSED OUT: alpha #1040, beta #1049, gamma #1054 and delta #1075 merged in order, releases 2026.10.4-2026.10.7; FR-41 shipped; the operator's first-look test and the agent's launch test both PASS; E26 stays in progress for the owner's announcement decision, with the launch-readiness summary; earlier, Sprint 18 PLANNED: sprint-plan-2026-10-02-sprint18.md, adopted by the merge of its planning PR, which SIGNS the ADR-0034 amendment for #1031 -- the operator's half of E26 in four lane PRs, the two money bugs first, the operator's first-look test as a second exit criterion; earlier the same day, Sprint 17 CLOSED OUT: alpha #1005, beta #1008 and gamma through #1035 merged, releases 2026.10.1-2026.10.3; earlier, Sprint 17 PR alpha opened: E26 tracker #991 and its issues filed; earlier the same day, Sprint 17 PLANNED: sprint-plan-2026-10-01-sprint17.md, adopted by the merge of its planning PR, which SIGNS ADR-0051 (FR-41) and answers the 2026-10-01 triage's OQ-1 to OQ-6 -- the agent's first contact in three lane PRs, the launch test as the exit criterion, FR-41's build in Sprint 18, calendar versions by workflow, the authorship rule kept and its friction removed)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-10-02
+last_updated: 2026-10-04
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,220 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# CLOSED OUT (2026-10-04, Sprint 18) -- four lane PRs, rebase-merged in
+# order (D-9):
+# - PR alpha #1040 at 2026-10-03 17:23 UTC (`main` at ac4b7f18, 24 commits);
+# - PR beta #1049 at 17:28 UTC (a81a632e, 28 commits);
+# - PR gamma #1054 at 2026-10-04 06:45 UTC (7f4306cb, 83 commits);
+# - PR delta #1075 at 2026-10-04 08:55 UTC (64b65923, 15 commits).
+# Verification basis:
+# - The commits on `main` (fabe8e73..64b65923, linear, zero merge
+#   commits). Each merged tree is byte-identical to the head CI tested on
+#   its PR: alpha ac4b7f18, beta a81a632e, gamma 709df881 (merged as
+#   7f4306cb), delta 91b93507 (merged as 64b65923).
+# - The Actions runs on the merge pushes, all green:
+#   - Commit authorship 705, 708, 712 and 714;
+#   - CI 1691, 1694, 1698 and 1700;
+#   - Release 13, 14, 15 and 16.
+# - The Release workflow's calendar job made 2026.10.4 (alpha),
+#   2026.10.5 (beta), 2026.10.6 (gamma) and 2026.10.7 (delta).
+# - The post-merge issue list.
+#
+# WHAT CLOSED:
+# - By keyword:
+#   - alpha (14): #915, #955, #1006, #1015, #1016, #1018-#1023, #1026,
+#     #1027 and #1031;
+#   - beta (4): #901, #1007, #1029 and #1030;
+#   - gamma (23): #330 (needs-uat; the owner merged), #908-#913, #918,
+#     #920, #921, #966, #968, #969, #1009-#1014, #1032, #1033, #1050 and
+#     #1053;
+#   - delta (7): #929, #943, #952, #960, #1017, #1034 and #1037.
+# - By hand:
+#   - #964 (2026-10-03), #1025 and #1038 (not planned, D-7);
+#   - at this close-out, #1024 (asks 1 and 3 shipped in delta; ask 2's
+#     premise did not hold, the defect it pointed at is #1076) and #1041
+#     (the operator's first-look test, with the record below).
+# - STAYS OPEN: #991, E26's tracker, until the owner's announcement
+#   decision. Two of its open issues touch the launch path: #1076 and
+#   #1081, both needs-decision.
+#
+# NOTHING WAS SHRUNK. Every lane of the plan landed, U7 (#330) included;
+# the shrink order was never used.
+#
+# FR-41 SHIPPED (beta, ADR-0051):
+# - the engine with I1-I9 pinned and mutation-verified;
+# - the two reads (`GET /api/v1/portfolios/:portfolio_id/performance/
+#   contribution`, `GET /api/v1/views/:view_id/performance/contribution`)
+#   and their tools;
+# - the table under the chart on Wealth -> Holdings, on board pick A.
+# Its own issues were never filed at beta's branch opening, as Lane Z
+# asked; beta's body said so, and the FR Coverage Map names the PR (see the
+# retrospective).
+#
+# THE OPERATOR'S FIRST-LOOK TEST (D-1, #1041): PASS at delta's closing act
+# (2026-10-04). A fresh agent with only the README and the human
+# documentation (delta's head) drove a headless browser on the synthetic
+# review seed, German UI, at 1440 and 390 px, in light and dark. An
+# evaluator computed the answer key two ways (API and hand); both routes
+# agreed exactly.
+#   1. Total across every portfolio: 63.873,10 EUR (with the planted
+#      deposit), exact at both widths. Path: Overview "ALLES" card, checked
+#      on Wealth.
+#   2. Largest contributor this year: Apple, +1.257,50 EUR, exact at both
+#      widths. Path: Wealth -> Performance "YTD" -> "Beitrag je Position".
+#   3. Annualized return of a named closed trade held over a year:
+#      +17,8 % p. a., exact at both widths. Path: the Overview's closed
+#      trades card, checked on Cash flow -> Trades.
+#   4. Balance of a named cash account: 5.188,70 EUR, exact at both
+#      widths. Path: Accounts & depots.
+#   5. The correction (#912): the planted wrong deposit was deleted from
+#      the screen, and the account went from 2.746,40 back to 1.512,40 EUR.
+# No question needed the documentation. Its sharpest observation: the
+# Overview's total leaves out two USD cash accounts without a rate and an
+# unpriced bond without saying so; only Wealth names them (#1081). The 22
+# usability findings were deduplicated and reproduced: #1081-#1090 filed,
+# comments on #1051 and #1057, four matching the spec and one a headless
+# browser cannot show not filed.
+#
+# THE AGENT'S LAUNCH TEST (Sprint 17 D-1, #998's protocol): PASS at this
+# close-out (2026-10-04), against delta's head 91b93507, the tree `main`
+# carries after delta's merge. The agent under test was a fresh Claude Code
+# subagent. It worked in an export of that tree without
+# test/fixtures/launch_test/ and without git history, with the bank export
+# outside it.
+#   1. Setup: it read the README, llms.txt and the pages they link. The
+#      documented `docker compose up --build -d` failed on this machine:
+#      the egress denies the Debian mirrors, and the build CA does not
+#      reach the apt steps (#1092). It built through a machine-local
+#      Dockerfile kept outside the export: the same pinned Elixir and OTP
+#      image without apt, and a digest-pinned runtime base. No tracked
+#      file changed, checked by hash.
+#   2. The agent's part: the book profile (114 tools, contract version
+#      12); first_setup read-only, writing nothing without the operator;
+#      import_converter, giving a converter and a CSV with nine bookings.
+#      The preview, checked as a dry run and discarded, showed no warning.
+#   3. The drop: the stand-in user kept every proposal (four accounts and
+#      three securities created, each depot linked to its cash account):
+#      9 created, 0 duplicates.
+#   4. The questions, in the protocol's words:
+#      - 13,659.20 EUR, through portfolixir.views.valuation without an id
+#        (D-5's view-less total), naming the trade-priced positions;
+#      - 200.75 EUR, through portfolixir.cashflow.realized_gains, per
+#        trade, with the distribution named as income outside it;
+#      - 2,297.75 EUR, through cash_accounts.list.
+#      All three exact; every answering call was a read.
+#   Audit: nothing under the fixture directory was touched (the directory
+#   was absent; four matches are exclusion patterns in its own hash
+#   checks), and there was no GitHub fetch and no web tool.
+#   Its findings, filed: #1092 (the build CA and apt; no route when the
+#   Debian mirrors are blocked; a loopback proxy needs host networking),
+#   #1093 (the secrets step leaves out the UI password; the Imports page's
+#   place in the UI), #1094 (import_converter's "rows per Konto"). Not
+#   filed: runtime TLS interception (this machine), llms.txt's links to the
+#   published site (by design), and first_setup stopping without a live
+#   operator (its confirmation rule, by design).
+#
+# TWO-WAY COVERAGE:
+# - Both human views due by the end of Sprint 18 landed: #1029 (the
+#   Trades tab's p. a. figure, beta) and #912 (deleting a booking from
+#   the screen, gamma).
+# - New and agent-first: #901's view scope on the category result has no
+#   screen, and the all-portfolios roll-up the classification screen
+#   shows has no read. Both are filed as #1091, due by the end of the next
+#   batch.
+# - Still open from gamma's opening: #1052, the screen cannot correct the
+#   non-trade facts the API corrects in place.
+#
+# SURFACE CHECK (the 2026-09-03 owner decision):
+# - FR-41's family: the per-portfolio read (with view=) and the per-view
+#   read carry it, through portfolixir.portfolios.contribution and
+#   portfolixir.views.contribution. The Everything scope, which Wealth
+#   shows by default, has no read without a view id (#1056).
+# - #901's view scope: the portfolio category-result read (?view=) and
+#   GET /api/v1/views/:view_id/category-results carry it, both through
+#   portfolixir.portfolios.category_results. The all-portfolios roll-up
+#   has no read, and no screen shows the view scope (#1091; the roll-up's
+#   mixed currencies are #1048).
+# - D-5's view-less valuation: GET /api/v1/valuation
+#   (portfolixir.views.valuation without an id) carries it. Performance
+#   and benchmark exist at portfolio and view scope only (#1056), as D-5
+#   intended.
+#
+# SCHEMA BUDGET (D-10): the ceilings went down, not up. Gamma lowered them
+# to read 103,991, book 177,085 and full 207,448 bytes; delta changed no
+# tool. #1027's check (alpha) holds the ceilings to only move down.
+#
+# FILED AND NOT BUILT (Scope Lock):
+# - from PR alpha: #1041-#1047;
+# - from PR beta: #1048, #1051 and #1055-#1060;
+# - from PR gamma: #1052 and #1061-#1074;
+# - from PR delta: #1076-#1090;
+# - from this close-out: #1091 (the surface check) and #1092-#1094 (the
+#   launch test).
+# Waiting on a decision: #1076, #1079, #1080, #1081, #1082 and #1083.
+#
+# MAINTENANCE LANE: version-report-2026-10-03-sprint18.md (alpha) took
+# sobelow 0.16.0 with its six findings read (#1006), the MCP SDK 1.32.0 and
+# @types/node 24.19.1. Deliberately not taken, with reasons in the report:
+# Node 26 (#977, not LTS until 2026-10-28) and codecov-action (#881, the
+# owner's).
+#
+# RETROSPECTIVE (Sprint 18, E26's second half).
+# * A DOCUMENTATION STORY FOUND THE SPRINT'S MONEY BUG. #1024 asked delta
+#   to "correct" the sample's Betrag. Checked against Portfolio
+#   Performance's own source, the fixture already had PP's export shape:
+#   `Betrag` is the gross value, `Gesamtpreis` the cash amount. The
+#   importer reads it the other way round (#1076). Doing the fix as asked
+#   would have pinned the misreading in the golden master. Carry forward:
+#   a fixture that encodes an external format is checked against that
+#   format's source before it is "corrected".
+# * BOTH EXIT TESTS PASSED, AND THE FIRST-LOOK TEST STILL FOUND THE TRUST
+#   GAP. Every figure was exact. But the first number a stranger sees,
+#   the Overview's total, leaves out what it cannot value without saying
+#   so (#1081). A test that scores figures does not see a figure that is
+#   right by its own rules and wrong by the reader's. Carry forward: the
+#   next first-look test asks "is this everything?" for each figure.
+# * D-9'S RETARGET DUTY WORKED, AND ONE PUSH STILL MISSED CI. Beta and
+#   gamma were moved onto `main` with `rebase --onto` the moment their
+#   predecessor merged; each merged tree was identical to the tested head.
+#   Delta's move was pushed while its base still pointed at gamma's
+#   branch. Against that base the moved head did not merge cleanly, so
+#   GitHub built no merge ref and ran no workflow, and changing the base
+#   afterwards fires nothing. Carry forward: change the base to `main`
+#   first, then push the moved head.
+# * A HISTORY REBUILD IS CHECKED PER COMMIT, NOT ONLY AT THE TIP. Gamma's
+#   history was rebuilt to fold fixups and refresh each commit's gettext
+#   catalog. The first run left the tip byte-identical, but it dropped a
+#   hand-maintained errors.pot entry. It also left 46 intermediate commits
+#   with empty German msgstrs, which the localization test rejects. The
+#   second run took the errors domain's own patches and each group's own
+#   translations. Carry forward: a rebuild proves the invariants of every
+#   commit it writes.
+# * LANE Z WAS SKIPPED ONCE. FR-41's own issues were never filed at beta's
+#   opening, and #1029 and #1030 reached #991 only at this close-out.
+#   Carry forward: each branch opening's Lane Z items are a checklist in
+#   the PR body, ticked before the closing act.
+# * AGENT WORKTREES START FROM `main`, NOT FROM THE BRANCH. Four delta
+#   agents opened on `main` instead of gamma's head. Each moved to the
+#   right base before committing, once asked. Carry forward: every agent
+#   brief names its base commit and checks it first.
+# * THE GATES CAUGHT WHAT REVIEW WOULD NOT. Gamma's closing act reproduced
+#   a race between deleting a whole split and re-booking it; the fix is a
+#   risk-tier commit, mutation-checked on two real connections. One gate
+#   run skipped dialyzer, and CI went red on a spec; every push since ran
+#   all fifteen.
+# * THE AUTHORSHIP FRICTION IS UNCHANGED. The environment's stop hook
+#   still asks, after each turn that leaves commits, to recommit them under
+#   an agent identity, and each request is declined under CLAUDE.md.
+#
+# EPIC STATES AFTER THIS MERGE: E26 STAYS IN PROGRESS. Both halves
+# shipped and both exit tests passed. The announcement is the owner's
+# decision, and two needs-decision issues under #991 touch the launch path
+# (#1076, #1081). The launch-readiness summary
+# (launch-readiness-2026-10-04-sprint18.md) is the input to that decision;
+# E26 closes with it or carries into Sprint 19's plan. The retrospective
+# above is E26's second.
 #
 # PLANNED (2026-10-02, Sprint 18) -- sprint-plan-2026-10-02-sprint18.md,
 # adopted by the merge of the Sprint 18 planning PR, which SIGNS the ADR-0034
@@ -2231,5 +2445,11 @@ development_status:
   # IN PROGRESS 2026-10-01: tracker #991 filed at PR alpha's branch opening,
   # with A1-A3 #992-#994, G-1 #995, G-2 #996, P1 #997, the launch test #998,
   # and the follow-ups #999-#1004; #981-#984 moved under it.
+  # BOTH HALVES SHIPPED 2026-10-04 (Sprint 17: #1005, #1008, #1035; Sprint
+  # 18: #1040, #1049, #1054, #1075). Both exit tests passed (the launch test,
+  # the operator's first-look test #1041). The epic stays in progress for
+  # the owner's announcement decision: #1076 and #1081 (needs-decision,
+  # under #991) touch the launch path; launch-readiness-2026-10-04-sprint18.md
+  # is the input.
   epic-26: in-progress
-  epic-26-retrospective: optional  # Sprint 17's half recorded in its close-out entry
+  epic-26-retrospective: done  # Sprint 17's and Sprint 18's halves, each in its close-out entry
