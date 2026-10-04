@@ -1808,8 +1808,10 @@ rate), plus the dividends as credited, minus the fees and taxes of the
 position's own trades. Each row shows those five figures beside the
 contribution, so every number can be checked by hand; the rows are sorted by
 contribution, largest first, and a bar under each figure shows its size
-against the largest. A position sold inside the period has its row too,
-marked as held at neither end.
+against the largest. A position held for only part of the period has its
+row too, with a marker under its name: "not held at the start" when it was
+bought during the period, "no longer held at the end" when it was sold during
+it, and "held at neither end" when it was bought and sold inside the period.
 
 What no position owns is listed apart, under "Not attributed to a position":
 interest, standalone fees and taxes, and the currency effect on cash (the

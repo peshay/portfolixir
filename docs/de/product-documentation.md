@@ -1972,8 +1972,12 @@ Dividenden und abzüglich der Gebühren und Steuern der eigenen Käufe und
 Verkäufe der Position. Jede Zeile zeigt diese fünf Zahlen neben dem Beitrag,
 sodass sich jede Zahl von Hand nachprüfen lässt. Die Zeilen sind nach Beitrag
 sortiert, der größte zuerst, und ein Balken unter jeder Zahl zeigt ihre Größe
-im Vergleich zur größten. Auch eine im Zeitraum verkaufte Position hat ihre
-Zeile; sie ist als weder zu Beginn noch am Ende im Bestand gekennzeichnet.
+im Vergleich zur größten. Auch eine Position, die nur einen Teil des
+Zeitraums im Bestand war, hat ihre Zeile, mit einem Vermerk unter ihrem Namen:
+„zu Beginn nicht im Bestand“, wenn sie im Zeitraum gekauft wurde, „am Ende
+nicht mehr im Bestand“, wenn sie im Zeitraum verkauft wurde, und „weder zu
+Beginn noch am Ende im Bestand“, wenn sie im Zeitraum gekauft und verkauft
+wurde.
 
 Was keiner Position gehört, steht getrennt unter „Keiner Position
 zugeordnet“: Zinsen, einzelne Gebühren und Steuern sowie der Währungseffekt
