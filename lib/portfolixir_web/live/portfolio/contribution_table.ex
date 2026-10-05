@@ -368,8 +368,13 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
   # The positions first, then the cash accounts that counted zero for want
   # of a rate (#1055, board J2 A): one finding — something counted zero on
   # some days — so one note, in the positions' shape, with the native
-  # balance, never a converted one (UX-DR25 clause 2).
+  # balance, never a converted one (UX-DR25 clause 2). An account still at
+  # zero on the period's last day reads "until the end of the period" (pin
+  # a2), after the ones whose rate came or that were emptied.
   defp unvalued_note(assigns) do
+    {through_end, earlier} = Enum.split_with(assigns.accounts, & &1.unvalued_through_end)
+    assigns = assigns |> assign(:earlier, earlier) |> assign(:through_end, through_end)
+
     ~H"""
     <AppShell.data_note severity={:attention} data-role="contribution-unvalued">
       <%= if @unvalued != [] do %>
@@ -385,16 +390,32 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
           length(@unvalued)
         ) %>
       <% end %>
-      <%= if @accounts != [] do %>
+      <%= if @earlier != [] do %>
         <%= ngettext(
           "One cash account counted zero on some days of the period:",
           "%{count} cash accounts counted zero on some days of the period:",
-          length(@accounts)
+          length(@earlier)
         ) %>
-        <span :for={{account, index} <- Enum.with_index(@accounts)}><%= if index > 0, do: ", " %><b><%= account_name(account) %></b> (<%= account_detail(account) %>)</span>.
-        <%= first_rate_sentence(@accounts) %>
+        <.account_list accounts={@earlier} />.
+        <%= first_rate_sentence(@earlier) %>
+      <% end %>
+      <%= if @through_end != [] do %>
+        <%= ngettext(
+          "One cash account counts zero until the end of the period:",
+          "%{count} cash accounts count zero until the end of the period:",
+          length(@through_end)
+        ) %>
+        <.account_list accounts={@through_end} />.
       <% end %>
     </AppShell.data_note>
+    """
+  end
+
+  attr(:accounts, :list, required: true)
+
+  defp account_list(assigns) do
+    ~H"""
+    <span :for={{account, index} <- Enum.with_index(@accounts)}><%= if index > 0, do: ", " %><b><%= account_name(account) %></b> (<%= account_detail(account) %>)</span>
     """
   end
 
@@ -501,19 +522,21 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
 
   defp account_detail(account) do
     gettext("%{balance}, %{days}, %{reason}",
-      balance: "#{Format.decimal(account.balance, 2)} #{account.currency_code}",
+      balance: "#{Format.native_amount(account.balance)} #{account.currency_code}",
       days: ngettext("%{count} day", "%{count} days", account.unvalued_days),
       reason: reason(account.unvalued_reason)
     )
   end
 
-  # Where the balance went when its first rate came inside the period: the
-  # board's sentence for one account; for several, each account whose rate
-  # came is named with its date. No rate inside the period: no sentence.
-  defp first_rate_sentence([%{first_rate_date: %Date{} = date}]) do
+  # Where the balance went when its first exchange rate came inside the
+  # period: the board's sentence for one account; for several, each account
+  # whose rate came is named with its date. No rate inside the period: no
+  # sentence.
+  defp first_rate_sentence([%{first_rate_date: %Date{} = date} = account]) do
     gettext(
-      "With the first rate on %{date}, its whole balance entered the “Currency effect on cash” — that is no currency gain.",
-      date: Format.date(date)
+      "With the first exchange rate on %{date}, its whole balance entered the “Currency effect on cash” — %{clause}.",
+      date: Format.date(date),
+      clause: no_currency_result([account])
     )
   end
 
@@ -526,16 +549,27 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
 
       dated ->
         ngettext(
-          "With its first rate, the whole balance of %{names} entered the “Currency effect on cash” — that is no currency gain.",
-          "With their first rates, the whole balances of %{names} entered the “Currency effect on cash” — that is no currency gain.",
+          "With its first exchange rate, the whole balance of %{names} entered the “Currency effect on cash” — %{clause}.",
+          "With their first exchange rates, the whole balances of %{names} entered the “Currency effect on cash” — %{clause}.",
           length(dated),
           names:
             Enum.map_join(
               dated,
               ", ",
               &"#{account_name(&1)} (#{Format.date(&1.first_rate_date)})"
-            )
+            ),
+          clause: no_currency_result(dated)
         )
+    end
+  end
+
+  # The jump is the balance itself, so its sign is the balance's: a deposit
+  # reads as no gain, an overdraft as no loss.
+  defp no_currency_result(accounts) do
+    case accounts |> Enum.map(&Decimal.negative?(&1.balance)) |> Enum.uniq() do
+      [true] -> gettext("that is no currency loss")
+      [false] -> gettext("that is no currency gain")
+      _both -> gettext("that is neither a currency gain nor a currency loss")
     end
   end
 

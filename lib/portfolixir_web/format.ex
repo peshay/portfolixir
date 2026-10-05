@@ -77,6 +77,21 @@ defmodule PortfolixirWeb.Format do
   def decimal(_value, _places, _locale), do: "—"
 
   @doc """
+  Formats a native amount — a balance no rate converts — with at least two
+  decimal places and every further digit it carries, applying locale
+  separators: `2000` → `"2.000,00"` (de), `0.004` → `"0,004"`. Trailing
+  zeros of a stored scale add nothing. Non-numbers render as an em dash.
+  """
+  def native_amount(value, locale \\ nil)
+
+  def native_amount(%Decimal{} = value, locale) do
+    %Decimal{exp: exp} = Decimal.normalize(value)
+    decimal(value, max(2, -exp), locale)
+  end
+
+  def native_amount(_value, _locale), do: "—"
+
+  @doc """
   Formats a Decimal with the given number of decimal places, prepending a `+`
   sign for positive values. Applies locale separators. Non-numbers render as
   an em dash.

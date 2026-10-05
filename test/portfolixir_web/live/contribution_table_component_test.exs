@@ -59,6 +59,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
         balance: d("2000"),
         unvalued_days: 18,
         unvalued_reason: :no_rate,
+        unvalued_through_end: false,
         first_rate_date: ~D[2026-03-02]
       },
       overrides
@@ -152,13 +153,20 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
   # - One account: "One cash account counted zero on some days of the
   #   period: Tagesgeld CHF (2,000.00 CHF, 18 days, no exchange rate
   #   stored)." and, when its first rate arrived inside the period, "With the
-  #   first rate on 03/02/2026, its whole balance entered the “Currency effect
-  #   on cash” — that is no currency gain."; without one, the first sentence
+  #   first exchange rate on 2026-03-02, its whole balance entered the
+  #   “Currency effect on cash” — that is no currency gain." (dates ISO in
+  #   English); an account emptied before its rate gets the first sentence
   #   only.
+  # - An account still at zero on the period's last day reads "One cash
+  #   account counts zero until the end of the period: …" (board J2 A, pin
+  #   a2), "… zählt bis zum Ende des Zeitraums null" in German.
+  # - A negative balance reads "— that is no currency loss"; balances of
+  #   both signs "— that is neither a currency gain nor a currency loss".
   # - The note names the positions first and the accounts after them, in one
   #   note; with accounts only, the note still renders.
-  # - Several accounts: the plural sentence, and one sentence naming each
+  # - Several accounts: the plural sentences, and one sentence naming each
   #   account whose first rate arrived, with its date.
+  # - A balance below a cent keeps its digits: "0.004 CHF", never "0.00".
   # - An empty window that still held an account at zero shows the
   #   empty-state sentence and the note.
   # - The currency-effect row carries `.contribution-unvalued-mark` per
@@ -178,9 +186,9 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
              "One position counted zero on some days of the period: Position 4 (12 days, " <>
                "no exchange rate stored). It stays in the sum, as in the result above. " <>
                "One cash account counted zero on some days of the period: Tagesgeld CHF " <>
-               "(2,000.00 CHF, 18 days, no exchange rate stored). With the first rate on " <>
-               "2026-03-02, its whole balance entered the “Currency effect on cash” — that " <>
-               "is no currency gain."
+               "(2,000.00 CHF, 18 days, no exchange rate stored). With the first exchange " <>
+               "rate on 2026-03-02, its whole balance entered the “Currency effect on cash” " <>
+               "— that is no currency gain."
 
     assert text(
              html,
@@ -196,51 +204,122 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
     assert text(html, "[data-role='contribution-phone-rest'] .phone-row__ids") ==
              "Interest 0.00 · Fees/taxes 0.00 · Currency 0.00 · Tagesgeld CHF: 18 days at zero"
 
-    # No rate inside the period: the first sentence only; no position and no
+    # Still at zero on the last day: pin a2's sentence. No position and no
     # line moved: the empty-state sentence, and the account still named.
-    alone = render_table(result([], [account(7, "Tagesgeld CHF", %{first_rate_date: nil})]))
+    through_end = account(7, "Tagesgeld CHF", %{unvalued_through_end: true, first_rate_date: nil})
+    alone = render_table(result([], [through_end]))
     assert text(alone, "[data-role='contribution-empty']") =~ "Nothing to break down"
-    note = sentence(alone, "[data-role='contribution-unvalued']")
 
-    assert note ==
-             "Attention One cash account counted zero on some days of the period: Tagesgeld CHF " <>
+    assert sentence(alone, "[data-role='contribution-unvalued']") ==
+             "Attention One cash account counts zero until the end of the period: Tagesgeld " <>
+               "CHF (2,000.00 CHF, 18 days, no exchange rate stored)."
+
+    # Emptied before its rate came: the first sentence only.
+    emptied = render_table(result([], [account(7, "Leer CHF", %{first_rate_date: nil})]))
+
+    assert sentence(emptied, "[data-role='contribution-unvalued']") ==
+             "Attention One cash account counted zero on some days of the period: Leer CHF " <>
                "(2,000.00 CHF, 18 days, no exchange rate stored)."
 
-    # Two accounts, one with a first rate inside the period.
-    two =
+    # An overdraft: its rate brought a loss into the line, which is none.
+    overdraft = render_table(result([], [account(7, "Konto CHF", %{balance: d("-500")})]))
+
+    assert sentence(overdraft, "[data-role='contribution-unvalued']") =~
+             "(-500.00 CHF, 18 days, no exchange rate stored). With the first exchange rate on " <>
+               "2026-03-02, its whole balance entered the “Currency effect on cash” — that is " <>
+               "no currency loss."
+
+    # Three accounts: two whose rate came, of both signs, one still at zero.
+    three =
       render_table(
         result([position(1, "5")], [
           account(8, "Sparkonto CHF", %{balance: d("400"), unvalued_days: 11}),
-          account(9, "USD Settlement", %{
+          account(9, "Overdraft CHF", %{balance: d("-0.004")}),
+          account(10, "USD Settlement", %{
             currency_code: "USD",
             balance: d("1850"),
             unvalued_days: 30,
+            unvalued_through_end: true,
             first_rate_date: nil
           })
         ])
       )
 
-    note = sentence(two, "[data-role='contribution-unvalued']")
+    note = sentence(three, "[data-role='contribution-unvalued']")
 
-    assert note =~
-             "2 cash accounts counted zero on some days of the period: Sparkonto CHF " <>
-               "(400.00 CHF, 11 days, no exchange rate stored), USD Settlement (1,850.00 USD, " <>
-               "30 days, no exchange rate stored). With its first rate, the whole balance of " <>
-               "Sparkonto CHF (2026-03-02) entered the “Currency effect on cash” — that is no " <>
-               "currency gain."
-
-    refute note =~ "position counted zero"
+    assert note ==
+             "Attention 2 cash accounts counted zero on some days of the period: Sparkonto CHF " <>
+               "(400.00 CHF, 11 days, no exchange rate stored), Overdraft CHF (-0.004 CHF, 18 " <>
+               "days, no exchange rate stored). With their first exchange rates, the whole " <>
+               "balances of Sparkonto CHF (2026-03-02), Overdraft CHF (2026-03-02) entered the " <>
+               "“Currency effect on cash” — that is neither a currency gain nor a currency " <>
+               "loss. One cash account counts zero until the end of the period: USD " <>
+               "Settlement (1,850.00 USD, 30 days, no exchange rate stored)."
 
     assert text(
-             two,
+             three,
              "#contribution-table tr[data-line='cash_currency_effect'] .contribution-unvalued-mark"
            ) ==
-             "Sparkonto CHF: 11 days at zero USD Settlement: 30 days at zero"
+             "Sparkonto CHF: 11 days at zero Overdraft CHF: 18 days at zero " <>
+               "USD Settlement: 30 days at zero"
 
     # Every balance valued: no note, no marker.
     none = render_table(result([position(1, "5")]))
     assert text(none, "[data-role='contribution-unvalued']") == ""
     assert text(none, ".contribution-unvalued-mark") == ""
+  end
+
+  # User story (#1055, board J2 A, pin a2):
+  # As a local portfolio maintainer reading German,
+  # I want the account sentences in the board's words,
+  # so that "Kurs" keeps meaning a security's price and a balance still at
+  # zero reads as one.
+  #
+  # Acceptance criteria:
+  # - A balance whose first exchange rate came: "Mit dem ersten Wechselkurs
+  #   am 02.03.2026 kam sein ganzer Saldo in den „Währungseffekt auf
+  #   Bargeld“ — das ist kein Währungsgewinn."; an overdraft "— das ist kein
+  #   Währungsverlust".
+  # - A balance still at zero on the last day: "Ein Verrechnungskonto zählt
+  #   bis zum Ende des Zeitraums null: …"; two: "2 Verrechnungskonten zählen
+  #   bis zum Ende des Zeitraums null: …".
+  test "the account sentences in German" do
+    previous = Gettext.get_locale(PortfolixirWeb.Gettext)
+
+    try do
+      Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+
+      gain = render_table(result([], [account(7, "Tagesgeld CHF")]))
+
+      assert sentence(gain, "[data-role='contribution-unvalued']") ==
+               "Achtung Ein Verrechnungskonto zählte an einigen Tagen des Zeitraums null: " <>
+                 "Tagesgeld CHF (2.000,00 CHF, 18 Tage, kein Wechselkurs gespeichert). Mit dem " <>
+                 "ersten Wechselkurs am 02.03.2026 kam sein ganzer Saldo in den „Währungseffekt " <>
+                 "auf Bargeld“ — das ist kein Währungsgewinn."
+
+      loss = render_table(result([], [account(7, "Konto CHF", %{balance: d("-500")})]))
+
+      assert sentence(loss, "[data-role='contribution-unvalued']") =~
+               "— das ist kein Währungsverlust."
+
+      still = %{unvalued_through_end: true, first_rate_date: nil}
+
+      one = render_table(result([], [account(7, "Tagesgeld CHF", still)]))
+
+      assert sentence(one, "[data-role='contribution-unvalued']") ==
+               "Achtung Ein Verrechnungskonto zählt bis zum Ende des Zeitraums null: " <>
+                 "Tagesgeld CHF (2.000,00 CHF, 18 Tage, kein Wechselkurs gespeichert)."
+
+      two =
+        render_table(
+          result([], [account(7, "Tagesgeld CHF", still), account(8, "Sparkonto CHF", still)])
+        )
+
+      assert sentence(two, "[data-role='contribution-unvalued']") =~
+               "Achtung 2 Verrechnungskonten zählen bis zum Ende des Zeitraums null: "
+    after
+      Gettext.put_locale(PortfolixirWeb.Gettext, previous)
+    end
   end
 
   # User story (FR-41, board pick A):
