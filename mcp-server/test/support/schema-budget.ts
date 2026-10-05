@@ -98,13 +98,25 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
   {
     since: "2026-10-05",
     why:
-      "securities.update takes is_retired, the remedy securities.delete names (owner " +
-      "decision 2026-10-05), paid for by tightening securities.update's description and " +
-      "its currency_code, treat_quotes_as_raw and is_benchmark properties, and lowered to " +
-      "the figure measured with it (D-10)",
+      "PR #1102: securities.update takes is_retired, the remedy securities.delete names when " +
+      "research notes or rule versions reference a security, paid for by tightening " +
+      "securities.update's description and its currency_code, treat_quotes_as_raw and " +
+      "is_benchmark properties, and lowered to the figure measured with it (D-10)",
     read: 103_991,
     book: 177_080,
     full: 207_443
+  },
+  {
+    since: "2026-10-05",
+    why:
+      "PR #1102 review: securities.list says no benchmark or retired security is in the three " +
+      "hygiene sets, securities.delete names securities.update for retiring, and is_retired " +
+      "says it can restate TTWROR history, paid for by tightening securities.list's " +
+      "data_quality sentence, the delete's referenced_by example and treat_quotes_as_raw, and " +
+      "lowered to the figure measured with them (D-10)",
+    read: 103_990,
+    book: 177_072,
+    full: 207_420
   }
 ];
 
