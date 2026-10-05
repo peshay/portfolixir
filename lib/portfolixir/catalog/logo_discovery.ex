@@ -226,9 +226,13 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
     LogoLookup.candidate?(security)
   end
 
+  # The rows the missing_logo set holds (`Catalog.DataQuality`): a benchmark
+  # and a retired security are not in it, so a lookup "for all" on that list
+  # leaves them alone too (PR #1102).
   defp missing_logo_candidate_ids do
     Security
     |> where([s], is_nil(fragment("? ->> ?", s.attributes, ^"logo_path")))
+    |> where([s], s.is_retired == false and s.is_benchmark == false)
     |> Repo.all()
     |> Enum.reject(&logo_locked?/1)
     |> Enum.filter(&logo_candidate?/1)
