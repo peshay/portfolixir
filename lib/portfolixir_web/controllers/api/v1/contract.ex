@@ -42,21 +42,24 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   @entries [
     %{
       version: 13,
-      # After Sprint 18's PR γ: the remedy portfolixir.securities.delete names
-      # for a security with bookings reached over MCP, and the catalog-hygiene
-      # sets that retiring clears (owner decision 2026-10-05).
+      # After Sprint 18's PR γ (PR #1102): retiring a security reached over
+      # MCP — the operator's way to take a sold-out or delisted security out
+      # of the catalog-hygiene checks, and the remedy
+      # portfolixir.securities.delete names when research notes or
+      # policy-rule versions reference a security — and the sets it clears.
       date: ~D[2026-10-05],
       summary:
         "An MCP client can retire a security: portfolixir.securities.update takes " <>
-          "is_retired, the remedy portfolixir.securities.delete names for a security with " <>
-          "bookings, and a retired security leaves all three catalog-hygiene sets " <>
-          "(stale_quote, missing_quote, missing_logo), as a benchmark does, so the Overview's " <>
-          "quote and logo counts drop with it (owner decision 2026-10-05).",
+          "is_retired, which takes a sold-out or delisted security out of the catalog-hygiene " <>
+          "checks and is the remedy portfolixir.securities.delete names when research notes or " <>
+          "policy-rule versions reference it; a retired security, like a benchmark, is in none " <>
+          "of stale_quote, missing_quote and missing_logo, so the Overview's quote, asset-class " <>
+          "and logo counts drop with it (PR #1102).",
       endpoints: [],
       tools: [],
       parameters: [
-        "portfolixir.securities.update takes is_retired (a boolean; anything else is refused before a request is sent) and sends it to PATCH /api/v1/securities/:id as given, where the update is journaled under the calling token like every security update: true retires a sold-out or delisted security, false restores it, and a retired security's stale quote stops counting as a price measurement in performance as before (#610). The tool stays in the book profile. The schema budget pays for it: securities.update's description and its currency_code, treat_quotes_as_raw and is_benchmark properties are tightened, every tested statement kept (D-10)",
-        "GET /api/v1/securities?data_quality= (portfolixir.securities.list), the Overview's data-quality counts and the securities page's dq= filter: a retired security is in none of stale_quote, missing_quote and missing_logo — it used to stay under missing_quote when never priced and under missing_logo always — and un-retiring puts it back in the sets it matches; missing_fx is unchanged and keeps it (owner decision 2026-10-05)"
+        "portfolixir.securities.update takes is_retired (a boolean; anything else is refused before a request is sent) and sends it to PATCH /api/v1/securities/:id as given, where the update is journaled under the calling token like every security update: true retires a sold-out or delisted security, false restores it, and a retired security's stale quote stops counting as a price measurement in performance as before, which can restate its TTWROR history (#610). The tool stays in the book profile. portfolixir.securities.delete names portfolixir.securities.update for the retire remedy, given when research notes or policy-rule versions reference the security (bookings, quotes and events answer merge). The schema budget pays for it: securities.update's description and its currency_code, treat_quotes_as_raw and is_benchmark properties, securities.list's data_quality sentence and the delete's referenced_by example are tightened, every tested statement kept (D-10)",
+        "GET /api/v1/securities?data_quality= (portfolixir.securities.list, whose description now says so), the Overview's data-quality counts and the securities page's dq= filter: a retired security is in none of stale_quote, missing_quote and missing_logo — it used to stay under missing_quote when never priced and under missing_logo always — and reactivating it puts it back in the sets it matches. The exclusion runs in the query, before limit and offset, so a paged read returns full pages; missing_fx is unchanged and keeps it. The page's dq= filters now leave out a benchmark as well, as the API and the Overview always did; the Overview's asset-class count leaves out a retired security and its link carries filter[]=is_retired:is_false; the Wealth no-price and trade-priced rows leave out a retired holding; the missing-logo lookup leaves out a retired and a benchmark security (PR #1102)"
       ],
       removed_endpoints: [],
       removed_tools: [],

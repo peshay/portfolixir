@@ -200,7 +200,7 @@ be bookmarked or linked to:
   with no stored rate from its currency to the base currency, so storing the
   rate empties the set. The first three leave a benchmark and a retired
   security alone: a sold-out or delisted security you retire leaves all
-  three, and the Overview's counts drop with it; un-retired, it is back in
+  three, and the Overview's counts drop with it; reactivated, it is back in
   those it matches. The same conditions can be picked in the filter
   control under **Data quality** — the dashboard link is a shortcut to them,
   not the only way in. The agent asks for the identical sets over
@@ -583,6 +583,19 @@ in a booking form and the catalog's data-quality reminders (stale or missing
 quote, missing logo) leave it alone; it may still be held, and then it is
 simply both. The API lists benchmarks with `is_benchmark=true`. What the
 comparison shows is described under Performance.
+
+**Retired securities.** A security you no longer hold and whose listing has
+ended — sold out or delisted — stays in the catalog because its bookings do.
+**Retire** in its row menu marks it so: it leaves the catalog's data-quality
+reminders (stale or missing quote, missing logo) and their counts on the
+Overview, and a retired holding leaves the Wealth page's data-quality rows
+for a stale quote, a trade price and no price at all, because its stopped
+feed is expected. The *Missing FX* reminder keeps it, because a missing rate
+still breaks the valuation. The performance figure no longer counts its
+stale quote as a market observation, so a later booking restates the basis
+instead of reporting the gap as return, which can change past TTWROR figures
+(#610). **Reactivate** in the same menu undoes it. Your agent retires a
+security with `portfolixir.securities.update` and `is_retired`.
 
 ## Accounts and Depots
 

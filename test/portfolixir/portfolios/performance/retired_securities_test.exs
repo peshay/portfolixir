@@ -234,20 +234,18 @@ defmodule Portfolixir.Portfolios.Performance.RetiredSecuritiesTest do
     assert Decimal.equal?(r6(result.ttwror), Decimal.new("-0.476190"))
   end
 
-  # User story (owner decision 2026-10-05, retiring to clear the catalog
-  # findings):
+  # User story (PR #1102, retiring to clear the catalog findings):
   # As the operator's agent retiring a sold-out security so it leaves the
   # stale_quote, missing_quote and missing_logo sets,
-  # I want the retire to leave the performance walk alone wherever a quote
-  # follows the last trade,
-  # so that tidying the catalog never moves a figure the walk already
-  # measured.
+  # I want the retire to leave the walk alone for a security quoted after
+  # its last trade,
+  # so that tidying such a security does not move its performance figures.
   #
   # Acceptance criteria:
   # - Bought, sold out and quoted after the sale: the walk read before and
-  #   after retiring is identical, the daily series included. (A feed that
-  #   stopped before the last trade changes by #610's basis step alone, which
-  #   the tests above pin.)
+  #   after retiring is identical, the daily series included. (A security
+  #   whose feed stopped before its last trade can change by #610's basis
+  #   step, which the tests above pin.)
   test "retiring a sold-out security quoted after its last trade leaves the walk identical" do
     world = base_world(name: "RSO", cash_name: "RSO Cash", depot_name: "RSO Depot")
     security = create_security!(name: "Sold Out Co", ticker: "SOC")

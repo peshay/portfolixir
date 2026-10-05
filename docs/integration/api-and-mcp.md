@@ -268,15 +268,18 @@ full list.
   unknown name is a `422`, never a silent fallback.
   Optional query params: `query`, `sort`, `direction`,
   holding_status (`all`, `held`, or `not_held`), `logo_status` (`missing` or
-  `present` — `missing` powers the "securities without a logo" overview and
-  excludes rows explicitly set to no logo), `data_quality`
+  `present` — the bare logo condition; `missing` excludes rows explicitly set
+  to no logo), `data_quality`
   (`stale_quote` — no quote newer than 7 days, **including** securities never
   priced at all; `missing_quote` — no quote at all, the narrower set inside it;
-  `missing_logo`; a benchmark and a retired security are in none of these
-  three, so retiring a sold-out or delisted security takes it out of all of
-  them and un-retiring puts it back in those it matches;
-  `missing_fx` — issue #717: priced, but with no stored rate
-  from its currency to the EUR hub, so storing the rate empties the set),
+  `missing_logo` — no stored logo and not set to no logo, the set the
+  "securities without a logo" overview shows; `missing_fx` — issue #717:
+  priced, but with no stored rate from its currency to the EUR hub, so
+  storing the rate empties the set. A benchmark and a retired security are in
+  none of the first three, which leave them out in the query, before
+  `limit`/`offset`: retiring a sold-out or delisted security takes it out of
+  all three, and reactivating it puts it back in those it matches.
+  `missing_fx` keeps both),
   `projection` (`slim`/`full`), and
   `limit`/`offset` for pagination (both non-negative integers). Use these to
   page large catalogs instead of fetching the whole table at once. The
@@ -327,8 +330,8 @@ full list.
   treated as raw (as-traded), so the split-adjustment factors apply to them
   too. The boolean `is_retired` retires a sold-out or delisted security, and
   `false` restores it: a retired security leaves the `stale_quote`,
-  `missing_quote` and `missing_logo` sets (owner decision 2026-10-05), and
-  its stale quote stops counting as a price measurement in performance
+  `missing_quote` and `missing_logo` sets, and its stale quote stops counting
+  as a price measurement in performance, which can restate its TTWROR history
   (#610). Like every security update, it is journaled under the calling
   token. A security's `currency_code` **freezes** once it has a transaction or
   a quote (ADR-0050 §11): a change then answers `422` with
@@ -3208,13 +3211,15 @@ names each address's code.
 - `portfolixir.securities.create` — takes a bond's master data (#330,
   ADR-0052).
 - `portfolixir.securities.update` — its description and its `currency_code`
-  property state the currency freeze (ADR-0050 §11); it takes a bond's
-  master data, `null` clearing a field, and `is_retired`, the remedy
-  `portfolixir.securities.delete` names for a security with bookings: `true`
-  takes a sold-out or delisted security out of the `stale_quote`,
-  `missing_quote` and `missing_logo` sets and `false` restores it. The tool
-  is in the `book` profile.
-- `portfolixir.securities.delete`
+  property state the currency freeze, the property citing ADR-0050 §11; it
+  takes a bond's master data, `null` clearing a field, and `is_retired`:
+  `true` takes a sold-out or delisted security out of the `stale_quote`,
+  `missing_quote` and `missing_logo` sets and `false` restores it. It is also
+  the remedy `portfolixir.securities.delete` names when research notes or
+  policy-rule versions reference a security. The tool is in the `book`
+  profile.
+- `portfolixir.securities.delete` — names `portfolixir.securities.update`
+  with `is_retired` for the `retire` remedy.
 - `portfolixir.securities.isin_change` — records a corporate-action ISIN
   change so imports keep matching via the former ISIN (ADR-0029).
 - `portfolixir.securities.delete_isin_alias` — journaled delete of one
