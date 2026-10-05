@@ -6,7 +6,9 @@ defmodule Portfolixir.Imports.ApplierSettlementTest do
   alias Portfolixir.Fx
   alias Portfolixir.Imports.Applier
   alias Portfolixir.Imports.Entry
+  alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Imports.SecurityResolver
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
   alias Portfolixir.Repo
@@ -138,6 +140,60 @@ defmodule Portfolixir.Imports.ApplierSettlementTest do
     assert Decimal.equal?(tx.gross_amount, Decimal.new("805.03"))
     assert Decimal.equal?(tx.settlement_amount, Decimal.new("800.08"))
     assert Decimal.equal?(tx.security_amount, Decimal.new("1000.10"))
+  end
+
+  # User story (ADR-0053 §1 meets ADR-0033):
+  # As a maintainer importing a Portfolio Performance CSV that buys a USD
+  # security against a EUR account,
+  # I want the settlement legs read off the cash the row books, its
+  # Gesamtpreis, net of its fees and taxes,
+  # so that the trade amount is PP's Betrag and the guard holds.
+  #
+  # Acceptance criteria:
+  # - A PP-faithful Kauf (Betrag 800,00, Gebühren 4,95, Steuern 1,05,
+  #   Gesamtpreis 806,00) books 806.00 and settles 800.00 EUR, the Betrag,
+  #   converted at 1 EUR = 1.25 USD to 1000.00 USD.
+  test "a cross-currency PP CSV buy settles on its Gesamtpreis net of fees and taxes" do
+    portfolio = portfolio!()
+    usd = usd_security!()
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2026-01-15],
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    csv = """
+    Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+    2026-01-15 10:00:00;Kauf;Imported US Equity;10;80,00;800,00;4,95;1,05;806,00;PP Depot;PP Cash;;
+    """
+
+    {:ok, %Preview{errors: [], entries: [entry]} = preview} =
+      PortfolioPerformance.parse(csv, filename: "pp.csv")
+
+    # The CSV carries no currency, so the preview's choice names the USD
+    # security, as the operator makes it.
+    key = SecurityResolver.key(SecurityResolver.effective_ref(entry))
+
+    {:ok, _result} =
+      Applier.apply(preview, %{
+        portfolio_id: portfolio.id,
+        default_currency_code: "EUR",
+        security_mappings: %{key => {:existing, usd.id}}
+      })
+
+    tx = Repo.one!(from(t in Transaction, where: t.type == "buy"))
+
+    assert tx.security_id == usd.id
+    assert Decimal.equal?(tx.gross_amount, Decimal.new("806.00"))
+    assert Decimal.equal?(tx.settlement_amount, Decimal.new("800.00"))
+    assert Decimal.equal?(tx.security_amount, Decimal.new("1000.00"))
+    assert Decimal.equal?(tx.settlement_fx_rate, Decimal.new("0.80"))
   end
 
   # User story (ADR-0033 requirement 4 — honesty over availability):
