@@ -29,24 +29,25 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   The first three are catalog hygiene, and two kinds of security are left out
   of all three. A benchmark is a reference, not a holding (ADR-0046 §1). A
-  retired security's stopped feed and missing logo are expected (owner
-  decision 2026-10-05, which replaced the rule that kept a never-priced
-  retired security under `missing_quote`): retiring is the remedy the
-  securities delete names for a security with bookings and the Wealth
-  stale-quote finding names for a holding whose listing ended, so the remedy
-  must clear the Overview's findings and the lists they link to. `missing_fx`
-  keeps both, because a missing rate path breaks a valuation whatever the
-  security.
+  retired security's stopped feed and missing logo are expected (PR #1102,
+  which replaced the rule that kept a never-priced retired security under
+  `missing_quote`). Retiring is how the operator takes a sold-out or delisted
+  security out of these checks; it is the remedy the Wealth stale-quote
+  finding names for a holding whose listing ended, and the one the securities
+  delete names when research notes or policy-rule versions reference a
+  security, which a merge cannot carry. So it must clear the Overview's
+  findings and the lists they link to. `missing_fx` keeps both, because a
+  missing rate path breaks a valuation whatever the security.
 
   ## Two halves, and why a caller must apply both
 
   A predicate narrows in the query where it can (`missing_logo` is a JSONB
-  condition on the row, the benchmark exclusion a column) and in memory where
-  it cannot (stale/missing quote are derived from the enriched metrics, and
-  the query layer has no retired option, so the retired exclusion runs here
-  for all three). `list_opts/1` is the first half and `refine/3` is the
-  second; `list/2` applies both and is what a caller should reach for unless
-  it is already holding rows.
+  condition on the row; the benchmark and retired exclusions are columns, so
+  they run there for all three, before any LIMIT/OFFSET) and in memory where
+  it cannot (stale/missing quote are derived from the enriched metrics).
+  `list_opts/1` is the first half and `refine/3` is the second; `list/2`
+  applies both and is what a caller should reach for unless it is already
+  holding rows.
   """
 
   alias Portfolixir.Catalog
@@ -97,16 +98,22 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   @doc """
   The `Catalog.list_securities/1` options this predicate can push into the
-  query. Empty for the metric-derived ones, which cannot be expressed in SQL
-  over the quote history the way `filter/3` expresses them.
+  query: the logo condition, and for the three catalog-hygiene checks the
+  benchmark and retired exclusions. The quote conditions themselves are
+  metric-derived, cannot be expressed in SQL over the quote history, and are
+  `refine/3`'s.
   """
   @spec list_opts(String.t()) :: keyword()
   # ADR-0046 §1: a benchmark security is a reference, not a holding, so the
-  # catalog-hygiene checks leave it alone. The FX check keeps it — a missing
-  # rate path breaks the very comparison the benchmark exists for.
-  def list_opts("missing_logo"), do: [logo_status: :missing, is_benchmark: false]
+  # catalog-hygiene checks leave it alone; a retired security likewise (PR
+  # #1102). The FX check keeps both — a missing rate path breaks the very
+  # comparison the benchmark exists for, and a valuation whatever the
+  # security.
+  def list_opts("missing_logo"),
+    do: [logo_status: :missing, is_benchmark: false, is_retired: false]
+
   def list_opts("missing_fx"), do: []
-  def list_opts(id) when id in @ids, do: [is_benchmark: false]
+  def list_opts(id) when id in @ids, do: [is_benchmark: false, is_retired: false]
 
   @doc """
   The rows matching `id`, applying both halves of the predicate.
@@ -137,8 +144,10 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   @doc """
   Narrows rows **that were already loaded with `list_opts/1`** to those
-  matching the in-memory half of `id`. `nil` is the no-op, so a surface can
-  pass its optional filter straight through.
+  matching the in-memory half of `id`: the quote conditions and the FX
+  check. The quote conditions also leave a retired row out, so rows loaded
+  without the query half cannot bring one back. `nil` is the no-op, so a
+  surface can pass its optional filter straight through.
 
   This is for a surface that has loaded its rows with its own filters and
   cannot call `list/2`. Anything else should use `list/2` or `count/2`, which
@@ -152,9 +161,8 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   # The logo condition is expressed entirely in the query (`list_opts/1`), and
   # is deliberately NOT mirrored here: a second copy in Elixir is the drift
-  # this module exists to remove. Only the retired exclusion runs here, which
-  # the query layer has no option for.
-  def refine(rows, "missing_logo", _today), do: Enum.reject(rows, &retired?/1)
+  # this module exists to remove.
+  def refine(rows, "missing_logo", _today), do: rows
 
   # #717: "Missing FX" is about the RATE, not the currency — a priced row
   # whose currency has no stored path to the EUR hub. The rated set is loaded
@@ -186,10 +194,9 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   defp matches?(row, "missing_quote", _today), do: is_nil(latest_price_date(row))
 
-  # A retired security's stopped feed and missing logo are expected, so it
-  # leaves the three catalog-hygiene sets (owner decision 2026-10-05): the
-  # retired flag is the remedy the delete and the Wealth finding name, and a
-  # remedy must clear the finding and the list it links to.
+  # A retired security's stopped feed is expected (PR #1102). The query half
+  # already leaves it out; this keeps it out of the metric-derived sets on
+  # rows a caller loaded without `list_opts/1`.
   defp retired?(%{security: %{is_retired: true}}), do: true
   defp retired?(_row), do: false
 

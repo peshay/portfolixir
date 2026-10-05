@@ -119,20 +119,19 @@ defmodule Portfolixir.Catalog.DataQualityTest do
     security
   end
 
-  # User story (owner decision 2026-10-05, reversing the closing-act rule that
-  # kept a never-priced retired security under missing_quote):
+  # User story (PR #1102, reversing the closing-act rule that kept a
+  # never-priced retired security under missing_quote):
   # As the maintainer whose sold-out and delisted securities stay in the
   # catalog because their bookings do,
   # I want retiring a security to take it out of every catalog-hygiene set,
   # as a benchmark already is,
-  # so that the remedy the delete names clears the findings it belongs to
-  # instead of one of three.
+  # so that retiring clears all three of its findings instead of one.
   #
   # Acceptance criteria:
   # - A retired security is in none of stale_quote, missing_quote and
   #   missing_logo, priced long ago or never priced, with no logo; each
   #   count drops with its list.
-  # - Un-retiring puts it back in every set it matches.
+  # - Reactivated, it is back in every set it matches.
   # - A security that is not retired stays where it was.
   test "a retired security leaves stale_quote, missing_quote and missing_logo" do
     %{stale: stale, unpriced: unpriced} = world()
@@ -157,20 +156,36 @@ defmodule Portfolixir.Catalog.DataQualityTest do
     assert names(DataQuality.list("missing_logo")) == ["Still Stale AG", "Unpriced AG"]
   end
 
-  # The securities page loads its rows with the query half alone and applies
-  # refine/3 itself (`?dq=missing_logo`), so the retired exclusion must ride
-  # the in-memory half too, or the page lists what the dashboard no longer
-  # counts.
-  test "refine/3 leaves a retired security out of missing_logo on rows loaded with the query half" do
+  # The securities page loads its rows with its own filters plus
+  # list_opts/1 and applies refine/3 itself (`?dq=`), and a paged read cuts
+  # its page in SQL: the retired exclusion is a query option, applied before
+  # any LIMIT/OFFSET.
+  test "list_opts/1 carries the retired exclusion into the query for the three sets" do
     %{unpriced: unpriced} = world()
     retire!(unpriced, true)
 
-    rows = Catalog.list_securities_with_metrics(logo_status: :missing)
+    for id <- ~w(stale_quote missing_quote missing_logo) do
+      assert Keyword.fetch!(DataQuality.list_opts(id), :is_retired) == false, id
+    end
+
+    refute Keyword.has_key?(DataQuality.list_opts("missing_fx"), :is_retired)
+
+    rows = Catalog.list_securities_with_metrics(DataQuality.list_opts("missing_logo"))
 
     assert names(DataQuality.refine(rows, "missing_logo")) == ["Stale AG"]
 
     assert names(DataQuality.refine(rows, "missing_logo")) ==
              names(DataQuality.list("missing_logo"))
+  end
+
+  # missing_fx is not catalog hygiene: a missing rate path breaks a
+  # valuation whatever the security, so a retired one stays in it.
+  test "missing_fx keeps a retired security" do
+    priced = create_security!(name: "Retired Dollar AG", ticker: "RDA", currency: "USD")
+    put_quote!(priced, Date.add(Date.utc_today(), -1), "10")
+    retire!(priced, true)
+
+    assert "Retired Dollar AG" in names(DataQuality.list("missing_fx"))
   end
 
   # User story (#789):

@@ -101,9 +101,9 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
            ) == ["Unpriced AG"]
   end
 
-  # User story (owner decision 2026-10-05):
-  # As the operator's agent, told by the delete to retire a security that has
-  # bookings,
+  # User story (PR #1102):
+  # As the operator's agent tidying sold-out and delisted securities the
+  # catalog keeps for their bookings,
   # I want PATCH is_retired -- what portfolixir.securities.update sends -- to
   # take the security out of the three catalog-hygiene sets, journaled under
   # my token,
@@ -195,5 +195,41 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
     assert set.("stale_quote") == ["Held Stale AG", "Never Priced AG"]
     assert set.("missing_quote") == ["Never Priced AG"]
     assert set.("missing_logo") == ["Held Stale AG", "Never Priced AG"]
+  end
+
+  # User story (PR #1102, review finding 2):
+  # As the operator's agent paging through a catalog-hygiene set,
+  # I want every page but the last to be full,
+  # so that a short page means the set has ended, not that retired rows were
+  # dropped after the page was cut.
+  #
+  # Acceptance criteria:
+  # - With retired rows sorting first, data_quality=missing_logo&limit=2
+  #   answers two active securities, and offset=2 the third.
+  test "a paged missing_logo read with retired rows returns full pages", %{conn: conn} do
+    for {name, ticker, retired?} <- [
+          {"A Retired AG", "ARA", true},
+          {"B Retired AG", "BRA", true},
+          {"C Active AG", "CAA", false},
+          {"D Active AG", "DAA", false},
+          {"E Active AG", "EAA", false}
+        ] do
+      security = create_security!(name: name, ticker: ticker)
+
+      {:ok, _} =
+        Catalog.update_security(Portfolixir.Actor.owner_ui(), security, %{is_retired: retired?})
+    end
+
+    page = fn query ->
+      conn
+      |> recycle()
+      |> get_json("/api/v1/securities?data_quality=missing_logo&" <> query)
+      |> json_response(200)
+      |> Map.fetch!("data")
+      |> Enum.map(& &1["name"])
+    end
+
+    assert page.("limit=2") == ["C Active AG", "D Active AG"]
+    assert page.("limit=2&offset=2") == ["E Active AG"]
   end
 end
