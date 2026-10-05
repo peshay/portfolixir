@@ -41,6 +41,29 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 13,
+      # After Sprint 18's PR γ: the remedy portfolixir.securities.delete names
+      # for a security with bookings reached over MCP, and the catalog-hygiene
+      # sets that retiring clears (owner decision 2026-10-05).
+      date: ~D[2026-10-05],
+      summary:
+        "An MCP client can retire a security: portfolixir.securities.update takes " <>
+          "is_retired, the remedy portfolixir.securities.delete names for a security with " <>
+          "bookings, and a retired security leaves all three catalog-hygiene sets " <>
+          "(stale_quote, missing_quote, missing_logo), as a benchmark does, so the Overview's " <>
+          "quote and logo counts drop with it (owner decision 2026-10-05).",
+      endpoints: [],
+      tools: [],
+      parameters: [
+        "portfolixir.securities.update takes is_retired (a boolean; anything else is refused before a request is sent) and sends it to PATCH /api/v1/securities/:id as given, where the update is journaled under the calling token like every security update: true retires a sold-out or delisted security, false restores it, and a retired security's stale quote stops counting as a price measurement in performance as before (#610). The tool stays in the book profile. The schema budget pays for it: securities.update's description and its currency_code, treat_quotes_as_raw and is_benchmark properties are tightened, every tested statement kept (D-10)",
+        "GET /api/v1/securities?data_quality= (portfolixir.securities.list), the Overview's data-quality counts and the securities page's dq= filter: a retired security is in none of stale_quote, missing_quote and missing_logo — it used to stay under missing_quote when never priced and under missing_logo always — and un-retiring puts it back in the sets it matches; missing_fx is unchanged and keeps it (owner decision 2026-10-05)"
+      ],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 12,
       # Sprint 18's PR γ (the screens a stranger meets), after PR β's 11: the
       # lane PR's one entry, opened by its first surface change (U1); every

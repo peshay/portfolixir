@@ -49,28 +49,50 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # Sprint 18, PR γ (version 12, after PR β's 11): the screens a stranger
-    # meets, one entry for the lane PR. U1 opened it: a split is deleted
-    # whole, from any of its rows, in one journaled step (#912, ADR-0028 §1).
-    assert newest["version"] == 12
-    assert newest["summary"] =~ "U1"
-    assert newest["endpoints"] == ["DELETE /api/v1/splits/:transaction_id"]
-
-    # Its MCP twin, an admin tool (the full profile only).
-    assert newest["tools"] == ["portfolixir.splits.delete"]
+    # Retiring over MCP (version 13, after Sprint 18's PR γ): the update tool
+    # takes is_retired, the remedy the delete names for a security with
+    # bookings, and a retired security leaves the three catalog-hygiene sets
+    # (owner decision 2026-10-05). No route or tool is added.
+    assert newest["version"] == 13
+    assert newest["endpoints"] == []
+    assert newest["tools"] == []
+    assert newest["summary"] =~ "is_retired"
 
     assert Enum.any?(
              newest["parameters"],
+             &(&1 =~ "portfolixir.securities.update" and &1 =~ "is_retired" and
+                 &1 =~ "PATCH /api/v1/securities/:id" and &1 =~ "journaled")
+           )
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "data_quality" and &1 =~ "stale_quote" and &1 =~ "missing_quote" and
+                 &1 =~ "missing_logo" and &1 =~ "retired")
+           )
+
+    # Sprint 18, PR γ (version 12, after PR β's 11): the screens a stranger
+    # meets, one entry for the lane PR. U1 opened it: a split is deleted
+    # whole, from any of its rows, in one journaled step (#912, ADR-0028 §1).
+    # Found by version from here on.
+    sprint18_gamma = Enum.find(data["entries"], &(&1["version"] == 12))
+    assert sprint18_gamma["summary"] =~ "U1"
+    assert sprint18_gamma["endpoints"] == ["DELETE /api/v1/splits/:transaction_id"]
+
+    # Its MCP twin, an admin tool (the full profile only).
+    assert sprint18_gamma["tools"] == ["portfolixir.splits.delete"]
+
+    assert Enum.any?(
+             sprint18_gamma["parameters"],
              &(&1 =~ "DELETE /api/v1/splits/:transaction_id" and &1 =~ "#912")
            )
 
     # U7 extends it: a bond's master data on the securities routes, and the
     # bond reading with each metric's computation basis on the detail read
     # (#330, ADR-0052). No endpoint is added.
-    assert newest["summary"] =~ "U7"
+    assert sprint18_gamma["summary"] =~ "U7"
 
     assert Enum.any?(
-             newest["parameters"],
+             sprint18_gamma["parameters"],
              &(&1 =~ "GET /api/v1/securities/:id" and &1 =~ "coupon_rate" and
                  &1 =~ "computation_basis" and &1 =~ "#330")
            )
@@ -78,7 +100,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # The closing act on U7, finding 9: a yield is a ratio rounded at scale
     # 6, which the JSON then writes without trailing zeros, not a ratio "at
     # scale 6"; the two bond decimals follow the stored-amount rule.
-    bond_entry = Enum.find(newest["parameters"], &(&1 =~ "coupon_rate" and &1 =~ "#330"))
+    bond_entry = Enum.find(sprint18_gamma["parameters"], &(&1 =~ "coupon_rate" and &1 =~ "#330"))
     assert bond_entry =~ "rounded half up at scale 6"
     refute bond_entry =~ "a ratio at scale 6"
     assert bond_entry =~ "coupon_rate and face_value keep 6 decimal places"
@@ -86,7 +108,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # Its MCP half: the two security writes take the fields, the detail tool
     # names the reading; no tool is added.
     assert Enum.any?(
-             newest["parameters"],
+             sprint18_gamma["parameters"],
              &(&1 =~ "portfolixir.securities.update" and &1 =~ "portfolixir.securities.get" and
                  &1 =~ "#330")
            )

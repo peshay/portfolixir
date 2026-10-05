@@ -289,9 +289,12 @@ verengen, was der Betreiber sieht.
   Optionale Query-Parameter:
   `query`, `sort`, `direction`, holding_status (`all`, `held` oder `not_held`),
   `data_quality` (`stale_quote` — kein Kurs neuer als 7 Tage, **einschließlich**
-  nie bepreister Wertpapiere, stillgelegte ausgenommen, weil ihr versiegter
-  Kurs erwartet ist; `missing_quote` — gar kein Kurs, die engere Menge
-  darin; `missing_logo`; `missing_fx` — Issue #717: bepreist, aber ohne
+  nie bepreister Wertpapiere; `missing_quote` — gar kein Kurs, die engere
+  Menge darin; `missing_logo`; eine Benchmark und ein stillgelegtes
+  Wertpapier sind in keiner dieser drei Mengen, das Stilllegen eines
+  ausverkauften oder delisteten Wertpapiers nimmt es also aus allen heraus,
+  und das Aufheben bringt es in die zurück, auf die es passt;
+  `missing_fx` — Issue #717: bepreist, aber ohne
   gespeicherten Kurs von seiner Währung zum EUR-Hub, das Speichern des Kurses
   leert also die Menge), `projection` (`slim`/`full`) und `limit`/`offset` zur
   Paginierung (`limit` eine positive Ganzzahl, Standard 5000, max. 20000, seit
@@ -345,7 +348,13 @@ verengen, was der Betreiber sieht.
   die ADR-0028-Notluke für Anbieter, die ihre Historie nach einem
   Aktiensplit nie rückwirkend anpassen: Mit gesetztem Flag werden die
   synchronisierten Kurszeilen des Wertpapiers als roh (wie gehandelt)
-  behandelt, sodass die Split-Anpassungsfaktoren auch auf sie wirken. Der
+  behandelt, sodass die Split-Anpassungsfaktoren auch auf sie wirken. Das
+  Boolean `is_retired` legt ein ausverkauftes oder delistetes Wertpapier
+  still, `false` hebt das auf: Ein stillgelegtes Wertpapier verlässt die
+  Mengen `stale_quote`, `missing_quote` und `missing_logo`
+  (Owner-Entscheidung vom 2026-10-05), und sein veralteter Kurs zählt in der
+  Performance nicht mehr als Preismessung (#610). Wie jede Änderung eines
+  Wertpapiers wird sie unter dem aufrufenden Token journalisiert. Der
   `currency_code` eines Wertpapiers **friert ein**, sobald es eine
   Transaktion oder einen Kurs hat (ADR-0050 §11): Eine Änderung liefert dann
   `422` mit `errors.currency_code`, das beides zählt, etwa
@@ -3332,7 +3341,11 @@ Adresse.
   entgegen (#330, ADR-0052).
 - `portfolixir.securities.update` — Beschreibung und `currency_code`-Eigenschaft
   nennen das Einfrieren der Währung (ADR-0050 §11); nimmt die Stammdaten
-  einer Anleihe entgegen, `null` löscht ein Feld.
+  einer Anleihe entgegen, `null` löscht ein Feld, und `is_retired`, das
+  Mittel, das `portfolixir.securities.delete` für ein Wertpapier mit
+  Buchungen nennt: `true` nimmt ein ausverkauftes oder delistetes
+  Wertpapier aus den Mengen `stale_quote`, `missing_quote` und
+  `missing_logo`, `false` hebt das auf. Das Tool gehört zum Profil `book`.
 - `portfolixir.securities.delete`
 - `portfolixir.securities.isin_change` — zeichnet einen
   Kapitalmaßnahmen-ISIN-Wechsel auf, damit Importe über die frühere ISIN
