@@ -3845,20 +3845,26 @@ describe("Portfolixir MCP tools", () => {
     await assert.rejects(callTool(client, "portfolixir.securities.list", { is_benchmark: "yes" }));
   });
 
-  // User story (owner decision 2026-10-05):
-  // As the operator's agent, told by portfolixir.securities.delete to retire
-  // a security that has bookings,
+  // User story (PR #1102):
+  // As the operator's agent, tidying sold-out and delisted securities, or
+  // told by portfolixir.securities.delete to retire one that research notes
+  // or policy-rule versions reference,
   // I want portfolixir.securities.update to take is_retired,
-  // so that the remedy the delete names is one I can apply.
+  // so that I can take a security out of the hygiene checks and apply the
+  // remedy the delete names.
   //
   // Acceptance criteria:
   // - is_retired true and false reach PATCH /api/v1/securities/:id as sent,
-  //   under the book profile, where false restoring it keeps the tool.
+  //   under the book profile, which keeps the tool because false restores
+  //   the security.
   // - A non-boolean is refused before anything is sent.
   // - The property says what retiring does: the security leaves the
   //   stale_quote, missing_quote and missing_logo checks, false restores it,
   //   and its stale quote stops counting as a price measurement in
-  //   performance (#610).
+  //   performance, which can restate its TTWROR history (#610).
+  // - securities.list says the first three sets hold no benchmark or retired
+  //   security, and securities.delete names securities.update as the way to
+  //   retire.
   it("forwards is_retired on securities.update under the book profile and refuses a non-boolean", async () => {
     const { client, requests } = createRecordingClient({ data: { id: 7 } });
 
@@ -3891,9 +3897,13 @@ describe("Portfolixir MCP tools", () => {
     const property = (update!.inputSchema as any).properties.security.properties.is_retired;
 
     assert.equal(property.type, "boolean");
-    for (const statement of [/stale_quote/, /missing_quote/, /missing_logo/, /false restores/, /#610/]) {
+    for (const statement of [/stale_quote/, /missing_quote/, /missing_logo/, /false restores/, /TTWROR/, /#610/]) {
       assert.match(property.description, statement);
     }
+
+    const describe = (name: string) => listTools().find((tool) => tool.name === name)?.description ?? "";
+    assert.match(describe("portfolixir.securities.list"), /none of these three holds a benchmark or a retired security/);
+    assert.match(describe("portfolixir.securities.delete"), /portfolixir\.securities\.update with is_retired true/);
   });
 
   // Issue #776: the limit surface finished — the four research-log reads, the

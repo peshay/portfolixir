@@ -867,7 +867,7 @@ const securityUpdateSchema = {
         treat_quotes_as_raw: {
           type: "boolean",
           description:
-            "ADR-0028: treat this security's provider-synced quotes as raw (as-traded), for a provider that never back-adjusts closes after a split, so the split factors apply to its synced rows too. Default false (synced rows trusted as adjusted)."
+            "ADR-0028: treat this security's provider-synced quotes as raw (as-traded), for a provider that never back-adjusts closes after a split, so the split factors apply to them too. Default false."
         },
         is_benchmark: {
           type: "boolean",
@@ -877,7 +877,7 @@ const securityUpdateSchema = {
         is_retired: {
           type: "boolean",
           description:
-            "Retire a sold-out or delisted security: it leaves the stale_quote, missing_quote and missing_logo checks until false restores it, and its stale quote stops counting as a price measurement in performance (#610)."
+            "Retire a sold-out or delisted security: it leaves the stale_quote, missing_quote and missing_logo checks until false restores it, and its stale quote stops counting as a price measurement in performance, which can restate its TTWROR history (#610)."
         },
         attributes: { type: "object", additionalProperties: true },
         ...bondProperties(true)
@@ -2987,7 +2987,7 @@ const declaredTools: DeclaredTool[] = [
     contractGetSchema,
     contractGetZ
   ),
-  tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class); projection=full adds notes, feed config, attributes, a bond's master data and timestamps. Optional fields (#732) selects a sparse fieldset from the full projection's fields and supersedes projection. Page with limit/offset. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant, plus as_of (the next since; it lies no later than the start of the oldest write in flight, so the next read may re-deliver a row but never skips one) and a delta_note — deletions are NOT represented, so a sync that must see them does a full read. Pull-only. Optional data_quality narrows to one of the catalog's data-quality sets — stale_quote (no quote newer than 7 days, INCLUDING never-priced securities), missing_quote (no quote at all), missing_logo (no stored logo, not locked to none), missing_fx (#717: priced, but no stored rate to the EUR hub). They are the predicates the dashboard counts, so a count of N addresses a list of N. is_benchmark=true lists only the benchmarks (ADR-0046, the reference series of portfolixir.portfolios.benchmark and portfolixir.views.benchmark), false leaves them out; securities.create and securities.update set the flag.", {
+  tool("portfolixir.securities.list", "List securities", "List local securities. Rows default to a slim projection (id, name, ticker_symbol, isin, wkn, currency_code, asset_class); projection=full adds notes, feed config, attributes, a bond's master data and timestamps. Optional fields (#732) selects a sparse fieldset from the full projection's fields and supersedes projection. Page with limit/offset. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only rows created or updated strictly after that instant, plus as_of (the next since; it lies no later than the start of the oldest write in flight, so the next read may re-deliver a row but never skips one) and a delta_note — deletions are NOT represented, so a sync that must see them does a full read. Pull-only. Optional data_quality narrows to a data-quality set: stale_quote (no quote newer than 7 days, INCLUDING never-priced securities), missing_quote (no quote at all), missing_logo (no stored logo, not locked to none) — none of these three holds a benchmark or a retired security — and missing_fx (#717: priced, but no stored rate to the EUR hub). The dashboard counts the same sets. is_benchmark=true lists only the benchmarks (ADR-0046, the reference series of portfolixir.portfolios.benchmark and portfolixir.views.benchmark), false leaves them out; securities.create and securities.update set the flag.", {
     type: "object",
     additionalProperties: false,
     properties: {
@@ -3024,11 +3024,11 @@ const declaredTools: DeclaredTool[] = [
     "Delete security",
     "Delete a local security when nothing references it. A policy rule reading it answers 409 with errors.policy_rules. " +
       "Bookings, quotes, research notes, security events or policy-rule versions answer 409 with errors.referenced_by " +
-      "(the referencing tables, counted, e.g. {\"transactions\": 3, \"security_quotes\": 120}), errors.remedy and " +
+      "(the referencing tables, counted, e.g. {\"transactions\": 3}), errors.remedy and " +
       "errors.remedy_route: remedy \"merge\" for a duplicate — preview the merge with " +
       "GET /api/v1/securities/:id/merge_preview?target_id=<the security to keep> " +
       "(portfolixir.securities.merge_preview) — or \"retire\" when research notes " +
-      "or rule versions reference it, which a merge cannot carry (PATCH the security with is_retired true). Before an " +
+      "or rule versions reference it, which a merge cannot carry (portfolixir.securities.update with is_retired true). Before an " +
       "unreferenced security goes, its category assignments, position targets, position bucket overrides and ISIN " +
       "aliases are removed, each journaled under the API token; no cascade removes them." +
       " A delete that loses a race to a concurrent write answers 409 with errors.detail alone and deletes nothing: read the row again and retry.",
