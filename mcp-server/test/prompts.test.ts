@@ -211,7 +211,7 @@ describe("the companion's prompts", () => {
     assert.doesNotMatch(text, /rows per Konto/);
     assert.match(
       text,
-      /rows per cash account \(each Kauf and Verkauf counted under its Gegenkonto\), rows per depot/
+      /rows per cash account and rows per depot, each row counted under every cash account and every depot it names \(a Kauf or Verkauf under its depot and its Gegenkonto, a transfer under both sides\), so the two lists may add up to more than the rows/
     );
     assert.match(text, /JSON v1 variant/);
 
