@@ -1850,13 +1850,16 @@ A cash account in a foreign currency counts zero, too, on every day it holds
 money while its currency has no stored exchange rate to the base currency.
 The day the first rate arrives, its whole balance enters the period's result
 and the currency effect on cash at once: money that became visible, not a
-currency gain. The note under the table names such an account the way it
-names a position — its balance in its own currency, the days it counted zero
-and the reason — and, when the first rate arrived inside the period, says on
+currency gain (for an overdraft, not a currency loss). The note under the
+table names such an account the way it names a position — its balance in its
+own currency, the days it counted zero (the day before the period, whose
+close is the start value, included) and the reason — and, when the first
+rate arrived inside the period while the account still held money, says on
 which day the balance entered the currency effect; that line carries the
-account's marker ("Tagesgeld CHF: 18 days at zero"). Pick a period after the
-first rate and the account, like the jump, is gone from the table and the
-note.
+account's marker ("Tagesgeld CHF: 18 days at zero"). An account still
+without a rate on the period's last day is said to count zero until the end
+of the period. Pick a period that starts after the first rate's day and the
+account, like the jump, is gone from the table and the note.
 
 [![Contribution by position over one year: start value, flows, income, costs, end value and contribution for the ten largest positions with their bars, Show all 30, the three lines not attributed to a position, the sum row, and a note naming the positions that counted zero on some days](screenshots/contribution.png)](screenshots/contribution.png)
 

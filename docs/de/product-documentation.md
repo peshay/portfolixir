@@ -2019,15 +2019,20 @@ Tabelle zu zweizeiligen Einträgen.
 
 Auch ein Verrechnungskonto in einer Fremdwährung zählt an jedem Tag null, an
 dem es Geld hält, während für seine Währung noch kein Wechselkurs zur
-Basiswährung gespeichert ist. Am Tag des ersten Kurses kommt sein ganzer Saldo
-auf einmal ins Ergebnis des Zeitraums und in den Währungseffekt auf Bargeld:
-Geld, das sichtbar wurde, kein Währungsgewinn. Der Hinweis unter der Tabelle
-nennt ein solches Konto wie eine Position — mit seinem Saldo in der eigenen
-Währung, den Tagen, an denen es null zählte, und dem Grund — und sagt, wenn
-der erste Kurs im Zeitraum kam, an welchem Tag der Saldo in den
-Währungseffekt kam; diese Zeile trägt den Vermerk des Kontos („Tagesgeld CHF:
-18 Tage null“). Bei einem Zeitraum nach dem ersten Kurs verschwindet das Konto
-wie der Sprung aus Tabelle und Hinweis.
+Basiswährung gespeichert ist. Am Tag des ersten Wechselkurses kommt sein
+ganzer Saldo auf einmal ins Ergebnis des Zeitraums und in den Währungseffekt
+auf Bargeld: Geld, das sichtbar wurde, kein Währungsgewinn (bei einem
+überzogenen Konto kein Währungsverlust). Der Hinweis unter der Tabelle nennt
+ein solches Konto wie eine Position — mit seinem Saldo in der eigenen
+Währung, den Tagen, an denen es null zählte (der Tag vor dem Zeitraum, dessen
+Schluss der Anfangswert ist, eingeschlossen), und dem Grund — und sagt, wenn
+der erste Wechselkurs im Zeitraum kam, während das Konto noch Geld hielt, an
+welchem Tag der Saldo in den Währungseffekt kam; diese Zeile trägt den
+Vermerk des Kontos („Tagesgeld CHF: 18 Tage null“). Ein Konto, das am letzten
+Tag des Zeitraums noch keinen Wechselkurs hat, „zählt bis zum Ende des
+Zeitraums null“. Bei einem Zeitraum, der nach dem Tag des ersten
+Wechselkurses beginnt, verschwindet das Konto wie der Sprung aus Tabelle und
+Hinweis.
 
 [![Beitrag je Position über ein Jahr: Anfangswert, Zu-/Abflüsse, Erträge, Kosten, Endwert und Beitrag der zehn größten Positionen mit ihren Balken, Alle 30 anzeigen, die drei Posten ohne Position, die Summenzeile und ein Hinweis auf die Positionen, die an einigen Tagen null zählten](../screenshots/contribution.png)](../screenshots/contribution.png)
 
