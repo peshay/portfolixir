@@ -114,8 +114,9 @@ defmodule Portfolixir.Portfolios.PerformanceUnvaluedCashTest do
   # Acceptance criteria:
   # - The performance read and the contribution read of the window both carry
   #   `unvalued_cash_accounts`: the account's id, name, currency code, native
-  #   balance, 18 unvalued days, the reason `:no_rate` and the first rate's
-  #   date, 2026-08-01, which falls inside the window.
+  #   balance, 18 unvalued days, the reason `:no_rate`, not through the
+  #   window's end, and the first rate's date, 2026-08-01, which falls inside
+  #   the window.
   # - Every figure is unchanged: start and end value, flows, TTWROR, the
   #   currency effect on cash and the result; every key either read answered
   #   before is still there, and the list is the only key added.
@@ -133,6 +134,7 @@ defmodule Portfolixir.Portfolios.PerformanceUnvaluedCashTest do
       currency_code: "CHF",
       unvalued_days: 18,
       unvalued_reason: :no_rate,
+      unvalued_through_end: false,
       first_rate_date: ~D[2026-08-01]
     }
 
@@ -190,34 +192,45 @@ defmodule Portfolixir.Portfolios.PerformanceUnvaluedCashTest do
   # so that the note changes with the period, as the jump does.
   #
   # Acceptance criteria:
-  # - A window ending before the first rate lists the account with the days
-  #   inside it and no first-rate date.
-  # - A window holding zero days and the first rate lists the days inside it
-  #   and the date.
-  # - A window starting on or after the first rate, a window before the
-  #   history and an empty window list nothing.
+  # - A window ending before the first rate lists the account with its days
+  #   and no first-rate date, still counting zero through the window's end.
+  # - A window holding zero days and the first rate lists the days and the
+  #   date; the day before the window, whose close is the start value, counts
+  #   among the days.
+  # - A window starting on the first rate's day holds the whole jump in its
+  #   result, so it names the account: one day, the day before it.
+  # - A window starting after the first rate, a window before the history
+  #   and an empty window list nothing.
   test "the list follows the window" do
     world = franc_world()
     pid = world.portfolio.id
 
     cases = [
-      {{:range, ~D[2026-07-01], ~D[2026-07-31]}, 18, nil},
-      {{:range, ~D[2026-07-01], ~D[2026-07-20]}, 7, nil},
-      {{:range, ~D[2026-07-20], ~D[2026-08-15]}, 12, ~D[2026-08-01]},
-      {"ytd", 18, ~D[2026-08-01]}
+      {{:range, ~D[2026-07-01], ~D[2026-07-31]}, 18, true, nil},
+      {{:range, ~D[2026-07-01], ~D[2026-07-20]}, 7, true, nil},
+      # 07-19, the start value's day, to 07-31.
+      {{:range, ~D[2026-07-20], ~D[2026-08-15]}, 13, false, ~D[2026-08-01]},
+      {{:range, ~D[2026-08-01], ~D[2026-09-30]}, 1, false, ~D[2026-08-01]},
+      {"ytd", 18, false, ~D[2026-08-01]}
     ]
 
-    for {period, days, first_rate_date} <- cases,
+    for {period, days, through_end, first_rate_date} <- cases,
         {read_name, read} <- reads(pid, period) do
       label = "#{read_name} #{inspect(period)}"
-      assert [entry] = read.unvalued_cash_accounts, label
+      assert [entry] = read.unvalued_cash_accounts
       assert entry.unvalued_days == days, label
+      assert entry.unvalued_through_end == through_end, label
       assert entry.first_rate_date == first_rate_date, label
       assert equal?(entry.balance, "2000"), label
     end
 
+    # The window that opens on the first rate holds the whole jump.
+    [performance: _performance, contribution: opening] =
+      reads(pid, {:range, ~D[2026-08-01], ~D[2026-09-30]})
+
+    assert equal?(opening.remainder.cash_currency_effect, "2500")
+
     for period <- [
-          {:range, ~D[2026-08-01], ~D[2026-09-30]},
           {:range, ~D[2026-08-02], ~D[2026-09-30]},
           {:range, ~D[2025-01-01], ~D[2025-12-31]},
           {:year, 2027}
@@ -237,14 +250,20 @@ defmodule Portfolixir.Portfolios.PerformanceUnvaluedCashTest do
   # - A day on which the account's balance is zero is not counted, though
   #   its currency has no rate.
   # - The balance named is the native balance on the last counted day.
-  # - The second deposit keeps the first rate's date.
+  # - The second deposit keeps the first rate's date: the account held money
+  #   at zero on the day before it.
+  # - An account emptied before the first rate and never refilled brought
+  #   nothing into the result when the rate came: no first-rate date.
   test "a day the account is empty does not count" do
     world = base_world(name: "Emptied World", cash_name: "Giro", depot_name: "Depot")
     franc = franc_account!(world.portfolio, "Tagesgeld CHF")
+    emptied = franc_account!(world.portfolio, "Leer CHF")
     deposit!(world, "1000", ~D[2026-07-01])
     deposit!(franc, "500", ~D[2026-07-14], currency: "CHF")
     removal!(franc, "500", ~D[2026-07-20])
     deposit!(franc, "300", ~D[2026-07-25], currency: "CHF")
+    deposit!(emptied, "500", ~D[2026-07-14], currency: "CHF")
+    removal!(emptied, "500", ~D[2026-07-20])
     rate!("CHF", ~D[2026-08-01], "0.8")
 
     for {read_name, read} <- reads(world.portfolio.id, "max") do
@@ -255,7 +274,20 @@ defmodule Portfolixir.Portfolios.PerformanceUnvaluedCashTest do
                currency_code: "CHF",
                unvalued_days: 13,
                unvalued_reason: :no_rate,
+               unvalued_through_end: false,
                first_rate_date: ~D[2026-08-01]
+             },
+             "#{read_name}"
+
+      # 07-14 to 07-19, then empty when the rate came.
+      assert entry!(read.unvalued_cash_accounts, emptied.cash, "500") == %{
+               cash_account_id: emptied.cash.id,
+               name: "Leer CHF",
+               currency_code: "CHF",
+               unvalued_days: 6,
+               unvalued_reason: :no_rate,
+               unvalued_through_end: false,
+               first_rate_date: nil
              },
              "#{read_name}"
     end
@@ -268,8 +300,10 @@ defmodule Portfolixir.Portfolios.PerformanceUnvaluedCashTest do
   # so that the view's note speaks about the same accounts as its total.
   #
   # Acceptance criteria:
-  # - Two portfolios with one CHF account each: the Everything view's
-  #   performance and contribution reads list both, sorted by name.
+  # - Two portfolios with one CHF account each, whose walks start on
+  #   different days: the Everything view's performance and contribution
+  #   reads list both, sorted by name, each with the currency's first rate
+  #   date, the one date the merged walk keeps for CHF.
   # - A view holding one portfolio's accounts lists that one, across
   #   portfolios and on the portfolio narrowed by it; the other portfolio
   #   narrowed by it lists none.
@@ -278,7 +312,7 @@ defmodule Portfolixir.Portfolios.PerformanceUnvaluedCashTest do
     first = franc_world()
     second = base_world(name: "Second Franc", cash_name: "Giro Two", depot_name: "Depot Two")
     savings = franc_account!(second.portfolio, "Sparkonto CHF")
-    deposit!(second, "100", ~D[2026-07-01])
+    deposit!(second, "100", ~D[2026-07-20])
     deposit!(savings, "400", ~D[2026-07-21], currency: "CHF")
 
     valued = base_world(name: "Valued World", cash_name: "Giro Three", depot_name: "Depot Three")
@@ -299,6 +333,10 @@ defmodule Portfolixir.Portfolios.PerformanceUnvaluedCashTest do
       assert %{unvalued_days: 18, first_rate_date: ~D[2026-08-01]} =
                entry!(read.unvalued_cash_accounts, first.franc.cash, "2000")
     end
+
+    assert Performance.view_analysis(nil, today: @today).first_rate_dates == %{
+             "CHF" => ~D[2026-08-01]
+           }
 
     {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Franc Bucket"})
     :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), first.cash, [bucket.id])
@@ -331,6 +369,55 @@ defmodule Portfolixir.Portfolios.PerformanceUnvaluedCashTest do
     end
 
     refute Map.has_key?(Performance.analysis(valued.portfolio.id, today: @today), :cash_labels)
+  end
+
+  # User story (#1055, ADR-0051 §10):
+  # As a local portfolio maintainer whose portfolio is kept in CHF,
+  # I want an account the base currency could not value yet named the same
+  # way, whichever end of the conversion lacked its rate,
+  # so that a CHF base reads like a EUR one.
+  #
+  # Acceptance criteria:
+  # - A CHF-base portfolio funded in EUR and USD before CHF's first stored
+  #   rate names both accounts on the performance and the contribution read,
+  #   with CHF's first rate date: EUR, the hub, needs only the base's rate,
+  #   and USD's rate, carried in from before the walk, is a path from the
+  #   walk's first day on.
+  test "a base other than the hub names what it cannot value yet" do
+    world =
+      base_world(
+        name: "Swiss World",
+        currency: "CHF",
+        cash_currency: "EUR",
+        cash_name: "Giro EUR",
+        depot_name: "Depot"
+      )
+
+    {:ok, broker} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        name: "Broker USD",
+        currency_code: "USD"
+      })
+
+    rate!("USD", ~D[2026-06-01], "1.25")
+    deposit!(world, "1000", ~D[2026-07-14])
+    deposit!(%{portfolio: world.portfolio, cash: broker}, "500", ~D[2026-07-14], currency: "USD")
+    rate!("CHF", ~D[2026-08-01], "0.8")
+
+    for {read_name, read} <- reads(world.portfolio.id, "max") do
+      assert [giro, usd] = Enum.sort_by(read.unvalued_cash_accounts, & &1.currency_code)
+
+      assert %{currency_code: "EUR", unvalued_days: 18, first_rate_date: ~D[2026-08-01]} = giro
+      assert %{currency_code: "USD", unvalued_days: 18, first_rate_date: ~D[2026-08-01]} = usd
+      assert equal?(giro.balance, "1000"), "#{read_name}"
+      assert equal?(usd.balance, "500"), "#{read_name}"
+    end
+
+    assert Performance.analysis(world.portfolio.id, today: @today).first_rate_dates == %{
+             "EUR" => ~D[2026-08-01],
+             "USD" => ~D[2026-08-01]
+           }
   end
 
   # User story (#1055; AGENTS.md metric rule):

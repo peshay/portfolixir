@@ -1041,6 +1041,7 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     assert equal?(reserve.balance, "500")
     assert reserve.unvalued_days == Date.diff(@today, ~D[2025-04-01]) + 1
     assert reserve.unvalued_reason == :no_rate
+    assert reserve.unvalued_through_end
     assert reserve.first_rate_date == nil
     assert core.unvalued_cash_accounts == []
 
