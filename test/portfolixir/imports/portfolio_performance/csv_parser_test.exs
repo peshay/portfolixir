@@ -238,6 +238,122 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
     end
   end
 
+  # User story (ADR-0053 §2, K5; risk-tier: money):
+  # As the operator dropping a CSV whose Gesamtpreis contradicts its Betrag,
+  # Gebühren and Steuern,
+  # I want that row named with the cells as the file wrote them and left out,
+  # while the rest of the file previews,
+  # so that the import never guesses which cell is wrong.
+  #
+  # Acceptance criteria:
+  # - With U = Gebühren + Steuern as written (a negative Steuern with its
+  #   sign), a debit kind (Kauf, Entnahme, Gebühren, Steuern, Umbuchung
+  #   (Ausgang)) needs Gesamtpreis = Betrag + U and a credit kind (Verkauf,
+  #   Dividende, Zinsen, Einlage, Steuerrückerstattung, Umbuchung (Eingang))
+  #   Gesamtpreis = Betrag − U, exactly.
+  # - A row that fails is a row error naming the Gesamtpreis, the Betrag and
+  #   the units the row carries, as written, in one of four forms; in German
+  #   it reads "… passt nicht zu … — Zeile nicht übernommen".
+  # - A row without a Gesamtpreis, or without a Betrag, is not checked; nor
+  #   is a kind without cash.
+  describe "parse/2 a Gesamtpreis that contradicts its Betrag" do
+    @header "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n"
+
+    defp checked(rows), do: CsvParser.parse(@header <> rows)
+
+    test "names the row with the cells as written, and the other rows preview" do
+      assert {:ok, %Preview{entries: [entry], errors: [%{row: 1, message: message}]}} =
+               checked("""
+               2024-04-22 12:25:00;Verkauf;Synthetic AG;10;150,25;1.502,50;2,50;;1.505,00;Depot;Cash;;
+               2024-01-02 00:00:00;Einlage;;;;5.000,00;;;5.000,00;Cash;;;
+               """)
+
+      assert entry.source_row == 2
+
+      assert message ==
+               "Gesamtpreis 1.505,00 does not match Betrag 1.502,50 and Gebühren 2,50 — row not imported"
+    end
+
+    test "names the units the row carries in each of four forms" do
+      assert {:ok, %Preview{entries: [], errors: errors}} =
+               checked("""
+               2024-01-02 00:00:00;Einlage;;;;250,00;;;251,00;Cash;;;
+               2024-01-15 10:01:00;Kauf;Synthetic AG;10;150,25;1.502,50;2,50;;1.502,50;Depot;Cash;;
+               2024-02-15 00:00:00;Dividende;Synthetic AG;10;;11,54;;2,41;9,31;Cash;;;
+               2024-01-15 10:01:00;Kauf;Synthetic AG;10;150,00;1.500,00;2,50;1,00;1.502,50;Depot;Cash;;
+               """)
+
+      assert Enum.map(errors, & &1.message) == [
+               "Gesamtpreis 251,00 does not match Betrag 250,00 — row not imported",
+               "Gesamtpreis 1.502,50 does not match Betrag 1.502,50 and Gebühren 2,50 — row not imported",
+               "Gesamtpreis 9,31 does not match Betrag 11,54 and Steuern 2,41 — row not imported",
+               "Gesamtpreis 1.502,50 does not match Betrag 1.500,00, Gebühren 2,50 and Steuern 1,00 — row not imported"
+             ]
+    end
+
+    test "says it in German" do
+      Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+
+      assert {:ok, %Preview{entries: [], errors: errors}} =
+               checked("""
+               2024-01-02 00:00:00;Einlage;;;;250,00;;;251,00;Cash;;;
+               2024-04-22 12:25:00;Verkauf;Synthetic AG;10;150,25;1.502,50;2,50;;1.505,00;Depot;Cash;;
+               2024-02-15 00:00:00;Dividende;Synthetic AG;10;;11,54;;2,41;9,31;Cash;;;
+               2024-01-15 10:01:00;Kauf;Synthetic AG;10;150,00;1.500,00;2,50;1,00;1.502,50;Depot;Cash;;
+               """)
+
+      assert Enum.map(errors, & &1.message) == [
+               "Gesamtpreis 251,00 passt nicht zu Betrag 250,00 — Zeile nicht übernommen",
+               "Gesamtpreis 1.505,00 passt nicht zu Betrag 1.502,50 und Gebühren 2,50 — Zeile nicht übernommen",
+               "Gesamtpreis 9,31 passt nicht zu Betrag 11,54 und Steuern 2,41 — Zeile nicht übernommen",
+               "Gesamtpreis 1.502,50 passt nicht zu Betrag 1.500,00, Gebühren 2,50 und Steuern 1,00 — Zeile nicht übernommen"
+             ]
+    end
+
+    test "reads every cash kind in its direction, a negative Steuern with its sign" do
+      # Betrag 100,00 with Gebühren 2,00 and Steuern -0,50: U = 1,50, so a
+      # debit's Gesamtpreis is 101,50 and a credit's 98,50.
+      for {label, debit?} <- [
+            {"Kauf", true},
+            {"Entnahme", true},
+            {"Gebühren", true},
+            {"Steuern", true},
+            {"Umbuchung (Ausgang)", true},
+            {"Verkauf", false},
+            {"Dividende", false},
+            {"Zinsen", false},
+            {"Einlage", false},
+            {"Steuerrückerstattung", false},
+            {"Umbuchung (Eingang)", false}
+          ] do
+        {right, wrong} = if debit?, do: {"101,50", "98,50"}, else: {"98,50", "101,50"}
+        security = if label in ["Kauf", "Verkauf", "Dividende"], do: "Synthetic AG", else: ""
+
+        row =
+          &"2024-03-01 00:00:00;#{label};#{security};1;100,00;100,00;2,00;-0,50;#{&1};Cash;Cash-2;;\n"
+
+        assert {:ok, %Preview{errors: [], entries: [_]}} = checked(row.(right)), label
+
+        assert {:ok, %Preview{entries: [], errors: [%{message: message}]}} = checked(row.(wrong)),
+               label
+
+        assert message ==
+                 "Gesamtpreis #{wrong} does not match Betrag 100,00, Gebühren 2,00 and Steuern -0,50 — row not imported",
+               label
+      end
+    end
+
+    test "checks nothing on a row missing a reading or on a kind without cash" do
+      assert {:ok, %Preview{errors: [], entries: [_, _, _, _]}} =
+               checked("""
+               2025-01-06 10:15:00;Kauf;Synthetic AG;40;80,50;3.221,00;1,00;;;Depot;Cash;;
+               2024-01-02 00:00:00;Einlage;;;;;1,00;;250,00;Cash;;;
+               2024-09-04 00:00:00;Einlieferung;Synthetic Fund;5;20,00;100,00;1,00;;999,00;Depot;;;
+               2024-11-15 21:00:00;Umbuchung (Ausgang);Synthetic Fund;3;66,67;200,00;;;1,00;Depot;Depot-2;;
+               """)
+    end
+  end
+
   # User story (ADR-0053 §3, K2; risk-tier: idempotency):
   # As the operator who imported a Portfolio Performance CSV before,
   # I want each row to carry the file's Betrag as the content hash's amount,
