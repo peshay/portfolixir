@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Übersicht „ohne Anlageklasse“: Zahl und Liste ohne stillgelegte Wertpapiere (PR #1102 review)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- A CONFORMANCE REPAIR, drawn before/after. Everything inside the frames is
+     the live markup with app.css as shipped; the repair changes no CSS.
+     - "Vorher": dashboard_live.ex dq_findings/1 and data_quality_report/0 as
+       they stood before commit 42f05104 — the class count is
+       Enum.count(Catalog.list_securities(), &is_nil(&1.asset_class)) and the
+       link is /securities?filter[]=asset_class%3Ais_nil.
+     - "Nachher": the branch head — the count reads
+       Catalog.list_securities(is_retired: false), and the link is
+       Query.encode(%{"filter" => ["asset_class:is_nil", "is_retired:is_false"]}).
+     The securities page is securities_live.ex render/1 as built: the toolbar,
+     filter_families/1 (layout :row, prefix "sec"), the active-filters band
+     (ul#filter-chips: only conditions with no one-tap chip, chip_label/1),
+     the table and the phone rows (#799). The phone layout is app.css's own
+     560 px block: the table gives way to the rows, the chip row to the
+     Filter control. Nothing is scoped to the frames: there is no proposal
+     CSS, so there is no <style id="proposal">. -->
+<style>
+  /* Board chrome only. Nothing below is a proposal. */
+  .app980 { max-width: 980px; }
+  .mock-frame { overflow: visible; }
+  /* The panel fills the viewport in the app (min-height: 100vh - topbar);
+     on the board it is as tall as its content. */
+  .mock-frame .workspace-panel { min-height: 0; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 6px; }
+  /* .filter-chips carries a mask-image (the row's edge fade), which clips
+     anything painted outside its border box: the band's marker goes inside. */
+  .filter-chips.is-new { outline-offset: -4px; border-radius: 0; }
+  .badge.is-new { outline-offset: 0; border-radius: 999px; }
+  mark.diff { background: color-mix(in srgb, var(--color-accent) 18%, transparent); color: inherit; border-radius: 3px; padding: 0 2px; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .argue { max-width: 980px; font-size: 12.5px; display: grid; gap: 6px; margin-top: 10px; }
+  .argue p { margin: 0; }
+  .argue code, .mock-note code, .pickbar code, .stub code, .measure code, .legend code, .hop code { font-size: 11.5px; }
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; text-transform: none; flex: none; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  .stub { padding: 10px 24px; font-size: 12px; font-style: italic; color: var(--mock-ink); border-bottom: 1px solid var(--color-border); background: var(--color-bg); }
+  .stub b { font-style: normal; color: var(--color-text); }
+  .measure { font-size: 11.5px; color: var(--mock-ink); margin: 6px 0 0; max-width: 980px; }
+  .measure b.off { color: var(--color-danger); }
+  .measure b.ok { color: var(--color-positive); }
+  .hop { display: flex; align-items: baseline; gap: 8px; margin: 8px 0; padding: 0 4px; font-size: 12px; color: var(--mock-ink); max-width: 980px; }
+  .hop > span:first-child { font-size: 16px; line-height: 1; color: var(--color-text-muted); }
+  .hop code { overflow-wrap: anywhere; }
+  .legend { margin: 8px 0 0; padding-left: 0; list-style: none; font-size: 12px; color: var(--color-text); max-width: 980px; }
+  .legend li { margin: 0 0 4px; }
+  .legend li > i.pin:first-child { margin: 0 4px 0 0; }
+  .pin-li { display: inline-flex; align-items: center; list-style: none; }
+  .phone-only { display: none; }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-board > p.mock-note { padding: 0 12px; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; border-top-width: 0; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    /* the real gutter at 390 px (app.css: clamp(18px, …) clamp(16px, …)) */
+    .mock-frame .workspace-section { padding: 18px 16px; }
+    .stub { padding: 8px 16px; }
+    .hop { padding: 0 12px; }
+    .legend, .argue, .measure { padding: 0 12px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Before/after — the Overview's asset-class finding and the list its link opens (PR #1102 review, finding 5; commit 42f05104).</b>
+There is nothing to pick: the living spec fixes the answer twice. A count links to a list of the same rows (UX-DR2; #705: "each finding's number is produced by the same rule as the list its link opens"), and a retired security leaves the catalog's hygiene findings, which the line's other two counts already obey. “Vorher” is the markup before the commit; “Nachher” is the branch head. No CSS changes: the new chip is the existing removable-chip markup (<code>ul#filter-chips &gt; li.chip</code>), and the badge is “Weitere Filter”'s existing count. This board covers the asset-class finding only. The UI is the German page; every name, ISIN and price is invented. Desktop frames: 980&nbsp;px content (1200 − 220 sidebar). <b>Highlighted = changed text. Dashed = new.</b></div>
+<div class="pickbar phone-only"><b>The class finding and its list at 390&nbsp;px.</b> A real 390-px viewport, so app.css's 560-px block applies: two-line phone rows instead of the table, the Filter control instead of the chip row. The active-filters band stays visible. No CSS changes. Synthetic data only. <b>Highlighted = changed text. Dashed = new.</b></div>
+
+<!-- ================================================= ① Vorher -->
+<section class="mock-board" id="vorher">
+  <h2>① Vorher — the class finding counts a retired security, and its list shows it <small>dashboard_live.ex before 42f05104 · securities_live.ex</small></h2>
+  <p class="mock-note">The synthetic catalog holds four securities with no stored asset class. One of them, Beispiel Anleihe 2025, has matured and is retired. The line's other two counts already leave it out (the <code>stale_quote</code> and <code>missing_logo</code> predicates), so the line counts it under one finding and not the other two. The link carries one condition, <code>filter[]=asset_class:is_nil</code>, which the list shows as the active one-tap chip “Ohne Anlageklasse”. Count and list agree at 4, and both include the bond the operator has closed. After retiring it, the Overview still says “4 ohne Anlageklasse”, and the only fix it offers is to classify a security nobody holds or quotes any more.</p>
+  <div class="mock-frame mock-before app980"><span class="mock-tag">Vorher · Übersicht</span>
+    <div data-ov="before"></div>
+  </div>
+  <div class="hop"><span aria-hidden="true">↓</span><span>„4 ohne Anlageklasse“ opens <code>/securities?filter[]=asset_class%3Ais_nil</code></span></div>
+  <div class="mock-frame mock-before app980"><span class="mock-tag">Vorher · Wertpapiere</span>
+    <div data-sec="before"></div>
+  </div>
+  <p class="measure" data-out="before"></p>
+  <ol class="legend">
+    <li><i class="pin b">1</i>“4 ohne Anlageklasse” is <code>Enum.count(Catalog.list_securities(), &amp;is_nil(&amp;1.asset_class))</code>, which includes retired securities. “2 Wertpapiere ohne Kurs seit 7 Tagen” and “3 ohne Logo” already leave the retired bond out, so one line counts it under two different rules.</li>
+    <li><i class="pin b">2</i>One condition, shown as one active chip, “Ohne Anlageklasse” (#700, #717: a condition that a one-tap chip expresses shows its state on that chip, not as a removable chip). There is no active-filters band, and “Weitere Filter” has no count. At 390&nbsp;px the Filter control shows 1.</li>
+    <li><i class="pin b">3</i>The retired row is dimmed and italic (<code>.security-row.is-retired</code>; at 390&nbsp;px also the word “Stillgelegt”). It still offers the quick-assign select, the finding's fix, on a row the finding should not include.</li>
+  </ol>
+</section>
+
+<!-- ================================================= ② Nachher -->
+<section class="mock-board" id="nachher">
+  <h2>② Nachher — count and list leave the retired security out, and the list says so <small>branch head · same catalog</small></h2>
+  <p class="mock-note">The count leaves retired securities out (<code>Catalog.list_securities(is_retired: false)</code>), and the link carries a second condition, <code>filter[]=is_retired:is_false</code>, so the list it opens holds the same three rows. The asset-class finding is the line's one count that is a plain column filter, not a <code>dq</code> predicate: per #700 it is keyed on the stored column. The other predicates make this exclusion in the query; here it has to travel in the URL, and the list shows it. <code>is_retired</code> has no one-tap chip, so the condition is a removable chip in the active-filters band, and “Weitere Filter” counts it. D2: demoting the builder never hides state. Removing the chip brings the retired row back, so the exclusion is visible and reversible, not silent.</p>
+  <div class="mock-frame mock-after after app980"><span class="mock-tag">Nachher · Übersicht</span>
+    <div data-ov="after"></div>
+  </div>
+  <div class="hop"><span aria-hidden="true">↓</span><span>„3 ohne Anlageklasse“ opens <code>/securities?filter[]=asset_class%3Ais_nil&amp;<mark class="diff">filter[]=is_retired%3Ais_false</mark></code></span></div>
+  <div class="mock-frame mock-after after app980"><span class="mock-tag">Nachher · Wertpapiere</span>
+    <div data-sec="after"></div>
+  </div>
+  <p class="measure" data-out="after"></p>
+  <ol class="legend">
+    <li><i class="pin a">1</i>“3 ohne Anlageklasse”. The retired bond leaves this count as it left the other two, and the count drops when a security is retired. Same severity, same order, same separator: only the number changes.</li>
+    <li><i class="pin a">2</i>Unchanged: “Ohne Anlageklasse” is the active one-tap chip.</li>
+    <li><i class="pin a">3</i>New on this URL: the active-filters band (<code>ul#filter-chips</code>, “Aktive Filter”) with one removable chip, “Stillgelegt = false”. <code>chip_label/1</code> writes every boolean condition this way: the field's label (<code>SecurityFields</code>, “Stillgelegt”), then <code>= false</code> from <code>operator_label/1</code>, which is not translated. That wording belongs to the builder, is shared by every boolean filter, and is outside this repair. Its × is “Filter entfernen”.</li>
+    <li><i class="pin a">4</i>“Weitere Filter 1”: the builder's count of conditions with no one-tap chip (<code>more_filters_count/2</code>). At 390&nbsp;px the Filter control goes from 1 to 2.</li>
+    <li><i class="pin a">5</i>Three rows and no retired one. Count and list agree at 3, and they agree with the line's other two findings about what counts.</li>
+  </ol>
+</section>
+
+<!-- ================================================= ③ the rule -->
+<section class="mock-board desk-only" id="regel">
+  <h2>③ Why there is no option to pick <small>the spec already gives the answer</small></h2>
+  <div class="argue">
+    <p><b>Count and list.</b> The data-quality line links each count to the securities list pre-filtered to that set (DESIGN.md → Data quality; UX-DR2), and #705 made each number come from the same rule as the list its link opens. The repair keeps that: both sides drop the retired row, and the board's measured lines check it.</p>
+    <p><b>Retired securities.</b> In this PR a retired security leaves the catalog's hygiene sets (<code>stale_quote</code>, <code>missing_quote</code>, <code>missing_logo</code>; <code>missing_fx</code> keeps it), and the handbook says it leaves the Overview's counts. The class count was the one finding on the line that still included it.</p>
+    <p><b>Why a URL condition, not a new predicate.</b> The class finding stays a column filter keyed on the stored value (#700; the comment at <code>data_quality_report/0</code>). The exclusion travels as a second column filter, which the page already knows how to show, count and remove. It adds no new chip, label, colour or rule.</p>
+  </div>
+</section>
+
+<script>
+(() => {
+  // Glyphs: AppShell.icon_paths/1, verbatim.
+  const P = {
+    tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+    search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+    filter: '<path d="M3 5h18l-7 9v6l-4-2v-4Z"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    refresh: '<path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 4v5h-5"/>',
+    columns: '<rect x="3" y="4" width="6" height="16" rx="1"/><rect x="11" y="4" width="6" height="16" rx="1"/><rect x="19" y="4" width="2" height="16" rx="1"/>',
+    x: '<path d="M6 6l12 12M18 6 6 18"/>',
+    kebab: '<circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/>'
+  };
+  const ico = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+  const pin = (n, k) => k ? `<i class="pin ${k}">${n}</i>` : '';
+  const sep = '<span aria-hidden="true"> · </span>';
+
+  // ---- the Overview's data-quality section (dashboard_live.ex) -------------
+  const href = (after) => '/securities?filter[]=asset_class%3Ais_nil' + (after ? '&amp;filter[]=is_retired%3Ais_false' : '');
+  const overview = (o) => `
+    <div class="stub">… Vermögenswert, Kennzahlen, Abgeschlossene Trades, Ziel-Abweichungen, Fällig: unverändert …</div>
+    <section id="dashboard-data-quality" class="workspace-section">
+      <h2>Datenqualität</h2>
+      <div role="status">
+        <div id="dashboard-dq-line" class="data-note data-note--attention" data-role="data-quality-line">
+          <span class="data-note__icon" aria-hidden="true">${ico('tri', 14)}</span>
+          <span class="data-note__word">Achtung</span>
+          <div class="data-note__body"><a href="/securities?dq=stale_quote" data-role="dq-quotes">2 Wertpapiere ohne Kurs seit 7 Tagen</a>${sep}<a href="${href(o.after)}" data-role="dq-class" data-count="${o.count}">${o.after ? `<mark class="diff">${o.count}</mark>` : o.count} ohne Anlageklasse</a>${pin(1, o.k)}${sep}<a href="/securities?dq=missing_logo" data-role="dq-logo">3 ohne Logo</a></div>
+        </div>
+      </div>
+    </section>`;
+
+  // ---- the securities page (securities_live.ex render/1) -------------------
+  const ROWS = [
+    // name, ticker, isin, class cell kind, price, change, retired
+    { id: 41, name: 'Beispiel Anleihe 2025', ticker: '', isin: 'XS0000000025', derived: null, price: '100,00', change: '—', cls: '', retired: true },
+    { id: 42, name: 'Beispiel Anleihe 2027', ticker: '', isin: 'XS0000000027', derived: null, price: '98,75', change: '+0,12 %', cls: 'decimal-positive' },
+    { id: 43, name: 'Musterbank AG', ticker: 'MBK', isin: 'XS0000000031', derived: 'Aktie', price: '24,60', change: '-0,35 %', cls: 'decimal-negative' },
+    { id: 44, name: 'Musterstadt Versorgung AG', ticker: 'MSV', isin: 'XS0000000032', derived: 'Aktie', price: '41,15', change: '+0,48 %', cls: 'decimal-positive' }
+  ];
+  const OPTIONS = ['Aktie', 'ETF', 'Fonds', 'Staatsanleihe', 'Anleihe', 'Kryptowährung', 'Rohstoff', 'Index', 'Sonstiges'];
+  const select = (prefix, id) => `<form id="${prefix}-${id}" class="quick-assign-form" data-swallow-click><select name="asset_class" class="quick-assign-select" aria-label="Anlageklasse zuweisen"><option value="">—</option>${OPTIONS.map(l => `<option>${l}</option>`).join('')}</select></form>`;
+  const classCell = (r, prefix) => (r.derived
+    ? `<span class="badge badge--derived" data-asset-class="derived"><span class="visually-hidden">Abgeleitet: </span><span class="badge-derived-marker" aria-hidden="true">≈</span>${r.derived}</span>`
+    : '') + select(prefix, r.id);
+  const logo = (r) => `<span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">${r.name[0]}</span>`;
+  const kebab = (prefix, r) => `<button type="button" id="${prefix}-kebab-${r.id}" class="row-actions__kebab" aria-label="Aktionen für ${r.name}" aria-haspopup="menu" aria-expanded="false">${ico('kebab')}</button>`;
+  const change = (r) => r.cls ? `<span class="${r.cls}">${r.change}</span>` : r.change;
+
+  const tableRow = (r, k) => `
+    <tr id="security-row-${r.id}" class="security-row${r.retired ? ' is-retired' : ''}" role="link">
+      <td class="row-actions">${kebab('row', r)}</td>
+      <td><a class="row-target row-target--with-logo" tabindex="0" href="#">${logo(r)}<span class="row-target__label">${r.name}</span></a>${r.retired ? pin(3, k) : ''}</td>
+      <td>${r.ticker}</td>
+      <td>${r.isin}</td>
+      <td>EUR</td>
+      <td>${classCell(r, 'quick-assign')}</td>
+      <td class="num">${r.price}</td>
+      <td class="num">${change(r)}</td>
+    </tr>`;
+
+  const phoneRow = (r, k) => `
+    <li id="security-phone-${r.id}" class="phone-row${r.retired ? ' is-retired' : ''}" data-role="phone-row">
+      ${logo(r)}
+      <span class="phone-row__body">
+        <a class="phone-row__target" href="#"><span class="phone-row__name">${r.name}</span></a>
+        <span class="phone-row__ids">${[r.ticker, r.isin].filter(Boolean).join(' · ')} · ${classCell(r, 'phone-quick-assign')}${r.retired ? '<span class="badge">Stillgelegt</span>' + pin(3, k) : ''}</span>
+      </span>
+      <span class="phone-row__figures">
+        <span class="phone-row__figure">${r.price}<small class="value-suffix">EUR</small></span>
+        <span class="phone-row__figure2">${change(r)}</span>
+      </span>
+      ${kebab('phone', r)}
+    </li>`;
+
+  const chip = (id, label, on) => `<button type="button" id="sec-chip-${id}" class="filter-chip${on ? ' is-active' : ''}" aria-pressed="${on}">${label}</button>`;
+
+  const securities = (o) => {
+    const rows = o.after ? ROWS.filter(r => !r.retired) : ROWS;
+    const sheetCount = o.after ? 2 : 1;
+    return `
+    <div class="stub"><b>Wertpapiere</b> · Suchen, filtern und pflegen des investierbaren Universums.</div>
+    <section class="workspace-panel" id="securities-panel">
+      <div class="toolbar" role="toolbar" aria-label="Wertpapier-Werkzeugleiste">
+        <form class="search-field" id="securities-search-form">${ico('search')}<input type="search" name="query" value="" placeholder="Nach Name, ISIN, WKN oder Ticker suchen…" autocomplete="off" aria-label="Wertpapiere suchen"></form>
+        <button type="button" id="filter-sheet-toggle" class="filter-sheet-toggle" aria-haspopup="dialog" aria-expanded="false">${ico('filter')}Filter<span class="badge" data-role="filter-sheet-count">${o.after ? `<mark class="diff">${sheetCount}</mark>` : sheetCount}</span></button>
+        <div class="toolbar-actions">
+          <button type="button" id="open-new-dialog" class="icon-button" aria-label="Neu anlegen" title="Neu anlegen">${ico('plus')}</button>
+          <button type="button" id="sync-prices" class="icon-button" aria-label="Kurse aktualisieren" title="Kurse aktualisieren">${ico('refresh')}</button>
+          <button type="button" id="toggle-column-popover" class="icon-button" aria-label="Spalten" aria-expanded="false" title="Spalten">${ico('columns')}</button>
+        </div>
+      </div>
+
+      <div id="securities-filter-chips" class="filter-chips" role="group" aria-label="Liste filtern">
+        ${chip('held', 'Im Bestand', false)}
+        ${chip('not_held', 'Ohne Bestand', false)}
+        ${chip('unclassified', 'Ohne Anlageklasse', true)}${pin(2, o.k)}
+        ${chip('stale_quote', 'Kurs veraltet', false)}
+        ${chip('missing_quote', 'Kein Kurs', false)}
+        ${chip('missing_fx', 'Kein Wechselkurs', false)}
+        <span class="filter-chips__family">Anlageklasse</span>
+        ${chip('class-equity', 'Aktie', false)}
+        ${chip('class-etf', 'ETF', false)}
+        ${chip('class-government_bond', 'Staatsanleihe', false)}
+        <span id="changed-since-chips" class="filter-chips__group" role="group" aria-label="Geändert seit">
+          <span class="filter-chips__family">Geändert seit</span>
+          <button type="button" id="changed-since-chips-today" class="filter-chip" aria-pressed="false">Heute</button>
+          <button type="button" id="changed-since-chips-7d" class="filter-chip" aria-pressed="false">7 Tage</button>
+          <button type="button" id="changed-since-chips-30d" class="filter-chip" aria-pressed="false">30 Tage</button>
+        </span>
+        <button type="button" id="more-filters-toggle" class="more-filters-link" aria-expanded="false">${ico('filter')}Weitere Filter${o.after ? `<span class="badge is-new" data-role="more-filters-count">1</span>${pin(4, o.k)}` : ''}</button>
+      </div>
+
+      ${o.after ? `
+      <ul class="filter-chips is-new" id="filter-chips" aria-label="Aktive Filter">
+        <li class="chip">
+          <span>Stillgelegt = false </span>
+          <button type="button" class="chip-remove" aria-label="Filter entfernen">${ico('x', 12)}</button>
+        </li>
+        <li class="pin-li" role="presentation">${pin(3, o.k)}</li>
+      </ul>` : ''}
+
+      <div id="securities-action-result" class="inline-result" data-role="action-result" tabindex="-1">
+        <div id="securities-action-result-status" role="status" class="inline-result__region"></div>
+        <div id="securities-action-result-alert" role="alert" class="inline-result__region"></div>
+      </div>
+
+      <div id="securities-workspace" class="securities-workspace securities-workspace--list-only">
+        <div id="securities-list-pane" class="securities-list-pane">
+          <div class="data-table-wrapper" id="securities-table">
+            <table class="data-table">
+              <thead>
+                <tr>
+                  <th class="row-actions-head" aria-label="Zeilenaktionen"></th>
+                  <th><button type="button" class="sort-toggle">Name ↑</button></th>
+                  <th><button type="button" class="sort-toggle">Ticker</button></th>
+                  <th><button type="button" class="sort-toggle">ISIN</button></th>
+                  <th><button type="button" class="sort-toggle">Währung</button></th>
+                  <th><button type="button" class="sort-toggle">Anlageklasse</button></th>
+                  <th class="num"><button type="button" class="sort-toggle">Letzter Kurs</button></th>
+                  <th class="num"><button type="button" class="sort-toggle">Tagesänderung %</button></th>
+                </tr>
+              </thead>
+              <tbody>${rows.map(r => tableRow(r, o.k)).join('')}</tbody>
+            </table>
+          </div>
+          <ul id="securities-phone-rows" class="phone-rows" aria-label="Wertpapiere">${rows.map(r => phoneRow(r, o.k)).join('')}</ul>
+        </div>
+      </div>
+    </section>`;
+  };
+
+  document.querySelectorAll('[data-ov]').forEach(el => {
+    const after = el.dataset.ov === 'after';
+    el.innerHTML = overview({ after, count: after ? 3 : 4, k: after ? 'a' : 'b' });
+  });
+  document.querySelectorAll('[data-sec]').forEach(el => {
+    const after = el.dataset.sec === 'after';
+    el.innerHTML = securities({ after, k: after ? 'a' : 'b' });
+  });
+
+  // ---- measured: the count on the line against the rows the list shows -----
+  requestAnimationFrame(() => {
+    ['before', 'after'].forEach(state => {
+      const count = Number(document.querySelector(`[data-ov="${state}"] [data-role="dq-class"]`).dataset.count);
+      const list = document.querySelector(`[data-sec="${state}"]`);
+      const shown = [...list.querySelectorAll('.security-row, .phone-row')].filter(e => e.offsetParent !== null);
+      const retired = shown.filter(e => e.classList.contains('is-retired')).length;
+      const removable = [...list.querySelectorAll('#filter-chips .chip')].map(c => `“${c.textContent.trim()}”`);
+      const agree = count === shown.length;
+      document.querySelector(`[data-out="${state}"]`).innerHTML =
+        `Measured in this frame: line count <b>${count}</b> · rows listed <b class="${agree ? 'ok' : 'off'}">${shown.length}</b> · of them retired <b class="${retired ? 'off' : 'ok'}">${retired}</b> · removable chips ${removable.length ? removable.join(', ') : 'none'}.`;
+    });
+  });
+})();
+</script>
+</body>
+</html>
