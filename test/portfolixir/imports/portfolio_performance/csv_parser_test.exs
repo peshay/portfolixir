@@ -185,9 +185,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
         2024-09-04 00:00:00;Einlieferung;Synthetic Fund;5;20,00;100,00;1,00;;101,00;Depot;;;
         2024-10-01 00:00:00;Auslieferung;Synthetic Fund;2;40,00;80,00;;;999,00;Depot;;;
         2024-11-15 21:00:00;Umbuchung (Ausgang);Synthetic Fund;3;66,67;200,00;;;200,00;Depot;Depot-2;;
+        2024-11-20 00:00:00;Einlieferung;Synthetic Fund;1;20,00;20,00;;;abc;Depot;;;
         """)
 
-      assert Enum.map(entries, &cash/1) == [nil, nil, nil]
+      assert Enum.map(entries, &cash/1) == [nil, nil, nil, nil]
     end
 
     test "a refund split off a credit row leaves the row summing to its Gesamtpreis" do
