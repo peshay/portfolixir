@@ -3845,6 +3845,57 @@ describe("Portfolixir MCP tools", () => {
     await assert.rejects(callTool(client, "portfolixir.securities.list", { is_benchmark: "yes" }));
   });
 
+  // User story (owner decision 2026-10-05):
+  // As the operator's agent, told by portfolixir.securities.delete to retire
+  // a security that has bookings,
+  // I want portfolixir.securities.update to take is_retired,
+  // so that the remedy the delete names is one I can apply.
+  //
+  // Acceptance criteria:
+  // - is_retired true and false reach PATCH /api/v1/securities/:id as sent,
+  //   under the book profile, where false restoring it keeps the tool.
+  // - A non-boolean is refused before anything is sent.
+  // - The property says what retiring does: the security leaves the
+  //   stale_quote, missing_quote and missing_logo checks, false restores it,
+  //   and its stale quote stops counting as a price measurement in
+  //   performance (#610).
+  it("forwards is_retired on securities.update under the book profile and refuses a non-boolean", async () => {
+    const { client, requests } = createRecordingClient({ data: { id: 7 } });
+
+    const book = { profile: "book" } as const;
+
+    await callTool(client, "portfolixir.securities.update", { id: 7, security: { is_retired: true } }, book);
+    await callTool(client, "portfolixir.securities.update", { id: 7, security: { is_retired: false } }, book);
+
+    assert.deepEqual(requests, [
+      {
+        method: "PATCH",
+        path: "/api/v1/securities/7",
+        body: { security: { is_retired: true } },
+        token: "Bearer api-token"
+      },
+      {
+        method: "PATCH",
+        path: "/api/v1/securities/7",
+        body: { security: { is_retired: false } },
+        token: "Bearer api-token"
+      }
+    ]);
+
+    await assert.rejects(
+      callTool(client, "portfolixir.securities.update", { id: 7, security: { is_retired: "yes" } }, book)
+    );
+    assert.equal(requests.length, 2, "a refused argument sends nothing");
+
+    const update = listTools({ profile: "book" }).find((tool) => tool.name === "portfolixir.securities.update");
+    const property = (update!.inputSchema as any).properties.security.properties.is_retired;
+
+    assert.equal(property.type, "boolean");
+    for (const statement of [/stale_quote/, /missing_quote/, /missing_logo/, /false restores/, /#610/]) {
+      assert.match(property.description, statement);
+    }
+  });
+
   // Issue #776: the limit surface finished — the four research-log reads, the
   // snapshot list and the three cash-flow roll-ups take limit on both halves;
   // the trades read keeps from/to as its bound and carries no limit.

@@ -855,7 +855,7 @@ const securityUpdateSchema = {
         currency_code: {
           type: "string",
           description:
-            "ADR-0050 §11: Frozen once the security has a transaction or a quote — a change then answers 422 with errors.currency_code counting them, and nothing is written. Resending the stored currency is no change."
+            "ADR-0050 §11: Frozen once the security has a transaction or a quote; a change answers 422 with errors.currency_code counting them. Resending the stored currency is no change."
         },
         exchange_code: { type: "string" },
         asset_class: { type: "string" },
@@ -867,12 +867,17 @@ const securityUpdateSchema = {
         treat_quotes_as_raw: {
           type: "boolean",
           description:
-            "ADR-0028: treat this security's provider-synced quotes as raw (as-traded), for a provider that never back-adjusts closes after a split, so the split factors apply to its synced rows too. Default false (synced rows are trusted as already adjusted)."
+            "ADR-0028: treat this security's provider-synced quotes as raw (as-traded), for a provider that never back-adjusts closes after a split, so the split factors apply to its synced rows too. Default false (synced rows trusted as adjusted)."
         },
         is_benchmark: {
           type: "boolean",
           description:
-            "ADR-0046: mark this security as a benchmark, a price series the portfolio is compared against (an index proxied by an ETF, gold by an ETC), fed by the quote sync. A benchmark is never offered for booking and is left out of the catalog-hygiene checks; it may still be held."
+            "ADR-0046: mark this security as a benchmark, a price series the portfolio is compared against (an index ETF, a gold ETC), fed by the quote sync. A benchmark is never offered for booking and is left out of the catalog-hygiene checks; it may still be held."
+        },
+        is_retired: {
+          type: "boolean",
+          description:
+            "Retire a sold-out or delisted security: it leaves the stale_quote, missing_quote and missing_logo checks until false restores it, and its stale quote stops counting as a price measurement in performance (#610)."
         },
         attributes: { type: "object", additionalProperties: true },
         ...bondProperties(true)
@@ -898,6 +903,7 @@ const securityUpdateZ = z.object({
     online_id: optionalString(),
     treat_quotes_as_raw: z.boolean().optional(),
     is_benchmark: z.boolean().optional(),
+    is_retired: z.boolean().optional(),
     attributes: z.record(z.string(), z.unknown()).optional(),
     ...bondZ(true)
   })
@@ -3012,7 +3018,7 @@ const declaredTools: DeclaredTool[] = [
   })),
   tool("portfolixir.securities.get", "Get security", "Read one security's full record. identifier_aliases: the former ISINs portfolixir.securities.isin_change recorded, which keep old exports matching. thesis_state (ADR-0044): the current thesis projected from portfolixir.notes.list entries, never stored (status none|intact|retracted, thesis, conviction, invalidation_condition, time_stop, as_of, last_reviewed_at/by, derived_from_entry_id and, when retracted, the retracted_by_entry_id whose body gives the reason); read the log for the evidence. bond (ADR-0052), for asset class bond or government_bond, else null: nominal_held (quantity × 100, a unit being a hundredth of the face amount), remaining_term, current_yield and yield_to_maturity (linear), ratios, each with computation_basis, and two_scales, set when quotes near 100 meet booked unit prices near 1 (every money figure then 100× too high). A security merged into another (portfolixir.securities.merge) answers 404 with errors.merged_into {kind, id}: the live security its history lives on (ADR-0050 §12).", idSchema, idZ),
   tool("portfolixir.securities.create", "Create security", "Create a local security. With the instance's enrichment on, a create also queues a quote backfill from the configured provider and a logo lookup, reaching outside the instance (openWorldHint). To keep a position (e.g. Bitcoin) in totals and performance but out of the allocation basis (the 100%) and drift, tag it with a bucket the active view excludes. Every key of attributes, at any depth, is one-line text of at most 255 characters, and no text value carries a control character but tab and line break; else 422 on attributes.", securitySchema, securityZ),
-  tool("portfolixir.securities.update", "Update security", "Patch a security's master data; null clears a bond field. To keep a position in totals and performance but out of the allocation basis and drift, tag it with a bucket the active view excludes. An ISIN change after a corporate action is portfolixir.securities.isin_change, which keeps the former ISIN as an import-matching alias; a rename is a name edit here. The currency_code freezes once the security has a transaction or a quote (ADR-0050 §11): a change then answers 422 with errors.currency_code counting them (\"is frozen once referenced (120 quotes, 3 transactions)\") and writes nothing. Every key of attributes, at any depth, is one-line text of at most 255 characters, and no text value carries a control character but tab and line break; else 422 on attributes. A changed identifier meets the catalog's rules or answers 422 naming the field: an isin of two letters, nine letters or digits and a check digit that agrees, a WKN of six letters or digits, a ticker_symbol of printable ASCII; resending the stored value is no change. The name is stored without format characters (zero-width spaces and joiners, bidirectional controls).", securityUpdateSchema, securityUpdateZ),
+  tool("portfolixir.securities.update", "Update security", "Patch a security's master data; null clears a bond field. To keep a position in totals and performance but out of the allocation basis and drift, tag it with a bucket the active view excludes. An ISIN change after a corporate action is portfolixir.securities.isin_change; a rename is a name edit here. The currency_code freezes once the security has a transaction or a quote: a change then answers 422 and writes nothing. Every key of attributes, at any depth, is one-line text of at most 255 characters, and no text value carries a control character but tab and line break; else 422 on attributes. A changed identifier meets the catalog's rules or answers 422 naming the field: an isin of two letters, nine letters or digits and a check digit that agrees, a WKN of six letters or digits, a ticker_symbol of printable ASCII; resending the stored value is no change. The name is stored without format characters (zero-width, bidirectional).", securityUpdateSchema, securityUpdateZ),
   tool(
     "portfolixir.securities.delete",
     "Delete security",
