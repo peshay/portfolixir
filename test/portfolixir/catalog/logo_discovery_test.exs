@@ -129,6 +129,70 @@ defmodule Portfolixir.Catalog.LogoDiscoveryTest do
     end
   end
 
+  # User story (PR #1102, review finding 6):
+  # As a maintainer pressing "Retry logo lookup for all" on the missing-logo
+  # list,
+  # I want the lookup to cover the rows that list shows,
+  # so that a retired or benchmark security the list leaves out is not
+  # looked up behind my back.
+  #
+  # Acceptance criteria:
+  # - Of three logo-less candidates, only the active one is looked up; the
+  #   retired and the benchmark one keep no logo once the queue is drained.
+  test "the missing-logo scan leaves a retired and a benchmark security alone" do
+    prior_enabled = Application.get_env(:portfolixir, :enable_logo_discovery, false)
+    prior_opts = Application.get_env(:portfolixir, :logo_discovery_opts, [])
+
+    tmp =
+      Path.join(
+        System.tmp_dir!(),
+        "portfolixir-logo-skip-#{System.unique_integer([:positive])}"
+      )
+
+    Application.put_env(:portfolixir, :enable_logo_discovery, false)
+
+    create = fn name, attrs ->
+      {:ok, security} =
+        Catalog.create_security(
+          Portfolixir.Actor.owner_ui(),
+          Map.merge(
+            %{
+              name: name,
+              currency_code: "USD",
+              provider: "portfolio_performance",
+              feed: "PORTFOLIO_PERFORMANCE"
+            },
+            attrs
+          )
+        )
+
+      security
+    end
+
+    active = create.("Arbolia Inc.", %{})
+    retired = create.("Brindle Inc.", %{is_retired: true})
+    benchmark = create.("Corvala Inc.", %{is_benchmark: true})
+
+    Application.put_env(:portfolixir, :enable_logo_discovery, true)
+    Application.put_env(:portfolixir, :logo_discovery_opts, req: logo_stub(), storage_dir: tmp)
+
+    try do
+      assert :ok = LogoDiscovery.enqueue_missing_security_logos()
+
+      assert wait_until(fn ->
+               Catalog.get_security!(active.id).attributes["logo_path"] &&
+                 MapSet.size(:sys.get_state(LogoDiscovery).queued) == 0
+             end)
+
+      refute Catalog.get_security!(retired.id).attributes["logo_path"]
+      refute Catalog.get_security!(benchmark.id).attributes["logo_path"]
+    after
+      Application.put_env(:portfolixir, :enable_logo_discovery, prior_enabled)
+      Application.put_env(:portfolixir, :logo_discovery_opts, prior_opts)
+      File.rm_rf(tmp)
+    end
+  end
+
   # User story:
   # As a local portfolio maintainer with securities imported before logo
   # discovery was reliable,
