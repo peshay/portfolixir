@@ -1868,8 +1868,12 @@ defmodule Portfolixir.Imports.Applier do
   # time — `settlement_amount` is the account-currency trade amount (read
   # off the cash amount net of fees and taxes, the settlement guard's
   # relation inverted, #395: PP prints the per-share Kurs rounded, so
-  # quantity × Kurs can miss the Betrag by more than the guard's cent;
-  # quantity × price only without a cash amount), `security_amount` is that amount converted through
+  # quantity × Kurs can miss that amount by more than the guard's cent;
+  # quantity × price only without a cash amount). The cash amount is the
+  # entry's `gross_amount`: a JSON row's `amount`, a CSV row's Gesamtpreis,
+  # or a converter-written row's Betrag (ADR-0053 §1); the Betrag PP writes
+  # beside a Gesamtpreis is its gross value, not the cash. `security_amount`
+  # is that amount converted through
   # the STORED hub rate at the booking date, `settlement_fx_rate` their
   # ratio — so the cost fold can carry an honest cost pair without any
   # read-time rate lookup. No stored rate for the booking date means no
