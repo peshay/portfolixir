@@ -114,20 +114,63 @@ defmodule Portfolixir.Catalog.DataQualityTest do
     assert names(DataQuality.list("stale_quote", query: "Unpriced")) == ["Unpriced AG"]
   end
 
-  # Closing-act finding (edge-case hunter): the Wealth finding leaves a
-  # retired holding out of the stale-quote count, so the list it links to —
-  # this predicate — must leave it out too, or a count of N links to a list
-  # of N + 1. A retired security's stopped feed is expected.
-  test "stale_quote leaves a retired security out; missing_quote still names it when never priced" do
-    stale = create_security!(name: "Retired Stale AG", ticker: "RSA")
-    put_quote!(stale, Date.add(Date.utc_today(), -40), "9")
-    {:ok, _} = Catalog.update_security(Actor.owner_ui(), stale, %{is_retired: true})
-    unpriced = create_security!(name: "Retired Unpriced AG", ticker: "RUA")
-    {:ok, _} = Catalog.update_security(Actor.owner_ui(), unpriced, %{is_retired: true})
+  defp retire!(security, retired?) do
+    {:ok, security} = Catalog.update_security(Actor.owner_ui(), security, %{is_retired: retired?})
+    security
+  end
 
-    refute "Retired Stale AG" in names(DataQuality.list("stale_quote"))
-    refute "Retired Unpriced AG" in names(DataQuality.list("stale_quote"))
-    assert "Retired Unpriced AG" in names(DataQuality.list("missing_quote"))
+  # User story (owner decision 2026-10-05, reversing the closing-act rule that
+  # kept a never-priced retired security under missing_quote):
+  # As the maintainer whose sold-out and delisted securities stay in the
+  # catalog because their bookings do,
+  # I want retiring a security to take it out of every catalog-hygiene set,
+  # as a benchmark already is,
+  # so that the remedy the delete names clears the findings it belongs to
+  # instead of one of three.
+  #
+  # Acceptance criteria:
+  # - A retired security is in none of stale_quote, missing_quote and
+  #   missing_logo, priced long ago or never priced, with no logo; each
+  #   count drops with its list.
+  # - Un-retiring puts it back in every set it matches.
+  # - A security that is not retired stays where it was.
+  test "a retired security leaves stale_quote, missing_quote and missing_logo" do
+    %{stale: stale, unpriced: unpriced} = world()
+    still_stale = create_security!(name: "Still Stale AG", ticker: "SST")
+    put_quote!(still_stale, Date.add(Date.utc_today(), -40), "9")
+
+    retire!(stale, true)
+    unpriced = retire!(unpriced, true)
+
+    assert names(DataQuality.list("stale_quote")) == ["Still Stale AG"]
+    assert names(DataQuality.list("missing_quote")) == []
+    assert names(DataQuality.list("missing_logo")) == ["Still Stale AG"]
+
+    for id <- ~w(stale_quote missing_quote missing_logo) do
+      assert DataQuality.count(id) == length(DataQuality.list(id)), id
+    end
+
+    retire!(unpriced, false)
+
+    assert names(DataQuality.list("stale_quote")) == ["Still Stale AG", "Unpriced AG"]
+    assert names(DataQuality.list("missing_quote")) == ["Unpriced AG"]
+    assert names(DataQuality.list("missing_logo")) == ["Still Stale AG", "Unpriced AG"]
+  end
+
+  # The securities page loads its rows with the query half alone and applies
+  # refine/3 itself (`?dq=missing_logo`), so the retired exclusion must ride
+  # the in-memory half too, or the page lists what the dashboard no longer
+  # counts.
+  test "refine/3 leaves a retired security out of missing_logo on rows loaded with the query half" do
+    %{unpriced: unpriced} = world()
+    retire!(unpriced, true)
+
+    rows = Catalog.list_securities_with_metrics(logo_status: :missing)
+
+    assert names(DataQuality.refine(rows, "missing_logo")) == ["Stale AG"]
+
+    assert names(DataQuality.refine(rows, "missing_logo")) ==
+             names(DataQuality.list("missing_logo"))
   end
 
   # User story (#789):

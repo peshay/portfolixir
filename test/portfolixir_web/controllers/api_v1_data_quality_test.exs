@@ -1,10 +1,12 @@
 defmodule PortfolixirWeb.ApiV1DataQualityTest do
   use PortfolixirWeb.ConnCase
 
-  import Portfolixir.WorldFixtures, only: [create_security!: 1, put_quote!: 3]
+  import Portfolixir.WorldFixtures,
+    only: [base_world: 1, buy!: 3, create_security!: 1, deposit!: 3, put_quote!: 3, sell!: 3]
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.DataQuality
+  alias Portfolixir.Journal
 
   @auth {"authorization", "Bearer test-api-token"}
 
@@ -97,5 +99,101 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
              get_json(conn, "/api/v1/securities?data_quality=stale_quote&query=Unpriced")
              |> json_response(200)
            ) == ["Unpriced AG"]
+  end
+
+  # User story (owner decision 2026-10-05):
+  # As the operator's agent, told by the delete to retire a security that has
+  # bookings,
+  # I want PATCH is_retired -- what portfolixir.securities.update sends -- to
+  # take the security out of the three catalog-hygiene sets, journaled under
+  # my token,
+  # so that tidying sold-out securities clears the lists I work and the audit
+  # trail says which credential did it.
+  #
+  # Acceptance criteria:
+  # - PATCH {is_retired: true} answers 200, the detail read shows it, and the
+  #   journal holds the update under the token's actor type and name.
+  # - With every not-held member of stale_quote retired, stale_quote lists
+  #   only the held one, and missing_quote and missing_logo no longer list
+  #   the retired ones.
+  # - PATCH {is_retired: false} puts a security back in the sets it matches.
+  test "retiring the not-held securities over the API leaves only the held one in the sets",
+       %{conn: conn} do
+    previous = Application.get_env(:portfolixir, :api_tokens)
+    agent_token = String.duplicate("a", 40)
+    Application.put_env(:portfolixir, :api_tokens, [{"mcp", agent_token}])
+    on_exit(fn -> Application.put_env(:portfolixir, :api_tokens, previous) end)
+
+    today = Date.utc_today()
+    world = base_world(name: "Retire Book", cash_name: "Retire Cash", depot_name: "Retire Depot")
+    deposit!(world, "1000", Date.add(today, -60))
+
+    held = create_security!(name: "Held Stale AG", ticker: "HST")
+    buy!(world, held, quantity: "2", price: "100", date: Date.add(today, -50))
+    put_quote!(held, Date.add(today, -30), "101")
+
+    # Sold out, with a quote after its last trade.
+    sold = create_security!(name: "Sold Out AG", ticker: "SLD")
+    buy!(world, sold, quantity: "1", price: "50", date: Date.add(today, -50))
+    sell!(world, sold, quantity: "1", price: "60", date: Date.add(today, -40))
+    put_quote!(sold, Date.add(today, -35), "61")
+
+    never = create_security!(name: "Never Priced AG", ticker: "NVP")
+
+    agent = fn ->
+      conn
+      |> recycle()
+      |> put_req_header("accept", "application/json")
+      |> put_req_header("content-type", "application/json")
+      |> put_req_header("authorization", "Bearer " <> agent_token)
+    end
+
+    set = fn id ->
+      agent.()
+      |> get("/api/v1/securities?data_quality=#{id}")
+      |> json_response(200)
+      |> names()
+    end
+
+    patch_retired = fn security, retired? ->
+      agent.()
+      |> patch(
+        "/api/v1/securities/#{security.id}",
+        Jason.encode!(%{security: %{is_retired: retired?}})
+      )
+      |> json_response(200)
+    end
+
+    assert set.("stale_quote") == ["Held Stale AG", "Never Priced AG", "Sold Out AG"]
+    assert set.("missing_quote") == ["Never Priced AG"]
+    assert set.("missing_logo") == ["Held Stale AG", "Never Priced AG", "Sold Out AG"]
+
+    assert %{"data" => %{"is_retired" => true}} = patch_retired.(sold, true)
+    assert %{"data" => %{"is_retired" => true}} = patch_retired.(never, true)
+
+    assert %{"data" => %{"is_retired" => true}} =
+             agent.() |> get("/api/v1/securities/#{sold.id}") |> json_response(200)
+
+    assert [entry | _] =
+             Journal.list_entries(
+               resource_type: "security",
+               operation: :update,
+               resource_id: to_string(sold.id)
+             )
+
+    assert entry.actor_type == :api_token_rw
+    assert entry.actor_label == "mcp"
+    assert entry.before["is_retired"] == false
+    assert entry.after["is_retired"] == true
+
+    assert set.("stale_quote") == ["Held Stale AG"]
+    assert set.("missing_quote") == []
+    assert set.("missing_logo") == ["Held Stale AG"]
+
+    assert %{"data" => %{"is_retired" => false}} = patch_retired.(never, false)
+
+    assert set.("stale_quote") == ["Held Stale AG", "Never Priced AG"]
+    assert set.("missing_quote") == ["Never Priced AG"]
+    assert set.("missing_logo") == ["Held Stale AG", "Never Priced AG"]
   end
 end

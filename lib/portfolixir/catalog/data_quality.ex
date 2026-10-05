@@ -15,7 +15,7 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   | id | means |
   |---|---|
-  | `stale_quote` | no quote newer than #{7} days — **including no quote at all**; a retired security is left out, its stopped feed is expected |
+  | `stale_quote` | no quote newer than #{7} days — **including no quote at all** |
   | `missing_quote` | no quote at all |
   | `missing_logo` | no stored logo, and not deliberately locked to "no logo" |
   | `missing_fx` | priced, but no stored rate from its currency to the base (EUR hub) |
@@ -25,18 +25,28 @@ defmodule Portfolixir.Catalog.DataQuality do
   in 7 days" and has always counted the never-priced rows in it, because a
   security nobody has ever priced is not in better shape than one priced a
   month ago. The narrower set exists so the two can be told apart when working
-  them. The one exception is a retired security: its stale quote is expected
-  and leaves `stale_quote` (the remedy the Wealth finding names is the retired
-  flag, so the remedy must clear the finding and the list it links to), while
-  a retired security that was never priced still shows under `missing_quote`.
+  them.
+
+  The first three are catalog hygiene, and two kinds of security are left out
+  of all three. A benchmark is a reference, not a holding (ADR-0046 §1). A
+  retired security's stopped feed and missing logo are expected (owner
+  decision 2026-10-05, which replaced the rule that kept a never-priced
+  retired security under `missing_quote`): retiring is the remedy the
+  securities delete names for a security with bookings and the Wealth
+  stale-quote finding names for a holding whose listing ended, so the remedy
+  must clear the Overview's findings and the lists they link to. `missing_fx`
+  keeps both, because a missing rate path breaks a valuation whatever the
+  security.
 
   ## Two halves, and why a caller must apply both
 
   A predicate narrows in the query where it can (`missing_logo` is a JSONB
-  condition on the row) and in memory where it cannot (stale/missing quote are
-  derived from the enriched metrics). `list_opts/1` is the first half and
-  `filter/2` is the second; `list/2` applies both and is what a caller should
-  reach for unless it is already holding rows.
+  condition on the row, the benchmark exclusion a column) and in memory where
+  it cannot (stale/missing quote are derived from the enriched metrics, and
+  the query layer has no retired option, so the retired exclusion runs here
+  for all three). `list_opts/1` is the first half and `refine/3` is the
+  second; `list/2` applies both and is what a caller should reach for unless
+  it is already holding rows.
   """
 
   alias Portfolixir.Catalog
@@ -142,8 +152,9 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   # The logo condition is expressed entirely in the query (`list_opts/1`), and
   # is deliberately NOT mirrored here: a second copy in Elixir is the drift
-  # this module exists to remove.
-  def refine(rows, "missing_logo", _today), do: rows
+  # this module exists to remove. Only the retired exclusion runs here, which
+  # the query layer has no option for.
+  def refine(rows, "missing_logo", _today), do: Enum.reject(rows, &retired?/1)
 
   # #717: "Missing FX" is about the RATE, not the currency — a priced row
   # whose currency has no stored path to the EUR hub. The rated set is loaded
@@ -163,13 +174,8 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   def refine(rows, id, today) when id in @ids do
     today = today || Clock.today()
-    Enum.filter(rows, &matches?(&1, id, today))
+    Enum.filter(rows, &(not retired?(&1) and matches?(&1, id, today)))
   end
-
-  # A retired security's stopped feed is expected: it leaves this predicate
-  # so the count the Wealth finding shows links to a list of the same rows
-  # (closing-act finding; the finding's own remedy is the retired flag).
-  defp matches?(%{security: %{is_retired: true}}, "stale_quote", _today), do: false
 
   defp matches?(row, "stale_quote", today) do
     case latest_price_date(row) do
@@ -179,6 +185,13 @@ defmodule Portfolixir.Catalog.DataQuality do
   end
 
   defp matches?(row, "missing_quote", _today), do: is_nil(latest_price_date(row))
+
+  # A retired security's stopped feed and missing logo are expected, so it
+  # leaves the three catalog-hygiene sets (owner decision 2026-10-05): the
+  # retired flag is the remedy the delete and the Wealth finding name, and a
+  # remedy must clear the finding and the list it links to.
+  defp retired?(%{security: %{is_retired: true}}), do: true
+  defp retired?(_row), do: false
 
   defp latest_price_date(%{metrics: %{latest_price_date: date}}), do: date
   defp latest_price_date(_row), do: nil

@@ -464,6 +464,46 @@ defmodule PortfolixirWeb.DashboardTest do
     refute has_element?(view, "[data-role='data-quality-line']")
   end
 
+  # User story (owner decision 2026-10-05):
+  # As a maintainer who retires a security that was sold out or delisted,
+  # I want the Overview's quote and logo counts to drop with it,
+  # so that the line counts what still needs work, not what I have closed.
+  #
+  # Acceptance criteria:
+  # - A never-priced security without a logo counts once under each finding.
+  # - Retired, it counts under neither, and with nothing else open the line
+  #   is gone.
+  test "a retired security leaves the data-quality line's quote and logo counts", %{conn: conn} do
+    %{security: security} = seed_holding()
+
+    {:ok, security} =
+      Catalog.update_security(Actor.owner_ui(), security, %{asset_class: "equity"})
+
+    {:ok, _} = Catalog.put_logo_attributes(security, %{"logo_path" => "logos/acme.png"})
+
+    {:ok, closed} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Closed Co",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    assert has_element?(view, "[data-role='dq-quotes']", "one security without a quote in 7 days")
+    assert has_element?(view, "[data-role='dq-logo']", "one without a logo")
+
+    {:ok, _} = Catalog.update_security(Actor.owner_ui(), closed, %{is_retired: true})
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    refute has_element?(view, "[data-role='dq-quotes']")
+    refute has_element?(view, "[data-role='dq-logo']")
+    refute has_element?(view, "#dashboard-data-quality")
+  end
+
   # User story (issue #718, D1 / UX-DR21):
   # As a local portfolio maintainer,
   # I want the drift card named for what it contains,
