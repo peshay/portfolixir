@@ -843,9 +843,9 @@ The phrase "data quality" names two different blocks and they are not the same c
 
 **Retired securities (PR #1102, 2026-10-05):** a hygiene finding's count and the list its link opens both leave retired securities out. The asset-class finding is a column filter, not a `dq` predicate, so its link carries `filter[]=is_retired:is_false`, which the list shows as a removable chip. Board: [mockups/retire-fix-2026-10-05/01-class-link.html](mockups/retire-fix-2026-10-05/01-class-link.html).
 
-**Wealth → data quality is a list of {components.data-note} rows**, one per finding, at the finding's own severity. Six conditions render there today, all as identical `<li>` bullets under a bare `<h2>` (`portfolio_live.ex`, `#portfolio-data-quality`): trade-priced positions, positions with no price, positions with no FX rate, pre-1970 booking dates, cash accounts with no FX rate, and impossible negative holdings. The first is a note; the last is a problem; today they are the same bullet. Severity assignment for all six is in EXPERIENCE.md → Alignment inventory → UX-DR17.
+**Wealth → data quality is a list of {components.data-note} rows**, one per finding, at the finding's own severity (`portfolio_live.ex`, `#portfolio-data-quality`). Since issue 792 each finding is one `AppShell.data_note`, glyph and word included, with its remedy inside, all in one status region `[data-role="dq-notes"]` under the section's `<h2>`: trade-priced positions (a note), positions valued at a stale quote, positions with no price, positions with no FX rate, pre-1970 booking dates and cash accounts with no FX rate (attention), impossible negative holdings and bonds priced on two scales (problem). Severity assignment is in EXPERIENCE.md → Alignment inventory → UX-DR17. **The notes keep a gap** *(2026-10-05, #1055; board `mockups/ux-design-2026-10-04/02-money-notes`, found while drawing)*: the status region is a flex column with the `--space-2` gap, the comparison's `.comparison-notes` precedent, so two stacked notes never touch.
 
-*Amended 2026-10-05 (#1055, Sprint 19 PR α M3; board `mockups/ux-design-2026-10-04/02-money-notes`, before/after).* **The unvalued-cash note prints each account's native balance**: "2 Verrechnungskonten zählen nicht in die Summen, weil kein Wechselkurs zu EUR vorliegt: USD Settlement (1.850,00 USD), US Broker (60,00 USD)." — the balance in two decimals and the account's currency code, the shape the missing-FX note prints a native price in, nothing converted (UX-DR25 clause 2). It used to print "USD Settlement (USD)", the name and the code with no amount, in the note that says the total leaves the money out. **The notes keep a gap:** the status region `[data-role="dq-notes"]` is a flex column with the `--space-2` gap, the comparison's `.comparison-notes` precedent, so two stacked notes never touch. The note stays a statement about today; what a balance did before its first rate is the contribution note's sentence (Wealth → Holdings → Performance, pick J2 A), which has a period.
+**The unvalued-cash note prints each account's native balance** *(2026-10-05, #1055, Sprint 19 PR α M3; the same board's before/after)*: "2 Verrechnungskonten zählen nicht in die Summen, weil kein Wechselkurs zu EUR vorliegt: USD Settlement (1.850,00 USD), US Broker (60,00 USD)." — the balance in at least two decimals, with every further digit it carries (a balance below a cent reads "0,004 USD", never "0,00"), and the account's currency code: the shape the missing-FX note prints a native price in, nothing converted (UX-DR25 clause 2). It used to print "USD Settlement (USD)", the name and the code with no amount, in the note that says the total leaves the money out. It names only accounts that hold money: an empty account leaves nothing out of the total, as the performance walk counts it. The note stays a statement about today; what a balance did before its first rate is the contribution note's sentence (Wealth → Holdings → Performance, pick J2 A), which has a period.
 
 **The icon vocabulary, enumerated (app.css has none of it — the set is `app_shell.ex` `icon_paths/1`, lines 428-535).** 36 named glyphs, all 24×24, `fill="none"`, `stroke="currentColor"`, `stroke-width="1.6"`, round caps and joins, plus a fallback clause that renders a bare `circle r="5"` for any unknown name: `dashboard · layers · bookmark · briefcase · folder · calc · bars · pie · chart_line · chart_bar · coins · tag · globe · building · compass · settings · monitor · sun · moon · plus · upload · filter · columns · search · trash · x · chevron_right · refresh_cw · ellipsis_vertical · copy · edit · archive · external_link · maximize · minimize · image`.
 
@@ -1043,7 +1043,7 @@ carries `num`; no second comma rule in the web layer) and
 - **Hero** — **retired 2026-08-05.** {components.hero} was specified for the four-metric-card Overview of the superseded UX-DR2. That rule now follows the build (EXPERIENCE.md UX-DR2): the Overview is value + change, "Off target" (UX-DR21), and data quality — plus the four-cell KPI strip since UX-DR2's 2026-09-14 amendment — and no hero component was ever built. The anatomy stays in the frontmatter as a record, unreferenced by any surface. [mockups/key-dashboard.html](mockups/key-dashboard.html) is downstream of the superseded rule and is **stale** — it illustrates a composition this document no longer specifies. Re-render or retire it before the mock is used as a reference again. (The spines-win-on-conflict clause is stated once, in EXPERIENCE.md → IA; it is not repeated here.)
 - **"Needs attention" card** (`#dashboard-attention`) — {components.needs-attention-card}: heading, basis line, up to five drift rows, each a link into Wealth → Allocation & targets. The basis line ships in full (`data-role="attention-basis"` names the view, the plan and the tree beside the threshold clause, issue 673); since issue 798 each row also carries the decorative `.drift-bar` (Components → Drift bars). The empty case is a plain muted line (`data-role="all-clear"`), which is correct and stays.
 - **Overview data quality** (`#dashboard-data-quality`) — {components.data-quality-line}: one line, only when N > 0, no all-clear badge, remedy link pre-filtered. Built as specified since issue 688 (re-verified 2026-09-15, issue 798); see Components → Data quality.
-- **Wealth data quality** (`#portfolio-data-quality`) — six findings as {components.data-note} rows at their own severities. Built as one bare `<h2>` plus six identical `<li>` bullets. Since #1055 the notes stack in their status region `--space-2` apart, and the unvalued-cash note names each account with its native balance (Components → Data quality).
+- **Wealth data quality** (`#portfolio-data-quality`) — one `AppShell.data_note` per finding at its own severity, in one status region `[data-role="dq-notes"]` that stacks them `--space-2` apart (issue 792; the gap since #1055); the unvalued-cash note names each account with its native balance (Components → Data quality).
 - **Inline results** — {components.inline-result}: in-flow feedback beside its trigger, reusing the data-note severities, no timer. Replaces `.status-toast` and the `AutoDismissToast` hook (issue #566).
 - **Connection state** — {components.connection-state}: one band under the top bar for a lost or reconnecting LiveView socket. Nothing is built and nothing is styled; LiveView 1.2.8 already applies the classes.
 - **Tax budget meter** — {components.budget-meter}: track, accent fill, remaining amount, as-of basis line. Explicitly no threshold colouring.
@@ -3142,21 +3142,30 @@ of the contribution read (`Performance.Contribution.for_view/2`), and it is
   Zeitraums null: **Tagesgeld CHF** (2.000,00 CHF, 18 Tage, kein
   Wechselkurs gespeichert)." The balance is the account's own, in its
   currency (UX-DR25 clause 2), never a converted one: there was no rate to
-  convert with. When the currency's first rate arrived inside the period, a
-  second sentence says where the balance went: "Mit dem ersten Kurs am
-  01.08.2026 kam sein ganzer Saldo in den „Währungseffekt auf Bargeld“ —
-  das ist kein Währungsgewinn." An account still without a rate at the
-  period's end, or one whose rate came after it, gets the first sentence
-  only. Several accounts take the plural ("2 Verrechnungskonten zählten
-  …"), and the second sentence names each account whose rate came, with its
-  date ("Mit ihren ersten Kursen kamen die ganzen Salden von Tagesgeld CHF
-  (01.08.2026), … in den „Währungseffekt auf Bargeld“ — das ist kein
-  Währungsgewinn."). One finding, one note (UX-DR17): with no position at
-  zero the note carries the accounts alone, and an empty window that still
-  held such an account shows the note under the empty-state sentence. The
-  note follows the period: switch to a period without the zero days and the
-  account leaves it with the jump. No sync control (clause 3): a rate
-  synced today cannot value a past day.
+  convert with; it prints at least two decimals and every further digit it
+  carries. The days include the day before the period, whose close is the
+  start value: a period that opens on the first rate's day holds the whole
+  jump, so it names the account. When the currency's first exchange rate
+  arrived inside the period while the account still held money at zero, a
+  second sentence says where the balance went: "Mit dem ersten Wechselkurs
+  am 01.08.2026 kam sein ganzer Saldo in den „Währungseffekt auf Bargeld“ —
+  das ist kein Währungsgewinn." — "kein Währungsverlust" for an overdraft,
+  "weder ein Währungsgewinn noch ein Währungsverlust" for balances of both
+  signs. "Wechselkurs", never "Kurs", which the screen keeps for a
+  security's price. An account emptied before its rate came gets the first
+  sentence only: nothing entered the line. An account still at zero on the
+  period's last day reads "Ein Verrechnungskonto zählt bis zum Ende des
+  Zeitraums null: **…** (…)." (board J2 A, pin a2), after the others.
+  Several accounts take the plural ("2 Verrechnungskonten zählten …", "…
+  zählen bis zum Ende des Zeitraums null"), and the second sentence names
+  each account whose rate came, with its date ("Mit ihren ersten
+  Wechselkursen kamen die ganzen Salden von Tagesgeld CHF (01.08.2026), …
+  in den „Währungseffekt auf Bargeld“ — …"). One finding, one note
+  (UX-DR17): with no position at zero the note carries the accounts alone,
+  and an empty window that still held such an account shows the note under
+  the empty-state sentence. The note follows the period: switch to a period
+  after the first rate and the account leaves it with the jump. No sync
+  control (clause 3): a rate synced today cannot value a past day.
 - **The empty window** (ADR-0051 §4): no walked day in the period, or nothing
   held and no remainder line moved — the `.empty-state` sentence "In diesem
   Zeitraum gibt es nichts aufzuschlüsseln: Keine Position war im Bestand, und
