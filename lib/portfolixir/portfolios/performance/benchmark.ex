@@ -374,6 +374,10 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
           IRR.period_rate(benchmark_irr, Date.diff(summary.end_date, summary.start_date)),
         benchmark_units: units
       },
+      # #1055: the walk's portfolio figures above hold the jump a first rate
+      # brings into a balance that counted zero; the accounts are named for
+      # the covered window, as the performance read names them.
+      unvalued_cash_accounts: summary.unvalued_cash_accounts,
       computation_basis: computation_basis(benchmark, window, excluded)
     }
   end
@@ -402,6 +406,7 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
         benchmark_mwr: nil,
         benchmark_units: nil
       },
+      unvalued_cash_accounts: [],
       computation_basis: computation_basis(benchmark, window, excluded)
     }
   end
@@ -446,7 +451,11 @@ defmodule Portfolixir.Portfolios.Performance.Benchmark do
           "flow dated before the benchmark's first priced day is not replayed on its own day: " <>
           "it enters through the window's opening value and is listed in excluded_flows " <>
           "(#{length(excluded)} listed); window states the days the comparison covers and the " <>
-          "portfolio figures are chained over the same window. The irr and mwr pairs never " <>
+          "portfolio figures are chained over the same window. A cash account whose non-zero " <>
+          "balance counted zero for want of a rate path on a covered day or on the day before " <>
+          "them, and whose first rate brings its whole value into portfolio_ttwror and " <>
+          "end_value_delta, is listed in unvalued_cash_accounts as on the performance read " <>
+          "(#1055, ADR-0051 §10). The irr and mwr pairs never " <>
           "read at or below -1: a rate that rounds there reads -0.999999, the solver's floor",
       assumptions:
         "the synthetic portfolio is frictionless — no fees, no taxes, every flow invested " <>

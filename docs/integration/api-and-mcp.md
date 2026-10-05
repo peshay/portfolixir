@@ -1777,14 +1777,17 @@ Example account payloads:
   counts zero on every day it holds money while its currency has no rate
   path to the base currency, and the day the first rate arrives its whole
   balance enters the end value without being a flow: `unvalued_cash_accounts`
-  names each such account of the scope that counted zero on a window day
-  (#1055, ADR-0051 §10) — `cash_account_id`, `name`, `currency_code`,
-  `balance` (its native balance on its last such day, a Decimal string in
-  that currency, never converted), `unvalued_days`, `unvalued_reason`
-  (`no_rate`) and `first_rate_date` (the ISO date the currency's first rate
-  path arrived when that falls inside the window after its first such day,
-  else `null`) — sorted by name, `[]` when every balance was valued;
-  `computation_basis.gaps` names the field.
+  names each such account of the scope that counted zero on a window day or
+  on the day before the window, whose close is the start value (#1055,
+  ADR-0051 §10) — `cash_account_id`, `name`, `currency_code`, `balance` (its
+  native balance on its last such day, a Decimal string in that currency,
+  never converted), `unvalued_days` (its days, the day before the window
+  (the start value) included), `unvalued_reason` (`no_rate`),
+  `unvalued_through_end` (`true` when it still counted zero on the window's
+  last day) and `first_rate_date` (the ISO date the currency's first rate
+  path arrived when that falls inside the window and the account held money
+  at zero on the day before, else `null`) — sorted by name, `[]` when every
+  balance was valued; `computation_basis.gaps` names the field.
 - `GET /api/v1/portfolios/:portfolio_id/performance/benchmark` returns the
   **benchmark comparison** (ADR-0046, FR-9): the portfolio's own external
   flows replayed into a benchmark, the read that answers "was the effort
@@ -1827,7 +1830,11 @@ Example account payloads:
   travels only as data in `benchmark.name` (E25). A missing or malformed `benchmark`
   is `422`; a portfolio with nothing to walk, or a benchmark without a quote
   in the window, answers `null` figures with `window.start_date: null` and
-  every flow named in `excluded_flows`. Nothing is persisted: the comparison
+  every flow named in `excluded_flows`. A cash account whose balance counted
+  zero before its currency's first rate — the jump that rate brings sits in
+  `portfolio_ttwror` and `end_value_delta` — is named in
+  `unvalued_cash_accounts`, the performance read's entries for the covered
+  window (`[]` without one; #1055). Nothing is persisted: the comparison
   is derived on read and memoised like the walk it depends on.
 - `GET /api/v1/portfolios/:portfolio_id/performance/contribution` returns the
   **contribution analysis** (FR-41, ADR-0051): which position made how much of
@@ -1847,7 +1854,8 @@ Example account payloads:
   and the first rate brings its whole value into `cash_currency_effect`:
   `unvalued_cash_accounts` names the account, exactly as the performance
   read of the same scope and window does, with its native `balance`, its
-  `unvalued_days` and the `first_rate_date` (#1055). The rows are sorted by
+  `unvalued_days` (the day before the window included),
+  `unvalued_through_end` and the `first_rate_date` (#1055). The rows are sorted by
   contribution, largest first, with no share, rank or label. `remainder`
   holds what no position does, each line summed from its own bookings and
   never a plug: `interest` (every interest booking, bond coupons included),

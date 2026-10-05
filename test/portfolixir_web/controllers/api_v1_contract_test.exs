@@ -64,7 +64,9 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     for read <- [
           "GET /api/v1/portfolios/:portfolio_id/performance and GET /api/v1/views/:view_id/performance",
           "GET /api/v1/portfolios/:portfolio_id/performance/contribution and " <>
-            "GET /api/v1/views/:view_id/performance/contribution"
+            "GET /api/v1/views/:view_id/performance/contribution",
+          "GET /api/v1/portfolios/:portfolio_id/performance/benchmark and " <>
+            "GET /api/v1/views/:view_id/performance/benchmark"
         ] do
       assert Enum.any?(
                newest["parameters"],
@@ -73,6 +75,14 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
              ),
              read
     end
+
+    # The review round: the day before the window counts, and an account
+    # still at zero on the last day says so.
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "the day before the window (the start value) included" and
+                 &1 =~ "unvalued_through_end")
+           )
 
     # Retiring over MCP (version 13, after Sprint 18's PR γ; PR #1102): the
     # update tool takes is_retired, the remedy the delete names when research
