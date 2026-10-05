@@ -8,7 +8,7 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
   alias Portfolixir.Imports.Preview
 
   @csv_header "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle"
-  @csv_ok "2024-01-15 10:01:00;Kauf;Synthetic AG;10;150,25;1.502,50;2,50;;1.502,50;Test-Depot;Test-Cash;;"
+  @csv_ok "2024-01-15 10:01:00;Kauf;Synthetic AG;10;150,00;1.500,00;2,50;;1.502,50;Test-Depot;Test-Cash;;"
 
   defp csv(rows), do: Enum.join([@csv_header | rows], "\n")
 
@@ -41,10 +41,10 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
   # - Every case still parses the sound row next to it.
   test "hostile CSV cells become row errors and the sound row survives" do
     for hostile <- [
-          "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,25;1.502,50;2,50;NaN;1.502,50;Test-Depot;Test-Cash;;",
-          "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,25;1.502,50;Infinity;;1.502,50;Test-Depot;Test-Cash;;",
-          "2024-01-16 10:01:00;Kauf;Synthetic AG;NaN;150,25;1.502,50;;;1.502,50;Test-Depot;Test-Cash;;",
-          "2024-01-16 10:01:00;Kauf;Synthetic AG;10;-Infinity;1.502,50;;;1.502,50;Test-Depot;Test-Cash;;"
+          "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,00;1.500,00;2,50;NaN;1.502,50;Test-Depot;Test-Cash;;",
+          "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,00;1.500,00;Infinity;;1.502,50;Test-Depot;Test-Cash;;",
+          "2024-01-16 10:01:00;Kauf;Synthetic AG;NaN;150,00;1.500,00;2,50;;1.502,50;Test-Depot;Test-Cash;;",
+          "2024-01-16 10:01:00;Kauf;Synthetic AG;10;-Infinity;1.500,00;2,50;;1.502,50;Test-Depot;Test-Cash;;"
         ] do
       assert {:ok, %Preview{entries: [_sound], errors: [%{row: 2, message: message}]}} =
                PortfolioPerformance.parse(csv([@csv_ok, hostile]), filename: "hostile.csv"),
@@ -136,15 +136,15 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
         case cell do
           "Wertpapier" ->
             <<"2024-01-16 10:01:00;Kauf;Synthetic M", 0xFC,
-              "nchen AG;10;150,25;1.502,50;2,50;;1.502,50;Test-Depot;Test-Cash;;">>
+              "nchen AG;10;150,00;1.500,00;2,50;;1.502,50;Test-Depot;Test-Cash;;">>
 
           "Quelle" ->
-            <<"2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,25;1.502,50;2,50;;1.502,50;Test-Depot;Test-Cash;;M",
+            <<"2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,00;1.500,00;2,50;;1.502,50;Test-Depot;Test-Cash;;M",
               0xFC, "nchen">>
 
           "Typ" ->
             <<"2024-01-16 10:01:00;K", 0xE4,
-              "uf;Synthetic AG;10;150,25;1.502,50;2,50;;1.502,50;Test-Depot;Test-Cash;;">>
+              "uf;Synthetic AG;10;150,00;1.500,00;2,50;;1.502,50;Test-Depot;Test-Cash;;">>
         end
 
       assert {:error, :invalid_encoding} =
@@ -255,7 +255,7 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
     assert n == rows * 2
 
     refund_row =
-      "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,25;1.502,50;;-1,00;1.502,50;Test-Depot;Test-Cash;;"
+      "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,00;1.500,00;;-1,00;1.499,00;Test-Depot;Test-Cash;;"
 
     assert {:error, {:too_many_entries, ^n}} =
              PortfolioPerformance.parse(csv(List.duplicate(refund_row, rows)), filename: "r.csv")
@@ -329,8 +329,11 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
       refute message =~ "{", "#{label}: #{message}"
     end
 
+    # ADR-0053: the Gesamtpreis is the cash a PP row books, so the value no
+    # column holds sits there. It also contradicts the Betrag beside it, and
+    # the bound is named first (ADR-0053 §2 runs after the row's bounds).
     csv_row =
-      "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,25;123.456.789.012.345.678,00;;;1.502,50;Test-Depot;Test-Cash;;"
+      "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,00;123.456.789.012.345.678,00;;;123.456.789.012.345.679,00;Test-Depot;Test-Cash;;"
 
     assert {:ok, %Preview{entries: [_], errors: [%{row: 2, message: message}]}} =
              PortfolioPerformance.parse(csv([@csv_ok, csv_row]), filename: "b.csv")

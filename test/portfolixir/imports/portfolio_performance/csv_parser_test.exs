@@ -52,8 +52,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
     test "parses German-formatted decimals exactly", %{preview: preview} do
       buy = Enum.find(preview.entries, &(&1.kind == "buy"))
       assert Decimal.equal?(buy.gross_amount, Decimal.new("1502.50"))
+      assert Decimal.equal?(buy.hash_amount, Decimal.new("1500.00"))
       assert Decimal.equal?(buy.quantity, Decimal.new("10"))
-      assert Decimal.equal?(buy.price, Decimal.new("150.25"))
+      assert Decimal.equal?(buy.price, Decimal.new("150.00"))
       assert Decimal.equal?(buy.fees, Decimal.new("2.50"))
     end
 
@@ -92,6 +93,148 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
 
       deposit = Enum.find(preview.entries, &(&1.kind == "deposit"))
       assert is_nil(deposit.time)
+    end
+  end
+
+  # User story (ADR-0053 §1, §5; risk-tier: money):
+  # As the operator dropping the CSV Portfolio Performance exports,
+  # I want each row to book the cash PP writes in its Gesamtpreis, where
+  # Betrag is only the gross value before fees and taxes,
+  # so that my cash balances match Portfolio Performance's to the cent.
+  #
+  # Acceptance criteria:
+  # - A Kauf books its Gesamtpreis (Betrag plus Gebühren and Steuern); a
+  #   Verkauf, a Dividende and Zinsen book theirs (Betrag minus them).
+  # - A row with an empty Gesamtpreis (a converter-written file) books its
+  #   Betrag, as before; so does every row of a file without the column.
+  # - A row with a Gesamtpreis and no Betrag books the Gesamtpreis.
+  # - A kind without cash (a delivery, a security transfer) books none,
+  #   whatever its money cells say.
+  # - A negative Steuern split off as a refund leaves the row's bookings
+  #   summing to its Gesamtpreis: on a credit row the parent books the
+  #   Gesamtpreis minus the refund, on a debit row the parent's debit is the
+  #   Gesamtpreis plus the refund, and the refund is booked beside it.
+  describe "parse/2 the cash a row books" do
+    @header "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n"
+
+    defp booked(rows, header \\ @header) do
+      assert {:ok, %Preview{errors: [], entries: entries}} = CsvParser.parse(header <> rows)
+      entries
+    end
+
+    defp cash(%{gross_amount: nil}), do: nil
+    defp cash(%{gross_amount: amount}), do: Decimal.to_string(amount, :normal)
+
+    test "a Portfolio Performance row books its Gesamtpreis" do
+      entries =
+        booked("""
+        2024-01-15 10:01:00;Kauf;Synthetic AG;10;150,00;1.500,00;2,50;1,00;1.503,50;Depot;Cash;;
+        2024-04-22 12:25:00;Verkauf;Synthetic AG;10;181,45;1.814,50;2,50;12,00;1.800,00;Depot;Cash;;
+        2024-02-15 00:00:00;Dividende;Synthetic AG;50;;11,54;;2,41;9,13;Cash;;;
+        2024-12-30 00:00:00;Zinsen;;;;5,75;;1,20;4,55;Cash;;;
+        2024-01-02 00:00:00;Einlage;;;;5.000,00;;;5.000,00;Cash;;;
+        """)
+
+      assert Enum.map(entries, &cash/1) == ["1503.50", "1800.00", "9.13", "4.55", "5000.00"]
+
+      assert Enum.map(entries, &Decimal.to_string(&1.hash_amount, :normal)) ==
+               ["1500.00", "1814.50", "11.54", "5.75", "5000.00"]
+
+      [buy, sell | _] = entries
+      assert Decimal.equal?(buy.price, Decimal.new("150.00"))
+      assert Decimal.equal?(buy.fees, Decimal.new("2.50"))
+      assert Decimal.equal?(buy.taxes, Decimal.new("1.00"))
+      assert Decimal.equal?(sell.taxes, Decimal.new("12.00"))
+    end
+
+    test "a row with an empty Gesamtpreis books its Betrag, as a converter writes it" do
+      entries =
+        booked("""
+        2025-01-06 10:15:00;Kauf;Synthetic AG;40;80,50;3.221,00;1,00;;;Depot;Cash;;
+        2025-06-16 00:00:00;Dividende;Synthetic AG;10;;7,36;;2,64;;Cash;;;
+        2025-09-01 14:00:00;Verkauf;Synthetic AG;10;62,00;612,50;1,50;6,00;;Depot;Cash;;
+        """)
+
+      assert Enum.map(entries, &cash/1) == ["3221.00", "7.36", "612.50"]
+    end
+
+    test "a file without a Gesamtpreis column books every row's Betrag" do
+      header = "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Konto;Gegenkonto\n"
+
+      entries =
+        booked(
+          """
+          2025-01-06 10:15:00;Kauf;Synthetic AG;40;80,50;3.221,00;1,00;;Depot;Cash
+          2025-06-16 00:00:00;Dividende;Synthetic AG;10;;7,36;;2,64;Cash;
+          """,
+          header
+        )
+
+      assert Enum.map(entries, &cash/1) == ["3221.00", "7.36"]
+    end
+
+    test "a row with a Gesamtpreis and no Betrag books the Gesamtpreis" do
+      assert [deposit] = booked("2024-01-02 00:00:00;Einlage;;;;;;;250,00;Cash;;;\n")
+      assert cash(deposit) == "250.00"
+      assert deposit.hash_amount == nil
+    end
+
+    test "a kind without cash books none, whatever its money cells say" do
+      entries =
+        booked("""
+        2024-09-04 00:00:00;Einlieferung;Synthetic Fund;5;20,00;100,00;1,00;;101,00;Depot;;;
+        2024-10-01 00:00:00;Auslieferung;Synthetic Fund;2;40,00;80,00;;;999,00;Depot;;;
+        2024-11-15 21:00:00;Umbuchung (Ausgang);Synthetic Fund;3;66,67;200,00;;;200,00;Depot;Depot-2;;
+        """)
+
+      assert Enum.map(entries, &cash/1) == [nil, nil, nil]
+    end
+
+    test "a refund split off a credit row leaves the row summing to its Gesamtpreis" do
+      # Betrag 10,00; Gebühren 0,50 and Steuern -1,00 make U = -0,50, so the
+      # credit's Gesamtpreis is 10,00 - (-0,50) = 10,50.
+      assert [dividend] =
+               booked(
+                 "2024-03-15 00:00:00;Dividende;Synthetic AG;10;;10,00;0,50;-1,00;10,50;Cash;;;\n"
+               )
+
+      assert [refund] = dividend.companion_entries
+      assert cash(dividend) == "9.50"
+      assert cash(refund) == "1.00"
+
+      assert Decimal.equal?(
+               Decimal.add(dividend.gross_amount, refund.gross_amount),
+               Decimal.new("10.50")
+             )
+
+      assert Decimal.equal?(dividend.taxes, Decimal.new("0"))
+    end
+
+    test "a refund split off a debit row leaves the row's net cash at its Gesamtpreis" do
+      # Betrag 1.000,00; Gebühren 2,50 and Steuern -1,00 make U = 1,50, so the
+      # debit's Gesamtpreis is 1.000,00 + 1,50 = 1.001,50.
+      assert [buy] =
+               booked(
+                 "2024-01-15 10:01:00;Kauf;Synthetic AG;10;100,00;1.000,00;2,50;-1,00;1.001,50;Depot;Cash;;\n"
+               )
+
+      assert [refund] = buy.companion_entries
+      assert cash(buy) == "1002.50"
+      assert cash(refund) == "1.00"
+
+      assert Decimal.equal?(
+               Decimal.sub(buy.gross_amount, refund.gross_amount),
+               Decimal.new("1001.50")
+             )
+    end
+
+    test "a refund split off a converter row books as before" do
+      assert [dividend] =
+               booked("2024-03-15 00:00:00;Dividende;Synthetic AG;10;;9,00;;-1,00;;Cash;;;\n")
+
+      assert [refund] = dividend.companion_entries
+      assert cash(dividend) == "9.00"
+      assert cash(refund) == "1.00"
     end
   end
 

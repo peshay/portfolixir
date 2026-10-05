@@ -17,6 +17,16 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
   - Numbers use German formatting (`23.685,40`). Parsing goes through
     `Portfolixir.Imports.Decimals.parse_de/1` to keep the digits
     exact — no float round-trip.
+  - **Betrag is PP's gross value, Gesamtpreis the cash** (ADR-0053).
+    Portfolio Performance writes Kurs as the gross price per share, Betrag
+    as the gross value before fees and taxes, Gebühren and Steuern as the
+    row's fee and tax units, and Gesamtpreis as the cash that moved, always.
+    A row with a Gesamtpreis books it as its `gross_amount` (§1); a row
+    without one, as a converter writes it, books its Betrag. A negative
+    Steuern split off as a refund is taken out of a Gesamtpreis-booking
+    parent, so the row's bookings still move its Gesamtpreis (§5). The
+    content hash keeps reading the Betrag (`hash_amount`, §3). The kinds
+    without cash ignore every money cell.
   - The CSV uses `Konto`/`Gegenkonto` to disambiguate cash-source vs.
     cash-target accounts. For trades, `Konto` is the depot (PP
     "portfolio") and `Gegenkonto` is the cash account. For cash-only
@@ -258,6 +268,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
          {:ok, quantity} <- Decimals.parse_de(Map.get(cells, "Stück")),
          {:ok, price} <- Decimals.parse_de(Map.get(cells, "Kurs")),
          {:ok, gross} <- Decimals.parse_de(Map.get(cells, "Betrag")),
+         {:ok, total} <- gesamtpreis(kind, cells),
          {:ok, raw_fees} <- Decimals.parse_de(Map.get(cells, "Gebühren")),
          {:ok, raw_taxes} <- Decimals.parse_de(Map.get(cells, "Steuern")) do
       {date, time} = date_time
@@ -315,7 +326,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
         date: date,
         time: time,
         currency_code: "EUR",
-        gross_amount: if(kind in @no_cash_kinds, do: nil, else: gross),
+        gross_amount: booked_cash(direction(kind, side), gross, total, tax_refund),
         # ADR-0053 §3: the content hash reads the file's Betrag.
         hash_amount: if(kind in @no_cash_kinds, do: nil, else: gross),
         fees: fees,
@@ -344,6 +355,34 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
       {:error, reason} -> {:error, inspect(reason)}
     end
   end
+
+  # ADR-0053 §1: the kinds without cash ignore every money cell, the
+  # Gesamtpreis included, as they did before it was read.
+  defp gesamtpreis(kind, _cells) when kind in @no_cash_kinds, do: {:ok, nil}
+  defp gesamtpreis(_kind, cells), do: Decimals.parse_de(Map.get(cells, "Gesamtpreis"))
+
+  # ADR-0053 §2: the way a row's kind moves money on its cash account. A cash
+  # transfer's comes from its label (#1023): the sending row debits, the
+  # receiving row credits. The kinds without cash have none.
+  @debit_kinds ~w(buy removal fee tax)
+  @credit_kinds ~w(sell dividend interest deposit tax_refund)
+
+  defp direction("cash_transfer", :receiving), do: :credit
+  defp direction("cash_transfer", _sending), do: :debit
+  defp direction(kind, _side) when kind in @debit_kinds, do: :debit
+  defp direction(kind, _side) when kind in @credit_kinds, do: :credit
+  defp direction(_kind, _side), do: nil
+
+  # ADR-0053 §1 and §5: the cash a row books. A row with a Gesamtpreis books
+  # it, the cash Portfolio Performance writes; a row without one books its
+  # Betrag, as a converter writes it. A refund split off a Gesamtpreis row is
+  # booked beside it, so the parent books the rest and the two together move
+  # the Gesamtpreis: a credit's parent is credited G − r, a debit's parent is
+  # debited G + r.
+  defp booked_cash(nil, _betrag, _total, _refund), do: nil
+  defp booked_cash(_direction, betrag, nil, _refund), do: betrag
+  defp booked_cash(:credit, _betrag, total, refund), do: Decimal.sub(total, refund || 0)
+  defp booked_cash(:debit, _betrag, total, refund), do: Decimal.add(total, refund || 0)
 
   # PP CSV exports a single signed value per fee/tax column. Mirror the
   # JSON-parser semantics: abs() the magnitude into the parent entry,
