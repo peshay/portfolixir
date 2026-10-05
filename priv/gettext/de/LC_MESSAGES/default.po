@@ -4268,13 +4268,13 @@ msgstr "Anlegen des Wertpapiers fehlgeschlagen: %{errors}"
 msgid "Row %{row}: %{message}"
 msgstr "Zeile %{row}: %{message}"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:505
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:506
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:228
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (before 1900) — fix the booking in the source and re-import"
 msgstr "Unplausibles Datum %{date} (vor 1900) — korrigiere die Buchung in der Quelle und importiere erneut"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:523
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:524
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:240
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
@@ -11475,22 +11475,22 @@ msgid_plural "and %{depot} holds %{quantity} fewer units of %{security}"
 msgstr[0] "und %{depot} hält %{quantity} Stück %{security} weniger"
 msgstr[1] "und %{depot} hält %{quantity} Stück %{security} weniger"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:433
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:434
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount} and Gebühren %{fees} — row not imported"
 msgstr "Gesamtpreis %{total} passt nicht zu Betrag %{amount} und Gebühren %{fees} — Zeile nicht übernommen"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:441
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:442
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount} and Steuern %{taxes} — row not imported"
 msgstr "Gesamtpreis %{total} passt nicht zu Betrag %{amount} und Steuern %{taxes} — Zeile nicht übernommen"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:427
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:428
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount} — row not imported"
 msgstr "Gesamtpreis %{total} passt nicht zu Betrag %{amount} — Zeile nicht übernommen"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:449
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:450
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount}, Gebühren %{fees} and Steuern %{taxes} — row not imported"
 msgstr "Gesamtpreis %{total} passt nicht zu Betrag %{amount}, Gebühren %{fees} und Steuern %{taxes} — Zeile nicht übernommen"
