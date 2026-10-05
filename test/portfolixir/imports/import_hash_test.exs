@@ -96,4 +96,39 @@ defmodule Portfolixir.Imports.ImportHashTest do
     assert ImportHash.legacy(entry, 42) == @deposit_hash_sprint15
     refute ImportHash.compute(entry, 42) == @deposit_hash_sprint15
   end
+
+  # User story (ADR-0053 §3, K2; risk-tier: idempotency):
+  # As the operator who imported a Portfolio Performance CSV before the
+  # importer booked its Gesamtpreis,
+  # I want the content hash to keep reading the amount it read then, the
+  # file's Betrag, whatever cash the row now books,
+  # so that dropping the same file again books nothing twice.
+  #
+  # Acceptance criteria:
+  # - An entry carrying a hash amount is hashed over it, never over the cash
+  #   it books: a buy booking 1505.00 whose Betrag was 1502.50 keeps the hash
+  #   the Sprint 15 formula gave the row that booked 1502.50.
+  # - An entry without a hash amount (a split-off refund, an entry built by
+  #   hand) is hashed over its booked amount, as before.
+  # - The legacy hash of a separator-bearing row reads the same input.
+  test "the hash reads the entry's hash amount, and its booked amount when it has none" do
+    rebooked = %{
+      buy()
+      | gross_amount: Decimal.new("1505.00"),
+        hash_amount: Decimal.new("1502.50")
+    }
+
+    assert ImportHash.compute(rebooked, 42) == @buy_hash_sprint15
+    assert ImportHash.compute(%{buy() | hash_amount: nil}, 42) == @buy_hash_sprint15
+
+    refute ImportHash.compute(%{rebooked | hash_amount: nil}, 42) == @buy_hash_sprint15
+
+    deposit = %{
+      deposit("Cash | EUR")
+      | gross_amount: Decimal.new("4990"),
+        hash_amount: Decimal.new("5000")
+    }
+
+    assert ImportHash.legacy(deposit, 42) == @deposit_hash_sprint15
+  end
 end

@@ -4268,14 +4268,14 @@ msgstr "Anlegen des Wertpapiers fehlgeschlagen: %{errors}"
 msgid "Row %{row}: %{message}"
 msgstr "Zeile %{row}: %{message}"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:391
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:224
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:394
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:228
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (before 1900) — fix the booking in the source and re-import"
 msgstr "Unplausibles Datum %{date} (vor 1900) — korrigiere die Buchung in der Quelle und importiere erneut"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:409
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:236
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:412
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:240
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
 msgstr "Unplausibles Datum %{date} (nach %{latest}) — korrigiere die Buchung in der Quelle und importiere erneut"
@@ -5855,12 +5855,12 @@ msgstr "Die Datei ist nicht als Portfolio-Performance-Export lesbar."
 msgid "The file has %{n} rows; the import is sized for at most %{max}."
 msgstr "Die Datei hat %{n} Zeilen; der Import ist auf höchstens %{max} ausgelegt."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:249
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:253
 #, elixir-autogen, elixir-format
 msgid "invalid date %{date}"
 msgstr "ungültiges Datum %{date}"
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:300
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:304
 #, elixir-autogen, elixir-format
 msgid "invalid unit %{unit}"
 msgstr "ungültige Position %{unit}"
@@ -7983,7 +7983,7 @@ msgstr "Die Datei enthält zu viele unterschiedliche Konto-, Depot- oder Wertpap
 msgid "The file expands to %{n} entries (its rows and the tax refunds they split off); the import is sized for at most %{max}."
 msgstr "Die Datei ergibt %{n} Einträge (ihre Zeilen und die daraus abgespaltenen Steuererstattungen); der Import ist auf höchstens %{max} ausgelegt."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:279
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:283
 #, elixir-autogen, elixir-format
 msgid "more units (fees and taxes) than one booking carries"
 msgstr "mehr Positionen (Gebühren und Steuern), als eine Buchung trägt"

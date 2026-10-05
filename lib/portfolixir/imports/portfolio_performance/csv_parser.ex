@@ -296,6 +296,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
                 time: time,
                 currency_code: "EUR",
                 gross_amount: refund_amount,
+                hash_amount: refund_amount,
                 fees: Decimal.new(0),
                 taxes: Decimal.new(0),
                 quantity: nil,
@@ -315,6 +316,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
         time: time,
         currency_code: "EUR",
         gross_amount: if(kind in @no_cash_kinds, do: nil, else: gross),
+        # ADR-0053 §3: the content hash reads the file's Betrag.
+        hash_amount: if(kind in @no_cash_kinds, do: nil, else: gross),
         fees: fees,
         taxes: taxes,
         quantity: quantity,

@@ -29,6 +29,7 @@ defmodule Portfolixir.Imports.Entry do
           time: Time.t() | nil,
           currency_code: String.t() | nil,
           gross_amount: Decimal.t() | nil,
+          hash_amount: Decimal.t() | nil,
           fees: Decimal.t() | nil,
           taxes: Decimal.t() | nil,
           quantity: Decimal.t() | nil,
@@ -50,6 +51,10 @@ defmodule Portfolixir.Imports.Entry do
             time: nil,
             currency_code: nil,
             gross_amount: nil,
+            # The amount the content hash reads (ADR-0053 §3), apart from the
+            # cash the entry books: a Portfolio Performance CSV row's Betrag,
+            # a JSON row's `amount`. `nil` makes the hash read `gross_amount`.
+            hash_amount: nil,
             fees: nil,
             taxes: nil,
             quantity: nil,

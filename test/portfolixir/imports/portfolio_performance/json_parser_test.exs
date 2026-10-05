@@ -60,6 +60,23 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
       end
     end
 
+    # User story (ADR-0053 §3):
+    # As the operator re-importing a JSON export,
+    # I want the content hash to read the same amount it always read,
+    # so that nothing imported before books twice.
+    #
+    # Acceptance criteria:
+    # - Every entry's hash amount is its booked cash, the `amount` (nil
+    #   where the kind settles no cash), so no JSON hash moves.
+    test "the hash amount of every entry is the amount it books", %{preview: preview} do
+      for entry <- preview.entries do
+        assert entry.hash_amount == entry.gross_amount, "row #{entry.source_row}"
+      end
+
+      buy = Enum.find(preview.entries, &(&1.kind == "buy"))
+      assert Decimal.equal?(buy.hash_amount, Decimal.new("1502.50"))
+    end
+
     test "carries PP portfolio + account names through unchanged", %{preview: preview} do
       buy = Enum.find(preview.entries, &(&1.kind == "buy"))
       assert buy.pp_portfolio_name == "Test-Depot"
@@ -149,6 +166,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
       [parent] = preview.entries
       assert [%Entry{kind: "tax_refund"} = refund] = parent.companion_entries
       assert Decimal.equal?(refund.gross_amount, Decimal.new("0.01"))
+      assert Decimal.equal?(refund.hash_amount, Decimal.new("0.01"))
       assert refund.security == parent.security
       assert refund.pp_account_name == parent.pp_account_name
       assert refund.date == parent.date
