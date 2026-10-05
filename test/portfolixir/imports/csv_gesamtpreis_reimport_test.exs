@@ -191,4 +191,37 @@ defmodule Portfolixir.Imports.CsvGesamtpreisReimportTest do
     assert counts() == before
     assert cash_balances(portfolio) == balances
   end
+
+  # User story (ADR-0053 §4):
+  # As the operator who imported a Portfolio Performance CSV under the
+  # Gesamtpreis reading,
+  # I want a drifted re-export of it recognised by the bookings it made,
+  # so that a moved time of day never books a row of mine twice.
+  #
+  # Acceptance criteria:
+  # - The export applied as written, then dropped again with every time of
+  #   day moved, is counted and skipped as `economics` for every entry, the
+  #   rows whose Gesamtpreis differs from their Betrag included, through
+  #   the key read with the booked cash; nothing is new or inserted.
+  test "a drifted re-export of a file imported under the Gesamtpreis reading books nothing", %{
+    portfolio: portfolio
+  } do
+    first = apply!(pp_file(), portfolio)
+    assert first.created_transactions == @entries
+
+    before = counts()
+    balances = cash_balances(portfolio)
+    export = drifted(pp_file())
+
+    counted = Imports.reimport_counts(parse!(export), portfolio_id: portfolio.id)
+    assert counted.total.economics == @entries
+    assert counted.total.new == 0
+
+    again = apply!(export, portfolio)
+
+    assert again.created_transactions == 0
+    assert again.already_imported == %{hash: 0, retired: 0, economics: @entries}
+    assert counts() == before
+    assert cash_balances(portfolio) == balances
+  end
 end
