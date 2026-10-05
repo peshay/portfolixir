@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.SecuritiesUrlFiltersTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Catalog.Quotes
 
   defp create_security(attrs) do
@@ -224,7 +225,7 @@ defmodule PortfolixirWeb.SecuritiesUrlFiltersTest do
         refute has_element?(view, "td", "Retired Gap Co."), dq
         refute has_element?(view, "td", "Index Gap ETF"), dq
 
-        assert Enum.map(Portfolixir.Catalog.DataQuality.list(dq), & &1.security.name) == [
+        assert Enum.map(DataQuality.list(dq), & &1.security.name) == [
                  "Open Gap Co."
                ]
       end
