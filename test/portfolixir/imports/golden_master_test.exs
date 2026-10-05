@@ -150,6 +150,17 @@ defmodule Portfolixir.Imports.GoldenMasterTest do
   # Acceptance criteria:
   # - Importing sample.csv yields the same exact cash balances as sample.json.
   # - Importing sample.csv yields the same exact Examplia World position.
+  #
+  # ADR-0053 §7, K1: sample.csv is the shape Portfolio Performance writes for
+  # sample.json's history. Kurs and Betrag are PP's gross values, Gesamtpreis
+  # the cash, Gesamtpreis = Betrag ∓ (Gebühren + Steuern) to the cent:
+  #   Kauf       Kurs 150,00  Betrag 1.500,00  + 2,50          = 1.502,50
+  #   Verkauf    Kurs 181,45  Betrag 1.814,50  − 2,50 − 12,00  = 1.800,00
+  #   Dividende               Betrag    11,54  − 2,41          =     9,13
+  #   Zinsen                  Betrag     5,75  − 1,20          =     4,55
+  # Each row books its Gesamtpreis, so Test-Cash equals the JSON corpus's
+  # 4017.68. Booking the Betrag instead gives 4038.29, the red this test
+  # started from.
   describe "golden master: sample.csv matches sample.json" do
     setup do
       portfolio = import_target()

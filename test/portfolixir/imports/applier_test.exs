@@ -1074,7 +1074,7 @@ defmodule Portfolixir.Imports.ApplierTest do
     # account (delivery rows carry no cash side).
     @delivery_csv """
     Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
-    2024-01-15 10:01:00;Kauf;Arbolia Inc.;10;150,25;1.502,50;2,50;;1.502,50;Test-Depot;Test-Cash;;
+    2024-01-15 10:01:00;Kauf;Arbolia Inc.;10;150,00;1.500,00;2,50;;1.502,50;Test-Depot;Test-Cash;;
     2024-09-04 00:00:00;Einlieferung;iShares Core Examplia World UCITS ETF;5;100,50;502,50;;;502,50;Test-Depot;;;
     2024-10-01 00:00:00;Auslieferung;iShares Core Examplia World UCITS ETF;2;110,00;220,00;;;220,00;Test-Depot;;;
     2024-11-01 00:00:00;Einlieferung;iShares Core Examplia World UCITS ETF;1;;0,00;;;0,00;Test-Depot;;;

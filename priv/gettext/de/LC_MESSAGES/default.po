@@ -4268,13 +4268,13 @@ msgstr "Anlegen des Wertpapiers fehlgeschlagen: %{errors}"
 msgid "Row %{row}: %{message}"
 msgstr "Zeile %{row}: %{message}"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:394
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:433
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:228
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (before 1900) — fix the booking in the source and re-import"
 msgstr "Unplausibles Datum %{date} (vor 1900) — korrigiere die Buchung in der Quelle und importiere erneut"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:412
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:451
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:240
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
@@ -4345,7 +4345,7 @@ msgstr "%{field} ist kein gültiger UTF-8-Text"
 msgid "missing transaction type"
 msgstr "Fehlender Transaktionstyp"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:175
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:185
 #, elixir-autogen, elixir-format
 msgid "unknown PP CSV type %{type}"
 msgstr "Unbekannter PP-CSV-Typ %{type}"
@@ -10585,7 +10585,7 @@ msgid_plural "The merge the link names is not among the newest %{count} listed h
 msgstr[0] "Die Zusammenführung, die der Link nennt, steht nicht unter den neuesten %{count}."
 msgstr[1] "Die Zusammenführung, die der Link nennt, steht nicht unter den neuesten %{count}."
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:214
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:224
 #, elixir-autogen, elixir-format
 msgid "receiving side of the transfer in row %{row} — booked once, from that row"
 msgstr "Eingangsseite der Umbuchung in Zeile %{row} — einmal gebucht, aus jener Zeile"
