@@ -1714,7 +1714,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # json_freshness_meta_test.exs (I4).
       as_of: datetime(result.as_of),
       stale: result.stale,
-      computation_basis: computation_basis(result.computation_basis)
+      computation_basis: computation_basis(result.computation_basis),
+      # #1055 (ADR-0051 §10): the cash accounts that held money and counted
+      # zero on some window day for want of a rate path; [] when none did.
+      unvalued_cash_accounts: Enum.map(result.unvalued_cash_accounts, &unvalued_cash_account/1)
     }
 
     if include_series? do
@@ -1850,8 +1853,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   financial value is a Decimal string and every date ISO. Positions keep the
   engine's order, largest contribution first, and carry no rank or label.
   An empty window keeps the performance read's emptiness: `start_date` null,
-  no positions, and "0" lines and totals. The computation basis has the
-  performance read's shape plus ADR-0046's `assumptions`.
+  no positions, and "0" lines and totals. `unvalued_cash_accounts` names the
+  cash accounts that counted zero in the window, as the performance read of
+  the same window does (#1055). The computation basis has the performance
+  read's shape plus ADR-0046's `assumptions`.
   """
   def contribution(result) do
     %{
@@ -1872,6 +1877,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
         positions: decimal(result.totals.positions),
         remainder: decimal(result.totals.remainder)
       },
+      unvalued_cash_accounts: Enum.map(result.unvalued_cash_accounts, &unvalued_cash_account/1),
       as_of: datetime(result.as_of),
       stale: result.stale,
       computation_basis:
@@ -1896,6 +1902,21 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       held_at_end: position.held_at_end,
       unvalued_days: position.unvalued_days,
       unvalued_reason: reason(position.unvalued_reason)
+    }
+  end
+
+  # One cash account the walk counted zero on some window day (#1055): its
+  # native balance a Decimal string in its own currency, never converted; the
+  # first rate's date ISO, or null when it did not arrive inside the window.
+  defp unvalued_cash_account(account) do
+    %{
+      cash_account_id: account.cash_account_id,
+      name: account.name,
+      currency_code: account.currency_code,
+      balance: decimal(account.balance),
+      unvalued_days: account.unvalued_days,
+      unvalued_reason: reason(account.unvalued_reason),
+      first_rate_date: date(account.first_rate_date)
     }
   end
 

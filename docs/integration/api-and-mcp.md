@@ -1773,7 +1773,18 @@ Example account payloads:
   so `stale: false` means current against the ledger. The response also
   states the metric's **computation basis** (`computation_basis`): the input
   series, the effective window, the reference series (`null` — TTWROR/IRR
-  have none) and the treatment of gaps.
+  have none) and the treatment of gaps. A cash account in a foreign currency
+  counts zero on every day it holds money while its currency has no rate
+  path to the base currency, and the day the first rate arrives its whole
+  balance enters the end value without being a flow: `unvalued_cash_accounts`
+  names each such account of the scope that counted zero on a window day
+  (#1055, ADR-0051 §10) — `cash_account_id`, `name`, `currency_code`,
+  `balance` (its native balance on its last such day, a Decimal string in
+  that currency, never converted), `unvalued_days`, `unvalued_reason`
+  (`no_rate`) and `first_rate_date` (the ISO date the currency's first rate
+  path arrived when that falls inside the window after its first such day,
+  else `null`) — sorted by name, `[]` when every balance was valued;
+  `computation_basis.gaps` names the field.
 - `GET /api/v1/portfolios/:portfolio_id/performance/benchmark` returns the
   **benchmark comparison** (ADR-0046, FR-9): the portfolio's own external
   flows replayed into a benchmark, the read that answers "was the effort
@@ -1831,7 +1842,12 @@ Example account payloads:
   (`no_price`, `no_rate` or `null`). A position bought and sold inside the
   window is listed although it is held at neither end. A day on which a held
   position has no price or no rate path counts zero, as in the walk, and the
-  position stays in the sum, named with its days. The rows are sorted by
+  position stays in the sum, named with its days. A foreign-currency cash
+  balance held before its currency's first rate counts zero the same way,
+  and the first rate brings its whole value into `cash_currency_effect`:
+  `unvalued_cash_accounts` names the account, exactly as the performance
+  read of the same scope and window does, with its native `balance`, its
+  `unvalued_days` and the `first_rate_date` (#1055). The rows are sorted by
   contribution, largest first, with no share, rank or label. `remainder`
   holds what no position does, each line summed from its own bookings and
   never a plug: `interest` (every interest booking, bond coupons included),

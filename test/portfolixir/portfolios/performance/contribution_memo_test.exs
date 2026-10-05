@@ -39,9 +39,10 @@ defmodule Portfolixir.Portfolios.Performance.ContributionMemoTest do
   #
   # Acceptance criteria:
   # - `performance_contribution` (portfolio basis) and
-  #   `performance_view_contribution` (global basis) are registered at
-  #   computation version 1 with the default lifetime `:request`; the walk
-  #   analytics keep their computation version.
+  #   `performance_view_contribution` (global basis) are registered with the
+  #   default lifetime `:request`, at computation version 2 since #1055 added
+  #   the unvalued cash accounts to their payload; the walk analytics are at
+  #   version 4 for the same reason.
   # - A fixed-period read is memoised under its analytic, one entry per
   #   scope, walk end date and period; repeating it returns the same figures.
   # - A ledger write is in the next read.
@@ -49,11 +50,11 @@ defmodule Portfolixir.Portfolios.Performance.ContributionMemoTest do
   #   memo budget's rule, E25 S4 G03).
   # - The contribution's walk is never stored as a walk analytic.
   test "the contribution is its own request-lifetime analytic per scope and period" do
-    assert Registry.computation_version!(:performance_contribution) == 1
-    assert Registry.computation_version!(:performance_view_contribution) == 1
+    assert Registry.computation_version!(:performance_contribution) == 2
+    assert Registry.computation_version!(:performance_view_contribution) == 2
     assert Registry.lifetime(:performance_contribution) == :request
     assert Registry.lifetime(:performance_view_contribution) == :request
-    assert Registry.computation_version!(:performance_analysis) == 3
+    assert Registry.computation_version!(:performance_analysis) == 4
 
     world = base_world(name: "Memo", cash_name: "Cash", depot_name: "Depot")
     fund = create_security!(name: "Memo Fund", ticker: "MMF")

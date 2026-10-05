@@ -107,6 +107,10 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
   #   button and the helper paragraph under the cash table are gone.
   # - The cash table marks the unvalued account in its own row, and the
   #   balances pointer is a plain link.
+  # - The unvalued-cash note names each account with its native balance and
+  #   currency, "USD Cash (500.00 USD)", the shape the missing-FX note
+  #   prints a native price in — nothing converted (UX-DR25 clause 2, board
+  #   J2's before/after, #1055).
   test "the findings are data notes at their severity with the remedy inside", %{conn: conn} do
     world = seed_world()
 
@@ -163,7 +167,7 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
     assert has_element?(
              view,
              "#{region} .data-note--attention[data-role='dq-unvalued-cash']",
-             "USD Cash"
+             "USD Cash (500.00 USD)"
            )
 
     assert has_element?(view, "#{region} .data-note .data-note__word", "Attention")
@@ -182,6 +186,50 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
            )
 
     refute has_element?(view, "#portfolio-cash p.hint[data-role='cash-edit-pointer']")
+  end
+
+  # User story (#1055, board J2's before/after; UX-DR25 clause 2):
+  # As a local portfolio maintainer reading German, with a cash account the
+  # totals leave out for want of a rate,
+  # I want the note to say how much money that is, in the account's own
+  # currency and the house format, and the stacked notes not to touch,
+  # so that I know what the total leaves out, not only which account.
+  #
+  # Acceptance criteria:
+  # - The unvalued-cash note reads "USD Cash (1.850,00 USD)".
+  # - The data-quality status region stacks its notes with the comparison
+  #   notes' gap: a flex column, --space-2 apart.
+  test "the unvalued-cash note prints the native balance, and the notes keep their gap",
+       %{conn: conn} do
+    world = seed_world()
+
+    {:ok, usd_cash} =
+      Portfolixir.Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        name: "USD Cash",
+        currency_code: "USD"
+      })
+
+    {:ok, _} =
+      Ledger.set_cash_balance(Actor.owner_ui(), usd_cash, %{
+        date: Date.add(Date.utc_today(), -2),
+        amount: "1850"
+      })
+
+    conn = get(conn, "/portfolio?locale=de")
+    {:ok, view, _html} = live(conn, "/portfolio?locale=de")
+    render_async(view)
+
+    assert has_element?(
+             view,
+             "#portfolio-data-quality [data-role='dq-unvalued-cash']",
+             "USD Cash (1.850,00 USD)"
+           )
+
+    css = File.read!("priv/static/app.css")
+
+    assert css =~
+             ~r/\[data-role="dq-notes"\]\s*\{\s*display:\s*flex;\s*flex-direction:\s*column;\s*gap:\s*var\(--space-2\);/
   end
 
   # User story (#561):

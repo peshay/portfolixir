@@ -69,7 +69,10 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
   positions are named (§10). A trade priced in a currency with no rate path
   on its booking day flows into its position at its cash leg, so the
   position is not credited with its whole value when a rate arrives (§5, as
-  amended 2026-10-03).
+  amended 2026-10-03). A foreign-currency cash balance held before its
+  currency's first rate counts zero too, and the first rate brings its whole
+  value into the currency effect on cash; the account is named with its days
+  (#1055, the amendment's last item).
 
   Nothing is persisted (§12). Each read runs its own walk with a window, and
   the table is a derived value of its own (ADR-0039): the
@@ -105,6 +108,17 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
           unvalued_reason: :no_price | :no_rate | nil
         }
 
+  @typedoc "A cash account that counted zero on some window day (#1055)."
+  @type unvalued_cash_account :: %{
+          cash_account_id: integer(),
+          name: String.t() | nil,
+          currency_code: String.t() | nil,
+          balance: Decimal.t(),
+          unvalued_days: pos_integer(),
+          unvalued_reason: :no_rate,
+          first_rate_date: Date.t() | nil
+        }
+
   @type result :: %{
           portfolio_id: integer() | nil,
           view_id: integer() | nil,
@@ -119,6 +133,7 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
             cash_currency_effect: Decimal.t()
           },
           totals: %{result: Decimal.t(), positions: Decimal.t(), remainder: Decimal.t()},
+          unvalued_cash_accounts: [unvalued_cash_account()],
           as_of: DateTime.t(),
           stale: boolean(),
           computation_basis: %{
@@ -163,6 +178,13 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
   all) or `:no_rate` (no rate path to the base currency), `:no_price` when
   both occurred, and `nil` when every day was valued. Such a position stays
   in the table and in the sum (ADR-0051 §10, I7).
+
+  `unvalued_cash_accounts` names the cash accounts that held money and
+  counted zero on some window day for want of a rate path, exactly as the
+  performance read of the same window lists them
+  (`Performance.unvalued_cash_accounts/3`, #1055): with its native balance,
+  its days and, when it arrived inside the window, the date of the first
+  rate, the day the whole balance entered `cash_currency_effect`.
 
   `remainder` carries `interest`, `standalone_fees_and_taxes` and
   `cash_currency_effect`. `totals.result` is `end value − start value − net
@@ -315,6 +337,7 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
         positions: position_total,
         remainder: remainder_total
       },
+      unvalued_cash_accounts: summary.unvalued_cash_accounts,
       as_of: summary.as_of,
       computation_basis: computation_basis(summary.start_date, summary.end_date)
     }
@@ -333,6 +356,7 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
         cash_currency_effect: @zero
       },
       totals: %{result: money_result(summary), positions: @zero, remainder: @zero},
+      unvalued_cash_accounts: [],
       as_of: summary.as_of,
       computation_basis: computation_basis(nil, summary.end_date)
     }
@@ -363,7 +387,9 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
           "walked day is empty: start_date null and no positions, never a table of zeros " <>
           "(ADR-0051 §4). A foreign-currency cash balance likewise counts zero on a day " <>
           "its currency has no rate path; when the first rate arrives, the balance's whole " <>
-          "value enters cash_currency_effect, and no account is named for it",
+          "value enters cash_currency_effect, and the account is listed in " <>
+          "unvalued_cash_accounts with its native balance, its days and, when it arrived " <>
+          "inside the window, the date of that first rate (ADR-0051 §10)",
       assumptions:
         "per position, in the base currency, contribution = end_value − start_value − " <>
           "net_flows + income − costs over the window (ADR-0051 §1): start_value is the " <>

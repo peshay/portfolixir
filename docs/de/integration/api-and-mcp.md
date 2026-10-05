@@ -1869,7 +1869,18 @@ Beispiel-Payloads für Konten:
   bedeutet also aktuell gegenüber dem Ledger. Die Antwort nennt außerdem die
   **Berechnungsbasis** der Metrik (`computation_basis`): Eingangsreihe,
   wirksames Fenster, Referenzreihe (`null` — TTWROR/IRR haben keine) und den
-  Umgang mit Lücken.
+  Umgang mit Lücken. Ein Verrechnungskonto in einer Fremdwährung zählt an
+  jedem Tag null, an dem es Geld hält, während seine Währung keinen Kurspfad
+  zur Basiswährung hat, und am Tag des ersten Kurses kommt sein ganzer Saldo
+  in den Endwert, ohne ein Fluss zu sein: `unvalued_cash_accounts` nennt jedes
+  solche Konto des Scopes, das an einem Fenstertag null zählte (#1055,
+  ADR-0051 §10) — `cash_account_id`, `name`, `currency_code`, `balance` (sein
+  nativer Saldo am letzten solchen Tag, ein Decimal-String in dieser Währung,
+  nie umgerechnet), `unvalued_days`, `unvalued_reason` (`no_rate`) und
+  `first_rate_date` (das ISO-Datum, an dem der erste Kurspfad der Währung kam,
+  wenn es im Fenster nach seinem ersten solchen Tag liegt, sonst `null`) —
+  nach Name sortiert, `[]`, wenn jeder Saldo bewertet war;
+  `computation_basis.gaps` nennt das Feld.
 - `GET /api/v1/portfolios/:portfolio_id/performance/benchmark` liefert den
   **Benchmark-Vergleich** (ADR-0046, FR-9): die eigenen externen Flüsse des
   Portfolios in eine Benchmark nachgebucht — die Antwort auf „war der
@@ -1931,7 +1942,12 @@ Beispiel-Payloads für Konten:
   verkaufte Position steht in der Tabelle, obwohl sie an keinem Ende gehalten
   wird. Ein Tag, an dem eine gehaltene Position keinen Preis oder keinen
   Kurspfad hat, zählt null, wie im Walk; die Position bleibt in der Summe und
-  wird mit ihren Tagen benannt. Die Zeilen sind nach Beitrag sortiert, der
+  wird mit ihren Tagen benannt. Ein Fremdwährungssaldo vor dem ersten Kurs
+  seiner Währung zählt ebenso null, und der erste Kurs bringt seinen ganzen
+  Wert in `cash_currency_effect`: `unvalued_cash_accounts` nennt das Konto,
+  genau wie der Performance-Endpunkt desselben Scopes und Fensters, mit
+  seinem nativen `balance`, seinen `unvalued_days` und dem `first_rate_date`
+  (#1055). Die Zeilen sind nach Beitrag sortiert, der
   größte zuerst, ohne Anteil, Rang oder Etikett. `remainder` hält, was keine
   Position hält, jede Zeile aus ihren eigenen Buchungen summiert und nie ein
   Ausgleichsposten: `interest` (jede Zinsbuchung, Anleihekupons

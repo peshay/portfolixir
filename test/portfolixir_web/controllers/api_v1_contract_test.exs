@@ -49,24 +49,49 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
+    # Sprint 19, PR α (version 14, after PR #1102's 13): the money a
+    # stranger checks first, one entry for the lane PR. M3 opened it: the performance and the
+    # contribution reads, in both forms, name a cash account that counted
+    # zero for want of a rate path (#1055, ADR-0051 §10). No route and no
+    # tool is added; M4 and M6 extend the entry.
+    assert newest["version"] == 14
+    assert newest["date"] == "2026-10-05"
+    assert newest["summary"] =~ "Sprint 19"
+    assert newest["summary"] =~ "M3"
+    assert newest["endpoints"] == []
+    assert newest["tools"] == []
+
+    for read <- [
+          "GET /api/v1/portfolios/:portfolio_id/performance and GET /api/v1/views/:view_id/performance",
+          "GET /api/v1/portfolios/:portfolio_id/performance/contribution and " <>
+            "GET /api/v1/views/:view_id/performance/contribution"
+        ] do
+      assert Enum.any?(
+               newest["parameters"],
+               &(String.starts_with?(&1, read) and &1 =~ "unvalued_cash_accounts" and
+                   &1 =~ "first_rate_date" and &1 =~ "#1055")
+             ),
+             read
+    end
+
     # Retiring over MCP (version 13, after Sprint 18's PR γ; PR #1102): the
     # update tool takes is_retired, the remedy the delete names when research
     # notes or policy-rule versions reference a security, and a retired
     # security leaves the three catalog-hygiene sets. No route or tool is
-    # added.
-    assert newest["version"] == 13
-    assert newest["endpoints"] == []
-    assert newest["tools"] == []
-    assert newest["summary"] =~ "is_retired"
+    # added. Found by version from PR α on.
+    retire = Enum.find(data["entries"], &(&1["version"] == 13))
+    assert retire["endpoints"] == []
+    assert retire["tools"] == []
+    assert retire["summary"] =~ "is_retired"
 
     assert Enum.any?(
-             newest["parameters"],
+             retire["parameters"],
              &(&1 =~ "portfolixir.securities.update" and &1 =~ "is_retired" and
                  &1 =~ "PATCH /api/v1/securities/:id" and &1 =~ "journaled")
            )
 
     assert Enum.any?(
-             newest["parameters"],
+             retire["parameters"],
              &(&1 =~ "data_quality" and &1 =~ "stale_quote" and &1 =~ "missing_quote" and
                  &1 =~ "missing_logo" and &1 =~ "retired")
            )
