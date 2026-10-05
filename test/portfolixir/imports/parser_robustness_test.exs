@@ -44,7 +44,10 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
           "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,00;1.500,00;2,50;NaN;1.502,50;Test-Depot;Test-Cash;;",
           "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,00;1.500,00;Infinity;;1.502,50;Test-Depot;Test-Cash;;",
           "2024-01-16 10:01:00;Kauf;Synthetic AG;NaN;150,00;1.500,00;2,50;;1.502,50;Test-Depot;Test-Cash;;",
-          "2024-01-16 10:01:00;Kauf;Synthetic AG;10;-Infinity;1.500,00;2,50;;1.502,50;Test-Depot;Test-Cash;;"
+          "2024-01-16 10:01:00;Kauf;Synthetic AG;10;-Infinity;1.500,00;2,50;;1.502,50;Test-Depot;Test-Cash;;",
+          # ADR-0053: the Gesamtpreis is the cash a PP row books, so a value
+          # it cannot read there is the row's error, never its Betrag instead.
+          "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,00;1.500,00;2,50;;NaN;Test-Depot;Test-Cash;;"
         ] do
       assert {:ok, %Preview{entries: [_sound], errors: [%{row: 2, message: message}]}} =
                PortfolioPerformance.parse(csv([@csv_ok, hostile]), filename: "hostile.csv"),
