@@ -343,6 +343,18 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       end
     end
 
+    # ADR-0053 §2: "to the cent". Both sides are compared rounded to two
+    # places, so a cell written with more places than PP prints is not
+    # refused for a fraction of a cent.
+    test "compares the two readings to the cent" do
+      assert {:ok, %Preview{errors: [], entries: [buy]}} =
+               checked(
+                 "2024-01-15 10:01:00;Kauf;Synthetic AG;10;150,00;1.500,004;2,50;;1.502,50;Depot;Cash;;\n"
+               )
+
+      assert Decimal.equal?(buy.gross_amount, Decimal.new("1502.50"))
+    end
+
     test "checks nothing on a row missing a reading or on a kind without cash" do
       assert {:ok, %Preview{errors: [], entries: [_, _, _, _]}} =
                checked("""

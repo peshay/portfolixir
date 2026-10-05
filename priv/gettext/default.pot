@@ -4267,13 +4267,13 @@ msgstr ""
 msgid "Row %{row}: %{message}"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:505
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:506
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:228
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (before 1900) — fix the booking in the source and re-import"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:523
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:524
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:240
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
@@ -11467,22 +11467,22 @@ msgid_plural "and %{depot} holds %{quantity} fewer units of %{security}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:433
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:434
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount} and Gebühren %{fees} — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:441
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:442
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount} and Steuern %{taxes} — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:427
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:428
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount} — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:449
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:450
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount}, Gebühren %{fees} and Steuern %{taxes} — row not imported"
 msgstr ""
