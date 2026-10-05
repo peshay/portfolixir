@@ -64,6 +64,11 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
   #   2026-05-20  sell Flip Share 10 @ 25, fees 1
   #   2026-06-01  deposit 500 EUR
   #
+  # Since #1055 the rich portfolio also holds a "Reserve CHF" account, 500 CHF
+  # deposited on 2025-04-01, in a currency the instance never holds a rate
+  # for: the walk counts it zero every day (its deposit is a flow of 0), so
+  # no figure below moves, and every read whose scope holds it names it.
+  #
   # Depot C settles through Cash USD, Depot D through Cash EUR. The side
   # portfolio deposits 1000 EUR and buys Euro Fund 5 @ 100 on 2025-01-02.
   # The view "Core" sees Depot A, Depot C, Cash EUR and the side portfolio's
@@ -96,6 +101,15 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     deposit!(rich, "10000", ~D[2025-01-02])
     deposit!(usd, "2000", ~D[2025-01-02], currency: "USD")
     deposit!(side, "1000", ~D[2025-01-02])
+
+    {:ok, reserve} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: rich.portfolio.id,
+        name: "Reserve CHF",
+        currency_code: "CHF"
+      })
+
+    deposit!(%{portfolio: rich.portfolio, cash: reserve}, "500", ~D[2025-04-01], currency: "CHF")
 
     WorldFixtures.buy!(rich, euro, quantity: "50", price: "100", fees: "5", date: ~D[2025-01-02])
     WorldFixtures.buy!(side, euro, quantity: "5", price: "100", date: ~D[2025-01-02])
@@ -206,6 +220,7 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
       rich: rich,
       usd: usd,
       side: side,
+      reserve: reserve,
       view: view,
       securities: %{
         euro: euro,
@@ -382,10 +397,18 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
              "#{scope} #{inspect(period)}"
 
       if is_map(kept.contribution), do: assert(kept.contribution.positions != %{})
+
+      # #1055: the reserve the walk counts zero rides in both walks alike
+      # wherever the scope holds it, so the comparison above covers it.
+      if scope in ["portfolio", "Everything view"],
+        do: assert(Enum.any?(plain.daily, &Map.has_key?(&1, :unvalued_cash)))
     end
 
-    assert Registry.computation_version!(:performance_analysis) == 3
-    assert Registry.computation_version!(:performance_view_analysis) == 3
+    # #1055 added keys to the stored walk payloads (each day's unvalued cash,
+    # and the accounts' names beside it), so both computation versions moved
+    # with them; no figure did.
+    assert Registry.computation_version!(:performance_analysis) == 4
+    assert Registry.computation_version!(:performance_view_analysis) == 4
   end
 
   # -- I2 to I7: one identity at a time, on small worlds ----------------------
@@ -769,6 +792,9 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     assert equal?(result.totals.result, "250")
     assert equal?(result.totals.positions, "250")
     assert_remainder_zero(result)
+
+    # Every balance was valued: no cash account is named (#1055).
+    assert result.unvalued_cash_accounts == []
   end
 
   # User story (FR-41 review round, ADR-0051 §5 and §10):
@@ -923,6 +949,9 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
       assert Decimal.equal?(result.totals.remainder, sum(Map.values(result.remainder)))
       assert result.start_date == read.start_date, label
 
+      # #1055: both reads of one scope and window name the same accounts.
+      assert result.unvalued_cash_accounts == read.unvalued_cash_accounts, label
+
       for position <- result.positions do
         assert Decimal.equal?(
                  position.contribution,
@@ -1001,6 +1030,19 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     assert row(core, s.us_corp) == nil
     assert_lines(core, "12", "-1", "-20")
     assert equal?(core.totals.result, "1890.875")
+
+    # #1055: the CHF reserve counted zero on every day since its deposit and
+    # its currency never got a rate, so it is named with no first-rate date;
+    # Core leaves the account out, and names nothing.
+    assert [reserve] = max.unvalued_cash_accounts
+    assert reserve.cash_account_id == world.reserve.id
+    assert reserve.name == "Reserve CHF"
+    assert reserve.currency_code == "CHF"
+    assert equal?(reserve.balance, "500")
+    assert reserve.unvalued_days == Date.diff(@today, ~D[2025-04-01]) + 1
+    assert reserve.unvalued_reason == :no_rate
+    assert reserve.first_rate_date == nil
+    assert core.unvalued_cash_accounts == []
 
     # Nothing walked yet in 2027: empty, never a table of zeros.
     {:ok, empty} = Contribution.for_view(nil, period: {:year, 2027}, today: @today)

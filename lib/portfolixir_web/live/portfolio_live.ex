@@ -2730,7 +2730,7 @@ defmodule PortfolixirWeb.PortfolioLive do
             "%{count} cash accounts are not counted in the totals because there is no exchange rate to %{base}: %{names}.",
             length(@unvalued_cash),
             base: @valuation.base_currency,
-            names: Enum.map_join(@unvalued_cash, ", ", &"#{&1.name} (#{&1.currency})")
+            names: Enum.map_join(@unvalued_cash, ", ", &unvalued_cash_label/1)
           ) %>
           <.fx_sync_control
             :if={@missing_fx.count == 0}
@@ -4144,6 +4144,13 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp unvalued_cash(valuation) do
     Enum.filter(valuation.cash_balances, &(not &1.valued))
   end
+
+  # UX-DR25 clause 2 (#1055, board J2's before/after): the account with its
+  # native balance — "USD Settlement (1.850,00 USD)" — in the shape
+  # `unvalued_entry_label/2` prints a native price in. Nothing is converted:
+  # there is no rate to convert with.
+  defp unvalued_cash_label(entry),
+    do: "#{entry.name} (#{Format.decimal(entry.balance, 2)} #{entry.currency})"
 
   # Which views (and Gesamt, marked by `nil`) carry a SOLL plan for the active
   # classification, for the subtle plan marker on the switcher chips (#468). A

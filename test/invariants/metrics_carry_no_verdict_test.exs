@@ -26,6 +26,7 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Ledger
+  alias Portfolixir.Portfolios
 
   # The five words ADR-0047 §7 names, plus the two the neighbouring gates use
   # for the same thing (B3.6 rules, B3.7 push delivery). Matched as substrings
@@ -222,6 +223,10 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
   #   signal, recommend, rating, score, action, alert, verdict or advice,
   #   over a table with positions, remainder lines and an unvalued position
   #   AND over an empty window.
+  # - Since #1055 the two performance reads are walked too, and every
+  #   payload names a cash account that counted zero for want of a rate
+  #   (unvalued_cash_accounts), whose keys are checked like the rows'; each
+  #   payload's basis names the field.
   test "the contribution reads carry no verdict key", %{conn: conn} do
     world = base_world()
     gain = create_security!(name: "Verdict Gainer", ticker: "VGN")
@@ -246,14 +251,35 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
         currency_code: "EUR"
       })
 
+    # A CHF balance no rate ever values (#1055): named on every read below.
+    {:ok, franc} =
+      Portfolios.create_cash_account(owner, %{
+        portfolio_id: world.portfolio.id,
+        name: "Verdict Franc",
+        currency_code: "CHF"
+      })
+
+    {:ok, _franc_deposit} =
+      Ledger.create_transaction(owner, %{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: franc.id,
+        type: "deposit",
+        date: ~D[2025-02-03],
+        gross_amount: "300",
+        currency_code: "CHF"
+      })
+
     {:ok, bucket} = Buckets.create_bucket(owner, %{name: "Verdict Bucket"})
     :ok = Buckets.set_depot_default_buckets(owner, world.depot, [bucket.id])
     :ok = Buckets.set_cash_account_buckets(owner, world.cash, [bucket.id])
+    :ok = Buckets.set_cash_account_buckets(owner, franc, [bucket.id])
     {:ok, view} = Buckets.create_view(owner, %{name: "Verdict View", include_all: false})
     :ok = Buckets.set_view_buckets(owner, view, [bucket.id], [])
 
     portfolio = "/api/v1/portfolios/#{world.portfolio.id}/performance/contribution"
     across = "/api/v1/views/#{view.id}/performance/contribution"
+    performance = "/api/v1/portfolios/#{world.portfolio.id}/performance"
+    view_performance = "/api/v1/views/#{view.id}/performance"
 
     payloads =
       for path <- [
@@ -261,7 +287,9 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
             "#{portfolio}?year=2025&view=#{view.id}",
             "#{across}?year=2025",
             "#{portfolio}?from=2001-01-01&to=2001-12-31",
-            "#{across}?from=2001-01-01&to=2001-12-31"
+            "#{across}?from=2001-01-01&to=2001-12-31",
+            "#{performance}?year=2025",
+            "#{view_performance}?year=2025"
           ] do
         %{"data" => data} = conn |> get(path) |> json_response(200)
         {path, data}
@@ -273,6 +301,16 @@ defmodule Portfolixir.Invariants.MetricsCarryNoVerdictTest do
     assert length(rich["positions"]) == 3
     assert Enum.any?(rich["positions"], &(&1["unvalued_reason"] == "no_price"))
     assert Enum.any?(payloads, fn {_path, data} -> data["positions"] == [] end)
+
+    # #1055: every read of 2025 names the CHF account, and every basis says
+    # where it is named.
+    for {path, data} <- payloads do
+      assert data["computation_basis"]["gaps"] =~ "unvalued_cash_accounts", path
+
+      if path =~ "year=2025" do
+        assert [%{"name" => "Verdict Franc"}] = data["unvalued_cash_accounts"]
+      end
+    end
 
     for {path, data} <- payloads do
       assert offenders(data) == [],

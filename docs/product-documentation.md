@@ -1701,8 +1701,9 @@ finding is a note at its own severity — a hint for the trade-price fallback,
 attention for excluded and stale positions, a problem for negative holdings
 and for two scales — and carries its remedy inside
 the note: the **Sync exchange rates** control sits in the missing-rate
-finding, and a cash account left out for want of a rate is also marked
-*no exchange rate* in the cash table. Negative-quantity positions are also marked
+finding, and a cash account left out for want of a rate is named with its
+balance in its own currency — "USD Settlement (1,850.00 USD)" — and also
+marked *no exchange rate* in the cash table. Negative-quantity positions are also marked
 with a "negative quantity" chip wherever they appear: in the allocation
 table, in the classification tree and on the security's holdings tab.
 
@@ -1844,6 +1845,18 @@ no price or no exchange rate was stored, keeps its place in the table and in
 the sum, carries the number of those days on its row, and is named in a note
 under the table. A period with nothing in it shows a sentence instead of a
 table of zeros, and on a phone the table becomes two-line rows.
+
+A cash account in a foreign currency counts zero, too, on every day it holds
+money while its currency has no stored exchange rate to the base currency.
+The day the first rate arrives, its whole balance enters the period's result
+and the currency effect on cash at once: money that became visible, not a
+currency gain. The note under the table names such an account the way it
+names a position — its balance in its own currency, the days it counted zero
+and the reason — and, when the first rate arrived inside the period, says on
+which day the balance entered the currency effect; that line carries the
+account's marker ("Tagesgeld CHF: 18 days at zero"). Pick a period after the
+first rate and the account, like the jump, is gone from the table and the
+note.
 
 [![Contribution by position over one year: start value, flows, income, costs, end value and contribution for the ten largest positions with their bars, Show all 30, the three lines not attributed to a position, the sum row, and a note naming the positions that counted zero on some days](screenshots/contribution.png)](screenshots/contribution.png)
 

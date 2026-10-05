@@ -8,14 +8,25 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
   import Phoenix.LiveViewTest
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 1, buy!: 3, create_security!: 1, deposit!: 3, put_quotes!: 2, sell!: 3]
+    only: [
+      base_world: 1,
+      buy!: 3,
+      create_security!: 1,
+      deposit!: 3,
+      deposit!: 4,
+      put_quotes!: 2,
+      sell!: 3
+    ]
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Classifications
   alias Portfolixir.Clock
+  alias Portfolixir.Fx
   alias Portfolixir.Ledger
+  alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance.Contribution
+  alias PortfolixirWeb.Format
   alias PortfolixirWeb.Portfolio.ContributionTable
 
   setup do
@@ -386,6 +397,113 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
     assert note =~ "One position counted zero on some days of the period:"
     assert note =~ "Ghost Mining Corp (#{days} days, no price stored)"
     assert note =~ "It stays in the sum, as in the result above."
+
+    # Every balance is in EUR: no cash account is named or marked (#1055).
+    refute note =~ "cash account"
+
+    refute has_element?(
+             view,
+             "#contribution-table tr[data-line='cash_currency_effect'] .contribution-unvalued-mark"
+           )
+
+    assert text_of(view, "[data-role='contribution-sum-figure']") ==
+             text_of(view, "[data-role='period-badge'] [data-role='period-badge-money']")
+  end
+
+  # A EUR portfolio whose "Tagesgeld CHF" received 2000 CHF 60 days ago,
+  # while CHF's first stored rate (EUR/CHF 0.8) is from 42 days ago: the walk
+  # counts the balance zero for 18 days, then at 2500 EUR (board J2's data).
+  defp franc_world do
+    world = base_world(name: "Franc World", cash_name: "Giro", depot_name: "Depot")
+
+    {:ok, franc} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        name: "Tagesgeld CHF",
+        currency_code: "CHF"
+      })
+
+    deposit!(world, "1000", days_ago(80))
+    deposit!(%{portfolio: world.portfolio, cash: franc}, "2000", days_ago(60), currency: "CHF")
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "CHF",
+          date: days_ago(42),
+          rate: "0.8",
+          source: "manual"
+        }
+      ])
+
+    %{world: world, franc: franc}
+  end
+
+  # User story (#1055, ADR-0051 §10, board J2 A):
+  # As a local portfolio maintainer reading German, whose CHF day-money
+  # account was filled before the instance held a CHF rate,
+  # I want the contribution note to name the account with its CHF balance,
+  # its days and the day its first rate came, and the currency-effect row to
+  # carry its marker,
+  # so that the jump in "Währungseffekt auf Bargeld" and in the badge reads
+  # as a deposit that became visible, not as a currency gain.
+  #
+  # Acceptance criteria:
+  # - The attention note under the table reads "Ein Verrechnungskonto
+  #   zählte an einigen Tagen des Zeitraums null: Tagesgeld CHF (2.000,00
+  #   CHF, 18 Tage, kein Wechselkurs gespeichert). Mit dem ersten Kurs am
+  #   <dd.mm.yyyy> kam sein ganzer Saldo in den „Währungseffekt auf Bargeld“
+  #   — das ist kein Währungsgewinn.", the figures in the house formats.
+  # - The "Währungseffekt auf Bargeld" row carries the marker "Tagesgeld CHF:
+  #   18 Tage null"; the other lines carry none; the phone remainder row
+  #   carries it too.
+  # - Every figure is unchanged: the row holds +2.500,00 and the sum row is
+  #   the badge's money figure.
+  test "a cash account held before its first rate is named in German, board J2 A",
+       %{conn: conn} do
+    %{franc: franc} = franc_world()
+    first_rate = Format.date(days_ago(42), "de")
+
+    conn = get(conn, "/portfolio?locale=de")
+    {:ok, view, _html} = live(conn, "/portfolio?locale=de")
+    render_async(view)
+
+    note =
+      view
+      |> text_of("#performance-contribution [data-role='contribution-unvalued']")
+      |> String.replace(" .", ".")
+
+    assert note ==
+             "Achtung Ein Verrechnungskonto zählte an einigen Tagen des Zeitraums null: " <>
+               "Tagesgeld CHF (2.000,00 CHF, 18 Tage, kein Wechselkurs gespeichert). Mit dem " <>
+               "ersten Kurs am #{first_rate} kam sein ganzer Saldo in den „Währungseffekt auf " <>
+               "Bargeld“ — das ist kein Währungsgewinn."
+
+    currency_row = "#contribution-table tr[data-line='cash_currency_effect']"
+
+    assert text_of(view, "#{currency_row} .contribution-unvalued-mark") ==
+             "Tagesgeld CHF: 18 Tage null"
+
+    assert has_element?(
+             view,
+             "#{currency_row} [data-role='contribution-unvalued-mark'][data-cash-account-id='#{franc.id}']"
+           )
+
+    for line <- ["interest", "standalone_fees_and_taxes"] do
+      refute has_element?(
+               view,
+               "#contribution-table tr[data-line='#{line}'] .contribution-unvalued-mark"
+             )
+    end
+
+    assert text_of(view, "#{currency_row} td:last-child") == "+2.500,00"
+
+    assert text_of(view, "#contribution-phone-rows [data-role='contribution-phone-rest']") ==
+             "Keiner Position zugeordnet Zinsen 0,00 · Gebühren/Steuern 0,00 · " <>
+               "Währung +2.500,00 · Tagesgeld CHF: 18 Tage null +2.500,00"
+
+    assert text_of(view, "[data-role='contribution-sum-figure']") == "+2.500,00 EUR"
 
     assert text_of(view, "[data-role='contribution-sum-figure']") ==
              text_of(view, "[data-role='period-badge'] [data-role='period-badge-money']")
@@ -770,8 +888,14 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
   #   wrap.
   # - The phone row has two children, body and figures; the 560 px block
   #   hides the table's wrapper.
+  # - The unvalued marker, on a position row and on the currency-effect line
+  #   alike (#1055, board J2 A), is one rule: the warning colour inside a
+  #   dashed pill, the word the channel.
   test "the stylesheet carries the pick's rules" do
     css = File.read!("priv/static/app.css")
+
+    assert css =~
+             ~r/\.contribution-unvalued-mark\s*\{[^}]*border:\s*1px dashed var\(--color-warning\);[^}]*color:\s*var\(--color-warning\);/
 
     assert css =~
              ~r/\.contribution-table td\.contribution-table__figure \.drift-bar\s*\{[^}]*display:\s*block;[^}]*width:\s*110px;[^}]*margin:\s*5px 0 0 auto/

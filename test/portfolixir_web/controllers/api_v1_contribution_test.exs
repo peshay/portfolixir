@@ -8,7 +8,9 @@ defmodule PortfolixirWeb.ApiV1ContributionTest do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Clock
+  alias Portfolixir.Fx
   alias Portfolixir.Ledger
+  alias Portfolixir.Portfolios
 
   defp get_json(conn, path, status \\ 200) do
     conn
@@ -177,6 +179,9 @@ defmodule PortfolixirWeb.ApiV1ContributionTest do
 
     assert data["totals"] == %{"result" => "371", "positions" => "366", "remainder" => "5"}
 
+    # #1055: every balance is in EUR and valued, so no cash account is named.
+    assert data["unvalued_cash_accounts"] == []
+
     # I1: the positions and the lines sum exactly to the result, and the
     # result is the performance read's money figure over the same window.
     assert Decimal.equal?(
@@ -240,7 +245,9 @@ defmodule PortfolixirWeb.ApiV1ContributionTest do
   # - computation_basis carries input_series, window (start_date, end_date),
   #   reference null, gaps and assumptions.
   # - gaps says a day without a price or a rate path counts zero and that the
-  #   affected positions are listed with their days.
+  #   affected positions are listed with their days, and names
+  #   unvalued_cash_accounts, where a foreign-currency balance that counted
+  #   zero is listed (#1055).
   # - assumptions states the §1 definition, the §3 identity, "base
   #   currency, currency move included", the 34-digit precision of a
   #   non-terminating conversion, and that the currency line holds a trade's
@@ -267,6 +274,8 @@ defmodule PortfolixirWeb.ApiV1ContributionTest do
     assert input_series =~ "per position"
     assert gaps =~ "counts zero"
     assert gaps =~ "the affected positions are listed with their days"
+    assert gaps =~ "unvalued_cash_accounts"
+    refute gaps =~ "no account is named"
     assert assumptions =~ "end_value − start_value − net_flows + income − costs"
     assert assumptions =~ "end value − start value − net external flows"
     assert assumptions =~ "never a plug"
@@ -365,6 +374,115 @@ defmodule PortfolixirWeb.ApiV1ContributionTest do
       )["data"]
 
     assert ranged["period"] == "#{world.year}-03-01..#{world.year}-03-31"
+  end
+
+  # A EUR portfolio whose "Tagesgeld CHF" received 2000 CHF on 07-14 of the
+  # year before this one, while CHF's first stored rate (EUR/CHF 0.8) is
+  # from 08-01: the walk counts the balance zero for 18 days, then at 2500.
+  defp franc_world do
+    year = Clock.today().year - 1
+    on = fn month, day -> Date.new!(year, month, day) end
+
+    world = base_world(name: "Franc", cash_name: "Giro", depot_name: "Depot")
+
+    {:ok, franc} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        name: "Tagesgeld CHF",
+        currency_code: "CHF"
+      })
+
+    deposit!(world, "1000", on.(7, 1))
+
+    book!(%{
+      portfolio_id: world.portfolio.id,
+      cash_account_id: franc.id,
+      type: "deposit",
+      date: on.(7, 14),
+      gross_amount: "2000",
+      currency_code: "CHF"
+    })
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "CHF",
+          date: on.(8, 1),
+          rate: "0.8",
+          source: "manual"
+        }
+      ])
+
+    Map.merge(world, %{year: year, franc: franc})
+  end
+
+  # User story (#1055, ADR-0051 §10; board J2 A):
+  # As the operator's agent reading a period that holds a CHF deposit made
+  # before the instance had any CHF rate,
+  # I want the performance and the contribution reads to name the account,
+  # in both forms, with its balance in CHF, its days and its first rate's
+  # date,
+  # so that I do not report the jump in cash_currency_effect as a currency
+  # gain.
+  #
+  # Acceptance criteria:
+  # - The performance and the contribution read, of the portfolio and of a
+  #   view holding the account, carry unvalued_cash_accounts: cash_account_id,
+  #   name, currency_code, balance (a Decimal string in CHF), unvalued_days
+  #   18, unvalued_reason "no_rate" and first_rate_date, the ISO date of the
+  #   first rate inside the window.
+  # - A window that ends before the first rate answers first_rate_date null.
+  # - Every figure is unchanged: the result is 2500, all of it in
+  #   cash_currency_effect.
+  test "names a cash account held before its first rate, on both reads and in both forms",
+       %{conn: conn} do
+    world = franc_world()
+    year = world.year
+    view = view!(world, "Franc View")
+    # The view's one bucket tags the CHF account too.
+    buckets = Buckets.cash_account_bucket_ids(world.cash.id)
+    :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), world.franc, buckets)
+
+    expected = %{
+      "cash_account_id" => world.franc.id,
+      "name" => "Tagesgeld CHF",
+      "currency_code" => "CHF",
+      "balance" => "2000",
+      "unvalued_days" => 18,
+      "unvalued_reason" => "no_rate",
+      "first_rate_date" => "#{year}-08-01"
+    }
+
+    paths = [
+      "/api/v1/portfolios/#{world.portfolio.id}/performance",
+      "/api/v1/portfolios/#{world.portfolio.id}/performance/contribution",
+      "/api/v1/portfolios/#{world.portfolio.id}/performance?view=#{view.id}",
+      "/api/v1/portfolios/#{world.portfolio.id}/performance/contribution?view=#{view.id}",
+      "/api/v1/views/#{view.id}/performance",
+      "/api/v1/views/#{view.id}/performance/contribution"
+    ]
+
+    for path <- paths do
+      separator = if path =~ "?", do: "&", else: "?"
+      data = get_json(conn, path <> separator <> "year=#{year}")["data"]
+      assert data["unvalued_cash_accounts"] == [expected], path
+
+      early =
+        get_json(conn, path <> separator <> "from=#{year}-07-01&to=#{year}-07-31")["data"]
+
+      assert early["unvalued_cash_accounts"] == [%{expected | "first_rate_date" => nil}], path
+    end
+
+    contribution =
+      get_json(
+        conn,
+        "/api/v1/portfolios/#{world.portfolio.id}/performance/contribution?year=#{year}"
+      )["data"]
+
+    assert contribution["remainder"]["cash_currency_effect"] == "2500"
+    assert contribution["totals"]["result"] == "2500"
+    assert contribution["positions"] == []
   end
 
   # User story (FR-41, ADR-0051 §6):

@@ -1860,8 +1860,9 @@ eine Notiz in seiner eigenen Stufe — Hinweis für den Handelspreis-Rückfall,
 Achtung für ausgenommene und veraltete Positionen, Problem für negative
 Bestände und für zwei Skalen — und trägt sein Mittel in der Notiz: das Bedienelement
 **Wechselkurse synchronisieren** steht im Befund zum fehlenden Wechselkurs,
-und ein Verrechnungskonto, das mangels Kurs ausgenommen ist, ist auch in der
-Cash-Tabelle mit *kein Wechselkurs* markiert. Positionen mit
+und ein Verrechnungskonto, das mangels Kurs ausgenommen ist, wird mit seinem
+Saldo in der eigenen Währung genannt — „USD Settlement (1.850,00 USD)“ — und
+ist auch in der Cash-Tabelle mit *kein Wechselkurs* markiert. Positionen mit
 negativer Menge sind zusätzlich überall dort mit einem Chip „negative
 Menge" markiert, wo sie auftauchen: in der Allokationstabelle, im
 Klassifikationsbaum und im Bestände-Tab des Wertpapiers.
@@ -2015,6 +2016,18 @@ in der Tabelle und in der Summe, trägt die Zahl dieser Tage in ihrer Zeile und
 wird in einem Hinweis unter der Tabelle genannt. Ein Zeitraum ohne Inhalt zeigt
 einen Satz statt einer Tabelle voller Nullen, und auf dem Telefon wird die
 Tabelle zu zweizeiligen Einträgen.
+
+Auch ein Verrechnungskonto in einer Fremdwährung zählt an jedem Tag null, an
+dem es Geld hält, während für seine Währung noch kein Wechselkurs zur
+Basiswährung gespeichert ist. Am Tag des ersten Kurses kommt sein ganzer Saldo
+auf einmal ins Ergebnis des Zeitraums und in den Währungseffekt auf Bargeld:
+Geld, das sichtbar wurde, kein Währungsgewinn. Der Hinweis unter der Tabelle
+nennt ein solches Konto wie eine Position — mit seinem Saldo in der eigenen
+Währung, den Tagen, an denen es null zählte, und dem Grund — und sagt, wenn
+der erste Kurs im Zeitraum kam, an welchem Tag der Saldo in den
+Währungseffekt kam; diese Zeile trägt den Vermerk des Kontos („Tagesgeld CHF:
+18 Tage null“). Bei einem Zeitraum nach dem ersten Kurs verschwindet das Konto
+wie der Sprung aus Tabelle und Hinweis.
 
 [![Beitrag je Position über ein Jahr: Anfangswert, Zu-/Abflüsse, Erträge, Kosten, Endwert und Beitrag der zehn größten Positionen mit ihren Balken, Alle 30 anzeigen, die drei Posten ohne Position, die Summenzeile und ein Hinweis auf die Positionen, die an einigen Tagen null zählten](../screenshots/contribution.png)](../screenshots/contribution.png)
 

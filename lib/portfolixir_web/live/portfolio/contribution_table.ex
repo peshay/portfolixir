@@ -30,8 +30,10 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
     * the sum row: every column summed over all positions; in the
       contribution column the period's result itself, which the positions
       and the remainder lines add up to (I1);
-    * the basis line (UX-DR11) and, where a position counted zero, the
-      attention note naming each one (UX-DR25);
+    * the basis line (UX-DR11) and, where a position or a cash account
+      counted zero, the attention note naming each one (UX-DR25); an account
+      also marks the currency-effect line, which holds the jump its first
+      rate brings (#1055, board J2 A);
     * under 560 px two-line rows beside the table (UX-DR27).
 
   An empty window is the empty-state sentence, never a table of zeros
@@ -130,6 +132,11 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
               "Nothing to break down in this period: no position was held, and no interest, fee or currency effect fell in it."
             ) %>
           </p>
+          <.unvalued_note
+            :if={@f.unvalued_accounts != []}
+            unvalued={[]}
+            accounts={@f.unvalued_accounts}
+          />
         <% true -> %>
           <.desktop_table f={@f} show_all?={@show_all?} />
           <.phone_rows f={@f} show_all?={@show_all?} />
@@ -139,7 +146,11 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
               currency: @f.currency
             ) %>
           </p>
-          <.unvalued_note :if={@f.unvalued != []} unvalued={@f.unvalued} />
+          <.unvalued_note
+            :if={@f.unvalued != [] or @f.unvalued_accounts != []}
+            unvalued={@f.unvalued}
+            accounts={@f.unvalued_accounts}
+          />
       <% end %>
     </div>
     """
@@ -222,6 +233,12 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
           >
             <td class="contribution-table__name">
               <%= line_label(line) %>
+              <span
+                :for={account <- line_accounts(line, @f.unvalued_accounts)}
+                class="contribution-unvalued-mark"
+                data-role="contribution-unvalued-mark"
+                data-cash-account-id={account.cash_account_id}
+              ><%= account_mark(account) %></span>
               <small class="contribution-table__note"><%= line_note(line) %></small>
             </td>
             <td class="num contribution-table__none">—</td>
@@ -291,7 +308,11 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
         <span class="phone-row__body">
           <span class="phone-row__name"><%= gettext("Not attributed to a position") %></span>
           <span class="phone-row__ids">
-            <%= Enum.map_join(@f.lines, " · ", &phone_rest(&1, @f.remainder[&1])) %>
+            <%= Enum.join(
+              Enum.map(@f.lines, &phone_rest(&1, @f.remainder[&1])) ++
+                Enum.map(@f.unvalued_accounts, &account_mark/1),
+              " · "
+            ) %>
           </span>
         </span>
         <span class="phone-row__figures">
@@ -340,23 +361,39 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
   end
 
   attr(:unvalued, :list, required: true)
+  attr(:accounts, :list, required: true)
 
   # UX-DR25: the count and every name, beside the total they are in. No
   # remedy control: nothing on this page can supply a past price or rate.
+  # The positions first, then the cash accounts that counted zero for want
+  # of a rate (#1055, board J2 A): one finding — something counted zero on
+  # some days — so one note, in the positions' shape, with the native
+  # balance, never a converted one (UX-DR25 clause 2).
   defp unvalued_note(assigns) do
     ~H"""
     <AppShell.data_note severity={:attention} data-role="contribution-unvalued">
-      <%= ngettext(
-        "One position counted zero on some days of the period:",
-        "%{count} positions counted zero on some days of the period:",
-        length(@unvalued)
-      ) %>
-      <span :for={{position, index} <- Enum.with_index(@unvalued)}><%= if index > 0, do: ", " %><b><%= position_name(position) %></b> (<%= unvalued_detail(position) %>)</span>.
-      <%= ngettext(
-        "It stays in the sum, as in the result above.",
-        "They stay in the sum, as in the result above.",
-        length(@unvalued)
-      ) %>
+      <%= if @unvalued != [] do %>
+        <%= ngettext(
+          "One position counted zero on some days of the period:",
+          "%{count} positions counted zero on some days of the period:",
+          length(@unvalued)
+        ) %>
+        <span :for={{position, index} <- Enum.with_index(@unvalued)}><%= if index > 0, do: ", " %><b><%= position_name(position) %></b> (<%= unvalued_detail(position) %>)</span>.
+        <%= ngettext(
+          "It stays in the sum, as in the result above.",
+          "They stay in the sum, as in the result above.",
+          length(@unvalued)
+        ) %>
+      <% end %>
+      <%= if @accounts != [] do %>
+        <%= ngettext(
+          "One cash account counted zero on some days of the period:",
+          "%{count} cash accounts counted zero on some days of the period:",
+          length(@accounts)
+        ) %>
+        <span :for={{account, index} <- Enum.with_index(@accounts)}><%= if index > 0, do: ", " %><b><%= account_name(account) %></b> (<%= account_detail(account) %>)</span>.
+        <%= first_rate_sentence(@accounts) %>
+      <% end %>
     </AppShell.data_note>
     """
   end
@@ -387,7 +424,8 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
       sum: contribution.totals.result,
       column_sums: column_sums(positions),
       currency: contribution.base_currency,
-      unvalued: Enum.filter(positions, &(&1.unvalued_days > 0))
+      unvalued: Enum.filter(positions, &(&1.unvalued_days > 0)),
+      unvalued_accounts: contribution.unvalued_cash_accounts
     }
   end
 
@@ -454,6 +492,65 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
 
   defp reason(:no_rate), do: gettext("no exchange rate stored")
   defp reason(_no_price), do: gettext("no price stored")
+
+  # A cash account that counted zero (#1055): its balance in its own
+  # currency, as `dq-missing-fx` prints a native price, its days and the
+  # reason — a balance needs no price, so the reason is always the rate.
+  defp account_name(%{name: name}) when is_binary(name), do: name
+  defp account_name(_account), do: "—"
+
+  defp account_detail(account) do
+    gettext("%{balance}, %{days}, %{reason}",
+      balance: "#{Format.decimal(account.balance, 2)} #{account.currency_code}",
+      days: ngettext("%{count} day", "%{count} days", account.unvalued_days),
+      reason: reason(account.unvalued_reason)
+    )
+  end
+
+  # Where the balance went when its first rate came inside the period: the
+  # board's sentence for one account; for several, each account whose rate
+  # came is named with its date. No rate inside the period: no sentence.
+  defp first_rate_sentence([%{first_rate_date: %Date{} = date}]) do
+    gettext(
+      "With the first rate on %{date}, its whole balance entered the “Currency effect on cash” — that is no currency gain.",
+      date: Format.date(date)
+    )
+  end
+
+  defp first_rate_sentence([_one]), do: nil
+
+  defp first_rate_sentence(accounts) do
+    case Enum.filter(accounts, &match?(%{first_rate_date: %Date{}}, &1)) do
+      [] ->
+        nil
+
+      dated ->
+        ngettext(
+          "With its first rate, the whole balance of %{names} entered the “Currency effect on cash” — that is no currency gain.",
+          "With their first rates, the whole balances of %{names} entered the “Currency effect on cash” — that is no currency gain.",
+          length(dated),
+          names:
+            Enum.map_join(
+              dated,
+              ", ",
+              &"#{account_name(&1)} (#{Format.date(&1.first_rate_date)})"
+            )
+        )
+    end
+  end
+
+  # The currency-effect line holds the jump a first rate brings, so it
+  # carries each account's marker, as a position row carries its own; the
+  # marker names the account, because the line itself is not the account.
+  defp line_accounts(:cash_currency_effect, accounts), do: accounts
+  defp line_accounts(_line, _accounts), do: []
+
+  defp account_mark(account) do
+    gettext("%{account}: %{days}",
+      account: account_name(account),
+      days: days_at_zero(account.unvalued_days)
+    )
+  end
 
   defp line_label(:interest), do: gettext("Interest")
   defp line_label(:standalone_fees_and_taxes), do: gettext("Standalone fees and taxes")

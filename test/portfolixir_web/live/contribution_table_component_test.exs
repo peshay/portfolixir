@@ -32,7 +32,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
     )
   end
 
-  defp result(positions) do
+  defp result(positions, accounts \\ []) do
     total = Enum.reduce(positions, d("0"), &Decimal.add(&1.contribution, &2))
 
     %{
@@ -45,8 +45,24 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
         standalone_fees_and_taxes: d("0"),
         cash_currency_effect: d("0")
       },
-      totals: %{result: total, positions: total, remainder: d("0")}
+      totals: %{result: total, positions: total, remainder: d("0")},
+      unvalued_cash_accounts: accounts
     }
+  end
+
+  defp account(id, name, overrides \\ %{}) do
+    Map.merge(
+      %{
+        cash_account_id: id,
+        name: name,
+        currency_code: "CHF",
+        balance: d("2000"),
+        unvalued_days: 18,
+        unvalued_reason: :no_rate,
+        first_rate_date: ~D[2026-03-02]
+      },
+      overrides
+    )
   end
 
   defp render_table(contribution, opts \\ []) do
@@ -67,6 +83,11 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
     |> String.split()
     |> Enum.join(" ")
   end
+
+  # The note as it reads: the test DOM's separator also lands between a
+  # closing tag and the full stop after it.
+  defp sentence(html, selector),
+    do: html |> text(selector) |> String.replace(" .", ".") |> String.replace(" ,", ",")
 
   # User story (FR-41, ADR-0051 §12, board pick A):
   # As a local portfolio maintainer whose contribution walk failed,
@@ -117,6 +138,109 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
 
     assert text(html, "[data-role='contribution-unvalued']") =~
              "Position 4 (12 days, no exchange rate stored)"
+  end
+
+  # User story (#1055, ADR-0051 §10, board J2 A):
+  # As a local portfolio maintainer whose CHF account held money before the
+  # instance had a CHF rate,
+  # I want the note under the table to name the account the way it names a
+  # position, and the currency-effect row to carry the account's marker,
+  # so that the jump in that row reads as a deposit that became visible, not
+  # as a currency gain.
+  #
+  # Acceptance criteria:
+  # - One account: "One cash account counted zero on some days of the
+  #   period: Tagesgeld CHF (2,000.00 CHF, 18 days, no exchange rate
+  #   stored)." and, when its first rate arrived inside the period, "With the
+  #   first rate on 03/02/2026, its whole balance entered the “Currency effect
+  #   on cash” — that is no currency gain."; without one, the first sentence
+  #   only.
+  # - The note names the positions first and the accounts after them, in one
+  #   note; with accounts only, the note still renders.
+  # - Several accounts: the plural sentence, and one sentence naming each
+  #   account whose first rate arrived, with its date.
+  # - An empty window that still held an account at zero shows the
+  #   empty-state sentence and the note.
+  # - The currency-effect row carries `.contribution-unvalued-mark` per
+  #   account, "Tagesgeld CHF: 18 days at zero", and so does the phone
+  #   remainder row; the other two lines carry none.
+  test "an account that counted zero is named in the note and marked on the currency row" do
+    html =
+      render_table(
+        result([position(4, "-15", %{unvalued_days: 12, unvalued_reason: :no_rate})], [
+          account(7, "Tagesgeld CHF")
+        ])
+      )
+
+    note = sentence(html, "[data-role='contribution-unvalued']")
+
+    assert note =~
+             "One position counted zero on some days of the period: Position 4 (12 days, " <>
+               "no exchange rate stored). It stays in the sum, as in the result above. " <>
+               "One cash account counted zero on some days of the period: Tagesgeld CHF " <>
+               "(2,000.00 CHF, 18 days, no exchange rate stored). With the first rate on " <>
+               "2026-03-02, its whole balance entered the “Currency effect on cash” — that " <>
+               "is no currency gain."
+
+    assert text(
+             html,
+             "#contribution-table tr[data-line='cash_currency_effect'] .contribution-unvalued-mark"
+           ) ==
+             "Tagesgeld CHF: 18 days at zero"
+
+    for line <- ["interest", "standalone_fees_and_taxes"] do
+      assert text(html, "#contribution-table tr[data-line='#{line}'] .contribution-unvalued-mark") ==
+               ""
+    end
+
+    assert text(html, "[data-role='contribution-phone-rest'] .phone-row__ids") ==
+             "Interest 0.00 · Fees/taxes 0.00 · Currency 0.00 · Tagesgeld CHF: 18 days at zero"
+
+    # No rate inside the period: the first sentence only; no position and no
+    # line moved: the empty-state sentence, and the account still named.
+    alone = render_table(result([], [account(7, "Tagesgeld CHF", %{first_rate_date: nil})]))
+    assert text(alone, "[data-role='contribution-empty']") =~ "Nothing to break down"
+    note = sentence(alone, "[data-role='contribution-unvalued']")
+
+    assert note ==
+             "Attention One cash account counted zero on some days of the period: Tagesgeld CHF " <>
+               "(2,000.00 CHF, 18 days, no exchange rate stored)."
+
+    # Two accounts, one with a first rate inside the period.
+    two =
+      render_table(
+        result([position(1, "5")], [
+          account(8, "Sparkonto CHF", %{balance: d("400"), unvalued_days: 11}),
+          account(9, "USD Settlement", %{
+            currency_code: "USD",
+            balance: d("1850"),
+            unvalued_days: 30,
+            first_rate_date: nil
+          })
+        ])
+      )
+
+    note = sentence(two, "[data-role='contribution-unvalued']")
+
+    assert note =~
+             "2 cash accounts counted zero on some days of the period: Sparkonto CHF " <>
+               "(400.00 CHF, 11 days, no exchange rate stored), USD Settlement (1,850.00 USD, " <>
+               "30 days, no exchange rate stored). With its first rate, the whole balance of " <>
+               "Sparkonto CHF (2026-03-02) entered the “Currency effect on cash” — that is no " <>
+               "currency gain."
+
+    refute note =~ "position counted zero"
+
+    assert text(
+             two,
+             "#contribution-table tr[data-line='cash_currency_effect'] .contribution-unvalued-mark"
+           ) ==
+             "Sparkonto CHF: 11 days at zero USD Settlement: 30 days at zero"
+
+    # Every balance valued: no note, no marker.
+    none = render_table(result([position(1, "5")]))
+    assert text(none, "[data-role='contribution-unvalued']") == ""
+    assert text(none, ".contribution-unvalued-mark") == ""
   end
 
   # User story (FR-41, board pick A):

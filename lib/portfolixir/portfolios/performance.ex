@@ -105,8 +105,10 @@ defmodule Portfolixir.Portfolios.Performance do
   non-annualized period companion `mwr`, `start_value`/`end_value`,
   `net_external_flows`, `invested_capital` (opening value + net period
   flows) with the `wealth_multiple` (`Decimal.t() | nil`, #568/ADR-0034),
-  and the daily `series` of `%{date, value, flow, cumulative_ttwror}` for
-  the period.
+  the daily `series` of `%{date, value, flow, cumulative_ttwror}` for the
+  period, and `unvalued_cash_accounts`, the cash accounts that counted zero
+  on some day of it for want of a rate path (`unvalued_cash_accounts/3`,
+  #1055).
   """
   def for_portfolio(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
     period = Keyword.get(opts, :period, "max")
@@ -124,6 +126,12 @@ defmodule Portfolixir.Portfolios.Performance do
   `first_date`/`today`, the base currency, and `suspect_dates` (dates of
   bookings older than #{inspect(@earliest_plausible)}, applied on the first
   plausible day). Feed it to `summarise/2` once per period.
+
+  A day on which a cash account held a non-zero balance and counted zero for
+  want of a rate path carries `unvalued_cash` (`account id => native
+  balance`), and only then does the map carry `cash_labels` (`account id =>
+  %{name, currency_code}`) and `first_rate_dates` (`currency => the first day
+  of its rate path`) for `unvalued_cash_accounts/3` (#1055).
   """
   def analysis(portfolio_id, opts \\ []) when is_integer(portfolio_id) do
     # `:view` (a view id) scopes the series to the holdings matching that view;
@@ -215,7 +223,7 @@ defmodule Portfolixir.Portfolios.Performance do
         empty_analysis(portfolio_id, today, base, suspects)
 
       start ->
-        {daily, kept} =
+        {daily, kept, fx} =
           daily_series(portfolio_id, transactions, start, today, base, scope, window)
 
         %{
@@ -228,11 +236,68 @@ defmodule Portfolixir.Portfolios.Performance do
           daily: daily
         }
         |> put_kept(kept)
+        |> put_unvalued_cash_labels(portfolio_id, fx, start)
     end
   end
 
   defp put_kept(analysis, nil), do: analysis
   defp put_kept(analysis, kept), do: Map.put(analysis, :contribution, kept)
+
+  # Only a walk in which some cash balance counted zero (#1055) names its
+  # accounts and their currencies' first rate dates, so every other stored
+  # payload keeps its shape. The names are read here, once per walk, which
+  # keeps `summarise/2` pure: a name changes only when the walk recomputes.
+  defp put_unvalued_cash_labels(analysis, portfolio_id, fx, walk_start) do
+    ids =
+      for %{unvalued_cash: accounts} <- analysis.daily,
+          account_id <- Map.keys(accounts),
+          into: MapSet.new(),
+          do: account_id
+
+    if MapSet.size(ids) == 0 do
+      analysis
+    else
+      labels =
+        for account <- Portfolios.list_cash_accounts_for_portfolio(portfolio_id),
+            MapSet.member?(ids, account.id),
+            into: %{},
+            do: {account.id, %{name: account.name, currency_code: account.currency_code}}
+
+      first_rate_dates =
+        for currency <- labels |> Map.values() |> Enum.map(& &1.currency_code) |> Enum.uniq(),
+            %Date{} = date <- [first_path_date(currency, analysis.base_currency, fx, walk_start)],
+            into: %{},
+            do: {currency, date}
+
+      analysis
+      |> Map.put(:cash_labels, labels)
+      |> Map.put(:first_rate_dates, first_rate_dates)
+    end
+  end
+
+  # The first day `currency` has a rate path to `base`, from the series the
+  # walk preloaded (`init_fx/4`): a rate carried in from before the walk is a
+  # path from its first day on, else the first stored point; both ends of the
+  # path must have one. `nil` when no path ever arrives.
+  defp first_path_date(same, same, _fx, walk_start), do: walk_start
+
+  defp first_path_date(currency, base, fx, walk_start) do
+    with %Date{} = from <- first_hub_date(currency, fx, walk_start),
+         %Date{} = to <- first_hub_date(base, fx, walk_start) do
+      Enum.max([from, to], Date)
+    end
+  end
+
+  defp first_hub_date(@hub, _fx, walk_start), do: walk_start
+  defp first_hub_date("GBX", fx, walk_start), do: first_hub_date("GBP", fx, walk_start)
+
+  defp first_hub_date(currency, fx, walk_start) do
+    case Map.get(fx, currency) do
+      %{rate: %Decimal{}} -> walk_start
+      %{upcoming: [%{date: date} | _rest]} -> date
+      _none -> nil
+    end
+  end
 
   # -- cross-portfolio view walk (#577) ---------------------------------------
 
@@ -431,13 +496,40 @@ defmodule Portfolixir.Portfolios.Performance do
 
       _some ->
         first = walked |> Enum.map(& &1.first_date) |> Enum.min(Date)
+
         %{merged | first_date: first, daily: merged_daily(walked, first, today)}
+        |> merge_unvalued_cash_labels(walked)
+    end
+  end
+
+  # The names of the accounts that counted zero (#1055), as each portfolio's
+  # walk read them. An account belongs to one portfolio, so the names never
+  # collide. A currency's first rate date is the earliest any walk saw: a
+  # walk that starts after the first rate only knows that a rate was there.
+  defp merge_unvalued_cash_labels(merged, walked) do
+    labels = walked |> Enum.map(&Map.get(&1, :cash_labels, %{})) |> Enum.reduce(%{}, &Map.merge/2)
+
+    if labels == %{} do
+      merged
+    else
+      first_rate_dates =
+        walked
+        |> Enum.map(&Map.get(&1, :first_rate_dates, %{}))
+        |> Enum.reduce(%{}, fn dates, acc ->
+          Map.merge(acc, dates, fn _currency, a, b -> Enum.min([a, b], Date) end)
+        end)
+
+      merged
+      |> Map.put(:cash_labels, labels)
+      |> Map.put(:first_rate_dates, first_rate_dates)
     end
   end
 
   # Sums the per-portfolio points per day. A portfolio whose walk starts later
   # has no point yet on earlier days — its value there is genuinely zero, so
-  # the day is the sum of the portfolios already walking.
+  # the day is the sum of the portfolios already walking. The accounts that
+  # counted zero on a day are the union of each portfolio's (#1055), carried
+  # only on such a day, as in a portfolio's own walk.
   defp merged_daily(walked, first, today) do
     sums =
       Enum.reduce(walked, %{}, fn analysis, acc ->
@@ -446,18 +538,22 @@ defmodule Portfolixir.Portfolios.Performance do
         end)
       end)
 
-    zero = %{value: @zero, flow: @zero, basis: @zero, trade_costs: @zero}
+    zero = %{value: @zero, flow: @zero, basis: @zero, trade_costs: @zero, unvalued_cash: %{}}
 
     Enum.map(Date.range(first, today), fn date ->
       slice = Map.get(sums, date, zero)
 
-      %{
+      point = %{
         date: date,
         value: slice.value,
         flow: slice.flow,
         basis: slice.basis,
         trade_costs: slice.trade_costs
       }
+
+      if slice.unvalued_cash == %{},
+        do: point,
+        else: Map.put(point, :unvalued_cash, slice.unvalued_cash)
     end)
   end
 
@@ -466,7 +562,8 @@ defmodule Portfolixir.Portfolios.Performance do
       value: point.value,
       flow: point.flow,
       basis: basis_of(point),
-      trade_costs: trade_costs_of(point)
+      trade_costs: trade_costs_of(point),
+      unvalued_cash: unvalued_cash_of(point)
     }
   end
 
@@ -475,9 +572,12 @@ defmodule Portfolixir.Portfolios.Performance do
       value: Decimal.add(slice.value, point.value),
       flow: Decimal.add(slice.flow, point.flow),
       basis: Decimal.add(slice.basis, basis_of(point)),
-      trade_costs: Decimal.add(slice.trade_costs, trade_costs_of(point))
+      trade_costs: Decimal.add(slice.trade_costs, trade_costs_of(point)),
+      unvalued_cash: Map.merge(slice.unvalued_cash, unvalued_cash_of(point))
     }
   end
+
+  defp unvalued_cash_of(point), do: Map.get(point, :unvalued_cash, %{})
 
   # What the combined series contains (ADR-0032 §6 banner): bookings across
   # all walked portfolios.
@@ -578,12 +678,86 @@ defmodule Portfolixir.Portfolios.Performance do
       as_of: analysis.basis.computed_at,
       stale: Map.get(analysis, :stale, false),
       computation_basis: computation_basis(start_date, end_date),
-      series: series
+      series: series,
+      unvalued_cash_accounts: unvalued_cash_accounts(analysis, start_date, end_date)
     }
 
     summary = Map.put(summary, :irr, IRR.for_summary(summary))
     Map.merge(summary, wealth_metrics(summary))
   end
+
+  @doc """
+  The cash accounts a walk counted zero on some day of a window although they
+  held money, because their currency had no rate path to the base currency
+  (#1055, ADR-0051 §10 and its 2026-10-03 amendment).
+
+  Pure: it reads the `analysis/2` result (the days, and the names the walk
+  stored beside them), so a period switch needs no query. Each entry carries
+  `cash_account_id`, `name`, `currency_code`, `balance` (the native balance
+  on the last such day inside the window), `unvalued_days` (the window days
+  the account held a non-zero balance and counted zero), `unvalued_reason`
+  (always `:no_rate`: a balance needs no price) and `first_rate_date` — the
+  day the currency's first rate path arrived, when that day lies inside the
+  window after the first such day, else `nil`: the day the whole balance
+  entered the money result and the contribution's currency effect on cash.
+
+  Sorted by name, then id; `[]` when every balance was valued, and for an
+  empty window (`start_date` `nil`). Nothing is converted: the figures stay
+  the walk's own, the balance counted zero on each listed day.
+  """
+  @spec unvalued_cash_accounts(map(), Date.t() | nil, Date.t()) :: [map()]
+  def unvalued_cash_accounts(_analysis, nil, _end_date), do: []
+
+  def unvalued_cash_accounts(analysis, %Date{} = start_date, %Date{} = end_date) do
+    window = %{start: start_date, end: end_date}
+    labels = Map.get(analysis, :cash_labels, %{})
+    first_rate_dates = Map.get(analysis, :first_rate_dates, %{})
+
+    analysis.daily
+    |> Enum.reduce(%{}, fn
+      %{unvalued_cash: accounts, date: date}, seen ->
+        if in_window?(window, date), do: see_unvalued(seen, accounts, date), else: seen
+
+      _valued, seen ->
+        seen
+    end)
+    |> Enum.map(fn {account_id, seen} ->
+      label = Map.get(labels, account_id, %{name: nil, currency_code: nil})
+      first_rate = Map.get(first_rate_dates, label.currency_code)
+
+      %{
+        cash_account_id: account_id,
+        name: label.name,
+        currency_code: label.currency_code,
+        balance: seen.balance,
+        unvalued_days: seen.days,
+        unvalued_reason: :no_rate,
+        first_rate_date: first_rate_inside(first_rate, seen.first, end_date)
+      }
+    end)
+    |> Enum.sort_by(&{&1.name || "", &1.cash_account_id})
+  end
+
+  # The points are in date order, so the last balance seen is the last day's.
+  defp see_unvalued(seen, accounts, date) do
+    Enum.reduce(accounts, seen, fn {account_id, balance}, acc ->
+      Map.update(
+        acc,
+        account_id,
+        %{first: date, days: 1, balance: balance},
+        &%{&1 | days: &1.days + 1, balance: balance}
+      )
+    end)
+  end
+
+  # A first rate before the first zero day, or after the window, did not
+  # move this window's result: it is not named.
+  defp first_rate_inside(%Date{} = date, first_zero_day, end_date) do
+    if Date.compare(date, first_zero_day) == :gt and Date.compare(date, end_date) != :gt,
+      do: date
+  end
+
+  defp first_rate_inside(_none, _first_zero_day, _end_date), do: nil
 
   # ADR-0039 C4 / AGENTS.md analytics rule: every metric states its
   # computation basis IN the payload — input series, window, reference where
@@ -600,7 +774,12 @@ defmodule Portfolixir.Portfolios.Performance do
         "prices and exchange rates carry the most recent stored point on or " <>
           "before each day forward; a security with no quote yet is priced by " <>
           "its own latest trade; a missing conversion path contributes zero " <>
-          "(ADR-0010). irr and mwr are null when no rate solves the window's " <>
+          "(ADR-0010). A cash account whose non-zero balance counted zero on a " <>
+          "window day for want of a rate path is listed in unvalued_cash_accounts " <>
+          "with its native balance, its days and, when it arrived inside the " <>
+          "window, the date of its currency's first rate, the day the whole " <>
+          "balance entered the result (ADR-0051 §10). irr and mwr are null when " <>
+          "no rate solves the window's " <>
           "cashflows: fewer than two, one shared date, no sign change, no root in " <>
           "the solver's budget, or an amount outside the range its one float step " <>
           "carries (a non-zero magnitude below 1e-300 or above 1e300, which only " <>
@@ -675,7 +854,8 @@ defmodule Portfolixir.Portfolios.Performance do
       as_of: analysis.basis.computed_at,
       stale: Map.get(analysis, :stale, false),
       computation_basis: computation_basis(nil, analysis.today),
-      series: []
+      series: [],
+      unvalued_cash_accounts: []
     }
   end
 
@@ -708,10 +888,11 @@ defmodule Portfolixir.Portfolios.Performance do
   # portfolio value (base currency) and net external flow. All pricing data
   # (quotes, own trade prices, FX rates) is preloaded; the walk is pure.
   #
-  # Returns `{series, kept}`: `kept` is `nil` unless a contribution `window`
-  # was given, in which case it holds the per-position figures the walk kept
-  # apart inside it (ADR-0051 §5). They ride in the state under `:kept`, a key
-  # no walk output reads.
+  # Returns `{series, kept, fx}`: `kept` is `nil` unless a contribution
+  # `window` was given, in which case it holds the per-position figures the
+  # walk kept apart inside it (ADR-0051 §5). They ride in the state under
+  # `:kept`, a key no walk output reads. `fx` is the rate series as preloaded,
+  # before the walk consumed any of it: where each currency's path begins.
   defp daily_series(portfolio_id, transactions, walk_start, today, base, scope, window) do
     by_day = Enum.group_by(transactions, &effective_date(&1, walk_start))
     currencies = account_currencies(portfolio_id)
@@ -729,7 +910,7 @@ defmodule Portfolixir.Portfolios.Performance do
     {series, state, _context} =
       Enum.reduce(Date.range(walk_start, today), {[], state, context}, &walk_day(by_day, &1, &2))
 
-    {Enum.reverse(series), Map.get(state, :kept)}
+    {Enum.reverse(series), Map.get(state, :kept), context.fx}
   end
 
   defp effective_date(tx, walk_start) do
@@ -751,17 +932,44 @@ defmodule Portfolixir.Portfolios.Performance do
     value = portfolio_value(closing, context)
     basis = basis_adjustment(steps, opening, legs, context, carried_fx)
 
-    {[
-       %{
-         date: day,
-         value: value,
-         flow: flow,
-         basis: basis,
-         trade_costs: trade_costs(day_txs, context)
-       }
-       | acc
-     ], keep_day(closing, state, context, carried_fx), context}
+    point =
+      put_unvalued_cash(
+        %{
+          date: day,
+          value: value,
+          flow: flow,
+          basis: basis,
+          trade_costs: trade_costs(day_txs, context)
+        },
+        closing.cash,
+        context
+      )
+
+    {[point | acc], keep_day(closing, state, context, carried_fx), context}
   end
+
+  # The accounts `portfolio_value/2` just counted zero although they held
+  # money: a non-zero native balance whose currency has no rate path to the
+  # base today (#1055, ADR-0051 §10). The point carries them, with their
+  # native balances, only on such a day, so every other point keeps its shape.
+  # Nothing here changes `value`: the balance still counts zero, as before.
+  defp put_unvalued_cash(point, cash, context) do
+    unvalued =
+      for {account_id, balance} <- cash,
+          not Decimal.equal?(balance, @zero),
+          not rate_path?(Map.get(context.currencies, account_id), context.base, context.fx),
+          into: %{},
+          do: {account_id, balance}
+
+    if unvalued == %{}, do: point, else: Map.put(point, :unvalued_cash, unvalued)
+  end
+
+  # Whether `to_base/3` would convert from `from` to `to` today, without the
+  # division: exactly when `conversion_rate/3` answers `{:ok, _}`.
+  defp rate_path?(same, same, _fx), do: true
+
+  defp rate_path?(from, to, fx),
+    do: match?({:ok, _rate}, eur_rate(from, fx)) and match?({:ok, _rate}, eur_rate(to, fx))
 
   # The fees and taxes carried BY A TRADE, per day, in the base currency
   # (ADR-0027's 2026-08-15 amendment §1, issue #708). Nothing here changes the

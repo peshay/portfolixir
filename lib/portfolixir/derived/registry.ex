@@ -36,9 +36,15 @@ defmodule Portfolixir.Derived.Registry do
   # retired security's stale quote no longer counts as a measurement. Both
   # move `flow` and `basis` on stored points, so rows computed at v2 must not
   # be served.
+  #
+  # v4 (2026-10-05, #1055, Sprint 19 PR α M3): a point on which a cash
+  # balance counted zero for want of a rate path carries `unvalued_cash`,
+  # and such a walk carries the accounts' names and their currencies' first
+  # rate dates. No figure moves, but a row stored at v3 lacks the keys, and
+  # its reads would name no account where one counted zero.
   @analytics %{
-    performance_analysis: %{computation_version: 3, default_lifetime: :request},
-    performance_view_analysis: %{computation_version: 3, default_lifetime: :request},
+    performance_analysis: %{computation_version: 4, default_lifetime: :request},
+    performance_view_analysis: %{computation_version: 4, default_lifetime: :request},
     # The contribution analysis (FR-41, ADR-0051 §12, Sprint 18 PR β): the
     # walk keeping each position apart inside a period's window. Its own
     # analytic per scope and period, keyed like the two walk analytics plus
@@ -48,8 +54,10 @@ defmodule Portfolixir.Derived.Registry do
     # (ADR-0051 I9). `:request` by default; the ADR-0039 C3 measurement
     # decides any move to `:durable`. Only the fixed periods are memoised: a
     # custom range is computed on every read (E25 S4, G03).
-    performance_contribution: %{computation_version: 1, default_lifetime: :request},
-    performance_view_contribution: %{computation_version: 1, default_lifetime: :request},
+    # v2 (2026-10-05, #1055): the table carries `unvalued_cash_accounts`; a
+    # v1 payload lacks it.
+    performance_contribution: %{computation_version: 2, default_lifetime: :request},
+    performance_view_contribution: %{computation_version: 2, default_lifetime: :request},
     # The benchmark comparison (ADR-0046 §5, Sprint 11 Lane B): a read model
     # over a walk and a benchmark's price series, keyed under the global
     # basis because a benchmark the portfolio never held is outside the

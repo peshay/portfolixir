@@ -325,6 +325,8 @@ defmodule PortfolixirWeb.ApiV1PerformanceTest do
   #   and computation_basis (input_series, window, reference, gaps).
   # - The fields are present for an empty portfolio too — no serialization
   #   drops them (I4).
+  # - unvalued_cash_accounts is present too, [] when no balance counted zero,
+  #   and gaps names it (#1055, ADR-0051 §10).
   test "states freshness and the computation basis in the payload", %{conn: conn} do
     {:ok, portfolio} =
       Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
@@ -351,5 +353,7 @@ defmodule PortfolixirWeb.ApiV1PerformanceTest do
 
     assert is_binary(input_series)
     assert is_binary(gaps)
+    assert gaps =~ "unvalued_cash_accounts"
+    assert data["unvalued_cash_accounts"] == []
   end
 end

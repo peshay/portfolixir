@@ -1417,6 +1417,15 @@ li + li {
   margin-bottom: var(--space-3);
 }
 
+/* Wealth's data-quality findings, one status region of stacked data notes:
+   the comparison's gap, so two notes never touch (board
+   ux-design-2026-10-04/02-money-notes, found while drawing; issue 1055). */
+[data-role="dq-notes"] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 /* Cash balance per account row (issue 670): amount over its as-of basis
    line, with the set-balance action beside it. */
 .cash-balance {

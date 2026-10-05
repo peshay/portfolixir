@@ -467,3 +467,33 @@ changes no contribution, save for ADR-0028's quantity rounding.*
   value into the currency effect on cash. The payload's basis states it, but
   §10 names positions only, so no account is named. Naming such accounts on
   the performance and the contribution reads is filed as its own story.
+
+**Note (2026-10-05): the accounts are now named.** The story the last item
+above filed is built (#1055, Sprint 19 PR α M3; board
+`mockups/ux-design-2026-10-04/02-money-notes`, pick J2 A). Nothing it states
+about the figures changes: such a balance still counts zero, its deposit is
+still a flow of zero, and the first rate still brings its whole value into
+the currency effect on cash and into the money result.
+
+- **Both reads name the account.** The performance read and the
+  contribution read, each in its portfolio and its view form, carry
+  `unvalued_cash_accounts` for their window: every cash account of the
+  scope that held a non-zero balance and counted zero on a window day for
+  want of a rate path, with its native balance, its days, the reason
+  (`no_rate`) and the date its currency's first rate arrived when that falls
+  inside the window. The two reads of one scope and window list the same
+  accounts, and each basis's `gaps` names the field where the contribution's
+  said that no account is named.
+- **The walk records the days, the reads count them.** A walk point carries
+  the accounts it counted zero only on such a day, and a walk with any such
+  day stores the accounts' names and their currencies' first rate dates
+  beside its series, so `summarise/2` stays pure. The first rate's date
+  comes from the stored rates, not from the series: a day that leaves the
+  list cannot tell a rate that arrived from a balance that went to zero.
+  The walk payloads move to computation version 4 and the contribution's to
+  2; every existing figure is byte-identical (I9).
+- **The screen** follows the board: the note under the contribution table
+  names the account in the positions' shape, adds where the balance went
+  when its first rate came inside the period, and the "Währungseffekt auf
+  Bargeld" line carries the account's marker. §10's naming now covers the
+  accounts as well as the positions.
