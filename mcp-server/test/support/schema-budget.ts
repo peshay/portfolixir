@@ -94,6 +94,17 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 103_991,
     book: 177_085,
     full: 207_448
+  },
+  {
+    since: "2026-10-05",
+    why:
+      "securities.update takes is_retired, the remedy securities.delete names (owner " +
+      "decision 2026-10-05), paid for by tightening securities.update's description and " +
+      "its currency_code, treat_quotes_as_raw and is_benchmark properties, and lowered to " +
+      "the figure measured with it (D-10)",
+    read: 103_991,
+    book: 177_080,
+    full: 207_443
   }
 ];
 
