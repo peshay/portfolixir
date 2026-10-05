@@ -82,6 +82,35 @@ defmodule Portfolixir.Imports.CsvGesamtpreisReimportTest do
     Ledger.cash_balances(portfolio_id: portfolio.id)
   end
 
+  # User story (ADR-0053 §1, §3):
+  # As the operator dropping a hand-made CSV whose rows give only a
+  # Gesamtpreis,
+  # I want two such rows on one day and one account to book both,
+  # so that a blank Betrag never makes two different bookings one.
+  #
+  # Acceptance criteria:
+  # - Two Einlage rows on one day, one account, with a blank Betrag and the
+  #   Gesamtpreis 250,00 and 300,00 book two transactions, 550,00 in all:
+  #   their hashes read the Gesamtpreis each books, never a shared blank
+  #   (no such row was importable before ADR-0053, so no blank hash is
+  #   stored).
+  test "two rows with only a Gesamtpreis on one day and one account both book", %{
+    portfolio: portfolio
+  } do
+    csv = """
+    Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+    2024-01-02 00:00:00;Einlage;;;;;;;250,00;Gift-Cash;;;
+    2024-01-02 00:00:00;Einlage;;;;;;;300,00;Gift-Cash;;;
+    """
+
+    result = apply!(csv, portfolio)
+
+    assert result.created_transactions == 2
+    assert result.duplicate_entries == []
+    assert [balance] = portfolio |> cash_balances() |> Map.values()
+    assert Decimal.equal?(balance, Decimal.new("550.00"))
+  end
+
   # User story (ADR-0053 K3):
   # As the operator whose instance imported a Portfolio Performance CSV
   # before the importer booked its Gesamtpreis,
