@@ -165,6 +165,13 @@ the 2026-09-25 amendment), the parent books **Gesamtpreis minus the
 refund**. The row's bookings together then equal its Gesamtpreis. The
 companion's hash and its judgement with its parent are unchanged.
 
+**Note (2026-10-05).** "Gesamtpreis minus the refund" is meant in signed
+cash. On a credit row the parent is credited the Gesamtpreis minus the
+refund (G − r); on a debit row the parent is debited the Gesamtpreis plus
+the refund (G + r), since the refund credited beside it brings the row's
+net debit back to G. Either way parent and companion net to the row's
+Gesamtpreis, which is what K6 requires. No decision changes.
+
 ### 6. Bookings made under the old reading are corrected by a separate confirm
 
 No stored row records which file format it came from, so an instance cannot
