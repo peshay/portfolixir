@@ -9,11 +9,14 @@ defmodule Portfolixir.Imports.Applier do
 
   Idempotency: each entry receives a deterministic SHA-256
   `import_hash` derived from its stable identity (kind, date, security
-  ISIN-or-name, quantity, gross amount, PP account names, target
+  ISIN-or-name, quantity, the file's amount — a CSV row's Betrag even where
+  it books its Gesamtpreis, ADR-0053 §3 —, PP account names, target
   portfolio id) by `Portfolixir.Imports.ImportHash`, injective since E25 S5
   (F36) with every stored hash still valid. The `transactions.import_hash`
   unique partial index rejects re-inserts; the applier counts those as
-  `skipped_duplicates` and continues.
+  `skipped_duplicates` and continues. The #533 economic key of a CSV row
+  that books its Gesamtpreis is checked under the Betrag reading too
+  (ADR-0053 §4), so a drifted re-export of a row booked before is skipped.
 
   The re-import contract (ADR-0050 §2–§6) fixes the order of the checks:
 
@@ -1920,8 +1923,12 @@ defmodule Portfolixir.Imports.Applier do
     # `{:pending, kind, pp_name}` placeholder in its key, which matches no
     # existing and no earlier inserted booking: nothing was booked on an
     # account that does not exist yet.
+    #
+    # ADR-0053 §4: a Portfolio Performance CSV row books its Gesamtpreis,
+    # while a booking stored before that record holds the row's Betrag, so
+    # the pre-import set is also asked under the Betrag reading.
     cond do
-      MapSet.member?(state.existing_dedup_keys, key) ->
+      booked_before?(state.existing_dedup_keys, key, entry, attrs) ->
         {:ok, record_duplicate(state, entry, :economics)}
 
       collapse? and MapSet.member?(state.seen_run_keys, run_key(key, entry)) ->
@@ -1933,6 +1940,31 @@ defmodule Portfolixir.Imports.Applier do
         end
     end
   end
+
+  # ADR-0053 §4: the economic key under both readings of a CSV row, against
+  # the pre-import set only. A row whose hash amount (the file's Betrag)
+  # differs from the cash it books (its Gesamtpreis) is a duplicate when
+  # either key is stored: a drifted re-export (a time of day changed, so no
+  # hash matches) of a row booked before ADR-0053 is still recognised and
+  # not booked twice. It errs towards "already booked", as ADR-0029's legacy
+  # hash does, and the result names the row it skipped. The in-run key is
+  # the booked one alone.
+  defp booked_before?(existing_keys, key, %Entry{} = entry, attrs) do
+    MapSet.member?(existing_keys, key) or
+      case betrag_reading(entry, attrs) do
+        nil -> false
+        betrag_attrs -> MapSet.member?(existing_keys, DedupKey.of(betrag_attrs))
+      end
+  end
+
+  defp betrag_reading(
+         %Entry{hash_amount: %Decimal{} = betrag},
+         %{gross_amount: %Decimal{} = cash} = attrs
+       ) do
+    unless Decimal.equal?(betrag, cash), do: %{attrs | gross_amount: betrag}
+  end
+
+  defp betrag_reading(_entry, _attrs), do: nil
 
   # N:1 within-run dedup (ADR-0029 §2): two file rows carrying different
   # identities of ONE paper (old + new ISIN) resolve to the same security and
