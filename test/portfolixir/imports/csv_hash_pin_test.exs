@@ -68,9 +68,10 @@ defmodule Portfolixir.Imports.CsvHashPinTest do
   # Each row's content hash, computed as the applier computes it: a row of
   # the file by `ImportHash.compute/2`, a split-off refund by
   # `ImportHash.companion/4` with the hash of the row before it.
-  defp digests(name) do
-    {:ok, preview} =
-      PortfolioPerformance.parse(File.read!(Path.join(@fixtures, name)), filename: name)
+  defp digests(name), do: digests_of(File.read!(Path.join(@fixtures, name)), name)
+
+  defp digests_of(body, name) do
+    {:ok, preview} = PortfolioPerformance.parse(body, filename: name)
 
     assert preview.errors == [], "#{name}: #{inspect(preview.errors)}"
 
@@ -105,6 +106,27 @@ defmodule Portfolixir.Imports.CsvHashPinTest do
   # - Every file parses without a row error, so no row drops out of the list.
   test "a PP-faithful CSV keeps every content hash pinned before ADR-0053" do
     assert digests("hash_pin.csv") == @hash_pin_csv
+  end
+
+  # Before ADR-0053 the parser never read the Gesamtpreis, so a row hashes
+  # the same with or without one: the hash reads the Betrag, never the cash
+  # a row books.
+  test "blanking every row's Gesamtpreis leaves every digest unchanged" do
+    blanked =
+      @fixtures
+      |> Path.join("hash_pin.csv")
+      |> File.read!()
+      |> String.split("\n")
+      |> Enum.map_join("\n", fn line ->
+        case String.split(line, ";") do
+          [_, _, _, _, _, _, _, _, "Gesamtpreis" | _] -> line
+          cells when length(cells) == 13 -> cells |> List.replace_at(8, "") |> Enum.join(";")
+          _ -> line
+        end
+      end)
+
+    refute blanked == File.read!(Path.join(@fixtures, "hash_pin.csv"))
+    assert digests_of(blanked, "blanked.csv") == @hash_pin_csv
   end
 
   test "the JSON corpus keeps every content hash pinned before ADR-0053" do
