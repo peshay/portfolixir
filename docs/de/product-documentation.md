@@ -2482,22 +2482,29 @@ kann:
 
 **Betrag ist der Bruttowert, Gesamtpreis das Geld.** Portfolio Performance
 schreibt in den `Betrag` einer Zeile den Wert vor Gebühren und Steuern und in
-den `Gesamtpreis` das Geld, das geflossen ist: Bei einem Kauf ist der
-Gesamtpreis der Betrag zuzüglich `Gebühren` und `Steuern`, bei einem Verkauf,
-einer Dividende oder Zinsen der Betrag abzüglich beider. Der Import bucht den
-Gesamtpreis und prüft ihn auf den Cent gegen Betrag, Gebühren und Steuern.
-Eine Zeile, in der sie nicht zusammenpassen, bleibt mit einer Parser-Warnung
-draußen, die die Zellen so zitiert, wie die Datei sie schreibt (*Gesamtpreis
-1.505,00 passt nicht zu Betrag 1.502,50 und Gebühren 2,50 — Zeile nicht
-übernommen*); der Import rät nicht, welche Zelle falsch ist. Eine Zeile mit
-leerem Gesamtpreis, und jede Zeile einer Datei ohne diese Spalte, wird als von
-einem Konverter geschriebene Datei gelesen und bucht ihren Betrag als Geld: So
-lehrt es der Prompt `import_converter`. Eine Steuererstattung, die ein
-negativer Wert in `Steuern` abspaltet, wird neben ihrer Zeile gebucht, und
-beide zusammen bewegen den Gesamtpreis. Ein Export, der importiert wurde,
-bevor Portfolixir den Gesamtpreis las, behält seine Inhalts-Hashes: Ihn
-erneut abzulegen, bucht nichts, und die Zeilen, die er gebucht hat, behalten
-den Betrag, mit dem sie gebucht wurden.
+den `Gesamtpreis` das Geld, das geflossen ist. Bei den Typen, die Geld vom
+Konto abziehen (*Kauf*, *Entnahme*, *Gebühren*, *Steuern*, *Umbuchung
+(Ausgang)*), ist der Gesamtpreis der Betrag zuzüglich `Gebühren` und
+`Steuern`; bei den Typen, die Geld gutschreiben (*Verkauf*, *Dividende*,
+*Zinsen*, *Einlage*, *Steuerrückerstattung*, *Umbuchung (Eingang)*), ist er
+der Betrag abzüglich beider. Negative Steuern zählen mit ihrem Vorzeichen.
+Der Import bucht den Gesamtpreis und prüft ihn auf den Cent gegen Betrag,
+Gebühren und Steuern. Eine Zeile, in der sie nicht zusammenpassen, bleibt mit
+einer Parser-Warnung draußen, die die Zellen so zitiert, wie die Datei sie
+schreibt (*Gesamtpreis 1.510,00 passt nicht zu Betrag 1.502,50 und Gebühren
+2,50 — Zeile nicht übernommen*); der Import rät nicht, welche Zelle falsch
+ist. Eine Zeile mit leerem Gesamtpreis, und jede Zeile einer Datei ohne diese
+Spalte, wird als von einem Konverter geschriebene Datei gelesen und bucht
+ihren Betrag als Geld: So lehrt es der Prompt `import_converter`. Eine
+Steuererstattung, die ein negativer Wert in `Steuern` abspaltet, wird neben
+ihrer Zeile gebucht, und beide zusammen bewegen den Gesamtpreis.
+
+Ein Export, der importiert wurde, bevor Portfolixir den Gesamtpreis las,
+behält seine Inhalts-Hashes, also bucht ihn erneut abzulegen nichts. Seine
+Zeilen behalten den Bruttowert aus Portfolio Performance als Geld: Jede Zeile
+mit Gebühren oder Steuern liegt um genau diese daneben, und ihr Geldkonto mit
+ihr. Die Datei erneut abzulegen, ändert sie nicht, und der Import hat dafür
+noch keine Korrektur.
 
 Für andere Währungen und die Zuordnung über die ISIN exportiere **JSON v1**:
 Es trägt eine Währung je Zeile und je Wertpapier ISIN, WKN und Tickersymbol.
