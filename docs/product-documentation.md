@@ -2279,20 +2279,27 @@ requirement, and two assumptions that stand for what the CSV cannot say:
 
 **Betrag is the gross value, Gesamtpreis the cash.** Portfolio Performance
 writes a row's `Betrag` before its fees and taxes, and its `Gesamtpreis` as
-the cash that moved: a buy's Gesamtpreis is its Betrag plus `Gebühren` and
-`Steuern`, and a sale's, a dividend's or an interest payment's is its Betrag
-minus them. The import books the Gesamtpreis and checks it to the cent
-against Betrag, Gebühren and Steuern. A row where they disagree is left out
-with a parser warning that quotes the cells as the file wrote them
-(*Gesamtpreis 1.505,00 does not match Betrag 1.502,50 and Gebühren 2,50 — row
-not imported*); the import does not guess which cell is wrong. A row with an
-empty Gesamtpreis, and every row of a file without that column, is read as a
-converter-written file and books its Betrag as the cash: that is the shape
-the `import_converter` prompt teaches. A tax refund a negative `Steuern`
-splits off is booked beside its row, and the two together move the
-Gesamtpreis. An export imported before Portfolixir read the Gesamtpreis keeps
-its content hashes: dropping it again books nothing, and the rows it booked
-keep the cash they were booked with.
+the cash that moved. For the kinds that take money out of the account
+(*Kauf*, *Entnahme*, *Gebühren*, *Steuern*, *Umbuchung (Ausgang)*) the
+Gesamtpreis is the Betrag plus `Gebühren` and `Steuern`; for the kinds that
+bring money in (*Verkauf*, *Dividende*, *Zinsen*, *Einlage*,
+*Steuerrückerstattung*, *Umbuchung (Eingang)*) it is the Betrag minus both. A
+negative Steuern counts with its sign. The import books the Gesamtpreis and
+checks it against Betrag, Gebühren and Steuern to the cent. A row where they
+disagree is left out with a parser warning that quotes the cells as the file
+wrote them (*Gesamtpreis 1.510,00 does not match Betrag 1.502,50 and Gebühren
+2,50 — row not imported*); the import does not guess which cell is wrong. A
+row with an empty Gesamtpreis, and every row of a file without that column,
+is read as a converter-written file and books its Betrag as the cash: that is
+the shape the `import_converter` prompt teaches. A tax refund a negative
+`Steuern` splits off is booked beside its row, and the two together move the
+Gesamtpreis.
+
+An export imported before Portfolixir read the Gesamtpreis keeps its content
+hashes, so dropping it again books nothing. Its rows keep Portfolio
+Performance's gross value as their cash: each row with fees or taxes is off
+by exactly those, and its cash account with it. Dropping the file again does
+not change them, and the import has no correction for them yet.
 
 For other currencies and for matching by ISIN, export **JSON v1** instead: it
 carries a currency per row and each security's ISIN, WKN and ticker.
