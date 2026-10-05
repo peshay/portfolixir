@@ -1,0 +1,18 @@
+Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+2024-01-02 00:00:00;Einlage;;;;10.000,00;;;10.000,00;Pin-Cash;;;
+2024-01-15 10:01:00;Kauf;Synthetic Pin AG;10;150,00;1.500,00;2,50;1,00;1.503,50;Pin-Depot;Pin-Cash;;
+2024-02-15 00:00:00;Dividende;Synthetic Pin AG;10;;11,54;;2,41;9,13;Pin-Cash;;;
+2024-03-10 00:00:00;Gebühren;;;;8,50;;;8,50;Pin-Cash;;;
+2024-03-15 00:00:00;Dividende;Synthetic Pin AG;10;;10,00;0,50;-1,00;10,50;Pin-Cash;;;
+2024-04-22 12:25:00;Verkauf;Synthetic Pin AG;4;181,45;725,80;2,50;12,00;711,30;Pin-Depot;Pin-Cash;;
+2024-05-08 00:00:00;Steuern;;;;50,00;;;50,00;Pin-Cash;;;
+2024-06-30 00:00:00;Entnahme;;;;250,00;;;250,00;Pin-Cash;;Synthetic note;
+2024-07-04 00:00:00;Steuerrückerstattung;;;;15,00;;;15,00;Pin-Cash;;;
+2024-08-12 10:00:00;Umbuchung (Ausgang);;;;1.000,00;;;1.000,00;Pin-Cash;Pin-Cash-2;;
+2024-08-20 00:00:00;Umbuchung (Eingang);;;;300,00;;;300,00;Pin-Cash;Pin-Cash-2;;
+2024-09-04 00:00:00;Einlieferung;Synthetic Pin Fund;5;100,00;500,00;;;500,00;Pin-Depot;;;
+2024-10-01 00:00:00;Auslieferung;Synthetic Pin Fund;1;110,00;110,00;;;110,00;Pin-Depot;;;
+2024-11-15 21:00:00;Umbuchung (Ausgang);Synthetic Pin Fund;2;100,00;200,00;;;200,00;Pin-Depot;Pin-Depot-2;;
+2024-11-20 00:00:00;Umbuchung (Eingang);Synthetic Pin Fund;1;100,00;100,00;;;100,00;Pin-Depot;Pin-Depot-2;;
+2024-12-30 00:00:00;Zinsen;;;;5,75;;1,20;4,55;Pin-Cash;;;
+2025-01-06 10:15:00;Kauf;Synthetic Pin AG;2;80,50;162,00;1,00;;;Pin-Depot;Pin-Cash;;
