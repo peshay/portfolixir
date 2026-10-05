@@ -196,7 +196,10 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
   # so that I know what the total leaves out, not only which account.
   #
   # Acceptance criteria:
-  # - The unvalued-cash note reads "USD Cash (1.850,00 USD)".
+  # - The unvalued-cash note reads "USD Cash (1.850,00 USD)", and a balance
+  #   below a cent keeps its digits, "Cent USD (0,004 USD)".
+  # - An empty account in a currency without a rate holds nothing the total
+  #   leaves out: the note does not name it, as the walk does not.
   # - The data-quality status region stacks its notes with the comparison
   #   notes' gap: a flex column, --space-2 apart.
   test "the unvalued-cash note prints the native balance, and the notes keep their gap",
@@ -216,15 +219,36 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
         amount: "1850"
       })
 
+    {:ok, cent_cash} =
+      Portfolixir.Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        name: "Cent USD",
+        currency_code: "USD"
+      })
+
+    {:ok, _} =
+      Ledger.set_cash_balance(Actor.owner_ui(), cent_cash, %{
+        date: Date.add(Date.utc_today(), -2),
+        amount: "0.004"
+      })
+
+    {:ok, _empty} =
+      Portfolixir.Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        name: "Leer USD",
+        currency_code: "USD"
+      })
+
     conn = get(conn, "/portfolio?locale=de")
     {:ok, view, _html} = live(conn, "/portfolio?locale=de")
     render_async(view)
 
-    assert has_element?(
-             view,
-             "#portfolio-data-quality [data-role='dq-unvalued-cash']",
-             "USD Cash (1.850,00 USD)"
-           )
+    note = "#portfolio-data-quality [data-role='dq-unvalued-cash']"
+
+    assert has_element?(view, note, "2 Verrechnungskonten zählen nicht in die Summen")
+    assert has_element?(view, note, "USD Cash (1.850,00 USD)")
+    assert has_element?(view, note, "Cent USD (0,004 USD)")
+    refute has_element?(view, note, "Leer USD")
 
     css = File.read!("priv/static/app.css")
 

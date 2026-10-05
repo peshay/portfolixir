@@ -452,9 +452,10 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
   # Acceptance criteria:
   # - The attention note under the table reads "Ein Verrechnungskonto
   #   zählte an einigen Tagen des Zeitraums null: Tagesgeld CHF (2.000,00
-  #   CHF, 18 Tage, kein Wechselkurs gespeichert). Mit dem ersten Kurs am
-  #   <dd.mm.yyyy> kam sein ganzer Saldo in den „Währungseffekt auf Bargeld“
-  #   — das ist kein Währungsgewinn.", the figures in the house formats.
+  #   CHF, 18 Tage, kein Wechselkurs gespeichert). Mit dem ersten
+  #   Wechselkurs am <dd.mm.yyyy> kam sein ganzer Saldo in den
+  #   „Währungseffekt auf Bargeld“ — das ist kein Währungsgewinn.", the
+  #   figures in the house formats.
   # - The "Währungseffekt auf Bargeld" row carries the marker "Tagesgeld CHF:
   #   18 Tage null"; the other lines carry none; the phone remainder row
   #   carries it too.
@@ -477,7 +478,7 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
     assert note ==
              "Achtung Ein Verrechnungskonto zählte an einigen Tagen des Zeitraums null: " <>
                "Tagesgeld CHF (2.000,00 CHF, 18 Tage, kein Wechselkurs gespeichert). Mit dem " <>
-               "ersten Kurs am #{first_rate} kam sein ganzer Saldo in den „Währungseffekt auf " <>
+               "ersten Wechselkurs am #{first_rate} kam sein ganzer Saldo in den „Währungseffekt auf " <>
                "Bargeld“ — das ist kein Währungsgewinn."
 
     currency_row = "#contribution-table tr[data-line='cash_currency_effect']"

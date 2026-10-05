@@ -111,6 +111,28 @@ defmodule PortfolixirWeb.FormatTest do
     end
   end
 
+  # User story (#1055, review round; UX-DR25 clause 2):
+  # As a local portfolio maintainer reading a balance no rate converts,
+  # I want it in the house's two decimals, and every further digit it
+  # carries,
+  # so that a balance of a fraction of a cent never reads as 0,00 next to a
+  # finding that says it holds money.
+  #
+  # Acceptance criteria:
+  # - At least two places: 2000 reads "2.000,00", and a stored scale of six
+  #   trailing zeros reads the same.
+  # - More when the amount carries more: 0.004 reads "0,004", -0.0015 reads
+  #   "-0,0015".
+  # - Non-numbers render as an em dash.
+  test "Format.native_amount/2 keeps two places and every further digit" do
+    assert Format.native_amount(Decimal.new("2000"), "de") == "2.000,00"
+    assert Format.native_amount(Decimal.new("2000.000000"), "de") == "2.000,00"
+    assert Format.native_amount(Decimal.new("1850.5"), "en") == "1,850.50"
+    assert Format.native_amount(Decimal.new("0.004"), "de") == "0,004"
+    assert Format.native_amount(Decimal.new("-0.0015"), "en") == "-0.0015"
+    assert Format.native_amount(nil, "de") == "—"
+  end
+
   test "Format.decimal/2 and Format.signed_decimal/2 default to current gettext locale" do
     previous = Gettext.get_locale(PortfolixirWeb.Gettext)
 

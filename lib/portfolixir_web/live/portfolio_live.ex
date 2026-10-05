@@ -4141,8 +4141,13 @@ defmodule PortfolixirWeb.PortfolioLive do
   # portfolio base currency is missing — they are excluded from the totals.
   defp unvalued_cash(nil), do: []
 
+  # Only an account that holds money: an empty one leaves nothing out of the
+  # total, as the performance walk counts it (#1055).
   defp unvalued_cash(valuation) do
-    Enum.filter(valuation.cash_balances, &(not &1.valued))
+    Enum.filter(
+      valuation.cash_balances,
+      &(not &1.valued and not Decimal.equal?(&1.balance, 0))
+    )
   end
 
   # UX-DR25 clause 2 (#1055, board J2's before/after): the account with its
@@ -4150,7 +4155,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   # `unvalued_entry_label/2` prints a native price in. Nothing is converted:
   # there is no rate to convert with.
   defp unvalued_cash_label(entry),
-    do: "#{entry.name} (#{Format.decimal(entry.balance, 2)} #{entry.currency})"
+    do: "#{entry.name} (#{Format.native_amount(entry.balance)} #{entry.currency})"
 
   # Which views (and Gesamt, marked by `nil`) carry a SOLL plan for the active
   # classification, for the subtle plan marker on the switcher chips (#468). A
