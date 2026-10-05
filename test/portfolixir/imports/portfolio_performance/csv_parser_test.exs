@@ -95,6 +95,43 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
     end
   end
 
+  # User story (ADR-0053 §3, K2; risk-tier: idempotency):
+  # As the operator who imported a Portfolio Performance CSV before,
+  # I want each row to carry the file's Betrag as the content hash's amount,
+  # apart from the cash the row books,
+  # so that every hash stored for the file stays valid and a re-drop books
+  # nothing twice.
+  #
+  # Acceptance criteria:
+  # - A cash row's hash amount is its Betrag as parsed, with or without a
+  #   Gesamtpreis beside it; a split-off refund's is the refund it books.
+  # - A kind that settles no cash (a delivery, a security transfer) carries
+  #   none, as its hash read none before.
+  describe "parse/2 the content hash's amount input" do
+    test "carries each cash row's Betrag, and nothing for a kind without cash" do
+      body = """
+      Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+      2024-01-15 10:01:00;Kauf;Synthetic AG;10;150,00;1.500,00;2,50;;1.502,50;Depot;Cash;;
+      2024-02-15 00:00:00;Dividende;Synthetic AG;10;;10,00;0,50;-1,00;10,50;Cash;;;
+      2024-03-01 10:15:00;Kauf;Synthetic AG;2;80,50;162,00;1,00;;;Depot;Cash;;
+      2024-09-04 00:00:00;Einlieferung;Synthetic AG;5;100,00;500,00;;;500,00;Depot;;;
+      2024-11-15 21:00:00;Umbuchung (Ausgang);Synthetic AG;2;100,00;200,00;;;200,00;Depot;Depot-2;;
+      """
+
+      assert {:ok, %Preview{errors: [], entries: [buy, dividend, converted, delivery, transfer]}} =
+               CsvParser.parse(body)
+
+      assert Decimal.equal?(buy.hash_amount, Decimal.new("1500.00"))
+      assert Decimal.equal?(dividend.hash_amount, Decimal.new("10.00"))
+      assert Decimal.equal?(converted.hash_amount, Decimal.new("162.00"))
+      assert delivery.hash_amount == nil
+      assert transfer.hash_amount == nil
+
+      assert [refund] = dividend.companion_entries
+      assert Decimal.equal?(refund.hash_amount, Decimal.new("1.00"))
+    end
+  end
+
   describe "parse/2 error paths" do
     test "errors on missing required columns" do
       body = "Datum;Typ\n2024-01-01;Kauf\n"

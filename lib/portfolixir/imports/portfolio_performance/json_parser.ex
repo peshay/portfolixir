@@ -171,6 +171,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
             time: time,
             currency_code: currency,
             gross_amount: refund,
+            hash_amount: refund,
             fees: Decimal.new(0),
             taxes: Decimal.new(0),
             quantity: nil,
@@ -189,6 +190,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         time: time,
         currency_code: currency,
         gross_amount: if(kind in @no_cash_kinds, do: nil, else: amount),
+        # ADR-0053 §3: a JSON row's hash amount is its `amount`, its booked
+        # cash too.
+        hash_amount: if(kind in @no_cash_kinds, do: nil, else: amount),
         fees: fees,
         taxes: taxes,
         quantity: shares,

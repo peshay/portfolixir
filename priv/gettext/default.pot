@@ -4267,14 +4267,14 @@ msgstr ""
 msgid "Row %{row}: %{message}"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:391
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:224
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:394
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:228
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (before 1900) — fix the booking in the source and re-import"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:409
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:236
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:412
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:240
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
 msgstr ""
@@ -5854,12 +5854,12 @@ msgstr ""
 msgid "The file has %{n} rows; the import is sized for at most %{max}."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:249
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:253
 #, elixir-autogen, elixir-format
 msgid "invalid date %{date}"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:300
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:304
 #, elixir-autogen, elixir-format
 msgid "invalid unit %{unit}"
 msgstr ""
@@ -7982,7 +7982,7 @@ msgstr ""
 msgid "The file expands to %{n} entries (its rows and the tax refunds they split off); the import is sized for at most %{max}."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:279
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:283
 #, elixir-autogen, elixir-format
 msgid "more units (fees and taxes) than one booking carries"
 msgstr ""

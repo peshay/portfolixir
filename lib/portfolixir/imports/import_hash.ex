@@ -5,8 +5,18 @@ defmodule Portfolixir.Imports.ImportHash do
   portfolio before anything resolves.
 
   The fields are the row's kind, date and time, its security (ISIN, else
-  name), quantity, price, gross amount, fees and taxes, its four Portfolio
+  name), quantity, price, amount, fees and taxes, its four Portfolio
   Performance account and depot names, and the portfolio id.
+
+  **The amount is the file's, not the booked cash** (ADR-0053 §3). For a
+  Portfolio Performance CSV row it is the row's Betrag, PP's gross value,
+  even where the row books its Gesamtpreis: the hash read the Betrag before
+  ADR-0053 made the row book the Gesamtpreis, so every hash stored before
+  stays byte-identical, and a re-drop of a file imported under the old
+  reading is all hash hits. For a JSON row it is the `amount`, which is also
+  its booked cash. The parsers carry it as the entry's `hash_amount`; an
+  entry without one (a split-off refund, an entry built by hand) is hashed
+  over its `gross_amount`.
 
   A tax refund the parser splits off a row (a companion) is hashed with its
   row, `companion/4` (E25 S5, F37), and the applier checks it by that hash
@@ -82,7 +92,7 @@ defmodule Portfolixir.Imports.ImportHash do
       security_key(entry.security),
       decimal_str(entry.quantity),
       decimal_str(entry.price),
-      decimal_str(entry.gross_amount),
+      decimal_str(hash_amount(entry)),
       decimal_str(entry.fees),
       decimal_str(entry.taxes),
       entry.pp_portfolio_name || "",
@@ -92,6 +102,10 @@ defmodule Portfolixir.Imports.ImportHash do
       Integer.to_string(portfolio_id)
     ]
   end
+
+  # ADR-0053 §3: the file's amount, never the cash a CSV row now books.
+  defp hash_amount(%Entry{hash_amount: nil, gross_amount: gross_amount}), do: gross_amount
+  defp hash_amount(%Entry{hash_amount: hash_amount}), do: hash_amount
 
   defp separator_bearing?(parts), do: Enum.any?(parts, &String.contains?(&1, @separator))
 
