@@ -4,11 +4,13 @@ defmodule PortfolixirWeb.ApiV1BenchmarkTest do
   use PortfolixirWeb.ConnCase
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 1, buy!: 3, create_security!: 1, deposit!: 3, put_quotes!: 2]
+    only: [base_world: 1, buy!: 3, create_security!: 1, deposit!: 3, deposit!: 4, put_quotes!: 2]
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
+  alias Portfolixir.Fx
+  alias Portfolixir.Portfolios
 
   @auth {"authorization", "Bearer test-api-token"}
 
@@ -399,6 +401,89 @@ defmodule PortfolixirWeb.ApiV1BenchmarkTest do
       })
 
     assert %{"data" => %{"window" => %{}}} = json_response(conn, 200)
+  end
+
+  # User story (#1055, review round; ADR-0051 §10):
+  # As the operator's agent comparing a portfolio with a benchmark,
+  # I want the comparison to name a cash account whose balance counted zero
+  # before its currency's first rate,
+  # so that I do not credit the portfolio with the jump that first rate
+  # brings into portfolio_ttwror and end_value_delta.
+  #
+  # Acceptance criteria:
+  # - The portfolio and the view comparison carry unvalued_cash_accounts,
+  #   the entries the performance read of the same window answers.
+  # - computation_basis.gaps names the field.
+  test "both comparisons name a cash account held before its first rate", %{conn: conn} do
+    today = Date.utc_today()
+    world = base_world(name: "Franc Bench", cash_name: "Giro", depot_name: "Depot")
+
+    {:ok, franc} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        name: "Tagesgeld CHF",
+        currency_code: "CHF"
+      })
+
+    deposit!(world, "1000", Date.add(today, -40))
+
+    deposit!(%{portfolio: world.portfolio, cash: franc}, "2000", Date.add(today, -30),
+      currency: "CHF"
+    )
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "CHF",
+          date: Date.add(today, -12),
+          rate: "0.8",
+          source: "manual"
+        }
+      ])
+
+    {:ok, bucket} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Franc Bench Bucket"})
+    :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), world.cash, [bucket.id])
+    :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), franc, [bucket.id])
+
+    {:ok, view} =
+      Buckets.create_view(Actor.owner_ui(), %{name: "Franc Bench", include_all: false})
+
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [bucket.id], [])
+
+    expected = [
+      %{
+        "cash_account_id" => franc.id,
+        "name" => "Tagesgeld CHF",
+        "currency_code" => "CHF",
+        "balance" => "2000",
+        "unvalued_days" => 18,
+        "unvalued_reason" => "no_rate",
+        "unvalued_through_end" => false,
+        "first_rate_date" => Date.to_iso8601(Date.add(today, -12))
+      }
+    ]
+
+    for path <- [
+          "/api/v1/portfolios/#{world.portfolio.id}/performance",
+          "/api/v1/portfolios/#{world.portfolio.id}/performance/benchmark?benchmark=rate:0",
+          "/api/v1/views/#{view.id}/performance/benchmark?benchmark=rate:0"
+        ] do
+      data = api_conn(conn) |> get(path) |> json_response(200) |> Map.fetch!("data")
+      assert data["unvalued_cash_accounts"] == expected, path
+      assert data["computation_basis"]["gaps"] =~ "unvalued_cash_accounts", path
+    end
+
+    # Nothing walked yet: the empty comparison names nothing.
+    empty = base_world(name: "Empty Bench", cash_name: "Idle", depot_name: "Idle Depot")
+
+    data =
+      api_conn(conn)
+      |> get("/api/v1/portfolios/#{empty.portfolio.id}/performance/benchmark?benchmark=rate:0")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert data["unvalued_cash_accounts"] == []
   end
 
   # Acceptance criteria (closing-act finding, error contract): a subnormal

@@ -1800,6 +1800,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       savings_plan: Map.new(result.savings_plan, fn {key, value} -> {key, decimal(value)} end),
       as_of: datetime(result.as_of),
       stale: result.stale,
+      unvalued_cash_accounts: Enum.map(result.unvalued_cash_accounts, &unvalued_cash_account/1),
       computation_basis: benchmark_basis(result.computation_basis)
     }
   end
