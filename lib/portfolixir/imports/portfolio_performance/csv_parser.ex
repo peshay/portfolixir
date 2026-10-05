@@ -344,8 +344,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
       }
 
       # E25 S4 (G24) and S5 (F33): a security that names nothing, and text
-      # the ledger would refuse, are this row's error.
-      case PortfolioPerformance.row_error(entry) do
+      # the ledger would refuse, are this row's error; then a Gesamtpreis
+      # that contradicts the Betrag (ADR-0053 §2), so a value no column
+      # holds is named first.
+      readings = %{betrag: gross, total: total, fees: raw_fees, taxes: raw_taxes}
+
+      case PortfolioPerformance.row_error(entry) ||
+             reading_error(direction(kind, side), readings, cells) do
         nil -> {:ok, entry}
         message -> {:error, message}
       end
@@ -383,6 +388,68 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
   defp booked_cash(_direction, betrag, nil, _refund), do: betrag
   defp booked_cash(:credit, _betrag, total, refund), do: Decimal.sub(total, refund || 0)
   defp booked_cash(:debit, _betrag, total, refund), do: Decimal.add(total, refund || 0)
+
+  # ADR-0053 §2: a row carrying both readings books only when they agree to
+  # the cent. U is Gebühren + Steuern as written, a negative Steuern with its
+  # sign: a debit's Gesamtpreis is Betrag + U, a credit's Betrag − U, as
+  # Portfolio Performance computes its gross value. A row that disagrees is
+  # refused with the cells as the file wrote them; the import does not guess
+  # which one is wrong. A row missing either reading, and a kind without
+  # cash, is not checked.
+  defp reading_error(nil, _readings, _cells), do: nil
+  defp reading_error(_direction, %{betrag: nil}, _cells), do: nil
+  defp reading_error(_direction, %{total: nil}, _cells), do: nil
+
+  defp reading_error(direction, %{betrag: betrag, total: total} = readings, cells) do
+    units = Decimal.add(readings.fees || 0, readings.taxes || 0)
+
+    expected =
+      case direction do
+        :debit -> Decimal.add(betrag, units)
+        :credit -> Decimal.sub(betrag, units)
+      end
+
+    unless Decimal.equal?(expected, total), do: reading_message(readings, cells)
+  end
+
+  defp reading_message(readings, cells) do
+    written = fn column -> cells |> Map.get(column, "") |> String.trim() end
+    total = written.("Gesamtpreis")
+    amount = written.("Betrag")
+
+    case {readings.fees, readings.taxes} do
+      {nil, nil} ->
+        gettext("Gesamtpreis %{total} does not match Betrag %{amount} — row not imported",
+          total: total,
+          amount: amount
+        )
+
+      {_fees, nil} ->
+        gettext(
+          "Gesamtpreis %{total} does not match Betrag %{amount} and Gebühren %{fees} — row not imported",
+          total: total,
+          amount: amount,
+          fees: written.("Gebühren")
+        )
+
+      {nil, _taxes} ->
+        gettext(
+          "Gesamtpreis %{total} does not match Betrag %{amount} and Steuern %{taxes} — row not imported",
+          total: total,
+          amount: amount,
+          taxes: written.("Steuern")
+        )
+
+      {_fees, _taxes} ->
+        gettext(
+          "Gesamtpreis %{total} does not match Betrag %{amount}, Gebühren %{fees} and Steuern %{taxes} — row not imported",
+          total: total,
+          amount: amount,
+          fees: written.("Gebühren"),
+          taxes: written.("Steuern")
+        )
+    end
+  end
 
   # PP CSV exports a single signed value per fee/tax column. Mirror the
   # JSON-parser semantics: abs() the magnitude into the parent entry,
