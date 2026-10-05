@@ -198,6 +198,21 @@ describe("the companion's prompts", () => {
     assert.match(text, /NET amount credited/);
     assert.match(text, /Konto is the depot, Gegenkonto the cash account/);
     assert.match(text, /The CSV books every row in EUR/);
+    // ADR-0053 §1: the importer reads a filled Gesamtpreis as PP writes it,
+    // so the prompt no longer says it is ignored, and says why it stays empty.
+    assert.doesNotMatch(text, /ignores Gesamtpreis/);
+    assert.match(text, /leave Gesamtpreis and Quelle empty/);
+    assert.match(
+      text,
+      /Gesamtpreis stays empty because a filled one is read as Portfolio Performance writes it, Betrag as the gross value before Gebühren and Steuern and Gesamtpreis as the cash, checked against both to the cent, while an empty one makes Betrag the cash effect described below/
+    );
+    // #1094: the summary counts rows per cash account and per depot, never
+    // per Konto, which names a depot on a trade and a cash account elsewhere.
+    assert.doesNotMatch(text, /rows per Konto/);
+    assert.match(
+      text,
+      /rows per cash account \(each Kauf and Verkauf counted under its Gegenkonto\), rows per depot/
+    );
     assert.match(text, /JSON v1 variant/);
 
     assert.match(text, /No broker or bank connection/);

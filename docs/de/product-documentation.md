@@ -2480,6 +2480,25 @@ kann:
   Vorschau umordnen kannst; zwei Wertpapiere mit einem Namen sind eine
   Entscheidung, nach der die Vorschau fragt.
 
+**Betrag ist der Bruttowert, Gesamtpreis das Geld.** Portfolio Performance
+schreibt in den `Betrag` einer Zeile den Wert vor Gebühren und Steuern und in
+den `Gesamtpreis` das Geld, das geflossen ist: Bei einem Kauf ist der
+Gesamtpreis der Betrag zuzüglich `Gebühren` und `Steuern`, bei einem Verkauf,
+einer Dividende oder Zinsen der Betrag abzüglich beider. Der Import bucht den
+Gesamtpreis und prüft ihn auf den Cent gegen Betrag, Gebühren und Steuern.
+Eine Zeile, in der sie nicht zusammenpassen, bleibt mit einer Parser-Warnung
+draußen, die die Zellen so zitiert, wie die Datei sie schreibt (*Gesamtpreis
+1.505,00 passt nicht zu Betrag 1.502,50 und Gebühren 2,50 — Zeile nicht
+übernommen*); der Import rät nicht, welche Zelle falsch ist. Eine Zeile mit
+leerem Gesamtpreis, und jede Zeile einer Datei ohne diese Spalte, wird als von
+einem Konverter geschriebene Datei gelesen und bucht ihren Betrag als Geld: So
+lehrt es der Prompt `import_converter`. Eine Steuererstattung, die ein
+negativer Wert in `Steuern` abspaltet, wird neben ihrer Zeile gebucht, und
+beide zusammen bewegen den Gesamtpreis. Ein Export, der importiert wurde,
+bevor Portfolixir den Gesamtpreis las, behält seine Inhalts-Hashes: Ihn
+erneut abzulegen, bucht nichts, und die Zeilen, die er gebucht hat, behalten
+den Betrag, mit dem sie gebucht wurden.
+
 Für andere Währungen und die Zuordnung über die ISIN exportiere **JSON v1**:
 Es trägt eine Währung je Zeile und je Wertpapier ISIN, WKN und Tickersymbol.
 
@@ -2511,9 +2530,10 @@ nicht übernommen*. Ebenso eine Zeile mit einem Wert, den keine Spalte des
 Ledgers hält (ein Betrag, eine Gebühr, eine Steuer, eine abgespaltene
 Steuererstattung oder ein abgeleiteter Kurs mit mehr Stellen vor dem Komma,
 als die Spalte nach dem Runden auf ihre Nachkommastellen fasst), eine Zahl, die
-der Parser nicht lesen kann, und eine Transaktion mit mehr Gebühren- und
-Steuerpositionen, als eine Buchung trägt: Jede wird mit Feld und Zeile
-benannt und lässt den Import nach dem Bestätigen nie scheitern. Eine Zeile,
+der Parser nicht lesen kann, eine CSV-Zeile, deren Gesamtpreis nicht zu Betrag,
+Gebühren und Steuern passt (siehe oben), und eine Transaktion mit mehr
+Gebühren- und Steuerpositionen, als eine Buchung trägt: Jede wird mit Feld und
+Zeile benannt und lässt den Import nach dem Bestätigen nie scheitern. Eine Zeile,
 deren ISIN keine gültige ISIN ist (Form oder Prüfziffer, auch ein Buchstabe aus
 einer anderen Schrift), bleibt ebenso draußen, damit ein Doppelgänger nie zu
 einem zweiten Wertpapier wird. Ein Eintrag nur mit WKN oder nur mit Ticker ist ein

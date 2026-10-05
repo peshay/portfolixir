@@ -2277,6 +2277,23 @@ requirement, and two assumptions that stand for what the CSV cannot say:
   which you can remap in the preview; two securities of one name are a
   decision the preview asks you to make.
 
+**Betrag is the gross value, Gesamtpreis the cash.** Portfolio Performance
+writes a row's `Betrag` before its fees and taxes, and its `Gesamtpreis` as
+the cash that moved: a buy's Gesamtpreis is its Betrag plus `Gebühren` and
+`Steuern`, and a sale's, a dividend's or an interest payment's is its Betrag
+minus them. The import books the Gesamtpreis and checks it to the cent
+against Betrag, Gebühren and Steuern. A row where they disagree is left out
+with a parser warning that quotes the cells as the file wrote them
+(*Gesamtpreis 1.505,00 does not match Betrag 1.502,50 and Gebühren 2,50 — row
+not imported*); the import does not guess which cell is wrong. A row with an
+empty Gesamtpreis, and every row of a file without that column, is read as a
+converter-written file and books its Betrag as the cash: that is the shape
+the `import_converter` prompt teaches. A tax refund a negative `Steuern`
+splits off is booked beside its row, and the two together move the
+Gesamtpreis. An export imported before Portfolixir read the Gesamtpreis keeps
+its content hashes: dropping it again books nothing, and the rows it booked
+keep the cash they were booked with.
+
 For other currencies and for matching by ISIN, export **JSON v1** instead: it
 carries a currency per row and each security's ISIN, WKN and ticker.
 
@@ -2304,9 +2321,11 @@ or ticker) is such a row: *security without a name and without an ISIN — row
 not imported*. So is a row with a value no ledger column can hold (an
 amount, fee, tax, split-off tax refund or derived price with more digits
 before the decimal point than its column keeps, after rounding to the
-column's decimals), a number the parser cannot read, and a transaction with
-more fee and tax units than one booking carries: each is named with the field
-and its row, and never fails the import after you confirm. A row whose ISIN
+column's decimals), a number the parser cannot read, a CSV row whose
+Gesamtpreis contradicts its Betrag, Gebühren and Steuern (see above), and a
+transaction with more fee and tax units than one booking carries: each is
+named with the field and its row, and never fails the import after you
+confirm. A row whose ISIN
 is not a valid ISIN (its shape or its check digit, a letter from another
 script included) is left out the same way, so a lookalike never becomes a
 second security. An entry with only a WKN or only a ticker is a security like

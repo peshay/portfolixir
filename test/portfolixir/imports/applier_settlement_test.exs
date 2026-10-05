@@ -103,10 +103,12 @@ defmodule Portfolixir.Imports.ApplierSettlementTest do
 
   # Acceptance criteria (#395's guard meets the importer; closing act, both
   # hunters): Portfolio Performance prints the per-share Kurs rounded, while
-  # the Betrag is the exact cash the broker settled. The settlement amount
-  # is therefore the cash amount net of fees and taxes — the guard's own
-  # relation, inverted — not quantity × the rounded Kurs, which missed the
-  # Betrag by more than a cent and made the guard refuse the whole import.
+  # the entry's cash amount — a JSON row's amount, a CSV row's Gesamtpreis
+  # (ADR-0053; PP's Betrag is the gross value) — is the exact cash the
+  # broker settled. The settlement amount is therefore the cash amount net
+  # of fees and taxes — the guard's own relation, inverted — not quantity ×
+  # the rounded Kurs, which missed it by more than a cent and made the guard
+  # refuse the whole import.
   test "a cross-currency PP buy settles on its cash amount, not the rounded Kurs" do
     portfolio = portfolio!()
     usd_security!()
