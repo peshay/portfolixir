@@ -240,8 +240,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     {Enum.reverse(kept), Enum.reverse(paired)}
   end
 
+  # ADR-0053: the two sides compare on the file's Betrag, as the content hash
+  # does. Each books its own Gesamtpreis, Betrag + U on the sending row and
+  # Betrag − U on the receiving one, so the booked cash of one transfer's
+  # two sides differs whenever it carries units.
   defp transfer_key(%Entry{} = entry) do
     entry
+    |> Map.put(:gross_amount, entry.hash_amount || entry.gross_amount)
     |> Map.take([
       :kind,
       :date,

@@ -706,6 +706,23 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       assert message =~ "row 1"
     end
 
+    # ADR-0053: each side books its own Gesamtpreis, Betrag + U on the
+    # sending row and Betrag − U on the receiving row, so the two sides of
+    # one transfer carrying units pair on the file's Betrag, as before.
+    test "pairs both sides of one cash transfer that carry fees and taxes" do
+      preview =
+        transfers("""
+        2024-08-12 10:00:00;Umbuchung (Ausgang);;;;1.000,00;2,00;0,50;1.002,50;Cash-A;Cash-B;;
+        2024-08-12 10:00:00;Umbuchung (Eingang);;;;1.000,00;2,00;0,50;997,50;Cash-B;Cash-A;;
+        """)
+
+      assert %Preview{entries: [entry], errors: [%{row: 2, message: message}]} = preview
+      assert entry.source_row == 1
+      assert direction(entry) == {"cash_transfer", nil, "Cash-A", nil, "Cash-B"}
+      assert Decimal.equal?(entry.gross_amount, Decimal.new("1002.50"))
+      assert message =~ "row 1"
+    end
+
     test "pairs a receiving row with the converter's security-transfer row" do
       preview =
         transfers("""
