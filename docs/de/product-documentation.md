@@ -229,8 +229,8 @@ Ansicht lässt sich als Lesezeichen speichern oder verlinken:
   Währung zur Basiswährung; das Speichern des Kurses leert die Menge. Die
   ersten drei lassen eine Benchmark und ein stillgelegtes Wertpapier in
   Ruhe: Ein ausverkauftes oder delistetes Wertpapier, das Sie stilllegen,
-  verlässt alle drei, und die Zahlen der Übersicht sinken mit ihm; wieder
-  aktiv, steht es in denen, auf die es passt.
+  verlässt alle drei, und die Zahlen der Übersicht sinken mit ihm;
+  reaktiviert, steht es wieder in denen, auf die es passt.
   Dieselben Bedingungen sind im Filter-Bedienelement unter **Datenqualität**
   direkt wählbar — der Link von der Übersicht ist eine Abkürzung dorthin,
   nicht der einzige Weg. Der Agent fragt genau dieselben Mengen über
@@ -635,6 +635,21 @@ und die Datenqualitäts-Hinweise des Katalogs (veralteter oder fehlender
 Kurs, fehlendes Logo) lassen sie in Ruhe; sie kann trotzdem gehalten werden
 und ist dann einfach beides. Die API listet Benchmarks mit
 `is_benchmark=true`. Was der Vergleich zeigt, steht unter Performance.
+
+**Stillgelegte Wertpapiere.** Ein Wertpapier, das Sie nicht mehr halten und
+dessen Notierung endete — ausverkauft oder delistet —, bleibt im Katalog,
+weil seine Buchungen bleiben. **Stilllegen** in seinem Zeilenmenü markiert
+es so: Es verlässt die Datenqualitäts-Hinweise des Katalogs (veralteter oder
+fehlender Kurs, fehlendes Logo) und ihre Zahlen in der Übersicht, und eine
+stillgelegte Position verlässt die Datenqualitäts-Zeilen der Vermögensseite
+zu veraltetem Kurs, Handelspreis und fehlendem Kurs, weil ihr versiegter
+Kurs erwartet ist. Der Hinweis *Kein Wechselkurs* behält es, weil ein
+fehlender Wechselkurs die Bewertung weiter verhindert. Die Performance-Zahl
+wertet seinen veralteten Kurs nicht mehr als Marktbeobachtung, eine spätere
+Buchung stellt also die Basis neu fest, statt die Lücke als Rendite zu
+melden — das kann frühere TTWROR-Werte ändern (#610). **Reaktivieren** im
+selben Menü hebt es auf. Ihr Agent legt ein Wertpapier mit
+`portfolixir.securities.update` und `is_retired` still.
 
 ## Konten und Depots
 

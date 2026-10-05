@@ -288,15 +288,20 @@ verengen, was der Betreiber sieht.
   unbekannter Name ist ein `422`, nie ein stiller Fallback.
   Optionale Query-Parameter:
   `query`, `sort`, `direction`, holding_status (`all`, `held` oder `not_held`),
-  `data_quality` (`stale_quote` — kein Kurs neuer als 7 Tage, **einschließlich**
-  nie bepreister Wertpapiere; `missing_quote` — gar kein Kurs, die engere
-  Menge darin; `missing_logo`; eine Benchmark und ein stillgelegtes
-  Wertpapier sind in keiner dieser drei Mengen, das Stilllegen eines
-  ausverkauften oder delisteten Wertpapiers nimmt es also aus allen heraus,
-  und das Aufheben bringt es in die zurück, auf die es passt;
-  `missing_fx` — Issue #717: bepreist, aber ohne
+  `logo_status` (`missing` oder `present` — die bloße Logo-Bedingung;
+  `missing` schließt Zeilen aus, die ausdrücklich auf „kein Logo“ gesetzt
+  sind), `data_quality` (`stale_quote` — kein Kurs neuer als 7 Tage,
+  **einschließlich** nie bepreister Wertpapiere; `missing_quote` — gar kein
+  Kurs, die engere Menge darin; `missing_logo` — kein hinterlegtes Logo und
+  nicht auf „kein Logo“ gesetzt, die Menge, die die Übersicht „Wertpapiere
+  ohne Logo“ zeigt; `missing_fx` — Issue #717: bepreist, aber ohne
   gespeicherten Kurs von seiner Währung zum EUR-Hub, das Speichern des Kurses
-  leert also die Menge), `projection` (`slim`/`full`) und `limit`/`offset` zur
+  leert also die Menge. Eine Benchmark und ein stillgelegtes Wertpapier sind
+  in keiner der ersten drei Mengen, die sie schon in der Abfrage auslassen,
+  vor `limit`/`offset`: Das Stilllegen eines ausverkauften oder delisteten
+  Wertpapiers nimmt es aus allen drei heraus, Reaktivieren bringt es in die
+  zurück, auf die es passt. `missing_fx` behält beide), `projection`
+  (`slim`/`full`) und `limit`/`offset` zur
   Paginierung (`limit` eine positive Ganzzahl, Standard 5000, max. 20000, seit
   #771; `offset` nichtnegativ). Nutze diese, um große
   Kataloge zu paginieren, statt die ganze Tabelle auf einmal zu holen. Die
@@ -351,9 +356,9 @@ verengen, was der Betreiber sieht.
   behandelt, sodass die Split-Anpassungsfaktoren auch auf sie wirken. Das
   Boolean `is_retired` legt ein ausverkauftes oder delistetes Wertpapier
   still, `false` hebt das auf: Ein stillgelegtes Wertpapier verlässt die
-  Mengen `stale_quote`, `missing_quote` und `missing_logo`
-  (Owner-Entscheidung vom 2026-10-05), und sein veralteter Kurs zählt in der
-  Performance nicht mehr als Preismessung (#610). Wie jede Änderung eines
+  Mengen `stale_quote`, `missing_quote` und `missing_logo`, und sein
+  veralteter Kurs zählt in der Performance nicht mehr als Preismessung, was
+  seine TTWROR-Historie neu feststellen kann (#610). Wie jede Änderung eines
   Wertpapiers wird sie unter dem aufrufenden Token journalisiert. Der
   `currency_code` eines Wertpapiers **friert ein**, sobald es eine
   Transaktion oder einen Kurs hat (ADR-0050 §11): Eine Änderung liefert dann
@@ -3340,13 +3345,16 @@ Adresse.
 - `portfolixir.securities.create` — nimmt die Stammdaten einer Anleihe
   entgegen (#330, ADR-0052).
 - `portfolixir.securities.update` — Beschreibung und `currency_code`-Eigenschaft
-  nennen das Einfrieren der Währung (ADR-0050 §11); nimmt die Stammdaten
-  einer Anleihe entgegen, `null` löscht ein Feld, und `is_retired`, das
-  Mittel, das `portfolixir.securities.delete` für ein Wertpapier mit
-  Buchungen nennt: `true` nimmt ein ausverkauftes oder delistetes
+  nennen das Einfrieren der Währung, die Eigenschaft mit Verweis auf
+  ADR-0050 §11; nimmt die Stammdaten einer Anleihe entgegen, `null` löscht
+  ein Feld, und `is_retired`: `true` nimmt ein ausverkauftes oder delistetes
   Wertpapier aus den Mengen `stale_quote`, `missing_quote` und
-  `missing_logo`, `false` hebt das auf. Das Tool gehört zum Profil `book`.
-- `portfolixir.securities.delete`
+  `missing_logo`, `false` hebt das auf. Es ist zugleich das Mittel, das
+  `portfolixir.securities.delete` nennt, wenn Recherche-Notizen oder
+  Regelversionen auf ein Wertpapier verweisen. Das Tool gehört zum Profil
+  `book`.
+- `portfolixir.securities.delete` — nennt `portfolixir.securities.update`
+  mit `is_retired` für das Mittel `retire`.
 - `portfolixir.securities.isin_change` — zeichnet einen
   Kapitalmaßnahmen-ISIN-Wechsel auf, damit Importe über die frühere ISIN
   weiter zuordnen (ADR-0029).

@@ -49,10 +49,11 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
-    # Retiring over MCP (version 13, after Sprint 18's PR γ): the update tool
-    # takes is_retired, the remedy the delete names for a security with
-    # bookings, and a retired security leaves the three catalog-hygiene sets
-    # (owner decision 2026-10-05). No route or tool is added.
+    # Retiring over MCP (version 13, after Sprint 18's PR γ; PR #1102): the
+    # update tool takes is_retired, the remedy the delete names when research
+    # notes or policy-rule versions reference a security, and a retired
+    # security leaves the three catalog-hygiene sets. No route or tool is
+    # added.
     assert newest["version"] == 13
     assert newest["endpoints"] == []
     assert newest["tools"] == []
