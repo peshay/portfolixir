@@ -395,9 +395,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
   defp booked_cash(:debit, _betrag, total, refund), do: Decimal.add(total, refund || 0)
 
   # ADR-0053 §2: a row carrying both readings books only when they agree to
-  # the cent, both sides rounded to two places. U is Gebühren + Steuern as written, a negative Steuern with its
-  # sign: a debit's Gesamtpreis is Betrag + U, a credit's Betrag − U, as
-  # Portfolio Performance computes its gross value. A row that disagrees is
+  # the cent, both sides rounded to two places. U is Gebühren as booked (its
+  # magnitude) plus Steuern as written, a negative Steuern with its sign: a
+  # debit's Gesamtpreis is Betrag + U, a credit's Betrag − U, as Portfolio
+  # Performance computes its gross value. A row that disagrees is
   # refused with the cells as the file wrote them; the import does not guess
   # which one is wrong. A row missing either reading, and a kind without
   # cash, is not checked.
@@ -406,7 +407,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
   defp reading_error(_direction, %{total: nil}, _cells), do: nil
 
   defp reading_error(direction, %{betrag: betrag, total: total} = readings, cells) do
-    units = Decimal.add(readings.fees || 0, readings.taxes || 0)
+    units = Decimal.add(Decimal.abs(readings.fees || Decimal.new(0)), readings.taxes || 0)
 
     expected =
       case direction do

@@ -246,8 +246,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
   # so that the import never guesses which cell is wrong.
   #
   # Acceptance criteria:
-  # - With U = Gebühren + Steuern as written (a negative Steuern with its
-  #   sign), a debit kind (Kauf, Entnahme, Gebühren, Steuern, Umbuchung
+  # - With U = Gebühren as booked (its magnitude) + Steuern as written (a
+  #   negative Steuern with its sign), a debit kind (Kauf, Entnahme, Gebühren, Steuern, Umbuchung
   #   (Ausgang)) needs Gesamtpreis = Betrag + U and a credit kind (Verkauf,
   #   Dividende, Zinsen, Einlage, Steuerrückerstattung, Umbuchung (Eingang))
   #   Gesamtpreis = Betrag − U, exactly.
@@ -353,6 +353,26 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
                )
 
       assert Decimal.equal?(buy.gross_amount, Decimal.new("1502.50"))
+    end
+
+    # The booking stores Gebühren as a magnitude, so U counts it as booked;
+    # only Steuern keeps its sign (a negative one is a split-off refund).
+    test "counts a negative Gebühren as the fee it books" do
+      assert {:ok, %Preview{entries: [], errors: [%{message: message}]}} =
+               checked(
+                 "2024-01-15 10:01:00;Kauf;Synthetic AG;10;100,00;1.000,00;-2,50;;997,50;Depot;Cash;;\n"
+               )
+
+      assert message ==
+               "Gesamtpreis 997,50 does not match Betrag 1.000,00 and Gebühren -2,50 — row not imported"
+
+      assert {:ok, %Preview{errors: [], entries: [buy]}} =
+               checked(
+                 "2024-01-15 10:01:00;Kauf;Synthetic AG;10;100,00;1.000,00;-2,50;;1.002,50;Depot;Cash;;\n"
+               )
+
+      assert Decimal.equal?(buy.fees, Decimal.new("2.50"))
+      assert Decimal.equal?(buy.gross_amount, Decimal.new("1002.50"))
     end
 
     test "checks nothing on a row missing a reading or on a kind without cash" do
