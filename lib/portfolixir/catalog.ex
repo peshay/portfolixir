@@ -38,6 +38,8 @@ defmodule Portfolixir.Catalog do
     * `:offset` – skip this many rows (for pagination)
     * `:is_benchmark` – `true` lists only the benchmark securities
       (ADR-0046 §1), `false` leaves them out; absent lists both
+    * `:is_retired` – `true` lists only the retired securities, `false`
+      leaves them out; absent lists both
   """
   def list_securities(opts \\ []) when is_list(opts) do
     sort = opts[:sort] || {:name, :asc}
@@ -48,6 +50,7 @@ defmodule Portfolixir.Catalog do
     |> apply_filters(opts[:filters] || [])
     |> apply_holding_status(opts[:holding_status])
     |> apply_is_benchmark(opts[:is_benchmark])
+    |> apply_is_retired(opts[:is_retired])
     |> apply_logo_status(opts[:logo_status])
     |> apply_updated_since(opts[:updated_since])
     |> apply_currencies(opts[:currencies])
@@ -782,6 +785,12 @@ defmodule Portfolixir.Catalog do
   defp apply_is_benchmark(query, nil), do: query
   defp apply_is_benchmark(query, true), do: from(s in query, where: s.is_benchmark == true)
   defp apply_is_benchmark(query, false), do: from(s in query, where: s.is_benchmark == false)
+
+  # The catalog-hygiene checks ask for `false` (`Catalog.DataQuality`): a
+  # retired security leaves them in the query, before any LIMIT/OFFSET.
+  defp apply_is_retired(query, nil), do: query
+  defp apply_is_retired(query, true), do: from(s in query, where: s.is_retired == true)
+  defp apply_is_retired(query, false), do: from(s in query, where: s.is_retired == false)
 
   defp normalize_holding_status(nil), do: :all
   defp normalize_holding_status(""), do: :all
