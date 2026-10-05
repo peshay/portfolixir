@@ -234,6 +234,40 @@ defmodule Portfolixir.Portfolios.Performance.RetiredSecuritiesTest do
     assert Decimal.equal?(r6(result.ttwror), Decimal.new("-0.476190"))
   end
 
+  # User story (owner decision 2026-10-05, retiring to clear the catalog
+  # findings):
+  # As the operator's agent retiring a sold-out security so it leaves the
+  # stale_quote, missing_quote and missing_logo sets,
+  # I want the retire to leave the performance walk alone wherever a quote
+  # follows the last trade,
+  # so that tidying the catalog never moves a figure the walk already
+  # measured.
+  #
+  # Acceptance criteria:
+  # - Bought, sold out and quoted after the sale: the walk read before and
+  #   after retiring is identical, the daily series included. (A feed that
+  #   stopped before the last trade changes by #610's basis step alone, which
+  #   the tests above pin.)
+  test "retiring a sold-out security quoted after its last trade leaves the walk identical" do
+    world = base_world(name: "RSO", cash_name: "RSO Cash", depot_name: "RSO Depot")
+    security = create_security!(name: "Sold Out Co", ticker: "SOC")
+
+    deposit!(world, "1000", ~D[2026-01-01])
+    put_quote!(security, ~D[2026-01-01], "100")
+    buy!(world, security, quantity: "10", price: "100", date: ~D[2026-01-01])
+    put_quote!(security, ~D[2026-01-10], "110")
+    sell!(world, security, quantity: "10", price: "120", date: ~D[2026-01-15])
+    put_quote!(security, ~D[2026-01-20], "130")
+
+    {:ok, before} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-21])
+    retire!(security)
+    {:ok, after_retiring} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-21])
+
+    assert after_retiring == before
+    # Not an empty walk compared with itself: the sale's gain is in it.
+    assert Decimal.equal?(before.end_value, Decimal.new("1200"))
+  end
+
   test "a quote row after the trade keeps a retired security measured" do
     world = base_world(name: "RLQ", cash_name: "RLQ Cash", depot_name: "RLQ Depot")
     security = create_security!(name: "Relisted Co", ticker: "RLS")
