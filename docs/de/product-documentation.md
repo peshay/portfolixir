@@ -224,10 +224,13 @@ Ansicht lässt sich als Lesezeichen speichern oder verlinken:
   der Link bedeutet, was er beim Teilen bedeutete.
 - `?dq=stale_quote|missing_quote|missing_logo|missing_fx` — die
   Datenqualitäts-Schnellfilter: kein Kurs in den letzten 7 Tagen (inklusive
-  „gar kein Kurs"; stillgelegte Wertpapiere ausgenommen, ihr versiegter Kurs
-  ist erwartet), gar kein Kurs, kein hinterlegtes Logo, und — Issue #717 —
+  „gar kein Kurs"), gar kein Kurs, kein hinterlegtes Logo, und — Issue #717 —
   *Kein Wechselkurs*: bepreist, aber ohne gespeicherten Kurs von seiner
-  Währung zur Basiswährung; das Speichern des Kurses leert die Menge.
+  Währung zur Basiswährung; das Speichern des Kurses leert die Menge. Die
+  ersten drei lassen eine Benchmark und ein stillgelegtes Wertpapier in
+  Ruhe: Ein ausverkauftes oder delistetes Wertpapier, das Sie stilllegen,
+  verlässt alle drei, und die Zahlen der Übersicht sinken mit ihm; wieder
+  aktiv, steht es in denen, auf die es passt.
   Dieselben Bedingungen sind im Filter-Bedienelement unter **Datenqualität**
   direkt wählbar — der Link von der Übersicht ist eine Abkürzung dorthin,
   nicht der einzige Weg. Der Agent fragt genau dieselben Mengen über

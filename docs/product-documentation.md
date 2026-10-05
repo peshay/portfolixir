@@ -195,11 +195,13 @@ be bookmarked or linked to:
   7 days / 30 days* chips write a concrete ISO date here, so the link keeps
   meaning what it meant when it was shared.
 - `?dq=stale_quote|missing_quote|missing_logo|missing_fx` — the data-quality
-  shortcut filters: no quote in the last 7 days (including none at all;
-  retired securities are left out, their stopped feed is expected), no
+  shortcut filters: no quote in the last 7 days (including none at all), no
   quote at all, no stored logo, and — issue #717 — *Missing FX*: priced, but
   with no stored rate from its currency to the base currency, so storing the
-  rate empties the set. The same conditions can be picked in the filter
+  rate empties the set. The first three leave a benchmark and a retired
+  security alone: a sold-out or delisted security you retire leaves all
+  three, and the Overview's counts drop with it; un-retired, it is back in
+  those it matches. The same conditions can be picked in the filter
   control under **Data quality** — the dashboard link is a shortcut to them,
   not the only way in. The agent asks for the identical sets over
   `GET /api/v1/securities?data_quality=…` and the `portfolixir.securities.list`

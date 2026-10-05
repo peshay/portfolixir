@@ -271,9 +271,11 @@ full list.
   `present` — `missing` powers the "securities without a logo" overview and
   excludes rows explicitly set to no logo), `data_quality`
   (`stale_quote` — no quote newer than 7 days, **including** securities never
-  priced at all, retired securities left out because their stopped feed is
-  expected; `missing_quote` — no quote at all, the narrower set inside it;
-  `missing_logo`; `missing_fx` — issue #717: priced, but with no stored rate
+  priced at all; `missing_quote` — no quote at all, the narrower set inside it;
+  `missing_logo`; a benchmark and a retired security are in none of these
+  three, so retiring a sold-out or delisted security takes it out of all of
+  them and un-retiring puts it back in those it matches;
+  `missing_fx` — issue #717: priced, but with no stored rate
   from its currency to the EUR hub, so storing the rate empties the set),
   `projection` (`slim`/`full`), and
   `limit`/`offset` for pagination (both non-negative integers). Use these to
@@ -323,7 +325,12 @@ full list.
   hatch for providers that never back-adjust their history after a stock
   split: with the flag set, the security's provider-synced quote rows are
   treated as raw (as-traded), so the split-adjustment factors apply to them
-  too. A security's `currency_code` **freezes** once it has a transaction or
+  too. The boolean `is_retired` retires a sold-out or delisted security, and
+  `false` restores it: a retired security leaves the `stale_quote`,
+  `missing_quote` and `missing_logo` sets (owner decision 2026-10-05), and
+  its stale quote stops counting as a price measurement in performance
+  (#610). Like every security update, it is journaled under the calling
+  token. A security's `currency_code` **freezes** once it has a transaction or
   a quote (ADR-0050 §11): a change then answers `422` with
   `errors.currency_code` counting them, for example
   `["is frozen once referenced (120 quotes, 3 transactions)"]`, and nothing
@@ -3202,7 +3209,11 @@ names each address's code.
   ADR-0052).
 - `portfolixir.securities.update` — its description and its `currency_code`
   property state the currency freeze (ADR-0050 §11); it takes a bond's
-  master data, `null` clearing a field.
+  master data, `null` clearing a field, and `is_retired`, the remedy
+  `portfolixir.securities.delete` names for a security with bookings: `true`
+  takes a sold-out or delisted security out of the `stale_quote`,
+  `missing_quote` and `missing_logo` sets and `false` restores it. The tool
+  is in the `book` profile.
 - `portfolixir.securities.delete`
 - `portfolixir.securities.isin_change` — records a corporate-action ISIN
   change so imports keep matching via the former ISIN (ADR-0029).
