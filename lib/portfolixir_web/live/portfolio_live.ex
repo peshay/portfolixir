@@ -4026,11 +4026,20 @@ defmodule PortfolixirWeb.PortfolioLive do
     names =
       valuation.positions
       |> Enum.filter(&(&1.unvalued_reason == reason))
+      |> reject_retired(reason)
       |> Enum.map(&unvalued_entry_label(&1, reason))
       |> Enum.uniq()
 
     %{count: length(names), names: shorten_list(names)}
   end
+
+  # The no-price row links to ?dq=missing_quote, which leaves a retired
+  # security out, so the row does too (PR #1102); the FX row keeps it, as
+  # missing_fx does.
+  defp reject_retired(positions, :no_price),
+    do: Enum.reject(positions, &Map.get(&1, :retired, false))
+
+  defp reject_retired(positions, _reason), do: positions
 
   defp unvalued_entry_label(position, :missing_fx) do
     name = position.security_name || gettext("Unsorted")
@@ -4083,7 +4092,9 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp trade_priced_entries(valuation) do
     names =
       valuation.positions
-      |> Enum.filter(&(&1.price_source == :trade))
+      # A retired holding is left out, as from the stale-quote row: its link,
+      # ?dq=stale_quote, no longer lists it (PR #1102).
+      |> Enum.filter(&(&1.price_source == :trade and not Map.get(&1, :retired, false)))
       |> Enum.map(&(&1.security_name || gettext("Unsorted")))
       |> Enum.uniq()
 

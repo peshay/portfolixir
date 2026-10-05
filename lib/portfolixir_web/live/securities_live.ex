@@ -6191,7 +6191,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
       updated_since: socket.assigns.since && socket.assigns.since.cut
     ]
 
-    opts = if dq == "missing_logo", do: Keyword.put(opts, :logo_status, :missing), else: opts
+    # The predicate's query half — the logo condition and, for the three
+    # catalog-hygiene checks, the benchmark and retired exclusions — merged
+    # over the page's own options, as `DataQuality.list/2` merges it, so the
+    # page lists what the Overview counts (PR #1102).
+    opts = if dq, do: Keyword.merge(opts, DataQuality.list_opts(dq)), else: opts
 
     securities =
       opts

@@ -199,6 +199,42 @@ defmodule PortfolixirWeb.SecuritiesUrlFiltersTest do
       refute has_element?(view, "td", "Logo Co.")
     end
 
+    # User story (PR #1102, review finding 3):
+    # As a maintainer following an Overview count to its list,
+    # I want the page's data-quality filters to leave out the securities the
+    # count leaves out — a benchmark and a retired security,
+    # so that a count of N opens a list of N.
+    #
+    # Acceptance criteria:
+    # - Neither a retired nor a benchmark security, unpriced and without a
+    #   logo, is listed under ?dq=missing_logo or ?dq=missing_quote; an
+    #   active one is, and the page lists what DataQuality.list/1 lists.
+    # - Both stay on the unfiltered page.
+    test "?dq=missing_logo and ?dq=missing_quote leave out a retired and a benchmark security",
+         %{conn: conn} do
+      create_security(%{name: "Open Gap Co.", ticker_symbol: "OGAP"})
+      retired = create_security(%{name: "Retired Gap Co.", ticker_symbol: "RGAP"})
+      {:ok, _} = Catalog.update_security(Actor.owner_ui(), retired, %{is_retired: true})
+      create_security(%{name: "Index Gap ETF", ticker_symbol: "IGAP", is_benchmark: true})
+
+      for dq <- ~w(missing_logo missing_quote) do
+        {:ok, view, _html} = live(conn, "/securities?dq=#{dq}")
+
+        assert has_element?(view, "td", "Open Gap Co."), dq
+        refute has_element?(view, "td", "Retired Gap Co."), dq
+        refute has_element?(view, "td", "Index Gap ETF"), dq
+
+        assert Enum.map(Portfolixir.Catalog.DataQuality.list(dq), & &1.security.name) == [
+                 "Open Gap Co."
+               ]
+      end
+
+      {:ok, view, _html} = live(conn, "/securities")
+
+      assert has_element?(view, "td", "Retired Gap Co.")
+      assert has_element?(view, "td", "Index Gap ETF")
+    end
+
     # User story:
     # As a local portfolio maintainer looking at the securities without a logo,
     # I want a bulk "retry logo lookup" action with inline feedback,

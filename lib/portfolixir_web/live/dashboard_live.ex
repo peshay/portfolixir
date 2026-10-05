@@ -996,7 +996,9 @@ defmodule PortfolixirWeb.DashboardLive do
       dq.without_class > 0 &&
         %{
           role: "dq-class",
-          href: "/securities?" <> Query.encode(%{"filter" => ["asset_class:is_nil"]}),
+          href:
+            "/securities?" <>
+              Query.encode(%{"filter" => ["asset_class:is_nil", "is_retired:is_false"]}),
           text:
             ngettext(
               "one without an asset class",
@@ -1027,10 +1029,16 @@ defmodule PortfolixirWeb.DashboardLive do
     # asset-class finding stays an ordinary column filter: `asset_class` is a
     # stored column, so it needs no predicate of its own -- and it is keyed on
     # the STORED value per #700, which is what makes the count addressable.
+    # A retired security leaves it as it leaves the predicates' sets (PR
+    # #1102), and the link carries the same `is_retired:is_false` filter.
     %{
       total: length(Catalog.list_securities()),
       without_quote: DataQuality.count("stale_quote"),
-      without_class: Enum.count(Catalog.list_securities(), &is_nil(&1.asset_class)),
+      without_class:
+        Enum.count(
+          Catalog.list_securities(is_retired: false),
+          &is_nil(&1.asset_class)
+        ),
       without_logo: DataQuality.count("missing_logo")
     }
   end

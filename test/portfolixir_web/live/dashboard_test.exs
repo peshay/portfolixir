@@ -464,16 +464,19 @@ defmodule PortfolixirWeb.DashboardTest do
     refute has_element?(view, "[data-role='data-quality-line']")
   end
 
-  # User story (owner decision 2026-10-05):
+  # User story (PR #1102):
   # As a maintainer who retires a security that was sold out or delisted,
-  # I want the Overview's quote and logo counts to drop with it,
+  # I want the Overview's quote, asset-class and logo counts to drop with it,
   # so that the line counts what still needs work, not what I have closed.
   #
   # Acceptance criteria:
-  # - A never-priced security without a logo counts once under each finding.
-  # - Retired, it counts under neither, and with nothing else open the line
-  #   is gone.
-  test "a retired security leaves the data-quality line's quote and logo counts", %{conn: conn} do
+  # - A never-priced security without an asset class or a logo counts once
+  #   under each of the three findings, and the asset-class link opens a list
+  #   holding it.
+  # - Retired, it counts under none, the asset-class link's list no longer
+  #   holds it, and with nothing else open the line is gone.
+  test "a retired security leaves the data-quality line's quote, class and logo counts",
+       %{conn: conn} do
     %{security: security} = seed_holding()
 
     {:ok, security} =
@@ -482,17 +485,24 @@ defmodule PortfolixirWeb.DashboardTest do
     {:ok, _} = Catalog.put_logo_attributes(security, %{"logo_path" => "logos/acme.png"})
 
     {:ok, closed} =
-      Catalog.create_security(Actor.owner_ui(), %{
-        name: "Closed Co",
-        currency_code: "EUR",
-        asset_class: "equity"
-      })
+      Catalog.create_security(Actor.owner_ui(), %{name: "Closed Co", currency_code: "EUR"})
 
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
 
     assert has_element?(view, "[data-role='dq-quotes']", "one security without a quote in 7 days")
+    assert has_element?(view, "[data-role='dq-class']", "one without an asset class")
     assert has_element?(view, "[data-role='dq-logo']", "one without a logo")
+
+    [class_href] =
+      view
+      |> element("[data-role='dq-class']")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.attribute("href")
+
+    {:ok, list, _html} = live(conn, class_href)
+    assert has_element?(list, "td", "Closed Co")
 
     {:ok, _} = Catalog.update_security(Actor.owner_ui(), closed, %{is_retired: true})
 
@@ -500,8 +510,12 @@ defmodule PortfolixirWeb.DashboardTest do
     render_async(view)
 
     refute has_element?(view, "[data-role='dq-quotes']")
+    refute has_element?(view, "[data-role='dq-class']")
     refute has_element?(view, "[data-role='dq-logo']")
     refute has_element?(view, "#dashboard-data-quality")
+
+    {:ok, list, _html} = live(conn, class_href)
+    refute has_element?(list, "td", "Closed Co")
   end
 
   # User story (issue #718, D1 / UX-DR21):

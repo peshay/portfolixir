@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Classifications
   alias Portfolixir.Ledger
   alias Portfolixir.WorldFixtures
@@ -470,5 +471,60 @@ defmodule PortfolixirWeb.PortfolioDataQualityTest do
     render_async(view)
 
     refute has_element?(view, ~s([data-role="dq-stale-priced"]))
+  end
+
+  # User story (PR #1102, review finding 4):
+  # As a maintainer following a Wealth data-quality row to the securities
+  # list it links to,
+  # I want the no-price and the trade-priced rows to name only what that
+  # list holds,
+  # so that retiring a holding clears the row as it clears the list.
+  #
+  # Acceptance criteria:
+  # - A held never-priced holding and a held trade-priced one are named in
+  #   their rows, and each is in the set its row links to (missing_quote,
+  #   stale_quote).
+  # - Retired, neither row names them, and neither set lists them.
+  test "retiring a no-price and a trade-priced holding clears both rows with their linked sets",
+       %{conn: conn} do
+    world = seed_world()
+
+    {:ok, dark} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Dark Retired Co.",
+        ticker_symbol: "DRKR",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    deliver!(world, dark, "3", "EUR")
+
+    traded = WorldFixtures.create_security!(name: "Traded Retired Co.", ticker: "TRDR")
+    WorldFixtures.buy!(world, traded, quantity: "2", price: "30")
+
+    set = fn id -> Enum.map(DataQuality.list(id), & &1.security.name) end
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    assert view |> element(~s([data-role="dq-no-price"])) |> render() =~ "Dark Retired Co."
+    assert "Dark Retired Co." in set.("missing_quote")
+
+    assert view |> element(~s([data-role="dq-trade-priced"])) |> render() =~
+             "Traded Retired Co."
+
+    assert "Traded Retired Co." in set.("stale_quote")
+
+    for security <- [dark, traded] do
+      {:ok, _} = Catalog.update_security(Actor.owner_ui(), security, %{is_retired: true})
+    end
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    refute has_element?(view, ~s([data-role="dq-no-price"]))
+    refute has_element?(view, ~s([data-role="dq-trade-priced"]))
+    refute "Dark Retired Co." in set.("missing_quote")
+    refute "Traded Retired Co." in set.("stale_quote")
   end
 end
