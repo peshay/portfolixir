@@ -430,9 +430,10 @@ defmodule PortfolixirWeb.ApiV1ContributionTest do
   # - The performance and the contribution read, of the portfolio and of a
   #   view holding the account, carry unvalued_cash_accounts: cash_account_id,
   #   name, currency_code, balance (a Decimal string in CHF), unvalued_days
-  #   18, unvalued_reason "no_rate" and first_rate_date, the ISO date of the
-  #   first rate inside the window.
-  # - A window that ends before the first rate answers first_rate_date null.
+  #   18, unvalued_reason "no_rate", unvalued_through_end false and
+  #   first_rate_date, the ISO date of the first rate inside the window.
+  # - A window that ends before the first rate answers first_rate_date null
+  #   and unvalued_through_end true.
   # - Every figure is unchanged: the result is 2500, all of it in
   #   cash_currency_effect.
   test "names a cash account held before its first rate, on both reads and in both forms",
@@ -451,6 +452,7 @@ defmodule PortfolixirWeb.ApiV1ContributionTest do
       "balance" => "2000",
       "unvalued_days" => 18,
       "unvalued_reason" => "no_rate",
+      "unvalued_through_end" => false,
       "first_rate_date" => "#{year}-08-01"
     }
 
@@ -471,7 +473,10 @@ defmodule PortfolixirWeb.ApiV1ContributionTest do
       early =
         get_json(conn, path <> separator <> "from=#{year}-07-01&to=#{year}-07-31")["data"]
 
-      assert early["unvalued_cash_accounts"] == [%{expected | "first_rate_date" => nil}], path
+      assert early["unvalued_cash_accounts"] == [
+               %{expected | "unvalued_through_end" => true, "first_rate_date" => nil}
+             ],
+             path
     end
 
     contribution =

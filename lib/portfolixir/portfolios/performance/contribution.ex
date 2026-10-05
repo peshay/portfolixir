@@ -116,6 +116,7 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
           balance: Decimal.t(),
           unvalued_days: pos_integer(),
           unvalued_reason: :no_rate,
+          unvalued_through_end: boolean(),
           first_rate_date: Date.t() | nil
         }
 
@@ -180,11 +181,14 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
   in the table and in the sum (ADR-0051 §10, I7).
 
   `unvalued_cash_accounts` names the cash accounts that held money and
-  counted zero on some window day for want of a rate path, exactly as the
-  performance read of the same window lists them
-  (`Performance.unvalued_cash_accounts/3`, #1055): with its native balance,
-  its days and, when it arrived inside the window, the date of the first
-  rate, the day the whole balance entered `cash_currency_effect`.
+  counted zero for want of a rate path on a window day or on the day before
+  the window, whose close is the start value, exactly as the performance
+  read of the same window lists them (`Performance.unvalued_cash_accounts/3`,
+  #1055): with its native balance, its days (the day before the window
+  included), whether it still counted zero on the window's last day and,
+  when it arrived inside the window while the account held money at zero,
+  the date of the first rate, the day the whole balance entered
+  `cash_currency_effect`.
 
   `remainder` carries `interest`, `standalone_fees_and_taxes` and
   `cash_currency_effect`. `totals.result` is `end value − start value − net
@@ -388,8 +392,10 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
           "(ADR-0051 §4). A foreign-currency cash balance likewise counts zero on a day " <>
           "its currency has no rate path; when the first rate arrives, the balance's whole " <>
           "value enters cash_currency_effect, and the account is listed in " <>
-          "unvalued_cash_accounts with its native balance, its days and, when it arrived " <>
-          "inside the window, the date of that first rate (ADR-0051 §10)",
+          "unvalued_cash_accounts with its native balance, its days (the day before the " <>
+          "window, the start value, included), unvalued_through_end when it still counted " <>
+          "zero on the window's last day and, when it arrived inside the window while the " <>
+          "account held money at zero, the date of that first rate (ADR-0051 §10)",
       assumptions:
         "per position, in the base currency, contribution = end_value − start_value − " <>
           "net_flows + income − costs over the window (ADR-0051 §1): start_value is the " <>

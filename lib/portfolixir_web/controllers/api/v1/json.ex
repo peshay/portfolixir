@@ -1916,6 +1916,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       balance: decimal(account.balance),
       unvalued_days: account.unvalued_days,
       unvalued_reason: reason(account.unvalued_reason),
+      unvalued_through_end: account.unvalued_through_end,
       first_rate_date: date(account.first_rate_date)
     }
   end
