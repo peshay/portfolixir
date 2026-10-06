@@ -2895,6 +2895,20 @@ Das Vorschau-Panel **Wertpapiere aus dem Export** zeigt das Ergebnis:
   Doppelgänger-Buchstaben aus einer anderen Schrift, andere Groß- und
   Kleinschreibung oder Leerzeichen), gilt als solche Ähnlichkeit, und die
   Zuordnung selbst übergeht unsichtbare Zeichen in Namen.
+- **Keine Entscheidung, wo nichts gebucht würde**: Ist jede Buchung eines
+  Wertpapiers, das eine Entscheidung oder Bestätigung verlangt, bereits
+  importiert — ihr Inhalt gleicht einer gespeicherten Buchung, einer, die
+  eine Zusammenführung entfernt hat, oder einer früheren Zeile derselben
+  Datei — oder eine Zeile, die der Import ohnehin überspringt (ein Betrag
+  von null), zeigt die Zeile *N Buchungen bereits importiert · nichts
+  anzulegen* und dass keine Entscheidung nötig ist, und sie blockiert den
+  Import nicht mehr; auch unter den neuen Wertpapieren zählt ein solches
+  nicht mit. Der Import prüft den Inhalt einer Buchung, bevor er ihr
+  Wertpapier zuordnet, eine Wahl dort würde also nie verwendet: Nur ein
+  ISIN-Wechsel, den Sie auf der Zeile erfassen, wird trotzdem wirksam. Ein
+  Wertpapier mit einer neuen Buchung braucht weiter seine Entscheidung, und
+  zwei Wertpapiere der Datei, die sich nicht unterscheiden lassen, lassen
+  den Import weiter scheitern.
 
 Wird ein Eintrag ummappt, dessen ISIN von der aktuellen ISIN des
 gewählten Wertpapiers abweicht, bietet die Vorschau an, die Differenz im

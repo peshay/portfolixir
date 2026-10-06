@@ -59,11 +59,34 @@ defmodule Portfolixir.Imports do
   end
 
   @doc """
+  Whether a resolution of `resolve_securities/1` still needs the operator's
+  choice, given its key's counts from `reimport_counts/2`'s `securities`: a
+  surfaced decision whose rows are all already imported by their hash needs
+  none, because the apply never reaches it (ADR-0050 §3, #923); a key
+  collision always does. See `SecurityResolver.decision_needed?/2`.
+  """
+  @spec security_decision_needed?(map(), Applier.layer_counts()) :: boolean()
+  defdelegate security_decision_needed?(resolution, counts),
+    to: SecurityResolver,
+    as: :decision_needed?
+
+  @doc """
+  Whether the apply resolves nothing for a security key, given its counts
+  from `reimport_counts/2`'s `securities`: every row of it is skipped before
+  the ladder runs (#923), so no security is created or matched for it. See
+  `SecurityResolver.resolves_nothing?/1`.
+  """
+  @spec security_resolves_nothing?(Applier.layer_counts()) :: boolean()
+  defdelegate security_resolves_nothing?(counts), to: SecurityResolver, as: :resolves_nothing?
+
+  @doc """
   The already-imported counts of a parsed preview (ADR-0050 §3), before the
   apply: per layer that judges a row (`:hash`, `:retired`, `:unimportable`,
   `:economics`, `:internal_transfer`, `:new`) in `total`, and per file
   cash-account and depot name, where a row counts under every name it
-  carries. See `Portfolixir.Imports.Applier.reimport_counts/3`;
+  carries; per security reference (`securities`, keyed as
+  `resolve_securities/1` keys its resolutions) on the hash layers alone
+  (#923). See `Portfolixir.Imports.Applier.reimport_counts/3`;
   `dry_run: false` counts on the hash layers alone, without the rolled-back
   run of the apply that judges the rest.
 
@@ -75,7 +98,8 @@ defmodule Portfolixir.Imports do
   @spec reimport_counts(Preview.t(), keyword()) :: %{
           total: Applier.layer_counts(),
           cash_accounts: %{String.t() => Applier.layer_counts()},
-          depots: %{String.t() => Applier.layer_counts()}
+          depots: %{String.t() => Applier.layer_counts()},
+          securities: %{String.t() => Applier.layer_counts()}
         }
   def reimport_counts(%Preview{} = preview, opts \\ []) when is_list(opts) do
     Applier.reimport_counts(preview, import_portfolio_id(opts),

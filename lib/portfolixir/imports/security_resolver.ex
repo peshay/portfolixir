@@ -529,6 +529,51 @@ defmodule Portfolixir.Imports.SecurityResolver do
     |> Enum.sort_by(&{status_rank(&1.status), &1.label})
   end
 
+  # The layers on which the apply skips a row before it resolves any security
+  # (ADR-0050 §3; the applier's per-row order): an unimportable line, then a
+  # held or retired content hash (an in-file repeat counts `:hash`).
+  @skipped_before_resolution [:hash, :retired, :unimportable]
+
+  @doc """
+  Whether the apply resolves nothing for a key, given its counts from
+  `Portfolixir.Imports.reimport_counts/2` (`securities`, on the hash layers
+  alone): the key has a counted row, and every one of them is skipped before
+  the ladder runs — a hash, retired or in-file hit, or an unimportable line
+  (#923). An allowlist, so a row on any other layer, a layer added later
+  included, means the key may be resolved.
+  """
+  @spec resolves_nothing?(map()) :: boolean()
+  def resolves_nothing?(counts) when is_map(counts) do
+    Enum.any?(counts, fn {_layer, n} -> n > 0 end) and
+      Enum.all?(counts, fn {layer, n} -> n == 0 or layer in @skipped_before_resolution end)
+  end
+
+  @doc """
+  Whether a row of `resolution_plan/2` still needs the operator's choice,
+  given its key's counts from `Portfolixir.Imports.reimport_counts/2`
+  (`securities`, on the hash layers alone).
+
+  A surfaced decision (`:needs_decision` or `:config_at_risk`) needs none
+  when the apply resolves nothing for its key (`resolves_nothing?/1`, #923):
+  the apply skips such rows before it resolves any security (ADR-0050 §3),
+  so it never reaches the choice — the account rows' rule (board 04, note
+  4). A key with a new row, or one judged after the ladder (an equal booking
+  by its economics, an internal transfer), keeps the rule, as does a key with
+  no counted row. A key collision needs one whatever its counts: no choice
+  settles it, and the apply refuses the file (E25 S5, F36). A matched or
+  plain create row surfaces none.
+  """
+  @spec decision_needed?(map(), map()) :: boolean()
+  def decision_needed?(%{status: status} = resolution, counts)
+      when status in [:needs_decision, :config_at_risk] do
+    key_collision?(resolution) or not resolves_nothing?(counts)
+  end
+
+  def decision_needed?(_resolution, _counts), do: false
+
+  defp key_collision?(%{conflict: %{type: :key_collision}}), do: true
+  defp key_collision?(_resolution), do: false
+
   defp key_collision(ref, key, rows) do
     ref
     |> base_row(key, rows)

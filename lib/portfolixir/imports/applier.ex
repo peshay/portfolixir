@@ -68,8 +68,10 @@ defmodule Portfolixir.Imports.Applier do
     is listed in `behind_restated_anchor` with the anchor.
 
   `already_imported` counts the skipped duplicates per layer (`:hash`,
-  `:retired`, `:economics`); `reimport_counts/2` is the same count before
-  the apply, per file account and depot name, for the preview.
+  `:retired`, `:economics`); `reimport_counts/3` is the same count before
+  the apply, per file account and depot name, for the preview — and per
+  security key (`securities`), on the hash layers alone, so the preview can
+  tell a security decision the apply never reaches (#923).
 
   Behavior:
 
@@ -373,7 +375,8 @@ defmodule Portfolixir.Imports.Applier do
   transaction holds its content hash), `:retired` (a merge retired it) or
   `:new` — in `total`, and again per file cash-account name (`cash_accounts`)
   and per file depot name (`depots`), where a row counts under every name it
-  carries on either leg. Read-only; the hash names `portfolio_id`, and without
+  carries on either leg, and per security key (`securities`, below), on the
+  hash layers alone. Read-only; the hash names `portfolio_id`, and without
   one every importable row is new.
 
   A tax refund split off a row counts by its own hashes, as the apply judges
@@ -392,14 +395,29 @@ defmodule Portfolixir.Imports.Applier do
   A row still `:new` may be skipped by a decision the operator makes in the
   preview (a security choice, another account); an account whose rows are
   none of them `:new` is never created.
+
+  `securities` counts the rows again per security reference of the file,
+  keyed as `SecurityResolver.resolution_plan/2` keys its rows
+  (`SecurityResolver.key/1` of the entry's effective reference), on the hash
+  layers alone (#923): an unimportable line, a held hash, a retired one and
+  a repeat of an earlier row of the file under the same key are what the
+  apply skips before it resolves any security (§3), so a key with nothing
+  else is one whose decision the apply never uses
+  (`SecurityResolver.resolves_nothing?/1`). A repeat whose first copy sits
+  under another key counts `:new`: that copy may be skipped on a later layer
+  and leave the repeat to resolve its own key. The dry run's `:economics`
+  and `:internal_transfer` are judged on resolved ids, after the ladder, and
+  never count there; such a row stays `:new` under its security.
   """
   @spec reimport_counts(Preview.t(), integer() | nil, keyword()) :: %{
           total: layer_counts(),
           cash_accounts: %{String.t() => layer_counts()},
-          depots: %{String.t() => layer_counts()}
+          depots: %{String.t() => layer_counts()},
+          securities: %{String.t() => layer_counts()}
         }
   def reimport_counts(%Preview{entries: entries}, portfolio_id, opts \\ []) do
     flat_entries = Entry.flatten(entries)
+    hash_layers = row_layers(flat_entries, portfolio_id)
 
     # `dry_run: false` counts on the hash layers alone: one read, where the
     # dry run costs what the apply costs (the Imports view shows these first
@@ -412,40 +430,84 @@ defmodule Portfolixir.Imports.Applier do
     layers =
       case outcomes do
         {:ok, outcomes} ->
-          flat_entries
-          |> row_layers(portfolio_id)
-          |> Enum.zip_with(outcomes, fn {layer, key}, outcome ->
+          Enum.zip_with(hash_layers, outcomes, fn {layer, key}, outcome ->
             {later_layer(layer, outcome), key}
           end)
 
         :error ->
-          row_layers(flat_entries, portfolio_id)
+          hash_layers
       end
 
     empty = %{hash: 0, retired: 0, unimportable: 0, economics: 0, internal_transfer: 0, new: 0}
 
-    initial = {%{total: empty, cash_accounts: %{}, depots: %{}}, MapSet.new(), nil}
+    counts =
+      flat_entries
+      |> judge_rows(layers)
+      |> Enum.reduce(%{total: empty, cash_accounts: %{}, depots: %{}}, fn {entry, layer}, acc ->
+        count_row(acc, entry, layer, empty)
+      end)
 
-    # A companion counts by its own hashes, as the apply judges it; one whose
-    # row is unimportable is skipped with it (E25 S5, F37).
-    {counts, _seen, _parent_layer} =
+    # A repeat counts as a hit under its security only after a copy under the
+    # same key: the hash names a security by its ISIN, the key by every
+    # identifier, and a first copy under another key may be skipped on a
+    # later layer, leaving the repeat to resolve its own key.
+    security_keys = Enum.map(flat_entries, &security_key/1)
+
+    securities =
+      flat_entries
+      |> judge_rows(
+        Enum.zip_with(hash_layers, security_keys, fn {layer, hash}, key ->
+          {layer, {hash, key}}
+        end)
+      )
+      |> Enum.zip(security_keys)
+      |> Enum.reduce(%{}, fn {{_entry, layer}, key}, acc ->
+        count_security(acc, key, layer, empty)
+      end)
+
+    Map.put(counts, :securities, securities)
+  end
+
+  # Each row with the layer that judges it, in file order. A repeat of an
+  # earlier new row of the file is held by the time the apply reaches it; a
+  # companion counts by its own hashes, as the apply judges it, and one whose
+  # row is unimportable is skipped with it (E25 S5, F37).
+  defp judge_rows(flat_entries, layers) do
+    {judged, _seen, _parent_layer} =
       flat_entries
       |> Enum.zip(layers)
-      |> Enum.reduce(initial, fn
+      |> Enum.reduce({[], MapSet.new(), nil}, fn
         {%Entry{companion_index: nil} = entry, layer_key}, {acc, seen, _parent_layer} ->
           {layer, seen} = in_file_repeat(layer_key, seen)
-          {count_row(acc, entry, layer, empty), seen, layer}
+          {[{entry, layer} | acc], seen, layer}
 
         {entry, _layer_key}, {acc, seen, parent_layer}
         when parent_layer in [nil, :unimportable] ->
-          {count_row(acc, entry, :unimportable, empty), seen, parent_layer}
+          {[{entry, :unimportable} | acc], seen, parent_layer}
 
         {entry, layer_key}, {acc, seen, parent_layer} ->
           {layer, seen} = in_file_repeat(layer_key, seen)
-          {count_row(acc, entry, layer, empty), seen, parent_layer}
+          {[{entry, layer} | acc], seen, parent_layer}
       end)
 
-    counts
+    Enum.reverse(judged)
+  end
+
+  # The key of the security reference a row carries, as the resolution plan
+  # groups it; `nil` for a row naming no usable security, which counts
+  # nowhere.
+  defp security_key(%Entry{security: nil}), do: nil
+
+  defp security_key(%Entry{} = entry) do
+    ref = SecurityResolver.effective_ref(entry)
+    if SecurityResolver.blank_ref?(ref), do: nil, else: SecurityResolver.key(ref)
+  end
+
+  defp count_security(acc, nil, _layer, _empty), do: acc
+
+  defp count_security(acc, key, layer, empty) do
+    bump = &Map.update!(&1, layer, fn n -> n + 1 end)
+    Map.update(acc, key, bump.(empty), bump)
   end
 
   defp count_row(acc, entry, layer, empty) do
