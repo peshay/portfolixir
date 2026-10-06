@@ -96,15 +96,22 @@ defmodule PortfolixirWeb.LifecycleFreezeLiveTest do
        %{conn: conn} do
     world = WorldFixtures.base_world(cash_currency: "USD")
 
+    # The fake provider's `quillmoor` listing, not `arbolia`: Arbolia's ISIN
+    # is the one the Portfolio Performance sample carries, which
+    # ViewAdditivitySpikeTest imports in the same async phase, and the ISIN
+    # and the provider's online id are unique (securities_isin_unique_index,
+    # securities_provider_online_id_unique_index). Storing it here made one
+    # test's insert wait on the other's uncommitted row until that test
+    # ended (#1047). Which listing it is does not matter here.
     {:ok, existing} =
       Catalog.create_security(Actor.owner_ui(), %{
-        name: "Arbolia Inc.",
-        ticker_symbol: "ARBL",
-        isin: "USEXMPL10014",
+        name: "Quillmoor Systems Inc.",
+        ticker_symbol: "QLMR",
+        isin: "USEXMPL40060",
         currency_code: "USD",
         asset_class: "equity",
         provider: "portfolio_performance",
-        online_id: "usexmpl10014",
+        online_id: "usexmpl40060",
         feed: "PORTFOLIO_PERFORMANCE"
       })
 
@@ -116,7 +123,7 @@ defmodule PortfolixirWeb.LifecycleFreezeLiveTest do
 
     view
     |> element("#security-form-dialog form")
-    |> render_change(%{"dialog_query" => "arbolia"})
+    |> render_change(%{"dialog_query" => "quillmoor"})
 
     view |> element("#security-form-dialog .search-result") |> render_click()
 
@@ -142,9 +149,9 @@ defmodule PortfolixirWeb.LifecycleFreezeLiveTest do
     |> element("#security-form-dialog form")
     |> render_submit(%{
       "security" => %{
-        "name" => "Arbolia Inc.",
-        "ticker_symbol" => "AR8",
-        "isin" => "USEXMPL10014",
+        "name" => "Quillmoor Systems Inc.",
+        "ticker_symbol" => "QM8",
+        "isin" => "USEXMPL40060",
         "currency_code" => "EUR",
         "exchange_code" => "XETR",
         "asset_class" => "equity",
@@ -158,7 +165,7 @@ defmodule PortfolixirWeb.LifecycleFreezeLiveTest do
              "is frozen once referenced (1 booking)"
            )
 
-    assert %{currency_code: "USD", ticker_symbol: "ARBL", exchange_code: nil} =
+    assert %{currency_code: "USD", ticker_symbol: "QLMR", exchange_code: nil} =
              Catalog.get_security(existing.id)
   end
 
