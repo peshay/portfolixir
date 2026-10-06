@@ -35,8 +35,9 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
       (#708's trade costs, kept per security), read in the currency of the
       trade's cash account (#1051), counted when the whole trade is inside
       the scope; they count zero while that currency has no rate path to the
-      base, as the account itself does (ADR-0010), and the account is named
-      under `unvalued_cash_accounts`.
+      base, as the account itself does (ADR-0010). The account is named under
+      `unvalued_cash_accounts` for each day it closed holding money; cash paid
+      in and spent on one day closes at zero and is not (#1117).
 
   The remainder lines (§3), each summed from its own bookings and **never a
   plug** (the result minus the positions):
@@ -415,7 +416,8 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
           "on the position's own trades, read in the currency of the trade's cash account " <>
           "(#708, #1051), and count zero while that currency has no rate path to the base, " <>
           "as the account does (ADR-0010; the account is named under " <>
-          "unvalued_cash_accounts). " <>
+          "unvalued_cash_accounts for each day it closed holding money, so cash paid in " <>
+          "and spent on one day is not, #1117). " <>
           "The positions plus the remainder lines sum to totals.result, end value − start " <>
           "value − net external flows of the scope over the window, the money result " <>
           "beside the TTWROR (ADR-0051 §3). Each line is summed from its own bookings and " <>

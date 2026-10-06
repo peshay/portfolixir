@@ -134,6 +134,11 @@ example "Gesamtpreis 1.505,00 passt nicht zu Betrag 1.502,50 und Gebühren
 2,50"). The rest of the file previews. The importer fails closed: it does
 not guess which cell is wrong.
 
+**Note (2026-10-06).** U reads Gebühren as the fee the row books, that is
+its magnitude: a Gebühren cell written negative ("-2,50") counts as 2,50,
+the fee the ledger stores for it. Steuern keeps its sign, since a negative
+Steuern is a refund (§5). Found by PR α's closing act; no decision changes.
+
 ### 3. The content hash keeps reading Betrag
 
 The parser carries the file's Betrag on the entry as the **hash's amount
