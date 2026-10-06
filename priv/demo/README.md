@@ -75,6 +75,38 @@ research log whose risk entry is superseded by a retraction, and a
 security-event calendar on both a held and a watch-list security (all four
 timing qualifiers, one unconfirmed past date, one nobody has re-read).
 
+The Sprint 19 PR α stories added their surfaces (step 16 of the seed):
+
+- **Foreign cash before its first rate (#1055):** "Tagesgeld CHF" receives
+  2,000.00 CHF four weeks before CHF's first stored rate, so Wealth's
+  contribution table (default period, one year) names it as counting zero on
+  some days and says that its whole balance entered "Currency effect on cash"
+  with the first rate.
+- **Cross-currency fees and taxes (#1051):** "Larkspur Robotics Inc", priced
+  in USD, bought through the EUR Demo Cash with fees and taxes in EUR; the
+  contribution table shows them as the position's costs. The seed stores no
+  USD rate, so this is the no-rate case; step 12's CHF buy is the converted
+  one.
+- **Category result across base currencies (#1048):** a second portfolio,
+  "Dollar Depot", with base currency USD, holds Harborline Freight Inc and
+  Larkspur, both filed in the Strategies tree; the classification screen's
+  EUR result leaves both out and names them, Harborline with its native cost
+  ("Einstand … USD") and Larkspur, held in a EUR and the USD portfolio, with
+  its reason.
+- **Bonds on two scales (#1068):** "Kestrel Anleihe 2030 2,75%" (quotes near
+  100, booked near 1), "Birkenhain Wasser Anleihe 2029 1,50%" (the reverse)
+  and "Ostsee Logistik 4,10% 2028/2033" (no asset class, a coupon and a
+  maturity date), all held: Wealth names them, the unclassed one with its
+  "ohne Anlageklasse" badge, and the Overview's data-quality line counts them.
+- **What the total leaves out (#1081):** the USD cash with no rate and the
+  delivered position with no price are named under the Overview's "Alles"
+  card.
+- **Gesamtpreis row error (#1076):** `pp_csv_gesamtpreis_demo.csv` is a small
+  Portfolio Performance CSV whose sell row's Gesamtpreis contradicts Betrag −
+  (Gebühren + Steuern). The seed does not import it: drop it into Imports by
+  hand and the preview names the row as not imported. Discard the preview
+  afterwards.
+
 ```bash
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.create
 DATABASE_NAME=portfolixir_review PORT=4003 mix ecto.migrate
