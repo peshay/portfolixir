@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { execFile, spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:http";
-import type { AddressInfo } from "node:net";
+import { createServer as createNetServer, type AddressInfo } from "node:net";
 import { join } from "node:path";
 import { before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
@@ -485,4 +485,98 @@ describe("the built companion over its real transports", () => {
       }
     }
   );
+
+  // User story (#1043, Sprint 19 plan, PR β B3):
+  // As an operator who starts the companion on a port something else holds,
+  // I want it to stop with a line naming the host, the port and the cause,
+  // so that I am not told it listens while it serves nothing.
+  //
+  // Acceptance criteria:
+  // - With PORTFOLIXIR_MCP_TRANSPORT=http on a port another listener holds,
+  //   `node dist/index.js` exits 1.
+  // - stderr carries one line naming the address it could not listen on and
+  //   EADDRINUSE, and no "listening" line and no stack trace.
+  it("exits 1 naming the host, the port and the cause when its port is taken", { timeout: 60_000 }, async () => {
+    const holder = createNetServer();
+    holder.listen(0, "127.0.0.1");
+    await once(holder, "listening");
+    const { port } = holder.address() as AddressInfo;
+
+    const companion = spawnCompanion({
+      PORTFOLIXIR_API_BASE_URL: "http://127.0.0.1:9",
+      PORTFOLIXIR_API_TOKEN: apiToken,
+      PORTFOLIXIR_MCP_TRANSPORT: "http",
+      PORTFOLIXIR_MCP_TOKEN: mcpToken,
+      PORTFOLIXIR_MCP_HOST: "127.0.0.1",
+      PORTFOLIXIR_MCP_PORT: String(port)
+    });
+    const exited = once(companion.child, "close");
+
+    try {
+      const [code] = await within(exited, 15_000, "the companion's exit");
+      const stderr = companion.stderr();
+
+      assert.equal(code, 1, stderr);
+      assert.ok(
+        stderr
+          .split(/\r?\n/)
+          .includes(
+            `Portfolixir MCP server could not listen on http://127.0.0.1:${port}/mcp: EADDRINUSE (the port is in use)`
+          ),
+        stderr
+      );
+      assert.doesNotMatch(stderr, /listening/);
+      assert.doesNotMatch(stderr, /^\s+at /m, "no stack trace");
+    } finally {
+      await companion.stop();
+      holder.close();
+      await once(holder, "close");
+    }
+  });
+
+  // User story (#1043 review round):
+  // As an operator who sets PORTFOLIXIR_MCP_PORT to something that is not a
+  // port,
+  // I want the companion to stop with a line naming the variable and the
+  // value I set,
+  // so that it neither listens on a port I did not choose nor reports NaN.
+  //
+  // Acceptance criteria:
+  // - With PORTFOLIXIR_MCP_TRANSPORT=http and PORTFOLIXIR_MCP_PORT set to
+  //   `abc`, `4001x` or `70000`, `node dist/index.js` exits 1.
+  // - stderr carries one line naming the variable, the range and the value as
+  //   set, and no "listening" line and no stack trace.
+  for (const value of ["abc", "4001x", "70000"]) {
+    it(`exits 1 naming the variable and the value when the port is ${value}`, { timeout: 60_000 }, async () => {
+      const companion = spawnCompanion({
+        PORTFOLIXIR_API_BASE_URL: "http://127.0.0.1:9",
+        PORTFOLIXIR_API_TOKEN: apiToken,
+        PORTFOLIXIR_MCP_TRANSPORT: "http",
+        PORTFOLIXIR_MCP_TOKEN: mcpToken,
+        PORTFOLIXIR_MCP_HOST: "127.0.0.1",
+        PORTFOLIXIR_MCP_PORT: value
+      });
+      const exited = once(companion.child, "close");
+
+      try {
+        const [code] = await within(exited, 15_000, "the companion's exit");
+        const stderr = companion.stderr();
+
+        assert.equal(code, 1, stderr);
+        assert.ok(
+          stderr
+            .split(/\r?\n/)
+            .includes(
+              "PORTFOLIXIR_MCP_PORT must be a whole number from 1 to 65535, or unset (4001); " +
+                `it is set to "${value}"`
+            ),
+          stderr
+        );
+        assert.doesNotMatch(stderr, /listening|NaN/);
+        assert.doesNotMatch(stderr, /^\s+at /m, "no stack trace");
+      } finally {
+        await companion.stop();
+      }
+    });
+  }
 });

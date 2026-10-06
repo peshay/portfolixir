@@ -119,7 +119,7 @@ behind a reverse proxy, add the proxy's name to
 | `PORTFOLIXIR_MCP_TRANSPORT` | `stdio` | `stdio`, or `http` for the companion's own listener. |
 | `PORTFOLIXIR_MCP_TOKEN` | none, required for `http` | The bearer token HTTP clients present: at least 32 bytes and never a placeholder (`openssl rand -base64 48`). |
 | `PORTFOLIXIR_MCP_HOST` | `127.0.0.1` | The address the HTTP listener binds. |
-| `PORTFOLIXIR_MCP_PORT` | `4001` | The port the HTTP listener binds. |
+| `PORTFOLIXIR_MCP_PORT` | `4001` | The port the HTTP listener binds, a whole number from 1 to 65535; any other value, or a port another process holds, stops the companion with exit status 1 and a line naming the cause. |
 | `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | empty | Further `Host` names the HTTP listener answers under, comma-separated. |
 | `PORTFOLIXIR_MCP_PROFILE` | empty, which is `full` | `read`, `book` or `full`. |
 | `PORTFOLIXIR_MCP_READ_ONLY` | `false` | `true` is the `read` profile; beside `book` or `full` it stops the companion. |

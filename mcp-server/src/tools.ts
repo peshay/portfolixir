@@ -4148,8 +4148,10 @@ function routedMethod(name: string): string {
 // E25 S7, G31: a write whose retry adds a second record (a non-idempotent
 // write, each POST-routed one) says where the agent reads it what a timeout
 // means, and since #955 a lost connection too; the sentence is no longer than
-// it was (the schema budget). The API's idempotency key is a later story;
-// until then the re-read is the guard.
+// it was (the schema budget). A gateway's error and a 2xx that is not JSON
+// (#1045) answer outcome unknown as well; the server instructions name them,
+// not this note, which has no room. The API's idempotency key is a later
+// story; until then the re-read is the guard.
 const OUTCOME_UNKNOWN_NOTE =
   " A timeout or lost connection answers outcome unknown (ApiOutcomeUnknownError): the write " +
   "may have committed, so re-read before retrying; a blind retry can store a duplicate.";
@@ -4203,8 +4205,8 @@ export async function callTool(
     ? (definition.zodSchema.parse(args ?? {}) as Record<string, any>)
     : (args ?? {});
   // A tool that changes nothing tells the client so, whatever its method,
-  // so a timeout is answered as a read's, never as an unknown outcome (E25
-  // S7 review round, R3).
+  // so a timeout or a gateway's error is answered as a read's, never as an
+  // unknown outcome (E25 S7 review round, R3; #1045).
   const scoped = definition?.annotations.readOnlyHint ? readOnlyClient(client) : client;
   const payload = await apiCall(scoped, name, parsedArgs);
 

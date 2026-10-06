@@ -14,7 +14,8 @@ import {
   createFailureThrottle,
   createHttpApp,
   mcpAuthMiddleware,
-  MCP_TOKEN_MIN_BYTES
+  MCP_TOKEN_MIN_BYTES,
+  startHttpServer
 } from "../src/http.js";
 import type { McpProfile } from "../src/profiles.js";
 
@@ -443,5 +444,34 @@ describe("MCP HTTP transport", () => {
     });
 
     assert.equal(app.get("env"), "production");
+  });
+
+  // #1043 review round: the line that names an IPv6 address brackets it, as
+  // a URL does. The port is held on ::1 where the host has IPv6; where it has
+  // none, the bind fails on the address instead. Either way the listen fails,
+  // so nothing is left listening.
+  it("brackets an IPv6 host in the line a failed listen names", async () => {
+    const holder = createServer();
+    let port = 4001;
+
+    try {
+      holder.listen(0, "::1");
+      await once(holder, "listening");
+      port = (holder.address() as AddressInfo).port;
+    } catch {
+      // No IPv6 here: any port fails on the address.
+    }
+
+    try {
+      await assert.rejects(
+        startHttpServer({ client: { request: async () => null }, token: soundToken, host: "::1", port }),
+        new RegExp(`^Error: Portfolixir MCP server could not listen on http://\\[::1\\]:${port}/mcp: E[A-Z]+`)
+      );
+    } finally {
+      if (holder.listening) {
+        holder.close();
+        await once(holder, "close");
+      }
+    }
   });
 });

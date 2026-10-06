@@ -1,4 +1,4 @@
-import { escapeInvisible } from "./invisible-text.js";
+import { escapeInvisible, escapeInvisibleText } from "./invisible-text.js";
 
 export type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
@@ -13,7 +13,7 @@ export interface ApiClientOptions {
 /**
  * What a call tells the client about itself (E25 S7 review round, R3):
  * `readOnly` for a tool that changes nothing whatever its method, so a
- * timeout is answered as a read's.
+ * timeout, or a gateway's error (#1045), is answered as a read's.
  */
 export interface RequestOptions {
   readOnly?: boolean;
@@ -46,15 +46,29 @@ export class ApiRedirectError extends Error {
 }
 
 /**
+ * Why a write's outcome is unknown: the deadline in milliseconds; the failed
+ * connection's code (each address's, joined, when a connect failed on
+ * several); the status a gateway answered in the server's place (#1045); or
+ * the 2xx status of an answer that is not JSON (#1045). The last two carry
+ * the answer's excerpt, quoted as `excerptOf` quotes it, when it had a body.
+ */
+export type OutcomeUnknownCause =
+  | number
+  | { connection: string }
+  | { gateway: number; excerpt?: string }
+  | { unreadable: number; excerpt: string };
+
+/**
  * A write got no answer before its deadline (E25 S7, G31), or its connection
  * failed in a way that does not prove the request never left (#955): a
  * reset, a socket closed while the answer arrived, a TLS failure, a failure
- * with no code. The companion has no answer and cannot tell whether the
- * request was sent, but the server may still commit it, so the outcome is
- * unknown: a retry without a re-read can store a second record. A read that
- * fails changes nothing and is not this error. `cause` is the deadline in
- * milliseconds, or the failure's code (each address's, joined, when a connect
- * failed on several).
+ * with no code. A gateway answering 502, 504, 520 or 524 in the server's
+ * place is the same situation reported by the proxy instead of the socket,
+ * and so is a 2xx
+ * whose body is not JSON (#1045): the server may have committed the write,
+ * and its answer cannot be read. The companion cannot tell whether the write
+ * took effect, so the outcome is unknown: a retry without a re-read can store
+ * a second record. A read that fails changes nothing and is not this error.
  */
 export class ApiOutcomeUnknownError extends Error {
   override readonly name = "ApiOutcomeUnknownError";
@@ -62,17 +76,27 @@ export class ApiOutcomeUnknownError extends Error {
   constructor(
     readonly method: string,
     readonly path: string,
-    cause: number | { connection: string }
+    cause: OutcomeUnknownCause
   ) {
-    const what =
-      typeof cause === "number"
-        ? `got no answer within ${cause / 1000} s`
-        : `got no complete answer (${cause.connection}); the request may have been sent`;
+    let what: string;
+    let quoted = "";
+
+    if (typeof cause === "number") {
+      what = `got no answer within ${cause / 1000} s`;
+    } else if ("connection" in cause) {
+      what = `got no complete answer (${cause.connection}); the request may have been sent`;
+    } else if ("gateway" in cause) {
+      what = `was not answered by the server: the gateway answered ${cause.gateway} instead`;
+      quoted = cause.excerpt === undefined ? "" : ` The gateway's answer: ${cause.excerpt}.`;
+    } else {
+      what = `was answered ${cause.unreadable} with a body that is not JSON`;
+      quoted = ` The answer: ${cause.excerpt}.`;
+    }
 
     super(
       `Portfolixir API outcome unknown: ${method} ${path} ${what}, and the server may still ` +
         "have committed it. Re-read the records it would have changed before retrying: a " +
-        "blind retry can store a duplicate."
+        `blind retry can store a duplicate.${quoted}`
     );
   }
 }
@@ -99,7 +123,8 @@ export class ApiReadTimeoutError extends Error {
 
 /**
  * `client` for a tool that changes nothing (E25 S7 review round, R3): every
- * request it sends says so, so a timeout is answered as a read's.
+ * request it sends says so, so a timeout, or a gateway's error (#1045), is
+ * answered as a read's.
  */
 export function readOnlyClient(client: ApiClient): ApiClient {
   return {
@@ -199,7 +224,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   const baseUrl = options.baseUrl.replace(/\/+$/, "");
   const timeoutMs = options.timeoutMs ?? 30_000;
 
-  const send = async (method: string, path: string, body?: unknown): Promise<unknown> => {
+  const send = async (method: string, path: string, body: unknown, read: boolean): Promise<unknown> => {
     const encoded = body === undefined ? undefined : JSON.stringify(body);
 
     // A hung upstream must not hang the tool call: every request carries a
@@ -223,15 +248,71 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       throw new ApiRedirectError(method, path, response.status);
     }
 
-    const payload = parseJson(await transport(() => response.text()));
+    // The status is read before the body (#1045). The body is read as bytes,
+    // so an excerpt can state its length, and decoded as text() decodes it.
+    const { status } = response;
+    const bytes = new Uint8Array(await transport(() => response.arrayBuffer()));
+    const text = new TextDecoder().decode(bytes);
+    const blank = isBlank(text);
+    const quote = (): string => excerptOf(text, bytes.byteLength);
 
-    if (!response.ok) {
+    const parsed = parseJson(text);
+
+    // A gateway status is a gateway answering in the server's place: like a
+    // lost connection (#955), it says nothing of whether the server committed
+    // the write. The one exception is a 502 in the API's own error envelope:
+    // the API answers that itself when the rate sync's provider fails
+    // (exchange_rate_controller.ex), so the server answered, and nothing is
+    // unknown. A read's gateway status is a plain error, safe to retry. A 503
+    // is none of them: a proxy that answers 503 did not forward the request.
+    const failedUpstream = GATEWAY_STATUSES.has(status);
+    const apiOwn = status === 502 && parsed.json && isApiErrorEnvelope(parsed.value);
+    const gateway = failedUpstream && !apiOwn;
+
+    if (gateway && !read) {
+      throw new ApiOutcomeUnknownError(method, path, {
+        gateway: status,
+        excerpt: blank ? undefined : quote()
+      });
+    }
+
+    const retrySafe =
+      failedUpstream && read
+        ? gateway
+          ? ` The gateway answered ${status} instead of the server; the call changes nothing, ` +
+            "so it can be retried."
+          : " The call changes nothing, so it can be retried."
+        : "";
+
+    // An answer that is not JSON is named by its status and quoted, never
+    // passed on as a parse failure (#1045). A write the server answered 2xx
+    // may have committed, and its answer cannot be read.
+    if (!parsed.json) {
+      if (response.ok && !read) {
+        throw new ApiOutcomeUnknownError(method, path, { unreadable: status, excerpt: quote() });
+      }
+
       throw new Error(
-        `Portfolixir API request failed: ${response.status} ${JSON.stringify(payload)}`
+        `Portfolixir API request failed: ${method} ${path} answered ${status} with a body that ` +
+          `is not JSON: ${quote()}.${retrySafe}`
       );
     }
 
-    return payload;
+    if (!response.ok) {
+      // A read's gateway status with nothing in it: no `null` to quote.
+      if (blank && retrySafe !== "") {
+        throw new Error(
+          `Portfolixir API request failed: ${method} ${path} answered ${status} with no body.${retrySafe}`
+        );
+      }
+
+      throw new Error(
+        `Portfolixir API request failed: ${status} ${JSON.stringify(parsed.value)}` +
+          (retrySafe === "" ? "" : `.${retrySafe}`)
+      );
+    }
+
+    return parsed.value;
   };
 
   return {
@@ -244,7 +325,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       const read = method === "GET" || requestOptions.readOnly === true;
 
       try {
-        return await send(method, path, body);
+        return await send(method, path, body, read);
       } catch (failure) {
         const error = failure instanceof TransportFailure ? failure.error : failure;
 
@@ -276,12 +357,105 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
   };
 }
 
+// The statuses a gateway answers once it has forwarded the request and got
+// no usable answer back (#1045): 502 and 504, and Cloudflare's 520 (the
+// origin's answer was unusable) and 524 (the origin took the request and did
+// not answer in time).
+const GATEWAY_STATUSES = new Set([502, 504, 520, 524]);
+
+// A body of JSON whitespace only (space, tab, line feed, carriage return): an
+// empty answer. Any other blank character, a no-break space among them, is a
+// body that is not JSON (#1045).
+function isBlank(text: string): boolean {
+  return /^[ \t\n\r]*$/.test(text);
+}
+
 // Every answer reaches the agent with the characters an operator cannot see
-// spelled out (E25 S7, G20): the one place the companion escapes them.
-function parseJson(text: string): unknown {
-  if (text.trim() === "") {
-    return null;
+// spelled out (E25 S7, G20): the one place the companion escapes them. A
+// blank body is null; a body that is not JSON says so instead of throwing
+// (#1045), so the caller can name the status that came with it.
+function parseJson(text: string): { json: true; value: unknown } | { json: false } {
+  if (isBlank(text)) {
+    return { json: true, value: null };
   }
 
-  return escapeInvisible(JSON.parse(text));
+  let value: unknown;
+
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return { json: false };
+  }
+
+  return { json: true, value: escapeInvisible(value) };
+}
+
+// The API's JSON error envelope (#1045): a top-level `errors` object, the
+// shape every error the API answers carries.
+function isApiErrorEnvelope(value: unknown): boolean {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  const errors = Object.hasOwn(value, "errors") ? (value as { errors: unknown }).errors : undefined;
+
+  return typeof errors === "object" && errors !== null && !Array.isArray(errors);
+}
+
+const EXCERPT_LIMIT = 120;
+
+// How much of a body an excerpt reads, in UTF-16 code units: enough for 120
+// characters once whitespace is collapsed, never the whole of a large body.
+const EXCERPT_SCAN = 4096;
+
+// DEL and the C1 controls, U+007F to U+009F, spelled as the invisible
+// characters are: neither the escape nor the JSON quote touches them.
+function spellControls(text: string): string {
+  let spelled = "";
+
+  for (const character of text) {
+    const codePoint = character.codePointAt(0) as number;
+
+    spelled +=
+      codePoint >= 0x7f && codePoint <= 0x9f
+        ? `[U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}]`
+        : character;
+  }
+
+  return spelled;
+}
+
+/**
+ * A body quoted for an error message (#1045): the first few thousand code
+ * units of it, escaped as every answer is (`escapeInvisibleText`) with DEL
+ * and the C1 controls spelled out too, whitespace collapsed, at most 120
+ * characters, never cut inside a `[U+XXXX]`, and JSON-quoted, so a quote or a
+ * control character in it reads as the letters it is. When cut, the whole
+ * body's length in bytes follows.
+ */
+function excerptOf(text: string, byteLength: number): string {
+  let scanned = text.length > EXCERPT_SCAN ? text.slice(0, EXCERPT_SCAN) : text;
+  const last = scanned.charCodeAt(scanned.length - 1);
+
+  // Never half a surrogate pair at the end of what was read.
+  if (scanned.length < text.length && last >= 0xd800 && last <= 0xdbff) {
+    scanned = scanned.slice(0, -1);
+  }
+
+  const collapsed = spellControls(escapeInvisibleText(scanned)).replace(/\s+/g, " ").trim();
+  const characters = Array.from(collapsed);
+
+  if (scanned.length === text.length && characters.length <= EXCERPT_LIMIT) {
+    return JSON.stringify(collapsed);
+  }
+
+  let head = characters.slice(0, EXCERPT_LIMIT - 1).join("");
+
+  // A cut that lands inside an escape drops what it kept of it: `[`, `[U`,
+  // `[U+`, or `[U+` and some of its digits.
+  if (characters.length >= EXCERPT_LIMIT) {
+    head = head.replace(/\[(?:U(?:\+[0-9A-F]{0,6})?)?$/, "");
+  }
+
+  return `${JSON.stringify(`${head}…`)} (cut from ${byteLength} bytes)`;
 }

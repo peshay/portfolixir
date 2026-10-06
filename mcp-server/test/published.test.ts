@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { ApiOutcomeUnknownError, ApiReadTimeoutError } from "../src/api-client.js";
+import { ApiOutcomeUnknownError, ApiReadTimeoutError, createApiClient } from "../src/api-client.js";
 import { readOnlySwitch } from "../src/server.js";
 import { callTool, listTools } from "../src/tools.js";
 import { connectCompanion, publishedTools } from "./support/companion.js";
@@ -480,6 +480,57 @@ describe("the companion's published tool surface", () => {
       });
 
       assert.match((write.content as any)[0].text, /outcome unknown/);
+    } finally {
+      await companion.close();
+    }
+  });
+
+  // User story (#1045):
+  // As the agent whose companion reaches the API through a reverse proxy,
+  // I want a gateway's 502 on a read-only tool to tell me a retry is safe,
+  // and on a write to tell me the outcome is unknown,
+  // so that I retry the one and re-read before the other.
+  //
+  // Acceptance criteria:
+  // - Through the MCP layer and the real API client, a read-only tool routed
+  //   through POST answered 502 with an HTML page is a tool error naming 502
+  //   and the retry, never outcome unknown; a write answered the same way is
+  //   a tool error saying outcome unknown and the re-read.
+  it("answers a gateway's 502 on a read-only POST as retry-safe and on a write as outcome unknown", async () => {
+    const page = "<html><head><title>502 Bad Gateway</title></head><body>nginx</body></html>";
+    const companion = await connectCompanion(
+      createApiClient({
+        baseUrl: "http://portfolixir.test",
+        token: "api-token",
+        fetch: async () => new Response(page, { status: 502, headers: { "content-type": "text/html" } })
+      })
+    );
+
+    try {
+      const read = await companion.mcp.callTool({
+        name: "portfolixir.holdings.reconcile",
+        arguments: { rows: [{ identifier: "DE0001234565", quantity: "1" }] }
+      });
+      const readText = (read.content as any)[0].text as string;
+
+      assert.equal(read.isError, true);
+      assert.match(readText, /POST \/api\/v1\/holdings\/reconcile answered 502/);
+      assert.match(readText, /the call changes nothing, so it can be retried/);
+      assert.doesNotMatch(readText, /outcome unknown|SyntaxError/);
+
+      const write = await companion.mcp.callTool({
+        name: "portfolixir.notes.append",
+        arguments: {
+          security_id: 7,
+          note: { kind: "evidence", body: "x", source_quality: "primary", as_of: "2026-08-01" }
+        }
+      });
+      const writeText = (write.content as any)[0].text as string;
+
+      assert.equal(write.isError, true);
+      assert.match(writeText, /outcome unknown/);
+      assert.match(writeText, /the gateway answered 502 instead/);
+      assert.match(writeText, /Re-read the records it would have changed before retrying/);
     } finally {
       await companion.close();
     }
