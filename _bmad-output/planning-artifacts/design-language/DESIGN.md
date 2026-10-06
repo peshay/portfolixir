@@ -845,7 +845,9 @@ The phrase "data quality" names two different blocks and they are not the same c
 
 **The quote finding says its scope, and the line's first finding its noun** *(2026-10-06, issue 1081, Sprint 19 PR α M6; board `mockups/ux-design-2026-10-04/01-overview-total`, pick J1.2 A and "found while drawing" 3)*: the quote finding — the one the strip's basis line about held positions would otherwise contradict — reads "25 Wertpapiere im Katalog ohne Kurs seit 7 Tagen", the catalog-wide count its link opens, as the strip's cell now says too; the class and logo findings say no scope word. **The line's first finding always carries its noun:** when no quote finding opens it, the class or logo finding that does reads "4 Wertpapiere ohne Anlageklasse" / "6 Wertpapiere ohne Logo"; a later finding keeps its short form ("· 4 ohne Anlageklasse"). The line counts nothing it did not count before: what the total leaves out is the value card's note (Components → The Overview's value card), not a count on this line (J1 B was not built). A count of N opens a list of N: `?dq=stale_quote` and `?dq=missing_logo` leave out benchmarks and retired securities as their counts do, and the asset-class count and its filtered list leave out retired securities and keep benchmarks (PR #1102); a test follows each of the three counts to its list.
 
-**Wealth → data quality is a list of {components.data-note} rows**, one per finding, at the finding's own severity (`portfolio_live.ex`, `#portfolio-data-quality`). Since issue 792 each finding is one `AppShell.data_note`, glyph and word included, with its remedy inside, all in one status region `[data-role="dq-notes"]` under the section's `<h2>`: trade-priced positions (a note), positions valued at a stale quote, positions with no price, positions with no FX rate, pre-1970 booking dates and cash accounts with no FX rate (attention), impossible negative holdings and bonds priced on two scales (problem). Severity assignment is in EXPERIENCE.md → Alignment inventory → UX-DR17. **The notes keep a gap** *(2026-10-05, #1055; board `mockups/ux-design-2026-10-04/02-money-notes`, found while drawing)*: the status region is a flex column with the `--space-2` gap, the comparison's `.comparison-notes` precedent, so two stacked notes never touch.
+**The line counts the bonds priced on two scales** *(2026-10-06, issue 1068, Sprint 19 PR α M7, plan D-15; board `mockups/ux-design-2026-10-04/01-overview-total`, pin 5)*: a fourth finding closes the line, "eine Anleihe auf zwei Skalen bepreist" / "2 Anleihen auf zwei Skalen bepreist" (`data-role="dq-two-scales"`; English "one bond priced on two scales"), the singular in words as the line's other findings write it, always with its noun, linking to `/securities?dq=two_scales` — a `Catalog.DataQuality` predicate, so the count is the length of the list it opens (issue 705). It counts both directions and is **catalog-wide on purpose**, keeping sold-out, retired and benchmark bonds, as `missing_fx` keeps its rows: what such a bond inflates or deflates a hundredfold is not only today's total but its booked history — its past values and its realized result — which stays wrong until its bookings or quotes are corrected. While it is non-zero the note takes **problem**, the highest severity present (UX-DR17), above a stale quote's attention. This amends the sentence under "Settled here" (Securities detail → bond master data) that the line does not count the finding. On the securities page the condition is a removable chip, "Auf zwei Skalen bepreist", as `missing_logo`'s is; it has no one-tap chip.
+
+**Wealth → data quality is a list of {components.data-note} rows**, one per finding, at the finding's own severity (`portfolio_live.ex`, `#portfolio-data-quality`). Since issue 792 each finding is one `AppShell.data_note`, glyph and word included, with its remedy inside, all in one status region `[data-role="dq-notes"]` under the section's `<h2>`: trade-priced positions (a note), positions valued at a stale quote, positions with no price, positions with no FX rate, pre-1970 booking dates and cash accounts with no FX rate (attention), impossible negative holdings and bonds priced on two scales, in each direction (problem). Severity assignment is in EXPERIENCE.md → Alignment inventory → UX-DR17. **The notes keep a gap** *(2026-10-05, #1055; board `mockups/ux-design-2026-10-04/02-money-notes`, found while drawing)*: the status region is a flex column with the `--space-2` gap, the comparison's `.comparison-notes` precedent, so two stacked notes never touch.
 
 **The unvalued-cash note prints each account's native balance** *(2026-10-05, #1055, Sprint 19 PR α M3; the same board's before/after)*: "2 Verrechnungskonten zählen nicht in die Summen, weil kein Wechselkurs zu EUR vorliegt: USD Settlement (1.850,00 USD), US Broker (60,00 USD)." — the balance in at least two decimals, with every further digit it carries (a balance below a cent reads "0,004 USD", never "0,00"), and the account's currency code: the shape the missing-FX note prints a native price in, nothing converted (UX-DR25 clause 2). It used to print "USD Settlement (USD)", the name and the code with no amount, in the note that says the total leaves the money out. It names only accounts that hold money: an empty account leaves nothing out of the total, as the performance walk counts it. The note stays a statement about today; what a balance did before its first rate is the contribution note's sentence (Wealth → Holdings → Performance, pick J2 A), which has a period.
 
@@ -4378,7 +4380,11 @@ but `bond` and `government_bond`, read as the effective class.
   "Anleihedaten", between the master data grid and the raw-quotes toggle,
   present while the asset-class select reads *Anleihe* or *Staatsanleihe* —
   on create (search, manual) and on edit alike; the dialog's `form_change`
-  re-renders it as the select changes. `.bond-fieldset` **joins the
+  re-renders it as the select changes. Since 2026-10-06 (issue 1068, D-15)
+  it is also present while the select reads blank on the edit of a security
+  that stores a maturity date or a coupon — the data that makes it a bond —
+  so that data can be seen and cleared where it was entered (same anatomy,
+  no new board). `.bond-fieldset` **joins the
   `.settlement-fieldset` selector lists**: the same block shown only when it
   applies, not a copy.
 - Fields: *Kupon p. a. (%)* and *Stückelung (Nennwert)* follow the
@@ -4435,10 +4441,38 @@ but `bond` and `government_bond`, read as the effective class.
   "(Kurs 97,25 · Preis je Stück 0,985)" and linking each name to its
   Transactions tab, as the negative-holdings note does; the sentence asks
   for "Stückzahl ihrer Buchungen".
-- **Silent** without a quote, when the scales agree, and for every other
-  asset class. The rule: the latest stored quote is 20 to 500 times a
-  booked price per unit, a buy's or a priced inbound delivery's (ADR-0052
-  §4).
+- **The reverse case** *(2026-10-06, issue 1068, plan D-15; board
+  `mockups/ux-design-2026-10-04/02-money-notes`, pin 4)*: a problem note of
+  its own right after it (`data-role="dq-two-scales-reverse"`): "Eine
+  Anleihe ist auf zwei Skalen bepreist (Kurse um 1, gebuchter Preis je Stück
+  um 100) und zählt hundertfach zu niedrig in den Summen. Ihre gespeicherten
+  Kurse prüfen — ein Kurs um 1 ist kein Prozent vom Nennwert:", in the
+  plural "2 Anleihen sind … und zählen …" as the forward note's. Each name
+  links to its security's **Quotes** tab, with "(Kurs 0,981 · Preis je Stück
+  98,4)" — the figures as `Format.exact` writes them, as in the forward
+  note. Separate because both the consequence and the remedy point the
+  other way: the quotes are on the wrong scale, not the booked quantity
+  (one finding per note, UX-DR17). The rule: the latest stored quote is
+  1/500 to 1/20 of a booked price per unit, the forward band inverted, and
+  itself at most 5 (100 ÷ 20), so a percent quote beside a denomination
+  booked per piece is not called "Kurse um 1". The security's own Overview
+  note (W1) states the forward direction only; a reverse finding renders
+  nothing there yet (issue 1112, needs a board).
+- **The "ohne Anlageklasse" badge** *(2026-10-06, issue 1068, board 02,
+  pin 3)*: a named bond that shows no asset class — none stored, none
+  inferred, as the list and the dialog show it — carries `badge
+  badge--neutral` "ohne Anlageklasse" after its name, before the figures,
+  in either note — the Overview's "ohne Bestand" anatomy — so the reader
+  sees why a security the catalog does not call a bond is named. Every
+  other word of the forward note is unchanged.
+- **Silent** without a quote, when the scales agree, for an unclassed
+  security with no bond master data, for a name the inference reads as a
+  structured product, and for every security shown under another class,
+  stored or inferred. A security is read as a bond when its effective class
+  is `bond` or `government_bond`, or when it shows no class (none stored,
+  none inferred) and carries a maturity date or a coupon (D-15). The rule: the latest stored quote is 20
+  to 500 times a booked price per unit, a buy's or a priced inbound
+  delivery's (ADR-0052 §4), or 1/500 to 1/20 of one (the reverse case).
 
 ### Settled here, from the board's stated doubts
 
@@ -4448,12 +4482,24 @@ but `bond` and `government_bond`, read as the effective class.
   price, and say so; the guard compares the latest quote with each booked
   price per unit, so a mixed history is named by the bookings on the unit
   scale.
-- The reverse case (quotes near 1, bookings near 100) is not named; the
+- ~~The reverse case (quotes near 1, bookings near 100) is not named; the
   guard keys on the effective asset class, so a bond the inference does not
-  recognise escapes it (ADR-0052, Consequences).
-- The dashboard's data-quality line does not count the finding: that line
+  recognise escapes it (ADR-0052, Consequences).~~ **Amended 2026-10-06
+  (issue 1068, plan D-15, ADR-0052's dated note):** the reverse case is
+  named, in Wealth's `dq-two-scales-reverse` note; and the guard reads a
+  security as a bond by its class **or**, while it shows no class (none
+  stored, none inferred), by its maturity date or coupon, a bond named that
+  way carrying the neutral "ohne Anlageklasse" badge. It still does not read
+  an unclassed security with no master data, nor a certificate.
+- ~~The dashboard's data-quality line does not count the finding: that line
   counts the catalog's hygiene sets, and the two scales are read where the
-  total they inflate is read.
+  total they inflate is read.~~ **Amended 2026-10-06 (issue 1068, plan
+  D-15):** the line counts the bonds priced on two scales, both directions,
+  at problem severity, linking to `/securities?dq=two_scales` (Components →
+  Data quality). The count is catalog-wide on purpose: a sold-out, retired
+  or benchmark bond's booked history — its past values and realized result
+  — is as far off as a held one's total, and that is the alarm the line
+  exists for.
 - The six figures' cells stay as they are: "Bestand 100 Stück" and "Letzter
   Kurs 97,25 EUR" are not relabelled; the block and its basis line carry the
   convention.

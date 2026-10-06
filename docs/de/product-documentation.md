@@ -130,7 +130,8 @@ Reihenfolge, und die erste, die greift, entscheidet:
 6. **equity** — der Name trägt eine Aktien- oder Rechtsform-Markierung —
    Registered Shares, Reg. Shares, Registered Part. Shares, Inhaber-Aktien,
    Namens-Aktien, Vorzugsaktien, Actions, Aandelen, Common Stock, Inc., Corp.,
-   Corporation, Company, Co., Ltd., AG, SE, PLC, S.p.A., S.A. oder SA, SA/NV,
+   Corporation, Company, Co., Ltd., AG, SE, PLC, S.p.A., S.A. oder SA, S.A.S.
+   oder SAS, SA/NV,
    Aktiengesellschaft, A/S, ASA, KGaA, Azioni, Acciones, Aktier — oder eine
    Hinterlegungsschein-Markierung (ADR, Sp.ADR, GDR, Depos. Receipts) oder
    INH.ON, **und** kein Wort eines strukturierten Produkts (Turbo, Disc,
@@ -147,13 +148,23 @@ Reihenfolge, und die erste, die greift, entscheidet:
 9. Sonst hat das Wertpapier keine Klasse: Es ist nicht klassifiziert.
 
 Die Regeln unterscheiden nicht zwischen Groß- und Kleinschreibung, und die
-meisten passen nur auf ganze Wörter. Einige Aktien-Markierungen nicht, und
-das erklärt die Überraschungen: „SA“ und „Actions“ passen auch mitten im
-Wort, ein Name mit den Buchstaben „sa“ gilt also als Aktie, sofern keine
-frühere Regel griff und kein Ausschluss zutrifft; und jeder Ausschluss passt
-ebenfalls mitten im Wort, ein Unternehmen, dessen Name bloß „put“ oder „disc“
-enthält („Muster Computer Corp“), gilt also nicht als Aktie und bleibt ohne
-Klasse. Die Klasse von Hand zu setzen, klärt jeden solchen Fall.
+meisten passen nur auf ganze Wörter. Seit Issue #1078 gilt das auch für die
+Rechtsformen „S.A.“, „SA“, „S.A.S.“, „SAS“, „Actions“ und „Aandelen“, ein
+Name, der bloß die Buchstaben „sa“, „actions“ oder „aandelen“ enthält
+(„Global Transactions Group“, „Muster Aandelenfonds“), gilt also nicht als
+Aktie; und für die kurzen Ausschlusswörter (Turbo, Disc, Discount, Call oder
+Calls, Put oder Puts, O.End, Em.-u.Handelsg.mbH), ein Unternehmen, dessen
+Name bloß „put“ oder „disc“ enthält („Muster Computer Corp“), gilt also als
+Aktie. Einige Markierungen passen weiterhin so, wie sie geschrieben sind,
+auch innerhalb eines längeren Tokens: die Aktien-Markierungen Registered
+Shares, Reg. Shares, Registered Part. Shares, Inhaber-Aktien, Namens-Aktien,
+Vorzugsaktien, Common Stock, S.p.A., SA/NV und Depos. Receipts sowie die
+Ausschlüsse Optionsschein und Zertifikat, ein „Indexzertifikat“ oder
+„Optionsscheine“ bleiben also ausgeschlossen. Eine Kurzform, die ein
+Produktwort mit einem anderen verschmilzt, etwa „TurboCall“ oder „CallOS“,
+wird nicht erkannt: Ein solcher Name wird nach seinen übrigen Wörtern
+gelesen, und eine Rechtsform darin macht ihn zur Aktie. Die Klasse von Hand
+zu setzen, klärt jeden Fall, den die Regeln verfehlen.
 
 **Wann eine Klasse gespeichert wird.** Die Klasse wird nicht nur beim Lesen
 abgeleitet. Jedes Anlegen oder Ändern der Stammdaten eines Wertpapiers — in
@@ -222,11 +233,14 @@ Ansicht lässt sich als Lesezeichen speichern oder verlinken:
 - `?since=<ISO8601>` — der **Geändert-seit**-Schnitt (siehe unten); die Chips
   *Heute / 7 Tage / 30 Tage* schreiben hier ein konkretes ISO-Datum, sodass
   der Link bedeutet, was er beim Teilen bedeutete.
-- `?dq=stale_quote|missing_quote|missing_logo|missing_fx` — die
+- `?dq=stale_quote|missing_quote|missing_logo|missing_fx|two_scales` — die
   Datenqualitäts-Schnellfilter: kein Kurs in den letzten 7 Tagen (inklusive
-  „gar kein Kurs"), gar kein Kurs, kein hinterlegtes Logo, und — Issue #717 —
-  *Kein Wechselkurs*: bepreist, aber ohne gespeicherten Kurs von seiner
-  Währung zur Basiswährung; das Speichern des Kurses leert die Menge. Die
+  „gar kein Kurs"); gar kein Kurs; kein hinterlegtes Logo; *Kein
+  Wechselkurs* (Issue #717): bepreist, aber ohne gespeicherten Kurs von
+  seiner Währung zur Basiswährung, das Speichern des Kurses leert also die
+  Menge; und *Auf zwei Skalen bepreist* (Issue #1068): die Anleihen, die der
+  Zwei-Skalen-Wächter nennt, in beiden Richtungen (siehe *Anleihen* unten),
+  die Liste, die der Zwei-Skalen-Zähler der Übersicht öffnet. Die
   ersten drei lassen eine Benchmark und ein stillgelegtes Wertpapier in
   Ruhe: Ein ausverkauftes oder delistetes Wertpapier, das Sie stilllegen,
   verlässt alle drei, und die Zahlen der Übersicht sinken mit ihm;
@@ -538,6 +552,38 @@ die Stückzahl gegen das Nominal der Abrechnung geprüft wird, und im
 **Datenqualitäts**-Panel unter Vermögen → Bestände, wo die Summe gelesen
 wird, die sie aufbläht. Umgerechnet wird nichts: Die Zahlen bleiben wie
 gebucht, bis die Buchungen korrigiert sind.
+
+Auch der **umgekehrte Fall** wird genannt (Issue #1068): gespeicherte Kurse
+um 1 neben Buchungen um 100 — ein letzter Kurs von 1/500 bis 1/20 eines
+gebuchten Preises je Stück und selbst höchstens 5. Die Kurse sind dann kein
+Prozent vom Nennwert, und die Anleihe zählt hundertfach **zu niedrig** in
+jeder Summe. Vermögen nennt sie in einem eigenen Problem-Hinweis, jeder Name
+verlinkt auf den Tab **Kurse** des Wertpapiers, wo die gespeicherten Kurse
+geprüft werden; auch hier wird nichts umgerechnet. Die eigene Übersicht des
+Wertpapiers nennt den umgekehrten Fall noch nicht (#1112).
+
+**Welche Wertpapiere der Wächter liest.** Ein Wertpapier gilt als Anleihe —
+seine Übersicht zeigt den Anleiheblock, und der Wächter liest es —, wenn
+seine Anlageklasse Anleihe oder Staatsanleihe ist — gesetzt oder aus dem
+Namen abgeleitet — **oder** wenn es **keine** Anlageklasse zeigt (keine
+gesetzte, keine abgeleitete) und Anleihe-Stammdaten trägt: eine Fälligkeit
+oder einen Kupon. Die Namensinferenz erkennt nur Namen von Staatsanleihen;
+eine Unternehmensanleihe ohne Klasse kommt also unter den Wächter, sobald
+ihre Fälligkeit oder ihr Kupon erfasst ist (oder ihre Klasse gesetzt); der
+Dialog zeigt ihre *Anleihedaten*, solange die Klasse leer ist, sodass sie
+dort korrigiert werden können. Eine Anleihe, deren Name die Rechtsform ihres
+Emittenten trägt („Muster AG 4,10% 2028/2033“), wird beim Anlegen als Aktie
+gespeichert, und die Stammdaten allein ändern daran nichts: Ihre Klasse
+muss auf Anleihe (oder Staatsanleihe) gesetzt werden. Ein Wertpapier ohne
+Klasse und ohne Stammdaten — etwa eine nicht klassifizierte Aktie, die sich
+verzwanzigfacht hat — wird nie genannt; ebenso wenig ein Name, den die
+Inferenz als strukturiertes Produkt liest, dessen Laufzeitende als
+Fälligkeit gespeichert sein kann; und ein Wertpapier, das eine andere Klasse
+zeigt, ist keine Anleihe, welche Stammdaten es auch noch trägt. Eine ohne
+Anlageklasse genannte Anleihe ist im Hinweis mit *ohne Anlageklasse*
+markiert. Die Datenqualitätszeile der Übersicht zählt jede auf zwei Skalen
+bepreiste Anleihe, in beiden Richtungen und über den ganzen Katalog, und
+verlinkt auf die Liste genau dieser.
 
 ### Tab „Termine" (der Kalender des Wertpapiers, ADR-0048)
 
@@ -1614,14 +1660,21 @@ Klassifikationsbaum und aktiven Plan nennt, gegen den die Drift gerechnet
 wird (oder dass mehrere Pläne aktiv sind oder keiner) — und die
 **Datenqualitätszeile**: ein Hinweis,
 der die Wertpapiere im Katalog ohne aktuellen Kurs, Anlageklasse oder Logo
-aufzählt („25 Wertpapiere im Katalog ohne Kurs seit 7 Tagen · 4 ohne
-Anlageklasse"), wobei jeder Zähler auf die exakt darauf vorgefilterte
-Wertpapierliste verlinkt — ein Zähler N öffnet eine Liste von N: Die Zähler
-für veraltete Kurse und fehlende Logos und ihre Listen lassen Benchmarks und
-stillgelegte Wertpapiere aus, der Zähler für fehlende Anlageklassen und
-seine Liste lassen stillgelegte Wertpapiere aus und behalten Benchmarks. Der
-Befund, der die Zeile eröffnet, trägt das Substantiv („4 Wertpapiere ohne
-Anlageklasse").
+und die auf zwei Skalen bepreisten Anleihen aufzählt („25 Wertpapiere im
+Katalog ohne Kurs seit 7 Tagen · 4 ohne Anlageklasse · eine Anleihe auf
+zwei Skalen bepreist"), wobei jeder Zähler auf die exakt darauf
+vorgefilterte Wertpapierliste verlinkt — ein Zähler N öffnet eine Liste von
+N: Die Zähler für veraltete Kurse und fehlende Logos und ihre Listen lassen
+Benchmarks und stillgelegte Wertpapiere aus, der Zähler für fehlende
+Anlageklassen und seine Liste lassen stillgelegte Wertpapiere aus und
+behalten Benchmarks, und der Zähler für zwei Skalen (Issue #1068) umfasst
+mit Absicht den ganzen Katalog und behält beide, verkaufte Anleihen
+eingeschlossen, denn die gebuchte Geschichte einer solchen Anleihe — ihre
+früheren Werte und ihr realisiertes Ergebnis — liegt hundertfach daneben,
+ob sie gehalten wird oder nicht. Der Befund, der die Zeile eröffnet, trägt
+das Substantiv („4 Wertpapiere ohne Anlageklasse"). Der Hinweis nimmt die
+höchste vorhandene Stufe an: Problem, solange eine Anleihe auf zwei Skalen
+bepreist ist, Achtung, solange ein Kurs veraltet ist, sonst Hinweis.
 Die Zeile erscheint nur, wenn mindestens ein Zähler größer als null ist; ein
 sauberer Katalog zeigt nichts (kein grünes „alles in Ordnung"). Die Daten
 der Karte **Fällig** folgen der Oberflächensprache (15.10.2026 auf
@@ -1900,9 +1953,14 @@ automatisch repariert; der Split-Assistent bleibt die einzige geführte
 Reparatur), Buchungen mit unplausiblen Daten (vor 1970), die
 stattdessen am ersten plausiblen Tag angewendet wurden, sowie Anleihen, die
 **auf zwei Skalen bepreist** sind — Kurse um 100 neben gebuchten
-Stückpreisen um 1, sodass sie hundertfach zu hoch zählen (siehe *Anleihen*
-unter Wertpapiere), jede verlinkt auf ihre Transaktionen. Jeder Befund ist
-eine Notiz in seiner eigenen Stufe — Hinweis für den Handelspreis-Rückfall,
+Stückpreisen um 1, sodass sie hundertfach zu hoch zählen, jede verlinkt auf
+ihre Transaktionen; und in einem eigenen Hinweis Kurse um 1 neben gebuchten
+Stückpreisen um 100, sodass sie hundertfach zu niedrig zählen, jede
+verlinkt auf ihre Kurse (siehe *Anleihen* unter Wertpapiere). Eine dort
+ohne Anlageklasse genannte Anleihe — durch ihre Fälligkeit oder ihren Kupon
+unter den Wächter gekommen — ist mit *ohne Anlageklasse* markiert. Jeder
+Befund ist eine Notiz in seiner eigenen Stufe — Hinweis für den
+Handelspreis-Rückfall,
 Achtung für ausgenommene und veraltete Positionen, Problem für negative
 Bestände und für zwei Skalen — und trägt sein Mittel in der Notiz: das Bedienelement
 **Wechselkurse synchronisieren** steht im Befund zum fehlenden Wechselkurs,

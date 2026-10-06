@@ -1805,6 +1805,98 @@ defmodule Portfolixir.DocsTest do
     assert consequences =~ "at most 5"
   end
 
+  # User story (#1068, Sprint 19 plan D-15):
+  # As the operator and the agent reading why a bond is or is not named as
+  # priced on two scales,
+  # I want the handbooks and the API references, in English and German, to
+  # say that a bond class or bond master data brings a security under the
+  # guard, to describe the reverse case and the data_quality value, and
+  # ADR-0052 to carry the dated note that reverses its two Consequences
+  # statements,
+  # so that the record, the docs and the code say the same thing.
+  #
+  # Acceptance criteria:
+  # - The handbooks describe the reverse case (quotes near 1 beside bookings
+  #   near 100, 1/500 to 1/20) and that the security's own page does not
+  #   name it yet (#1112), the master-data signal on a security showing no
+  #   class, that a bond stored as Equity needs its class set, the "no asset
+  #   class" badge, the Overview line's catalog-wide two-scales count in the
+  #   line's singular, and the inference's whole-word rule with its
+  #   unrecognised shorthands.
+  # - The API references name data_quality two_scales and the reading's
+  #   direction, forward and reverse.
+  # - ADR-0052 carries a note dated 2026-10-06 citing D-15 that names both
+  #   reversed statements; the decision's four sections stay as taken.
+  test "the docs and ADR-0052 describe the reverse case and the bond signal (#1068)" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "The **reverse case** is named too (issue #1068)",
+             "a latest quote 1/500 to 1/20 of a booked price per unit",
+             "**Which securities the guard reads.**",
+             "shows **no** asset class (none set, none inferred) and carries bond master data: a maturity or a coupon",
+             "set its class to Bond (or Government bond)",
+             "does not name the reverse case yet (#1112)",
+             "marked *no asset class*",
+             "one bond priced on two scales",
+             "is catalog-wide on purpose",
+             "\"TurboCall\" or \"CallOS\", is not recognised"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "Auch der **umgekehrte Fall** wird genannt (Issue #1068)",
+             "ein letzter Kurs von 1/500 bis 1/20 eines gebuchten Preises je Stück",
+             "**Welche Wertpapiere der Wächter liest.**",
+             "wenn es **keine** Anlageklasse zeigt (keine gesetzte, keine abgeleitete) und Anleihe-Stammdaten trägt",
+             "muss auf Anleihe (oder Staatsanleihe) gesetzt werden",
+             "nennt den umgekehrten Fall noch nicht (#1112)",
+             "*ohne Anlageklasse* markiert",
+             "eine Anleihe auf zwei Skalen bepreist",
+             "umfasst mit Absicht den ganzen Katalog",
+             "„TurboCall“ oder „CallOS“, wird nicht erkannt"
+           ]},
+          {"docs/integration/api-and-mcp.md",
+           [
+             "`two_scales` — issue #1068",
+             "`direction: \"forward\"`",
+             "`direction: \"reverse\"` (issue #1068) — a latest quote 1/500 to 1/20",
+             "has **no** asset class, stored or inferred",
+             "and itself at most 5"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "`two_scales` — Issue #1068",
+             "`direction: \"forward\"`",
+             "`direction: \"reverse\"` (Issue #1068) — ein letzter Kurs von 1/500 bis 1/20",
+             "**keine** Anlageklasse hat, weder gespeichert noch abgeleitet",
+             "und selbst höchstens 5"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+
+    adr =
+      "docs/decisions/0052-bond-master-data-in-dedicated-columns.md"
+      |> File.read!()
+      |> String.replace(~r/\s*\n\s*>?\s*/, " ")
+
+    [note] = Regex.run(~r/\*\*Note 2026-10-06 \(#1068, Sprint 19 plan D-15\).*/, adr)
+    assert note =~ "reverse case"
+    assert note =~ "1/500 to 1/20"
+    assert note =~ "a maturity date or a coupon rate"
+    assert note =~ "no asset class as shown"
+    assert note =~ "structured product"
+    assert note =~ "at most 5"
+    assert note =~ "#1112"
+    assert note =~ "data-quality line"
+    assert note =~ "catalog-wide on purpose"
+    assert note =~ "reverses"
+  end
+
   @features_en "docs/features.md"
   @features_de "docs/de/features.md"
 

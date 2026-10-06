@@ -108,3 +108,53 @@ sweeps.
   (about 1 per unit) and a distressed bond booked in hundredths at about 3 %
   of par (3 per unit) both sit under 5, and only the statement tells them
   apart.
+
+> **Note 2026-10-06 (#1068, Sprint 19 plan D-15):** the merge of the Sprint
+> 19 planning PR adopted D-15, which reverses two statements of the
+> Consequences above. §1 to §4 stand as taken: the columns, the hundredth
+> convention, the display-only metrics, and a guard that names and converts
+> nothing. What changes:
+>
+> - **The reverse case is named.** "It needs a quote stored in a
+>   convention the catalog does not have" was a reason not to *convert*, not
+>   a reason to stay silent. A bond whose latest stored quote is 1/500 to
+>   1/20 of a booked price per unit, both ends included — the forward band
+>   inverted, quotes near 1 beside bookings near 100 — counts a hundred
+>   times too low in every total. The quote itself must be on the unit
+>   scale, at most 5 (100 ÷ 20, the constant §3 already uses): a percent
+>   quote of 98.5 beside a booking of 4,925 per piece is a denomination
+>   booked per piece, not quotes near 1. The engine reports the case with
+>   `direction: :reverse` (`direction: :forward` for §4's case, which is
+>   reported where a bond's bookings fall in both bands). Wealth names it in
+>   a problem note of its own, `dq-two-scales-reverse`, each name linking to
+>   the security's Quotes tab, and the detail read's `bond.two_scales`
+>   carries its direction. The security's own Overview does not name it yet
+>   (#1112). Nothing is converted.
+> - **A bond with no class is no longer out of reach.** The guard, and the
+>   bond reading with it (`Portfolixir.Portfolios.Bonds.bond?/1`), reads a
+>   security as a bond when its effective asset class is `bond` or
+>   `government_bond`, **or** when it has no asset class as shown — none
+>   stored and none inferred, which is what the list and the dialog show —
+>   and carries this record's master data, a maturity date or a coupon rate,
+>   under a name the inference does not read as a structured product's. That
+>   is the one place §1's "read only while the effective asset class is
+>   `bond` or `government_bond`" widens. It does not widen to every
+>   unclassed security, which would name an unclassed share that rose
+>   twentyfold, nor to a certificate whose expiry is stored as a maturity
+>   date; and a security shown under any other class, stored or inferred,
+>   stays no bond, whatever master data it keeps. A bond named without a
+>   class carries the neutral "no asset class" badge, and the security
+>   dialog shows its bond data while its class reads blank.
+>
+> And one consequence that was DESIGN.md's rather than this record's: the
+> Overview's data-quality line now counts the bonds priced on two scales,
+> in either direction, at problem severity, and links to the
+> `dq=two_scales` list, a `Portfolixir.Catalog.DataQuality` predicate, so
+> the count equals the list. The count is **catalog-wide on purpose**, and
+> keeps sold-out, retired and benchmark bonds: what such a bond inflates or
+> deflates is not only today's total but its booked history — its past
+> values and its realized result — which stays wrong until the bookings or
+> the quotes are corrected. The two false positives above are unchanged:
+> the reverse band mirrors the forward one, so a bond legitimately booked
+> near par and quoted at under 5 % of it would be named the same way, and
+> costs the same one check.

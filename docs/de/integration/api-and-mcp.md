@@ -300,7 +300,13 @@ verengen, was der Betreiber sieht.
   in keiner der ersten drei Mengen, die sie schon in der Abfrage auslassen,
   vor `limit`/`offset`: Das Stilllegen eines ausverkauften oder delisteten
   Wertpapiers nimmt es aus allen drei heraus, Reaktivieren bringt es in die
-  zurück, auf die es passt. `missing_fx` behält beide), `projection`
+  zurück, auf die es passt. `missing_fx` behält beide; `two_scales` — Issue
+  #1068: jede Anleihe, die der Zwei-Skalen-Wächter nennt, in beiden
+  Richtungen und über den ganzen Katalog, die Menge, die die
+  Datenqualitätszeile der Übersicht zählt; Regel und welche Wertpapiere als
+  Anleihe gelten, siehe `bond.two_scales` unten. Auch sie behält eine
+  Benchmark und ein stillgelegtes Wertpapier, denn deren Zahlen sind so
+  falsch wie zuvor), `projection`
   (`slim`/`full`) und `limit`/`offset` zur
   Paginierung (`limit` eine positive Ganzzahl, Standard 5000, max. 20000, seit
   #771; `offset` nichtnegativ). Nutze diese, um große
@@ -857,10 +863,21 @@ Decimal-Feld eine umwandelt.
 
 `null` löscht ein Feld, Pflicht ist keines, ein unmöglicher Wert ist ein
 `422`, der sein Feld nennt, ohne dass etwas geschrieben wird, und die Felder
-bleiben erhalten, wenn die Anlageklasse wechselt. Gelesen werden sie nur,
-solange die effektive Anlageklasse `bond` oder `government_bond` ist. Die
-MCP-Tools `portfolixir.securities.create` und `portfolixir.securities.update`
-nehmen sie entgegen (das Update auch `null`).
+bleiben erhalten, wenn die Anlageklasse wechselt. Gelesen werden sie,
+solange die effektive Anlageklasse `bond` oder `government_bond` ist, und —
+seit Issue #1068 — solange das Wertpapier **keine** Anlageklasse hat, weder
+gespeichert noch abgeleitet (sein `asset_class` ist `null`, und die Namens-
+und Logo-Regeln leiten keine ab), ein `maturity_date` oder eine
+`coupon_rate` trägt und einen Namen hat, den die Inferenz nicht als
+strukturiertes Produkt liest: Die Namensinferenz erkennt nur Namen von
+Staatsanleihen, also macht erst dieser Stammdatensatz eine
+Unternehmensanleihe ohne Klasse als Anleihe kenntlich. Ein Wertpapier mit
+einer anderen Klasse, gespeichert oder abgeleitet, ist keine Anleihe, welche
+Stammdaten es auch trägt; eine Anleihe, deren Name die Rechtsform ihres
+Emittenten trägt, wird beim Anlegen als `equity` gespeichert und braucht
+`asset_class` `bond`. Die MCP-Tools `portfolixir.securities.create` und
+`portfolixir.securities.update` nehmen sie entgegen (das Update auch
+`null`).
 
 `GET /api/v1/securities/:id` eines solchen Wertpapiers trägt `bond`, beim
 Lesen berechnet und nie gespeichert (Stufe (a) der Scope-Leiter); für jedes
@@ -884,12 +901,24 @@ andere Wertpapier und in Listen und Schreibantworten ist es `null`:
   `source`: `quote` für den letzten gespeicherten Kurs, `trade` für den
   letzten eigenen Handelspreis, solange es keinen gibt);
 - `two_scales` — `null` oder der Befund, dass die Anleihe **auf zwei Skalen
-  bepreist** ist: ihr `latest_quote`, die Zahl der `unit_scale_bookings`
-  und die `last_unit_scale_booking` sowie die `rule` (ein letzter Kurs vom
-  20- bis 500-Fachen eines gebuchten Preises je Stück, eines Kaufs oder
-  einer mit Preis erfassten Einlieferung). Jeder Geldbetrag einer
-  solchen Anleihe ist hundertfach zu hoch, und die TTWROR zeigt es nicht;
-  umgerechnet wird nichts.
+  bepreist** ist: ihre `direction`, ihr `latest_quote`, die Zahl der
+  `unit_scale_bookings` und die `last_unit_scale_booking` sowie die `rule`.
+  - `direction: "forward"` — ein letzter Kurs vom 20- bis 500-Fachen eines
+    gebuchten Preises je Stück (eines Kaufs oder einer mit Preis erfassten
+    Einlieferung): Kurse um 100 neben Buchungen um 1. Jeder Geldbetrag
+    einer solchen Anleihe ist hundertfach zu hoch, und die TTWROR zeigt es
+    nicht.
+  - `direction: "reverse"` (Issue #1068) — ein letzter Kurs von 1/500 bis
+    1/20 eines gebuchten Preises je Stück, beide Enden eingeschlossen, und
+    selbst höchstens 5: Kurse um 1 neben Buchungen um 100. Die gespeicherten Kurse sind kein Prozent
+    vom Nennwert, und die Anleihe zählt hundertfach zu niedrig in jeder
+    Summe.
+
+  Die beiden Buchungsschlüssel behalten in beiden Richtungen ihre Namen und
+  enthalten die Buchungen im Band; liegen Buchungen einer Anleihe in beiden
+  Bändern, wird der Befund `forward` gemeldet. Die `rule` nennt beide Bänder
+  und welche Wertpapiere als Anleihe gelesen werden. Umgerechnet wird
+  nichts, in keiner Richtung.
 
 Jede Kennzahl trägt ihre eigene `computation_basis` (`input_series`,
 `window`, `reference`, `gaps`, `assumptions`). Eine Zahl ohne ihren Eingang
