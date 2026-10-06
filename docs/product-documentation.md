@@ -1956,7 +1956,7 @@ without a rate on the period's last day is said to count zero until the end
 of the period. Pick a period that starts after the first rate's day and the
 account, like the jump, is gone from the table and the note.
 
-[![Contribution by position over one year: start value, flows, income, costs, end value and contribution for the ten largest positions with their bars, Show all 30, the three lines not attributed to a position, the sum row, and a note naming the positions that counted zero on some days](screenshots/contribution.png)](screenshots/contribution.png)
+[![Contribution by position over one year: start value, flows, income, costs, end value and contribution for the ten largest positions with their bars, Show all 34, the three lines not attributed to a position, the sum row, and a note naming the positions that counted zero on some days](screenshots/contribution.png)](screenshots/contribution.png)
 
 *Contribution by position on the synthetic demo dataset, in the German
 interface.*
