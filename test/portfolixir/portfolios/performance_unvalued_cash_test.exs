@@ -224,6 +224,9 @@ defmodule Portfolixir.Portfolios.PerformanceUnvaluedCashTest do
       assert equal?(entry.balance, "2000"), label
     end
 
+    # A window with no walked day (start_date nil) names nothing.
+    assert Performance.unvalued_cash_accounts(Performance.analysis(pid), nil, nil) == []
+
     # The window that opens on the first rate holds the whole jump.
     [performance: _performance, contribution: opening] =
       reads(pid, {:range, ~D[2026-08-01], ~D[2026-09-30]})
