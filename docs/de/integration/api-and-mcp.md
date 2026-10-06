@@ -951,6 +951,42 @@ immer verwendet; bei jeder anderen Rendite ist `price_on_unit_scale`
 `false`. Stückzinsen, Gebühren und Steuern sind nicht enthalten; die Lesung
 berichtet, sie bewertet nicht.
 
+### Logos
+
+Jedes Wertpapier kann ein Logo tragen, automatisch ermittelt (CoinGecko für
+Krypto, Wikipedia und danach companieslogo.com für Aktien, ETFs und Fonds,
+das Logo des Emittenten für ein strukturiertes oder Hebelprodukt) oder von
+Hand gesetzt. Ein manuelles Logo oder ein ausdrückliches „kein Logo“
+*sperrt* das Wertpapier, sodass die Logo-Suche im Hintergrund die Wahl nie
+überschreibt.
+
+- `GET /api/v1/securities/:security_id/logo` liefert den Logo-Status:
+  `{ "data": { "security_id", "path", "source", "has_logo", "locked", "file_missing" } }`.
+  `source` ist `coingecko`, `wikipedia`, `companieslogo` oder `manual`;
+  solange es kein Logo gibt, ist es `null`. `file_missing` (Issue #933) ist
+  `true`, wenn die Prüfung beim Start der Instanz im Logo-Verzeichnis keine
+  Datei zum gespeicherten `path` fand; `has_logo` ist dann `false`, während
+  `path`, `source` und `locked` wie gespeichert bleiben. Ein so markiertes
+  gefundenes Logo wird erneut gesucht, ein manuelles bleibt gesperrt und
+  wartet darauf, erneut gesetzt zu werden, und `logo_status=missing` und
+  `data_quality=missing_logo` führen beide. Speichern oder Entfernen eines
+  Logos hebt die Markierung auf, ebenso der nächste Start, sobald die Datei
+  zurück ist.
+- `PUT /api/v1/securities/:security_id/logo` setzt ein manuelles Logo aus einer
+  Bild-URL (`{ "logo": { "url": "https://…" } }` oder `{ "url": "https://…" }`).
+  Das Bild wird einmal heruntergeladen, geprüft (png/jpg/jpeg/webp, höchstens
+  256 KiB) und lokal gespeichert; das Wertpapier wird auf die manuelle Wahl
+  gesperrt. Eine fehlende URL liefert `422` mit `errors.url`; ein Bild, das
+  sich nicht laden lässt oder die Prüfung nicht besteht, liefert `422` mit
+  `errors.logo`, einer festen Meldung, die weder Adresse noch Status nennt.
+- `DELETE /api/v1/securities/:security_id/logo` entfernt das Logo und hält die
+  ausdrückliche Entscheidung „kein Logo“ fest (die Zeile zeigt wieder ihre
+  Initialen oder ihre Flagge); auch das sperrt das Wertpapier gegen die Suche.
+- `POST /api/v1/securities/:security_id/logo/discover` startet die
+  automatische Suche erneut („Erneut suchen“). Die Antwort enthält ein
+  `result`: `updated`, `no_source` oder `failed`. Gesperrte Wertpapiere bleiben
+  unberührt und antworten mit `no_source`.
+
 ## Kurse
 
 - `GET /api/v1/securities/:security_id/quotes` listet die Kurshistorie eines
@@ -2095,14 +2131,81 @@ Beispiel-Payloads für Konten:
   in der Klassifizierung zugeordnetem Wertpapier, nie mehr als `10000` Zeilen;
   eine wiederholte Kategoriezeile oder ein größerer Stapel liefert `422`
   (`errors.detail` nennt die Kategorie, `errors.targets` die Grenze) und
-  schreibt nichts. Ein Plan trägt höchstens **eine Positionszeile je
-  Wertpapier**: Ein Wertpapier unter einer zweiten Kategorie abzulegen liefert
-  `422`. Die Datenbank hält diese Regel ebenfalls, sodass auch ein
-  Schreibvorgang, der das Rennen um dasselbe Wertpapier unter einer anderen
-  Kategorie verliert, `422` liefert und nichts speichert.
+  schreibt nichts.
+  **Positions-Soll (ADR-0030):** Ein Zieleintrag, der zusätzlich eine
+  `"security_id"` trägt, setzt ein Gewicht auf diese einzelne Position unter
+  der Kategorie (das Wertpapier muss darunter stehen, sonst `422`); ein
+  Kategorieeintrag (ohne `security_id`) und seine Positionseinträge werden
+  nebeneinander gespeichert. Eine angegebene `security_id` ist eine positive
+  Ganzzahl oder `null` (`null` = Kategoriezeile) — alles andere (ein
+  nicht-numerischer String, eine Gleitkommazahl) liefert `422`, statt zu einem
+  Schreibvorgang auf die Kategorie umgedeutet zu werden. Ein Plan trägt
+  höchstens **eine Positionszeile je Wertpapier**: Ein Wertpapier unter einer
+  zweiten Kategorie abzulegen oder dasselbe Paar `(category, security)`
+  zweimal in einem Stapel zu nennen, liefert `422`. Die Datenbank hält diese
+  Regel ebenfalls, sodass auch ein Schreibvorgang, der das Rennen um dasselbe
+  Wertpapier unter einer anderen Kategorie verliert, `422` liefert und nichts
+  speichert. Jedes serialisierte Ziel trägt `security_id` (`null` bei einer
+  Kategoriezeile).
 - `DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id` entfernt das
-  Zielgewicht eines Portfolios für eine Kategorie und liefert `{deleted}` (die Zahl
-  der entfernten Zeilen). Optionales `view` wählt den Plan (weggelassen = Gesamt).
+  **Kategorie**-Zielgewicht eines Portfolios für eine Kategorie und liefert
+  `{deleted}` (die Zahl der entfernten Zeilen). Die Positionszeilen der
+  Kategorie bleiben bestehen. Optionales `view` wählt den Plan (weggelassen =
+  Gesamt).
+- `GET /api/v1/portfolios/:portfolio_id/position_targets` listet die SOLL-Ziele
+  eines Portfolios auf **Positionsebene** (ADR-0030): `{"position_targets":
+  [...], "effective_targets": [...]}`. Jede `position_targets`-Zeile ist ein
+  Ziel auf einem Wertpapier unter einer Kategorie (mit `security_id` und
+  `security_name`); jeder `effective_targets`-Eintrag ist der Roll-up einer
+  Kategorie — `explicit` (das Gewicht der Kategoriezeile oder `null`),
+  `position_sum` (die Summe der direkt unter ihr abgelegten Positionszeilen —
+  die Zeilen von Unterkategorien rollen in ihre eigene Kategorie auf),
+  `effective` (das aufgelöste Steuergewicht — die Positionssumme gewinnt) und
+  `conflict` (`true`, wenn explizites Gewicht und Positionssumme voneinander
+  abweichen, sodass die Abweichung sichtbar wird). Jede Positionszeile trägt
+  zudem `stale` (`true`, wenn ihr Wertpapier nicht mehr unter der
+  gespeicherten Kategorie steht — umklassifiziert oder nicht zugeordnet; die
+  Zeile zählt weiter dort, wo sie abgelegt wurde, und das erneute Ablegen ist
+  die Abhilfe) und jeder Roll-up `has_stale`. Gewichte sind Decimal-Strings.
+  Optionales `classification_id` / `view` grenzen ein wie oben.
+  Lese-Ergonomie (FR-37, Issue #740): `min_drift=` — die Schwelle der
+  Allokationsabfrage, gleich geschrieben (ein nicht-negativer Decimal-String
+  auf `|drift_weight|`) — liefert nur die Positionszeilen, deren Drift sie
+  erreicht; `drift_weight` ist das tatsächliche Gewicht des Wertpapiers in der
+  Steuerbasis minus sein Positionsziel, genau wie die Allokation es rechnet
+  (ein Prädikat, zwei Oberflächen). Behaltene Zeilen tragen `drift_weight`,
+  Zeilen ohne Drift werden mitgefiltert, und die Antwort benennt das
+  angewandte `min_drift`, `position_targets_total` (die Zeilenzahl vor dem
+  Filter) und einen Satz `drift_basis`. Ohne `min_drift` tragen die Zeilen
+  kein `drift_weight`, und die Form ist unverändert. Eine ungültige Schwelle
+  ist ein `422`.
+- `DELETE /api/v1/portfolios/:portfolio_id/position_targets/:category_id/:security_id`
+  entfernt ein Positionsziel und liefert `{deleted}`. Die Kategoriezeile und
+  die übrigen Positionen der Kategorie bleiben unberührt. Optionales `view`
+  wählt den Plan.
+- `GET /api/v1/portfolios/:portfolio_id/plans` listet die SOLL-**Planversionen**
+  eines Portfolios (ADR-0027): zuerst die aktive, dann Entwürfe und
+  archivierte Pläne, jeweils mit `name`, `status` (`active` / `draft` /
+  `archived`), ihrem Geltungsbereich (`view_id`, `classification_id`) und
+  `cash_target_weight` als Decimal-String. Optionales `classification_id`
+  schränkt auf einen Baum ein; ein Wert, der keine id ist, wird ignoriert,
+  und alle Pläne werden gelistet. Nur der **aktive** Plan eines Geltungsbereichs
+  steuert die Allokation.
+- `POST /api/v1/plans/:id/duplicate` kopiert eine Planversion (Kategorie- und
+  Positionsziele sowie das Cash-Ziel) in einen neuen **Entwurf** desselben
+  Geltungsbereichs und liefert ihn mit `201 Created`. Ein optionaler Body
+  `{"name": "Plan 2027"}` benennt die Kopie (Standard:
+  `"<source name> (copy)"`).
+- `POST /api/v1/plans/:id/activate` macht eine Entwurfs- oder archivierte
+  Version zum aktiven Plan ihres Geltungsbereichs und archiviert den bisher
+  aktiven Plan in derselben Transaktion. Den bereits aktiven Plan zu
+  aktivieren ist ein No-op.
+- `PATCH /api/v1/plans/:id` benennt eine Planversion um (`{"name": "..."}`).
+- `DELETE /api/v1/plans/:id` löscht eine Planversion (gleich welchen Status)
+  samt ihrer Kategorie- und Positionsziele. Wird der aktive Plan gelöscht,
+  bleibt der Geltungsbereich ohne Plan (die Allokation fällt auf nur IST
+  zurück). Jedes Ziel wird als eigene `target`-Löschung vor der
+  `target_plan`-Löschung des Plans journalisiert.
 - `GET /api/v1/portfolios/:portfolio_id/category-results?classification_id=<id>` —
   das **Ergebnis** je Kategorie (ADR-0041 Teil eins, #712): `invested` (die
   Summe der Einstandskosten der Mitglieder in Basiswährung), `current_value`,
@@ -2427,6 +2530,37 @@ Beispiel-Payloads für Konten:
   Geltungsbereich liefert `422 Unprocessable Entity`.
 - `DELETE /api/v1/snapshots/:id` löscht einen Marker; Transaktionen und
   Bestände bleiben unberührt.
+- `GET /api/v1/portfolios/:portfolio_id/snapshots/:id/comparison` beantwortet
+  „Wäre ich besser gefahren, hätte ich behalten, was ich hatte?“: Die
+  eingefrorenen Bestände des Snapshots werden **buy-and-hold** über die
+  gespeicherte Kurshistorie bewertet (täglich, Wechselkurse über den EUR-Hub)
+  und der echten TTWROR des Geltungsbereichs seit dem Stichtag
+  gegenübergestellt. Die Antwort trägt `as_of_value`, `current_value`,
+  `snapshot_return`, `real_ttwror`, eine tägliche `series` (`snapshot_value`,
+  `snapshot_indexed`, `real_indexed`), eine Liste `gaps.unvalued_securities`
+  der Wertpapiere, die mangels Kurs oder Wechselkurs zum Stichtag
+  ausgeschlossen sind, und eine selbstbeschreibende `basis` (brutto, in v1 nur
+  Kursentwicklung; sie trägt das `window`, die `base_currency` sowie
+  `costs_removed` / `costs_kept`, die nennen, welche Kostenarten aus der
+  Rendite genommen wurden). Alle Finanzwerte sind Decimal-Strings.
+
+  **Die beiden Seiten stehen nicht auf derselben Basis, und der Payload sagt
+  das** (#708, Ergänzung zu ADR-0027): Die eingefrorene Seite zahlt nie
+  etwas, während die echte TTWROR nach den tatsächlich gebuchten Gebühren und
+  Steuern gerechnet ist. Die Antwort trägt deshalb zusätzlich
+  `real_ttwror_before_costs` (derselbe Lauf, in dem die Gebühren und Steuern
+  der **Handelsgeschäfte** des Zeitfensters als externe Flüsse gewertet
+  werden — eigenständige Gebühren- und Steuerbuchungen und die Quellensteuer
+  auf Dividenden bleiben bewusst in der Rendite, weil der eingefrorene Halter
+  sie ebenso gezahlt hätte), `transaction_costs` (deren Summe in der
+  Basiswährung) und `cost_recovery` mit `state`: `recovered`,
+  `partly_recovered` (vor Kosten vorne, nach Kosten noch nicht; `outstanding`
+  nennt den Abstand), `not_recovered` (auch vor Kosten hinten, die Kosten sind
+  also nicht der Grund) oder `not_comparable` (die eingefrorene Seite hat zum
+  Stichtag keinen Wert — etwa ein Snapshot nur aus Cash —, es gibt also
+  nichts, vor dem die echte Seite liegen könnte; die Kosten werden trotzdem
+  gemeldet). Lesen Sie die drei zusammen: `real_ttwror_before_costs` allein
+  schmeichelt.
 
 ### Erfasste Steuerbescheinigungen (ADR-0031)
 
@@ -3680,6 +3814,8 @@ lässt sich nicht lesen.
 - `portfolixir.targets.list`
 - `portfolixir.targets.set`
 - `portfolixir.targets.delete`
+- `portfolixir.targets.list_positions`
+- `portfolixir.targets.delete_position`
 - `portfolixir.portfolios.allocation`
 - `portfolixir.portfolios.category_results` — ein Portfolio, das `view`
   eingrenzt, `view` allein für die View über jedes Portfolio (#901), oder
@@ -3747,6 +3883,15 @@ lässt sich nicht lesen.
 - `portfolixir.securities_accounts.clear_position_buckets`
 - `portfolixir.settings.get_default_view`
 - `portfolixir.settings.set_default_view`
+- `portfolixir.plans.list`
+- `portfolixir.plans.duplicate`
+- `portfolixir.plans.activate`
+- `portfolixir.plans.rename`
+- `portfolixir.plans.delete`
+- `portfolixir.snapshots.list`
+- `portfolixir.snapshots.create`
+- `portfolixir.snapshots.delete`
+- `portfolixir.snapshots.comparison`
 - `portfolixir.tax_parameters.list`
 - `portfolixir.tax_parameters.upsert`
 - `portfolixir.tax_profiles.list`
@@ -3812,3 +3957,28 @@ den Plan gewandert, aber `portfolixir.portfolios.set_cash_target` ohne `view`
 steuert weiterhin das Gesamt-Cash-Ziel und hat damit dieselbe Wirkung wie das
 alte Portfolio-Feld `cash_target_weight`. Alle Cash-Ziele und Zielgewichte werden
 als Decimal-Strings ausgegeben und akzeptiert.
+
+Seit ADR-0030 (#481) tragen dieselben Tools das SOLL auf **Positionsebene**:
+Ein Eintrag von `portfolixir.targets.set`, der eine `security_id` hinzufügt,
+setzt ein Gewicht auf diese einzelne Position unter ihrer Kategorie,
+`portfolixir.targets.list_positions` liest die Positionszeilen und den
+effektiven Roll-up jeder Kategorie (explizites Gewicht, Positionssumme,
+effektives Steuergewicht und ein `conflict`-Flag, das eine Abweichung
+zwischen explizitem Gewicht und Positionen sichtbar macht — dazu die Flags
+`stale` je Zeile und `has_stale` je Kategorie für Zeilen, deren Wertpapier
+nicht mehr unter der gespeicherten Kategorie steht), und
+`portfolixir.targets.delete_position` entfernt ein Positionsziel. Aufrufe nur
+mit Kategorien bleiben unverändert.
+
+Seit ADR-0027 verwalten die Plan-Tools (`portfolixir.plans.list`,
+`portfolixir.plans.duplicate`, `portfolixir.plans.activate`,
+`portfolixir.plans.rename`, `portfolixir.plans.delete`) benannte
+Plan-**Versionen**: den aktiven Plan in einen Entwurf duplizieren, den Entwurf
+im SOLL-Editor bearbeiten (die SOLL-Ziel-Tools nehmen keine Plan-id, ihre
+Schreibzugriffe bearbeiten also, mit oder ohne `view`, den aktiven Plan) und
+ihn dann aktivieren. Die Snapshot-Tools (`portfolixir.snapshots.list`,
+`portfolixir.snapshots.create`, `portfolixir.snapshots.delete`,
+`portfolixir.snapshots.comparison`) frieren einen Depotstand als Marker ein
+und lesen den kontrafaktischen Vergleich; jeder Finanzwert im Vergleich ist
+ein Decimal-String, und die Antwort benennt ihre Basis (brutto, nur
+Kursentwicklung).

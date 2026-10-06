@@ -890,13 +890,14 @@ evaluate.
 ### Logos
 
 Each security can carry a logo, resolved automatically (CoinGecko for crypto,
-Wikipedia for equities/ETFs/funds) or set manually. A manual logo, or an
-explicit "no logo", *locks* the security so background discovery never
-overwrites the choice.
+Wikipedia and then companieslogo.com for equities/ETFs/funds, the issuer's
+logo for a structured or leverage product) or set manually. A manual logo, or an explicit "no logo", *locks* the security so background
+discovery never overwrites the choice.
 
 - `GET /api/v1/securities/:security_id/logo` returns the logo status:
   `{ "data": { "security_id", "path", "source", "has_logo", "locked", "file_missing" } }`.
-  `source` is one of `coingecko`, `wikipedia`, or `manual`. `file_missing`
+  `source` is one of `coingecko`, `wikipedia`, `companieslogo`, or `manual`,
+  and `null` while there is no logo. `file_missing`
   (issue #933) is `true` when the instance's startup check found no file in
   the logo directory for the stored `path`; `has_logo` is then `false`, while
   `path`, `source` and `locked` read as stored. A discovered logo so marked is
@@ -908,13 +909,16 @@ overwrites the choice.
   URL (`{ "logo": { "url": "https://…" } }` or `{ "url": "https://…" }`). The
   image is downloaded once, validated (png/jpg/jpeg/webp, max 256 KiB) and
   stored locally; the security is locked to the manual choice. A missing URL
-  returns `422`.
+  returns `422` with `errors.url`; an image that cannot be fetched or fails
+  the check returns `422` with `errors.logo`, a fixed message that names no
+  address and no status.
 - `DELETE /api/v1/securities/:security_id/logo` removes the logo and records an
   explicit "no logo" decision (the row falls back to its initials/flag), also
   locking it against discovery.
 - `POST /api/v1/securities/:security_id/logo/discover` re-runs automatic
   discovery ("search again"). The response includes a `result` of `updated`,
-  `no_source`, or `failed`. Locked securities are left untouched.
+  `no_source`, or `failed`. Locked securities are left untouched and answer
+  `no_source`.
 
 Example create payload:
 
@@ -2023,20 +2027,21 @@ Example account payloads:
   versions** (ADR-0027): active first, then drafts and archived plans, each with
   `name`, `status` (`active` / `draft` / `archived`), its scope (`view_id`,
   `classification_id`) and `cash_target_weight` as a Decimal string. Optional
-  `classification_id` scopes to one tree. Only the **active** plan of a scope
+  `classification_id` scopes to one tree; a value that is not an id is
+  ignored, and every plan is listed. Only the **active** plan of a scope
   steers the allocation.
-- `POST /api/v1/plans/:id/duplicate` copies a plan version (category targets and
-  cash target) into a new **draft** of the same scope and returns it with
-  `201 Created`. Optional body `{"name": "Plan 2027"}` names the copy (default:
-  `"<source name> (copy)"`).
+- `POST /api/v1/plans/:id/duplicate` copies a plan version (category and
+  position targets, and cash target) into a new **draft** of the same scope and
+  returns it with `201 Created`. Optional body `{"name": "Plan 2027"}` names the
+  copy (default: `"<source name> (copy)"`).
 - `POST /api/v1/plans/:id/activate` makes a draft or archived version the active
   plan of its scope, archiving the previously active plan in the same
   transaction. Activating the already-active plan is a no-op.
 - `PATCH /api/v1/plans/:id` renames a plan version (`{"name": "..."}`).
 - `DELETE /api/v1/plans/:id` deletes one plan version (any status) including its
-  category targets. Deleting the active plan leaves the scope without a plan
-  (the allocation falls back to actual-only). Each target is journaled as its
-  own `target` delete before the plan's `target_plan` delete.
+  category and position targets. Deleting the active plan leaves the scope
+  without a plan (the allocation falls back to actual-only). Each target is
+  journaled as its own `target` delete before the plan's `target_plan` delete.
 - `GET /api/v1/snapshots` lists depot **snapshot markers** (ADR-0027): each is a
   `name`, a scope (`view_id`, `null` = everything) and an `as_of` date. A
   snapshot copies no financial data — the holdings it represents derive from
@@ -2152,9 +2157,9 @@ church tax withheld at a zero church-tax rate.
   FX) against the scope's real TTWROR since the as-of date. The response
   carries `as_of_value`, `current_value`, `snapshot_return`, `real_ttwror`, a
   daily `series` (`snapshot_value`, `snapshot_indexed`, `real_indexed`), a
-  `gaps` list of securities excluded for missing quotes or FX at the as-of
-  date, and a self-describing `basis` (gross, price-return only in v1; it
-  carries the `window`, the `base_currency`, and `costs_removed` /
+  `gaps.unvalued_securities` list of securities excluded for missing quotes or
+  FX at the as-of date, and a self-describing `basis` (gross, price-return only
+  in v1; it carries the `window`, the `base_currency`, and `costs_removed` /
   `costs_kept` naming which cost kinds left the return). All financial values
   are Decimal strings.
 
@@ -3666,10 +3671,10 @@ Category-only calls are unchanged.
 Since ADR-0027 the plan tools (`portfolixir.plans.list`,
 `portfolixir.plans.duplicate`, `portfolixir.plans.activate`,
 `portfolixir.plans.rename`, `portfolixir.plans.delete`) manage named plan
-**versions**: duplicate the active plan into a draft, edit the draft through the
-target tools (the drafts are addressed by the plan endpoints; view-addressed
-target writes keep editing the active plan), then activate it. The snapshot
-tools (`portfolixir.snapshots.list`, `portfolixir.snapshots.create`,
+**versions**: duplicate the active plan into a draft, edit the draft in the SOLL
+editor (the target tools take no plan id: their writes, with or without a
+`view`, edit the active plan), then activate it. The snapshot tools
+(`portfolixir.snapshots.list`, `portfolixir.snapshots.create`,
 `portfolixir.snapshots.delete`, `portfolixir.snapshots.comparison`) freeze a
 depot state as a marker and read the counterfactual comparison; every financial
 value in the comparison is a Decimal string and the response labels its basis
