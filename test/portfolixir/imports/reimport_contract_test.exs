@@ -576,6 +576,128 @@ defmodule Portfolixir.Imports.ReimportContractTest do
       assert result.created_transactions == 2
       assert Enum.map(result.duplicate_entries, &{&1.row, &1.layer}) == [{2, :hash}]
     end
+
+    # User story (#923):
+    # As the operator reviewing a preview that asks me to decide on a
+    # security,
+    # I want to know how many of that security's rows are already imported,
+    # so that a decision the apply would never use does not hold the import.
+    #
+    # Acceptance criteria:
+    # - Per security reference of the file, keyed as the resolution plan keys
+    #   it, every row naming it counts on the hash layers: a held hash
+    #   `hash`, a retired one `retired`, a repeat of an earlier new row of the
+    #   file `hash`, and otherwise `new` or `unimportable`.
+    # - Nothing else counts as imported there: a row the dry run would skip
+    #   by its economics stays `new` under its security, as it is
+    #   `economics` in the total.
+    test "counts each security's rows on the hash layers, keyed as the resolution plan", %{
+      portfolio: portfolio
+    } do
+      other = %{"name" => "Other Fund", "wkn" => "OTH001", "currency" => "EUR"}
+
+      first = parse!([purchase(1), purchase(2, date: "2025-01-17")])
+
+      assert {:ok, %Result{created_transactions: 2}} =
+               Imports.apply(first, create_everything(first))
+
+      removed = Repo.one!(from(t in Transaction, where: t.date == ^~D[2025-01-17]))
+      retire_as_merge!(portfolio, removed, removed.cash_account_id)
+
+      file =
+        parse!([
+          purchase(1),
+          purchase(2, date: "2025-01-17"),
+          # The first purchase again, in another decimal precision: no hash
+          # holds it, and its economics equal the stored booking's.
+          Map.put(purchase(3), "amount", num("500.000")),
+          purchase(4, security: other, date: "2025-02-03"),
+          purchase(5, security: other, date: "2025-02-03"),
+          %{
+            "type" => "DIVIDEND",
+            "account" => "Giro",
+            "date" => "2025-03-02",
+            "currency" => "EUR",
+            "amount" => num("0"),
+            "security" => other,
+            "row" => 6
+          }
+        ])
+
+      keys =
+        Map.new(Imports.resolve_securities(file).resolutions, &{&1.label, &1.key})
+
+      counts = Imports.reimport_counts(file, portfolio_id: portfolio.id)
+
+      assert counts.total.economics == 1
+
+      assert counts.securities == %{
+               keys["Example Fund"] => %{
+                 hash: 1,
+                 retired: 1,
+                 unimportable: 0,
+                 economics: 0,
+                 internal_transfer: 0,
+                 new: 1
+               },
+               keys["Other Fund"] => %{
+                 hash: 1,
+                 retired: 0,
+                 unimportable: 1,
+                 economics: 0,
+                 internal_transfer: 0,
+                 new: 1
+               }
+             }
+
+      # The first pass the Imports view renders at once counts them alike.
+      assert Imports.reimport_counts(file, portfolio_id: portfolio.id, dry_run: false).securities ==
+               counts.securities
+    end
+
+    # Acceptance criteria (#923 review round):
+    # - A row repeating an earlier row's content hash counts as a hit under
+    #   its security only when that earlier row carries the same security
+    #   key. The hash names a security by its ISIN, the key by every
+    #   identifier, so a repeat whose first copy names the security with one
+    #   identifier fewer counts `new` under its own key: the apply may skip
+    #   that first copy on a later layer and then resolve the repeat.
+    test "an in-file repeat is a hit under its security only after a copy under the same key", %{
+      portfolio: portfolio
+    } do
+      isin_only = Map.delete(@fund, "wkn")
+
+      file =
+        parse!([
+          purchase(1, security: isin_only),
+          purchase(2, security: @fund),
+          purchase(3, security: @fund)
+        ])
+
+      keys = Map.new(Imports.resolve_securities(file).resolutions, &{&1.ref.wkn, &1.key})
+      counts = Imports.reimport_counts(file, portfolio_id: portfolio.id)
+
+      assert %{hash: 2, new: 1} = counts.total
+
+      assert counts.securities == %{
+               keys[nil] => %{
+                 hash: 0,
+                 retired: 0,
+                 unimportable: 0,
+                 economics: 0,
+                 internal_transfer: 0,
+                 new: 1
+               },
+               keys["EXF001"] => %{
+                 hash: 1,
+                 retired: 0,
+                 unimportable: 0,
+                 economics: 0,
+                 internal_transfer: 0,
+                 new: 1
+               }
+             }
+    end
   end
 
   describe "the import takes the account-identity lock before any row lock (§4, §10)" do

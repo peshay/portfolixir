@@ -996,6 +996,310 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       refute has_element?(view, "#pp-import-confirm[disabled]")
     end
 
+    # User story (#923; board 09 ③, the account rows' rule of board 04,
+    # note 4):
+    # As the operator re-importing a file whose bookings of an ambiguous
+    # security are all imported already,
+    # I want that security's row to need no decision,
+    # so that a choice the import would never use does not hold it.
+    #
+    # Acceptance criteria:
+    # - The row takes the account rows' anatomy: "N bookings already
+    #   imported · nothing to create" under the file's name, and a basis line
+    #   under the select instead of the decision text and the candidates.
+    # - Confirm is enabled, the still-to-map hint names no security, and
+    #   confirming books nothing and creates no security, without an error.
+    test "an ambiguous identifier whose bookings are all imported needs no decision", %{
+      conn: conn
+    } do
+      portfolio = setup_portfolio()
+      rows = [ambiguous_purchase("2024-04-01")]
+      apply_auto!(portfolio, rows)
+      _twin = create_security!(%{name: "Share Class B", wkn: "AMB001"})
+      securities = Portfolixir.Catalog.count_securities()
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "again.json", pp_json(rows), "application/json")
+
+      row = view |> element("[data-role='security-decision']") |> render()
+
+      assert row =~
+               ~r/1 booking already imported · <b>nothing to create<\/b><\/span>/
+
+      assert row =~
+               "No decision needed: the import books nothing for this security. " <>
+                 "An ISIN change recorded here still takes effect."
+
+      refute row =~ "Several existing securities share this identifier"
+      refute has_element?(view, "[data-role='security-decision'] ul")
+      refute has_element?(view, "#pp-import-confirm[disabled]")
+      refute has_element?(view, "#import-missing-hint")
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Created transactions: 0"
+      assert Portfolixir.Catalog.count_securities() == securities
+    end
+
+    # User story (#923 review round):
+    # As the operator whose stored bookings were deleted after the preview
+    # opened,
+    # I want Confirm on rows that needed no decision to stop and write
+    # nothing, and those rows to ask for their decision again,
+    # so that a booking that turns out new never books under a security
+    # nobody chose.
+    #
+    # Acceptance criteria:
+    # - With an all-imported config-at-risk row and an all-imported ambiguous
+    #   row, deleting their bookings after the upload and confirming answers
+    #   the divergence message, writes no transaction and creates no
+    #   security.
+    # - The refreshed preview shows both decisions again, Confirm is disabled
+    #   and the hint names both securities.
+    test "rows that needed no decision fail closed when their bookings are gone, and ask again",
+         %{conn: conn} do
+      portfolio = setup_portfolio()
+      at_risk = create_security!(%{name: "Ambiguous Fund", currency_code: "USD"})
+      attach_assignment!(at_risk)
+      placeholder = create_security!(%{name: "Placeholder Fund"})
+      twin_a = create_security!(%{name: "Twin Share A", wkn: "TWN001"})
+      _twin_b = create_security!(%{name: "Twin Share B", wkn: "TWN001"})
+
+      twin_row =
+        Map.put(ambiguous_purchase("2024-04-02"), "security", %{
+          "name" => "Twin Share",
+          "wkn" => "TWN001",
+          "currency" => "EUR"
+        })
+
+      rows = [ambiguous_purchase("2024-04-01"), twin_row]
+      {:ok, preview} = Portfolixir.Imports.parse_portfolio_performance(pp_json(rows))
+      resolutions = Portfolixir.Imports.resolve_securities(preview).resolutions
+      risk = Enum.find(resolutions, &(&1.status == :config_at_risk))
+      ambiguous = Enum.find(resolutions, &(&1.status == :needs_decision))
+
+      {:ok, %{created_transactions: 2}} =
+        Portfolixir.Imports.apply(preview, %{
+          portfolio_id: portfolio.id,
+          security_mappings: %{
+            risk.key => {:existing, placeholder.id},
+            ambiguous.key => {:existing, twin_a.id}
+          }
+        })
+
+      securities = Portfolixir.Catalog.count_securities()
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "again.json", pp_json(rows), "application/json")
+      refute has_element?(view, "#pp-import-confirm[disabled]")
+
+      for tx <- Ledger.list_transactions() do
+        {:ok, _} = Ledger.delete_transaction(Portfolixir.Actor.owner_ui(), tx)
+      end
+
+      view |> element("form#pp-import-apply") |> render_submit()
+
+      assert render_async(view, 1_000) =~
+               "Security data changed while this preview was open"
+
+      assert Ledger.list_transactions() == []
+      assert Portfolixir.Catalog.count_securities() == securities
+
+      html = render(view)
+      assert html =~ "strategy configuration"
+      assert html =~ "Several existing securities share this identifier"
+      refute html =~ "No decision needed"
+      assert has_element?(view, "#pp-import-confirm[disabled]")
+
+      hint = view |> element("#import-missing-hint") |> render()
+      assert hint =~ "security: Ambiguous Fund"
+      assert hint =~ "security: Twin Share"
+    end
+
+    # Acceptance criteria (#923 review round):
+    # - A security the ladder would create, whose bookings are all imported,
+    #   is not counted among the new securities: the apply never reaches it,
+    #   so it creates nothing.
+    test "a security whose bookings are all imported is not counted as new", %{conn: conn} do
+      portfolio = setup_portfolio()
+      rows = [ambiguous_purchase("2024-04-01")]
+      apply_auto!(portfolio, rows)
+
+      [imported] = Portfolixir.Catalog.list_securities()
+
+      {:ok, _} =
+        Portfolixir.Catalog.update_security(Portfolixir.Actor.owner_ui(), imported, %{
+          name: "Renamed Fund",
+          wkn: "AMB999"
+        })
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "again.json", pp_json(rows), "application/json")
+
+      summary = view |> element("details[data-role='plain-creates'] summary") |> render()
+      assert summary =~ "0 new securities will be created"
+      refute summary =~ "1 new security will be created"
+      refute has_element?(view, "#pp-import-confirm[disabled]")
+    end
+
+    # Acceptance criteria (#923, board 09 ③ in German):
+    # - The row reads "2 Buchungen bereits importiert · nichts anzulegen" and
+    #   "Keine Entscheidung nötig: …".
+    test "the all-imported security row reads as the board draws it, in German", %{conn: conn} do
+      portfolio = setup_portfolio()
+      rows = [ambiguous_purchase("2024-04-01"), ambiguous_purchase("2024-04-02")]
+      apply_auto!(portfolio, rows)
+      _twin = create_security!(%{name: "Share Class B", wkn: "AMB001"})
+
+      conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9")
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "again.json", pp_json(rows), "application/json")
+
+      count = view |> element("[data-role='security-decision'] [data-role='mapping-count']")
+      assert render(count) =~ ~r/2 Buchungen bereits importiert · <b>nichts anzulegen<\/b>/
+
+      assert view
+             |> element("[data-role='security-decision'] [data-role='mapping-basis']")
+             |> render() =~
+               "Keine Entscheidung nötig: Der Import bucht für dieses Wertpapier nichts. " <>
+                 "Ein hier erfasster ISIN-Wechsel wird trotzdem wirksam."
+    end
+
+    # Acceptance criteria (#923):
+    # - With one booking of the ambiguous security imported and one new, the
+    #   row keeps today's rule: the decision text, no basis line, Confirm
+    #   disabled and the security named in the still-to-map hint.
+    test "an ambiguous identifier with one new booking still requires a decision", %{conn: conn} do
+      portfolio = setup_portfolio()
+      apply_auto!(portfolio, [ambiguous_purchase("2024-04-01")])
+      _twin = create_security!(%{name: "Share Class B", wkn: "AMB001"})
+
+      rows = [ambiguous_purchase("2024-04-01"), ambiguous_purchase("2024-04-02")]
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "grown.json", pp_json(rows), "application/json")
+
+      row = view |> element("[data-role='security-decision']") |> render()
+      assert row =~ "Several existing securities share this identifier"
+      refute row =~ "No decision needed"
+      assert has_element?(view, "#pp-import-confirm[disabled]")
+      assert view |> element("#import-missing-hint") |> render() =~ "security: Ambiguous Fund"
+    end
+
+    # User story (#923; ADR-0050 §3):
+    # As the operator re-importing a file whose security changed its ISIN,
+    # I want an ISIN change I record on a row needing no decision to be
+    # carried out,
+    # so that the change is not dropped because every booking is imported.
+    #
+    # Acceptance criteria:
+    # - The row needs no decision, and its select still offers the existing
+    #   security with the ISIN-change box.
+    # - Confirming with that choice records the ISIN change and books nothing.
+    test "an ISIN change chosen on an all-imported security row is carried out", %{conn: conn} do
+      portfolio = setup_portfolio()
+      existing = create_security!(%{name: "Example Fund", isin: "DE000OLD0006"})
+
+      rows = [
+        Map.put(
+          ambiguous_purchase("2024-04-01"),
+          "security",
+          %{"name" => "Example Fund", "isin" => "DE000NEW0003", "currency" => "EUR"}
+        )
+      ]
+
+      {:ok, preview} = Portfolixir.Imports.parse_portfolio_performance(pp_json(rows))
+      [res] = Portfolixir.Imports.resolve_securities(preview).resolutions
+      assert %{status: :needs_decision, conflict: %{type: :identifier_veto}} = res
+
+      {:ok, %{created_transactions: 1}} =
+        Portfolixir.Imports.apply(preview, %{
+          portfolio_id: portfolio.id,
+          security_mappings: %{res.key => {:existing, existing.id}}
+        })
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "again.json", pp_json(rows), "application/json")
+
+      assert view |> element("[data-role='security-decision']") |> render() =~
+               "nothing to create"
+
+      refute has_element?(view, "#pp-import-confirm[disabled]")
+
+      view
+      |> element("form#pp-import-apply")
+      |> render_change(%{
+        "security" => %{
+          res.key => %{"choice" => "existing:#{existing.id}", "record_isin_change" => "true"}
+        }
+      })
+
+      assert has_element?(
+               view,
+               ~s([data-role='security-decision'] input[type="checkbox"][name="security[#{res.key}][record_isin_change]"][checked])
+             )
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Created transactions: 0"
+
+      updated = Portfolixir.Catalog.get_security!(existing.id)
+      assert updated.isin == "DE000NEW0003"
+
+      assert [%{former_isin: "DE000OLD0006"}] =
+               Portfolixir.Catalog.list_identifier_aliases(updated)
+    end
+
+    # User story (#923):
+    # As the operator re-importing a file whose security would strand
+    # configuration if created, but whose bookings are all imported,
+    # I want the row to need no acknowledgment,
+    # so that a creation the import would never make does not hold it.
+    #
+    # Acceptance criteria:
+    # - The row needs no decision and shows no acknowledgment box; Confirm is
+    #   enabled with "+ Create new" still selected.
+    # - Confirming creates no security and books nothing.
+    test "a config-at-risk row whose bookings are all imported needs no acknowledgment", %{
+      conn: conn
+    } do
+      portfolio = setup_portfolio()
+      at_risk = create_security!(%{name: "Ambiguous Fund", currency_code: "USD"})
+      attach_assignment!(at_risk)
+      placeholder = create_security!(%{name: "Placeholder Fund"})
+
+      rows = [ambiguous_purchase("2024-04-01")]
+      {:ok, preview} = Portfolixir.Imports.parse_portfolio_performance(pp_json(rows))
+      [res] = Portfolixir.Imports.resolve_securities(preview).resolutions
+      assert res.status == :config_at_risk
+
+      {:ok, %{created_transactions: 1}} =
+        Portfolixir.Imports.apply(preview, %{
+          portfolio_id: portfolio.id,
+          security_mappings: %{res.key => {:existing, placeholder.id}}
+        })
+
+      securities = Portfolixir.Catalog.count_securities()
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "again.json", pp_json(rows), "application/json")
+
+      row = view |> element("[data-role='security-decision']") |> render()
+      assert row =~ "nothing to create"
+      assert row =~ "No decision needed"
+      refute row =~ "strategy configuration"
+      refute has_element?(view, ~s(input[name="security[#{res.key}][ack]"]))
+
+      assert has_element?(
+               view,
+               ~s(select[name="security[#{res.key}][choice]"] option[value="create"][selected])
+             )
+
+      refute has_element?(view, "#pp-import-confirm[disabled]")
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Created transactions: 0"
+      assert Portfolixir.Catalog.count_securities() == securities
+    end
+
     test "the pre-apply inverse check lists configured securities the import misses",
          %{conn: conn} do
       portfolio = setup_portfolio()
@@ -2543,6 +2847,20 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       |> Repo.transaction()
 
     account
+  end
+
+  # A purchase of the security `ambiguous_wkn.json` names, on `date`: its
+  # WKN becomes ambiguous once a second security carries it.
+  defp ambiguous_purchase(date) do
+    %{
+      "type" => "PURCHASE",
+      "account" => "Test-Cash",
+      "portfolio" => "Test-Depot",
+      "date" => date,
+      "amount" => "500.00",
+      "shares" => "5",
+      "security" => %{"name" => "Ambiguous Fund", "wkn" => "AMB001", "currency" => "EUR"}
+    }
   end
 
   # A synthetic Portfolio Performance JSON export; amounts stay strings, never

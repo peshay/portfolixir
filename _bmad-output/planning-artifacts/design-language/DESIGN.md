@@ -2538,6 +2538,39 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   confirm, how many entries are already imported and how many internal
   transfers are dropped, then: "The import creates nothing: no booking, no
   account, no depot, no security."
+- **A row none of whose bookings is new needs no decision** — the account
+  rows' rule (board 04, note 4: an ambiguous cash or depot name with nothing
+  new is left undecided and blocks nothing), and since 2026-10-06 the
+  security rows' too *(issue 923, Sprint 19 PR β B4; board
+  `mockups/ux-design-2026-10-04/09-import-correction` ③, before/after)*.
+  When every booking of a security the preview asks a decision for (an
+  ambiguous or vetoed match, identifiers pointing at different securities,
+  or a creation that would strand configuration) is one the apply skips
+  before it resolves a security — already imported by its content hash, a
+  merge's retired hash or an earlier row of the same file under the same
+  security, or an unimportable line such as a zero amount — the row takes
+  the account rows' anatomy: `.mapping-count` under the file's name with the
+  account rows' own strings ("6 Buchungen bereits importiert · **nichts
+  anzulegen**"), then `.mapping-target` with the select and one
+  `.mapping-basis` line: "Keine Entscheidung nötig: Der Import bucht für
+  dieses Wertpapier nichts. Ein hier erfasster ISIN-Wechsel wird trotzdem
+  wirksam." The decision paragraph, the candidate list and the
+  configuration acknowledgment give way. The select stays, with its
+  ISIN-change box when the chosen security offers one, because a recorded
+  ISIN change still runs at the start of the apply (ADR-0050 §3); left as it
+  is, the row passes nothing to the apply. It no longer disables Confirm, is
+  not named in the still-to-map hint, and the plain creations' summary
+  ("N neue Wertpapiere werden angelegt") does not count such a security
+  either. Only those layers count here — an equal booking found by its
+  economics, or an internal transfer, is judged on resolved ids after the
+  decision, and a layer added later fails closed — so a security with one
+  new booking keeps its decision. A key-collision row keeps its text and its
+  block whatever its bookings: the apply refuses that file (no CSS of its
+  own; the rules of `.mapping-row` apply). *The basis line deviates from
+  board 09*, which reads "Eine gewählte Zuordnung, etwa ein ISIN-Wechsel,
+  wird trotzdem ausgeführt.": on such a row a remap books nothing and
+  "+ Neu anlegen" creates nothing, so the line promises only what still
+  takes effect, a recorded ISIN change (the #923 review round).
 - **"Remember this mapping" (G4-A)** is `.mapping-remember`, a checkbox in
   the row, **ticked by default**, shown only where the operator changed a
   prefill onto a differently named account and remembering is possible. Its

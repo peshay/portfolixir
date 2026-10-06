@@ -773,4 +773,71 @@ defmodule Portfolixir.Imports.SecurityResolverTest do
       assert result.unmatched_config == []
     end
   end
+
+  describe "decision_needed?/2 (ADR-0050 §3, #923)" do
+    # User story (#923; board 09 ③):
+    # As the operator re-importing a file whose bookings of a security are
+    # all imported already,
+    # I want that security's decision row to need no decision,
+    # so that a choice the apply would never use does not hold the import.
+    #
+    # Acceptance criteria:
+    # - A `:needs_decision` or `:config_at_risk` row needs no decision when
+    #   every row of its key is one the apply skips before it resolves a
+    #   security: a hash, retired or in-file hit, or an unimportable line
+    #   (a zero amount), as long as the key has a counted row.
+    # - It needs one when any row of the key is new, when the key has no
+    #   counted row, when a row is imported only by its economics or is an
+    #   internal transfer (both judged after the ladder), and when a row sits
+    #   on a layer the rule does not know: a new layer fails closed.
+    # - A key collision needs one whatever its counts; a matched or plain
+    #   create row never surfaces one.
+    @all_hit %{hash: 2, retired: 1, unimportable: 0, economics: 0, internal_transfer: 0, new: 0}
+
+    defp decision(status, type \\ :ambiguous) do
+      %{status: status, conflict: if(status == :needs_decision, do: %{type: type})}
+    end
+
+    test "an all-hit decision row needs none, a zero-amount line beside it too" do
+      for status <- [:needs_decision, :config_at_risk] do
+        refute SecurityResolver.decision_needed?(decision(status), @all_hit)
+        refute SecurityResolver.decision_needed?(decision(status), %{@all_hit | hash: 0})
+        refute SecurityResolver.decision_needed?(decision(status), %{@all_hit | unimportable: 1})
+      end
+    end
+
+    test "any other row of the key keeps the rule, and an unknown layer fails closed" do
+      for status <- [:needs_decision, :config_at_risk] do
+        for layer <- [:new, :economics, :internal_transfer] do
+          assert SecurityResolver.decision_needed?(decision(status), %{@all_hit | layer => 1}),
+                 "#{status} with one #{layer} row"
+        end
+
+        assert SecurityResolver.decision_needed?(
+                 decision(status),
+                 Map.put(@all_hit, :a_layer_added_later, 1)
+               )
+
+        assert SecurityResolver.decision_needed?(decision(status), %{
+                 @all_hit
+                 | hash: 0,
+                   retired: 0
+               })
+      end
+    end
+
+    test "a key collision needs a decision whatever its counts; other rows surface none" do
+      assert SecurityResolver.decision_needed?(
+               decision(:needs_decision, :key_collision),
+               @all_hit
+             )
+
+      for status <- [:matched, :create] do
+        refute SecurityResolver.decision_needed?(%{status: status, conflict: nil}, %{
+                 @all_hit
+                 | new: 3
+               })
+      end
+    end
+  end
 end

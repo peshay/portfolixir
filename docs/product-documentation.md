@@ -2647,6 +2647,18 @@ The preview's **Securities from the export** panel shows the outcome:
   looks like a stored one (invisible characters, lookalike letters from
   another script, a different case or spacing) is such a near-match, and the
   matching itself ignores invisible characters in names.
+- **No decision where nothing would be booked**: when every booking of a
+  security that asks for a decision or a confirmation is already imported —
+  its content matches a stored booking, a booking a merge removed, or an
+  earlier row of the same file — or is a line the import skips anyway (a
+  zero amount), the row says *N bookings already imported · nothing to
+  create* and that no decision is needed, and it no longer blocks the
+  import; nor is such a security counted among the new securities. The
+  import checks a booking's content before it resolves its security, so a
+  choice there would never be used: only an ISIN change you record on the
+  row still takes effect. A security with one new booking still needs its
+  decision, and two securities of the file that cannot be told apart still
+  refuse the import.
 
 When an entry is remapped and its ISIN differs from the chosen security's
 current ISIN, the preview offers to **record the difference as an ISIN

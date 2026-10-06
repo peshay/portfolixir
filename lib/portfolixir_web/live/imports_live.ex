@@ -146,6 +146,16 @@ defmodule PortfolixirWeb.ImportsLive do
           depot_cash_choices(assigns.cash_pp_names, assigns.existing_cash, assigns.option_tags),
         matched_resolutions: Enum.filter(resolutions, &(&1.status == :matched)),
         plain_create_resolutions: Enum.filter(resolutions, &(&1.status == :create)),
+        # #923: a key the apply resolves nothing for (every booking already
+        # imported) creates nothing, so it is not counted as new.
+        new_security_count:
+          Enum.count(
+            resolutions,
+            &(&1.status == :create and
+                not Imports.security_resolves_nothing?(
+                  security_counts(assigns.account_states, &1)
+                ))
+          ),
         decision_resolutions:
           Enum.filter(resolutions, &(&1.status in [:needs_decision, :config_at_risk]))
       )
@@ -374,7 +384,7 @@ defmodule PortfolixirWeb.ImportsLive do
                 <%= ngettext(
                   "%{count} new security will be created",
                   "%{count} new securities will be created",
-                  length(@plain_create_resolutions)
+                  @new_security_count
                 ) %>
               </summary>
               <div class="mapping-grid">
@@ -393,40 +403,67 @@ defmodule PortfolixirWeb.ImportsLive do
           <% end %>
 
           <%= for res <- @decision_resolutions do %>
-            <div class="mapping-row" data-role="security-decision">
-              <div class="source">
-                <small><%= gettext("PP security") %></small>
-                <%= res.label %>
+            <%= if security_decision_needed?(@account_states, res) do %>
+              <div class="mapping-row" data-role="security-decision">
+                <div class="source">
+                  <small><%= gettext("PP security") %></small>
+                  <%= res.label %>
+                </div>
+                <div>
+                  <p class="muted"><%= decision_text(res) %></p>
+                  <%= if res.candidates != [] do %>
+                    <ul>
+                      <%= for candidate <- res.candidates do %>
+                        <li><%= security_option_label(candidate) %></li>
+                      <% end %>
+                    </ul>
+                  <% end %>
+                  <.security_choice_select mapping={@mapping} existing_securities={@existing_securities} res={res} />
+                  <.isin_change_offer mapping={@mapping} existing_securities={@existing_securities} res={res} />
+                  <%= if res.status == :config_at_risk and security_choice(@mapping, res) == "create" do %>
+                    <label>
+                      <input type="hidden" name={"security[#{res.key}][ack]"} value="false" />
+                      <input
+                        type="checkbox"
+                        name={"security[#{res.key}][ack]"}
+                        value="true"
+                        checked={security_ack?(@mapping, res)}
+                      />
+                      <span>
+                        <%= gettext(
+                          "Create anyway (existing configuration stays unchanged)"
+                        ) %>
+                      </span>
+                    </label>
+                  <% end %>
+                </div>
               </div>
-              <div>
-                <p class="muted"><%= decision_text(res) %></p>
-                <%= if res.candidates != [] do %>
-                  <ul>
-                    <%= for candidate <- res.candidates do %>
-                      <li><%= security_option_label(candidate) %></li>
-                    <% end %>
-                  </ul>
-                <% end %>
-                <.security_choice_select mapping={@mapping} existing_securities={@existing_securities} res={res} />
-                <.isin_change_offer mapping={@mapping} existing_securities={@existing_securities} res={res} />
-                <%= if res.status == :config_at_risk and security_choice(@mapping, res) == "create" do %>
-                  <label>
-                    <input type="hidden" name={"security[#{res.key}][ack]"} value="false" />
-                    <input
-                      type="checkbox"
-                      name={"security[#{res.key}][ack]"}
-                      value="true"
-                      checked={security_ack?(@mapping, res)}
-                    />
-                    <span>
-                      <%= gettext(
-                        "Create anyway (existing configuration stays unchanged)"
-                      ) %>
-                    </span>
-                  </label>
-                <% end %>
+            <% else %>
+              <%!-- #923 (board 09 ③): every booking of this security is already
+                   imported, so the apply, which checks the hash first (ADR-0050
+                   §3), never reaches the choice. The row takes the account
+                   rows' anatomy; the select stays, because an ISIN change
+                   recorded on it still runs at apply start. A remap books
+                   nothing and "+ Create new" creates nothing, so the line
+                   promises only the ISIN change (DESIGN.md records the
+                   deviation from the board). --%>
+              <div class="mapping-row" data-role="security-decision">
+                <div class="source">
+                  <small><%= gettext("PP security") %></small>
+                  <%= res.label %>
+                  <.mapping_count counts={security_counts(@account_states, res)} />
+                </div>
+                <div class="mapping-target">
+                  <.security_choice_select mapping={@mapping} existing_securities={@existing_securities} res={res} />
+                  <span class="mapping-basis" data-role="mapping-basis">
+                    <%= gettext(
+                      "No decision needed: the import books nothing for this security. An ISIN change recorded here still takes effect."
+                    ) %>
+                  </span>
+                  <.isin_change_offer mapping={@mapping} existing_securities={@existing_securities} res={res} />
+                </div>
               </div>
-            </div>
+            <% end %>
           <% end %>
         </section>
 
@@ -835,23 +872,10 @@ defmodule PortfolixirWeb.ImportsLive do
         socket
       )
       when kind in [:cash_account, :securities_account] do
-    socket = socket |> reload_lookups() |> assign_account_states(socket.assigns.preview)
-    fresh = initial_mapping_for(socket.assigns.preview, socket.assigns.account_states)
-
-    mapping =
-      Map.merge(socket.assigns.mapping, %{
-        cash: fresh.cash,
-        depot: fresh.depot,
-        prefill: fresh.prefill
-      })
-
-    PreviewStore.put_mapping(socket.assigns.session_token, mapping)
-
     {:noreply,
      socket
      |> assign(:applying, false)
-     |> assign(:mapping, mapping)
-     |> assign_remember_outcomes()
+     |> refresh_accounts()
      |> assign(
        :error,
        gettext(
@@ -862,12 +886,16 @@ defmodule PortfolixirWeb.ImportsLive do
 
   # Preview→apply revalidation abort (ADR-0029 §2): the data changed while
   # the preview was open. Re-run the ladder so the user reviews the CURRENT
-  # resolutions before confirming again.
+  # resolutions before confirming again — and read the accounts and the
+  # counts again as the account clause does, since a row that missed its
+  # hash since the preview is what makes a security row need a decision
+  # again (#923).
   def handle_async(:apply_import, {:ok, {:error, {:resolution_diverged, _key}}}, socket) do
     {:noreply,
      socket
      |> assign(:applying, false)
      |> assign_security_resolutions(socket.assigns.preview)
+     |> refresh_accounts()
      |> assign(
        :error,
        gettext(
@@ -888,6 +916,28 @@ defmodule PortfolixirWeb.ImportsLive do
      socket
      |> assign(:applying, false)
      |> assign(:error, gettext("Import failed unexpectedly. Please try again."))}
+  end
+
+  # The accounts, their resolutions and the counts read again, and the
+  # account mapping rebuilt from the current accounts, keeping the bucket tag
+  # and the security choices (ADR-0050 §10): the database changed since the
+  # preview opened, and a prefill read before it may name what is gone.
+  defp refresh_accounts(socket) do
+    socket = socket |> reload_lookups() |> assign_account_states(socket.assigns.preview)
+    fresh = initial_mapping_for(socket.assigns.preview, socket.assigns.account_states)
+
+    mapping =
+      Map.merge(socket.assigns.mapping, %{
+        cash: fresh.cash,
+        depot: fresh.depot,
+        prefill: fresh.prefill
+      })
+
+    PreviewStore.put_mapping(socket.assigns.session_token, mapping)
+
+    socket
+    |> assign(:mapping, mapping)
+    |> assign_remember_outcomes()
   end
 
   # The path comes from LiveView's own managed upload temp file, not from
@@ -1004,7 +1054,7 @@ defmodule PortfolixirWeb.ImportsLive do
     |> assign(:counts_token, nil)
     |> assign(:account_states, %{
       resolutions: %{"cash" => %{}, "depot" => %{}},
-      counts: %{"cash" => %{}, "depot" => %{}, total: @empty_counts}
+      counts: %{"cash" => %{}, "depot" => %{}, "security" => %{}, total: @empty_counts}
     })
   end
 
@@ -1020,8 +1070,16 @@ defmodule PortfolixirWeb.ImportsLive do
     |> refine_counts(preview)
   end
 
-  defp state_counts(counts),
-    do: %{"cash" => counts.cash_accounts, "depot" => counts.depots, total: counts.total}
+  # The security rows are counted on the hash layers alone (#923), so the
+  # refined pass leaves them as the first pass had them.
+  defp state_counts(counts) do
+    %{
+      "cash" => counts.cash_accounts,
+      "depot" => counts.depots,
+      "security" => counts.securities,
+      total: counts.total
+    }
+  end
 
   defp refine_counts(socket, preview) do
     if connected?(socket) do
@@ -1079,6 +1137,14 @@ defmodule PortfolixirWeb.ImportsLive do
       _resolved -> true
     end
   end
+
+  # The security rows' counterpart (#923; board 09 ③): a surfaced decision
+  # whose rows are all hash, retired or in-file hits needs none, and a key
+  # collision always does (`Imports.security_decision_needed?/2`).
+  defp security_counts(states, res), do: row_counts(states, "security", res.key)
+
+  defp security_decision_needed?(states, res),
+    do: Imports.security_decision_needed?(res, security_counts(states, res))
 
   # What remembering each changed row would do, read when the mapping
   # changes (ADR-0050 §4): only a row whose prefill the operator changed onto
@@ -1944,8 +2010,13 @@ defmodule PortfolixirWeb.ImportsLive do
 
   # ADR-0029 §2: a surfaced decision requires an explicit choice; a
   # config-at-risk creation requires a remap or the per-row acknowledgment.
-  defp security_decisions_complete?(%{security_resolutions: resolutions, mapping: m}) do
-    Enum.all?(resolutions, &security_row_complete?(&1, m))
+  # A row whose bookings are all imported needs neither (#923).
+  defp security_decisions_complete?(%{security_resolutions: resolutions} = assigns) do
+    Enum.all?(resolutions, &security_row_ready?(assigns, &1))
+  end
+
+  defp security_row_ready?(%{account_states: states, mapping: m}, res) do
+    not security_decision_needed?(states, res) or security_row_complete?(res, m)
   end
 
   defp security_row_complete?(%{status: :needs_decision} = res, m) do
@@ -1969,8 +2040,8 @@ defmodule PortfolixirWeb.ImportsLive do
     cash_missing(assigns, cashes) ++ depot_missing(assigns, depots) ++ security_missing(assigns)
   end
 
-  defp security_missing(%{security_resolutions: resolutions, mapping: m}) do
-    for res <- resolutions, not security_row_complete?(res, m) do
+  defp security_missing(%{security_resolutions: resolutions} = assigns) do
+    for res <- resolutions, not security_row_ready?(assigns, res) do
       gettext("security: %{name}", name: res.label)
     end
   end
@@ -2065,20 +2136,45 @@ defmodule PortfolixirWeb.ImportsLive do
   # Splits the reviewed security resolutions into the applier's explicit
   # `security_mappings` (user decisions: remaps, acknowledged creations) and
   # the `approved_resolutions` baseline the apply revalidates in-transaction
-  # (ADR-0029 §2). Every resolution lands in exactly one of the two maps.
-  defp security_params(mapping, %{security_resolutions: resolutions}) do
+  # (ADR-0029 §2). Every resolution lands in exactly one of the two maps,
+  # except a decision row whose bookings are all imported and that the
+  # operator left as it was (#923): the apply never reaches its key, and
+  # should a row of it miss its hash after all, the key is in neither map, so
+  # the apply aborts with `resolution_diverged` instead of guessing.
+  defp security_params(mapping, %{security_resolutions: resolutions} = assigns) do
     Enum.reduce_while(resolutions, {:ok, %{}, %{}}, fn res, {:ok, mappings, approved} ->
-      case security_apply_decision(res, mapping) do
+      decision =
+        if untouched_without_decision?(assigns.account_states, res, mapping),
+          do: :untouched,
+          else: security_apply_decision(res, mapping)
+
+      case decision do
         {:mapping, value} ->
           {:cont, {:ok, Map.put(mappings, res.key, value), approved}}
 
         {:approved, digest} ->
           {:cont, {:ok, mappings, Map.put(approved, res.key, digest)}}
 
+        :untouched ->
+          {:cont, {:ok, mappings, approved}}
+
         {:error, _message} = error ->
           {:halt, error}
       end
     end)
+  end
+
+  # #923: a row needing no decision whose choice is still the preview's — an
+  # undecided "Decide…", or a config-at-risk "+ Create new" without its
+  # acknowledgment. An explicit choice (a remap, an ISIN change, "create")
+  # goes into the parameters as on any other row.
+  defp untouched_without_decision?(states, res, mapping) do
+    not security_decision_needed?(states, res) and
+      case {res.status, security_choice(mapping, res)} do
+        {:needs_decision, ""} -> true
+        {:config_at_risk, "create"} -> not security_ack?(mapping, res)
+        _explicit -> false
+      end
   end
 
   defp security_apply_decision(%{status: :matched} = res, _mapping) do

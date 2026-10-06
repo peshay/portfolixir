@@ -269,4 +269,60 @@ defmodule Portfolixir.Imports.ImportHashReimportTest do
              :count
            ) == 0
   end
+
+  # User story (#923):
+  # As the operator re-importing a file whose rows are all already imported,
+  # I want a key that stands for two references to stay refused,
+  # so that the rule that lets an already-imported security pass without a
+  # decision never opens a way past the fail-closed key check.
+  #
+  # Acceptance criteria:
+  # - With every row of both references a hash hit, the apply still answers
+  #   the named collision and writes nothing.
+  # - Each reference behind the key still needs a decision in the preview,
+  #   whatever its counts; a decision of another kind with the same counts
+  #   needs none.
+  test "a key standing for two references fails closed even when every row is imported" do
+    portfolio = portfolio!()
+
+    refs = [
+      %{isin: nil, wkn: nil, ticker: "A", name: "One", currency: "EUR"},
+      %{isin: nil, wkn: nil, ticker: "B", name: "Two", currency: "EUR"}
+    ]
+
+    preview = %Preview{entries: [buy(1, Enum.at(refs, 0)), buy(2, Enum.at(refs, 1))]}
+
+    assert {:ok, %{created_transactions: 2}} =
+             Imports.apply(preview, %{portfolio_id: portfolio.id})
+
+    counts = Imports.reimport_counts(preview, portfolio_id: portfolio.id)
+    assert %{total: %{hash: 2, new: 0}} = counts
+    assert Enum.all?(Map.values(counts.securities), &(&1.hash == 1 and &1.new == 0))
+
+    securities = Repo.aggregate(Portfolixir.Catalog.Security, :count)
+
+    assert {:error, {:security_key_collision, "0000"}} =
+             Imports.apply(preview, %{
+               portfolio_id: portfolio.id,
+               security_key: fn _ref -> "0000" end
+             })
+
+    assert count(portfolio) == 2
+    assert Repo.aggregate(Portfolixir.Catalog.Security, :count) == securities
+
+    all_hit = %{hash: 1, retired: 0, unimportable: 0, economics: 0, internal_transfer: 0, new: 0}
+
+    plan =
+      SecurityResolver.resolution_plan(preview, SecurityResolver.load_index(), fn _ -> "0000" end)
+
+    assert [_, _] = plan
+
+    for resolution <- plan do
+      assert %{status: :needs_decision, conflict: %{type: :key_collision}} = resolution
+      assert SecurityResolver.decision_needed?(resolution, all_hit)
+
+      ambiguous = %{resolution | conflict: %{type: :ambiguous, tier: :name, candidates: []}}
+      refute SecurityResolver.decision_needed?(ambiguous, all_hit)
+    end
+  end
 end
