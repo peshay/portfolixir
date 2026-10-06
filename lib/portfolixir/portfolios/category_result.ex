@@ -40,8 +40,8 @@ defmodule Portfolixir.Portfolios.CategoryResult do
   across the tree, sorted by name, with the category it is filed under, its
   reason and, when it is out only because its cost was not paid in EUR, that
   cost in the currency it was paid in (`native_costs`, one amount per
-  currency). It is an internal key: `/api/v1` picks its fields explicitly and
-  does not serve it (#1091 decides how).
+  currency). `/api/v1` serves it in every form, the portfolio read, its view
+  narrowing, the view read and the every-portfolio read (#1091).
 
   Nothing here is computed for the first time. `Ledger.holdings_for_portfolio/2`
   already carries each position's base-currency cost (`base_cost`) and its
@@ -241,6 +241,8 @@ defmodule Portfolixir.Portfolios.CategoryResult do
         {:ok,
          %{
            portfolio_id: nil,
+           # No view narrows it: the three forms share one shape (#1091).
+           view_id: nil,
            scope: :all,
            base_currency: @hub,
            classification_id: classification_id,

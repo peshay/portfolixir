@@ -36,6 +36,15 @@ defmodule PortfolixirWeb.Api.V1.ViewParam do
   def opts(nil), do: []
   def opts(%View{id: id}), do: [view: id]
 
+  @doc """
+  The id of a resolved view, `nil` for the unscoped default: the argument a
+  cross-portfolio read (`for_view/2`) takes, where `nil` is the Everything
+  scope (#1056).
+  """
+  @spec id(View.t() | nil) :: integer() | nil
+  def id(nil), do: nil
+  def id(%View{id: id}), do: id
+
   @doc "Merges the active-view echo into a serialized analytics response map."
   @spec put_active(map(), View.t() | nil) :: map()
   def put_active(data, nil), do: data

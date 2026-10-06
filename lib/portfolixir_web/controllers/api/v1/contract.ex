@@ -41,6 +41,50 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 15,
+      # Sprint 19's PR β (a stranger's first run, and the agent's reads), after
+      # PR α's 14: the lane PR's one entry, opened by its first surface change
+      # (B5); B2's and B3's surface changes ride it. Dated at promotion, the
+      # day after α's entry: entries_since/1 is strictly after, so an agent
+      # that polled after α landed (2026-10-06) still sees this one.
+      date: ~D[2026-10-07],
+      summary:
+        "Sprint 19 PR β, a stranger's first run and the agent's reads: B5, the performance, " <>
+          "the benchmark comparison and the contribution analysis read the Everything scope " <>
+          "with no view, every account in every portfolio, each counted once, in EUR, the hub, " <>
+          "where the screen's Everything scope is computed in the first portfolio's base " <>
+          "currency (#1056, D-7); the classification screen's all-portfolios category result " <>
+          "is a read, and every category-result form names the members it leaves out " <>
+          "(#1091's read half); a benchmark= security a merge took away is still refused, now " <>
+          "naming the survivor when that is a benchmark security (#959). B2, a logo whose file is gone counts as a missing logo " <>
+          "whatever its lock: a boot reconciliation marks such a row and unmarks it when the " <>
+          "file is back, and the logo status read says so in file_missing (#933). B3, the " <>
+          "companion answers a gateway error on a write, or a write's " <>
+          "unreadable answer, as an unknown outcome, names a body that is not JSON by its " <>
+          "status and an excerpt, and exits 1 when its HTTP port is taken or invalid (#1043, " <>
+          "#1045).",
+      endpoints: [
+        "GET /api/v1/performance",
+        "GET /api/v1/performance/benchmark",
+        "GET /api/v1/performance/contribution",
+        "GET /api/v1/category-results"
+      ],
+      tools: [],
+      parameters: [
+        "GET /api/v1/performance, GET /api/v1/performance/benchmark and GET /api/v1/performance/contribution, new: the view reads of the performance family with no view, over Performance.for_view(nil), Benchmark.for_view(nil) and Contribution.for_view(nil), every account of every portfolio, each counted once, beside GET /api/v1/valuation. Each answers in EUR, the hub, never in the first portfolio's base currency, in its view form's shape with view_id null (and portfolio_id null on the contribution) and no view echo, and takes its view form's parameters: period=, year=, from=/to=, series= where the view form takes it, and benchmark= on the comparison, required as there. None takes a scope: a view= or a portfolio_id= is ignored, as on GET /api/v1/valuation. A bad period is a 422 on period, a missing or refused benchmark a 422 on benchmark. computation_basis.input_series closes on the scope, every account in every portfolio with no view, and the currency, EUR through the hub, and says that the screen's Everything scope is computed in the first portfolio's base currency, so the two differ when that is not EUR. Every figure is the engine's; no computation version moves, and the view and portfolio forms are unchanged (B5, #1056, D-7)",
+        "portfolixir.views.performance, portfolixir.views.benchmark and portfolixir.views.contribution: id is optional now, as on portfolixir.views.valuation; omitted, each reads its view-less route above (GET /api/v1/performance, /performance/benchmark, /performance/contribution), benchmark staying required on the comparison; with an id each is unchanged. The scope-twin sentences of the three pairs say the view tool reads every account in EUR with no id, where they said it needs an existing view id and that the portfolio tool is the only read until a view exists. The schema budget pays for it: the needs-a-view text the six descriptions carried is dropped and the ceilings are lowered to the figures measured (B5, #1056, D-10)",
+        "GET /api/v1/category-results?classification_id=, new: the per-category result across every portfolio with no view, CategoryResult.for_all_portfolios/2, the roll-up the classification screen shows: scope all, portfolio_id and view_id null, base_currency EUR, no view echo; a member held in a portfolio whose base currency is not EUR has no EUR cost and is excluded as missing_base_cost, and basis_note closes on that scope. A missing classification_id is a 422, an unknown one a 404. Every form of the read (the portfolio read, its view= narrowing, the view read and this one) now also carries excluded_members: each member the roll-up leaves out, once across the tree, sorted by name without regard to case, ties by security_id, with security_id, security_name, category_id (the category it is filed under), reason and native_costs (its cost in the currency it was paid in, [{amount, currency}] with amount a Decimal string, the result's currency first and the others by code, when only that currency keeps it out of a EUR sum, else []), and every form's basis_note names it; every other field and figure is unchanged. The every-portfolio read takes no view= or portfolio_id=: either is ignored, as on GET /api/v1/valuation. portfolixir.portfolios.category_results takes neither portfolio_id nor view for this read, which it used to refuse, and its description names excluded_members (B5, #1091's read half)",
+        "benchmark=security:<id> on GET /api/v1/portfolios/:portfolio_id/performance/benchmark, GET /api/v1/views/:view_id/performance/benchmark and GET /api/v1/performance/benchmark (portfolixir.portfolios.benchmark and portfolixir.views.benchmark, which pass the body through): a security a merge took away is still refused with 422 errors.benchmark [\"is not a benchmark security\"] and, when the survivor at the live end of its merge chain is a flagged benchmark security, now also carries errors.merged_into {kind: \"security\", id} naming it, as the merged-away reads do (ADR-0050 §12), so a retry with that id compares. A survivor that is not flagged, a chain that ends at a row deleted since, an id no merge names and a security that is not flagged answer the body they answered before; the benchmark selector's description on portfolixir.portfolios.benchmark names merged_into (B5, #959)",
+        "GET /api/v1/securities?logo_status=missing and ?data_quality=missing_logo (portfolixir.securities.list), the Overview's logo count and the securities page's dq=missing_logo now include a security whose logo file is gone, whatever its lock: a boot reconciliation marks such a row (logo_file_missing) and unmarks it when the file is back, and GET /api/v1/securities/:security_id/logo, the logo status read, gains file_missing, true for a marked row (B2, #933)",
+        "The MCP companion: a write answered by a gateway 502, 504, 520 or 524 (except a 502 in the API's own errors envelope), or a 2xx whose body it cannot read, answers outcome unknown, with the advice to re-read before retrying, as a lost connection does; a body that is not JSON is named by its status and a short excerpt, never surfaced as a parse error; a read keeps its rule and is never an unknown outcome (B3, #1045)",
+        "The MCP companion over HTTP (PORTFOLIXIR_MCP_TRANSPORT=http): when its port is taken or invalid it exits 1, naming the address and the cause, where it printed its listening line and exited 0 serving nothing (B3, #1043)"
+      ],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 14,
       # Sprint 19's PR α (the money a stranger checks first), after PR #1102's
       # 13: the lane PR's one entry, opened by its first surface change (M3);

@@ -12,6 +12,9 @@ defmodule PortfolixirWeb.Api.V1.CategoryResultController do
   The view scope (#901; ADR-0051 §6) comes in the performance family's two
   forms: the portfolio read narrowed with `?view=` (`index/2`), and the view
   read across every portfolio (`show/2`), each echoing the active view.
+  `total/2` reads every portfolio with no view (#1091's read half,
+  `CategoryResult.for_all_portfolios/2`), the roll-up the classification
+  screen shows, in EUR.
   """
   use PortfolixirWeb, :controller
 
@@ -46,6 +49,15 @@ defmodule PortfolixirWeb.Api.V1.CategoryResultController do
       |> CategoryResult.for_view(cid)
       |> respond(conn, view)
     else
+      failure -> refuse(conn, failure)
+    end
+  end
+
+  # #1091 (the read half): every portfolio, in EUR, the roll-up the
+  # classification screen shows; no view to echo.
+  def total(conn, params) do
+    case classification_id(Map.get(params, "classification_id")) do
+      {:ok, cid} -> cid |> CategoryResult.for_all_portfolios() |> respond(conn, nil)
       failure -> refuse(conn, failure)
     end
   end

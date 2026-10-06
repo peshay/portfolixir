@@ -8,6 +8,7 @@ defmodule PortfolixirWeb.ApiV1CategoryResultsTest do
       base_world: 1,
       create_security!: 1,
       buy!: 3,
+      cross_trade!: 3,
       deposit!: 3,
       deposit!: 4,
       put_quote!: 3
@@ -16,6 +17,7 @@ defmodule PortfolixirWeb.ApiV1CategoryResultsTest do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Classifications
+  alias Portfolixir.Fx
 
   @auth {"authorization", "Bearer test-api-token"}
 
@@ -114,6 +116,17 @@ defmodule PortfolixirWeb.ApiV1CategoryResultsTest do
     assert position["invested"] == "1000"
     assert position["result_abs"] == "500"
     assert position["result_pct"] == "0.5"
+
+    # #1091: the portfolio form serves the excluded members too, each once.
+    assert data["excluded_members"] == [
+             %{
+               "security_id" => world.dark.id,
+               "security_name" => "Dark AG",
+               "category_id" => world.core.id,
+               "reason" => "no_usable_price",
+               "native_costs" => []
+             }
+           ]
   end
 
   # User story (#901; ADR-0041 §1, ADR-0051 §6):
@@ -223,13 +236,24 @@ defmodule PortfolixirWeb.ApiV1CategoryResultsTest do
     assert across["base_currency"] == "EUR"
     assert across["view"] == %{"id" => view.id, "name" => "Retired"}
     assert across["basis_note"] =~ "across every portfolio, each account counted once, in EUR"
+
+    # #1091: every form serves excluded_members, and every scope sentence
+    # names it.
+    for data <- [unscoped, narrowed, across] do
+      assert data["basis_note"] =~
+               "excluded_members names each member left out, once across the tree."
+    end
   end
 
-  # #1048 (pick J10.2 A): the engine's result now carries the excluded
-  # members once each, with their native costs, for the classification
-  # screen. That key is internal until #1091 decides how to serve it, so the
-  # view read's JSON keeps exactly the fields and figures it had.
-  test "the view read's payload is unchanged by the excluded-members list (#1048)", %{conn: conn} do
+  # #1048 (pick J10.2 A) put the excluded members, once each with their
+  # native costs, into the engine's result for the classification screen,
+  # and kept the key internal until #1091 decided how to serve it. #1091's
+  # read half decides (decision α, deferred to this read): every form serves
+  # excluded_members, additively. The pin below names it; every other field
+  # and figure is the one the view read had.
+  test "the view read serves the excluded members beside its unchanged fields (#1091)", %{
+    conn: conn
+  } do
     world = seed()
 
     dollar =
@@ -266,7 +290,7 @@ defmodule PortfolixirWeb.ApiV1CategoryResultsTest do
       |> Map.fetch!("data")
 
     assert data |> Map.keys() |> Enum.sort() ==
-             ~w(base_currency basis basis_note categories classification_id portfolio_id scope view view_id)
+             ~w(base_currency basis basis_note categories classification_id excluded_members portfolio_id scope view view_id)
 
     assert [core] = data["categories"]
 
@@ -288,6 +312,224 @@ defmodule PortfolixirWeb.ApiV1CategoryResultsTest do
     for entry <- [dark, harbor] do
       assert entry |> Map.keys() |> Enum.sort() == ~w(reason security_id security_name)
     end
+
+    # The list the screen shows: each excluded member once, sorted by name,
+    # with the category it is filed under, its reason and, when its cost was
+    # paid outside EUR, that cost in its own currency, as Decimal strings.
+    assert data["excluded_members"] == [
+             %{
+               "security_id" => world.dark.id,
+               "security_name" => "Dark AG",
+               "category_id" => world.core.id,
+               "reason" => "no_usable_price",
+               "native_costs" => []
+             },
+             %{
+               "security_id" => harborline.id,
+               "security_name" => "Harborline Freight Inc",
+               "category_id" => world.core.id,
+               "reason" => "missing_base_cost",
+               "native_costs" => [%{"amount" => "1500", "currency" => "USD"}]
+             }
+           ]
+  end
+
+  # User story (#1091, the read half; Sprint 19 plan D-7):
+  # As the agent asked how each category is doing across everything the
+  # operator holds, with no view picked,
+  # I want the all-portfolios category result the classification screen
+  # shows, in one read,
+  # so that I answer the screen's figure, and name what it leaves out,
+  # without a view or a portfolio to pick first.
+  #
+  # Acceptance criteria:
+  # - GET /api/v1/category-results?classification_id= answers
+  #   CategoryResult.for_all_portfolios/2: scope "all", portfolio_id and
+  #   view_id null, base_currency "EUR", no view echo.
+  # - A member held in a portfolio whose base currency is not EUR is out of
+  #   the sum and named in excluded_members with its native cost.
+  # - basis_note closes on the scope: every portfolio, in EUR, and why a
+  #   non-EUR portfolio's member is out.
+  # - A missing classification_id is a 422, an unknown one a 404.
+  test "answers the category result across every portfolio without a scope", %{conn: conn} do
+    world = seed()
+
+    dollar =
+      base_world(
+        name: "Dollar",
+        currency: "USD",
+        cash_name: "Dollar Cash",
+        depot_name: "Dollar Depot"
+      )
+
+    harborline =
+      create_security!(name: "Harborline Freight Inc", ticker: "HBF", currency: "USD")
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Actor.owner_ui(),
+        harborline.id,
+        world.classification.id,
+        world.core.id
+      )
+
+    deposit!(dollar, "10000", ~D[2026-01-01], currency: "USD")
+    buy!(dollar, harborline, quantity: "10", price: "150", currency: "USD")
+    put_quote!(harborline, Date.utc_today(), "180")
+
+    data =
+      get_json(conn, "/api/v1/category-results?classification_id=#{world.classification.id}")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert data["scope"] == "all"
+    assert data["portfolio_id"] == nil
+    assert data["view_id"] == nil
+    assert data["base_currency"] == "EUR"
+    assert data["classification_id"] == world.classification.id
+    assert data["basis"] == "current_composition"
+    refute Map.has_key?(data, "view")
+
+    # Alpha alone, in EUR: Dark has no price, Harborline's cost was paid in
+    # USD.
+    assert [core] = data["categories"]
+    assert core["invested"] == "1000"
+    assert core["current_value"] == "1500"
+    assert core["result_abs"] == "500"
+    assert core["covered_count"] == 1
+    assert core["member_count"] == 3
+
+    assert [
+             %{"security_name" => "Dark AG", "reason" => "no_usable_price", "native_costs" => []},
+             %{
+               "security_id" => harbor_id,
+               "security_name" => "Harborline Freight Inc",
+               "category_id" => category_id,
+               "reason" => "missing_base_cost",
+               "native_costs" => [%{"amount" => "1500", "currency" => "USD"}]
+             }
+           ] = data["excluded_members"]
+
+    assert harbor_id == harborline.id
+    assert category_id == world.core.id
+
+    assert data["basis_note"] =~
+             "Scope: the positions of every portfolio, each account counted once, in EUR"
+
+    assert data["basis_note"] =~ "excluded_members"
+
+    assert get_json(conn, "/api/v1/category-results")
+           |> json_response(422) == %{"errors" => %{"classification_id" => ["is required"]}}
+
+    assert get_json(conn, "/api/v1/category-results?classification_id=9999999")
+           |> json_response(404)
+
+    assert get_json(conn, "/api/v1/category-results?classification_id=abc")
+           |> json_response(404)
+  end
+
+  # Acceptance criteria (#1091, review round):
+  # - A security held in a EUR and in a USD portfolio is excluded whole from
+  #   the every-portfolio read (no partial sum of a security), and its
+  #   native_costs carry both slices' costs, the result's currency (EUR)
+  #   first, then the others by code.
+  # - excluded_members is sorted by name without regard to case, ties by
+  #   security_id.
+  test "names a security held in EUR and in USD once, with both costs", %{conn: conn} do
+    world = seed()
+
+    dollar =
+      base_world(
+        name: "Dollar",
+        currency: "USD",
+        cash_name: "Dollar Cash",
+        depot_name: "Dollar Depot"
+      )
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2026-01-01],
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    crossing = create_security!(name: "Crossing Lines Inc", ticker: "CRL", currency: "USD")
+    # Lower case on purpose: a byte-wise sort would put it after "Dark AG".
+    aurora = create_security!(name: "aurora fund", ticker: "AUR")
+
+    for security <- [crossing, aurora] do
+      {:ok, _} =
+        Classifications.assign_security(
+          Actor.owner_ui(),
+          security.id,
+          world.classification.id,
+          world.core.id
+        )
+    end
+
+    # The EUR slice: 10 at 125 USD, settled at 1000 EUR; the USD slice: 10
+    # at 150 USD. Aurora is held but never priced.
+    cross_trade!(world, crossing,
+      quantity: "10",
+      price: "125",
+      settled: "1000",
+      gross: "1000",
+      date: ~D[2026-01-02]
+    )
+
+    deposit!(dollar, "10000", ~D[2026-01-01], currency: "USD")
+    buy!(dollar, crossing, quantity: "10", price: "150", currency: "USD")
+    put_quote!(crossing, Date.utc_today(), "180")
+    buy!(world, aurora, quantity: "2", price: "10")
+
+    data =
+      get_json(conn, "/api/v1/category-results?classification_id=#{world.classification.id}")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    # Alpha alone: Crossing leaves whole, Dark and Aurora have no price.
+    assert [core] = data["categories"]
+    assert core["invested"] == "1000"
+    assert core["covered_count"] == 1
+    assert core["member_count"] == 4
+
+    assert Enum.map(data["excluded_members"], &{&1["security_name"], &1["reason"]}) == [
+             {"aurora fund", "no_usable_price"},
+             {"Crossing Lines Inc", "missing_base_cost"},
+             {"Dark AG", "no_usable_price"}
+           ]
+
+    crossing_member = Enum.find(data["excluded_members"], &(&1["security_id"] == crossing.id))
+
+    assert crossing_member["native_costs"] == [
+             %{"amount" => "1000", "currency" => "EUR"},
+             %{"amount" => "1500", "currency" => "USD"}
+           ]
+  end
+
+  # Acceptance criteria (#1091, review round): the every-portfolio read takes
+  # no scope; view= and portfolio_id= are ignored, as on GET
+  # /api/v1/valuation, and the answer stays scope "all" with no view echo.
+  test "the every-portfolio read ignores view= and portfolio_id=", %{conn: conn} do
+    world = seed()
+    {:ok, narrow} = Buckets.create_view(Actor.owner_ui(), %{name: "Narrow", include_all: false})
+    path = "/api/v1/category-results?classification_id=#{world.classification.id}"
+
+    plain = get_json(conn, path) |> json_response(200) |> Map.fetch!("data")
+
+    scoped =
+      get_json(conn, path <> "&view=#{narrow.id}&portfolio_id=#{world.portfolio.id}")
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert scoped["scope"] == "all"
+    assert scoped["view_id"] == nil
+    refute Map.has_key?(scoped, "view")
+    assert scoped == plain
   end
 
   test "answers the view scope's errors as the performance family does", %{conn: conn} do

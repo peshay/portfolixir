@@ -499,4 +499,176 @@ defmodule PortfolixirWeb.ApiV1BenchmarkTest do
     })
     |> json_response(200)
   end
+
+  # User story (#1056; Sprint 19 plan D-7):
+  # As the agent asked whether everything beat a benchmark, with no view
+  # picked,
+  # I want the comparison of every account in one read,
+  # so that I answer the operator's Everything scope without creating a
+  # catch-all view first.
+  #
+  # Acceptance criteria:
+  # - GET /api/v1/performance/benchmark answers the view comparison's shape
+  #   over Benchmark.for_view(nil): view_id null, no view echo, in EUR.
+  # - computation_basis.input_series names the scope and the currency, and
+  #   says the screen's Everything scope is computed in the first
+  #   portfolio's base currency.
+  # - An include-all view with no exclusion reads the same figures.
+  # - benchmark= and the period parameters are the view read's: a missing
+  #   benchmark is today's 422, a bad period a 422 on period.
+  test "returns the comparison of every account without a view", %{conn: conn} do
+    world = seeded_world("Everything")
+    bench = benchmark_security!(name: "Broad Index", ticker: "BRD")
+    put_quotes!(bench, [{Date.add(world.today, -25), "50"}, {Date.add(world.today, -1), "55"}])
+    query = %{"benchmark" => "security:#{bench.id}"}
+
+    assert Buckets.list_views() == []
+
+    total =
+      api_conn(conn)
+      |> get("/api/v1/performance/benchmark", query)
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert total["view_id"] == nil
+    refute Map.has_key?(total, "view")
+    refute Map.has_key?(total, "portfolio_id")
+    assert total["base_currency"] == "EUR"
+    assert total["benchmark"]["security_id"] == bench.id
+    refute Map.has_key?(total["bought_once"], "series")
+
+    basis = total["computation_basis"]["input_series"]
+    assert basis =~ "Scope: every account in every portfolio, each counted once, with no view"
+    assert basis =~ "in EUR, converted through the EUR hub"
+    assert basis =~ "computed in the first portfolio's base currency"
+    assert total["computation_basis"]["frictionless"] == true
+
+    {:ok, everything} = Buckets.create_view(Actor.owner_ui(), %{name: "Everything"})
+
+    view =
+      api_conn(conn)
+      |> get("/api/v1/views/#{everything.id}/performance/benchmark", query)
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    for key <- ~w(period base_currency benchmark requested_window window excluded_flows
+                  bought_once savings_plan unvalued_cash_accounts) do
+      assert total[key] == view[key], key
+    end
+
+    refute view["computation_basis"]["input_series"] =~ "Scope:"
+
+    assert String.starts_with?(basis, view["computation_basis"]["input_series"])
+
+    assert Map.delete(total["computation_basis"], "input_series") ==
+             Map.delete(view["computation_basis"], "input_series")
+
+    with_series =
+      api_conn(conn)
+      |> get("/api/v1/performance/benchmark", Map.put(query, "series", "true"))
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert is_list(with_series["bought_once"]["series"])
+
+    assert api_conn(conn) |> get("/api/v1/performance/benchmark") |> json_response(422) ==
+             %{"errors" => %{"benchmark" => ["can't be blank"]}}
+
+    assert api_conn(conn)
+           |> get("/api/v1/performance/benchmark", Map.put(query, "period", "nope"))
+           |> json_response(422) == %{"errors" => %{"period" => ["is invalid"]}}
+
+    assert api_conn(conn)
+           |> get("/api/v1/performance/benchmark", %{"benchmark" => "foo"})
+           |> json_response(422) == %{"errors" => %{"benchmark" => ["is invalid"]}}
+  end
+
+  # Two portfolios, the first in USD: 1250 USD in, 10 units of a USD fund at
+  # 100 USD, now 120 USD; then a EUR portfolio, 1000 EUR in, 10 units at 100
+  # EUR, now 110 EUR. EUR/USD stands at 1.25 throughout, so the end value in
+  # EUR is 1450 / 1.25 + 1100 = 2260.
+  defp two_currency_world do
+    today = Date.utc_today()
+    start = Date.add(today, -10)
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: Date.add(start, -1),
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    dollar =
+      base_world(
+        name: "Dollar",
+        currency: "USD",
+        cash_name: "Dollar Cash",
+        depot_name: "Dollar Depot"
+      )
+
+    euro = base_world(name: "Euro", cash_name: "Euro Cash", depot_name: "Euro Depot")
+
+    us_fund = create_security!(name: "US Fund", ticker: "USF", currency: "USD")
+    eu_fund = create_security!(name: "EU Fund", ticker: "EUF")
+
+    deposit!(dollar, "1250", start, currency: "USD")
+    buy!(dollar, us_fund, quantity: "10", price: "100", date: start, currency: "USD")
+    put_quotes!(us_fund, [{start, "100"}, {today, "120"}])
+
+    deposit!(euro, "1000", start, [])
+    buy!(euro, eu_fund, quantity: "10", price: "100", date: start)
+    put_quotes!(eu_fund, [{start, "100"}, {today, "110"}])
+
+    %{dollar: dollar, euro: euro}
+  end
+
+  # Acceptance criteria (#1056, D-7, review round): with a first portfolio
+  # whose base currency is USD, the view-less comparison still answers in
+  # EUR, its USD money converted through the hub.
+  test "the comparison of every account is in EUR when the first portfolio is not", %{
+    conn: conn
+  } do
+    two_currency_world()
+
+    data =
+      api_conn(conn)
+      |> get("/api/v1/performance/benchmark", %{"benchmark" => "rate:0"})
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert data["base_currency"] == "EUR"
+    assert data["savings_plan"]["portfolio_end_value"] == "2260"
+    assert data["computation_basis"]["input_series"] =~ "in EUR, converted through the EUR hub"
+  end
+
+  # Acceptance criteria (#1056, review round): the view-less comparison takes
+  # no scope; view= and portfolio_id= are ignored, as on GET /api/v1/valuation.
+  test "the view-less comparison ignores view= and portfolio_id=", %{conn: conn} do
+    %{euro: euro} = two_currency_world()
+    {:ok, narrow} = Buckets.create_view(Actor.owner_ui(), %{name: "Narrow", include_all: false})
+
+    plain =
+      api_conn(conn)
+      |> get("/api/v1/performance/benchmark", %{"benchmark" => "rate:0"})
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    scoped =
+      api_conn(conn)
+      |> get("/api/v1/performance/benchmark", %{
+        "benchmark" => "rate:0",
+        "view" => Integer.to_string(narrow.id),
+        "portfolio_id" => Integer.to_string(euro.portfolio.id)
+      })
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert scoped["view_id"] == nil
+    refute Map.has_key?(scoped, "view")
+    assert Map.drop(scoped, ["as_of"]) == Map.drop(plain, ["as_of"])
+  end
 end

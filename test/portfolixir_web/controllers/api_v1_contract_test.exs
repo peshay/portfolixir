@@ -49,37 +49,103 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
+    # Sprint 19, PR β (version 15, after PR α's 14): a stranger's first run
+    # and the agent's reads, one entry for the lane PR. B5 adds the
+    # performance family's Everything form and the all-portfolios category
+    # result (#1056, #1091's read half, D-7), and names the survivor of a
+    # merged-away benchmark security (#959); B2's missing logo file (#933)
+    # and B3's companion failure modes (#1043, #1045) ride the entry.
+    assert newest["version"] == 15
+    # Strictly after α's entry (2026-10-06), which since= compares against.
+    assert newest["date"] == "2026-10-07"
+    assert newest["summary"] =~ "Sprint 19 PR β"
+    assert newest["tools"] == []
+
+    assert newest["endpoints"] == [
+             "GET /api/v1/performance",
+             "GET /api/v1/performance/benchmark",
+             "GET /api/v1/performance/contribution",
+             "GET /api/v1/category-results"
+           ]
+
+    for issue <- ["#1056", "#1091", "#959", "#933", "#1043", "#1045"] do
+      assert newest["summary"] =~ issue, issue
+    end
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(
+                 &1,
+                 "GET /api/v1/performance, GET /api/v1/performance/benchmark and GET /api/v1/performance/contribution"
+               ) and
+                 &1 =~ "EUR" and &1 =~ "first portfolio's base currency" and
+                 &1 =~ "computation_basis.input_series" and &1 =~ "#1056")
+           )
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "portfolixir.views.performance" and &1 =~ "portfolixir.views.benchmark" and
+                 &1 =~ "portfolixir.views.contribution" and &1 =~ "id" and &1 =~ "optional" and
+                 &1 =~ "#1056")
+           )
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/category-results") and &1 =~ "scope" and
+                 &1 =~ "all" and &1 =~ "excluded_members" and &1 =~ "native_costs" and
+                 &1 =~ "portfolixir.portfolios.category_results" and &1 =~ "#1091")
+           )
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "benchmark=security:" and &1 =~ "merged_into" and &1 =~ "#959")
+           )
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "logo_status=missing" and &1 =~ "missing_logo" and
+                 &1 =~ "logo_file_missing" and &1 =~ "file_missing" and &1 =~ "#933")
+           )
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(&1 =~ "502" and &1 =~ "504" and &1 =~ "outcome unknown" and &1 =~ "#1045")
+           )
+
+    assert Enum.any?(newest["parameters"], &(&1 =~ "exits 1" and &1 =~ "#1043"))
+
     # Sprint 19, PR α (version 14, after PR #1102's 13): the money a
     # stranger checks first, one entry for the lane PR. M3 opened it: the performance and the
     # contribution reads, in both forms, name a cash account that counted
     # zero for want of a rate path (#1055, ADR-0051 §10). No route and no
-    # tool is added; M4, M6 and M7 extend the entry.
-    assert newest["version"] == 14
+    # tool is added; M4, M6 and M7 extend the entry. Found by version from
+    # PR β on.
+    alpha = Enum.find(data["entries"], &(&1["version"] == 14))
     # M4, M6 and M7 extended the entry on 2026-10-06, so its date moved with
     # them: a since=2026-10-05 poller sees them.
-    assert newest["date"] == "2026-10-06"
-    assert newest["summary"] =~ "Sprint 19"
-    assert newest["summary"] =~ "M3"
-    assert newest["endpoints"] == []
-    assert newest["tools"] == []
+    assert alpha["date"] == "2026-10-06"
+    assert alpha["summary"] =~ "Sprint 19"
+    assert alpha["summary"] =~ "M3"
+    assert alpha["endpoints"] == []
+    assert alpha["tools"] == []
 
     # M4 adds no field: a cross-currency trade's fees and taxes are read in
     # its cash account's currency, and the entry says which figures move,
     # a trade with no rate for its price currency included (#1051).
-    assert newest["summary"] =~ "M4"
-    assert newest["summary"] =~ "cash account's currency"
-    assert newest["summary"] =~ "#1051"
-    assert newest["summary"] =~ "a trade with no rate for its price currency"
+    assert alpha["summary"] =~ "M4"
+    assert alpha["summary"] =~ "cash account's currency"
+    assert alpha["summary"] =~ "#1051"
+    assert alpha["summary"] =~ "a trade with no rate for its price currency"
 
     # M6 adds a payload field, no schema byte (D-10): every valuation read
     # counts the cash accounts it leaves out of total_cash for want of a
     # rate path, and its note says so (#1081, D-3).
-    assert newest["summary"] =~ "M6"
-    assert newest["summary"] =~ "#1081"
-    assert newest["summary"] =~ "unvalued_cash_count"
+    assert alpha["summary"] =~ "M6"
+    assert alpha["summary"] =~ "#1081"
+    assert alpha["summary"] =~ "unvalued_cash_count"
 
     assert Enum.any?(
-             newest["parameters"],
+             alpha["parameters"],
              &(String.starts_with?(
                  &1,
                  "GET /api/v1/portfolios/:portfolio_id/valuation, GET /api/v1/views/:view_id/valuation and GET /api/v1/valuation"
@@ -96,7 +162,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
             "GET /api/v1/views/:view_id/performance/benchmark"
         ] do
       assert Enum.any?(
-               newest["parameters"],
+               alpha["parameters"],
                &(String.starts_with?(&1, read) and &1 =~ "unvalued_cash_accounts" and
                    &1 =~ "first_rate_date" and &1 =~ "#1055")
              ),
@@ -107,19 +173,19 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # tool: securities.list's data_quality takes two_scales, and the detail
     # read's bond.two_scales names its direction, the reverse band and the
     # master-data signal.
-    assert newest["summary"] =~ "M7"
-    assert newest["summary"] =~ "#1068"
-    assert newest["summary"] =~ "two_scales"
+    assert alpha["summary"] =~ "M7"
+    assert alpha["summary"] =~ "#1068"
+    assert alpha["summary"] =~ "two_scales"
 
     assert Enum.any?(
-             newest["parameters"],
+             alpha["parameters"],
              &(String.starts_with?(&1, "GET /api/v1/securities?data_quality=") and
                  &1 =~ "portfolixir.securities.list" and &1 =~ "two_scales" and
                  &1 =~ "#1068")
            )
 
     assert Enum.any?(
-             newest["parameters"],
+             alpha["parameters"],
              &(String.starts_with?(&1, "GET /api/v1/securities/:id") and
                  &1 =~ "portfolixir.securities.get" and &1 =~ "direction" and
                  &1 =~ "reverse" and &1 =~ "1/500 to 1/20" and
@@ -127,11 +193,11 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
            )
 
     # #1078 rides M7: the class a create or update stores for some names moves.
-    assert newest["summary"] =~ "#1078"
-    refute newest["summary"] =~ "with no figure changed, names a bond"
+    assert alpha["summary"] =~ "#1078"
+    refute alpha["summary"] =~ "with no figure changed, names a bond"
 
     assert Enum.any?(
-             newest["parameters"],
+             alpha["parameters"],
              &(String.starts_with?(&1, "POST /api/v1/securities and PATCH /api/v1/securities/:id") and
                  &1 =~ "Muster Computer Corp" and &1 =~ "#1078")
            )
@@ -139,7 +205,7 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # The review round: the day before the window counts, and an account
     # still at zero on the last day says so.
     assert Enum.any?(
-             newest["parameters"],
+             alpha["parameters"],
              &(&1 =~ "the day before the window (the start value) included" and
                  &1 =~ "unvalued_through_end")
            )

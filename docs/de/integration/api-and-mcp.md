@@ -1934,7 +1934,16 @@ Beispiel-Payloads für Konten:
   Definitionsbereich des IRR-Solvers), oder `security:<id>` für ein
   Katalog-Wertpapier mit gesetztem `is_benchmark` (Liste über
   `GET /api/v1/securities?is_benchmark=true`; jedes andere Wertpapier
-  liefert `422`). `period`, `year`, `from`/`to`, `view=` und `series=true`
+  liefert `422`, `{"errors": {"benchmark": ["is not a benchmark
+  security"]}}`). Ein Wertpapier, das eine Zusammenführung entfernt hat, wird
+  ebenso abgelehnt; ist der Überlebende am lebenden Ende seiner
+  Zusammenführungskette selbst eine gesetzte Benchmark, ergänzt der Body
+  `merged_into` `{"kind": "security", "id": …}` mit ihm, wie ihn die Abfragen
+  zusammengeführter IDs nennen, und ein neuer Versuch mit dieser ID vergleicht
+  (#959). Ein Überlebender ohne `is_benchmark`, eine Kette, die an einer
+  inzwischen gelöschten Zeile endet, und eine ID, die keine Zusammenführung
+  nennt, antworten ohne ihn. Der View- und der
+  view-lose Vergleich unten antworten genauso. `period`, `year`, `from`/`to`, `view=` und `series=true`
   verhalten sich wie beim Performance-Endpunkt. Die Antwort trägt
   `benchmark` (`kind`, dann `annual_rate` oder `security_id`/`name`/
   `currency_code`), `requested_window` und `window` — die Tage, die der
@@ -2100,13 +2109,29 @@ Beispiel-Payloads für Konten:
   (ADR-0051 §6). `?view=<id>` grenzt die Portfolio-Abfrage auf die zur View
   passenden Positionen des Portfolios ein und spiegelt sie als
   `view: {id, name}`; eine fehlerhafte View ist ein `422`, eine unbekannte ein
-  `404`. Die View-Abfrage unten reicht über jedes Portfolio. Jede Antwort
-  nennt den Bereich, über den sie gerechnet wurde: `scope` (`portfolio` oder
-  `view`), `portfolio_id`, `view_id`, `base_currency` (die Währung jedes
-  Geldwerts: die des Portfolios, oder `EUR` für eine View) und einen
-  Schlusssatz von `basis_note`, der ihn benennt. Das MCP-Tool nimmt denselben
-  Bereich: `portfolio_id`, das `view` eingrenzt, oder `view` allein für die
-  View über jedes Portfolio; eines von beiden ist Pflicht.
+  `404`. Die View-Abfrage unten reicht über jedes Portfolio, und
+  `GET /api/v1/category-results` über jedes Portfolio ohne View (#1091). Jede
+  Antwort nennt den Bereich, über den sie gerechnet wurde: `scope`
+  (`portfolio`, `view` oder `all`), `portfolio_id`, `view_id`,
+  `base_currency` (die Währung jedes Geldwerts: die des Portfolios bei der
+  Portfolio-Abfrage, `EUR` bei der View-Abfrage und bei der Abfrage über jedes
+  Portfolio, `scope: "all"`) und einen Schlusssatz von `basis_note`, der ihn
+  benennt. Das MCP-Tool nimmt denselben Bereich:
+  `portfolio_id`, das `view` eingrenzt, `view` allein für die View über jedes
+  Portfolio, oder keines von beiden für jedes Portfolio.
+
+  **Jede Form nennt einmal, was sie auslässt** (#1091): `excluded_members`
+  führt jedes ausgeschlossene Mitglied genau einmal über den ganzen Baum,
+  gleich in wie viele Ebenen es einrollt, nach Namen sortiert ohne Rücksicht
+  auf Groß- und Kleinschreibung (bei Gleichstand nach `security_id`), mit
+  `security_id`, `security_name`, `category_id` (die Kategorie, unter der es
+  steht), `reason` und `native_costs` — `[{amount, currency}]`, die
+  Einstandskosten in der Währung, in der sie bezahlt wurden, Beträge als
+  Decimal-Strings, wenn nur diese Währung das Mitglied aus einer EUR-Summe
+  hält, sonst `[]`. Ein Wertpapier in einem EUR- und einem Nicht-EUR-Portfolio
+  bleibt ganz heraus und trägt einen Eintrag je Währung, die Währung des
+  Ergebnisses zuerst, dann die übrigen nach Code. Jede `basis_note` nennt die
+  Liste; die `excluded`-Zeilen je Kategorie bleiben unverändert.
 - `GET /api/v1/portfolios/:portfolio_id/allocation` liefert die
   SOLL/IST-Aufschlüsselung für eine Klassifizierung (erforderlicher
   `classification_id`-Query-Parameter; ein fehlender liefert
@@ -2867,9 +2892,9 @@ nicht journalisiert: Noch keine Regel kann sie lesen.
   Überschneidung, `matches_no_accounts` ist `false`), und die
   `valuation_note` benennt den Bereich. `include_positions=false` liefert nur
   den Roll-up, wie bei der View-Abfrage; ein ungültiger Wert ist ein `422`.
-  MCP: `portfolixir.views.valuation` ohne `id`. Eine Performance- oder
-  Benchmark-Abfrage ohne View gibt es nicht: Sie nehmen eine View oder ein
-  Portfolio.
+  MCP: `portfolixir.views.valuation` ohne `id`. Performance,
+  Benchmark-Vergleich und Beitragsanalyse haben dieselbe Form ohne View
+  (#1056), unten nach ihren View-Abfragen aufgeführt.
 - `GET /api/v1/views/:view_id/performance` liefert TTWROR und geldgewichtete
   Rendite (IRR) der View **über alle Portfolios**: exakt der deduplizierte
   Konten-Scope, den auch die View-Bewertung abdeckt, sodass Gesamtwert und
@@ -2900,6 +2925,25 @@ nicht journalisiert: Noch keine Regel kann sie lesen.
   hat dessen Form mit `portfolio_id: null`, `view_id` und der gespiegelten
   View. Unbekannte und fehlerhafte View-ids liefern `404`, ein fehlerhafter
   Zeitraum `422`.
+- `GET /api/v1/performance`, `GET /api/v1/performance/benchmark` und
+  `GET /api/v1/performance/contribution` sind die drei Abfragen oben **ohne
+  View** (#1056): jedes Konto jedes Portfolios, jedes einmal gezählt, der
+  Bereich, den die Vermögensseite „Alles“ nennt, lesbar, bevor es eine View
+  gibt. Jede nimmt die Parameter ihrer View-Abfrage (`benchmark=` bleibt beim
+  Vergleich Pflicht) und antwortet in deren Form mit `view_id: null` (und
+  `portfolio_id: null` bei der Beitragsanalyse) und ohne `view`-Spiegelung;
+  ein fehlerhafter Zeitraum ist ein `422`, eine fehlende oder abgelehnte
+  Benchmark ein `422` auf `benchmark`. Keine nimmt einen Bereich: `view=`
+  und `portfolio_id=` werden ignoriert, wie bei `GET /api/v1/valuation`.
+  **Sie antworten in EUR**, über den
+  EUR-Hub, wie die View-Abfragen und `GET /api/v1/valuation`. Die
+  Vermögensseite rechnet ihre Alles-Zahlen in der Basiswährung des ersten
+  Portfolios, sodass beide abweichen, wenn diese nicht EUR ist, und jede
+  Antwort sagt das: `computation_basis.input_series` schließt mit dem Bereich
+  (jedes Konto jedes Portfolios, keine View) und der Währung. Eine View mit
+  `include_all` und ohne Ausschluss liefert dieselben Zahlen. MCP:
+  `portfolixir.views.performance`, `portfolixir.views.benchmark` und
+  `portfolixir.views.contribution` ohne `id`.
 - `GET /api/v1/views/:view_id/category-results?classification_id=<id>`
   liefert das Ergebnis je Kategorie (ADR-0041) der zur View passenden
   Positionen **über alle Portfolios**, jedes Konto einmal gezählt (#901). Die
@@ -2912,6 +2956,20 @@ nicht journalisiert: Noch keine Regel kann sie lesen.
   liefern `404`, eine fehlende `classification_id` `422`, eine unbekannte
   `404`. MCP: `portfolixir.portfolios.category_results` mit `view` und ohne
   `portfolio_id`.
+- `GET /api/v1/category-results?classification_id=<id>` liefert das Ergebnis
+  je Kategorie **jedes Portfolios, ohne View** (#1091): den Roll-up, den die
+  Klassifizierungsseite zeigt, in der Form der Portfolio-Abfrage mit
+  `scope: "all"`, `portfolio_id: null`, `view_id: null`,
+  `base_currency: "EUR"` und ohne `view`-Spiegelung. Die EUR-Regel der
+  View-Abfrage gilt: Ein Mitglied aus einem Portfolio mit anderer
+  Basiswährung als EUR fehlt mit `missing_base_cost`, und `excluded_members`
+  nennt es mit seinen Einstandskosten in der Währung, in der sie bezahlt
+  wurden; `basis_note` schließt mit dem Bereich. Sie nimmt keinen Bereich:
+  `view=` und `portfolio_id=` werden ignoriert, wie bei
+  `GET /api/v1/valuation`. Eine fehlende `classification_id` ist ein `422`,
+  eine unbekannte ein `404`. MCP:
+  `portfolixir.portfolios.category_results` ohne `portfolio_id` und ohne
+  `view`.
 - `PUT /api/v1/securities_accounts/:id/buckets` ersetzt das Standard-Bucket-Set
   eines Depots (die Buckets, die jede Position erbt, sofern nicht überschrieben).
   Body: `{"bucket_ids": [..]}`.
@@ -3328,12 +3386,15 @@ Portfolio braucht keine View: `portfolixir.views.valuation` ohne id liest sie
 (`GET /api/v1/valuation`, #1007), immer in EUR über jedes Konto — die Summe der
 Übersicht, wenn das erste Portfolio die Basiswährung EUR hat und keine
 Standard-Ansicht gesetzt ist —, also ist eine Summe von Portfolio-Bewertungen
-nie der Weg dorthin. Jedes der Tools für
-View-Performance, View-Benchmark und View-Beitragsanalyse braucht eine
-bestehende View-ID — eine mit `include_all` (Standard) und ohne Ausschluss
-angelegte View erfasst jedes Konto —, und solange keine View besteht, ist das
-Portfolio-Tool der einzige Lesezugriff auf eine Rendite oder einen Beitrag:
-Renditen mehrerer Portfolios addieren sich nie.
+nie der Weg dorthin. Auch die Tools für
+View-Performance, View-Benchmark und View-Beitragsanalyse brauchen keine
+View: Ohne id liest jedes jedes Konto in EUR (`GET /api/v1/performance`,
+`/performance/benchmark`, `/performance/contribution`, #1056), also ist eine
+Rendite oder ein Beitrag über alles eine Abfrage, nie eine Summe von
+Portfolios — Renditen mehrerer Portfolios addieren sich nie. Die
+Vermögensseite rechnet ihre Alles-Zahlen in der Basiswährung des ersten
+Portfolios, sodass sie von diesen abweichen, wenn diese nicht EUR ist, wie
+die `computation_basis` jeder Antwort sagt.
 
 **Prompts.** Der Begleitdienst bietet zwei MCP-Prompts (`prompts/list`,
 `prompts/get`), unter jedem Profil dieselben, und jeder trägt den Rahmen ohne
@@ -3609,7 +3670,8 @@ lässt sich nicht lesen.
 - `portfolixir.targets.delete`
 - `portfolixir.portfolios.allocation`
 - `portfolixir.portfolios.category_results` — ein Portfolio, das `view`
-  eingrenzt, oder `view` allein für die View über jedes Portfolio (#901).
+  eingrenzt, `view` allein für die View über jedes Portfolio (#901), oder
+  keines von beiden für jedes Portfolio in EUR (#1091).
 - `portfolixir.portfolios.risk`
 - `portfolixir.policy_rules.list` — die gespeicherten Regeln mit der am
   `as_of` geltenden Version (ADR-0049); die Beschreibung weist den Agenten an,
@@ -3691,14 +3753,18 @@ lässt sich nicht lesen.
 
 `portfolixir.views.performance` berechnet die passende portfolioübergreifende
 TTWROR/IRR für denselben Konten-Scope; Geld, das die View-Grenze überquert,
-wird als externer Fluss behandelt (ADR-0019).
+wird als externer Fluss behandelt (ADR-0019). Ohne `id` liest es die Rendite
+jedes Kontos, in EUR (#1056).
 
 `portfolixir.portfolios.benchmark` und `portfolixir.views.benchmark` sind
 die Zwillinge der beiden Benchmark-Endpunkte (ADR-0046): `benchmark` ist
 `rate:<decimal>` oder `security:<id>`, die Zeitraum-, View- und
 Series-Parameter sind die der Performance-Tools, und die Antwort trägt
 beide Vergleiche, das abgedeckte Fenster, die ausgeschlossenen Flüsse und
-die Berechnungsbasis mit der benannten Reibungsfreiheits-Annahme.
+die Berechnungsbasis mit der benannten Reibungsfreiheits-Annahme. Das
+View-Tool ohne `id` vergleicht jedes Konto, in EUR (#1056). Eine abgelehnte
+Benchmark kommt als `422`-Body der API zurück, bei einem zusammengeführten
+Wertpapier, dessen Überlebender eine Benchmark ist, mit `merged_into` (#959).
 
 `portfolixir.portfolios.contribution` und `portfolixir.views.contribution`
 sind die Zwillinge der beiden Beitragsendpunkte (FR-41, ADR-0051): die
@@ -3707,6 +3773,7 @@ gibt es nicht), und die Antwort trägt den Beitrag jeder Position, die drei
 Restzeilen, die Summen — `positions` plus `remainder` ist `result`, das
 Geldergebnis des Performance-Endpunkts — und die Berechnungsbasis mit ihren
 benannten Annahmen. Beide sind Lesezugriffe, also listet jedes Profil sie.
+Das View-Tool ohne `id` liest jedes Konto, in EUR (#1056).
 
 `portfolixir.settings.get_default_view` /
 `portfolixir.settings.set_default_view` lesen und setzen die
@@ -3720,7 +3787,8 @@ Die Tools `portfolixir.portfolios.valuation`,
 (eine View-id), das das Ergebnis auf die
 Bestände der Bucket-View eingrenzt; die Antwort spiegelt dann die aktive View
 wider. `portfolixir.portfolios.category_results` nimmt `view` auch ohne
-`portfolio_id`: die View über jedes Portfolio, in EUR (#901).
+`portfolio_id`: die View über jedes Portfolio, in EUR (#901); ohne beide
+liest es jedes Portfolio, in EUR (#1091).
 
 Seit ADR-0020 akzeptieren auch die SOLL-Ziel-Tools (`portfolixir.targets.list`,
 `portfolixir.targets.set`, `portfolixir.targets.delete`) und die Cash-Ziel-Tools

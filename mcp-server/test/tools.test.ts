@@ -2755,6 +2755,65 @@ describe("Portfolixir MCP tools", () => {
     assert.doesNotMatch(tool?.description ?? "", /Gesamt/);
   });
 
+  // User story (#1056; Sprint 19 plan D-7):
+  // As the agent asked how everything did, with no view picked,
+  // I want the view performance, benchmark and contribution tools to read
+  // every account when I give them no id,
+  // so that the operator's Everything scope costs one read, not a catch-all
+  // view created first or a sum of portfolios.
+  //
+  // Acceptance criteria:
+  // - Without id each tool reads its view-less route (GET /api/v1/performance,
+  //   /performance/benchmark, /performance/contribution) with the same query
+  //   parameters; with an id each is unchanged.
+  // - id is optional in each schema; the benchmark tool still requires
+  //   benchmark, and a call without it never leaves the companion.
+  // - Each description says what an omitted id reads: every account, in EUR.
+  it("reads every account when the view performance family has no id", async () => {
+    const { client, requests } = createRecordingClient({ data: { view_id: null } });
+
+    await callTool(client, "portfolixir.views.performance", {});
+    await callTool(client, "portfolixir.views.performance", { period: "ytd", series: true });
+    await callTool(client, "portfolixir.views.benchmark", { benchmark: "security:7", year: 2025 });
+    await callTool(client, "portfolixir.views.contribution", { from: "2025-01-01", to: "2025-06-30" });
+    await callTool(client, "portfolixir.views.performance", { id: 3 });
+    await callTool(client, "portfolixir.views.benchmark", { id: 3, benchmark: "rate:0" });
+    await callTool(client, "portfolixir.views.contribution", { id: 3 });
+
+    assert.deepEqual(
+      requests.map((request) => [request.method, request.path]),
+      [
+        ["GET", "/api/v1/performance"],
+        ["GET", "/api/v1/performance?period=ytd&series=true"],
+        ["GET", "/api/v1/performance/benchmark?benchmark=security%3A7&year=2025"],
+        ["GET", "/api/v1/performance/contribution?from=2025-01-01&to=2025-06-30"],
+        ["GET", "/api/v1/views/3/performance"],
+        ["GET", "/api/v1/views/3/performance/benchmark?benchmark=rate%3A0"],
+        ["GET", "/api/v1/views/3/performance/contribution"]
+      ]
+    );
+
+    // The refusal names the missing field.
+    await assert.rejects(
+      callTool(client, "portfolixir.views.benchmark", {}),
+      /"path": \[\s*"benchmark"\s*\]/
+    );
+    assert.equal(requests.length, 7);
+
+    const tools = listTools();
+    for (const name of ["portfolixir.views.performance", "portfolixir.views.contribution"]) {
+      const tool = tools.find((candidate) => candidate.name === name);
+      assert.equal(tool?.inputSchema.required, undefined, name);
+      assert.equal(tool?.inputSchema.properties.id.type, "integer", name);
+      assert.match(tool?.description ?? "", /with no id, every account in EUR/, name);
+    }
+
+    const benchmark = tools.find((candidate) => candidate.name === "portfolixir.views.benchmark");
+    assert.deepEqual(benchmark?.inputSchema.required, ["benchmark"]);
+    assert.equal(benchmark?.inputSchema.properties.id.type, "integer");
+    assert.match(benchmark?.description ?? "", /with no id, every account in EUR/);
+  });
+
   // User story (#577): as an MCP client I want a view's cross-portfolio
   // TTWROR/IRR from one tool, so that the performance figures cover exactly
   // the accounts the view valuation covers.
@@ -2838,7 +2897,8 @@ describe("Portfolixir MCP tools", () => {
     const viewTool = tools.find((tool) => tool.name === "portfolixir.views.contribution");
 
     assert.deepEqual(portfolioTool?.inputSchema.required, ["portfolio_id"]);
-    assert.deepEqual(viewTool?.inputSchema.required, ["id"]);
+    // #1056: with no id the view tool reads every account.
+    assert.equal(viewTool?.inputSchema.required, undefined);
     assert.deepEqual(Object.keys(portfolioTool?.inputSchema.properties ?? {}).sort(), [
       "from",
       "period",
@@ -3712,35 +3772,42 @@ describe("Portfolixir MCP tools", () => {
     assert.match(viewValuation?.description ?? "", /positions_included/);
   });
 
-  // User story (#901; ADR-0051 §6):
+  // User story (#901; ADR-0051 §6; #1091's read half):
   // As the agent asked for a category's result at the operator's scope,
   // I want the category-result tool to take the view scope in the API's two
-  // forms,
-  // so that a view's figure is one call, whether the view narrows one
-  // portfolio or spans every portfolio.
+  // forms, and no scope for every portfolio,
+  // so that a view's figure, or the classification screen's, is one call,
+  // whether the view narrows one portfolio or spans every portfolio.
   //
   // Acceptance criteria:
   // - portfolio_id alone reads the shipped route unchanged; with view, the
   //   same route narrowed with view=.
   // - view without portfolio_id reads /views/:view_id/category-results.
-  // - Neither is refused before any request is made.
+  // - Neither reads /category-results, every portfolio in EUR (#1091); it
+  //   is no longer refused.
   // - The schema requires only classification_id, types view as an id, and
-  //   the description states both scopes and where the payload names its own.
-  it("routes category_results to the portfolio or the view form by its scope", async () => {
+  //   the description states the three scopes and where the payload names
+  //   its own.
+  it("routes category_results to the portfolio, the view or the every-portfolio form", async () => {
     const { client, requests } = createRecordingClient({ data: {} });
     const name = "portfolixir.portfolios.category_results";
 
     await callTool(client, name, { portfolio_id: 3, classification_id: 5 });
     await callTool(client, name, { portfolio_id: 3, classification_id: 5, view: 7 });
     await callTool(client, name, { classification_id: 5, view: 7 });
-    await assert.rejects(callTool(client, name, { classification_id: 5 }), /portfolio_id or view/);
+    await callTool(client, name, { classification_id: 5 });
+    await assert.rejects(
+      callTool(client, name, { portfolio_id: 3 }),
+      /"path": \[\s*"classification_id"\s*\]/
+    );
 
     assert.deepEqual(
       requests.map((request) => request.path),
       [
         "/api/v1/portfolios/3/category-results?classification_id=5",
         "/api/v1/portfolios/3/category-results?classification_id=5&view=7",
-        "/api/v1/views/7/category-results?classification_id=5"
+        "/api/v1/views/7/category-results?classification_id=5",
+        "/api/v1/category-results?classification_id=5"
       ]
     );
 
@@ -3751,6 +3818,7 @@ describe("Portfolixir MCP tools", () => {
     assert.match(tool?.description ?? "", /across EVERY portfolio, each account counted once, in EUR/);
     assert.match(tool?.description ?? "", /missing_base_cost/);
     assert.match(tool?.description ?? "", /scope, view_id and base_currency/);
+    assert.match(tool?.description ?? "", /neither: every portfolio, in EUR/);
   });
 
   // User story (issue #737): the one-shot historical backfill rides the

@@ -1269,6 +1269,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
 
   defp put_positions_basis(payload, false), do: payload
 
+  @excluded_members_note "excluded_members names each member left out, once across the tree."
+
   @doc """
   Per-category result (ADR-0041 slice one, #712).
 
@@ -1279,9 +1281,15 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   so an aggregate always resolves into the rows behind it.
 
   The scope travels with it too (#901): `scope` is `portfolio` (one
-  portfolio, `view_id` set when a view narrows it) or `view` (a view across
-  every portfolio, `portfolio_id` null), `base_currency` is the currency of
-  every money figure, and `basis_note` closes on the scope in words.
+  portfolio, `view_id` set when a view narrows it), `view` (a view across
+  every portfolio, `portfolio_id` null) or `all` (every portfolio with no
+  view, #1091, both ids null), `base_currency` is the currency of every
+  money figure, and `basis_note` closes on the scope in words.
+
+  `excluded_members` (#1091; the engine's list since #1048) names each
+  member the roll-up leaves out once across the tree, in every form, with
+  the category it is filed under, its reason and, when only the currency
+  of its cost keeps it out, that cost in the currency it was paid in.
   """
   def category_result(result) do
     %{
@@ -1298,25 +1306,49 @@ defmodule PortfolixirWeb.Api.V1.JSON do
           "no period, no membership basis, no as-of. The percentage is the " <>
           "sum of results divided by the sum of invested, never a mean of the " <>
           "members' percentages. " <> category_result_scope(result),
-      categories: Enum.map(result.categories, &category_result_row/1)
+      categories: Enum.map(result.categories, &category_result_row/1),
+      excluded_members: Enum.map(result.excluded_members, &category_excluded_member/1)
     }
   end
 
+  defp category_excluded_member(member) do
+    %{
+      security_id: member.security_id,
+      security_name: member.security_name,
+      category_id: member.category_id,
+      reason: reason(member.reason),
+      # Decimal strings in the API's one form (normalized), as every other
+      # amount of this payload; the screen prints them as money.
+      native_costs:
+        Enum.map(member.native_costs, &%{amount: decimal(&1.amount), currency: &1.currency})
+    }
+  end
+
+  # Every form serves excluded_members (#1091), so every scope sentence names
+  # it.
   defp category_result_scope(%{scope: :portfolio, view_id: nil} = result),
     do:
       "Scope: the positions of portfolio #{result.portfolio_id}, in its base " <>
-        "currency #{result.base_currency}."
+        "currency #{result.base_currency}. " <> @excluded_members_note
 
   defp category_result_scope(%{scope: :portfolio} = result),
     do:
       "Scope: the positions of portfolio #{result.portfolio_id} that match view " <>
-        "#{result.view_id}, in its base currency #{result.base_currency}."
+        "#{result.view_id}, in its base currency #{result.base_currency}. " <>
+        @excluded_members_note
 
   defp category_result_scope(%{scope: :view} = result),
     do:
       "Scope: the positions matching view #{result.view_id} across every portfolio, " <>
         "each account counted once, in EUR; a member whose cost was not paid in " <>
-        "EUR is excluded as missing_base_cost."
+        "EUR is excluded as missing_base_cost. " <> @excluded_members_note
+
+  defp category_result_scope(%{scope: :all}),
+    do:
+      "Scope: the positions of every portfolio, each account counted once, in EUR, " <>
+        "with no view; a member held in a portfolio whose base currency is not EUR " <>
+        "has no EUR cost, is excluded as missing_base_cost and is named in " <>
+        "excluded_members with its cost in the currency it was paid in."
 
   defp category_result_row(row) do
     %{
@@ -1775,13 +1807,36 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   The cross-portfolio view performance (#577): the `performance/2` shape keyed
   by `view_id` instead of `portfolio_id`, covering the deduplicated account
   scope the view valuation covers.
+
+  With `view_id` nil it serializes the Everything walk
+  (`Performance.for_view(nil)`, #1056) in the same shape, its basis naming
+  that scope and its currency.
   """
   def view_performance(result, include_series? \\ false) do
     result
     |> performance(include_series?)
     |> Map.delete(:portfolio_id)
     |> Map.put(:view_id, result.view_id)
+    |> everything_basis(result)
   end
+
+  # #1056 (Sprint 19 plan D-7): a performance-family read with no view and
+  # no portfolio is the Everything scope, and it answers in the EUR hub,
+  # where the screen's Everything scope is computed in the first portfolio's
+  # base currency. The payload says so where the agent reads the basis, in
+  # the field that describes the input; a view's and a portfolio's basis
+  # stay as they were. Nothing here changes a figure.
+  defp everything_basis(payload, %{view_id: nil, portfolio_id: nil}) do
+    update_in(payload, [:computation_basis, :input_series], fn input_series ->
+      input_series <>
+        ". Scope: every account in every portfolio, each counted once, with no view, " <>
+        "in EUR, converted through the EUR hub; the screen's " <>
+        "Everything scope is computed in the first portfolio's base currency, so " <>
+        "the two differ when that is not EUR"
+    end)
+  end
+
+  defp everything_basis(payload, _scoped), do: payload
 
   @doc """
   The benchmark comparison (ADR-0046 §4, #572): both comparisons with every
@@ -1828,12 +1883,17 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
-  @doc "The view twin of `benchmark_comparison/2`: keyed by `view_id`."
+  @doc """
+  The view twin of `benchmark_comparison/2`: keyed by `view_id`. With
+  `view_id` nil, the Everything comparison (#1056), its basis naming that
+  scope and its currency.
+  """
   def view_benchmark_comparison(result, include_series? \\ false) do
     result
     |> benchmark_comparison(include_series?)
     |> Map.delete(:portfolio_id)
     |> Map.put(:view_id, result.view_id)
+    |> everything_basis(result)
   end
 
   defp benchmark_reference(%{kind: :rate, annual_rate: rate}),
@@ -1880,9 +1940,16 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   no positions, and "0" lines and totals. `unvalued_cash_accounts` names the
   cash accounts that counted zero in the window, as the performance read of
   the same window does (#1055). The computation basis has the performance
-  read's shape plus ADR-0046's `assumptions`.
+  read's shape plus ADR-0046's `assumptions`; with both ids null, the
+  Everything read (#1056), it names that scope and its currency.
   """
   def contribution(result) do
+    result
+    |> contribution_payload()
+    |> everything_basis(result)
+  end
+
+  defp contribution_payload(result) do
     %{
       portfolio_id: result.portfolio_id,
       view_id: result.view_id,

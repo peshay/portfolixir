@@ -66,26 +66,25 @@ const TAX_AMOUNTS =
 // narrowing within them; for_view values the accounts a view matches in every
 // portfolio, each once, in the EUR hub). The view valuation without an id reads
 // the view-less union, the total of every account (#1007, Sprint 18 plan D-5);
-// the view performance, benchmark and contribution (FR-41, ADR-0051 §6) take
-// an existing view id. A contribution is money, not a return, so its steer
-// keeps only the first half of the returns' sentence.
+// the view performance, benchmark and contribution (FR-41, ADR-0051 §6)
+// without an id read every account too, in EUR (#1056, Sprint 19 plan D-7). A
+// contribution is money, not a return, so its steer speaks of a sum of
+// portfolios, not of returns that do not add up.
 type TwinFigures = "totals" | "returns" | "contributions";
 const VIEW_SCOPE = "a view across EVERY portfolio, each account counted once, in EUR";
-const NEEDS_VIEW =
-  `${VIEW_SCOPE}, and needs an existing view id (portfolixir.views.list; ` +
-  "include_all, the default, with no exclusion matches every account)";
+const EVERY_ACCOUNT = `${VIEW_SCOPE} or, with no id, every account in EUR`;
 const VIEW_SCOPE_OF: Record<TwinFigures, string> = {
   totals: `${VIEW_SCOPE} or, with no id, the total of every account`,
-  returns: NEEDS_VIEW,
-  contributions: NEEDS_VIEW
+  returns: EVERY_ACCOUNT,
+  contributions: EVERY_ACCOUNT
 };
 const PORTFOLIO_SCOPE =
   "ONE portfolio record in its base currency, its view narrowing within that portfolio";
-const ONLY_READ = "Until a view exists this tool is the only read";
+const FOR_EVERY = "For every account, read that";
 const STEER: Record<TwinFigures, string> = {
   totals: "For a total, read that, not a sum of portfolios",
-  returns: `${ONLY_READ}, and returns of several portfolios do not add up`,
-  contributions: ONLY_READ
+  returns: `${FOR_EVERY}; returns of several portfolios do not add up`,
+  contributions: `${FOR_EVERY}, not a sum of portfolios`
 };
 
 function portfolioScopeTwin(twin: string, figures: TwinFigures): string {
@@ -1505,7 +1504,8 @@ const allocationZ = z.object({
 });
 
 // #901 (ADR-0051 §6): the scope in the API's two forms. portfolio_id reads the
-// portfolio route, view narrowing it; view alone reads the view route.
+// portfolio route, view narrowing it; view alone reads the view route; neither
+// reads every portfolio in EUR (#1091's read half).
 const categoryResultSchema = {
   type: "object",
   additionalProperties: false,
@@ -1517,17 +1517,11 @@ const categoryResultSchema = {
   }
 };
 
-const categoryResultZ = z
-  .object({
-    portfolio_id: z.number().int().positive().optional(),
-    classification_id: z.number().int().positive(),
-    view: z.number().int().positive().optional()
-  })
-  .superRefine((args, ctx) => {
-    if (args.portfolio_id === undefined && args.view === undefined) {
-      ctx.addIssue({ code: "custom", message: "portfolio_id or view is required" });
-    }
-  });
+const categoryResultZ = z.object({
+  portfolio_id: z.number().int().positive().optional(),
+  classification_id: z.number().int().positive(),
+  view: z.number().int().positive().optional()
+});
 
 // The cash target is the SOLL cash share of the allocation's 100% basis
 // (securities + counting cash, issue #335): a string fraction in [0, 1], or
@@ -1626,11 +1620,11 @@ const performanceZ = z.object({
   series: z.boolean().optional()
 });
 
-// Cross-portfolio view performance (#577): keyed by the view id.
+// Cross-portfolio view performance (#577): keyed by the view id. With no id it
+// reads every account in EUR (#1056, D-7), as the view valuation does.
 const viewPerformanceSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["id"],
   properties: {
     id: { type: "integer", minimum: 1 },
     period: { type: "string", enum: ["ytd", "1y", "3y", "5y", "max"] },
@@ -1642,7 +1636,7 @@ const viewPerformanceSchema = {
 };
 
 const viewPerformanceZ = z.object({
-  id: z.number().int().positive(),
+  id: z.number().int().positive().optional(),
   period: z.enum(["ytd", "1y", "3y", "5y", "max"]).optional(),
   year: z.number().int().min(1970).optional(),
   from: z.string().optional(),
@@ -1659,7 +1653,7 @@ const benchmarkSelector = {
   type: "string",
   pattern: "^(security:[0-9]+|rate:-?[0-9]+(\\.[0-9]+)?)$",
   description:
-    "`rate:<decimal>`, a fixed effective annual rate compounding daily from a base of 1 (rate:0.02 is 2 % p.a., the savings or inflation baseline; -0.999999 to 10, i.e. -99.9999 % to 1000 %), or `security:<id>`, a catalog security flagged is_benchmark (any other is refused with 422)."
+    "`rate:<decimal>`, a fixed effective annual rate compounding daily from a base of 1 (rate:0.02 is 2 % p.a., the savings or inflation baseline; -0.999999 to 10, i.e. -99.9999 % to 1000 %), or `security:<id>`, a catalog security flagged is_benchmark (any other is refused with 422, a merged-away one naming merged_into)."
 };
 
 const benchmarkSelectorZ = z.string().regex(/^(security:\d+|rate:-?\d+(\.\d+)?)$/);
@@ -1679,7 +1673,7 @@ const benchmarkZ = performanceZ.extend({ benchmark: benchmarkSelectorZ });
 const viewBenchmarkSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["id", "benchmark"],
+  required: ["benchmark"],
   properties: {
     ...viewPerformanceSchema.properties,
     benchmark: {
@@ -1713,7 +1707,6 @@ const contributionZ = performanceZ.omit({ series: true });
 const viewContributionSchema = {
   type: "object",
   additionalProperties: false,
-  required: ["id"],
   properties: {
     id: { type: "integer", minimum: 1 },
     period: { type: "string", enum: ["ytd", "1y", "3y", "5y", "max"] },
@@ -3589,7 +3582,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.portfolios.category_results",
     "Per-category result (invested, value, made)",
-    "What each category of a classification tree COST, what it is WORTH now, and what it has MADE (ADR-0041): invested (sum of the members' base-currency cost), current_value, result_abs and result_pct per category, with the member positions that produced it and the ones it could not cover. Read the basis first: a statement about the CURRENT COMPOSITION — the positions filed under each category today — with no period, membership variant or as-of, and NOT a time-weighted return series (ADR-0041 §6). result_pct is the sum of results over the sum of invested, NEVER a mean of the members' percentages. A member whose result is not derivable — no usable price, or no base-currency decomposition (ADR-0033) — is excluded from BOTH sides of the sum and listed under excluded with its reason, never counted as zero; covered_count and member_count state how much of the category the figure covers. A category with nothing invested reports result_pct null, not \"0\". A parent rolls up from the level below it the same way. Realized results and income are NOT included (ADR-0041 §5). Scope: portfolio_id in its base currency, a view narrowing within it, or view alone: that view across EVERY portfolio, each account counted once, in EUR (a cost not paid in EUR is excluded as missing_base_cost); scope, view_id and base_currency state it. All financial values are Decimal strings.",
+    "What each category of a classification tree COST, what it is WORTH now, and what it has MADE (ADR-0041): invested (sum of the members' base-currency cost), current_value, result_abs and result_pct per category, with the member positions that produced it. Read the basis first: a statement about the CURRENT COMPOSITION — the positions filed under each category today — with no period, membership variant or as-of, and NOT a time-weighted return series (ADR-0041 §6). result_pct is the sum of results over the sum of invested, NEVER a mean of the members' percentages. A member whose result is not derivable — no usable price, or no base-currency decomposition (ADR-0033) — is excluded from BOTH sides of the sum and listed under excluded with its reason (excluded_members: once per tree, with native_costs), never counted as zero; covered_count and member_count state how much of the category the figure covers. A category with nothing invested reports result_pct null, not \"0\". A parent rolls up from the level below it the same way. Realized results and income are NOT included (ADR-0041 §5). Scope: portfolio_id in its base currency, a view narrowing within it; view alone: that view across EVERY portfolio, each account counted once, in EUR; neither: every portfolio, in EUR (a cost not paid in EUR is excluded as missing_base_cost); scope, view_id and base_currency state it. Decimal strings.",
     categoryResultSchema,
     categoryResultZ
   ),
@@ -4591,12 +4584,19 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         ])
       );
     // #901: view without portfolio_id reads the view form across every
-    // portfolio, its id in the path; with portfolio_id, view narrows it.
+    // portfolio, its id in the path; with portfolio_id, view narrows it;
+    // neither reads every portfolio (#1091).
     case "portfolixir.portfolios.category_results":
       return client.request(
         "GET",
         withQuery(
-          `/api/v1/${args.portfolio_id === undefined ? `views/${args.view}` : `portfolios/${args.portfolio_id}`}/category-results`,
+          `/api/v1/${
+            args.portfolio_id !== undefined
+              ? `portfolios/${args.portfolio_id}/`
+              : args.view !== undefined
+                ? `views/${args.view}/`
+                : ""
+          }category-results`,
           args,
           args.portfolio_id === undefined ? ["classification_id"] : ["classification_id", "view"]
         )
@@ -4730,7 +4730,9 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request("PATCH", `/api/v1/views/${args.id}`, { view: args.view });
     case "portfolixir.views.delete":
       return client.request("DELETE", `/api/v1/views/${args.id}`);
-    // #1007: no id reads the view-less total, GET /api/v1/valuation.
+    // #1007: no id reads the view-less total, GET /api/v1/valuation; #1056:
+    // the performance family's view tools read their view-less routes the
+    // same way.
     case "portfolixir.views.valuation":
       return client.request(
         "GET",
@@ -4743,7 +4745,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.views.performance":
       return client.request(
         "GET",
-        withQuery(`/api/v1/views/${args.id}/performance`, args, [
+        withQuery(`/api/v1/${args.id === undefined ? "" : `views/${args.id}/`}performance`, args, [
           "period",
           "year",
           "from",
@@ -4754,7 +4756,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.views.benchmark":
       return client.request(
         "GET",
-        withQuery(`/api/v1/views/${args.id}/performance/benchmark`, args, [
+        withQuery(`/api/v1/${args.id === undefined ? "" : `views/${args.id}/`}performance/benchmark`, args, [
           "benchmark",
           "period",
           "year",
@@ -4766,7 +4768,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
     case "portfolixir.views.contribution":
       return client.request(
         "GET",
-        withQuery(`/api/v1/views/${args.id}/performance/contribution`, args, [
+        withQuery(`/api/v1/${args.id === undefined ? "" : `views/${args.id}/`}performance/contribution`, args, [
           "period",
           "year",
           "from",

@@ -1313,12 +1313,13 @@ anderen liegt, bleibt ganz heraus, mit beiden Einständen („Einstand 1.000,00 
 + 1.500,00 USD"). Derselbe Hinweis nennt jede andere Position, die die Zahlen
 auslassen, mit ihrem Grund in Worten; ab zwei Positionen nennt er die Anzahl
 und listet sie in einer Aufklappliste. Fehlt nichts, gibt es keinen Hinweis.
-Das Lesen einer Ansicht über die API (`GET
-/api/v1/views/:view_id/category-results`) wendet dieselbe EUR-Regel an: Es
-listet jede ausgelassene Position je Kategorie mit ihrem Grund, in EUR, trägt
-aber noch keinen Einstand in eigener Währung und keine Liste einmal je Baum
-(#1091). Das Lesen über alle Portfolios, das der Bildschirm nutzt, hat noch
-keine API.
+Über die API ist das Lesen über alle Portfolios, das der Bildschirm nutzt,
+`GET /api/v1/category-results`, und das Lesen einer Ansicht (`GET
+/api/v1/views/:view_id/category-results`) wendet dieselbe EUR-Regel an
+(#1091). Jede Form listet jede ausgelassene Position je Kategorie mit ihrem
+Grund, und einmal je Baum in `excluded_members`, mit der Kategorie, in der sie
+eingeordnet ist, und, wenn nur ihre Währung sie draußen hält, dem Einstand in
+der Währung, in der er bezahlt wurde — die Liste, die dieser Hinweis zeigt.
 
 > **Ziele je Position (ADR-0030, #481).** Zielgewichte lassen sich nun bis auf
 > eine **einzelne Position** setzen (ein Wertpapier unter einer Kategorie), nicht

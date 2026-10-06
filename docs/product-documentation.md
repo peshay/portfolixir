@@ -1195,11 +1195,13 @@ the position. A security held in a EUR portfolio and in one outside EUR is left
 out whole, with both costs ("cost 1,000.00 EUR + 1,500.00 USD"). The same note
 names every other position the figures leave out, with its reason in words; past
 one position it gives the count and lists them behind a disclosure. When nothing
-is left out there is no note. The view read over the API (`GET
-/api/v1/views/:view_id/category-results`) applies the same EUR rule: it lists
-each excluded position per category with its reason, in EUR, but carries no
-native cost and no once-per-tree list yet (#1091). The screen's read across
-every portfolio has no API yet.
+is left out there is no note. Over the API, the screen's read across every
+portfolio is `GET /api/v1/category-results`, and the view read (`GET
+/api/v1/views/:view_id/category-results`) applies the same EUR rule (#1091).
+Every form of the read lists each excluded position per category with its
+reason, and once per tree in `excluded_members`, with the category it is filed
+under and, when only its currency keeps it out, its cost in the currency it
+was paid in — the list this note shows.
 
 > **Per-position targets (ADR-0030, #481).** Target weights can now be set down
 > to an **individual position** (a security under a category), not just per
