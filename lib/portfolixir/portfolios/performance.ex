@@ -278,9 +278,8 @@ defmodule Portfolixir.Portfolios.Performance do
   # The first day `currency` has a rate path to `base`, from the series the
   # walk preloaded (`init_fx/4`): a rate carried in from before the walk is a
   # path from its first day on, else the first stored point; both ends of the
-  # path must have one. `nil` when no path ever arrives.
-  defp first_path_date(same, same, _fx, walk_start), do: walk_start
-
+  # path must have one. `nil` when no path ever arrives. Only an account the
+  # walk found unvalued is asked about, so its currency is never the base.
   defp first_path_date(currency, base, fx, walk_start) do
     with %Date{} = from <- first_hub_date(currency, fx, walk_start),
          %Date{} = to <- first_hub_date(base, fx, walk_start) do
