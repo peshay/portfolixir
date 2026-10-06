@@ -695,8 +695,9 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
   # EUR,
   # I want the classification screen's "Einstand" and "Ergebnis" to add EUR
   # only, and to name a member whose cost was not paid in EUR with that cost,
-  # so that Wert − Einstand = Ergebnis holds again under a cell that promises
-  # EUR, and the screen and the agent's #901 read cannot disagree.
+  # so that "Einstand" and "Ergebnis" add one currency under a cell that
+  # promises EUR, the member left out is named instead of silently mixed in,
+  # and the screen and the agent's #901 read follow one rule.
   #
   # Acceptance criteria:
   # - for_all_portfolios/2 follows for_view/3's EUR rule: a member held in a
@@ -915,6 +916,98 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
       assert result.base_currency == "EUR"
       assert result.scope == :all
       assert result.excluded_members == []
+    end
+
+    test "the excluded members sort by name without regard to case" do
+      world = currency_world()
+
+      zephyr = create_security!(name: "Zephyr Haulage Ltd", ticker: "ZPH", currency: "USD")
+      eastwind = create_security!(name: "eastwind Cargo Inc", ticker: "EWC", currency: "USD")
+
+      for security <- [zephyr, eastwind] do
+        assign!(security, world.classification, world.platforms)
+        buy!(world.dollar, security, quantity: "1", price: "10", currency: "USD")
+      end
+
+      {:ok, result} =
+        CategoryResult.for_all_portfolios(world.classification.id,
+          prices: %{zephyr.id => Decimal.new("11"), eastwind.id => Decimal.new("12")}
+        )
+
+      # Code-point order would put "Zephyr" before "eastwind".
+      assert ["eastwind Cargo Inc", "Zephyr Haulage Ltd"] =
+               Enum.map(result.excluded_members, & &1.security_name)
+    end
+
+    test "one security in two USD portfolios lists one summed USD cost" do
+      world = currency_world()
+      harborline = harborline!(world)
+
+      second_dollar =
+        base_world(
+          name: "Dollar Two",
+          currency: "USD",
+          cash_name: "Dollar Two Cash",
+          depot_name: "Dollar Two Depot"
+        )
+
+      deposit!(second_dollar, "20000", ~D[2026-01-01], currency: "USD")
+      buy!(second_dollar, harborline, quantity: "5", price: "100.25", currency: "USD")
+
+      {:ok, result} =
+        CategoryResult.for_all_portfolios(world.classification.id,
+          prices: %{harborline.id => Decimal.new("180")}
+        )
+
+      # 1.500,00 + 501,25 USD: one amount for the one currency.
+      assert [%{security_name: "Harborline Freight Inc", native_costs: [cost]}] =
+               result.excluded_members
+
+      assert cost.currency == "USD"
+      assert_decimal(cost.amount, "2001.25")
+    end
+
+    test "a security in a EUR and a CHF portfolio lists the EUR slice first, then CHF" do
+      world = currency_world()
+
+      franc =
+        base_world(
+          name: "Franken",
+          currency: "CHF",
+          cash_name: "Franken Cash",
+          depot_name: "Franken Depot"
+        )
+
+      alpenrand = create_security!(name: "Alpenrand Holding AG", ticker: "APR", currency: "CHF")
+      assign!(alpenrand, world.classification, world.platforms)
+
+      # The EUR slice: 10 at 105,00 CHF, settled at 1.000,00 EUR.
+      cross_trade!(world.euro, alpenrand,
+        quantity: "10",
+        price: "105",
+        settled: "1000",
+        gross: "1000",
+        date: ~D[2026-01-02]
+      )
+
+      # The CHF slice: 4 at 120,50 CHF.
+      deposit!(franc, "20000", ~D[2026-01-01], currency: "CHF")
+      buy!(franc, alpenrand, quantity: "4", price: "120.5", currency: "CHF")
+
+      {:ok, result} =
+        CategoryResult.for_all_portfolios(world.classification.id,
+          prices: %{alpenrand.id => Decimal.new("130")},
+          fx_rates: %{"CHF" => Decimal.new("0.95")}
+        )
+
+      # The result's currency first, although "CHF" sorts before "EUR".
+      assert [%{security_name: "Alpenrand Holding AG", native_costs: [euro, chf]}] =
+               result.excluded_members
+
+      assert euro.currency == "EUR"
+      assert_decimal(euro.amount, "1000")
+      assert chf.currency == "CHF"
+      assert_decimal(chf.amount, "482")
     end
 
     test "the view read and the portfolio read carry the same list, and no figure moves" do
