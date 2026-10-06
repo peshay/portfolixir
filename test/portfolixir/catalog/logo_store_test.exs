@@ -535,8 +535,8 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
   # - It reads the configured directory: a file present there is not marked,
   #   a missing one is.
   # - A crash in the work is logged and the boot step still answers.
-  # - A task that cannot start is logged, and the boot step answers
-  #   {:error, reason} rather than raising.
+  # - A task that cannot start, with no supervisor or one that refuses it, is
+  #   logged, and the boot step answers {:error, reason} rather than raising.
   describe "the boot reconciliation (#933)" do
     setup %{tmp: tmp} do
       gate = Application.fetch_env(:portfolixir, :reconcile_logos_on_boot)
@@ -620,6 +620,19 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
         end)
 
       assert log =~ "The logo reconciliation (#933) could not start"
+    end
+
+    test "a supervisor that refuses the task is logged and the boot step answers its reason" do
+      Application.put_env(:portfolixir, :reconcile_logos_on_boot, true)
+      supervisor = start_supervised!({Task.Supervisor, max_children: 0})
+
+      log =
+        capture_log(fn ->
+          assert {:error, :max_children} =
+                   Catalog.reconcile_logos_on_boot(fn -> :ok end, supervisor)
+        end)
+
+      assert log =~ "The logo reconciliation (#933) could not start: :max_children"
     end
   end
 

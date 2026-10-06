@@ -433,8 +433,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
 
     # The value is named as the file wrote it, on one line and at most 40
     # characters long: a cut is marked, a character the operator cannot see or
-    # that would break the line is spelled out, a number keeps its digits and
-    # a nested value reads as compact JSON.
+    # that would break the line is spelled out, a number keeps its digits (in
+    # scientific notation when its exponent alone would outrun the cap) and a
+    # nested value reads as compact JSON, its numbers with their digits too.
     test "names an unsupported currency as written, spelled out and capped" do
       long = String.duplicate("X", 45)
       digits = String.duplicate("9", 1000)
@@ -447,7 +448,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
         #{raw_deposit(~s("EU\\u200bR"))},
         #{raw_deposit(~s("#{long}"))},
         #{raw_deposit(digits)},
-        #{raw_deposit(~s({"code": [1, "EUR"]}))}
+        #{raw_deposit(~s({"code": [1, "EUR"]}))},
+        #{raw_deposit("1.5e100")},
+        #{raw_deposit("[1.50]")}
       ]}
       """
 
@@ -468,7 +471,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
                "EU[U+200B]R",
                String.duplicate("X", 40) <> "…",
                String.duplicate("9", 40) <> "…",
-               ~s({"code":[1,"EUR"]})
+               ~s({"code":[1,"EUR"]}),
+               "1.5E+100",
+               "[1.50]"
              ]
     end
 
