@@ -349,9 +349,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
         <%!-- ADR-0041 §1: the basis is one line, stated once for the surface
               rather than repeated per row or left for the reader to assume —
               the short statement in the line, the full rule behind its ⓘ
-              (UX-DR11, issue 805). --%>
+              (UX-DR11, issue 805). It opens on the currency of every figure
+              under it (#1048, pick J10.2 A): the result's, never assumed. --%>
         <div :if={@results} class="summary-basis tree-basis" data-role="category-result-basis">
-          <%= gettext("Result: today's composition, not a period return") %>
+          <%= gettext("in %{currency}", currency: @results.base_currency) %> · <%= gettext("Result: today's composition, not a period return") %>
           <details class="metric-tooltip metric-tooltip--inline" data-role="category-result-info">
             <summary aria-label={gettext("About the result")}>ⓘ</summary>
             <p role="tooltip">
@@ -361,6 +362,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
             </p>
           </details>
         </div>
+        <.excluded_note
+          :if={@results && @results.excluded != []}
+          excluded={@results.excluded}
+          currency={@results.base_currency}
+          categories={@tree.flat}
+        />
         <%!-- #805 (review C8, variant A): the row figures stand in named,
              right-aligned columns under one head; an empty category prints
              "—", never a row of zeros. --%>
@@ -635,6 +642,149 @@ defmodule PortfolixirWeb.ClassificationsLive do
     </li>
     """
   end
+
+  # #1048 (pick J10.2 A; board ux-design-2026-10-04/10-category-results ②):
+  # the members the roll-up leaves out of "Cost" and "Result" are named where
+  # the totals are read -- one attention data note between the basis line and
+  # the tree head, in its own status region (UX-DR25). It gives each member's
+  # category, and the cost it was paid in its own currency (clause 2, never
+  # converted) or its reason in words. It has no control, because there is
+  # nothing to fix here (clause 3). Only a member out for its cost's currency
+  # is said to be in "Value", which counts it (UX-DR26). Past one member the
+  # names sit in a disclosure as aligned lines, the trades facet's
+  # unmatched-sells shape. The category names come from the tree on screen.
+  # Nothing excluded, no note: UX-DR2 has no all-clear.
+  attr(:excluded, :list, required: true)
+  attr(:currency, :string, required: true)
+  attr(:categories, :list, required: true)
+
+  defp excluded_note(assigns) do
+    assigns =
+      assigns
+      |> assign(
+        :names,
+        Map.new(assigns.categories, fn {category, _} -> {category.id, category.name} end)
+      )
+      |> assign(:count, length(assigns.excluded))
+      |> assign(:paid_elsewhere, Enum.count(assigns.excluded, &paid_elsewhere?/1))
+      |> assign(:single, single_member(assigns.excluded))
+
+    ~H"""
+    <div role="status">
+      <AppShell.data_note severity={:attention} data-role="category-result-excluded">
+        <%= if @single do %>
+          <%= single_excluded_lead(@single, @currency) %>
+          <bdi><%= @single.security_name %></bdi><%= excluded_tail(@single, @names, @currency) %>
+          <%= if paid_elsewhere?(@single) do %>
+            <%= ngettext("It is included in “Value”.", "They are included in “Value”.", 1) %>
+          <% end %>
+        <% else %>
+          <%= excluded_lead(@count, @paid_elsewhere, @currency) %>
+          <%= excluded_value_sentence(@count, @paid_elsewhere, @currency) %>
+          <details class="perf-table-disclosure" data-role="category-result-excluded-list">
+            <summary class="disclosure-summary">
+              <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
+              <%= ngettext("The position", "The %{count} positions", @count) %>
+            </summary>
+            <ul class="excluded-list">
+              <li :for={member <- @excluded}>
+                <bdi><%= member.security_name %></bdi>
+                <span><%= Map.get(@names, member.category_id) %></span>
+                <span class={paid_elsewhere?(member) && "num"}><%= cost_or_reason(member, @currency) %></span>
+              </li>
+            </ul>
+          </details>
+        <% end %>
+      </AppShell.data_note>
+    </div>
+    """
+  end
+
+  defp single_member([member]), do: member
+  defp single_member(_members), do: nil
+
+  # A member out only because its cost was not paid in the result's currency
+  # carries that cost; every other exclusion carries none.
+  defp paid_elsewhere?(member), do: member.native_costs != []
+
+  defp single_excluded_lead(member, currency) do
+    if paid_elsewhere?(member),
+      do:
+        gettext(
+          "1 position is not included in “Cost” and “Result” because its cost was not paid in %{currency}:",
+          currency: currency
+        ),
+      else: gettext("1 position is not included in “Cost” and “Result”:")
+  end
+
+  # The single member's name is the caller's <bdi>; this is the rest of its
+  # clause: the category it is filed under, then its cost or its reason.
+  defp excluded_tail(member, names, currency) do
+    category =
+      case Map.get(names, member.category_id) do
+        nil -> ""
+        name -> " (#{name})"
+      end
+
+    "#{category}, #{cost_or_reason(member, currency)}."
+  end
+
+  # Past one member: the count, with the currency's reason when it is every
+  # member's.
+  defp excluded_lead(count, count, currency),
+    do:
+      ngettext(
+        "%{count} position is not included in “Cost” and “Result” because its cost was not paid in %{currency}.",
+        "%{count} positions are not included in “Cost” and “Result” because their cost was not paid in %{currency}.",
+        count,
+        currency: currency
+      )
+
+  defp excluded_lead(count, _paid_elsewhere, _currency),
+    do:
+      ngettext(
+        "%{count} position is not included in “Cost” and “Result”.",
+        "%{count} positions are not included in “Cost” and “Result”.",
+        count
+      )
+
+  # "Value" counts a member out for its cost's currency, and only such a
+  # member: one with no price or no derivable cost is not said to be in it.
+  defp excluded_value_sentence(_count, 0, _currency), do: nil
+
+  defp excluded_value_sentence(count, count, _currency),
+    do: ngettext("It is included in “Value”.", "They are included in “Value”.", count)
+
+  defp excluded_value_sentence(_count, paid_elsewhere, currency),
+    do:
+      ngettext(
+        "The one whose cost was not paid in %{currency} is included in “Value”.",
+        "The %{count} whose cost was not paid in %{currency} are included in “Value”.",
+        paid_elsewhere,
+        currency: currency
+      )
+
+  # The native cost, one amount per currency, each in the currency it was
+  # paid in -- never converted (UX-DR25 clause 2). Otherwise the reason.
+  defp cost_or_reason(%{native_costs: [_ | _] = costs}, _currency) do
+    amounts = Enum.map_join(costs, " + ", &"#{Format.native_amount(&1.amount)} #{&1.currency}")
+    gettext("cost %{amount}", amount: amounts)
+  end
+
+  defp cost_or_reason(member, currency), do: excluded_reason(member.reason, currency)
+
+  # Every reason the roll-up names (ADR-0033's `undecomposed_reason`, and the
+  # roll-up's own `no_usable_price`), in words.
+  defp excluded_reason(reason, _currency) when reason in [:no_usable_price, :no_price],
+    do: gettext("no usable price")
+
+  defp excluded_reason(:missing_native_cost, _currency),
+    do: gettext("no cost derivable from its bookings")
+
+  defp excluded_reason(:missing_base_cost, currency),
+    do: gettext("no cost in %{currency} derivable", currency: currency)
+
+  defp excluded_reason(:missing_fx, _currency), do: gettext("no stored exchange rate")
 
   defp category_node(assigns) do
     ~H"""
@@ -1861,9 +2011,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
+  # The roll-up's currency and its excluded members stay with it (#1048):
+  # the basis line names the one, the note the other.
   defp index_results(result) do
     %{
       basis: result.basis,
+      base_currency: result.base_currency,
+      excluded: result.excluded_members,
       by_category: Map.new(result.categories, &{&1.category_id, &1})
     }
   end

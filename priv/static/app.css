@@ -10294,3 +10294,25 @@ dialog.merge-dialog {
 #quote-phone-rows .phone-row {
   grid-template-columns: minmax(0, 1fr) auto;
 }
+
+/* ===== The category result in EUR (issue 1048, Sprint 19 pick J10.2 A;
+   board ux-design-2026-10-04/10-category-results) ===== */
+/* Rule ②: the members the roll-up cannot add in EUR are named where the
+   totals are read — one attention data note between the basis line and the
+   tree head (UX-DR25), inside a role="status" region. The page's blocks
+   already take the band's gutter (`.classifications-detail >
+   :not(.workspace-section)`); the note only needs its distance. Past one
+   member its disclosure is the unmatched-sells `.excluded-list`: name,
+   category, native cost or reason. */
+.classifications-detail [data-role="category-result-excluded"] {
+  margin-top: 0.5rem;
+}
+
+/* Rule ③ (found while drawing): the row's partial count ("1/2") had no rule
+   and printed as a third line in the result cell's own size and colour. It
+   is the cell's sub-figure: the percentage's size, muted, weight 500. */
+.cat-result-partial {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+}

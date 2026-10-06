@@ -104,6 +104,10 @@ defmodule PortfolixirWeb.ClassificationTreeRowsTest do
     assert text(basis) =~ "today's composition"
     assert [_] = Floki.find(basis, "details.metric-tooltip")
     assert text(basis) =~ "not a period return"
+
+    # #1048 (pick J10.2 A): the line states the currency of every figure
+    # under it, first, as the view's name will stand before it (J10).
+    assert text(basis) =~ ~r/^in EUR · Result: today's composition/
   end
 
   # A value is a value only when every visible row carries one: while the
@@ -127,6 +131,22 @@ defmodule PortfolixirWeb.ClassificationTreeRowsTest do
     assert text(Floki.find(row_for(loaded, "Empty"), ~s([data-role="category-value"]))) == "—"
   end
 
+  # Board 10 (ux-design-2026-10-04/10-category-results), rules ② and ③,
+  # found while drawing J10.2 (#1048): the partial count "1/2" had no rule
+  # and printed as a bare third line in the result's own size and colour;
+  # it is the cell's sub-figure -- the percentage's size, muted, weight 500.
+  # The note naming the left-out members keeps its distance from the basis
+  # line above it.
+  test "the partial count is the result's sub-figure, and the note keeps its distance" do
+    css = File.read!("priv/static/app.css")
+
+    assert css =~
+             ~r/\.cat-result-partial\s*\{[^}]*font-size:\s*0\.72rem;[^}]*font-weight:\s*500;[^}]*color:\s*var\(--color-text-muted\)/s
+
+    assert css =~
+             ~r/\.classifications-detail \[data-role="category-result-excluded"\]\s*\{[^}]*margin-top:\s*0\.5rem/s
+  end
+
   test "the head and the dashes are German where the page is", %{conn: conn} do
     %{classification: classification} = tree()
 
@@ -139,5 +159,8 @@ defmodule PortfolixirWeb.ClassificationTreeRowsTest do
 
     assert text(Floki.find(row_for(doc, "Core"), ~s(.cat-name [data-role="without-holdings"]))) ==
              "+1 ohne Bestand"
+
+    assert text(Floki.find(doc, ~s([data-role="category-result-basis"]))) =~
+             ~r/^in EUR · Ergebnis: heutige Zusammensetzung/
   end
 end
