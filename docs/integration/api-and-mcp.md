@@ -1432,8 +1432,9 @@ Example account payloads:
   account (for example a USD security bought through a EUR account) is booked in
   the security's own currency and carries the cross-currency settlement fields
   `security_amount` (trade amount in the security currency), `settlement_amount`
-  (the trade amount in the account currency, before fees and taxes) and
-  `settlement_fx_rate` (account-currency units per one unit of the security
+  (the trade amount in the account currency, before fees and taxes, which are
+  recorded in the account currency as well) and `settlement_fx_rate`
+  (account-currency units per one unit of the security
   currency). When the rate is omitted but both amounts are supplied it is derived
   as `settlement_amount / security_amount` (the broker's actual rate); a currency
   mismatch with no rate and no amounts to derive one is rejected. Cost basis stays
@@ -1846,8 +1847,12 @@ Example account payloads:
   `income`, `costs` and `contribution` — `end_value − start_value − net_flows
   + income − costs`, in the base currency with the currency move included —
   plus `held_at_start`, `held_at_end`, `unvalued_days` and `unvalued_reason`
-  (`no_price`, `no_rate` or `null`). A position bought and sold inside the
-  window is listed although it is held at neither end. A day on which a held
+  (`no_price`, `no_rate` or `null`). `costs` are the fees and taxes of the
+  position's own trades, converted from each trade's cash account currency,
+  the currency they are recorded in (#1051); a trade with no rate for its
+  price currency flows in at its cash leg less those costs. A position bought
+  and sold inside the window is listed although it is held at neither end. A
+  day on which a held
   position has no price or no rate path counts zero, as in the walk, and the
   position stays in the sum, named with its days. A foreign-currency cash
   balance held before its currency's first rate counts zero the same way,

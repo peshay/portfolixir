@@ -2125,11 +2125,13 @@ defmodule Portfolixir.Portfolios.Performance do
   # A trade moved its units at its own price (ADR-0051 §5): `+ price ×
   # quantity` into the position for a buy, `−` for a sell, at the booking
   # day's rate, and its fees and taxes are the position's costs, read in its
-  # cash account's currency (#1051). What its cash leg moved beyond that is
-  # the trade's settlement difference: for a cross-currency trade the
-  # broker's rate against the hub rate (ADR-0015, ADR-0033), which the
-  # currency effect on cash holds (§3). A same-currency trade whose cash
-  # agrees with price × quantity and its costs leaves exactly zero.
+  # cash account's currency (#1051). A trade with no rate for its price
+  # currency flows in at its cash leg less those costs (`trade_flows/4`).
+  # What its cash leg moved beyond that is the trade's settlement
+  # difference: for a cross-currency trade the broker's rate against the hub
+  # rate (ADR-0015, ADR-0033), which the currency effect on cash holds (§3).
+  # A same-currency trade whose cash agrees with price × quantity and its
+  # costs leaves exactly zero.
   defp keep_internal(kept, type, tx, legs, context) when type in ["buy", "sell"] do
     cash = total_add_cash_base(legs.cash, tx, context)
     {flows, cost} = trade_flows(legs.quantities, tx, cash, context)
@@ -2182,18 +2184,22 @@ defmodule Portfolixir.Portfolios.Performance do
   # booking day would bring its units in at zero, and the position would be
   # credited with its whole value the day a rate arrives while the currency
   # line booked the purchase as a loss (review round). Its one unit leg
-  # takes the cash leg instead, so what the trade cost or raised is its flow
-  # and no settlement difference is left; its fees and taxes ride inside
-  # that cash. They are no costs of their own: the walk reads them in the
-  # account's currency (#1051), so charging them to the position as well
-  # would count them twice. The position counts zero until a rate arrives
-  # and is named for it (§10).
+  # takes the cash leg instead: its flow is the cash leg less its fees and
+  # taxes, which are its costs as on any trade (§1, #708's trade costs kept
+  # per security), so no settlement difference is left. Before #1051 those
+  # costs converted to zero by accident, read in the price currency that has
+  # no rate; they are read in the account's currency now, like the cash. The
+  # position counts zero until a rate arrives and is named for it (§10).
   #
   # Returns the trade's flows into its positions and the costs they carry.
   defp trade_flows([{_account_id, security_id, _delta}] = quantities, tx, cash, context) do
     case conversion_rate(tx.currency_code, context.base, context.fx) do
-      {:ok, _rate} -> priced_trade(quantities, tx, context)
-      {:error, _reason} -> {[{security_id, Decimal.negate(cash)}], @zero}
+      {:ok, _rate} ->
+        priced_trade(quantities, tx, context)
+
+      {:error, _reason} ->
+        cost = trade_cost(tx, context) || @zero
+        {[{security_id, cash |> Decimal.negate() |> Decimal.sub(cost)}], cost}
     end
   end
 

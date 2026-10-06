@@ -4,9 +4,11 @@ defmodule Portfolixir.Portfolios.SnapshotTransactionCostsTest do
   import Portfolixir.WorldFixtures, only: [base_world: 1, create_security!: 1, put_quote!: 3]
 
   alias Portfolixir.Actor
+  alias Portfolixir.Fx
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios.SnapshotComparison
   alias Portfolixir.Portfolios.Snapshots
+  alias Portfolixir.WorldFixtures
 
   # User story (#708, ADR-0027 amendment of 2026-08-15):
   # As a maintainer who restructured a depot,
@@ -230,5 +232,62 @@ defmodule Portfolixir.Portfolios.SnapshotTransactionCostsTest do
     assert "dividend_withholding" in basis.costs_kept
     # Unchanged by this amendment, and still true of the frozen side.
     assert basis.price_return_only == true
+  end
+
+  # User story (#1051, ADR-0015, ADR-0027 amendment of 2026-08-15 §1):
+  # As a maintainer who restructured a depot by buying a USD security through
+  # my EUR account,
+  # I want the comparison's transaction costs to be the fees and taxes my
+  # broker charged in euros, counted as euros,
+  # so that "have the changes paid for themselves?" is measured against what
+  # they really cost.
+  #
+  # Acceptance criteria:
+  # - A cross-currency buy inside the window, with fees 5 and taxes 1 EUR at
+  #   1 EUR = 1.25 USD, makes transaction_costs exactly 6.00, read in its
+  #   cash account's currency, not 6 read as USD (4.8).
+  test "a cross-currency trade's fees and taxes count in its cash account's currency" do
+    w = world()
+    fund = create_security!(name: "US Fund", ticker: "USF", currency: "USD")
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2026-01-01],
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    book!(w, %{
+      cash_account_id: w.cash.id,
+      type: "deposit",
+      date: ~D[2026-01-01],
+      gross_amount: "2000"
+    })
+
+    buy!(w, ~D[2026-01-02], "10", "100")
+    put_quote!(w.security, ~D[2026-01-02], "100")
+    put_quote!(w.security, ~D[2026-03-01], "100")
+    put_quote!(w.security, @today, "110")
+    snapshot = snapshot!(w, ~D[2026-03-01])
+
+    # 10 @ 100 USD settled 790 EUR, fees 5 and taxes 1 EUR: 796 EUR paid.
+    WorldFixtures.cross_trade!(w, fund,
+      quantity: "10",
+      price: "100",
+      settled: "790",
+      fees: "5.00",
+      taxes: "1.00",
+      gross: "796",
+      date: ~D[2026-04-01]
+    )
+
+    put_quote!(fund, ~D[2026-04-01], "100")
+    put_quote!(fund, @today, "100")
+
+    assert Decimal.equal?(compare(w, snapshot).transaction_costs, Decimal.new("6.00"))
   end
 end

@@ -62,11 +62,12 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["tools"] == []
 
     # M4 adds no field: a cross-currency trade's fees and taxes are read in
-    # its cash account's currency, and the entry says which figures move
-    # (#1051).
+    # its cash account's currency, and the entry says which figures move,
+    # a trade with no rate for its price currency included (#1051).
     assert newest["summary"] =~ "M4"
     assert newest["summary"] =~ "cash account's currency"
     assert newest["summary"] =~ "#1051"
+    assert newest["summary"] =~ "a trade with no rate for its price currency"
 
     for read <- [
           "GET /api/v1/portfolios/:portfolio_id/performance and GET /api/v1/views/:view_id/performance",

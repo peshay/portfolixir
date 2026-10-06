@@ -501,3 +501,25 @@ the currency effect on cash and into the money result.
   when its first rate came inside the period, and the "Währungseffekt auf
   Bargeld" line carries the account's marker. §10's naming now covers the
   accounts as well as the positions.
+
+**Note (2026-10-06): costs are read in the cash account's currency.** #1051
+(Sprint 19 PR α M4) found the walk converting a trade's fees and taxes from
+its price currency. A cross-currency trade
+([ADR-0015](0015-cross-currency-settlement-fx-rate.html)) records them in its
+cash account's currency, the cash leg they are part of
+(`Ledger.SettlementGuard`), so §1's costs are now read in that currency.
+
+- **The no-rate row's premise was false.** The amendment's §5 row let a
+  no-rate trade's fees ride inside its cash because they were "priced in the
+  same currency". For a cross-currency trade they are not: they are in the
+  account's currency, which can have a rate when the price currency has none.
+  Such a trade's flow into the position is now its cash leg less its fees and
+  taxes, and those are its costs, as on any trade, so the position's costs
+  equal the walk's trade costs (§1, #708's trade costs kept per security).
+  Its contribution and its settlement difference (zero) are unchanged.
+- **The money result does not move, and I1 holds as before.** On a
+  cross-currency trade whose price currency has a rate, the correction moves
+  between the position's costs and the settlement difference on the currency
+  effect on cash, which together are what they were. The walk's and the
+  contribution's computation versions ride the ones the 2026-10-05 note
+  moved.

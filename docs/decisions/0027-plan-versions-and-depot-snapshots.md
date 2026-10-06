@@ -143,6 +143,11 @@ number cannot serve both.
 transactions** falling inside the comparison window (as-of date → today), in the
 comparison's base currency.
 
+*Note (2026-10-06, #1051):* a trade's fees and taxes are converted to the base
+currency from its cash account's currency, the currency a cross-currency trade
+records them in ([ADR-0015](0015-cross-currency-settlement-fx-rate.html)), not
+from its price currency.
+
 Two boundaries make this definition honest rather than convenient:
 
 - **Standalone `fee` and `tax` bookings stay internal.** A custody fee or an
