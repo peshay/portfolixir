@@ -172,13 +172,18 @@ version has. A migration that calls it anyway needs one of two answers
   in the pull request that makes it. The policy-rule author backfill
   (`20260926121500`) is pinned this way, by `sprint16_test.exs`.
 
-Older migrations are still being brought under the rule. Five predate it
-and call application code with neither answer yet (two of them,
-`20260523120000` and `20260608120000`, run the same asset-class backfill).
-One of them is known to break: the bucket seed of `20260712130000` reads
-depots and cash accounts through today's schemas, so an upgrade from
-`20260712120000` or earlier over an instance holding a depot or a cash
-account stops there with `column s0.former_names does not exist`.
+The five older migrations that call application code have their answer too
+(#1042). The portfolio scope seed of `20260712130000` is frozen in
+`Portfolixir.Buckets.ScopeSeed`: it read depots and cash accounts through
+today's schemas, and stopped an upgrade from `20260712120000` or earlier over
+an instance holding either on `column s0.former_names does not exist`. The
+other four are pinned by
+`test/portfolixir/seeded_upgrade/app_code_migrations_test.exs`: the
+former-name backfill (`20260925150100`), the tax identity normalisation
+(`20260925230000`) and the two runs of the asset-class backfill
+(`20260523120000` and `20260608120000`). The asset-class backfill is pinned,
+not frozen, on purpose: the second run exists to apply newer inference rules,
+so an upgrade writes the classes the inference of its own release gives.
 
 ## Scope guardrails
 

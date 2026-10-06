@@ -171,6 +171,12 @@ defmodule Portfolixir.Catalog do
   journal's no-bypass meta-test excludes it as a migration helper, not as a
   grandfathered context writer. Calling it at runtime against the armed table
   fails the guard loudly — by design.
+
+  Pinned, not frozen (#1042), since the second migration exists to apply
+  newer inference rules: the two asset-class cases in
+  `test/portfolixir/seeded_upgrade/app_code_migrations_test.exs` turn red when
+  a later change makes this code touch a column those migrations' versions
+  lack.
   """
   def backfill_inferred_asset_classes do
     # Schema-snapshot safe: select only the columns asset-class inference reads

@@ -12,6 +12,7 @@ defmodule Mix.Tasks.Portfolixir.SeedScopeBucketsTest do
   import Portfolixir.WorldFixtures, only: [base_world: 1]
 
   alias Portfolixir.Buckets
+  alias Portfolixir.Derived.DataVersion
 
   setup do
     previous_shell = Mix.shell()
@@ -57,5 +58,40 @@ defmodule Mix.Tasks.Portfolixir.SeedScopeBucketsTest do
     assert rerun_summary =~ "accounts tagged:        0"
 
     assert length(Buckets.migration_summary().buckets) == 1
+  end
+
+  # User story (#1042, Sprint 19 B1):
+  # As a local portfolio maintainer catching up a restored install,
+  # I want the task to invalidate the derived figures once its seed has
+  # tagged my accounts,
+  # so that a view's figures computed before the seed are not served as
+  # current after it.
+  #
+  # Acceptance criteria:
+  # - The seed the task runs is frozen to its migration's schema and bumps no
+  #   data version itself (nothing derived exists at that version); the task
+  #   bumps every portfolio's basis, and the global one, after a seed that
+  #   created or tagged anything.
+  # - A run that seeds nothing bumps nothing.
+  test "a seed that tags an account bumps the data version, and a no-op run does not" do
+    world = base_world(name: "Restored", cash_name: "R Cash", depot_name: "R Depot")
+    portfolio_basis = DataVersion.portfolio_basis(world.portfolio.id)
+    versions = fn -> {DataVersion.current(portfolio_basis), DataVersion.current("global")} end
+
+    {portfolio_before, global_before} = versions.()
+
+    Mix.Task.rerun("portfolixir.seed_scope_buckets")
+    assert_received {:mix_shell, :info, [summary]}
+    assert summary =~ "accounts tagged:        2"
+
+    {portfolio_seeded, global_seeded} = versions.()
+    assert portfolio_seeded > portfolio_before
+    assert global_seeded > global_before
+
+    Mix.Task.rerun("portfolixir.seed_scope_buckets")
+    assert_received {:mix_shell, :info, [rerun_summary]}
+    assert rerun_summary =~ "accounts tagged:        0"
+
+    assert versions.() == {portfolio_seeded, global_seeded}
   end
 end

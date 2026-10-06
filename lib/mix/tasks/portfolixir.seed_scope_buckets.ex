@@ -14,9 +14,18 @@ defmodule Mix.Tasks.Portfolixir.SeedScopeBuckets do
   `portfolio_scope_seed` system actor — and prints the summary. It is
   idempotent: already-seeded portfolios are skipped, so running it twice (or
   on an already-migrated install) changes nothing.
+
+  The seed is frozen to its migration's schema
+  (`Portfolixir.Buckets.ScopeSeed`, #1042), where no derived value exists, so
+  it invalidates none. This task runs at head, where they do: after a seed
+  that created or tagged anything it bumps the data version of every
+  portfolio, and the global one (`Portfolixir.Derived.DataVersion.bump/1`),
+  as the journal bumps after a bucket or assignment write.
   """
 
   use Mix.Task
+
+  alias Portfolixir.Derived.DataVersion
 
   @requirements ["app.start"]
 
@@ -26,6 +35,8 @@ defmodule Mix.Tasks.Portfolixir.SeedScopeBuckets do
 
     case Portfolixir.Buckets.seed_portfolio_scope_buckets(actor) do
       {:ok, summary} ->
+        invalidate_derived(summary)
+
         Mix.shell().info("""
         Portfolio scope seed complete:
           buckets created:        #{summary.buckets_created}
@@ -38,4 +49,9 @@ defmodule Mix.Tasks.Portfolixir.SeedScopeBuckets do
         Mix.raise("Seeding failed for portfolio #{inspect(name)} (id #{id}): #{inspect(reason)}")
     end
   end
+
+  # A seeded bucket or a tagged account changes which holdings a view
+  # reads; a write the journal cannot narrow widens to every portfolio.
+  defp invalidate_derived(%{buckets_created: 0, views_created: 0, accounts_tagged: 0}), do: :ok
+  defp invalidate_derived(_summary), do: DataVersion.bump(:all)
 end

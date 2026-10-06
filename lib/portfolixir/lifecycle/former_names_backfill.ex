@@ -40,6 +40,12 @@ defmodule Portfolixir.Lifecycle.FormerNamesBackfill do
   before and after. It reads and writes the two tables schemaless, naming only
   the columns they have at this migration, so the immutable migration keeps
   running when a later one adds a column the schemas then know.
+
+  Pinned, not frozen (#1042): the seeded case "the former-name backfill does
+  not stop the upgrade over journaled renames" in
+  `test/portfolixir/seeded_upgrade/app_code_migrations_test.exs` turns red when
+  a later change makes this code, or the journal write it calls, touch a
+  column the migration's version lacks.
   """
 
   import Ecto.Query
