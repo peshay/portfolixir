@@ -128,7 +128,7 @@ When the history will come from a file (step 4), the import creates the cash acc
 
 ## Step 4: explain how data gets in
 Give the operator these paths and let them choose:
-1. A Portfolio Performance export (CSV or JSON v1). The operator drops the file on the Imports page of the instance (/imports), reads the preview and applies it. The apply is atomic, skips every row it has already booked (by content hash, so dropping the same file twice books nothing twice), creates the accounts and securities the file names, and can tag the accounts it creates with a bucket: one file per group, each dropped with its group's bucket name as the tag, lands each group in its bucket (a bucket of the "scope" dimension cannot be an import tag). There is no import tool and no import route under /api/v1, by design: the preview is the operator's step.
+1. A Portfolio Performance export (CSV or JSON v1). The operator drops the file on the Imports page of the instance (Transactions → Import in the UI, /imports), reads the preview and applies it. The apply is atomic, skips every row it has already booked (by content hash, so dropping the same file twice books nothing twice), creates the accounts and securities the file names, and can tag the accounts it creates with a bucket: one file per group, each dropped with its group's bucket name as the tag, lands each group in its bucket (a bucket of the "scope" dimension cannot be an import tag). There is no import tool and no import route under /api/v1, by design: the preview is the operator's step.
 2. A bank or broker export in any other format: use the import_converter prompt. You write a small converter that runs on the operator's machine and turns the export into a Portfolio Performance CSV file, which the operator drops on the Imports page as in path 1.
 3. Manual booking, for a handful of rows: portfolixir.transactions.create, one booking per call, each confirmed by the operator. For a history of more than a few rows use a file: only the Imports page previews a whole history and never books a row twice.
 There is no broker or bank connection: Portfolixir never fetches transactions from a bank or a broker, and you must not offer to set one up.
@@ -148,7 +148,7 @@ function importConverter(exportFile: string | undefined): string {
 
   return `# Import converter: a bank or broker export to Portfolio Performance CSV v1
 
-You are helping the operator get their history into Portfolixir from an export file their bank or broker gave them${file}. You will write a small converter, run it on the operator's machine, and produce a file in the Portfolio Performance CSV v1 format. The operator drops that file on the Imports page of their instance (/imports), reads the preview and applies it.
+You are helping the operator get their history into Portfolixir from an export file their bank or broker gave them${file}. You will write a small converter, run it on the operator's machine, and produce a file in the Portfolio Performance CSV v1 format. The operator drops that file on the Imports page of their instance (Transactions → Import in the UI, /imports), reads the preview and applies it.
 
 ## Binding constraints
 - Work on the file the operator supplies, on their machine. No broker or bank connection, no download, and no network call and no model call from the converter or from the app: the converter reads one file and writes another.
@@ -213,7 +213,7 @@ ${PP_JSON_V1_EXAMPLE}\`\`\`
 Run the converter, then check the file: the header verbatim; only the labels above in Typ; no decimal point in any number; a positive Betrag wherever one is needed; and, per cash account, the sum of the cash effects equal to the closing balance the export states (tell the operator when it is not). When the export states no closing balance, compute each cash account's running total from the export's own rows, and ask the operator to compare it with the balance their bank shows before they drop the file. Show the operator the summary: rows per Typ; rows per cash account and rows per depot, each row counted under every cash account and every depot it names (a Kauf or Verkauf under its depot and its Gegenkonto, a transfer under both sides), so the two lists may add up to more than the rows; the date range; and the end balance per cash account the file implies.
 
 ## Step 4: the operator imports it
-The operator opens the Imports page (/imports), drops the file, reads the preview (the records it would create, the accounts and securities it would add, and any row it cannot book, with the reason) and applies it. A row the preview cannot book is fixed in the converter, and the file is dropped again: the rows already booked are skipped by their content hash. After the import, read the result back (portfolixir.cash_accounts.list for the balances) and compare it with the summary.
+The operator opens the Imports page (Transactions → Import in the UI, /imports), drops the file, reads the preview (the records it would create, the accounts and securities it would add, and any row it cannot book, with the reason) and applies it. A row the preview cannot book is fixed in the converter, and the file is dropped again: the rows already booked are skipped by their content hash. After the import, read the result back (portfolixir.cash_accounts.list for the balances) and compare it with the summary.
 `;
 }
 

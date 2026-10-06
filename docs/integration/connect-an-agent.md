@@ -134,4 +134,5 @@ profile, reads what exists, proposes a structure of accounts, depots, buckets
 and views, and writes nothing without your confirmation. To bring in a bank or
 broker export Portfolixir does not read, use the `import_converter` prompt:
 the agent writes a converter that runs on your machine and hands you a file for
-the Imports page (`/imports`), where you preview it and apply it.
+the Imports page (Transactions → Import, `/imports`), where you preview it and
+apply it.

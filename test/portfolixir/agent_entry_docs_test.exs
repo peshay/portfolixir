@@ -6,6 +6,8 @@ defmodule Portfolixir.AgentEntryDocsTest do
   # (mcp-server/test/llms-entry.test.ts).
   use ExUnit.Case, async: true
 
+  import Phoenix.LiveViewTest, only: [render_component: 2]
+
   @site "https://portfolixir.app"
   @repo "https://github.com/peshay/portfolixir"
 
@@ -230,6 +232,102 @@ defmodule Portfolixir.AgentEntryDocsTest do
       doc = normalized(path)
       assert doc =~ "The login, at `/login`, asks only for `PORTFOLIXIR_UI_PASSWORD`", path
       assert doc =~ "there is no user name", path
+    end
+  end
+
+  # User story (#1093, Sprint 19 B2a):
+  # As a stranger following the Compose quick start,
+  # I want its secrets step to have me set the web UI's password, and the
+  # entry points to say where Import sits in the UI,
+  # so that my instance does not start with an open web UI, and I find the
+  # Imports page from the sidebar.
+  #
+  # Acceptance criteria:
+  # - The secrets step of the README ("Run with Docker Compose") and of
+  #   llms.txt (step 2) names `PORTFOLIXIR_UI_PASSWORD`, how to generate it
+  #   (`openssl rand -base64 24`, or a passphrase in single quotes, which
+  #   Compose does not interpolate), and that left empty the web UI is open.
+  # - .env.example keeps the variable empty, under a comment that says the web
+  #   UI is open while it is empty.
+  # - The README, llms.txt and the Connect pages name Import where the UI puts
+  #   it, next to `/imports`: the Transactions area's Import tab, in the labels
+  #   the application renders ("Transactions → Import", in German
+  #   "Transaktionen → Import"); the sidebar has no Import entry.
+  test "the quick start sets the UI password in its secrets step and places Import under Transactions" do
+    flat = &String.replace(&1, ~r/\s+/, " ")
+
+    readme_step =
+      "README.md"
+      |> File.read!()
+      |> String.split("### Run with Docker Compose")
+      |> Enum.at(1)
+      |> String.split("docker compose up --build -d")
+      |> hd()
+      |> flat.()
+
+    llms_step =
+      "docs/llms.txt"
+      |> File.read!()
+      |> String.split(~r/^2\. /m)
+      |> Enum.at(1)
+      |> String.split(~r/^3\. /m)
+      |> hd()
+      |> flat.()
+
+    for {path, step} <- [{"README.md", readme_step}, {"docs/llms.txt", llms_step}] do
+      assert step =~ "`PORTFOLIXIR_UI_PASSWORD`", path
+      assert step =~ "`openssl rand -base64 24`", path
+      assert step =~ "passphrase", path
+      assert step =~ "in single quotes in `.env`", path
+      assert step =~ "left empty, the web UI is open", path
+    end
+
+    assert [_, comment] =
+             Regex.run(~r/((?:^#.*\n)+)PORTFOLIXIR_UI_PASSWORD=\n/m, File.read!(".env.example"))
+
+    assert flat.(String.replace(comment, ~r/^# ?/m, "")) =~ "web UI is open while it is empty"
+
+    # The sidebar's Transactions entry, then the tab of its area that opens
+    # /imports, as the application renders them in each language; no sidebar
+    # entry opens /imports itself.
+    place = fn locale ->
+      Gettext.with_locale(PortfolixirWeb.Gettext, locale, fn ->
+        sidebar =
+          render_component(&PortfolixirWeb.AppShell.shell/1, %{inner_block: []})
+          |> Floki.parse_fragment!()
+          |> Floki.find("nav.primary-nav")
+
+        assert sidebar != [], "no primary navigation rendered"
+
+        refute "/imports" in Floki.attribute(sidebar, "a", "href"),
+               "a sidebar entry opens /imports"
+
+        area =
+          sidebar |> Floki.find("#nav-transactions .nav-label") |> Floki.text() |> String.trim()
+
+        assert area != "", "the sidebar has no entry nav-transactions"
+
+        import_tab = Enum.find(PortfolixirWeb.AppShell.transactions_tabs(:import), & &1.current)
+        assert import_tab, "AppShell.transactions_tabs(:import) marks no tab as current"
+        assert import_tab.href == "/imports"
+        "#{area} → #{import_tab.label}"
+      end)
+    end
+
+    assert place.("en") == "Transactions → Import"
+    assert place.("de") == "Transaktionen → Import"
+
+    for {path, locale} <- [
+          {"README.md", "en"},
+          {"docs/llms.txt", "en"},
+          {@connect_en, "en"},
+          {@connect_de, "de"}
+        ] do
+      doc = normalized(path)
+      expected = Regex.escape(place.(locale))
+
+      assert doc =~ ~r/#{expected}.{0,80}`\/imports`|`\/imports`.{0,80}#{expected}/u,
+             "#{path}: #{place.(locale)} is not named next to `/imports`"
     end
   end
 

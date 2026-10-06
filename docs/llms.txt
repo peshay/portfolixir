@@ -23,8 +23,9 @@ descriptions document the rest.
   weights with their drift, and a research log per security. Every figure is on
   a page and over the API and the MCP companion.
 - History gets in as a Portfolio Performance CSV or JSON v1 file dropped on the
-  instance's Imports page, at `/imports` (a preview, then an atomic apply;
-  dropping the same file again books nothing twice), or one booking at a time.
+  instance's Imports page, at `/imports`, under Transactions → Import in the UI
+  (a preview, then an atomic apply; dropping the same file again books nothing
+  twice), or one booking at a time.
 - An open-source project under the MIT license, written with LLM coding agents,
   every commit owned by an accountable human. It makes no claim of production
   readiness.
@@ -54,9 +55,15 @@ can bring the history in from a Portfolio Performance export.
 1. Clone the repository, https://github.com/peshay/portfolixir.
 2. Create `.env` from `.env.example` (`install -m 600 .env.example .env`) and
    set its secrets: `SECRET_KEY_BASE`, `PORTFOLIXIR_API_TOKEN` and
-   `PORTFOLIXIR_MCP_TOKEN` each from `openssl rand -base64 48`, and
-   `POSTGRES_PASSWORD` from `openssl rand -hex 32`. A token shorter than 32
-   bytes, or left as the placeholder, stops the stack at start.
+   `PORTFOLIXIR_MCP_TOKEN` each from `openssl rand -base64 48`,
+   `POSTGRES_PASSWORD` from `openssl rand -hex 32`, and
+   `PORTFOLIXIR_UI_PASSWORD`, the web UI's login, from `openssl rand -base64 24`
+   or a passphrase of at least 12 characters the operator chooses, in single
+   quotes in `.env` because Compose reads a `$` in an unquoted value as a
+   variable. A token
+   shorter than 32 bytes, or left as the placeholder, stops the stack at start;
+   with `PORTFOLIXIR_UI_PASSWORD` left empty, the web UI is open and asks for no
+   login.
 3. Run `docker compose up --build -d`: it builds and starts the stack in the
    background and returns once the stack is up (without `-d` the command stays
    attached to the logs and does not return). The app answers at
@@ -66,8 +73,11 @@ can bring the history in from a Portfolio Performance export.
 Set `PORTFOLIXIR_UI_PASSWORD` for a Compose install: the port mapping keeps the
 instance on the host's loopback, but every process on that host and the stack's
 other containers reach the web UI, which is open without it. The login, at
-`/login`, asks only for `PORTFOLIXIR_UI_PASSWORD`: there is no user name. The
-deployment guide covers the reverse proxy and backups.
+`/login`, asks only for `PORTFOLIXIR_UI_PASSWORD`: there is no user name. A
+Portfolio Performance file goes onto the Imports page, at `/imports`, which the
+sidebar reaches as Transactions → Import: Import is a tab of the Transactions
+area, not an entry of its own. The deployment guide covers the reverse proxy and
+backups.
 
 The first build pulls the pinned base images and downloads Debian packages, Hex
 packages from hex.pm and npm packages from the npm registry. Behind a proxy, pass
@@ -77,7 +87,9 @@ it into the build with Docker's predefined proxy build arguments (`HTTP_PROXY`,
 Docker client's proxy configuration; behind a proxy that intercepts TLS, pass
 its CA to the build as the build secret `build_ca` (`docker build --secret
 id=build_ca,src=proxy-ca.crt`; the deployment guide's "Prerequisites" shows the
-Compose form).
+Compose form, and the route for a proxy on the host's loopback, for a host that
+cannot reach `deb.debian.org`, and for one that reaches no Debian mirror at
+all).
 
 ## Connect the MCP companion
 

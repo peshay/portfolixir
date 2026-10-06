@@ -35,9 +35,10 @@ it into the build with Docker's predefined proxy build arguments (`HTTP_PROXY`,
 `docker compose build --build-arg HTTPS_PROXY=http://proxy.example:3128`) or the
 Docker client's proxy configuration. Behind a proxy that intercepts TLS, pass
 its CA to the build as the build secret `build_ca`: both Dockerfiles trust it
-for their downloads and leave it out of the images they ship. Without the
-secret, the builds are unchanged. Docker does not count a secret in its build
-cache, so after changing or dropping the CA, build once with `--no-cache`.
+for their downloads, the Debian packages included, and leave it out of the
+images they ship. Without the secret, the builds are unchanged. Docker does not
+count a secret in its build cache, so after changing or dropping the CA, build
+once with `--no-cache`.
 
 ```bash
 docker build --secret id=build_ca,src=/path/to/proxy-ca.crt -f Dockerfile.release .
@@ -60,6 +61,105 @@ secrets:
     file: /path/to/proxy-ca.crt
 ```
 
+### Debian packages: a proxy on loopback, a blocked mirror
+
+`Dockerfile.release` installs Debian packages in both of its stages before
+anything else, through `docker/apt-install.sh`. With the `build_ca` secret, apt
+fetches the sources that name `deb.debian.org` over HTTPS and verifies them
+against that CA, read where Docker mounts it, so a proxy that tunnels only
+HTTPS carries these downloads too. That CA is then all apt trusts, so
+`build_ca` may be a bundle: for a proxy that only tunnels, the system's CA
+bundle; for one that re-signs some hosts and tunnels the rest, its CA and the
+system's bundle together,
+`cat proxy-ca.crt /etc/ssl/certs/ca-certificates.crt > build-ca.pem`. Without
+the secret, apt fetches from `http://deb.debian.org` as it always has. Three
+cases need more:
+
+- **A proxy on the host's loopback.** A build runs in a network of its own, so
+  a proxy listening on `127.0.0.1` is out of its reach. Build with the host's
+  network, `--network host` (under Compose, `network: host` in the service's
+  `build:`), and pass the proxy as a build argument.
+- **A host whose egress blocks `deb.debian.org`.** Name the Debian mirrors it
+  can reach in two build arguments, each a base URL such as
+  `http://mirror.example/`. Under `DEBIAN_MIRROR` the mirror serves the Debian
+  archive at `debian` (the suites `bookworm` and `bookworm-updates`); under
+  `DEBIAN_SECURITY_MIRROR`, the security archive at `debian-security`
+  (`bookworm-security`). Many public mirrors carry no `debian-security`, so the
+  second names one that does; left empty, it is `DEBIAN_MIRROR`. Give the
+  base, not the archive path: `http://ftp.example.org/`, not
+  `http://ftp.example.org/debian/`, which the build refuses. Each mirror keeps
+  the scheme you write, with the secret too, and apt checks every package
+  against Debian's archive keys whichever mirror serves it. An `https://`
+  mirror is verified against `build_ca`, or without it against the stage's own
+  CA store; the runtime stage has none before it installs `ca-certificates`,
+  so there the build stops before apt with one line. Pass a CA bundle as the
+  secret, or name the mirror with `http://`. A mirror URL is recorded in the
+  image's build history, so it carries no credentials: the build refuses one
+  with a user name or a token in it. Empty, both arguments change nothing.
+- **A host that reaches no Debian mirror at all.** Build the application's
+  image on a machine that does, and move it with `docker save` and
+  `docker load`. Portfolixir publishes no image: a release is a tag of this
+  repository, never an installable artifact, so the image you move is your
+  own build.
+
+A build through a proxy on the host's loopback, from mirrors:
+
+```bash
+docker build --network host --secret id=build_ca,src=/path/to/build-ca.pem \
+  --build-arg HTTPS_PROXY=http://127.0.0.1:3128 \
+  --build-arg DEBIAN_MIRROR=http://mirror.example/ \
+  --build-arg DEBIAN_SECURITY_MIRROR=http://security.example/ \
+  -f Dockerfile.release .
+```
+
+The same under Compose, in `docker-compose.override.yml`:
+
+```yaml
+services:
+  app:
+    build:
+      network: host
+      secrets: [build_ca]
+      args:
+        HTTPS_PROXY: http://127.0.0.1:3128
+        DEBIAN_MIRROR: http://mirror.example/
+        DEBIAN_SECURITY_MIRROR: http://security.example/
+  mcp:
+    build:
+      network: host
+      secrets: [build_ca]
+      args:
+        HTTPS_PROXY: http://127.0.0.1:3128
+secrets:
+  build_ca:
+    file: /path/to/build-ca.pem
+```
+
+The move: Compose runs the application from the image `<project>-app`,
+`portfolixir-app` in the commands below; `docker compose config --images`, run
+on the host, prints the name it expects. Build the image under that name on
+the other machine, from a checkout of the same release and for the host's
+platform: `--platform linux/amd64` or `linux/arm64`, whichever `docker version`
+names under `OS/Arch` on the host, because an image for another platform does
+not run there. Load it on the host, build only the companion there, which
+installs no Debian package, and start the stack without a build. Repeat the
+move for every release: on this route, the `docker compose build --pull` of
+[Upgrade](#upgrade) does not apply.
+
+```bash
+# On the machine that reaches a mirror, for the host's platform:
+docker build --platform linux/amd64 -t portfolixir-app -f Dockerfile.release .
+docker save -o portfolixir-app.tar portfolixir-app
+# On the host, with portfolixir-app.tar copied over:
+docker load -i portfolixir-app.tar
+docker compose build mcp
+docker compose up -d --no-build
+```
+
+The development image (`Dockerfile`) keeps its plain `apt-get` from
+`http://deb.debian.org`: `--network host` and the move reach it; `build_ca`,
+`DEBIAN_MIRROR` and `DEBIAN_SECURITY_MIRROR` do not.
+
 ## Secrets and settings
 
 Create `.env` from `.env.example`, readable by you only, and keep it that way:
@@ -76,7 +176,11 @@ repository. Generate each token and `SECRET_KEY_BASE`
 with `openssl rand -base64 48`, and `POSTGRES_PASSWORD` with
 `openssl rand -hex 32`:
 the Compose file splices it into the database URL, where a `/` or `#` from
-base64 would break the connection string.
+base64 would break the connection string. Generate `PORTFOLIXIR_UI_PASSWORD`,
+the web UI's login, with `openssl rand -base64 24`, or choose a passphrase and
+put it in single quotes in `.env` (`PORTFOLIXIR_UI_PASSWORD='…'`), because
+Compose reads a `$` in an unquoted value as a variable. Left empty, the web UI
+is open.
 
 | Variable | Required | What it does |
 |---|---|---|
@@ -86,7 +190,7 @@ base64 would break the connection string.
 | `PORTFOLIXIR_API_PRINCIPAL` | no | The name the audit journal records for a write made with `PORTFOLIXIR_API_TOKEN` (1 to 32 characters of `a-z`, `0-9`, `_` and `-`). The Compose file sets it to `mcp`; leave it alone there. Unset, that token's writes carry no name. A name `PORTFOLIXIR_API_TOKENS` also uses stops the application at boot. |
 | `PORTFOLIXIR_API_TOKENS` | no | Further API tokens as `name=token` entries, comma-separated (`scripts=<token>`; a name is 1 to 32 characters of `a-z`, `0-9`, `_` and `-`; a token here cannot contain a comma, which `openssl rand -base64 48` never prints; spaces around a name, a token and a comma are ignored). A write made with one is journaled under its name. Each token meets the same rules, and a name or a token may appear only once, `PORTFOLIXIR_API_TOKEN` included, or the application refuses to start naming the entry. Every token has the same full authority; the name attributes, it does not restrict. |
 | `PORTFOLIXIR_MCP_TOKEN` | yes | The bearer token an MCP client presents to the companion. |
-| `PORTFOLIXIR_UI_PASSWORD` | no | Set it to require a login on the web UI (ADR-0045). Unset, the UI is open — acceptable only behind reverse-proxy authentication. Changing it ends every login made with the old password. |
+| `PORTFOLIXIR_UI_PASSWORD` | no | Set it to require a login on the web UI (ADR-0045); generate it with `openssl rand -base64 24`. Unset or empty, the UI is open — acceptable only behind reverse-proxy authentication. Changing it ends every login made with the old password. |
 | `PORTFOLIXIR_SESSION_DAYS` | no | How many days a UI login stays valid (default 30). The window slides: using the instance renews it, so you are asked again only after a full period of not using it. `0` turns the server-side expiry off: the browser forgets the login when it closes, but a copy of the session cookie never expires, so prefer a number of days. A logout clears the login in that browser only, and a copy of the session cookie taken earlier stays valid; to end every login, change `PORTFOLIXIR_UI_PASSWORD` or rotate `SECRET_KEY_BASE`. |
 | `PHX_HOST` | no | The name the reverse proxy serves (default `localhost`). Requests under any other `Host` are refused with 421. |
 | `PORTFOLIXIR_ALLOWED_HOSTS` | no | Further names, comma-separated (a LAN address, a second proxy name). The Compose file adds `app`, the name the MCP companion reaches the application under. |

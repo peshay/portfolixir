@@ -7,7 +7,9 @@
 # the secret would otherwise go on without the CA. With the secret, the CA lands
 # in the build stage's system store, which Mix reads, and the step's Hex is
 # pointed at that store through HEX_CACERTS_PATH. Without it the script does
-# nothing, and Hex keeps its own bundle. The runtime stage never sees the CA.
+# nothing, and Hex keeps its own bundle. The apt steps of both stages, the
+# runtime stage's included, read the CA through docker/apt-install.sh where it
+# is mounted, and nothing of it stays in a layer of theirs.
 set -eu
 
 if [ -s /run/secrets/build_ca ]; then

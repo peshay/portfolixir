@@ -141,4 +141,5 @@ Konten, Depots, Buckets und Views vor und schreibt nichts ohne Ihre
 Bestätigung. Für einen Bank- oder Broker-Export, den Portfolixir nicht liest,
 nutzen Sie den Prompt `import_converter`: Der Agent schreibt einen Konverter,
 der auf Ihrem Rechner läuft, und übergibt Ihnen eine Datei für die
-Import-Seite (`/imports`), wo Sie sie in der Vorschau prüfen und übernehmen.
+Import-Seite (Transaktionen → Import, `/imports`), wo Sie sie in der Vorschau
+prüfen und übernehmen.

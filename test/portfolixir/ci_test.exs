@@ -1471,8 +1471,10 @@ defmodule Portfolixir.CITest do
   #   changes: no CA is added, and Hex keeps its own bundle.
   # - The companion's npm install runs with the secret as an extra CA, in the
   #   same instruction.
-  # - No runtime stage names the secret: the CA never reaches an image that
-  #   ships.
+  # - No runtime stage trusts the secret: the companion's names it nowhere, and
+  #   the release's names it on its apt step alone (#1092), which reads it
+  #   where it is mounted and copies it nowhere. The CA never reaches an image
+  #   that ships.
   # - The deployment guide (EN, DE) names the secret and how to pass it.
   test "a build can trust a proxy's CA, passed as an optional build secret" do
     mount = "--mount=type=secret,id=build_ca"
@@ -1500,7 +1502,14 @@ defmodule Portfolixir.CITest do
     assert with_secret =~ "export HEX_CACERTS_PATH=/etc/ssl/certs/ca-certificates.crt"
     refute release_build =~ "HEX_CACERTS_PATH"
 
-    refute release_runtime =~ "build_ca"
+    runtime_steps =
+      release_runtime
+      |> String.replace("\\\n", " ")
+      |> String.split("\n")
+      |> Enum.reject(&String.starts_with?(&1, "#"))
+
+    assert [apt_step] = Enum.filter(runtime_steps, &(&1 =~ "build_ca"))
+    assert apt_step =~ "sh /run/apt-install.sh ", apt_step
     refute release_runtime =~ "trust-build-ca"
 
     assert [_header, mcp_build, mcp_runtime] =
@@ -1515,6 +1524,377 @@ defmodule Portfolixir.CITest do
       text = File.read!(guide)
       assert text =~ "--secret id=build_ca,src=", guide
       assert text =~ "docker-compose.override.yml", guide
+    end
+  end
+
+  # User story (#1092, Sprint 19 B2a):
+  # As an operator building the release image behind a proxy that only
+  # tunnels HTTPS, or on a host whose egress blocks deb.debian.org,
+  # I want the image's Debian downloads to take the build CA and mirrors of
+  # my choosing, and the guide to give the route,
+  # so that the first `apt-get` does not stop the build.
+  #
+  # Acceptance criteria:
+  # - Both stages of Dockerfile.release declare the build arguments
+  #   DEBIAN_MIRROR and DEBIAN_SECURITY_MIRROR before their apt step, and
+  #   install their Debian packages through one script,
+  #   docker/apt-install.sh, in a step that mounts the optional `build_ca`
+  #   secret readable by apt's unprivileged downloader and mounts the script
+  #   rather than copying it. No other step runs apt-get.
+  # - The script reads both mirrors, points apt's HTTPS at the mounted secret,
+  #   and keeps --no-install-recommends and the package-list cleanup. No line
+  #   of it that names the secret copies, concatenates, installs or redirects
+  #   it: the CA never reaches a layer.
+  # - The deployment guide (EN, DE) gives the route: both mirrors and the
+  #   paths each serves, a CA bundle for a proxy that does not re-sign every
+  #   host, the host's network for a proxy on the host's loopback, and the
+  #   move with docker save and docker load for the host's platform.
+  test "the release image's apt steps take the build CA and a Debian mirror" do
+    assert [_header | stages] =
+             "Dockerfile.release" |> File.read!() |> String.split(~r/^FROM /m)
+
+    assert length(stages) == 2
+
+    apt_step =
+      ~r/^RUN --mount=type=secret,id=build_ca,mode=0444\s+--mount=type=bind,source=docker\/apt-install\.sh,target=\/run\/apt-install\.sh\s+sh \/run\/apt-install\.sh\s+\w/
+
+    for stage <- stages do
+      steps =
+        stage
+        |> String.replace("\\\n", " ")
+        |> String.split("\n")
+        |> Enum.reject(&String.starts_with?(&1, "#"))
+
+      assert [step] = Enum.filter(steps, &(&1 =~ "apt-install")), stage
+      assert step =~ apt_step, step
+      assert Enum.filter(steps, &(&1 =~ "apt-get")) == [], "an apt-get outside the script"
+
+      before = Enum.take_while(steps, &(&1 != step))
+
+      for arg <- ["ARG DEBIAN_MIRROR", "ARG DEBIAN_SECURITY_MIRROR"] do
+        assert arg in before, "#{arg} is not declared before: #{step}"
+      end
+    end
+
+    script = File.read!("docker/apt-install.sh")
+    assert script =~ "${DEBIAN_MIRROR:-}"
+    assert script =~ "${DEBIAN_SECURITY_MIRROR:-"
+    assert script =~ "Acquire::https::CAInfo"
+    assert script =~ ~s(apt-get install -y --no-install-recommends "$@")
+    assert script =~ "rm -rf /var/lib/apt/lists/*"
+
+    secret_lines =
+      script
+      |> String.split("\n")
+      |> Enum.reject(&String.starts_with?(String.trim_leading(&1), "#"))
+      |> Enum.filter(&(&1 =~ ~r/\$\{?ca\b|\/run\/secrets\/build_ca/))
+
+    assert secret_lines != []
+
+    for line <- secret_lines do
+      refute line =~ ~r/\b(cp|cat|install|tee|dd|mv|ln|update-ca-certificates)\b|[<>]/,
+             "the secret is copied or redirected: #{line}"
+    end
+
+    for guide <- ["docs/home-deployment.md", "docs/de/home-deployment.md"] do
+      text = guide |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- [
+            "--build-arg DEBIAN_MIRROR=http://mirror.example/",
+            "DEBIAN_SECURITY_MIRROR",
+            "`debian-security`",
+            "cat proxy-ca.crt /etc/ssl/certs/ca-certificates.crt > build-ca.pem",
+            "--network host",
+            "network: host",
+            "--platform linux/",
+            "docker save -o",
+            "docker load -i"
+          ] do
+        assert text =~ fragment, "#{guide}: #{fragment}"
+      end
+    end
+  end
+
+  # The sources a Debian bookworm image ships, in deb822 form, and the same
+  # two archives in the one-line form of sources.list.
+  @debian_sources """
+  Types: deb
+  URIs: http://deb.debian.org/debian
+  Suites: bookworm bookworm-updates
+  Components: main
+  Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+
+  Types: deb
+  URIs: http://deb.debian.org/debian-security
+  Suites: bookworm-security
+  Components: main
+  Signed-By: /usr/share/keyrings/debian-archive-keyring.gpg
+  """
+
+  @debian_list """
+  deb http://deb.debian.org/debian bookworm main
+  deb http://deb.debian.org/debian-security bookworm-security main
+  """
+
+  # User story (#1092, Sprint 19 B2a): the spec's matrix, run on the apt
+  # script itself with apt-get and rm stubbed and every path it touches moved
+  # into the test's own directory -- no network, nothing installed and
+  # nothing removed outside that directory.
+  #
+  # Acceptance criteria:
+  # - No input, or empty ones: apt-get update, then apt-get install -y
+  #   --no-install-recommends, then the lists are removed, with no APT_CONFIG
+  #   and no proxy variable added, on the image's own sources.
+  # - A mirror: apt reads, through APT_CONFIG, copies of both source forms in
+  #   which DEBIAN_MIRROR's base replaces http://deb.debian.org for debian and
+  #   DEBIAN_SECURITY_MIRROR's (DEBIAN_MIRROR's when empty) for
+  #   debian-security, each in the scheme written.
+  # - The secret: the sources that name deb.debian.org move to https, and apt
+  #   verifies against the secret where it is mounted; nothing else holds its
+  #   content.
+  # - With any input, HTTP_PROXY, HTTPS_PROXY and NO_PROXY reach apt in lower
+  #   case, the only spelling apt reads, and a lower-case value already set is
+  #   kept.
+  # - A mirror that is not an http(s) base URL, that names its archive path,
+  #   or that carries credentials stops the step before apt with one line;
+  #   so does an https mirror with neither the secret nor a CA store.
+  # - The image's own sources are never changed, and the copy is gone after.
+  test "the apt script follows the build's CA and mirror inputs" do
+    proxies = "http_proxy=http://proxy.example:3128 https_proxy=http://proxy.example:3128"
+
+    plain = run_apt_install(proxy: true)
+    assert plain.status == 0, plain.output
+    assert plain.apt_config == nil
+    assert plain.lists == []
+
+    assert plain.calls == [
+             "apt-get update",
+             "APT_CONFIG=",
+             "http_proxy= https_proxy= no_proxy=",
+             "apt-get install -y --no-install-recommends pkg-a pkg-b",
+             "APT_CONFIG=",
+             "http_proxy= https_proxy= no_proxy=",
+             "rm -rf <dir>/lists/marker"
+           ]
+
+    assert run_apt_install(mirror: "", security: "", proxy: true).calls == plain.calls
+
+    mirror = run_apt_install(mirror: "http://mirror.example/", proxy: true)
+    assert mirror.status == 0, mirror.output
+    assert "#{proxies} no_proxy=mirror.lan" in mirror.calls
+    assert mirror.lists == []
+    refute mirror.apt_config =~ "CAInfo"
+
+    for form <- [mirror.one_line, mirror.deb822] do
+      assert form =~ ~r{http://mirror\.example/debian\s}
+      assert form =~ ~r{http://mirror\.example/debian-security\s}
+      refute form =~ "deb.debian.org"
+    end
+
+    preset = run_apt_install(mirror: "http://mirror.example/", proxy: true, preset: true)
+    assert preset.status == 0, preset.output
+
+    assert ("http_proxy=http://preset.example:8080 https_proxy=http://preset.example:8080 " <>
+              "no_proxy=preset.lan") in preset.calls
+
+    https_store = run_apt_install(mirror: "https://mirror.example/", system_ca: true)
+    assert https_store.status == 0, https_store.output
+    assert https_store.deb822 =~ "URIs: https://mirror.example/debian-security\n"
+
+    https_bare = run_apt_install(mirror: "https://mirror.example/")
+    assert https_bare.status == 2
+    assert https_bare.calls == []
+    assert [line] = String.split(https_bare.output, "\n", trim: true)
+    assert line =~ "build_ca"
+
+    ca = run_apt_install(ca: true, proxy: true)
+    assert ca.status == 0, ca.output
+    assert "#{proxies} no_proxy=mirror.lan" in ca.calls
+    assert ca.apt_config =~ ~s(Acquire::https::CAInfo "#{ca.secret}";)
+
+    for form <- [ca.one_line, ca.deb822] do
+      assert form =~ ~r{https://deb\.debian\.org/debian\s}
+      assert form =~ ~r{https://deb\.debian\.org/debian-security\s}
+      refute form =~ "http://"
+    end
+
+    kept = run_apt_install(ca: true, mirror: "http://mirror.example/pub//")
+    assert kept.status == 0, kept.output
+    assert kept.deb822 =~ "URIs: http://mirror.example/pub/debian\n"
+    assert kept.deb822 =~ "URIs: http://mirror.example/pub/debian-security\n"
+    assert kept.apt_config =~ ~s(Acquire::https::CAInfo "#{kept.secret}";)
+
+    split =
+      run_apt_install(
+        ca: true,
+        mirror: "http://mirror.example/",
+        security: "https://security.example/"
+      )
+
+    assert split.status == 0, split.output
+    assert split.one_line =~ "deb http://mirror.example/debian bookworm main\n"
+    assert split.one_line =~ "deb https://security.example/debian-security bookworm-security"
+
+    security_only = run_apt_install(ca: true, security: "http://security.example/")
+    assert security_only.status == 0, security_only.output
+    assert security_only.deb822 =~ "URIs: https://deb.debian.org/debian\n"
+    assert security_only.deb822 =~ "URIs: http://security.example/debian-security\n"
+
+    for {variable, value, says} <- [
+          {:mirror, "ftp://mirror.example/", "http:// or https://"},
+          {:mirror, "mirror.example", "http:// or https://"},
+          {:mirror, "https://", "http:// or https://"},
+          {:mirror, "https://a|b/", "character"},
+          {:mirror, "https://user:token@mirror.example/", "credentials"},
+          {:mirror, "http://ftp.example.org/debian/", "http://ftp.example.org/"},
+          {:mirror, "http://ftp.example.org/debian", "http://ftp.example.org/"},
+          {:mirror, "http://ftp.example.org/debian-security/", "http://ftp.example.org/"},
+          {:security, "http://ftp.example.org/debian-security", "http://ftp.example.org/"},
+          {:security, "http://user@security.example/", "credentials"}
+        ] do
+      result = run_apt_install([{variable, value}])
+      name = if variable == :mirror, do: "DEBIAN_MIRROR", else: "DEBIAN_SECURITY_MIRROR"
+      assert result.status == 2, value
+      assert result.calls == [], value
+      assert [line] = String.split(result.output, "\n", trim: true), value
+      assert line =~ name, value
+      assert line =~ says, value
+    end
+
+    for result <- [plain, mirror, preset, https_store, ca, kept, split, security_only] do
+      assert result.left_behind == []
+      assert result.own == {@debian_list, @debian_sources}
+      assert result.secret_elsewhere == []
+    end
+  end
+
+  # Runs docker/apt-install.sh from a copy whose apt directory, secret, CA
+  # store and package lists point into a directory of the test's own, with two
+  # stubs ahead on PATH. apt-get records its arguments, APT_CONFIG and the
+  # lower-case proxy variables, and copies exactly the source list and the
+  # source parts APT_CONFIG names; rm records its arguments and removes only
+  # inside that directory.
+  defp run_apt_install(inputs) do
+    dir = Path.join(System.tmp_dir!(), "apt-install-#{System.unique_integer([:positive])}")
+    etc = Path.join(dir, "etc/apt")
+    bin = Path.join(dir, "bin")
+    tmp = Path.join(dir, "tmp")
+    seen = Path.join(dir, "seen")
+    lists = Path.join(dir, "lists")
+    log = Path.join(dir, "calls.log")
+    secret = Path.join(dir, "build_ca")
+    system_ca = Path.join(dir, "system-ca.crt")
+    script = Path.join(dir, "apt-install.sh")
+
+    try do
+      for path <- [Path.join(etc, "sources.list.d"), bin, tmp, seen, lists],
+          do: File.mkdir_p!(path)
+
+      File.write!(Path.join(etc, "sources.list"), @debian_list)
+      File.write!(Path.join(etc, "sources.list.d/debian.sources"), @debian_sources)
+      File.write!(Path.join(lists, "marker"), "")
+      if inputs[:ca], do: File.write!(secret, "synthetic CA\n")
+      if inputs[:system_ca], do: File.write!(system_ca, "synthetic store\n")
+
+      File.write!(
+        script,
+        "docker/apt-install.sh"
+        |> File.read!()
+        |> String.replace("/etc/apt/", etc <> "/")
+        |> String.replace("/run/secrets/build_ca", secret)
+        |> String.replace("/etc/ssl/certs/ca-certificates.crt", system_ca)
+        |> String.replace("/var/lib/apt/lists/", lists <> "/")
+      )
+
+      File.write!(Path.join(bin, "apt-get"), ~S"""
+      #!/bin/sh
+      set -eu
+      {
+        echo "apt-get $*"
+        echo "APT_CONFIG=${APT_CONFIG:-}"
+        echo "http_proxy=${http_proxy:-} https_proxy=${https_proxy:-} no_proxy=${no_proxy:-}"
+      } >>"$STUB_LOG"
+      if [ -n "${APT_CONFIG:-}" ]; then
+        cp "$APT_CONFIG" "$STUB_SEEN/apt.conf"
+        list=$(sed -n 's/^Dir::Etc::SourceList "\(.*\)";$/\1/p' "$APT_CONFIG")
+        parts=$(sed -n 's/^Dir::Etc::SourceParts "\(.*\)";$/\1/p' "$APT_CONFIG")
+        cp "$list" "$STUB_SEEN/sources.list"
+        cat "$parts"/*.sources >"$STUB_SEEN/parts"
+      fi
+      """)
+
+      File.write!(Path.join(bin, "rm"), ~S"""
+      #!/bin/sh
+      echo "rm $*" >>"$STUB_LOG"
+      for arg in "$@"; do
+        case "$arg" in
+          "$STUB_DIR"/*) command -p rm -rf -- "$arg" ;;
+        esac
+      done
+      """)
+
+      for stub <- ["apt-get", "rm"], do: File.chmod!(Path.join(bin, stub), 0o755)
+
+      proxy = fn value -> if inputs[:proxy], do: value end
+      preset = fn value -> if inputs[:preset], do: value end
+
+      env = [
+        {"PATH", bin <> ":" <> System.get_env("PATH")},
+        {"TMPDIR", tmp},
+        {"STUB_DIR", dir},
+        {"STUB_LOG", log},
+        {"STUB_SEEN", seen},
+        {"DEBIAN_MIRROR", inputs[:mirror]},
+        {"DEBIAN_SECURITY_MIRROR", inputs[:security]},
+        {"HTTP_PROXY", proxy.("http://proxy.example:3128")},
+        {"HTTPS_PROXY", proxy.("http://proxy.example:3128")},
+        {"NO_PROXY", proxy.("mirror.lan")},
+        {"http_proxy", preset.("http://preset.example:8080")},
+        {"https_proxy", preset.("http://preset.example:8080")},
+        {"no_proxy", preset.("preset.lan")},
+        {"APT_CONFIG", nil}
+      ]
+
+      {output, status} =
+        System.cmd("sh", [script, "pkg-a", "pkg-b"], env: env, stderr_to_stdout: true)
+
+      read_if_there = fn path -> if File.exists?(path), do: File.read!(path) end
+      apt_config = read_if_there.(Path.join(seen, "apt.conf"))
+
+      # The source list and parts APT_CONFIG names are the step's own copies.
+      if apt_config do
+        work = Regex.escape(tmp) <> "/[^/]+"
+        assert apt_config =~ ~r/^Dir::Etc::SourceList "#{work}\/sources\.list";$/m
+        assert apt_config =~ ~r/^Dir::Etc::SourceParts "#{work}\/sources\.list\.d";$/m
+      end
+
+      secret_elsewhere =
+        for path <- Path.wildcard(Path.join(dir, "**/*"), match_dot: true),
+            path != secret,
+            File.regular?(path),
+            File.read!(path) =~ "synthetic CA",
+            do: path
+
+      %{
+        status: status,
+        output: output,
+        secret: secret,
+        calls:
+          (read_if_there.(log) || "")
+          |> String.replace(dir, "<dir>")
+          |> String.split("\n", trim: true),
+        apt_config: apt_config,
+        one_line: read_if_there.(Path.join(seen, "sources.list")),
+        deb822: read_if_there.(Path.join(seen, "parts")),
+        lists: File.ls!(lists),
+        left_behind: File.ls!(tmp),
+        own:
+          {File.read!(Path.join(etc, "sources.list")),
+           File.read!(Path.join(etc, "sources.list.d/debian.sources"))},
+        secret_elsewhere: secret_elsewhere
+      }
+    after
+      File.rm_rf!(dir)
     end
   end
 
