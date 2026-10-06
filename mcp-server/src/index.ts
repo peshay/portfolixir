@@ -3,7 +3,7 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 import { createApiClient } from "./api-client.js";
-import { requireMcpToken, startHttpServer } from "./http.js";
+import { requireMcpPort, requireMcpToken, startHttpServer } from "./http.js";
 import { createPortfolixirMcpServer, profileSwitch } from "./server.js";
 import type { McpProfile } from "./profiles.js";
 
@@ -38,23 +38,34 @@ if (transport === "http") {
   // HTTP mode refuses to start without a sound token (#761, E25 S1 F01): a
   // listener that answers 401 forever is a misconfiguration, and a short or
   // placeholder token is not a credential. The message names the variable.
+  // A port that is not a whole number from 1 to 65535 stops it the same way,
+  // the variable and its value named (#1043).
   let token: string;
+  let port: number;
 
   try {
     token = requireMcpToken(process.env.PORTFOLIXIR_MCP_TOKEN);
+    port = requireMcpPort(process.env.PORTFOLIXIR_MCP_PORT ?? "4001");
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
   }
 
-  await startHttpServer({
-    client,
-    token,
-    host: process.env.PORTFOLIXIR_MCP_HOST ?? "127.0.0.1",
-    port: Number.parseInt(process.env.PORTFOLIXIR_MCP_PORT ?? "4001", 10),
-    extraHosts: (process.env.PORTFOLIXIR_MCP_ALLOWED_HOSTS ?? "").split(","),
-    profile
-  });
+  // A listener that cannot start stops the companion with the address and
+  // the cause named (#1043), never with "listening" and exit 0.
+  try {
+    await startHttpServer({
+      client,
+      token,
+      host: process.env.PORTFOLIXIR_MCP_HOST ?? "127.0.0.1",
+      port,
+      extraHosts: (process.env.PORTFOLIXIR_MCP_ALLOWED_HOSTS ?? "").split(","),
+      profile
+    });
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
 } else if (transport === "stdio") {
   const server = createPortfolixirMcpServer(client, { profile });
   await server.connect(new StdioServerTransport());

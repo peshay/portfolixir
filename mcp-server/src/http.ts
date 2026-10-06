@@ -76,6 +76,34 @@ export const MCP_TOKEN_PLACEHOLDER_PREFIXES = [
   "example"
 ];
 
+export const MCP_DEFAULT_PORT = 4001;
+
+/**
+ * The listener's port from `PORTFOLIXIR_MCP_PORT` (#1043): a whole number
+ * from 1 to 65535, trimmed; unset or empty is 4001. Anything else stops the
+ * companion with the variable and its value named, as a bad token does,
+ * rather than listening on a port nobody chose (`4001x` read as 4001) or
+ * reporting `NaN`.
+ */
+export function requireMcpPort(configuredPort: string | undefined): number {
+  const value = (configuredPort ?? "").trim();
+
+  if (value === "") {
+    return MCP_DEFAULT_PORT;
+  }
+
+  const port = /^[0-9]+$/.test(value) ? Number(value) : Number.NaN;
+
+  if (!(port >= 1 && port <= 65535)) {
+    throw new Error(
+      "PORTFOLIXIR_MCP_PORT must be a whole number from 1 to 65535, or unset " +
+        `(${MCP_DEFAULT_PORT}); it is set to ${JSON.stringify(configuredPort)}`
+    );
+  }
+
+  return port;
+}
+
 /**
  * HTTP mode needs a token to authenticate anything at all; without one the
  * listener would start and answer 401 forever, which is a misconfiguration
@@ -361,7 +389,7 @@ export function createHttpApp(options: HttpAppOptions): Express {
 
 export async function startHttpServer(options: HttpServerOptions): Promise<void> {
   const host = options.host ?? "127.0.0.1";
-  const port = options.port ?? 4001;
+  const port = options.port ?? MCP_DEFAULT_PORT;
   const token = requireMcpToken(options.token);
   const allowedHosts = allowedHostsFor(host, port, ...(options.extraHosts ?? []));
   const app = createHttpApp({
@@ -371,9 +399,69 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
     profile: options.profile
   });
 
-  await new Promise<void>((resolve) => {
-    app.listen(port, host, () => resolve());
+  // A listen that fails rejects (#1043), so a port that is taken never reads
+  // as listening. No callback goes to app.listen, which would leave Express's
+  // own error listener on the server for good: one listener hears the bind's
+  // failure, and it is removed once the server listens, so a later server
+  // error is not swallowed.
+  await new Promise<void>((resolve, reject) => {
+    let server: ReturnType<typeof app.listen>;
+
+    try {
+      server = app.listen(port, host);
+    } catch (error) {
+      reject(listenFailure(host, port, error));
+      return;
+    }
+
+    const failed = (error: Error): void => {
+      server.off("listening", listening);
+      reject(listenFailure(host, port, error));
+    };
+    const listening = (): void => {
+      server.off("error", failed);
+      resolve();
+    };
+
+    server.once("error", failed);
+    server.once("listening", listening);
   });
 
-  console.error(`Portfolixir MCP server listening on http://${host}:${port}/mcp`);
+  console.error(`Portfolixir MCP server listening on ${mcpUrl(host, port)}`);
+}
+
+// The listener's address as a URL: an IPv6 host goes in brackets.
+function mcpUrl(host: string, port: number): string {
+  return `http://${host.includes(":") ? `[${host}]` : host}:${port}/mcp`;
+}
+
+// What a listen most often fails with, in the operator's words.
+const LISTEN_CAUSES = new Map([
+  ["EADDRINUSE", "the port is in use"],
+  ["EACCES", "no permission to listen on the port"],
+  ["EADDRNOTAVAIL", "the host is not an address of this machine"],
+  ["ENOTFOUND", "the host name does not resolve"]
+]);
+
+/**
+ * The one line an operator reads when the listener cannot start (#1043): the
+ * address it tried, and the cause by its code (or its message, when it
+ * carries none). It never says "listening".
+ */
+function listenFailure(host: string, port: number, error: unknown): Error {
+  const code =
+    typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;
+  const gloss = typeof code === "string" ? LISTEN_CAUSES.get(code) : undefined;
+  const cause =
+    typeof code === "string"
+      ? gloss === undefined
+        ? code
+        : `${code} (${gloss})`
+      : error instanceof Error
+        ? error.message
+        : String(error);
+
+  return new Error(`Portfolixir MCP server could not listen on ${mcpUrl(host, port)}: ${cause}`, {
+    cause: error
+  });
 }

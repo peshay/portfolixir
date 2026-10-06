@@ -46,8 +46,12 @@ Weiterleitung antwortet.
 `PORTFOLIXIR_MCP_TOKEN` ist für den HTTP-Transport erforderlich, damit sich
 lokale HTTP-Clients beim Begleitdienst authentifizieren können. Es folgt der
 Regel des API-Tokens: Der Begleitdienst startet nicht mit einem Token, das
-kürzer als 32 Bytes oder ein Platzhalter ist, und nennt dabei die Variable;
-wiederholt falsche Tokens von einer verbindenden Adresse werden mit `429` und
+kürzer als 32 Bytes oder ein Platzhalter ist, und nennt dabei die Variable.
+Ein `PORTFOLIXIR_MCP_PORT`, das keine ganze Zahl von 1 bis 65535 ist, oder ein
+Port, den der Listener nicht bekommt (ein anderer Prozess hält ihn), stoppt
+den Begleitdienst mit dem Exit-Status 1 und einer Zeile, die die Variable und
+ihren Wert nennt oder die Adresse und die Ursache, etwa `EADDRINUSE`.
+Wiederholt falsche Tokens von einer verbindenden Adresse werden mit `429` und
 `Retry-After` für ein wachsendes Intervall beantwortet. Hinter dem
 veröffentlichten Port verbindet jeder Client über die Docker-Bridge, ein
 Rater dort bremst also auch den Agenten. Vor allem anderen prüft der
@@ -3397,6 +3401,33 @@ ebenso jeder Fehler eines Lesezugriffs. Löst ein Name in mehrere Adressen auf,
 gilt die Anfrage nur dann als nie gesendet, wenn der Verbindungsaufbau an
 jeder von ihnen so gescheitert ist; sonst nennt die Meldung den Code jeder
 Adresse.
+
+**Ein Gateway-Fehler oder eine Antwort, die kein JSON ist.** Hinter einem
+Reverse Proxy ergibt ein Schreibvorgang, der mit `502`, `504` oder Cloudflares
+`520` oder `524` beantwortet wird, `ApiOutcomeUnknownError`: Die Meldung
+sagt, dass das Gateway anstelle des Servers mit diesem Status geantwortet hat,
+und der Server kann den Schreibvorgang trotzdem übernommen haben, also lesen
+Sie vor einer Wiederholung neu, was er geändert hätte. Die Ausnahme ist ein
+`502` in der eigenen JSON-Fehlerhülle der API, einem `errors`-Objekt auf
+oberster Ebene: Die API antwortet so mit `502`, wenn der Wechselkursanbieter
+bei `portfolixir.exchange_rates.sync` scheitert, und nichts wird gespeichert;
+das ist also die Antwort des Servers, am Schreibvorgang ist nichts unbekannt,
+und sie bleibt der gewöhnliche Fehler
+`Portfolixir API request failed: 502 {…}` mit der Angabe der API. Keinen der
+drei anderen Status liefert die API, sie stammen also von einem Gateway, gleich
+welcher Body. Ein Lesezugriff, der mit einem der vier beantwortet wird, ändert
+nichts; er bleibt ein gewöhnlicher Fehler, der den Status nennt oder sagt,
+dass die Antwort keinen Body hatte, und sagt, dass eine Wiederholung sicher
+ist. Ein `503` gilt nicht als unbekannter Ausgang: Ein Proxy, der `503`
+liefert, hat die Anfrage nicht weitergeleitet. Eine Antwort,
+deren Body kein JSON ist (eine HTML-Fehlerseite,
+das `413` eines Proxys), wird nie als Parse-Fehler weitergereicht: Ihr Fehler
+nennt den Status und zitiert höchstens 120 Zeichen des Bodys, Leerraum
+zusammengefasst und unsichtbare Zeichen ausgeschrieben, mit der Länge des
+Bodys in Bytes, wenn er gekürzt wurde. Ein Schreibvorgang, der mit `2xx` und
+einem solchen Body beantwortet wird, ergibt ebenfalls
+`ApiOutcomeUnknownError`: Die API kann ihn übernommen haben, und ihre Antwort
+lässt sich nicht lesen.
 
 - `portfolixir.contract.get` — der Kontraktversions-Read (ADR-0044 §8): was
   die Oberfläche bietet und wann sie sich zuletzt geändert hat, abfragbar mit

@@ -43,7 +43,11 @@ without a redirect.
 `PORTFOLIXIR_MCP_TOKEN` is required for HTTP transport so local HTTP clients can
 authenticate to the companion. It meets the API token's policy: the companion
 refuses to start with a token shorter than 32 bytes or equal to a placeholder,
-naming the variable, and repeated wrong tokens from one connecting address are
+naming the variable. A `PORTFOLIXIR_MCP_PORT` that is not a whole number from
+1 to 65535, or a port the listener cannot take (another process holds it),
+stops the companion with exit status 1 and one line naming the variable and
+its value, or the address and the cause, such as `EADDRINUSE`. Repeated wrong
+tokens from one connecting address are
 answered `429` with `Retry-After` for a growing interval. Behind the published
 port every client connects from the Docker bridge, so a guesser there delays
 the agent as well. Before anything else, the companion checks the `Host`
@@ -3256,6 +3260,27 @@ a plain error and is safe to retry, as is any failure of a read. For a name
 that resolves to several addresses, the request counts as never sent only
 when the connect failed that way on every one of them; otherwise the message
 names each address's code.
+
+**A gateway error, or an answer that is not JSON.** Behind a reverse proxy, a
+write answered `502`, `504`, or Cloudflare's `520` or `524` answers
+`ApiOutcomeUnknownError`: its message says the gateway answered that status
+instead of the server, and the server may still have committed the write, so
+re-read what it would have changed before retrying. The exception is a `502`
+in the API's own JSON error envelope, a top-level `errors` object: the API
+answers `502` that way when the rate provider fails during
+`portfolixir.exchange_rates.sync`, with nothing stored, so that is the
+server's answer, nothing about the write is unknown, and it stays the plain
+error `Portfolixir API request failed: 502 {…}` with the API's detail. The API
+answers none of the other three statuses, so they are a gateway's whatever
+their body. A read answered any of the four changes nothing; it stays a plain
+error that names the status, or says the answer had no body, and says a retry
+is safe. A `503` is not read as an unknown outcome: a proxy that answers `503`
+did not forward the request. An answer whose body is not JSON (an HTML error page, a proxy's `413`) is never passed on as a parse
+failure: its error names the status and quotes at most 120 characters of the
+body, whitespace collapsed and invisible characters spelled out, with the
+body's length in bytes when it was cut. A write answered `2xx` with such a
+body answers `ApiOutcomeUnknownError` too: the API may have committed it, and
+its answer cannot be read.
 
 - `portfolixir.contract.get` — the contract-version read (ADR-0044 §8):
   what the surface offers and when it last changed, pollable with `since=`.
