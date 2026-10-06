@@ -181,3 +181,24 @@ msgstr "darf keine unsichtbaren Zeichen enthalten (%{characters}); gib den Text 
 
 msgid "must not contain invisible characters (format, bidirectional or tag characters)"
 msgstr "darf keine unsichtbaren Zeichen enthalten (Format-, Schreibrichtungs- oder Tag-Zeichen)"
+
+msgid "is required for a cross-currency settlement"
+msgstr "ist für eine Abrechnung in einer anderen Währung erforderlich"
+
+msgid "must be greater than 0 for a cross-currency settlement"
+msgstr "muss für eine Abrechnung in einer anderen Währung größer als 0 sein"
+
+msgid "must match the transaction currency (%{currency})"
+msgstr "muss der Währung der Buchung entsprechen (%{currency})"
+
+msgid "must differ from %{field}"
+msgstr "muss sich von %{field} unterscheiden"
+
+msgid "cannot become a balance anchor or a split: the row was imported"
+msgstr "kann nicht zu „Saldo gesetzt“ oder einem Split werden: die Buchung stammt aus einem Import"
+
+msgid "was retired by a merge and cannot be booked again"
+msgstr "wurde bei einer Zusammenführung stillgelegt und kann nicht erneut gebucht werden"
+
+msgid "is never set on a balance anchor or a split"
+msgstr "wird bei „Saldo gesetzt“ und einem Split nie gesetzt"

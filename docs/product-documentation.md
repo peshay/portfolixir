@@ -2362,9 +2362,10 @@ The parsed preview and account mapping are preserved in memory across language
 switches. Switching the UI language while reviewing an import returns to the
 confirmation step with the mapping intact — no re-upload required.
 
-Parser warnings appear in a scrollable box with a copy button. The copied text
-uses stable `Row N: message` lines so the diagnostics can be kept with the
-source export. Applying the import is atomic and uses content hashes to skip
+Parser warnings appear in one **Attention** note under the counts by kind,
+with a scrollable list of the rows and a copy button. The copied text uses
+stable `Row N: message` lines so the diagnostics can be kept with the source
+export. Applying the import is atomic and uses content hashes to skip
 duplicates on re-run.
 
 ### What a Portfolio Performance CSV requires
@@ -2447,12 +2448,37 @@ column's decimals), a number the parser cannot read, a CSV row whose
 Gesamtpreis contradicts its Betrag, Gebühren and Steuern (see above), and a
 transaction with more fee and tax units than one booking carries: each is
 named with the field and its row, and never fails the import after you
-confirm. A row whose ISIN
-is not a valid ISIN (its shape or its check digit, a letter from another
-script included) is left out the same way, so a lookalike never becomes a
-second security. An entry with only a WKN or only a ticker is a security like
-any other and resolves through the matching ladder below. A preview is kept
-for your next visit (a language switch, a reload) only once it has been shown.
+confirm. These rows are left out the same way, each named with its row:
+
+- **A row whose ISIN is not a valid ISIN** (its shape or its check digit, a
+  letter from another script included), so a lookalike never becomes a second
+  security. An entry with only a WKN or only a ticker is a security like any
+  other and resolves through the matching ladder below.
+- **A transfer that names no account to book on.** In a CSV, a transfer row
+  needs both `Konto` and `Gegenkonto`, two different ones, cash or shares,
+  either side: *transfer without a counter account — row not imported*,
+  *transfer without an account — row not imported*, *transfer to its own
+  account — row not imported*. In JSON v1, a `CASH_TRANSFER` without
+  `otherAccount` or a `SECURITY_TRANSFER` without `otherPortfolio` is the
+  first of these.
+- **A CSV *Kauf* or *Verkauf* with an empty `Gegenkonto`**, the cash account
+  the trade settles against: *buy without a counter account — row not
+  imported*, or *sell …*.
+- **A JSON row whose currency Portfolixir does not support**, named as the
+  file wrote it, in capitals: *currency “EURO” is not supported — row not
+  imported* for the booking's currency, and *security currency “XEU” is not
+  supported — row not imported* on every row that names a security in such a
+  currency. Portfolixir supports the currencies the security dialog offers
+  under *Currency* (EUR, USD, GBP, CHF, the other ISO codes listed there, and
+  GBX for pence). A real code outside that list, such as THB, is refused like
+  a misspelt one, because nothing in the instance could value it: check the
+  code against that list, and expect such rows to stay out while the rest of
+  the file imports. A row without a currency, or with a blank one, still books
+  in the default, EUR; a lower-case code such as `usd` is read as `USD`. A CSV
+  row books in EUR and is never refused for its currency.
+
+A preview is kept for your next visit (a language switch, a reload) only once
+it has been shown.
 
 ### Transfers in a Portfolio Performance CSV
 

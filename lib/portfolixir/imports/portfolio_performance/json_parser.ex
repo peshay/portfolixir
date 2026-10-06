@@ -31,7 +31,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
 
   Numbers are decoded via `Jason.decode/2` with `floats: :decimals` so
   no float passes through. Unknown PP types end up in `preview.errors`
-  rather than as silent `Entry` skips.
+  rather than as silent `Entry` skips, and so does a row whose booking or
+  security currency the catalog does not list (#948).
   """
 
   use Gettext, backend: PortfolixirWeb.Gettext
@@ -154,9 +155,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
          {:ok, time} <- parse_time(Map.get(raw, "time")),
          {:ok, amount} <- Decimals.parse(Map.get(raw, "amount")),
          {:ok, shares} <- Decimals.parse(Map.get(raw, "shares")),
-         {:ok, {fees, taxes, refund_amounts}} <- sum_units(Map.get(raw, "units", [])) do
-      currency = normalize_currency(Map.get(raw, "currency"))
-      security = parse_security(Map.get(raw, "security"))
+         {:ok, {fees, taxes, refund_amounts}} <- sum_units(Map.get(raw, "units", [])),
+         {:ok, currency} <- parse_currency(:booking, Map.get(raw, "currency")),
+         {:ok, security} <- parse_security(Map.get(raw, "security")) do
       pp_portfolio = present_string(Map.get(raw, "portfolio"))
       pp_account = present_string(Map.get(raw, "account"))
 
@@ -206,16 +207,26 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         companion_entries: companions
       }
 
-      # E25 S4 (G24) and S5 (F33): a security that names nothing, and text
-      # the ledger would refuse, are this row's error.
-      case PortfolioPerformance.row_error(entry) do
+      # #1044: a transfer without its other side first; then E25 S4 (G24)
+      # and S5 (F33): a security that names nothing, and text the ledger would
+      # refuse, are this row's error; so is a currency the catalog does not
+      # list (#948).
+      case counter_error(entry) || PortfolioPerformance.row_error(entry) do
         nil -> {:ok, entry}
         message -> {:error, message}
       end
     else
-      {:error, reason} when is_binary(reason) -> {:error, reason}
-      {:error, {:invalid_decimal, value}} -> {:error, PortfolioPerformance.decimal_message(value)}
-      {:error, reason} -> {:error, inspect(reason)}
+      {:error, reason} when is_binary(reason) ->
+        {:error, reason}
+
+      {:error, {:invalid_decimal, value}} ->
+        {:error, PortfolioPerformance.decimal_message(value)}
+
+      {:error, {:invalid_currency, which, value}} ->
+        {:error, PortfolioPerformance.currency_message(which, value)}
+
+      {:error, reason} ->
+        {:error, inspect(reason)}
     end
   end
 
@@ -322,17 +333,31 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   end
 
   defp parse_security(%{} = sec) do
-    %{
-      name: present_string(Map.get(sec, "name")) |> normalize_letter_spacing(),
-      isin: present_string(Map.get(sec, "isin")) |> normalize_isin(),
-      wkn: present_string(Map.get(sec, "wkn")),
-      ticker: present_string(Map.get(sec, "ticker")),
-      currency: normalize_currency(Map.get(sec, "currency"))
-    }
+    with {:ok, currency} <- parse_currency(:security, Map.get(sec, "currency")) do
+      {:ok,
+       %{
+         name: present_string(Map.get(sec, "name")) |> normalize_letter_spacing(),
+         isin: present_string(Map.get(sec, "isin")) |> normalize_isin(),
+         wkn: present_string(Map.get(sec, "wkn")),
+         ticker: present_string(Map.get(sec, "ticker")),
+         currency: currency
+       }}
+    end
   end
 
   # Absent, or not a map at all (#768): no security on the row.
-  defp parse_security(_other), do: nil
+  defp parse_security(_other), do: {:ok, nil}
+
+  # #1044: a transfer moves money or shares between two accounts or depots, so
+  # one without its other side has nothing to book against; the apply would
+  # otherwise refuse the whole file on the missing account.
+  defp counter_error(%Entry{kind: "cash_transfer", pp_counter_account_name: nil}),
+    do: gettext("transfer without a counter account — row not imported")
+
+  defp counter_error(%Entry{kind: "security_transfer", pp_counter_portfolio_name: nil}),
+    do: gettext("transfer without a counter account — row not imported")
+
+  defp counter_error(%Entry{}), do: nil
 
   # PP sometimes exports letter-spaced names: "I b e r d r o l a S . A . A c c i o n e s".
   # When the strict majority of whitespace-separated tokens are single characters
@@ -351,11 +376,20 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
     end
   end
 
-  defp normalize_currency(value) when is_binary(value) do
-    value |> String.trim() |> String.upcase()
+  # #948: a code is trimmed and upper-cased, and judged against the catalog's
+  # list by `PortfolioPerformance.row_error/1`. An absent currency (no key,
+  # `null`, or blank) is `nil`, which the apply reads as its default. A value
+  # that is present but not a string is the row's error here, named as the
+  # file wrote it, as a number the parser cannot read is.
+  defp parse_currency(_which, value) when is_binary(value) do
+    case value |> String.trim() |> String.upcase() do
+      "" -> {:ok, nil}
+      code -> {:ok, code}
+    end
   end
 
-  defp normalize_currency(_), do: nil
+  defp parse_currency(_which, nil), do: {:ok, nil}
+  defp parse_currency(which, other), do: {:error, {:invalid_currency, which, other}}
 
   defp normalize_isin(nil), do: nil
 

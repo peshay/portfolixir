@@ -135,10 +135,13 @@ defmodule PortfolixirWeb.ImportsLiveTest do
   # so that I can keep deterministic row-level diagnostics with my source file.
   #
   # Acceptance criteria:
-  # - Parser warnings render in an accent-background info box.
+  # - Parser warnings render in one `attention` data note (UX-DR17; board
+  #   ux-design-2026-10-04/09-import-correction retired the accent banner),
+  #   its severity word and glyph from `AppShell.data_note`, the scrollable
+  #   row list and the copy button inside it.
   # - A copy button pushes the existing copy-to-clipboard event.
   # - Copied text uses stable `Row N: message` lines.
-  test "parser warnings render in a copyable info box", %{conn: conn} do
+  test "parser warnings render in a copyable attention note", %{conn: conn} do
     {:ok, view, _html} = live(conn, "/imports")
 
     upload_payload(
@@ -148,10 +151,27 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       "application/json"
     )
 
-    assert has_element?(view, "#parser-warnings-box.import-warning-box")
-    assert has_element?(view, "#copy-parser-warnings")
-    assert has_element?(view, "#parser-warnings-box", "Row 1")
-    assert has_element?(view, "#parser-warnings-box", "MYSTERY_KIND")
+    assert has_element?(view, "#parser-warnings-box.data-note.data-note--attention")
+    refute has_element?(view, "#parser-warnings-box.import-warning-box")
+    assert has_element?(view, "#parser-warnings-box .data-note__word", "Attention")
+    assert has_element?(view, "#parser-warnings-box .data-note__icon[aria-hidden='true'] svg")
+    assert has_element?(view, "#parser-warnings-box h3", "Parser warnings")
+    assert has_element?(view, "#parser-warnings-box #copy-parser-warnings")
+    assert has_element?(view, "#parser-warnings-box pre", "Row 1")
+    assert has_element?(view, "#parser-warnings-box pre", "MYSTERY_KIND")
+    assert has_element?(view, ".import-stat-card.warning", "Warnings")
+
+    # A labelled region, never a live region (the data note's announcement
+    # rule), and a scroller a keyboard can reach.
+    assert has_element?(
+             view,
+             "#parser-warnings-box[role='region'][aria-labelledby='parser-warnings-title']"
+           )
+
+    assert has_element?(view, "#parser-warnings-box h3#parser-warnings-title")
+    refute has_element?(view, "#parser-warnings-box[role='status']")
+    refute has_element?(view, "#parser-warnings-box[aria-live]")
+    assert has_element?(view, "#parser-warnings-box pre[tabindex='0']")
 
     view |> element("#copy-parser-warnings") |> render_click()
 
@@ -771,6 +791,38 @@ defmodule PortfolixirWeb.ImportsLiveTest do
   # - The confirm button is re-enabled (applying resets to false).
   test "async import error surfaces message and re-enables confirm button",
        %{conn: conn} do
+    {view, html} = apply_into_usd_account(conn)
+
+    # The import must not have succeeded — we stay on preview, not done.
+    refute html =~ "Import complete"
+    refute html =~ "Created transactions"
+
+    # An error alert must be visible with the changeset message, its field
+    # named by the label, never the changeset key (board
+    # ux-design-2026-10-04/09-import-correction, found while drawing).
+    assert has_element?(view, "p.alert-error")
+    error = view |> element("p.alert-error[role='alert']") |> render()
+    assert html =~ "Row"
+    assert error =~ "Exchange rate is required for a cross-currency settlement"
+    refute error =~ "settlement_fx_rate"
+
+    # The confirm button must be re-enabled (applying reset to false).
+    refute has_element?(view, "#pp-import-confirm[disabled]")
+  end
+
+  # The review round: a German page states the cross-currency refusal in
+  # German, its field and its rule alike.
+  test "the cross-currency refusal reads in German", %{conn: conn} do
+    conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9")
+    {view, _html} = apply_into_usd_account(conn)
+
+    error = view |> element("p.alert-error[role='alert']") |> render()
+
+    assert error =~
+             "Zeile 1: Wechselkurs ist für eine Abrechnung in einer anderen Währung erforderlich"
+  end
+
+  defp apply_into_usd_account(conn) do
     {:ok, portfolio} =
       Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
         name: "Error Test Portfolio",
@@ -817,19 +869,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     }
 
     view |> element("form#pp-import-apply") |> render_submit(keyed(submit_params))
-    html = render_async(view, 1_000)
-
-    # The import must not have succeeded — we stay on preview, not done.
-    refute html =~ "Import complete"
-    refute html =~ "Created transactions"
-
-    # An error alert must be visible with the changeset message.
-    assert has_element?(view, "p.alert-error")
-    assert html =~ "Row"
-    assert html =~ "settlement_fx_rate"
-
-    # The confirm button must be re-enabled (applying reset to false).
-    refute has_element?(view, "#pp-import-confirm[disabled]")
+    {view, render_async(view, 1_000)}
   end
 
   # User story (ADR-0029 §2 — the security-mapping override step):
@@ -1432,15 +1472,13 @@ defmodule PortfolixirWeb.ImportsLiveTest do
         })
     end
 
-    test "a failed security creation surfaces a friendly per-field message, not a raw tuple",
-         %{conn: conn} do
+    # Two securities share WKN AMB001, so the second file row is ambiguous and
+    # the user must decide. The first row plain-creates ISIN DE000COLL006; the
+    # user then deliberately forces the ambiguous row to ALSO create with the
+    # same ISIN, which collides on the now-live unique ISIN index and makes the
+    # applier return {:security_create_failed, changeset}.
+    defp force_duplicate_isin_create(conn) do
       _portfolio = setup_portfolio()
-
-      # Two securities share WKN AMB001, so the second file row is ambiguous and
-      # the user must decide. The first row plain-creates ISIN DE000COLL006; the
-      # user then deliberately forces the ambiguous row to ALSO create with the
-      # same ISIN, which collides on the now-live unique ISIN index and makes the
-      # applier return {:security_create_failed, changeset}.
       _a = create_security!(%{name: "Share Class A", wkn: "AMB001"})
       _b = create_security!(%{name: "Share Class B", wkn: "AMB001"})
 
@@ -1467,13 +1505,31 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       view |> element("form#pp-import-apply") |> render_change(keyed(mapping))
       view |> element("form#pp-import-apply") |> render_submit(keyed(mapping))
 
-      html = render_async(view, 1_000)
+      {view, render_async(view, 1_000)}
+    end
 
-      # The friendly message names the offending field; the raw tuple leaks
-      # neither the tag nor an inspected struct.
-      assert html =~ "isin"
+    test "a failed security creation surfaces a friendly per-field message, not a raw tuple",
+         %{conn: conn} do
+      {view, html} = force_duplicate_isin_create(conn)
+
+      # The friendly message names the offending field by its label (board
+      # ux-design-2026-10-04/09-import-correction, found while drawing: an
+      # insert rejection printed the changeset key `isin`); the raw tuple
+      # leaks neither the tag nor an inspected struct.
+      error = view |> element("p.alert-error[role='alert']") |> render()
+      assert error =~ "Creating the security failed: ISIN has already been taken"
+      refute error =~ "isin"
       refute html =~ "security_create_failed"
       refute html =~ "Ecto.Changeset"
+    end
+
+    # The review round: the label and the rule both in the page's language.
+    test "a failed security creation reads in German, label and rule alike", %{conn: conn} do
+      conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9")
+      {view, _html} = force_duplicate_isin_create(conn)
+
+      error = view |> element("p.alert-error[role='alert']") |> render()
+      assert error =~ "Anlegen des Wertpapiers fehlgeschlagen: ISIN ist bereits vergeben"
     end
 
     test "remapping onto an existing security can record the ISIN change end-to-end",
@@ -2861,6 +2917,134 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       "shares" => "5",
       "security" => %{"name" => "Ambiguous Fund", "wkn" => "AMB001", "currency" => "EUR"}
     }
+  end
+
+  describe "rows that fail alone (#1044, #948; board ux-design-2026-10-04/09-import-correction)" do
+    # User story (#1044):
+    # As a German-speaking operator importing a Portfolio Performance CSV with
+    # one transfer row whose Gegenkonto is blank,
+    # I want the preview to name that row in an attention note and the rest of
+    # the file to import,
+    # so that one incomplete row neither blocks nor fails the whole file.
+    #
+    # Acceptance criteria:
+    # - The preview's heading reads "Vorschau", never the Overview's
+    #   "Übersicht".
+    # - One attention note holds "Zeile 7: Umbuchung ohne Gegenkonto — Zeile
+    #   nicht übernommen", and the "Warnungen" card counts it.
+    # - Confirming books the six sound rows; the bad row books nothing.
+    test "a CSV transfer without a Gegenkonto is named in German and the rest imports",
+         %{conn: conn} do
+      _portfolio = setup_portfolio()
+
+      body = """
+      Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+      2025-01-02 00:00:00;Einlage;;;;100,00;;;100,00;Giro;;;
+      2025-01-03 00:00:00;Einlage;;;;200,00;;;200,00;Giro;;;
+      2025-01-04 00:00:00;Einlage;;;;300,00;;;300,00;Tagesgeld;;;
+      2025-01-05 00:00:00;Entnahme;;;;10,00;;;10,00;Giro;;;
+      2025-01-06 00:00:00;Zinsen;;;;1,50;;;1,50;Tagesgeld;;;
+      2025-01-07 10:00:00;Umbuchung (Ausgang);;;;50,00;;;50,00;Giro;Tagesgeld;;
+      2025-01-08 10:00:00;Umbuchung (Ausgang);;;;75,00;;;75,00;Giro;;;
+      """
+
+      conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9")
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "export.csv", body, "text/csv")
+
+      assert has_element?(view, ".workspace-section > h2", "Vorschau")
+      refute has_element?(view, ".workspace-section > h2", "Übersicht")
+
+      assert has_element?(
+               view,
+               "#parser-warnings-box.data-note--attention .data-note__word",
+               "Achtung"
+             )
+
+      assert has_element?(
+               view,
+               "#parser-warnings-box pre",
+               "Zeile 7: Umbuchung ohne Gegenkonto — Zeile nicht übernommen"
+             )
+
+      assert view |> element(".import-stat-card.warning") |> render() =~ ">1<"
+
+      view
+      |> element("form#pp-import-apply")
+      |> render_submit(
+        keyed(%{"cash" => %{"Giro" => "create:Giro", "Tagesgeld" => "create:Tagesgeld"}})
+      )
+
+      assert render_async(view, 1_000) =~ "Import abgeschlossen"
+
+      transactions = Ledger.list_transactions()
+      assert length(transactions) == 6
+      refute Enum.any?(transactions, &(&1.date == ~D[2025-01-08]))
+    end
+
+    # User story (#948):
+    # As an operator importing a Portfolio Performance JSON export whose rows
+    # carry currency codes Portfolixir does not know,
+    # I want those rows named in the preview and the rest imported,
+    # so that no account is ever created in such a currency.
+    #
+    # Acceptance criteria:
+    # - The attention note names each row with its currency, quoted as the
+    #   file wrote it, upper-cased.
+    # - Confirming books the sound row and creates no account in either code.
+    test "a JSON row in an unlisted currency is named and the rest imports", %{conn: conn} do
+      _portfolio = setup_portfolio()
+
+      body =
+        Jason.encode!(%{
+          "version" => 1,
+          "transactions" => [
+            %{
+              "type" => "DEPOSIT",
+              "account" => "Giro",
+              "date" => "2025-01-02",
+              "currency" => "EUR",
+              "amount" => "100.00"
+            },
+            %{
+              "type" => "DEPOSIT",
+              "account" => "Tagesgeld",
+              "date" => "2025-01-03",
+              "currency" => "xeu",
+              "amount" => "50.00"
+            },
+            %{
+              "type" => "DEPOSIT",
+              "account" => "Giro",
+              "date" => "2025-01-04",
+              "currency" => "EURO",
+              "amount" => "20.00"
+            }
+          ]
+        })
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload_payload(view, "export.json", body, "application/json")
+
+      assert has_element?(
+               view,
+               "#parser-warnings-box pre",
+               "Row 2: currency “XEU” is not supported — row not imported"
+             )
+
+      assert has_element?(
+               view,
+               "#parser-warnings-box pre",
+               "Row 3: currency “EURO” is not supported — row not imported"
+             )
+
+      view
+      |> element("form#pp-import-apply")
+      |> render_submit(keyed(%{"cash" => %{"Giro" => "create:Giro"}}))
+
+      assert render_async(view, 1_000) =~ "Created transactions: 1"
+      assert Enum.map(Portfolios.list_cash_accounts(), & &1.currency_code) == ["EUR"]
+    end
   end
 
   # A synthetic Portfolio Performance JSON export; amounts stay strings, never

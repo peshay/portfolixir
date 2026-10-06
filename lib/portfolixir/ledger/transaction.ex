@@ -166,10 +166,13 @@ defmodule Portfolixir.Ledger.Transaction do
         changeset
 
       _counter_currency ->
+        # The code is a binding, so a page translates the rule and the API
+        # and MCP read the same English as before.
         add_error(
           changeset,
           :counter_cash_account_id,
-          "must match the transaction currency (#{currency_code})"
+          "must match the transaction currency (%{currency})",
+          currency: currency_code
         )
     end
   end
@@ -561,7 +564,9 @@ defmodule Portfolixir.Ledger.Transaction do
     b = get_field(changeset, counter_field)
 
     if not is_nil(a) and not is_nil(b) and a == b do
-      add_error(changeset, counter_field, "must differ from #{field}")
+      # The other field is a binding: a page names it by its label, the API
+      # and MCP by its key, as before.
+      add_error(changeset, counter_field, "must differ from %{field}", field: field)
     else
       changeset
     end

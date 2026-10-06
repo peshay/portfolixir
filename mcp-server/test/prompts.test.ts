@@ -289,4 +289,40 @@ describe("the companion's prompts", () => {
       /When the same security sits in two depots and each dividend should name the depot that held the shares, write the JSON v1 variant below/
     );
   });
+
+  // User story (#1044, #948; Sprint 19 B4b):
+  // As the user's agent converting an export,
+  // I want the import_converter prompt to name every row the preview refuses
+  // for its accounts or its currency,
+  // so that I write a file whose rows all book instead of meeting the refusals
+  // in the operator's preview.
+  //
+  // Acceptance criteria:
+  // - A transfer row names both sides, filled and never the same account: in
+  //   the CSV (Umbuchung (Ausgang) and Umbuchung (Wertpapier)) and in JSON v1
+  //   (otherAccount, otherPortfolio). A Kauf or Verkauf names its Gegenkonto.
+  // - A JSON v1 row's currency, and its security's, is one Portfolixir
+  //   supports (the currencies its security dialog offers); any other code is
+  //   refused, as an ISIN without a valid check digit is.
+  it("import_converter names the account and currency refusals", async () => {
+    const text = await promptText("import_converter");
+
+    assert.match(
+      text,
+      /a transfer row needs both Konto and Gegenkonto, filled and never the same account, or the preview refuses the row/
+    );
+    assert.match(text, /a Kauf or Verkauf without a Gegenkonto is refused/);
+    assert.match(
+      text,
+      /otherAccount \(where a CASH_TRANSFER's money arrives\), otherPortfolio \(where a SECURITY_TRANSFER's shares arrive\); a transfer without its other side is refused/
+    );
+    assert.match(
+      text,
+      /currency: the cash account's currency, one currency per account, and one Portfolixir supports: the currencies its security dialog offers/
+    );
+    assert.match(
+      text,
+      /a row whose currency, or whose security's currency, is any other code is refused/
+    );
+  });
 });

@@ -2576,10 +2576,11 @@ behalten ihre aktuellen Tags, und ein Import, der keine neuen Konten anlegt,
 erzeugt keinen Bucket. Die interne Portfolio-Bindung geschieht automatisch und
 erfordert nie eine Auswahl (siehe den Abschnitt Portfolios).
 
-Parser-Warnungen erscheinen in einem scrollbaren Feld mit Kopier-Button. Der
-kopierte Text nutzt stabile `Row N: message`-Zeilen, sodass die Diagnose beim
-Quell-Export verbleiben kann. Das Anwenden des Imports ist atomar und nutzt
-Inhalts-Hashes, um Duplikate bei erneutem Lauf zu überspringen.
+Parser-Warnungen erscheinen in einer Notiz **Achtung** unter den Anzahlen je
+Art, mit einer scrollbaren Liste der Zeilen und einem Kopier-Button. Der
+kopierte Text nutzt stabile `Zeile N: Meldung`-Zeilen, sodass die Diagnose
+beim Quell-Export verbleiben kann. Das Anwenden des Imports ist atomar und
+nutzt Inhalts-Hashes, um Duplikate bei erneutem Lauf zu überspringen.
 
 ### Was eine Portfolio-Performance-CSV voraussetzt
 
@@ -2657,7 +2658,7 @@ nimmt sofort die nächste Datei:
   Portfolio Performance teilen, etwa nach Jahren.
 
 Eine einzelne Zeile, die der Import nie buchen könnte, ist stattdessen eine
-Parser-Warnung: Sie steht mit ihrer Zeilennummer im Warnungsfeld, zählt nicht
+Parser-Warnung: Sie steht mit ihrer Zeilennummer in der Notiz, zählt nicht
 zu den Einträgen, und der Rest der Datei wird angezeigt und importiert. Ein
 Wertpapiereintrag, der nichts benennt (kein Name, keine ISIN, WKN oder kein
 Ticker), ist eine solche Zeile: *Wertpapier ohne Name und ohne ISIN — Zeile
@@ -2668,13 +2669,41 @@ als die Spalte nach dem Runden auf ihre Nachkommastellen fasst), eine Zahl, die
 der Parser nicht lesen kann, eine CSV-Zeile, deren Gesamtpreis nicht zu Betrag,
 Gebühren und Steuern passt (siehe oben), und eine Transaktion mit mehr
 Gebühren- und Steuerpositionen, als eine Buchung trägt: Jede wird mit Feld und
-Zeile benannt und lässt den Import nach dem Bestätigen nie scheitern. Eine Zeile,
-deren ISIN keine gültige ISIN ist (Form oder Prüfziffer, auch ein Buchstabe aus
-einer anderen Schrift), bleibt ebenso draußen, damit ein Doppelgänger nie zu
-einem zweiten Wertpapier wird. Ein Eintrag nur mit WKN oder nur mit Ticker ist ein
-Wertpapier wie jedes andere und wird über die Zuordnungsleiter unten
-aufgelöst. Eine Vorschau wird für den nächsten Besuch (Sprachwechsel,
-Neuladen) erst aufbewahrt, wenn sie einmal angezeigt wurde.
+Zeile benannt und lässt den Import nach dem Bestätigen nie scheitern. Diese
+Zeilen bleiben ebenso draußen, jede mit ihrer Zeile benannt:
+
+- **Eine Zeile, deren ISIN keine gültige ISIN ist** (Form oder Prüfziffer,
+  auch ein Buchstabe aus einer anderen Schrift), damit ein Doppelgänger nie zu
+  einem zweiten Wertpapier wird. Ein Eintrag nur mit WKN oder nur mit Ticker
+  ist ein Wertpapier wie jedes andere und wird über die Zuordnungsleiter unten
+  aufgelöst.
+- **Eine Umbuchung, die kein Konto nennt, auf das sie buchen könnte.** In
+  einer CSV braucht eine Umbuchungszeile `Konto` und `Gegenkonto`, zwei
+  verschiedene, für Geld oder Stücke, auf jeder Seite: *Umbuchung ohne
+  Gegenkonto — Zeile nicht übernommen*, *Umbuchung ohne Konto — Zeile nicht
+  übernommen*, *Umbuchung auf das eigene Konto — Zeile nicht übernommen*. In
+  JSON v1 ist ein `CASH_TRANSFER` ohne `otherAccount` oder ein
+  `SECURITY_TRANSFER` ohne `otherPortfolio` der erste dieser Fälle.
+- **Ein CSV-*Kauf* oder -*Verkauf* mit leerem `Gegenkonto`**, dem
+  Verrechnungskonto, gegen das der Handel abgerechnet wird: *Kauf ohne
+  Gegenkonto — Zeile nicht übernommen* oder *Verkauf …*.
+- **Eine JSON-Zeile, deren Währung Portfolixir nicht unterstützt**, benannt so,
+  wie die Datei sie schreibt, in Großbuchstaben: *Währung „EURO“ wird nicht
+  unterstützt — Zeile nicht übernommen* für die Währung der Buchung und
+  *Wertpapierwährung „XEU“ wird nicht unterstützt — Zeile nicht übernommen*
+  auf jeder Zeile, die ein Wertpapier in einer solchen Währung nennt.
+  Portfolixir unterstützt die Währungen, die der Wertpapier-Dialog unter
+  *Währung* anbietet (EUR, USD, GBP, CHF, die übrigen dort gelisteten
+  ISO-Codes und GBX für Pence). Ein echter Code außerhalb dieser Liste, etwa
+  THB, wird wie ein falsch geschriebener abgelehnt, weil nichts in der Instanz
+  ihn bewerten könnte: den Code mit dieser Liste abgleichen und damit rechnen,
+  dass solche Zeilen draußen bleiben, während der Rest der Datei importiert
+  wird. Eine Zeile ohne Währung oder mit leerer bucht weiter in der Vorgabe,
+  EUR; ein klein geschriebener Code wie `usd` wird als `USD` gelesen. Eine
+  CSV-Zeile bucht in EUR und wird nie wegen ihrer Währung abgelehnt.
+
+Eine Vorschau wird für den nächsten Besuch (Sprachwechsel, Neuladen) erst
+aufbewahrt, wenn sie einmal angezeigt wurde.
 
 ### Umbuchungen in einer Portfolio-Performance-CSV
 

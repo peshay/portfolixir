@@ -13,6 +13,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
 
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias Portfolixir.Catalog.Currencies
   alias Portfolixir.Catalog.IdentifierAlias
   alias Portfolixir.Catalog.Isin
   alias Portfolixir.Imports.Entry
@@ -143,13 +144,104 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
       in catalog normal form — is not a security (E25 S5, F33);
     * an ISIN that fails the catalog's predicate (`Portfolixir.Catalog.Isin`,
       check digit included) is no ISIN (E25 S5, G23);
-    * text the ledger would refuse (`text_error/1`, E25 S4, G24).
+    * text the ledger would refuse (`text_error/1`, E25 S4, G24);
+    * a booking currency or a security currency the catalog does not list
+      (`Portfolixir.Catalog.Currencies.supported?/1`, #948), each with its
+      own message (`currency_message/2`). An absent currency passes: the
+      apply reads it as its default. The CSV parser books every row in EUR
+      and writes no security currency, so it never trips this check.
   """
   @spec row_error(Entry.t()) :: String.t() | nil
   def row_error(%Entry{} = entry) do
     blank_security_error(entry) || isin_error(entry) || text_error(entry) ||
-      bounds_error(entry)
+      bounds_error(entry) || currency_error(entry)
   end
+
+  # #948: both currencies are judged by the catalog's one list, the rule the
+  # security and exchange-rate changesets apply, so a code the instance could
+  # never value — "EURO", or a three-letter "XEU" — never books an account or
+  # a booking in it. An absent currency is `nil`; a value that is not a string
+  # never reaches an entry (the JSON parser names it as its row's error).
+  defp currency_error(%Entry{} = entry) do
+    booking_currency_error(entry.currency_code) || security_currency_error(entry.security)
+  end
+
+  defp booking_currency_error(currency) when is_binary(currency) do
+    unless Currencies.supported?(currency), do: currency_message(:booking, currency)
+  end
+
+  defp booking_currency_error(_absent), do: nil
+
+  defp security_currency_error(%{currency: currency}) when is_binary(currency) do
+    unless Currencies.supported?(currency), do: currency_message(:security, currency)
+  end
+
+  defp security_currency_error(_security), do: nil
+
+  @doc """
+  The row message for a currency the catalog does not list (#948), the
+  booking's (`:booking`) or its security's (`:security`), naming the value as
+  the file wrote it: a string as the parser normalised it (trimmed and
+  upper-cased), a number with its digits, anything else as compact JSON. The
+  value is cut at 40 characters, the cut marked "…", and then every character
+  the operator could not see, or that would break the warning's one line, is
+  spelled `[U+XXXX]`.
+  """
+  @spec currency_message(:booking | :security, term()) :: String.t()
+  def currency_message(:booking, value),
+    do:
+      gettext("currency “%{currency}” is not supported — row not imported",
+        currency: shown_value(value)
+      )
+
+  def currency_message(:security, value),
+    do:
+      gettext("security currency “%{currency}” is not supported — row not imported",
+        currency: shown_value(value)
+      )
+
+  @shown_max 40
+  @controls ~r/[\x{0}-\x{1F}\x{7F}-\x{9F}]/u
+
+  defp shown_value(value) do
+    written = written(value)
+
+    if String.length(written) > @shown_max,
+      do: escape_shown(String.slice(written, 0, @shown_max)) <> "…",
+      else: escape_shown(written)
+  end
+
+  defp written(value) when is_binary(value), do: value
+  defp written(value) when is_integer(value), do: Integer.to_string(value)
+  defp written(%Decimal{} = value), do: decimal_text(value)
+
+  defp written(value) do
+    case Jason.encode(json_term(value)) do
+      {:ok, json} -> json
+      {:error, _} -> inspect(value, limit: 5, printable_limit: @shown_max)
+    end
+  end
+
+  # A JSON number decodes to a `Decimal`; it is shown with its digits, as the
+  # file wrote them ("1.50"), unless its exponent alone would outrun the cap.
+  defp decimal_text(%Decimal{exp: exp} = value) when abs(exp) <= @shown_max,
+    do: Decimal.to_string(value, :normal)
+
+  defp decimal_text(value), do: Decimal.to_string(value, :scientific)
+
+  defp json_term(%Decimal{} = value), do: Jason.Fragment.new(decimal_text(value))
+  defp json_term(%{} = map), do: Map.new(map, fn {key, value} -> {key, json_term(value)} end)
+  defp json_term(list) when is_list(list), do: Enum.map(list, &json_term/1)
+  defp json_term(other), do: other
+
+  defp escape_shown(text) do
+    text
+    |> Text.escape_invisible()
+    |> then(&Regex.replace(@controls, &1, fn control -> spell(control) end))
+  end
+
+  defp spell(<<code_point::utf8>>),
+    do: "[U+" <> (code_point |> Integer.to_string(16) |> String.pad_leading(4, "0")) <> "]"
 
   # E25 S5 (G23): an ISIN is checked with the catalog's one predicate, check
   # digit included; a lookalike never reaches the matching or a creation.

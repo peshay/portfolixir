@@ -186,6 +186,7 @@ Any language the operator can run. Make it deterministic, so the same input alwa
   - Umbuchung (Ausgang): Konto is the account the money leaves, Gegenkonto the account it reaches; write one row per transfer, never a second row for the receiving side;
   - Einlieferung and Auslieferung: Konto is the depot;
   - Umbuchung (Wertpapier): Konto is the depot the shares leave, Gegenkonto the depot they reach.
+  So a transfer row needs both Konto and Gegenkonto, filled and never the same account, or the preview refuses the row; likewise a Kauf or Verkauf without a Gegenkonto is refused.
 - Wertpapier is the security's name, required on Kauf, Verkauf, Dividende and the three share movements. The CSV carries no ISIN, so the importer matches a security by its name: spell each security one way throughout. Stück is the quantity, greater than zero on a trade or a share movement. Kurs is the price per unit, required on Kauf and Verkauf; give it on a delivery too, where it sets the cost basis. Notiz is free text.
 - The CSV books every row in EUR: it has no currency column. If the export holds amounts in another currency, do not convert them yourself; write the JSON v1 variant below.
 - Two bookings that agree in Datum (with its time), Typ, Wertpapier, Stück, Kurs, Betrag, Gebühren, Steuern, Konto and Gegenkonto are one booking to the importer, whatever their Notiz: its content hash leaves Notiz out. Give genuinely separate ones distinct times, derived from the source (its own time, or 00:00:01, 00:00:02 and so on in source order), never from the clock, and never keep them apart through Notiz.
@@ -201,11 +202,11 @@ Here Example Bank Cash ends at 5.895,56 EUR (10.000,00 − 3.221,00 − 501,50 +
 Portfolio Performance's JSON v1 export carries a currency per row and a security's ISIN, WKN and ticker, and the Imports page reads it as well. The file is one object, {"version": 1, "transactions": [...]}; the file name ends in .json; each transaction has:
 - type: PURCHASE, SALE, DIVIDEND, INTEREST, DEPOSIT, REMOVAL, FEE, TAX, TAX_REFUND, CASH_TRANSFER, INBOUND_DELIVERY, OUTBOUND_DELIVERY or SECURITY_TRANSFER;
 - date (YYYY-MM-DD) and, when known, time (HH:MM);
-- account (the cash account), portfolio (the depot; on a DIVIDEND, the depot the dividend is booked to), otherAccount (where a CASH_TRANSFER's money arrives), otherPortfolio (where a SECURITY_TRANSFER's shares arrive);
-- currency: the cash account's currency, one currency per account;
+- account (the cash account), portfolio (the depot; on a DIVIDEND, the depot the dividend is booked to), otherAccount (where a CASH_TRANSFER's money arrives), otherPortfolio (where a SECURITY_TRANSFER's shares arrive); a transfer without its other side is refused;
+- currency: the cash account's currency, one currency per account, and one Portfolixir supports: the currencies its security dialog offers (EUR, USD, GBP, CHF and the other ISO codes listed there, GBX for pence); a row whose currency, or whose security's currency, is any other code is refused;
 - amount: the cash effect, as Betrag above (a PURCHASE's total including its fees and taxes, a SALE's net proceeds, a DIVIDEND's net credit), and shares: the quantity, both written as strings with a decimal point, such as "1203.00"; the price is derived from them;
 - units: the fees and taxes inside amount, as [{"type": "FEE", "amount": "3.00"}, {"type": "TAX", "amount": "1.20"}];
-- security: {"name", "isin", "wkn", "ticker", "currency"}; an ISIN must carry a valid check digit, or the row is refused. Securities match by ISIN first, then by WKN, ticker and name.
+- security: {"name", "isin", "wkn", "ticker", "currency"}; an ISIN must carry a valid check digit, and the currency must be a supported one, or the row is refused. Securities match by ISIN first, then by WKN, ticker and name.
 \`\`\`json
 ${PP_JSON_V1_EXAMPLE}\`\`\`
 

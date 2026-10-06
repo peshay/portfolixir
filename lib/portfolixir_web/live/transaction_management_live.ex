@@ -13,6 +13,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   alias PortfolixirWeb.ChangedSince
   alias PortfolixirWeb.ColumnPicker
   alias PortfolixirWeb.DecimalInput
+  alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.TransactionKindLabel
@@ -1735,16 +1736,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # user reads "ist ungültig" instead of the raw "is invalid".
   defp field_errors(changeset) do
     changeset
-    |> Ecto.Changeset.traverse_errors(&translate_error/1)
+    |> Ecto.Changeset.traverse_errors(&FieldLabel.translate_error/1)
     |> Map.new(fn {field, messages} -> {to_string(field), Enum.join(messages, ", ")} end)
-  end
-
-  defp translate_error({msg, opts}) do
-    if count = opts[:count] do
-      Gettext.dngettext(PortfolixirWeb.Gettext, "errors", msg, msg, count, opts)
-    else
-      Gettext.dgettext(PortfolixirWeb.Gettext, "errors", msg, opts)
-    end
   end
 
   # The notes-only drawer: E25 S6 (G07), pick G12.3 = A (board 12) for a
@@ -2429,24 +2422,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   # The submit flash: localized field label + translated message (fix round),
   # so the German UI never mixes "price is invalid" into a translated page.
-  defp changeset_error(changeset) do
-    changeset.errors
-    |> Enum.map(fn {field, error} -> "#{field_label(field)} #{translate_error(error)}" end)
-    |> Enum.join(", ")
-  end
-
-  # The same labels the form inputs carry; unknown fields fall back to the
-  # schema field name.
-  defp field_label(:quantity), do: gettext("Quantity")
-  defp field_label(:price), do: gettext("Price")
-  defp field_label(:fees), do: gettext("Fees")
-  defp field_label(:taxes), do: gettext("Taxes")
-  defp field_label(:date), do: gettext("Date")
-  defp field_label(:type), do: gettext("Type")
-  defp field_label(:security_id), do: gettext("Security")
-  defp field_label(:securities_account_id), do: gettext("Depot")
-  defp field_label(:cash_account_id), do: gettext("Cash account")
-  defp field_label(:gross_amount), do: gettext("Amount")
-  defp field_label(:currency_code), do: gettext("Currency")
-  defp field_label(other), do: to_string(other)
+  # One sentence, labelled and joined as the Imports page states a refusal
+  # (`PortfolixirWeb.FieldLabel.changeset_message/1`).
+  defp changeset_error(changeset), do: FieldLabel.changeset_message(changeset)
 end
