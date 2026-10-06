@@ -774,19 +774,25 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     assert denominated.face_value_currency_code == "USD"
   end
 
-  # The fake search provider's one listing (`arbolia`, NASDAQ in USD) matches
+  # The fake search provider's `brackenford` listing (NASDAQ in USD) matches
   # this bond by provider and online id, so picking it shows the conflict.
-  # The bond's terms are invented.
+  # The bond's terms are invented. Not the `arbolia` listing: Arbolia's ISIN
+  # is the one the Portfolio Performance sample carries, which
+  # ViewAdditivitySpikeTest imports in the same async phase, and the ISIN
+  # and the provider's online id are unique (securities_isin_unique_index,
+  # securities_provider_online_id_unique_index). Storing it here made one
+  # test's insert wait on the other's uncommitted row until that test ended
+  # (#1047).
   defp listed_bond! do
     {:ok, bond} =
       Catalog.create_security(Actor.owner_ui(), %{
-        name: "Arbolia Inc. Anleihe 2031",
-        ticker_symbol: "ARBL",
-        isin: "USEXMPL10014",
+        name: "Brackenford Corp. Anleihe 2031",
+        ticker_symbol: "BRKF",
+        isin: "USEXMPL40078",
         currency_code: "USD",
         asset_class: "bond",
         provider: "portfolio_performance",
-        online_id: "usexmpl10014",
+        online_id: "usexmpl40078",
         coupon_rate: "3.75",
         coupon_frequency: "annual",
         maturity_date: ~D[2031-06-15],
@@ -808,7 +814,7 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
 
     view
     |> element("#security-form-dialog form")
-    |> render_change(%{"dialog_query" => "arbolia"})
+    |> render_change(%{"dialog_query" => "brackenford"})
 
     view |> element("#security-form-dialog .search-result") |> render_click()
 
