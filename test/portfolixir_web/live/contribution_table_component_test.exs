@@ -154,7 +154,8 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
   #   period: Tagesgeld CHF (2,000.00 CHF, 18 days, no exchange rate
   #   stored)." and, when its first rate arrived inside the period, "With the
   #   first exchange rate on 2026-03-02, its whole balance entered the
-  #   “Currency effect on cash” — that is no currency gain." (dates ISO in
+  #   “Currency effect on cash”, and so the result — that is no currency
+  #   gain." (dates ISO in
   #   English); an account emptied before its rate gets the first sentence
   #   only.
   # - An account still at zero on the period's last day reads "One cash
@@ -187,8 +188,8 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
                "no exchange rate stored). It stays in the sum, as in the result above. " <>
                "One cash account counted zero on some days of the period: Tagesgeld CHF " <>
                "(2,000.00 CHF, 18 days, no exchange rate stored). With the first exchange " <>
-               "rate on 2026-03-02, its whole balance entered the “Currency effect on cash” " <>
-               "— that is no currency gain."
+               "rate on 2026-03-02, its whole balance entered the “Currency effect on cash”, " <>
+               "and so the result — that is no currency gain."
 
     assert text(
              html,
@@ -226,8 +227,8 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
 
     assert sentence(overdraft, "[data-role='contribution-unvalued']") =~
              "(-500.00 CHF, 18 days, no exchange rate stored). With the first exchange rate on " <>
-               "2026-03-02, its whole balance entered the “Currency effect on cash” — that is " <>
-               "no currency loss."
+               "2026-03-02, its whole balance entered the “Currency effect on cash”, and so the " <>
+               "result — that is no currency loss."
 
     # Three accounts: two whose rate came, of both signs, one still at zero.
     three =
@@ -252,8 +253,8 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
                "(400.00 CHF, 11 days, no exchange rate stored), Overdraft CHF (-0.004 CHF, 18 " <>
                "days, no exchange rate stored). With their first exchange rates, the whole " <>
                "balances of Sparkonto CHF (2026-03-02), Overdraft CHF (2026-03-02) entered the " <>
-               "“Currency effect on cash” — that is neither a currency gain nor a currency " <>
-               "loss. One cash account counts zero until the end of the period: USD " <>
+               "“Currency effect on cash”, and so the result — that is neither a currency gain " <>
+               "nor a currency loss. One cash account counts zero until the end of the period: USD " <>
                "Settlement (1,850.00 USD, 30 days, no exchange rate stored)."
 
     assert text(
@@ -278,8 +279,11 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
   # Acceptance criteria:
   # - A balance whose first exchange rate came: "Mit dem ersten Wechselkurs
   #   am 02.03.2026 kam sein ganzer Saldo in den „Währungseffekt auf
-  #   Bargeld“ — das ist kein Währungsgewinn."; an overdraft "— das ist kein
-  #   Währungsverlust".
+  #   Bargeld“ und damit ins Ergebnis — das ist kein Währungsgewinn."; an
+  #   overdraft "— das ist kein Währungsverlust"; two such balances "Mit
+  #   ihren ersten Wechselkursen kamen die ganzen Salden von … in den
+  #   „Währungseffekt auf Bargeld“ und damit ins Ergebnis — …" (closing act,
+  #   UAT: the jump is in the period's result).
   # - A balance still at zero on the last day: "Ein Verrechnungskonto zählt
   #   bis zum Ende des Zeitraums null: …"; two: "2 Verrechnungskonten zählen
   #   bis zum Ende des Zeitraums null: …".
@@ -322,12 +326,19 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
                "Achtung Ein Verrechnungskonto zählte an einigen Tagen des Zeitraums null: " <>
                  "Tagesgeld CHF (2.000,00 CHF, 18 Tage, kein Wechselkurs gespeichert). Mit dem " <>
                  "ersten Wechselkurs am 02.03.2026 kam sein ganzer Saldo in den „Währungseffekt " <>
-                 "auf Bargeld“ — das ist kein Währungsgewinn."
+                 "auf Bargeld“ und damit ins Ergebnis — das ist kein Währungsgewinn."
 
       loss = render_table(result([], [account(7, "Konto CHF", %{balance: d("-500")})]))
 
       assert sentence(loss, "[data-role='contribution-unvalued']") =~
                "— das ist kein Währungsverlust."
+
+      both = render_table(result([], [account(7, "Tagesgeld CHF"), account(8, "Sparkonto CHF")]))
+
+      assert sentence(both, "[data-role='contribution-unvalued']") =~
+               "Mit ihren ersten Wechselkursen kamen die ganzen Salden von Tagesgeld CHF " <>
+                 "(02.03.2026), Sparkonto CHF (02.03.2026) in den „Währungseffekt auf Bargeld“ " <>
+                 "und damit ins Ergebnis — das ist kein Währungsgewinn."
 
       still = %{unvalued_through_end: true, first_rate_date: nil}
 

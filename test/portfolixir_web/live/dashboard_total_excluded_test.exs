@@ -9,6 +9,7 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
+  alias Portfolixir.Classifications
   alias Portfolixir.Clock
   alias Portfolixir.Knowledge.Events
   alias Portfolixir.Ledger
@@ -223,7 +224,12 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
   #
   # Acceptance criteria:
   # - The groups follow in order: cash, no price, no rate; the no-rate group
-  #   reads "1 gehaltene Position ohne Wechselkurs zu EUR — Name (12,40 USD)".
+  #   reads "1 gehaltene Position ohne Wechselkurs zu EUR — Name (Kurs 12,40
+  #   USD)", "(price 12.40 USD)" in English: under "Nicht in der Summe" a
+  #   bare bracket reads as the amount left out, and for a position it is
+  #   the price per unit (closing act, UAT).
+  # - Wealth's missing-FX note keeps its own label, "Name (12,40 USD)": its
+  #   sentence already says the position has a price.
   test "a price with no rate path is a third group, after the other two", %{conn: conn} do
     world = world()
     usd_account!(world, "USD Settlement", "1850")
@@ -242,8 +248,22 @@ defmodule PortfolixirWeb.DashboardTotalExcludedTest do
              "Nicht in der Summe: 1 Verrechnungskonto ohne Wechselkurs zu EUR — " <>
                "USD Settlement (1.850,00 USD) · " <>
                "1 gehaltene Position ohne Preis — Placeholder Anleihe 2031 3,25% · " <>
-               "1 gehaltene Position ohne Wechselkurs zu EUR — Harborline Freight (12,40 USD). " <>
+               "1 gehaltene Position ohne Wechselkurs zu EUR — Harborline Freight (Kurs 12,40 USD). " <>
                "Details in Vermögen →"
+
+    {:ok, english, _html} = live(conn, "/")
+    render_async(english)
+
+    assert note_text(english) =~
+             "1 held position with no exchange rate to EUR — Harborline Freight (price 12.40 USD). "
+
+    # The Wealth page reads its allocation against a classification.
+    {:ok, _tree} = Classifications.create_classification(Actor.owner_ui(), %{name: "Strategie"})
+    {:ok, wealth, _html} = de_live(conn, "/portfolio")
+    render_async(wealth)
+
+    assert wealth |> element(~s([data-role="dq-missing-fx"])) |> render() |> Floki.text() =~
+             "und fehlt daher in den Summen: Harborline Freight (12,40 USD)."
   end
 
   # User story (#1081, D-3, pick J1.2 A; UX-DR26):

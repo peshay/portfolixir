@@ -1617,7 +1617,8 @@ der Karte nennt ein Hinweis, was sie auslässt** (Issue #1081, UX-DR25): die
 Verrechnungskonten, deren Währung keinen Wechselkurs zur Basiswährung hat,
 je mit ihrem Saldo in der eigenen Währung, die gehaltenen Positionen ohne
 Preis und die gehaltenen Positionen mit Preis, aber ohne Wechselkurs, je mit
-ihrem Preis in der eigenen Währung — „Nicht in der Summe: 2
+ihrem Preis in der eigenen Währung, als Kurs bezeichnet („Harborline Freight
+(Kurs 12,40 USD)“) — „Nicht in der Summe: 2
 Verrechnungskonten ohne Wechselkurs zu EUR — USD Settlement (1.850,00 USD),
 US Broker (60,00 USD) · 1 gehaltene Position ohne Preis — Placeholder
 Anleihe 2031 3,25%. Details in Vermögen →". Jede Gruppe nennt höchstens
@@ -2617,9 +2618,10 @@ der Betrag abzüglich beider. Negative Steuern zählen mit ihrem Vorzeichen.
 Der Import bucht den Gesamtpreis und prüft ihn auf den Cent gegen Betrag,
 Gebühren und Steuern. Eine Zeile, in der sie nicht zusammenpassen, bleibt mit
 einer Parser-Warnung draußen, die die Zellen so zitiert, wie die Datei sie
-schreibt (*Gesamtpreis 1.510,00 passt nicht zu Betrag 1.502,50 und Gebühren
-2,50 — Zeile nicht übernommen*); der Import rät nicht, welche Zelle falsch
-ist. Eine Zeile mit leerem Gesamtpreis, und jede Zeile einer Datei ohne diese
+schreibt, und den Gesamtpreis nennt, den sie ergeben, in der Schreibweise der
+Datei — bei einem *Kauf*: *Gesamtpreis 1.510,00 passt nicht zu Betrag
+1.502,50 und Gebühren 2,50 (erwartet 1.505,00) — Zeile nicht übernommen*; der
+Import rät nicht, welche Zelle falsch ist. Eine Zeile mit leerem Gesamtpreis, und jede Zeile einer Datei ohne diese
 Spalte, wird als von einem Konverter geschriebene Datei gelesen und bucht
 ihren Betrag als Geld: So lehrt es der Prompt `import_converter`. Eine
 Steuererstattung, die ein negativer Wert in `Steuern` abspaltet, wird neben

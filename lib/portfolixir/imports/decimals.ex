@@ -36,6 +36,30 @@ defmodule Portfolixir.Imports.Decimals do
   end
 
   @doc """
+  Write a decimal as a German-locale export writes its figures, to the cent:
+  `#Decimal<1505>` → `"1.505,00"`, `#Decimal<-1.5>` → `"-1,50"`. For a
+  figure a message quotes beside the file's own cells, so it reads as they
+  do; `parse_de/1` reads it back to the same cent.
+  """
+  def format_de(%Decimal{} = value) do
+    rounded = Decimal.round(value, 2)
+    sign = if Decimal.negative?(rounded), do: "-", else: ""
+
+    [int, frac] =
+      rounded |> Decimal.abs() |> Decimal.to_string(:normal) |> String.split(".")
+
+    grouped =
+      int
+      |> String.reverse()
+      |> String.graphemes()
+      |> Enum.chunk_every(3)
+      |> Enum.map_join(".", &Enum.join/1)
+      |> String.reverse()
+
+    sign <> grouped <> "," <> frac
+  end
+
+  @doc """
   Parse a plain decimal value (string or already-`Decimal`) into a
   `Decimal`. Used for JSON-source values where the upstream parser
   has already produced a `Decimal` thanks to `Jason.decode/2` with

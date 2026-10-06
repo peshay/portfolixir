@@ -1478,7 +1478,8 @@ card a note names what it leaves out** (issue #1081, UX-DR25): the cash
 accounts whose currency has no exchange rate to the base currency, each with
 its balance in its own currency, the held positions with no price, and the
 held positions with a price but no exchange rate, each with its price in its
-own currency — "Not in the total: 2 cash accounts with no exchange rate to
+own currency and labelled as the price ("Harborline Freight (price 12.40
+USD)") — "Not in the total: 2 cash accounts with no exchange rate to
 EUR — USD Settlement (1,850.00 USD), US Broker (60.00 USD) · 1 held position
 with no price — Placeholder Anleihe 2031 3,25%. Details in Wealth →". Each
 group names at most six, then "+N"; an account with a zero balance leaves
@@ -2399,8 +2400,10 @@ bring money in (*Verkauf*, *Dividende*, *Zinsen*, *Einlage*,
 negative Steuern counts with its sign. The import books the Gesamtpreis and
 checks it against Betrag, Gebühren and Steuern to the cent. A row where they
 disagree is left out with a parser warning that quotes the cells as the file
-wrote them (*Gesamtpreis 1.510,00 does not match Betrag 1.502,50 and Gebühren
-2,50 — row not imported*); the import does not guess which cell is wrong. A
+wrote them and the Gesamtpreis they give, in the file's notation — for a
+*Kauf*: *Gesamtpreis 1.510,00 does not match Betrag 1.502,50 and Gebühren
+2,50 (expected 1.505,00) — row not imported*; the import does not guess which
+cell is wrong. A
 row with an empty Gesamtpreis, and every row of a file without that column,
 is read as a converter-written file and books its Betrag as the cash: that is
 the shape the `import_converter` prompt teaches. A tax refund a negative

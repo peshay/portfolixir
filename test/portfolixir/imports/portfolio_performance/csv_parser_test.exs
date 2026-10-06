@@ -255,6 +255,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
   # - A row that fails is a row error naming the Gesamtpreis, the Betrag and
   #   the units the row carries, as written, in one of four forms; in German
   #   it reads "… passt nicht zu … — Zeile nicht übernommen".
+  # - The error also names the Gesamtpreis the other cells give, Betrag ∓ U,
+  #   to the cent and in the file's own notation like the cells beside it:
+  #   "(expected 1.500,00)", "(erwartet 1.500,00)" (closing act, UAT: the
+  #   operator could not see what the cell should have held).
   # - A row without a Gesamtpreis, or without a Betrag, is not checked; nor
   #   is a kind without cash.
   describe "parse/2 a Gesamtpreis that contradicts its Betrag" do
@@ -272,7 +276,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       assert entry.source_row == 2
 
       assert message ==
-               "Gesamtpreis 1.505,00 does not match Betrag 1.502,50 and Gebühren 2,50 — row not imported"
+               "Gesamtpreis 1.505,00 does not match Betrag 1.502,50 and Gebühren 2,50 " <>
+                 "(expected 1.500,00) — row not imported"
     end
 
     test "names the units the row carries in each of four forms" do
@@ -285,10 +290,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
                """)
 
       assert Enum.map(errors, & &1.message) == [
-               "Gesamtpreis 251,00 does not match Betrag 250,00 — row not imported",
-               "Gesamtpreis 1.502,50 does not match Betrag 1.502,50 and Gebühren 2,50 — row not imported",
-               "Gesamtpreis 9,31 does not match Betrag 11,54 and Steuern 2,41 — row not imported",
-               "Gesamtpreis 1.502,50 does not match Betrag 1.500,00, Gebühren 2,50 and Steuern 1,00 — row not imported"
+               "Gesamtpreis 251,00 does not match Betrag 250,00 (expected 250,00) — row not imported",
+               "Gesamtpreis 1.502,50 does not match Betrag 1.502,50 and Gebühren 2,50 " <>
+                 "(expected 1.505,00) — row not imported",
+               "Gesamtpreis 9,31 does not match Betrag 11,54 and Steuern 2,41 " <>
+                 "(expected 9,13) — row not imported",
+               "Gesamtpreis 1.502,50 does not match Betrag 1.500,00, Gebühren 2,50 and Steuern 1,00 " <>
+                 "(expected 1.503,50) — row not imported"
              ]
     end
 
@@ -304,10 +312,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
                """)
 
       assert Enum.map(errors, & &1.message) == [
-               "Gesamtpreis 251,00 passt nicht zu Betrag 250,00 — Zeile nicht übernommen",
-               "Gesamtpreis 1.505,00 passt nicht zu Betrag 1.502,50 und Gebühren 2,50 — Zeile nicht übernommen",
-               "Gesamtpreis 9,31 passt nicht zu Betrag 11,54 und Steuern 2,41 — Zeile nicht übernommen",
-               "Gesamtpreis 1.502,50 passt nicht zu Betrag 1.500,00, Gebühren 2,50 und Steuern 1,00 — Zeile nicht übernommen"
+               "Gesamtpreis 251,00 passt nicht zu Betrag 250,00 (erwartet 250,00) — Zeile nicht übernommen",
+               "Gesamtpreis 1.505,00 passt nicht zu Betrag 1.502,50 und Gebühren 2,50 " <>
+                 "(erwartet 1.500,00) — Zeile nicht übernommen",
+               "Gesamtpreis 9,31 passt nicht zu Betrag 11,54 und Steuern 2,41 " <>
+                 "(erwartet 9,13) — Zeile nicht übernommen",
+               "Gesamtpreis 1.502,50 passt nicht zu Betrag 1.500,00, Gebühren 2,50 und Steuern 1,00 " <>
+                 "(erwartet 1.503,50) — Zeile nicht übernommen"
              ]
     end
 
@@ -339,7 +350,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
                label
 
         assert message ==
-                 "Gesamtpreis #{wrong} does not match Betrag 100,00, Gebühren 2,00 and Steuern -0,50 — row not imported",
+                 "Gesamtpreis #{wrong} does not match Betrag 100,00, Gebühren 2,00 and Steuern -0,50 " <>
+                   "(expected #{right}) — row not imported",
                label
       end
     end
@@ -365,7 +377,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
                )
 
       assert message ==
-               "Gesamtpreis 997,50 does not match Betrag 1.000,00 and Gebühren -2,50 — row not imported"
+               "Gesamtpreis 997,50 does not match Betrag 1.000,00 and Gebühren -2,50 " <>
+                 "(expected 1.002,50) — row not imported"
 
       assert {:ok, %Preview{errors: [], entries: [buy]}} =
                checked(

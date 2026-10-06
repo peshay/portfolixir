@@ -1606,8 +1606,12 @@ for a condition *in* the total; this one is rows *out* of it.
   2. the held positions with no price (`unvalued_reason: :no_price`), by
      name;
   3. the held positions with a price but no rate path (`:missing_fx`),
-     "… ohne Wechselkurs zu EUR — Harborline Freight (12,40 USD)", the
-     native price as Wealth's missing-FX note prints it.
+     "… ohne Wechselkurs zu EUR — Harborline Freight (Kurs 12,40 USD)"
+     ("(price 12.40 USD)" in English), the native price as Wealth's
+     missing-FX note prints it, **labelled as the price** (closing act of
+     PR α, UAT): under "Nicht in der Summe" a bare bracket reads as the
+     amount left out, which a cash account's bracket in group 1 is and a
+     position's price per unit is not.
 
   A group with no member is absent; **with no group there is no note**
   (UX-DR2: no all-clear). A security held in several depots counts once;
@@ -1618,8 +1622,10 @@ for a condition *in* the total; this one is rows *out* of it.
   valuation the card already reads (`cash_balances[].valued`,
   `positions[].unvalued_reason`; no new query), and its names and its
   shortening come from the helpers Wealth's notes use, moved into
-  `PortfolixirWeb.ValuationNotes`. Wealth's notes render as they did.
-  **One difference is deliberate:** a retired security still held with no
+  `PortfolixirWeb.ValuationNotes`. Wealth's notes render as they did; the
+  "Kurs" label of group 3 is the Overview's own, since Wealth's missing-FX
+  sentence already says the position "hat einen Preis" and keeps "Harborline
+  Freight (12,40 USD)". **One further difference is deliberate:** a retired security still held with no
   price is named here, because the total under which the note sits leaves
   it out; Wealth's no-price note leaves it out (PR #1102), because that note
   links to `?dq=missing_quote`, a list without retired securities, and its
@@ -1871,7 +1877,18 @@ never converted through the hub, which would state a cost nobody paid.
   none. The members follow in a
   `details.perf-table-disclosure` ("Die 3 Positionen") as the trades facet's
   unmatched-sells `.excluded-list`: name · category · native cost (`.num`)
-  or reason, sorted by name.
+  or reason, sorted by name. **Under the count without a reason** (the
+  members are out for different reasons), a cost line carries its own, as
+  a reason line does *(closing act of PR α, UAT)*: "Einstand 1.500,00 USD,
+  nicht in EUR bezahlt", and "Einstand 1.000,00 EUR + 1.500,00 USD, nicht
+  nur in EUR bezahlt" for a member whose costs include EUR — the
+  one-member sentence's distinction. Only each amount of such a line is
+  `.num`, which keeps it unbroken; the rest of the line wraps, so it reads
+  whole inside the note at 390 px instead of running past its edge
+  *(closing act's screenshots)*. Under the count that names the currency
+  for every member, the line keeps the cost alone, one `.num` cell, unless
+  it is a cost in two currencies, which wraps between its amounts the same
+  way; the one-member sentence is unchanged.
 - **`.cat-result-partial`**, the row's "1/2", has its rule (board rule ③):
   the percentage's size (0.72 rem), weight 500, {colors.text-muted}. It used
   to print as a bare third line in the result cell's own size and colour.
@@ -4440,7 +4457,11 @@ but `bond` and `government_bond`, read as the effective class.
   (`data-role="dq-two-scales"`), naming each bond the valuation holds with
   "(Kurs 97,25 · Preis je Stück 0,985)" and linking each name to its
   Transactions tab, as the negative-holdings note does; the sentence asks
-  for "Stückzahl ihrer Buchungen".
+  for "Stückzahl ihrer Buchungen". The link's text is the name alone, so
+  its underline ends at the name, and one space stands between two entries
+  — "… 0,985) Ostsee …" — outside them, since an entry is an inline block
+  whose own edge whitespace does not render *(closing act of PR α, UAT;
+  both two-scales notes)*.
 - **The reverse case** *(2026-10-06, issue 1068, plan D-15; board
   `mockups/ux-design-2026-10-04/02-money-notes`, pin 4)*: a problem note of
   its own right after it (`data-role="dq-two-scales-reverse"`): "Eine
