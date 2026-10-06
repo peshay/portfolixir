@@ -333,6 +333,44 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (#1077):
+  # As a German-speaking integrator, or the agent I connect over MCP, reading
+  # the German API reference,
+  # I want it to document every route and every tool the English reference
+  # documents,
+  # so that the German page never silently trails the English one.
+  #
+  # Acceptance criteria:
+  # - Every `METHOD /api/v1/...` route and every `portfolixir.<family>.<tool>`
+  #   name in either reference also appears in the other.
+  # - A failure names each difference and the file that lacks it.
+  #
+  # A lower bound: a route or a tool counts as documented wherever it is
+  # named, so a passing mention satisfies it, and parameters, answers and
+  # errors are not compared. The base of #1077 shows the gap — the German
+  # page named GET .../position_targets in passing and had no section for
+  # it. Keeping the sections level stays a reviewer's read; this test only
+  # stops a name from going missing.
+  test "the English and German API references document the same routes and tools (#1077)" do
+    en_path = "docs/integration/api-and-mcp.md"
+    de_path = "docs/de/integration/api-and-mcp.md"
+    en = File.read!(en_path)
+    de = File.read!(de_path)
+
+    differences =
+      for extract <- [&documented_routes/1, &documented_tools/1],
+          {lacking, present, absent} <- [
+            {de_path, extract.(en), extract.(de)},
+            {en_path, extract.(de), extract.(en)}
+          ],
+          item <- present |> MapSet.difference(absent) |> Enum.sort() do
+        "#{lacking} lacks #{item}"
+      end
+
+    assert differences == [],
+           "the English and German API references differ:\n" <> Enum.join(differences, "\n")
+  end
+
   # User story:
   # As an API or MCP client,
   # I want the integration docs to document the money-weighted IRR field on the
@@ -776,6 +814,28 @@ defmodule Portfolixir.DocsTest do
     ~r/tool\("([^"]+)"/
     |> Regex.scan(tools)
     |> Enum.map(fn [_, tool] -> tool end)
+  end
+
+  # The extraction rule of #1077. A route is a verb, whitespace (a line break
+  # included) and an optional opening backtick, then the `/api/v1` path up to
+  # the first character a path does not carry.
+  defp documented_routes(markdown) do
+    ~r"\b(GET|POST|PUT|PATCH|DELETE)\s+`?(/api/v1/[A-Za-z0-9_:/\-.{}]+)"
+    |> Regex.scan(markdown, capture: :all_but_first)
+    |> MapSet.new(fn [verb, path] -> "#{verb} #{path}" end)
+  end
+
+  # A tool is `portfolixir.<family>.<tool>`, read to its last segment: #1077's
+  # rule, `portfolixir.[a-z_]+.[a-z_]+`, cuts the three category tools
+  # (`portfolixir.classifications.categories.create`, `.update`, `.delete`) to
+  # one `portfolixir.classifications.categories`, so a reference naming one of
+  # them would hide the other two missing. A segment needs a name character
+  # after its dot, so a sentence's closing full stop is never read as part of a
+  # name.
+  defp documented_tools(markdown) do
+    ~r/\bportfolixir(?:\.[a-z_]+){2,}/
+    |> Regex.scan(markdown)
+    |> MapSet.new(fn [tool] -> tool end)
   end
 
   # User story (#776 — Sprint 11 Lane W):
