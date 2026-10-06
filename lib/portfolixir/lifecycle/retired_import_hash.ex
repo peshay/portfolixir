@@ -11,7 +11,10 @@ defmodule Portfolixir.Lifecycle.RetiredImportHash do
   record of the merge that removed it.
 
   Rows are never updated or deleted, and a hash is retired at most once; the
-  database enforces both, and refuses a retired hash on `transactions`.
+  database enforces both, and refuses a retired hash on `transactions`. It
+  also refuses retiring a hash a transaction still holds, under a per-hash
+  lock both sides take (ADR-0050 §16, the 2026-10-06 note to invariant 4,
+  #917): a merge deletes the row first, so the two sets stay disjoint.
   """
   use Ecto.Schema
   import Ecto.Changeset
@@ -49,6 +52,13 @@ defmodule Portfolixir.Lifecycle.RetiredImportHash do
     |> unique_constraint(:import_hash,
       name: :retired_import_hashes_import_hash_index,
       message: "has already been retired"
+    )
+    # ADR-0050 §16, the 2026-10-06 note to invariant 4 (#917): the live and
+    # retired sets are disjoint, so a hash a transaction still holds cannot
+    # be retired; the database trigger raises this constraint name.
+    |> unique_constraint(:import_hash,
+      name: :retired_import_hashes_import_hash_held,
+      message: "is still held by a transaction"
     )
     |> foreign_key_constraint(:merge_record_id,
       name: :retired_import_hashes_merge_record_id_fkey
