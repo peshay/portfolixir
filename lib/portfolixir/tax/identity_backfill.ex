@@ -25,6 +25,12 @@ defmodule Portfolixir.Tax.IdentityBackfill do
   have at this migration, so the immutable migration keeps running when a
   later one adds a column. `run/1` is referenced from that migration — keep
   its signature stable.
+
+  Pinned, not frozen (#1042): the seeded case "the tax identity normalisation
+  does not stop the upgrade over unnormalised spellings" in
+  `test/portfolixir/seeded_upgrade/app_code_migrations_test.exs` turns red when
+  a later change makes this code, or the journal write it calls, touch a
+  column the migration's version lacks.
   """
 
   import Ecto.Query
