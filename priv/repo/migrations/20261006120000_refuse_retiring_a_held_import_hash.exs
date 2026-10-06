@@ -49,15 +49,26 @@ defmodule Portfolixir.Repo.Migrations.RefuseRetiringAHeldImportHash do
   This migration replaces the existing function of `transactions` with the
   locking body; `down` restores the body it had.
 
-  Additive: two functions and a trigger, over no stored row.
+  Additive: two functions and a trigger, over no stored row. The race it
+  closes could already have left a hash both held and retired on an instance
+  that ran an earlier release; the migration does not stop on such a hash
+  and does not repair it. `report_held_retired_hashes/1` logs how many there
+  are and the transactions that hold them, and the overlap stays as it was.
   """
   use Ecto.Migration
+
+  require Logger
 
   # The import-hash lock's two keys (#917): reserved for the two triggers
   # below, and named by no other advisory lock (see the moduledoc).
   @lock_keys "727209017, 0"
 
+  # How many of the transactions holding a retired hash the warning names.
+  @named_max 5
+
   def up do
+    report_held_retired_hashes(repo())
+
     execute("""
     CREATE OR REPLACE FUNCTION portfolixir_refuse_held_import_hash()
     RETURNS trigger AS $$
@@ -91,6 +102,51 @@ defmodule Portfolixir.Repo.Migrations.RefuseRetiringAHeldImportHash do
     """)
 
     execute(refuse_retired_function(lock: true))
+  end
+
+  @doc """
+  Logs the import hashes on `repo` that a transaction holds and
+  `retired_import_hashes` lists too, the overlap the race this migration
+  closes could leave, and answers how many there are. It writes nothing: the
+  transactions keep their hashes and the retirements stay. The warning names
+  the count and up to #{@named_max} of the transactions, in id order. Runs at
+  once, inside the migration's transaction.
+  """
+  def report_held_retired_hashes(repo) do
+    %{rows: [[count, ids]]} =
+      repo.query!(
+        """
+        SELECT count(*), coalesce((array_agg(t.id ORDER BY t.id))[1:$1], '{}')
+        FROM transactions t
+        JOIN retired_import_hashes r ON r.import_hash = t.import_hash
+        """,
+        [@named_max]
+      )
+
+    if count > 0 do
+      Logger.warning(
+        "import hashes held and retired (ADR-0050 §16, #917): #{hashes(count)} held by a " <>
+          "transaction and retired by a merge, where a booking and a retirement of one hash " <>
+          "ran at once: #{transactions(count, ids)}. From this release on the database " <>
+          "refuses both, booking a retired hash and retiring a held one. The hashes held " <>
+          "and retired before stay as they are: each transaction keeps its hash, each " <>
+          "retirement stays, and a re-import still skips the row. Look at each transaction: " <>
+          "it may repeat a row the merge removed."
+      )
+    end
+
+    count
+  end
+
+  defp hashes(1), do: "1 import hash is"
+  defp hashes(count), do: "#{count} import hashes are"
+
+  defp transactions(count, ids) do
+    named = Enum.map_join(ids, ", ", &"##{&1}")
+    noun = if count == 1, do: "transaction", else: "transactions"
+    more = if count > length(ids), do: " and #{count - length(ids)} more", else: ""
+
+    "#{noun} #{named}#{more}"
   end
 
   def down do
