@@ -1821,7 +1821,9 @@ contribution is end value − start value − flows + income − costs: the valu
 at the end of the period, minus the value at the close of the day before it,
 minus what was bought and plus what was sold (each at its booking day's
 rate), plus the dividends as credited, minus the fees and taxes of the
-position's own trades. Each row shows those five figures beside the
+position's own trades. A cross-currency trade's fees and taxes count in its
+cash account's currency, the currency the broker charges them in. Each row
+shows those five figures beside the
 contribution, so every number can be checked by hand; the rows are sorted by
 contribution, largest first, and a bar under each figure shows its size
 against the largest. A position held for only part of the period has its
@@ -2079,7 +2081,9 @@ So when trades actually cost something, three more figures appear together:
 
 They are always shown together and never the pre-cost figure alone — on its own
 it is a number that flatters. **Transaction costs** means the fees and taxes
-booked *on a trade*. Standalone fee and tax bookings stay inside the return on
+booked *on a trade*; a cross-currency trade's count in its cash account's
+currency, the currency the broker charges them in. Standalone fee and tax
+bookings stay inside the return on
 both sides, because a custody charge is not caused by a trade and the frozen
 holder would have paid it too; dividend withholding stays in as well, since it
 belongs to the dividend gap below rather than to this one.

@@ -1504,7 +1504,8 @@ Beispiel-Payloads für Konten:
   EUR-Konto), wird in der eigenen Währung des Wertpapiers gebucht und trägt die
   Felder zur währungsübergreifenden Abrechnung: `security_amount` (Handelsbetrag in
   der Wertpapierwährung), `settlement_amount` (der Handelsbetrag in der
-  Kontowährung, vor Gebühren und Steuern) und `settlement_fx_rate` (Einheiten der
+  Kontowährung, vor Gebühren und Steuern, die ebenfalls in der Kontowährung
+  erfasst werden) und `settlement_fx_rate` (Einheiten der
   Kontowährung je einer Einheit der Wertpapierwährung). Fehlt der Kurs, werden
   jedoch beide Beträge geliefert, wird er als `settlement_amount / security_amount`
   abgeleitet (der tatsächliche Kurs des Brokers); eine Währungsabweichung ohne Kurs
@@ -1947,7 +1948,11 @@ Beispiel-Payloads für Konten:
   `contribution` — `end_value − start_value − net_flows + income − costs`, in
   der Basiswährung, die Währungsbewegung eingeschlossen — dazu
   `held_at_start`, `held_at_end`, `unvalued_days` und `unvalued_reason`
-  (`no_price`, `no_rate` oder `null`). Eine im Fenster gekaufte und wieder
+  (`no_price`, `no_rate` oder `null`). `costs` sind die Gebühren und Steuern
+  der eigenen Käufe und Verkäufe der Position, umgerechnet aus der Währung des
+  Verrechnungskontos des jeweiligen Handels, in der sie erfasst sind (#1051);
+  ein Handel ohne Kurs für seine Preiswährung fließt mit seinem Geldbetrag
+  abzüglich dieser Kosten zu. Eine im Fenster gekaufte und wieder
   verkaufte Position steht in der Tabelle, obwohl sie an keinem Ende gehalten
   wird. Ein Tag, an dem eine gehaltene Position keinen Preis oder keinen
   Kurspfad hat, zählt null, wie im Walk; die Position bleibt in der Summe und

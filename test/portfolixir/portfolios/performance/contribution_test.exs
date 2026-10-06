@@ -398,7 +398,7 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     assert Map.drop(kept, [:contribution, :basis, :stale]) == Map.drop(plain, [:basis, :stale]),
            label
 
-    assert Map.delete(kept.basis, :computed_at) == Map.delete(plain.basis, :computed_at)
+    assert Map.delete(kept.basis, :computed_at) == Map.delete(plain.basis, :computed_at), label
 
     {:ok, plain_summary} = Performance.summarise(plain, period)
     {:ok, kept_summary} = Performance.summarise(kept, period)
@@ -410,7 +410,7 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     # The figures really were kept wherever the window holds a walked day.
     assert is_map(kept.contribution) == not is_nil(plain_summary.start_date), label
 
-    if is_map(kept.contribution), do: assert(kept.contribution.positions != %{})
+    if is_map(kept.contribution), do: assert(kept.contribution.positions != %{}, label)
   end
 
   # -- I2 to I7: one identity at a time, on small worlds ----------------------
@@ -875,22 +875,23 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     assert equal?(result.totals.positions, "-64.5")
   end
 
-  # User story (#1051, ADR-0051 amendment 2026-10-03, §5's no-rate row):
+  # User story (#1051, ADR-0051 §1 and the 2026-10-03 amendment's no-rate row):
   # As a local portfolio maintainer who buys a security priced in a currency
   # the instance holds no rate for, through my EUR account, and pays fees,
-  # I want those fees counted once,
-  # so that the position is charged what the trade cost and not the fees a
-  # second time.
+  # I want those fees to be the position's costs, counted once,
+  # so that the costs column shows what the trade cost me in fees, exactly
+  # the trade costs the walk counts that day.
   #
   # Acceptance criteria:
   # - A trade whose price currency has no rate path on its day flows into its
-  #   position at its whole cash leg, fees and taxes included, and carries no
-  #   costs of its own, although the walk now reads those fees in the
-  #   account's currency (#1051): they ride inside the cash, as before.
+  #   position at its cash leg less its fees and taxes, and those, read in
+  #   the account's currency, are its costs: the position's costs equal the
+  #   walk's trade costs that day (ADR-0051 §1).
+  # - The position's contribution is what the whole cash leg cost, as before.
   # - No settlement difference is left on the currency effect on cash.
   # - The positions plus the remainder lines still sum to the money result
   #   (I1).
-  test "a trade with no rate keeps its fees inside its cash leg, counted once" do
+  test "a trade with no rate flows in at its cash leg less its fees and taxes, its costs" do
     world = base_world(name: "Rateless Fees", cash_name: "Cash", depot_name: "Depot")
     franc = create_security!(name: "Franc Fee AG", ticker: "FFA", currency: "CHF")
 
@@ -913,11 +914,15 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     {:ok, result} = Contribution.for_portfolio(world.portfolio.id, period: "ytd", today: @today)
 
     position = row(result, franc)
-    assert equal?(position.net_flows, "68")
-    assert zero?(position.costs)
+    # 68 EUR paid, less the 3 EUR of fees and taxes that are its costs.
+    assert equal?(position.net_flows, "65")
+    assert equal?(position.costs, "3")
     assert zero?(position.end_value)
     assert equal?(position.contribution, "-68")
     assert position.unvalued_reason == :no_rate
+
+    %{daily: daily} = Performance.analysis(world.portfolio.id, today: @today)
+    assert Decimal.equal?(position.costs, costs_on(daily, ~D[2026-02-03]))
 
     assert_remainder_zero(result)
     # 932 cash - the 1000 held at the start.
@@ -961,9 +966,10 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     assert Decimal.equal?(
              result.totals.positions,
              sum(Enum.map(result.positions, & &1.contribution))
-           )
+           ),
+           label
 
-    assert Decimal.equal?(result.totals.remainder, sum(Map.values(result.remainder)))
+    assert Decimal.equal?(result.totals.remainder, sum(Map.values(result.remainder))), label
     assert result.start_date == read.start_date, label
 
     # #1055: both reads of one scope and window name the same accounts.
@@ -1294,11 +1300,13 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     end
   end
 
-  defp costs_on(daily, date),
-    do:
-      daily
-      |> Enum.find(&(Date.compare(&1.date, date) == :eq))
-      |> Performance.trade_costs_of()
+  defp costs_on(daily, date) do
+    point =
+      Enum.find(daily, &(Date.compare(&1.date, date) == :eq)) ||
+        flunk("no walk point on #{date}")
+
+    Performance.trade_costs_of(point)
+  end
 
   # -- the edges of the read ------------------------------------------------------
 

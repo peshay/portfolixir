@@ -1988,7 +1988,9 @@ Zu-/Abflüsse + Erträge − Kosten. Das ist der Wert am Ende des Zeitraums,
 abzüglich des Werts zum Schluss des Vortags, abzüglich der Käufe und zuzüglich
 der Verkäufe (jeweils zum Kurs des Buchungstags), zuzüglich der gutgeschriebenen
 Dividenden und abzüglich der Gebühren und Steuern der eigenen Käufe und
-Verkäufe der Position. Jede Zeile zeigt diese fünf Zahlen neben dem Beitrag,
+Verkäufe der Position. Bei einem währungsübergreifenden Handel zählen Gebühren
+und Steuern in der Währung seines Verrechnungskontos, in der der Broker sie
+berechnet. Jede Zeile zeigt diese fünf Zahlen neben dem Beitrag,
 sodass sich jede Zahl von Hand nachprüfen lässt. Die Zeilen sind nach Beitrag
 sortiert, der größte zuerst, und ein Balken unter jeder Zahl zeigt ihre Größe
 im Vergleich zur größten. Auch eine Position, die nur einen Teil des
@@ -2271,7 +2273,9 @@ weitere Kennzahlen gemeinsam:
 
 Sie werden immer zusammen gezeigt und nie die Vor-Kosten-Zahl allein — für
 sich genommen ist sie eine Zahl, die schmeichelt. **Transaktionskosten** sind
-die *auf einem Handelsgeschäft* gebuchten Gebühren und Steuern. Eigenständige
+die *auf einem Handelsgeschäft* gebuchten Gebühren und Steuern; bei einem
+währungsübergreifenden Handel zählen sie in der Währung seines
+Verrechnungskontos, in der der Broker sie berechnet. Eigenständige
 Gebühren- und Steuerbuchungen bleiben auf beiden Seiten in der Rendite, denn
 eine Depotgebühr wird nicht von einem Handel verursacht und der eingefrorene
 Halter hätte sie ebenso gezahlt; die Quellensteuer auf Dividenden bleibt

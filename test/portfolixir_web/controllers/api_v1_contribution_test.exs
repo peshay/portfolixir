@@ -253,7 +253,10 @@ defmodule PortfolixirWeb.ApiV1ContributionTest do
   #   non-terminating conversion, and that the currency line holds a trade's
   #   settlement difference.
   # - assumptions says a trade's costs are read in its cash account's
-  #   currency, the currency a cross-currency trade records them in (#1051).
+  #   currency, the currency a cross-currency trade records them in, and
+  #   count zero while that currency has no rate path, as the account does;
+  #   a trade with no rate for its price currency flows in at its cash leg
+  #   less its fees and taxes, which are its costs (#1051).
   test "states its computation basis in the payload", %{conn: conn} do
     world = world()
 
@@ -285,6 +288,10 @@ defmodule PortfolixirWeb.ApiV1ContributionTest do
     assert assumptions =~ "34 significant digits"
     assert assumptions =~ "settlement difference"
     assert assumptions =~ "read in the currency of the trade's cash account (#708, #1051)"
+    assert assumptions =~ "count zero while that currency has no rate path"
+    assert assumptions =~ "unvalued_cash_accounts"
+    assert assumptions =~ "its cash leg less its fees and taxes, which are its costs"
+    refute assumptions =~ "fees and taxes included"
   end
 
   # User story (FR-41, ADR-0051 §4):

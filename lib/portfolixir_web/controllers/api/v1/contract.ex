@@ -53,13 +53,14 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "performance, the contribution and the benchmark reads, in both forms, with its " <>
           "balance in its own currency, its days and the date its first rate arrived, so the jump " <>
           "that first rate brings into the money result and the currency effect on " <>
-          "cash reads as what it is (#1055, ADR-0051 §10). M4, the walk's computation " <>
-          "version also moves because a cross-currency trade's fees and taxes are now " <>
-          "converted to the base currency from its cash account's currency, the currency " <>
-          "they are recorded in, not from its price currency: the contribution read's " <>
-          "costs and cash_currency_effect and the snapshot comparison's transaction_costs " <>
-          "and real_ttwror_before_costs move for such a trade, and no field is added " <>
-          "(#1051).",
+          "cash reads as what it is (#1055, ADR-0051 §10). M4, with no field added and no " <>
+          "computation version moved beyond M3's, converts a cross-currency trade's fees " <>
+          "and taxes to the base currency from its cash account's currency, the currency " <>
+          "they are recorded in, not from its price currency: on such a trade the " <>
+          "contribution read's position costs, contributions, totals and row order and its " <>
+          "cash_currency_effect move, a trade with no rate for its price currency moves its " <>
+          "fees and taxes from net_flows into costs, and the snapshot comparison's " <>
+          "transaction_costs, real_ttwror_before_costs and cost_recovery move (#1051).",
       endpoints: [],
       tools: [],
       parameters: [

@@ -182,7 +182,10 @@ defmodule Portfolixir.Portfolios.PerformanceFxTest do
   # is its settlement plus fees plus taxes (`Ledger.SettlementGuard`).
   # Invented figures; every hub rate below converts exactly.
 
-  defp point_on(daily, date), do: Enum.find(daily, &(Date.compare(&1.date, date) == :eq))
+  defp point_on(daily, date),
+    do:
+      Enum.find(daily, &(Date.compare(&1.date, date) == :eq)) ||
+        flunk("no walk point on #{date}")
 
   defp costs_on(daily, date), do: daily |> point_on(date) |> Performance.trade_costs_of()
 
