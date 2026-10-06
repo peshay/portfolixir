@@ -78,7 +78,7 @@ defmodule Portfolixir.Input.DerivedNameBoundsTest do
       })
 
     assert {:ok, %{buckets_created: 1, views_created: 1}} =
-             Buckets.seed_portfolio_scope_buckets(Actor.system_job("portfolio_scope_seed"))
+             Buckets.seed_scope_buckets_at_head(Actor.system_job("portfolio_scope_seed"))
 
     [bucket] = Enum.filter(Buckets.list_buckets(), &(&1.source_portfolio_id == portfolio.id))
     assert codepoints(bucket.name) <= 100

@@ -25,19 +25,34 @@ defmodule Portfolixir.Buckets.ScopeSeed do
   nothing here for a later schema; a later migration that needs these tables
   writes its own SQL.
 
-  Two things the context's writers do are left out on purpose, because
-  nothing they serve exists at that version:
+  **It is the migration's code, correct at the migration's version, and no
+  code path at head calls it.** Callers on today's schema, the
+  `portfolixir.seed_scope_buckets` task among them, use
+  `Portfolixir.Buckets.seed_scope_buckets_at_head/1`, which writes through
+  the context's writers. The immutable migration's own moduledoc still says
+  the seed "goes through `Portfolixir.Buckets` rather than raw SQL"; this
+  freeze outdates that sentence, which the migration cannot be edited to
+  correct.
 
-    * **the derived-data invalidation** (`derived_values` arrives with
-      `20260814120000`). A seed at head is run by the
-      `portfolixir.seed_scope_buckets` task, which invalidates after it;
-    * **the journaled rewrites of a bucket's memberships before its delete,**
-      and the protection of a view a policy rule reads. The rollback deletes
-      the seeded views and buckets and lets the foreign keys of that version
-      take their links, as they did then. Only the `settings` notice key is
-      cleared beyond that version's tables, and only where the table exists.
+  What the context's writers do today and this module leaves out:
 
-  The whole seed, and the whole rollback, is one transaction.
+    * **name validation beyond the bound:** the seed names a bucket after its
+      portfolio as that version's data holds the name;
+    * **the derived-data invalidation:** no derived value exists at that
+      version (`derived_values` arrives with `20260814120000`);
+    * **in the rollback, the journaled rewrites of a bucket's memberships
+      before its delete,** and the protection of a view a policy rule reads.
+      The rollback is the migration's `down`: it journals only the bucket
+      deletes, each with its row on both sides, and lets the foreign keys of
+      that version remove the links, unjournaled, as they did then. One known
+      limit follows: a position override whose only bucket is a seeded one
+      loses its last row and reads as inherit afterwards, where
+      `Portfolixir.Buckets.delete_bucket/2` keeps it explicit-empty. Only the
+      `settings` notice key is cleared beyond that version's tables, and only
+      where the table exists.
+
+  The whole seed, and the whole rollback, is one transaction: a seed that
+  stops writes nothing.
 
   - **Idempotent:** a portfolio that already has its seeded bucket and view is
     not seeded again, and an account already carrying its bucket is skipped,
@@ -146,7 +161,7 @@ defmodule Portfolixir.Buckets.ScopeSeed do
   defp seed_portfolio(repo, actor, portfolio, acc) do
     {bucket, acc} = ensure_bucket(repo, actor, portfolio, acc)
     acc = ensure_view(repo, portfolio, bucket, acc)
-    tag_accounts(repo, actor, portfolio, bucket, acc)
+    {:ok, tag_accounts(repo, actor, portfolio, bucket, acc)}
   rescue
     error in Postgrex.Error -> {:error, error}
   end
@@ -249,19 +264,11 @@ defmodule Portfolixir.Buckets.ScopeSeed do
 
       Enum.map(rows, fn [id] -> {owner, id} end)
     end)
-    |> Enum.reduce_while({:ok, acc}, fn {owner, id}, {:ok, acc} ->
+    |> Enum.reduce(acc, fn {owner, id}, acc ->
       case tag_account(repo, actor, owner, id, bucket.id) do
-        {:ok, :tagged} ->
-          {:cont, {:ok, Map.update!(acc, :accounts_tagged, &(&1 + 1))}}
-
-        {:ok, :skipped_existing_scope} ->
-          {:cont, {:ok, Map.update!(acc, :skipped_existing_scope, &(&1 + 1))}}
-
-        {:ok, :already_tagged} ->
-          {:cont, {:ok, acc}}
-
-        {:error, reason} ->
-          {:halt, {:error, reason}}
+        :tagged -> Map.update!(acc, :accounts_tagged, &(&1 + 1))
+        :skipped_existing_scope -> Map.update!(acc, :skipped_existing_scope, &(&1 + 1))
+        :already_tagged -> acc
       end
     end)
   end
@@ -269,27 +276,24 @@ defmodule Portfolixir.Buckets.ScopeSeed do
   # Adds the seeded bucket to the account's set, under the lock every
   # assignment writer takes on the account (FOR NO KEY UPDATE, which a
   # booking's foreign-key check does not wait on). The set's buckets are read
-  # FOR SHARE: each must exist, and at most one may be a scope bucket
-  # (ADR-0024), so an account that already carries another scope bucket is
-  # skipped, not crashed on.
+  # FOR SHARE, and at most one may be a scope bucket (ADR-0024), so an
+  # account that already carries another scope bucket is skipped, not
+  # crashed on. The migration runs before anything else writes, so the
+  # account just listed and the buckets just read are there.
   defp tag_account(repo, actor, {table, links, column, _resource_type} = owner, id, bucket_id) do
-    case repo.query!("SELECT id FROM #{table} WHERE id = $1 FOR NO KEY UPDATE", [id]).rows do
-      [] ->
-        {:error, :not_found}
+    repo.query!("SELECT id FROM #{table} WHERE id = $1 FOR NO KEY UPDATE", [id])
 
-      [[^id]] ->
-        %{rows: rows} =
-          repo.query!(
-            "SELECT bucket_id FROM #{links} WHERE #{column} = $1 ORDER BY bucket_id",
-            [id]
-          )
+    %{rows: rows} =
+      repo.query!(
+        "SELECT bucket_id FROM #{links} WHERE #{column} = $1 ORDER BY bucket_id",
+        [id]
+      )
 
-        current = Enum.map(rows, fn [current_id] -> current_id end)
+    current = Enum.map(rows, fn [current_id] -> current_id end)
 
-        if bucket_id in current,
-          do: {:ok, :already_tagged},
-          else: add_bucket(repo, actor, owner, id, {current, bucket_id})
-    end
+    if bucket_id in current,
+      do: :already_tagged,
+      else: add_bucket(repo, actor, owner, id, {current, bucket_id})
   end
 
   # The new set is the account's set, ascending, then the seeded bucket: the
@@ -303,30 +307,25 @@ defmodule Portfolixir.Buckets.ScopeSeed do
         [bucket_ids]
       )
 
-    cond do
-      length(dimensions) < length(bucket_ids) ->
-        {:error, :bucket_ids}
+    if Enum.count(dimensions, &(&1 == [@scope_dimension])) > 1 do
+      :skipped_existing_scope
+    else
+      repo.query!("INSERT INTO #{links} (#{column}, bucket_id) VALUES ($1, $2)", [
+        id,
+        bucket_id
+      ])
 
-      Enum.count(dimensions, &(&1 == [@scope_dimension])) > 1 ->
-        {:ok, :skipped_existing_scope}
+      # The assignment writers journal the account's whole new set as one
+      # aggregate, with no id of its own and no before-image.
+      journal!(
+        repo,
+        actor,
+        {"update", resource_type, nil},
+        nil,
+        %{"id" => nil, column => id, "bucket_ids" => bucket_ids}
+      )
 
-      true ->
-        repo.query!("INSERT INTO #{links} (#{column}, bucket_id) VALUES ($1, $2)", [
-          id,
-          bucket_id
-        ])
-
-        # The assignment writers journal the account's whole new set as one
-        # aggregate, with no id of its own and no before-image.
-        journal!(
-          repo,
-          actor,
-          {"update", resource_type, nil},
-          nil,
-          %{"id" => nil, column => id, "bucket_ids" => bucket_ids}
-        )
-
-        {:ok, :tagged}
+      :tagged
     end
   end
 

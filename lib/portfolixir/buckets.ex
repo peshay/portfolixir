@@ -10,20 +10,24 @@ defmodule Portfolixir.Buckets do
   One bucket dimension is exclusive (ADR-0024): a depot/cash account carries at
   most one `"scope"`-dimension bucket (enforced here on assignment), while
   `"tag"` buckets stay free overlapping tags. The one-time portfolio migration
-  (`seed_portfolio_scope_buckets/1`) seeds a scope bucket + view per portfolio,
-  through `Portfolixir.Buckets.ScopeSeed`, frozen to that migration's schema
-  (#1042).
+  seeds a scope bucket + view per portfolio: `seed_scope_buckets_at_head/1`
+  through this context's writers, for callers on today's schema, and
+  `seed_portfolio_scope_buckets/1` with `rollback_portfolio_scope_seed/1`,
+  the immutable migration's own pair, frozen to its schema in
+  `Portfolixir.Buckets.ScopeSeed` (#1042).
 
-  This context is the **only** writer of the bucket/view tables (its frozen
-  seed writes them on its behalf, in plain SQL, journaling what the writers
-  here journal) and is born actor-first (ADR-0017): bucket-definition,
-  assignment and view-definition writes are routed through `Journal.record/3`
-  in the same `Ecto.Multi`, so each is attributable in the audit journal.
-  View-definition writes were deliberately unjournaled until Sprint 16
-  (ADR-0018 §5 as amended; E25 S6, F45): a policy rule in force reads a view,
-  so its definition is journaled with both bucket sets. Creating a view is
-  the one unjournaled view write. The tables stay unarmed scope tables
-  (`Portfolixir.Journal.Allowlist`).
+  This context is the **only** writer of the bucket/view tables, with that
+  frozen pair as the one exception: plain SQL that only the migration runs.
+  Its seed journals what the writers here journal; its rollback journals only
+  the bucket deletes and lets the foreign keys remove the links, unjournaled,
+  as that version did. Every other write is born actor-first (ADR-0017):
+  bucket-definition, assignment and view-definition writes are routed
+  through `Journal.record/3` in the same `Ecto.Multi`, so each is
+  attributable in the audit journal. View-definition writes were
+  deliberately unjournaled until Sprint 16 (ADR-0018 §5 as amended; E25 S6,
+  F45): a policy rule in force reads a view, so its definition is journaled
+  with both bucket sets. Creating a view is the one unjournaled view write.
+  The tables stay unarmed scope tables (`Portfolixir.Journal.Allowlist`).
 
   Resolution helpers delegate the algebra to the pure engine
   `Portfolixir.Engines.BucketResolution` (architecture D2/P3) — this context only
@@ -51,6 +55,7 @@ defmodule Portfolixir.Buckets do
   alias Portfolixir.Journal.Serializer
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Portfolios.PolicyRules
+  alias Portfolixir.Portfolios.Portfolio
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias Portfolixir.Portfolios.Snapshot
   alias Portfolixir.Portfolios.Snapshots
@@ -58,6 +63,7 @@ defmodule Portfolixir.Buckets do
   alias Portfolixir.Repo
 
   @scope_dimension "scope"
+  @seed_name_suffix " (Portfolio)"
   @name_max_length 100
 
   # -- buckets (reads) -------------------------------------------------------
@@ -968,14 +974,15 @@ defmodule Portfolixir.Buckets do
   # -- portfolio -> scope-bucket seed (ADR-0024, epic story 2) ----------------
 
   @doc """
-  Seeds the ADR-0024 portfolio migration: per existing portfolio one
-  exclusive-dimension ("scope") bucket plus one editable view including exactly
-  that bucket, and assigns each of the portfolio's depots and cash accounts to
-  the bucket (pre-existing tag assignments are kept, not replaced).
+  Seeds the ADR-0024 portfolio migration at head, for the
+  `portfolixir.seed_scope_buckets` task and any other caller on today's
+  schema: per existing portfolio one exclusive-dimension ("scope") bucket plus
+  one editable view including exactly that bucket, and assigns each of the
+  portfolio's depots and cash accounts to the bucket (pre-existing tag
+  assignments are kept, not replaced).
 
   Seeded buckets and views carry the portfolio id in `source_portfolio_id`, so
-  the seed is **idempotent** (an already-seeded portfolio is skipped entirely)
-  and `rollback_portfolio_scope_seed/1` can remove exactly what was created.
+  the seed is **idempotent** (an already-seeded portfolio is skipped entirely).
   Naming is collision-safe (fix round): a taken portfolio name falls back to
   `"<name> (Portfolio)"`, then `"<name> (Portfolio 2)"` and so on until a name
   free among **both** buckets and views is found; over-long portfolio names
@@ -985,36 +992,72 @@ defmodule Portfolixir.Buckets do
   (never crashed on) and counted in `skipped_existing_scope` — its existing
   scope assignment is the user's decision and wins.
 
-  Bucket creations and account assignments are journaled under `actor` per
-  ADR-0017 (the buckets table is guard-armed); view definitions stay
-  unjournaled per ADR-0018 §5.
+  Every write goes through this context's writers: the bucket and view
+  changesets validate the names, and bucket creations and account
+  assignments are journaled under `actor` per ADR-0017 (the buckets table is
+  guard-armed), each invalidating derived values inside its own transaction;
+  view definitions stay unjournaled per ADR-0018 §5. Each write commits on
+  its own, so no lock is held from one account to the next.
 
   Returns `{:ok, %{buckets_created: n, views_created: n, accounts_tagged: n,
   skipped_existing_scope: n}}`; a re-run over a fully seeded instance returns
-  all zeros. A failed write stops the seed, writes nothing, and reports
-  **which portfolio** failed: `{:error, %{portfolio_id: id, portfolio_name:
-  name, reason: reason}}`.
+  all zeros. A failed write stops the seed and reports **which portfolio**
+  failed: `{:error, %{portfolio_id: id, portfolio_name: name, reason: reason}}`.
+  What committed before it stays, and a re-run picks up where it stopped.
 
-  Referenced from the immutable migration
-  `20260712130000_seed_portfolio_scope_buckets` — keep this signature stable.
-  The work is `Portfolixir.Buckets.ScopeSeed`'s, frozen to that migration's
-  schema (#1042), so it invalidates no derived value: a caller at head that
-  seeds something invalidates after it, as the `portfolixir.seed_scope_buckets`
-  task does.
+  The migration does not call this: it calls `seed_portfolio_scope_buckets/1`,
+  frozen to the migration's own schema.
+  """
+  def seed_scope_buckets_at_head(%Actor{} = actor) do
+    empty = %{
+      buckets_created: 0,
+      views_created: 0,
+      accounts_tagged: 0,
+      skipped_existing_scope: 0
+    }
+
+    from(p in Portfolio, order_by: [asc: p.id])
+    |> Repo.all()
+    |> Enum.reduce_while({:ok, empty}, fn portfolio, {:ok, acc} ->
+      case seed_portfolio(actor, portfolio, acc) do
+        {:ok, acc} ->
+          {:cont, {:ok, acc}}
+
+        {:error, reason} ->
+          {:halt,
+           {:error, %{portfolio_id: portfolio.id, portfolio_name: portfolio.name, reason: reason}}}
+      end
+    end)
+  end
+
+  @doc """
+  The migration `20260712130000_seed_portfolio_scope_buckets`'s seed: the
+  same bucket, view and assignments as `seed_scope_buckets_at_head/1`, in the
+  same journal shape, written by `Portfolixir.Buckets.ScopeSeed` in plain SQL
+  over that migration's columns, in one transaction (#1042). It is correct at
+  that version, where no derived value exists, so it invalidates none and
+  validates no name beyond the bound. **Callers on today's schema use
+  `seed_scope_buckets_at_head/1`.**
+
+  Referenced from the immutable migration — keep this signature stable.
   """
   def seed_portfolio_scope_buckets(%Actor{} = actor), do: ScopeSeed.seed(Repo, actor)
 
   @doc """
-  Reverts `seed_portfolio_scope_buckets/1`: deletes every bucket and view that
-  carries a `source_portfolio_id` marker — and nothing else. Deleting a seeded
-  bucket or view takes its assignments and view links with it; user-created
-  buckets, views, and assignments are untouched. Bucket deletes are journaled
-  under `actor`, and a dismissed migration notice is forgotten, so a later
-  re-seed is announced again.
+  The migration `20260712130000_seed_portfolio_scope_buckets`'s `down`, and
+  nothing else calls it: deletes every bucket and view that carries a
+  `source_portfolio_id` marker, journaling each bucket delete under `actor`
+  with its row on both sides, and forgets a dismissed migration notice.
+  Written by `Portfolixir.Buckets.ScopeSeed` in plain SQL over that
+  migration's columns (#1042).
 
-  Referenced from the immutable migration
-  `20260712130000_seed_portfolio_scope_buckets` — keep this signature stable.
-  The work is `Portfolixir.Buckets.ScopeSeed`'s.
+  The links go with the foreign keys, unjournaled, as they did at that
+  version, and user-created buckets, views and assignments are untouched.
+  One known limit: a position override whose only bucket is a seeded one
+  loses its last row and so reads as inherit, where `delete_bucket/2` keeps
+  it explicit-empty.
+
+  Referenced from the immutable migration — keep this signature stable.
   """
   def rollback_portfolio_scope_seed(%Actor{} = actor), do: ScopeSeed.rollback(Repo, actor)
 
@@ -1032,6 +1075,161 @@ defmodule Portfolixir.Buckets do
   defp seeded(schema) do
     Repo.all(from(r in schema, where: not is_nil(r.source_portfolio_id), order_by: [asc: r.id]))
   end
+
+  defp seed_portfolio(%Actor{} = actor, %Portfolio{} = portfolio, acc) do
+    with {:ok, bucket, acc} <- ensure_seeded_bucket(actor, portfolio, acc),
+         {:ok, acc} <- ensure_seeded_view(portfolio, bucket, acc) do
+      tag_portfolio_accounts(actor, portfolio, bucket, acc)
+    end
+  end
+
+  defp ensure_seeded_bucket(%Actor{} = actor, %Portfolio{} = portfolio, acc) do
+    case Repo.get_by(Bucket, source_portfolio_id: portfolio.id) do
+      %Bucket{} = bucket ->
+        {:ok, bucket, acc}
+
+      nil ->
+        with {:ok, bucket} <- create_seeded_bucket(actor, portfolio) do
+          {:ok, bucket, %{acc | buckets_created: acc.buckets_created + 1}}
+        end
+    end
+  end
+
+  # Mirrors `create_bucket/2` (journaled insert) but stamps the seed marker,
+  # which is deliberately not castable from attrs.
+  defp create_seeded_bucket(%Actor{} = actor, %Portfolio{} = portfolio) do
+    changeset =
+      Bucket.changeset(%Bucket{source_portfolio_id: portfolio.id}, %{
+        name: seed_bucket_name(portfolio),
+        dimension: @scope_dimension
+      })
+
+    Multi.new()
+    |> Multi.insert(:bucket, changeset)
+    |> Journal.record(actor, resource_type: "bucket", operation: :create, source: :bucket)
+    |> Repo.transaction()
+    |> case do
+      {:ok, %{bucket: bucket}} -> {:ok, bucket}
+      {:error, _step, reason, _changes} -> {:error, reason}
+    end
+  end
+
+  defp ensure_seeded_view(%Portfolio{} = portfolio, %Bucket{} = bucket, acc) do
+    if Repo.get_by(View, source_portfolio_id: portfolio.id) do
+      {:ok, acc}
+    else
+      with :ok <- create_seeded_view(portfolio, bucket) do
+        {:ok, %{acc | views_created: acc.views_created + 1}}
+      end
+    end
+  end
+
+  # The view and its single include link commit together; view definitions are
+  # not journaled (ADR-0018 §5). The seeded view is a plain view — fully
+  # editable, no system special-casing. The view prefers the bucket's exact
+  # name (the pair reads as one unit); only a view-name collision — e.g. an
+  # earlier partial seed plus a user view created in between — falls to the
+  # numbered variants.
+  defp create_seeded_view(%Portfolio{} = portfolio, %Bucket{} = bucket) do
+    changeset =
+      View.changeset(%View{source_portfolio_id: portfolio.id}, %{
+        name: seed_view_name(bucket),
+        include_all: false
+      })
+
+    Multi.new()
+    |> Multi.insert(:view, changeset)
+    |> Multi.insert(:include, fn %{view: view} ->
+      %ViewIncludeBucket{view_id: view.id, bucket_id: bucket.id}
+    end)
+    |> Repo.transaction()
+    |> case do
+      {:ok, _changes} -> :ok
+      {:error, _step, reason, _changes} -> {:error, reason}
+    end
+  end
+
+  # The seeded bucket name must be free among buckets AND views, so the view
+  # created right after it can carry the same name.
+  defp seed_bucket_name(%Portfolio{name: name}) do
+    available_name(name, fn candidate ->
+      not Repo.exists?(from(b in Bucket, where: b.name == ^candidate)) and
+        not Repo.exists?(from(v in View, where: v.name == ^candidate))
+    end)
+  end
+
+  defp seed_view_name(%Bucket{name: name}) do
+    available_name(name, fn candidate ->
+      not Repo.exists?(from(v in View, where: v.name == ^candidate))
+    end)
+  end
+
+  # Collision-safe seed naming (fix round): the name itself, then
+  # "<name> (Portfolio)", then "<name> (Portfolio 2)", "<name> (Portfolio 3)",
+  # … — each with the base truncated so the whole candidate fits the
+  # 100-character bucket/view name limit. The numbered tail is unbounded, so a
+  # free name always exists and the seed can never abort on naming.
+  defp available_name(base, free?) do
+    base = String.trim(base)
+
+    [fit_name(base, ""), fit_name(base, @seed_name_suffix)]
+    |> Stream.concat(
+      Stream.map(Stream.iterate(2, &(&1 + 1)), &fit_name(base, " (Portfolio #{&1})"))
+    )
+    |> Enum.find(free?)
+  end
+
+  # Counted in code points, as the name bound counts it (E25 S4, R2).
+  defp fit_name(base, suffix) do
+    Text.truncate(base, max(@name_max_length - Text.codepoint_length(suffix), 1)) <> suffix
+  end
+
+  defp tag_portfolio_accounts(%Actor{} = actor, %Portfolio{id: pid}, %Bucket{} = bucket, acc) do
+    depots = Repo.all(from(sa in SecuritiesAccount, where: sa.portfolio_id == ^pid))
+    cash_accounts = Repo.all(from(ca in CashAccount, where: ca.portfolio_id == ^pid))
+
+    depots
+    |> Enum.map(&{&1, depot_default_bucket_ids(&1.id)})
+    |> Enum.concat(Enum.map(cash_accounts, &{&1, cash_account_bucket_ids(&1.id)}))
+    |> Enum.reduce_while({:ok, acc}, fn {account, current_ids}, {:ok, acc} ->
+      case tag_account(account, bucket, current_ids, actor) do
+        {:ok, :tagged} ->
+          {:cont, {:ok, %{acc | accounts_tagged: acc.accounts_tagged + 1}}}
+
+        {:ok, :skipped_existing_scope} ->
+          {:cont, {:ok, %{acc | skipped_existing_scope: acc.skipped_existing_scope + 1}}}
+
+        {:ok, :already_tagged} ->
+          {:cont, {:ok, acc}}
+
+        {:error, reason} ->
+          {:halt, {:error, reason}}
+      end
+    end)
+  end
+
+  # Adds the seeded scope bucket to the account's existing set. Idempotent:
+  # already-tagged accounts are skipped. An account that already carries a
+  # DIFFERENT scope bucket is skipped too (fix round) — the exclusive-dimension
+  # rejection is expected there, not a crash: the user's existing scope
+  # assignment wins over the seed.
+  defp tag_account(account, %Bucket{id: bucket_id}, current_ids, %Actor{} = actor) do
+    if bucket_id in current_ids do
+      {:ok, :already_tagged}
+    else
+      case set_account_buckets(actor, account, current_ids ++ [bucket_id]) do
+        :ok -> {:ok, :tagged}
+        {:error, :exclusive_bucket_conflict} -> {:ok, :skipped_existing_scope}
+        {:error, reason} -> {:error, reason}
+      end
+    end
+  end
+
+  defp set_account_buckets(actor, %SecuritiesAccount{} = depot, ids),
+    do: set_depot_default_buckets(actor, depot, ids)
+
+  defp set_account_buckets(actor, %CashAccount{} = cash, ids),
+    do: set_cash_account_buckets(actor, cash, ids)
 
   # -- helpers ---------------------------------------------------------------
 

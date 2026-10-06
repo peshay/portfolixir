@@ -80,6 +80,9 @@ defmodule Portfolixir.SeededUpgrade do
     * `:seed` (required) -- a function of the database (`t()`) that inserts
       the legacy rows with `query!/3`. It runs in one transaction with a
       journal actor set; what it returns lands in `:seeded`;
+    * `:to` -- the version the upgrade stops at, inclusive, by default
+      `:head`: for a case that reads a migration's result before a later one
+      changes it, or one that runs a migration's `down` with `down!/2`;
     * `:migrations` -- the directory of migrations to replay, by default the
       application's (`priv/repo/migrations`); the harness's own tests point
       it at a directory of synthetic ones.
@@ -93,9 +96,11 @@ defmodule Portfolixir.SeededUpgrade do
   def upgrade!(opts) do
     from = Keyword.fetch!(opts, :from)
     seed = Keyword.fetch!(opts, :seed)
+    to = Keyword.get(opts, :to, :head)
     migrations = Keyword.get_lazy(opts, :migrations, &ScratchDatabase.migrations_dir/0)
 
     known_version!(from, migrations)
+    if to != :head, do: known_version!(to, migrations)
 
     %ScratchDatabase{database: database, repo: repo} = ScratchDatabase.start!(suffix: "upgrade")
     db = %__MODULE__{database: database, repo: repo, migrations: migrations, from: from}
@@ -103,7 +108,7 @@ defmodule Portfolixir.SeededUpgrade do
     ScratchDatabase.migrate!(db, from, migrations)
     seeded = journaled!(db, fn -> seed.(db) end)
 
-    {result, log} = ExUnit.CaptureLog.with_log(fn -> migrate_to_head(db) end)
+    {result, log} = ExUnit.CaptureLog.with_log(fn -> migrate_to(db, to) end)
 
     case result do
       {:ok, migrated} ->
@@ -111,7 +116,7 @@ defmodule Portfolixir.SeededUpgrade do
 
       {:error, kind, reason, stacktrace} ->
         flunk("""
-        the upgrade from #{from} to head stopped at #{stopped_at(db)}:
+        the upgrade from #{from} to #{to} stopped at #{stopped_at(db)}:
 
         #{Exception.format(kind, reason, stacktrace)}
         log:
@@ -142,12 +147,20 @@ defmodule Portfolixir.SeededUpgrade do
     end)
   end
 
+  @doc """
+  Runs the `down` of the last `steps` migrations the database has applied,
+  newest first, as `mix ecto.rollback --step` does. Answers the versions it
+  reverted; raises what a migration raises.
+  """
+  @spec down!(t(), pos_integer()) :: [pos_integer()]
+  def down!(%__MODULE__{} = db, steps), do: ScratchDatabase.rollback!(db, steps, db.migrations)
+
   @doc "The head of `priv/repo/migrations`: the last version an upgrade runs."
   @spec head() :: pos_integer()
   def head, do: ScratchDatabase.migrations() |> List.last() |> elem(0)
 
-  defp migrate_to_head(db) do
-    {:ok, ScratchDatabase.migrate!(db, :head, db.migrations)}
+  defp migrate_to(db, to) do
+    {:ok, ScratchDatabase.migrate!(db, to, db.migrations)}
   catch
     kind, reason -> {:error, kind, reason, __STACKTRACE__}
   end
