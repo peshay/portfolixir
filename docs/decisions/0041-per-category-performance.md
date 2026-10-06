@@ -102,6 +102,19 @@ in the same shape the snapshot comparison uses for its gaps (AR-4). It is never
 counted as zero, which would understate the category quietly. The category figure
 states how many members it covers out of how many it has.
 
+**Note (2026-10-06, #1048).** A sum adds one currency. The roll-up across
+every portfolio, which the classification screen reads, now follows the
+rule the view read of #901 already kept: its figures are in EUR, and a
+member held in a portfolio whose base currency is not EUR has no EUR cost
+to add, so it is excluded and named here (`missing_base_cost`) rather than
+added to EUR costs in its own currency. Its cost is never converted through
+the EUR hub, which would state a cost nobody paid. A security held in a EUR
+portfolio and in one outside EUR is excluded whole, because this section
+allows no partial sum of a security. The screen names each excluded member
+once, with the cost it was paid in its own currency or its reason (board
+`ux-design-2026-10-04/10-category-results`, pick J10.2 A). A portfolio's
+own read stays in its base currency. No decision changes.
+
 ### 5. Realized results and income: same shape, own slice
 
 Sells and distributions belong to the same question and the owner named them:

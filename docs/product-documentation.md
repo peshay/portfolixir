@@ -1139,6 +1139,21 @@ price, or no exchange rate to your base currency) is left out of **both** sides
 of the sum and counted in the "covered of total" marker, rather than counted as
 zero, which would quietly understate the category.
 
+The figures are **in EUR**, and the basis line says so first ("in EUR · Result:
+today's composition, …"). A position held in a portfolio whose base currency is
+not EUR was not paid for in EUR, so it has no EUR cost to add: it is left out of
+**Cost** and **Result**, and its cost is never converted, which would state a
+cost nobody paid. A note between the basis line and the tree names it with the
+category it is filed under and the cost it was paid, in its own currency — "1
+position is not included in “Cost” and “Result” because its cost was not paid
+in EUR: Harborline Freight Inc (Platforms), cost 1,500.00 USD. It is included in
+“Value”." A security held in a EUR portfolio and in one outside EUR is left out
+whole, with both costs ("cost 1,000.00 EUR + 1,500.00 USD"). The same note names
+every other position the figures leave out, with its reason in words; past one
+position it gives the count and lists them behind a disclosure. When nothing is
+left out there is no note. The view read over the API (`GET
+/api/v1/views/:view_id/category-results`) follows the same rule.
+
 > **Per-position targets (ADR-0030, #481).** Target weights can now be set down
 > to an **individual position** (a security under a category), not just per
 > category. Positions are the source of truth: a category's *effective* target

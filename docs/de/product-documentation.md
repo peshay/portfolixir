@@ -1251,6 +1251,24 @@ zur Basiswährung), bleibt auf **beiden** Seiten der Summe außen vor und wird i
 der Markierung „abgedeckt von gesamt" mitgezählt, statt als Null zu gelten, was
 die Kategorie still kleinrechnen würde.
 
+Die Zahlen sind **in EUR**, und die Basiszeile sagt das zuerst („in EUR ·
+Ergebnis: heutige Zusammensetzung, …"). Eine Position in einem Portfolio, dessen
+Basiswährung nicht EUR ist, wurde nicht in EUR bezahlt und hat deshalb keinen
+EUR-Einstand, den man addieren könnte: Sie bleibt aus **Einstand** und
+**Ergebnis** heraus, und ihr Einstand wird nie umgerechnet — das wäre ein
+Einstand, den niemand bezahlt hat. Ein Hinweis zwischen Basiszeile und Baum
+nennt sie mit der Kategorie, in der sie eingeordnet ist, und dem Einstand in
+der Währung, in der er bezahlt wurde: „1 Position ist in „Einstand“ und
+„Ergebnis“ nicht enthalten, weil ihr Einstand nicht in EUR bezahlt wurde:
+Harborline Freight Inc (Plattformen), Einstand 1.500,00 USD. Im „Wert“ ist sie
+enthalten." Ein Wertpapier, das in einem EUR-Portfolio und in einem anderen
+liegt, bleibt ganz heraus, mit beiden Einständen („Einstand 1.000,00 EUR +
+1.500,00 USD"). Derselbe Hinweis nennt jede andere Position, die die Zahlen
+auslassen, mit ihrem Grund in Worten; ab zwei Positionen nennt er die Anzahl
+und listet sie in einer Aufklappliste. Fehlt nichts, gibt es keinen Hinweis.
+Das Lesen einer Ansicht über die API (`GET
+/api/v1/views/:view_id/category-results`) folgt derselben Regel.
+
 > **Ziele je Position (ADR-0030, #481).** Zielgewichte lassen sich nun bis auf
 > eine **einzelne Position** setzen (ein Wertpapier unter einer Kategorie), nicht
 > mehr nur je Kategorie. Positionen sind die Quelle der Wahrheit: das *effektive*
