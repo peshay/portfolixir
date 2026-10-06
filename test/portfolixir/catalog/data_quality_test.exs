@@ -178,6 +178,21 @@ defmodule Portfolixir.Catalog.DataQualityTest do
              names(DataQuality.list("missing_logo"))
   end
 
+  # refine/3 is also handed rows a caller loaded with its own options, without
+  # the query half; the metric-derived quote sets leave a retired row out
+  # there too, so such a caller cannot bring one back.
+  test "refine/3 leaves a retired never-priced row out of the quote sets on rows loaded without list_opts/1" do
+    %{unpriced: unpriced} = world()
+    retire!(unpriced, true)
+
+    rows = Catalog.list_securities_with_metrics()
+    today = Date.utc_today()
+
+    assert "Unpriced AG" in names(rows)
+    assert names(DataQuality.refine(rows, "stale_quote", today)) == ["Stale AG"]
+    assert names(DataQuality.refine(rows, "missing_quote", today)) == []
+  end
+
   # missing_fx is not catalog hygiene: a missing rate path breaks a
   # valuation whatever the security, so a retired one stays in it.
   test "missing_fx keeps a retired security" do

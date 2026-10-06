@@ -201,6 +201,22 @@ defmodule Portfolixir.CatalogTest do
       assert [^a] = Catalog.list_securities(query: "usexmpl")
     end
 
+    # User story (PR #1102):
+    # As a caller of the securities read, the catalog-hygiene checks among
+    # them,
+    # I want to narrow it by the retired flag in both directions,
+    # so that a retired security can be left out — or found — in the query,
+    # before any limit or offset cuts the page.
+    #
+    # Acceptance criteria:
+    # - is_retired: true lists only the retired security, false only the
+    #   others, and without the option every security is listed.
+    test "is_retired narrows the read in both directions", %{a: a, b: b, c: c} do
+      assert Catalog.list_securities(is_retired: true) == [c]
+      assert Catalog.list_securities(is_retired: false) == [a, b]
+      assert Catalog.list_securities() == [a, b, c]
+    end
+
     # User story (closing act, EH-3):
     # As the operator (or a crafted link) searching with text the database
     # cannot hold,
