@@ -40,6 +40,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.Portfolio.ContributionTable
+  alias PortfolixirWeb.ValuationNotes
   import PortfolixirWeb.ViewSwitcher
 
   @unassigned_color "#9ca3af"
@@ -94,7 +95,6 @@ defmodule PortfolixirWeb.PortfolioLive do
                           ]
 
   @drift_steps ["1", "2", "5"]
-  @unpriced_names_shown 6
 
   @impl true
   def mount(params, session, socket) do
@@ -2640,7 +2640,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> assign(:trade_priced, trade_priced_entries(assigns.valuation))
       |> assign(:stale_priced, stale_priced_entries(assigns.valuation))
       |> assign(:suspect_dates, suspect_dates(assigns.analysis))
-      |> assign(:unvalued_cash, unvalued_cash(assigns.valuation))
+      |> assign(:unvalued_cash, ValuationNotes.unvalued_cash(assigns.valuation))
       |> assign(:negative_entries, negative_entries(assigns.negative))
       |> assign_new(:two_scales, fn -> [] end)
 
@@ -2730,7 +2730,7 @@ defmodule PortfolixirWeb.PortfolioLive do
             "%{count} cash accounts are not counted in the totals because there is no exchange rate to %{base}: %{names}.",
             length(@unvalued_cash),
             base: @valuation.base_currency,
-            names: Enum.map_join(@unvalued_cash, ", ", &unvalued_cash_label/1)
+            names: Enum.map_join(@unvalued_cash, ", ", &ValuationNotes.unvalued_cash_label/1)
           ) %>
           <.fx_sync_control
             :if={@missing_fx.count == 0}
@@ -4019,7 +4019,8 @@ defmodule PortfolixirWeb.PortfolioLive do
   # only (there is nothing to show), `:missing_fx` shows each position's
   # known native price with its currency (owner decision 2026-07-31). The
   # count is taken before the display list is shortened, so it stays truthful
-  # when names are elided.
+  # when names are elided. The labels and the shortening live in
+  # ValuationNotes (#1081).
   defp unvalued_entries(nil, _reason), do: %{count: 0, names: []}
 
   defp unvalued_entries(valuation, reason) do
@@ -4027,10 +4028,10 @@ defmodule PortfolixirWeb.PortfolioLive do
       valuation.positions
       |> Enum.filter(&(&1.unvalued_reason == reason))
       |> reject_retired(reason)
-      |> Enum.map(&unvalued_entry_label(&1, reason))
+      |> Enum.map(&ValuationNotes.unvalued_entry_label(&1, reason))
       |> Enum.uniq()
 
-    %{count: length(names), names: shorten_list(names)}
+    %{count: length(names), names: ValuationNotes.shorten_list(names)}
   end
 
   # The no-price row links to ?dq=missing_quote, which leaves a retired
@@ -4040,14 +4041,6 @@ defmodule PortfolixirWeb.PortfolioLive do
     do: Enum.reject(positions, &Map.get(&1, :retired, false))
 
   defp reject_retired(positions, _reason), do: positions
-
-  defp unvalued_entry_label(position, :missing_fx) do
-    name = position.security_name || gettext("Unsorted")
-    "#{name} (#{Format.decimal(position.latest_price, 2)} #{position.price_currency})"
-  end
-
-  defp unvalued_entry_label(position, _reason),
-    do: position.security_name || gettext("Unsorted")
 
   # #330 (ADR-0052 §4): the bonds among the valued positions whose quotes and
   # booked unit prices sit on two scales.
@@ -4078,13 +4071,6 @@ defmodule PortfolixirWeb.PortfolioLive do
     |> Enum.sort_by(& &1.name)
   end
 
-  defp shorten_list(names) when length(names) <= @unpriced_names_shown, do: names
-
-  defp shorten_list(names) do
-    {shown, rest} = Enum.split(names, @unpriced_names_shown)
-    shown ++ ["+#{length(rest)}"]
-  end
-
   # Mirrors unvalued_entries/2: the row names what it found, shortened by the
   # same rule so a long list does not swamp the section (#703).
   defp trade_priced_entries(nil), do: %{count: 0, names: []}
@@ -4098,7 +4084,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> Enum.map(&(&1.security_name || gettext("Unsorted")))
       |> Enum.uniq()
 
-    %{count: length(names), names: shorten_list(names)}
+    %{count: length(names), names: ValuationNotes.shorten_list(names)}
   end
 
   # The stale-quoted positions (#779 / #610), each named with the date its
@@ -4121,7 +4107,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       )
       |> Enum.uniq()
 
-    %{count: length(names), names: shorten_list(names), days: days}
+    %{count: length(names), names: ValuationNotes.shorten_list(names), days: days}
   end
 
   # Whether the active view's buckets share at least one account (ADR-0024
@@ -4136,26 +4122,6 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp suspect_dates(nil), do: []
   defp suspect_dates(analysis), do: analysis.suspect_dates
-
-  # Returns cash balance entries (name + currency) whose FX rate to the
-  # portfolio base currency is missing — they are excluded from the totals.
-  defp unvalued_cash(nil), do: []
-
-  # Only an account that holds money: an empty one leaves nothing out of the
-  # total, as the performance walk counts it (#1055).
-  defp unvalued_cash(valuation) do
-    Enum.filter(
-      valuation.cash_balances,
-      &(not &1.valued and not Decimal.equal?(&1.balance, 0))
-    )
-  end
-
-  # UX-DR25 clause 2 (#1055, board J2's before/after): the account with its
-  # native balance — "USD Settlement (1.850,00 USD)" — in the shape
-  # `unvalued_entry_label/2` prints a native price in. Nothing is converted:
-  # there is no rate to convert with.
-  defp unvalued_cash_label(entry),
-    do: "#{entry.name} (#{Format.native_amount(entry.balance)} #{entry.currency})"
 
   # Which views (and Gesamt, marked by `nil`) carry a SOLL plan for the active
   # classification, for the subtle plan marker on the switcher chips (#468). A
