@@ -6,6 +6,10 @@ defmodule PortfolixirWeb.Api.V1.ViewContributionController do
   return and its contribution table speak about the same accounts.
   `?period=`/`?year=`/`?from=`/`?to=` behave like the portfolio contribution
   read.
+
+  `total/2` serves the same read with no view (#1056, Sprint 19 plan D-7):
+  `GET /api/v1/performance/contribution`, every account of every portfolio
+  in EUR, with `portfolio_id` and `view_id` null and no view echo.
   """
   use PortfolixirWeb, :controller
 
@@ -20,25 +24,32 @@ defmodule PortfolixirWeb.Api.V1.ViewContributionController do
   def show(conn, %{"view_id" => view_id} = params) do
     with {:ok, vid} <- IdParam.parse(view_id),
          %View{} = view <- Buckets.get_view(vid) do
-      with {:ok, period} <- PeriodParam.resolve(params),
-           {:ok, result} <- Contribution.for_view(view.id, period: period) do
-        data = result |> JSON.contribution() |> ViewParam.put_active(view)
-        json(conn, %{data: data})
-      else
-        # An unknown period string, a malformed year, or a backwards range
-        # share the 422 contract.
-        {:error, :invalid_period} ->
-          conn
-          |> put_status(:unprocessable_entity)
-          |> json(%{errors: %{period: ["is invalid"]}})
-
-        # The view vanished between the lookup and the walk (TOCTOU): a plain
-        # 404, never a 500.
-        {:error, :view_not_found} ->
-          not_found(conn)
-      end
+      read(conn, view, params)
     else
       _ -> not_found(conn)
+    end
+  end
+
+  def total(conn, params), do: read(conn, nil, params)
+
+  # `view` nil is the Everything scope (#1056).
+  defp read(conn, view, params) do
+    with {:ok, period} <- PeriodParam.resolve(params),
+         {:ok, result} <- Contribution.for_view(ViewParam.id(view), period: period) do
+      data = result |> JSON.contribution() |> ViewParam.put_active(view)
+      json(conn, %{data: data})
+    else
+      # An unknown period string, a malformed year, or a backwards range
+      # share the 422 contract.
+      {:error, :invalid_period} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: %{period: ["is invalid"]}})
+
+      # The view vanished between the lookup and the walk (TOCTOU): a plain
+      # 404, never a 500.
+      {:error, :view_not_found} ->
+        not_found(conn)
     end
   end
 

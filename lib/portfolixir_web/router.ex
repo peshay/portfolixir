@@ -379,9 +379,17 @@ defmodule PortfolixirWeb.Router do
     get("/views/:view_id/performance", ViewPerformanceController, :show)
     get("/views/:view_id/performance/benchmark", ViewBenchmarkController, :show)
     get("/views/:view_id/performance/contribution", ViewContributionController, :show)
+    # #1056 (Sprint 19 plan D-7): the performance family with no view, every
+    # account in EUR, beside the view-less valuation.
+    get("/performance", ViewPerformanceController, :total)
+    get("/performance/benchmark", ViewBenchmarkController, :total)
+    get("/performance/contribution", ViewContributionController, :total)
     # #901 (ADR-0051 §6): the category result's view form, beside the
     # portfolio read's view= narrowing.
     get("/views/:view_id/category-results", CategoryResultController, :show)
+    # #1091 (the read half): every portfolio, in EUR, the classification
+    # screen's roll-up.
+    get("/category-results", CategoryResultController, :total)
 
     get("/settings/default_view", SettingsController, :show_default_view)
     put("/settings/default_view", SettingsController, :set_default_view)

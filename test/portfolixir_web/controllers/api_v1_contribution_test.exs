@@ -3,7 +3,15 @@ defmodule PortfolixirWeb.ApiV1ContributionTest do
   use PortfolixirWeb.ConnCase
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 1, buy!: 3, create_security!: 1, deposit!: 3, put_quotes!: 2, sell!: 3]
+    only: [
+      base_world: 1,
+      buy!: 3,
+      create_security!: 1,
+      deposit!: 3,
+      deposit!: 4,
+      put_quotes!: 2,
+      sell!: 3
+    ]
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
@@ -384,6 +392,169 @@ defmodule PortfolixirWeb.ApiV1ContributionTest do
       )["data"]
 
     assert ranged["period"] == "#{world.year}-03-01..#{world.year}-03-31"
+  end
+
+  # User story (#1056; Sprint 19 plan D-7):
+  # As the agent asked which position made how much of everything's result,
+  # with no view picked,
+  # I want the contribution of every account in one read,
+  # so that I answer the operator's Everything scope without creating a
+  # catch-all view first.
+  #
+  # Acceptance criteria:
+  # - GET /api/v1/performance/contribution answers Contribution.for_view(nil)
+  #   in the view read's shape: portfolio_id and view_id null, no view echo,
+  #   in EUR, with the period parameters of the view read.
+  # - computation_basis.input_series names the scope and the currency, and
+  #   says the screen's Everything scope is computed in the first
+  #   portfolio's base currency.
+  # - An include-all view with no exclusion reads the same figures.
+  # - A bad period is a 422 on period.
+  test "answers the contribution of every account without a view", %{conn: conn} do
+    world = world()
+
+    assert Buckets.list_views() == []
+
+    total = get_json(conn, "/api/v1/performance/contribution?year=#{world.year}")["data"]
+
+    assert total["portfolio_id"] == nil
+    assert total["view_id"] == nil
+    refute Map.has_key?(total, "view")
+    assert total["base_currency"] == "EUR"
+    assert total["period"] == Integer.to_string(world.year)
+    assert total["totals"] == %{"result" => "371", "positions" => "366", "remainder" => "5"}
+    assert Enum.map(total["positions"], & &1["contribution"]) == ["318", "48", "0"]
+
+    basis = total["computation_basis"]["input_series"]
+    assert basis =~ "Scope: every account in every portfolio, each counted once, with no view"
+    assert basis =~ "in EUR, converted through the EUR hub"
+    assert basis =~ "computed in the first portfolio's base currency"
+
+    {:ok, everything} = Buckets.create_view(Actor.owner_ui(), %{name: "Everything"})
+
+    view =
+      get_json(conn, "/api/v1/views/#{everything.id}/performance/contribution?year=#{world.year}")[
+        "data"
+      ]
+
+    for key <- ~w(period base_currency start_date end_date positions remainder totals
+                  unvalued_cash_accounts) do
+      assert total[key] == view[key], key
+    end
+
+    refute view["computation_basis"]["input_series"] =~ "Scope:"
+    assert String.starts_with?(basis, view["computation_basis"]["input_series"])
+
+    assert Map.delete(total["computation_basis"], "input_series") ==
+             Map.delete(view["computation_basis"], "input_series")
+
+    # The portfolio read keeps its basis: it is no Everything read.
+    portfolio =
+      get_json(
+        conn,
+        "/api/v1/portfolios/#{world.portfolio.id}/performance/contribution?year=#{world.year}"
+      )["data"]
+
+    refute portfolio["computation_basis"]["input_series"] =~ "Scope:"
+
+    ranged =
+      get_json(
+        conn,
+        "/api/v1/performance/contribution?from=#{world.year}-03-01&to=#{world.year}-03-31"
+      )["data"]
+
+    assert ranged["period"] == "#{world.year}-03-01..#{world.year}-03-31"
+
+    for query <- ["period=nope", "from=2026-05-01&to=2026-01-01"] do
+      assert get_json(conn, "/api/v1/performance/contribution?#{query}", 422) ==
+               %{"errors" => %{"period" => ["is invalid"]}},
+             query
+    end
+  end
+
+  # Two portfolios, the first in USD: 1250 USD in on day one, 10 units of a
+  # USD fund at 100 USD, now 120 USD; then a EUR portfolio, 1000 EUR in, 10
+  # units at 100 EUR, now 110 EUR. EUR/USD stands at 1.25 throughout, so the
+  # US fund made 200 USD, 160 EUR, and the EU fund 100 EUR.
+  defp two_currency_world do
+    today = Clock.today()
+    start = Date.add(today, -10)
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: Date.add(start, -1),
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    dollar =
+      base_world(
+        name: "Dollar",
+        currency: "USD",
+        cash_name: "Dollar Cash",
+        depot_name: "Dollar Depot"
+      )
+
+    euro = base_world(name: "Euro", cash_name: "Euro Cash", depot_name: "Euro Depot")
+
+    us_fund = create_security!(name: "US Fund", ticker: "USF", currency: "USD")
+    eu_fund = create_security!(name: "EU Fund", ticker: "EUF")
+
+    deposit!(dollar, "1250", start, currency: "USD")
+    buy!(dollar, us_fund, quantity: "10", price: "100", date: start, currency: "USD")
+    put_quotes!(us_fund, [{start, "100"}, {today, "120"}])
+
+    deposit!(euro, "1000", start, [])
+    buy!(euro, eu_fund, quantity: "10", price: "100", date: start)
+    put_quotes!(eu_fund, [{start, "100"}, {today, "110"}])
+
+    %{dollar: dollar, euro: euro}
+  end
+
+  # Acceptance criteria (#1056, D-7, review round): with a first portfolio
+  # whose base currency is USD, the view-less contribution still answers in
+  # EUR, its USD money converted through the hub.
+  test "the contribution of every account is in EUR when the first portfolio is not", %{
+    conn: conn
+  } do
+    two_currency_world()
+
+    data = get_json(conn, "/api/v1/performance/contribution")["data"]
+
+    assert data["base_currency"] == "EUR"
+
+    assert Enum.map(data["positions"], &{&1["name"], &1["contribution"]}) == [
+             {"US Fund", "160"},
+             {"EU Fund", "100"}
+           ]
+
+    assert data["totals"]["result"] == "260"
+    assert data["computation_basis"]["input_series"] =~ "in EUR, converted through the EUR hub"
+  end
+
+  # Acceptance criteria (#1056, review round): the view-less contribution
+  # takes no scope; view= and portfolio_id= are ignored, as on GET
+  # /api/v1/valuation.
+  test "the view-less contribution ignores view= and portfolio_id=", %{conn: conn} do
+    %{euro: euro} = two_currency_world()
+    {:ok, narrow} = Buckets.create_view(Actor.owner_ui(), %{name: "Narrow", include_all: false})
+
+    plain = get_json(conn, "/api/v1/performance/contribution")["data"]
+
+    scoped =
+      get_json(
+        conn,
+        "/api/v1/performance/contribution?view=#{narrow.id}&portfolio_id=#{euro.portfolio.id}"
+      )["data"]
+
+    assert scoped["view_id"] == nil
+    assert scoped["portfolio_id"] == nil
+    refute Map.has_key?(scoped, "view")
+    assert Map.drop(scoped, ["as_of"]) == Map.drop(plain, ["as_of"])
   end
 
   # A EUR portfolio whose "Tagesgeld CHF" received 2000 CHF on 07-14 of the

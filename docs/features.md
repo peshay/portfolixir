@@ -144,7 +144,9 @@ computation basis:
 - for one portfolio, `GET /api/v1/portfolios/:portfolio_id/performance/contribution`
   and the MCP tool `portfolixir.portfolios.contribution`;
 - for a view across every portfolio, `GET /api/v1/views/:view_id/performance/contribution`
-  and the MCP tool `portfolixir.views.contribution`.
+  and the MCP tool `portfolixir.views.contribution`;
+- for every account of every portfolio, with no view and in EUR,
+  `GET /api/v1/performance/contribution` and the same MCP tool without an `id`.
 
 The table is described in the
 [App Handbook](product-documentation.html#contribution-by-position), the reads

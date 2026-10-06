@@ -129,6 +129,19 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 103_986,
     book: 177_068,
     full: 207_416
+  },
+  {
+    since: "2026-10-06",
+    why:
+      "Sprint 19 PR β, B5 (#1056, #1091, #959): the view performance, benchmark and " +
+      "contribution tools read every account in EUR with no id, category_results reads every " +
+      "portfolio with no scope and names excluded_members, and the benchmark selector names " +
+      "merged_into, paid for by dropping the needs-a-view text from the six twin descriptions, " +
+      "the id requirement from three schemas and two repeated clauses of category_results, and " +
+      "lowered to the figure measured (D-10)",
+    read: 103_457,
+    book: 176_539,
+    full: 206_887
   }
 ];
 

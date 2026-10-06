@@ -168,7 +168,9 @@ der Berechnungsbasis:
 - für ein Portfolio `GET /api/v1/portfolios/:portfolio_id/performance/contribution`
   und das MCP-Tool `portfolixir.portfolios.contribution`;
 - für eine Ansicht über alle Portfolios `GET /api/v1/views/:view_id/performance/contribution`
-  und das MCP-Tool `portfolixir.views.contribution`.
+  und das MCP-Tool `portfolixir.views.contribution`;
+- für jedes Konto jedes Portfolios, ohne Ansicht und in EUR,
+  `GET /api/v1/performance/contribution` und dasselbe MCP-Tool ohne `id`.
 
 Die Tabelle beschreibt das
 [Handbuch](/de/product-documentation.html#beitrag-je-position), die Lesezugriffe

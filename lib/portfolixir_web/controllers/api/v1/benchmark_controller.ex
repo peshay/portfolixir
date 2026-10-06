@@ -50,7 +50,8 @@ defmodule PortfolixirWeb.Api.V1.BenchmarkController do
       nil -> not_found(conn)
       {:error, :view} -> unprocessable(conn, %{view: ["is invalid"]})
       {:error, :invalid_period} -> unprocessable(conn, %{period: ["is invalid"]})
-      {:error, {:benchmark, message}} -> unprocessable(conn, %{benchmark: [message]})
+      # A refused benchmark= carries its own errors object (#959).
+      {:error, {:benchmark, errors}} -> unprocessable(conn, errors)
       :view_not_found -> not_found(conn)
     end
   end

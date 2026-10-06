@@ -238,15 +238,17 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
   # so that a figure is read at the scope the question asks for.
   #
   # Acceptance criteria:
-  # - The EN and DE MCP pages state the scope difference of the pairs, that
-  #   the view side needs an existing view id and how a view matching every
-  #   account is made, and name each tool of the three pairs as the other's
-  #   twin.
+  # - The EN and DE MCP pages state the scope difference of the pairs and
+  #   name each tool of the three pairs as the other's twin.
   # - Since #1007 (Sprint 18 plan D-5) they state that the total across every
   #   portfolio needs no view, and no longer send the reader to create one
   #   for it.
   # - Since FR-41 (ADR-0051 §6) the contribution analysis is a fourth pair,
   #   named as such on both pages.
+  # - Since #1056 (Sprint 19 plan D-7) they state that the view performance,
+  #   benchmark and contribution tools need no view either, reading every
+  #   account in EUR without an id, and no longer say a view id is needed or
+  #   that the portfolio tool is the only read until a view exists.
   test "the twin scope tools are explained as pairs" do
     assert_fragments([
       {"docs/integration/api-and-mcp.md",
@@ -254,8 +256,8 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
          "**Scope twins.** Valuation, performance, the benchmark comparison and the contribution analysis exist at two scopes",
          "one portfolio record in its base currency, its `view` narrowing within that portfolio",
          "a view across every portfolio, each account counted once, in EUR",
-         "needs an existing view id",
-         "a view created with `include_all` (the default) and nothing excluded matches every account",
+         "The view performance, benchmark and contribution tools need no view either: without an id each reads every account in EUR",
+         "returns of several portfolios never add up",
          "The total across every portfolio needs no view: `portfolixir.views.valuation` without an id reads it",
          "- `portfolixir.portfolios.valuation` — scope twin of `portfolixir.views.valuation`",
          "- `portfolixir.views.valuation` — scope twin of `portfolixir.portfolios.valuation`",
@@ -271,8 +273,8 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
          "**Bereichs-Zwillinge.** Bewertung, Performance, Benchmark-Vergleich und Beitragsanalyse gibt es in zwei Bereichen",
          "einen Portfolio-Datensatz in seiner Basiswährung, sein `view` grenzt innerhalb dieses Portfolios ein",
          "eine View über jedes Portfolio, jedes Konto einmal gezählt, in EUR",
-         "braucht eine bestehende View-ID",
-         "eine mit `include_all` (Standard) und ohne Ausschluss angelegte View erfasst jedes Konto",
+         "Auch die Tools für View-Performance, View-Benchmark und View-Beitragsanalyse brauchen keine View: Ohne id liest jedes jedes Konto in EUR",
+         "Renditen mehrerer Portfolios addieren sich nie",
          "Die Summe über jedes Portfolio braucht keine View: `portfolixir.views.valuation` ohne id liest sie",
          "- `portfolixir.portfolios.valuation` — Bereichs-Zwilling von `portfolixir.views.valuation`",
          "- `portfolixir.views.valuation` — Bereichs-Zwilling von `portfolixir.portfolios.valuation`",
@@ -288,7 +290,18 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
     for {path, workaround} <- [
           {"docs/integration/api-and-mcp.md", "gives the total across everything"},
           {"docs/integration/api-and-mcp.md", "one view with `include_all` for the total"},
-          {"docs/de/integration/api-and-mcp.md", "die Summe über alles"}
+          {"docs/de/integration/api-and-mcp.md", "die Summe über alles"},
+          # #1056: no pair needs a view any more.
+          {"docs/integration/api-and-mcp.md", "contribution tools needs an existing view id"},
+          {"docs/integration/api-and-mcp.md",
+           "until a view exists the portfolio tool is the only read"},
+          {"docs/integration/api-and-mcp.md",
+           "There is no view-less performance or benchmark read"},
+          {"docs/de/integration/api-and-mcp.md", "braucht eine bestehende View-ID"},
+          {"docs/de/integration/api-and-mcp.md",
+           "solange keine View besteht, ist das Portfolio-Tool der einzige Lesezugriff"},
+          {"docs/de/integration/api-and-mcp.md",
+           "Eine Performance- oder Benchmark-Abfrage ohne View gibt es nicht"}
         ] do
       doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
       refute doc =~ workaround, "#{path}: #{workaround}"

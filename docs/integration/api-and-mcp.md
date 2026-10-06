@@ -1830,7 +1830,14 @@ Example account payloads:
   inflation is expressed; accepted between `-0.999999` and `10`, the IRR
   solver's own domain) or `security:<id>` for a catalog security flagged
   `is_benchmark` (list them with `GET /api/v1/securities?is_benchmark=true`;
-  any other security answers `422`). `period`, `year`, `from`/`to`, `view=`
+  any other security answers `422`, `{"errors": {"benchmark": ["is not a
+  benchmark security"]}}`). A security a merge took away is refused the
+  same way; when the survivor at the live end of its merge chain is itself a
+  flagged benchmark, the body adds `merged_into` `{"kind": "security", "id":
+  …}` naming it, as the merged-away reads do, and a retry with that id
+  compares (#959). A survivor that is not flagged, a chain that ends at a row
+  deleted since, and an id no merge names answer without it. The view and
+  the view-less comparison below answer the same. `period`, `year`, `from`/`to`, `view=`
   and `series=true` behave like the performance read. The response carries
   `benchmark` (`kind`, then `annual_rate` or `security_id`/`name`/
   `currency_code`), `requested_window` and `window` — the days the
@@ -2183,12 +2190,26 @@ church tax withheld at a zero church-tax rate.
   (ADR-0051 §6). `?view=<id>` narrows the portfolio read to the portfolio's
   positions matching that view and echoes it as `view: {id, name}`; a
   malformed view is a `422`, an unknown one a `404`. The view read below spans
-  every portfolio. Every answer states the scope it was computed over:
-  `scope` (`portfolio` or `view`), `portfolio_id`, `view_id`, `base_currency`
-  (the currency of every money figure: the portfolio's, or `EUR` for a view),
-  and a closing sentence of `basis_note` that names it. The MCP tool takes the
-  same scope: `portfolio_id`, which `view` narrows, or `view` alone for the
-  view across every portfolio; one of the two is required.
+  every portfolio, and `GET /api/v1/category-results` every portfolio with no
+  view (#1091). Every answer states the scope it was computed over:
+  `scope` (`portfolio`, `view` or `all`), `portfolio_id`, `view_id`,
+  `base_currency` (the currency of every money figure: the portfolio's on the
+  portfolio read, `EUR` on the view read and on the every-portfolio read,
+  `scope: "all"`), and a closing sentence of `basis_note` that names it. The MCP tool takes the same scope:
+  `portfolio_id`, which `view` narrows, `view` alone for the view across every
+  portfolio, or neither for every portfolio.
+
+  **Every form names what it leaves out once** (#1091): `excluded_members`
+  lists each excluded member a single time across the tree, however many
+  levels it rolls into, sorted by name without regard to case (ties by
+  `security_id`), with `security_id`, `security_name`, `category_id` (the
+  category it is filed under), `reason` and `native_costs` — `[{amount,
+  currency}]`, the cost in the currency it was paid in, amounts as Decimal
+  strings, when only that currency keeps it out of a EUR sum, and `[]`
+  otherwise. A security held in a EUR and a non-EUR portfolio is left out
+  whole and carries one entry per currency, the result's currency first,
+  then the others by code. Every `basis_note` names the list; the
+  per-category `excluded` rows are unchanged.
 
 - `GET /api/v1/portfolios/:portfolio_id/allocation` returns the target/actual
   breakdown for one classification (required `classification_id` query param; a
@@ -2785,8 +2806,9 @@ a view is not journaled: no rule can read it yet.
   (`overlap` reports no overlap, `matches_no_accounts` is `false`), and the
   `valuation_note` names the scope. `include_positions=false` returns the
   roll-up only, as on the view read; an invalid value is a `422`. MCP:
-  `portfolixir.views.valuation` without an `id`. There is no view-less
-  performance or benchmark read: those take a view or a portfolio.
+  `portfolixir.views.valuation` without an `id`. The performance, the
+  benchmark comparison and the contribution analysis have the same view-less
+  form (#1056), listed after their view reads below.
 - `GET /api/v1/views/:view_id/performance` returns the view's TTWROR and
   money-weighted IRR **across all portfolios**: exactly the deduplicated
   account scope the view valuation covers, so the total and the return always
@@ -2813,6 +2835,24 @@ a view is not journaled: no rule can read it yet.
   portfolio contribution read; the shape is its shape with `portfolio_id:
   null`, `view_id` and the view echoed. Unknown and malformed view ids return
   `404`; a bad period `422`.
+- `GET /api/v1/performance`, `GET /api/v1/performance/benchmark` and
+  `GET /api/v1/performance/contribution` are the three reads above **with no
+  view** (#1056): every account of every portfolio, each counted once, the
+  scope Wealth calls Everything, readable before any view exists. Each takes
+  its view read's parameters (`benchmark=` stays required on the comparison)
+  and answers its view read's shape with `view_id: null` (and `portfolio_id:
+  null` on the contribution) and no `view` echo; a bad period is a `422`, a
+  missing or refused benchmark a `422` on `benchmark`. None takes a scope:
+  `view=` and `portfolio_id=` are ignored, as on `GET /api/v1/valuation`.
+  **They answer in EUR**,
+  the hub, as the view reads and `GET /api/v1/valuation` do. Wealth computes
+  its Everything figures in the first portfolio's base currency, so the two
+  differ when that is not EUR, and each payload says so:
+  `computation_basis.input_series` closes on the scope (every account in
+  every portfolio, no view) and the currency. A view with `include_all` and
+  nothing excluded reads the same figures. MCP: `portfolixir.views.performance`,
+  `portfolixir.views.benchmark` and `portfolixir.views.contribution` without
+  an `id`.
 - `GET /api/v1/views/:view_id/category-results?classification_id=<id>`
   returns the per-category result (ADR-0041) of the positions matching the
   view **across all portfolios**, each account counted once (#901). The shape
@@ -2824,6 +2864,18 @@ a view is not journaled: no rule can read it yet.
   view ids return `404`, a missing `classification_id` `422`, an unknown one
   `404`. MCP: `portfolixir.portfolios.category_results` with `view` and no
   `portfolio_id`.
+- `GET /api/v1/category-results?classification_id=<id>` returns the
+  per-category result of **every portfolio, with no view** (#1091): the
+  roll-up the classification page shows, in the portfolio read's shape with
+  `scope: "all"`, `portfolio_id: null`, `view_id: null`, `base_currency:
+  "EUR"` and no `view` echo. The view read's EUR rule holds: a member held in
+  a portfolio whose base currency is not EUR is excluded with
+  `missing_base_cost`, and `excluded_members` names it with its cost in the
+  currency it was paid in; `basis_note` closes on the scope. It takes no
+  scope: `view=` and `portfolio_id=` are ignored, as on `GET
+  /api/v1/valuation`. A missing `classification_id` is a `422`, an unknown
+  one a `404`. MCP: `portfolixir.portfolios.category_results` with neither
+  `portfolio_id` nor `view`.
 - `PUT /api/v1/securities_accounts/:id/buckets` replaces a depot's default
   bucket set (the buckets each position inherits unless overridden). Body:
   `{"bucket_ids": [..]}`. At most one of the ids may be a scope-dimension
@@ -3196,11 +3248,14 @@ counted once, in EUR. The total across every portfolio needs no view:
 `portfolixir.views.valuation` without an id reads it (`GET /api/v1/valuation`,
 #1007), always in EUR over every account — the dashboard's total when the first
 portfolio's base currency is EUR and no default view is set — so a sum of
-portfolio valuations is never the route to it. Each of the view performance, benchmark and
-contribution tools needs an existing view id — a view created with
-`include_all` (the default) and nothing excluded matches every account — and
-until a view exists the portfolio tool is the only read of a return or a
-contribution: returns of several portfolios never add up.
+portfolio valuations is never the route to it. The view performance, benchmark and
+contribution tools need no view either: without an id each reads every
+account in EUR (`GET /api/v1/performance`, `/performance/benchmark`,
+`/performance/contribution`, #1056), so a return or a contribution of
+everything is one read, never a sum of portfolios — returns of several
+portfolios never add up. Wealth computes its Everything figures in the first
+portfolio's base currency, so they differ from these when that is not EUR, as
+each payload's `computation_basis` says.
 
 **Prompts.** The companion offers two MCP prompts (`prompts/list`,
 `prompts/get`), the same under every profile, each carrying the no-advice
@@ -3457,7 +3512,8 @@ its answer cannot be read.
 - `portfolixir.targets.delete_position`
 - `portfolixir.portfolios.allocation`
 - `portfolixir.portfolios.category_results` — one portfolio, which `view`
-  narrows, or `view` alone for the view across every portfolio (#901).
+  narrows, `view` alone for the view across every portfolio (#901), or
+  neither for every portfolio in EUR (#1091).
 - `portfolixir.portfolios.risk`
 - `portfolixir.policy_rules.list` — the stored rules with the version in
   force on `as_of` (ADR-0049); the description tells the agent to read them
@@ -3545,14 +3601,15 @@ The `portfolixir.portfolios.valuation`, `portfolixir.portfolios.allocation`,
 tools accept an optional `view` (a view id) that scopes the result to the
 holdings matching that bucket view; the response then echoes the active view. `portfolixir.portfolios.category_results`
 also takes `view` without `portfolio_id`: the view across every portfolio, in
-EUR (#901).
+EUR (#901); with neither it reads every portfolio, in EUR (#1091).
 `portfolixir.views.valuation` values a view **across all portfolios** in one
 call (each matching account counted once, EUR totals, `overlap` badge data),
 and without an `id` the total of every account (#1007) — use it instead of
 summing per-portfolio valuations client-side.
 `portfolixir.views.performance` computes the matching cross-portfolio
 TTWROR/IRR for the same account scope, with boundary-crossing money treated
-as an external flow (ADR-0019).
+as an external flow (ADR-0019), and without an `id` the return of every
+account, in EUR (#1056).
 `portfolixir.settings.get_default_view` / `portfolixir.settings.set_default_view`
 read and set the default-view preference (ADR-0024): pass a `view_id` to pin a
 view, or `null`/omit it to clear back to the built-in Everything scope.
@@ -3562,7 +3619,10 @@ the twins of the two benchmark reads (ADR-0046): `benchmark` is
 `rate:<decimal>` or `security:<id>`, the period, view and series parameters
 are the performance tools', and the response carries both comparisons,
 the covered window, the excluded flows and the computation basis with the
-frictionless assumption stated.
+frictionless assumption stated. The view tool without an `id` compares every
+account, in EUR (#1056). A refused benchmark comes back as the API's `422`
+body, `merged_into` included for a merged-away security whose survivor is a
+benchmark (#959).
 
 `portfolixir.portfolios.contribution` and `portfolixir.views.contribution`
 are the twins of the two contribution reads (FR-41, ADR-0051): the period and
@@ -3570,7 +3630,8 @@ view parameters are the performance tools' (there is no `series`), and the
 response carries each position's contribution, the three remainder lines, the
 totals — `positions` plus `remainder` is `result`, the performance read's
 money result — and the computation basis with its assumptions stated. Both
-are reads, so every profile lists them.
+are reads, so every profile lists them. The view tool without an `id` reads
+every account, in EUR (#1056).
 
 Since ADR-0020 the target tools (`portfolixir.targets.list`,
 `portfolixir.targets.set`, `portfolixir.targets.delete`) and the cash-target

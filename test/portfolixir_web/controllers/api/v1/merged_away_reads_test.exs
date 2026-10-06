@@ -8,7 +8,10 @@ defmodule PortfolixirWeb.Api.V1.MergedAwayReadsTest do
   # synthetic.
   use PortfolixirWeb.ConnCase, async: true
 
+  import Portfolixir.WorldFixtures, only: [base_world: 1]
+
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Lifecycle
 
@@ -107,6 +110,94 @@ defmodule PortfolixirWeb.Api.V1.MergedAwayReadsTest do
              "security ##{ctx.target.id}, where the chain ends, has since been deleted"
   end
 
+  # User story (#959; ADR-0050 §12):
+  # As the agent comparing against a benchmark security the operator merged
+  # away,
+  # I want the refusal to name the survivor when the survivor is itself a
+  # benchmark, as the merged-away reads do,
+  # so that I retry with the security its history lives on instead of
+  # concluding the benchmark is gone.
+  #
+  # Acceptance criteria:
+  # - benchmark=security:<merged-away id> on the portfolio, the view and the
+  #   view-less benchmark read keeps refusing with errors.benchmark and adds
+  #   errors.merged_into {"kind": "security", "id": <survivor>} when the
+  #   survivor is a flagged benchmark security.
+  # - A retry with the named survivor answers 200 on each read.
+  test "the benchmark parameter names a survivor that is a benchmark", ctx do
+    target = benchmark!("Synthetic Broad Index")
+    source = benchmark!("Synthetic Broad Index")
+    merge!(source, target)
+
+    for path <- benchmark_paths() do
+      body =
+        ctx.conn
+        |> get(path, %{"benchmark" => "security:#{source.id}"})
+        |> json_response(422)
+
+      assert body == %{
+               "errors" => %{
+                 "benchmark" => ["is not a benchmark security"],
+                 "merged_into" => %{"kind" => "security", "id" => target.id}
+               }
+             },
+             path
+
+      retry =
+        ctx.conn
+        |> get(path, %{"benchmark" => "security:#{target.id}"})
+        |> json_response(200)
+
+      assert retry["data"]["benchmark"]["security_id"] == target.id, path
+    end
+  end
+
+  # Acceptance criteria (#959):
+  # - A survivor that is not flagged is no benchmark to retry with: the
+  #   merged-away id answers today's body exactly, with no merged_into.
+  # - So do a plain unflagged security and an id no merge names.
+  test "the benchmark parameter names no survivor that is no benchmark", ctx do
+    paths = benchmark_paths()
+    plain = security!("Synthetic Plain Fund")
+
+    for path <- paths, id <- [ctx.source.id, plain.id, 999_999_999] do
+      body = ctx.conn |> get(path, %{"benchmark" => "security:#{id}"}) |> json_response(422)
+
+      assert body == %{"errors" => %{"benchmark" => ["is not a benchmark security"]}},
+             "#{path} security:#{id}"
+    end
+  end
+
+  # Acceptance criteria (#959): a chain that ends at a row deleted since
+  # answers today's body exactly, with no merged_into: there is no row to
+  # point at.
+  test "the benchmark parameter names no survivor when the chain ends deleted", ctx do
+    {:ok, _} = Catalog.delete_security(Actor.owner_ui(), ctx.target)
+
+    for path <- benchmark_paths() do
+      body =
+        ctx.conn
+        |> get(path, %{"benchmark" => "security:#{ctx.source.id}"})
+        |> json_response(422)
+
+      assert body == %{"errors" => %{"benchmark" => ["is not a benchmark security"]}}, path
+    end
+  end
+
+  # The three benchmark reads: one portfolio, one view, and every account.
+  defp benchmark_paths do
+    world =
+      base_world(name: "Synthetic Bench", cash_name: "Bench Cash", depot_name: "Bench Depot")
+
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Synthetic Everything"})
+
+    [
+      "/api/v1/portfolios/#{world.portfolio.id}/performance/benchmark",
+      "/api/v1/views/#{view.id}/performance/benchmark",
+      "/api/v1/performance/benchmark"
+    ]
+  end
+
   defp routes(id) do
     [
       {:get, "/api/v1/securities/#{id}/quotes", nil},
@@ -143,5 +234,25 @@ defmodule PortfolixirWeb.Api.V1.MergedAwayReadsTest do
       Catalog.create_security(Actor.owner_ui(), %{name: name, currency_code: "EUR"})
 
     security
+  end
+
+  defp benchmark!(name) do
+    {:ok, security} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: name,
+        currency_code: "EUR",
+        is_benchmark: true
+      })
+
+    security
+  end
+
+  defp merge!(source, target) do
+    {:ok, preview} = Lifecycle.preview_security_merge(source.id, target.id)
+
+    {:ok, _record, :applied} =
+      Lifecycle.merge_security(Actor.owner_ui(), source.id, target.id, %{
+        plan_digest: preview.plan_digest
+      })
   end
 end

@@ -726,6 +726,8 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
       assert result.base_currency == "EUR"
       assert result.scope == :all
       assert result.portfolio_id == nil
+      # The three forms share one shape (#1091): no view narrows this one.
+      assert result.view_id == nil
       assert result.basis == "current_composition"
 
       # Today's code adds 5.800,00 EUR and 1.500,00 USD to "7.300,00". The
