@@ -1559,18 +1559,25 @@ end
 # 16d. M7 (#1068): three bonds priced on two scales, all held in the Demo
 #      Depot more than a year back, so Wealth names them and the Overview's
 #      data-quality line counts them ("3 Anleihen auf zwei Skalen bepreist").
-#      Forward: quotes near 100 beside a booked price per unit near 1.
-#      Reverse: quotes near 1 (at most 5) beside a booked price near 100.
-#      Unclassed: no asset class, stored or inferred, but a coupon and a
-#      maturity date, on two scales forward, which carries the "ohne
-#      Anlageklasse" badge. The quantities are small on purpose: the forward
-#      ones count a hundred times too high in every total. A deposit of
-#      1,100.00 EUR ten days earlier covers the three buys (1,024.52 EUR).
+#      Forward: quotes near 100 beside a booked price per unit near 1 — the
+#      failure the note describes, a Portfolio Performance export that
+#      booked the nominal as the quantity at a price per unit: 50.00 EUR of
+#      nominal bought at 98.5 % is 50 pieces at 0.985, 49.25 EUR paid. The
+#      cash is right; the value counts a hundred times too high (50 × 97.25),
+#      and the bond page shows a 5,000.00 EUR nominal, which is what the
+#      note's "check the quantity against the nominal on the statement"
+#      finds. The nominals are small on purpose: the two forward bonds add
+#      about 10,000 EUR to every total, which leaves the demo's figures
+#      readable. Reverse: quotes near 1 (at most 5) beside a booked price
+#      near 100. Unclassed: no asset class, stored or inferred, but a coupon
+#      and a maturity date, on two scales forward the same way, which
+#      carries the "ohne Anlageklasse" badge. A deposit of 1,100.00 EUR ten
+#      days earlier covers the three buys (1,083.80 EUR).
 bonds = [
   %{
     name: "Kestrel Anleihe 2030 2,75%",
     terms: %{asset_class: "bond", coupon_rate: "2.75", maturity_date: ~D[2030-05-15]},
-    quantity: "20",
+    quantity: "50",
     price: "0.985",
     closes: ["97.10", "97.25"]
   },
@@ -1584,7 +1591,7 @@ bonds = [
   %{
     name: "Ostsee Logistik 4,10% 2028/2033",
     terms: %{coupon_rate: "4.10", maturity_date: ~D[2033-03-31]},
-    quantity: "20",
+    quantity: "50",
     price: "0.991",
     closes: ["98.80", "99.10"]
   }

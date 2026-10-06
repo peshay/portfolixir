@@ -94,10 +94,13 @@ The Sprint 19 PR α stories added their surfaces (step 16 of the seed):
   ("Einstand … USD") and Larkspur, held in a EUR and the USD portfolio, with
   its reason.
 - **Bonds on two scales (#1068):** "Kestrel Anleihe 2030 2,75%" (quotes near
-  100, booked near 1), "Birkenhain Wasser Anleihe 2029 1,50%" (the reverse)
-  and "Ostsee Logistik 4,10% 2028/2033" (no asset class, a coupon and a
-  maturity date), all held: Wealth names them, the unclassed one with its
-  "ohne Anlageklasse" badge, and the Overview's data-quality line counts them.
+  100, booked near 1: the nominal booked as the quantity, 50 pieces at
+  0.985, so the bond page shows a 5,000.00 EUR nominal and the value counts
+  a hundredfold too high), "Birkenhain Wasser Anleihe 2029 1,50%" (the
+  reverse) and "Ostsee Logistik 4,10% 2028/2033" (no asset class, a coupon
+  and a maturity date, booked as Kestrel is), all held: Wealth names them,
+  the unclassed one with its "ohne Anlageklasse" badge, and the Overview's
+  data-quality line counts them.
 - **What the total leaves out (#1081):** the USD cash with no rate and the
   delivered position with no price are named under the Overview's "Alles"
   card.
