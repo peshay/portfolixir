@@ -42,6 +42,12 @@ defmodule Portfolixir.Derived.Registry do
   # and such a walk carries the accounts' names and their currencies' first
   # rate dates. No figure moves, but a row stored at v3 lacks the keys, and
   # its reads would name no account where one counted zero.
+  # M4 (#1051) rides v4 inside the same PR: a cross-currency trade's fees and
+  # taxes are read in its cash account's currency, not its price currency,
+  # so `trade_costs` moves on such a trade's day (`value` and `flow` do not),
+  # and a row stored at v3 would serve the old conversion. The snapshot
+  # comparison reads `trade_costs` from the stored walk, so this version
+  # covers it; no other registered analytic reads the figure.
   @analytics %{
     performance_analysis: %{computation_version: 4, default_lifetime: :request},
     performance_view_analysis: %{computation_version: 4, default_lifetime: :request},
@@ -55,7 +61,10 @@ defmodule Portfolixir.Derived.Registry do
     # decides any move to `:durable`. Only the fixed periods are memoised: a
     # custom range is computed on every read (E25 S4, G03).
     # v2 (2026-10-05, #1055): the table carries `unvalued_cash_accounts`; a
-    # v1 payload lacks it.
+    # v1 payload lacks it. M4 (#1051) rides v2: a cross-currency trade's
+    # position `costs`, and the settlement difference on
+    # `cash_currency_effect` that balances them, read its fees and taxes in
+    # its cash account's currency.
     performance_contribution: %{computation_version: 2, default_lifetime: :request},
     performance_view_contribution: %{computation_version: 2, default_lifetime: :request},
     # The benchmark comparison (ADR-0046 §5, Sprint 11 Lane B): a read model

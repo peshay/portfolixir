@@ -1011,10 +1011,18 @@ defmodule Portfolixir.Portfolios.Performance do
   # One booking's trade cost in the base currency, or `nil` when the walk does
   # not count it. Shared with the contribution's per-position costs (ADR-0051
   # §1: #708's trade costs, kept per security).
+  #
+  # Read in the currency of the trade's CASH ACCOUNT, not in its price
+  # currency (#1051). Fees and taxes are part of the cash leg, so a
+  # cross-currency trade (ADR-0015) records them in the account's currency:
+  # its cash is the settlement plus or minus them (`Ledger.SettlementGuard`).
+  # For a same-currency trade the two are one currency, so nothing moves. The
+  # lookup is the one the cash legs use, and the price currency is its
+  # fallback only where the walk does not know the account.
   defp trade_cost(tx, context) do
     if trade_cost_in_scope?(tx, context) do
       cost = Decimal.add(tx.fees || @zero, tx.taxes || @zero)
-      to_base(cost, tx.currency_code, context)
+      to_base(cost, Map.get(context.currencies, tx.cash_account_id, tx.currency_code), context)
     end
   end
 
@@ -2116,16 +2124,15 @@ defmodule Portfolixir.Portfolios.Performance do
 
   # A trade moved its units at its own price (ADR-0051 §5): `+ price ×
   # quantity` into the position for a buy, `−` for a sell, at the booking
-  # day's rate, and its fees and taxes are the position's costs. What its
-  # cash leg moved beyond that is the trade's settlement difference: for a
-  # cross-currency trade the broker's rate against the hub rate (ADR-0015,
-  # ADR-0033), which the currency effect on cash holds (§3). A same-currency
-  # trade whose cash agrees with price × quantity and its costs leaves
-  # exactly zero.
+  # day's rate, and its fees and taxes are the position's costs, read in its
+  # cash account's currency (#1051). What its cash leg moved beyond that is
+  # the trade's settlement difference: for a cross-currency trade the
+  # broker's rate against the hub rate (ADR-0015, ADR-0033), which the
+  # currency effect on cash holds (§3). A same-currency trade whose cash
+  # agrees with price × quantity and its costs leaves exactly zero.
   defp keep_internal(kept, type, tx, legs, context) when type in ["buy", "sell"] do
-    cost = trade_cost(tx, context) || @zero
     cash = total_add_cash_base(legs.cash, tx, context)
-    flows = trade_flows(legs.quantities, tx, cash, context)
+    {flows, cost} = trade_flows(legs.quantities, tx, cash, context)
 
     settlement =
       cash
@@ -2176,18 +2183,24 @@ defmodule Portfolixir.Portfolios.Performance do
   # credited with its whole value the day a rate arrives while the currency
   # line booked the purchase as a loss (review round). Its one unit leg
   # takes the cash leg instead, so what the trade cost or raised is its flow
-  # and no settlement difference is left; its costs, priced in the same
-  # currency, convert to zero and ride inside that cash. The position counts
-  # zero until a rate arrives and is named for it (§10).
+  # and no settlement difference is left; its fees and taxes ride inside
+  # that cash. They are no costs of their own: the walk reads them in the
+  # account's currency (#1051), so charging them to the position as well
+  # would count them twice. The position counts zero until a rate arrives
+  # and is named for it (§10).
+  #
+  # Returns the trade's flows into its positions and the costs they carry.
   defp trade_flows([{_account_id, security_id, _delta}] = quantities, tx, cash, context) do
     case conversion_rate(tx.currency_code, context.base, context.fx) do
-      {:ok, _rate} -> trade_leg_values(quantities, tx, context)
-      {:error, _reason} -> [{security_id, Decimal.negate(cash)}]
+      {:ok, _rate} -> priced_trade(quantities, tx, context)
+      {:error, _reason} -> {[{security_id, Decimal.negate(cash)}], @zero}
     end
   end
 
-  defp trade_flows(quantities, tx, _cash, context),
-    do: trade_leg_values(quantities, tx, context)
+  defp trade_flows(quantities, tx, _cash, context), do: priced_trade(quantities, tx, context)
+
+  defp priced_trade(quantities, tx, context),
+    do: {trade_leg_values(quantities, tx, context), trade_cost(tx, context) || @zero}
 
   defp trade_leg_values(quantities, tx, context) do
     for {_account_id, security_id, delta} <- quantities,

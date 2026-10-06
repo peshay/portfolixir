@@ -252,6 +252,8 @@ defmodule PortfolixirWeb.ApiV1ContributionTest do
   #   currency, currency move included", the 34-digit precision of a
   #   non-terminating conversion, and that the currency line holds a trade's
   #   settlement difference.
+  # - assumptions says a trade's costs are read in its cash account's
+  #   currency, the currency a cross-currency trade records them in (#1051).
   test "states its computation basis in the payload", %{conn: conn} do
     world = world()
 
@@ -282,6 +284,7 @@ defmodule PortfolixirWeb.ApiV1ContributionTest do
     assert assumptions =~ "base currency, currency move included"
     assert assumptions =~ "34 significant digits"
     assert assumptions =~ "settlement difference"
+    assert assumptions =~ "read in the currency of the trade's cash account (#708, #1051)"
   end
 
   # User story (FR-41, ADR-0051 §4):

@@ -337,10 +337,7 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
   # The four ways a walk is scoped: the portfolio, the portfolio narrowed by a
   # view, a view across all portfolios, and the Everything view. Each pairs the
   # plain walk with the walk that keeps the per-position figures apart.
-  defp walk_pairs(world) do
-    pid = world.rich.portfolio.id
-    view = world.view.id
-
+  defp walk_pairs(pid, view) do
     [
       {"portfolio", fn -> Performance.analysis(pid, today: @today) end,
        &Performance.contribution_analysis(pid, :unscoped, &1, today: @today)},
@@ -373,30 +370,10 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
   test "the walk's outputs are byte-identical with the accumulators on (I9)" do
     world = rich_world()
 
-    for {scope, plain_walk, kept_walk} <- walk_pairs(world), period <- @periods do
+    for {scope, plain_walk, kept_walk} <- walk_pairs(world.rich.portfolio.id, world.view.id),
+        period <- @periods do
       plain = plain_walk.()
-      kept = kept_walk.(period)
-
-      assert Map.has_key?(kept, :contribution), "#{scope} #{inspect(period)}"
-      assert kept.daily == plain.daily, "#{scope} #{inspect(period)}"
-
-      assert Map.drop(kept, [:contribution, :basis, :stale]) == Map.drop(plain, [:basis, :stale]),
-             "#{scope} #{inspect(period)}"
-
-      assert Map.delete(kept.basis, :computed_at) == Map.delete(plain.basis, :computed_at)
-
-      {:ok, plain_summary} = Performance.summarise(plain, period)
-      {:ok, kept_summary} = Performance.summarise(kept, period)
-
-      assert Map.drop(kept_summary, [:as_of, :stale]) ==
-               Map.drop(plain_summary, [:as_of, :stale]),
-             "#{scope} #{inspect(period)}"
-
-      # The figures really were kept wherever the window holds a walked day.
-      assert is_map(kept.contribution) == not is_nil(plain_summary.start_date),
-             "#{scope} #{inspect(period)}"
-
-      if is_map(kept.contribution), do: assert(kept.contribution.positions != %{})
+      assert_walks_identical(plain, kept_walk.(period), period, "#{scope} #{inspect(period)}")
 
       # #1055: the reserve the walk counts zero rides in both walks alike
       # wherever the scope holds it, so the comparison above covers it.
@@ -406,9 +383,34 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
 
     # #1055 added keys to the stored walk payloads (each day's unvalued cash,
     # and the accounts' names beside it), so both computation versions moved
-    # with them; no figure did.
+    # with them; no figure did. #1051 rides the same versions: of the walk's
+    # figures, only a cross-currency trade's trade costs moved.
     assert Registry.computation_version!(:performance_analysis) == 4
     assert Registry.computation_version!(:performance_view_analysis) == 4
+  end
+
+  # I9 for one scope and period: the walk that keeps the figures apart
+  # answers exactly what the plain walk answers.
+  defp assert_walks_identical(plain, kept, period, label) do
+    assert Map.has_key?(kept, :contribution), label
+    assert kept.daily == plain.daily, label
+
+    assert Map.drop(kept, [:contribution, :basis, :stale]) == Map.drop(plain, [:basis, :stale]),
+           label
+
+    assert Map.delete(kept.basis, :computed_at) == Map.delete(plain.basis, :computed_at)
+
+    {:ok, plain_summary} = Performance.summarise(plain, period)
+    {:ok, kept_summary} = Performance.summarise(kept, period)
+
+    assert Map.drop(kept_summary, [:as_of, :stale]) ==
+             Map.drop(plain_summary, [:as_of, :stale]),
+           label
+
+    # The figures really were kept wherever the window holds a walked day.
+    assert is_map(kept.contribution) == not is_nil(plain_summary.start_date), label
+
+    if is_map(kept.contribution), do: assert(kept.contribution.positions != %{})
   end
 
   # -- I2 to I7: one identity at a time, on small worlds ----------------------
@@ -873,13 +875,60 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     assert equal?(result.totals.positions, "-64.5")
   end
 
+  # User story (#1051, ADR-0051 amendment 2026-10-03, §5's no-rate row):
+  # As a local portfolio maintainer who buys a security priced in a currency
+  # the instance holds no rate for, through my EUR account, and pays fees,
+  # I want those fees counted once,
+  # so that the position is charged what the trade cost and not the fees a
+  # second time.
+  #
+  # Acceptance criteria:
+  # - A trade whose price currency has no rate path on its day flows into its
+  #   position at its whole cash leg, fees and taxes included, and carries no
+  #   costs of its own, although the walk now reads those fees in the
+  #   account's currency (#1051): they ride inside the cash, as before.
+  # - No settlement difference is left on the currency effect on cash.
+  # - The positions plus the remainder lines still sum to the money result
+  #   (I1).
+  test "a trade with no rate keeps its fees inside its cash leg, counted once" do
+    world = base_world(name: "Rateless Fees", cash_name: "Cash", depot_name: "Depot")
+    franc = create_security!(name: "Franc Fee AG", ticker: "FFA", currency: "CHF")
+
+    deposit!(world, "1000", ~D[2025-12-01])
+
+    # 1 @ 50 CHF settled 65 EUR, fees 2 and taxes 1 EUR: 68 EUR paid. No CHF
+    # rate ever arrives.
+    WorldFixtures.cross_trade!(world, franc,
+      quantity: "1",
+      price: "50",
+      settled: "65",
+      fees: "2",
+      taxes: "1",
+      gross: "68",
+      date: ~D[2026-02-03]
+    )
+
+    WorldFixtures.put_quotes!(franc, [{~D[2026-02-03], "50"}])
+
+    {:ok, result} = Contribution.for_portfolio(world.portfolio.id, period: "ytd", today: @today)
+
+    position = row(result, franc)
+    assert equal?(position.net_flows, "68")
+    assert zero?(position.costs)
+    assert zero?(position.end_value)
+    assert equal?(position.contribution, "-68")
+    assert position.unvalued_reason == :no_rate
+
+    assert_remainder_zero(result)
+    # 932 cash - the 1000 held at the start.
+    assert equal?(result.totals.result, "-68")
+    assert equal?(result.totals.positions, "-68")
+  end
+
   # -- I1 -------------------------------------------------------------------------
 
   # The contribution and the performance read of one scope, side by side.
-  defp scoped_reads(world) do
-    pid = world.rich.portfolio.id
-    view = world.view.id
-
+  defp scoped_reads(pid, view) do
     [
       {"portfolio", &Contribution.for_portfolio(pid, period: &1, today: @today),
        &Performance.for_portfolio(pid, period: &1, today: @today)},
@@ -894,6 +943,49 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
   end
 
   defp sum(decimals), do: Enum.reduce(decimals, Decimal.new("0"), &Decimal.add/2)
+
+  # I1 for one scope and period: the positions plus the remainder lines sum
+  # to the money result the performance read shows, and no line is a plug.
+  defp assert_money_identity(result, read, label) do
+    money_result =
+      read.end_value |> Decimal.sub(read.start_value) |> Decimal.sub(read.net_external_flows)
+
+    assert Decimal.equal?(result.totals.result, money_result), label
+
+    assert Decimal.equal?(
+             Decimal.add(result.totals.positions, result.totals.remainder),
+             result.totals.result
+           ),
+           label
+
+    assert Decimal.equal?(
+             result.totals.positions,
+             sum(Enum.map(result.positions, & &1.contribution))
+           )
+
+    assert Decimal.equal?(result.totals.remainder, sum(Map.values(result.remainder)))
+    assert result.start_date == read.start_date, label
+
+    # #1055: both reads of one scope and window name the same accounts.
+    assert result.unvalued_cash_accounts == read.unvalued_cash_accounts, label
+
+    for position <- result.positions do
+      assert Decimal.equal?(
+               position.contribution,
+               position.end_value
+               |> Decimal.sub(position.start_value)
+               |> Decimal.sub(position.net_flows)
+               |> Decimal.add(position.income)
+               |> Decimal.sub(position.costs)
+             ),
+             label
+    end
+
+    contributions = Enum.map(result.positions, & &1.contribution)
+    assert contributions == Enum.sort(contributions, &(Decimal.compare(&1, &2) != :lt)), label
+
+    if is_nil(read.start_date), do: assert(result.positions == [], label)
+  end
 
   defp assert_lines(result, interest, standalone, currency) do
     assert equal?(result.remainder.interest, interest)
@@ -925,49 +1017,12 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
   test "positions plus remainder sum exactly to the money result, every period and scope (I1)" do
     world = rich_world()
 
-    for {scope, contribution, performance} <- scoped_reads(world), period <- @periods do
-      label = "#{scope} #{inspect(period)}"
+    for {scope, contribution, performance} <-
+          scoped_reads(world.rich.portfolio.id, world.view.id),
+        period <- @periods do
       {:ok, result} = contribution.(period)
       {:ok, read} = performance.(period)
-
-      money_result =
-        read.end_value |> Decimal.sub(read.start_value) |> Decimal.sub(read.net_external_flows)
-
-      assert Decimal.equal?(result.totals.result, money_result), label
-
-      assert Decimal.equal?(
-               Decimal.add(result.totals.positions, result.totals.remainder),
-               result.totals.result
-             ),
-             label
-
-      assert Decimal.equal?(
-               result.totals.positions,
-               sum(Enum.map(result.positions, & &1.contribution))
-             )
-
-      assert Decimal.equal?(result.totals.remainder, sum(Map.values(result.remainder)))
-      assert result.start_date == read.start_date, label
-
-      # #1055: both reads of one scope and window name the same accounts.
-      assert result.unvalued_cash_accounts == read.unvalued_cash_accounts, label
-
-      for position <- result.positions do
-        assert Decimal.equal?(
-                 position.contribution,
-                 position.end_value
-                 |> Decimal.sub(position.start_value)
-                 |> Decimal.sub(position.net_flows)
-                 |> Decimal.add(position.income)
-                 |> Decimal.sub(position.costs)
-               ),
-               label
-      end
-
-      contributions = Enum.map(result.positions, & &1.contribution)
-      assert contributions == Enum.sort(contributions, &(Decimal.compare(&1, &2) != :lt)), label
-
-      if is_nil(read.start_date), do: assert(result.positions == [], label)
+      assert_money_identity(result, read, "#{scope} #{inspect(period)}")
     end
 
     pid = world.rich.portfolio.id
@@ -1051,6 +1106,199 @@ defmodule Portfolixir.Portfolios.Performance.ContributionTest do
     assert empty.start_date == nil
     assert empty.view_id == nil
   end
+
+  # -- #1051: a cross-currency trade's fees and taxes ----------------------------
+  #
+  # Invented figures only. One EUR-base portfolio: Cash EUR settles Depot A,
+  # Cash USD settles Depot B, and one USD security is bought and sold through
+  # Cash EUR (ADR-0015). A cross-currency trade records its fees and taxes in
+  # its cash account's currency, the cash leg they are part of
+  # (`Ledger.SettlementGuard`). EUR/USD moves 1.25 -> 1.6 (0.8 -> 0.625 EUR
+  # per USD), so every figure is exact in Decimal and computable by hand.
+  #
+  #   2025-12-01  deposit 2000 EUR, deposit 500 USD
+  #               buy US Fund 10 @ 100 USD into Depot A, settled 790 EUR,
+  #               fees 5 and taxes 1 EUR (796 EUR paid)
+  #   2026-02-02  buy US Fund 5 @ 110 USD into Depot A, settled 440 EUR,
+  #               fees 3.50 and taxes 0.50 EUR (444 EUR paid)
+  #   2026-03-02  buy US Fund 2 @ 105 USD into Depot B from Cash USD, fees
+  #               1 USD (211 USD paid: a same-currency trade)
+  #   2026-05-04  sell US Fund 6 @ 120 USD from Depot A, settled 446.40 EUR,
+  #               fees 4 and taxes 2 EUR (440.40 EUR received)
+  #
+  # The view "Core" sees Depot A and Cash EUR; Depot B and Cash USD are out
+  # of view.
+  defp cross_world do
+    world = base_world(name: "Cross", cash_name: "Cash EUR", depot_name: "Depot A")
+
+    usd =
+      world.portfolio
+      |> add_depot(cash_currency: "USD", cash_name: "Cash USD", depot_name: "Depot B")
+      |> Map.put(:portfolio, world.portfolio)
+
+    fund = create_security!(name: "US Fund", ticker: "USF", currency: "USD")
+
+    rate!("USD", ~D[2025-12-01], "1.25")
+    rate!("USD", ~D[2026-04-01], "1.6")
+
+    deposit!(world, "2000", ~D[2025-12-01])
+    deposit!(usd, "500", ~D[2025-12-01], currency: "USD")
+
+    WorldFixtures.cross_trade!(world, fund,
+      quantity: "10",
+      price: "100",
+      settled: "790",
+      fees: "5",
+      taxes: "1",
+      gross: "796",
+      date: ~D[2025-12-01]
+    )
+
+    WorldFixtures.cross_trade!(world, fund,
+      quantity: "5",
+      price: "110",
+      settled: "440",
+      fees: "3.50",
+      taxes: "0.50",
+      gross: "444",
+      date: ~D[2026-02-02]
+    )
+
+    WorldFixtures.buy!(usd, fund,
+      quantity: "2",
+      price: "105",
+      fees: "1",
+      date: ~D[2026-03-02],
+      currency: "USD"
+    )
+
+    WorldFixtures.cross_trade!(world, fund,
+      type: "sell",
+      quantity: "6",
+      price: "120",
+      settled: "446.40",
+      fees: "4",
+      taxes: "2",
+      gross: "440.40",
+      date: ~D[2026-05-04]
+    )
+
+    WorldFixtures.put_quotes!(fund, [
+      {~D[2025-12-01], "100"},
+      {~D[2025-12-31], "105"},
+      {~D[2026-02-02], "110"},
+      {~D[2026-06-30], "125"}
+    ])
+
+    view = core_view!([world.depot], [world.cash])
+
+    %{world: world, usd: usd, fund: fund, view: view}
+  end
+
+  # User story (#1051, ADR-0051 §5, ADR-0036 risk tier):
+  # As a local portfolio maintainer who buys USD securities through my EUR
+  # account,
+  # I want the walk behind the contribution table to stay byte-identical with
+  # its accumulators on when my cross-currency trades carry fees and taxes,
+  # so that reading the table never moves my TTWROR.
+  #
+  # Acceptance criteria (ADR-0051 I9):
+  # - On a world whose cross-currency trades carry fees and taxes, the walk
+  #   with the accumulators on answers exactly what the plain walk answers,
+  #   for every period and every scope.
+  test "the walk stays byte-identical on cross-currency trades with costs (I9)" do
+    %{world: world, view: view} = cross_world()
+
+    for {scope, plain_walk, kept_walk} <- walk_pairs(world.portfolio.id, view.id),
+        period <- @periods do
+      assert_walks_identical(
+        plain_walk.(),
+        kept_walk.(period),
+        period,
+        "#{scope} #{inspect(period)}"
+      )
+    end
+  end
+
+  # User story (#1051, ADR-0051 §1, §3, ADR-0015):
+  # As a local portfolio maintainer who buys USD securities through my EUR
+  # account,
+  # I want a position's costs to be the fees and taxes my broker charged in
+  # euros, counted as euros,
+  # so that the costs column shows what I paid, and the currency effect on
+  # cash holds only what the broker's rate made of the trade.
+  #
+  # Acceptance criteria:
+  # - A cross-currency trade's fees and taxes are its position's costs,
+  #   converted from its cash account's currency, exact in Decimal.
+  # - The walk's trade costs on the trade's day are the same figure, in a
+  #   portfolio and in a view whose scope holds the trade's cash account; a
+  #   trade whose cash account is out of view is still not counted.
+  # - The settlement difference left on cash_currency_effect is the hub value
+  #   against the settled amount alone.
+  # - The positions plus the remainder lines sum to the money result for
+  #   every period and scope (I1).
+  test "a cross-currency trade's fees and taxes are its position's costs, read in its account's currency (I1)" do
+    %{world: world, fund: fund, view: view} = cross_world()
+    pid = world.portfolio.id
+
+    for {scope, contribution, performance} <- scoped_reads(pid, view.id), period <- @periods do
+      {:ok, result} = contribution.(period)
+      {:ok, read} = performance.(period)
+      assert_money_identity(result, read, "#{scope} #{inspect(period)}")
+    end
+
+    {:ok, max} = Contribution.for_portfolio(pid, period: "max", today: @today)
+    position = row(max, fund)
+
+    # 6 + 4 + 6 EUR on the three cross-currency trades, and 1 USD at 0.8 on
+    # the Depot B buy: not 6, 4 and 6 read as USD (4.8, 3.2 and 3.75).
+    assert equal?(position.costs, "16.8")
+    # 10 × 100 and 5 × 110 USD at 0.8, 2 × 105 USD at 0.8, 6 × 120 USD out at
+    # 0.625: 800 + 440 + 168 - 450.
+    assert equal?(position.net_flows, "958")
+    # 11 left at 125 USD × 0.625.
+    assert equal?(position.end_value, "859.375")
+    assert equal?(position.contribution, "-115.425")
+
+    # The settlement differences: 800 at the hub for 790 (+10), 440 for 440
+    # (0), 450 for 446.40 (-3.60); and Cash USD's 289 USD revalued from 0.8
+    # to 0.625 (-50.575).
+    assert_lines(max, "0", "0", "-44.175")
+    # 1200.40 EUR + 289 USD × 0.625 + 859.375, less 2000 EUR and 500 USD
+    # × 0.8 paid in.
+    assert equal?(max.totals.result, "-159.6")
+
+    # The view sees Depot A and Cash EUR: the three cross-currency trades
+    # whole, Depot B's buy and Cash USD not at all.
+    {:ok, core} = Contribution.for_portfolio(pid, view: view.id, period: "max", today: @today)
+    core_position = row(core, fund)
+    assert equal?(core_position.costs, "16")
+    assert equal?(core_position.net_flows, "790")
+    assert equal?(core_position.contribution, "-102.875")
+    assert_lines(core, "0", "0", "6.4")
+    assert equal?(core.totals.result, "-96.475")
+
+    # The walk's trade costs are the same figures, day by day.
+    %{daily: daily} = Performance.analysis(pid, today: @today)
+    %{daily: core_daily} = Performance.analysis(pid, view: view.id, today: @today)
+
+    for {date, portfolio_costs, core_costs} <- [
+          {~D[2025-12-01], "6", "6"},
+          {~D[2026-02-02], "4", "4"},
+          {~D[2026-03-02], "0.8", "0"},
+          {~D[2026-05-04], "6", "6"}
+        ] do
+      assert equal?(costs_on(daily, date), portfolio_costs), Date.to_iso8601(date)
+      assert equal?(costs_on(core_daily, date), core_costs), Date.to_iso8601(date)
+    end
+  end
+
+  defp costs_on(daily, date),
+    do:
+      daily
+      |> Enum.find(&(Date.compare(&1.date, date) == :eq))
+      |> Performance.trade_costs_of()
 
   # -- the edges of the read ------------------------------------------------------
 
