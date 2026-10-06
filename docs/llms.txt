@@ -60,7 +60,9 @@ can bring the history in from a Portfolio Performance export.
    `PORTFOLIXIR_UI_PASSWORD`, the web UI's login, from `openssl rand -base64 24`
    or a passphrase of at least 12 characters the operator chooses, in single
    quotes in `.env` because Compose reads a `$` in an unquoted value as a
-   variable. A token
+   variable (such a passphrase holds no single quote, which ends the quoted
+   value, and does not end in a backslash, which escapes the closing quote).
+   A token
    shorter than 32 bytes, or left as the placeholder, stops the stack at start;
    with `PORTFOLIXIR_UI_PASSWORD` left empty, the web UI is open and asks for no
    login.

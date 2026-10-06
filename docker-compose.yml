@@ -12,7 +12,8 @@
 #   set PHX_HOST to the name the proxy serves and PORTFOLIXIR_ALLOWED_HOSTS
 #   for any further name.
 # - Set PORTFOLIXIR_UI_PASSWORD to require a login on the web UI
-#   (openssl rand -base64 24, or a passphrase of your own in single quotes);
+#   (openssl rand -base64 24, or a passphrase of your own in single quotes,
+#   holding no single quote and not ending in a backslash);
 #   left empty, the web UI is open, so leave it unset only behind
 #   reverse-proxy authentication. Inside its container the
 #   app listens on every interface, and the loopback mapping, on Docker

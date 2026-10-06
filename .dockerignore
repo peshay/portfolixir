@@ -34,6 +34,10 @@
 **/.env
 **/.env.*
 !**/.env.example
+# Build context only: a CA bundle (build-ca.pem, docs/home-deployment.md) or
+# any other PEM file left in the checkout never reaches an image through the
+# development Dockerfile's `COPY . .`. Nothing in the repository needs one.
+**/*.pem
 
 # Database / local files
 **/*.sqlite
