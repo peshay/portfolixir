@@ -3,7 +3,11 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
   # board `mockups/fr41-2026-09-25/01-contribution-surface` — a table in
   # Wealth → Holdings → Performance, directly under the chart, sharing the
   # section's period control and the page's view.
-  use PortfolixirWeb.ConnCase, async: true
+  #
+  # group: :builtin_classifications -- seeds the built-in trees, whose
+  # classification key is unique; the async modules that seed them never run
+  # at the same time (#1047, see Portfolixir.ClassificationsTest).
+  use PortfolixirWeb.ConnCase, async: true, group: :builtin_classifications
 
   import Phoenix.LiveViewTest
 

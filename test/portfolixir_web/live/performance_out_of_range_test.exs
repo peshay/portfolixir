@@ -5,7 +5,11 @@ defmodule PortfolixirWeb.PerformanceOutOfRangeTest do
   # Wealth that took the page down. The IRR is now absent with its reason,
   # and the page falls back to its failed-performance state instead of
   # matching on a summary it did not get.
-  use PortfolixirWeb.ConnCase, async: true
+  #
+  # group: :builtin_classifications -- seeds the built-in trees, whose
+  # classification key is unique; the async modules that seed them never run
+  # at the same time (#1047, see Portfolixir.ClassificationsTest).
+  use PortfolixirWeb.ConnCase, async: true, group: :builtin_classifications
 
   import Phoenix.LiveViewTest
 

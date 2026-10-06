@@ -1,5 +1,8 @@
 defmodule PortfolixirWeb.RiskPolicyRulesLiveTest do
-  use PortfolixirWeb.ConnCase, async: true
+  # group: :builtin_classifications -- seeds the built-in trees, whose
+  # classification key is unique; the async modules that seed them never run
+  # at the same time (#1047, see Portfolixir.ClassificationsTest).
+  use PortfolixirWeb.ConnCase, async: true, group: :builtin_classifications
 
   import Phoenix.LiveViewTest
 

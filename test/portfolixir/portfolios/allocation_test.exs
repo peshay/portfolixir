@@ -1,5 +1,8 @@
 defmodule Portfolixir.Portfolios.AllocationTest do
-  use Portfolixir.DataCase, async: true
+  # group: :builtin_classifications -- seeds the built-in trees, whose
+  # classification key is unique; the async modules that seed them never run
+  # at the same time (#1047, see Portfolixir.ClassificationsTest).
+  use Portfolixir.DataCase, async: true, group: :builtin_classifications
 
   import Portfolixir.WorldFixtures,
     only: [base_world: 0, base_world: 1, create_security!: 1, buy!: 3, deposit!: 3]
