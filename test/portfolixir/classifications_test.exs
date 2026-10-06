@@ -1,5 +1,15 @@
 defmodule Portfolixir.ClassificationsTest do
-  use Portfolixir.DataCase, async: true
+  # group: :builtin_classifications -- the async modules that seed the
+  # built-in trees never run at the same time (#1047). The seed inserts the
+  # "asset_class" and "currency" classifications, whose key is unique
+  # (classifications_key_index), and a sandboxed test never commits: a
+  # module seeding beside another one waited on the other's uncommitted row
+  # until that test ended. The key is the seed's, so no fixture of a test's
+  # own avoids it. ExUnit starts a group once every ungrouped async module has
+  # been dispatched: the group's modules run one at a time near the end of
+  # the async phase, beside the async modules still running then, where
+  # `async: false` would run each after the async phase, alone.
+  use Portfolixir.DataCase, async: true, group: :builtin_classifications
 
   alias Portfolixir.Catalog
   alias Portfolixir.Classifications

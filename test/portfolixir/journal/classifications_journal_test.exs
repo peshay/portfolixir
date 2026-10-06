@@ -1,5 +1,8 @@
 defmodule Portfolixir.ClassificationsJournalTest do
-  use Portfolixir.DataCase, async: true
+  # group: :builtin_classifications -- seeds the built-in trees, whose
+  # classification key is unique; the async modules that seed them never run
+  # at the same time (#1047, see Portfolixir.ClassificationsTest).
+  use Portfolixir.DataCase, async: true, group: :builtin_classifications
 
   # User story:
   # As an operator who organises securities into classification trees,

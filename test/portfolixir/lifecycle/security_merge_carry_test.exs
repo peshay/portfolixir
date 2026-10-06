@@ -19,7 +19,11 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
   #     after a merge, is in security_merge_reimport_test.exs).
   #
   # Every name, amount, identifier and quote is synthetic.
-  use Portfolixir.DataCase, async: true
+  #
+  # group: :builtin_classifications -- seeds the built-in trees, whose
+  # classification key is unique; the async modules that seed them never run
+  # at the same time (#1047, see Portfolixir.ClassificationsTest).
+  use Portfolixir.DataCase, async: true, group: :builtin_classifications
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
