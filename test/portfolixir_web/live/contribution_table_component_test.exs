@@ -270,23 +270,6 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
     assert text(none, ".contribution-unvalued-mark") == ""
   end
 
-  # User story (#1055, board J2 A, pin a2):
-  # As a local portfolio maintainer reading German,
-  # I want the account sentences in the board's words,
-  # so that "Kurs" keeps meaning a security's price and a balance still at
-  # zero reads as one.
-  #
-  # Acceptance criteria:
-  # - A balance whose first exchange rate came: "Mit dem ersten Wechselkurs
-  #   am 02.03.2026 kam sein ganzer Saldo in den „Währungseffekt auf
-  #   Bargeld“ und damit ins Ergebnis — das ist kein Währungsgewinn."; an
-  #   overdraft "— das ist kein Währungsverlust"; two such balances "Mit
-  #   ihren ersten Wechselkursen kamen die ganzen Salden von … in den
-  #   „Währungseffekt auf Bargeld“ und damit ins Ergebnis — …" (closing act,
-  #   UAT: the jump is in the period's result).
-  # - A balance still at zero on the last day: "Ein Verrechnungskonto zählt
-  #   bis zum Ende des Zeitraums null: …"; two: "2 Verrechnungskonten zählen
-  #   bis zum Ende des Zeitraums null: …".
   # User story (#1055, board J2 A):
   # As a local portfolio maintainer with several cash accounts whose rate has
   # not come yet,
@@ -312,8 +295,40 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
     assert note =~ "Tagesgeld CHF"
     assert note =~ "—"
     refute note =~ "first exchange rate"
+
+    # Both emptied before their rate came: the "some days" group, still
+    # without a rate sentence.
+    emptied =
+      render_table(
+        result([], [
+          account(7, "Leer CHF", %{first_rate_date: nil}),
+          account(8, "Alt CHF", %{first_rate_date: nil, balance: d("150")})
+        ])
+      )
+
+    assert sentence(emptied, "[data-role='contribution-unvalued']") ==
+             "Attention 2 cash accounts counted zero on some days of the period: Leer CHF " <>
+               "(2,000.00 CHF, 18 days, no exchange rate stored), Alt CHF (150.00 CHF, 18 days, " <>
+               "no exchange rate stored)."
   end
 
+  # User story (#1055, board J2 A, pin a2):
+  # As a local portfolio maintainer reading German,
+  # I want the account sentences in the board's words,
+  # so that "Kurs" keeps meaning a security's price and a balance still at
+  # zero reads as one.
+  #
+  # Acceptance criteria:
+  # - A balance whose first exchange rate came: "Mit dem ersten Wechselkurs
+  #   am 02.03.2026 kam sein ganzer Saldo in den „Währungseffekt auf
+  #   Bargeld“ und damit ins Ergebnis — das ist kein Währungsgewinn."; an
+  #   overdraft "— das ist kein Währungsverlust"; two such balances "Mit
+  #   ihren ersten Wechselkursen kamen die ganzen Salden von … in den
+  #   „Währungseffekt auf Bargeld“ und damit ins Ergebnis — …" (closing act,
+  #   UAT: the jump is in the period's result).
+  # - A balance still at zero on the last day: "Ein Verrechnungskonto zählt
+  #   bis zum Ende des Zeitraums null: …"; two: "2 Verrechnungskonten zählen
+  #   bis zum Ende des Zeitraums null: …".
   test "the account sentences in German" do
     previous = Gettext.get_locale(PortfolixirWeb.Gettext)
 
