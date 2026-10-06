@@ -484,7 +484,15 @@ Vertrag in vier Zeilen:
    liefert die Anwendung aus, was sie bekommt; mit ihr erzeugt ein Proxy, der
    `X-Forwarded-Proto` vergisst oder dessen Adresse weder Loopback ist noch in
    `PORTFOLIXIR_TRUSTED_PROXIES` steht, eine Umleitungsschleife — so sagt dir
-   die Variable, dass der Header fehlt oder nicht geglaubt wird. Der
+   die Variable, dass der Header fehlt oder nicht geglaubt wird. Den einen
+   Fall, den die Anwendung selbst sehen kann, nennt eine Warnung beim Start:
+   `PHX_FORCE_SSL` an, der Listener über Loopback hinaus gebunden
+   (`PHX_BIND_ALL`, wie in Compose) und `PORTFOLIXIR_TRUSTED_PROXIES` nicht
+   gesetzt, nicht lesbar oder ohne Adresse jenseits von Loopback in der
+   IP-Familie des Listeners (eine Adresse der anderen Familie passt nie).
+   Eine zweite Warnung zitiert
+   jeden Eintrag der Variable, den sie nicht lesen konnte, gleich wie der Rest
+   eingestellt ist; die Anwendung startet trotzdem. Der
    MCP-Begleitdienst ruft die Anwendung im Compose-Netz unverschlüsselt unter
    `app` auf, das `PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS` ausnimmt; seine Aufrufe
    werden also nie umgeleitet. Ein Begleitdienst außerhalb von Compose ruft
