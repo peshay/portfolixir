@@ -229,6 +229,125 @@ defmodule Portfolixir.RuntimeConfigTest do
     assert RuntimeConfig.password_warning({0, 0, 0, 0}, "") == :ok
   end
 
+  # User story (#930):
+  # As an operator who turned on PHX_FORCE_SSL in the Compose deployment,
+  # I want a startup warning when the listener is bound beyond loopback and no
+  # trusted proxy is named,
+  # so that the redirect loop a reverse proxy on the Docker bridge then gets
+  # has its cause named in the log instead of being a silent state.
+  #
+  # Acceptance criteria:
+  # - Force SSL on, bound beyond loopback, no trusted proxies: a warning naming
+  #   PORTFOLIXIR_TRUSTED_PROXIES and the deployment guide's TLS contract,
+  #   never an exception.
+  # - A value that parsed to nothing counts as none ("set or not readable").
+  # - On loopback (127.0.0.1 or ::1), with a proxy named, or with force SSL
+  #   off: no warning.
+  test "warns when force SSL is on beyond loopback with no trusted proxies" do
+    on = RuntimeConfig.force_ssl_opts("true", nil)
+    any = RuntimeConfig.bind_ip("true")
+
+    assert {:warn, message} = RuntimeConfig.trusted_proxies_warning(on, any, [])
+    assert message =~ "PORTFOLIXIR_TRUSTED_PROXIES"
+    assert message =~ "PHX_FORCE_SSL"
+    assert message =~ "not set or not readable"
+    assert message =~ "docs/home-deployment.md"
+    assert message =~ "The TLS contract"
+
+    garbage = RuntimeConfig.trusted_proxies("not-an-address, 10.0.0.0/33")
+    assert garbage == []
+    assert RuntimeConfig.trusted_proxies_warning(on, any, garbage) == {:warn, message}
+
+    assert RuntimeConfig.trusted_proxies_warning(on, {0, 0, 0, 0, 0, 0, 0, 0}, nil) ==
+             {:warn, message}
+
+    assert RuntimeConfig.trusted_proxies_warning(on, {127, 0, 0, 1}, []) == :ok
+    assert RuntimeConfig.trusted_proxies_warning(on, {0, 0, 0, 0, 0, 0, 0, 1}, []) == :ok
+
+    proxies = RuntimeConfig.trusted_proxies("10.0.0.0/8")
+    assert RuntimeConfig.trusted_proxies_warning(on, any, proxies) == :ok
+
+    off = RuntimeConfig.force_ssl_opts("false", nil)
+    assert off == false
+    assert RuntimeConfig.trusted_proxies_warning(off, any, []) == :ok
+    assert RuntimeConfig.trusted_proxies_warning(nil, any, []) == :ok
+  end
+
+  # User story (#930, review passes 1 and 2):
+  # As an operator who named only loopback in PORTFOLIXIR_TRUSTED_PROXIES,
+  # named only addresses of the other family, or mistyped an entry,
+  # I want the loop warning to cover a list that trusts nothing the listener
+  # can see beyond loopback, and a warning of its own for every entry that
+  # did not parse,
+  # so that the loop's cause is named even when the variable is set, and a
+  # typo is shown to me whatever PHX_FORCE_SSL and the bind say.
+  #
+  # Acceptance criteria:
+  # - Every parsed entry of the listener's family inside loopback
+  #   (127.0.0.0/8, ::1): the loop warning, saying loopback only.
+  # - Entries of the other family only (IPv6 for an IPv4 listener, IPv4 for
+  #   an IPv6 one), or those beside loopback of the listener's family: the
+  #   loop warning, naming the listener's family, since TrustedProxy never
+  #   matches a peer of the other family.
+  # - One entry of the listener's family beyond loopback: no loop warning.
+  # - unreadable_proxies_warning/1 names the entries that did not parse,
+  #   quoted, on its own; none, no warning. unreadable_trusted_proxies/1
+  #   finds them, and its zero-arity form reads the variable.
+  test "warns for a loopback-only or other-family list; unreadable entries warn on their own" do
+    on = RuntimeConfig.force_ssl_opts("true", nil)
+    any = RuntimeConfig.bind_ip("true")
+    any6 = {0, 0, 0, 0, 0, 0, 0, 0}
+
+    loopback = RuntimeConfig.trusted_proxies("127.0.0.1, ::1, 127.0.0.0/8")
+    assert {:warn, message} = RuntimeConfig.trusted_proxies_warning(on, any, loopback)
+    assert message =~ "PORTFOLIXIR_TRUSTED_PROXIES names loopback only"
+    refute message =~ "not set or not readable"
+    assert {:warn, _} = RuntimeConfig.trusted_proxies_warning(on, any6, loopback)
+
+    for beyond <- ["127.0.0.1, 172.18.0.1", "127.0.0.0/7", "2001:db8::1, 172.18.0.1"] do
+      assert RuntimeConfig.trusted_proxies_warning(on, any, RuntimeConfig.trusted_proxies(beyond)) ==
+               :ok,
+             beyond
+    end
+
+    ipv6_only = RuntimeConfig.trusted_proxies("::1, 2001:db8::1")
+    assert {:warn, other} = RuntimeConfig.trusted_proxies_warning(on, any, ipv6_only)
+    assert other =~ "PORTFOLIXIR_TRUSTED_PROXIES names no IPv4 address"
+    assert RuntimeConfig.trusted_proxies_warning(on, any6, ipv6_only) == :ok
+
+    # Loopback of the listener's family beside an address of the other one:
+    # the warning names the family, never "loopback only" (review pass 3).
+    mixed = RuntimeConfig.trusted_proxies("127.0.0.1, 2001:db8::1")
+    assert {:warn, mixed_message} = RuntimeConfig.trusted_proxies_warning(on, any, mixed)
+    assert mixed_message =~ "PORTFOLIXIR_TRUSTED_PROXIES names no IPv4 address beyond loopback"
+    refute mixed_message =~ "loopback only"
+
+    ipv4_only = RuntimeConfig.trusted_proxies("172.18.0.1")
+    assert {:warn, other6} = RuntimeConfig.trusted_proxies_warning(on, any6, ipv4_only)
+    assert other6 =~ "PORTFOLIXIR_TRUSTED_PROXIES names no IPv6 address"
+
+    raw = "nope, 10.0.0.0/33 , 127.0.0.1"
+    assert RuntimeConfig.unreadable_trusted_proxies(raw) == ["nope", "10.0.0.0/33"]
+    assert RuntimeConfig.unreadable_trusted_proxies("172.18.0.1") == []
+    assert RuntimeConfig.unreadable_trusted_proxies(nil) == []
+
+    assert RuntimeConfig.unreadable_trusted_proxies() ==
+             RuntimeConfig.unreadable_trusted_proxies(
+               System.get_env("PORTFOLIXIR_TRUSTED_PROXIES")
+             )
+
+    assert RuntimeConfig.unreadable_proxies_warning([]) == :ok
+
+    assert {:warn, named} =
+             RuntimeConfig.unreadable_proxies_warning(
+               RuntimeConfig.unreadable_trusted_proxies(raw)
+             )
+
+    assert named =~ "PORTFOLIXIR_TRUSTED_PROXIES"
+    assert named =~ ~s("nope", "10.0.0.0/33")
+    refute message =~ "nope"
+  end
+
   # User story (E25 S2, F59):
   # As an operator running the release image,
   # I want the directory stored logos live in to be configuration,

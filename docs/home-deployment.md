@@ -460,12 +460,18 @@ in four lines:
    application serves what it is given; with it, a proxy that forgets
    `X-Forwarded-Proto`, or whose address is neither loopback nor named in
    `PORTFOLIXIR_TRUSTED_PROXIES`, produces a redirect loop, which is the
-   variable telling you the header is missing or not believed. The MCP
-   companion calls the application over plain HTTP on the Compose network
-   under `app`, which `PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS` exempts, so its
-   calls are never redirected; a companion run outside Compose calls
-   `127.0.0.1`, which is never redirected either. The companion refuses a
-   redirect by name rather than following it (E25).
+   variable telling you the header is missing or not believed. The one case
+   the application can see for itself is named in a warning at startup:
+   `PHX_FORCE_SSL` on, the listener bound beyond loopback (`PHX_BIND_ALL`, as
+   in Compose) and `PORTFOLIXIR_TRUSTED_PROXIES` not set, not readable, or
+   naming no address beyond loopback in the listener's IP family (an address
+   of the other family is never matched). A second warning quotes every entry of the variable it could
+   not read, whatever the other settings; the application starts all the
+   same. The MCP companion calls the application over plain HTTP on the
+   Compose network under `app`, which `PORTFOLIXIR_FORCE_SSL_EXCLUDED_HOSTS`
+   exempts, so its calls are never redirected; a companion run outside
+   Compose calls `127.0.0.1`, which is never redirected either. The companion
+   refuses a redirect by name rather than following it (E25).
 4. The proxy passes the application's response headers through unchanged and
    injects nothing into the pages. Every page carries a Content-Security-Policy
    (next section); a proxy that adds a script or a stylesheet — a banner, an

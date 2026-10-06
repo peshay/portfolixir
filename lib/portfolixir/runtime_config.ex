@@ -147,6 +147,85 @@ defmodule Portfolixir.RuntimeConfig do
 
   def force_ssl_opts(_value, _excluded), do: false
 
+  @doc """
+  The startup check behind #930: with `PHX_FORCE_SSL` on, the listener bound
+  beyond loopback and no trusted proxy beyond loopback, a reverse proxy that
+  reaches the instance through the Docker bridge is believed by nobody when it
+  says HTTPS (`PortfolixirWeb.TrustedProxy`), so every request it forwards is
+  redirected again: a loop. A list that parsed to nothing counts as none, and
+  so does a list of loopback entries only, which trusts nothing loopback is
+  not believed for already (review pass 1). Only entries of the listener's
+  address family count, since `TrustedProxy` never matches a peer against a
+  block of the other family (review pass 2). A warning, never a refusal;
+  `force_ssl` is `force_ssl_opts/2`'s result, `proxies` `trusted_proxies/1`'s.
+  Pure; `Portfolixir.Application` logs it.
+  """
+  @spec trusted_proxies_warning(
+          false | keyword() | nil,
+          :inet.ip_address(),
+          [{:inet.ip_address(), non_neg_integer()}] | nil
+        ) :: :ok | {:warn, String.t()}
+  def trusted_proxies_warning(_force_ssl, @loopback, _proxies), do: :ok
+  def trusted_proxies_warning(_force_ssl, {0, 0, 0, 0, 0, 0, 0, 1}, _proxies), do: :ok
+
+  def trusted_proxies_warning([_ | _], ip, proxies) do
+    proxies = proxies || []
+
+    same_family =
+      Enum.filter(proxies, fn {network, _bits} -> tuple_size(network) == tuple_size(ip) end)
+
+    if Enum.all?(same_family, &loopback_block?/1) do
+      {:warn,
+       "PHX_FORCE_SSL is on, the web UI is bound beyond loopback and " <>
+         "PORTFOLIXIR_TRUSTED_PROXIES #{trusted_state(proxies, same_family, ip)}: a reverse " <>
+         "proxy reaching this port from another address, such as the Docker bridge " <>
+         "gateway, is not believed when it says HTTPS, so every request it forwards " <>
+         "is redirected again, in a loop. Name the proxy's address in that variable " <>
+         "(docs/home-deployment.md, \"The TLS contract\")."}
+    else
+      :ok
+    end
+  end
+
+  def trusted_proxies_warning(_force_ssl, _ip, _proxies), do: :ok
+
+  defp trusted_state([], _same_family, _ip), do: "is not set or not readable"
+
+  defp trusted_state(_proxies, [], ip),
+    do: "names no #{family(ip)} address, the family the web UI listens on"
+
+  defp trusted_state(proxies, _loopback_only, ip) do
+    if Enum.all?(proxies, &loopback_block?/1),
+      do: "names loopback only, which is believed anyway",
+      else: "names no #{family(ip)} address beyond loopback, the family the web UI listens on"
+  end
+
+  defp family(ip) when tuple_size(ip) == 4, do: "IPv4"
+  defp family(_ip), do: "IPv6"
+
+  # A block inside loopback trusts nothing `PortfolixirWeb.TrustedProxy` does
+  # not believe already: 127.0.0.0/8 or narrower, or ::1 alone.
+  defp loopback_block?({{127, _, _, _}, bits}) when bits >= 8, do: true
+  defp loopback_block?({{0, 0, 0, 0, 0, 0, 0, 1}, 128}), do: true
+  defp loopback_block?(_block), do: false
+
+  @doc """
+  The startup check behind #930's review pass 2: the entries of
+  `PORTFOLIXIR_TRUSTED_PROXIES` that did not parse
+  (`unreadable_trusted_proxies/1`) are named in a warning of their own,
+  whatever `PHX_FORCE_SSL` and the bind say, so a typo is shown rather than
+  dropped in silence. Pure; `Portfolixir.Application` logs it.
+  """
+  @spec unreadable_proxies_warning([String.t()]) :: :ok | {:warn, String.t()}
+  def unreadable_proxies_warning([]), do: :ok
+
+  def unreadable_proxies_warning(entries) when is_list(entries) do
+    {:warn,
+     "PORTFOLIXIR_TRUSTED_PROXIES holds entries that are not an address or a CIDR " <>
+       "block, and no proxy is trusted for them: " <>
+       Enum.map_join(entries, ", ", &inspect/1) <> "."}
+  end
+
   @min_token_bytes 32
   @placeholder_prefixes ~w(dev-api-token dev-mcp-token test-api-token replace change secret token password example)
 
@@ -535,15 +614,30 @@ defmodule Portfolixir.RuntimeConfig do
   @spec trusted_proxies(String.t() | nil) :: [{:inet.ip_address(), non_neg_integer()}]
   def trusted_proxies(value \\ System.get_env("PORTFOLIXIR_TRUSTED_PROXIES"))
 
-  def trusted_proxies(value) when is_binary(value) do
+  def trusted_proxies(value) when is_binary(value),
+    do: value |> proxy_entries() |> Enum.flat_map(&parse_cidr/1)
+
+  def trusted_proxies(_value), do: []
+
+  @doc """
+  The entries of `PORTFOLIXIR_TRUSTED_PROXIES` that do not parse, and that
+  `trusted_proxies/1` therefore drops, trimmed and in order: the startup
+  warning names them (#930, review pass 1).
+  """
+  @spec unreadable_trusted_proxies(String.t() | nil) :: [String.t()]
+  def unreadable_trusted_proxies(value \\ System.get_env("PORTFOLIXIR_TRUSTED_PROXIES"))
+
+  def unreadable_trusted_proxies(value) when is_binary(value),
+    do: value |> proxy_entries() |> Enum.filter(&(parse_cidr(&1) == []))
+
+  def unreadable_trusted_proxies(_value), do: []
+
+  defp proxy_entries(value) do
     value
     |> String.split(",")
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
-    |> Enum.flat_map(&parse_cidr/1)
   end
-
-  def trusted_proxies(_value), do: []
 
   @doc "Whether `ip` lies inside one of the trusted blocks."
   @spec trusted_proxy?(:inet.ip_address(), [{:inet.ip_address(), non_neg_integer()}]) :: boolean()
