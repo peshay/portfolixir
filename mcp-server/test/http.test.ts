@@ -15,6 +15,7 @@ import {
   createHttpApp,
   mcpAuthMiddleware,
   MCP_TOKEN_MIN_BYTES,
+  mcpUrl,
   startHttpServer
 } from "../src/http.js";
 import type { McpProfile } from "../src/profiles.js";
@@ -473,5 +474,16 @@ describe("MCP HTTP transport", () => {
         await once(holder, "close");
       }
     }
+  });
+
+  // #1043 review round: PORTFOLIXIR_MCP_HOST=[::1] is an IPv6 host already
+  // in brackets; the line naming it reads http://[::1]:…, never
+  // http://[[::1]]:…. Read without a listen, so no name is resolved.
+  it("brackets an IPv6 host once, and leaves a bracketed one as it is", () => {
+    assert.equal(mcpUrl("::1", 4001), "http://[::1]:4001/mcp");
+    assert.equal(mcpUrl("[::1]", 4001), "http://[::1]:4001/mcp");
+    assert.equal(mcpUrl("[fd00::7]", 4002), "http://[fd00::7]:4002/mcp");
+    assert.equal(mcpUrl("127.0.0.1", 4001), "http://127.0.0.1:4001/mcp");
+    assert.equal(mcpUrl("localhost", 4001), "http://localhost:4001/mcp");
   });
 });

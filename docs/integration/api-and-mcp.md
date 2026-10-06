@@ -3339,21 +3339,28 @@ write answered `502`, `504`, or Cloudflare's `520` or `524` answers
 `ApiOutcomeUnknownError`: its message says the gateway answered that status
 instead of the server, and the server may still have committed the write, so
 re-read what it would have changed before retrying. The exception is a `502`
-in the API's own JSON error envelope, a top-level `errors` object: the API
-answers `502` that way when the rate provider fails during
-`portfolixir.exchange_rates.sync`, with nothing stored, so that is the
-server's answer, nothing about the write is unknown, and it stays the plain
-error `Portfolixir API request failed: 502 {…}` with the API's detail. The API
-answers none of the other three statuses, so they are a gateway's whatever
+in the API's own JSON error envelope, a body of exactly one key, `errors`,
+holding a non-empty object: the API answers `502` that way when the rate
+provider fails during `portfolixir.exchange_rates.sync`, with nothing stored,
+so that is the server's answer, nothing about the write is unknown, and it
+stays the plain error `Portfolixir API request failed: 502 {…}` with the API's
+detail. An empty `errors` object, or one beside other keys, is a gateway's. The
+API answers none of the other three statuses, so they are a gateway's whatever
 their body. A read answered any of the four changes nothing; it stays a plain
 error that names the status, or says the answer had no body, and says a retry
 is safe. A `503` is not read as an unknown outcome: a proxy that answers `503`
-did not forward the request. An answer whose body is not JSON (an HTML error page, a proxy's `413`) is never passed on as a parse
-failure: its error names the status and quotes at most 120 characters of the
-body, whitespace collapsed and invisible characters spelled out, with the
-body's length in bytes when it was cut. A write answered `2xx` with such a
-body answers `ApiOutcomeUnknownError` too: the API may have committed it, and
-its answer cannot be read.
+usually did not forward the request, but some proxies (Envoy, Istio) answer
+`503` after forwarding it, so re-read before retrying a write that got one. An
+answer whose body is not JSON (an HTML error page, a proxy's `413`) is never
+passed on as a parse failure: its error names the status and quotes at most
+120 characters of the body as the message carries it, JSON escapes counted,
+JSON's whitespace collapsed, and invisible characters and any other blank
+character (a no-break space, a form feed) spelled out, with the body's length
+in bytes when it was cut. The companion's API token, and any
+`Bearer` value, reads `[redacted]` in that quote and in a quoted JSON error,
+so a proxy page that echoes the request's headers cannot hand the token on. A
+write answered `2xx` with such a body answers `ApiOutcomeUnknownError` too: the
+API may have committed it, and its answer cannot be read.
 
 - `portfolixir.contract.get` — the contract-version read (ADR-0044 §8):
   what the surface offers and when it last changed, pollable with `since=`.

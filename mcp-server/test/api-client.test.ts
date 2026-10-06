@@ -425,6 +425,16 @@ describe("the companion's API client", () => {
   //   collapsed, invisible characters spelled out, with the body's length in
   //   bytes when it was cut. No answer surfaces as a SyntaxError.
   // - A JSON error answer and an empty body read as they did.
+  //
+  // Review round (#1045):
+  // - Only a body of exactly one key, `errors`, holding a non-empty object is
+  //   the API's envelope: a 502 on a write with `{"errors":{}}`, or with
+  //   another key beside `errors`, is a gateway's and answers outcome unknown.
+  // - A quoted answer never carries the companion's API token or any bearer
+  //   credential: each reads `[redacted]`, in an excerpt and in a JSON error.
+  // - The 120 characters are counted as quoted, JSON escapes included, and a
+  //   body of blank characters other than JSON's whitespace is spelled out,
+  //   never quoted as `""`.
   describe("an answer that is not the API's", () => {
     const answering = (status: number, body: string | null, contentType = "text/html") =>
       createApiClient({
@@ -575,6 +585,57 @@ describe("the companion's API client", () => {
       }
     });
 
+    // Review round (#1045): a proxy can answer 502 in a shape close to the
+    // API's. Only exactly `{"errors":{…}}` with something in it is the API's,
+    // so an empty `errors`, or one beside other keys, cannot make a write the
+    // server may have committed read as a refusal.
+    it("answers a write answered 502 in a body that only resembles the API's envelope as outcome unknown", async () => {
+      for (const body of [
+        '{"errors":{}}',
+        '{"errors":{"detail":"upstream unavailable"},"message":"Bad Gateway"}',
+        '{"message":"Bad Gateway","errors":{"detail":"upstream unavailable"}}'
+      ]) {
+        for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+          await assert.rejects(
+            answering(502, body, "application/json").request(method, "/api/v1/transactions/9", {}),
+            (raised: unknown) => {
+              assert.ok(raised instanceof ApiOutcomeUnknownError, `${method} ${body}: ${String(raised)}`);
+              assert.match(raised.message, /the gateway answered 502 instead\b/i);
+              assert.match(raised.message, /Re-read/);
+              return true;
+            }
+          );
+        }
+
+        // A read of the same answer is the gateway's too, and safe to retry.
+        await assert.rejects(
+          answering(502, body, "application/json").request("GET", "/api/v1/transactions"),
+          (raised: unknown) => {
+            assert.ok(!(raised instanceof ApiOutcomeUnknownError), `${body}: ${String(raised)}`);
+            assert.match((raised as Error).message, /the gateway answered 502 instead\b/i);
+            return true;
+          }
+        );
+      }
+
+      // The genuine envelope stays the server's plain error.
+      await assert.rejects(
+        answering(502, '{"errors":{"detail":"the rate provider could not be reached"}}', "application/json").request(
+          "POST",
+          "/api/v1/exchange_rates/sync",
+          {}
+        ),
+        (raised: unknown) => {
+          assert.ok(!(raised instanceof ApiOutcomeUnknownError), String(raised));
+          assert.equal(
+            (raised as Error).message,
+            'Portfolixir API request failed: 502 {"errors":{"detail":"the rate provider could not be reached"}}'
+          );
+          return true;
+        }
+      );
+    });
+
     // Cloudflare answers 520 when the origin's answer was unusable and 524
     // when the origin took the request and did not answer in time: both
     // forwarded the request, as a 502 or 504 does.
@@ -714,7 +775,9 @@ describe("the companion's API client", () => {
     });
 
     it("keeps a write a proxy answered 503 a plain error", async () => {
-      // A proxy answers 503 when it never forwarded the request.
+      // A proxy usually answers 503 when it never forwarded the request; some
+      // (Envoy, Istio) answer it after forwarding, which the docs tell the
+      // agent. The spec keeps 503 out of the unknown outcome.
       await assert.rejects(
         answering(503, gatewayPage(503, "Service Temporarily Unavailable")).request(
           "POST",
@@ -813,6 +876,134 @@ describe("the companion's API client", () => {
         assert.match((raised as Error).message, /answered 200 with a body that is not JSON/);
         return true;
       });
+    });
+
+    // Review round (#1045): collapsed and trimmed, such a body quoted `""`,
+    // which reads as no body at all. Only JSON's whitespace collapses; every
+    // other blank character is spelled as an invisible one is.
+    it("spells a blank character other than JSON's whitespace out, so such a body never quotes as empty", async () => {
+      for (const [body, excerpt] of [
+        [" 　", "[U+00A0][U+3000]"],
+        ["   \r\n", "[U+00A0]"],
+        ["\f\u000B", "[U+000C][U+000B]"],
+        ["   ", "[U+2028][U+2029][U+202F]"],
+        ["<p>a b  c</p>", "<p>a[U+00A0]b c</p>"]
+      ]) {
+        for (const read of [
+          () => answering(200, body).request("POST", "/api/v1/transactions", {}),
+          () => answering(500, body).request("GET", "/api/v1/transactions")
+        ]) {
+          await assert.rejects(read(), (raised: unknown) => {
+            assert.equal(quotedExcerpt((raised as Error).message), excerpt, JSON.stringify(body));
+            return true;
+          });
+        }
+      }
+    });
+
+    // Review round (#1045): JSON-quoting escapes a C0 control as six
+    // characters and a quote or a backslash as two, so the limit is counted
+    // on the quote as the message carries it.
+    it("counts the 120 characters as quoted, JSON escapes included", async () => {
+      // The quote as the message carries it, its escapes as written.
+      const rawQuote = (message: string): string => {
+        const match = /: "((?:[^"\\]|\\.)*)"/.exec(message);
+        assert.ok(match, `no quoted excerpt in: ${message}`);
+        return match[1];
+      };
+
+      for (const [body, kept] of [
+        ["\u0001".repeat(500), "\u0001".repeat(19)],
+        ['"'.repeat(500), '"'.repeat(59)],
+        ["\\".repeat(500), "\\".repeat(59)],
+        [`${"a".repeat(117)}\u0001${"b".repeat(10)}`, "a".repeat(117)]
+      ]) {
+        await assert.rejects(answering(500, body).request("GET", "/api/v1/securities"), (raised: unknown) => {
+          const message = (raised as Error).message;
+          const quoted = rawQuote(message);
+
+          assert.ok(Array.from(quoted).length <= 120, `${Array.from(quoted).length}: ${quoted}`);
+          assert.equal(quotedExcerpt(message), `${kept}…`);
+          assert.match(message, new RegExp(`\\(cut from ${Buffer.byteLength(body, "utf8")} bytes\\)`));
+          return true;
+        });
+      }
+
+      // A body whose escapes fit is quoted whole, and not cut.
+      const fits = "\u0001".repeat(20);
+
+      await assert.rejects(answering(500, fits).request("GET", "/api/v1/securities"), (raised: unknown) => {
+        const message = (raised as Error).message;
+
+        assert.equal(Array.from(rawQuote(message)).length, 120);
+        assert.equal(quotedExcerpt(message), fits);
+        assert.doesNotMatch(message, /cut from/);
+        return true;
+      });
+    });
+
+    // Review round (#1045): a proxy's page can echo the request's headers,
+    // the companion's own `Authorization: Bearer …` among them. Quoted to the
+    // agent, it would hand a read-only profile the token that writes.
+    it("never quotes the companion's API token or any bearer credential", async () => {
+      const token = "s3cr3t-companion-token-0123456789";
+      const client = (status: number, body: string, contentType = "text/html") =>
+        createApiClient({
+          baseUrl: "http://portfolixir.test",
+          token,
+          fetch: async () => new Response(body, { status, headers: { "content-type": contentType } })
+        });
+
+      const echo =
+        `<pre>Authorization: Bearer ${token}\r\nX-Token: ${token}\r\n` +
+        "Proxy-Authorization: bearer other.credential_value~42</pre>";
+
+      const redacted = (raised: unknown): true => {
+        const message = (raised as Error).message;
+
+        assert.ok(!message.includes(token), message);
+        assert.ok(!message.includes("s3cr3t"), message);
+        assert.ok(!message.includes("other.credential_value"), message);
+        assert.match(message, /\[redacted\]/);
+        return true;
+      };
+
+      // A write's outcome unknown and a read's plain error quote the page.
+      await assert.rejects(client(502, echo).request("POST", "/api/v1/transactions", {}), (raised: unknown) => {
+        assert.ok(raised instanceof ApiOutcomeUnknownError, String(raised));
+        assert.match(
+          quotedExcerpt(raised.message),
+          /^<pre>Authorization: Bearer \[redacted\] X-Token: \[redacted\] Proxy-Authorization: bearer \[redacted\]<\/pre>$/
+        );
+        return redacted(raised);
+      });
+      await assert.rejects(client(502, echo).request("GET", "/api/v1/transactions"), redacted);
+      await assert.rejects(client(200, echo).request("POST", "/api/v1/transactions", {}), redacted);
+
+      // A token the 120 characters would cut through is not quoted in part.
+      await assert.rejects(
+        client(500, `${"x".repeat(100)} X-Token: ${token} ${"y".repeat(400)}`).request("GET", "/api/v1/securities"),
+        (raised: unknown) => {
+          const message = (raised as Error).message;
+
+          assert.ok(!message.includes("s3cr3t"), message);
+          assert.ok(quotedExcerpt(message).startsWith(`${"x".repeat(100)} X-Token: [`), message);
+          return true;
+        }
+      );
+
+      // A JSON error that echoes the headers is quoted as JSON, redacted too.
+      const json = JSON.stringify({
+        message: "upstream refused",
+        headers: { authorization: `Bearer ${token}`, "x-token": token }
+      });
+
+      for (const status of [400, 502]) {
+        await assert.rejects(client(status, json, "application/json").request("GET", "/api/v1/securities"), (raised: unknown) => {
+          assert.match((raised as Error).message, /"authorization":"Bearer \[redacted\]","x-token":"\[redacted\]"/);
+          return redacted(raised);
+        });
+      }
     });
 
     it("quotes at most 120 characters, whitespace collapsed, invisible characters spelled out", async () => {

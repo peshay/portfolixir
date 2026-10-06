@@ -3619,24 +3619,32 @@ Reverse Proxy ergibt ein Schreibvorgang, der mit `502`, `504` oder Cloudflares
 sagt, dass das Gateway anstelle des Servers mit diesem Status geantwortet hat,
 und der Server kann den Schreibvorgang trotzdem übernommen haben, also lesen
 Sie vor einer Wiederholung neu, was er geändert hätte. Die Ausnahme ist ein
-`502` in der eigenen JSON-Fehlerhülle der API, einem `errors`-Objekt auf
-oberster Ebene: Die API antwortet so mit `502`, wenn der Wechselkursanbieter
-bei `portfolixir.exchange_rates.sync` scheitert, und nichts wird gespeichert;
-das ist also die Antwort des Servers, am Schreibvorgang ist nichts unbekannt,
-und sie bleibt der gewöhnliche Fehler
-`Portfolixir API request failed: 502 {…}` mit der Angabe der API. Keinen der
-drei anderen Status liefert die API, sie stammen also von einem Gateway, gleich
-welcher Body. Ein Lesezugriff, der mit einem der vier beantwortet wird, ändert
-nichts; er bleibt ein gewöhnlicher Fehler, der den Status nennt oder sagt,
-dass die Antwort keinen Body hatte, und sagt, dass eine Wiederholung sicher
-ist. Ein `503` gilt nicht als unbekannter Ausgang: Ein Proxy, der `503`
-liefert, hat die Anfrage nicht weitergeleitet. Eine Antwort,
-deren Body kein JSON ist (eine HTML-Fehlerseite,
+`502` in der eigenen JSON-Fehlerhülle der API, einem Body mit genau einem
+Schlüssel, `errors`, der ein nicht leeres Objekt enthält: Die API antwortet so
+mit `502`, wenn der Wechselkursanbieter bei `portfolixir.exchange_rates.sync`
+scheitert, und nichts wird gespeichert; das ist also die Antwort des Servers,
+am Schreibvorgang ist nichts unbekannt, und sie bleibt der gewöhnliche Fehler
+`Portfolixir API request failed: 502 {…}` mit der Angabe der API. Ein leeres
+`errors`-Objekt oder eines neben weiteren Schlüsseln stammt von einem Gateway.
+Keinen der drei anderen Status liefert die API, sie stammen also von einem
+Gateway, gleich welcher Body. Ein Lesezugriff, der mit einem der vier
+beantwortet wird, ändert nichts; er bleibt ein gewöhnlicher Fehler, der den
+Status nennt oder sagt, dass die Antwort keinen Body hatte, und sagt, dass eine
+Wiederholung sicher ist. Ein `503` gilt nicht als unbekannter Ausgang: Ein
+Proxy, der `503` liefert, hat die Anfrage meist nicht weitergeleitet, manche
+Proxys (Envoy, Istio) antworten aber erst nach der Weiterleitung mit `503`,
+also lesen Sie vor der Wiederholung eines Schreibvorgangs, der ein `503`
+erhielt, neu. Eine Antwort, deren Body kein JSON ist (eine HTML-Fehlerseite,
 das `413` eines Proxys), wird nie als Parse-Fehler weitergereicht: Ihr Fehler
-nennt den Status und zitiert höchstens 120 Zeichen des Bodys, Leerraum
-zusammengefasst und unsichtbare Zeichen ausgeschrieben, mit der Länge des
-Bodys in Bytes, wenn er gekürzt wurde. Ein Schreibvorgang, der mit `2xx` und
-einem solchen Body beantwortet wird, ergibt ebenfalls
+nennt den Status und zitiert höchstens 120 Zeichen des Bodys, so gezählt, wie
+die Meldung sie trägt, JSON-Escapes eingerechnet, der Leerraum von JSON
+zusammengefasst und unsichtbare Zeichen sowie jedes andere Leerzeichen (ein
+geschütztes Leerzeichen, ein Seitenvorschub) ausgeschrieben, mit der Länge des
+Bodys in Bytes, wenn er gekürzt wurde. Das API-Token des Begleiters und jeder
+`Bearer`-Wert lauten in diesem Zitat und in einem zitierten JSON-Fehler
+`[redacted]`, damit eine Proxy-Seite, die die Header der Anfrage
+zurückspiegelt, das Token nicht weitergeben kann. Ein Schreibvorgang, der mit
+`2xx` und einem solchen Body beantwortet wird, ergibt ebenfalls
 `ApiOutcomeUnknownError`: Die API kann ihn übernommen haben, und ihre Antwort
 lässt sich nicht lesen.
 
