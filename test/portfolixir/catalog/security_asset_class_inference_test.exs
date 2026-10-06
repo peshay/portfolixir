@@ -146,6 +146,12 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
         assert stored_class(unquote(name)) == unquote(class)
       end
     end
+
+    # A security with no name has no product word to read (the bond guard
+    # asks this of every security, #1068).
+    test "a missing name is no structured product" do
+      refute Security.structured_product_name?(nil)
+    end
   end
 
   describe "equity heuristics — ADR / GDR / depositary receipts" do
