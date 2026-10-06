@@ -302,6 +302,242 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
     end
   end
 
+  # User story (#948):
+  # As an operator importing a Portfolio Performance JSON export whose
+  # currency codes are not all ones Portfolixir knows,
+  # I want each such row named in the preview and left out,
+  # so that a stray code neither fails the whole file after I confirm nor
+  # creates an account in a currency nobody can value.
+  #
+  # Acceptance criteria (board ux-design-2026-10-04/09-import-correction):
+  # - A booking currency outside the catalog's list ("EURO", "XEU") is the row
+  #   error "currency “EURO” is not supported — row not imported", the value
+  #   quoted as the file wrote it, upper-cased; the rest of the file previews.
+  # - A currency that is present but not a string is a row error naming the
+  #   value as written. An absent currency keeps today's default.
+  # - A security currency outside the list is the row error "security
+  #   currency “XEU” is not supported — row not imported", on every row that
+  #   names that security.
+  # - A lower-case code is normalised and accepted, as today.
+  # - The German messages read "Währung „EURO“ wird nicht unterstützt — Zeile
+  #   nicht übernommen" and "Wertpapierwährung „XEU“ wird nicht unterstützt —
+  #   Zeile nicht übernommen".
+  describe "parse/2 currency codes (#948)" do
+    defp deposit(overrides) do
+      Map.merge(
+        %{
+          "type" => "DEPOSIT",
+          "account" => "Girokonto",
+          "date" => "2026-03-07",
+          "currency" => "EUR",
+          "amount" => "250.00"
+        },
+        overrides
+      )
+    end
+
+    defp purchase(security) do
+      %{
+        "type" => "PURCHASE",
+        "account" => "Girokonto",
+        "portfolio" => "Depot",
+        "date" => "2026-03-09",
+        "currency" => "EUR",
+        "amount" => "100.00",
+        "shares" => "2",
+        "security" => Map.merge(%{"name" => "Example Fund", "isin" => nil}, security)
+      }
+    end
+
+    defp parse_rows(rows) do
+      JsonParser.parse(Jason.encode!(%{"version" => 1, "transactions" => rows}))
+    end
+
+    test "a booking currency the catalog does not list is a row error; the rest previews" do
+      assert {:ok, %Preview{entries: [entry], errors: errors}} =
+               parse_rows([
+                 deposit(%{"currency" => "EURO"}),
+                 deposit(%{}),
+                 deposit(%{"currency" => " xeu "})
+               ])
+
+      assert entry.source_row == 2
+
+      assert errors == [
+               %{row: 1, message: "currency “EURO” is not supported — row not imported"},
+               %{row: 3, message: "currency “XEU” is not supported — row not imported"}
+             ]
+    end
+
+    test "a currency that is present but not a string is a row error naming the value" do
+      assert {:ok, %Preview{entries: [_sound], errors: errors}} =
+               parse_rows([
+                 deposit(%{"currency" => 42}),
+                 deposit(%{}),
+                 deposit(%{"currency" => true})
+               ])
+
+      assert errors == [
+               %{row: 1, message: "currency “42” is not supported — row not imported"},
+               %{row: 3, message: "currency “true” is not supported — row not imported"}
+             ]
+    end
+
+    test "an absent currency keeps today's default, and a lower-case code is accepted" do
+      assert {:ok, %Preview{errors: [], entries: [absent, null, lower]}} =
+               parse_rows([
+                 Map.delete(deposit(%{}), "currency"),
+                 deposit(%{"currency" => nil}),
+                 deposit(%{"currency" => "usd"})
+               ])
+
+      assert absent.currency_code == nil
+      assert null.currency_code == nil
+      assert lower.currency_code == "USD"
+    end
+
+    test "a security currency the catalog does not list fails every row naming that security" do
+      assert {:ok, %Preview{entries: entries, errors: errors}} =
+               parse_rows([
+                 purchase(%{"currency" => "XEU"}),
+                 deposit(%{}),
+                 purchase(%{"currency" => "XEU"}),
+                 purchase(%{"name" => "Other Fund", "currency" => "usd"}),
+                 purchase(%{"name" => "Third Fund", "currency" => 7})
+               ])
+
+      assert Enum.map(entries, & &1.source_row) == [2, 4]
+      assert Enum.at(entries, 1).security.currency == "USD"
+
+      assert errors == [
+               %{row: 1, message: "security currency “XEU” is not supported — row not imported"},
+               %{row: 3, message: "security currency “XEU” is not supported — row not imported"},
+               %{row: 5, message: "security currency “7” is not supported — row not imported"}
+             ]
+    end
+
+    # A blank currency, the booking's or the security's, reads as absent, as
+    # the matching's normal form reads it and as the handbook says.
+    test "an absent or blank currency keeps today's default" do
+      assert {:ok, %Preview{errors: [], entries: [absent, blank, blank_booking]}} =
+               parse_rows([
+                 purchase(%{}),
+                 purchase(%{"currency" => "  "}),
+                 deposit(%{"currency" => "  "})
+               ])
+
+      assert absent.security.currency == nil
+      assert blank.security.currency == nil
+      assert blank_booking.currency_code == nil
+    end
+
+    # The value is named as the file wrote it, on one line and at most 40
+    # characters long: a cut is marked, a character the operator cannot see or
+    # that would break the line is spelled out, a number keeps its digits and
+    # a nested value reads as compact JSON.
+    test "names an unsupported currency as written, spelled out and capped" do
+      long = String.duplicate("X", 45)
+      digits = String.duplicate("9", 1000)
+
+      body = """
+      {"version": 1, "transactions": [
+        #{raw_deposit(~s("1.50"))},
+        #{raw_deposit("1.50")},
+        #{raw_deposit(~s("EU\\nR"))},
+        #{raw_deposit(~s("EU\\u200bR"))},
+        #{raw_deposit(~s("#{long}"))},
+        #{raw_deposit(digits)},
+        #{raw_deposit(~s({"code": [1, "EUR"]}))}
+      ]}
+      """
+
+      assert {:ok, %Preview{entries: [], errors: errors}} = JsonParser.parse(body)
+
+      shown =
+        Enum.map(errors, fn %{message: message} ->
+          [_, value] =
+            Regex.run(~r/^currency “(.*)” is not supported — row not imported$/, message)
+
+          value
+        end)
+
+      assert shown == [
+               "1.50",
+               "1.50",
+               "EU[U+000A]R",
+               "EU[U+200B]R",
+               String.duplicate("X", 40) <> "…",
+               String.duplicate("9", 40) <> "…",
+               ~s({"code":[1,"EUR"]})
+             ]
+    end
+
+    defp raw_deposit(currency) do
+      ~s({"type": "DEPOSIT", "account": "Girokonto", "date": "2026-03-07", ) <>
+        ~s("amount": "250.00", "currency": #{currency}})
+    end
+
+    test "names both currency refusals in German" do
+      Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+
+      assert {:ok, %Preview{errors: [booking, security]}} =
+               parse_rows([deposit(%{"currency" => "EURO"}), purchase(%{"currency" => "XEU"})])
+
+      assert booking.message == "Währung „EURO“ wird nicht unterstützt — Zeile nicht übernommen"
+
+      assert security.message ==
+               "Wertpapierwährung „XEU“ wird nicht unterstützt — Zeile nicht übernommen"
+    end
+  end
+
+  # User story (#1044, the JSON side):
+  # As an operator importing a Portfolio Performance JSON export that holds a
+  # transfer without its other side,
+  # I want that row named in the preview and left out,
+  # so that one incomplete row never fails the whole file after I confirm.
+  #
+  # Acceptance criteria:
+  # - A CASH_TRANSFER without `otherAccount`, and a SECURITY_TRANSFER without
+  #   `otherPortfolio`, blank or absent, is the row error "transfer without a
+  #   counter account — row not imported"; the rest of the file previews.
+  test "a transfer without its counter account or depot is a row error" do
+    transfer = fn type, overrides ->
+      Map.merge(
+        %{
+          "type" => type,
+          "date" => "2026-03-07",
+          "currency" => "EUR",
+          "amount" => "100.00"
+        },
+        overrides
+      )
+    end
+
+    body =
+      Jason.encode!(%{
+        "version" => 1,
+        "transactions" => [
+          transfer.("CASH_TRANSFER", %{"account" => "Giro"}),
+          transfer.("CASH_TRANSFER", %{"account" => "Giro", "otherAccount" => "  "}),
+          transfer.("SECURITY_TRANSFER", %{
+            "portfolio" => "Depot-A",
+            "shares" => "2",
+            "security" => %{"name" => "Example Fund", "currency" => "EUR"}
+          }),
+          transfer.("CASH_TRANSFER", %{"account" => "Giro", "otherAccount" => "Tagesgeld"})
+        ]
+      })
+
+    assert {:ok, %Preview{entries: [entry], errors: errors}} = JsonParser.parse(body)
+    assert entry.source_row == 4
+
+    assert Enum.map(errors, &{&1.row, &1.message}) == [
+             {1, "transfer without a counter account — row not imported"},
+             {2, "transfer without a counter account — row not imported"},
+             {3, "transfer without a counter account — row not imported"}
+           ]
+  end
+
   test "an entry struct exposes the expected fields" do
     {:ok, %Preview{entries: [first | _]}} = JsonParser.parse(read!("sample.json"))
     assert %Entry{kind: "buy", source_row: 1} = first

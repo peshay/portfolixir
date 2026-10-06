@@ -40,7 +40,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     account's or a security's own list writes the receiving side too, so a
     file assembled from such lists can carry both. Each transfer is booked
     once, from the sending row, and the receiving row it pairs with is a row
-    warning naming that row.
+    warning naming that row. A transfer row with a blank `Konto` or
+    `Gegenkonto`, either side, or with the same name in both, is a row error
+    (#1044), and so is a Kauf or Verkauf with a blank `Gegenkonto`, its cash
+    account: the ledger has no account to book it on.
   """
 
   use Gettext, backend: PortfolixirWeb.Gettext
@@ -348,13 +351,14 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
         companion_entries: companions
       }
 
-      # E25 S4 (G24) and S5 (F33): a security that names nothing, and text
-      # the ledger would refuse, are this row's error; then a Gesamtpreis
-      # that contradicts the Betrag (ADR-0053 §2), so a value no column
-      # holds is named first.
+      # #1044: a row without an account to book on first; then E25 S4 (G24)
+      # and S5 (F33): a security that names nothing, and text the ledger
+      # would refuse, are this row's error; then a Gesamtpreis that
+      # contradicts the Betrag (ADR-0053 §2), so a value no column holds is
+      # named first.
       readings = %{betrag: gross, total: total, fees: raw_fees, taxes: raw_taxes}
 
-      case PortfolioPerformance.row_error(entry) ||
+      case account_error(kind, cells) || PortfolioPerformance.row_error(entry) ||
              reading_error(direction(kind, side), readings, cells) do
         nil -> {:ok, entry}
         message -> {:error, message}
@@ -365,6 +369,39 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
       {:error, reason} -> {:error, inspect(reason)}
     end
   end
+
+  # #1044: a row that names no account the ledger could book it on is the
+  # row's error, so the apply never refuses the whole file on it. A transfer
+  # moves money or shares between two accounts or depots, so it needs both
+  # `Konto` and `Gegenkonto`, and two different ones, whichever side the row
+  # is (`own_and_other/3` turns a receiving row's sides, so the apply would
+  # otherwise name the opposite field). A buy or a sell books its cash on the
+  # `Gegenkonto`. The message names the file's column, which the operator
+  # finds in Portfolio Performance, never a ledger field.
+  @transfer_kinds ~w(cash_transfer security_transfer)
+
+  defp account_error(kind, cells) do
+    konto = present_string(Map.get(cells, "Konto"))
+    gegenkonto = present_string(Map.get(cells, "Gegenkonto"))
+    account_error(kind, konto, gegenkonto)
+  end
+
+  defp account_error(kind, _konto, nil) when kind in @transfer_kinds,
+    do: gettext("transfer without a counter account — row not imported")
+
+  defp account_error(kind, nil, _gegenkonto) when kind in @transfer_kinds,
+    do: gettext("transfer without an account — row not imported")
+
+  defp account_error(kind, same, same) when kind in @transfer_kinds,
+    do: gettext("transfer to its own account — row not imported")
+
+  defp account_error("buy", _konto, nil),
+    do: gettext("buy without a counter account — row not imported")
+
+  defp account_error("sell", _konto, nil),
+    do: gettext("sell without a counter account — row not imported")
+
+  defp account_error(_kind, _konto, _gegenkonto), do: nil
 
   # ADR-0053 §1: the kinds without cash ignore every money cell, the
   # Gesamtpreis included, as they did before it was read.

@@ -12,6 +12,7 @@ defmodule PortfolixirWeb.ImportsLive do
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AccountNames
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.StoredText
@@ -206,24 +207,35 @@ defmodule PortfolixirWeb.ImportsLive do
         <% end %>
       </ul>
 
-      <%= if @preview.errors != [] do %>
-        <section class="import-warning-box" id="parser-warnings-box" aria-label={gettext("Parser warnings")}>
-          <div class="import-warning-box__head">
-            <h3><%= gettext("Parser warnings") %></h3>
-            <button
-              type="button"
-              id="copy-parser-warnings"
-              class="icon-button"
-              phx-click="copy_parser_warnings"
-              aria-label={gettext("Copy parser warnings")}
-              title={gettext("Copy parser warnings")}
-            >
-              <AppShell.icon name={:copy} />
-            </button>
-          </div>
-          <pre><%= parser_warning_text(@preview.errors) %></pre>
-        </section>
-      <% end %>
+      <%!-- The rows the file holds but the import leaves out, as ONE
+           `attention` data note (UX-DR17; board
+           ux-design-2026-10-04/09-import-correction retired the accent
+           banner): the severity word and glyph come from the note, the
+           copy button and the scrollable row list sit inside it. --%>
+      <AppShell.data_note
+        :if={@preview.errors != []}
+        severity={:attention}
+        id="parser-warnings-box"
+        data-role="parser-warnings"
+        role="region"
+        aria-labelledby="parser-warnings-title"
+      >
+        <div class="parser-warnings__head">
+          <h3 id="parser-warnings-title"><%= gettext("Parser warnings") %></h3>
+          <button
+            type="button"
+            id="copy-parser-warnings"
+            class="icon-button"
+            phx-click="copy_parser_warnings"
+            aria-label={gettext("Copy parser warnings")}
+            title={gettext("Copy parser warnings")}
+          >
+            <AppShell.icon name={:copy} />
+          </button>
+        </div>
+        <%!-- A scroller a keyboard reaches: the list can outgrow its box. --%>
+        <pre class="parser-warnings__rows" tabindex="0"><%= parser_warning_text(@preview.errors) %></pre>
+      </AppShell.data_note>
 
       <form id="pp-import-apply" phx-change="mapping_changed" phx-submit="apply">
         <section class="panel inner" id="import-bucket-tag">
@@ -2467,17 +2479,12 @@ defmodule PortfolixirWeb.ImportsLive do
   # Named messages only (#769): no reason is shown as an inspected term.
   defp apply_error_message(_reason), do: gettext("Import failed. Nothing was written.")
 
-  defp changeset_error_text(%Ecto.Changeset{} = changeset) do
-    changeset
-    |> Ecto.Changeset.traverse_errors(fn {message, opts} ->
-      Enum.reduce(opts, message, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
-      end)
-    end)
-    |> Enum.map_join("; ", fn {field, messages} ->
-      "#{field} #{Enum.join(messages, ", ")}"
-    end)
-  end
+  # Each field by its label, never its key (board
+  # ux-design-2026-10-04/09-import-correction, found while drawing), and each
+  # message in the page's language, as the booking drawer states its
+  # refusals (`FieldLabel.changeset_message/1`).
+  defp changeset_error_text(%Ecto.Changeset{} = changeset),
+    do: FieldLabel.changeset_message(changeset)
 
   defp parser_warning_text(errors) do
     errors

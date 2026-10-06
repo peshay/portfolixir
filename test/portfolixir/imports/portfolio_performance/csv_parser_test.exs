@@ -1,6 +1,8 @@
 defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
   use ExUnit.Case, async: true
 
+  alias Portfolixir.Imports.Entry
+  alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.PortfolioPerformance.CsvParser
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Input.Text
@@ -549,8 +551,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
         header <>
           "2026-03-07 00:00:00;Einlage;;;;;250,00;;;250,00;Girokonto;;hidden#{zwsp}note;\n" <>
           "2026-03-08 00:00:00;Einlage;;;;;250,00;;;250,00;Giro#{rlo}konto;;;\n" <>
-          "2026-03-09 00:00:00;Kauf;Nordic#{zwsp} Timber;;1;10,00;10,00;;;10,00;Girokonto;;;\n" <>
-          "2026-03-10 00:00:00;Kauf;Helios#{selectors} Solar;;1;10,00;10,00;;;10,00;Girokonto;;;\n" <>
+          "2026-03-09 00:00:00;Kauf;Nordic#{zwsp} Timber;;1;10,00;10,00;;;10,00;Depot;Girokonto;;\n" <>
+          "2026-03-10 00:00:00;Kauf;Helios#{selectors} Solar;;1;10,00;10,00;;;10,00;Depot;Girokonto;;\n" <>
           "2026-03-11 00:00:00;Einlage;;;;;250,00;;;250,00;Girokonto;;;\n"
 
       assert {:ok, %Preview{entries: entries, errors: errors}} = CsvParser.parse(body)
@@ -781,5 +783,193 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       assert direction(entry) == {"security_transfer", "Depot-A", nil, "Depot-B", nil}
       assert message =~ "row 1"
     end
+  end
+
+  # User story (#1044):
+  # As an operator importing a Portfolio Performance CSV that holds a transfer
+  # row whose Gegenkonto is blank,
+  # I want that row named in the preview and left out,
+  # so that one incomplete row never fails the whole file after I confirm.
+  #
+  # Acceptance criteria (board ux-design-2026-10-04/09-import-correction):
+  # - A transfer row with a blank Gegenkonto, a cash or a security transfer,
+  #   the sending or the receiving side, is the row error "transfer without a
+  #   counter account — row not imported". A receiving row's message names no
+  #   ledger field, the swapped `cash_account_id` included.
+  # - The rest of the file previews, and a transfer naming both sides books as
+  #   before.
+  # - The German message reads "Umbuchung ohne Gegenkonto — Zeile nicht
+  #   übernommen".
+  describe "parse/2 a transfer row without a Gegenkonto (#1044)" do
+    @no_counter "transfer without a counter account — row not imported"
+
+    test "a sending cash transfer with a blank Gegenkonto is a row error; the rest previews" do
+      preview =
+        transfers("""
+        2024-08-01 00:00:00;Einlage;;;;500,00;;;500,00;Cash-A;;;
+        2024-08-12 10:00:00;Umbuchung (Ausgang);;;;100,00;;;100,00;Cash-A;;;
+        2024-08-13 10:00:00;Umbuchung (Ausgang);;;;50,00;;;50,00;Cash-A;Cash-B;;
+        """)
+
+      assert [%{row: 2, message: @no_counter}] = preview.errors
+      assert Enum.map(preview.entries, & &1.source_row) == [1, 3]
+
+      assert direction(List.last(preview.entries)) ==
+               {"cash_transfer", nil, "Cash-A", nil, "Cash-B"}
+    end
+
+    test "a receiving cash transfer with a blank Gegenkonto is the same row error" do
+      preview =
+        transfers("2024-08-12 10:00:00;Umbuchung (Eingang);;;;100,00;;;100,00;Cash-B;;;\n")
+
+      assert %Preview{entries: [], errors: [%{row: 1, message: message}]} = preview
+      assert message == @no_counter
+      refute message =~ "cash_account_id"
+    end
+
+    test "a security transfer with a blank Gegenkonto is the same row error, either side" do
+      preview =
+        transfers("""
+        2024-11-15 21:00:00;Umbuchung (Ausgang);Example Fund;3;20,00;60,00;;;60,00;Depot-A;;;
+        2024-11-15 21:00:00;Umbuchung (Eingang);Example Fund;3;20,00;60,00;;;60,00;Depot-B;  ;;
+        2024-11-15 21:00:00;Umbuchung (Wertpapier);Example Fund;3;;60,00;;;60,00;Depot-A;;;
+        2024-11-16 21:00:00;Umbuchung (Ausgang);Example Fund;1;20,00;20,00;;;20,00;Depot-A;Depot-B;;
+        """)
+
+      assert Enum.map(preview.errors, &{&1.row, &1.message}) == [
+               {1, @no_counter},
+               {2, @no_counter},
+               {3, @no_counter}
+             ]
+
+      assert [entry] = preview.entries
+      assert direction(entry) == {"security_transfer", "Depot-A", nil, "Depot-B", nil}
+    end
+
+    test "names the row in German" do
+      Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+
+      preview =
+        transfers("2024-08-12 10:00:00;Umbuchung (Ausgang);;;;100,00;;;100,00;Cash-A;;;\n")
+
+      assert [%{row: 1, message: "Umbuchung ohne Gegenkonto — Zeile nicht übernommen"}] =
+               preview.errors
+    end
+  end
+
+  # User story (#1044, the review round):
+  # As an operator importing a Portfolio Performance CSV,
+  # I want every row that names no account the ledger could book it on named
+  # in the preview and left out,
+  # so that no single row fails the whole file after I confirm.
+  #
+  # Acceptance criteria:
+  # - A transfer row with a blank Konto, either side, cash or security, is the
+  #   row error "transfer without an account — row not imported" ("Umbuchung
+  #   ohne Konto — Zeile nicht übernommen").
+  # - A transfer row whose Konto and Gegenkonto name the same account or depot
+  #   is the row error "transfer to its own account — row not imported"
+  #   ("Umbuchung auf das eigene Konto — Zeile nicht übernommen").
+  # - A Kauf or Verkauf with a blank Gegenkonto, its cash account, is the row
+  #   error "buy without a counter account — row not imported" / "sell
+  #   without a counter account — row not imported" ("Kauf ohne Gegenkonto —
+  #   Zeile nicht übernommen" / "Verkauf ohne Gegenkonto — …").
+  # - The other rows preview.
+  describe "parse/2 a row that names no account to book on (#1044)" do
+    test "a transfer with a blank Konto is a row error, either side, cash or security" do
+      preview =
+        transfers("""
+        2024-08-12 10:00:00;Umbuchung (Ausgang);;;;100,00;;;100,00;;Cash-B;;
+        2024-08-12 10:00:00;Umbuchung (Eingang);;;;100,00;;;100,00;  ;Cash-A;;
+        2024-11-15 21:00:00;Umbuchung (Ausgang);Example Fund;3;20,00;60,00;;;60,00;;Depot-B;;
+        2024-11-15 21:00:00;Umbuchung (Wertpapier);Example Fund;3;;60,00;;;60,00;;Depot-B;;
+        2024-08-13 10:00:00;Umbuchung (Ausgang);;;;50,00;;;50,00;Cash-A;Cash-B;;
+        """)
+
+      no_account = "transfer without an account — row not imported"
+
+      assert Enum.map(preview.errors, &{&1.row, &1.message}) == [
+               {1, no_account},
+               {2, no_account},
+               {3, no_account},
+               {4, no_account}
+             ]
+
+      assert Enum.map(preview.entries, & &1.source_row) == [5]
+    end
+
+    test "a transfer whose Konto and Gegenkonto are the same is a row error" do
+      preview =
+        transfers("""
+        2024-08-12 10:00:00;Umbuchung (Ausgang);;;;100,00;;;100,00;Cash-A;Cash-A;;
+        2024-08-12 10:00:00;Umbuchung (Eingang);;;;100,00;;;100,00;Cash-A; Cash-A ;;
+        2024-11-15 21:00:00;Umbuchung (Ausgang);Example Fund;3;20,00;60,00;;;60,00;Depot-A;Depot-A;;
+        2024-08-13 10:00:00;Umbuchung (Ausgang);;;;50,00;;;50,00;Cash-A;Cash-B;;
+        """)
+
+      own = "transfer to its own account — row not imported"
+
+      assert Enum.map(preview.errors, &{&1.row, &1.message}) == [
+               {1, own},
+               {2, own},
+               {3, own}
+             ]
+
+      assert Enum.map(preview.entries, & &1.source_row) == [4]
+    end
+
+    test "a buy or a sell with a blank Gegenkonto is a row error" do
+      preview =
+        transfers("""
+        2024-01-15 10:01:00;Kauf;Example Fund;10;150,00;1.500,00;;;1.500,00;Depot-A;;;
+        2024-02-15 10:01:00;Verkauf;Example Fund;5;160,00;800,00;;;800,00;Depot-A; ;;
+        2024-03-15 10:01:00;Kauf;Example Fund;1;150,00;150,00;;;150,00;Depot-A;Cash-A;;
+        """)
+
+      assert Enum.map(preview.errors, &{&1.row, &1.message}) == [
+               {1, "buy without a counter account — row not imported"},
+               {2, "sell without a counter account — row not imported"}
+             ]
+
+      assert Enum.map(preview.entries, & &1.source_row) == [3]
+    end
+
+    test "names each row in German" do
+      Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+
+      preview =
+        transfers("""
+        2024-08-12 10:00:00;Umbuchung (Ausgang);;;;100,00;;;100,00;;Cash-B;;
+        2024-08-12 10:00:00;Umbuchung (Ausgang);;;;100,00;;;100,00;Cash-A;Cash-A;;
+        2024-01-15 10:01:00;Kauf;Example Fund;10;150,00;1.500,00;;;1.500,00;Depot-A;;;
+        2024-02-15 10:01:00;Verkauf;Example Fund;5;160,00;800,00;;;800,00;Depot-A;;;
+        """)
+
+      assert Enum.map(preview.errors, & &1.message) == [
+               "Umbuchung ohne Konto — Zeile nicht übernommen",
+               "Umbuchung auf das eigene Konto — Zeile nicht übernommen",
+               "Kauf ohne Gegenkonto — Zeile nicht übernommen",
+               "Verkauf ohne Gegenkonto — Zeile nicht übernommen"
+             ]
+    end
+  end
+
+  # User story (#948):
+  # As an operator importing a Portfolio Performance CSV,
+  # I want the currency check the JSON path runs never to refuse a CSV row,
+  # so that a file every row of which books in EUR previews as before.
+  #
+  # Acceptance criteria:
+  # - Every CSV entry books in EUR and carries no security currency, so the
+  #   shared row check (`PortfolioPerformance.row_error/1`) passes each one.
+  test "a CSV row books in EUR, and the shared currency check never refuses it" do
+    {:ok, preview} = CsvParser.parse(read!("sample.csv"))
+    entries = Entry.flatten(preview.entries)
+
+    assert preview.errors == []
+    assert entries != []
+    assert Enum.all?(entries, &(&1.currency_code == "EUR"))
+    assert Enum.all?(entries, &(is_nil(&1.security) or is_nil(&1.security.currency)))
+    assert Enum.all?(entries, &is_nil(PortfolioPerformance.row_error(&1)))
   end
 end

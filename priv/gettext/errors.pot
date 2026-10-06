@@ -186,3 +186,26 @@ msgstr ""
 
 msgid "must not contain invisible characters (format, bidirectional or tag characters)"
 msgstr ""
+
+## The ledger's refusals an import's apply can reach (Sprint 19, B4b): a
+## German page states them in German, the API and MCP keep the English.
+msgid "is required for a cross-currency settlement"
+msgstr ""
+
+msgid "must be greater than 0 for a cross-currency settlement"
+msgstr ""
+
+msgid "must match the transaction currency (%{currency})"
+msgstr ""
+
+msgid "must differ from %{field}"
+msgstr ""
+
+msgid "cannot become a balance anchor or a split: the row was imported"
+msgstr ""
+
+msgid "was retired by a merge and cannot be booked again"
+msgstr ""
+
+msgid "is never set on a balance anchor or a split"
+msgstr ""

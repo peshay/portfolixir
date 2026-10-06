@@ -3356,10 +3356,14 @@ Trade.
   Bargeldwirkung jeder Zeile, `Konto` und `Gegenkonto` je Typ, die Regel nur
   in EUR und die JSON-v1-Variante für andere Währungen und für ISINs, mit je
   einem synthetischen Beispiel, das ein Test durch die echte Import-Seite
-  führt. Er bindet den Agenten: kein Broker-Sync, kein Netzwerk- und kein
-  Modellaufruf, nur synthetische Beispiele, und die umgewandelten Zeilen
-  einzeln über `portfolixir.transactions.create` zu buchen, ist kein Ersatz,
-  weil das die Vorschau und die Idempotenz über den Inhalts-Hash übergeht.
+  führt. Er nennt die Zeilen, die die Vorschau ablehnt: eine Umbuchung ohne
+  beide Seiten oder mit demselben Konto auf beiden, einen Kauf oder Verkauf
+  ohne sein Verrechnungskonto, eine ISIN ohne gültige Prüfziffer und, in JSON
+  v1, eine Währung außer denen, die der Wertpapier-Dialog anbietet. Er bindet
+  den Agenten: kein Broker-Sync, kein Netzwerk- und kein Modellaufruf, nur
+  synthetische Beispiele, und die umgewandelten Zeilen einzeln über
+  `portfolixir.transactions.create` zu buchen, ist kein Ersatz, weil das die
+  Vorschau und die Idempotenz über den Inhalts-Hash übergeht.
 
 Die Prompts gibt es nur über MCP: Ein Prompt ist eine Anweisung an den
 Agenten des Nutzers, und die API hat nichts, dem sie ihn liefern könnte.

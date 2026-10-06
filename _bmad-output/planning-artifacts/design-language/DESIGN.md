@@ -4557,3 +4557,73 @@ but `bond` and `government_bond`, read as the effective class.
 - The six figures' cells stay as they are: "Bestand 100 Stück" and "Letzter
   Kurs 97,25 EUR" are not relabelled; the block and its basis line carry the
   convention.
+
+## Amendment 2026-10-06 — Import preview: rows that fail alone, and the parser warnings as an attention note *(Sprint 19 board 09's conformance repairs, PR β B4; issues 1044 and 948)*
+
+Board `mockups/ux-design-2026-10-04/09-import-correction`, part ②, a
+before/after with nothing to pick, and its "Found while drawing" list for
+the Imports page. Built in `PortfolixirWeb.ImportsLive`, the two parsers and
+`Imports.PortfolioPerformance.row_error/1`.
+
+- **New row-error reasons.** Each joins the parser warnings in the existing
+  shape, "Row N: <reason> — row not imported", is counted in the "Warnings"
+  card, and leaves the rest of the file to preview and import; the confirm
+  never starts on the row. The "Row N" prefix and its numbering are
+  unchanged (issue 1128, a choice of its own).
+  - **A row with no account to book on.** A CSV transfer row, a cash or a
+    security transfer, the sending or the receiving side, with a blank
+    `Gegenkonto`: "transfer without a counter account — row not imported" /
+    "Umbuchung ohne Gegenkonto — Zeile nicht übernommen"; with a blank
+    `Konto`: "transfer without an account — …" / "Umbuchung ohne Konto — …";
+    with the same name in both: "transfer to its own account — …" /
+    "Umbuchung auf das eigene Konto — …". A CSV *Kauf* or *Verkauf* with a
+    blank `Gegenkonto`: "buy without a counter account — …" / "Kauf ohne
+    Gegenkonto — …" (and "sell …" / "Verkauf …"). A JSON `CASH_TRANSFER`
+    without `otherAccount`, or `SECURITY_TRANSFER` without `otherPortfolio`,
+    takes the first sentence. Each names the file's column, which is what the
+    operator finds in Portfolio Performance, never a ledger field; a
+    receiving row gets the same sentence.
+  - **A JSON row whose currency the catalog does not list**
+    (`Catalog.Currencies.supported?/1`): "currency “EURO” is not supported —
+    row not imported" / "Währung „EURO“ wird nicht unterstützt — Zeile nicht
+    übernommen" for the booking's currency, and "security currency “XEU” is
+    not supported — row not imported" / "Wertpapierwährung „XEU“ wird nicht
+    unterstützt — Zeile nicht übernommen" on every row that names such a
+    security. The value is quoted as the file wrote it, upper-cased; a value
+    that is not a string is named as written ("42", "1.50", compact JSON for
+    a nested one). It is cut at 40 characters, the cut marked "…", and a
+    character the operator cannot see or that would break the line is
+    spelled `[U+XXXX]`. An absent or blank currency keeps the import's
+    default. A CSV row books in EUR and never meets this reason. The
+    handbook names the list the reason refers to: the currencies the
+    security dialog offers.
+- **The parser warnings are ONE `attention` data note** (UX-DR17), no longer
+  the accent banner UX-DR17 retired. It keeps `#parser-warnings-box`, sits
+  where the box sat (after the counts by kind, before the mapping form), and
+  takes its severity word and glyph from `AppShell.data_note`. Its body is
+  the head line — the `<h3>` "Parser warnings" with the copy button
+  `#copy-parser-warnings` at its end — and the rows as a `<pre>` that keeps
+  its own scroller (12rem, UX-DR15), in the note's colour, the
+  `.data-note__body .mono` precedent. The note is a region labelled by its
+  heading and carries no live-region role (Components → data-note,
+  announcement); its `<pre>` takes `tabindex="0"` and the shared focus ring,
+  so a keyboard reaches the scroller. The "Warnings" stat card is unchanged.
+- **The German preview heading reads "Vorschau".** "Übersicht" is the
+  Overview's name.
+- **An insert rejection names the field's label, never its key**, with the
+  message in the page's language through the `errors` domain: "Creating the
+  security failed: ISIN has already been taken", "Row 3: Exchange rate is
+  required for a cross-currency settlement". The labels are one map,
+  `PortfolixirWeb.FieldLabel`, shared with the booking drawer, covering every
+  field of the schemas the apply writes (the counter fields read "Counter
+  account" / "Gegenkonto" and "Counter depot" / "Gegendepot"); an unknown key
+  falls back to the key. Both pages state a refused changeset one way,
+  `FieldLabel.changeset_message/1`: "<label> <message>" per field, the
+  messages of one field joined by ", ", the fields by "; ". The ledger's
+  refusals an import can reach carry German in the `errors` domain, and one
+  that names another field ("must differ from …") names it by its label.
+- **Drift recorded, not repaired here (issue 1130):**
+  `#import-unmatched-config` (the leftover-configuration list) still wears
+  `.import-warning-box`, the same retired accent banner. The class stays for
+  it alone; its sub-rules for the head line and the `<pre>` went with the
+  parser warnings.
