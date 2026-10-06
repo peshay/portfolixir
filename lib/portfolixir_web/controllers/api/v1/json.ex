@@ -126,7 +126,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # listings, which never do.
       thesis_state: thesis_state_field(security),
       # #330 (ADR-0052 §2–§4): the bond reading — a map only on the detail
-      # read of a bond, `null` for any other security and on listings.
+      # read of a bond (`Portfolios.Bonds.bond?/1`: a bond class, or no
+      # stored class and a maturity date or coupon, #1068), `null` for any
+      # other security and on listings.
       bond: bond_field(security),
       inserted_at: timestamp(security.inserted_at),
       updated_at: timestamp(security.updated_at)
@@ -143,8 +145,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   A bond's reading (#330, ADR-0052): the nominal held under the hundredth
   convention, the remaining term, the current yield and the linear yield to
   maturity, each with its `computation_basis`, and the two-scales finding
-  (`null` unless the bond is priced on two scales). Decimals are strings,
-  yields ratios.
+  (`null` unless the bond is priced on two scales, with its `direction`
+  since #1068). Decimals are strings, yields ratios.
   """
   def bond_reading(reading) do
     %{
@@ -189,8 +191,12 @@ defmodule PortfolixirWeb.Api.V1.JSON do
 
   defp two_scales(nil), do: nil
 
+  # #1068: `direction` is "forward" (quotes near 100, bookings near 1) or
+  # "reverse" (quotes near 1, bookings near 100); the booking keys keep
+  # their names in both and hold the bookings in the band.
   defp two_scales(finding) do
     %{
+      direction: Atom.to_string(finding.direction),
       latest_quote: %{
         close: decimal(finding.latest_quote.close),
         date: date(finding.latest_quote.date)

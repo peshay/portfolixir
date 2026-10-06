@@ -92,6 +92,47 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
              ["Fresh AG", "Stale AG", "Unpriced AG"]
   end
 
+  # User story (#1068, D-15; contract entry 14):
+  # As the LLM agent the operator runs,
+  # I want to ask for the bonds priced on two scales by name,
+  # so that I can work the set the Overview counts and the securities page
+  # lists, in either direction.
+  #
+  # Acceptance criteria:
+  # - data_quality=two_scales answers a classed bond quoted 97.25 beside a
+  #   buy at 0.985, a classed bond quoted 0.981 beside a buy at 98.40, and an
+  #   unclassed security with a coupon on the first pair's scales.
+  # - It leaves out an unclassed security with no master data quoted 25
+  #   times its buy price, and every security of the seed.
+  test "data_quality=two_scales lists the bonds the guard flags, either way", %{conn: conn} do
+    seed()
+    world = base_world([])
+
+    for {name, attrs, price, close} <- [
+          {"Kestrel Anleihe 2030 2,75%", %{asset_class: "bond"}, "0.985", "97.25"},
+          {"Birkenhain Wasser Anleihe 2029 1,50%", %{asset_class: "bond"}, "98.40", "0.981"},
+          {"Ostsee Logistik 4,10% 2028/2033", %{coupon_rate: "4.1"}, "0.985", "97.25"},
+          {"Ostsee Holz", %{}, "4", "100"}
+        ] do
+      {:ok, security} =
+        Catalog.create_security(
+          Portfolixir.Actor.owner_ui(),
+          Map.merge(%{name: name, currency_code: "EUR"}, attrs)
+        )
+
+      buy!(world, security, quantity: "100", price: price, date: ~D[2026-03-12])
+      put_quote!(security, ~D[2026-09-30], close)
+    end
+
+    assert get_json(conn, "/api/v1/securities?data_quality=two_scales")
+           |> json_response(200)
+           |> names() == [
+             "Birkenhain Wasser Anleihe 2029 1,50%",
+             "Kestrel Anleihe 2030 2,75%",
+             "Ostsee Logistik 4,10% 2028/2033"
+           ]
+  end
+
   test "it composes with the listing's other narrowings", %{conn: conn} do
     seed()
 

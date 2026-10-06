@@ -19,6 +19,7 @@ defmodule Portfolixir.Catalog.DataQuality do
   | `missing_quote` | no quote at all |
   | `missing_logo` | no stored logo, and not deliberately locked to "no logo" |
   | `missing_fx` | priced, but no stored rate from its currency to the base (EUR hub) |
+  | `two_scales` | a bond priced on two scales, in either direction: its latest stored quote is #{20} to #{500} times a booked price per unit, or 1/#{500} to 1/#{20} of one (`Portfolixir.Portfolios.Bonds`) |
 
   `missing_quote` is a subset of `stale_quote`, and that is deliberate rather
   than an oversight: the dashboard's finding has always read "without a quote
@@ -39,6 +40,15 @@ defmodule Portfolixir.Catalog.DataQuality do
   findings and the lists they link to. `missing_fx` keeps both, because a
   missing rate path breaks a valuation whatever the security.
 
+  `two_scales` (#1068, Sprint 19 plan D-15) is not catalog hygiene either:
+  it is every security the bond two-scales guard flags, catalog-wide, which
+  is `Portfolixir.Portfolios.Bonds.two_scales_among/1` over the rows — a
+  bond class, or no stored class and a maturity date or coupon, with a
+  stored quote and a booked price per unit (a buy or a priced inbound
+  delivery) on the other scale. A retired or benchmark bond on two scales
+  has figures as wrong as before, so it stays in the set, and the Overview
+  counts it through `count/2`, as it counts the others.
+
   ## Two halves, and why a caller must apply both
 
   A predicate narrows in the query where it can (`missing_logo` is a JSONB
@@ -51,12 +61,14 @@ defmodule Portfolixir.Catalog.DataQuality do
   """
 
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Clock
   alias Portfolixir.Fx
+  alias Portfolixir.Portfolios.Bonds
 
   @stale_days 7
-  @ids ~w(stale_quote missing_quote missing_logo missing_fx)
+  @ids ~w(stale_quote missing_quote missing_logo missing_fx two_scales)
 
   @doc "Every predicate id."
   @spec ids() :: [String.t()]
@@ -101,18 +113,20 @@ defmodule Portfolixir.Catalog.DataQuality do
   query: the logo condition, and for the three catalog-hygiene checks the
   benchmark and retired exclusions. The quote conditions themselves are
   metric-derived, cannot be expressed in SQL over the quote history, and are
-  `refine/3`'s.
+  `refine/3`'s; so is the two-scales guard, which reads quotes and bookings.
   """
   @spec list_opts(String.t()) :: keyword()
   # ADR-0046 §1: a benchmark security is a reference, not a holding, so the
   # catalog-hygiene checks leave it alone; a retired security likewise (PR
   # #1102). The FX check keeps both — a missing rate path breaks the very
   # comparison the benchmark exists for, and a valuation whatever the
-  # security.
+  # security. The two-scales check keeps both too (#1068): a bond's figures
+  # on two scales are wrong whatever its flags.
   def list_opts("missing_logo"),
     do: [logo_status: :missing, is_benchmark: false, is_retired: false]
 
   def list_opts("missing_fx"), do: []
+  def list_opts("two_scales"), do: []
   def list_opts(id) when id in @ids, do: [is_benchmark: false, is_retired: false]
 
   @doc """
@@ -137,17 +151,33 @@ defmodule Portfolixir.Catalog.DataQuality do
   happens to hold. That is the whole point of this module: "a count of N links
   to a list of N" is then true by construction, and cannot drift the way it
   could while the dashboard counted with one copy of the rule and the list
-  filtered with another.
+  filtered with another. `two_scales` counts the same rows under the same
+  rule without loading their quote metrics, which its rule does not read.
   """
   @spec count(String.t(), keyword()) :: non_neg_integer()
-  def count(id, opts \\ []) when is_binary(id), do: length(list(id, opts))
+  def count(id, opts \\ [])
+
+  # #1068: the two-scales guard reads no quote metric, so its count skips
+  # the metrics pass the list's rows carry. The rows (`list_securities/1`
+  # under the same options, which `list_securities_with_metrics/1` wraps)
+  # and the rule (`Bonds.two_scales_among/1`) are the list's own, so the
+  # count is still the list's length — the Overview pays for no metrics.
+  def count("two_scales", opts) do
+    opts
+    |> Keyword.merge(list_opts("two_scales"))
+    |> Catalog.list_securities()
+    |> Bonds.two_scales_among()
+    |> length()
+  end
+
+  def count(id, opts) when is_binary(id), do: length(list(id, opts))
 
   @doc """
   Narrows rows **that were already loaded with `list_opts/1`** to those
-  matching the in-memory half of `id`: the quote conditions and the FX
-  check. The quote conditions also leave a retired row out, so rows loaded
-  without the query half cannot bring one back. `nil` is the no-op, so a
-  surface can pass its optional filter straight through.
+  matching the in-memory half of `id`: the quote conditions, the FX check
+  and the two-scales guard. The quote conditions also leave a retired row
+  out, so rows loaded without the query half cannot bring one back. `nil` is
+  the no-op, so a surface can pass its optional filter straight through.
 
   This is for a surface that has loaded its rows with its own filters and
   cannot call `list/2`. Anything else should use `list/2` or `count/2`, which
@@ -180,6 +210,21 @@ defmodule Portfolixir.Catalog.DataQuality do
     end)
   end
 
+  # #1068 (D-15): the guard's own rule over the rows' securities, so the
+  # set is exactly what Wealth names, catalog-wide. A row without a security
+  # is no finding.
+  def refine(rows, "two_scales", _today) do
+    flagged =
+      rows
+      |> Enum.flat_map(&security_list/1)
+      |> Bonds.two_scales_among()
+      |> MapSet.new(& &1.security_id)
+
+    Enum.filter(rows, fn row ->
+      Enum.any?(security_list(row), &MapSet.member?(flagged, &1.id))
+    end)
+  end
+
   def refine(rows, id, today) when id in @ids do
     today = today || Clock.today()
     Enum.filter(rows, &(not retired?(&1) and matches?(&1, id, today)))
@@ -202,6 +247,9 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   defp latest_price_date(%{metrics: %{latest_price_date: date}}), do: date
   defp latest_price_date(_row), do: nil
+
+  defp security_list(%{security: %Security{} = security}), do: [security]
+  defp security_list(_row), do: []
 
   defp currency_of(%{security: %{currency_code: currency}}), do: currency
   defp currency_of(%{currency_code: currency}), do: currency

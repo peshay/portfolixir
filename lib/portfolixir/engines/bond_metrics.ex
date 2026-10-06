@@ -52,7 +52,22 @@ defmodule Portfolixir.Engines.BondMetrics do
   delivery: since #779 a delivery's booked price opens its lot and drives
   its flow as a buy's does (closing act on U7, finding 4). Every money figure of such a bond is a
   hundred times too high, and the TTWROR does not show it (bond discovery,
-  point 5). The guard names; it converts nothing.
+  point 5). That is the **forward** direction.
+
+  The **reverse** direction is the same band inverted (#1068, Sprint 19
+  plan D-15): a latest quote between 1/#{500} and 1/#{20} of a booked price
+  per unit, both ends included — quotes near 1 beside bookings near 100.
+  The stored quotes are then not percent of face, and the bond counts a
+  hundred times too low in every total. It is read as the booked price over
+  the quote between #{20} and #{500}, the forward band's own figures, so
+  both ends are exact. The quote itself must be on the unit scale, at most
+  #{5} (`unit_scale_price_ceiling/0`): a percent quote of 98.5 beside a
+  booking of 4,925 per piece is a denomination booked per piece, not quotes
+  near 1, and the reverse note's remedy would point at the wrong figure.
+
+  The finding says which direction it is. Where a bond's bookings fall in
+  both bands, the forward finding is the one reported. The guard names; it
+  converts nothing, in either direction (ADR-0052 §4).
   """
 
   @days_per_year 365
@@ -68,7 +83,11 @@ defmodule Portfolixir.Engines.BondMetrics do
   @spec days_per_year() :: pos_integer()
   def days_per_year, do: @days_per_year
 
-  @doc "The two-scales band: the ratios of quote to booked price per unit that are named."
+  @doc """
+  The two-scales band: the ratios of quote to booked price per unit that are
+  named in the forward direction. The reverse direction names the same
+  ratios of booked price per unit to quote.
+  """
   @spec two_scales_band() :: {Decimal.t(), Decimal.t()}
   def two_scales_band, do: {@band_low, @band_high}
 
@@ -212,35 +231,58 @@ defmodule Portfolixir.Engines.BondMetrics do
   The two-scales finding for one bond, or `nil`: `latest_quote` is
   `%{close, date}` (or `nil` without a quote), `bookings` the booked prices
   per unit (buys and priced inbound deliveries) as `%{price, date}`.
+
+  A finding carries its `direction` (`:forward`, quotes near 100 beside
+  bookings near 1; `:reverse`, quotes near 1 beside bookings near 100), the
+  quote, and the count and the last of the bookings in the band.
   """
   @spec two_scales(map() | nil, [map()]) :: map() | nil
   def two_scales(nil, _bookings), do: nil
 
   def two_scales(%{close: %Decimal{} = close} = latest_quote, bookings)
       when is_list(bookings) do
-    case Enum.filter(bookings, &unit_scale?(close, &1)) do
-      [] ->
-        nil
+    forward = Enum.filter(bookings, &in_band?(close, &1, :forward))
+    reverse = Enum.filter(bookings, &in_band?(close, &1, :reverse))
 
-      on_unit_scale ->
-        %{
-          latest_quote: latest_quote,
-          unit_scale_bookings: length(on_unit_scale),
-          last_unit_scale_booking: Enum.max_by(on_unit_scale, & &1.date, Date)
-        }
+    case {forward, reverse} do
+      {[], []} -> nil
+      {[], in_band} -> finding(:reverse, latest_quote, in_band)
+      {in_band, _reverse} -> finding(:forward, latest_quote, in_band)
     end
   end
 
-  defp unit_scale?(close, %{price: %Decimal{} = price}) do
-    if Decimal.compare(price, 0) == :gt and Decimal.compare(close, 0) == :gt do
-      ratio = Decimal.div(close, price)
+  # The keys keep the forward case's names, which the API serves: in the
+  # reverse direction they count the bookings near 100 the quote is a
+  # hundredth of, and `direction` says which reading applies.
+  defp finding(direction, latest_quote, in_band) do
+    %{
+      direction: direction,
+      latest_quote: latest_quote,
+      unit_scale_bookings: length(in_band),
+      last_unit_scale_booking: Enum.max_by(in_band, & &1.date, Date)
+    }
+  end
+
+  # Forward: quote ÷ price in the band. Reverse: price ÷ quote in the same
+  # band, which is quote ÷ price from 1/500 to 1/20 without a rounded
+  # division at either end, and only for a quote on the unit scale (at most
+  # 100 ÷ 20).
+  defp in_band?(close, %{price: %Decimal{} = price}, direction) do
+    if Decimal.compare(price, 0) == :gt and Decimal.compare(close, 0) == :gt and
+         (direction == :forward or Decimal.compare(close, @unit_scale_ceiling) != :gt) do
+      ratio =
+        case direction do
+          :forward -> Decimal.div(close, price)
+          :reverse -> Decimal.div(price, close)
+        end
+
       Decimal.compare(ratio, @band_low) != :lt and Decimal.compare(ratio, @band_high) != :gt
     else
       false
     end
   end
 
-  defp unit_scale?(_close, _booking), do: false
+  defp in_band?(_close, _booking, _direction), do: false
 
   defp round_out(%Decimal{} = value), do: Decimal.round(value, @scale, :half_up)
 end

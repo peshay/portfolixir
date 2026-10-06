@@ -4,20 +4,38 @@ defmodule Portfolixir.Portfolios.Bonds do
   [ADR-0052](../../docs/decisions/0052-bond-master-data-in-dedicated-columns.md)
   (#330): the **shell** half of `Portfolixir.Engines.BondMetrics`.
 
-  For a security whose effective asset class is `bond` or `government_bond`
-  it loads what the engine needs — the master data, the units held, the
-  price the valuation uses and the booked prices per unit — and wraps every
-  figure in
-  its computation basis, as the `AGENTS.md` metric rule requires in the
-  payload. Any other security has no reading, whatever master data it
-  carries. Nothing is stored; the reading is computed when it is read.
+  For a bond (`bond?/1`) it loads what the engine needs — the master data,
+  the units held, the price the valuation uses and the booked prices per
+  unit — and wraps every figure in its computation basis, as the
+  `AGENTS.md` metric rule requires in the payload. Nothing is stored; the
+  reading is computed when it is read.
+
+  **What is a bond** (#1068, Sprint 19 plan D-15): a security whose
+  effective asset class is `bond` or `government_bond`, **or** one that
+  has no asset class as shown (no effective class: none stored, none
+  inferred) and carries ADR-0052's master data — a maturity date or a
+  coupon rate. The name inference recognises only government-bond names,
+  so a corporate bond without a class escaped the guard before; the master
+  data is the positive signal that brings it back. It does not widen to
+  every unclassed security, which would name an unclassed share that rose
+  twentyfold, nor to a name the inference reads as a structured product
+  (`Security.structured_product_name?/1`), whose expiry may be stored as a
+  maturity date. A security shown under any other class — stored, or
+  inferred as the list and the dialog show it — is no bond, whatever master
+  data it carries: the shown class is the statement the operator reads and
+  edits, and ADR-0052 §1 keeps the values unread under it.
 
   The price is `Portfolixir.Portfolios.Valuation.security_status/3`'s: the
   latest stored quote, or the last own trade price while there is none — so
   the yields and the value beside them on the Overview use one price.
 
   `two_scales_findings/1` is the guard over a set of securities, for the
-  place a total is read (Wealth → Holdings → data quality).
+  place a total is read (Wealth → Holdings → data quality), and
+  `two_scales_among/1` the same guard over securities already loaded, for
+  the catalog-wide `two_scales` predicate (`Portfolixir.Catalog.DataQuality`)
+  the Overview counts. Each finding carries its direction: forward (quotes
+  near 100 beside bookings near 1) or reverse (quotes near 1 beside
+  bookings near 100).
   """
 
   import Ecto.Query
@@ -42,10 +60,24 @@ defmodule Portfolixir.Portfolios.Bonds do
   @spec classes() :: [String.t()]
   def classes, do: @classes
 
-  @doc "Whether `security`'s effective asset class is one of the two bond classes."
+  @doc """
+  Whether `security` is read as a bond: its effective asset class is one of
+  the two bond classes, or it has no effective asset class, carries a
+  maturity date or a coupon rate, and its name is not a structured
+  product's (#1068, D-15).
+  """
   @spec bond?(term()) :: boolean()
-  def bond?(%Security{} = security), do: Security.effective_asset_class(security) in @classes
+  def bond?(%Security{} = security) do
+    case Security.effective_asset_class(security) do
+      nil -> bond_terms?(security) and not Security.structured_product_name?(security.name)
+      class -> class in @classes
+    end
+  end
+
   def bond?(_other), do: false
+
+  defp bond_terms?(%Security{} = security),
+    do: not is_nil(security.maturity_date) or not is_nil(security.coupon_rate)
 
   @doc """
   The reading of one bond, or `nil` for any other security.
@@ -103,16 +135,27 @@ defmodule Portfolixir.Portfolios.Bonds do
 
   @doc """
   The bonds among `security_ids` that are priced on two scales, sorted by
-  name, each the engine's finding with its `security_id` and `name`.
+  name, each the engine's finding (with its `direction`) and the
+  security's `security_id`, `name` and `effective_asset_class` — `nil` for
+  a bond read by its master data alone, which the screen marks as having
+  no asset class.
   """
   @spec two_scales_findings([integer()]) :: [map()]
   def two_scales_findings(security_ids) when is_list(security_ids) do
-    bonds =
-      Security
-      |> where([s], s.id in ^Enum.uniq(security_ids))
-      |> Repo.all()
-      |> Enum.filter(&bond?/1)
+    Security
+    |> where([s], s.id in ^Enum.uniq(security_ids))
+    |> Repo.all()
+    |> two_scales_among()
+  end
 
+  @doc """
+  `two_scales_findings/1` over securities a caller has already loaded: the
+  catalog-wide `two_scales` predicate reads its rows' securities here, so
+  the guard is one rule wherever it runs.
+  """
+  @spec two_scales_among([Security.t()]) :: [map()]
+  def two_scales_among(securities) when is_list(securities) do
+    bonds = securities |> Enum.filter(&bond?/1) |> Enum.uniq_by(& &1.id)
     ids = Enum.map(bonds, & &1.id)
     quotes = Quotes.latest_by_security_ids(ids)
     bookings = bookings_by_security(ids)
@@ -121,7 +164,11 @@ defmodule Portfolixir.Portfolios.Bonds do
         finding =
           two_scales(quote_point(quotes[security.id]), Map.get(bookings, security.id, [])),
         finding != nil do
-      Map.merge(finding, %{security_id: security.id, name: security.name})
+      Map.merge(finding, %{
+        security_id: security.id,
+        name: security.name,
+        effective_asset_class: Security.effective_asset_class(security)
+      })
     end
   end
 
@@ -132,14 +179,26 @@ defmodule Portfolixir.Portfolios.Bonds do
     end
   end
 
+  # The computation basis of the finding (#1068, D-15): both bands, which
+  # securities the guard reads, and that nothing is converted.
   defp two_scales_rule do
     {low, high} = BondMetrics.two_scales_band()
+    ceiling = BondMetrics.unit_scale_price_ceiling()
 
     "named when the latest stored quote is between #{low} and #{high} times a booked price " <>
-      "per unit (a buy or a priced inbound delivery), both ends included: quotes near 100 " <>
-      "beside bookings near 1 mean the export booked the nominal as the quantity, so " <>
-      "value, gain and weight are a hundred times too high while the TTWROR shows nothing; " <>
-      "the figures are shown as stored, nothing is converted"
+      "per unit (a buy or a priced inbound delivery), both ends included (direction " <>
+      "forward): quotes near 100 beside bookings near 1 mean the export booked the nominal " <>
+      "as the quantity, so value, gain and weight are a hundred times too high while the " <>
+      "TTWROR shows nothing; or between 1/#{high} and 1/#{low} of one, both ends included, " <>
+      "with the quote itself at most #{ceiling} (direction reverse): quotes near 1 beside " <>
+      "bookings near 100 mean the stored quotes " <>
+      "are not percent of face, so the bond counts a hundred times too low in every total; " <>
+      "unit_scale_bookings and last_unit_scale_booking are the bookings in the band either " <>
+      "way, and where a bond has bookings in both bands the forward finding is reported; " <>
+      "read for a security whose effective asset class is bond or government_bond, or which " <>
+      "has no asset class as shown (none stored, none inferred), a maturity_date or " <>
+      "coupon_rate, and a name that is not a structured product's; the figures are shown " <>
+      "as stored, nothing is converted"
   end
 
   defp held_quantity(transactions) do

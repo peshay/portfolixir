@@ -195,6 +195,7 @@ defmodule Portfolixir.Engines.BondMetricsTest do
     ]
 
     finding = BondMetrics.two_scales(latest, bookings)
+    assert finding.direction == :forward
     assert finding.latest_quote == latest
     assert finding.unit_scale_bookings == 2
     assert finding.last_unit_scale_booking == %{price: dec("0.985"), date: ~D[2026-03-12]}
@@ -213,5 +214,66 @@ defmodule Portfolixir.Engines.BondMetricsTest do
     assert at.("100", "0.2")
     refute at.("99.99", "5")
     refute at.("100.01", "0.2")
+  end
+
+  # User story (#1068, D-15; board 02, pin 4):
+  # As the operator whose stored quotes may sit on the unit scale (near 1)
+  # while the bond was booked at percent of face (near 100 per unit),
+  # I want that bond named too, with the direction of its two scales,
+  # so that a bond counting a hundredfold too low in every total is not
+  # silent because its scales point the other way.
+  #
+  # Acceptance criteria:
+  # - A latest quote of 0.981 against a buy at 98.40 is named in the reverse
+  #   direction, with the quote, the count of bookings in the band and the
+  #   last of them; a forward finding says it is forward.
+  # - The reverse band is the forward band inverted: a ratio of quote to
+  #   booked price per unit from 1/500 to 1/20, both ends included; 1/501
+  #   and a ratio just over 1/20 are not named.
+  # - The band's ends stay 20 and 500, and nothing is converted: the
+  #   finding carries the quote and the booking as given.
+  # - Where both directions occur among a bond's bookings, the forward
+  #   finding is the one reported.
+  # - The reverse case needs the quote itself on the unit scale, at most
+  #   100 ÷ 20 = 5: a percent quote of 98.5 beside a booking of 4925 per
+  #   piece (a denomination booked per piece) is no reverse case.
+  test "names the reverse case, quotes near 1 beside bookings near 100, with its direction" do
+    latest = %{close: dec("0.981"), date: ~D[2026-09-30]}
+    booking = %{price: dec("98.40"), date: ~D[2026-03-12]}
+
+    assert %{
+             direction: :reverse,
+             latest_quote: ^latest,
+             unit_scale_bookings: 1,
+             last_unit_scale_booking: ^booking
+           } = BondMetrics.two_scales(latest, [booking, %{price: dec("0.99"), date: @as_of}])
+
+    assert BondMetrics.two_scales_band() == {dec("20"), dec("500")}
+
+    at = fn close, price ->
+      BondMetrics.two_scales(%{close: dec(close), date: @as_of}, [
+        %{price: dec(price), date: @as_of}
+      ])
+    end
+
+    # 1/500 and 1/20 exactly, both named; 1/501 and 5.01/100 not.
+    assert %{direction: :reverse} = at.("0.2", "100")
+    assert %{direction: :reverse} = at.("1", "500")
+    assert %{direction: :reverse} = at.("5", "100")
+    assert %{direction: :reverse} = at.("1", "20")
+    refute at.("1", "501")
+    refute at.("5.01", "100")
+    refute at.("1", "19.99")
+    refute at.("98.5", "4925")
+    refute at.("5.01", "250")
+
+    both =
+      BondMetrics.two_scales(%{close: dec("10"), date: @as_of}, [
+        %{price: dec("1000"), date: ~D[2026-01-05]},
+        %{price: dec("0.1"), date: ~D[2026-02-05]}
+      ])
+
+    assert %{direction: :forward, unit_scale_bookings: 1} = both
+    assert Decimal.equal?(both.last_unit_scale_booking.price, dec("0.1"))
   end
 end

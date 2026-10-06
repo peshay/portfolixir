@@ -8,6 +8,7 @@ defmodule Portfolixir.Portfolios.BondsTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios.Bonds
 
@@ -246,8 +247,9 @@ defmodule Portfolixir.Portfolios.BondsTest do
     assert reading.two_scales == nil
   end
 
-  # User story (#330, ADR-0052 §1):
-  # As the operator whose security is not a bond,
+  # User story (#330, ADR-0052 §1; #1068 for the unclassed case below):
+  # As the operator whose security is classed as something other than a
+  # bond,
   # I want no bond reading for it, whatever master data it carries,
   # so that the detail of a share or a fund does not change.
   #
@@ -255,7 +257,9 @@ defmodule Portfolixir.Portfolios.BondsTest do
   # - An ETF has no reading; a security whose class is inferred as a
   #   government bond from its name has one; a bond with no master data has
   #   a reading whose metrics name what is missing, and its nominal held.
-  test "only the two bond classes have a reading" do
+  #   (A security with no class at all and bond master data is read as a
+  #   bond: the next test.)
+  test "only the two bond classes have a reading among classed securities" do
     {:ok, etf} =
       Catalog.create_security(Actor.owner_ui(), %{
         name: "Examplia World ETF",
@@ -277,5 +281,185 @@ defmodule Portfolixir.Portfolios.BondsTest do
     assert Decimal.equal?(reading.nominal_held.amount, dec("0"))
     assert reading.current_yield.missing == ["coupon_rate", "price"]
     assert reading.remaining_term.missing == ["maturity_date"]
+  end
+
+  defp unclassed!(name, attrs \\ %{}) do
+    {:ok, security} =
+      Catalog.create_security(
+        Actor.owner_ui(),
+        Map.merge(%{name: name, currency_code: "EUR"}, attrs)
+      )
+
+    # The name inference misses each of these names, so nothing is stored.
+    assert security.asset_class == nil
+    security
+  end
+
+  # User story (#1068, D-15; board 02, pin 3):
+  # As the operator holding a corporate bond the catalog has no class for,
+  # because the name inference recognises only government-bond names,
+  # I want the master data I entered (a maturity date or a coupon) to bring
+  # it under the two-scales guard,
+  # so that a bond on two scales is not silent because it has no class —
+  # while an unclassed share that rose twentyfold stays unnamed.
+  #
+  # Acceptance criteria:
+  # - A security with no class (none stored, none inferred) and a maturity
+  #   date, bought 10000 at 0.991 and quoted 99.10, is a bond: its reading
+  #   names it on two scales, and two_scales_findings/1 lists it as forward,
+  #   saying it shows no class.
+  # - A coupon alone is master data too.
+  # - An unclassed security with no master data, quoted 25 times its buy
+  #   price, is no bond: no reading, nothing named.
+  # - A security whose stored class is not a bond class stays no bond,
+  #   whatever master data it carries (ADR-0052 §1).
+  test "an unclassed security carrying bond master data is guarded; one without is not" do
+    world = base_world()
+
+    corporate = unclassed!("Ostsee Logistik 4,10% 2028/2033", %{maturity_date: "2033-06-30"})
+    buy!(world, corporate, quantity: "10000", price: "0.991", date: ~D[2026-03-12])
+    put_quote!(corporate, ~D[2026-09-30], "99.10")
+
+    coupon_only = unclassed!("Ostsee Hafen Anleihe", %{coupon_rate: "3"})
+    buy!(world, coupon_only, quantity: "5000", price: "0.98", date: ~D[2026-03-12])
+    put_quote!(coupon_only, ~D[2026-09-30], "98.00")
+
+    share = unclassed!("Ostsee Holz")
+    buy!(world, share, quantity: "10", price: "4", date: ~D[2026-03-12])
+    put_quote!(share, ~D[2026-09-30], "100")
+
+    {:ok, etf} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Examplia World ETF",
+        currency_code: "EUR",
+        asset_class: "etf",
+        maturity_date: "2033-06-30"
+      })
+
+    buy!(world, etf, quantity: "10", price: "1", date: ~D[2026-03-12])
+    put_quote!(etf, ~D[2026-09-30], "100")
+
+    assert Bonds.bond?(corporate)
+    assert Bonds.bond?(coupon_only)
+    refute Bonds.bond?(share)
+    refute Bonds.bond?(etf)
+
+    assert %{direction: :forward, unit_scale_bookings: 1} =
+             Bonds.reading(corporate, as_of: @as_of).two_scales
+
+    assert Bonds.reading(share, as_of: @as_of) == nil
+    assert Bonds.reading(etf, as_of: @as_of) == nil
+
+    assert [hafen, logistik] =
+             Bonds.two_scales_findings([corporate.id, coupon_only.id, share.id, etf.id])
+
+    assert %{name: "Ostsee Hafen Anleihe", direction: :forward, effective_asset_class: nil} =
+             hafen
+
+    assert %{
+             security_id: id,
+             direction: :forward,
+             effective_asset_class: nil,
+             latest_quote: %{close: close}
+           } = logistik
+
+    assert id == corporate.id
+    assert Decimal.equal?(close, dec("99.10"))
+  end
+
+  # User story (#1068, D-15; board 02, pin 4):
+  # As the operator whose stored quotes for a bond sit near 1 while the
+  # bond was booked at percent of face, near 100 per unit,
+  # I want the bond named as priced on two scales in the reverse direction,
+  # where its figures are read and among the bonds a total holds,
+  # so that a bond counting a hundredfold too low is named as the forward
+  # case is.
+  #
+  # Acceptance criteria:
+  # - A government bond bought 100 at 98.40 and quoted 0.981: the reading's
+  #   two_scales is reverse, with the quote and the buy; the nominal reads
+  #   10000 as booked — nothing is converted.
+  # - two_scales_findings/1 lists it as reverse, with its class.
+  # - The rule states both bands, which bonds the guard reads (a bond class,
+  #   or no class as shown and a maturity date or coupon), and that nothing
+  #   is converted.
+  test "a bond whose quotes sit near 1 beside bookings near 100 is named in reverse" do
+    world = base_world()
+    reverse = bond!()
+    buy!(world, reverse, quantity: "100", price: "98.40", date: ~D[2026-03-12])
+    put_quote!(reverse, ~D[2026-09-30], "0.981")
+
+    reading = Bonds.reading(reverse, as_of: @as_of)
+    assert Decimal.equal?(reading.nominal_held.amount, dec("10000"))
+
+    assert %{
+             direction: :reverse,
+             latest_quote: %{close: close, date: ~D[2026-09-30]},
+             unit_scale_bookings: 1,
+             last_unit_scale_booking: %{price: price, date: ~D[2026-03-12]},
+             rule: rule
+           } = reading.two_scales
+
+    assert Decimal.equal?(close, dec("0.981"))
+    assert Decimal.equal?(price, dec("98.40"))
+
+    assert [%{direction: :reverse, effective_asset_class: "government_bond"}] =
+             Bonds.two_scales_findings([reverse.id])
+
+    assert rule =~ "between 20 and 500 times a booked price per unit"
+
+    assert rule =~
+             "between 1/500 and 1/20 of one, both ends included, with the quote itself at most 5"
+
+    assert rule =~ "direction forward"
+    assert rule =~ "direction reverse"
+    assert rule =~ "bond or government_bond"
+
+    assert rule =~
+             "no asset class as shown (none stored, none inferred), a maturity_date or coupon_rate"
+
+    assert rule =~ "nothing is converted"
+  end
+
+  # User story (#1068, review of D-15's signal):
+  # As the operator reading the asset class the list and the dialog show,
+  # I want the master-data signal to apply only to a security they show
+  # without a class, and never to a certificate,
+  # so that a security shown as Equity is not badged "ohne Anlageklasse",
+  # and a certificate whose expiry is stored as a maturity date is not
+  # named as a bond.
+  #
+  # Acceptance criteria:
+  # - A security with no stored class, an ISIN and a stored logo (shown as
+  #   Equity by the logo rule) and a maturity date, on two scales, is no
+  #   bond: no reading, nothing named.
+  # - "Muster Indexzertifikat" with a maturity date, on two scales, is no
+  #   bond either: the inference reads its name as a structured product.
+  test "the master-data signal needs no class as shown and a name that is no certificate's" do
+    world = base_world()
+
+    logo_equity =
+      unclassed!("Ostsee Logistik 4,10% 2028/2033", %{
+        isin: "XSMUSTRL0303",
+        maturity_date: "2033-06-30"
+      })
+
+    {:ok, logo_equity} =
+      Catalog.put_logo_attributes(logo_equity, %{"logo_path" => "/logos/ostsee.png"})
+
+    assert Security.effective_asset_class(logo_equity) == "equity"
+    buy!(world, logo_equity, quantity: "10000", price: "0.991", date: ~D[2026-03-12])
+    put_quote!(logo_equity, ~D[2026-09-30], "99.10")
+
+    certificate = unclassed!("Muster Indexzertifikat", %{maturity_date: "2027-12-17"})
+    buy!(world, certificate, quantity: "100", price: "1", date: ~D[2026-03-12])
+    put_quote!(certificate, ~D[2026-09-30], "100")
+
+    for security <- [logo_equity, certificate] do
+      refute Bonds.bond?(security), security.name
+      assert Bonds.reading(security, as_of: @as_of) == nil
+    end
+
+    assert Bonds.two_scales_findings([logo_equity.id, certificate.id]) == []
   end
 end
