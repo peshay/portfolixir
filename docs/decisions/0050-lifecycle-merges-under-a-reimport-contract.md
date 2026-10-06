@@ -632,10 +632,13 @@ closing act (shown red against a deliberately broken implementation) and
    and the database keeps them so from both sides: a hash a transaction
    holds cannot be retired (a trigger on `retired_import_hashes`, the mirror
    of §3's trigger on `transactions`), and a retired hash cannot be booked.
-   Each trigger takes a transaction-scoped advisory lock on the hash before
-   it checks the other table, so a booking and a retirement of one hash run
-   at once take turns, and the second is refused. A merge deletes a row
-   before it retires the row's hash, so it never meets the refusal.
+   Each trigger takes one transaction-scoped advisory lock, the same key for
+   every hash, before it checks the other table: a booking shared, a
+   retirement exclusive. So a booking and a retirement of one hash run at
+   once take turns, and the second is refused, while bookings never wait for
+   each other; a lock per hash would cost one lock-table entry per booked
+   row and run the table out on a large import. A merge deletes a row before
+   it retires the row's hash, so it never meets the refusal.
 5. A drifted re-import after each merge kind creates nothing; for the
    security merge, in **both** ADR-0029 §5 directions.
 6. A newer file naming a former name or a merged-away ISIN inserts its new rows

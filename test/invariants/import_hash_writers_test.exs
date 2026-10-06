@@ -10,8 +10,9 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
   # holds too (§16, the 2026-10-06 note to invariant 4, #917): the database
   # refuses retiring a hash a live transaction still holds, so the live and
   # retired sets stay disjoint from both sides, and the merge writers, which
-  # delete before they retire, are unaffected. The per-hash lock both
-  # triggers take is raced in test/portfolixir/lock_race/import_hash_test.exs.
+  # delete before they retire, are unaffected. The import-hash lock both
+  # triggers take, shared by a booking and exclusive to a retirement, is raced
+  # in test/portfolixir/lock_race/import_hash_test.exs and counted below.
   #
   # It also pins §1's premise: a balance anchor or a split never carries an
   # import hash, so the rows a declared restatement removes (§7's folded
@@ -44,6 +45,12 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
                       # The retired-hash table itself, written by merges only.
                       {"lib/portfolixir/lifecycle/retired_import_hash.ex", :changeset, :casts}
                     ])
+
+  # The import-hash lock both triggers of
+  # priv/repo/migrations/20261006120000_refuse_retiring_a_held_import_hash.exs
+  # take (#917), the two-key advisory lock (727_209_017, 0), as pg_locks shows
+  # it: classid, objid, and objsubid 2 for the two-key form.
+  @import_hash_lock {727_209_017, 0, 2}
 
   @changeset_writes ~w(put_change force_change change)a
   @bulk_writes ~w(insert_all update_all)a
@@ -426,6 +433,72 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
     end
   end
 
+  describe "the import-hash lock is one key per transaction (#917, the closing act)" do
+    # User story:
+    # As the operator importing a Portfolio Performance file of many rows,
+    # I want the lock that keeps a booking and a retirement of one hash apart
+    # to cost the database one lock-table entry per transaction, however many
+    # rows the transaction books,
+    # so that a file up to the importer's 100,000-row cap books, and its
+    # preview's dry run counts it, without running out the database's shared
+    # lock table.
+    #
+    # Acceptance criteria:
+    # - A transaction that books hashed rows, through the ledger or a raw
+    #   insert, holds exactly one advisory lock it did not hold before: the
+    #   import-hash lock, keys (727_209_017, 0), in share mode.
+    # - A retirement holds the same key in exclusive mode.
+    # - One transaction books 20,000 hashed rows without an error, past the
+    #   11,000 to 15,000 rows at which a lock per hash ran out the shared lock
+    #   table at the default max_locks_per_transaction of 64.
+    setup do
+      %{world: WorldFixtures.base_world(cash_name: "Savings")}
+    end
+
+    test "a transaction that books many hashed rows holds the one key, shared", %{world: world} do
+      before = advisory_locks()
+
+      for day <- 1..25 do
+        {:ok, _tx} =
+          Ledger.create_transaction(
+            Actor.import_session(),
+            deposit_attrs(world, Date.to_iso8601(Date.add(~D[2026-01-01], day))),
+            import_hash: "synthetic-lock-ledger-#{day}"
+          )
+      end
+
+      book_raw!(world, "synthetic-lock-raw-", 200)
+
+      assert MapSet.difference(advisory_locks(), before) |> Enum.to_list() == [
+               {@import_hash_lock, "ShareLock"}
+             ]
+    end
+
+    test "a retirement holds the same key, exclusively", %{world: world} do
+      {:ok, record} = Lifecycle.record_merge(Actor.owner_ui(), merge_attrs(world))
+      before = advisory_locks()
+
+      retire!(record, "synthetic-lock-retired")
+
+      assert MapSet.difference(advisory_locks(), before) |> Enum.to_list() == [
+               {@import_hash_lock, "ExclusiveLock"}
+             ]
+    end
+
+    # Under a second (0.74 s on the run that added it). A lock per hash failed
+    # it with 53200 out of shared memory.
+    test "one transaction books 20,000 hashed rows", %{world: world} do
+      assert %{num_rows: 20_000} = book_raw!(world, "synthetic-lock-bulk-", 20_000)
+
+      assert Repo.aggregate(
+               from(t in Transaction, where: like(t.import_hash, "synthetic-lock-bulk-%")),
+               :count
+             ) == 20_000
+
+      assert advisory_locks() |> Enum.count(fn {key, _mode} -> key == @import_hash_lock end) == 1
+    end
+  end
+
   describe "a balance anchor or a split never carries an import hash (§1, §3)" do
     # User story:
     # As the maintainer of the post-merge re-import contract,
@@ -673,6 +746,38 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
       split_ratio_numerator: 2,
       split_ratio_denominator: 1
     }
+  end
+
+  # `rows` hashed deposits, `<prefix>1` to `<prefix><rows>`, in one raw
+  # INSERT ... SELECT, the cheapest way to book many rows in one transaction.
+  defp book_raw!(world, prefix, rows) do
+    {:ok, result} =
+      with_actor(fn ->
+        Repo.query!(
+          """
+          INSERT INTO transactions
+            (portfolio_id, cash_account_id, type, date, currency_code, gross_amount,
+             fees, taxes, import_hash, inserted_at, updated_at)
+          SELECT $1, $2, 'deposit', DATE '2026-01-05', 'EUR', 10, 0, 0, $3 || n, now(), now()
+          FROM generate_series(1, $4::integer) AS n
+          """,
+          [world.portfolio.id, world.cash.id, prefix, rows]
+        )
+      end)
+
+    result
+  end
+
+  # The advisory locks this connection holds, `{{classid, objid, objsubid},
+  # mode}`.
+  defp advisory_locks do
+    %{rows: rows} =
+      Repo.query!("""
+      SELECT classid::bigint, objid::bigint, objsubid::integer, mode FROM pg_locks
+      WHERE locktype = 'advisory' AND pid = pg_backend_pid()
+      """)
+
+    MapSet.new(rows, fn [classid, objid, objsubid, mode] -> {{classid, objid, objsubid}, mode} end)
   end
 
   defp with_actor(fun) do
