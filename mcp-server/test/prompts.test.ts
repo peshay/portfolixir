@@ -131,7 +131,7 @@ describe("the companion's prompts", () => {
     assert.doesNotMatch(text, /one view that includes everything/);
     assert.doesNotMatch(text, /views\.create with only a name/);
     assert.match(text, /portfolixir\.portfolios\.create is deprecated/);
-    assert.match(text, /Imports page of the instance \(\/imports\)/);
+    assert.match(text, /Imports page of the instance \(Transactions → Import in the UI, \/imports\)/);
     assert.match(text, /import_converter prompt/);
     assert.match(text, /portfolixir\.transactions\.create, one booking per call/);
     assert.match(text, /There is no broker or bank connection/);
@@ -219,6 +219,9 @@ describe("the companion's prompts", () => {
     assert.match(text, /no network call and no model call/);
     assert.match(text, /synthetic/);
     assert.match(text, /Imports page/);
+    // #1093: the page's place in the UI, beside its address.
+    assert.match(text, /Imports page of their instance \(Transactions → Import in the UI, \/imports\)/);
+    assert.match(text, /opens the Imports page \(Transactions → Import in the UI, \/imports\)/);
     assert.match(
       text,
       /Booking the converted rows one by one with portfolixir\.transactions\.create is not a substitute/

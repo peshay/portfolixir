@@ -19,9 +19,18 @@ ENV MIX_ENV=prod \
     HEX_VERSION=2.4.2 \
     LANG=C.UTF-8
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends build-essential git ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+# Both stages install their Debian packages through docker/apt-install.sh
+# (#1092), which the step mounts rather than copies. With the build secret
+# `build_ca` (below), apt fetches deb.debian.org over HTTPS and verifies
+# against that CA; on a host that cannot reach deb.debian.org, the build
+# arguments DEBIAN_MIRROR and DEBIAN_SECURITY_MIRROR name mirrors
+# (--build-arg DEBIAN_MIRROR=http://mirror.example/). With none, apt runs
+# exactly as before. The script says why the secret is mounted readable by all.
+ARG DEBIAN_MIRROR
+ARG DEBIAN_SECURITY_MIRROR
+RUN --mount=type=secret,id=build_ca,mode=0444 \
+    --mount=type=bind,source=docker/apt-install.sh,target=/run/apt-install.sh \
+    sh /run/apt-install.sh build-essential git ca-certificates
 
 # A build behind a proxy that re-signs TLS (#1026): pass the proxy's CA as the
 # build secret `build_ca`, and each step below that downloads trusts it first
@@ -29,7 +38,7 @@ RUN apt-get update && \
 #   docker build --secret id=build_ca,src=proxy-ca.crt -f Dockerfile.release .
 # Each step sources the script, so with the secret its Hex reads the system
 # store the CA lands in. Without the secret nothing is added and Hex keeps its
-# own bundle. The runtime stage never sees it.
+# own bundle. The runtime stage reads it for apt alone, where it is mounted.
 COPY --chmod=0755 docker/trust-build-ca.sh /usr/local/bin/trust-build-ca
 
 RUN --mount=type=secret,id=build_ca \
@@ -51,11 +60,16 @@ RUN mix compile && mix phx.digest && mix release
 # ERTS links against its libraries; pinned by tag and digest.
 FROM debian:bookworm-20260918-slim@sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+# The build stage's apt route (docker/apt-install.sh, #1092). The script and
+# the optional `build_ca` secret are mounted for this step only, so neither
+# reaches the image, and the sources the image keeps are Debian's own.
+ARG DEBIAN_MIRROR
+ARG DEBIAN_SECURITY_MIRROR
+RUN --mount=type=secret,id=build_ca,mode=0444 \
+    --mount=type=bind,source=docker/apt-install.sh,target=/run/apt-install.sh \
+    sh /run/apt-install.sh \
       libstdc++6 openssl libncurses6 locales ca-certificates curl && \
-    sed -i '/C.UTF-8/s/^# //g' /etc/locale.gen && locale-gen && \
-    rm -rf /var/lib/apt/lists/*
+    sed -i '/C.UTF-8/s/^# //g' /etc/locale.gen && locale-gen
 
 # No Erlang distribution (E25 S2, F62): the release is one node and nothing
 # attaches to it, so no distribution listener is opened towards the sibling

@@ -22,8 +22,8 @@ shows it.
 - **A Portfolio Performance export.** Export your transactions from Portfolio
   Performance as CSV or JSON v1 (a CSV with the German column names the
   importer reads, `Datum;Typ;Wertpapier;…`), drop the file on the Imports page
-  (`/imports`), read the preview and apply it. The apply is atomic, and
-  dropping the same file again books nothing twice.
+  (Transactions → Import, `/imports`), read the preview and apply it. The apply
+  is atomic, and dropping the same file again books nothing twice.
 - **Your bank's or broker's own export, through your agent.** The MCP
   companion's `import_converter` prompt has your agent write a converter that
   runs on your machine and turns the export into a Portfolio Performance CSV
@@ -192,16 +192,22 @@ it into the build with Docker's predefined proxy build arguments (`HTTP_PROXY`,
 `docker compose build --build-arg HTTPS_PROXY=http://proxy.example:3128`) or the
 Docker client's proxy configuration; behind a proxy that intercepts TLS, pass
 its CA to the build as the build secret `build_ca`
-([Home Deployment](docs/home-deployment.md#prerequisites) shows how).
+([Home Deployment](docs/home-deployment.md#prerequisites) shows how, and the
+route for a proxy on the host's loopback, for a host that cannot reach
+`deb.debian.org`, and for one that reaches no Debian mirror at all).
 
 ### Run with Docker Compose
 
 Create `.env` from `.env.example`, readable by you only
 (`install -m 600 .env.example .env`), and set the secrets:
 `PORTFOLIXIR_API_TOKEN`, `PORTFOLIXIR_MCP_TOKEN` and `SECRET_KEY_BASE` each from
-`openssl rand -base64 48`, `POSTGRES_PASSWORD` from `openssl rand -hex 32`.
-Then build and start the stack in the background; the command returns once
-the stack is up (without `-d` it stays attached to the logs until you stop it):
+`openssl rand -base64 48`, `POSTGRES_PASSWORD` from `openssl rand -hex 32`, and
+`PORTFOLIXIR_UI_PASSWORD`, the web UI's login, from `openssl rand -base64 24` or
+a passphrase of at least 12 characters you choose, in single quotes in `.env`
+because Compose reads a `$` in an unquoted value as a variable: left empty, the
+web UI is open and asks for no login. Then build and start the stack in the background;
+the command returns once the stack is up (without `-d` it stays attached to the
+logs until you stop it):
 
 ```sh
 docker compose up --build -d
@@ -216,7 +222,8 @@ http://127.0.0.1:4001/mcp
 
 The login, at `/login`, asks only for `PORTFOLIXIR_UI_PASSWORD`: there is no
 user name. A Portfolio Performance file goes onto the Imports page, at
-`/imports`.
+`/imports`, which the sidebar reaches as Transactions → Import: Import is a
+tab of the Transactions area, not an entry of its own.
 
 The development stack (source mounted, Mix present) is
 `docker compose -f docker-compose.dev.yml up --build`.
