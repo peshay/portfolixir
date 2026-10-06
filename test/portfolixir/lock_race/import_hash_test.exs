@@ -3,9 +3,10 @@ defmodule Portfolixir.LockRace.ImportHashTest do
   # lock-order harness (#996): a booking of hash H and a retirement of H
   # (#917, ADR-0050 §16, the 2026-10-06 note to invariant 4). Each trigger
   # checks the other table, and under READ COMMITTED neither sees the other's
-  # uncommitted row, so without a shared lock both could commit and the live
-  # and retired sets would meet. Both triggers take one advisory lock per
-  # hash first, so the second writer waits for the first, reads what it
+  # uncommitted row, so without a lock both could commit and the live and
+  # retired sets would meet. Both triggers take the import-hash lock first,
+  # one key for every hash, shared by a booking and exclusive to a
+  # retirement, so the second writer waits for the first, reads what it
   # committed, and is refused.
   #
   # async: false -- the races share a scratch database and the barrier's

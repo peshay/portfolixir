@@ -18,20 +18,44 @@ defmodule Portfolixir.Repo.Migrations.RefuseRetiringAHeldImportHash do
   unchanged, and the table is append-only, so an insert is the only write
   that can carry a new hash.
 
-  **One lock per hash.** Each trigger checks the other table, and under READ
-  COMMITTED neither sees a row the other transaction has not committed, so a
-  booking and a retirement of one hash running at once could both commit.
-  Both trigger functions therefore take a transaction-scoped advisory lock on
-  the hash (`pg_advisory_xact_lock(hashtext(hash))`) before their check: the
-  second writer waits for the first to end and then reads what it committed.
-  The lock is the one-key form; every other advisory lock of the application
-  is the two-key form, a separate key space, so none can meet it. This
-  migration replaces the existing function of `transactions` with the locking
-  body; `down` restores the body it had.
+  **One lock, shared by bookings, exclusive to a retirement.** Each trigger
+  checks the other table, and under READ COMMITTED neither sees a row the
+  other transaction has not committed, so a booking and a retirement of one
+  hash running at once could both commit. Both trigger functions therefore
+  take the **import-hash lock** before their check: the transaction-scoped
+  advisory lock of the two-key form with the keys `(727_209_017, 0)`,
+  reserved for these two triggers. No other advisory lock of the application
+  uses the first key 727_209_017: each of the others has a first key of its
+  own. A booking takes the lock shared (`pg_advisory_xact_lock_shared`), a
+  retirement exclusive (`pg_advisory_xact_lock`), so a retirement waits for
+  every booking transaction in flight and a booking for a retirement in
+  flight; the second writer then reads what the first committed. Bookings
+  never wait for each other.
+
+  It is one key and not one per hash. A lock held until commit takes an entry
+  of the database's shared lock table, and an import books every row of a
+  file in one transaction, the preview's dry run too: one lock per hash ran
+  the table out (`53200 out of shared memory`) at some 11,000 to 15,000 rows
+  under the default `max_locks_per_transaction` of 64, below the importer's
+  100,000-row cap. A transaction that takes a lock it already holds takes no
+  new entry, so one key costs one entry per transaction, however many rows it
+  books. Hashed keys were also taken in no fixed order and could collide, so
+  two writers with no hash in common could deadlock; one key has no order.
+  The cost: a retirement also waits for bookings of other hashes. That
+  serializes more than it must, never less, and the only writer that retires,
+  a merge, books no hash, so no transaction holds the shared lock while it
+  asks for the exclusive one.
+
+  This migration replaces the existing function of `transactions` with the
+  locking body; `down` restores the body it had.
 
   Additive: two functions and a trigger, over no stored row.
   """
   use Ecto.Migration
+
+  # The import-hash lock's two keys (#917): reserved for the two triggers
+  # below, and named by no other advisory lock (see the moduledoc).
+  @lock_keys "727209017, 0"
 
   def up do
     execute("""
@@ -42,7 +66,7 @@ defmodule Portfolixir.Repo.Migrations.RefuseRetiringAHeldImportHash do
         RETURN NEW;
       END IF;
 
-      PERFORM pg_advisory_xact_lock(hashtext(NEW.import_hash));
+      PERFORM pg_advisory_xact_lock(#{@lock_keys});
 
       IF EXISTS (
         SELECT 1 FROM transactions t WHERE t.import_hash = NEW.import_hash
@@ -80,10 +104,10 @@ defmodule Portfolixir.Repo.Migrations.RefuseRetiringAHeldImportHash do
   end
 
   # The function of `transactions_refuse_retired_import_hash`, as
-  # `20260925130000` created it, and with the per-hash lock taken once the
-  # row is known to carry a new hash.
+  # `20260925130000` created it, and with the import-hash lock taken shared
+  # once the row is known to carry a new hash.
   defp refuse_retired_function(lock: lock?) do
-    lock = if lock?, do: "PERFORM pg_advisory_xact_lock(hashtext(NEW.import_hash));", else: ""
+    lock = if lock?, do: "PERFORM pg_advisory_xact_lock_shared(#{@lock_keys});", else: ""
 
     """
     CREATE OR REPLACE FUNCTION portfolixir_refuse_retired_import_hash()

@@ -12,9 +12,10 @@ defmodule Portfolixir.Lifecycle.RetiredImportHash do
 
   Rows are never updated or deleted, and a hash is retired at most once; the
   database enforces both, and refuses a retired hash on `transactions`. It
-  also refuses retiring a hash a transaction still holds, under a per-hash
-  lock both sides take (ADR-0050 §16, the 2026-10-06 note to invariant 4,
-  #917): a merge deletes the row first, so the two sets stay disjoint.
+  also refuses retiring a hash a transaction still holds, under one lock both
+  sides take, shared by a booking and exclusive to a retirement (ADR-0050
+  §16, the 2026-10-06 note to invariant 4, #917): a merge deletes the row
+  first, so the two sets stay disjoint.
   """
   use Ecto.Schema
   import Ecto.Changeset
