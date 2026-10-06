@@ -628,6 +628,14 @@ closing act (shown red against a deliberately broken implementation) and
 3. A create-mapped account is created only when one of its rows inserts.
 4. After any merge, the held-or-retired hash set is a superset of the one
    before; inserting a retired hash fails at the database on both writers.
+   *(2026-10-06, #917:)* the live and the retired sets are also **disjoint**,
+   and the database keeps them so from both sides: a hash a transaction
+   holds cannot be retired (a trigger on `retired_import_hashes`, the mirror
+   of §3's trigger on `transactions`), and a retired hash cannot be booked.
+   Each trigger takes a transaction-scoped advisory lock on the hash before
+   it checks the other table, so a booking and a retirement of one hash run
+   at once take turns, and the second is refused. A merge deletes a row
+   before it retires the row's hash, so it never meets the refusal.
 5. A drifted re-import after each merge kind creates nothing; for the
    security merge, in **both** ADR-0029 §5 directions.
 6. A newer file naming a former name or a merged-away ISIN inserts its new rows

@@ -296,6 +296,12 @@ defmodule Portfolixir.Lifecycle do
   journaled as a `retired_import_hash` create. The retirement names its merge
   record by `merge_record_id`; that foreign key is checked when the merge's
   transaction commits, so a merge may retire before it writes its record.
+
+  A hash a live transaction still holds is refused by the database (ADR-0050
+  §16, the 2026-10-06 note to invariant 4: the live and retired sets are
+  disjoint; #917) and answered as `{:error, changeset}` with an error on
+  `import_hash`, writing and journaling nothing: a merge deletes the row
+  before it retires the row's hash.
   """
   @spec retire_import_hash(Actor.t(), map()) ::
           {:ok, RetiredImportHash.t()} | {:error, Ecto.Changeset.t()}

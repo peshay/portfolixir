@@ -6,7 +6,12 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
   # sweeps that refusal over EVERY writer of `import_hash` — the Sprint 15
   # lesson: an invariant is swept over every writer of the table, not shown
   # on one path. The static half enumerates the writers from the source, so a
-  # third writer fails here until it joins the dynamic half.
+  # third writer fails here until it joins the dynamic half. The mirror
+  # holds too (§16, the 2026-10-06 note to invariant 4, #917): the database
+  # refuses retiring a hash a live transaction still holds, so the live and
+  # retired sets stay disjoint from both sides, and the merge writers, which
+  # delete before they retire, are unaffected. The per-hash lock both
+  # triggers take is raced in test/portfolixir/lock_race/import_hash_test.exs.
   #
   # It also pins §1's premise: a balance anchor or a split never carries an
   # import hash, so the rows a declared restatement removes (§7's folded
@@ -18,9 +23,11 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Imports
+  alias Portfolixir.Journal
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle
+  alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.WorldFixtures
 
   @lib_sources Path.wildcard("lib/**/*.ex")
@@ -231,6 +238,194 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
     end
   end
 
+  describe "a hash a live transaction holds is never retired, at the database (§16, the 2026-10-06 note to invariant 4, #917)" do
+    # User story:
+    # As the maintainer of the post-merge re-import contract,
+    # I want the database to refuse retiring a hash a live transaction still
+    # holds, as it refuses booking a hash a merge retired,
+    # so that the live and the retired hash sets stay disjoint from both sides
+    # and no writer can retire a booking that is still there.
+    #
+    # Acceptance criteria:
+    # - A raw insert into retired_import_hashes of a held hash is refused by
+    #   the database: a unique_violation naming
+    #   retired_import_hashes_import_hash_held.
+    # - `Lifecycle.retire_import_hash/2` with a held hash answers a changeset
+    #   error on `import_hash`, writes no row and journals nothing.
+    # - Every merge kind, which deletes a row before it retires the row's
+    #   hash, still retires it: the cash merge's internal transfer, the depot
+    #   and the security merge's collapsed duplicate.
+    # - The paths that retire a hash are known by name, so a new one fails
+    #   here until it joins the cases above (the Sprint 15 lesson).
+    setup do
+      world = WorldFixtures.base_world(cash_name: "Savings")
+      {:ok, record} = Lifecycle.record_merge(Actor.owner_ui(), merge_attrs(world))
+
+      {:ok, held} =
+        Ledger.create_transaction(Actor.import_session(), deposit_attrs(world, "2026-01-05"),
+          import_hash: "synthetic-held"
+        )
+
+      %{world: world, record: record, held: held}
+    end
+
+    test "a raw insert of a held hash is refused", %{record: record, held: held} do
+      error =
+        assert_raise Postgrex.Error, fn ->
+          with_actor(fn ->
+            Repo.query!(
+              """
+              INSERT INTO retired_import_hashes
+                (import_hash, former_transaction_id, merge_record_id, reason, inserted_at)
+              VALUES ($1, $2, $3, 'internal_transfer', now())
+              """,
+              [held.import_hash, held.id, record.id]
+            )
+          end)
+        end
+
+      assert error.postgres.code == :unique_violation
+      assert error.postgres.constraint == "retired_import_hashes_import_hash_held"
+      refute Repo.exists?(from(r in RetiredImportHash, where: r.import_hash == ^held.import_hash))
+    end
+
+    test "retire_import_hash/2 answers a changeset error and writes nothing", %{
+      record: record,
+      held: held
+    } do
+      assert {:error, changeset} =
+               Lifecycle.retire_import_hash(Actor.owner_ui(), %{
+                 import_hash: held.import_hash,
+                 former_transaction_id: held.id,
+                 merge_record_id: record.id,
+                 reason: "internal_transfer"
+               })
+
+      assert %{import_hash: ["is still held by a transaction"]} = errors_on(changeset)
+      refute Repo.exists?(from(r in RetiredImportHash, where: r.import_hash == ^held.import_hash))
+      assert Journal.list_entries(resource_type: "retired_import_hash") == []
+      assert Repo.get!(Transaction, held.id).import_hash == held.import_hash
+    end
+
+    test "a merge deletes the row before it retires its hash, and still retires it", %{
+      world: world
+    } do
+      {:ok, _result} =
+        Imports.apply(parse!(transfer_export()), %{portfolio_id: world.portfolio.id})
+
+      [transfer] =
+        Repo.all(
+          from(t in Transaction,
+            where: t.portfolio_id == ^world.portfolio.id and t.type == "cash_transfer"
+          )
+        )
+
+      {:ok, preview} = Lifecycle.preview_cash_merge(transfer.cash_account_id, world.cash.id)
+
+      assert {:ok, record, :applied} =
+               Lifecycle.merge_cash_account(
+                 Actor.owner_ui(),
+                 transfer.cash_account_id,
+                 world.cash.id,
+                 %{plan_digest: preview.plan_digest}
+               )
+
+      Repo.query!("SET CONSTRAINTS ALL IMMEDIATE")
+
+      assert [%RetiredImportHash{reason: :internal_transfer, merge_record_id: record_id}] =
+               Repo.all(
+                 from(r in RetiredImportHash, where: r.import_hash == ^transfer.import_hash)
+               )
+
+      assert record_id == record.id
+      refute Repo.exists?(from(t in Transaction, where: t.import_hash == ^transfer.import_hash))
+    end
+
+    test "a depot merge deletes a collapsed row before it retires its hash", %{world: world} do
+      # A second depot on the same cash account, so the two buys are
+      # key-equal once the source's is rewritten onto the target.
+      {:ok, source} =
+        Portfolixir.Portfolios.create_securities_account(Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          cash_account_id: world.cash.id,
+          name: "Second Depot"
+        })
+
+      security = WorldFixtures.create_security!(name: "Pair Fund", ticker: "PAIR")
+      kept = hashed_buy!(world, world.depot, security, "synthetic-depot-kept")
+      _collapsed = hashed_buy!(world, source, security, "synthetic-depot-collapsed")
+
+      {:ok, preview} = Lifecycle.preview_depot_merge(source.id, world.depot.id)
+
+      assert {:ok, record, :applied} =
+               Lifecycle.merge_depot(Actor.owner_ui(), source.id, world.depot.id, %{
+                 plan_digest: preview.plan_digest,
+                 collapse_key_equal: true
+               })
+
+      assert_collapsed_retired!("synthetic-depot-collapsed", kept, record)
+    end
+
+    test "a security merge deletes a collapsed row before it retires its hash", %{world: world} do
+      target = WorldFixtures.create_security!(name: "Twin Fund", ticker: nil)
+      source = WorldFixtures.create_security!(name: "Twin Fund", ticker: nil)
+      kept = hashed_buy!(world, world.depot, target, "synthetic-security-kept")
+      _collapsed = hashed_buy!(world, world.depot, source, "synthetic-security-collapsed")
+
+      {:ok, preview} = Lifecycle.preview_security_merge(source.id, target.id)
+
+      assert {:ok, record, :applied} =
+               Lifecycle.merge_security(Actor.owner_ui(), source.id, target.id, %{
+                 plan_digest: preview.plan_digest,
+                 collapse_key_equal: true
+               })
+
+      assert_collapsed_retired!("synthetic-security-collapsed", kept, record)
+    end
+
+    # The cash merge's, the depot merge's and the security merge's removals
+    # each have their case above; `MergeWriter.retire_hash/5` is the one
+    # caller of `Lifecycle.retire_import_hash/2`, which is the one caller of
+    # the retired table's changeset.
+    @retire_paths MapSet.new([
+                    {"lib/portfolixir/lifecycle.ex", :retire_import_hash, :changeset},
+                    {"lib/portfolixir/lifecycle/merge_writer.ex", :retire_hash,
+                     :retire_import_hash},
+                    {"lib/portfolixir/lifecycle/cash_merge.ex", :delete_rows, :retire_hash},
+                    {"lib/portfolixir/lifecycle/depot_merge.ex", :delete_rows, :retire_hash},
+                    {"lib/portfolixir/lifecycle/security_merge.ex", :delete_rows, :retire_hash}
+                  ])
+
+    test "the paths that retire a hash are exactly the three merges' removals" do
+      found = @lib_sources |> Enum.flat_map(&retire_paths_in/1) |> MapSet.new()
+
+      assert found == @retire_paths,
+             "the callers of RetiredImportHash.changeset/1, Lifecycle.retire_import_hash/2 " <>
+               "and MergeWriter.retire_hash/5 changed — show each new path retiring after " <>
+               "its delete above, then list it in @retire_paths:\n" <>
+               "new: #{inspect(Enum.sort(MapSet.difference(found, @retire_paths)))}\n" <>
+               "gone: #{inspect(Enum.sort(MapSet.difference(@retire_paths, found)))}"
+    end
+
+    # The sweep must not pass vacuously.
+    test "the retire-path sweep finds each kind of call in a sample" do
+      sample = """
+      defmodule Sample do
+        def a(attrs), do: RetiredImportHash.changeset(attrs)
+        def b(actor, attrs), do: Portfolixir.Lifecycle.retire_import_hash(actor, attrs)
+        def c(actor, row), do: MergeWriter.retire_hash(actor, row, 1, :internal_transfer, nil)
+        def d(attrs), do: Other.changeset(attrs)
+      end
+      """
+
+      assert retire_paths_in_source("sample.ex", sample) |> Enum.sort() == [
+               {"sample.ex", :a, :changeset},
+               {"sample.ex", :b, :retire_import_hash},
+               {"sample.ex", :c, :retire_hash}
+             ]
+    end
+  end
+
   describe "a balance anchor or a split never carries an import hash (§1, §3)" do
     # User story:
     # As the maintainer of the post-merge re-import contract,
@@ -414,6 +609,44 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
     }
   end
 
+  # A buy written the way the importer writes one, with its content hash, on
+  # the world's cash account: two of them on two depots or two securities are
+  # a key-equal pair a merge can collapse (§8).
+  defp hashed_buy!(world, depot, security, hash) do
+    {:ok, tx} =
+      Ledger.create_transaction(
+        Actor.import_session(),
+        %{
+          type: "buy",
+          portfolio_id: world.portfolio.id,
+          securities_account_id: depot.id,
+          cash_account_id: world.cash.id,
+          security_id: security.id,
+          currency_code: "EUR",
+          date: ~D[2026-01-12],
+          quantity: Decimal.new("5"),
+          price: Decimal.new("88.00")
+        },
+        import_hash: hash
+      )
+
+    tx
+  end
+
+  # The collapsed row is gone, its hash retired under the merge's record and
+  # superseded by the row that stayed, which keeps its own hash.
+  defp assert_collapsed_retired!(hash, kept, record) do
+    Repo.query!("SET CONSTRAINTS ALL IMMEDIATE")
+
+    assert [%RetiredImportHash{reason: :collapsed_duplicate} = retired] =
+             Repo.all(from(r in RetiredImportHash, where: r.import_hash == ^hash))
+
+    assert retired.superseded_by_transaction_id == kept.id
+    assert retired.merge_record_id == record.id
+    refute Repo.exists?(from(t in Transaction, where: t.import_hash == ^hash))
+    assert Repo.get!(Transaction, kept.id).import_hash == kept.import_hash
+  end
+
   defp deposit!(world, date) do
     {:ok, tx} = Ledger.create_transaction(Actor.owner_ui(), deposit_attrs(world, date))
     tx
@@ -501,6 +734,34 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
       end)
 
     attributes
+  end
+
+  # The calls that retire a hash, by the last segment of the module's alias.
+  @retire_calls [
+    {:RetiredImportHash, :changeset},
+    {:Lifecycle, :retire_import_hash},
+    {:MergeWriter, :retire_hash}
+  ]
+
+  defp retire_paths_in(path), do: retire_paths_in_source(path, File.read!(path))
+
+  # `{path, function, called}` for every function whose body makes one of
+  # the calls above.
+  defp retire_paths_in_source(path, source) do
+    source
+    |> Code.string_to_quoted!()
+    |> defs()
+    |> Enum.flat_map(fn {name, body} ->
+      for {module, fun} <- @retire_calls, remote_call?(body, module, fun), do: {path, name, fun}
+    end)
+    |> Enum.uniq()
+  end
+
+  defp remote_call?(body, module, fun) do
+    found?(body, fn
+      {{:., _, [{:__aliases__, _, segments}, ^fun]}, _, _args} -> List.last(segments) == module
+      _other -> false
+    end)
   end
 
   defp side_writes_in(path), do: side_writes_in_source(path, File.read!(path))
