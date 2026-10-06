@@ -1825,7 +1825,12 @@ Beispiel-Payloads für Konten:
   ein Konsument die `cash_quote` selbst rekonstruieren kann. Ein Konto, dessen Währung
   keinen Kurspfad zur Basis hat, wird `valued: false` gemeldet und aus
   `total_cash` ausgeschlossen, spiegelnd, wie unbepreisbare Positionen behandelt
-  werden. Die Antwort ist selbstbeschreibend (FR-13): sie trägt ein
+  werden. `unvalued_cash_count` (#1081) zählt solche Konten mit einem Saldo
+  ungleich null — das Geld, das `total_cash` und `total_with_cash` auslassen;
+  ein leeres steht mit `valued: false` in der Liste und zählt nicht — in jeder
+  Form der Abfrage, mit und ohne `include_positions`, sodass auch die
+  Roll-up-Abfrage die Lücke nennt; die `valuation_note` nennt die Regel. Die
+  Antwort ist selbstbeschreibend (FR-13): sie trägt ein
   `as_of`-Datum (das Lesedatum — die Bewertung wird live ohne gespeicherten
   Snapshot berechnet) und eine `valuation_note`, die angibt, dass Summen in
   `base_currency` über den EUR-Hub vorliegen und dass die je Position geführten
@@ -2810,7 +2815,9 @@ nicht journalisiert: Noch keine Regel kann sie lesen.
 - `GET /api/v1/views/:view_id/valuation` liefert die Live-Bewertung einer View
   **über alle Portfolios** (ADR-0024) in der Form der Portfolio-Bewertung mit
   `view_id` statt `portfolio_id`; jedes zur View passende Konto zählt genau
-  einmal, `overlap` nennt die Konten mit mehreren eingeschlossenen Buckets.
+  einmal, `overlap` nennt die Konten mit mehreren eingeschlossenen Buckets,
+  und `unvalued_cash_count` zählt die zur View passenden Geldkonten ohne
+  Kurspfad mit einem Saldo ungleich null, wie bei der Portfolio-Bewertung.
   `include_positions=false` (FR-37, #740 — derselbe Parameter wie bei der
   Portfolio-Bewertung) liefert nur den Roll-up: Summen, Cash-Salden und
   Cash-Quote ohne die Positionszeilen; die Antwort benennt
@@ -3510,7 +3517,8 @@ Adresse.
   lenkt den Agenten darauf, die fehlende Transaktion der richtigen Art zu
   buchen statt Saldo-Snapshots oder unbepreiste Einlieferungen zu nutzen.
 - `portfolixir.portfolios.valuation` — Bereichs-Zwilling von `portfolixir.views.valuation`
-  (siehe „Bereichs-Zwillinge“ oben).
+  (siehe „Bereichs-Zwillinge“ oben). Beide reichen `unvalued_cash_count`
+  durch, mit und ohne `include_positions` (#1081).
 - `portfolixir.exchange_rates.list`
 - `portfolixir.exchange_rates.sync` — `scope=latest` (täglicher Feed) oder
   `scope=history` (das einmalige historische Backfill, Issue #737).
