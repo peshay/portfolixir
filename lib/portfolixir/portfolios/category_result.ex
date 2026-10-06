@@ -294,7 +294,8 @@ defmodule Portfolixir.Portfolios.CategoryResult do
   end
 
   # Each excluded member once, though it rolls into every ancestor's row: the
-  # list a reader can be shown in one place (#1048), sorted by name.
+  # list a reader can be shown in one place (#1048), sorted by name without
+  # regard to case, as the app's other name lists are.
   defp excluded_members(filed) do
     filed
     |> Enum.reject(fn {entry, _category_id} -> entry.covered end)
@@ -307,7 +308,7 @@ defmodule Portfolixir.Portfolios.CategoryResult do
         native_costs: entry.native_costs
       }
     end)
-    |> Enum.sort_by(&{&1.security_name || "", &1.security_id})
+    |> Enum.sort_by(&{String.downcase(&1.security_name || ""), &1.security_id})
   end
 
   # Each category's ancestors, so a member rolls into every level above it.
