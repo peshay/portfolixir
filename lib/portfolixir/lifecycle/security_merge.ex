@@ -1501,9 +1501,11 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
 
   # The asset class the target stores after the merge's writes of it. It
   # follows the target, but while none is stored the catalog derives one on
-  # every write of the security (`Security.changeset/2`, from the name, the
-  # ticker and the logo), so an adopted ticker can set it: the writes are
-  # replayed on the target as it is, in the merge's order, without a write.
+  # every write of the security (`Security.changeset/2`, from the name and
+  # the ticker; the logo rule runs at read time only, in
+  # `Security.effective_asset_class/1`), so an adopted ticker can set it:
+  # the writes are replayed on the target as it is, in the merge's order,
+  # without a write.
   defp stored_asset_class(target, writes) do
     writes
     |> Enum.reject(&(&1 == %{}))

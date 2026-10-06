@@ -51,6 +51,103 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
     end
   end
 
+  defp stored_class(name) do
+    {:ok, security} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{name: name, currency_code: "EUR"})
+
+    security.asset_class
+  end
+
+  # User story (#1078):
+  # As the operator whose securities are classed by their names,
+  # I want the legal forms "S.A.", "SAS", "Actions" and "Aandelen" read
+  # only as words of their own,
+  # so that a name merely containing the letters "sa", "actions" or
+  # "aandelen" — a brand starting with "Sa", a "Transactions" group, an
+  # "Aandelenfonds" — is not read as a share.
+  #
+  # Acceptance criteria:
+  # - "Salvento Electronics Co", "Sasvento Electronics Co", "Global
+  #   Transactions Group" and "Muster Aandelenfonds" (no other marker) stay
+  #   unclassified.
+  # - "Muster Industria S.A.", "Muster Industria SA", "Muster Industrie
+  #   SAS", "Muster Industrie S.A.S.", "Muster Industrie Actions" and
+  #   "Muster Groep Aandelen" are equity, and "Global Transactions Inc"
+  #   still is by its "Inc".
+  describe "equity heuristics — S.A., SAS, Actions and Aandelen match whole words only (#1078)" do
+    for name <- [
+          "Salvento Electronics Co",
+          "Sasvento Electronics Co",
+          "Global Transactions Group",
+          "Muster Aandelenfonds"
+        ] do
+      test "'#{name}' is not read as equity" do
+        assert stored_class(unquote(name)) == nil
+      end
+    end
+
+    for name <- [
+          "Muster Industria S.A.",
+          "Muster Industria SA",
+          "Muster Industrie SAS",
+          "Muster Industrie S.A.S.",
+          "Muster Industrie Actions",
+          "Muster Groep Aandelen",
+          "Global Transactions Inc"
+        ] do
+      test "'#{name}' is still equity" do
+        assert stored_class(unquote(name)) == "equity"
+      end
+    end
+  end
+
+  # User story (#1078):
+  # As the operator holding a company whose name merely contains a
+  # structured-product word — "put" in "Computer", "disc" in "Discovia" —
+  # I want the structured-product exclusions read as words of their own,
+  # so that such a company is read as equity instead of staying
+  # unclassified.
+  #
+  # Acceptance criteria:
+  # - Each short exclusion word (Turbo, Disc, Discount, Call, Put, O.End,
+  #   Em.-u.Handelsg.mbH) inside another word no longer keeps a name with a
+  #   legal form from equity: "Muster Computer Corp" is equity.
+  # - Each word standing as a word still keeps the name from equity, the
+  #   plurals Calls and Puts included: "Muster Call Optionsschein" is a
+  #   warrant, a bank's "Disc." or "Discount" product stays unclassified.
+  # - Optionsschein and Zertifikat still match inside a word, as before
+  #   (they were not #1078's bug): "Turbooptionsschein", "Optionsscheine",
+  #   "Optionsscheinen", "Indexzertifikat" and "Zertifikate" stay excluded.
+  describe "structured-product exclusions match whole words only (#1078)" do
+    for {name, class} <- [
+          {"Turbomatik Industrie AG", "equity"},
+          {"Discovia Media Inc", "equity"},
+          {"Discounthaus Muster AG", "equity"},
+          {"Callwerk Telekom AG", "equity"},
+          {"Muster Computer Corp", "equity"},
+          {"Muster Pro.Endo AG", "equity"},
+          {"Muster Totem.-u.Handelsg.mbH AG", "equity"},
+          {"Muster Turbo AG", "knock_out"},
+          {"Muster Bank AG Disc. Examplia 2027", nil},
+          {"Muster Bank AG Discount Examplia", nil},
+          {"Muster Call Optionsschein", "warrant"},
+          {"Muster Bank AG Put Examplia", "warrant"},
+          {"Muster Bank AG Calls Examplia", nil},
+          {"Muster Bank AG Puts Examplia", nil},
+          {"Muster Bank AG Optionsscheine Examplia", nil},
+          {"Muster Bank AG Optionsscheinen Examplia", nil},
+          {"Muster Bank AG Turbooptionsschein Examplia", nil},
+          {"Muster Bank AG Indexzertifikat Examplia 50", nil},
+          {"Muster Bank AG Zertifikate Examplia", nil},
+          {"Muster Bank AG O.End Examplia", "knock_out"},
+          {"Muster Bank Em.-u.Handelsg.mbH AG Examplia", nil}
+        ] do
+      test "'#{name}' is #{inspect(class)}" do
+        assert stored_class(unquote(name)) == unquote(class)
+      end
+    end
+  end
+
   describe "equity heuristics — ADR / GDR / depositary receipts" do
     for {name, ticker, description} <- [
           {"Daeyang Motor Co GDRs", nil, "GDRs"},

@@ -436,18 +436,27 @@ defmodule Portfolixir.Catalog.Security do
   read as a bond (#1068).
   """
   @spec structured_product_name?(term()) :: boolean()
+  # #1078: the short words are anchored at word boundaries, so "put" in
+  # "Computer" or "disc" in a brand no longer keeps a company from equity;
+  # the plurals Calls and Puts are words too. Optionsschein and Zertifikat
+  # stay substrings, as before: German compounds and inflections carry them
+  # inside a word ("Indexzertifikat", "Optionsscheine"), and no company name
+  # does.
   def structured_product_name?(name) when is_binary(name) do
     Regex.match?(
-      ~r/(Turbo[A-Z]?|Disc[CP]?|Discount|Call|Put|Optionsschein|Zertifikat|O\.End|Em\.-u\.Handelsg\.mbH)/i,
+      ~r/\bTurbo[A-Z]?\b|\bDisc[CP]?\b|\bDiscount\b|\bCalls?\b|\bPuts?\b|Optionsschein|Zertifikat|\bO\.End\b|\bEm\.-u\.Handelsg\.mbH/i,
       name
     )
   end
 
   def structured_product_name?(_name), do: false
 
+  # #1078: "Actions", "Aandelen", "S.A." / "SA" and "S.A.S." / "SAS" are
+  # whole words, so "Transactions", an "Aandelenfonds" or a brand starting
+  # with "Sa" is no legal form.
   defp equity_name?(name) when is_binary(name) do
     Regex.match?(
-      ~r/(Registered\s+Shares?|Registered\s+Part\.?\s*Shares?|Reg\.?\s*Shares?|Inhaber-Aktien|Namens-Aktien|Vorzugsaktien|Actions|Aandelen|Common\s+Stock|\bInc\.?\b|\bCorp\.?\b|\bCorporation\b|\bCompany\b|\bCo\.|\bLtd\.?\b|\bAG\b|\bSE\b|\bPLC\b|S\.p\.A\.|S\.?A\.?|SA\/NV|\bAktiengesellschaft\b|\bA\/S\b|\bASA\b|\bKGaA\b|\bAzioni\b|\bAcciones\b|\bAktier\b|\b(?:Sp\.)?ADR(?:s)?\b|\bGDR(?:s)?\b|Depos\.?\s*Receipts?|\bINH\.ON\b)/i,
+      ~r/(Registered\s+Shares?|Registered\s+Part\.?\s*Shares?|Reg\.?\s*Shares?|Inhaber-Aktien|Namens-Aktien|Vorzugsaktien|\bActions\b|\bAandelen\b|Common\s+Stock|\bInc\.?\b|\bCorp\.?\b|\bCorporation\b|\bCompany\b|\bCo\.|\bLtd\.?\b|\bAG\b|\bSE\b|\bPLC\b|S\.p\.A\.|\bS\.?A\b\.?|\bS\.?A\.?S\b\.?|SA\/NV|\bAktiengesellschaft\b|\bA\/S\b|\bASA\b|\bKGaA\b|\bAzioni\b|\bAcciones\b|\bAktier\b|\b(?:Sp\.)?ADR(?:s)?\b|\bGDR(?:s)?\b|Depos\.?\s*Receipts?|\bINH\.ON\b)/i,
       name
     )
   end
