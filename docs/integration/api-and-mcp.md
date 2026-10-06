@@ -273,10 +273,12 @@ full list.
   Optional query params: `query`, `sort`, `direction`,
   holding_status (`all`, `held`, or `not_held`), `logo_status` (`missing` or
   `present` — the bare logo condition; `missing` excludes rows explicitly set
-  to no logo), `data_quality`
+  to no logo and includes a stored logo whose file is gone, whatever its lock,
+  issue #933; `present` is a stored logo whose file is not), `data_quality`
   (`stale_quote` — no quote newer than 7 days, **including** securities never
   priced at all; `missing_quote` — no quote at all, the narrower set inside it;
-  `missing_logo` — no stored logo and not set to no logo, the set the
+  `missing_logo` — no stored logo and not set to no logo, or a stored logo
+  whose file is gone (`file_missing` on the logo read), the set the
   "securities without a logo" overview shows; `missing_fx` — issue #717:
   priced, but with no stored rate from its currency to the EUR hub, so
   storing the rate empties the set. A benchmark and a retired security are in
@@ -893,8 +895,15 @@ explicit "no logo", *locks* the security so background discovery never
 overwrites the choice.
 
 - `GET /api/v1/securities/:security_id/logo` returns the logo status:
-  `{ "data": { "security_id", "path", "source", "has_logo", "locked" } }`.
-  `source` is one of `coingecko`, `wikipedia`, or `manual`.
+  `{ "data": { "security_id", "path", "source", "has_logo", "locked", "file_missing" } }`.
+  `source` is one of `coingecko`, `wikipedia`, or `manual`. `file_missing`
+  (issue #933) is `true` when the instance's startup check found no file in
+  the logo directory for the stored `path`; `has_logo` is then `false`, while
+  `path`, `source` and `locked` read as stored. A discovered logo so marked is
+  looked up again; a manual one stays locked and waits to be set again, and
+  `logo_status=missing` and `data_quality=missing_logo` list both. Storing or
+  removing a logo clears the mark, and so does the next start once the file is
+  back.
 - `PUT /api/v1/securities/:security_id/logo` sets a manual logo from an image
   URL (`{ "logo": { "url": "https://…" } }` or `{ "url": "https://…" }`). The
   image is downloaded once, validated (png/jpg/jpeg/webp, max 256 KiB) and

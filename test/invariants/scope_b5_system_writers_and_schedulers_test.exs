@@ -41,6 +41,11 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
     {"Portfolixir.Catalog", "logo"} =>
       "logo bookkeeping on a security (#766): presentation metadata, journaled under " <>
         "the fixed logo actor; it books nothing",
+    {"Portfolixir.Catalog", "logo_reconcile"} =>
+      "marks a stored logo whose file is gone from the logo directory, and unmarks it " <>
+        "when the file is back (#933): presentation metadata on a security, a compare-and-set " <>
+        "under the row lock, journaled under its own label so a reader tells it from " <>
+        "discovery; it never clears a path and books nothing",
     {"Portfolixir.Classifications", "builtin_seed"} =>
       "seeds the built-in asset-class and currency trees at boot (#529), derived " <>
         "from the catalog's own data",

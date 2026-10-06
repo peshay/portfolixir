@@ -17,7 +17,7 @@ defmodule Portfolixir.Catalog.DataQuality do
   |---|---|
   | `stale_quote` | no quote newer than #{7} days — **including no quote at all** |
   | `missing_quote` | no quote at all |
-  | `missing_logo` | no stored logo, and not deliberately locked to "no logo" |
+  | `missing_logo` | no stored logo and not deliberately locked to "no logo", or a stored logo whose file is gone, whatever its lock (#933) |
   | `missing_fx` | priced, but no stored rate from its currency to the base (EUR hub) |
   | `two_scales` | a bond priced on two scales, in either direction: its latest stored quote is #{20} to #{500} times a booked price per unit, or 1/#{500} to 1/#{20} of one (`Portfolixir.Portfolios.Bonds`) |
 

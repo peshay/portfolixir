@@ -524,6 +524,74 @@ defmodule PortfolixirWeb.DashboardTest do
     refute has_element?(list, "td", "Closed Co")
   end
 
+  # User story (#933, review pass 1):
+  # As an operator whose logo files were lost with the volume,
+  # I want the Overview's logo count to include every stored logo whose file
+  # is gone, a manual one included, but never my deliberate "no logo" choice,
+  # so that the count raises the alarm and tells me what to fetch or upload
+  # again.
+  #
+  # Acceptance criteria:
+  # - Before the reconciliation the two rows with a stored path count as
+  #   having a logo; after it marks them, the line reads "2 without a logo"
+  #   and links to dq=missing_logo, whose list holds both.
+  # - A security locked to "no logo" is not counted.
+  test "the logo count includes logos whose file is gone once marked", %{conn: conn} do
+    %{security: security} = seed_holding()
+
+    {:ok, security} =
+      Catalog.update_security(Actor.owner_ui(), security, %{asset_class: "equity"})
+
+    {:ok, manual} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Manual Co",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    {:ok, chosen} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Chosen Co",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    for {row, attrs} <- [
+          {security, %{"logo_source" => "wikipedia"}},
+          {manual, %{"logo_source" => "manual", "logo_locked" => true}}
+        ] do
+      path = "/security_logos/#{row.id}.png"
+      {:ok, _} = Catalog.put_logo_attributes(row, Map.put(attrs, "logo_path", path))
+    end
+
+    {:ok, _} = Catalog.put_logo_attributes(chosen, %{"logo_locked" => true})
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+    refute has_element?(view, "[data-role='dq-logo']")
+
+    tmp =
+      Path.join(System.tmp_dir!(), "portfolixir-dq-gone-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(tmp)
+    on_exit(fn -> File.rm_rf(tmp) end)
+    assert {:ok, %{marked: 2}} = Catalog.LogoStore.reconcile_missing_files(storage_dir: tmp)
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    assert has_element?(
+             view,
+             ~s([data-role='dq-logo'][href="/securities?dq=missing_logo"]),
+             "2 without a logo"
+           )
+
+    {:ok, list, _html} = live(conn, "/securities?dq=missing_logo")
+    assert has_element?(list, "td", "ACME")
+    assert has_element?(list, "td", "Manual Co")
+    refute has_element?(list, "td", "Chosen Co")
+  end
+
   # User story (#1068, D-15; board 01, pin 5):
   # As the operator whose Overview total a bond on two scales inflates or
   # deflates a hundredfold,

@@ -635,6 +635,50 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
       assert {kept.isin, kept.wkn, kept.ticker_symbol} == {@isin_source, nil, nil}
     end
 
+    # User story (#933, review pass 2):
+    # As the operator merging a duplicate whose logo file, or the kept
+    # security's, the logo reconciliation found gone,
+    # I want a logo marked file-missing counted as no logo in the preview,
+    # so that the preview never shows a logo that is not there as the one the
+    # merge keeps, nor lists one as a difference.
+    #
+    # Acceptance criteria:
+    # - The target's logo marked missing and the source's present: the logo
+    #   difference names the source's logo against none.
+    # - The source's logo marked missing: no logo difference is listed.
+    test "a logo marked file-missing counts as no logo in the differences", ctx do
+      logo! = fn security, mark? ->
+        path = "/security_logos/#{security.id}.png"
+
+        {:ok, security} =
+          Catalog.put_logo_attributes(security, %{
+            "logo_path" => path,
+            "logo_source" => "wikipedia"
+          })
+
+        if mark? do
+          {:ok, security} = Catalog.put_logo_file_mark(security, path, fn -> false end)
+          security
+        else
+          security
+        end
+      end
+
+      source = logo!.(ctx.source, false)
+      logo!.(ctx.target, true)
+
+      {:ok, preview} = Lifecycle.preview_security_merge(ctx.source.id, ctx.target.id)
+
+      assert %{field: :logo, source: source.attributes["logo_path"], target: nil} in preview.identifiers.differences
+
+      {:ok, _} =
+        Catalog.put_logo_file_mark(source, source.attributes["logo_path"], fn -> false end)
+
+      {:ok, preview} = Lifecycle.preview_security_merge(ctx.source.id, ctx.target.id)
+
+      refute Enum.any?(preview.identifiers.differences, &(&1.field == :logo))
+    end
+
     # User story (closing act, CR-2):
     # As the operator merging a duplicate whose ISIN fails its check digit,
     # I want the preview to refuse by name and tell me to correct it first,

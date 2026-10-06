@@ -19,10 +19,15 @@ defmodule Portfolixir.Catalog.LogoStore do
     * Body must be at most `:max_bytes` (default 256 KiB).
   """
 
+  import Ecto.Query, only: [where: 3, order_by: 3]
+
+  require Logger
+
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Net.Http
   alias Portfolixir.Net.UrlPolicy
+  alias Portfolixir.Repo
 
   # Logo bytes are operational, machine-discovered assets that happen to live on
   # the guard-armed `securities` table (ADR-0017). They are journaled like any
@@ -40,6 +45,10 @@ defmodule Portfolixir.Catalog.LogoStore do
     "image/jpg" => "jpg",
     "image/webp" => "webp"
   }
+  # The extensions a stored file can carry: the write path's set, so the
+  # served shape (`served_file/2`) cannot drift from what is written (#933).
+  @extensions @allowed_content_types |> Map.values() |> Enum.uniq()
+  @url_prefix "/security_logos/"
 
   @doc """
   Topic on which `{:security_logo_updated, security_id}` messages are
@@ -128,7 +137,12 @@ defmodule Portfolixir.Catalog.LogoStore do
     storage_dir = Keyword.get(opts, :storage_dir) || default_storage_dir()
     delete_existing_logo_file(security, storage_dir)
 
-    logo_attrs = %{"logo_path" => nil, "logo_source" => nil, "logo_locked" => true}
+    logo_attrs = %{
+      "logo_path" => nil,
+      "logo_source" => nil,
+      "logo_locked" => true,
+      "logo_file_missing" => nil
+    }
 
     case Catalog.put_logo_attributes(security, logo_attrs) do
       {:ok, updated} ->
@@ -138,6 +152,196 @@ defmodule Portfolixir.Catalog.LogoStore do
       other ->
         other
     end
+  end
+
+  @doc """
+  The file a logo file name names in the logo directory (#764, #933): a
+  security id of up to 18 digits plus an extension the write path stores,
+  joined onto `storage_dir` only after the name matched, so nothing else from
+  a request or a stored path reaches the file system. The one shape check,
+  shared by `PortfolixirWeb.LogoFileController`, which serves the file, and
+  the reconciliation, which checks it. It does not look at the disk.
+  """
+  @spec served_file(term(), Path.t()) :: {:ok, Path.t(), String.t()} | :error
+  def served_file(file, storage_dir \\ default_storage_dir())
+
+  def served_file(file, storage_dir) when is_binary(file) do
+    with [id, ext] <- String.split(file, ".", parts: 2),
+         true <- ext in @extensions,
+         true <- Regex.match?(~r/\A[0-9]{1,18}\z/, id) do
+      {:ok, Path.join(storage_dir, file), ext}
+    else
+      _ -> :error
+    end
+  end
+
+  def served_file(_file, _storage_dir), do: :error
+
+  @doc """
+  Reconciles the logo bookkeeping with the logo directory (#933). A security
+  can carry a `logo_path` with no file behind it — an upgrade across F59's
+  move of the logos into the volume, a lost, unmounted or restored volume —
+  and every logo surface used to read the attribute, never the file. This is
+  the one place that compares the two.
+
+  A path that names no regular file is **marked** `logo_file_missing: true`;
+  a mark whose file is back is removed. Nothing else is touched: the path,
+  the source and the lock stay, so a restored or remounted volume heals at
+  the next run, and nothing that reads the path (the asset-class inference
+  among them) moves. Each write is `Catalog.put_logo_file_mark/3`, a
+  compare-and-set inside the locked row journaled under its own system job,
+  and is broadcast like any logo change; a second run writes nothing. One
+  info line names the counts when anything changed.
+
+  A missing, unreadable or unsearchable directory skips the run with a
+  warning, so a mistyped `PORTFOLIXIR_LOGO_DIR` or an unmounted volume marks
+  nothing; a file that cannot be checked after that stops the run with a
+  warning naming what was written before it (`{:stopped, reason, counts}`); an
+  existing empty one marks every stored logo, which is the alarm the Overview
+  raises. No network. `:storage_dir` overrides the configured directory.
+  """
+  @spec reconcile_missing_files(keyword()) ::
+          {:ok, counts}
+          | {:skipped, File.posix()}
+          | {:stopped, File.posix(), counts}
+        when counts: %{
+               marked: non_neg_integer(),
+               unmarked: non_neg_integer(),
+               failed: non_neg_integer()
+             }
+  # storage_dir comes from app config/opts and is only listed; every file
+  # checked is a served_file/2 name joined onto it.
+  # sobelow_skip ["Traversal.FileModule"]
+  def reconcile_missing_files(opts \\ []) do
+    storage_dir = Keyword.get(opts, :storage_dir) || default_storage_dir()
+    # The file check, File.stat/1 unless a test hands in another.
+    stat = Keyword.get(opts, :stat, &File.stat/1)
+
+    # No stored logo, nothing to compare: quiet, whatever the directory.
+    with [_ | _] = rows <- securities_with_logo_path(),
+         {:ok, _names} <- File.ls(storage_dir),
+         :ok <- searchable(storage_dir, stat),
+         {:ok, counts} <- reconcile_rows(rows, storage_dir, stat) do
+      log_reconciliation(counts)
+      {:ok, counts}
+    else
+      [] ->
+        {:ok, %{marked: 0, unmarked: 0, failed: 0}}
+
+      {:error, reason} ->
+        Logger.warning(
+          "Logo reconciliation skipped (#933): the logo directory #{storage_dir} is " <>
+            "missing or unreadable (#{:file.format_error(reason)}), so no logo was " <>
+            "marked. Check PORTFOLIXIR_LOGO_DIR and that its volume is mounted."
+        )
+
+        {:skipped, reason}
+
+      {:stopped, reason, counts} ->
+        Logger.warning(
+          "Logo reconciliation stopped partway (#933): a logo file in #{storage_dir} " <>
+            "could not be checked (#{:file.format_error(reason)}), after " <>
+            "#{counts.marked} marked as file missing, #{counts.unmarked} unmarked and " <>
+            "#{counts.failed} failed. Check the permissions of PORTFOLIXIR_LOGO_DIR and " <>
+            "of anything its entries link to."
+        )
+
+        {:stopped, reason, counts}
+    end
+  end
+
+  # A directory that lists but cannot be searched answers :eacces for "."
+  # inside it: the run stops there, before any write, rather than marking
+  # every logo.
+  defp searchable(storage_dir, stat) do
+    case stat.(Path.join(storage_dir, ".")) do
+      {:error, :eacces} -> {:error, :eacces}
+      _searchable -> :ok
+    end
+  end
+
+  defp securities_with_logo_path do
+    Security
+    |> where([s], not is_nil(fragment("? ->> ?", s.attributes, "logo_path")))
+    |> order_by([s], s.id)
+    |> Repo.all()
+  end
+
+  # A file that answers :eacces after the directory passed searchable/2 (a
+  # link into a directory the app may not search) stops the run there; the
+  # writes made before it stand and are counted.
+  defp reconcile_rows(rows, storage_dir, stat) do
+    Enum.reduce_while(rows, {:ok, %{marked: 0, unmarked: 0, failed: 0}}, fn security,
+                                                                            {:ok, counts} ->
+      case reconcile_file(security, storage_dir, stat, counts) do
+        {:ok, counts} -> {:cont, {:ok, counts}}
+        {:error, reason} -> {:halt, {:stopped, reason, counts}}
+      end
+    end)
+  end
+
+  # A mark that disagrees with the disk is written: a missing file not yet
+  # marked, or a marked one whose file is back. A stored path that is not a
+  # string is passed over.
+  defp reconcile_file(%Security{attributes: attributes} = security, storage_dir, stat, counts) do
+    path = attributes["logo_path"]
+    marked? = attributes["logo_file_missing"] == true
+
+    case file_state(path, storage_dir, stat) do
+      :unsearchable -> {:error, :eacces}
+      :not_a_path -> {:ok, counts}
+      state when state == :present and not marked? -> {:ok, counts}
+      state when state == :missing and marked? -> {:ok, counts}
+      _disagrees -> {:ok, write_mark(security, path, storage_dir, stat, counts)}
+    end
+  end
+
+  defp write_mark(security, path, storage_dir, stat, counts) do
+    # Re-checked under the row lock; a directory gone unsearchable since
+    # marks nothing.
+    present? = fn -> file_state(path, storage_dir, stat) != :missing end
+
+    case Catalog.put_logo_file_mark(security, path, present?) do
+      {:ok, updated} ->
+        broadcast_logo_change(updated.id)
+        key = if updated.attributes["logo_file_missing"], do: :marked, else: :unmarked
+        Map.update!(counts, key, &(&1 + 1))
+
+      {:error, :changed} ->
+        counts
+
+      {:error, reason} ->
+        Logger.warning(
+          "Logo reconciliation (#933) could not write security ##{security.id}: " <>
+            inspect(reason)
+        )
+
+        Map.update!(counts, :failed, &(&1 + 1))
+    end
+  end
+
+  # storage_dir comes from app config/opts, and the name is served_file/2's.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp file_state(@url_prefix <> file, storage_dir, stat) do
+    with {:ok, path, _ext} <- served_file(file, storage_dir),
+         {:ok, %File.Stat{type: :regular}} <- stat.(path) do
+      :present
+    else
+      {:error, :eacces} -> :unsearchable
+      _other -> :missing
+    end
+  end
+
+  defp file_state(path, _storage_dir, _stat) when is_binary(path), do: :missing
+  defp file_state(_path, _storage_dir, _stat), do: :not_a_path
+
+  defp log_reconciliation(%{marked: 0, unmarked: 0, failed: 0}), do: :ok
+
+  defp log_reconciliation(%{marked: marked, unmarked: unmarked, failed: failed}) do
+    Logger.info(
+      "Logo reconciliation (#933): #{marked} marked as file missing, " <>
+        "#{unmarked} unmarked with their file back, #{failed} failed."
+    )
   end
 
   defp broadcast_logo_change(security_id) do
@@ -211,9 +415,11 @@ defmodule Portfolixir.Catalog.LogoStore do
   defp image_bytes_ok(_body, _ext), do: {:error, :unsupported_content_type}
 
   defp update_security_attributes(security, ext, source, opts) do
+    # A stored file answers the reconciliation's mark (#933): it is cleared.
     base = %{
-      "logo_path" => "/security_logos/#{security.id}.#{ext}",
-      "logo_source" => Atom.to_string(source)
+      "logo_path" => @url_prefix <> "#{security.id}.#{ext}",
+      "logo_source" => Atom.to_string(source),
+      "logo_file_missing" => nil
     }
 
     base = if Keyword.get(opts, :lock, false), do: Map.put(base, "logo_locked", true), else: base

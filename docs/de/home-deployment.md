@@ -344,7 +344,7 @@ migrate` aus, weil die Anwendung beim Start nicht mehr migriert. Eine
 Wiederherstellung gibt die neue Datenbank nach ihrem Schritt 2 an den
 Eigentümer zurück, stellt in Schritt 3 als Eigentümer wieder her, indem
 `pg_restore` `--role=portfolixir_owner` erhält, damit die Tabellen ihren
-Eigentümer und ihre Rechte behalten, und migriert vor Schritt 4 wie beim
+Eigentümer und ihre Rechte behalten, und migriert vor Schritt 5 wie beim
 Upgrade:
 
 ```bash
@@ -676,15 +676,26 @@ docker compose exec -T db \
   --single-transaction < ~/portfolixir-backups/portfolixir-2026-09-23.dump \
   && echo "restore complete"
 
-# 4. Nur wenn Schritt 3 ohne Fehler endete („restore complete“): die Instanz;
+# 4. Die gespeicherten Logos, in das Logo-Volume, solange die Anwendung
+#    noch gestoppt ist: Sie prüft beim Start jedes gespeicherte Logo gegen
+#    dieses Verzeichnis.
+docker compose run --rm --no-deps -T --entrypoint tar app \
+  -C /var/lib/portfolixir/logos -xf - \
+  < ~/portfolixir-backups/portfolixir-logos-2026-09-23.tar
+
+# 5. Nur wenn Schritt 3 ohne Fehler endete („restore complete“): die Instanz;
 #    sie migriert die wiederhergestellte Datenbank nach vorn, wenn die
 #    Sicherung aus einem älteren Release stammt.
 docker compose up -d
-
-# 5. Die gespeicherten Logos, in den laufenden Anwendungs-Container.
-docker compose exec -T app tar -C /var/lib/portfolixir/logos -xf - \
-  < ~/portfolixir-backups/portfolixir-logos-2026-09-23.tar
 ```
+
+Die Logos kommen vor dem Start zurück, weil die Anwendung beim Start die
+gespeicherten Logos mit dem Logo-Verzeichnis vergleicht. Zuerst gestartet,
+markierte sie jedes Logo, dessen Datei noch nicht zurück ist, als fehlend und
+stellte, wenn das Laden im Hintergrund an ist, jedes gefundene zum erneuten
+Herunterladen ein. Kamen die Logos erst nach dem Start zurück, starte die
+Anwendung neu, sobald sie da sind (`docker compose restart app`): Dieser Start
+findet die Dateien und nimmt die Markierungen weg.
 
 `--single-transaction` macht die Wiederherstellung zu einem Ganz-oder-gar-nicht:
 beim ersten Fehler (`--exit-on-error`) wird alles zurückgerollt, was sie getan
@@ -787,6 +798,21 @@ des MCP-Begleiters und das Datenbank-Image —; eine Korrektur darin kommt also
 mit der Version, die ihren Digest bewegt, und die Release-Notes sagen, wann ein
 Upgrade eine solche Korrektur enthält. `docker compose pull db` und `--pull`
 holen genau die Images, die die neue Version nennt.
+
+Bei jedem Start vergleicht die Anwendung die gespeicherten Logos mit dem
+Logo-Verzeichnis. Fehlt dort die Datei eines Logos, nach einem Upgrade über
+den Umzug der Logos in das Volume `portfolixir-logos` hinweg oder mit einem
+verlorenen oder nicht eingehängten Volume, markiert sie das Logo und hält jede
+Markierung im Prüfprotokoll fest. Sonst ändert die Markierung nichts am Logo:
+Sein Wertpapier zeigt seine Initiale oder Flagge statt eines kaputten Bildes
+und zählt in der Übersicht und auf der Wertpapierseite als ohne Logo. Ein
+gefundenes Logo wird erneut geholt, wenn das Laden im Hintergrund an ist
+(`PORTFOLIXIR_BACKGROUND_FETCH`); ein manuelles bleibt gesperrt, die
+Logo-Suche ersetzt es also nie, und es wartet darauf, dass du es erneut
+hochlädst. Ein späterer Start, der die Datei wieder findet, nimmt die
+Markierung weg. Fehlt das Logo-Verzeichnis oder ist es nicht lesbar, markiert
+die Anwendung nichts und schreibt stattdessen eine Warnung ins Log; sonst
+nennt das Log, wie viele Logos markiert wurden.
 
 Beim Upgrade von 0.15.x oder älter erreichen vier Änderungen des
 Sicherheitsdurchgangs eine Instanz, die schon läuft. Prüfe sie vor dem `up`:

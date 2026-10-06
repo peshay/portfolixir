@@ -110,23 +110,32 @@ defmodule Portfolixir.Catalog do
     do: from(s in query, where: s.updated_at > ^cut)
 
   # `:logo_status` narrows the list by logo state, used by the "securities
-  # without logo" overview. `:missing` excludes both stored logos and rows the
-  # user explicitly locked to "no logo".
+  # without logo" overview. `:missing` is the one "missing" predicate (#933):
+  # no path and not locked, or a path whose file the reconciliation marked
+  # missing, whatever the lock. It leaves out stored logos and the operator's
+  # "no logo" choice (no path, locked). `:present` is a stored logo whose file
+  # is not marked missing, `has_logo` in `logo_status/1`.
   defp apply_logo_status(query, status) when status in [:missing, "missing"] do
     from(s in query,
       where:
         fragment(
-          "(? ->> ?) IS NULL AND coalesce(? ->> ?, 'false') <> 'true'",
+          "((? ->> ?) IS NULL AND coalesce(? ->> ?, 'false') <> 'true') OR coalesce(? ->> ?, 'false') = 'true'",
           s.attributes,
           ^"logo_path",
           s.attributes,
-          ^"logo_locked"
+          ^"logo_locked",
+          s.attributes,
+          ^"logo_file_missing"
         )
     )
   end
 
   defp apply_logo_status(query, status) when status in [:present, "present"] do
-    from(s in query, where: not is_nil(fragment("? ->> ?", s.attributes, ^"logo_path")))
+    from(s in query,
+      where:
+        not is_nil(fragment("? ->> ?", s.attributes, ^"logo_path")) and
+          fragment("coalesce(? ->> ?, 'false') <> 'true'", s.attributes, ^"logo_file_missing")
+    )
   end
 
   defp apply_logo_status(query, _status), do: query
@@ -506,18 +515,23 @@ defmodule Portfolixir.Catalog do
   Reports the logo state of a security for the API/UI.
 
   Returns a map with the stored `path`, the resolving `source` (e.g.
-  `"coingecko"`, `"wikipedia"`, `"manual"`), whether a logo is present and
-  whether the choice is `locked` (manual override or explicit removal).
+  `"coingecko"`, `"wikipedia"`, `"manual"`), whether a logo is present,
+  whether the choice is `locked` (manual override or explicit removal), and
+  whether the reconciliation found the path's file gone (`file_missing`,
+  #933). A logo whose file is missing is no logo: `has_logo` is false, while
+  the path, the source and the lock read as stored.
   """
   def logo_status(%Security{attributes: attributes}) do
     attrs = attributes || %{}
     path = attrs["logo_path"]
+    file_missing = attrs["logo_file_missing"] == true
 
     %{
       path: path,
       source: attrs["logo_source"],
-      has_logo: is_binary(path),
-      locked: attrs["logo_locked"] == true
+      has_logo: is_binary(path) and not file_missing,
+      locked: attrs["logo_locked"] == true,
+      file_missing: file_missing
     }
   end
 
@@ -532,6 +546,137 @@ defmodule Portfolixir.Catalog do
   @doc "Removes a security's logo and records an explicit \"no logo\" decision."
   def remove_logo(%Security{} = security, opts \\ []) do
     LogoStore.remove_logo(security, opts)
+  end
+
+  @doc """
+  The logo reconciliation's write (#933): sets `logo_file_missing` on
+  `security` when `file_present?` answers false, and removes it when true —
+  a compare-and-set inside the locked row. Nothing is written, and
+  `{:error, :changed}` answers, when the stored path is no longer
+  `checked_path` or the mark already agrees with the file state re-checked
+  under the lock. It never touches the path, the source or the lock.
+  Journaled under the system job `logo_reconcile`, so a reader tells it from
+  discovery's `logo`.
+  """
+  @spec put_logo_file_mark(Security.t(), String.t(), (-> boolean())) ::
+          {:ok, Security.t()} | {:error, :changed | :not_found | Ecto.Changeset.t()}
+  def put_logo_file_mark(%Security{} = security, checked_path, file_present?)
+      when is_binary(checked_path) and is_function(file_present?, 0) do
+    multi =
+      Multi.new()
+      |> Multi.run(:logo_file_mark, fn _repo, changes ->
+        attributes = Journal.locked_row(changes).attributes || %{}
+        mark = if file_present?.(), do: nil, else: true
+
+        if attributes["logo_path"] == checked_path and attributes["logo_file_missing"] != mark,
+          do: {:ok, mark},
+          else: {:error, :changed}
+      end)
+      |> Multi.update(:security, fn %{logo_file_mark: mark} = changes ->
+        Security.logo_changeset(Journal.locked_row(changes), %{"logo_file_missing" => mark})
+      end)
+      |> Journal.record(Actor.system_job("logo_reconcile"),
+        resource_type: "security",
+        operation: :update,
+        source: :security,
+        before: security
+      )
+
+    case Repo.transaction(multi) do
+      {:ok, %{security: updated}} -> {:ok, updated}
+      {:error, :logo_file_mark, :changed, _changes} -> {:error, :changed}
+      {:error, _step, %Ecto.Changeset{} = changeset, _changes} -> {:error, changeset}
+      {:error, {:journal_lock, _}, :not_found, _changes} -> {:error, :not_found}
+    end
+  end
+
+  @doc """
+  Starts the logo reconciliation once the supervisor is up (#933), as a task
+  under `Portfolixir.LogoSupervisor`: it never holds up or stops the boot,
+  and a crash in it is logged. `run` is the work, `reconcile_logos/0`
+  unless a test hands in another, and `supervisor` the task supervisor,
+  `Portfolixir.LogoSupervisor` unless a test names another. Gated by the `:reconcile_logos_on_boot`
+  config (default true; off in the test environment, where tests call the
+  reconciliation directly), like `Classifications.seed_builtins_on_boot/0`.
+  Answers the task's `{:ok, pid}`, `{:error, reason}` when the task could
+  not start (logged, and the boot goes on), or `:ignore` when the gate is
+  off.
+  """
+  @spec reconcile_logos_on_boot((-> term()), Supervisor.supervisor()) ::
+          {:ok, pid()} | {:error, term()} | :ignore
+  def reconcile_logos_on_boot(
+        run \\ &reconcile_logos/0,
+        supervisor \\ Portfolixir.LogoSupervisor
+      )
+      when is_function(run, 0) do
+    if Application.get_env(:portfolixir, :reconcile_logos_on_boot, true) do
+      start_logged(supervisor, fn -> run_logged(run) end)
+    else
+      :ignore
+    end
+  end
+
+  defp start_logged(supervisor, task) do
+    case Task.Supervisor.start_child(supervisor, task) do
+      {:ok, _pid} = started ->
+        started
+
+      {:error, reason} = error ->
+        Logger.error("The logo reconciliation (#933) could not start: #{inspect(reason)}")
+        error
+    end
+  catch
+    :exit, reason ->
+      Logger.error("The logo reconciliation (#933) could not start: #{inspect(reason)}")
+      {:error, reason}
+  end
+
+  defp run_logged(run) do
+    run.()
+  rescue
+    exception ->
+      Logger.error(
+        "The logo reconciliation (#933) failed:\n" <>
+          Exception.format(:error, exception, __STACKTRACE__)
+      )
+  catch
+    kind, reason ->
+      Logger.error(
+        "The logo reconciliation (#933) failed:\n" <>
+          Exception.format(kind, reason, __STACKTRACE__)
+      )
+  end
+
+  @doc """
+  The boot task's work (#933): `LogoStore.reconcile_missing_files/1` over the
+  configured directory, whatever `PORTFOLIXIR_BACKGROUND_FETCH` says, since it
+  uses no network. When it marked a logo, the missing-logo scan is queued
+  again, which acts only when discovery is on: discovery's own startup scan
+  has usually run before the marks were set, and an unlocked marked row would
+  otherwise wait for the next periodic rescan to be fetched again.
+  """
+  @spec reconcile_logos() ::
+          {:ok, counts}
+          | {:skipped, File.posix()}
+          | {:stopped, File.posix(), counts}
+        when counts: %{
+               marked: non_neg_integer(),
+               unmarked: non_neg_integer(),
+               failed: non_neg_integer()
+             }
+  def reconcile_logos do
+    case LogoStore.reconcile_missing_files() do
+      {:ok, %{marked: marked}} = result ->
+        if marked > 0, do: LogoDiscovery.enqueue_missing_security_logos()
+        result
+
+      {:stopped, _reason, %{marked: marked}} = result ->
+        if marked > 0, do: LogoDiscovery.enqueue_missing_security_logos()
+        result
+
+      skipped ->
+        skipped
+    end
   end
 
   @doc """

@@ -42,7 +42,14 @@ defmodule PortfolixirWeb.Securities.LogoOverrideDialog do
           <p class="detail-pane-sub"><%= @security.name %></p>
 
           <p>
+            <%!-- A logo whose file is gone (#933, board 07b) says so and names
+                 the way back, whatever its lock: never "a manual logo is set",
+                 nor "set to have no logo". --%>
             <%= cond do %>
+              <% @status.file_missing -> %>
+                <%= gettext(
+                  "The stored logo file is missing. Set it again from an image URL, or remove the logo."
+                ) %>
               <% @status.locked and @status.has_logo -> %>
                 <%= gettext("A manual logo is set (discovery will not overwrite it).") %>
               <% @status.locked -> %>
@@ -54,6 +61,8 @@ defmodule PortfolixirWeb.Securities.LogoOverrideDialog do
             <% end %>
           </p>
 
+          <%!-- Never prefilled: a stored logo's path is local, not the image
+               URL it came from, and type="url" refuses it (#933, board 07b). --%>
           <form phx-submit="save_logo_url" class="logo-override__form">
             <label for="logo-override-url"><%= gettext("Image URL") %></label>
             <input
@@ -61,7 +70,7 @@ defmodule PortfolixirWeb.Securities.LogoOverrideDialog do
               id="logo-override-url"
               name="logo[url]"
               placeholder="https://…"
-              value={if @status.source == "manual", do: @status.path, else: ""}
+              value=""
             />
             <button type="submit" class="button-primary"><%= gettext("Save URL") %></button>
           </form>
@@ -82,7 +91,7 @@ defmodule PortfolixirWeb.Securities.LogoOverrideDialog do
             class="button-ghost"
             phx-click="remove_logo_override"
             phx-value-id={@security.id}
-            disabled={not @status.has_logo and @status.locked}
+            disabled={not @status.has_logo and @status.locked and not @status.file_missing}
             data-confirm={gettext("Remove the logo and keep the security without one?")}
           >
             <%= gettext("Remove logo") %>

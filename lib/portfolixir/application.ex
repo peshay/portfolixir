@@ -11,14 +11,30 @@ defmodule Portfolixir.Application do
     opts = [strategy: :one_for_one, name: Portfolixir.Supervisor]
 
     with {:ok, pid} <- Supervisor.start_link(children(), opts) do
-      # Built-in classification trees (asset-class, currency) are bootstrap data:
-      # seeded once at startup, after the Repo is up, rather than lazily on every
-      # read path (#529). Idempotent + config-gated (off in tests); see
-      # Classifications.seed_builtins_on_boot/0.
-      Portfolixir.Classifications.seed_builtins_on_boot()
-      warn_if_exposed()
+      after_start()
       {:ok, pid}
     end
+  end
+
+  @doc """
+  The steps `start/2` runs once the supervisor is up, in order. Public so the
+  wiring is testable, as `children/0` is: a step removed or moved would
+  otherwise be a silent production-only gap with a green suite.
+
+    * Built-in classification trees (asset-class, currency) are bootstrap
+      data: seeded once at startup, after the Repo is up, rather than lazily
+      on every read path (#529). Idempotent and config-gated (off in tests);
+      see `Classifications.seed_builtins_on_boot/0`.
+    * The logo reconciliation (#933) starts as a supervised task, so it never
+      holds up or stops the boot; config-gated (off in tests), see
+      `Catalog.reconcile_logos_on_boot/1`.
+    * The startup warnings, `warn_if_exposed/0`.
+  """
+  @spec after_start() :: :ok
+  def after_start do
+    Portfolixir.Classifications.seed_builtins_on_boot()
+    Portfolixir.Catalog.reconcile_logos_on_boot()
+    warn_if_exposed()
   end
 
   @doc """

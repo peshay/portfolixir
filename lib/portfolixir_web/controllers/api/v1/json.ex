@@ -289,7 +289,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       path: status.path,
       source: status.source,
       has_logo: status.has_logo,
-      locked: status.locked
+      locked: status.locked,
+      file_missing: status.file_missing
     }
   end
 

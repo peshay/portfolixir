@@ -294,11 +294,14 @@ verengen, was der Betreiber sieht.
   `query`, `sort`, `direction`, holding_status (`all`, `held` oder `not_held`),
   `logo_status` (`missing` oder `present` — die bloße Logo-Bedingung;
   `missing` schließt Zeilen aus, die ausdrücklich auf „kein Logo“ gesetzt
-  sind), `data_quality` (`stale_quote` — kein Kurs neuer als 7 Tage,
-  **einschließlich** nie bepreister Wertpapiere; `missing_quote` — gar kein
-  Kurs, die engere Menge darin; `missing_logo` — kein hinterlegtes Logo und
-  nicht auf „kein Logo“ gesetzt, die Menge, die die Übersicht „Wertpapiere
-  ohne Logo“ zeigt; `missing_fx` — Issue #717: bepreist, aber ohne
+  sind, und schließt ein gespeichertes Logo ein, dessen Datei fehlt, wie auch
+  immer es gesperrt ist, Issue #933; `present` ist ein gespeichertes Logo,
+  dessen Datei nicht fehlt), `data_quality` (`stale_quote` — kein Kurs neuer
+  als 7 Tage, **einschließlich** nie bepreister Wertpapiere; `missing_quote` —
+  gar kein Kurs, die engere Menge darin; `missing_logo` — kein hinterlegtes
+  Logo und nicht auf „kein Logo“ gesetzt, oder ein gespeichertes Logo, dessen
+  Datei fehlt, die Menge, die die Übersicht „Wertpapiere ohne Logo“ zeigt;
+  `missing_fx` — Issue #717: bepreist, aber ohne
   gespeicherten Kurs von seiner Währung zum EUR-Hub, das Speichern des Kurses
   leert also die Menge. Eine Benchmark und ein stillgelegtes Wertpapier sind
   in keiner der ersten drei Mengen, die sie schon in der Abfrage auslassen,
@@ -330,6 +333,15 @@ verengen, was der Betreiber sieht.
   bewegt durch `buy`, `sell`, `inbound_delivery` und `outbound_delivery` — ein
   eingeliefertes Depot ist ab seiner Ankunft gehalten; ein `security_transfer`
   zwischen eigenen Depots gleicht sich zu null aus.
+
+  Ein gespeichertes Logo, dessen Datei fehlt (Issue #933), meldet die
+  Logo-Abfrage `GET /api/v1/securities/:security_id/logo` mit
+  `file_missing: true` und `has_logo: false`, während `path`, `source` und
+  `locked` wie gespeichert bleiben: Die Prüfung beim Start der Instanz fand im
+  Logo-Verzeichnis keine Datei zum gespeicherten Pfad. Ein gefundenes Logo
+  wird erneut gesucht, ein manuelles bleibt gesperrt und wartet darauf, erneut
+  gesetzt zu werden. Speichern oder Entfernen eines Logos hebt die Markierung
+  auf, ebenso der nächste Start, sobald die Datei zurück ist.
 - `POST /api/v1/securities` legt ein Wertpapier mit einem `security`-Objekt an.
   `asset_class` ist ein stabiler String-Code: `equity`, `etf`, `fund`,
   `government_bond`, `bond`, `crypto`, `commodity`, `index`, `other`, plus die

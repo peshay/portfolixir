@@ -5,7 +5,9 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
   The queue is intentionally conservative: it processes one security at a
   time, reloads the row before doing network work, and skips securities that
   already have a stored `logo_path` or whose visible fallback is not a remote
-  logo.
+  logo. A stored path whose file the logo reconciliation marked missing
+  (`logo_file_missing`, #933) counts as no logo, so an unlocked marked row is
+  fetched again; a locked one never is.
 
   To avoid hammering the upstream logo sources (Wikipedia/Wikidata/CoinGecko/
   companieslogo) with a burst of hundreds of requests right after a large
@@ -212,8 +214,11 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
     missing_logo?(security) and logo_candidate?(security) and not logo_locked?(security)
   end
 
+  # No stored path, or one whose file the reconciliation marked missing
+  # (#933): either way there is no logo to show.
   defp missing_logo?(%Security{attributes: attributes}) do
-    not is_binary(get_in(attributes || %{}, ["logo_path"]))
+    attributes = attributes || %{}
+    not is_binary(attributes["logo_path"]) or attributes["logo_file_missing"] == true
   end
 
   # A user who set a manual logo or explicitly removed one locks the security
@@ -228,10 +233,17 @@ defmodule Portfolixir.Catalog.LogoDiscovery do
 
   # The rows the missing_logo set holds (`Catalog.DataQuality`): a benchmark
   # and a retired security are not in it, so a lookup "for all" on that list
-  # leaves them alone too (PR #1102).
+  # leaves them alone too (PR #1102). Of that set, a locked row is left alone:
+  # the "no logo" choice, and a manual logo whose file is gone (#933), which
+  # waits for the operator to upload it again; an unlocked marked row is
+  # fetched again.
   defp missing_logo_candidate_ids do
     Security
-    |> where([s], is_nil(fragment("? ->> ?", s.attributes, ^"logo_path")))
+    |> where(
+      [s],
+      is_nil(fragment("? ->> ?", s.attributes, ^"logo_path")) or
+        fragment("coalesce(? ->> ?, 'false') = 'true'", s.attributes, ^"logo_file_missing")
+    )
     |> where([s], s.is_retired == false and s.is_benchmark == false)
     |> Repo.all()
     |> Enum.reject(&logo_locked?/1)

@@ -7,6 +7,7 @@ defmodule Portfolixir.Catalog.DataQualityTest do
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.DataQuality
+  alias Portfolixir.Catalog.LogoStore
 
   # User story (#705):
   # As the LLM agent maintaining this catalog,
@@ -118,6 +119,63 @@ defmodule Portfolixir.Catalog.DataQualityTest do
   defp retire!(security, retired?) do
     {:ok, security} = Catalog.update_security(Actor.owner_ui(), security, %{is_retired: retired?})
     security
+  end
+
+  # User story (#933, review pass 1):
+  # As an operator whose instance lost logo files,
+  # I want a stored logo whose file is gone listed and counted as without a
+  # logo, whatever its lock,
+  # so that the Overview's count and the list it links to show me what to
+  # fetch or upload again, while my deliberate "no logo" choice stays out.
+  #
+  # Acceptance criteria:
+  # - One predicate: (no path AND not locked) OR file marked missing. A marked
+  #   discovered and a marked locked manual logo are in missing_logo; a
+  #   present logo and the "no logo" choice are not.
+  # - logo_status: :missing is that predicate and :present its complement
+  #   among stored paths; the count and the list agree.
+  # - A marked retired or benchmark security stays out of missing_logo.
+  test "a logo marked file-missing is missing whatever its lock; no logo is not" do
+    tmp = Path.join(System.tmp_dir!(), "portfolixir-dq-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(tmp)
+    on_exit(fn -> File.rm_rf!(tmp) end)
+
+    logo! = fn name, attrs, flags ->
+      security =
+        create_security!(Keyword.merge([name: name, ticker: nil], flags))
+
+      path = "/security_logos/#{security.id}.png"
+      {:ok, security} = Catalog.put_logo_attributes(security, Map.put(attrs, "logo_path", path))
+      security
+    end
+
+    logo!.("Discovered AG", %{"logo_source" => "wikipedia"}, [])
+    logo!.("Manual AG", %{"logo_source" => "manual", "logo_locked" => true}, [])
+    present = logo!.("Present AG", %{"logo_source" => "wikipedia"}, [])
+    File.write!(Path.join(tmp, "#{present.id}.png"), "bytes")
+    retired = logo!.("Retired AG", %{"logo_source" => "wikipedia"}, [])
+    {:ok, _} = Catalog.update_security(Actor.owner_ui(), retired, %{is_retired: true})
+
+    {:ok, _} =
+      Catalog.put_logo_attributes(create_security!(name: "Chosen AG", ticker: nil), %{
+        "logo_locked" => true
+      })
+
+    _unlocked_without = create_security!(name: "Plain AG", ticker: nil)
+
+    assert {:ok, %{marked: 3}} = LogoStore.reconcile_missing_files(storage_dir: tmp)
+
+    assert names(DataQuality.list("missing_logo")) == ["Discovered AG", "Manual AG", "Plain AG"]
+    assert DataQuality.count("missing_logo") == 3
+
+    sorted = fn opts ->
+      opts |> Catalog.list_securities() |> Enum.map(& &1.name) |> Enum.sort()
+    end
+
+    assert sorted.(logo_status: :missing) ==
+             ["Discovered AG", "Manual AG", "Plain AG", "Retired AG"]
+
+    assert sorted.(logo_status: :present) == ["Present AG"]
   end
 
   # User story (PR #1102, reversing the closing-act rule that kept a

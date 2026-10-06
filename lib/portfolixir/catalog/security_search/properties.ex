@@ -4,9 +4,11 @@ defmodule Portfolixir.Catalog.SecuritySearch.Properties do
   before it is merged into a security's `attributes` (#763).
 
   The attributes map also carries the logo bookkeeping (`logo_path`,
-  `logo_source`, `logo_locked`), which the detail pane renders and the
+  `logo_source`, `logo_locked`, and the reconciliation's mark
+  `logo_file_missing`, #933), which the detail pane renders and the
   discovery job trusts, so a provider payload must not be able to write those
-  keys; and a payload that is not a map used to crash the confirm dialog.
+  keys (every `logo_` key is reserved); and a payload that is not a map used
+  to crash the confirm dialog.
   """
 
   alias Portfolixir.Input.Text
