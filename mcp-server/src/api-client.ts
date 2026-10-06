@@ -254,7 +254,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     const bytes = new Uint8Array(await transport(() => response.arrayBuffer()));
     const text = new TextDecoder().decode(bytes);
     const blank = isBlank(text);
-    const quote = (): string => excerptOf(text, bytes.byteLength);
+    const quote = (): string => excerptOf(redact(text, options.token), bytes.byteLength);
 
     const parsed = parseJson(text);
 
@@ -264,7 +264,10 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
     // the API answers that itself when the rate sync's provider fails
     // (exchange_rate_controller.ex), so the server answered, and nothing is
     // unknown. A read's gateway status is a plain error, safe to retry. A 503
-    // is none of them: a proxy that answers 503 did not forward the request.
+    // is none of them, by the spec's decision: a proxy that answers 503
+    // usually did not forward the request, but some (Envoy, Istio) answer it
+    // after forwarding, so the docs tell the agent to re-read before retrying
+    // a write that got one.
     const failedUpstream = GATEWAY_STATUSES.has(status);
     const apiOwn = status === 502 && parsed.json && isApiErrorEnvelope(parsed.value);
     const gateway = failedUpstream && !apiOwn;
@@ -307,7 +310,7 @@ export function createApiClient(options: ApiClientOptions): ApiClient {
       }
 
       throw new Error(
-        `Portfolixir API request failed: ${status} ${JSON.stringify(parsed.value)}` +
+        `Portfolixir API request failed: ${status} ${redact(JSON.stringify(parsed.value), options.token)}` +
           (retrySafe === "" ? "" : `.${retrySafe}`)
       );
     }
@@ -390,16 +393,55 @@ function parseJson(text: string): { json: true; value: unknown } | { json: false
   return { json: true, value: escapeInvisible(value) };
 }
 
-// The API's JSON error envelope (#1045): a top-level `errors` object, the
-// shape every error the API answers carries.
+// The API's JSON error envelope (#1045): exactly one key, `errors`, holding
+// an object with something in it, the shape every error the API answers
+// carries. An empty `errors`, or one beside other keys, is not the API's
+// (review round): a proxy answering 502 in that shape must not make a write
+// the server may have committed read as a refusal.
 function isApiErrorEnvelope(value: unknown): boolean {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
   }
 
-  const errors = Object.hasOwn(value, "errors") ? (value as { errors: unknown }).errors : undefined;
+  const keys = Object.keys(value);
 
-  return typeof errors === "object" && errors !== null && !Array.isArray(errors);
+  if (keys.length !== 1 || keys[0] !== "errors") {
+    return false;
+  }
+
+  const { errors } = value as { errors: unknown };
+
+  return (
+    typeof errors === "object" &&
+    errors !== null &&
+    !Array.isArray(errors) &&
+    Object.keys(errors).length > 0
+  );
+}
+
+const REDACTED = "[redacted]";
+
+// A bearer credential as a header, a page or a JSON string carries it: the
+// scheme word, then its value up to a space, a quote or a tag.
+const BEARER = /\b(bearer)\s+[^\s"'<>]+/gi;
+
+/**
+ * `text` with the companion's own API token, and any bearer credential's
+ * value, replaced by `[redacted]` (#1045 review round). A proxy's page can
+ * echo the request's headers, `Authorization: Bearer …` among them; quoted
+ * to the agent, it would hand a read-only profile the token that writes.
+ * The token is replaced as written and as JSON-quoting writes it.
+ */
+function redact(text: string, token: string): string {
+  let redacted = text;
+
+  if (token !== "") {
+    for (const form of new Set([token, JSON.stringify(token).slice(1, -1)])) {
+      redacted = redacted.replaceAll(form, REDACTED);
+    }
+  }
+
+  return redacted.replace(BEARER, `$1 ${REDACTED}`);
 }
 
 const EXCERPT_LIMIT = 120;
@@ -409,29 +451,35 @@ const EXCERPT_LIMIT = 120;
 const EXCERPT_SCAN = 4096;
 
 // DEL and the C1 controls, U+007F to U+009F, spelled as the invisible
-// characters are: neither the escape nor the JSON quote touches them.
-function spellControls(text: string): string {
-  let spelled = "";
+// characters are: neither the escape nor the JSON quote touches them. So is
+// every blank character but JSON's whitespace (a form feed, a no-break or an
+// ideographic space, a line separator): collapsed, a body of them quoted as
+// `""`, which reads as no body at all (#1045 review round).
+const SPELLED = /[\u007F-\u009F]|[^\S \t\n\r]/gu;
 
-  for (const character of text) {
-    const codePoint = character.codePointAt(0) as number;
+function spellControlsAndBlanks(text: string): string {
+  return text.replace(
+    SPELLED,
+    (character) => `[U+${(character.codePointAt(0) as number).toString(16).toUpperCase().padStart(4, "0")}]`
+  );
+}
 
-    spelled +=
-      codePoint >= 0x7f && codePoint <= 0x9f
-        ? `[U+${codePoint.toString(16).toUpperCase().padStart(4, "0")}]`
-        : character;
-  }
-
-  return spelled;
+// A character's length once JSON-quoted: two for a quote or a backslash, six
+// for a C0 control written `\u00XX`, one for any other, a surrogate pair
+// included.
+function quotedLength(character: string): number {
+  return character.length === 1 ? JSON.stringify(character).length - 2 : 1;
 }
 
 /**
  * A body quoted for an error message (#1045): the first few thousand code
- * units of it, escaped as every answer is (`escapeInvisibleText`) with DEL
- * and the C1 controls spelled out too, whitespace collapsed, at most 120
- * characters, never cut inside a `[U+XXXX]`, and JSON-quoted, so a quote or a
- * control character in it reads as the letters it is. When cut, the whole
- * body's length in bytes follows.
+ * units of it, escaped as every answer is (`escapeInvisibleText`) with DEL,
+ * the C1 controls and the blank characters other than JSON's whitespace
+ * spelled out too, JSON's whitespace collapsed, and JSON-quoted, so a quote
+ * or a control character in it reads as the letters it is. At most 120
+ * characters as quoted, JSON's escapes counted (review round), never cut
+ * inside a `[U+XXXX]` or a JSON escape. When cut, the whole body's length in
+ * bytes follows. The caller redacts the body first (`redact`).
  */
 function excerptOf(text: string, byteLength: number): string {
   let scanned = text.length > EXCERPT_SCAN ? text.slice(0, EXCERPT_SCAN) : text;
@@ -442,18 +490,40 @@ function excerptOf(text: string, byteLength: number): string {
     scanned = scanned.slice(0, -1);
   }
 
-  const collapsed = spellControls(escapeInvisibleText(scanned)).replace(/\s+/g, " ").trim();
+  const collapsed = spellControlsAndBlanks(escapeInvisibleText(scanned))
+    .replace(/[ \t\n\r]+/g, " ")
+    .trim();
   const characters = Array.from(collapsed);
 
-  if (scanned.length === text.length && characters.length <= EXCERPT_LIMIT) {
+  // How many characters fit in the limit as quoted, and how many beside the
+  // ellipsis a cut adds.
+  let length = 0;
+  let fit = 0;
+  let kept = 0;
+
+  for (const character of characters) {
+    length += quotedLength(character);
+
+    if (length > EXCERPT_LIMIT) {
+      break;
+    }
+
+    fit += 1;
+
+    if (length < EXCERPT_LIMIT) {
+      kept = fit;
+    }
+  }
+
+  if (scanned.length === text.length && fit === characters.length) {
     return JSON.stringify(collapsed);
   }
 
-  let head = characters.slice(0, EXCERPT_LIMIT - 1).join("");
+  let head = characters.slice(0, kept).join("");
 
   // A cut that lands inside an escape drops what it kept of it: `[`, `[U`,
   // `[U+`, or `[U+` and some of its digits.
-  if (characters.length >= EXCERPT_LIMIT) {
+  if (kept < characters.length) {
     head = head.replace(/\[(?:U(?:\+[0-9A-F]{0,6})?)?$/, "");
   }
 

@@ -430,9 +430,12 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
   console.error(`Portfolixir MCP server listening on ${mcpUrl(host, port)}`);
 }
 
-// The listener's address as a URL: an IPv6 host goes in brackets.
-function mcpUrl(host: string, port: number): string {
-  return `http://${host.includes(":") ? `[${host}]` : host}:${port}/mcp`;
+// The listener's address as a URL: an IPv6 host goes in brackets, once; a
+// host given already bracketed (`[::1]`) is left as it is (#1043 review round).
+export function mcpUrl(host: string, port: number): string {
+  const bracketed = host.startsWith("[") && host.endsWith("]");
+
+  return `http://${host.includes(":") && !bracketed ? `[${host}]` : host}:${port}/mcp`;
 }
 
 // What a listen most often fails with, in the operator's words.
