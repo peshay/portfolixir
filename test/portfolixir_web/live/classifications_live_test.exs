@@ -1235,6 +1235,10 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     # The basis is stated on the surface, not left for the reader to assume.
     assert html =~ "current composition"
+
+    # #1048: nothing is left out, so there is no note -- and no all-clear
+    # either (UX-DR2).
+    refute html =~ ~s(data-role="category-result-excluded")
   end
 
   # ADR-0041 §4 on the human surface, plus the loss case: a category whose
@@ -1283,5 +1287,336 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     # 1,000, and the row says it covers 1 of its 2 members.
     assert html =~ ~r/data-role="category-invested"[^>]*>\s*1,000\.00/
     assert html =~ ~r/data-role="category-result-partial"[^>]*>\s*1\s*\/\s*2/
+
+    # #1048: the member left out is named where the totals are read, with
+    # its reason in words -- not only as a bare "1/2" with a title. "Value"
+    # leaves it out too, so the note does not say it is in there.
+    assert note_text(html) ==
+             "1 position is not included in “Cost” and “Result”: Dark AG (Core), no usable price."
+  end
+
+  # The note's sentence as a reader gets it: the body's text, whitespace
+  # collapsed.
+  defp note_text(html) do
+    html
+    |> Floki.parse_document!()
+    |> Floki.find(~s([data-role="category-result-excluded"] .data-note__body))
+    |> Floki.text()
+    |> String.replace(~r/\s+/u, " ")
+    |> String.trim()
+  end
+
+  defp note_lines(html) do
+    html
+    |> Floki.parse_document!()
+    |> Floki.find(~s([data-role="category-result-excluded-list"] li))
+    |> Enum.map(fn line ->
+      line
+      |> Floki.children()
+      |> Enum.filter(&is_tuple/1)
+      |> Enum.map(&(&1 |> Floki.text() |> String.replace(~r/\s+/u, " ") |> String.trim()))
+    end)
+  end
+
+  # A EUR portfolio holding Kestrel Systems AG (10 at 580,00 EUR, now 750)
+  # and a USD portfolio holding Harborline Freight Inc (10 at 150,00 USD,
+  # now 180), both under "Wachstum" > "Plattformen" (board 10's names; all
+  # invented), with a stored EUR/USD rate so "Value" can count the USD one.
+  defp currency_tree! do
+    euro = base_world()
+
+    dollar =
+      base_world(
+        name: "Dollar",
+        currency: "USD",
+        cash_name: "Dollar Cash",
+        depot_name: "Dollar Depot"
+      )
+
+    {:ok, classification} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Strategie"})
+
+    {:ok, growth} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Wachstum"
+      })
+
+    {:ok, platforms} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Plattformen",
+        parent_id: growth.id
+      })
+
+    {:ok, core} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Kern global",
+        parent_id: growth.id
+      })
+
+    kestrel = create_security!(name: "Kestrel Systems AG", ticker: "KST")
+
+    harborline =
+      create_security!(name: "Harborline Freight Inc", ticker: "HBF", currency: "USD")
+
+    for security <- [kestrel, harborline] do
+      {:ok, _} =
+        Classifications.assign_security(
+          Actor.owner_ui(),
+          security.id,
+          classification.id,
+          platforms.id
+        )
+    end
+
+    deposit!(euro, "20000", ~D[2026-01-01])
+    deposit!(dollar, "20000", ~D[2026-01-01], currency: "USD")
+    buy!(euro, kestrel, quantity: "10", price: "580")
+    buy!(dollar, harborline, quantity: "10", price: "150", currency: "USD")
+    put_quote!(kestrel, Date.utc_today(), "750")
+    put_quote!(harborline, Date.utc_today(), "180")
+
+    {:ok, _} =
+      Portfolixir.Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: Date.add(Date.utc_today(), -10),
+          rate: Decimal.new("1.1"),
+          source: "manual"
+        }
+      ])
+
+    %{
+      euro: euro,
+      dollar: dollar,
+      classification: classification,
+      growth: growth,
+      platforms: platforms,
+      core: core
+    }
+  end
+
+  defp file!(security, classification, category) do
+    {:ok, _} =
+      Classifications.assign_security(
+        Actor.owner_ui(),
+        security.id,
+        classification.id,
+        category.id
+      )
+  end
+
+  # User story (#1048; pick J10.2 A of board 10, ADR-0041 §1 and §4):
+  # As a local portfolio maintainer with a portfolio outside EUR,
+  # I want the classification screen to add only EUR into "Cost" and
+  # "Result", to say that its figures are in EUR, and to name a member it
+  # leaves out with the cost it was paid,
+  # so that Value − Cost = Result holds again under a cell that promises EUR,
+  # and the gap has an address instead of a silently mixed sum.
+  #
+  # Acceptance criteria:
+  # - "Cost" and "Result" sum the EUR members only.
+  # - One attention note between the basis line and the tree head, inside a
+  #   status region, names the member with its category and its native cost,
+  #   in the board's words, never converted, and carries no button.
+  # - Past one member the note states the count, says which are in "Value",
+  #   and lists the members in a disclosure: name, category, cost or reason.
+  # - With nothing excluded there is no note (asserted on the all-EUR test
+  #   above), and a member with no usable price is named with its reason
+  #   (the partial test above).
+  test "a member whose cost was not paid in EUR is left out of Cost and Result and named (#1048)",
+       %{conn: conn} do
+    world = currency_tree!()
+
+    {:ok, view, _html} =
+      live_drained(conn, "/classifications/#{world.classification.id}?locale=de")
+
+    html = render(view)
+    doc = Floki.parse_document!(html)
+
+    # "Plattformen" adds the EUR member only: 5.800,00, not 7.300,00 -- and
+    # its value still counts the USD member (7.500,00 + 1.800 / 1,1).
+    platforms =
+      doc
+      |> Floki.find("summary.cat-summary")
+      |> Enum.find(&(Floki.text(Floki.find(&1, ".cat-name__text")) == "Plattformen"))
+
+    assert Floki.text(Floki.find(platforms, ~s([data-role="category-invested"]))) =~ "5.800,00"
+    assert Floki.text(Floki.find(platforms, ~s([data-role="category-result"]))) =~ "+1.700,00"
+    assert Floki.text(Floki.find(platforms, ~s([data-role="category-value"]))) =~ "9.136,36"
+    refute html =~ "7.300,00"
+
+    # The board's sentence, word for word, with the native figure.
+    assert note_text(html) ==
+             "1 Position ist in „Einstand“ und „Ergebnis“ nicht enthalten, weil ihr " <>
+               "Einstand nicht in EUR bezahlt wurde: Harborline Freight Inc (Plattformen), " <>
+               "Einstand 1.500,00 USD. Im „Wert“ ist sie enthalten."
+
+    # An attention data note in a status region, between the basis line and
+    # the tree head; no control (UX-DR25 clause 3), and one member needs no
+    # disclosure.
+    assert [note] = Floki.find(doc, ~s([role="status"] > [data-role="category-result-excluded"]))
+    assert Floki.attribute(note, "class") == ["data-note data-note--attention"]
+    assert Floki.find(note, "bdi") |> Floki.text() == "Harborline Freight Inc"
+    assert Floki.find(note, "button, a, details") == []
+
+    assert html =~
+             ~r/data-role="category-result-basis".*data-role="category-result-excluded".*data-role="tree-head"/s
+  end
+
+  test "past one member the note counts them and lists them in a disclosure (#1048)",
+       %{conn: conn} do
+    world = currency_tree!()
+
+    ashgrove = create_security!(name: "Ashgrove Mining Ltd", ticker: "ASH", currency: "USD")
+    file!(ashgrove, world.classification, world.core)
+    buy!(world.dollar, ashgrove, quantity: "4", price: "62.5", currency: "USD")
+    put_quote!(ashgrove, Date.utc_today(), "70")
+
+    # A EUR member with no price at all.
+    brackwater = create_security!(name: "Brackwater Dormant AG", ticker: "BRW")
+    file!(brackwater, world.classification, world.platforms)
+    buy!(world.euro, brackwater, quantity: "2", price: "50")
+
+    {:ok, view, _html} =
+      live_drained(conn, "/classifications/#{world.classification.id}?locale=de")
+
+    html = render(view)
+
+    # The count, then which of them "Wert" holds: the two whose cost was
+    # paid in USD, not the one with no price.
+    assert note_text(html) =~
+             ~r/^3 Positionen sind in „Einstand“ und „Ergebnis“ nicht enthalten\. Die 2, deren Einstand nicht in EUR bezahlt wurde, sind im „Wert“ enthalten\. Die 3 Positionen /
+
+    # The members, by name, as aligned lines: name · category · cost or reason.
+    assert note_lines(html) == [
+             ["Ashgrove Mining Ltd", "Kern global", "Einstand 250,00 USD"],
+             ["Brackwater Dormant AG", "Plattformen", "kein brauchbarer Kurs"],
+             ["Harborline Freight Inc", "Plattformen", "Einstand 1.500,00 USD"]
+           ]
+
+    doc = Floki.parse_document!(html)
+
+    assert [_] =
+             Floki.find(
+               doc,
+               ~s([data-role="category-result-excluded"] details.perf-table-disclosure)
+             )
+
+    assert Floki.find(doc, ~s([data-role="category-result-excluded"] button)) == []
+  end
+
+  test "the note's English source says the same, and every member paid elsewhere is in Value (#1048)",
+       %{conn: conn} do
+    world = currency_tree!()
+
+    ashgrove = create_security!(name: "Ashgrove Mining Ltd", ticker: "ASH", currency: "USD")
+    file!(ashgrove, world.classification, world.core)
+    buy!(world.dollar, ashgrove, quantity: "4", price: "62.5", currency: "USD")
+    put_quote!(ashgrove, Date.utc_today(), "70")
+
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{world.classification.id}")
+    html = render(view)
+
+    assert note_text(html) =~
+             ~r/^2 positions are not included in “Cost” and “Result” because their cost was not paid in EUR\. They are included in “Value”\. The 2 positions /
+
+    assert note_lines(html) == [
+             ["Ashgrove Mining Ltd", "Kern global", "cost 250.00 USD"],
+             ["Harborline Freight Inc", "Plattformen", "cost 1,500.00 USD"]
+           ]
+  end
+
+  # ADR-0041 §4 names every exclusion, not only the currency's: a member whose
+  # cost cannot be derived from its bookings, one with no stored exchange
+  # rate, and one settled from a cash account outside the portfolio's
+  # currency are each named with their reason in words -- and none of them
+  # is said to be in "Value". No rate is stored in this world.
+  test "every other reason the roll-up names is said in words (#1048)", %{conn: conn} do
+    euro = base_world()
+
+    usd_cash =
+      base_world(
+        name: "Mixed",
+        cash_currency: "USD",
+        cash_name: "Dollar Cash",
+        depot_name: "Mixed Depot"
+      )
+
+    dollar =
+      base_world(name: "Dollar", currency: "USD", cash_name: "Yen Cash", depot_name: "Yen Depot")
+
+    {:ok, classification} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Gründe"})
+
+    {:ok, core} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Kern"
+      })
+
+    # Bought in USD, settled at 900,00 EUR; no EUR/USD rate stored.
+    norate = create_security!(name: "Norate Shipping Inc", ticker: "NRS", currency: "USD")
+    deposit!(euro, "10000", ~D[2026-01-01])
+
+    cross_trade!(euro, norate,
+      quantity: "10",
+      price: "100",
+      settled: "900",
+      gross: "900",
+      date: ~D[2026-01-02]
+    )
+
+    # A EUR portfolio's position paid from a USD cash account.
+    leg = create_security!(name: "Legwise Corp", ticker: "LGW", currency: "USD")
+    deposit!(usd_cash, "10000", ~D[2026-01-01], currency: "USD")
+    buy!(usd_cash, leg, quantity: "5", price: "20", currency: "USD")
+
+    # A yen security bought in dollars with no yen amount recorded.
+    kyoto = create_security!(name: "Kyoto Works", ticker: "KYW", currency: "JPY")
+    deposit!(dollar, "1000", ~D[2026-01-01], currency: "USD")
+    buy!(dollar, kyoto, quantity: "4", price: "25", currency: "USD")
+
+    for {security, close} <- [{norate, "110"}, {leg, "22"}, {kyoto, "3000"}] do
+      file!(security, classification, core)
+      put_quote!(security, Date.utc_today(), close)
+    end
+
+    {:ok, view, _html} =
+      live_drained(conn, "/classifications/#{classification.id}?locale=de")
+
+    html = render(view)
+
+    assert note_text(html) =~
+             ~r/^3 Positionen sind in „Einstand“ und „Ergebnis“ nicht enthalten\. Die 3 Positionen /
+
+    refute note_text(html) =~ "„Wert“"
+
+    assert note_lines(html) == [
+             ["Kyoto Works", "Kern", "kein Einstand aus den Buchungen ableitbar"],
+             ["Legwise Corp", "Kern", "kein Einstand in EUR ableitbar"],
+             ["Norate Shipping Inc", "Kern", "kein Wechselkurs gespeichert"]
+           ]
+  end
+
+  # The note takes its category names from the tree on screen, which reloads
+  # on an edit while the roll-up keeps what it read. A member whose category
+  # has just been deleted is still named -- only without a category.
+  test "a member whose category left the tree is still named (#1048)", %{conn: conn} do
+    world = currency_tree!()
+
+    {:ok, view, _html} =
+      live_drained(conn, "/classifications/#{world.classification.id}?locale=de")
+
+    render_hook(view, "delete_category", %{"id" => to_string(world.platforms.id)})
+    html = render(view)
+
+    refute html =~ ~s(title="Plattformen")
+
+    assert note_text(html) =~
+             ~r/bezahlt wurde: Harborline Freight Inc, Einstand 1\.500,00 USD\. Im „Wert“ ist sie enthalten\.$/
   end
 end
