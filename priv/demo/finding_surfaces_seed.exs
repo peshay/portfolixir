@@ -11,7 +11,14 @@
 # (15): closed trades held over a year and lost entirely, sells with no
 # matched buy wholly and in part, a sale no stored rate converts, merge
 # chains ending in a later merge and in a deletion, and manual quotes in
-# seven stretches, without a ticker and on a single day.
+# seven stretches, without a ticker and on a single day; and the Sprint 19
+# PR α surfaces (16): a CHF account whose deposit counted zero until its
+# currency's first rate, a cross-currency buy with fees and taxes in EUR, a
+# USD-based portfolio whose holdings the EUR category result names with their
+# native cost, one of them held in a EUR portfolio as well, and bonds priced
+# on two scales in both directions, one of them without an asset class. The
+# Gesamtpreis row error (#1076) is a file the walkthrough drops by hand:
+# priv/demo/pp_csv_gesamtpreis_demo.csv.
 # Synthetic all the way down; no real data (AGENTS.md → Privacy And
 # Disclosure).
 #
@@ -199,7 +206,7 @@ end
 
 # 2. A position delivered in with no quote at all and no asset class (fires
 #    "no price", "unclassified" and "no logo").
-{_bond_state, _bond} =
+{_bond_state, bond} =
   seed_position.(
     "Placeholder Anleihe 2031 3,25%",
     %{currency_code: "EUR"},
@@ -215,6 +222,13 @@ end
       }
     end
   )
+
+# On a re-run the quote seed above has priced it too (anchored at 100, since
+# the delivery carries no price), which would silently end the "no price"
+# surface that Wealth and the Overview's "Alles" card name (M6, #1081).
+# Released here, as step 1 releases the stale security's newer closes.
+{:ok, _} =
+  Catalog.release_manual_quotes(owner, bond.id, Date.add(today, -1000), Date.add(today, 1))
 
 # 3. A watch-list security (not held, unclassified).
 unless find_security.("Helios Solar Systems SE") do
@@ -1368,5 +1382,272 @@ end
 
 {:ok, _} =
   Catalog.upsert_quotes(owner, corvid.id, [%{date: Date.add(today, -9), close: "64.20"}])
+
+# 16. The Sprint 19 PR α surfaces (Sprint 15 plan D-10: the stories extend
+#     this seed with what they change). Each scenario is created only when its
+#     account, security or portfolio is not there yet; the quotes, which the
+#     quote seed above rewrites on every run, are put back on every run. Every
+#     booking or first rate that moves the Demo Depot's return lies more than
+#     90 days back, so the 90-day volatility rule of step 11 keeps its state. M6 (#1081) needs
+#     nothing new: the USD cash with no rate (step 4) and the delivered
+#     position with no price (step 2) are what the Overview's note under the
+#     "Alles" card names.
+
+# 16a. M3 (#1055): "Tagesgeld CHF" receives 2,000.00 CHF four weeks before
+#      CHF's first stored rate, counts zero until that rate, and then brings
+#      its whole balance into "Currency effect on cash". Wealth's contribution
+#      table names it for any period covering both days (the default, one
+#      year): "zählte an einigen Tagen … null" and "Mit dem ersten
+#      Wechselkurs am …". The first rate is stored here, sixteen weeks back,
+#      before step 12's; a database seeded long ago that already holds an
+#      older CHF rate keeps it, and the deposit moves before that one.
+if cash_named.("Tagesgeld CHF") == nil do
+  planned_first_rate = Date.add(today, -112)
+
+  first_rate =
+    case Fx.series("CHF", ~D[1900-01-01]) do
+      [%{date: earliest} | _] -> Enum.min([earliest, planned_first_rate], Date)
+      [] -> planned_first_rate
+    end
+
+  if first_rate == planned_first_rate do
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "CHF",
+          date: first_rate,
+          rate: "0.94",
+          source: "manual"
+        }
+      ])
+  end
+
+  {:ok, franc_cash} =
+    Portfolios.create_cash_account(owner, %{
+      portfolio_id: portfolio.id,
+      name: "Tagesgeld CHF",
+      currency_code: "CHF"
+    })
+
+  {:ok, _} =
+    Ledger.create_transaction(owner, %{
+      portfolio_id: portfolio.id,
+      cash_account_id: franc_cash.id,
+      type: "deposit",
+      date: Date.add(first_rate, -28),
+      gross_amount: "2000.00",
+      currency_code: "CHF"
+    })
+end
+
+# 16b. M4 (#1051): a USD-priced security bought through the EUR Demo Cash,
+#      recorded as WorldFixtures.cross_trade! records one: 40 at 25.00 USD
+#      (1,000.00 USD) settled at 920.00 EUR, fees 7.50 and taxes 2.50 EUR,
+#      930.00 EUR paid. The seed never stores a USD rate (step 4), so this is
+#      ADR-0051 §5's no-rate row: the contribution table carries the 10.00
+#      EUR of fees and taxes as the position's costs, and names the position
+#      as counting zero. (Step 12's CHF buy is the converted path, fees only.)
+if find_security.("Larkspur Robotics Inc") == nil do
+  {:ok, larkspur} =
+    Catalog.create_security(owner, %{
+      name: "Larkspur Robotics Inc",
+      ticker_symbol: "LKRB",
+      currency_code: "USD",
+      asset_class: "equity"
+    })
+
+  {:ok, _} =
+    Ledger.create_transaction(owner, %{
+      portfolio_id: portfolio.id,
+      securities_account_id: depot.id,
+      cash_account_id: cash.id,
+      security_id: larkspur.id,
+      type: "buy",
+      date: Date.add(today, -150),
+      quantity: "40",
+      price: "25.00",
+      fees: "7.50",
+      taxes: "2.50",
+      currency_code: "USD",
+      security_amount: "1000.00",
+      settlement_amount: "920.00",
+      settlement_fx_rate: "0.92",
+      gross_amount: "930.00"
+    })
+end
+
+larkspur = find_security.("Larkspur Robotics Inc")
+
+# 16c. M5 (#1048): a second portfolio whose base currency is USD, holding
+#      Harborline Freight Inc (step 15c's, sold out of the EUR portfolio) and
+#      Larkspur (16b's, so held in a EUR and a USD portfolio). Both are filed
+#      in the Strategies tree, so the classification screen's EUR result
+#      leaves both out and names them: Harborline with its native cost
+#      ("Einstand 1.500,00 USD"), Larkspur, excluded whole, with the reason
+#      its EUR slice gives. Not in Platforms: step 13's position targets
+#      would grow an untargeted row.
+usd_portfolio =
+  case Enum.find(Portfolios.list_portfolios(), &(&1.name == "Dollar Depot")) do
+    nil ->
+      {:ok, created} =
+        Portfolios.create_portfolio(owner, %{name: "Dollar Depot", base_currency_code: "USD"})
+
+      {:ok, dollar_cash} =
+        Portfolios.create_cash_account(owner, %{
+          portfolio_id: created.id,
+          name: "Dollar Cash",
+          currency_code: "USD"
+        })
+
+      {:ok, dollar_depot} =
+        Portfolios.create_securities_account(owner, %{
+          portfolio_id: created.id,
+          cash_account_id: dollar_cash.id,
+          name: "Dollar Depot"
+        })
+
+      {:ok, _} =
+        Ledger.create_transaction(owner, %{
+          portfolio_id: created.id,
+          cash_account_id: dollar_cash.id,
+          type: "deposit",
+          date: Date.add(today, -200),
+          gross_amount: "3000.00",
+          currency_code: "USD"
+        })
+
+      harborline = find_security.("Harborline Freight Inc")
+
+      for {security, quantity, price, back} <- [
+            {harborline, "50", "30.00", 180},
+            {larkspur, "20", "25.00", 170}
+          ] do
+        {:ok, _} =
+          Ledger.create_transaction(owner, %{
+            portfolio_id: created.id,
+            securities_account_id: dollar_depot.id,
+            cash_account_id: dollar_cash.id,
+            security_id: security.id,
+            type: "buy",
+            date: Date.add(today, -back),
+            quantity: quantity,
+            price: price,
+            currency_code: "USD"
+          })
+      end
+
+      created
+
+    existing ->
+      existing
+  end
+
+core = Enum.find(Classifications.list_categories(strategies.id), &(&1.name == "Global Core"))
+quality = Enum.find(Classifications.list_categories(strategies.id), &(&1.name == "Quality"))
+harborline = find_security.("Harborline Freight Inc")
+
+{:ok, _} = Classifications.assign_security(owner, harborline.id, strategies.id, core.id)
+{:ok, _} = Classifications.assign_security(owner, larkspur.id, strategies.id, quality.id)
+
+# Today's closes, after the quote seed: the USD holdings are priced in USD
+# (no rate converts them), so neither is valued by its last trade.
+for {security, close} <- [{harborline, "33.00"}, {larkspur, "27.50"}] do
+  {:ok, _} = Catalog.upsert_quotes(owner, security.id, [%{date: today, close: close}])
+end
+
+# 16d. M7 (#1068): three bonds priced on two scales, all held in the Demo
+#      Depot more than a year back, so Wealth names them and the Overview's
+#      data-quality line counts them ("3 Anleihen auf zwei Skalen bepreist").
+#      Forward: quotes near 100 beside a booked price per unit near 1.
+#      Reverse: quotes near 1 (at most 5) beside a booked price near 100.
+#      Unclassed: no asset class, stored or inferred, but a coupon and a
+#      maturity date, on two scales forward, which carries the "ohne
+#      Anlageklasse" badge. The quantities are small on purpose: the forward
+#      ones count a hundred times too high in every total. A deposit of
+#      1,100.00 EUR ten days earlier covers the three buys (1,024.52 EUR).
+bonds = [
+  %{
+    name: "Kestrel Anleihe 2030 2,75%",
+    terms: %{asset_class: "bond", coupon_rate: "2.75", maturity_date: ~D[2030-05-15]},
+    quantity: "20",
+    price: "0.985",
+    closes: ["97.10", "97.25"]
+  },
+  %{
+    name: "Birkenhain Wasser Anleihe 2029 1,50%",
+    terms: %{asset_class: "bond", coupon_rate: "1.50", maturity_date: ~D[2029-09-30]},
+    quantity: "10",
+    price: "98.50",
+    closes: ["0.9820", "0.9850"]
+  },
+  %{
+    name: "Ostsee Logistik 4,10% 2028/2033",
+    terms: %{coupon_rate: "4.10", maturity_date: ~D[2033-03-31]},
+    quantity: "20",
+    price: "0.991",
+    closes: ["98.80", "99.10"]
+  }
+]
+
+if find_security.("Kestrel Anleihe 2030 2,75%") == nil do
+  bond_date = Date.add(today, -400)
+
+  {:ok, _} =
+    Ledger.create_transaction(owner, %{
+      portfolio_id: portfolio.id,
+      cash_account_id: cash.id,
+      type: "deposit",
+      date: Date.add(bond_date, -10),
+      gross_amount: "1100.00",
+      currency_code: "EUR"
+    })
+
+  for %{name: name, terms: terms, quantity: quantity, price: price} <- bonds do
+    {:ok, security} =
+      Catalog.create_security(
+        owner,
+        Map.merge(%{name: name, currency_code: "EUR", coupon_frequency: "annual"}, terms)
+      )
+
+    {:ok, _} =
+      Ledger.create_transaction(owner, %{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: cash.id,
+        security_id: security.id,
+        type: "buy",
+        date: bond_date,
+        quantity: quantity,
+        price: price,
+        currency_code: "EUR"
+      })
+  end
+end
+
+# The quote seed priced every bond near its booked price on this run, which
+# ends both findings: its closes are released and the two scales written
+# back, one close on the buy day and one yesterday.
+for %{name: name, closes: [opening, latest]} <- bonds do
+  security = find_security.(name)
+
+  bought =
+    security.id
+    |> Ledger.list_transactions_for_security()
+    |> Enum.filter(&(&1.type == "buy"))
+    |> Enum.map(& &1.date)
+    |> Enum.min(Date)
+
+  {:ok, _} =
+    Catalog.release_manual_quotes(owner, security.id, Date.add(today, -1000), Date.add(today, 1))
+
+  {:ok, _} =
+    Catalog.upsert_quotes(owner, security.id, [
+      %{date: bought, close: opening},
+      %{date: Date.add(today, -1), close: latest}
+    ])
+end
+
+IO.puts("Sprint 19 surfaces: Tagesgeld CHF, Larkspur, #{usd_portfolio.name}, three bonds")
 
 IO.puts("review seed done (timber position: #{timber_state})")
