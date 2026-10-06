@@ -283,6 +283,33 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
   # - A balance still at zero on the last day: "Ein Verrechnungskonto zählt
   #   bis zum Ende des Zeitraums null: …"; two: "2 Verrechnungskonten zählen
   #   bis zum Ende des Zeitraums null: …".
+  # User story (#1055, board J2 A):
+  # As a local portfolio maintainer with several cash accounts whose rate has
+  # not come yet,
+  # I want the note to name each of them and to say nothing about a first
+  # rate that has not arrived,
+  # so that the note never claims a jump the period does not hold.
+  #
+  # Acceptance criteria:
+  # - Two accounts, neither with a first rate inside the period: both are
+  #   named, and no first-rate sentence follows.
+  # - An account whose name the walk could not read is named "—".
+  test "accounts without a first rate in the period get no rate sentence" do
+    html =
+      render_table(
+        result([], [
+          account(7, "Tagesgeld CHF", %{first_rate_date: nil, unvalued_through_end: true}),
+          account(8, nil, %{first_rate_date: nil, unvalued_through_end: true})
+        ])
+      )
+
+    note = sentence(html, "[data-role='contribution-unvalued']")
+
+    assert note =~ "Tagesgeld CHF"
+    assert note =~ "—"
+    refute note =~ "first exchange rate"
+  end
+
   test "the account sentences in German" do
     previous = Gettext.get_locale(PortfolixirWeb.Gettext)
 

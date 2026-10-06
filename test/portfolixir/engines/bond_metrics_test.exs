@@ -203,6 +203,8 @@ defmodule Portfolixir.Engines.BondMetricsTest do
     assert BondMetrics.two_scales(latest, [%{price: dec("98.50"), date: ~D[2026-03-12]}]) == nil
     assert BondMetrics.two_scales(nil, bookings) == nil
     assert BondMetrics.two_scales(latest, []) == nil
+    # A booking with no price per unit has no scale to compare.
+    assert BondMetrics.two_scales(latest, [%{price: nil, date: ~D[2026-03-12]}]) == nil
 
     at = fn close, price ->
       BondMetrics.two_scales(%{close: dec(close), date: @as_of}, [
