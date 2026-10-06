@@ -261,7 +261,9 @@ defmodule Portfolixir.Portfolios.Performance.RetiredSecuritiesTest do
     retire!(security)
     {:ok, after_retiring} = Performance.for_portfolio(world.portfolio.id, today: ~D[2026-01-21])
 
-    assert after_retiring == before
+    # Everything but as_of, the second each read was computed in: two reads
+    # that straddle a second differ there and nowhere else.
+    assert Map.delete(after_retiring, :as_of) == Map.delete(before, :as_of)
     # Not an empty walk compared with itself: the sale's gain is in it.
     assert Decimal.equal?(before.end_value, Decimal.new("1200"))
   end
