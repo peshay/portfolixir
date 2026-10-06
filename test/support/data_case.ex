@@ -49,10 +49,16 @@ defmodule Portfolixir.DataCase do
   # every other async test writing an ISIN waited for it (#1018). The setting,
   # local to the test's transaction, scopes the lock to the test's connection:
   # the test's own writers still serialize, another test's never wait.
+  #
+  # The import-hash lock of the booking and retirement triggers (#917) is
+  # scoped the same way: a test that books hashed rows (the lock shared) and
+  # then merges (exclusive) in its one transaction deadlocked with another
+  # such test on the one database-wide key.
   defp scope_isin_write_lock do
-    Portfolixir.Repo.query!(
-      "SELECT set_config('portfolixir.isin_write_lock_scope', pg_backend_pid()::text, true)"
-    )
+    Portfolixir.Repo.query!("""
+    SELECT set_config('portfolixir.isin_write_lock_scope', pg_backend_pid()::text, true),
+           set_config('portfolixir.import_hash_lock_scope', pg_backend_pid()::text, true)
+    """)
   end
 
   @doc """

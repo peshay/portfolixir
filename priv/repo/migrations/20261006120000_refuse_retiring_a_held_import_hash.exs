@@ -43,8 +43,16 @@ defmodule Portfolixir.Repo.Migrations.RefuseRetiringAHeldImportHash do
   two writers with no hash in common could deadlock; one key has no order.
   The cost: a retirement also waits for bookings of other hashes. That
   serializes more than it must, never less, and the only writer that retires,
-  a merge, books no hash, so no transaction holds the shared lock while it
-  asks for the exclusive one.
+  a merge, books no hash, so in the application no transaction holds the
+  shared lock while it asks for the exclusive one.
+
+  **The second key is the lock's scope**, 0 unless the transaction sets
+  `portfolixir.import_hash_lock_scope`, which the application never does. The
+  test sandbox sets it to its connection's process id, as it scopes the ISIN
+  write lock (#1018): a sandboxed test never commits, and a test that books
+  rows and then merges in its one transaction holds the shared lock while it
+  asks for the exclusive one, so two such tests sharing the key deadlocked.
+  Scoped, a test's own writers still serialize and another test's never wait.
 
   This migration replaces the existing function of `transactions` with the
   locking body; `down` restores the body it had.
@@ -59,9 +67,11 @@ defmodule Portfolixir.Repo.Migrations.RefuseRetiringAHeldImportHash do
 
   require Logger
 
-  # The import-hash lock's two keys (#917): reserved for the two triggers
-  # below, and named by no other advisory lock (see the moduledoc).
-  @lock_keys "727209017, 0"
+  # The import-hash lock's two keys (#917): the first reserved for the two
+  # triggers below and named by no other advisory lock, the second the lock's
+  # scope, 0 unless the transaction sets `portfolixir.import_hash_lock_scope`
+  # (see the moduledoc).
+  @lock_keys "727209017, coalesce(nullif(current_setting('portfolixir.import_hash_lock_scope', true), '')::integer, 0)"
 
   # How many of the transactions holding a retired hash the warning names.
   @named_max 5

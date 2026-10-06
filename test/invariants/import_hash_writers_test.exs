@@ -48,9 +48,11 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
 
   # The import-hash lock both triggers of
   # priv/repo/migrations/20261006120000_refuse_retiring_a_held_import_hash.exs
-  # take (#917), the two-key advisory lock (727_209_017, 0), as pg_locks shows
-  # it: classid, objid, and objsubid 2 for the two-key form.
-  @import_hash_lock {727_209_017, 0, 2}
+  # take (#917), the two-key advisory lock (727_209_017, scope), as pg_locks
+  # shows it: classid, objid, and objsubid 2 for the two-key form. The scope is
+  # 0 in the application; DataCase scopes it to the test's connection, so here
+  # it is the backend's process id.
+  @import_hash_lock_key 727_209_017
 
   @changeset_writes ~w(put_change force_change change)a
   @bulk_writes ~w(insert_all update_all)a
@@ -446,7 +448,7 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
     # Acceptance criteria:
     # - A transaction that books hashed rows, through the ledger or a raw
     #   insert, holds exactly one advisory lock it did not hold before: the
-    #   import-hash lock, keys (727_209_017, 0), in share mode.
+    #   import-hash lock, keys (727_209_017, scope), in share mode.
     # - A retirement holds the same key in exclusive mode.
     # - One transaction books 20,000 hashed rows without an error, past the
     #   11,000 to 15,000 rows at which a lock per hash ran out the shared lock
@@ -470,7 +472,7 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
       book_raw!(world, "synthetic-lock-raw-", 200)
 
       assert MapSet.difference(advisory_locks(), before) |> Enum.to_list() == [
-               {@import_hash_lock, "ShareLock"}
+               {import_hash_lock(), "ShareLock"}
              ]
     end
 
@@ -481,7 +483,7 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
       retire!(record, "synthetic-lock-retired")
 
       assert MapSet.difference(advisory_locks(), before) |> Enum.to_list() == [
-               {@import_hash_lock, "ExclusiveLock"}
+               {import_hash_lock(), "ExclusiveLock"}
              ]
     end
 
@@ -495,7 +497,8 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
                :count
              ) == 20_000
 
-      assert advisory_locks() |> Enum.count(fn {key, _mode} -> key == @import_hash_lock end) == 1
+      lock = import_hash_lock()
+      assert advisory_locks() |> Enum.count(fn {key, _mode} -> key == lock end) == 1
     end
   end
 
@@ -770,6 +773,13 @@ defmodule Portfolixir.Invariants.ImportHashWritersTest do
 
   # The advisory locks this connection holds, `{{classid, objid, objsubid},
   # mode}`.
+  # The import-hash lock as pg_locks shows it on this test's connection, whose
+  # scope DataCase set to the connection's process id.
+  defp import_hash_lock do
+    %{rows: [[pid]]} = Repo.query!("SELECT pg_backend_pid()")
+    {@import_hash_lock_key, pid, 2}
+  end
+
   defp advisory_locks do
     %{rows: rows} =
       Repo.query!("""
