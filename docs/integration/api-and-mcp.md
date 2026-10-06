@@ -279,7 +279,11 @@ full list.
   none of the first three, which leave them out in the query, before
   `limit`/`offset`: retiring a sold-out or delisted security takes it out of
   all three, and reactivating it puts it back in those it matches.
-  `missing_fx` keeps both),
+  `missing_fx` keeps both; `two_scales` — issue #1068: every bond the
+  two-scales guard names, in either direction, catalog-wide, the set the
+  Overview's data-quality line counts; see `bond.two_scales` below for the
+  rule and which securities count as bonds. It keeps a benchmark and a
+  retired security too, since their figures are as wrong as before),
   `projection` (`slim`/`full`), and
   `limit`/`offset` for pagination (both non-negative integers). Use these to
   page large catalogs instead of fetching the whole table at once. The
@@ -815,9 +819,18 @@ number is cast the way every decimal field casts one.
 
 `null` clears a field, nothing is required, an impossible value is a `422`
 naming its field with nothing written, and the fields are kept when the
-asset class changes. They are read only while the effective asset class is
-`bond` or `government_bond`. The MCP tools `portfolixir.securities.create`
-and `portfolixir.securities.update` take them (the update also `null`).
+asset class changes. They are read while the effective asset class is
+`bond` or `government_bond`, and — since issue #1068 — while the security
+has **no** asset class, stored or inferred (its `asset_class` is `null` and
+the name and logo rules infer none), carries a `maturity_date` or a
+`coupon_rate`, and has a name the inference does not read as a structured
+product's: the name inference recognises only government-bond names, so
+that master data is what marks a corporate bond without a class as a bond.
+A security with any other class, stored or inferred, is no bond, whatever
+master data it carries; a bond whose name carries its issuer's legal form is
+stored as `equity` on create and needs its `asset_class` set to `bond`.
+The MCP tools `portfolixir.securities.create` and
+`portfolixir.securities.update` take them (the update also `null`).
 
 `GET /api/v1/securities/:id` of such a security carries `bond`, computed on
 read and never stored (scope-ladder level (a)); it is `null` for any other
@@ -838,11 +851,21 @@ security and on listings and write responses:
   `"0"`), with the `price` it used (`value`, `date`, `source`: `quote` for the latest
   stored quote, `trade` for the last own trade price while there is none);
 - `two_scales` — `null`, or the finding that the bond is **priced on two
-  scales**: its `latest_quote`, the count of `unit_scale_bookings` and the
-  `last_unit_scale_booking`, and the `rule` (a latest quote 20 to 500 times a
-  booked price per unit, a buy's or a priced inbound delivery's). Every
-  money figure of such a bond is a hundred
-  times too high, and the TTWROR does not show it; nothing is converted.
+  scales**: its `direction`, its `latest_quote`, the count of
+  `unit_scale_bookings` and the `last_unit_scale_booking`, and the `rule`.
+  - `direction: "forward"` — a latest quote 20 to 500 times a booked price
+    per unit (a buy's or a priced inbound delivery's): quotes near 100
+    beside bookings near 1. Every money figure of such a bond is a hundred
+    times too high, and the TTWROR does not show it.
+  - `direction: "reverse"` (issue #1068) — a latest quote 1/500 to 1/20 of a
+    booked price per unit, both ends included, and itself at most 5: quotes
+    near 1 beside bookings near 100. The stored quotes are not percent of
+    face, and the bond counts a hundred times too low in every total.
+
+  The two booking keys keep their names in both directions and hold the
+  bookings inside the band; where a bond has bookings in both bands, the
+  forward finding is reported. The `rule` states both bands and which
+  securities are read as bonds. Nothing is converted, in either direction.
 
 Every metric carries its own `computation_basis` (`input_series`, `window`,
 `reference`, `gaps`, `assumptions`). A figure without its input is `null`

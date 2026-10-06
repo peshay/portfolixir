@@ -120,7 +120,8 @@ order, and the first that matches decides:
 6. **equity** — the name carries a share or legal-form marker — Registered
    Shares, Reg. Shares, Registered Part. Shares, Inhaber-Aktien,
    Namens-Aktien, Vorzugsaktien, Actions, Aandelen, Common Stock, Inc., Corp.,
-   Corporation, Company, Co., Ltd., AG, SE, PLC, S.p.A., S.A. or SA, SA/NV,
+   Corporation, Company, Co., Ltd., AG, SE, PLC, S.p.A., S.A. or SA, S.A.S. or
+   SAS, SA/NV,
    Aktiengesellschaft, A/S, ASA, KGaA, Azioni, Acciones, Aktier — or a
    depositary-receipt marker (ADR, Sp.ADR, GDR, Depos. Receipts) or INH.ON,
    **and** no structured-product word (Turbo, Disc, Discount, Call, Put,
@@ -135,13 +136,23 @@ order, and the first that matches decides:
    instrument.
 9. Otherwise the security has no class: it is unclassified.
 
-The rules ignore case, and most of them match whole words. A few equity
-markers do not, and they explain the surprises: "SA" and "Actions" also match
-inside a word, so a name with the letters "sa" in it reads as equity unless an
-earlier rule matched or an exclusion applies; and every exclusion matches
-inside a word as well, so a company whose name merely contains "put" or
-"disc" ("Muster Computer Corp") is not read as equity and stays
-unclassified. Setting the class by hand settles any such case.
+The rules ignore case, and most of them match whole words. Since issue
+#1078 that includes the legal forms "S.A.", "SA", "S.A.S.", "SAS",
+"Actions" and "Aandelen", so a name that merely contains the letters "sa",
+"actions" or "aandelen" ("Global Transactions Group", "Muster
+Aandelenfonds") is not read as equity; and the short exclusion words
+(Turbo, Disc, Discount, Call or Calls, Put or Puts, O.End,
+Em.-u.Handelsg.mbH), so a company whose name merely contains "put" or
+"disc" ("Muster Computer Corp") is read as equity. Some markers still match
+as written, even inside a longer token: the equity markers Registered
+Shares, Reg. Shares, Registered Part. Shares, Inhaber-Aktien,
+Namens-Aktien, Vorzugsaktien, Common Stock, S.p.A., SA/NV and Depos.
+Receipts, and the exclusions Optionsschein and Zertifikat, so an
+"Indexzertifikat" or "Optionsscheine" stays excluded. A shorthand that
+fuses a product word into another, such as "TurboCall" or "CallOS", is not
+recognised: such a name is read by its other words, and a legal form in it
+makes it equity. Setting the class by hand settles any case the rules get
+wrong.
 
 **When a class is stored.** The class is not only inferred at read time. Each
 create or update of a security's master data — in the app, over the API or
@@ -194,16 +205,19 @@ be bookmarked or linked to:
 - `?since=<ISO8601>` — the **Changed since** cut (see below); the *Today /
   7 days / 30 days* chips write a concrete ISO date here, so the link keeps
   meaning what it meant when it was shared.
-- `?dq=stale_quote|missing_quote|missing_logo|missing_fx` — the data-quality
-  shortcut filters: no quote in the last 7 days (including none at all), no
-  quote at all, no stored logo, and — issue #717 — *Missing FX*: priced, but
-  with no stored rate from its currency to the base currency, so storing the
-  rate empties the set. The first three leave a benchmark and a retired
-  security alone: a sold-out or delisted security you retire leaves all
-  three, and the Overview's counts drop with it; reactivated, it is back in
-  those it matches. The same conditions can be picked in the filter
-  control under **Data quality** — the dashboard link is a shortcut to them,
-  not the only way in. The agent asks for the identical sets over
+- `?dq=stale_quote|missing_quote|missing_logo|missing_fx|two_scales` — the
+  data-quality shortcut filters: no quote in the last 7 days (including none
+  at all); no quote at all; no stored logo; *Missing FX* (issue #717):
+  priced, but with no stored rate from its currency to the base currency, so
+  storing the rate empties the set; and *Priced on two scales* (issue
+  #1068): the bonds the two-scales guard names, in either direction (see
+  *Bonds* below), the list the Overview's two-scales count opens. The first
+  three leave a benchmark and a retired security alone: a sold-out or
+  delisted security you retire leaves all three, and the Overview's counts
+  drop with it; reactivated, it is back in those it matches. The same
+  conditions can be picked in the filter control under **Data quality** —
+  the dashboard link is a shortcut to them, not the only way in. The agent
+  asks for the identical sets over
   `GET /api/v1/securities?data_quality=…` and the `portfolixir.securities.list`
   tool; all of them are one definition, so a count of N always addresses a list
   of N.
@@ -490,6 +504,35 @@ tab, where the quantity is checked against the nominal on the statement;
 and in the **data-quality** panel of Wealth → Holdings, where the total it
 inflates is read. Nothing is converted: the
 figures stay as booked until the bookings are corrected.
+
+The **reverse case** is named too (issue #1068): stored quotes near 1
+beside bookings near 100 — a latest quote 1/500 to 1/20 of a booked price
+per unit, and itself at most 5. The quotes are then not percent of face,
+and the bond counts a hundred times **too low** in every total. Wealth names
+it in a problem note of its own, each name linking to the security's
+**Quotes** tab, where the stored quotes are checked; again nothing is
+converted. The security's own Overview does not name the reverse case yet
+(#1112).
+
+**Which securities the guard reads.** A security is read as a bond — its
+Overview shows the bond block, and the guard reads it — when its asset class
+is Bond or Government bond — set, or inferred from its name — **or** when it
+shows **no** asset class (none set, none inferred) and carries bond master
+data: a maturity or a coupon. The name inference recognises only
+government-bond names, so a corporate bond without a class is brought under
+the guard by entering its maturity or coupon (or by setting its class); the
+dialog shows its *Bond data* while the class reads blank, so the data can be
+corrected there. A bond whose name carries its issuer's legal form ("Muster
+AG 4,10% 2028/2033") is stored as Equity when it is created, and the master
+data alone does not change that: set its class to Bond (or Government bond).
+A security with neither class nor master data — an unclassed share that
+rose twentyfold, say — is never named; nor is a name the inference reads as
+a structured product, whose expiry may be stored as a maturity; and a
+security shown under any other class is no bond, whatever master data it
+still carries. A bond named without a class is marked *no asset class* in
+the note. The Overview's data-quality line counts every bond priced on two
+scales, in either direction and catalog-wide, and links to the list of
+exactly those.
 
 ### Dates tab (the security's calendar, ADR-0048)
 
@@ -1472,13 +1515,20 @@ zero beside its text and linking into the Wealth area's Allocation & targets
 tab, under a basis line naming the view, classification tree and
 active plan the drift steers against (or that several plans are active, or
 none) — and the **data-quality line**: one note listing the securities
-in the catalog without a recent quote, asset class, or logo ("25 securities
-in the catalog without a quote in 7 days · 4 without an asset class"), each
+in the catalog without a recent quote, asset class, or logo, and the bonds
+priced on two scales ("25 securities in the catalog without a quote in 7
+days · 4 without an asset class · one bond priced on two scales"), each
 count linking to the securities list pre-filtered to exactly that set — a
 count of N opens a list of N: the stale-quote and logo counts and their
 lists leave out benchmarks and retired securities, the asset-class count and
-its list leave out retired securities and keep benchmarks. Whichever finding
-opens the line carries the noun ("4 securities without an asset class"). The line renders only when at least one count is
+its list leave out retired securities and keep benchmarks, and the
+two-scales count (issue #1068) is catalog-wide on purpose and keeps both,
+sold-out bonds included, because such a bond's booked history — its past
+values and its realized result — is a hundredfold off whether it is held or
+not. Whichever finding opens the line carries the noun ("4 securities
+without an asset class"). The note takes the highest severity present: a
+problem while a bond is priced on two scales, attention while a quote is
+stale, otherwise a note. The line renders only when at least one count is
 non-zero; a clean catalog shows nothing (no all-clear badge). The **Due**
 card's dates follow the interface language (15.10.2026 in German). There is
 deliberately no activity feed: the audit journal owns the forensic detail,
@@ -1733,9 +1783,13 @@ the security's transactions so the history can be repaired (nothing is
 repaired automatically; the split wizard remains the only guided repair),
 bookings with implausible dates (before 1970) that were applied on the
 first plausible day instead, and bonds **priced on two scales** — quotes near
-100 beside booked unit prices near 1, so they count a hundred times too high
-(see *Bonds* under Securities), each linked to its transactions. Each
-finding is a note at its own severity — a hint for the trade-price fallback,
+100 beside booked unit prices near 1, so they count a hundred times too high,
+each linked to its transactions; and, in a note of their own, quotes near 1
+beside booked unit prices near 100, so they count a hundred times too low,
+each linked to its quotes (see *Bonds* under Securities). A bond named there
+without an asset class — brought under the guard by its maturity or coupon —
+is marked *no asset class*. Each finding is a note at its own severity —
+a hint for the trade-price fallback,
 attention for excluded and stale positions, a problem for negative holdings
 and for two scales — and carries its remedy inside
 the note: the **Sync exchange rates** control sits in the missing-rate
