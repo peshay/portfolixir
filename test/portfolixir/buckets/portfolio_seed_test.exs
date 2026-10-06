@@ -4,7 +4,10 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
   2 and 6) inside the sandbox: the seed's behaviour through
   `seed_scope_buckets_at_head/1`, the head seed the `portfolixir.seed_scope_buckets`
   task runs, and the rollback through `rollback_portfolio_scope_seed/1`, the
-  migration's own frozen `down` (#1042). The migrator itself cannot run under
+  migration's own frozen `down` (#1042). The first case and the numbered
+  fallback run against the migration's frozen `seed_portfolio_scope_buckets/1`
+  as well, so the frozen seed's re-run branches and its " (Portfolio N)"
+  names stay pinned. The migrator itself cannot run under
   the Ecto SQL sandbox; the migration's frozen pair runs at its own version in
   `test/portfolixir/seeded_upgrade/app_code_migrations_test.exs`.
 
@@ -51,65 +54,72 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
   # - Seeded buckets and assignments produce audit-journal entries under the
   #   seeding actor (ADR-0017); views stay unjournaled (ADR-0018 §5).
   # - Re-running the seed is a no-op (no new records, no new journal entries).
-  test "seeds one scope bucket + one view per portfolio and assigns its accounts" do
-    alpha_name = unique("Alpha")
-    beta_name = unique("Beta")
-    alpha = base_world(name: alpha_name, cash_name: "Alpha Cash", depot_name: "Alpha Depot")
-    beta = base_world(name: beta_name, cash_name: "Beta Cash", depot_name: "Beta Depot")
+  # - The migration's frozen seed and the head seed do all of this alike
+  #   (#1042), the re-run included.
+  for {label, seed} <- [
+        {"the migration's frozen seed", :seed_portfolio_scope_buckets},
+        {"the head seed", :seed_scope_buckets_at_head}
+      ] do
+    test "#{label}: seeds one scope bucket + one view per portfolio and assigns its accounts" do
+      alpha_name = unique("Alpha")
+      beta_name = unique("Beta")
+      alpha = base_world(name: alpha_name, cash_name: "Alpha Cash", depot_name: "Alpha Depot")
+      beta = base_world(name: beta_name, cash_name: "Beta Cash", depot_name: "Beta Depot")
 
-    # A pre-existing user tag on one depot must survive the seeding merge.
-    {:ok, krypto} = Buckets.create_bucket(Actor.owner_ui(), %{name: unique("Krypto")})
-    :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), alpha.depot, [krypto.id])
+      # A pre-existing user tag on one depot must survive the seeding merge.
+      {:ok, krypto} = Buckets.create_bucket(Actor.owner_ui(), %{name: unique("Krypto")})
+      :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), alpha.depot, [krypto.id])
 
-    assert {:ok, %{buckets_created: 2, views_created: 2, accounts_tagged: 4}} =
-             Buckets.seed_scope_buckets_at_head(@seed_actor)
+      assert {:ok, %{buckets_created: 2, views_created: 2, accounts_tagged: 4}} =
+               apply(Buckets, unquote(seed), [@seed_actor])
 
-    %{buckets: buckets, views: views} = Buckets.migration_summary()
+      %{buckets: buckets, views: views} = Buckets.migration_summary()
 
-    alpha_bucket = Enum.find(buckets, &(&1.source_portfolio_id == alpha.portfolio.id))
-    beta_bucket = Enum.find(buckets, &(&1.source_portfolio_id == beta.portfolio.id))
-    alpha_view = Enum.find(views, &(&1.source_portfolio_id == alpha.portfolio.id))
-    beta_view = Enum.find(views, &(&1.source_portfolio_id == beta.portfolio.id))
+      alpha_bucket = Enum.find(buckets, &(&1.source_portfolio_id == alpha.portfolio.id))
+      beta_bucket = Enum.find(buckets, &(&1.source_portfolio_id == beta.portfolio.id))
+      alpha_view = Enum.find(views, &(&1.source_portfolio_id == alpha.portfolio.id))
+      beta_view = Enum.find(views, &(&1.source_portfolio_id == beta.portfolio.id))
 
-    assert %{name: ^alpha_name, dimension: "scope"} = alpha_bucket
-    assert %{name: ^beta_name, dimension: "scope"} = beta_bucket
-    assert %{name: ^alpha_name, include_all: false} = alpha_view
-    assert %{name: ^beta_name, include_all: false} = beta_view
+      assert %{name: ^alpha_name, dimension: "scope"} = alpha_bucket
+      assert %{name: ^beta_name, dimension: "scope"} = beta_bucket
+      assert %{name: ^alpha_name, include_all: false} = alpha_view
+      assert %{name: ^beta_name, include_all: false} = beta_view
 
-    assert Buckets.view_filter(alpha_view.id) ==
-             {:ok, %{include: [alpha_bucket.id], exclude: []}}
+      assert Buckets.view_filter(alpha_view.id) ==
+               {:ok, %{include: [alpha_bucket.id], exclude: []}}
 
-    # Assignments: the seeded scope bucket is added, the user tag is kept.
-    assert Enum.sort(Buckets.depot_default_bucket_ids(alpha.depot.id)) ==
-             Enum.sort([krypto.id, alpha_bucket.id])
+      # Assignments: the seeded scope bucket is added, the user tag is kept.
+      assert Enum.sort(Buckets.depot_default_bucket_ids(alpha.depot.id)) ==
+               Enum.sort([krypto.id, alpha_bucket.id])
 
-    assert Buckets.cash_account_bucket_ids(alpha.cash.id) == [alpha_bucket.id]
-    assert Buckets.depot_default_bucket_ids(beta.depot.id) == [beta_bucket.id]
-    assert Buckets.cash_account_bucket_ids(beta.cash.id) == [beta_bucket.id]
+      assert Buckets.cash_account_bucket_ids(alpha.cash.id) == [alpha_bucket.id]
+      assert Buckets.depot_default_bucket_ids(beta.depot.id) == [beta_bucket.id]
+      assert Buckets.cash_account_bucket_ids(beta.cash.id) == [beta_bucket.id]
 
-    # Journaled per ADR-0017 under the seeding actor: 2 bucket creates plus
-    # one aggregate assignment entry per tagged account.
-    bucket_creates =
-      Journal.list_entries(resource_type: "bucket", operation: :create)
-      |> Enum.filter(&(&1.actor_type == :system_job))
+      # Journaled per ADR-0017 under the seeding actor: 2 bucket creates plus
+      # one aggregate assignment entry per tagged account.
+      bucket_creates =
+        Journal.list_entries(resource_type: "bucket", operation: :create)
+        |> Enum.filter(&(&1.actor_type == :system_job))
 
-    assert length(bucket_creates) == 2
-    assert Enum.all?(bucket_creates, &(&1.actor_label == "portfolio_scope_seed"))
+      assert length(bucket_creates) == 2
+      assert Enum.all?(bucket_creates, &(&1.actor_label == "portfolio_scope_seed"))
 
-    depot_entries = Journal.list_entries(resource_type: "depot_bucket_assignment")
-    cash_entries = Journal.list_entries(resource_type: "cash_account_bucket_assignment")
-    assert Enum.count(depot_entries, &(&1.actor_type == :system_job)) == 2
-    assert Enum.count(cash_entries, &(&1.actor_type == :system_job)) == 2
+      depot_entries = Journal.list_entries(resource_type: "depot_bucket_assignment")
+      cash_entries = Journal.list_entries(resource_type: "cash_account_bucket_assignment")
+      assert Enum.count(depot_entries, &(&1.actor_type == :system_job)) == 2
+      assert Enum.count(cash_entries, &(&1.actor_type == :system_job)) == 2
 
-    # Idempotency: the second run creates nothing and journals nothing new.
-    journal_count_before = length(Journal.list_entries([]))
+      # Idempotency: the second run creates nothing and journals nothing new.
+      journal_count_before = length(Journal.list_entries([]))
 
-    assert {:ok, %{buckets_created: 0, views_created: 0, accounts_tagged: 0}} =
-             Buckets.seed_scope_buckets_at_head(@seed_actor)
+      assert {:ok, %{buckets_created: 0, views_created: 0, accounts_tagged: 0}} =
+               apply(Buckets, unquote(seed), [@seed_actor])
 
-    assert length(Journal.list_entries([])) == journal_count_before
-    assert length(Buckets.migration_summary().buckets) == 2
-    assert length(Buckets.migration_summary().views) == 2
+      assert length(Journal.list_entries([])) == journal_count_before
+      assert length(Buckets.migration_summary().buckets) == 2
+      assert length(Buckets.migration_summary().views) == 2
+    end
   end
 
   # User story (ADR-0024 modification 6, epic story 2):
@@ -215,19 +225,26 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
            ]
   end
 
-  test "a pre-existing user bucket named \"<name> (Portfolio)\" pushes to the next number" do
-    name = unique("Krypto")
-    _world = base_world(name: name, cash_name: "K Cash", depot_name: "K Depot")
+  # The migration's frozen seed and the head seed share the numbered
+  # fallback (#1042).
+  for {label, seed} <- [
+        {"the migration's frozen seed", :seed_portfolio_scope_buckets},
+        {"the head seed", :seed_scope_buckets_at_head}
+      ] do
+    test "#{label}: a pre-existing user bucket named \"<name> (Portfolio)\" pushes to the next number" do
+      name = unique("Krypto")
+      _world = base_world(name: name, cash_name: "K Cash", depot_name: "K Depot")
 
-    {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: name})
-    {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: "#{name} (Portfolio)"})
+      {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: name})
+      {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: "#{name} (Portfolio)"})
 
-    assert {:ok, %{buckets_created: 1, views_created: 1}} =
-             Buckets.seed_scope_buckets_at_head(@seed_actor)
+      assert {:ok, %{buckets_created: 1, views_created: 1}} =
+               apply(Buckets, unquote(seed), [@seed_actor])
 
-    assert %{buckets: [bucket], views: [view]} = Buckets.migration_summary()
-    assert bucket.name == "#{name} (Portfolio 2)"
-    assert view.name == "#{name} (Portfolio 2)"
+      assert %{buckets: [bucket], views: [view]} = Buckets.migration_summary()
+      assert bucket.name == "#{name} (Portfolio 2)"
+      assert view.name == "#{name} (Portfolio 2)"
+    end
   end
 
   # User story (fix round, over-long portfolio names):
