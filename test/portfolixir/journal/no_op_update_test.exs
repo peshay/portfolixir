@@ -50,11 +50,17 @@ defmodule Portfolixir.Journal.NoOpUpdateTest do
         note: "Guided for late November."
       })
 
+    # tax_statement_snapshots_identity_index is unique on (lower(institution),
+    # lower(holder), tax_year, as_of), and StatementSnapshotsTest, async as
+    # this module, records Example Bank / Owner / 2025 / 2025-12-31: with
+    # that identity here, one test's insert waited on the other's uncommitted
+    # row until that test ended (#1047). Which statement is resent unchanged
+    # is incidental to this test, so it records one of its own.
     {:ok, snapshot} =
       Tax.create_snapshot(
         owner(),
         %{
-          institution: "Example Bank",
+          institution: "No-op Resend Bank",
           holder: "Owner",
           tax_year: 2025,
           as_of: ~D[2025-12-31],
