@@ -2679,12 +2679,14 @@ Zeilen bleiben ebenso draußen, jede mit ihrer Zeile benannt:
   ist ein Wertpapier wie jedes andere und wird über die Zuordnungsleiter unten
   aufgelöst.
 - **Eine Umbuchung, die kein Konto nennt, auf das sie buchen könnte.** In
-  einer CSV braucht eine Umbuchungszeile `Konto` und `Gegenkonto`, zwei
-  verschiedene, für Geld oder Stücke, auf jeder Seite: *Umbuchung ohne
-  Gegenkonto — Zeile nicht übernommen*, *Umbuchung ohne Konto — Zeile nicht
-  übernommen*, *Umbuchung auf das eigene Konto — Zeile nicht übernommen*. In
-  JSON v1 ist ein `CASH_TRANSFER` ohne `otherAccount` oder ein
-  `SECURITY_TRANSFER` ohne `otherPortfolio` der erste dieser Fälle.
+  einer CSV braucht eine Umbuchungszeile `Konto` und `Gegenkonto`, für Geld
+  oder Stücke, auf jeder Seite: *Umbuchung ohne Gegenkonto — Zeile nicht
+  übernommen*, *Umbuchung ohne Konto — Zeile nicht übernommen*. In JSON v1
+  ist ein `CASH_TRANSFER` ohne `otherAccount` oder ein `SECURITY_TRANSFER`
+  ohne `otherPortfolio` der erste dieser Fälle. Eine Umbuchung, die auf
+  beiden Seiten dasselbe Konto nennt, gehört nicht hierher: Sie ist eine
+  interne Umbuchung und wird übersprungen und aufgeführt, wie unten
+  beschrieben.
 - **Ein CSV-*Kauf* oder -*Verkauf* mit leerem `Gegenkonto`**, dem
   Verrechnungskonto, gegen das der Handel abgerechnet wird: *Kauf ohne
   Gegenkonto — Zeile nicht übernommen* oder *Verkauf …*.

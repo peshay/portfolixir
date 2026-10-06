@@ -2457,12 +2457,13 @@ confirm. These rows are left out the same way, each named with its row:
   security. An entry with only a WKN or only a ticker is a security like any
   other and resolves through the matching ladder below.
 - **A transfer that names no account to book on.** In a CSV, a transfer row
-  needs both `Konto` and `Gegenkonto`, two different ones, cash or shares,
-  either side: *transfer without a counter account — row not imported*,
-  *transfer without an account — row not imported*, *transfer to its own
-  account — row not imported*. In JSON v1, a `CASH_TRANSFER` without
-  `otherAccount` or a `SECURITY_TRANSFER` without `otherPortfolio` is the
-  first of these.
+  needs both `Konto` and `Gegenkonto`, cash or shares, either side:
+  *transfer without a counter account — row not imported*, *transfer
+  without an account — row not imported*. In JSON v1, a `CASH_TRANSFER`
+  without `otherAccount` or a `SECURITY_TRANSFER` without `otherPortfolio`
+  is the first of these. A transfer that names the same account on both
+  sides is no such row: it is an internal transfer, skipped and listed as
+  described below.
 - **A CSV *Kauf* or *Verkauf* with an empty `Gegenkonto`**, the cash account
   the trade settles against: *buy without a counter account — row not
   imported*, or *sell …*.

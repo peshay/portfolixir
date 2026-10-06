@@ -41,9 +41,11 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     file assembled from such lists can carry both. Each transfer is booked
     once, from the sending row, and the receiving row it pairs with is a row
     warning naming that row. A transfer row with a blank `Konto` or
-    `Gegenkonto`, either side, or with the same name in both, is a row error
-    (#1044), and so is a Kauf or Verkauf with a blank `Gegenkonto`, its cash
-    account: the ledger has no account to book it on.
+    `Gegenkonto`, either side, is a row error (#1044), and so is a Kauf or
+    Verkauf with a blank `Gegenkonto`, its cash account: the ledger has no
+    account to book it on. A transfer row with the same name in both is no
+    error here: its two legs are one account, and the apply skips it and
+    lists it under the internal transfers (ADR-0050 §5).
   """
 
   use Gettext, backend: PortfolixirWeb.Gettext
@@ -373,11 +375,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
   # #1044: a row that names no account the ledger could book it on is the
   # row's error, so the apply never refuses the whole file on it. A transfer
   # moves money or shares between two accounts or depots, so it needs both
-  # `Konto` and `Gegenkonto`, and two different ones, whichever side the row
-  # is (`own_and_other/3` turns a receiving row's sides, so the apply would
-  # otherwise name the opposite field). A buy or a sell books its cash on the
-  # `Gegenkonto`. The message names the file's column, which the operator
-  # finds in Portfolio Performance, never a ledger field.
+  # `Konto` and `Gegenkonto`, whichever side the row is (`own_and_other/3`
+  # turns a receiving row's sides, so the apply would otherwise name the
+  # opposite field). One name in both is not refused here: ADR-0050 §5 has
+  # the apply skip such a transfer and report it in `internal_transfers`, as
+  # it does one whose two names map onto one account. A buy or a sell books
+  # its cash on the `Gegenkonto`. The message names the file's column, which
+  # the operator finds in Portfolio Performance, never a ledger field.
   @transfer_kinds ~w(cash_transfer security_transfer)
 
   defp account_error(kind, cells) do
@@ -391,9 +395,6 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
 
   defp account_error(kind, nil, _gegenkonto) when kind in @transfer_kinds,
     do: gettext("transfer without an account — row not imported")
-
-  defp account_error(kind, same, same) when kind in @transfer_kinds,
-    do: gettext("transfer to its own account — row not imported")
 
   defp account_error("buy", _konto, nil),
     do: gettext("buy without a counter account — row not imported")
