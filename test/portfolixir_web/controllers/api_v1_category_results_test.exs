@@ -9,6 +9,7 @@ defmodule PortfolixirWeb.ApiV1CategoryResultsTest do
       create_security!: 1,
       buy!: 3,
       deposit!: 3,
+      deposit!: 4,
       put_quote!: 3
     ]
 
@@ -222,6 +223,71 @@ defmodule PortfolixirWeb.ApiV1CategoryResultsTest do
     assert across["base_currency"] == "EUR"
     assert across["view"] == %{"id" => view.id, "name" => "Retired"}
     assert across["basis_note"] =~ "across every portfolio, each account counted once, in EUR"
+  end
+
+  # #1048 (pick J10.2 A): the engine's result now carries the excluded
+  # members once each, with their native costs, for the classification
+  # screen. That key is internal until #1091 decides how to serve it, so the
+  # view read's JSON keeps exactly the fields and figures it had.
+  test "the view read's payload is unchanged by the excluded-members list (#1048)", %{conn: conn} do
+    world = seed()
+
+    dollar =
+      base_world(
+        name: "Dollar",
+        currency: "USD",
+        cash_name: "Dollar Cash",
+        depot_name: "Dollar Depot"
+      )
+
+    harborline =
+      create_security!(name: "Harborline Freight Inc", ticker: "HBF", currency: "USD")
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Actor.owner_ui(),
+        harborline.id,
+        world.classification.id,
+        world.core.id
+      )
+
+    deposit!(dollar, "10000", ~D[2026-01-01], currency: "USD")
+    buy!(dollar, harborline, quantity: "10", price: "150", currency: "USD")
+    put_quote!(harborline, Date.utc_today(), "180")
+
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Everything"})
+
+    data =
+      get_json(
+        conn,
+        "/api/v1/views/#{view.id}/category-results?classification_id=#{world.classification.id}"
+      )
+      |> json_response(200)
+      |> Map.fetch!("data")
+
+    assert data |> Map.keys() |> Enum.sort() ==
+             ~w(base_currency basis basis_note categories classification_id portfolio_id scope view view_id)
+
+    assert [core] = data["categories"]
+
+    assert core |> Map.keys() |> Enum.sort() ==
+             ~w(category_id covered_count current_value excluded invested member_count name parent_id positions result_abs result_pct)
+
+    # Alpha alone: Dark has no price, and Harborline's cost was paid in USD.
+    assert core["invested"] == "1000"
+    assert core["result_abs"] == "500"
+    assert core["covered_count"] == 1
+    assert core["member_count"] == 3
+
+    assert [
+             %{"security_name" => "Dark AG", "reason" => "no_usable_price"} = dark,
+             %{"security_name" => "Harborline Freight Inc", "reason" => "missing_base_cost"} =
+               harbor
+           ] = Enum.sort_by(core["excluded"], & &1["security_name"])
+
+    for entry <- [dark, harbor] do
+      assert entry |> Map.keys() |> Enum.sort() == ~w(reason security_id security_name)
+    end
   end
 
   test "answers the view scope's errors as the performance family does", %{conn: conn} do

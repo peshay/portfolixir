@@ -8,6 +8,7 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
       base_world: 1,
       create_security!: 1,
       buy!: 3,
+      cross_trade!: 3,
       deposit!: 3,
       deposit!: 4
     ]
@@ -613,6 +614,367 @@ defmodule Portfolixir.Portfolios.CategoryResultTest do
 
       {_bucket, view} = tagged_bucket!()
       assert {:error, :not_found} = CategoryResult.for_view(view.id, 9_999_999)
+    end
+  end
+
+  # A EUR portfolio and a USD portfolio, and a "Wachstum" tree whose
+  # "Plattformen" and "Kern global" sit under it (board 10's names; every
+  # name and amount here is invented).
+  defp currency_world do
+    euro = base_world()
+
+    dollar =
+      base_world(
+        name: "Dollar",
+        currency: "USD",
+        cash_name: "Dollar Cash",
+        depot_name: "Dollar Depot"
+      )
+
+    {:ok, classification} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Strategie"})
+
+    {:ok, growth} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Wachstum"
+      })
+
+    {:ok, platforms} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Plattformen",
+        parent_id: growth.id
+      })
+
+    {:ok, core} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Kern global",
+        parent_id: growth.id
+      })
+
+    deposit!(euro, "20000", ~D[2026-01-01])
+    deposit!(dollar, "20000", ~D[2026-01-01], currency: "USD")
+
+    %{
+      euro: euro,
+      dollar: dollar,
+      classification: classification,
+      growth: growth,
+      platforms: platforms,
+      core: core
+    }
+  end
+
+  # Kestrel Systems AG, held in the EUR portfolio: 10 at 580,00 EUR, now
+  # 756,711 -- a cost of 5.800,00 EUR and a result of +1.767,11.
+  defp kestrel!(world) do
+    kestrel = create_security!(name: "Kestrel Systems AG", ticker: "KST")
+    assign!(kestrel, world.classification, world.platforms)
+    buy!(world.euro, kestrel, quantity: "10", price: "580")
+    kestrel
+  end
+
+  # Harborline Freight Inc, held in the USD portfolio: 10 at 150,00 USD -- a
+  # cost of 1.500,00 USD, paid in no EUR at all.
+  defp harborline!(world) do
+    harborline =
+      create_security!(name: "Harborline Freight Inc", ticker: "HBF", currency: "USD")
+
+    assign!(harborline, world.classification, world.platforms)
+    buy!(world.dollar, harborline, quantity: "10", price: "150", currency: "USD")
+    harborline
+  end
+
+  defp assert_decimal(actual, expected),
+    do: assert(Decimal.equal?(actual, Decimal.new(expected)), "#{inspect(actual)} != #{expected}")
+
+  # User story (#1048; pick J10.2 A of board 10, ADR-0041 §1, §2 and §4):
+  # As a local portfolio maintainer whose instance has a portfolio outside
+  # EUR,
+  # I want the classification screen's "Einstand" and "Ergebnis" to add EUR
+  # only, and to name a member whose cost was not paid in EUR with that cost,
+  # so that Wert − Einstand = Ergebnis holds again under a cell that promises
+  # EUR, and the screen and the agent's #901 read cannot disagree.
+  #
+  # Acceptance criteria:
+  # - for_all_portfolios/2 follows for_view/3's EUR rule: a member held in a
+  #   portfolio whose base currency is not EUR leaves both sides of the sum
+  #   (missing_base_cost) and is counted in covered_count / member_count; it
+  #   is never counted as zero. Its result states base_currency "EUR" and
+  #   scope :all.
+  # - The result carries the excluded members once each across the tree,
+  #   sorted by name, each with the category it is filed under, its reason
+  #   and, for a cost not paid in EUR, its native cost -- never converted. A
+  #   security held in both kinds of portfolio is excluded whole, its native
+  #   costs listing every slice per currency.
+  # - On an all-EUR instance every figure is what it was, and nothing is
+  #   excluded.
+  # - for_view/3 and for_portfolio/3 carry the same list; no figure moves.
+  describe "every scope in EUR (#1048)" do
+    test "a member whose cost was not paid in EUR leaves Einstand and Ergebnis, named with its native cost" do
+      world = currency_world()
+      kestrel = kestrel!(world)
+      harborline = harborline!(world)
+
+      prices = %{kestrel.id => Decimal.new("756.711"), harborline.id => Decimal.new("180")}
+
+      {:ok, result} = CategoryResult.for_all_portfolios(world.classification.id, prices: prices)
+
+      assert result.base_currency == "EUR"
+      assert result.scope == :all
+      assert result.portfolio_id == nil
+      assert result.basis == "current_composition"
+
+      # Today's code adds 5.800,00 EUR and 1.500,00 USD to "7.300,00". The
+      # category and its parent now add the EUR member only, on both sides.
+      for category <- [world.platforms, world.growth] do
+        row = fetch(result, category.id)
+
+        assert_decimal(row.invested, "5800")
+        assert_decimal(row.result_abs, "1767.11")
+        assert_decimal(row.current_value, "7567.11")
+        # §2: Σ result ÷ Σ invested over the covered member, exactly.
+        assert Decimal.equal?(
+                 row.result_pct,
+                 Decimal.div(Decimal.new("1767.11"), Decimal.new("5800"))
+               )
+
+        # §4: excluded, not counted as zero, and the row says so.
+        assert row.covered_count == 1
+        assert row.member_count == 2
+
+        assert [%{security_name: "Harborline Freight Inc", reason: :missing_base_cost}] =
+                 row.excluded
+
+        assert [%{security_name: "Kestrel Systems AG"}] = row.positions
+      end
+
+      # Named once across the tree, although it rolls into two rows.
+      assert [member] = result.excluded_members
+      assert member.security_id == harborline.id
+      assert member.security_name == "Harborline Freight Inc"
+      assert member.category_id == world.platforms.id
+      assert member.reason == :missing_base_cost
+
+      # The native cost, in the currency it was paid in -- never converted.
+      assert [%{amount: amount, currency: "USD"}] = member.native_costs
+      assert_decimal(amount, "1500")
+    end
+
+    test "a security held in a EUR and a USD portfolio is excluded whole, with both slices' costs" do
+      world = currency_world()
+      kestrel = kestrel!(world)
+
+      crossing = create_security!(name: "Crossing Lines Inc", ticker: "CRL", currency: "USD")
+      assign!(crossing, world.classification, world.platforms)
+
+      # The EUR slice: 10 at 110,00 USD, settled at 1.000,00 EUR.
+      cross_trade!(world.euro, crossing,
+        quantity: "10",
+        price: "110",
+        settled: "1000",
+        gross: "1000",
+        date: ~D[2026-01-02]
+      )
+
+      # The USD slice: 10 at 150,00 USD.
+      buy!(world.dollar, crossing, quantity: "10", price: "150", currency: "USD")
+
+      prices = %{kestrel.id => Decimal.new("756.711"), crossing.id => Decimal.new("180")}
+      opts = [prices: prices, fx_rates: %{"USD" => Decimal.new("0.9")}]
+
+      # On its own, the EUR slice is covered...
+      {:ok, euro_only} =
+        CategoryResult.for_portfolio(world.euro.portfolio.id, world.classification.id, opts)
+
+      assert fetch(euro_only, world.platforms.id).covered_count == 2
+
+      # ...but §4 allows no partial sum of a security: the whole row leaves.
+      {:ok, result} = CategoryResult.for_all_portfolios(world.classification.id, opts)
+
+      platforms = fetch(result, world.platforms.id)
+      assert_decimal(platforms.invested, "5800")
+      assert_decimal(platforms.result_abs, "1767.11")
+      assert platforms.covered_count == 1
+      assert platforms.member_count == 2
+
+      assert [member] = result.excluded_members
+      assert member.security_name == "Crossing Lines Inc"
+      assert member.reason == :missing_base_cost
+
+      # "Einstand 1.000,00 EUR + 1.500,00 USD": one amount per currency.
+      assert [%{currency: "EUR", amount: euro}, %{currency: "USD", amount: dollar}] =
+               member.native_costs
+
+      assert_decimal(euro, "1000")
+      assert_decimal(dollar, "1500")
+    end
+
+    test "two or more excluded members are each named once, by name, with a cost or a reason" do
+      world = currency_world()
+      kestrel = kestrel!(world)
+      harborline = harborline!(world)
+
+      ashgrove = create_security!(name: "Ashgrove Mining Ltd", ticker: "ASH", currency: "USD")
+      assign!(ashgrove, world.classification, world.core)
+      buy!(world.dollar, ashgrove, quantity: "4", price: "62.5", currency: "USD")
+
+      # A EUR member with no price at all.
+      brackwater = create_security!(name: "Brackwater Dormant AG", ticker: "BRW")
+      assign!(brackwater, world.classification, world.platforms)
+      buy!(world.euro, brackwater, quantity: "2", price: "50")
+
+      prices = %{
+        kestrel.id => Decimal.new("756.711"),
+        harborline.id => Decimal.new("180"),
+        ashgrove.id => Decimal.new("70")
+      }
+
+      {:ok, result} = CategoryResult.for_all_portfolios(world.classification.id, prices: prices)
+
+      growth = fetch(result, world.growth.id)
+      assert_decimal(growth.invested, "5800")
+      assert_decimal(growth.result_abs, "1767.11")
+      assert growth.covered_count == 1
+      assert growth.member_count == 4
+
+      core = fetch(result, world.core.id)
+      assert_decimal(core.invested, "0")
+      assert core.result_pct == nil
+      assert core.covered_count == 0
+      assert core.member_count == 1
+
+      assert [ash, brack, harbor] = result.excluded_members
+
+      assert ash.security_id == ashgrove.id
+      assert ash.category_id == world.core.id
+      assert ash.reason == :missing_base_cost
+      assert [%{amount: ash_cost, currency: "USD"}] = ash.native_costs
+      assert_decimal(ash_cost, "250")
+
+      # No usable price: named with its reason, and no cost to state.
+      assert brack.security_id == brackwater.id
+      assert brack.category_id == world.platforms.id
+      assert brack.reason == :no_usable_price
+      assert brack.native_costs == []
+
+      assert harbor.security_id == harborline.id
+      assert harbor.category_id == world.platforms.id
+      assert [%{currency: "USD"}] = harbor.native_costs
+    end
+
+    # The figures below are the strings the code before #1048 produced for
+    # this world, so "byte-identical" is pinned, not paraphrased.
+    test "on an all-EUR instance every figure is unchanged and nothing is excluded" do
+      first = world_with_tree()
+      second = base_world(name: "Second", cash_name: "Second Cash", depot_name: "Second Depot")
+
+      alpha = create_security!(name: "Alpha AG", ticker: "ALP")
+      beta = create_security!(name: "Beta AG", ticker: "BET")
+      assign!(alpha, first.classification, first.core)
+      assign!(beta, first.classification, first.satellite)
+
+      deposit!(first, "10000", ~D[2026-01-01])
+      deposit!(second, "10000", ~D[2026-01-01])
+      buy!(first, alpha, quantity: "10", price: "100")
+      buy!(second, alpha, quantity: "5", price: "200.5")
+      buy!(first, beta, quantity: "3", price: "33.33")
+
+      prices = %{alpha.id => Decimal.new("150.25"), beta.id => Decimal.new("41.2")}
+
+      {:ok, result} = CategoryResult.for_all_portfolios(first.classification.id, prices: prices)
+
+      figures =
+        for category <- result.categories do
+          {category.name,
+           Enum.map(
+             [:invested, :current_value, :result_abs, :result_pct],
+             &Decimal.to_string(Map.fetch!(category, &1))
+           ), category.covered_count, category.member_count}
+        end
+
+      assert figures == [
+               {"Core",
+                [
+                  "2002.500000000000000000",
+                  "2253.750000000000000000",
+                  "251.250000000000000000",
+                  "0.1254681647940074906367041198501873"
+                ], 1, 1},
+               {"Satellite",
+                [
+                  "99.990000000000000000",
+                  "123.600000000000000000",
+                  "23.610000000000000000",
+                  "0.2361236123612361236123612361236124"
+                ], 1, 1}
+             ]
+
+      assert result.base_currency == "EUR"
+      assert result.scope == :all
+      assert result.excluded_members == []
+    end
+
+    test "the view read and the portfolio read carry the same list, and no figure moves" do
+      world = currency_world()
+      kestrel = kestrel!(world)
+      harborline = harborline!(world)
+
+      brackwater = create_security!(name: "Brackwater Dormant AG", ticker: "BRW")
+      assign!(brackwater, world.classification, world.platforms)
+      buy!(world.euro, brackwater, quantity: "2", price: "50")
+
+      prices = %{kestrel.id => Decimal.new("756.711"), harborline.id => Decimal.new("180")}
+
+      {:ok, everything} = Buckets.create_view(Actor.owner_ui(), %{name: "Everything"})
+
+      {:ok, all} = CategoryResult.for_all_portfolios(world.classification.id, prices: prices)
+
+      {:ok, view} =
+        CategoryResult.for_view(everything.id, world.classification.id, prices: prices)
+
+      # One rule for every scope: the view over every account is the same
+      # roll-up, figure for figure, and names the same members.
+      assert view.categories == all.categories
+      assert view.excluded_members == all.excluded_members
+
+      assert [
+               %{security_name: "Brackwater Dormant AG"},
+               %{security_name: "Harborline Freight Inc"}
+             ] =
+               view.excluded_members
+
+      # The portfolio read keeps its own base currency and names what it
+      # leaves out, with no cost to state: nothing in it is converted.
+      {:ok, euro} =
+        CategoryResult.for_portfolio(world.euro.portfolio.id, world.classification.id,
+          prices: prices
+        )
+
+      platforms = fetch(euro, world.platforms.id)
+      assert_decimal(platforms.invested, "5800")
+      assert platforms.covered_count == 1
+      assert platforms.member_count == 2
+
+      assert [
+               %{
+                 security_name: "Brackwater Dormant AG",
+                 reason: :no_usable_price,
+                 native_costs: []
+               }
+             ] =
+               euro.excluded_members
+
+      {:ok, dollar} =
+        CategoryResult.for_portfolio(world.dollar.portfolio.id, world.classification.id,
+          prices: prices
+        )
+
+      assert dollar.base_currency == "USD"
+      assert_decimal(fetch(dollar, world.platforms.id).invested, "1500")
+      assert dollar.excluded_members == []
     end
   end
 end

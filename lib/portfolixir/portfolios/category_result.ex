@@ -28,6 +28,21 @@ defmodule Portfolixir.Portfolios.CategoryResult do
      which would quietly understate the category, and the row states how many
      members it covers out of how many it has.
 
+  **One currency per result** (#1048). A sum adds one currency: a portfolio's
+  own read is in its base currency, and the reads that span portfolios -- a
+  view (`for_view/3`) and every portfolio (`for_all_portfolios/2`) -- are in
+  EUR. A member held in a portfolio whose base currency is not EUR has no EUR
+  cost to add, so in those two it is excluded and named with
+  `missing_base_cost`; its cost is never converted through the hub, which
+  would state a cost nobody paid.
+
+  Every result carries `excluded_members`: each excluded member **once**,
+  across the tree, sorted by name, with the category it is filed under, its
+  reason and, when it is out only because its cost was not paid in EUR, that
+  cost in the currency it was paid in (`native_costs`, one amount per
+  currency). It is an internal key: `/api/v1` picks its fields explicitly and
+  does not serve it (#1091 decides how).
+
   Nothing here is computed for the first time. `Ledger.holdings_for_portfolio/2`
   already carries each position's base-currency cost (`base_cost`) and its
   base-currency total return (`total_return_base_abs`); the work is grouping
@@ -46,9 +61,9 @@ defmodule Portfolixir.Portfolios.CategoryResult do
 
   @basis "current_composition"
 
-  # The view scope's currency (#901): a view spans every portfolio, so its
-  # figures are in the EUR hub, as the view valuation's and the view
-  # performance's are.
+  # The currency of the reads that span portfolios -- a view (#901) and every
+  # portfolio (#1048): their figures are in the EUR hub, as the view
+  # valuation's and the view performance's are.
   @hub "EUR"
 
   @doc """
@@ -58,9 +73,11 @@ defmodule Portfolixir.Portfolios.CategoryResult do
   Returns `{:ok, result}` where `result.categories` carries one entry per
   category in the tree — including categories with no members, which report
   zeroes and a `nil` percentage rather than claiming to be flat — plus
-  `result.basis`, the one-line computation basis of ADR-0041 §1, and the
+  `result.basis`, the one-line computation basis of ADR-0041 §1, the
   scope it was computed over (`scope: :portfolio`, `view_id`,
-  `base_currency`: the portfolio's).
+  `base_currency`: the portfolio's), and `result.excluded_members`, each
+  excluded member once (see the moduledoc). Nothing here is converted, so no
+  member of a portfolio's own read is out for its cost's currency.
 
   Options: `:view` (a view id, #901) narrows the roll-up to the portfolio's
   positions matching that view, the way it narrows the valuation and the
@@ -79,20 +96,26 @@ defmodule Portfolixir.Portfolios.CategoryResult do
         |> Ledger.holdings_for_portfolio(opts)
         |> in_scope(scope)
 
+      currency = base_currency(portfolio_id)
+
+      {categories, excluded_members} =
+        roll_up(
+          Classifications.list_categories(classification_id),
+          security_categories,
+          holdings,
+          currency
+        )
+
       {:ok,
        %{
          portfolio_id: portfolio_id,
          view_id: view_id,
          scope: :portfolio,
-         base_currency: base_currency(portfolio_id),
+         base_currency: currency,
          classification_id: classification_id,
          basis: @basis,
-         categories:
-           roll_up(
-             Classifications.list_categories(classification_id),
-             security_categories,
-             holdings
-           )
+         categories: categories,
+         excluded_members: excluded_members
        }}
     end
   end
@@ -116,13 +139,15 @@ defmodule Portfolixir.Portfolios.CategoryResult do
       when is_integer(view_id) and is_integer(classification_id) do
     with {:ok, security_categories} <- Classifications.security_category_map(classification_id),
          scope when not is_tuple(scope) <- Buckets.load_global_scope(view_id) do
-      holdings =
-        Enum.flat_map(Portfolios.list_portfolios(), fn portfolio ->
-          portfolio.id
-          |> Ledger.holdings_for_portfolio(opts)
-          |> in_scope(scope)
-          |> Enum.map(&in_hub_currency(&1, portfolio.base_currency_code))
-        end)
+      holdings = hub_holdings(opts, &in_scope(&1, scope))
+
+      {categories, excluded_members} =
+        roll_up(
+          Classifications.list_categories(classification_id),
+          security_categories,
+          holdings,
+          @hub
+        )
 
       {:ok,
        %{
@@ -132,14 +157,21 @@ defmodule Portfolixir.Portfolios.CategoryResult do
          base_currency: @hub,
          classification_id: classification_id,
          basis: @basis,
-         categories:
-           roll_up(
-             Classifications.list_categories(classification_id),
-             security_categories,
-             holdings
-           )
+         categories: categories,
+         excluded_members: excluded_members
        }}
     end
+  end
+
+  # Every portfolio's holdings, narrowed by `narrow`, in the EUR hub: the one
+  # currency rule the two cross-portfolio reads share (#901, #1048).
+  defp hub_holdings(opts, narrow) do
+    Enum.flat_map(Portfolios.list_portfolios(), fn portfolio ->
+      portfolio.id
+      |> Ledger.holdings_for_portfolio(opts)
+      |> narrow.()
+      |> Enum.map(&in_hub_currency(&1, portfolio.base_currency_code))
+    end)
   end
 
   defp in_scope(holdings, scope) do
@@ -152,12 +184,18 @@ defmodule Portfolixir.Portfolios.CategoryResult do
   # A holding's base-currency figures are its portfolio's currency. Outside
   # EUR they cannot enter a EUR sum, so the row is reported the way any
   # holding without a cost in the base currency is: not decomposed, for
-  # missing_base_cost (ADR-0033), which excludes and names it (§4). A row
-  # already undecomposed keeps the reason it has.
+  # missing_base_cost (ADR-0033), which excludes and names it (§4). The cost
+  # it does have travels with it as its native cost -- the settlement leg
+  # actually paid, in the portfolio's currency, never converted (#1048). A
+  # row already undecomposed keeps the reason it has, and has no cost to
+  # state for this one.
   defp in_hub_currency(holding, @hub), do: holding
 
-  defp in_hub_currency(%{decomposed: true} = holding, _other_currency),
-    do: %{holding | decomposed: false, undecomposed_reason: :missing_base_cost}
+  defp in_hub_currency(%{decomposed: true, base_cost: base_cost} = holding, other_currency) do
+    holding
+    |> Map.merge(%{decomposed: false, undecomposed_reason: :missing_base_cost})
+    |> Map.put(:native_cost, base_cost && %{amount: base_cost, currency: other_currency})
+  end
 
   defp in_hub_currency(holding, _other_currency), do: holding
 
@@ -169,14 +207,22 @@ defmodule Portfolixir.Portfolios.CategoryResult do
   end
 
   @doc """
-  The same roll-up across **every** portfolio.
+  The same roll-up across **every** portfolio (`scope: :all`).
 
   This is what the human surface reads: the classification tree is global, since
   [ADR-0024](../../../docs/decisions/0024-buckets-and-views-replace-portfolios-in-the-ui.md)
   demoted portfolios as a user-facing grouping. Per-portfolio cost lots are
-  built from that portfolio's own transactions, so the sums add across
+  built from that portfolio's own transactions, so the EUR sums add across
   portfolios without double-counting; a security held in two of them appears as
   one member row carrying the combined quantity.
+
+  The figures are in EUR (`base_currency: "EUR"`), under `for_view/3`'s rule
+  (#1048): a member held in a portfolio whose base currency is not EUR has no
+  EUR cost, so it is excluded and named with `missing_base_cost` and its
+  native cost in `excluded_members`, never summed across currencies. A
+  security held in both kinds of portfolio is excluded whole (§4: no partial
+  sum of a security). On an instance whose portfolios are all EUR, nothing
+  is excluded for its currency and every figure is what the plain sum gives.
   """
   def for_all_portfolios(classification_id, opts \\ []) when is_integer(classification_id) do
     case Classifications.security_category_map(classification_id) do
@@ -184,54 +230,84 @@ defmodule Portfolixir.Portfolios.CategoryResult do
         {:error, reason}
 
       {:ok, security_categories} ->
-        categories = Classifications.list_categories(classification_id)
-
-        holdings =
-          Portfolios.list_portfolios()
-          |> Enum.flat_map(&Ledger.holdings_for_portfolio(&1.id, opts))
+        {categories, excluded_members} =
+          roll_up(
+            Classifications.list_categories(classification_id),
+            security_categories,
+            hub_holdings(opts, & &1),
+            @hub
+          )
 
         {:ok,
          %{
            portfolio_id: nil,
+           scope: :all,
+           base_currency: @hub,
            classification_id: classification_id,
            basis: @basis,
-           categories: roll_up(categories, security_categories, holdings)
+           categories: categories,
+           excluded_members: excluded_members
          }}
     end
   end
 
-  defp roll_up(categories, security_categories, holdings) do
+  # The categories' rows, and the excluded members once each across the tree
+  # (#1048). `currency` is the result's: what a covered slice's cost is in,
+  # when a security excluded whole lists every slice's cost.
+  defp roll_up(categories, security_categories, holdings, currency) do
     # A position counts toward the category it is filed under AND every
     # ancestor, so a parent's result reconstructs from the level below it
     # (ADR-0041 §2, last paragraph).
     ancestors = ancestor_index(categories)
 
-    entries =
+    # Each member with the category it is filed under; an unfiled one is in
+    # no row and in no list.
+    filed =
       holdings
       |> Enum.reject(&Decimal.equal?(&1.quantity, @zero))
       |> Enum.map(&member_entry/1)
-      |> merge_by_security()
-
-    by_category =
-      Enum.reduce(entries, %{}, fn entry, acc ->
+      |> merge_by_security(currency)
+      |> Enum.flat_map(fn entry ->
         case Map.get(security_categories, entry.security_id) do
-          nil ->
-            acc
-
-          category_id ->
-            category_id
-            |> then(&[&1 | Map.get(ancestors, &1, [])])
-            |> Enum.reduce(acc, fn id, inner ->
-              Map.update(inner, id, [entry], &[entry | &1])
-            end)
+          nil -> []
+          category_id -> [{entry, category_id}]
         end
       end)
 
-    Enum.map(categories, fn category ->
-      by_category
-      |> Map.get(category.id, [])
-      |> category_row(category)
+    by_category =
+      Enum.reduce(filed, %{}, fn {entry, category_id}, acc ->
+        category_id
+        |> then(&[&1 | Map.get(ancestors, &1, [])])
+        |> Enum.reduce(acc, fn id, inner ->
+          Map.update(inner, id, [entry], &[entry | &1])
+        end)
+      end)
+
+    rows =
+      Enum.map(categories, fn category ->
+        by_category
+        |> Map.get(category.id, [])
+        |> category_row(category)
+      end)
+
+    {rows, excluded_members(filed)}
+  end
+
+  # Each excluded member once, though it rolls into every ancestor's row: the
+  # list a reader can be shown in one place (#1048), sorted by name.
+  defp excluded_members(filed) do
+    filed
+    |> Enum.reject(fn {entry, _category_id} -> entry.covered end)
+    |> Enum.map(fn {entry, category_id} ->
+      %{
+        security_id: entry.security_id,
+        security_name: entry.security_name,
+        category_id: category_id,
+        reason: entry.reason,
+        native_costs: entry.native_costs
+      }
     end)
+    |> Enum.sort_by(&{&1.security_name || "", &1.security_id})
   end
 
   # Each category's ancestors, so a member rolls into every level above it.
@@ -260,7 +336,9 @@ defmodule Portfolixir.Portfolios.CategoryResult do
     base = %{
       security_id: holding.security_id,
       security_name: holding.security_name,
-      quantity: holding.quantity
+      quantity: holding.quantity,
+      # Set only where the hub rule excluded a cost it does know (#1048).
+      native_cost: Map.get(holding, :native_cost)
     }
 
     cond do
@@ -336,7 +414,7 @@ defmodule Portfolixir.Portfolios.CategoryResult do
   # rather than of depot slots. An uncovered slice makes the whole row
   # uncovered -- partially summing a security would understate it in exactly
   # the way §4 forbids.
-  defp merge_by_security(entries) do
+  defp merge_by_security(entries, currency) do
     entries
     |> Enum.group_by(& &1.security_id)
     |> Enum.map(fn {_security_id, [first | _] = slices} ->
@@ -354,9 +432,34 @@ defmodule Portfolixir.Portfolios.CategoryResult do
         }
       else
         uncovered = Enum.find(slices, &(not &1.covered))
-        %{uncovered | quantity: sum(slices, :quantity)}
+
+        uncovered
+        |> Map.put(:quantity, sum(slices, :quantity))
+        |> Map.put(:native_costs, native_costs(slices, currency))
       end
     end)
+  end
+
+  # What an uncovered row cost, per currency, when it is out ONLY because its
+  # cost was not paid in EUR (#1048): every uncovered slice carries the cost
+  # it was paid, and a covered slice adds its own in the result's currency
+  # ("1.000,00 EUR + 1.500,00 USD"). The result's currency first, then the
+  # others by code. A slice out for any other reason has no cost to state,
+  # and neither has the row: the list is empty and the reason speaks.
+  defp native_costs(slices, currency) do
+    {covered, uncovered} = Enum.split_with(slices, & &1.covered)
+
+    if Enum.all?(uncovered, &match?(%{native_cost: %{}}, &1)) do
+      (Enum.map(covered, &%{amount: &1.invested, currency: currency}) ++
+         Enum.map(uncovered, & &1.native_cost))
+      |> Enum.group_by(& &1.currency, & &1.amount)
+      |> Enum.map(fn {code, amounts} ->
+        %{amount: Enum.reduce(amounts, @zero, &Decimal.add(&2, &1)), currency: code}
+      end)
+      |> Enum.sort_by(&{&1.currency != currency, &1.currency})
+    else
+      []
+    end
   end
 
   defp sum(entries, key),
