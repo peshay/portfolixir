@@ -53,10 +53,10 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # stranger checks first, one entry for the lane PR. M3 opened it: the performance and the
     # contribution reads, in both forms, name a cash account that counted
     # zero for want of a rate path (#1055, ADR-0051 §10). No route and no
-    # tool is added; M4 and M6 extend the entry.
+    # tool is added; M4, M6 and M7 extend the entry.
     assert newest["version"] == 14
-    # M4 and M6 extended the entry on 2026-10-06, so its date moved with
-    # them: a since=2026-10-05 poller sees both.
+    # M4, M6 and M7 extended the entry on 2026-10-06, so its date moved with
+    # them: a since=2026-10-05 poller sees them.
     assert newest["date"] == "2026-10-06"
     assert newest["summary"] =~ "Sprint 19"
     assert newest["summary"] =~ "M3"
@@ -102,6 +102,39 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
              ),
              read
     end
+
+    # M7 (#1068, D-15) adds a data_quality value and a reading field, no
+    # tool: securities.list's data_quality takes two_scales, and the detail
+    # read's bond.two_scales names its direction, the reverse band and the
+    # master-data signal.
+    assert newest["summary"] =~ "M7"
+    assert newest["summary"] =~ "#1068"
+    assert newest["summary"] =~ "two_scales"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/securities?data_quality=") and
+                 &1 =~ "portfolixir.securities.list" and &1 =~ "two_scales" and
+                 &1 =~ "#1068")
+           )
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/securities/:id") and
+                 &1 =~ "portfolixir.securities.get" and &1 =~ "direction" and
+                 &1 =~ "reverse" and &1 =~ "1/500 to 1/20" and
+                 &1 =~ "maturity_date or coupon_rate" and &1 =~ "now carries its figures")
+           )
+
+    # #1078 rides M7: the class a create or update stores for some names moves.
+    assert newest["summary"] =~ "#1078"
+    refute newest["summary"] =~ "with no figure changed, names a bond"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "POST /api/v1/securities and PATCH /api/v1/securities/:id") and
+                 &1 =~ "Muster Computer Corp" and &1 =~ "#1078")
+           )
 
     # The review round: the day before the window counts, and an account
     # still at zero on the last day says so.

@@ -2,6 +2,7 @@ defmodule PortfolixirWeb.DashboardTest do
   use PortfolixirWeb.ConnCase
 
   import Phoenix.LiveViewTest
+  import Portfolixir.WorldFixtures, only: [base_world: 0, buy!: 3, put_quote!: 3]
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
@@ -521,6 +522,145 @@ defmodule PortfolixirWeb.DashboardTest do
 
     {:ok, list, _html} = live(conn, class_href)
     refute has_element?(list, "td", "Closed Co")
+  end
+
+  # User story (#1068, D-15; board 01, pin 5):
+  # As the operator whose Overview total a bond on two scales inflates or
+  # deflates a hundredfold,
+  # I want the data-quality line to count the bonds priced on two scales,
+  # in either direction, at problem severity,
+  # so that the alarm stands where the total it concerns is read, and its
+  # count opens a list of the same size (#705).
+  #
+  # Acceptance criteria:
+  # - One forward finding (quotes near 100, a buy near 1) and one reverse
+  #   finding (quotes near 1, a buy near 100) read "2 Anleihen auf zwei
+  #   Skalen bepreist" on the German line, linking to
+  #   /securities?dq=two_scales, and the note takes the problem severity,
+  #   the highest present.
+  # - The linked list holds those two bonds and nothing else, under a
+  #   removable "Auf zwei Skalen bepreist" filter chip.
+  # - A bond on one scale and an unclassed security with no master data
+  #   quoted 25 times its buy price are not counted.
+  test "the data-quality line counts the bonds priced on two scales, at problem severity",
+       %{conn: conn} do
+    world = base_world()
+
+    for {name, attrs, price, close} <- [
+          {"Kestrel Anleihe 2030 2,75%", %{asset_class: "bond"}, "0.985", "97.25"},
+          {"Birkenhain Wasser Anleihe 2029 1,50%", %{asset_class: "bond"}, "98.40", "0.981"},
+          {"Musterland Anleihe 2029", %{asset_class: "bond"}, "99.10", "98.40"},
+          {"Ostsee Holz", %{}, "4", "100"}
+        ] do
+      {:ok, security} =
+        Catalog.create_security(
+          Actor.owner_ui(),
+          Map.merge(%{name: name, currency_code: "EUR"}, attrs)
+        )
+
+      buy!(world, security, quantity: "100", price: price, date: ~D[2026-03-12])
+      put_quote!(security, ~D[2026-09-30], close)
+    end
+
+    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    assert has_element?(
+             view,
+             ~s(#dashboard-dq-line a[data-role="dq-two-scales"][href="/securities?dq=two_scales"]),
+             "2 Anleihen auf zwei Skalen bepreist"
+           )
+
+    assert has_element?(view, "#dashboard-data-quality .data-note--problem .data-note__word")
+    refute has_element?(view, "#dashboard-data-quality .data-note--attention")
+
+    {:ok, list, _html} = live(conn, "/securities?dq=two_scales")
+    assert has_element?(list, "#filter-chips .chip", "Auf zwei Skalen bepreist")
+    assert has_element?(list, "td", "Kestrel Anleihe 2030 2,75%")
+    assert has_element?(list, "td", "Birkenhain Wasser Anleihe 2029 1,50%")
+    refute has_element?(list, "td", "Musterland Anleihe 2029")
+    refute has_element?(list, "td", "Ostsee Holz")
+  end
+
+  # User story (#1068, review): the singular follows the line's convention
+  # ("eine Anleihe", "one bond"), and the problem outranks a stale quote.
+  #
+  # Acceptance criteria:
+  # - One reverse bond reads "eine Anleihe auf zwei Skalen bepreist" in
+  #   German and "one bond priced on two scales" in English.
+  # - Beside a stale quote, the line keeps both findings and takes the
+  #   problem severity, never attention.
+  test "one bond on two scales reads in the singular, and outranks a stale quote",
+       %{conn: conn} do
+    world = base_world()
+
+    {:ok, bond} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Birkenhain Wasser Anleihe 2029 1,50%",
+        currency_code: "EUR",
+        asset_class: "bond"
+      })
+
+    buy!(world, bond, quantity: "100", price: "98.40", date: ~D[2026-03-12])
+    put_quote!(bond, Date.add(Date.utc_today(), -1), "0.981")
+
+    {:ok, stale} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Nordwind Industrie AG",
+        currency_code: "EUR",
+        asset_class: "equity"
+      })
+
+    put_quote!(stale, Date.add(Date.utc_today(), -30), "12.50")
+
+    german = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    {:ok, view, _html} = live(german, "/")
+    render_async(view)
+
+    assert has_element?(
+             view,
+             ~s(#dashboard-dq-line a[data-role="dq-two-scales"]),
+             "eine Anleihe auf zwei Skalen bepreist"
+           )
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    assert has_element?(
+             view,
+             ~s(#dashboard-dq-line a[data-role="dq-two-scales"][href="/securities?dq=two_scales"]),
+             "one bond priced on two scales"
+           )
+
+    assert has_element?(view, ~s(#dashboard-dq-line a[data-role="dq-quotes"]))
+    assert has_element?(view, "#dashboard-data-quality .data-note--problem", "Problem")
+    refute has_element?(view, "#dashboard-data-quality .data-note--attention")
+
+    {:ok, list, _html} = live(conn, "/securities?dq=two_scales")
+    assert has_element?(list, "#filter-chips .chip", "Priced on two scales")
+    assert has_element?(list, "td", "Birkenhain Wasser Anleihe 2029 1,50%")
+    refute has_element?(list, "td", "Nordwind Industrie AG")
+  end
+
+  test "the data-quality line has no two-scales count while no bond is on two scales",
+       %{conn: conn} do
+    world = base_world()
+
+    {:ok, bond} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Musterland Anleihe 2029",
+        currency_code: "EUR",
+        asset_class: "bond"
+      })
+
+    buy!(world, bond, quantity: "100", price: "99.10", date: ~D[2026-03-12])
+    put_quote!(bond, ~D[2026-09-30], "98.40")
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    refute has_element?(view, ~s([data-role="dq-two-scales"]))
   end
 
   # User story (issue #718, D1 / UX-DR21):

@@ -97,6 +97,20 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     }
   end
 
+  # The bond section shows while the class reads one of the two bond
+  # classes, and — #1068, D-15 — while it reads no class for a security that
+  # carries a maturity date or a coupon, which `Bonds.bond?/1` reads as a
+  # bond: its bond data stays visible and clearable where it was entered.
+  defp bond_fieldset?(form, editing) do
+    form["asset_class"] in Bonds.classes() or
+      (form["asset_class"] in [nil, ""] and stored_bond_terms?(editing))
+  end
+
+  defp stored_bond_terms?(%Security{maturity_date: maturity, coupon_rate: coupon}),
+    do: not is_nil(maturity) or not is_nil(coupon)
+
+  defp stored_bond_terms?(_editing), do: false
+
   defp decimal_value(nil), do: ""
   defp decimal_value(%Decimal{} = value), do: value |> Decimal.normalize() |> DecimalInput.value()
 
@@ -430,7 +444,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
         />
       </div>
 
-      <.bond_fieldset :if={@form["asset_class"] in Bonds.classes()} form={@form} errors={@errors} />
+      <.bond_fieldset :if={bond_fieldset?(@form, @editing)} form={@form} errors={@errors} />
 
       <%!-- ADR-0028 §2 escape hatch for providers that never back-adjust
            after a split: forces the raw basis (split factors apply) for this

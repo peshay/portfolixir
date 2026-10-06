@@ -352,7 +352,8 @@ describe("Portfolixir MCP tools", () => {
   // Acceptance criteria:
   // - The tool exposes exactly the predicates the engine defines — since
   //   #717 that includes missing_fx (priced, but no stored rate to the
-  //   base currency).
+  //   base currency), and since #1068 two_scales (a bond priced on two
+  //   scales, either way).
   // - It forwards the choice to the API rather than filtering client-side.
   // - Its description says what "stale" means, so an agent needs no second
   //   call to find out.
@@ -364,12 +365,18 @@ describe("Portfolixir MCP tools", () => {
       "stale_quote",
       "missing_quote",
       "missing_logo",
-      "missing_fx"
+      "missing_fx",
+      "two_scales"
     ]);
 
     // The threshold and the stale/missing distinction travel with the tool.
     assert.match(securitiesList?.description ?? "", /7 days/);
     assert.match(securitiesList?.description ?? "", /INCLUDING never-priced/);
+    assert.match(securitiesList?.description ?? "", /two_scales \(/);
+
+    const twoScales = createRecordingClient({ data: [] });
+    await callTool(twoScales.client, "portfolixir.securities.list", { data_quality: "two_scales" });
+    assert.equal(twoScales.requests[0].path, "/api/v1/securities?data_quality=two_scales");
 
     const { client, requests } = createRecordingClient({ data: [] });
 
@@ -4225,7 +4232,13 @@ describe("Portfolixir MCP tools", () => {
       /current_yield/,
       /yield_to_maturity/,
       /computation_basis/,
-      /two_scales/
+      /two_scales/,
+      // #1068: the reading's two_scales says which way the scales differ,
+      // and an unclassed security with bond master data has a reading.
+      /direction/,
+      /forward/,
+      /reverse/,
+      /maturity or coupon/
     ]) {
       assert.match(get, fragment);
     }

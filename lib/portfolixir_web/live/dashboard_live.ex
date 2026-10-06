@@ -1039,11 +1039,16 @@ defmodule PortfolixirWeb.DashboardLive do
   # securities without an asset class"), so a line with no stale quote does
   # not open on a bare "4 without an asset class"; a later finding keeps its
   # short form after the first one's noun.
+  #
+  # #1068 (D-15, board 01 pin 5): the bonds priced on two scales, in either
+  # direction, close the line with their own noun, so the finding reads the
+  # same wherever it stands.
   defp dq_findings(dq) do
     [
       dq.without_quote > 0 && {:quotes, dq.without_quote},
       dq.without_class > 0 && {:class, dq.without_class},
-      dq.without_logo > 0 && {:logo, dq.without_logo}
+      dq.without_logo > 0 && {:logo, dq.without_logo},
+      dq.two_scales > 0 && {:two_scales, dq.two_scales}
     ]
     |> Enum.filter(& &1)
     |> Enum.with_index()
@@ -1097,13 +1102,30 @@ defmodule PortfolixirWeb.DashboardLive do
     }
   end
 
-  # Highest severity present (UX-DR17): a stale quote skews valuations, so it
-  # is attention-level; a missing class or logo is a note-level catalog gap.
+  defp dq_finding(:two_scales, count, _first?) do
+    %{
+      role: "dq-two-scales",
+      href: "/securities?dq=two_scales",
+      text:
+        ngettext(
+          "one bond priced on two scales",
+          "%{count} bonds priced on two scales",
+          count
+        )
+    }
+  end
+
+  # Highest severity present (UX-DR17): a bond priced on two scales counts a
+  # hundredfold too high or too low in the total, so it is a problem (#1068,
+  # D-15); a stale quote skews valuations, so it is attention-level; a
+  # missing class or logo is a note-level catalog gap.
+  defp dq_severity(%{two_scales: n}) when n > 0, do: :problem
   defp dq_severity(%{without_quote: n}) when n > 0, do: :attention
   defp dq_severity(_dq), do: :note
 
   # Securities needing attention (#337 data-quality card): no recent quote
-  # (none at all, or older than 7 days), no persisted asset class, no logo.
+  # (none at all, or older than 7 days), no persisted asset class, no logo,
+  # and since #1068 a bond priced on two scales.
   defp data_quality_report do
     # The counts come from the shared predicates (#705), so each finding's
     # number is produced by the same rule as the list its link opens. The
@@ -1120,7 +1142,8 @@ defmodule PortfolixirWeb.DashboardLive do
           Catalog.list_securities(is_retired: false),
           &is_nil(&1.asset_class)
         ),
-      without_logo: DataQuality.count("missing_logo")
+      without_logo: DataQuality.count("missing_logo"),
+      two_scales: DataQuality.count("two_scales")
     }
   end
 

@@ -427,12 +427,23 @@ defmodule Portfolixir.Catalog.Security do
 
   defp crypto_ticker?(_), do: false
 
-  defp structured_product_name?(name) when is_binary(name) do
+  @doc """
+  Whether `name` carries a structured-product word (Turbo, Disc, Discount,
+  Call, Put, Optionsschein, Zertifikat, O.End, Em.-u.Handelsg.mbH): the
+  exclusion that keeps a certificate whose name also carries its issuer's
+  legal form from reading as equity. `Portfolixir.Portfolios.Bonds` reads it
+  too, so a certificate whose expiry is stored as a maturity date is not
+  read as a bond (#1068).
+  """
+  @spec structured_product_name?(term()) :: boolean()
+  def structured_product_name?(name) when is_binary(name) do
     Regex.match?(
       ~r/(Turbo[A-Z]?|Disc[CP]?|Discount|Call|Put|Optionsschein|Zertifikat|O\.End|Em\.-u\.Handelsg\.mbH)/i,
       name
     )
   end
+
+  def structured_product_name?(_name), do: false
 
   defp equity_name?(name) when is_binary(name) do
     Regex.match?(

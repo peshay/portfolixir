@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
   alias Portfolixir.Classifications
   alias Portfolixir.Clock
   alias Portfolixir.Engines.BondMetrics
+  alias Portfolixir.Portfolios.Bonds
   alias Portfolixir.Repo
 
   @maturity ~D[2031-06-15]
@@ -290,6 +291,238 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
 
     {:ok, view, _html} = live(german(conn), "/securities/#{hundredth.id}")
     refute has_element?(view, ~s([data-role="two-scales-note"]))
+  end
+
+  # User story (#1068, D-15; board 02, pins 3 and 4):
+  # As the operator whose bonds may be priced on two scales either way, or
+  # carry master data but no asset class,
+  # I want Wealth's data quality to name a bond whose quotes sit near 1
+  # beside bookings near 100 in a problem note of its own, with the way to
+  # its quotes, and to mark a named bond that has no asset class,
+  # so that a bond counting a hundredfold too low is named, and I see why a
+  # security the catalog does not call a bond is named.
+  #
+  # Acceptance criteria:
+  # - A bond bought at 98,40 and quoted 0,981 is named in
+  #   dq-two-scales-reverse, a problem note reading as board 02 draws it,
+  #   its name linking to its Quotes tab with "Kurs 0,981 · Preis je Stück
+  #   98,4" (both figures as Format.exact writes them, as the forward note's).
+  # - The forward note keeps its sentence, now in the plural for two bonds,
+  #   and names the unclassed bond with its maturity date beside the classed
+  #   one; only the unclassed one carries the neutral "ohne Anlageklasse"
+  #   badge.
+  # - An unclassed security with no master data, quoted 25 times its buy
+  #   price, is named in neither note, and its Overview has no bond block.
+  # - The unclassed bond's own Overview shows the bond block and the forward
+  #   note; the reverse bond's shows the block and no two-scales note, since
+  #   that note's sentence states the forward direction only.
+  test "Wealth names the reverse case in a note of its own, and marks a bond without a class",
+       %{conn: conn} do
+    world = base_world()
+    {:ok, _tree} = Classifications.create_classification(Actor.owner_ui(), %{name: "Strategie"})
+
+    forward = bond!(%{name: "Kestrel Anleihe 2030 2,75%", isin: "XSLIVEBD0301"})
+    buy!(world, forward, quantity: "10000", price: "0.985", date: ~D[2026-03-12])
+    put_quote!(forward, ~D[2026-09-30], "97.25")
+
+    {:ok, unclassed} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Ostsee Logistik 4,10% 2028/2033",
+        currency_code: "EUR",
+        maturity_date: ~D[2033-06-30]
+      })
+
+    assert unclassed.asset_class == nil
+    buy!(world, unclassed, quantity: "10000", price: "0.991", date: ~D[2026-03-12])
+    put_quote!(unclassed, ~D[2026-09-30], "99.10")
+
+    reverse = bond!(%{name: "Birkenhain Wasser Anleihe 2029 1,50%", isin: "XSLIVEBD0293"})
+    buy!(world, reverse, quantity: "100", price: "98.40", date: ~D[2026-03-12])
+    put_quote!(reverse, ~D[2026-09-30], "0.981")
+
+    {:ok, share} =
+      Catalog.create_security(Actor.owner_ui(), %{name: "Ostsee Holz", currency_code: "EUR"})
+
+    buy!(world, share, quantity: "10", price: "4", date: ~D[2026-03-12])
+    put_quote!(share, ~D[2026-09-30], "100")
+
+    {:ok, wealth, _html} = live(german(conn), "/portfolio")
+    render_async(wealth)
+
+    reverse_note = text(wealth, ~s([data-role="dq-two-scales-reverse"]))
+
+    assert reverse_note =~
+             "Eine Anleihe ist auf zwei Skalen bepreist (Kurse um 1, gebuchter Preis je Stück um 100) " <>
+               "und zählt hundertfach zu niedrig in den Summen. Ihre gespeicherten Kurse prüfen — " <>
+               "ein Kurs um 1 ist kein Prozent vom Nennwert:"
+
+    assert reverse_note =~
+             "Birkenhain Wasser Anleihe 2029 1,50% (Kurs 0,981 · Preis je Stück 98,4)"
+
+    assert reverse_note =~ "Problem"
+    refute reverse_note =~ "Kestrel"
+
+    assert has_element?(
+             wealth,
+             ~s([data-role="dq-two-scales-reverse"].data-note--problem a[href="/securities/#{reverse.id}?tab=quotes"])
+           )
+
+    forward_note = text(wealth, ~s([data-role="dq-two-scales"]))
+
+    assert forward_note =~
+             "2 Anleihen sind auf zwei Skalen bepreist (Kurse um 100, gebuchter Preis je Stück um 1) " <>
+               "und zählen hundertfach zu hoch in den Summen; die Rendite zeigt es nicht. " <>
+               "Stückzahl ihrer Buchungen gegen das Nominal der Abrechnung prüfen:"
+
+    assert forward_note =~ "Kestrel Anleihe 2030 2,75% (Kurs 97,25 · Preis je Stück 0,985)"
+
+    assert forward_note =~
+             "Ostsee Logistik 4,10% 2028/2033 ohne Anlageklasse (Kurs 99,1 · Preis je Stück 0,991)"
+
+    refute forward_note =~ "Birkenhain"
+
+    assert has_element?(
+             wealth,
+             ~s([data-role="dq-two-scales"] a[href="/securities/#{unclassed.id}?tab=transactions"])
+           )
+
+    assert [_one] =
+             wealth
+             |> element(~s([data-role="dq-two-scales"]))
+             |> render()
+             |> Floki.parse_fragment!()
+             |> Floki.find(".badge.badge--neutral")
+
+    refute render(wealth) =~ "Ostsee Holz ("
+
+    # The unclassed bond is read as a bond on its own Overview too; the
+    # reverse case has no Overview note yet, and never the forward sentence.
+    {:ok, detail, _html} = live(german(conn), "/securities/#{unclassed.id}")
+    assert has_element?(detail, ~s([data-role="bond-strip"]))
+    assert text(detail, ~s([data-role="two-scales-note"])) =~ "Kurse um 100"
+
+    {:ok, detail, _html} = live(german(conn), "/securities/#{reverse.id}")
+    assert has_element?(detail, ~s([data-role="bond-strip"]))
+    refute has_element?(detail, ~s([data-role="two-scales-note"]))
+
+    {:ok, detail, _html} = live(german(conn), "/securities/#{share.id}")
+    refute has_element?(detail, ~s([data-role="bond-strip"]))
+  end
+
+  # User story (#1068, review): the two notes in English, and the badge in
+  # the reverse note.
+  #
+  # Acceptance criteria:
+  # - On an English page the forward note keeps its English sentence and
+  #   the reverse note reads "One bond is priced on two scales (quotes
+  #   around 1, booked price per unit around 100) and counts a hundred times
+  #   too low in the totals. Check its stored quotes — a quote around 1 is
+  #   not a percent of face:".
+  # - An unclassed bond read by its coupon, on the reverse scales, is named
+  #   there with the "no asset class" badge, linking to its Quotes tab.
+  test "the two-scales notes read in English, and the reverse note carries the badge", %{
+    conn: conn
+  } do
+    world = base_world()
+    {:ok, _tree} = Classifications.create_classification(Actor.owner_ui(), %{name: "Strategie"})
+
+    forward = bond!(%{name: "Kestrel Anleihe 2030 2,75%"})
+    buy!(world, forward, quantity: "10000", price: "0.985", date: ~D[2026-03-12])
+    put_quote!(forward, ~D[2026-09-30], "97.25")
+
+    {:ok, reverse} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Ostsee Hafen Anleihe",
+        currency_code: "EUR",
+        coupon_rate: "3"
+      })
+
+    buy!(world, reverse, quantity: "100", price: "98.40", date: ~D[2026-03-12])
+    put_quote!(reverse, ~D[2026-09-30], "0.981")
+
+    {:ok, wealth, _html} = live(conn, "/portfolio")
+    render_async(wealth)
+
+    assert text(wealth, ~s([data-role="dq-two-scales"])) =~
+             "One bond is priced on two scales (quotes around 100, booked price per unit around 1) " <>
+               "and counts a hundred times too high in the totals; the return does not show it."
+
+    reverse_note = text(wealth, ~s([data-role="dq-two-scales-reverse"]))
+
+    assert reverse_note =~
+             "One bond is priced on two scales (quotes around 1, booked price per unit around 100) " <>
+               "and counts a hundred times too low in the totals. Check its stored quotes — " <>
+               "a quote around 1 is not a percent of face:"
+
+    assert reverse_note =~
+             "Ostsee Hafen Anleihe no asset class (quote 0.981 · price per unit 98.4)"
+
+    assert has_element?(
+             wealth,
+             ~s([data-role="dq-two-scales-reverse"] .badge.badge--neutral[data-role="dq-two-scales-unclassed"])
+           )
+
+    assert has_element?(
+             wealth,
+             ~s([data-role="dq-two-scales-reverse"] a[href="/securities/#{reverse.id}?tab=quotes"])
+           )
+
+    refute has_element?(wealth, ~s([data-role="dq-two-scales"] .badge))
+  end
+
+  # User story (#1068, D-15; review of the master-data signal):
+  # As the operator whose security shows no asset class but carries a
+  # maturity date and a coupon, and is therefore read as a bond,
+  # I want the dialog's bond section to show that data while the class reads
+  # blank,
+  # so that the data that brings it under the guard can be seen and cleared
+  # where it was entered.
+  #
+  # Acceptance criteria:
+  # - Editing it, the class select is blank and the bond section shows the
+  #   stored maturity and coupon.
+  # - Emptying both and saving clears them; the security is then no bond.
+  test "the dialog's bond section shows for a blank class carrying a maturity or coupon", %{
+    conn: conn
+  } do
+    {:ok, security} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Ostsee Logistik 4,10% 2028/2033",
+        currency_code: "EUR",
+        coupon_rate: "4.1",
+        maturity_date: ~D[2033-06-30]
+      })
+
+    assert security.asset_class == nil
+
+    {:ok, view, _html} = live(german(conn), "/securities/#{security.id}")
+    view |> element("#detail-edit") |> render_click()
+
+    refute has_element?(
+             view,
+             ~s(#security-dialog-form select[name="security[asset_class]"] option[selected])
+           )
+
+    assert has_element?(view, ~s([data-role="bond-fields"]))
+
+    assert has_element?(
+             view,
+             ~s([data-role="bond-fields"] input[name="security[maturity_date]"][value="2033-06-30"])
+           )
+
+    assert has_element?(
+             view,
+             ~s([data-role="bond-fields"] input[name="security[coupon_rate]"][value="4,1"])
+           )
+
+    view
+    |> form("#security-dialog-form", security: %{coupon_rate: "", maturity_date: ""})
+    |> render_submit()
+
+    cleared = Repo.reload!(security)
+    assert cleared.coupon_rate == nil
+    assert cleared.maturity_date == nil
+    refute Bonds.bond?(cleared)
   end
 
   # User story (#330, the dialog's bond section F1 and F2):

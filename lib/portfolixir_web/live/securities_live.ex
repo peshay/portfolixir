@@ -6350,6 +6350,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp dq_label("missing_quote"), do: gettext("No quote at all")
   defp dq_label("missing_logo"), do: gettext("No logo")
   defp dq_label("missing_fx"), do: gettext("Missing FX rate")
+  # #1068 (D-15): the bonds the two-scales guard flags, either direction.
+  defp dq_label("two_scales"), do: gettext("Priced on two scales")
 
   # -- #717 chip helpers ------------------------------------------------------
 

@@ -1,7 +1,8 @@
 defmodule Portfolixir.Catalog.DataQualityTest do
   use Portfolixir.DataCase, async: true
 
-  import Portfolixir.WorldFixtures, only: [create_security!: 1, put_quote!: 3]
+  import Portfolixir.WorldFixtures,
+    only: [base_world: 0, buy!: 3, create_security!: 1, put_quote!: 3]
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
@@ -235,5 +236,95 @@ defmodule Portfolixir.Catalog.DataQualityTest do
     Code.ensure_loaded!(DataQuality)
     refute function_exported?(DataQuality, :stale_quote?, 1)
     assert function_exported?(DataQuality, :stale_quote?, 2)
+  end
+
+  defp security!(attrs) do
+    {:ok, security} =
+      Catalog.create_security(Actor.owner_ui(), Map.merge(%{currency_code: "EUR"}, attrs))
+
+    security
+  end
+
+  defp priced!(world, security, price, close) do
+    buy!(world, security, quantity: "100", price: price, date: ~D[2026-03-12])
+    put_quote!(security, ~D[2026-09-30], close)
+    security
+  end
+
+  # User story (#1068, D-15; board 01):
+  # As the operator whose Overview counts what needs work,
+  # I want the bonds the two-scales guard flags, in either direction, as a
+  # data-quality set of their own,
+  # so that the Overview's count, the securities page's dq=two_scales list
+  # and the agent's data_quality=two_scales read are one rule (#705).
+  #
+  # Acceptance criteria:
+  # - two_scales holds, catalog-wide, a classed bond quoted 99.10 beside a
+  #   buy at 0.991 (forward), an unclassed security with a maturity date on
+  #   the same scales, and a classed bond quoted 0.981 beside a buy at 98.40
+  #   (reverse); each has a stored quote and a booked price per unit.
+  # - It leaves out an unclassed security with no master data quoted 25
+  #   times its buy price, a bond on one scale, and a bond with no quote.
+  # - Like missing_fx it is not catalog hygiene: a retired bond and a
+  #   benchmark bond stay in it, since their figures are as wrong as before;
+  #   the query half adds nothing.
+  # - The count, taken without the metrics pass, is the list's length, and a
+  #   row with no security is no finding.
+  test "two_scales is the guard's set in either direction, catalog-wide" do
+    world = base_world()
+
+    forward =
+      priced!(
+        world,
+        security!(%{name: "Kestrel Anleihe 2030 2,75%", asset_class: "bond"}),
+        "0.991",
+        "99.10"
+      )
+
+    priced!(
+      world,
+      security!(%{name: "Ostsee Logistik 4,10% 2028/2033", maturity_date: "2033-06-30"}),
+      "0.991",
+      "99.10"
+    )
+
+    reverse =
+      priced!(
+        world,
+        security!(%{name: "Birkenhain Wasser Anleihe 2029 1,50%", asset_class: "bond"}),
+        "98.40",
+        "0.981"
+      )
+
+    priced!(world, security!(%{name: "Ostsee Holz"}), "4", "100")
+
+    priced!(
+      world,
+      security!(%{name: "Musterland Anleihe 2029", asset_class: "bond"}),
+      "99.10",
+      "98.40"
+    )
+
+    unquoted = security!(%{name: "Nordwind Anleihe 2027", asset_class: "bond"})
+    buy!(world, unquoted, quantity: "10000", price: "0.99", date: ~D[2026-03-12])
+
+    flagged = [
+      "Birkenhain Wasser Anleihe 2029 1,50%",
+      "Kestrel Anleihe 2030 2,75%",
+      "Ostsee Logistik 4,10% 2028/2033"
+    ]
+
+    assert DataQuality.valid?("two_scales")
+    assert "two_scales" in DataQuality.ids()
+    assert DataQuality.list_opts("two_scales") == []
+    assert names(DataQuality.list("two_scales")) == flagged
+    assert DataQuality.count("two_scales") == 3
+
+    retire!(reverse, true)
+    {:ok, _} = Catalog.update_security(Actor.owner_ui(), forward, %{is_benchmark: true})
+    assert names(DataQuality.list("two_scales")) == flagged
+    assert DataQuality.count("two_scales") == length(DataQuality.list("two_scales"))
+
+    assert DataQuality.refine([%{}], "two_scales") == []
   end
 end

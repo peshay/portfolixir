@@ -111,6 +111,18 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 103_990,
     book: 177_072,
     full: 207_420
+  },
+  {
+    since: "2026-10-06",
+    why:
+      "Sprint 19 PR α, M7 (#1068, D-15): securities.list takes data_quality two_scales and " +
+      "securities.get says its bond reading reaches a security with no class and a maturity " +
+      "or coupon and names the two_scales direction, paid for by tightening the securities " +
+      "family's descriptions, dropping requirement and issue ids from eight descriptions and a " +
+      "sentence holdings.reconcile's rows repeated, and lowered to the figure measured (D-10)",
+    read: 103_986,
+    book: 177_068,
+    full: 207_416
   }
 ];
 

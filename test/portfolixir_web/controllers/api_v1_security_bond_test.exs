@@ -253,6 +253,7 @@ defmodule PortfolixirWeb.ApiV1SecurityBondTest do
     assert face["nominal_held"]["amount"] == "1000000"
 
     assert %{
+             "direction" => "forward",
              "latest_quote" => %{"close" => "97.25", "date" => "2026-09-30"},
              "unit_scale_bookings" => 1,
              "last_unit_scale_booking" => %{"price" => "0.985", "date" => "2026-03-12"},
@@ -282,5 +283,76 @@ defmodule PortfolixirWeb.ApiV1SecurityBondTest do
       conn |> get("/api/v1/securities?projection=full") |> json_response(200)
 
     assert Enum.all?(rows, &(&1["bond"] == nil))
+  end
+
+  # User story (#1068, D-15; contract entry 14):
+  # As the operator's agent reading a bond whose stored quotes sit near 1
+  # while its bookings sit near 100, or a corporate bond the catalog has no
+  # class for,
+  # I want the detail read's bond reading to name the two scales with their
+  # direction, and to read an unclassed security carrying bond master data
+  # as a bond,
+  # so that I see what Wealth names, and which way the figures are off.
+  #
+  # Acceptance criteria:
+  # - A government bond bought at 98.40 and quoted 0.981: two_scales carries
+  #   direction "reverse", the quote, the booking, and a rule stating both
+  #   bands and the bond signal.
+  # - A security with no asset class and a maturity date, bought at 0.991
+  #   and quoted 99.10, carries a bond reading whose two_scales is
+  #   "forward"; one with neither class nor master data carries bond null.
+  test "the detail read names the reverse case and reads an unclassed bond by its master data",
+       %{conn: conn} do
+    world = base_world()
+
+    %{"data" => %{"id" => reverse_id}} =
+      create_bond!(conn, %{"name" => "Birkenhain Wasser Anleihe 2029", "isin" => "XSAPIBND0293"})
+
+    buy!(world, reverse_id, quantity: "100", price: "98.40", date: ~D[2026-03-12])
+    put_quote!(reverse_id, ~D[2026-09-30], "0.981")
+
+    %{"data" => %{"bond" => %{"two_scales" => reverse}}} =
+      conn |> get("/api/v1/securities/#{reverse_id}") |> json_response(200)
+
+    assert %{
+             "direction" => "reverse",
+             "latest_quote" => %{"close" => "0.981", "date" => "2026-09-30"},
+             "unit_scale_bookings" => 1,
+             "last_unit_scale_booking" => %{"price" => "98.4", "date" => "2026-03-12"},
+             "rule" => rule
+           } = reverse
+
+    assert rule =~ "between 1/500 and 1/20 of one"
+
+    assert rule =~
+             "no asset class as shown (none stored, none inferred), a maturity_date or coupon_rate"
+
+    unclassed = fn name, extra ->
+      conn
+      |> post(
+        "/api/v1/securities",
+        Jason.encode!(%{
+          "security" => Map.merge(%{"name" => name, "currency_code" => "EUR"}, extra)
+        })
+      )
+      |> json_response(201)
+      |> get_in(["data", "id"])
+    end
+
+    corporate = unclassed.("Ostsee Logistik 4,10% 2028/2033", %{"maturity_date" => "2033-06-30"})
+    buy!(world, corporate, quantity: "10000", price: "0.991", date: ~D[2026-03-12])
+    put_quote!(corporate, ~D[2026-09-30], "99.10")
+
+    %{"data" => %{"asset_class" => nil, "bond" => %{"two_scales" => forward}}} =
+      conn |> get("/api/v1/securities/#{corporate}") |> json_response(200)
+
+    assert forward["direction"] == "forward"
+
+    share = unclassed.("Ostsee Holz", %{})
+    buy!(world, share, quantity: "10", price: "4", date: ~D[2026-03-12])
+    put_quote!(share, ~D[2026-09-30], "100")
+
+    assert %{"data" => %{"bond" => nil}} =
+             conn |> get("/api/v1/securities/#{share}") |> json_response(200)
   end
 end

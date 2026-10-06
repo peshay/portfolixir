@@ -2644,6 +2644,13 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> assign(:negative_entries, negative_entries(assigns.negative))
       |> assign_new(:two_scales, fn -> [] end)
 
+    # #1068 (D-15, board 02): the two directions are two findings, each with
+    # its own consequence and remedy, so each has its own note.
+    assigns =
+      assigns
+      |> assign(:two_scales_forward, Enum.filter(assigns.two_scales, &(&1.direction == :forward)))
+      |> assign(:two_scales_reverse, Enum.filter(assigns.two_scales, &(&1.direction == :reverse)))
+
     ~H"""
     <section
       :if={
@@ -2764,29 +2771,71 @@ defmodule PortfolixirWeb.PortfolioLive do
              times too high in the totals read here, and the return cannot
              show it (bond discovery, point 5). Each name links to where its
              bookings are checked against the statement; nothing is
-             converted. --%>
+             converted. #1068 (board 02, pin 3): a bond named by its master
+             data alone, with no stored class, carries a neutral badge. --%>
         <AppShell.data_note
-          :if={@two_scales != []}
+          :if={@two_scales_forward != []}
           severity={:problem}
           data-role="dq-two-scales"
         >
           <%= ngettext(
             "One bond is priced on two scales (quotes around 100, booked price per unit around 1) and counts a hundred times too high in the totals; the return does not show it. Check the quantity of its bookings against the nominal on the statement:",
             "%{count} bonds are priced on two scales (quotes around 100, booked price per unit around 1) and count a hundred times too high in the totals; the return does not show it. Check the quantity of their bookings against the nominal on the statement:",
-            length(@two_scales)
+            length(@two_scales_forward)
           ) %>
-          <span :for={finding <- @two_scales} class="dq-negative-entry">
-            <.link navigate={"/securities/#{finding.security_id}?tab=transactions"}>
-              <%= finding.name %>
-            </.link>
-            (<%= gettext("quote %{close} · price per unit %{price}",
-              close: Format.exact(finding.latest_quote.close),
-              price: Format.exact(finding.last_unit_scale_booking.price)
-            ) %>)
-          </span>
+          <.two_scales_entry
+            :for={finding <- @two_scales_forward}
+            finding={finding}
+            tab="transactions"
+          />
+        </AppShell.data_note>
+        <%!-- #1068 (D-15, board 02, pin 4): the reverse case — quotes near 1
+             beside bookings near 100 — counts a hundred times too low, and
+             its remedy is the stored quotes, so each name links to its
+             Quotes tab. It names; nothing is converted (ADR-0052 §4). --%>
+        <AppShell.data_note
+          :if={@two_scales_reverse != []}
+          severity={:problem}
+          data-role="dq-two-scales-reverse"
+        >
+          <%= ngettext(
+            "One bond is priced on two scales (quotes around 1, booked price per unit around 100) and counts a hundred times too low in the totals. Check its stored quotes — a quote around 1 is not a percent of face:",
+            "%{count} bonds are priced on two scales (quotes around 1, booked price per unit around 100) and count a hundred times too low in the totals. Check their stored quotes — a quote around 1 is not a percent of face:",
+            length(@two_scales_reverse)
+          ) %>
+          <.two_scales_entry :for={finding <- @two_scales_reverse} finding={finding} tab="quotes" />
         </AppShell.data_note>
       </div>
     </section>
+    """
+  end
+
+  attr(:finding, :map, required: true)
+  attr(:tab, :string, required: true)
+
+  # One bond of a two-scales note: its name linking to the tab where it is
+  # fixed, the neutral "no asset class" badge when it shows none, stored or
+  # inferred (#1068, board 02, pin 3: it is named by its master data, not
+  # its class), and
+  # both scales' figures as stored.
+  defp two_scales_entry(assigns) do
+    ~H"""
+    <span class="dq-negative-entry">
+      <.link navigate={"/securities/#{@finding.security_id}?tab=#{@tab}"}>
+        <%= @finding.name %>
+      </.link>
+      <span
+        :if={is_nil(@finding.effective_asset_class)}
+        class="badge badge--neutral"
+        data-role="dq-two-scales-unclassed"
+      >
+        <%= gettext("no asset class") %>
+      </span>
+      (<%= gettext("quote %{close} · price per unit %{price}",
+        close: Format.exact(@finding.latest_quote.close),
+        price: Format.exact(@finding.last_unit_scale_booking.price)
+      ) %>)
+    </span>
     """
   end
 

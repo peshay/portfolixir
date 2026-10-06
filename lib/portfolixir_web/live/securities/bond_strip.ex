@@ -279,8 +279,14 @@ defmodule PortfolixirWeb.Securities.BondStrip do
   priced inbound delivery), says what
   follows, and links to the security's Transactions tab, where the quantity
   is checked against the statement. It converts nothing.
+
+  It renders the forward direction only (quotes near 100, bookings near 1),
+  the one its sentence states. The reverse direction (#1068) is named in
+  Wealth's `dq-two-scales-reverse` note and served in the API's reading
+  with its direction; this pane has no board for it yet, so it says
+  nothing rather than the forward sentence.
   """
-  def two_scales_note(%{bond: %{two_scales: %{} = finding}} = assigns) do
+  def two_scales_note(%{bond: %{two_scales: %{direction: :forward} = finding}} = assigns) do
     assigns = assign(assigns, :finding, finding)
 
     ~H"""
