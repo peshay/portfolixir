@@ -180,6 +180,17 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     })
   end
 
+  # #1044 review round: the row list follows the `.data-note__body .mono`
+  # precedent DESIGN.md's amendment of 2026-10-06 names, which keeps the
+  # note's 12 px; at 0.85rem (13.6 px) the rows read larger than the note's
+  # text and its 13 px heading.
+  test "the parser warnings' rows keep the note's 12 px" do
+    rows_rule = css_rule(File.read!("priv/static/app.css"), ".parser-warnings__rows")
+
+    assert rows_rule =~ ~r/font: 12px\/[0-9.]+ var\(--font-mono\);/
+    refute rows_rule =~ "rem/"
+  end
+
   # User story:
   # As a local portfolio maintainer using accent colors,
   # I want import kind chips to use the selected accent tokens,
