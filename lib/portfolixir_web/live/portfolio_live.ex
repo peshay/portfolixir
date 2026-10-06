@@ -2783,11 +2783,7 @@ defmodule PortfolixirWeb.PortfolioLive do
             "%{count} bonds are priced on two scales (quotes around 100, booked price per unit around 1) and count a hundred times too high in the totals; the return does not show it. Check the quantity of their bookings against the nominal on the statement:",
             length(@two_scales_forward)
           ) %>
-          <.two_scales_entry
-            :for={finding <- @two_scales_forward}
-            finding={finding}
-            tab="transactions"
-          />
+          <.two_scales_entries findings={@two_scales_forward} tab="transactions" />
         </AppShell.data_note>
         <%!-- #1068 (D-15, board 02, pin 4): the reverse case — quotes near 1
              beside bookings near 100 — counts a hundred times too low, and
@@ -2803,27 +2799,47 @@ defmodule PortfolixirWeb.PortfolioLive do
             "%{count} bonds are priced on two scales (quotes around 1, booked price per unit around 100) and count a hundred times too low in the totals. Check their stored quotes — a quote around 1 is not a percent of face:",
             length(@two_scales_reverse)
           ) %>
-          <.two_scales_entry :for={finding <- @two_scales_reverse} finding={finding} tab="quotes" />
+          <.two_scales_entries findings={@two_scales_reverse} tab="quotes" />
         </AppShell.data_note>
       </div>
     </section>
     """
   end
 
+  attr(:findings, :list, required: true)
+  attr(:tab, :string, required: true)
+
+  # The bonds of one two-scales note, one space between entries (closing
+  # act, UAT): an entry is an inline block, whose own edge whitespace does
+  # not render, so without it the entries read "…0,985)Ostsee…". Public
+  # only so its raw render can be pinned; the test DOM drops that space.
+  @doc false
+  def two_scales_entries(assigns) do
+    ~H"""
+    <.two_scales_entry
+      :for={{finding, index} <- Enum.with_index(@findings)}
+      finding={finding}
+      tab={@tab}
+      lead_space={index > 0}
+    />
+    """
+  end
+
   attr(:finding, :map, required: true)
   attr(:tab, :string, required: true)
+  attr(:lead_space, :boolean, default: false)
 
   # One bond of a two-scales note: its name linking to the tab where it is
   # fixed, the neutral "no asset class" badge when it shows none, stored or
   # inferred (#1068, board 02, pin 3: it is named by its master data, not
   # its class), and
-  # both scales' figures as stored.
+  # both scales' figures as stored. The link holds the name alone, so its
+  # underline ends there; `lead_space` puts the separating space outside
+  # the entry (closing act, UAT).
   defp two_scales_entry(assigns) do
     ~H"""
-    <span class="dq-negative-entry">
-      <.link navigate={"/securities/#{@finding.security_id}?tab=#{@tab}"}>
-        <%= @finding.name %>
-      </.link>
+    <%= if @lead_space, do: " " %><span class="dq-negative-entry">
+      <.link navigate={"/securities/#{@finding.security_id}?tab=#{@tab}"}><%= @finding.name %></.link>
       <span
         :if={is_nil(@finding.effective_asset_class)}
         class="badge badge--neutral"

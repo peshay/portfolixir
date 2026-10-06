@@ -698,7 +698,11 @@ defmodule PortfolixirWeb.ClassificationsLive do
               <li :for={member <- @excluded}>
                 <bdi><%= member.security_name %></bdi>
                 <span><%= Map.get(@names, member.category_id) %></span>
-                <span class={paid_elsewhere?(member) && "num"}><%= cost_or_reason(member, @currency) %></span>
+                <.excluded_line_cost
+                  member={member}
+                  currency={@currency}
+                  lead_says_why={@paid_elsewhere == @count}
+                />
               </li>
             </ul>
           </details>
@@ -787,12 +791,90 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # The native cost, one amount per currency, each in the currency it was
   # paid in -- never converted (UX-DR25 clause 2) -- in money's two
   # decimals. Otherwise the reason.
-  defp cost_or_reason(%{native_costs: [_ | _] = costs}, _currency) do
-    amounts = Enum.map_join(costs, " + ", &"#{Format.money(&1.amount)} #{&1.currency}")
-    gettext("cost %{amount}", amount: amounts)
-  end
+  defp cost_or_reason(%{native_costs: [_ | _] = costs}, _currency),
+    do: gettext("cost %{amount}", amount: native_amounts(costs))
 
   defp cost_or_reason(member, currency), do: excluded_reason(member.reason, currency)
+
+  attr(:member, :map, required: true)
+  attr(:currency, :string, required: true)
+  attr(:lead_says_why, :boolean, required: true)
+
+  # A disclosure line's third cell. Under the lead that names the currency
+  # for every member, the cost alone, one unbroken `num` cell; a reason in
+  # words is a plain cell. Under the generic lead, whose members are out for
+  # different reasons, a cost carries its reason too, as every other line
+  # does (closing act, UAT): "not paid in EUR", or "not paid in EUR alone"
+  # where EUR is among the costs, the one-member sentence's distinction.
+  # That line is too long to stay unbroken at 390 px, where `.num`'s nowrap
+  # pushed it past the note's edge (closing act's screenshots): only each
+  # amount is a `num` span, and the rest of the line wraps.
+  # A cost in two currencies is long without its reason too, so under the
+  # currency's lead it wraps between its amounts the same way.
+  defp excluded_line_cost(
+         %{member: %{native_costs: [_ | _] = costs}, lead_says_why: lead_says_why} = assigns
+       )
+       when not lead_says_why or length(costs) > 1 do
+    assigns =
+      assign(
+        assigns,
+        :segments,
+        line_cost_segments(costs, assigns.currency, not lead_says_why)
+      )
+
+    ~H"""
+    <span><%= for segment <- @segments do %><%= case segment do %><% {:amount, amount} -> %><span class="num"><%= amount %></span><% text -> %><%= text %><% end %><% end %></span>
+    """
+  end
+
+  defp excluded_line_cost(assigns) do
+    ~H"""
+    <span class={paid_elsewhere?(@member) && "num"}><%= cost_or_reason(@member, @currency) %></span>
+    """
+  end
+
+  # A placeholder no translation can carry: the sentence is split on it, so
+  # the amounts take its place as their own spans and nothing else of the
+  # translation is read as markup.
+  @amount_marker "\u0000"
+
+  # The sentence's text around the amounts, with each amount as
+  # `{:amount, text}` and " + " between them; the reason only when the lead
+  # does not already give it.
+  defp line_cost_segments(costs, currency, with_reason?) do
+    sentence =
+      cond do
+        not with_reason? ->
+          gettext("cost %{amount}", amount: @amount_marker)
+
+        Enum.any?(costs, &(&1.currency == currency)) ->
+          gettext("cost %{amount}, not paid in %{currency} alone",
+            amount: @amount_marker,
+            currency: currency
+          )
+
+        true ->
+          gettext("cost %{amount}, not paid in %{currency}",
+            amount: @amount_marker,
+            currency: currency
+          )
+      end
+
+    amounts = costs |> Enum.map(&{:amount, native_amount(&1)}) |> Enum.intersperse(" + ")
+
+    sentence
+    |> String.split(@amount_marker)
+    |> Enum.intersperse(:amounts)
+    |> Enum.flat_map(fn
+      :amounts -> amounts
+      "" -> []
+      text -> [text]
+    end)
+  end
+
+  defp native_amounts(costs), do: Enum.map_join(costs, " + ", &native_amount/1)
+
+  defp native_amount(cost), do: "#{Format.money(cost.amount)} #{cost.currency}"
 
   # Every reason the roll-up names (ADR-0033's `undecomposed_reason`, and the
   # roll-up's own `no_usable_price`), in words.

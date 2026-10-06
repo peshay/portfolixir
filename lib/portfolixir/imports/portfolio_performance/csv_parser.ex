@@ -416,44 +416,53 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
       end
 
     unless Decimal.equal?(Decimal.round(expected, 2), Decimal.round(total, 2)),
-      do: reading_message(readings, cells)
+      do: reading_message(readings, cells, expected)
   end
 
-  defp reading_message(readings, cells) do
+  # The cells as the file wrote them, and the Gesamtpreis they give (closing
+  # act, UAT: the operator could not see what the cell should have held),
+  # to the cent and in the file's own notation, as the cells beside it.
+  defp reading_message(readings, cells, expected) do
     written = fn column -> cells |> Map.get(column, "") |> String.trim() end
     total = written.("Gesamtpreis")
     amount = written.("Betrag")
+    expected = Decimals.format_de(expected)
 
     case {readings.fees, readings.taxes} do
       {nil, nil} ->
-        gettext("Gesamtpreis %{total} does not match Betrag %{amount} — row not imported",
+        gettext(
+          "Gesamtpreis %{total} does not match Betrag %{amount} (expected %{expected}) — row not imported",
           total: total,
-          amount: amount
+          amount: amount,
+          expected: expected
         )
 
       {_fees, nil} ->
         gettext(
-          "Gesamtpreis %{total} does not match Betrag %{amount} and Gebühren %{fees} — row not imported",
+          "Gesamtpreis %{total} does not match Betrag %{amount} and Gebühren %{fees} (expected %{expected}) — row not imported",
           total: total,
           amount: amount,
-          fees: written.("Gebühren")
+          fees: written.("Gebühren"),
+          expected: expected
         )
 
       {nil, _taxes} ->
         gettext(
-          "Gesamtpreis %{total} does not match Betrag %{amount} and Steuern %{taxes} — row not imported",
+          "Gesamtpreis %{total} does not match Betrag %{amount} and Steuern %{taxes} (expected %{expected}) — row not imported",
           total: total,
           amount: amount,
-          taxes: written.("Steuern")
+          taxes: written.("Steuern"),
+          expected: expected
         )
 
       {_fees, _taxes} ->
         gettext(
-          "Gesamtpreis %{total} does not match Betrag %{amount}, Gebühren %{fees} and Steuern %{taxes} — row not imported",
+          "Gesamtpreis %{total} does not match Betrag %{amount}, Gebühren %{fees} and Steuern %{taxes} (expected %{expected}) — row not imported",
           total: total,
           amount: amount,
           fees: written.("Gebühren"),
-          taxes: written.("Steuern")
+          taxes: written.("Steuern"),
+          expected: expected
         )
     end
   end

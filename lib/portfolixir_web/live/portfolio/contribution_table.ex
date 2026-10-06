@@ -531,10 +531,12 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
   # Where the balance went when its first exchange rate came inside the
   # period: the board's sentence for one account; for several, each account
   # whose rate came is named with its date. No rate inside the period: no
-  # sentence.
+  # sentence. It says the jump is in the result (closing act, UAT: "kam in
+  # den Währungseffekt" alone read as outside it), and that it is no
+  # currency gain.
   defp first_rate_sentence([%{first_rate_date: %Date{} = date} = account]) do
     gettext(
-      "With the first exchange rate on %{date}, its whole balance entered the “Currency effect on cash” — %{clause}.",
+      "With the first exchange rate on %{date}, its whole balance entered the “Currency effect on cash”, and so the result — %{clause}.",
       date: Format.date(date),
       clause: no_currency_result([account])
     )
@@ -549,8 +551,8 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
 
       dated ->
         ngettext(
-          "With its first exchange rate, the whole balance of %{names} entered the “Currency effect on cash” — %{clause}.",
-          "With their first exchange rates, the whole balances of %{names} entered the “Currency effect on cash” — %{clause}.",
+          "With its first exchange rate, the whole balance of %{names} entered the “Currency effect on cash”, and so the result — %{clause}.",
+          "With their first exchange rates, the whole balances of %{names} entered the “Currency effect on cash”, and so the result — %{clause}.",
           length(dated),
           names:
             Enum.map_join(

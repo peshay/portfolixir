@@ -1511,11 +1511,17 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     assert note_text(html) =~
              ~r/^3 Positionen sind in „Einstand“ und „Ergebnis“ nicht enthalten\. 1 davon ist im „Wert“ enthalten\. Die 3 Positionen /
 
-    # The members, by name, as aligned lines: name · category · cost or reason.
+    # The members, by name, as aligned lines: name · category · cost or
+    # reason. The lead names no reason, since the reasons differ, so a cost
+    # line carries its own (closing act, UAT).
     assert note_lines(html) == [
-             ["Ashgrove Mining Ltd", "Kern global", "Einstand 250,00 USD"],
+             ["Ashgrove Mining Ltd", "Kern global", "Einstand 250,00 USD, nicht in EUR bezahlt"],
              ["Brackwater Dormant AG", "Plattformen", "kein brauchbarer Kurs"],
-             ["Harborline Freight Inc", "Plattformen", "Einstand 1.500,00 USD"]
+             [
+               "Harborline Freight Inc",
+               "Plattformen",
+               "Einstand 1.500,00 USD, nicht in EUR bezahlt"
+             ]
            ]
 
     doc = Floki.parse_document!(html)
@@ -1548,6 +1554,199 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
              ["Ashgrove Mining Ltd", "Kern global", "cost 250.00 USD"],
              ["Harborline Freight Inc", "Plattformen", "cost 1,500.00 USD"]
            ]
+  end
+
+  # User story (closing act of Sprint 19 PR α, UAT):
+  # As a local portfolio maintainer reading the disclosure under a lead that
+  # names no reason, because the members are out for different ones,
+  # I want a member out for its cost's currency to say so on its line,
+  # so that "cost 1,500.00 USD" beside another member's reason in words does
+  # not read as a line with no reason.
+  #
+  # Acceptance criteria:
+  # - Under the generic lead, such a line reads "cost 1,500.00 USD, not paid
+  #   in EUR"; a member whose costs include EUR reads "cost 1,000.00 EUR +
+  #   1,500.00 USD, not paid in EUR alone"; a reason in words is unchanged.
+  # - Under the lead that names the currency for every member, the lines
+  #   keep the cost alone (the English test above); the one-member sentence
+  #   is unchanged (the tests above).
+  test "under a lead with mixed reasons a cost line says why it is out (#1048, closing act)",
+       %{conn: conn} do
+    world = currency_tree!()
+
+    # Harborline also held in the EUR portfolio: out whole, with both costs.
+    cross_trade!(world.euro, world.harborline,
+      quantity: "10",
+      price: "110",
+      settled: "1000",
+      gross: "1000",
+      date: ~D[2026-01-02]
+    )
+
+    ashgrove = create_security!(name: "Ashgrove Mining Ltd", ticker: "ASH", currency: "USD")
+    file!(ashgrove, world.classification, world.core)
+    buy!(world.dollar, ashgrove, quantity: "4", price: "62.5", currency: "USD")
+    put_quote!(ashgrove, Date.utc_today(), "70")
+
+    brackwater = create_security!(name: "Brackwater Dormant AG", ticker: "BRW")
+    file!(brackwater, world.classification, world.platforms)
+    buy!(world.euro, brackwater, quantity: "2", price: "50")
+
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{world.classification.id}")
+    html = render(view)
+
+    assert note_text(html) =~
+             ~r/^3 positions are not included in “Cost” and “Result”\. They are included in “Value”\. The 3 positions /
+
+    assert note_lines(html) == [
+             ["Ashgrove Mining Ltd", "Kern global", "cost 250.00 USD, not paid in EUR"],
+             ["Brackwater Dormant AG", "Plattformen", "no usable price"],
+             [
+               "Harborline Freight Inc",
+               "Plattformen",
+               "cost 1,000.00 EUR + 1,500.00 USD, not paid in EUR alone"
+             ]
+           ]
+
+    {:ok, view, _html} =
+      live_drained(conn, "/classifications/#{world.classification.id}?locale=de")
+
+    assert note_lines(render(view)) |> List.last() == [
+             "Harborline Freight Inc",
+             "Plattformen",
+             "Einstand 1.000,00 EUR + 1.500,00 USD, nicht nur in EUR bezahlt"
+           ]
+  end
+
+  # User story (closing act of Sprint 19 PR α, screenshots at 390 px):
+  # As a local portfolio maintainer reading the disclosure on a phone,
+  # I want a cost line's reason to wrap inside the note,
+  # so that "Einstand 1.500,00 USD, nicht in EUR bezahlt" is read whole
+  # instead of being cut off at the note's edge.
+  #
+  # Acceptance criteria:
+  # - Under the lead with mixed reasons, a cost line's cell is no `num`
+  #   cell: each amount sits in its own `num` span, which keeps it
+  #   unbroken, and the rest of the line -- the reason clause included --
+  #   sits outside every `num` span, so it can wrap. The line's text is
+  #   unchanged (the test above).
+  # - Under the lead that names the currency for every member, the line is
+  #   the cost alone in one `num` cell, as before.
+  test "a cost line's reason can wrap; only its amounts stay unbroken (#1048, closing act)",
+       %{conn: conn} do
+    world = currency_tree!()
+
+    cross_trade!(world.euro, world.harborline,
+      quantity: "10",
+      price: "110",
+      settled: "1000",
+      gross: "1000",
+      date: ~D[2026-01-02]
+    )
+
+    ashgrove = create_security!(name: "Ashgrove Mining Ltd", ticker: "ASH", currency: "USD")
+    file!(ashgrove, world.classification, world.core)
+    buy!(world.dollar, ashgrove, quantity: "4", price: "62.5", currency: "USD")
+    put_quote!(ashgrove, Date.utc_today(), "70")
+
+    brackwater = create_security!(name: "Brackwater Dormant AG", ticker: "BRW")
+    file!(brackwater, world.classification, world.platforms)
+    buy!(world.euro, brackwater, quantity: "2", price: "50")
+
+    {:ok, view, _html} =
+      live_drained(conn, "/classifications/#{world.classification.id}?locale=de")
+
+    assert note_cost_cells(render(view)) == [
+             %{
+               num_cell?: false,
+               amounts: ["250,00 USD"],
+               outside: "Einstand , nicht in EUR bezahlt"
+             },
+             %{num_cell?: false, amounts: [], outside: "kein brauchbarer Kurs"},
+             %{
+               num_cell?: false,
+               amounts: ["1.000,00 EUR", "1.500,00 USD"],
+               outside: "Einstand + , nicht nur in EUR bezahlt"
+             }
+           ]
+  end
+
+  test "under the currency's lead a cost line stays one unbroken cost (#1048, closing act)",
+       %{conn: conn} do
+    world = currency_tree!()
+
+    ashgrove = create_security!(name: "Ashgrove Mining Ltd", ticker: "ASH", currency: "USD")
+    file!(ashgrove, world.classification, world.core)
+    buy!(world.dollar, ashgrove, quantity: "4", price: "62.5", currency: "USD")
+    put_quote!(ashgrove, Date.utc_today(), "70")
+
+    {:ok, view, _html} =
+      live_drained(conn, "/classifications/#{world.classification.id}?locale=de")
+
+    assert note_cost_cells(render(view)) == [
+             %{num_cell?: true, amounts: [], outside: "Einstand 250,00 USD"},
+             %{num_cell?: true, amounts: [], outside: "Einstand 1.500,00 USD"}
+           ]
+  end
+
+  # A cost in two currencies is long even without a reason: under the
+  # currency's lead too, only each amount stays unbroken, so the line wraps
+  # inside the note at 390 px (closing act).
+  test "under the currency's lead a two-currency cost wraps between its amounts (#1048, closing act)",
+       %{conn: conn} do
+    world = currency_tree!()
+
+    cross_trade!(world.euro, world.harborline,
+      quantity: "10",
+      price: "110",
+      settled: "1000",
+      gross: "1000",
+      date: ~D[2026-01-02]
+    )
+
+    ashgrove = create_security!(name: "Ashgrove Mining Ltd", ticker: "ASH", currency: "USD")
+    file!(ashgrove, world.classification, world.core)
+    buy!(world.dollar, ashgrove, quantity: "4", price: "62.5", currency: "USD")
+    put_quote!(ashgrove, Date.utc_today(), "70")
+
+    {:ok, view, _html} =
+      live_drained(conn, "/classifications/#{world.classification.id}?locale=de")
+
+    assert note_cost_cells(render(view)) == [
+             %{num_cell?: true, amounts: [], outside: "Einstand 250,00 USD"},
+             %{
+               num_cell?: false,
+               amounts: ["1.000,00 EUR", "1.500,00 USD"],
+               outside: "Einstand +"
+             }
+           ]
+  end
+
+  # Each disclosure line's third cell: whether the cell itself is a `num`
+  # cell (unbroken as a whole), the texts of the `num` spans inside it (each
+  # unbroken on its own), and the text outside them, whitespace collapsed.
+  defp note_cost_cells(html) do
+    collapse = &(&1 |> String.replace(~r/\s+/u, " ") |> String.trim())
+
+    html
+    |> Floki.parse_document!()
+    |> Floki.find(~s([data-role="category-result-excluded-list"] li))
+    |> Enum.map(fn line ->
+      [_name, _category, {_tag, attrs, children}] =
+        line |> Floki.children() |> Enum.filter(&is_tuple/1)
+
+      classes = attrs |> Map.new() |> Map.get("class", "") |> String.split()
+
+      %{
+        num_cell?: "num" in classes,
+        amounts:
+          children
+          |> Enum.filter(&is_tuple/1)
+          |> Floki.find(".num")
+          |> Enum.map(&collapse.(Floki.text(&1))),
+        outside: children |> Enum.filter(&is_binary/1) |> Enum.join(" ") |> collapse.()
+      }
+    end)
   end
 
   # ADR-0041 §4 names every exclusion, not only the currency's: a member whose

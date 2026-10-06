@@ -310,7 +310,8 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
   # - The forward note keeps its sentence, now in the plural for two bonds,
   #   and names the unclassed bond with its maturity date beside the classed
   #   one; only the unclassed one carries the neutral "ohne Anlageklasse"
-  #   badge.
+  #   badge. Each link's text is the name alone, and one space separates
+  #   the entries (closing act, UAT).
   # - An unclassed security with no master data, quoted 25 times its buy
   #   price, is named in neither note, and its Overview has no bond block.
   # - The unclassed bond's own Overview shows the bond block and the forward
@@ -381,6 +382,19 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
 
     refute forward_note =~ "Birkenhain"
 
+    # Closing act (UAT): each link's text is the name alone, so its
+    # underline ends at the name (the space between entries is pinned on
+    # the raw render below, which this page's DOM does not keep).
+    assert wealth
+           |> element(~s([data-role="dq-two-scales"]))
+           |> render()
+           |> Floki.parse_fragment!()
+           |> Floki.find("a")
+           |> Enum.map(&Floki.text/1) == [
+             "Kestrel Anleihe 2030 2,75%",
+             "Ostsee Logistik 4,10% 2028/2033"
+           ]
+
     assert has_element?(
              wealth,
              ~s([data-role="dq-two-scales"] a[href="/securities/#{unclassed.id}?tab=transactions"])
@@ -407,6 +421,43 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
 
     {:ok, detail, _html} = live(german(conn), "/securities/#{share.id}")
     refute has_element?(detail, ~s([data-role="bond-strip"]))
+  end
+
+  # User story (closing act of Sprint 19 PR α, UAT):
+  # As the operator reading a two-scales note that names several bonds,
+  # I want one space between the entries and each link ending at the name,
+  # so that the note reads "… 0,985) Ostsee …" rather than running the
+  # entries together, and no underline runs over a trailing space.
+  #
+  # Acceptance criteria:
+  # - The entries, rendered as the page sends them, are separated by one
+  #   space outside them: an entry is an inline block, whose own edge
+  #   whitespace does not render. (The test DOM drops whitespace-only text,
+  #   so this reads the raw render.)
+  # - Each link's text is the name alone; the first entry has no space
+  #   before it.
+  test "two-scales entries are set apart by one space, each link ending at the name" do
+    finding = fn id, name ->
+      %{
+        security_id: id,
+        name: name,
+        effective_asset_class: "bond",
+        latest_quote: %{close: Decimal.new("97.25")},
+        last_unit_scale_booking: %{price: Decimal.new("0.985")}
+      }
+    end
+
+    html =
+      render_component(&PortfolixirWeb.PortfolioLive.two_scales_entries/1,
+        findings: [finding.(1, "Kestrel Anleihe 2030 2,75%"), finding.(2, "Ostsee Logistik")],
+        tab: "transactions"
+      )
+
+    assert html =~ ~r{\)\s*</span> <span class="dq-negative-entry">}
+    assert [_first, _second] = Regex.scan(~r{<span class="dq-negative-entry">}, html)
+    refute html =~ ~r{^\s}
+    assert html =~ ~r{<a [^>]*>Kestrel Anleihe 2030 2,75%</a>}
+    assert html =~ ~r{<a [^>]*>Ostsee Logistik</a>}
   end
 
   # User story (#1068, review): the two notes in English, and the badge in

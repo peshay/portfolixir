@@ -35,6 +35,31 @@ defmodule Portfolixir.Imports.DecimalsTest do
     end
   end
 
+  # User story (closing act of Sprint 19 PR α, UAT):
+  # As an operator reading a CSV row error that names the Gesamtpreis the
+  # other cells give,
+  # I want that figure written as the file writes its own,
+  # so that it reads beside the quoted cells and can be typed into the file.
+  #
+  # Acceptance criteria:
+  # - A value is written to the cent with a decimal comma and a dot every
+  #   three integer digits: 1505 → "1.505,00", 9.125 → "9,13".
+  # - A negative value keeps its minus sign; a sub-cent one is zero.
+  # - It reads back through parse_de/1 to the same cent.
+  describe "format_de/1" do
+    test "writes a value to the cent in the export's notation" do
+      assert Decimals.format_de(Decimal.new("1505")) == "1.505,00"
+      assert Decimals.format_de(Decimal.new("9.125")) == "9,13"
+      assert Decimals.format_de(Decimal.new("1234567.8")) == "1.234.567,80"
+      assert Decimals.format_de(Decimal.new("-1.5")) == "-1,50"
+      assert Decimals.format_de(Decimal.new("-0.001")) == "0,00"
+      assert Decimals.format_de(Decimal.new("100")) == "100,00"
+
+      assert {:ok, back} = Decimals.parse_de(Decimals.format_de(Decimal.new("23685.4")))
+      assert Decimal.equal?(back, Decimal.new("23685.40"))
+    end
+  end
+
   describe "parse/1" do
     test "passes through an existing Decimal" do
       d = Decimal.new("1.23")

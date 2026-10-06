@@ -9,11 +9,17 @@ defmodule PortfolixirWeb.ValuationNotes do
   so the helpers that build those names live here rather than in either
   LiveView. Wealth's notes render byte-identical to before they moved.
 
-  One difference is deliberate: a retired held position with no price. The
-  Overview names it, because it is out of the total the note sits under;
-  Wealth's no-price note leaves it out (PR #1102), because that note links to
-  `?dq=missing_quote`, a list without retired securities, and its count must
-  equal that list.
+  Two differences are deliberate. The first: a retired held position with
+  no price. The Overview names it, because it is out of the total the note
+  sits under; Wealth's no-price note leaves it out (PR #1102), because that
+  note links to `?dq=missing_quote`, a list without retired securities, and
+  its count must equal that list.
+
+  The second: the Overview labels a priced position's bracket "(Kurs 33,00
+  USD)" (closing act of Sprint 19 PR α, UAT). Under "Nicht in der Summe" a
+  bare bracket reads as the amount left out, which a cash account's is and a
+  position's price per unit is not. Wealth's sentence already says the
+  position "hat einen Preis", so its label keeps the bare bracket.
 
   UX-DR25: the count and the names both render, each row keeps its native
   figure and never a converted one, and a long list is shortened by one rule:
@@ -82,7 +88,8 @@ defmodule PortfolixirWeb.ValuationNotes do
   @doc """
   The groups of the Overview's note under its total (#1081, pick J1 A), in
   order: the cash accounts with no rate path to the base currency, the held
-  positions with no price, the held positions with a price but no rate path.
+  positions with no price, the held positions with a price but no rate path
+  — each named with its price labelled as one, "Name (Kurs 33,00 USD)".
   Each group is one localized phrase — its count, what it is, and its names
   shortened to six and "+N"; a group with no member is absent, so a
   valuation that leaves nothing out gives `[]` (UX-DR2: no all-clear).
@@ -121,8 +128,20 @@ defmodule PortfolixirWeb.ValuationNotes do
     valuation.positions
     |> Enum.filter(&(&1.unvalued_reason == reason))
     |> Enum.uniq_by(& &1.security_id)
-    |> Enum.map(&unvalued_entry_label(&1, reason))
+    |> Enum.map(&overview_entry_label(&1, reason))
   end
+
+  # The Overview's own label: a priced position's bracket says it holds the
+  # price, since in this note a bare bracket reads as the amount left out.
+  defp overview_entry_label(position, :missing_fx) do
+    gettext("%{name} (price %{price} %{currency})",
+      name: position.security_name || gettext("Unsorted"),
+      price: Format.decimal(position.latest_price, 2),
+      currency: position.price_currency
+    )
+  end
+
+  defp overview_entry_label(position, reason), do: unvalued_entry_label(position, reason)
 
   defp position_group([], _reason, _base), do: nil
 
