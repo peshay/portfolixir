@@ -44,6 +44,8 @@ defmodule Portfolixir.LockRace do
   alias Portfolixir.Repo
   alias Portfolixir.ScratchDatabase
 
+  require Logger
+
   # A row lock, or a transaction's advisory lock, in a query's text.
   @lock ~r/\bFOR (?:NO KEY UPDATE|UPDATE|KEY SHARE|SHARE)\b|\bpg_advisory_xact_lock\b/
 
@@ -119,9 +121,13 @@ defmodule Portfolixir.LockRace do
 
     {pid, monitor} =
       spawn_monitor(fn ->
-        ScratchDatabase.run(db, fn ->
-          Repo.checkout(fn -> run_writer(parent, ref, fun, pause_after?) end)
-        end)
+        try do
+          ScratchDatabase.run(db, fn ->
+            Repo.checkout(fn -> run_writer(parent, ref, fun, pause_after?) end)
+          end)
+        catch
+          kind, reason when kind in [:error, :throw] -> crash(role, kind, reason, __STACKTRACE__)
+        end
       end)
 
     Process.put(@writers, [{pid, monitor} | Process.get(@writers, [])])
@@ -129,6 +135,29 @@ defmodule Portfolixir.LockRace do
     writer = %{role: role, pid: pid, ref: ref, monitor: monitor}
     Map.put(writer, :backend, await!(writer, :backend, @step_timeout))
   end
+
+  # A writer that raises or throws outside its function -- one that cannot
+  # get a connection, say -- logs its crash report itself and then exits with
+  # the reason an uncaught error or throw gives (#1046). The runtime hands its
+  # own report of either to the logger's proxy process as the writer dies,
+  # and the proxy logs it in its own time: a test capturing the log around
+  # the race could see the writer's exit and end its capture first, and the
+  # report then reached the console. Logged here, in the writer's process,
+  # the report is written before the exit the race awaits. An exit is left
+  # alone: the runtime writes no report for it.
+  defp crash(role, kind, reason, stacktrace) do
+    Logger.error(
+      "the #{role} writer #{verb(kind)}:\n\n" <> Exception.format(kind, reason, stacktrace)
+    )
+
+    exit(uncaught(kind, reason, stacktrace))
+  end
+
+  defp verb(:error), do: "raised"
+  defp verb(:throw), do: "threw"
+
+  defp uncaught(:error, reason, stacktrace), do: {reason, stacktrace}
+  defp uncaught(:throw, value, stacktrace), do: {{:nocatch, value}, stacktrace}
 
   # Kills every writer this race started and drops its messages: a paused or
   # blocked writer would otherwise hold its locks and its connection.
