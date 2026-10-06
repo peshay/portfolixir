@@ -19,6 +19,14 @@ defmodule Portfolixir.Tax.BudgetTest do
   #   incomplete when a configured allowance order has no snapshot.
   # - Findings are computed at read time and never block a write.
 
+  # tax_statement_snapshots_identity_index is unique on (lower(institution),
+  # lower(holder), tax_year, as_of), and StatementSnapshotsTest, async as this
+  # module, records Example Bank / Owner / 2025 / 2025-12-31: with that
+  # identity here, one test's insert waited on the other's uncommitted row
+  # until that test ended (#1047). Which institution a single statement names
+  # is incidental to these tests, so they record "Budget Bank" (the order the
+  # instruction advisory compares against keeps its lower-case spelling,
+  # "budget bank"). No other async module records Bank A or Bank B.
   defp record(institution, overrides) do
     attrs =
       Map.merge(
@@ -41,7 +49,7 @@ defmodule Portfolixir.Tax.BudgetTest do
 
   test "the trim budget is the equity loss pot plus the remaining allowance" do
     snapshot =
-      record("Example Bank", %{
+      record("Budget Bank", %{
         allowance_granted: Decimal.new("1000.00"),
         allowance_used: Decimal.new("400.00"),
         loss_pot_equities: Decimal.new("2500.00")
@@ -54,7 +62,7 @@ defmodule Portfolixir.Tax.BudgetTest do
   # The allowance is consumed chronologically by dividends and interest, so it
   # decays with no action by the maintainer.
   test "the figure is stale as soon as a later day exists" do
-    snapshot = record("Example Bank", %{})
+    snapshot = record("Budget Bank", %{})
 
     refute Budget.stale?(snapshot, ~D[2025-12-31])
     assert Budget.stale?(snapshot, ~D[2026-01-01])
@@ -124,7 +132,7 @@ defmodule Portfolixir.Tax.BudgetTest do
 
   test "findings are computed at read time and never block the write" do
     snapshot =
-      record("Example Bank", %{
+      record("Budget Bank", %{
         taxable_income: Decimal.new("12000.00"),
         allowance_granted: Decimal.new("1000.00"),
         allowance_used: Decimal.new("1000.00"),
@@ -145,12 +153,12 @@ defmodule Portfolixir.Tax.BudgetTest do
     {:ok, _order} =
       Tax.put_allowance_order(Actor.owner_ui(), %{
         holder: "Owner",
-        institution: "example bank",
+        institution: "budget bank",
         tax_year: 2025,
         amount_granted: Decimal.new("801.00")
       })
 
-    snapshot = record("Example Bank", %{allowance_granted: Decimal.new("1000.00")})
+    snapshot = record("Budget Bank", %{allowance_granted: Decimal.new("1000.00")})
 
     codes = snapshot |> Tax.findings_for() |> Enum.map(& &1.code)
     assert :c7 in codes
