@@ -1756,38 +1756,48 @@ never converted through the hub, which would state a cost nobody paid.
   with this record.
 - **The note on left-out members.** One `attention` {components.data-note}
   (`data-role="category-result-excluded"`) stands between the basis line and
-  the tree head, in its own `role="status"` region, 0.5 rem below the line
-  (board rule ②). For one member it is one sentence: "1 Position ist in
+  the tree head, 0.5 rem below the line (board rule ②). Its `role="status"`
+  region renders whenever the result has loaded, empty when nothing is left
+  out, so a note that arrives in it is announced. For one member it is one
+  sentence: "1 Position ist in
   „Einstand“ und „Ergebnis“ nicht enthalten, weil ihr Einstand nicht in EUR
   bezahlt wurde: Harborline Freight Inc (Plattformen), Einstand 1.500,00
   USD. Im „Wert“ ist sie enthalten."
   - The name is in `<bdi>`, and the category is the one the member is filed
     under, as the tree on screen names it.
-  - The native cost goes through `Format`: German decimals, the code after
-    the amount, never converted (UX-DR25 clause 2). A security held in a EUR
-    and a non-EUR portfolio leaves whole (ADR-0041 §4) and lists one amount
-    per currency: "Einstand 1.000,00 EUR + 1.500,00 USD".
+  - The native cost goes through `Format` as money: two decimals in German
+    form, the code after the amount, never converted (UX-DR25 clause 2). A
+    security held in a EUR and a non-EUR portfolio leaves whole (ADR-0041
+    §4) and lists one amount per currency, EUR first: "Einstand 1.000,00 EUR
+    + 1.500,00 USD". Its sentence then says the cost "nicht nur in EUR"
+    was paid.
   - Every excluded member is named, whatever its reason. A member with no
-    usable price, no cost derivable from its bookings, no cost in EUR or no
-    stored exchange rate gets its reason in words instead of a cost
-    ("Dark AG (Kern), kein brauchbarer Kurs.").
-  - "Im „Wert“ ist sie enthalten" (plural "sind sie enthalten") is said only
-    of members out for their cost's currency, which "Wert" counts (UX-DR26).
+    usable price, no cost derivable from its bookings, no cost in its
+    portfolio's base currency or no stored exchange rate gets its reason in
+    words instead of a cost ("Dark AG (Kern), kein brauchbarer Kurs.").
+  - "Im „Wert“ ist sie enthalten" (plural "sind sie enthalten") is said of a
+    member exactly when the valuation the "Wert" column reads gives it a
+    value, whatever its reason (UX-DR26). A USD member with no stored rate,
+    whose row prints "—", is never said to be in it; a member with no quote,
+    which "Wert" reads at its trade price, is.
   - No button, because there is nothing to fix here (clause 3). Nothing
     excluded, no note: UX-DR2 has no all-clear.
 - **Past one member the note becomes a count and a disclosure.** It states
   the count ("3 Positionen sind in „Einstand“ und „Ergebnis“ nicht
-  enthalten."), then which of them "Wert" holds ("Die 2, deren Einstand
-  nicht in EUR bezahlt wurde, sind im „Wert“ enthalten."). When the currency
-  is every member's reason, the count's sentence gives it and closes on "Im
-  „Wert“ sind sie enthalten." The members follow in a
+  enthalten."), with the currency's reason when it is every member's. Then
+  it says how many of them "Wert" holds: "Im „Wert“ sind sie enthalten."
+  for all of them, "1 davon ist im „Wert“ enthalten." for some, nothing for
+  none. The members follow in a
   `details.perf-table-disclosure` ("Die 3 Positionen") as the trades facet's
   unmatched-sells `.excluded-list`: name · category · native cost (`.num`)
   or reason, sorted by name.
 - **`.cat-result-partial`**, the row's "1/2", has its rule (board rule ③):
   the percentage's size (0.72 rem), weight 500, {colors.text-muted}. It used
   to print as a bare third line in the result cell's own size and colour.
-  Its reason stays in the title.
+  Its reason stays in the title. Board ③'s comment also asked for words
+  beside the count on the desktop; they are not built, and the count stays a
+  bare sub-figure, because the note above now names each left-out member
+  with its reason.
 
 ## Amendment 2026-09-23 — Wealth → Risk, the surface ADR-0047 §9 assumed *(Sprint 14 D-2, pick E1-A)*
 

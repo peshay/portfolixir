@@ -1239,6 +1239,15 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     # #1048: nothing is left out, so there is no note -- and no all-clear
     # either (UX-DR2).
     refute html =~ ~s(data-role="category-result-excluded")
+
+    # The status region is there whenever the result is, so a note that
+    # arrives in it later is announced; here it is empty.
+    assert [region] =
+             html
+             |> Floki.parse_document!()
+             |> Floki.find(~s([role="status"][data-role="category-result-excluded-region"]))
+
+    assert Floki.children(region) |> Enum.filter(&is_tuple/1) == []
   end
 
   # ADR-0041 §4 on the human surface, plus the loss case: a category whose
@@ -1289,10 +1298,12 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     assert html =~ ~r/data-role="category-result-partial"[^>]*>\s*1\s*\/\s*2/
 
     # #1048: the member left out is named where the totals are read, with
-    # its reason in words -- not only as a bare "1/2" with a title. "Value"
-    # leaves it out too, so the note does not say it is in there.
+    # its reason in words -- not only as a bare "1/2" with a title. With no
+    # quote it has no usable price for the result, but "Value" reads it at
+    # its trade price, so the note says it is in there.
     assert note_text(html) ==
-             "1 position is not included in “Cost” and “Result”: Dark AG (Core), no usable price."
+             "1 position is not included in “Cost” and “Result”: Dark AG (Core), no usable price. " <>
+               "It is included in “Value”."
   end
 
   # The note's sentence as a reader gets it: the body's text, whitespace
@@ -1321,8 +1332,9 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   # A EUR portfolio holding Kestrel Systems AG (10 at 580,00 EUR, now 750)
   # and a USD portfolio holding Harborline Freight Inc (10 at 150,00 USD,
   # now 180), both under "Wachstum" > "Plattformen" (board 10's names; all
-  # invented), with a stored EUR/USD rate so "Value" can count the USD one.
-  defp currency_tree! do
+  # invented), with a stored EUR/USD rate so "Value" can count the USD one
+  # -- unless `rate: false`.
+  defp currency_tree!(opts \\ []) do
     euro = base_world()
 
     dollar =
@@ -1378,20 +1390,23 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     put_quote!(kestrel, Date.utc_today(), "750")
     put_quote!(harborline, Date.utc_today(), "180")
 
-    {:ok, _} =
-      Portfolixir.Fx.upsert_many([
-        %{
-          base_currency: "EUR",
-          quote_currency: "USD",
-          date: Date.add(Date.utc_today(), -10),
-          rate: Decimal.new("1.1"),
-          source: "manual"
-        }
-      ])
+    if Keyword.get(opts, :rate, true) do
+      {:ok, _} =
+        Portfolixir.Fx.upsert_many([
+          %{
+            base_currency: "EUR",
+            quote_currency: "USD",
+            date: Date.add(Date.utc_today(), -10),
+            rate: Decimal.new("1.1"),
+            source: "manual"
+          }
+        ])
+    end
 
     %{
       euro: euro,
       dollar: dollar,
+      harborline: harborline,
       classification: classification,
       growth: growth,
       platforms: platforms,
@@ -1414,16 +1429,20 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   # I want the classification screen to add only EUR into "Cost" and
   # "Result", to say that its figures are in EUR, and to name a member it
   # leaves out with the cost it was paid,
-  # so that Value − Cost = Result holds again under a cell that promises EUR,
-  # and the gap has an address instead of a silently mixed sum.
+  # so that "Cost" and "Result" add one currency under a cell that promises
+  # EUR, and the member left out has an address instead of being silently
+  # mixed in.
   #
   # Acceptance criteria:
   # - "Cost" and "Result" sum the EUR members only.
   # - One attention note between the basis line and the tree head, inside a
   #   status region, names the member with its category and its native cost,
   #   in the board's words, never converted, and carries no button.
-  # - Past one member the note states the count, says which are in "Value",
-  #   and lists the members in a disclosure: name, category, cost or reason.
+  # - A member is said to be in "Value" exactly when the valuation that
+  #   column reads gives it a value, whatever its reason.
+  # - Past one member the note states the count, says how many are in
+  #   "Value", and lists the members in a disclosure: name, category, cost
+  #   or reason.
   # - With nothing excluded there is no note (asserted on the all-EUR test
   #   above), and a member with no usable price is named with its reason
   #   (the partial test above).
@@ -1469,14 +1488,15 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
   test "past one member the note counts them and lists them in a disclosure (#1048)",
        %{conn: conn} do
-    world = currency_tree!()
+    # No EUR/USD rate: "Wert" cannot value the two USD members.
+    world = currency_tree!(rate: false)
 
     ashgrove = create_security!(name: "Ashgrove Mining Ltd", ticker: "ASH", currency: "USD")
     file!(ashgrove, world.classification, world.core)
     buy!(world.dollar, ashgrove, quantity: "4", price: "62.5", currency: "USD")
     put_quote!(ashgrove, Date.utc_today(), "70")
 
-    # A EUR member with no price at all.
+    # A EUR member with no quote: "Wert" reads it at its trade price.
     brackwater = create_security!(name: "Brackwater Dormant AG", ticker: "BRW")
     file!(brackwater, world.classification, world.platforms)
     buy!(world.euro, brackwater, quantity: "2", price: "50")
@@ -1486,10 +1506,10 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     html = render(view)
 
-    # The count, then which of them "Wert" holds: the two whose cost was
-    # paid in USD, not the one with no price.
+    # The count, then how many of them "Wert" holds: the one it values,
+    # not the two USD members it cannot.
     assert note_text(html) =~
-             ~r/^3 Positionen sind in „Einstand“ und „Ergebnis“ nicht enthalten\. Die 2, deren Einstand nicht in EUR bezahlt wurde, sind im „Wert“ enthalten\. Die 3 Positionen /
+             ~r/^3 Positionen sind in „Einstand“ und „Ergebnis“ nicht enthalten\. 1 davon ist im „Wert“ enthalten\. Die 3 Positionen /
 
     # The members, by name, as aligned lines: name · category · cost or reason.
     assert note_lines(html) == [
@@ -1597,15 +1617,22 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     assert note_lines(html) == [
              ["Kyoto Works", "Kern", "kein Einstand aus den Buchungen ableitbar"],
-             ["Legwise Corp", "Kern", "kein Einstand in EUR ableitbar"],
+             [
+               "Legwise Corp",
+               "Kern",
+               "kein Einstand in der Basiswährung ihres Portfolios ableitbar"
+             ],
              ["Norate Shipping Inc", "Kern", "kein Wechselkurs gespeichert"]
            ]
   end
 
-  # The note takes its category names from the tree on screen, which reloads
-  # on an edit while the roll-up keeps what it read. A member whose category
-  # has just been deleted is still named -- only without a category.
-  test "a member whose category left the tree is still named (#1048)", %{conn: conn} do
+  # The note takes its category names from the tree on screen. When a
+  # member's category id is not among them, the member is still named, only
+  # without a category, and the page does not fail. Deleting the category is
+  # merely how this test reaches that path: the roll-up does not reload after
+  # a tree edit, which is a known gap (#1110), not behaviour this test pins.
+  test "a member whose category the tree does not name is named without one (#1048)",
+       %{conn: conn} do
     world = currency_tree!()
 
     {:ok, view, _html} =
@@ -1614,9 +1641,74 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     render_hook(view, "delete_category", %{"id" => to_string(world.platforms.id)})
     html = render(view)
 
-    refute html =~ ~s(title="Plattformen")
+    assert note_text(html) =~ ~r/bezahlt wurde: Harborline Freight Inc, Einstand 1\.500,00 USD\./
+  end
 
-    assert note_text(html) =~
-             ~r/bezahlt wurde: Harborline Freight Inc, Einstand 1\.500,00 USD\. Im „Wert“ ist sie enthalten\.$/
+  test "a USD member that Value cannot price is not said to be in it (#1048)", %{conn: conn} do
+    world = currency_tree!(rate: false)
+
+    {:ok, view, _html} =
+      live_drained(conn, "/classifications/#{world.classification.id}?locale=de")
+
+    html = render(view)
+
+    # No EUR/USD rate: "Plattformen" prints no value, so the note does not
+    # say the member is in it.
+    assert html
+           |> Floki.parse_document!()
+           |> Floki.find("summary.cat-summary")
+           |> Enum.find(&(Floki.text(Floki.find(&1, ".cat-name__text")) == "Plattformen"))
+           |> Floki.find(~s([data-role="category-value"]))
+           |> Floki.text()
+           |> String.trim() == "—"
+
+    assert note_text(html) ==
+             "1 Position ist in „Einstand“ und „Ergebnis“ nicht enthalten, weil ihr " <>
+               "Einstand nicht in EUR bezahlt wurde: Harborline Freight Inc (Plattformen), " <>
+               "Einstand 1.500,00 USD."
+  end
+
+  test "a native cost prints in two decimals after a partial sell (#1048)", %{conn: conn} do
+    world = currency_tree!()
+
+    # 10 at 150,00 and 2 at 151,00 USD (1.802,00 for 12), then 4 sold: the
+    # 8 left carry two thirds of the cost, 1.201,333... USD.
+    buy!(world.dollar, world.harborline, quantity: "2", price: "151", currency: "USD")
+
+    sell!(world.dollar, world.harborline,
+      quantity: "4",
+      price: "180",
+      currency: "USD",
+      date: ~D[2026-01-03]
+    )
+
+    {:ok, view, _html} =
+      live_drained(conn, "/classifications/#{world.classification.id}?locale=de")
+
+    assert note_text(render(view)) =~
+             "Harborline Freight Inc (Plattformen), Einstand 1.201,33 USD."
+  end
+
+  test "a security held in a EUR and a USD portfolio is out whole, with both costs (#1048)",
+       %{conn: conn} do
+    world = currency_tree!()
+
+    # Harborline is also held in the EUR portfolio: 10 at 110,00 USD,
+    # settled at 1.000,00 EUR.
+    cross_trade!(world.euro, world.harborline,
+      quantity: "10",
+      price: "110",
+      settled: "1000",
+      gross: "1000",
+      date: ~D[2026-01-02]
+    )
+
+    {:ok, view, _html} =
+      live_drained(conn, "/classifications/#{world.classification.id}?locale=de")
+
+    assert note_text(render(view)) ==
+             "1 Position ist in „Einstand“ und „Ergebnis“ nicht enthalten, weil ihr " <>
+               "Einstand nicht nur in EUR bezahlt wurde: Harborline Freight Inc (Plattformen), " <>
+               "Einstand 1.000,00 EUR + 1.500,00 USD. Im „Wert“ ist sie enthalten."
   end
 end
