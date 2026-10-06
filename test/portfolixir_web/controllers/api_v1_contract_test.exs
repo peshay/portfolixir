@@ -55,7 +55,9 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     # zero for want of a rate path (#1055, ADR-0051 §10). No route and no
     # tool is added; M4 and M6 extend the entry.
     assert newest["version"] == 14
-    assert newest["date"] == "2026-10-05"
+    # M4 and M6 extended the entry on 2026-10-06, so its date moved with
+    # them: a since=2026-10-05 poller sees both.
+    assert newest["date"] == "2026-10-06"
     assert newest["summary"] =~ "Sprint 19"
     assert newest["summary"] =~ "M3"
     assert newest["endpoints"] == []
@@ -68,6 +70,23 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["summary"] =~ "cash account's currency"
     assert newest["summary"] =~ "#1051"
     assert newest["summary"] =~ "a trade with no rate for its price currency"
+
+    # M6 adds a payload field, no schema byte (D-10): every valuation read
+    # counts the cash accounts it leaves out of total_cash for want of a
+    # rate path, and its note says so (#1081, D-3).
+    assert newest["summary"] =~ "M6"
+    assert newest["summary"] =~ "#1081"
+    assert newest["summary"] =~ "unvalued_cash_count"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(
+                 &1,
+                 "GET /api/v1/portfolios/:portfolio_id/valuation, GET /api/v1/views/:view_id/valuation and GET /api/v1/valuation"
+               ) and &1 =~ "portfolixir.portfolios.valuation" and
+                 &1 =~ "portfolixir.views.valuation" and &1 =~ "unvalued_cash_count" and
+                 &1 =~ "valuation_note" and &1 =~ "include_positions" and &1 =~ "#1081")
+           )
 
     for read <- [
           "GET /api/v1/portfolios/:portfolio_id/performance and GET /api/v1/views/:view_id/performance",

@@ -301,6 +301,7 @@ defmodule Portfolixir.Portfolios.Valuation do
       cash_balances: cash.balances,
       positions: positions,
       unvalued_count: Enum.count(positions, &(not &1.valued)),
+      unvalued_cash_count: unvalued_cash_count(cash.balances),
       trade_priced_count: Enum.count(positions, &(&1.price_source == :trade)),
       stale_priced_count: stale_priced_count(positions),
       newest_quote_date: newest_quote_date(positions)
@@ -406,6 +407,7 @@ defmodule Portfolixir.Portfolios.Valuation do
       cash_balances: cash.balances,
       positions: positions,
       unvalued_count: Enum.count(positions, &(not &1.valued)),
+      unvalued_cash_count: unvalued_cash_count(cash.balances),
       trade_priced_count: Enum.count(positions, &(&1.price_source == :trade)),
       stale_priced_count: stale_priced_count(positions),
       newest_quote_date: newest_quote_date(positions),
@@ -470,6 +472,18 @@ defmodule Portfolixir.Portfolios.Valuation do
     counting_total = valued |> Enum.filter(& &1.deployable) |> sum_base_values()
 
     %{balances: entries, total: total, counting_total: counting_total}
+  end
+
+  # #1081 (D-3): the cash accounts in scope the totals leave out — no rate
+  # path to the base currency and a non-zero balance, an overdrawn one
+  # included. An empty account leaves nothing out of the total, as the
+  # performance walk counts it (#1055), so it is not counted, though
+  # `cash_balances` still lists it with `valued: false`. The screens that
+  # name these accounts select them by this same rule, and a test holds the
+  # two to the same count. A count, not a valuation: nothing here changes
+  # what is valued or summed.
+  defp unvalued_cash_count(balances) do
+    Enum.count(balances, &(not &1.valued and not Decimal.equal?(&1.balance, @zero)))
   end
 
   # FR6/FR7: deployable cash is genuine spendable cash only. A `free_cash`

@@ -44,8 +44,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
       version: 14,
       # Sprint 19's PR α (the money a stranger checks first), after PR #1102's
       # 13: the lane PR's one entry, opened by its first surface change (M3);
-      # M4 and M6 extend it, each item named by its story.
-      date: ~D[2026-10-05],
+      # M4 and M6 extend it, each item named by its story. The date is the
+      # entry's latest change, so a since= poller sees each extension.
+      date: ~D[2026-10-06],
       summary:
         "Sprint 19 PR α, the money a stranger checks first: M3, a foreign-currency " <>
           "cash account whose balance counted zero on some days of the window because " <>
@@ -60,13 +61,18 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "contribution read's position costs, contributions, totals and row order and its " <>
           "cash_currency_effect move, a trade with no rate for its price currency moves its " <>
           "fees and taxes from net_flows into costs, and the snapshot comparison's " <>
-          "transaction_costs, real_ttwror_before_costs and cost_recovery move (#1051).",
+          "transaction_costs, real_ttwror_before_costs and cost_recovery move (#1051). " <>
+          "M6, with no figure changed and no schema byte added, has every valuation read " <>
+          "count the cash accounts it leaves out of total_cash for want of a rate path " <>
+          "(unvalued_cash_count) and say so in its valuation_note, with or without the " <>
+          "position rows, so the routine roll-up read no longer hides that gap (#1081, D-3).",
       endpoints: [],
       tools: [],
       parameters: [
         "GET /api/v1/portfolios/:portfolio_id/performance and GET /api/v1/views/:view_id/performance (portfolixir.portfolios.performance, portfolixir.views.performance) carry unvalued_cash_accounts: one entry per cash account in the scope that held a non-zero balance and counted zero for want of a rate path to the base currency on at least one day of the window or on the day before it, whose close is the start value, with cash_account_id, name, currency_code, balance (its native balance on the last such day, a Decimal string in that currency, never converted), unvalued_days (its days, the day before the window (the start value) included), unvalued_reason (no_rate), unvalued_through_end (true when it still counted zero on the window's last day) and first_rate_date (the ISO date its currency's first rate path arrived, when that falls inside the window and the account held money at zero on the day before — the day its whole balance entered the money result — else null), sorted by name; [] when every balance was valued and on an empty window. computation_basis.gaps names the field. Every other field and figure is unchanged (M3, #1055)",
         "GET /api/v1/portfolios/:portfolio_id/performance/contribution and GET /api/v1/views/:view_id/performance/contribution (portfolixir.portfolios.contribution, portfolixir.views.contribution) carry the same unvalued_cash_accounts for the contribution's window, equal to the performance read's of the same scope and window: the first rate brings such a balance's whole value into remainder.cash_currency_effect, and first_rate_date names the day. computation_basis.gaps names the field where it said that no account is named. Every other field and figure is unchanged; the MCP tools pass the field through, their descriptions unchanged (M3, #1055)",
-        "GET /api/v1/portfolios/:portfolio_id/performance/benchmark and GET /api/v1/views/:view_id/performance/benchmark (portfolixir.portfolios.benchmark, portfolixir.views.benchmark) carry the same unvalued_cash_accounts (balance, unvalued_days, unvalued_through_end, first_rate_date) for the covered window, whose portfolio_ttwror and end_value_delta hold the jump a first rate brings; [] on a comparison with no covered window. computation_basis.gaps names the field. Every other field and figure is unchanged (M3, #1055)"
+        "GET /api/v1/portfolios/:portfolio_id/performance/benchmark and GET /api/v1/views/:view_id/performance/benchmark (portfolixir.portfolios.benchmark, portfolixir.views.benchmark) carry the same unvalued_cash_accounts (balance, unvalued_days, unvalued_through_end, first_rate_date) for the covered window, whose portfolio_ttwror and end_value_delta hold the jump a first rate brings; [] on a comparison with no covered window. computation_basis.gaps names the field. Every other field and figure is unchanged (M3, #1055)",
+        "GET /api/v1/portfolios/:portfolio_id/valuation, GET /api/v1/views/:view_id/valuation and GET /api/v1/valuation (portfolixir.portfolios.valuation, and portfolixir.views.valuation with and without an id) carry unvalued_cash_count, with and without include_positions: the cash accounts in scope whose currency has no stored rate path to the base currency and whose balance is not zero, which total_cash and total_with_cash leave out; an empty such account is listed in cash_balances with valued: false and not counted. Each form's valuation_note states the rule. total_cash, total_with_cash and every other field and figure are unchanged; the MCP tools pass the field through, their descriptions unchanged (M6, #1081, D-3)"
       ],
       removed_endpoints: [],
       removed_tools: [],

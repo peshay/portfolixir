@@ -7890,12 +7890,21 @@ select:disabled {
   font-variant-numeric: tabular-nums;
 }
 
+/* The stale sub-line says its scope since issue 1081 ("25 veraltet im
+   Katalog", pick J1.2 A), so at 390 px it wraps inside its cell: the glyph
+   stays on the first line instead of floating between the two (board 01,
+   rule ②). */
 .kpi-strip__sub--attention {
   display: inline-flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
   color: var(--color-warning);
   font-weight: 600;
+}
+
+.kpi-strip__sub--attention svg {
+  flex: none;
+  margin-top: 2px;
 }
 
 .kpi-strip__basis {
@@ -9615,9 +9624,12 @@ dialog.merge-dialog {
 }
 
 /* An empty live region takes no room in the body's gap — the merge
-   dialogs' and the booking delete's (the closing act, R5). */
+   dialogs' and the booking delete's (the closing act, R5), and the
+   Overview's region under its total, empty while the total leaves nothing
+   out (issue 1081, pick J1 A). */
 .merge-region:empty,
-.booking-delete__region:empty {
+.booking-delete__region:empty,
+.wealth-card-status:empty {
   display: none;
 }
 

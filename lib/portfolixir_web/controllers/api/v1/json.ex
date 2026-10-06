@@ -874,6 +874,10 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       total_with_cash: decimal(valuation.total_with_cash),
       cash_quote: decimal(valuation.cash_quote),
       unvalued_count: valuation.unvalued_count,
+      # #1081 (D-3): the cash the totals leave out, counted in every form and
+      # with or without the position rows, so the routine roll-up read says
+      # what total_cash does not hold; cash_balances names each account.
+      unvalued_cash_count: valuation.unvalued_cash_count,
       trade_priced_count: valuation.trade_priced_count,
       stale_priced_count: valuation.stale_priced_count,
       newest_quote_date: newest_quote_date(valuation),
@@ -898,7 +902,17 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       "and `unvalued_reason` says " <>
       "why a position is unvalued (no_price: nothing resolves; missing_fx: " <>
       "latest_price/price_currency are known but no stored rate path " <>
-      "reaches the base currency)."
+      "reaches the base currency). " <> unvalued_cash_note()
+  end
+
+  # #1081 (D-3): every valuation form says what its cash total leaves out,
+  # so an agent's include_positions=false read does not hide it.
+  defp unvalued_cash_note do
+    "A cash account whose currency has no stored rate path to the base " <>
+      "currency is left out of total_cash and total_with_cash: " <>
+      "unvalued_cash_count counts such accounts in scope that hold a non-zero " <>
+      "balance, and cash_balances lists each with valued: false and its " <>
+      "balance in its own currency, never converted."
   end
 
   @doc """
@@ -927,6 +941,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       total_with_cash: decimal(valuation.total_with_cash),
       cash_quote: decimal(valuation.cash_quote),
       unvalued_count: valuation.unvalued_count,
+      # #1081 (D-3): as on the portfolio valuation.
+      unvalued_cash_count: valuation.unvalued_cash_count,
       trade_priced_count: valuation.trade_priced_count,
       stale_priced_count: valuation.stale_priced_count,
       newest_quote_date: newest_quote_date(valuation),
@@ -972,7 +988,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       "positions whose quote is older than the data-quality threshold; " <>
       "newest_quote_date is the newest stored quote date across the quoted, " <>
       "non-retired positions, null when none is quote-priced), and " <>
-      "`unvalued_reason` says why a position is unvalued (no_price | missing_fx)."
+      "`unvalued_reason` says why a position is unvalued (no_price | missing_fx). " <>
+      unvalued_cash_note()
   end
 
   # #798: the freshness read, ISO-dated; absent or nil when no held position

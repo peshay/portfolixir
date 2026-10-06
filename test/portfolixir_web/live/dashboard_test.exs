@@ -490,7 +490,12 @@ defmodule PortfolixirWeb.DashboardTest do
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
 
-    assert has_element?(view, "[data-role='dq-quotes']", "one security without a quote in 7 days")
+    assert has_element?(
+             view,
+             "[data-role='dq-quotes']",
+             "one security in the catalog without a quote in 7 days"
+           )
+
     assert has_element?(view, "[data-role='dq-class']", "one without an asset class")
     assert has_element?(view, "[data-role='dq-logo']", "one without a logo")
 

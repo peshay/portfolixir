@@ -25,7 +25,8 @@ defmodule PortfolixirWeb.DashboardKpiStripTest do
   # - The last-booking cell shows the newest booking's date, its kind as the
   #   localized label (never the raw enum) and its subject.
   # - The freshness cell shows the newest quote date across held positions
-  #   and carries "n stale" only when n > 0 — with n = 0 the date alone.
+  #   and carries "n stale in the catalog" only when n > 0 — with n = 0 the
+  #   date alone.
   # - A basis line under the strip names the view, the period and the
   #   currency; the value card's sub-line keeps the YTD change and drops the
   #   cash quote.
@@ -116,7 +117,8 @@ defmodule PortfolixirWeb.DashboardKpiStripTest do
     freshness = cell(doc, "kpi-freshness")
     # The newest quote across the held positions is still today's.
     assert text(Floki.find(freshness, "strong")) == Date.to_iso8601(today)
-    assert text(Floki.find(freshness, ".kpi-strip__sub")) == "1 stale"
+    # The count is the catalog's, and says so (#1081, pick J1.2 A).
+    assert text(Floki.find(freshness, ".kpi-strip__sub")) == "1 stale in the catalog"
 
     # The last booking follows the ledger, not the quote.
     assert text(Floki.find(cell(doc, "kpi-last-booking"), ".kpi-strip__sub")) == "Buy · Old Co"
