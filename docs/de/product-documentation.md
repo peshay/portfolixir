@@ -2141,7 +2141,7 @@ Zeitraums null“. Bei einem Zeitraum, der nach dem Tag des ersten
 Wechselkurses beginnt, verschwindet das Konto wie der Sprung aus Tabelle und
 Hinweis.
 
-[![Beitrag je Position über ein Jahr: Anfangswert, Zu-/Abflüsse, Erträge, Kosten, Endwert und Beitrag der zehn größten Positionen mit ihren Balken, Alle 30 anzeigen, die drei Posten ohne Position, die Summenzeile und ein Hinweis auf die Positionen, die an einigen Tagen null zählten](../screenshots/contribution.png)](../screenshots/contribution.png)
+[![Beitrag je Position über ein Jahr: Anfangswert, Zu-/Abflüsse, Erträge, Kosten, Endwert und Beitrag der zehn größten Positionen mit ihren Balken, Alle 34 anzeigen, die drei Posten ohne Position, die Summenzeile und ein Hinweis auf die Positionen, die an einigen Tagen null zählten](../screenshots/contribution.png)](../screenshots/contribution.png)
 
 *Beitrag je Position auf dem synthetischen Demo-Datensatz.*
 
