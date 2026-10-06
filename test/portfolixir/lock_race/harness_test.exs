@@ -121,13 +121,18 @@ defmodule Portfolixir.LockRace.HarnessTest do
   test "a writer that cannot get a connection fails the race", %{db: db} do
     gone = %{db | repo: spawn(fn -> :ok end)}
 
-    capture_log(fn ->
-      assert_raise ExUnit.AssertionError,
-                   ~r/the first writer exited before it got a connection/,
-                   fn ->
-                     LockRace.race!(gone, {lock_rows([11]), &LockRace.lock?/1}, lock_rows([11]))
-                   end
-    end)
+    # The writer logs its crash report before it exits (#1046), so the report
+    # is in this capture by the time the race has seen the exit.
+    log =
+      capture_log(fn ->
+        assert_raise ExUnit.AssertionError,
+                     ~r/the first writer exited before it got a connection/,
+                     fn ->
+                       LockRace.race!(gone, {lock_rows([11]), &LockRace.lock?/1}, lock_rows([11]))
+                     end
+      end)
+
+    assert log =~ "the first writer raised:"
   end
 
   test "the pause predicates pass over a query event that carries no text" do
