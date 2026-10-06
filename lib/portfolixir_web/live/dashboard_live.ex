@@ -21,6 +21,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.SecurityEventLabel
   alias PortfolixirWeb.TransactionKindLabel
+  alias PortfolixirWeb.ValuationNotes
 
   # A category counts as "needs attention" when its drift exceeds ±5 pp of the
   # steering basis (ADR-0022 dashboard; drift per ADR-0023: actual − target).
@@ -268,7 +269,13 @@ defmodule PortfolixirWeb.DashboardLive do
         <% end %>
       </div>
 
-      <section class="workspace-section grid" aria-label={gettext("Wealth value")}>
+      <%!-- #1081 (D-3, board 01 pick J1 A): the section holds one card in
+           every state, and under it the note naming what the total leaves
+           out. It is not a `.grid`: a second grid item would become a second
+           column, and a spanning one stops auto-fit from collapsing the
+           empty tracks, so the card would shrink; `.workspace-section` is
+           already a one-column grid with the gap. --%>
+      <section id="dashboard-wealth" class="workspace-section" aria-label={gettext("Wealth value")}>
         <%= if is_nil(@wealth_card) do %>
           <%!-- Pending with a prior value (UX-DR20, owner pick P2): the last
                known value stays in place, dimmed, with a real-text staleness
@@ -330,6 +337,15 @@ defmodule PortfolixirWeb.DashboardLive do
             </small>
           </a>
         <% end %>
+        <%!-- UX-DR25 beside the figure (#1081): one status region that exists
+             before the read lands (UX-DR17), so the note arriving with the
+             card is announced once; empty — and taking no room — when the
+             total leaves nothing out (UX-DR2: no all-clear). No whitespace
+             inside it, so `:empty` holds. --%>
+        <div id="dashboard-wealth-card-status" role="status" class="wealth-card-status"><.wealth_card_excluded
+            :if={@wealth_card}
+            valuation={@wealth_card.valuation}
+          /></div>
       </section>
 
       <%!-- #798 (UX-DR2 as amended 2026-09-14): the four questions of the
@@ -401,17 +417,20 @@ defmodule PortfolixirWeb.DashboardLive do
                    data-quality finding below and the list the href opens
                    (#705). The valuation's own view-scoped count answers a
                    different question and would put two numbers for one
-                   finding on one page. --%>
+                   finding on one page. Since #1081 (pick J1.2 A, UX-DR26)
+                   it says that scope, "n stale in the catalog", beside a
+                   basis line about held positions; at 390 px it wraps, the
+                   glyph on its first line. --%>
               <small
                 :if={@data_quality && @data_quality.without_quote > 0}
                 class="kpi-strip__sub kpi-strip__sub--attention"
               >
                 <AppShell.icon name={:alert_triangle} size={12} />
-                <%= ngettext(
-                  "%{count} stale",
-                  "%{count} stale",
+                <span><%= ngettext(
+                  "%{count} stale in the catalog",
+                  "%{count} stale in the catalog",
                   @data_quality.without_quote
-                ) %>
+                ) %></span>
               </small>
             <% else %>
               <.strip_pending />
@@ -550,7 +569,7 @@ defmodule PortfolixirWeb.DashboardLive do
                 </small>
               </span>
               <span class="num">
-                <%= Date.to_iso8601(row.event.date) %>
+                <%= Format.date(row.event.date) %>
               </span>
             </a>
           </li>
@@ -688,6 +707,40 @@ defmodule PortfolixirWeb.DashboardLive do
       <% end %>
     </section>
     """
+  end
+
+  attr(:valuation, :map, required: true)
+
+  # #1081 (D-3, board 01 pick J1 A; UX-DR25 clauses 1–3): what the card's
+  # total leaves out, named beside it — the cash accounts with no rate path
+  # to the base currency with their native balances, the held positions with
+  # no price, and those with a price but no rate path with their native
+  # price. One attention note, the groups in that order, each shortened by
+  # Wealth's rule (six names, then "+N"); no note when nothing is left out.
+  # It reads only the valuation the card already reads, and its names come
+  # from the helpers Wealth's notes use. No control: the rate sync and the
+  # price are fixed on Wealth, so the note links there. The link is the
+  # card's own `/portfolio` — the session's view, no `?view=`, nothing
+  # stored. Localized here, at render time (the async task has no locale).
+  defp wealth_card_excluded(assigns) do
+    assigns = assign(assigns, :groups, ValuationNotes.excluded_groups(assigns.valuation))
+
+    ~H"""
+    <AppShell.data_note :if={@groups != []} severity={:attention} data-role="wealth-card-excluded">
+      <%= excluded_sentence(Enum.join(@groups, " · ")) %>
+      <a href="/portfolio" data-role="wealth-card-excluded-link"><%= gettext("Details in Wealth →") %></a>
+    </AppShell.data_note>
+    """
+  end
+
+  # A last name that ends in a full stop ("Harborline Freight Inc.") closes
+  # the sentence itself; a second one would read "Inc..".
+  defp excluded_sentence(groups) do
+    if String.ends_with?(groups, ".") do
+      gettext("Not in the total: %{groups}", groups: groups)
+    else
+      gettext("Not in the total: %{groups}.", groups: groups)
+    end
   end
 
   # The pending footprint of a strip cell (UX-DR20): the value-sized
@@ -980,40 +1033,68 @@ defmodule PortfolixirWeb.DashboardLive do
   # The data-quality line's findings, each with the pre-filtered securities
   # URL that fixes it (#561/#651). Only non-zero counts appear; when the list
   # is empty the whole section is absent — no all-clear badge (UX-DR2).
+  #
+  # #1081 (pick J1.2 A): the quote finding says it counts the catalog, as
+  # the strip's cell does. The line's first finding carries its noun ("4
+  # securities without an asset class"), so a line with no stale quote does
+  # not open on a bare "4 without an asset class"; a later finding keeps its
+  # short form after the first one's noun.
   defp dq_findings(dq) do
     [
-      dq.without_quote > 0 &&
-        %{
-          role: "dq-quotes",
-          href: "/securities?dq=stale_quote",
-          text:
-            ngettext(
-              "one security without a quote in 7 days",
-              "%{count} securities without a quote in 7 days",
-              dq.without_quote
-            )
-        },
-      dq.without_class > 0 &&
-        %{
-          role: "dq-class",
-          href:
-            "/securities?" <>
-              Query.encode(%{"filter" => ["asset_class:is_nil", "is_retired:is_false"]}),
-          text:
-            ngettext(
-              "one without an asset class",
-              "%{count} without an asset class",
-              dq.without_class
-            )
-        },
-      dq.without_logo > 0 &&
-        %{
-          role: "dq-logo",
-          href: "/securities?dq=missing_logo",
-          text: ngettext("one without a logo", "%{count} without a logo", dq.without_logo)
-        }
+      dq.without_quote > 0 && {:quotes, dq.without_quote},
+      dq.without_class > 0 && {:class, dq.without_class},
+      dq.without_logo > 0 && {:logo, dq.without_logo}
     ]
     |> Enum.filter(& &1)
+    |> Enum.with_index()
+    |> Enum.map(fn {{finding, count}, index} -> dq_finding(finding, count, index == 0) end)
+  end
+
+  # The quote finding always opens the line when present, so it always
+  # carries its noun.
+  defp dq_finding(:quotes, count, _first?) do
+    %{
+      role: "dq-quotes",
+      href: "/securities?dq=stale_quote",
+      text:
+        ngettext(
+          "one security in the catalog without a quote in 7 days",
+          "%{count} securities in the catalog without a quote in 7 days",
+          count
+        )
+    }
+  end
+
+  defp dq_finding(:class, count, first?) do
+    %{
+      role: "dq-class",
+      href:
+        "/securities?" <>
+          Query.encode(%{"filter" => ["asset_class:is_nil", "is_retired:is_false"]}),
+      text:
+        if(first?,
+          do:
+            ngettext(
+              "one security without an asset class",
+              "%{count} securities without an asset class",
+              count
+            ),
+          else: ngettext("one without an asset class", "%{count} without an asset class", count)
+        )
+    }
+  end
+
+  defp dq_finding(:logo, count, first?) do
+    %{
+      role: "dq-logo",
+      href: "/securities?dq=missing_logo",
+      text:
+        if(first?,
+          do:
+            ngettext("one security without a logo", "%{count} securities without a logo", count),
+          else: ngettext("one without a logo", "%{count} without a logo", count)
+        )
+    }
   end
 
   # Highest severity present (UX-DR17): a stale quote skews valuations, so it

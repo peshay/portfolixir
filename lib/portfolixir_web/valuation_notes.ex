@@ -1,14 +1,19 @@
 defmodule PortfolixirWeb.ValuationNotes do
   @moduledoc """
-  The names a valuation leaves out of its totals, built by one rule (#1081,
-  D-3; board `ux-design-2026-10-04/01-overview-total`).
+  The names a valuation leaves out of its totals, built by one rule for every
+  screen that says so (#1081, D-3; board `ux-design-2026-10-04/01-overview-total`).
 
-  Wealth's data-quality notes name the rows its totals leave out — the held
-  positions with no price, the ones with a price but no rate path, the cash
-  accounts with no rate path. The helpers that build those names live here
-  rather than in the Wealth LiveView, so another screen that names the same
-  rows uses the same rule. Wealth's notes render byte-identical to before
-  they moved.
+  Wealth's data-quality notes and the Overview's note under its total both
+  name the rows a total leaves out — the held positions with no price, the
+  ones with a price but no rate path, the cash accounts with no rate path —
+  so the helpers that build those names live here rather than in either
+  LiveView. Wealth's notes render byte-identical to before they moved.
+
+  One difference is deliberate: a retired held position with no price. The
+  Overview names it, because it is out of the total the note sits under;
+  Wealth's no-price note leaves it out (PR #1102), because that note links to
+  `?dq=missing_quote`, a list without retired securities, and its count must
+  equal that list.
 
   UX-DR25: the count and the names both render, each row keeps its native
   figure and never a converted one, and a long list is shortened by one rule:
@@ -54,7 +59,7 @@ defmodule PortfolixirWeb.ValuationNotes do
   The cash balances a valuation leaves out of its totals: no rate path to the
   base currency and a non-zero balance. An empty account leaves nothing out
   of the total, as the performance walk counts it (#1055), so it is not
-  named.
+  named — the same rule the valuation's `unvalued_cash_count` counts by.
   """
   def unvalued_cash(nil), do: []
 
@@ -73,4 +78,72 @@ defmodule PortfolixirWeb.ValuationNotes do
   """
   def unvalued_cash_label(entry),
     do: "#{entry.name} (#{Format.native_amount(entry.balance)} #{entry.currency})"
+
+  @doc """
+  The groups of the Overview's note under its total (#1081, pick J1 A), in
+  order: the cash accounts with no rate path to the base currency, the held
+  positions with no price, the held positions with a price but no rate path.
+  Each group is one localized phrase — its count, what it is, and its names
+  shortened to six and "+N"; a group with no member is absent, so a
+  valuation that leaves nothing out gives `[]` (UX-DR2: no all-clear).
+
+  It reads only what the valuation already carries:
+  `cash_balances[].valued` and `positions[].unvalued_reason`. A security
+  held in several depots counts once; two securities that share a name count
+  twice. A retired security is named too: it is out of the total.
+  """
+  def excluded_groups(valuation) do
+    base = valuation.base_currency
+
+    [
+      cash_group(unvalued_cash(valuation), base),
+      position_group(position_names(valuation, :no_price), :no_price, base),
+      position_group(position_names(valuation, :missing_fx), :missing_fx, base)
+    ]
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp cash_group([], _base), do: nil
+
+  defp cash_group(accounts, base) do
+    ngettext(
+      "%{count} cash account with no exchange rate to %{base} — %{names}",
+      "%{count} cash accounts with no exchange rate to %{base} — %{names}",
+      length(accounts),
+      base: base,
+      names: accounts |> Enum.map(&unvalued_cash_label/1) |> join_shortened()
+    )
+  end
+
+  # One row per security, not per depot and not per label: the view
+  # valuation carries one position per (depot, security).
+  defp position_names(valuation, reason) do
+    valuation.positions
+    |> Enum.filter(&(&1.unvalued_reason == reason))
+    |> Enum.uniq_by(& &1.security_id)
+    |> Enum.map(&unvalued_entry_label(&1, reason))
+  end
+
+  defp position_group([], _reason, _base), do: nil
+
+  defp position_group(names, :no_price, _base) do
+    ngettext(
+      "%{count} held position with no price — %{names}",
+      "%{count} held positions with no price — %{names}",
+      length(names),
+      names: join_shortened(names)
+    )
+  end
+
+  defp position_group(names, :missing_fx, base) do
+    ngettext(
+      "%{count} held position with no exchange rate to %{base} — %{names}",
+      "%{count} held positions with no exchange rate to %{base} — %{names}",
+      length(names),
+      base: base,
+      names: join_shortened(names)
+    )
+  end
+
+  defp join_shortened(names), do: names |> shorten_list() |> Enum.join(", ")
 end

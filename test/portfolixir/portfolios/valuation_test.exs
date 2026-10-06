@@ -14,7 +14,9 @@ defmodule Portfolixir.Portfolios.ValuationTest do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Ledger
+  alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Valuation
+  alias PortfolixirWeb.ValuationNotes
 
   # User story:
   # As a local portfolio maintainer (and the LLM I connect over MCP),
@@ -289,5 +291,61 @@ defmodule Portfolixir.Portfolios.ValuationTest do
     assert Decimal.equal?(unvalued_row.quantity, Decimal.new("7"))
     refute unvalued_row.valued
     assert is_nil(unvalued_row.market_value)
+  end
+
+  # User story (#1081, D-3 — the agent's half):
+  # As the agent reading a valuation,
+  # I want it to count the cash accounts its totals leave out,
+  # so that a roll-up read says what total_cash does not hold.
+  #
+  # Acceptance criteria:
+  # - Both forms, the portfolio valuation and the view valuation, count the
+  #   accounts in scope with no rate path to the base currency and a
+  #   non-zero balance, an overdrawn one included, in unvalued_cash_count.
+  # - An empty such account is listed with valued: false and not counted.
+  # - The count and the screens' list of those accounts
+  #   (ValuationNotes.unvalued_cash/1) agree.
+  test "counts the cash accounts with no rate path and a non-zero balance" do
+    world = base_world()
+
+    for {name, balance} <- [
+          {"USD Settlement", "1850"},
+          {"USD Overdraft", "-40"},
+          {"Leer USD", nil}
+        ] do
+      {:ok, account} =
+        Portfolios.create_cash_account(Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          name: name,
+          currency_code: "USD"
+        })
+
+      if balance do
+        {:ok, _} =
+          Ledger.set_cash_balance(Actor.owner_ui(), account, %{
+            date: ~D[2026-01-05],
+            amount: balance
+          })
+      end
+    end
+
+    deposit!(world, "300", ~D[2026-01-01])
+    {:ok, everything} = Buckets.create_view(Actor.owner_ui(), %{name: "Everything"})
+
+    for valuation <- [
+          Valuation.for_portfolio(world.portfolio.id),
+          Valuation.for_view(everything.id),
+          Valuation.for_view(nil)
+        ] do
+      assert valuation.unvalued_cash_count == 2
+      assert Decimal.equal?(valuation.total_cash, Decimal.new("300"))
+      assert length(ValuationNotes.unvalued_cash(valuation)) == valuation.unvalued_cash_count
+
+      assert valuation.cash_balances
+             |> Enum.reject(& &1.valued)
+             |> Enum.map(& &1.name)
+             |> Enum.sort() ==
+               ["Leer USD", "USD Overdraft", "USD Settlement"]
+    end
   end
 end
