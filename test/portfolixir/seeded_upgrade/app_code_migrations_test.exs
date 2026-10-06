@@ -184,6 +184,63 @@ defmodule Portfolixir.SeededUpgrade.AppCodeMigrationsTest do
   end
 
   # User story:
+  # As a developer reverting the portfolio scope seed on a database at its
+  # own version,
+  # I want the migration's down to remove what its up seeded and nothing else,
+  # so that the database is back at 20260712120000 with the operator's
+  # buckets and assignments intact.
+  #
+  # Acceptance criteria:
+  # - Seeded at 20260712120000 with a portfolio holding a depot and a cash
+  #   account, and an operator bucket assigned to the depot, the database
+  #   migrates to exactly 20260712130000 and then runs that migration's down.
+  # - No bucket or view carries a seed marker; the operator's bucket and its
+  #   link to the depot survive.
+  # - The journal holds one bucket delete per seeded bucket under the seed's
+  #   system job, with the bucket's row, as its create recorded it, on both
+  #   sides; the latest applied migration is 20260712120000.
+  @tag seeded_upgrade: 20_260_712_130_000
+  test "the portfolio scope seed's down removes what its up seeded, at its own version",
+       %{seeded_upgrade: migration} do
+    upgrade =
+      SeededUpgrade.upgrade!(from: @before_scope_seed, to: migration, seed: &seed_one_portfolio/1)
+
+    world = upgrade.seeded
+    assert upgrade.migrated == [migration]
+
+    assert SeededUpgrade.down!(upgrade, 1) == [migration]
+
+    assert %{rows: [[0, 0]]} =
+             SeededUpgrade.query!(
+               upgrade,
+               """
+               SELECT (SELECT count(*) FROM buckets WHERE source_portfolio_id IS NOT NULL),
+                      (SELECT count(*) FROM views WHERE source_portfolio_id IS NOT NULL)
+               """
+             )
+
+    assert SeededUpgrade.query!(upgrade, "SELECT id FROM buckets").rows == [[world.tag]]
+
+    assert bucket_sets(upgrade, "securities_account_buckets", "securities_account_id") == %{
+             world.depot => [world.tag]
+           }
+
+    assert bucket_sets(upgrade, "cash_account_buckets", "cash_account_id") == %{}
+
+    journal = system_journal(upgrade, "portfolio_scope_seed")
+
+    assert [["bucket", "create", seeded, nil, image]] =
+             for(["bucket", "create" | _] = entry <- journal, do: entry)
+
+    assert for([_type, "delete" | _] = entry <- journal, do: entry) == [
+             ["bucket", "delete", seeded, image, image]
+           ]
+
+    assert %{rows: [[@before_scope_seed]]} =
+             SeededUpgrade.query!(upgrade, "SELECT max(version) FROM schema_migrations")
+  end
+
+  # User story:
   # As the operator upgrading an instance on which I renamed a cash account
   # and a depot before accounts kept their former names, and on which an
   # import later created a zombie account under one of the old names,
@@ -233,8 +290,8 @@ defmodule Portfolixir.SeededUpgrade.AppCodeMigrationsTest do
 
   # User story:
   # As the operator upgrading an instance whose tax records name a holder or
-  # an institution with a no-break space, a double space or a zero-width
-  # character,
+  # an institution with a no-break space, a thin space, a double space or a
+  # zero-width space,
   # I want the identity normalisation to finish over those rows,
   # so that the release boots, the lookups reach the rows again, and a row
   # that normalises onto another row's key is reported, not merged.
@@ -243,8 +300,9 @@ defmodule Portfolixir.SeededUpgrade.AppCodeMigrationsTest do
   # - Seeded at 20260925220000 with a profile, an allowance order and a
   #   statement snapshot spelled that way, and two orders whose spellings
   #   normalise to one key, the database migrates to head.
-  # - The three rows hold the normalised spelling, each write journaled as
-  #   an update under the backfill's system job; of the two orders, the one
+  # - The three rows hold the normalised holder and institution, each write
+  #   journaled as an update under the backfill's system job with both
+  #   spellings before and after; of the two orders, the one
   #   that would take the other's key keeps its spelling, and the upgrade's
   #   log names it.
   @tag seeded_upgrade: 20_260_925_230_000
@@ -273,14 +331,18 @@ defmodule Portfolixir.SeededUpgrade.AppCodeMigrationsTest do
     assert for(
              [type, operation, id, before, after_image] <-
                system_journal(upgrade, "tax_identity_backfill"),
-             do: {type, operation, id, before["holder"], after_image["holder"]}
+             do:
+               {type, operation, id, Map.take(before, ~w(holder institution)),
+                Map.take(after_image, ~w(holder institution))}
            ) == [
-             {"tax_profile", "update", Integer.to_string(rows.profile), "Synthetic\u00A0Holder",
-              "Synthetic Holder"},
-             {"allowance_order", "update", Integer.to_string(rows.order), "Synthetic  Holder",
-              "Synthetic Holder"},
+             {"tax_profile", "update", Integer.to_string(rows.profile),
+              %{"holder" => "Synthetic\u00A0Holder"}, %{"holder" => "Synthetic Holder"}},
+             {"allowance_order", "update", Integer.to_string(rows.order),
+              %{"holder" => "Synthetic  Holder", "institution" => "Synthetic \u200BBank"},
+              %{"holder" => "Synthetic Holder", "institution" => "Synthetic Bank"}},
              {"tax_statement_snapshot", "update", Integer.to_string(rows.snapshot),
-              "Synthetic Holder", "Synthetic Holder"}
+              %{"holder" => "Synthetic Holder", "institution" => "Synthetic\u2009Bank"},
+              %{"holder" => "Synthetic Holder", "institution" => "Synthetic Bank"}}
            ]
 
     assert upgrade.log =~
@@ -291,15 +353,15 @@ defmodule Portfolixir.SeededUpgrade.AppCodeMigrationsTest do
   # User story:
   # As the operator upgrading an instance whose securities were imported
   # before asset classes were inferred,
-  # I want each asset-class backfill to finish over those rows,
+  # I want the first asset-class backfill to finish over those rows,
   # so that the release boots and every security the inference recognises
   # carries the class the securities list filters on.
   #
   # Acceptance criteria:
-  # - Seeded at the migration before each backfill (20260518100000, and
-  #   separately 20260607120000) with unclassed securities the inference
+  # - Seeded at 20260518100000 with unclassed securities the inference
   #   recognises, one whose class is set and one it cannot read, the
-  #   database migrates to head.
+  #   database migrates to 20260523120000 and stops there, before the second
+  #   backfill can run the same code again.
   # - The recognised rows carry the class today's inference gives them (the
   #   drift from the inference of the backfill's own day is deliberate: the
   #   second backfill exists to apply newer rules); the set class is
@@ -307,21 +369,35 @@ defmodule Portfolixir.SeededUpgrade.AppCodeMigrationsTest do
   @tag seeded_upgrade: 20_260_523_120_000
   test "the first asset-class backfill does not stop the upgrade over unclassed securities",
        %{seeded_upgrade: migration} do
-    assert_asset_class_backfill(@before_first_asset_class_backfill, migration)
+    assert_asset_class_backfill(@before_first_asset_class_backfill, migration, migration)
   end
 
+  # User story:
+  # As the operator upgrading an instance whose securities were imported
+  # before the inference recognised certificates and leverage products,
+  # I want the second asset-class backfill to finish over the rows still
+  # unclassed,
+  # so that the release boots and those securities are sorted into the
+  # classes the newer rules recognise.
+  #
+  # Acceptance criteria:
+  # - Seeded at 20260607120000 with unclassed securities the inference
+  #   recognises (a knock-out among them), one whose class is set and one it
+  #   cannot read, the database migrates to head.
+  # - The recognised rows carry the class today's inference gives them; the
+  #   set class is untouched and the unreadable row stays unclassed.
   @tag seeded_upgrade: 20_260_608_120_000
   test "the derivative asset-class backfill does not stop the upgrade over unclassed securities",
        %{seeded_upgrade: migration} do
-    assert_asset_class_backfill(@before_second_asset_class_backfill, migration)
+    assert_asset_class_backfill(@before_second_asset_class_backfill, :head, migration)
   end
 
-  defp assert_asset_class_backfill(from, migration) do
-    upgrade = SeededUpgrade.upgrade!(from: from, seed: &seed_securities/1)
+  defp assert_asset_class_backfill(from, to, migration) do
+    upgrade = SeededUpgrade.upgrade!(from: from, to: to, seed: &seed_securities/1)
     securities = upgrade.seeded
 
     assert migration in upgrade.migrated
-    assert List.last(upgrade.migrated) == SeededUpgrade.head()
+    assert List.last(upgrade.migrated) == if(to == :head, do: SeededUpgrade.head(), else: to)
 
     %{rows: rows} = SeededUpgrade.query!(upgrade, "SELECT id, asset_class FROM securities")
     classes = Map.new(rows, fn [id, class] -> {id, class} end)
@@ -362,6 +438,21 @@ defmodule Portfolixir.SeededUpgrade.AppCodeMigrationsTest do
     )
 
     %{alpha: alpha, beta: beta, tag: tag, own_scope: own_scope}
+  end
+
+  # One portfolio with a cash account and a depot, the depot carrying a tag
+  # bucket of the operator's.
+  defp seed_one_portfolio(db) do
+    portfolio = seed_portfolio(db, "Downgrade Alpha")
+    tag = insert_bucket!(db, "Operator Tag", "tag")
+
+    SeededUpgrade.query!(
+      db,
+      "INSERT INTO securities_account_buckets (securities_account_id, bucket_id) VALUES ($1, $2)",
+      [portfolio.depot, tag]
+    )
+
+    Map.put(portfolio, :tag, tag)
   end
 
   defp seed_portfolio(db, name) do

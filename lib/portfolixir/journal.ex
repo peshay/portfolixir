@@ -2,10 +2,17 @@ defmodule Portfolixir.Journal do
   @moduledoc """
   Append-only audit journal for financial writes (ADR-0017, FR-28).
 
-  This is the **only** module that writes `audit_journal`. A context routes a
-  financial write through `record/3`, which appends the journal insert to the
-  caller's `Ecto.Multi` so the business write and its journal entry commit in one
-  database transaction — both or neither.
+  This is the **only** module that writes `audit_journal`, with two
+  exceptions: `Portfolixir.Tax.BuiltinSeed` and `Portfolixir.Buckets.ScopeSeed`,
+  the code two immutable migrations call, frozen to those migrations' schemas
+  (#1015, #1042). They write their entries as plain SQL naming the journal's
+  columns at their version, because this module follows today's schema and a
+  column added later would stop the migration. The list is held to those two
+  by `test/invariants/raw_journal_writers_test.exs`.
+
+  A context routes a financial write through `record/3`, which appends the
+  journal insert to the caller's `Ecto.Multi` so the business write and its
+  journal entry commit in one database transaction — both or neither.
 
   `record/3` also sets the transaction-local `portfolixir.journal_actor` session
   variable that the per-table guard trigger requires (and resets it in a final

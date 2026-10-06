@@ -1,9 +1,12 @@
 defmodule Portfolixir.Buckets.PortfolioSeedTest do
   @moduledoc """
   Pins the ADR-0024 portfolio -> bucket/view seed (epic story 2, modifications
-  2 and 6) by driving the context functions the data migration calls, inside
-  the sandbox (the migrator itself cannot run under the Ecto SQL sandbox; the
-  DDL round trip is exercised by `mix ecto.rollback` / `mix ecto.migrate`).
+  2 and 6) inside the sandbox: the seed's behaviour through
+  `seed_scope_buckets_at_head/1`, the head seed the `portfolixir.seed_scope_buckets`
+  task runs, and the rollback through `rollback_portfolio_scope_seed/1`, the
+  migration's own frozen `down` (#1042). The migrator itself cannot run under
+  the Ecto SQL sandbox; the migration's frozen pair runs at its own version in
+  `test/portfolixir/seeded_upgrade/app_code_migrations_test.exs`.
 
   All money assertions are exact `Decimal` — never float tolerance.
   """
@@ -59,7 +62,7 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
     :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), alpha.depot, [krypto.id])
 
     assert {:ok, %{buckets_created: 2, views_created: 2, accounts_tagged: 4}} =
-             Buckets.seed_portfolio_scope_buckets(@seed_actor)
+             Buckets.seed_scope_buckets_at_head(@seed_actor)
 
     %{buckets: buckets, views: views} = Buckets.migration_summary()
 
@@ -102,7 +105,7 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
     journal_count_before = length(Journal.list_entries([]))
 
     assert {:ok, %{buckets_created: 0, views_created: 0, accounts_tagged: 0}} =
-             Buckets.seed_portfolio_scope_buckets(@seed_actor)
+             Buckets.seed_scope_buckets_at_head(@seed_actor)
 
     assert length(Journal.list_entries([])) == journal_count_before
     assert length(Buckets.migration_summary().buckets) == 2
@@ -118,6 +121,10 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
   # - Rollback deletes seeded buckets (cascading their assignments and view
   #   links) and seeded views; user-created records are untouched.
   # - Rollback then re-seeding restores the seeded shape (roundtrip-safe).
+  #
+  # Only the migration calls the rollback, so this test and the notice test
+  # below drive the migration's frozen pair, `seed_portfolio_scope_buckets/1`
+  # and `rollback_portfolio_scope_seed/1`, as its `up` and `down` would.
   test "rollback removes only seeded records and re-seeding restores them" do
     world = base_world(name: unique("Alpha"), cash_name: "Alpha Cash", depot_name: "Alpha Depot")
 
@@ -167,7 +174,7 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
     {:ok, _} = Buckets.create_view(Actor.owner_ui(), %{name: name})
 
     assert {:ok, %{buckets_created: 1, views_created: 1}} =
-             Buckets.seed_portfolio_scope_buckets(@seed_actor)
+             Buckets.seed_scope_buckets_at_head(@seed_actor)
 
     assert %{buckets: [bucket], views: [view]} = Buckets.migration_summary()
     assert bucket.name == "#{name} (Portfolio)"
@@ -191,7 +198,7 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
     base_world(name: name, cash_name: "C3", depot_name: "D3")
 
     assert {:ok, %{buckets_created: 3, views_created: 3, accounts_tagged: 6}} =
-             Buckets.seed_portfolio_scope_buckets(@seed_actor)
+             Buckets.seed_scope_buckets_at_head(@seed_actor)
 
     %{buckets: buckets, views: views} = Buckets.migration_summary()
 
@@ -216,7 +223,7 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
     {:ok, _} = Buckets.create_bucket(Actor.owner_ui(), %{name: "#{name} (Portfolio)"})
 
     assert {:ok, %{buckets_created: 1, views_created: 1}} =
-             Buckets.seed_portfolio_scope_buckets(@seed_actor)
+             Buckets.seed_scope_buckets_at_head(@seed_actor)
 
     assert %{buckets: [bucket], views: [view]} = Buckets.migration_summary()
     assert bucket.name == "#{name} (Portfolio 2)"
@@ -233,7 +240,7 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
     base_world(name: long_name, cash_name: "L Cash", depot_name: "L Depot")
 
     assert {:ok, %{buckets_created: 1, views_created: 1}} =
-             Buckets.seed_portfolio_scope_buckets(@seed_actor)
+             Buckets.seed_scope_buckets_at_head(@seed_actor)
 
     assert %{buckets: [bucket], views: [view]} = Buckets.migration_summary()
     assert bucket.name == String.slice(long_name, 0, 100)
@@ -264,7 +271,7 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
               views_created: 1,
               accounts_tagged: 1,
               skipped_existing_scope: 1
-            }} = Buckets.seed_portfolio_scope_buckets(@seed_actor)
+            }} = Buckets.seed_scope_buckets_at_head(@seed_actor)
 
     # The user's scope assignment survived untouched; only the cash account
     # was tagged with the seeded bucket.
@@ -280,11 +287,11 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
   # I want `mix portfolixir.seed_scope_buckets` to create the missing
   # bucket/view pairs on demand,
   # so that the restored portfolios get the same migration as everyone else.
-  # (The task is a thin wrapper over this exact function + actor.)
+  # (The task calls this function under this actor.)
   test "re-running the seed after a data restore creates the missing pairs" do
     # The upgrade migration ran against an empty database: nothing to seed.
     assert {:ok, %{buckets_created: 0, views_created: 0, accounts_tagged: 0}} =
-             Buckets.seed_portfolio_scope_buckets(@seed_actor)
+             Buckets.seed_scope_buckets_at_head(@seed_actor)
 
     # The user restores their data afterwards…
     name = unique("Restored")
@@ -292,7 +299,7 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
 
     # …and the task's underlying call seeds exactly the missing pair.
     assert {:ok, %{buckets_created: 1, views_created: 1, accounts_tagged: 2}} =
-             Buckets.seed_portfolio_scope_buckets(@seed_actor)
+             Buckets.seed_scope_buckets_at_head(@seed_actor)
 
     assert %{migrated?: true, buckets: [%{name: ^name}], views: [%{name: ^name}]} =
              Buckets.migration_summary()
@@ -302,6 +309,7 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
   # As a local portfolio maintainer who rolled the seed back,
   # I want a later re-seed to be announced again on the Wealth page,
   # so that a stale dismissal never hides a fresh migration.
+  # (The migration's frozen pair, as in the rollback test above.)
   test "rollback clears the dismissed-notice flag so a re-seed announces again" do
     base_world(name: unique("Alpha"), cash_name: "A Cash", depot_name: "A Depot")
 
@@ -372,7 +380,7 @@ defmodule Portfolixir.Buckets.PortfolioSeedTest do
 
     prices = %{eur_sec.id => Decimal.new("111.11"), usd_sec.id => Decimal.new("100")}
 
-    assert {:ok, _} = Buckets.seed_portfolio_scope_buckets(@seed_actor)
+    assert {:ok, _} = Buckets.seed_scope_buckets_at_head(@seed_actor)
 
     %{views: views} = Buckets.migration_summary()
 

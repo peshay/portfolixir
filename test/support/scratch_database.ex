@@ -180,6 +180,17 @@ defmodule Portfolixir.ScratchDatabase do
     Migrator.run(Repo, migrations(dir), :up, to ++ [dynamic_repo: repo, log: false])
   end
 
+  @doc """
+  Runs the `down` of the last `steps` applied migrations in `dir` (default:
+  `migrations_dir/0`), from a fresh VM's schema caches. Answers the versions
+  it reverted; raises what a migration raises.
+  """
+  @spec rollback!(%{repo: pid()}, pos_integer(), String.t()) :: [pos_integer()]
+  def rollback!(%{repo: repo}, steps, dir \\ migrations_dir()) do
+    forget_schema_caches()
+    Migrator.run(Repo, migrations(dir), :down, step: steps, dynamic_repo: repo, log: false)
+  end
+
   @doc "Runs `fun` in this process with `Portfolixir.Repo` on the scratch database."
   @spec run(%{repo: pid()}, (-> result)) :: result when result: term()
   def run(%{repo: repo}, fun) do

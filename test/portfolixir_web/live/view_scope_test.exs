@@ -425,7 +425,7 @@ defmodule PortfolixirWeb.ViewScopeTest do
     # - Dismissing persists; a fresh mount no longer shows the notice.
     test "shows the migration notice until dismissed", %{conn: conn} do
       world()
-      {:ok, _summary} = Buckets.seed_portfolio_scope_buckets(Actor.owner_ui())
+      {:ok, _summary} = Buckets.seed_scope_buckets_at_head(Actor.owner_ui())
 
       {:ok, lv, html} = live(conn, "/portfolio")
       assert html =~ "Portfolios are now views"
@@ -450,7 +450,7 @@ defmodule PortfolixirWeb.ViewScopeTest do
     #   not render at all (no empty <ul>).
     test "the notice does not render when no seeded views remain", %{conn: conn} do
       world()
-      {:ok, _summary} = Buckets.seed_portfolio_scope_buckets(Actor.owner_ui())
+      {:ok, _summary} = Buckets.seed_scope_buckets_at_head(Actor.owner_ui())
 
       %{views: seeded_views} = Buckets.migration_summary()
 
