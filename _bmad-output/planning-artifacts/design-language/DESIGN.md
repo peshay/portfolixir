@@ -843,6 +843,8 @@ The phrase "data quality" names two different blocks and they are not the same c
 
 **Retired securities (PR #1102, 2026-10-05):** a hygiene finding's count and the list its link opens both leave retired securities out. The asset-class finding is a column filter, not a `dq` predicate, so its link carries `filter[]=is_retired:is_false`, which the list shows as a removable chip. Board: [mockups/retire-fix-2026-10-05/01-class-link.html](mockups/retire-fix-2026-10-05/01-class-link.html).
 
+**The quote finding says its scope, and the line's first finding its noun** *(2026-10-06, issue 1081, Sprint 19 PR α M6; board `mockups/ux-design-2026-10-04/01-overview-total`, pick J1.2 A and "found while drawing" 3)*: the quote finding — the one the strip's basis line about held positions would otherwise contradict — reads "25 Wertpapiere im Katalog ohne Kurs seit 7 Tagen", the catalog-wide count its link opens, as the strip's cell now says too; the class and logo findings say no scope word. **The line's first finding always carries its noun:** when no quote finding opens it, the class or logo finding that does reads "4 Wertpapiere ohne Anlageklasse" / "6 Wertpapiere ohne Logo"; a later finding keeps its short form ("· 4 ohne Anlageklasse"). The line counts nothing it did not count before: what the total leaves out is the value card's note (Components → The Overview's value card), not a count on this line (J1 B was not built). A count of N opens a list of N: `?dq=stale_quote` and `?dq=missing_logo` leave out benchmarks and retired securities as their counts do, and the asset-class count and its filtered list leave out retired securities and keep benchmarks (PR #1102); a test follows each of the three counts to its list.
+
 **Wealth → data quality is a list of {components.data-note} rows**, one per finding, at the finding's own severity (`portfolio_live.ex`, `#portfolio-data-quality`). Since issue 792 each finding is one `AppShell.data_note`, glyph and word included, with its remedy inside, all in one status region `[data-role="dq-notes"]` under the section's `<h2>`: trade-priced positions (a note), positions valued at a stale quote, positions with no price, positions with no FX rate, pre-1970 booking dates and cash accounts with no FX rate (attention), impossible negative holdings and bonds priced on two scales (problem). Severity assignment is in EXPERIENCE.md → Alignment inventory → UX-DR17. **The notes keep a gap** *(2026-10-05, #1055; board `mockups/ux-design-2026-10-04/02-money-notes`, found while drawing)*: the status region is a flex column with the `--space-2` gap, the comparison's `.comparison-notes` precedent, so two stacked notes never touch.
 
 **The unvalued-cash note prints each account's native balance** *(2026-10-05, #1055, Sprint 19 PR α M3; the same board's before/after)*: "2 Verrechnungskonten zählen nicht in die Summen, weil kein Wechselkurs zu EUR vorliegt: USD Settlement (1.850,00 USD), US Broker (60,00 USD)." — the balance in at least two decimals, with every further digit it carries (a balance below a cent reads "0,004 USD", never "0,00"), and the account's currency code: the shape the missing-FX note prints a native price in, nothing converted (UX-DR25 clause 2). It used to print "USD Settlement (USD)", the name and the code with no amount, in the note that says the total leaves the money out. It names only accounts that hold money: an empty account leaves nothing out of the total, as the performance walk counts it. The note stays a statement about today; what a balance did before its first rate is the contribution note's sentence (Wealth → Holdings → Performance, pick J2 A), which has a period.
@@ -1578,6 +1580,74 @@ extended).
   right end, keeping the picked view. `aria-busy` while either figure
   computes; a failed walk shows "—".
 
+### The Overview's value card: what the total leaves out *(2026-10-06, issue 1081, Sprint 19 PR α M6; board `mockups/ux-design-2026-10-04/01-overview-total`, pick J1 A; plan D-3)*
+
+The "Alles" card prints `total_with_cash`, which counts only what the
+valuation can value. UX-DR25 is the rule for exactly this aggregate, so the
+card's section names what the total leaves out, beside the figure. #703's
+routing (the Overview keeps the count as the alarm, Wealth names) was written
+for a condition *in* the total; this one is rows *out* of it.
+
+- **The note:** one `attention` {components.data-note}
+  (`data-role="wealth-card-excluded"`) under the card, inside the card's
+  `<section>` (the placement rule). Its body reads, on board 01's data:
+  "Nicht in der Summe: 2 Verrechnungskonten ohne Wechselkurs zu EUR — USD
+  Settlement (1.850,00 USD), US Broker (60,00 USD) · 1 gehaltene Position
+  ohne Preis — Placeholder Anleihe 2031 3,25%. Details in Vermögen →". The
+  English source says the same ("Not in the total: … Details in Wealth →").
+- **The groups, in this order**, separated by " · ", each with its count
+  (`ngettext`) and its names after an em dash:
+  1. the cash accounts with no rate path to the valuation's base currency
+     and a non-zero balance, each with its native balance as the Wealth
+     unvalued-cash note prints it, "USD Settlement (1.850,00 USD)" (UX-DR25
+     clause 2; an empty account leaves nothing out and is not named);
+  2. the held positions with no price (`unvalued_reason: :no_price`), by
+     name;
+  3. the held positions with a price but no rate path (`:missing_fx`),
+     "… ohne Wechselkurs zu EUR — Harborline Freight (12,40 USD)", the
+     native price as Wealth's missing-FX note prints it.
+
+  A group with no member is absent; **with no group there is no note**
+  (UX-DR2: no all-clear). A security held in several depots counts once;
+  two securities that share a name count twice.
+- **"+N":** each group lists at most six names, then "+N" — Wealth's rule,
+  the count taken before shortening so it stays true.
+- **One set of helpers for both screens:** the note reads only the
+  valuation the card already reads (`cash_balances[].valued`,
+  `positions[].unvalued_reason`; no new query), and its names and its
+  shortening come from the helpers Wealth's notes use, moved into
+  `PortfolixirWeb.ValuationNotes`. Wealth's notes render as they did.
+  **One difference is deliberate:** a retired security still held with no
+  price is named here, because the total under which the note sits leaves
+  it out; Wealth's no-price note leaves it out (PR #1102), because that note
+  links to `?dq=missing_quote`, a list without retired securities, and its
+  count must equal that list.
+- **The link, and no control** (UX-DR25 clause 3): "Details in Vermögen →"
+  links to `/portfolio`, as the card does — the session's view, with no
+  `?view=` and no stored choice. The rate sync and a price are fixed on
+  Wealth, so the note carries no button that cannot act from here. **The
+  consequence:** the note follows the card's scope, the default view, while
+  Wealth opens on the session's view, so where the two differ Wealth's
+  data-quality notes may name other rows than the note did; adding
+  `?view=` would also store that choice (`ViewScope`), which a link from
+  the Overview must not do.
+- **The section is not a `.grid`.** It holds one card in every state (the
+  card, the stale-value article, the skeleton). As a second `.grid` item the
+  note became a second column and the card shrank to 457 px at 980 px; with
+  `grid-column: 1 / -1` auto-fit stopped collapsing the empty tracks and the
+  card shrank to 221 px (both measured on the board). `.workspace-section`
+  is already a one-column grid with the 16 px gap, so without `grid` the
+  card keeps its full width at 980 and 390 px and the note takes its own
+  row under it.
+- **One status region:** the section carries one `role="status"` wrapper
+  (`#dashboard-wealth-card-status`) that exists before the async read lands,
+  as the data-quality line's does, so the note arriving with the card is
+  announced once (UX-DR17). Empty, it takes no room in the section's gap
+  (`.wealth-card-status:empty { display: none }`, the merge dialogs'
+  precedent).
+- **The Overview now carries two UX-DR25 notes**, each beside its own
+  figure: this one under the total, and the trades card's under its head.
+
 ### Overview KPI strip *(C2-B, issue 798; the rule is UX-DR2 as amended 2026-09-14)*
 
 `{components.kpi-strip}`: four fixed cells of the stat anatomy in one framed
@@ -1598,6 +1668,15 @@ sub-line only when n > 0.
 - **Stale sub-line** (`.kpi-strip__sub--attention`): {colors.warning},
   weight 600, the `:alert_triangle` glyph at 12 px before the count — the
   attention severity's glyph, as on the list row's stale marker.
+  *Amended 2026-10-06 (issue 1081, pick J1.2 A):* the count keeps its
+  catalog scope — the `stale_quote` predicate its link opens, benchmarks and
+  retired securities left out of both — and says so: "25 veraltet im
+  Katalog" (English "25 stale in the catalog"). Beside a basis line that
+  speaks of held positions, the difference is then stated (UX-DR26) instead
+  of a silent contradiction; a held-only count (J1.2 B) is not built. In the
+  178 px phone cell the sub-line wraps to two lines, and the glyph stays on
+  the first: `align-items: flex-start`, the glyph `flex: none` with a 2 px
+  top margin (board rule ②).
 - **Basis line** under the strip (`.summary-basis`): the view, the period to
   its date, the currency, and what the quotes cell measures.
 - **Pending:** each cell keeps its label and shows the value skeleton with

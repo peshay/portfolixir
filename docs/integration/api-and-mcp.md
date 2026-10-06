@@ -1730,7 +1730,12 @@ Example account payloads:
   enters the quote — so a consumer can reconstruct `cash_quote` itself. An
   account whose currency has no rate path to the base is reported
   `valued: false` and excluded from `total_cash`, mirroring how unpriceable
-  positions are handled.
+  positions are handled. `unvalued_cash_count` (#1081) counts such accounts
+  that hold a non-zero balance — the money `total_cash` and
+  `total_with_cash` leave out; an empty one is listed with `valued: false`
+  and not counted — in every form of the read, with or without
+  `include_positions`, so the roll-up-only read states the gap too; the
+  `valuation_note` states the rule.
   The response is self-describing (FR-13): it carries an `as_of` date (the read
   date — the valuation is computed live with no stored snapshot) and a
   `valuation_note` stating that totals are in `base_currency` via the EUR hub and
@@ -2730,8 +2735,9 @@ a view is not journaled: no rule can read it yet.
   position and cash account matching the view — an account tagged into several
   included buckets counts exactly once. The shape mirrors the portfolio
   valuation (totals, positions with weights and `price_source`/`valued` flags,
-  `cash_balances`, `cash_quote`, `as_of`, a `valuation_note`) with `view_id` in
-  place of `portfolio_id`; totals are in EUR, converted via the EUR hub, and
+  `cash_balances`, `cash_quote`, `unvalued_cash_count`, `as_of`, a
+  `valuation_note`) with `view_id` in place of `portfolio_id`, the count
+  covering the cash accounts matching the view; totals are in EUR, converted via the EUR hub, and
   all financial values are Decimal strings. An `overlap` object reports the
   account-level bucket overlap for UI badges (`overlapping`, plus the
   `securities_account_ids`/`cash_account_ids` carrying more than one included
@@ -3369,7 +3375,8 @@ names each address's code.
   booking the missing transaction of the correct kind instead of balance
   snapshots or unpriced deliveries.
 - `portfolixir.portfolios.valuation` — scope twin of `portfolixir.views.valuation`
-  (see "Scope twins" above).
+  (see "Scope twins" above). Both pass `unvalued_cash_count` through, with
+  or without `include_positions` (#1081).
 - `portfolixir.exchange_rates.list`
 - `portfolixir.exchange_rates.sync` — `scope=latest` (daily feed) or
   `scope=history` (the one-shot historical backfill, issue #737).

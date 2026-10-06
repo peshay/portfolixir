@@ -1566,17 +1566,32 @@ Zähler). Sobald Transaktionen existieren, zeigt sie eine **Wert-Karte,
 eingegrenzt auf die Standard-Ansicht** — **Alles**, wenn keine gesetzt ist
 (ADR-0024: Ansichten, nicht Portfolios, sind das, worüber die Übersicht
 aggregiert) — mit dem Gesamtwert inkl. Cash und der **YTD-TTWROR** als
-Änderungssignal — darunter die **Kennzahlenleiste** (UX-DR2 in der Fassung
-vom 2026-09-14, Issue #798): vier Zellen, jede verlinkt auf die Oberfläche,
+Änderungssignal. Die Summe zählt nur, was sich bewerten lässt, und **unter
+der Karte nennt ein Hinweis, was sie auslässt** (Issue #1081, UX-DR25): die
+Verrechnungskonten, deren Währung keinen Wechselkurs zur Basiswährung hat,
+je mit ihrem Saldo in der eigenen Währung, die gehaltenen Positionen ohne
+Preis und die gehaltenen Positionen mit Preis, aber ohne Wechselkurs, je mit
+ihrem Preis in der eigenen Währung — „Nicht in der Summe: 2
+Verrechnungskonten ohne Wechselkurs zu EUR — USD Settlement (1.850,00 USD),
+US Broker (60,00 USD) · 1 gehaltene Position ohne Preis — Placeholder
+Anleihe 2031 3,25%. Details in Vermögen →". Jede Gruppe nennt höchstens
+sechs Namen, dann „+N"; ein Konto mit Saldo null lässt nichts aus und wird
+nicht genannt; der Link öffnet das Vermögen, dessen Datenqualitäts-Abschnitt
+„Wechselkurse synchronisieren" anbietet. Lässt die Summe nichts aus, gibt es
+keinen Hinweis. Unter der Karte zeigt die Seite die **Kennzahlenleiste**
+(UX-DR2 in der Fassung vom 2026-09-14, Issue #798): vier Zellen, jede verlinkt auf die Oberfläche,
 der die Zahl gehört — die **TTWROR 1J** mit ihrem IRR (bei kürzerer
 Historie die Perioden-MWR) führt zum Vermögen, die **Cashquote** mit dem
 Cash-Betrag zum Vermögen, die **letzte Buchung** mit Datum, Art und Konto
 oder Wertpapier zu den Transaktionen, und die **Kursaktualität**, das Datum
 des neuesten gespeicherten Kurses über die gehaltenen Positionen, zur auf
-veraltete Kurse vorgefilterten Wertpapierliste; ihre Unterzeile „n veraltet"
-erscheint nur, wenn es veraltete Kurse gibt (sonst das Datum allein — ein
-Fakt, kein „alles in Ordnung"), und eine Basiszeile unter der Leiste nennt
-Ansicht, Zeitraum und Währung — die Karte **Abgeschlossene Trades** (UX-DR2
+veraltete Kurse vorgefilterten Wertpapierliste; ihre Unterzeile „n veraltet
+im Katalog" erscheint nur, wenn es veraltete Kurse gibt (sonst das Datum
+allein — ein Fakt, kein „alles in Ordnung"), und zählt den ganzen Katalog,
+gehalten oder nicht, also die Liste, die ihr Link öffnet — die Worte „im
+Katalog" sagen das neben einer Basiszeile über die gehaltenen Positionen —,
+und eine Basiszeile unter der Leiste nennt Ansicht, Zeitraum und Währung —
+die Karte **Abgeschlossene Trades** (UX-DR2
 in der Fassung vom 2026-10-01, Issue #984): die fünf zuletzt abgeschlossenen
 Rundläufe, neueste zuerst, je mit Verkaufsdatum und Haltedauer, dem
 realisierten Ergebnis in der Basiswährung in seiner Vorzeichenfarbe und
@@ -1598,13 +1613,21 @@ Drift-Balken um die Null neben ihrem Text und verlinkt in den Tab
 Klassifikationsbaum und aktiven Plan nennt, gegen den die Drift gerechnet
 wird (oder dass mehrere Pläne aktiv sind oder keiner) — und die
 **Datenqualitätszeile**: ein Hinweis,
-der die Wertpapiere ohne aktuellen Kurs, Anlageklasse oder Logo aufzählt,
-wobei jeder Zähler auf die exakt darauf vorgefilterte Wertpapierliste
-verlinkt. Die Zeile erscheint nur, wenn mindestens ein Zähler größer als null
-ist; ein sauberer Katalog zeigt nichts (kein grünes „alles in Ordnung"). Es
-gibt bewusst keinen Aktivitäts-Feed: die forensischen Details gehören dem
-Audit-Journal, und die Karte Abgeschlossene Trades zeigt, was ein Verkauf
-realisiert hat, nie die Buchung selbst.
+der die Wertpapiere im Katalog ohne aktuellen Kurs, Anlageklasse oder Logo
+aufzählt („25 Wertpapiere im Katalog ohne Kurs seit 7 Tagen · 4 ohne
+Anlageklasse"), wobei jeder Zähler auf die exakt darauf vorgefilterte
+Wertpapierliste verlinkt — ein Zähler N öffnet eine Liste von N: Die Zähler
+für veraltete Kurse und fehlende Logos und ihre Listen lassen Benchmarks und
+stillgelegte Wertpapiere aus, der Zähler für fehlende Anlageklassen und
+seine Liste lassen stillgelegte Wertpapiere aus und behalten Benchmarks. Der
+Befund, der die Zeile eröffnet, trägt das Substantiv („4 Wertpapiere ohne
+Anlageklasse").
+Die Zeile erscheint nur, wenn mindestens ein Zähler größer als null ist; ein
+sauberer Katalog zeigt nichts (kein grünes „alles in Ordnung"). Die Daten
+der Karte **Fällig** folgen der Oberflächensprache (15.10.2026 auf
+Deutsch). Es gibt bewusst keinen Aktivitäts-Feed: die forensischen Details
+gehören dem Audit-Journal, und die Karte Abgeschlossene Trades zeigt, was
+ein Verkauf realisiert hat, nie die Buchung selbst.
 
 [![Die Übersicht: die Wert-Karte, die Kennzahlenleiste, die Karte Abgeschlossene Trades mit vier Rundläufen, die Ziel-Abweichungen, die fälligen Termine und die Datenqualitätszeile](../screenshots/dashboard.png)](../screenshots/dashboard.png)
 

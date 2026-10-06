@@ -1430,18 +1430,31 @@ wizard (the ordered workflow path plus entity counts). Once transactions
 exist it shows one **value card scoped to the default view** — **Everything**
 when none is set (ADR-0024: views, not portfolios, are what the dashboard
 aggregates over) — with the total incl. cash and the **YTD TTWROR** as the
-change signal — under it the **key-figure strip** (UX-DR2 as amended
-2026-09-14, issue #798): four cells, each linking to the surface that owns
+change signal. The total counts only what can be valued, and **under the
+card a note names what it leaves out** (issue #1081, UX-DR25): the cash
+accounts whose currency has no exchange rate to the base currency, each with
+its balance in its own currency, the held positions with no price, and the
+held positions with a price but no exchange rate, each with its price in its
+own currency — "Not in the total: 2 cash accounts with no exchange rate to
+EUR — USD Settlement (1,850.00 USD), US Broker (60.00 USD) · 1 held position
+with no price — Placeholder Anleihe 2031 3,25%. Details in Wealth →". Each
+group names at most six, then "+N"; an account with a zero balance leaves
+nothing out and is not named; the link opens Wealth, whose data-quality
+section offers **Sync exchange rates**. When the total leaves nothing out,
+there is no note. Under the card, the page shows the **key-figure strip**
+(UX-DR2 as amended 2026-09-14, issue #798): four cells, each linking to the surface that owns
 its figure — the **1Y TTWROR** with its IRR (the period MWR for a shorter
 history) leading to Wealth, the **cash quote** with the cash amount leading
 to Wealth, the **last booking** with its date, kind and account or security
 leading to Transactions, and the **quote freshness**, the newest stored
 quote date across the held positions, leading to the securities list
-pre-filtered to stale quotes; its "n stale" sub-line appears only when
-stale quotes exist (with none, the date alone — a fact, not an all-clear
-badge), and a basis line under the strip names the view, the period and
-the currency — the **Closed trades** card (UX-DR2 as amended 2026-10-01,
-issue #984): the five most recently closed round-trips, newest first, each
+pre-filtered to stale quotes; its "n stale in the catalog" sub-line appears
+only when stale quotes exist (with none, the date alone — a fact, not an
+all-clear badge) and counts the whole catalog, held or not, which is the
+list its link opens — the words "in the catalog" say so beside a basis line
+about held positions — and a basis line under the strip names the view, the
+period and the currency — the **Closed trades** card (UX-DR2 as amended
+2026-10-01, issue #984): the five most recently closed round-trips, newest first, each
 with the date it was sold and how long it was held, its realised result in
 the base currency in its sign colour, and under it the return — **per year**
 ("p. a.") from 365 days of holding, **over the whole holding period**
@@ -1459,12 +1472,18 @@ zero beside its text and linking into the Wealth area's Allocation & targets
 tab, under a basis line naming the view, classification tree and
 active plan the drift steers against (or that several plans are active, or
 none) — and the **data-quality line**: one note listing the securities
-without a recent quote, asset class, or logo, each count linking to the
-securities list pre-filtered to exactly that set. The line renders only when
-at least one count is non-zero; a clean catalog shows nothing (no all-clear
-badge). There is deliberately no activity feed: the audit journal owns the
-forensic detail, and the Closed trades card shows what a sale realised, never
-the booking itself.
+in the catalog without a recent quote, asset class, or logo ("25 securities
+in the catalog without a quote in 7 days · 4 without an asset class"), each
+count linking to the securities list pre-filtered to exactly that set — a
+count of N opens a list of N: the stale-quote and logo counts and their
+lists leave out benchmarks and retired securities, the asset-class count and
+its list leave out retired securities and keep benchmarks. Whichever finding
+opens the line carries the noun ("4 securities without an asset class"). The line renders only when at least one count is
+non-zero; a clean catalog shows nothing (no all-clear badge). The **Due**
+card's dates follow the interface language (15.10.2026 in German). There is
+deliberately no activity feed: the audit journal owns the forensic detail,
+and the Closed trades card shows what a sale realised, never the booking
+itself.
 
 [![The Overview: the total value card, the key-figure strip, the Closed trades card with four round-trips, the Off target list, the due dates and the data-quality line](screenshots/dashboard.png)](screenshots/dashboard.png)
 
