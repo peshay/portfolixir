@@ -70,15 +70,22 @@ against that CA, read where Docker mounts it, so a proxy that tunnels only
 HTTPS carries these downloads too. That CA is then all apt trusts, so
 `build_ca` may be a bundle: for a proxy that only tunnels, the system's CA
 bundle; for one that re-signs some hosts and tunnels the rest, its CA and the
-system's bundle together,
-`cat proxy-ca.crt /etc/ssl/certs/ca-certificates.crt > build-ca.pem`. Without
-the secret, apt fetches from `http://deb.debian.org` as it always has. Three
-cases need more:
+system's bundle together, written outside the checkout so that it is never
+committed and never copied into an image by the development `Dockerfile`'s
+`COPY . .`:
+`cat proxy-ca.crt /etc/ssl/certs/ca-certificates.crt > $HOME/build-ca.pem`.
+Without the secret, apt fetches from `http://deb.debian.org` as it always has.
+Three cases need more:
 
 - **A proxy on the host's loopback.** A build runs in a network of its own, so
   a proxy listening on `127.0.0.1` is out of its reach. Build with the host's
   network, `--network host` (under Compose, `network: host` in the service's
-  `build:`), and pass the proxy as a build argument.
+  `build:`), and pass the proxy as a build argument. The host's network then
+  applies to the whole build, every step of it and, in the Compose example
+  below, both services', so code that runs at build time, such as dependency
+  compilation, can reach every service on the host's loopback, a running
+  instance included during a rebuild: prefer a proxy the build's own network
+  can reach, or stop the instance before rebuilding.
 - **A host whose egress blocks `deb.debian.org`.** Name the Debian mirrors it
   can reach in two build arguments, each a base URL such as
   `http://mirror.example/`. Under `DEBIAN_MIRROR` the mirror serves the Debian
@@ -94,8 +101,10 @@ cases need more:
   CA store; the runtime stage has none before it installs `ca-certificates`,
   so there the build stops before apt with one line. Pass a CA bundle as the
   secret, or name the mirror with `http://`. A mirror URL is recorded in the
-  image's build history, so it carries no credentials: the build refuses one
-  with a user name or a token in it. Empty, both arguments change nothing.
+  image's build history, so it must carry no credentials. The build refuses
+  one with credentials in its authority (`user:password@`), but nothing stops
+  a token elsewhere in it: never put a token anywhere in the URL, its path
+  included. Empty, both arguments change nothing.
 - **A host that reaches no Debian mirror at all.** Build the application's
   image on a machine that does, and move it with `docker save` and
   `docker load`. Portfolixir publishes no image: a release is a tag of this
@@ -105,7 +114,7 @@ cases need more:
 A build through a proxy on the host's loopback, from mirrors:
 
 ```bash
-docker build --network host --secret id=build_ca,src=/path/to/build-ca.pem \
+docker build --network host --secret id=build_ca,src=$HOME/build-ca.pem \
   --build-arg HTTPS_PROXY=http://127.0.0.1:3128 \
   --build-arg DEBIAN_MIRROR=http://mirror.example/ \
   --build-arg DEBIAN_SECURITY_MIRROR=http://security.example/ \
@@ -132,7 +141,7 @@ services:
         HTTPS_PROXY: http://127.0.0.1:3128
 secrets:
   build_ca:
-    file: /path/to/build-ca.pem
+    file: $HOME/build-ca.pem
 ```
 
 The move: Compose runs the application from the image `<project>-app`,
@@ -179,8 +188,10 @@ the Compose file splices it into the database URL, where a `/` or `#` from
 base64 would break the connection string. Generate `PORTFOLIXIR_UI_PASSWORD`,
 the web UI's login, with `openssl rand -base64 24`, or choose a passphrase and
 put it in single quotes in `.env` (`PORTFOLIXIR_UI_PASSWORD='…'`), because
-Compose reads a `$` in an unquoted value as a variable. Left empty, the web UI
-is open.
+Compose reads a `$` in an unquoted value as a variable. Such a passphrase holds
+no single quote, which ends the quoted value, and does not end in a backslash,
+which escapes the closing quote; `openssl rand -base64 24` prints neither and
+needs no quotes. Left empty, the web UI is open.
 
 | Variable | Required | What it does |
 |---|---|---|

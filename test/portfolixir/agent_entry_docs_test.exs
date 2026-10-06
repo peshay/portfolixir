@@ -246,7 +246,8 @@ defmodule Portfolixir.AgentEntryDocsTest do
   # - The secrets step of the README ("Run with Docker Compose") and of
   #   llms.txt (step 2) names `PORTFOLIXIR_UI_PASSWORD`, how to generate it
   #   (`openssl rand -base64 24`, or a passphrase in single quotes, which
-  #   Compose does not interpolate), and that left empty the web UI is open.
+  #   Compose does not interpolate, holding no single quote and not ending in
+  #   a backslash), and that left empty the web UI is open.
   # - .env.example keeps the variable empty, under a comment that says the web
   #   UI is open while it is empty.
   # - The README, llms.txt and the Connect pages name Import where the UI puts
@@ -279,6 +280,10 @@ defmodule Portfolixir.AgentEntryDocsTest do
       assert step =~ "`openssl rand -base64 24`", path
       assert step =~ "passphrase", path
       assert step =~ "in single quotes in `.env`", path
+      # #1093 review round: a single quote ends the quoted value, and a
+      # trailing backslash escapes the closing quote.
+      assert step =~ "holds no single quote", path
+      assert step =~ "does not end in a backslash", path
       assert step =~ "left empty, the web UI is open", path
     end
 

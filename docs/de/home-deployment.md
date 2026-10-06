@@ -73,16 +73,23 @@ CA, die es dort liest, wo Docker sie einhängt; so trägt auch ein Proxy, der nu
 HTTPS tunnelt, diese Downloads. Dann vertraut apt allein dieser CA, und
 `build_ca` darf deshalb ein Bündel sein: für einen Proxy, der nur tunnelt, das
 CA-Bündel des Systems; für einen, der manche Hosts neu signiert und den Rest
-tunnelt, seine CA und das Bündel des Systems zusammen,
-`cat proxy-ca.crt /etc/ssl/certs/ca-certificates.crt > build-ca.pem`. Ohne das
-Secret lädt apt wie bisher von `http://deb.debian.org`. Drei Fälle brauchen
-mehr:
+tunnelt, seine CA und das Bündel des Systems zusammen, geschrieben außerhalb
+des Checkouts, damit es nie committet und nie vom `COPY . .` des
+Entwicklungs-`Dockerfile` in ein Image kopiert wird:
+`cat proxy-ca.crt /etc/ssl/certs/ca-certificates.crt > $HOME/build-ca.pem`.
+Ohne das Secret lädt apt wie bisher von `http://deb.debian.org`. Drei Fälle
+brauchen mehr:
 
 - **Ein Proxy auf dem Loopback des Hosts.** Ein Build läuft in einem eigenen
   Netz, ein Proxy, der auf `127.0.0.1` lauscht, ist für ihn nicht erreichbar.
   Baue mit dem Netz des Hosts, `--network host` (unter Compose
   `network: host` im `build:` des Dienstes), und gib den Proxy als
-  Build-Argument mit.
+  Build-Argument mit. Das Netz des Hosts gilt dann für den ganzen Build, für
+  jeden seiner Schritte und im Compose-Beispiel unten für beide Dienste; Code,
+  der beim Build läuft, etwa das Kompilieren der Abhängigkeiten, erreicht so
+  jeden Dienst auf dem Loopback des Hosts, bei einem Neubau auch eine laufende
+  Instanz: Nimm lieber einen Proxy, den das eigene Netz des Builds erreicht,
+  oder halte die Instanz vor dem Neubau an.
 - **Ein Host, dessen ausgehender Verkehr `deb.debian.org` sperrt.** Nenne die
   Debian-Mirrors, die er erreicht, in zwei Build-Argumenten, jedes eine
   Basis-URL wie `http://mirror.example/`. Unter `DEBIAN_MIRROR` liefert der
@@ -99,8 +106,10 @@ mehr:
   Runtime-Stage hat keinen, bevor sie `ca-certificates` installiert, und dort
   hält der Build vor apt mit einer Zeile an. Gib ein CA-Bündel als Secret mit,
   oder nenne den Mirror mit `http://`. Eine Mirror-URL steht in der
-  Build-Historie des Images und trägt deshalb keine Zugangsdaten: Eine mit
-  Benutzername oder Token lehnt der Build ab. Leer ändern beide Argumente
+  Build-Historie des Images und darf deshalb keine Zugangsdaten tragen. Der
+  Build lehnt eine mit Zugangsdaten im Authority-Teil (`user:password@`) ab,
+  ein Token an anderer Stelle hält aber nichts auf: Setze nie ein Token
+  irgendwo in die URL, auch nicht in ihren Pfad. Leer ändern beide Argumente
   nichts.
 - **Ein Host, der gar keinen Debian-Mirror erreicht.** Baue das Image der
   Anwendung auf einem Rechner, der einen erreicht, und bring es mit
@@ -111,7 +120,7 @@ mehr:
 Ein Build über einen Proxy auf dem Loopback des Hosts, aus Mirrors:
 
 ```bash
-docker build --network host --secret id=build_ca,src=/pfad/zu/build-ca.pem \
+docker build --network host --secret id=build_ca,src=$HOME/build-ca.pem \
   --build-arg HTTPS_PROXY=http://127.0.0.1:3128 \
   --build-arg DEBIAN_MIRROR=http://mirror.example/ \
   --build-arg DEBIAN_SECURITY_MIRROR=http://security.example/ \
@@ -138,7 +147,7 @@ services:
         HTTPS_PROXY: http://127.0.0.1:3128
 secrets:
   build_ca:
-    file: /pfad/zu/build-ca.pem
+    file: $HOME/build-ca.pem
 ```
 
 Der Umzug: Compose startet die Anwendung aus dem Image `<projekt>-app`, in den
@@ -186,8 +195,11 @@ Base64 die Verbindungszeichenkette zerlegen würde. Erzeuge
 `PORTFOLIXIR_UI_PASSWORD`, die Anmeldung der Web-Oberfläche, mit
 `openssl rand -base64 24`, oder wähle eine Passphrase und setze sie in der
 `.env` in einfache Anführungszeichen (`PORTFOLIXIR_UI_PASSWORD='…'`), denn
-Compose liest ein `$` in einem Wert ohne Anführungszeichen als Variable. Leer
-ist die Web-Oberfläche offen.
+Compose liest ein `$` in einem Wert ohne Anführungszeichen als Variable. Eine
+solche Passphrase enthält kein einfaches Anführungszeichen, das den Wert
+beendet, und endet nicht auf einen Backslash, der das schließende
+Anführungszeichen maskiert; `openssl rand -base64 24` erzeugt keins von beiden
+und braucht keine Anführungszeichen. Leer ist die Web-Oberfläche offen.
 
 | Variable | Pflicht | Wirkung |
 |---|---|---|

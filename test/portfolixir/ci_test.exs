@@ -1599,11 +1599,17 @@ defmodule Portfolixir.CITest do
     for guide <- ["docs/home-deployment.md", "docs/de/home-deployment.md"] do
       text = guide |> File.read!() |> String.replace(~r/\s+/, " ")
 
+      # #1092 review round: the bundle is written outside the checkout, and
+      # the secret and Compose examples read it there; the guide names what
+      # the script refuses, credentials in the authority, and no more.
       for fragment <- [
             "--build-arg DEBIAN_MIRROR=http://mirror.example/",
             "DEBIAN_SECURITY_MIRROR",
             "`debian-security`",
-            "cat proxy-ca.crt /etc/ssl/certs/ca-certificates.crt > build-ca.pem",
+            "cat proxy-ca.crt /etc/ssl/certs/ca-certificates.crt > $HOME/build-ca.pem",
+            "--secret id=build_ca,src=$HOME/build-ca.pem",
+            "file: $HOME/build-ca.pem",
+            "`user:password@`",
             "--network host",
             "network: host",
             "--platform linux/",
@@ -1612,7 +1618,17 @@ defmodule Portfolixir.CITest do
           ] do
         assert text =~ fragment, "#{guide}: #{fragment}"
       end
+
+      refute text =~ "> build-ca.pem", "#{guide}: the bundle is written into the checkout"
+
+      refute text =~ ~r{/(path/to|pfad/zu)/build-ca\.pem},
+             "#{guide}: the bundle under a placeholder path, not where it was written"
     end
+
+    # A CA bundle that does land in the checkout never enters the build
+    # context, and so never an image through the development Dockerfile's
+    # `COPY . .`.
+    assert "**/*.pem" in String.split(File.read!(".dockerignore"), "\n")
   end
 
   # The sources a Debian bookworm image ships, in deb822 form, and the same

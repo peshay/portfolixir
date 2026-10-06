@@ -204,8 +204,10 @@ Create `.env` from `.env.example`, readable by you only
 `openssl rand -base64 48`, `POSTGRES_PASSWORD` from `openssl rand -hex 32`, and
 `PORTFOLIXIR_UI_PASSWORD`, the web UI's login, from `openssl rand -base64 24` or
 a passphrase of at least 12 characters you choose, in single quotes in `.env`
-because Compose reads a `$` in an unquoted value as a variable: left empty, the
-web UI is open and asks for no login. Then build and start the stack in the background;
+because Compose reads a `$` in an unquoted value as a variable (such a
+passphrase holds no single quote, which ends the quoted value, and does not end
+in a backslash, which escapes the closing quote): left empty, the web UI is
+open and asks for no login. Then build and start the stack in the background;
 the command returns once the stack is up (without `-d` it stays attached to the
 logs until you stop it):
 
