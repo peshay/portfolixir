@@ -1261,13 +1261,18 @@ nennt sie mit der Kategorie, in der sie eingeordnet ist, und dem Einstand in
 der Währung, in der er bezahlt wurde: „1 Position ist in „Einstand“ und
 „Ergebnis“ nicht enthalten, weil ihr Einstand nicht in EUR bezahlt wurde:
 Harborline Freight Inc (Plattformen), Einstand 1.500,00 USD. Im „Wert“ ist sie
-enthalten." Ein Wertpapier, das in einem EUR-Portfolio und in einem anderen
-liegt, bleibt ganz heraus, mit beiden Einständen („Einstand 1.000,00 EUR +
-1.500,00 USD"). Derselbe Hinweis nennt jede andere Position, die die Zahlen
+enthalten." Den letzten Satz gibt es nur, wenn die Spalte **Wert** die
+Position bewerten kann. Ein Wertpapier, das in einem EUR-Portfolio und in einem
+anderen liegt, bleibt ganz heraus, mit beiden Einständen („Einstand 1.000,00 EUR
++ 1.500,00 USD"). Derselbe Hinweis nennt jede andere Position, die die Zahlen
 auslassen, mit ihrem Grund in Worten; ab zwei Positionen nennt er die Anzahl
 und listet sie in einer Aufklappliste. Fehlt nichts, gibt es keinen Hinweis.
 Das Lesen einer Ansicht über die API (`GET
-/api/v1/views/:view_id/category-results`) folgt derselben Regel.
+/api/v1/views/:view_id/category-results`) wendet dieselbe EUR-Regel an: Es
+listet jede ausgelassene Position je Kategorie mit ihrem Grund, in EUR, trägt
+aber noch keinen Einstand in eigener Währung und keine Liste einmal je Baum
+(#1091). Das Lesen über alle Portfolios, das der Bildschirm nutzt, hat noch
+keine API.
 
 > **Ziele je Position (ADR-0030, #481).** Zielgewichte lassen sich nun bis auf
 > eine **einzelne Position** setzen (ein Wertpapier unter einer Kategorie), nicht

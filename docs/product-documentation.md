@@ -1147,12 +1147,16 @@ cost nobody paid. A note between the basis line and the tree names it with the
 category it is filed under and the cost it was paid, in its own currency — "1
 position is not included in “Cost” and “Result” because its cost was not paid
 in EUR: Harborline Freight Inc (Platforms), cost 1,500.00 USD. It is included in
-“Value”." A security held in a EUR portfolio and in one outside EUR is left out
-whole, with both costs ("cost 1,000.00 EUR + 1,500.00 USD"). The same note names
-every other position the figures leave out, with its reason in words; past one
-position it gives the count and lists them behind a disclosure. When nothing is
-left out there is no note. The view read over the API (`GET
-/api/v1/views/:view_id/category-results`) follows the same rule.
+“Value”." The last sentence appears only when the **Value** column can value
+the position. A security held in a EUR portfolio and in one outside EUR is left
+out whole, with both costs ("cost 1,000.00 EUR + 1,500.00 USD"). The same note
+names every other position the figures leave out, with its reason in words; past
+one position it gives the count and lists them behind a disclosure. When nothing
+is left out there is no note. The view read over the API (`GET
+/api/v1/views/:view_id/category-results`) applies the same EUR rule: it lists
+each excluded position per category with its reason, in EUR, but carries no
+native cost and no once-per-tree list yet (#1091). The screen's read across
+every portfolio has no API yet.
 
 > **Per-position targets (ADR-0030, #481).** Target weights can now be set down
 > to an **individual position** (a security under a category), not just per

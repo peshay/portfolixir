@@ -357,16 +357,18 @@ defmodule PortfolixirWeb.ClassificationsLive do
             <summary aria-label={gettext("About the result")}>ⓘ</summary>
             <p role="tooltip">
               <%= gettext(
-                "Cost and result cover the positions filed here today — a statement about the current composition, not a period return."
+                "Cost and result cover the positions filed here today, in %{currency} — a statement about the current composition, not a period return. A position whose cost was not paid in %{currency} is left out of both and named above; “Value” still counts it when it has a value.",
+                currency: @results.base_currency
               ) %>
             </p>
           </details>
         </div>
         <.excluded_note
-          :if={@results && @results.excluded != []}
+          :if={@results}
           excluded={@results.excluded}
           currency={@results.base_currency}
           categories={@tree.flat}
+          holdings={@holdings}
         />
         <%!-- #805 (review C8, variant A): the row figures stand in named,
              right-aligned columns under one head; an empty category prints
@@ -646,17 +648,20 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # #1048 (pick J10.2 A; board ux-design-2026-10-04/10-category-results ②):
   # the members the roll-up leaves out of "Cost" and "Result" are named where
   # the totals are read -- one attention data note between the basis line and
-  # the tree head, in its own status region (UX-DR25). It gives each member's
+  # the tree head, in a status region that is there whenever the result is,
+  # so the note's arrival is announced (UX-DR25). It gives each member's
   # category, and the cost it was paid in its own currency (clause 2, never
   # converted) or its reason in words. It has no control, because there is
-  # nothing to fix here (clause 3). Only a member out for its cost's currency
-  # is said to be in "Value", which counts it (UX-DR26). Past one member the
+  # nothing to fix here (clause 3). A member is said to be in "Value" exactly
+  # when the valuation that column reads gives it a value, whatever its reason
+  # (UX-DR26): never of a member whose row prints "—". Past one member the
   # names sit in a disclosure as aligned lines, the trades facet's
   # unmatched-sells shape. The category names come from the tree on screen.
   # Nothing excluded, no note: UX-DR2 has no all-clear.
   attr(:excluded, :list, required: true)
   attr(:currency, :string, required: true)
   attr(:categories, :list, required: true)
+  attr(:holdings, :map, default: nil)
 
   defp excluded_note(assigns) do
     assigns =
@@ -667,20 +672,23 @@ defmodule PortfolixirWeb.ClassificationsLive do
       )
       |> assign(:count, length(assigns.excluded))
       |> assign(:paid_elsewhere, Enum.count(assigns.excluded, &paid_elsewhere?/1))
+      |> assign(:valued, Enum.count(assigns.excluded, &valued?(&1, assigns.holdings)))
       |> assign(:single, single_member(assigns.excluded))
 
     ~H"""
-    <div role="status">
-      <AppShell.data_note severity={:attention} data-role="category-result-excluded">
+    <div role="status" data-role="category-result-excluded-region">
+      <AppShell.data_note
+        :if={@excluded != []}
+        severity={:attention}
+        data-role="category-result-excluded"
+      >
         <%= if @single do %>
           <%= single_excluded_lead(@single, @currency) %>
           <bdi><%= @single.security_name %></bdi><%= excluded_tail(@single, @names, @currency) %>
-          <%= if paid_elsewhere?(@single) do %>
-            <%= ngettext("It is included in “Value”.", "They are included in “Value”.", 1) %>
-          <% end %>
+          <%= excluded_value_sentence(1, @valued) %>
         <% else %>
           <%= excluded_lead(@count, @paid_elsewhere, @currency) %>
-          <%= excluded_value_sentence(@count, @paid_elsewhere, @currency) %>
+          <%= excluded_value_sentence(@count, @valued) %>
           <details class="perf-table-disclosure" data-role="category-result-excluded-list">
             <summary class="disclosure-summary">
               <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
@@ -707,14 +715,28 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # carries that cost; every other exclusion carries none.
   defp paid_elsewhere?(member), do: member.native_costs != []
 
+  # In "Value" exactly when the valuation that column reads values it: the
+  # screen's holdings map, keyed by security (nil until it has loaded).
+  defp valued?(member, holdings),
+    do: match?(%{market_value: %Decimal{}}, Map.get(holdings || %{}, member.security_id))
+
   defp single_excluded_lead(member, currency) do
-    if paid_elsewhere?(member),
-      do:
+    cond do
+      Enum.any?(member.native_costs, &(&1.currency == currency)) ->
+        gettext(
+          "1 position is not included in “Cost” and “Result” because its cost was not paid in %{currency} alone:",
+          currency: currency
+        )
+
+      paid_elsewhere?(member) ->
         gettext(
           "1 position is not included in “Cost” and “Result” because its cost was not paid in %{currency}:",
           currency: currency
-        ),
-      else: gettext("1 position is not included in “Cost” and “Result”:")
+        )
+
+      true ->
+        gettext("1 position is not included in “Cost” and “Result”:")
+    end
   end
 
   # The single member's name is the caller's <bdi>; this is the rest of its
@@ -748,26 +770,25 @@ defmodule PortfolixirWeb.ClassificationsLive do
         count
       )
 
-  # "Value" counts a member out for its cost's currency, and only such a
-  # member: one with no price or no derivable cost is not said to be in it.
-  defp excluded_value_sentence(_count, 0, _currency), do: nil
+  # Whether "Value" counts them: every one, some, or none of the members.
+  defp excluded_value_sentence(_count, 0), do: nil
 
-  defp excluded_value_sentence(count, count, _currency),
+  defp excluded_value_sentence(count, count),
     do: ngettext("It is included in “Value”.", "They are included in “Value”.", count)
 
-  defp excluded_value_sentence(_count, paid_elsewhere, currency),
+  defp excluded_value_sentence(_count, valued),
     do:
       ngettext(
-        "The one whose cost was not paid in %{currency} is included in “Value”.",
-        "The %{count} whose cost was not paid in %{currency} are included in “Value”.",
-        paid_elsewhere,
-        currency: currency
+        "%{count} of them is included in “Value”.",
+        "%{count} of them are included in “Value”.",
+        valued
       )
 
   # The native cost, one amount per currency, each in the currency it was
-  # paid in -- never converted (UX-DR25 clause 2). Otherwise the reason.
+  # paid in -- never converted (UX-DR25 clause 2) -- in money's two
+  # decimals. Otherwise the reason.
   defp cost_or_reason(%{native_costs: [_ | _] = costs}, _currency) do
-    amounts = Enum.map_join(costs, " + ", &"#{Format.native_amount(&1.amount)} #{&1.currency}")
+    amounts = Enum.map_join(costs, " + ", &"#{Format.money(&1.amount)} #{&1.currency}")
     gettext("cost %{amount}", amount: amounts)
   end
 
@@ -781,8 +802,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp excluded_reason(:missing_native_cost, _currency),
     do: gettext("no cost derivable from its bookings")
 
-  defp excluded_reason(:missing_base_cost, currency),
-    do: gettext("no cost in %{currency} derivable", currency: currency)
+  # Relative to the portfolio's base currency (ADR-0033), which need not be
+  # the result's.
+  defp excluded_reason(:missing_base_cost, _currency),
+    do: gettext("no cost derivable in its portfolio's base currency")
 
   defp excluded_reason(:missing_fx, _currency), do: gettext("no stored exchange rate")
 
@@ -846,7 +869,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
               data-role="category-result-partial"
               title={
                 gettext(
-                  "Some positions here have no derivable result and are left out of both sides of the sum, rather than counted as zero."
+                  "Some positions here are left out of both sides of the sum, rather than counted as zero, because no result in %{currency} is derivable for them.",
+                  currency: @results.base_currency
                 )
               }
             ><%= result.covered_count %>/<%= result.member_count %></span>
