@@ -4574,11 +4574,11 @@ the Imports page. Built in `PortfolixirWeb.ImportsLive`, the two parsers and
     security transfer, the sending or the receiving side, with a blank
     `Gegenkonto`: "transfer without a counter account — row not imported" /
     "Umbuchung ohne Gegenkonto — Zeile nicht übernommen"; with a blank
-    `Konto`: "transfer without an account — …" / "Umbuchung ohne Konto — …";
-    with the same name in both: "transfer to its own account — …" /
-    "Umbuchung auf das eigene Konto — …". A CSV *Kauf* or *Verkauf* with a
-    blank `Gegenkonto`: "buy without a counter account — …" / "Kauf ohne
-    Gegenkonto — …" (and "sell …" / "Verkauf …"). A JSON `CASH_TRANSFER`
+    `Konto`: "transfer without an account — …" / "Umbuchung ohne Konto — …".
+    One name in both is no row error: the apply skips that transfer and lists
+    it under the internal transfers (ADR-0050 §5). A CSV *Kauf* or *Verkauf*
+    with a blank `Gegenkonto`: "buy without a counter account — …" / "Kauf
+    ohne Gegenkonto — …" (and "sell …" / "Verkauf …"). A JSON `CASH_TRANSFER`
     without `otherAccount`, or `SECURITY_TRANSFER` without `otherPortfolio`,
     takes the first sentence. Each names the file's column, which is what the
     operator finds in Portfolio Performance, never a ledger field; a

@@ -868,8 +868,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
   #   row error "transfer without an account — row not imported" ("Umbuchung
   #   ohne Konto — Zeile nicht übernommen").
   # - A transfer row whose Konto and Gegenkonto name the same account or depot
-  #   is the row error "transfer to its own account — row not imported"
-  #   ("Umbuchung auf das eigene Konto — Zeile nicht übernommen").
+  #   is no row error: it previews, and the apply skips it and lists it under
+  #   the internal transfers (ADR-0050 §5, invariant 7), as it does a JSON
+  #   transfer naming one account twice.
   # - A Kauf or Verkauf with a blank Gegenkonto, its cash account, is the row
   #   error "buy without a counter account — row not imported" / "sell
   #   without a counter account — row not imported" ("Kauf ohne Gegenkonto —
@@ -898,24 +899,28 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       assert Enum.map(preview.entries, & &1.source_row) == [5]
     end
 
-    test "a transfer whose Konto and Gegenkonto are the same is a row error" do
+    # ADR-0050 §5 and its invariant 7: a transfer whose two legs are one
+    # account or depot is void, and the apply skips it unconditionally and
+    # reports it in `internal_transfers`, never as an error. So the parser
+    # passes it on as it reads, as the JSON parser does; the apply's half is
+    # pinned in test/portfolixir/imports/reimport_contract_test.exs.
+    test "a transfer whose Konto and Gegenkonto are the same previews, for the apply to skip (ADR-0050 §5)" do
       preview =
         transfers("""
         2024-08-12 10:00:00;Umbuchung (Ausgang);;;;100,00;;;100,00;Cash-A;Cash-A;;
-        2024-08-12 10:00:00;Umbuchung (Eingang);;;;100,00;;;100,00;Cash-A; Cash-A ;;
+        2024-08-14 10:00:00;Umbuchung (Eingang);;;;100,00;;;100,00;Cash-A; Cash-A ;;
         2024-11-15 21:00:00;Umbuchung (Ausgang);Example Fund;3;20,00;60,00;;;60,00;Depot-A;Depot-A;;
         2024-08-13 10:00:00;Umbuchung (Ausgang);;;;50,00;;;50,00;Cash-A;Cash-B;;
         """)
 
-      own = "transfer to its own account — row not imported"
+      assert preview.errors == []
 
-      assert Enum.map(preview.errors, &{&1.row, &1.message}) == [
-               {1, own},
-               {2, own},
-               {3, own}
+      assert Enum.map(preview.entries, &{&1.source_row, direction(&1)}) == [
+               {1, {"cash_transfer", nil, "Cash-A", nil, "Cash-A"}},
+               {2, {"cash_transfer", nil, "Cash-A", nil, "Cash-A"}},
+               {3, {"security_transfer", "Depot-A", nil, "Depot-A", nil}},
+               {4, {"cash_transfer", nil, "Cash-A", nil, "Cash-B"}}
              ]
-
-      assert Enum.map(preview.entries, & &1.source_row) == [4]
     end
 
     test "a buy or a sell with a blank Gegenkonto is a row error" do
@@ -940,14 +945,12 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       preview =
         transfers("""
         2024-08-12 10:00:00;Umbuchung (Ausgang);;;;100,00;;;100,00;;Cash-B;;
-        2024-08-12 10:00:00;Umbuchung (Ausgang);;;;100,00;;;100,00;Cash-A;Cash-A;;
         2024-01-15 10:01:00;Kauf;Example Fund;10;150,00;1.500,00;;;1.500,00;Depot-A;;;
         2024-02-15 10:01:00;Verkauf;Example Fund;5;160,00;800,00;;;800,00;Depot-A;;;
         """)
 
       assert Enum.map(preview.errors, & &1.message) == [
                "Umbuchung ohne Konto — Zeile nicht übernommen",
-               "Umbuchung auf das eigene Konto — Zeile nicht übernommen",
                "Kauf ohne Gegenkonto — Zeile nicht übernommen",
                "Verkauf ohne Gegenkonto — Zeile nicht übernommen"
              ]

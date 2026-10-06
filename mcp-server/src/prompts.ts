@@ -186,7 +186,7 @@ Any language the operator can run. Make it deterministic, so the same input alwa
   - Umbuchung (Ausgang): Konto is the account the money leaves, Gegenkonto the account it reaches; write one row per transfer, never a second row for the receiving side;
   - Einlieferung and Auslieferung: Konto is the depot;
   - Umbuchung (Wertpapier): Konto is the depot the shares leave, Gegenkonto the depot they reach.
-  So a transfer row needs both Konto and Gegenkonto, filled and never the same account, or the preview refuses the row; likewise a Kauf or Verkauf without a Gegenkonto is refused.
+  So a transfer row needs both Konto and Gegenkonto filled, or the preview refuses the row; likewise a Kauf or Verkauf without a Gegenkonto is refused.
 - Wertpapier is the security's name, required on Kauf, Verkauf, Dividende and the three share movements. The CSV carries no ISIN, so the importer matches a security by its name: spell each security one way throughout. Stück is the quantity, greater than zero on a trade or a share movement. Kurs is the price per unit, required on Kauf and Verkauf; give it on a delivery too, where it sets the cost basis. Notiz is free text.
 - The CSV books every row in EUR: it has no currency column. If the export holds amounts in another currency, do not convert them yourself; write the JSON v1 variant below.
 - Two bookings that agree in Datum (with its time), Typ, Wertpapier, Stück, Kurs, Betrag, Gebühren, Steuern, Konto and Gegenkonto are one booking to the importer, whatever their Notiz: its content hash leaves Notiz out. Give genuinely separate ones distinct times, derived from the source (its own time, or 00:00:01, 00:00:02 and so on in source order), never from the clock, and never keep them apart through Notiz.

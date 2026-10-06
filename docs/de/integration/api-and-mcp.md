@@ -3564,8 +3564,8 @@ Trade.
   in EUR und die JSON-v1-Variante für andere Währungen und für ISINs, mit je
   einem synthetischen Beispiel, das ein Test durch die echte Import-Seite
   führt. Er nennt die Zeilen, die die Vorschau ablehnt: eine Umbuchung ohne
-  beide Seiten oder mit demselben Konto auf beiden, einen Kauf oder Verkauf
-  ohne sein Verrechnungskonto, eine ISIN ohne gültige Prüfziffer und, in JSON
+  beide Seiten, einen Kauf oder Verkauf ohne sein Verrechnungskonto, eine
+  ISIN ohne gültige Prüfziffer und, in JSON
   v1, eine Währung außer denen, die der Wertpapier-Dialog anbietet. Er bindet
   den Agenten: kein Broker-Sync, kein Netzwerk- und kein Modellaufruf, nur
   synthetische Beispiele, und die umgewandelten Zeilen einzeln über

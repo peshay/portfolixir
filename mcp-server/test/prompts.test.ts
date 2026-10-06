@@ -298,9 +298,12 @@ describe("the companion's prompts", () => {
   // in the operator's preview.
   //
   // Acceptance criteria:
-  // - A transfer row names both sides, filled and never the same account: in
-  //   the CSV (Umbuchung (Ausgang) and Umbuchung (Wertpapier)) and in JSON v1
-  //   (otherAccount, otherPortfolio). A Kauf or Verkauf names its Gegenkonto.
+  // - A transfer row names both sides, filled: in the CSV (Umbuchung
+  //   (Ausgang) and Umbuchung (Wertpapier)) and in JSON v1 (otherAccount,
+  //   otherPortfolio). A Kauf or Verkauf names its Gegenkonto.
+  // - The prompt never calls one account on both sides a refusal: the
+  //   preview takes such a transfer and the apply skips it as an internal
+  //   transfer (ADR-0050 §5).
   // - A JSON v1 row's currency, and its security's, is one Portfolixir
   //   supports (the currencies its security dialog offers); any other code is
   //   refused, as an ISIN without a valid check digit is.
@@ -309,8 +312,9 @@ describe("the companion's prompts", () => {
 
     assert.match(
       text,
-      /a transfer row needs both Konto and Gegenkonto, filled and never the same account, or the preview refuses the row/
+      /a transfer row needs both Konto and Gegenkonto filled, or the preview refuses the row/
     );
+    assert.doesNotMatch(text, /never the same account/);
     assert.match(text, /a Kauf or Verkauf without a Gegenkonto is refused/);
     assert.match(
       text,

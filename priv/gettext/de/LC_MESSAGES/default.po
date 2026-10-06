@@ -4289,13 +4289,13 @@ msgstr "Anlegen des Wertpapiers fehlgeschlagen: %{errors}"
 msgid "Row %{row}: %{message}"
 msgstr "Zeile %{row}: %{message}"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:553
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:554
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:239
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (before 1900) — fix the booking in the source and re-import"
 msgstr "Unplausibles Datum %{date} (vor 1900) — korrigiere die Buchung in der Quelle und importiere erneut"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:571
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:572
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:251
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
@@ -4366,7 +4366,7 @@ msgstr "%{field} ist kein gültiger UTF-8-Text"
 msgid "missing transaction type"
 msgstr "Fehlender Transaktionstyp"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:188
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:190
 #, elixir-autogen, elixir-format
 msgid "unknown PP CSV type %{type}"
 msgstr "Unbekannter PP-CSV-Typ %{type}"
@@ -10587,7 +10587,7 @@ msgid_plural "The merge the link names is not among the newest %{count} listed h
 msgstr[0] "Die Zusammenführung, die der Link nennt, steht nicht unter den neuesten %{count}."
 msgstr[1] "Die Zusammenführung, die der Link nennt, steht nicht unter den neuesten %{count}."
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:227
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:229
 #, elixir-autogen, elixir-format
 msgid "receiving side of the transfer in row %{row} — booked once, from that row"
 msgstr "Eingangsseite der Umbuchung in Zeile %{row} — einmal gebucht, aus jener Zeile"
@@ -11706,22 +11706,22 @@ msgstr "ohne Anlageklasse"
 msgid "%{name} (price %{price} %{currency})"
 msgstr "%{name} (Kurs %{price} %{currency})"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:470
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:471
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount} (expected %{expected}) — row not imported"
 msgstr "Gesamtpreis %{total} passt nicht zu Betrag %{amount} (erwartet %{expected}) — Zeile nicht übernommen"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:478
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:479
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount} and Gebühren %{fees} (expected %{expected}) — row not imported"
 msgstr "Gesamtpreis %{total} passt nicht zu Betrag %{amount} und Gebühren %{fees} (erwartet %{expected}) — Zeile nicht übernommen"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:487
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:488
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount} and Steuern %{taxes} (expected %{expected}) — row not imported"
 msgstr "Gesamtpreis %{total} passt nicht zu Betrag %{amount} und Steuern %{taxes} (erwartet %{expected}) — Zeile nicht übernommen"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:496
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:497
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount}, Gebühren %{fees} and Steuern %{taxes} (expected %{expected}) — row not imported"
 msgstr "Gesamtpreis %{total} passt nicht zu Betrag %{amount}, Gebühren %{fees} und Steuern %{taxes} (erwartet %{expected}) — Zeile nicht übernommen"
@@ -11818,7 +11818,7 @@ msgstr "Neue ISIN"
 msgid "Settlement amount"
 msgstr "Abrechnungsbetrag"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:399
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:400
 #, elixir-autogen, elixir-format
 msgid "buy without a counter account — row not imported"
 msgstr "Kauf ohne Gegenkonto — Zeile nicht übernommen"
@@ -11833,24 +11833,19 @@ msgstr "Währung „%{currency}“ wird nicht unterstützt — Zeile nicht über
 msgid "security currency “%{currency}” is not supported — row not imported"
 msgstr "Wertpapierwährung „%{currency}“ wird nicht unterstützt — Zeile nicht übernommen"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:402
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:403
 #, elixir-autogen, elixir-format
 msgid "sell without a counter account — row not imported"
 msgstr "Verkauf ohne Gegenkonto — Zeile nicht übernommen"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:396
-#, elixir-autogen, elixir-format
-msgid "transfer to its own account — row not imported"
-msgstr "Umbuchung auf das eigene Konto — Zeile nicht übernommen"
-
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:390
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:394
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:355
 #: lib/portfolixir/imports/portfolio_performance/json_parser.ex:358
 #, elixir-autogen, elixir-format
 msgid "transfer without a counter account — row not imported"
 msgstr "Umbuchung ohne Gegenkonto — Zeile nicht übernommen"
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:393
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:397
 #, elixir-autogen, elixir-format
 msgid "transfer without an account — row not imported"
 msgstr "Umbuchung ohne Konto — Zeile nicht übernommen"

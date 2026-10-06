@@ -401,6 +401,30 @@ defmodule Portfolixir.Imports.ReimportContractTest do
       assert [%{row: 1, pp_name: "Echo", pp_counter_name: "Echo"}] = result.internal_transfers
       assert Enum.map(Portfolios.list_cash_accounts(), & &1.name) == ["Giro"]
     end
+
+    # The CSV path takes the same way: a transfer row whose Konto and
+    # Gegenkonto are one name previews without an error, and the apply skips
+    # and lists it.
+    test "a CSV transfer naming one account as Konto and Gegenkonto is listed, never booked", %{
+      portfolio: portfolio
+    } do
+      body =
+        "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n" <>
+          "2025-01-02 10:00:00;Einlage;;;;100,00;;;100,00;Giro;;;\n" <>
+          "2025-02-01 10:00:00;Umbuchung (Ausgang);;;;40,00;;;40,00;Giro;Giro;;\n"
+
+      {:ok, preview} = Imports.parse_portfolio_performance(body, filename: "synthetic.csv")
+      assert preview.errors == []
+
+      assert {:ok, %Result{} = result} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+
+      assert result.created_transactions == 1
+
+      assert [%{row: 2, kind: "cash_transfer", pp_name: "Giro", pp_counter_name: "Giro"}] =
+               result.internal_transfers
+
+      refute Repo.exists?(from(t in Transaction, where: t.type == "cash_transfer"))
+    end
   end
 
   describe "the in-run collapse key is scoped by the file's account names (§6, §16 inv 8)" do

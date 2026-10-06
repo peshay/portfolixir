@@ -3290,8 +3290,8 @@ executes them, and nothing places, proposes or sizes a trade.
   `Gegenkonto` per type, the EUR-only rule, and the JSON v1 variant for other
   currencies and for ISINs, with one synthetic example of each that a test
   takes through the real Imports page. It names the rows the preview refuses:
-  a transfer without both sides, or with the same account on both, a trade
-  without its cash account, an ISIN without a valid check digit, and, in JSON
+  a transfer without both sides, a trade without its cash account, an ISIN
+  without a valid check digit, and, in JSON
   v1, a currency other than those the security dialog offers. It binds the
   agent: no broker sync, no network call and no model call, synthetic examples
   only, and booking the converted rows one by one through
