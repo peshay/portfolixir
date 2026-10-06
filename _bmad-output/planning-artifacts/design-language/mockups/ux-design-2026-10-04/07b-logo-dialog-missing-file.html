@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Logo verwalten, Logodatei fehlt (#933)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- Board 07b, Sprint 19 PR β (B2, #933, review pass 2): the Manage-logo
+     dialog for a security whose stored logo file is gone. A conformance
+     repair, drawn before / after. Everything inside the frames is markup and
+     classes that already ship: securities/logo_override_dialog.ex
+     (.modal.logo-override, .modal-head, .modal-body, .logo-override__form,
+     .modal-footer, .button-primary, .button-ghost, .icon-button,
+     .detail-pane-sub). The dialog is drawn as a <div> because a closed
+     <dialog> does not paint. All names and identifiers are invented. -->
+<style id="proposal">
+  /* No app.css rule changes. The after state is one msgid and two
+     attribute values in logo_override_dialog.ex:
+     ① a sentence of its own for a logo whose file is missing (gettext);
+     ② "Logo entfernen" enabled for it, still disabled for the "no logo"
+        choice;
+     ③ the URL field no longer prefilled with the stored relative path. */
+</style>
+<style id="board-chrome">
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: visible; }
+  .mock-frame > .mock-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); background: var(--color-bg-muted); }
+  .notes { display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ol { margin: 0; }
+  ol.pins { list-style: none; padding: 0; }
+  .notes li { margin: 0 0 6px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  i.pin { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-left: 5px; border-radius: 999px; font: 700 10px/1 var(--font-sans); font-style: normal; color: #fff; vertical-align: 1px; letter-spacing: 0; text-transform: none; flex: none; }
+  i.pin.b { background: var(--color-danger); }
+  i.pin.a { background: var(--color-positive); }
+  i.pin.o { background: var(--mock-ink); }
+  .notes li > i.pin:first-child { margin: 0 4px 0 0; }
+  .is-new { outline: 2px dashed var(--color-accent); outline-offset: 2px; border-radius: 4px; }
+  .w-third { flex: 1 1 300px; min-width: 0; }
+  .where { margin: 0 0 8px; font-size: 12px; color: var(--mock-ink); }
+  .copy-new { background: color-mix(in srgb, var(--color-positive) 14%, transparent); border-radius: 3px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-positive) 14%, transparent); }
+  .copy-old { background: color-mix(in srgb, var(--color-danger) 12%, transparent); border-radius: 3px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-danger) 12%, transparent); }
+  .dlg-field { background: var(--color-bg-muted); padding: 14px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; justify-items: center; }
+  .dlg-field .modal { position: static; width: 100%; max-width: 520px; box-shadow: var(--shadow-md); }
+  .dlg-field .modal-head { border-bottom: 0; }
+  .dlg-field .modal-body > * + * { margin-top: 10px; }
+  .dlg-field .modal-footer { display: flex; justify-content: flex-end; gap: 8px; }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .mock-board { margin: 0 0 18px; }
+    .mock-board > h2 { padding: 0 12px; font-size: 14px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .dlg-field { padding: 10px 8px; }
+    .notes { padding: 0 12px; }
+    .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+    i.pin { display: none; }
+  }
+  @media (min-width: 601px) { .phone-cap { display: none; } }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  </defs>
+</svg>
+
+<div class="pickbar desk-only"><b>Board 07b — the Manage-logo dialog for a logo whose file is gone (#933, review pass 2).</b> A conformance repair of board 07.6's dialog half, drawn <b>before / after</b>: the rows already show the monogram (07.6); the dialog they open still says a manual logo is set, offers the stored relative path as an "image URL" the field's own <code>type="url"</code> refuses, and has no words for "the file is gone". <b>No pick.</b> A comment naming a better sentence changes it; silence adopts it. Green highlight = the new words, red = today's. Dashed outline = a control whose state changes. All names are invented; the 390&nbsp;px rendering is <code>07b-logo-dialog-missing-file--390.png</code>.</div>
+<p class="phone-cap"><b>Board 07b at 390&nbsp;px.</b> The Manage-logo dialog for a manual logo whose file is gone: today, after, and the "no logo" choice, unchanged. All data invented.</p>
+
+<section class="mock-board" id="b933-dialog">
+  <h2>07b · #933 — "Logo verwalten" for a manual logo whose file is gone <small>before / after · plus the "no logo" choice, unchanged</small></h2>
+  <p class="mock-note desk-only">The security "Nordwind Industrie AG" carries a manual, locked logo; the start-up check found no file for its stored path and marked it (<code>logo_file_missing</code>). Its row shows the monogram (board 07.6). The dialog opens from the row menu → "Logo verwalten".</p>
+  <p class="where desk-only"><code>securities/logo_override_dialog.ex</code> (the status sentence, <code>#logo-override-url</code>'s value, "Logo entfernen"'s <code>disabled</code>)</p>
+  <div class="mock-row">
+    <div class="mock-frame mock-before w-third"><span class="mock-tag">Today — a manual logo "is set"</span>
+      <div class="dlg-field">
+        <div class="modal logo-override">
+          <header class="modal-head">
+            <h2>Logo verwalten</h2>
+            <button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16"><use href="#i-x"/></svg></button>
+          </header>
+          <div class="modal-body">
+            <p class="detail-pane-sub">Nordwind Industrie AG</p>
+            <p><span class="copy-old">Ein manuelles Logo ist gesetzt (automatische Suche überschreibt es nicht).</span><i class="pin b">1</i></p>
+            <form class="logo-override__form">
+              <label for="url-today">Bild-URL</label>
+              <input type="url" id="url-today" value="/security_logos/4711.png" placeholder="https://…" class="copy-old" /><i class="pin b">2</i>
+              <button type="button" class="button-primary">URL speichern</button>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="button-ghost">Erneut suchen</button>
+            <button type="button" class="button-ghost">Logo entfernen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame mock-after w-third"><span class="mock-tag">After — the file is gone, and the way back</span>
+      <div class="dlg-field">
+        <div class="modal logo-override">
+          <header class="modal-head">
+            <h2>Logo verwalten</h2>
+            <button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16"><use href="#i-x"/></svg></button>
+          </header>
+          <div class="modal-body">
+            <p class="detail-pane-sub">Nordwind Industrie AG</p>
+            <p><span class="copy-new">Die gespeicherte Logodatei fehlt. Über eine Bild-URL erneut setzen oder das Logo entfernen.</span><i class="pin a">3</i></p>
+            <form class="logo-override__form">
+              <label for="url-after">Bild-URL</label>
+              <input type="url" id="url-after" value="" placeholder="https://…" class="is-new" /><i class="pin a">4</i>
+              <button type="button" class="button-primary">URL speichern</button>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="button-ghost">Erneut suchen</button>
+            <button type="button" class="button-ghost is-new">Logo entfernen</button><i class="pin a">5</i>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="mock-frame w-third"><span class="mock-tag">Unchanged — the "no logo" choice</span>
+      <div class="dlg-field">
+        <div class="modal logo-override">
+          <header class="modal-head">
+            <h2>Logo verwalten</h2>
+            <button type="button" class="icon-button" aria-label="Schließen"><svg width="16" height="16"><use href="#i-x"/></svg></button>
+          </header>
+          <div class="modal-body">
+            <p class="detail-pane-sub">Meridian Global Equity ETF</p>
+            <p>Für dieses Wertpapier ist kein Logo gesetzt.<i class="pin o">6</i></p>
+            <form class="logo-override__form">
+              <label for="url-none">Bild-URL</label>
+              <input type="url" id="url-none" value="" placeholder="https://…" />
+              <button type="button" class="button-primary">URL speichern</button>
+            </form>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="button-ghost">Erneut suchen</button>
+            <button type="button" class="button-ghost" disabled>Logo entfernen</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:10px">
+    <ol class="pins">
+      <li><i class="pin b">1</i><b>Today, the sentence:</b> the dialog reads <code>has_logo</code> from the stored path alone, so a logo whose file is gone is "set" — the dialog contradicts the monogram on the row it was opened from.</li>
+      <li><i class="pin b">2</i><b>Today, the field:</b> a manual logo's stored path is prefilled as the "image URL". It is a relative path, which the field's own <code>type="url"</code> refuses on save, so the operator has to clear it first; it was never the URL the logo came from.</li>
+      <li><i class="pin a">3</i><b>After, the sentence:</b> a state of its own, a statement of fact plus the remedy (Voice and Tone): en "The stored logo file is missing. Set it again from an image URL, or remove the logo.", de "Die gespeicherte Logodatei fehlt. Über eine Bild-URL erneut setzen oder das Logo entfernen." It names the dialog's own controls; it does not say "no logo was found", which would read as "never had one", nor "set to have no logo", the operator's deliberate choice (6). It holds for a discovered logo too, whose row discovery also fetches again.</li>
+      <li><i class="pin a">4</i><b>After, the field:</b> empty, its placeholder showing the shape it takes. Never prefilled with a stored path, in any state.</li>
+      <li><i class="pin a">5</i><b>After, "Logo entfernen":</b> enabled, so the operator can turn a lost logo into the deliberate "no logo" choice without uploading first; its confirmation is unchanged.</li>
+      <li><i class="pin o">6</i><b>Unchanged:</b> the "no logo" choice keeps its sentence and its disabled "Logo entfernen" — there is nothing left to remove.</li>
+    </ol>
+  </div>
+</section>
+
+</body>
+</html>
