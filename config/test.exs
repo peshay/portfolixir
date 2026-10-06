@@ -68,6 +68,11 @@ config :portfolixir, Portfolixir.Fx.RateSync,
 # assert a clean slate (#529).
 config :portfolixir, :seed_builtins_on_boot, false
 
+# The boot reconciliation of stored logos with the logo directory (#933)
+# would run as a task outside any test's sandbox; tests start it, or call
+# LogoStore.reconcile_missing_files/1, with a directory of their own.
+config :portfolixir, :reconcile_logos_on_boot, false
+
 # Logo discovery is gated off in tests so create_security/1 doesn't make
 # outbound HTTP calls. Tests that need it call LogoLookup.run/2 directly
 # with a Req plug stub.

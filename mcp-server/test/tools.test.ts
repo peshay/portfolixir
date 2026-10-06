@@ -355,6 +355,8 @@ describe("Portfolixir MCP tools", () => {
   //   base currency), and since #1068 two_scales (a bond priced on two
   //   scales, either way).
   // - It forwards the choice to the API rather than filtering client-side.
+  // - Its description says that missing_logo holds a stored logo whose file
+  //   is gone (#933).
   // - Its description says what "stale" means, so an agent needs no second
   //   call to find out.
   it("exposes the data-quality predicates on securities.list and forwards them", async () => {
@@ -373,6 +375,8 @@ describe("Portfolixir MCP tools", () => {
     assert.match(securitiesList?.description ?? "", /7 days/);
     assert.match(securitiesList?.description ?? "", /INCLUDING never-priced/);
     assert.match(securitiesList?.description ?? "", /two_scales \(/);
+    // #933: a stored logo whose file is gone is in the missing_logo set.
+    assert.match(securitiesList?.description ?? "", /missing_logo \(none and unlocked, or file gone\)/);
 
     const twoScales = createRecordingClient({ data: [] });
     await callTool(twoScales.client, "portfolixir.securities.list", { data_quality: "two_scales" });

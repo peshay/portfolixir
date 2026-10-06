@@ -80,12 +80,14 @@ defmodule Portfolixir.Catalog.Security do
     coupon_frequency maturity_date issue_date face_value face_value_currency_code
   )a
 
-  @logo_keys ~w(logo_path logo_source logo_locked)
+  @logo_keys ~w(logo_path logo_source logo_locked logo_file_missing)
 
   @doc """
-  The logo bookkeeping (`logo_path`, `logo_source`, `logo_locked`) is written
-  only by `Portfolixir.Catalog.LogoStore` through this changeset (#766). A nil
-  value removes the key. Every other attribute is left untouched.
+  The logo bookkeeping (`logo_path`, `logo_source`, `logo_locked`, and since
+  #933 `logo_file_missing`, the reconciliation's mark for a path that names no
+  file) is written only by `Portfolixir.Catalog.LogoStore` and the
+  reconciliation through this changeset (#766). A nil value removes the key.
+  Every other attribute is left untouched.
   """
   def logo_changeset(security, logo_attrs) when is_map(logo_attrs) do
     existing = security.attributes || %{}

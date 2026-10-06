@@ -1529,7 +1529,12 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
         do: %{field: field, source: from, target: field_value(target, field)}
   end
 
-  defp field_value(security, :logo), do: get_in(security.attributes || %{}, ["logo_path"])
+  # A logo whose file the reconciliation marked missing (#933) is no logo.
+  defp field_value(security, :logo) do
+    attributes = security.attributes || %{}
+    if attributes["logo_file_missing"] == true, do: nil, else: attributes["logo_path"]
+  end
+
   defp field_value(security, field), do: Map.get(security, field)
 
   # --- what the merge carries besides the bookings (§9) -----------------------------------

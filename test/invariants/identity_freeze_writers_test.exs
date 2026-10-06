@@ -69,6 +69,8 @@ defmodule Portfolixir.Invariants.IdentityFreezeWritersTest do
     {"lib/portfolixir/catalog.ex", :create_security, "Security.changeset"} => :insert,
     {"lib/portfolixir/catalog.ex", :update_security, "Security.changeset"} => :update,
     {"lib/portfolixir/catalog.ex", :put_logo_attributes, "Security.logo_changeset"} => :logo_only,
+    # The logo reconciliation's mark (#933): `logo_file_missing` alone.
+    {"lib/portfolixir/catalog.ex", :put_logo_file_mark, "Security.logo_changeset"} => :logo_only,
     {"lib/portfolixir/catalog/identifier_aliases.ex", :write_new_isin, "Security.changeset"} =>
       :isin_only,
     {"lib/portfolixir/lifecycle/account_names.ex", :former_names_changeset,

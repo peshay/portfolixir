@@ -3750,7 +3750,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
   attr(:variant, :string, default: "row")
 
   defp security_logo(assigns) do
-    path = local_logo_path(get_in(assigns.security.attributes || %{}, ["logo_path"]))
+    attributes = assigns.security.attributes || %{}
+
+    # A path whose file the reconciliation found gone (#933) renders the
+    # fallback, never a broken image.
+    path =
+      if attributes["logo_file_missing"] == true,
+        do: nil,
+        else: local_logo_path(attributes["logo_path"])
+
     fallback = security_logo_fallback(assigns.security)
 
     assigns =

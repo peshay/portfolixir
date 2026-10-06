@@ -67,7 +67,8 @@ defmodule PortfolixirWeb.ApiV1LogoTest do
                "has_logo" => false,
                "locked" => false,
                "path" => nil,
-               "source" => nil
+               "source" => nil,
+               "file_missing" => false
              }
            } = json_response(conn, 200)
   end
@@ -115,6 +116,86 @@ defmodule PortfolixirWeb.ApiV1LogoTest do
     conn = conn |> api_conn() |> delete("/api/v1/securities/#{security.id}/logo")
 
     assert %{"data" => %{"has_logo" => false, "locked" => true}} = json_response(conn, 200)
+  end
+
+  # User story (#933, review pass 1):
+  # As the agent maintaining the catalog over the API,
+  # I want a stored logo whose file is gone read as such and listed among the
+  # securities without a logo,
+  # so that I can tell the operator which logos will be fetched again and
+  # which manual ones to upload again.
+  #
+  # Acceptance criteria:
+  # - The logo read carries file_missing: false for a logo with its file, true
+  #   for a marked one, whose has_logo is false while path, source and locked
+  #   stay as stored.
+  # - logo_status=missing and data_quality=missing_logo list a marked
+  #   discovered and a marked manual logo; logo_status=present lists neither;
+  #   the "no logo" choice is in none of them.
+  test "a logo whose file is gone reads file_missing and is listed as missing", %{
+    conn: conn,
+    security: manual
+  } do
+    tmp =
+      Path.join(System.tmp_dir!(), "portfolixir-logo-api-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(tmp)
+    on_exit(fn -> File.rm_rf(tmp) end)
+
+    create = fn name ->
+      {:ok, security} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{name: name, currency_code: "EUR"})
+
+      security
+    end
+
+    with_path = fn security, attrs ->
+      path = "/security_logos/#{security.id}.png"
+      {:ok, security} = Catalog.put_logo_attributes(security, Map.put(attrs, "logo_path", path))
+      security
+    end
+
+    with_path.(manual, %{"logo_source" => "manual", "logo_locked" => true})
+    with_path.(create.("Discovered AG"), %{"logo_source" => "wikipedia"})
+    present = with_path.(create.("Present AG"), %{"logo_source" => "wikipedia"})
+    File.write!(Path.join(tmp, "#{present.id}.png"), @png)
+    {:ok, _} = Catalog.put_logo_attributes(create.("Chosen AG"), %{"logo_locked" => true})
+
+    assert {:ok, %{marked: 2}} = Catalog.LogoStore.reconcile_missing_files(storage_dir: tmp)
+
+    read = fn security ->
+      build_conn()
+      |> api_conn()
+      |> get("/api/v1/securities/#{security.id}/logo")
+      |> json_response(200)
+      |> Map.fetch!("data")
+    end
+
+    assert read.(manual) == %{
+             "security_id" => manual.id,
+             "path" => "/security_logos/#{manual.id}.png",
+             "source" => "manual",
+             "has_logo" => false,
+             "locked" => true,
+             "file_missing" => true
+           }
+
+    assert %{"has_logo" => true, "file_missing" => false} = read.(present)
+
+    names = fn query ->
+      conn
+      |> recycle()
+      |> api_conn()
+      |> get("/api/v1/securities?" <> query)
+      |> json_response(200)
+      |> Map.fetch!("data")
+      |> Enum.map(& &1["name"])
+      |> Enum.sort()
+    end
+
+    assert names.("logo_status=missing") == ["Discovered AG", "Lanzhuo Inc."]
+    assert names.("data_quality=missing_logo") == ["Discovered AG", "Lanzhuo Inc."]
+    assert names.("logo_status=present") == ["Present AG"]
   end
 
   test "GET on an unknown security id is 404", %{conn: conn} do

@@ -136,6 +136,16 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 103_457,
     book: 176_539,
     full: 206_887
+  },
+  {
+    since: "2026-10-06",
+    why:
+      "Sprint 19 PR β, B2 (#933): securities.list's missing_logo wording names a logo whose " +
+      "file is gone, in fewer bytes than the wording it replaces, and the ceilings are " +
+      "lowered to the figure measured with it",
+    read: 103_454,
+    book: 176_536,
+    full: 206_884
   }
 ];
 

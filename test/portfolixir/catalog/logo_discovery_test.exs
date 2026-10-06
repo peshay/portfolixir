@@ -3,6 +3,7 @@ defmodule Portfolixir.Catalog.LogoDiscoveryTest do
 
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.LogoDiscovery
+  alias Portfolixir.Catalog.LogoStore
 
   @png <<137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0, 0, 0, 1, 8,
          6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 13, 73, 68, 65, 84, 120, 156, 99, 250, 207, 0, 0,
@@ -239,6 +240,88 @@ defmodule Portfolixir.Catalog.LogoDiscoveryTest do
     after
       Application.put_env(:portfolixir, :enable_logo_discovery, prior_enabled)
       Application.put_env(:portfolixir, :logo_discovery_opts, prior_opts)
+      File.rm_rf(tmp)
+    end
+  end
+
+  # User story (#933, review pass 1):
+  # As an operator whose discovered logo files were lost with the volume,
+  # I want the boot reconciliation to hand the marked rows to discovery,
+  # so that discovered logos come back by themselves at once, not at the next
+  # periodic rescan, while a manual logo whose file is gone is never replaced
+  # behind my back and waits for my upload.
+  #
+  # Acceptance criteria:
+  # - The reconciliation's work (Catalog.reconcile_logos/0, what the boot task
+  #   runs) marks both rows and queues the missing-logo scan itself; the test
+  #   queues nothing.
+  # - The marked unlocked row gets its logo back: a file in the directory and
+  #   the mark cleared.
+  # - The marked locked manual row keeps its path, source, lock and mark, and
+  #   no file is written for it.
+  test "a marked discovered logo is fetched again through the reconciliation; a manual one is not" do
+    prior_enabled = Application.get_env(:portfolixir, :enable_logo_discovery, false)
+    prior_opts = Application.get_env(:portfolixir, :logo_discovery_opts, [])
+    prior_store = Application.get_env(:portfolixir, LogoStore, [])
+
+    tmp =
+      Path.join(
+        System.tmp_dir!(),
+        "portfolixir-logo-reconcile-#{System.unique_integer([:positive])}"
+      )
+
+    File.mkdir_p!(tmp)
+    Application.put_env(:portfolixir, :enable_logo_discovery, false)
+
+    create = fn name ->
+      {:ok, security} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: name,
+          currency_code: "USD",
+          provider: "portfolio_performance",
+          feed: "PORTFOLIO_PERFORMANCE"
+        })
+
+      security
+    end
+
+    lost = fn security, attrs ->
+      path = "/security_logos/#{security.id}.png"
+      {:ok, security} = Catalog.put_logo_attributes(security, Map.put(attrs, "logo_path", path))
+      security
+    end
+
+    discovered = lost.(create.("Arbolia Inc."), %{"logo_source" => "wikipedia"})
+    manual = lost.(create.("Brindle Inc."), %{"logo_source" => "manual", "logo_locked" => true})
+
+    Application.put_env(:portfolixir, LogoStore, Keyword.put(prior_store, :storage_dir, tmp))
+    Application.put_env(:portfolixir, :enable_logo_discovery, true)
+    Application.put_env(:portfolixir, :logo_discovery_opts, req: logo_stub(), storage_dir: tmp)
+
+    try do
+      assert {:ok, %{marked: 2}} = Catalog.reconcile_logos()
+
+      assert wait_until(fn ->
+               Catalog.logo_status(Catalog.get_security!(discovered.id)).has_logo &&
+                 MapSet.size(:sys.get_state(LogoDiscovery).queued) == 0
+             end)
+
+      assert File.exists?(Path.join(tmp, "#{discovered.id}.png"))
+      refute Catalog.logo_status(Catalog.get_security!(discovered.id)).file_missing
+
+      assert Catalog.logo_status(Catalog.get_security!(manual.id)) == %{
+               path: "/security_logos/#{manual.id}.png",
+               source: "manual",
+               has_logo: false,
+               locked: true,
+               file_missing: true
+             }
+
+      refute File.exists?(Path.join(tmp, "#{manual.id}.png"))
+    after
+      Application.put_env(:portfolixir, :enable_logo_discovery, prior_enabled)
+      Application.put_env(:portfolixir, :logo_discovery_opts, prior_opts)
+      Application.put_env(:portfolixir, LogoStore, prior_store)
       File.rm_rf(tmp)
     end
   end

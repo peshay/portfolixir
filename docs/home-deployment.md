@@ -331,7 +331,7 @@ With these roles, two procedures below change. An upgrade runs
 restore gives the new database back to the owner after its step 2, restores as
 the owner in step 3 by adding `--role=portfolixir_owner` to `pg_restore`, so
 the tables keep their owner and their grants, and migrates as in the upgrade
-before step 4:
+before step 5:
 
 ```bash
 docker compose exec -T db psql -v ON_ERROR_STOP=1 -U portfolixir -d portfolixir_prod <<'SQL'
@@ -638,15 +638,25 @@ docker compose exec -T db \
   --single-transaction < ~/portfolixir-backups/portfolixir-2026-09-23.dump \
   && echo "restore complete"
 
-# 4. Only if step 3 ended without an error ("restore complete"): the
+# 4. The stored logos, into the logo volume while the application is still
+#    stopped: it checks every stored logo against that directory as it starts.
+docker compose run --rm --no-deps -T --entrypoint tar app \
+  -C /var/lib/portfolixir/logos -xf - \
+  < ~/portfolixir-backups/portfolixir-logos-2026-09-23.tar
+
+# 5. Only if step 3 ended without an error ("restore complete"): the
 #    instance, which migrates the restored database forward if the backup
 #    came from an older release.
 docker compose up -d
-
-# 5. The stored logos, into the running application container.
-docker compose exec -T app tar -C /var/lib/portfolixir/logos -xf - \
-  < ~/portfolixir-backups/portfolixir-logos-2026-09-23.tar
 ```
+
+The logos go back before the start because the application compares the
+stored logos with the logo directory when it starts. Started first, it would
+mark every logo whose file is not back yet as missing and, with background
+fetching on, queue every discovered one for a new download. If the logos went
+back only after the start, restart the application once they are
+(`docker compose restart app`): that start finds the files and removes the
+marks.
 
 `--single-transaction` makes the restore all or nothing: at the first error
 (`--exit-on-error`) everything it did is rolled back, and the database is left
@@ -745,6 +755,19 @@ base and the database image — so a fix in one of them arrives with the version
 that moves its digest, and the release notes say when an upgrade carries one.
 `docker compose pull db` and `--pull` fetch exactly the images the new version
 names.
+
+At every start the application compares the stored logos with the logo
+directory. It marks a logo whose file is missing there, after an upgrade across
+the move of the logos into the `portfolixir-logos` volume or with a lost or
+unmounted volume, and records each mark in the audit journal. The mark changes
+nothing else about the logo: its security shows its initials or flag instead of
+a broken image and counts as without a logo on the Overview and the securities
+page. A discovered logo is fetched again when background fetching is on
+(`PORTFOLIXIR_BACKGROUND_FETCH`); a manual one stays locked, so discovery never
+replaces it, and waits for you to upload it again. A later start that finds the
+file back removes the mark. When the logo directory is missing or unreadable,
+the application marks nothing and logs a warning instead; otherwise the log
+names how many logos were marked.
 
 Upgrading from 0.15.x or earlier, four changes of the security pass reach an
 instance that already runs. Check them before the `up`:

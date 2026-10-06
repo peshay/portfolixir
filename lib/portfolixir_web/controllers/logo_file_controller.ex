@@ -13,15 +13,13 @@ defmodule PortfolixirWeb.LogoFileController do
 
   alias Portfolixir.Catalog.LogoStore
 
-  @name ~r/\A[0-9]{1,18}\.(png|jpg|webp)\z/
-
-  # The name is a security id plus a known extension, checked by the pattern
-  # above before it is joined onto the configured directory; nothing else
-  # from the request reaches the file system.
+  # The name is a security id plus an extension the store writes, checked by
+  # LogoStore.served_file/2 — the one shape check, shared with the logo
+  # reconciliation (#933) — before it is joined onto the configured
+  # directory; nothing else from the request reaches the file system.
   # sobelow_skip ["Traversal.SendFile"]
   def show(conn, %{"file" => file}) do
-    with [_, ext] <- Regex.run(@name, file),
-         path = Path.join(LogoStore.storage_dir(), file),
+    with {:ok, path, ext} <- LogoStore.served_file(file),
          true <- File.regular?(path) do
       conn
       |> put_image_type(ext)

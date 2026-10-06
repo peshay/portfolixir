@@ -197,6 +197,179 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
     assert render(view) =~ ~s(src="/security_logos/#{sec.id}.png")
   end
 
+  # User story (#933, review pass 1):
+  # As an operator whose logo files were lost with the volume,
+  # I want a row whose logo file is gone to show its monogram or flag,
+  # so that the list never shows a broken image for a logo that is not there.
+  #
+  # Acceptance criteria:
+  # - A row rendered with its logo switches live to its fallback once the
+  #   reconciliation marks it (the broadcast patches the row).
+  # - A fresh visit renders the fallback in the row and in the detail pane,
+  #   for a discovered and a manual logo; the path itself is kept.
+  # - dq=missing_logo lists both rows.
+  test "a logo whose file is gone renders its fallback once marked", %{conn: conn} do
+    tmp =
+      Path.join(System.tmp_dir!(), "portfolixir-logo-gone-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(tmp)
+    on_exit(fn -> File.rm_rf(tmp) end)
+
+    {:ok, discovered} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Arbolia Inc.",
+        currency_code: "USD",
+        provider: "manual",
+        asset_class: "equity"
+      })
+
+    {:ok, manual} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Gravonia Federal Bond",
+        isin: "DEEXMPL20530",
+        currency_code: "EUR",
+        provider: "manual",
+        asset_class: "bond"
+      })
+
+    {:ok, _} =
+      Catalog.put_logo_attributes(discovered, %{
+        "logo_path" => "/security_logos/#{discovered.id}.png",
+        "logo_source" => "wikipedia"
+      })
+
+    {:ok, _} =
+      Catalog.put_logo_attributes(manual, %{
+        "logo_path" => "/security_logos/#{manual.id}.png",
+        "logo_source" => "manual",
+        "logo_locked" => true
+      })
+
+    {:ok, view, html} = live(conn, "/securities")
+    assert html =~ ~s(src="/security_logos/#{discovered.id}.png")
+    assert html =~ ~s(src="/security_logos/#{manual.id}.png")
+
+    assert {:ok, %{marked: 2}} = LogoStore.reconcile_missing_files(storage_dir: tmp)
+
+    html = render(view)
+    refute html =~ ~s(src="/security_logos/)
+    assert html =~ ~r/security-logo--initial[^>]*>[\s]*A[\s]*</
+    assert html =~ "🇩🇪"
+
+    {:ok, _view, html} = live(conn, "/securities?id=#{discovered.id}")
+    refute html =~ ~s(src="/security_logos/)
+    assert html =~ ~r/security-logo--lg[^"]*security-logo--initial/
+
+    assert Catalog.get_security!(manual.id).attributes["logo_path"] ==
+             "/security_logos/#{manual.id}.png"
+
+    {:ok, list, _html} = live(conn, "/securities?dq=missing_logo")
+    assert has_element?(list, "td", "Gravonia Federal Bond")
+    assert has_element?(list, "td", "Arbolia Inc.")
+  end
+
+  # User story (#933, review passes 1 and 2; board
+  # mockups/ux-design-2026-10-04/07b-logo-dialog-missing-file):
+  # As an operator whose manual logo's file was lost,
+  # I want the Manage-logo dialog to say the file is gone and how to set it
+  # again, and to let me remove it,
+  # so that it never tells me a manual logo is set, nor that I chose "no
+  # logo", for a logo I lost.
+  #
+  # Acceptance criteria:
+  # - The dialog on a marked locked manual row reads "The stored logo file is
+  #   missing. Set it again from an image URL, or remove the logo.", never
+  #   "This security is set to have no logo." nor the manual-logo sentence.
+  # - "Remove logo" is enabled there; it stays disabled on the "no logo"
+  #   choice.
+  # - The image URL field is empty: never prefilled with a stored local path,
+  #   on a marked row nor on a manual logo whose file is there.
+  # - Saving an image URL there stores the logo again, clears the mark, and
+  #   the row renders the image.
+  test "the manage-logo dialog names a missing logo file and keeps the way back open",
+       %{conn: conn} do
+    prior = Application.get_env(:portfolixir, :logo_discovery_opts, [])
+
+    tmp =
+      Path.join(System.tmp_dir!(), "portfolixir-logo-redo-#{System.unique_integer([:positive])}")
+
+    File.mkdir_p!(tmp)
+    Application.put_env(:portfolixir, :logo_discovery_opts, req: png_stub(), storage_dir: tmp)
+
+    on_exit(fn ->
+      Application.put_env(:portfolixir, :logo_discovery_opts, prior)
+      File.rm_rf(tmp)
+    end)
+
+    create = fn name ->
+      {:ok, security} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: name,
+          currency_code: "USD",
+          provider: "manual",
+          asset_class: "equity"
+        })
+
+      security
+    end
+
+    sec = create.("Lanzhuo")
+    present = create.("Meridian")
+    chosen = create.("Nordwind")
+
+    for security <- [sec, present] do
+      {:ok, _} =
+        Catalog.put_logo_attributes(security, %{
+          "logo_path" => "/security_logos/#{security.id}.png",
+          "logo_source" => "manual",
+          "logo_locked" => true
+        })
+    end
+
+    File.write!(Path.join(tmp, "#{present.id}.png"), @png)
+    {:ok, _} = LogoStore.remove_logo(chosen, storage_dir: tmp)
+
+    assert {:ok, %{marked: 1}} = LogoStore.reconcile_missing_files(storage_dir: tmp)
+
+    {:ok, view, _html} = live(conn, "/securities")
+    remove = "#logo-override-dialog button[phx-click='remove_logo_override']"
+    url = "#logo-override-url"
+
+    html =
+      render_hook(view, "row_action", %{"action" => "manage_logo", "id" => to_string(sec.id)})
+
+    assert html =~
+             "The stored logo file is missing. Set it again from an image URL, or remove the logo."
+
+    refute html =~ "This security is set to have no logo."
+    refute html =~ "A manual logo is set"
+    refute html =~ "No logo found yet."
+    assert has_element?(view, remove <> ":not([disabled])")
+    assert has_element?(view, url <> "[value='']")
+    assert has_element?(view, "#logo-override-dialog form[phx-submit='save_logo_url']")
+
+    # A manual logo whose file is there: its local path is not an image URL.
+    render_hook(view, "close_logo_dialog", %{})
+    render_hook(view, "row_action", %{"action" => "manage_logo", "id" => to_string(present.id)})
+    assert render(view) =~ "A manual logo is set"
+    assert has_element?(view, url <> "[value='']")
+
+    # The "no logo" choice: nothing left to remove.
+    render_hook(view, "close_logo_dialog", %{})
+    render_hook(view, "row_action", %{"action" => "manage_logo", "id" => to_string(chosen.id)})
+    assert render(view) =~ "This security is set to have no logo."
+    assert has_element?(view, remove <> "[disabled]")
+
+    render_hook(view, "close_logo_dialog", %{})
+    render_hook(view, "row_action", %{"action" => "manage_logo", "id" => to_string(sec.id)})
+    render_hook(view, "save_logo_url", %{"logo" => %{"url" => "https://example.test/logo.png"}})
+
+    status = Catalog.logo_status(Catalog.get_security!(sec.id))
+    assert status.has_logo
+    refute status.file_missing
+    assert render(view) =~ ~s(src="/security_logos/#{sec.id}.png")
+  end
+
   # User story:
   # As a maintainer, I want to set a logo from a URL when automatic discovery
   # missed one, and remove a wrong logo — directly from the securities list.

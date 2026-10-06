@@ -4627,3 +4627,29 @@ the Imports page. Built in `PortfolixirWeb.ImportsLive`, the two parsers and
   `.import-warning-box`, the same retired accent banner. The class stays for
   it alone; its sub-rules for the head line and the `<pre>` went with the
   parser warnings.
+
+## Amendment 2026-10-06 — The logo dialog for a logo whose file is gone *(Sprint 19 PR β, B2, issue 933; board `mockups/ux-design-2026-10-04/07b-logo-dialog-missing-file`, before / after)*
+
+A stored logo whose file the start-up check found gone is marked
+(`logo_file_missing`), never cleared; its row draws the monogram or the flag
+`security_logo/1` draws for a security with no logo (board 07.6). The
+Manage-logo dialog (`securities/logo_override_dialog.ex`) the row menu opens
+had no words for that state. Built as drawn; no `app.css` rule changes.
+
+- **A status sentence of its own**, first in the dialog's `cond`, whatever
+  the lock: "The stored logo file is missing. Set it again from an image URL,
+  or remove the logo." (de "Die gespeicherte Logodatei fehlt. Über eine
+  Bild-URL erneut setzen oder das Logo entfernen."). A statement of fact plus
+  the remedy, naming the dialog's own controls (Voice and Tone). It is
+  neither "A manual logo is set …", which the stored path alone used to
+  answer, nor "This security is set to have no logo.", the operator's
+  deliberate choice, nor "No logo found yet.", which reads as never having
+  had one.
+- **"Remove logo" stays enabled** for a marked row, locked or not: removing
+  turns a lost logo into the deliberate "no logo" choice without an upload
+  first, behind the confirmation it always had. It is disabled only on that
+  choice itself (no path, locked), where nothing is left to remove.
+- **The image-URL field is never prefilled.** A stored logo's path is local
+  (`/security_logos/<id>.<ext>`), never the URL the image came from, and the
+  field's `type="url"` refuses it on save; the field starts empty in every
+  state, its placeholder showing the shape it takes.

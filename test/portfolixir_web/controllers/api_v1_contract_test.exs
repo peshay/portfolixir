@@ -74,6 +74,18 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     assert Enum.any?(
              newest["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/securities/:id/merge_preview") and
+                 &1 =~ "identifiers.differences" and &1 =~ "#933")
+           )
+
+    # #933, review pass 2: unambiguous about the path, and why MCP adds no tool.
+    assert newest["summary"] =~ "its path is never cleared"
+    assert newest["summary"] =~ "no logo-status tool"
+    assert newest["summary"] =~ "projection=full"
+    refute Enum.any?(newest["parameters"], &(&1 =~ "description unchanged"))
+
+    assert Enum.any?(
+             newest["parameters"],
              &(String.starts_with?(
                  &1,
                  "GET /api/v1/performance, GET /api/v1/performance/benchmark and GET /api/v1/performance/contribution"
@@ -103,8 +115,17 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     assert Enum.any?(
              newest["parameters"],
-             &(&1 =~ "logo_status=missing" and &1 =~ "missing_logo" and
-                 &1 =~ "logo_file_missing" and &1 =~ "file_missing" and &1 =~ "#933")
+             &(String.starts_with?(&1, "GET /api/v1/securities/:security_id/logo") and
+                 &1 =~ "file_missing" and &1 =~ "has_logo" and &1 =~ "#933")
+           )
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/securities?logo_status=") and
+                 &1 =~ "data_quality=missing_logo" and &1 =~ "portfolixir.securities.list" and
+                 &1 =~ "missing_logo (none and unlocked, or file gone)" and
+                 &1 =~ "missing_logo (no stored logo, not locked to none)" and
+                 &1 =~ "whatever its lock" and &1 =~ "#933")
            )
 
     assert Enum.any?(
