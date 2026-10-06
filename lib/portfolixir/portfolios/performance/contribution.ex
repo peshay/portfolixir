@@ -30,8 +30,10 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
       boundary the boundary flow the walk books for it (ADR-0019, §6);
     * **income** — dividends as credited, at the booking day's rate;
     * **costs** — the fees and taxes carried by the position's own trades
-      (#708's trade costs, kept per security), counted when the whole trade
-      is inside the scope.
+      (#708's trade costs, kept per security), read in the currency of the
+      trade's cash account (#1051), counted when the whole trade is inside
+      the scope; a trade with no rate path that day carries them inside its
+      cash leg instead.
 
   The remainder lines (§3), each summed from its own bookings and **never a
   plug** (the result minus the positions):
@@ -403,10 +405,11 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
           "or when the walk starts inside it) and end_value the window's last day (0 when " <>
           "sold out); net_flows counts a buy + price × quantity and a sell − price × " <>
           "quantity at the booking day's rate (a trade priced in a currency with no rate " <>
-          "path that day: its cash leg), a delivery ± the value the walk's external " <>
-          "flow gives it, a split and a transfer inside the scope 0, and a leg crossing a " <>
-          "view's edge as its boundary flow (ADR-0019); income is the dividends as " <>
-          "credited; costs are the fees and taxes on the position's own trades (#708). " <>
+          "path that day: its cash leg, fees and taxes included), a delivery ± the value " <>
+          "the walk's external flow gives it, a split and a transfer inside the scope 0, " <>
+          "and a leg crossing a view's edge as its boundary flow (ADR-0019); income is " <>
+          "the dividends as credited; costs are the fees and taxes on the position's own " <>
+          "trades, read in the currency of the trade's cash account (#708, #1051). " <>
           "The positions plus the remainder lines sum to totals.result, end value − start " <>
           "value − net external flows of the scope over the window, the money result " <>
           "beside the TTWROR (ADR-0051 §3). Each line is summed from its own bookings and " <>

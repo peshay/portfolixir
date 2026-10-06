@@ -177,6 +177,47 @@ defmodule Portfolixir.WorldFixtures do
   end
 
   @doc """
+  Records a cross-currency trade (ADR-0015): `security`, priced in its own
+  currency, bought into `world`'s depot or sold from it, settled through
+  `world`'s cash account in another currency. The cash agrees with the
+  settlement (#395), so `:gross` is `settled + fees + taxes` on a buy and
+  `settled − fees − taxes` on a sell, all in the account's currency.
+
+  Options (Decimal strings): `:type` (default `"buy"`), `:quantity`,
+  `:price` (in the security's currency), `:settled` (the trade amount in the
+  account's currency, before fees and taxes), `:gross` (the cash the account
+  moved), `:date`, and `:fees` and `:taxes` (default `"0"`, in the account's
+  currency, the cash leg they are part of).
+  """
+  def cross_trade!(%{portfolio: portfolio, depot: depot, cash: cash}, security, opts) do
+    quantity = Decimal.new(Keyword.fetch!(opts, :quantity))
+    price = Decimal.new(Keyword.fetch!(opts, :price))
+    settled = Decimal.new(Keyword.fetch!(opts, :settled))
+    amount = Decimal.mult(quantity, price)
+
+    {:ok, tx} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        securities_account_id: depot.id,
+        cash_account_id: cash.id,
+        security_id: security.id,
+        type: Keyword.get(opts, :type, "buy"),
+        date: Keyword.fetch!(opts, :date),
+        quantity: quantity,
+        price: price,
+        fees: Keyword.get(opts, :fees, "0"),
+        taxes: Keyword.get(opts, :taxes, "0"),
+        currency_code: security.currency_code,
+        security_amount: amount,
+        settlement_amount: settled,
+        settlement_fx_rate: Decimal.div(settled, amount),
+        gross_amount: Keyword.fetch!(opts, :gross)
+      })
+
+    tx
+  end
+
+  @doc """
   Records a deposit of `amount` into `world`'s cash account on `date`.
   """
   def deposit!(%{portfolio: portfolio, cash: cash}, amount, date, opts \\ []) do
