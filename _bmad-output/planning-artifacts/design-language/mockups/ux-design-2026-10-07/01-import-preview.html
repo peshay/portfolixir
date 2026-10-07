@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Import preview: a name the stored history never saw, a re-drop with nothing new, row errors, the fresh instance (Pick L1: #904; #1168, #1118, #1140, #1128, #1173, #1174, ADR-0053 §6)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the rules the Sprint 20 import stories add to app.css.
+     Everything else in the frames is markup and classes that already ship in
+     imports_live.ex (render_preview/1: .import-stats, .import-stat-card,
+     .kind-chips, the parser-warnings data note, .panel.inner, .mapping-grid,
+     .mapping-row, .mapping-count, .mapping-target, .mapping-basis,
+     .mapping-remember, #import-missing-hint .form-help, .actions;
+     render_done/1: .import-done, .import-skipped) and AppShell (.area-tabs,
+     .data-note). The frames are srcdoc iframes built from that markup, so a
+     390 px frame is a real 390 px viewport and app.css's 720 and 560 px
+     blocks fire as on a phone. "Heute" frames render app.css as shipped;
+     "Nachher" and variant frames also get this block. -->
+<style id="proposal">
+  /* ① #1140: under 560 px the parser-warnings note puts its glyph and its
+     severity word on a heading row, and the body (the "Parser-Warnungen"
+     head line and the row list) takes the note's full width. Beside the word
+     the list kept about 240 px at 390. The same rule as board 09's ②b for
+     the correction note (#import-correction), so the correction story and
+     this one write ONE selector list, not two copies. L1's note under a
+     mapping select joins it (② below): beside the word its body kept 180 px
+     at 390, wrapped it gets 269. The ambiguous row's note, in the same
+     place, has the same 180 px today and joins it as a found-while-drawing
+     repair (D-14). */
+  @media (max-width: 560px) {
+    [data-role="parser-warnings"],
+    [data-role="mapping-unseen-name"],
+    [data-role="mapping-ambiguous"] {
+      flex-wrap: wrap;
+    }
+
+    [data-role="parser-warnings"] .data-note__body,
+    [data-role="mapping-unseen-name"] .data-note__body,
+    [data-role="mapping-ambiguous"] .data-note__body {
+      flex-basis: 100%;
+    }
+  }
+
+  /* ② L1 = A (#904): the note under a mapping row's select is
+     AppShell.data_note, `attention`, in the place the ambiguous note
+     (data-role="mapping-ambiguous") already takes; no rule of its own beyond
+     joining ①'s list. */
+
+  /* ③ #1168: a mapping row with nothing new shows one `.mapping-basis`
+     line where its select stood (the #923 security row's anatomy). A depot
+     row then has no cash select either, so above 720 px it takes the cash
+     rows' two columns, and its count stays on one line as theirs does.
+     Under 720 px every row is one column already; the media query keeps
+     this (0,3,0) selector from overriding that block. */
+  @media (min-width: 721px) {
+    .mapping-row.depot:has(> .mapping-target:last-child) {
+      grid-template-columns: minmax(10rem, 1fr) minmax(14rem, 1.4fr);
+    }
+  }
+
+  /* ④ #1168's lead note, #1118's and #1128's row errors, #1173's line,
+     #1174's empty field and the correction section's sentence need no CSS:
+     each is existing markup in a new place or with new text. */
+
+  /* Carried from board 09 ① (ux-design-2026-10-04, pick J9 = A) so panel ⑧
+     can draw the correction section; the correction story adds it, not
+     this board. */
+  #import-correction .data-note__body {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  #import-correction .data-note__body > p {
+    margin: 0;
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-board > p.mock-note { max-width: 118ch; }
+  .mock-frame { overflow: hidden; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .cap .rec { text-transform: uppercase; }
+  .col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul, .notes ol { margin: 0; }
+  .notes ul, .notes ol { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .stub { padding: 10px 14px; font-size: 12px; color: var(--mock-ink); margin: 0; }
+  .sheet { border-collapse: collapse; font: 11.5px/1.35 var(--font-mono); background: var(--color-bg-elevated); }
+  .sheet th, .sheet td { border: 1px solid var(--color-border); padding: 3px 7px; text-align: left; white-space: nowrap; }
+  .sheet th { background: var(--color-bg-muted); color: var(--mock-ink); font-weight: 600; }
+  .sheet td.rn { background: var(--color-bg-muted); color: var(--mock-ink); text-align: right; }
+  .sheet tr.hl td { background: var(--color-warning-soft); }
+  .sheet tr.hl td.rn { font-weight: 700; color: var(--color-text); }
+  .consequence { margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--color-danger); background: var(--color-danger-soft); font-size: 12px; }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  .verdict { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1120px; margin: 0 auto 32px; }
+  .verdict > div { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 14px; background: var(--color-bg-elevated); font-size: 12.5px; }
+  .verdict h3 { margin: 0 0 6px; font-size: 13px; }
+  .verdict ul { margin: 0; padding-left: 18px; }
+  .verdict li { margin: 0 0 4px; }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap, .stub { padding-left: 12px; padding-right: 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph { width: 390px; }
+    .verdict { grid-template-columns: 1fr; padding: 0 12px; }
+    .sheet .ca, .sheet .cf { display: none; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Pick L1 — a file name the stored history never saw (#904; ADR-0050 §2 as amended on this PR).</b> A Portfolio Performance cash account or depot whose name has no hash hit, live or retired, in a file whose other names in the same portfolio do have hits. Today its row is prefilled „+ Neu anlegen“, and one confirm books that account's whole history a second time. <b>A</b> — no prefill: the select stays on „Entscheiden…“, an attention note under it says why and what to choose, and „Import bestätigen“ is disabled with its stated reason until a choice is made · <b>B</b> — the prefill stays „+ Neu anlegen“, with the same note, and the confirm is enabled. <span class="rec">Recommended A</span><br><b>Seven before/afters with nothing to pick:</b> #1168 (a re-drop whose rows are all hits leads with „nothing will be booked“, and a row with nothing new shows no select) · #1118 (a sale whose cash would be 0 or less once its negative tax is split off is a row error) · #1140 (the parser-warnings note at 390&nbsp;px) · #1128 („Zeile N“ counts as a spreadsheet does) · #1173 (a fresh instance: the preview says the import creates a portfolio record) · #1174 (the bucket tag starts empty) · ⑧ the correction section's sentence, now that a JSON file feeds it too. A comment naming „L1 B“ on the planning PR changes the pick; silence adopts A. Every name, amount, date and identifier is invented. <b>Dashed = new.</b></div>
+<p class="phone-only phone-cap"><b>Board 01 at 390&nbsp;px.</b> Real 390-px viewports: app.css' rules under 720 and 560&nbsp;px apply. Recommended: L1&nbsp;A. All data invented. The desktop frames and the arguments are in the 1200-px render.</p>
+
+<!-- ============================ L1 — #904 ============================ -->
+<section class="mock-board" id="l1">
+  <h2>① L1 · #904 — a file name the stored history never saw <small>Transaktionen → Import → Vorschau, „Verrechnungskonten aus dem Export“</small></h2>
+  <p class="mock-note desk-only">The instance holds <b>Test-Cash</b>, <b>Tagesgeld</b> and <b>Depot Muster</b>, all imported from Portfolio Performance months ago. In PP the operator then renamed „Tagesgeld“ to „Tagesgeld Extra“ and exported again. Account and depot names are content-hash inputs (<code>ImportHash.parts/2</code>), so every row under the new name is a hash miss: the file's 12 old Tagesgeld rows and its one new interest row all count as new. The name resolves to nothing — no live name, no former name — so <code>prefill/2</code> (:1703) gives „+ Neu anlegen: Tagesgeld Extra“. Test-Cash and Depot Muster do have hits. That combination is the signal ADR-0050 §2's amendment names; the board draws the cash row, and a depot row takes the same anatomy with „Depot“ in the note.</p>
+
+  <p class="cap desk-only">Heute</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — vorbelegt „+ Neu anlegen“, Bestätigen frei</span><iframe data-tpl="l1" data-o='{"v":"before"}' title="L1 heute, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="l1" data-o='{"v":"before"}' title="L1 heute, 390 px"></iframe></div>
+    <div class="notes">
+      <p class="consequence"><b>One click on „Import bestätigen“</b> creates the cash account „Tagesgeld Extra“ and books 13 bookings into it: one new interest payment and Tagesgeld's 12 earlier bookings a second time. Tagesgeld keeps its own 12, so its balance is counted twice in every total, and nothing on the page said so.</p>
+      <ul class="desk-only">
+        <li>The row reads exactly like a genuinely new account: „13 Buchungen neu“ and a sensible prefill.</li>
+        <li>The economic layer (#533, <code>DedupKey</code>) would have caught the 12 — but it compares <b>resolved</b> account ids, and a newly created account has none of the stored bookings.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A <span class="rec">empfohlen</span> — keine Vorbelegung; Bestätigen gesperrt, mit Grund</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — noch nicht entschieden</span><iframe data-tpl="l1" data-o='{"v":"A"}' data-proposal title="L1 A, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">A — „Tagesgeld“ gewählt: „Zuordnung merken“ erscheint, Bestätigen frei</span><iframe data-tpl="l1" data-o='{"v":"Achosen"}' data-proposal title="L1 A gewählt, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — empfohlen</span><iframe data-tpl="l1" data-o='{"v":"A"}' data-proposal title="L1 A, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>Why A.</b> It fails closed. The double booking happens only when somebody confirms without reading, and re-dropping the export is the routine act, so a note that sits beside an enabled confirm (B) is a guard only for the reader who already suspects something. A makes the confirm wait for a decision.</p>
+      <ul>
+        <li><b>Nothing new to learn.</b> It is ADR-0050 §4's ambiguous row, which the operator already knows (board 04b): no prefill, the select on „Entscheiden…“, an <code>attention</code> note under it, and the confirm disabled and described by „Vor dem Import noch zuzuordnen: Verrechnungskonto: Tagesgeld Extra“ (<code>#import-missing-hint</code>, <code>aria-describedby</code>). In code it is one more outcome of <code>prefill/2</code> (:1702), which then also reads the row's hash hits, returning <code>""</code>. <code>cash_row_state/2</code> then reads the row as missing on its own, because <code>decision_needed?/3</code> is true for any row that is not ambiguous.</li>
+        <li><b>A genuinely new account costs one click.</b> Example: a fixed-term account opened in PP and exported together with the old history. A first import is unaffected, since the signal needs hits under the file's other names. A converter file of fresh rows is unaffected too.</li>
+        <li><b>The right answer is remembered.</b> Choosing „Tagesgeld“ offers „Zuordnung merken“, ticked (G4-A). The next drop prefills through the former name, and the question does not come back.</li>
+        <li><b>„EXPERIENCE.md → Import pipeline: Never silently defaults.“</b> A prefill that books a history twice is the silent default the pipeline row forbids.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="mock-row phone-only">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — „Tagesgeld“ gewählt</span><iframe data-tpl="l1" data-o='{"v":"Achosen"}' data-proposal title="L1 A gewählt, 390 px"></iframe></div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — vorbelegt „+ Neu anlegen“, derselbe Hinweis, Bestätigen frei</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">B</span><iframe data-tpl="l1" data-o='{"v":"B"}' data-proposal title="L1 B, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">B</span><iframe data-tpl="l1" data-o='{"v":"B"}' data-proposal title="L1 B, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>B</b> keeps today's speed for a new account: the prefill stays, the confirm stays enabled, and the note is the only change. <b>Against it:</b></p>
+      <ul>
+        <li><b>The failure #904 reports stays one click away.</b> The page turns from silent to explained, but the confirm still books the history twice for anyone who does not read the note. This is the person ADR-0053 §6 and board 09 designed for: the operator who simply drops the export again.</li>
+        <li><b>A data note is not a gate.</b> UX-DR17 makes it a finding with its remedy beside it. Here the remedy is a choice the page lets the operator skip.</li>
+        <li><b>The economic layer cannot help.</b> Under B's prefill the apply creates the account first, and no stored booking carries the new id.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1168 ============================ -->
+<section class="mock-board" id="i1168">
+  <h2>② #1168 — a re-dropped file whose rows are all hash hits <small>before/after · nothing to pick</small></h2>
+  <p class="mock-note desk-only"><b>Today</b> such a file opens like a fresh import. Reading down, the operator meets the bucket tag „für neue Konten“, then a select on every account and depot row, then the securities. Only at the end, above the confirm, does the page say that nothing will be booked (board 04, „Randfall“; <code>nothing_to_import/1</code>, :1468). <b>After</b>, that statement leads the preview, under the format line and before the cards. A mapping row with no new booking shows no select: in its place is one <code>.mapping-basis</code> line, the anatomy the #923 security row took on board 09 ③. <b>What Apply sends does not change.</b> A read-only row carries its prefill as hidden inputs under the same names (<code>cash[&lt;key&gt;]</code>, <code>depot[&lt;key&gt;][target]</code>, <code>depot[&lt;key&gt;][cash]</code>), so <code>mapping_from_params/2</code>, <code>mapping_complete?/1</code> and <code>build_apply_params/2</code> see what they see today. The confirm stays: it writes nothing and reports every duplicate with its layer.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — 980 px</span><iframe data-tpl="allhits" data-o='{"after":false}' title="#1168 heute, Desktop"></iframe></div>
+  </div>
+  <div class="col desk-only" style="margin-top:12px">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">Nachher — 980 px</span><iframe data-tpl="allhits" data-o='{"after":true}' data-proposal title="#1168 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="allhits" data-o='{"after":false}' title="#1168 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="allhits" data-o='{"after":true}' data-proposal title="#1168 nachher, 390 px"></iframe></div>
+  </div>
+  <div class="notes desk-only" style="margin-top:10px">
+    <ul>
+      <li><b>The rule is per row, not per file.</b> In a mixed file, an account with nothing new (a closed account, say) also loses its select. <b>One exception:</b> a cash row that a depot row <i>with</i> new bookings names as its cash account (<code>"pp:&lt;name&gt;"</code>) keeps its select. That depot's cash link reads it (<code>depot_cash_ok?/3</code>), so it still decides something.</li>
+      <li><b>Nothing is lost by hiding the select.</b> A remap of a row with nothing new books nothing. The one thing it could do is „Zuordnung merken“, and the next file that brings this name a new booking shows the select again.</li>
+      <li><b>The line follows #923's wording,</b> „Keine Entscheidung nötig: Der Import bucht für dieses Wertpapier nichts.“ The count above it keeps its existing „· <b>nichts anzulegen</b>“, so account rows and security rows read alike.</li>
+      <li><b>Not changed here:</b> the bucket-tag panel still asks for a tag „für neue Konten“ on a file that creates none (found while drawing 3).</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ #1118 ============================ -->
+<section class="mock-board" id="i1118">
+  <h2>③ #1118 — a sale whose cash would be 0 or less after its negative tax is split off <small>before/after · the J9 row-error frame</small></h2>
+  <p class="mock-note desk-only">ADR-0053 §5: on a credit row, a negative <code>Steuern</code> becomes a <code>tax_refund</code> companion, and the parent is credited <b>Gesamtpreis − refund</b>. The file's row 7 is a small sale whose fee is larger than its value: Stück 0,25 · Kurs 30,00 · Betrag 7,50 · Gebühren 9,90 · Steuern -12,40 · Gesamtpreis 10,00. The two readings agree (7,50 + 2,50 = 10,00), so ADR-0053 §2 lets it through. The parent would then be credited 10,00 − 12,40 = <b>-2,40</b>. <b>Today</b> the preview counts the row as a „Verkauf“ like any other, with no warning. At apply, <code>unimportable/1</code> (applier.ex:1169) skips the sale and its refund with it. The only trace is two lines on the done page, in the applier's own English. <b>After</b> the parser refuses the row as a row error in the existing parser-warnings note. The error names the row, what the file wrote and the manual remedy. The row and its refund leave the counts, the „Warnungen“ card counts the row, and the rest of the file previews and imports. Row numbers in the after frame count as #1128 does (④ below).</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — die Vorschau: kein Wort zu Zeile 7</span><iframe data-tpl="sale" data-o='{"v":"before"}' title="#1118 heute, Vorschau, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-before" style="margin-top:10px"><span class="mock-tag">Heute — nach „Import bestätigen“: die einzige Spur</span><iframe data-tpl="sale" data-o='{"v":"done"}' title="#1118 heute, Ergebnis, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — die Vorschau nennt Zeile 7, mit Abhilfe</span><iframe data-tpl="sale" data-o='{"v":"after"}' data-proposal title="#1118 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="sale" data-o='{"v":"before"}' title="#1118 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="sale" data-o='{"v":"after"}' data-proposal title="#1118 nachher, 390 px"></iframe></div>
+  </div>
+  <div class="notes desk-only" style="margin-top:10px">
+    <ul>
+      <li><b>Wording.</b> It follows the existing reasons: the cells as the file wrote them, then „— Zeile nicht übernommen“, as the Gesamtpreis mismatch does (<code>reading_message/3</code>). The remedy follows as its own sentence, the way the key-collision text ends on „Correct them in Portfolio Performance and export again“. The figure after „blieben“ is what the parent would be credited, written in the file's notation, as „(erwartet …)“ is.</li>
+      <li><b>„Steuererstattung“, not „Steuerrückerstattung“.</b> The remedy is a booking made in Portfolixir, and the booking drawer's kind is labelled „Steuererstattung“ (<code>TransactionKindLabel</code>, msgid „Tax refund“). „Steuerrückerstattung“ is PP's CSV label, which the operator does not meet in the drawer.</li>
+      <li><b>What „von Hand“ means</b> (for the handbook, not the message). A sale's cash must be above zero (<code>validate_gross_amount_sign/1</code>). The hand-booked set is therefore the sale at its Betrag 7,50, its fee 9,90 as a „Gebühren“ booking, and the refund 12,40 as a „Steuererstattung“. Together they move the row's Gesamtpreis, 10,00.</li>
+      <li><b>Only a credit row can reach this:</b> a debit's parent is debited G + r. A <i>Dividende</i> or <i>Zinsen</i> row of the same shape goes through the same branch. The story gives each kind its own sentence (one msgid per kind, as the account errors do) or confirms the sale is the only kind PP writes this way.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ #1140 ============================ -->
+<section class="mock-board" id="i1140">
+  <h2>④ #1140 — the parser-warnings note at 390 px <small>before/after · same rows in both frames</small></h2>
+  <p class="mock-note desk-only">The note is a flex row: glyph, the word „ACHTUNG“, then the body (<code>[data-role="parser-warnings"] .data-note__body { flex: 1 }</code>). At 390 the glyph and the word keep their own column down the whole note, and the body — the „Parser-Warnungen“ head line with its copy button, and the <code>&lt;pre&gt;</code> of rows — gets what is left. <b>After</b>, under 560&nbsp;px the note wraps: the glyph and the word form a heading row, and the body takes the note's full width (rule ① of the proposal; board 09 ②b's rule for the correction note, as one selector list). The rows are the ones Sprint 20 leaves in the box (#1118's sentence, #1128's numbers), so the widths are the point, not the text. Above 560&nbsp;px nothing changes.</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="warn" data-o='{"rows":"three"}' title="#1140 heute, 390 px" data-measure="before"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="warn" data-o='{"rows":"three"}' data-proposal title="#1140 nachher, 390 px" data-measure="after"></iframe></div>
+    <div class="notes desk-only">
+      <p class="cap">Measured in the frames (390-px viewport)</p>
+      <ul id="m1140">
+        <li>…</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1128 ============================ -->
+<section class="mock-board" id="i1128">
+  <h2>⑤ #1128 — „Zeile N“ counts as a spreadsheet shows the file <small>before/after · the value only</small></h2>
+  <p class="mock-note desk-only">Today the CSV parser numbers data rows from 1 (<code>Enum.with_index(1)</code> over the rows after the header, csv_parser.ex:111). The row a spreadsheet shows as 7 is therefore „Zeile 6“, one less than what the operator finds when the file is opened. <b>After</b>, the header is row 1 and the first booking row 2, so the number the page names is the row number the spreadsheet shows. The value changes everywhere a CSV row is named: the parser warnings, the receiving-side note („booked once, from that row“) and every list on the done page. The anatomy changes nowhere. Both frames carry rule ①, so only the number differs.</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — „Zeile 6“</span><iframe data-tpl="warn" data-o='{"rows":"one","n":6}' data-proposal title="#1128 heute"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — „Zeile 7“</span><iframe data-tpl="warn" data-o='{"rows":"one","n":7,"new":true}' data-proposal title="#1128 nachher"></iframe></div>
+    <div class="notes">
+      <p class="cap">The same file as a spreadsheet shows it</p>
+      <div style="overflow:hidden">
+      <table class="sheet" aria-label="Die Datei als Tabelle">
+        <tr><th></th><th class="ca">A</th><th>B</th><th class="cf">F</th><th>J</th><th>K</th></tr>
+        <tr><td class="rn">1</td><td class="ca">Datum</td><td>Typ</td><td class="cf">Betrag</td><td>Konto</td><td>Gegenkonto</td></tr>
+        <tr><td class="rn">2</td><td class="ca">2026-01-05</td><td>Einlage</td><td class="cf">5.000,00</td><td>Test-Cash</td><td></td></tr>
+        <tr><td class="rn">3</td><td class="ca">2026-01-12</td><td>Kauf</td><td class="cf">1.502,50</td><td>Depot Muster</td><td>Test-Cash</td></tr>
+        <tr><td class="rn">…</td><td class="ca">…</td><td class="cf">…</td><td>…</td><td>…</td><td>…</td></tr>
+        <tr class="hl"><td class="rn">7</td><td class="ca">2026-03-02</td><td>Umbuchung (Ausgang)</td><td class="cf">500,00</td><td>Test-Cash</td><td></td></tr>
+      </table>
+      </div>
+      <ul class="desk-only">
+        <li><b>JSON is not touched.</b> A JSON file's „Zeile N“ is the N-th object in its <code>transactions</code> array (json_parser.ex:125), not a line of the file. The JSON half is filed (found while drawing 6).</li>
+        <li><b>A stored text follows the number.</b> A split-off refund's note reads „Auto-split tax refund from row N“ (csv_parser.ex:328) and is stored with the booking. New ones name the new number, and old ones keep theirs. It is not a hash input (<code>ImportHash.parts/2</code>), so nothing books twice.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1173 ============================ -->
+<section class="mock-board" id="i1173">
+  <h2>⑥ #1173 — a fresh instance with no portfolio <small>before/after · one line in the summary's voice</small></h2>
+  <p class="mock-note desk-only"><b>What the code does.</b> The Imports page never passes a portfolio (<code>build_apply_params/2</code>: „the applier resolves <code>Portfolios.default_portfolio/1</code> itself“). The applier's <code>resolve_portfolio(nil, _)</code> (applier.ex:697) calls <code>Portfolios.default_portfolio(Actor.import_session())</code>. With no portfolio, that creates one named <b>„Default“</b> with base currency <b>EUR</b> (portfolios.ex:44–55), journaled under the import actor, so the admin list „Portfoliodatensätze (Kompatibilität)“ under Konten &amp; Depots shows it with source „Import“. Everything the import creates binds to it. With one or more portfolios it books into the earliest. Until then the preview counts on an empty portfolio (<code>import_portfolio_id/1</code> gives <code>nil</code>, so every row is new), and nothing on the page mentions the portfolio. <b>The MCP prompt <code>first_setup</code></b> (mcp-server/src/prompts.ts, step 3) says today: „Group with buckets and views, not with portfolios: a portfolio record is an internal compatibility container (ADR-0024), portfolixir.portfolios.create is deprecated, an account created without one lands in the first portfolio, and every import books into that first portfolio.“ It does not say that on a fresh instance the import creates that first portfolio, or what it is called. <b>After</b>, the preview says it once, as a second muted line under „Quellformat“, and only when no portfolio exists. With a portfolio there is nothing to say (UX-DR2).</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — frische Instanz</span><iframe data-tpl="fresh" data-o='{"after":false}' title="#1173 heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — frische Instanz</span><iframe data-tpl="fresh" data-o='{"after":true}' data-proposal title="#1173 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="fresh" data-o='{"after":false}' title="#1173 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="fresh" data-o='{"after":true}' data-proposal title="#1173 nachher, 390 px"></iframe></div>
+  </div>
+  <div class="notes desk-only" style="margin-top:10px">
+    <ul>
+      <li><b>The word is the admin list's.</b> „Portfoliodatensatz“ is what Konten &amp; Depots calls the record (msgid „Portfolio records (compatibility)“), so the line points at the one place the operator will meet it again. „Default“ is quoted as stored data, like the bucket name „PP Import …“, and is not translated.</li>
+      <li><b>The done page names no portfolio either</b>: its cards count securities, cash accounts and depots (found while drawing 4).</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ #1174 ============================ -->
+<section class="mock-board" id="i1174">
+  <h2>⑦ #1174 — the bucket tag field starts empty <small>before/after · „Bucket-Tag für neue Konten“</small></h2>
+  <p class="mock-note desk-only"><b>Today</b> the field is prefilled with <code>default_bucket_tag/0</code> (:1660), <code>"PP Import #{Date.to_iso8601(Clock.today())}"</code>, so every import that creates an account also creates a dated tag bucket unless the operator clears the field or ticks „Kein Tag“. <b>After</b>, <code>blank_mapping/0</code> starts it as <code>""</code> and the field shows its existing placeholder, „z. B. PP Import“. An empty field already means no tag (<code>effective_bucket_tag/1</code> trims it to <code>nil</code>; <code>apply_bucket_tag(nil, _)</code> is a no-op), so the apply needs no change. The checkbox and the sentence under it stay as they are here (found while drawing 5).</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „PP Import 2026-10-07“</span><iframe data-tpl="bucket" data-o='{"after":false}' title="#1174 heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — leer, mit Platzhalter</span><iframe data-tpl="bucket" data-o='{"after":true}' data-proposal title="#1174 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="bucket" data-o='{"after":false}' title="#1174 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="bucket" data-o='{"after":true}' data-proposal title="#1174 nachher, 390 px"></iframe></div>
+  </div>
+</section>
+
+<!-- ============================ ⑧ correction, JSON ============================ -->
+<section class="mock-board" id="corr">
+  <h2>⑧ ADR-0053 §6 — the correction section, now fed by a Portfolio Performance JSON file too <small>before/after · one sentence of board 09's pick J9 = A</small></h2>
+  <p class="mock-note desk-only">Board 09's section (pick J9 = A, signed) is checked line by line for „CSV“. The heading, „Bereits importiert, mit anderem Betrag“, does not name a format. Nor do the columns („Zeile · Datum · Buchung · Gebucht · Laut Datei · Differenz“), the button, the dialog, the result line or the done page's „Dieselbe Datei erneut ablegen, um sie zu korrigieren.“ <b>The word „CSV“ appears in none of them.</b> The note's first sentence, though, names two CSV columns: „Gebucht ist der Bruttowert (Spalte „Betrag“); was das Konto bewegt, nennt die Datei als „Gesamtpreis“.“ A JSON v1 file has neither column: it states the cash as <code>amount</code>, with the fees and taxes in <code>units</code>. That sentence is the one line that changes. It names the Portfolio Performance file instead of a column, so it holds for either format. Everything else on board 09 stands.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Board 09, J9 A — der Satz nennt zwei CSV-Spalten</span><iframe data-tpl="corr" data-o='{"after":false}' data-proposal title="Korrektur vorher, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — der Satz nennt die Portfolio-Performance-Datei</span><iframe data-tpl="corr" data-o='{"after":true}' data-proposal title="Korrektur nachher, Desktop"></iframe></div>
+  </div>
+  <p class="stub phone-only"><b>390&nbsp;px: no picture.</b> Only one sentence changes. The section at 390&nbsp;px is board 09's, two-line rows under 560&nbsp;px included.</p>
+</section>
+
+<div class="verdict desk-only">
+  <div>
+    <h3>Why A for L1</h3>
+    <ul>
+      <li>It fails closed: a confirm that would book a history twice waits for a decision.</li>
+      <li>It is the ambiguous row's mechanism (ADR-0050 §4, board 04b), so nothing new to learn and nothing new in code but one prefill case.</li>
+      <li>A new account costs one click, and a renamed one is remembered after its first choice.</li>
+    </ul>
+  </div>
+  <div>
+    <h3>What the stories write into DESIGN.md</h3>
+    <ul>
+      <li>Import preview: the unseen-name rule and its note (L1); the lead note and the read-only row (#1168); the sale row error (#1118); the phone wrap of the parser-warnings note (#1140); „Zeile N“ as a spreadsheet counts (#1128); the fresh-instance line (#1173); the empty bucket tag (#1174); the correction's format-neutral sentence.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc, so
+   relative links resolve against this board) from the live markup of
+   imports_live.ex (render_preview/1, render_done/1) and AppShell. German
+   labels from priv/gettext/de/LC_MESSAGES/default.po. Synthetic data only. */
+const CSS_HREF = '../../../../../priv/static/app.css';
+const P = {
+  bars: '<path d="M4 4h16M4 12h16M4 20h16"/>',
+  upload: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 19h14"/>',
+  copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
+  ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>',
+  tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>'
+};
+const svg = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+const nw = (on) => (on ? ' is-new' : '');
+
+/* AppShell.data_note */
+function note(sev, body, attrs = '', isNew = false) {
+  const glyph = sev === 'attention' ? 'tri' : 'ast';
+  const word = sev === 'attention' ? 'Achtung' : 'Hinweis';
+  return `<div class="data-note data-note--${sev}${nw(isNew)}"${attrs}><span class="data-note__icon" aria-hidden="true">${svg(glyph, 14)}</span><span class="data-note__word">${word}</span><div class="data-note__body">${body}</div></div>`;
+}
+/* AppShell.area_tabs(AppShell.transactions_tabs(:import)) */
+function areaTabs() {
+  const t = [['Historie', 'bars'], ['Import', 'upload', true]];
+  return `<nav id="area-tabs" class="area-tabs" data-role="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs">${t.map(([l, i, on]) => `<a class="area-tab${on ? ' is-active' : ''}"${on ? ' aria-current="page"' : ''}><span class="area-tab__icon" aria-hidden="true">${svg(i, 14)}</span><span class="area-tab__label" data-label="${l}">${l}</span></a>`).join('')}</nav>`;
+}
+function page(inner, o = {}) {
+  return `<main class="app-main app-main--workspace"><div id="imports-workspace" class="workspace-page">${o.tabs ? areaTabs() : ''}<section class="workspace-section${o.cls ? ' ' + o.cls : ''}">${inner}</section></div></main>`;
+}
+const elide = (t) => `<p class="elide">… ${t}</p>`;
+const head = () => `<h2>Vorschau</h2><p class="muted">Quellformat: CSV</p>`;
+function stats(cards) {
+  return `<div class="import-stats">${cards.map(([l, v, w]) => `<div class="import-stat-card${w ? ' warning' : ''}"><span class="label">${l}</span><span class="value">${v}</span></div>`).join('')}</div>`;
+}
+const CARD = { e: 'Einträge', s: 'Wertpapiere', c: 'Verrechnungs&shy;konten', d: 'Depots', w: 'Warnungen' };
+function kinds(list) {
+  return `<h3>Anzahl pro Art</h3><ul class="kind-chips">${list.map(([k, n]) => `<li class="kind-chip"><span class="name">${k}</span><span class="count">${n}</span></li>`).join('')}</ul>`;
+}
+function warnings(rows, isNew) {
+  return note('attention', `<div class="parser-warnings__head"><h3 id="parser-warnings-title">Parser-Warnungen</h3><button type="button" id="copy-parser-warnings" class="icon-button" aria-label="Parser-Warnungen kopieren" title="Parser-Warnungen kopieren">${svg('copy')}</button></div><pre class="parser-warnings__rows${nw(isNew)}" tabindex="0">${rows.join('\n')}</pre>`, ' id="parser-warnings-box" data-role="parser-warnings" role="region" aria-labelledby="parser-warnings-title"');
+}
+const B = (n) => `${n} ${n === 1 ? 'Buchung' : 'Buchungen'}`;
+function count(hits, fresh) {
+  const h = hits ? `${B(hits)} bereits importiert · ` : '';
+  const b = fresh === 0 ? 'nichts anzulegen' : hits ? `${fresh} neu` : `${B(fresh)} neu`;
+  return `<span class="mapping-count" data-role="mapping-count">${h}<b>${b}</b></span>`;
+}
+const sel = (label, isNew) => `<select${isNew ? ' class="is-new"' : ''}><option selected>${label}</option></select>`;
+function cashRow(name, hits, fresh, target) {
+  return `<div class="mapping-row"><div class="source"><small>PP-Konto</small>${name}${count(hits, fresh)}</div><div class="mapping-target">${target}</div></div>`;
+}
+function depotRow(name, hits, fresh, target, cash) {
+  return `<div class="mapping-row depot"><div class="source"><small>PP-Depot</small>${name}${count(hits, fresh)}</div><div class="mapping-target">${target}</div>${cash || ''}</div>`;
+}
+const panel = (title, rows) => `<section class="panel inner"><h3>${title}</h3><div class="mapping-grid">${rows}</div></section>`;
+function actions(disabled) {
+  return `<div class="actions"><button type="submit" id="pp-import-confirm" class="button-primary"${disabled ? ' disabled aria-describedby="import-missing-hint"' : ''}>Import bestätigen</button><button type="button">Verwerfen</button></div>`;
+}
+function bucketPanel(after, isNew) {
+  const value = after ? '' : 'PP Import 2026-10-07';
+  return `<section class="panel inner" id="import-bucket-tag"><h3>Bucket-Tag für neue Konten</h3><p class="muted">Die von diesem Import angelegten Konten erhalten den Bucket-Tag:</p><label><span>Bucket-Tag</span><input type="text" name="bucket_tag" value="${value}" maxlength="100" placeholder="z. B. PP Import"${isNew ? ' class="is-new"' : ''}></label><label><input type="checkbox" name="bucket_skip" value="true"><span>Kein Tag – die neuen Konten bleiben ohne Bucket</span></label><p class="muted">Ein bestehender Bucket mit diesem Namen wird wiederverwendet. Konten, die bestehenden Einträgen zugeordnet sind, behalten ihre aktuellen Tags.</p></section>`;
+}
+
+/* ① L1 — #904 */
+const L1_NOTE = note('attention', 'Unter diesem Namen ist noch keine Buchung importiert, unter den anderen Namen dieser Datei schon. Wurde das Konto in Portfolio Performance umbenannt, hier das bestehende Konto wählen, sonst „+ Neu anlegen“.', ' data-role="mapping-unseen-name"', true);
+const REMEMBER = `<div class="mapping-remember" data-role="mapping-remember"><label><input type="checkbox" checked><span>Zuordnung merken</span></label><small>„Tagesgeld Extra“ wird früherer Name von Tagesgeld; ein künftiger Import ordnet den Namen selbst zu.</small></div>`;
+function l1(o) {
+  let target;
+  let hint = '';
+  let disabled = false;
+  if (o.v === 'before') target = sel('+ Neu anlegen: Tagesgeld Extra');
+  if (o.v === 'A') {
+    target = sel('Entscheiden…', true) + L1_NOTE;
+    hint = `<p id="import-missing-hint" class="form-help is-new" role="status">Vor dem Import noch zuzuordnen: Verrechnungskonto: Tagesgeld Extra</p>`;
+    disabled = true;
+  }
+  if (o.v === 'Achosen') target = sel('Tagesgeld') + L1_NOTE + REMEMBER;
+  if (o.v === 'B') target = sel('+ Neu anlegen: Tagesgeld Extra') + L1_NOTE;
+  const rows = cashRow('Test-Cash', 33, 2, sel('Test-Cash')) + cashRow('Tagesgeld Extra', 0, 13, target);
+  return page(elide('„Vorschau“, Quellformat, die Karten (Einträge 50), „Anzahl pro Art“ und „Bucket-Tag für neue Konten“ wie heute') +
+    `<form id="pp-import-apply">${panel('Verrechnungskonten aus dem Export', rows)}${elide('„Depots aus dem Export“ (Depot Muster: 21 Buchungen bereits importiert · 1 neu) und „Wertpapiere aus dem Export“ wie heute')}${hint}${actions(disabled)}</form>`);
+}
+
+/* ② #1168 — every row a hash hit */
+const KINDS_47 = [['Kauf', 14], ['Einlage', 8], ['Dividende', 6], ['Gebühren', 3], ['Einlieferung', 2], ['Zinsen', 9], ['Verkauf', 5]];
+function allhits(o) {
+  const after = o.after;
+  const lead = note('note', 'Alle 47 Einträge sind bereits importiert. Der Import legt nichts an: keine Buchung, kein Konto, kein Depot, kein Wertpapier.', ' data-role="nothing-to-import"', after);
+  const ro = (hidden) => `<span class="mapping-basis is-new" data-role="mapping-nothing-new">Keine Zuordnung nötig: Der Import bucht unter diesem Namen nichts.</span>${hidden}`;
+  const hid = (n, v) => `<input type="hidden" name="${n}" value="${v}">`;
+  const cash = after
+    ? cashRow('Test-Cash', 33, 0, ro(hid('cash[k1]', 'existing:1'))) + cashRow('Tagesgeld', 12, 0, ro(hid('cash[k2]', 'existing:2')))
+    : cashRow('Test-Cash', 33, 0, sel('Test-Cash')) + cashRow('Tagesgeld', 12, 0, sel('Tagesgeld'));
+  const depot = after
+    ? depotRow('Depot Muster', 21, 0, ro(hid('depot[k3][target]', 'existing:3') + hid('depot[k3][cash]', 'pp:Test-Cash')))
+    : depotRow('Depot Muster', 21, 0, sel('Depot Muster'), sel('(Import) Test-Cash'));
+  const secs = `<section class="panel inner" id="import-security-mapping"><h3>Wertpapiere aus dem Export</h3><details data-role="matched-securities"><summary>5 Wertpapiere passen zu bestehenden Einträgen</summary></details></section>`;
+  return page(head() + (after ? lead : '') +
+    stats([[CARD.e, 47], [CARD.s, 5], [CARD.c, 2], [CARD.d, 1]]) + kinds(KINDS_47) +
+    `<form id="pp-import-apply">${bucketPanel(false)}${panel('Verrechnungskonten aus dem Export', cash)}${panel('Depots aus dem Export', depot)}${secs}${after ? '' : '<div style="margin-top:16px">' + lead + '</div>'}${actions(false)}</form>`, { tabs: true });
+}
+
+/* ③ #1118 — the sale row */
+const ROW_1118 = 'Zeile 7: Verkauf mit Gesamtpreis 10,00 und Steuererstattung 12,40: Dem Verkauf blieben -2,40 — Zeile nicht übernommen. Den Verkauf von Hand buchen, die Erstattung als eigene Steuererstattung.';
+function sale(o) {
+  if (o.v === 'done') {
+    return page(`<svg class="success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg><h2>Import abgeschlossen</h2><p class="muted">Erzeugte Transaktionen: 11 · Übersprungene Duplikate: 0</p><div class="import-skipped" data-role="skipped-entries"><p class="muted">2 nicht importierbare(r) Datensatz/Datensätze übersprungen:</p><ul><li>Zeile 6: skipped: zero or missing gross_amount for sell</li><li>Zeile 6.tax_refund.1: skipped: the row it was split from (row 6) was not imported</li></ul></div><div class="summary"><div class="import-stat-card"><span class="label">Wertpapiere</span><span class="value">3</span></div><div class="import-stat-card"><span class="label">Verrechnungs&shy;konten</span><span class="value">1</span></div><div class="import-stat-card"><span class="label">Depots</span><span class="value">1</span></div></div><div class="actions"><button type="button" class="button-primary">Weitere Datei importieren</button><a class="button-secondary">Transaktionen ansehen</a></div>`, { cls: 'import-done' });
+  }
+  const after = o.v === 'after';
+  const cards = after
+    ? [[CARD.e, 11], [CARD.s, 3], [CARD.c, 1], [CARD.d, 1], [CARD.w, 1, true]]
+    : [[CARD.e, 13], [CARD.s, 3], [CARD.c, 1], [CARD.d, 1]];
+  const k = [['Kauf', 4], ['Einlage', 2], ['Dividende', 2], ['Zinsen', 2], ['Verkauf', after ? 1 : 2]];
+  return page(head() + stats(cards) + kinds(k) + (after ? warnings([ROW_1118], true) : '') +
+    elide('Bucket-Tag, „Verrechnungskonten“ (Test-Cash), „Depots“ (Depot Muster) und drei Wertpapiere wie heute' + (after ? '' : ' — nichts nennt Zeile 7')) +
+    actions(false));
+}
+
+/* ④/⑤ #1140, #1128 — the parser-warnings note */
+function warn(o) {
+  const rows = o.rows === 'one'
+    ? [`Zeile ${o.n}: Umbuchung ohne Gegenkonto — Zeile nicht übernommen`]
+    : ['Zeile 5: Gesamtpreis 1.507,50 passt nicht zu Betrag 1.502,50 und Gebühren 2,50 (erwartet 1.505,00) — Zeile nicht übernommen', ROW_1118, 'Zeile 13: Umbuchung ohne Gegenkonto — Zeile nicht übernommen'];
+  const n = rows.length;
+  let body = warnings(rows, false);
+  if (o.new) body = body.replace(`Zeile ${o.n}:`, `<span class="is-new">Zeile ${o.n}:</span>`);
+  return page(head() + stats([[CARD.e, 47 - n], [CARD.s, 4], [CARD.c, 2], [CARD.d, 1], [CARD.w, n, true]]) + body + elide('die Zuordnung wie heute'));
+}
+
+/* ⑥ #1173 — the fresh instance */
+function fresh(o) {
+  const line = o.after ? `<p class="muted is-new" data-role="import-portfolio">Noch kein Portfoliodatensatz: Der Import legt „Default“ (EUR) an und bucht darin.</p>` : '';
+  return page(`<h2>Vorschau</h2><p class="muted">Quellformat: CSV</p>${line}` + stats([[CARD.e, 8], [CARD.s, 2], [CARD.c, 2], [CARD.d, 1]]) +
+    kinds([['Kauf', 2], ['Einlage', 1], ['Gebühren', 1], ['Dividende', 1], ['Zinsen', 1], ['Verkauf', 1], ['Umbuchung', 1]]) +
+    elide('Bucket-Tag und Zuordnung: jede Zeile „+ Neu anlegen“, jede Buchung neu'), { tabs: true });
+}
+
+/* ⑦ #1174 — the bucket tag */
+function bucket(o) {
+  return page(elide('„Vorschau“, Quellformat, Karten, „Anzahl pro Art“') + `<form id="pp-import-apply">${bucketPanel(o.after, o.after)}</form>` + elide('die Zuordnung'));
+}
+
+/* ⑧ the correction section's sentence (board 09, J9 A) */
+function corr(o) {
+  const s = o.after
+    ? '5 bereits importierte Buchungen weichen von dieser Datei ab: Gebucht ist der <span class="is-new">Bruttowert;</span> <span class="is-new">was das Konto bewegt, nennt die Portfolio-Performance-Datei.</span> Die Differenz sind die Gebühren und Steuern der Zeile.'
+    : '5 bereits importierte Buchungen weichen von dieser Datei ab: Gebucht ist der Bruttowert (Spalte „Betrag“); was das Konto bewegt, nennt die Datei als „Gesamtpreis“. Die Differenz sind die Gebühren und Steuern der Zeile.';
+  return page(`<h2>Vorschau</h2><p class="muted">Quellformat: ${o.after ? 'JSON' : 'CSV'}</p>` + elide('die Karten und „Anzahl pro Art“') +
+    `<section class="panel inner" id="import-correction" aria-labelledby="import-correction-head"><h3 id="import-correction-head">Bereits importiert, mit anderem Betrag</h3><div role="status">${note('attention', `<p>${s}</p>${elide('die Liste (Zeile · Datum · Buchung · Gebucht · Laut Datei · Differenz), die Summe je Konto und „5 Buchungen korrigieren…“ wie auf Board 09')}`, ' data-role="import-correction"')}</div></section>` +
+    elide('die Zuordnung und „Import bestätigen“'));
+}
+
+const TPL = { l1, allhits, sale, warn, fresh, bucket, corr };
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .app-main,.workspace-page{min-height:0 !important;} .is-new{outline:2px dashed var(--color-accent);outline-offset:2px;border-radius:4px;} .elide{margin:0;font-size:12px;color:#5a6577;font-style:italic;} .import-done{text-align:center;} pre span.is-new{outline:none;border-radius:2px;background:color-mix(in srgb,var(--color-accent) 16%,transparent);box-shadow:inset 0 -2px 0 var(--color-accent);}</style>';
+
+let pending = 0;
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  const css = CSS_MOCK + ('proposal' in f.dataset ? document.getElementById('proposal').outerHTML : '');
+  pending++;
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument;
+    f.style.height = Math.ceil(doc.documentElement.scrollHeight) + 'px';
+    if (--pending === 0) measure();
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+
+/* Board chrome: the #1140 note quotes widths measured in its two frames. */
+function measure() {
+  const out = document.getElementById('m1140');
+  if (!out) return;
+  const w = (frame, sel) => {
+    const el = frame.contentDocument.querySelector(sel);
+    return el ? Math.round(el.getBoundingClientRect().width) : 0;
+  };
+  const h = (frame, sel) => {
+    const el = frame.contentDocument.querySelector(sel);
+    return el ? Math.round(el.getBoundingClientRect().height) : 0;
+  };
+  const sh = (frame, sel) => {
+    const el = frame.contentDocument.querySelector(sel);
+    return el ? Math.round(el.scrollHeight) : 0;
+  };
+  const b = document.querySelector('iframe[data-measure="before"]');
+  const a = document.querySelector('iframe[data-measure="after"]');
+  out.innerHTML =
+    `<li><b>The note</b>: ${w(b, '[data-role="parser-warnings"]')} px wide in both frames.</li>` +
+    `<li><b>The row list</b> (<code>.parser-warnings__rows</code>): <b>${w(b, '.parser-warnings__rows')} px</b> today, <b>${w(a, '.parser-warnings__rows')} px</b> after.</li>` +
+    `<li><b>The three rows</b> need ${sh(b, '.parser-warnings__rows')} px of list today, so the list's own 12rem scroller (${h(b, '.parser-warnings__rows')} px) hides the third row; after they need ${sh(a, '.parser-warnings__rows')} px and all three show. The note is ${h(b, '[data-role="parser-warnings"]')} px tall today, ${h(a, '[data-role="parser-warnings"]')} px after.</li>` +
+    `<li><b>What the word column costs today</b>: glyph ${w(b, '[data-role="parser-warnings"] .data-note__icon')} px, „ACHTUNG“ ${w(b, '[data-role="parser-warnings"] .data-note__word')} px, plus two 8 px gaps.</li>`;
+}
+</script>
+</body>
+</html>
