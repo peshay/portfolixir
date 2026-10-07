@@ -150,7 +150,8 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
     assert text(basis) ==
              "Across every depot · deliveries open no lot · fees and taxes in the realised P&L, " <>
                "not in avg buy and avg sell · income received while a trade was open not " <>
-               "included · p.\u00A0a. only from 365 days of holding"
+               "included · p.\u00A0a. only from 365 days of holding and only where a rate " <>
+               "solves the flows"
   end
 
   # Acceptance criteria (board N2, a trade held long enough that no rate
@@ -175,6 +176,46 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
 
     assert text(Floki.find(dash, ".visually-hidden")) ==
              "no annualized return, no rate solves this trade's flows"
+  end
+
+  # User story (#1089; the PR γ closing act, first-look persona):
+  # As the operator reading a security's closed trades on a phone, by eye or
+  # with a screen reader,
+  # I want a trade without p. a. to say why on its phone row, as its table
+  # row's dash does at a desktop width,
+  # so that a total loss held 600 days does not lose its reason at 390 px.
+  #
+  # Acceptance criteria:
+  # - A phone row without p. a. carries the dash's reason, a visually hidden
+  #   sentence after its figures: the solver's reason for a trade no rate
+  #   solves, the holding period's under 365 days.
+  # - The visible row is unchanged, and a row with p. a. carries none.
+  test "a phone row without p. a. says why, as the table's dash does", %{conn: conn} do
+    %{nordwind: nordwind} = seed_nordwind!()
+    world = base_world(name: "Why Tab World", cash_name: "Girokonto", depot_name: "Depot 1")
+    deposit!(world, "10000", ~D[2024-01-02])
+    tamarisk = create_security!(name: "Tamarisk Mining Ltd", ticker: "TML")
+    buy!(world, tamarisk, quantity: "10", price: "40", date: ~D[2024-11-02])
+    sell!(world, tamarisk, quantity: "10", price: "0", date: ~D[2026-06-25])
+
+    why = fn doc, opened ->
+      doc |> phone_row(opened) |> Floki.find(".visually-hidden[data-role='pa-absent']") |> text()
+    end
+
+    {:ok, view, _html} = live(conn, "/securities/#{tamarisk.id}?tab=trades")
+    doc = document(view)
+
+    assert why.(doc, "2024-11-02") == "no annualized return, no rate solves this trade's flows"
+    assert text(Floki.find(phone_row(doc, "2024-11-02"), ".phone-row__figure2")) == "-100.0%"
+
+    assert text(Floki.find(closed_row(doc, "2024-11-02"), "td.trade-pa .visually-hidden")) ==
+             why.(doc, "2024-11-02")
+
+    {:ok, view, _html} = live(conn, "/securities/#{nordwind.id}?tab=trades")
+    doc = document(view)
+
+    assert why.(doc, "2026-02-01") == "not annualized, under one year of holding"
+    assert why.(doc, "2024-01-02") == ""
   end
 
   # User story (#1029, the warning that guessed; board pin 3, UX-DR25):
@@ -304,7 +345,8 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
   # - A trade sold at exactly its cost, held for more than a year, shows its
   #   0.0% period return and its 0.0% p. a. on the phone row in neither sign
   #   colour: a figure that is neither a gain nor a loss is not coloured as
-  #   one.
+  #   one. Since the Sprint 19 U2 review it is marked directionless,
+  #   `is-flat`, as on the Trades facet.
   test "a break-even trade's phone figures carry no sign colour", %{conn: conn} do
     world = base_world(name: "Even World", cash_name: "Girokonto", depot_name: "Depot 1")
     deposit!(world, "5000", ~D[2024-01-02])
@@ -317,7 +359,8 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
 
     assert text(Floki.find(even, ".phone-row__figure2")) == "0.0% · 0.0% p.\u00A0a."
 
-    assert even |> Floki.find(".phone-row__figure2 span") |> Enum.map(&class_of/1) == ["", ""]
+    assert even |> Floki.find(".phone-row__figure2 span") |> Enum.map(&class_of/1) ==
+             ["is-flat", "is-flat"]
   end
 
   # Acceptance criteria (the German page, board H1's copy):
@@ -332,9 +375,10 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
     headers = doc |> Floki.find("#detail-closed-trades-table thead th") |> Enum.map(&text/1)
     assert Enum.slice(headers, 5, 3) == ["Tage", "p.\u00A0a.", "Realisierter G/V"]
 
-    assert text(Floki.find(closed_row(doc, "2024-01-02"), "td.trade-pa")) == "+20,0%"
+    # #1060 (Sprint 19 U2): the tab's dates are the German form here.
+    assert text(Floki.find(closed_row(doc, "02.01.2024"), "td.trade-pa")) == "+20,0%"
 
-    assert Floki.attribute(Floki.find(closed_row(doc, "2026-02-01"), "td.trade-pa--na"), "title") ==
+    assert Floki.attribute(Floki.find(closed_row(doc, "01.02.2026"), "td.trade-pa--na"), "title") ==
              ["Unter einem Jahr Haltedauer nicht annualisiert"]
 
     assert text(Floki.find(doc, "#detail-closed-trades-note .data-note__word")) == "Achtung"
@@ -350,11 +394,285 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
     assert text(Floki.find(doc, "#detail-closed-trades-basis")) ==
              "Über alle Depots · Einlieferungen eröffnen keinen Lot · Gebühren und Steuern im " <>
                "G/V, nicht in Ø Kauf und Ø Verkauf · Erträge während der Haltedauer nicht " <>
-               "enthalten · p.\u00A0a. erst ab 365 Tagen Haltedauer"
+               "enthalten · p.\u00A0a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz " <>
+               "die Zahlungen löst"
 
-    long = phone_row(doc, "2024-01-02")
+    long = phone_row(doc, "02.01.2024")
     assert text(Floki.find(long, ".phone-row__ids")) == "10,0000 Stück · 730 Tage"
     assert text(Floki.find(long, ".phone-row__figure2")) == "+44,0% · +20,0% p.\u00A0a."
+  end
+
+  # User story (#1060, Sprint 19 PR γ U2; board ux-design-2026-10-04/04-trades,
+  # before/after):
+  # As a local portfolio maintainer reading a security's Trades tab in German,
+  # I want its dates in the German form and its "%" columns in the form the
+  # rest of the app uses,
+  # so that the tab no longer reads "2024-03-14" and "+27,07 %" beside a phone
+  # row and a p. a. column that read "+27,1%".
+  #
+  # Acceptance criteria:
+  # - The open lots' open date, the closed trades' two dates, the unmatched
+  #   sells' list and the phone rows go through Format.date ("14.03.2024").
+  # - Both "%" columns print one decimal with the sign glued on ("+18,7%",
+  #   "-36,0%"), the form of the p. a. column beside them.
+  test "the Trades tab prints German dates and one-decimal signed percents", %{conn: conn} do
+    %{world: world, nordwind: nordwind} = seed_nordwind!()
+    kestrel = create_security!(name: "Kestrel Robotik SE", ticker: "KRS")
+    buy!(world, kestrel, quantity: "40", price: "52.10", date: ~D[2024-03-14])
+    Portfolixir.WorldFixtures.put_quote!(kestrel, ~D[2026-10-01], "61.85")
+
+    {:ok, lots_view, _html} = live(de_conn(conn), "/securities/#{kestrel.id}?tab=trades")
+    lots_doc = document(lots_view)
+
+    assert [lot] =
+             lots_doc
+             |> Floki.find("#detail-tab-panel-trades table.detail-trades-table tbody tr")
+             |> Enum.take(1)
+
+    assert text(Floki.find(lot, "td:nth-child(1)")) == "14.03.2024"
+    assert text(Floki.find(lot, "td:nth-child(6)")) == "+18,7%"
+
+    {:ok, view, _html} = live(de_conn(conn), "/securities/#{nordwind.id}?tab=trades")
+    doc = document(view)
+
+    long = closed_row(doc, "02.01.2024")
+    assert text(Floki.find(long, "td:nth-child(2)")) == "01.01.2026"
+    assert text(Floki.find(long, "td:nth-child(9)")) == "+44,0%"
+    assert text(Floki.find(closed_row(doc, "01.06.2023"), "td:nth-child(9)")) == "-36,0%"
+
+    items =
+      doc
+      |> Floki.find("#detail-closed-trades-note .excluded-list li")
+      |> Enum.map(fn li -> li |> Floki.find("span.num") |> Enum.map(&text/1) end)
+
+    assert items == [["28.05.2026", "12,0000 Stück"], ["20.04.2026", "8,0000 Stück"]]
+
+    assert text(Floki.find(phone_row(doc, "02.01.2024"), ".phone-row__name")) ==
+             "02.01.2024 → 01.01.2026"
+
+    panel = view |> element("#detail-tab-panel-trades") |> render()
+    refute panel =~ ~r/\d{4}-\d{2}-\d{2}/
+    refute panel =~ ~r/\d %/
+  end
+
+  # User story (#1074's trades half, Sprint 19 PR γ U2; board 04):
+  # As a local portfolio maintainer reading the English page,
+  # I want a quantity of one to read "unit" on the security's Trades tab,
+  # so that neither the unmatched-sells list nor a phone row says
+  # "1.0000 units".
+  #
+  # Acceptance criteria:
+  # - One unit reads "1.0000 unit" in the note's list and in the phone row;
+  #   any other quantity reads "units" (U1's count rule).
+  test "a closed trade and an unmatched sell of one unit read unit", %{conn: conn} do
+    world = base_world(name: "Unit Tab", cash_name: "Girokonto", depot_name: "Depot 1")
+    deposit!(world, "5000", ~D[2026-01-02])
+    single = create_security!(name: "Brightwater Utilities plc", ticker: "BWU")
+    buy!(world, single, quantity: "1", price: "80", date: ~D[2026-01-12])
+    sell!(world, single, quantity: "1", price: "86.88", date: ~D[2026-05-20])
+    deliver!(world, single, "1", ~D[2026-08-01])
+    sell!(world, single, quantity: "1", price: "90", date: ~D[2026-08-24])
+
+    {:ok, view, _html} = live(conn, "/securities/#{single.id}?tab=trades")
+    doc = document(view)
+
+    assert text(Floki.find(phone_row(doc, "2026-01-12"), ".phone-row__ids")) ==
+             "1.0000 unit · 128 days"
+
+    assert doc
+           |> Floki.find("#detail-closed-trades-note .excluded-list li span.num")
+           |> Enum.map(&text/1) == ["2026-08-24", "1.0000 unit"]
+
+    refute render(view) =~ "1.0000 units"
+  end
+
+  # User story (#1059, Sprint 19 PR γ U2; board 04 rule ④):
+  # As a local portfolio maintainer on a phone or a tablet,
+  # I want the labelled ⓘ pill "Price & currency return" to show its whole
+  # label,
+  # so that its first ~50 px no longer fall off the left edge of the screen.
+  #
+  # Acceptance criteria:
+  # - Under `pointer: coarse` the labelled pill keeps `width: auto; height:
+  #   auto` with the coarse ⓘ's 1.75rem as its minimum height.
+  # - The rule comes after the coarse ⓘ circle's rule, which it overrides at
+  #   the same specificity.
+  # - The Trades tab's and the Holdings tab's pills both carry the class it
+  #   targets.
+  test "the labelled ⓘ pill keeps its width under a coarse pointer", %{conn: conn} do
+    css = File.read!("priv/static/app.css")
+
+    # The coarse block's circle rule, then — next in the same block, a
+    # comment at most between them — the labelled pill's rule.
+    [_rule, body] =
+      Regex.run(
+        ~r/@media \(pointer: coarse\) \{\s*\.metric-tooltip summary \{\s*width: 1\.75rem;[^}]*\}\s*(?:\/\*(?:[^*]|\*(?!\/))*\*\/\s*)?\.metric-tooltip--labelled summary \{([^}]*)\}/,
+        css
+      )
+
+    assert body =~ ~r/width:\s*auto;/
+    assert body =~ ~r/height:\s*auto;/
+    assert body =~ ~r/min-height:\s*1\.75rem;/
+
+    world = base_world(name: "Pill World", cash_name: "Girokonto", depot_name: "Depot 1")
+    deposit!(world, "5000", ~D[2024-01-02])
+    kestrel = create_security!(name: "Kestrel Robotik SE", ticker: "KRS")
+    buy!(world, kestrel, quantity: "40", price: "52.10", date: ~D[2024-03-14])
+
+    {:ok, view, _html} = live(conn, "/securities/#{kestrel.id}?tab=trades")
+
+    assert has_element?(
+             view,
+             "details.metric-tooltip--labelled[data-role='lot-decomposition-info']"
+           )
+
+    {:ok, holdings, _html} = live(conn, "/securities/#{kestrel.id}?tab=holdings")
+
+    assert has_element?(
+             holdings,
+             "details.metric-tooltip--labelled[data-role='pnl-decomposition-info']"
+           )
+  end
+
+  # User story (#1089 and #1060, the Sprint 19 U2 review; board
+  # ux-design-2026-10-04/04-trades):
+  # As a local portfolio maintainer reading why a closed trade on a
+  # security's Trades tab has no p. a. figure,
+  # I want the tab's basis line to name both limits, as the facet's does,
+  # so that a long trade with no rate — a total loss — is explained where
+  # its phone row shows only the period return.
+  #
+  # Acceptance criteria:
+  # - The basis line ends "p. a. only from 365 days of holding and only where
+  #   a rate solves the flows"; German "p. a. erst ab 365 Tagen Haltedauer
+  #   und nur, wo ein Zinssatz die Zahlungen löst", "p. a." with its no-break
+  #   space.
+  test "the tab's basis line names both limits of p. a.", %{conn: conn} do
+    world = base_world(name: "Limit World", cash_name: "Girokonto", depot_name: "Depot 1")
+    deposit!(world, "10000", ~D[2021-01-04])
+    halvorsen = create_security!(name: "Halvorsen Shipping AS", ticker: "HSA")
+    buy!(world, halvorsen, quantity: "50", price: "12.40", date: ~D[2021-03-01])
+    sell!(world, halvorsen, quantity: "50", price: "0", date: ~D[2025-12-01])
+
+    {:ok, view, _html} = live(conn, "/securities/#{halvorsen.id}?tab=trades")
+    doc = document(view)
+
+    assert text(Floki.find(phone_row(doc, "2021-03-01"), ".phone-row__figure2")) == "-100.0%"
+
+    assert text(Floki.find(doc, "#detail-closed-trades-basis")) =~
+             ~r/· p\.\x{00A0}a\. only from 365 days of holding and only where a rate solves the flows$/u
+
+    {:ok, de_view, _html} = live(de_conn(conn), "/securities/#{halvorsen.id}?tab=trades")
+
+    assert text(Floki.find(document(de_view), "#detail-closed-trades-basis")) =~
+             ~r/· p\.\x{00A0}a\. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst$/u
+  end
+
+  # User story (the Sprint 19 U2 review; #1060 and #1089):
+  # As a local portfolio maintainer reading a security's Trades tab, and as
+  # one who cannot tell its green from its red,
+  # I want a figure's sign and its colour decided on the figure as shown, and
+  # a percent that does not exist shown as a dash,
+  # so that "0.00" or "0.0%" never reads in the gain colour, and a lot with
+  # no price reads as unknown rather than as zero.
+  #
+  # Acceptance criteria:
+  # - An open lot and a closed trade whose results round to zero at the
+  #   places they are shown at (a gain of 0.004 EUR, 0.004 %) read "0.00"
+  #   and "0.0%" — and "0.0%" p. a. — with no sign; the cells and the phone
+  #   figures are `is-flat`, never a gain or loss colour.
+  # - An open lot with no stored price has no percent: its "%" cell reads
+  #   "—" in no colour.
+  test "a figure that rounds to zero is unsigned, a missing percent a dash", %{conn: conn} do
+    world = base_world(name: "Hairline Tab", cash_name: "Girokonto", depot_name: "Depot 1")
+    deposit!(world, "5000", ~D[2024-01-02])
+    hairline = create_security!(name: "Hairline Gain plc", ticker: "HLG")
+    buy!(world, hairline, quantity: "1", price: "100", date: ~D[2024-01-02])
+    sell!(world, hairline, quantity: "1", price: "100.004", date: ~D[2026-01-01])
+    buy!(world, hairline, quantity: "1", price: "100", date: ~D[2026-02-02])
+    Portfolixir.WorldFixtures.put_quote!(hairline, ~D[2026-10-01], "100.004")
+
+    {:ok, view, _html} = live(conn, "/securities/#{hairline.id}?tab=trades")
+    doc = document(view)
+
+    [lots_table | _closed] = Floki.find(doc, "#detail-tab-panel-trades table.detail-trades-table")
+    assert [lot] = Floki.find(lots_table, "tbody tr")
+
+    for column <- 5..9 do
+      assert [cell] = Floki.find(lot, "td:nth-child(#{column})")
+      assert class_of(cell) =~ "is-flat", "lot column #{column}"
+      refute class_of(cell) =~ ~r/is-positive|is-negative/, "lot column #{column}"
+      refute text(cell) =~ ~r/[+-]/, "lot column #{column}"
+    end
+
+    assert text(Floki.find(lot, "td:nth-child(5)")) == "0.00"
+    assert text(Floki.find(lot, "td:nth-child(6)")) == "0.0%"
+
+    trade = closed_row(doc, "2024-01-02")
+
+    for column <- 7..9 do
+      assert [cell] = Floki.find(trade, "td:nth-child(#{column})")
+      assert class_of(cell) =~ "is-flat", "trade column #{column}"
+      refute class_of(cell) =~ ~r/is-positive|is-negative/, "trade column #{column}"
+    end
+
+    assert Enum.map(7..9, &text(Floki.find(trade, "td:nth-child(#{&1})"))) ==
+             ["0.0%", "0.00", "0.0%"]
+
+    phone = phone_row(doc, "2024-01-02")
+    assert [figure] = Floki.find(phone, ".phone-row__figure")
+    assert text(figure) == "0.00 EUR"
+    assert class_of(figure) =~ "is-flat"
+    refute class_of(figure) =~ ~r/is-positive|is-negative/
+    assert text(Floki.find(phone, ".phone-row__figure2")) == "0.0% · 0.0% p.\u00A0a."
+
+    assert phone |> Floki.find(".phone-row__figure2 span") |> Enum.map(&class_of/1) ==
+             ["is-flat", "is-flat"]
+
+    unpriced = create_security!(name: "Kestrel Robotik SE", ticker: "KRS")
+    buy!(world, unpriced, quantity: "40", price: "52.10", date: ~D[2024-03-14])
+
+    {:ok, unpriced_view, _html} = live(conn, "/securities/#{unpriced.id}?tab=trades")
+
+    assert [unpriced_lot] =
+             unpriced_view
+             |> document()
+             |> Floki.find("#detail-tab-panel-trades table.detail-trades-table tbody tr")
+
+    assert [percent] = Floki.find(unpriced_lot, "td:nth-child(6)")
+    assert text(percent) == "—"
+    refute class_of(percent) =~ ~r/is-positive|is-negative|is-flat/
+  end
+
+  # User story (#1074's trades half, the Sprint 19 U2 review):
+  # As a local portfolio maintainer reading the English page,
+  # I want the unit's plural decided on the quantity as it is shown,
+  # so that a quantity that rounds to one at four places reads "1.0000
+  # unit", never "1.0000 units".
+  #
+  # Acceptance criteria:
+  # - A closed trade and an unmatched sell of 0.99996 units read "1.0000
+  #   unit" in the phone row and in the note's list.
+  test "a quantity that rounds to one unit reads unit", %{conn: conn} do
+    world = base_world(name: "Round Tab", cash_name: "Girokonto", depot_name: "Depot 1")
+    deposit!(world, "5000", ~D[2026-01-02])
+    near = create_security!(name: "Nearshore Cables AG", ticker: "NSC")
+    buy!(world, near, quantity: "0.99996", price: "80", date: ~D[2026-01-12])
+    sell!(world, near, quantity: "0.99996", price: "86", date: ~D[2026-05-20])
+    deliver!(world, near, "0.99996", ~D[2026-08-01])
+    sell!(world, near, quantity: "0.99996", price: "90", date: ~D[2026-08-24])
+
+    {:ok, view, _html} = live(conn, "/securities/#{near.id}?tab=trades")
+    doc = document(view)
+
+    assert text(Floki.find(phone_row(doc, "2026-01-12"), ".phone-row__ids")) ==
+             "1.0000 unit · 128 days"
+
+    assert doc
+           |> Floki.find("#detail-closed-trades-note .excluded-list li span.num")
+           |> Enum.map(&text/1) == ["2026-08-24", "1.0000 unit"]
+
+    refute render(view) =~ "1.0000 units"
   end
 
   # Acceptance criteria (board rules ① to ④, the CSS the pick adds):

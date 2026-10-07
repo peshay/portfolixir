@@ -35,8 +35,7 @@ defmodule PortfolixirWeb.Format do
 
   def percent(%Decimal{} = value, locale) do
     value
-    |> Decimal.mult(100)
-    |> Decimal.round(1)
+    |> percent_as_displayed()
     |> Decimal.to_string(:normal)
     |> localize(locale || current_locale())
   end
@@ -95,25 +94,62 @@ defmodule PortfolixirWeb.Format do
   Formats a Decimal with the given number of decimal places, prepending a `+`
   sign for positive values. Applies locale separators. Non-numbers render as
   an em dash.
+
+  The sign is the one the displayed figure has (`displayed_sign/2`): a value
+  that rounds to zero reads without a sign from either side, `-0.004` at two
+  places as `0,00`, never `-0,00`.
   """
   def signed_decimal(value, places, locale \\ nil)
 
   def signed_decimal(%Decimal{} = value, places, locale) do
-    eff_locale = locale || current_locale()
-    rounded = Decimal.round(value, places)
-
-    formatted =
-      rounded
-      |> Decimal.to_string(:normal)
-      |> localize(eff_locale)
-
-    case Decimal.compare(rounded, 0) do
-      :gt -> "+" <> formatted
-      _ -> formatted
-    end
+    value
+    |> Decimal.round(places)
+    |> signed_text(locale || current_locale())
   end
 
   def signed_decimal(_value, _places, _locale), do: "—"
+
+  @doc """
+  Formats a Decimal fraction as a signed percentage with one decimal, e.g.
+  `0.2707` → `+27,1` (de) / `+27.1` (en), `-0.051` → `-5,1`. The percent sign
+  is left to the caller, as with `percent/2`.
+
+  The sign is the one the displayed figure has (`displayed_percent_sign/1`),
+  as its gain/loss colour is: a positive value carries an explicit `+`, a
+  negative one its `-`, and a value that rounds to `0,0` from either side
+  none — never `+0,0` or `-0,0` (the trades surfaces' form, issues 1089 and
+  1060). Non-numbers render as an em dash.
+  """
+  def signed_percent(value, locale \\ nil)
+
+  def signed_percent(%Decimal{} = value, locale) do
+    value
+    |> percent_as_displayed()
+    |> signed_text(locale || current_locale())
+  end
+
+  def signed_percent(_value, _locale), do: "—"
+
+  @doc """
+  The sign a Decimal shows once rounded to `places` decimals, the precision
+  it is displayed at: `:positive`, `:negative` or `:zero`; `nil` for a
+  non-number.
+
+  A signed figure takes its sign and its gain/loss colour from here, so the
+  two agree with the digits on the screen: a value that rounds to zero is
+  directionless — no sign, no gain or loss colour — even when the stored
+  value is a fraction of a cent above or below it.
+  """
+  def displayed_sign(%Decimal{} = value, places), do: value |> Decimal.round(places) |> sign()
+  def displayed_sign(_value, _places), do: nil
+
+  @doc """
+  The sign a Decimal fraction shows as a one-decimal percent (`percent/2`,
+  `signed_percent/2`): `:positive`, `:negative` or `:zero`; `nil` for a
+  non-number. See `displayed_sign/2`.
+  """
+  def displayed_percent_sign(%Decimal{} = value), do: value |> percent_as_displayed() |> sign()
+  def displayed_percent_sign(_value), do: nil
 
   @doc """
   Formats a date under the locale: German reads `22.07.2026`, every other
@@ -132,6 +168,30 @@ defmodule PortfolixirWeb.Format do
   def date(_value, _locale), do: "—"
 
   defp current_locale, do: Gettext.get_locale(PortfolixirWeb.Gettext)
+
+  # A fraction as the one-decimal percent it is displayed as.
+  defp percent_as_displayed(value), do: value |> Decimal.mult(100) |> Decimal.round(1)
+
+  defp sign(rounded) do
+    case Decimal.compare(rounded, 0) do
+      :gt -> :positive
+      :lt -> :negative
+      :eq -> :zero
+    end
+  end
+
+  # An already rounded figure with the sign it shows: "+" for a gain, "-" for
+  # a loss, none for a zero — including the negative zero a small loss rounds
+  # to, which `Decimal.to_string/2` would print as "-0.00".
+  defp signed_text(rounded, locale) do
+    digits = rounded |> Decimal.abs() |> Decimal.to_string(:normal) |> localize(locale)
+
+    case sign(rounded) do
+      :positive -> "+" <> digits
+      :negative -> "-" <> digits
+      :zero -> digits
+    end
+  end
 
   defp localize(plain, locale) do
     {group, decimal} = separators(locale)

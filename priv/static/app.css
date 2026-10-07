@@ -6317,6 +6317,18 @@ button.income-bar-label.is-active {
     font-size: 0.85rem;
   }
 
+  /* A labelled pill keeps its own size under a coarse pointer (issue 1059,
+     board ux-design-2026-10-04/04-trades rule ④): the circle above has the
+     labelled rule's specificity and comes later, so on a touch screen
+     "ⓘ Kurs- & Währungsbeitrag" overflowed a 28 px circle and its first
+     ~50 px fell off the pane's left edge. The coarse circle's height is the
+     pill's minimum. */
+  .metric-tooltip--labelled summary {
+    width: auto;
+    height: auto;
+    min-height: 1.75rem;
+  }
+
   /* Comfortable tap targets on the securities surface (UX-DR6, issue 413):
      taller list rows and >=44px detail controls for thumbs. The head's two
      icon buttons take theirs from `.icon-button` (Sprint 18 U4). */

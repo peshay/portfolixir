@@ -57,6 +57,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias PortfolixirWeb.SecurityEventLabel
   alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.StoredText
+  alias PortfolixirWeb.TransactionManagementLive
   alias PortfolixirWeb.Transactions.BookingDeleteDialog
 
   @ranges ~w(1M 3M 6M YTD 1Y 3Y 5Y MAX)
@@ -2103,9 +2104,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
               </tr>
             </thead>
             <tbody>
+              <%!-- #1060 (Sprint 19 U2, board ux-design-2026-10-04/04-trades):
+                   the tab's dates go through Format.date and both "%"
+                   columns through signed_pa/1, one decimal with the sign
+                   glued on — the form of its p. a. column and phone rows.
+                   Every signed cell takes its colour from the figure it
+                   shows (shown_class/2, shown_percent_class/1). --%>
               <%= for lot <- @trades.open_lots do %>
                 <tr>
-                  <td><%= Date.to_iso8601(lot.open_date) %></td>
+                  <td><%= Format.date(lot.open_date) %></td>
                   <td class="num"><%= Format.decimal(lot.quantity, 4) %></td>
                   <%!-- The security-currency basis (ADR-0033): comparable to
                        the Latest column; a dash means no native leg is
@@ -2124,20 +2131,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
                       —
                     <% end %>
                   </td>
-                  <td class={["num", pnl_class(lot.unrealized_pnl_abs)]}>
+                  <td class={["num", shown_class(lot.unrealized_pnl_abs, 2)]}>
                     <%= signed_decimal_or_dash(lot.unrealized_pnl_abs, 2) %>
                   </td>
-                  <td class={["num", pnl_class(lot.unrealized_pnl_abs)]}>
-                    <%= signed_percent_or_dash(lot.unrealized_pnl_pct) %>
+                  <td class={["num", shown_percent_class(lot.unrealized_pnl_pct)]}>
+                    <%= signed_pa(decimal_for_display(lot.unrealized_pnl_pct)) %>
                   </td>
-                  <td class={["num", pnl_class(lot.price_return_abs)]} data-role="price-return">
+                  <td class={["num", shown_class(lot.price_return_abs, 2)]} data-role="price-return">
                     <%= signed_decimal_or_dash(lot.price_return_abs, 2) %>
                   </td>
-                  <td class={["num", pnl_class(lot.currency_return_abs)]} data-role="currency-return">
+                  <td class={["num", shown_class(lot.currency_return_abs, 2)]} data-role="currency-return">
                     <%= signed_decimal_or_dash(lot.currency_return_abs, 2) %>
                   </td>
                   <td
-                    class={["num", pnl_class(lot.total_return_base_abs)]}
+                    class={["num", shown_class(lot.total_return_base_abs, 2)]}
                     data-role="total-return-base"
                     title={undecomposed_hint(lot)}
                   >
@@ -2179,10 +2186,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
             </summary>
             <ul class="excluded-list">
               <li :for={sell <- Enum.sort_by(@trades.orphan_sells, & &1.date, {:desc, Date})}>
-                <span class="num"><%= Date.to_iso8601(sell.date) %></span>
-                <span class="num">
-                  <%= gettext("%{quantity} units", quantity: Format.decimal(sell.quantity, 4)) %>
-                </span>
+                <span class="num"><%= Format.date(sell.date) %></span>
+                <%!-- #1074: one unit is a unit (U1's count rule). --%>
+                <span class="num"><%= units(sell.quantity) %></span>
               </li>
             </ul>
           </details>
@@ -2219,8 +2225,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
             <tbody>
               <%= for trade <- @trades.closed_trades do %>
                 <tr>
-                  <td><%= Date.to_iso8601(trade.open_date) %></td>
-                  <td><%= Date.to_iso8601(trade.close_date) %></td>
+                  <td><%= Format.date(trade.open_date) %></td>
+                  <td><%= Format.date(trade.close_date) %></td>
                   <td class="num"><%= Format.decimal(trade.quantity, 4) %></td>
                   <td class="num"><%= Format.decimal(trade.avg_buy_price, 2) %></td>
                   <td class="num"><%= Format.decimal(trade.avg_sell_price, 2) %></td>
@@ -2232,7 +2238,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                        title and a sentence for the screen reader. --%>
                   <td
                     :if={trade.annualized_return}
-                    class={["num", "trade-pa", pnl_class(trade.annualized_return)]}
+                    class={["num", "trade-pa", shown_percent_class(trade.annualized_return)]}
                   >
                     <%= signed_pa(trade.annualized_return) %>
                   </td>
@@ -2245,11 +2251,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
                       trade.annualized_return_reason
                     ) %></span>
                   </td>
-                  <td class={["num", pnl_class(trade.realized_pnl_abs)]}>
+                  <td class={["num", shown_class(trade.realized_pnl_abs, 2)]}>
                     <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %>
                   </td>
-                  <td class={["num", pnl_class(trade.realized_pnl_abs)]}>
-                    <%= signed_percent_or_dash(trade.realized_pnl_pct) %>
+                  <td class={["num", shown_percent_class(trade.realized_pnl_pct)]}>
+                    <%= signed_pa(decimal_for_display(trade.realized_pnl_pct)) %>
                   </td>
                 </tr>
               <% end %>
@@ -2273,10 +2279,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
           <li :for={trade <- @trades.closed_trades} class="phone-row" data-role="phone-row">
             <span class="phone-row__body">
               <span class="phone-row__name">
-                <%= Date.to_iso8601(trade.open_date) %> → <%= Date.to_iso8601(trade.close_date) %>
+                <%= Format.date(trade.open_date) %> → <%= Format.date(trade.close_date) %>
               </span>
               <span class="phone-row__ids">
-                <%= gettext("%{quantity} units", quantity: Format.decimal(trade.quantity, 4)) %> · <%= ngettext(
+                <%= units(trade.quantity) %> · <%= ngettext(
                   "%{count} day",
                   "%{count} days",
                   trade.holding_period_days
@@ -2284,26 +2290,38 @@ defmodule PortfolixirWeb.SecuritiesLive do
               </span>
             </span>
             <span class="phone-row__figures">
-              <span class={["phone-row__figure", pnl_class(trade.realized_pnl_abs)]}>
+              <span class={["phone-row__figure", shown_class(trade.realized_pnl_abs, 2)]}>
                 <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %><small class="value-suffix"><%= trade.currency_code || @currency_code %></small>
               </span>
               <span class="phone-row__figure2">
-                <span class={decimal_sign_class(trade.realized_pnl_pct)}><%= signed_pa(
+                <span class={percent_figure_class(trade.realized_pnl_pct)}><%= signed_pa(
                   trade.realized_pnl_pct
                 ) %></span><%= if trade.annualized_return do %> · <span class={
-                  decimal_sign_class(trade.annualized_return)
+                  percent_figure_class(trade.annualized_return)
                 }><%= signed_pa(trade.annualized_return) %></span> <%= gettext("p.\u00A0a.") %><% end %>
               </span>
+              <%!-- #1089 at every width (the PR γ closing act): the table
+                   dash's reason, for the screen reader, so the phone row
+                   says why it has no p. a. as the table row does; the basis
+                   line says it on the screen. --%>
+              <span
+                :if={is_nil(trade.annualized_return)}
+                class="visually-hidden"
+                data-role="pa-absent"
+              ><%= pa_absent_sentence(trade.annualized_return_reason) %></span>
             </span>
           </li>
         </ul>
 
         <%!-- #1029 (board H1 pin 4; UX-DR26): the list's basis in the
              pane's own basis voice — whenever the table or the note
-             renders, because it is the limit the note points to. --%>
+             renders, because it is the limit the note points to. It names
+             both limits of p. a., as the facet's line does (#1089, the
+             Sprint 19 U2 review): the phone row of a long trade with no
+             rate shows its period return alone, and this line says why. --%>
         <p id="detail-closed-trades-basis" class="detail-tab-hint" data-role="trades-basis">
           <%= gettext(
-            "Across every depot · deliveries open no lot · fees and taxes in the realised P&L, not in avg buy and avg sell · income received while a trade was open not included · p.\u00A0a. only from 365 days of holding"
+            "Across every depot · deliveries open no lot · fees and taxes in the realised P&L, not in avg buy and avg sell · income received while a trade was open not included · p.\u00A0a. only from 365 days of holding and only where a rate solves the flows"
           ) %>
         </p>
       <% end %>
@@ -2313,25 +2331,53 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   # #1029: a trade's percent with its sign and one decimal, the percent sign
   # glued on — the Overview card's form of the same figure (DESIGN.md →
-  # Amendment 2026-10-01 — Trades).
-  defp signed_pa(%Decimal{} = fraction) do
-    formatted = Format.percent(fraction) <> "%"
-    if Decimal.compare(fraction, 0) == :gt, do: "+" <> formatted, else: formatted
-  end
+  # Amendment 2026-10-01 — Trades). Since #1060 both "%" columns of the tab
+  # use it too.
+  defp signed_pa(%Decimal{} = fraction), do: Format.signed_percent(fraction) <> "%"
 
   defp signed_pa(_none), do: "—"
 
+  # The Trades tab's sign colours, decided on the figure as displayed, as its
+  # sign is (Format.displayed_sign/2; the Sprint 19 U2 review): a figure that
+  # rounds to 0.00, or a percent that rounds to 0.0, is directionless —
+  # unsigned and `is-flat`, as on the Trades facet — never "0.00" in the gain
+  # colour. A missing figure (the dash) takes none.
+  defp shown_class(value, places),
+    do: value |> decimal_for_display() |> Format.displayed_sign(places) |> shown_sign_class()
+
+  defp shown_percent_class(value),
+    do: value |> decimal_for_display() |> Format.displayed_percent_sign() |> shown_sign_class()
+
+  defp shown_sign_class(:positive), do: "is-positive"
+  defp shown_sign_class(:negative), do: "is-negative"
+  defp shown_sign_class(:zero), do: "is-flat"
+  defp shown_sign_class(nil), do: nil
+
   # The phone row's percent colours (DESIGN.md → Two-line phone rows: the
-  # second figure line is muted, its signed numbers carry their colour).
-  defp decimal_sign_class(%Decimal{} = value) do
-    case Decimal.compare(value, 0) do
-      :gt -> "decimal-positive"
-      :lt -> "decimal-negative"
-      :eq -> nil
+  # second figure line is muted, its signed numbers carry their colour; a
+  # percent that rounds to zero carries none).
+  defp percent_figure_class(value) do
+    case value |> decimal_for_display() |> Format.displayed_percent_sign() do
+      :positive -> "decimal-positive"
+      :negative -> "decimal-negative"
+      :zero -> "is-flat"
+      nil -> nil
     end
   end
 
-  defp decimal_sign_class(_value), do: nil
+  # #1074: a quantity at the four places it is shown at, its plural decided
+  # on that displayed figure (U1's count rule, plural_count/1) — 0.99996
+  # reads "1.0000 unit", as the digits say, never "1.0000 units".
+  defp units(%Decimal{} = quantity) do
+    shown = Decimal.round(quantity, 4)
+
+    ngettext(
+      "%{quantity} unit",
+      "%{quantity} units",
+      TransactionManagementLive.plural_count(shown),
+      quantity: Format.decimal(shown, 4)
+    )
+  end
 
   # #1029: why a trade's p. a. cell is a dash — the facet's two reasons and
   # their words. Under 365 days of holding the figure is withheld by rule
