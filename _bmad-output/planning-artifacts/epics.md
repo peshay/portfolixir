@@ -193,7 +193,7 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-2 | #343 | currency consistency |
 | FR-3 | #344 | rounding-policy ADR (needs-decision) |
 | FR-4 | #327, #328, #608, #884 (L2); deferred by ADR-0050 §15: #902–#906 | portfolio switcher; merge/rename/delete. **Design gate: [ADR-0050](../../docs/decisions/0050-lifecycle-merges-under-a-reimport-contract.md)** (lifecycle merges under a post-merge re-import contract, risk-tier), signed by the merge of the Sprint 16 planning PR and built in Sprint 16's Lane L. #608, the security merge, is the same mechanism and carries FR-34's identity ladder across a merge (ADR-0050 §9). The "move between portfolios" clause of FR-4 is out of scope since ADR-0024 made portfolios internal (ADR-0050 §14). **Filed at branch opening (2026-09-24, Sprint 16 Lane Z), all under #417:** #884, the importer half (L2: hash first, retired hashes, lazy account creation, former names), which closes today's rename hazard on its own; and ADR-0050 §15's deferrals, each needing a decision — #902 (a tombstone for a source that research notes or rule versions name), #903 (generalized identifier aliases with remembered security remaps, for ISIN-less merges), #904 (a fail-closed probe for account identities the database never saw), #905 (one-to-one matching on the pre-import #533 layer) and #906 (unmerge). The sixth deferral, merger and spin-off, is #907 on FR-23's row. **Shipped 2026-09-29 (Sprint 16, PR #914, fast-forwarded onto `main` at `daeab17`)**: L1 (merge records and retired import hashes, append-only and journal-armed; a disposition for every foreign key onto accounts, depots and securities; hardened deletes answering 409 with the reference and a remedy, or 409 with nothing deleted when they lose a race; identity freezes), L2 (#884, the re-import contract with former names behind one name guard), L3 (cash and depot merge under a plan digest, Decimal-exact), L4 (#608, the security merge carrying FR-34's identity ladder) and L5 (the screens on picks G1–G4, G4b and G13.1). #884 and #608 closed by keyword. **#328 stays open under `needs-uat`**: its API, MCP and screen shipped and the UAT persona ran its five-step plan on the synthetic seed; the owner's run on real data is the remaining step. **Agent-first, due in Sprint 17:** the merge-record list view for `GET /api/v1/merges` (ADR-0050 §12). **Shipped 2026-10-02 (Sprint 17 PR γ, #1035, `main` at `e06bd4fd`)**: the list at the end of Accounts & depots (pick G2-A), every kind in one collapsed read-only list with each result's counts per table, the survivor's date and a security's basis line linking its entry; `deleted_by_reason` added to the read. The deadline is met |
-| FR-5 | #333 | XML import **gated**; CSV/JSON shipped. **#333 closed 2026-09-23** by the backlog triage (§3.4, adopted by the Sprint 15 planning PR): classifications are Portfolixir-owned and survive a re-import (E18), quote history has an API (`PUT /api/v1/securities/:security_id/quotes`), master data is maintained here; XML intake stays forbidden by the hard rule **#1076 (Sprint 19 planning, 2026-10-04):** the CSV path booked Portfolio Performance's gross `Betrag` as the cash. **Design gate: [ADR-0053](../../docs/decisions/0053-a-pp-csv-books-its-gesamtpreis.md)** (risk-tier, signed by the merge of the Sprint 19 planning PR): a row with a `Gesamtpreis` books it, checked to the cent; a converter-written row (empty `Gesamtpreis`) books its `Betrag` as before; the content hash keeps reading `Betrag`, so a re-drop books nothing (FR-6 holds); bookings made under the old reading are corrected by a separate, journaled confirm fed by a re-dropped PP CSV. Built in Sprint 19's PR α |
+| FR-5 | #333 | XML import **gated**; CSV/JSON shipped. **#333 closed 2026-09-23** by the backlog triage (§3.4, adopted by the Sprint 15 planning PR): classifications are Portfolixir-owned and survive a re-import (E18), quote history has an API (`PUT /api/v1/securities/:security_id/quotes`), master data is maintained here; XML intake stays forbidden by the hard rule **#1076 (Sprint 19 planning, 2026-10-04):** the CSV path booked Portfolio Performance's gross `Betrag` as the cash. **Design gate: [ADR-0053](../../docs/decisions/0053-a-pp-csv-books-its-gesamtpreis.md)** (risk-tier, signed by the merge of the Sprint 19 planning PR): a row with a `Gesamtpreis` books it, checked to the cent; a converter-written row (empty `Gesamtpreis`) books its `Betrag` as before; the content hash keeps reading `Betrag`, so a re-drop books nothing (FR-6 holds); bookings made under the old reading are corrected by a separate, journaled confirm fed by a re-dropped PP CSV. Built in Sprint 19's PR α. **Built 2026-10-06 by PR α #1100** (§1–§5, §7, §8; K1–K6 pinned, each seen failing first, with mutation checks): a PP CSV row books its `Gesamtpreis`, the hash keeps reading `Betrag`, and every stored hash is byte-identical. **§6, the correction, was cut** by the owner's answer "JSON" to the plan's D-2, so it stays decided and unbuilt; the handbooks say that a PP CSV imported before 2026.10.10 keeps PP's gross value as its cash. ADR-0053's two deferrals are #1097 and #1098 |
 | FR-6 | — | shipped (preview/idempotent/atomic) |
 | FR-7 | #326 | import gaps surfaced (logos) |
 | FR-8 | #316, #577, #563, #568 (ADR-0034) | IRR; TTWROR shipped. **#577 shipped 2026-08-04** — TTWROR/IRR for a bucket view now cover the deduplicated account union across all portfolios, so the header total and the return always speak about the same accounts; the multi-portfolio scope disclaimer is gone. **#563 shipped** — previous-year/any-year and custom from-to periods, pure re-chains. #568 (net invested, wealth multiple, XIRR) has its design note in ADR-0034 but is **not implemented**. **Sprint 11 Lane X (PR #810, merged 2026-09-15; #779 and #610 closed; D-3, risk-tier):** a priced delivery enters F_d and the lot queue at its booked price and seeds an unpriced security's price, a retired security's stale quote is not a measurement (its next own trade restates the basis), `price_date` per position and `stale_priced_count` on the valuation with the Wealth page naming the holdings to retire; ADR-0010 amended 2026-09-15, registry computation version 3 |
@@ -654,6 +654,132 @@ and the design-engagement issues #717–#721/#723 attach to #356.
 Retrospective: `sprint-7-retro-2026-08-19.md`. Close-out ledger and the
 process findings live there and in `sprint-status.yaml`'s log; this section
 records only what changed in the requirement registry.
+
+## Implementation Status — reconciled with code (2026-10-07, Sprint 19 close-out)
+
+Verification basis: the commits on `main` (`bfc61010..95bc398e`, linear, zero
+merge commits). Three lane PRs merged in order (plan D-9):
+
+- PR α #1100: 49 commits, rebase-merged 2026-10-06 19:18 UTC, `main` at
+  `6b69b576`;
+- PR β #1129: 27 commits, 2026-10-07 05:45 UTC, `bb028e11`;
+- PR γ #1144: 14 commits, 18:34 UTC, `95bc398e`.
+
+Each merged tree is identical to the head CI tested on its PR. The Actions
+runs on the merge pushes are green: Commit authorship, CI, and the Release
+workflow's calendar job. The calendar releases are **2026.10.10**,
+**2026.10.11** and **2026.10.12**, with API contract versions 14, 15 and 15.
+Before α, #1095, #1096, #1099, #1106 and #1102 merged outside the lanes
+(2026.10.8 and 2026.10.9). The basis also includes the post-merge issue list.
+
+**Shipped by Sprint 19.** It was trust work, with no new feature. One item
+was shrunk, by the owner's answer.
+
+- **The money a stranger checks first** (PR α):
+  - a Portfolio Performance CSV row books its `Gesamtpreis` under ADR-0053,
+    and every stored hash stays byte-identical (#1076, #1094);
+  - foreign cash held before its first rate is named (#1055);
+  - a cross-currency trade's fees and taxes are read in the cash account's
+    currency (#1051);
+  - the classification screen's category result adds EUR only and names
+    what it leaves out (#1048);
+  - the Overview's total names what it leaves out (#1081);
+  - the two-scales guard catches the reverse case and an unclassed bond
+    (#1068, D-15);
+  - the asset-class inference matches whole words (#1078).
+
+  **M2, the correction (ADR-0053 §6), was cut.** The owner answered "JSON" to
+  D-2, the shrink order's first step.
+- **A stranger's first run, and the agent's reads** (PR β):
+  - four more migrations frozen or pinned (#1042);
+  - the release build takes a CA bundle and named Debian mirrors (#1092,
+    #1093);
+  - the companion's failure modes (#1043, #1045);
+  - row errors at parse time, and the import hash's retirement guard (#1044,
+    #948, #923, #917);
+  - the Everything reads and the category-result roll-up (#1056, #1091's
+    read), and a merged-away benchmark that names its survivor (#959);
+  - the German API reference made level with the English one (#1077);
+  - test isolation (#1046, #1047);
+  - the SSL warning and the missing logo file (#930, #933).
+- **The screens a stranger meets, second pass** (PR γ, picks J3–J8 and J10):
+  - the history's month head (#1083);
+  - the Trades title and signs (#1082);
+  - dates and chart axes through `Format` (#1061, #1087, #1088);
+  - Wealth at 390 px and twin names (#1065, #1057);
+  - the touch, focus and colour floor (#1062 and five more);
+  - copy and dialog states (#1090, #944, #945 and three more);
+  - #1091's screen;
+  - the documentation screenshots.
+
+**The four exit criteria (plan D-1).**
+
+1. **Every H issue closed: pass.**
+2. **The operator's first-look test: pass** at γ's closing act. The four
+   figures were exact, every "is this everything?" was answered from the
+   screen, and the PP CSV round trip read 4.017,68 EUR. The re-drop booked
+   nothing.
+3. **The agent's launch test on the documented build route: not proven on
+   that route.** The Docker build needs a Debian mirror this machine cannot
+   reach, and no file stood in for it. On the README's from-source route, the
+   agent's three answers were exact.
+4. **Fewer than 100 open issues: fail.** 132 are open, against 117 at the
+   planning. The sprint closed 56 (52 by keyword, 4 by hand) and filed 71,
+   of which 62 came from the three lane PRs' reviews.
+
+The records are in `sprint-status.yaml`'s Sprint 19 entry and in
+`launch-readiness-2026-10-07-sprint19.md`.
+
+**Registry rows this batch moves:**
+
+- **FR-5:** ADR-0053 is built as signed, except §6, the correction, which the
+  owner's "JSON" cut.
+- **The Tracker Index's E26 line** records Sprint 19. The epic stays in
+  progress: criterion 4 failed, criterion 3 is unproven on its route, and the
+  announcement stays the owner's decision.
+
+**Two-way coverage.**
+
+- **Due this sprint:**
+  - #1091 landed both ways: the read in β, the screen in γ.
+  - #1052 was **missed on purpose** (D-6). The screen still cannot correct a
+    dividend's, a deposit's or a fee's facts in place. It returns as the
+    first design pass after the announcement decision.
+- **New and screen-first:** #945's refusal names its row on the plan editor,
+  but the API's refusal does not. That API half is #1143, due by the end of
+  the next batch.
+
+**Surface check (the 2026-09-03 owner decision):**
+
+- **`unvalued_cash_count` (α M6):** the portfolio, view and view-less
+  valuation reads all carry it.
+- **The performance family's Everything forms (#1056):**
+  - `GET /api/v1/performance`, `/performance/benchmark` and
+    `/performance/contribution` answer as an include-all view does, key for
+    key, in EUR.
+  - The screen's Everything is in the first portfolio's base currency (D-7).
+- **The category-result roll-up (#1091):** `GET /api/v1/category-results` sits
+  beside the portfolio form (with `view=`) and the view form. Every form
+  serves `excluded_members`.
+
+**Schema budget (D-10):** the ceilings went down in every profile, from read
+103,991, book 177,085 and full 207,448 bytes to 103,454, 176,536 and 206,884.
+
+**Filed and not built (Scope Lock), 71:**
+
+- at the planning merge: #1097 and #1098;
+- outside the lanes: #1101 and #1103–#1105;
+- from PR α: #1107, #1108 and #1110–#1127;
+- from PR β: #1128 and #1130–#1141;
+- from PR γ: #1142, #1143 and #1145–#1171;
+- from this close-out's launch test: #1172–#1174.
+
+Two of them were closed at this close-out as duplicates (#1134, #1105), and γ
+closed #1164 itself. Sixteen wait on a decision.
+
+**61 open issues filed during this sprint have no parent.** PR α's findings
+were never attached, and tracker #991 then reached GitHub's maximum of 100
+sub-issues. Sprint 20's plan decides where they go.
 
 ## Implementation Status — reconciled with code (2026-10-04, Sprint 18 close-out)
 
@@ -1675,4 +1801,12 @@ issue state and the merge commits on `main`.
   everything?" per figure and a PP CSV round trip, the agent's launch test
   on the documented build route, and fewer than 100 open issues at the
   close-out. #1079 and #1080 close as not planned (D-5); #1052's two-way
-  deadline is missed on purpose and recorded (D-6).
+  deadline is missed on purpose and recorded (D-6). **Sprint 19 shipped 2026-10-07** in
+  three lane PRs merged in order: α #1100, β #1129, γ #1144 (`main` at
+  `95bc398e`, releases 2026.10.10–2026.10.12). M2, ADR-0053's correction, was
+  cut by the owner's answer "JSON" (D-2). Every H issue closed, and the
+  first-look test passed. The launch test's build route is not proven on a
+  machine that reaches no Debian mirror; the agent's part passed on the
+  from-source route. 132 open issues failed the fewer-than-100 criterion.
+  The epic stays in progress: the failed criteria become Sprint 20's plan,
+  and `launch-readiness-2026-10-07-sprint19.md` is the owner's input.
