@@ -91,8 +91,7 @@ without it, and a path id past the bound (`/securities/:id`,
 `/classifications/:id`) redirects to the index whatever the query string
 carries — never a server error. Every other id-valued or integer page
 parameter is read by the same id rule and reads as absent when it cannot hold
-the value: `/snapshots?snapshot=` opens the newest snapshot,
-`/classifications/:id?soll_view=` the whole-portfolio plan, and
+the value: `/snapshots?snapshot=` opens the newest snapshot, and
 `/tax?year=` (a year outside `1`–`9999`) the default year. An event a page
 or one of its dialogs receives with a payload that is not an object, an id
 past the bound at any depth (the same rule the API answers with `422`), a

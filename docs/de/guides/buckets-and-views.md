@@ -88,12 +88,14 @@ unabhängig von allem anderen im Bestand.
 2. Lege auf **Ansichten** eine Ansicht `Altersvorsorge` an, die den Bucket
    `Altersvorsorge` einbezieht (Schritte 4–5 oben).
 3. Öffne **Klassifizierungen**, wähle den eigenen Baum, nach dem gesteuert
-   wird, und gehe in den Bereich **Soll-Plan** seiner Detailansicht. Wähle im
-   Selektor **Soll-Plan für Sicht:** die Ansicht `Altersvorsorge`.
-4. Klicke **Plan anlegen** (oder **Aus anderer Sicht übernehmen…**, um einen
+   wird, und wähle in der Reihe der Ansichten unter dem Baumnamen
+   `Altersvorsorge`. Die ganze Detailansicht liest jetzt diese Ansicht, und
+   der Kopf ihres Bereichs **Soll-Plan** sagt es: **für Ansicht
+   Altersvorsorge**.
+4. Klicke **Plan anlegen** (oder **Aus anderer Ansicht übernehmen…**, um einen
    bestehenden Plan vorzubefüllen), trage je Kategorie ein **Soll %** plus
    das **Cash**-Ziel ein, bring die **Σ**-Fußzeile auf 100 % ✓ und drücke
-   **Plan speichern**. Pläne sind an die Sicht gebunden (ADR-0020):
+   **Plan speichern**. Pläne sind an die Ansicht gebunden (ADR-0020):
    `Altersvorsorge` trägt jetzt einen eigenen Plan, andere Ansichten
    behalten ihre — oder keinen.
    <!-- screenshot: classifications-target-plan-for-view -->

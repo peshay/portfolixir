@@ -1251,6 +1251,37 @@ reason, and once per tree in `excluded_members`, with the category it is filed
 under and, when only its currency keeps it out, its cost in the currency it
 was paid in — the list this note shows.
 
+**The figures follow the view you pick** (#1091). Under the tree's name sits
+the view switcher Wealth has — **Everything**, one chip per view, and
+**Views** — and it is the screen's one scope. Pick a view and every figure of
+a category row reads it: **Positions** and **Value** count only the positions
+the view holds, and **Cost** and **Result** are that view's result across
+every portfolio, in EUR, under the same rule — the read `GET
+/api/v1/views/:view_id/category-results` answers, so the screen and the agent
+never disagree. The basis line names the view first ("View Long-term · in EUR
+· Result: …"; "View Everything" with no view picked), the note above names
+only what the view's figures leave out, and the plan editor below edits that
+view's plan. A member of a category that the view holds none of — held in an
+account outside the view, or no longer held at all — is hidden with the
+"current positions only" toggle and counted beside the category's name as
+**+N not in the view**, where Everything counts **+N without holdings**.
+**Unsorted** follows the view the same way: it counts and values the unsorted
+positions the view holds and counts the rest beside its name. Like the
+categories, it follows the "current positions only" toggle in every scope:
+under Everything it counts and values the unsorted positions still held and
+counts the others beside its name as **+N without holdings**; with the
+toggle off it lists every unsorted security. A view whose buckets
+match no account says so above the tree, in Wealth's words, instead of
+leaving every row at "—". A chip is a navigation, as on Wealth: the view you
+pick here is the active view on Wealth too, and the other way round. A dot on
+a chip marks a view that carries a plan for this tree — the plan the editor
+below shows, active or draft; a cash target alone is not a plan of this tree
+(Wealth's chips keep their own rule, below). If the view is deleted while the
+page is open (in another tab, or over the API), saving, creating or deleting
+a plan writes nothing: the page falls back to Everything and says so, and the
+answer at the top of the page names the view and says that nothing was saved
+(created, deleted).
+
 > **Per-position targets (ADR-0030, #481).** Target weights can now be set down
 > to an **individual position** (a security under a category), not just per
 > category. Positions are the source of truth: a category's *effective* target
@@ -1273,21 +1304,23 @@ was paid in — the list this note shows.
 
 Target weights are not global: a **target plan belongs to a view** (see ADR-0020).
 A plan is edited on the **Classifications page**, in the **Target plan**
-section of a custom tree's detail pane. At the top of that section a **view
-selector** ("Target plan for view: [Gesamt ▾]" / German *Soll-Plan für Sicht*)
-chooses the plan being edited; the default **Gesamt** is the portfolio-wide
-plan that behaves like a single global target set. Switching the selector loads
-that `(view, classification)` plan's stored weights and cash target — Gesamt and
-each named view carry **independent** plans, so the same tree can hold a
+section of a custom tree's detail pane. It edits the plan of the view the
+screen reads — the one picked in the view switcher under the tree's name —
+and its head says which ("for view Long-term" beside **Target plan** / German *für
+Ansicht Langfrist*; "for view Everything" with no view picked, the
+portfolio-wide plan that behaves like a single global target set). Since
+#1091 the section has no selector of its own: picking another chip loads that
+`(view, classification)` plan's stored weights and cash target — Everything
+and each named view carry **independent** plans, so the same tree can hold a
 different 100% plan per view, or none.
 
 The states are:
 
 - **No plan yet.** The section shows an empty state with **Create plan**
-  (*Plan anlegen*) and, when another view already has a plan for this tree, an
-  **Copy from another view…** (*Aus anderer Sicht übernehmen…*) picker that
-  prefills the editor from that source plan. Nothing is written until the
-  plan is saved.
+  (*Plan anlegen*) and, when another view already has a plan for this tree, a
+  **Copy from another view…** (*Aus anderer Ansicht übernehmen…*) picker that
+  prefills the editor from that source plan; the no-view plan is listed as
+  **Everything**. Nothing is written until the plan is saved.
 - **A plan exists.** Each category gets a **Target %** input and there is a
   **Cash** target input below them; **Save plan** writes the whole
   `(view, classification)` plan at once. A live **Σ** footer sums the category
@@ -1348,8 +1381,9 @@ strategy is restructured without losing the old plan:
 
 - **Duplicate plan** (*Plan duplizieren*) copies the current plan (category
   weights and cash target) into a **draft**; the editor switches to it and a
-  **plan version picker** appears next to the view selector once a scope has
-  more than one version.
+  **plan version picker** takes the plan's name's place in the editor's
+  version row, beside **Duplicate plan**, once a scope has more than one
+  version.
 - Editing and saving a **draft** never touches the active plan — the Wealth
   page keeps following the active plan, and a hint in the editor says so. The
   **cash target** row shows the active steering value (counted into the Σ
@@ -1371,7 +1405,8 @@ Every plan write is recorded in the audit journal.
 > become the **Gesamt** plan (`view = null`). Nothing changes in behaviour —
 > the existing setup simply appears under *Gesamt*, and the Wealth page reads
 > it under the **Total** view exactly as before. Named views start with **no
-> plan** until one is created or copied.
+> plan** until one is created or copied. *(Since #1091 every screen calls
+> this no-view scope **Everything**, German **Alles**.)*
 
 To keep a position **out of the allocation steering basis** while it still counts
 toward total wealth — for example a Bitcoin held as a long-term store of
@@ -1804,7 +1839,7 @@ for the selected classification — actual and target always move together. Swit
 **view switcher** at the top of the page and both sides swap to that view's plan
 at once, so two plans are never mixed into a >100% Σ or a ghost row. The
 built-in **Everything** view (formerly labelled *Total*) reads the
-portfolio-wide **Gesamt** plan. A subtle dot on
+portfolio-wide plan, the one with no view. A subtle dot on
 a view-switcher chip marks the views that already carry a plan for the current
 classification, so steered views and actual-only ones are distinguishable at a
 glance.
@@ -1813,9 +1848,10 @@ glance.
 selected classification, the allocation stays **actual-only**: the sunburst and the
 Value/Actual columns still show the actual allocation, but there are no Target,
 Drift or Σ columns. In their place a hint — *No target plan for this view*
-(German *Kein Soll-Plan für diese Sicht*) — explains the empty target side and
+(German *Kein Soll-Plan für diese Ansicht*) — explains the empty target side and
 **deep-links into the Classifications plan editor with that view and
-classification already selected**, so the plan can be created without re-picking
+classification already selected** (`/classifications/<id>?view=<view>`, the
+view switcher's own parameter), so the plan can be created without re-picking
 either. The cash row's target likewise comes from the active view's plan cash
 target (or shows a dash when none is set).
 
@@ -3059,14 +3095,18 @@ naming the already-booked event) stays inline in the dialog.
 - A **Current positions only** toggle is on by default. It hides securities no
   longer held (zero current quantity) so legacy or fully sold assignments do
   not clutter the tree. Nothing is silently dropped: each category shows a
-  **+N without holdings** counter for the hidden securities, and turning the
+  **+N without holdings** counter for the hidden securities (**+N not in the
+  view** under a view, counting what the view holds none of), and turning the
   toggle off reveals them again.
 - Each category row aggregates the **value** and the **position count** of the
   securities currently visible in it and its sub-categories, so the totals
   follow the toggle. Since issue #805 (the 2026-09-12 review's C8, variant A)
   the figures stand in named, right-aligned columns under one head —
-  **Positions · Value · Cost · Result** — an empty category prints "—" in
-  each column instead of a row of zeros, the hidden-positions count is a
+  **Positions · Value · Cost · Result** — an empty category prints 0
+  positions and a quiet "—" for its value, cost and result instead of a row
+  of zeros (a count is always a number; the dash, muted, says there is no
+  figure to state), the result's percentage reads "+13.7%", the
+  hidden-positions count is a
   muted suffix of the category name, and the result's basis ("today's
   composition, not a period return") is a basis line with an ⓘ; on the phone
   the row keeps the value and the result, on two lines: the category's name

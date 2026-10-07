@@ -99,8 +99,7 @@ der Grenze (`/securities/:id`, `/classifications/:id`) leitet auf die Übersicht
 um, gleich was der Query-String enthält — nie ein Serverfehler. Jeder andere
 ID- oder Ganzzahl-Parameter einer Seite wird nach derselben ID-Regel gelesen
 und gilt als nicht angegeben, wenn er den Wert nicht fassen kann:
-`/snapshots?snapshot=` öffnet den neuesten Snapshot,
-`/classifications/:id?soll_view=` den Plan für das Gesamtportfolio und
+`/snapshots?snapshot=` öffnet den neuesten Snapshot und
 `/tax?year=` (ein Jahr außerhalb von `1`–`9999`) das voreingestellte Jahr. Ein
 Ereignis, das eine Seite oder einen ihrer Dialoge mit einer Nutzlast erreicht,
 die kein Objekt ist, mit einer ID jenseits der Grenze in beliebiger Tiefe
