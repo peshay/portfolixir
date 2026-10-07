@@ -2391,7 +2391,7 @@ Wertpapier · Datum · Stückzahl ohne Gegenstück („15,0000 Stück“). Sie t
 keine Schaltfläche, denn nichts auf der Seite kann den fehlenden Kauf
 liefern.
 
-[![Die Facette Trades im Cashflow: der Hinweis auf einen Verkauf ohne Kurs an seinem Schlussdatum mit der Nachlade-Schaltfläche, der Hinweis auf Verkäufe ohne zugeordneten Kauf, realisierte Summe, Trefferquote und durchschnittliche Haltedauer und vier abgeschlossene Rundläufe mit ihrer Spalte p. a.](../screenshots/income.png)](../screenshots/income.png)
+[![Die Facette Trades im Cashflow: der Hinweis auf einen Verkauf ohne Wechselkurs an seinem Schlussdatum mit der Nachlade-Schaltfläche, der Hinweis auf Verkäufe ohne zugeordneten Kauf, realisierte Summe, Trefferquote und durchschnittliche Haltedauer und vier abgeschlossene Rundläufe mit ihrer Spalte p. a.](../screenshots/income.png)](../screenshots/income.png)
 
 *Cashflow → Trades auf dem synthetischen Demo-Datensatz.*
 
