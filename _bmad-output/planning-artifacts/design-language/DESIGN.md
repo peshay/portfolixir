@@ -275,7 +275,8 @@ components:
     overflow: 'a real <button> disclosure that expands the cell in place (issue 842, Sprint 14 pick E2-A, 2026-09-23; board ux-design-2026-09-20/02-bucket-overflow-chip). Two states: collapsed it reads "+N more" (DE "+N anzeigen") over the first four chips; expanded every assigned chip renders and it reads "Show fewer ▲" (DE "weniger"), the caret aria-hidden. aria-expanded as a string, the 2px accent focus ring, the 44px floor under pointer: coarse. It never opens the picker — the + control does. No meaning in the cell lives only in a title attribute: the overflow carries none, the scope sub-line replaced the "Both" micro-label, and a chip title only repeats that chip own visible name past its truncation'
     scope: 'a sub-line under the chips saying what the set applies to — depot and cash account, the depot, or the cash account — readable without interacting; it replaces the "Both" micro-label whose meaning lived in a title attribute (issue 806, variant A)'
     actions: 'row actions behind the kebab of the Tables pattern, never as a fourth control in the cell: "Tag separately" sits there'
-    role: 'the Liquidity role select carries its label visually-hidden — the column head states it once for the whole table'
+    role: 'the Liquidity role select carries its label visually-hidden above 640 px — the column head states it once for the whole table; under 640 px the head is hidden too, so the label shows beside the select (`.liquidity-role-field__label`, {typography.control-label} size at 11px, weight 600, {colors.text-muted}) with the role''s ⓘ beside the word (amended 2026-10-07, issue 1085, board ux-design-2026-10-04/07-floor rule ⑦)'
+    target-size: 'under @media (pointer: coarse) the chip''s × and + are {spacing.touch-target} squares, and a chip holding a × gives up its block and right padding so the × fills its end (46px on touch), its corners the pill''s end (0 left, {rounded.full} right) and no shadow at any width; the role select and "Set balance" take {spacing.touch-target} min-height, and the role field keeps {spacing.3} between label, ⓘ and select so the ⓘ''s touch ring stays off the select. On the desktop the + is the 22px circle it declares (`min-height: 0`). Added 2026-10-07, issue 1085, rule ⑧, and the review of U5'
   security-metric-grid:
     placement: 'under the price chart on the securities detail chart tab, never on a tab of its own — a moving average means its distance to the price and its crossing with the other average, and separating the figures from the series makes both unreadable (issue 824, pick D1-A)'
     cells: 'the .overview-metrics grid of issue 804, reused rather than reinvented: a `<dl>` of `auto-fit` cells (two per row under 720px), each a {typography.stat-label} term over a {typography.stat-value} value, the distance or unit in the {components.value-slot} suffix, and the window plus the observation count as a {typography.control-label} sub-line at {colors.text-muted}. Six cells: SMA-50, SMA-200, volatility, maximum drawdown, momentum, the 52-week range. A signed value carries the sign colour the same grid carries on the Overview tab — two tabs of one pane may not disagree'
@@ -322,7 +323,7 @@ components:
     rule: 'UX-DR16 (mapping in EXPERIENCE.md), UX-DR18 for the reserved metrics'
     group: 'inline-flex, 1px solid {colors.border}, radius {rounded.md}, background {colors.bg}. No overflow hidden (#875 review round, 2026-09-25): the clip cut the options'' outset focus ring off at the track''s edge, so an option next to the filled one showed no focus at all; the outer options round their own outer corners ({rounded.md} less the 1px border) and the active fill follows the track without it'
     option: 'min-height 30px, padding 4px 9px, {typography.control-label} in {colors.text-muted}, 1px {colors.border} divider, no radius except the outer corners of the first and last option, no shadow. The 30px is the DESKTOP density only; it is a third desktop step alongside {spacing.density-control} (34px) and is left unreconciled here — recorded as a follow-up, not solved opportunistically.'
-    target-size: 'under @media (pointer: coarse) the option takes {spacing.touch-target} min-height with the label unchanged at 12px (UX-DR6, added 2026-08-05 — the definition previously wrote a 30px target and named no floor, which is what let the whole segmented family ship uncovered). This clause binds every call site the class absorbs: .segmented-control__option, .range-button, .chart-toggle, .period-buttons .button-mini, .view-chip. Only .view-chip has the clause today (app.css:4888-4891).'
+    target-size: 'under @media (pointer: coarse) the option takes {spacing.touch-target} min-height with the label unchanged at 12px (UX-DR6, added 2026-08-05 — the definition previously wrote a 30px target and named no floor, which is what let the whole segmented family ship uncovered). This clause binds every call site the class absorbs: .segmented-control__option, .range-button, .chart-toggle, .period-buttons .button-mini, .view-chip. Only .view-chip has the clause today (app.css:4888-4891). Amended 2026-10-07 (issue 1062, board ux-design-2026-10-04/07-floor rule ② and found while drawing): .segmented-control__option, .range-button (44 × 44) and .chart-toggle carry it; .period-buttons .button-mini does not yet.'
     option-hover: 'background {colors.hover}, text {colors.text}'
     option-active: 'filled {colors.accent}, text {colors.on-accent}'
     option-focus: 'the solid 2px {colors.accent} outline at a 2px offset, clear of the option''s own fill; the focused option paints above its neighbours (position relative, z-index 1), and the track never clips the ring'
@@ -402,6 +403,7 @@ components:
     border: '1px solid {colors.border}'
     radius: '{rounded.md}'
     min-height: 34px
+    focus: 'the solid 2px {colors.accent} outline at a 2px offset on :focus-visible, one rule for .button, .button-primary, .button-ghost, .button-danger and .button-secondary; the ring sits outside the fill, and hover stays the fill change (2026-10-07, issue 1062, board ux-design-2026-10-04/07-floor rule ③)'
   input:
     background: '{colors.bg-elevated}'
     border: '1px solid {colors.border}'
@@ -449,6 +451,7 @@ components:
     busy: 'while the action runs, the trigger carries the busy state and the slot reserves the result footprint, so nothing reflows when the result lands'
     persistence: 'persists until the next action on the same control, a navigation, or an explicit dismiss. It does NOT self-dismiss on a timer — the 4.5s auto-dismiss of .status-toast (AutoDismissToast hook) is exactly the behaviour #566 retires.'
     aria: 'the result region is `role="status"` (polite) for note and attention, `role="alert"` for problem; the region exists in the DOM before the action so the announcement is not lost'
+    page-slot: 'a page that answers an action at its top — the transaction history, Accounts & depots, Buckets, Classifications, and Risk''s rule section — answers through this component, never through `.alert-success` / `.alert-error`: a success is a note, a refusal a problem (2026-10-07, issue 1064, pick J7 = A of board ux-design-2026-10-04/07-floor). Under coral in the dark theme the two alerts were pixel-identical and carried no word. The slot takes `.inline-result--page`, which keeps the alert''s footprint: the side gutter, 12px above a result, nothing at rest'
     dismiss: 'the × (`.inline-result__dismiss`) sits on the sentence line: 1.4rem wide, 1rem high, no 34px button floor, so a one-line result is one line (36px) with its severity word beside the sentence; under `pointer: coarse` 44 × 44 with 14px block padding given back as a negative block margin, so the target is 44px and the line stays 18px (Sprint 18 U4, H6.4, issue 1033)'
   budget-meter:
     scope: 'the Tax allowance-order "fill level" — the only meter in the product'
@@ -1065,7 +1068,7 @@ carries `num`; no second comma rule in the web layer) and
 - **Drag-and-drop rows** (`.dnd-row`, `.dnd-dropzone`, classifications tree) — selection per {components.selected-row}.
 - **Chips** — one chip: {components.chip}, a filled tag. The outline chip and the grey initial-avatar square are separate things wearing the chip's clothes; the avatar is a logo placeholder (`.security-logo--initial`) and reads as one.
 - **Chart tooltip** ({components.chart-tooltip}) — the crosshair readout, mono type on {colors.bg} in a {rounded.sm} bordered box, positioned by the `ChartCrosshair` hook. One tooltip for every chart surface; a chart that invents its own readout is drift.
-- **ⓘ tooltips** (`details.metric-tooltip`) — a native `<details>` whose `summary` is the ⓘ and whose `p[role="tooltip"]` holds the explanation (UX-DR11); pinned to a stat card's corner by default, in the text flow as `.metric-tooltip--inline`. The summary is a 1.25 rem circle, 1.75 rem under `pointer: coarse`. **The labelled pill** (`.metric-tooltip--labelled`, issue 790): a summary that carries a label beside the ⓘ — "ⓘ Kurs- & Währungsbeitrag" on the security's Trades and Holdings tabs, "ⓘ Bruttogewinn" over the sell form's FIFO lot preview ("Lots consumed by this sale") — grows with its text into a {rounded.full} pill (`width: auto`, `white-space: nowrap`). *Amended 2026-10-07 (issue 1059, Sprint 19 PR γ U2; board `mockups/ux-design-2026-10-04/04-trades`, rule ④):* all three pills keep that size under a coarse pointer too — `width: auto; height: auto` with the coarse circle's 1.75 rem as its minimum height, in the coarse block right after the circle's rule, which has the same specificity. Before, the circle rule won on a touch screen: the 189 px label overflowed a 28 px circle on both sides, and at the pane's left edge its first ~50 px fell off the screen. The coarse circle's 28 px stays below UX-DR6's 44 px floor; that is the floor's own repair, not this one.
+- **ⓘ tooltips** (`details.metric-tooltip`) — a native `<details>` whose `summary` is the ⓘ and whose `p[role="tooltip"]` holds the explanation (UX-DR11); pinned to a stat card's corner by default, in the text flow as `.metric-tooltip--inline`. The summary is a 1.25 rem circle, 1.75 rem under `pointer: coarse`. **The labelled pill** (`.metric-tooltip--labelled`, issue 790): a summary that carries a label beside the ⓘ — "ⓘ Kurs- & Währungsbeitrag" on the security's Trades and Holdings tabs, "ⓘ Bruttogewinn" over the sell form's FIFO lot preview ("Lots consumed by this sale") — grows with its text into a {rounded.full} pill (`width: auto`, `white-space: nowrap`). *Amended 2026-10-07 (issue 1059, Sprint 19 PR γ U2; board `mockups/ux-design-2026-10-04/04-trades`, rule ④):* all three pills keep that size under a coarse pointer too — `width: auto; height: auto` with the coarse circle's 1.75 rem as its minimum height, in the coarse block right after the circle's rule, which has the same specificity. Before, the circle rule won on a touch screen: the 189 px label overflowed a 28 px circle on both sides, and at the pane's left edge its first ~50 px fell off the screen. The coarse circle's 28 px stays below UX-DR6's 44 px floor; that is the floor's own repair, not this one. *Amended 2026-10-07 (Sprint 19 PR γ U5; board `mockups/ux-design-2026-10-04/04-trades`, found while drawing 3):* that repair is made — under `pointer: coarse` every ⓘ summary, circle and pill alike, carries a transparent ring (`::before`, `inset: -9px`, placed from the 26 px padding box inside the 1 px border), so its target is 44 px (26 + 2 × 9) while its picture stays the 28 px circle or the pill (Amendment 2026-10-07 — The touch, focus and colour floor, second pass).
 - **Buttons and inputs** ({components.button}, {components.input}) — the two base controls every other control inherits from: {colors.bg-elevated} on a 1px {colors.border}, {rounded.md}, {spacing.density-control} minimum height on desktop and {spacing.touch-target} under `pointer: coarse`. {components.native-control} inherits the input container; {components.selected-segment} inherits neither and is its own track.
 
 ## Do's and Don'ts
@@ -1119,7 +1122,7 @@ Note on the last two rows, both measured in the build.
 - `.search-field input` (app.css:1389-1397);
 - `.securities-detail-splitter` (app.css:2050-2058) — which carries `tabindex="0"` and `role="separator"` (`securities_live.ex:348-356`), so it is a keyboard-operable control with no visible focus at all, and whose only focus signal today is its handle turning accent-coloured, which is colour-only and fails UX-DR7 as well.
 
-**And four controls have no `:focus-visible` rule whatsoever** — `.segmented-control__option`, `.range-button`, `.chart-toggle`, `.period-buttons .button-mini` — falling back to the UA ring. Those four are exactly the classes {components.selected-segment} consolidates, so the aligned component arrives carrying the focus rule or the alignment story has silently made focus worse. `.area-tab` (app.css:4347-4350) and `.positions-toggle` (4376-4379) indicate focus by a text-colour change only, which is the same colour-only failure as the splitter.
+**And four controls have no `:focus-visible` rule whatsoever** — `.segmented-control__option`, `.range-button`, `.chart-toggle`, `.period-buttons .button-mini` — falling back to the UA ring. Those four are exactly the classes {components.selected-segment} consolidates, so the aligned component arrives carrying the focus rule or the alignment story has silently made focus worse. *Amended 2026-10-07 (Sprint 19 PR γ U5, board `mockups/ux-design-2026-10-04/07-floor`):* `.range-button` draws the ring inset (`outline-offset: -2px`, its group clips) and `.chart-toggle` at the 2 px offset; so do the button family and `.icon-button` (Amendment 2026-10-07 — The touch, focus and colour floor, second pass). `.period-buttons .button-mini` still has none. `.area-tab` (app.css:4347-4350) and `.positions-toggle` (4376-4379) indicate focus by a text-colour change only, which is the same colour-only failure as the splitter.
 
 And `input:focus` uses the 18%-opacity ring *as* the indicator rather than as decoration on top of a solid 2px outline — the commitment under Colors says the reverse.
 
@@ -2595,8 +2598,12 @@ owner's pick, plan D-5), as built in `TransactionManagementLive`.
   pass). The **Notes** textarea stands open under it, and the foot carries
   **Save note** (primary) and **Cancel** (ghost).
 - **Behaviour.** Saving sends the note only and closes the drawer with
-  "Note saved"; a refused write keeps the drawer open with the page's error
-  band.
+  ~~"Note saved"~~ "Booking note saved"; a refused write keeps the drawer
+  open with the page's error band. *Amended 2026-10-07 (the PR γ closing
+  act, design critic's judgement (c)):* since the page's result is an
+  inline result (issue 1064), a note carries its word, and the English
+  result read "Note Note saved"; the message now names what was saved.
+  German keeps "Notiz gespeichert" after "Hinweis".
 
 ## Amendment 2026-09-26 — Accounts & depots: lifecycle controls *(Sprint 16 pick G1-A, issue 328, ADR-0050 §4, §11, §12; board 13 pick G13.1-A)*
 
@@ -3496,7 +3503,7 @@ be the two-way gap in the other direction.
   | Frühere ISINs | `identifier_aliases.reassigned` | "N übernommen" |
   | Stammdaten | `identifiers.adopted`, `.differences` | "N Felder übernommen, das Ziel hatte keine · N abweichend, die des Ziels gelten" |
   | Rundung beim Split | `rounding_differences` | "N Abweichung(en)" |
-  | ISIN | `choices.identity_choice`, `.isin_changed_on`, `identifiers.source_isin`, `.target_isin`, `identifier_aliases.created` | "<ISIN> bleibt; <ISIN> ist jetzt frühere ISIN", or "<ISIN> übernommen; <ISIN> ist jetzt frühere ISIN · Änderung vom <date>", or "<ISIN> von der Quelle übernommen" |
+  | ISIN | `choices.identity_choice`, `.isin_changed_on`, `identifiers.source_isin`, `.target_isin`, `identifier_aliases.created` | "<ISIN> bleibt; <ISIN> ist jetzt frühere ISIN", or "<ISIN> übernommen; <ISIN> ist jetzt frühere ISIN · Änderung vom <date>", or "<ISIN> von der Quelle übernommen"; *amended 2026-10-07 (issue 1067):* keyed on the stored ISINs, not the given choice — with an ISIN on both sides the choice's sentence, on the source only "… von der Quelle übernommen", on the target only or on neither no line |
   | Wahl | `choices.collapse_key_equal` | "gleiche Buchungen: als Duplikate entfernt" / "… beide behalten"; absent when there was nothing to choose |
   | Prüfung | `linearity.*` | "Saldo an N Tagen bestätigt" (cash), "Stückzahl an N Tagen für N Wertpapiere bestätigt" (depot), "Stückzahl an N Tagen in N Depots bestätigt" (security) |
 
@@ -3538,7 +3545,8 @@ be the two-way gap in the other direction.
   (§12), and the confirmation said so before the merge wrote.
 - **The `app.css` rules of the pick** (one block after `.merge-stale__changes`):
   ① `.merge-records-table` at `min-width: 0` with nowrap date, kind and
-  actor cells; ② `.merge-record__source` muted, `__arrow` subtle with 3 px
+  actor cells; ② `.merge-record__source` muted, `__arrow` ~~subtle~~ muted
+  (amended 2026-10-07, issue 1085: it carries the direction) with 3 px
   padding, `__target` accent 600 underlined, `__target--gone` muted 400 not
   underlined, `__target--deleted` italic, `__later` a 12 px muted line whose
   link is the accent; ③ `.merge-manifest` summary at 12 px/500 with the
@@ -4726,12 +4734,16 @@ admin tool).
   carries data-confirm") keeps its exception where a destructive dialog is
   itself the confirmation — the quote release, this delete — and the
   `layout_view.ex` note says so.
-- **After (A5)**: the page's own `.alert-success` slot, "Transaktion
+- **After (A5)**: the page's own ~~`.alert-success`~~ result slot, "Transaktion
   gelöscht: Kauf · Global Aktien ETF · 22.09.2026."; the row is gone and the
   month subtotal follows (since 2026-10-07 the head's count, issue 1083).
-  **Gone meanwhile (A6)**: `.alert-error` "Diese
+  **Gone meanwhile (A6)**: ~~`.alert-error`~~ "Diese
   Transaktion existiert nicht mehr.", the history reloaded — the one refusal
-  the API states. The dialog warns about nothing the API does not check (no
+  the API states. *Amended 2026-10-07 (issue 1064, pick J7 = A):* the slot is
+  `AppShell.inline_result` (`#transactions-result`): A5 is a note
+  ("Hinweis", the asterisk), A6 a problem ("Problem", the octagon), each with
+  its dismiss; under coral in the dark theme the two alerts were
+  pixel-identical and said no word. The dialog warns about nothing the API does not check (no
   dependency check: a later sale may lose its purchase).
 - **Focus** (R3, WCAG 2.4.3). The dialog's opener, the menu item, is gone
   when it opens, and after a delete so is the row. The `ModalDialog` hook
@@ -4743,7 +4755,8 @@ admin tool).
   take it: the history's heading (`#transaction-history-heading`,
   `tabindex="-1"`), or **Record split** on the security's page. The focus
   moves only when it went with the dialog. A result the close shows
-  (`data-focus-result`, the page's `[data-role="page-result"]`) comes into
+  (`data-focus-result`, the page's ~~`[data-role="page-result"]`~~ shown
+  note, `#transactions-result .data-note` since 2026-10-07) comes into
   view first, then the target takes the focus without scrolling and is
   brought into view only when it is out of it; the result, the heading and
   the kebabs land below the sticky top bar (`scroll-margin-top:
@@ -5341,6 +5354,41 @@ other; they are unchanged.
   (and `min="0"` a negative the same way) — in both cases the server's
   refusal naming the row was the one the operator never met. The store
   decides: 0–100 %, four decimal places in percent.
+- **The answer comes to the operator** *(amended 2026-10-07, the closing act
+  of PR γ, the design critic's first finding; made with the floor's second
+  pass, which gave the page its result slot)*: the refusal lands in the
+  page's result slot (`#classifications-result`, the inline result of issue
+  1064) at the top of the page, and with `step="any"` the browser's own
+  bubble beside the input was gone, so after "Plan speichern" the refusal
+  stood some 500 px above the window (−499 px at 1200 × 800, −556 px at
+  390), the focus stayed on the button and no input said it was refused.
+  The slot is now `focusable`, and ~~every plan write that answers — "Plan
+  anlegen", "Plan speichern", "Plan löschen", a refusal or a success, the
+  refusal of a write under a view deleted meanwhile included —~~ a plan
+  write's refusal ("Plan anlegen", "Plan speichern", "Plan löschen", a write
+  under a view deleted meanwhile included) asks the page to bring it into
+  view and focus it (`focus-into-view`, Securities' issue 920 path): it stops
+  below the sticky top bar
+  (`scroll-margin-top`) and draws the accent ring under the keyboard. The
+  input the refusal names (a category, a position or the cash target)
+  carries `aria-invalid="true"` and `aria-describedby` the slot's problem
+  region, so it takes the invalid border and a screen reader reads the
+  refusal on returning to it; the next answer clears the mark. A form
+  submit's reply gives the focus back to the submit button after its
+  events, so the page's listener moves it in the next task. *Amended
+  2026-10-07 (cascade layer 2 of the closing act):* a success no longer
+  moves the page — a valid save threw the operator to the top (scrolled
+  505 → 0 px at 390 px, 515 → 0 at 1200 px); "Plan gespeichert" shows in the
+  slot's status region, which announces it, and the page and the focus stay
+  where they are. Switching the plan version or copying another view's plan
+  in clears the refused mark, which had stayed on the other version's valid
+  input. Dismissing a result gives the focus back where the operator was
+  editing — the input the refusal named, else the plan editor's heading
+  (`#soll-editor-heading`), else, on a tree with no editor, the tree's own
+  (`#classification-heading`); both headings take `tabindex="-1"`, stop below
+  the sticky top bar and draw the house ring. Before, the dismissed note
+  took the focus with it to `<body>`; that case on every other page stays
+  issue 1166.
 - The API and MCP writes are out of scope (issue 945's statement): their
   422 still names the field, not the row.
 
@@ -5502,3 +5550,260 @@ prescribed ISO for a date the page only shows (found while drawing 2).
 3. **Fixed** by the sweep above: the ISO displays outside both issues'
    lists.
 4. **Fixed** by the same sweep: a German date has no hyphen to break at.
+
+## Amendment 2026-10-07 — The touch, focus and colour floor, second pass *(Sprint 19 picks J7 = A and J7.2 = A, PR γ U5; issues 1062, 1064, 1069, 1071, 1085, 1067)*
+
+Board `mockups/ux-design-2026-10-04/07-floor` (the design pass's Part 7):
+before/after with two picks, both taken as recommended (A). Built under the
+real `@media (pointer: coarse)`, which the board's `.as-coarse` frames could
+only simulate, and measured in Chromium with touch emulation at 390, 768 and
+1200 px. `test/invariants/css_floor_second_pass_test.exs` pins the rules;
+`test/portfolixir_web/live/floor_second_pass_live_test.exs` the markup.
+Issue 933, on the same board, shipped with PR β (Amendment 2026-10-06 — The
+logo dialog for a logo whose file is gone; the last part below).
+
+### Row menus and range buttons *(issue 1062, rules ① and ②)*
+
+- **A row-menu item is a 44 px target under a coarse pointer.** Above
+  720 px the menu stays a popover, and a tablet met the base button's 34 px
+  items; `.row-context-menu__item` takes `min-height: 44px` there. Under
+  720 px the sheet's items are 50 px already; with a mouse nothing changes.
+  The class serves every row menu, so all of them take it. Measured on the
+  securities row menu: 34.2 → 44 px per item, the menu 386 → 494 px tall.
+- **The menu stays within the viewport** (the review of U5): on a phone in
+  landscape the 494 px menu ran off the screen. It is at most the viewport
+  less 16 px tall (`max-height: calc(100dvh - 16px)`, with a `100vh`
+  fallback) and scrolls inside (`overflow-y: auto`; its 4 px padding still
+  holds the items' focus ring, and the items keep their 44 px,
+  `flex-shrink: 0`). The positioning hook opens it below its kebab when it
+  fits there, above when it fits there, and otherwise on the roomier side
+  with its height capped to that room, so it never covers the kebab that
+  opened it (before, it clamped to the viewport's top over the kebab).
+  Measured under touch: at 915 × 412 and 844 × 390 the menu stands above
+  its kebab from 8 px and scrolls to "Löschen"; at 1024 × 768 it opens
+  below and scrolls, or above, whole, for a kebab low on the screen.
+- **A range button is 44 × 44 under a coarse pointer** (40 × 32 before),
+  and gives up its inline padding, so the 44 px minimum is every button's
+  width, "YTD" and "Max" included: the group is 8 × 44 + 2 = 354 px. It is
+  one row from a **376 px** viewport up (the toolbar is the viewport less
+  22 px); at 360, 340 and 320 px (toolbars of 338, 318 and 298 px) eight
+  44 px buttons do not fit, so the group wraps there, seven and one, and
+  the floor stays. The chart toggles in the same toolbar take 44 px too
+  (found while drawing): 32 → 44 px at 390 px; at 768 and 1200 px their
+  two-line labels already made them 43.6 px. Their words sit in the middle
+  of the box (`align-items: center`; measured 0.4 px off centre).
+- **Why real sizes, not H6's padding and negative margin** (Amendment
+  2026-10-03 — Touch targets and focus): the menu items stack, so boxes
+  grown into their neighbours would overlap and make every boundary
+  ambiguous; `.range-buttons` clips with `overflow: hidden`, so a hit area
+  grown past the group would be clipped from hit testing too.
+
+### The focus ring of the button family, the icon button and the chart toolbar *(issue 1062, rule ③; found while drawing)*
+
+`:is(.button, .button-primary, .button-ghost, .button-danger,
+.button-secondary):focus-visible` draws `outline: 2px solid
+{colors.accent}; outline-offset: 2px`, the ring every other control draws
+(Colors → Focus indicator). Measured on the delete dialog's "Abbrechen":
+Chromium's `auto 1px` ring in the system colour before, the 2 px accent at
+2 px after. The ring sits outside the fill, so the primary's accent fill
+and the ring never merge; hover stays the fill change. **Found while
+drawing, the same ring:** `.icon-button:focus-visible` changed colours only,
+so the browser's ring still drew; it now draws the accent ring too.
+`.chart-toggle` draws it at the 2 px offset, and `.range-button` draws it
+**inset** (`outline-offset: -2px`), because its group clips an outset ring;
+the KPI strip's cells take the same -2 px. *Amended 2026-10-07 (the PR γ
+closing act, design critic 6 and 7):* the bucket chip's **+**
+(`.bucket-chip-add`) draws the ring at 2 px, as the "+N" chip beside it
+does, and its **×** (`.bucket-chip__remove`) draws it inset at -2 px,
+because the × fills the pill's end and an outset ring would run over the
+pill's edge; both drew Chromium's `auto 1px` black ring before. The
+history's heading (`#transaction-history-heading`), which takes the focus
+when a closing dialog's own write took its row (issue 912's fallback),
+draws the ring at 2 px with {rounded.sm} corners, as the securities page's
+result slot does when it takes the focus the same way; it too drew the
+browser's ring. *Amended 2026-10-07 (the closing
+act of PR γ, the design critic's third finding; issue 1164):* the view
+switcher's quiet controls — "Ansichten", the active view's ⓘ and Wealth's
+"Als Standard festlegen" — drew Chromium's `auto 1px` ring beside the chips'
+accent one; they are named in the button family's rule and draw the 2 px
+accent at 2 px (see "The view switcher's quiet controls" below).
+
+### A page's result is an inline result *(issue 1064, pick J7 = A)*
+
+- **The slots.** The transaction history (`#transactions-result`), Buckets
+  (`#buckets-result`), Classifications (`#classifications-result`, on a
+  tree and on the "new classification" page) and Risk's rule section
+  (`#policy-rules-result`) answer an action through `AppShell.inline_result`
+  instead of `.alert-success` / `.alert-error`: a success reads as a note
+  ("Hinweis", the asterisk), a refusal as a problem ("Problem", the
+  octagon), each with its dismiss and the two live regions that exist
+  before any action. Front matter: `inline-result.page-slot`.
+- **Accounts & depots has one slot.** It rendered the two-class alert a few
+  lines from its own inline result; the alert's answers (a changed role, a
+  created account, their refusals) now land in `#accounts-result`, beside
+  the merge's and the delete's.
+- **Why.** Under coral in the dark theme `.alert-success` and `.alert-error`
+  were pixel-identical (the danger and coral inks are one value on one
+  tint) and neither carried a word: the delete's "Transaktion gelöscht: …"
+  and the raced "Diese Transaktion existiert nicht mehr." read the same
+  (UX-DR7). The words are the data note's own (Voice and Tone: one word
+  per severity), not "Erledigt" / "Fehler", which would be a fourth and a
+  fifth.
+- **Kept.** A refusal that names policy rules keeps its links (issue 871):
+  the problem's body is `PolicyRuleReferences.message`, and
+  `.data-note__body a` underlines them in the note's colour. The history's
+  closing dialogs bring the shown note into view
+  (`data-focus-result="#transactions-result .data-note"`), below the sticky
+  top bar as the alert was.
+- **The alert's footprint** (`.inline-result--page`, a class the component
+  now takes): the band's side gutter (`margin-inline: clamp(16px, 2.4vw,
+  28px)`) where the slot is a direct child of `.workspace-page`, 12 px
+  above a result, and **nothing at rest**, so every page looks as it did
+  until an action answers. The component's regions always hold whitespace,
+  so its `:not(:empty)` margin never lifted and an empty slot was 8 px
+  tall; the page slot asks `:has(> *)` instead. In a section's grid (Risk)
+  the empty slot leaves the flow (`position: absolute`, still a live region
+  in the accessibility tree), so the grid adds no gap for it; measured at
+  rest, the gap above the next block is unchanged on all five pages
+  (Risk's 28 px would have become 52). The other inline results (Accounts'
+  own, Snapshots, Securities) keep their footprint.
+- **Not changed.** In-dialog refusals and the Imports page keep their
+  alerts (they are not page result slots), and "Classification not found"
+  is a page's state, not an action's answer.
+- **Not built (J7 B):** a glyph inside the old alert with the word only
+  visually hidden. In the dark the outcome would have ridden on a 14 px
+  shape alone, and it kept a component the inventory retires.
+
+### Flush tables and the tooltip's alignment *(issues 1069 and 1071, rules ⑤ and ⑥)*
+
+- **`.drift-table, .cash-table` carry no top margin.** All five call sites
+  (the allocation tree, the flat positions, the Holdings cash table and
+  the two snapshot tables) sit in a bordered `.data-table-wrapper`, so the
+  1rem was a 17 px band inside the border. The head row now sits on the
+  wrapper's top border (measured 17 → 1 px, the border, at every width).
+- **A tooltip is a paragraph wherever it sits:** `.metric-tooltip p` sets
+  `text-align: start` on the class, H4 (c′)'s reasoning carried one
+  property further. In a `th.num`, the Drift ⓘ, it inherited the right
+  alignment and read ragged on the left (measured `right` → `start`).
+
+### Accounts & depots *(issue 1085, pick J7.2 = A, rules ⑦, ⑧ and ⑨)*
+
+- **The balance's date says what it is:** "letzte Buchung 31.03.2026"
+  (English "last booking …"), the KPI strip's own word for the same kind
+  of date, under a msgid of its own; "as of %{date}" ("Stand …") stays at
+  its three real as-of call sites. The date is the newest booking that
+  moved the balance (`Ledger.cash_activity_dates/1`); a set balance is a
+  booking too. "Stand 31.03.2026" read as a six-month-old balance when it
+  was today's. **Not built (J7.2 B):** "unverändert seit …", which invites
+  the same worry in a new word. **One line from 1200 px**, as the board
+  draws it (`white-space: nowrap`; the review of U5): the longer words
+  wrapped at 1200 px and made every cash row 15 px taller. German on the
+  demo seed fits unwrapped from 1140 px without the table scrolling, and
+  1200 leaves room for longer names. Narrower, the accounts table's own
+  width decides (issue 1145) and the line wraps, as "Stand …" did at 768
+  and 1024 px.
+- **The role label's breakpoint** (⑦): the select's label renders as
+  `.liquidity-role-field__label` (11 px, 600, {colors.text-muted}) and is
+  visually hidden only above 640 px (`@media (width > 640px)`, the exact
+  complement of the card layout's `max-width: 640px`; `min-width: 641px`
+  left fractional widths between them with neither), where the column head
+  states it. At 640 px and below the head is hidden too, so the card now
+  reads "Liquiditätsrolle ⓘ
+  [Verfügbares Cash]": the role's ⓘ (issue 1090) stands beside its word
+  instead of opening the row alone (measured at 390 px: the label 94 × 15,
+  the ⓘ moved from x 30 to x 130). Under a coarse pointer the field keeps
+  {spacing.3} between the label, the ⓘ and the select: the ⓘ's touch ring
+  reaches 8 px past its circle, and with the 6 px gap it covered the
+  select's left edge, where a tap opened the definition (measured after:
+  the ring ends 4 px before the select). Front matter: `bucket-cell.role`.
+  The Buckets ⓘ keeps its place after the scope line, as board 08 draws it.
+- **The chips' 44 px** (⑧): under a coarse pointer the chip's × and + are
+  44 × 44 (they were 24 × 24 and 32 × 34, the two sub-floor values UX-DR6's
+  amendment 2 rejects), and a chip holding a × gives up its block and right
+  padding, so the × fills its end and the chip is 46 px tall; the ×'s
+  corners are the pill's end (`border-radius: 0 999px 999px 0`), and it
+  carries no shadow at any width (the base button's shadow and 8 px corners
+  drew a box inside the pill, most visibly in the dark). Not H6's
+  negative margin: the chips wrap onto lines 5 px apart. **Found while
+  drawing, fixed with it:** the + is the 22 × 22 it declares on the desktop
+  (`min-height: 0`; the base button's floor made it 22 × 34, the H6.2
+  class), and under a coarse pointer the card's role select (24 px) and
+  "Saldo setzen" (34 px) take 44 px. Front matter: `bucket-cell.target-size`.
+- **The muted arrow** (⑨): `.merge-record__arrow` takes {colors.text-muted},
+  the source's own colour ("muted source, muted arrow, accent target"),
+  because it carries the direction (the hidden "in" serves a screen reader
+  only) and {colors.text-subtle} is barred from content (2.64:1 light,
+  3.03:1 dark before; 5.89:1 and 5.91:1 after). The merge preview's
+  `.merge-route__arrow` already takes text-muted. Amended in place under
+  Accounts & depots: the merge records.
+
+### The merge record's ISIN line *(issue 1067)*
+
+The line keys on the ISINs the record holds, not on the choice it was
+given: with an ISIN on **both** sides it reads the choice the merge required
+("<ISIN> bleibt; <ISIN> ist jetzt frühere ISIN", or "… übernommen; …"); on
+the **source only** "<ISIN> von der Quelle übernommen"; on the **target
+only** or on **neither**, nothing changed and there is no line: the record
+lists only lines with something to say. An API or MCP merge records a
+choice as given even when none was required, so two ISIN-less securities
+printed "bleibt; ist jetzt frühere ISIN" with both slots empty, and a
+one-sided pair one slot empty. The payload is unchanged; the agent reads
+the choice verbatim.
+
+### The coarse ⓘ *(board `mockups/ux-design-2026-10-04/04-trades`, found while drawing 3)*
+
+Under a coarse pointer every ⓘ summary, the 28 px circle and the labelled
+pill alike, carries a transparent ring: `::before` with `inset: -9px`,
+placed from the 26 px padding box inside its 1 px border, so its target is
+44 × 44 while its picture is unchanged (28 × 28 before and after; the target
+measured 28 → 44 on the stat cards, the Drift head, the Views ⓘ and both
+phone ⓘ of Accounts). The ring is drawn in no colour. A table clips its
+cells (`table { overflow: hidden }`), so a drift head holding an ⓘ takes
+9 px of block padding under a coarse pointer and the ring fits inside the
+table (it measured 44 × 43 without). UX-DR6 asks for an effective target,
+and this is the first one built without a visible box: the circle at 44 px
+would have doubled every stat card's corner and grown every line the ⓘ
+stands in. EXPERIENCE.md's UX-DR6 inventory gains the class, which its
+2026-08-05 count read as covered. *Amended 2026-10-07 (the closing act of
+PR γ, the design critic's third finding; issue 1164):* "every ⓘ summary"
+had missed the view switcher's, a bare glyph outside `.metric-tooltip`
+(14 × 20 px under touch, 13 × 18 at 1024 px). It is named in the ring's
+rule and takes the 26 px box the ring is placed from, so it measures
+44 × 44 as well (next part).
+
+### The view switcher's quiet controls *(added 2026-10-07; issue 1164; the closing act of PR γ, the design critic's third finding)*
+
+U7 put `PortfolixirWeb.ViewSwitcher` on the classification screen, where its
+chips met the floor (`.view-chip`, 44 px under a coarse pointer since issue
+446's block) and its quiet controls did not. The component's anatomy and
+markup are unchanged; this is CSS conformance under board 07's rules.
+
+- **"Ansichten"** (`.view-switcher__manage`) is a real 44 px box under a
+  coarse pointer: `display: inline-flex`, `min-height: 44px`, its icon and
+  word 4 px apart as before (`gap: var(--space-1)`, measured 4.3 → 4.0 px).
+  Measured 85 × 19 → 84 × 44 on the classification screen and on Wealth, at
+  390 and 1024 px. With a mouse it is unchanged.
+- **Wealth's "Als Standard festlegen"** (`.view-switcher .button-mini`)
+  takes `min-height: 44px` under a coarse pointer: 34 → 44 px.
+- **The active view's ⓘ** (`.view-switcher__help summary`) keeps its glyph in
+  a 26 × 26 box (`inline-flex`, centred, `position: relative`) and carries
+  the coarse ⓘ ring, so its target is 44 × 44 (14 × 20 before); a tap 21 px
+  from its centre on each side lands on it. The ring reaches 9 px past the
+  box, so under a coarse pointer the switcher's items stand 12 px apart
+  (`column-gap: var(--space-3)`, 8 px before): at 8 px the ring reached 1 px
+  into "Ansichten", at 12 it ends 3 px before it, as the role field's
+  12 px keeps its ⓘ's ring off the select.
+- **Real sizes in a row of 44 px chips**, not H6's padding: the row is 44 px
+  tall already, so on the desktop's one line nothing moves; on a phone the
+  line that holds "Ansichten" grows to 44 px (the switcher 72 → 96 px tall
+  under "Alles" at 390 px, 99 → 130 with a view active).
+- **The focus ring:** all three draw the 2 px accent at a 2 px offset, from
+  the button family's rule (above), where Chromium drew `auto 1px`.
+
+### A missing logo file counts as a missing logo *(issue 933, PR β B2)*
+
+Recorded here because Part 7 of the design pass lists it: a security whose
+logo file is gone (`logo_file_missing`) renders the monogram or the flag,
+counts in the Overview's existing "ohne Logo" finding, and is listed by
+`?dq=missing_logo`, the same set; the logo dialog's sentence for it is the
+2026-10-06 amendment above.

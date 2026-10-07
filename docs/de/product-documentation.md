@@ -744,7 +744,8 @@ datumsgestempelte Import-Tags) werden gekürzt; der volle Name erscheint beim
 Überfahren des Chips. Die Chips sind die Gruppierungs-UI: das **+** öffnet
 ein kleines Picker-Popover mit den übrigen Buckets plus einem Inline-Feld
 **Neuer Tag**, das einen Tag in einem Schritt anlegt und zuweist, und das
-**×** auf einem Chip entfernt die Zugehörigkeit. Änderungen an einer
+**×** auf einem Chip entfernt die Zugehörigkeit. Auf einem Touchscreen
+sind **×** und **+** 44-Pixel-Ziele (#1085). Änderungen an einer
 zusammengeführten Gruppe gelten für Depot und Verrechnungskonto gemeinsam.
 Jede Änderung läuft durch den audit-journalisierten Bucket-Kontext; der
 Versuch, einen zweiten Scope-Bucket zuzuweisen, wird mit einer Inline-Meldung
@@ -913,7 +914,8 @@ heißt es *die neuesten 100*. Jede Zeile nennt:
   entfernt*, *interne Umbuchung entfallen*, *gesetzter Saldo desselben Tages
   entfallen*, *Split zusammengelegt*), gesetzte Salden, frühere Namen, Kurse,
   Klassifizierungen, Buckets der Position und Ähnliches —, dann Ihre Wahl für
-  gleiche Buchungen und bei einem Wertpapier die ISIN, und die bestandene
+  gleiche Buchungen und bei einem Wertpapier die ISIN, wo die Quelle eine
+  trug (#1067), und die bestandene
   Prüfung (*Saldo an 211 Tagen bestätigt*; *nichts zu prüfen* für eine
   Zusammenführung, deren Quelle nichts bewegt hat, gleich welcher Art);
 - **Von**: *Operator* für eine Zusammenführung auf diesen Seiten, *Agent* für
@@ -1046,10 +1048,14 @@ anderes auch trägt, wird mit seiner ISIN genannt, wie das Zeilenmenü es
 nennt. **Transaktion löschen** löscht sie; **Abbrechen**, Esc oder die
 Schließen-Schaltfläche ändern nichts und geben den Fokus an die
 Menü-Schaltfläche der Zeile zurück. Die Zeile verschwindet, die Anzahl im
-Monatskopf folgt, und das Ergebnis lautet „Transaktion gelöscht: Kauf · Global Aktien
-ETF · 22.09.2026.“; eine inzwischen gelöschte
-Buchung (vom Agenten oder in einem anderen Tab) liest „Diese Transaktion
-existiert nicht mehr.“ — die eine Ablehnung, die die API kennt. Darüber
+Monatskopf folgt, und das Ergebnis über der Historie lautet, als *Hinweis*,
+„Transaktion gelöscht: Kauf · Global Aktien ETF · 22.09.2026.“; eine
+inzwischen gelöschte Buchung (vom Agenten oder in einem anderen Tab) liest,
+als *Problem*, „Diese Transaktion existiert nicht mehr.“ — die eine
+Ablehnung, die die API kennt. Jedes Ergebnis trägt sein Wort und sein
+Zeichen, nicht nur eine Farbe, und sein × blendet es aus (#1064). Konten &
+Depots, Ansichten, Klassifizierungen und Risiko antworten auf ihre Aktionen
+ebenso. Darüber
 hinaus wird nichts geprüft, wie über die API: Wird ein Kauf gelöscht, dessen
 Stücke ein späterer Verkauf verbraucht hat, fehlt diesem Verkauf danach sein
 Kauf.
@@ -1500,8 +1506,12 @@ in Prozent oder außerhalb von 0–100 % wird mit seiner Zeile vorweg abgelehnt 
 Prozent“, „Soll von „…“: muss zwischen 0 und 100 % liegen“, „Cash-Ziel: …“
 (Issue #945) —, und die Eingaben setzen weder Bereich noch Schrittweite
 selbst: Es entscheidet der Speicher, nicht der Browser, und auf dem Schirm
-steht die Ablehnung, die die Zeile nennt. Leert ein Speichern das
-**letzte** Positionsziel
+steht die Ablehnung, die die Zeile nennt. Die Antwort auf ein Speichern
+steht oben auf der Seite. Bei einer Ablehnung holt die Seite sie ins Bild und
+setzt den Fokus darauf, und die Eingabe, die sie nennt, ist bis zur nächsten
+Antwort als ungültig markiert; schließt man die Ablehnung, kehrt der Fokus
+zu dieser Eingabe zurück. „Plan gespeichert“ erscheint dort, ohne dass die
+Seite springt. Leert ein Speichern das **letzte** Positionsziel
 einer Kategorie und ist für die Kategorie kein Gewicht eingetragen, fällt das
 Gewicht der Kategorie, das nur der Summe folgte, mit weg: Die Kategorie steht
 dann ohne Ziel da statt mit einer Zahl, die niemand eingetragen hat. Eine
@@ -1695,8 +1705,9 @@ eine Banking-App zu verwandeln. Dies folgt dem in
 
 Jedes Geldkonto trägt eine **Liquiditätsrolle** (`liquidity_role`; der Selektor
 sitzt neben dem Konto auf der Seite Konten & Depots, und das ⓘ an ihrem
-Spaltenkopf — auf dem Telefon neben dem Selektor — sagt in einem Satz, wie
-jede Rolle zählt). Sie ist einer von drei Werten:
+Spaltenkopf — auf dem Telefon, wo der Kopf verborgen ist, steht die
+Beschriftung *Liquiditätsrolle* neben dem Selektor und das ⓘ daneben
+(#1085) — sagt in einem Satz, wie jede Rolle zählt). Sie ist einer von drei Werten:
 **free cash** (Standard — echtes verfügbares Cash), **credit line** (eine
 Überziehungs- oder Lombard-Linie, deren negativer Saldo eine Verbindlichkeit ist
 und deren ungenutzter Rahmen nie Liquidität ist) oder **reserve** (ein
@@ -1961,7 +1972,9 @@ Top-Level-Kategorie ein Ziel, wohl aber tiefere Kategorien, ergänzt die
 Σ-Kopfzeile die Summe der tieferen Ziele („Ziele tiefer im Baum") statt ein
 nacktes 0 % zu zeigen. Der Cash-Abschnitt
 listet den Saldo jedes Kontos nur lesend und verlinkt auf **Konten & Depots**:
-dort zeigt jede Geldkonto-Zeile ihren Saldo mit Stand-Datum und öffnet einen
+dort zeigt jede Geldkonto-Zeile ihren Saldo mit dem Datum seiner letzten
+Buchung (*letzte Buchung 31.03.2026*: der Saldo ist der heutige, das Datum
+sagt, wann eine Buchung ihn zuletzt bewegt hat, #1085) und öffnet einen
 kleinen Dialog **Saldo setzen**, in dem das Konto bereits gewählt ist — den
 Saldo eingeben, den die Bank zeigt, und der Snapshot wird ohne Buchung
 einzelner Transaktionen erfasst.

@@ -681,7 +681,8 @@ the full set as well. Long names
 the full name. The chips are the grouping UI: the **+** affordance opens a
 small picker popover with the remaining buckets plus an inline **New tag**
 field that creates and assigns a tag in one step, and the **×** on a chip
-removes that membership. Edits on a merged group apply to the depot and the
+removes that membership. On a touch screen the **×** and the **+** are
+44-pixel targets (#1085). Edits on a merged group apply to the depot and the
 cash account together. Every change is written through the audit-journaled
 bucket context; trying to add a second scope bucket is rejected with an
 inline message, because the scope dimension stays exclusive (ADR-0024).
@@ -832,7 +833,8 @@ newest first. The list starts collapsed under a line that counts it
   (*duplicate removed*, *internal transfer dropped*, *same-day set balance
   dropped*, *split collapsed*), set balances, former names, quotes,
   classifications, position buckets and the like — then the choice you made
-  for equal bookings and, for a security, the ISIN, and the check the merge
+  for equal bookings and, for a security, the ISIN where the source
+  carried one (#1067), and the check the merge
   passed (*Balance confirmed on 211 days*; *nothing to check* for a merge
   whose source moved nothing, whatever its kind);
 - **by**: *Operator* for a merge made on these pages, *Agent* for one an API
@@ -923,7 +925,7 @@ is deleted and booked again there, and a set balance is set again under
 **Accounts & depots** — and carries **Delete…**, which closes the drawer
 and opens the delete confirmation below. Closing the drawer — **Cancel**,
 Esc, the close button or **Save note** — returns the focus to the row's
-menu button, with "Note saved" in view.
+menu button, with "Booking note saved" in view.
 
 **A booked split** is notes-only too (E25 S6): a split is a fact about the
 security, booked through **Record split** on the security, whose checks
@@ -954,10 +956,13 @@ balance stays as set. A security whose name another security also carries
 is named with its ISIN, as the row's menu names it. **Delete transaction**
 deletes it; **Cancel**, Esc or the close button change nothing and return
 the focus to the row's menu button. The row disappears, the month's count
-follows, and the result reads "Transaction deleted: Buy · Global Equity
-ETF · 2026-09-22."; a booking deleted meanwhile (by the agent, or in
-another tab) reads "That transaction no longer exists." — the one refusal
-the API knows. Nothing is checked beyond that, as over the API: deleting a
+follows, and the result above the history reads, as a *Note*, "Transaction
+deleted: Buy · Global Equity ETF · 2026-09-22."; a booking deleted
+meanwhile (by the agent, or in another tab) reads, as a *Problem*, "That
+transaction no longer exists." — the one refusal the API knows. Each
+result carries its word and its glyph, not only a colour, and its × clears
+it (#1064). Accounts & depots, Views, Classifications and Risk answer their
+actions the same way. Nothing is checked beyond that, as over the API: deleting a
 buy whose shares a later sale consumed leaves that sale without its
 purchase.
 
@@ -1363,7 +1368,11 @@ or outside 0–100 %, is refused with its row named first — "Position target o
 “…” under “…”: at most four decimal places in percent", "Target of “…”: must
 lie between 0 and 100 %", "Cash target: …" (issue #945) — and the inputs set
 no range or step of their own: the store, not the browser, decides, so the
-refusal on screen is the one that names the row. When a save
+refusal on screen is the one that names the row. The answer to a save
+stands at the top of the page. A refusal is brought into view and takes the
+focus, and the input it names is marked as invalid until the next answer;
+dismissing the refusal returns the focus to that input. "Plan saved" shows
+there without moving the page. When a save
 clears a category's **last** position target and no weight is typed for the
 category, the category's weight that only followed
 their sum is removed with them, so the category is left without a target rather
@@ -1545,8 +1554,9 @@ design recorded in
 
 Each cash account carries a **liquidity role** (the selector sits next to the
 account on the Accounts & depots page, and the ⓘ on its column head — on a
-phone, beside the selector — says in one sentence how each role counts; the
-API/MCP field is `liquidity_role`). It is
+phone, where the head is hidden, the label *Liquidity role* stands beside the
+selector with the ⓘ next to it (#1085) — says in one sentence how each role
+counts; the API/MCP field is `liquidity_role`). It is
 one of three values: **free cash** (the default — genuine deployable cash),
 **credit line** (an overdraft or Lombard facility, whose negative balance is a
 liability and whose unused headroom is never liquidity), or **reserve** (a
@@ -1787,8 +1797,10 @@ on its row in the *Unassigned* bucket too. When no top-level category carries
 a target but deeper categories do, the Σ header adds the deeper targets'
 sum ("targets deeper in the tree") instead of showing a bare 0%. The cash
 section lists each account's balance read-only and links to **Accounts &
-depots**, where each cash-account row shows its balance with the as-of date
-and opens a small **Set balance** dialog with the account already chosen:
+depots**, where each cash-account row shows its balance with the date of
+its last booking (*last booking 2026-03-31*: the balance is today's, the date
+is when a booking last moved it, #1085) and opens a small **Set balance**
+dialog with the account already chosen:
 enter the balance the bank shows and the snapshot is recorded without
 booking individual transactions.
 
