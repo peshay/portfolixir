@@ -20,7 +20,9 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
       anatomy under it — decorative and `aria-hidden`, scaled so the largest
       absolute contribution fills 45 % of the track (UX-DR7). A row not held
       at both ends says so under its name; a row that counted zero on some
-      days carries a marker in words (UX-DR25);
+      days carries a marker in words (UX-DR25); a name another position
+      also carries is followed by what tells it apart, the ISIN else the
+      number (`SecurityNames`, issue 1057, pick J6.2 A);
     * more than ten positions: the ten largest by absolute amount, in the
       table's order, and a "Show all N" control; the sum always covers every
       position;
@@ -44,6 +46,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
 
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.SecurityNames
 
   # The board's limit: above it the table shows the largest by absolute
   # amount and a control for the rest.
@@ -185,7 +188,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
             data-security-id={position.security_id}
           >
             <td class="contribution-table__name">
-              <%= position_name(position) %>
+              <%= position_name(position) %><SecurityNames.twin_id tag={position.twin_id} />
               <span
                 :if={position.unvalued_days > 0}
                 class="contribution-unvalued-mark"
@@ -289,7 +292,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
         data-security-id={position.security_id}
       >
         <span class="phone-row__body">
-          <span class="phone-row__name"><%= position_name(position) %></span>
+          <span class="phone-row__name"><%= position_name(position) %><SecurityNames.twin_id tag={position.twin_id} /></span>
           <span class="phone-row__ids"><%= phone_line(position) %></span>
         </span>
         <span class="phone-row__figures">
@@ -426,7 +429,9 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
   defp figures(nil, _show_all?), do: nil
 
   defp figures(contribution, show_all?) do
-    positions = contribution.positions
+    # #1057 (pick J6.2 A): one row per security, so the name alone is the
+    # collision key — decided over every position, the hidden ones included.
+    positions = SecurityNames.put_twin_ids(contribution.positions, &position_name/1)
     shown = shown_positions(positions, show_all?)
 
     %{
