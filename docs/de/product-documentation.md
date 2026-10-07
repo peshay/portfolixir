@@ -2199,14 +2199,22 @@ Bereich einen zweistufigen Facetten-Umschalter.
 beantwortet „was hat Verkaufen tatsächlich gebracht — und hat sich der Trade
 gelohnt". Seit Issue #807 ist die Facette **die Trades-Ansicht**, und seit
 Issue #984 sagt ihr Schalter das auch (die Adresse bleibt, Links und
-Lesezeichen halten): die Facette öffnet mit drei Zahlen — der realisierten
-Summe, der **Trefferquote** (dem Anteil der abgeschlossenen Trades mit Gewinn;
+Lesezeichen halten). Seit Issue #1082 heißt die Kopfzeile **Trades**, solange
+die Facette offen ist — auch auf dem Telefon, wo der Untertitel fehlt —, und
+auf den drei anderen Facetten **Cashflow**. Die Facette öffnet mit drei
+Zahlen — der realisierten Summe, mit Vorzeichen und in ihrer Gewinn- oder
+Verlustfarbe, der **Trefferquote** (dem Anteil der abgeschlossenen Trades mit Gewinn;
 ein Nullergebnis zählt nicht als Treffer) und der **durchschnittlichen
 Haltedauer** — gefolgt von den abgeschlossenen Rundläufen selbst, neuester
 Schluss zuerst, je Zeile das Wertpapier (verlinkt auf seinen Trades-Tab),
 gekauft → verkauft, die Haltedauer, die Stückzahl, die Kosten, der Erlös und
-die Spalte **p. a.** und das Ergebnis in Geld und Prozent, das Ergebnis in
-seiner Vorzeichenfarbe. **p. a.** (Issue #984) ist die annualisierte Rendite
+die Spalte **p. a.** und das Ergebnis in Geld und Prozent. Jedes Ergebnis,
+jede Prozentzahl und jede p.-a.-Zahl der Liste, in der Tabelle wie in ihren
+Telefonzeilen, trägt ihr Vorzeichen und dazu ihre Farbe — ein Gewinn liest
+sich „+420,00 EUR“, „+42,0%“, „+17,8%“ —, sodass ein Gewinn nicht davon
+abhängt, Grün von Rot zu unterscheiden (Issue #1089); eine Zahl, die sich
+als null liest („0,00“, „0,0%“), trägt keins von beiden.
+**p. a.** (Issue #984) ist die annualisierte Rendite
 des Trades: die geldgewichtete Rendite pro Jahr seines eigenen Geldes — jedes
 gekaufte Lot zu seinem Kaufdatum, der Verkauf zu seinem Verkaufsdatum — in
 der Währung des Trades, wie die Prozentzahl unter dem Ergebnis. Sie steht
@@ -2217,11 +2225,15 @@ liest sich annualisiert absurd — 5 % in 14 Tagen wären rund 257 % im Jahr —
 und seine Prozentzahl über die Haltedauer sagt bereits, was er gebracht hat.
 Eine Zeile unter der Liste nennt die Regeln: Einlieferungen eröffnen keinen
 Lot, Gebühren und Steuern stecken in Einstand und Erlös, Erträge während der
-Haltedauer sind nicht enthalten, und p. a. erst ab 365 Tagen Haltedauer. Der
+Haltedauer sind nicht enthalten, und p. a. erst ab 365 Tagen Haltedauer und
+nur, wo ein Zinssatz die Zahlungen löst. Der
 Umfang des Matchers — FIFO je Wertpapier über alle Depots — steht in der
 ersten Zeile der Facette. Auf dem Telefon weicht die Tabelle zweizeiligen
 Zeilen: der Name über gekauft → verkauft und den Tagen, das Ergebnis über
-seiner Prozentzahl und, ab einem Jahr Haltedauer, der p.-a.-Zahl. Die
+seiner Prozentzahl und, ab einem Jahr Haltedauer, der p.-a.-Zahl; ein Trade
+ohne sie — unter einem Jahr gehalten oder ein Totalverlust, den kein Zinssatz
+löst — schließt seine Prozentzahl mit **gesamt** („-38,9% gesamt“), dem Wort
+der Übersichtskarte. Die
 Jahres-/Monatsmatrix, mit der die Facette früher öffnete, behält jede Zahl —
 jetzt unter **Realisiert je Periode** hinter der Aufklappung **Matrix nach
 Jahr und Monat** unter der Liste. Konnte ein Verkauf nicht konvertiert
@@ -2234,9 +2246,9 @@ abwesend statt als 0 % und 0 Tage. Alle drei Zahlen stammen aus
 FIFO-gematchter realisierter G&V über alle Wertpapiere, gruppiert nach dem
 **Schlussdatum** jedes Verkaufs. Die FX-Basis steht auf der Oberfläche und reist in der
 API-Payload mit (Entscheidung D-1): jeder Verkauf konvertiert über den
-EUR-Hub zum Kurs **seines eigenen Schlusstags** —
+EUR-Hub zum Wechselkurs **seines eigenen Schlusstags** —
 die Basis des Income-Bereichs, denn eine realisierte Zahl ist ein historischer
-Fakt an ihrem Datum. Ein Verkauf **ohne** gespeicherten Kurs zu diesem Datum
+Fakt an ihrem Datum. Ein Verkauf **ohne** gespeicherten Wechselkurs zu diesem Datum
 wird **aus jeder Summe ausgeschlossen und benannt** (Achtung-Notiz mit Anzahl
 und Wertpapieren) — nie zum Kurs eines Nachbardatums konvertiert, nie still
 verworfen. Die tägliche Kurssynchronisation holt *aktuelle* Kurse und kann
@@ -2262,7 +2274,7 @@ abgeschlossener Trade und steht in keiner der drei Kennzahlen, keiner Zeile
 und nicht in der Matrix; der zugeordnete Teil desselben Verkaufs ist ein
 Trade wie jeder andere. Eine Achtung-Notiz nach dem Kurs-Hinweis nennt, wie
 viele Verkäufe eine solche Stückzahl haben, ihre Aufklappliste jeden als
-Wertpapier · Datum · Stückzahl ohne Gegenstück. Sie trägt
+Wertpapier · Datum · Stückzahl ohne Gegenstück („15,0000 Stück“). Sie trägt
 keine Schaltfläche, denn nichts auf der Seite kann den fehlenden Kauf
 liefern.
 
@@ -2285,10 +2297,17 @@ solche Verkäufe, steht die Notiz allein, ohne Tabelle. Eine Zeile unter der
 Liste nennt die Regeln: über alle Depots, Einlieferungen eröffnen keinen
 Lot, Gebühren und Steuern stehen im realisierten G/V, nicht in Ø Kauf und
 Ø Verkauf, Erträge während der Haltedauer sind nicht enthalten, und p. a.
-erst ab 365 Tagen Haltedauer. Auf dem Telefon wird die Tabelle zu
+erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst.
+Auf dem Telefon wird die Tabelle zu
 zweizeiligen Zeilen: Eröffnet → Geschlossen über der Stückzahl und den
 Tagen, das Ergebnis über seiner Rendite und, ab einem Jahr Haltedauer, der
-p.-a.-Zahl.
+p.-a.-Zahl. Seit Issue #1060 stehen die Daten des Tabs — der offenen Lots,
+der abgeschlossenen Trades, der Verkäufe ohne Gegenstück und der
+Telefonzeilen — im Format der Oberflächensprache (14.03.2024), und beide
+Spalten **%** lesen sich mit einer Nachkommastelle, mit Vorzeichen und
+direkt angefügtem Prozentzeichen („+27,1%“), wie die Spalte p. a. daneben.
+Auf einem Touchscreen zeigt die Pille **ⓘ Kurs- & Währungsbeitrag** über den
+offenen Lots ihre ganze Beschriftung (Issue #1059).
 
 [![Der Trades-Tab eines Wertpapiers unter der Wertpapierliste: ein abgeschlossener Trade über 780 Tage mit Ø Kauf und Ø Verkauf, seiner Rendite p. a. und seinem realisierten G/V, darunter die Regelzeile](../screenshots/trades-tab.png)](../screenshots/trades-tab.png)
 

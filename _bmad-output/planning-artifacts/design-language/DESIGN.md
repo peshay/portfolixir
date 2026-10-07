@@ -1064,6 +1064,7 @@ carries `num`; no second comma rule in the web layer) and
 - **Drag-and-drop rows** (`.dnd-row`, `.dnd-dropzone`, classifications tree) — selection per {components.selected-row}.
 - **Chips** — one chip: {components.chip}, a filled tag. The outline chip and the grey initial-avatar square are separate things wearing the chip's clothes; the avatar is a logo placeholder (`.security-logo--initial`) and reads as one.
 - **Chart tooltip** ({components.chart-tooltip}) — the crosshair readout, mono type on {colors.bg} in a {rounded.sm} bordered box, positioned by the `ChartCrosshair` hook. One tooltip for every chart surface; a chart that invents its own readout is drift.
+- **ⓘ tooltips** (`details.metric-tooltip`) — a native `<details>` whose `summary` is the ⓘ and whose `p[role="tooltip"]` holds the explanation (UX-DR11); pinned to a stat card's corner by default, in the text flow as `.metric-tooltip--inline`. The summary is a 1.25 rem circle, 1.75 rem under `pointer: coarse`. **The labelled pill** (`.metric-tooltip--labelled`, issue 790): a summary that carries a label beside the ⓘ — "ⓘ Kurs- & Währungsbeitrag" on the security's Trades and Holdings tabs, "ⓘ Bruttogewinn" over the sell form's FIFO lot preview ("Lots consumed by this sale") — grows with its text into a {rounded.full} pill (`width: auto`, `white-space: nowrap`). *Amended 2026-10-07 (issue 1059, Sprint 19 PR γ U2; board `mockups/ux-design-2026-10-04/04-trades`, rule ④):* all three pills keep that size under a coarse pointer too — `width: auto; height: auto` with the coarse circle's 1.75 rem as its minimum height, in the coarse block right after the circle's rule, which has the same specificity. Before, the circle rule won on a touch screen: the 189 px label overflowed a 28 px circle on both sides, and at the pane's left edge its first ~50 px fell off the screen. The coarse circle's 28 px stays below UX-DR6's 44 px floor; that is the floor's own repair, not this one.
 - **Buttons and inputs** ({components.button}, {components.input}) — the two base controls every other control inherits from: {colors.bg-elevated} on a 1px {colors.border}, {rounded.md}, {spacing.density-control} minimum height on desktop and {spacing.touch-target} under `pointer: coarse`. {components.native-control} inherits the input container; {components.selected-segment} inherits neither and is its own track.
 
 ## Do's and Don'ts
@@ -2849,6 +2850,33 @@ under "Trades: reach, the p. a. column and the unmatched sells".
   "Beträge in EUR · FIFO je Wertpapier · alle Depots". The list's own basis
   line (below) does not repeat FIFO or the scope — the board found the two
   lines saying it twice.
+- **The top bar reads "Trades" while the facet is open** *(2026-10-07, issue
+  1082, Sprint 19 PR γ U2; board `mockups/ux-design-2026-10-04/04-trades`,
+  pick J4 A; plan D-4)*. The page title (`#app-topbar-title`, the `h1` of the
+  top bar's `aria-live` region) follows the facet, so switching to it
+  announces "Trades", and at 390 px, where the subtitle is hidden, the page
+  still carries its name. The other three facets keep "Cashflow": titling
+  "Erträge" over the "Cashflow" tab would reopen the ambiguity the
+  information architecture closed. Nothing else moves: the sidebar marks
+  "Vermögen", the area tab reads "Cashflow", the switch reads "Trades" and
+  the route stays `/cashflow?tab=realized`. A sidebar entry with its own
+  route (J4 C, Sprint 17's G1-B) stays a later option, its costs listed on
+  the board. The precedent is the classification page, titled with its
+  tree's name.
+- **"Realisiert gesamt" is signed** *(2026-10-07, board 04, found while
+  drawing 1)*: the lead figure prints with its sign ("-728,00", "+60,00") in
+  its gain/loss colour (`.stat .is-positive` / `.is-negative`, issue 637's
+  rule); a total that reads "0,00" has no sign and stays in body ink
+  (`.is-flat`) — never the accent `.stat strong` gives an unsigned
+  magnitude. The sign and the colour are decided on the figure as
+  displayed, rounded to its two places (`Format.displayed_sign/2`), so a
+  total of 0,004 reads "0,00" in body ink, never in the gain colour. Hit
+  rate and holding period are magnitudes and keep the accent.
+- **The currency note names the exchange rate** *(2026-10-07, board 04,
+  found while drawing 2)*: "1 Verkauf konnte nicht konvertiert werden — kein
+  gespeicherter Wechselkurs an seinem Schlussdatum — …", and the facet's ⓘ
+  says "Wechselkurs" too, as the Overview card that sends readers here does
+  ("Kurs" is a quote). The other two facets' notes are not changed here.
 
 ### The p. a. column
 
@@ -2858,8 +2886,27 @@ under "Trades: reach, the p. a. column and the unmatched sells".
 - **The figure:** the trade's annualized return (`annualized_return`, the
   money-weighted return per year of the trade's own flows, in the trade's
   currency, like the percent under the result it annualizes) as
-  `Format.percent` with one decimal and the percent sign, in its sign colour
-  (`td.trade-pa.is-positive` / `.is-negative`).
+  ~~`Format.percent` with one decimal and the percent sign~~, in its sign
+  colour (`td.trade-pa.is-positive` / `.is-negative`). **Amended 2026-10-07
+  (issue 1089, Sprint 19 PR γ U2; board `mockups/ux-design-2026-10-04/04-trades`,
+  before/after):** `Format.signed_percent` with one decimal and the percent
+  sign glued on — "+17,8%", "-20,0%", the Overview card's form. The
+  Accessibility Floor's explicit sign (UX-DR7) outranks the H1 line that kept
+  these cells unsigned; the merge of the Sprint 19 plan adopted the reversal.
+- **Every figure of the row is signed** *(2026-10-07, issue 1089)*: the
+  Result cell prints the result in the base currency through
+  `Format.signed_decimal` ("+420,00 EUR") and its percent through
+  `Format.signed_percent` ("+42,0%"); a loss keeps its "-". Cost and
+  proceeds are magnitudes and stay unsigned.
+- **A figure's sign and its colour are decided on the figure as displayed**
+  *(2026-10-07, the Sprint 19 PR γ U2 review)*: the value rounded to the
+  places it is printed at — two for money (`Format.displayed_sign/2`), one
+  for a percent (`Format.displayed_percent_sign/1`). A figure that reads
+  zero is directionless: no sign from either side ("0,00", "0,0%", never
+  "+0,0" or "-0,00") and `is-flat` instead of a gain or loss colour, in the
+  table cells, the phone row's figures and the KPI alike — a break-even
+  trade, and a result of a fraction of a cent, read the same. `is-flat`
+  carries no colour rule of its own here; the cell keeps its ink.
 - **The threshold** is the trade's own holding period, the "Haltedauer"
   cell of the same row: from 365 days the figure, below it the dash. The two
   can never disagree.
@@ -2900,6 +2947,14 @@ Erlös · Erträge während der Haltedauer nicht enthalten · p. a. erst ab 365
 Tagen Haltedauer". It renders whenever the list or the unmatched-sells note
 does, because it is the limit that note points to (UX-DR26).
 
+*Amended 2026-10-07 (issue 1089, Sprint 19 PR γ U2; board
+`mockups/ux-design-2026-10-04/04-trades`).* The line names **both** limits of
+p. a., because a trade held long enough whose flows no rate solves (a total
+loss) has none either: "… · p. a. erst ab 365 Tagen Haltedauer und nur, wo ein
+Zinssatz die Zahlungen löst" (English "… · p. a. only from 365 days of holding
+and only where a rate solves the flows"). The phone row's "gesamt" points
+here for both reasons.
+
 ### The unmatched-sells note
 
 - **What:** the sells the FIFO matcher could not pair with a buy, wholly or
@@ -2920,7 +2975,12 @@ does, because it is the limit that note points to (UX-DR26).
   tabular figures. **Under 560 px** the security takes its own line and the
   date and quantity sit beneath it — the board drew the note at desktop width
   only, and at 390 px the two unwrapping figures squeezed a long name into a
-  four-line column.
+  four-line column. *Amended 2026-10-07 (issue 1074, Sprint 19 PR γ U2):*
+  the quantity's word follows U1's count rule through `ngettext` — one unit
+  is a unit, any other quantity, a fraction included, is units — so English
+  reads "1.0000 unit" and "15.0000 units"; German keeps "Stück" in both
+  forms. The count is the quantity as displayed, rounded to its four places:
+  a quantity of 0.99996 reads "1.0000 unit", as its digits say.
 - **No remedy control** (UX-DR25 clause 3): nothing on the page can supply
   the missing buy.
 
@@ -2932,8 +2992,25 @@ transactions shape, two children (rule ③), no logo, no kebab. The body is
 the name (600, wrapping) linking to the security's Trades tab over "gekauft
 → verkauft · N Tage"; the figures are the result in the base currency (14
 px/600, sign colour) over the period return and, from 365 days, " · x,x %
-p. a." (12 px muted, each signed number in its colour). A shorter trade
-shows no dash on the phone; the basis line under the rows says why.
+p. a." (12 px muted, each signed number in its colour). ~~A shorter trade
+shows no dash on the phone; the basis line under the rows says why.~~
+
+*Amended 2026-10-07 (issue 1089, Sprint 19 PR γ U2; board
+`mockups/ux-design-2026-10-04/04-trades`, before/after).* Every figure
+carries its sign: "+420,00 EUR" over "+42,0% · +17,8% p. a.". A trade without
+p. a. — under 365 days of holding, or one no rate solves — shows no dash on
+the phone; its period return ends in the Overview card's word, "-38,9%
+gesamt" / "-100,0% gesamt" (English "total"), the word outside the coloured
+figure, and the basis line under the rows names both reasons.
+*Amended 2026-10-07 (the PR γ closing act, first-look persona; issue 1089's
+"says why at every width"):* such a row also carries the table dash's own
+reason as a visually hidden sentence after its figures
+(`span.visually-hidden[data-role="pa-absent"]`: "nicht annualisiert, unter
+einem Jahr Haltedauer", or "keine annualisierte Rendite, kein Zinssatz löst
+die Zahlungen dieses Trades"), so a screen reader at 390 px hears why this
+trade has no p. a., as it does on the table row at 1200 px. No rendered
+difference: measured at 390 px, Tamarisk's row is 59 px tall and
+pixel-identical before and after; the visible "why" stays the basis line.
 
 ### The Overview card "Abgeschlossene Trades"
 
@@ -3007,8 +3084,14 @@ The open-lots table above is unchanged.
   beside it, **signed** with one decimal and the percent sign glued on
   ("+10,7%", "-3,6%"), in its sign colour (`td.trade-pa.is-positive` /
   `.is-negative`). Signed because every figure of this table is signed and
-  the Overview card signs the same figure; the facet's p. a. cells stay
-  unsigned, the board's stated doubt settled for this table only.
+  the Overview card signs the same figure; ~~the facet's p. a. cells stay
+  unsigned, the board's stated doubt settled for this table only~~.
+  **Amended 2026-10-07 (issue 1089, Sprint 19 PR γ U2; board
+  `mockups/ux-design-2026-10-04/04-trades`):** the facet's p. a. cells are
+  signed too — the Accessibility Floor's explicit sign outranks this line,
+  and the merge of the Sprint 19 plan adopted the reversal. One formatter,
+  `Format.signed_percent`, signs the figure on the tab, the facet and in
+  `signed_pa/1`.
 - **The dash:** the facet's (`.trade-pa--na`, muted, `aria-hidden`,
   `cursor: help`), with the same two reasons in the `title` and the same
   `.visually-hidden` sentences — under 365 days of holding, and "Keine
@@ -3019,7 +3102,13 @@ The open-lots table above is unchanged.
   the bare class. The sign colour of p. a., the result and "%" — and of the
   open lots above — is the general `.data-table td.is-positive /
   .is-negative` of issue 1010 (pick H4, Amendment 2026-10-03), which made
-  this rule's two sign lines redundant; they are gone.
+  this rule's two sign lines redundant; they are gone. *Amended 2026-10-07
+  (the Sprint 19 PR γ U2 review):* every signed cell of the tab — the open
+  lots' four amounts and their "%", the closed trades' p. a., result and
+  "%", the phone row's figures — takes its class from the figure it shows,
+  rounded to its places, as on the facet; a figure that reads zero is
+  unsigned and `is-flat`, and the "%" columns take their colour from the
+  percent itself, no longer from the amount beside it.
 - **The unmatched-sells note** (rule ②, UX-DR25): the facet's `attention`
   data note (`#detail-closed-trades-note`, `data-role="trades-unmatched"`),
   leading the section where the quantity is missing, in the facet's words
@@ -3038,7 +3127,13 @@ The open-lots table above is unchanged.
   Ø Kauf und Ø Verkauf · Erträge während der Haltedauer nicht enthalten ·
   p. a. erst ab 365 Tagen Haltedauer". It differs from the facet's line in
   one link: this table shows gross average prices, not cost and proceeds. It
-  renders whenever the table or the note does.
+  renders whenever the table or the note does. *Amended 2026-10-07 (issue
+  1089, the Sprint 19 PR γ U2 review):* the line names both limits of p. a.,
+  as the facet's does — "… · p. a. erst ab 365 Tagen Haltedauer und nur, wo
+  ein Zinssatz die Zahlungen löst" (English "… · p. a. only from 365 days of
+  holding and only where a rate solves the flows"), "p. a." with its
+  no-break space — because the phone row of a long trade no rate solves (a
+  total loss) shows its period return alone and points here.
 - **Only delivered-in shares sold** (state N1): the heading, the note and
   the basis line, no table. The empty sentence ("erfasse zuerst Käufe und
   Verkäufe") is kept only for a security with no trade, no open lot and no
@@ -3046,18 +3141,37 @@ The open-lots table above is unchanged.
 - **Under 560 px** (rule ④, UX-DR27): the wrapper is hidden by the phone
   lists' 560 px block and `ul#detail-closed-trades-phone-rows` shows the
   facet's trades row **without the name**, which the page already says —
-  two children, no logo, no kebab: "2023-02-06 → 2025-06-18" over
+  two children, no logo, no kebab: "06.02.2023 → 18.06.2025" over
   "30,0000 Stück · 863 Tage"; on the right the result with the trade's
   currency ("+502,20 EUR", 14 px/600, sign colour) over "+27,1% · +10,7%
   p. a." (one decimal, signed, each number in its colour). Under 365 days, or
   with no rate, only the period return; no dash on the phone, the basis line
   says why. Ø Kauf and Ø Verkauf are not on the phone, as cost and proceeds
-  are not on the facet's.
-- **Kept as built:** the tab's dates stay ISO (`Date.to_iso8601`), the note's
+  are not on the facet's. *(Board 04 drew the tab's row without the facet's
+  "gesamt"; the tab keeps it so.)* The quantity follows U1's count rule
+  through `ngettext` (issue 1074), counted on the quantity as displayed:
+  English "1.0000 unit", "10.0000 units". *Amended 2026-10-07 (the PR γ
+  closing act, first-look persona):* a row without p. a. carries the table
+  dash's reason as a visually hidden sentence after its figures, as the
+  facet's row does (`data-role="pa-absent"`), so a screen reader hears why
+  at 390 px as at 1200 px; the row is pixel-identical (58 px), and the
+  visible "why" stays the basis line.
+- ~~**Kept as built:** the tab's dates stay ISO (`Date.to_iso8601`), the note's
   list and the phone rows included, and the table's "%" column keeps its two
   decimals and its spaced sign ("+27,07 %"), so the same return reads
   "+27,1%" in the phone row. Aligning both with `Format.date` and
-  `Format.percent` is a follow-up outside this pick.
+  `Format.percent` is a follow-up outside this pick.~~ **Amended 2026-10-07
+  (issue 1060, Sprint 19 PR γ U2; board `mockups/ux-design-2026-10-04/04-trades`,
+  before/after):** that follow-up is built. Every date of the tab goes
+  through `Format.date` — the open lots' "Eröffnungsdatum", the closed
+  trades' two dates, the note's list and the phone rows ("14.03.2024";
+  English keeps ISO) — so an ISO date no longer breaks at its hyphen on the
+  phone. Both "%" columns, the open lots' and the closed trades', print one
+  decimal with the sign glued on ("+18,7%", "+27,1%", "-5,1%") through
+  `signed_pa/1`, the form of the p. a. column beside them, so the spaced
+  "%" no longer wraps onto its own line in the narrow column. The pane's
+  head ("Letzter 61,85 (2026-10-01)") is not part of the tab and not part of
+  this repair.
 
 ## Amendment 2026-10-01 — Accounts & depots: the merge records *(Sprint 17 pick G2-A, Lane V1, ADR-0050 §12)*
 

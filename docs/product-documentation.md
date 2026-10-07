@@ -2011,14 +2011,22 @@ facet switcher.
 **Trades** (`/cashflow?tab=realized`, issues #724, #807 and #984) answers
 "what did selling actually make — and was the trade worth it". Since issue
 #807 it **is the Trades view**, and since issue #984 its switch says so (the
-address is unchanged, so links and bookmarks hold): the facet opens with
-three figures — the realised total, the **hit
+address is unchanged, so links and bookmarks hold). Since issue #1082 the
+top bar is titled **Trades** while the facet is open — on a phone, where the
+subtitle is hidden, too — and reads **Cash flow** on the other three facets.
+The facet opens with
+three figures — the realised total, signed and in its gain or loss colour,
+the **hit
 rate** (the share of closed trades that realised a gain; a break-even trade
 counts as a miss) and the **average holding period** — followed by the closed
 round-trips themselves, newest close first, each row naming the security
 (linked to its Trades tab), bought → sold, how long it was held, the quantity,
 the cost, the proceeds, the **p. a.** column and the result in both money
-and percent, the result carrying its sign colour. **p. a.** (issue #984) is
+and percent. Every result, percent and p. a. figure in the list, on the
+table and on its phone rows, carries its sign as well as its colour — a gain
+reads "+420.00 EUR", "+42.0%", "+17.8%" — so a gain does not depend on
+telling green from red (issue #1089); a figure that reads zero ("0.00",
+"0.0%") carries neither. **p. a.** (issue #984) is
 the trade's annualized return: the money-weighted return per year of the
 trade's own money — each bought lot at the date it was bought, the sale at
 the date it was sold — in the trade's own currency, like the percent under
@@ -2029,11 +2037,14 @@ trade annualized reads absurdly — 5 % in 14 days would be about 257 % a
 year — and its percent over the holding period already says what it made.
 A line under the list states the rules: deliveries open no lot, fees and
 taxes are in the cost and the proceeds, income received while a trade was
-open is not included, and p. a. only from 365 days of holding. The
+open is not included, and p. a. only from 365 days of holding and only where
+a rate solves the flows. The
 matcher's scope — FIFO per security across all depots — is in the facet's
 opening line. On a phone the table gives way to two-line rows: the name
 over bought → sold and the days, the result over its percent and, from a
-year of holding, the p. a. figure. The year × month matrix the facet used to open with
+year of holding, the p. a. figure; a trade without one — held under a year,
+or a total loss no rate solves — ends its percent in **total**
+("-38.9% total"), the word the Overview card uses. The year × month matrix the facet used to open with
 keeps every number, now under **Realized per period** behind a **Year and
 month matrix** disclosure beneath the list. Where a sale could not be
 converted, the note saying how many and which leads the section — above the
@@ -2069,7 +2080,7 @@ leaves its remainder. That unmatched quantity is no closed trade and is in
 none of the three figures, the list or the matrix; the matched part of the
 same sell is a trade like any other. An attention note after the currency
 note says how many sells have such a quantity, and its disclosure lists each
-as security · date · unmatched quantity. It carries no control, because nothing on the page can supply the
+as security · date · unmatched quantity ("1.0000 unit", "15.0000 units"). It carries no control, because nothing on the page can supply the
 missing buy.
 
 [![The Trades facet of Cash flow: the note on a sale with no rate on its close date and its backfill control, the note on sells with no matched buy, the realised total, hit rate and average holding period, and four closed round-trips with their p. a. column](screenshots/income.png)](screenshots/income.png)
@@ -2090,9 +2101,16 @@ sells are all there is, the note stands alone, without a table. A line
 under the list states the rules: across every depot, deliveries open no lot,
 fees and taxes are in the realised P&L but not in the average buy and sell
 prices, income received while a trade was open is not included, and p. a.
-only from 365 days of holding. On a phone the table gives way to two-line
-rows: opened → closed over the quantity and the days, the result over its
-percent and, from a year of holding, the p. a. figure.
+only from 365 days of holding and only where a rate solves the flows. On a
+phone the table gives way to two-line rows: opened → closed over the
+quantity and the days, the result over its percent and, from a year of
+holding, the p. a. figure. Since issue #1060 the
+tab's dates — of the open lots, the closed trades, the unmatched sells and
+the phone rows — are in the interface language's form (14.03.2024 in
+German), and both **%** columns read one decimal with their sign and the
+percent sign glued on ("+27.1%"), like the p. a. column beside them. On a
+touch screen the **ⓘ Price & currency return** pill above the open lots shows
+its whole label (issue #1059).
 
 [![A security's Trades tab under the securities list: one closed trade held 780 days, with its average buy and sell prices, its p. a. return and its realised P&L, and the rules line under it](screenshots/trades-tab.png)](screenshots/trades-tab.png)
 
