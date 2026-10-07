@@ -1127,7 +1127,17 @@ story.
   the band again.
 - **Value slot:** a value never wraps inside its slot. The currency is a small
   suffix of the value; a combined figure is a value plus a sub-line, never two
-  values in one `<strong>`.
+  values in one `<strong>`. *Amended 2026-10-07 (the Sprint 19 PR γ closing
+  act, design critic #4), a scoped exception:* the digits never break
+  anywhere, but on a compact KPI card the currency suffix may still drop to
+  its own line under them. What is built (issue 1086, U4) holds the rule
+  under 560 px only: Wealth's band steps its compact values down to 16 px
+  there, so "182.450,30 EUR" stays on one line on a half-width card
+  (DESIGN.md → Stat card, the value suffix). Above 560 px nothing changed,
+  and at 768 and 1024 px a five-figure amount still drops "EUR" under its
+  digits. Whether wider cards meet the rule — and how — is an open decision
+  (issue 1156); until it is taken, the suffix on a wider compact card is
+  the known exception, not a defect to fix card by card.
 - **Tables:** zero cells in a matrix render as a quiet "–" in
   {colors.text-subtle}. A destructive row action lives in the row menu, never
   as a standing button on every row.
