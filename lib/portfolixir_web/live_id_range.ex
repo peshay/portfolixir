@@ -23,7 +23,7 @@ defmodule PortfolixirWeb.LiveIdRange do
   On the static render the navigation is an HTTP 302, never a 500; a
   malformed or an in-range unknown id is not this hook's business and keeps
   the answer it had. An id-valued parameter whose name this hook does not
-  recognise (`?snapshot=`, `?soll_view=`, `?year=`) is parsed by its page
+  recognise (`?snapshot=`, `?year=`) is parsed by its page
   through `PortfolixirWeb.LiveParam`, which reads a value it cannot hold as
   absent.
   """

@@ -6677,9 +6677,9 @@ button.income-bar-label.is-active {
 }
 
 /* ===== SOLL plan editor on the classifications page (issue 467, ADR-0020) ===== */
-/* The per-view target-plan editor: a view picker, a per-category weight table
-   with a cash target and a live Σ footer, plus an empty/copy state. Reuses the
-   drift table's numeric alignment and the shared .is-target-mismatch cue. */
+/* The per-view target-plan editor: a per-category weight table with a cash
+   target and a live Σ footer, plus an empty/copy state. Reuses the drift
+   table's numeric alignment and the shared .is-target-mismatch cue. */
 .soll-editor__head {
   display: flex;
   flex-wrap: wrap;
@@ -6688,12 +6688,16 @@ button.income-bar-label.is-active {
   gap: 0.75rem;
 }
 
-.soll-view-picker {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+/* Rule ① of board ux-design-2026-10-04/10-category-results (issue 1091, pick
+   J10 A): the view switcher above the page picks the scope, the editor's own
+   select is gone, and its head states the view it edits as text
+   ("für Ansicht Langfrist"), in the voice the picker's label had. */
+.soll-editor__scope {
+  font-size: 0.9em;
+  color: var(--color-text-muted);
 }
 
+/* The plan-version picker's label ("Plan version:"). */
 .soll-view-picker__label {
   font-size: 0.9em;
   color: var(--color-text-muted);
@@ -8578,12 +8582,24 @@ dialog.booking-drawer {
   text-align: center;
 }
 
+/* The name cell wraps at every width (issue 1091 review round, board
+   ux-design-2026-10-04/10-category-results): the "+N nicht in der Ansicht"
+   suffix stands beside the name and drops under it when both do not fit,
+   instead of cutting the name to "Sta…" at 768 and 1024 px. The swatch keeps
+   its size. The phone block below states both again, beside its own grid
+   placement and the name's own wrapping (issue 873's pinned anatomy). */
 .cat-summary .cat-name {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.45rem;
+  row-gap: 0;
   min-width: 0;
   overflow: hidden;
+}
+
+.cat-summary .cat-swatch {
+  flex: none;
 }
 
 .cat-name__text {
@@ -8625,6 +8641,15 @@ dialog.booking-drawer {
 .cat-result small {
   font-size: 0.72rem;
   font-weight: 500;
+}
+
+/* A figure the row cannot state is the value slot's not-computable dash
+   (UX-DR20): muted and at weight 400, never at the figures' 500 and 600, so
+   a category a view holds none of does not read as a row of figures (the
+   closing act of Sprint 19 PR γ). Its count is a number, 0 included. */
+.cat-summary .cat-na {
+  color: var(--color-text-muted);
+  font-weight: 400;
 }
 
 .cat-summary .cat-actions {

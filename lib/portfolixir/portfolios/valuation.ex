@@ -93,6 +93,56 @@ defmodule Portfolixir.Portfolios.Valuation do
   end
 
   @doc """
+  Holdings and EUR-hub market value per security **within a bucket view**
+  (#1091's screen half, Sprint 19 pick J10 A): the classification tree's
+  "Positions" and "Value" under a view.
+
+  It is `for_view/2`'s valuation, grouped by security, in
+  `holdings_by_security/1`'s shape, so a tree that joins it onto its rows
+  reads the positions the view valuation narrows to (ADR-0018), valued
+  exactly as the view's total values them. A security held in several of the
+  view's accounts is one entry: its quantities and its EUR values summed,
+  the value `nil` (and `valued` false) when any of its positions is unvalued
+  -- never a smaller sum presented as the whole. The price fields are the
+  first position's, which every position of one security shares. A security
+  the view holds none of is absent, as an unheld one is from
+  `holdings_by_security/1`.
+
+  Returns `{:ok, %{holdings: map, matches_no_accounts: boolean}}` --
+  `matches_no_accounts` is the view valuation's own flag, so a view whose
+  buckets match no account can say so where its figures are read -- or
+  `{:error, :view_not_found}` for a view that is gone. Options as
+  `for_view/2`.
+  """
+  def holdings_by_security_for_view(view_id, opts \\ []) when is_integer(view_id) do
+    with %{positions: positions, matches_no_accounts: matches_none?} <- for_view(view_id, opts) do
+      holdings =
+        positions
+        |> Enum.group_by(& &1.security_id)
+        |> Map.new(fn {security_id, [first | _] = rows} ->
+          {security_id, security_holding(first, rows)}
+        end)
+
+      {:ok, %{holdings: holdings, matches_no_accounts: matches_none?}}
+    end
+  end
+
+  defp security_holding(first, rows) do
+    valued? = Enum.all?(rows, & &1.valued)
+
+    %{
+      quantity: Enum.reduce(rows, @zero, &Decimal.add(&2, &1.quantity)),
+      market_value: if(valued?, do: Enum.reduce(rows, @zero, &Decimal.add(&2, &1.market_value))),
+      valued: valued?,
+      latest_price: first.latest_price,
+      price_currency: first.price_currency,
+      price_source: first.price_source,
+      price_date: first.price_date,
+      unvalued_reason: Enum.find_value(rows, & &1.unvalued_reason)
+    }
+  end
+
+  @doc """
   Self-describing wrapper over `holdings_by_security/1` for the JSON API and MCP.
 
   Returns the global per-security valuation as a flat list sorted by

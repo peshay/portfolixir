@@ -341,6 +341,31 @@ defmodule Portfolixir.Portfolios.Targets do
   end
 
   @doc """
+  The views in which `classification_id` has a plan in `portfolio_id`, as
+  `%{view_id => active?}` (`nil` is the Gesamt scope, "Everything"): every
+  view with a plan version of this tree -- active, draft or archived, the
+  plan the classification screen's editor shows -- mapped to whether one of
+  them is active. One read of the tree's plans (#1091, review round).
+
+  The classification screen's plan dots read its keys, so a dot means "this
+  tree has a plan for that view" and never contradicts the editor below it;
+  a portfolio-wide cash target alone is no plan of this tree. Its copy picker
+  reads the `true` entries, the views with an active plan to copy from.
+  Wealth's dots keep the allocation engine's own definition.
+  """
+  def plan_views(portfolio_id, classification_id)
+      when is_integer(portfolio_id) and is_integer(classification_id) do
+    from(p in TargetPlan,
+      where: p.portfolio_id == ^portfolio_id and p.classification_id == ^classification_id,
+      select: {p.view_id, p.status}
+    )
+    |> Repo.all()
+    |> Enum.reduce(%{}, fn {view_id, status}, acc ->
+      Map.update(acc, view_id, status == "active", &(&1 or status == "active"))
+    end)
+  end
+
+  @doc """
   The cash target weight for the addressed plan, or `nil` when none is steered.
 
   With no `classification_id:` it reads the portfolio-wide cash plan

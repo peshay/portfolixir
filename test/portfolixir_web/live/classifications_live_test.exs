@@ -564,12 +564,13 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   # User story:
   # As a portfolio maintainer,
   # I want to define a view's SOLL plan (per-category target weights and a cash
-  # target) for a classification on the classifications page, with a view
-  # selector defaulting to "Gesamt",
+  # target) for a classification on the classifications page, for the view the
+  # screen reads ("Everything" by default),
   # so that each view carries its own coherent 100% steering plan.
   #
   # Acceptance criteria:
-  # - The SOLL area shows a view selector ("Soll-Plan für Sicht: [Gesamt ▾]").
+  # - The SOLL area's head names the scope it edits ("für Ansicht Alles");
+  #   the view switcher above it picks the scope (#1091, pick J10 A).
   # - With no plan yet, the editor shows the empty state ("Plan anlegen").
   # - Saving per-category weights plus a cash target writes the (Gesamt,
   #   classification) plan; the values round-trip into the Targets context.
@@ -579,9 +580,10 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     {:ok, view, html} = live_drained(conn, "/classifications/#{classification.id}")
 
-    # The view selector defaults to Gesamt and the empty state invites a plan.
-    assert html =~ "Target plan for view"
-    assert has_element?(view, "select[name='soll_view']")
+    # The editor edits the Everything plan and says so; the empty state invites
+    # a plan.
+    assert has_element?(view, ~s([data-role="soll-editor-scope"]), "for view Everything")
+    refute has_element?(view, "select[name='soll_view']")
     assert html =~ "Create plan"
 
     # Materialise the empty plan, then save weights and a cash target.
@@ -671,7 +673,8 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   # so the same classification can carry a different 100% plan per view.
   #
   # Acceptance criteria:
-  # - Switching the view selector loads that (view, classification) plan only.
+  # - Switching the view (the switcher's `?view=`, #1091) loads that
+  #   (view, classification) plan only.
   # - A named view's plan does not see the Gesamt plan's weights.
   test "Gesamt and a named view carry independent plans", %{conn: conn} do
     %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
@@ -691,10 +694,10 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     assert has_element?(view, "input[name='weights[#{equity.id}]'][value='80']")
 
     # Switching to the named view shows its own (empty) plan, not Gesamt's 80%.
-    switched =
-      view
-      |> element("form[phx-change='select_soll_view']")
-      |> render_change(%{"soll_view" => "#{named.id}"})
+    {:ok, switched_view, _html} =
+      live_drained(conn, "/classifications/#{classification.id}?view=#{named.id}")
+
+    switched = render(switched_view)
 
     refute switched =~ ~s(name="weights[#{equity.id}]" value="80")
     assert switched =~ "Create plan"
@@ -706,7 +709,7 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   # so I can start from an existing plan instead of re-entering it.
   #
   # Acceptance criteria:
-  # - "Aus anderer Sicht übernehmen…" prefills the editor from a source plan;
+  # - "Aus anderer Ansicht übernehmen…" prefills the editor from a source plan;
   #   saving writes the target view's plan from those values.
   test "copies a plan from another view to prefill the editor", %{conn: conn} do
     %{portfolio: portfolio, classification: classification, equity: equity, bonds: bonds} =
@@ -729,12 +732,9 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
     :ok = Targets.set_cash_target(Actor.owner_ui(), portfolio.id, "0.0", view: nil)
 
-    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
-
-    # Switch to the empty named view, then copy from Gesamt.
-    view
-    |> element("form[phx-change='select_soll_view']")
-    |> render_change(%{"soll_view" => "#{named.id}"})
+    # Open the empty named view, then copy from Gesamt.
+    {:ok, view, _html} =
+      live_drained(conn, "/classifications/#{classification.id}?view=#{named.id}")
 
     copied =
       view
@@ -843,16 +843,18 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   # so the plan editor reads in my language.
   #
   # Acceptance criteria:
-  # - With locale=de the view selector reads "Soll-Plan für Sicht:" and the empty
-  #   state offers "Plan anlegen".
+  # - With locale=de the editor's head reads "Soll-Plan" and "für Ansicht
+  #   Alles", and the empty state offers "Plan anlegen" (#1091, pick J10 A:
+  #   the editor speaks the view switcher's words).
   test "renders the SOLL editor labels in German", %{conn: conn} do
     %{classification: classification} = soll_world()
 
     {:ok, _view, html} = live_drained(conn, "/classifications/#{classification.id}?locale=de")
 
-    assert html =~ "Soll-Plan für Sicht"
+    assert html =~ "Soll-Plan"
+    assert html =~ "für Ansicht <bdi>Alles</bdi>"
     assert html =~ "Plan anlegen"
-    assert html =~ "Gesamt"
+    refute html =~ "Soll-Plan für Sicht"
   end
 
   # User story:
@@ -1053,10 +1055,11 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
   # Gesamt and re-picking the view.
   #
   # Acceptance criteria:
-  # - /classifications/<id>?soll_view=<view_id> selects the named view in the
-  #   SOLL view selector (its option is selected).
+  # - /classifications/<id>?view=<view_id> opens the screen on the named view:
+  #   its switcher chip is active (#1091, pick J10 A moved the link from
+  #   `?soll_view=` to the switcher's `?view=`).
   # - The editor loads that (view, classification) plan, not the Gesamt plan.
-  test "the SOLL deep-link pre-selects the view from the soll_view param", %{conn: conn} do
+  test "the SOLL deep-link opens the screen on the view from the view param", %{conn: conn} do
     %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
     {:ok, named} = Buckets.create_view(Portfolixir.Actor.owner_ui(), %{name: "Strategie"})
 
@@ -1080,13 +1083,11 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
       )
 
     {:ok, view, _html} =
-      live_drained(conn, "/classifications/#{classification.id}?soll_view=#{named.id}")
+      live_drained(conn, "/classifications/#{classification.id}?view=#{named.id}")
 
-    # The named view's option is pre-selected in the SOLL view selector.
-    assert has_element?(
-             view,
-             "select[name='soll_view'] option[value='#{named.id}'][selected]"
-           )
+    # The named view's chip is the active one, and the editor says so.
+    assert has_element?(view, "#view-switch-#{named.id}.is-active")
+    assert has_element?(view, ~s([data-role="soll-editor-scope"]), "for view Strategie")
 
     # The editor loads the named view's plan (40%), not Gesamt's (80%).
     assert has_element?(view, "input[name='weights[#{equity.id}]'][value='40']")
@@ -1095,12 +1096,13 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
 
   # User story (#468, deep-link target — Gesamt):
   # As a maintainer who clicked the hint from the Total (Gesamt) view,
-  # I want the deep-link with soll_view=total to land on the Gesamt plan,
+  # I want the deep-link with view=total to land on the Gesamt plan,
   # so the bridge works for the portfolio-wide plan too.
   #
   # Acceptance criteria:
-  # - /classifications/<id>?soll_view=total keeps Gesamt selected and loads it.
-  test "the SOLL deep-link with soll_view=total selects Gesamt", %{conn: conn} do
+  # - /classifications/<id>?view=total opens on "Everything" and loads its
+  #   plan (#1091, pick J10 A).
+  test "the SOLL deep-link with view=total opens on Everything", %{conn: conn} do
     %{portfolio: portfolio, classification: classification, equity: equity} = soll_world()
 
     {:ok, _} =
@@ -1113,9 +1115,9 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
       )
 
     {:ok, view, _html} =
-      live_drained(conn, "/classifications/#{classification.id}?soll_view=total")
+      live_drained(conn, "/classifications/#{classification.id}?view=total")
 
-    assert has_element?(view, "select[name='soll_view'] option[value='total'][selected]")
+    assert has_element?(view, "#view-switch-total.is-active")
     assert has_element?(view, "input[name='weights[#{equity.id}]'][value='80']")
   end
 
