@@ -167,6 +167,40 @@ defmodule PortfolixirWeb.Format do
 
   def date(_value, _locale), do: "—"
 
+  @doc """
+  Formats the month of a date under the locale, the month form of `date/2`:
+  German reads `10.2026`, every other locale the ISO month `2026-10`. For a
+  date known only to its month (a calendar fact's month timing, a per-month
+  table row). Non-dates render as an em dash.
+  """
+  def month(value, locale \\ nil)
+
+  def month(%Date{} = value, locale) do
+    month = value.month |> Integer.to_string() |> String.pad_leading(2, "0")
+    year = value.year |> Integer.to_string() |> String.pad_leading(4, "0")
+
+    case locale || current_locale() do
+      "de" -> month <> "." <> year
+      _locale -> year <> "-" <> month
+    end
+  end
+
+  def month(_value, _locale), do: "—"
+
+  @doc """
+  Formats an instant to the minute, in UTC, with its date under the locale:
+  `04.10.2026 00:09 UTC` (de), `2026-10-04 00:09 UTC` elsewhere. For a
+  compute instant a basis line names. Non-instants render as an em dash.
+  """
+  def utc_instant(value, locale \\ nil)
+
+  def utc_instant(%DateTime{} = value, locale) do
+    utc = DateTime.shift_zone!(value, "Etc/UTC")
+    date(DateTime.to_date(utc), locale) <> " " <> Calendar.strftime(utc, "%H:%M") <> " UTC"
+  end
+
+  def utc_instant(_value, _locale), do: "—"
+
   defp current_locale, do: Gettext.get_locale(PortfolixirWeb.Gettext)
 
   # A fraction as the one-decimal percent it is displayed as.

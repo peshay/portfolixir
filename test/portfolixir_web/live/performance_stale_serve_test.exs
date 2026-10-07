@@ -140,6 +140,53 @@ defmodule PortfolixirWeb.PerformanceStaleServeTest do
     refute html =~ "data-role=\"performance-stale\""
   end
 
+  # User story (Sprint 19 PR γ U3; board 05, found while drawing 3 — the
+  # superseded-series sentence, and #1087's basis line):
+  # As a German-speaking operator reading a series that is being recomputed,
+  # and then the fresh one,
+  # I want the sentence that says what the shown series holds, and the line
+  # under the chart, to give their days and their compute instant as
+  # DD.MM.YYYY,
+  # so that the sentence no longer mixes "02.01.2024" with "2026-10-04 00:09
+  # UTC".
+  #
+  # Acceptance criteria:
+  # - The superseded series names its last booking "02.01.2024", its compute
+  #   instant "DD.MM.YYYY HH:MM UTC" and its as-of day DD.MM.YYYY.
+  # - The fresh series' basis line reads "<from> – <to> · berechnet
+  #   DD.MM.YYYY HH:MM UTC".
+  test "the German series sentence and basis line read their dates as DD.MM.YYYY", %{
+    conn: conn
+  } do
+    world = seeded_world!()
+    buy!(world, ~D[2024-01-02], "100")
+    supersede!(world)
+
+    {:ok, view, html} = live(conn, "/portfolio?locale=de")
+
+    [stale] =
+      html |> Floki.parse_document!() |> Floki.find(~s([data-role="performance-stale"]))
+
+    sentence = stale |> Floki.text() |> String.replace(~r/\s+/, " ")
+    assert sentence =~ "02.01.2024"
+    assert sentence =~ ~r/\d{2}\.\d{2}\.\d{4} \d{2}:\d{2} UTC/
+    refute sentence =~ ~r/\b\d{4}-\d{2}-\d{2}\b/
+
+    render_async(view)
+
+    basis =
+      view
+      |> element(~s([data-role="performance-basis"]))
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.text()
+      |> String.replace(~r/\s+/, " ")
+      |> String.trim()
+
+    assert basis =~
+             ~r/^\d{2}\.\d{2}\.\d{4} – \d{2}\.\d{2}\.\d{4} · berechnet \d{2}\.\d{2}\.\d{4} \d{2}:\d{2} UTC$/
+  end
+
   test "the dashboard tile serves the last known YTD figure labelled, then swaps", %{conn: conn} do
     world = seeded_world!()
     # A booking this year so the YTD summary carries a TTWROR.

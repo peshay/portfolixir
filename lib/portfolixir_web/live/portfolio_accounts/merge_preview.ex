@@ -247,7 +247,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
           </thead>
           <tbody>
             <tr :for={anchor <- @restated} data-role="restated-anchor" data-id={anchor.id}>
-              <td><%= Date.to_iso8601(anchor.date) %></td>
+              <td><%= Format.date(anchor.date) %></td>
               <td>
                 <%= Map.fetch!(@names, anchor.side) %>
                 <small :if={anchor.folds != []}>
@@ -266,7 +266,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
       <ul class="merge-lines merge-narrow">
         <li :for={anchor <- @restated}>
           <span class="merge-lines__head">
-            <%= Date.to_iso8601(anchor.date) %> · <%= Map.fetch!(@names, anchor.side) %>
+            <%= Format.date(anchor.date) %> · <%= Map.fetch!(@names, anchor.side) %>
           </span>
           <span class="merge-lines__figure num">
             <%= Format.money(anchor.stated) %> + <%= Format.money(anchor.other_balance) %> =
@@ -405,7 +405,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
           <%= gettext(
             "Rounding at a split: %{security} on %{date} (%{ratio}) — combined %{combined}, rounded apart %{separate} (%{difference}). Expected, not a refusal.",
             security: line.security_name,
-            date: Date.to_iso8601(line.date),
+            date: Format.date(line.date),
             ratio: "#{line.ratio.numerator}:#{line.ratio.denominator}",
             combined: Format.exact(line.combined),
             separate: Format.exact(line.separate_sum),
@@ -486,7 +486,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
             </thead>
             <tbody>
               <tr :for={pair <- @pairs}>
-                <td><%= Date.to_iso8601(pair.date) %></td>
+                <td><%= Format.date(pair.date) %></td>
                 <td><%= TransactionKindLabel.label(pair.type) %></td>
                 <td :if={@kind == "depot"}><%= Map.get(@security_names, pair.security_id) %></td>
                 <td class="num"><%= pair_amount(pair, @currency) %></td>
@@ -498,7 +498,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
         <ul class="merge-lines merge-narrow">
           <li :for={pair <- @pairs}>
             <span class="merge-lines__head">
-              <%= Date.to_iso8601(pair.date) %> · <%= TransactionKindLabel.label(pair.type) %>
+              <%= Format.date(pair.date) %> · <%= TransactionKindLabel.label(pair.type) %>
               <%= if @kind == "depot", do: " · " <> (Map.get(@security_names, pair.security_id) || "") %>
             </span>
             <span class="merge-lines__figure num">
@@ -615,7 +615,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
     for %{kind: :absorbed} = change <- flow_changes do
       gettext("a set balance of %{name} on %{date} absorbs %{amount}",
         name: name_of.(change.cash_account_id),
-        date: Date.to_iso8601(change.date),
+        date: Format.date(change.date),
         amount: Format.money(change.change)
       )
     end
@@ -720,7 +720,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
         refused_row(
           gettext("Set balance of %{account} on %{date} · no. %{id}",
             account: @bold_slot,
-            date: Date.to_iso8601(anchor.date),
+            date: Format.date(anchor.date),
             id: anchor.id
           ),
           account_name(anchor.cash_account_id, assigns)
@@ -739,7 +739,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
     do:
       gettext("Sell without an amount in %{account} on %{date} · no. %{id}",
         account: @bold_slot,
-        date: Date.to_iso8601(booking.date),
+        date: Format.date(booking.date),
         id: booking.id
       )
 
@@ -747,7 +747,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
     do:
       gettext("Buy without an amount in %{account} on %{date} · no. %{id}",
         account: @bold_slot,
-        date: Date.to_iso8601(booking.date),
+        date: Format.date(booking.date),
         id: booking.id
       )
 

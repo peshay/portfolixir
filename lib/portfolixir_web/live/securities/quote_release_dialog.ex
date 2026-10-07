@@ -41,6 +41,7 @@ defmodule PortfolixirWeb.Securities.QuoteReleaseDialog do
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Input.BoundedDate
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.StoredText
@@ -279,13 +280,15 @@ defmodule PortfolixirWeb.Securities.QuoteReleaseDialog do
     """
   end
 
+  # A chip reads its days in the page's language (Sprint 19 U3); its
+  # phx-values and the fields it fills keep ISO (`range/1`, `iso/1`).
   defp stretch_label(%{from: day, to: day, count: count}),
-    do: ngettext("%{date} · %{count}", "%{date} · %{count}", count, date: iso(day))
+    do: ngettext("%{date} · %{count}", "%{date} · %{count}", count, date: Format.date(day))
 
   defp stretch_label(stretch) do
     ngettext("%{from} – %{to} · %{count}", "%{from} – %{to} · %{count}", stretch.count,
-      from: iso(stretch.from),
-      to: iso(stretch.to)
+      from: Format.date(stretch.from),
+      to: Format.date(stretch.to)
     )
   end
 

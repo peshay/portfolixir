@@ -1695,14 +1695,12 @@ defmodule PortfolixirWeb.PortfolioLive do
                  delete half): the TTWROR definition lives ONLY in the
                  kpi-ttwror ⓘ tooltip; the chart keeps the period basis. --%>
             <p :if={@performance.start_date} class="hint" data-role="performance-basis">
-              <%= @performance.start_date %> – <%= @performance.end_date %>
+              <%= Format.date(@performance.start_date) %> – <%= Format.date(@performance.end_date) %>
               <%!-- ADR-0039 C4 (FR-1 property 3): a served series is never
                    silent about freshness. For a durable value the compute
                    instant can predate the mount — data unchanged since. --%>
               <span :if={@performance.as_of} data-role="performance-as-of">
-                · <%= gettext("computed %{at}",
-                  at: Calendar.strftime(@performance.as_of, "%Y-%m-%d %H:%M UTC")
-                ) %>
+                · <%= gettext("computed %{at}", at: Format.utc_instant(@performance.as_of)) %>
               </span>
             </p>
             <%!-- ADR-0024 modification 4: bucket membership applies
@@ -2779,7 +2777,7 @@ defmodule PortfolixirWeb.PortfolioLive do
         <AppShell.data_note :if={@suspect_dates != []} severity={:attention} data-role="dq-suspect-dates">
           <%= gettext(
             "Bookings dated before 1970 (%{dates}) are applied on the first plausible day — fix those dates in the source and re-import.",
-            dates: Enum.map_join(@suspect_dates, ", ", &Date.to_iso8601/1)
+            dates: Enum.map_join(@suspect_dates, ", ", &Format.date/1)
           ) %>
         </AppShell.data_note>
         <AppShell.data_note :if={@unvalued_cash != []} severity={:attention} data-role="dq-unvalued-cash">
@@ -3251,7 +3249,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       "from %{date} — %{count} earlier flow enters through the opening value",
       "from %{date} — %{count} earlier flows enter through the opening value",
       length(excluded),
-      date: start_date
+      date: Format.date(start_date)
     )
   end
 
@@ -3936,7 +3934,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       :if={@parts}
       class="rebalance-hint"
       data-role="rebalance-hint"
-      title={@quote_date && gettext("at quote from %{date}", date: @quote_date)}
+      title={@quote_date && gettext("at quote from %{date}", date: Format.date(@quote_date))}
     >
       <span class="rebalance-verb"><%= @parts.verb %></span>
       <span class="rebalance-approx">≈</span>
@@ -4218,9 +4216,7 @@ defmodule PortfolixirWeb.PortfolioLive do
         not Map.get(position, :retired, false) and position.price_source == :quote and
           match?(%Date{}, position.price_date) and Date.diff(today, position.price_date) > days
       end)
-      |> Enum.map(
-        &"#{&1.security_name || gettext("Unsorted")} (#{Date.to_iso8601(&1.price_date)})"
-      )
+      |> Enum.map(&"#{&1.security_name || gettext("Unsorted")} (#{Format.date(&1.price_date)})")
       |> Enum.uniq()
 
     %{count: length(names), names: ValuationNotes.shorten_list(names), days: days}
@@ -4623,8 +4619,7 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp slice_label(date, :year), do: Integer.to_string(date.year)
 
-  defp slice_label(date, :month),
-    do: "#{date.year}-#{String.pad_leading(Integer.to_string(date.month), 2, "0")}"
+  defp slice_label(date, :month), do: Format.month(date)
 
   # The slice return chained out of the cumulative series; nil (rendered as a
   # quiet dash) when the growth base is zero and no ratio exists.
@@ -4782,7 +4777,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp period_label("5y"), do: gettext("5Y")
   defp period_label("max"), do: gettext("Max")
   defp period_label({:year, year}), do: Integer.to_string(year)
-  defp period_label({:range, from, to}), do: "#{from} – #{to}"
+  defp period_label({:range, from, to}), do: range_label(from, to)
 
   # The years the cached analysis can chain (#563): first walked year through
   # today's, newest first. Empty while the walk still computes.
@@ -4813,10 +4808,14 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp custom_period?({:year, _year}), do: true
   defp custom_period?(_period), do: false
 
-  defp custom_period_label({:range, from, to}),
-    do: "#{Date.to_iso8601(from)} – #{Date.to_iso8601(to)}"
+  defp custom_period_label({:range, from, to}), do: range_label(from, to)
 
   defp custom_period_label({:year, year}), do: Integer.to_string(year)
+
+  # A custom range as every place that names the period says it — the chip,
+  # the KPI heads, the badge, the contribution scope — in the page's
+  # language (Sprint 19 U3).
+  defp range_label(from, to), do: "#{Format.date(from)} – #{Format.date(to)}"
 
   defp range_error_message(:order),
     do: gettext("The end date is before the start date.")
@@ -4855,7 +4854,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       "%{count} bookings through %{last}, computed %{at}, as of %{date}",
       basis.booking_count,
       last: Format.date(basis.last_booking_date),
-      at: Calendar.strftime(basis.computed_at, "%Y-%m-%d %H:%M UTC"),
+      at: Format.utc_instant(basis.computed_at),
       date: Format.date(today)
     )
   end

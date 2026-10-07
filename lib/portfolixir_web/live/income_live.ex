@@ -1135,7 +1135,7 @@ defmodule PortfolixirWeb.IncomeLive do
                 <tbody>
                   <%= for tx <- detail_for(@income, @selected_year) do %>
                     <tr>
-                      <td><%= tx.date %></td>
+                      <td><%= Format.date(tx.date) %></td>
                       <td><%= kind_label(tx.kind) %></td>
                       <td><%= tx.security_name || gettext("Interest") %></td>
                       <td class="num"><%= money(tx.gross) %></td>
@@ -1201,7 +1201,7 @@ defmodule PortfolixirWeb.IncomeLive do
                       <td class="num"><%= money(row.tax) %></td>
                       <td class="num"><%= money(row.net) %></td>
                       <td class="num"><%= row.payment_count %></td>
-                      <td><%= row.last_payment %></td>
+                      <td><%= Format.date(row.last_payment) %></td>
                     </tr>
                   <% end %>
                 </tbody>

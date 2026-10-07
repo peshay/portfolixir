@@ -3753,6 +3753,9 @@ input[pattern]:invalid:not(:placeholder-shown) {
 }
 
 .chart-frame {
+  /* J5 A, rule ②: the axis label's scale, 1 until the chart hook's inline
+     value replaces it. */
+  --chart-upx: 1;
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 1;
@@ -3838,6 +3841,49 @@ input[pattern]:invalid:not(:placeholder-shown) {
   font-size: 9px;
 }
 
+/* Board 05, pick J5 A, rule ② (issue 1088): the axis label keeps the
+   token's size, {typography.chart-axis} = 9 px, in CSS pixels at every chart
+   width. The labels sit in a 960-unit viewBox that scales to its frame, so
+   9 units were 3.2 px on a 390 px phone and 10.7 px on a 1440 desktop. The
+   ChartCrosshair hook measures the viewBox units per CSS pixel on the svg
+   and writes them to --chart-upx on the frame; before it mounts, and
+   without script, the factor is 1: the 9 units of before. */
+.security-chart .chart-axis-labels text {
+  font-size: calc(9px * var(--chart-upx, 1));
+}
+
+/* J5 A, rule ③ (as settled by the U3 review): the five values move inside
+   the plot when the ChartCrosshair hook flags the frame data-axis-inside —
+   on a chart at most 760 px wide, where the 56-unit gutter is too narrow
+   for a 9 px value ("+10,4%" is about 32 px; the gutter is 20 px at 390),
+   or on a wider chart whose widest value does not fit the gutter
+   ("1.544.042" at 906 px of chart). The hook measures the chart, so the
+   rule follows the chart's width (the detail pane, the fullscreen detail
+   and Wealth differ at one window width), not the window's. Inside, a value
+   is left-aligned and sits on its grid line, the top one centred on it
+   (there is no room above it), over a halo that keeps it legible on the
+   line and the fill; the label group follows the series in the markup, so
+   the halo paints over them. The halo is the colour the frame is painted,
+   --color-bg (amended 2026-10-07 by the closing act's design critic: a halo
+   is the colour it sits on; the chart surface colour drew a rim). The two
+   dates stay under the plot. Without script there is no flag: the values
+   stay in the gutter, as before. The chart export bakes these properties
+   into the file (_CHART_EXPORT_PROPS in the layout). */
+.chart-frame[data-axis-inside] .security-chart .chart-axis-y {
+  text-anchor: start;
+  dominant-baseline: alphabetic;
+  transform: translate(calc(6px + 4px * var(--chart-upx, 1)), calc(-3px * var(--chart-upx, 1)));
+  paint-order: stroke;
+  stroke: var(--color-bg);
+  stroke-width: calc(3px * var(--chart-upx, 1));
+  stroke-linejoin: round;
+}
+
+.chart-frame[data-axis-inside] .security-chart .chart-axis-y.is-top {
+  dominant-baseline: central;
+  transform: translate(calc(6px + 4px * var(--chart-upx, 1)), 0);
+}
+
 .security-chart .quote-line {
   stroke: var(--color-accent);
   fill: none;
@@ -3851,9 +3897,10 @@ input[pattern]:invalid:not(:placeholder-shown) {
 
 /* Triangle paths, apex up for buy and down for sell (issue 645): shape is
    the channel that survives without colour. The halo separates the marker
-   from the quote line on either theme's chart surface. */
+   from the quote line; it is the colour the frame is painted, --color-bg,
+   in either theme (amended 2026-10-07, as the axis values' halo above). */
 .security-chart .tx-marker {
-  stroke: var(--color-chart-surface);
+  stroke: var(--color-bg);
   stroke-width: 1.5;
 }
 
@@ -3865,8 +3912,12 @@ input[pattern]:invalid:not(:placeholder-shown) {
   fill: var(--color-danger);
 }
 
+/* The empty chart's sentence, 13 CSS px at every chart width (the closing
+   act's edge-case finding 5): the hook writes --chart-upx for an empty
+   chart too, so the sentence is not 5 px tall in a 390 px frame. Without
+   script it is the 13 units of before. */
 .security-chart .no-quotes text {
-  font-size: 13px;
+  font-size: calc(13px * var(--chart-upx, 1));
 }
 
 .decimal-positive {

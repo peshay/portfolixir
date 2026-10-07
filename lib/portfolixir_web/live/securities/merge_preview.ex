@@ -160,10 +160,13 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     |> Enum.join(" · ")
   end
 
-  @doc "The calendar date a security was created on, ISO 8601, where the instance runs."
+  @doc """
+  The calendar date a security was created on, where the instance runs, as
+  the page's language writes a date (`Format.date`).
+  """
   @spec created_on(map()) :: String.t()
   def created_on(%{inserted_at: %NaiveDateTime{} = at}),
-    do: at |> DateTime.from_naive!("Etc/UTC") |> Clock.local_date() |> Date.to_iso8601()
+    do: at |> DateTime.from_naive!("Etc/UTC") |> Clock.local_date() |> Format.date()
 
   def created_on(_security), do: "—"
 
@@ -247,7 +250,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
       <p class="merge-basis">
         <%= gettext(
           "Holdings in every depot as of %{date}, computed from the bookings. The sum holds per depot on every day and is checked before anything is saved.",
-          date: Date.to_iso8601(Clock.today())
+          date: Format.date(Clock.today())
         ) %>
       </p>
       <.counts preview={@preview} outcome={@outcome} settings={@settings} />
@@ -560,7 +563,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
         </thead>
         <tbody>
           <tr :for={pair <- @pairs}>
-            <td><%= Date.to_iso8601(pair.date) %></td>
+            <td><%= Format.date(pair.date) %></td>
             <td><%= TransactionKindLabel.label(pair.type) %></td>
             <td class="num"><%= if pair.quantity, do: Format.exact(pair.quantity), else: "—" %></td>
             <td class="num"><%= pair_amount(pair, @currency) %></td>
@@ -575,7 +578,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     <ul class="merge-lines merge-narrow">
       <li :for={pair <- @pairs}>
         <span class="merge-lines__head">
-          <%= Date.to_iso8601(pair.date) %> · <%= TransactionKindLabel.label(pair.type) %>
+          <%= Format.date(pair.date) %> · <%= TransactionKindLabel.label(pair.type) %>
         </span>
         <span class="merge-lines__figure num">
           <%= if pair.quantity, do: gettext("%{quantity} shares", quantity: Format.exact(pair.quantity)) <> " · " %><%= pair_amount(pair, @currency) %>
@@ -636,7 +639,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
           </thead>
           <tbody>
             <tr :for={collision <- @preview.quotes.manual_collisions}>
-              <td><%= Date.to_iso8601(collision.date) %></td>
+              <td><%= Format.date(collision.date) %></td>
               <td class="num merge-table__keep">
                 <%= Format.money(collision.target_close) %>
                 <span class="badge quote-source"><%= SecuritiesLive.quote_source_label(collision.target_source) %></span>
@@ -807,7 +810,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
         </thead>
         <tbody>
           <tr :for={twin <- @preview.events.possible_duplicates}>
-            <td><%= Date.to_iso8601(twin.date) %></td>
+            <td><%= Format.date(twin.date) %></td>
             <td><%= SecurityEventLabel.kind(twin.kind) %></td>
             <td><%= gettext("both stay") %></td>
           </tr>
@@ -1128,7 +1131,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   defp reason(%{code: :research_notes}, subject, _other, direction) do
     notes = Knowledge.list_notes(subject.id)
     last = notes |> Enum.map(& &1.as_of) |> Enum.max(Date, fn -> nil end)
-    date = last && Date.to_iso8601(last)
+    date = last && Format.date(last)
 
     case direction do
       :direct ->
@@ -1177,7 +1180,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     |> Enum.map_join(" ", fn conflict ->
       gettext(
         "on %{date} in %{portfolio} the source splits %{source} and the target %{target}; one split cannot carry two ratios.",
-        date: Date.to_iso8601(conflict.date),
+        date: Format.date(conflict.date),
         portfolio: conflict.portfolio_name,
         source: ratio(conflict.source_ratio),
         target: ratio(conflict.target_ratio)
@@ -1196,7 +1199,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
       %{date: date, securities_account_name: depot} ->
         gettext(
           "the split of %{date} would rescale bookings in %{depot} it did not scale before.",
-          date: Date.to_iso8601(date),
+          date: Format.date(date),
           depot: depot
         )
 
@@ -1251,7 +1254,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   # On the reverse direction the sides swap: its source is this target.
   defp issue(%{kind: :two_ratios, date: date, ratios: ratios}, direction) do
     gettext("on %{date} the securities split %{ratios}; one event cannot carry two ratios.",
-      date: Date.to_iso8601(date),
+      date: Format.date(date),
       ratios:
         Enum.map_join(ratios, " · ", fn %{ratio: r, sides: sides} ->
           "#{ratio(r)} (#{Enum.map_join(sides, ", ", &side_word(&1, direction))})"
@@ -1260,7 +1263,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   end
 
   defp issue(%{kind: :lacking, side: side, date: date, ratio: r, earlier: earlier}, direction) do
-    params = [date: Date.to_iso8601(date), ratio: ratio(r), earlier: earlier_text(earlier)]
+    params = [date: Format.date(date), ratio: ratio(r), earlier: earlier_text(earlier)]
 
     case swap(side, direction) do
       :target ->
@@ -1291,10 +1294,10 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   end
 
   defp earlier_text(%{kind: :booking, date: date}),
-    do: gettext("a booking of %{date}", date: Date.to_iso8601(date))
+    do: gettext("a booking of %{date}", date: Format.date(date))
 
   defp earlier_text(%{kind: :quote, date: date}),
-    do: gettext("a quote of %{date}", date: Date.to_iso8601(date))
+    do: gettext("a quote of %{date}", date: Format.date(date))
 
   defp ratio(%{numerator: p, denominator: q}), do: "#{p}:#{q}"
 
@@ -1329,7 +1332,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
   # Board 14 ③: the split a refusal means, by its date and number.
   defp detail_lines(%{code: :legacy_hashed_split} = guard) do
     for split <- Map.get(guard, :splits, []) do
-      gettext("Split on %{date} · no. %{id}", date: Date.to_iso8601(split.date), id: split.id)
+      gettext("Split on %{date} · no. %{id}", date: Format.date(split.date), id: split.id)
     end
   end
 
@@ -1398,7 +1401,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
 
         gettext(
           "Remedy: book the split of %{date} (%{ratio}) on %{security} too, or delete the wrong split, then check again.",
-          date: Date.to_iso8601(issue.date),
+          date: Format.date(issue.date),
           ratio: ratio(issue.ratio),
           security: security.isin || security.name
         )

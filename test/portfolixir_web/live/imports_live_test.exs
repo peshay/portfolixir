@@ -1801,6 +1801,54 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert html =~ "Row 2: Cash transfer 2025-02-01 · Giro → Tagesgeld"
   end
 
+  # User story (Sprint 19 PR γ U3; board 05, found while drawing 3 — the
+  # import result lists):
+  # As a German-speaking operator reading an import's result,
+  # I want a skipped row's date as DD.MM.YYYY,
+  # so that the result reads its dates the way the rest of the page does.
+  #
+  # Acceptance criteria:
+  # - The internal transfer's line reads its day "01.02.2025".
+  test "the German result names a skipped transfer's day as DD.MM.YYYY", %{conn: conn} do
+    portfolio = setup_portfolio()
+
+    {:ok, main} =
+      Portfolios.create_cash_account(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Main account",
+        currency_code: "EUR"
+      })
+
+    body =
+      pp_json([
+        %{"type" => "DEPOSIT", "account" => "Giro", "date" => "2025-01-02", "amount" => "100.00"},
+        %{
+          "type" => "CASH_TRANSFER",
+          "account" => "Giro",
+          "otherAccount" => "Tagesgeld",
+          "date" => "2025-02-01",
+          "amount" => "40.00"
+        }
+      ])
+
+    {:ok, view, _html} = live(conn, "/imports?locale=de")
+    upload_payload(view, "transfer.json", body, "application/json")
+
+    view
+    |> element("form#pp-import-apply")
+    |> render_submit(
+      keyed(%{
+        "cash" => %{"Giro" => "existing:#{main.id}", "Tagesgeld" => "existing:#{main.id}"}
+      })
+    )
+
+    render_async(view, 1_000)
+
+    list = view |> element("[data-role='internal-transfers']") |> render()
+    assert list =~ "01.02.2025 · Giro → Tagesgeld"
+    refute list =~ "2025-02-01"
+  end
+
   # User story (ADR-0050 §3, #884):
   # As a German-speaking operator re-importing an export after a merge removed
   # one of its rows,
@@ -1868,7 +1916,8 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     assert html =~
              ~r/<b>1<\/b>\s*·\s*eine Zeile mit diesem Inhalt wurde bei einer Zusammenführung entfernt \(stillgelegter Inhalts-Hash\)/
 
-    assert html =~ "Zeile 1: Umbuchung 2025-02-01 · 250,00 EUR · Savings (old) → Savings"
+    # The row's day reads the page's language (Sprint 19 U3, board 05).
+    assert html =~ "Zeile 1: Umbuchung 01.02.2025 · 250,00 EUR · Savings (old) → Savings"
     assert has_element?(view, "[data-role='duplicate-group'][data-layer='retired'][open]")
   end
 
@@ -2791,6 +2840,57 @@ defmodule PortfolixirWeb.ImportsLiveTest do
                "Row 1: Deposit 2025-04-15 · 50.00 EUR · Savings — set balance of Savings on 2025-05-31"
 
       refute list =~ "Row 2"
+    end
+
+    # User story (Sprint 19 PR γ U3; board 05, found while drawing 3 — the
+    # import result lists):
+    # As a German-speaking operator whose merge adjusted a set balance,
+    # I want the result's line to name the booking's day and the balance's
+    # day as DD.MM.YYYY,
+    # so that the two dates in one German sentence read the German way.
+    #
+    # Acceptance criteria:
+    # - The line reads the booking "15.04.2025" and the balance "31.05.2025".
+    test "the German result names both days of a booking behind a set balance", %{conn: conn} do
+      portfolio = setup_portfolio()
+      old = cash_account!(portfolio, "Savings (old)")
+      survivor = cash_account!(portfolio, "Savings")
+
+      {:ok, _anchor} =
+        Ledger.set_cash_balance(Portfolixir.Actor.owner_ui(), old, %{
+          date: ~D[2025-05-31],
+          amount: "1200.00"
+        })
+
+      {:ok, preview} = Portfolixir.Lifecycle.preview_cash_merge(old.id, survivor.id)
+
+      {:ok, _record, :applied} =
+        Portfolixir.Lifecycle.merge_cash_account(
+          Portfolixir.Actor.owner_ui(),
+          old.id,
+          survivor.id,
+          %{plan_digest: preview.plan_digest}
+        )
+
+      body =
+        pp_json([
+          %{
+            "type" => "DEPOSIT",
+            "account" => "Savings",
+            "date" => "2025-04-15",
+            "amount" => "50.00"
+          }
+        ])
+
+      {:ok, view, _html} = live(conn, "/imports?locale=de")
+      upload_payload(view, "behind.json", body, "application/json")
+      view |> element("form#pp-import-apply") |> render_submit()
+      render_async(view, 1_000)
+
+      list = view |> element("[data-role='behind-restated-anchor']") |> render()
+      assert list =~ "15.04.2025"
+      assert list =~ "31.05.2025"
+      refute list =~ ~r/\b\d{4}-\d{2}-\d{2}\b/
     end
 
     # User story (board 04, the result):

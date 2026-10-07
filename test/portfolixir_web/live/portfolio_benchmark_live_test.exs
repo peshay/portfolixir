@@ -238,6 +238,35 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
     assert has_element?(view, "[data-role='perf-summary-table'] th", "Late Bench")
   end
 
+  # User story (Sprint 19 PR γ U3, the sweep):
+  # As a German-speaking operator comparing against an index quoted late,
+  # I want the row's covered window to start on a day written DD.MM.YYYY,
+  # so that the comparison block reads its date as the chart's basis line
+  # does.
+  #
+  # Acceptance criteria:
+  # - The row reads "ab <DD.MM.YYYY> — …" with the covered window's first
+  #   day, never ISO.
+  test "a benchmark quoted late names its covered window's first day in German",
+       %{conn: conn} do
+    world = seed_world()
+    late = WorldFixtures.create_security!(name: "Late Bench", ticker: "LATE")
+    {:ok, late} = Catalog.update_security(Actor.owner_ui(), late, %{is_benchmark: true})
+    first_quote = Date.add(world.today, -15)
+    WorldFixtures.put_quotes!(late, [{first_quote, "50"}, {Date.add(world.today, -1), "55"}])
+
+    path = "/portfolio?locale=de&benchmark[]=security:#{late.id}"
+    conn = get(conn, path)
+    {:ok, view, _html} = live(conn, path)
+    render_async(view)
+
+    coverage = view |> element("#kpi-benchmark [data-role='benchmark-coverage']") |> render()
+    day = PortfolixirWeb.Format.date(Date.add(first_quote, 1), "de")
+
+    assert coverage =~ "ab #{day} —"
+    refute coverage =~ Date.to_iso8601(Date.add(first_quote, 1))
+  end
+
   describe "BenchmarkScope plug" do
     defp run_plug(conn) do
       conn

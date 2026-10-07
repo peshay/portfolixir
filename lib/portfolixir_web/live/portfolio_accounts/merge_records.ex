@@ -29,6 +29,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Clock
+  alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Lifecycle
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
@@ -654,7 +655,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
       "adopt_source_isin" ->
         parts([
           gettext("%{isin} adopted; %{former} is now a former ISIN", isin: source, former: target),
-          is_binary(changed_on) && gettext("change dated %{date}", date: changed_on)
+          is_binary(changed_on) && gettext("change dated %{date}", date: stored_day(changed_on))
         ])
 
       _no_choice when is_binary(source) and is_nil(target) ->
@@ -719,6 +720,15 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
               depots: pngettext("merge check", "%{count} depot", "%{count} depots", depots)
             )
         end
+    end
+  end
+
+  # A day the record stores as ISO text, said in the page's language (Sprint
+  # 19 U3); a text that does not read as a date is said as stored.
+  defp stored_day(text) do
+    case BoundedDate.parse(text) do
+      {:ok, date} -> Format.date(date)
+      {:error, _reason} -> text
     end
   end
 

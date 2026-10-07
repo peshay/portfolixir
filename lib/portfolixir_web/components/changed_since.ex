@@ -16,7 +16,9 @@ defmodule PortfolixirWeb.ChangedSince do
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias Portfolixir.Input.BoundedDate
   alias PortfolixirWeb.Api.V1.SinceParam
+  alias PortfolixirWeb.Format
 
   @doc """
   Parses the LiveView `since` URL param through the API's own parser.
@@ -38,10 +40,25 @@ defmodule PortfolixirWeb.ChangedSince do
     today = Date.utc_today()
 
     [
-      {"today", gettext("Today"), Date.to_iso8601(today)},
-      {"7d", gettext("7 days"), Date.to_iso8601(Date.add(today, -7))},
-      {"30d", gettext("30 days"), Date.to_iso8601(Date.add(today, -30))}
+      {"today", gettext("Today"), since_value(today)},
+      {"7d", gettext("7 days"), since_value(Date.add(today, -7))},
+      {"30d", gettext("30 days"), since_value(Date.add(today, -30))}
     ]
+  end
+
+  # A preset's URL value: the API's `since=` form, ISO.
+  defp since_value(date), do: Date.to_iso8601(date)
+
+  @doc """
+  The cut as the note says it: a day (`?since=2026-09-30`, a chip's value)
+  in the page's language (`Format.date`, Sprint 19 U3); a full instant an
+  agent's link carries, as given.
+  """
+  def cut_label(%{raw: raw}) do
+    case BoundedDate.parse(raw) do
+      {:ok, date} -> Format.date(date)
+      {:error, _reason} -> raw
+    end
   end
 
   @doc """

@@ -75,11 +75,16 @@ defmodule PortfolixirWeb.LayoutView do
 
             // CSS properties we need to bake into the exported SVG so the
             // file renders the same as on-screen without our stylesheet.
+            // The last four carry J5 A's rule ③, the values inside the plot
+            // (the closing act's edge-case finding 1): without paint-order
+            // the halo paints over the glyphs, without the other three a
+            // value falls back to end-anchoring in the gutter.
             window.Portfolixir._CHART_EXPORT_PROPS = [
               "fill", "fill-opacity", "stroke", "stroke-opacity",
               "stroke-width", "stroke-dasharray", "stroke-linecap",
               "stroke-linejoin", "opacity",
-              "font-family", "font-size", "font-weight", "color"
+              "font-family", "font-size", "font-weight", "color",
+              "paint-order", "text-anchor", "dominant-baseline", "transform"
             ];
 
             window.Portfolixir._inlineStyles = function (sourceEl, cloneEl) {
@@ -114,21 +119,49 @@ defmodule PortfolixirWeb.LayoutView do
               var clone = svg.cloneNode(true);
               clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
 
-              // Bake the document background color into the export so dark
-              // themes don't end up with transparent (visually black) areas.
-              var bodyBg = window.getComputedStyle(document.body).backgroundColor || "#ffffff";
-              clone.setAttribute("style", "background:" + bodyBg);
-
-              // Bake the on-screen computed styles into the clone — without
-              // this the exported SVG opens as a black-and-white skeleton
-              // because none of our chart styling lives inline.
-              window.Portfolixir._inlineStyles(svg, clone);
+              // Paint the export the frame's colour, the ground the chart and
+              // its halos sit on, so dark themes don't end up with
+              // transparent (visually black) areas and a halo is no rim. The
+              // body's colour was transparent under the page's gradient.
+              var ground = window.getComputedStyle(frame).backgroundColor || "#ffffff";
 
               // Pin the rendered dimensions so the export keeps its on-screen
               // size and isn't reflowed by the consumer.
               var rect = svg.getBoundingClientRect();
               var exportW = Math.max(640, Math.floor(rect.width || 960));
               var exportH = Math.max(240, Math.floor(rect.height || 320));
+
+              // J5 A, rule ②, for the file: the labels are sized by the
+              // frame's --chart-upx, the screen's viewBox units per pixel.
+              // While the styles are baked in, the frame carries the
+              // export's own scale, measured as the hook measures it, so a
+              // label is 9 px in a 640 px file exported from a 390 px phone
+              // and not the phone's 24.7 units; then the frame's value goes
+              // back.
+              var viewBox = svg.viewBox && svg.viewBox.baseVal;
+              var view = {
+                width: (viewBox && viewBox.width) || 960,
+                height: (viewBox && viewBox.height) || 320
+              };
+              var exportUpx = Math.max(view.width / exportW, view.height / exportH);
+              var frameUpx = frame.style.getPropertyValue("--chart-upx");
+              frame.style.setProperty("--chart-upx", exportUpx.toFixed(4));
+
+              // Bake the on-screen computed styles into the clone — without
+              // this the exported SVG opens as a black-and-white skeleton
+              // because none of our chart styling lives inline.
+              try {
+                window.Portfolixir._inlineStyles(svg, clone);
+              } finally {
+                if (frameUpx) {
+                  frame.style.setProperty("--chart-upx", frameUpx);
+                } else {
+                  frame.style.removeProperty("--chart-upx");
+                }
+              }
+
+              // After the inlining, which rewrites the root's style.
+              clone.style.setProperty("background", ground);
               clone.setAttribute("width", exportW);
               clone.setAttribute("height", exportH);
 
@@ -150,7 +183,7 @@ defmodule PortfolixirWeb.LayoutView do
                 canvas.width = exportW;
                 canvas.height = exportH;
                 var ctx = canvas.getContext("2d");
-                ctx.fillStyle = bodyBg;
+                ctx.fillStyle = ground;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 canvas.toBlob(function (blob) {
@@ -717,12 +750,62 @@ defmodule PortfolixirWeb.LayoutView do
                 this.svg.addEventListener("pointercancel", this.onCancel);
                 this.svg.addEventListener("lostpointercapture", this.onCancel);
                 this.svg.addEventListener("dblclick", this.onDbl);
+
+                // Board 05, pick J5 A, rule ② (issue 1088): the axis labels
+                // are 9 CSS px at every chart width. The frame carries the
+                // viewBox units per CSS pixel, kept current as the chart
+                // resizes; the stylesheet multiplies the label by it.
+                this.writeScale();
+                if (window.ResizeObserver) {
+                  this.onResize = function () { self.writeScale(); };
+                  this.resizeObserver = new ResizeObserver(this.onResize);
+                  this.resizeObserver.observe(this.svg);
+                }
+                // A web font that lands later changes the labels' width.
+                if (document.fonts && document.fonts.ready) {
+                  document.fonts.ready.then(function () { self.writeScale(); });
+                }
               },
               updated: function () {
                 this.payload = this.readPayload();
                 this.hide();
+                // A patch rewrites the frame's attributes; the scale goes
+                // back on at once.
+                this.writeScale();
+              },
+              // The meet viewBox scales by the narrower of its two fits, so
+              // the units per pixel are the larger of the two ratios. A chart
+              // with no box (a hidden tab) keeps the last factor, or none.
+              writeScale: function () {
+                if (!this.svg) return;
+                var rect = this.svg.getBoundingClientRect();
+                if (rect.width === 0 || rect.height === 0) return;
+                var view = (this.payload && this.payload.view) || { width: 960, height: 320 };
+                var upx = Math.max(view.width / rect.width, view.height / rect.height);
+                this.el.style.setProperty("--chart-upx", upx.toFixed(4));
+                this.placeAxis(rect, upx);
+              },
+              // J5 A, rule ③ (the U3 review): the values move inside the plot
+              // on a chart at most 760 px wide, or when the widest value is
+              // wider than its gutter — the value's x in viewBox units, in
+              // CSS pixels at this scale. The labels are measured after the
+              // scale is written, at their 9 px.
+              placeAxis: function (rect, upx) {
+                var labels = this.svg.querySelectorAll(".chart-axis-labels .chart-axis-y");
+                if (labels.length === 0) return;
+                var widest = 0;
+                for (var i = 0; i < labels.length; i++) {
+                  widest = Math.max(widest, labels[i].getBoundingClientRect().width);
+                }
+                var gutter = parseFloat(labels[0].getAttribute("x")) / upx;
+                if (rect.width <= 760 || widest > gutter) {
+                  this.el.setAttribute("data-axis-inside", "");
+                } else {
+                  this.el.removeAttribute("data-axis-inside");
+                }
               },
               destroyed: function () {
+                if (this.resizeObserver) this.resizeObserver.disconnect();
                 if (this.svg) {
                   this.svg.removeEventListener("pointermove", this.onMove);
                   this.svg.removeEventListener("pointerdown", this.onDown);

@@ -14,6 +14,8 @@ defmodule PortfolixirWeb.AccountNames do
 
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias PortfolixirWeb.Format
+
   @type tags :: %{
           cash: %{optional(integer()) => String.t()},
           depot: %{optional(integer()) => String.t()}
@@ -80,7 +82,7 @@ defmodule PortfolixirWeb.AccountNames do
   defp created_tag(account),
     do:
       gettext("created %{date}",
-        date: account.inserted_at |> NaiveDateTime.to_date() |> Date.to_iso8601()
+        date: account.inserted_at |> NaiveDateTime.to_date() |> Format.date()
       )
 
   defp number_tag(account), do: gettext("no. %{id}", id: account.id)

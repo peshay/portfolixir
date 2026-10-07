@@ -86,11 +86,11 @@ defmodule PortfolixirWeb.Securities.BondStrip do
       <dt><%= gettext("Maturity") %></dt>
       <dd>
         <%= if @security.maturity_date do %>
-          <%= Date.to_iso8601(@security.maturity_date) %>
+          <%= Format.date(@security.maturity_date) %>
           <small :if={@security.issue_date} class="overview-metric__sub">
             <%= gettext("Issued") %>
             <time datetime={Date.to_iso8601(@security.issue_date)}>
-              <%= Date.to_iso8601(@security.issue_date) %>
+              <%= Format.date(@security.issue_date) %>
             </time>
           </small>
         <% else %>
@@ -172,7 +172,7 @@ defmodule PortfolixirWeb.Securities.BondStrip do
             <small class="overview-metric__sub">
               <%= gettext("since") %>
               <time datetime={Date.to_iso8601(@security.maturity_date)}>
-                <%= Date.to_iso8601(@security.maturity_date) %>
+                <%= Format.date(@security.maturity_date) %>
               </time>
             </small>
           <% @bond.remaining_term.insufficient_data -> %>
@@ -184,7 +184,7 @@ defmodule PortfolixirWeb.Securities.BondStrip do
             ) %>
             <small class="overview-metric__sub">
               <%= gettext("%{years} years from", years: Format.decimal(@bond.remaining_term.years, 2)) %>
-              <time datetime={Date.to_iso8601(@bond.as_of)}><%= Date.to_iso8601(@bond.as_of) %></time>
+              <time datetime={Date.to_iso8601(@bond.as_of)}><%= Format.date(@bond.as_of) %></time>
             </small>
         <% end %>
       </dd>
@@ -294,14 +294,14 @@ defmodule PortfolixirWeb.Securities.BondStrip do
       <strong><%= gettext("Priced on two scales:") %></strong>
       <%= gettext("quotes around 100 (latest %{close} on %{date}),",
         close: Format.exact(@finding.latest_quote.close),
-        date: Date.to_iso8601(@finding.latest_quote.date)
+        date: Format.date(@finding.latest_quote.date)
       ) %>
       <%= ngettext(
         "booked price per unit around 1 (1 booking: %{price} on %{date}).",
         "booked price per unit around 1 (%{count} bookings, the last %{price} on %{date}).",
         @finding.unit_scale_bookings,
         price: Format.exact(@finding.last_unit_scale_booking.price),
-        date: Date.to_iso8601(@finding.last_unit_scale_booking.date)
+        date: Format.date(@finding.last_unit_scale_booking.date)
       ) %>
       <%= gettext(
         "That means the nominal was booked as the quantity, and value, gain and weight are a hundred times too high; the return (TTWROR) does not show it. Check the quantity against the nominal on the statement:"
@@ -355,7 +355,7 @@ defmodule PortfolixirWeb.Securities.BondStrip do
 
   defp price_source(%{price: %{date: %Date{}}} = assigns),
     do:
-      ~H| (<time datetime={Date.to_iso8601(@price.date)}><%= Date.to_iso8601(@price.date) %></time>)|
+      ~H| (<time datetime={Date.to_iso8601(@price.date)}><%= Format.date(@price.date) %></time>)|
 
   defp price_source(assigns), do: ~H""
 end

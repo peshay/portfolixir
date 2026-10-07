@@ -1695,8 +1695,10 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     figure = view |> element("#performance-figure") |> render()
 
-    # Value axis carries signed percent tick labels (the run climbs to ~+8%).
-    assert figure =~ ~r/\+\d+(\.\d+)? %/
+    # Value axis carries signed percent tick labels (the run climbs to ~+8%),
+    # in the house's form: the sign and the percent glued on (Sprint 19 U3,
+    # issue 1088).
+    assert figure =~ ~r/>\s*\+\d+\.\d%\s*</
     # Date axis labels the most recent point with its ISO date.
     assert figure =~ Date.to_iso8601(Date.utc_today())
 
@@ -2326,6 +2328,46 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     # With a quote: the buy hint names the quote date it is priced at.
     moon_row = view |> element(~s(tr[data-role="allocation-position"]), "Moon ETF") |> render()
     assert moon_row =~ "at quote from 2026-07-18"
+  end
+
+  # User story (Sprint 19 PR γ U3, the sweep):
+  # As a German-speaking owner planning a position I do not hold yet,
+  # I want the hint's tooltip to name its quote's day as DD.MM.YYYY,
+  # so that the one date the row carries reads the way the page's do.
+  #
+  # Acceptance criteria:
+  # - The unit hint's title reads "zum Kurs vom 18.07.2026".
+  test "the hint's quote date reads German in its title", %{conn: conn} do
+    world = seed_world()
+    moon = WorldFixtures.create_security!(name: "Moon ETF", ticker: "MOON")
+    WorldFixtures.put_quote!(moon, ~D[2026-07-18], "50")
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        moon.id,
+        world.classification.id,
+        world.core.id
+      )
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), world.portfolio.id, world.classification.id, [
+        %{"category_id" => world.core.id, "security_id" => moon.id, "target_weight" => "0.2"}
+      ])
+
+    {:ok, view, _html} = live(conn, "/portfolio?tab=allocation&locale=de")
+    render_async(view)
+
+    view
+    |> element(~s(.drift-table [data-role="toggle-positions"]))
+    |> render_click()
+
+    moon_row = view |> element(~s(tr[data-role="allocation-position"]), "Moon ETF") |> render()
+
+    assert moon_row
+           |> Floki.parse_fragment!()
+           |> Floki.find(~s([data-role="rebalance-hint"]))
+           |> Floki.attribute("title") == ["zum Kurs vom 18.07.2026"]
   end
 
   # User story (#481 slice 2a fix round — UAT):
