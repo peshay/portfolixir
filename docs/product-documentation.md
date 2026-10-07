@@ -3135,11 +3135,18 @@ naming the already-booked event) stays inline in the dialog.
 - Theme, accent, and language are user preferences and do not affect stored
   financial values.
 - Date fields accept and display ISO dates (`YYYY-MM-DD`); the browser's
-  locale date picker is not used. A date the page only shows follows the
-  page's language: `DD.MM.YYYY` on a German page, ISO on an English one. A
-  few screens still print ISO there — the security detail's head and tabs,
-  and the merge dialogs — until they are aligned. The API, MCP and every file
-  the app reads or writes keep ISO.
+  locale date picker is not used. Every date the page only shows follows the
+  page's language: `DD.MM.YYYY` on a German page, ISO on an English one; a
+  month alone reads `10.2026` / `2026-10`. The API, MCP and every file the
+  app reads or writes keep ISO.
+- Chart axes follow it too: the first and last date, the values with the
+  page's separators (`12.500` / `12,500`) and a percentage as `+10,4%` /
+  `+10.4%`. The axis labels keep one size, 9 px, at every chart width; on a
+  narrow chart (up to about 760 px, as on a phone), or where a value is
+  wider than the space beside the plot, the values sit inside the plot on
+  their grid lines. The one exception to the page's language is the chart's
+  hover readout, which still shows the date in ISO form and the price
+  unformatted.
 - Number fields (quantity, price, fees and taxes, the settlement amount and
   rate, a rule's line, the Tax figures, a cash balance) show and accept figures
   in the page's language: a decimal comma on a German page (`1664,40`), a
