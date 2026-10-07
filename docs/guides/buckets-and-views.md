@@ -80,9 +80,10 @@ everything else held.
    tag**), regardless of which broker it sits at.
 2. On **Views**, create a view `Retirement` that includes the `Retirement`
    bucket (steps 4–5 above).
-3. Open **Classifications**, select the custom tree used for steering, and find
-   the **Target plan** section of its detail pane. In the selector **Target
-   plan for view:** pick `Retirement`.
+3. Open **Classifications**, select the custom tree used for steering, and
+   pick `Retirement` in the row of views under the tree's name. The whole
+   detail pane now reads that view, and the head of its **Target plan**
+   section says so: **for view Retirement**.
 4. Click **Create plan** (or **Copy from another view…** to prefill from an
    existing plan), enter a **Target %** per category plus the **Cash**
    target, watch the **Σ** footer reach 100 % ✓, and press **Save plan**.

@@ -2078,9 +2078,20 @@ Category · Positions · Value · Cost · Result — and every category row
 (swatch, name, description, and the "+N without holdings" count as a muted
 0.72 rem suffix), then four right-aligned tabular columns of 4.5 / 7 / 7 /
 7 rem and the actions. The name column absorbs the indent of nested
-categories, so the figures line up at any depth. An empty category prints
-"—" in each figure column; the result cell stacks the signed amount over
-its signed percentage, in the sign colours. Under 560 px the row keeps the
+categories, so the figures line up at any depth. ~~An empty category prints
+"—" in each figure column;~~ the result cell stacks the signed amount over
+its signed percentage, in the sign colours. *Amended 2026-10-07 (the closing
+act of Sprint 19 PR γ, the design critic's fifth and the edge-case hunter's
+eighth finding):* "Positionen" prints its count, 0 included, because a count
+is always computable — under a view that holds none of a category the whole
+row used to turn to dashes; "Wert", "Einstand" and "Ergebnis" print
+{components.value-slot}`.not-computable`'s dash (`.cat-na`: {colors.text-muted},
+weight 400), which stood at the figures' 500 and 600 in the text colour, as
+do Unsorted's "Einstand" and "Ergebnis". The percentage is the house form,
+the sign and "%" glued on ("+13,7%", γ n12; it was the spaced "+13,7 %"),
+and the cell's sign colour is the displayed figure's (`Format.displayed_sign/2`,
+U2's rule): a result that reads 0,00 is unsigned and `is-flat`, never in the
+gain colour. Under 560 px the row keeps the
 name, the value and the result; positions and cost stay in the cells' titles
 and on the desktop. **Under 560 px the row lies on two lines** *(issue 873,
 pick G8 = A of board `ux-design-2026-09-24/08-classification-detail`)*: the
@@ -2103,7 +2114,7 @@ never converted through the hub, which would state a cost nobody paid.
   Zusammensetzung, keine Periodenrendite". The currency is the result's
   `base_currency`, never assumed. The view's name that J10 puts before it
   ("Ansicht Langfrist · in EUR · …") belongs to PR γ U7 and is not built
-  with this record.
+  with this record. *Built 2026-10-07 (U7, the amendment below).*
 - **The note on left-out members.** One `attention` {components.data-note}
   (`data-role="category-result-excluded"`) stands between the basis line and
   the tree head, 0.5 rem below the line (board rule ②). Its `role="status"`
@@ -2159,6 +2170,99 @@ never converted through the hub, which would state a cost nobody paid.
   beside the count on the desktop; they are not built, and the count stays a
   bare sub-figure, because the note above now names each left-out member
   with its reason.
+
+*Amended 2026-10-07 (#1091's screen half, Sprint 19 PR γ U7; board
+`mockups/ux-design-2026-10-04/10-category-results`, pick J10 A).* The
+screen's one scope is the active view, and every figure, the plan editor and
+the basis line read it.
+
+- **The controls row.** Under the detail head, before the plan editor, a
+  `.workspace-section--controls` row (issue 790's row) holds
+  `PortfolixirWeb.ViewSwitcher`, unchanged from Wealth: the chips with no
+  prefix, "Ansichten" as a quiet link (D4), the plan dot, the active-view
+  line and its ⓘ. The default-view control stays Wealth's. **The dot means
+  something narrower here** *(review round)*: a view in which this tree has
+  a plan — the plan the editor below shows, active or draft
+  (`Targets.plan_views/2`); a portfolio-wide cash target alone is not one,
+  so the dot and the editor never contradict each other, and the chip's
+  title ("Hat einen Soll-Plan für die aktuelle Klassifizierung") reads true.
+  Wealth's dot keeps the allocation engine's definition. The row shows on
+  every tree, built-in ones included, which have no editor. A chip is a
+  navigation through `ViewScope`, so a view picked here is the active view on
+  Wealth too, and the other way round. Wealth's no-plan hint deep-links with
+  `?view=`; the screen reads no `?soll_view=`.
+- **Every figure of a row follows the view.** "Positionen", "Wert" and the
+  security rows read the view's positions the way the view valuation narrows
+  them (ADR-0018), in EUR; "Einstand" and "Ergebnis" read the view's category
+  result (`CategoryResult.for_view/3`), the read `GET
+  /api/v1/views/:view_id/category-results` serves. Under "Alles" the row reads
+  every portfolio, as before (`for_all_portfolios/2`, `GET
+  /api/v1/category-results`). Scoping only the result would put two scopes
+  in one row.
+- **The editor's scope text.** The plan editor's select goes. Its head is
+  "Soll-Plan" with, at its end, `.soll-editor__scope` "für Ansicht
+  Langfrist" (board rule ①: 0.9 em, {colors.text-muted}, the picker label's
+  voice) — "für Ansicht Alles" with no view — and it edits that view's plan.
+  The copy picker lists the no-view plan as "Alles". The editor speaks the
+  switcher's words, "Ansicht" and "Alles", never "Sicht" and "Gesamt", and
+  Wealth's no-plan hint now does too ("Kein Soll-Plan für diese Ansicht").
+- **The basis line names the view, then the currency**: "Ansicht Langfrist ·
+  in EUR · Ergebnis: heutige Zusammensetzung, keine Periodenrendite"
+  ("Ansicht Alles · …" with no view). The view's name is stored text, in
+  `<bdi>` (H8.8). The sentence is one span, so the line's flex row wraps it
+  as text, and a no-break space before each " · " holds the "·" to the word
+  before it: no line starts with one, however long the view's name
+  *(review round)*.
+- **A view that matches no account** says so under the controls row, in
+  Wealth's hint and words (`data-role="view-matches-nothing"`), instead of
+  leaving every row at "—" without a reason *(review round)*.
+- **The note on left-out members** (M5's, above) follows the view with its
+  result: one sentence for one member, the count and a disclosure past one.
+  It names only what the view's figures leave out.
+- **"+N nicht in der Ansicht".** Under a view, the `.cat-without-holdings`
+  slot counts the members the view holds none of — held in an account
+  outside it, or no longer held at all — as "+2 nicht in der Ansicht"
+  (title "Zugeordnete Wertpapiere ohne Position in dieser Ansicht, vom Filter
+  ausgeblendet"), hidden under "Nur aktuelle Positionen" as "ohne Bestand"
+  rows are. Under "Alles" the slot reads "+N ohne Bestand" as before. One
+  slot, not two: both kinds are not in the view, and a second suffix would
+  crowd the name on the phone's first line. **The name cell wraps at every
+  width** *(review round)*: `.cat-summary .cat-name` takes `flex-wrap: wrap;
+  row-gap: 0`, and the swatch `flex: none`, outside the 560 px block too, so
+  the suffix stands beside the name and drops under it when both do not fit.
+  It used to cut the name to "Sta…" at 768 and 1024 px and collapse the
+  swatch at 768 px. **"Nicht zugeordnet" follows the view the same way**: it
+  counts and values the unsorted positions the view holds and puts the rest
+  in the same slot; ~~under "Alles" it is what it was, every unsorted security
+  whatever the toggle~~. *Amended 2026-10-07 (the closing act of PR γ, the
+  edge-case hunter's seventh finding; the coordinator's decision):* it
+  honours "Nur aktuelle Positionen" in every scope, as the categories do.
+  Under "Alles" with the toggle on, the unsorted securities no longer held
+  drop into the same slot, "+12 ohne Bestand", and the count and the value
+  are the held ones' — one data set read "+12 nicht in der Ansicht · 27"
+  under a view that includes every account and "39" under "Alles", and now
+  reads "+12 ohne Bestand · 27" there. With the toggle off both list every
+  unsorted security, with no slot. *Amended 2026-10-07 (cascade layer 2 of
+  the closing act):* the slot's title is Unsorted's own, "Nicht zugeordnete
+  Wertpapiere ohne Bestand, vom Filter ausgeblendet" ("Nicht zugeordnete
+  Wertpapiere ohne Position in dieser Ansicht, …" under a view); it carried
+  the categories' "Zugeordnete, nicht mehr gehaltene Wertpapiere", wrong
+  twice, because these securities are unassigned and some were never held.
+  The assignment nudge still counts every unsorted security, which is what
+  the row it links to shows: its visible securities plus its slot (21 + 12 =
+  33 on the demo).
+- **`.cat-result-partial`** keeps M5's rule above, unchanged.
+- **A view deleted while the page reads it** degrades the screen to "Alles"
+  with Wealth's notice ("Die gewählte Ansicht existiert nicht mehr — es wird
+  Alles angezeigt."), never an error. A view deleted after the page loaded
+  is noticed before a plan write: "Plan anlegen", "Plan speichern" and "Plan
+  löschen" degrade the screen the same way and write nothing *(review
+  round)*. *Amended 2026-10-07 (the closing act of PR γ, the edge-case
+  hunter's fourth finding):* the write answers with a refusal, the page's
+  result, beside the notice — "Die Ansicht „Langfrist“ wurde inzwischen
+  gelöscht; es wurde nichts gespeichert." ("… kein Plan angelegt.",
+  "… nichts gelöscht.") — because the typed weights gave way to the plan of
+  "Alles", and the muted notice alone did not say they were not saved.
 
 ## Amendment 2026-09-23 — Wealth → Risk, the surface ADR-0047 §9 assumed *(Sprint 14 D-2, pick E1-A)*
 

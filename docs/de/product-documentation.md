@@ -1376,6 +1376,42 @@ Grund, und einmal je Baum in `excluded_members`, mit der Kategorie, in der sie
 eingeordnet ist, und, wenn nur ihre Währung sie draußen hält, dem Einstand in
 der Währung, in der er bezahlt wurde — die Liste, die dieser Hinweis zeigt.
 
+**Die Zahlen folgen der gewählten Ansicht** (#1091). Unter dem Namen des
+Baums steht der Ansichten-Umschalter der Vermögensseite — **Alles**, ein Chip
+je Ansicht und **Ansichten** —, und er ist der eine Bereich dieser Seite.
+Wählt man eine Ansicht, liest jede Zahl einer Kategorie-Zeile sie:
+**Positionen** und **Wert** zählen nur die Positionen, die die Ansicht hält,
+und **Einstand** und **Ergebnis** sind das Ergebnis dieser Ansicht über alle
+Portfolios, in EUR, nach derselben Regel — das Lesen, das `GET
+/api/v1/views/:view_id/category-results` beantwortet, sodass Bildschirm und
+Agent nie auseinanderlaufen. Die Basiszeile nennt zuerst die Ansicht
+(„Ansicht Langfrist · in EUR · Ergebnis: …“; „Ansicht Alles“, wenn keine
+gewählt ist), der Hinweis darüber nennt nur, was die Zahlen dieser Ansicht
+auslassen, und der Plan-Editor darunter bearbeitet den Plan dieser Ansicht.
+Ein Mitglied einer Kategorie, von dem die Ansicht nichts hält — in einem Konto
+außerhalb der Ansicht oder gar nicht mehr gehalten —, wird mit dem Schalter
+„Nur aktuelle Positionen“ ausgeblendet und neben dem Kategorienamen als
+**+N nicht in der Ansicht** gezählt, wo Alles **+N ohne Bestand** zählt.
+**Nicht zugeordnet** folgt der Ansicht genauso: Es zählt und bewertet die
+nicht zugeordneten Positionen, die die Ansicht hält, und zählt den Rest
+neben seinem Namen. Wie die Kategorien folgt es in jedem Bereich dem
+Schalter „Nur aktuelle Positionen“: Unter Alles zählt und bewertet es die
+nicht zugeordneten Positionen, die noch gehalten werden, und zählt die
+übrigen neben seinem Namen als **+N ohne Bestand**; ist der Schalter aus,
+listet es jedes nicht zugeordnete Wertpapier. Eine Ansicht, deren Buckets
+kein Konto treffen, sagt das über dem
+Baum, mit den Worten der Vermögensseite, statt jede Zeile bei „—“ zu lassen.
+Ein Chip ist eine Navigation wie auf der Vermögensseite: Die hier gewählte
+Ansicht ist auch dort die aktive, und umgekehrt. Ein Punkt auf einem Chip
+markiert eine Ansicht, die einen Plan für diesen Baum trägt — den Plan, den
+der Editor darunter zeigt, aktiv oder Entwurf; ein Cash-Ziel allein ist kein
+Plan dieses Baums (die Chips der Vermögensseite behalten ihre eigene Regel,
+siehe unten). Wird die Ansicht gelöscht, während die Seite offen ist (in
+einem anderen Tab oder über die API), schreibt Speichern, Anlegen oder
+Löschen eines Plans nichts: Die Seite fällt auf Alles zurück und sagt es, und
+die Antwort oben auf der Seite nennt die Ansicht und sagt, dass nichts
+gespeichert (angelegt, gelöscht) wurde.
+
 > **Ziele je Position (ADR-0030, #481).** Zielgewichte lassen sich nun bis auf
 > eine **einzelne Position** setzen (ein Wertpapier unter einer Kategorie), nicht
 > mehr nur je Kategorie. Positionen sind die Quelle der Wahrheit: das *effektive*
@@ -1398,26 +1434,29 @@ der Währung, in der er bezahlt wurde — die Liste, die dieser Hinweis zeigt.
 
 ### Einen SOLL-Plan auf der Klassifizierungsseite bearbeiten
 
-Zielgewichte sind nicht global: ein **SOLL-Plan gehört zu einer Sicht** (siehe
-ADR-0020). Ein Plan wird auf der **Klassifizierungsseite** bearbeitet, im
-Bereich **Soll-Plan** der Detailansicht eines eigenen Baums. Oben in diesem
-Bereich wählt ein **Sicht-Selektor** („Soll-Plan für Sicht: [Gesamt ▾]“),
-welcher Plan bearbeitet wird; die Voreinstellung **Gesamt** ist der
-portfolioweite Plan, der sich wie ein einziges globales Zielset verhält. Wechselt
-man den Selektor, werden die gespeicherten Gewichte und das Cash-Ziel dieses
-`(Sicht, Klassifizierung)`-Plans geladen — Gesamt und jede benannte Sicht tragen
-**unabhängige** Pläne, sodass derselbe Baum je Sicht einen anderen 100 %-Plan
-oder gar keinen halten kann.
+Zielgewichte sind nicht global: ein **SOLL-Plan gehört zu einer Ansicht**
+(siehe ADR-0020). Ein Plan wird auf der **Klassifizierungsseite** bearbeitet, im
+Bereich **Soll-Plan** der Detailansicht eines eigenen Baums. Er bearbeitet den
+Plan der Ansicht, die die Seite liest — der im Ansichten-Umschalter unter dem
+Baumnamen gewählten —, und sein Kopf sagt, welche („für Ansicht Langfrist“
+neben **Soll-Plan**; „für Ansicht Alles“, wenn keine gewählt ist: der
+portfolioweite Plan, der sich wie ein einziges globales Zielset verhält). Seit
+#1091 hat der Bereich keinen eigenen Selektor mehr: Ein anderer Chip lädt die
+gespeicherten Gewichte und das Cash-Ziel dieses `(Ansicht,
+Klassifizierung)`-Plans — Alles und jede benannte Ansicht tragen
+**unabhängige** Pläne, sodass derselbe Baum je Ansicht einen anderen
+100 %-Plan oder gar keinen halten kann.
 
 Die Zustände sind:
 
 - **Noch kein Plan.** Der Bereich zeigt einen Leerzustand mit **Plan anlegen**
-  und, wenn eine andere Sicht bereits einen Plan für diesen Baum hat, einen
-  Selektor **Aus anderer Sicht übernehmen…**, der den Editor aus diesem
-  Quellplan vorbefüllt. Bis zum Speichern wird nichts geschrieben.
+  und, wenn eine andere Ansicht bereits einen Plan für diesen Baum hat, einen
+  Selektor **Aus anderer Ansicht übernehmen…**, der den Editor aus diesem
+  Quellplan vorbefüllt; der Plan ohne Ansicht heißt dort **Alles**. Bis zum
+  Speichern wird nichts geschrieben.
 - **Ein Plan existiert.** Jede Kategorie erhält ein **Soll %**-Feld, und darunter
   steht ein **Cash**-Zielfeld; **Plan speichern** schreibt den gesamten
-  `(Sicht, Klassifizierung)`-Plan auf einmal. Eine Live-**Σ**-Fußzeile summiert
+  `(Ansicht, Klassifizierung)`-Plan auf einmal. Eine Live-**Σ**-Fußzeile summiert
   die Kategoriegewichte plus das Cash-Ziel und aktualisiert sich beim Tippen:
   bei genau 100 % ein ✓, über 100 % ein ✗ mit dem gelben Abweichungshinweis.
   Ein Plan unter 100 % ist eine Wahl, kein Fehler (ADR-0040): Die Σ trägt kein
@@ -1428,8 +1467,8 @@ Die Zustände sind:
   Gewicht der Elternkategorie abweicht; sie folgt jeder Eingabe wie die
   Σ-Fußzeile (ein Kind, das seinen Positionszielen folgt, zählt mit deren
   Summe) und blockiert das Speichern nie.
-- **Plan löschen** entfernt den Plan der Sicht; die Vermögensseite fällt für
-  diese Sicht dann auf **nur IST** zurück (kein SOLL, keine Drift).
+- **Plan löschen** entfernt den Plan der Ansicht; die Vermögensseite fällt
+  für diese Ansicht dann auf **nur IST** zurück (kein SOLL, keine Drift).
 
 Gewichte werden als **Prozentsätze** eingegeben und angezeigt (z. B. `60`) und als
 Brüche in `[0, 1]` gespeichert. Die Felder sind beschriftet und per Tastatur
@@ -1470,7 +1509,7 @@ dann ohne Ziel da statt mit einer Zahl, die niemand eingetragen hat. Eine
 Kategorie zugeordnet) erscheint weiter dort, wo sie abgelegt wurde; unverändert
 zurückgeschickt bleibt sie, wie sie ist, eine Änderung wird mit dem Grund
 abgelehnt — leere sie stattdessen dort. **Das Übernehmen eines Plans aus einer
-anderen Sicht** übernimmt auch dessen Positionsziele.
+anderen Ansicht** übernimmt auch dessen Positionsziele.
 
 ### Plan-Versionen: duplizieren, Entwurf, aktivieren
 
@@ -1480,8 +1519,9 @@ aktiven Plan. So wird eine Strategie umgebaut, ohne den alten Plan zu verlieren:
 
 - **Plan duplizieren** kopiert den aktuellen Plan (Kategoriegewichte und
   Cash-Ziel) in einen **Entwurf**; der Editor wechselt dorthin, und sobald ein
-  Geltungsbereich mehr als eine Version hat, erscheint neben dem Sicht-Selektor
-  ein **Plan-Versions-Selektor**.
+  Geltungsbereich mehr als eine Version hat, tritt in der Versionszeile des
+  Editors, neben **Plan duplizieren**, ein **Plan-Versions-Selektor** an die
+  Stelle des Plannamens.
 - Einen **Entwurf** zu bearbeiten und zu speichern berührt den aktiven Plan
   nie — die Vermögensseite folgt weiter dem aktiven Plan, und ein Hinweis im
   Editor sagt das auch. Die **Cash-Ziel**-Zeile zeigt den aktiven
@@ -1499,13 +1539,14 @@ aktiven Plan. So wird eine Strategie umgebaut, ohne den alten Plan zu verlieren:
 
 Jede Plan-Änderung wird im Audit-Journal festgehalten.
 
-> **Migrationshinweis (ADR-0020).** Der Wechsel zu Plänen je Sicht ist
+> **Migrationshinweis (ADR-0020).** Der Wechsel zu Plänen je Ansicht ist
 > **verlustfrei**: alle bereits vorhandenen Zielgewichte und das frühere
-> portfolioweite Cash-Ziel werden zum **Gesamt**-Plan (`view = null`). Am
-> Verhalten ändert sich nichts — das bestehende Setup erscheint einfach unter
-> *Gesamt*, und die Vermögensseite liest es unter der Sicht **Total** genau wie
-> zuvor. Benannte Sichten starten **ohne Plan**, bis einer angelegt oder
-> kopiert wird.
+> portfolioweite Cash-Ziel werden zum Plan ohne Ansicht (`view = null`), den
+> die Seiten damals **Gesamt** nannten. Am Verhalten ändert sich nichts — das
+> bestehende Setup erscheint einfach unter diesem Plan, und die Vermögensseite
+> liest es unter der Ansicht, die damals **Total** hieß, genau wie zuvor.
+> Benannte Ansichten starten **ohne Plan**, bis einer angelegt oder kopiert
+> wird. *(Seit #1091 heißt dieser Bereich auf jeder Seite **Alles**.)*
 
 Um eine Position **aus der Allokations-Steuerbasis** herauszuhalten, während sie
 weiterhin zum Gesamtvermögen zählt — zum Beispiel ein als langfristiger
@@ -1556,7 +1597,7 @@ Drift-Tabelle zeigt dann eine eigene **Cash**-Zeile in eigener neutraler Farbe m
 Cash-Ist, -Ziel und -Drift, der Sunburst erhält ein Cash-Segment, und jeder
 Kategorie-Prozentsatz schrumpft entsprechend, sobald Cash zur Basis hinzukommt.
 Setze das Cash-Ziel im **Cash**-Feld des Plan-Editors auf der
-Klassifizierungsseite (je Sicht), über die API (`PATCH /api/v1/portfolios/:id`)
+Klassifizierungsseite (je Ansicht), über die API (`PATCH /api/v1/portfolios/:id`)
 oder MCP (`portfolixir.portfolios.set_cash_target`), oder lösche es mit `null`, um
 die Steuerung einer Cash-Quote zu beenden.
 
@@ -1978,19 +2019,21 @@ Sicht** für die gewählte Klassifizierung wider — IST und SOLL bewegen sich i
 zusammen. Beim Wechsel des **Sicht-Umschalters** oben auf der Seite springen
 beide Seiten gleichzeitig auf den Plan dieser Sicht, sodass nie zwei Pläne zu
 einer Σ über 100 % oder einer Geisterzeile vermischt werden. Die eingebaute
-Ansicht **Alles** (früher *Total*) liest den portfolioweiten **Gesamt**-Plan. Ein dezenter Punkt auf einem
+Ansicht **Alles** (früher *Total*) liest den portfolioweiten Plan ohne Ansicht. Ein dezenter Punkt auf einem
 Sicht-Chip markiert die Sichten, die bereits einen Plan für die aktuelle
 Klassifizierung tragen, sodass gesteuerte und reine IST-Sichten auf einen
 Blick unterscheidbar sind.
 
-**Kein Plan für die aktive Sicht?** Hat die aktive Sicht keinen Plan für die
+**Kein Plan für die aktive Ansicht?** Hat die aktive Ansicht keinen Plan für die
 gewählte Klassifizierung, bleibt die Allokation **nur IST**: Sunburst und die
 Spalten Wert/Ist zeigen weiter die tatsächliche Aufteilung, aber es gibt keine
 Spalten Ziel, Drift oder Σ. An ihrer Stelle erklärt ein Hinweis — *Kein Soll-Plan
-für diese Sicht* — die leere SOLL-Seite und **verlinkt direkt in den
-Klassifizierungs-Plan-Editor, mit dieser Sicht und Klassifizierung bereits
-vorausgewählt**, sodass sich der Plan anlegen lässt, ohne beides erneut zu wählen.
-Auch das Ziel der Cash-Zeile stammt aus dem Cash-Ziel des Plans der aktiven Sicht
+für diese Ansicht* — die leere SOLL-Seite und **verlinkt direkt in den
+Klassifizierungs-Plan-Editor, mit dieser Ansicht und Klassifizierung bereits
+vorausgewählt** (`/classifications/<id>?view=<Ansicht>`, der eigene Parameter
+des Ansichten-Umschalters), sodass sich der Plan anlegen lässt, ohne beides
+erneut zu wählen.
+Auch das Ziel der Cash-Zeile stammt aus dem Cash-Ziel des Plans der aktiven Ansicht
 (oder zeigt einen Strich, wenn keines gesetzt ist).
 
 Die Seite zeichnet sich sofort und berechnet ihre Zahlen **asynchron**; jeder
@@ -3346,7 +3389,10 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   Summen dem Schalter folgen. Seit Issue #805 (C8 des Reviews vom 2026-09-12,
   Variante A) stehen die Zahlen in benannten, rechtsbündigen Spalten unter
   einem Kopf — **Positionen · Wert · Einstand · Ergebnis** — eine leere
-  Kategorie zeigt in jeder Spalte „—" statt einer Reihe Nullen, der Zähler
+  Kategorie zeigt 0 Positionen und für Wert, Einstand und Ergebnis ein
+  gedämpftes „—" statt einer Reihe Nullen (eine Anzahl ist immer eine Zahl;
+  der Strich sagt, dass es keine Zahl zu nennen gibt), der Prozentwert des
+  Ergebnisses lautet „+13,7%", der Zähler
   der verborgenen Positionen ist ein gedämpftes Suffix des Kategorienamens,
   und die Basis des Ergebnisses („heutige Zusammensetzung, keine
   Periodenrendite") ist eine Basiszeile mit ⓘ; auf dem Telefon behält die
