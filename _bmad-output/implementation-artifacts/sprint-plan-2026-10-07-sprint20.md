@@ -284,8 +284,13 @@ behaviour. The schema bytes are paid inside γ (D-10).
   - the 33 closures of D-4 are made by hand, each with its reason and what
     reopens it;
   - the 18 answered issues lose `needs-decision` and gain `agentic` (D-4);
-  - the ADR-0053 amendment's deferral is filed under #416: PP JSON's
-    `INTEREST_CHARGE` and `FEE_REFUND` types, and a negative FEE unit;
+  - six issues are filed, each under its area tracker:
+    - the ADR-0053 amendment's deferral, under #416: PP JSON's
+      `INTEREST_CHARGE` and `FEE_REFUND` types, and a negative FEE unit;
+    - the design pass's five findings off the lanes' surfaces, as the UX
+      document lists them;
+  - #1112 gets a comment: its story draws the security page's
+    implausible-quote note beside the two-scales one;
   - **every open issue without a parent gets its area tracker** (D-14).
 - **At each lane PR's opening and filing:**
   - the PR body carries Lane Z as a checklist, ticked before the closing
@@ -331,9 +336,10 @@ answers every open question.** It passes when all four hold:
    - the agent's part of the launch test passes against that merge, here,
      from source.
 4. **The count:**
-   - **Fewer than 100 open issues at the close-out.** The merge leaves 98.
-     The lanes close 50 by keyword. The closing acts can then file 50
-     before the criterion fails, against Sprint 19's 62 across three PRs.
+   - **Fewer than 100 open issues at the close-out.** The merge leaves 104:
+     33 closed by hand and #973 by keyword, six filed. The lanes close 50
+     by keyword. The closing acts can then file 45 before the criterion
+     fails, against Sprint 19's 62 across three PRs.
    - **Every `needs-decision` issue open at this planning has an answer**,
      which D-4 gives at the merge.
    - **Scope Lock still binds.** A finding is filed, never withheld to make
@@ -714,8 +720,8 @@ applies from its first step, and the closing acts are not what is cut.
 ## Sequencing
 
 ```text
-after the merge ── Lane Z: 33 closed by hand; 18 relabelled; one deferral
-                   filed under #416; every open orphan gets its area parent
+after the merge ── Lane Z: 33 closed by hand; 18 relabelled; six filed;
+                   every open orphan gets its area parent
 PR α opens ─────▶ Lane M: BMAD 6.12.1
                    ─▶ A1 #1098 #1118 (K10 digests ▶ red K9/K12 ▶ reading ▶
                       price ▶ keys ▶ refusal) ─▶ A2 the correction
@@ -796,7 +802,8 @@ The close-out ends with **launch readiness, version 3**, in the shape of
 3. **The four exit criteria of D-1 are recorded**, each pass or fail with
    its step.
 4. **The decision pass is carried out:** 33 closed by hand at the merge, 18
-   relabelled, and every closure's reason and reopen trigger in its issue.
+   relabelled, six filed, and every closure's reason and reopen trigger in
+   its issue.
 5. **#1143 closes, so #945 holds in both directions.** #1052's miss stays
    recorded with Sprint 19's reason.
 6. **Each merge that touched shipped code produced a calendar release**, and
