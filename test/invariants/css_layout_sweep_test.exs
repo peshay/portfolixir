@@ -202,8 +202,54 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     # board pick A): the contribution table under the Wealth performance
     # chart is the fifth; #1012 (pick H7.1 = A, board
     # ux-design-2026-10-02/07-phone-390 rule ①): a security's quotes the sixth.
+    # #1065 (pick J6 A, board ux-design-2026-10-04/06-phone-wealth rule ①):
+    # Wealth's Positions table the seventh.
     assert phone_block() =~
-             ~r/#securities-table,\s*#transaction-table-wrapper,\s*#realized-trades-table-wrapper,\s*#detail-closed-trades-table-wrap,\s*#contribution-table-wrap,\s*#quotes-table-wrapper \{\s*display: none;/
+             ~r/#securities-table,\s*#transaction-table-wrapper,\s*#realized-trades-table-wrapper,\s*#detail-closed-trades-table-wrap,\s*#contribution-table-wrap,\s*#quotes-table-wrapper,\s*#holdings-positions-wrapper \{\s*display: none;/
+  end
+
+  # User story (#1065; board ux-design-2026-10-04/06-phone-wealth, pick J6
+  # A, rule ①; EXPERIENCE.md → UX-DR27, which names holdings):
+  # As the operator reading my positions on a 390 px phone,
+  # I want the Positions as two-line rows and no column toggle,
+  # so that the quantity is on the screen and no control offers columns the
+  # rows do not have.
+  #
+  # Acceptance criteria:
+  # - The holdings phone row is the trades row's shape, two children: two
+  #   tracks, `minmax(0, 1fr) auto`.
+  # - Under 560 px the holdings column toggle joins the pickers that hide.
+  test "the holdings phone row has two tracks and its column toggle hides on the phone" do
+    assert block("#holdings-phone-rows .phone-row") =~
+             ~r/grid-template-columns:\s*minmax\(0, 1fr\) auto;/
+
+    assert phone_block() =~
+             ~r/#toggle-column-popover,\s*\.column-picker-bar,\s*#holdings-column-toggle \{\s*display: none;/
+  end
+
+  # User story (#1057; board ux-design-2026-10-04/06-phone-wealth, pick J6.2
+  # A, rule ②):
+  # As the operator reading two securities of one name,
+  # I want the identifier that tells them apart in the securities list's
+  # identifier voice, quieter than the name,
+  # so that it reads as a tag on the name and not as a second name.
+  #
+  # Acceptance criteria:
+  # - `.twin-id` is about 6 px after the name, as the board draws it: the
+  #   real word space before it and a 2 px margin (amended 2026-10-07, the
+  #   PR γ closing act: a 6 px margin on top of the space measured 9.8 px on
+  #   the desktop and 10.9 px on the phone, and an identifier wrapped alone
+  #   hung 6 px in).
+  # - It is muted, `--font-mono`, 12 px, weight 400, and never breaks inside
+  #   itself.
+  test "the twin identifier is muted mono after the name and never breaks" do
+    twin = block(".twin-id")
+    assert twin =~ ~r/margin-left:\s*2px;/
+    assert twin =~ ~r/color:\s*var\(--color-text-muted\);/
+    assert twin =~ ~r/font-family:\s*var\(--font-mono\);/
+    assert twin =~ ~r/font-size:\s*12px;/
+    assert twin =~ ~r/font-weight:\s*400;/
+    assert twin =~ ~r/white-space:\s*nowrap;/
   end
 
   # User story (#1050; board ux-design-2026-10-02/03-bond-master-data, rule

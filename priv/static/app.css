@@ -8309,7 +8309,8 @@ dialog.filter-sheet::backdrop {
   #realized-trades-table-wrapper,
   #detail-closed-trades-table-wrap,
   #contribution-table-wrap,
-  #quotes-table-wrapper {
+  #quotes-table-wrapper,
+  #holdings-positions-wrapper {
     display: none;
   }
 
@@ -8334,9 +8335,11 @@ dialog.filter-sheet::backdrop {
   }
 
   /* The column pickers configure tables that are not on the phone: the rows
-     are a fixed composition (UX-DR27), so the controls would do nothing. */
+     are a fixed composition (UX-DR27), so the controls would do nothing.
+     Wealth's Positions toggle joins them with its rows (issue 1065). */
   #toggle-column-popover,
-  .column-picker-bar {
+  .column-picker-bar,
+  #holdings-column-toggle {
     display: none;
   }
 
@@ -10383,6 +10386,35 @@ dialog.merge-dialog {
    lists' 560 px block hides the table's wrapper. */
 #quote-phone-rows .phone-row {
   grid-template-columns: minmax(0, 1fr) auto;
+}
+
+/* ===== Wealth at 390 px and the twin names (Sprint 19 U4; board
+   ux-design-2026-10-04/06-phone-wealth, picks J6 A and J6.2 A) ===== */
+/* Rule ①, issue 1065: under 560 px the Positions table gives way to
+   two-line rows (UX-DR27) — the name over the depot, the quantity on the
+   right. Two children, no logo, no kebab: the trades row's two tracks. The
+   phone lists' 560 px block hides the table's wrapper and its column
+   toggle. */
+#holdings-phone-rows .phone-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+/* Rule ②, issue 1057: where two rows of one table would read the same, each
+   carries a short identifier after the name — the ISIN, else the WKN, else
+   "Nr. <id>" — in muted mono, the identifier voice of the securities list's
+   row. Only on a collision; a unique name stays bare. A visually hidden
+   "ISIN"/"WKN" before it tells a screen reader which
+   (`PortfolixirWeb.SecurityNames.twin_id/1`). The real word space before it
+   and 2 px make the board's 6 px gap; an identifier wrapped onto a line of
+   its own hangs 2 px in (the PR γ closing act: 6 px of margin on top of the
+   space measured 9.8 px on the desktop, 10.9 px on the phone). */
+.twin-id {
+  margin-left: 2px;
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
 }
 
 /* ===== The category result in EUR (issue 1048, Sprint 19 pick J10.2 A;

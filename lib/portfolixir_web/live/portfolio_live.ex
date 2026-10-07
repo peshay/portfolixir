@@ -40,6 +40,8 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.Portfolio.ContributionTable
+  alias PortfolixirWeb.SecurityNames
+  alias PortfolixirWeb.TransactionManagementLive
   alias PortfolixirWeb.ValuationNotes
   import PortfolixirWeb.ViewSwitcher
 
@@ -2468,9 +2470,16 @@ defmodule PortfolixirWeb.PortfolioLive do
                   </tr>
                 </thead>
                 <tbody>
-                  <tr :for={row <- @holding_rows} data-role="holdings-position">
+                  <tr
+                    :for={row <- @holding_rows}
+                    data-role="holdings-position"
+                    data-security-id={row.security_id}
+                  >
                     <td :for={key <- @holdings_columns} {holdings_num_attrs(key)}>
-                      <%= holdings_cell(row, key) %><small
+                      <%= holdings_cell(row, key) %><SecurityNames.twin_id
+                        :if={key == "security"}
+                        tag={row.twin_id}
+                      /><small
                         :if={holdings_currency(row, key)}
                         class="value-suffix"
                       ><%= row.currency_code %></small>
@@ -2479,6 +2488,27 @@ defmodule PortfolixirWeb.PortfolioLive do
                 </tbody>
               </table>
             </div>
+            <%!-- #1065 (board 06, pick J6 A; UX-DR27): under 560 px the
+                 table gives way to two-line rows, shown by the phone lists'
+                 block: the name over the depot, the quantity on the right —
+                 the projection's default columns, a fixed composition the
+                 picker does not touch. --%>
+            <ul id="holdings-phone-rows" class="phone-rows" aria-label={gettext("Positions")}>
+              <li
+                :for={row <- @holding_rows}
+                class="phone-row"
+                data-role="holdings-position"
+                data-security-id={row.security_id}
+              >
+                <span class="phone-row__body">
+                  <span class="phone-row__name"><%= row.security_name %><SecurityNames.twin_id tag={row.twin_id} /></span>
+                  <span class="phone-row__ids"><%= row.securities_account_name %></span>
+                </span>
+                <span class="phone-row__figures">
+                  <span class="phone-row__figure"><%= holdings_units(row.quantity) %></span>
+                </span>
+              </li>
+            </ul>
           <% end %>
         </section>
         <% end %>
@@ -2571,6 +2601,9 @@ defmodule PortfolixirWeb.PortfolioLive do
       )
     end)
     |> Enum.sort_by(&{&1.securities_account_name, &1.security_name})
+    # #1057 (pick J6.2 A): a name collides over the whole table — depot names
+    # may read alike, the Depot column may be off; one security never does.
+    |> SecurityNames.put_twin_ids(& &1.security_name)
   end
 
   defp holdings_num_attrs(key)
@@ -2613,6 +2646,19 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp holdings_decimal(%Decimal{} = value), do: PortfolixirWeb.Format.exact(value)
 
   defp holdings_decimal(value), do: to_string(value)
+
+  # The phone row's quantity (#1065): the table's own digits, with the
+  # history's unit words — one unit is a unit, any other quantity units.
+  defp holdings_units(%Decimal{} = quantity) do
+    ngettext(
+      "%{quantity} unit",
+      "%{quantity} units",
+      TransactionManagementLive.plural_count(quantity),
+      quantity: holdings_decimal(quantity)
+    )
+  end
+
+  defp holdings_units(quantity), do: holdings_decimal(quantity)
 
   # The money columns carry the row's own currency, because `currency` is an
   # opt-in column and a bare market value with no currency states less than
