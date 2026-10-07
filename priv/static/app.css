@@ -5369,8 +5369,7 @@ thead .col-subject {
   font-size: 12px;
   color: var(--color-text-muted);
 }
-.transaction-summary .currency-total,
-.tx-group-subtotal .currency-total {
+.transaction-summary .currency-total {
   white-space: nowrap;
 }
 /* Month section headers in the grouped transaction list (issue 414 follow-up). */
@@ -5389,6 +5388,34 @@ thead .col-subject {
   color: var(--color-text-muted);
   font-size: 11px;
   font-weight: 500;
+}
+
+/* The history is a reading table, not a matrix (Sprint 19 U1's review,
+   issue 1084): beside the default Konto column the scroller's `min-width:
+   max-content` kept every name on one line, and the table ran past its
+   wrapper at 1200 px — 1092 px of table in a 922 px scroller on the demo
+   seed, Preis and Betrag out of view with no cue. The Risk tables' fit
+   pattern (`.risk-fit-table`), at every width: the table fits its wrapper,
+   the security and account names wrap between words — hyphenated where the
+   page language's dictionary allows, never `anywhere`, the contribution
+   table's name rule (R4) — the date and the kind stay on one line, and the
+   figures never wrap (`td.num` above). UX-DR15's scroller stays the
+   fallback for a word wider than its column. */
+.data-table-wrapper > #transaction-list {
+  min-width: 0;
+  width: 100%;
+}
+
+#transaction-list .cell-date,
+#transaction-list .cell-kind {
+  white-space: nowrap;
+}
+
+#transaction-list .cell-name {
+  min-width: 12ch;
+  overflow-wrap: break-word;
+  -webkit-hyphens: auto;
+  hyphens: auto;
 }
 
 .tx-group-head th {
@@ -8079,6 +8106,12 @@ select:disabled {
   overflow-wrap: anywhere;
 }
 
+/* A stored name with no break opportunity wraps inside the row instead of
+   running over the figures and off the phone (issue 1073; board
+   ux-design-2026-10-04/03-history, rule ①). The text is the flex
+   container's anonymous item: breaking anywhere shrinks its min-content
+   width to a glyph, so it can shrink and break — the delete dialog's R8
+   fix, on the class instead of one box. */
 .phone-row__ids {
   display: flex;
   flex-wrap: wrap;
@@ -8086,6 +8119,7 @@ select:disabled {
   gap: 0 4px;
   color: var(--color-text-muted);
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 
 .phone-row__ids .badge {

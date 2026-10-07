@@ -1360,6 +1360,107 @@ components invented for it:
 - **no view switcher** (see EXPERIENCE.md for why); the depot select is the
   control that determines where a booking lands, and it is labelled as such.
 
+**The history's heads, columns and figures** *(2026-10-07, issues 1083, 1084,
+1073 and 1090's history item, Sprint 19 PR γ U1; board
+`mockups/ux-design-2026-10-04/03-history`, picks J3 A and J3.2 A; plan D-4)*:
+
+- **The subtitle names the scope** (EXPERIENCE.md: a surface states its scope
+  in its subtitle or basis line): "Alle Buchungen über alle Konten und
+  Depots" (English "Every booking across accounts and depots"). "Manuelles
+  Kauf- und Verkaufsjournal" stood over a history of every kind. Under 560 px
+  the subtitle is hidden, as every page's is.
+- **A month head carries the count alone**: the month, then "6
+  Transaktionen" (`.tx-group-month`, `.tx-group-subtotal`), in the table's
+  `tr.tx-group-head` and the phone list's `li.phone-rows__group` alike. It
+  used to add every row's gross amount per currency, unsigned and whatever
+  its kind — buys the rows show as "-", deposits, sales and a "Saldo
+  gesetzt" level — into a figure that was neither a cash flow nor a turnover.
+  The sums per kind and currency are the filter summary's, directly above,
+  under its basis line; a signed net head (J3 B) waits for correct row signs
+  and sign colour on every row (`:518`, `:706`), and turnover by kind (J3 C)
+  would repeat the summary without its basis. H2's "the month subtotal
+  follows" a deleted row stays true: the count follows.
+- **The default columns are Datum · Typ · Wertpapier · Konto · Stückzahl ·
+  Preis · Betrag.** "Konto" (msgid "Account", the chip family's word) is the
+  `account` key, in the picker's "Buchung" group; like every picker column it
+  is the human half of API fields (issue 732): `cash_account_id`, a
+  transfer's `counter_cash_account_id`, else `securities_account_id` and a
+  security transfer's `counter_securities_account_id`. The cell names the
+  cash account the Betrag moved through — the Betrag is that account's
+  view; a cash transfer reads "Demo Cash → Tagesgeld", sender first; a
+  security transfer names both of its depots the same way, "Depot 1 →
+  Depot 2", as the delete dialog's box does; a booking with no cash account
+  (a delivery) names its depot; a split names none and the cell stays
+  empty, as Wertpapier does for a booking with no security. A receiving
+  account or depot the page's lists do not carry is left out, never named
+  by id. Plain text like Wertpapier, each stored name in its own `<bdi>`
+  (H8.8), the " → " outside them. A reader with a stored column choice
+  (ColumnPrefs) keeps it — a choice without `account` renders without
+  Konto — and finds "Konto" unticked in the picker. The phone row stays the
+  table condensed (UX-DR27), its subject the security, else the Konto
+  cell's names: the cash account, a cash transfer's both ("Demo Cash →
+  Tagesgeld", each in its own `<bdi>`, the line one inline span), else the
+  depot — so a transfer that reads as arriving in the receiver's view still
+  names where the money came from (the story's review). One deliberate
+  difference: the delete dialog's box names a buy's depot (R10f, the
+  account its sentence names); the column names the account the money
+  moved through.
+- **The table fits its wrapper** (the story's review): a reading table, not
+  a matrix — the Risk tables' fit pattern (`.risk-fit-table`) at every
+  width. `.data-table-wrapper > #transaction-list { min-width: 0; width:
+  100% }` opts out of the scroller's `min-width: max-content`; the
+  Wertpapier and Konto cells (`.cell-name`) wrap between words, at least
+  12ch wide, `overflow-wrap: break-word` with `hyphens: auto` — the
+  contribution table's name rule (R4), never `anywhere`; the date
+  (`.cell-date`) and the kind (`.cell-kind`) stay on one line; the figures
+  keep `.num`'s `nowrap` and alignment. Before it, the default Konto column
+  took the table past its wrapper at 1200 px (1092 px of table in a 922 px
+  scroller on the demo seed; 1223 px with a 60-character name and a
+  transfer), Preis and Betrag out of view with no cue; after it, 922/922
+  with every column in view. UX-DR15's scroller stays the fallback where
+  the eight columns' floor is wider than the wrapper (about 780 px: 1024 px
+  with the sidebar open, 768 px).
+- **A transfer's sign is the account in view's.** With the account chips
+  selecting a transfer's receiving account and not its sender, the row reads
+  the money arriving ("200,00", as the running balance beside it rises by
+  200), on the phone row and in the delete dialog's box too; otherwise it
+  reads from the sender ("-200,00"), the account the Konto cell names first.
+  Positive amounts still carry no "+" and history rows no sign colour; that
+  gap against the Accessibility Floor is its own story.
+- **The price keeps its stored digits**: the Price column and the phone
+  row's size ("12 × 41,1234") print a price as the notes drawer prints a
+  stored figure (R10c) — every stored digit, trailing zeros trimmed, at
+  least two places: 41,1234 and 93,1046 as stored, 24 as 24,00. They used to
+  round to two places; the delete dialog's box reads the same size.
+  *Amended 2026-10-07 (the PR γ closing act, edge-case hunter #2):* every
+  stored digit **up to four decimal places**. The PP JSON importer derives a
+  price as amount ÷ shares at the column's scale 6, so 1.234,56 EUR for 17
+  shares was stored as 72,621176 and printed six digits of rounding residue
+  beside the "72,62" of the security's Transaktionen tab. It now reads
+  72,6212 in the history, the phone row ("17 × 72,6212") and the delete
+  dialog's box, and the Transaktionen tab's Preis column follows the same
+  rule, so one booking reads the same on both surfaces. 41,1234, 93,1046 and
+  24,00 are unchanged. *Amended again 2026-10-07 (the closing act's cascade,
+  layer 2):* the four-place cap printed a price under 0,00005 as zero — a
+  stored 0,000045 read "0,0000", in the history, the phone row
+  ("1.000.000 × 0,0000") and on the Transaktionen tab — and cut any price
+  under 1 to fewer digits than it carries (0,001234 read "0,0012"). **A
+  price under 1 keeps at least three significant digits:** its stored
+  digits up to two places past its first non-zero one, and never fewer than
+  four places, so 0,000045 reads 0,000045 and 0,001234 reads 0,00123. A
+  price of 1 or more keeps the four-place cap. No non-zero price prints as
+  zero.
+- **`.phone-row__ids` breaks anywhere** (`overflow-wrap: anywhere`): a stored
+  name with no break opportunity wraps inside its phone row instead of
+  running over the figures and off a 390 px screen. Its text is the flex
+  container's anonymous item, whose min-content width then shrinks to a
+  glyph — the delete dialog's R8 fix, on the class. The rule is on the
+  class, so it holds for **every phone list** that carries the line, not
+  only Transactions: the securities list, a security's Trades and Quotes
+  tabs, Realized trades on Income, the contribution rows, the merge records
+  on Accounts & depots, and the delete dialog's box (which keeps its own
+  rule on its one inner span as well).
+
 ## Amendment 2026-08-22 — the computing cue marks the seconds class (#723)
 
 The #711 activation measurement (recorded in ADR-0039's 2026-08-18 amendment)
@@ -1716,13 +1817,19 @@ composition per surface that the column picker does not touch.
   price instead of a change computed from a stale close, "no price" over
   "—" where nothing prices the row; the kebab at the row's end. Selection
   paints {colors.selected}; a retired row dims like the table row.
-- **Transactions:** the month group heads stay (bg-muted band, the count
-  and the per-currency totals); each row is the date · kind label over the
-  subject (security, else cash account, else depot), the signed amount with
-  its currency over the size — quantity × price, the quantity alone, a
-  split's ratio — and the running balance beneath while the chips narrow to
-  one account; the row's kebab at its end, in a third track (Sprint 18 U5,
-  H7.6).
+- **Transactions:** the month group heads stay (bg-muted band, the
+  count ~~and the per-currency totals~~); each row is the date · kind label
+  over the subject (security, else cash account, else depot), the signed
+  amount with its currency over the size — quantity × price, the quantity
+  alone, a split's ratio — and the running balance beneath while the chips
+  narrow to one account; the row's kebab at its end, in a third track
+  (Sprint 18 U5, H7.6). *Amended 2026-10-07 (issues 1083 and 1073, pick J3
+  A):* the head carries the count alone, one line at 390 px — the sums per
+  kind and currency are the filter summary's, under its basis line; the
+  size prints the price with its stored digits ("12 × 41,1234"); a cash
+  transfer's subject names both of its accounts, "Demo Cash → Tagesgeld",
+  as the desktop Konto cell does; the subject line breaks anywhere, as it
+  does in every phone list (Transactions — the target vocabulary).
 - **A security's quotes** *(Sprint 18 U5, issue 1012, pick H7.1 = A)*: the
   date (ISO) over the source badge; on the right the close with the
   security's currency, over "stored <value>" only where a split adjusted the
@@ -4228,7 +4335,8 @@ admin tool).
   `layout_view.ex` note says so.
 - **After (A5)**: the page's own `.alert-success` slot, "Transaktion
   gelöscht: Kauf · Global Aktien ETF · 22.09.2026."; the row is gone and the
-  month subtotal follows. **Gone meanwhile (A6)**: `.alert-error` "Diese
+  month subtotal follows (since 2026-10-07 the head's count, issue 1083).
+  **Gone meanwhile (A6)**: `.alert-error` "Diese
   Transaktion existiert nicht mehr.", the history reloaded — the one refusal
   the API states. The dialog warns about nothing the API does not check (no
   dependency check: a later sale may lose its purchase).
@@ -4323,7 +4431,14 @@ admin tool).
   `#booking-facts`, `#booking-edit-help`, the fields `note[…]`. A figure
   reads with the digits it was stored with, trailing zeros trimmed and at
   least two places — a price of 41,1234 stays 41,1234, an amount of 1500
-  reads 1.500,00 (R10c; it was rounded to two before).
+  reads 1.500,00 (R10c; it was rounded to two before). *Amended 2026-10-07
+  (the Sprint 19 PR γ closing act):* every stored digit up to four decimal
+  places, so a price the PP JSON importer derived at scale 6 (72,621176)
+  reads 72,6212 — the history's Price column, which shares the rule, says
+  why (Transactions — the target vocabulary). *Amended again the same day
+  (the closing act's cascade, layer 2):* a figure under 1 keeps at least
+  three significant digits (0,000045 stays 0,000045, 0,001234 reads
+  0,00123), so no non-zero figure reads as zero.
 - **The help line** states the limit and both correction paths where the
   correction is tried (UX-DR26): "Datum, Beträge und Konten dieser Buchung
   stehen hier fest; die Oberfläche bucht nur Käufe und Verkäufe. Korrigiert

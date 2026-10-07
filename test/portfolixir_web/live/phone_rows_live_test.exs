@@ -155,8 +155,8 @@ defmodule PortfolixirWeb.PhoneRowsLiveTest do
              "February 2026"
            ]
 
-    assert text(hd(groups)) =~ "1 transaction"
-    assert text(hd(groups)) =~ "12.50 EUR"
+    # The head counts and sums nothing (#1083, pick J3 A).
+    assert text(hd(groups)) == "September 2026 1 transaction"
 
     rows = Floki.find(doc, ~s(#transaction-phone-rows li[data-role="phone-row"]))
     assert length(rows) == 3

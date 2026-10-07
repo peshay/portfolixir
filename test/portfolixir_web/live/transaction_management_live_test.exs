@@ -341,13 +341,16 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     assert html =~ "ist ungültig"
   end
 
-  # User story (fix round, UAT locale):
+  # User story (fix round, UAT locale; amended by #1083, pick J3 A):
   # As a German-speaking maintainer,
-  # I want the history's month-group headers in German with money-formatted
-  # sums,
+  # I want the history's month-group headers in German, and the sums above
+  # them money-formatted,
   # so that the localized page never mixes English month names or raw
   # decimals into the section heads (same precedent as the income matrix).
-  test "localizes the month-group headers and money-formats the group sums", %{conn: conn} do
+  #
+  # Since #1083 a head carries its count alone; the sums are the summary's.
+  test "localizes the month-group headers and money-formats the summary's sums",
+       %{conn: conn} do
     world = WorldFixtures.base_world(name: "Monat")
     security = WorldFixtures.create_security!(name: "Monat Co", ticker: "MON")
     WorldFixtures.deposit!(world, "1000", ~D[2026-03-01])
@@ -357,9 +360,14 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
 
     header = view |> element("tr.tx-group-head[data-month-group='2026-03']") |> render()
     assert header =~ "März 2026"
+    assert header =~ "2 Transaktionen"
     refute header =~ "March"
-    # Money-formatted subtotal in the German locale (1000 + 100 = 1.100,00).
-    assert header =~ "1.100,00"
+    refute header =~ "EUR"
+
+    # Money-formatted sums in the German locale, per kind, in the summary.
+    summary = view |> element("#transaction-summary") |> render()
+    assert summary =~ "1.000,00"
+    assert summary =~ "100,00"
   end
 
   # User story (fix round, UAT locale):
@@ -696,9 +704,10 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
     #
     # Acceptance criteria:
     # - Transactions are grouped into month sections (most recent first), each
-    #   with a header row carrying the month and a count + amount subtotal.
+    #   with a header row carrying the month and its count (since #1083, pick
+    #   J3 A, the count alone: the amounts are the summary's).
     # - Sections honour the active filter.
-    test "sections the history by month with per-month subtotals", %{conn: conn} do
+    test "sections the history by month with per-month counts", %{conn: conn} do
       overview_world()
 
       {:ok, view, _html} = live(conn, "/transactions")
@@ -708,9 +717,9 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
       assert has_element?(view, "#transaction-list tr.tx-group-head[data-month-group='2026-02']")
       assert has_element?(view, "#transaction-list tr.tx-group-head[data-month-group='2026-01']")
 
-      # Each month's header subtotals its single transaction.
+      # Each month's header counts its single transaction.
       jan = view |> element("tr.tx-group-head[data-month-group='2026-01']") |> render()
-      assert jan =~ "1"
+      assert jan =~ "1 transaction"
 
       # Filtering to sells leaves only the March section.
       view
@@ -918,10 +927,11 @@ defmodule PortfolixirWeb.TransactionManagementLiveTest do
       assert summary =~ "USD"
       refute summary =~ "1,700.00"
 
-      # The month subtotal splits the same way.
+      # The month head adds nothing across currencies, nor across kinds: it
+      # carries its count alone (#1083, pick J3 A).
       april = view |> element("tr.tx-group-head[data-month-group='2026-04']") |> render()
-      assert april =~ "1,000.00"
-      assert april =~ "700.00"
+      assert april =~ "2 transactions"
+      refute april =~ "1,000.00"
       refute april =~ "1,700.00"
     end
 

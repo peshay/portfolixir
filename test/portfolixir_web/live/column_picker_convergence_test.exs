@@ -91,7 +91,7 @@ defmodule PortfolixirWeb.ColumnPickerConvergenceTest do
   test "the grouping offers every column the table can show, once", %{conn: conn} do
     for {path, toggle, id, keys} <- [
           {"/transactions", "#tx-column-toggle", "tx-column-picker",
-           ~w(date type security quantity price gross_amount fees taxes currency notes)},
+           ~w(date type security account quantity price gross_amount fees taxes currency notes)},
           {"/portfolio", "#holdings-column-toggle", "holdings-column-picker",
            ~w(depot security quantity isin wkn currency avg_cost latest_price market_value
               unrealized_pnl_abs unrealized_pnl_pct)}

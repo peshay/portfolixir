@@ -943,7 +943,7 @@ unchanged."; a balance set on the booking's own day means the account's
 balance stays as set. A security whose name another security also carries
 is named with its ISIN, as the row's menu names it. **Delete transaction**
 deletes it; **Cancel**, Esc or the close button change nothing and return
-the focus to the row's menu button. The row disappears, the month subtotal
+the focus to the row's menu button. The row disappears, the month's count
 follows, and the result reads "Transaction deleted: Buy · Global Equity
 ETF · 2026-09-22."; a booking deleted meanwhile (by the agent, or in
 another tab) reads "That transaction no longer exists." — the one refusal
@@ -994,7 +994,8 @@ shortfall.
 
 ### Reading the History
 
-The transaction history is filtered with **chips** above the table: one per
+The history holds every booking across accounts and depots, of every kind,
+as the page's subtitle says. It is filtered with **chips** above the table: one per
 cash account, and one per transaction kind actually present. Chips are
 toggles. Two chips of the same family mean "either of these" — two accounts
 show both accounts' bookings; a chip from each family narrows to their
@@ -1015,10 +1016,21 @@ properties of that column are worth knowing:
 A row that does not move the selected account — a delivery, a split — shows a
 dash rather than repeating the previous row's figure.
 
-The rows are sectioned by month, and both the month subtotals and the summary
-above the table state **one total per currency**. Amounts are the gross booked
-amounts and are never converted or added across currencies; converting them
-would make them a different figure needing its own rate basis.
+Each row's **Amount** is the booking's money as its cash account sees it:
+what leaves the account is negative, what arrives positive, and a set
+balance shows the level it set. A **cash transfer** moves two accounts, so
+its sign is the one in view's: while the chips select its receiving account
+and not its sender it reads as money arriving ("200.00", as the Balance
+beside it rises by 200); otherwise it reads from the sender ("-200.00").
+
+The summary above the table states the counts and the gross booked amounts
+per kind, with **one total per currency**. Amounts are never converted or
+added across currencies; converting them would make them a different figure
+needing its own rate basis. The rows are sectioned by month, and each month
+head carries the month and its **count** alone — *September 2026*, *6
+transactions* (issue #1083): a sum across buys, deposits, sales and a set
+balance would be neither a cash flow nor a turnover, so the sums stay in the
+summary, where its basis line says what they add.
 
 Beside the account and type chips sit the **Changed since** chips (*Today /
 7 days / 30 days*, issue #731): they narrow the history to transactions
@@ -1032,11 +1044,29 @@ garbled value degrades to the full history. The Balance column is unaffected
 by this filter, like by every other: it is always computed over the account's
 whole history.
 
+The default columns are **Date, Type, Security, Account, Quantity, Price and
+Amount**. **Account** (issue #1084) names the cash account the amount moved
+through — the account whose view the amount is, by the same name its chip
+carries; a cash transfer names both, sender first ("Checking → Savings"),
+and a security transfer names both of its depots the same way ("Depot 1 →
+Depot 2"); a booking with no cash account, such as a delivery, names its
+depot; a split names none. **Price** shows a price with the digits it was
+stored with, up to four decimal places: 41.1234 stays 41.1234, 24 reads
+24.00, and a price an import derived as amount ÷ shares, stored as
+72.621176, reads 72.6212 — as it does on the security's **Transactions**
+tab (issue #1073). A price under 1 keeps at least three significant
+digits, so it never reads as zero: 0.000045 stays 0.000045, and 0.001234
+reads 0.00123. The security and account names wrap between words
+rather than widening the table, so at a desktop width the whole row stays
+in view, the price and the amount included; the dates and the figures never
+wrap.
+
 **Columns** (issue #732) opens the history's column picker — the human half
-of the API's `fields=` sparse fieldset. Beyond the default set (date, type,
-security, quantity, price, currency) it offers the fields every booking
-already carries but the table never showed: gross amount, fees, taxes and
-notes. The choice is stored in the browser and survives a reload. The
+of the API's `fields=` sparse fieldset. Beyond the default set it offers the
+fields every booking already carries but the table never showed: currency,
+fees, taxes and notes. A column choice made before Account existed is kept;
+Account is then one tick away in the picker's *Booking* group. The choice is
+stored in the browser and survives a reload. The
 Balance column is deliberately not in the picker: it stays governed by its
 own rule — it appears exactly when the chips narrow to one account — because
 a picker that could summon it outside that narrowing would show a
@@ -1046,11 +1076,13 @@ with the holdings, to **Wealth → Holdings → Positions** (issue #814).
 
 **On the phone** (issue #799, UX-DR27): under 560 px the history gives way
 to two-line rows under the same month heads — the date and the kind over the
-security or account the booking touched, the signed amount with its
-currency over the size (quantity × price, the quantity alone, a split's
-ratio) on the right, the running balance beneath it while the chips narrow
-to one account — so nothing scrolls sideways; the column picker keeps its
-meaning above 560 px.
+security or account the booking touched (both accounts of a cash transfer,
+sender first, as the Account column names them), the signed amount with its
+currency over the size (quantity × price, the price with its stored digits;
+the quantity alone; a split's ratio) on the right, the running balance
+beneath it while the chips narrow to one account — so nothing scrolls
+sideways, and a long name with no space wraps inside its row (issue #1073);
+the column picker keeps its meaning above 560 px.
 
 ### Holdings Calculation
 
