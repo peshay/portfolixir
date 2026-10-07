@@ -205,9 +205,10 @@ story_location: _bmad-output/implementation-artifacts
 #
 # TWO-WAY COVERAGE:
 # - Due by the end of Sprint 19:
-#   - #1091 landed both ways: the read in beta (GET /api/v1/category-results
-#     and the view form), the screen in gamma (U7), with a test that holds
-#     the screen against the read for the same scope.
+#   - #1091 landed both ways: the read in beta (the all-portfolios roll-up,
+#     GET /api/v1/category-results, and excluded_members on every form), the
+#     screen in gamma (U7), with a test that holds the screen against the
+#     read for the same scope.
 #   - #1052 MISSED ON PURPOSE (D-6). The API corrects a dividend's, a
 #     deposit's or a fee's facts in place; the screen can only delete such
 #     a booking. The work comes back as the first design pass after the
