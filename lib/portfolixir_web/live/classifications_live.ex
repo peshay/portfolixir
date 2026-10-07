@@ -43,7 +43,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
      |> assign(:soll, nil)
      |> assign(:planned_view_ids, [])
      |> assign(:view_gone_notice, false)
-     |> assign(:view_matches_nothing, false)}
+     |> assign(:view_matches_nothing, false)
+     |> assign(:soll_refused, nil)}
   end
 
   # The per-security holdings/valuation is loaded asynchronously, after the
@@ -260,15 +261,21 @@ defmodule PortfolixirWeb.ClassificationsLive do
         class="workspace-page classifications-detail"
         {workspace_attrs(@tree)}
       >
-        <%= if @error do %>
-          <p class="alert-error" role="alert"><PolicyRuleReferences.message message={@error} /></p>
-        <% end %>
-        <%= if @success do %>
-          <p class="alert-success" role="status"><%= @success %></p>
-        <% end %>
+        <%!-- #1064 (pick J7 = A, board 07): the page's result is an inline
+             result — a success a note, a refusal a problem, each with its
+             word and glyph; a refusal naming rules keeps its links.
+             Focusable (#945, the closing act of PR γ): a plan write's
+             refusal is brought into view and focused, because "Save plan"
+             sits far below it (`answer_plan_write/1`); a success is not. --%>
+        <AppShell.inline_result
+          id="classifications-result"
+          class="inline-result--page"
+          result={page_result(@error, @success)}
+          focusable
+        />
 
         <header class="detail-head">
-          <h2>
+          <h2 id="classification-heading" tabindex="-1">
             <%= ClassificationName.display(@tree.classification) %>
             <%= if @tree.classification.built_in do %>
               <span class="badge"><%= gettext("Built-in") %></span>
@@ -322,6 +329,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
             scope_name={view_name(@active_view)}
             flat={@tree.flat}
             assigned={@tree.assigned_counts}
+            refused={@soll_refused}
           />
         <% end %>
 
@@ -532,9 +540,11 @@ defmodule PortfolixirWeb.ClassificationsLive do
     ~H"""
     <AppShell.shell current_path={@current_path} page_title={gettext("New classification")}>
       <div class="workspace-page">
-        <%= if @error do %>
-          <p class="alert-error" role="alert"><PolicyRuleReferences.message message={@error} /></p>
-        <% end %>
+        <AppShell.inline_result
+          id="classifications-result"
+          class="inline-result--page"
+          result={page_result(@error, nil)}
+        />
         <section class="workspace-section">
           <h2><%= gettext("Create classification") %></h2>
           <form id="classification-form" phx-submit="create_classification" class="inline-form">
@@ -1161,11 +1171,16 @@ defmodule PortfolixirWeb.ClassificationsLive do
   attr(:flat, :list, required: true)
   attr(:assigned, :map, required: true)
 
+  # The id of the input the last save's refusal names (#945; the closing act
+  # of PR γ), or nil: that input is marked invalid and described by the
+  # page's problem note.
+  attr(:refused, :string, default: nil)
+
   defp soll_editor(assigns) do
     ~H"""
     <section id="soll-editor" class="workspace-section soll-editor">
       <header class="soll-editor__head">
-        <h2><%= gettext("Target plan") %></h2>
+        <h2 id="soll-editor-heading" tabindex="-1"><%= gettext("Target plan") %></h2>
         <span class="soll-editor__scope" data-role="soll-editor-scope">
           <%= StoredText.isolate(gettext("for view %{name}", name: StoredText.slot(:name)),
             name: @scope_name
@@ -1311,6 +1326,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
                             value={Map.get(@soll.weights, category.id, "")}
                             step="any"
                             inputmode="decimal"
+                            {refused_attrs(@refused, "soll-weight-#{category.id}")}
                           />
                         <% sum -> %>
                           <%!-- ADR-0030 §2: once a position carries a target
@@ -1344,6 +1360,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
                         value={@soll.position_weights |> Map.get(category.id, %{}) |> Map.get(member.id, "")}
                         step="any"
                         inputmode="decimal"
+                        {refused_attrs(@refused, "soll-position-#{category.id}-#{member.id}")}
                       />
                     </td>
                   </tr>
@@ -1360,7 +1377,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
                       step="any"
                       inputmode="decimal"
                       disabled={@soll.editing_version?}
-                      aria-describedby={@soll.editing_version? && "soll-cash-lock-hint"}
+                      aria-invalid={@refused == "soll-cash-target" && "true"}
+                      aria-describedby={cash_describedby(@soll, @refused)}
                     />
                     <span
                       :if={@soll.editing_version?}
@@ -1450,6 +1468,23 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   @impl true
+  # The result's dismiss (#1064): the slot empties until the next action.
+  # The focus may have sat on the slot (a refusal takes it), so it goes back
+  # where the operator was editing: the input the refusal named, else the
+  # plan editor's heading, else the tree's own (cascade layer 2 of the PR γ
+  # closing act; the component-wide case, a dismiss on any page, is issue
+  # 1166).
+  def handle_event("dismiss_result", _params, socket) do
+    target = dismiss_focus(socket.assigns)
+
+    socket =
+      socket
+      |> assign(error: nil, success: nil, soll_refused: nil)
+      |> focus_into_view(target)
+
+    {:noreply, socket}
+  end
+
   def handle_event("create_classification", %{"classification" => params}, socket) do
     case Classifications.create_classification(Actor.owner_ui(), LiveParam.map(params)) do
       {:ok, classification} ->
@@ -1559,10 +1594,15 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   # -- plan versions (ADR-0027) ----------------------------------------------
 
+  # Another version's inputs carry no refusal: the mark goes with the
+  # refusal it described (cascade layer 2 of the PR γ closing act).
   def handle_event("select_soll_plan", %{"soll_plan" => value}, socket) do
     case LiveParam.id(value) do
-      nil -> {:noreply, socket}
-      plan_id -> {:noreply, socket |> assign(:soll_plan_id, plan_id) |> load_soll()}
+      nil ->
+        {:noreply, socket}
+
+      plan_id ->
+        {:noreply, socket |> assign(soll_plan_id: plan_id, soll_refused: nil) |> load_soll()}
     end
   end
 
@@ -1606,9 +1646,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   # The three plan writes name the active view; each checks first that it
-  # still exists (`unless_view_gone/3`).
+  # still exists (`unless_view_gone/3`), and each refusal is brought into
+  # view (`answer_plan_write/1`).
   def handle_event("create_soll_plan", _params, socket),
-    do: unless_view_gone(socket, :create, fn -> create_soll_plan(socket) end)
+    do:
+      socket
+      |> unless_view_gone(:create, fn -> create_soll_plan(socket) end)
+      |> answer_plan_write()
 
   # Live Σ: recompute the running total (categories + cash) from the form as the
   # maintainer types, without persisting anything.
@@ -1617,7 +1661,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   def handle_event("save_soll_plan", params, socket),
-    do: unless_view_gone(socket, :save, fn -> save_soll_plan(socket, params) end)
+    do:
+      socket
+      |> unless_view_gone(:save, fn -> save_soll_plan(socket, params) end)
+      |> answer_plan_write()
 
   # #481: a category's position rows open and close in place; closed rows
   # stay in the form (hidden), so closing never reads as clearing.
@@ -1636,15 +1683,23 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   def handle_event("delete_soll_plan", _params, socket),
-    do: unless_view_gone(socket, :delete, fn -> delete_soll_plan(socket) end)
+    do:
+      socket
+      |> unless_view_gone(:delete, fn -> delete_soll_plan(socket) end)
+      |> answer_plan_write()
 
   # Prefill the editor from another view's plan for the same classification,
   # without persisting until the maintainer saves.
   def handle_event("copy_soll_plan", %{"copy_from" => ""}, socket), do: {:noreply, socket}
 
-  # Only an open editor has a plan to prefill (E25 S4, F17).
+  # Only an open editor has a plan to prefill (E25 S4, F17). The copied
+  # weights carry no refusal, so the mark goes (cascade layer 2).
   def handle_event("copy_soll_plan", %{"copy_from" => value}, %{assigns: %{soll: %{}}} = socket) do
-    {:noreply, assign(socket, :soll, copy_soll_from(socket.assigns, parse_soll_view(value)))}
+    {:noreply,
+     assign(socket,
+       soll: copy_soll_from(socket.assigns, parse_soll_view(value)),
+       soll_refused: nil
+     )}
   end
 
   def handle_event("filter_tree", %{"query" => query}, socket) do
@@ -1754,6 +1809,18 @@ defmodule PortfolixirWeb.ClassificationsLive do
     )
   end
 
+  # A plan write's refusal lands in the page's result slot at the top, far
+  # above "Save plan" and "Delete plan" (#945; the closing act of PR γ, the
+  # design critic's #1): the page brings the slot into view below the sticky
+  # top bar and moves the focus to it, as Securities does for a row action
+  # whose security went meanwhile (#920). A success does not (cascade layer
+  # 2): its note shows in the slot's status region, which announces it, and
+  # the page stays where the operator is.
+  defp answer_plan_write({:noreply, %{assigns: %{error: nil}}} = reply), do: reply
+
+  defp answer_plan_write({:noreply, socket}),
+    do: {:noreply, focus_into_view(socket, "classifications-result")}
+
   defp create_soll_plan(socket) do
     with %{id: portfolio_id} <- socket.assigns.portfolio,
          classification_id when is_integer(classification_id) <- socket.assigns.selected_id,
@@ -1787,7 +1854,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
       {:noreply, socket |> success(gettext("Plan saved")) |> load_soll()}
     else
       {:error, reason} ->
-        {:noreply, failure(socket, soll_error(socket.assigns, reason))}
+        {:noreply,
+         socket
+         |> failure(soll_error(socket.assigns, reason))
+         |> assign(:soll_refused, refused_input(reason))}
 
       _ ->
         {:noreply, failure(socket, gettext("Could not save the plan"))}
@@ -2923,8 +2993,22 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp view_param(nil), do: "total"
   defp view_param(id) when is_integer(id), do: Integer.to_string(id)
 
-  defp success(socket, message), do: assign(socket, success: message, error: nil)
-  defp failure(socket, message), do: assign(socket, error: message, success: nil)
+  defp success(socket, message),
+    do: assign(socket, success: message, error: nil, soll_refused: nil)
+
+  defp failure(socket, message),
+    do: assign(socket, error: message, success: nil, soll_refused: nil)
+
+  # #1064 (J7 = A): the page's one result, in the data note's severities. A
+  # refusal that names rules renders through `PolicyRuleReferences`, so each
+  # rule's name stays a link (#871).
+  defp page_result(error, _success) when not is_nil(error) do
+    assigns = %{error: error}
+    {:problem, ~H"<PolicyRuleReferences.message message={@error} />"}
+  end
+
+  defp page_result(nil, success) when not is_nil(success), do: {:note, success}
+  defp page_result(nil, nil), do: nil
 
   defp error_message(:builtin_locked), do: gettext("Built-in classifications cannot be edited")
   defp error_message(:category_mismatch), do: gettext("That category belongs to another tree")
@@ -3037,6 +3121,60 @@ defmodule PortfolixirWeb.ClassificationsLive do
       field in [:target_weight, :cash_target_weight] and keys[:validation] == :decimal_scale
     end)
   end
+
+  # The input a save's refusal names (#945; the closing act of PR γ), read
+  # off the refusal as `soll_error/2` reads its row: the cash target, a
+  # position under its category, or a category. A refusal that names no
+  # input marks none.
+  defp refused_input({:security_category_mismatch, security_id, category_id}),
+    do: "soll-position-#{category_id}-#{security_id}"
+
+  defp refused_input(%Ecto.Changeset{errors: errors} = changeset) do
+    category_id = Ecto.Changeset.get_field(changeset, :category_id)
+    security_id = Ecto.Changeset.get_field(changeset, :security_id)
+
+    cond do
+      Keyword.has_key?(errors, :cash_target_weight) ->
+        "soll-cash-target"
+
+      not Keyword.has_key?(errors, :target_weight) ->
+        nil
+
+      is_integer(category_id) and is_integer(security_id) ->
+        "soll-position-#{category_id}-#{security_id}"
+
+      is_integer(category_id) ->
+        "soll-weight-#{category_id}"
+
+      true ->
+        nil
+    end
+  end
+
+  defp refused_input(_reason), do: nil
+
+  # Where a dismiss puts the focus back (`dismiss_result`).
+  defp dismiss_focus(%{soll_refused: input}) when is_binary(input), do: input
+  defp dismiss_focus(%{soll: %{}}), do: "soll-editor-heading"
+  defp dismiss_focus(%{tree: %{}}), do: "classification-heading"
+  defp dismiss_focus(_assigns), do: nil
+
+  defp focus_into_view(socket, nil), do: socket
+  defp focus_into_view(socket, id), do: push_event(socket, "focus-into-view", %{id: id})
+
+  # The refused input is marked invalid and described by the page's problem
+  # region, which holds the refusal naming it.
+  defp refused_attrs(id, id),
+    do: %{"aria-invalid" => "true", "aria-describedby" => "classifications-result-alert"}
+
+  defp refused_attrs(_refused, _id), do: %{}
+
+  # The cash input is described by its lock hint while a draft is edited (a
+  # draft's save sends no cash target, so it is never the refused one), else
+  # by a refusal that names it.
+  defp cash_describedby(%{editing_version?: true}, _refused), do: "soll-cash-lock-hint"
+  defp cash_describedby(_soll, "soll-cash-target"), do: "classifications-result-alert"
+  defp cash_describedby(_soll, _refused), do: nil
 
   defp soll_member_name(assigns, security_id) do
     assigns.soll.members

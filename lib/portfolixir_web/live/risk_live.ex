@@ -173,6 +173,11 @@ defmodule PortfolixirWeb.RiskLive do
     {:noreply, assign(socket, :rule_dialog, nil)}
   end
 
+  # The result's dismiss (#1064): the slot empties until the next action.
+  def handle_event("dismiss_result", _params, socket) do
+    {:noreply, assign(socket, :notice, nil)}
+  end
+
   # An event this page does not know, or a payload it cannot read, changes
   # nothing (E25 S4, F17).
   def handle_event(_event, _params, socket), do: {:noreply, socket}
@@ -481,7 +486,13 @@ defmodule PortfolixirWeb.RiskLive do
         </button>
       </header>
 
-      <p :if={@notice} class="alert-success" role="status"><%= @notice %></p>
+      <%!-- #1064 (pick J7 = A, board 07): the rule dialog's answer is an
+           inline result, a note with its word and glyph. --%>
+      <AppShell.inline_result
+        id="policy-rules-result"
+        class="inline-result--page"
+        result={@notice && {:note, @notice}}
+      />
 
       <%= if @findings.findings == [] do %>
         <p class="empty-state" data-role="policy-rules-empty">

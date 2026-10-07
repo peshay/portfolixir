@@ -44,8 +44,6 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   def mount(_params, _session, socket) do
     {:ok,
      socket
-     |> assign(:error, nil)
-     |> assign(:success, nil)
      |> assign(:account_dialog?, false)
      # ADR-0050 (L5a, G1-A): the open row menu, and the one lifecycle dialog
      # it opened — rename, merge, or the refusal of a delete.
@@ -87,13 +85,6 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
       page_subtitle={gettext("Depots, cash accounts, and their buckets")}
     >
       <div id="portfolios-workspace" class="workspace-page">
-        <%= if @error do %>
-          <p class="alert-error" role="alert"><%= @error %></p>
-        <% end %>
-        <%= if @success do %>
-          <p class="alert-success" role="status"><%= @success %></p>
-        <% end %>
-
         <section id="accounts-panel" class="workspace-section">
           <div class="section-head">
             <h2><%= gettext("Depots and cash accounts") %></h2>
@@ -466,7 +457,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   # -- components --------------------------------------------------------------
 
   # The balance read surface per cash-account row (#670): the derived balance
-  # with its as-of date (the newest cash-affecting booking), an em dash before
+  # with its last booking's date (the newest cash-affecting one), an em dash before
   # any booking, plus the set-balance trigger on rows that carry controls.
   attr(:cash, CashAccount, required: true)
   attr(:balances, :map, required: true)
@@ -483,8 +474,12 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
           <span class="cash-balance__amount num">
             <%= Format.money(balance) %> <%= @cash.currency_code %>
           </span>
+          <%!-- #1085 (pick J7.2 = A, board 07): the date is the newest
+               booking that moved the balance, and the words say so: "as of"
+               read as a stale balance when it is today's. A msgid of its
+               own; "as of %{date}" stays at its three real as-of sites. --%>
           <span :if={@dates[@cash.id]} class="cash-balance__asof">
-            <%= gettext("as of %{date}", date: Format.date(@dates[@cash.id])) %>
+            <%= gettext("last booking %{date}", date: Format.date(@dates[@cash.id])) %>
           </span>
       <% end %>
     </span>
@@ -745,10 +740,12 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
       phx-change="set_liquidity_role"
     >
       <input type="hidden" name="account_id" value={@cash.id} />
-      <%!-- #806 (variant A): the column is already headed "Liquidity role",
-           so the per-row label is for assistive technology only — printing
-           it in every cell repeated the head once per account. --%>
-      <label class="visually-hidden" for={"liquidity-role-#{@cash.id}"}>
+      <%!-- #806 (variant A): the column is headed "Liquidity role", so above
+           640 px the label is for assistive technology only. #1085 (rule ⑦,
+           board 07): under 640 px the head is hidden too, so there the label
+           shows beside the select, with the role's ⓘ beside the word
+           (`.liquidity-role-field__label`, hidden above 640 px). --%>
+      <label class="liquidity-role-field__label" for={"liquidity-role-#{@cash.id}"}>
         <%= gettext("Liquidity role") %>
       </label>
       <.term_info term={:liquidity_role} phone data-role="liquidity-role-info" />
@@ -1611,8 +1608,11 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
   defp source_label(:import), do: gettext("Import")
   defp source_label(_seeded), do: gettext("Seeded")
 
-  defp success(socket, message), do: assign(socket, success: message, error: nil)
-  defp failure(socket, message), do: assign(socket, error: message, success: nil)
+  # #1064 (pick J7 = A, board 07): the page's one result slot — a success is
+  # a note, a refusal a problem, in `accounts-result` beside the merge's and
+  # the delete's (the page used to answer these in a second, two-class slot).
+  defp success(socket, message), do: assign(socket, :result, {:note, message})
+  defp failure(socket, message), do: assign(socket, :result, {:problem, message})
 
   defp changeset_error(changeset) do
     changeset.errors

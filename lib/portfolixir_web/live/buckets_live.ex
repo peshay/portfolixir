@@ -34,6 +34,7 @@ defmodule PortfolixirWeb.BucketsLive do
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleReferences
@@ -63,12 +64,14 @@ defmodule PortfolixirWeb.BucketsLive do
       page_subtitle={gettext("Saved filters that scope the analytics, built from bucket tags")}
     >
       <div id="buckets-workspace" class="workspace-page">
-        <%= if @error do %>
-          <p class="alert-error" role="alert"><PolicyRuleReferences.message message={@error} /></p>
-        <% end %>
-        <%= if @success do %>
-          <p class="alert-success" role="status"><%= @success %></p>
-        <% end %>
+        <%!-- #1064 (pick J7 = A, board 07): the page's result is an inline
+             result — a success a note, a refusal a problem, each with its
+             word and glyph; a refusal naming rules keeps its links. --%>
+        <AppShell.inline_result
+          id="buckets-result"
+          class="inline-result--page"
+          result={page_result(@error, @success)}
+        />
 
         <section id="views-section" class="workspace-section">
           <header class="section-head">
@@ -579,6 +582,11 @@ defmodule PortfolixirWeb.BucketsLive do
   # -- disclosure and row-menu events -------------------------------------------
 
   @impl true
+  # The result's dismiss (#1064): the slot empties until the next action.
+  def handle_event("dismiss_result", _params, socket) do
+    {:noreply, assign(socket, error: nil, success: nil)}
+  end
+
   def handle_event("toggle_form", %{"form" => "view"}, socket) do
     {:noreply, assign(socket, :view_form_open?, not socket.assigns.view_form_open?)}
   end
@@ -960,11 +968,21 @@ defmodule PortfolixirWeb.BucketsLive do
   defp success(socket, message), do: assign(socket, success: message, error: nil)
   defp failure(socket, message), do: assign(socket, error: message, success: nil)
 
-  defp changeset_error(changeset) do
-    changeset.errors
-    |> Enum.map(fn {field, {message, _opts}} -> "#{field} #{message}" end)
-    |> Enum.join(", ")
+  # #1064 (J7 = A): the page's one result, in the data note's severities. A
+  # refusal that names rules renders through `PolicyRuleReferences`, so each
+  # rule's name stays a link (#871).
+  defp page_result(error, _success) when not is_nil(error) do
+    assigns = %{error: error}
+    {:problem, ~H"<PolicyRuleReferences.message message={@error} />"}
   end
+
+  defp page_result(nil, success) when not is_nil(success), do: {:note, success}
+  defp page_result(nil, nil), do: nil
+
+  # A refused bucket or view in the page's language, its field named as the
+  # form names it (the closing act of PR γ: the raw "name has already been
+  # taken" stood in the German slot U5 gave it).
+  defp changeset_error(changeset), do: FieldLabel.changeset_message(changeset)
 
   defp bucket_to_delete(bucket_id) do
     case Buckets.get_bucket(bucket_id) do

@@ -643,26 +643,26 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
     ])
   end
 
+  # #1067 (board 07.5): the line keys on the ISINs the record holds, not on
+  # the choice it was given. An API or MCP merge records a choice as given
+  # even when none was required, and keying on it printed "stays; is now a
+  # former ISIN" with an empty slot. Neither side, or the target alone: no
+  # line, nothing changed. The source alone: the target adopted it. Both: the
+  # choice the merge required, as given.
   defp line_value(:isin, :security, summary) do
-    source = get(summary, ["identifiers", "source_isin"])
-    target = get(summary, ["identifiers", "target_isin"])
+    source = isin(get(summary, ["identifiers", "source_isin"]))
+    target = isin(get(summary, ["identifiers", "target_isin"]))
     changed_on = get(summary, ["identifier_aliases", "created", "changed_on"])
 
-    case get(summary, ["choices", "identity_choice"]) do
-      "keep_target_isin" ->
-        gettext("%{isin} stays; %{former} is now a former ISIN", isin: target, former: source)
+    case {source, target} do
+      {nil, _target} ->
+        nil
 
-      "adopt_source_isin" ->
-        parts([
-          gettext("%{isin} adopted; %{former} is now a former ISIN", isin: source, former: target),
-          is_binary(changed_on) && gettext("change dated %{date}", date: stored_day(changed_on))
-        ])
-
-      _no_choice when is_binary(source) and is_nil(target) ->
+      {source, nil} ->
         gettext("%{isin} adopted from the source", isin: source)
 
-      _no_choice ->
-        nil
+      {source, target} ->
+        both_isins(get(summary, ["choices", "identity_choice"]), source, target, changed_on)
     end
   end
 
@@ -735,6 +735,30 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
   defp moved_nothing?(summary),
     do:
       count(summary, ["transactions", "moved"]) + count(summary, ["transactions", "deleted"]) == 0
+
+  # The ISIN line when both securities carried one (#1067): the merge
+  # required the choice, so the given choice is the one it made.
+  defp both_isins("keep_target_isin", source, target, _changed_on),
+    do: gettext("%{isin} stays; %{former} is now a former ISIN", isin: target, former: source)
+
+  defp both_isins("adopt_source_isin", source, target, changed_on) do
+    parts([
+      gettext("%{isin} adopted; %{former} is now a former ISIN", isin: source, former: target),
+      is_binary(changed_on) && gettext("change dated %{date}", date: stored_day(changed_on))
+    ])
+  end
+
+  defp both_isins(_no_choice, _source, _target, _changed_on), do: nil
+
+  # A recorded ISIN, or nil for none: a blank one is none.
+  defp isin(value) when is_binary(value) do
+    case String.trim(value) do
+      "" -> nil
+      isin -> isin
+    end
+  end
+
+  defp isin(_none), do: nil
 
   defp removed_for("collapsed_duplicate", n),
     do: ngettext("%{count} duplicate removed", "%{count} duplicates removed", n)

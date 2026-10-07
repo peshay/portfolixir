@@ -57,8 +57,9 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
   # - The help line states the limit and both correction paths — for a
   #   booking that came over the API, booking it again there, never
   #   "imported again" (R10e) — with "Delete…" as a link-button.
-  # - "Save note" stores the note alone and closes the drawer with "Note
-  #   saved"; the deposit's facts are unchanged.
+  # - "Save note" stores the note alone and closes the drawer with "Booking
+  #   note saved" (the note's word "Note" before it, since 2026-10-07); the
+  #   deposit's facts are unchanged.
   test "a deposit's edit shows its facts fixed and saves only the note",
        %{conn: conn, deposit: deposit} do
     view = open_edit(conn, deposit)
@@ -97,7 +98,10 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
     |> render_submit()
 
     refute has_element?(view, "#booking-drawer")
-    assert view |> element(".alert-success") |> render() =~ "Note saved"
+
+    assert view |> element("#transactions-result .data-note--note") |> render() =~
+             "Booking note saved"
+
     stored = Ledger.get_transaction(deposit.id)
     assert stored.notes == "per the bank statement"
     assert stored.type == "deposit"

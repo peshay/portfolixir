@@ -238,7 +238,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
       |> form("#bucket-form", bucket: %{name: ""})
       |> render_submit()
 
-    assert html =~ "name can&#39;t be blank"
+    assert html =~ "Name can&#39;t be blank"
     assert has_element?(view, "[data-role='overlap-hint']")
 
     html =
@@ -246,7 +246,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
       |> form("#view-form", view: %{name: ""})
       |> render_submit()
 
-    assert html =~ "name can&#39;t be blank"
+    assert html =~ "Name can&#39;t be blank"
   end
 
   test "renaming a bucket to a duplicate name surfaces a validation error", %{conn: conn} do
@@ -263,7 +263,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
       |> form("#bucket-#{bucket.id} form", bucket: %{name: "Taken"})
       |> render_submit()
 
-    assert html =~ "name has already been taken"
+    assert html =~ "Name has already been taken"
     # The original record is unchanged and editing mode stays open.
     assert Buckets.get_bucket(bucket.id).name == "Core"
   end
@@ -282,7 +282,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
       |> form("#view-#{v.id} form", view: %{name: "Taken"})
       |> render_submit()
 
-    assert html =~ "name has already been taken"
+    assert html =~ "Name has already been taken"
     assert Buckets.get_view(v.id).name == "Old"
   end
 

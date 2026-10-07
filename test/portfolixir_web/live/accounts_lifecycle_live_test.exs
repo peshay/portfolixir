@@ -116,7 +116,9 @@ defmodule PortfolixirWeb.AccountsLifecycleLiveTest do
     assert Portfolios.get_cash_account(w.giro.id).name == "Hauptkonto"
     assert Portfolios.get_cash_account(w.giro.id).former_names == ["Giro"]
     refute has_element?(view, "#rename-dialog")
-    refute has_element?(view, ".alert-success")
+    # No banner: since #1064 (J7 = A) the page's one result slot is
+    # `#accounts-result`, and a rename leaves it empty.
+    refute has_element?(view, "#accounts-result .data-note")
 
     assert view
            |> element("#account-row-depot-#{w.depot.id} [data-role='account-former']")
