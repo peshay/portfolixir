@@ -1084,6 +1084,201 @@ defmodule PortfolixirWeb.CopyDialogStatesLiveTest do
              }) =~
                "Target of “Aktien Welt”: must lie between 0 and 100 %"
     end
+
+    # User story (#945; the closing act of PR γ, the design critic's #1):
+    # As the operator who scrolled down to "Save plan",
+    # I want the answer to my save brought into view and focused, and the
+    # input it names marked invalid,
+    # so that a refusal at the page's top does not stay 500 px above me
+    # while the focus sits on "Save plan" as if nothing had happened.
+    #
+    # Acceptance criteria:
+    # - The page's result slot is a focus target (`tabindex="-1"`, never in
+    #   the tab order), and a plan write's refusal asks the page to bring it
+    #   into view and focus it (`focus-into-view`, the slot's id), as
+    #   Securities does for #920.
+    # - A success does not: "Plan saved" shows in the slot's status region,
+    #   and the page neither scrolls nor moves the focus (cascade layer 2:
+    #   a valid save threw the operator from 505 px to the top).
+    # - A refusal that names a category, a position or the cash target marks
+    #   that input `aria-invalid="true"`, described by the slot's problem
+    #   region; no other input is marked.
+    # - The next answer clears the mark.
+    test "a plan write's refusal is brought into view and focused, and names its input",
+         %{conn: conn} = ctx do
+      {:ok, view, _html} = live(conn, "/classifications/#{ctx.tree.id}")
+      render_async(view)
+
+      assert has_element?(view, "#classifications-result[tabindex='-1']")
+
+      w = "#{ctx.world_cat.id}"
+      e = "#{ctx.europe.id}"
+      invalid = "#soll-plan-form [aria-invalid='true']"
+
+      submit_plan(view, %{"weights" => %{w => "12.34567"}, "cash_target" => ""})
+      assert_push_event(view, "focus-into-view", %{id: "classifications-result"})
+      assert has_element?(view, "#classifications-result .data-note--problem")
+
+      assert has_element?(
+               view,
+               "#soll-weight-#{w}[aria-invalid='true'][aria-describedby='classifications-result-alert']"
+             )
+
+      assert view |> element("#classifications-result-alert") |> render() =~ "Aktien Welt"
+      assert length(Floki.find(Floki.parse_fragment!(render(view)), invalid)) == 1
+
+      submit_plan(view, %{
+        "weights" => %{w => "45"},
+        "positions" => %{e => %{"#{ctx.nordwind.id}" => "12.33333"}},
+        "cash_target" => ""
+      })
+
+      assert_push_event(view, "focus-into-view", %{id: "classifications-result"})
+      assert has_element?(view, "#soll-position-#{e}-#{ctx.nordwind.id}[aria-invalid='true']")
+      refute has_element?(view, "#soll-weight-#{w}[aria-invalid]")
+
+      submit_plan(view, %{"weights" => %{w => "45"}, "cash_target" => "150"})
+      assert_push_event(view, "focus-into-view", %{id: "classifications-result"})
+
+      assert has_element?(
+               view,
+               "#soll-cash-target[aria-invalid='true'][aria-describedby='classifications-result-alert']"
+             )
+
+      # The save that passes answers in place, clears the mark, and leaves
+      # the page and the focus where they are.
+      submit_plan(view, %{"weights" => %{w => "45"}, "cash_target" => "5"})
+      refute_push_event(view, "focus-into-view", %{id: "classifications-result"})
+      assert has_element?(view, "#classifications-result .data-note--note", "Plan saved")
+      refute has_element?(view, invalid)
+
+      # A form submit's reply gives the focus back to "Save plan" after its
+      # events are dispatched (LiveView's own restore), so the page's
+      # listener moves it in the next task, not at once.
+      layout = File.read!("lib/portfolixir_web/layout_view.ex")
+      [_, listener] = String.split(layout, ~s{"phx:focus-into-view"}, parts: 2)
+      listener = listener |> String.split("\n            });\n", parts: 2) |> hd()
+
+      assert listener =~
+               ~r/window\.setTimeout\(function \(\) \{.*focus\(\{ preventScroll: true \}\);\s*\}, 0\);/s
+
+      # Brought into view, the slot stops below the sticky top bar, and a
+      # keyboard user sees the house ring on it, as on the Securities slot.
+      css = File.read!("priv/static/app.css")
+
+      assert css =~
+               ~r/\n#classifications-result \{\n  scroll-margin-top: calc\(var\(--topbar-height\) \+ var\(--space-3\)\);/
+
+      assert css =~
+               ~r/\n#classifications-result:focus-visible \{\n  outline: 2px solid var\(--color-accent\);\n  outline-offset: 2px;/
+    end
+
+    # User story (#945; cascade layer 2 of the PR γ closing act):
+    # As the operator who refused a weight and then picked another plan
+    # version, or copied another view's plan in,
+    # I want the refused mark to go with the refusal,
+    # so that a valid stored "45" does not say it is invalid and describe
+    # itself with the other version's refusal.
+    #
+    # Acceptance criteria:
+    # - Switching the plan version clears the refused input's mark.
+    # - Copying another view's plan into the editor clears it.
+    test "a version switch or a copy clears the refused mark", %{conn: conn} = ctx do
+      {:ok, view, _html} = live(conn, "/classifications/#{ctx.tree.id}")
+      render_async(view)
+      w = "#{ctx.world_cat.id}"
+      invalid = "#soll-plan-form [aria-invalid='true']"
+
+      view |> element("button[phx-click='duplicate_soll_plan']") |> render_click()
+
+      [active] =
+        view
+        |> render()
+        |> Floki.parse_document!()
+        |> Floki.find("#soll-plan-select option")
+        |> Enum.filter(&(Floki.text(&1) =~ "active"))
+        |> Enum.map(&(&1 |> Floki.attribute("value") |> hd()))
+
+      submit_plan(view, %{"weights" => %{w => "150"}, "cash_target" => ""})
+      assert has_element?(view, "#soll-weight-#{w}[aria-invalid='true']")
+
+      view |> element("#soll-plan-picker-form") |> render_change(%{"soll_plan" => active})
+      assert has_element?(view, "#soll-weight-#{w}[value='45']")
+      refute has_element?(view, invalid)
+
+      {:ok, langfrist} = Portfolixir.Buckets.create_view(Actor.owner_ui(), %{name: "Langfrist"})
+
+      {:ok, _} =
+        Targets.set_targets(
+          Actor.owner_ui(),
+          Portfolixir.Portfolios.first_portfolio().id,
+          ctx.tree.id,
+          [%{"category_id" => ctx.world_cat.id, "target_weight" => "0.3"}],
+          view: langfrist.id
+        )
+
+      {:ok, view, _html} = live(conn, "/classifications/#{ctx.tree.id}")
+      render_async(view)
+
+      submit_plan(view, %{"weights" => %{w => "150"}, "cash_target" => ""})
+      assert has_element?(view, "#soll-weight-#{w}[aria-invalid='true']")
+
+      view
+      |> element("#soll-copy-form")
+      |> render_change(%{"copy_from" => "#{langfrist.id}"})
+
+      assert has_element?(view, "#soll-weight-#{w}[value='30']")
+      refute has_element?(view, invalid)
+    end
+
+    # User story (#945; cascade layer 2 of the PR γ closing act):
+    # As the keyboard operator who read the refusal and dismissed it,
+    # I want the focus to go back where I was editing,
+    # so that it does not fall to the page's start when the note it sat on
+    # goes away.
+    #
+    # Acceptance criteria:
+    # - Dismissing a refusal that named an input moves the focus to that
+    #   input (`focus-into-view` with its id, the page's deferred listener).
+    # - Dismissing any other result moves it to the plan editor's heading,
+    #   a focus target outside the tab order (`tabindex="-1"`); a tree with
+    #   no editor (a built-in one) gives it to the tree's own heading.
+    # - Both stop below the sticky top bar, and the heading draws the house
+    #   ring.
+    # - The component-wide case, a dismiss on any page, stays issue 1166.
+    test "dismissing the result gives the focus back to the editor", %{conn: conn} = ctx do
+      {:ok, view, _html} = live(conn, "/classifications/#{ctx.tree.id}")
+      render_async(view)
+      w = "#{ctx.world_cat.id}"
+
+      assert has_element?(view, "#soll-editor-heading[tabindex='-1']")
+
+      submit_plan(view, %{"weights" => %{w => "150"}, "cash_target" => ""})
+      view |> element("#classifications-result .inline-result__dismiss") |> render_click()
+      refused = "soll-weight-#{w}"
+      assert_push_event(view, "focus-into-view", %{id: ^refused})
+      refute has_element?(view, "#soll-plan-form [aria-invalid='true']")
+
+      submit_plan(view, %{"weights" => %{w => "45"}, "cash_target" => ""})
+      view |> element("#classifications-result .inline-result__dismiss") |> render_click()
+      assert_push_event(view, "focus-into-view", %{id: "soll-editor-heading"})
+
+      :ok = Classifications.ensure_builtins()
+      currency = Enum.find(Classifications.list_classifications(), &(&1.key == "currency"))
+      {:ok, built_in, _html} = live(conn, "/classifications/#{currency.id}")
+      render_async(built_in)
+      assert has_element?(built_in, "#classification-heading[tabindex='-1']")
+      render_hook(built_in, "dismiss_result", %{})
+      assert_push_event(built_in, "focus-into-view", %{id: "classification-heading"})
+
+      css = File.read!("priv/static/app.css")
+
+      assert css =~
+               ~r/\n#soll-plan-form input,\n#soll-editor-heading,\n#classification-heading \{\n  scroll-margin-top: calc\(var\(--topbar-height\) \+ var\(--space-3\)\);/
+
+      assert css =~
+               ~r/\n#soll-editor-heading:focus-visible,\n#classification-heading:focus-visible \{\n  outline: 2px solid var\(--color-accent\);\n  outline-offset: 2px;/
+    end
   end
 
   describe "found while drawing (board 08)" do

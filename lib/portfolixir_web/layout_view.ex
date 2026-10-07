@@ -676,6 +676,7 @@ defmodule PortfolixirWeb.LayoutView do
                   this.el.style.top = "";
                   this.el.style.left = "";
                   this.el.style.right = "";
+                  this.el.style.maxHeight = "";
                   return;
                 }
 
@@ -684,11 +685,14 @@ defmodule PortfolixirWeb.LayoutView do
                 if (!trigger) return;
 
                 var rect = trigger.getBoundingClientRect();
+                // The menu's own height, not the cap a previous call set.
+                this.el.style.maxHeight = "";
                 var menuWidth = this.el.offsetWidth || 220;
                 var menuHeight = this.el.offsetHeight || 320;
                 var pad = 8;
+                var gap = 4;
 
-                var top = rect.bottom + 4;
+                var top;
                 var left = rect.right - menuWidth;
 
                 if (left < pad) left = pad;
@@ -696,10 +700,21 @@ defmodule PortfolixirWeb.LayoutView do
                   left = window.innerWidth - menuWidth - pad;
                 }
 
-                if (top + menuHeight + pad > window.innerHeight) {
-                  // Not enough space below — flip above
-                  top = rect.top - menuHeight - 4;
-                  if (top < pad) top = pad;
+                // Below the kebab when the menu fits there, above when it
+                // fits there; otherwise on the roomier side, capped to that
+                // room and scrolling, never over the kebab that opened it
+                // (the touch items made a menu taller than a landscape
+                // phone; the review of Sprint 19 U5).
+                var below = window.innerHeight - rect.bottom - gap - pad;
+                var above = rect.top - gap - pad;
+                if (menuHeight <= below) {
+                  top = rect.bottom + gap;
+                } else if (menuHeight <= above) {
+                  top = rect.top - gap - menuHeight;
+                } else {
+                  var room = Math.max(below, above);
+                  this.el.style.maxHeight = room + "px";
+                  top = below >= above ? rect.bottom + gap : rect.top - gap - room;
                 }
 
                 this.el.style.top = top + "px";
@@ -1786,13 +1801,19 @@ defmodule PortfolixirWeb.LayoutView do
             // to <body>). The server names the result slot; it is scrolled
             // to the top of the window — below the sticky top bar, by its
             // `scroll-margin-top` — and takes the focus without a second
-            // scroll. Never <body> (WCAG 2.4.3).
+            // scroll. Never <body> (WCAG 2.4.3). The classification screen
+            // asks the same for a plan write's answer, which lands far above
+            // "Save plan" (#945, the closing act of PR γ). A form submit's
+            // reply gives the focus back to the submit button after its
+            // events are dispatched, so the move waits for the next task.
             window.addEventListener("phx:focus-into-view", function (event) {
               var id = event.detail && event.detail.id;
-              var target = id && document.getElementById(id);
-              if (!target || typeof target.focus !== "function") return;
-              target.scrollIntoView({ block: "start" });
-              target.focus({ preventScroll: true });
+              window.setTimeout(function () {
+                var target = id && document.getElementById(id);
+                if (!target || typeof target.focus !== "function") return;
+                target.scrollIntoView({ block: "start" });
+                target.focus({ preventScroll: true });
+              }, 0);
             });
 
             // Content-Security-Policy (#382): the pages carry no inline event

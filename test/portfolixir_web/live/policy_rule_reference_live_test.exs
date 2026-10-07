@@ -187,17 +187,17 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
     |> element(~s([role="menu"] button[phx-click="delete_view"][phx-value-id="#{spekulativ.id}"]))
     |> render_click()
 
-    band = buckets |> element(".alert-error") |> render()
+    band = buckets |> element("#buckets-result .data-note--problem") |> render()
 
     assert has_element?(
              buckets,
-             ~s(.alert-error a[href="/risk?view=total"][data-rule-id="#{wide.id}"]),
+             ~s(#buckets-result .data-note--problem a[href="/risk?view=total"][data-rule-id="#{wide.id}"]),
              "Spielgeld <b>klein</b> halten"
            )
 
     assert has_element?(
              buckets,
-             ~s(.alert-error a[href="/risk?view=#{spekulativ.id}"][data-rule-id="#{inside.id}"]),
+             ~s(#buckets-result .data-note--problem a[href="/risk?view=#{spekulativ.id}"][data-rule-id="#{inside.id}"]),
              "Spekulativ breit streuen"
            )
 
@@ -244,7 +244,7 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
 
     assert has_element?(
              classifications,
-             ~s(.alert-error a[href="/risk?view=#{spekulativ.id}"][data-rule-id="#{banded.id}"]),
+             ~s(#classifications-result .data-note--problem a[href="/risk?view=#{spekulativ.id}"][data-rule-id="#{banded.id}"]),
              "Anleihen im Band"
            )
 
@@ -307,7 +307,7 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
 
     assert has_element?(
              buckets,
-             ~s(.alert-error a[href="/risk?view=total"][data-rule-id="#{wide.id}"]),
+             ~s(#buckets-result .data-note--problem a[href="/risk?view=total"][data-rule-id="#{wide.id}"]),
              "Spielgeld klein halten"
            )
   end

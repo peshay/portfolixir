@@ -156,7 +156,7 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
     refute has_element?(view, "tr[data-transaction='#{buy.id}']")
     assert Ledger.get_transaction(buy.id) == nil
 
-    assert view |> element(".alert-success") |> render() |> text() =~
+    assert view |> element("#transactions-result .data-note--note") |> render() |> text() =~
              "Transaction deleted: Buy · Global Aktien ETF · 2026-09-22."
 
     assert [entry] = Journal.list_entries(resource_type: "transaction", operation: :delete)
@@ -245,7 +245,7 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
     assert Ledger.get_transaction(row_b.id) == nil
     assert Splits.booked_on(security.id, ~D[2026-09-15]) == []
 
-    assert view |> element(".alert-success") |> render() |> text() =~
+    assert view |> element("#transactions-result .data-note--note") |> render() |> text() =~
              "Split deleted: Kestrel Robotik SE · 2:1 · 2026-09-15, 2 rows."
   end
 
@@ -276,7 +276,7 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
     assert Splits.booked_on(security.id, ~D[2026-09-15]) == []
     assert Ledger.get_transaction(row_a.id) == nil
 
-    assert view |> element(".alert-success") |> render() |> text() =~
+    assert view |> element("#transactions-result .data-note--note") |> render() |> text() =~
              "Split deleted: Kestrel Robotik SE · 2:1 · 2026-09-15"
 
     [row_a, row_b] = rebook!(security)
@@ -315,7 +315,7 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
     view |> element("#booking-delete-confirm") |> render_click()
     refute has_element?(view, "#booking-delete-dialog")
 
-    assert view |> element(".alert-error") |> render() |> text() =~
+    assert view |> element("#transactions-result .data-note--problem") |> render() |> text() =~
              "That transaction no longer exists."
   end
 
@@ -380,7 +380,7 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
 
     view |> element("#booking-delete-confirm") |> render_click()
 
-    assert view |> element(".alert-success") |> render() |> text() =~
+    assert view |> element("#transactions-result .data-note--note") |> render() |> text() =~
              "Split deleted: Nordwind Industrie AG · 2:1 · 2026-09-15."
 
     german = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
@@ -446,7 +446,7 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
 
     refute has_element?(view, "#booking-delete-dialog")
 
-    assert view |> element(".alert-error") |> render() |> text() =~
+    assert view |> element("#transactions-result .data-note--problem") |> render() |> text() =~
              "That transaction no longer exists."
 
     refute has_element?(view, "tr[data-transaction='#{buy.id}']")
@@ -488,7 +488,7 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
 
     refute has_element?(view, "#booking-delete-dialog")
 
-    assert view |> element(".alert-error") |> render() |> text() =~
+    assert view |> element("#transactions-result .data-note--problem") |> render() |> text() =~
              "That transaction no longer exists."
 
     refute has_element?(view, "tr[data-transaction='#{buy.id}']")
@@ -539,7 +539,7 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
 
     view |> element("#booking-delete-confirm") |> render_click()
 
-    assert view |> element(".alert-success") |> render() |> text() =~
+    assert view |> element("#transactions-result .data-note--note") |> render() |> text() =~
              "Transaction deleted: Buy · Kestrel Robotik SE · DE000SYN0A17 · 2026-09-10."
   end
 
@@ -631,7 +631,7 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
 
     view |> element("#booking-delete-confirm") |> render_click()
 
-    assert view |> element(".alert-success") |> render() |> text() =~
+    assert view |> element("#transactions-result .data-note--note") |> render() |> text() =~
              "Transaktion gelöscht: Kauf · Global Aktien ETF · 22.09.2026."
   end
 

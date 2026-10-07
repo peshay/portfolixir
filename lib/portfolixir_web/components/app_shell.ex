@@ -447,18 +447,24 @@ defmodule PortfolixirWeb.AppShell do
   action left the page with it (#920, a row action on a security gone
   meanwhile) — so the focus lands on the answer, never on `<body>`
   (WCAG 2.4.3).
+
+  `class` adds a class to the slot: `inline-result--page` marks a page's
+  result slot (#1064, pick J7 = A), which keeps the footprint of the alert
+  it replaced — none at rest, so a page looks as it did until an action
+  answers.
   """
   attr(:id, :string, required: true)
   attr(:result, :any, default: nil)
   attr(:dismiss_event, :string, default: "dismiss_result")
   attr(:focusable, :boolean, default: false)
+  attr(:class, :string, default: nil)
   slot(:follow_up)
 
   def inline_result(assigns) do
     ~H"""
     <div
       id={@id}
-      class="inline-result"
+      class={["inline-result", @class]}
       data-role="action-result"
       tabindex={@focusable && "-1"}
     >

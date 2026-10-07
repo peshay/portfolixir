@@ -874,6 +874,38 @@ textarea {
   margin: 12px clamp(16px, 2.4vw, 28px) 0;
 }
 
+/* A page's result slot is an inline result (issue 1064, pick J7 = A of board
+   ux-design-2026-10-04/07-floor) and keeps the footprint of the alert it
+   replaced: the band's side gutter, 12 px above a result, and nothing at
+   rest. Its regions always hold whitespace, so the component's
+   `:not(:empty)` always matched them and an empty slot was 8 px tall;
+   `:has(> *)` asks for a result. */
+.workspace-page > .inline-result--page {
+  margin-inline: clamp(16px, 2.4vw, 28px);
+}
+
+/* Two classes on the slot: the component's region rule,
+   `.inline-result__region:not(:empty)`, comes later in this file at (0,2,0);
+   these are (0,3,0). */
+.inline-result.inline-result--page > .inline-result__region {
+  margin: 0;
+}
+
+.inline-result.inline-result--page > .inline-result__region:has(> *) {
+  margin: 12px 0 0;
+}
+
+/* Inside a section's grid an empty slot would still take a row and its gap,
+   so at rest it leaves the flow (it stays in the accessibility tree, a live
+   region waiting for its result); a result is a grid row like the alert. */
+.workspace-section > .inline-result--page:not(:has(.inline-result__region > *)) {
+  position: absolute;
+}
+
+.workspace-section > .inline-result.inline-result--page > .inline-result__region:has(> *) {
+  margin: 0;
+}
+
 #app-sidebar-toggle:checked ~ .app-sidebar {
   width: var(--sidebar-rail);
 }
@@ -1450,6 +1482,19 @@ li + li {
   font-size: 11px;
 }
 
+/* "letzte Buchung 22.09.2026" is one line where the table has the room, as
+   board ux-design-2026-10-04/07-floor 07.4 (a) draws it: the longer words
+   wrapped at 1200 px and made every cash row 15 px taller (the review of
+   Sprint 19 U5). German on the demo seed fits unwrapped from 1140 px
+   without the table scrolling; 1200 leaves room for longer names.
+   Narrower, the accounts table's own width decides (issue 1145), and the
+   line wraps. */
+@media (min-width: 1200px) {
+  .cash-balance__asof {
+    white-space: nowrap;
+  }
+}
+
 .cash-balance__empty {
   color: var(--color-text-muted);
 }
@@ -1798,6 +1843,14 @@ li + li {
   background: var(--color-hover);
 }
 
+/* The colour change above is the hover's; keyboard focus also draws the
+   house ring (Sprint 19 U5, board ux-design-2026-10-04/07-floor, found while
+   drawing): the colours alone left the browser's own ring to draw. */
+.icon-button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 .icon-button.is-active {
   background: var(--color-selected);
   color: var(--color-accent);
@@ -1991,6 +2044,22 @@ li + li {
 
 .button-ghost:hover {
   background: var(--color-hover);
+}
+
+/* The button family draws the house focus ring, the 2 px accent outline at a
+   2 px offset (issue 1062, rule ③ of board ux-design-2026-10-04/07-floor;
+   DESIGN.md → Colors, "Focus indicator"). The ring sits outside the fill, so
+   the primary's accent fill and the ring never merge; hover stays the fill
+   change, so hover and focus stay apart. The view switcher's quiet controls
+   draw it too (issue 1164; the closing act of Sprint 19 PR γ): "Ansichten",
+   the active view's ⓘ and Wealth's "Als Standard festlegen" drew the
+   browser's `auto 1px` ring beside the chips' accent one. */
+.view-switcher__manage:focus-visible,
+.view-switcher__help summary:focus-visible,
+.view-switcher .button-mini:focus-visible,
+:is(.button, .button-primary, .button-ghost, .button-danger, .button-secondary):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 
 .filter-chips {
@@ -2605,9 +2674,19 @@ dialog.modal::backdrop {
   display: flex;
   flex-direction: column;
   text-align: left;
+  /* The menu scrolls inside the viewport (the review of Sprint 19 U5): the
+     coarse 44 px items made the eleven-item menu 494 px tall, and on a
+     phone in landscape its last items fell off the screen. The 4 px padding
+     still holds the items' focus ring. */
+  max-height: calc(100vh - 16px);
+  max-height: calc(100dvh - 16px);
+  overflow-y: auto;
 }
 
 .row-context-menu__item {
+  /* A capped flex column shrinks its items; they keep their height and the
+     menu scrolls. */
+  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: var(--space-2);
@@ -2659,6 +2738,17 @@ dialog.modal::backdrop {
   .row-context-menu__item {
     padding: 14px 12px;
     font-size: 16px;
+  }
+}
+
+/* Above 720 px the menu stays a popover, so a tablet's coarse pointer met
+   the base button's 34 px items (issue 1062, rule ① of board
+   ux-design-2026-10-04/07-floor). A real min-height, not H6's padding and
+   negative margin: the items stack, and boxes grown into their neighbours
+   would overlap. The sheet's items are 50 px already. */
+@media (pointer: coarse) {
+  .row-context-menu__item {
+    min-height: 44px;
   }
 }
 
@@ -3509,6 +3599,29 @@ input[pattern]:invalid:not(:placeholder-shown) {
   font-weight: 600;
 }
 
+/* The ring is inset: the group clips with `overflow: hidden`, which would
+   cut an outset ring at its edges (board ux-design-2026-10-04/07-floor,
+   found while drawing; the KPI strip's cells take the same -2px). */
+.range-button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
+}
+
+/* A range button is 44 × 44 under a coarse pointer (issue 1062, rule ②),
+   the floor its family already has (.segmented-control__option). A real
+   size: a hit area grown past the clipping group would be clipped from hit
+   testing too. Without inline padding the 44 px minimum is every button's
+   width, "YTD" and "Max" included, so the group is 8 × 44 + 2 = 354 px and
+   one row from a 376 px viewport up (the review of Sprint 19 U5); below
+   that it wraps, because the floor stays. */
+@media (pointer: coarse) {
+  .range-button {
+    min-height: 44px;
+    min-width: 44px;
+    padding-inline: 0;
+  }
+}
+
 .chart-ma-30 {
   stroke: var(--color-accent);
   stroke-dasharray: 4 2;
@@ -3711,6 +3824,9 @@ input[pattern]:invalid:not(:placeholder-shown) {
   font-weight: 500;
   cursor: pointer;
   letter-spacing: 0.04em;
+  /* Its words sit in the middle of a box taller than their line: the coarse
+     44 px, or a neighbour's two-line label (the review of Sprint 19 U5). */
+  align-items: center;
 }
 
 .chart-toggle:hover {
@@ -3729,6 +3845,20 @@ input[pattern]:invalid:not(:placeholder-shown) {
 .chart-toggle[disabled] {
   opacity: 0.6;
   cursor: progress;
+}
+
+/* The toggles share the range buttons' toolbar, and the floor and the ring
+   with them (board ux-design-2026-10-04/07-floor, found while drawing):
+   UX-DR6's inventory listed the class as uncovered. */
+.chart-toggle:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (pointer: coarse) {
+  .chart-toggle {
+    min-height: 44px;
+  }
 }
 
 /* A background sync in flight: the icon button itself is the progress
@@ -5834,11 +5964,14 @@ button.income-bar-label.is-active {
   margin-top: 6px;
 }
 
+/* No top margin (issue 1069, rule ⑤ of board
+   ux-design-2026-10-04/07-floor): every call site sits in a bordered
+   .data-table-wrapper, so the 1rem landed as a 17 px band inside the border.
+   The space above the wrapper is its neighbour's own. */
 .drift-table,
 .cash-table {
   width: 100%;
   border-collapse: collapse;
-  margin-top: 1rem;
 }
 .drift-table th,
 .drift-table td,
@@ -6303,8 +6436,12 @@ button.income-bar-label.is-active {
      table rule (white-space: nowrap) reached the ⓘ inside a table head by
      inheritance and set the allocation tree's Drift sentence on one line,
      out of its box (issue 1053; H4 ④c, board
-     ux-review-2026-10-03/03-gamma-surface-repairs, G2). */
+     ux-review-2026-10-03/03-gamma-surface-repairs, G2). The same holds for
+     the alignment: in a `th.num` it inherited `text-align: right` and read
+     ragged on the left (issue 1071, rule ⑥ of board
+     ux-design-2026-10-04/07-floor). */
   white-space: normal;
+  text-align: start;
 }
 /* Show the tooltip panel when the <details> is open (pointer or keyboard). */
 .metric-tooltip:not([open]) p {
@@ -6392,6 +6529,7 @@ button.income-bar-label.is-active {
     width: 1.75rem;
     height: 1.75rem;
     font-size: 0.85rem;
+    position: relative;
   }
 
   /* A labelled pill keeps its own size under a coarse pointer (issue 1059,
@@ -6404,6 +6542,27 @@ button.income-bar-label.is-active {
     width: auto;
     height: auto;
     min-height: 1.75rem;
+  }
+
+  /* The ⓘ is a 44 px target with its 28 px picture (Sprint 19 U5; board
+     ux-design-2026-10-04/04-trades, found while drawing 3): a transparent
+     ring is part of the summary's hit area, the circle's and the pill's
+     alike. It is placed from the padding box inside the 1 px border, so
+     9 px = (44 - 26) / 2. The circle, the pill and the panel are drawn as
+     before; the ring is drawn in no colour. The view switcher's ⓘ, a bare
+     glyph, takes the 26 px box the ring is placed from in the switcher's
+     own coarse block (issue 1164). */
+  .view-switcher__help summary::before,
+  .metric-tooltip summary::before {
+    content: "";
+    position: absolute;
+    inset: -9px;
+  }
+
+  /* A table clips (`table { overflow: hidden }`), so in a head cell the ring
+     needs its 9 px inside the table: the Drift head measured 44 × 43. */
+  .drift-table th:has(.metric-tooltip) {
+    padding-block: 9px;
   }
 
   /* Comfortable tap targets on the securities surface (UX-DR6, issue 413):
@@ -6489,6 +6648,37 @@ button.income-bar-label.is-active {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
   border-radius: var(--radius-md);
+}
+
+/* The classification screen's slot does the same for a plan write's refusal,
+   which landed some 500 px above "Plan speichern", the focus left on the
+   button (issue 945; the closing act of Sprint 19 PR γ, the design critic's
+   first finding). */
+#classifications-result {
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-3));
+}
+
+#classifications-result:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+
+/* Dismissing the result gives the focus back where the operator was
+   editing: the input the refusal named, else the plan editor's heading, else
+   the tree's (cascade layer 2 of the PR γ closing act). Each stops below the
+   sticky top bar, and a heading draws the house ring, not the browser's. */
+#soll-plan-form input,
+#soll-editor-heading,
+#classification-heading {
+  scroll-margin-top: calc(var(--topbar-height) + var(--space-3));
+}
+
+#soll-editor-heading:focus-visible,
+#classification-heading:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 /* Under a coarse pointer the dismiss keeps a 44 px target the way a note's
@@ -7069,6 +7259,23 @@ button.income-bar-label.is-active {
   color: var(--color-text-muted);
 }
 
+/* The role select's label is hidden only where the column head states it
+   (issue 1085, rule ⑦ of board ux-design-2026-10-04/07-floor): under 640 px
+   the head is hidden too, and the phone card showed "Verfügbares Cash" with
+   no name — and the role's ⓘ beside nothing. `width > 640px` is the exact
+   complement of the card layout's `max-width: 640px`; `min-width: 641px`
+   left fractional widths between the two with neither. */
+@media (width > 640px) {
+  .accounts-table .liquidity-role-field__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
 .liquidity-role-field select {
   width: auto;
   min-height: 24px;
@@ -7151,6 +7358,9 @@ button.income-bar-label.is-active {
   padding: 0 2px;
   border: 0;
   background: transparent;
+  /* Not the base button's shadow: the × is part of the pill, not a box in
+     it (the review of Sprint 19 U5; boxed most visibly in the dark). */
+  box-shadow: none;
   color: inherit;
   opacity: 0.7;
   cursor: pointer;
@@ -7162,12 +7372,16 @@ button.income-bar-label.is-active {
   opacity: 1;
 }
 
+/* The + is the 22 × 22 it declares: `min-height: 0` takes back the base
+   button's 34 px floor, which made it 22 × 34 (board
+   ux-design-2026-10-04/07-floor, found while drawing; the H6.2 class). */
 .bucket-chip-add {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 22px;
   height: 22px;
+  min-height: 0;
   padding: 0;
   border: 1px dashed var(--color-border-strong);
   border-radius: 999px;
@@ -7200,6 +7414,20 @@ button.income-bar-label.is-active {
 .bucket-chip--overflow:focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+/* The chip's + and × draw the house ring as the overflow chip does (the PR
+   γ closing act, design critic 6): both drew the browser's 1 px black ring.
+   The × fills the pill's end, so its ring is inset, as the range buttons'
+   is, and keeps inside the pill's edge. */
+.bucket-chip-add:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.bucket-chip__remove:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: -2px;
 }
 
 .bucket-chip--overflow__caret {
@@ -7287,10 +7515,51 @@ button.income-bar-label.is-active {
   color: var(--color-accent);
 }
 
+/* The switcher's quiet controls take the floor (issue 1164; the closing act
+   of Sprint 19 PR γ, under the rules of board ux-design-2026-10-04/07-floor):
+   under a coarse pointer "Ansichten" was 85 × 19 px, the active view's ⓘ
+   14 × 20 and Wealth's "Als Standard festlegen" the base button's 34 px. The
+   link and the button are real 44 px boxes in a row the chips already make
+   44 px tall; the link's icon and word keep their 4 px. The ⓘ keeps its glyph
+   in the 26 px box the coarse ⓘ ring is placed from, so the ring makes it
+   44 × 44, and 12 px between the switcher's items keep that ring off the
+   link (at 8 px it reached 1 px into it). */
+@media (pointer: coarse) {
+  .view-switcher {
+    column-gap: var(--space-3);
+  }
+
+  .view-switcher__manage {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    min-height: 44px;
+  }
+
+  .view-switcher .button-mini {
+    min-height: 44px;
+  }
+
+  .view-switcher__help summary {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 26px;
+    min-height: 26px;
+  }
+}
+
+/* The chip's two controls take the floor (issue 1085, rule ⑧ of board
+   ux-design-2026-10-04/07-floor): 32 px and 24 px were the two sub-floor
+   values UX-DR6's amendment 2 calls a review reject. A chip holding a ×
+   gives up its block and right padding, so the × fills its end and the chip
+   is 46 px tall, not 50. Not H6's negative margin: the chips wrap onto
+   several lines 5 px apart, and a grown box would reach the next line. */
 @media (pointer: coarse) {
   .bucket-chip-add {
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
   }
 
   /* The overflow disclosure takes the full 44px floor (issue 842). */
@@ -7298,9 +7567,31 @@ button.income-bar-label.is-active {
     min-height: 44px;
   }
 
+  .bucket-chip:has(> .bucket-chip__remove) {
+    padding-block: 0;
+    padding-right: 0;
+  }
+
+  /* The × fills the pill's end: square on its left, the pill's round on its
+     right (the base button's 8 px corners drew a box inside the pill). */
   .bucket-chip__remove {
-    min-width: 24px;
-    min-height: 24px;
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 0 999px 999px 0;
+  }
+
+  /* The rest of the phone card's controls (board 07, found while drawing):
+     the role select was 24 px and "Saldo setzen" the base button's 34. */
+  .liquidity-role-field select,
+  .cash-balance__action {
+    min-height: 44px;
+  }
+
+  /* The role ⓘ's touch ring reaches 8 px past its circle; 12 px between the
+     label, the ⓘ and the select keep it off the select's edge, where a tap
+     opened the definition (the review of Sprint 19 U5). */
+  .liquidity-role-field {
+    gap: var(--space-3);
   }
 }
 
@@ -8513,11 +8804,21 @@ dialog.filter-sheet::backdrop {
 /* Where a closing dialog or drawer brings the history into view — the
    page's result, a row's kebab, the heading — it lands below the sticky top
    bar, not under it (U1, issue 912, the closing act R3; WCAG 2.4.11). */
-#transactions-workspace > [data-role="page-result"],
+#transactions-result .data-note,
 #transaction-history-heading,
 #transaction-list .row-actions__kebab,
 #transaction-phone-rows .row-actions__kebab {
   scroll-margin-top: calc(var(--topbar-height) + var(--space-3));
+}
+
+/* The heading takes the focus when a closing dialog's own write took its
+   row (issue 912's fallback): a keyboard user sees the house ring, as on the
+   securities page's result slot, not the browser's 1 px black one (the PR γ
+   closing act, design critic 7). */
+#transaction-history-heading:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 /* ===== Booking drawer (issue 803, review C6 variant C) ===== */
@@ -9974,8 +10275,12 @@ dialog.merge-dialog {
   color: var(--color-text-muted);
 }
 
+/* The arrow carries the direction — the hidden "in" serves a screen reader
+   only — so it is content and takes the content floor, text-muted, the
+   source's own colour (issue 1085, rule ⑨ of board
+   ux-design-2026-10-04/07-floor; text-subtle measured 2.64:1). */
 .merge-record__arrow {
-  color: var(--color-text-subtle);
+  color: var(--color-text-muted);
   padding: 0 3px;
 }
 

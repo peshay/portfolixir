@@ -15,7 +15,11 @@ defmodule PortfolixirWeb.AccountsBucketCellTest do
   #
   # Acceptance criteria:
   # - "Liquidity role" renders once per table (in the head); the cell holds
-  #   the select, its label carried for assistive technology only.
+  #   the select, its label carried for assistive technology only — above
+  #   640 px. Under 640 px the head is hidden too, so there the label shows
+  #   beside the select (#1085, rule ⑦ of board
+  #   ux-design-2026-10-04/07-floor): the stylesheet hides
+  #   `.liquidity-role-field__label` only above 640 px.
   # - Bucket state is readable without interacting: the chips, a scope
   #   sub-line, and "No bucket" as a word when the set is empty.
   # - "Tag separately" is in the row menu, not a fourth control in the cell;
@@ -49,11 +53,14 @@ defmodule PortfolixirWeb.AccountsBucketCellTest do
     world()
     {:ok, _view, html} = live(conn, "/portfolios")
 
-    # Once as the column head (with its ⓘ since #1090), once per row as a
-    # visually-hidden label for the select — never as visible text beside it.
+    # Once as the column head (with its ⓘ since #1090), once per row as the
+    # select's label, which the stylesheet hides where the head shows (#1085).
     assert html =~ ~r{<th class="accounts-term-head">\s*Liquidity role<details}
-    assert html =~ ~s(class="visually-hidden")
-    refute html =~ ~s(class="liquidity-role-field__label")
+    assert html =~ ~s(<label class="liquidity-role-field__label")
+    refute html =~ ~r{<label class="visually-hidden" for="liquidity-role-}
+
+    assert File.read!("priv/static/app.css") =~
+             ~r/@media \(width > 640px\) \{\s*\.accounts-table \.liquidity-role-field__label \{/
   end
 
   test "the bucket cell is readable without interacting", %{conn: conn} do

@@ -110,12 +110,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       <div id="transactions-workspace" class="workspace-page">
         <AppShell.area_tabs tabs={AppShell.transactions_tabs(:history)} />
 
-        <%= if @error do %>
-          <p class="alert-error" role="alert" data-role="page-result"><%= @error %></p>
-        <% end %>
-        <%= if @success do %>
-          <p class="alert-success" role="status" data-role="page-result"><%= @success %></p>
-        <% end %>
+        <%!-- #1064 (pick J7 = A, board 07): the page's result is an inline
+             result — a success reads as a note, a refusal as a problem, each
+             with its word and glyph, so the outcome is never colour alone. --%>
+        <AppShell.inline_result
+          id="transactions-result"
+          class="inline-result--page"
+          result={page_result(@error, @success)}
+        />
 
         <%!-- ADR-0024: no portfolio strip — the depot choice alone decides
              where a transaction books; every depot is offered together. --%>
@@ -559,7 +561,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           deleting={@deleting}
           focus_fallback="#transaction-history-heading"
           focus_return={row_kebabs(@deleting.opened_from)}
-          focus_result="[data-role='page-result']"
+          focus_result="#transactions-result .data-note"
         />
       </div>
     </AppShell.shell>
@@ -583,6 +585,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         %{assigns: %{editing_fixed: %Transaction{}}} = socket
       ),
       do: {:noreply, socket}
+
+  # The result's dismiss (#1064): the slot empties until the next action.
+  def handle_event("dismiss_result", _params, socket) do
+    {:noreply, assign(socket, error: nil, success: nil)}
+  end
 
   # #803: the drawer's state is socket state; Cancel and the hook's close
   # event discard the draft, and a recorded booking closes it.
@@ -847,7 +854,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         {:noreply,
          socket
          |> close_drawer()
-         |> success(gettext("Note saved"))
+         |> success(gettext("Booking note saved"))
          |> load_state()}
 
       # The drawer keeps what was typed (E25 S6 review round, R4): a refusal
@@ -1852,6 +1859,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp success(socket, message), do: assign(socket, success: message, error: nil)
   defp failure(socket, message), do: assign(socket, error: message, success: nil)
 
+  # #1064 (J7 = A): the page's one result, in the data note's severities.
+  defp page_result(error, _success) when not is_nil(error), do: {:problem, error}
+  defp page_result(nil, success) when not is_nil(success), do: {:note, success}
+  defp page_result(nil, nil), do: nil
+
   # Per-field changeset errors keyed by the form field name, so each input can
   # carry aria-invalid + an associated message (UX-DR13, #412 follow-up).
   # Messages run through the "errors" Gettext domain (fix round), so a German
@@ -1895,7 +1907,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       data-sheet-below="720"
       data-focus-return={@focus_return}
       data-focus-fallback="#transaction-history-heading"
-      data-focus-result="[data-role='page-result']"
+      data-focus-result="#transactions-result .data-note"
       aria-labelledby="booking-drawer-title"
     >
       <header class="detail-pane-head">
@@ -2209,7 +2221,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       data-sheet-below="720"
       data-focus-return={@focus_return}
       data-focus-fallback="#transaction-history-heading"
-      data-focus-result="[data-role='page-result']"
+      data-focus-result="#transactions-result .data-note"
       aria-labelledby="booking-drawer-title"
     >
       <header class="detail-pane-head">

@@ -6,15 +6,15 @@ defmodule PortfolixirWeb.FieldLabel do
   refusal reads "ISIN has already been taken", never "isin has already been
   taken".
 
-  One map for the booking drawer and the Imports page. It covers every field
-  the schemas an import's apply or the drawer write can be refused on — the
-  booking, the security, the cash account, the depot, the portfolio, the
-  bucket and the ISIN change (`field_label_test.exs` derives the list from the
-  schemas, so a field added without a label fails there). The labels are the
-  ones the form inputs and the history carry. An unknown field falls back to
-  its key.
+  One map for the booking drawer, the Imports page and Buckets. It covers
+  every field the schemas an import's apply or the drawer write can be
+  refused on — the booking, the security, the cash account, the depot, the
+  portfolio, the bucket and the ISIN change (`field_label_test.exs` derives
+  the list from the schemas, so a field added without a label fails there).
+  The labels are the ones the form inputs and the history carry. An unknown
+  field falls back to its key.
 
-  `changeset_message/1` is the one way both pages state a refused changeset:
+  `changeset_message/1` is the one way these pages state a refused changeset:
   "<label> <message>" per field, the messages of one field joined by ", ",
   the fields by "; ", each message through the `errors` domain.
   """

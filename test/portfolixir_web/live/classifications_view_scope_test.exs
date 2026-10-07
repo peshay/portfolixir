@@ -228,8 +228,10 @@ defmodule PortfolixirWeb.ClassificationsViewScopeTest do
   defp note(html),
     do: html |> find(~s([data-role="category-result-excluded"] .data-note__body)) |> text()
 
-  # The page's refusal, as the operator reads it.
-  defp refusal(html), do: html |> find(".alert-error") |> text()
+  # The page's refusal, as the operator reads it: the problem in its result
+  # slot (#1064, J7 = A).
+  defp refusal(html),
+    do: html |> find("#classifications-result .data-note--problem .data-note__body") |> text()
 
   defp text(nodes), do: nodes |> Floki.text() |> String.replace(~r/\s+/u, " ") |> String.trim()
 
@@ -951,6 +953,8 @@ defmodule PortfolixirWeb.ClassificationsViewScopeTest do
     assert refusal(html) =~
              "The view “Langfrist” was deleted meanwhile; nothing was saved."
 
+    # Brought into view and focused, as every plan write's answer is (#945).
+    assert_push_event(lv, "focus-into-view", %{id: "classifications-result"})
     assert has_element?(lv, "#view-switch-total.is-active")
 
     assert [everything] =

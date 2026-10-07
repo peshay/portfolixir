@@ -34,7 +34,7 @@ defmodule PortfolixirWeb.TransactionFocusReturnLiveTest do
   end
 
   @fallback ~s([data-focus-fallback="#transaction-history-heading"])
-  @result ~s([data-focus-result="[data-role='page-result']"])
+  @result ~s([data-focus-result="#transactions-result .data-note"])
 
   defp returns(tx),
     do: ~s([data-focus-return="#tx-kebab-) <> "#{tx.id}, #tx-phone-kebab-#{tx.id}" <> ~s("])
@@ -51,7 +51,9 @@ defmodule PortfolixirWeb.TransactionFocusReturnLiveTest do
   #   name the row's table and phone kebabs as where the focus returns, the
   #   history's heading as the fallback, and the page's result slot as what a
   #   close brings into view.
-  # - The page's result carries the slot's role.
+  # - The page's result is the note its inline result shows (#1064, pick
+  #   J7 = A): the selector names the note, which exists only while a result
+  #   is shown.
   test "the delete dialog and the Edit drawer return the focus to the row's kebab",
        %{conn: conn, buy: buy, deposit: deposit} do
     {:ok, view, _html} = live(conn, "/transactions")
@@ -80,7 +82,7 @@ defmodule PortfolixirWeb.TransactionFocusReturnLiveTest do
            )
 
     view |> form("#note-form", %{"note" => %{"notes" => "per statement"}}) |> render_submit()
-    assert has_element?(view, ".alert-success[data-role='page-result']", "Note saved")
+    assert has_element?(view, "#transactions-result .data-note--note", "Booking note saved")
 
     # A drawer opened from "Record transaction" keeps its opener, the button.
     view |> element("#open-booking") |> render_click()
@@ -118,6 +120,6 @@ defmodule PortfolixirWeb.TransactionFocusReturnLiveTest do
     css = File.read!("priv/static/app.css")
 
     assert css =~
-             ~r/#transactions-workspace > \[data-role="page-result"\],\s*#transaction-history-heading,\s*#transaction-list \.row-actions__kebab,\s*#transaction-phone-rows \.row-actions__kebab \{\s*scroll-margin-top: calc\(var\(--topbar-height\) \+ var\(--space-3\)\);/
+             ~r/#transactions-result \.data-note,\s*#transaction-history-heading,\s*#transaction-list \.row-actions__kebab,\s*#transaction-phone-rows \.row-actions__kebab \{\s*scroll-margin-top: calc\(var\(--topbar-height\) \+ var\(--space-3\)\);/
   end
 end
