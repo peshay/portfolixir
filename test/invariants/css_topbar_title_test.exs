@@ -22,6 +22,24 @@ defmodule Portfolixir.Invariants.CssTopbarTitleTest do
     assert container =~ ~r/overflow-x:\s*clip\s*;/
   end
 
+  # User story (#1086; board `mockups/ux-design-2026-10-04/06-phone-wealth`,
+  # rule ③; DESIGN.md → Amendment 2026-09-12 → Top bar title):
+  # As the operator reading a long page title on a 390 px phone,
+  # I want the title to end in an ellipsis rather than mid-glyph,
+  # so that "Konten & Depots" reads as cut short and not as "Konten & Depc".
+  #
+  # Acceptance criteria:
+  # - `.topbar-page h1` is a grid item at `min-width: 0`: at `auto` it kept
+  #   its text's width, never overflowed itself, and its own `text-overflow:
+  #   ellipsis` never fired while the container clipped it.
+  # - The ellipsis and the inline clip stay on the heading.
+  test "the title can shrink below its text, so its ellipsis draws" do
+    heading = block(".topbar-page h1")
+    assert heading =~ ~r/min-width:\s*0\s*;/
+    assert heading =~ ~r/text-overflow:\s*ellipsis\s*;/
+    assert heading =~ ~r/white-space:\s*nowrap\s*;/
+  end
+
   # The top-level rule for `selector` (the phone override is indented and
   # therefore not matched).
   defp block(selector) do

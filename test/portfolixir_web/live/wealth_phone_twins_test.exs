@@ -1,12 +1,12 @@
 defmodule PortfolixirWeb.WealthPhoneTwinsTest do
   # Sprint 19 PR γ U4, board `mockups/ux-design-2026-10-04/06-phone-wealth`
-  # (design Part 6): the Positions table's phone rows (#1065, pick J6 A) and
-  # the identifier that tells two securities of one name apart in the
-  # Positions and the contribution tables (#1057, pick J6.2 A). A LiveView
-  # test cannot measure layout: these tests pin the markup and the classes
-  # the board's rules act on; the CSS pins live in `test/invariants/`, the
-  # measurement in the PR's Playwright record. Every name and identifier is
-  # synthetic.
+  # (design Part 6): the Positions table's phone rows (#1065, pick J6 A), the
+  # identifier that tells two securities of one name apart in the Positions
+  # and the contribution tables (#1057, pick J6.2 A), and the KPI label that
+  # keeps its "·" with the word before it (#1086). A LiveView test cannot
+  # measure layout: these tests pin the markup and the classes the board's
+  # rules act on; the CSS pins live in `test/invariants/`, the measurement in
+  # the PR's Playwright record. Every name and identifier is synthetic.
   use PortfolixirWeb.ConnCase, async: true
 
   import Phoenix.LiveViewTest
@@ -510,5 +510,54 @@ defmodule PortfolixirWeb.WealthPhoneTwinsTest do
              view,
              "#contribution-table tr[data-security-id='#{shown.id}'] .twin-id"
            ) == ["no. #{shown.id}"]
+  end
+
+  # User story (#1086; board 06, "Nachher · Kennzahlen"):
+  # As the operator reading the KPI band on a 390 px phone,
+  # I want the "·" of "Opening value · net flows (1Y)" to end a line rather
+  # than open one,
+  # so that the separator never stands alone at the start of the label's
+  # second line.
+  #
+  # Acceptance criteria:
+  # - A no-break space binds "·" to the word before it; the space after it
+  #   stays breakable.
+  test "the opening-value label binds its separator to the word before it", %{conn: conn} do
+    world = base_world(name: "Label World", cash_name: "Giro", depot_name: "Depot")
+    deposit!(world, "1000", days_ago(10))
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    [label] =
+      view
+      |> render()
+      |> Floki.parse_document!()
+      |> Floki.find("#kpi-invested .stat__head > span")
+      |> Enum.map(&Floki.text/1)
+
+    assert label =~ "Opening value\u{00A0}· net flows"
+  end
+
+  # User story (#1086, rule ④; the review of PR γ U4):
+  # As the operator reading Wealth's KPI band on a phone,
+  # I want the compact cards' smaller value to be a rule of this band,
+  # so that Risk's metric cards, which share the card class, keep their
+  # value apart from the 16 px "not computable" sentence.
+  #
+  # Acceptance criteria:
+  # - Wealth's KPI band is `section#portfolio-kpis.kpi-band`, and its four
+  #   compact cards sit inside it: the 560 px rule is scoped to that id
+  #   (the CSS pin is in `css_layout_sweep_test.exs`).
+  test "the KPI band carries the id its phone rule is scoped to", %{conn: conn} do
+    world = base_world(name: "Band World", cash_name: "Giro", depot_name: "Depot")
+    deposit!(world, "1000", days_ago(10))
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    render_async(view)
+
+    for card <- ~w(kpi-securities kpi-cash kpi-invested kpi-multiple) do
+      assert has_element?(view, "section#portfolio-kpis.kpi-band article##{card}.stat--compact")
+    end
   end
 end
