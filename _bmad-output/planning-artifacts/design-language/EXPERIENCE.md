@@ -477,7 +477,7 @@ Interactive controls reach ≥ {spacing.touch-target} effective target under `@m
 **Amendments (2026-08-05), all three because the rule was stated app-wide and enforced nowhere in particular:**
 
 1. **A component definition may not write a sub-floor target into itself.** `{components.selected-segment}`'s `option` specified `min-height 30px` with no coarse clause, and `{components.selected-nav}` specified second-level tabs as "smaller" with no bound at all — so the two families this refresh *consolidates* both carried the defect in their own anatomy. Both now carry an explicit `target-size` clause in `DESIGN.md`, and it binds every call site the class absorbs.
-2. **A sub-floor override inside a `pointer: coarse` block is a review reject.** `app.css:5331-5334` sets `.bucket-chip-add` to 32×32px and `:5336-5339` sets `.bucket-chip__remove` to a 24px minimum, both *inside* a coarse-pointer block. Deliberate sub-44px targets in the branch that exists to prevent them.
+2. **A sub-floor override inside a `pointer: coarse` block is a review reject.** `app.css:5331-5334` sets `.bucket-chip-add` to 32×32px and `:5336-5339` sets `.bucket-chip__remove` to a 24px minimum, both *inside* a coarse-pointer block. Deliberate sub-44px targets in the branch that exists to prevent them. *Both raised to 44 × 44 on 2026-10-07 (Sprint 19 U5, issue 1085).*
 3. **"Smaller" has a floor.** Second-level tabs drop the icon and tighten the padding; the label stays at {typography.control-label} and both tab levels take {spacing.touch-target} under `pointer: coarse`.
 
 WCAG 2.5.8 Target Size (Minimum) (AA, 24×24) is met by these controls in isolation; the project's own commitment is the stricter 2.5.5 figure and is what this rule enforces.
@@ -653,16 +653,19 @@ Five `@media (pointer: coarse)` blocks ship (app.css:4589, 4887, 4998, 5330, 552
 |---|---|---|
 | `.area-tab` | **no `min-height`** — height is padding-derived (`0.45rem` block padding on a 13px/1.4 line) | app.css:4340-4346 |
 | `.segmented-control__option` | `min-height: 30px` | app.css:1409-1421 |
-| `.range-button` | `min-height: 32px` | app.css:2881-2896 |
-| `.chart-toggle` | `min-height: 32px` | app.css:2973-2986 |
+| `.range-button` | `min-height: 32px` — *shipped 2026-10-07 (Sprint 19 U5, issue 1062, board `ux-design-2026-10-04/07-floor` rule ②): `min-height` and `min-width` of 44px under `@media (pointer: coarse)`, a real size, because `.range-buttons` clips* | app.css:2881-2896 |
+| `.chart-toggle` | `min-height: 32px` — *shipped 2026-10-07 (the same board, found while drawing): 44px `min-height` under `@media (pointer: coarse)`* | app.css:2973-2986 |
 | `.period-buttons .button-mini` | **no `min-height`** — `padding: 0.25rem 0.6rem` | app.css:3973-3980 |
 | `.locale-link` | `min-width: 30px`, `min-height: 26px` | app.css:743-750 |
 | `.icon-button` | `30 × 30px` — *rendered 30 × 34 as a `<button>`, because the base button's 34px floor won the height; shipped 2026-10-03 (Sprint 18 U4, issue 1033, board `ux-design-2026-10-02/06-touch-focus` H6.2b): `min-height: 0` makes the 30 × 30 hold, and `min-width` and `min-height` of 44px under `@media (pointer: coarse)`, on the class* | app.css:1438-1445 |
 | `.theme-choice` / `.accent-choice` | `width: 28px`, `min-height: 28px` | app.css:656-671 |
 | `.row-actions__kebab` | **no `min-height`** — `padding: {spacing.1}` — *shipped 2026-09-23 (Sprint 14, issue 834): `min-width` and `min-height` of 44px under `@media (pointer: coarse)`* | app.css:2110-2117 |
 | `.icon-mini` outside `.bucket-list__actions` | **no `min-height`** — `padding: 0.12rem 0.3rem` | app.css:3873-3879 |
+| `.row-context-menu__item` above 720px *(added 2026-10-07)* | the base button's 34px — only the sheet under 720px is larger — *shipped 2026-10-07 (Sprint 19 U5, issue 1062, rule ①): 44px `min-height` under `@media (pointer: coarse)`* | app.css, `.row-context-menu__item` |
+| `.metric-tooltip summary` *(added 2026-10-07; the 2026-08-05 count read the coarse circle as covered)* | a 1.25rem circle, **1.75rem (28px) under `pointer: coarse`** — under the floor — *shipped 2026-10-07 (Sprint 19 U5; board `ux-design-2026-10-04/04-trades`, found while drawing 3): a transparent ring (`::before`, `inset: -9px` from the padding box) makes the target 44px with the 28px picture* | app.css, the coarse ⓘ block |
+| `.view-switcher__manage`, `.view-switcher__help summary`, `.view-switcher .button-mini` *(added 2026-10-07, the closing act of Sprint 19 PR γ; issue 1164)* | "Ansichten" **85 × 19px**, the active view's ⓘ **14 × 20px**, Wealth's "Als Standard festlegen" the base button's 34px, under `pointer: coarse` too, beside chips at 44px — *shipped 2026-10-07: the link and the button 44px `min-height` under `@media (pointer: coarse)`, the ⓘ a 26px box inside the coarse ⓘ ring (44 × 44), the switcher's items 12px apart there; all three draw the accent focus ring* | app.css, the switcher's coarse block after `.view-switcher__manage` |
 
-Plus **two sub-floor overrides written inside a coarse block**, which are worse than an omission because they are deliberate: `.bucket-chip-add` at `32 × 32px` (app.css:5331-5334) and `.bucket-chip__remove` at a `24px` minimum (5336-5339). Both are raised or deleted.
+Plus **two sub-floor overrides written inside a coarse block**, which are worse than an omission because they are deliberate: `.bucket-chip-add` at `32 × 32px` (app.css:5331-5334) and `.bucket-chip__remove` at a `24px` minimum (5336-5339). Both are raised or deleted. *Raised 2026-10-07 (Sprint 19 U5, issue 1085, board `ux-design-2026-10-04/07-floor` rule ⑧): both are 44 × 44 under `pointer: coarse`, and a chip holding a × gives up its block and right padding.*
 
 Two of the ten are **permanent chrome on every screen and every form factor** — the theme and accent menus at 28px and the locale switcher at 30×26px — so they are the first cut, not the tail. And the first-level `.area-tab` fails the floor while the second-level `.detail-pane-tab` meets it (app.css:4603-4608): the inversion is why `{components.selected-nav}` now bounds what "smaller" may mean.
 
