@@ -1765,11 +1765,25 @@ hinter jedem Geldbetrag, damit ein Marktwert seine Währung nennt, auch wenn
 die Spalte Währung abgeschaltet ist. Die Auswahl liegt im Browser und
 übersteht ein Neuladen; alle Haken zu entfernen fällt auf die Vorgaben
 zurück. Die Auswahl steht über der Tabelle und erscheint nur, wenn es eine
-Tabelle zu konfigurieren gibt. Neben den festen Buttons verkettet ein
-Jahres-Dropdown jedes einzelne Kalenderjahr mit Daten, und ein Von/Bis-
-Datumsbereich verkettet eine eigene Spanne — beides sind reine Neuverkettungen
-der bereits berechneten Reihe, ehrlich auf die vorhandene Historie begrenzt
-(ein rückwärts gerichteter Bereich wird mit kurzem Hinweis abgelehnt).
+Tabelle zu konfigurieren gibt. Auf dem Telefon (unter 560 px) stehen die
+Positionen statt der Tabelle als zweizeilige Einträge da: der Name des
+Wertpapiers über seinem Depot, rechts die Stückzahl („18 Stück“), sodass
+nichts seitlich gewischt werden muss; die Einträge zeigen die Vorgabefelder,
+und die **Spalten**-Auswahl ist dort ausgeblendet, weil sie nichts ändern
+würde. Tragen zwei verschiedene Wertpapiere denselben Namen — etwa ein
+Duplikat, das auf eine Zusammenführung wartet —, zeigt jede Zeile hinter dem
+Namen in kleinerer, gedämpfter Schrift, was sie unterscheidet: die ISIN, wo
+beide eine haben und sie sich unterscheiden, sonst ebenso die WKN, sonst die
+Nummer des Datensatzes („Nr. 42“). Das gilt in einem Depot wie über zwei
+Depots hinweg, denn zwei Depotnamen können gleich aussehen, und die Spalte
+Depot lässt sich abschalten. Ein Name, der nur einmal vorkommt, bleibt ohne
+Zusatz, ebenso ein Wertpapier, das in zwei Depots liegt.
+
+Neben den festen Buttons verkettet ein Jahres-Dropdown jedes einzelne
+Kalenderjahr mit Daten, und ein Von/Bis-Datumsbereich verkettet eine eigene
+Spanne — beides sind reine Neuverkettungen der bereits berechneten Reihe,
+ehrlich auf die vorhandene Historie begrenzt (ein rückwärts gerichteter Bereich
+wird mit kurzem Hinweis abgelehnt).
 Auf dem Tab **Allokation & Ziele** zeigt der **Allokations-Sunburst** die Klassifizierung als
 konzentrische Ringe — der innere Ring sind die obersten Kategorien, jeder äußere
 Ring bricht eine Ebene weiter herunter mit in ihren Eltern verschachtelten
@@ -2158,7 +2172,14 @@ wurde, weil kein Kurs oder kein Wechselkurs gespeichert war, behält ihren Platz
 in der Tabelle und in der Summe, trägt die Zahl dieser Tage in ihrer Zeile und
 wird in einem Hinweis unter der Tabelle genannt. Ein Zeitraum ohne Inhalt zeigt
 einen Satz statt einer Tabelle voller Nullen, und auf dem Telefon wird die
-Tabelle zu zweizeiligen Einträgen.
+Tabelle zu zweizeiligen Einträgen. Zwei verschiedene Wertpapiere mit demselben
+Namen zeigen hinter dem Namen, was sie unterscheidet, in der Tabelle wie in
+den Einträgen auf dem Telefon: die ISIN, wo beide eine haben und sie sich
+unterscheiden, sonst die Nummer des Datensatzes („Nr. 42“). Die Tabelle hat
+eine Zeile je Wertpapier, gleich in welchem Depot es liegt, deshalb werden
+solche Wertpapiere hier auch dann unterschieden, wenn sie in verschiedenen
+Depots liegen; und die Prüfung umfasst alle Positionen, auch die hinter
+**Alle N anzeigen**.
 
 Auch ein Verrechnungskonto in einer Fremdwährung zählt an jedem Tag null, an
 dem es Geld hält, während für seine Währung noch kein Wechselkurs zur

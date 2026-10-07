@@ -1616,11 +1616,24 @@ the row's currency after every money figure, so a market value states its
 currency even when the Currency column is switched off. The choice is stored
 in the browser and survives a reload; clearing every box falls back to the
 defaults rather than leaving a table with no columns. The picker sits above
-the table, and appears only when there is a table to configure. Beside the fixed buttons, a year dropdown
-chains any single calendar year with data, and a from/to date range chains a
-custom span — both are pure re-chains of the already-computed series, clamped
-honestly to the available history (a backwards range is refused with a short
-note). On the **Allocation & targets** tab, the **allocation sunburst**
+the table, and appears only when there is a table to configure. On a phone
+(under 560 px) the positions read as two-line rows instead of the table:
+the security's name over its depot, the quantity on the right ("18 units"),
+so nothing has to be swiped sideways; the rows show the default fields, and
+the **Columns** picker is hidden there because it would change nothing. When
+two different securities carry the same name — a duplicate awaiting a
+merge, for instance — each row shows what tells them apart after the name,
+in a smaller muted font: the ISIN where both have one and they differ, else
+the WKN on the same terms, else the record's number ("no. 42"). This holds
+in one depot or across two, because two depots' names can read alike and
+the Depot column can be switched off. A name that occurs only once stays
+bare, and so does one security held in two depots.
+
+Beside the fixed buttons, a year dropdown chains any single calendar year
+with data, and a from/to date range chains a custom span — both are pure
+re-chains of the already-computed series, clamped honestly to the available
+history (a backwards range is refused with a short note). On the
+**Allocation & targets** tab, the **allocation sunburst**
 shows the classification as concentric rings — the inner ring is the top-level
 categories, each outer ring breaks one level down with sub-category arcs nested
 inside their parent, and the **outermost ring shows the individual positions**
@@ -1973,7 +1986,13 @@ position. A position that counted zero on some days of the period, because
 no price or no exchange rate was stored, keeps its place in the table and in
 the sum, carries the number of those days on its row, and is named in a note
 under the table. A period with nothing in it shows a sentence instead of a
-table of zeros, and on a phone the table becomes two-line rows.
+table of zeros, and on a phone the table becomes two-line rows. Two
+different securities with the same name each show what tells them apart
+after the name, in the table and in the phone rows: the ISIN where both
+have one and they differ, else the record's number ("no. 42"). The table
+has one row per security, whichever depot holds it, so such securities are
+told apart here even when they sit in different depots; and the check
+covers every position, the ones behind **Show all N** included.
 
 A cash account in a foreign currency counts zero, too, on every day it holds
 money while its currency has no stored exchange rate to the base currency.

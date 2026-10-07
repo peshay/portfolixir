@@ -1292,6 +1292,35 @@ Shipped as #702; recorded here so every tab row is held to it.
   the row's end. Measured in Chromium at 390 px: every Wealth page rests with a
   whole tab at the left, on arrival and when swiped to the end. The detail
   pane's row takes the same inset from `--detail-tabs-tail` (Sprint 18, H7.2);
+- **the row's container has a zero floor** *(2026-10-07, issue 1063, Sprint
+  19 PR γ U4; board `mockups/ux-design-2026-10-04/06-phone-wealth`, rule
+  ⑤)*: a row scrolls inside itself only if no ancestor grows to its
+  min-content. The securities split workspace
+  (`.securities-workspace--split`) is a grid whose one column was an
+  implicit `auto`, so the detail pane's min-content — its nine `flex: none`
+  tabs, about 760 px — set the column's floor, and with the pane open at
+  768 px the page measured 785 px, a 17 px sideways scroll. The column is
+  now `grid-template-columns: minmax(0, 1fr)`: the page is the window, and
+  the tab row scrolls inside itself with its fade. A grid or flex ancestor
+  of a tab row gives it the same zero floor. *Amended 2026-10-07 (issue
+  1063 on the chart tab, the U3 review; board
+  `mockups/ux-design-2026-10-04/06b-chart-toggles-768`, before / after):*
+  the chart tab's toggle row (`.chart-toggles`) wraps at every width, not
+  only in the 720 px phone block — its ten German toggles kept one line
+  wider than the pane and the page scrolled 239 px sideways at 768 px, 203
+  at 1024 and 27 at 1200. *Amended 2026-10-07 (issue 1063 in the detail
+  head, the closing act's edge-case finding 6):* a stored name with no
+  break opportunity was the detail head's min-content, so the page scrolled
+  sideways and the pane's Edit, Split, fullscreen and close buttons went
+  off the screen — a 74-letter synthetic name measured 629 px of sideways
+  scroll at 390, 253 at 768 and 217 at 1024. The head's `h2` takes
+  `overflow-wrap: anywhere`: the name breaks mid-word only when nothing
+  else fits, and its min-content drops with it (`break-word` would not).
+  The title block keeps its min-content floor — a `min-width: 0` there was
+  measured and left out, because it let the ISIN line run past its column
+  toward the buttons. After: no sideways scroll at 320, 390, 768, 1024 and
+  1200, every button on the screen, and a name that breaks at spaces wraps
+  exactly as before;
 - **no scrollbar** — a phone renders none anyway, and the fade plus snap carry
   it; keyboard users reach off-screen tabs by tabbing, which scrolls them in;
 - **the baseline is an inset box-shadow, not `border-bottom`.** This is the
@@ -1607,6 +1636,15 @@ variants in `../ux-review-2026-09-12.md`. Appearance decided here:
   as `overflow-x: clip`. The line box must clear a capital umlaut at 1× DPR —
   "Übersicht" rendered as "Ubersicht" on every Overview shot since the top bar
   was built, including the committed docs screenshots.
+  *Amended 2026-10-07 (issue 1086, Sprint 19 PR γ U4; board
+  `mockups/ux-design-2026-10-04/06-phone-wealth`, rule ③):* the heading is
+  a grid item and takes `min-width: 0`. At `min-width: auto` it stayed as
+  wide as its text (144 px of "Konten & Depots" in a 124 px box at 390 px),
+  so it never overflowed itself, its own `text-overflow: ellipsis` never
+  drew, and the container's clip cut the title mid-glyph ("Konten & Depc").
+  With the zero floor the heading shrinks to its box and ends in the
+  ellipsis, "Konten & De…". The container's `overflow-x: clip` and the
+  heading's ellipsis and `nowrap` stay as they are.
 - **Value suffix:** inside {components.value-slot} the currency renders as a
   `<small>` at {typography.stat-label} size and {colors.text-muted}, 4 px
   after the digits. The digits keep tabular numerals and never wrap.
@@ -1666,7 +1704,28 @@ extended).
 - **Value suffix** in both: the currency as `<small class="value-suffix">`
   after the digits (the Value suffix rule above). The digits keep
   `white-space: nowrap`; the suffix may drop to its own line on a narrow
-  card, the digits never break.
+  card, the digits never break. **Amended 2026-10-07 (issue 1086, Sprint
+  19 PR γ U4; board `mockups/ux-design-2026-10-04/06-phone-wealth`, rule ④;
+  the design pass's spec conflict, resolved for EXPERIENCE.md → Value slot
+  on the phone only):** under 560 px a compact card of Wealth's band
+  (`#portfolio-kpis`) steps its value down from 22 px to 16 px,
+  {typography.subsection-title}, the ramp's next step that fits, so the
+  value and its suffix share one line there: at 22 px a six-figure amount
+  ("182.450,30 EUR") dropped "EUR" under its digits on a half-width card,
+  and 18 px still drops it. That one line under 560 px is all the amendment
+  builds. Above 560 px nothing changed — the value stays 22 px — and a
+  wider compact card may still wrap its suffix under the digits: measured,
+  a five-figure amount drops "EUR" in bands between 721 and 880 px and
+  again around 1024 px, where four cards share the row. A seven-figure
+  amount on a phone may drop it as well. The digits never break. The step is scoped to Wealth's band: Risk's metric cards are
+  compact cards too, and there a computed value would read at the 16 px of
+  the "not computable" sentence (`.stat-empty`).
+- **The opening-value label** *(2026-10-07, issue 1086, the same board's
+  "after")*: "Anfangswert · Nettoflüsse (1J)" binds its "·" to the word
+  before it with a no-break space, written in the template between the two
+  msgids rather than in either msgid. On a half-width card the label breaks
+  after the separator, so "·" ends the first line instead of opening the
+  second; the space after it stays breakable.
 - **Label row** (`.stat__head`): the label and its ⓘ side by side, the
   tooltip in its inline variant (`.metric-tooltip--inline`), so it reads
   with the label instead of pinning to the corner where the sub-line now
@@ -1835,8 +1894,104 @@ composition per surface that the column picker does not touch.
   date (ISO) over the source badge; on the right the close with the
   security's currency, over "stored <value>" only where a split adjusted the
   close. Two children, no kebab (Amendment 2026-10-03, the phone at 390 px).
+- **Wealth's Positions** *(2026-10-07, issue 1065, Sprint 19 PR γ U4; board
+  `mockups/ux-design-2026-10-04/06-phone-wealth`, pick J6 A, rule ①)*:
+  `ul#holdings-phone-rows.phone-rows` (labelled "Positions") beside the
+  table, one row per holding row in the table's order (depot, then name):
+  the security's name (600, wrapping) over the depot's name; on the right
+  the quantity with its unit word, "18 Stück" / "18 units" ("1 unit" for
+  one), in the table's own digits (`Format.exact`: every stored digit, the
+  reader's separators). These are the projection's default columns — Depot ·
+  Security · Quantity — as a fixed composition: the column picker does not
+  touch the rows, so under 560 px `#holdings-positions-wrapper` joins the
+  hidden wrappers, and `#holdings-column-toggle` and its panel
+  `#holdings-column-picker` join the pickers that hide (a panel opened on a
+  wider window would otherwise stay open across a resize).
+  Two tracks, `minmax(0, 1fr) auto`, as the trades and quotes rows: no logo,
+  no kebab. A row is 59 px (79 px when the name wraps) against the table's
+  32; the table it replaces was 445 px wide in a 356 px scroller, with
+  "Stückzahl" starting off-screen and a swipe cutting the depot. A name two
+  securities share anywhere in the table carries its identifier (Twin
+  names, below).
+  The pinned-name alternative (J6 B) is not built.
 - **Rules kept:** nothing scrolls sideways; matrices and dialog tables keep
   UX-DR15's scroller; the desktop tables are unchanged.
+
+### Twin names — an identifier where two rows read the same *(2026-10-07, issue 1057; Sprint 19 PR γ U4, board `mockups/ux-design-2026-10-04/06-phone-wealth`, pick J6.2 A, rule ②)*
+
+Two securities stored under one name — a duplicate awaiting a merge, or two
+share classes the provider named alike — used to read as one row printed
+twice. Where two rows of one table would read the same, each carries a
+short identifier after its name; a unique name stays bare.
+
+- **The collision key is the displayed name, over the whole table.** A
+  twin is a row whose name reads the same as another row's for a different
+  security; one security on several rows is never its own twin. Both tables
+  decide over every row of their payload: in the contribution table a twin
+  among the ten rows shown keeps its identifier while its sibling is among
+  the hidden ones. The Positions table has one row per depot and security,
+  but the depot is no tie-breaker: two depots' names may read the same (two
+  names that differ only by a doubled space are two names to the account
+  guard and one to a reader), and the Depot column can be switched off in
+  the picker. So one name held by two securities in two depots is a
+  collision there too, and one security held in two depots is not — its
+  rows carry no identifier.
+- **"Reads the same" is the name as a cell shows it:** Unicode NFC, and
+  every run of whitespace one space with the edges trimmed, so a decomposed
+  "Müller AG" and a doubled space collide with the plain name
+  (`SecurityNames.display_key/1`). *Amended 2026-10-07 (the PR γ closing
+  act, edge-case hunter #3):* a no-break space (U+00A0), a figure space
+  (U+2007) and a narrow no-break space (U+202F) count as a space, because a
+  cell prints them as one and `String.split/1` keeps them inside a word: a
+  name pasted from a web page or a PDF, "Lumen Werke AG" with a no-break
+  space, rendered as the twin of the plain name with no identifier on
+  either row. Nothing more is folded: the import's
+  `SecurityResolver.skeleton/1` also lowercases, applies NFKC and folds
+  Cyrillic and Greek lookalikes, which is "looks alike" for its at-risk
+  check rather than "prints the same"; here case stays significant.
+- **The chain is ISIN, else WKN, else the number.** Within a colliding name
+  the identifier is the first of ISIN and WKN that every twin carries and no
+  two twins share (an empty value counts as absent); failing both, each twin
+  takes "Nr. <id>" / "no. <id>", the precedent of the security merge
+  preview's "Split am … · Nr." and the pickers' own last step. One twin
+  with only an ISIN and another with only a WKN therefore both take their
+  number. The depot cannot be the last step: depot names may read the same,
+  the Depot column can be hidden, and the contribution table has one row
+  per security. The contribution payload carries no WKN, so there the chain
+  falls from the ISIN straight to the number.
+- **Anatomy** (`.twin-id`, rendered by
+  `PortfolixirWeb.SecurityNames.twin_id/1`): after the name, a word space
+  and a ~~6 px~~ 2 px margin from it, inside the name's own cell or
+  `.phone-row__name`; {colors.text-muted},
+  `--font-mono`, 12 px, weight 400, `white-space: nowrap` — the identifier
+  voice of the securities list's row, quieter than the name, so it reads as
+  a tag on the name and not as a second name. A visually hidden "ISIN" /
+  "WKN" before the value tells a screen reader which identifier it is. The
+  separating spaces are real spaces in the normal flow, never inside the
+  hidden span, whose absolute position collapses the spaces at its edges:
+  one before `.twin-id`, so the name may wrap before the identifier and the
+  text never runs together, and one between the hidden label and the value,
+  so the row's text reads "Juniper Rail AG ISIN XS…". On the screen the
+  second space collapses into the first, so a word space and the ~~6 px~~
+  2 px margin separate the identifier from the name. A number names itself
+  and has no hidden label. Both tables, at both widths. *Amended 2026-10-07
+  (the PR γ closing act, design critic #2):* the board draws a 6 px gap
+  between the name and the identifier, and the word space is part of it.
+  A 6 px margin on top of the space measured 9.8 px on the desktop and
+  10.9 px on the phone, and an identifier wrapped onto a line of its own
+  hung 6 px in. With the space kept and a 2 px margin the gap measures
+  5.8 px at 1200 px and 6.9 px at 390 px, and a wrapped identifier hangs
+  2 px in.
+- **One rule, one module.** `SecurityNames.put_twin_ids/2` decides it for
+  both tables, beside the pickers' `SecurityNames.tags/1`, whose own chain
+  (ISIN, ticker, number) is unchanged: a picker lists the catalog, a table
+  reads its payload.
+- **Not here:** the ISIN on every row (J6.2 B) — twelve mono characters on
+  each row, nothing for twins without an ISIN, and a copy of the picker's
+  ISIN column. The surfaces the pass did not name — the contribution's
+  unvalued note, the allocation tree and its flat positions, the history,
+  the trades, the Overview, Risk — print the name alone until a story names
+  them.
 
 ### Phone filter sheet *(C4-B, issue 800)*
 
@@ -3640,9 +3795,12 @@ children (body and figures), no logo, no kebab, no bar.
   to this control: a remedy link inside a note's sentence keeps its own
   finding and its own remedy, because growing its line would reflow the
   sentence.
-- A security stored twice under one name (a duplicate awaiting a merge)
+- ~~A security stored twice under one name (a duplicate awaiting a merge)
   reads as two rows with the same name; the ISIN is in the payload but not
-  on the row.
+  on the row.~~ **Settled 2026-10-07 (issue 1057, Sprint 19 PR γ U4, pick
+  J6.2 A):** each twin carries the identifier that tells it apart, the ISIN
+  else the number, after its name in the table and in the phone row — see
+  Components → Twin names.
 
 ## Amendment 2026-10-03 — Tables: five conformance repairs *(Sprint 18 pick H4; issues 1009, 1010, 913, 911, 1011)*
 
