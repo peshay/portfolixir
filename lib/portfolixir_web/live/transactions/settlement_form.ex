@@ -40,6 +40,7 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
   alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Ledger.Transaction
   alias PortfolixirWeb.DecimalInput
+  alias PortfolixirWeb.Format
 
   @trade_types ["buy", "sell"]
   @fields ["settlement_amount", "settlement_fx_rate", "settlement_source", "settlement_mode"]
@@ -338,9 +339,20 @@ defmodule PortfolixirWeb.Transactions.SettlementForm do
     |> DecimalInput.value()
   end
 
-  # The ISO date in running text must not break at its hyphens in the narrow
+  # The booking day in running text reads the page's language (Sprint 19
+  # U3): the date field's ISO, once it reads as a date (the shared rule,
+  # `BoundedDate`), goes through `Format.date`; a text that does not read yet
+  # is said as typed. An ISO date must not break at its hyphens in the narrow
   # drawer; a non-breaking hyphen (U+2011) keeps it one word.
-  defp unbroken_date(date), do: date |> to_string() |> String.replace("-", "\u2011")
+  defp unbroken_date(text) do
+    shown =
+      case BoundedDate.parse(text) do
+        {:ok, date} -> Format.date(date)
+        {:error, _reason} -> to_string(text)
+      end
+
+    String.replace(shown, "-", "\u2011")
+  end
 
   attr(:pair, :map, required: true)
   attr(:form, :map, required: true)

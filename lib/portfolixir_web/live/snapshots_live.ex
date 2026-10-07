@@ -521,7 +521,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
                     <tbody>
                       <%= for row <- table_rows(@comparison.series) do %>
                         <tr>
-                          <td><%= row.date %></td>
+                          <td><%= Format.date(row.date) %></td>
                           <td class="num"><%= Format.money(row.snapshot_value) %></td>
                           <td class="num">
                             <%= if row.snapshot_indexed, do: percent_label(to_float(row.snapshot_indexed)), else: "—" %>
@@ -647,7 +647,7 @@ defmodule PortfolixirWeb.SnapshotsLive do
                         </span>
                       </td>
                       <td><%= view_name(@views, snapshot.view_id) %></td>
-                      <td><%= snapshot.as_of %></td>
+                      <td><%= Format.date(snapshot.as_of) %></td>
                       <td class="row-actions">
                         <AppShell.row_kebab
                           id={"snapshot-kebab-#{snapshot.id}"}

@@ -673,7 +673,7 @@ defmodule PortfolixirWeb.ImportsLive do
                 row: behind.row,
                 description: row_description(@preview, behind.row),
                 account: account_name(@existing_cash, behind.cash_account_id),
-                date: Date.to_iso8601(behind.anchor_date)
+                date: Format.date(behind.anchor_date)
               ) %>
             </li>
           </ul>
@@ -697,7 +697,7 @@ defmodule PortfolixirWeb.ImportsLive do
                 <%= gettext("Row %{row}: %{kind} %{date} · %{from} → %{to}",
                   row: transfer.row,
                   kind: kind_label(transfer.kind),
-                  date: transfer.date && Date.to_iso8601(transfer.date),
+                  date: transfer.date && Format.date(transfer.date),
                   from: transfer.pp_name,
                   to: transfer.pp_counter_name
                 ) %>
@@ -1584,7 +1584,7 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp entry_description(entry) do
     [
-      "#{kind_label(entry.kind)} #{entry.date && Date.to_iso8601(entry.date)}",
+      "#{kind_label(entry.kind)} #{entry.date && Format.date(entry.date)}",
       entry.security && entry.security[:name],
       entry_amount(entry),
       entry_names(entry)

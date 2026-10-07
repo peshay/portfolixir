@@ -96,7 +96,10 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
   end
 
   defp blank_choices,
-    do: %{collapse: nil, identity: nil, isin_changed_on: Date.to_iso8601(Clock.today())}
+    do: %{collapse: nil, identity: nil, isin_changed_on: isin_change_default()}
+
+  # The ISIN-change field's default, today: an input keeps ISO (UX-DR19).
+  defp isin_change_default, do: Date.to_iso8601(Clock.today())
 
   # -- render -------------------------------------------------------------------
 

@@ -56,8 +56,9 @@ defmodule PortfolixirWeb.SecuritiesQuotePhoneRowsTest do
   #   phone lists' 560 px block hides; beside it
   #   `ul#quote-phone-rows.phone-rows` carries one row per quote of the
   #   range, in the table's order (newest first).
-  # - A row: the ISO date as its name, the source badge under it, the close
-  #   with the security's currency on the right.
+  # - A row: the date as its name (in the page's language since Sprint 19
+  #   U3, board 05), the source badge under it, the close with the
+  #   security's currency on the right.
   # - Without a split the row carries no second figure: "gespeichert …"
   #   would repeat the same number.
   # - The row has two children and no kebab.
@@ -84,7 +85,7 @@ defmodule PortfolixirWeb.SecuritiesQuotePhoneRowsTest do
     [newest, middle, oldest] = rows(view)
 
     assert text(newest, ".phone-row__body .phone-row__name") ==
-             Date.to_iso8601(Date.add(today, -1))
+             PortfolixirWeb.Format.date(Date.add(today, -1), "de")
 
     assert text(newest, ".phone-row__ids .badge.quote-source") == "Portfolio Performance"
     assert text(newest, ".phone-row__figures .phone-row__figure") == "112,40 EUR"

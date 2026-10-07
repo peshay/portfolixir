@@ -458,7 +458,8 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     refusal = view |> element("#security-merge-dialog [data-role='merge-refused']") |> render()
 
     assert refusal =~ "Zusammenführen nicht möglich"
-    assert refusal =~ "2025-03-01"
+    # The day in the page's language (Sprint 19 U3, board 05).
+    assert refusal =~ "01.03.2025"
     refute refusal =~ "Außerdem"
     refute refusal =~ "Soll"
   end
@@ -756,6 +757,98 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
              "#security-merge-dialog [data-role='merge-confirm']",
              "In Meridian Global Equity ETF zusammenführen"
            )
+  end
+
+  # User story (Sprint 19 PR γ U3, issue 1061; board 05, the merge dialogs'
+  # "Heute / Nachher"):
+  # As a German-speaking operator reading a merge's preview,
+  # I want every date in it — when each side was created, the equal
+  # bookings, the colliding quotes — as DD.MM.YYYY,
+  # so that the dialog does not mix "angelegt 2026-10-03" with the German
+  # date of its own basis line.
+  #
+  # Acceptance criteria:
+  # - Both sides' cards read "angelegt <DD.MM.YYYY>".
+  # - The equal bookings' table and their two-line phone form read the
+  #   booking's day "01.07.2025".
+  # - The quote collisions read their day "31.12.2025".
+  # - Nothing in the preview prints an ISO date.
+  test "the German preview prints every date as DD.MM.YYYY", ctx do
+    buy!(ctx, ctx.target, "2", "120.00", ~D[2025-07-01])
+    buy!(ctx, ctx.source, "2", "120.00", ~D[2025-07-01])
+    quote!(ctx.target, ~D[2025-12-31], "71.40")
+    quote!(ctx.source, ~D[2025-12-31], "71.55")
+
+    {:ok, view, _html} = live(ctx.conn, "/securities?locale=de")
+    to_preview(view, ctx.source, ctx.target)
+
+    created = PortfolixirWeb.Format.date(Clock.today(), "de")
+    read = &(&1 |> Floki.parse_fragment!() |> Floki.text() |> String.replace(~r/\s+/, " "))
+
+    pair = view |> element("#security-merge-dialog [data-role='merge-pair']") |> render()
+    assert read.(pair) =~ "angelegt #{created}"
+
+    table = view |> element("[data-role='merge-pairs'] .merge-wide table") |> render()
+    assert read.(table) =~ "01.07.2025"
+
+    line = view |> element("[data-role='merge-pairs'] .merge-lines.merge-narrow li") |> render()
+    assert read.(line) =~ "01.07.2025 · Kauf"
+
+    quotes =
+      view |> element("#security-merge-dialog [data-role='merge-quote-collisions']") |> render()
+
+    assert read.(quotes) =~ "31.12.2025"
+
+    refute view |> element("#security-merge-dialog") |> render() |> read.() =~
+             ~r/\b\d{4}-\d{2}-\d{2}\b/
+  end
+
+  # User story (Sprint 19 PR γ U3, issue 1061; board 05, found while
+  # drawing 3 — the detail Overview):
+  # As a German-speaking operator reading the survivor of a merge, and the
+  # merge's record on Accounts & depots,
+  # I want the former ISIN's last day, the merge's day and the ISIN change's
+  # day as DD.MM.YYYY,
+  # so that the lineage reads its dates as the rest of the page does.
+  #
+  # Acceptance criteria:
+  # - The Overview's basis line reads "frühere ISIN … (bis 15.09.2025)" and
+  #   "zusammengeführt am <today, DD.MM.YYYY> …", the merge's day still the
+  #   link to its record.
+  # - The record's ISIN line reads "Änderung vom 15.09.2025".
+  test "the German lineage and the merge record read their days as DD.MM.YYYY", ctx do
+    buy!(ctx, ctx.target, "10", "100.00", ~D[2025-01-10])
+    buy!(ctx, ctx.source, "3", "105.00", ~D[2025-02-12])
+
+    {:ok, view, _html} = live(ctx.conn, "/securities?locale=de")
+    to_preview(view, ctx.source, ctx.target)
+
+    choose(view, %{identity: "adopt_source_isin", isin_changed_on: "2025-09-15"})
+    view |> element("#security-merge-dialog [data-role='merge-confirm']") |> render_click()
+    render_async(view)
+
+    record = Lifecycle.merge_of(:security, ctx.source.id)
+    today = PortfolixirWeb.Format.date(Clock.today(), "de")
+
+    basis = view |> element("[data-role='overview-basis']") |> render() |> Floki.parse_fragment!()
+    words = basis |> Floki.text() |> String.split() |> Enum.join(" ")
+    assert words =~ "frühere ISIN XS0000000017 (bis 15.09.2025)"
+    assert words =~ "zusammengeführt am #{today}"
+    assert Floki.text(Floki.find(basis, "a[data-role='overview-merge-link']")) == today
+
+    {:ok, accounts, _html} = live(ctx.conn, "/portfolios?locale=de&merge=#{record.id}")
+
+    entry =
+      accounts
+      |> element("[data-role='merge-records']")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.text()
+      |> String.split()
+      |> Enum.join(" ")
+
+    assert entry =~ "Änderung vom 15.09.2025"
+    refute entry =~ "2025-09-15"
   end
 
   # -- helpers ----------------------------------------------------------------

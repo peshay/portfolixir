@@ -86,7 +86,14 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
         %{"date" => Date.to_iso8601(day.(-4)), "close" => "104.20"}
       ])
 
-    %{security: security, day: day, iso: &Date.to_iso8601(day.(&1))}
+    # A displayed date reads the page's language (Sprint 19 U3, board 05):
+    # `de` for the note, the chips and the result; `iso` for the fields.
+    %{
+      security: security,
+      day: day,
+      iso: &Date.to_iso8601(day.(&1)),
+      de: &PortfolixirWeb.Format.date(day.(&1), "de")
+    }
   end
 
   defp with_adapter(_ctx) do
@@ -170,7 +177,7 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
     note = "#detail-tab-panel-quotes [data-role='manual-quotes-note']"
 
     assert text(view, note) =~
-             "4 manuelle Kurse in der gespeicherten Historie, vom #{ctx.iso.(-1100)} bis #{ctx.iso.(-4)}."
+             "4 manuelle Kurse in der gespeicherten Historie, vom #{ctx.de.(-1100)} bis #{ctx.de.(-4)}."
 
     assert text(view, note) =~
              "Ein manueller Kurs hat Vorrang: Die Kursaktualisierung lässt ihn stehen, bis er freigegeben wird."
@@ -214,7 +221,7 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
     {:ok, view, _html} = quotes_tab(ctx.conn, pinned)
 
     assert text(view, "[data-role='manual-quotes-note']") =~
-             "2 manuelle Kurse in der gespeicherten Historie, vom #{ctx.iso.(-3)} bis #{ctx.iso.(-2)}; alle gespeicherten Kurse sind manuell."
+             "2 manuelle Kurse in der gespeicherten Historie, vom #{ctx.de.(-3)} bis #{ctx.de.(-2)}; alle gespeicherten Kurse sind manuell."
   end
 
   # User story:
@@ -256,8 +263,8 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
 
     assert Enum.map(chips, &(&1 |> Floki.text() |> String.split() |> Enum.join(" "))) == [
              "Alle · 4",
-             "#{ctx.iso.(-1100)} – #{ctx.iso.(-1099)} · 2",
-             "#{ctx.iso.(-5)} – #{ctx.iso.(-4)} · 2"
+             "#{ctx.de.(-1100)} – #{ctx.de.(-1099)} · 2",
+             "#{ctx.de.(-5)} – #{ctx.de.(-4)} · 2"
            ]
 
     assert Enum.map(chips, &Floki.attribute(&1, "aria-pressed")) == [
@@ -277,7 +284,7 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
     assert has_element?(view, "#{dialog} button.button-danger[data-role='quote-release-confirm']")
 
     view
-    |> element("#{dialog} [data-role='release-stretches'] button", "#{ctx.iso.(-5)} – ")
+    |> element("#{dialog} [data-role='release-stretches'] button", "#{ctx.de.(-5)} – ")
     |> render_click()
 
     assert view |> element("#quote-release-from") |> render() =~ ~s(value="#{ctx.iso.(-5)}")
@@ -400,7 +407,7 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
     view
     |> element(
       "#quote-release-dialog [data-role='release-stretches'] button",
-      "#{ctx.iso.(-5)} – "
+      "#{ctx.de.(-5)} – "
     )
     |> render_click()
 
@@ -425,7 +432,7 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
     result = "#detail-tab-panel-quotes #quotes-release-result"
 
     assert text(view, result) =~
-             "2 manuelle Kurse freigegeben, vom #{ctx.iso.(-5)} bis #{ctx.iso.(-4)}. Die nächste Kursaktualisierung speichert für diese Tage den Schlusskurs des Anbieters."
+             "2 manuelle Kurse freigegeben, vom #{ctx.de.(-5)} bis #{ctx.de.(-4)}. Die nächste Kursaktualisierung speichert für diese Tage den Schlusskurs des Anbieters."
 
     assert has_element?(
              view,
@@ -434,7 +441,7 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
            )
 
     assert text(view, "[data-role='manual-quotes-note']") =~
-             "2 manuelle Kurse in der gespeicherten Historie, vom #{ctx.iso.(-1100)} bis #{ctx.iso.(-1099)}."
+             "2 manuelle Kurse in der gespeicherten Historie, vom #{ctx.de.(-1100)} bis #{ctx.de.(-1099)}."
 
     view |> element("#{result} .inline-result__dismiss") |> render_click()
     refute text(view, result) =~ "freigegeben"
@@ -467,7 +474,7 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
     result = "#detail-tab-panel-quotes #quotes-release-result"
 
     assert text(view, result) =~
-             "4 manuelle Kurse freigegeben, vom #{ctx.iso.(-1100)} bis #{ctx.iso.(-4)}. Für dieses Wertpapier holt die Kursaktualisierung keine Kurse: Diese Tage bleiben ohne Kurs."
+             "4 manuelle Kurse freigegeben, vom #{ctx.de.(-1100)} bis #{ctx.de.(-4)}. Für dieses Wertpapier holt die Kursaktualisierung keine Kurse: Diese Tage bleiben ohne Kurs."
 
     refute has_element?(view, "#{result} [data-role='release-sync']")
     refute has_element?(view, "[data-role='manual-quotes-note']")
@@ -598,7 +605,7 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
 
     assert length(chips) == 6
     assert hd(chips) == "Alle · 13"
-    assert List.last(chips) == "#{ctx.iso.(-80)} · 1"
+    assert List.last(chips) == "#{ctx.de.(-80)} · 1"
 
     assert text(view, "#quote-release-dialog [data-role='release-stretches-cut']") ==
              "Die 5 neuesten von 7 Abschnitten; „Alle“ umfasst jeden."
@@ -623,7 +630,7 @@ defmodule PortfolixirWeb.SecuritiesQuoteReleaseLiveTest do
     view |> element("[data-role='quote-release-confirm']") |> render_click()
 
     assert text(view, "#detail-tab-panel-quotes #quotes-release-result") =~
-             "Ein manueller Kurs freigegeben, am #{ctx.iso.(-7)}. Die nächste Kursaktualisierung speichert für diesen Tag den Schlusskurs des Anbieters."
+             "Ein manueller Kurs freigegeben, am #{ctx.de.(-7)}. Die nächste Kursaktualisierung speichert für diesen Tag den Schlusskurs des Anbieters."
   end
 
   # User story (#1012; board ux-design-2026-10-02/07-phone-390, H7.1b):

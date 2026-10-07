@@ -251,4 +251,195 @@ defmodule PortfolixirWeb.Components.SecurityChartTest do
 
     refute html =~ "tx-marker"
   end
+
+  describe "the axes (Sprint 19 PR γ U3, issue 1088; board 05, pick J5 A)" do
+    defp in_locale(locale, fun) do
+      previous = Gettext.get_locale(PortfolixirWeb.Gettext)
+      Gettext.put_locale(PortfolixirWeb.Gettext, locale)
+
+      try do
+        fun.()
+      after
+        Gettext.put_locale(PortfolixirWeb.Gettext, previous)
+      end
+    end
+
+    defp axis_labels(html, class) do
+      html
+      |> Floki.parse_fragment!()
+      |> Floki.find("g.chart-axis-labels text.#{class}")
+      |> Enum.map(&(&1 |> Floki.text() |> String.trim()))
+    end
+
+    # 10 000 → 20 000, padded by 5 %: the five ticks are 9 500, 12 250,
+    # 15 000, 17 750 and 20 500.
+    defp value_chart do
+      render_chart(
+        default_assigns(
+          quotes: [
+            quote_fixture(~D[2025-10-04], "10000"),
+            quote_fixture(~D[2026-10-04], "20000")
+          ]
+        )
+      )
+    end
+
+    # A series that already is a percentage: 0 → 8, padded to -0,4 … 8,4.
+    defp percent_chart(closes) do
+      quotes =
+        closes
+        |> Enum.with_index()
+        |> Enum.map(fn {close, i} -> quote_fixture(Date.add(~D[2025-10-04], i), close) end)
+
+      render_chart(default_assigns(quotes: quotes, value_mode: :percent_values))
+    end
+
+    # User story:
+    # As a German-speaking portfolio maintainer reading a chart,
+    # I want its axis to print dates and figures the way the KPI band above
+    # it does,
+    # so that "2025-10-04", "12500" and "+10.4 %" stop standing under
+    # "+8,9%" and "14.218,40 EUR".
+    #
+    # Acceptance criteria:
+    # - The two dates read DD.MM.YYYY.
+    # - A value axis groups its thousands ("12.250"), keeps two places from 1
+    #   and none from 1 000, with the decimal comma.
+    # - A percent axis reads the house signed percent, the sign glued on and
+    #   no space before "%": "+8,4%", "-0,4%", and a tick that reads zero
+    #   carries no sign ("0,0%").
+    test "German axes print dates, values and percents in the page's language" do
+      in_locale("de", fn ->
+        html = value_chart()
+
+        assert axis_labels(html, "chart-axis-x") == ["04.10.2025", "04.10.2026"]
+
+        assert axis_labels(html, "chart-axis-y") ==
+                 ["9.500", "12.250", "15.000", "17.750", "20.500"]
+
+        cents =
+          render_chart(
+            default_assigns(
+              quotes: [
+                quote_fixture(~D[2026-09-01], "100"),
+                quote_fixture(~D[2026-09-30], "120")
+              ]
+            )
+          )
+
+        assert axis_labels(cents, "chart-axis-y") ==
+                 ["99,00", "104,50", "110,00", "115,50", "121,00"]
+
+        assert axis_labels(percent_chart(["0", "8"]), "chart-axis-y") ==
+                 ["-0,4%", "+1,8%", "+4,0%", "+6,2%", "+8,4%"]
+
+        assert axis_labels(percent_chart(["-1", "1"]), "chart-axis-y") ==
+                 ["-1,1%", "-0,6%", "0,0%", "+0,6%", "+1,1%"]
+      end)
+    end
+
+    # Acceptance criteria (U3 review, finding 4):
+    # - A value tick takes its places by its size, not its sign: a negative
+    #   tick of thousands reads none ("-20.500"), not four.
+    # - Below 1 a tick keeps four places ("0,5000").
+    test "a tick's places follow its size, whatever its sign" do
+      in_locale("de", fn ->
+        negative =
+          render_chart(
+            default_assigns(
+              quotes: [
+                quote_fixture(~D[2025-10-04], "-20000"),
+                quote_fixture(~D[2026-10-04], "-10000")
+              ]
+            )
+          )
+
+        assert axis_labels(negative, "chart-axis-y") ==
+                 ["-20.500", "-17.750", "-15.000", "-12.250", "-9.500"]
+
+        small =
+          render_chart(
+            default_assigns(
+              quotes: [
+                quote_fixture(~D[2025-10-04], "0.4"),
+                quote_fixture(~D[2026-10-04], "0.6")
+              ]
+            )
+          )
+
+        assert axis_labels(small, "chart-axis-y") ==
+                 ["0,3900", "0,4450", "0,5000", "0,5550", "0,6100"]
+      end)
+    end
+
+    # Acceptance criteria:
+    # - English keeps ISO dates and the decimal point, groups thousands with
+    #   a comma, and glues the percent sign on too.
+    test "English axes keep ISO dates and the decimal point" do
+      in_locale("en", fn ->
+        html = value_chart()
+
+        assert axis_labels(html, "chart-axis-x") == ["2025-10-04", "2026-10-04"]
+
+        assert axis_labels(html, "chart-axis-y") ==
+                 ["9,500", "12,250", "15,000", "17,750", "20,500"]
+
+        assert axis_labels(percent_chart(["0", "8"]), "chart-axis-y") ==
+                 ["-0.4%", "+1.8%", "+4.0%", "+6.2%", "+8.4%"]
+      end)
+    end
+
+    # User story (J5 A, rule ③):
+    # As a portfolio maintainer reading a chart on a phone,
+    # I want the axis values inside the plot where the gutter is too narrow,
+    # each on its own grid line, legible over the line and the fill,
+    # so that the axis keeps its five values at a size I can read.
+    #
+    # Acceptance criteria:
+    # - The five values carry `chart-axis-y`, the top one also `is-top`; the
+    #   two dates carry `chart-axis-x`.
+    # - The label group comes after the area and the line in the markup, so
+    #   a label's halo paints over the series.
+    test "the labels carry their classes and follow the series" do
+      html = value_chart()
+      doc = Floki.parse_fragment!(html)
+
+      assert length(Floki.find(doc, "g.chart-axis-labels text.chart-axis-y")) == 5
+      assert [top] = Floki.find(doc, "g.chart-axis-labels text.chart-axis-y.is-top")
+      assert Floki.text(top) |> String.trim() == "20,500"
+      assert length(Floki.find(doc, "g.chart-axis-labels text.chart-axis-x")) == 2
+
+      line = :binary.match(html, ~s(class="quote-line")) |> elem(0)
+      area = :binary.match(html, ~s(class="quote-area")) |> elem(0)
+      labels = :binary.match(html, ~s(class="chart-axis-labels")) |> elem(0)
+
+      assert labels > line
+      assert labels > area
+    end
+
+    # Acceptance criteria:
+    # - A marker's title names its date in the page's language; only the
+    #   date changes on that line.
+    test "a marker's title carries the date in the page's language" do
+      in_locale("de", fn ->
+        html =
+          render_chart(
+            default_assigns(
+              quotes: [quote_fixture(~D[2026-05-14], "100"), quote_fixture(~D[2026-05-15], "101")],
+              transactions: [
+                %{
+                  date: ~D[2026-05-15],
+                  type: "buy",
+                  quantity: Decimal.new("1"),
+                  price: Decimal.new("101")
+                }
+              ]
+            )
+          )
+
+        assert html =~ "buy on 15.05.2026 at 101"
+        refute html =~ "buy on 2026-05-15"
+      end)
+    end
+  end
 end

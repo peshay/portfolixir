@@ -2,11 +2,13 @@ defmodule Portfolixir.Invariants.IsoDateInputTest do
   use ExUnit.Case, async: true
 
   # User story:
-  # As a maintainer of a product whose every display date is ISO,
-  # I want date entry to accept and display ISO too,
-  # so that entering and reading a date never use two formats on the same
-  # screen (UX-DR19, issue 641 — native type="date" renders the browser
-  # locale's format, e.g. MM/DD/YYYY, and cannot be told otherwise).
+  # As a maintainer of a product whose every date field is ISO,
+  # I want date entry to accept and display ISO in every field,
+  # so that a date is entered one way whatever the browser's locale
+  # (UX-DR19, issue 641 — native type="date" renders the browser locale's
+  # format, e.g. MM/DD/YYYY, and cannot be told otherwise; a date the page
+  # only shows follows its language since UX-DR19's 2026-10-03 amendment,
+  # and test/invariants/displayed_dates_test.exs keeps that swept).
   #
   # Acceptance criteria:
   # - No `type="date"` input ships in the web layer; date fields are ISO
@@ -27,7 +29,7 @@ defmodule Portfolixir.Invariants.IsoDateInputTest do
 
     assert offenders == [], """
     Native date inputs render the browser locale's format and break the
-    ISO-everywhere rule (UX-DR19). Use the ISO text-input pattern instead
+    ISO-input rule (UX-DR19). Use the ISO text-input pattern instead
     (type="text" placeholder="YYYY-MM-DD"
     pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}" maxlength="10" — no numeric
     inputmode: the iOS digits keypad has no dash):

@@ -83,13 +83,21 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
 
     strip = text(view, ~s([data-role="bond-strip"]))
     assert strip =~ "Anleihe"
-    assert strip =~ "Fälligkeit 2031-06-15 Emission 2021-06-15"
+    # Sprint 19 U3 (board 05, found while drawing 3): the strip's dates read
+    # the page's language; their <time datetime> keeps ISO.
+    assert strip =~ "Fälligkeit 15.06.2031 Emission 15.06.2021"
     assert strip =~ "Kupon 2,5 % p. a. jährlich"
     assert strip =~ "Nominal im Bestand 10.000,00 EUR 100 Stück × 100 EUR · Stückelung 1.000 EUR"
 
     term = BondMetrics.remaining_term(@maturity, Clock.today())
     assert strip =~ "Restlaufzeit #{term.whole_years} J. #{term.whole_months} M."
-    assert strip =~ "Laufende Rendite 2,57 % 2,5 ÷ 97,25 (2026-09-30)"
+    assert strip =~ "Jahre ab #{PortfolixirWeb.Format.date(Clock.today(), "de")}"
+    assert strip =~ "Laufende Rendite 2,57 % 2,5 ÷ 97,25 (30.09.2026)"
+    refute strip =~ ~r/\d{4}-\d{2}-\d{2}/
+
+    assert view |> element(~s([data-role="bond-maturity"])) |> render() =~
+             ~s(<time datetime="2021-06-15">)
+
     assert strip =~ "Rendite bis Fälligkeit ≈"
     assert strip =~ "linear angenähert"
 
@@ -123,7 +131,7 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     assert text(view, ~s([data-role="bond-coupon"])) == "Kupon 4,125 % p. a. jährlich"
 
     assert text(view, ~s([data-role="bond-current-yield"])) ==
-             "Laufende Rendite 4,25 % 4,125 ÷ 97,125 (2026-09-30)"
+             "Laufende Rendite 4,25 % 4,125 ÷ 97,125 (30.09.2026)"
   end
 
   # User story (#330, board A2, A3 and A4):
@@ -186,7 +194,7 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     buy!(world, matured, quantity: "10", price: "99", date: ~D[2024-03-12])
     {:ok, view, _html} = live(german(conn), "/securities/#{matured.id}")
 
-    assert text(view, ~s([data-role="bond-remaining-term"])) =~ "fällig seit 2025-06-15"
+    assert text(view, ~s([data-role="bond-remaining-term"])) =~ "fällig seit 15.06.2025"
     assert text(view, ~s([data-role="bond-current-yield"])) =~ "nicht berechenbar"
     assert text(view, ~s([data-role="bond-yield-to-maturity"])) =~ "nicht berechenbar"
 
@@ -262,8 +270,8 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
 
     note = text(view, ~s([data-role="two-scales-note"]))
     assert note =~ "Problem"
-    assert note =~ "Auf zwei Skalen bepreist: Kurse um 100 (zuletzt 97,25 am 2026-09-30)"
-    assert note =~ "gebuchter Preis je Stück um 1 (1 Buchung: 0,985 am 2026-03-12)"
+    assert note =~ "Auf zwei Skalen bepreist: Kurse um 100 (zuletzt 97,25 am 30.09.2026)"
+    assert note =~ "gebuchter Preis je Stück um 1 (1 Buchung: 0,985 am 12.03.2026)"
     assert note =~ "Wert, Gewinn und Gewicht sind hundertfach zu hoch"
     assert note =~ "die Rendite (TTWROR) zeigt es nicht"
 

@@ -30,6 +30,8 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias PortfolixirWeb.Format
+
   @width 960
   @height 320
   @padding_top 16
@@ -148,6 +150,11 @@ defmodule PortfolixirWeb.Components.SecurityChart do
               </path>
             <% end %>
           <% end %>
+
+          <%!-- J5 A (board 05, rule ③): the labels follow the series, so on
+               a narrow chart, where the values sit inside the plot, their
+               halo paints over the line and the fill. --%>
+          <%= render_axis_labels(assigns) %>
         <% end %>
       </svg>
       <script type="application/json" data-chart-payload data-chart-id={@chart_id}><%= Phoenix.HTML.raw(@payload_json) %></script>
@@ -171,7 +178,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       |> point_coords(x0, y0, x1, y1)
       |> Enum.zip(geometry.quotes)
       |> Enum.map(fn {{x, y}, {q, _idx}} ->
-        [Date.to_iso8601(q.date), point_display(q), round2(x), round2(y)]
+        [payload_date(q.date), point_display(q), round2(x), round2(y)]
       end)
 
     txs =
@@ -189,6 +196,10 @@ defmodule PortfolixirWeb.Components.SecurityChart do
       mode: payload_mode(assigns)
     }
   end
+
+  # The hook's JSON keeps ISO: the zoom sends these dates back as the
+  # custom range, and the tooltip is the hook's own rendering.
+  defp payload_date(date), do: Date.to_iso8601(date)
 
   defp payload_mode(%{percent_mode?: true}), do: "percent"
   defp payload_mode(%{value_mode: :percent_values}), do: "percent"
@@ -228,7 +239,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
 
         [
           %{
-            date: Date.to_iso8601(tx.date),
+            date: payload_date(tx.date),
             type: tx.type,
             quantity: chart_decimal_string(tx.quantity),
             price: chart_decimal_string(tx.price),
@@ -411,8 +422,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
           %{
             d: marker_path(tx.type, x, y),
             type: tx.type,
-            label:
-              "#{tx.type} on #{Date.to_iso8601(tx.date)} at #{chart_decimal_string(tx.price)}"
+            label: "#{tx.type} on #{Format.date(tx.date)} at #{chart_decimal_string(tx.price)}"
           }
         ]
       end
@@ -528,25 +538,7 @@ defmodule PortfolixirWeb.Components.SecurityChart do
   # ---------------------------------------------------------------------------
 
   defp render_axes(assigns) do
-    ticks = 4
-
-    y_values =
-      for i <- 0..ticks do
-        frac = i / ticks
-        raw = assigns.geometry.y_min + (assigns.geometry.y_max - assigns.geometry.y_min) * frac
-
-        value =
-          cond do
-            assigns.percent_mode? -> raw
-            assigns.geometry.log_scale? -> :math.pow(10, raw)
-            true -> raw
-          end
-
-        y_pixel = assigns.plot_bottom - (assigns.plot_bottom - assigns.plot_top) * frac
-        {value, y_pixel}
-      end
-
-    assigns = assign(assigns, :y_ticks, y_values)
+    assigns = assign(assigns, :y_ticks, y_ticks(assigns))
 
     ~H"""
     <g class="chart-axes" stroke="currentColor" stroke-opacity="0.15">
@@ -554,36 +546,80 @@ defmodule PortfolixirWeb.Components.SecurityChart do
         <line x1={@plot_left} y1={y} x2={@plot_right} y2={y} />
       <% end %>
     </g>
+    """
+  end
+
+  # The labels read the page's language (issue 1088): the dates through
+  # `Format.date`, the values through `Format.decimal`, a percent as the
+  # house's signed percent. Their classes carry J5 A's rules ② and ③: the
+  # five values are `chart-axis-y`, the top one also `is-top`, the two dates
+  # `chart-axis-x`.
+  defp render_axis_labels(assigns) do
+    assigns = assign(assigns, :y_ticks, y_ticks(assigns))
+
+    ~H"""
     <g class="chart-axis-labels">
-      <%= for {value, y} <- @y_ticks do %>
-        <text x={@plot_left - 6} y={y} text-anchor="end" dominant-baseline="central">
+      <%= for {{value, y}, index} <- Enum.with_index(@y_ticks) do %>
+        <text
+          class={["chart-axis-y", index == length(@y_ticks) - 1 && "is-top"]}
+          x={@plot_left - 6}
+          y={y}
+          text-anchor="end"
+          dominant-baseline="central"
+        >
           <%= if @percent_axis?, do: format_percent(value), else: format_axis_value(value) %>
         </text>
       <% end %>
-      <text x={@plot_left} y={@height - 6} text-anchor="start">
-        <%= Date.to_iso8601(@geometry.first_date) %>
+      <text class="chart-axis-x" x={@plot_left} y={@height - 6} text-anchor="start">
+        <%= Format.date(@geometry.first_date) %>
       </text>
-      <text x={@plot_right} y={@height - 6} text-anchor="end">
-        <%= Date.to_iso8601(@geometry.last_date) %>
+      <text class="chart-axis-x" x={@plot_right} y={@height - 6} text-anchor="end">
+        <%= Format.date(@geometry.last_date) %>
       </text>
     </g>
     """
   end
 
-  defp format_axis_value(value) when is_float(value) do
-    cond do
-      value >= 1000 -> :erlang.float_to_binary(value, decimals: 0)
-      value >= 1 -> :erlang.float_to_binary(value, decimals: 2)
-      true -> :erlang.float_to_binary(value, decimals: 4)
+  defp y_ticks(assigns) do
+    ticks = 4
+
+    for i <- 0..ticks do
+      frac = i / ticks
+      raw = assigns.geometry.y_min + (assigns.geometry.y_max - assigns.geometry.y_min) * frac
+
+      value =
+        cond do
+          assigns.percent_mode? -> raw
+          assigns.geometry.log_scale? -> :math.pow(10, raw)
+          true -> raw
+        end
+
+      y_pixel = assigns.plot_bottom - (assigns.plot_bottom - assigns.plot_top) * frac
+      {value, y_pixel}
     end
+  end
+
+  # A tick is a float of the chart's geometry; it becomes a Decimal only to
+  # be printed, its places chosen by its size, whatever its sign: none from
+  # 1 000, two from 1, four below.
+  defp format_axis_value(value) when is_float(value) do
+    places =
+      cond do
+        abs(value) >= 1000 -> 0
+        abs(value) >= 1 -> 2
+        true -> 4
+      end
+
+    Format.decimal(Decimal.from_float(value), places)
   end
 
   defp format_axis_value(value), do: to_string(value)
 
-  defp format_percent(value) when is_float(value) do
-    sign = if value > 0, do: "+", else: ""
-    sign <> :erlang.float_to_binary(value, decimals: 1) <> " %"
-  end
+  # The house's signed percent, as the KPI band prints it: one decimal, the
+  # sign glued on, no space before "%" ("+10,4%"); a tick that reads zero
+  # carries no sign.
+  defp format_percent(value) when is_float(value),
+    do: Format.signed_decimal(Decimal.from_float(value), 1) <> "%"
 
   defp format_percent(_), do: "—"
 end

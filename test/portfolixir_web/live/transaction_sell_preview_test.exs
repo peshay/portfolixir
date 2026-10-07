@@ -87,6 +87,39 @@ defmodule PortfolixirWeb.TransactionSellPreviewTest do
     refute preview_html =~ ~r/steuer/i
   end
 
+  # User story (Sprint 19 PR γ U3, the sweep):
+  # As a German-speaking maintainer entering a sell,
+  # I want each consumed tranche's open date as DD.MM.YYYY,
+  # so that the preview reads its dates the way the history beside it does.
+  #
+  # Acceptance criteria:
+  # - The tranches read "02.01.2026" and "02.02.2026"; the preview prints no
+  #   ISO date (the date field above it keeps ISO).
+  test "the German preview names each tranche's open date as DD.MM.YYYY", %{conn: conn} do
+    w = world()
+    buy!(w, w.security, quantity: "10", price: "100", date: ~D[2026-01-02])
+    buy!(w, w.security, quantity: "10", price: "120", date: ~D[2026-02-02])
+
+    {:ok, view, _html} = live(conn, "/transactions?locale=de")
+
+    change_form(view, %{
+      "securities_account_id" => to_string(w.depot.id),
+      "security_id" => to_string(w.security.id),
+      "quantity" => "15",
+      "price" => "150"
+    })
+
+    dates =
+      view
+      |> element("#sell-lot-preview-table")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.find("tbody tr td:first-child")
+      |> Enum.map(&(&1 |> Floki.text() |> String.trim()))
+
+    assert dates == ["02.01.2026", "02.02.2026"]
+  end
+
   # User story (no preview outside a sell):
   # As a maintainer entering a buy,
   # I want no lot-consumption panel,

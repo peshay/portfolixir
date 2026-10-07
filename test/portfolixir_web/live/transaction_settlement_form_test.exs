@@ -172,6 +172,50 @@ defmodule PortfolixirWeb.TransactionSettlementFormTest do
     assert Decimal.equal?(sell.gross_amount, Decimal.new("758.14"))
   end
 
+  # User story (Sprint 19 PR γ U3, the sweep):
+  # As a German-speaking operator booking a cross-currency buy,
+  # I want the sentence that says where the rate came from to name the day
+  # as DD.MM.YYYY,
+  # so that the hint reads its date as the history does, while the date
+  # field above it keeps the ISO I type.
+  #
+  # Acceptance criteria:
+  # - The hint reads "… am oder vor dem 01.04.2026 …" for a date field of
+  #   "2026-04-01".
+  # - The date field keeps "2026-04-01".
+  # - English keeps ISO, with non-breaking hyphens, so it never breaks.
+  test "the settlement hint names the booking day in the page's language",
+       %{conn: conn, world: w, usd: usd} do
+    {:ok, view, _html} = live(conn, "/transactions?locale=de")
+    view |> element("#open-booking") |> render_click()
+    change(view, form_params(w, usd, %{}), "security_id")
+
+    hint =
+      view
+      |> element("#settlement-fieldset")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.text()
+
+    assert hint =~ "01.04.2026"
+    refute hint =~ ~r/2026.04.01/u
+    assert input_value(view, "date") == "2026-04-01"
+
+    # A date field that does not read as a date yet (U3 review, finding 6)
+    # is said as typed, its hyphens kept whole.
+    change(view, form_params(w, usd, %{"date" => "2026-04"}), "date")
+
+    assert has_element?(
+             view,
+             "#settlement-fieldset",
+             "Kein gespeicherter Wechselkurs am oder vor dem 2026‑04 —"
+           )
+
+    view = open(conn)
+    change(view, form_params(w, usd, %{}), "security_id")
+    assert has_element?(view, "#settlement-fieldset", "2026‑04‑01")
+  end
+
   test "a same-currency booking shows no settlement fieldset", %{conn: conn, world: w, eur: eur} do
     view = open(conn)
     change(view, form_params(w, eur, %{}), "security_id")

@@ -81,7 +81,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
       "upper" => "",
       "window" => "365d",
       "severity" => "warn",
-      "valid_from" => Date.to_iso8601(Clock.today()),
+      "valid_from" => valid_from_value(Clock.today()),
       "note" => ""
     }
   end
@@ -104,10 +104,13 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
       "upper" => decimal_input(version.upper),
       "window" => (version.window && to_string(version.window)) || "365d",
       "severity" => to_string(version.severity),
-      "valid_from" => rule |> first_start() |> Date.to_iso8601(),
+      "valid_from" => rule |> first_start() |> valid_from_value(),
       "note" => version.note || ""
     }
   end
+
+  # The "In force from" field's value: an input keeps ISO (UX-DR19).
+  defp valid_from_value(date), do: Date.to_iso8601(date)
 
   # The version the edit starts from: the one planned next, else the one in
   # force, else the last one the rule had — reopened after an edit, the dialog

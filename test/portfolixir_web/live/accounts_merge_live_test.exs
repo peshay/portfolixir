@@ -376,6 +376,50 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
              )
     end
 
+    # User story (Sprint 19 PR γ U3, issue 1061; board 05, the merge
+    # dialogs' "Heute / Nachher"):
+    # As a German-speaking operator reading an accounts merge's preview,
+    # I want the restated set balances and the equal bookings to name their
+    # days as DD.MM.YYYY, as the basis line above them already does,
+    # so that one dialog does not print two date forms.
+    #
+    # Acceptance criteria:
+    # - A restated set balance reads its day "30.04.2025", in the table and
+    #   in its two-line phone form.
+    # - The equal bookings read "31.03.2025", in the table and the phone
+    #   form.
+    # - Nothing in the preview prints an ISO date.
+    test "the German preview prints every date as DD.MM.YYYY", ctx do
+      rows = example!(ctx)
+      {:ok, view, _html} = live(ctx.conn, "/portfolios?locale=de")
+      to_preview(view, ctx.source, ctx.target)
+
+      read = &(&1 |> Floki.parse_fragment!() |> Floki.text() |> String.replace(~r/\s+/, " "))
+
+      anchor =
+        view
+        |> element("[data-role='restated-anchor'][data-id='#{rows.s_anchor.id}']")
+        |> render()
+
+      assert read.(anchor) =~ "30.04.2025"
+
+      pairs = view |> element("#merge-dialog [data-role='merge-pairs']") |> render()
+      assert read.(pairs) =~ "31.03.2025"
+
+      phone_lines =
+        view
+        |> render()
+        |> Floki.parse_document!()
+        |> Floki.find("#merge-dialog .merge-lines.merge-narrow .merge-lines__head")
+        |> Enum.map(&(&1 |> Floki.text() |> String.replace(~r/\s+/, " ")))
+
+      assert Enum.any?(phone_lines, &(&1 =~ "30.04.2025 · Tagesgeld (alt)"))
+      assert Enum.any?(phone_lines, &(&1 =~ "31.03.2025"))
+
+      refute view |> element("#merge-dialog") |> render() |> read.() =~
+               ~r/\b\d{4}-\d{2}-\d{2}\b/
+    end
+
     # User story (the closing act, UAT-7 / DC-5 and DC-6):
     # As the operator reading the merge in German,
     # I want every name quoted the German way and the buckets said one way,
@@ -461,6 +505,47 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
                "Remedy: record that booking's amount in the Transactions tab, then check again."
     end
 
+    # User story (Sprint 19 U3 review, finding 5 — the sentences only the
+    # sweep guarded):
+    # As a German-speaking operator whose merge is refused,
+    # I want the set balance and every booking without an amount named with
+    # their days as DD.MM.YYYY,
+    # so that the refusal reads its dates as the rest of the dialog does.
+    #
+    # Acceptance criteria:
+    # - The set balance reads "01.02.2025", the buy "10.01.2025" and the
+    #   sell "20.01.2025"; the dialog prints no ISO date.
+    test "the German refusal names its set balance and bookings with German days", ctx do
+      depot = depot!(ctx.portfolio, ctx.source, "Sparplan")
+      fund = security!("Synthetic Fraction Fund", "SFF")
+
+      for {type, date, quantity} <- [
+            {"buy", ~D[2025-01-10], "0.333333333333"},
+            {"sell", ~D[2025-01-20], "0.111111111111"}
+          ] do
+        {:ok, _} =
+          Ledger.create_transaction(Actor.owner_ui(), %{
+            portfolio_id: ctx.portfolio.id,
+            type: type,
+            date: date,
+            security_id: fund.id,
+            securities_account_id: depot.id,
+            cash_account_id: ctx.source.id,
+            quantity: quantity,
+            price: "3.333333",
+            currency_code: "EUR"
+          })
+      end
+
+      anchor!(ctx.target, "100.00", ~D[2025-02-01])
+
+      text = german_dialog_text(ctx, ctx.source, ctx.target)
+      assert text =~ "01.02.2025"
+      assert text =~ "10.01.2025"
+      assert text =~ "20.01.2025"
+      refute text =~ ~r/\b\d{4}-\d{2}-\d{2}\b/
+    end
+
     # User story:
     # As the operator whose old account holds a set balance that was an
     # imported deposit before an old edit re-typed it,
@@ -521,6 +606,12 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
       option = view |> element("#merge-dialog [data-role='collapse-true']") |> render()
       assert option =~ "a set balance of Nebenkonto on 2025-04-01 absorbs 50.00"
       refute option =~ "a set balance of Tagesgeld (alt)"
+
+      # The day in German, and no ISO date in the German dialog (Sprint 19
+      # U3 review, finding 5).
+      text = german_dialog_text(ctx, ctx.source, ctx.target)
+      assert text =~ "01.04.2025"
+      refute text =~ ~r/\b\d{4}-\d{2}-\d{2}\b/
     end
 
     # The preview's cash half, worked: deposits on both, one transfer between
@@ -623,6 +714,12 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
       rounding = view |> element("#merge-dialog [data-role='merge-rounding']") |> render()
       assert rounding =~ "Heron Solar AG"
       assert rounding =~ "2025-03-01"
+
+      # The rounding line's day in German, and no ISO date in the German
+      # dialog (Sprint 19 U3 review, finding 5).
+      text = german_dialog_text(ctx, ctx.source, ctx.target)
+      assert text =~ "01.03.2025"
+      refute text =~ ~r/\b\d{4}-\d{2}-\d{2}\b/
       assert rounding =~ "0.666667"
       assert rounding =~ "0.666666"
 
@@ -742,6 +839,19 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
   end
 
   # -- helpers ----------------------------------------------------------------
+
+  # The merge dialog's visible text on a German page, at step 2 of the pair.
+  defp german_dialog_text(ctx, source, target) do
+    {:ok, view, _html} = live(ctx.conn, "/portfolios?locale=de")
+    to_preview(view, source, target)
+
+    view
+    |> element("#merge-dialog")
+    |> render()
+    |> Floki.parse_fragment!()
+    |> Floki.text(sep: " ")
+    |> String.replace(~r/\s+/, " ")
+  end
 
   defp target_name(view, account) do
     view

@@ -622,7 +622,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         >
           <%= gettext(
             "Changed since %{cut} (UTC): only securities created or changed after this instant are listed. Deletions are not shown; clear the filter for the complete list.",
-            cut: @since.raw
+            cut: ChangedSince.cut_label(@since)
           ) %>
         </p>
 
@@ -1016,7 +1016,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
               |> Enum.join(" · ") %>
             <%= if @detail_latest do %>
               · <%= gettext("Latest") %> <%= Format.decimal(@detail_latest.close, 2) %>
-              (<%= Date.to_iso8601(@detail_latest.date) %>)
+              (<%= Format.date(@detail_latest.date) %>)
             <% end %>
           </p>
           <.detail_valuation_status
@@ -1160,7 +1160,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 data-role="custom-range-chip"
                 aria-pressed="true"
               >
-                <%= Date.to_iso8601(@detail_custom_range.from) %> – <%= Date.to_iso8601(
+                <%= Format.date(@detail_custom_range.from) %> – <%= Format.date(
                   @detail_custom_range.to
                 ) %>
               </button>
@@ -1502,7 +1502,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                     <%= gettext("Source") %>
                   </a>
                   <span :if={event.checked_at} data-role="event-checked">
-                    <%= gettext("Last checked %{date}", date: Date.to_iso8601(event.checked_at)) %>
+                    <%= gettext("Last checked %{date}", date: Format.date(event.checked_at)) %>
                   </span>
                 </p>
               </li>
@@ -1566,7 +1566,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         "No current quote — counted in the portfolio totals at the last own trade price of %{price} %{currency}%{date}.",
         price: Format.decimal(@status.latest_price, 2),
         currency: @status.price_currency,
-        date: if(@status.price_date, do: " (#{Date.to_iso8601(@status.price_date)})", else: "")
+        date: if(@status.price_date, do: " (#{Format.date(@status.price_date)})", else: "")
       ) %>
     </p>
     """
@@ -1624,7 +1624,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                       </small>
                     <% @metrics[:latest_price_date] -> %>
                       <small class="overview-metric__sub">
-                        (<%= Date.to_iso8601(@metrics.latest_price_date) %>)
+                        (<%= Format.date(@metrics.latest_price_date) %>)
                       </small>
                     <% true -> %>
                   <% end %>
@@ -1878,7 +1878,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp basis_clause(%{clause: {:merge, _merge, _segments}} = assigns) do
     ~H"""
-    <%= for segment <- elem(@clause, 2) do %><%= if segment == :date do %><.link navigate={"/portfolios?merge=#{elem(@clause, 1).merge_record_id}#merge-records"} data-role="overview-merge-link" class="merge-date-link"><%= Date.to_iso8601(elem(@clause, 1).merged_on) %></.link><% else %><%= segment %><% end %><% end %>
+    <%= for segment <- elem(@clause, 2) do %><%= if segment == :date do %><.link navigate={"/portfolios?merge=#{elem(@clause, 1).merge_record_id}#merge-records"} data-role="overview-merge-link" class="merge-date-link"><%= Format.date(elem(@clause, 1).merged_on) %></.link><% else %><%= segment %><% end %><% end %>
     """
   end
 
@@ -1917,7 +1917,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     Enum.map(aliases, fn alias_row ->
       gettext("former ISIN %{isin} (until %{date})",
         isin: alias_row.former_isin,
-        date: Date.to_iso8601(alias_row.changed_on)
+        date: Format.date(alias_row.changed_on)
       )
     end) ++
       Enum.map(merges, fn merge ->
@@ -2016,7 +2016,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             <tbody>
               <%= for tx <- @rows do %>
                 <tr class={"tx-row tx-row--#{tx.type}"}>
-                  <td><%= Date.to_iso8601(tx.date) %></td>
+                  <td><%= Format.date(tx.date) %></td>
                   <td>
                     <span class={"badge tx-badge tx-badge--#{tx.type}"}>
                       <%= tx_type_label(tx.type) %>
@@ -2691,6 +2691,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
     """
   end
 
+  # The as-of field's default, today: an input keeps ISO (UX-DR19).
+  defp research_today_value, do: Date.to_iso8601(Portfolixir.Clock.today())
+
   attr(:security, :map, required: true)
   attr(:notes, :list, required: true)
   attr(:thesis_state, :map, required: true)
@@ -2707,7 +2710,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp research_tab_panel(assigns) do
     assigns =
       assigns
-      |> assign(:today, Date.to_iso8601(Portfolixir.Clock.today()))
+      |> assign(:today, research_today_value())
       |> assign(:retraction, retraction_for(assigns.thesis_state, assigns.notes))
 
     ~H"""
@@ -3108,7 +3111,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
             <tbody>
               <%= for q <- @rows do %>
                 <tr>
-                  <td><%= Date.to_iso8601(q.date) %></td>
+                  <td><%= Format.date(q.date) %></td>
                   <td class="num">
                     <%= Format.decimal(q.close, 2) %>
                     <small><%= @currency_code %></small>
@@ -3132,7 +3135,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
         <ul id="quote-phone-rows" class="phone-rows" aria-label={gettext("Quotes")}>
           <li :for={q <- @rows} class="phone-row">
             <span class="phone-row__body">
-              <span class="phone-row__name"><%= Date.to_iso8601(q.date) %></span>
+              <span class="phone-row__name"><%= Format.date(q.date) %></span>
               <span class="phone-row__ids">
                 <span class="badge quote-source"><%= quote_source_label(q.source) %></span>
               </span>
@@ -3590,7 +3593,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp metric_window_label(nil), do: gettext("no window measured")
 
   defp metric_window_label(%{start_date: from, end_date: to}),
-    do: "#{Date.to_iso8601(from)} – #{Date.to_iso8601(to)}"
+    do: "#{Format.date(from)} – #{Format.date(to)}"
 
   defp metric_value(nil, _kind), do: "—"
   defp metric_value(value, :average), do: Format.decimal(value, 2)
@@ -3607,14 +3610,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
   end
 
   # The date a calendar fact could fall on, said the way it is known: a single
-  # day, a range, or a month.
+  # day, a range, or a month — each in the page's language (Sprint 19 U3).
   defp event_date_label(%SecurityEvent{timing: :window, date: from, date_end: to}),
-    do: "#{Date.to_iso8601(from)} – #{Date.to_iso8601(to)}"
+    do: "#{Format.date(from)} – #{Format.date(to)}"
 
-  defp event_date_label(%SecurityEvent{timing: :month, date: date}),
-    do: date |> Date.beginning_of_month() |> Date.to_iso8601() |> String.slice(0, 7)
+  defp event_date_label(%SecurityEvent{timing: :month, date: date}), do: Format.month(date)
 
-  defp event_date_label(%SecurityEvent{date: date}), do: Date.to_iso8601(date)
+  defp event_date_label(%SecurityEvent{date: date}), do: Format.date(date)
 
   defp detail_tabs do
     [
@@ -4019,7 +4021,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp render_cell(%Field{render_hint: :date} = field, security) do
     case SecurityFields.value(field, security) do
       nil -> ""
-      %Date{} = d -> Date.to_iso8601(d)
+      %Date{} = d -> Format.date(d)
       other -> to_string(other)
     end
   end

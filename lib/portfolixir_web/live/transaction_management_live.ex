@@ -202,7 +202,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             >
               <%= gettext(
                 "Changed since %{cut} (UTC): only transactions created or changed after this instant are shown — by record change, not booking date. Deletions are not shown; clear the filter for the complete history.",
-                cut: @since.raw
+                cut: ChangedSince.cut_label(@since)
               ) %>
             </p>
 
@@ -1012,7 +1012,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp form_from_transaction(%Transaction{} = transaction, securities) do
     %{
       "type" => transaction.type,
-      "date" => transaction.date && Date.to_iso8601(transaction.date),
+      "date" => transaction.date && date_field_value(transaction.date),
       "securities_account_id" => to_form_value(transaction.securities_account_id),
       "security_id" => to_form_value(transaction.security_id),
       "quantity" => to_form_value(transaction.quantity),
@@ -2032,11 +2032,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
     [
       fact(gettext("Type"), "type", :select, tx_type_label(tx.type)),
-      fact(date_label(tx.type), "date", :input, Date.to_iso8601(tx.date))
+      fact(date_label(tx.type), "date", :input, date_field_value(tx.date))
     ] ++
       security_fact(tx, assigns.securities) ++
       kind_facts(tx, cash, depot)
   end
+
+  # A date field's value, editable or disabled: an input keeps ISO (UX-DR19).
+  defp date_field_value(date), do: Date.to_iso8601(date)
 
   defp date_label("split"), do: gettext("Effective date")
   defp date_label(_kind), do: gettext("Date")
@@ -2496,7 +2499,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
             <tbody>
               <%= for lot <- @sell_preview.lots do %>
                 <tr>
-                  <td><%= Date.to_iso8601(lot.open_date) %></td>
+                  <td><%= PortfolixirWeb.Format.date(lot.open_date) %></td>
                   <td><%= format_decimal(lot.quantity) %></td>
                   <td data-role="preview-buy-price">
                     <%= if lot.buy_price_native do %>

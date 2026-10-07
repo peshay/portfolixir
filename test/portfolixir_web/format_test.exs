@@ -204,6 +204,57 @@ defmodule PortfolixirWeb.FormatTest do
     assert Format.displayed_percent_sign("0.1") == nil
   end
 
+  # User story (Sprint 19 PR γ U3, board 05; the Termine tab's month and
+  # Wealth's per-month rows):
+  # As a German-speaking portfolio maintainer,
+  # I want a date known only to its month to read the way a day reads on the
+  # same page,
+  # so that "2026-10" no longer stands among "22.10.2026"s.
+  #
+  # Acceptance criteria:
+  # - "de" renders MM.YYYY, other locales the ISO month YYYY-MM.
+  # - The day of the given date plays no part.
+  # - Without an explicit locale the current gettext locale applies.
+  # - Non-dates render as an em dash.
+  test "Format.month/2 is the date's month form (German dotted, ISO elsewhere)" do
+    assert Format.month(~D[2026-10-22], "de") == "10.2026"
+    assert Format.month(~D[2026-10-01], "de") == "10.2026"
+    assert Format.month(~D[2026-03-31], "en") == "2026-03"
+    assert Format.month(~D[0219-03-07], "de") == "03.0219"
+    assert Format.month(nil, "de") == "—"
+
+    previous = Gettext.get_locale(PortfolixirWeb.Gettext)
+
+    try do
+      Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+      assert Format.month(~D[2026-01-05]) == "01.2026"
+    after
+      Gettext.put_locale(PortfolixirWeb.Gettext, previous)
+    end
+  end
+
+  # User story (Sprint 19 PR γ U3, issue 1087; board 05, the basis line):
+  # As a German-speaking portfolio maintainer,
+  # I want the instant a figure was computed to carry its date the way every
+  # other date on the page reads,
+  # so that "berechnet 2026-10-04 00:09 UTC" stops being the one ISO date in
+  # a German line.
+  #
+  # Acceptance criteria:
+  # - "de" renders "DD.MM.YYYY HH:MM UTC", English "YYYY-MM-DD HH:MM UTC".
+  # - The instant is read in UTC, to the minute.
+  # - Non-instants render as an em dash.
+  test "Format.utc_instant/2 is the date in the page's form, the minute and UTC" do
+    at = ~U[2026-10-04 00:09:41Z]
+    assert Format.utc_instant(at, "de") == "04.10.2026 00:09 UTC"
+    assert Format.utc_instant(at, "en") == "2026-10-04 00:09 UTC"
+
+    assert Format.utc_instant(DateTime.from_naive!(~N[2026-10-04 23:59:00], "Etc/UTC"), "de") ==
+             "04.10.2026 23:59 UTC"
+
+    assert Format.utc_instant(nil, "de") == "—"
+  end
+
   test "Format.decimal/2 and Format.signed_decimal/2 default to current gettext locale" do
     previous = Gettext.get_locale(PortfolixirWeb.Gettext)
 

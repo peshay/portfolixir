@@ -13,13 +13,16 @@ defmodule PortfolixirWeb.Securities.ManualQuotes do
   `release_message/2` is the result the tab reports after a release (A5), in
   the numbers of the write's answer, not of the dialog.
 
-  Dates are `<time datetime>` elements, which `app.css` keeps whole inside a
-  note, so a 390 px line never breaks an ISO date at its hyphen.
+  Dates read the page's language (`Format.date`, Sprint 19 U3) inside
+  `<time datetime>` elements that keep ISO; `app.css` keeps a `<time>` whole
+  inside a note, so a 390 px line never breaks an English ISO date at its
+  hyphen.
   """
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.Format
 
   # A placeholder no translation can carry: the translated sentence is split
   # on it before the dates go in.
@@ -51,7 +54,7 @@ defmodule PortfolixirWeb.Securities.ManualQuotes do
 
   defp dated(assigns) do
     ~H"""
-    <%= for segment <- @segments do %><%= case segment do %><% {:date, date} -> %><time datetime={Date.to_iso8601(date)}><%= Date.to_iso8601(date) %></time><% text -> %><%= text %><% end %><% end %>
+    <%= for segment <- @segments do %><%= case segment do %><% {:date, date} -> %><time datetime={Date.to_iso8601(date)}><%= Format.date(date) %></time><% text -> %><%= text %><% end %><% end %>
     """
   end
 
@@ -161,12 +164,15 @@ defmodule PortfolixirWeb.Securities.ManualQuotes do
     )
   end
 
+  # The datetime keeps ISO; the text reads the page's language.
   defp safe_segment({:date, date}) do
-    iso = Date.to_iso8601(date)
-    [~s(<time datetime="), iso, ~s(">), iso, "</time>"]
+    [~s(<time datetime="), datetime_value(date), ~s(">), escape(Format.date(date)), "</time>"]
   end
 
   defp safe_segment(text), do: escape(text)
+
+  # A `<time>`'s machine-readable value: ISO.
+  defp datetime_value(date), do: Date.to_iso8601(date)
 
   defp escape(text), do: text |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
 
