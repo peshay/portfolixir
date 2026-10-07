@@ -97,7 +97,8 @@ story_location: _bmad-output/implementation-artifacts
 # D-4, the decision pass: 33 closed by hand at the merge (27
 # needs-decision not planned, each with what reopens it; #958 completed;
 # #727, #895, #949, #1141, #1153), 18 relabelled agentic, #928 and #1122
-# answered for later. D-13: the 27 UI repairs wait for the first design
+# answered for later; six filed at the merge (ADR-0053's deferral and the
+# design pass's five findings off the lanes' surfaces). D-13: the 27 UI repairs wait for the first design
 # pass after this sprint. D-14: every open issue without a parent gets its
 # area tracker (#416-#420); #991 stays full and closes with the
 # announcement decision. The close-out ends with launch readiness,
