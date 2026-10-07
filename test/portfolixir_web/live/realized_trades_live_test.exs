@@ -226,7 +226,8 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
     long = row(view, "Longhold Industries")
     assert [pa] = Floki.find(long, "td.trade-pa")
     assert Floki.attribute(pa, "class") |> hd() =~ "is-positive"
-    assert String.trim(Floki.text(pa)) == "20.0%"
+    # #1089 (Sprint 19 U2): a gain carries its "+".
+    assert String.trim(Floki.text(pa)) == "+20.0%"
 
     fade = row(view, "Slowfade Materials")
     assert [pa] = Floki.find(fade, "td.trade-pa")
@@ -306,11 +307,419 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
            ]
 
     assert String.trim(Floki.text(Floki.find(row(view, "Longhold Industries"), "td.trade-pa"))) ==
-             "20,0%"
+             "+20,0%"
 
     basis = view |> element("[data-role='trades-basis']") |> render()
     assert basis =~ "Einlieferungen eröffnen keinen Lot"
     assert basis =~ "p. a. erst ab 365 Tagen Haltedauer"
+  end
+
+  defp text(nodes),
+    do: nodes |> Floki.text(sep: " ") |> String.replace(~r/\s+/, " ") |> String.trim()
+
+  defp class_of(nodes), do: nodes |> Floki.attribute("class") |> List.first("")
+
+  defp de_conn(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+
+  defp phone_row(view, name) do
+    view
+    |> render()
+    |> Floki.parse_document!()
+    |> Floki.find("#realized-trades-phone-rows li.phone-row")
+    |> Enum.find(&(Floki.text(&1) =~ name))
+  end
+
+  # The phone row's figure line as markup, not as joined text: each coloured
+  # span as {class, text}, each bare text node trimmed, whitespace dropped.
+  defp figure2_nodes(row) do
+    [{_tag, _attrs, children}] = Floki.find(row, ".phone-row__figure2")
+
+    children
+    |> Enum.map(fn
+      text when is_binary(text) -> String.trim(text)
+      {"span", _attrs, _children} = span -> {class_of(span), text(span)}
+    end)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  # User story (#1082, Sprint 19 PR γ U2; plan D-4, board
+  # ux-design-2026-10-04/04-trades, pick J4 A):
+  # As a newcomer who followed "All trades →" from the Overview, or who
+  # opened the Trades facet on a phone,
+  # I want the top bar to say "Trades" while that facet is open,
+  # so that the page carries its name where every page carries it, even at
+  # 390 px, where the subtitle is hidden.
+  #
+  # Acceptance criteria:
+  # - On /cashflow?tab=realized the top bar's title (its live region's h1)
+  #   reads "Trades"; the subtitle still names the facet.
+  # - Income, Deposits & withdrawals and Costs keep "Cash flow".
+  # - Switching to the facet in place retitles the page.
+  # - The German page reads "Trades" on the facet and "Cashflow" elsewhere.
+  # - The route and the facet switch are unchanged.
+  test "the top bar reads Trades while the Trades facet is open", %{conn: conn} do
+    seed_closed_trade!()
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+    assert has_element?(view, ".topbar-page[aria-live='polite'] h1#app-topbar-title", "Trades")
+    refute has_element?(view, "#app-topbar-title", "Cash flow")
+    assert has_element?(view, "#app-topbar-subtitle", "Closed trades and their realized result")
+
+    for path <- ["/cashflow", "/cashflow?tab=flows", "/cashflow?tab=costs"] do
+      {:ok, other, _html} = live(conn, path)
+      assert has_element?(other, "#app-topbar-title", "Cash flow"), path
+    end
+
+    {:ok, income, _html} = live(conn, "/cashflow")
+
+    income
+    |> element("[data-role='cashflow-facets'] a[href='/cashflow?tab=realized']")
+    |> render_click()
+
+    assert has_element?(income, "#app-topbar-title", "Trades")
+    assert has_element?(income, "[data-role='cashflow-facets'] a[aria-current='true']", "Trades")
+
+    {:ok, de_trades, _html} = live(de_conn(conn), "/cashflow?tab=realized")
+    assert has_element?(de_trades, "#app-topbar-title", "Trades")
+
+    {:ok, de_income, _html} = live(de_conn(conn), "/cashflow")
+    assert has_element?(de_income, "#app-topbar-title", "Cashflow")
+  end
+
+  # User story (#1089, Sprint 19 PR γ U2; board 04, before/after):
+  # As a local portfolio maintainer reading the Trades facet — and as one who
+  # cannot tell its green from its red —
+  # I want every result, percent and p. a. figure to carry its sign, and a
+  # phone row without p. a. to say that its percent is the whole holding
+  # period's,
+  # so that a gain reads as a gain without its colour, and "-10,0%" no
+  # longer stands bare on a phone.
+  #
+  # Acceptance criteria:
+  # - The table's result, its percent and the p. a. cell carry an explicit
+  #   "+" when positive, in the Overview card's form; a loss keeps its "-".
+  # - The phone row does the same; a row without p. a. ends its period
+  #   return in "total", the card's word.
+  # - The list's basis line names both limits of p. a.: 365 days of holding,
+  #   and only where a rate solves the flows.
+  # - "Realized total" carries its sign and its sign colour, never the accent
+  #   (board 04, found while drawing 1).
+  test "every figure on the facet carries its sign, and a bare percent says total",
+       %{conn: conn} do
+    seed_reach!()
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+
+    long = row(view, "Longhold Industries")
+    assert text(Floki.find(long, "td.trade-pa")) == "+20.0%"
+    assert text(Floki.find(long, "td[data-role='trade-result']")) == "+440.00 EUR +44.0%"
+
+    fade = row(view, "Slowfade Materials")
+    assert text(Floki.find(fade, "td.trade-pa")) == "-20.0%"
+    assert text(Floki.find(fade, "td[data-role='trade-result']")) == "-360.00 EUR -36.0%"
+
+    long_phone = phone_row(view, "Longhold Industries")
+    assert text(Floki.find(long_phone, ".phone-row__figure")) == "+440.00 EUR"
+    assert text(Floki.find(long_phone, ".phone-row__figure2")) == "+44.0% · +20.0% p. a."
+
+    quick_phone = phone_row(view, "Quickturn Retail")
+    assert text(Floki.find(quick_phone, ".phone-row__figure")) == "-20.00 EUR"
+    assert text(Floki.find(quick_phone, ".phone-row__figure2")) == "-10.0% total"
+
+    assert quick_phone |> Floki.find(".phone-row__figure2 span") |> Enum.map(&class_of/1) ==
+             ["decimal-negative"]
+
+    # "total" is the row's word, not the figure's (Sprint 19 U2 review): it
+    # sits outside the coloured span, in the line's muted ink.
+    assert figure2_nodes(quick_phone) == [{"decimal-negative", "-10.0%"}, "total"]
+
+    assert figure2_nodes(long_phone) == [
+             {"decimal-positive", "+44.0%"},
+             "·",
+             {"decimal-positive", "+20.0%"},
+             "p. a."
+           ]
+
+    assert text(Floki.find(render(view) |> Floki.parse_document!(), "[data-role='trades-basis']")) =~
+             "p. a. only from 365 days of holding and only where a rate solves the flows"
+
+    assert [total] =
+             view
+             |> render()
+             |> Floki.parse_document!()
+             |> Floki.find("#realized-figures strong[data-role='realized-total']")
+
+    assert text(total) == "+60.00 EUR"
+    assert class_of(total) =~ "is-positive"
+  end
+
+  # Acceptance criteria (#1089, the second reason for a bare percent; board
+  # 04's Tamarisk row, German):
+  # - A trade held 600 days that no rate solves (a total loss) reads
+  #   "-100,0% gesamt" on the phone, with no p. a.
+  # - A realized total below zero reads with its "-" in the loss colour; the
+  #   basis line names the second limit in German.
+  test "a total loss reads gesamt on the German phone row", %{conn: conn} do
+    world = base_world(name: "Loss Facet", cash_name: "LF Cash", depot_name: "LF Depot")
+    tamarisk = create_security!(name: "Tamarisk Mining Ltd", ticker: "TML")
+    deposit!(world, "10000", ~D[2024-01-02])
+    buy!(world, tamarisk, quantity: "10", price: "40", date: ~D[2024-11-02])
+    sell!(world, tamarisk, quantity: "10", price: "0", date: ~D[2026-06-25])
+
+    {:ok, view, _html} = live(de_conn(conn), "/cashflow?tab=realized")
+
+    loss = phone_row(view, "Tamarisk Mining Ltd")
+    assert text(Floki.find(loss, ".phone-row__ids")) =~ "600 Tage"
+    assert text(Floki.find(loss, ".phone-row__figure")) == "-400,00 EUR"
+    assert text(Floki.find(loss, ".phone-row__figure2")) == "-100,0% gesamt"
+    assert figure2_nodes(loss) == [{"decimal-negative", "-100,0%"}, "gesamt"]
+
+    assert text(Floki.find(row(view, "Tamarisk Mining Ltd"), "td.trade-pa")) =~
+             "kein Zinssatz löst die Zahlungen"
+
+    doc = view |> render() |> Floki.parse_document!()
+    assert [total] = Floki.find(doc, "strong[data-role='realized-total']")
+    assert text(total) == "-400,00 EUR"
+    assert class_of(total) =~ "is-negative"
+
+    assert text(Floki.find(doc, "[data-role='trades-basis']")) =~
+             "p. a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst"
+  end
+
+  # User story (#1089; the PR γ closing act, first-look persona):
+  # As the operator reading my trades on a phone, by eye or with a screen
+  # reader,
+  # I want a trade without p. a. to say why on its phone row, as its table
+  # row does at a desktop width,
+  # so that Tamarisk's "-100,0% gesamt" after 600 days of holding is not
+  # left without its reason at 390 px.
+  #
+  # Acceptance criteria:
+  # - A phone row without p. a. carries the table dash's reason, a visually
+  #   hidden sentence after its figures: "nicht annualisiert, unter einem
+  #   Jahr Haltedauer" under 365 days, "keine annualisierte Rendite, kein
+  #   Zinssatz löst die Zahlungen dieses Trades" for a trade no rate solves.
+  # - The visible row is unchanged ("-100,0% gesamt"), and a row with p. a.
+  #   carries no such sentence.
+  test "a phone row without p. a. says why, as the table's dash does", %{conn: conn} do
+    seed_reach!()
+    world = base_world(name: "Why World", cash_name: "WW Cash", depot_name: "WW Depot")
+    tamarisk = create_security!(name: "Tamarisk Mining Ltd", ticker: "TML")
+    deposit!(world, "10000", ~D[2024-01-02])
+    buy!(world, tamarisk, quantity: "10", price: "40", date: ~D[2024-11-02])
+    sell!(world, tamarisk, quantity: "10", price: "0", date: ~D[2026-06-25])
+
+    {:ok, view, _html} = live(de_conn(conn), "/cashflow?tab=realized")
+
+    why = fn name ->
+      view |> phone_row(name) |> Floki.find(".visually-hidden[data-role='pa-absent']") |> text()
+    end
+
+    assert why.("Tamarisk Mining Ltd") ==
+             "keine annualisierte Rendite, kein Zinssatz löst die Zahlungen dieses Trades"
+
+    assert why.("Quickturn Retail") == "nicht annualisiert, unter einem Jahr Haltedauer"
+    assert why.("Longhold Industries") == ""
+
+    loss = phone_row(view, "Tamarisk Mining Ltd")
+    assert text(Floki.find(loss, ".phone-row__figure2")) == "-100,0% gesamt"
+
+    # The same reason the table's dash carries for the same trade.
+    assert text(Floki.find(row(view, "Tamarisk Mining Ltd"), "td.trade-pa .visually-hidden")) ==
+             why.("Tamarisk Mining Ltd")
+  end
+
+  # Acceptance criteria (board 04, found while drawing 1, the zero case):
+  # - A realized total of exactly zero is directionless: no sign, body ink
+  #   (`is-flat`), still never the accent.
+  test "a realized total of zero carries no sign and no accent", %{conn: conn} do
+    _empty = base_world(name: "Flat Facet", cash_name: "FF Cash", depot_name: "FF Depot")
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+
+    doc = view |> render() |> Floki.parse_document!()
+    assert [total] = Floki.find(doc, "strong[data-role='realized-total']")
+    assert text(total) == "0.00 EUR"
+    assert class_of(total) =~ "is-flat"
+  end
+
+  # Acceptance criteria (#1089 and board 04, the Sprint 19 U2 review: a
+  # figure's sign and its colour are decided on the figure as displayed):
+  # - A break-even trade reads "0.00 EUR" over "0.0%", and "0.0%" p. a. from
+  #   a year of holding, with no sign: its table cells and its phone figures
+  #   are `is-flat`, never a gain or loss colour.
+  # - A trade whose result rounds to zero at the places it is shown at — a
+  #   gain of 0.004 EUR, a loss of 0.003 EUR — reads the same: no "+0.0", no
+  #   "-0.00", no gain or loss colour.
+  # - A realized total that rounds to zero is unsigned and `is-flat`, not the
+  #   gain colour.
+  test "a trade or a total that rounds to zero reads unsigned and is-flat", %{conn: conn} do
+    world = base_world(name: "Even Facet", cash_name: "EF Cash", depot_name: "EF Depot")
+    deposit!(world, "10000", ~D[2024-01-02])
+    level = create_security!(name: "Level Lines AG", ticker: "LVL")
+    gain = create_security!(name: "Hairline Gain plc", ticker: "HLG")
+    loss = create_security!(name: "Hairline Loss SE", ticker: "HLL")
+
+    buy!(world, level, quantity: "10", price: "50", date: ~D[2024-02-01])
+    sell!(world, level, quantity: "10", price: "50", date: ~D[2025-04-01])
+    buy!(world, gain, quantity: "1", price: "100", date: ~D[2024-01-02])
+    sell!(world, gain, quantity: "1", price: "100.004", date: ~D[2026-01-01])
+    buy!(world, loss, quantity: "1", price: "100", date: ~D[2026-02-02])
+    sell!(world, loss, quantity: "1", price: "99.997", date: ~D[2026-03-04])
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+
+    for name <- ["Level Lines AG", "Hairline Gain plc", "Hairline Loss SE"] do
+      table_row = row(view, name)
+      assert [result] = Floki.find(table_row, "td[data-role='trade-result']")
+      assert text(result) == "0.00 EUR 0.0%", name
+      assert class_of(result) =~ "is-flat", name
+      refute class_of(result) =~ ~r/is-positive|is-negative/, name
+
+      phone = phone_row(view, name)
+      assert [figure] = Floki.find(phone, ".phone-row__figure")
+      assert text(figure) == "0.00 EUR", name
+      assert class_of(figure) =~ "is-flat", name
+      refute class_of(figure) =~ ~r/is-positive|is-negative/, name
+    end
+
+    for name <- ["Level Lines AG", "Hairline Gain plc"] do
+      assert [pa] = Floki.find(row(view, name), "td.trade-pa")
+      assert text(pa) == "0.0%", name
+      assert class_of(pa) =~ "is-flat", name
+      refute class_of(pa) =~ ~r/is-positive|is-negative/, name
+
+      assert figure2_nodes(phone_row(view, name)) ==
+               [{"is-flat", "0.0%"}, "·", {"is-flat", "0.0%"}, "p. a."],
+             name
+    end
+
+    assert figure2_nodes(phone_row(view, "Hairline Loss SE")) == [{"is-flat", "0.0%"}, "total"]
+
+    doc = view |> render() |> Floki.parse_document!()
+    assert [total] = Floki.find(doc, "strong[data-role='realized-total']")
+    assert text(total) == "0.00 EUR"
+    assert class_of(total) =~ "is-flat"
+    refute class_of(total) =~ ~r/is-positive|is-negative/
+
+    trades = text(Floki.find(doc, "#realized-trades-table, #realized-trades-phone-rows"))
+    refute trades =~ "+0."
+    refute trades =~ "-0."
+  end
+
+  # Acceptance criteria (#1082, the empty state):
+  # - With no depot and no cash account the page is its empty state, titled
+  #   "Cash flow" whichever facet the address names, the Trades facet's
+  #   included: there is no facet to name.
+  test "the empty state is titled Cash flow, at the Trades address too", %{conn: conn} do
+    for path <- ["/cashflow?tab=realized", "/cashflow"] do
+      {:ok, view, _html} = live(conn, path)
+      assert has_element?(view, ".workspace-section.empty-state"), path
+      assert has_element?(view, "#app-topbar-title", "Cash flow"), path
+      refute has_element?(view, "#app-topbar-title", "Trades"), path
+    end
+  end
+
+  # User story (#1074's trades half, Sprint 19 PR γ U2; board 04):
+  # As a local portfolio maintainer reading the English page,
+  # I want a quantity of one to read "unit",
+  # so that the unmatched-sells list does not say "1.0000 units".
+  #
+  # Acceptance criteria:
+  # - One unit reads "1.0000 unit"; any other quantity, a fraction included,
+  #   reads "units" (U1's count rule, `plural_count/1`).
+  # - The plural follows the quantity as displayed, at four places (Sprint 19
+  #   U2 review): 0.99996 reads "1.0000 unit", never "1.0000 units".
+  # - German reads "Stück" in both forms.
+  test "an unmatched sell of one unit reads unit", %{conn: conn} do
+    world = base_world(name: "Unit Facet", cash_name: "UF Cash", depot_name: "UF Depot")
+    deposit!(world, "10000", ~D[2026-01-01])
+    single = create_security!(name: "Brightwater Utilities plc", ticker: "BWU")
+    half = create_security!(name: "Saltmarsh Logistics SE", ticker: "SLS")
+    near = create_security!(name: "Nearshore Cables AG", ticker: "NSC")
+
+    for {security, quantity, delivered, sold} <- [
+          {single, "1", ~D[2026-08-01], ~D[2026-08-24]},
+          {half, "0.5", ~D[2026-07-01], ~D[2026-08-04]},
+          {near, "0.99996", ~D[2026-06-01], ~D[2026-06-15]}
+        ] do
+      {:ok, _delivery} =
+        Portfolixir.Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          securities_account_id: world.depot.id,
+          security_id: security.id,
+          type: "inbound_delivery",
+          date: delivered,
+          quantity: quantity,
+          currency_code: "EUR"
+        })
+
+      sell!(world, security, quantity: quantity, price: "20", date: sold)
+    end
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized")
+    items = view |> element("[data-role='realized-unmatched-list']") |> render()
+    assert items =~ ~r/1\.0000 unit\s*</
+    assert items =~ "0.5000 units"
+    refute items =~ "1.0000 units"
+
+    quantities =
+      view
+      |> render()
+      |> Floki.parse_document!()
+      |> Floki.find("[data-role='realized-unmatched-list'] li")
+      |> Map.new(fn li -> {text(Floki.find(li, "span:first-child")), li} end)
+      |> Map.new(fn {name, li} ->
+        {name, li |> Floki.find("span.num") |> List.last() |> text()}
+      end)
+
+    assert quantities["Nearshore Cables AG"] == "1.0000 unit"
+    assert quantities["Brightwater Utilities plc"] == "1.0000 unit"
+    assert quantities["Saltmarsh Logistics SE"] == "0.5000 units"
+
+    {:ok, de_view, _html} = live(de_conn(conn), "/cashflow?tab=realized")
+    de_items = de_view |> element("[data-role='realized-unmatched-list']") |> render()
+    assert de_items =~ "1,0000 Stück"
+    assert de_items =~ "0,5000 Stück"
+  end
+
+  # User story (board 04, found while drawing 2; Sprint 19 PR γ U2):
+  # As a local portfolio maintainer who came from the Overview card's note
+  # on a sale with no exchange rate,
+  # I want the facet's note to name the same missing thing,
+  # so that "kein gespeicherter Kurs" (a price) on the facet does not
+  # contradict "Wechselkurs" (an exchange rate) on the card.
+  #
+  # Acceptance criteria:
+  # - The German currency note says "kein gespeicherter Wechselkurs".
+  # - The facet's ⓘ speaks of the exchange rate too.
+  test "the German currency note names the exchange rate", %{conn: conn} do
+    world = base_world(name: "Rate Facet", cash_name: "RF Cash", depot_name: "RF Depot")
+    pound = create_security!(name: "Harborline Freight Inc.", ticker: "HFI", currency: "GBP")
+
+    gbp =
+      Map.merge(
+        world,
+        Portfolixir.WorldFixtures.add_depot(world.portfolio,
+          currency: "GBP",
+          cash_name: "GBP Cash",
+          depot_name: "GBP Depot"
+        )
+      )
+
+    buy!(gbp, pound, quantity: "2", price: "10", date: ~D[2026-01-09], currency: "GBP")
+    sell!(gbp, pound, quantity: "2", price: "30", date: ~D[2026-02-20], currency: "GBP")
+
+    {:ok, view, _html} = live(de_conn(conn), "/cashflow?tab=realized")
+
+    note = view |> element("#realized-excluded") |> render()
+
+    assert note =~
+             "1 Verkauf konnte nicht konvertiert werden — kein gespeicherter Wechselkurs an " <>
+               "seinem Schlussdatum — und ist aus jeder Summe ausgeschlossen: Harborline Freight Inc."
+
+    info = view |> element("[data-role='facet-composition']") |> render()
+    assert info =~ "zum Wechselkurs seines eigenen Schlusstags"
+    assert info =~ "kein Wechselkurs gespeichert"
+    refute info =~ "zum Kurs"
   end
 
   # Acceptance criteria (board G1 rules 1, 2, 3 and 6, the CSS the pick adds):

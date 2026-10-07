@@ -23,6 +23,7 @@ defmodule PortfolixirWeb.IncomeLive do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.TransactionManagementLive
 
   @months 1..12
 
@@ -233,7 +234,7 @@ defmodule PortfolixirWeb.IncomeLive do
     ~H"""
     <AppShell.shell
       current_path={@current_path}
-      page_title={gettext("Cash flow")}
+      page_title={facet_title(@facet)}
       page_subtitle={facet_subtitle(@facet)}
     >
       <div class="workspace-page">
@@ -362,9 +363,9 @@ defmodule PortfolixirWeb.IncomeLive do
                     <li :for={sell <- @realized.unmatched_sells.sells}>
                       <span><%= sell.security_name %></span>
                       <span class="num"><%= Format.date(sell.date) %></span>
-                      <span class="num">
-                        <%= gettext("%{quantity} units", quantity: Format.decimal(sell.quantity, 4)) %>
-                      </span>
+                      <%!-- #1074: one unit is a unit, any other quantity —
+                           a fraction included — is units (U1's rule). --%>
+                      <span class="num"><%= units(sell.quantity) %></span>
                     </li>
                   </ul>
                 </details>
@@ -374,10 +375,18 @@ defmodule PortfolixirWeb.IncomeLive do
             <%!-- Three lead figures in the built band (DESIGN.md → stat,
                  kpi-band__lead), not a new component. --%>
             <div id="realized-figures" class="kpi-band__lead" data-role="realized-figures">
+              <%!-- Board 04, found while drawing 1: a signed value in a stat
+                   card takes its sign and its gain/loss colour, never the
+                   accent (issue 637's `.stat .is-positive / .is-negative /
+                   .is-flat`); a total that rounds to zero is directionless,
+                   in body ink. --%>
               <article class="stat stat--lead">
                 <span><%= gettext("Realized total") %></span>
-                <strong data-role="realized-total">
-                  <%= money(@realized.summary.realized_total) %><small class="value-suffix"><%= @realized.base_currency %></small>
+                <strong
+                  data-role="realized-total"
+                  class={money_sign_class(@realized.summary.realized_total)}
+                >
+                  <%= Format.signed_decimal(@realized.summary.realized_total, 2) %><small class="value-suffix"><%= @realized.base_currency %></small>
                 </strong>
               </article>
               <article class="stat stat--lead">
@@ -462,15 +471,16 @@ defmodule PortfolixirWeb.IncomeLive do
                         <%= money(trade.proceeds) %><small class="value-suffix"><%= trade.currency_code %></small>
                       </td>
                       <%!-- The annualized return of the trade-currency
-                           percent beside it (Ledger.TradeReturn), in its
-                           sign colour; under 365 days of holding, or with no
-                           rate, a muted dash whose reason is the cell's
-                           title and a sentence for the screen reader. --%>
+                           percent beside it (Ledger.TradeReturn), signed
+                           (#1089) and in its sign colour; under 365 days of
+                           holding, or with no rate, a muted dash whose
+                           reason is the cell's title and a sentence for the
+                           screen reader. --%>
                       <td
                         :if={trade.annualized_return}
-                        class={["num", "trade-pa", trade_sign_class(trade.annualized_return)]}
+                        class={["num", "trade-pa", percent_sign_class(trade.annualized_return)]}
                       >
-                        <%= PortfolixirWeb.Format.percent(trade.annualized_return) %>%
+                        <%= Format.signed_percent(trade.annualized_return) %>%
                       </td>
                       <td
                         :if={is_nil(trade.annualized_return)}
@@ -482,17 +492,19 @@ defmodule PortfolixirWeb.IncomeLive do
                         ) %></span>
                       </td>
                       <%!-- DESIGN.md → "semantic colour applies wherever a
-                           sign exists, at every level of a table". The
-                           percent sign is the caller's job (Format.percent/2
-                           says so), and the sub-line is {components.stat}'s
+                           sign exists, at every level of a table", and the
+                           Accessibility Floor's explicit sign (#1089): the
+                           result and its percent carry "+" or "-". The
+                           percent sign is the caller's job (Format says so),
+                           and the sub-line is {components.stat}'s
                            `.stat__sub`, which is the shipped name. --%>
                       <td
-                        class={["num", "col-subject", trade_sign_class(trade.realized_base)]}
+                        class={["num", "col-subject", money_sign_class(trade.realized_base)]}
                         data-role="trade-result"
                       >
-                        <%= money(trade.realized_base) %><small class="value-suffix"><%= @realized.base_currency %></small>
+                        <%= Format.signed_decimal(trade.realized_base, 2) %><small class="value-suffix"><%= @realized.base_currency %></small>
                         <span class="stat__sub">
-                          <%= PortfolixirWeb.Format.percent(trade.realized_pnl_pct) %>%
+                          <%= Format.signed_percent(trade.realized_pnl_pct) %>%
                         </span>
                       </td>
                     </tr>
@@ -504,8 +516,10 @@ defmodule PortfolixirWeb.IncomeLive do
                    to two-line rows, the transactions shape — two children,
                    no logo, no kebab. Name over bought → sold · days; the
                    result over the period return and, from 365 days, the
-                   p. a. figure. A shorter trade shows no dash here: the
-                   basis line below says why. --%>
+                   p. a. figure, every figure signed (#1089). A trade
+                   without p. a. shows no dash here: its period return ends
+                   in "total", the Overview card's word, and the basis line
+                   below says why. --%>
               <ul id="realized-trades-phone-rows" class="phone-rows" aria-label={gettext("Trades")}>
                 <li :for={trade <- @realized.trades} class="phone-row" data-role="phone-row">
                   <span class="phone-row__body">
@@ -524,18 +538,27 @@ defmodule PortfolixirWeb.IncomeLive do
                     </span>
                   </span>
                   <span class="phone-row__figures">
-                    <span class={["phone-row__figure", trade_sign_class(trade.realized_base)]}>
-                      <%= money(trade.realized_base) %><small class="value-suffix"><%= @realized.base_currency %></small>
+                    <span class={["phone-row__figure", money_sign_class(trade.realized_base)]}>
+                      <%= Format.signed_decimal(trade.realized_base, 2) %><small class="value-suffix"><%= @realized.base_currency %></small>
                     </span>
                     <span class="phone-row__figure2">
-                      <span class={decimal_sign_class(trade.realized_pnl_pct)}><%= PortfolixirWeb.Format.percent(
+                      <span class={percent_figure_class(trade.realized_pnl_pct)}><%= Format.signed_percent(
                         trade.realized_pnl_pct
                       ) %>%</span><%= if trade.annualized_return do %> · <span class={
-                        decimal_sign_class(trade.annualized_return)
-                      }><%= PortfolixirWeb.Format.percent(trade.annualized_return) %>%</span> <%= gettext(
+                        percent_figure_class(trade.annualized_return)
+                      }><%= Format.signed_percent(trade.annualized_return) %>%</span> <%= gettext(
                         "p. a."
-                      ) %><% end %>
+                      ) %><% else %> <%= gettext("total") %><% end %>
                     </span>
+                    <%!-- #1089 at every width (the PR γ closing act): the
+                         table dash's reason, for the screen reader, so the
+                         phone row says why it has no p. a. as the table row
+                         does; the basis line says it on the screen. --%>
+                    <span
+                      :if={is_nil(trade.annualized_return)}
+                      class="visually-hidden"
+                      data-role="pa-absent"
+                    ><%= pa_absent_sentence(trade.annualized_return_reason) %></span>
                   </span>
                 </li>
               </ul>
@@ -544,14 +567,16 @@ defmodule PortfolixirWeb.IncomeLive do
             <%!-- #984 (board rule 2): the list's basis, in the basis voice.
                  The matcher's scope is in the facet's opening line; this
                  one states what the rows include and leave out — which is
-                 also the limit the unmatched-sells note points to. --%>
+                 also the limit the unmatched-sells note points to — and,
+                 since #1089, both limits of p. a.: the holding period and
+                 a rate that solves the flows (UX-DR26). --%>
             <p
               :if={@realized.trades != [] or @realized.unmatched_sells.count > 0}
               class="summary-basis"
               data-role="trades-basis"
             >
               <%= gettext(
-                "Deliveries open no lot · fees and taxes in cost and proceeds · income received while a trade was open not included · p. a. only from 365 days of holding"
+                "Deliveries open no lot · fees and taxes in cost and proceeds · income received while a trade was open not included · p. a. only from 365 days of holding and only where a rate solves the flows"
               ) %>
             </p>
           </section>
@@ -1340,28 +1365,32 @@ defmodule PortfolixirWeb.IncomeLive do
   # Mär/Mai/Okt/Dez instead of leaking strftime's English %b output
   # (Steve UAT, reconsolidation).
   # A realised result is signed, so it carries the sign colour every other
-  # signed figure in the app carries; a break-even trade carries none.
-  defp trade_sign_class(%Decimal{} = value) do
-    case Decimal.compare(value, Decimal.new(0)) do
-      :gt -> "is-positive"
-      :lt -> "is-negative"
-      :eq -> nil
-    end
-  end
+  # signed figure in the app carries. The colour is decided on the figure as
+  # displayed, as its sign is (Format.displayed_sign/2; the Sprint 19 U2
+  # review): a result that rounds to 0.00, or a percent that rounds to 0.0,
+  # is directionless — unsigned and `is-flat`, body ink in a table and in a
+  # stat card, where it is never the accent `.stat strong` gives an unsigned
+  # magnitude (board 04, found while drawing 1; issue 637).
+  defp money_sign_class(value), do: value |> Format.displayed_sign(2) |> sign_class()
 
-  defp trade_sign_class(_value), do: nil
+  defp percent_sign_class(value), do: value |> Format.displayed_percent_sign() |> sign_class()
+
+  defp sign_class(:positive), do: "is-positive"
+  defp sign_class(:negative), do: "is-negative"
+  defp sign_class(:zero), do: "is-flat"
+  defp sign_class(nil), do: nil
 
   # The phone row's percent colours (DESIGN.md → Two-line phone rows: the
-  # second figure line is muted, its signed numbers carry their colour).
-  defp decimal_sign_class(%Decimal{} = value) do
-    case Decimal.compare(value, Decimal.new(0)) do
-      :gt -> "decimal-positive"
-      :lt -> "decimal-negative"
-      :eq -> nil
+  # second figure line is muted, its signed numbers carry their colour; a
+  # percent that rounds to zero carries none).
+  defp percent_figure_class(value) do
+    case Format.displayed_percent_sign(value) do
+      :positive -> "decimal-positive"
+      :negative -> "decimal-negative"
+      :zero -> "is-flat"
+      nil -> nil
     end
   end
-
-  defp decimal_sign_class(_value), do: nil
 
   # #984: why a trade's p. a. cell is a dash. Under 365 days of holding the
   # figure is withheld by rule (ADR-0034 §2); any other reason means no rate
@@ -1393,6 +1422,29 @@ defmodule PortfolixirWeb.IncomeLive do
 
   defp kind_label("dividend"), do: gettext("Dividend")
   defp kind_label("interest"), do: gettext("Interest")
+
+  # #1074: a quantity at the four places it is shown at, its plural decided
+  # on that displayed figure (U1's count rule, plural_count/1) — 0.99996
+  # reads "1.0000 unit", as the digits say, never "1.0000 units".
+  defp units(%Decimal{} = quantity) do
+    shown = Decimal.round(quantity, 4)
+
+    ngettext(
+      "%{quantity} unit",
+      "%{quantity} units",
+      TransactionManagementLive.plural_count(shown),
+      quantity: Format.decimal(shown, 4)
+    )
+  end
+
+  # #1082 (plan D-4, board ux-design-2026-10-04/04-trades, pick J4 A): the
+  # top bar's title follows the facet while Trades is open, so the page
+  # carries its name at 390 px too, where the subtitle is hidden. The other
+  # three facets keep the area's name: titling "Income" would reopen the
+  # ambiguity the information architecture closed. The precedent is the
+  # classification page, titled with its tree's name.
+  defp facet_title("realized"), do: gettext("Trades")
+  defp facet_title(_facet), do: gettext("Cash flow")
 
   # The subtitle names the facet (UX-DR21 extended, 2026-09-12): the parent's
   # first facet is never the subtitle of its siblings.

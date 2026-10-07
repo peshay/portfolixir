@@ -133,6 +133,77 @@ defmodule PortfolixirWeb.FormatTest do
     assert Format.native_amount(nil, "de") == "—"
   end
 
+  # User story (#1089 and #1060, Sprint 19 PR γ U2; board
+  # ux-design-2026-10-04/04-trades):
+  # As a local portfolio maintainer reading a trade's return,
+  # I want every signed percent on the trades surfaces formatted by one
+  # helper,
+  # so that the facet, the security's Trades tab and the Overview card print
+  # the same return the same way — "+27,1%", never "27,1%" or "+27,07 %".
+  #
+  # Acceptance criteria:
+  # - Format.signed_percent/2 formats a Decimal fraction with one decimal
+  #   and locale separators, the percent sign left to the caller like
+  #   Format.percent/2.
+  # - A positive value carries an explicit "+", a negative one its "-", a
+  #   zero none.
+  # - The sign is decided on the percent as displayed, rounded to its one
+  #   decimal (Sprint 19 U2 review): a value that rounds to 0.0 reads "0.0"
+  #   from either side, never "+0.0" or "-0.0".
+  # - Non-Decimal inputs render as an em dash.
+  test "Format.signed_percent/2 signs a fraction as a one-decimal percent" do
+    assert Format.signed_percent(Decimal.new("0.2707"), "de") == "+27,1"
+    assert Format.signed_percent(Decimal.new("0.2707"), "en") == "+27.1"
+    assert Format.signed_percent(Decimal.new("-0.051"), "de") == "-5,1"
+    assert Format.signed_percent(Decimal.new("12.345"), "de") == "+1.234,5"
+    assert Format.signed_percent(Decimal.new("0"), "en") == "0.0"
+    assert Format.signed_percent(Decimal.new("0.0004"), "en") == "0.0"
+    assert Format.signed_percent(Decimal.new("0.00004"), "de") == "0,0"
+    assert Format.signed_percent(Decimal.new("-0.0004"), "en") == "0.0"
+    assert Format.signed_percent(Decimal.new("-0.00004"), "de") == "0,0"
+    assert Format.signed_percent(Decimal.new("0.0005"), "en") == "+0.1"
+    assert Format.signed_percent(Decimal.new("-0.0005"), "en") == "-0.1"
+    assert Format.signed_percent(nil, "en") == "—"
+    assert Format.signed_percent("0.1", "en") == "—"
+  end
+
+  # User story (Sprint 19 PR γ U2 review; DESIGN.md → Trades):
+  # As a local portfolio maintainer reading a signed figure, and as one who
+  # cannot tell its green from its red,
+  # I want its sign and its colour decided on the figure as it is displayed,
+  # so that a value that rounds to zero never reads "+0,0", "-0,00", or
+  # "0,00" in the gain colour.
+  #
+  # Acceptance criteria:
+  # - Format.signed_decimal/3 prints a value that rounds to zero without a
+  #   sign from either side: -0.004 at two places reads "0,00", not "-0,00".
+  # - Format.displayed_sign/2 is the sign of the value rounded to the places
+  #   it is displayed at: :positive, :negative or :zero; nil for a
+  #   non-number. The colour classes follow it.
+  # - Format.displayed_percent_sign/1 is the same at the precision of a
+  #   one-decimal percent (Format.percent/2, Format.signed_percent/2).
+  test "a figure that rounds to zero is unsigned and directionless" do
+    assert Format.signed_decimal(Decimal.new("-0.004"), 2, "de") == "0,00"
+    assert Format.signed_decimal(Decimal.new("0.004"), 2, "de") == "0,00"
+    assert Format.signed_decimal(Decimal.new("-0.004"), 2, "en") == "0.00"
+    assert Format.signed_decimal(Decimal.new("0.005"), 2, "en") == "+0.01"
+    assert Format.signed_decimal(Decimal.new("-0.005"), 2, "en") == "-0.01"
+    assert Format.signed_decimal(Decimal.new("-1234.5"), 2, "de") == "-1.234,50"
+
+    assert Format.displayed_sign(Decimal.new("0.004"), 2) == :zero
+    assert Format.displayed_sign(Decimal.new("-0.004"), 2) == :zero
+    assert Format.displayed_sign(Decimal.new("0"), 2) == :zero
+    assert Format.displayed_sign(Decimal.new("0.005"), 2) == :positive
+    assert Format.displayed_sign(Decimal.new("-0.005"), 2) == :negative
+    assert Format.displayed_sign(nil, 2) == nil
+
+    assert Format.displayed_percent_sign(Decimal.new("0.00004")) == :zero
+    assert Format.displayed_percent_sign(Decimal.new("-0.00049")) == :zero
+    assert Format.displayed_percent_sign(Decimal.new("0.0005")) == :positive
+    assert Format.displayed_percent_sign(Decimal.new("-0.0005")) == :negative
+    assert Format.displayed_percent_sign("0.1") == nil
+  end
+
   test "Format.decimal/2 and Format.signed_decimal/2 default to current gettext locale" do
     previous = Gettext.get_locale(PortfolixirWeb.Gettext)
 
