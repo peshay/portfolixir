@@ -601,6 +601,12 @@ textarea {
      ellipsis renders), the block axis paints the glyphs in full. */
   overflow-x: clip;
   overflow-y: visible;
+  /* Issue 1086 (board ux-design-2026-10-04/06-phone-wealth, rule ③): the
+     heading is a grid item, and at `min-width: auto` it stayed as wide as
+     its text, so it never overflowed itself and its ellipsis never drew
+     while the container clipped it mid-glyph. A zero floor lets it shrink
+     to its box, and the ellipsis is drawn again ("Konten & De…"). */
+  min-width: 0;
 }
 
 .topbar-page p {
@@ -2465,6 +2471,12 @@ dialog.modal::backdrop {
   --securities-list-height: 360px;
   display: grid;
   grid-template-rows: minmax(220px, var(--securities-list-height)) 14px minmax(0, auto);
+  /* Issue 1063 (board ux-design-2026-10-04/06-phone-wealth, rule ⑤): the
+     one column was an implicit `auto`, so the detail pane's min-content —
+     its nine tabs at their intrinsic width — set the column's floor, and at
+     768 px the page scrolled sideways. With a zero floor the column is the
+     window, and the tab row scrolls inside itself with its fade (D6). */
+  grid-template-columns: minmax(0, 1fr);
   min-height: 0;
 }
 
@@ -2898,10 +2910,18 @@ img.security-logo {
   gap: var(--space-3);
 }
 
+/* Issue 1063 in the detail head (the closing act's edge-case finding 6): a
+   stored name with no break opportunity was the head's min-content, and the
+   page scrolled sideways with the pane's buttons off the screen (a 74-letter
+   name: 629 px at 390, 253 at 768, 217 at 1024). The name breaks anywhere
+   when nothing else fits, which also lowers its min-content (break-word
+   would not). A zero floor on the title block is not needed, and is not
+   wanted: it let the ISIN line run past its column toward the buttons. */
 .detail-pane-head h2 {
   margin: 0;
   font-size: 16px;
   color: var(--color-text);
+  overflow-wrap: anywhere;
 }
 
 .detail-pane-sub {
@@ -3668,8 +3688,14 @@ input[pattern]:invalid:not(:placeholder-shown) {
   z-index: 2;
 }
 
+/* Issue 1063 on the chart tab (board ux-design-2026-10-04/06b-chart-toggles-768):
+   the row wraps at every width, not only in the 720 px phone block. As a
+   flex item of the wrapping toolbar it takes a line of its own and shrinks
+   to the pane; its ten German toggles pushed the page 239 px sideways at
+   768 px, 203 px at 1024 and 27 px at 1200. */
 .chart-toggles {
   display: inline-flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -7781,6 +7807,22 @@ select:disabled {
   font-size: 22px;
 }
 
+@media (max-width: 560px) {
+  /* compact card value (issue 1086; board ux-design-2026-10-04/06-phone-wealth,
+     rule ④): on a half-width compact card of Wealth's KPI band the value
+     steps down from 22 px to 16 px, the ramp's next step down that fits
+     ({typography.subsection-title}), so a six-figure amount and its
+     currency suffix share a line (EXPERIENCE.md → Value slot: a value never
+     wraps inside its slot). A seven-figure amount still drops its suffix —
+     the digits never break — and that is the fallback, not the design.
+     Scoped to the band the board draws: Risk's metric cards are compact
+     cards too, and there a computed value would read at the 16 px of the
+     "not computable" sentence (.stat-empty). */
+  #portfolio-kpis .stat--compact strong {
+    font-size: 16px;
+  }
+}
+
 /* The label row: label and inline ⓘ side by side, so the tooltip reads with
    the label instead of pinning to the corner where the sub-line now sits. */
 .stat__head {
@@ -7796,9 +7838,12 @@ select:disabled {
 
 /* The value suffix (DESIGN.md → Amendment 2026-09-12): stat-label size and
    muted colour, 4 px after the digits; the digits never wrap, the suffix
-   may drop to its own line on a narrow card. The rule is a property of the
-   value slot, not of the stat card, so the selector carries no ancestor —
-   a table cell and the Overview's value card use the same suffix. */
+   may drop to its own line on a narrow card. Under 560 px Wealth's compact
+   cards step their value down so it keeps its suffix on its line (issue
+   1086, the 560 px rule above); a wider compact card may still drop it. The
+   rule is a property of the value slot, not of the stat card, so the
+   selector carries no ancestor — a table cell and the Overview's value
+   card use the same suffix. */
 .value-suffix {
   display: inline-block;
   margin-left: 4px;
@@ -8336,10 +8381,13 @@ dialog.filter-sheet::backdrop {
 
   /* The column pickers configure tables that are not on the phone: the rows
      are a fixed composition (UX-DR27), so the controls would do nothing.
-     Wealth's Positions toggle joins them with its rows (issue 1065). */
+     Wealth's Positions toggle joins them with its rows (issue 1065), and so
+     does its panel: one opened on a wider window stays open across a
+     resize, and it sits in the section head, outside the hidden wrapper. */
   #toggle-column-popover,
   .column-picker-bar,
-  #holdings-column-toggle {
+  #holdings-column-toggle,
+  #holdings-column-picker {
     display: none;
   }
 

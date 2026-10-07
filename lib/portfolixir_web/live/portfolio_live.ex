@@ -1007,7 +1007,7 @@ defmodule PortfolixirWeb.PortfolioLive do
              on its sub-line. Holdings only: the Allocation tab carries one
              summary line linking back here instead of repeating the band. --%>
         <%= if @wealth_tab == :holdings do %>
-        <section class="workspace-section kpi-band" aria-label={gettext("Wealth key figures")}>
+        <section id="portfolio-kpis" class="workspace-section kpi-band" aria-label={gettext("Wealth key figures")}>
           <div class="kpi-band__lead">
             <article id="kpi-total" class="stat stat--lead">
               <span><%= gettext("Total incl. cash") %></span>
@@ -1174,7 +1174,10 @@ defmodule PortfolixirWeb.PortfolioLive do
             <article id="kpi-invested" class="stat stat--compact" role="group" aria-describedby="tip-invested">
               <div class="stat__head">
                 <span>
-                  <%= gettext("Opening value") %> · <%= gettext("net flows") %> (<%= period_label(
+                  <%!-- #1086 (board 06): a no-break space binds "·" to the word
+                       before it, so on a half-width card the separator ends
+                       the label's first line instead of opening its second. --%>
+                  <%= gettext("Opening value") %>&nbsp;· <%= gettext("net flows") %> (<%= period_label(
                     @period
                   ) %>)
                 </span>

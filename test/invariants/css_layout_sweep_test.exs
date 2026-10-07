@@ -218,13 +218,16 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
   # Acceptance criteria:
   # - The holdings phone row is the trades row's shape, two children: two
   #   tracks, `minmax(0, 1fr) auto`.
-  # - Under 560 px the holdings column toggle joins the pickers that hide.
-  test "the holdings phone row has two tracks and its column toggle hides on the phone" do
+  # - Under 560 px the holdings column toggle joins the pickers that hide,
+  #   and so does the picker's own panel: one opened on a wide window stays
+  #   open across a resize, and its columns would do nothing to the rows
+  #   (the review of PR γ U4).
+  test "the holdings phone row has two tracks and its column picker hides on the phone" do
     assert block("#holdings-phone-rows .phone-row") =~
              ~r/grid-template-columns:\s*minmax\(0, 1fr\) auto;/
 
     assert phone_block() =~
-             ~r/#toggle-column-popover,\s*\.column-picker-bar,\s*#holdings-column-toggle \{\s*display: none;/
+             ~r/#toggle-column-popover,\s*\.column-picker-bar,\s*#holdings-column-toggle,\s*#holdings-column-picker \{\s*display: none;/
   end
 
   # User story (#1057; board ux-design-2026-10-04/06-phone-wealth, pick J6.2
@@ -250,6 +253,89 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
     assert twin =~ ~r/font-size:\s*12px;/
     assert twin =~ ~r/font-weight:\s*400;/
     assert twin =~ ~r/white-space:\s*nowrap;/
+  end
+
+  # User story (#1086; board ux-design-2026-10-04/06-phone-wealth, rule ④;
+  # EXPERIENCE.md → Value slot: a value never wraps inside its slot):
+  # As the operator reading the KPI band on a 390 px phone,
+  # I want "182.450,30 EUR" on one line in its half-width card,
+  # so that the currency does not drop under the digits.
+  #
+  # Acceptance criteria:
+  # - Under 560 px a compact card of Wealth's KPI band takes 16 px for its
+  #   value, the ramp's {typography.subsection-title} step; above it stays
+  #   22 px.
+  # - The step-down is Wealth's band only (`#portfolio-kpis`), as the board
+  #   draws it: Risk's metric cards are `.stat--compact` too, and there a
+  #   computed value would shrink to the 16 px of `.stat-empty`, the
+  #   sentence a card shows when it has no value (the review of PR γ U4).
+  test "under 560 px a compact card's value steps down to 16 px on Wealth only" do
+    assert block(".stat--compact strong") =~ ~r/font-size:\s*22px;/
+
+    refute @css =~ ~r/\n\s*\.stat--compact strong \{\s*font-size:\s*16px;/,
+           "an unscoped 16 px compact value would reach Risk's metric cards"
+
+    compact =
+      case Regex.run(
+             ~r/@media \(max-width: 560px\) \{\n  \/\* compact card value[^\n]*\n(.*?)\n\}\n/s,
+             @css
+           ) do
+        [_, body] -> body
+        nil -> flunk("no 560 px block for the compact card's value")
+      end
+
+    assert compact =~ ~r/#portfolio-kpis \.stat--compact strong \{\s*font-size: 16px;\s*\}/
+  end
+
+  # User story (#1063; board ux-design-2026-10-04/06-phone-wealth, rule ⑤;
+  # EXPERIENCE.md → UX-DR15, no horizontal page scroll; DESIGN.md → D6):
+  # As the operator reading a security's detail at 768 px,
+  # I want the page to stay as wide as the window,
+  # so that the tab row scrolls inside itself instead of the whole page
+  # scrolling 17 px sideways.
+  #
+  # Acceptance criteria:
+  # - The split workspace's one column has a zero floor, `minmax(0, 1fr)`:
+  #   an implicit `auto` column took the detail pane's min-content (its nine
+  #   `flex: none` tabs) as its floor.
+  test "the split workspace's column has a zero floor" do
+    assert block(".securities-workspace--split") =~
+             ~r/grid-template-columns:\s*minmax\(0, 1fr\);/
+  end
+
+  # User story (#1063 on the chart tab; board
+  # ux-design-2026-10-04/06b-chart-toggles-768, before / after; UX-DR15):
+  # As the operator reading a security's chart with the detail pane open, in
+  # German, at 768, 1024 or 1200 px,
+  # I want the page to stay as wide as the window,
+  # so that the chart's ten toggles do not push the page 239 px sideways.
+  #
+  # Acceptance criteria:
+  # - The toggle row wraps at every width, not only inside the 720 px phone
+  #   block: it is a flex item of the wrapping toolbar, so it takes a line
+  #   of its own and its toggles break onto as many lines as they need.
+  test "the chart tab's toggle row wraps at every width" do
+    assert block(".chart-toggles") =~ ~r/flex-wrap:\s*wrap;/
+  end
+
+  # User story (issue 1063 in the detail head; the closing act's edge-case
+  # finding 6; UX-DR15):
+  # As the operator reading a security whose stored name has no break
+  # opportunity (a 74-character run of letters), at 390, 768 or 1024 px,
+  # I want the page to stay as wide as the window and the name to wrap,
+  # so that the pane's Edit, Split, fullscreen and close buttons stay on the
+  # screen instead of the page scrolling sideways.
+  #
+  # Acceptance criteria:
+  # - The name breaks anywhere when nothing else fits (`overflow-wrap:
+  #   anywhere`), which also lowers its min-content, the floor the title
+  #   block took as a flex item; `break-word` would not lower it.
+  # - The title block keeps its min-content floor (no `min-width: 0`): the
+  #   ISIN line under the name still holds its column's width, and does not
+  #   run past it toward the buttons.
+  test "the detail head's name wraps instead of widening the page" do
+    assert block(".detail-pane-head h2") =~ ~r/overflow-wrap:\s*anywhere;/
+    refute block(".detail-pane-head__title") =~ ~r/min-width:\s*0;/
   end
 
   # User story (#1050; board ux-design-2026-10-02/03-bond-master-data, rule

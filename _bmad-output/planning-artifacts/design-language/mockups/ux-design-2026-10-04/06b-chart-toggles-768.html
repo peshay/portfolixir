@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Diagramm-Reiter bei 768 und 1024 px: die Schalter brechen um (#1063)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- Board 06b, Sprint 19 PR γ (the U3 review's finding 8; #1063, board 06's
+     rule ⑤ carried to the chart tab). A conformance repair, drawn before /
+     after: UX-DR15 already fixes the answer (no horizontal page scroll), so
+     there is no pick. Everything inside the frames is the markup and the
+     classes that ship: AppShell.shell, securities_live.ex
+     (.securities-workspace--split, .detail-pane, .detail-pane-tabs,
+     .detail-pane-toolbar with .range-buttons, .period-disclosure and
+     .chart-toggles), security_chart.ex (.chart-frame). The frames are real
+     768 px and 1024 px windows (srcdoc iframes), so app.css's breakpoints
+     apply. All names, identifiers and figures are invented. -->
+<style id="proposal">
+  /* ⑥ #1063 on the chart tab: the toggle row is an inline-flex row that
+     wraps only under 720 px (app.css's phone block), so between 721 px and
+     a wide desktop its ten German toggles stay one line, wider than the
+     detail pane, and the page scrolls sideways. Wrapping at every width is
+     the one rule that ends it: the row is a flex item of the toolbar, which
+     already wraps, so it takes a line of its own and then shrinks to the
+     pane, its toggles breaking onto as many lines as they need. */
+  .chart-toggles {
+    flex-wrap: wrap;
+  }
+</style>
+<style id="today">
+  /* Today's rule, restated so "Heute" stays today's once the repair ships. */
+  .chart-toggles {
+    flex-wrap: nowrap;
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  body { padding: 0; }
+  .mock-board { max-width: none; margin: 0 0 18px; }
+  .mock-board > h2, .mock-board > p.mock-note { padding: 0 12px; }
+  .cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  .cap code, .mock-note code { font-size: 11.5px; }
+  .tb { width: 100%; border-top: 1px solid var(--color-border-strong); border-bottom: 1px solid var(--color-border-strong); overflow: hidden; background: var(--color-bg); }
+  .tb iframe { display: block; width: 100%; height: 150px; border: 0; }
+  .tb.mock-before { border-color: var(--color-danger); }
+  .tb.mock-after { border-color: var(--color-positive); }
+  .ph-tag { display: block; padding: 4px 12px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .mock-before .ph-tag { color: var(--color-danger); background: var(--color-danger-soft); }
+  .mock-after .ph-tag { color: var(--color-positive); background: color-mix(in srgb, var(--color-positive) 12%, transparent); }
+  .measure { margin: 6px 12px 0; font-size: 12px; color: var(--mock-ink); }
+  .measure b { color: var(--color-text); }
+  .measure.bad b { color: var(--color-danger); }
+  .measure.good b { color: var(--color-positive); }
+  .notes { margin: 0 12px; font-size: 12.5px; }
+  .notes li { margin: 0 0 6px; }
+</style>
+</head>
+<body data-widths="768,1024">
+
+<p class="cap"><b>Board 06b — the chart tab at <span data-width></span>&nbsp;px (#1063, board 06's rule ⑤ carried to the chart tab).</b> A conformance repair drawn <b>before / after</b>: UX-DR15 forbids a sideways page scroll, so there is no pick. Rendered at 768 and 1024&nbsp;px (<code>06b-chart-toggles-768--768.png</code>, <code>--1024.png</code>); each frame is a true window of that width with the German UI, whose toggle labels are the long ones. The red dashed outline marks the row whose width causes the scroll; the green dashed outline the row that now wraps. The sidebar is left out of the frames, as on board 06. All names and figures are invented.</p>
+
+<section class="mock-board">
+  <h2>#1063 — the chart tab scrolls the page sideways while the detail pane is open <small>Wertpapiere, Detail offen, Diagramm · Heute / Nachher</small></h2>
+  <p class="mock-note">The toolbar (<code>.detail-pane-toolbar</code>) wraps, but its toggle row (<code>.chart-toggles</code>, <code>display: inline-flex</code>) wraps only inside the 720&nbsp;px phone block, so above it the row keeps its ten German toggles on one line. That line is wider than the detail pane, the pane grows past the window, and the page scrolls; board 06's rule ⑤ gave the workspace's column a zero floor, which the pane's own content still overflows. In <code>Heute</code> the row runs past the window's right edge; the measurement under the frame is the page's own.</p>
+  <div class="tb mock-before"><span class="ph-tag">Heute · die Schalter laufen über den Rand</span><iframe data-mode="today" title="Heute"></iframe></div>
+  <p class="measure bad" data-measure="today"></p>
+  <div class="tb mock-after" style="margin-top:16px"><span class="ph-tag">Nachher · die Schalter brechen um</span><iframe data-mode="after" title="Nachher"></iframe></div>
+  <p class="measure good" data-measure="after"></p>
+  <ul class="notes" style="margin-top:12px">
+    <li><b>Nachher</b>: <code>.chart-toggles { flex-wrap: wrap }</code> at every width. The phone block's own wrap rule already does this under 720&nbsp;px; above it the row now does the same. Nothing else moves: the range buttons, the custom range and the chart keep their places.</li>
+    <li>Measured on the built page before the repair: the page was 239&nbsp;px wider than a 768&nbsp;px window, 203&nbsp;px at 1024 and 27&nbsp;px at 1200, in German only (the English labels are shorter).</li>
+  </ul>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames from the live
+   markup of AppShell and securities_live.ex as srcdoc iframes (relative
+   links resolve against this board) and measures each one. */
+const CSS_HREF = '../../../../../priv/static/app.css';
+const IMG = '../../../../../priv/static/images/';
+const ICON = {
+  chev: '<path d="m9 6 6 6-6 6"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  max: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'
+};
+const ico = (n, s = 14, cls = '') => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"${cls ? ` class="${cls}"` : ''} aria-hidden="true">${ICON[n]}</svg>`;
+
+function topbar(title, subtitle) {
+  return `<header class="topbar"><label class="sidebar-toggle" aria-label="Navigation öffnen"><span class="burger-bars" aria-hidden="true"></span></label><div class="topbar-primary"><a class="topbar-brand" aria-label="Portfolixir"><span class="brand-logo" aria-hidden="true"><img class="topbar-mark brand-mark-light" src="${IMG}logo-mark-light.svg" alt=""><img class="topbar-mark brand-mark-dark" src="${IMG}logo-mark-dark.svg" alt=""></span><span>Portfolixir</span></a><div class="topbar-page" aria-live="polite"><h1 id="app-topbar-title">${title}</h1><p id="app-topbar-subtitle">${subtitle}</p></div></div><div class="topbar-controls"><details class="theme-menu"><summary class="theme-menu-trigger"><span class="theme-current-icon theme-current-icon-light" aria-hidden="true">${ico('monitor', 16, 'theme-svg-icon')}</span></summary></details><details class="accent-menu"><summary class="accent-menu-trigger"><span class="accent-current-dot accent-current-dot-violet" aria-hidden="true"></span></summary></details><nav class="locale-switcher" aria-label="Sprache"><a class="locale-link">EN</a><a class="locale-link is-active" aria-current="true">DE</a></nav></div></header>`;
+}
+const shell = (main) => `<div class="app-shell"><div class="app-frame">${topbar('Wertpapiere', 'Suchen, filtern und pflegen des investierbaren Universums.')}<main class="app-main app-main--workspace">${main}</main></div></div>`;
+
+/* A synthetic year of closes, drawn the way SecurityChart draws them. */
+function chart() {
+  const W = 960, H = 320, X0 = 56, X1 = 936, Y0 = 16, Y1 = 292;
+  const vals = Array.from({ length: 53 }, (_, i) => 100 + 12 * Math.sin(i / 7) + i * 0.3);
+  const lo = Math.min(...vals) - 1, hi = Math.max(...vals) + 1;
+  const pts = vals.map((v, i) => [X0 + (X1 - X0) * i / 52, Y1 - (Y1 - Y0) * (v - lo) / (hi - lo)]);
+  const poly = pts.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const area = `M${pts[0][0]},${Y1} ` + pts.map(([x, y]) => `L${x.toFixed(1)},${y.toFixed(1)}`).join(' ') + ` L${X1},${Y1} Z`;
+  const grid = [0, 1, 2, 3, 4].map((i) => `<line x1="${X0}" y1="${Y1 - (Y1 - Y0) * i / 4}" x2="${X1}" y2="${Y1 - (Y1 - Y0) * i / 4}" />`).join('');
+  return `<div class="chart-frame"><svg class="security-chart" role="img" aria-label="Kurschart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" width="100%"><g class="chart-axes" stroke="currentColor" stroke-opacity="0.15">${grid}</g><path class="quote-area" d="${area}" /><polyline class="quote-line" fill="none" stroke="currentColor" stroke-width="1.6" points="${poly}" /></svg></div>`;
+}
+
+function splitWorkspace() {
+  const rows = [['N', 'Nordwind Industrie AG', 'DE000000000A', '112,40', 'EUR', true], ['N', 'Nordic Timber Holdings AB', 'XS0000000001', '29,90', 'EUR'], ['J', 'Juniper Rail AG', 'XS0000000132', '65,00', 'EUR'], ['P', 'Placeholder Anleihe 2031 3,25%', 'XS0000000002', '98,75', 'EUR']];
+  const list = `<div id="securities-list-pane" class="securities-list-pane"><div class="data-table-wrapper" id="securities-table"><table class="data-table"><thead><tr><th class="row-actions-head" aria-label="Zeilenaktionen"></th><th>Name</th><th>ISIN</th><th class="num">Letzter Kurs</th><th>Währung</th></tr></thead><tbody>${rows.map((r) => `<tr class="security-row${r[5] ? ' is-selected' : ''}"><td></td><td><span class="security-logo security-logo--row security-logo--initial">${r[0]}</span>${r[1]}</td><td>${r[2]}</td><td class="num">${r[3]}</td><td>${r[4]}</td></tr>`).join('')}</tbody></table></div></div>`;
+  const tabs = ['Übersicht', 'Diagramm', 'Transaktionen', 'Trades', 'Kurse', 'Bestände', 'Klassifizierungen', 'Research', 'Termine'];
+  const ranges = ['1M', '3M', '6M', 'YTD', '1J', '3J', '5J', 'Max'];
+  const toggles = [['Logarithmische Skala'], ['Prozent'], ['Transaktionen anzeigen', true], ['MA30'], ['MA50', true], ['MA200', true], ['Einstandspreis'], ['Kurse aktualisieren'], ['SVG exportieren'], ['PNG exportieren']];
+  const toolbar = `<div class="detail-pane-toolbar" role="toolbar" aria-label="Chart-Optionen"><div class="range-buttons" role="group" aria-label="Zeitraum">${ranges.map((r) => `<button type="button" class="range-button${r === '1J' ? ' is-active' : ''}">${r}</button>`).join('')}</div><details class="period-disclosure"><summary class="disclosure-summary">${ico('chev', 12, 'disclosure-chevron')}Benutzerdefinierter Zeitraum …</summary></details><div class="chart-toggles" id="chart-toggles">${toggles.map(([t, on]) => `<button type="button" class="chart-toggle${on ? ' is-active' : ''}" aria-pressed="${on ? 'true' : 'false'}">${t}</button>`).join('')}</div></div>`;
+  const pane = `<aside class="detail-pane" id="security-detail-pane" aria-label="Ausgewähltes Wertpapier"><header class="detail-pane-head"><div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial">N</span><div><h2>Nordwind Industrie AG</h2><p class="detail-pane-sub">DE000000000A · NWI · EUR · Letzter 112,40 (30.09.2026)</p></div></div><div class="detail-pane-head__actions"><button type="button" class="button-ghost">Bearbeiten</button><button type="button" class="button-ghost">Split erfassen</button><button type="button" class="icon-button" aria-label="Maximieren">${ico('max', 16)}</button><a class="icon-button" aria-label="Detail schließen">${ico('x', 16)}</a></div></header><nav id="detail-pane-tabs" class="detail-pane-tabs" role="tablist" data-scroll-start aria-label="Wertpapier-Detailansicht">${tabs.map((t) => `<button type="button" role="tab" class="detail-pane-tab${t === 'Diagramm' ? ' is-active' : ''}"${t === 'Diagramm' ? ' aria-selected="true"' : ''}>${t}</button>`).join('')}</nav><section role="tabpanel" class="detail-tab-panel detail-tab-panel--chart">${toolbar}${chart()}</section></aside>`;
+  return `<section class="workspace-panel" id="securities-panel"><div id="securities-workspace" class="securities-workspace securities-workspace--split">${list}<div id="securities-detail-splitter" class="securities-detail-splitter" role="separator"><span aria-hidden="true"></span></div>${pane}</div></section>`;
+}
+
+const IN_FRAME = '<style>.culprit{outline:2px dashed var(--color-danger);outline-offset:2px}.is-new{outline:2px dashed var(--color-accent);outline-offset:2px;border-radius:4px}.topbar{position:relative}</style>';
+const frameDoc = (css) => `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${IN_FRAME}${css}</head><body>${shell(splitWorkspace())}</body></html>`;
+const styleOf = (id) => `<style>${document.getElementById(id).textContent}</style>`;
+
+document.querySelector('[data-width]').textContent = String(window.innerWidth);
+document.querySelectorAll('iframe[data-mode]').forEach((f) => {
+  const mode = f.dataset.mode;
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument, de = doc.documentElement;
+    f.style.height = Math.ceil(de.scrollHeight) + 'px';
+    setTimeout(() => {
+      const row = doc.getElementById('chart-toggles');
+      const pane = doc.getElementById('security-detail-pane');
+      row.classList.add(mode === 'today' ? 'culprit' : 'is-new');
+      const over = de.scrollWidth - de.clientWidth;
+      const lines = new Set(Array.from(row.children).map((b) => Math.round(b.getBoundingClientRect().top))).size;
+      const text = `Page <b>${de.scrollWidth}&nbsp;px</b> wide in a <b>${de.clientWidth}&nbsp;px</b> window · detail pane ${Math.round(pane.getBoundingClientRect().width)}&nbsp;px · toggle row ${Math.round(row.scrollWidth)}&nbsp;px on <b>${lines}</b> line${lines === 1 ? '' : 's'}`;
+      document.querySelector(`[data-measure="${mode}"]`).innerHTML = text + (over > 0 ? ` — <b>the page scrolls ${over}&nbsp;px sideways</b>.` : ' — <b>no sideways scroll</b>.');
+      f.style.height = Math.ceil(de.scrollHeight) + 'px';
+    }, 120);
+  });
+  f.srcdoc = frameDoc(styleOf(mode === 'today' ? 'today' : 'proposal'));
+});
+</script>
+</body>
+</html>
