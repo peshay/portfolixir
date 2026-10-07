@@ -9,6 +9,10 @@ description: "Design gate for #1076, risk-tier (money and import idempotency), s
 - **Status:** Accepted. Owner sign-off is the merge of the Sprint 19 planning
   PR (ADR-0026 step 1, as amended on PR #780: the merge is the signature).
 - **Date:** 2026-10-04
+- **Amended:** 2026-10-07: the JSON path's negative tax, a converter file's
+  negative Steuern, and a credit row that nets to nothing (#1098, #1118; see
+  "Amendment (2026-10-07)" below). Adopted by the merge of the Sprint 20
+  planning PR.
 - **Answers:** #1076, filed by Sprint 18's PR δ while it checked the
   synthetic CSV sample against Portfolio Performance's source (#1024).
 - **Risk tier** ([ADR-0036](0036-risk-tier-rides-the-batch.html)): money
@@ -258,7 +262,8 @@ settled" are corrected (`Applier`, `applier_settlement_test.exs`).
 - **No decision on the JSON path's negative tax.** Whether PP's JSON
   `amount` already includes a refund the parser then splits off again
   (which would make it a double count) is a separate question. It is filed
-  at the signature, not decided here.
+  at the signature, not decided here. *(Decided by the amendment of
+  2026-10-07: it does, and the JSON path is corrected.)*
 - **No foreign-currency PP CSV.** The CSV path books EUR, and a cell with a
   currency prefix fails parsing. That is a refused row today, not a wrong
   figure, and it stays as it is.
@@ -312,11 +317,173 @@ list, and the Sprint 18 close-out's launch-readiness summary.
 - **The owner's own instance.** If its Portfolio Performance history came in
   as a CSV, its cash balances are off by every fee and tax of those rows
   until §6's correction runs with a re-export. If it came in as JSON,
-  nothing is affected.
+  nothing is affected. *(Corrected by the amendment of 2026-10-07: a JSON
+  history is off on every row that carries a negative tax unit, by that
+  unit.)*
 - **Registry.** #1076 closes by the keyword of the PR that builds it. The two
   deferred asks are filed under E26's tracker at the signature.
 - Nothing here creates, stores or transmits an order. Nothing acquires data
   the instance does not already hold, and nothing calls out.
+
+## Amendment (2026-10-07): the JSON path's negative tax, a converter file's negative Steuern, and a credit row that nets to nothing
+
+**Status:** adopted by the merge of the Sprint 20 planning PR; risk-tier
+(money and import idempotency), so it is signed before the batch that builds
+it. It answers the JSON question this record deferred (#1098) and #1118.
+
+### Why
+
+**PP's JSON `amount` already holds the refund.** Read on Portfolio
+Performance's `master` on 2026-10-07 (no test reads it):
+
+- `JTransaction.from` writes `amount` as the transaction's `getAmount()`,
+  the stored cash, and `JTransactionUnit.from` writes each unit's amount
+  with its sign.
+- A PP account's balance is the signed sum of `getAmount()` alone
+  (`Account.getCurrentAmount`). Units never enter it.
+- The gross value is derived from the cash: `amount` plus or minus the unit
+  sum (`AccountTransaction.getGrossValueAmount`,
+  `PortfolioTransaction.getGrossValueAmount`).
+
+So a negative TAX unit −r is already inside `amount`. `JsonParser` books
+`amount` as the parent's cash and splits r off as a `tax_refund` companion
+beside it, so **every such row books r too much**:
+
+- on a credit the account gains `amount + r`;
+- on a debit (a purchase with a negative tax) the parent debits `amount` and
+  the companion credits r, so the account again ends r too high.
+
+The repository's own fixture shows it. `sample_with_negative_tax.json` is a
+dividend with `amount` 181.49 and tax units 27.00 and −0.01. It books 181.50.
+PP's balance is 181.49, and PP's CSV of the same transaction (Steuern 26,99,
+nothing split off) books 181.49 under §1. K1 therefore fails by r for every
+history with a negative tax unit.
+
+**The derived price carries it too.** `derive_price` adds back the fees and
+the positive taxes only:
+
+- a JSON sale's price × shares is `amount + fees + positive taxes`, which
+  holds r; the trade matcher's proceeds (q × price − fees − taxes) then equal
+  `amount`, and the realized result is r too high;
+- a JSON purchase with a negative tax is priced r ÷ shares too low.
+
+**A converter-written CSV does the same.** With an empty Gesamtpreis the
+parser books Betrag (§1) and still splits a negative Steuern off. The
+`import_converter` prompt defines Betrag as the cash after fees and taxes, so
+a converter that writes Steuern −r counts r twice.
+
+**§5 has a hole (#1118).** When a credit row's Gesamtpreis minus its refund
+is 0 or less, the applier skips the parent and its companion, because only
+positive cash is importable. The sale is never booked, the position stays
+held, and the preview showed no error.
+
+**The owner's instance.** This record's Consequences said that a history
+imported as JSON was not affected. That is corrected: it is affected on
+every row that carries a negative tax unit, by that unit.
+
+### What changes
+
+**A1. One rule for a row with a split-off refund, whatever the format.** A
+row's **cash cell** is:
+
+- for a PP CSV, its Gesamtpreis (§1);
+- for a converter CSV, its Betrag (§1);
+- for JSON, its `amount`.
+
+When a negative tax r is split off into a companion, the parent books the
+cash cell minus r on a credit and plus r on a debit, so parent and companion
+net to the cash cell. §5 (as noted on 2026-10-05) applied to the Gesamtpreis
+only; it now applies to the cash cell of every format.
+
+**A2. A JSON price is derived from the gross value, as PP derives it.**
+`derive_price` reads the taxes with their sign:
+
+- a sale is priced `(amount + fees + signed taxes) ÷ shares`;
+- a purchase is priced `(amount − fees − signed taxes) ÷ shares`.
+
+The stored `taxes` (the positive units) and the companion are unchanged. A
+sale's proceeds then equal its parent's cash, and the realized result leaves
+the refund out. The refund is income of its own, the companion.
+
+**A3. The hash keeps reading what it read.** The entry carries the file's
+`amount` as the hash's amount input, as today. For a JSON purchase or sale
+with a negative tax unit it also carries the price derived the old way as
+the hash's **price** input, separate from the booked price, and
+`ImportHash.parts/2` reads that input when it is present. **Every stored
+JSON hash stays byte-identical.** A converter CSV's hash already reads Betrag
+(§3), and its price is Kurs from the file, so nothing changes there.
+
+**A4. The economic key is checked under both readings**, as §4 does: the
+booked cash and price, and the old reading (the cash cell as cash, and for
+JSON the old derived price). A drifted re-export of a row booked under the
+old reading is still recognised and not booked twice.
+
+**A5. A credit row whose parent would book 0 or less is a row error**, in
+both parsers, whether or not a refund was split off. The message names the
+row and the remedy: book the sale by hand, and the refund as a tax refund of
+its own. The rest of the file previews. It fails closed as §2 does, and no
+hash changes. The alternative #1118 names, a fee companion that books the
+sale at its Betrag, is not taken: the parent's fees would have to stay out of
+the costs while the hash keeps reading them, which needs its own record.
+
+**A6. §6's correction is fed by a JSON file and a converter file too, and
+it is built.**
+
+- **What it lists.** A re-dropped file whose rows hit stored hashes, and
+  whose stored cash differs from what A1 books, is listed in §6's section.
+  The condition "rows that carry a Gesamtpreis" becomes "rows whose cash
+  under this record differs from the stored cash".
+- **What it writes.** For a JSON purchase or sale the confirm rewrites the
+  price together with the cash, because a JSON price is derived from the
+  cash (A2). A CSV row's price is Kurs from the file and is never touched.
+- **Everything else in §6 holds:** a separate confirm, journaled under the
+  operator's actor, the apply's locks, idempotent, no API route.
+- **Its wording** names the Portfolio Performance file, not its format.
+
+**A7. The converter prompt** gains one sentence: a refund of tax is its own
+Steuerrückerstattung row, and Steuern is never negative in a converter file.
+A1 books a negative Steuern correctly anyway; the sentence keeps new files
+simple.
+
+**What does not change:** §1–§4 for a PP CSV row without a negative Steuern;
+K1–K8; the converter's worked example (5895.56); the hash of every row; no
+format column, no stored file, no import route.
+
+### The identities the building batch pins
+
+| | Identity |
+|---|---|
+| K9 | For a history with a negative tax unit, every account's cash after the JSON import equals PP's balance and the cash after the PP CSV import of the same history, exact in `Decimal`. `sample_with_negative_tax.json` books **181.49** (today 181.50). A synthetic JSON sale (`amount` 120.00, 10 shares, FEE 5.00, TAX −25.00) into an account holding 1,000.00 leaves **1,120.00** (today 1,145.00): parent 95.00, companion 25.00. Its PP CSV (Betrag 100,00; Gebühren 5,00; Steuern −25,00; Gesamtpreis 120,00) books the same. |
+| K10 | Every JSON content hash computed today is byte-identical after the change. Pinned by the digest list `csv_hash_pin_test.exs` already holds for `sample_with_negative_tax.json`, extended by the sale's digest before the first change. |
+| K11 | A JSON file applied under the old reading and dropped again inserts nothing (zero transactions, accounts, depots and securities). A drifted re-export of it, with a time of day changed, inserts nothing either. |
+| K12 | A JSON sale's realized result leaves the refund out: the synthetic sale is priced **10.00** (today 12.50), and its proceeds equal its parent's cash, 95.00. |
+| K13 | A converter CSV row with a negative Steuern books parent plus companion equal to its Betrag. A converter file without one books exactly as before (K4). |
+| K14 | A credit row whose parent would book 0 or less is a row error in both parsers. The file's other rows preview, and no hash changes. |
+| K15 | The correction, fed by a JSON or a converter file, changes only the listed bookings' cash (and a JSON trade's price, and a cross-currency trade's settlement legs), keeps every hash and id, journals every change, and a second run finds nothing to correct. |
+
+### The asks, answered and deferred (ADR-0043)
+
+| Ask | Source | Verdict |
+|---|---|---|
+| Does the JSON path count a split-off negative tax twice | this record's deferral, #1098 | **Answered: yes.** A1–A4 |
+| Does a JSON sale's realized result carry the refund | found while answering #1098 | **Answered: yes.** A2, K12 |
+| A converter file's negative Steuern | found while answering #1098 | **Answered.** A1, A7, K13 |
+| A credit row that nets to nothing | #1118 | **Answered.** A5: refused in the preview, with the remedy |
+| What an instance that imported JSON does | the owner's D-2 answer of 2026-10-04 | **Answered.** A6: the correction, fed by a re-export. The Sprint 20 plan asks the owner to count the affected rows first |
+| PP JSON's `INTEREST_CHARGE` and `FEE_REFUND` types, and a negative FEE unit | found while answering #1098 | **Deferred, with a reason.** The two types are refused rows today, named in the preview. A negative FEE unit is stored as its magnitude, which skews a JSON trade's derived price and the costs; it needs a fee-refund companion of its own, as ADR-0029 made for taxes. Filed at the signature |
+
+### Consequences of the amendment
+
+- **Risk-tier attention.** K10's digest list is the first commit, taken while
+  the code is unchanged; K9's red tests come next; the reading, the price,
+  the keys, the refusal and the correction follow, each in its own commit.
+  The verification pass takes K9–K15 one at a time, K10 and K11 first.
+- **ADR-0029** gains a dated note: a JSON trade's hash may carry a price
+  input separate from its booked price (A3).
+- **The handbooks** (EN, DE) say that a negative tax inside a PP row books as
+  a tax refund beside its booking, and that a history imported before the
+  release that builds this amendment is corrected by dropping a fresh export
+  and confirming the correction section.
 
 ## References
 
