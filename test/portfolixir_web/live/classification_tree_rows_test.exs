@@ -21,6 +21,9 @@ defmodule PortfolixirWeb.ClassificationTreeRowsTest do
   #   its count once (the duplicated count is gone) and its figures under the
   #   head.
   # - An empty category renders "—" in every figure column, never "0 0 0.00".
+  #   Amended 2026-10-07 (the closing act of PR γ, the design critic's #5):
+  #   its "Positions" count reads 0, because a count is always computable;
+  #   "Value", "Cost" and "Result" keep the value slot's quiet dash.
   # - "+N without holdings" is a suffix inside the name cell.
   # - The result's basis is a basis line with an ⓘ; the unassigned notice
   #   stays a data note linking to the Unsorted node.
@@ -94,9 +97,11 @@ defmodule PortfolixirWeb.ClassificationTreeRowsTest do
 
     empty = row_for(doc, "Empty")
 
-    for role <- ~w(category-positions category-value category-invested category-result) do
-      assert text(Floki.find(empty, ~s([data-role="#{role}"]))) == "—",
-             "#{role} of an empty category is not an em dash"
+    assert text(Floki.find(empty, ~s([data-role="category-positions"]))) == "0"
+
+    for role <- ~w(category-value category-invested category-result) do
+      assert text(Floki.find(empty, ~s([data-role="#{role}"] .cat-na))) == "—",
+             "#{role} of an empty category is not the quiet em dash"
     end
 
     # The basis is a basis line with its ⓘ, not a paragraph.
@@ -106,8 +111,11 @@ defmodule PortfolixirWeb.ClassificationTreeRowsTest do
     assert text(basis) =~ "not a period return"
 
     # #1048 (pick J10.2 A): the line states the currency of every figure
-    # under it, first, as the view's name will stand before it (J10).
-    assert text(basis) =~ ~r/^in EUR · Result: today's composition/
+    # under it, after the scope they read (#1091, pick J10 A: the view's
+    # name, "Everything" with none picked), each "·" held to the word before
+    # it by a no-break space; `text/1` joins the name's <bdi> with a space.
+    assert text(basis) =~
+             ~r/^View Everything ?\x{00A0}· in EUR\x{00A0}· Result: today's composition/u
   end
 
   # A value is a value only when every visible row carries one: while the
@@ -161,6 +169,6 @@ defmodule PortfolixirWeb.ClassificationTreeRowsTest do
              "+1 ohne Bestand"
 
     assert text(Floki.find(doc, ~s([data-role="category-result-basis"]))) =~
-             ~r/^in EUR · Ergebnis: heutige Zusammensetzung/
+             ~r/^Ansicht Alles ?\x{00A0}· in EUR\x{00A0}· Ergebnis: heutige Zusammensetzung/u
   end
 end

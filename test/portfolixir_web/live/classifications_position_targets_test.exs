@@ -330,11 +330,10 @@ defmodule PortfolixirWeb.ClassificationsPositionTargetsTest do
       ])
 
     {:ok, named} = Portfolixir.Buckets.create_view(Actor.owner_ui(), %{name: "Stocks"})
-    view = open(conn, ctx.tree)
 
-    view
-    |> element("form[phx-change='select_soll_view']")
-    |> render_change(%{"soll_view" => "#{named.id}"})
+    # The screen's one scope is the view switcher's (#1091, pick J10 A).
+    {:ok, view, _html} = live(conn, "/classifications/#{ctx.tree.id}?view=#{named.id}")
+    render_async(view)
 
     view
     |> element("form[phx-change='copy_soll_plan']")

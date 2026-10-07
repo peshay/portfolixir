@@ -2543,7 +2543,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   # Acceptance criteria:
   # - The drift table renders IST-only: no Target/Drift columns, no Σ check.
   # - A hint ("No target plan for this view") is shown.
-  # - The hint deep-links to /classifications/<id>?soll_view=<view_id>.
+  # - The hint deep-links to /classifications/<id>?view=<view_id>: the view
+  #   switcher's parameter, the classification screen's one scope (#1091,
+  #   pick J10 A).
   test "shows an IST-only table with a deep-link hint when the view has no plan",
        %{conn: conn} do
     world = viewer_world()
@@ -2572,7 +2574,7 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
     hint = view |> element(~s([data-role="no-plan-hint"])) |> render()
     assert hint =~ "No target plan for this view"
 
-    href = "/classifications/#{world.classification.id}?soll_view=#{world.scoped_view.id}"
+    href = "/classifications/#{world.classification.id}?view=#{world.scoped_view.id}"
     assert has_element?(view, ~s([data-role="no-plan-hint"] a[href="#{href}"]))
   end
 
@@ -2690,7 +2692,9 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
   # so the bridge into the editor reads in my language.
   #
   # Acceptance criteria:
-  # - With locale=de the no-plan hint reads "Kein Soll-Plan für diese Sicht".
+  # - With locale=de the no-plan hint reads "Kein Soll-Plan für diese
+  #   Ansicht": the view switcher's word, which the plan editor it links to
+  #   speaks too since #1091 (pick J10 A).
   test "renders the no-plan hint in German", %{conn: conn} do
     world = viewer_world()
 
@@ -2701,8 +2705,8 @@ defmodule PortfolixirWeb.PortfolioLiveTest do
 
     html = render_async(view)
 
-    assert html =~ "Kein Soll-Plan für diese Sicht"
-    assert html =~ "Plan für diese Sicht anlegen"
+    assert html =~ "Kein Soll-Plan für diese Ansicht"
+    assert html =~ "Plan für diese Ansicht anlegen"
   end
 
   # User story:

@@ -4656,9 +4656,12 @@ defmodule PortfolixirWeb.PortfolioLive do
   # Deep-link into the classifications SOLL editor with the view + classification
   # pre-selected (ADR-0020): the no-plan hint sends the maintainer straight to
   # the right `(view, classification)` plan rather than editing blind. `nil` =
-  # the portfolio-wide Gesamt plan ("total"); a view id rides along as `soll_view`.
+  # the portfolio-wide Gesamt plan ("total"). The view rides along as the view
+  # switcher's own `?view=`: since #1091 (pick J10 A) the classification
+  # screen's one scope is the active view, and its editor edits that view's
+  # plan.
   defp plan_editor_path(classification_id, view_id) do
-    "/classifications/#{classification_id}?soll_view=#{view_param(view_id)}"
+    "/classifications/#{classification_id}?view=#{view_param(view_id)}"
   end
 
   defp view_param(nil), do: "total"

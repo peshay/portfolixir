@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleReferences
   alias PortfolixirWeb.StoredText
+  alias PortfolixirWeb.ViewSwitcher
 
   @zero Decimal.new("0")
   @hundred Decimal.new("100")
@@ -38,27 +39,47 @@ defmodule PortfolixirWeb.ClassificationsLive do
      |> assign(:current_path, "/classifications")
      |> assign(:portfolio, Portfolios.first_portfolio())
      |> assign(:views, Buckets.list_views())
-     |> assign(:soll_view_id, nil)
      |> assign(:soll_plan_id, nil)
      |> assign(:soll, nil)
-     |> start_holdings()}
+     |> assign(:planned_view_ids, [])
+     |> assign(:view_gone_notice, false)
+     |> assign(:view_matches_nothing, false)}
   end
 
-  # The per-security holdings/valuation is loaded once, asynchronously, after
-  # the socket connects (mirrors the Portfolio page): one ledger read plus the
+  # The per-security holdings/valuation is loaded asynchronously, after the
+  # socket connects (mirrors the Portfolio page): one ledger read plus the
   # shared quote/FX path, joined onto the tree in memory rather than queried
-  # per node (issue #334).
+  # per node (issue #334). It is read in the screen's scope (#1091, pick J10
+  # A): under a view, the view valuation's positions grouped by security, so
+  # "Positions" and "Value" are about the view the result beside them reads;
+  # under Everything, every portfolio's, as before. It starts with the tree,
+  # where the scope and the selection are both known.
   defp start_holdings(socket) do
     if connected?(socket) do
-      start_async(socket, :holdings, fn -> Valuation.holdings_by_security() end)
+      view_id = socket.assigns.active_view_id
+      start_async(socket, :holdings, fn -> scoped_holdings(view_id) end)
     else
       socket
     end
   end
 
+  defp scoped_holdings(nil),
+    do: {:ok, %{holdings: Valuation.holdings_by_security(), matches_no_accounts: false}}
+
+  defp scoped_holdings(view_id), do: Valuation.holdings_by_security_for_view(view_id)
+
+  # Either read answering that the chosen view is gone degrades the screen
+  # (`view_gone/1`); whichever answers first does, the other is dropped.
   @impl true
-  def handle_async(:holdings, {:ok, holdings}, socket) do
-    {:noreply, socket |> assign(:holdings, holdings) |> reload()}
+  def handle_async(read, {:ok, {:error, :view_not_found}}, socket)
+      when read in [:holdings, :results],
+      do: {:noreply, view_gone(socket)}
+
+  def handle_async(:holdings, {:ok, {:ok, read}}, socket) do
+    {:noreply,
+     socket
+     |> assign(holdings: read.holdings, view_matches_nothing: read.matches_no_accounts)
+     |> reload()}
   end
 
   def handle_async(:holdings, {:exit, _reason}, socket) do
@@ -66,15 +87,44 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   # The per-category result (ADR-0041 slice one, #712) loads on its own, after
-  # the tree is known: it is keyed by the selected classification, where the
-  # holdings read above is global. A failure leaves the tree fully usable and
-  # simply omits the columns -- the result is an addition to this surface, not
-  # a precondition for it.
+  # the tree is known: it is keyed by the selected classification and read in
+  # the screen's scope. A failure leaves the tree fully usable and simply
+  # omits the columns -- the result is an addition to this surface, not a
+  # precondition for it.
   def handle_async(:results, {:ok, {:ok, result}}, socket) do
     {:noreply, assign(socket, :results, index_results(result))}
   end
 
   def handle_async(:results, _other, socket), do: {:noreply, socket}
+
+  # The chosen view was deleted while the page read it (another tab, the
+  # API): the screen degrades to Everything with Wealth's notice and reads
+  # again, rather than rendering a read that failed. A stale answer of the
+  # reads it replaces is dropped by `start_async/3`'s own bookkeeping.
+  defp view_gone(socket) do
+    socket
+    |> assign(
+      active_view: nil,
+      active_view_id: nil,
+      view_gone_notice: true,
+      views: Buckets.list_views(),
+      soll_plan_id: nil,
+      holdings: nil,
+      results: nil,
+      view_matches_nothing: false
+    )
+    |> reload()
+    |> load_soll()
+    |> start_reads()
+  end
+
+  # The open tree's two reads, in the screen's scope; a tree that is gone
+  # has nothing to read.
+  defp start_reads(%{assigns: %{selected_id: classification_id}} = socket)
+       when is_integer(classification_id),
+       do: socket |> start_holdings() |> start_results(classification_id)
+
+  defp start_reads(socket), do: socket
 
   @impl true
   def handle_params(params, uri, socket) do
@@ -102,22 +152,23 @@ defmodule PortfolixirWeb.ClassificationsLive do
     assign(socket, selected_id: nil, tree: nil)
   end
 
-  defp apply_action(socket, :show, %{"id" => id} = params) do
+  defp apply_action(socket, :show, %{"id" => id}) do
     case LiveParam.id(id) do
       classification_id when is_integer(classification_id) ->
-        # The portfolio page's no-plan hint deep-links here with `?soll_view=`
-        # so the editor opens on the right `(view, classification)` plan
-        # (ADR-0020, #468). Without the param the editor defaults to Gesamt.
+        # The screen's scope is the active view (`LiveViewScope`; #1091, pick
+        # J10 A): the plan editor edits its plan, and the reads below are
+        # made in it. The portfolio page's no-plan hint deep-links here with
+        # the switcher's own `?view=`, so the editor opens on the right
+        # `(view, classification)` plan (ADR-0020, #468).
         socket
         |> assign(:query, "")
         |> assign(:editing_id, nil)
-        |> assign(:soll_view_id, soll_view_from_params(params))
         |> load_show(classification_id)
         |> load_soll()
         # Started here rather than in load_show/2: reload/1 also calls that, so
         # putting it there recomputed the roll-up on every holdings arrival and
         # every edit. It depends on the SELECTION, which changes here.
-        |> start_results(classification_id)
+        |> start_reads()
 
       _ ->
         push_navigate(socket, to: "/classifications")
@@ -185,11 +236,6 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
-  # Reads the deep-link's `soll_view` param: missing → Gesamt (nil); otherwise
-  # "total"/an integer id via the shared, atom-safe parser.
-  defp soll_view_from_params(%{"soll_view" => value}), do: parse_soll_view(value)
-  defp soll_view_from_params(_params), do: nil
-
   @impl true
   def render(%{live_action: :show, tree: nil} = assigns) do
     ~H"""
@@ -240,10 +286,40 @@ defmodule PortfolixirWeb.ClassificationsLive do
           <% end %>
         </header>
 
+        <%!-- #1091 (pick J10 A; board ux-design-2026-10-04/10-category-results):
+             the Wealth page's view switcher, unchanged, in a controls row, is
+             the screen's one scope. Every figure of a category row, the plan
+             editor and the basis line read the view it picks; a chip is a
+             navigation through ViewScope, so the choice is the active view on
+             Wealth too. Built-in trees, which have no editor, get it as well. --%>
+        <div class="workspace-section workspace-section--controls">
+          <ViewSwitcher.view_switcher
+            current_path={@current_path}
+            views={@views}
+            active_view={@active_view}
+            planned_view_ids={@planned_view_ids}
+          />
+        </div>
+
+        <%!-- The picked view was deleted while the page read it: the screen
+             degraded to Everything, as Wealth does. --%>
+        <p :if={@view_gone_notice} class="hint" data-role="view-gone-notice" role="status">
+          <%= gettext("The selected view no longer exists — showing Everything.") %>
+        </p>
+
+        <%!-- The view resolves to no account, so every figure below is a dash
+             for a reason of definition, not of data: Wealth's hint, in its
+             words (review round). --%>
+        <p :if={@view_matches_nothing} class="hint" data-role="view-matches-nothing" role="status">
+          <%= gettext(
+            "This view matches no accounts — its included buckets are empty or no longer assigned. Edit the view under Views or tag accounts into its buckets."
+          ) %>
+        </p>
+
         <%= if @soll do %>
           <.soll_editor
             soll={@soll}
-            views={@views}
+            scope_name={view_name(@active_view)}
             flat={@tree.flat}
             assigned={@tree.assigned_counts}
           />
@@ -350,10 +426,17 @@ defmodule PortfolixirWeb.ClassificationsLive do
         <%!-- ADR-0041 §1: the basis is one line, stated once for the surface
               rather than repeated per row or left for the reader to assume —
               the short statement in the line, the full rule behind its ⓘ
-              (UX-DR11, issue 805). It opens on the currency of every figure
-              under it (#1048, pick J10.2 A): the result's, never assumed. --%>
+              (UX-DR11, issue 805). It opens on the scope every figure under
+              it reads (#1091, pick J10 A: "a scoped figure names its view"),
+              then their currency (#1048, pick J10.2 A): the result's, never
+              assumed. The sentence is one span, so the line's flex row
+              wraps it as text, not between the view's name and the rest,
+              and a no-break space holds each "·" to the word before it, so
+              no line starts with one. --%>
         <div :if={@results} class="summary-basis tree-basis" data-role="category-result-basis">
-          <%= gettext("in %{currency}", currency: @results.base_currency) %> · <%= gettext("Result: today's composition, not a period return") %>
+          <span><%= StoredText.isolate(gettext("View %{name}", name: StoredText.slot(:name)),
+              name: view_name(@active_view)
+            ) %>&nbsp;· <%= gettext("in %{currency}", currency: @results.base_currency) %>&nbsp;· <%= gettext("Result: today's composition, not a period return") %></span>
           <details class="metric-tooltip metric-tooltip--inline" data-role="category-result-info">
             <summary aria-label={gettext("About the result")}>ⓘ</summary>
             <p role="tooltip">
@@ -392,6 +475,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
               editing_id={@editing_id}
               filtering={@tree.filtering?}
               results={@results}
+              view_scoped={not is_nil(@active_view)}
             />
           <% end %>
           <%= if @tree.nodes == [] and not @tree.filtering? do %>
@@ -407,18 +491,30 @@ defmodule PortfolixirWeb.ClassificationsLive do
             <span class="cat-name">
               <span class="cat-swatch is-empty" aria-hidden="true"></span>
               <span class="cat-name__text"><%= gettext("Unsorted") %></span>
+              <%!-- The unsorted securities "current positions only" hides,
+                   counted as a category counts them: under a view the ones
+                   the view holds none of (review round), under Everything
+                   the ones no longer held (the closing act of PR γ). --%>
+              <span
+                :if={@tree.unsorted_row.hidden > 0}
+                class="cat-without-holdings"
+                data-role="without-holdings"
+                title={unsorted_hidden_title(not is_nil(@active_view))}
+              >+<%= @tree.unsorted_row.hidden %> <%= hidden_label(not is_nil(@active_view)) %></span>
             </span>
             <span class="cat-positions" data-role="unsorted-positions">
-              <%= count_or_dash(length(@tree.unsorted)) %>
+              <%= length(@tree.unsorted_row.securities) %>
             </span>
-            <span class="cat-value" data-role="unsorted-value"><%= unsorted_value(@tree.unsorted) %></span>
-            <span class="cat-invested">—</span>
-            <span class="cat-result">—</span>
+            <span class="cat-value" data-role="unsorted-value">
+              <.figure value={unsorted_total(@tree.unsorted_row.securities)} />
+            </span>
+            <span class="cat-invested" data-role="unsorted-invested"><.not_computable /></span>
+            <span class="cat-result" data-role="unsorted-result"><.not_computable /></span>
             <span class="cat-actions" aria-hidden="true"></span>
           </summary>
           <div class="cat-body">
             <ul class="cat-securities">
-              <%= for security <- @tree.unsorted do %>
+              <%= for security <- @tree.unsorted_row.securities do %>
                 <.security_row security={security} assignable={@tree.assignable} />
               <% end %>
               <%= if @tree.unsorted == [] do %>
@@ -905,22 +1001,24 @@ defmodule PortfolixirWeb.ClassificationsLive do
             <small class="cat-description-inline"><%= @node.category.description %></small>
           <% end %>
           <%!-- The hidden-positions count is a suffix of the name (#805),
-               not a seventh figure in the row. --%>
+               not a seventh figure in the row. Under a view it counts the
+               members the view holds none of -- held outside it or nowhere --
+               as "not in the view" (#1091, pick J10 A). --%>
           <%= if hidden_count(@node) > 0 do %>
             <span
               class="cat-without-holdings"
               data-role="without-holdings"
-              title={gettext("Assigned securities no longer held, hidden by the filter")}
-            >+<%= hidden_count(@node) %> <%= gettext("without holdings") %></span>
+              title={hidden_title(@view_scoped)}
+            >+<%= hidden_count(@node) %> <%= hidden_label(@view_scoped) %></span>
           <% end %>
         </span>
         <span
           class="cat-positions"
           data-role="category-positions"
           title={gettext("Visible positions in this category and its sub-categories")}
-        ><%= count_or_dash(total_count(@node)) %></span>
+        ><%= total_count(@node) %></span>
         <span class="cat-value" data-role="category-value" title={gettext("EUR value of the visible positions")}>
-          <%= money_or_dash(visible_value(@node)) %>
+          <.figure value={visible_value(@node)} />
         </span>
         <%!-- Per-category result (ADR-0041 slice one, #712). A dash until the
               async load lands and for a category with nothing invested: a
@@ -944,7 +1042,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
             }
           >
             <b><%= Format.signed_decimal(result.result_abs, 2) %></b>
-            <small><%= signed_percent_points(result.result_pct) %></small>
+            <small><%= result_percent(result.result_pct) %></small>
             <%!-- ADR-0041 §4: a partial sum never presents itself as complete. --%>
             <span
               :if={result.covered_count < result.member_count}
@@ -959,8 +1057,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
             ><%= result.covered_count %>/<%= result.member_count %></span>
           </span>
         <% else %>
-          <span class="cat-invested" data-role="category-invested">—</span>
-          <span class="cat-result" data-role="category-result">—</span>
+          <span class="cat-invested" data-role="category-invested"><.not_computable /></span>
+          <span class="cat-result" data-role="category-result"><.not_computable /></span>
         <% end %>
         <span class="cat-actions" data-no-toggle>
           <button
@@ -1043,6 +1141,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
             editing_id={@editing_id}
             filtering={@filtering}
             results={@results}
+            view_scoped={@view_scoped}
           />
         <% end %>
       </div>
@@ -1050,13 +1149,15 @@ defmodule PortfolixirWeb.ClassificationsLive do
     """
   end
 
-  # The view-bound SOLL plan editor (ADR-0020, issue #467). It lets the
-  # maintainer pick a view (Gesamt by default), then define, edit, copy or clear
-  # that `(view, classification)` plan's per-category target weights plus its
-  # cash target, with a live Σ badge and per-parent consistency hints. Weights
-  # are entered and shown as percentages; the context stores fractions in [0, 1].
+  # The view-bound SOLL plan editor (ADR-0020, issue #467). It edits the plan
+  # of the view the screen reads -- the view switcher's (#1091, pick J10 A;
+  # its own select is gone) -- and defines, edits, copies or clears that
+  # `(view, classification)` plan's per-category target weights plus its
+  # cash target, with a live Σ badge and per-parent consistency hints. Its
+  # head states the scope it edits as text. Weights are entered and shown as
+  # percentages; the context stores fractions in [0, 1].
   attr(:soll, :map, required: true)
-  attr(:views, :list, required: true)
+  attr(:scope_name, :string, required: true)
   attr(:flat, :list, required: true)
   attr(:assigned, :map, required: true)
 
@@ -1065,21 +1166,11 @@ defmodule PortfolixirWeb.ClassificationsLive do
     <section id="soll-editor" class="workspace-section soll-editor">
       <header class="soll-editor__head">
         <h2><%= gettext("Target plan") %></h2>
-        <form id="soll-view-form" phx-change="select_soll_view" class="soll-view-picker" data-no-submit>
-          <label class="soll-view-picker__label" for="soll-view-select">
-            <%= gettext("Target plan for view:") %>
-          </label>
-          <select id="soll-view-select" name="soll_view">
-            <option value="total" selected={is_nil(@soll.view_id)}>
-              <%= gettext("Total") %>
-            </option>
-            <%= for view <- @views do %>
-              <option value={view.id} selected={@soll.view_id == view.id}>
-                <%= view.name %>
-              </option>
-            <% end %>
-          </select>
-        </form>
+        <span class="soll-editor__scope" data-role="soll-editor-scope">
+          <%= StoredText.isolate(gettext("for view %{name}", name: StoredText.slot(:name)),
+            name: @scope_name
+          ) %>
+        </span>
       </header>
 
       <%!-- Plan versions (ADR-0027): pick the version to edit, duplicate the
@@ -1466,16 +1557,6 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
-  # -- SOLL plan events ------------------------------------------------------
-
-  def handle_event("select_soll_view", %{"soll_view" => value}, socket) do
-    {:noreply,
-     socket
-     |> assign(:soll_view_id, parse_soll_view(value))
-     |> assign(:soll_plan_id, nil)
-     |> load_soll()}
-  end
-
   # -- plan versions (ADR-0027) ----------------------------------------------
 
   def handle_event("select_soll_plan", %{"soll_plan" => value}, socket) do
@@ -1524,18 +1605,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
-  def handle_event("create_soll_plan", _params, socket) do
-    with %{id: portfolio_id} <- socket.assigns.portfolio,
-         classification_id when is_integer(classification_id) <- socket.assigns.selected_id,
-         {:ok, _plan} <-
-           Targets.ensure_plan(Actor.owner_ui(), portfolio_id, classification_id,
-             view: socket.assigns.soll_view_id
-           ) do
-      {:noreply, socket |> success(gettext("Plan created")) |> load_soll()}
-    else
-      _ -> {:noreply, failure(socket, gettext("Could not create the plan"))}
-    end
-  end
+  # The three plan writes name the active view; each checks first that it
+  # still exists (`unless_view_gone/3`).
+  def handle_event("create_soll_plan", _params, socket),
+    do: unless_view_gone(socket, :create, fn -> create_soll_plan(socket) end)
 
   # Live Σ: recompute the running total (categories + cash) from the form as the
   # maintainer types, without persisting anything.
@@ -1543,32 +1616,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
     {:noreply, assign(socket, :soll, recompute_soll_sum(soll, params))}
   end
 
-  def handle_event("save_soll_plan", params, socket) do
-    with %{id: portfolio_id} <- socket.assigns.portfolio,
-         classification_id when is_integer(classification_id) <- socket.assigns.selected_id,
-         {:ok, entries} <- parse_weight_entries(params["weights"]),
-         {:ok, position_entries} <- parse_position_entries(params["positions"]),
-         {:ok, cash_opts} <- soll_cash_opts(socket, params),
-         {:ok, _} <-
-           Targets.edit_plan(
-             Actor.owner_ui(),
-             portfolio_id,
-             classification_id,
-             changed_positions(socket.assigns.soll, position_entries) ++
-               follow_positions(entries, position_entries),
-             soll_scope(socket) ++
-               soll_clears(socket.assigns.soll, params["positions"], entries, position_entries) ++
-               cash_opts
-           ) do
-      {:noreply, socket |> success(gettext("Plan saved")) |> load_soll()}
-    else
-      {:error, reason} ->
-        {:noreply, failure(socket, soll_error(socket.assigns, reason))}
-
-      _ ->
-        {:noreply, failure(socket, gettext("Could not save the plan"))}
-    end
-  end
+  def handle_event("save_soll_plan", params, socket),
+    do: unless_view_gone(socket, :save, fn -> save_soll_plan(socket, params) end)
 
   # #481: a category's position rows open and close in place; closed rows
   # stay in the form (hidden), so closing never reads as clearing.
@@ -1586,32 +1635,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
-  def handle_event("delete_soll_plan", _params, socket) do
-    with %{id: portfolio_id} <- socket.assigns.portfolio,
-         classification_id when is_integer(classification_id) <- socket.assigns.selected_id do
-      # A non-active version deletes just that version (ADR-0027); the active
-      # plan keeps the ADR-0020 scope semantics (Wealth page → actual-only).
-      case socket.assigns.soll do
-        %{editing_version?: true, plan: %{id: plan_id}} ->
-          # Already deleted elsewhere (other tab, API, MCP) is not an error —
-          # the version is gone either way (review finding).
-          case Targets.delete_plan_version(Actor.owner_ui(), plan_id) do
-            {:ok, _} -> :ok
-            {:error, :not_found} -> :ok
-          end
-
-        _ ->
-          Targets.delete_plan(Actor.owner_ui(), portfolio_id, classification_id,
-            view: socket.assigns.soll_view_id
-          )
-      end
-
-      {:noreply,
-       socket |> assign(:soll_plan_id, nil) |> success(gettext("Plan deleted")) |> load_soll()}
-    else
-      _ -> {:noreply, socket}
-    end
-  end
+  def handle_event("delete_soll_plan", _params, socket),
+    do: unless_view_gone(socket, :delete, fn -> delete_soll_plan(socket) end)
 
   # Prefill the editor from another view's plan for the same classification,
   # without persisting until the maintainer saves.
@@ -1684,13 +1709,125 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # nothing (E25 S4, F17).
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
+  # A plan write names the active view. One deleted since the page loaded
+  # (another tab, the API) is noticed before the write: the screen degrades
+  # to Everything with Wealth's notice, and nothing is written -- not to the
+  # gone view, and not to the Everything plan the screen falls back to
+  # (#1091, review round). The write answers as a problem that says so (the
+  # closing act of PR γ): the typed weights give way to Everything's plan,
+  # and the notice alone did not say they were not saved.
+  defp unless_view_gone(%{assigns: %{active_view_id: nil}}, _write_kind, write), do: write.()
+
+  defp unless_view_gone(socket, write_kind, write) do
+    if Buckets.get_view(socket.assigns.active_view_id) do
+      write.()
+    else
+      gone = view_gone_answer(write_kind, view_name(socket.assigns.active_view))
+      {:noreply, socket |> view_gone() |> failure(gone)}
+    end
+  end
+
+  defp view_gone_answer(:create, name) do
+    StoredText.isolate(
+      gettext("The view “%{name}” was deleted meanwhile; no plan was created.",
+        name: StoredText.slot(:name)
+      ),
+      name: name
+    )
+  end
+
+  defp view_gone_answer(:save, name) do
+    StoredText.isolate(
+      gettext("The view “%{name}” was deleted meanwhile; nothing was saved.",
+        name: StoredText.slot(:name)
+      ),
+      name: name
+    )
+  end
+
+  defp view_gone_answer(:delete, name) do
+    StoredText.isolate(
+      gettext("The view “%{name}” was deleted meanwhile; nothing was deleted.",
+        name: StoredText.slot(:name)
+      ),
+      name: name
+    )
+  end
+
+  defp create_soll_plan(socket) do
+    with %{id: portfolio_id} <- socket.assigns.portfolio,
+         classification_id when is_integer(classification_id) <- socket.assigns.selected_id,
+         {:ok, _plan} <-
+           Targets.ensure_plan(Actor.owner_ui(), portfolio_id, classification_id,
+             view: socket.assigns.active_view_id
+           ) do
+      {:noreply, socket |> success(gettext("Plan created")) |> load_soll()}
+    else
+      _ -> {:noreply, failure(socket, gettext("Could not create the plan"))}
+    end
+  end
+
+  defp save_soll_plan(socket, params) do
+    with %{id: portfolio_id} <- socket.assigns.portfolio,
+         classification_id when is_integer(classification_id) <- socket.assigns.selected_id,
+         {:ok, entries} <- parse_weight_entries(params["weights"]),
+         {:ok, position_entries} <- parse_position_entries(params["positions"]),
+         {:ok, cash_opts} <- soll_cash_opts(socket, params),
+         {:ok, _} <-
+           Targets.edit_plan(
+             Actor.owner_ui(),
+             portfolio_id,
+             classification_id,
+             changed_positions(socket.assigns.soll, position_entries) ++
+               follow_positions(entries, position_entries),
+             soll_scope(socket) ++
+               soll_clears(socket.assigns.soll, params["positions"], entries, position_entries) ++
+               cash_opts
+           ) do
+      {:noreply, socket |> success(gettext("Plan saved")) |> load_soll()}
+    else
+      {:error, reason} ->
+        {:noreply, failure(socket, soll_error(socket.assigns, reason))}
+
+      _ ->
+        {:noreply, failure(socket, gettext("Could not save the plan"))}
+    end
+  end
+
+  defp delete_soll_plan(socket) do
+    with %{id: portfolio_id} <- socket.assigns.portfolio,
+         classification_id when is_integer(classification_id) <- socket.assigns.selected_id do
+      # A non-active version deletes just that version (ADR-0027); the active
+      # plan keeps the ADR-0020 scope semantics (Wealth page → actual-only).
+      case socket.assigns.soll do
+        %{editing_version?: true, plan: %{id: plan_id}} ->
+          # Already deleted elsewhere (other tab, API, MCP) is not an error —
+          # the version is gone either way (review finding).
+          case Targets.delete_plan_version(Actor.owner_ui(), plan_id) do
+            {:ok, _} -> :ok
+            {:error, :not_found} -> :ok
+          end
+
+        _ ->
+          Targets.delete_plan(Actor.owner_ui(), portfolio_id, classification_id,
+            view: socket.assigns.active_view_id
+          )
+      end
+
+      {:noreply,
+       socket |> assign(:soll_plan_id, nil) |> success(gettext("Plan deleted")) |> load_soll()}
+    else
+      _ -> {:noreply, socket}
+    end
+  end
+
   # Writes into the picked plan version when one is loaded; with no plan yet
   # (e.g. saving a copy-prefilled empty scope) the view-addressed write creates
   # the scope's active plan on first save, as before ADR-0027.
   defp soll_scope(socket) do
     case socket.assigns.soll do
-      %{plan: %{id: plan_id}} -> [plan: plan_id, view: socket.assigns.soll_view_id]
-      _ -> [view: socket.assigns.soll_view_id]
+      %{plan: %{id: plan_id}} -> [plan: plan_id, view: socket.assigns.active_view_id]
+      _ -> [view: socket.assigns.active_view_id]
     end
   end
 
@@ -1746,23 +1883,54 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   # -- SOLL plan loading -----------------------------------------------------
 
-  # The plan editor only makes sense for an editable (custom) tree that has a
-  # portfolio behind it; built-in trees and the no-portfolio case carry no
-  # editor (`soll: nil`).
-  defp load_soll(%{assigns: %{portfolio: nil}} = socket), do: assign(socket, :soll, nil)
-  defp load_soll(%{assigns: %{tree: nil}} = socket), do: assign(socket, :soll, nil)
-
-  defp load_soll(%{assigns: %{tree: %{editable: false}}} = socket),
-    do: assign(socket, :soll, nil)
-
+  # The editor and the switcher's plan dots, after anything that can change
+  # which plans exist; one read of the tree's plans serves both.
   defp load_soll(socket) do
-    %{portfolio: portfolio, selected_id: classification_id, soll_view_id: view_id} =
-      socket.assigns
+    plan_views = plan_views(socket.assigns)
 
-    assign(socket, :soll, build_soll(portfolio.id, classification_id, view_id, socket.assigns))
+    socket
+    |> assign(:planned_view_ids, planned_view_ids(plan_views, socket.assigns.views))
+    |> assign_soll(plan_views)
   end
 
-  defp build_soll(portfolio_id, classification_id, view_id, assigns) do
+  defp plan_views(%{portfolio: %{id: portfolio_id}, selected_id: classification_id})
+       when is_integer(classification_id),
+       do: Targets.plan_views(portfolio_id, classification_id)
+
+  defp plan_views(_assigns), do: %{}
+
+  # Which chips carry the plan dot (#1091, review round): the views, and
+  # Everything (`nil`), in which this tree has a plan -- the plan the editor
+  # below shows, active or draft. A portfolio-wide cash target alone is no
+  # plan of this tree. Wealth's dots keep the allocation engine's own
+  # definition.
+  defp planned_view_ids(plan_views, views),
+    do: Enum.filter([nil | Enum.map(views, & &1.id)], &Map.has_key?(plan_views, &1))
+
+  # The plan editor only makes sense for an editable (custom) tree that has a
+  # portfolio behind it; built-in trees and the no-portfolio case carry no
+  # editor (`soll: nil`). It edits the active view's plan (#1091).
+  defp assign_soll(%{assigns: %{portfolio: nil}} = socket, _plan_views),
+    do: assign(socket, :soll, nil)
+
+  defp assign_soll(%{assigns: %{tree: nil}} = socket, _plan_views),
+    do: assign(socket, :soll, nil)
+
+  defp assign_soll(%{assigns: %{tree: %{editable: false}}} = socket, _plan_views),
+    do: assign(socket, :soll, nil)
+
+  defp assign_soll(socket, plan_views) do
+    %{portfolio: portfolio, selected_id: classification_id, active_view_id: view_id} =
+      socket.assigns
+
+    assign(
+      socket,
+      :soll,
+      build_soll(portfolio.id, classification_id, view_id, socket.assigns, plan_views)
+    )
+  end
+
+  defp build_soll(portfolio_id, classification_id, view_id, assigns, plan_views) do
     # Plan versions (ADR-0027): the editor follows the scope's active plan by
     # default; a picked version (soll_plan_id) is edited via plan-addressed
     # reads/writes while the active plan keeps steering the SOLL surface.
@@ -1845,7 +2013,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
       cash_target: cash_target,
       top_level_ids: top_level_ids(assigns.tree.flat),
       children_by_parent: children_by_parent(assigns.tree.flat),
-      copy_sources: copy_sources(portfolio_id, classification_id, view_id, assigns.views)
+      copy_sources: copy_sources(view_id, assigns.views, plan_views)
     }
 
     soll
@@ -1933,16 +2101,17 @@ defmodule PortfolixirWeb.ClassificationsLive do
     |> put_sum()
   end
 
-  # Other views (Gesamt + named) that carry a plan for this classification, as
-  # `{label, value}` pairs for the copy-from picker — the current view excluded.
-  defp copy_sources(portfolio_id, classification_id, current_view_id, views) do
-    candidates = [{gettext("Gesamt (total)"), nil} | Enum.map(views, &{&1.name, &1.id})]
+  # Other views (Everything + named) that carry an active plan for this
+  # classification -- the plan a copy reads -- as `{label, value}` pairs for
+  # the copy-from picker, the current view excluded; read from the same
+  # `Targets.plan_views/2` the dots read. The no-view scope is "Everything",
+  # the switcher's word, never "Gesamt" (#1091, pick J10 A).
+  defp copy_sources(current_view_id, views, plan_views) do
+    candidates = [{gettext("Everything"), nil} | Enum.map(views, &{&1.name, &1.id})]
 
     candidates
     |> Enum.reject(fn {_label, id} -> id == current_view_id end)
-    |> Enum.filter(fn {_label, id} ->
-      Targets.plan_exists?(portfolio_id, classification_id, view: id)
-    end)
+    |> Enum.filter(fn {_label, id} -> Map.get(plan_views, id) == true end)
     |> Enum.map(fn {label, id} -> {label, view_param(id)} end)
   end
 
@@ -2107,15 +2276,50 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
+  # The category result in the screen's scope (#1091, pick J10 A), from the
+  # function the API serves that scope with: under a view
+  # `CategoryResult.for_view/3` (`GET /api/v1/views/:view_id/category-results`),
+  # under Everything `for_all_portfolios/2` (`GET /api/v1/category-results`),
+  # so the screen and the agent's read cannot disagree.
   defp start_results(socket, classification_id) do
     if connected?(socket) do
-      start_async(socket, :results, fn ->
-        CategoryResult.for_all_portfolios(classification_id)
-      end)
+      view_id = socket.assigns.active_view_id
+      start_async(socket, :results, fn -> scoped_result(view_id, classification_id) end)
     else
       socket
     end
   end
+
+  defp scoped_result(nil, classification_id),
+    do: CategoryResult.for_all_portfolios(classification_id)
+
+  defp scoped_result(view_id, classification_id),
+    do: CategoryResult.for_view(view_id, classification_id)
+
+  # The scope's name in the screen's sentences: the view's, or the
+  # switcher's "Everything".
+  defp view_name(nil), do: gettext("Everything")
+  defp view_name(%{name: name}), do: name
+
+  # The hidden-members suffix: under a view, the members the view holds none
+  # of (#1091); under Everything, the ones no longer held (#334).
+  defp hidden_label(true), do: gettext("not in the view")
+  defp hidden_label(false), do: gettext("without holdings")
+
+  defp hidden_title(true),
+    do: gettext("Assigned securities with no position in this view, hidden by the filter")
+
+  defp hidden_title(false),
+    do: gettext("Assigned securities no longer held, hidden by the filter")
+
+  # Unsorted's own (cascade layer 2): its securities are unassigned, and
+  # under Everything some were never held, so the categories' "Assigned
+  # securities no longer held" was wrong twice.
+  defp unsorted_hidden_title(true),
+    do: gettext("Unassigned securities with no position in this view, hidden by the filter")
+
+  defp unsorted_hidden_title(false),
+    do: gettext("Unassigned securities without holdings, hidden by the filter")
 
   # The roll-up's currency and its excluded members stay with it (#1048):
   # the basis line names the one, the note the other.
@@ -2128,11 +2332,15 @@ defmodule PortfolixirWeb.ClassificationsLive do
     }
   end
 
+  # The result cell's sign colour, decided on the amount as displayed
+  # (`Format.displayed_sign/2`, U2's rule; the closing act of PR γ): a result
+  # that reads 0.00 is unsigned and `is-flat`, never in the gain colour.
   defp result_tone(result_abs) do
-    cond do
-      Decimal.gt?(result_abs, Decimal.new("0")) -> "is-positive"
-      Decimal.lt?(result_abs, Decimal.new("0")) -> "is-negative"
-      true -> nil
+    case Format.displayed_sign(result_abs, 2) do
+      :positive -> "is-positive"
+      :negative -> "is-negative"
+      :zero -> "is-flat"
+      nil -> nil
     end
   end
 
@@ -2148,27 +2356,33 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
-  defp signed_percent_points(pct), do: Format.signed_decimal(Decimal.mult(pct, 100), 1) <> " %"
+  # The result's percent in the house form, the sign and "%" glued on
+  # ("+13,7%"), as U2 and U3 made it on the Trades surfaces (the closing act
+  # of PR γ; DESIGN.md's γ n12).
+  defp result_percent(pct), do: Format.signed_percent(pct) <> "%"
 
-  # A count of nothing is a dash, not a zero (#805).
-  defp count_or_dash(0), do: "—"
-  defp count_or_dash(count), do: Integer.to_string(count)
+  # The Unsorted row's value: the visible unsorted positions, or nil.
+  defp unsorted_total([]), do: nil
 
-  # The Unsorted row's value: the visible unsorted positions, or a dash.
-  defp unsorted_value([]), do: "—"
-
-  defp unsorted_value(securities) do
+  defp unsorted_total(securities) do
     if Enum.all?(securities, &match?(%Decimal{}, &1.market_value)) do
-      securities
-      |> Enum.reduce(@zero, &Decimal.add(&2, &1.market_value))
-      |> Format.money()
-    else
-      "—"
+      Enum.reduce(securities, @zero, &Decimal.add(&2, &1.market_value))
     end
   end
 
-  defp money_or_dash(%Decimal{} = value), do: Format.money(value)
-  defp money_or_dash(_absent), do: "—"
+  # A row's money figure, or the value slot's not-computable dash. A count is
+  # always computable, so "Positions" prints its number, 0 included (the
+  # closing act of PR γ; it printed "—" since #805).
+  attr(:value, :any, required: true)
+
+  defp figure(%{value: %Decimal{}} = assigns), do: ~H"<%= Format.money(@value) %>"
+  defp figure(assigns), do: ~H"<.not_computable />"
+
+  # The value slot's not-computable dash (UX-DR20, DESIGN.md's
+  # `value-slot.not-computable`): muted and at weight 400, never at the
+  # figures' weight, so a stable "no figure" does not read as one
+  # (`.cat-summary .cat-na`).
+  defp not_computable(assigns), do: ~H|<span class="cat-na">—</span>|
 
   defp category_result(nil, _category_id), do: nil
 
@@ -2212,6 +2426,14 @@ defmodule PortfolixirWeb.ClassificationsLive do
       |> Enum.map(decorate)
       |> Enum.sort_by(& &1.name)
 
+    # Unsorted shows and counts the unsorted securities the scope holds, and
+    # counts the rest beside its name, as a category does, in every scope:
+    # under a view the ones it holds none of (#1091, review round), under
+    # Everything the ones no longer held (the closing act of PR γ, where
+    # Everything listed every unsorted security whatever the toggle and read
+    # differently from a view that includes every account).
+    unsorted_row = split_members(unsorted, hide_sold?)
+
     grouped = Enum.group_by(tree.categories, & &1.parent_id)
     nodes = build_nodes(grouped, nil, by_category)
 
@@ -2229,6 +2451,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
       flat: flatten(tree.categories),
       assigned_counts: assigned_counts(nodes),
       unsorted: unsorted,
+      unsorted_row: unsorted_row,
       query: query,
       filtering?: needle != "",
       current_only: current_only?
@@ -2694,7 +2917,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   # "total" or a view id string → the view id (nil for Gesamt) used by the
   # Targets context. Never builds an atom from input; a value no view id can
-  # be (a URL's `?soll_view=` included, #868) reads as Gesamt.
+  # be (#868) reads as Gesamt.
   defp parse_soll_view(value), do: LiveParam.id(value)
 
   defp view_param(nil), do: "total"
