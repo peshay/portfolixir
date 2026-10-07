@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleReferences
+  alias PortfolixirWeb.StoredText
 
   @zero Decimal.new("0")
   @hundred Decimal.new("100")
@@ -1142,6 +1143,11 @@ defmodule PortfolixirWeb.ClassificationsLive do
       <% end %>
 
       <%= if @soll.exists do %>
+        <%!-- #945 (board 08.5): the plan inputs carry `step="any"` and no
+             `min` or `max`. The browser's own range and step checks would
+             block the submit with its generic message, so the store's
+             refusal, which names the row, would never be read; the store
+             decides (0–100 %, four decimal places in percent). --%>
         <form id="soll-plan-form" phx-change="soll_sum" phx-submit="save_soll_plan">
           <div class="data-table-wrapper">
             <table class="soll-table">
@@ -1212,9 +1218,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
                             id={"soll-weight-#{category.id}"}
                             name={"weights[#{category.id}]"}
                             value={Map.get(@soll.weights, category.id, "")}
-                            min="0"
-                            max="100"
-                            step="0.1"
+                            step="any"
                             inputmode="decimal"
                           />
                         <% sum -> %>
@@ -1247,9 +1251,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
                         id={"soll-position-#{category.id}-#{member.id}"}
                         name={"positions[#{category.id}][#{member.id}]"}
                         value={@soll.position_weights |> Map.get(category.id, %{}) |> Map.get(member.id, "")}
-                        min="0"
-                        max="100"
-                        step="0.1"
+                        step="any"
                         inputmode="decimal"
                       />
                     </td>
@@ -1264,9 +1266,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
                       id="soll-cash-target"
                       name="cash_target"
                       value={@soll.cash_target || ""}
-                      min="0"
-                      max="100"
-                      step="0.1"
+                      step="any"
                       inputmode="decimal"
                       disabled={@soll.editing_version?}
                       aria-describedby={@soll.editing_version? && "soll-cash-lock-hint"}
@@ -1554,8 +1554,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
              Actor.owner_ui(),
              portfolio_id,
              classification_id,
-             follow_positions(entries, position_entries) ++
-               changed_positions(socket.assigns.soll, position_entries),
+             changed_positions(socket.assigns.soll, position_entries) ++
+               follow_positions(entries, position_entries),
              soll_scope(socket) ++
                soll_clears(socket.assigns.soll, params["positions"], entries, position_entries) ++
                cash_opts
@@ -2728,16 +2728,16 @@ defmodule PortfolixirWeb.ClassificationsLive do
     )
   end
 
-  defp soll_error(_assigns, %Ecto.Changeset{errors: errors} = changeset) do
+  defp soll_error(assigns, %Ecto.Changeset{errors: errors} = changeset) do
     cond do
       # E25 S4 (G14): a weight refused for its precision says so, in the
       # percent the form speaks (six places of a fraction are four of a
       # percentage), instead of naming the 0-100 % range.
       scale_error?(errors) ->
-        gettext("A target carries at most four decimal places in percent")
+        soll_row_error(assigns, changeset, :scale)
 
-      Keyword.has_key?(errors, :target_weight) ->
-        gettext("A target must lie between 0 and 100 %")
+      Keyword.has_key?(errors, :target_weight) or Keyword.has_key?(errors, :cash_target_weight) ->
+        soll_row_error(assigns, changeset, :range)
 
       true ->
         changeset_error(changeset)
@@ -2745,6 +2745,69 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   defp soll_error(_assigns, reason), do: error_message(reason)
+
+  # #945 (board 08.5): the refused row first, in the editor's own names,
+  # then the rule — the row read off the refused changeset: the plan's cash
+  # target, a position under its category, or a category. Stored names sit
+  # in <bdi> (H8.8).
+  defp soll_row_error(assigns, %Ecto.Changeset{errors: errors} = changeset, rule) do
+    category_id = Ecto.Changeset.get_field(changeset, :category_id)
+    security_id = Ecto.Changeset.get_field(changeset, :security_id)
+
+    cond do
+      Keyword.has_key?(errors, :cash_target_weight) ->
+        cash_target_error(rule)
+
+      is_integer(category_id) and is_integer(security_id) ->
+        StoredText.isolate(position_target_error(rule),
+          security: soll_member_name(assigns, security_id),
+          category: category_name(assigns, category_id)
+        )
+
+      is_integer(category_id) ->
+        StoredText.isolate(category_target_error(rule),
+          category: category_name(assigns, category_id)
+        )
+
+      rule == :scale ->
+        gettext("A target carries at most four decimal places in percent")
+
+      true ->
+        gettext("A target must lie between 0 and 100 %")
+    end
+  end
+
+  defp cash_target_error(:scale),
+    do: gettext("Cash target: at most four decimal places in percent")
+
+  defp cash_target_error(:range), do: gettext("Cash target: must lie between 0 and 100 %")
+
+  defp position_target_error(:scale) do
+    gettext(
+      "Position target of “%{security}” under “%{category}”: at most four decimal places in percent",
+      security: StoredText.slot(:security),
+      category: StoredText.slot(:category)
+    )
+  end
+
+  defp position_target_error(:range) do
+    gettext("Position target of “%{security}” under “%{category}”: must lie between 0 and 100 %",
+      security: StoredText.slot(:security),
+      category: StoredText.slot(:category)
+    )
+  end
+
+  defp category_target_error(:scale) do
+    gettext("Target of “%{category}”: at most four decimal places in percent",
+      category: StoredText.slot(:category)
+    )
+  end
+
+  defp category_target_error(:range) do
+    gettext("Target of “%{category}”: must lie between 0 and 100 %",
+      category: StoredText.slot(:category)
+    )
+  end
 
   defp scale_error?(errors) do
     Enum.any?(errors, fn {field, {_message, keys}} ->

@@ -652,7 +652,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
     </AppShell.data_note>
     <AppShell.data_note severity={:attention}>
       <%= gettext(
-        "%{source} is deleted afterwards. This cannot be undone; every changed booking is journaled.",
+        "%{source} is deleted afterwards. This cannot be undone; the journal records every changed booking.",
         source: @names.source
       ) %>
     </AppShell.data_note>

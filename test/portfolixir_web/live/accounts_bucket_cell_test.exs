@@ -49,9 +49,9 @@ defmodule PortfolixirWeb.AccountsBucketCellTest do
     world()
     {:ok, _view, html} = live(conn, "/portfolios")
 
-    # Once as the column head, once per row as a visually-hidden label for
-    # the select — never as visible text beside it.
-    assert html =~ ~s(<th>Liquidity role</th>)
+    # Once as the column head (with its ⓘ since #1090), once per row as a
+    # visually-hidden label for the select — never as visible text beside it.
+    assert html =~ ~r{<th class="accounts-term-head">\s*Liquidity role<details}
     assert html =~ ~s(class="visually-hidden")
     refute html =~ ~s(class="liquidity-role-field__label")
   end

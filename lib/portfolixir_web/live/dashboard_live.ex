@@ -286,7 +286,7 @@ defmodule PortfolixirWeb.DashboardLive do
             class="stat"
             data-role="overview-stale"
           >
-            <span><%= gettext("YTD") %></span>
+            <span><%= gettext("year to date") %></span>
             <strong class="value-slot-stale" aria-busy="true">
               <span class="visually-hidden"><%= gettext("Last known value —") %></span>
               <span class="stale-value"><%= signed_percent(@stale_ttwror.ttwror) %>%</span>
@@ -294,8 +294,8 @@ defmodule PortfolixirWeb.DashboardLive do
             <small data-role="stale-ttwror" class="recomputing-cue">
               <span class="spinner"></span>
               <%= ngettext(
-                "Last known: %{ttwror}% YTD — one booking through %{last}, as of %{date}. Recomputing.",
-                "Last known: %{ttwror}% YTD — %{count} bookings through %{last}, as of %{date}. Recomputing.",
+                "Last known: %{ttwror}% year to date — one booking through %{last}, as of %{date}. Recomputing.",
+                "Last known: %{ttwror}% year to date — %{count} bookings through %{last}, as of %{date}. Recomputing.",
                 @stale_ttwror.basis.booking_count,
                 ttwror: signed_percent(@stale_ttwror.ttwror),
                 last: Format.date(@stale_ttwror.basis.last_booking_date),
@@ -327,13 +327,16 @@ defmodule PortfolixirWeb.DashboardLive do
               ><span data-count-digits><%= Format.money(@wealth_card.valuation.total_with_cash) %></span></span><small class="value-suffix"><%= @wealth_card.valuation.base_currency %></small>
             </strong>
             <%!-- The sub-line keeps the YTD change; the cash quote moved to
-                 the strip's own cell (UX-DR2 as amended 2026-09-14). --%>
+                 the strip's own cell (UX-DR2 as amended 2026-09-14). The
+                 card is a link and cannot hold an ⓘ, so it says the period
+                 in words (#1090, board 08 ③) under a msgid of its own: "YTD"
+                 stays the period token of the range controls. --%>
             <small :if={@wealth_card.ttwror} data-role="card-ttwror">
               <span class={sign_class(@wealth_card.ttwror)}><%= signed_percent(@wealth_card.ttwror) %>%</span>
-              <%= gettext("YTD") %>
+              <%= gettext("year to date") %>
             </small>
             <small :if={is_nil(@wealth_card.ttwror)} data-role="card-ttwror">
-              <%= gettext("YTD") %> —
+              <%= gettext("year to date") %> —
             </small>
           </a>
         <% end %>

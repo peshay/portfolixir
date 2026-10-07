@@ -102,8 +102,9 @@ defmodule PortfolixirWeb.AllocationZeroValueDriftLiveTest do
   #
   # Acceptance criteria:
   # - A category weight or a cash target with more than four decimal places in
-  #   percent is refused with "A target carries at most four decimal places in
-  #   percent"; nothing is written.
+  #   percent is refused with a sentence that names the precision ("…: at most
+  #   four decimal places in percent", its row named first since #945);
+  #   nothing is written.
   test "the plan editor names the precision of a refused weight", %{conn: conn} = ctx do
     {:ok, view, _html} = live(conn, "/classifications/#{ctx.tree.id}")
     render_async(view)
@@ -116,8 +117,8 @@ defmodule PortfolixirWeb.AllocationZeroValueDriftLiveTest do
         "cash_target" => ""
       })
 
-    assert html =~ "A target carries at most four decimal places in percent"
-    refute html =~ "A target must lie between 0 and 100 %"
+    assert html =~ "Target of “<bdi>Wachstum</bdi>”: at most four decimal places in percent"
+    refute html =~ "must lie between 0 and 100 %"
 
     html =
       view
@@ -127,7 +128,7 @@ defmodule PortfolixirWeb.AllocationZeroValueDriftLiveTest do
         "cash_target" => "10.00001"
       })
 
-    assert html =~ "A target carries at most four decimal places in percent"
+    assert html =~ "Cash target: at most four decimal places in percent"
 
     [growth_target] =
       ctx.portfolio.id

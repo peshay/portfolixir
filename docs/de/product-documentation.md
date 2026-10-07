@@ -305,7 +305,12 @@ die Zeile ging: „„…“ wurde inzwischen gelöscht; die Liste ist neu gelad
 oder „„…“ wurde inzwischen in … zusammengeführt; die Liste ist neu geladen.“,
 das Wertpapier, das die Historie jetzt trägt, verlinkt. Der Hinweis rückt an
 den oberen Fensterrand und erhält den Tastaturfokus, denn das Menü, das ihn
-hatte, ging mit der Zeile.
+hatte, ging mit der Zeile. Der Dialog für ein neues Wertpapier antwortet
+genauso (Issue #1072): Wurde das Wertpapier, das seine Suche gefunden hat
+(„Dieses Wertpapier existiert bereits“), gelöscht oder zusammengeführt, bevor
+**Online-Felder übernehmen** oder **Vorhandenes aktualisieren** gedrückt
+wurde, schließt sich der Dialog, die Liste lädt neu, und derselbe Hinweis
+nennt den Treffer.
 
 ### Klassifikations-Spalten
 
@@ -721,7 +726,11 @@ Seit Issue #806 nennt jede Gruppe ihren **Geltungsbereich** als Unterzeile
 unter den Chips — *Gilt für Depot und Verrechnungskonto*, *Gilt für das
 Depot*, *Gilt für das Verrechnungskonto* —, sodass eine Zelle gelesen werden
 kann, ohne sie anzufassen; eine leere Menge liest sich als *Kein Bucket*
-statt als leere Zelle. **Getrennt taggen** ist aus der Zelle in das
+statt als leere Zelle. Der Spaltenkopf **Buckets** trägt ein ⓘ, das sagt,
+was ein Bucket ist — ein Tag für Depots und Verrechnungskonten, den eine
+Ansicht auswählt, um jede Kennzahl auf seine Konten einzugrenzen —; auf dem
+Telefon, wo der Kopf verborgen ist, folgt dasselbe ⓘ der Geltungszeile jeder
+Chip-Gruppe (Issue #1090). **Getrennt taggen** ist aus der Zelle in das
 **Kebab-Menü** der Zeile gewandert.
 Tragen Depot und Verrechnungskonto dieselben Buckets, zeigt das Paar **eine
 zusammengeführte Chip-Gruppe mit der Marke „Beide"** über beide Zeilen; der
@@ -978,7 +987,10 @@ Kebab-Menü, und **Bearbeiten** darin öffnet dieselbe Schublade, vorbefüllt
 mit der Buchung — dieselben Felder, dieselbe Prüfung, dieselbe Lot-Vorschau.
 Das Speichern korrigiert die Zeile **an Ort und Stelle**: es entsteht keine
 zweite Buchung, die abgeleiteten Bestände folgen, und die Änderung wird mit
-den vorherigen Werten im Audit-Journal festgehalten. Das ist die menschliche
+den vorherigen Werten im Audit-Journal festgehalten — die Schublade sagt es
+unter ihrem Titel: „Korrigiert die Buchung an Ort und Stelle; die
+abgeleiteten Bestände folgen, und das Journal hält die Änderung fest.“ (Issue
+#1074). Das ist die menschliche
 Sicht auf eine Fähigkeit, die API und MCP-Begleiter schon vor der
 Zwei-Wege-Regel hatten; an beiden wurde nichts ergänzt.
 
@@ -1018,8 +1030,9 @@ Datum und Art über Wertpapier und Depot (oder Konto), der Betrag mit
 Vorzeichen über seiner Größe — und sagt, was sich ändert: zum Beispiel
 „Danach hält Depot 1 40 Stück Global Aktien ETF weniger, und Girokonto hat
 2.504,90 EUR mehr.“, dass Bestände, Kontostände, Rendite und Trades ohne die
-Buchung neu berechnet werden und dass das Audit-Journal die Buchung mit allen
-Werten behält, die Oberfläche sie aber nicht zurückholen kann. Die Rückfrage
+Buchung neu berechnet werden und dass das Audit-Journal die Löschung mit allen
+Werten festhält, sich die Buchung selbst aber nicht wiederherstellen lässt
+(Issue #1090). Die Rückfrage
 entsteht aus der Buchung, wie sie beim Wählen von **Löschen…** gespeichert
 ist. Eine Stückzahl nennt sie zum heutigen Stand: Ein Kauf von 10 Stück vor
 einem 2:1-Split liest „20 Stück weniger“, so viel verlieren die Bestände. Wo
@@ -1053,8 +1066,9 @@ Kauf.
   **Löschen…** an einer beliebigen seiner Zeilen öffnet **Split löschen**
   mit dem Verhältnis, der Zahl der Zeilen und den Portfolios, deren Zeilen
   mitgehen — „Split löschen (2 Zeilen)“ löscht sie alle in einem Schritt,
-  im Audit-Journal festgehalten; ein Split in einem Portfolio wird ohne
-  Zeilenzahl genannt. Die Bestätigung löscht die Zeilen, die die Rückfrage
+  und das Audit-Journal hält die Löschung fest; ein Split in einem Portfolio
+  wird ohne Zeilenzahl genannt. Die Bestätigung löscht die Zeilen, die die
+  Rückfrage
   aufgezählt hat: Ist eine davon inzwischen gelöscht, gehen die übrigen
   trotzdem; ist inzwischen eine hinzugekommen (ein erneutes Buchen in einem
   weiteren Portfolio), wird nichts gelöscht, und die Rückfrage zeigt den
@@ -1066,7 +1080,13 @@ Kauf.
   das korrigierte Verhältnis an. **Split erfassen** selbst führt hierher: Ist am Tag schon
   ein Split mit anderem Verhältnis gebucht, nennt seine Warnung dieses
   Verhältnis und trägt **Gebuchten Split löschen…**, das dieselbe Rückfrage
-  auf der Seite des Wertpapiers öffnet.
+  auf der Seite des Wertpapiers öffnet. Solange dieser Split steht, zeigen
+  **Stückzahl danach (zum Stichtag)** und **Resultierende Position (heute)**
+  in der Vorschau „—“ (ein Screenreader liest stattdessen „keine Stückzahl
+  danach: an diesem Tag ist ein anderes Verhältnis gebucht“), und die
+  Warnung sagt, dass die Vorschau keine
+  Stückzahl danach zeigt (Issue #1066): Die Buchung wird abgelehnt, bis der
+  gebuchte Split gelöscht ist, also träte keine Zahl danach ein.
 
 API und MCP-Begleiter haben dieselben zwei Löschwege:
 `DELETE /api/v1/transactions/:id` (`portfolixir.transactions.delete`) für eine
@@ -1435,7 +1455,14 @@ aus; ihre Werte werden weiter gespeichert.
 
 Ein Speichern ist **eine Transaktion**: Ein abgelehntes Speichern — ein Ziel über
 100 %, ein Wertpapier unter einer Kategorie, in der es nicht mehr liegt — ändert
-nichts, auch nicht die Leerungen. Leert ein Speichern das **letzte** Positionsziel
+nichts, auch nicht die Leerungen. Ein Ziel mit mehr als vier Nachkommastellen
+in Prozent oder außerhalb von 0–100 % wird mit seiner Zeile vorweg abgelehnt —
+„Positionsziel von „…“ unter „…“: höchstens vier Nachkommastellen in
+Prozent“, „Soll von „…“: muss zwischen 0 und 100 % liegen“, „Cash-Ziel: …“
+(Issue #945) —, und die Eingaben setzen weder Bereich noch Schrittweite
+selbst: Es entscheidet der Speicher, nicht der Browser, und auf dem Schirm
+steht die Ablehnung, die die Zeile nennt. Leert ein Speichern das
+**letzte** Positionsziel
 einer Kategorie und ist für die Kategorie kein Gewicht eingetragen, fällt das
 Gewicht der Kategorie, das nur der Summe folgte, mit weg: Die Kategorie steht
 dann ohne Ziel da statt mit einer Zahl, die niemand eingetragen hat. Eine
@@ -1626,7 +1653,9 @@ eine Banking-App zu verwandeln. Dies folgt dem in
 [ADR-0009](/decisions/0009-cash-as-balance-snapshots.html) festgehaltenen Entwurf.
 
 Jedes Geldkonto trägt eine **Liquiditätsrolle** (`liquidity_role`; der Selektor
-sitzt neben dem Konto auf der Seite Konten & Depots). Sie ist einer von drei Werten:
+sitzt neben dem Konto auf der Seite Konten & Depots, und das ⓘ an ihrem
+Spaltenkopf — auf dem Telefon neben dem Selektor — sagt in einem Satz, wie
+jede Rolle zählt). Sie ist einer von drei Werten:
 **free cash** (Standard — echtes verfügbares Cash), **credit line** (eine
 Überziehungs- oder Lombard-Linie, deren negativer Saldo eine Verbindlichkeit ist
 und deren ungenutzter Rahmen nie Liquidität ist) oder **reserve** (ein
@@ -1647,8 +1676,10 @@ Datenbank ist sie der Onboarding-Assistent (der geordnete Workflow-Pfad plus
 Zähler). Sobald Transaktionen existieren, zeigt sie eine **Wert-Karte,
 eingegrenzt auf die Standard-Ansicht** — **Alles**, wenn keine gesetzt ist
 (ADR-0024: Ansichten, nicht Portfolios, sind das, worüber die Übersicht
-aggregiert) — mit dem Gesamtwert inkl. Cash und der **YTD-TTWROR** als
-Änderungssignal. Die Summe zählt nur, was sich bewerten lässt, und **unter
+aggregiert) — mit dem Gesamtwert inkl. Cash und der TTWROR seit
+Jahresbeginn als Änderungssignal, auf der Karte in Worten („seit
+Jahresbeginn“), denn die Karte ist ein Link und hat keinen Platz für ein ⓘ. Die
+Summe zählt nur, was sich bewerten lässt, und **unter
 der Karte nennt ein Hinweis, was sie auslässt** (Issue #1081, UX-DR25): die
 Verrechnungskonten, deren Währung keinen Wechselkurs zur Basiswährung hat,
 je mit ihrem Saldo in der eigenen Währung, die gehaltenen Positionen ohne
@@ -1755,7 +1786,8 @@ annualisierten, die ein kurzes Fenster aufblähen würde (ADR-0034).
 
 **Positionen** (Issue #814) listet die Bestandsprojektion, die diese Instanz
 über die API ausliefert — eine Zeile je Depot und Wertpapier, bewertet zum
-zuletzt gespeicherten Preis — mit einer **Spalten**-Auswahl über die Felder
+zuletzt gespeicherten Kurs, wie die Zeile unter der Überschrift sagt — mit
+einer **Spalten**-Auswahl über die Felder
 genau dieser Projektion: neben den Vorgaben Depot, Wertpapier und Stückzahl
 ISIN, WKN, Währung, durchschnittlicher Einstand, letzter Preis, Marktwert und
 das unrealisierte Ergebnis in Geld und Prozent. Es sind dieselben Felder, die
@@ -2101,7 +2133,7 @@ Beschriftung ist der Vertrag: eine überholte Zahl erscheint nie ohne sie, der
 Wechsel zur frischen Kurve passiert in einem Schritt, und schlägt die
 Neuberechnung fehl, wird die Beschriftung zum Fehler statt die alte Zahl stehen
 zu lassen. Die Vermögens-Kachel der Übersicht zeigt ihre zuletzt bekannte
-YTD-Zahl auf dieselbe Weise. (ADR-0032.)
+Zahl „seit Jahresbeginn“ auf dieselbe Weise. (ADR-0032.)
 
 **Benchmark-Vergleich**
 ([ADR-0046](/decisions/0046-benchmark-comparison.html), FR-9) — *war der
@@ -2172,7 +2204,11 @@ wurde, weil kein Kurs oder kein Wechselkurs gespeichert war, behält ihren Platz
 in der Tabelle und in der Summe, trägt die Zahl dieser Tage in ihrer Zeile und
 wird in einem Hinweis unter der Tabelle genannt. Ein Zeitraum ohne Inhalt zeigt
 einen Satz statt einer Tabelle voller Nullen, und auf dem Telefon wird die
-Tabelle zu zweizeiligen Einträgen. Zwei verschiedene Wertpapiere mit demselben
+Tabelle zu zweizeiligen Einträgen. Dort nennt ein Eintrag die Richtung seines
+Flusses — „Zufluss in die Position 2.000,00“, „Abfluss aus der Position
+1.420,00“ —, denn der Fluss gehört der Position: Geld, das ein Kauf in sie
+hineinträgt oder ein Verkauf aus ihr herausholt, nicht Geld, das das
+Portfolio verlässt. Zwei verschiedene Wertpapiere mit demselben
 Namen zeigen hinter dem Namen, was sie unterscheidet, in der Tabelle wie in
 den Einträgen auf dem Telefon: die ISIN, wo beide eine haben und sie sich
 unterscheiden, sonst die Nummer des Datensatzes („Nr. 42“). Die Tabelle hat
@@ -2598,7 +2634,11 @@ beantworten — wie konzentriert ist das Portfolio, und wie stark schwankt es �
   nur die Bezeichnung: Es entsteht keine Version, der neue Name gilt für die
   Regel mit allen Versionen, und das Audit-Journal behält den bisherigen
   Namen. Eine beendete Regel wird genauso aus der Liste der beendeten Regeln
-  umbenannt. „Risiko“ zeigt die Regeln der aktiven Ansicht; eine Regel, die in
+  umbenannt. Eine Regel auf ein inzwischen stillgelegtes Wertpapier nennt es
+  weiter in ihren Worten (Issue #944); trägt ein aktives Wertpapier
+  denselben Namen, unterscheiden die Worte jeder Regel beide an ihrer ISIN.
+  Eine neue Regel kann kein stillgelegtes Wertpapier wählen. „Risiko“ zeigt die Regeln der aktiven
+  Ansicht; eine Regel, die in
   einer anderen Ansicht gilt, steht in jener Ansicht. Wird das Löschen einer
   Ansicht, einer Kategorie, einer Klassifizierung oder eines Wertpapiers
   abgelehnt, weil Regeln es lesen, nennt die Ablehnung die Regeln mit Stand und
@@ -3329,7 +3369,8 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   der weitere Reiter liegen, und die Zeile kommt immer mit einem ganzen Reiter
   am linken Rand zur Ruhe — auch an ihrem Ende, wo nach dem letzten Reiter ein
   wenig Leerraum folgt.
-- Theme: System-, hell- und dunkel-Modus werden unterstützt.
+- Theme: System-, hell- und dunkel-Modus werden unterstützt (das Menü heißt
+  *Erscheinungsbild*).
 - Akzent: violette, türkise und korallenfarbene Logo-Akzentwahlen werden
   unterstützt.
 - Sprache: der erste Aufruf folgt der Browsersprache, wenn sie Englisch oder

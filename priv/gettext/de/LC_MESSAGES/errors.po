@@ -177,7 +177,7 @@ msgid "is ambiguous: enter it without a thousands separator"
 msgstr "ist mehrdeutig: ohne Tausendertrennzeichen eingeben"
 
 msgid "must not contain invisible characters (%{characters}); retype the text without them"
-msgstr "darf keine unsichtbaren Zeichen enthalten (%{characters}); gib den Text ohne sie neu ein"
+msgstr "darf keine unsichtbaren Zeichen enthalten (%{characters}); den Text ohne sie neu eingeben"
 
 msgid "must not contain invisible characters (format, bidirectional or tag characters)"
 msgstr "darf keine unsichtbaren Zeichen enthalten (Format-, Schreibrichtungs- oder Tag-Zeichen)"

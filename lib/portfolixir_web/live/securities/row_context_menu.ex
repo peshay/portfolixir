@@ -181,7 +181,7 @@ defmodule PortfolixirWeb.Securities.RowContextMenu do
         phx-value-id={@security.id}
         data-confirm={
           gettext(
-            "Delete this security? Bookings, quotes, events, research entries and policy rules block the deletion. Removed with it: its classifications, position targets, bucket assignments and former ISINs, each journaled, and its logo."
+            "Delete this security? Bookings, quotes, events, research entries and policy rules block the deletion. Removed with it: its classifications, position targets, bucket assignments and former ISINs, each recorded in the journal, and its logo."
           )
         }
       >

@@ -843,14 +843,19 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
       notify_parent(socket, {:updated, security})
       {:noreply, socket}
     else
+      # #1072 (board 08.3): the match was deleted or merged away while the
+      # dialog was open. The atom went into the errors assign, which the
+      # render reads as a map, and the LiveView crashed; the page now runs
+      # H8.6 for it, as for any row whose action finds it gone.
+      {:error, :not_found} ->
+        notify_parent(socket, {:conflict_vanished, existing})
+        {:noreply, socket}
+
       {:error, %Ecto.Changeset{} = changeset} ->
         {:noreply, assign(socket, :errors, changeset_errors(changeset))}
 
       {:error, refused, attrs} ->
         {:noreply, refuse(socket, refused, attrs)}
-
-      {:error, errors} ->
-        {:noreply, assign(socket, :errors, errors)}
     end
   end
 
@@ -869,7 +874,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
         update_security(socket, socket.assigns.editing, attrs)
 
       socket.assigns.conflict ->
-        update_security(socket, socket.assigns.conflict, attrs)
+        update_security(socket, socket.assigns.conflict, attrs, :conflict)
 
       is_nil(socket.assigns.selected_result) ->
         # Manual entry (#491): create straight from the form, no provider
@@ -1068,12 +1073,18 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     ArgumentError -> %{}
   end
 
-  # Editing a security, or merging the online fields into the one that
-  # conflicts: the same write and the same answers.
-  defp update_security(socket, security, attrs) do
+  # Editing a security, or "Update existing" on the match the search found:
+  # the same write and the same answers, but one. A match gone meanwhile is
+  # the page's H8.6 note, as for "Merge online fields" — neither conflict
+  # button has anything left to act on (#1072, board 08.3).
+  defp update_security(socket, security, attrs, mode \\ :edit) do
     case Catalog.update_security(Actor.owner_ui(), security, attrs) do
       {:ok, updated} ->
         notify_parent(socket, {:updated, updated})
+        {:noreply, socket}
+
+      {:error, :not_found} when mode == :conflict ->
+        notify_parent(socket, {:conflict_vanished, security})
         {:noreply, socket}
 
       # Deleted in the meantime (E25 S6, F49): a form-level alert about the

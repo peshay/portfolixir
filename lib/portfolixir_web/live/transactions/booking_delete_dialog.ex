@@ -78,7 +78,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
       consequence: booking_consequence(transaction, names, context),
       journal:
         gettext(
-          "The journal keeps the booking with all its values; the screen cannot bring it back."
+          "The audit journal records the deletion with every value; the booking cannot be restored."
         ),
       imported?: is_binary(transaction.import_hash),
       confirm: gettext("Delete transaction"),
@@ -744,11 +744,18 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
     )
   end
 
-  defp split_journal(1), do: gettext("The journal keeps the split.")
-  defp split_journal(2), do: gettext("The journal keeps both rows.")
+  # What stays is a record of the deletion, not the booking (#1090, board
+  # 08 ⑥): the sentence before says every figure is recomputed without it.
+  defp split_journal(1), do: gettext("The audit journal records the deletion of the split.")
+  defp split_journal(2), do: gettext("The audit journal records the deletion of both rows.")
 
   defp split_journal(count),
-    do: ngettext("The journal keeps its row.", "The journal keeps all %{count} rows.", count)
+    do:
+      ngettext(
+        "The audit journal records the deletion of its row.",
+        "The audit journal records the deletion of all %{count} rows.",
+        count
+      )
 
   # One row reads "Delete split", without a count (board A4).
   defp split_confirm(1), do: gettext("Delete split")

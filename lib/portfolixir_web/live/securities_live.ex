@@ -5536,6 +5536,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> refresh_selected(security)}
   end
 
+  # #1072 (board 08.3): the security dialog's match was deleted or merged
+  # away while it was open, and "Merge online fields" or "Update existing"
+  # found it gone. The page answers as for any row action that finds its
+  # security gone (H8.6): the dialog closes, the list reloads, and the note
+  # names the row — by the stale list's name, or by the dialog's own record
+  # when the list never showed it.
+  def handle_info({:dialog, _id, {:conflict_vanished, %Security{} = security}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:dialog_open?, false)
+     |> assign(:editing_security, nil)
+     |> vanished(security.id, security)}
+  end
+
   def handle_info({:dialog, _id, {:open_existing, _security}}, socket) do
     {:noreply,
      socket
@@ -5865,8 +5879,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # why the row went. The names are the ones the stale list showed, twins
   # told apart; a merge links the survivor (`Lifecycle.merged_into/2`'s
   # chain), a chain that ends at a deleted row reads as deleted.
-  defp vanished(socket, id) do
-    note = vanished_note(socket.assigns, id)
+  defp vanished(socket, id, known \\ nil) do
+    note = vanished_note(socket.assigns, id, known)
 
     socket =
       socket
@@ -5915,10 +5929,10 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp unless_vanished(%{id: id}, id), do: nil
   defp unless_vanished(value, _id), do: value
 
-  defp vanished_note(assigns, id) do
+  defp vanished_note(assigns, id, known) do
     stale = Enum.map(assigns.securities, &security_from_row/1)
 
-    case Enum.find(stale, &(&1.id == id)) do
+    case Enum.find(stale, &(&1.id == id)) || known do
       nil ->
         nil
 

@@ -97,9 +97,10 @@ defmodule PortfolixirWeb.DashboardKpiStripTest do
     assert basis =~ "2026-01-05" or basis =~ "1Y"
     assert basis =~ "EUR"
 
-    # The value card keeps its YTD change and drops the cash quote.
+    # The value card keeps its change since the start of the year, said in
+    # words since #1090 (board 08 ③), and drops the cash quote.
     card = text(Floki.find(doc, ~s([data-role="card-ttwror"])))
-    assert card =~ "YTD"
+    assert card =~ "year to date"
     refute card =~ "Cash"
   end
 

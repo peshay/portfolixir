@@ -871,7 +871,7 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
              3
 
     assert text_of(view, "#contribution-phone-rows li[data-security-id='#{alpha.id}']") ==
-             "Alpha Industrial AG zu Beginn nicht im Bestand · Zufluss 1.000,00 +195,00"
+             "Alpha Industrial AG zu Beginn nicht im Bestand · Zufluss in die Position 1.000,00 +195,00"
 
     assert text_of(view, "#contribution-phone-rows [data-role='contribution-phone-rest']") ==
              "Keiner Position zugeordnet Zinsen +12,00 · Gebühren/Steuern -7,00 · Währung 0,00 +5,00"

@@ -127,9 +127,9 @@ defmodule PortfolixirWeb.DashboardTest do
     assert html =~ ">#{expected}</span>"
     assert html =~ "EUR"
 
-    # The change signal: the card carries the YTD TTWROR.
-    assert has_element?(view, "[data-role='card-ttwror']")
-    assert html =~ "YTD"
+    # The change signal: the card carries the TTWROR since the start of the
+    # year, said in words (#1090, board 08 ③).
+    assert has_element?(view, "[data-role='card-ttwror']", "year to date")
 
     # No per-portfolio cards (ADR-0024: portfolios are no longer the
     # user-facing grouping), no activity feed, no count cards.

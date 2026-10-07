@@ -6971,6 +6971,29 @@ button.income-bar-label.is-active {
   min-width: 220px;
 }
 
+/* Issue 1090 (board 08 ④): the ⓘ that defines "Liquidity role" and "Buckets"
+   on their heads. The panel opens upward, over the page head, as the
+   board draws it: this wrapper does not scroll, and the rows below carry
+   positioned cells that would paint over a downward panel. The Buckets
+   head sits right of centre, so its panel grows leftward and stays inside
+   a 768 px page. */
+.accounts-table .metric-tooltip--end p {
+  left: auto;
+  right: 0;
+}
+
+/* The ⓘ stays beside its word, as the board draws it: the role head wrapped
+   it under "Liquidity role" at every width. */
+.accounts-table thead th.accounts-term-head {
+  white-space: nowrap;
+}
+
+/* The row copies of the two ⓘ serve the phone card, whose head is hidden;
+   above 640 px the head carries them once. */
+.accounts-term-info--phone {
+  display: none;
+}
+
 .accounts-table .cell-buckets--pair {
   vertical-align: middle;
 }
@@ -7281,6 +7304,36 @@ button.income-bar-label.is-active {
   .accounts-table .cell-currency--empty,
   .accounts-table .cell-role--empty {
     display: none;
+  }
+
+  /* Issue 1090: the role's ⓘ beside its control, the Buckets ⓘ after the scope
+     line. Its panel is anchored to the cell, not to the ⓘ, and takes the
+     card's width: an ⓘ two thirds across a 390 px card had no room for an
+     18rem panel on either side. */
+  .accounts-term-info--phone {
+    display: inline-block;
+  }
+
+  /* The head is visually hidden here but stays in the tab order; its two ⓘ
+     leave it and the accessibility tree, because the rows carry their own
+     copies (the review of Sprint 19 U5). */
+  .accounts-table thead .metric-tooltip {
+    display: none;
+  }
+
+  .accounts-table td.cell-role {
+    position: relative;
+  }
+
+  .accounts-table td .accounts-term-info--phone {
+    position: static;
+  }
+
+  .accounts-table td .accounts-term-info--phone p {
+    left: 0;
+    right: 0;
+    width: auto;
+    max-width: none;
   }
 
   .accounts-table .bucket-picker {
@@ -7985,6 +8038,12 @@ select:disabled {
 .kpi-strip__cell strong.kpi-strip__na {
   color: var(--color-text-muted);
   font-weight: 500;
+}
+
+/* Issue 1066, pick J8 = A (board 08): the split preview's "after" cells under a
+   conflicting ratio — the not-computable dash in this same muted voice. */
+#split-wizard-preview td.split-na {
+  color: var(--color-text-muted);
 }
 
 /* Not-computable inside a stat card or the summary line (DESIGN.md → Value

@@ -374,7 +374,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
                  version note stays and says what the new name covers. --%>
             <p :if={@rename_only?} class="hint" data-role="policy-rule-rename-note">
               <%= gettext(
-                "Only the name changes: saving creates no new version. The name applies to the rule with all its versions; the change is journaled, and the previous name stays readable there."
+                "Only the name changes: saving creates no new version. The name applies to the rule with all its versions; the journal records the change, and the previous name stays readable there."
               ) %>
             </p>
             <p :if={not @rename_only?} class="hint" data-role="policy-rule-version-note">

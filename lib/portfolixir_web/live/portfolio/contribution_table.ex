@@ -628,11 +628,21 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
     |> Enum.join(" · ")
   end
 
+  # The flow is the position's own (the formula's "Zu-/Abflüsse"), so the
+  # words name the side: said bare, "Abfluss" beside a gain read as money
+  # leaving the portfolio (#1090, board 08 ⑤).
   defp phone_flow(flows) do
     case Decimal.compare(flows, 0) do
-      :gt -> gettext("inflow %{amount}", amount: Format.money(flows))
-      :lt -> gettext("outflow %{amount}", amount: Format.money(Decimal.abs(flows)))
-      :eq -> nil
+      :gt ->
+        gettext("inflow into the position %{amount}", amount: Format.money(flows))
+
+      :lt ->
+        gettext("outflow from the position %{amount}",
+          amount: Format.money(Decimal.abs(flows))
+        )
+
+      :eq ->
+        nil
     end
   end
 
