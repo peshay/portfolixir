@@ -21,6 +21,10 @@ description: "Decision for #328 and #608, taken together because they are one op
   [ADR-0049](0049-policy-rules-as-first-class-objects.html) and
   [ADR-0028](0028-corporate-actions-as-ledger-events.html) are **unchanged**:
   the refusals in §9 exist so that they can stay unchanged.
+- **Amended:** 2026-10-07: §2's first limit gets its fail-closed probe
+  (#904), and §4 states that names compare as exact strings (#973). See
+  "Amendment (2026-10-07)" below. Adopted by the merge of the Sprint 20
+  planning PR.
 - **Opens nothing else.** No scope gate is touched. Cross-portfolio moves,
   unmerge and merger/spin-off stay out (§14).
 
@@ -146,7 +150,9 @@ Three limits are stated, not hidden:
   remedy is remapping onto the right account in the preview, remembered (§4)
   where the guard allows it. A name renamed before the accounts' journal was
   armed, and so absent from §4's backfill, is in the same position. A probe
-  that fails closed is deferred (§15).
+  that fails closed is deferred (§15). *(Built by the amendment of
+  2026-10-07: a name with no hash hit in a file that otherwise overlaps the
+  stored history gets no prefill.)*
 - **The pre-import economic layer keeps set semantics.** After an account
   merge, a hash-miss row from S whose key equals an existing T row's key is
   absorbed at the economic layer. It is **reported** in the result's duplicate
@@ -703,6 +709,74 @@ closing act (shown red against a deliberately broken implementation) and
 - **Cost:** about half of a sprint at the current cadence, in four risk-tier
   commit groups plus a surfaces group. The Sprint 16 plan names the order and
   the shrink order.
+
+## Amendment (2026-10-07): the first limit's probe, and names as exact strings
+
+**Status:** adopted by the merge of the Sprint 20 planning PR. The probe is
+risk-tier (import idempotency), so it is signed before the batch that builds
+it. It answers #904, which §15 deferred, and #973.
+
+### Why the probe, now
+
+§2's first limit is the largest money exposure the importer still has. When
+an account or a depot is renamed in Portfolio Performance, every row under
+the new name is a hash miss, because names are hash inputs (§3). The
+preview prefills `create` for a name the database never saw, and **one
+confirm books that account's whole history a second time**, cash and
+holdings. The only cue is the mapping row's "N bookings new" beside rows
+that show hits. A Portfolio Performance re-import is the onboarding path for
+the people the announcement addresses, and renaming an account there is
+ordinary.
+
+### What changes
+
+1. **The signal.** In the preview, a file's cash-account name or depot name
+   (a PP account or a PP portfolio) is **unknown to the stored history** when
+   none of the rows listed under it has a content hash held by a live
+   transaction or a retired hash, while at least one other name of the same
+   file in the same portfolio has such a hit. The counts are the hash-layer
+   counts `Applier.reimport_counts/3` already computes. The economic layer is
+   not read, because it cannot see a name.
+2. **What the preview does.** Such a name gets **no prefill**, whatever
+   resolution (§4: exact live name, then former name) would have
+   prefilled. Its mapping row says that no booking under this name is known
+   and names both remedies: choose the account it was renamed from, or
+   create a new one. Apply refuses the name unmapped, as it already does for
+   an ambiguous name (§4). The row is drawn on the Sprint 20 board
+   `01-import-preview` (pick L1).
+3. **Choosing the renamed account** books nothing the stored history already
+   holds, through the existing layers: the rows now resolve onto that
+   account, so their #533 keys equal the stored ones (§2's condition 3), and
+   "remember" (§4, on by default) records the new name as a former name of
+   it.
+4. **When it does not trip.** A file in which no name has a hit (a first
+   import, or an export of only new bookings) trips nothing; the prefill is
+   today's. A genuinely new account in an otherwise known file trips it and
+   costs one choice.
+5. **What it does not change.** It is a preview rule: no hash, no key, no
+   apply condition and no obligation (O1–O3) changes, and a file already
+   applied stays a no-op. It has no API route, because the import is an
+   operator action ([ADR-0029](0029-stable-identities-and-reimport-survival.html)).
+6. **Names compare as exact strings** (#973). After trimming surrounding
+   whitespace, two names that differ only in letter case, or only in Unicode
+   form or inner whitespace, are two names, for the guard and for resolution
+   alike, because Portfolio Performance's names are exact and a folded guard
+   over exact resolution would refuse a file that really names such a
+   variant. Pickers and dialogs tell such twins apart (#1152); the guard
+   does not fold them.
+
+### The identities the building batch pins
+
+| | Identity |
+|---|---|
+| P1 | A file applied once, then dropped again with one cash account renamed (one of its rows a transfer to another account of the file): the renamed name gets no prefill and Apply refuses it unmapped; mapped onto the account it was renamed from, the drop inserts nothing (zero transactions, accounts, depots and securities) and remembers the name. |
+| P2 | The same drop with the name mapped to `create` inserts exactly what today's prefill inserts. The probe stops the default, never a choice. |
+| P3 | A file in which no name has a hit prefills exactly as today. |
+| P4 | A file in which every name has a hit prefills exactly as today. |
+| P5 | A depot renamed in Portfolio Performance behaves as P1 does. |
+
+**§15's row** "the fail-closed probe for never-seen identities" is answered
+by this amendment; its other deferrals stand.
 
 ## References
 
