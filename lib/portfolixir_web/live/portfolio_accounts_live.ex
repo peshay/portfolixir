@@ -120,9 +120,17 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
                   <tr>
                     <th><%= gettext("Name") %></th>
                     <th><%= gettext("Currency") %></th>
-                    <th><%= gettext("Liquidity role") %></th>
+                    <%!-- #1090 (board 08 ④): the two domain words are
+                         defined where they first appear, each by an ⓘ on its
+                         head; under 640 px the head is hidden and the same
+                         ⓘ rides in the rows (`term_info/1`). --%>
+                    <th class="accounts-term-head">
+                      <%= gettext("Liquidity role") %><.term_info term={:liquidity_role} />
+                    </th>
                     <th><%= gettext("Balance") %></th>
-                    <th><%= gettext("Buckets") %></th>
+                    <th class="accounts-term-head">
+                      <%= gettext("Buckets") %><.term_info term={:buckets} class="metric-tooltip--end" />
+                    </th>
                     <%!-- #806: row actions behind the kebab (Tables pattern);
                          "Tag separately" moved off the bucket cell, which held
                          four controls for one question. --%>
@@ -687,6 +695,46 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
     """
   end
 
+  attr(:term, :atom, required: true, values: [:liquidity_role, :buckets])
+  attr(:phone, :boolean, default: false, doc: "the row copy, shown only under 640 px")
+  attr(:class, :string, default: nil)
+  attr(:rest, :global)
+
+  # #1090 (board 08 ④): the ⓘ that defines a column's domain word — one
+  # sentence, the method named (EXPERIENCE.md → Voice and Tone). On the head
+  # above 640 px; the `phone` copy rides in each row, where the head is
+  # hidden, and is hidden above it.
+  defp term_info(assigns) do
+    ~H"""
+    <details
+      class={[
+        "metric-tooltip metric-tooltip--inline",
+        @phone && "accounts-term-info--phone",
+        @class
+      ]}
+      {@rest}
+    >
+      <summary aria-label={term_label(@term)}>ⓘ</summary>
+      <p role="tooltip"><%= term_definition(@term) %></p>
+    </details>
+    """
+  end
+
+  defp term_label(:liquidity_role), do: gettext("About the liquidity role")
+  defp term_label(:buckets), do: gettext("About buckets")
+
+  defp term_definition(:liquidity_role),
+    do:
+      gettext(
+        "Liquidity role — how a cash account counts: free cash enters the cash quote; reserve and credit line do not."
+      )
+
+  defp term_definition(:buckets),
+    do:
+      gettext(
+        "Buckets — tags on depots and cash accounts. A view picks buckets and narrows every figure to their accounts; an account can carry several."
+      )
+
   attr(:cash, CashAccount, required: true)
 
   defp liquidity_role_field(assigns) do
@@ -703,6 +751,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
       <label class="visually-hidden" for={"liquidity-role-#{@cash.id}"}>
         <%= gettext("Liquidity role") %>
       </label>
+      <.term_info term={:liquidity_role} phone data-role="liquidity-role-info" />
       <select id={"liquidity-role-#{@cash.id}"} name="liquidity_role">
         <option value="free_cash" selected={@cash.liquidity_role == "free_cash"}>
           <%= gettext("Free cash") %>
@@ -796,7 +845,13 @@ defmodule PortfolixirWeb.PortfolioAccountsLive do
       <%!-- #806 (variant A): the scope is READABLE without interacting —
            which set this is and what it covers — instead of being a micro-
            label whose meaning lived in a title attribute. --%>
-      <span class="bucket-chip-group__scope" data-role="bucket-scope"><%= @scope_line %></span>
+      <%!-- A <div>, not a <span>: under 640 px it carries the Buckets ⓘ, a
+           <details>, which phrasing content cannot hold (#1090). --%>
+      <div class="bucket-chip-group__scope" data-role="bucket-scope"><%= @scope_line %><.term_info
+          term={:buckets}
+          phone
+          data-role="buckets-info"
+        /></div>
       <p :if={@error} class="bucket-inline-error" data-role="bucket-error" role="alert">
         <%= @error %>
       </p>

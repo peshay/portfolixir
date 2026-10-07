@@ -268,7 +268,11 @@ it, and says why the row went: "“…” was deleted meanwhile; the list is
 reloaded." or "“…” was merged into … meanwhile; the list is reloaded.", the
 security that now carries the history linked. The note is brought to the top
 of the window and takes the keyboard focus, since the menu that had it went
-with the row.
+with the row. The new-security dialog answers the same way (issue #1072): when
+the security its search matched ("This security already exists") was deleted
+or merged away before **Merge online fields** or **Update existing** was
+pressed, the dialog closes, the list reloads, and the same note names the
+match.
 
 ### Classification columns
 
@@ -663,8 +667,12 @@ spanning both rows. Since issue #806 every group states its **scope** as a
 sub-line under the chips — *applies to depot and cash account*, *applies to
 the depot*, *applies to the cash account* — so a cell can be read without
 touching it, and an empty set reads as the words *no bucket* rather than as a
-blank cell. **Tag separately** moved out of the cell into the row's **kebab
-menu**, which splits the group so each side can be tagged on its own
+blank cell. The **Buckets** column head carries an ⓘ that says what a
+bucket is — a tag on depots and cash accounts that a view picks to narrow
+every figure to its accounts — and on a phone, where the head is hidden, the
+same ⓘ follows each chip group's scope line (issue #1090). **Tag
+separately** moved out of the cell into the row's **kebab menu**, which
+splits the group so each side can be tagged on its own
 (differing sets always render split). At most four chips are shown per group — further chips
 collapse into a **+2 more** control; pressing it expands the cell in place to
 show every bucket, and **Show fewer** collapses it again. The picker carries
@@ -894,8 +902,10 @@ kebab, and **Edit** in it opens that same drawer pre-filled with the booking
 — the same fields, the same validation, the same sell-lot preview. Saving
 corrects the row **in place**: no second booking is created, the derived
 holdings follow, and the change is recorded in the audit journal with the
-previous values as its before-image. This is the human view of a capability
-the API and the MCP companion have had since before the two-way coverage
+previous values as its before-image — the drawer says so under its title:
+"Corrects the booking in place; the derived holdings follow, and the journal
+records the change." This is the human view of a capability the API and the
+MCP companion have had since before the two-way coverage
 rule; nothing new was added to either.
 
 **The kinds the drawer does not book** (issue #912): the drawer records and
@@ -931,9 +941,9 @@ the security and the depot (or the account), the signed amount over its
 size — and says what changes: for example "Afterwards Depot 1 holds 40 fewer
 units of Global Equity ETF, and Checking has 2,504.90 EUR more.", that
 holdings, balances, returns and trades are recomputed without the booking,
-and that the audit journal keeps the booking with all its values while the
-screen cannot bring it back. The confirmation is built from the booking as
-it is stored when **Delete…** is chosen. A quantity is stated at today's
+and that the audit journal records the deletion with every value, while the
+booking itself cannot be restored. The confirmation is built from the booking
+as it is stored when **Delete…** is chosen. A quantity is stated at today's
 count: a buy of 10 before a 2:1 split reads "20 fewer units", which is what
 the holdings lose. Where a later set balance anchors that cash account, the
 clause says until when the account changes and the next sentence from when
@@ -961,9 +971,10 @@ purchase.
 - **A split** is deleted the way it was booked, as one fact: **Delete…** on
   any of its rows opens **Delete split**, naming the ratio, the number of
   rows and the portfolios whose rows go — "Delete split (2 rows)" deletes
-  them all in one step, journaled; a split in one portfolio is named without
-  a row count. The confirm deletes the rows the confirmation listed: one of
-  them deleted meanwhile, the rest still go; a row added meanwhile (a
+  them all in one step, and the audit journal records the deletion; a split
+  in one portfolio is named without a row count. The confirm deletes the
+  rows the confirmation listed: one of them deleted meanwhile, the rest
+  still go; a row added meanwhile (a
   re-book in another portfolio) deletes nothing, and the confirmation shows
   the split as it now is — "The split changed while this dialog was open.
   Nothing was deleted; the dialog now shows the new state." — to be
@@ -972,7 +983,12 @@ purchase.
   stay as they are; **Record split** then accepts the corrected ratio. **Record split** itself leads here: where a split with
   another ratio is already booked on the day, its warning names that ratio
   and carries **Delete the booked split…**, which opens the same
-  confirmation on the security's page.
+  confirmation on the security's page. While that split stands, the
+  preview's **Quantity after (at date)** and **Resulting position (today)**
+  read "—" (a screen reader reads "no quantity after: a different ratio is
+  booked on this day" instead), and the warning says the preview shows no
+  quantity after it (issue #1066): booking is refused until the
+  booked split is deleted, so no figure after it would come true.
 
 The API and MCP companion have the same two deletes:
 `DELETE /api/v1/transactions/:id` (`portfolixir.transactions.delete`) for
@@ -1309,8 +1325,14 @@ positions only hides the rows; their values still save.
 
 A save is **one transaction**: a refused save — a target above 100 %, a
 security filed under a category it no longer sits in — changes nothing, the
-clears included. When a save clears a category's **last** position target and
-no weight is typed for the category, the category's weight that only followed
+clears included. A target more precise than four decimal places in percent,
+or outside 0–100 %, is refused with its row named first — "Position target of
+“…” under “…”: at most four decimal places in percent", "Target of “…”: must
+lie between 0 and 100 %", "Cash target: …" (issue #945) — and the inputs set
+no range or step of their own: the store, not the browser, decides, so the
+refusal on screen is the one that names the row. When a save
+clears a category's **last** position target and no weight is typed for the
+category, the category's weight that only followed
 their sum is removed with them, so the category is left without a target rather
 than holding a figure nobody typed. A **stale** position row (its security was
 moved to another category since) still shows where it was filed; sent back
@@ -1487,7 +1509,9 @@ design recorded in
 [ADR-0009](decisions/0009-cash-as-balance-snapshots.html).
 
 Each cash account carries a **liquidity role** (the selector sits next to the
-account on the Accounts & depots page; the API/MCP field is `liquidity_role`). It is
+account on the Accounts & depots page, and the ⓘ on its column head — on a
+phone, beside the selector — says in one sentence how each role counts; the
+API/MCP field is `liquidity_role`). It is
 one of three values: **free cash** (the default — genuine deployable cash),
 **credit line** (an overdraft or Lombard facility, whose negative balance is a
 liability and whose unused headroom is never liquidity), or **reserve** (a
@@ -1506,9 +1530,11 @@ anything need me?" (ADR-0022). With an empty database it is the onboarding
 wizard (the ordered workflow path plus entity counts). Once transactions
 exist it shows one **value card scoped to the default view** — **Everything**
 when none is set (ADR-0024: views, not portfolios, are what the dashboard
-aggregates over) — with the total incl. cash and the **YTD TTWROR** as the
-change signal. The total counts only what can be valued, and **under the
-card a note names what it leaves out** (issue #1081, UX-DR25): the cash
+aggregates over) — with the total incl. cash and the TTWROR since the start
+of the year as the change signal, said in words on the card ("year to date";
+German *seit Jahresbeginn*), since the card is one link and has no room for
+an ⓘ. The total counts only what can be valued, and **under the card a
+note names what it leaves out** (issue #1081, UX-DR25): the cash
 accounts whose currency has no exchange rate to the base currency, each with
 its balance in its own currency, the held positions with no price, and the
 held positions with a price but no exchange rate, each with its price in its
@@ -1606,8 +1632,9 @@ one, which would explode a short window (ADR-0034).
 
 **Positions** (issue #814) lists the holdings projection this instance
 serves over the API — one row per depot and security, valued at the latest
-stored price — with a **Columns** picker over that projection's own fields:
-beyond the default depot, security and quantity it offers ISIN, WKN,
+stored price, as the line under the heading says — with a **Columns**
+picker over that projection's own fields: beyond the default depot,
+security and quantity it offers ISIN, WKN,
 currency, average cost, latest price, market value and the unrealised result
 in money and percent. These are the same fields an agent selects with the
 holdings API's `fields=` sparse fieldset, read from the same projection, so
@@ -1921,7 +1948,7 @@ bookings, through which date, computed when, as of which day. The label is the
 contract: a superseded number never appears without it, the swap to the fresh
 series happens in one update, and if the recomputation fails the label becomes
 an error instead of letting the old number stand. The overview page's wealth
-card serves its last known YTD figure the same way. (ADR-0032.)
+card serves its last known "year to date" figure the same way. (ADR-0032.)
 
 **Benchmark comparison**
 ([ADR-0046](decisions/0046-benchmark-comparison.html), FR-9) — *was the
@@ -1986,8 +2013,12 @@ position. A position that counted zero on some days of the period, because
 no price or no exchange rate was stored, keeps its place in the table and in
 the sum, carries the number of those days on its row, and is named in a note
 under the table. A period with nothing in it shows a sentence instead of a
-table of zeros, and on a phone the table becomes two-line rows. Two
-different securities with the same name each show what tells them apart
+table of zeros, and on a phone the table becomes two-line rows. There a
+row's flow names its side — "inflow into the position 2,000.00", "outflow
+from the position 1,420.00" — because the flow is the position's own: money
+paid into it by buying, or taken out of it by selling, not money leaving the
+portfolio.
+Two different securities with the same name each show what tells them apart
 after the name, in the table and in the phone rows: the ISIN where both
 have one and they differ, else the record's number ("no. 42"). The table
 has one row per security, whichever depot holds it, so such securities are
@@ -2377,7 +2408,10 @@ The **Risk** tab of the Wealth area shows two things that answer one question
   retired. A rename changes only the label: it creates no version, the new
   name reads for the rule with all its versions, and the audit journal keeps
   the previous name. A retired rule is renamed the same way from the list of
-  retired rules. Risk shows the rules of the active view, so a rule that
+  retired rules. A rule on a security you have since retired still names that
+  security in its words (issue #944); where an active security carries the
+  same name, every rule's words tell the two apart by their ISIN. A new rule
+  cannot pick a retired security. Risk shows the rules of the active view, so a rule that
   applies in another view is found in that view: when deleting a view, a
   category, a classification or a security is refused because rules read it,
   the refusal names the rules with their status and view, and each name links
@@ -3052,7 +3086,8 @@ naming the already-booked event) stays inline in the dialog.
   marks each side beyond which more tabs lie, and the row always comes to rest
   with a whole tab at its left edge — also at its end, where a little empty
   space follows the last tab.
-- Theme: system, light, and dark modes are supported.
+- Theme: system, light, and dark modes are supported (the menu is
+  *Erscheinungsbild* in German).
 - Accent: violet, teal, and coral logo accent choices are supported.
 - Language: first load follows the browser language when it is English or
   German. Explicit EN/DE links override the browser language and persist that

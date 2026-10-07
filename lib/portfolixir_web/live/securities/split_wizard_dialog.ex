@@ -166,7 +166,7 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
           <div class="alert-warning" role="alert" data-warning={warning}>
             <span>
               <%= gettext(
-                "A split with a different ratio is already booked for this security on this date (%{ratio}). Booking is refused while it stands.",
+                "A split with a different ratio is already booked for this security on this date (%{ratio}). Booking is refused while it stands, and the preview shows no quantity after it.",
                 ratio: ratio_label(@booked_split)
               ) %>
             </span>
@@ -202,7 +202,13 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
   defp ratio_label(%Transaction{split_ratio_numerator: p, split_ratio_denominator: q}),
     do: "#{p}:#{q}"
 
+  # What the not-computable "after" cell says to a screen reader (#1066).
+  defp conflict_na_sentence,
+    do: gettext("no quantity after: a different ratio is booked on this day")
+
   defp render_preview(assigns) do
+    assigns = assign(assigns, :conflict?, :conflicting_split_ratio in assigns.preview.warnings)
+
     ~H"""
     <div class="data-table-wrap">
       <table id="split-wizard-preview" class="data-table">
@@ -230,8 +236,26 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
               <% end %>
             </td>
             <td class="num" data-role="qty-before"><%= quantity(row.quantity_before) %></td>
-            <td class="num" data-role="qty-after"><%= quantity(row.quantity_after) %></td>
-            <td class="num" data-role="qty-current"><%= quantity(row.current_position) %></td>
+            <%!-- #1066, pick J8 = A (board 08): under a conflicting ratio
+                 the "after" figures would be the refused ratio alone and
+                 the refused ratio stacked on the booked one — two worlds
+                 the refusal never lets happen. Both cells are the
+                 not-computable dash in the muted voice; the warning above
+                 the table says why, outside the table, which scrolls
+                 sideways on a phone. A screen reader reads the reason in
+                 the cell instead of the dash (UX-DR7, as the trades
+                 table's p.a. cell does). --%>
+            <%= if @conflict? do %>
+              <td class="num split-na" data-role="qty-after">
+                <span aria-hidden="true">—</span><span class="visually-hidden"><%= conflict_na_sentence() %></span>
+              </td>
+              <td class="num split-na" data-role="qty-current">
+                <span aria-hidden="true">—</span><span class="visually-hidden"><%= conflict_na_sentence() %></span>
+              </td>
+            <% else %>
+              <td class="num" data-role="qty-after"><%= quantity(row.quantity_after) %></td>
+              <td class="num" data-role="qty-current"><%= quantity(row.current_position) %></td>
+            <% end %>
           </tr>
         </tbody>
       </table>
@@ -453,7 +477,7 @@ defmodule PortfolixirWeb.Securities.SplitWizardDialog do
   # every split-adjusted quote read.
   defp warning_message(:conflicting_split_ratio) do
     gettext(
-      "A split with a different ratio is already booked for this security on this date. Booking will be rejected — delete the existing event first if it is wrong."
+      "A split with a different ratio is already booked for this security on this date. Booking will be rejected, and the preview shows no quantity after it — delete the existing event first if it is wrong."
     )
   end
 

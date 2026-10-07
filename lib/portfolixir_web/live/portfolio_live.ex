@@ -2446,10 +2446,12 @@ defmodule PortfolixirWeb.PortfolioLive do
               />
             </div>
           </header>
+          <%!-- #1090 (board 08 ①): a basis line about the rows, in the
+               screen's nouns. That the table is the API's own projection
+               stays true and is said where it helps: the API guide and the
+               column picker's grouping. --%>
           <p class="summary-basis" data-role="positions-basis">
-            <%= gettext(
-              "The holdings projection this instance serves over the API: one row per depot and security, valued at the latest stored price. The columns are that projection's own fields."
-            ) %>
+            <%= gettext("One row per depot and security, valued at the latest stored price.") %>
           </p>
           <%= if @holding_rows == [] do %>
             <div id="no-positions" class="empty-state" role="status">

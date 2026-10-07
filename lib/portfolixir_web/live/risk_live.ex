@@ -91,25 +91,23 @@ defmodule PortfolixirWeb.RiskLive do
       end
 
     rules = PolicyRules.list_rules(portfolio.id, view: findings.view_id, include_retired: true)
-    options = options()
+    securities = Catalog.list_securities(sort: {:name, :asc})
+    options = options(securities)
 
     assign(socket,
       findings: findings,
       rules: rules,
-      names: names(options),
+      names: names(options, securities, findings.findings),
       options: options
     )
   end
 
   defp empty_names, do: %{securities: %{}, categories: %{}, views: %{}}
 
-  defp options do
+  # The choices a new rule may pick: retired securities stay out.
+  defp options(all_securities) do
     classifications = Classifications.list_classifications()
-
-    securities =
-      [sort: {:name, :asc}]
-      |> Catalog.list_securities()
-      |> Enum.reject(& &1.is_retired)
+    securities = Enum.reject(all_securities, & &1.is_retired)
 
     # Twins are told apart by their ISIN (the closing act, UAT-13).
     tags = SecurityNames.tags(securities)
@@ -130,9 +128,25 @@ defmodule PortfolixirWeb.RiskLive do
     }
   end
 
-  defp names(options) do
+  # The names the findings' words read: every active security, plus every
+  # security subject of a rule in force that the choices leave out — a
+  # retired one, read from the stored row (#944, board 08.4). It resolves to
+  # its name where the words fell back to "Security". A subject deleted since
+  # still falls back. Every label comes from one set of tags over all of
+  # them, so a retired subject and its active twin both carry what tells
+  # them apart — the choices' own labels count only the active securities
+  # and would leave the active twin bare.
+  defp names(options, all_securities, findings) do
+    subject_ids =
+      MapSet.new(
+        for %{subject_type: :security, security_id: id} <- findings, is_integer(id), do: id
+      )
+
+    named = Enum.filter(all_securities, &(not &1.is_retired or &1.id in subject_ids))
+    tags = SecurityNames.tags(named)
+
     %{
-      securities: Map.new(options.securities),
+      securities: Map.new(named, &{&1.id, SecurityNames.label(tags, &1)}),
       categories:
         options.categories
         |> Enum.flat_map(fn {_group, categories} -> categories end)

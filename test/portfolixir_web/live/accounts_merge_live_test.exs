@@ -178,7 +178,7 @@ defmodule PortfolixirWeb.AccountsMergeLiveTest do
       assert has_element?(
                view,
                "#merge-dialog",
-               "Tagesgeld (alt) is deleted afterwards. This cannot be undone; every changed booking is journaled."
+               "Tagesgeld (alt) is deleted afterwards. This cannot be undone; the journal records every changed booking."
              )
     end
 

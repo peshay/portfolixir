@@ -4265,11 +4265,14 @@ MCP are unchanged. Built in `securities/row_context_menu.ex`.
   terms): "Delete this security? Bookings, quotes, events, research entries
   and policy rules block the deletion. Removed with it: its
   classifications, position targets, bucket assignments and former ISINs,
-  each journaled, and its logo." (de "Dieses Wertpapier löschen? Buchungen,
-  Kurse, Termine, Research-Einträge und eigene Regeln blockieren das
-  Löschen. Mit entfernt werden seine Klassifizierungen, Positionsziele,
-  Bucket-Zuordnungen und früheren ISINs, jede im Journal, und das Logo.")
-  It no longer says research notes are lost: they block.
+  ~~each journaled~~ each recorded in the journal, and its logo." (de
+  "Dieses Wertpapier löschen? Buchungen, Kurse, Termine, Research-Einträge
+  und eigene Regeln blockieren das Löschen. Mit entfernt werden seine
+  Klassifizierungen, Positionsziele, Bucket-Zuordnungen und früheren ISINs,
+  ~~jede im Journal~~ jeweils im Journal festgehalten, und das Logo.")
+  It no longer says research notes are lost: they block. (Amended
+  2026-10-07, Sprint 19 PR γ U6's review: "journaled" is R10d's banned
+  word in English as "journalisiert" is in German.)
 - **"Cannot delete" names what blocks, counted** from the refusal's
   `{:referenced, counts}` (`PortfolixirWeb.ReferenceCounts`, the accounts
   page's "still has" as the precedent): "“Nordwind Industrie AG” still has
@@ -4591,9 +4594,16 @@ admin tool).
   Stand von Girokonto bleibt, wie er am 22.09.2026 gesetzt wurde." Then the
   general sentence: "Bestände, Kontostände, Rendite und Trades werden ohne
   diese Buchung neu berechnet." Stored names sit in `<bdi>` (H8.8).
-- **The journal, honestly:** "Das Journal behält die Buchung mit allen
-  Werten; zurückholen kann die Oberfläche sie nicht." — hence danger, not
-  primary, as in the quote release.
+- **The journal, honestly:** ~~"Das Journal behält die Buchung mit allen
+  Werten; zurückholen kann die Oberfläche sie nicht."~~ **Amended 2026-10-07
+  (issue 1090, Sprint 19 PR γ U6; board
+  `mockups/ux-design-2026-10-04/08-copy-dialogs` ⑥):** "Das Audit-Journal
+  hält die Löschung mit allen Werten fest; wiederherstellen lässt sich die
+  Buchung nicht." (English "The audit journal records the deletion with
+  every value; the booking cannot be restored.") — what the journal keeps
+  is a record of the deletion, not the booking, which the first-look
+  persona read as both kept and gone. Hence danger, not primary, as in the
+  quote release.
 - **An imported booking (A3)**: one `attention` data note — "Diese Buchung
   stammt aus einem Import. Gelöscht, kennt der Import sie nicht mehr: Ein
   erneuter Import derselben Datei bucht sie wieder." (plain words, R10d; it
@@ -4638,13 +4648,17 @@ admin tool).
   Sparplan-Portfolio; beide Zeilen werden in einem Schritt gelöscht.";
   "Danach zählen die Bestände von Kestrel Robotik SE ab dem 15.09.2026
   wieder ohne den Split, und das Diagramm rechnet seine Kursreihe ohne ihn;
-  gespeicherte Kurse bleiben, wie sie sind."; the journal keeps both rows.
+  gespeicherte Kurse bleiben, wie sie sind."; "Das Audit-Journal hält die
+  Löschung beider Zeilen fest." (amended 2026-10-07, issue 1090: the
+  delete dialog's verb, where it said "the journal keeps both rows").
   The confirm reads "Split löschen (2 Zeilen)". The result: "Split
   gelöscht: Kestrel Robotik SE · 2:1 · 15.09.2026, 2 Zeilen." **A split in
   one portfolio names no row** (R10d): the box shows the ratio alone, "Der
-  Split ist nur in Hauptportfolio gebucht.", "Das Journal behält den
-  Split.", the confirm "Split löschen", the result "Split gelöscht: Kestrel
-  Robotik SE · 2:1 · 15.09.2026."
+  Split ist nur in Hauptportfolio gebucht.", "Das Audit-Journal hält die
+  Löschung des Splits fest." (amended 2026-10-07, issue 1090; it said "Das
+  Journal behält den Split."; three rows and more: "… die Löschung aller 3
+  Zeilen fest"), the confirm "Split löschen", the result "Split gelöscht:
+  Kestrel Robotik SE · 2:1 · 15.09.2026."
 - **The confirm keeps to the rows the dialog listed** (R5). The dialog
   carries the event — security, date, normalized ratio — and the ids it
   listed; the confirm reads the event's rows again, anchors the delete on
@@ -4671,7 +4685,10 @@ admin tool).
 - **A8, "Record split" links to it.** The conflicting-ratio warning names
   the booked ratio — "Für dieses Wertpapier ist an diesem Datum bereits ein
   Split mit anderem Verhältnis gebucht (2:1). Die Buchung wird abgelehnt,
-  solange er steht." — and carries **Gebuchten Split löschen…**; the booking
+  solange er steht, und die Vorschau zeigt keine Stückzahl danach." (the
+  second clause amended 2026-10-07, pick J8 = A: Components → Amendment
+  2026-10-07 → The split wizard under a conflicting ratio) — and carries
+  **Gebuchten Split löschen…**; the booking
   refusal (a conflicting or an already booked split) carries the same link.
   It closes the wizard and opens the dialog on the security's page, so the
   delete and the rebooking happen in one place. `.alert-warning
@@ -5040,3 +5057,177 @@ had no words for that state. Built as drawn; no `app.css` rule changes.
   (`/security_logos/<id>.<ext>`), never the URL the image came from, and the
   field's `type="url"` refuses it on save; the field starts empty in every
   state, its placeholder showing the shape it takes.
+
+## Amendment 2026-10-07 — Copy and dialog states *(Sprint 19 pick J8 = A, PR γ U6; issues 1090, 1074, 1066, 1072, 944, 945)*
+
+Board `mockups/ux-design-2026-10-04/08-copy-dialogs` (the design pass's
+Part 8): before/after for the copy, one pick, J8, taken as recommended (A).
+Each part names what was built. The history subtitle (board 03) and "1
+units" (board 04) are other stories'.
+
+### The words a newcomer misread *(issue 1090, and issue 1074's drawer half)*
+
+- **The Positions basis line is about the rows** (①): "Eine Zeile je Depot
+  und Wertpapier, bewertet zum zuletzt gespeicherten Kurs." (English "One
+  row per depot and security, valued at the latest stored price.";
+  `data-role="positions-basis"`). It used to explain the API's holdings
+  projection, which a newcomer read as a sentence about the table. That
+  the table is the API's own projection stays true and is said where it
+  helps: the API guide and the column picker's grouping.
+- **The theme menu is "Erscheinungsbild"** in German (②): its summary's
+  `title`, its hidden label and its group's `aria-label`; English keeps
+  "Theme". The msgid stays "Theme".
+- **The wealth card says the period in words** (③): "+4,2 % seit
+  Jahresbeginn" (English "year to date"), under a msgid of its own. The card
+  is one link and cannot hold an ⓘ, so the label has to carry the meaning.
+  "YTD" stays the period token of the range controls (Period control above).
+  The card's pending state with a prior value (`data-role="overview-stale"`)
+  follows it: its label and its "Letzter Stand: … % seit Jahresbeginn — …"
+  sentence.
+- **"Liquiditätsrolle" and "Buckets" are defined where they head their
+  columns** (④). Each head on Accounts & depots carries an inline ⓘ
+  (`.metric-tooltip--inline`, a `<details>` whose summary is labelled
+  "Zur Liquiditätsrolle" / "Zu den Buckets") with one sentence each:
+  "Liquiditätsrolle — wie ein Verrechnungskonto zählt: Verfügbares Cash
+  geht in die Cashquote ein, Reserve und Kreditlinie nicht." and "Buckets —
+  Tags für Depots und Verrechnungskonten. Eine Ansicht wählt Buckets aus
+  und grenzt jede Kennzahl auf deren Konten ein; ein Konto kann mehreren
+  angehören." The head keeps its ⓘ beside the word (`th.accounts-term-head`,
+  `white-space: nowrap`); the panel opens upward over the page head, and
+  the Buckets panel, right of centre, grows leftward
+  (`.metric-tooltip--end`) so it stays inside a 768 px page. **Under 640 px**
+  the head is hidden, so the same ⓘ rides in the rows
+  (`.accounts-term-info--phone`, hidden above 640 px): the role's beside
+  each cash account's role control, the Buckets' after each chip group's
+  scope line, which became a `<div>` to hold it. There the panel is
+  anchored to its cell and takes the card's width: an ⓘ two thirds across
+  a 390 px card had no room for an 18rem panel on either side. The head's
+  own two ⓘ take `display: none` there: the head is only visually hidden,
+  and they stayed in the tab order as two stops nobody could see (the
+  review of U5); the rows' copies serve the phone.
+- **The contribution phone row names the side of the flow** (⑤): "Abfluss
+  aus der Position 1.420,00" / "Zufluss in die Position 2.000,00" (English
+  "outflow from the position …" / "inflow into the position …"). The flow
+  is the position's own, the formula's "Zu-/Abflüsse"; said bare,
+  "Abfluss" beside a gain read as money leaving the portfolio. Board 02's
+  phone rows take the same words.
+- **The delete dialog's journal sentence** (⑥): "Das Audit-Journal hält
+  die Löschung mit allen Werten fest; wiederherstellen lässt sich die
+  Buchung nicht.", and the split's four sentences take the same verb ("…
+  hält die Löschung des Splits / beider Zeilen / seiner Zeile / aller n
+  Zeilen fest"); amended in place above (Deleting a booking → The dialog;
+  A split, deleted whole).
+- **The buy/sell drawer's sub line** (⑦, issue 1074): "Korrigiert die
+  Buchung an Ort und Stelle; die abgeleiteten Bestände folgen, und das
+  Journal hält die Änderung fest." — the H2b rule ("the journal records the
+  change", never "journalisiert", R10d), which the notes-only drawer has
+  followed since Sprint 18. **Found while drawing, fixed with it:** the
+  rule rename note ("… das Journal hält die Änderung fest, und der
+  bisherige Name bleibt dort lesbar.") and the two merge confirmations
+  ("… das Journal hält jede geänderte Buchung / Zeile fest.") say it the
+  same way. No German string says "journalisiert" any more, and no English
+  one says "journaled": the security delete confirmation, the last that
+  did, says "each recorded in the journal" (de "jeweils im Journal
+  festgehalten"; amended in place under Deleting a security). The
+  microcopy-voice invariant reads both.
+- **Found while drawing, fixed here:** the German strings that addressed
+  the reader as "du" in the middle of a sentence ("— wähle einen",
+  "Aktualisiere die Seite und versuche es erneut", "korrigiere die Buchung
+  in der Quelle und importiere erneut", "gib den Text ohne sie neu ein",
+  and the rest) take the house infinitive ("— einen wählen", "Die Seite neu
+  laden und erneut versuchen", "den Text ohne sie neu eingeben"); the
+  microcopy-voice invariant now reads the whole sentence, not its first
+  word, and both catalogs. The row menu's German "Logo verwalten…" keeps
+  the ellipsis of "Manage logo…": the item opens a dialog.
+
+### The split wizard under a conflicting ratio *(J8 = A, issue 1066)*
+
+- **When.** "Record split" with a different ratio already booked for the
+  security on the same day: the warning `conflicting_split_ratio` stands,
+  and booking is refused while it does (A8 above).
+- **The two "after" cells are the not-computable dash.** "Stückzahl danach
+  (zum Stichtag)" and "Resultierende Position (heute)" read "—" in the muted
+  voice
+  (`#split-wizard-preview td.split-na`, {colors.text-muted}, still `.num`),
+  the value slot's dash with its reason (UX-DR7): they would print the
+  refused ratio alone beside the refused ratio stacked on the booked one —
+  two worlds the refusal never lets happen (a booked 1:2 and a previewed
+  4:1 read 120 beside 60, where what stands is 15). "Stückzahl vorher"
+  keeps its figure; `Splits.preview_split/1` is unchanged, the screen only
+  stops printing what it computed.
+- **The reason sits outside the table**, because on a phone the table
+  scrolls sideways: the warning gains "…, und die Vorschau zeigt keine
+  Stückzahl danach." (English "…, and the preview shows no quantity after
+  it."), and the fallback sentence, for a booked split the wizard cannot
+  name, says the same.
+- **A screen reader reads the reason, not the dash** (UX-DR7; the review
+  of U6): the dash is `aria-hidden`, and beside it a `.visually-hidden`
+  sentence reads "keine Stückzahl danach: an diesem Tag ist ein anderes
+  Verhältnis gebucht" (English "no quantity after: a different ratio is
+  booked on this day") — the shape of the trades table's p.a. cell. The
+  picture is unchanged.
+- **Not built (J8 B):** the figures with a "würde abgelehnt" badge. The
+  contradicting numbers would have stayed on screen.
+
+### The security dialog's vanished conflict row *(issue 1072, H8.6)*
+
+- **When.** The new-security dialog found a listing that matches an
+  existing security ("This security already exists"), and that security
+  was deleted or merged away (the API, MCP, another tab) before **Merge
+  online fields** or **Update existing** was pressed.
+- **Both buttons answer it with H8.6**: the dialog closes, the list
+  reloads, and the page's result slot carries the note, focused and
+  brought into view — "„Arbolia Inc.“ wurde inzwischen gelöscht; die Liste
+  ist neu geladen." or "„Arbolia Inc.“ wurde inzwischen in Arbolia Holdings
+  Inc. zusammengeführt; die Liste ist neu geladen.", the survivor a link in
+  `<bdi>`. The name is the stale list's; a match created after the list
+  loaded is named by the dialog's own record, so the closed dialog is never
+  silent.
+- **What it replaces.** "Merge online fields" put the bare `:not_found`
+  into the dialog's errors, the render read it as a map, and the LiveView
+  crashed and remounted silently, losing the search; "Update existing"
+  answered with the edit dialog's in-dialog alert. The **edit** dialog's own
+  alert for a record deleted meanwhile (E25 S6, F49) stays: there the
+  operator is editing that record, not choosing between two.
+
+### Retired subjects in the Risk findings *(issue 944)*
+
+The findings' name map covers every security subject of a rule in force,
+read from the stored rows: a rule on a security retired since reads its
+name — "Gewicht · <bdi>Nordwind Industrie AG</bdi> · Obergrenze · Warnung"
+— where its words fell back to "Wertpapier". The name sits in `<bdi>` like
+every stored name in the words; a retired security that shares its name
+with an active one is told apart by its ISIN, as everywhere else
+(`SecurityNames`), and so is the active twin in its own rules' words: every
+label comes from one set of tags over the active securities and the
+retired subjects together, never the choices' labels, which count the
+active ones alone (the review of U6). The new-rule choices still leave
+retired securities out.
+A subject deleted since still falls back to the type word. The API and MCP
+findings carry `security_id`, which resolves a retired security as any
+other; they are unchanged.
+
+### Plan refusals name their row *(issue 945)*
+
+- **The row first, then the rule.** The plan editor's precision and 0–100 %
+  refusals name the refused input in the editor's own words: "Soll von
+  „Aktien Welt“: höchstens vier Nachkommastellen in Prozent", "Positionsziel
+  von „Nordwind Industrie AG“ unter „Aktien Europa“: …", "Cash-Ziel: …";
+  the range refusal ends "…: muss zwischen 0 und 100 % liegen". English:
+  "Target of “…”: at most four decimal places in percent", "Position target
+  of “…” under “…”: …", "Cash target: …", "…: must lie between 0 and 100 %".
+  Stored names sit in `<bdi>` (H8.8). The row is read off the refused
+  changeset; position rows are written before the category rows that
+  follow their sum, so a refused position names itself rather than its
+  category's sum. Nothing is written, not even a valid row saved in the
+  same batch.
+- **The inputs take `step="any"` and carry no `min` or `max`** (found while
+  drawing; the range half from the review of U6): with `step="0.1"` the
+  browser refused "8,12" before it was ever sent, so two-decimal targets,
+  which the store keeps, could not be typed, and with `max="100"` it
+  answered "150" with its own "Value must be less than or equal to 100."
+  (and `min="0"` a negative the same way) — in both cases the server's
+  refusal naming the row was the one the operator never met. The store
+  decides: 0–100 %, four decimal places in percent.
+- The API and MCP writes are out of scope (issue 945's statement): their
+  422 still names the field, not the row.

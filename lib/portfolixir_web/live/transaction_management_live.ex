@@ -2221,7 +2221,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
               <%= if @editing?,
                 do:
                   gettext(
-                    "Corrects the booking in place; the derived holdings follow and the change is journaled."
+                    "Corrects the booking in place; the derived holdings follow, and the journal records the change."
                   ),
                 else:
                   gettext("Books against the chosen depot; the cash moves in its cash account's currency.") %>

@@ -939,7 +939,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     </AppShell.data_note>
     <AppShell.data_note severity={:attention} data-role="merge-warning">
       <%= gettext(
-        "The source (created %{date}) is deleted afterwards — the entry, not its ISIN. This cannot be undone; every changed row is journaled.",
+        "The source (created %{date}) is deleted afterwards — the entry, not its ISIN. This cannot be undone; the journal records every changed row.",
         date: created_on(@source)
       ) %>
     </AppShell.data_note>

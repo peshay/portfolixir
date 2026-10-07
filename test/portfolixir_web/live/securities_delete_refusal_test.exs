@@ -118,7 +118,8 @@ defmodule PortfolixirWeb.SecuritiesDeleteRefusalTest do
   # - The confirmation names bookings, quotes, events, research entries and
   #   policy rules as what blocks, and the classifications, position
   #   targets, bucket assignments, former ISINs and the logo as removed with
-  #   it; it no longer says notes are lost.
+  #   it, each "recorded in the journal", never "journaled" (R10d; the review
+  #   of Sprint 19 U6); it no longer says notes are lost.
   # - A security with research entries: "“Nordwind Industrie AG” still has
   #   2 bookings, 3 quotes and 2 research entries.", the research sentence,
   #   and Cancel and Retire instead only.
@@ -131,7 +132,7 @@ defmodule PortfolixirWeb.SecuritiesDeleteRefusalTest do
     {:ok, view, _html} = live(conn, "/securities")
 
     assert confirmation(view, researched) ==
-             "Delete this security? Bookings, quotes, events, research entries and policy rules block the deletion. Removed with it: its classifications, position targets, bucket assignments and former ISINs, each journaled, and its logo."
+             "Delete this security? Bookings, quotes, events, research entries and policy rules block the deletion. Removed with it: its classifications, position targets, bucket assignments and former ISINs, each recorded in the journal, and its logo."
 
     delete_row(view, researched)
 
@@ -162,7 +163,7 @@ defmodule PortfolixirWeb.SecuritiesDeleteRefusalTest do
     {:ok, view, _html} = live(german(conn), "/securities")
 
     assert confirmation(view, researched) ==
-             "Dieses Wertpapier löschen? Buchungen, Kurse, Termine, Research-Einträge und eigene Regeln blockieren das Löschen. Mit entfernt werden seine Klassifizierungen, Positionsziele, Bucket-Zuordnungen und früheren ISINs, jede im Journal, und das Logo."
+             "Dieses Wertpapier löschen? Buchungen, Kurse, Termine, Research-Einträge und eigene Regeln blockieren das Löschen. Mit entfernt werden seine Klassifizierungen, Positionsziele, Bucket-Zuordnungen und früheren ISINs, jeweils im Journal festgehalten, und das Logo."
 
     delete_row(view, researched)
 

@@ -140,7 +140,7 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
              "Afterwards Depot 1 holds 40 fewer units of Global Aktien ETF, and Girokonto has 2,504.90 EUR more."
 
     assert consequence =~ "recomputed without this booking"
-    assert dialog =~ "the screen cannot bring it back"
+    assert dialog =~ "the booking cannot be restored"
     refute has_element?(view, "[data-role='booking-delete-imported']")
     assert has_element?(view, "#booking-delete-confirm.button-danger")
     refute has_element?(view, "#booking-delete-confirm[data-confirm]")
@@ -329,8 +329,8 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
   # - A delivery of 1 without a price reads "1 unit" in the box and "holds 1
   #   fewer unit of …" in the sentence.
   # - A split booked in one portfolio shows no row count in its box, says it
-  #   is booked only in that portfolio, that the journal keeps the split, and
-  #   its result names no row count.
+  #   is booked only in that portfolio, that the audit journal records the
+  #   deletion of the split (#1090), and its result names no row count.
   # - The German import note reads "Gelöscht, kennt der Import sie nicht
   #   mehr: …", never "Inhalts-Hash".
   test "the dialog says one unit, one portfolio and the import plainly",
@@ -375,7 +375,7 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
     refute has_element?(view, "#booking-delete-subject .phone-row__figure2")
     dialog = view |> element("#booking-delete-dialog") |> render() |> text()
     assert dialog =~ "The split is booked only in Hauptportfolio."
-    assert dialog =~ "The journal keeps the split."
+    assert dialog =~ "The audit journal records the deletion of the split."
     refute dialog =~ "row"
 
     view |> element("#booking-delete-confirm") |> render_click()
@@ -627,7 +627,7 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
              "Bestände, Kontostände, Rendite und Trades werden ohne diese Buchung neu berechnet."
 
     assert dialog =~
-             "Das Journal behält die Buchung mit allen Werten; zurückholen kann die Oberfläche sie nicht."
+             "Das Audit-Journal hält die Löschung mit allen Werten fest; wiederherstellen lässt sich die Buchung nicht."
 
     view |> element("#booking-delete-confirm") |> render_click()
 
