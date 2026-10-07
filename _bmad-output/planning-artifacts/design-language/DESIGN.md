@@ -353,7 +353,7 @@ components:
     appearance: '{components.selected-segment}'
     tokens: '1M 3M 6M YTD 1Y 3Y 5Y Max — one vocabulary app-wide; each surface declares the subset it offers'
     custom-range: 'behind a disclosure ({components.disclosure}), never permanent chrome; its body is a popover on the trigger (issue 801, C5-A) — the heading and the chart do not move when it opens'
-    date-fields: '{components.native-control} — ISO in the input, not only in the display'
+    date-fields: '{components.native-control} — ISO in the input; the applied range chip reads Format.date (amended 2026-10-07, Sprint 19 U3; it said "not only in the display")'
   disclosure:
     scope: 'data-as-table under every chart; custom range; entry forms out of the reading sightline'
     rule: 'UX-DR10 (defined in EXPERIENCE.md), UX-DR19 for the marker'
@@ -395,7 +395,7 @@ components:
     rule: 'UX-DR19 (defined in EXPERIENCE.md)'
     container: 'inherits {components.input}'
     indicator: 'defined appearance — select chevron, disclosure chevron, checkbox mark — never the browser default'
-    dates: 'ISO (YYYY-MM-DD) in input and display alike'
+    dates: 'ISO (YYYY-MM-DD) in the input; a displayed date follows the page language through Format.date — DD.MM.YYYY in German, ISO in English (UX-DR19 as amended 2026-10-03; amended here 2026-10-07, Sprint 19 U3)'
     checkbox: '14px box, accent-color {colors.accent}, label on the same line as the box'
   button:
     background: '{colors.bg-elevated}'
@@ -734,7 +734,7 @@ The ramp is density-first:
 - {typography.topbar-title} — 15px/760: the page identity in the sticky top bar.
 - {typography.control-label} — 12px/500, 0.04em: the shared voice of segmented options, tabs, period tokens and quiet disclosure summaries. One size for one class of control.
 - {typography.nav-group-head} and {typography.stat-label} — small uppercase tracked labels; the only all-caps voices.
-- {typography.chart-axis} — 9px mono inside SVG.
+- {typography.chart-axis} — 9px mono inside SVG, 9 CSS px at every chart width (amended 2026-10-07, pick J5 A: the chart hook's `--chart-upx` undoes the viewBox's scaling; on a chart at most 760 px wide, or when a value is wider than the gutter, the values sit inside the plot on their grid lines).
 
 Inter is used at variable-font weights (500, 540, 600, 650, 680, 700, 740, 760, 780) — fine-grained weight is the primary hierarchy device, not size. **Weight changes on state must be width-reserved** ({components.width-reserve}).
 
@@ -964,7 +964,7 @@ If per-segment streaming is ever built, this entry is revisited: at that point t
 
 **Those four numbers describe the screenshots, not the codebase, and a story cut from them would under-scope by an order of magnitude.** Counted app-wide on 2026-08-05: **11** `type="date"` inputs, **29** `<select>` elements, **25** `<details>` elements and **13** `type="checkbox"` inputs. Per-file line numbers are in EXPERIENCE.md → Alignment inventory → UX-DR19.
 
-Precisely: app.css already styles the *container* — `input, select, textarea` share {components.input} — but not the *internals*. The select keeps the native chevron and native option list; `<details>` keeps the native triangle wherever the summary has no class; the checkbox has an accent colour but no defined mark. And `<input type="date">` renders `MM/DD/YYYY` in an otherwise fully ISO product. **Dates render ISO in inputs as well as in displays.**
+Precisely: app.css already styles the *container* — `input, select, textarea` share {components.input} — but not the *internals*. The select keeps the native chevron and native option list; `<details>` keeps the native triangle wherever the summary has no class; the checkbox has an accent colour but no defined mark. And `<input type="date">` renders `MM/DD/YYYY` ~~in an otherwise fully ISO product. **Dates render ISO in inputs as well as in displays.**~~ beside ISO date fields. *Amended 2026-10-07 (Sprint 19 PR γ U3; UX-DR19 as amended 2026-10-03):* **dates render ISO in inputs; a date the page only shows follows its language** (`Format.date`: DD.MM.YYYY in German, ISO in English) — Amendment 2026-10-07 → Displayed dates and the chart axes.
 
 **Resolved 2026-08-10 (issue 641, Sprint 5):** no browser renders ISO in `type="date"`, so the date input is the one native control that is *replaced* rather than styled — an ISO text input (`YYYY-MM-DD` placeholder, pattern, maxlength 10; no `inputmode="numeric"`, whose iOS keypad has no dash) with live `:invalid` marking. The wire format is unchanged. The native calendar picker is given up for format consistency — a deliberate trade, pinned by `test/invariants/iso_date_input_test.exs`. Selects, `<details>` and checkboxes stay native-styled work.
 
@@ -1029,9 +1029,10 @@ set-balance dialog on Accounts & depots.
   their digits; the plan editor's are already right-aligned
   (`.soll-table input[type="number"]`).
 - **Dates are not part of it.** A date field is the ISO text input of UX-DR19
-  above (`YYYY-MM-DD` in every locale), and the ISO date in the settlement
-  block's source hint is fixed by the Amendment 2026-09-24 below; #869's two date
-  bullets close as spec-conformant.
+  above (`YYYY-MM-DD` in every locale), and the date in the settlement
+  block's source hint is fixed by the Amendment 2026-09-24 below (in the
+  page's language since 2026-10-07); #869's two date bullets close as
+  spec-conformant.
 
 Pinned by `decimal_input_test.exs` (the rule, both locales, the ambiguous
 shapes), `test/invariants/decimal_input_test.exs` (every decimal text input
@@ -1079,7 +1080,7 @@ carries `num`; no second comma rule in the web layer) and
 | Reserve the metrics of any state that changes weight or adds an ornament | Bold on active and let the row shift 10–21px |
 | Give every data message a severity, an icon and a word | Encode severity in colour alone, or in a bullet list |
 | Style native controls — date, select, `<details>`, checkbox — to the language | Ship browser defaults beside custom controls |
-| Render dates ISO in inputs as well as displays | Let the browser locale decide the input format |
+| Render dates ISO in inputs, and a shown date in the page's language through `Format.date` (amended 2026-10-07) | Let the browser locale decide the input format, or print `Date.to_iso8601` where a date is only shown |
 | Give every wide block its own `overflow-x` container and `min-width: 0` | Rely on the page to scroll — `.workspace-page` clips |
 | Make pending, settling, final and not-computable four distinct appearances | Render "loading" and "cannot be computed" as two similar glyphs |
 | Keep the 13px density base and weight-driven hierarchy | Inflate font sizes to fake hierarchy |
@@ -1891,7 +1892,8 @@ composition per surface that the column picker does not touch.
   as the desktop Konto cell does; the subject line breaks anywhere, as it
   does in every phone list (Transactions — the target vocabulary).
 - **A security's quotes** *(Sprint 18 U5, issue 1012, pick H7.1 = A)*: the
-  date (ISO) over the source badge; on the right the close with the
+  date (`Format.date` since 2026-10-07, ISO only in English; Sprint 19 U3)
+  over the source badge; on the right the close with the
   security's currency, over "stored <value>" only where a split adjusted the
   close. Two children, no kebab (Amendment 2026-10-03, the phone at 390 px).
 - **Wealth's Positions** *(2026-10-07, issue 1065, Sprint 19 PR γ U4; board
@@ -2436,8 +2438,10 @@ Board `ux-design-2026-09-23/03-settlement-inputs`, variant A, as built.
   box's padding, carrying where the suggestion came from ("suggested from the
   stored exchange rates on or before 2026‑09‑13", or "no stored exchange rate …
   enter the settlement amount from the broker statement") and the guard in one
-  sentence, so its 422 never surprises. The ISO date in running text uses
-  non-breaking hyphens.
+  sentence, so its 422 never surprises. ~~The ISO date in running text uses
+  non-breaking hyphens.~~ *Amended 2026-10-07 (Sprint 19 U3):* the day reads
+  the page's language once the field reads as a date ("am oder vor dem
+  13.09.2026"); an English ISO date keeps its non-breaking hyphens.
 - **Around it.** The price label names the security's currency ("Price (CHF)")
   and the derived-currency line reads "Price in CHF · cash in EUR".
 - **Behaviour.** Amount and rate derive each other from whichever was typed; a
@@ -3649,7 +3653,9 @@ the released rows), run as the operator.
   460px }` and `.quote-release-form` a grid with `--space-2` gaps; ② the
   phone sheet by joining the merge dialog's 720 px selector lists; ③
   `.data-note__body time { white-space: nowrap }`, so a 390 px line never
-  breaks an ISO date at its hyphen.
+  breaks a date inside it. *Amended 2026-10-07 (Sprint 19 U3):* the note's
+  dates read `Format.date` — a German one has no hyphen to break at; the
+  rule keeps an English ISO date whole.
 - **Stated, not settled here:** the remedy link-button is below the 44 px
   coarse-pointer floor, as every `.link-button` remedy in a note is (the
   board's Part 4 finding, filed rather than fixed here; settled by Sprint 18
@@ -4189,7 +4195,8 @@ CSS rules are pinned in `test/invariants/css_layout_sweep_test.exs`.
 Under 560 px the Quotes tab's table wrapper (`#quotes-table-wrapper`) joins
 the phone lists' hidden wrappers and `ul#quote-phone-rows.phone-rows`
 (labelled "Quotes") shows one two-line row per quote of the range, in the
-table's order: the date (ISO, `.phone-row__name`) over the source badge
+table's order: the date (`Format.date` since 2026-10-07, Sprint 19 U3;
+ISO only in English; `.phone-row__name`) over the source badge
 (`.phone-row__ids .badge.quote-source`) — the only per-row mark of a manual
 close, which sat off-screen in the table's own scroller — and on the right
 the close with the security's currency (`.phone-row__figure`), over
@@ -4872,7 +4879,8 @@ but `bond` and `government_bond`, read as the effective class.
   the two grids apart. The grid **is** `.overview-metrics`, three by two,
   two per row under 720 px (rule ④, which issue 1050 carried); the basis
   line **is** `.detail-tab-hint`, as under the ADR-0047 grid.
-- **First row, what was entered:** *Fälligkeit* (the ISO date; sub-line
+- **First row, what was entered:** *Fälligkeit* (the date through
+  `Format.date`, "15.06.2031" — ISO until 2026-10-07, Sprint 19 U3; sub-line
   "Emission <date>" when an issue date is set), *Kupon* ("2,5 %" with the
   unit "p. a."; sub-line *jährlich* or *halbjährlich*, or *keine
   Zinszahlung* for a zero coupon), *Nominal im Bestand* ("10.000,00" with
@@ -5335,3 +5343,162 @@ other; they are unchanged.
   decides: 0–100 %, four decimal places in percent.
 - The API and MCP writes are out of scope (issue 945's statement): their
   422 still names the field, not the row.
+
+## Amendment 2026-10-07 — Displayed dates and the chart axes *(Sprint 19 pick J5 = A, PR γ U3; issues 1061, 1087's Wealth half, 1088)*
+
+Board `mockups/ux-design-2026-10-04/05-dates-charts` (the design pass's
+Part 5): three before/after repairs and one pick, J5, taken as recommended
+(A). UX-DR19 as amended on 2026-10-03 already said it; this amendment
+records it as built and rewrites the sentences of this file that still
+prescribed ISO for a date the page only shows (found while drawing 2).
+
+### Every displayed date goes through `Format` *(issues 1061, 1087; found while drawing 3 and 4)*
+
+- **The rule.** A date the page shows reads the page's language through
+  `Format.date/2`: DD.MM.YYYY in German, ISO in English. **ISO stays where a
+  date is entered or exchanged:** `<time datetime>`, input values and form
+  parameters (the custom range's pair, the ISIN-change field, the release
+  range, the booking drawer's date and its disabled fact), `phx-value-*` and
+  `data-*` attributes, the chart hook's JSON, URL parameters (`since=`), the
+  API, MCP, a name the app stores ("PP Import 2026-10-07") and files.
+- **Two forms join it.** `Format.month/2` is the month of a date known only
+  to its month: "10.2026" in German, "2026-10" in English — the Termine
+  tab's month events and the per-month rows of Wealth's performance table.
+  `Format.utc_instant/2` is a compute instant to the minute: "04.10.2026
+  00:09 UTC" / "2026-10-04 00:09 UTC" — the basis line under Wealth's chart
+  ("04.10.2025 – 04.10.2026 · berechnet 04.10.2026 00:09 UTC") and the
+  superseded-series sentence, which had mixed `Format.date` with ISO.
+- **A custom range is named one way wherever the period is** (the U3
+  review): the range's chip, the KPI heads, the badge over the chart and
+  the contribution table's scope read "<from> – <to>" through one helper.
+- **The changed-since note says a day in the page's language** ("Geändert
+  seit 30.09.2026 (UTC)" on Transactions and Securities, from a chip or a
+  `?since=<day>` link); a full instant an agent's link carries is said as
+  given.
+- **Where it was ISO before.** The security detail: the head ("Letzter
+  112,40 (30.09.2026)"), the Overview's latest price, its lineage clauses
+  (the former ISIN's "bis …" and the merge link), the valuation status, the
+  Transactions tab, the Quotes table and its phone rows, the manual-quotes
+  note, the custom-range chip, every metric cell's window, the Termine tab
+  (a day, a window, a month, "Zuletzt geprüft …"), the bond strip (maturity,
+  issue, "fällig seit …", "Jahre ab …", the yield's quote day) and its
+  two-scales note. The securities list's date column. Both merge previews:
+  "angelegt …", the basis sentence, the pair tables and their phone lines,
+  the quote collisions, the event twins, the restated set balances and
+  every refusal and remedy sentence. The release dialog's chips. Wealth:
+  the stale-quote and suspect-dates notes, the basis line, the custom range's
+  chip, the per-month table rows, a benchmark's covered window ("ab …") and
+  the unit hint's "zum Kurs vom …". The import result lists (a skipped row's
+  description, an internal transfer, a booking behind a restated set
+  balance), the same-named accounts' "angelegt …" tag, the sell form's lot
+  preview, the settlement hint, the income year's payments table and the
+  snapshot list and comparison table.
+- **A date in running text no longer breaks at a hyphen in German**, which
+  has none (found while drawing 4). English keeps ISO: inside a note the
+  `<time>` stays whole (`.data-note__body time { white-space: nowrap }`) and
+  the settlement hint keeps its non-breaking hyphens.
+- **A test keeps it swept.** `test/invariants/displayed_dates_test.exs`
+  reads the web layer's source (the API directory left out): a template
+  that renders `Date.to_iso8601`, `DateTime.to_iso8601`,
+  `NaiveDateTime.to_iso8601`, `Date.to_string` or a `Calendar.strftime` with
+  an ISO date format outside a `datetime`, `value`, `href`, `navigate`,
+  `patch`, `phx-value-*` or `data-*` attribute fails, and so does a function
+  that builds one unless it is on the test's allow-list, each entry with its
+  reason; the allow-listed functions are one-line helpers that only build
+  a machine's value. A date interpolated raw (`<%= row.date %>`) the scan
+  cannot see, so one LiveView test reads the main German pages in their
+  event states — a custom range on Wealth, a since chip, every detail tab,
+  the accounts merge previews — and finds no `YYYY-MM-DD` in their visible
+  text.
+- **One known exception:** the chart's hover tooltip still shows the ISO
+  date and a raw price; it is the hook's own rendering and is filed.
+
+### The chart axes *(issue 1088; pick J5 A)*
+
+- **The labels read the page's language.** The two dates through
+  `Format.date`; the values through `Format.decimal`, grouped, with the
+  places of before (none from 1 000, two from 1, four below): "12.500",
+  "112,40"; a percent axis as the house's signed percent, the sign and "%"
+  glued on: "+10,4%", "-0,8%", and "0,0%" for a tick that reads zero. A
+  marker's title names its date the same way.
+- **{typography.chart-axis} is 9 CSS px at every chart width** (rule ②).
+  The labels sit in the 960-unit viewBox that scales to its frame, so the
+  9 units rendered 3.2 px on a 390 px phone and 10.7 px on a 1440 desktop.
+  The `ChartCrosshair` hook measures the viewBox units per CSS pixel on the
+  svg — the larger of the two ratios, as the `meet` viewBox scales by the
+  narrower fit — and writes it to `--chart-upx` on `.chart-frame`, kept
+  current by a ResizeObserver and put back after every patch;
+  `.security-chart .chart-axis-labels text` multiplies 9 px by it, from
+  `--chart-upx: 1` declared on the frame. Without script there is no
+  measure and no flag (next point): the label renders as it did before this
+  story, 9 viewBox units in the gutter — 3.2 px on a 390 px phone.
+  **The cost, stated on the plan:** a 1440 desktop's labels go from 10.7 to
+  9 px ("J5 A with a floor" was not asked for).
+- **The values sit inside the plot on a narrow chart, or when a value is
+  wider than the gutter** (rule ③; settled by the U3 review). The hook
+  decides, after it writes the scale: it flags the frame
+  `data-axis-inside` when the chart is at most 760 px wide, or when the
+  widest value is wider than its gutter — the value's x (50 viewBox units)
+  over `--chart-upx`, in CSS pixels — and removes the flag otherwise. A
+  fixed width alone was not enough: at 9 px a value of seven digits
+  ("1.544.042") or a four-digit percent ("+1.234,5%") is wider than the
+  gutter of a 906 px chart and lost its first digits or its sign at the
+  svg's edge. The hook measures the chart, so the rule follows the chart's
+  width — the detail pane, the fullscreen detail and Wealth differ at one
+  window width — not the window's. Under the flag the five values
+  (`.chart-axis-y`) are start-anchored inside the plot, sitting 3 px above
+  their grid line, the top one (`.is-top`) centred on it, over a halo in
+  `--color-bg` (`paint-order: stroke`, a 3 px stroke), because
+  the 56-unit gutter is 20 px at 390 and "+10,4%" is about 32. The two
+  dates (`.chart-axis-x`) stay under the plot. The label group follows the
+  area, the line and the markers in the markup, so the halo paints over
+  them; in the gutter the order changes nothing.
+  *Amended 2026-10-07 (the closing act's design critic, judgement (b)):*
+  the halo was `--color-chart-surface`, as board 05's frame A drew it, and
+  this sentence deviates from the board on purpose. A halo should be the
+  colour it sits on: `.chart-frame` is painted `--color-bg`, so a
+  chart-surface halo drew a rim of its own around every value — white on
+  the light frame, a lighter one on the dark — where it should only
+  have cut the line and the fill away. The buy/sell markers' halo (issue
+  645, `.tx-marker`) had the same mismatch and takes the same token.
+  `css_chart_axis_test.exs` holds both halos to the frame's background.
+- **The export keeps them** *(added 2026-10-07, the closing act's edge-case
+  finding 1)*. The SVG and PNG export bakes the computed styles into the
+  file, and its list (`_CHART_EXPORT_PROPS`) had none of rule ③'s
+  `paint-order`, `text-anchor`, `dominant-baseline` and `transform`: from a
+  chart with the values inside the plot the halo painted over the glyphs
+  and the values fell back to end-anchoring in the gutter, off the file's
+  edge — at 390 and 768 px none of the five survived. The four are on the
+  list now, and while the styles are baked in the frame carries the
+  export's own `--chart-upx`, measured as the hook measures it for the
+  file's width and height, then gets its own back: exported from 390 px, a
+  label was 24.7 viewBox units, 16.5 px in the 640 px file; now it is 9 px.
+  The file is
+  painted the frame's colour, the ground the halos match; the body's colour
+  it named was transparent under the page's gradient. Measured in Chromium
+  at 390, 768 and 1200 px, light and dark: all five values in the file,
+  inked, inside its edges.
+- **The empty chart's sentence follows rule ②** *(added 2026-10-07, the
+  closing act's edge-case finding 5)*: "Noch keine Kurshistorie." is
+  `calc(13px * var(--chart-upx, 1))`, 13 CSS px at every chart width; it
+  was 13 viewBox units, about 5 px tall at 390. The hook writes the scale
+  for an empty chart too.
+- "Daten als Tabelle" stays the fallback that lets 9 px stand
+  (Accessibility Floor → Charts).
+
+### Found while drawing
+
+1. **Filed, not here:** the phone chart rule (16:9 under 720 px) is
+   overridden by the later global `.chart-frame` (3:1), so phone charts are
+   about 113 px tall; fixing the order needs its own board.
+2. **Fixed:** of the eight sentences of this file that prescribed ISO for
+   display, seven are rewritten in place, each with this date — the
+   native-control token, Native controls, the Do's and Don'ts row, the
+   quote phone row (twice), the data note's `<time>` rule and the bond
+   strip's maturity; the eighth, the Trades tab's "Kept as built", U2
+   struck with issue 1060. Two sentences the Part did not list are amended
+   too: the settlement hint's ISO date in running text, and the custom
+   range's `date-fields` token.
+3. **Fixed** by the sweep above: the ISO displays outside both issues'
+   lists.
+4. **Fixed** by the same sweep: a German date has no hyphen to break at.

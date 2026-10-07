@@ -3425,12 +3425,20 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
 - Theme, Akzent und Sprache sind Nutzerpräferenzen und beeinflussen gespeicherte
   Finanzwerte nicht.
 - Datumsfelder nehmen ISO-Daten (`YYYY-MM-DD`) entgegen und zeigen sie auch so
-  an; der lokalisierte Browser-Datumswähler kommt nicht zum Einsatz. Ein Datum,
-  das die Seite nur anzeigt, folgt ihrer Sprache: `TT.MM.JJJJ` auf einer
-  deutschen Seite, ISO auf einer englischen. Einige Ansichten zeigen dort noch
-  ISO — der Kopf und die Reiter der Wertpapier-Detailseite sowie die
-  Zusammenführungsdialoge —, bis sie angeglichen sind. API, MCP und jede
-  Datei, die die App liest oder schreibt, bleiben bei ISO.
+  an; der lokalisierte Browser-Datumswähler kommt nicht zum Einsatz. Jedes
+  Datum, das die Seite nur anzeigt, folgt ihrer Sprache: `TT.MM.JJJJ` auf
+  einer deutschen Seite, ISO auf einer englischen; ein Monat allein liest sich
+  `10.2026` bzw. `2026-10`. API, MCP und jede Datei, die die App liest oder
+  schreibt, bleiben bei ISO.
+- Die Achsen der Diagramme folgen ihr ebenso: das erste und das letzte Datum,
+  die Werte mit den Trennzeichen der Seite (`12.500` bzw. `12,500`) und ein
+  Prozentwert als `+10,4%` bzw. `+10.4%`. Die Achsenbeschriftung behält bei
+  jeder Diagrammbreite eine Größe, 9 px; in einem schmalen Diagramm (bis
+  etwa 760 px, wie auf dem Telefon) oder wo ein Wert breiter ist als der
+  Platz neben dem Diagramm, stehen die Werte im Diagramm auf ihren
+  Gitterlinien. Die eine Ausnahme von der Sprache der Seite ist die Anzeige
+  beim Überfahren des Diagramms: Sie zeigt das Datum noch in ISO-Form und
+  den Kurs unformatiert.
 - Zahlenfelder (Stückzahl, Preis, Gebühren und Steuern, Abrechnungsbetrag und
   Kurs, die Grenze einer Regel, die Zahlen unter Steuern, ein Kontosaldo)
   zeigen und lesen Zahlen in der Sprache der Seite: auf einer deutschen Seite
