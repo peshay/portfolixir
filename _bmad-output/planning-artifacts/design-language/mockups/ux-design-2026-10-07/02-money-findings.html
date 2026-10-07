@@ -1,0 +1,560 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Befunde zu Geld und Bäumen (Pick L2; #1101, #1142, #940)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: what the L2 / #1142 / #940 stories change.
+     The frames are srcdoc iframes built from the live markup of
+     dashboard_live.ex (the value card and the data-quality line),
+     portfolio_live.ex (data_quality/1 and the Positions section),
+     securities_live.ex (the list's filter row, trades_tab_panel/1 and
+     holdings_tab_panel/1), income_live.ex (the "realized" facet) and
+     classifications_live.ex (render/1 :show), so a 390 px frame is a real
+     390 px viewport and app.css's 560 px and 900 px blocks fire as on a
+     phone. "Heute" frames render app.css as shipped; "Nachher" and variant
+     frames also get this block. Most of the change is markup and copy;
+     each item is listed here by its number so the board has one index. -->
+<style id="proposal">
+  /* ① L2 (#1101): no CSS. One more finding on the Overview's line
+     (dashboard_live.ex dq_findings/1), one more AppShell.data_note in
+     Wealth's [data-role="dq-notes"] (portfolio_live.ex data_quality/1),
+     one more dq_label/1 clause in securities_live.ex and
+     filter_popover.ex. Each entry reuses `.dq-negative-entry`, the
+     two-scales entries' inline block. */
+
+  /* ② #1142: the reason dash is muted in every data table. Today two
+     scoped copies carry it (#realized-trades-table td.trade-pa--na,
+     app.css:10621; #detail-closed-trades-table td.trade-pa--na, :10666),
+     because `.data-table tbody td { color }` outranks the bare class. The
+     open lots' and the holdings tab's "%" cells and Wealth's "G&V %" cell
+     join them, so the story writes the rule once and drops the two copies,
+     as issue 1010 did for the sign colours. (0,2,1) outranks (0,1,2). */
+  .data-table td.trade-pa--na {
+    color: var(--color-text-muted);
+  }
+
+  /* ③ #940: no CSS. The refusal is a `{:problem, message}` in the page's
+     existing result slot (#classifications-result, AppShell.inline_result),
+     the slot every refusal on this screen already uses. */
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: hidden; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul, .notes ol { margin: 0; }
+  .notes ul, .notes ol { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code, .measure code, .verdict code { font-size: 11.5px; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .measure { font-size: 11.5px; color: var(--mock-ink); margin: 4px 0 0; max-width: 980px; }
+  .measure b.off { color: var(--color-danger); }
+  .measure b.ok { color: var(--color-positive); }
+  .verdict { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1120px; margin: 0 auto 32px; }
+  .verdict > div { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 14px; background: var(--color-bg-elevated); font-size: 12.5px; }
+  .verdict h3 { margin: 0 0 6px; font-size: 13px; }
+  .verdict ul { margin: 0; padding-left: 18px; }
+  .verdict li { margin: 0 0 4px; }
+  .verdict ol { margin: 0; padding-left: 18px; }
+  .phone-only { display: none; }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap, .measure { padding: 0 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 10px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph { width: 390px; }
+    .verdict { grid-template-columns: 1fr; padding: 0 12px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Pick L2 — how loud a quote is that does not match the holding's own bookings (#1101).</b> The predicate <code>implausible_quote</code> is decided: for each buy, sell or priced delivery of a held security, the stored quote on the booking's day (or the latest within N days before it) against the booking's price per unit in the same currency; named outside [½, 2]; a security already on two scales is not counted again. <b>A</b> problem — when it fires, a value or a cost in the totals is wrong · <b>B</b> attention. <span class="rec">Recommended A</span><br>
+Before/after, nothing to pick: <b>#1142</b> a return on a cost basis of zero reads "0,0%" and becomes the reason dash; <b>#940</b> a category below level 32 is refused, in the page's result slot. A comment on the planning PR naming "L2 B" changes the pick; silence adopts the recommendation. "Heute" is app.css and the templates as built; "Nachher" and the variants add <code>&lt;style id="proposal"&gt;</code>. Desktop frames: 980&nbsp;px content. Every name, figure, date and identifier is invented. <b>Dashed = new.</b></div>
+<div class="pickbar phone-only"><b>L2, #1142 and #940 at 390&nbsp;px.</b> Real 390-px viewports: app.css's 560-px blocks fire. Recommended: L2 A. Synthetic data only. <b>Dashed = new.</b></div>
+
+<!-- ============================ L2 ============================ -->
+<section class="mock-board" id="l2">
+  <h2>L2 — #1101: a quote that does not match the holding's own bookings <small>Übersicht · Vermögen → Bestände → Datenqualität · Wertpapiere <code>?dq=implausible_quote</code></small></h2>
+  <p class="mock-note">The data: "Arbolia Inc." (USD) is mapped to another listing, so its stored quotes sit about ten times above its bookings — sold 03.04.2026 at 61,40&nbsp;USD, no quote stored that day, the quote of 02.04.2026 is 618,90&nbsp;USD (ratio 10,08); its 40 held shares count 24.776,00&nbsp;USD where the bookings say about 2.500. "Wrenfield Gardens AG" (EUR) is mapped the other way — bought 12.05.2026 at 48,20, quote that day 4,87 (ratio 0,10); its 120 shares count 589,20 where they cost 5.784,00. Today no finding fires anywhere: the Overview's total and Wealth's notes say nothing. A bond on two scales would have ratio ~100 too; <code>two_scales</code> names it, and this predicate leaves it out (not drawn).</p>
+
+  <p class="cap" style="margin-top:14px">Heute — no finding</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="l2" data-o='{"v":"today"}' title="L2 heute, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="l2" data-o='{"v":"today"}' title="L2 heute, 390 px"></iframe></div>
+    <div class="notes">
+      <p><b>Heute.</b> The Overview's line counts catalog hygiene and the two-scales bonds (<code>dashboard_live.ex:1049-1058</code>); Wealth's notes name trade-priced, stale, unpriced and unrated positions, negative holdings and two-scales bonds (<code>portfolio_live.ex:2684-2858</code>). Nothing compares a stored quote with the holding's own booked prices, so a quote series from the wrong listing values a holding about an order of magnitude off and the page reads as healthy: "Alles 81.906,40 EUR" contains about 22.000&nbsp;USD that the bookings do not support, and is missing about 5.200&nbsp;EUR they do.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A <span class="rec">recommended</span> — problem: the line takes "Problem", Wealth names both, the list opens on them</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — empfohlen</span><iframe data-tpl="l2" data-o='{"v":"A","list":true}' data-proposal data-measure="l2" title="L2 A, Desktop"></iframe></div>
+    <p class="measure" data-out="l2-A-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — empfohlen, 390 px</span><iframe data-tpl="l2" data-o='{"v":"A","list":true}' data-proposal data-measure="l2" title="L2 A, 390 px"></iframe></div>
+    <div class="notes">
+      <p class="measure" data-out="l2-A-phone" style="padding:0"></p>
+      <p><b>Why A.</b> UX-DR17 gives problem to a finding where "the data contradicts itself; the figure cannot be trusted", attention to one where "the figure stands". This predicate is a contradiction by construction: two stored facts about the same security on the same day, the operator's booked price and the quote, more than a factor of two apart. One of them is wrong, and either way a figure in the totals is — the value, when the quote is wrong (a mis-mapped ticker, a currency unit), or the cost and result, when the booking is (a mistyped price). The band is wide on purpose: a real trade at less than half or more than twice its day's market is rare enough that the finding is almost never an opinion.</p>
+      <p><b>The sibling says the same.</b> The two-scales guard (#1068, D-15) is this predicate's special case — ratio ~100 on a bond — and it is problem on Wealth and on the Overview's line. A tenfold error a step outside its band would be quieter than a hundredfold one inside it only because of which rule caught it. Under A the Overview's line takes "Problem" (UX-DR17: the highest severity present), as it does for two scales.</p>
+      <p><b>The words.</b> The line: "2 gehaltene Wertpapiere, deren Kurse nicht zu ihren Buchungen passen" — its scope word ("gehaltene"), because the line otherwise counts the catalog (J1.2), and always its noun, as two scales. Wealth: the consequence ("ihr Wert oder ihr Einstand ist daher falsch") and the remedy in order — the mapping first, then the booking — and per security one booking: kind, date, price, the quote's own date (Arbolia's is the day before: no quote stored on 03.04.), the quote, the ratio. Each name links to its Quotes tab. The list: a removable chip "Kurs passt nicht zu Buchungen", as <code>two_scales</code>' "Auf zwei Skalen bepreist".</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — attention: the same words, "kann … falsch sein", in the attention group</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">B</span><iframe data-tpl="l2" data-o='{"v":"B"}' data-proposal title="L2 B, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">B — 390 px</span><iframe data-tpl="l2" data-o='{"v":"B"}' data-proposal title="L2 B, 390 px"></iframe></div>
+    <div class="notes">
+      <p><b>B</b> reads the predicate as a heuristic: an off-market booking — employee shares at a discount, a subscription price, a gift booked at a nominal value — could trip it, so the figure "stands" until the operator looks. The note then sits with the stale-quote note, says "kann … falsch sein", and the Overview's line keeps "Achtung".</p>
+      <p><b>What B costs.</b> On the Overview a holding ten times off reads exactly like "25 Wertpapiere im Katalog ohne Kurs seit 7 Tagen" — same colour, glyph and word — while a bond a hundred times off, one line along, is "Problem". The false positives B protects against are rare at [½, 2] (a discount under 50&nbsp;%, a premium over 100&nbsp;%), and the most common one, a free share booked at 0,00, has no ratio at all and must be skipped either way (found while drawing, 2). A false positive under A costs one look at a booking; a true positive under B is a total off by a factor of ten, announced as a stale quote.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1142 ============================ -->
+<section class="mock-board" id="z1142">
+  <h2>#1142 — a return on a cost basis of zero reads "0,0%" <small>Vorher / Nachher: the facet, the security's Trades tab, the unrealized side</small></h2>
+  <p class="mock-note">"Larkspur Rail AG": 12 bonus shares booked as a buy at 0,00 on 03.03.2025 (the FIFO matcher opens lots from buys only — "Einlieferungen eröffnen keinen Lot" — so on the trades surfaces a zero basis is a buy at 0,00), 8 of them sold 13.08.2026 at 41,25. The trade's result is +330,00&nbsp;EUR and its return is undefined; <code>TradeMatcher.safe_div/2</code> (<code>trade_matcher.ex:325</code>) returns 0, and every surface prints "0,0%" — in the facet's Result cell, the tab's "%" column and both phone rows, where it reads "0,0% gesamt": a flat trade. The p.&nbsp;a. cell already shows the dash, but with the solver's reason ("kein Zinssatz löst die Zahlungen dieses Trades"), which the spec glosses as a total loss. <b>Nachher</b>: the return is not a number — the existing dash with #1089's reason anatomy, "keine Kostenbasis", for the period return and for p.&nbsp;a. alike. The precedent is the category result: "a category with no cost has no result to state, and a zero would claim it is flat" (<code>classifications_live.ex:2419</code>).</p>
+
+  <p class="cap" style="margin-top:14px">Vermögen → Cashflow → Trades — the list</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — "0,0%" unter +330,00 EUR</span><iframe data-tpl="facet" title="#1142 Facette vorher"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — der Strich mit Grund</span><iframe data-tpl="facet" data-o='{"fix":true}' data-proposal title="#1142 Facette nachher"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="facet" data-o='{"phoneonly":true}' title="#1142 Facette vorher, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="facet" data-o='{"fix":true,"phoneonly":true}' data-proposal data-measure="facetphone" title="#1142 Facette nachher, 390 px"></iframe></div>
+    <div class="notes">
+      <p><b>At every width.</b> At 1200&nbsp;px the Result cell keeps "+330,00 EUR" and its sub-line becomes the muted dash: <code>title</code> "Keine Rendite: keine Kostenbasis", visually hidden "keine Rendite, keine Kostenbasis". The p.&nbsp;a. cell keeps its dash and takes the same reason ("Keine annualisierte Rendite: keine Kostenbasis"), which comes before the 365-day rule and the solver's: with no cost there is nothing to annualize, however long the trade was held.</p>
+      <p><b>At 390&nbsp;px the reason is on the row, in words:</b> "— keine Kostenbasis" where "0,0% gesamt" stood (the dash <code>aria-hidden</code>, the words read). The two p.&nbsp;a. reasons can live in the basis line because they are rules the row lets the reader check (its days); a zero basis is a fact about one booking that the phone row does not show (no cost column), and a touch screen has no <code>title</code>. No "gesamt": there is no total return to qualify.</p>
+      <p class="measure" data-out="facetphone" style="padding:0"></p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Wertpapiere → Larkspur Rail AG → Trades — open lots and closed trades</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — "0,0%" bei der offenen Gratis-Tranche und beim Trade</span><iframe data-tpl="tab" title="#1142 Tab vorher"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher</span><iframe data-tpl="tab" data-o='{"fix":true}' data-proposal title="#1142 Tab nachher"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px, die Telefonzeilen</span><iframe data-tpl="tab" data-o='{"scroll":"#detail-closed-trades-phone-rows"}' data-fixed="300" title="#1142 Tab vorher, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="tab" data-o='{"fix":true,"scroll":"#detail-closed-trades-phone-rows"}' data-proposal data-fixed="300" title="#1142 Tab nachher, 390 px"></iframe></div>
+    <div class="notes">
+      <p><b>The open lot</b> of the four remaining bonus shares — "Ø Kauf 0,00", "+167,20" — prints "0,0%" today, from <code>decorate_open_lot/4</code>'s own zero (<code>ledger.ex:1058</code>); after, the dash with "Keine Rendite: keine Kostenbasis". <b>The closed trade</b>: "%" and p.&nbsp;a. as on the facet. The tab's phone row gains "— keine Kostenbasis" where it showed "0,0%" alone (this row has no "gesamt", DESIGN.md: "the tab keeps it so").</p>
+      <p><b>The muted colour</b> needs rule ② for the open lots' "%" cell: the table has no id, and <code>.data-table tbody td { color }</code> outranks the bare <code>.trade-pa--na</code>. One general rule replaces the two scoped copies.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">The unrealized side — Wertpapiere → Fennwick Labs AG → Bestände, and Vermögen → Bestände → Positionen</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — "0,00 %" in Gewinnfarbe; "0" unter „G&amp;V %“</span><iframe data-tpl="held" title="#1142 Bestände vorher"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher</span><iframe data-tpl="held" data-o='{"fix":true}' data-proposal title="#1142 Bestände nachher"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="notes" style="max-width:980px">
+      <p><b>The issue's own example.</b> "Fennwick Labs AG": 15 shares delivered in at 0 (a spin-off), so the cost-follows-shares fold gives a zero basis (<code>ledger.ex:720</code>) and <code>put_holding_valuation/2</code> and <code>decorate_holding/2</code> a zero percent (<code>ledger.ex:496</code>, <code>:954</code>). The security's Bestände tab prints it through <code>signed_percent_or_dash/1</code> as "0,00 %" — in the gain colour, because that cell takes its class from the amount beside it (<code>pnl_class(h.unrealized_pnl_abs)</code>, <code>securities_live.ex:2490</code>). Wealth's Positionen table prints the raw fraction, "0", in the optional "G&amp;V %" column. After: both read the dash with "Keine Rendite: keine Kostenbasis"; the colour is the dash's, not the amount's. Under 560&nbsp;px neither table has a phone row with a percent (the holdings tab scrolls; Wealth's phone rows show the quantity), so there is no 390&nbsp;px frame to draw.</p>
+      <p><b>Not this story:</b> the Nordwind row's "G&amp;V %" reads "0,1871401151631477927063339731" — a 28-digit fraction under a "%" header, today and after (found while drawing, 4).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #940 ============================ -->
+<section class="mock-board" id="d940">
+  <h2>#940 — a category below level 32 is refused <small>Vorher / Nachher: Verwaltung → Klassifizierungen → Tiefentest</small></h2>
+  <p class="mock-note">The synthetic tree "Tiefentest" is a chain "Stufe 1" … "Stufe 32" — what an agent can build through the API; nobody files securities 32 levels deep. <code>Classifications.max_tree_depth/0</code> (32) is the cycle guard every parent walk stops at (<code>classifications.ex:216-225</code>), but no write checks it: picking "Stufe 32" as the parent and pressing "Hinzufügen" creates "Stufe 33" today, and from then on <code>path_to_root/4</code> returns its path without the root, so <code>category_at_level/3</code> reads its securities' level-1 column as "Stufe 2". <b>Nachher</b>: the write is refused, in the slot every refusal on this page lands in — the page's result slot above the head (<code>#classifications-result</code>, <code>AppShell.inline_result</code>, <code>classifications_live.ex:270-275</code>); the create form has no slot of its own, and the screen has no control that re-homes a category (the edit form changes name, description and colour; drag and drop moves securities), so a move is refused through the API's 422 with the same sentence.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „Kategorie angelegt“, Stufe 33 existiert</span><iframe data-tpl="cls" data-o='{"v":"today"}' title="#940 vorher"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — die Ablehnung im Ergebnis-Slot der Seite</span><iframe data-tpl="cls" data-o='{"v":"after"}' data-proposal data-measure="cls" title="#940 nachher"></iframe></div>
+    <p class="measure" data-out="cls-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="cls" data-o='{"v":"after"}' data-proposal data-measure="cls" title="#940 nachher, 390 px"></iframe></div>
+    <div class="notes">
+      <p class="measure" data-out="cls-phone" style="padding:0"></p>
+      <p><b>The sentence</b> names the parent the operator picked, the level the category would have had, the limit and what to do: "Nicht angelegt: Unter „Stufe 32“ läge die neue Kategorie auf Ebene 33 — eine Klassifizierung hat höchstens 32 Ebenen. Bei „Übergeordnet“ eine Kategorie weiter oben wählen." — "Übergeordnet" being the select's own label. It is a problem note with its × (an answer to an action just taken: <code>role="alert"</code>, the inline result's alert region), and the form keeps what was typed.</p>
+      <p><b>Its own clause, not <code>changeset_error/1</code>.</b> That formatter prefixes the field's label and falls back to <code>Phoenix.Naming.humanize/1</code> for every field but <code>:name</code> (<code>classifications_live.ex:3201-3202</code>): the cycle refusal reads "Parent würde die Kategorie zu ihrer eigenen Oberkategorie machen" on the German page today. The depth refusal gets its own <code>error_message/1</code> clause (found while drawing, 6).</p>
+      <p><b>Where the slot is.</b> The form is the sixth block under the slot, after the head, the view switcher, the plan editor, the search and the toggle; with no plan the distance is measured above, and a plan adds its table — one row per category, 32 here. At 390&nbsp;px the picked parent reads as dashes only: <code>indent/1</code> puts 31 "— " before "Stufe 32" (found while drawing, 8). A plan write's refusal is brought into view and focused (<code>answer_plan_write/1</code>, #945); the create form's is not (found while drawing, 5).</p>
+    </div>
+  </div>
+  <div class="col desk-only" style="margin-top:12px">
+    <p class="cap">Today, every level open — Stufe 11 to Stufe 17, where the name column runs out (found while drawing, 7)</p>
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — gemessen</span><iframe data-tpl="deep" data-o='{"levels":33,"from":11}' data-fixed="370" data-measure="deep" title="#940 tiefe Ebenen"></iframe></div>
+    <p class="measure" data-out="deep-desk"></p>
+  </div>
+</section>
+
+<div class="verdict">
+  <div>
+    <h3>Why A for L2</h3>
+    <ul>
+      <li>The predicate is a contradiction between two stored facts about one day — UX-DR17's definition of problem, not attention's "the figure stands".</li>
+      <li>Its special case, two scales, is problem on Wealth and on the line; a tenfold error should not be quieter than a hundredfold one because another rule caught it.</li>
+      <li>B's false positives are rare at [½, 2], and the commonest — a free share at 0,00 — is skipped by construction.</li>
+    </ul>
+  </div>
+  <div>
+    <h3>What the stories write into DESIGN.md</h3>
+    <ul>
+      <li><b>L2 = A:</b> Components → Data quality — the line's fifth finding (wording, scope word, problem severity, link, order after two scales); Wealth's eighth note (<code>dq-implausible-quote</code>, problem, sentence, entry anatomy, Quotes-tab links); the securities page's removable chip.</li>
+      <li><b>#1142:</b> the trades facet's Result cell and phone row, the Trades tab's "%" columns and phone row, the holdings tab's "%" and Wealth's "G&amp;V %": a return on no cost is the reason dash, "keine Kostenbasis", visible in words at 390&nbsp;px; the reason precedes the p.&nbsp;a. reasons. Rule ② replaces the two scoped dash rules.</li>
+      <li><b>#940:</b> the classification screen's refusals — the depth refusal's sentence, in the page's result slot.</li>
+    </ul>
+  </div>
+  <div style="grid-column: 1 / -1">
+    <h3>Found while drawing</h3>
+    <ol>
+      <li><b>One price basis.</b> Stored quotes may be split-adjusted (ADR-0028 §2) while a booked price is not: compared raw, every security with a recorded split since a booking is named; an unrecorded split is a true finding whose remedy is "Split erfassen". <i>Fix in the story (D-14).</i></li>
+      <li><b>A booking at 0,00 has no ratio.</b> #1142's bonus shares (a buy at 0,00) and a delivery at 0 would divide by zero or name every free share; the predicate skips a booking whose price per unit is 0. <i>Fix in the story (D-14).</i></li>
+      <li><b>A bond booked per piece</b> of a 1.000 denomination beside percent quotes has ratio ~1/10 — outside both two-scales bands, so it lands here, and its fix is the booked quantity, not the mapping; the note's "dann die Buchung" covers it, and the story pins it with a test. <i>Fix in the story (D-14).</i></li>
+      <li><b>Wealth's "G&amp;V %"</b> prints the raw fraction, every digit — "0,1871401151631477927063339731" for +18,7&nbsp;% — under a "%" header (<code>holdings_cell/2</code> → <code>Format.exact/1</code>, <code>portfolio_live.ex:2640</code>). <i>File.</i></li>
+      <li><b>The create form's refusal is not brought into view.</b> A plan write's is (<code>answer_plan_write/1</code>, #945); the create form sits 570&nbsp;px under the slot at 980&nbsp;px and 736&nbsp;px at 390&nbsp;px with no plan, more with one. <i>Fix in the story (D-14):</i> the same focus for <code>create_category</code>'s refusal.</li>
+      <li><b>"Parent würde …"</b>: <code>changeset_error/1</code> labels every field but <code>:name</code> through <code>Phoenix.Naming.humanize/1</code>, in English, on the German page — the cycle refusal reads "Parent würde die Kategorie zu ihrer eigenen Oberkategorie machen". <i>Fix in the story (D-14)</i>, on the message path it touches.</li>
+      <li><b>32 levels are not readable.</b> The name cell is under five characters from Stufe 14 and gone from Stufe 15 at 980&nbsp;px, and the row's buttons are clipped from Stufe 21: the cap is a cycle guard, not a depth anyone can read. Whether the refused depth should be lower is a decision. <i>File.</i></li>
+      <li><b>The parent select at depth</b> indents with "— " per level; at 390&nbsp;px the picked "Stufe 32" shows as dashes only. <i>File.</i></li>
+      <li><b>The Overview's trades card</b> prints the same zero for a zero-basis trade, "0,0% gesamt" (<code>dashboard_live.ex:700</code>). <i>Fix in the story (D-14).</i></li>
+      <li><b>The payload half of #1142:</b> <code>realized_pnl_pct</code> and <code>unrealized_pnl_pct</code> are served as "0" for a zero basis (<code>json.ex:537</code>, <code>:683</code>, and the realized reads); they become null with the reason in the computation basis, as <code>annualized_return_reason</code> does. <i>Fix in the story (D-14).</i></li>
+      <li><b>The holdings tab's "%"</b> prints two decimals and a breaking space — "0,00 %" wraps to two lines at 980&nbsp;px — and takes its colour from the amount beside it (<code>signed_percent_or_dash/1</code>, <code>securities_live.ex:3239</code>; <code>pnl_class/1</code>, <code>:2490</code>); #1060 aligned the Trades tab only. <i>Fix in the story (D-14)</i>, the cell it changes.</li>
+      <li><b>The value card stays silent</b> about a holding valued ten times off: J1 A's note under the total names rows out of it, not rows wrongly in it, and the line is six blocks below. <i>File.</i></li>
+      <li><b>The security's own pages say nothing.</b> Wealth's entry links to the Quotes tab, where no sentence names the booking and the quote that day; the Overview tab's two-scales note (<code>bond_strip.ex:289</code>) has no sibling. <i>File.</i></li>
+    </ol>
+  </div>
+</div>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc, so
+   relative links resolve against this board) from the live markup of
+   dashboard_live.ex, portfolio_live.ex, securities_live.ex, income_live.ex
+   and classifications_live.ex, with the German msgstrs. Synthetic data. */
+const CSS_HREF = '../../../../../priv/static/app.css';
+const P = {
+  tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+  oct: '<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>',
+  ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  filter: '<path d="M3 5h18l-7 9v6l-4-2v-4Z"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 4v5h-5"/>',
+  columns: '<rect x="3" y="4" width="6" height="16" rx="1"/><rect x="11" y="4" width="6" height="16" rx="1"/><rect x="19" y="4" width="2" height="16" rx="1"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  kebab: '<circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/>',
+  chevron_right: '<path d="m9 6 6 6-6 6"/>',
+  max: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/>'
+};
+const svg = (n, s = 14, cls = '') => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"${cls ? ` class="${cls}"` : ''} aria-hidden="true">${P[n]}</svg>`;
+const SEV = { note: ['ast', 'Hinweis'], attention: ['tri', 'Achtung'], problem: ['oct', 'Problem'] };
+const note = (sev, body, attrs = '', cls = '') => `<div class="data-note data-note--${sev}${cls ? ' ' + cls : ''}" ${attrs}><span class="data-note__icon" aria-hidden="true">${svg(SEV[sev][0])}</span><span class="data-note__word">${SEV[sev][1]}</span><div class="data-note__body">${body}</div></div>`;
+const sep = '<span aria-hidden="true"> · </span>';
+const NEW = (on) => (on ? ' is-new' : '');
+const wrap = (inner) => `<main class="app-main app-main--workspace"><div class="workspace-page">${inner}</div></main>`;
+
+/* ================= L2 — #1101 ================= */
+const IMPL = [
+  { id: 71, name: 'Arbolia Inc.', kind: 'Verkauf', date: '03.04.2026', price: '61,4', qdate: '02.04.2026', close: '618,9', cur: 'USD', ratio: '10,08' },
+  { id: 72, name: 'Wrenfield Gardens AG', kind: 'Kauf', date: '12.05.2026', price: '48,2', qdate: '12.05.2026', close: '4,87', cur: 'EUR', ratio: '0,10' }
+];
+const implEntry = (e) => ` <span class="dq-negative-entry"><a href="/securities/${e.id}?tab=quotes">${e.name}</a> (${e.kind} ${e.date} zu ${e.price} ${e.cur} · Kurs ${e.qdate}: ${e.close} ${e.cur}, das ${e.ratio}-Fache)</span>`;
+const IMPL_LINE = '2 gehaltene Wertpapiere, deren Kurse nicht zu ihren Buchungen passen';
+function implNote(sev) {
+  const consequence = sev === 'problem' ? 'ihr Wert oder ihr Einstand ist daher falsch' : 'ihr Wert oder ihr Einstand kann daher falsch sein';
+  return note(sev, `<a href="/securities?dq=implausible_quote">2 gehaltene Positionen werden mit Kursen bewertet, die nicht zu ihren eigenen Buchungen passen (am Buchungstag unter der Hälfte oder über dem Doppelten des Preises je Stück); ${consequence}. Ihre Kursquellen prüfen (Ticker, Börse), dann die Buchungen:</a>${IMPL.map(implEntry).join('')}`, 'data-role="dq-implausible-quote"', 'is-new');
+}
+function overview(o) {
+  const F = ['<a href="/securities?dq=stale_quote" data-role="dq-quotes">25 Wertpapiere im Katalog ohne Kurs seit 7 Tagen</a>', '<a href="#" data-role="dq-class">4 ohne Anlageklasse</a>', '<a href="/securities?dq=missing_logo" data-role="dq-logo">6 ohne Logo</a>'];
+  if (o.v !== 'today') F.push(`<a href="/securities?dq=implausible_quote" data-role="dq-implausible-quote" class="is-new">${IMPL_LINE}</a>`);
+  const sev = o.v === 'A' ? 'problem' : 'attention';
+  return `<p class="cap">Übersicht</p>
+    <section class="workspace-section" aria-label="Vermögenswert">
+      <a id="dashboard-wealth-card" href="/portfolio" class="stat stat--link"><span>Alles</span><strong><span class="count-up"><span data-count-digits>81.906,40</span></span><small class="value-suffix">EUR</small></strong><small data-role="card-ttwror"><span class="is-positive">+4,12%</span> YTD</small></a>
+    </section>
+    <div class="stub">… Kennzahlen, Abgeschlossene Trades, Ziel-Abweichungen, Fällig: unverändert …</div>
+    <section id="dashboard-data-quality" class="workspace-section">
+      <h2>Datenqualität</h2>
+      <div role="status">${note(sev, F.join(sep), 'id="dashboard-dq-line" data-role="data-quality-line"', o.v === 'A' ? 'is-new' : '')}</div>
+    </section>`;
+}
+function wealthDq(o) {
+  const parts = [];
+  parts.push(note('note', '<a href="/securities?dq=stale_quote">3 gehaltene Positionen werden zum letzten Handelspreis bewertet, die Gesamtsumme ist daher nicht aktuell:</a> Alder Creek Timber Fund, Halvorsen Shipping AS, Lindqvist Pumpen AG', 'data-role="dq-trade-priced"'));
+  parts.push(note('attention', '<a href="/securities?dq=stale_quote&amp;holding=held">Eine gehaltene Position wird mit einem Kurs bewertet, der älter als 7 Tage ist; die Summen können daher veraltet sein — stilllegen, wenn die Notierung endete, oder die Kurse aktualisieren:</a> Nordic Timber Holdings AB (29.09.2026)', 'data-role="dq-stale-priced"'));
+  if (o.v === 'B') parts.push(implNote('attention'));
+  parts.push(note('attention', '<a href="/securities?dq=missing_quote">Eine gehaltene Position hat gar keinen Preis und fehlt in den Summen:</a> Placeholder Anleihe 2031 3,25%', 'data-role="dq-no-price"'));
+  if (o.v === 'A') parts.push(implNote('problem'));
+  return `<p class="cap">Vermögen → Bestände → Datenqualität</p>
+    <section id="portfolio-data-quality" class="workspace-section data-quality">
+      <h2>Datenqualität</h2>
+      <div role="status" data-role="dq-notes">${parts.join('')}</div>
+    </section>`;
+}
+const SEC = [
+  { id: 71, name: 'Arbolia Inc.', ticker: 'ARBL', isin: 'US000000000A', cur: 'USD', price: '619,40', change: '+0,42 %', cls: 'decimal-positive' },
+  { id: 72, name: 'Wrenfield Gardens AG', ticker: 'WGA', isin: 'DE000000000W', cur: 'EUR', price: '4,91', change: '-1,21 %', cls: 'decimal-negative' }
+];
+const OPTIONS = ['Aktie', 'ETF', 'Fonds', 'Staatsanleihe', 'Anleihe', 'Kryptowährung', 'Rohstoff', 'Index', 'Sonstiges'];
+const classSelect = (prefix, id) => `<form id="${prefix}-${id}" class="quick-assign-form"><select name="asset_class" class="quick-assign-select" aria-label="Anlageklasse zuweisen"><option value="">—</option>${OPTIONS.map((l) => `<option${l === 'Aktie' ? ' selected' : ''}>${l}</option>`).join('')}</select></form>`;
+const secLogo = (r) => `<span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">${r.name[0]}</span>`;
+const kebab = (prefix, r) => `<button type="button" id="${prefix}-kebab-${r.id}" class="row-actions__kebab" aria-label="Aktionen für ${r.name}" aria-haspopup="menu" aria-expanded="false">${svg('kebab', 16)}</button>`;
+const chip = (id, label) => `<button type="button" id="sec-chip-${id}" class="filter-chip" aria-pressed="false">${label}</button>`;
+function securities() {
+  const rows = SEC.map((r) => `<tr id="security-row-${r.id}" class="security-row" role="link"><td class="row-actions">${kebab('row', r)}</td><td><a class="row-target row-target--with-logo" href="#">${secLogo(r)}<span class="row-target__label">${r.name}</span></a></td><td>${r.ticker}</td><td>${r.isin}</td><td>${r.cur}</td><td>${classSelect('quick-assign', r.id)}</td><td class="num">${r.price}</td><td class="num"><span class="${r.cls}">${r.change}</span></td></tr>`).join('');
+  const phone = SEC.map((r) => `<li id="security-phone-${r.id}" class="phone-row" data-role="phone-row">${secLogo(r)}<span class="phone-row__body"><a class="phone-row__target" href="#"><span class="phone-row__name">${r.name}</span></a><span class="phone-row__ids">${r.ticker} · ${r.isin} · ${classSelect('phone-quick-assign', r.id)}</span></span><span class="phone-row__figures"><span class="phone-row__figure">${r.price}<small class="value-suffix">${r.cur}</small></span><span class="phone-row__figure2"><span class="${r.cls}">${r.change}</span></span></span>${kebab('phone', r)}</li>`).join('');
+  return `<p class="cap">Wertpapiere — <code>/securities?dq=implausible_quote</code></p>
+    <section class="workspace-panel" id="securities-panel">
+      <div class="toolbar" role="toolbar" aria-label="Wertpapier-Werkzeugleiste">
+        <form class="search-field" id="securities-search-form">${svg('search', 16)}<input type="search" name="query" value="" placeholder="Nach Name, ISIN, WKN oder Ticker suchen…" autocomplete="off" aria-label="Wertpapiere suchen"></form>
+        <button type="button" id="filter-sheet-toggle" class="filter-sheet-toggle" aria-haspopup="dialog" aria-expanded="false">${svg('filter', 16)}Filter<span class="badge" data-role="filter-sheet-count">1</span></button>
+        <div class="toolbar-actions">
+          <button type="button" class="icon-button" aria-label="Neu anlegen">${svg('plus', 16)}</button>
+          <button type="button" class="icon-button" aria-label="Kurse aktualisieren">${svg('refresh', 16)}</button>
+          <button type="button" class="icon-button" aria-label="Spalten">${svg('columns', 16)}</button>
+        </div>
+      </div>
+      <div id="securities-filter-chips" class="filter-chips" role="group" aria-label="Liste filtern">
+        ${chip('held', 'Im Bestand')}${chip('not_held', 'Ohne Bestand')}${chip('unclassified', 'Ohne Anlageklasse')}${chip('stale_quote', 'Kurs veraltet')}${chip('missing_quote', 'Kein Kurs')}${chip('missing_fx', 'Kein Wechselkurs')}
+        <span class="filter-chips__family">Währung</span>${chip('cur-EUR', 'EUR')}${chip('cur-USD', 'USD')}
+        <span class="filter-chips__group" role="group" aria-label="Geändert seit"><span class="filter-chips__family">Geändert seit</span><button type="button" class="filter-chip" aria-pressed="false">Heute</button><button type="button" class="filter-chip" aria-pressed="false">7 Tage</button><button type="button" class="filter-chip" aria-pressed="false">30 Tage</button></span>
+        <button type="button" id="more-filters-toggle" class="more-filters-link" aria-expanded="false">${svg('filter', 16)}Weitere Filter<span class="badge" data-role="more-filters-count">1</span></button>
+      </div>
+      <ul class="filter-chips" id="filter-chips" aria-label="Aktive Filter">
+        <li class="chip is-new"><span>Kurs passt nicht zu Buchungen</span><button type="button" class="chip-remove" aria-label="Filter entfernen">${svg('x', 12)}</button></li>
+      </ul>
+      <div id="securities-workspace" class="securities-workspace securities-workspace--list-only">
+        <div id="securities-list-pane" class="securities-list-pane">
+          <div class="data-table-wrapper" id="securities-table"><table class="data-table"><thead><tr><th class="row-actions-head" aria-label="Zeilenaktionen"></th><th><button type="button" class="sort-toggle">Name ↑</button></th><th><button type="button" class="sort-toggle">Ticker</button></th><th><button type="button" class="sort-toggle">ISIN</button></th><th><button type="button" class="sort-toggle">Währung</button></th><th><button type="button" class="sort-toggle">Anlageklasse</button></th><th class="num"><button type="button" class="sort-toggle">Letzter Kurs</button></th><th class="num"><button type="button" class="sort-toggle">Tagesänderung %</button></th></tr></thead><tbody>${rows}</tbody></table></div>
+          <ul id="securities-phone-rows" class="phone-rows" aria-label="Wertpapiere">${phone}</ul>
+        </div>
+      </div>
+    </section>`;
+}
+function l2(o) {
+  return wrap(overview(o) + wealthDq(o)) + (o.list ? `<main class="app-main app-main--workspace">${securities()}</main>` : '');
+}
+
+/* ================= #1142 — the trades facet ================= */
+const TR = [
+  { n: 'Arbolia Inc.', o: '12.02.2025', c: '14.08.2026', d: 548, q: '10,0000', b: '1.240,00', p: '1.402,00', r: '+162,00', s: 1, pct: '+13,1%', pa: '+8,5%' },
+  { n: 'Larkspur Rail AG', o: '03.03.2025', c: '13.08.2026', d: 528, q: '8,0000', b: '0,00', p: '330,00', r: '+330,00', s: 1, pct: '0,0%', pa: null, why: 'rate', zero: true },
+  { n: 'Wrenfield Gardens AG', o: '20.01.2026', c: '02.07.2026', d: 163, q: '15,0000', b: '900,00', p: '846,00', r: '-54,00', s: -1, pct: '-6,0%', pa: null, why: 'short' }
+];
+const WHY = {
+  short: ['Unter einem Jahr Haltedauer nicht annualisiert', 'nicht annualisiert, unter einem Jahr Haltedauer'],
+  rate: ['Keine annualisierte Rendite: kein Zinssatz löst die Zahlungen dieses Trades', 'keine annualisierte Rendite, kein Zinssatz löst die Zahlungen dieses Trades'],
+  basis: ['Keine annualisierte Rendite: keine Kostenbasis', 'keine annualisierte Rendite, keine Kostenbasis']
+};
+const NOBASIS = ['Keine Rendite: keine Kostenbasis', 'keine Rendite, keine Kostenbasis'];
+const sc = (s) => (s > 0 ? 'is-positive' : s < 0 ? 'is-negative' : 'is-flat');
+const dc = (s) => (s > 0 ? 'decimal-positive' : s < 0 ? 'decimal-negative' : 'is-flat');
+const dashCell = (why, cls, isNew) => `<td class="num ${cls} trade-pa--na${NEW(isNew)}" title="${why[0]}"><span aria-hidden="true">—</span><span class="visually-hidden">${why[1]}</span></td>`;
+const dashSpan = (why, cls, isNew) => `<span class="${cls} trade-pa--na${NEW(isNew)}" title="${why[0]}"><span aria-hidden="true">—</span><span class="visually-hidden">${why[1]}</span></span>`;
+function facet(o) {
+  const fix = !!o.fix;
+  const figures = `<div id="realized-figures" class="kpi-band__lead" data-role="realized-figures"><article class="stat stat--lead"><span>Realisiert gesamt</span><strong data-role="realized-total" class="is-positive">+438,00<small class="value-suffix">EUR</small></strong></article><article class="stat stat--lead"><span>Trefferquote</span><strong data-role="realized-hit-rate">66,7%</strong><small class="stat__sub">über 3 abgeschlossene Trades</small></article><article class="stat stat--lead"><span>Durchschnittliche Haltedauer</span><strong data-role="realized-holding-period">413 Tage</strong></article></div>`;
+  const head = '<thead><tr><th>Wertpapier</th><th>Gekauft → verkauft</th><th class="num">Haltedauer</th><th class="num">Stückzahl</th><th class="num">Einstand</th><th class="num">Erlös</th><th class="num">p. a.</th><th class="num col-subject">Ergebnis</th></tr></thead>';
+  const pa = (t) => {
+    if (t.pa) return `<td class="num trade-pa ${sc(t.s)}">${t.pa}</td>`;
+    const why = t.zero && fix ? WHY.basis : WHY[t.why];
+    return dashCell(why, 'trade-pa', t.zero && fix);
+  };
+  const pct = (t) => (t.zero && fix ? dashSpan(NOBASIS, 'stat__sub', true) : `<span class="stat__sub">${t.pct}</span>`);
+  const rows = TR.map((t) => `<tr data-role="realized-trade"><td><a href="#">${t.n}</a></td><td>${t.o} → ${t.c}</td><td class="num">${t.d} Tage</td><td class="num">${t.q}</td><td class="num">${t.b}<small class="value-suffix">EUR</small></td><td class="num">${t.p}<small class="value-suffix">EUR</small></td>${pa(t)}<td class="num col-subject ${sc(t.s)}" data-role="trade-result">${t.r}<small class="value-suffix">EUR</small> ${pct(t)}</td></tr>`).join('');
+  const table = `<div id="realized-trades-table-wrapper" class="data-table-wrapper"><table id="realized-trades-table" class="data-table">${head}<tbody>${rows}</tbody></table></div>`;
+  const second = (t) => {
+    if (t.zero && fix) return `<span class="is-new" data-role="return-absent"><span aria-hidden="true">—</span> keine Kostenbasis</span>`;
+    const p = `<span class="${t.pct === '0,0%' ? 'is-flat' : dc(t.s)}">${t.pct}</span>`;
+    return t.pa ? `${p} · <span class="${dc(t.s)}">${t.pa}</span> p. a.` : `${p} gesamt`;
+  };
+  const phone = `<ul id="realized-trades-phone-rows" class="phone-rows" aria-label="Trades">${TR.map((t) => `<li class="phone-row" data-role="phone-row"${t.zero ? ' data-zero' : ''}><span class="phone-row__body"><a class="phone-row__target" href="#"><span class="phone-row__name">${t.n}</span></a><span class="phone-row__ids">${t.o} → ${t.c} · ${t.d} Tage</span></span><span class="phone-row__figures"><span class="phone-row__figure ${sc(t.s)}">${t.r}<small class="value-suffix">EUR</small></span><span class="phone-row__figure2">${second(t)}</span>${t.pa ? '' : `<span class="visually-hidden" data-role="pa-absent">${(t.zero && fix ? NOBASIS : WHY[t.why])[1]}</span>`}</span></li>`).join('')}</ul>`;
+  const basis = '<p class="summary-basis" data-role="trades-basis">Einlieferungen eröffnen keinen Lot · Gebühren und Steuern in Einstand und Erlös · Erträge während der Haltedauer nicht enthalten · p. a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst</p>';
+  return wrap(`<section id="realized-trades" class="workspace-section kpi-band"><p class="summary-basis" style="font-style:italic">… Facettenschalter und Grundlagenzeile der Facette, unverändert, hier ausgelassen …</p>${figures}${table}${phone}${basis}</section>`);
+}
+
+/* ================= #1142 — the security's Trades tab ================= */
+const LOTS = [
+  { d: '03.03.2025', q: '4,0000', b: '0,00', l: '41,80', u: '+167,20', us: 1, pct: '0,0%', zero: true, pr: '+167,20', cr: '0,00', t: '+167,20' },
+  { d: '11.11.2025', q: '25,0000', b: '38,50', l: '41,80', u: '+82,50', us: 1, pct: '+8,6%', pr: '+82,50', cr: '0,00', t: '+82,50' }
+];
+const CLOSED = [
+  { o: '06.02.2023', c: '18.06.2024', q: '10,0000', b: '30,20', s: '36,90', d: 498, pa: '+15,8%', r: '+67,00', pct: '+22,2%' },
+  { o: '03.03.2025', c: '13.08.2026', q: '8,0000', b: '0,00', s: '41,25', d: 528, pa: null, r: '+330,00', pct: '0,0%', zero: true }
+];
+const PANE_TABS = ['Übersicht', 'Diagramm', 'Transaktionen', 'Trades', 'Kurse', 'Bestände', 'Klassifizierungen', 'Research', 'Termine'];
+function pane(name, sub, active, body) {
+  return `<div class="detail-pane" aria-label="Ausgewähltes Wertpapier"><header class="detail-pane-head"><div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial">${name[0]}</span><div><h2>${name}</h2><p class="detail-pane-sub">${sub}</p></div></div><div class="detail-pane-head__actions"><button type="button" class="button-ghost">Bearbeiten</button><button type="button" class="button-ghost">Split erfassen</button><button type="button" class="icon-button" aria-label="Maximieren">${svg('max', 16)}</button><button type="button" class="icon-button" aria-label="Detail schließen">${svg('x', 16)}</button></div></header><nav class="detail-pane-tabs" role="tablist" aria-label="Wertpapier-Detailansicht">${PANE_TABS.map((t) => `<button type="button" role="tab" class="detail-pane-tab${t === active ? ' is-active' : ''}"${t === active ? ' aria-selected="true"' : ''}>${t}</button>`).join('')}</nav>${body}</div>`;
+}
+function tab(o) {
+  const fix = !!o.fix;
+  const lotPct = (l) => (l.zero && fix ? dashCell(NOBASIS, '', true) : `<td class="num ${l.pct === '0,0%' ? 'is-flat' : sc(1)}">${l.pct}</td>`);
+  const lots = LOTS.map((l) => `<tr><td>${l.d}</td><td class="num">${l.q}</td><td class="num">${l.b}</td><td class="num">${l.l}</td><td class="num ${sc(l.us)}">${l.u}</td>${lotPct(l)}<td class="num ${sc(1)}">${l.pr}</td><td class="num is-flat">${l.cr}</td><td class="num ${sc(1)}">${l.t} <small>EUR</small></td></tr>`).join('');
+  const closedPa = (c) => (c.pa ? `<td class="num trade-pa is-positive">${c.pa}</td>` : dashCell(c.zero && fix ? WHY.basis : WHY.rate, 'trade-pa', c.zero && fix));
+  const closedPct = (c) => (c.zero && fix ? dashCell(NOBASIS, '', true) : `<td class="num ${c.pct === '0,0%' ? 'is-flat' : 'is-positive'}">${c.pct}</td>`);
+  const closed = CLOSED.map((c) => `<tr><td>${c.o}</td><td>${c.c}</td><td class="num">${c.q}</td><td class="num">${c.b}</td><td class="num">${c.s}</td><td class="num">${c.d}</td>${closedPa(c)}<td class="num is-positive">${c.r}</td>${closedPct(c)}</tr>`).join('');
+  const second = (c) => {
+    if (c.zero && fix) return '<span class="is-new" data-role="return-absent"><span aria-hidden="true">—</span> keine Kostenbasis</span>';
+    const p = `<span class="${c.pct === '0,0%' ? 'is-flat' : 'decimal-positive'}">${c.pct}</span>`;
+    return c.pa ? `${p} · <span class="decimal-positive">${c.pa}</span> p.&nbsp;a.` : p;
+  };
+  const phone = CLOSED.map((c) => `<li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">${c.o} → ${c.c}</span><span class="phone-row__ids">${c.q} Stück · ${c.d} Tage</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">${c.r}<small class="value-suffix">EUR</small></span><span class="phone-row__figure2">${second(c)}</span>${c.pa ? '' : `<span class="visually-hidden" data-role="pa-absent">${(c.zero && fix ? NOBASIS : WHY.rate)[1]}</span>`}</span></li>`).join('');
+  const body = `<section id="detail-tab-panel-trades" role="tabpanel" class="detail-tab-panel detail-tab-panel--trades"><h3 class="detail-section-title">Offene Positionen (FIFO)</h3><details class="metric-tooltip metric-tooltip--inline metric-tooltip--labelled" data-role="lot-decomposition-info"><summary aria-label="Über Kurs- und Währungsbeitrag">ⓘ Kurs- &amp; Währungsbeitrag</summary><p role="tooltip">…</p></details><div class="data-table-wrap"><table class="data-table detail-trades-table"><thead><tr><th>Eröffnungsdatum</th><th class="num">Stückzahl</th><th class="num">Ø Kauf</th><th class="num">Letzter</th><th class="num">Unrealisierter G/V</th><th class="num">%</th><th class="num">Kursbeitrag</th><th class="num">Währungsbeitrag</th><th class="num">Gesamt (Basis)</th></tr></thead><tbody>${lots}</tbody></table></div><h3 class="detail-section-title">Abgeschlossene Trades (FIFO)</h3><div id="detail-closed-trades-table-wrap" class="data-table-wrap"><table id="detail-closed-trades-table" class="data-table detail-trades-table"><thead><tr><th>Eröffnet</th><th>Geschlossen</th><th class="num">Stückzahl</th><th class="num">Ø Kauf</th><th class="num">Ø Verkauf</th><th class="num">Tage</th><th class="num">p.&nbsp;a.</th><th class="num">Realisierter G/V</th><th class="num">%</th></tr></thead><tbody>${closed}</tbody></table></div><ul id="detail-closed-trades-phone-rows" class="phone-rows" aria-label="Abgeschlossene Trades">${phone}</ul><p id="detail-closed-trades-basis" class="detail-tab-hint" data-role="trades-basis">Über alle Depots · Einlieferungen eröffnen keinen Lot · Gebühren und Steuern im G/V, nicht in Ø Kauf und Ø Verkauf · Erträge während der Haltedauer nicht enthalten · p.&nbsp;a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst</p></section>`;
+  return wrap(`<section class="workspace-section">${pane('Larkspur Rail AG', 'DE000000000L · LKR · EUR · Letzter 41,80 (06.10.2026)', 'Trades', body)}</section>`);
+}
+
+/* ================= #1142 — the unrealized side ================= */
+function held(o) {
+  const fix = !!o.fix;
+  const pctCell = fix ? dashCell(NOBASIS, '', true) : '<td class="num is-positive">0,00 %</td>';
+  const body = `<section id="detail-tab-panel-holdings" role="tabpanel" class="detail-tab-panel detail-tab-panel--holdings"><details class="metric-tooltip metric-tooltip--inline metric-tooltip--labelled" data-role="pnl-decomposition-info"><summary aria-label="Über Kurs- und Währungsbeitrag">ⓘ Kurs- &amp; Währungsbeitrag</summary><p role="tooltip">…</p></details><div class="data-table-wrap"><table class="data-table detail-holdings-table"><thead><tr><th>Depot</th><th class="num">Stückzahl</th><th class="num">Ø Kosten</th><th class="num">Aktueller Wert</th><th class="num">Unrealisierter G/V</th><th class="num">%</th><th class="num">Kursbeitrag</th><th class="num">Währungsbeitrag</th><th class="num">Gesamt (Basis)</th></tr></thead><tbody><tr><td>Demo Depot</td><td class="num">15,0000</td><td class="num">0,00 <small>EUR</small></td><td class="num">336,00 <small>EUR</small></td><td class="num is-positive">+336,00</td>${pctCell}<td class="num is-positive">+336,00</td><td class="num">0,00</td><td class="num is-positive">+336,00 <small>EUR</small></td></tr><tr class="bucket-override-row"><td colspan="9"><details class="position-buckets"><summary>Buckets: <span data-role="override-state">vom Depot geerbt</span></summary></details></td></tr></tbody><tfoot><tr class="totals-row"><td colspan="3">Gesamt</td><td class="num">336,00 <small>EUR</small></td><td class="num is-positive">+336,00</td><td class="num" colspan="4"></td></tr></tfoot></table></div></section>`;
+  const detail = `<p class="cap">Wertpapiere → Fennwick Labs AG → Bestände</p><section class="workspace-section">${pane('Fennwick Labs AG', 'DE000000000F · FWL · EUR · Letzter 22,40 (06.10.2026)', 'Bestände', body)}</section>`;
+  const wcell = fix ? dashCell(NOBASIS, '', true) : '<td class="num">0</td>';
+  const wealth = `<p class="cap">Vermögen → Bestände → Positionen (Spalten: Position und Bewertung)</p><section id="portfolio-positions" class="workspace-section"><header class="section-head"><h2>Positionen</h2></header><p class="summary-basis" data-role="positions-basis">Eine Zeile je Depot und Wertpapier, bewertet zum zuletzt gespeicherten Kurs.</p><div id="holdings-positions-wrapper" class="data-table-wrapper"><table id="holdings-positions-table" class="data-table"><thead><tr><th>Depot</th><th>Wertpapier</th><th class="num">Stückzahl</th><th class="num">Ø Kosten</th><th class="num">Letzter Kurs</th><th class="num">Marktwert</th><th class="num">G&amp;V</th><th class="num">G&amp;V %</th></tr></thead><tbody><tr data-role="holdings-position"><td>Demo Depot</td><td>Fennwick Labs AG</td><td class="num">15</td><td class="num">0<small class="value-suffix">EUR</small></td><td class="num">22,4<small class="value-suffix">EUR</small></td><td class="num">336<small class="value-suffix">EUR</small></td><td class="num">336<small class="value-suffix">EUR</small></td>${wcell}</tr><tr data-role="holdings-position"><td>Demo Depot</td><td>Nordwind Industrie AG</td><td class="num">20</td><td class="num">52,1<small class="value-suffix">EUR</small></td><td class="num">61,85<small class="value-suffix">EUR</small></td><td class="num">1.237<small class="value-suffix">EUR</small></td><td class="num">195<small class="value-suffix">EUR</small></td><td class="num">0,1871401151631477927063339731</td></tr></tbody></table></div></section>`;
+  return wrap(detail + wealth);
+}
+
+/* ================= #940 — the classification screen ================= */
+const COLORS = ['#7c3aed', '#2563eb', '#0f766e', '#16a34a', '#ca8a04', '#ea580c', '#dc2626', '#db2777'];
+const indent = (depth) => '— '.repeat(depth);
+const catSummary = (name, i, isNew) => `<summary class="cat-summary"><span class="cat-name"><span class="cat-swatch" style="background:${COLORS[i % COLORS.length]}" aria-hidden="true"></span><span class="cat-name__text${NEW(isNew)}" title="${name}">${name}</span></span><span class="cat-positions">0</span><span class="cat-value"><span class="cat-na">—</span></span><span class="cat-invested"><span class="cat-na">—</span></span><span class="cat-result"><span class="cat-na">—</span></span><span class="cat-actions"><button type="button" class="icon-mini" aria-label="Kategorie bearbeiten">✎</button><button type="button" class="icon-mini" aria-label="Kategorie löschen">×</button></span></summary>`;
+function chain(from, to, open, mark) {
+  let html = '';
+  for (let i = to; i >= from; i--) {
+    html = `<details class="cat-node"${open ? ' open' : ''} data-level="${i}">${catSummary('Stufe ' + i, i, mark && i === to)}${i < to ? `<div class="cat-body"><ul class="cat-securities"></ul>${html}</div>` : '<div class="cat-body"><ul class="cat-securities"></ul></div>'}</details>`;
+  }
+  return html;
+}
+function treeHead() {
+  return '<div class="tree-head" data-role="tree-head"><span class="tree-head__name">Kategorie</span><span class="tree-head__num">Positionen</span><span class="tree-head__num">Wert</span><span class="tree-head__num">Einstand</span><span class="tree-head__num">Ergebnis</span><span class="tree-head__actions" aria-hidden="true"></span></div>';
+}
+function cls(o) {
+  const after = o.v === 'after';
+  const status = after ? '' : note('note', `Kategorie angelegt <button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button>`);
+  const alert = after ? `<div class="is-new">${note('problem', `Nicht angelegt: Unter „Stufe 32“ läge die neue Kategorie auf Ebene 33 — eine Klassifizierung hat höchstens 32 Ebenen. Bei „Übergeordnet“ eine Kategorie weiter oben wählen. <button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button>`)}</div>` : '';
+  const parentOptions = ['<option value="">— Oberste Ebene —</option>'].concat(Array.from({ length: 32 }, (_, i) => `<option${i === 31 && after ? ' selected' : ''}>${indent(i)}Stufe ${i + 1}</option>`)).join('');
+  const parentOptionsToday = ['<option value="">— Oberste Ebene —</option>'].concat(Array.from({ length: 33 }, (_, i) => `<option>${indent(i)}Stufe ${i + 1}</option>`)).join('');
+  return `<main class="app-main app-main--workspace"><div id="classifications-workspace" class="workspace-page classifications-detail">
+    <div id="classifications-result" class="inline-result inline-result--page" data-role="action-result" tabindex="-1"><div id="classifications-result-status" role="status" class="inline-result__region">${status}</div><div id="classifications-result-alert" role="alert" class="inline-result__region">${alert}</div></div>
+    <header class="detail-head"><h2 id="classification-heading" tabindex="-1">Tiefentest</h2><button type="button" class="button-danger">Klassifizierung löschen</button></header>
+    <div class="workspace-section workspace-section--controls"><div class="view-switcher" role="group" aria-label="Aktive Ansicht"><nav class="view-switcher__options" aria-label="Aktive Ansicht"><a class="view-chip is-active" aria-current="true">Alles</a><a class="view-chip">Langfrist</a><a class="view-chip">Sparplan</a></nav><a class="view-switcher__manage" data-role="manage-views">${svg('settings', 13)} Ansichten</a></div></div>
+    <section id="soll-editor" class="workspace-section soll-editor"><header class="soll-editor__head"><h2 id="soll-editor-heading">Soll-Plan</h2><span class="soll-editor__scope" data-role="soll-editor-scope">für Ansicht Alles</span></header><div class="soll-empty" data-role="soll-empty"><p class="hint">Kein Plan für diese Ansicht.</p><div class="soll-editor__actions"><button type="button" class="button-primary">Plan anlegen</button></div></div></section>
+    <form id="tree-search-form" class="tree-search"><input id="tree-search-input" type="search" name="query" value="" autocomplete="off" placeholder="Wertpapiere in diesem Baum suchen…"></form>
+    <form id="current-only-form" class="tree-toggle"><label class="current-only-label"><input type="checkbox" data-role="current-only-toggle"><span>Nur aktuelle Positionen</span></label></form>
+    <form class="inline-form category-form" id="category-form"><label><span>Neue Kategorie</span><input name="category[name]" required value="${after ? 'Stufe 33' : ''}"></label><label><span>Übergeordnet</span><select name="category[parent_id]" id="parent-select">${after ? parentOptions : parentOptionsToday}</select></label><label><span>Farbe</span><input type="color" name="category[color]" value="#7c3aed"></label><label class="category-form__description"><span>Beschreibung <small>(optional)</small></span><input name="category[description]"></label><button type="submit" id="category-add">Hinzufügen</button></form>
+    <div class="summary-basis tree-basis" data-role="category-result-basis"><span>Ansicht Alles&nbsp;· in EUR&nbsp;· Ergebnis: heutige Zusammensetzung, keine Periodenrendite</span><details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zum Ergebnis">ⓘ</summary><p role="tooltip">…</p></details></div>
+    ${treeHead()}
+    <section class="tree">${chain(1, 1, false, false)}</section>
+    <p class="stub">… „Nicht zugeordnet“, unverändert …</p>
+  </div></main>`;
+}
+function deep(o) {
+  const levels = o.levels || 33;
+  return `<main class="app-main app-main--workspace"><div class="workspace-page classifications-detail">${treeHead()}<section class="tree">${chain(1, levels, true, levels > 32)}</section></div></main>`;
+}
+
+/* ================= frames ================= */
+const TPL = { l2, facet, tab, held, cls, deep };
+const CSS_MOCK = '<style>body{background:var(--color-bg);} .is-new{outline:2px dashed var(--color-accent);outline-offset:1px;border-radius:4px;} td.is-new,th.is-new{outline-offset:-2px;border-radius:0;} html.screen,html.screen body{overflow:hidden;} .cap{margin:14px clamp(16px,2.4vw,28px) -4px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5a6577;} .stub{margin:0;padding:8px clamp(16px,2.4vw,28px);font-size:12px;font-style:italic;color:#5a6577;} .phoneonly-wrap .kpi-band__lead,.phoneonly-wrap #realized-trades-table-wrapper{display:none;} .app-main,.workspace-page,.workspace-panel{min-height:0!important;} .cap code{text-transform:none;letter-spacing:0;font-size:11px;}</style>';
+/* The last rule is chrome: a frame is a cut-out, not a viewport, so the
+   100vh minimum heights of .app-main, .workspace-page and .workspace-panel
+   (app.css:810, :819, :823, :1663) would grow with the frame they are measured in. */
+
+const MEASURE = {
+  l2(doc, f, w) {
+    const line = doc.querySelector('#dashboard-dq-line');
+    const n = doc.querySelector('[data-role="dq-implausible-quote"].data-note');
+    const chipEl = doc.querySelector('#filter-chips .chip');
+    const body = doc.body.getBoundingClientRect().width;
+    const over = [...doc.querySelectorAll('body *')].filter((e) => e.getBoundingClientRect().right > body + 0.5 && !e.closest('.data-table-wrapper, .filter-chips, .toolbar'));
+    return `Measured at ${w} px: the line's note ${Math.round(line.getBoundingClientRect().height)} px tall · Wealth's new note ${Math.round(n.getBoundingClientRect().height)} px tall · the removable chip ${Math.round(chipEl.getBoundingClientRect().width)} × ${Math.round(chipEl.getBoundingClientRect().height)} px · elements past the viewport outside a scroller: ${over.length ? '<b class="off">' + over.length + '</b>' : '<b class="ok">0</b>'}.`;
+  },
+  facetphone(doc, f, w) {
+    const rows = [...doc.querySelectorAll('#realized-trades-phone-rows .phone-row')];
+    const z = doc.querySelector('[data-role="return-absent"]');
+    return `Measured at ${w} px: phone rows ${rows.map((r) => Math.round(r.getBoundingClientRect().height)).join(' / ')} px tall; "— keine Kostenbasis" ${Math.round(z.getBoundingClientRect().width)} px wide on one line (${Math.round(z.getBoundingClientRect().height)} px).`;
+  },
+  cls(doc, f, w) {
+    const a = doc.querySelector('#classifications-result-alert .data-note');
+    const btn = doc.querySelector('#category-add');
+    const sel = doc.querySelector('#parent-select');
+    const gap = Math.round(btn.getBoundingClientRect().bottom - a.getBoundingClientRect().top);
+    return `Measured at ${w} px: refusal note ${Math.round(a.getBoundingClientRect().height)} px tall; from its top edge to the bottom of "Hinzufügen" ${gap} px (no plan; the plan editor's empty state is ${Math.round(doc.querySelector('#soll-editor').getBoundingClientRect().height)} px of it) · the parent select with "Stufe 32" picked: ${Math.round(sel.getBoundingClientRect().width)} px wide.`;
+  },
+  deep(doc, f, w) {
+    const names = [...doc.querySelectorAll('.cat-name')];
+    const widths = names.map((n) => Math.round(n.getBoundingClientRect().width));
+    const first = widths.findIndex((x) => x < 48);
+    const zero = widths.findIndex((x) => x < 1);
+    const step = Math.round(names[1].getBoundingClientRect().left - names[0].getBoundingClientRect().left);
+    const loss = widths[0] - widths[1];
+    const edge = doc.querySelector('.classifications-detail').getBoundingClientRect().right;
+    const acts = [...doc.querySelectorAll('.cat-summary .cat-actions')];
+    const clipped = acts.findIndex((a) => a.getBoundingClientRect().right > edge + 0.5);
+    return `Measured at ${w} px with every level open: each level indents ${step} px and its row loses ${loss} px; the name cell (swatch and name) is ${widths[0]} px at Stufe 1 and ${widths[9]} px at Stufe 10, under 48 px (about five characters) from Stufe ${first + 1} and 0 px from Stufe ${zero + 1}; from Stufe ${clipped + 1} the row's fixed figure columns no longer fit and "✎" and "×" are clipped past the page's edge (<code>.classifications-detail { overflow-x: clip }</code>). Of the 32 levels the guard allows, about ${first} can be read.`;
+  }
+};
+
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  const css = CSS_MOCK + ('proposal' in f.dataset ? document.getElementById('proposal').outerHTML : '');
+  const fixed = f.dataset.fixed;
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument;
+    const dt = doc.querySelector('.detail-pane-tabs');
+    const dta = dt && dt.querySelector('.is-active');
+    if (dt && dta && dt.scrollWidth > dt.clientWidth) dt.scrollLeft = Math.max(0, dta.offsetLeft - dt.offsetLeft - 60);
+    const finish = () => {
+      if (fixed) f.style.height = fixed + 'px';
+      else f.style.height = Math.ceil(doc.documentElement.scrollHeight) + 'px';
+      const m = f.dataset.measure;
+      if (m && MEASURE[m]) {
+        const w = Math.round(f.getBoundingClientRect().width);
+        const key = m === 'deep' ? 'deep-desk' : `${m}${m === 'l2' ? '-' + o.v : ''}-${w > 500 ? 'desk' : 'phone'}`;
+        const out = document.querySelector(`[data-out="${key}"]`) || document.querySelector(`[data-out="${m}"]`);
+        if (out && f.offsetParent !== null) out.innerHTML = MEASURE[m](doc, f, w);
+      }
+    };
+    if (o.scroll) {
+      f.style.height = fixed + 'px';
+      setTimeout(() => {
+        const el = doc.querySelector(o.scroll);
+        const win = f.contentWindow;
+        if (el && el.getBoundingClientRect().height > 0) win.scrollTo(0, el.getBoundingClientRect().top + win.scrollY - 12);
+        finish();
+      }, 100);
+    } else if (f.dataset.tpl === 'deep') {
+      f.style.height = fixed + 'px';
+      setTimeout(() => {
+        /* a negative margin rather than a scroll: the full-page capture
+           re-lays out the board and resets a scroll this deep */
+        const t = doc.querySelector(`[data-level="${o.from || 26}"] > summary`);
+        doc.body.style.marginTop = -(t.getBoundingClientRect().top - 8) + 'px';
+        finish();
+      }, 100);
+    } else {
+      finish();
+    }
+  });
+  const bodyCls = o.phoneonly ? ' class="phoneonly-wrap"' : '';
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="system" data-accent="violet"${fixed ? ' class="screen"' : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body${bodyCls}>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>
