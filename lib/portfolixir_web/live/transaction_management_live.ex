@@ -28,14 +28,26 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   # #732: the pickable columns — the human half of the API's `fields=` sparse
   # fieldset (FR-37). Keys follow the serializers' field names where a field
-  # exists there; `depot`/`security` are the human joins over the id fields.
+  # exists there; `security` and `account` are the human joins over the id
+  # fields — `account` over `cash_account_id` (and a transfer's
+  # `counter_cash_account_id`), else `securities_account_id` (#1084).
   # The running-balance column is deliberately NOT here: it stays governed by
   # its own rule (exactly one account narrowed), because a picker that can
   # summon it outside that narrowing would fake a meaningless balance.
   # The amount rides in the defaults (#786): a dividend row shows what was
   # paid, not only its quantity. The currency is the amount's suffix, so its
-  # own column stays in the picker rather than in the defaults.
-  @tx_column_defaults ["date", "type", "security", "quantity", "price", "gross_amount"]
+  # own column stays in the picker rather than in the defaults. The account
+  # rides in them too (#1084, pick J3.2 A): the amount beside it is that
+  # account's view, and a cash booking names nothing else.
+  @tx_column_defaults [
+    "date",
+    "type",
+    "security",
+    "account",
+    "quantity",
+    "price",
+    "gross_amount"
+  ]
   @tx_column_keys @tx_column_defaults ++ ["currency", "fees", "taxes", "notes"]
   @numeric_columns ["quantity", "price", "gross_amount", "fees", "taxes"]
 
@@ -93,7 +105,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     <AppShell.shell
       current_path="/transactions"
       page_title={gettext("Transactions")}
-      page_subtitle={gettext("Manual buy and sell ledger")}
+      page_subtitle={gettext("Every booking across accounts and depots")}
     >
       <div id="transactions-workspace" class="workspace-page">
         <AppShell.area_tabs tabs={AppShell.transactions_tabs(:history)} />
@@ -343,10 +355,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                           colspan={length(@tx_columns) + if(@balance_account, do: 2, else: 1)}
                           scope="colgroup"
                         >
+                          <%!-- #1083 (pick J3 A): the count alone. The sums
+                                per kind and currency are the summary's,
+                                above, under their basis line. --%>
                           <span class="tx-group-month"><%= group.label %></span>
                           <span class="tx-group-subtotal">
                             <%= ngettext("%{count} transaction", "%{count} transactions", group.count,
-                              count: group.count) %> · <.currency_totals totals={group.totals} />
+                              count: group.count) %>
                           </span>
                         </th>
                       </tr>
@@ -368,10 +383,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                                   <td class="num"><%= format_quantity(transaction.quantity) %></td>
                                 <% end %>
                               <% "price" -> %>
+                                <%!-- #1073: the price with the digits it was
+                                      stored with (R10c), as the notes drawer
+                                      shows it. --%>
                                 <%= if transaction.type == "split" do %>
-                                  <td class="num">—</td>
+                                  <td class="num" data-role="price">—</td>
                                 <% else %>
-                                  <td class="num"><%= PortfolixirWeb.Format.decimal(transaction.price, 2) %></td>
+                                  <td class="num" data-role="price"><%= stored_figure(transaction.price) %></td>
                                 <% end %>
                               <% "gross_amount" -> %>
                                 <%!-- The booking's money as the cash account sees it,
@@ -382,11 +400,17 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                                     <td class="num" data-role="amount">—</td>
                                   <% amount -> %>
                                     <td class="num" data-role="amount">
-                                      <%= signed_money(transaction.type, amount) %><small class="value-suffix"><%= money_currency(transaction) %></small>
+                                      <%= signed_money(transaction, amount, @filters["account_ids"]) %><small class="value-suffix"><%= money_currency(transaction) %></small>
                                     </td>
                                 <% end %>
+                              <% "account" -> %>
+                                <%!-- #1084 (pick J3.2 A): the account the
+                                      amount moved through, each stored name
+                                      in its own <bdi> (H8.8). A name that
+                                      wraps (U1 review). --%>
+                                <td class="cell-name" data-role="account"><.arrow_names names={tx_accounts(transaction, @account_names)} /></td>
                               <% _other -> %>
-                                <td {num_attrs(key)}><%= tx_cell(transaction, key) %></td>
+                                <td {cell_attrs(key)}><%= tx_cell(transaction, key) %></td>
                             <% end %>
                           <% end %>
                           <td :if={@balance_account} class="num col-subject" data-role="running-balance">
@@ -415,7 +439,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                     <span class="tx-group-month"><%= group.label %></span>
                     <span class="tx-group-subtotal">
                       <%= ngettext("%{count} transaction", "%{count} transactions", group.count,
-                        count: group.count) %> · <.currency_totals totals={group.totals} />
+                        count: group.count) %>
                     </span>
                   </li>
                   <li
@@ -430,12 +454,15 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                           transaction.type
                         ) %>
                       </span>
-                      <span :if={phone_subject(transaction)} class="phone-row__ids">
-                        <%= phone_subject(transaction) %>
+                      <%!-- The Konto cell's names where the booking has no
+                            security: a transfer names both of its accounts
+                            (U1 review), one span so they flow as one line. --%>
+                      <span :if={phone_subject(transaction, @account_names) != []} class="phone-row__ids">
+                        <span><.arrow_names names={phone_subject(transaction, @account_names)} /></span>
                       </span>
                     </span>
                     <span class="phone-row__figures">
-                      <span class="phone-row__figure"><%= phone_amount(transaction) %></span>
+                      <span class="phone-row__figure"><%= phone_amount(transaction, @filters["account_ids"]) %></span>
                       <span :if={phone_size(transaction)} class="phone-row__figure2">
                         <%= phone_size(transaction) %>
                       </span>
@@ -905,8 +932,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp row_kebabs(nil), do: nil
   defp row_kebabs(id), do: "#tx-kebab-#{id}, #tx-phone-kebab-#{id}"
 
+  # `account_ids`: the chips in view, so the box signs a transfer as its row
+  # does (board 03, found while drawing, item 1).
   defp delete_context(socket) do
     %{
+      account_ids: socket.assigns.filters["account_ids"],
       cash_accounts: socket.assigns.cash_accounts,
       securities_accounts: socket.assigns.securities_accounts,
       transactions: socket.assigns.transactions,
@@ -1020,6 +1050,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     |> assign(
       securities_accounts: securities_accounts,
       cash_accounts: cash_accounts,
+      # The Konto column names a transfer's receiving account or depot from
+      # here: the rows preload only the sending one (#1084, U1 review).
+      account_names: %{
+        cash: Map.new(cash_accounts, &{&1.id, &1.name}),
+        depots: Map.new(securities_accounts, &{&1.id, &1.name})
+      },
       securities: securities,
       transactions: transactions,
       twin_tags: twin_tags(transactions)
@@ -1148,9 +1184,6 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     needle == "" or String.contains?(haystack, needle)
   end
 
-  # Section the (already date-desc) history into month chunks with a subtotal
-  # each (#414 follow-up). chunk_by works because the list is pre-sorted, so
-  # consecutive same-month rows are adjacent and order is preserved.
   # #809: the row's kebab, on the table row and on the phone row. The menu
   # itself is rendered once at the page level so its popover is never clipped
   # by the table scroller.
@@ -1186,7 +1219,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp kebab_subject(%{security: %{name: name} = security}, twin_tags) when is_binary(name),
     do: SecurityNames.label(twin_tags, security)
 
-  defp kebab_subject(transaction, _twin_tags), do: phone_subject(transaction)
+  defp kebab_subject(transaction, _twin_tags),
+    do: account_name(transaction.cash_account) || account_name(transaction.securities_account)
 
   defp twin_tags(transactions) do
     transactions
@@ -1372,6 +1406,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     end
   end
 
+  # Section the (already date-desc) history into month chunks (#414
+  # follow-up). chunk_by works because the list is pre-sorted, so consecutive
+  # same-month rows are adjacent and order is preserved. A head carries its
+  # month's count and no sum (#1083, pick J3 A): an unsigned sum across kinds
+  # is neither a cash flow nor a turnover, and the summary above already
+  # states the sums per kind and currency under its basis line.
   defp grouped_by_month(transactions) do
     transactions
     |> Enum.chunk_by(fn tx -> {tx.date.year, tx.date.month} end)
@@ -1382,8 +1422,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         id: month_group_id(first.date),
         label: month_group_label(first.date),
         transactions: chunk,
-        count: length(chunk),
-        totals: totals_by_currency(chunk)
+        count: length(chunk)
       }
     end)
   end
@@ -1490,7 +1529,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # (the picker test pins that none is dropped).
   defp tx_column_groups do
     [
-      {gettext("Booking"), ~w(date type security)},
+      {gettext("Booking"), ~w(date type security account)},
       {gettext("Amounts"), ~w(quantity price gross_amount fees taxes)},
       {gettext("Other"), ~w(currency notes)}
     ]
@@ -1507,6 +1546,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp tx_column_label("date"), do: gettext("Date")
   defp tx_column_label("type"), do: gettext("Type")
   defp tx_column_label("security"), do: gettext("Security")
+  # The chips' word for the same accounts (#1084): a booking the chip
+  # "Demo Cash" selects reads "Demo Cash" in this column.
+  defp tx_column_label("account"), do: gettext("Account")
   defp tx_column_label("quantity"), do: gettext("Quantity")
   defp tx_column_label("price"), do: gettext("Price")
   defp tx_column_label("currency"), do: gettext("Currency")
@@ -1525,6 +1567,51 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp tx_cell(transaction, "fees"), do: PortfolixirWeb.Format.money(transaction.fees)
   defp tx_cell(transaction, "taxes"), do: PortfolixirWeb.Format.money(transaction.taxes)
   defp tx_cell(transaction, "notes"), do: transaction.notes
+
+  # The Konto column's names (#1084, pick J3.2 A): the cash account the
+  # amount moved through — the account whose view the Betrag is — both of a
+  # cash transfer's, sender first; both depots of a security transfer, the
+  # sending one first, as the delete dialog's box names them (U1 review);
+  # without a cash account the depot (a delivery); a split names none.
+  # `phone_subject/2`'s order without the security, so the phone row stays
+  # the table condensed (UX-DR27). A receiving account or depot the page's
+  # lists do not carry is left out rather than named by id.
+  defp tx_accounts(%{type: "cash_transfer"} = transaction, names) do
+    [
+      account_name(transaction.cash_account),
+      Map.get(names.cash, transaction.counter_cash_account_id)
+    ]
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp tx_accounts(%{type: "security_transfer"} = transaction, names) do
+    [
+      account_name(transaction.securities_account),
+      Map.get(names.depots, transaction.counter_securities_account_id)
+    ]
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp tx_accounts(transaction, _names) do
+    case account_name(transaction.cash_account) ||
+           account_name(transaction.securities_account) do
+      nil -> []
+      name -> [name]
+    end
+  end
+
+  defp account_name(%{name: name}) when is_binary(name), do: name
+  defp account_name(_not_loaded_or_nil), do: nil
+
+  # Stored names joined by the app's arrow, each in its own <bdi> (H8.8) and
+  # the " → " outside them: the Konto cell and the phone row's subject.
+  attr(:names, :list, required: true)
+
+  defp arrow_names(assigns) do
+    ~H"""
+    <%= for {name, index} <- Enum.with_index(@names) do %><%= if index > 0, do: " → " %><bdi><%= name %></bdi><% end %>
+    """
+  end
 
   # Human, localized labels for the stored type enum; the form value and the
   # ledger keep the machine "buy"/"sell". One shared table for both
@@ -1607,6 +1694,14 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp num_attrs(key) when key in @numeric_columns, do: %{class: "num"}
   defp num_attrs(_key), do: %{}
 
+  # A body cell's class (U1 review): the history is a reading table that
+  # fits its wrapper, so the names wrap (`.cell-name`), the date and the kind
+  # stay on one line, and a figure is `.num`, which never wraps.
+  defp cell_attrs("date"), do: %{class: "cell-date"}
+  defp cell_attrs("type"), do: %{class: "cell-kind"}
+  defp cell_attrs("security"), do: %{class: "cell-name"}
+  defp cell_attrs(key), do: num_attrs(key)
+
   # The quantity in its own scale under the locale's separators (#786):
   # "0,05", "30", "1.000" — never the stored twelve-place scale.
   defp format_quantity(nil), do: ""
@@ -1617,37 +1712,47 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     PortfolixirWeb.Format.decimal(normalized, places)
   end
 
-  @outflow_kinds ~w(buy removal fee tax cash_transfer)
+  # A cash transfer is not here: its sign is the account in view's
+  # (`signed_money/3`).
+  @outflow_kinds ~w(buy removal fee tax)
 
   # The phone row's lines (#799): the subject the booking touched, the money
   # as the cash account sees it with its currency, and the size — quantity ×
   # price, the quantity alone, a split's ratio — where the booking has one.
-  defp phone_subject(%{security: %{name: name}}) when is_binary(name), do: name
-  defp phone_subject(%{cash_account: %{name: name}}) when is_binary(name), do: name
-  defp phone_subject(%{securities_account: %{name: name}}) when is_binary(name), do: name
-  defp phone_subject(_transaction), do: nil
+  # The subject is the security, else the Konto cell's names: a cash
+  # transfer names both of its accounts, sender first, so a row that reads
+  # as arriving in the receiver's view still says where the money came from
+  # (U1 review).
+  defp phone_subject(%{security: %{name: name}}, _names) when is_binary(name), do: [name]
+  defp phone_subject(transaction, names), do: tx_accounts(transaction, names)
 
   @doc """
   The booking's money as the history's phone row shows it — signed as the
   cash account sees it, with its currency — or "—" (#799). The delete
-  dialog names a booking with it (U1, #912).
+  dialog names a booking with it (U1, #912). `account_ids` are the account
+  chips in view: a cash transfer reads from its receiving side when they
+  select that account and not its sender (board 03, found while drawing).
   """
-  def phone_amount(transaction) do
+  def phone_amount(transaction, account_ids \\ []) do
     case tx_money(transaction) do
-      nil -> "—"
-      amount -> signed_money(transaction.type, amount) <> " " <> money_currency(transaction)
+      nil ->
+        "—"
+
+      amount ->
+        signed_money(transaction, amount, account_ids) <> " " <> money_currency(transaction)
     end
   end
 
   @doc """
   The booking's size as the history's phone row shows it — quantity × price,
   the quantity alone, a split's ratio — or `nil` (#799); the delete dialog's
-  second figure (U1, #912).
+  second figure (U1, #912). The price keeps its stored digits, as the Price
+  column does (#1073).
   """
   def phone_size(%{type: "split"} = transaction), do: split_ratio_label(transaction)
 
   def phone_size(%{quantity: %Decimal{} = quantity, price: %Decimal{} = price}),
-    do: "#{format_quantity(quantity)} × #{PortfolixirWeb.Format.decimal(price, 2)}"
+    do: "#{format_quantity(quantity)} × #{stored_figure(price)}"
 
   def phone_size(%{quantity: %Decimal{} = quantity}),
     do:
@@ -1664,7 +1769,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   def plural_count(%Decimal{} = quantity),
     do: if(Decimal.equal?(quantity, 1), do: 1, else: 2)
 
-  # The booking's money on the same basis as the month subtotal (the stored
+  # The booking's money on the same basis as the summary's sums (the stored
   # gross amount, else quantity × price); a split or a transfer without a
   # price has none.
   # The currency a booking's money is in: a recorded cash amount moves through
@@ -1688,11 +1793,28 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   # Signed as the cash account sees it: what leaves the account is negative,
   # what arrives is positive. A balance snapshot is a level, not a flow, and
-  # keeps its stored sign.
-  defp signed_money(type, %Decimal{} = amount) when type in @outflow_kinds,
-    do: PortfolixirWeb.Format.money(Decimal.negate(amount))
+  # keeps its stored sign. A cash transfer has two accounts, and the sign is
+  # the one in view's (board 03, found while drawing, item 1): with the
+  # account chips selecting its receiving account and not its sender, the
+  # money arrives — as the running balance beside it says. Otherwise, the
+  # sender first as the Konto cell names it, it leaves.
+  defp signed_money(%{type: "cash_transfer"} = transaction, %Decimal{} = amount, account_ids) do
+    if receiving_view?(transaction, account_ids),
+      do: PortfolixirWeb.Format.money(amount),
+      else: PortfolixirWeb.Format.money(Decimal.negate(amount))
+  end
 
-  defp signed_money(_type, %Decimal{} = amount), do: PortfolixirWeb.Format.money(amount)
+  defp signed_money(%{type: type}, %Decimal{} = amount, _account_ids)
+       when type in @outflow_kinds,
+       do: PortfolixirWeb.Format.money(Decimal.negate(amount))
+
+  defp signed_money(_transaction, %Decimal{} = amount, _account_ids),
+    do: PortfolixirWeb.Format.money(amount)
+
+  defp receiving_view?(transaction, account_ids) do
+    to_string(transaction.counter_cash_account_id) in account_ids and
+      to_string(transaction.cash_account_id) not in account_ids
+  end
 
   # Normalized, so holdings show "200" instead of the stored scale
   # ("200.000000000000"); nil stays blank.
@@ -2001,17 +2123,40 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp amount_fact(label, value, field \\ "gross_amount"),
     do: %{fact(label, field, :input, stored_figure(value)) | num?: true}
 
-  # A stored figure with the digits it was stored with — trailing zeros
-  # trimmed, at least two places — never rounded to two (the closing act,
-  # R10c): a price of 41.1234 reads 41.1234, an amount of 1500 1,500.00.
-  defp stored_figure(value) do
-    places =
-      if is_struct(value, Decimal),
-        do: value |> Decimal.normalize() |> Map.fetch!(:exp) |> Kernel.-() |> max(2),
-        else: 2
+  @doc """
+  A stored figure with the digits it was stored with, up to four decimal
+  places — trailing zeros trimmed, at least two places — never rounded to
+  two (the closing act, R10c): a price of 41.1234 reads 41.1234, an amount
+  of 1500 1,500.00. *Amended 2026-10-07 (the γ closing act, edge-case
+  hunter #2):* at most four places, so a price the PP JSON importer derived
+  as amount ÷ shares at the column's scale 6 reads 72.6212, not 72.621176.
 
-    PortfolixirWeb.Format.decimal(value, places)
+  *Amended again 2026-10-07 (the closing act's cascade, layer 2):* a figure
+  under 1 keeps at least three significant digits — its stored digits up to
+  two places past its first non-zero one, never fewer than four — so a
+  stored 0.000045 reads 0.000045, not "0.0000", and 0.001234 reads
+  0.00123. No non-zero figure prints as zero.
+
+  The notes drawer's facts, the history's Price column, the phone row's size
+  and the security's Transaktionen tab read it (#1073). Decimal throughout:
+  the scale comes from the normalized value, and only a place past the
+  cap is rounded.
+  """
+  def stored_figure(%Decimal{} = value) do
+    %Decimal{coef: coef, exp: exp} = Decimal.normalize(value)
+    stored = max(-exp, 0)
+
+    # The first non-zero decimal place of a figure under 1 (5 for 0.000045),
+    # else 0: the cap reaches two places past it.
+    first =
+      if coef != 0 and Decimal.lt?(Decimal.abs(value), 1),
+        do: -(exp + length(Integer.digits(coef))) + 1,
+        else: 0
+
+    PortfolixirWeb.Format.decimal(value, max(2, min(stored, max(4, first + 2))))
   end
+
+  def stored_figure(value), do: PortfolixirWeb.Format.decimal(value, 2)
 
   defp quantity_fact(quantity),
     do: %{fact(gettext("Quantity"), "quantity", :input, format_quantity(quantity)) | num?: true}

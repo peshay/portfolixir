@@ -74,7 +74,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
       id: transaction.id,
       kind: :booking,
       title: gettext("Delete transaction"),
-      subject: booking_subject(transaction, names),
+      subject: booking_subject(transaction, names, Map.get(context, :account_ids) || []),
       consequence: booking_consequence(transaction, names, context),
       journal:
         gettext(
@@ -324,7 +324,10 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
 
   # The history's phone row, said back: date · kind over the subject and the
   # account it touched; the signed amount over its size (DESIGN.md rule ②).
-  defp booking_subject(transaction, names) do
+  # The amount is signed as the row it was opened from reads: a transfer
+  # from the side of the account chips in view (`account_ids`; Sprint 19
+  # U1, board 03, found while drawing, item 1).
+  defp booking_subject(transaction, names, account_ids) do
     # Each stored name in its own <bdi> (H8.8; the closing act, R7), the
     # app's separators outside them.
     account_line =
@@ -346,7 +349,7 @@ defmodule PortfolixirWeb.Transactions.BookingDeleteDialog do
       name:
         Format.date(transaction.date) <> " · " <> TransactionKindLabel.label(transaction.type),
       ids: if(ids == [], do: nil, else: {:safe, ids}),
-      figure: TransactionManagementLive.phone_amount(transaction),
+      figure: TransactionManagementLive.phone_amount(transaction, account_ids),
       figure2: TransactionManagementLive.phone_size(transaction)
     }
   end

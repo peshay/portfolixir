@@ -2033,8 +2033,11 @@ defmodule PortfolixirWeb.SecuritiesLive do
                     <td class="num">—</td>
                   <% else %>
                     <td class="num"><%= Format.decimal(tx.quantity, 4) %></td>
-                    <td class="num">
-                      <%= Format.decimal(tx.price, 2) %>
+                    <%!-- The history's stored-digits rule (R10c, amended
+                         2026-10-07): every stored digit up to four places,
+                         so one booking reads the same here and there. --%>
+                    <td class="num" data-role="price">
+                      <%= PortfolixirWeb.TransactionManagementLive.stored_figure(tx.price) %>
                       <small><%= tx.currency_code %></small>
                     </td>
                     <td class="num"><%= Format.decimal(tx.fees, 2) %></td>

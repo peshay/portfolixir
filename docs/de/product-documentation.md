@@ -1032,8 +1032,8 @@ Kontos bleibt, wie er gesetzt wurde. Ein Wertpapier, dessen Namen ein
 anderes auch trägt, wird mit seiner ISIN genannt, wie das Zeilenmenü es
 nennt. **Transaktion löschen** löscht sie; **Abbrechen**, Esc oder die
 Schließen-Schaltfläche ändern nichts und geben den Fokus an die
-Menü-Schaltfläche der Zeile zurück. Die Zeile verschwindet, die Monatssumme
-folgt, und das Ergebnis lautet „Transaktion gelöscht: Kauf · Global Aktien
+Menü-Schaltfläche der Zeile zurück. Die Zeile verschwindet, die Anzahl im
+Monatskopf folgt, und das Ergebnis lautet „Transaktion gelöscht: Kauf · Global Aktien
 ETF · 22.09.2026.“; eine inzwischen gelöschte
 Buchung (vom Agenten oder in einem anderen Tab) liest „Diese Transaktion
 existiert nicht mehr.“ — die eine Ablehnung, die die API kennt. Darüber
@@ -1089,7 +1089,8 @@ offenen Lots wird mit dem ungedeckten Fehlbetrag markiert.
 
 ### Die Historie lesen
 
-Die Transaktionshistorie wird über **Chips** oberhalb der Tabelle gefiltert:
+Die Historie enthält alle Buchungen über alle Konten und Depots, jeder Art,
+wie der Untertitel der Seite sagt. Sie wird über **Chips** oberhalb der Tabelle gefiltert:
 einer je Geldkonto und einer je Transaktionsart, die tatsächlich vorkommt.
 Chips sind Schalter. Zwei Chips derselben Familie bedeuten „eines von beiden"
 — zwei Konten zeigen die Buchungen beider Konten; je ein Chip aus zwei
@@ -1111,11 +1112,23 @@ Eigenschaften dieser Spalte sind wichtig:
 Eine Zeile, die das gewählte Konto nicht bewegt — eine Einlieferung, ein Split
 — zeigt einen Gedankenstrich statt den Wert der Vorzeile zu wiederholen.
 
-Die Zeilen sind nach Monaten gegliedert, und sowohl die Monatssummen als auch
-die Zusammenfassung über der Tabelle nennen **eine Summe je Währung**. Die
-Beträge sind die gebuchten Bruttobeträge; sie werden nie umgerechnet oder über
-Währungen hinweg addiert — eine Umrechnung wäre eine andere Kennzahl und
-bräuchte ihre eigene Kursbasis.
+Der **Betrag** jeder Zeile ist das Geld der Buchung, wie ihr Verrechnungskonto
+es sieht: was das Konto verlässt, ist negativ, was ankommt, positiv, und ein
+gesetzter Saldo zeigt den Stand, den er setzt. Eine **Umbuchung** bewegt zwei
+Konten, also trägt sie das Vorzeichen des Kontos im Blick: Solange die Chips
+ihr Empfängerkonto auswählen und nicht ihr Senderkonto, liest sie sich als
+ankommendes Geld („200,00“, wie der Saldo daneben um 200 steigt); sonst aus
+Sicht des Senders („-200,00“).
+
+Die Zusammenfassung über der Tabelle nennt Anzahl und gebuchte Bruttobeträge
+je Art, mit **einer Summe je Währung**. Die Beträge werden nie umgerechnet oder
+über Währungen hinweg addiert — eine Umrechnung wäre eine andere Kennzahl und
+bräuchte ihre eigene Kursbasis. Die Zeilen sind nach Monaten gegliedert, und
+jeder Monatskopf trägt den Monat und allein seine **Anzahl** — *September
+2026*, *6 Transaktionen* (Issue #1083): Eine Summe über Käufe, Einlagen,
+Verkäufe und einen gesetzten Saldo wäre weder ein Geldfluss noch ein Umsatz,
+also bleiben die Summen in der Zusammenfassung, deren Grundlagenzeile sagt,
+was sie addieren.
 
 Neben den Konto- und Art-Chips sitzen die **Geändert-seit**-Chips (*Heute /
 7 Tage / 30 Tage*, Issue #731): sie verengen die Historie auf Transaktionen,
@@ -1130,11 +1143,30 @@ unlesbarer Wert degradiert zur vollständigen Historie. Die Spalte **Saldo**
 bleibt von diesem Filter wie von jedem anderen unberührt: sie wird immer über
 die gesamte Historie des Kontos gebildet.
 
+Die Standardspalten sind **Datum, Typ, Wertpapier, Konto, Stückzahl, Preis
+und Betrag**. **Konto** (Issue #1084) nennt das Verrechnungskonto, über das
+der Betrag lief — das Konto, aus dessen Sicht der Betrag steht, mit dem
+Namen, den auch sein Chip trägt; eine Umbuchung nennt beide, den Sender
+zuerst („Girokonto → Tagesgeld“), und eine Wertpapierumbuchung nennt ebenso
+ihre beiden Depots („Depot 1 → Depot 2“); eine Buchung ohne
+Verrechnungskonto, etwa eine Einlieferung, nennt ihr Depot; ein Split nennt
+keines. **Preis** zeigt einen Preis mit den Stellen, mit denen er
+gespeichert wurde, bis zu vier Nachkommastellen: 41,1234 bleibt 41,1234, 24
+liest sich 24,00, und ein Preis, den ein Import als Betrag ÷ Stückzahl
+abgeleitet und als 72,621176 gespeichert hat, liest sich 72,6212 — wie im
+Tab **Transaktionen** des Wertpapiers (Issue #1073). Ein Preis unter 1
+behält mindestens drei signifikante Stellen und liest sich so nie als null:
+0,000045 bleibt 0,000045, und 0,001234 liest sich 0,00123. Die Namen von
+Wertpapier und Konto brechen zwischen Wörtern um, statt die Tabelle zu
+verbreitern, sodass bei Desktop-Breite die ganze Zeile im Blick bleibt,
+Preis und Betrag eingeschlossen; Datumsangaben und Zahlen brechen nie um.
+
 **Spalten** (Issue #732) öffnet die Spaltenwahl der Historie — die
 menschliche Hälfte der schlanken `fields=`-Feldauswahl der API. Jenseits des
-Standardsatzes (Datum, Art, Wertpapier, Menge, Kurs, Währung) bietet sie die
-Felder an, die jede Buchung schon trägt, die die Tabelle aber nie zeigte:
-Bruttobetrag, Gebühren, Steuern und Notizen. Die Wahl wird im Browser
+Standardsatzes bietet sie die Felder an, die jede Buchung schon trägt, die
+die Tabelle aber nie zeigte: Währung, Gebühren, Steuern und Notizen. Eine
+Spaltenwahl von vor der Spalte Konto bleibt erhalten; Konto ist dann einen
+Haken entfernt, in der Gruppe *Buchung* der Auswahl. Die Wahl wird im Browser
 gespeichert und übersteht ein Neuladen. Die Spalte **Saldo** steht bewusst
 nicht in der Auswahl: sie folgt weiter ihrer eigenen Regel — sie erscheint
 genau dann, wenn die Chips auf ein Konto verengen —, denn eine Auswahl, die
@@ -1146,11 +1178,14 @@ Bestände-API lesbar.
 
 **Auf dem Telefon** (Issue #799, UX-DR27): unter 560 px weicht die Historie
 zweizeiligen Zeilen unter denselben Monatsköpfen — Datum und Art über dem
-Wertpapier oder Konto, das die Buchung berührt hat, rechts der Betrag mit
-Vorzeichen und Währung über der Größe (Stückzahl × Kurs, die Stückzahl
-allein, das Verhältnis eines Splits), darunter der laufende Saldo, solange
-die Chips auf ein Konto eingrenzen — sodass nichts seitwärts scrollt; die
-Spaltenauswahl behält oberhalb von 560 px ihre Bedeutung.
+Wertpapier oder Konto, das die Buchung berührt hat (bei einer Umbuchung beide
+Konten, den Sender zuerst, wie die Spalte Konto sie nennt), rechts der Betrag mit
+Vorzeichen und Währung über der Größe (Stückzahl × Preis, der Preis mit
+seinen gespeicherten Stellen; die Stückzahl allein; das Verhältnis eines
+Splits), darunter der laufende Saldo, solange die Chips auf ein Konto
+eingrenzen — sodass nichts seitwärts scrollt und ein langer Name ohne
+Leerzeichen in seiner Zeile umbricht (Issue #1073); die Spaltenauswahl
+behält oberhalb von 560 px ihre Bedeutung.
 
 ### Bestandsberechnung
 
