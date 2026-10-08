@@ -1966,8 +1966,9 @@ short identifier after its name; a unique name stays bare.
   with only an ISIN and another with only a WKN therefore both take their
   number. The depot cannot be the last step: depot names may read the same,
   the Depot column can be hidden, and the contribution table has one row
-  per security. The contribution payload carries no WKN, so there the chain
-  falls from the ISIN straight to the number.
+  per security. *Amended 2026-10-08 (issue 1154):* the engine's contribution
+  row carries the WKN, so the contribution table runs the same chain; the
+  API's contribution payload does not carry it.
 - **Anatomy** (`.twin-id`, rendered by
   `PortfolixirWeb.SecurityNames.twin_id/1`): after the name, a word space
   and a ~~6 px~~ 2 px margin from it, inside the name's own cell or

@@ -2116,7 +2116,8 @@ paid into it by buying, or taken out of it by selling, not money leaving the
 portfolio.
 Two different securities with the same name each show what tells them apart
 after the name, in the table and in the phone rows: the ISIN where both
-have one and they differ, else the record's number ("no. 42"). The table
+have one and they differ, else the WKN on the same terms, else the record's
+number ("no. 42"), as on the Positions table. The table
 has one row per security, whichever depot holds it, so such securities are
 told apart here even when they sit in different depots; and the check
 covers every position, the ones behind **Show all N** included.
