@@ -15,6 +15,11 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
   alias Portfolixir.Fx
   alias Portfolixir.Fx.HistoryGaps
   alias Portfolixir.Fx.RateSync
+  alias Portfolixir.Imports
+  alias Portfolixir.Imports.Applier.Result
+  alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.Performance
+  alias Portfolixir.Portfolios.Performance.Contribution
 
   # A fake rate provider: it reports each fetch to the test process and
   # answers what the call's options, or the application environment for a
@@ -216,6 +221,277 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
                {:error, :history_unsupported}
 
       assert HistoryGaps.sought() == []
+    end
+  end
+
+  # -- the triggers: after an import apply, after the boot sync ---------------
+
+  @today ~D[2026-09-30]
+
+  # A switcher's two-year history in dollars, as Portfolio Performance's JSON
+  # export writes it: 10,000 USD paid into "Broker USD" on 2024-10-01 and
+  # 10 shares of a dollar-priced share bought from it the same day at
+  # 100 USD.
+  @usd_history """
+  {
+    "version": 1,
+    "transactions": [
+      {"type": "DEPOSIT", "account": "Broker USD", "date": "2024-10-01",
+       "time": "09:00", "currency": "USD", "amount": 10000.00},
+      {"type": "PURCHASE", "account": "Broker USD", "portfolio": "Depot USD",
+       "date": "2024-10-01", "time": "10:00", "currency": "USD",
+       "amount": 1000.00, "shares": 10.0,
+       "security": {"name": "Examplia Robotics Corp.", "ticker": "EXRB",
+                    "currency": "USD"}}
+    ]
+  }
+  """
+
+  # The ECB's series as the fake serves it: EUR/USD 1.25 from 2024-09-30
+  # (1 USD = 0.80 EUR), 1.0 from 2025-09-30, 1.6 from 2026-09-29
+  # (1 USD = 0.625 EUR). Every reciprocal terminates, so every figure below
+  # is exact (ADR-0051, I1).
+  @usd_series [
+    {~D[2024-09-30], "1.25"},
+    {~D[2025-09-30], "1.0"},
+    {~D[2026-09-29], "1.6"}
+  ]
+
+  defp usd_series, do: Enum.map(@usd_series, fn {date, rate} -> row("USD", date, rate) end)
+
+  # A fresh instance's boot sync stored the day's rate before anything was
+  # imported: EUR/USD 1.6 on 2026-09-29, the only USD rate it holds.
+  defp fresh_instance! do
+    {:ok, 1} = Fx.upsert_many([row("USD", ~D[2026-09-29], "1.6")])
+    :ok
+  end
+
+  # The Imports page's apply: no portfolio chosen (the internal default one,
+  # ADR-0024), the file's account and depot created under their own names.
+  defp import!(body) do
+    {:ok, preview} = Imports.parse_portfolio_performance(body, filename: "Dollar.json")
+    assert preview.errors == []
+
+    assert {:ok, %Result{created_transactions: created}} =
+             Imports.apply(preview, %{
+               cash_accounts: %{"Broker USD" => {:create, "Broker USD"}},
+               depots: %{"Depot USD" => %{target: {:create, "Depot USD"}, cash: "Broker USD"}}
+             })
+
+    {Portfolios.first_portfolio(), created}
+  end
+
+  # The trigger configuration, as config/{dev,prod,runtime}.exs set it, with
+  # this module's fake and the test process told when a background history
+  # run ends.
+  defp scheduled!(enabled?, feed) do
+    previous = Application.get_env(:portfolixir, RateSync, [])
+    previous_feed = Application.get_env(:portfolixir, :fx_history_feed)
+
+    on_exit(fn ->
+      Application.put_env(:portfolixir, RateSync, previous)
+
+      if previous_feed,
+        do: Application.put_env(:portfolixir, :fx_history_feed, previous_feed),
+        else: Application.delete_env(:portfolixir, :fx_history_feed)
+    end)
+
+    Application.put_env(
+      :portfolixir,
+      RateSync,
+      Keyword.merge(previous, enabled?: enabled?, provider: HistoryFeed, notify: self())
+    )
+
+    Application.put_env(:portfolixir, :fx_history_feed, Keyword.put(feed, :test_pid, self()))
+  end
+
+  # Waits for a background history run to end and answers its result, or
+  # :no_history_run when none ended within the wait.
+  defp await_history_run(timeout \\ 5_000) do
+    receive do
+      {RateSync, :history, result} -> result
+    after
+      timeout -> :no_history_run
+    end
+  end
+
+  defp reads(portfolio_id) do
+    {:ok, performance} = Performance.for_portfolio(portfolio_id, period: "max", today: @today)
+    {:ok, contribution} = Contribution.for_portfolio(portfolio_id, period: "max", today: @today)
+    {performance, contribution}
+  end
+
+  defp assert_eur(actual, expected, label) do
+    assert Decimal.equal?(actual, Decimal.new(expected)),
+           "#{label}: expected #{expected}, got #{actual}"
+  end
+
+  # The jump #1120 names, as the reads carry it on a history whose rates
+  # never arrived: the dollars count zero from 2024-10-01 to 2026-09-28
+  # (728 days), and on 2026-09-29 the whole balance, 9,000 USD = 5,625.00
+  # EUR, enters the currency effect on cash, and the share, 1,000 USD =
+  # 625.00 EUR, its contribution: a result of 6,250.00 EUR, none of it
+  # earned. The account is named with the day its first rate came.
+  defp assert_first_rate_jump(portfolio_id) do
+    {performance, contribution} = reads(portfolio_id)
+    [position] = contribution.positions
+
+    assert_eur(
+      contribution.remainder.cash_currency_effect,
+      "5625",
+      "remainder.cash_currency_effect"
+    )
+
+    assert_eur(position.contribution, "625", "position.contribution")
+    assert_eur(contribution.totals.result, "6250", "totals.result")
+    assert_eur(performance.net_external_flows, "0", "performance.net_external_flows")
+    assert_eur(performance.end_value, "6250", "performance.end_value")
+
+    for read <- [performance, contribution] do
+      assert [account] = read.unvalued_cash_accounts
+      assert account.name == "Broker USD"
+      assert_eur(account.balance, "9000", "account.balance")
+      assert account.unvalued_days == 728
+      assert account.first_rate_date == ~D[2026-09-29]
+    end
+  end
+
+  # User story (#1120; D-1 criterion 2, round trip 3):
+  # As a switcher whose fresh instance gets a two-year history with a USD
+  # security and a USD cash account,
+  # I want the historical rates to arrive without my pressing anything,
+  # so that the history is valued from its first day and no first-rate jump
+  # sits in the result as a gain I did not make.
+  #
+  # Acceptance criteria:
+  # - After the import's apply, the history backfill runs by itself in the
+  #   background (the apply does not wait for it) and stores the fake
+  #   provider's series.
+  # - The performance and contribution reads over the whole history carry
+  #   no jump: the dollars are a flow of 8,000.00 EUR on 2024-10-01, the
+  #   currency effect on cash is the balance's real revaluation, -1,575.00
+  #   EUR (9,000 USD at 0.80, then 1.00, then 0.625 EUR), the share's
+  #   contribution -175.00 EUR, the result -1,750.00 EUR, and
+  #   `unvalued_cash_accounts` is empty on both reads.
+  # - Before A4 the same reads carried the jump (assert_first_rate_jump/1):
+  #   that was this test's red run.
+  describe "the round trip (D-1 criterion 2.3)" do
+    test "a fresh instance's two-year dollar history is valued from its first day, untouched" do
+      fresh_instance!()
+      scheduled!(true, history: {:ok, usd_series()})
+
+      {portfolio, 2} = import!(@usd_history)
+      run = await_history_run()
+
+      {performance, contribution} = reads(portfolio.id)
+      [position] = contribution.positions
+
+      assert_eur(
+        contribution.remainder.cash_currency_effect,
+        "-1575",
+        "remainder.cash_currency_effect"
+      )
+
+      assert_eur(position.contribution, "-175", "position.contribution")
+      assert_eur(position.net_flows, "800", "position.net_flows")
+      assert_eur(position.end_value, "625", "position.end_value")
+      assert_eur(contribution.totals.result, "-1750", "totals.result")
+      assert contribution.unvalued_cash_accounts == []
+
+      assert_eur(performance.start_value, "0", "performance.start_value")
+      assert_eur(performance.net_external_flows, "8000", "performance.net_external_flows")
+      assert_eur(performance.end_value, "6250", "performance.end_value")
+      assert_eur(performance.ttwror, "-0.21875", "performance.ttwror")
+      assert performance.unvalued_cash_accounts == []
+
+      assert {:ok, %{scope: :history, upserted: 3, sought: ["USD"]}} = run
+      assert_received {:fetched, :history, _provider}
+      assert HistoryGaps.open() == %{}
+    end
+  end
+
+  # User story (#1120, D-5):
+  # As an operator,
+  # I want the history backfill to run by itself after the boot sync and
+  # after an import, at most once for a gap no fetch can close, never with
+  # background fetches off, and quietly when the provider cannot be reached,
+  # so that the instance calls out only when a booking needs it and only
+  # when I allowed it to.
+  #
+  # Acceptance criteria:
+  # - The boot sync fetches the day's rates, then the history when a
+  #   booking predates its currency's rates.
+  # - A currency the provider does not publish (TWD) is sought once: a
+  #   second boot and a later import ask the provider for no history.
+  # - With background fetches off (PORTFOLIXIR_BACKGROUND_FETCH=off sets
+  #   the scheduler's enabled? to false, release_background_fetch_test.exs),
+  #   neither the boot nor an import asks the provider anything, and the
+  #   reads keep today's note and figures.
+  # - Without a network the import still applies, the backfill fails
+  #   quietly (a warning in the log), and the reads keep today's note.
+  describe "the triggers" do
+    test "the boot sync fetches the history after the day's rates, and only once" do
+      booked!("TWD", "9000", ~D[2024-04-01], "Taiwan")
+
+      scheduled!(true,
+        daily: {:ok, [row("USD", ~D[2026-09-29], "1.6")]},
+        history: {:ok, usd_series()}
+      )
+
+      boot = [enabled?: true, startup_delay_ms: 0, provider: HistoryFeed, notify: self()]
+
+      start_supervised!({RateSync, Keyword.put(boot, :name, :fx_history_first_boot)})
+
+      assert_receive {:fetched, :daily, _provider}, 2_000
+      assert_receive {:fetched, :history, _provider}, 2_000
+      assert {:ok, %{sought: ["TWD"], upserted: 3}} = await_history_run()
+      stop_supervised!(:fx_history_first_boot)
+
+      start_supervised!({RateSync, Keyword.put(boot, :name, :fx_history_second_boot)})
+
+      assert_receive {:fetched, :daily, _provider}, 2_000
+      assert await_history_run() == :not_needed
+      stop_supervised!(:fx_history_second_boot)
+
+      {_portfolio, 2} = import!(@usd_history)
+
+      assert await_history_run() == :not_needed
+      refute_received {:fetched, :history, _provider}
+      assert HistoryGaps.open() == %{"TWD" => ~D[2024-04-01]}
+    end
+
+    test "with background fetches off, neither the boot nor an import asks the provider" do
+      fresh_instance!()
+      scheduled!(false, daily: {:ok, []}, history: {:ok, usd_series()})
+
+      config = Application.get_env(:portfolixir, RateSync)
+
+      start_supervised!(
+        {RateSync, Keyword.merge(config, name: :fx_history_off, startup_delay_ms: 0)}
+      )
+
+      {portfolio, 2} = import!(@usd_history)
+
+      assert await_history_run(500) == :no_history_run
+      refute_received {:fetched, _feed, _provider}
+      assert HistoryGaps.due() == %{"USD" => ~D[2024-10-01]}
+      assert_first_rate_jump(portfolio.id)
+    end
+
+    test "without a network the import applies and the backfill fails quietly" do
+      fresh_instance!()
+      scheduled!(true, history: {:error, %Req.TransportError{reason: :econnrefused}})
+
+      {{portfolio, 2}, log} =
+        with_log(fn ->
+          imported = import!(@usd_history)
+          assert {:error, %Req.TransportError{reason: :econnrefused}} = await_history_run()
+          imported
+        end)
+
+      assert log =~ "fx history fetch failed via #{inspect(HistoryFeed)}"
+      assert HistoryGaps.sought() == []
+      assert_first_rate_jump(portfolio.id)
     end
   end
 end
