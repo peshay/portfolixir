@@ -4274,13 +4274,13 @@ msgid "Row %{row}: %{message}"
 msgstr "Zeile %{row}: %{message}"
 
 #: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:554
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:239
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:245
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (before 1900) — fix the booking in the source and re-import"
 msgstr "Unplausibles Datum %{date} (vor 1900) — die Buchung in der Quelle korrigieren und erneut importieren"
 
 #: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:572
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:251
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:257
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
 msgstr "Unplausibles Datum %{date} (nach %{latest}) — die Buchung in der Quelle korrigieren und erneut importieren"
@@ -5838,12 +5838,12 @@ msgstr "Die Datei ist nicht als Portfolio-Performance-Export lesbar."
 msgid "The file has %{n} rows; the import is sized for at most %{max}."
 msgstr "Die Datei hat %{n} Zeilen; der Import ist auf höchstens %{max} ausgelegt."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:264
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:270
 #, elixir-autogen, elixir-format
 msgid "invalid date %{date}"
 msgstr "ungültiges Datum %{date}"
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:315
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:321
 #, elixir-autogen, elixir-format
 msgid "invalid unit %{unit}"
 msgstr "ungültige Position %{unit}"
@@ -7936,7 +7936,7 @@ msgstr "Die Datei enthält zu viele unterschiedliche Konto-, Depot- oder Wertpap
 msgid "The file expands to %{n} entries (its rows and the tax refunds they split off); the import is sized for at most %{max}."
 msgstr "Die Datei ergibt %{n} Einträge (ihre Zeilen und die daraus abgespaltenen Steuererstattungen); der Import ist auf höchstens %{max} ausgelegt."
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:294
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:300
 #, elixir-autogen, elixir-format
 msgid "more units (fees and taxes) than one booking carries"
 msgstr "mehr Positionen (Gebühren und Steuern), als eine Buchung trägt"
@@ -11734,8 +11734,8 @@ msgid "sell without a counter account — row not imported"
 msgstr "Verkauf ohne Gegenkonto — Zeile nicht übernommen"
 
 #: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:394
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:355
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:358
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:361
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:364
 #, elixir-autogen, elixir-format
 msgid "transfer without a counter account — row not imported"
 msgstr "Umbuchung ohne Gegenkonto — Zeile nicht übernommen"

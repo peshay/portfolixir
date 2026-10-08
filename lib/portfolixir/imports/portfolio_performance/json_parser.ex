@@ -184,6 +184,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
           }
         end)
 
+      price = derive_price(kind, amount, shares, fees, taxes)
+
       entry = %Entry{
         source_row: row,
         kind: kind,
@@ -197,7 +199,11 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         fees: fees,
         taxes: taxes,
         quantity: shares,
-        price: derive_price(kind, amount, shares, fees, taxes),
+        price: price,
+        # ADR-0053 A3: a trade with a negative tax unit keeps the price its
+        # hash read before the amendment of 2026-10-07 as the hash's price
+        # input. `derive_price/5` gives nil for a kind without a price.
+        hash_price: if(refund_amounts != [], do: price),
         security: security,
         pp_portfolio_name: pp_portfolio,
         pp_account_name: pp_account,
