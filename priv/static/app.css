@@ -4332,12 +4332,20 @@ input[pattern]:invalid:not(:placeholder-shown) {
   }
 
   /* ②b A note that carries a list: under 560 px its body takes the note's
-     full width, under the glyph and the word, so the rows get the line. */
-  #import-correction .data-note {
+     full width, under the glyph and the word, so the rows get the line.
+     Board ux-design-2026-10-07/01-import-preview rule ①: the notes under a
+     mapping row's select join the list — a name unknown to the stored
+     history (pick L1 = A, issue 904) and an ambiguous name (found while
+     drawing, item 8) — which beside the word kept 180 px at 390. */
+  #import-correction .data-note,
+  [data-role="mapping-unseen-name"],
+  [data-role="mapping-ambiguous"] {
     flex-wrap: wrap;
   }
 
-  #import-correction .data-note__body {
+  #import-correction .data-note__body,
+  [data-role="mapping-unseen-name"] .data-note__body,
+  [data-role="mapping-ambiguous"] .data-note__body {
     flex-basis: 100%;
   }
 }
