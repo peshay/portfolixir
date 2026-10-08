@@ -237,11 +237,17 @@ export function createFailureThrottle(): FailureThrottle {
 }
 
 /**
- * The companion's token gate: a locked-out source answered 429 before the
- * token is compared (right token or wrong), then the constant-time bearer
- * check, which counts a failure against the source and clears it on success.
- * The source is the connecting address. The Host and Origin guards run ahead
- * of it.
+ * The companion's token gate, the token compared first (#974, the Sprint 20
+ * plan's D-11), as the API's is: a correct token passes whether its source is
+ * locked out or not, so a stale client sharing the operator's address (every
+ * host client behind the Compose port) cannot lock the agent out; it clears
+ * the source's count unless the source is locked, so the agent's requests
+ * never lift a guesser's lock. A wrong token counts
+ * against its source, locked or not, and is answered 429 with the lock its
+ * own failure extended while the lock lasts, 401 before. The cost: a locked
+ * guesser who guesses right is let in, which the 32-byte floor
+ * `requireMcpToken` holds the token to makes infeasible. The source is the
+ * connecting address. The Host and Origin guards run ahead of it.
  */
 export function mcpAuthMiddleware(
   token: string,
@@ -253,22 +259,27 @@ export function mcpAuthMiddleware(
     const now = clock();
     const state = throttle.check(source, now);
 
-    if (state.locked) {
+    if (isAuthorizedMcpRequest(req.get("authorization"), token)) {
+      if (!state.locked) {
+        throttle.success(source);
+      }
+
+      next();
+      return;
+    }
+
+    throttle.failure(source, now);
+    const after = throttle.check(source, now);
+
+    if (state.locked && after.locked) {
       res
         .status(429)
-        .set("Retry-After", String(state.retryAfter))
+        .set("Retry-After", String(after.retryAfter))
         .json({ errors: { detail: "too many failed attempts; retry later" } });
       return;
     }
 
-    if (!isAuthorizedMcpRequest(req.get("authorization"), token)) {
-      throttle.failure(source, now);
-      res.status(401).json({ errors: { detail: "unauthorized" } });
-      return;
-    }
-
-    throttle.success(source);
-    next();
+    res.status(401).json({ errors: { detail: "unauthorized" } });
   };
 }
 
