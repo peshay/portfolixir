@@ -496,18 +496,22 @@ defmodule Portfolixir.Imports.Applier do
   # layers, before a repeat inside the file is folded in and before the dry
   # run; a name without, while some name has one, is unknown. Cash-account
   # and depot names are two kinds of name; a row counts under every name it
-  # carries on either leg, as the counts do.
+  # carries on either leg, as the counts do. An unimportable row, and a
+  # refund split off one, names nothing: the apply skips it before any name
+  # resolves, so a name it alone carries asks for no choice (the α closing
+  # act, EC-F3).
   defp unseen_names(flat_entries, hash_layers) do
     held =
       flat_entries
       |> Enum.zip(hash_layers)
-      |> Enum.reduce(%{}, fn {entry, {layer, _key}}, acc ->
-        held? = layer in [:hash, :retired]
-
-        acc
-        |> held_under(:cash, [entry.pp_account_name, entry.pp_counter_account_name], held?)
-        |> held_under(:depot, [entry.pp_portfolio_name, entry.pp_counter_portfolio_name], held?)
+      |> Enum.reduce({%{}, nil}, fn {entry, {layer, _key}}, {acc, parent_layer} ->
+        case entry.companion_index do
+          nil -> {held_names(acc, entry, layer), layer}
+          _companion when parent_layer == :unimportable -> {acc, parent_layer}
+          _companion -> {held_names(acc, entry, layer), parent_layer}
+        end
       end)
+      |> elem(0)
 
     unseen =
       if Enum.any?(held, fn {_name, held?} -> held? end),
@@ -518,6 +522,16 @@ defmodule Portfolixir.Imports.Applier do
       cash_accounts: Enum.sort(for {:cash, name} <- unseen, do: name),
       depots: Enum.sort(for {:depot, name} <- unseen, do: name)
     }
+  end
+
+  defp held_names(acc, _entry, :unimportable), do: acc
+
+  defp held_names(acc, entry, layer) do
+    held? = layer in [:hash, :retired]
+
+    acc
+    |> held_under(:cash, [entry.pp_account_name, entry.pp_counter_account_name], held?)
+    |> held_under(:depot, [entry.pp_portfolio_name, entry.pp_counter_portfolio_name], held?)
   end
 
   defp held_under(acc, kind, names, held?) do
