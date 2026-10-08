@@ -3501,4 +3501,41 @@ defmodule Portfolixir.DocsTest do
       assert normalized_text(path) =~ fragment, "#{path}: #{fragment}"
     end
   end
+
+  # User story (#972; the Sprint 20 plan's D-4):
+  # As the maintainer reading ADR-0050 after the Sprint 16 build,
+  # I want the record to name the three refusals the build added and to say
+  # what the depot merge does with a split's rounding,
+  # so that the decision and the code agree, and no reader trusts a bound
+  # per split that splits which compound do not keep.
+  #
+  # Acceptance criteria:
+  # - A dated amendment (2026-10-08) keeps `legacy_hashed_anchor`,
+  #   `legacy_hashed_split` and `unstorable_anchor` as refusals by name, each
+  #   with its reason, and names the alternatives it does not take.
+  # - It corrects §7's compound-split sentence: the build lists the difference
+  #   between the combined and the separate positions per position and split
+  #   date, and enforces no bound per split; §7 points at the correction.
+  # - The status header names the amendment.
+  test "ADR-0050 records the three refusals and corrects the split rounding bound" do
+    adr =
+      "docs/decisions/0050-lifecycle-merges-under-a-reimport-contract.md"
+      |> File.read!()
+      |> String.replace(~r/\s+/, " ")
+
+    [header] = Regex.run(~r/- \*\*Amended:\*\* 2026-10-08:[^*]*/, adr)
+    assert header =~ "#972"
+
+    [amendment] = Regex.run(~r/## Amendment \(2026-10-08\).*?(?=## References)/s, adr)
+
+    for code <- ~w(legacy_hashed_anchor legacy_hashed_split unstorable_anchor),
+        do: assert(amendment =~ "`#{code}`", code)
+
+    assert amendment =~ "are kept as refusals by name"
+    assert amendment =~ "lists the difference between the combined and the separate positions"
+    assert amendment =~ "enforces no bound per split"
+
+    [section7] = Regex.run(~r/### 7\. Cash-account and depot merge.*?(?=### 8\.)/s, adr)
+    assert section7 =~ "*(Corrected by the amendment of 2026-10-08:"
+  end
 end
