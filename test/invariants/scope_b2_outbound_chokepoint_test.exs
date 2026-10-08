@@ -30,10 +30,11 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
   #   and to read a response; Finch, Mint, :httpc, :gen_tcp, :ssl and their
   #   kin not at all. Name resolution is registered to the URL policy alone.
   # - `Portfolixir.Net.Http` issues only GET: its one issuing call pins the
-  #   method, it makes no other Req call that issues a request, its public
-  #   surface is `new/1` and `get/1,2`, and a request merged with another
-  #   method, or redirected by a method-preserving status, still arrives as
-  #   GET.
+  #   method and, next to it, an empty body with every body-encoding option
+  #   dropped (#938); it makes no other Req call that issues a request, its
+  #   public surface is `new/1` and `get/1,2`, and a request merged with
+  #   another method or a payload, or redirected by a method-preserving
+  #   status, still arrives as a GET with no body.
   # - Every module that calls `Net.Http` is registered with its purpose, and
   #   every host its allow-list declares — a literal list, a module
   #   attribute, or the application config it reads — is registered for it:
@@ -214,7 +215,8 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
   @req_chokepoint %{
     {[:Req], :new} => "builds the bounded request; issues nothing",
     {[:Req], :merge} => "merges the caller's options, then turns Req's own redirects off",
-    {[:Req], :request} => "the one issuing call, and only as Req.request(%{req | method: :get})",
+    {[:Req], :request} =>
+      "the one issuing call, and only with the method pinned to GET and the payload cleared",
     {[:Req], :get_headers_list} => "reads the headers to drop on a hop to another origin",
     {[:Req, :Request], :put_private} => "stores the byte cap, allow-list, hop cap and deadline",
     {[:Req, :Request], :get_private} => "reads the byte cap, allow-list, hop cap and deadline",
@@ -358,6 +360,57 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
       assert_received {:request, "GET", "/start"}
       assert_received {:request, "GET", "/next"}
       refute_received {:request, _method, _path}
+    end
+
+    # User story (#938):
+    # As the operator whose instance only reads from its providers,
+    # I want "GET-only" to mean "no payload" too,
+    # so that a body a caller merges into a request, or an option Req would
+    # encode into one, never leaves the instance, neither to the provider nor
+    # to the host a redirect sends the request on to.
+    #
+    # Acceptance criteria:
+    # - A request merged with `body:`, `json:`, `form:` or `form_multipart:`
+    #   arrives with an empty body and no content type, and so does the hop a
+    #   method-preserving redirect sends it on, here to another origin.
+    test "a request merged with a body, or an option that encodes one, arrives with none" do
+      test_pid = self()
+
+      plug = fn conn ->
+        {:ok, body, conn} = Plug.Conn.read_body(conn)
+        content_type = Plug.Conn.get_req_header(conn, "content-type")
+        send(test_pid, {:request, conn.host, conn.request_path, body, content_type})
+
+        case conn.request_path do
+          "/start" ->
+            conn
+            |> Plug.Conn.put_resp_header("location", "https://b2-other.example.com/next")
+            |> Plug.Conn.send_resp(307, "")
+
+          _other ->
+            Plug.Conn.send_resp(conn, 200, "ok")
+        end
+      end
+
+      for payload <- [
+            body: "synthetic body",
+            json: %{"synthetic" => "payload"},
+            form: [synthetic: "payload"],
+            form_multipart: [synthetic: "payload"]
+          ] do
+        req =
+          [max_bytes: 1_000, allowed_hosts: ["b2.example.com", "b2-other.example.com"]]
+          |> Http.new()
+          |> Req.merge([payload])
+
+        assert {:ok, %Req.Response{status: 200}} =
+                 Http.get(req, [payload, url: "https://b2.example.com/start", plug: plug]),
+               inspect(payload)
+
+        assert_received {:request, "b2.example.com", "/start", "", []}
+        assert_received {:request, "b2-other.example.com", "/next", "", []}
+        refute_received {:request, _host, _path, _body, _content_type}
+      end
     end
   end
 
@@ -563,11 +616,23 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
              ]
     end
 
-    test "a synthetic chokepoint that issues another method is caught" do
+    test "a synthetic chokepoint that issues another method or a payload is caught" do
       source = """
       defmodule Portfolixir.Net.Http do
+        @payload_options [:form, :form_multipart, :json]
         def new(opts), do: Req.new(method: :post, url: opts[:url])
-        def get(req), do: Req.request(%{req | method: :get})
+
+        def get(req),
+          do:
+            Req.request(%{
+              req
+              | method: :get,
+                body: nil,
+                options: Map.drop(req.options, @payload_options)
+            })
+
+        def bare(req), do: Req.request(%{req | method: :get})
+        def body(req), do: Req.request(%{req | method: :get, body: nil})
         def put(req), do: Req.request(%{req | method: :put})
         def any(req), do: Req.request(req)
         def post(req, body), do: Req.post(req, body: body)
@@ -576,7 +641,7 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
 
       offenders = get_only_violations(source, "synthetic.ex")
 
-      assert length(offenders) == 5, Enum.join(offenders, "\n")
+      assert length(offenders) == 7, Enum.join(offenders, "\n")
       refute Enum.any?(offenders, &(&1 =~ ":get"))
     end
 
@@ -982,7 +1047,10 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
         ["#{path}:#{line}: #{Enum.join(segments, ".")}.#{fun}/#{length(args)} in #{module}"]
 
       segments == [:Req] and fun == :request and not pinned_get?(args) ->
-        ["#{path}:#{line}: Req.request/#{length(args)} without the method pinned to GET"]
+        [
+          "#{path}:#{line}: Req.request/#{length(args)} without the method pinned to GET " <>
+            "and the payload cleared"
+        ]
 
       true ->
         []
@@ -1028,10 +1096,25 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
   defp req_allowed?(vocabulary, segments, fun),
     do: Map.has_key?(vocabulary, {segments, fun}) or Map.has_key?(vocabulary, {segments, :any})
 
-  defp pinned_get?([{:%{}, _, [{:|, _, [_request, fields]}]}]) when is_list(fields),
-    do: Keyword.keyword?(fields) and Keyword.get(fields, :method) == :get
+  # `Req.request(%{req | method: :get, body: nil, options: Map.drop(_, @payload_options)})`:
+  # the method, and next to it no body and none of the options Req's
+  # encode_body step turns into one (#938). Which options those are is the
+  # behaviour test's to pin, one by one.
+  defp pinned_get?([{:%{}, _, [{:|, _, [_request, fields]}]}]) when is_list(fields) do
+    Keyword.keyword?(fields) and Keyword.get(fields, :method) == :get and
+      Keyword.fetch(fields, :body) == {:ok, nil} and
+      drops_payload_options?(Keyword.get(fields, :options))
+  end
 
   defp pinned_get?(_args), do: false
+
+  defp drops_payload_options?(
+         {{:., _, [{:__aliases__, _, [:Map]}, :drop]}, _,
+          [_options, {:@, _, [{:payload_options, _, _}]}]}
+       ),
+       do: true
+
+  defp drops_payload_options?(_value), do: false
 
   # `%{outside: set, chokepoint: set}` of the registry keys each Req call
   # uses, so an entry nothing uses any more fails as stale.
