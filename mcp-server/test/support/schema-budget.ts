@@ -198,6 +198,16 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 103_284,
     book: 176_346,
     full: 206_730
+  },
+  {
+    since: "2026-10-08",
+    why:
+      "Sprint 20 PR γ, C2 (#1135): plans.duplicate and plans.delete name the position targets " +
+      "they copy and delete beside the category targets, paid for by dropping plans.activate's " +
+      "restatement of the one-active-plan rule, and lowered to the figure measured with it (D-10)",
+    read: 103_284,
+    book: 176_305,
+    full: 206_702
   }
 ];
 

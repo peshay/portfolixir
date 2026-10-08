@@ -3898,14 +3898,14 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.plans.duplicate",
     "Duplicate a plan into a draft",
-    "Copy a plan version (its category target weights and cash target) into a new DRAFT of the same scope. Optional name (default: '<source> (copy)'). The active plan keeps steering the allocation until the draft is activated; edit the draft through the target writes' plan_id.",
+    "Copy a plan version (its category and position targets and cash target) into a new DRAFT of the same scope. Optional name (default: '<source> (copy)'). The active plan keeps steering the allocation until the draft is activated; edit the draft through the target writes' plan_id.",
     planDuplicateSchema,
     planDuplicateZ
   ),
   tool(
     "portfolixir.plans.activate",
     "Activate a plan version",
-    "Make a draft or archived plan version the ACTIVE plan of its scope; the previously active plan is archived in the same transaction, so a scope always has at most one active plan. Activating the already-active plan is a no-op.",
+    "Make a draft or archived plan version the ACTIVE plan of its scope; the previously active plan is archived in the same transaction. Activating the already-active plan is a no-op.",
     planIdSchema,
     planIdZ
   ),
@@ -3919,7 +3919,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.plans.delete",
     "Delete a plan version",
-    "Delete one plan version by id (any status) including its category targets - the cleanup path for drafts and archived plans. Each target is journaled as its own delete before the plan's. Deleting the active plan leaves its scope without a plan (the allocation falls back to actual-only).",
+    "Delete one plan version by id (any status) including its category and position targets - the cleanup path for drafts and archived plans. Each target is journaled as its own delete before the plan's. Deleting the active plan leaves its scope without a plan (the allocation falls back to actual-only).",
     planIdSchema,
     planIdZ
   ),
