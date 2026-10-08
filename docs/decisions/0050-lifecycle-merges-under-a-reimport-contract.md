@@ -25,6 +25,10 @@ description: "Decision for #328 and #608, taken together because they are one op
   (#904), and §4 states that names compare as exact strings (#973). See
   "Amendment (2026-10-07)" below. Adopted by the merge of the Sprint 20
   planning PR.
+- **Amended:** 2026-10-08: §7 keeps by name the three refusals the Sprint 16
+  build added, and its compound-split sentence is corrected (#972). See
+  "Amendment (2026-10-08)" below. Answered by the Sprint 20 planning PR's
+  decision pass (D-4), adopted by its merge.
 - **Opens nothing else.** No scope gate is touched. Cross-portfolio moves,
   unmerge and merger/spin-off stay out (§14).
 
@@ -99,7 +103,10 @@ the preview shows. Only three kinds of ledger row are removed:
 
 Every removed row's `import_hash` is **retired** (§3). Rows of the third kind
 hold none, because anchors and splits are never imported, and the §3 writer
-sweep asserts that no `balance_adjustment` or `split` row carries one. S's import identity
+sweep asserts that no `balance_adjustment` or `split` row carries one.
+*(Amendment of 2026-10-08: rows written since; a row re-typed to an anchor or
+a split before the check existed can still carry one, and a merge that would
+restate or move it refuses by name.)* S's import identity
 becomes a remembered identity of T: a former name for an account, an ISIN
 alias or an adopted identifier for a security. S is then deleted through the
 hardened delete path (§11), and one append-only merge record is written
@@ -289,6 +296,9 @@ insert: a silent under-import that breaks #328's forward-routing criterion.
 **Cash guards** (each answers 409 and writes nothing): same portfolio (the
 composite foreign keys require it), same `currency_code`, same
 `liquidity_role`, equal view-bucket sets, not the same account, both live.
+*(Amendment of 2026-10-08: and no legacy-hashed anchor to restate or move,
+`legacy_hashed_anchor`, and no restated anchor the amount column cannot hold,
+`unstorable_anchor`.)*
 
 **Cash steps**, in one database transaction under the account-identity lock and
 `FOR UPDATE` on S and T in id order:
@@ -337,7 +347,9 @@ the sum of both quantities; from a split on, ADR-0028 §3 rounds the combined
 position once, and the result can differ from the sum of the two separately
 rounded positions by one unit of the volume scale per split. That difference is
 expected, not a check failure, and the preview lists it per position and split
-date. The preview also shows each affected position's quantity, moving-average
+date. *(Corrected by the amendment of 2026-10-08: one unit per split holds for
+a single split, not for splits that compound; the build lists the difference
+as it is and enforces no bound per split.)* The preview also shows each affected position's quantity, moving-average
 cost and realized result before and after; cost basis is legitimately
 restated, because lots combine.
 
@@ -379,7 +391,9 @@ unique index), so a split can never be moved onto a target's split and never
 enters §8's pairing or its choice. A same-day, same-ratio split in the same
 portfolio always collapses, journaled and listed in the preview, whatever
 `collapse_key_equal` says; a different ratio refuses before anything is
-paired. A **linearity check** per portfolio, depot and date: the merged
+paired. *(Amendment of 2026-10-08: a source split the merge would move that
+still carries an import hash refuses by name, `legacy_hashed_split`.)* A
+**linearity check** per portfolio, depot and date: the merged
 quantity equals the fold of the target's pre-merge rows plus the fold of the
 source's kept rows, each under its own pre-merge split set, except that a
 collapsed split scales the combined position once (the rounding difference of
@@ -777,6 +791,69 @@ ordinary.
 
 **§15's row** "the fail-closed probe for never-seen identities" is answered
 by this amendment; its other deferrals stand.
+
+## Amendment (2026-10-08): the build's three refusals by name, and the split rounding §7 lists
+
+**Status:** answered by the decision pass of the Sprint 20 planning PR (the
+plan's D-4, row #972) and adopted by its merge; this text records the answer
+(#972). No code changes: each answer is what the Sprint 16 build (PR #914)
+already does.
+
+### The refusals the record did not name
+
+The Sprint 16 build added three refusals this record did not name, each a
+safe default pending a decision.
+
+1. **`legacy_hashed_anchor` and `legacy_hashed_split`.** The import-hash kind
+   check (`transactions_import_hash_kind_check`) was added `NOT VALID`, so a
+   row imported as another kind and re-typed to a balance anchor or a split
+   before the check existed can still carry an import hash: §1's premise that
+   anchors and splits hold none holds for rows written since. The check
+   refuses every update of such a row. A cash merge that would restate or
+   move a hashed anchor refuses with `legacy_hashed_anchor`, naming the
+   anchors (`errors.anchors`); an anchor a fold removes is deleted, which the
+   check allows, and its hash retired. A security merge that would move a
+   hashed split refuses with `legacy_hashed_split`, naming the splits
+   (`errors.splits`); one it collapses into the target's split of that day is
+   deleted with its hash retired. The remedy each names is the operator's:
+   change the row back to the kind it was imported as (the audit journal
+   shows it), or delete it. The state cannot be seeded on a current database,
+   so tests reach it by lifting the check.
+2. **`unstorable_anchor`.** §7 step 4 restates an anchor to its stated amount
+   plus the other side's end-of-day balance, and step 6 and §16 invariant 9
+   hold the merged balance `Decimal`-exact. When that balance carries more
+   places than the amount column's six (a buy or sell booked without its
+   amount, whose cash leg is quantity × price + fees), the restated amount
+   cannot be stored unrounded and the identity could never hold. The cash
+   merge refuses up front, naming the anchors (`errors.anchors`) and the
+   bookings (`errors.bookings`); the remedy is to record that booking's
+   amount.
+
+**Answer:** the three are kept as refusals by name. Not taken: widening the
+reason set of `retired_import_hashes` so that a merge retires the hash of a
+legacy row it restates or moves (it would rewrite a row the check refuses to
+update, for a state only an instance upgraded across the check can hold);
+rounding the restated amount with a stated tolerance in §16 invariant 9 (the
+cash identity would no longer be exact, for every merge, to serve the rare
+one); widening the amount column (a migration of every booking for the same
+rare case). *Reason:* a refusal that names its rows and its remedy is this
+record's price for never guessing (Consequences), and each of the three
+leaves the operator a correction that lifts it.
+
+### The split rounding §7 lists
+
+§7's depot check said the combined position, rounded once from a split on,
+"can differ from the sum of the two separately rounded positions by one unit
+of the volume scale per split". That bound holds for a single split. Where
+splits compound, a difference left by one split is scaled by the next, so the
+difference at a later split can exceed one unit. The build never enforced the
+bound: the depot merge, and the security merge's collapsed split under §9,
+**lists the difference between the combined and the separate positions** per
+position and split date (`rounding_differences`, with both quantities and
+their difference), and **enforces no bound per split**. The linearity check
+compares the merged position with the fold of both depots' rows as one
+depot, and in exact arithmetic with the sum of both, never with a tolerance.
+That is the answer: the sentence is corrected, the code stays.
 
 ## References
 
