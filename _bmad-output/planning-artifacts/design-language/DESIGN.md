@@ -6007,7 +6007,11 @@ in `PortfolixirWeb.ImportsLive` on `Imports.cash_corrections/2` and
   v1 file has neither column.
 - **Its columns.** Row · Date · Booking · Booked · Per the file · Difference
   (Zeile · Datum · Buchung · Gebucht · Laut Datei · Differenz) in a
-  `.data-table` (`#import-correction-table`); the booking is "kind · security
+  `.data-table` (`#import-correction-table`); a split-off tax refund (listed
+  when its cash was changed by hand) is named by its row and kind, "4 (Tax
+  refund)" / "4 (Steuererstattung)", here, in its phone row and in the
+  dialog's subject, as the done page names it *(amended 2026-10-08, the α
+  closing act's EC-F7)*; the booking is "kind · security
   · account" in one cell, each stored name in `<bdi>`, as the history's phone
   row reads; the three figures are signed cash effects on the booking's own
   account (a debit negative), each in its sign colour (`is-positive` /
@@ -6049,7 +6053,9 @@ in `PortfolixirWeb.ImportsLive` on `Imports.cash_corrections/2` and
   Girokonto, Tagesgeld" over the total and "Difference" / "Differenz", the
   table's column word *(amended 2026-10-08, board
   `mockups/ux-design-2026-10-07/03-correction-sentence` ②; board 09's
-  "Fees and taxes" is false for a refund counted twice)*; the consequence,
+  "Fees and taxes" is false for a refund counted twice)*, both only when
+  the accounts share a currency: without a common total the box shows
+  neither figure nor caption *(board 03 ③)*; the consequence,
   "Afterwards Girokonto has 24.31 EUR less and Tagesgeld has 1.20 EUR less."
   / "Danach hat Girokonto 24,31 EUR weniger und Tagesgeld 1,20 EUR
   weniger.", one sentence per trade whose settlement or price changes ("Beim
