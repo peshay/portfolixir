@@ -36,6 +36,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.RenameDialog do
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.NamedRecordRefusal
   alias PortfolixirWeb.PortfolioAccounts.NameConflict
   alias PortfolixirWeb.StoredText
 
@@ -358,9 +359,11 @@ defmodule PortfolixirWeb.PortfolioAccounts.RenameDialog do
   defp conflict_message(kind, %schema{} = account, name),
     do: NameConflict.message(kind, schema, account.portfolio_id, name, account.id)
 
+  # #965: a refusal that names another account keeps the dialog's sentence.
   defp changeset_error(changeset) do
     changeset.errors
-    |> Enum.map(fn {_field, {message, opts}} ->
+    |> Enum.map(fn {_field, error} ->
+      {message, opts} = NamedRecordRefusal.screen(error)
       Gettext.dgettext(PortfolixirWeb.Gettext, "errors", message, opts)
     end)
     |> Enum.join(" ")

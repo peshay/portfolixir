@@ -130,6 +130,58 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialogEditTest do
     reloaded = Repo.get!(Security, sec.id)
     assert reloaded.exchange_code == "NASDAQ"
   end
+
+  # User story (#965):
+  # As the operator giving a security an ISIN another security once carried,
+  # I want the dialog to keep naming that security as it did, by its name
+  # and its number,
+  # so that keeping the agent's sentences free of stored names changes
+  # nothing on my screen.
+  #
+  # Acceptance criteria:
+  # - The refusal at the ISIN field reads, byte for byte, the sentence it read
+  #   before #965; nothing is written.
+  test "an ISIN another security once carried is refused in the words the dialog showed" do
+    sec = create_security!()
+
+    {:ok, renamed} =
+      Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+        name: "Kranich Werke",
+        isin: "XS0000000025",
+        currency_code: "EUR"
+      })
+
+    {:ok, _} = Catalog.record_isin_change(Portfolixir.Actor.owner_ui(), renamed, "XS0000000033")
+
+    {:ok, view, _html} =
+      live_isolated(build_conn(), PortfolixirWeb.Securities.DialogHostTest,
+        session: %{"security_id" => sec.id, "test_pid" => :erlang.pid_to_list(self())}
+      )
+
+    html =
+      view
+      |> element("#security-form-dialog form")
+      |> render_submit(%{
+        "security" => %{
+          "name" => "Arbolia Inc.",
+          "ticker_symbol" => "ARBL",
+          "isin" => "XS0000000025",
+          "currency_code" => "USD",
+          "asset_class" => "equity"
+        }
+      })
+
+    errors =
+      html
+      |> Floki.parse_fragment!()
+      |> Floki.find(".field-error")
+      |> Enum.map(&Floki.text/1)
+
+    assert (~s|is recorded as a former ISIN of "Kranich Werke" (security ##{renamed.id}); | <>
+              "delete that alias or record an ISIN change instead") in errors
+
+    assert Repo.get!(Security, sec.id).isin == "USEXMPL10014"
+  end
 end
 
 defmodule PortfolixirWeb.Securities.DialogHostTest do

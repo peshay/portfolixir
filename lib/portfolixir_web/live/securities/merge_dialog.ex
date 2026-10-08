@@ -40,6 +40,7 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
   alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.NamedRecordRefusal
   alias PortfolixirWeb.Securities.MergePreview
   alias PortfolixirWeb.StoredText
 
@@ -615,9 +616,12 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
     )
   end
 
+  # #965: a refusal that names another security keeps the dialog's sentence.
   defp changeset_errors(changeset) do
     changeset
-    |> Ecto.Changeset.traverse_errors(fn {message, opts} ->
+    |> Ecto.Changeset.traverse_errors(fn error ->
+      {message, opts} = NamedRecordRefusal.screen(error)
+
       Enum.reduce(opts, message, fn {key, value}, acc ->
         String.replace(acc, "%{#{key}}", to_string(value))
       end)

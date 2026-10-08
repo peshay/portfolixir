@@ -471,7 +471,9 @@ ISIN-Wechsel — sie ist nur eine Namensänderung.
   Wechsel zurück auf eine eigene frühere ISIN verbraucht diesen Alias (ein
   Revert). Jeder Wertpapier-ISIN-Schreibpfad — Anlegen, Aktualisieren und der
   Anlege-Pfad des Imports — lehnt symmetrisch eine ISIN ab, die als Alias
-  existiert, und benennt das Alias-Wertpapier.
+  existiert, und benennt das Alias-Wertpapier. Ein Konflikt benennt das
+  andere Wertpapier mit seiner id (`security #12`), nie mit seinem
+  gespeicherten Namen (siehe „Ein Datensatz in einem Satz“ unten).
 - Ein Kennzeichen, das `PATCH /api/v1/securities/:id` an einem bestehenden
   Wertpapier **ändert**, erfüllt dieselben Katalogregeln, sonst `422` mit dem
   Feldnamen: eine `isin` in ISIN-Form mit stimmender Prüfziffer, eine `wkn`
@@ -3734,6 +3736,17 @@ die Oberfläche dem Betreiber für diese Zeile zeigt, und die
 Server-Anweisungen sagen es. Die JSON-API selbst liefert gespeicherten Text,
 wie er gespeichert ist. Ein Text, den der Agent zurückschreibt, trägt die
 Kürzel als die sichtbaren Buchstaben, die sie sind.
+
+**Ein Datensatz in einem Satz (#965).** Ein Satz, den die App schreibt,
+benennt einen anderen Datensatz mit seiner Art und id, nie mit seinem
+gespeicherten Namen, damit ein Name, der sich wie eine Anweisung liest, nie in
+den eigenen Worten der App steht: Eine Ablehnung eines ISIN-Wechsels oder
+Alias nennt `security #12`, eine Ablehnung wegen eines früheren Namens beim
+Schreiben eines Geldkontos oder Depots nennt `cash account #5` oder
+`securities account #5` (`errors.former_names`: „include the name of cash
+account #5 in this portfolio“). Der Name ist ein Feld des Datensatzes, über
+seine id zu lesen. Die Oberfläche von Portfolixir nennt ihn weiter beim
+Namen.
 
 **Ein Schreibvorgang ohne Antwort.** Jeder API-Aufruf hat eine Frist von 30
 Sekunden. Ein Lesezugriff, der sie verpasst — ein `GET` oder eines der über

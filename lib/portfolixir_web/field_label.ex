@@ -20,6 +20,8 @@ defmodule PortfolixirWeb.FieldLabel do
   """
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias PortfolixirWeb.NamedRecordRefusal
+
   @spec label(atom() | String.t()) :: String.t()
   # The booking.
   def label(:type), do: gettext("Type")
@@ -103,10 +105,14 @@ defmodule PortfolixirWeb.FieldLabel do
   @doc """
   One changeset message through the `errors` domain, its bindings filled. A
   message that names another field (`%{field}`, e.g. "must differ from
-  %{field}") names it by its label.
+  %{field}") names it by its label. A refusal that names another record
+  reads the sentence the screen keeps for it (#965,
+  `PortfolixirWeb.NamedRecordRefusal`).
   """
   @spec translate_error({String.t(), keyword()}) :: String.t()
-  def translate_error({message, opts}) do
+  def translate_error(error) do
+    {message, opts} = NamedRecordRefusal.screen(error)
+
     opts =
       case opts[:field] do
         field when is_atom(field) and not is_nil(field) ->

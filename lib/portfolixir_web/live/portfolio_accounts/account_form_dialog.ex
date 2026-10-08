@@ -20,6 +20,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.NamedRecordRefusal
   alias PortfolixirWeb.PortfolioAccounts.NameConflict
 
   @empty_form %{
@@ -480,7 +481,10 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
            NameConflict.message(kind, schema, portfolio_id, name, nil) do
       conflict
     else
-      _plain -> Gettext.dgettext(PortfolixirWeb.Gettext, "errors", message, opts)
+      # #965: a refusal that names another account keeps the dialog's sentence.
+      _plain ->
+        {message, opts} = NamedRecordRefusal.screen({message, opts})
+        Gettext.dgettext(PortfolixirWeb.Gettext, "errors", message, opts)
     end
   end
 

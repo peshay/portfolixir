@@ -91,15 +91,21 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
       assert Catalog.list_identifier_aliases(security) == []
     end
 
+    # #965: the refusal names the other security by its id; its stored name
+    # travels as data.
     test "rejects a new ISIN that is live on another security, naming it" do
-      _other = create_security!(%{name: "Other AG", isin: "DE0009999995"})
+      other = create_security!(%{name: "Other AG", isin: "DE0009999995"})
       security = create_security!(%{isin: "DE0001234565"})
 
       assert {:error, %Ecto.Changeset{} = changeset} =
                Catalog.record_isin_change(Actor.owner_ui(), security, "DE0009999995")
 
-      assert [message] = errors_on(changeset).new_isin
-      assert message =~ "Other AG"
+      assert errors_on(changeset).new_isin == [
+               "is already the current ISIN of security ##{other.id}"
+             ]
+
+      assert {_message, opts} = changeset.errors[:new_isin]
+      assert opts[:security_name] == "Other AG"
     end
 
     test "rejects a new ISIN that is aliased to another security, naming it" do
@@ -112,8 +118,12 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
       assert {:error, %Ecto.Changeset{} = changeset} =
                Catalog.record_isin_change(Actor.owner_ui(), security, "DE0009999995")
 
-      assert [message] = errors_on(changeset).new_isin
-      assert message =~ "Other AG"
+      assert errors_on(changeset).new_isin == [
+               "is recorded as a former ISIN of security ##{other.id}"
+             ]
+
+      assert {_message, opts} = changeset.errors[:new_isin]
+      assert opts[:security_name] == "Other AG"
     end
 
     test "rejects a security without a current ISIN" do
@@ -258,7 +268,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
 
     test "rejects updating an alias onto a live ISIN" do
       security = create_security!(%{isin: "DE0001234565"})
-      _other = create_security!(%{name: "Other AG", isin: "DE0009999995"})
+      other = create_security!(%{name: "Other AG", isin: "DE0009999995"})
 
       {:ok, %{alias: alias_row}} =
         Catalog.record_isin_change(Actor.owner_ui(), security, "DE0007654329")
@@ -268,8 +278,12 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
                  former_isin: "DE0009999995"
                })
 
-      assert [message] = errors_on(changeset).former_isin
-      assert message =~ "Other AG"
+      assert errors_on(changeset).former_isin == [
+               "is already the current ISIN of security ##{other.id}"
+             ]
+
+      assert {_message, opts} = changeset.errors[:former_isin]
+      assert opts[:security_name] == "Other AG"
     end
   end
 
@@ -282,8 +296,10 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
   # (ADR-0029 §3 bidirectional guard).
   #
   # Acceptance criteria:
-  # - `create_security` rejects an aliased ISIN, naming the aliased security.
-  # - `update_security` rejects an aliased ISIN, naming the aliased security.
+  # - `create_security` rejects an aliased ISIN, naming the aliased security
+  #   by its id, its name as data (#965).
+  # - `update_security` rejects an aliased ISIN, naming the aliased security
+  #   by its id, its name as data (#965).
   # - The import applier's create path (import-session actor) is equally
   #   rejected.
   describe "bidirectional alias guard" do
@@ -304,8 +320,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
                  isin: "DE0001234565"
                })
 
-      assert [message] = errors_on(changeset).isin
-      assert message =~ aliased.name
+      assert_names_aliased(changeset, aliased)
     end
 
     test "the import applier's create path rejects an aliased ISIN", %{aliased: aliased} do
@@ -316,8 +331,7 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
                  isin: "de0001234565"
                })
 
-      assert [message] = errors_on(changeset).isin
-      assert message =~ aliased.name
+      assert_names_aliased(changeset, aliased)
     end
 
     test "update_security rejects an ISIN present in the alias table", %{aliased: aliased} do
@@ -326,8 +340,17 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
       assert {:error, %Ecto.Changeset{} = changeset} =
                Catalog.update_security(Actor.owner_ui(), other, %{isin: "DE0001234565"})
 
-      assert [message] = errors_on(changeset).isin
-      assert message =~ aliased.name
+      assert_names_aliased(changeset, aliased)
+    end
+
+    defp assert_names_aliased(changeset, aliased) do
+      assert errors_on(changeset).isin == [
+               "is recorded as a former ISIN of security ##{aliased.id}; delete that alias " <>
+                 "or record an ISIN change instead"
+             ]
+
+      assert {_message, opts} = changeset.errors[:isin]
+      assert opts[:security_name] == aliased.name
     end
 
     test "an ISIN-untouched update passes the guard", %{aliased: aliased} do
@@ -451,8 +474,12 @@ defmodule Portfolixir.Catalog.IdentifierAliasesTest do
       assert {:error, %Ecto.Changeset{} = changeset} =
                IdentifierAliases.record_merged_isin(Actor.owner_ui(), kept, "DE0001111110")
 
-      assert [message] = errors_on(changeset).former_isin
-      assert message =~ ~s|is still the current ISIN of "Live AG" (security ##{live.id})|
+      assert errors_on(changeset).former_isin == [
+               "is still the current ISIN of security ##{live.id}"
+             ]
+
+      assert {_message, opts} = changeset.errors[:former_isin]
+      assert opts[:security_name] == "Live AG"
 
       assert {:error, %Ecto.Changeset{} = changeset} =
                IdentifierAliases.record_merged_isin(Actor.owner_ui(), kept, recorded.former_isin,
