@@ -3,7 +3,7 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 import { createApiClient } from "./api-client.js";
-import { requireMcpPort, requireMcpToken, startHttpServer } from "./http.js";
+import { mcpHost, requireMcpPort, requireMcpToken, startHttpServer } from "./http.js";
 import { createPortfolixirMcpServer, profileSwitch } from "./server.js";
 import type { McpProfile } from "./profiles.js";
 
@@ -52,12 +52,13 @@ if (transport === "http") {
   }
 
   // A listener that cannot start stops the companion with the address and
-  // the cause named (#1043), never with "listening" and exit 0.
+  // the cause named (#1043), never with "listening" and exit 0. An empty or
+  // blank host is the loopback default, never every interface (#1137).
   try {
     await startHttpServer({
       client,
       token,
-      host: process.env.PORTFOLIXIR_MCP_HOST ?? "127.0.0.1",
+      host: mcpHost(process.env.PORTFOLIXIR_MCP_HOST),
       port,
       extraHosts: (process.env.PORTFOLIXIR_MCP_ALLOWED_HOSTS ?? "").split(","),
       profile

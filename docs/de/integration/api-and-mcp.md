@@ -52,8 +52,11 @@ kürzer als 32 Bytes oder ein Platzhalter ist, und nennt dabei die Variable.
 Ein `PORTFOLIXIR_MCP_PORT`, das keine ganze Zahl von 1 bis 65535 ist, oder ein
 Port, den der Listener nicht bekommt (ein anderer Prozess hält ihn), stoppt
 den Begleitdienst mit dem Exit-Status 1 und einer Zeile, die die Variable und
-ihren Wert nennt oder die Adresse und die Ursache, etwa `EADDRINUSE`.
-Wiederholt falsche Tokens von einer verbindenden Adresse werden mit `429` und
+ihren Wert nennt oder die Adresse und die Ursache, etwa `EADDRINUSE`. Ein
+leeres `PORTFOLIXIR_MCP_HOST` bindet `127.0.0.1` wie ein nicht gesetztes, nie
+jede Schnittstelle (#1137), und eine IPv6-Adresse, an die er bindet, gilt in
+Klammern (`[::1]:4001`), dem `Host`, den ein Client für die URL schickt, die
+der Begleitdienst ausgibt. Wiederholt falsche Tokens von einer verbindenden Adresse werden mit `429` und
 `Retry-After` für ein wachsendes Intervall beantwortet. Hinter dem
 veröffentlichten Port verbindet jeder Client über die Docker-Bridge, ein
 Rater dort bremst also auch den Agenten. Vor allem anderen prüft der

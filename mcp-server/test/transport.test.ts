@@ -486,6 +486,57 @@ describe("the built companion over its real transports", () => {
     }
   );
 
+  // User story (#1137):
+  // As an operator whose PORTFOLIXIR_MCP_HOST is set but empty (an `.env`
+  // line left blank),
+  // I want the companion to bind the loopback default, as an unset host does,
+  // so that a blank value never opens the listener on every interface.
+  //
+  // Acceptance criteria:
+  // - With PORTFOLIXIR_MCP_HOST empty or blank, `node dist/index.js` over HTTP
+  //   announces `listening on http://127.0.0.1:<port>/mcp`, never `http://:…`.
+  // - The listener answers on 127.0.0.1 under its own Host (401 without the
+  //   token).
+  for (const value of ["", "   "]) {
+    it(`binds 127.0.0.1 when PORTFOLIXIR_MCP_HOST is ${JSON.stringify(value)}`, { timeout: 60_000 }, async () => {
+      const port = await freePort();
+      const companion = spawnCompanion({
+        PORTFOLIXIR_API_BASE_URL: "http://127.0.0.1:9",
+        PORTFOLIXIR_API_TOKEN: apiToken,
+        PORTFOLIXIR_MCP_TRANSPORT: "http",
+        PORTFOLIXIR_MCP_TOKEN: mcpToken,
+        PORTFOLIXIR_MCP_HOST: value,
+        PORTFOLIXIR_MCP_PORT: String(port)
+      });
+
+      try {
+        const announced = new Promise<string>((resolve) => {
+          const heard = (): void => {
+            const line = companion
+              .stderr()
+              .split(/\r?\n/)
+              .find((candidate) => candidate.includes("MCP server listening on"));
+
+            if (line !== undefined) {
+              companion.child.stderr.off("data", heard);
+              resolve(line);
+            }
+          };
+          companion.child.stderr.on("data", heard);
+          heard();
+        });
+        const line = await within(Promise.race([announced, companion.died]), 15_000, "the HTTP listener");
+
+        assert.equal(line, `Portfolixir MCP server listening on http://127.0.0.1:${port}/mcp`);
+
+        const anonymous = await postMcp(`http://127.0.0.1:${port}`, { jsonrpc: "2.0", id: 1, method: "tools/list" }, {});
+        assert.equal(anonymous.status, 401, anonymous.body);
+      } finally {
+        await companion.stop();
+      }
+    });
+  }
+
   // User story (#1043, Sprint 19 plan, PR β B3):
   // As an operator who starts the companion on a port something else holds,
   // I want it to stop with a line naming the host, the port and the cause,

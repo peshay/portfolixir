@@ -88,6 +88,20 @@ export const MCP_TOKEN_PLACEHOLDER_PREFIXES = [
 
 export const MCP_DEFAULT_PORT = 4001;
 
+export const MCP_DEFAULT_HOST = "127.0.0.1";
+
+/**
+ * The listener's address from `PORTFOLIXIR_MCP_HOST` (#1137), trimmed: unset,
+ * empty or blank is 127.0.0.1, as an empty port is 4001 (#1043). An empty
+ * address handed to the listener binds every interface, so a line left blank
+ * in an `.env` file never opens the companion beyond loopback.
+ */
+export function mcpHost(configuredHost: string | undefined): string {
+  const value = (configuredHost ?? "").trim();
+
+  return value === "" ? MCP_DEFAULT_HOST : value;
+}
+
 /**
  * The listener's port from `PORTFOLIXIR_MCP_PORT` (#1043): a whole number
  * from 1 to 65535, trimmed; unset or empty is 4001. Anything else stops the
@@ -297,15 +311,26 @@ export function originGuard(allowedOrigins: readonly string[]) {
   };
 }
 
+// An address as a Host header and a URL write it: an IPv6 address in
+// brackets, once (#1137); one given in brackets already, and any name, as it
+// is.
+function hostName(host: string): string {
+  const bracketed = host.startsWith("[") && host.endsWith("]");
+
+  return host.includes(":") && !bracketed ? `[${host}]` : host;
+}
+
 // The names a client reaches the listener itself under (#956): the loopback
 // names, the IPv6 one in brackets as a Host header and a URL write it, and
-// the bound address unless it is a wildcard, which no client sends. Each is
-// answered under the listener's port only.
+// the bound address, an IPv6 one in brackets too (#1137), unless it is a
+// wildcard, which no client sends. Each is answered under the listener's
+// port only.
 function listenerNames(host: string): string[] {
   const names = ["127.0.0.1", "localhost", "[::1]"];
+  const bound = hostName(host);
 
-  if (host !== "0.0.0.0" && host !== "::" && !names.includes(host)) {
-    names.push(host);
+  if (!["0.0.0.0", "[::]"].includes(bound) && !names.includes(bound)) {
+    names.push(bound);
   }
 
   return names;
@@ -318,13 +343,20 @@ const HOST_WITH_PORT = /^(\[[^\]]*\]|[^:[\]]+):[0-9]+$/;
 // The names the operator adds (PORTFOLIXIR_MCP_ALLOWED_HOSTS), trimmed, as
 // the Host values each stands for: an entry that carries its own port
 // (`localhost:6274`, a published port `127.0.0.1:14001`) stands for itself;
-// a bare name for itself with the listener's port and without one, as a
-// proxy on 80 or 443 passes it.
+// a bare name, a bare IPv6 address in brackets (#1137), for itself with the
+// listener's port and without one, as a proxy on 80 or 443 passes it.
 function extraHostValues(port: number, extraHosts: string[]): string[] {
   return extraHosts
     .map((name) => name.trim())
     .filter(Boolean)
-    .flatMap((name) => (HOST_WITH_PORT.test(name) ? [name] : [`${name}:${port}`, name]));
+    .flatMap((name) => {
+      if (HOST_WITH_PORT.test(name)) {
+        return [name];
+      }
+
+      const written = hostName(name);
+      return [`${written}:${port}`, written];
+    });
 }
 
 /**
@@ -474,7 +506,7 @@ export function createHttpApp(options: HttpAppOptions): Express {
 }
 
 export async function startHttpServer(options: HttpServerOptions): Promise<void> {
-  const host = options.host ?? "127.0.0.1";
+  const host = mcpHost(options.host);
   const port = options.port ?? MCP_DEFAULT_PORT;
   const token = requireMcpToken(options.token);
   const allowedHosts = allowedHostsFor(host, port, ...(options.extraHosts ?? []));
@@ -520,10 +552,9 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
 
 // The listener's address as a URL: an IPv6 host goes in brackets, once; a
 // host given already bracketed (`[::1]`) is left as it is (#1043 review round).
+// Its Host is one the allowed hosts list (#1137).
 export function mcpUrl(host: string, port: number): string {
-  const bracketed = host.startsWith("[") && host.endsWith("]");
-
-  return `http://${host.includes(":") && !bracketed ? `[${host}]` : host}:${port}/mcp`;
+  return `http://${hostName(host)}:${port}/mcp`;
 }
 
 // What a listen most often fails with, in the operator's words.
