@@ -35,6 +35,8 @@ des Begleitdienstes lauten also `mcp`. Jeder
 Eintrag wird beim Start wie das eine Token geprüft, und ein Name oder ein Token
 darf nur einmal vorkommen. Ein Name ordnet einen Schreibzugriff zu, er
 beschränkt nicht, was das Token darf: Jedes Token hat dieselbe volle Befugnis.
+Warum, und die Grenze für gespeicherten Text weiter unten, entscheidet
+[ADR-0054](/decisions/0054-the-agents-surface-one-authority-named-principals-escaped-text.html) (englisch).
 
 Der MCP-Begleitdienst nutzt `PORTFOLIXIR_API_TOKEN`, um Portfolixir unter
 `PORTFOLIXIR_API_BASE_URL` aufzurufen, und folgt dort keiner Weiterleitung:

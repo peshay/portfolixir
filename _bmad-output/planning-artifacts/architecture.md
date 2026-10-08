@@ -389,7 +389,7 @@ finding, not an argument.
 | D1 | Audit journal | **enforced** | ADR-0017 + `write_actor_test.exs` (grandfather list empty, shrink-only), journal append-only tests. Rollout complete, per-context arming executed as Amendment 1 said |
 | D2 | Pure core / imperative shell | **proposed** | Nothing. `engines/` holds one module, no `engine_data/`, no purity gate. `Portfolixir.Clock.today/0` sits in the impurity class D2 governs and passed every check, because there was none. See re-validation Critical Gap 3 for the replacement that does not require a namespace move |
 | D3 | Rounding sequencing + oracle provenance | **decided, not enforced** | ADR-0016 — and it decided the *opposite* locus D3 assumed: full precision in compute, rounding only at the human display. The oracle-provenance rule survives and is unenforced |
-| D4 | Graduated token scopes | **proposed** | Nothing. Router has `:api` / `:api_auth`; one shared bearer token grants full ledger write. Recorded here as "decided" in error — the same question is an open decision (OD-4) in the Data-Import PRD. See Critical Gap 4 |
+| D4 | Graduated token scopes | **superseded** | [ADR-0054](../../docs/decisions/0054-the-agents-surface-one-authority-named-principals-escaped-text.md) (2026-10-08): no scopes; every token carries the same full authority, and the journal's actor is the named token that wrote. It closes OD-4 too. Was recorded here as "decided" in error — see Critical Gap 4 |
 | D5 | API↔MCP contract artifact | **proposed** | Nothing built; the direction remains right and the seam has widened (37 API controllers, one shared presenter). Highest discovery latency in the system |
 | D6 | Self-describing analytics envelope | **proposed, and now under a stricter mandate** | Nothing built. `AGENTS.md` now makes the computation basis (input series, window, reference series, gap treatment) a review-blocking acceptance criterion on every metric — a stricter contract than P7's key set. P7 is a floor |
 | D7 | MCP tool taxonomy | **superseded in effect** | FR-37 (#665) and FR-38 (#666) are the shipped-shape answer. The golden question set was never produced; the agent-side success criteria (≤ 5 calls, −70 % volume) supply the measurable target it wanted |
@@ -1794,7 +1794,7 @@ that table class **explicitly** — implicit non-coverage is the failure case.
 
 - [x] Naming conventions established
 - [x] Structure patterns defined
-- [ ] Communication patterns specified — pending the FU-6 ADR (named principals); the write-permission half is settled
+- [x] Communication patterns specified — the FU-6 ADR is ADR-0054 (2026-10-08): one authority, named principals, stored text escaped at the companion
 - [x] Process patterns documented — P9/P10/P11 call shapes remain sound
 
 **Project Structure**
@@ -1840,7 +1840,7 @@ being a claim by the caller.
 | FU-3 | `gates.yaml` inventory (`id`, `status`, `test_path`, `owning_adr`) with a test that every `enforced` entry has an existing `test_path` | Defence against F2 — the failure mode that already occurred twice |
 | FU-4 | Contract fixtures: Elixir API tests write response bodies, `mcp-server` tests read them | Belongs in the same batch as the next API change, per its own argument |
 | FU-5 | Gate B3.2 derived-value ADR, carrying I1–I7 and the five sign-off conditions | Owner decision gate |
-| FU-6 | ADR superseding D4 and OD-4: writes down today's posture as a decision (agent writes the ledger directly, one token, stated threat model) and introduces **named principals** so the journal actor is derived from the credential rather than claimed by the caller | No owner question outstanding — the identity settles it. Not done here because it is an ADR, and this diff is a validation |
+| FU-6 | ADR superseding D4 and OD-4: writes down today's posture as a decision (agent writes the ledger directly, one token, stated threat model) and introduces **named principals** so the journal actor is derived from the credential rather than claimed by the caller | **Done:** ADR-0054 (2026-10-08, #967); the named principals shipped with Sprint 16's E25 S7 |
 | FU-7 | Knowledge-object structural decision, security events as the first falsifiable cut | Owner decision gate |
 
 ### Open Questions — all closed

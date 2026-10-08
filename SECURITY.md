@@ -136,7 +136,8 @@ token can still write through the API directly (E25; Sprint 17). Further tokens
 (`PORTFOLIXIR_API_TOKENS`, named `name=token` entries) change who the audit
 journal names for a write, taken from the entry the presented token matched,
 not what a token may do: every one of them has the same full authority, and a
-name attributes a write without restricting it.
+name attributes a write without restricting it (decided in
+`docs/decisions/0054-the-agents-surface-one-authority-named-principals-escaped-text.md`).
 
 ## Sensitive data examples
 
