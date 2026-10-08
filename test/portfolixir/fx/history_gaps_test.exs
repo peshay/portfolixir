@@ -214,5 +214,12 @@ defmodule Portfolixir.Fx.HistoryGapsTest do
       assert HistoryGaps.sought() == ["TWD", "USD"]
       assert HistoryGaps.due() == %{}
     end
+
+    # The α closing act, coverage: recording nothing writes nothing.
+    test "recording no currency leaves the record as it was" do
+      assert :ok = HistoryGaps.record_sought([])
+      assert Portfolixir.Settings.get("fx_history_backfill_sought") == nil
+      assert HistoryGaps.sought() == []
+    end
   end
 end

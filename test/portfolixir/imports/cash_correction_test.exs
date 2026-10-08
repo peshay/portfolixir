@@ -437,6 +437,36 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       assert Imports.cash_corrections(preview, portfolio_id: portfolio.id) == []
     end
 
+    # User story (ADR-0053 §6, ADR-0033 requirement 4; the α closing act,
+    # coverage):
+    # As the operator who gave an imported cross-currency sale a settlement
+    # amount by hand, where no hub rate was ever stored,
+    # I want its correction to move that settlement with the cash and guess
+    # no rate,
+    # so that the settlement guard holds without an invented native leg.
+    #
+    # Acceptance criteria:
+    # - The USD sale imported without any stored rate carries no legs; given
+    #   a settlement of 125.00 EUR by hand, its correction changes the
+    #   settlement to 100.00 alone, beside the cash and the price.
+    test "a hand-set settlement without a rate moves with the cash, and no rate is guessed" do
+      portfolio = portfolio!("Settlement without a rate")
+      apply!(old_reading(parse!(@cross_currency_json, "fx.json")), portfolio)
+      sale = booking(portfolio, "sell")
+      assert sale.settlement_amount == nil
+
+      {:ok, _edited} =
+        Ledger.update_transaction(Actor.owner_ui(), sale, %{settlement_amount: "125.00"})
+
+      assert [%Item{changes: changes}] =
+               Imports.cash_corrections(parse!(@cross_currency_json, "fx.json"),
+                 portfolio_id: portfolio.id
+               )
+
+      assert Enum.sort(Map.keys(changes)) == [:gross_amount, :price, :settlement_amount]
+      assert norm(changes.settlement_amount) == "100"
+    end
+
     # User story (ADR-0053 §6, UX-DR2):
     # As the operator re-dropping a file whose bookings all agree with it,
     # I want nothing listed,
