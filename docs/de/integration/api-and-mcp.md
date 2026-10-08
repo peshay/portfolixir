@@ -945,12 +945,15 @@ seit Issue #1068 — solange das Wertpapier **keine** Anlageklasse hat, weder
 gespeichert noch abgeleitet (sein `asset_class` ist `null`, und die Namens-
 und Logo-Regeln leiten keine ab), ein `maturity_date` oder eine
 `coupon_rate` trägt und einen Namen hat, den die Inferenz nicht als
-strukturiertes Produkt liest: Die Namensinferenz erkennt nur Namen von
-Staatsanleihen, also macht erst dieser Stammdatensatz eine
-Unternehmensanleihe ohne Klasse als Anleihe kenntlich. Ein Wertpapier mit
-einer anderen Klasse, gespeichert oder abgeleitet, ist keine Anleihe, welche
-Stammdaten es auch trägt; eine Anleihe, deren Name die Rechtsform ihres
-Emittenten trägt, wird beim Anlegen als `equity` gespeichert und braucht
+strukturiertes Produkt liest: Die Namensinferenz erkennt Namen von
+Staatsanleihen und, seit Issue #1127, die ausdrücklichen Anleihe-Wörter
+(Anleihe, Schuldverschreibung, Pfandbrief, Notes, Obligation), also macht
+erst dieser Stammdatensatz eine Unternehmensanleihe ohne ein solches Wort
+und ohne Klasse als Anleihe kenntlich. Ein Wertpapier mit einer anderen
+Klasse, gespeichert oder abgeleitet, ist keine Anleihe, welche Stammdaten es
+auch trägt; eine Anleihe, deren Name die Rechtsform ihres Emittenten und
+kein Anleihe-Wort trägt, wird beim Anlegen als `equity` gespeichert, ebenso
+eine mit Anleihe-Wort, die vor Issue #1127 gespeichert wurde, und braucht
 `asset_class` `bond`. Die MCP-Tools `portfolixir.securities.create` und
 `portfolixir.securities.update` nehmen sie entgegen (das Update auch
 `null`).

@@ -3606,4 +3606,46 @@ defmodule Portfolixir.DocsTest do
       assert text =~ fragment, "#{path}: #{fragment}"
     end
   end
+
+  # User story (#1127; the Sprint 20 plan's D-4):
+  # As the operator reading why a bond named with its issuer's legal form
+  # is classed as it is,
+  # I want ADR-0012 and the handbook to name the bond words, the words that
+  # are not, and that a class stored before stays,
+  # so that I know which bonds I still class by hand.
+  #
+  # Acceptance criteria:
+  # - ADR-0012 carries a dated note (2026-10-08) naming the bond step, its
+  #   place in the pipeline, the words left out and "new securities only";
+  #   its status names the note.
+  # - The handbook (EN, DE) lists the bond rule as rule 6, before equity,
+  #   and says a bond created before #1127 keeps its stored class.
+  test "ADR-0012 and the handbook name the bond words of the inference" do
+    adr =
+      normalized_text("docs/decisions/0012-asset-class-inference-at-read-time.md")
+
+    assert adr =~ "the note of 2026-10-08 adds the bond step (#1127)"
+    [note] = Regex.run(~r/> \*\*Note 2026-10-08 \(#1127.*?(?=## Consequences)/s, adr)
+    assert note =~ "derivative leaf class → bond → equity_or_nil"
+    assert note =~ "Not \"Bond\", which company names"
+    assert note =~ "It reaches new securities only"
+
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "6. **bond** (#1127) — the name says it is a bond: Anleihe, Schuldverschreibung or Pfandbrief",
+             "7. **equity** — the name carries",
+             "and so is one with a bond word created before issue #1127, whose stored class is kept"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "6. **bond** (#1127) — der Name sagt, dass es eine Anleihe ist: Anleihe, Schuldverschreibung oder Pfandbrief",
+             "7. **equity** — der Name trägt",
+             "ebenso eine mit Anleihe-Wort, die vor Issue #1127 angelegt wurde und ihre gespeicherte Klasse behält"
+           ]}
+        ],
+        fragment <- fragments do
+      assert normalized_text(path) =~ fragment, "#{path}: #{fragment}"
+    end
+  end
 end

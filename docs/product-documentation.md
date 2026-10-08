@@ -117,7 +117,18 @@ order, and the first that matches decides:
 
    There is no generic derivative class: a certificate that matches none of
    these words (an index certificate, say) stays unclassified.
-6. **equity** — the name carries a share or legal-form marker — Registered
+6. **bond** (#1127) — the name says it is a bond: Anleihe,
+   Schuldverschreibung or Pfandbrief, also as the last part of a compound
+   (Unternehmensanleihe, Inhaberschuldverschreibung, Hypothekenpfandbrief,
+   but not Anleihenfonds), or Notes, Obligation or Obligationen as a word —
+   **and** no structured-product word (rule 7's exclusions; a certificate is
+   legally a Schuldverschreibung too). It comes before equity because a
+   bond's name often carries its issuer's legal form ("Muster SE Anleihe
+   2030"). "Bond" is not one of the words, because company names use it,
+   and neither is a bare coupon and year ("Muster AG 4,10% 2028/2033"),
+   which shares and funds carry too; Aktienanleihe, Bundesanleihe and a
+   name with an ETF token are decided by the rules above.
+7. **equity** — the name carries a share or legal-form marker — Registered
    Shares, Reg. Shares, Registered Part. Shares, Inhaber-Aktien,
    Namens-Aktien, Vorzugsaktien, Actions, Aandelen, Common Stock, Inc., Corp.,
    Corporation, Company, Co., Ltd., AG, SE, PLC, S.p.A., S.A. or SA, S.A.S. or
@@ -126,15 +137,15 @@ order, and the first that matches decides:
    depositary-receipt marker (ADR, Sp.ADR, GDR, Depos. Receipts) or INH.ON,
    **and** no structured-product word (Turbo, Disc, Discount, Call, Put,
    Optionsschein, Zertifikat, O.End, Em.-u.Handelsg.mbH).
-7. **fund** — the name carries a fund issuer (iShares, Vanguard, Lyxor,
+8. **fund** — the name carries a fund issuer (iShares, Vanguard, Lyxor,
    Amundi, AIS-AM, Xtrackers, SPDR, Invesco, WisdomTree, VanEck, Fidelity,
    Deka) and none of the rules above matched; a name that also carries a
-   legal form is equity by rule 6, which runs first.
-8. **equity, from the logo** (#408) — a security none of the rules resolved
+   legal form is equity by rule 7, which runs first.
+9. **equity, from the logo** (#408) — a security none of the rules resolved
    that has an ISIN **and** a stored company logo is read as equity: the logo
    lookup already decided it is a company, and the ISIN marks a listed
    instrument.
-9. Otherwise the security has no class: it is unclassified.
+10. Otherwise the security has no class: it is unclassified.
 
 The rules ignore case, and most of them match whole words. Since issue
 #1078 that includes the legal forms "S.A.", "SA", "S.A.S.", "SAS",
@@ -156,7 +167,7 @@ wrong.
 
 **When a class is stored.** The class is not only inferred at read time. Each
 create or update of a security's master data — in the app, over the API or
-MCP, or by an import — stores the class rules 1–7 give when no class is stored
+MCP, or by an import — stores the class rules 1–8 give when no class is stored
 yet (the logo rule runs at read time only), and saving a security's form
 stores the class the form shows, inferred or not. A stored class, whoever
 stored it, is returned as it is, so a later improvement to a rule does **not**
@@ -526,13 +537,17 @@ converted. The security's own Overview does not name the reverse case yet
 Overview shows the bond block, and the guard reads it — when its asset class
 is Bond or Government bond — set, or inferred from its name — **or** when it
 shows **no** asset class (none set, none inferred) and carries bond master
-data: a maturity or a coupon. The name inference recognises only
-government-bond names, so a corporate bond without a class is brought under
-the guard by entering its maturity or coupon (or by setting its class); the
+data: a maturity or a coupon. The name inference recognises government-bond
+names and, since issue #1127, the explicit bond words of rule 6 (Anleihe,
+Schuldverschreibung, Pfandbrief, Notes, Obligation), so a corporate bond
+whose name carries none of them and that has no class is brought under the
+guard by entering its maturity or coupon (or by setting its class); the
 dialog shows its *Bond data* while the class reads blank, so the data can be
-corrected there. A bond whose name carries its issuer's legal form ("Muster
-AG 4,10% 2028/2033") is stored as Equity when it is created, and the master
-data alone does not change that: set its class to Bond (or Government bond).
+corrected there. A bond whose name carries its issuer's legal form but no
+bond word ("Muster AG 4,10% 2028/2033") is stored as Equity when it is
+created, and so is one with a bond word created before issue #1127, whose
+stored class is kept; the master data alone does not change that: set its
+class to Bond (or Government bond).
 A security with neither class nor master data — an unclassed share that
 rose twentyfold, say — is never named; nor is a name the inference reads as
 a structured product, whose expiry may be stored as a maturity; and a

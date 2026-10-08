@@ -297,7 +297,8 @@ defmodule Portfolixir.Portfolios.BondsTest do
 
   # User story (#1068, D-15; board 02, pin 3):
   # As the operator holding a corporate bond the catalog has no class for,
-  # because the name inference recognises only government-bond names,
+  # because the name inference recognises only government-bond names and
+  # explicit bond words (#1127), which its name does not carry,
   # I want the master data I entered (a maturity date or a coupon) to bring
   # it under the two-scales guard,
   # so that a bond on two scales is not silent because it has no class —
@@ -320,7 +321,7 @@ defmodule Portfolixir.Portfolios.BondsTest do
     buy!(world, corporate, quantity: "10000", price: "0.991", date: ~D[2026-03-12])
     put_quote!(corporate, ~D[2026-09-30], "99.10")
 
-    coupon_only = unclassed!("Ostsee Hafen Anleihe", %{coupon_rate: "3"})
+    coupon_only = unclassed!("Ostsee Hafen 3% 2031", %{coupon_rate: "3"})
     buy!(world, coupon_only, quantity: "5000", price: "0.98", date: ~D[2026-03-12])
     put_quote!(coupon_only, ~D[2026-09-30], "98.00")
 
@@ -353,7 +354,7 @@ defmodule Portfolixir.Portfolios.BondsTest do
     assert [hafen, logistik] =
              Bonds.two_scales_findings([corporate.id, coupon_only.id, share.id, etf.id])
 
-    assert %{name: "Ostsee Hafen Anleihe", direction: :forward, effective_asset_class: nil} =
+    assert %{name: "Ostsee Hafen 3% 2031", direction: :forward, effective_asset_class: nil} =
              hafen
 
     assert %{
