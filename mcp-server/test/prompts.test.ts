@@ -148,6 +148,38 @@ describe("the companion's prompts", () => {
     assert.match(await promptText("first_setup", {}, "full"), /needs none of them/);
   });
 
+  // User story (#1173):
+  // As the user's agent setting up an instance that holds no portfolio record
+  // yet,
+  // I want first_setup to say which record an import or an account binds to
+  // and that the first one creates it,
+  // so that an empty portfolixir.portfolios.list does not leave me guessing
+  // where the import books.
+  //
+  // Acceptance criteria:
+  // - The text no longer promises "the first portfolio": accounts and
+  //   imports bind to the earliest portfolio record, which the first import
+  //   or account creates as "Default" (EUR), so an instance has none before.
+  // - The sentence stays within the bytes of the one it replaces (Sprint 20
+  //   plan D-10: first_setup's text changes inside its own bytes).
+  it("first_setup says the first import or account creates the portfolio record", async () => {
+    const text = await promptText("first_setup", {}, "book");
+
+    assert.doesNotMatch(text, /lands in the first portfolio/);
+    assert.doesNotMatch(text, /books into that first portfolio/);
+
+    const [sentence] =
+      /Group with buckets and views, not with portfolios: [^\n]*/.exec(text) ?? [""];
+
+    assert.equal(
+      sentence,
+      "Group with buckets and views, not with portfolios: a portfolio is an internal compatibility " +
+        "record (ADR-0024), portfolixir.portfolios.create is deprecated, and accounts and imports " +
+        'bind to the earliest one, which the first import or account creates as "Default" (EUR).'
+    );
+    assert.ok(Buffer.byteLength(sentence, "utf8") <= 276, `${Buffer.byteLength(sentence, "utf8")} bytes`);
+  });
+
   // User story (A4, #983):
   // As the operator whose bank exports a format Portfolixir does not read,
   // I want my agent told the exact file format the Imports page takes and how

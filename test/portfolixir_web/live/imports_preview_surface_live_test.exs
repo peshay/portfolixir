@@ -281,6 +281,55 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
     end
   end
 
+  describe "a fresh instance's portfolio record (#1173; board 01 ⑥)" do
+    # User story (#1173):
+    # As the operator, or the agent beside me, importing into an instance that
+    # holds no portfolio record yet,
+    # I want the preview to say which portfolio record the import creates,
+    # so that nobody has to guess where the import books.
+    #
+    # Acceptance criteria:
+    # - With no portfolio record, a second muted line under the format line
+    #   reads "No portfolio record yet: the import creates “Default” (EUR) and
+    #   books into it." / "Noch kein Portfoliodatensatz: Der Import legt
+    #   „Default“ (EUR) an und bucht darin."; the name and the currency are
+    #   the ones the default portfolio is created with.
+    # - Confirming creates that record and books into it.
+    # - Once a portfolio record exists the line is gone: with one there is
+    #   nothing to say (UX-DR2).
+    test "the preview names the record the import creates, and only on a fresh instance",
+         %{conn: conn} do
+      {:ok, view, _html} = live(german(conn), "/imports")
+      upload!(view, history())
+
+      assert text(view, "[data-role='import-portfolio']") ==
+               "Noch kein Portfoliodatensatz: Der Import legt „Default“ (EUR) an und bucht darin."
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload!(view, history())
+
+      assert has_element?(
+               view,
+               ".workspace-section > h2 + p.muted + p.muted[data-role='import-portfolio']"
+             )
+
+      assert text(view, "[data-role='import-portfolio']") ==
+               "No portfolio record yet: the import creates “Default” (EUR) and books into it."
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Import complete"
+
+      assert [%{id: id, name: "Default", base_currency_code: "EUR"}] =
+               Portfolios.list_portfolios()
+
+      assert Ledger.list_transactions() |> Enum.map(& &1.portfolio_id) |> Enum.uniq() == [id]
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload!(view, history() ++ [interest("Tagesgeld", "1.40", "2026-03-31")])
+      refute has_element?(view, "[data-role='import-portfolio']")
+    end
+  end
+
   # --- the exports ---------------------------------------------------------------
 
   # The history the instance imported (board 01): Test-Cash, Tagesgeld and

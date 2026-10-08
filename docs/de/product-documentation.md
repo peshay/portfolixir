@@ -2771,8 +2771,13 @@ Bucket. Gib einen Namen wie `PP Import` ein, um die importierten Konten
 später wiederzufinden, oder den Namen eines bestehenden Buckets, um ihn
 wiederzuverwenden. Konten, die bestehenden Einträgen zugeordnet sind,
 behalten ihre aktuellen Tags, und ein Import, der keine neuen Konten anlegt,
-erzeugt keinen Bucket; eine Datei ohne Neues zeigt das Feld gar nicht. Die interne Portfolio-Bindung geschieht automatisch und
-erfordert nie eine Auswahl (siehe den Abschnitt Portfolios).
+erzeugt keinen Bucket; eine Datei ohne Neues zeigt das Feld gar nicht. Die
+interne Portfolio-Bindung geschieht automatisch und erfordert nie eine Auswahl
+(siehe den Abschnitt Portfolios). Auf einer Instanz, die noch keinen
+Portfoliodatensatz hält, sagt die Vorschau das unter dem Quellformat: *Noch
+kein Portfoliodatensatz: Der Import legt „Default“ (EUR) an und bucht darin.*
+Der Datensatz erscheint danach unter **Portfoliodatensätze (Kompatibilität)**
+auf Konten & Depots.
 
 Parser-Warnungen erscheinen in einer Notiz **Achtung** unter den Anzahlen je
 Art, mit einer scrollbaren Liste der Zeilen und einem Kopier-Button. Der

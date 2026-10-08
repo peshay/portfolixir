@@ -179,6 +179,19 @@ defmodule PortfolixirWeb.ImportsLive do
           format: assigns.preview.format |> to_string() |> String.upcase()
         ) %>
       </p>
+      <%!-- #1173 (board 01 ⑥): the page passes no portfolio, and on an
+           instance with none the apply creates the internal default one
+           (`Portfolios.default_portfolio/1`). Said only then: with a record
+           there is nothing to say (UX-DR2). "Portfolio record" is the word
+           of the admin list under Accounts & depots, where it shows again;
+           the name and currency are stored data and not translated. --%>
+      <p :if={@portfolio_missing} class="muted" data-role="import-portfolio">
+        <%= gettext(
+          "No portfolio record yet: the import creates “%{name}” (%{currency}) and books into it.",
+          name: Portfolios.default_portfolio_attrs().name,
+          currency: Portfolios.default_portfolio_attrs().base_currency_code
+        ) %>
+      </p>
 
       <%!-- ADR-0050 §2: a file already applied is a no-op; the preview says
            so once, for the whole file, and leads with it (#1168, board 01
@@ -1222,6 +1235,9 @@ defmodule PortfolixirWeb.ImportsLive do
     socket
     |> assign(:existing_cash, existing_cash)
     |> assign(:existing_depots, existing_depots)
+    # #1173: on an instance with no portfolio record the apply creates the
+    # internal default one (ADR-0024), and the preview says so.
+    |> assign(:portfolio_missing, Portfolios.count_portfolios() == 0)
     |> assign(:option_tags, option_tags(existing_cash, existing_depots))
     |> assign(:account_names, %{
       "cash" => Map.new(existing_cash, &{&1.id, &1.name}),

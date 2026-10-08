@@ -34,6 +34,15 @@ defmodule Portfolixir.Portfolios do
 
   def get_portfolio(id) when is_integer(id), do: Repo.get(Portfolio, id) |> load_cash_target()
 
+  @default_portfolio %{name: "Default", base_currency_code: "EUR"}
+
+  @doc """
+  The name and base currency `default_portfolio/1` creates the internal
+  default portfolio with when none exists. Stored data, not UI copy: the
+  import preview names it on a fresh instance (#1173) as it will be stored.
+  """
+  def default_portfolio_attrs, do: @default_portfolio
+
   @doc """
   Resolves the ONE deterministic internal default portfolio that new depots
   and cash accounts bind to (ADR-0024): the earliest record when any exists,
@@ -44,8 +53,7 @@ defmodule Portfolixir.Portfolios do
   def default_portfolio(%Actor{} = actor) do
     case first_portfolio() do
       nil ->
-        {:ok, portfolio} =
-          create_portfolio(actor, %{name: "Default", base_currency_code: "EUR"})
+        {:ok, portfolio} = create_portfolio(actor, @default_portfolio)
 
         portfolio
 
