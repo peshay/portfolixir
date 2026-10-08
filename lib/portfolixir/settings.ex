@@ -14,6 +14,12 @@ defmodule Portfolixir.Settings do
       dashboard open on; `nil` means the built-in "Everything" scope.
     * `migration_notice_dismissed?/0` / `dismiss_migration_notice/0` — the
       one-time "your portfolios are now views" notice (ADR-0024 migration).
+    * `fx_history_sought/0` / `add_fx_history_sought/1` — the currencies a
+      completed automatic backfill of the historical exchange rates already
+      sought (#1120, D-5 of the Sprint 20 plan). Not a preference but one
+      piece of instance state that must survive a restart; this is the
+      smallest keyed store the instance has, so it lives here
+      (`Portfolixir.Fx.HistoryGaps` reads it).
   """
 
   import Ecto.Query
@@ -24,6 +30,7 @@ defmodule Portfolixir.Settings do
 
   @default_view_key "default_view_id"
   @migration_notice_key "portfolio_migration_notice_dismissed"
+  @fx_history_sought_key "fx_history_backfill_sought"
 
   @doc "Reads the preference under `key`; `nil` when unset."
   @spec get(String.t()) :: String.t() | nil
@@ -91,4 +98,29 @@ defmodule Portfolixir.Settings do
   """
   @spec reset_migration_notice() :: :ok
   def reset_migration_notice, do: delete(@migration_notice_key)
+
+  @doc """
+  The currencies a completed automatic backfill of the historical exchange
+  rates already sought (#1120), sorted; `[]` before the first one. Stored as
+  one comma-separated value of currency codes.
+  """
+  @spec fx_history_sought() :: [String.t()]
+  def fx_history_sought do
+    case get(@fx_history_sought_key) do
+      nil -> []
+      value -> value |> String.split(",", trim: true) |> Enum.sort()
+    end
+  end
+
+  @doc """
+  Adds `currencies` to `fx_history_sought/0`: cumulative, and a code already
+  there is not added twice.
+  """
+  @spec add_fx_history_sought([String.t()]) :: :ok
+  def add_fx_history_sought([]), do: :ok
+
+  def add_fx_history_sought(currencies) when is_list(currencies) do
+    sought = currencies |> Enum.concat(fx_history_sought()) |> Enum.uniq() |> Enum.sort()
+    put(@fx_history_sought_key, Enum.join(sought, ","))
+  end
 end
