@@ -117,7 +117,9 @@ DATABASE_NAME=portfolixir_review PORT=4003 PORTFOLIXIR_BACKGROUND_FETCH=off mix 
 ```
 
 It is **idempotent**: every step asks whether its rows are already there, so a
-second run adds nothing. It makes **no outbound calls** (see "The seeds make
+second run adds nothing. The quote history is written with the import, on the
+first run only: a second run leaves every quote as the first left it, so a
+re-seeded database shows the figures a fresh one shows (#1126). It makes **no outbound calls** (see "The seeds make
 no outbound calls" above) and refuses to run without the switch. Synthetic all
 the way down — no real holdings, no real institution, no real person.
 
