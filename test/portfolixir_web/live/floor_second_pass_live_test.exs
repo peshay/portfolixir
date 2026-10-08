@@ -461,6 +461,58 @@ defmodule PortfolixirWeb.FloorSecondPassLiveTest do
              "XS0000000058 adopted; DE0000000025 is now a former ISIN · change dated nicht datiert"
   end
 
+  # User story (#1167):
+  # As the operator reading back a merge whose kept security took the
+  # duplicate's ISIN,
+  # I want that ISIN named once, on its own line,
+  # so that the master data line does not count it a second time.
+  #
+  # Acceptance criteria:
+  # - An ISIN only the source carried is named on the ISIN line alone; the
+  #   master data line counts the other fields adopted: the ISIN and a
+  #   ticker adopted read "1 field adopted, the target had none", the ISIN
+  #   alone leaves no master data line.
+  # - With an ISIN on both sides none is adopted, and a ticker adopted still
+  #   reads "1 field adopted, the target had none".
+  # - It is a read: the stored record keeps its shape, its
+  #   identifiers.adopted listing the ISIN as before.
+  test "the master data line counts an ISIN adopted from the source no second time",
+       %{conn: conn} do
+    agent = Actor.api_token_rw("synthetic")
+
+    with_ticker =
+      merge!(
+        agent,
+        create_security!(name: "Heronsgate Shipping AG", ticker: "HRS", isin: "XS0000000066"),
+        create_security!(name: "Heronsgate Shipping AG", ticker: nil)
+      )
+
+    isin_alone =
+      merge!(
+        agent,
+        create_security!(name: "Marlpit Ceramics SE", ticker: nil, isin: "XS0000000074"),
+        create_security!(name: "Marlpit Ceramics SE", ticker: nil)
+      )
+
+    both =
+      merge!(
+        agent,
+        create_security!(name: "Quillon Data AG", ticker: "QDA", isin: "XS0000000082"),
+        create_security!(name: "Quillon Data AG", ticker: nil, isin: "XS0000000090")
+      )
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    assert record_line(view, with_ticker, "ISIN") == "XS0000000066 adopted from the source"
+    assert record_line(view, with_ticker, "Master data") == "1 field adopted, the target had none"
+    assert record_line(view, isin_alone, "ISIN") == "XS0000000074 adopted from the source"
+    assert record_line(view, isin_alone, "Master data") == nil
+    assert record_line(view, both, "Master data") == "1 field adopted, the target had none"
+
+    assert Enum.map(with_ticker.manifest["identifiers"]["adopted"], & &1["field"]) ==
+             ["isin", "ticker_symbol"]
+  end
+
   # A record in `record`'s shape for another source row, its manifest
   # changed by `change` — the shape a row the screen did not write can have.
   defp record_like!(record, source_id, change) do
@@ -489,7 +541,10 @@ defmodule PortfolixirWeb.FloorSecondPassLiveTest do
     record
   end
 
-  defp isin_line(view, record) do
+  defp isin_line(view, record), do: record_line(view, record, "ISIN")
+
+  # The value of a merge record's line by its label, or nil without one.
+  defp record_line(view, record, label) do
     view
     |> element("#merge-records tr[data-merge='#{record.id}'] .merge-manifest__counts")
     |> render()
@@ -498,7 +553,7 @@ defmodule PortfolixirWeb.FloorSecondPassLiveTest do
     |> Enum.map(&(&1 |> Floki.text() |> String.trim()))
     |> Enum.chunk_every(2)
     |> Enum.find_value(fn
-      ["ISIN", value] -> value
+      [^label, value] -> value
       _line -> nil
     end)
   end
