@@ -3485,10 +3485,14 @@ name". A delete refused because a policy rule reads the object (`409`) names
 the rules the same way, and a cash-account or depot merge's guard detail names
 its buckets and a position by their ids (`the buckets #3, #7`,
 `security #12 sits in the bucket #9`). The record's name is a field of the
-record, read by its id, or of the guard's data (`policy_rules[].name`,
-`positions[].securities_account_name`, `conflicts[].portfolio_name`,
-`failure.securities_account_name`, `unresolvable[].ref.name`). Portfolixir's
-screens keep naming it by its name.
+record, read by its id (a depot's from `GET /api/v1/securities_accounts/:id`,
+a bucket's from `GET /api/v1/buckets/:id`, a rule's from
+`GET /api/v1/policy_rules/:id`, a security's from `GET /api/v1/securities/:id`,
+a portfolio's from `GET /api/v1/portfolios`). A refusal's `errors` carry a
+name beside the detail in two places only: `errors.policy_rules[].name`, with
+each rule's `id` and `status`, and `errors.unresolvable[].ref.name`, the
+identity's recorded name; a depot, a portfolio and a bucket travel there by
+their ids alone. Portfolixir's screens keep naming it by its name.
 
 **A write that times out.** Every API call carries a 30-second deadline. A
 read that misses it — a `GET`, or one of the tools routed through `POST` that

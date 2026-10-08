@@ -141,19 +141,40 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
   #   reads the object names the rules by id and status in its detail, and a
   #   cash-account or depot merge's guard detail names buckets and a position
   #   by their ids.
+  # - They say where a name is read instead, as the API answers it: from the
+  #   record by its id, and in a refusal's `errors` only as
+  #   `errors.policy_rules[].name` and `errors.unresolvable[].ref.name`; a
+  #   depot, a portfolio and a bucket travel there by id alone. They claim no
+  #   depot or portfolio name in the guard's data, which `errors` never
+  #   carried (`MergeJSON.guard_facts/1`).
   test "the MCP pages say a delete's 409 and an account merge's guard name records by id" do
     assert_fragments([
       {"docs/integration/api-and-mcp.md",
        [
          "a `detail` naming each rule by its id and status (`policy rule(s): #7 (in_force)`), never by its name",
-         "a cash-account or depot merge's guard detail names its buckets and a position by their ids"
+         "a cash-account or depot merge's guard detail names its buckets and a position by their ids",
+         "The record's name is a field of the record, read by its id",
+         "A refusal's `errors` carry a name beside the detail in two places only: `errors.policy_rules[].name`",
+         "`errors.unresolvable[].ref.name`, the identity's recorded name; a depot, a portfolio and a bucket travel there by their ids alone"
        ]},
       {"docs/de/integration/api-and-mcp.md",
        [
          "einem `detail`, das jede Regel mit ihrer id und ihrem Status nennt (`policy rule(s): #7 (in_force)`), nie mit ihrem Namen",
-         "das Detail einer Prüfung beim Zusammenführen von Geldkonten oder Depots nennt Buckets und eine Position mit ihren ids"
+         "das Detail einer Prüfung beim Zusammenführen von Geldkonten oder Depots nennt Buckets und eine Position mit ihren ids",
+         "Der Name ist ein Feld des Datensatzes, über seine id zu lesen",
+         "Die `errors` einer Ablehnung tragen einen Namen neben dem Detail nur an zwei Stellen: `errors.policy_rules[].name`",
+         "`errors.unresolvable[].ref.name`, den erfassten Namen der Identität; ein Depot, ein Portfolio und ein Bucket stehen dort nur mit ihren ids"
        ]}
     ])
+
+    for path <- ~w(docs/integration/api-and-mcp.md docs/de/integration/api-and-mcp.md),
+        overclaim <- [
+          "positions[].securities_account_name",
+          "conflicts[].portfolio_name",
+          "failure.securities_account_name"
+        ] do
+      refute File.read!(path) =~ overclaim, "#{path}: #{overclaim}"
+    end
   end
 
   # User story (E25 S7, F23, the companion's half):
