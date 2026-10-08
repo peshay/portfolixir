@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "transactions": [
+    {
+      "type": "DEPOSIT",
+      "account": "Test-Cash",
+      "date": "2024-03-01",
+      "currency": "EUR",
+      "amount": 1100.0
+    },
+    {
+      "type": "PURCHASE",
+      "account": "Test-Cash",
+      "portfolio": "Test-Depot",
+      "date": "2024-03-04",
+      "time": "10:01",
+      "currency": "EUR",
+      "amount": 100.0,
+      "shares": 10.0,
+      "security": {
+        "name": "Arbolia Inc.",
+        "isin": "USEXMPL10014",
+        "wkn": "ARBOL1",
+        "ticker": "ARBL",
+        "currency": "EUR"
+      }
+    },
+    {
+      "type": "SALE",
+      "account": "Test-Cash",
+      "portfolio": "Test-Depot",
+      "date": "2024-06-14",
+      "time": "15:30",
+      "currency": "EUR",
+      "amount": 120.0,
+      "shares": 10.0,
+      "security": {
+        "name": "Arbolia Inc.",
+        "isin": "USEXMPL10014",
+        "wkn": "ARBOL1",
+        "ticker": "ARBL",
+        "currency": "EUR"
+      },
+      "units": [
+        {"type": "FEE", "amount": 5.0},
+        {"type": "TAX", "amount": -25.0}
+      ]
+    }
+  ]
+}
