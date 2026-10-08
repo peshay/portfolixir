@@ -42,11 +42,14 @@
           {Credo.Check.Readability.UnnecessaryAliasExpansion, []},
           {Credo.Check.Readability.VariableNames, []},
           {Credo.Check.Refactor.CondStatements, []},
-          # Thresholds grandfather the current worst offenders (complexity 13,
-          # nesting 4) so the gate blocks NEW debt; tighten back toward the
-          # defaults (9 / 2) as dedicated refactor stories land (#314; 15 -> 13
-          # in Sprint 16's maintenance lane).
-          {Credo.Check.Refactor.CyclomaticComplexity, [max_complexity: 13]},
+          # Ceilings above the defaults (9 / 2) that block NEW complexity; the
+          # functions over them were refactored, none is excluded or disabled.
+          # #314 moved complexity 15 -> 13 (Sprint 16's maintenance lane) and
+          # 13 -> 12 (Sprint 20, its last function over 12 now a table); the
+          # nesting step was declined in Sprint 20's decision pass (D-4), so
+          # #314 closes on 12 / 4. A further step is a refactor story of its
+          # own, measured with a real `mix credo` run before it is lowered.
+          {Credo.Check.Refactor.CyclomaticComplexity, [max_complexity: 12]},
           {Credo.Check.Refactor.FunctionArity, []},
           {Credo.Check.Refactor.LongQuoteBlocks, []},
           {Credo.Check.Refactor.MatchInCondition, []},
