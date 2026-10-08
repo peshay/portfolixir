@@ -60,7 +60,9 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
     "Portfolixir.Catalog.QuoteSync" =>
       "the periodic quote sync — quotes sit inside the line B3.3 draws (ADR-0005)",
     "Portfolixir.Fx.RateSync" =>
-      "the periodic ECB rate sync — FX sits inside the line B3.3 draws (ADR-0007)",
+      "the periodic ECB rate sync, and after its boot sync the one-shot history " <>
+        "backfill when a booking predates its currency's rates (#1120) — FX sits " <>
+        "inside the line B3.3 draws (ADR-0007)",
     "Portfolixir.Catalog.LogoDiscovery" =>
       "drains the missing-logo queue and rescans it periodically; fetches images, " <>
         "writes presentation metadata only",

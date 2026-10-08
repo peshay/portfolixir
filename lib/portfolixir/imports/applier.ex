@@ -129,6 +129,7 @@ defmodule Portfolixir.Imports.Applier do
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Fx
+  alias Portfolixir.Fx.RateSync
   alias Portfolixir.Imports.DedupKey
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.ImportHash
@@ -750,6 +751,10 @@ defmodule Portfolixir.Imports.Applier do
 
     Catalog.enrich_security_ids_async(created_ids)
     Catalog.enqueue_missing_security_logos_async()
+    # The historical exchange rates a booking of this import predates arrive
+    # by themselves, in the background, once (#1120, D-5 of the Sprint 20
+    # plan); with background fetches off it does nothing.
+    RateSync.backfill_when_needed_async()
 
     result =
       Enum.reduce(@recorded_lists, result, fn field, acc ->

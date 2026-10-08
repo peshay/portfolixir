@@ -11,7 +11,8 @@ defmodule Portfolixir.Fx.RateSync do
 
   The scheduler is opt-in (`enabled?: true` in prod/dev, `false` in tests).
   When enabled it also runs one sync shortly after startup (`startup_delay_ms`),
-  so foreign-currency value is available promptly instead of `interval_ms` later.
+  so foreign-currency value is available promptly instead of `interval_ms` later,
+  followed by `backfill_when_needed/1` (#1120).
   Use `sync_now/0` from the UI, API, or REPL to trigger an immediate sync.
 
   `backfill/1` (issue #737, Sprint 9 D-1) is the one-shot, on-demand fetch of
@@ -25,7 +26,10 @@ defmodule Portfolixir.Fx.RateSync do
   Sprint 9's D-1 to "on demand, and once by itself when needed") is that
   backfill run only when a booking predates its currency's earliest stored
   rate and no completed run has sought the currency yet
-  (`Portfolixir.Fx.HistoryGaps`), under the same single-flight key.
+  (`Portfolixir.Fx.HistoryGaps`), under the same single-flight key. It runs
+  by itself after the boot sync and after an import's apply
+  (`backfill_when_needed_async/0`), in the background and only while the
+  scheduler is enabled, as every background fetch is.
   """
 
   use GenServer
@@ -144,6 +148,33 @@ defmodule Portfolixir.Fx.RateSync do
     end
   end
 
+  @doc """
+  Starts `backfill_when_needed/1` in a background task, the trigger after an
+  import's apply (#1120): the caller never waits for it, and a failure
+  never reaches it.
+
+  It is a background fetch like the scheduled sync, so it runs only when
+  the scheduler's own switch is on: the `enabled?` this module's
+  configuration carries, which `PORTFOLIXIR_BACKGROUND_FETCH=off` sets to
+  `false` (config/runtime.exs, config/dev.exs) and the test suite keeps
+  `false`. Off, it answers `:disabled` and asks no provider; on,
+  `{:ok, pid}`. The provider and the optional `notify` pid (told
+  `{#{inspect(__MODULE__)}, :history, result}` when the run ends; the test
+  suite's seam) come from the same configuration.
+  """
+  @spec backfill_when_needed_async() :: {:ok, pid()} | :disabled
+  def backfill_when_needed_async do
+    config = Application.get_env(:portfolixir, __MODULE__, [])
+
+    if Keyword.get(config, :enabled?, false) do
+      provider = Keyword.get(config, :provider, @default_provider)
+      notify = Keyword.get(config, :notify)
+      Task.start(fn -> history_quietly(provider, notify) end)
+    else
+      :disabled
+    end
+  end
+
   defp when_needed_unlocked(opts) do
     case HistoryGaps.due() do
       due when map_size(due) == 0 ->
@@ -204,36 +235,69 @@ defmodule Portfolixir.Fx.RateSync do
       interval_ms: Keyword.get(opts, :interval_ms, @default_interval),
       startup_delay_ms: Keyword.get(opts, :startup_delay_ms, @default_startup_delay),
       enabled?: Keyword.get(opts, :enabled?, false),
-      provider: Keyword.get(opts, :provider, @default_provider)
+      provider: Keyword.get(opts, :provider, @default_provider),
+      notify: Keyword.get(opts, :notify)
     }
 
     # Sync once shortly after boot (issue #435): without this the first tick is
     # interval_ms (12 h) away, so foreign-currency cash is silently uncounted
     # until then. handle_info/2 reschedules subsequent ticks at interval_ms.
-    if state.enabled?, do: schedule_tick(state.startup_delay_ms)
+    # Disabled (PORTFOLIXIR_BACKGROUND_FETCH=off), there is no boot tick, so
+    # no history backfill either (#1120).
+    if state.enabled?, do: schedule(:boot_tick, state.startup_delay_ms)
     {:ok, state}
   end
 
   @impl true
   def handle_info(:tick, state) do
+    Task.start(fn -> sync_quietly(state.provider) end)
+
+    if state.enabled?, do: schedule(:tick, state.interval_ms)
+    {:noreply, state}
+  end
+
+  # The boot sync, then the history backfill when a booking needs it (#1120,
+  # D-5), one after the other in one background task.
+  def handle_info(:boot_tick, state) do
     Task.start(fn ->
-      try do
-        sync(provider: state.provider)
-      rescue
-        exception ->
-          Logger.error("fx rate sync tick crashed: #{Exception.message(exception)}")
-      end
+      sync_quietly(state.provider)
+      history_quietly(state.provider, state.notify)
     end)
 
-    if state.enabled?, do: schedule_tick(state.interval_ms)
+    schedule(:tick, state.interval_ms)
     {:noreply, state}
   end
 
   @impl true
   def handle_info(_msg, state), do: {:noreply, state}
 
-  defp schedule_tick(interval_ms) do
-    Process.send_after(self(), :tick, interval_ms)
+  defp schedule(message, after_ms) do
+    Process.send_after(self(), message, after_ms)
+  end
+
+  defp sync_quietly(provider) do
+    sync(provider: provider)
+  rescue
+    exception ->
+      Logger.error("fx rate sync tick crashed: #{Exception.message(exception)}")
+  end
+
+  # `backfill_when_needed/1` in a background task: a provider failure is
+  # already an error tuple and a warning; anything that raises is logged
+  # here, so nothing reaches the import or the boot that started it. The
+  # optional `notify` pid is told the result (the test suite's seam).
+  defp history_quietly(provider, notify) do
+    result =
+      try do
+        backfill_when_needed(provider: provider)
+      rescue
+        exception ->
+          Logger.error("fx history backfill crashed: #{Exception.message(exception)}")
+          {:error, :crashed}
+      end
+
+    if is_pid(notify), do: send(notify, {__MODULE__, :history, result})
+    result
   end
 
   # -- internals -------------------------------------------------------------
