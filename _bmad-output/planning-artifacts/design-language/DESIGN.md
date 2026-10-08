@@ -3103,7 +3103,13 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   ticker, else "no. <id>": the first feature present and different on every
   twin. Unique names are unchanged. Twins are exactly the case a security
   merge exists for, so the dialog that ends them is not the only place they
-  can be told apart.
+  can be told apart. *Amended 2026-10-08 (issue 1152; ADR-0050's amendment
+  of 2026-10-07, point 6):* here and in the account options above, "carries"
+  is "prints the same", the key of Components → Twin names
+  (`SecurityNames.display_key/1`: NFC, whitespace runs as one space, case
+  kept), so a picker and a table agree on which names are twins. The
+  account guard and the import's resolution still compare names exactly;
+  the tag is a value inside the anatomy drawn here, and no board changes.
 - **"+ Create new" for a name the guard refuses (G4b-A)** stays in the list,
   **disabled**, its own label saying why: "+ Create new: <name> — not
   possible: an account already has this name" / "a former name of

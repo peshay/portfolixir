@@ -155,6 +155,38 @@ defmodule PortfolixirWeb.SecurityNamesTest do
     assert ids([row(1, "Lumen Werke AG"), row(2, "Lumen-Werke AG")], & &1.name) == [nil, nil]
   end
 
+  # User story (#1152; ADR-0050's amendment of 2026-10-07, point 6):
+  # As the operator picking a security in a dialog or a picker,
+  # I want two names that print the same to be told apart there, as the
+  # tables tell them apart,
+  # so that a decomposed "Müller Werke AG" or a doubled space does not leave
+  # two securities reading as one option.
+  #
+  # Acceptance criteria:
+  # - `tags/1` decides by `display_key/1`: names that differ only in Unicode
+  #   form (NFC, NFD) or in inner whitespace, a no-break space among it, are
+  #   twins and each takes its tag; a label keeps its own stored name.
+  # - Names that differ in letter case stay two names, untagged, as a
+  #   picker prints the case.
+  # - A picker's tag is a value: no stored name and no guard changes.
+  test "a picker's twins are the names that print the same, whatever their bytes" do
+    nfd = "Mu\u0308ller Werke AG"
+
+    securities = [
+      %{id: 1, name: "M\u00FCller Werke AG", isin: "XSNAMES00011", ticker_symbol: nil},
+      %{id: 2, name: nfd, isin: "XSNAMES00029", ticker_symbol: nil},
+      %{id: 3, name: "Lumen  Werke AG", isin: nil, ticker_symbol: "LWA"},
+      %{id: 4, name: "Lumen\u00A0Werke AG", isin: nil, ticker_symbol: "LWB"},
+      %{id: 5, name: "lumen werke ag", isin: nil, ticker_symbol: "LWC"}
+    ]
+
+    tags = SecurityNames.tags(securities)
+
+    assert tags == %{1 => "XSNAMES00011", 2 => "XSNAMES00029", 3 => "LWA", 4 => "LWB"}
+    assert SecurityNames.label(tags, Enum.at(securities, 1)) == nfd <> " · XSNAMES00029"
+    assert SecurityNames.label(tags, Enum.at(securities, 4)) == "lumen werke ag"
+  end
+
   # User story (#1057, pick J6.2 A, rule ②; the review of PR γ U4):
   # As the operator reading a twin's row, with my eyes or with a screen
   # reader,

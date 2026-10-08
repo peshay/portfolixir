@@ -3253,7 +3253,9 @@ Konten gleichen Namens werden in der Liste durch das unterschieden, was
 abweicht — bei einem Verrechnungskonto seine verknüpften Depots, sonst seine
 Währung, sonst der Tag, an dem es angelegt wurde; bei einem Depot sein
 Verrechnungskonto —, und eine mehrdeutige Zeile nennt ihre Kandidaten ebenso.
-*+ Neu anlegen* für einen Namen, den der Import nicht anlegen darf (der Name
+Namen, die gleich gedruckt werden, gelten dort als ein Name, etwa einer mit
+doppeltem Leerzeichen, obwohl der Import die Namen einer Datei exakt
+vergleicht. *+ Neu anlegen* für einen Namen, den der Import nicht anlegen darf (der Name
 eines anderen Kontos, ein früherer Name eines anderen Kontos oder der Name
 mehrerer Konten), bleibt in der Liste, gesperrt, mit dem Grund, sodass nichts,
 was Sie wählen, den Import am Ende scheitern lässt.
