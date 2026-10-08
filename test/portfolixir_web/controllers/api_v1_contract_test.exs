@@ -49,19 +49,70 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
+    # Sprint 20, commit group β (version 16, after Sprint 19 PR β's 15): what
+    # the ledger reports about it, the ADR-0015 amendment of 2026-10-07. B1
+    # opened the entry (#1108): a cross-currency closed trade's fees and
+    # taxes are converted at the trade's own rate; B2 rides it (#1107): the
+    # Costs and income reports read them in the cash account's currency. No
+    # route, tool or computation version moves; the four reads' figures do,
+    # and the entry names them with identities 1 and 2.
+    sprint20 = Enum.find(data["entries"], &(&1["version"] == 16))
+    # Strictly after Sprint 19 PR β's entry (2026-10-07).
+    assert sprint20["date"] == "2026-10-08"
+    assert sprint20["summary"] =~ "Sprint 20 β"
+    assert sprint20["summary"] =~ "ADR-0015 amendment of 2026-10-07"
+    assert sprint20["summary"] =~ "cash account's currency"
+    assert sprint20["summary"] =~ "No computation version moves"
+    assert sprint20["endpoints"] == []
+    assert sprint20["tools"] == []
+
+    for issue <- ["#1108", "#1107", "#1051"] do
+      assert sprint20["summary"] =~ issue, issue
+    end
+
+    assert Enum.any?(
+             sprint20["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/securities/:security_id/trades") and
+                 &1 =~ "portfolixir.trades.list" and &1 =~ "settlement_fx_rate" and
+                 &1 =~ "basis 1007.5, proceeds 1196.25, realized_pnl_abs 188.75" and
+                 &1 =~ "computation_basis.fees_and_taxes" and &1 =~ "#1108")
+           )
+
+    assert Enum.any?(
+             sprint20["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/realized_gains") and
+                 &1 =~ "portfolixir.cashflow.realized_gains" and
+                 &1 =~ "realized_base 151 EUR" and &1 =~ "#1108")
+           )
+
+    assert Enum.any?(
+             sprint20["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/costs") and
+                 &1 =~ "portfolixir.cashflow.costs" and &1 =~ "fees 5, taxes 1, total 6 EUR" and
+                 &1 =~ "computation_basis.currency" and &1 =~ "#1107")
+           )
+
+    assert Enum.any?(
+             sprint20["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/portfolios/:portfolio_id/income") and
+                 &1 =~ "portfolixir.portfolios.income" and &1 =~ "gross 100, tax 20, net 80" and
+                 &1 =~ "security_currency" and &1 =~ "#1107")
+           )
+
     # Sprint 19, PR β (version 15, after PR α's 14): a stranger's first run
     # and the agent's reads, one entry for the lane PR. B5 adds the
     # performance family's Everything form and the all-portfolios category
     # result (#1056, #1091's read half, D-7), and names the survivor of a
     # merged-away benchmark security (#959); B2's missing logo file (#933)
-    # and B3's companion failure modes (#1043, #1045) ride the entry.
-    assert newest["version"] == 15
+    # and B3's companion failure modes (#1043, #1045) ride the entry. Found
+    # by version from Sprint 20 on.
+    beta = Enum.find(data["entries"], &(&1["version"] == 15))
     # Strictly after α's entry (2026-10-06), which since= compares against.
-    assert newest["date"] == "2026-10-07"
-    assert newest["summary"] =~ "Sprint 19 PR β"
-    assert newest["tools"] == []
+    assert beta["date"] == "2026-10-07"
+    assert beta["summary"] =~ "Sprint 19 PR β"
+    assert beta["tools"] == []
 
-    assert newest["endpoints"] == [
+    assert beta["endpoints"] == [
              "GET /api/v1/performance",
              "GET /api/v1/performance/benchmark",
              "GET /api/v1/performance/contribution",
@@ -69,23 +120,23 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
            ]
 
     for issue <- ["#1056", "#1091", "#959", "#933", "#1043", "#1045"] do
-      assert newest["summary"] =~ issue, issue
+      assert beta["summary"] =~ issue, issue
     end
 
     assert Enum.any?(
-             newest["parameters"],
+             beta["parameters"],
              &(String.starts_with?(&1, "GET /api/v1/securities/:id/merge_preview") and
                  &1 =~ "identifiers.differences" and &1 =~ "#933")
            )
 
     # #933, review pass 2: unambiguous about the path, and why MCP adds no tool.
-    assert newest["summary"] =~ "its path is never cleared"
-    assert newest["summary"] =~ "no logo-status tool"
-    assert newest["summary"] =~ "projection=full"
-    refute Enum.any?(newest["parameters"], &(&1 =~ "description unchanged"))
+    assert beta["summary"] =~ "its path is never cleared"
+    assert beta["summary"] =~ "no logo-status tool"
+    assert beta["summary"] =~ "projection=full"
+    refute Enum.any?(beta["parameters"], &(&1 =~ "description unchanged"))
 
     assert Enum.any?(
-             newest["parameters"],
+             beta["parameters"],
              &(String.starts_with?(
                  &1,
                  "GET /api/v1/performance, GET /api/v1/performance/benchmark and GET /api/v1/performance/contribution"
@@ -95,32 +146,32 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
            )
 
     assert Enum.any?(
-             newest["parameters"],
+             beta["parameters"],
              &(&1 =~ "portfolixir.views.performance" and &1 =~ "portfolixir.views.benchmark" and
                  &1 =~ "portfolixir.views.contribution" and &1 =~ "id" and &1 =~ "optional" and
                  &1 =~ "#1056")
            )
 
     assert Enum.any?(
-             newest["parameters"],
+             beta["parameters"],
              &(String.starts_with?(&1, "GET /api/v1/category-results") and &1 =~ "scope" and
                  &1 =~ "all" and &1 =~ "excluded_members" and &1 =~ "native_costs" and
                  &1 =~ "portfolixir.portfolios.category_results" and &1 =~ "#1091")
            )
 
     assert Enum.any?(
-             newest["parameters"],
+             beta["parameters"],
              &(&1 =~ "benchmark=security:" and &1 =~ "merged_into" and &1 =~ "#959")
            )
 
     assert Enum.any?(
-             newest["parameters"],
+             beta["parameters"],
              &(String.starts_with?(&1, "GET /api/v1/securities/:security_id/logo") and
                  &1 =~ "file_missing" and &1 =~ "has_logo" and &1 =~ "#933")
            )
 
     assert Enum.any?(
-             newest["parameters"],
+             beta["parameters"],
              &(String.starts_with?(&1, "GET /api/v1/securities?logo_status=") and
                  &1 =~ "data_quality=missing_logo" and &1 =~ "portfolixir.securities.list" and
                  &1 =~ "missing_logo (none and unlocked, or file gone)" and
@@ -129,11 +180,11 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
            )
 
     assert Enum.any?(
-             newest["parameters"],
+             beta["parameters"],
              &(&1 =~ "502" and &1 =~ "504" and &1 =~ "outcome unknown" and &1 =~ "#1045")
            )
 
-    assert Enum.any?(newest["parameters"], &(&1 =~ "exits 1" and &1 =~ "#1043"))
+    assert Enum.any?(beta["parameters"], &(&1 =~ "exits 1" and &1 =~ "#1043"))
 
     # Sprint 19, PR α (version 14, after PR #1102's 13): the money a
     # stranger checks first, one entry for the lane PR. M3 opened it: the performance and the
