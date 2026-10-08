@@ -151,4 +151,50 @@ defmodule Portfolixir.Imports.NegativeTaxBookingTest do
     assert Decimal.equal?(sale.gross_amount, Decimal.new("95.00"))
     assert Decimal.equal?(refund.gross_amount, Decimal.new("25.00"))
   end
+
+  # User story (ADR-0053 A2, K12; risk-tier: money):
+  # As the operator whose Portfolio Performance sale carries a tax refund,
+  # I want the sale priced from its gross value, as Portfolio Performance
+  # prices it, and its realized result to leave the refund out,
+  # so that the refund counts once, as income of its own, and never inside
+  # the trade's result too.
+  #
+  # Acceptance criteria:
+  # - The synthetic JSON sale is priced 10.00 (today 12.50): its gross value,
+  #   120.0 + 5.0 - 25.0 = 100.0, over its 10 shares, PP's Kurs.
+  # - Its closed trade's proceeds equal the sale's own cash, 95.00 (today
+  #   120.00), and against the purchase's cost of 100.00 its realized result
+  #   is -5.00 (today 20.00). The refund books 25.00 beside it.
+  # - The PP CSV of the same history closes the same trade.
+  test "a JSON sale is priced from its gross value, and its realized result leaves the refund out" do
+    json = target("JSON trade")
+    apply!(fixture("sale_with_negative_tax.json"), "sale_with_negative_tax.json", json)
+
+    csv = target("CSV trade")
+    apply!(@sale_pp_csv, "sale.csv", csv)
+
+    assert [json_sale] = booked(json, "sell")
+    assert [csv_sale] = booked(csv, "sell")
+
+    # One security: the CSV's name finds the one the JSON's ISIN created, so
+    # its trades are the two portfolios' sales, one closed trade each.
+    assert json_sale.security_id == csv_sale.security_id
+
+    assert %{closed_trades: [_, _] = trades, orphan_sells: []} =
+             Ledger.list_trades_for_security(json_sale.security_id,
+               latest_price: Decimal.new("10.00")
+             )
+
+    for trade <- trades do
+      assert Decimal.equal?(trade.proceeds, Decimal.new("95.00"))
+      assert Decimal.equal?(trade.basis, Decimal.new("100.00"))
+      assert Decimal.equal?(trade.realized_pnl_abs, Decimal.new("-5.00"))
+      assert Decimal.equal?(trade.avg_sell_price, Decimal.new("10.00"))
+    end
+
+    for sale <- [json_sale, csv_sale] do
+      assert Decimal.equal?(sale.price, Decimal.new("10.00"))
+      assert Decimal.equal?(sale.gross_amount, Decimal.new("95.00"))
+    end
+  end
 end
