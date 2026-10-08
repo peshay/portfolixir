@@ -73,7 +73,9 @@ defmodule Portfolixir.Imports.Applier do
   `:retired`, `:economics`); `reimport_counts/3` is the same count before
   the apply, per file account and depot name, for the preview — and per
   security key (`securities`), on the hash layers alone, so the preview can
-  tell a security decision the apply never reaches (#923).
+  tell a security decision the apply never reaches (#923); with the file's
+  names unknown to the stored history (`unseen_names`, the amendment of
+  2026-10-07 to §2, #904), which the preview does not prefill.
 
   Behavior:
 
@@ -410,12 +412,25 @@ defmodule Portfolixir.Imports.Applier do
   and leave the repeat to resolve its own key. The dry run's `:economics`
   and `:internal_transfer` are judged on resolved ids, after the ladder, and
   never count there; such a row stays `:new` under its security.
+
+  `unseen_names` lists the file's cash-account and depot names **unknown to
+  the stored history** (ADR-0050 §2's first limit, the amendment of
+  2026-10-07, #904): a name none of whose rows has a content hash a live
+  transaction or a retired hash holds, while another name of the file, in
+  this portfolio, has a row that does. Such a name is typically one renamed
+  in Portfolio Performance: names are hash inputs, so every row under it
+  misses, and the preview must not prefill it. Only the stored hashes count
+  — a repeat inside the file holds nothing yet, and the economic layer is
+  not read, because it cannot see a name — so both passes name the same.
+  Names compare as the file wrote them, exactly (the parsers trim surrounding
+  whitespace; #973). A file with no hit at all names nothing.
   """
   @spec reimport_counts(Preview.t(), integer() | nil, keyword()) :: %{
           total: layer_counts(),
           cash_accounts: %{String.t() => layer_counts()},
           depots: %{String.t() => layer_counts()},
-          securities: %{String.t() => layer_counts()}
+          securities: %{String.t() => layer_counts()},
+          unseen_names: unseen_names()
         }
   def reimport_counts(%Preview{entries: entries}, portfolio_id, opts \\ []) do
     flat_entries = Entry.flatten(entries)
@@ -467,7 +482,49 @@ defmodule Portfolixir.Imports.Applier do
         count_security(acc, key, layer, empty)
       end)
 
-    Map.put(counts, :securities, securities)
+    counts
+    |> Map.put(:securities, securities)
+    |> Map.put(:unseen_names, unseen_names(flat_entries, hash_layers))
+  end
+
+  @typedoc "The file's names unknown to the stored history, as `reimport_counts/3` names them."
+  @type unseen_names :: %{cash_accounts: [String.t()], depots: [String.t()]}
+
+  # The amendment of 2026-10-07 to ADR-0050 §2 (#904): per file name, whether
+  # any row listed under it is held by a stored hash — the first check's own
+  # layers, before a repeat inside the file is folded in and before the dry
+  # run; a name without, while some name has one, is unknown. Cash-account
+  # and depot names are two kinds of name; a row counts under every name it
+  # carries on either leg, as the counts do.
+  defp unseen_names(flat_entries, hash_layers) do
+    held =
+      flat_entries
+      |> Enum.zip(hash_layers)
+      |> Enum.reduce(%{}, fn {entry, {layer, _key}}, acc ->
+        held? = layer in [:hash, :retired]
+
+        acc
+        |> held_under(:cash, [entry.pp_account_name, entry.pp_counter_account_name], held?)
+        |> held_under(:depot, [entry.pp_portfolio_name, entry.pp_counter_portfolio_name], held?)
+      end)
+
+    unseen =
+      if Enum.any?(held, fn {_name, held?} -> held? end),
+        do: for({kind_name, false} <- held, do: kind_name),
+        else: []
+
+    %{
+      cash_accounts: Enum.sort(for {:cash, name} <- unseen, do: name),
+      depots: Enum.sort(for {:depot, name} <- unseen, do: name)
+    }
+  end
+
+  defp held_under(acc, kind, names, held?) do
+    names
+    |> Enum.reject(&is_nil/1)
+    |> Enum.reduce(acc, fn name, acc ->
+      Map.update(acc, {kind, name}, held?, &(&1 or held?))
+    end)
   end
 
   # Each row with the layer that judges it, in file order. A repeat of an
@@ -548,7 +605,7 @@ defmodule Portfolixir.Imports.Applier do
 
   defp in_file_repeat({layer, _key}, seen), do: {layer, seen}
 
-  @typedoc "Rows per layer that judges them, as `reimport_counts/2` counts them."
+  @typedoc "Rows per layer that judges them, as `reimport_counts/3` counts them."
   @type layer_counts :: %{
           hash: non_neg_integer(),
           retired: non_neg_integer(),
