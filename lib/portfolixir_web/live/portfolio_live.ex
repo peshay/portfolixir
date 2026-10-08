@@ -556,6 +556,9 @@ defmodule PortfolixirWeb.PortfolioLive do
   # period change. The result names the period and view it was computed
   # for; one that no longer matches the page reloads instead of landing.
   # Only Holdings shows the table, so the other tab never pays for it.
+  # One walk at a time (#1058): a period switch while a walk runs waits for
+  # it as the latest ask, so a burst of switches runs the first walk and the
+  # last, never one per period passed (`CappedAsync.start_latest/3`).
   defp load_contribution(%{assigns: %{wealth_tab: :holdings}} = socket) do
     socket = ensure_live_view_scope(socket)
     view_id = socket.assigns[:active_view_id]
@@ -564,7 +567,7 @@ defmodule PortfolixirWeb.PortfolioLive do
 
     socket
     |> assign(contribution: nil, contribution_read: nil, contribution_failed: false)
-    |> CappedAsync.start_async(:contribution, fn ->
+    |> CappedAsync.start_latest(:contribution, fn ->
       {period,
        read(view_id, fn ->
          Contribution.for_view(view_id, period: period, base_currency: base_currency)
@@ -715,30 +718,13 @@ defmodule PortfolixirWeb.PortfolioLive do
     {:noreply, socket |> degrade_to_everything() |> load_performance()}
   end
 
-  def handle_async(:contribution, {:ok, {_period, {{:error, :view_not_found}, _read}}}, socket) do
-    {:noreply, socket |> degrade_to_everything() |> load_contribution()}
-  end
-
-  # FR-41: the table lands only for the period and view the page still
-  # shows; a result for another (the view degraded to Everything meanwhile)
-  # is recomputed for the current one rather than left as a skeleton.
-  def handle_async(:contribution, {:ok, {period, {{:ok, contribution}, read}}}, socket) do
-    if period == socket.assigns.period and read.view == socket.assigns[:active_view_id] do
-      {:noreply,
-       socket
-       |> assign(contribution: contribution, contribution_read: read, contribution_failed: false)
-       |> reconcile_reads()}
-    else
-      {:noreply, load_contribution(socket)}
+  # #1058: a walk an ask waited for is dropped, and the waiting walk, just
+  # started, is the one whose result lands.
+  def handle_async(:contribution, result, socket) do
+    case CappedAsync.landed(socket, :contribution) do
+      {:superseded, socket} -> {:noreply, socket}
+      {:current, socket} -> contribution_landed(result, socket)
     end
-  end
-
-  def handle_async(:contribution, {:ok, {_period, {{:error, _reason}, _read}}}, socket) do
-    {:noreply, assign(socket, :contribution_failed, true)}
-  end
-
-  def handle_async(:contribution, {:exit, _reason}, socket) do
-    {:noreply, assign(socket, :contribution_failed, true)}
   end
 
   # The tree vanished mid-read (async-hardening round): degrade to the default
@@ -844,6 +830,32 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def handle_async(_name, {:exit, _reason}, socket) do
     {:noreply, assign(socket, error: gettext("Couldn't load the wealth figures."))}
+  end
+
+  defp contribution_landed({:ok, {_period, {{:error, :view_not_found}, _read}}}, socket) do
+    {:noreply, socket |> degrade_to_everything() |> load_contribution()}
+  end
+
+  # FR-41: the table lands only for the period and view the page still
+  # shows; a result for another (the view degraded to Everything meanwhile)
+  # is recomputed for the current one rather than left as a skeleton.
+  defp contribution_landed({:ok, {period, {{:ok, contribution}, read}}}, socket) do
+    if period == socket.assigns.period and read.view == socket.assigns[:active_view_id] do
+      {:noreply,
+       socket
+       |> assign(contribution: contribution, contribution_read: read, contribution_failed: false)
+       |> reconcile_reads()}
+    else
+      {:noreply, load_contribution(socket)}
+    end
+  end
+
+  defp contribution_landed({:ok, {_period, {{:error, _reason}, _read}}}, socket) do
+    {:noreply, assign(socket, :contribution_failed, true)}
+  end
+
+  defp contribution_landed({:exit, _reason}, socket) do
+    {:noreply, assign(socket, :contribution_failed, true)}
   end
 
   @impl true
