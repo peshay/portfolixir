@@ -3033,7 +3033,10 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   prefill onto a differently named account and remembering is possible. Its
   line (12 px muted, indented under the label, the box's
   `aria-describedby`) says what happens: "“<name>” becomes a former name of
-  <account>; a future import maps the name by itself.", or, where the name
+  <account>; once a booking under the name has been imported, a future
+  import maps the name by itself." *(amended 2026-10-08, the α closing act's
+  EC-F2: a name no booking was imported under is asked again until one
+  is)*, or, where the name
   is another account's former name, "…and is then no longer a former name of
   <other>." (the move ADR-0050 §4 added). Unticked: "Holds for this import
   only. A future import suggests “<prefill>” again." Where the name is

@@ -100,7 +100,7 @@ defmodule PortfolixirWeb.ImportsUnseenNameLiveTest do
     assert view
            |> element(row("cash", "Tagesgeld Extra") <> " [data-role='mapping-remember']")
            |> render() =~
-             "“Tagesgeld Extra” becomes a former name of Tagesgeld; a future import maps the name by itself."
+             "“Tagesgeld Extra” becomes a former name of Tagesgeld; once a booking under the name has been imported, a future import maps the name by itself."
 
     assert has_element?(
              view,
@@ -536,7 +536,7 @@ defmodule PortfolixirWeb.ImportsUnseenNameLiveTest do
            |> element(row("cash", "Tagesgeld Extra") <> " [data-role='mapping-remember']")
            |> render()
            |> text() =~
-             "„Tagesgeld Extra“ wird früherer Name von Tagesgeld; ein künftiger Import ordnet den Namen selbst zu."
+             "„Tagesgeld Extra“ wird früherer Name von Tagesgeld; sobald eine Buchung unter dem Namen importiert ist, ordnet ein künftiger Import den Namen selbst zu."
   end
 
   # User story:

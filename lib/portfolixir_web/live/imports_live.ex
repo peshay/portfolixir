@@ -1717,7 +1717,7 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp remember_sentence(assigns) do
     gettext(
-      "“%{name}” becomes a former name of %{account}; a future import maps the name by itself.",
+      "“%{name}” becomes a former name of %{account}; once a booking under the name has been imported, a future import maps the name by itself.",
       name: assigns.name,
       account: chosen_name(assigns)
     )

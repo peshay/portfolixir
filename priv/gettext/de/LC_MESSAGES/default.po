@@ -8828,11 +8828,6 @@ msgstr "mit %{cash}"
 msgid "“%{name}” becomes a former name of %{account} and is then no longer a former name of %{from}."
 msgstr "„%{name}“ wird früherer Name von %{account} und ist dann nicht mehr früherer Name von %{from}."
 
-#: lib/portfolixir_web/live/imports_live.ex:1719
-#, elixir-autogen, elixir-format
-msgid "“%{name}” becomes a former name of %{account}; a future import maps the name by itself."
-msgstr "„%{name}“ wird früherer Name von %{account}; ein künftiger Import ordnet den Namen selbst zu."
-
 #: lib/portfolixir_web/live/imports_live.ex:1637
 #, elixir-autogen, elixir-format
 msgid "“%{name}” is already the name of another account; the choice holds for this import only. Merging or renaming that account changes this:"
@@ -12207,3 +12202,8 @@ msgid "One booking already imported differs from this file: it was booked as an 
 msgid_plural "%{count} bookings already imported differ from this file: they were booked as an earlier version of the import read their rows — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund."
 msgstr[0] "Eine bereits importierte Buchung weicht von dieser Datei ab: Gebucht ist, wie eine frühere Version des Imports ihre Zeile las — der Bruttowert einer CSV-Zeile oder ein Geldbetrag, der auch die daneben gebuchte Steuererstattung enthielt. Was das Konto bewegt, nennt die Portfolio-Performance-Datei; die Differenz sind die Gebühren und Steuern der Zeile oder diese Erstattung."
 msgstr[1] "%{count} bereits importierte Buchungen weichen von dieser Datei ab: Gebucht ist, wie eine frühere Version des Imports ihre Zeilen las — der Bruttowert einer CSV-Zeile oder ein Geldbetrag, der auch die daneben gebuchte Steuererstattung enthielt. Was das Konto bewegt, nennt die Portfolio-Performance-Datei; die Differenz sind die Gebühren und Steuern der Zeile oder diese Erstattung."
+
+#: lib/portfolixir_web/live/imports_live.ex:1719
+#, elixir-autogen, elixir-format
+msgid "“%{name}” becomes a former name of %{account}; once a booking under the name has been imported, a future import maps the name by itself."
+msgstr "„%{name}“ wird früherer Name von %{account}; sobald eine Buchung unter dem Namen importiert ist, ordnet ein künftiger Import den Namen selbst zu."

@@ -2577,7 +2577,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       remember = view |> element(row("cash", "Cash EUR") <> " [data-role='mapping-remember']")
 
       assert render(remember) =~
-               "“Cash EUR” becomes a former name of Broker EUR; a future import maps the name by itself."
+               "“Cash EUR” becomes a former name of Broker EUR; once a booking under the name has been imported, a future import maps the name by itself."
 
       assert has_element?(
                view,

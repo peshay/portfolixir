@@ -2838,8 +2838,10 @@ Performance, choose the existing account here; otherwise “+ Create new”.*
 choose, and the still-to-map line above it names the row. Choose the account
 it was renamed from: its earlier bookings are recognised as already booked,
 nothing is booked twice, and **Remember this mapping** (ticked) keeps the new
-name as a former name of that account, so the next import prefills it by
-itself. *+ Create new* books the rows on a new account; choose it only for an
+name as a former name of that account, which an import maps by itself once a
+booking under the new name has been imported; until then the row asks again,
+and choosing the same account again still books nothing twice. *+ Create new*
+books the rows on a new account; choose it only for an
 account that really is new. A first import, and a file in which no name or
 every name matches stored bookings, is prefilled as before.
 

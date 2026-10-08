@@ -8823,11 +8823,6 @@ msgstr ""
 msgid "“%{name}” becomes a former name of %{account} and is then no longer a former name of %{from}."
 msgstr ""
 
-#: lib/portfolixir_web/live/imports_live.ex:1719
-#, elixir-autogen, elixir-format
-msgid "“%{name}” becomes a former name of %{account}; a future import maps the name by itself."
-msgstr ""
-
 #: lib/portfolixir_web/live/imports_live.ex:1637
 #, elixir-autogen, elixir-format
 msgid "“%{name}” is already the name of another account; the choice holds for this import only. Merging or renaming that account changes this:"
@@ -12197,3 +12192,8 @@ msgid "One booking already imported differs from this file: it was booked as an 
 msgid_plural "%{count} bookings already imported differ from this file: they were booked as an earlier version of the import read their rows — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund."
 msgstr[0] ""
 msgstr[1] ""
+
+#: lib/portfolixir_web/live/imports_live.ex:1719
+#, elixir-autogen, elixir-format
+msgid "“%{name}” becomes a former name of %{account}; once a booking under the name has been imported, a future import maps the name by itself."
+msgstr ""
