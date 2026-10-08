@@ -121,6 +121,35 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
 
   defp to_market(_), do: nil
 
+  # PP's type strings, downcased and trimmed, and the class each maps to; a
+  # government bond type and a bond with a government-bond description are
+  # decided before this table (#314: a table, not a branch per class).
+  @type_classes %{
+    "common stock" => "equity",
+    "preferred stock" => "equity",
+    "stock" => "equity",
+    "share" => "equity",
+    "equity" => "equity",
+    "adr" => "equity",
+    "gdr" => "equity",
+    "etf" => "etf",
+    "exchange-traded fund" => "etf",
+    "etp" => "etf",
+    "etn" => "etf",
+    "etc" => "etf",
+    "mutual fund" => "fund",
+    "open-end fund" => "fund",
+    "fund" => "fund",
+    "investment fund" => "fund",
+    "bond" => "bond",
+    "fixed income" => "bond",
+    "cryptocurrency" => "crypto",
+    "crypto" => "crypto",
+    "commodity" => "commodity",
+    "futures" => "commodity",
+    "index" => "index"
+  }
+
   # Maps PP's free-form "type" string to our canonical asset_class codes.
   # Unknown types fall back to "other" so a search result is always selectable.
   defp map_asset_class(type, description) when is_binary(type) do
@@ -133,32 +162,8 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformance do
       normalized in ["bond", "fixed income"] and government_bond_description?(description) ->
         "government_bond"
 
-      normalized in ["common stock", "preferred stock", "stock", "share", "equity", "adr", "gdr"] ->
-        "equity"
-
-      normalized in ["etf", "exchange-traded fund"] ->
-        "etf"
-
-      normalized in ["etp", "etn", "etc"] ->
-        "etf"
-
-      normalized in ["mutual fund", "open-end fund", "fund", "investment fund"] ->
-        "fund"
-
-      normalized in ["bond", "fixed income"] ->
-        "bond"
-
-      normalized in ["cryptocurrency", "crypto"] ->
-        "crypto"
-
-      normalized in ["commodity", "futures"] ->
-        "commodity"
-
-      normalized in ["index"] ->
-        "index"
-
       true ->
-        "other"
+        Map.get(@type_classes, normalized, "other")
     end
   end
 

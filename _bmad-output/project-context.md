@@ -198,10 +198,11 @@ that, the repo-specific mechanics:
 CI-enforced formatting/linting is covered in the Language Rules preamble.
 What agents must know beyond "run the gates":
 
-- **Credo thresholds are grandfathered, not targets:** `max_complexity: 15` /
-  `max_nesting: 4` baseline the current worst offenders; new code aims at the
-  defaults (9 / 2). Ratchet per touched file — never raise a threshold.
-  Lowering the baseline is tracked in issue #314.
+- **Credo thresholds are ceilings, not targets:** `max_complexity: 12` /
+  `max_nesting: 4` (#314 closed on them in Sprint 20; the nesting step was
+  declined); new code aims at the defaults (9 / 2). Ratchet per touched
+  file — never raise a threshold, and refactor a function over it rather
+  than exclude it. A further step is a refactor story of its own.
 - **Dialyzer has no ignore file — keep it at zero;** the first ignore entry is
   the beginning of the end. **Sobelow ignores are deliberate and documented:**
   `--ignore Config.CSP,Config.HTTPS` (TLS is the operator's reverse-proxy

@@ -86,6 +86,75 @@ defmodule Portfolixir.Catalog.SecuritySearch.PortfolioPerformanceTest do
       assert result.asset_class == "other"
     end
 
+    # User story (#314, the refactor under Credo's complexity ceiling of 12):
+    # As a local portfolio maintainer adding a security from a search hit,
+    # I want every type Portfolio Performance names to keep the class it
+    # had,
+    # so that tightening the code gate changes no proposal.
+    #
+    # Acceptance criteria:
+    # - Every type the mapping knows, in any case and with spaces around it,
+    #   maps to its class; a bond type with a government-bond description is
+    #   government_bond; an unknown type is "other".
+    # - A hit without a type is government_bond on such a description,
+    #   "other" otherwise.
+    test "every known type keeps its class" do
+      expected = [
+        {"Government Bond", "Muster Industrie 2030", "government_bond"},
+        {" sovereign bond ", nil, "government_bond"},
+        {"Treasury", nil, "government_bond"},
+        {"treasury bond", nil, "government_bond"},
+        {"Treasury Note", nil, "government_bond"},
+        {"treasury bill", nil, "government_bond"},
+        {"GOVT BOND", nil, "government_bond"},
+        {"public bond", nil, "government_bond"},
+        {"Staatsanleihe", nil, "government_bond"},
+        {"Bundesanleihe", nil, "government_bond"},
+        {"Bond", "BUNDESREPUBLIK EXAMPLIA 2031", "government_bond"},
+        {"Fixed Income", "KINGDOM OF EXAMPLIA 2029", "government_bond"},
+        {"Bond", "MUSTER INDUSTRIE AG 2030", "bond"},
+        {"fixed income", "MUSTER INDUSTRIE AG 2030", "bond"},
+        {"Common Stock", nil, "equity"},
+        {"Preferred Stock", nil, "equity"},
+        {"Stock", nil, "equity"},
+        {"Share", nil, "equity"},
+        {"Equity", nil, "equity"},
+        {"ADR", nil, "equity"},
+        {"GDR", nil, "equity"},
+        {"ETF", nil, "etf"},
+        {"Exchange-Traded Fund", nil, "etf"},
+        {"ETP", nil, "etf"},
+        {"ETN", nil, "etf"},
+        {"ETC", nil, "etf"},
+        {"Mutual Fund", nil, "fund"},
+        {"Open-End Fund", nil, "fund"},
+        {"Fund", nil, "fund"},
+        {"Investment Fund", nil, "fund"},
+        {"Cryptocurrency", nil, "crypto"},
+        {"Crypto", nil, "crypto"},
+        {"Commodity", nil, "commodity"},
+        {"Futures", nil, "commodity"},
+        {"Index", nil, "index"},
+        {"WizardThingy", "REPUBLIC OF EXAMPLIA", "other"},
+        {nil, "REPUBLIC OF EXAMPLIA 2034", "government_bond"},
+        {nil, "MUSTER INDUSTRIE AG", "other"}
+      ]
+
+      body =
+        for {type, description, _class} <- expected do
+          %{"description" => description || "MUSTER", "type" => type, "markets" => []}
+        end
+
+      {:ok, results} = PortfolioPerformance.search("muster", req: req_stub(body))
+
+      assert Enum.zip_with(expected, results, fn {type, _, class}, result ->
+               {type, result.asset_class, class}
+             end)
+             |> Enum.reject(fn {_type, got, class} -> got == class end) == []
+
+      assert length(results) == length(expected)
+    end
+
     test "tolerates missing isin / wkn / symbol" do
       body = [
         %{
