@@ -127,13 +127,21 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   defp refund_unit?(_unit), do: false
 
   defp preview(txs, opts) do
-    {entries, errors} =
+    {entries, errors, refused} =
       txs
       |> Enum.with_index(1)
-      |> Enum.reduce({[], []}, fn {raw, row}, {acc_entries, acc_errors} ->
+      |> Enum.reduce({[], [], []}, fn {raw, row}, {acc_entries, acc_errors, acc_refused} ->
         case to_entry(raw, row) do
-          {:ok, entry} -> {[entry | acc_entries], acc_errors}
-          {:error, message} -> {acc_entries, [%{row: row, message: message} | acc_errors]}
+          {:ok, entry} ->
+            {[entry | acc_entries], acc_errors, acc_refused}
+
+          {:error, message} ->
+            {acc_entries, [%{row: row, message: message} | acc_errors], acc_refused}
+
+          # ADR-0053 A5: a refused credit keeps its would-be entry (#1118).
+          {:refused, message, credit} ->
+            {acc_entries, [%{row: row, message: message} | acc_errors],
+             [Map.put(credit, :row, row) | acc_refused]}
         end
       end)
 
@@ -141,7 +149,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
       format: :json,
       source_filename: Keyword.get(opts, :filename),
       entries: Enum.reverse(entries),
-      errors: Enum.reverse(errors)
+      errors: Enum.reverse(errors),
+      refused_credits: Enum.reverse(refused)
     }
   end
 
@@ -242,9 +251,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
       # refuse, are this row's error; so is a currency the catalog does not
       # list (#948); then a credit that would book 0 or less (ADR-0053 A5,
       # #1118).
-      case counter_error(entry) || PortfolioPerformance.row_error(entry) ||
-             credit_error(kind, amount, refund_amounts, entry.gross_amount) do
-        nil -> {:ok, entry}
+      case counter_error(entry) || PortfolioPerformance.row_error(entry) do
+        nil -> credit_refusal(kind, amount, refund_amounts, entry)
         message -> {:error, message}
       end
     else
@@ -354,16 +362,26 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   end
 
   # ADR-0053 A5: a credit that would book 0 or less, named with its figures
-  # as the file wrote them.
-  defp credit_error(kind, amount, refunds, booked) do
+  # as the file wrote them; the refusal keeps the row's would-be entry, so
+  # the preview can tell a row already imported (#1118).
+  defp credit_refusal(kind, amount, refunds, %Entry{gross_amount: booked} = entry) do
     refund = refund_total(refunds)
 
-    PortfolioPerformance.credit_error(PortfolioPerformance.direction(kind, nil), booked, %{
+    written = %{
       cell: "amount",
       cash: amount && Decimal.to_string(amount, :normal),
       refund: refund && Decimal.to_string(refund, :normal),
       rest: booked && Decimal.to_string(booked, :normal)
-    })
+    }
+
+    case PortfolioPerformance.credit_refusal(
+           PortfolioPerformance.direction(kind, nil),
+           entry,
+           written
+         ) do
+      nil -> {:ok, entry}
+      {message, refused} -> {:refused, message, refused}
+    end
   end
 
   # The row's taxes with their sign: the positive TAX units less the

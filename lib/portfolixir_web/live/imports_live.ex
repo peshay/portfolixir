@@ -268,7 +268,7 @@ defmodule PortfolixirWeb.ImportsLive do
           </button>
         </div>
         <%!-- A scroller a keyboard reaches: the list can outgrow its box. --%>
-        <pre class="parser-warnings__rows" tabindex="0"><%= parser_warning_text(@preview.errors) %></pre>
+        <pre class="parser-warnings__rows" tabindex="0"><%= parser_warning_text(@row_errors) %></pre>
       </AppShell.data_note>
 
       <%!-- ADR-0053 §6 and A6 (board 09, pick J9 = A; board 01 ⑧): the
@@ -991,9 +991,8 @@ defmodule PortfolixirWeb.ImportsLive do
 
   def handle_event("copy_parser_warnings", _params, socket) do
     text =
-      socket.assigns.preview
-      |> case do
-        %Preview{errors: errors} -> parser_warning_text(errors)
+      case socket.assigns.preview do
+        %Preview{} -> parser_warning_text(socket.assigns.row_errors)
         _ -> ""
       end
 
@@ -1855,12 +1854,18 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   # Read with the preview, after the import (the done page names what it
-  # left uncorrected) and after each correction: one read of the bookings
-  # the file's hashes name.
-  defp assign_corrections(socket, nil), do: assign(socket, :corrections, [])
+  # left uncorrected) and after each correction: the bookings the file's
+  # hashes name, and the parser warnings as the portfolio reads them (a
+  # credit A5 refuses whose booking is already stored says so, #1118).
+  defp assign_corrections(socket, nil),
+    do: assign(socket, corrections: [], row_errors: [])
 
   defp assign_corrections(socket, %Preview{} = preview),
-    do: assign(socket, :corrections, Imports.cash_corrections(preview))
+    do:
+      assign(socket,
+        corrections: Imports.cash_corrections(preview),
+        row_errors: Imports.row_errors(preview)
+      )
 
   # One listed booking as the section shows it: the row, the date, the kind,
   # the booking's names, its signed cash as booked and per the file, and

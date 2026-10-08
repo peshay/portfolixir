@@ -10,17 +10,29 @@ defmodule Portfolixir.Imports.Preview do
 
   alias Portfolixir.Imports.Entry
 
+  @typedoc """
+  A credit row ADR-0053 A5 refuses (its own booking would credit 0 or
+  less), kept beside its row error: its would-be `entry` (with the refunds
+  split off it), so the preview can hash it in a portfolio, and `message`,
+  the row's message when a stored booking already holds that hash, the row
+  having been imported under an older reading (#1118; how such a booking is
+  corrected is #1193).
+  """
+  @type refused_credit :: %{row: pos_integer(), entry: Entry.t(), message: String.t()}
+
   @type t :: %__MODULE__{
           format: :json | :csv,
           source_filename: String.t() | nil,
           entries: [Entry.t()],
-          errors: [%{row: pos_integer() | nil, message: String.t()}]
+          errors: [%{row: pos_integer() | nil, message: String.t()}],
+          refused_credits: [refused_credit()]
         }
 
   defstruct format: nil,
             source_filename: nil,
             entries: [],
-            errors: []
+            errors: [],
+            refused_credits: []
 
   @doc """
   Counts per kind across all entries in the preview, a companion split off

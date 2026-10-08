@@ -139,6 +139,37 @@ defmodule Portfolixir.Imports.Correction do
   end
 
   @doc """
+  The credit rows of `preview` that ADR-0053 A5 refuses (their own booking
+  would credit 0 or less) and whose would-be booking a stored transaction
+  of `portfolio_id` already holds, by its content hash, as `%{row =>
+  message}`, each with the message the preview shows for it instead of the
+  refusal's remedy (#1118). Such a row was imported under an older reading.
+  It is not listed by `detect/3`: its cash would be 0 or less, which no
+  write can store, and how it is corrected is #1193. Read-only; `%{}`
+  without a portfolio.
+  """
+  @spec stored_refusals(Preview.t(), integer() | nil) :: %{pos_integer() => String.t()}
+  def stored_refusals(%Preview{}, nil), do: %{}
+  def stored_refusals(%Preview{refused_credits: []}, _portfolio_id), do: %{}
+
+  def stored_refusals(%Preview{refused_credits: refused}, portfolio_id)
+      when is_integer(portfolio_id) do
+    hashes =
+      refused
+      |> Enum.map(&%{&1.entry | companion_entries: []})
+      |> Applier.row_hashes(portfolio_id)
+
+    stored = stored_by_hash(List.flatten(hashes), false)
+
+    refused
+    |> Enum.zip(hashes)
+    |> Enum.filter(fn {_refused, row_hashes} ->
+      Enum.any?(row_hashes, &Map.has_key?(stored, &1))
+    end)
+    |> Map.new(fn {%{row: row, message: message}, _row_hashes} -> {row, message} end)
+  end
+
+  @doc """
   Corrects every booking of `portfolio_id` that `detect/3` lists for
   `preview`, under `actor`, and answers the corrected items as they were
   listed (each `transaction` as stored before, its `changes` as written).

@@ -269,4 +269,170 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
     assert counts() == before
     assert balances(portfolio) == cash
   end
+
+  # -- A5's refused credit row, already imported (#1118, #1193) ---------------
+
+  # #1118's figures in JSON: a worthless position sold at a nominal price, its
+  # loss refunding tax. The sale's `amount` 20.10 less the refund 25.00 is
+  # -4.90, so A5 refuses the row.
+  @nominal_sale_json """
+  {
+    "version": 1,
+    "transactions": [
+      {"type": "DEPOSIT", "account": "Test-Cash", "date": "2024-03-01",
+       "currency": "EUR", "amount": 1100.0},
+      {"type": "PURCHASE", "account": "Test-Cash", "portfolio": "Test-Depot",
+       "date": "2024-03-04", "time": "10:01", "currency": "EUR",
+       "amount": 100.0, "shares": 10.0,
+       "security": {"name": "Arbolia Inc.", "isin": "USEXMPL10014", "currency": "EUR"}},
+      {"type": "SALE", "account": "Test-Cash", "portfolio": "Test-Depot",
+       "date": "2024-06-14", "time": "15:30", "currency": "EUR",
+       "amount": 20.10, "shares": 10.0,
+       "security": {"name": "Arbolia Inc.", "isin": "USEXMPL10014", "currency": "EUR"},
+       "units": [{"type": "FEE", "amount": 5.0}, {"type": "TAX", "amount": -25.0}]}
+    ]
+  }
+  """
+
+  # The same history as a Portfolio Performance CSV: Betrag 1,00, Gebühren
+  # 5,90, Steuern -25,00, Gesamtpreis 20,10.
+  @nominal_sale_csv """
+  Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+  2024-01-02 00:00:00;Einlage;;;;1.000,00;;;1.000,00;Test-Cash;;;
+  2024-01-15 10:01:00;Kauf;Arbolia Inc.;100;2,00;200,00;5,90;;205,90;Test-Depot;Test-Cash;;
+  2024-06-14 15:30:00;Verkauf;Arbolia Inc.;100;0,01;1,00;5,90;-25,00;20,10;Test-Depot;Test-Cash;;
+  """
+
+  # The JSON sale as the parser of 12117072 (before the amendment of
+  # 2026-10-07) built it, and the importer booked it: the whole `amount` as
+  # the cash, the price derived from the positive taxes alone
+  # ((20.10 + 5.0 + 0) / 10 = 2.51), and the refund split off beside it.
+  defp nominal_sale_as_booked_before(%Entry{security: security}) do
+    refund = %Entry{
+      source_row: "3.tax_refund.1",
+      kind: "tax_refund",
+      date: ~D[2024-06-14],
+      time: ~T[15:30:00],
+      currency_code: "EUR",
+      gross_amount: Decimal.new("25.0"),
+      hash_amount: Decimal.new("25.0"),
+      fees: Decimal.new(0),
+      taxes: Decimal.new(0),
+      security: security,
+      pp_portfolio_name: "Test-Depot",
+      pp_account_name: "Test-Cash",
+      note: "Auto-split tax refund from row 3"
+    }
+
+    %Entry{
+      source_row: 3,
+      kind: "sell",
+      date: ~D[2024-06-14],
+      time: ~T[15:30:00],
+      currency_code: "EUR",
+      gross_amount: Decimal.new("20.10"),
+      hash_amount: Decimal.new("20.10"),
+      fees: Decimal.new("5.0"),
+      taxes: Decimal.new(0),
+      quantity: Decimal.new("10.0"),
+      price: Decimal.new("2.51"),
+      security: security,
+      pp_portfolio_name: "Test-Depot",
+      pp_account_name: "Test-Cash",
+      companion_entries: [refund]
+    }
+  end
+
+  defp refused!(body, filename) do
+    {:ok, %Preview{errors: [_refused]} = preview} =
+      PortfolioPerformance.parse(body, filename: filename)
+
+    preview
+  end
+
+  # User story (#1118, #1193; found by the α closing act):
+  # As the operator whose instance imported a nominal sale with a tax
+  # refund before A5 refused such a row,
+  # I want a re-drop of the export to say that the row is already imported
+  # and cannot be corrected here,
+  # so that I do not follow the refusal's remedy and book the sale twice.
+  #
+  # Acceptance criteria:
+  # - #1118's JSON sale booked as the parser of 12117072 booked it (cash
+  #   20.10, price 2.51, the refund 25.00 beside it; Test-Cash 1,045.10):
+  #   the row's message in that portfolio says it is already imported, that
+  #   it cannot be corrected here as its cash would be 0 or less, not to
+  #   enter it again, and where the handbook explains it; it no longer asks
+  #   for the booking by hand.
+  # - In a portfolio that never imported it, the refusal keeps its remedy.
+  # - The correction lists nothing for it (its correction is #1193), the
+  #   apply books nothing twice, and no balance moves.
+  # - The same holds for the PP CSV of it booked under the Betrag reading.
+  test "a credit row A5 refuses whose booking is stored says it is already imported", %{
+    portfolio: portfolio
+  } do
+    preview = refused!(@nominal_sale_json, "nominal.json")
+    [deposit, purchase] = preview.entries
+
+    old = %{preview | entries: [deposit, purchase, nominal_sale_as_booked_before(purchase)]}
+    assert apply!(old, portfolio).created_transactions == 4
+    assert [booked] = Map.values(balances(portfolio))
+    assert Decimal.equal?(booked, Decimal.new("1045.10"))
+
+    remedy =
+      "amount 20.10 less the tax refund 25.0 leaves -4.90 to credit — enter this booking " <>
+        "by hand, and the refund as a tax refund of its own — row not imported"
+
+    assert preview.errors == [%{row: 3, message: remedy}]
+
+    assert Imports.row_errors(preview, portfolio_id: portfolio.id) == [
+             %{
+               row: 3,
+               message:
+                 "amount 20.10 less the tax refund 25.0 leaves -4.90 to credit — already " <>
+                   "imported, and it cannot be corrected here, as its cash would be 0 or " <>
+                   "less — do not enter it again; see “A negative tax inside a row” in the " <>
+                   "product documentation"
+             }
+           ]
+
+    {:ok, fresh} =
+      Portfolios.create_portfolio(Actor.owner_ui(), %{
+        name: "Never imported",
+        base_currency_code: "EUR"
+      })
+
+    assert Imports.row_errors(preview, portfolio_id: fresh.id) == [%{row: 3, message: remedy}]
+
+    assert Imports.cash_corrections(preview, portfolio_id: portfolio.id) == []
+    before = counts()
+    cash = balances(portfolio)
+    assert apply!(preview, portfolio).created_transactions == 0
+    assert counts() == before
+    assert balances(portfolio) == cash
+
+    csv = refused!(@nominal_sale_csv, "nominal.csv")
+    [%{entry: refused_sale}] = csv.refused_credits
+
+    old_csv = %{
+      csv
+      | entries: csv.entries ++ [%{refused_sale | gross_amount: refused_sale.hash_amount}]
+    }
+
+    {:ok, csv_portfolio} =
+      Portfolios.create_portfolio(Actor.owner_ui(), %{
+        name: "Betrag reading",
+        base_currency_code: "EUR"
+      })
+
+    assert apply!(old_csv, csv_portfolio).created_transactions == 4
+
+    assert [%{row: 4, message: message}] = Imports.row_errors(csv, portfolio_id: csv_portfolio.id)
+
+    assert message ==
+             "Gesamtpreis 20,10 less the tax refund 25,00 leaves -4,90 to credit — already " <>
+               "imported, and it cannot be corrected here, as its cash would be 0 or less — " <>
+               "do not enter it again; see “A negative tax inside a row” in the product " <>
+               "documentation"
+  end
 end

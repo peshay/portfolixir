@@ -1540,6 +1540,36 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (#1118, #1193; found by the α closing act):
+  # As the operator whose nominal sale with a tax refund was imported
+  # before the preview refused such a row,
+  # I want the handbook, in English and German, to say what the row's
+  # warning then says,
+  # so that I do not enter the sale by hand a second time.
+  #
+  # Acceptance criteria:
+  # - Beside the refusal's remedy, the negative-tax section says that such a
+  #   row imported before says it is already imported and cannot be
+  #   corrected here, not to enter it again, and that its correction is
+  #   still open (#1193).
+  test "the handbook says a refused row already imported is not entered again" do
+    for {path, fragment} <- [
+          {"docs/product-documentation.md",
+           "If such a row was imported before Portfolixir refused it, its warning says " <>
+             "instead that it is already imported and cannot be corrected here, as its cash " <>
+             "would be 0 or less: do not enter it again; how such a booking is corrected is " <>
+             "still an open question (issue #1193)."},
+          {"docs/de/product-documentation.md",
+           "Wurde eine solche Zeile importiert, bevor Portfolixir sie zurückwies, sagt ihre " <>
+             "Warnung stattdessen, dass sie bereits importiert ist und hier nicht korrigiert " <>
+             "werden kann, da die Gutschrift 0 oder weniger wäre: nicht noch einmal erfassen; " <>
+             "wie eine solche Buchung korrigiert wird, ist noch offen (Issue #1193)."}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+      assert doc =~ fragment, "#{path}: #{fragment}"
+    end
+  end
+
   # User story (ADR-0050 §2 as amended on 2026-10-07, #904):
   # As the operator who renamed an account or a depot in Portfolio
   # Performance and dropped its export again,

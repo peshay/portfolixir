@@ -539,6 +539,73 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
     end
   end
 
+  describe "a refused row already imported (#1118, #1193)" do
+    # #1118's sale as a Portfolio Performance CSV: Betrag 1,00, Gebühren
+    # 5,90, Steuern -25,00, Gesamtpreis 20,10, which A5 refuses.
+    @nominal_sale_csv """
+    Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+    2024-01-02 00:00:00;Einlage;;;;1.000,00;;;1.000,00;Girokonto;;;
+    2024-01-15 10:01:00;Kauf;Nordwind Industrie AG;100;2,00;200,00;5,90;;205,90;Depot;Girokonto;;
+    2024-06-14 15:30:00;Verkauf;Nordwind Industrie AG;100;0,01;1,00;5,90;-25,00;20,10;Depot;Girokonto;;
+    """
+
+    # The file applied under the Betrag reading, before A5 refused the sale:
+    # the sale booked its Betrag, its refund beside it.
+    defp apply_before_the_refusal!(portfolio) do
+      {:ok, %Preview{refused_credits: [%{entry: sale}]} = preview} =
+        PortfolioPerformance.parse(@nominal_sale_csv, filename: "nominal.csv")
+
+      old = preview.entries ++ [%{sale | gross_amount: sale.hash_amount}]
+      {:ok, _result} = Imports.apply(%{preview | entries: old}, %{portfolio_id: portfolio.id})
+      :ok
+    end
+
+    # User story (#1118, #1193; found by the α closing act):
+    # As the operator re-dropping an export whose nominal sale was imported
+    # before A5 refused such a row,
+    # I want its parser warning to say that it is already imported and
+    # cannot be corrected here,
+    # so that I do not enter the sale by hand a second time.
+    #
+    # Acceptance criteria:
+    # - The parser warning of row 4 names the figures, says the row is
+    #   already imported, that it cannot be corrected here as its cash would
+    #   be 0 or less, not to enter it again, and points to the product
+    #   documentation; it no longer says "enter this booking by hand".
+    # - The copied warnings read the same.
+    # - In German, in the page's register.
+    # - A file never imported keeps the remedy.
+    test "its parser warning says it is already imported, in English and German", %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "nominal.csv", @nominal_sale_csv, "text/csv")
+
+      assert text(view, "#parser-warnings-box pre") =~
+               "Row 4: Gesamtpreis 20,10 less the tax refund 25,00 leaves -4,90 to credit — enter this booking by hand"
+
+      portfolio = portfolio!()
+      apply_before_the_refusal!(portfolio)
+
+      warning =
+        "Row 4: Gesamtpreis 20,10 less the tax refund 25,00 leaves -4,90 to credit — already imported, and it cannot be corrected here, as its cash would be 0 or less — do not enter it again; see “A negative tax inside a row” in the product documentation"
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "nominal.csv", @nominal_sale_csv, "text/csv")
+
+      assert text(view, "#parser-warnings-box pre") == warning
+      refute render(view) =~ "enter this booking by hand"
+      refute has_element?(view, "#import-correction")
+
+      view |> element("#copy-parser-warnings") |> render_click()
+      assert_push_event(view, "copy-to-clipboard", %{text: ^warning})
+
+      {:ok, view, _html} = live(german(conn), "/imports")
+      upload(view, "nominal.csv", @nominal_sale_csv, "text/csv")
+
+      assert text(view, "#parser-warnings-box pre") ==
+               "Zeile 4: Gesamtpreis 20,10 abzüglich der Steuerrückerstattung 25,00 lässt -4,90 zur Gutschrift — bereits importiert und hier nicht zu korrigieren, da die Gutschrift 0 oder weniger wäre — nicht noch einmal erfassen; siehe „Eine negative Steuer in einer Zeile“ in der Produktdokumentation"
+    end
+  end
+
   describe "the correction's layout (board 09 A, rules ② and ③)" do
     # User story (UX-DR27; board 09 A):
     # As the operator on a phone,
