@@ -37,7 +37,10 @@ Start the project with either:
   this checkout would start on; "Moving off the development stack" in
   [Home Deployment](../home-deployment.html) removes it.
 
-- Phoenix from source:
+- Phoenix from source, on Elixir 1.18 or newer (CI and both images pin
+  1.18.5 on Erlang/OTP 27): `mix.exs` refuses an older Elixir, because the
+  suite's async modules share ExUnit groups (`group:`), which exist from 1.18
+  on, and the code and the audit tooling need 1.17 (#1132):
 
   - `mix deps.get`
   - `mix ecto.setup`

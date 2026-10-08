@@ -181,8 +181,8 @@ regenerates them._
   an older engine the loopback-only port mappings do not keep the instance on
   your machine; the home deployment guide's
   [prerequisites](docs/home-deployment.md#prerequisites) say why.
-- From source: Elixir and Erlang compatible with [mix.exs](mix.exs), and
-  PostgreSQL.
+- From source: Elixir 1.18 or newer, which [mix.exs](mix.exs) requires (CI
+  runs 1.18.5 on Erlang/OTP 27), and PostgreSQL.
 - For the MCP companion run on its own: Node 24.
 
 The first build pulls the pinned base images and downloads Debian packages, Hex
