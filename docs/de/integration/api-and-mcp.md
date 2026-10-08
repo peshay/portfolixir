@@ -3781,11 +3781,15 @@ Löschen, das abgelehnt wird, weil eine Richtlinienregel das Objekt liest
 (`409`), nennt die Regeln ebenso, und das Detail einer Prüfung beim
 Zusammenführen von Geldkonten oder Depots nennt Buckets und eine Position mit
 ihren ids (`the buckets #3, #7`, `security #12 sits in the bucket #9`). Der
-Name ist ein Feld des Datensatzes, über seine id zu lesen, oder der Daten der
-Prüfung (`policy_rules[].name`, `positions[].securities_account_name`,
-`conflicts[].portfolio_name`, `failure.securities_account_name`,
-`unresolvable[].ref.name`). Die Oberfläche von Portfolixir nennt ihn weiter
-beim Namen.
+Name ist ein Feld des Datensatzes, über seine id zu lesen (der eines Depots
+über `GET /api/v1/securities_accounts/:id`, eines Buckets über
+`GET /api/v1/buckets/:id`, einer Regel über `GET /api/v1/policy_rules/:id`,
+eines Wertpapiers über `GET /api/v1/securities/:id`, eines Portfolios über
+`GET /api/v1/portfolios`). Die `errors` einer Ablehnung tragen einen Namen
+neben dem Detail nur an zwei Stellen: `errors.policy_rules[].name`, mit `id`
+und `status` jeder Regel, und `errors.unresolvable[].ref.name`, den erfassten
+Namen der Identität; ein Depot, ein Portfolio und ein Bucket stehen dort nur
+mit ihren ids. Die Oberfläche von Portfolixir nennt ihn weiter beim Namen.
 
 **Ein Schreibvorgang ohne Antwort.** Jeder API-Aufruf hat eine Frist von 30
 Sekunden. Ein Lesezugriff, der sie verpasst — ein `GET` oder eines der über
