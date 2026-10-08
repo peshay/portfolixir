@@ -2487,8 +2487,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   <td class={["num", pnl_class(h.unrealized_pnl_abs)]}>
                     <%= signed_decimal_or_dash(h.unrealized_pnl_abs, 2) %>
                   </td>
-                  <td class={["num", pnl_class(h.unrealized_pnl_abs)]}>
-                    <%= signed_percent_or_dash(h.unrealized_pnl_pct) %>
+                  <%!-- Board ux-design-2026-10-07/02-money-findings, found
+                       while drawing 11 (#1060's alignment, carried here):
+                       the Trades tab's "%" form, one decimal with the sign
+                       and "%" glued on, coloured by the percent as shown,
+                       not by the amount beside it. --%>
+                  <td class={["num", shown_percent_class(h.unrealized_pnl_pct)]}>
+                    <%= signed_pa(decimal_for_display(h.unrealized_pnl_pct)) %>
                   </td>
                   <td class={["num", pnl_class(h.price_return_abs)]} data-role="price-return">
                     <%= signed_decimal_or_dash(h.price_return_abs, 2) %>

@@ -455,6 +455,53 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
     refute panel =~ ~r/\d %/
   end
 
+  # User story (Sprint 20 β B3, board ux-design-2026-10-07/02-money-findings,
+  # found while drawing 11; #1060's alignment carried to the Holdings tab):
+  # As a local portfolio maintainer reading a security's Holdings tab,
+  # I want its "%" column in the form the Trades tab uses, coloured by the
+  # percent it shows,
+  # so that "0,00 %" no longer wraps onto two lines in a narrow column, and a
+  # percent that reads zero is not printed in the gain colour of the amount
+  # beside it.
+  #
+  # Acceptance criteria:
+  # - The "%" cell prints one decimal with the sign and the percent sign
+  #   glued on ("+18,7%"), as the Trades tab's "%" columns do.
+  # - Its colour is the percent's own as displayed: a gain of 4.00 EUR on
+  #   100,000.00 is "+4.00" in the gain colour beside "0.0%", unsigned and
+  #   `is-flat` (before: "+0.00 %" in the amount's gain colour).
+  test "the Holdings tab's percent is the Trades tab's form, coloured by itself", %{conn: conn} do
+    world = base_world(name: "Holdings Pct", cash_name: "Girokonto", depot_name: "Depot 1")
+    deposit!(world, "200000", ~D[2024-01-02])
+    kestrel = create_security!(name: "Kestrel Robotik SE", ticker: "KRS")
+    buy!(world, kestrel, quantity: "40", price: "52.10", date: ~D[2024-03-14])
+    Portfolixir.WorldFixtures.put_quote!(kestrel, ~D[2026-10-01], "61.85")
+
+    {:ok, view, _html} = live(de_conn(conn), "/securities/#{kestrel.id}?tab=holdings")
+
+    assert [row | _bucket_row] =
+             view |> document() |> Floki.find("table.detail-holdings-table tbody tr")
+
+    assert [percent] = Floki.find(row, "td:nth-child(6)")
+    assert text(percent) == "+18,7%"
+    assert class_of(percent) =~ "is-positive"
+
+    hairline = create_security!(name: "Hairline Gain plc", ticker: "HLG")
+    buy!(world, hairline, quantity: "1000", price: "100", date: ~D[2024-01-02])
+    Portfolixir.WorldFixtures.put_quote!(hairline, ~D[2026-10-01], "100.004")
+
+    {:ok, flat_view, _html} = live(conn, "/securities/#{hairline.id}?tab=holdings")
+
+    assert [flat_row | _bucket_row] =
+             flat_view |> document() |> Floki.find("table.detail-holdings-table tbody tr")
+
+    assert text(Floki.find(flat_row, "td:nth-child(5)")) == "+4.00"
+    assert [flat] = Floki.find(flat_row, "td:nth-child(6)")
+    assert text(flat) == "0.0%"
+    assert class_of(flat) =~ "is-flat"
+    refute class_of(flat) =~ ~r/is-positive|is-negative/
+  end
+
   # User story (#1074's trades half, Sprint 19 PR γ U2; board 04):
   # As a local portfolio maintainer reading the English page,
   # I want a quantity of one to read "unit" on the security's Trades tab,

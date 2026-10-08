@@ -136,4 +136,51 @@ defmodule PortfolixirWeb.WealthHoldingsColumnsTest do
     assert table =~ ~s(class="value-suffix">EUR</small>)
     assert table =~ "1,200"
   end
+
+  # User story (Sprint 20 β B3, board ux-design-2026-10-07/02-money-findings,
+  # found while drawing 4):
+  # As a local portfolio maintainer who switched on the "P&L %" column,
+  # I want it to read as a percentage, in DESIGN.md's percent form,
+  # so that +18.7 % is not printed as the raw fraction
+  # "0.1871401151631477927063339731" under a "%" header.
+  #
+  # Acceptance criteria:
+  # - The cell prints the fraction as a percent with one decimal, the sign
+  #   and the percent sign glued on ("+18.7%", German "+18,7%"), in its sign
+  #   colour, decided on the percent as shown.
+  test "the P&L % column reads as a signed one-decimal percent", %{conn: conn, world: world} do
+    nordwind = create_security!(name: "Nordwind Industrie AG", ticker: "NWI")
+    buy!(world, nordwind, quantity: "20", price: "52.10", date: ~D[2026-01-05])
+
+    {:ok, _} =
+      Quotes.upsert_many(nordwind.id, [
+        %{date: ~D[2026-01-06], close: Decimal.new("61.85"), source: "manual"}
+      ])
+
+    for {locale, expected} <- [{"en", "+18.7%"}, {"de", "+18,7%"}] do
+      {:ok, view, _html} =
+        conn
+        |> Plug.Test.put_req_cookie("portfolixir_locale", locale)
+        |> live("/portfolio")
+
+      render_async(view)
+
+      render_change(view, "set_holdings_columns", %{
+        "columns" => ["security", "unrealized_pnl_pct"]
+      })
+
+      [row] =
+        view
+        |> render()
+        |> Floki.parse_document!()
+        |> Floki.find("#holdings-positions-table tbody tr")
+        |> Enum.filter(&(Floki.text(&1) =~ "Nordwind"))
+
+      [percent] = Floki.find(row, "td:nth-child(2)")
+      assert {locale, percent |> Floki.text() |> String.trim()} == {locale, expected}
+      assert percent |> Floki.attribute("class") |> List.first("") =~ "is-positive", locale
+      refute Floki.text(row) =~ "0.187"
+      refute Floki.text(row) =~ "0,187"
+    end
+  end
 end

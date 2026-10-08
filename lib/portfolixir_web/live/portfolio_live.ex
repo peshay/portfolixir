@@ -2478,7 +2478,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                     data-role="holdings-position"
                     data-security-id={row.security_id}
                   >
-                    <td :for={key <- @holdings_columns} {holdings_num_attrs(key)}>
+                    <td :for={key <- @holdings_columns} {holdings_cell_attrs(row, key)}>
                       <%= holdings_cell(row, key) %><SecurityNames.twin_id
                         :if={key == "security"}
                         tag={row.twin_id}
@@ -2615,6 +2615,21 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp holdings_num_attrs(_key), do: %{}
 
+  # Board ux-design-2026-10-07/02-money-findings, found while drawing 4: the
+  # "P&L %" cell is a percentage in DESIGN.md's form, so it carries its sign
+  # colour, decided on the percent as shown (issue 1010's rule: every signed
+  # cell of a data table).
+  defp holdings_cell_attrs(row, "unrealized_pnl_pct" = key) do
+    case Format.displayed_percent_sign(row.unrealized_pnl_pct) do
+      :positive -> %{class: "num is-positive"}
+      :negative -> %{class: "num is-negative"}
+      :zero -> %{class: "num is-flat"}
+      nil -> holdings_num_attrs(key)
+    end
+  end
+
+  defp holdings_cell_attrs(_row, key), do: holdings_num_attrs(key)
+
   defp holdings_column_label("depot"), do: gettext("Depot")
   defp holdings_column_label("security"), do: gettext("Security")
   defp holdings_column_label("quantity"), do: gettext("Quantity")
@@ -2637,7 +2652,10 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp holdings_cell(row, "latest_price"), do: holdings_decimal(row.latest_price)
   defp holdings_cell(row, "market_value"), do: holdings_decimal(row.market_value)
   defp holdings_cell(row, "unrealized_pnl_abs"), do: holdings_decimal(row.unrealized_pnl_abs)
-  defp holdings_cell(row, "unrealized_pnl_pct"), do: holdings_decimal(row.unrealized_pnl_pct)
+  # Found while drawing 4 (board 02): a percentage, not the raw fraction —
+  # DESIGN.md's percent form, one decimal with the sign and "%" glued on
+  # ("+18,7%"), where it printed every digit of 0.1871… under a "%" header.
+  defp holdings_cell(row, "unrealized_pnl_pct"), do: holdings_percent(row.unrealized_pnl_pct)
 
   # The projection's own values, unrounded: this table is the human read of
   # what the API serves, so a figure here is the figure there. The separators
@@ -2649,6 +2667,9 @@ defmodule PortfolixirWeb.PortfolioLive do
   defp holdings_decimal(%Decimal{} = value), do: PortfolixirWeb.Format.exact(value)
 
   defp holdings_decimal(value), do: to_string(value)
+
+  defp holdings_percent(%Decimal{} = fraction), do: Format.signed_percent(fraction) <> "%"
+  defp holdings_percent(_none), do: "—"
 
   # The phone row's quantity (#1065): the table's own digits, with the
   # history's unit words — one unit is a unit, any other quantity units.
