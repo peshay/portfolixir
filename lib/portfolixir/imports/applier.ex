@@ -1240,14 +1240,32 @@ defmodule Portfolixir.Imports.Applier do
     end
   end
 
-  # Why an entry can never become a transaction, or nil.
-  defp unimportable(%Entry{kind: kind}) when kind not in @importable_kinds,
-    do: "skipped: #{kind} is never imported"
+  # Why an entry can never become a transaction, or nil, as the result's
+  # text names it.
+  defp unimportable(%Entry{} = entry) do
+    case unimportable_reason(entry) do
+      nil -> nil
+      {:never_imported, kind} -> "skipped: #{kind} is never imported"
+      {:no_amount, kind} -> "skipped: zero or missing gross_amount for #{kind}"
+    end
+  end
 
-  defp unimportable(%Entry{kind: kind, gross_amount: amount}) do
+  @doc """
+  Why `entry` can never become a transaction, or `nil`: a kind no export
+  carries (`{:never_imported, kind}`), or a kind that settles cash without a
+  positive amount (`{:no_amount, kind}`). The result's `skipped_entries`
+  name the reason as text; the Imports page states it in its own words
+  (board ux-design-2026-10-07/01-import-preview, found while drawing 1).
+  """
+  @spec unimportable_reason(Entry.t()) ::
+          nil | {:never_imported, String.t()} | {:no_amount, String.t()}
+  def unimportable_reason(%Entry{kind: kind}) when kind not in @importable_kinds,
+    do: {:never_imported, kind}
+
+  def unimportable_reason(%Entry{kind: kind, gross_amount: amount}) do
     if kind not in @cashless_kinds and
          (is_nil(amount) or Decimal.compare(amount, Decimal.new(0)) != :gt),
-       do: "skipped: zero or missing gross_amount for #{kind}"
+       do: {:no_amount, kind}
   end
 
   # `:hash` when a transaction holds the hash (an exact re-insert, or an exact
