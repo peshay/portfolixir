@@ -2961,7 +2961,9 @@ ein `404`.
 Kategorie, einer Klassifizierung oder einer View, auf die eine Regelversion
 (oder der Kontext einer Regel) verweist, antwortet mit **`409`** und
 `errors.policy_rules` — `id`, `name` und `status` jeder Regel — sowie einem
-`detail` mit dem Ausweg. Eine Version, die gegolten hat, behält ihren Bezug als
+`detail`, das jede Regel mit ihrer id und ihrem Status nennt
+(`policy rule(s): #7 (in_force)`), nie mit ihrem Namen (#965), und den Ausweg
+nennt. Eine Version, die gegolten hat, behält ihren Bezug als
 Aufzeichnung dessen, was der Maßstab war; eine Regel zu beenden stoppt ihre
 Auswertung, gibt das Objekt aber nicht frei. Nur eine Regel, deren keine
 Version je gegolten hat, lässt sich löschen, und das gibt es frei. Ein
@@ -3773,7 +3775,11 @@ Schreiben eines Geldkontos oder Depots nennt `cash account #5` oder
 account #5 in this portfolio“), und das Detail einer Prüfung beim
 Zusammenführen von Wertpapieren nennt Regeln, Depots, Buckets und Portfolios
 mit ihren ids (`policy rule(s): #7 (in_force)`, `In depot #3`,
-`in portfolio #1`) und den Namen einer Identität als „its recorded name“. Der
+`in portfolio #1`) und den Namen einer Identität als „its recorded name“. Ein
+Löschen, das abgelehnt wird, weil eine Richtlinienregel das Objekt liest
+(`409`), nennt die Regeln ebenso, und das Detail einer Prüfung beim
+Zusammenführen von Geldkonten oder Depots nennt Buckets und eine Position mit
+ihren ids (`the buckets #3, #7`, `security #12 sits in the bucket #9`). Der
 Name ist ein Feld des Datensatzes, über seine id zu lesen, oder der Daten der
 Prüfung (`policy_rules[].name`, `positions[].securities_account_name`,
 `conflicts[].portfolio_name`, `failure.securities_account_name`,

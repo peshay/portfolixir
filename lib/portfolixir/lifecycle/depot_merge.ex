@@ -94,8 +94,7 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
       each: 2,
       jsonable: 1,
       buckets_phrase: 1,
-      buckets_phrase: 2,
-      bucket_list: 2
+      bucket_list: 1
     ]
 
   import Portfolixir.Lifecycle.MergeFigures, only: [sample: 2, quantity: 3, exact: 3]
@@ -321,13 +320,12 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
     ]
   end
 
-  # A refusal names each bucket by its name and id (#978); the passing
-  # sentence above names ids only, being part of the plan digest.
+  # A refusal names each bucket by its id (#978: never `inspect/1` on the id
+  # list; #965: no stored name in the sentence, ADR-0054 §4), as the passing
+  # sentence above does.
   defp buckets_refusal(source_buckets, target_buckets) do
-    names = Buckets.names_by_id(source_buckets ++ target_buckets)
-
-    "the source depot defaults to #{buckets_phrase(source_buckets, names)} and the target " <>
-      "depot to #{buckets_phrase(target_buckets, names)}: view membership is retroactive, so " <>
+    "the source depot defaults to #{buckets_phrase(source_buckets)} and the target " <>
+      "depot to #{buckets_phrase(target_buckets)}: view membership is retroactive, so " <>
       "a merge would move history between views"
   end
 
@@ -354,17 +352,12 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
   defp membership_guard(plan) do
     refused = Enum.filter(plan.memberships, &(&1.action in [:refuse, :refuse_carry]))
 
-    names =
-      refused
-      |> Enum.flat_map(&(&1.source_buckets ++ &1.target_buckets))
-      |> Buckets.names_by_id()
-
     :position_buckets_mismatch
     |> guard(
       "same view membership for every position",
       refused == [],
       "every position keeps its effective buckets",
-      Enum.map_join(refused, " ", &membership_detail(&1, names))
+      Enum.map_join(refused, " ", &membership_detail/1)
     )
     |> put_refused_positions(refused)
   end
@@ -382,21 +375,23 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
     )
   end
 
-  defp membership_detail(%{action: :refuse} = entry, names) do
-    "#{position_name(entry)} sits in #{buckets_phrase(entry.source_buckets, names)} in the " <>
-      "source and in #{buckets_phrase(entry.target_buckets, names)} in the target: view " <>
+  # Each position by its security's id and each bucket by its id (#978:
+  # never `inspect/1` on the id list; #965: no stored name in the sentence,
+  # ADR-0054 §4). The security's name stays in the guard's `positions`, where
+  # the operator's page reads it.
+  defp membership_detail(%{action: :refuse} = entry) do
+    "security ##{entry.security_id} sits in #{buckets_phrase(entry.source_buckets)} in the " <>
+      "source and in #{buckets_phrase(entry.target_buckets)} in the target: view " <>
       "membership is retroactive, so the merge would move the target's history between " <>
       "views. Give the position the same buckets in both depots, then preview again."
   end
 
-  defp membership_detail(%{action: :refuse_carry} = entry, names) do
-    "#{position_name(entry)} carries an override in the source with more than one scope " <>
-      "bucket, #{bucket_list(entry.source_buckets, names)}, stored before a position could " <>
+  defp membership_detail(%{action: :refuse_carry} = entry) do
+    "security ##{entry.security_id} carries an override in the source with more than one " <>
+      "scope bucket, #{bucket_list(entry.source_buckets)}, stored before a position could " <>
       "hold only one: the target's position cannot take it. Keep one scope bucket in the " <>
       "source's override, then preview again."
   end
-
-  defp position_name(entry), do: "#{entry.security_name} (security ##{entry.security_id})"
 
   # --- loading ---------------------------------------------------------------------
 

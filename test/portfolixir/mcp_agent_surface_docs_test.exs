@@ -130,6 +130,32 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
     ])
   end
 
+  # User story (#965, ADR-0054 §4):
+  # As the agent reading why a delete or an account merge was refused,
+  # I want the reference to say that those sentences name records by id,
+  # so that I read a rule's, a bucket's or a security's name from its record
+  # and never mistake a stored name for the app's own words.
+  #
+  # Acceptance criteria:
+  # - The EN and DE MCP pages say a delete refused because a policy rule
+  #   reads the object names the rules by id and status in its detail, and a
+  #   cash-account or depot merge's guard detail names buckets and a position
+  #   by their ids.
+  test "the MCP pages say a delete's 409 and an account merge's guard name records by id" do
+    assert_fragments([
+      {"docs/integration/api-and-mcp.md",
+       [
+         "a `detail` naming each rule by its id and status (`policy rule(s): #7 (in_force)`), never by its name",
+         "a cash-account or depot merge's guard detail names its buckets and a position by their ids"
+       ]},
+      {"docs/de/integration/api-and-mcp.md",
+       [
+         "einem `detail`, das jede Regel mit ihrer id und ihrem Status nennt (`policy rule(s): #7 (in_force)`), nie mit ihrem Namen",
+         "das Detail einer Prüfung beim Zusammenführen von Geldkonten oder Depots nennt Buckets und eine Position mit ihren ids"
+       ]}
+    ])
+  end
+
   # User story (E25 S7, F23, the companion's half):
   # As an operator whose API sits behind a redirect,
   # I want the reference to say that the companion follows none and how the

@@ -646,15 +646,18 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
   describe "refusals and consent (§7 guards, §8, §10, §16 invariant 13)" do
     # User story:
     # As the operator, or the agent, reading why an account merge was refused,
-    # I want the bucket refusal to name each bucket by its name and its id,
+    # I want the bucket refusal to name each bucket by its id,
     # so that I can find the bucket, rather than read the charlist
-    # (`~c"AB"`) that `inspect/1` printed for a list of small ids (#978).
+    # (`~c"AB"`) that `inspect/1` printed for a list of small ids (#978),
+    # and so that a stored name that reads like an instruction never sits
+    # inside the app's own sentence (#965; ADR-0054 §4).
     #
     # Acceptance criteria:
     # - With bucket ids in the printable range, buckets_mismatch names each
-    #   account's buckets as "<name>" (#<id>), and says "no bucket" for an
-    #   account that sits in none; no detail carries a charlist.
-    test "the bucket refusal names printable-range buckets by name and id", ctx do
+    #   account's buckets as #<id>, and says "no bucket" for an account that
+    #   sits in none; no bucket's name is in it, and no detail carries a
+    #   charlist.
+    test "the bucket refusal names printable-range buckets by id", ctx do
       short =
         WorldFixtures.printable_bucket!(%{
           name: "Short term #{System.unique_integer([:positive])}"
@@ -672,9 +675,11 @@ defmodule Portfolixir.Lifecycle.CashMergeTest do
       assert %{detail: detail} = Enum.find(guards, &(&1.code == :buckets_mismatch))
 
       assert detail =~
-               ~s[the source account sits in the buckets "#{short.name}" (##{short.id}), ] <>
-                 ~s["#{reserve.name}" (##{reserve.id}) and the target account in no bucket: view membership]
+               ~s[the source account sits in the buckets ##{short.id}, ##{reserve.id} and the ] <>
+                 ~s[target account in no bucket: view membership]
 
+      refute detail =~ short.name
+      refute detail =~ reserve.name
       refute detail =~ "~c"
     end
 

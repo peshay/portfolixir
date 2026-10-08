@@ -88,8 +88,7 @@ defmodule Portfolixir.Lifecycle.CashMerge do
       passed?: 1,
       each: 2,
       jsonable: 1,
-      buckets_phrase: 1,
-      buckets_phrase: 2
+      buckets_phrase: 1
     ]
 
   alias Portfolixir.Actor
@@ -329,13 +328,12 @@ defmodule Portfolixir.Lifecycle.CashMerge do
     ]
   end
 
-  # A refusal names each bucket by its name and id (#978); the passing
-  # sentence above names ids only, being part of the plan digest.
+  # A refusal names each bucket by its id (#978: never `inspect/1` on the id
+  # list; #965: no stored name in the sentence, ADR-0054 §4), as the passing
+  # sentence above does.
   defp buckets_refusal(source_buckets, target_buckets) do
-    names = Buckets.names_by_id(source_buckets ++ target_buckets)
-
-    "the source account sits in #{buckets_phrase(source_buckets, names)} and the target " <>
-      "account in #{buckets_phrase(target_buckets, names)}: view membership is retroactive, " <>
+    "the source account sits in #{buckets_phrase(source_buckets)} and the target " <>
+      "account in #{buckets_phrase(target_buckets)}: view membership is retroactive, " <>
       "so a merge would move history between views"
   end
 

@@ -221,7 +221,9 @@ defmodule PortfolixirWeb.Api.V1.DepotMergeControllerTest do
   # Acceptance criteria:
   # - A position whose buckets differ where both depots hold it answers 409
   #   position_buckets_mismatch with errors.detail naming the position and
-  #   errors.guards, on the preview and the apply, and writes nothing.
+  #   its buckets by their ids, never by a stored name (#965; the names are
+  #   fields of the security and the bucket), and errors.guards, on the
+  #   preview and the apply, and writes nothing.
   # - A digest that no longer matches answers 409 plan_changed with
   #   errors.preview, the fresh preview, and writes nothing.
   # - A missing plan_digest answers 422 on plan_digest; a missing
@@ -258,7 +260,9 @@ defmodule PortfolixirWeb.Api.V1.DepotMergeControllerTest do
         ] do
       assert %{"errors" => errors} = request.() |> json_response(409)
       assert errors["code"] == "position_buckets_mismatch"
-      assert errors["detail"] =~ "Meridian Global Equity ETF"
+      assert errors["detail"] =~ "security ##{ctx.meridian.id} sits in the bucket ##{spec.id}"
+      refute errors["detail"] =~ "Meridian Global Equity ETF"
+      refute errors["detail"] =~ spec.name
 
       assert Enum.any?(
                errors["guards"],

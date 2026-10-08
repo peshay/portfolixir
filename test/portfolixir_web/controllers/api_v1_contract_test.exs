@@ -122,6 +122,18 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "portfolixir.classifications.categories.update" and &1 =~ "#940")
            )
 
+    # #965 (C3): a delete's policy-rule 409 and an account merge's guard
+    # name records by their ids.
+    assert newest["summary"] =~ "#965"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "DELETE /api/v1/securities/:id, DELETE /api/v1/views/:id") and
+                 &1 =~ "is read by N policy rule(s): #<id> (<status>)" and
+                 &1 =~ "portfolixir.cash_accounts.merge_preview" and
+                 &1 =~ "security #<id> sits in" and &1 =~ "#965")
+           )
+
     # #956 (C3) and #1137 (C4): the companion's HTTP listener compares a
     # browser's Origin whole, and binds loopback for an empty host.
     assert newest["summary"] =~ "#956"
