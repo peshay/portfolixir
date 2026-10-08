@@ -2267,7 +2267,10 @@ delivered in or out and balance-snapshot jumps are not in this number, while
 the performance's invested-capital figure does count them — the surface
 states that difference instead of leaving two disagreeing figures to be
 discovered. Same FX basis and the same excluded-and-named rule as the
-sibling facets, with unconvertible flows named by their cash account.
+sibling facets, with unconvertible flows named by their cash account. A
+flow is read in the currency of the cash account it was booked to: a deposit
+booked in dollars into a EUR account, its rate stored, is the euros that
+arrived (issue #1107).
 
 **Costs** (`/cashflow?tab=costs`, issue #726) is what the portfolio cost to
 run: fees and taxes per period, as two series with a yearly total — at

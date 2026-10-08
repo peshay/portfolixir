@@ -99,6 +99,18 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "security_currency" and &1 =~ "#1107")
            )
 
+    # The deposits-and-withdrawals read, the amendment's point 1 for a
+    # deposit's or removal's cash (#1107).
+    assert sprint20["summary"] =~ "deposits-and-withdrawals"
+
+    assert Enum.any?(
+             sprint20["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/external_flows") and
+                 &1 =~ "portfolixir.cashflow.external_flows" and
+                 &1 =~ "reads deposits 100 EUR, where it read 80" and
+                 &1 =~ "computation_basis.currency" and &1 =~ "#1107")
+           )
+
     # Sprint 19, PR β (version 15, after PR α's 14): a stranger's first run
     # and the agent's reads, one entry for the lane PR. B5 adds the
     # performance family's Everything form and the all-portfolios category

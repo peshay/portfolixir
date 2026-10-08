@@ -18,7 +18,11 @@ defmodule Portfolixir.Portfolios.ExternalFlows do
 
   ## FX basis
 
-  Each flow converts into the base currency through the **EUR hub** at the
+  Each flow is read in its **cash account's currency**, the currency the
+  projection credits or debits it in (the ADR-0015 amendment of 2026-10-07,
+  point 1, #1107): a deposit booked in another currency with a stored
+  settlement rate is never read in the booking's. It converts into the base
+  currency through the **EUR hub** at the
   rate stored on its own booking date; a flow with no
   stored rate at that date is **excluded from the totals and named** by its
   cash account — the same excluded-and-named rule as the Realized-gains
@@ -28,6 +32,7 @@ defmodule Portfolixir.Portfolios.ExternalFlows do
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.CashAccount
 
   @zero Decimal.new("0")
   @months 1..12
@@ -64,11 +69,17 @@ defmodule Portfolixir.Portfolios.ExternalFlows do
         accounts: excluded |> Enum.map(& &1.account_name) |> Enum.uniq() |> Enum.sort()
       },
       conversion_note:
-        "Each flow converted to #{base} via the EUR hub at the rate stored on its " <>
-          "own booking date; a flow with no stored rate for " <>
-          "that date is excluded from the totals and named by its cash account.",
+        "Each flow read in its cash account's currency and converted to #{base} via " <>
+          "the EUR hub at the rate stored on its own booking date; a flow with no stored " <>
+          "rate for that date is excluded from the totals and named by its cash account.",
       computation_basis: %{
         series: "gross_amount of booked deposit and removal transactions",
+        # The ADR-0015 amendment of 2026-10-07, point 1 (#1107).
+        currency:
+          "each flow is read in its cash account's currency, the currency the account was " <>
+            "credited or debited in, and converted from it: a flow booked in another " <>
+            "currency with a stored settlement rate (ADR-0015) is never read in the " <>
+            "booking's; a flow without a cash account is read in its own currency",
         window: window(full, annual, "grouped by booking date"),
         reference: "EUR hub rates on each booking date itself",
         gaps: "a flow with no stored booking-date rate is excluded from the totals and named",
@@ -106,11 +117,23 @@ defmodule Portfolixir.Portfolios.ExternalFlows do
       amount: tx.gross_amount
     }
 
-    case Fx.convert_on(tx.gross_amount, tx.currency_code, base, tx.date) do
+    case Fx.convert_on(tx.gross_amount, cash_currency(tx), base, tx.date) do
       {:ok, converted} -> {:ok, Map.put(flow, :amount_base, converted)}
       {:error, :no_rate} -> {:excluded, flow}
     end
   end
+
+  # The ADR-0015 amendment of 2026-10-07, point 1 (#1107): a deposit's or
+  # removal's cash is in its CASH ACCOUNT's currency, the currency the
+  # projection credits or debits it in. One booked in another currency
+  # (ADR-0015, with its stored settlement rate) is therefore read in the
+  # account's, as the income report and the performance walk read cash. A
+  # flow without a cash account is read in its own currency.
+  defp cash_currency(%{cash_account: %CashAccount{currency_code: currency}})
+       when is_binary(currency),
+       do: currency
+
+  defp cash_currency(tx), do: tx.currency_code
 
   defp annual_matrix(flows) do
     flows

@@ -2990,4 +2990,38 @@ defmodule Portfolixir.DocsTest do
       end
     end
   end
+
+  # User story (the ADR-0015 amendment of 2026-10-07, point 1, #1107):
+  # As an operator who books a deposit in another currency than its account's,
+  # and the agent that reads the report for me,
+  # I want the handbook and the API reference, in English and German, to say
+  # that a deposit or removal is read in its cash account's currency,
+  # so that the Deposits & withdrawals figure can be checked against the cash
+  # that arrived.
+  test "the docs state the currency a deposit or removal is read in, in English and German" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           ["A flow is read in the currency of the cash account it was booked to"]},
+          {"docs/de/product-documentation.md",
+           [
+             "Ein Fluss wird in der Währung des Verrechnungskontos gelesen, auf das er gebucht wurde"
+           ]},
+          {"docs/integration/api-and-mcp.md",
+           [
+             "Each flow is read in its cash account's currency, never the booking's",
+             "the cash the account was credited, and `computation_basis.currency` states the rule"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "Jeder Fluss wird in der Währung seines Verrechnungskontos gelesen, nie in der der Buchung",
+             "`computation_basis.currency` nennt die Regel (Issue #1107)"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
 end

@@ -123,4 +123,56 @@ defmodule Portfolixir.Portfolios.ExternalFlowsTest do
     assert report.excluded.count == 1
     assert report.excluded.accounts == ["GBP Cash"]
   end
+
+  # User story (the ADR-0015 amendment of 2026-10-07, point 1, #1107):
+  # As a maintainer who books a deposit in dollars into my EUR account, with
+  # the broker's rate stored on it,
+  # I want the deposits-and-withdrawals report to read the euros credited as
+  # euros,
+  # so that "how much of my own money went in" is the cash that arrived, not
+  # that cash converted a second time as if it were dollars.
+  #
+  # Acceptance criteria (exact Decimal expectations, risk-tier):
+  # - A deposit booked in USD with a stored settlement rate, 100.00 credited
+  #   to a EUR account, 1 EUR = 1.25 USD on its date, reads 100.00 EUR
+  #   (before the fix 80.00, its euros read as dollars).
+  # - A removal booked the same way, 50.00 debited, reads 50.00 EUR (40.00).
+  # - Neither is excluded, and the basis says which currency a flow is read
+  #   in.
+  test "a flow booked in another currency than its account's is read in the account's currency" do
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2026-04-02],
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    world = WorldFixtures.base_world(currency: "EUR", cash_currency: "EUR")
+
+    for {type, amount} <- [{"deposit", "100.00"}, {"removal", "50.00"}] do
+      {:ok, _} =
+        Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          cash_account_id: world.cash.id,
+          type: type,
+          date: ~D[2026-04-02],
+          gross_amount: amount,
+          currency_code: "USD",
+          settlement_fx_rate: "0.8"
+        })
+    end
+
+    report = ExternalFlows.report(base_currency: "EUR")
+
+    assert [%{year: 2026} = year] = report.annual
+    assert Decimal.equal?(year.months[4].deposits, Decimal.new("100.00"))
+    assert Decimal.equal?(year.months[4].withdrawals, Decimal.new("50.00"))
+    assert Decimal.equal?(year.net_total, Decimal.new("50.00"))
+    assert report.excluded.count == 0
+    assert report.computation_basis.currency =~ "cash account's currency"
+  end
 end

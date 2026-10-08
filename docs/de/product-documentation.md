@@ -2482,7 +2482,10 @@ in dieser Zahl, wohl aber im investierten Kapital der Performance — die
 Oberfläche nennt den Unterschied, statt zwei widersprechende Zahlen zum
 Entdecken zu lassen. Gleiche FX-Basis und gleiche
 Ausschluss-und-Benennungs-Regel wie die Schwester-Facetten; unkonvertierbare
-Flüsse werden nach Verrechnungskonto benannt.
+Flüsse werden nach Verrechnungskonto benannt. Ein Fluss wird in der Währung
+des Verrechnungskontos gelesen, auf das er gebucht wurde: eine in Dollar
+erfasste Einzahlung auf ein EUR-Konto, ihr Kurs gespeichert, sind die Euro,
+die ankamen (Issue #1107).
 
 **Kosten** (`/cashflow?tab=costs`, Issue #726) ist, was das Portfolio im
 Betrieb gekostet hat: Gebühren und Steuern je Periode, als zwei Serien mit
