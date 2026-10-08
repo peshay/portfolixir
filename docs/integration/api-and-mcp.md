@@ -2050,7 +2050,11 @@ Example account payloads:
   answers `422` on `target_weight`, and the database refuses it too unless the
   instance already held a finer weight when it was upgraded (the upgrade then
   logs how many). Duplicating a plan, or saving it in the SOLL editor, rounds
-  such a stored weight half up to 6 decimal places. Targets need not sum to
+  such a stored weight half up to 6 decimal places. A weight refused for its
+  precision or for lying outside `[0, 1]` also names its row, as the plan
+  editor puts the refused row first: `errors.row` is `{"category_id": id,
+  "security_id": id}`, with `security_id` `null` for a category row, beside
+  `errors.target_weight` (issue #1143). Targets need not sum to
   `1`. Only the supplied categories are
   changed. A category from another tree returns `422 Unprocessable Entity`, and an
   unknown classification returns `404 Not Found`. A batch names each category
@@ -2531,7 +2535,8 @@ church tax withheld at a zero church-tax rate.
   `null`) a plan's cash target. The body is `{"cash_target_weight": "0.05"}` and
   may carry an optional `"view": id` (omitted = Gesamt). It echoes the stored
   value back. Out-of-range weights, and weights with more than 6 decimal places,
-  return `422 Unprocessable Entity`. The cash target feeds the allocation's `cash` row and the `top_level_target_sum` for the
+  return `422 Unprocessable Entity` on `cash_target_weight`, beside
+  `errors.row` `"cash"`, the row the plan editor names (issue #1143). The cash target feeds the allocation's `cash` row and the `top_level_target_sum` for the
   addressed view.
 - `PATCH /api/v1/portfolios/:portfolio_id` patches a portfolio's master data.
   **Deprecated (ADR-0024)** — answers with `Deprecation: true`; compatibility
