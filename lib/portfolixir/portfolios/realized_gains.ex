@@ -133,6 +133,10 @@ defmodule Portfolixir.Portfolios.RealizedGains do
             "not zero. The matrix is unaffected by limit= here: the figures always read the " <>
             "full history, while limit= cuts only the years the matrix shows.",
         annualized_return: TradeReturn.basis(),
+        # The ADR-0015 amendment of 2026-10-07 (#1108): every trade's basis,
+        # proceeds and realized_pnl_abs are in its currency_code, fees and
+        # taxes included, before the close-date conversion.
+        fees_and_taxes: Ledger.trade_fees_basis(),
         unmatched_sells:
           "A sell the FIFO matcher could not pair with a buy is no closed trade, so it is in " <>
             "none of the figures, the list or the matrix: the matcher keeps one queue per " <>

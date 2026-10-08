@@ -16,6 +16,13 @@ defmodule Portfolixir.Ledger.TradeMatcher do
 
   All math is `Decimal`. The matcher is pure and database-agnostic.
 
+  It adds each row's `fees` and `taxes` to `quantity × price`, so they must
+  be in the price's currency. A booking records them in its cash account's
+  currency (`Ledger.SettlementGuard`); for a cross-currency trade booked in
+  the security's currency, `Ledger` converts them at the trade's own stored
+  `settlement_fx_rate` before they arrive here (the ADR-0015 amendment of
+  2026-10-07, #1108). The rate is transaction data, never a lookup.
+
   Matching still considers only the priced `buy`/`sell` kinds. A `split`
   (ADR-0028 §3) is a named mandatory change site: it scales open lot
   quantities by its ratio and divides the per-share `buy_price`, keeping

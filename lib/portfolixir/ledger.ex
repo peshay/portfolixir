@@ -179,6 +179,12 @@ defmodule Portfolixir.Ledger do
   (`Ledger.TradeReturn`, #984): nil under 365 days of holding or when no
   rate solves the trade's flows.
 
+  Fees and taxes enter every lot and closed trade in the trade's price
+  currency: a cross-currency trade booked in the security's currency has
+  them converted from its cash account's currency at its own stored
+  `settlement_fx_rate` (`trade_fees_basis/0`; the ADR-0015 amendment of
+  2026-10-07, #1108).
+
   Open lots carry their basis in the security's own currency
   (`buy_price_native`, derived from the ADR-0015 settlement legs for
   cross-currency bookings) and the ADR-0033 price/currency decomposition
@@ -971,8 +977,10 @@ defmodule Portfolixir.Ledger do
       date: tx.date,
       quantity: tx.quantity,
       price: tx.price,
-      fees: tx.fees,
-      taxes: tx.taxes,
+      # The ADR-0015 amendment of 2026-10-07 (#1108): in the price's currency,
+      # so a lot's basis and a closed trade's proceeds add one currency.
+      fees: in_price_currency(tx.fees, tx),
+      taxes: in_price_currency(tx.taxes, tx),
       currency_code: tx.currency_code,
       split_ratio_numerator: tx.split_ratio_numerator,
       split_ratio_denominator: tx.split_ratio_denominator,
@@ -983,6 +991,52 @@ defmodule Portfolixir.Ledger do
       settlement_unit_price: settlement_unit_price(tx),
       settlement_currency: matcher_settlement_currency(tx, security_currency)
     }
+  end
+
+  # A booking's fees and taxes are in its cash account's currency, the
+  # currency of the cash leg they are part of (`Ledger.SettlementGuard`; the
+  # ADR-0015 amendment of 2026-10-07, point 1). The matcher adds them to
+  # quantity × price, so where the price is in another currency — a cross-
+  # currency trade booked in the security's currency — they are converted
+  # into it at the trade's OWN stored `settlement_fx_rate` (point 2): account
+  # units per one security unit, so fee ÷ rate. That rate is the broker's for
+  # this cash leg, and it is transaction data, so the matcher stays pure
+  # (ADR-0033). Not converted: a row without a stored positive rate, a row
+  # whose price is in its account's currency (the Portfolio Performance
+  # import's form, whose fees are in that currency already), and a row
+  # without a cash account, whose fees are read in the booking's currency as
+  # the walk reads them (`Performance.trade_cost/2`). Full precision, nothing
+  # rounded (ADR-0016).
+  defp in_price_currency(%Decimal{} = amount, %Transaction{} = tx) do
+    with %Decimal{} = rate <- tx.settlement_fx_rate,
+         true <- positive_decimal?(rate),
+         %CashAccount{currency_code: cash_currency} when is_binary(cash_currency) <-
+           tx.cash_account,
+         true <- cash_currency != tx.currency_code do
+      Decimal.div(amount, rate)
+    else
+      _same_currency -> amount
+    end
+  end
+
+  defp in_price_currency(amount, _tx), do: amount
+
+  @doc """
+  The rule by which a closed trade's fees and taxes enter its basis and
+  proceeds (the ADR-0015 amendment of 2026-10-07, #1108), as the sentence the
+  trades and realized-gains payloads carry (the AGENTS.md metric rule).
+  """
+  @spec trade_fees_basis() :: String.t()
+  def trade_fees_basis do
+    "A trade's fees and taxes are read in its cash account's currency, the currency of the " <>
+      "cash leg they are part of. A cross-currency trade booked in the security's currency " <>
+      "(ADR-0015) converts them into that currency at the trade's own stored " <>
+      "settlement_fx_rate (account units per one security unit, so fee / rate), the broker's " <>
+      "rate for that cash leg, never a hub rate, before they enter basis and proceeds; so " <>
+      "buy_fees, buy_taxes, sell_fees, sell_taxes, basis, proceeds and realized_pnl_abs are " <>
+      "all in currency_code. A trade booked in its account's currency (a Portfolio " <>
+      "Performance import's form), a trade without a stored rate and a trade without a cash " <>
+      "account add them as recorded."
   end
 
   defp native_unit_price(tx, security_currency) do
