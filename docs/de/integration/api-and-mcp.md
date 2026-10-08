@@ -1794,8 +1794,12 @@ Beispiel-Payloads für Konten:
   Marktwert und Saldo-Snapshot-Residuen zählt — der Unterschied steht in
   `computation_basis.excludes`. FX-Basis wie in der Schwester-Facette:
   EUR-Hub zum Kurs des eigenen Buchungstags, unkonvertierbare Flüsse
-  ausgeschlossen und nach Verrechnungskonto benannt. Die menschliche Sicht
-  ist `/cashflow?tab=flows`.
+  ausgeschlossen und nach Verrechnungskonto benannt. Jeder Fluss wird in der
+  Währung seines Verrechnungskontos gelesen, nie in der der Buchung: eine in
+  einer anderen Währung mit gespeichertem Abrechnungskurs (ADR-0015) erfasste
+  Einzahlung ist das Geld, das dem Konto gutgeschrieben wurde, und
+  `computation_basis.currency` nennt die Regel (Issue #1107). Die menschliche
+  Sicht ist `/cashflow?tab=flows`.
   `limit` begrenzt die Jahresmatrix auf ihre neuesten Jahre (Standard 100,
   max. 1000); `computation_basis.window` nennt den Schnitt, wenn Jahre
   wegfielen, und die Antwort nennt das angewandte `limit`.

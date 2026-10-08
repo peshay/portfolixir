@@ -1666,7 +1666,11 @@ Example account payloads:
   at market value and balance-snapshot residuals — the difference is stated
   in `computation_basis.excludes`. FX basis as in the sibling facet: EUR hub
   at the rate stored on each flow's own booking date, unconvertible flows
-  excluded and named by their cash account. The human view is `/cashflow?tab=flows`.
+  excluded and named by their cash account. Each flow is read in its cash
+  account's currency, never the booking's: a deposit booked in another
+  currency with a stored settlement rate (ADR-0015) is the cash the account
+  was credited, and `computation_basis.currency` states the rule (issue
+  #1107). The human view is `/cashflow?tab=flows`.
   `limit` bounds the annual matrix to its newest years (default 100, max
   1000); `computation_basis.window` names the cut when years were dropped, and
   the answer echoes the applied `limit`.

@@ -168,6 +168,52 @@ defmodule PortfolixirWeb.ApiV1CashflowFacetsTest do
     assert basis["excludes"] =~ "invested-capital"
   end
 
+  # User story (the ADR-0015 amendment of 2026-10-07, point 1, #1107):
+  # As the operating LLM agent,
+  # I want a deposit booked in another currency than its cash account's read
+  # in the account's currency,
+  # so that the "Ersparnis" I quote is the cash that arrived.
+  #
+  # Acceptance criteria:
+  # - A deposit booked in USD with a stored settlement rate, 100.00 credited
+  #   to a EUR account, 1 EUR = 1.25 USD, reads deposits 100 (before: 80).
+  # - computation_basis.currency states the rule.
+  test "GET /api/v1/external_flows reads a cross-currency deposit in its account's currency", %{
+    conn: conn
+  } do
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2026-04-02],
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    world = WorldFixtures.base_world(currency: "EUR")
+
+    {:ok, _} =
+      Portfolixir.Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        type: "deposit",
+        date: ~D[2026-04-02],
+        gross_amount: "100.00",
+        currency_code: "USD",
+        settlement_fx_rate: "0.8"
+      })
+
+    %{"data" => data} = get_json(conn, "/api/v1/external_flows")
+
+    assert [%{"year" => 2026} = year] = data["annual"]
+    assert year["months"]["4"]["deposits"] == "100"
+    assert year["deposits_total"] == "100"
+    assert data["excluded"] == %{"count" => 0, "accounts" => []}
+    assert data["computation_basis"]["currency"] =~ "cash account's currency"
+  end
+
   # User story (issue #726):
   # As the operating LLM agent,
   # I want the fees-and-taxes roll-up over the API,
