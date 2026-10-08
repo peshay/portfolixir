@@ -4259,6 +4259,89 @@ input[pattern]:invalid:not(:placeholder-shown) {
   outline-offset: 2px;
 }
 
+/* Bookings already imported with a different amount (ADR-0053 §6 and A6;
+   board ux-design-2026-10-04/09-import-correction, pick J9 = A, rules ①
+   and ②). A `.panel.inner` of its own, OUTSIDE the apply form, after the
+   parser warnings and before the mapping: its button is a different act
+   from "Confirm import". Its finding is ONE attention data note (UX-DR17)
+   whose body holds the sentence, the list, the total and the remedy
+   (UX-DR17 rule 3), so the body stretches. */
+#import-correction .data-note__body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+#import-correction .data-note__body > p {
+  margin: 0;
+}
+
+/* ①b What changes with a booking's cash — a trade's settlement legs, a
+   JSON trade's price — in the basis voice under its subject, one line
+   each. */
+.import-correction__legs {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: normal;
+}
+
+.import-correction__legs > span {
+  display: block;
+}
+
+/* ①b' The total, per account, in the body's voice: what the confirm will
+   move. */
+.import-correction__total {
+  margin: 0;
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ①c The foot of the note: the remedy, then why it is its own act. */
+.import-correction__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.import-correction__foot .summary-basis {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* ② UX-DR27: under 560 px the list gives way to two-line rows (the 560 px
+   block hides the table): the subject over "Row · Date · Kind · Account",
+   the difference over "booked → per the file". The rows are data, not the
+   note's sentence: they take the text colour, as the table's cells do. */
+#import-correction-phone-rows .phone-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+#import-correction-phone-rows {
+  color: var(--color-text);
+}
+
+@media (max-width: 560px) {
+  #import-correction-table-wrapper {
+    display: none;
+  }
+
+  /* ②b A note that carries a list: under 560 px its body takes the note's
+     full width, under the glyph and the word, so the rows get the line. */
+  #import-correction .data-note {
+    flex-wrap: wrap;
+  }
+
+  #import-correction .data-note__body {
+    flex-basis: 100%;
+  }
+}
+
 /* === Imports: mapping cards === */
 
 .mapping-grid {
@@ -10397,7 +10480,8 @@ dialog.merge-dialog {
    narrow destructive modal: one subject, two or three sentences, a band
    foot whose danger button names the act — it joins these lists. */
 .quote-release-dialog,
-.booking-delete-dialog {
+.booking-delete-dialog,
+.import-correction-dialog {
   max-width: 460px;
 }
 
@@ -10417,8 +10501,15 @@ dialog.merge-dialog {
   background: var(--color-bg);
 }
 
-.booking-delete-dialog .hint {
+.booking-delete-dialog .hint,
+.import-correction-dialog .hint {
   margin: 0;
+}
+
+/* ③ The correction's confirm (board 09 A) says its act back in the same
+   subject box; its total and "Fees and taxes" may wrap. */
+.import-correction-dialog .booking-delete__subject .phone-row__figures {
+  white-space: normal;
 }
 
 /* A stored name with no break opportunity — a security, a depot, a cash
@@ -10426,6 +10517,7 @@ dialog.merge-dialog {
    (the closing act R8; 390 px measured the sheet 28 px too wide). The
    box's subject line is one span, the one flex item of `.phone-row__ids`,
    so it may shrink and break. */
+.import-correction-dialog .hint,
 .booking-delete-dialog .hint,
 .booking-delete__subject .phone-row__ids > span {
   overflow-wrap: anywhere;
@@ -10451,7 +10543,8 @@ dialog.merge-dialog {
 @media (max-width: 720px) {
   dialog.modal.merge-dialog,
   dialog.modal.quote-release-dialog,
-  dialog.modal.booking-delete-dialog {
+  dialog.modal.booking-delete-dialog,
+  dialog.modal.import-correction-dialog {
     position: fixed;
     inset: auto 0 0 0;
     width: 100%;
@@ -10464,7 +10557,8 @@ dialog.merge-dialog {
 
   .merge-dialog > .modal-body,
   .quote-release-dialog > .modal-body,
-  .booking-delete-dialog > .modal-body {
+  .booking-delete-dialog > .modal-body,
+  .import-correction-dialog > .modal-body {
     padding: 12px 16px;
   }
 
@@ -10472,7 +10566,8 @@ dialog.merge-dialog {
      02 at 390 px), so no account name breaks inside the button. */
   .merge-dialog .modal-footer--band,
   .quote-release-dialog .modal-footer--band,
-  .booking-delete-dialog .modal-footer--band {
+  .booking-delete-dialog .modal-footer--band,
+  .import-correction-dialog .modal-footer--band {
     flex-direction: column;
     align-items: stretch;
     gap: 6px;
@@ -10482,7 +10577,8 @@ dialog.merge-dialog {
 
   .merge-dialog .modal-footer--band > button,
   .quote-release-dialog .modal-footer--band > button,
-  .booking-delete-dialog .modal-footer--band > button {
+  .booking-delete-dialog .modal-footer--band > button,
+  .import-correction-dialog .modal-footer--band > button {
     width: 100%;
     min-height: 44px;
     justify-content: center;
@@ -10490,7 +10586,8 @@ dialog.merge-dialog {
 
   .merge-dialog .modal-footer__spacer,
   .quote-release-dialog .modal-footer__spacer,
-  .booking-delete-dialog .modal-footer__spacer {
+  .booking-delete-dialog .modal-footer__spacer,
+  .import-correction-dialog .modal-footer__spacer {
     display: none;
   }
 
@@ -10501,13 +10598,15 @@ dialog.merge-dialog {
   .merge-dialog .modal-footer--band > .button-primary,
   .merge-dialog .modal-footer--band > .button-danger,
   .quote-release-dialog .modal-footer--band > .button-danger,
-  .booking-delete-dialog .modal-footer--band > .button-danger {
+  .booking-delete-dialog .modal-footer--band > .button-danger,
+  .import-correction-dialog .modal-footer--band > .button-primary {
     order: 2;
   }
 
   .merge-dialog .modal-footer--band > .button-ghost,
   .quote-release-dialog .modal-footer--band > .button-ghost,
-  .booking-delete-dialog .modal-footer--band > .button-ghost {
+  .booking-delete-dialog .modal-footer--band > .button-ghost,
+  .import-correction-dialog .modal-footer--band > .button-ghost {
     order: 3;
   }
 

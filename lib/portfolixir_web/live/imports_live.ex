@@ -5,6 +5,7 @@ defmodule PortfolixirWeb.ImportsLive do
   alias Portfolixir.Catalog
   alias Portfolixir.Clock
   alias Portfolixir.Imports
+  alias Portfolixir.Imports.Correction
   alias Portfolixir.Imports.Mapping
   alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.Preview
@@ -15,6 +16,7 @@ defmodule PortfolixirWeb.ImportsLive do
   alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.ReferenceCounts
   alias PortfolixirWeb.StoredText
   alias PortfolixirWeb.TransactionKindLabel
 
@@ -49,11 +51,13 @@ defmodule PortfolixirWeb.ImportsLive do
       |> assign(:applying, false)
       |> assign(:result, nil)
       |> assign(:error, nil)
+      |> assign_correction_idle()
       |> reload_lookups()
       |> assign(:mapping, mapping)
       |> maybe_assign_preview_pp_names(preview)
       |> assign_security_resolutions(preview)
       |> assign_account_states(preview)
+      |> assign_corrections(preview)
       |> assign_remember_outcomes()
       |> allow_upload(:pp_file,
         accept: ~w(.csv .json application/json text/csv text/plain),
@@ -158,7 +162,9 @@ defmodule PortfolixirWeb.ImportsLive do
                 ))
           ),
         decision_resolutions:
-          Enum.filter(resolutions, &(&1.status in [:needs_decision, :config_at_risk]))
+          Enum.filter(resolutions, &(&1.status in [:needs_decision, :config_at_risk])),
+        correction_lines: Enum.map(assigns.corrections, &correction_line/1),
+        correction_totals: correction_totals(assigns.corrections)
       )
 
     ~H"""
@@ -236,6 +242,114 @@ defmodule PortfolixirWeb.ImportsLive do
         <%!-- A scroller a keyboard reaches: the list can outgrow its box. --%>
         <pre class="parser-warnings__rows" tabindex="0"><%= parser_warning_text(@preview.errors) %></pre>
       </AppShell.data_note>
+
+      <%!-- ADR-0053 §6 and A6 (board 09, pick J9 = A; board 01 ⑧): the
+           bookings already imported whose stored cash this file corrects,
+           in a section of their own outside the apply form, after the
+           counts and before the mapping: it needs no mapping, and its own
+           confirm is a different act from "Confirm import", whose hash hits
+           still change nothing (ADR-0050 §3, K8). Nothing differs, no
+           section and no all-clear (UX-DR2). The result line stands where
+           the section stood. --%>
+      <AppShell.inline_result
+        id="import-correction-result"
+        class="inline-result--page"
+        result={@correction_result}
+        dismiss_event="dismiss_correction_result"
+        focusable
+      />
+
+      <section
+        :if={@corrections != [] and not @correction_running}
+        class="panel inner"
+        id="import-correction"
+        aria-labelledby="import-correction-head"
+      >
+        <h3 id="import-correction-head"><%= gettext("Already imported, with a different amount") %></h3>
+        <div role="status">
+          <AppShell.data_note severity={:attention} data-role="import-correction">
+            <p data-role="import-correction-finding">
+              <%= ngettext(
+                "One booking already imported differs from this file: what was booked is the gross value; the Portfolio Performance file states what the account moved. The difference is the row's fees and taxes.",
+                "%{count} bookings already imported differ from this file: what was booked is the gross value; the Portfolio Performance file states what the account moved. The difference is the row's fees and taxes.",
+                length(@corrections)
+              ) %>
+            </p>
+            <div class="data-table-wrapper" id="import-correction-table-wrapper">
+              <table class="data-table" id="import-correction-table">
+                <thead>
+                  <tr>
+                    <th class="num" scope="col"><%= gettext("Row") %></th>
+                    <th scope="col"><%= gettext("Date") %></th>
+                    <th scope="col"><%= gettext("Booking") %></th>
+                    <th class="num" scope="col"><%= gettext("Booked") %></th>
+                    <th class="num" scope="col"><%= gettext("Per the file") %></th>
+                    <th class="num" scope="col"><%= gettext("Difference") %></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr :for={line <- @correction_lines} data-transaction-id={line.id}>
+                    <td class="num"><%= line.row %></td>
+                    <td><%= line.date %></td>
+                    <td>
+                      <%= line.kind %><%= if line.security do %> · <bdi><%= line.security %></bdi><% end %><%= if line.account do %> · <bdi><%= line.account %></bdi><% end %><%= if line.counter do %> → <bdi><%= line.counter %></bdi><% end %>
+                      <.correction_detail line={line} />
+                    </td>
+                    <td class={["num", sign_class(line.booked)]}><%= Format.signed_decimal(line.booked, 2) %></td>
+                    <td class={["num", sign_class(line.stated)]}><%= Format.signed_decimal(line.stated, 2) %></td>
+                    <td class={["num", sign_class(line.difference)]}><%= Format.signed_decimal(line.difference, 2) %></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <%!-- UX-DR27: under 560 px the list gives way to two-line rows,
+                 the subject over "Row · Date · Kind · Account", the
+                 difference over "booked → per the file". --%>
+            <ul
+              id="import-correction-phone-rows"
+              class="phone-rows"
+              aria-label={gettext("Bookings with a different amount")}
+            >
+              <li :for={line <- @correction_lines} class="phone-row">
+                <span class="phone-row__body">
+                  <span class="phone-row__name"><bdi><%= line.security || line.account %></bdi></span>
+                  <span class="phone-row__ids"><span><%= gettext("Row %{row}", row: line.row) %> · <%= line.date %> · <%= line.kind %><%= if line.security && line.account do %> · <bdi><%= line.account %></bdi><% end %></span></span>
+                  <.correction_detail line={line} />
+                </span>
+                <span class="phone-row__figures">
+                  <span class={["phone-row__figure", sign_class(line.difference)]}><%= Format.signed_decimal(line.difference, 2) %></span>
+                  <span class="phone-row__figure2"><%= Format.signed_decimal(line.booked, 2) %> → <%= Format.signed_decimal(line.stated, 2) %></span>
+                </span>
+              </li>
+            </ul>
+            <p class="import-correction__total"><%= total_line(@correction_totals) %></p>
+            <div class="import-correction__foot">
+              <button
+                type="button"
+                id="import-correction-open"
+                class="button"
+                data-role="import-correction-open"
+                phx-click="open_correction"
+              >
+                <%= ngettext(
+                  "Correct one booking…",
+                  "Correct %{count} bookings…",
+                  length(@corrections)
+                ) %>
+              </button>
+              <p class="summary-basis">
+                <%= gettext("a step of its own, apart from “Confirm import”") %>
+              </p>
+            </div>
+          </AppShell.data_note>
+        </div>
+      </section>
+
+      <.correction_dialog
+        :if={@correcting and @corrections != []}
+        corrections={@corrections}
+        totals={@correction_totals}
+      />
 
       <form id="pp-import-apply" phx-change="mapping_changed" phx-submit="apply">
         <section class="panel inner" id="import-bucket-tag">
@@ -567,6 +681,19 @@ defmodule PortfolixirWeb.ImportsLive do
         <%= gettext("Skipped duplicates: %{n}", n: @result.skipped_duplicates) %>
       </p>
 
+      <%!-- ADR-0053 §6 (board 09 A): the import confirmed before the
+           correction leaves those bookings as they were (K8); the result
+           says so, with the remedy, so nothing is dropped silently. --%>
+      <div :if={@corrections != []} class="import-skipped" data-role="correction-not-applied">
+        <p class="muted">
+          <%= ngettext(
+            "One booking already imported with a different amount from the file is not corrected. Drop the same file again to correct it.",
+            "%{count} bookings already imported with a different amount from the file are not corrected. Drop the same file again to correct them.",
+            length(@corrections)
+          ) %>
+        </p>
+      </div>
+
       <%= if @result.alias_matches != [] do %>
         <p class="muted" data-role="alias-matches">
           <%= gettext("%{n} record(s) matched via former ISIN.", n: length(@result.alias_matches)) %>
@@ -811,9 +938,11 @@ defmodule PortfolixirWeb.ImportsLive do
      |> assign(:applying, false)
      |> assign(:result, nil)
      |> assign(:error, nil)
+     |> assign_correction_idle()
      |> assign(:mapping, blank_mapping())
      |> assign_security_resolutions(nil)
      |> assign_account_states(nil)
+     |> assign_corrections(nil)
      |> assign_remember_outcomes()
      |> reload_lookups()}
   end
@@ -828,6 +957,37 @@ defmodule PortfolixirWeb.ImportsLive do
 
     {:noreply, push_event(socket, "copy-to-clipboard", %{text: text})}
   end
+
+  # ADR-0053 §6 (board 09, pick J9 = A): the correction section's own
+  # confirm, apart from "Confirm import". It opens only on a listed booking,
+  # and runs once at a time.
+  def handle_event("open_correction", _params, socket) do
+    {:noreply, assign(socket, :correcting, socket.assigns.corrections != [])}
+  end
+
+  def handle_event("cancel_correction", _params, socket),
+    do: {:noreply, assign(socket, :correcting, false)}
+
+  def handle_event("confirm_correction", _params, socket)
+      when socket.assigns.correction_running or socket.assigns.corrections == [] do
+    {:noreply, assign(socket, :correcting, false)}
+  end
+
+  def handle_event("confirm_correction", _params, socket) do
+    preview = socket.assigns.preview
+
+    {:noreply,
+     socket
+     |> assign(:correcting, false)
+     |> assign(:correction_running, true)
+     |> assign(:correction_result, {:busy, gettext("Correcting…")})
+     |> start_async(:correct_cash, fn ->
+       Imports.correct_cash(Imports.correction_actor(), preview)
+     end)}
+  end
+
+  def handle_event("dismiss_correction_result", _params, socket),
+    do: {:noreply, assign(socket, :correction_result, nil)}
 
   # An event this page does not know, or a payload it cannot read, changes
   # nothing (E25 S4, F17).
@@ -871,7 +1031,8 @@ defmodule PortfolixirWeb.ImportsLive do
      |> assign(:stage, :done)
      |> assign(:result, result)
      |> assign(:error, nil)
-     |> reload_lookups()}
+     |> reload_lookups()
+     |> assign_corrections(socket.assigns.preview)}
   end
 
   # ADR-0050 §10: an account the mapping names has been merged away (or
@@ -930,12 +1091,53 @@ defmodule PortfolixirWeb.ImportsLive do
      |> assign(:error, gettext("Import failed unexpectedly. Please try again."))}
   end
 
+  # The result stands where the section stood (board 09 A); the bookings are
+  # read again, so the section shows only what is still to correct.
+  def handle_async(:correct_cash, {:ok, {:ok, corrected}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:correction_running, false)
+     |> assign(:correction_result, correction_result(corrected))
+     |> assign_corrections(socket.assigns.preview)}
+  end
+
+  def handle_async(:correct_cash, {:ok, {:error, %{row: row, reason: reason}}}, socket) do
+    {:noreply,
+     socket
+     |> assign(:correction_running, false)
+     |> assign(
+       :correction_result,
+       {:problem,
+        gettext("Row %{row}: the correction was refused: %{reason}. Nothing was corrected.",
+          row: row,
+          reason: correction_refusal(reason)
+        )}
+     )
+     |> assign_corrections(socket.assigns.preview)}
+  end
+
+  def handle_async(:correct_cash, {:exit, _reason}, socket) do
+    {:noreply,
+     socket
+     |> assign(:correction_running, false)
+     |> assign(
+       :correction_result,
+       {:problem, gettext("The correction failed unexpectedly. Nothing was corrected.")}
+     )
+     |> assign_corrections(socket.assigns.preview)}
+  end
+
   # The accounts, their resolutions and the counts read again, and the
   # account mapping rebuilt from the current accounts, keeping the bucket tag
   # and the security choices (ADR-0050 §10): the database changed since the
   # preview opened, and a prefill read before it may name what is gone.
   defp refresh_accounts(socket) do
-    socket = socket |> reload_lookups() |> assign_account_states(socket.assigns.preview)
+    socket =
+      socket
+      |> reload_lookups()
+      |> assign_account_states(socket.assigns.preview)
+      |> assign_corrections(socket.assigns.preview)
+
     fresh = initial_mapping_for(socket.assigns.preview, socket.assigns.account_states)
 
     mapping =
@@ -969,10 +1171,12 @@ defmodule PortfolixirWeb.ImportsLive do
             |> assign(:stage, :preview)
             |> assign(:preview, preview)
             |> assign(:error, nil)
+            |> assign_correction_idle()
             |> reload_lookups()
             |> assign_preview_pp_names(preview)
             |> assign_security_resolutions(preview)
             |> assign_account_states(preview)
+            |> assign_corrections(preview)
 
           socket =
             socket
@@ -1519,6 +1723,421 @@ defmodule PortfolixirWeb.ImportsLive do
         [gettext("The import creates nothing: no booking, no account, no depot, no security.")],
       " "
     )
+  end
+
+  # --- bookings already imported with a different amount (ADR-0053 §6, A6;
+  # board 09, pick J9 = A; board 01 ⑧) ---
+
+  defp assign_correction_idle(socket) do
+    socket
+    |> assign(:correcting, false)
+    |> assign(:correction_running, false)
+    |> assign(:correction_result, nil)
+  end
+
+  # Read with the preview, after the import (the done page names what it
+  # left uncorrected) and after each correction: one read of the bookings
+  # the file's hashes name.
+  defp assign_corrections(socket, nil), do: assign(socket, :corrections, [])
+
+  defp assign_corrections(socket, %Preview{} = preview),
+    do: assign(socket, :corrections, Imports.cash_corrections(preview))
+
+  # One listed booking as the section shows it: the row, the date, the kind,
+  # the booking's names, its signed cash as booked and per the file, and
+  # what changes with it (a trade's settlement legs, a JSON trade's price).
+  defp correction_line(%Correction.Item{transaction: tx, changes: changes} = item) do
+    %{
+      id: tx.id,
+      row: item.row,
+      date: Format.date(tx.date),
+      kind: kind_label(tx.type),
+      security: tx.security && tx.security.name,
+      account: tx.cash_account && tx.cash_account.name,
+      counter: tx.counter_cash_account && tx.counter_cash_account.name,
+      booked: item.booked,
+      stated: item.stated,
+      difference: item.difference,
+      legs: legs_lines(tx, changes),
+      price: price_lines(tx, changes)
+    }
+  end
+
+  defp legs_lines(tx, %{settlement_amount: settlement} = changes) do
+    native = tx.security && tx.security.currency_code
+
+    {gettext("Settlement booked: %{cash} = %{native}",
+       cash: amount(tx.settlement_amount, tx.currency_code),
+       native: amount(tx.security_amount, native)
+     ),
+     gettext("Settlement per the file: %{cash} = %{native}",
+       cash: amount(settlement, tx.currency_code),
+       native: amount(Map.get(changes, :security_amount), native)
+     )}
+  end
+
+  defp legs_lines(_tx, _changes), do: nil
+
+  defp price_lines(tx, %{price: price}) do
+    {gettext("Price booked: %{price}", price: price_amount(tx.price, tx.currency_code)),
+     gettext("Price per the file: %{price}", price: price_amount(price, tx.currency_code))}
+  end
+
+  defp price_lines(_tx, _changes), do: nil
+
+  defp amount(%Decimal{} = value, currency) when is_binary(currency),
+    do: Format.money(value) <> " " <> currency
+
+  defp amount(_value, _currency), do: "—"
+
+  defp price_amount(%Decimal{} = value, currency) when is_binary(currency),
+    do: Format.native_amount(value) <> " " <> currency
+
+  defp price_amount(_value, _currency), do: "—"
+
+  defp signed_amount(%Decimal{} = value, currency),
+    do: Format.signed_decimal(value, 2) <> " " <> currency
+
+  defp sign_class(%Decimal{} = value) do
+    case Format.displayed_sign(value, 2) do
+      :positive -> "is-positive"
+      :negative -> "is-negative"
+      _zero -> nil
+    end
+  end
+
+  # How the correction moves each cash account, in the order the bookings
+  # name them.
+  defp correction_totals(items) do
+    {accounts, sums} =
+      items
+      |> Enum.flat_map(& &1.accounts)
+      |> Enum.reduce({[], %{}}, fn %{account: account, delta: delta}, {accounts, sums} ->
+        accounts = if Map.has_key?(sums, account.id), do: accounts, else: [account | accounts]
+        {accounts, Map.update(sums, account.id, delta, &Decimal.add(&1, delta))}
+      end)
+
+    accounts |> Enum.reverse() |> Enum.map(&{&1, Map.fetch!(sums, &1.id)})
+  end
+
+  # The one total over every account, when they share a currency; `nil`
+  # when they do not, or when nothing moves.
+  defp correction_total([{%{currency_code: currency}, _delta} | _] = totals) do
+    if Enum.all?(totals, fn {account, _delta} -> account.currency_code == currency end) do
+      {totals |> Enum.map(&elem(&1, 1)) |> Enum.reduce(&Decimal.add/2), currency}
+    end
+  end
+
+  defp correction_total(_totals), do: nil
+
+  # "Pin-Cash -22.11 EUR, Tagesgeld -1.20 EUR": each name isolated.
+  defp accounts_markup(totals) do
+    totals
+    |> Enum.map(fn {account, delta} ->
+      [
+        StoredText.bdi(account.name) |> Phoenix.HTML.safe_to_string(),
+        " ",
+        escape(signed_amount(delta, account.currency_code))
+      ]
+    end)
+    |> Enum.intersperse(", ")
+    |> then(&{:safe, &1})
+  end
+
+  defp escape(text), do: text |> Phoenix.HTML.html_escape() |> Phoenix.HTML.safe_to_string()
+
+  defp total_line(totals) do
+    case correction_total(totals) do
+      {total, currency} ->
+        StoredText.isolate(
+          gettext("Together %{total}: %{accounts}.",
+            total: StoredText.slot(:total),
+            accounts: StoredText.slot(:accounts)
+          ),
+          total:
+            {:safe,
+             [
+               ~s(<b class="),
+               sign_class(total) || "",
+               ~s(">),
+               escape(signed_amount(total, currency)),
+               "</b>"
+             ]},
+          accounts: accounts_markup(totals)
+        )
+
+      nil ->
+        StoredText.isolate(
+          gettext("Per account: %{accounts}.", accounts: StoredText.slot(:accounts)),
+          accounts: accounts_markup(totals)
+        )
+    end
+  end
+
+  # The dialog's subject box: the bookings, their rows and accounts, the
+  # total they move.
+  defp correction_subject(items, totals) do
+    rows = Enum.map_join(items, ", ", &to_string(&1.row))
+
+    %{
+      name: ngettext("%{count} booking", "%{count} bookings", length(items)),
+      rows: ngettext("Row %{rows}", "Rows %{rows}", length(items), rows: rows),
+      accounts:
+        totals
+        |> Enum.map(fn {account, _delta} -> StoredText.bdi(account.name) end)
+        |> Enum.intersperse(", "),
+      total: correction_total(totals)
+    }
+  end
+
+  # What changes, said back before the confirm: each account, then each
+  # trade whose settlement or price changes with its cash, then the
+  # recalculation (board 09 A).
+  defp correction_consequence(items, totals) do
+    changes =
+      totals
+      |> Enum.map(fn {account, delta} ->
+        account
+        |> account_change(delta)
+        |> Phoenix.HTML.safe_to_string()
+      end)
+      |> ReferenceCounts.and_list()
+
+    [
+      StoredText.isolate(gettext("Afterwards %{changes}.", changes: StoredText.slot(:changes)),
+        changes: {:safe, changes}
+      )
+    ] ++
+      Enum.flat_map(items, &trade_changes/1) ++
+      [gettext("Balances, valuation, return and income are recalculated.")]
+  end
+
+  defp account_change(account, delta) do
+    magnitude = amount(Decimal.abs(delta), account.currency_code)
+
+    translated =
+      if Decimal.compare(delta, 0) == :lt,
+        do:
+          gettext("%{account} has %{amount} less",
+            account: StoredText.slot(:account),
+            amount: magnitude
+          ),
+        else:
+          gettext("%{account} has %{amount} more",
+            account: StoredText.slot(:account),
+            amount: magnitude
+          )
+
+    StoredText.isolate(translated, account: account.name)
+  end
+
+  defp trade_changes(%Correction.Item{transaction: tx, changes: changes}) do
+    security = (tx.security && tx.security.name) || ""
+    date = Format.date(tx.date)
+
+    legs =
+      if Map.has_key?(changes, :settlement_amount) do
+        native = tx.security && tx.security.currency_code
+
+        [
+          settlement_sentence(tx.type,
+            security: StoredText.slot(:security),
+            date: date,
+            cash: amount(changes.settlement_amount, tx.currency_code),
+            native: amount(Map.get(changes, :security_amount), native)
+          )
+        ]
+      else
+        []
+      end
+
+    price =
+      if Map.has_key?(changes, :price) do
+        [
+          price_sentence(tx.type,
+            security: StoredText.slot(:security),
+            date: date,
+            price: price_amount(changes.price, tx.currency_code)
+          )
+        ]
+      else
+        []
+      end
+
+    Enum.map(legs ++ price, &StoredText.isolate(&1, security: security))
+  end
+
+  defp settlement_sentence("buy", bindings),
+    do:
+      gettext(
+        "On the purchase of %{security} on %{date}, the settlement changes with it: %{cash} = %{native}.",
+        bindings
+      )
+
+  defp settlement_sentence(_sell, bindings),
+    do:
+      gettext(
+        "On the sale of %{security} on %{date}, the settlement changes with it: %{cash} = %{native}.",
+        bindings
+      )
+
+  defp price_sentence("buy", bindings),
+    do:
+      gettext(
+        "On the purchase of %{security} on %{date}, the price changes with it: %{price}.",
+        bindings
+      )
+
+  defp price_sentence(_sell, bindings),
+    do:
+      gettext(
+        "On the sale of %{security} on %{date}, the price changes with it: %{price}.",
+        bindings
+      )
+
+  # The sentences of one paragraph, one space between them.
+  defp correction_sentences(list) do
+    {:safe,
+     list
+     |> Enum.map(fn sentence -> sentence |> Phoenix.HTML.html_escape() |> elem(1) end)
+     |> Enum.intersperse(" ")}
+  end
+
+  # The result line where the section stood (board 09 A): the bookings
+  # corrected and what each account moved.
+  defp correction_result([]),
+    do: {:note, gettext("No booking was corrected: each already agrees with this file.")}
+
+  defp correction_result(corrected) do
+    totals = correction_totals(corrected)
+
+    message =
+      ngettext(
+        "One booking corrected: %{totals}. The journal keeps the previous amount.",
+        "%{count} bookings corrected: %{totals}. The journal keeps the previous amounts.",
+        length(corrected),
+        totals: StoredText.slot(:totals)
+      )
+
+    {:note, StoredText.isolate(message, totals: accounts_markup(totals))}
+  end
+
+  defp correction_refusal(%Ecto.Changeset{} = changeset),
+    do: FieldLabel.changeset_message(changeset)
+
+  defp correction_refusal(:not_found),
+    do: gettext("the booking no longer exists")
+
+  defp correction_refusal(_reason), do: gettext("the ledger refused the change")
+
+  # What changes with a booking's cash, under its subject: a trade's
+  # settlement legs, booked and per the file (ADR-0015), and a JSON trade's
+  # price (A2).
+  attr(:line, :map, required: true)
+
+  defp correction_detail(assigns) do
+    ~H"""
+    <span :if={@line.legs || @line.price} class="import-correction__legs">
+      <%= if @line.legs do %>
+        <span><%= elem(@line.legs, 0) %></span>
+        <span><%= elem(@line.legs, 1) %></span>
+      <% end %>
+      <%= if @line.price do %>
+        <span><%= elem(@line.price, 0) %></span>
+        <span><%= elem(@line.price, 1) %></span>
+      <% end %>
+    </span>
+    """
+  end
+
+  # The correction's own confirm (board 09 A): the narrow modal of the
+  # booking delete — the act said back in a subject box, the consequence,
+  # one sentence on the journal and the hashes, Cancel focused — whose
+  # confirm is primary, not danger: nothing is lost, every replaced value
+  # stays in the journal and in the file.
+  attr(:corrections, :list, required: true)
+  attr(:totals, :list, required: true)
+
+  defp correction_dialog(assigns) do
+    assigns =
+      assign(assigns,
+        subject: correction_subject(assigns.corrections, assigns.totals),
+        consequence: correction_consequence(assigns.corrections, assigns.totals)
+      )
+
+    ~H"""
+    <dialog
+      id="import-correction-dialog"
+      class="modal import-correction-dialog"
+      phx-hook="ModalDialog"
+      data-close-event="cancel_correction"
+      data-focus-fallback="#import-correction-result"
+      data-focus-result="#import-correction-result"
+      aria-labelledby="import-correction-dialog-title"
+      aria-describedby="import-correction-subject"
+    >
+      <header class="modal-head">
+        <h2 id="import-correction-dialog-title"><%= gettext("Correct booked amounts") %></h2>
+        <button
+          type="button"
+          class="icon-button"
+          aria-label={gettext("Close")}
+          phx-click="cancel_correction"
+        >
+          <AppShell.icon name={:x} />
+        </button>
+      </header>
+      <div class="modal-body">
+        <p id="import-correction-subject" class="booking-delete__subject">
+          <span class="phone-row__body">
+            <span class="phone-row__name"><%= @subject.name %></span>
+            <span class="phone-row__ids"><span><%= @subject.rows %> · <%= @subject.accounts %></span></span>
+          </span>
+          <span class="phone-row__figures">
+            <%= if @subject.total do %>
+              <span class={["phone-row__figure", sign_class(elem(@subject.total, 0))]}>
+                <%= signed_amount(elem(@subject.total, 0), elem(@subject.total, 1)) %>
+              </span>
+            <% end %>
+            <span class="phone-row__figure2"><%= gettext("Fees and taxes") %></span>
+          </span>
+        </p>
+        <p class="hint" data-role="import-correction-consequence">
+          <%= correction_sentences(@consequence) %>
+        </p>
+        <p class="hint" data-role="import-correction-journal">
+          <%= gettext(
+            "Each change is kept in the journal with the previous amount; the import hashes stay as they are, so importing the same file again books nothing."
+          ) %>
+        </p>
+      </div>
+      <div class="modal-footer modal-footer--band">
+        <button
+          type="button"
+          class="button-ghost"
+          data-role="import-correction-cancel"
+          phx-click="cancel_correction"
+          autofocus
+        >
+          <%= gettext("Cancel") %>
+        </button>
+        <span class="modal-footer__spacer"></span>
+        <button
+          type="button"
+          id="import-correction-confirm"
+          class="button-primary"
+          phx-click="confirm_correction"
+          phx-disable-with={gettext("Correcting…")}
+        >
+          <%= ngettext(
+            "Correct one booking",
+            "Correct %{count} bookings",
+            length(@corrections)
+          ) %>
+        </button>
+      </div>
+    </dialog>
+    """
   end
 
   # --- the result's lists (boards 04 and 04b) ---
