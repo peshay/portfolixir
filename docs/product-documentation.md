@@ -677,8 +677,9 @@ splits the group so each side can be tagged on its own
 collapse into a **+2 more** control; pressing it expands the cell in place to
 show every bucket, and **Show fewer** collapses it again. The picker carries
 the full set as well. Long names
-(for example date-stamped import tags) are truncated; hovering a chip reveals
-the full name. The chips are the grouping UI: the **+** affordance opens a
+(for example a long bucket tag set at an import) are truncated; hovering a
+chip reveals the full name. The chips are the grouping UI: the **+**
+affordance opens a
 small picker popover with the remaining buckets plus an inline **New tag**
 field that creates and assigns a tag in one step, and the **×** on a chip
 removes that membership. On a touch screen the **×** and the **+** are

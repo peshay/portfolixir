@@ -739,8 +739,8 @@ Tags bekommt (unterschiedliche Mengen erscheinen immer getrennt). Je Gruppe
 sind höchstens vier Chips sichtbar — weitere klappen in ein Bedienelement
 **+2 anzeigen**; ein Druck darauf klappt die Zelle an Ort und Stelle auf und
 zeigt alle Buckets, **weniger** klappt sie wieder zu. Auch der Picker führt die
-vollständige Menge. Lange Namen (etwa
-datumsgestempelte Import-Tags) werden gekürzt; der volle Name erscheint beim
+vollständige Menge. Lange Namen (etwa ein langer
+Bucket-Tag, beim Import vergeben) werden gekürzt; der volle Name erscheint beim
 Überfahren des Chips. Die Chips sind die Gruppierungs-UI: das **+** öffnet
 ein kleines Picker-Popover mit den übrigen Buckets plus einem Inline-Feld
 **Neuer Tag**, das einen Tag in einem Schritt anlegt und zuweist, und das
