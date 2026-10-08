@@ -806,7 +806,11 @@ defmodule Portfolixir.Catalog do
 
   @doc """
   Merges online fields from a search result into an existing security. Keeps
-  user-edited fields (`note`) and merges `attributes` rather than replacing.
+  user-edited fields (`note`) and merges `attributes` rather than replacing:
+  only the attribute keys the search result sets are written, into the
+  attributes as stored when the write locks the row (`update_security/3`),
+  so an attribute another writer stored after `existing` was read is kept
+  (#1146).
   """
   def merge_search_result(actor, existing, result, market \\ nil, overrides \\ %{})
 
@@ -819,13 +823,13 @@ defmodule Portfolixir.Catalog do
       ) do
     incoming = SearchResult.to_security_attrs(result, market)
 
-    merged_attributes =
-      Map.merge(existing.attributes || %{}, incoming[:attributes] || %{})
-
+    # The changeset merges these keys into the locked row's attributes; a
+    # map merged here from `existing` would write back what it held when the
+    # dialog loaded it (#1146).
     attrs =
       incoming
       |> Map.drop([:note, :attributes])
-      |> Map.put(:attributes, merged_attributes)
+      |> Map.put(:attributes, incoming[:attributes] || %{})
       |> Map.merge(normalize_overrides(overrides))
 
     update_security(actor, existing, attrs)

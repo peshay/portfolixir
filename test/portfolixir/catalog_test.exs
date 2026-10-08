@@ -463,6 +463,73 @@ defmodule Portfolixir.CatalogTest do
       assert updated.attributes["local"] == "keep"
       assert updated.attributes["exchange_name"] == "Xetra"
     end
+
+    # User story (#1146):
+    # As the operator who merges a search result's online fields into a
+    # security the new-security dialog found,
+    # I want the merge to keep what another writer stored in the security's
+    # attributes while the dialog was open,
+    # so that a change a second tab, the logo discovery or the logo
+    # reconciliation made is not undone by the map the dialog loaded.
+    #
+    # Acceptance criteria:
+    # - The merge writes only the attribute keys the search result sets, into
+    #   the attributes as stored when the write locks the row.
+    # - A key another writer changed or removed after the dialog loaded the
+    #   security keeps that change; a key it added stays; the logo
+    #   bookkeeping written meanwhile stays.
+    test "keeps attributes written while the dialog was open" do
+      {:ok, loaded} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "Fennmoor Werke AG",
+          ticker_symbol: "FNW",
+          currency_code: "EUR",
+          asset_class: "equity",
+          attributes: %{"local" => "as loaded", "dropped" => "as loaded"}
+        })
+
+      {:ok, changed} =
+        Catalog.update_security(Portfolixir.Actor.owner_ui(), loaded, %{
+          attributes: %{"local" => "changed meanwhile", "dropped" => nil, "added" => "meanwhile"}
+        })
+
+      {:ok, _logo} =
+        Catalog.put_logo_attributes(changed, %{
+          "logo_path" => "logos/fnw.png",
+          "logo_source" => "test"
+        })
+
+      result = %SearchResult{
+        provider: :portfolio_performance,
+        online_id: "uuid-fennmoor",
+        name: "Fennmoor Werke AG",
+        currency_code: "EUR",
+        ticker_symbol: "FNW",
+        asset_class: "equity",
+        feed: "PORTFOLIO_PERFORMANCE",
+        markets: [%Market{symbol: "FNW", currency_code: "EUR", exchange_name: "Xetra"}]
+      }
+
+      assert {:ok, merged} =
+               Catalog.merge_search_result(
+                 Portfolixir.Actor.owner_ui(),
+                 loaded,
+                 result,
+                 hd(result.markets)
+               )
+
+      assert merged.online_id == "uuid-fennmoor"
+
+      assert merged.attributes == %{
+               "local" => "changed meanwhile",
+               "added" => "meanwhile",
+               "exchange_name" => "Xetra",
+               "logo_path" => "logos/fnw.png",
+               "logo_source" => "test"
+             }
+
+      assert Repo.get!(Security, loaded.id).attributes == merged.attributes
+    end
   end
 
   describe "backfill_inferred_asset_classes/0" do
