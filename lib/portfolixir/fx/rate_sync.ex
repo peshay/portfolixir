@@ -335,7 +335,7 @@ defmodule Portfolixir.Fx.RateSync do
   end
 
   defp persist(provider, rows, scope \\ :latest) do
-    case safe_upsert(drop_implausible(rows)) do
+    case rows |> drop_implausible() |> drop_repeated() |> safe_upsert() do
       {:ok, count} ->
         {:ok, %{provider: provider.id(), status: :ok, upserted: count, scope: scope}}
 
@@ -373,6 +373,34 @@ defmodule Portfolixir.Fx.RateSync do
     end
 
     plausible
+  end
+
+  # A pair and day a provider names twice (#937): the writer refuses the
+  # repeat, so the sync keeps the first row, as the quote adapters keep a
+  # day's first close, and drops the rest under F26's rule: one bad row never
+  # fails the batch. The key is compared as the changeset normalizes it.
+  defp drop_repeated(rows) do
+    {kept, _seen, dropped} =
+      Enum.reduce(rows, {[], MapSet.new(), 0}, fn row, {kept, seen, dropped} ->
+        key = {code(row, :base_currency), code(row, :quote_currency), field(row, :date)}
+
+        if MapSet.member?(seen, key),
+          do: {kept, seen, dropped + 1},
+          else: {[row | kept], MapSet.put(seen, key), dropped}
+      end)
+
+    if dropped > 0 do
+      Logger.warning("fx rate sync dropped #{dropped} repeated provider rate(s)")
+    end
+
+    Enum.reverse(kept)
+  end
+
+  defp code(row, key) do
+    case field(row, key) do
+      code when is_binary(code) -> code |> String.trim() |> String.upcase()
+      other -> other
+    end
   end
 
   defp field(row, key), do: Map.get(row, key, Map.get(row, Atom.to_string(key)))
