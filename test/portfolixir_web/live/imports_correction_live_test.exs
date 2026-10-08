@@ -170,16 +170,16 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
                "Row Date Booking Booked Per the file Difference"
 
       assert text(view, "#import-correction-table tbody tr:nth-child(1)") ==
-               "2 2024-01-15 Buy · Nordwind Industrie AG · Girokonto -1,500.00 -1,502.50 -2.50"
+               "3 2024-01-15 Buy · Nordwind Industrie AG · Girokonto -1,500.00 -1,502.50 -2.50"
 
       assert text(view, "#import-correction-table tbody tr:nth-child(2)") ==
-               "3 2024-03-16 Dividend · Nordwind Industrie AG · Girokonto +11.54 +9.13 -2.41"
+               "4 2024-03-16 Dividend · Nordwind Industrie AG · Girokonto +11.54 +9.13 -2.41"
 
       assert text(view, "#import-correction-table tbody tr:nth-child(3)") ==
-               "4 2024-04-28 Sell · Nordwind Industrie AG · Girokonto +1,814.50 +1,800.00 -14.50"
+               "5 2024-04-28 Sell · Nordwind Industrie AG · Girokonto +1,814.50 +1,800.00 -14.50"
 
       assert text(view, "#import-correction-table tbody tr:nth-child(4)") ==
-               "5 2024-06-30 Interest · Tagesgeld +5.75 +4.55 -1.20"
+               "6 2024-06-30 Interest · Tagesgeld +5.75 +4.55 -1.20"
 
       assert has_element?(
                view,
@@ -200,10 +200,10 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
              )
 
       assert text(view, "#import-correction-phone-rows li:nth-child(1)") ==
-               "Nordwind Industrie AG Row 2 · 2024-01-15 · Buy · Girokonto -2.50 -1,500.00 → -1,502.50"
+               "Nordwind Industrie AG Row 3 · 2024-01-15 · Buy · Girokonto -2.50 -1,500.00 → -1,502.50"
 
       assert text(view, "#import-correction-phone-rows li:nth-child(4)") ==
-               "Tagesgeld Row 5 · 2024-06-30 · Interest -1.20 +5.75 → +4.55"
+               "Tagesgeld Row 6 · 2024-06-30 · Interest -1.20 +5.75 → +4.55"
 
       assert text(view, "#import-correction .import-correction__total") ==
                "Together -20.61 EUR: Girokonto -19.41 EUR, Tagesgeld -1.20 EUR."
@@ -250,10 +250,10 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
                "Zeile Datum Buchung Gebucht Laut Datei Differenz"
 
       assert text(view, "#import-correction-table tbody tr:nth-child(1)") ==
-               "2 15.01.2024 Kauf · Nordwind Industrie AG · Girokonto -1.500,00 -1.502,50 -2,50"
+               "3 15.01.2024 Kauf · Nordwind Industrie AG · Girokonto -1.500,00 -1.502,50 -2,50"
 
       assert text(view, "#import-correction-phone-rows li:nth-child(4)") ==
-               "Tagesgeld Zeile 5 · 30.06.2024 · Zinsen -1,20 +5,75 → +4,55"
+               "Tagesgeld Zeile 6 · 30.06.2024 · Zinsen -1,20 +5,75 → +4,55"
 
       assert text(view, "#import-correction .import-correction__total") ==
                "Zusammen -20,61 EUR: Girokonto -19,41 EUR, Tagesgeld -1,20 EUR."
@@ -347,7 +347,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
     #
     # Acceptance criteria (board 09 A, the booking-delete dialog's anatomy):
     # - "Correct 4 bookings…" opens "Correct booked amounts": the subject
-    #   box (4 bookings · Rows 2, 3, 4, 5 · Girokonto, Tagesgeld · -20.61
+    #   box (4 bookings · Rows 3, 4, 5, 6 · Girokonto, Tagesgeld · -20.61
     #   EUR · Fees and taxes), the consequence per account, the
     #   recalculation, and the journal sentence; in German as on the board.
     # - Cancel is focused first; the confirm is primary, not danger, and
@@ -366,7 +366,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       assert text(view, "#import-correction-dialog-title") == "Correct booked amounts"
 
       assert text(view, "#import-correction-subject") ==
-               "4 bookings Rows 2, 3, 4, 5 · Girokonto, Tagesgeld -20.61 EUR Fees and taxes"
+               "4 bookings Rows 3, 4, 5, 6 · Girokonto, Tagesgeld -20.61 EUR Fees and taxes"
 
       assert text(view, "#import-correction-dialog [data-role='import-correction-consequence']") ==
                "Afterwards Girokonto has 19.41 EUR less and Tagesgeld has 1.20 EUR less. Balances, valuation, return and income are recalculated."
@@ -389,7 +389,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       assert text(view, "#import-correction-dialog-title") == "Gebuchte Beträge korrigieren"
 
       assert text(view, "#import-correction-subject") ==
-               "4 Buchungen Zeilen 2, 3, 4, 5 · Girokonto, Tagesgeld -20,61 EUR Gebühren und Steuern"
+               "4 Buchungen Zeilen 3, 4, 5, 6 · Girokonto, Tagesgeld -20,61 EUR Gebühren und Steuern"
 
       assert text(view, "#import-correction-dialog [data-role='import-correction-consequence']") ==
                "Danach hat Girokonto 19,41 EUR weniger und Tagesgeld 1,20 EUR weniger. Kontostände, Bewertung, Rendite und Erträge werden neu berechnet."

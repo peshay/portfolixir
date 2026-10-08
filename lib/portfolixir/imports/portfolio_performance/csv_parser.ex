@@ -48,6 +48,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     account to book it on. A transfer row with the same name in both is no
     error here: its two legs are one account, and the apply skips it and
     lists it under the internal transfers (ADR-0050 §5).
+  - **A row is numbered as a spreadsheet shows the file** (#1128): the
+    header is row 1 and the first booking row 2. The number names the row in
+    a row error, the receiving side's warning, a split-off refund's id and
+    note, and the apply's result; no content hash reads it.
   """
 
   use Gettext, backend: PortfolixirWeb.Gettext
@@ -108,9 +112,12 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
         with :ok <- validate_header(header_row),
              :ok <- validate_row_count(data_rows),
              :ok <- validate_entry_count(header_row, data_rows) do
+          # #1128: a row is numbered as a spreadsheet shows the file, the
+          # header being row 1, so the first booking row is row 2. No content
+          # hash reads the number (`ImportHash.parts/2`).
           {tagged, errors} =
             data_rows
-            |> Enum.with_index(1)
+            |> Enum.with_index(2)
             |> Enum.reduce({[], []}, fn {raw, row}, {acc_entries, acc_errors} ->
               case to_entry(header_row, raw, row) do
                 {:ok, entry, side} ->

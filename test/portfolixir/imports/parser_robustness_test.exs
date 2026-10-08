@@ -49,7 +49,7 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
           # it cannot read there is the row's error, never its Betrag instead.
           "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,00;1.500,00;2,50;;NaN;Test-Depot;Test-Cash;;"
         ] do
-      assert {:ok, %Preview{entries: [_sound], errors: [%{row: 2, message: message}]}} =
+      assert {:ok, %Preview{entries: [_sound], errors: [%{row: 3, message: message}]}} =
                PortfolioPerformance.parse(csv([@csv_ok, hostile]), filename: "hostile.csv"),
              hostile
 
@@ -348,7 +348,7 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
     csv_row =
       "2024-01-16 10:01:00;Kauf;Synthetic AG;10;150,00;123.456.789.012.345.678,00;;;123.456.789.012.345.679,00;Test-Depot;Test-Cash;;"
 
-    assert {:ok, %Preview{entries: [_], errors: [%{row: 2, message: message}]}} =
+    assert {:ok, %Preview{entries: [_], errors: [%{row: 3, message: message}]}} =
              PortfolioPerformance.parse(csv([@csv_ok, csv_row]), filename: "b.csv")
 
     assert message =~ "gross amount"

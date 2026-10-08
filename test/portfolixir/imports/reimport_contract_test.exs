@@ -420,7 +420,7 @@ defmodule Portfolixir.Imports.ReimportContractTest do
 
       assert result.created_transactions == 1
 
-      assert [%{row: 2, kind: "cash_transfer", pp_name: "Giro", pp_counter_name: "Giro"}] =
+      assert [%{row: 3, kind: "cash_transfer", pp_name: "Giro", pp_counter_name: "Giro"}] =
                result.internal_transfers
 
       refute Repo.exists?(from(t in Transaction, where: t.type == "cash_transfer"))

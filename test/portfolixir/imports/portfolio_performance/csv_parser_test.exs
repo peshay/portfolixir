@@ -284,13 +284,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
     defp checked(rows), do: CsvParser.parse(@header <> rows)
 
     test "names the row with the cells as written, and the other rows preview" do
-      assert {:ok, %Preview{entries: [entry], errors: [%{row: 1, message: message}]}} =
+      assert {:ok, %Preview{entries: [entry], errors: [%{row: 2, message: message}]}} =
                checked("""
                2024-04-22 12:25:00;Verkauf;Synthetic AG;10;150,25;1.502,50;2,50;;1.505,00;Depot;Cash;;
                2024-01-02 00:00:00;Einlage;;;;5.000,00;;;5.000,00;Cash;;;
                """)
 
-      assert entry.source_row == 2
+      assert entry.source_row == 3
 
       assert message ==
                "Gesamtpreis 1.505,00 does not match Betrag 1.502,50 and Gebühren 2,50 " <>
@@ -461,7 +461,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
     """
 
     test "a sale whose refund exceeds its Gesamtpreis is named, and the rest previews" do
-      assert {:ok, %Preview{entries: [deposit, buy], errors: [%{row: 3, message: message}]}} =
+      assert {:ok, %Preview{entries: [deposit, buy], errors: [%{row: 4, message: message}]}} =
                CsvParser.parse(@header <> @rows)
 
       assert message ==
@@ -494,20 +494,20 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
 
       assert errors == [
                %{
-                 row: 1,
+                 row: 2,
                  message:
                    "Gesamtpreis -4,90 leaves nothing to credit — enter this booking by hand " <>
                      "— row not imported"
                },
                %{
-                 row: 2,
+                 row: 3,
                  message:
                    "Betrag 1,00 less the tax refund 1,00 leaves 0,00 to credit — " <>
                      "enter this booking by hand, and the refund as a tax refund of its own " <>
                      "— row not imported"
                },
                %{
-                 row: 3,
+                 row: 4,
                  message:
                    "Gesamtpreis 0,00 leaves nothing to credit — enter this booking by hand " <>
                      "— row not imported"
@@ -586,7 +586,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       """
 
       assert {:ok, %Preview{entries: [], errors: errors}} = CsvParser.parse(body)
-      assert [%{row: 1, message: message}] = errors
+      assert [%{row: 2, message: message}] = errors
       assert message =~ "Mystery"
     end
 
@@ -599,7 +599,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       """
 
       assert {:ok, %Preview{entries: [], errors: errors}} = CsvParser.parse(body)
-      assert [%{row: 1, message: message}] = errors
+      assert [%{row: 2, message: message}] = errors
       assert message =~ "implausible date 0219-03-07"
       assert message =~ "re-import"
     end
@@ -613,7 +613,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       """
 
       assert {:ok, %Preview{entries: [], errors: errors}} = CsvParser.parse(body)
-      assert [%{row: 1, message: message}] = errors
+      assert [%{row: 2, message: message}] = errors
       assert message =~ "implausible date 3019-03-07"
       assert message =~ "re-import"
     end
@@ -638,9 +638,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
           "2026-03-10 00:00:00;Einlage;;;;250,00;;;250,00;Girokonto;;;\n"
 
       assert {:ok, %Preview{entries: [entry], errors: errors}} = CsvParser.parse(body)
-      assert entry.source_row == 4
+      assert entry.source_row == 5
 
-      assert [%{row: 1, message: first}, %{row: 2, message: second}, %{row: 3, message: third}] =
+      assert [%{row: 2, message: first}, %{row: 3, message: second}, %{row: 4, message: third}] =
                errors
 
       assert first =~ "account"
@@ -679,9 +679,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
           "2026-03-11 00:00:00;Einlage;;;;;250,00;;;250,00;Girokonto;;;\n"
 
       assert {:ok, %Preview{entries: entries, errors: errors}} = CsvParser.parse(body)
-      assert Enum.map(entries, & &1.source_row) == [3, 5]
+      assert Enum.map(entries, & &1.source_row) == [4, 6]
 
-      assert [%{row: 1, message: note}, %{row: 2, message: account}, %{row: 4, message: security}] =
+      assert [%{row: 2, message: note}, %{row: 3, message: account}, %{row: 5, message: security}] =
                errors
 
       assert note =~ "note" and note =~ "invisible" and note =~ "U+200B"
@@ -700,10 +700,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
           "2026-03-09 00:00:00;Einlage;;;;250,00;;;250,00;Girokonto;;#{String.duplicate("n", max + 1)};\n" <>
           "2026-03-10 00:00:00;Einlage;;;;250,00;;;250,00;Girokonto;;#{String.duplicate("n", max)};\n"
 
-      assert {:ok, %Preview{entries: [entry], errors: [%{row: 1, message: message}]}} =
+      assert {:ok, %Preview{entries: [entry], errors: [%{row: 2, message: message}]}} =
                CsvParser.parse(body)
 
-      assert entry.source_row == 2
+      assert entry.source_row == 3
       assert message =~ "note"
       assert message =~ Integer.to_string(max)
     end
@@ -807,10 +807,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
         2024-08-12 10:00:00;Umbuchung (Ausgang);;;;1.000,00;;;1.000,00;Cash-A;Cash-B;;
         """)
 
-      assert %Preview{entries: [entry], errors: [%{row: 1, message: message}]} = preview
-      assert entry.source_row == 2
+      assert %Preview{entries: [entry], errors: [%{row: 2, message: message}]} = preview
+      assert entry.source_row == 3
       assert direction(entry) == {"cash_transfer", nil, "Cash-A", nil, "Cash-B"}
-      assert message =~ "receiving side of the transfer in row 2"
+      assert message =~ "receiving side of the transfer in row 3"
     end
 
     test "books both sides of one depot transfer once, from the sending row" do
@@ -820,10 +820,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
         2024-11-15 21:00:00;Umbuchung (Eingang);Example Fund;3;20,00;60,00;;;60,00;Depot-B;Depot-A;;
         """)
 
-      assert %Preview{entries: [entry], errors: [%{row: 2, message: message}]} = preview
-      assert entry.source_row == 1
+      assert %Preview{entries: [entry], errors: [%{row: 3, message: message}]} = preview
+      assert entry.source_row == 2
       assert direction(entry) == {"security_transfer", "Depot-A", nil, "Depot-B", nil}
-      assert message =~ "row 1"
+      assert message =~ "row 2"
     end
 
     test "never pairs two different transfers between the same accounts" do
@@ -836,7 +836,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
         """)
 
       assert %Preview{errors: [], entries: entries} = preview
-      assert Enum.map(entries, & &1.source_row) == [1, 2, 3, 4]
+      assert Enum.map(entries, & &1.source_row) == [2, 3, 4, 5]
 
       assert Enum.map(entries, &direction/1) == [
                {"cash_transfer", nil, "Cash-A", nil, "Cash-B"},
@@ -856,10 +856,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
         2024-08-12 10:00:00;Umbuchung (Eingang);;;;1.000,00;;;1.000,00;Cash-B;Cash-A;;
         """)
 
-      assert Enum.map(preview.entries, & &1.source_row) == [1, 2, 5]
-      assert [%{row: 3, message: first}, %{row: 4, message: second}] = preview.errors
-      assert first =~ "row 1"
-      assert second =~ "row 2"
+      assert Enum.map(preview.entries, & &1.source_row) == [2, 3, 6]
+      assert [%{row: 4, message: first}, %{row: 5, message: second}] = preview.errors
+      assert first =~ "row 2"
+      assert second =~ "row 3"
     end
 
     # The closing act's review round (Sprint 18 C1): a file assembled from
@@ -872,9 +872,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
         2024-08-12 10:00:00;Umbuchung (Eingang);;;;1000;;;1000;Cash-B;Cash-A;;
         """)
 
-      assert %Preview{entries: [entry], errors: [%{row: 2, message: message}]} = preview
-      assert entry.source_row == 1
-      assert message =~ "row 1"
+      assert %Preview{entries: [entry], errors: [%{row: 3, message: message}]} = preview
+      assert entry.source_row == 2
+      assert message =~ "row 2"
     end
 
     # ADR-0053: each side books its own Gesamtpreis, Betrag + U on the
@@ -887,11 +887,11 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
         2024-08-12 10:00:00;Umbuchung (Eingang);;;;1.000,00;2,00;0,50;997,50;Cash-B;Cash-A;;
         """)
 
-      assert %Preview{entries: [entry], errors: [%{row: 2, message: message}]} = preview
-      assert entry.source_row == 1
+      assert %Preview{entries: [entry], errors: [%{row: 3, message: message}]} = preview
+      assert entry.source_row == 2
       assert direction(entry) == {"cash_transfer", nil, "Cash-A", nil, "Cash-B"}
       assert Decimal.equal?(entry.gross_amount, Decimal.new("1002.50"))
-      assert message =~ "row 1"
+      assert message =~ "row 2"
     end
 
     test "pairs a receiving row with the converter's security-transfer row" do
@@ -901,10 +901,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
         2024-11-15 21:00:00;Umbuchung (Eingang);Example Fund;3;20,00;60,00;;;60,00;Depot-B;Depot-A;;
         """)
 
-      assert %Preview{entries: [entry], errors: [%{row: 2, message: message}]} = preview
-      assert entry.source_row == 1
+      assert %Preview{entries: [entry], errors: [%{row: 3, message: message}]} = preview
+      assert entry.source_row == 2
       assert direction(entry) == {"security_transfer", "Depot-A", nil, "Depot-B", nil}
-      assert message =~ "row 1"
+      assert message =~ "row 2"
     end
   end
 
@@ -934,8 +934,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
         2024-08-13 10:00:00;Umbuchung (Ausgang);;;;50,00;;;50,00;Cash-A;Cash-B;;
         """)
 
-      assert [%{row: 2, message: @no_counter}] = preview.errors
-      assert Enum.map(preview.entries, & &1.source_row) == [1, 3]
+      assert [%{row: 3, message: @no_counter}] = preview.errors
+      assert Enum.map(preview.entries, & &1.source_row) == [2, 4]
 
       assert direction(List.last(preview.entries)) ==
                {"cash_transfer", nil, "Cash-A", nil, "Cash-B"}
@@ -945,7 +945,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       preview =
         transfers("2024-08-12 10:00:00;Umbuchung (Eingang);;;;100,00;;;100,00;Cash-B;;;\n")
 
-      assert %Preview{entries: [], errors: [%{row: 1, message: message}]} = preview
+      assert %Preview{entries: [], errors: [%{row: 2, message: message}]} = preview
       assert message == @no_counter
       refute message =~ "cash_account_id"
     end
@@ -960,9 +960,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
         """)
 
       assert Enum.map(preview.errors, &{&1.row, &1.message}) == [
-               {1, @no_counter},
                {2, @no_counter},
-               {3, @no_counter}
+               {3, @no_counter},
+               {4, @no_counter}
              ]
 
       assert [entry] = preview.entries
@@ -975,7 +975,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       preview =
         transfers("2024-08-12 10:00:00;Umbuchung (Ausgang);;;;100,00;;;100,00;Cash-A;;;\n")
 
-      assert [%{row: 1, message: "Umbuchung ohne Gegenkonto — Zeile nicht übernommen"}] =
+      assert [%{row: 2, message: "Umbuchung ohne Gegenkonto — Zeile nicht übernommen"}] =
                preview.errors
     end
   end
@@ -1013,13 +1013,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       no_account = "transfer without an account — row not imported"
 
       assert Enum.map(preview.errors, &{&1.row, &1.message}) == [
-               {1, no_account},
                {2, no_account},
                {3, no_account},
-               {4, no_account}
+               {4, no_account},
+               {5, no_account}
              ]
 
-      assert Enum.map(preview.entries, & &1.source_row) == [5]
+      assert Enum.map(preview.entries, & &1.source_row) == [6]
     end
 
     # ADR-0050 §5 and its invariant 7: a transfer whose two legs are one
@@ -1039,10 +1039,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
       assert preview.errors == []
 
       assert Enum.map(preview.entries, &{&1.source_row, direction(&1)}) == [
-               {1, {"cash_transfer", nil, "Cash-A", nil, "Cash-A"}},
                {2, {"cash_transfer", nil, "Cash-A", nil, "Cash-A"}},
-               {3, {"security_transfer", "Depot-A", nil, "Depot-A", nil}},
-               {4, {"cash_transfer", nil, "Cash-A", nil, "Cash-B"}}
+               {3, {"cash_transfer", nil, "Cash-A", nil, "Cash-A"}},
+               {4, {"security_transfer", "Depot-A", nil, "Depot-A", nil}},
+               {5, {"cash_transfer", nil, "Cash-A", nil, "Cash-B"}}
              ]
     end
 
@@ -1055,11 +1055,11 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
         """)
 
       assert Enum.map(preview.errors, &{&1.row, &1.message}) == [
-               {1, "buy without a counter account — row not imported"},
-               {2, "sell without a counter account — row not imported"}
+               {2, "buy without a counter account — row not imported"},
+               {3, "sell without a counter account — row not imported"}
              ]
 
-      assert Enum.map(preview.entries, & &1.source_row) == [3]
+      assert Enum.map(preview.entries, & &1.source_row) == [4]
     end
 
     test "names each row in German" do
@@ -1077,6 +1077,52 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
                "Kauf ohne Gegenkonto — Zeile nicht übernommen",
                "Verkauf ohne Gegenkonto — Zeile nicht übernommen"
              ]
+    end
+  end
+
+  # User story (#1128; board ux-design-2026-10-07/01-import-preview ⑤):
+  # As the operator who opens the file to find the row the preview names,
+  # I want "Row N" to be the row a spreadsheet shows for that line, the header
+  # being row 1,
+  # so that I land on the row meant and not on the one above it.
+  #
+  # Acceptance criteria:
+  # - The first booking row under the header is row 2: the row a spreadsheet
+  #   shows as 7 is "Row 7" in a row error and in the receiving side's
+  #   warning, and it is the source row of the entry it books.
+  # - A refund split off the row a spreadsheet shows as 4 is "4.tax_refund.1",
+  #   and its note names row 4.
+  # - No content hash reads the number: the K2 digests pinned in
+  #   `CsvHashPinTest` are the digests the file hashed to before.
+  describe "parse/2 numbers a row as a spreadsheet shows the file (#1128)" do
+    test "the header is row 1, so the row a spreadsheet shows as 7 is row 7" do
+      preview =
+        CsvParser.parse("""
+        Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+        2024-01-02 00:00:00;Einlage;;;;1.000,00;;;1.000,00;Cash-A;;;
+        2024-03-15 00:00:00;Umbuchung (Ausgang);;;;100,00;;;100,00;Cash-A;Cash-B;;
+        2024-03-16 00:00:00;Dividende;Synthetic AG;10;;20,00;;-1,00;;Cash-A;;;
+        2024-03-15 00:00:00;Umbuchung (Eingang);;;;100,00;;;100,00;Cash-B;Cash-A;;
+        2024-04-01 00:00:00;Zinsen;;;;2,00;;;2,00;Cash-A;;;
+        2024-08-12 10:00:00;Umbuchung (Ausgang);;;;50,00;;;50,00;Cash-A;;;
+        """)
+
+      assert {:ok, %Preview{entries: entries, errors: errors}} = preview
+
+      assert errors == [
+               %{
+                 row: 5,
+                 message: "receiving side of the transfer in row 3 — booked once, from that row"
+               },
+               %{row: 7, message: "transfer without a counter account — row not imported"}
+             ]
+
+      assert Enum.map(entries, & &1.source_row) == [2, 3, 4, 6]
+
+      dividend = Enum.find(entries, &(&1.kind == "dividend"))
+      assert [refund] = dividend.companion_entries
+      assert refund.source_row == "4.tax_refund.1"
+      assert refund.note == "Auto-split tax refund from row 4"
     end
   end
 

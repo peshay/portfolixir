@@ -5134,8 +5134,15 @@ the Imports page. Built in `PortfolixirWeb.ImportsLive`, the two parsers and
 - **New row-error reasons.** Each joins the parser warnings in the existing
   shape, "Row N: <reason> — row not imported", is counted in the "Warnings"
   card, and leaves the rest of the file to preview and import; the confirm
-  never starts on the row. The "Row N" prefix and its numbering are
-  unchanged (issue 1128, a choice of its own).
+  never starts on the row. The "Row N" prefix is unchanged; **a CSV row is
+  numbered as a spreadsheet shows it, the header being row 1** *(2026-10-08;
+  issue 1128, Sprint 20 PR α A5; board
+  `mockups/ux-design-2026-10-07/01-import-preview` ⑤)*, so the first booking
+  is row 2. The number moves everywhere a CSV row is named — the parser
+  warnings, the receiving side's "booked once, from that row", every list
+  on the done page, the correction section and a split-off refund's note —
+  and the anatomy nowhere. No content hash reads it. A JSON row's number is
+  untouched (its own issue).
   - **A row with no account to book on.** A CSV transfer row, a cash or a
     security transfer, the sending or the receiving side, with a blank
     `Gegenkonto`: "transfer without a counter account — row not imported" /

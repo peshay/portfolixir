@@ -2541,7 +2541,9 @@ confirmation step with the mapping intact — no re-upload required.
 Parser warnings appear in one **Attention** note under the counts by kind,
 with a scrollable list of the rows and a copy button. The copied text uses
 stable `Row N: message` lines so the diagnostics can be kept with the source
-export. Applying the import is atomic and uses content hashes to skip
+export. In a CSV file, *Row N* is the row a spreadsheet shows, the header
+being row 1, so the first booking is row 2; every list of the preview and of
+the result names a CSV row the same way. Applying the import is atomic and uses content hashes to skip
 duplicates on re-run.
 
 ### What a Portfolio Performance CSV requires

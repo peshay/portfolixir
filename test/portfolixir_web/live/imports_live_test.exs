@@ -180,6 +180,41 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     })
   end
 
+  # User story (#1128; board ux-design-2026-10-07/01-import-preview ⑤):
+  # As the operator who opens the file in a spreadsheet to find the row a
+  # parser warning names,
+  # I want the warning to name the row the spreadsheet shows,
+  # so that I land on that row and not on the one above it.
+  #
+  # Acceptance criteria:
+  # - The CSV row a spreadsheet shows as 7, the header being row 1, reads
+  #   "Zeile 7: Umbuchung ohne Gegenkonto — Zeile nicht übernommen" in the
+  #   German parser-warnings note; nothing in it names row 6.
+  test "a CSV row error names the row a spreadsheet shows (#1128)", %{conn: conn} do
+    conn = put_req_header(conn, "accept-language", "de-DE,de;q=0.9")
+    {:ok, view, _html} = live(conn, "/imports")
+
+    upload_payload(
+      view,
+      "rows.csv",
+      """
+      Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+      2026-01-02 00:00:00;Einlage;;;;1.000,00;;;1.000,00;Test-Cash;;;
+      2026-01-05 00:00:00;Einlage;;;;500,00;;;500,00;Tagesgeld;;;
+      2026-02-02 00:00:00;Zinsen;;;;1,20;;;1,20;Tagesgeld;;;
+      2026-03-02 00:00:00;Zinsen;;;;1,30;;;1,30;Tagesgeld;;;
+      2026-04-02 00:00:00;Entnahme;;;;100,00;;;100,00;Test-Cash;;;
+      2026-05-04 10:00:00;Umbuchung (Ausgang);;;;50,00;;;50,00;Test-Cash;;;
+      2026-06-02 00:00:00;Zinsen;;;;1,40;;;1,40;Tagesgeld;;;
+      """,
+      "text/csv"
+    )
+
+    rows = view |> element("#parser-warnings-box pre") |> render()
+    assert rows =~ "Zeile 7: Umbuchung ohne Gegenkonto — Zeile nicht übernommen"
+    refute rows =~ "Zeile 6"
+  end
+
   # #1044 review round: the row list follows the `.data-note__body .mono`
   # precedent DESIGN.md's amendment of 2026-10-06 names, which keeps the
   # note's 12 px; at 0.85rem (13.6 px) the rows read larger than the note's
@@ -3041,8 +3076,9 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     # Acceptance criteria:
     # - The preview's heading reads "Vorschau", never the Overview's
     #   "Übersicht".
-    # - One attention note holds "Zeile 7: Umbuchung ohne Gegenkonto — Zeile
-    #   nicht übernommen", and the "Warnungen" card counts it.
+    # - One attention note holds "Zeile 8: Umbuchung ohne Gegenkonto — Zeile
+    #   nicht übernommen" (the row a spreadsheet shows, #1128), and the
+    #   "Warnungen" card counts it.
     # - Confirming books the six sound rows; the bad row books nothing.
     test "a CSV transfer without a Gegenkonto is named in German and the rest imports",
          %{conn: conn} do
@@ -3075,7 +3111,7 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       assert has_element?(
                view,
                "#parser-warnings-box pre",
-               "Zeile 7: Umbuchung ohne Gegenkonto — Zeile nicht übernommen"
+               "Zeile 8: Umbuchung ohne Gegenkonto — Zeile nicht übernommen"
              )
 
       assert view |> element(".import-stat-card.warning") |> render() =~ ">1<"

@@ -190,12 +190,12 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
     #
     # Acceptance criteria:
     # - hash_pin.csv applied under the old reading lists exactly the five
-    #   rows whose Gesamtpreis differs from their Betrag: the Kauf (row 2),
-    #   the two Dividenden (rows 3 and 5, the second net of its split-off
-    #   refund), the Verkauf (row 6) and the Zinsen (row 16).
+    #   rows whose Gesamtpreis differs from their Betrag: the Kauf (row 3),
+    #   the two Dividenden (rows 4 and 6, the second net of its split-off
+    #   refund), the Verkauf (row 7) and the Zinsen (row 17).
     # - Each line is the booking's signed cash effect as stored, as the file
     #   states it and their difference, exact in Decimal.
-    # - The refund split off row 5, the converter-shaped row 17 (no
+    # - The refund split off row 6, the converter-shaped row 18 (no
     #   Gesamtpreis), the cashless rows and every row without units are not
     #   listed: their stored cash is what the row books.
     # - The account total is the sum of the differences: Pin-Cash -22.11.
@@ -209,11 +209,11 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       items = Imports.cash_corrections(parse!(csv, "export.csv"), portfolio_id: portfolio.id)
 
       assert figures(items) == [
-               {2, "-1500", "-1503.5", "-3.5"},
-               {3, "11.54", "9.13", "-2.41"},
-               {5, "10", "9.5", "-0.5"},
-               {6, "725.8", "711.3", "-14.5"},
-               {16, "5.75", "4.55", "-1.2"}
+               {3, "-1500", "-1503.5", "-3.5"},
+               {4, "11.54", "9.13", "-2.41"},
+               {6, "10", "9.5", "-0.5"},
+               {7, "725.8", "711.3", "-14.5"},
+               {17, "5.75", "4.55", "-1.2"}
              ]
 
       assert account_totals(items) == %{"Pin-Cash" => "-22.11"}
@@ -240,7 +240,7 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
           portfolio_id: portfolio.id
         )
 
-      assert figures(items) == [{3, "120", "95", "-25"}]
+      assert figures(items) == [{4, "120", "95", "-25"}]
       assert account_totals(items) == %{"Test-Cash" => "-25"}
       assert [%Item{changes: changes}] = items
       assert Map.keys(changes) == [:gross_amount]
@@ -406,7 +406,7 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
 
       corrected = correct!(parse!(csv, "export.csv"), portfolio)
 
-      assert Enum.map(corrected, & &1.row) == [2, 3, 5, 6, 16]
+      assert Enum.map(corrected, & &1.row) == [3, 4, 6, 7, 17]
       after_ = snapshot()
       ids = Enum.map(corrected, & &1.transaction.id)
 
@@ -594,8 +594,8 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
     #   nothing is listed.
     test "K8: the ordinary apply of an all-hash-hit file changes no stored value" do
       for {name, body, listed} <- [
-            {"export.csv", fixture("hash_pin.csv"), [2, 3, 5, 6, 16]},
-            {"converter.csv", @converter_csv, [3]},
+            {"export.csv", fixture("hash_pin.csv"), [3, 4, 6, 7, 17]},
+            {"converter.csv", @converter_csv, [4]},
             {"sale.json", fixture("sale_with_negative_tax.json"), [3]}
           ] do
         portfolio = portfolio!("K8 #{name}")
