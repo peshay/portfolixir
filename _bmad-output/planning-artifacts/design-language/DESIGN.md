@@ -3114,6 +3114,23 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   figures and the reason): identical rows of a re-import — the expected
   mass — stay **closed**; a retired hash and the economic layer stand open.
   Each row reads "Row N: <kind, date, security, amount, accounts>".
+- **Every list of the done page names a row as the file shows it, in the
+  page's words** *(2026-10-08; Sprint 20 PR α A5; board
+  `mockups/ux-design-2026-10-07/01-import-preview`, found while drawing 1)*.
+  A refund split off a row is named by that row and its kind — "Row 7 (Tax
+  refund)" / "Zeile 7 (Steuererstattung)" — never by its internal id
+  ("7.tax_refund.1"), and among the records already booked it is described
+  like any row ("Steuererstattung 16.03.2026 · Synthetic AG · 1,00 EUR ·
+  Test-Cash"), not as "a row of the file". The unimportable records head
+  with a real plural, "Skipped one unimportable record:" / "Skipped
+  %{count} unimportable records:" ("Ein nicht importierbarer Datensatz
+  übersprungen:" / "%{count} nicht importierbare Datensätze übersprungen:"),
+  and each reason is the page's, read off the entry
+  (`Imports.unimportable_reason/1`), never the applier's English with a
+  ledger field: "<Kind> without an amount — nothing to book" / "<Art> ohne
+  Betrag — nichts zu buchen", "<Kind> is never imported" / "<Art> wird nie
+  importiert", and for a refund whose row was not imported "the row itself
+  was not imported" / "die Zeile selbst wurde nicht importiert".
 
 ## Amendment 2026-09-26 — The author of a policy rule *(Sprint 16 pick G12.1-A, E25 S7, G30)*
 

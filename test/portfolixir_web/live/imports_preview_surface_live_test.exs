@@ -373,6 +373,100 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
     end
   end
 
+  describe "the done page names a skipped row in the page's words (board 01, found while drawing 1)" do
+    @refund_header "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n"
+
+    # User story:
+    # As the operator reading what an import skipped,
+    # I want each skipped record named in the page's language, a split-off
+    # refund by its row and its kind, under a heading that counts in words,
+    # so that I can find each one in the file and know why it was left out.
+    #
+    # Acceptance criteria:
+    # - No reason in the applier's English ("skipped: zero or missing
+    #   gross_amount for fee", "the row it was split from (row 3) was not
+    #   imported") and no internal id ("3.tax_refund.1"): a fee of 0,00 reads
+    #   "Zeile 4: Gebühren ohne Betrag — nichts zu buchen", and the refund
+    #   split off the internal transfer in row 3 reads "Zeile 3
+    #   (Steuererstattung): die Zeile selbst wurde nicht importiert".
+    # - The heading is a real plural: "2 nicht importierbare Datensätze
+    #   übersprungen:"; one record reads "Skipped one unimportable record:".
+    test "a skipped fee and a skipped refund, in German and in English", %{conn: conn} do
+      file =
+        @refund_header <>
+          "2026-01-02 00:00:00;Einlage;;;;1.000,00;;;1.000,00;Test-Cash;;;\n" <>
+          "2026-02-02 00:00:00;Umbuchung (Ausgang);;;;50,00;;-1,00;;Test-Cash;Test-Cash;;\n" <>
+          "2026-03-02 00:00:00;Gebühren;;;;0,00;;;0,00;Test-Cash;;;\n"
+
+      {:ok, view, _html} = live(german(conn), "/imports")
+      drop!(view, "skips.csv", file, "text/csv")
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Import abgeschlossen"
+
+      assert text(view, "[data-role='skipped-entries'] p") ==
+               "2 nicht importierbare Datensätze übersprungen:"
+
+      assert texts(view, "[data-role='skipped-entries'] li") |> Enum.sort() == [
+               "Zeile 3 (Steuererstattung): die Zeile selbst wurde nicht importiert",
+               "Zeile 4: Gebühren ohne Betrag — nichts zu buchen"
+             ]
+
+      refute text(view, "[data-role='skipped-entries']") =~ "skipped"
+      refute text(view, "[data-role='skipped-entries']") =~ "tax_refund"
+
+      {:ok, view, _html} = live(conn, "/imports")
+
+      drop!(
+        view,
+        "fee.csv",
+        @refund_header <> "2026-03-09 00:00:00;Gebühren;;;;0,00;;;0,00;Test-Cash;;;\n",
+        "text/csv"
+      )
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Import complete"
+      assert text(view, "[data-role='skipped-entries'] p") == "Skipped one unimportable record:"
+
+      assert texts(view, "[data-role='skipped-entries'] li") == [
+               "Row 2: Fee without an amount — nothing to book"
+             ]
+    end
+
+    # User story:
+    # As the operator who drops a file again whose dividend split off a
+    # refund,
+    # I want the refund among the records already booked named by its row and
+    # its kind, with what it books,
+    # so that no internal id and no "a row of the file" stands in the list.
+    #
+    # Acceptance criteria:
+    # - The refund split off the dividend in row 3 reads "Zeile 3
+    #   (Steuererstattung): Steuererstattung 16.03.2026 · Synthetic AG · 1,00
+    #   EUR · Test-Cash" among the identical rows.
+    test "a refund already booked is named by its row and its kind", %{conn: conn} do
+      file =
+        @refund_header <>
+          "2026-01-02 00:00:00;Einlage;;;;1.000,00;;;1.000,00;Test-Cash;;;\n" <>
+          "2026-03-16 00:00:00;Dividende;Synthetic AG;10;;20,00;;-1,00;;Test-Cash;;;\n"
+
+      {:ok, view, _html} = live(conn, "/imports")
+      drop!(view, "refund.csv", file, "text/csv")
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Created transactions: 3"
+
+      {:ok, view, _html} = live(german(conn), "/imports")
+      drop!(view, "refund.csv", file, "text/csv")
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Import abgeschlossen"
+
+      rows = texts(view, "[data-role='duplicate-group'] li")
+
+      assert "Zeile 3 (Steuererstattung): Steuererstattung 16.03.2026 · Synthetic AG · 1,00 EUR · Test-Cash" in rows
+
+      refute Enum.any?(rows, &(&1 =~ "tax_refund" or &1 =~ "Zeile der Datei"))
+    end
+  end
+
   # --- the exports ---------------------------------------------------------------
 
   # The history the instance imported (board 01): Test-Cash, Tagesgeld and
@@ -480,6 +574,14 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
     |> Floki.text()
     |> String.replace(~r/\s+/, " ")
     |> String.trim()
+  end
+
+  defp texts(view, selector) do
+    view
+    |> render()
+    |> Floki.parse_document!()
+    |> Floki.find(selector)
+    |> Enum.map(&(&1 |> Floki.text() |> String.replace(~r/\s+/, " ") |> String.trim()))
   end
 
   defp count(view, selector) do

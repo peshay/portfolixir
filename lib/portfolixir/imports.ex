@@ -82,6 +82,15 @@ defmodule Portfolixir.Imports do
   defdelegate security_resolves_nothing?(counts), to: SecurityResolver, as: :resolves_nothing?
 
   @doc """
+  Why the apply skips `entry` as unimportable, or `nil`
+  (`Applier.unimportable_reason/1`): `{:never_imported, kind}` or
+  `{:no_amount, kind}`, for the Imports page to say in its own words.
+  """
+  @spec unimportable_reason(Portfolixir.Imports.Entry.t()) ::
+          nil | {:never_imported, String.t()} | {:no_amount, String.t()}
+  defdelegate unimportable_reason(entry), to: Applier
+
+  @doc """
   The already-imported counts of a parsed preview (ADR-0050 §3), before the
   apply: per layer that judges a row (`:hash`, `:retired`, `:unimportable`,
   `:economics`, `:internal_transfer`, `:new`) in `total`, and per file

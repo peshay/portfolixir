@@ -695,6 +695,11 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   defp render_done(assigns) do
+    # Each file row the result names, by its number or, for a refund split
+    # off a row, by that row's number and its kind (board 01, found while
+    # drawing 1), read once for the page's lists.
+    assigns = assign(assigns, :file_rows, file_rows(assigns.preview))
+
     ~H"""
     <section class="workspace-section import-done">
       <svg class="success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -751,7 +756,10 @@ defmodule PortfolixirWeb.ImportsLive do
           <ul>
             <%= for unresolved <- @result.unresolved_entries do %>
               <li>
-                <%= gettext("Row %{row}: %{reason}", row: unresolved.row, reason: unresolved.reason) %>
+                <%= gettext("Row %{row}: %{reason}",
+                  row: row_label(@file_rows, unresolved.row),
+                  reason: unresolved.reason
+                ) %>
               </li>
             <% end %>
           </ul>
@@ -799,8 +807,8 @@ defmodule PortfolixirWeb.ImportsLive do
               <ul>
                 <li :for={dup <- entries}>
                   <%= gettext("Row %{row}: %{description}",
-                    row: dup.row,
-                    description: row_description(@preview, dup.row)
+                    row: row_label(@file_rows, dup.row),
+                    description: row_description(@file_rows, dup.row)
                   ) %>
                 </li>
               </ul>
@@ -824,8 +832,8 @@ defmodule PortfolixirWeb.ImportsLive do
           <ul>
             <li :for={behind <- @result.behind_restated_anchor}>
               <%= gettext("Row %{row}: %{description} — set balance of %{account} on %{date}",
-                row: behind.row,
-                description: row_description(@preview, behind.row),
+                row: row_label(@file_rows, behind.row),
+                description: row_description(@file_rows, behind.row),
                 account: account_name(@existing_cash, behind.cash_account_id),
                 date: Format.date(behind.anchor_date)
               ) %>
@@ -864,13 +872,20 @@ defmodule PortfolixirWeb.ImportsLive do
       <%= if @result.skipped_entries != [] do %>
         <div class="import-skipped" data-role="skipped-entries">
           <p class="muted">
-            <%= gettext("Skipped %{n} unimportable record(s):",
-              n: length(@result.skipped_entries)
+            <%= ngettext(
+              "Skipped one unimportable record:",
+              "Skipped %{count} unimportable records:",
+              length(@result.skipped_entries)
             ) %>
           </p>
           <ul>
             <%= for skip <- @result.skipped_entries do %>
-              <li><%= gettext("Row %{row}: %{reason}", row: skip.row, reason: skip.reason) %></li>
+              <li>
+                <%= gettext("Row %{row}: %{reason}",
+                  row: row_label(@file_rows, skip.row),
+                  reason: skip_reason(@file_rows, skip)
+                ) %>
+              </li>
             <% end %>
           </ul>
         </div>
@@ -2294,16 +2309,67 @@ defmodule PortfolixirWeb.ImportsLive do
         do: {layer, entries}
   end
 
-  # What a file row books, in the page's words: its kind and date, the
-  # security, the amount (or the quantity), and the file's account names.
-  defp row_description(%Preview{entries: entries}, row) do
-    case Enum.find(entries, &(&1.source_row == row)) do
-      nil -> gettext("a row of the file")
-      entry -> entry_description(entry)
+  # Each entry of the file by its source row, a companion split off a row
+  # with that row's number beside it: `%{source_row => {entry, parent_row}}`.
+  defp file_rows(%Preview{entries: entries}) do
+    Enum.reduce(entries, %{}, fn entry, rows ->
+      Enum.reduce(
+        entry.companion_entries || [],
+        Map.put(rows, entry.source_row, {entry, nil}),
+        &Map.put(&2, &1.source_row, {&1, entry.source_row})
+      )
+    end)
+  end
+
+  defp file_rows(_preview), do: %{}
+
+  # Board 01, found while drawing 1: a row by its number as the file shows
+  # it, and a companion split off a row (a tax refund) by that row's number
+  # and its kind, never by its internal id ("7.tax_refund.1").
+  defp row_label(file_rows, row) do
+    case Map.get(file_rows, row) do
+      {entry, parent_row} when not is_nil(parent_row) ->
+        gettext("%{row} (%{kind})", row: parent_row, kind: kind_label(entry.kind))
+
+      _row ->
+        row
     end
   end
 
-  defp row_description(_preview, _row), do: gettext("a row of the file")
+  # Why the apply skipped a row, in the page's words rather than the
+  # applier's (board 01, found while drawing 1): the apply's own reasons,
+  # read off the entry; a companion of a row that was not imported is skipped
+  # with it. A row the page cannot find keeps the result's text.
+  defp skip_reason(file_rows, %{row: row, reason: reason}) do
+    case Map.get(file_rows, row) do
+      {entry, parent_row} ->
+        case Imports.unimportable_reason(entry) do
+          {:never_imported, kind} ->
+            gettext("%{kind} is never imported", kind: kind_label(kind))
+
+          {:no_amount, kind} ->
+            gettext("%{kind} without an amount — nothing to book", kind: kind_label(kind))
+
+          nil when not is_nil(parent_row) ->
+            gettext("the row itself was not imported")
+
+          nil ->
+            reason
+        end
+
+      nil ->
+        reason
+    end
+  end
+
+  # What a file row books, in the page's words: its kind and date, the
+  # security, the amount (or the quantity), and the file's account names.
+  defp row_description(file_rows, row) do
+    case Map.get(file_rows, row) do
+      {entry, _parent_row} -> entry_description(entry)
+      nil -> gettext("a row of the file")
+    end
+  end
 
   defp entry_description(entry) do
     [

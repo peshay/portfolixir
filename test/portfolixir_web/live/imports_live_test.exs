@@ -396,7 +396,10 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     # deposit + buy + cashless delivery imported; the 0 EUR tax skipped.
     assert done_html =~ "Created transactions: 3"
     assert done_html =~ "unimportable"
-    assert done_html =~ "for tax"
+    # In the page's words, not the applier's (board
+    # ux-design-2026-10-07/01-import-preview, found while drawing 1).
+    assert done_html =~ "Tax without an amount — nothing to book"
+    refute done_html =~ "gross_amount"
   end
 
   # User story (ADR-0024, epic story 5):
