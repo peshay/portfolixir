@@ -1966,11 +1966,13 @@ defmodule Portfolixir.Portfolios.Performance do
     })
   end
 
-  # Name and ISIN of every security the ledger names, from the preloaded rows.
+  # Name, ISIN and WKN of every security the ledger names, from the
+  # preloaded rows. The WKN tells twins without an ISIN apart on the
+  # contribution table (#1154); the API payload does not carry it.
   defp security_labels(transactions) do
     for %{security_id: id, security: %Portfolixir.Catalog.Security{} = security} <- transactions,
         into: %{},
-        do: {id, %{name: security.name, isin: security.isin}}
+        do: {id, %{name: security.name, isin: security.isin, wkn: security.wkn}}
   end
 
   # The day's observations, made after its bookings: the close of the

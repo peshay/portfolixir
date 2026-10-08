@@ -102,6 +102,7 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
           security_id: integer(),
           name: String.t() | nil,
           isin: String.t() | nil,
+          wkn: String.t() | nil,
           start_value: Decimal.t(),
           end_value: Decimal.t(),
           net_flows: Decimal.t(),
@@ -445,7 +446,7 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
   end
 
   defp row(security_id, figures, securities) do
-    label = Map.get(securities, security_id, %{name: nil, isin: nil})
+    label = Map.get(securities, security_id, %{name: nil, isin: nil, wkn: nil})
 
     contribution =
       figures.end_value
@@ -458,6 +459,9 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
       security_id: security_id,
       name: label.name,
       isin: label.isin,
+      # #1154: tells twins without an ISIN apart on the screen's table, as
+      # on the Positions table; JSON.contribution/1 does not serialize it.
+      wkn: label.wkn,
       start_value: figures.start_value,
       end_value: figures.end_value,
       net_flows: figures.net_flows,

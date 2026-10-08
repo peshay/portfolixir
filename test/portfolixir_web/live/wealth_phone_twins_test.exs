@@ -18,6 +18,8 @@ defmodule PortfolixirWeb.WealthPhoneTwinsTest do
   alias Portfolixir.Catalog
   alias Portfolixir.Classifications
   alias Portfolixir.Clock
+  alias Portfolixir.Portfolios.Performance.Contribution
+  alias PortfolixirWeb.Api.V1.JSON
 
   # ISINs are unique instance-wide and async modules write at the same time
   # (#1018): these are this module's own.
@@ -117,6 +119,7 @@ defmodule PortfolixirWeb.WealthPhoneTwinsTest do
         do: put_quotes!(security, [{d0, "10"}, {today(), "11"}])
 
     %{
+      portfolio: world.portfolio,
       juniper_a: juniper_a,
       juniper_b: juniper_b,
       pinecrest_a: pinecrest_a,
@@ -434,7 +437,7 @@ defmodule PortfolixirWeb.WealthPhoneTwinsTest do
     refute has_element?(view, "#holdings-column-toggle")
   end
 
-  # User story (#1057; board 06, pick J6.2 A):
+  # User story (#1057; board 06, pick J6.2 A; #1154):
   # As the operator reading which position made my period's result,
   # I want two positions of one name told apart in the contribution table,
   # so that two identical rows never hide which security earned what.
@@ -443,12 +446,22 @@ defmodule PortfolixirWeb.WealthPhoneTwinsTest do
   # - The collision key is the name, over the whole payload: one row per
   #   security, so one name in two depots collides here.
   # - The identifier is the ISIN where every twin has a distinct one, else
-  #   "no. <id>": the contribution payload carries no WKN (design Part 6,
-  #   found while drawing 2).
+  #   the WKN on the same terms, else "no. <id>", as on the Positions table:
+  #   since #1154 the engine's contribution row carries the WKN (design Part
+  #   6, found while drawing 2), and the API payload is unchanged.
   # - Both the table and the phone rows carry it; a unique name is bare.
   test "twins in the contribution table carry their identifier at both widths",
        %{conn: conn} do
     w = twin_world()
+
+    # The engine's rows carry the WKN; the API's contribution payload does
+    # not (#1154: no API change).
+    {:ok, result} = Contribution.for_portfolio(w.portfolio.id, period: "1y")
+    assert Enum.find(result.positions, &(&1.security_id == w.pinecrest_a.id)).wkn == "U4PCA1"
+    assert Enum.find(result.positions, &(&1.security_id == w.orchid_a.id)).wkn == nil
+
+    for position <- JSON.contribution(result).positions,
+        do: refute(Map.has_key?(position, :wkn))
 
     {:ok, view, _html} = live(conn, "/portfolio")
     settle(view)
@@ -464,8 +477,10 @@ defmodule PortfolixirWeb.WealthPhoneTwinsTest do
       assert texts(view, at.(w.quarry_a)) == ["ISIN #{@quarry_a}"]
       assert texts(view, at.(w.quarry_b)) == ["ISIN #{@quarry_b}"]
 
-      # No WKN in the payload: the chain falls through to the number.
-      assert texts(view, at.(w.pinecrest_a)) == ["no. #{w.pinecrest_a.id}"]
+      # No ISIN, two WKNs: the WKN, as on the Positions table (#1154).
+      assert texts(view, at.(w.pinecrest_a)) == ["WKN U4PCA1"]
+      assert texts(view, at.(w.pinecrest_b)) == ["WKN U4PCB2"]
+      # Neither: the chain falls through to the number.
       assert texts(view, at.(w.orchid_b)) == ["no. #{w.orchid_b.id}"]
 
       assert texts(view, at.(w.nordwind)) == []

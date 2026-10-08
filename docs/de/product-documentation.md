@@ -2321,7 +2321,8 @@ hineinträgt oder ein Verkauf aus ihr herausholt, nicht Geld, das das
 Portfolio verlässt. Zwei verschiedene Wertpapiere mit demselben
 Namen zeigen hinter dem Namen, was sie unterscheidet, in der Tabelle wie in
 den Einträgen auf dem Telefon: die ISIN, wo beide eine haben und sie sich
-unterscheiden, sonst die Nummer des Datensatzes („Nr. 42“). Die Tabelle hat
+unterscheiden, sonst ebenso die WKN, sonst die Nummer des Datensatzes
+(„Nr. 42“), wie in der Positionstabelle. Die Tabelle hat
 eine Zeile je Wertpapier, gleich in welchem Depot es liegt, deshalb werden
 solche Wertpapiere hier auch dann unterschieden, wenn sie in verschiedenen
 Depots liegen; und die Prüfung umfasst alle Positionen, auch die hinter

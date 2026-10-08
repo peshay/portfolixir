@@ -2154,6 +2154,46 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (#1154):
+  # As the operator reading the contribution table's handbook section,
+  # I want it to name the identifier chain the table now uses, the WKN
+  # included,
+  # so that two same-named securities without an ISIN read as the Positions
+  # table reads them, and DESIGN.md says the same.
+  #
+  # Acceptance criteria:
+  # - The contribution section (EN, DE) names the ISIN, then the WKN, then
+  #   the record's number, and no longer falls from the ISIN straight to the
+  #   number.
+  # - DESIGN.md's twin rule says the engine's contribution row carries the
+  #   WKN and the API payload does not.
+  test "the handbook's contribution twins name the WKN before the number" do
+    for {path, heading, chain, gone} <- [
+          {"docs/product-documentation.md", "### Contribution by position",
+           "the ISIN where both have one and they differ, else the WKN on the same terms, else the record's number",
+           "the ISIN where both have one and they differ, else the record's number"},
+          {"docs/de/product-documentation.md", "### Beitrag je Position",
+           "die ISIN, wo beide eine haben und sie sich unterscheiden, sonst ebenso die WKN, sonst die Nummer des Datensatzes",
+           "unterscheiden, sonst die Nummer des Datensatzes"}
+        ] do
+      [_, section] = path |> File.read!() |> String.split(heading, parts: 2)
+
+      section =
+        section |> String.split(~r/^### /m, parts: 2) |> hd() |> String.replace(~r/\s+/, " ")
+
+      assert section =~ chain, path
+      refute section =~ gone, path
+    end
+
+    design =
+      "_bmad-output/planning-artifacts/design-language/DESIGN.md"
+      |> File.read!()
+      |> String.replace(~r/\s+/, " ")
+
+    refute design =~ "The contribution payload carries no WKN"
+    assert design =~ "the engine's contribution row carries the WKN"
+  end
+
   # User story (FR-41, ADR-0051 §12, board pick A):
   # As a local portfolio maintainer reading the handbook's performance
   # section,
