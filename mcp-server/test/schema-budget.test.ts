@@ -169,6 +169,17 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 103_375,
     book: 176_457,
     full: 206_805
+  },
+  {
+    since: "2026-10-08",
+    why:
+      "Sprint 20 PR γ, C2 (#1103): securities.list takes is_retired, as it takes is_benchmark, " +
+      "and says what each value lists, paid for by naming the benchmarks by ADR-0046 alone and " +
+      "dropping targets.list_positions' \"Read ergonomics\" label with its requirement and issue " +
+      "ids, and lowered to the figure measured (D-10)",
+    read: 103_360,
+    book: 176_442,
+    full: 206_790
   }
 ];
 

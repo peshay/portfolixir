@@ -318,6 +318,13 @@ full list.
   (ADR-0046: the reference series of the benchmark comparison),
   `is_benchmark=false` leaves them out; the flag is a field of the full
   projection and of `fields=`, and `POST`/`PATCH` accept it.
+  `is_retired=true` narrows the read to the retired securities (issue #1103),
+  so a security retired out of the hygiene sets is found again and restored
+  with `PATCH` `{"security": {"is_retired": false}}`; `is_retired=false`
+  leaves them out. Both flags take `true` or `false` (blank counts as absent,
+  anything else is a `422` naming the flag) and narrow together with the
+  other parameters: beside a `data_quality` set that leaves such securities
+  out, `is_retired=true` or `is_benchmark=true` matches nothing.
   **Held** (`holding_status=held`, and every other held filter: the research
   log's unreviewed positions and the events' `held_only`) means one thing: a
   non-zero net quantity across all depots, moved by `buy`, `sell`,

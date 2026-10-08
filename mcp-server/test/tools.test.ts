@@ -3938,6 +3938,37 @@ describe("Portfolixir MCP tools", () => {
     await assert.rejects(callTool(client, "portfolixir.securities.list", { is_benchmark: "yes" }));
   });
 
+  // User story (#1103, answered by the Sprint 20 decision pass):
+  // As the operator's agent that retired securities in bulk,
+  // I want portfolixir.securities.list to take is_retired, as it takes
+  // is_benchmark,
+  // so that I find what I retired in order to restore it without reading
+  // the whole catalog.
+  //
+  // Acceptance criteria:
+  // - is_retired true and false reach GET /api/v1/securities as sent, under
+  //   the read profile; a non-boolean is refused before anything is sent.
+  // - The description says what each value lists.
+  it("forwards is_retired on the securities read under the read profile", async () => {
+    const { client, requests } = createRecordingClient({ data: [] });
+    const read = { profile: "read" } as const;
+
+    await callTool(client, "portfolixir.securities.list", { is_retired: true }, read);
+    await callTool(client, "portfolixir.securities.list", { is_retired: false, is_benchmark: false }, read);
+
+    assert.deepEqual(
+      requests.map((request) => request.path),
+      ["/api/v1/securities?is_retired=true", "/api/v1/securities?is_benchmark=false&is_retired=false"]
+    );
+
+    await assert.rejects(callTool(client, "portfolixir.securities.list", { is_retired: "yes" }, read));
+    assert.equal(requests.length, 2, "a refused argument sends nothing");
+
+    const list = listTools({ profile: "read" }).find((tool) => tool.name === "portfolixir.securities.list");
+    assert.equal((list!.inputSchema as any).properties.is_retired.type, "boolean");
+    assert.match(list!.description, /is_retired=true lists only the retired securities, false leaves them out/);
+  });
+
   // User story (PR #1102):
   // As the operator's agent, tidying sold-out and delisted securities, or
   // told by portfolixir.securities.delete to retire one that research notes

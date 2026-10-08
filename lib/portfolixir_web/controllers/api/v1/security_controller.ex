@@ -197,6 +197,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
          {:ok, sort} <- sort_param(params),
          {:ok, holding_status} <- holding_status_param(params),
          {:ok, is_benchmark} <- benchmark_flag_param(params),
+         {:ok, is_retired} <- retired_flag_param(params),
          {:ok, logo_status} <- logo_status_param(params),
          {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit),
          {:ok, offset} <- offset_param(params) do
@@ -206,6 +207,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
         |> put_if_present(:sort, sort)
         |> put_if_present(:holding_status, holding_status)
         |> put_if_present(:is_benchmark, is_benchmark)
+        |> put_if_present(:is_retired, is_retired)
         |> put_if_present(:logo_status, logo_status)
         |> put_if_present(:limit, limit)
         |> put_if_present(:offset, offset)
@@ -246,6 +248,16 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   defp benchmark_flag_param(%{"is_benchmark" => ""}), do: {:ok, nil}
   defp benchmark_flag_param(%{"is_benchmark" => _}), do: {:error, :is_benchmark}
   defp benchmark_flag_param(_params), do: {:ok, nil}
+
+  # #1103: the retired flag as a filter, mirroring the benchmark flag, so an
+  # agent finds what it retired in order to restore it. Beside a data_quality
+  # set that leaves retired securities out, true matches nothing
+  # (`DataQuality.list/2`).
+  defp retired_flag_param(%{"is_retired" => "true"}), do: {:ok, true}
+  defp retired_flag_param(%{"is_retired" => "false"}), do: {:ok, false}
+  defp retired_flag_param(%{"is_retired" => ""}), do: {:ok, nil}
+  defp retired_flag_param(%{"is_retired" => _}), do: {:error, :is_retired}
+  defp retired_flag_param(_params), do: {:ok, nil}
 
   defp holding_status_param(%{"holding_status" => status})
        when status in ["all", "held", "not_held"] do

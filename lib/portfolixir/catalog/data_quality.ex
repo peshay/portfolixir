@@ -153,15 +153,34 @@ defmodule Portfolixir.Catalog.DataQuality do
   The rows matching `id`, applying both halves of the predicate.
 
   `opts` are the caller's own `Catalog.list_securities_with_metrics/1` options
-  and are merged under the predicate's, so a predicate can never be widened by
-  a caller passing a conflicting narrowing.
+  and narrow the set further. A caller's narrowing that contradicts the
+  predicate's own (`is_retired: true` beside a catalog-hygiene set, which
+  leaves retired securities out) matches nothing, as two narrowings do: the
+  predicate is never widened, and the caller's narrowing never dropped
+  (#1103).
   """
   @spec list(String.t(), keyword()) :: [SecurityWithMetrics.t()]
   def list(id, opts \\ []) when is_binary(id) do
-    opts
-    |> Keyword.merge(list_opts(id))
-    |> Catalog.list_securities_with_metrics()
-    |> refine(id)
+    if contradicts?(opts, id) do
+      []
+    else
+      opts
+      |> Keyword.merge(list_opts(id))
+      |> Catalog.list_securities_with_metrics()
+      |> refine(id)
+    end
+  end
+
+  # A caller's value for a key the predicate also narrows, set and different
+  # from the predicate's (compared as strings: the API passes the logo
+  # status as a string, the predicate as an atom).
+  defp contradicts?(opts, id) do
+    Enum.any?(list_opts(id), fn {key, value} ->
+      case Keyword.get(opts, key) do
+        nil -> false
+        given -> to_string(given) != to_string(value)
+      end
+    end)
   end
 
   @doc """
