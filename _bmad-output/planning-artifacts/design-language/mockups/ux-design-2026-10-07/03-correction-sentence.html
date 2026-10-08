@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Import correction: a sentence true for every reading, the dialog's caption (α closing act CH3 = EC-F4, EC-F8; ADR-0053 §6, A1, A6)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: no CSS. Two strings change and one caption is rendered
+     only beside its figure. Everything in the frames is markup and classes
+     that already ship in imports_live.ex (the correction section
+     #import-correction: .panel.inner, the attention data note, the
+     .data-table, .import-correction__legs, .import-correction__total,
+     .import-correction__foot; the dialog .modal.import-correction-dialog
+     with .booking-delete__subject) and AppShell (.data-note). The frames
+     are srcdoc iframes built from that markup, so a 390 px frame is a real
+     390 px viewport and app.css's 720 and 560 px blocks fire as on a
+     phone. -->
+<style id="proposal">
+  /* Nothing: the sentence (①), the caption's word (②) and the caption's
+     condition (③) need no rule. */
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-board > p.mock-note { max-width: 118ch; }
+  .mock-frame { overflow: hidden; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul { margin: 0; }
+  .notes ul { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code { font-size: 11.5px; }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .dl { width: 522px; flex: none; }
+  .dl iframe { display: block; width: 520px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .stub { padding: 10px 14px; font-size: 12px; color: var(--mock-ink); margin: 0; }
+  .consequence { margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--color-danger); background: var(--color-danger-soft); font-size: 12px; }
+  .strings { border-collapse: collapse; font-size: 12px; max-width: 1120px; }
+  .strings th, .strings td { border: 1px solid var(--color-border); padding: 5px 8px; text-align: left; vertical-align: top; }
+  .strings th { background: var(--color-bg-muted); color: var(--mock-ink); font-weight: 600; white-space: nowrap; }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap, .stub { padding-left: 12px; padding-right: 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph, .dl { width: 390px; }
+    .dl iframe { width: 390px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Board 03 — the correction section's sentence and the dialog's caption (found by Sprint 20 PR α's closing act: correctness hunter CH3, edge-case hunter EC-F4 and EC-F8).</b> <b>Before/after, nothing to pick.</b> Board 01 ⑧ made the sentence name the Portfolio Performance file instead of a CSV column, but kept its claim: „Gebucht ist der Bruttowert … Die Differenz sind die Gebühren und Steuern der Zeile.“ Since ADR-0053 A6 the section also lists a JSON or a converter row whose tax refund was counted twice (A1). There, what was booked is no gross value, and the difference is that refund, not fees or taxes; the dialog's caption „Gebühren und Steuern“ under the total says the same wrong thing. <b>After:</b> one sentence true for both readings, the caption „Differenz“, and no caption where no figure stands beside it. Every name, amount and date is invented. <b>Dashed = new.</b></div>
+<p class="phone-only phone-cap"><b>Board 03 at 390&nbsp;px.</b> Real 390-px viewports: app.css' rules under 720 and 560&nbsp;px apply. All data invented. The arguments and the desktop frames are in the 1200-px render.</p>
+
+<!-- ============================ ① the sentence ============================ -->
+<section class="mock-board" id="sentence">
+  <h2>① The sentence — true for a gross value and for a refund counted twice <small>Transaktionen → Import → Vorschau, „Bereits importiert, mit anderem Betrag“</small></h2>
+  <p class="mock-note desk-only">The file is a Portfolio Performance <b>JSON</b> export of a sale of 10 Arbolia Inc. with a fee of 5,00 and a tax refund of 25,00 (a negative tax unit). The instance imported it before A1: the sale's cash 120,00 (PP's <code>amount</code>, which already holds the refund) beside the refund 25,00 split off it, so Test-Cash holds 25,00 too much. The correction takes the refund out of the sale: +120,00 → +95,00, its price 12,50 → 10,00. Nothing in that line is a gross value, and the fee of 5,00 is not in the difference.</p>
+
+  <p class="cap desk-only">Heute — JSON file, refund counted twice</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „Gebucht ist der Bruttowert … Gebühren und Steuern“</span><iframe data-tpl="corr" data-o='{"after":false,"file":"json"}' title="Satz heute, JSON, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row desk-only">
+    <div class="notes">
+      <p class="consequence"><b>The sentence explains a difference that is not there.</b> It tells the operator the 25,00 are the row's fees and taxes; the row's fee is 5,00 and it has no positive tax. An operator who checks the file against the sentence finds it wrong and has no reason left to trust the figures beside it.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Nachher — one sentence for both readings</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">Nachher — JSON file: the difference is that refund</span><iframe data-tpl="corr" data-o='{"after":true,"file":"json"}' data-proposal title="Satz nachher, JSON, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — PP CSV file: the difference is the row's fees and taxes</span><iframe data-tpl="corr" data-o='{"after":true,"file":"csv"}' data-proposal title="Satz nachher, CSV, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="corr" data-o='{"after":true,"file":"json"}' data-proposal title="Satz nachher, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <ul>
+        <li><b>What was booked</b> is named by its cause, not by one format: „wie eine frühere Version des Imports ihre Zeile las“, then both readings the correction can meet — a CSV row's gross value (§1: Betrag before Gesamtpreis) or a cash amount that also held the refund booked beside it (A1: JSON <code>amount</code>, a converter's Betrag).</li>
+        <li><b>The difference</b> says both causes: „die Gebühren und Steuern der Zeile oder diese Erstattung“. A PP CSV row that carries a negative Steuern is not listed for its refund (Betrag plus the refund already equalled its Gesamtpreis), so the two causes never need adding up in one line.</li>
+        <li>Board 01 ⑧'s clause stays: „was das Konto bewegt, nennt die Portfolio-Performance-Datei“ — no column, no format.</li>
+        <li>Same note, same place, same singular and plural; nothing else in the section changes.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ ② ③ the dialog's caption ============================ -->
+<section class="mock-board" id="caption">
+  <h2>② ③ The dialog's caption — „Differenz“, and only beside its figure <small>„Gebuchte Beträge korrigieren“, the subject box</small></h2>
+  <p class="mock-note desk-only">The dialog's subject box (<code>.booking-delete__subject</code>) says the act back: the bookings, their rows and accounts, and on the right the total the correction moves with a caption under it. ② The caption reads „Gebühren und Steuern“ — false for the refund case of ①, true only for a CSV row's gross value. It becomes the table's own column word, „Differenz“. ③ When the listed accounts have different currencies there is no common total (the section's total line then reads „Je Konto: …“), and the caption stood alone, labelling nothing. It is rendered only with its figure.</p>
+  <div class="mock-row desk-only" style="margin-top:0">
+    <div class="dl mock-frame mock-before"><span class="mock-tag">Heute ② — „Gebühren und Steuern“ unter −25,00</span><iframe data-tpl="dlg" data-o='{"after":false,"fx":false}' title="Dialog heute"></iframe></div>
+    <div class="dl mock-frame mock-after"><span class="mock-tag">Nachher ② — „Differenz“</span><iframe data-tpl="dlg" data-o='{"after":true,"fx":false}' data-proposal title="Dialog nachher"></iframe></div>
+  </div>
+  <div class="mock-row desk-only">
+    <div class="dl mock-frame mock-before"><span class="mock-tag">Heute ③ — zwei Währungen: die Beschriftung ohne Zahl</span><iframe data-tpl="dlg" data-o='{"after":false,"fx":true}' title="Dialog zwei Währungen heute"></iframe></div>
+    <div class="dl mock-frame mock-after"><span class="mock-tag">Nachher ③ — keine Zahl, keine Beschriftung</span><iframe data-tpl="dlg" data-o='{"after":true,"fx":true}' data-proposal title="Dialog zwei Währungen nachher"></iframe></div>
+  </div>
+  <div class="mock-row phone-only">
+    <div class="dl mock-frame mock-after"><span class="mock-tag">Nachher ② — 390 px</span><iframe data-tpl="dlg" data-o='{"after":true,"fx":false}' data-proposal title="Dialog nachher, 390 px"></iframe></div>
+  </div>
+</section>
+
+<section class="mock-board desk-only" id="strings">
+  <h2>The strings <small>English msgid, German msgstr</small></h2>
+  <table class="strings">
+    <tr><th></th><th>Before</th><th>After</th></tr>
+    <tr><th>① EN, one</th><td>One booking already imported differs from this file: what was booked is the gross value; the Portfolio Performance file states what the account moved. The difference is the row's fees and taxes.</td><td>One booking already imported differs from this file: it was booked as an earlier version of the import read its row — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund.</td></tr>
+    <tr><th>① EN, many</th><td>%{count} bookings already imported differ from this file: what was booked is the gross value; the Portfolio Performance file states what the account moved. The difference is the row's fees and taxes.</td><td>%{count} bookings already imported differ from this file: they were booked as an earlier version of the import read their rows — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund.</td></tr>
+    <tr><th>① DE, eine</th><td>Eine bereits importierte Buchung weicht von dieser Datei ab: Gebucht ist der Bruttowert; was das Konto bewegt, nennt die Portfolio-Performance-Datei. Die Differenz sind die Gebühren und Steuern der Zeile.</td><td>Eine bereits importierte Buchung weicht von dieser Datei ab: Gebucht ist, wie eine frühere Version des Imports ihre Zeile las — der Bruttowert einer CSV-Zeile oder ein Geldbetrag, der auch die daneben gebuchte Steuererstattung enthielt. Was das Konto bewegt, nennt die Portfolio-Performance-Datei; die Differenz sind die Gebühren und Steuern der Zeile oder diese Erstattung.</td></tr>
+    <tr><th>① DE, mehrere</th><td>%{count} bereits importierte Buchungen weichen von dieser Datei ab: Gebucht ist der Bruttowert; …</td><td>%{count} bereits importierte Buchungen weichen von dieser Datei ab: Gebucht ist, wie eine frühere Version des Imports ihre Zeilen las — der Bruttowert einer CSV-Zeile oder ein Geldbetrag, der auch die daneben gebuchte Steuererstattung enthielt. Was das Konto bewegt, nennt die Portfolio-Performance-Datei; die Differenz sind die Gebühren und Steuern der Zeile oder diese Erstattung.</td></tr>
+    <tr><th>② caption</th><td>Fees and taxes / Gebühren und Steuern</td><td>Difference / Differenz (the table's column word, one msgid)</td></tr>
+    <tr><th>③ condition</th><td>always</td><td>only when the subject box shows a total</td></tr>
+  </table>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc, so
+   relative links resolve against this board) from the live markup of
+   imports_live.ex (the correction section, correction_dialog/1) and
+   AppShell. German labels from priv/gettext/de/LC_MESSAGES/default.po.
+   Synthetic data only. */
+const CSS_HREF = '../../../../../priv/static/app.css';
+const P = {
+  tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>'
+};
+const svg = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+function note(body, attrs = '') {
+  return `<div class="data-note data-note--attention"${attrs}><span class="data-note__icon" aria-hidden="true">${svg('tri', 14)}</span><span class="data-note__word">Achtung</span><div class="data-note__body">${body}</div></div>`;
+}
+function page(inner) {
+  return `<main class="app-main app-main--workspace"><div id="imports-workspace" class="workspace-page"><section class="workspace-section">${inner}</section></div></main>`;
+}
+const elide = (t) => `<p class="elide">… ${t}</p>`;
+const sign = (v) => (v.startsWith('-') || v.startsWith('−') ? ' is-negative' : v.startsWith('+') ? ' is-positive' : '');
+
+const BEFORE = {
+  1: 'Eine bereits importierte Buchung weicht von dieser Datei ab: Gebucht ist der Bruttowert; was das Konto bewegt, nennt die Portfolio-Performance-Datei. Die Differenz sind die Gebühren und Steuern der Zeile.',
+  n: (n) => `${n} bereits importierte Buchungen weichen von dieser Datei ab: Gebucht ist der Bruttowert; was das Konto bewegt, nennt die Portfolio-Performance-Datei. Die Differenz sind die Gebühren und Steuern der Zeile.`
+};
+const AFTER = {
+  1: 'Eine bereits importierte Buchung weicht von dieser Datei ab: <span class="is-new">Gebucht ist, wie eine frühere Version des Imports ihre Zeile las — der Bruttowert einer CSV-Zeile oder ein Geldbetrag, der auch die daneben gebuchte Steuererstattung enthielt.</span> Was das Konto bewegt, nennt die Portfolio-Performance-Datei; <span class="is-new">die Differenz sind die Gebühren und Steuern der Zeile oder diese Erstattung.</span>',
+  n: (n) => `${n} bereits importierte Buchungen weichen von dieser Datei ab: <span class="is-new">Gebucht ist, wie eine frühere Version des Imports ihre Zeilen las — der Bruttowert einer CSV-Zeile oder ein Geldbetrag, der auch die daneben gebuchte Steuererstattung enthielt.</span> Was das Konto bewegt, nennt die Portfolio-Performance-Datei; <span class="is-new">die Differenz sind die Gebühren und Steuern der Zeile oder diese Erstattung.</span>`
+};
+
+/* The listed bookings, as correction_line/1 renders them. */
+const LINES = {
+  json: {
+    format: 'JSON',
+    rows: [
+      { row: 3, date: '14.06.2024', kind: 'Verkauf', security: 'Arbolia Inc.', account: 'Test-Cash', booked: '+120,00', stated: '+95,00', diff: '-25,00', legs: ['Kurs gebucht: 12,50 EUR', 'Kurs laut Datei: 10,00 EUR'] }
+    ],
+    total: 'Zusammen <b class="is-negative">-25,00 EUR</b>: <bdi>Test-Cash</bdi> -25,00 EUR.'
+  },
+  csv: {
+    format: 'CSV',
+    rows: [
+      { row: 4, date: '16.03.2024', kind: 'Dividende', security: 'Nordwind Industrie AG', account: 'Girokonto', booked: '+11,54', stated: '+9,13', diff: '-2,41' },
+      { row: 5, date: '28.04.2024', kind: 'Verkauf', security: 'Nordwind Industrie AG', account: 'Girokonto', booked: '+1.814,50', stated: '+1.800,00', diff: '-14,50' }
+    ],
+    total: 'Zusammen <b class="is-negative">-16,91 EUR</b>: <bdi>Girokonto</bdi> -16,91 EUR.'
+  }
+};
+
+function legs(l) {
+  return l.legs ? `<span class="import-correction__legs">${l.legs.map((t) => `<span>${t}</span>`).join('')}</span>` : '';
+}
+function table(rows) {
+  return `<div class="data-table-wrapper" id="import-correction-table-wrapper"><table class="data-table" id="import-correction-table"><thead><tr><th class="num" scope="col">Zeile</th><th scope="col">Datum</th><th scope="col">Buchung</th><th class="num" scope="col">Gebucht</th><th class="num" scope="col">Laut Datei</th><th class="num" scope="col">Differenz</th></tr></thead><tbody>${rows.map((l) => `<tr><td class="num">${l.row}</td><td>${l.date}</td><td>${l.kind} · <bdi>${l.security}</bdi> · <bdi>${l.account}</bdi>${legs(l)}</td><td class="num${sign(l.booked)}">${l.booked}</td><td class="num${sign(l.stated)}">${l.stated}</td><td class="num${sign(l.diff)}">${l.diff}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function phoneRows(rows) {
+  return `<ul id="import-correction-phone-rows" class="phone-rows" aria-label="Buchungen mit anderem Betrag">${rows.map((l) => `<li class="phone-row"><span class="phone-row__body"><span class="phone-row__name"><bdi>${l.security}</bdi></span><span class="phone-row__ids"><span>Zeile ${l.row} · ${l.date} · ${l.kind} · <bdi>${l.account}</bdi></span></span>${legs(l)}</span><span class="phone-row__figures"><span class="phone-row__figure${sign(l.diff)}">${l.diff}</span><span class="phone-row__figure2">${l.booked} → ${l.stated}</span></span></li>`).join('')}</ul>`;
+}
+
+/* ① the correction section */
+function corr(o) {
+  const f = LINES[o.file];
+  const n = f.rows.length;
+  const s = (o.after ? AFTER : BEFORE)[n === 1 ? 1 : 'n'];
+  const sentence = typeof s === 'function' ? s(n) : s;
+  const button = n === 1 ? 'Eine Buchung korrigieren…' : `${n} Buchungen korrigieren…`;
+  const body = `<p data-role="import-correction-finding">${sentence}</p>${table(f.rows)}${phoneRows(f.rows)}<p class="import-correction__total">${f.total}</p><div class="import-correction__foot"><button type="button" id="import-correction-open" class="button">${button}</button><p class="summary-basis">ein eigener Schritt, unabhängig von „Import bestätigen“</p></div>`;
+  return page(`<h2>Vorschau</h2><p class="muted">Quellformat: ${f.format}</p>` + elide('die Karten, „Anzahl pro Art“ und die Parser-Warnungen') +
+    `<section class="panel inner" id="import-correction" aria-labelledby="import-correction-head"><h3 id="import-correction-head">Bereits importiert, mit anderem Betrag</h3><div role="status">${note(body, ' data-role="import-correction"')}</div></section>` +
+    elide('die Zuordnung und „Import bestätigen“'));
+}
+
+/* ② ③ the dialog, correction_dialog/1 */
+function dlg(o) {
+  const subject = o.fx
+    ? { name: '2 Buchungen', ids: 'Zeilen 3, 7 · <bdi>Test-Cash</bdi>, <bdi>Broker USD</bdi>', total: null }
+    : { name: '1 Buchung', ids: 'Zeile 3 · <bdi>Test-Cash</bdi>', total: '-25,00 EUR' };
+  const caption = o.after
+    ? (subject.total ? '<span class="phone-row__figure2 is-new">Differenz</span>' : '')
+    : '<span class="phone-row__figure2">Gebühren und Steuern</span>';
+  const figure = subject.total ? `<span class="phone-row__figure is-negative">${subject.total}</span>` : '';
+  const consequence = o.fx
+    ? 'Danach hat Test-Cash 25,00 EUR weniger und Broker USD 12,50 USD weniger. Kontostände, Bewertung, Rendite und Erträge werden neu berechnet.'
+    : 'Danach hat Test-Cash 25,00 EUR weniger. Beim Verkauf von Arbolia Inc. am 14.06.2024 ändert sich der Kurs mit: 10,00 EUR. Kontostände, Bewertung, Rendite und Erträge werden neu berechnet.';
+  const confirm = o.fx ? '2 Buchungen korrigieren' : 'Eine Buchung korrigieren';
+  return `<div class="dlg-stage"><div class="modal booking-delete-dialog import-correction-dialog" role="dialog" aria-labelledby="corr-title"><header class="modal-head"><h2 id="corr-title">Gebuchte Beträge korrigieren</h2><button type="button" class="icon-button" aria-label="Schließen">${svg('x')}</button></header><div class="modal-body"><p id="import-correction-subject" class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">${subject.name}</span><span class="phone-row__ids"><span>${subject.ids}</span></span></span><span class="phone-row__figures">${figure}${caption}</span></p><p class="hint">${consequence}</p><p class="hint">Jede Änderung wird mit dem bisherigen Betrag im Journal festgehalten; die Import-Hashes bleiben, wie sie sind, also bucht ein erneuter Import derselben Datei nichts.</p></div><div class="modal-footer modal-footer--band"><button type="button" class="button-ghost">Abbrechen</button><span class="modal-footer__spacer"></span><button type="button" class="button-primary">${confirm}</button></div></div></div>`;
+}
+
+const TPL = { corr, dlg };
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .app-main,.workspace-page{min-height:0 !important;} .is-new{outline:2px dashed var(--color-accent);outline-offset:2px;border-radius:4px;} .elide{margin:0;font-size:12px;color:#5a6577;font-style:italic;} .dlg-stage{padding:16px;background:color-mix(in srgb,var(--color-text) 18%,var(--color-bg));} .dlg-stage .modal{position:static;margin:0 auto;max-width:460px;width:100%;}</style>';
+
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  const css = CSS_MOCK + ('proposal' in f.dataset ? document.getElementById('proposal').outerHTML : '');
+  f.addEventListener('load', () => {
+    f.style.height = Math.ceil(f.contentDocument.documentElement.scrollHeight) + 'px';
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>
