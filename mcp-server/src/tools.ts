@@ -1071,6 +1071,7 @@ const targetsSetSchema = {
     portfolio_id: { type: "integer", minimum: 1 },
     classification_id: { type: "integer", minimum: 1 },
     view: { type: "integer", minimum: 1 },
+    plan_id: { type: "integer", minimum: 1 },
     targets: {
       type: "array",
       // E25 S4, G11: the API's fixed maximum (Targets.max_batch/0); the
@@ -1095,6 +1096,7 @@ const targetsSetZ = z.object({
   portfolio_id: z.number().int().positive(),
   classification_id: z.number().int().positive(),
   view: z.number().int().positive().optional(),
+  plan_id: z.number().int().positive().optional(),
   targets: z
     .array(
       z.object({
@@ -1114,14 +1116,16 @@ const targetsDeleteSchema = {
   properties: {
     portfolio_id: { type: "integer", minimum: 1 },
     category_id: { type: "integer", minimum: 1 },
-    view: { type: "integer", minimum: 1 }
+    view: { type: "integer", minimum: 1 },
+    plan_id: { type: "integer", minimum: 1 }
   }
 };
 
 const targetsDeleteZ = z.object({
   portfolio_id: z.number().int().positive(),
   category_id: z.number().int().positive(),
-  view: z.number().int().positive().optional()
+  view: z.number().int().positive().optional(),
+  plan_id: z.number().int().positive().optional()
 });
 
 // Position-level SOLL reads/deletes (ADR-0030, #481).
@@ -1175,7 +1179,8 @@ const positionTargetDeleteSchema = {
     portfolio_id: { type: "integer", minimum: 1 },
     category_id: { type: "integer", minimum: 1 },
     security_id: { type: "integer", minimum: 1 },
-    view: { type: "integer", minimum: 1 }
+    view: { type: "integer", minimum: 1 },
+    plan_id: { type: "integer", minimum: 1 }
   }
 };
 
@@ -1183,7 +1188,8 @@ const positionTargetDeleteZ = z.object({
   portfolio_id: z.number().int().positive(),
   category_id: z.number().int().positive(),
   security_id: z.number().int().positive(),
-  view: z.number().int().positive().optional()
+  view: z.number().int().positive().optional(),
+  plan_id: z.number().int().positive().optional()
 });
 
 // A map of asset_class -> percentage cap string (e.g. {"equity": "50"}). Caps
@@ -3137,7 +3143,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.events.delete",
     "Remove a calendar date",
-    "Delete one event (ADR-0048 §4) — for a duplicate or a date that turned out never to have existed. Journaled with the row recorded, so the deletion is auditable and nothing is silently lost. To record that a date passed, mark it confirmed instead of deleting it; the history of what happened is the point of keeping it.",
+    "Delete one event (ADR-0048 §4) — for a duplicate or a date that turned out never to have existed. Journaled with the row recorded, so the deletion is auditable. To record that a date passed, mark it confirmed instead.",
     eventDeleteSchema,
     eventDeleteZ
   ),
@@ -3542,35 +3548,35 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.targets.list",
     "List target weights",
-    "List a portfolio's stored target weights (SOLL). Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan. Optional since (FR-38, ISO8601 UTC) makes this a delta read: only target rows changed strictly after that instant return, where a row counts as changed when it OR its plan changed — activating another plan version re-delivers the rows it swapped in, though none of them was edited. The response carries as_of (use it as the next since; it lies no later than the start of the oldest write still in flight, so the next read may re-deliver a row but never skips one) plus a delta_note; deletions are NOT represented, so a removed target, or one left behind by a plan that stopped being active, is only visible on a full read.",
+    "List a portfolio's stored target weights (SOLL). Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan. Optional since (ISO8601 UTC) makes this a delta read: only target rows changed strictly after that instant return, where a row counts as changed when it OR its plan changed — activating another plan version re-delivers the rows it swapped in, though none of them was edited. The response carries as_of (use it as the next since; it lies no later than the start of the oldest write still in flight, so the next read may re-deliver a row but never skips one) plus a delta_note; deletions are NOT represented, so a removed target, or one left behind by a plan that stopped being active, is only visible on a full read.",
     targetsListSchema,
     targetsListZ
   ),
   tool(
     "portfolixir.targets.set",
     "Set target weights",
-    "Upsert target weights for one portfolio and classification. Each target_weight is a string fraction in [0,1] with at most 6 decimal places (a finer one answers 422). A target entry with only a category_id sets that category's weight; adding a security_id (ADR-0030, #481) sets a position-level weight on that security under the category (the security must sit under it). Category and position rows coexist; a category's effective target rolls up from its positions. A plan carries at most one position row per security (filing it under a second category, or twice in one batch, is rejected; the database holds the rule, so a write losing a race to file it elsewhere gets the same 422), and a category row names its category once per batch; a batch carries at most one row per category and one per security assigned in the classification (and never more than 10000), otherwise a 422 names targets and nothing is written. Weight sums are NOT enforced in this slice — neither per category nor per level (the 100%-per-level check is a later slice), so verify sums yourself if they matter.",
+    "Upsert target weights for one portfolio and classification. Each target_weight is a string fraction in [0,1] with at most 6 decimal places (a finer one answers 422). An entry with only a category_id sets that category's weight; adding a security_id (ADR-0030) sets a position weight on that security, which must sit under the category. Category and position rows coexist; a category's effective target rolls up from its positions. A plan carries at most one position row per security (a second category, a repeat in the batch, or a write losing a race to file it elsewhere answers 422); a batch names each category row once per batch and carries at most one row per category and per security assigned in the classification, never more than 10000, else a 422 names targets and nothing is written. Weight sums are not enforced. Optional plan_id writes that plan version (a draft from portfolixir.plans.duplicate) instead of the view's active plan; an archived plan, or one of another portfolio, classification or view, answers 422 on plan_id.",
     targetsSetSchema,
     targetsSetZ
   ),
   tool(
     "portfolixir.targets.delete",
     "Delete target weight",
-    "Remove a portfolio's target weight for one category.",
+    "Remove a portfolio's target weight for one category. Optional plan_id: as on portfolixir.targets.set.",
     targetsDeleteSchema,
     targetsDeleteZ
   ),
   tool(
     "portfolixir.targets.list_positions",
     "List position targets",
-    "List a portfolio's position-level SOLL targets (ADR-0030, #481): a target_weight (string fraction in [0,1]) per individual security under a category, plus each affected category's effective roll-up (explicit weight, position sum, effective steering weight and a conflict flag surfacing an explicit/position mismatch). Sums are NOT enforced in this slice (the 100%-per-level check is a later slice), so a category's position sum may not match its explicit weight or 1. Each position row carries security_id, security_name and a stale flag — true when its security no longer sits under the stored category (reclassified or unassigned); the row still counts where it was filed, so react to stale rows by re-filing them (delete_position + set under the current category). The roll-up carries has_stale per category. Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan. min_drift (an absolute drift-weight threshold as a Decimal string, e.g. \"0.02\" — the same spelling as portfolixir.portfolios.allocation) returns only the position rows whose |drift_weight| meets it, where drift_weight is the security's actual weight in the steering basis minus its position target exactly as the allocation computes it; kept rows carry drift_weight, rows without a drift are filtered out, and the response states min_drift, position_targets_total (the pre-filter count) and drift_basis. Without min_drift the rows carry no drift_weight and the shape is unchanged. Optional since (FR-38, ISO8601 UTC) makes the position rows a delta read with the same rule as portfolixir.targets.list — a row counts as changed when it or its plan changed, as_of is the next since (a later read may re-deliver a row, never skip one), deletions are not represented — applied before min_drift, so position_targets_total counts the delta; effective_targets is a roll-up and always covers the whole plan.",
+    "List a portfolio's position-level SOLL targets (ADR-0030): a target_weight (string fraction in [0,1]) per individual security under a category, plus each affected category's effective roll-up (explicit weight, position sum, effective steering weight and a conflict flag surfacing an explicit/position mismatch). Sums are not enforced, so a category's position sum may differ from its explicit weight or 1. Each position row carries security_id, security_name and a stale flag — true when its security no longer sits under the stored category (reclassified or unassigned); the row still counts where it was filed, so react to stale rows by re-filing them (delete_position + set under the current category). The roll-up carries has_stale per category. Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan. min_drift (an absolute drift-weight threshold as a Decimal string, e.g. \"0.02\" — the same spelling as portfolixir.portfolios.allocation) returns only the position rows whose |drift_weight| meets it, where drift_weight is the security's actual weight in the steering basis minus its position target exactly as the allocation computes it; kept rows carry drift_weight, rows without a drift are filtered out, and the response states min_drift, position_targets_total (the pre-filter count) and drift_basis. Without min_drift the rows carry no drift_weight and the shape is unchanged. Optional since (ISO8601 UTC) makes the position rows a delta read with the same rule as portfolixir.targets.list — a row counts as changed when it or its plan changed, as_of is the next since (a later read may re-deliver a row, never skip one), deletions are not represented — applied before min_drift, so position_targets_total counts the delta; effective_targets is a roll-up and always covers the whole plan.",
     positionTargetsListSchema,
     positionTargetsListZ
   ),
   tool(
     "portfolixir.targets.delete_position",
     "Delete position target",
-    "Remove a portfolio's position-level SOLL target for one security under a category (ADR-0030, #481). The category target and the category's other positions are left in place.",
+    "Remove a portfolio's position-level SOLL target for one security under a category (ADR-0030). The category target and the category's other positions are left in place. Optional plan_id: as on portfolixir.targets.set.",
     positionTargetDeleteSchema,
     positionTargetDeleteZ
   ),
@@ -3892,7 +3898,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.plans.duplicate",
     "Duplicate a plan into a draft",
-    "Copy a plan version (its category target weights and cash target) into a new DRAFT of the same scope. Optional name (default: '<source> (copy)'). The active plan keeps steering the allocation until the draft is activated - use this to prepare a restructured plan next to the current one.",
+    "Copy a plan version (its category target weights and cash target) into a new DRAFT of the same scope. Optional name (default: '<source> (copy)'). The active plan keeps steering the allocation until the draft is activated; edit the draft through the target writes' plan_id.",
     planDuplicateSchema,
     planDuplicateZ
   ),
@@ -3934,7 +3940,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.snapshots.delete",
     "Delete a depot snapshot",
-    "Delete one snapshot marker. No transactions or holdings are affected - the marker only referenced them.",
+    "Delete one snapshot marker. No transaction or holding is affected.",
     snapshotIdSchema,
     snapshotIdZ
   ),
@@ -4545,6 +4551,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
       return client.request("PUT", `/api/v1/portfolios/${args.portfolio_id}/targets`, {
         classification_id: args.classification_id,
         ...(args.view !== undefined && args.view !== null ? { view: args.view } : {}),
+        ...(args.plan_id !== undefined ? { plan_id: args.plan_id } : {}),
         targets: args.targets
       });
     case "portfolixir.targets.delete":
@@ -4553,7 +4560,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         withQuery(
           `/api/v1/portfolios/${args.portfolio_id}/targets/${args.category_id}`,
           args,
-          ["view"]
+          ["view", "plan_id"]
         )
       );
     case "portfolixir.targets.list_positions":
@@ -4572,7 +4579,7 @@ async function apiCall(client: ApiClient, name: string, args: Record<string, any
         withQuery(
           `/api/v1/portfolios/${args.portfolio_id}/position_targets/${args.category_id}/${args.security_id}`,
           args,
-          ["view"]
+          ["view", "plan_id"]
         )
       );
     case "portfolixir.portfolios.allocation":

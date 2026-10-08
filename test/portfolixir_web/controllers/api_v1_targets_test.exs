@@ -2,7 +2,7 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
   use PortfolixirWeb.ConnCase
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 0, create_security!: 1, buy!: 3, put_quote!: 3, deposit!: 3]
+    only: [base_world: 0, base_world: 1, create_security!: 1, buy!: 3, put_quote!: 3, deposit!: 3]
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
@@ -1024,5 +1024,140 @@ defmodule PortfolixirWeb.ApiV1TargetsTest do
              "cash_target_weight" => "0.1"
            })
            |> json_response(404) == missing
+  end
+
+  # User story (#1133, answered by the Sprint 20 decision pass):
+  # As the operator's agent restructuring a plan (ADR-0027),
+  # I want the target writes to take the plan version they write,
+  # so that I can duplicate the active plan, change the draft's category and
+  # position targets, and activate it, as the SOLL editor does, while the
+  # active plan keeps steering.
+  #
+  # Acceptance criteria:
+  # - PUT /targets with "plan_id" writes that plan's category and position
+  #   rows; the active plan is untouched. Without plan_id the active plan is
+  #   written, as before.
+  # - DELETE /targets/:category_id and DELETE /position_targets/... with
+  #   ?plan_id= remove that plan's row only.
+  # - An archived plan, a plan of another portfolio or an unknown one, a plan
+  #   of another classification (on the set), a plan of another view than the
+  #   one named, and a malformed plan_id each answer 422 on plan_id and write
+  #   nothing.
+  test "the target writes edit a draft by plan_id and refuse an archived plan", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, core: core, security: security} =
+      setup_world()
+
+    pid = portfolio.id
+    targets = "/api/v1/portfolios/#{pid}/targets"
+
+    put_json(conn, targets, %{
+      "classification_id" => classification.id,
+      "targets" => [%{"category_id" => core.id, "target_weight" => "0.8"}]
+    })
+    |> json_response(200)
+
+    [%{id: active_id}] = Targets.list_plans(pid, classification_id: classification.id)
+    {:ok, draft} = Targets.duplicate_plan(Actor.owner_ui(), active_id, %{name: "Draft"})
+
+    weights = fn plan_id ->
+      pid
+      |> Targets.list_targets(plan: plan_id)
+      |> Enum.concat(Targets.list_position_targets(pid, plan: plan_id))
+      |> Enum.map(&{&1.category_id, &1.security_id, Decimal.to_string(&1.target_weight)})
+      |> Enum.sort()
+    end
+
+    written =
+      put_json(conn, targets, %{
+        "classification_id" => classification.id,
+        "plan_id" => draft.id,
+        "targets" => [
+          %{"category_id" => core.id, "target_weight" => "0.6"},
+          %{"category_id" => core.id, "security_id" => security.id, "target_weight" => "0.55"}
+        ]
+      })
+      |> json_response(200)
+
+    assert length(written["data"]["targets"]) == 2
+    assert weights.(draft.id) == [{core.id, security.id, "0.55"}, {core.id, nil, "0.6"}]
+    assert weights.(active_id) == [{core.id, nil, "0.8"}]
+
+    # The reads keep following the active plan.
+    assert [%{"target_weight" => "0.8"}] =
+             get_json(conn, targets) |> json_response(200) |> get_in(["data", "targets"])
+
+    assert delete_json(
+             conn,
+             "/api/v1/portfolios/#{pid}/position_targets/#{core.id}/#{security.id}?plan_id=#{draft.id}"
+           )
+           |> json_response(200) == %{"data" => %{"deleted" => 1}}
+
+    assert delete_json(conn, "#{targets}/#{core.id}?plan_id=#{draft.id}")
+           |> json_response(200) == %{"data" => %{"deleted" => 1}}
+
+    assert weights.(draft.id) == []
+    assert weights.(active_id) == [{core.id, nil, "0.8"}]
+
+    # Activating the draft archives the old plan, which the writes refuse.
+    {:ok, _} = Targets.activate_plan(Actor.owner_ui(), draft.id)
+    archived = %{"plan_id" => ["is archived: activate it, or duplicate it into a draft"]}
+
+    assert put_json(conn, targets, %{
+             "classification_id" => classification.id,
+             "plan_id" => active_id,
+             "targets" => [%{"category_id" => core.id, "target_weight" => "0.1"}]
+           })
+           |> json_response(422) == %{"errors" => archived}
+
+    assert delete_json(conn, "#{targets}/#{core.id}?plan_id=#{active_id}")
+           |> json_response(422) == %{"errors" => archived}
+
+    assert delete_json(
+             conn,
+             "/api/v1/portfolios/#{pid}/position_targets/#{core.id}/#{security.id}?plan_id=#{active_id}"
+           )
+           |> json_response(422) == %{"errors" => archived}
+
+    assert weights.(active_id) == [{core.id, nil, "0.8"}]
+
+    # A plan the request cannot write: another portfolio's, another
+    # classification's, another view's, an unknown one, a malformed id.
+    other = base_world(name: "Other Book", cash_name: "Other Cash", depot_name: "Other Depot")
+
+    {:ok, other_plan} =
+      Targets.ensure_plan(Actor.owner_ui(), other.portfolio.id, classification.id)
+
+    {:ok, second_tree} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Second Tree"})
+
+    {:ok, second_plan} = Targets.ensure_plan(Actor.owner_ui(), pid, second_tree.id)
+
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Plan View", include_all: true})
+
+    for {plan_id, view_id, message} <- [
+          {other_plan.id, nil, "is not a plan of this portfolio"},
+          {999_999_999, nil, "is not a plan of this portfolio"},
+          {second_plan.id, nil, "is a plan of another classification"},
+          {draft.id, view.id, "is a plan of another view"},
+          {"twelve", nil, "is invalid"}
+        ] do
+      body =
+        %{
+          "classification_id" => classification.id,
+          "plan_id" => plan_id,
+          "targets" => [%{"category_id" => core.id, "target_weight" => "0.2"}]
+        }
+        |> then(&if(view_id, do: Map.put(&1, "view", view_id), else: &1))
+
+      assert put_json(conn, targets, body) |> json_response(422) ==
+               %{"errors" => %{"plan_id" => [message]}},
+             inspect({plan_id, message})
+    end
+
+    assert delete_json(conn, "#{targets}/#{core.id}?plan_id=#{other_plan.id}")
+           |> json_response(422) ==
+             %{"errors" => %{"plan_id" => ["is not a plan of this portfolio"]}}
+
+    assert weights.(draft.id) == []
   end
 end

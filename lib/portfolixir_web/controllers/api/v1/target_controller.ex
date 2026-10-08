@@ -54,12 +54,14 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   def set(conn, %{"portfolio_id" => portfolio_id} = params) do
     with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
-         {:ok, view} <- ViewParam.resolve(params) do
-      set_for_portfolio(conn, pid, params, view)
+         {:ok, view} <- ViewParam.resolve(params),
+         {:ok, scope} <- write_scope(params, pid, view) do
+      set_for_portfolio(conn, pid, params, scope)
     else
       :error -> not_found(conn)
       nil -> not_found(conn)
       {:error, :view} -> invalid_view(conn)
+      {:error, {:plan_id, message}} -> unprocessable(conn, %{plan_id: [message]})
       :view_not_found -> not_found(conn)
     end
   end
@@ -68,13 +70,15 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
     with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, view} <- ViewParam.resolve(params),
+         {:ok, scope} <- write_scope(params, pid, view),
          {:ok, cid} <- IdParam.parse(category_id) do
-      {:ok, count} = Targets.delete_target(conn.assigns.actor, pid, cid, ViewParam.opts(view))
+      {:ok, count} = Targets.delete_target(conn.assigns.actor, pid, cid, scope)
       json(conn, %{data: %{deleted: count}})
     else
       :error -> not_found(conn)
       nil -> not_found(conn)
       {:error, :view} -> invalid_view(conn)
+      {:error, {:plan_id, message}} -> unprocessable(conn, %{plan_id: [message]})
       :view_not_found -> not_found(conn)
     end
   end
@@ -184,16 +188,17 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
     with {:ok, pid} <- IdParam.parse(portfolio_id),
          %Portfolio{} <- Portfolios.get_portfolio(pid),
          {:ok, view} <- ViewParam.resolve(params),
+         {:ok, scope} <- write_scope(params, pid, view),
          {:ok, cid} <- IdParam.parse(category_id),
          {:ok, sid} <- IdParam.parse(security_id) do
-      {:ok, count} =
-        Targets.delete_position_target(conn.assigns.actor, pid, cid, sid, ViewParam.opts(view))
+      {:ok, count} = Targets.delete_position_target(conn.assigns.actor, pid, cid, sid, scope)
 
       json(conn, %{data: %{deleted: count}})
     else
       :error -> not_found(conn)
       nil -> not_found(conn)
       {:error, :view} -> invalid_view(conn)
+      {:error, {:plan_id, message}} -> unprocessable(conn, %{plan_id: [message]})
       :view_not_found -> not_found(conn)
     end
   end
@@ -235,10 +240,54 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
     end
   end
 
-  defp set_for_portfolio(conn, pid, params, view) do
+  # #1133 (ADR-0027, note of 2026-10-08): an optional plan_id addresses one
+  # plan version, a draft or the active plan, instead of the view's active
+  # plan, which is what a write without it addresses. The plan must be this
+  # portfolio's, of the view the request names if it names one, and not
+  # archived: an archived version steers nothing, and is reused by
+  # activating or duplicating it. The set checks the classification too
+  # (`:plan_mismatch`). The SOLL editor addresses its versions through the
+  # context directly and is not narrowed by this.
+  defp write_scope(params, pid, view) do
+    case Map.get(params, "plan_id") do
+      absent when absent in [nil, ""] ->
+        {:ok, ViewParam.opts(view)}
+
+      raw ->
+        with {:ok, plan} <- writable_plan(raw, pid),
+             :ok <- same_view(plan, view) do
+          {:ok, [plan: plan.id] ++ ViewParam.opts(view)}
+        end
+    end
+  end
+
+  defp writable_plan(raw, pid) do
+    with {:ok, plan_id} <- plan_id(raw),
+         {:ok, %{portfolio_id: ^pid} = plan} <- Targets.fetch_plan(plan_id) do
+      if plan.status == "archived",
+        do: {:error, {:plan_id, "is archived: activate it, or duplicate it into a draft"}},
+        else: {:ok, plan}
+    else
+      {:error, {:plan_id, _message}} = error -> error
+      _unknown_or_foreign -> {:error, {:plan_id, "is not a plan of this portfolio"}}
+    end
+  end
+
+  defp plan_id(raw) do
+    case IdParam.parse(raw) do
+      {:ok, plan_id} -> {:ok, plan_id}
+      :error -> {:error, {:plan_id, "is invalid"}}
+    end
+  end
+
+  defp same_view(_plan, nil), do: :ok
+  defp same_view(%{view_id: view_id}, %{id: view_id}), do: :ok
+  defp same_view(_plan, _view), do: {:error, {:plan_id, "is a plan of another view"}}
+
+  defp set_for_portfolio(conn, pid, params, scope) do
     with {:ok, cid} <- IdParam.parse(Map.get(params, "classification_id")),
          entries when is_list(entries) <- Map.get(params, "targets") do
-      case Targets.set_targets(conn.assigns.actor, pid, cid, entries, ViewParam.opts(view)) do
+      case Targets.set_targets(conn.assigns.actor, pid, cid, entries, scope) do
         {:ok, targets} ->
           json(conn, %{data: %{targets: Enum.map(targets, &JSON.target/1)}})
 
@@ -267,6 +316,9 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
     do: unprocessable(conn, JSON.errors(changeset))
 
   defp render_error(conn, :not_found), do: not_found(conn)
+
+  defp render_error(conn, :plan_mismatch),
+    do: unprocessable(conn, %{plan_id: ["is a plan of another classification"]})
 
   defp render_error(conn, :category_mismatch),
     do: unprocessable(conn, %{detail: "category does not belong to the classification"})

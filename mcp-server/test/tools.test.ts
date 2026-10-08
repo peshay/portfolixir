@@ -2327,6 +2327,65 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[2].path, "/api/v1/portfolios/3/targets/9?view=7");
   });
 
+  // User story (#1133, answered by the Sprint 20 decision pass):
+  // As the operator's agent restructuring a plan (ADR-0027),
+  // I want the target writes to take the plan version they write,
+  // so that I can edit a draft between portfolixir.plans.duplicate and
+  // portfolixir.plans.activate.
+  //
+  // Acceptance criteria:
+  // - portfolixir.targets.set carries plan_id in the PUT body; the two
+  //   deletes carry it as a query parameter; without it nothing changes.
+  // - plan_id is a positive integer in all three schemas; anything else is
+  //   refused before a request is sent.
+  // - targets.set's description says what plan_id writes and that an
+  //   archived plan is refused; the deletes point to it.
+  it("forwards plan_id through the target writes (#1133)", async () => {
+    const { client, requests } = createRecordingClient({ data: { targets: [], deleted: 0 } });
+
+    await callTool(client, "portfolixir.targets.set", {
+      portfolio_id: 3,
+      classification_id: 5,
+      plan_id: 21,
+      targets: [{ category_id: 9, security_id: 12, target_weight: "0.25" }]
+    });
+    await callTool(client, "portfolixir.targets.delete", { portfolio_id: 3, category_id: 9, plan_id: 21 });
+    await callTool(client, "portfolixir.targets.delete_position", {
+      portfolio_id: 3,
+      category_id: 9,
+      security_id: 12,
+      plan_id: 21
+    });
+
+    assert.deepEqual(requests[0].body, {
+      classification_id: 5,
+      plan_id: 21,
+      targets: [{ category_id: 9, security_id: 12, target_weight: "0.25" }]
+    });
+    assert.equal(requests[1].path, "/api/v1/portfolios/3/targets/9?plan_id=21");
+    assert.equal(requests[2].path, "/api/v1/portfolios/3/position_targets/9/12?plan_id=21");
+
+    for (const [name, args] of [
+      ["portfolixir.targets.set", { portfolio_id: 3, classification_id: 5, targets: [{ category_id: 9, target_weight: "0.1" }] }],
+      ["portfolixir.targets.delete", { portfolio_id: 3, category_id: 9 }],
+      ["portfolixir.targets.delete_position", { portfolio_id: 3, category_id: 9, security_id: 12 }]
+    ] as const) {
+      await assert.rejects(callTool(client, name, { ...args, plan_id: "21" }));
+      await assert.rejects(callTool(client, name, { ...args, plan_id: 0 }));
+
+      const schema = listTools().find((tool) => tool.name === name)!.inputSchema as any;
+      assert.deepEqual(schema.properties.plan_id, { type: "integer", minimum: 1 }, name);
+    }
+
+    assert.equal(requests.length, 3, "a refused plan_id sends nothing");
+
+    const describe = (name: string) => listTools().find((tool) => tool.name === name)?.description ?? "";
+    assert.match(describe("portfolixir.targets.set"), /plan_id writes that plan version/);
+    assert.match(describe("portfolixir.targets.set"), /archived/);
+    assert.match(describe("portfolixir.targets.delete"), /plan_id/);
+    assert.match(describe("portfolixir.targets.delete_position"), /plan_id/);
+  });
+
   it("routes position target tools and forwards a position security_id (ADR-0030, #481)", async () => {
     const { client, requests } = createRecordingClient({
       data: { position_targets: [], effective_targets: [] }

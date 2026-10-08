@@ -53,14 +53,17 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "is_retired, as it takes is_benchmark, so an agent finds what it retired in order " <>
           "to restore it, and a data_quality set beside a narrowing it contradicts now " <>
           "matches nothing where the set's own exclusion replaced the caller's (#1103). A " <>
-          "data_quality set is filtered before limit/offset page it (#1113). The " <>
+          "data_quality set is filtered before limit/offset page it (#1113). The target " <>
+          "writes take an optional plan_id, so a draft plan is edited between its duplicate " <>
+          "and its activation, and an archived plan is refused (#1133). The " <>
           "schema budget pays for every byte C2 adds, and the ceilings are lowered to the " <>
           "figures measured (D-10).",
       endpoints: [],
       tools: [],
       parameters: [
         "GET /api/v1/securities?is_retired= (portfolixir.securities.list, whose schema and description now carry it): true lists only the retired securities, false leaves them out, blank counts as absent, any other value is a 422 on is_retired, as is_benchmark= answers; it narrows together with query, holding_status, is_benchmark, logo_status, data_quality, since and limit/offset. Beside data_quality=stale_quote, missing_quote or missing_logo, which leave retired and benchmark securities out, is_retired=true answers an empty list, and so does is_benchmark=true, which the set's own exclusion used to replace, answering the set's other members; logo_status=present beside missing_logo likewise. Every other combination answers as before (#1103)",
-        "GET /api/v1/securities?data_quality=&limit=&offset= (portfolixir.securities.list): stale_quote, missing_quote, missing_fx and two_scales, whose rules read quotes, rates or bookings, now apply limit and offset to the matching securities, after the rule, where they cut the catalog first and a page could come back short or empty while later pages held matches; missing_logo, all query, already did. Only a set's last page is short now. Without limit and offset nothing changes (#1113)"
+        "GET /api/v1/securities?data_quality=&limit=&offset= (portfolixir.securities.list): stale_quote, missing_quote, missing_fx and two_scales, whose rules read quotes, rates or bookings, now apply limit and offset to the matching securities, after the rule, where they cut the catalog first and a page could come back short or empty while later pages held matches; missing_logo, all query, already did. Only a set's last page is short now. Without limit and offset nothing changes (#1113)",
+        "PUT /api/v1/portfolios/:portfolio_id/targets (a body field), DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id and DELETE /api/v1/portfolios/:portfolio_id/position_targets/:category_id/:security_id (a query parameter) take an optional plan_id: the plan version to write, a draft or the active plan, instead of the view's active plan, which a write without it addresses as before. A malformed id answers 422 errors.plan_id [\"is invalid\"]; an unknown plan or another portfolio's [\"is not a plan of this portfolio\"]; on the PUT, another classification's [\"is a plan of another classification\"]; beside a view= naming another view [\"is a plan of another view\"]; an archived plan [\"is archived: activate it, or duplicate it into a draft\"]; each writes nothing. The reads take no plan_id and keep following the active plan. MCP: portfolixir.targets.set, portfolixir.targets.delete and portfolixir.targets.delete_position take plan_id, an integer, and say so; portfolixir.plans.duplicate's description names it as the way to edit the draft (#1133; ADR-0027, note of 2026-10-08)"
       ],
       removed_endpoints: [],
       removed_tools: [],

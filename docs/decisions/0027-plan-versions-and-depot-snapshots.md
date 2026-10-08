@@ -85,6 +85,15 @@ the `audit_journal.scenario_id` forward-index from
 - Migration is loss-free: every existing plan becomes `active` with a default
   name.
 
+*Note (2026-10-08, #1133):* the target writes over the API and MCP
+(`PUT …/targets`, the category and position-target deletes, and
+`portfolixir.targets.set`, `.delete` and `.delete_position`) take an optional
+`plan_id`, defaulting to the view's active plan, so an agent edits a draft
+between duplicating and activating it, as the SOLL editor does. An `archived`
+plan is refused there: it steers nothing, and is reused by activating it or
+duplicating it into a draft. The reads keep following the active plan, and
+the SOLL editor's own saves are unchanged.
+
 ### 4. Sequencing: journal-arming rides along
 
 Plan writes are not yet journaled (open slice of the leaf-first
