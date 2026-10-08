@@ -786,6 +786,20 @@ defmodule Portfolixir.DocsTest do
     assert de_product =~ "guides/buckets-and-views.html"
     assert en =~ "/product-documentation.html"
     assert de =~ "/de/product-documentation.html"
+
+    # #1174: an import tags nothing by itself any more, so the handbook's
+    # example of a long chip is no date-stamped import tag (the α closing
+    # act).
+    en_product = String.replace(en_product, ~r/\s+/, " ")
+    de_product = String.replace(de_product, ~r/\s+/, " ")
+    refute en_product =~ "date-stamped import tags"
+    refute de_product =~ "datumsgestempelte Import-Tags"
+
+    assert en_product =~
+             "Long names (for example a long bucket tag set at an import) are truncated"
+
+    assert de_product =~
+             "Lange Namen (etwa ein langer Bucket-Tag, beim Import vergeben) werden gekürzt"
   end
 
   # Only the `/api/v1` scope, not every verb macro in the file. The browser
