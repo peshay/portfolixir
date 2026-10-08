@@ -212,6 +212,16 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 103_284,
     book: 176_298,
     full: 206_695
+  },
+  {
+    since: "2026-10-08",
+    why:
+      "Sprint 20 PR γ, C5 (#1159): merges.list says a record holds an ISIN choice only where " +
+      "one was made, paid for by shortening its own actor_label and journal sentences, and " +
+      "lowered to the figure measured with it (D-10)",
+    read: 103_275,
+    book: 176_289,
+    full: 206_686
   }
 ];
 

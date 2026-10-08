@@ -339,7 +339,10 @@ defmodule PortfolixirWeb.FloorSecondPassLiveTest do
   #   changed); the source only → "<ISIN> adopted from the source"; both →
   #   the given choice's sentence, as before — "stays" for keep, "adopted"
   #   for adopt.
-  # - The payload is unchanged: the agent reads the choice as given.
+  # - A merge records a given choice only where it made one (#1159), so the
+  #   record of `neither` holds none; a record stored before that, which
+  #   holds the choice as given with no ISIN on either side, still reads no
+  #   line.
   test "the ISIN line follows the stored ISINs, not the given choice", %{conn: conn} do
     agent = Actor.api_token_rw("synthetic")
 
@@ -381,9 +384,17 @@ defmodule PortfolixirWeb.FloorSecondPassLiveTest do
         "adopt_source_isin"
       )
 
+    older =
+      record_like!(
+        neither,
+        900_004,
+        &put_in(&1, ["choices", "identity_choice"], "keep_target_isin")
+      )
+
     {:ok, view, _html} = live(conn, "/portfolios")
 
     assert isin_line(view, neither) == nil
+    assert isin_line(view, older) == nil
     assert isin_line(view, target_only) == nil
     assert isin_line(view, source_only) == "XS0000000017 adopted from the source"
     assert isin_line(view, both) == "XS0000000033 stays; XS0000000025 is now a former ISIN"
@@ -391,7 +402,7 @@ defmodule PortfolixirWeb.FloorSecondPassLiveTest do
     assert isin_line(view, adopted) =~
              ~r/^XS0000000041 adopted; DE0000000017 is now a former ISIN · change dated \S+$/
 
-    assert get_in(neither.manifest, ["choices", "identity_choice"]) == "keep_target_isin"
+    assert get_in(neither.manifest, ["choices", "identity_choice"]) == nil
   end
 
   # User story (#1067; board 07.5; the PR γ closing act's coverage pass):

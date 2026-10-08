@@ -666,7 +666,10 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
   Schlusskurs und dem des Ziels, der gewann, die verschobenen oder
   verworfenen Zuordnungen, Positionsziele und Termine, die umgehängten und
   angelegten früheren ISINs, die übernommenen Kennzeichen, die Unterschiede
-  und die Wahlen) und `already_applied: false`. In einer Transaktion, ein
+  und die Wahlen — `identity_choice` und `isin_changed_on` nur, wo die
+  Zusammenführung diese Wahl getroffen hat, weil beide Wertpapiere eine ISIN
+  trugen, sonst `null`, was die Anfrage auch schickte) und
+  `already_applied: false`. In einer Transaktion, ein
   Audit-Journal-Eintrag je Zeile: Mit `true` werden die gepaarten Buchungen
   der Quelle gelöscht und ihre Inhalts-Hashes stillgelegt; ein Split, den
   das Ziel am selben Tag im selben Portfolio trägt, wird gelöscht; jede
@@ -1544,7 +1547,10 @@ Beispiel-Antwort für Kurssynchronisierung:
   entfernt hat) `transactions.deleted_by_reason`, dieselben Zeilen je Grund
   gezählt (`internal_transfer`, `collapsed_duplicate`, `folded_anchor`,
   `collapsed_split`; nur die vorkommenden Gründe, `{}` wenn keine), und die
-  Wahl des Operators, wie gegeben. `meta` trägt `order`, `count` und `limit`. `limit`
+  Wahl des Operators, wie gegeben, bei einer Wertpapier-Zusammenführung
+  `identity_choice` und `isin_changed_on` nur, wo sie diese Wahl getroffen
+  hat (ein Protokoll einer früheren Version kann sie tragen, wie sie
+  geschickt wurden). `meta` trägt `order`, `count` und `limit`. `limit`
   folgt der Listen-Familie: Standard 100, gedeckelt bei 1000, und null, eine
   negative Zahl oder keine Zahl antwortet `422`. Der Operator liest dieselben
   Protokolle mit denselben Zahlen unter **Zusammenführungen** am Ende von
