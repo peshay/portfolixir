@@ -432,6 +432,14 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
              "Remedy: delete the split with the wrong ratio in the Transactions tab, then check again."
 
     refute refusal =~ "book the split"
+
+    # #965: the API's detail names the portfolio by its id; the page keeps
+    # naming it by its name, read from the refusal's data.
+    words = refusal |> Floki.parse_fragment!() |> Floki.text() |> String.split() |> Enum.join(" ")
+
+    assert words =~
+             "in #{ctx.portfolio.name} the source splits 2:1 and the target 3:1; one split " <>
+               "cannot carry two ratios."
   end
 
   # User story (the closing act, UAT-5 / DC-3):

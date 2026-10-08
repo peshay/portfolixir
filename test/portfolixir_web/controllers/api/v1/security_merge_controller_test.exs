@@ -257,7 +257,8 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
   #   isin_changed_on that is not a date 422; without collapse_key_equal
   #   while pairs exist 422 — each writing nothing.
   # - A source whose imported identity would no longer resolve answers 409
-  #   identity_unresolvable with errors.unresolvable naming it.
+  #   identity_unresolvable with errors.unresolvable naming it; errors.detail
+  #   names the security by its id and the name only as data (#965).
   # - A stale digest answers 409 plan_changed with the fresh preview; an
   #   unknown source 404; a missing target_id 422.
   test "each refusal answers its code and writes nothing", ctx do
@@ -337,7 +338,8 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
              |> json_response(409)
 
     assert errors["code"] == "identity_unresolvable"
-    assert errors["detail"] =~ "Solo Harbour Fund"
+    assert errors["detail"] =~ "Security ##{imported.id}'s"
+    refute errors["detail"] =~ "Solo Harbour Fund"
 
     imported_id = imported.id
 

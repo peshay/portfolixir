@@ -191,8 +191,8 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       passed?: 1,
       each: 2,
       jsonable: 1,
-      buckets_phrase: 2,
-      bucket_list: 2
+      buckets_phrase: 1,
+      bucket_list: 1
     ]
 
   import Portfolixir.Lifecycle.MergeFigures, only: [sample: 2, quantity: 3, exact: 3]
@@ -1202,16 +1202,21 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
     )
   end
 
+  # #965 (F75's rule): a guard's detail names every record by its kind and
+  # id, never by a stored name, which an agent would read as the app's own
+  # words; the names travel as data beside it (`policy_rules`, `positions`,
+  # `conflicts`, `failure`, `unresolvable`), where the operator's page reads
+  # them.
   defp rules_guard(%{source: source, data: data}) do
     rules = Map.get(data.rules, source.id, [])
-    names = Enum.map_join(rules, ", ", &"\"#{&1.name}\" (#{&1.status})")
+    ids = Enum.map_join(rules, ", ", &"##{&1.id} (#{&1.status})")
 
     :policy_rules
     |> guard(
       "no policy rule version naming the source",
       rules == [],
       "no policy rule reads the source",
-      "security ##{source.id} is read by #{length(rules)} policy rule(s): #{names}. A rule's " <>
+      "security ##{source.id} is read by #{length(rules)} policy rule(s): #{ids}. A rule's " <>
         "versions keep their subject as the record of what the standard was (ADR-0049 §8), " <>
         "so a merge can neither re-point nor drop them."
     )
@@ -1387,16 +1392,18 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   defp identity_text(%{identity: :merged_imported}),
     do: "identity as its Portfolio Performance import recorded it (merged away since)"
 
+  # The identity's name stays out of the sentence (#965); it is the
+  # failure's `ref.name`.
   defp ref_text(ref) do
     [
       {"ISIN", ref.isin},
       {"WKN", ref.wkn},
       {"ticker", ref.ticker},
-      {"name", ref.name && "\"#{ref.name}\""},
+      {"its recorded name", ref.name && ""},
       {"currency", ref.currency}
     ]
     |> Enum.reject(&is_nil(elem(&1, 1)))
-    |> Enum.map_join(", ", fn {label, value} -> "#{label} #{value}" end)
+    |> Enum.map_join(", ", fn {label, value} -> String.trim("#{label} #{value}") end)
   end
 
   defp outcome_text(%{kind: :none}),
@@ -1649,17 +1656,12 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   defp membership_guard(base) do
     refused = Enum.filter(base.memberships, &(&1.action in [:refuse, :refuse_carry]))
 
-    names =
-      refused
-      |> Enum.flat_map(&(&1.source_buckets ++ &1.target_buckets))
-      |> Buckets.names_by_id()
-
     :position_buckets_mismatch
     |> guard(
       "same view membership for every position",
       refused == [],
       "every position keeps its effective buckets",
-      Enum.map_join(refused, " ", &membership_detail(&1, names))
+      Enum.map_join(refused, " ", &membership_detail/1)
     )
     |> put_failed(
       :positions,
@@ -1682,18 +1684,19 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   defp put_failed(%{passed: true} = guard, _key, _value), do: guard
   defp put_failed(guard, key, value), do: Map.put(guard, key, value)
 
-  # Each bucket by its name and id (#978), never `inspect/1` on the id list.
-  defp membership_detail(%{action: :refuse} = entry, names) do
-    "In depot \"#{entry.securities_account_name}\" the source's position sits in " <>
-      "#{buckets_phrase(entry.source_buckets, names)} and the target's in " <>
-      "#{buckets_phrase(entry.target_buckets, names)}: view membership is retroactive, so the " <>
+  # Each bucket and the depot by its id (#978: never `inspect/1` on the id
+  # list; #965: no stored name in the sentence).
+  defp membership_detail(%{action: :refuse} = entry) do
+    "In depot ##{entry.securities_account_id} the source's position sits in " <>
+      "#{buckets_phrase(entry.source_buckets)} and the target's in " <>
+      "#{buckets_phrase(entry.target_buckets)}: view membership is retroactive, so the " <>
       "merge would move the target's history between views. Give both positions the same " <>
       "buckets, then preview again."
   end
 
-  defp membership_detail(%{action: :refuse_carry} = entry, names) do
-    "In depot \"#{entry.securities_account_name}\" the source's position carries an override " <>
-      "with more than one scope bucket, #{bucket_list(entry.source_buckets, names)}, stored " <>
+  defp membership_detail(%{action: :refuse_carry} = entry) do
+    "In depot ##{entry.securities_account_id} the source's position carries an override " <>
+      "with more than one scope bucket, #{bucket_list(entry.source_buckets)}, stored " <>
       "before a position could hold only one: the target's position cannot take it. Keep one " <>
       "scope bucket in that override, then preview again."
   end
@@ -1705,9 +1708,9 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       conflicts == [],
       "every same-day split of both in one portfolio has one ratio",
       Enum.map_join(conflicts, " ", fn {split, twin} ->
-        "On #{split.date} in portfolio \"#{portfolio_name(base, split.portfolio_id)}\" the " <>
-          "source splits #{ratio_text(split)} and the target #{ratio_text(twin)}: one split " <>
-          "cannot carry two ratios. Delete the wrong split row, then preview again."
+        "On #{split.date} in portfolio ##{split.portfolio_id} the source splits " <>
+          "#{ratio_text(split)} and the target #{ratio_text(twin)}: one split cannot carry two " <>
+          "ratios. Delete the wrong split row, then preview again."
       end)
     )
     |> put_failed(
@@ -1903,9 +1906,9 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
         _both -> ""
       end
 
-    "#{String.capitalize(split_text)} in portfolio \"#{portfolio_name(base, portfolio_id)}\" " <>
-      "would rescale bookings it did not scale before: in depot \"#{depot && depot.name}\" " <>
-      "on #{failure.date} the merged position would be " <>
+    "#{String.capitalize(split_text)} in portfolio ##{portfolio_id} " <>
+      "would rescale bookings it did not scale before: in depot " <>
+      "##{failure.securities_account_id} on #{failure.date} the merged position would be " <>
       "#{MergeFigures.to_decimal(failure.merged)}, where the two securities' positions sum to " <>
       "#{MergeFigures.to_decimal(failure.apart)}#{choices}. A split row scales every position " <>
       "of its security in its portfolio, so the merge would change quantities it only moves. " <>

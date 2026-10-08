@@ -771,7 +771,8 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
     #
     # Acceptance criteria:
     # - The preview and the apply refuse as identity_unresolvable, naming
-    #   the imported name and the security, and every table is unchanged.
+    #   the security, and every table is unchanged; the imported name travels
+    #   as data, never inside the sentence (#965).
     # - The same source with a name the target shares merges.
     test "a name-only import given a ticker since is refused while its name would not resolve",
          ctx do
@@ -792,7 +793,7 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
       ctx = %{ctx | source: imported}
 
       guard = refused_guard!(ctx, :identity_unresolvable)
-      assert guard.detail =~ "Solo Fund"
+      refute guard.detail =~ "Solo Fund"
       assert guard.detail =~ "##{imported.id}"
       assert guard.detail =~ ~r/import/i
 
@@ -826,8 +827,10 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
       guard = refused_guard!(ctx, :identity_unresolvable)
 
       assert guard.detail =~
-               "Security ##{ctx.source.id}'s stored identity (name \"Carry Fund\", currency EUR) " <>
+               "Security ##{ctx.source.id}'s stored identity (its recorded name, currency EUR) " <>
                  "would resolve to security ##{third.id} after merging"
+
+      refute guard.detail =~ "Carry Fund"
 
       assert [
                %{

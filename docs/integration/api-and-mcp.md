@@ -3453,8 +3453,13 @@ reads like an instruction never sits inside the app's own words: an
 ISIN-change or alias refusal names `security #12`, and a former-name refusal
 of a cash-account or depot write names `cash account #5` or `securities
 account #5` (`errors.former_names`: "include the name of cash account #5 in
-this portfolio"). The record's name is a field of the record, read by its
-id. Portfolixir's screens keep naming it by its name.
+this portfolio"), and a security merge's guard detail names its rules,
+depots, buckets and portfolios by their ids (`policy rule(s): #7 (in_force)`,
+`In depot #3`, `in portfolio #1`) and an identity's name as "its recorded
+name". The record's name is a field of the record, read by its id, or of the
+guard's data (`policy_rules[].name`, `positions[].securities_account_name`,
+`conflicts[].portfolio_name`, `failure.securities_account_name`,
+`unresolvable[].ref.name`). Portfolixir's screens keep naming it by its name.
 
 **A write that times out.** Every API call carries a 30-second deadline. A
 read that misses it — a `GET`, or one of the tools routed through `POST` that

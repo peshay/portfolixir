@@ -3744,9 +3744,15 @@ den eigenen Worten der App steht: Eine Ablehnung eines ISIN-Wechsels oder
 Alias nennt `security #12`, eine Ablehnung wegen eines früheren Namens beim
 Schreiben eines Geldkontos oder Depots nennt `cash account #5` oder
 `securities account #5` (`errors.former_names`: „include the name of cash
-account #5 in this portfolio“). Der Name ist ein Feld des Datensatzes, über
-seine id zu lesen. Die Oberfläche von Portfolixir nennt ihn weiter beim
-Namen.
+account #5 in this portfolio“), und das Detail einer Prüfung beim
+Zusammenführen von Wertpapieren nennt Regeln, Depots, Buckets und Portfolios
+mit ihren ids (`policy rule(s): #7 (in_force)`, `In depot #3`,
+`in portfolio #1`) und den Namen einer Identität als „its recorded name“. Der
+Name ist ein Feld des Datensatzes, über seine id zu lesen, oder der Daten der
+Prüfung (`policy_rules[].name`, `positions[].securities_account_name`,
+`conflicts[].portfolio_name`, `failure.securities_account_name`,
+`unresolvable[].ref.name`). Die Oberfläche von Portfolixir nennt ihn weiter
+beim Namen.
 
 **Ein Schreibvorgang ohne Antwort.** Jeder API-Aufruf hat eine Frist von 30
 Sekunden. Ein Lesezugriff, der sie verpasst — ein `GET` oder eines der über
