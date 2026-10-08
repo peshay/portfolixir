@@ -181,16 +181,17 @@ describe("MCP HTTP security helpers", () => {
     }
   });
 
-  // User story (E25 S1, F01):
+  // User story (E25 S1, F01; #974, the Sprint 20 plan's D-11):
   // As an operator whose companion listens over HTTP,
   // I want repeated wrong tokens from one source locked out for a growing interval,
   // so that guessing the MCP token is bounded the way guessing the API token is.
   //
   // Acceptance criteria:
   // - Wrong tokens are answered 401 and counted per source.
-  // - From the threshold on, the source is answered 429 with Retry-After before
-  //   the token is compared, right token or wrong; the lock doubles per further failure.
-  // - Another source is unaffected; after the lock the right token passes and clears the count.
+  // - From the threshold on, a wrong token is answered 429 with Retry-After,
+  //   and it counts: the lock doubles with each one, the lock in force or not.
+  // - Another source is unaffected; once the lock has run out, the right token
+  //   passes and clears the count.
   it("answers repeated failures from one source with 429", () => {
     let now = 1_000;
     const throttle = createFailureThrottle();
@@ -201,25 +202,63 @@ describe("MCP HTTP security helpers", () => {
     }
 
     assert.equal(authenticate(auth, "Bearer wrong", "10.0.0.5").statusCode, 401);
+    assert.deepEqual(throttle.check("10.0.0.5", now), { locked: true, retryAfter: throttle.baseLockSeconds });
 
-    const locked = authenticate(auth, `Bearer ${soundToken}`, "10.0.0.5");
+    const locked = authenticate(auth, "Bearer wrong", "10.0.0.5");
     assert.equal(locked.statusCode, 429);
     assert.equal(locked.nextCalled, false);
-    assert.equal(locked.headers["retry-after"], String(throttle.baseLockSeconds));
+    assert.deepEqual(locked.body, { errors: { detail: "too many failed attempts; retry later" } });
+    assert.equal(locked.headers["retry-after"], String(throttle.baseLockSeconds * 2));
 
     assert.equal(authenticate(auth, `Bearer ${soundToken}`, "10.0.0.6").nextCalled, true);
 
-    now += throttle.baseLockSeconds;
+    now += throttle.baseLockSeconds * 2;
     assert.equal(authenticate(auth, "Bearer wrong", "10.0.0.5").statusCode, 401);
     assert.equal(
-      authenticate(auth, `Bearer ${soundToken}`, "10.0.0.5").headers["retry-after"],
-      String(throttle.baseLockSeconds * 2)
+      authenticate(auth, "Bearer wrong", "10.0.0.5").headers["retry-after"],
+      String(throttle.baseLockSeconds * 8)
     );
 
-    now += throttle.baseLockSeconds * 2;
+    now += throttle.baseLockSeconds * 8;
     assert.equal(authenticate(auth, `Bearer ${soundToken}`, "10.0.0.5").nextCalled, true);
     assert.equal(throttle.check("10.0.0.5", now).locked, false);
     assert.equal(authenticate(auth, "Bearer wrong", "10.0.0.5").statusCode, 401);
+  });
+
+  // User story (#974, the Sprint 20 plan's D-11):
+  // As an operator whose host clients all reach the companion's published
+  // port from one address,
+  // I want my agent's correct token to pass while that address is locked,
+  // so that a stale client sending an old token after a rotation never locks
+  // my agent out, while its wrong tokens stay refused.
+  //
+  // Acceptance criteria:
+  // - While the source is locked, the right token reaches the next handler.
+  // - The lock stays as it was: the source is still locked for the same time,
+  //   and the next wrong token from it is answered 429 and counted.
+  // (The 32-byte floor `requireMcpToken` holds the token to is what makes a
+  // locked guesser's correct guess infeasible.)
+  it("lets a correct token through a locked source, and keeps the lock", () => {
+    const now = 1_000;
+    const throttle = createFailureThrottle();
+    const auth = mcpAuthMiddleware(soundToken, throttle, () => now);
+
+    for (let attempt = 1; attempt <= throttle.maxFailures; attempt += 1) {
+      assert.equal(authenticate(auth, "Bearer wrong", "10.0.0.5").statusCode, 401);
+    }
+
+    const lock = throttle.check("10.0.0.5", now);
+    assert.equal(lock.locked, true);
+
+    const admitted = authenticate(auth, `Bearer ${soundToken}`, "10.0.0.5");
+    assert.equal(admitted.nextCalled, true);
+    assert.equal(admitted.statusCode, 200);
+    assert.deepEqual(throttle.check("10.0.0.5", now), lock);
+
+    const refused = authenticate(auth, "Bearer wrong", "10.0.0.5");
+    assert.equal(refused.statusCode, 429);
+    assert.equal(refused.nextCalled, false);
+    assert.equal(refused.headers["retry-after"], String(throttle.baseLockSeconds * 2));
   });
 
   // Issue #761: the SDK's DNS-rebinding protection is fed the names this

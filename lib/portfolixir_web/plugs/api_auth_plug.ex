@@ -22,29 +22,51 @@ defmodule PortfolixirWeb.ApiAuthPlug do
 
   def init(opts), do: opts
 
-  # A locked-out source (#771) is answered 429 before the token is even
-  # compared, right token or wrong; a wrong token counts against the source
-  # and a right one clears it.
+  # The token is compared first (#974, the Sprint 20 plan's D-11): a correct
+  # token passes whether its source is locked out (#771) or not, so a stale
+  # client sharing the operator's address (every host client behind the
+  # Compose port) cannot lock the agent out. A wrong token counts against its
+  # source, locked or not, and is answered 429 while the lock lasts. The cost:
+  # a locked guesser who guesses right is let in, which the 32-byte floor every
+  # token meets at boot (`Portfolixir.RuntimeConfig.api_tokens!/3`) makes
+  # infeasible. The UI password stays lock-first (`SessionController`).
   def call(conn, _opts) do
     source = Throttle.source_key(conn.remote_ip)
 
-    case Throttle.check(:api, source) do
-      {:locked, seconds} -> locked(conn, seconds)
-      :ok -> authenticate(conn, source)
-    end
-  end
-
-  defp authenticate(conn, source) do
     case matching_principal(bearer_token(conn), principals()) do
       {:ok, name} ->
-        Throttle.success(:api, source)
+        admit(source)
         # Every configured token is read-write, with the same full authority
         # (ADR-0054 §1, which superseded the architecture's read-only D4).
         assign(conn, :actor, Portfolixir.Actor.api_token_rw(name))
 
       :error ->
-        Throttle.failure(:api, source)
+        refuse(conn, source)
+    end
+  end
 
+  # A correct token clears its source's count, as before, unless the source is
+  # locked: then the lock stays for the wrong tokens still to come from that
+  # address, so the agent's requests never lift a guesser's lock.
+  defp admit(source) do
+    case Throttle.check(:api, source) do
+      :ok -> Throttle.success(:api, source)
+      {:locked, _seconds} -> :ok
+    end
+  end
+
+  # The failure that reaches the threshold is answered 401; a wrong token from
+  # a source already locked is answered 429, with the lock its own failure
+  # extended.
+  defp refuse(conn, source) do
+    state = Throttle.check(:api, source)
+    Throttle.failure(:api, source)
+
+    case {state, Throttle.check(:api, source)} do
+      {{:locked, _before}, {:locked, seconds}} ->
+        locked(conn, seconds)
+
+      _unlocked ->
         conn
         |> put_status(:unauthorized)
         |> json(%{errors: %{detail: "unauthorized"}})

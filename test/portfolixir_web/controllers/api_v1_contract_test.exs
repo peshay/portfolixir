@@ -122,6 +122,19 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "portfolixir.classifications.categories.update" and &1 =~ "#940")
            )
 
+    # #974 (C4, the plan's D-11): the bearer checks compare the token first,
+    # on the API and on the companion.
+    assert newest["summary"] =~ "#974"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "Every authenticated /api/v1 route") and
+                 &1 =~ "the MCP companion's HTTP listener" and
+                 &1 =~ "a correct token passes while its source is locked out" and
+                 &1 =~ "a wrong token counts against its source, locked or not" and
+                 &1 =~ "#974")
+           )
+
     # Sprint 20, commit group β (version 16, after Sprint 19 PR β's 15): what
     # the ledger reports about it, the ADR-0015 amendment of 2026-10-07. B1
     # opened the entry (#1108): a cross-currency closed trade's fees and
