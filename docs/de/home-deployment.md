@@ -119,6 +119,8 @@ brauchen mehr:
   `docker save` und `docker load` hinüber. Portfolixir veröffentlicht kein
   Image: Ein Release ist ein Tag dieses Repositories, nie ein installierbares
   Artefakt, und das Image, das du hinüberbringst, ist dein eigener Build.
+  Ohne zweiten Rechner startet „Run from source“ im README Portfolixir
+  stattdessen als Entwicklungsserver (`MIX_ENV=dev`), nicht als Release.
 
 Ein Build über einen Proxy auf dem Loopback des Hosts, aus Mirrors:
 

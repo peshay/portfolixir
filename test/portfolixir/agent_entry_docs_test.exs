@@ -198,6 +198,87 @@ defmodule Portfolixir.AgentEntryDocsTest do
     end
   end
 
+  # User story (#1172, the Sprint 19 close-out's launch test):
+  # As the fresh agent installing Portfolixir on a host whose Compose build
+  # reaches no Debian mirror,
+  # I want llms.txt to name the from-source route, .env.example to say which
+  # database setting that route reads, and the README to say how to lock its
+  # web UI,
+  # so that I find the fallback where I read, point it at the right database,
+  # and do not leave its web UI open.
+  #
+  # Acceptance criteria:
+  # - llms.txt's Install names the README's "Run from source" as the fallback
+  #   for a host that reaches no Debian mirror: a `MIX_ENV=dev` server, not a
+  #   release; `mix` reads no `.env`; it names `PORTFOLIXIR_UI_PASSWORD` and
+  #   the database variables config/dev.exs reads.
+  # - .env.example no longer says that route reads DATABASE_URL and carries
+  #   no DATABASE_URL line; it names DATABASE_NAME, DATABASE_HOST and
+  #   DATABASE_PORT, each read by config/dev.exs, which reads no DATABASE_URL.
+  # - The README's "Run from source" says the same, and says the web UI asks
+  #   for a login only with PORTFOLIXIR_UI_PASSWORD exported, with the
+  #   command that exports it.
+  # - The deployment guide (EN, DE) names the route for a host that reaches
+  #   no Debian mirror and has no second machine.
+  test "the from-source route is named where an agent reads, with its database and its login" do
+    flat = &String.replace(&1, ~r/\s+/, " ")
+
+    dev_reads =
+      ~r/"([A-Z][A-Z0-9_]+)"/
+      |> Regex.scan(File.read!("config/dev.exs"), capture: :all_but_first)
+      |> List.flatten()
+
+    database = ~w(DATABASE_NAME DATABASE_HOST DATABASE_PORT)
+
+    for name <- database, do: assert(name in dev_reads, "config/dev.exs does not read #{name}")
+    refute "DATABASE_URL" in dev_reads
+
+    section = fn path, from, to ->
+      path |> File.read!() |> String.split(from) |> Enum.at(1) |> String.split(to) |> hd()
+    end
+
+    install = flat.(section.("docs/llms.txt", "## Install", "## Connect the MCP companion"))
+    readme = flat.(section.("README.md", "### Run from source", "### API and MCP"))
+
+    for {path, doc} <- [{"docs/llms.txt", install}, {"README.md", readme}] do
+      for fragment <-
+            [
+              "reaches no Debian mirror",
+              "`MIX_ENV=dev`",
+              "not a release",
+              "`mix` reads no `.env`",
+              "`PORTFOLIXIR_UI_PASSWORD`",
+              "`portfolixir_dev` on `127.0.0.1:5432`"
+            ] ++ Enum.map(database, &"`#{&1}`") do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+
+    assert install =~ ~s(the README's "Run from source")
+
+    assert readme =~
+             "asks for a login only when `PORTFOLIXIR_UI_PASSWORD` is exported before `mix phx.server`"
+
+    assert readme =~ "read -rs PORTFOLIXIR_UI_PASSWORD && export PORTFOLIXIR_UI_PASSWORD"
+
+    env_example = File.read!(".env.example")
+    refute env_example =~ "reads DATABASE_URL directly"
+    refute env_example =~ ~r/^DATABASE_URL=/m
+
+    assert flat.(String.replace(env_example, ~r/^# ?/m, "")) =~
+             "reads no .env and no DATABASE_URL"
+
+    for name <- database, do: assert(env_example =~ name, ".env.example: #{name}")
+
+    for {path, words} <- [
+          {"docs/home-deployment.md",
+           ~s(Without a second machine, the README's "Run from source")},
+          {"docs/de/home-deployment.md", "Ohne zweiten Rechner startet „Run from source“"}
+        ] do
+      assert normalized(path) =~ words, path
+    end
+  end
+
   # User story (the launch test's second run, #1037):
   # As the fresh agent installing Portfolixir from the README and llms.txt
   # through a shell,
