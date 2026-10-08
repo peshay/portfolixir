@@ -232,6 +232,16 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 103_265,
     book: 176_279,
     full: 206_676
+  },
+  {
+    since: "2026-10-08",
+    why:
+      "Sprint 20 PR γ, D-14 (#972): securities_accounts.merge_preview lists rounding_differences " +
+      "per position and split date with no bound per split, as ADR-0050's amendment says, in " +
+      "fewer bytes, and lowered to the figure measured with it (D-10)",
+    read: 103_261,
+    book: 176_275,
+    full: 206_672
   }
 ];
 

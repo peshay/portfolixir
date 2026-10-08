@@ -3386,9 +3386,9 @@ const declaredTools: DeclaredTool[] = [
       "gains (former_names.after), and outcome_by_collapse_key_equal with \"false\" and \"true\": the target's " +
       "booking count after, the bookings moved and deleted, positions (every security the source holds: " +
       "quantity, cost_basis, avg_cost and realized_result on the source and the target before and on the target " +
-      "after — the moving-average cost is restated because both depots' lots combine), rounding_differences (a " +
-      "split where the combined position rounded once differs from the two rounded apart, by a unit of the " +
-      "volume scale — expected, never a refusal), the cash accounts a collapsed booking changes, the flows it " +
+      "after — the moving-average cost is restated because both depots' lots combine), rounding_differences (per " +
+      "position and split date, the combined position rounded once less the two rounded apart — expected, " +
+      "never a refusal, no bound per split), the cash accounts a collapsed booking changes, the flows it " +
       "moves into a later balance anchor of such an account (flow_changes), and other_depots: a third depot a " +
       "collapsed transfer names, with its quantity before and after. " +
       "positions_basis states how those figures are computed. Show the operator both outcomes; the choice is " +

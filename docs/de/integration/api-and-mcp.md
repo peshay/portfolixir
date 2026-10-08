@@ -1485,10 +1485,13 @@ Beispiel-Antwort für Kurssynchronisierung:
     Verkaufs mal sein Kurs in der Währung des Wertpapiers, abzüglich der
     Kosten, die er zum laufenden Durchschnitt entnommen hat, und `null`, wo
     dieser Kurs oder diese Kosten nicht ableitbar sind;
-    `rounding_differences` nennt jeden Split eines betroffenen Wertpapiers,
-    bei dem die gemeinsam einmal gerundete Position am Ende des Split-Tags
-    von den zwei getrennt gerundeten abweicht — um eine Einheit der
-    Stückzahl-Genauigkeit je Split, erwartet und nie eine Ablehnung;
+    `rounding_differences` nennt je Position und Split-Datum jeden Split
+    eines betroffenen Wertpapiers, bei dem die gemeinsam einmal gerundete
+    Position am Ende des Split-Tags von den zwei getrennt gerundeten
+    abweicht, mit beiden Stückzahlen und ihrer Differenz — erwartet und nie
+    eine Ablehnung, und an keine Schranke je Split gebunden: Wo Splits
+    aufeinander aufbauen, skaliert der nächste die Differenz, die einer
+    hinterlässt (ADR-0050, Ergänzung vom 2026-10-08);
   - `reimport_note`, was die Zusammenführung für den nächsten
     Portfolio-Performance-Import bedeutet, wie bei einem Geldkonto.
 

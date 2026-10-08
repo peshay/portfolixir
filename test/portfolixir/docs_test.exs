@@ -3572,4 +3572,38 @@ defmodule Portfolixir.DocsTest do
       assert normalized_text(path) =~ fragment, "#{path}: #{fragment}"
     end
   end
+
+  # User story (#972; ADR-0050's amendment of 2026-10-08):
+  # As the agent or maintainer reading what a depot or security merge does
+  # with a split's rounding,
+  # I want the API pages, the MCP description and the merge modules to say
+  # what ADR-0050 now says,
+  # so that nobody trusts a bound of one unit per split that splits which
+  # compound do not keep.
+  #
+  # Acceptance criteria:
+  # - The EN and DE API pages, securities_accounts.merge_preview's
+  #   description and the moduledocs of DepotMerge and SecurityMerge no
+  #   longer bound the difference by a unit of the volume scale per split.
+  # - Each says the difference is listed per position and split date and
+  #   held to no bound per split.
+  test "the merge references list the split rounding with no bound per split" do
+    for {path, stale, fragment} <- [
+          {"docs/integration/api-and-mcp.md", "by a unit of the volume scale",
+           "`rounding_differences` lists, per position and split date, each split of an affected security where the combined position rounded once differs, at the end of the split's day, from the two positions rounded apart, with both quantities and their difference — expected and never a refusal, and held to no bound per split: where splits compound, a difference one split leaves is scaled by the next (ADR-0050, amendment of 2026-10-08);"},
+          {"docs/de/integration/api-and-mcp.md",
+           "um eine Einheit der Stückzahl-Genauigkeit je Split",
+           "`rounding_differences` nennt je Position und Split-Datum jeden Split eines betroffenen Wertpapiers, bei dem die gemeinsam einmal gerundete Position am Ende des Split-Tags von den zwei getrennt gerundeten abweicht, mit beiden Stückzahlen und ihrer Differenz — erwartet und nie eine Ablehnung, und an keine Schranke je Split gebunden: Wo Splits aufeinander aufbauen, skaliert der nächste die Differenz, die einer hinterlässt (ADR-0050, Ergänzung vom 2026-10-08);"},
+          {"mcp-server/src/tools.ts", "by a unit of the",
+           ~S|rounding_differences (per " + "position and split date, the combined position rounded once less the two rounded apart — expected, " + "never a refusal, no bound per split)|},
+          {"lib/portfolixir/lifecycle/depot_merge.ex", "by a unit of the",
+           "the preview lists that difference per position and split date (`rounding_differences`) and no bound per split is enforced, since splits that compound scale an earlier difference (ADR-0050, amendment of 2026-10-08)"},
+          {"lib/portfolixir/lifecycle/security_merge.ex", "by a unit per",
+           "the difference listed in the preview per position and split date (`rounding_differences`) and held to no bound per split, since splits that compound scale an earlier difference (ADR-0050, amendment of 2026-10-08)"}
+        ] do
+      text = normalized_text(path)
+      refute text =~ stale, "#{path} still bounds the difference: #{stale}"
+      assert text =~ fragment, "#{path}: #{fragment}"
+    end
+  end
 end
