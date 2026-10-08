@@ -381,6 +381,62 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       assert balances(portfolio) == %{"Test-Cash" => "1120"}
     end
 
+    # User story (ADR-0053 A2, A6; the α closing act, coverage):
+    # As the operator whose JSON sale's cash was changed by hand,
+    # I want its correction to rewrite only what differs,
+    # so that a price that already agrees with the file is not written.
+    #
+    # Acceptance criteria:
+    # - sale_with_negative_tax.json applied as read today, the sale's cash
+    #   edited by hand from 95.00 to 96.00 (its price stays 10.00): the
+    #   re-drop lists the sale with the cash alone among its changes.
+    test "a JSON sale whose price agrees lists its cash alone" do
+      portfolio = portfolio!("Hand-edited sale")
+      sale_file = fixture("sale_with_negative_tax.json")
+      apply!(parse!(sale_file, "sale.json"), portfolio)
+
+      {:ok, _edited} =
+        Ledger.update_transaction(Actor.owner_ui(), booking(portfolio, "sell"), %{
+          gross_amount: "96.00"
+        })
+
+      assert [%Item{changes: changes} = sale] =
+               Imports.cash_corrections(parse!(sale_file, "sale.json"),
+                 portfolio_id: portfolio.id
+               )
+
+      assert figures([sale]) == [{3, "96", "95", "-1"}]
+      assert Map.keys(changes) == [:gross_amount]
+    end
+
+    # User story (ADR-0053 §6; the α closing act, coverage):
+    # As the operator dropping a file whose every row the preview refuses,
+    # or confirming a correction before any portfolio exists,
+    # I want nothing listed and nothing corrected,
+    # so that an empty file or a fresh instance never errs.
+    #
+    # Acceptance criteria:
+    # - A file of #1118's refused sale alone lists nothing in a portfolio.
+    # - Without a portfolio record, the correction's confirm answers
+    #   {:ok, []}.
+    test "a file with no entries lists nothing, and no portfolio corrects nothing" do
+      assert Imports.correct_cash(Imports.correction_actor(), parse!(@converter_csv, "c.csv")) ==
+               {:ok, []}
+
+      portfolio = portfolio!("Nothing to list")
+
+      refused =
+        """
+        Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+        2024-06-14 15:30:00;Verkauf;Arbolia Inc.;100;0,01;1,00;5,90;-25,00;20,10;Test-Depot;Test-Cash;;
+        """
+
+      {:ok, %Preview{entries: [], errors: [_refusal]} = preview} =
+        PortfolioPerformance.parse(refused, filename: "refused.csv")
+
+      assert Imports.cash_corrections(preview, portfolio_id: portfolio.id) == []
+    end
+
     # User story (ADR-0053 §6, UX-DR2):
     # As the operator re-dropping a file whose bookings all agree with it,
     # I want nothing listed,

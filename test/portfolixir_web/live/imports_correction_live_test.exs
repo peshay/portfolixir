@@ -688,6 +688,181 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
     end
   end
 
+  describe "the correction's other outcomes (the α closing act, coverage)" do
+    # A purchase of a USD security through a EUR account whose negative tax
+    # unit the old reading counted twice: its debit, its price and its
+    # settlement legs move together.
+    @cross_currency_purchase_json """
+    {
+      "version": 1,
+      "transactions": [
+        {"type": "DEPOSIT", "account": "FX-Cash", "date": "2026-01-02",
+         "currency": "EUR", "amount": 1000.0},
+        {"type": "PURCHASE", "account": "FX-Cash", "portfolio": "FX-Depot",
+         "date": "2026-01-15", "time": "10:00", "currency": "EUR",
+         "amount": 100.0, "shares": 10.0,
+         "security": {"name": "Harborline Freight Inc", "currency": "USD"},
+         "units": [{"type": "TAX", "amount": -5.0}]}
+      ]
+    }
+    """
+
+    defp refund_edited!(portfolio, amount) do
+      apply_as_read_today!(portfolio, @converter_csv, "converter.csv")
+
+      refund =
+        portfolio.id
+        |> Ledger.list_transactions_for_portfolio()
+        |> Enum.find(&(&1.type == "tax_refund"))
+
+      {:ok, _edited} =
+        Ledger.update_transaction(Actor.owner_ui(), refund, %{gross_amount: amount})
+
+      refund
+    end
+
+    # User story (ADR-0053 §6, board 09 A):
+    # As the operator whose correction gives an account money back,
+    # I want the dialog to say the account has more afterwards,
+    # so that the direction of the change is never left to the sign.
+    #
+    # Acceptance criteria:
+    # - A refund lowered by hand from 25.00 to 24.00 is corrected back: the
+    #   consequence reads "Afterwards Test-Cash has 1.00 EUR more."
+    test "a correction that adds money says the account has more", %{conn: conn} do
+      refund_edited!(portfolio!(), "24.00")
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "converter.csv", @converter_csv, "text/csv")
+      view |> element("#import-correction-open") |> render_click()
+
+      assert text(view, "#import-correction-dialog [data-role='import-correction-consequence']") ==
+               "Afterwards Test-Cash has 1.00 EUR more. Balances, valuation, return and income are recalculated."
+    end
+
+    # User story (UX-DR27, sign colours):
+    # As the operator reading a difference below a cent,
+    # I want a figure that displays as zero in no sign colour,
+    # so that the colour never claims a direction the digits do not show.
+    #
+    # Acceptance criteria:
+    # - A refund edited by hand to 25.004 is listed with a difference that
+    #   shows "-0.00" in the body's colour, neither positive nor negative.
+    test "a difference that displays as zero carries no sign colour", %{conn: conn} do
+      refund_edited!(portfolio!(), "25.004")
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "converter.csv", @converter_csv, "text/csv")
+
+      cell = "#import-correction-table tbody tr:nth-child(1) td:nth-child(6)"
+      assert text(view, cell) =~ ~r/^-?0\.00$/
+      refute has_element?(view, cell <> ".is-negative")
+      refute has_element?(view, cell <> ".is-positive")
+    end
+
+    # User story (ADR-0053 A2, A6; ADR-0015):
+    # As the operator correcting a purchase of a USD security,
+    # I want the dialog to say how its settlement and its price change,
+    # so that the write is said back before I confirm it.
+    #
+    # Acceptance criteria:
+    # - The purchase stored under the old reading (debit 100.00, price
+    #   10.00) is corrected to 105.00 at 10.50; the dialog names the
+    #   purchase's new settlement and its new price.
+    test "the dialog names a purchase's new settlement and price", %{conn: conn} do
+      {:ok, _} =
+        Fx.upsert_many([
+          %{
+            base_currency: "EUR",
+            quote_currency: "USD",
+            date: ~D[2026-01-01],
+            rate: "1.25",
+            source: "manual"
+          }
+        ])
+
+      portfolio = portfolio!()
+      apply_old_reading!(portfolio, @cross_currency_purchase_json, "buy.json")
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "buy.json", @cross_currency_purchase_json, "application/json")
+      view |> element("#import-correction-open") |> render_click()
+
+      assert text(view, "#import-correction-dialog [data-role='import-correction-consequence']") ==
+               "Afterwards FX-Cash has 5.00 EUR less. On the purchase of Harborline Freight Inc on 2026-01-15, the settlement changes with it: 105.00 EUR = 131.25 USD. On the purchase of Harborline Freight Inc on 2026-01-15, the price changes with it: 10.50 EUR. Balances, valuation, return and income are recalculated."
+    end
+
+    # User story (ADR-0053 §6, idempotent):
+    # As the operator who confirms a correction another tab already made,
+    # I want the result to say nothing was corrected,
+    # so that a second confirm never claims a change.
+    #
+    # Acceptance criteria:
+    # - The dialog is open; the same correction is confirmed elsewhere; the
+    #   confirm answers "No booking was corrected: each already agrees with
+    #   this file." and the journal holds one correction, not two.
+    test "a confirm whose bookings were corrected meanwhile corrects nothing", %{conn: conn} do
+      portfolio = portfolio!()
+      apply_old_reading!(portfolio, @converter_csv, "converter.csv")
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "converter.csv", @converter_csv, "text/csv")
+      view |> element("#import-correction-open") |> render_click()
+
+      {:ok, preview} = PortfolioPerformance.parse(@converter_csv, filename: "converter.csv")
+      assert {:ok, [_one]} = Imports.correct_cash(Imports.correction_actor(), preview)
+
+      view |> element("#import-correction-confirm") |> render_click()
+      render_async(view, 1_000)
+
+      assert text(view, "#import-correction-result") =~
+               "No booking was corrected: each already agrees with this file."
+
+      assert length(Journal.list_entries(resource_type: "transaction", operation: :update)) == 1
+    end
+
+    # User story (ADR-0053 §6):
+    # As the operator whose correction fails for a reason no rule names,
+    # I want the page to say it failed and that nothing was corrected,
+    # so that I never read a half-done write as done.
+    #
+    # Acceptance criteria:
+    # - The database raises on the write (a synthetic trigger): the result
+    #   reads "The correction failed unexpectedly. Nothing was corrected.",
+    #   the section is read again and still lists the booking.
+    test "a correction that fails unexpectedly says nothing was corrected", %{conn: conn} do
+      portfolio = portfolio!()
+      apply_old_reading!(portfolio, @converter_csv, "converter.csv")
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "converter.csv", @converter_csv, "text/csv")
+      view |> element("#import-correction-open") |> render_click()
+
+      Repo.query!("""
+      CREATE FUNCTION synthetic_failing_write() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN
+        RAISE EXCEPTION 'synthetic failure';
+      END
+      $$
+      """)
+
+      Repo.query!("""
+      CREATE TRIGGER synthetic_failing_write BEFORE UPDATE ON transactions
+      FOR EACH ROW EXECUTE FUNCTION synthetic_failing_write()
+      """)
+
+      ExUnit.CaptureLog.capture_log(fn ->
+        view |> element("#import-correction-confirm") |> render_click()
+        render_async(view, 1_000)
+      end)
+
+      assert text(view, "#import-correction-result") =~
+               "The correction failed unexpectedly. Nothing was corrected."
+
+      assert has_element?(view, "#import-correction")
+    end
+  end
+
   describe "a refused row already imported (#1118, #1193)" do
     # #1118's sale as a Portfolio Performance CSV: Betrag 1,00, Gebühren
     # 5,90, Steuern -25,00, Gesamtpreis 20,10, which A5 refuses.
