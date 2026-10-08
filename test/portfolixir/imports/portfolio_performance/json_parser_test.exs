@@ -277,6 +277,48 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
       assert Decimal.equal?(buy_refund.gross_amount, Decimal.new("1.00"))
       assert Decimal.equal?(buy.hash_amount, Decimal.new("1001.50"))
     end
+
+    # ADR-0053 A2: the price comes from the gross value, as Portfolio
+    # Performance derives it (PortfolioTransaction.getGrossValueAmount):
+    # a sale's (amount + fees + signed taxes) / shares, a purchase's
+    # (amount - fees - signed taxes) / shares. The hash keeps the old one.
+    test "prices a trade from its gross value, its negative tax with its sign", %{
+      preview: preview
+    } do
+      [_deposit, purchase, sale] = preview.entries
+
+      # (120.0 + 5.0 - 25.0) / 10.0; before the amendment (120.0 + 5.0) / 10.0.
+      assert Decimal.equal?(sale.price, Decimal.new("10.00"))
+      assert Decimal.equal?(sale.hash_price, Decimal.new("12.50"))
+      assert Decimal.equal?(purchase.price, Decimal.new("10.00"))
+
+      body =
+        Jason.encode!(%{
+          version: 1,
+          transactions: [
+            %{
+              type: "PURCHASE",
+              account: "Test-Cash",
+              portfolio: "Test-Depot",
+              date: "2024-01-15",
+              currency: "EUR",
+              amount: Jason.Fragment.new("1001.5"),
+              shares: Jason.Fragment.new("10.0"),
+              security: %{name: "Synthetic AG", currency: "EUR"},
+              units: [
+                %{type: "FEE", amount: Jason.Fragment.new("2.5")},
+                %{type: "TAX", amount: Jason.Fragment.new("-1.0")}
+              ]
+            }
+          ]
+        })
+
+      # (1001.5 - 2.5 - (-1.0)) / 10.0; before the amendment
+      # (1001.5 - 2.5) / 10.0 = 99.9.
+      assert {:ok, %Preview{errors: [], entries: [buy]}} = JsonParser.parse(body)
+      assert Decimal.equal?(buy.price, Decimal.new("100.00"))
+      assert Decimal.equal?(buy.hash_price, Decimal.new("99.90"))
+    end
   end
 
   describe "parse/2 error paths" do

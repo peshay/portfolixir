@@ -184,7 +184,11 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
           }
         end)
 
-      price = derive_price(kind, amount, shares, fees, taxes)
+      # ADR-0053 A2: the price comes from the gross value, the taxes read with
+      # their sign, as Portfolio Performance derives it; A3: the hash keeps
+      # the price derived from the positive taxes alone.
+      price = derive_price(kind, amount, shares, fees, signed_taxes(taxes, refund_amounts))
+      old_price = derive_price(kind, amount, shares, fees, taxes)
 
       entry = %Entry{
         source_row: row,
@@ -216,7 +220,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         # ADR-0053 A3: a trade with a negative tax unit keeps the price its
         # hash read before the amendment of 2026-10-07 as the hash's price
         # input. `derive_price/5` gives nil for a kind without a price.
-        hash_price: if(refund_amounts != [], do: price),
+        hash_price: if(refund_amounts != [], do: old_price),
         security: security,
         pp_portfolio_name: pp_portfolio,
         pp_account_name: pp_account,
@@ -340,6 +344,11 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
     end
   end
 
+  # The row's taxes with their sign: the positive TAX units less the
+  # negative ones split off as refunds. Without a refund, the taxes as they
+  # are.
+  defp signed_taxes(taxes, refunds), do: Enum.reduce(refunds, taxes, &Decimal.sub(&2, &1))
+
   # The refunds split off one row, together; `nil` when none is.
   defp refund_total([]), do: nil
   defp refund_total(refunds), do: Enum.reduce(refunds, &Decimal.add/2)
@@ -432,11 +441,14 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
 
   defp present_string(_), do: nil
 
-  # For buy/sell PP gives both `amount` (gross paid/received including
-  # fees+taxes) and `shares`. We persist `gross_amount` as PP's
-  # amount; the per-share `price` is derived (net of fees/taxes for
-  # buys, adding them back for sells) so the ledger keeps a normalised
-  # per-unit cost basis matching what PP shows in its trade table.
+  # For buy/sell PP gives both `amount` (the cash paid or received,
+  # fees and taxes included) and `shares`. The per-share `price` is
+  # derived from the gross value, as PP derives it
+  # (`PortfolioTransaction.getGrossValueAmount`): the amount net of fees
+  # and taxes for buys, with them added back for sells, the taxes read
+  # with their sign (ADR-0053 A2), so the ledger keeps a normalised
+  # per-unit cost basis matching what PP shows in its trade table, and a
+  # sale's proceeds equal the cash its own booking moves.
   defp derive_price("buy", amount, %Decimal{} = shares, fees, taxes)
        when not is_nil(amount) do
     if Decimal.equal?(shares, 0) do
