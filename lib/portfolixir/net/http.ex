@@ -29,6 +29,9 @@ defmodule Portfolixir.Net.Http do
   called. The first request passes the same policy without name resolution
   (its host is the client's compiled-in endpoint).
 
+  GET-only also means no payload (#938): the request and every hop go out
+  with no body, whatever body or body-encoding option a caller merged in.
+
   `new/1` builds the request, `get/2` runs it under the deadline. Callers
   merge their test stubs (`plug:`) exactly as they did with `Req.get/2`.
   """
@@ -61,6 +64,8 @@ defmodule Portfolixir.Net.Http do
   # The only headers a hop to another origin keeps. Every other header the
   # client set is treated as one that can carry a credential (F27).
   @cross_origin_headers ~w(user-agent accept accept-language)
+  # The options Req's encode_body step turns into a request body (#938).
+  @payload_options [:form, :form_multipart, :json]
 
   @doc """
   A bounded `Req`. Options: `:max_bytes` (required), `:allowed_hosts`
@@ -134,8 +139,17 @@ defmodule Portfolixir.Net.Http do
 
   defp run(req, hops_left) do
     max_bytes = Req.Request.get_private(req, :portfolixir_max_bytes)
+    issued = ipv6_literal(req)
 
-    with {:ok, response} <- Req.request(%{ipv6_literal(req) | method: :get}),
+    # The method, and next to it the payload (#938): no body, and none of the
+    # options that would encode one, on the first request and on every hop.
+    with {:ok, response} <-
+           Req.request(%{
+             issued
+             | method: :get,
+               body: nil,
+               options: Map.drop(issued.options, @payload_options)
+           }),
          {:ok, response} <- check_cap(response, max_bytes) do
       case redirect_location(response) do
         nil -> {:ok, response}
