@@ -6193,3 +6193,27 @@ in `PortfolixirWeb.ImportsLive` on `Imports.cash_corrections/2` and
   file) never shows it" — since A6 a converter file whose negative Steuern
   was counted twice shows the section too. The new row-error reasons of
   Part 9's list are recorded in the 2026-10-06 amendment above.
+
+## Amendment 2026-10-08 — A return on no cost basis, and the percent cells it changes *(Sprint 20 board `mockups/ux-design-2026-10-07/02-money-findings`, before/after; issue 1142, PR β B3; the board's found-while-drawing 4, 9, 10 and 11)*
+
+Two percent cells the board found in the old form are repaired in the cells
+issue 1142 changes (plan D-14):
+
+- **Wealth → Holdings → Positions, "P&L %" / "G&V %"** (found while drawing
+  4). The optional column printed the projection's raw fraction, every
+  digit of it ("0,1871401151631477927063339731" under a "%" header). It now
+  prints the house percent: `Format.signed_percent`, one decimal, the sign
+  and "%" glued on ("+18,7%", "-5,1%", "0,0%" unsigned), in its sign colour
+  decided on the percent as shown (`is-positive` / `is-negative` /
+  `is-flat`, issue 1010's rule that every signed cell of a data table
+  carries its colour). The table's money columns keep the projection's
+  unrounded digits; a percentage is not one of them.
+- **The security's Holdings tab, "%"** (found while drawing 11). It kept the
+  form #1060 retired on the Trades tab: two decimals and a breaking space
+  ("+18,71 %"), so "0,00 %" wrapped onto two lines in its 60 px cell at
+  980 px, and its colour was taken from the amount beside it
+  (`pnl_class(h.unrealized_pnl_abs)`), so a percent that reads "0,0" printed
+  in the gain colour of a gain of 4,00. It is now the Trades tab's "%"
+  (`signed_pa/1`: "+18,7%"), coloured by the percent as shown
+  (`shown_percent_class/1`), as the Trades tab's "%" columns are since the
+  Sprint 19 U2 review. The other figures of the tab are unchanged.
