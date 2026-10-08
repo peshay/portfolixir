@@ -98,6 +98,9 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
   #   the next run asks the provider nothing.
   # - Without a network the run fails quietly (a warning in the log, an
   #   error tuple, no raise), records nothing, and the next run tries again.
+  # - A fetch that answers with no rates is such a failed run too: nothing
+  #   is recorded, and the next run fetches again (found by the α closing
+  #   act).
   # - It shares the manual backfill's single-flight key: while either runs,
   #   the other answers {:error, :backfill_in_progress} and asks nothing.
   # - A provider without a history answers {:error, :history_unsupported}.
@@ -189,6 +192,34 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
       assert HistoryGaps.open() == %{}
     end
 
+    test "an empty series records nothing, and the next run fetches again" do
+      booked!("USD", "500", ~D[2022-03-15], "Dollar")
+
+      log =
+        capture_log(fn ->
+          assert {:error, :empty_history} =
+                   RateSync.backfill_when_needed(
+                     provider: HistoryFeed,
+                     test_pid: self(),
+                     history: {:ok, []}
+                   )
+        end)
+
+      assert log =~ "fx history fetch via #{inspect(HistoryFeed)} returned no rates"
+      assert HistoryGaps.sought() == []
+      assert HistoryGaps.due() == %{"USD" => ~D[2022-03-15]}
+
+      assert {:ok, %{sought: ["USD"], upserted: 1}} =
+               RateSync.backfill_when_needed(
+                 provider: HistoryFeed,
+                 test_pid: self(),
+                 history: {:ok, [row("USD", ~D[2022-03-14], "1.25")]}
+               )
+
+      assert history_fetches() == 2
+      assert HistoryGaps.open() == %{}
+    end
+
     test "never runs beside a manual backfill, either way round" do
       booked!("USD", "500", ~D[2022-03-15], "Dollar")
       test_pid = self()
@@ -204,7 +235,10 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
       assert {:ok, %{scope: :history}} = Task.await(manual)
       assert history_fetches() == 0
 
-      automatic = Task.async(fn -> RateSync.backfill_when_needed(feed) end)
+      # The manual run stored no rate, so the dollar is still due; this
+      # series closes it.
+      closing = Keyword.put(feed, :history, {:ok, [row("USD", ~D[2022-03-14], "1.25")]})
+      automatic = Task.async(fn -> RateSync.backfill_when_needed(closing) end)
       assert_receive {:fetched, :history, provider}, 2_000
 
       assert RateSync.backfill(provider: HistoryFeed, test_pid: test_pid) ==
