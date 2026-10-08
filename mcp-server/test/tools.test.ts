@@ -450,6 +450,25 @@ describe("Portfolixir MCP tools", () => {
     assert.equal(requests[1].path, "/api/v1/plans/12/activate");
   });
 
+  // User story (#1135):
+  // As the operator's agent about to duplicate or delete a plan version,
+  // I want the tool descriptions to say that position targets go with it,
+  // so that I do not take a delete for one that leaves the position rows,
+  // or a copy for one that drops them.
+  //
+  // Acceptance criteria:
+  // - portfolixir.plans.duplicate and portfolixir.plans.delete name the
+  //   category and the position targets, as Targets.targets_of_plan/1
+  //   copies and deletes both; neither says "category targets" alone.
+  it("names position targets on the plan duplicate and delete (#1135)", () => {
+    const describe = (name: string) => listTools().find((tool) => tool.name === name)?.description ?? "";
+
+    for (const name of ["portfolixir.plans.duplicate", "portfolixir.plans.delete"]) {
+      assert.match(describe(name), /category and position targets/, name);
+      assert.doesNotMatch(describe(name), /its category target(s| weights)/, name);
+    }
+  });
+
   it("routes snapshot tools to the snapshots API with decimal-string output", async () => {
     const { client, requests } = createRecordingClient({
       data: { id: 3, name: "Before restructuring", as_of: "2026-02-15", view_id: null }

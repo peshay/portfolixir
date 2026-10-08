@@ -1402,7 +1402,8 @@ or *archived* — and a scope carries at most one active plan. This is how a
 strategy is restructured without losing the old plan:
 
 - **Duplicate plan** (*Plan duplizieren*) copies the current plan (category
-  weights and cash target) into a **draft**; the editor switches to it and a
+  and position target weights and cash target) into a **draft**; the editor
+  switches to it and a
   **plan version picker** takes the plan's name's place in the editor's
   version row, beside **Duplicate plan**, once a scope has more than one
   version.
@@ -1416,9 +1417,9 @@ strategy is restructured without losing the old plan:
   plan stay side by side for reference.
 - **Rename** (*Umbenennen*) renames the selected version — e.g. to drop a
   "(Entwurf)" suffix after activation.
-- **Delete plan** on a draft or archived version removes just that version;
-  on the active plan it keeps its ADR-0020 meaning (the scope falls back to
-  actual-only).
+- **Delete plan** on a draft or archived version removes just that version,
+  with its category and position targets; on the active plan it keeps its
+  ADR-0020 meaning (the scope falls back to actual-only).
 
 Every plan write is recorded in the audit journal.
 

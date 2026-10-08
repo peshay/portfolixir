@@ -446,6 +446,34 @@ defmodule Portfolixir.DocsTest do
     refute product_docs =~ "Still planned: a per-account flag"
   end
 
+  # User story (#1135):
+  # As the operator restructuring a plan from the handbook,
+  # I want its plan-version section to say that duplicating and deleting a
+  # version take its position targets with its category targets,
+  # so that I read what Targets.targets_of_plan/1 does: copy or delete them
+  # all.
+  #
+  # Acceptance criteria:
+  # - The handbook's "Plan versions" section (EN, DE) names category and
+  #   position targets on the duplicate and on the delete of a version.
+  test "the handbook's plan versions name position targets on duplicate and delete" do
+    for {path, heading, duplicate, delete} <- [
+          {"docs/product-documentation.md", "### Plan versions: duplicate, draft, activate",
+           "copies the current plan (category and position target weights and cash target)",
+           "removes just that version, with its category and position targets"},
+          {"docs/de/product-documentation.md",
+           "### Plan-Versionen: duplizieren, Entwurf, aktivieren",
+           "kopiert den aktuellen Plan (Kategorie- und Positionsgewichte und Cash-Ziel)",
+           "entfernt bei einem Entwurf oder archivierten Plan nur diese Version samt ihrer Kategorie- und Positionsziele"}
+        ] do
+      [_, section] = path |> File.read!() |> String.split(heading, parts: 2)
+      section = section |> String.split(~r/^#/m, parts: 2) |> hd() |> String.replace(~r/\s+/, " ")
+
+      assert section =~ duplicate, path
+      assert section =~ delete, path
+    end
+  end
+
   # User story:
   # As a local integrator who steers a cash quote,
   # I want the docs to document the cash target weight and the allocation cash

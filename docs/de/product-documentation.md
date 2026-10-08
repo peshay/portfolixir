@@ -1540,8 +1540,9 @@ Seit ADR-0027 ist ein Plan eine **benannte Version** mit Status — *aktiv*,
 *Entwurf* oder *archiviert* — und je Geltungsbereich gibt es höchstens einen
 aktiven Plan. So wird eine Strategie umgebaut, ohne den alten Plan zu verlieren:
 
-- **Plan duplizieren** kopiert den aktuellen Plan (Kategoriegewichte und
-  Cash-Ziel) in einen **Entwurf**; der Editor wechselt dorthin, und sobald ein
+- **Plan duplizieren** kopiert den aktuellen Plan (Kategorie- und
+  Positionsgewichte und Cash-Ziel) in einen **Entwurf**; der Editor wechselt
+  dorthin, und sobald ein
   Geltungsbereich mehr als eine Version hat, tritt in der Versionszeile des
   Editors, neben **Plan duplizieren**, ein **Plan-Versions-Selektor** an die
   Stelle des Plannamens.
@@ -1557,7 +1558,8 @@ aktiven Plan. So wird eine Strategie umgebaut, ohne den alten Plan zu verlieren:
 - **Umbenennen** benennt die ausgewählte Version um — z. B. um nach der
   Aktivierung ein „(Entwurf)"-Suffix loszuwerden.
 - **Plan löschen** entfernt bei einem Entwurf oder archivierten Plan nur diese
-  Version; beim aktiven Plan behält es die ADR-0020-Bedeutung (der
+  Version samt ihrer Kategorie- und Positionsziele; beim aktiven Plan behält es
+  die ADR-0020-Bedeutung (der
   Geltungsbereich fällt auf nur IST zurück).
 
 Jede Plan-Änderung wird im Audit-Journal festgehalten.

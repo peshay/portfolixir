@@ -99,6 +99,15 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "\"cash\"" and &1 =~ "#1143")
            )
 
+    # #1135: the plan tools' descriptions name position targets.
+    assert newest["summary"] =~ "#1135"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "portfolixir.plans.duplicate and portfolixir.plans.delete") and
+                 &1 =~ "position targets" and &1 =~ "#1135")
+           )
+
     # Sprint 20, commit group β (version 16, after Sprint 19 PR β's 15): what
     # the ledger reports about it, the ADR-0015 amendment of 2026-10-07. B1
     # opened the entry (#1108): a cross-currency closed trade's fees and
