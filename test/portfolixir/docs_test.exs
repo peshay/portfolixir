@@ -3057,4 +3057,38 @@ defmodule Portfolixir.DocsTest do
       end
     end
   end
+
+  # User story (#1142, Sprint 20 β B3; board ux-design-2026-10-07/02-money-findings):
+  # As an operator who booked bonus shares at 0 or received shares in a
+  # spin-off,
+  # I want the handbook, in English and German, to say why their percent is a
+  # dash and what its reason reads,
+  # so that the dash is understood as "no cost to measure against", not as a
+  # missing figure.
+  test "the handbook explains the dash on a return on no cost, in English and German" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "**A trade on no cost has no return** (issue #1142)",
+             "the reason \"No return: no cost basis\" as its tooltip",
+             "reads \"— no cost basis\" where the percent stood",
+             "Wealth's optional **P&L %** column for shares delivered in at no cost",
+             "a holding with no price keeps the plain dash"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "**Ein Trade ohne Kosten hat keine Rendite** (Issue #1142)",
+             "Grund „Keine Rendite: keine Kostenbasis“ als Tooltip",
+             "„— keine Kostenbasis“, wo die Prozentzahl stand",
+             "die optionale Spalte **G&V %** im Vermögen für Stücke, die ohne Kosten eingeliefert wurden",
+             "ein Bestand ohne Kurs behält den einfachen Strich"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
 end

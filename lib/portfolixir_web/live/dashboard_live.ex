@@ -697,10 +697,20 @@ defmodule PortfolixirWeb.DashboardLive do
                       ) %>%</span>
                       <%= gettext("p. a.") %>
                     <% else %>
-                      <span class={sign_class(trade.realized_pnl_pct)}><%= signed_percent(
-                        trade.realized_pnl_pct
-                      ) %>%</span>
-                      <%= gettext("total") %>
+                      <%= if trade.realized_pnl_pct do %>
+                        <span class={sign_class(trade.realized_pnl_pct)}><%= signed_percent(
+                          trade.realized_pnl_pct
+                        ) %>%</span>
+                        <%= gettext("total") %>
+                      <% else %>
+                        <%!-- #1142 (board 02, found while drawing 9): a
+                             trade on no cost has no return; the card says
+                             so in words, as the facet's phone row does,
+                             where "0.0% total" read as a flat trade. --%>
+                        <span data-role="return-absent"><span aria-hidden="true">—</span> <%= gettext(
+                            "no cost basis"
+                          ) %></span>
+                      <% end %>
                     <% end %>
                   </small>
                 </span>
@@ -1019,17 +1029,12 @@ defmodule PortfolixirWeb.DashboardLive do
     |> Decimal.to_string(:normal)
   end
 
-  defp signed_percent(nil), do: Format.percent(nil)
-
   defp signed_percent(value) do
     formatted = Format.percent(value)
     if Decimal.compare(value, 0) == :gt, do: "+" <> formatted, else: formatted
   end
 
-  # Gain/loss colour by sign, never the accent (UX-DR7, issue 637). A
-  # percentage a trade with no cost basis does not have (#1142) has none.
-  defp sign_class(nil), do: nil
-
+  # Gain/loss colour by sign, never the accent (UX-DR7, issue 637).
   defp sign_class(value) do
     case Decimal.compare(value, 0) do
       :gt -> "is-positive"

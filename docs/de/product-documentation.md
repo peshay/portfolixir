@@ -2372,7 +2372,14 @@ Zeilen: der Name über gekauft → verkauft und den Tagen, das Ergebnis über
 seiner Prozentzahl und, ab einem Jahr Haltedauer, der p.-a.-Zahl; ein Trade
 ohne sie — unter einem Jahr gehalten oder ein Totalverlust, den kein Zinssatz
 löst — schließt seine Prozentzahl mit **gesamt** („-38,9% gesamt“), dem Wort
-der Übersichtskarte. Die
+der Übersichtskarte. **Ein Trade ohne Kosten hat keine Rendite** (Issue
+#1142): Bonusaktien, als Kauf zu 0 gebucht und später verkauft, haben
+„+330,00 EUR“ auf nichts verdient, und ein Prozentsatz von nichts ist nicht
+0 %, sondern unbestimmt. Seine Prozentzahl ist der gedämpfte Strich mit dem
+Grund „Keine Rendite: keine Kostenbasis“ als Tooltip, sein p.-a.-Strich
+nennt denselben Grund vor jedem anderen, und auf dem Telefon liest die
+Zeile, wie die Übersichtskarte, „— keine Kostenbasis“, wo die Prozentzahl
+stand. Die
 Jahres-/Monatsmatrix, mit der die Facette früher öffnete, behält jede Zahl —
 jetzt unter **Realisiert je Periode** hinter der Aufklappung **Matrix nach
 Jahr und Monat** unter der Liste. Konnte ein Verkauf nicht konvertiert
@@ -2457,7 +2464,12 @@ Lot, Gebühren und Steuern stehen im realisierten G/V, nicht in Ø Kauf und
 erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst.
 Der realisierte G/V und seine Gebühren und Steuern stehen in der Währung des
 Trades, bei einem Trade über Währungen hinweg zu seinem eigenen Kurs
-umgerechnet, wie in der Facette (Issue #1108).
+umgerechnet, wie in der Facette (Issue #1108). Ein offener Lot oder ein
+abgeschlossener Trade ohne Kosten zeigt in seiner Spalte „%“ den Strich mit
+„Keine Rendite: keine Kostenbasis“, ebenso der Tab **Bestände** des
+Wertpapiers und die optionale Spalte **G&V %** im Vermögen für Stücke, die
+ohne Kosten eingeliefert wurden, etwa aus einem Spin-off (Issue #1142); ein
+Bestand ohne Kurs behält den einfachen Strich.
 Auf dem Telefon wird die Tabelle zu
 zweizeiligen Zeilen: Eröffnet → Geschlossen über der Stückzahl und den
 Tagen, das Ergebnis über seiner Rendite und, ab einem Jahr Haltedauer, der

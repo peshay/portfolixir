@@ -737,8 +737,10 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
     assert css =~ ~r/\n\.data-table td\.is-positive\s*\{[^}]*var\(--color-positive\)/
     assert css =~ ~r/\n\.data-table td\.is-negative\s*\{[^}]*var\(--color-danger\)/
 
-    assert css =~
-             ~r/#detail-closed-trades-table td\.trade-pa--na\s*\{[^}]*var\(--color-text-muted\)/
+    # #1142 (board 02 rule ②): the table's own dash rule became the general
+    # one, which the open lots' and the Holdings tab's reason dashes share.
+    assert css =~ ~r/\n\.data-table td\.trade-pa--na\s*\{[^}]*var\(--color-text-muted\)/
+    refute css =~ "#detail-closed-trades-table td.trade-pa--na"
 
     assert css =~ ~r/#detail-closed-trades-note\s*\{[^}]*margin:\s*0 0 var\(--space-2\)/
 
