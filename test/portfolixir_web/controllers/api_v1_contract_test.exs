@@ -122,6 +122,20 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "portfolixir.classifications.categories.update" and &1 =~ "#940")
            )
 
+    # #956 (C3) and #1137 (C4): the companion's HTTP listener compares a
+    # browser's Origin whole, and binds loopback for an empty host.
+    assert newest["summary"] =~ "#956"
+    assert newest["summary"] =~ "#1137"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "The MCP companion's HTTP listener") and
+                 &1 =~ "origin not allowed" and &1 =~ "PORTFOLIXIR_MCP_ALLOWED_HOSTS" and
+                 &1 =~ "[::1]" and &1 =~ "#956" and
+                 &1 =~ "an empty or blank PORTFOLIXIR_MCP_HOST binds 127.0.0.1" and
+                 &1 =~ "#1137")
+           )
+
     # #974 (C4, the plan's D-11): the bearer checks compare the token first,
     # on the API and on the companion.
     assert newest["summary"] =~ "#974"
