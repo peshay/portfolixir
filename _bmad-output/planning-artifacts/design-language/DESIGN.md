@@ -2971,6 +2971,43 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   ("Decide…") and an attention note naming the candidates by the same labels,
   saying the choice holds for this import and cannot be remembered while
   more than one account carries the name, with the Accounts & depots link.
+- **A name the stored history never saw gets no prefill** *(2026-10-08;
+  issue 904, Sprint 20 PR α A3; board
+  `mockups/ux-design-2026-10-07/01-import-preview` ①, pick L1 = A; ADR-0050
+  §2 as amended on 2026-10-07)*. **The signal:** a file cash-account or
+  depot name none of whose rows has a content hash held by a live
+  transaction or a retired hash, while another name of the same file, in
+  the same portfolio, has such a row (`Imports.reimport_counts/2`'s
+  `unseen_names`) — typically an account or a depot renamed in Portfolio
+  Performance, whose rows all miss because names are hash inputs. A repeat
+  inside the file and an equal booking found by its economics do not count;
+  names compare exactly. **The row:** no prefill, whatever resolution would
+  give — "+ Create new", or the account a live or a former name of another
+  account leads to — so the select stays on its empty state, "Decide…" /
+  "Entscheiden…" (the ambiguous row's msgid). Under the select, in the place
+  the ambiguous note takes, ONE `attention` data note
+  (`data-role="mapping-unseen-name"`): "No booking under this name has been
+  imported yet, though the file's other names have. If the account was
+  renamed in Portfolio Performance, choose the existing account here;
+  otherwise “+ Create new”." / "Unter diesem Namen ist noch keine Buchung
+  importiert, unter den anderen Namen dieser Datei schon. Wurde das Konto in
+  Portfolio Performance umbenannt, hier das bestehende Konto wählen, sonst
+  „+ Neu anlegen“."; a depot row says "depot" / "Depot" in both places.
+  **Counted missing**, even when none of its bookings is new (unlike an
+  ambiguous row, whose hash hits resolve nothing — here there are none): the
+  row is named in the still-to-map hint
+  (`#import-missing-hint`, "cash account: <name>" / "target depot: <name>"),
+  which describes the disabled confirm (`aria-describedby`); the confirm
+  unlocks once a choice is made. **The note stays after a choice**, so the
+  row does not reflow; a choice of a differently named account shows the
+  "remember" box, ticked (G4-A), and no "matched by a former name" line, as
+  the row was not matched. An ambiguous row that is also unknown carries
+  both notes, this one first. **Unaffected:** a first import, a file in
+  which no name has a hit, and a file whose every name has one are
+  prefilled as before. **Under 560 px** this note and the ambiguous note
+  (board 01's found-while-drawing item 8) join the correction note's
+  selector list: the body wraps under the glyph and the word and takes the
+  note's full width; neither has a rule of its own.
 - **Same-named securities are told apart the same way (the closing act,
   UAT-13).** Wherever the operator picks or names a security — the Risk rule
   dialog's subject list, the booking drawer's security list, the row menus

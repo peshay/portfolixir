@@ -1540,6 +1540,57 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (ADR-0050 §2 as amended on 2026-10-07, #904):
+  # As the operator who renamed an account or a depot in Portfolio
+  # Performance and dropped its export again,
+  # I want the handbook, in English and German, to say why that row is not
+  # prefilled and what to choose,
+  # so that I map it onto the account it was renamed from instead of booking
+  # its history a second time.
+  #
+  # Acceptance criteria:
+  # - The import handbook says when a name gets no prefill (no booking under
+  #   it, while the file's other names have), that it holds whatever the name
+  #   resolves to, the row's sentence as the page shows it, that the import
+  #   waits for a choice, what choosing the old account does (nothing booked
+  #   twice, the name remembered) and what "+ Create new" does, and that a
+  #   first import and a file whose every name is known are prefilled as
+  #   before.
+  test "the handbook says why a renamed account's row waits for a choice" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "**A name no booking was imported under.**",
+             "while the file's other names do",
+             "its select reads *Decide…*, whatever the name would have been prefilled with",
+             "*No booking under this name has been imported yet, though the file's other names have. If the account was renamed in Portfolio Performance, choose the existing account here; otherwise “+ Create new”.*",
+             "**Confirm import** waits until you choose",
+             "nothing is booked twice",
+             "keeps the new name as a former name of that account",
+             "*+ Create new* books the rows on a new account",
+             "is prefilled as before"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "**Ein Name, unter dem nichts importiert ist.**",
+             "während die anderen Namen der Datei es tun",
+             "Die Auswahl zeigt *Entscheiden…*, gleich womit der Name sonst vorbelegt worden wäre",
+             "*Unter diesem Namen ist noch keine Buchung importiert, unter den anderen Namen dieser Datei schon. Wurde das Konto in Portfolio Performance umbenannt, hier das bestehende Konto wählen, sonst „+ Neu anlegen“.*",
+             "**Import bestätigen** wartet, bis Sie wählen",
+             "nichts wird doppelt gebucht",
+             "behält den neuen Namen als früheren Namen dieses Kontos",
+             "*+ Neu anlegen* bucht die Zeilen auf ein neues Konto",
+             "wird wie bisher vorbelegt"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
+
   # User story:
   # As the operator or the agent renaming an imported account, or mapping an
   # export's account onto one of another name,
