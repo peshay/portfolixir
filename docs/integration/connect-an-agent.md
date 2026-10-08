@@ -106,9 +106,12 @@ Every request carries the header `Authorization: Bearer
 tokens from one address lock that address out for a growing time; behind the
 published port every client on the host is that one address, so
 `docker compose restart mcp` clears the count. The companion answers only
-under the loopback names with its port (`127.0.0.1:4001`, `localhost:4001`);
-behind a reverse proxy, add the proxy's name to
-`PORTFOLIXIR_MCP_ALLOWED_HOSTS`.
+under the loopback names with its port (`127.0.0.1:4001`, `localhost:4001`,
+`[::1]:4001`), and takes a browser's request only from those origins over
+`http://`. Add to `PORTFOLIXIR_MCP_ALLOWED_HOSTS` the proxy's name behind a
+reverse proxy, the address with its port when the companion is published on
+another host port (`127.0.0.1:14001`), or the host and port of a browser-based
+MCP client served from another origin (`localhost:6274`).
 
 ## The companion's variables
 
@@ -120,7 +123,7 @@ behind a reverse proxy, add the proxy's name to
 | `PORTFOLIXIR_MCP_TOKEN` | none, required for `http` | The bearer token HTTP clients present: at least 32 bytes and never a placeholder (`openssl rand -base64 48`). |
 | `PORTFOLIXIR_MCP_HOST` | `127.0.0.1` | The address the HTTP listener binds. |
 | `PORTFOLIXIR_MCP_PORT` | `4001` | The port the HTTP listener binds, a whole number from 1 to 65535; any other value, or a port another process holds, stops the companion with exit status 1 and a line naming the cause. |
-| `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | empty | Further `Host` names the HTTP listener answers under, comma-separated. |
+| `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | empty | Further `Host` names the HTTP listener answers under, comma-separated, each also admitted as a browser origin over `http://` or `https://`: a proxy name, or a `host:port` such as a published port or a browser client's origin. |
 | `PORTFOLIXIR_MCP_PROFILE` | empty, which is `full` | `read`, `book` or `full`. |
 | `PORTFOLIXIR_MCP_READ_ONLY` | `false` | `true` is the `read` profile; beside `book` or `full` it stops the companion. |
 
