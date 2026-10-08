@@ -14,7 +14,10 @@ description: Feature trees are worked agentically on a single epic branch and ac
   small PRs stay squash-merged), **by the signature-and-tag amendment below**
   (2026-09-07, PR #780) **and by the calendar-version amendment below**
   (2026-10-01, Sprint 17 plan D-11 — step 5's tag is made by the Release
-  workflow, not by the owner). Everything else here stands.
+  workflow, not by the owner) **and by the two-PR amendment below**
+  (2026-10-08 — a sprint is one planning PR and one sprint PR; lanes become
+  commit groups; the close-out rides the sprint PR; the owner is asked only
+  what only the owner knows). Everything else here stands.
 - **Date:** 2026-07-12
 
 ## Context
@@ -169,3 +172,94 @@ Therefore:
    changelog.
 
 Recorded in AGENTS.md at step 5.
+
+## Amendment: a sprint is two PRs, a planning PR and a sprint PR (2026-10-08, owner decision on the PR that carries this amendment)
+
+**Why.**
+
+- **The owner's touchpoints had crept from two to five.** This record
+  promised two per epic: the decision sign-off and the behavior acceptance.
+  Sprints 17–19 asked for five: the planning merge, one merge per lane PR
+  (each followed by the agent moving the next PR's base and pushing again),
+  and a close-out PR. Lanes run in parallel rebase onto each other's merges;
+  lanes run in sequence wait for the owner between them. The owner's
+  attention is the binding constraint this record was written around.
+- **The lanes were a repair, not a principle.** This record's batch was one
+  branch and one PR. The Sprint 16 batch reached 336 commits, and GitHub
+  refuses "Rebase and merge" beyond 100 commits (GitHub Docs, "Repository
+  limits": "Merging a pull request using the 'Rebase and merge' option is
+  limited to 100 commits"). `main` requires a linear history, so a merge
+  commit is not an option, and squash would undo the merge-method
+  amendment above. The Sprint 16 retrospective therefore cut batches into
+  lane PRs. Sprint 19 landed 90 commits across its three lanes: a cleaned
+  sprint fits under the limit.
+- **A fresh session executes a finished plan better than the session that
+  wrote it.** Claude Code's best-practice guide: "Once the spec is complete,
+  start a fresh session to execute it", because performance degrades as the
+  context fills. A fresh session also tests whether the plan is complete:
+  the planning session would not notice a gap it carries in its memory.
+- **A question the agent could answer still costs the owner a read.** The
+  Sprint 20 plan listed fifteen decisions; two of them needed the owner.
+
+**What changes.**
+
+1. **Two PRs per sprint.**
+   - **The planning PR**, written by a planning session: the plan, its gate
+     ADRs, its boards and the registry edits. Opened ready for review; the
+     merge is the signature (unchanged). The planning session carries out
+     the plan's registry bookkeeping after the merge and ends there.
+   - **The sprint PR**, written by a fresh implementation session on one
+     branch, `agent/<provider>/sprint-<N>`. The plan's lanes become commit
+     groups in the plan's order. It opens as a draft with its first commit.
+     Each risk class's closing act runs when its commit group is done, so
+     findings are fixed on the branch while the context is fresh; the UAT
+     persona runs at the end. The retrospective and the close-out records
+     (`sprint-status.yaml`, the epics registry, any readiness summary) are
+     its last commits before promotion. It is promoted under the four
+     conditions and rebase-merged by the owner.
+2. **A commit budget of 90.** The cleaned history of a sprint PR stays at or
+   under 90 commits, ten under GitHub's limit to leave room for review
+   rounds. The plan estimates the count. A plan that expects more cuts the
+   sprint into a stack of PRs, merged as one operation where GitHub's
+   stacked pull requests are available, and says why.
+3. **Post-merge facts move to the next planning PR.** The merge's CI run on
+   `main` and the calendar release it made are confirmed by the
+   implementation session when the merge wakes it, reported to the owner in
+   one line, and recorded in the next planning PR's verification basis. No
+   separate close-out PR.
+4. **The owner is asked only what only the owner knows:** a fact on the
+   owner's own instance; a change to how stored money data is booked or
+   corrected (signed by the planning merge, as before); scope, non-goals and
+   the announcement. Everything else the agent decides and records with its
+   reason, flippable by a comment. A plan's and a PR's body opens with
+   "What you need to do", which may be nothing but the merge.
+5. **The implementation session orchestrates.** It gives each story to a
+   subagent with a fresh context and a brief that names its base commit,
+   reviews and commits the result, and keeps its state in the plan and the
+   PR's checklist, which survive a compaction.
+
+**What does not change:** the decision gate before risk-tier semantics; the
+closing act and its lenses; the promotion conditions; rebase-merge for a
+batch and squash for a small single-concern PR; agents never merge.
+
+**Consequences.**
+
+- **Two owner touchpoints per sprint**, the two this record started with.
+- **A money fix reaches the owner's instance at the sprint's end**, not
+  after its lane: up to three or four days later. A fix the owner's instance
+  needs sooner is cut by the plan into an early PR, with that reason.
+- **One unfinished story blocks the merge.** The shrink order applies; a
+  story that cannot be finished is reverted out of the branch as its commit
+  group and filed, never waited on.
+- **One release per sprint.** Item 3 of the calendar-version amendment
+  above ("each lane PR's merge is a rollback point") now reads "each sprint
+  PR's merge". The revert unit stays the commit group.
+- **GitHub sends no event when `main` moves under an open PR.** The
+  implementation session rebases onto `main` before each closing act and
+  before promotion.
+- **The lane-PR carry-forwards are superseded where they assume lane PRs**
+  (the Sprint 16 retrospective's cut, the Sprint 18 and 19 stacking rules).
+  Their invariants — move a stacked PR's base to `main` before pushing its
+  head; every commit passes the gates — still bind a stack.
+- **The Sprint 20 plan's D-9** carries a dated note: its three lanes are
+  one sprint PR.
