@@ -1207,6 +1207,12 @@ gave them in every language. The asset-class
 tree is an editable taxonomy: a security's class is seeded from an inferred
 default and corrected by dragging it between categories.
 
+A tree has at most 32 levels. **Add** under a category on level 32 is
+refused at the top of the page, naming the parent you picked, the level the
+new category would have taken and the bound; the form keeps what you typed
+(issue #940). The API refuses the same for a category it would create or move
+below level 32.
+
 Each portfolio can store a **target weight** per category (a fraction of the
 portfolio, for example 25%). The **allocation** breakdown then compares, per
 category, the actual weight (its share of the valued positions) against the

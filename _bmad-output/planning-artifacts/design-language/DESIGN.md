@@ -6278,3 +6278,26 @@ has no result to state, and a zero would claim it is flat").
   `#detail-closed-trades-table td.trade-pa--na`), as issue 1010 did for the
   sign colours, because the open lots' table has no id and the Holdings
   tab's and Wealth's cells carry the dash too.
+
+## Amendment 2026-10-08 — A category below level 32 is refused *(Sprint 20 PR γ, C3; issue 940; board `mockups/ux-design-2026-10-07/02-money-findings`, before / after)*
+
+- **The refusal.** "Hinzufügen" with a parent on level 32 creates nothing
+  and answers in the page's result slot (`#classifications-result`, the
+  inline result of issue 1064) as a problem: "Nicht angelegt: Unter
+  „Stufe 32“ läge die neue Kategorie auf Ebene 33 — eine Klassifizierung hat
+  höchstens 32 Ebenen. Bei „Übergeordnet“ eine Kategorie weiter oben
+  wählen." English: "Not added: under “…” the new category would sit on
+  level 33 — a classification has at most 32 levels. Under “Parent”, pick a
+  category higher up." The parent's stored name sits in `<bdi>` (H8.8);
+  "Übergeordnet" / "Parent" is the select's own label. The sentence is its
+  own message, not `changeset_error/1`'s field-prefixed one.
+- **It comes to the operator** (found while drawing, 5): a refusal of
+  "Hinzufügen" is brought into view and focused (`focus-into-view`), as a
+  plan write's is, because the form sits 570 px below the slot at 980 px.
+  The form keeps what was typed.
+- **A move** has no control on this screen. The API refuses it with the
+  changeset's message on `parent_id`, naming the level the moved subtree's
+  deepest category would take.
+- **Left as it is:** the cycle refusal's "Parent würde …" prefix (found
+  while drawing, 6). Changing it changes another refusal's words, outside
+  the one string this story draws.

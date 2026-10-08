@@ -225,11 +225,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
     |> Enum.max(fn -> 0 end)
   end
 
-  # Bounded, because `parent_id` carries a foreign key and nothing else: a
-  # category re-homed under its own descendant is accepted by the ordinary
-  # write path, and an unbounded walk over one pins a scheduler on the only
-  # page that could undo it. The same guard, and the same number, as
-  # `Classifications`' root-path walk.
+  # Bounded by the levels a tree may have, the number the category writers
+  # refuse a parent past (#940) and `Classifications`' root-path walk stops
+  # at: a loop or a deeper chain stored before those guards (F11, #940) would
+  # otherwise pin a scheduler on the only page that could undo it.
   defp category_level(_id, _parents, level, 0), do: level
 
   defp category_level(id, parents, level, depth_left) do
@@ -1497,13 +1496,19 @@ defmodule PortfolixirWeb.ClassificationsLive do
     end
   end
 
+  # A refusal is brought into view and focused, as a plan write's is: the
+  # form sits far below the page's result slot (#940, board 02, found while
+  # drawing 5).
   def handle_event("create_category", %{"category" => params}, socket) do
     case Classifications.create_category(Actor.owner_ui(), LiveParam.map(params)) do
       {:ok, _category} ->
         {:noreply, socket |> success(gettext("Category created")) |> reload_composition()}
 
       {:error, reason} ->
-        {:noreply, failure(socket, error_message(reason))}
+        {:noreply,
+         socket
+         |> failure(create_category_error(socket.assigns, reason))
+         |> focus_into_view("classifications-result")}
     end
   end
 
@@ -3033,6 +3038,36 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   defp page_result(nil, success) when not is_nil(success), do: {:note, success}
   defp page_result(nil, nil), do: nil
+
+  # #940 (board 02): a parent past the tree's last level, in the page's own
+  # words — the parent picked, the level the category would sit on, the
+  # bound, and the form's own label for what to change — rather than
+  # `changeset_error/1`'s field-prefixed message.
+  defp create_category_error(assigns, %Ecto.Changeset{errors: errors} = changeset) do
+    case Keyword.get(errors, :parent_id) do
+      {_message, opts} when is_list(opts) ->
+        if opts[:validation] == :tree_depth,
+          do: depth_refusal(assigns, changeset, opts),
+          else: error_message(changeset)
+
+      _other ->
+        error_message(changeset)
+    end
+  end
+
+  defp create_category_error(_assigns, reason), do: error_message(reason)
+
+  defp depth_refusal(assigns, changeset, opts) do
+    StoredText.isolate(
+      gettext(
+        "Not added: under “%{parent}” the new category would sit on level %{level} — a classification has at most %{max} levels. Under “Parent”, pick a category higher up.",
+        parent: StoredText.slot(:parent),
+        level: opts[:level],
+        max: opts[:max]
+      ),
+      parent: category_name(assigns, Ecto.Changeset.get_field(changeset, :parent_id))
+    )
+  end
 
   defp error_message(:builtin_locked), do: gettext("Built-in classifications cannot be edited")
   defp error_message(:category_mismatch), do: gettext("That category belongs to another tree")
