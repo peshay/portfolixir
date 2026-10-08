@@ -331,6 +331,54 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
     assert page.("limit=2&offset=2") == ["E Active AG"]
   end
 
+  # User story (#1113):
+  # As the operator's agent paging through a data-quality set whose rule is
+  # read off the quotes,
+  # I want every page but the last to be full,
+  # so that a short or empty page means the set has ended, not that the page
+  # was cut from the whole catalog before the rule ran.
+  #
+  # Acceptance criteria:
+  # - With fresh securities sorting first, data_quality=stale_quote&limit=2
+  #   answers the first two stale ones, offset=2 the third, offset=3 none.
+  # - missing_quote and missing_fx page the same way, after their rule.
+  test "a paged data-quality read filters before it pages", %{conn: conn} do
+    today = Date.utc_today()
+
+    for {name, ticker} <- [{"A Fresh AG", "AFR"}, {"B Fresh AG", "BFR"}, {"C Fresh AG", "CFR"}] do
+      security = create_security!(name: name, ticker: ticker)
+      put_quote!(security, Date.add(today, -1), "10")
+    end
+
+    for {name, ticker} <- [{"D Stale AG", "DST"}, {"E Stale AG", "EST"}] do
+      security = create_security!(name: name, ticker: ticker)
+      put_quote!(security, Date.add(today, -30), "10")
+    end
+
+    _f = create_security!(name: "F Unpriced AG", ticker: "FUN")
+
+    for {name, ticker} <- [{"G Rateless Inc", "GRL"}, {"H Rateless Inc", "HRL"}] do
+      security = create_security!(name: name, ticker: ticker, currency: "ZAR")
+      put_quote!(security, Date.add(today, -1), "10")
+    end
+
+    page = fn query ->
+      conn
+      |> recycle()
+      |> get_json("/api/v1/securities?" <> query)
+      |> json_response(200)
+      |> Map.fetch!("data")
+      |> Enum.map(& &1["name"])
+    end
+
+    assert page.("data_quality=stale_quote&limit=2") == ["D Stale AG", "E Stale AG"]
+    assert page.("data_quality=stale_quote&limit=2&offset=2") == ["F Unpriced AG"]
+    assert page.("data_quality=stale_quote&limit=2&offset=3") == []
+    assert page.("data_quality=missing_quote&limit=1") == ["F Unpriced AG"]
+    assert page.("data_quality=missing_fx&limit=1") == ["G Rateless Inc"]
+    assert page.("data_quality=missing_fx&limit=1&offset=1") == ["H Rateless Inc"]
+  end
+
   # User story (#1103, answered by the Sprint 20 decision pass):
   # As the operator's agent that retired securities in bulk,
   # I want to list the retired ones, or leave them out, as I can the

@@ -52,13 +52,15 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "Sprint 20 γ, the agent's reads and writes (C2): the securities list takes " <>
           "is_retired, as it takes is_benchmark, so an agent finds what it retired in order " <>
           "to restore it, and a data_quality set beside a narrowing it contradicts now " <>
-          "matches nothing where the set's own exclusion replaced the caller's (#1103). The " <>
+          "matches nothing where the set's own exclusion replaced the caller's (#1103). A " <>
+          "data_quality set is filtered before limit/offset page it (#1113). The " <>
           "schema budget pays for every byte C2 adds, and the ceilings are lowered to the " <>
           "figures measured (D-10).",
       endpoints: [],
       tools: [],
       parameters: [
-        "GET /api/v1/securities?is_retired= (portfolixir.securities.list, whose schema and description now carry it): true lists only the retired securities, false leaves them out, blank counts as absent, any other value is a 422 on is_retired, as is_benchmark= answers; it narrows together with query, holding_status, is_benchmark, logo_status, data_quality, since and limit/offset. Beside data_quality=stale_quote, missing_quote or missing_logo, which leave retired and benchmark securities out, is_retired=true answers an empty list, and so does is_benchmark=true, which the set's own exclusion used to replace, answering the set's other members; logo_status=present beside missing_logo likewise. Every other combination answers as before (#1103)"
+        "GET /api/v1/securities?is_retired= (portfolixir.securities.list, whose schema and description now carry it): true lists only the retired securities, false leaves them out, blank counts as absent, any other value is a 422 on is_retired, as is_benchmark= answers; it narrows together with query, holding_status, is_benchmark, logo_status, data_quality, since and limit/offset. Beside data_quality=stale_quote, missing_quote or missing_logo, which leave retired and benchmark securities out, is_retired=true answers an empty list, and so does is_benchmark=true, which the set's own exclusion used to replace, answering the set's other members; logo_status=present beside missing_logo likewise. Every other combination answers as before (#1103)",
+        "GET /api/v1/securities?data_quality=&limit=&offset= (portfolixir.securities.list): stale_quote, missing_quote, missing_fx and two_scales, whose rules read quotes, rates or bookings, now apply limit and offset to the matching securities, after the rule, where they cut the catalog first and a page could come back short or empty while later pages held matches; missing_logo, all query, already did. Only a set's last page is short now. Without limit and offset nothing changes (#1113)"
       ],
       removed_endpoints: [],
       removed_tools: [],

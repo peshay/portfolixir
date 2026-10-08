@@ -70,7 +70,9 @@ defmodule Portfolixir.Catalog.DataQuality do
   it cannot (stale/missing quote are derived from the enriched metrics).
   `list_opts/1` is the first half and `refine/3` is the second; `list/2`
   applies both and is what a caller should reach for unless it is already
-  holding rows.
+  holding rows. It also pages after the second half: a caller's `:limit` and
+  `:offset` cut the matching rows, not the catalog the rule then filters
+  (#1113), except for `missing_logo`, which is all query.
   """
 
   alias Portfolixir.Catalog
@@ -164,10 +166,30 @@ defmodule Portfolixir.Catalog.DataQuality do
     if contradicts?(opts, id) do
       []
     else
+      {page, opts} = page_opts(id, opts)
+
       opts
       |> Keyword.merge(list_opts(id))
       |> Catalog.list_securities_with_metrics()
       |> refine(id)
+      |> apply_page(page)
+    end
+  end
+
+  # #1113: a predicate with an in-memory half pages AFTER that half, or a
+  # page is cut from the whole catalog before the rule runs and comes back
+  # short or empty while later pages hold matches. `missing_logo` is all
+  # query, so its LIMIT/OFFSET stay in the query (PR #1102).
+  defp page_opts("missing_logo", opts), do: {[], opts}
+
+  defp page_opts(_id, opts), do: Keyword.split(opts, [:limit, :offset])
+
+  defp apply_page(rows, page) do
+    rows = Enum.drop(rows, page[:offset] || 0)
+
+    case page[:limit] do
+      nil -> rows
+      limit -> Enum.take(rows, limit)
     end
   end
 

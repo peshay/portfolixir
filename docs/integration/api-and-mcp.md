@@ -308,7 +308,9 @@ full list.
   `assumptions`),
   `projection` (`slim`/`full`), and
   `limit`/`offset` for pagination (both non-negative integers). Use these to
-  page large catalogs instead of fetching the whole table at once. The
+  page large catalogs instead of fetching the whole table at once. A
+  `data_quality` set is filtered before `limit`/`offset` page it, so only its
+  last page is short (issue #1113). The
   **human view** of these narrowings is the one-tap filter-chip row on the
   securities page (issue #717): its chips ride the same URL state
   (`holding=`, `dq=`, `filter[]=asset_class:is_nil`, plus `cur[]=` and
