@@ -297,9 +297,13 @@ defmodule PortfolixirWeb.ImportsLive do
         <div role="status">
           <AppShell.data_note severity={:attention} data-role="import-correction">
             <p data-role="import-correction-finding">
+              <%!-- Board ux-design-2026-10-07/03-correction-sentence ①:
+                   true for both readings the correction meets, a CSV
+                   row's gross value (ADR-0053 §1) and a cash amount that
+                   also held the refund booked beside it (A1). --%>
               <%= ngettext(
-                "One booking already imported differs from this file: what was booked is the gross value; the Portfolio Performance file states what the account moved. The difference is the row's fees and taxes.",
-                "%{count} bookings already imported differ from this file: what was booked is the gross value; the Portfolio Performance file states what the account moved. The difference is the row's fees and taxes.",
+                "One booking already imported differs from this file: it was booked as an earlier version of the import read its row — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund.",
+                "%{count} bookings already imported differ from this file: they were booked as an earlier version of the import read their rows — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund.",
                 length(@corrections)
               ) %>
             </p>
@@ -2223,7 +2227,8 @@ defmodule PortfolixirWeb.ImportsLive do
                 <%= signed_amount(elem(@subject.total, 0), elem(@subject.total, 1)) %>
               </span>
             <% end %>
-            <span class="phone-row__figure2"><%= gettext("Fees and taxes") %></span>
+            <%!-- Board 03 ②: the table's own column word. --%>
+            <span class="phone-row__figure2"><%= gettext("Difference") %></span>
           </span>
         </p>
         <p class="hint" data-role="import-correction-consequence">

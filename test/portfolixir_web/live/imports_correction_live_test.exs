@@ -164,7 +164,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
              )
 
       assert text(view, "#import-correction [data-role='import-correction-finding']") ==
-               "4 bookings already imported differ from this file: what was booked is the gross value; the Portfolio Performance file states what the account moved. The difference is the row's fees and taxes."
+               "4 bookings already imported differ from this file: they were booked as an earlier version of the import read their rows — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund."
 
       assert text(view, "#import-correction-table thead") ==
                "Row Date Booking Booked Per the file Difference"
@@ -231,9 +231,10 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
     # so that it reads true for a CSV and a JSON export alike.
     #
     # Acceptance criteria:
-    # - The heading, the columns, the note's sentence exactly as ⑧ gives it,
-    #   the total and the button read in German; a one-booking file reads
-    #   in the singular.
+    # - The heading, the columns, the note's sentence as board 03 ① gives it
+    #   (⑧'s file clause, true for a gross value and for a refund counted
+    #   twice), the total and the button read in German; a one-booking file
+    #   reads in the singular.
     test "reads in German, the finding format-neutral, singular for one booking", %{conn: conn} do
       portfolio = portfolio!()
       apply_old_reading!(portfolio, pp_csv(), "export.csv")
@@ -244,7 +245,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       assert text(view, "#import-correction-head") == "Bereits importiert, mit anderem Betrag"
 
       assert text(view, "#import-correction [data-role='import-correction-finding']") ==
-               "4 bereits importierte Buchungen weichen von dieser Datei ab: Gebucht ist der Bruttowert; was das Konto bewegt, nennt die Portfolio-Performance-Datei. Die Differenz sind die Gebühren und Steuern der Zeile."
+               "4 bereits importierte Buchungen weichen von dieser Datei ab: Gebucht ist, wie eine frühere Version des Imports ihre Zeilen las — der Bruttowert einer CSV-Zeile oder ein Geldbetrag, der auch die daneben gebuchte Steuererstattung enthielt. Was das Konto bewegt, nennt die Portfolio-Performance-Datei; die Differenz sind die Gebühren und Steuern der Zeile oder diese Erstattung."
 
       assert text(view, "#import-correction-table thead") ==
                "Zeile Datum Buchung Gebucht Laut Datei Differenz"
@@ -272,7 +273,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       upload(view, "converter.csv", @converter_csv, "text/csv")
 
       assert text(view, "#import-correction [data-role='import-correction-finding']") ==
-               "Eine bereits importierte Buchung weicht von dieser Datei ab: Gebucht ist der Bruttowert; was das Konto bewegt, nennt die Portfolio-Performance-Datei. Die Differenz sind die Gebühren und Steuern der Zeile."
+               "Eine bereits importierte Buchung weicht von dieser Datei ab: Gebucht ist, wie eine frühere Version des Imports ihre Zeile las — der Bruttowert einer CSV-Zeile oder ein Geldbetrag, der auch die daneben gebuchte Steuererstattung enthielt. Was das Konto bewegt, nennt die Portfolio-Performance-Datei; die Differenz sind die Gebühren und Steuern der Zeile oder diese Erstattung."
 
       assert text(view, "#import-correction-open") == "Eine Buchung korrigieren…"
     end
@@ -348,7 +349,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
     # Acceptance criteria (board 09 A, the booking-delete dialog's anatomy):
     # - "Correct 4 bookings…" opens "Correct booked amounts": the subject
     #   box (4 bookings · Rows 3, 4, 5, 6 · Girokonto, Tagesgeld · -20.61
-    #   EUR · Fees and taxes), the consequence per account, the
+    #   EUR · Difference, board 03 ②), the consequence per account, the
     #   recalculation, and the journal sentence; in German as on the board.
     # - Cancel is focused first; the confirm is primary, not danger, and
     #   names the act; Cancel closes it and writes nothing.
@@ -366,7 +367,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       assert text(view, "#import-correction-dialog-title") == "Correct booked amounts"
 
       assert text(view, "#import-correction-subject") ==
-               "4 bookings Rows 3, 4, 5, 6 · Girokonto, Tagesgeld -20.61 EUR Fees and taxes"
+               "4 bookings Rows 3, 4, 5, 6 · Girokonto, Tagesgeld -20.61 EUR Difference"
 
       assert text(view, "#import-correction-dialog [data-role='import-correction-consequence']") ==
                "Afterwards Girokonto has 19.41 EUR less and Tagesgeld has 1.20 EUR less. Balances, valuation, return and income are recalculated."
@@ -389,7 +390,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       assert text(view, "#import-correction-dialog-title") == "Gebuchte Beträge korrigieren"
 
       assert text(view, "#import-correction-subject") ==
-               "4 Buchungen Zeilen 3, 4, 5, 6 · Girokonto, Tagesgeld -20,61 EUR Gebühren und Steuern"
+               "4 Buchungen Zeilen 3, 4, 5, 6 · Girokonto, Tagesgeld -20,61 EUR Differenz"
 
       assert text(view, "#import-correction-dialog [data-role='import-correction-consequence']") ==
                "Danach hat Girokonto 19,41 EUR weniger und Tagesgeld 1,20 EUR weniger. Kontostände, Bewertung, Rendite und Erträge werden neu berechnet."
@@ -430,7 +431,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       view |> element("#import-correction-open") |> render_click()
 
       assert text(view, "#import-correction-subject") ==
-               "1 Buchung Zeile 3 · FX-Cash -25,00 EUR Gebühren und Steuern"
+               "1 Buchung Zeile 3 · FX-Cash -25,00 EUR Differenz"
 
       assert text(view, "#import-correction-dialog [data-role='import-correction-consequence']") ==
                "Danach hat FX-Cash 25,00 EUR weniger. " <>

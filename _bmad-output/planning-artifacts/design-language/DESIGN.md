@@ -5980,15 +5980,28 @@ in `PortfolixirWeb.ImportsLive` on `Imports.cash_corrections/2` and
   (UX-DR17, `data-role="import-correction"`) whose body holds, in order, the
   sentence, the list, the total and the remedy (rule 3: the remedy is a
   child of the note). **The sentence names the Portfolio Performance file,
-  not a column of one format (board 01 ⑧)**, plural-aware: "%{count}
-  bookings already imported differ from this file: what was booked is the
-  gross value; the Portfolio Performance file states what the account
-  moved. The difference is the row's fees and taxes." / "5 bereits
-  importierte Buchungen weichen von dieser Datei ab: Gebucht ist der
-  Bruttowert; was das Konto bewegt, nennt die Portfolio-Performance-Datei.
-  Die Differenz sind die Gebühren und Steuern der Zeile." Board 09's
-  "(Spalte „Betrag“) … als „Gesamtpreis“" is retired: a JSON v1 file has
-  neither column.
+  not a column of one format (board 01 ⑧)**, plural-aware, **and is true
+  for both readings the correction meets** *(amended 2026-10-08, board
+  `mockups/ux-design-2026-10-07/03-correction-sentence` ①, the α closing
+  act's CH3 = EC-F4)*: "%{count} bookings already imported differ from
+  this file: they were booked as an earlier version of the import read
+  their rows — a CSV row's gross value, or a cash amount that also held
+  the tax refund booked beside it. The Portfolio Performance file states
+  what the account moved; the difference is the row's fees and taxes, or
+  that refund." / "5 bereits importierte Buchungen weichen von dieser
+  Datei ab: Gebucht ist, wie eine frühere Version des Imports ihre Zeilen
+  las — der Bruttowert einer CSV-Zeile oder ein Geldbetrag, der auch die
+  daneben gebuchte Steuererstattung enthielt. Was das Konto bewegt, nennt
+  die Portfolio-Performance-Datei; die Differenz sind die Gebühren und
+  Steuern der Zeile oder diese Erstattung." (singular "One booking …: it
+  was booked as an earlier version of the import read its row …" / "Eine
+  bereits importierte Buchung weicht … ihre Zeile las …"). The sentence
+  of board 01 ⑧, "what was booked is the gross value … The difference is
+  the row's fees and taxes.", is retired: since A6 the section also lists
+  a JSON or converter row whose refund was counted twice (A1), where
+  nothing booked is a gross value and the difference is that refund.
+  Board 09's "(Spalte „Betrag“) … als „Gesamtpreis“" is retired too: a JSON
+  v1 file has neither column.
 - **Its columns.** Row · Date · Booking · Booked · Per the file · Difference
   (Zeile · Datum · Buchung · Gebucht · Laut Datei · Differenz) in a
   `.data-table` (`#import-correction-table`); the booking is "kind · security
@@ -6030,7 +6043,10 @@ in `PortfolixirWeb.ImportsLive` on `Imports.cash_corrections/2` and
   confirm on its own first line, Cancel on the next) and reuses
   `.booking-delete__subject`: title "Correct booked amounts" / "Gebuchte
   Beträge korrigieren"; the subject box "5 bookings · Rows 2, 5, 8, 11, 13 ·
-  Girokonto, Tagesgeld" over the total and "Fees and taxes"; the consequence,
+  Girokonto, Tagesgeld" over the total and "Difference" / "Differenz", the
+  table's column word *(amended 2026-10-08, board
+  `mockups/ux-design-2026-10-07/03-correction-sentence` ②; board 09's
+  "Fees and taxes" is false for a refund counted twice)*; the consequence,
   "Afterwards Girokonto has 24.31 EUR less and Tagesgeld has 1.20 EUR less."
   / "Danach hat Girokonto 24,31 EUR weniger und Tagesgeld 1,20 EUR
   weniger.", one sentence per trade whose settlement or price changes ("Beim
