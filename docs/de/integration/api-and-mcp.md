@@ -61,8 +61,25 @@ Begleitdienst den `Host`-Header genau, Name und Port: Eine Anfrage unter einem
 `Host`, auf den der Listener nicht antwortet (die Loopback-Namen und seine
 gebundene Adresse mit seinem Port sowie die Namen in
 `PORTFOLIXIR_MCP_ALLOWED_HOSTS`), wird mit `403` beantwortet, bevor ihr
-Origin oder ihr Token betrachtet wird, und zählt als kein Fehlversuch. Das
-Token wird geprüft, bevor der Body der Anfrage gelesen wird. Die Fehler, die der Begleitdienst selbst
+Origin oder ihr Token betrachtet wird, und zählt als kein Fehlversuch. Die
+Loopback-Namen sind `127.0.0.1`, `localhost` und `[::1]`, jeweils nur mit dem
+Port des Listeners. Ein Name in `PORTFOLIXIR_MCP_ALLOWED_HOSTS` gilt mit
+diesem Port und ohne Port, wie ihn ein Proxy auf Port 443 durchreicht; ein
+Eintrag mit eigenem Port gilt nur unter diesem Port, etwa `127.0.0.1:14001` für
+eine Compose-Zuordnung, die den Begleitdienst auf einem anderen Host-Port als
+seinem eigenen veröffentlicht. Das `Origin` einer Browser-Anfrage wird danach
+als Ganzes verglichen, Schema, Name und Port (#956): Es gilt als `http://` auf
+einem Loopback-Namen oder der gebundenen Adresse mit dem Port des Listeners
+oder als `http://` oder `https://` auf einem `Host`-Wert aus
+`PORTFOLIXIR_MCP_ALLOWED_HOSTS`. Jedes andere Origin, eine Seite auf einem
+anderen Port derselben Maschine eingeschlossen, wird mit `403` beantwortet
+(`origin not allowed`), bevor sein Token betrachtet wird. Um einen MCP-Client
+im Browser zuzulassen, der von einem anderen Origin ausgeliefert wird, nenne
+Host und Port dieses Origins in `PORTFOLIXIR_MCP_ALLOWED_HOSTS`:
+`localhost:6274` lässt einen Client zu, der unter `http://localhost:6274`
+ausgeliefert wird. Ein Client, der kein Browser ist, sendet kein `Origin` und
+besteht diese Prüfung. Das Token wird geprüft, bevor der Body der Anfrage
+gelesen wird. Die Fehler, die der Begleitdienst selbst
 beantwortet, ein unbekannter Pfad eingeschlossen, haben die Form der API,
 `{"errors": {"detail": "Bad Request"}}`, ohne Stacktrace und ohne lokalen
 Pfad; die Ablehnungen des MCP-Protokolls selbst auf `/mcp` behalten dessen

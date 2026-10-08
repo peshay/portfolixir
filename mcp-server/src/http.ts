@@ -19,17 +19,27 @@ export interface HttpServerOptions {
   profile?: McpProfile;
 }
 
-export function isAllowedOrigin(origin: string | undefined): boolean {
+/**
+ * The Origin check (#956): a request without an Origin (a client that is not
+ * a browser) passes; one with an Origin passes only when that origin, exactly
+ * as a browser serializes it (scheme, name and port), is one of
+ * `allowedOrigins` (`allowedOriginsFor`). A page on another port of the same
+ * machine is another origin, and so is an opaque one (`null`).
+ */
+export function isAllowedOrigin(origin: string | undefined, allowedOrigins: readonly string[]): boolean {
   if (origin === undefined) {
     return true;
   }
 
+  let parsed: URL;
+
   try {
-    const parsed = new URL(origin);
-    return ["localhost", "127.0.0.1", "::1"].includes(parsed.hostname);
+    parsed = new URL(origin);
   } catch {
     return false;
   }
+
+  return parsed.origin === origin && allowedOrigins.includes(parsed.origin);
 }
 
 /**
@@ -213,10 +223,11 @@ export function createFailureThrottle(): FailureThrottle {
 }
 
 /**
- * The companion's gate: the origin check, then a locked-out source answered
- * 429 before the token is compared (right token or wrong), then the
- * constant-time bearer check, which counts a failure against the source and
- * clears it on success. The source is the connecting address.
+ * The companion's token gate: a locked-out source answered 429 before the
+ * token is compared (right token or wrong), then the constant-time bearer
+ * check, which counts a failure against the source and clears it on success.
+ * The source is the connecting address. The Host and Origin guards run ahead
+ * of it.
  */
 export function mcpAuthMiddleware(
   token: string,
@@ -224,11 +235,6 @@ export function mcpAuthMiddleware(
   clock: () => number = () => Math.floor(Date.now() / 1000)
 ) {
   return (req: Request, res: Response, next: NextFunction): void => {
-    if (!isAllowedOrigin(req.get("origin"))) {
-      res.status(403).json({ errors: { detail: "origin not allowed" } });
-      return;
-    }
-
     const source = req.socket.remoteAddress ?? "unknown";
     const now = clock();
     const state = throttle.check(source, now);
@@ -276,19 +282,95 @@ export function hostGuard(allowedHosts: string[]) {
 }
 
 /**
- * The Host values the companion answers under: the loopback names with and
- * without the port, plus any name the operator adds for a reverse proxy. A
- * wildcard bind (0.0.0.0) is not itself a Host a browser sends, so it is not
- * listed. Both the companion's own guard and the SDK's check read this list.
+ * The companion's Origin guard (#956), after the Host guard and before the
+ * token: a browser request whose Origin is not one of `allowedOrigins` is
+ * answered 403 before its token is read, and counts no failed attempt.
  */
-export function allowedHostsFor(host: string, port: number, ...extraHosts: string[]): string[] {
-  const names = ["127.0.0.1", "localhost", ...extraHosts.map((name) => name.trim()).filter(Boolean)];
+export function originGuard(allowedOrigins: readonly string[]) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!isAllowedOrigin(req.get("origin"), allowedOrigins)) {
+      res.status(403).json({ errors: { detail: "origin not allowed" } });
+      return;
+    }
+
+    next();
+  };
+}
+
+// The names a client reaches the listener itself under (#956): the loopback
+// names, the IPv6 one in brackets as a Host header and a URL write it, and
+// the bound address unless it is a wildcard, which no client sends. Each is
+// answered under the listener's port only.
+function listenerNames(host: string): string[] {
+  const names = ["127.0.0.1", "localhost", "[::1]"];
 
   if (host !== "0.0.0.0" && host !== "::" && !names.includes(host)) {
     names.push(host);
   }
 
-  return names.flatMap((name) => [`${name}:${port}`, name]);
+  return names;
+}
+
+// A name or a bracketed IPv6 address, then a port: what a Host header with a
+// port looks like. A bare IPv6 address is not one, its last group no port.
+const HOST_WITH_PORT = /^(\[[^\]]*\]|[^:[\]]+):[0-9]+$/;
+
+// The names the operator adds (PORTFOLIXIR_MCP_ALLOWED_HOSTS), trimmed, as
+// the Host values each stands for: an entry that carries its own port
+// (`localhost:6274`, a published port `127.0.0.1:14001`) stands for itself;
+// a bare name for itself with the listener's port and without one, as a
+// proxy on 80 or 443 passes it.
+function extraHostValues(port: number, extraHosts: string[]): string[] {
+  return extraHosts
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .flatMap((name) => (HOST_WITH_PORT.test(name) ? [name] : [`${name}:${port}`, name]));
+}
+
+/**
+ * The Host values the companion answers under, exact by name and port: the
+ * loopback names and the bound address with the listener's port, plus the
+ * names the operator adds for a reverse proxy, a published port of another
+ * number or a browser client (`extraHostValues`). A wildcard bind (0.0.0.0)
+ * is not itself a Host a browser sends, so it is not listed. Both the
+ * companion's own guard and the SDK's check read this list.
+ */
+export function allowedHostsFor(host: string, port: number, ...extraHosts: string[]): string[] {
+  return [
+    ...listenerNames(host).map((name) => `${name}:${port}`),
+    ...extraHostValues(port, extraHosts)
+  ];
+}
+
+/**
+ * The origins the Origin guard admits (#956), built from the configuration
+ * the Host guard reads: `http://` with the listener's port for each loopback
+ * name and the bound address (the companion itself speaks plain HTTP), and
+ * `http://` and `https://` for each Host value the operator added (a proxy
+ * that terminates TLS, or a browser client's own origin). Each is written as
+ * a browser serializes an origin, a scheme's default port left out.
+ */
+export function allowedOriginsFor(host: string, port: number, ...extraHosts: string[]): string[] {
+  const candidates = [
+    ...listenerNames(host).map((name) => `http://${name}:${port}`),
+    ...extraHostValues(port, extraHosts).flatMap((value) => [`http://${value}`, `https://${value}`])
+  ];
+  const origins: string[] = [];
+
+  for (const candidate of candidates) {
+    try {
+      const { origin } = new URL(candidate);
+
+      if (origin !== "null" && !origins.includes(origin)) {
+        origins.push(origin);
+      }
+    } catch {
+      // An entry no URL can carry admits no origin; the Host guard still
+      // compares it as written.
+    }
+  }
+
+  return origins;
 }
 
 export interface HttpAppOptions {
@@ -297,6 +379,8 @@ export interface HttpAppOptions {
   token: string;
   /** The Host values the companion answers under (its guard and the SDK's). */
   allowedHosts: string[];
+  /** The origins a browser request may come from (#956). */
+  allowedOrigins: string[];
   /** The tool profile (A1, #992); `full` when absent. */
   profile?: McpProfile;
 }
@@ -346,16 +430,18 @@ function errorStatus(error: unknown): number {
 
 /**
  * The companion's HTTP app, without a listener. The Host guard runs first
- * (E25 S7, F22), then the gate, both before any body is read (E25 S2, F19):
- * an unauthenticated request is refused without being parsed. Express runs in
- * production mode whatever NODE_ENV says, so its own last-resort handler never
- * renders a stack trace either.
+ * (E25 S7, F22), then the Origin guard (#956), then the token gate, all
+ * before any body is read (E25 S2, F19): an unauthenticated request is
+ * refused without being parsed. Express runs in production mode whatever
+ * NODE_ENV says, so its own last-resort handler never renders a stack trace
+ * either.
  */
 export function createHttpApp(options: HttpAppOptions): Express {
   const app = express();
   app.set("env", "production");
 
   app.use(hostGuard(options.allowedHosts));
+  app.use(originGuard(options.allowedOrigins));
   app.use(mcpAuthMiddleware(options.token));
   app.use(express.json({ limit: "1mb" }));
 
@@ -392,10 +478,12 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
   const port = options.port ?? MCP_DEFAULT_PORT;
   const token = requireMcpToken(options.token);
   const allowedHosts = allowedHostsFor(host, port, ...(options.extraHosts ?? []));
+  const allowedOrigins = allowedOriginsFor(host, port, ...(options.extraHosts ?? []));
   const app = createHttpApp({
     client: options.client,
     token,
     allowedHosts,
+    allowedOrigins,
     profile: options.profile
   });
 

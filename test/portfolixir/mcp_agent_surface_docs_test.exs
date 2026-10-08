@@ -66,6 +66,40 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
     ])
   end
 
+  # User story (#956):
+  # As an operator running the companion over HTTP,
+  # I want the reference to say which origins the companion admits and how
+  # to admit a browser client served from another origin,
+  # so that a page on another port is refused by design and a client I use
+  # is admitted by a setting, not by a guess.
+  #
+  # Acceptance criteria:
+  # - The EN and DE MCP pages state the whole-origin compare, scheme, name
+  #   and port, the 403 for a page on another port of the same machine, and
+  #   the variable that admits a browser client's origin.
+  # - Both name the IPv6 loopback in brackets and the entry with its own port
+  #   for a published port of another number.
+  test "the MCP pages state the companion's Origin check" do
+    assert_fragments([
+      {"docs/integration/api-and-mcp.md",
+       [
+         "A browser request's `Origin` is then compared whole, scheme, name and port",
+         "a page on another port of the same machine included, is answered `403`",
+         "name that origin's host and port in `PORTFOLIXIR_MCP_ALLOWED_HOSTS`",
+         "`127.0.0.1`, `localhost` and `[::1]`, each with the listener's port only",
+         "`127.0.0.1:14001` for a Compose mapping"
+       ]},
+      {"docs/de/integration/api-and-mcp.md",
+       [
+         "Das `Origin` einer Browser-Anfrage wird danach als Ganzes verglichen, Schema, Name und Port",
+         "eine Seite auf einem anderen Port derselben Maschine eingeschlossen, wird mit `403` beantwortet",
+         "nenne Host und Port dieses Origins in `PORTFOLIXIR_MCP_ALLOWED_HOSTS`",
+         "`127.0.0.1`, `localhost` und `[::1]`, jeweils nur mit dem Port des Listeners",
+         "`127.0.0.1:14001` für eine Compose-Zuordnung"
+       ]}
+    ])
+  end
+
   # User story (E25 S7, F23, the companion's half):
   # As an operator whose API sits behind a redirect,
   # I want the reference to say that the companion follows none and how the

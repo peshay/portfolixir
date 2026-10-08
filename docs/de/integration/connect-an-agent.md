@@ -113,8 +113,13 @@ falsche Tokens von einer Adresse sperren diese Adresse für eine wachsende
 Zeit; hinter dem veröffentlichten Port ist jeder Client des Hosts diese eine
 Adresse, und `docker compose restart mcp` setzt die Zählung zurück. Der
 Begleitdienst antwortet nur unter den Loopback-Namen mit seinem Port
-(`127.0.0.1:4001`, `localhost:4001`); hinter einem Reverse Proxy tragen Sie
-dessen Namen in `PORTFOLIXIR_MCP_ALLOWED_HOSTS` ein.
+(`127.0.0.1:4001`, `localhost:4001`, `[::1]:4001`) und nimmt die Anfrage
+eines Browsers nur von diesen Origins über `http://` an. Tragen Sie in
+`PORTFOLIXIR_MCP_ALLOWED_HOSTS` hinter einem Reverse Proxy dessen Namen ein,
+die Adresse mit ihrem Port, wenn der Begleitdienst auf einem anderen Host-Port
+veröffentlicht ist (`127.0.0.1:14001`), oder Host und Port eines MCP-Clients
+im Browser, der von einem anderen Origin ausgeliefert wird
+(`localhost:6274`).
 
 ## Die Variablen des Begleitdienstes
 
@@ -126,7 +131,7 @@ dessen Namen in `PORTFOLIXIR_MCP_ALLOWED_HOSTS` ein.
 | `PORTFOLIXIR_MCP_TOKEN` | keiner, Pflicht für `http` | Das Bearer-Token, das HTTP-Clients vorlegen: mindestens 32 Bytes und nie ein Platzhalter (`openssl rand -base64 48`). |
 | `PORTFOLIXIR_MCP_HOST` | `127.0.0.1` | Die Adresse, an die der HTTP-Listener bindet. |
 | `PORTFOLIXIR_MCP_PORT` | `4001` | Der Port, an den der HTTP-Listener bindet, eine ganze Zahl von 1 bis 65535; jeder andere Wert oder ein Port, den ein anderer Prozess hält, stoppt den Begleitdienst mit dem Exit-Status 1 und einer Zeile, die die Ursache nennt. |
-| `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | leer | Weitere `Host`-Namen, unter denen der HTTP-Listener antwortet, durch Kommas getrennt. |
+| `PORTFOLIXIR_MCP_ALLOWED_HOSTS` | leer | Weitere `Host`-Namen, unter denen der HTTP-Listener antwortet, durch Kommas getrennt, jeder auch als Browser-Origin über `http://` oder `https://` zugelassen: ein Proxy-Name oder ein `Host:Port` wie ein veröffentlichter Port oder das Origin eines Browser-Clients. |
 | `PORTFOLIXIR_MCP_PROFILE` | leer, also `full` | `read`, `book` oder `full`. |
 | `PORTFOLIXIR_MCP_READ_ONLY` | `false` | `true` ist das Profil `read`; neben `book` oder `full` stoppt es den Begleitdienst. |
 

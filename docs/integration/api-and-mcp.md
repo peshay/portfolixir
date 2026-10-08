@@ -56,8 +56,22 @@ the agent as well. Before anything else, the companion checks the `Host`
 header exactly, name and port: a request under a `Host` the listener does not
 answer to (the loopback names and its bound address with its port, and the
 names in `PORTFOLIXIR_MCP_ALLOWED_HOSTS`) is answered `403` before its origin
-or its token is looked at, and counts no failed attempt. The token is checked
-before the request body is read. The
+or its token is looked at, and counts no failed attempt. The loopback names
+are `127.0.0.1`, `localhost` and `[::1]`, each with the listener's port only.
+A name in `PORTFOLIXIR_MCP_ALLOWED_HOSTS` is answered with that port and
+without one, as a proxy on port 443 passes it; an entry that carries its own
+port is answered under that port alone, such as `127.0.0.1:14001` for a Compose
+mapping that publishes the companion on another host port than its own.
+A browser request's `Origin` is then compared whole, scheme, name and port
+(#956): it passes as `http://` on a loopback name or the bound address with
+the listener's port, or as `http://` or `https://` on a `Host` value from
+`PORTFOLIXIR_MCP_ALLOWED_HOSTS`. Any other origin, a page on another port of
+the same machine included, is answered `403` (`origin not allowed`) before its
+token is looked at. To admit a browser-based MCP client served from another
+origin, name that origin's host and port in `PORTFOLIXIR_MCP_ALLOWED_HOSTS`:
+`localhost:6274` admits a client served at `http://localhost:6274`. A client
+that is not a browser sends no `Origin` and passes this check. The token is
+checked before the request body is read. The
 errors the companion answers itself, an unknown path among them, take the
 API's shape, `{"errors": {"detail": "Bad Request"}}`, with no stack trace or
 local path in it; the refusals of the MCP protocol itself on `/mcp` keep the

@@ -11,6 +11,7 @@ import {
   isAuthorizedMcpRequest,
   requireMcpToken,
   allowedHostsFor,
+  allowedOriginsFor,
   createFailureThrottle,
   createHttpApp,
   mcpAuthMiddleware,
@@ -68,11 +69,60 @@ function authenticate(
 }
 
 describe("MCP HTTP security helpers", () => {
-  it("allows localhost origins and rejects non-local origins", () => {
-    assert.equal(isAllowedOrigin(undefined), true);
-    assert.equal(isAllowedOrigin("http://127.0.0.1:4001"), true);
-    assert.equal(isAllowedOrigin("http://localhost:4001"), true);
-    assert.equal(isAllowedOrigin("https://example.com"), false);
+  // User story (#956):
+  // As an operator whose companion listens over HTTP,
+  // I want a browser request's Origin compared whole, scheme, name and port,
+  // against the addresses the companion answers under,
+  // so that a page served from another loopback port cannot drive it, while
+  // the IPv6 loopback, a proxy name and a browser client I name still can.
+  //
+  // Acceptance criteria:
+  // - A request without an Origin (a non-browser client) passes, as before.
+  // - The loopback names with the listener's port pass over http, the IPv6
+  //   loopback in the brackets a URL gives it included; under another port,
+  //   no port, or https they are refused, and so is a foreign or opaque origin.
+  // - A name in PORTFOLIXIR_MCP_ALLOWED_HOSTS passes over http or https, with
+  //   the listener's port or none; an entry that carries its own port (a
+  //   browser client on another loopback port) passes under that port only.
+  it("admits an Origin only under a name and port the companion answers under", () => {
+    const loopback = allowedOriginsFor("127.0.0.1", 4001);
+
+    assert.equal(isAllowedOrigin(undefined, loopback), true);
+
+    for (const origin of ["http://127.0.0.1:4001", "http://localhost:4001", "http://[::1]:4001"]) {
+      assert.equal(isAllowedOrigin(origin, loopback), true, origin);
+    }
+
+    for (const origin of [
+      "http://localhost:4002",
+      "http://127.0.0.1:6274",
+      "http://[::1]:5173",
+      "http://localhost",
+      "https://localhost:4001",
+      "http://LOCALHOST:4001/",
+      "https://example.com",
+      "http://rebound.example:4001",
+      "null",
+      "file://"
+    ]) {
+      assert.equal(isAllowedOrigin(origin, loopback), false, origin);
+    }
+
+    const named = allowedOriginsFor("0.0.0.0", 4001, " mcp.lan ", "localhost:6274", "");
+
+    for (const origin of [
+      "https://mcp.lan",
+      "http://mcp.lan",
+      "http://mcp.lan:4001",
+      "http://localhost:6274",
+      "http://localhost:4001"
+    ]) {
+      assert.equal(isAllowedOrigin(origin, named), true, origin);
+    }
+
+    for (const origin of ["https://mcp.lan:8443", "http://localhost:6275", "http://0.0.0.0:4001"]) {
+      assert.equal(isAllowedOrigin(origin, named), false, origin);
+    }
   });
 
   it("requires the configured MCP bearer token when one is configured", () => {
@@ -172,22 +222,34 @@ describe("MCP HTTP security helpers", () => {
   });
 
   // Issue #761: the SDK's DNS-rebinding protection is fed the names this
-  // listener actually answers under, with and without the port.
+  // listener actually answers under.
+  //
+  // #956: exact by name and port, as the guides say. The loopback names (the
+  // IPv6 one in brackets, as a Host header writes it) and the bound address
+  // carry the listener's port only; a name in PORTFOLIXIR_MCP_ALLOWED_HOSTS
+  // is listed with the port and without it (a proxy on 443 passes it bare),
+  // and an entry that carries its own port is listed as it is.
   it("lists the bound host and the loopback names as allowed hosts", () => {
     assert.deepEqual(allowedHostsFor("127.0.0.1", 4001), [
       "127.0.0.1:4001",
-      "127.0.0.1",
       "localhost:4001",
-      "localhost"
+      "[::1]:4001"
     ]);
 
-    assert.deepEqual(allowedHostsFor("0.0.0.0", 4001, "mcp.lan"), [
+    assert.deepEqual(allowedHostsFor("192.0.2.10", 4001), [
       "127.0.0.1:4001",
-      "127.0.0.1",
       "localhost:4001",
-      "localhost",
+      "[::1]:4001",
+      "192.0.2.10:4001"
+    ]);
+
+    assert.deepEqual(allowedHostsFor("0.0.0.0", 4001, "mcp.lan", "127.0.0.1:14001"), [
+      "127.0.0.1:4001",
+      "localhost:4001",
+      "[::1]:4001",
       "mcp.lan:4001",
-      "mcp.lan"
+      "mcp.lan",
+      "127.0.0.1:14001"
     ]);
   });
 });
@@ -212,6 +274,7 @@ async function withApp(
     },
     token: soundToken,
     allowedHosts: allowedHostsFor("127.0.0.1", port),
+    allowedOrigins: allowedOriginsFor("127.0.0.1", port),
     profile
   });
   server.on("request", app);
@@ -355,7 +418,15 @@ describe("MCP HTTP transport", () => {
   it("refuses a foreign Host ahead of the origin and the token", async () => {
     await withApp(async (_base, port) => {
       const bearer = `Bearer ${soundToken}`;
-      const foreignHosts = ["rebound.example", `rebound.example:${port}`, "127.0.0.1:1", `localhost:${port + 1}`];
+      const foreignHosts = [
+        "rebound.example",
+        `rebound.example:${port}`,
+        "127.0.0.1:1",
+        `localhost:${port + 1}`,
+        // #956: a loopback name without the port is port 80, not the listener's.
+        "127.0.0.1",
+        "localhost"
+      ];
 
       for (const host of foreignHosts) {
         const answer = await rawRequest(port, {
@@ -403,6 +474,39 @@ describe("MCP HTTP transport", () => {
     });
   });
 
+  // User story (#956):
+  // As an operator whose companion listens over HTTP,
+  // I want a browser page on another loopback port refused by its Origin,
+  // before its token is read,
+  // so that the Origin check guards the port I configured, not every port of
+  // the machine.
+  //
+  // Acceptance criteria:
+  // - Under the right Host and with the right token, an Origin on another
+  //   loopback port, or on the loopback name without a port, is answered 403
+  //   "origin not allowed".
+  // - The IPv6 loopback's origin on the listener's port reaches the MCP server.
+  it("refuses an Origin on another loopback port, and admits the IPv6 loopback's", async () => {
+    await withApp(async (_base, port) => {
+      const headers = {
+        host: `127.0.0.1:${port}`,
+        authorization: `Bearer ${soundToken}`,
+        "content-type": "application/json",
+        accept: "application/json, text/event-stream"
+      };
+
+      for (const origin of [`http://localhost:${port + 1}`, `http://127.0.0.1:${port + 1}`, "http://localhost"]) {
+        const answer = await rawRequest(port, { ...headers, origin }, initialize);
+        assert.equal(answer.status, 403, origin);
+        assert.deepEqual(JSON.parse(answer.body), { errors: { detail: "origin not allowed" } }, origin);
+      }
+
+      const ipv6 = await rawRequest(port, { ...headers, origin: `http://[::1]:${port}` }, initialize);
+      assert.equal(ipv6.status, 200, ipv6.body);
+      assert.match(ipv6.body, /"serverInfo":\{"name":"portfolixir"/);
+    });
+  });
+
   // E25 S7, G26 and A1 (#992): the profile reaches the HTTP transport, whose
   // every request builds its own server: read lists no write, book no admin
   // tool, full every tool.
@@ -441,7 +545,8 @@ describe("MCP HTTP transport", () => {
     const app = createHttpApp({
       client: { request: async () => null },
       token: soundToken,
-      allowedHosts: []
+      allowedHosts: [],
+      allowedOrigins: []
     });
 
     assert.equal(app.get("env"), "production");
