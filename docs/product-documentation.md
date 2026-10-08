@@ -2532,8 +2532,12 @@ empty the new accounts stay untagged and no bucket is created. Type a name,
 such as `PP Import`, to find the imported accounts later, or the name of an
 existing bucket to reuse it. Accounts mapped to existing records keep their
 current tags, and an import that creates no new accounts creates no bucket; a
-file with nothing new does not show the field at all. The internal portfolio binding happens automatically and never needs a
-choice (see the Portfolios section).
+file with nothing new does not show the field at all. The internal portfolio
+binding happens automatically and never needs a choice (see the Portfolios
+section). On an instance that holds no portfolio record yet, the preview says
+so under the source format: *No portfolio record yet: the import creates
+“Default” (EUR) and books into it.* The record then shows under **Portfolio
+records (compatibility)** on Accounts & depots.
 
 The parsed preview and account mapping are preserved in memory across language
 switches. Switching the UI language while reviewing an import returns to the

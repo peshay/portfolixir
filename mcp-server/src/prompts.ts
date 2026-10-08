@@ -123,7 +123,7 @@ Ask which banks and brokers the operator uses, in which currencies, and how they
 - one depot per real broker depot, each linked to its cash account;
 - for each group the operator names, one bucket (portfolixir.buckets.create, dimension "tag"), the accounts it tags (portfolixir.cash_accounts.set_buckets, portfolixir.securities_accounts.set_buckets) and one view that includes it (portfolixir.views.create with include_all false, then portfolixir.views.set_buckets), so that portfolixir.views.valuation, portfolixir.views.performance and portfolixir.views.benchmark answer for the group, each account counted once, in EUR.
 The total across everything the operator holds needs no view: portfolixir.views.valuation without an id answers it, each account counted once, in EUR, from the first booking on. Do not create a view for it.
-Group with buckets and views, not with portfolios: a portfolio record is an internal compatibility container (ADR-0024), portfolixir.portfolios.create is deprecated, an account created without one lands in the first portfolio, and every import books into that first portfolio.
+Group with buckets and views, not with portfolios: a portfolio is an internal compatibility record (ADR-0024), portfolixir.portfolios.create is deprecated, and accounts and imports bind to the earliest one, which the first import or account creates as "Default" (EUR).
 When the history will come from a file (step 4), the import creates the cash accounts and depots the file names as it books them, so creating them beforehand is optional; if you do, the file must use exactly their names.
 
 ## Step 4: explain how data gets in

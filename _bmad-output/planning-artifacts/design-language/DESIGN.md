@@ -2971,6 +2971,24 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   unless the operator names one, and never labels a converted bank file a
   Portfolio Performance import. What Apply sends is unchanged: an empty or
   blank field reaches the apply as no tag.
+- **A fresh instance's portfolio record is named** *(2026-10-08; issue 1173,
+  Sprint 20 PR α A5; board `mockups/ux-design-2026-10-07/01-import-preview`
+  ⑥)*. The page passes no portfolio; on an instance with none, the apply
+  creates the internal default one (`Portfolios.default_portfolio/1`,
+  ADR-0024) and binds everything to it. Only then, a second muted line
+  stands under the format line (`<p class="muted"
+  data-role="import-portfolio">`, no CSS of its own): "No portfolio record
+  yet: the import creates “Default” (EUR) and books into it." / "Noch kein
+  Portfoliodatensatz: Der Import legt „Default“ (EUR) an und bucht darin."
+  "Portfolio record" / "Portfoliodatensatz" is the word of the admin list
+  "Portfolio records (compatibility)" under Accounts & depots, where the
+  record shows again. The name and the currency are placeholders filled from
+  what `default_portfolio/1` creates (`Portfolios.default_portfolio_attrs/0`):
+  stored data, like a bucket name, and not translated. With a record there
+  is nothing to say (UX-DR2), and the line is absent. The companion's
+  `first_setup` prompt says the same: accounts and imports bind to the
+  earliest record, which the first import or account creates as "Default"
+  (EUR).
 - **A row none of whose bookings is new needs no decision** — the account
   rows' rule (board 04, note 4: an ambiguous cash or depot name with nothing
   new is left undecided and blocks nothing), and since 2026-10-06 the
