@@ -129,6 +129,49 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   defp put_ref(refs, %Entry{} = entry),
     do: MapSet.put(refs, SecurityResolver.effective_ref(entry))
 
+  # ADR-0053 §2: the kinds by the way they move money on the row's cash
+  # account. A cash transfer's direction comes from its side; the kinds
+  # without cash have none.
+  @debit_kinds ~w(buy removal fee tax)
+  @credit_kinds ~w(sell dividend interest deposit tax_refund)
+
+  @doc """
+  The way a row of `kind` moves money on its own cash account (ADR-0053 §2):
+  `:debit`, `:credit`, or `nil` for a kind without cash. A cash transfer
+  debits on its sending side (`:sending`, and a JSON row, which always names
+  the sender in `account`) and credits on its receiving side (`:receiving`,
+  #1023).
+  """
+  @spec direction(String.t(), :sending | :receiving | nil) :: :debit | :credit | nil
+  def direction("cash_transfer", :receiving), do: :credit
+  def direction("cash_transfer", _sending), do: :debit
+  def direction(kind, _side) when kind in @debit_kinds, do: :debit
+  def direction(kind, _side) when kind in @credit_kinds, do: :credit
+  def direction(_kind, _side), do: nil
+
+  @doc """
+  The cash a row's own booking moves (ADR-0053 §5 and the amendment of
+  2026-10-07, A1), given the way it moves money, the row's **cash cell** and
+  the tax refund split off it into a companion (`nil` when none):
+
+    * the cash cell is a Portfolio Performance CSV row's Gesamtpreis, a
+      converter-written row's Betrag, or a JSON row's `amount`, each the
+      cash the row moves, the refund inside it;
+    * the refund books beside the row, so the row's own booking is credited
+      the cash cell less the refund, or debited the cash cell plus it, and
+      the two together move the cash cell.
+
+  Without a refund the cash cell books as it is; without a direction or a
+  cash cell there is nothing to book (`nil`).
+  """
+  @spec parent_cash(:debit | :credit | nil, Decimal.t() | nil, Decimal.t() | nil) ::
+          Decimal.t() | nil
+  def parent_cash(nil, _cash, _refund), do: nil
+  def parent_cash(_direction, nil, _refund), do: nil
+  def parent_cash(_direction, %Decimal{} = cash, nil), do: cash
+  def parent_cash(:credit, %Decimal{} = cash, %Decimal{} = refund), do: Decimal.sub(cash, refund)
+  def parent_cash(:debit, %Decimal{} = cash, %Decimal{} = refund), do: Decimal.add(cash, refund)
+
   # The text of an entry the ledger stores, each with the rule its column
   # applies (E25 S4, G24): a name is one line within its column's width, a
   # note keeps its line breaks.

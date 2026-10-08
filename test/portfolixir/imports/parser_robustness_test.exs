@@ -319,8 +319,18 @@ defmodule Portfolixir.Imports.ParserRobustnessTest do
            base_tx() |> Map.put("amount", "99999999999999") |> Map.put("shares", "0.0000001"),
            "price"},
           {"fee", Map.put(base_tx(), "units", [%{"type" => "FEE", "amount" => "1e15"}]), "fees"},
-          {"refund", Map.put(base_tx(), "units", [%{"type" => "TAX", "amount" => "-1e15"}]),
-           "tax refund"},
+          # ADR-0053 A1: a purchase's own booking is debited its amount plus
+          # the refund split off it, so a refund past the column takes the
+          # purchase's gross amount past it too, and that is named first.
+          {"refund on a purchase",
+           Map.put(base_tx(), "units", [%{"type" => "TAX", "amount" => "-1e15"}]),
+           "gross amount"},
+          # A sale is credited its amount less the refund, which here stays
+          # inside the column, so the refund is the value named.
+          {"refund",
+           base_tx()
+           |> Map.merge(%{"type" => "SALE", "amount" => "99999999999999"})
+           |> Map.put("units", [%{"type" => "TAX", "amount" => "-1e14"}]), "tax refund"},
           {"rounds past", Map.put(base_tx(), "amount", "99999999999999.9999999"), "gross amount"},
           {"parser bound", Map.put(base_tx(), "amount", "1e40"), "number"}
         ] do

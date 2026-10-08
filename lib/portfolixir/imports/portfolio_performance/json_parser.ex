@@ -192,9 +192,22 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         date: date,
         time: time,
         currency_code: currency,
-        gross_amount: if(kind in @no_cash_kinds, do: nil, else: amount),
-        # ADR-0053 §3: a JSON row's hash amount is its `amount`, its booked
-        # cash too.
+        # ADR-0053 A1 (the amendment of 2026-10-07): PP's `amount` is the cash
+        # the row moves, a negative tax unit inside it, so the row's own
+        # booking leaves out the refunds split off beside it: a credit books
+        # `amount` less them, a debit `amount` plus them.
+        gross_amount:
+          if(kind in @no_cash_kinds,
+            do: nil,
+            else:
+              PortfolioPerformance.parent_cash(
+                PortfolioPerformance.direction(kind, nil),
+                amount,
+                refund_total(refund_amounts)
+              )
+          ),
+        # ADR-0053 §3 and A3: a JSON row's hash amount is its `amount`, which
+        # it books too unless a refund is split off.
         hash_amount: if(kind in @no_cash_kinds, do: nil, else: amount),
         fees: fees,
         taxes: taxes,
@@ -290,8 +303,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   # Folds the `units` array. Negative TAX units are extracted into a
   # `refunds` list — the parent entry takes `Decimal.abs/1` of every
   # value, and each negative TAX becomes a companion `tax_refund`
-  # entry created in `build_entry/3`. FEE units are always summed by
-  # absolute value (PP has no "fee refund" kind).
+  # entry created in `build_entry/3`, which the parent's cash leaves out
+  # (ADR-0053 A1). FEE units are always summed by absolute value (PP has no
+  # "fee refund" kind).
   # A unit that is not a map, or whose amount is not a finite decimal, fails
   # the row instead of the process (#768).
   # E25 S5 (F38): a units list past the per-row cap is a row error.
@@ -325,6 +339,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
       {:error, _} = error -> error
     end
   end
+
+  # The refunds split off one row, together; `nil` when none is.
+  defp refund_total([]), do: nil
+  defp refund_total(refunds), do: Enum.reduce(refunds, &Decimal.add/2)
 
   defp fold_unit(type, amount, fees, taxes, refunds) do
     abs_amount = Decimal.abs(amount)

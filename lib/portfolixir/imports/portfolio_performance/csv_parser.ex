@@ -23,10 +23,11 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     row's fee and tax units, and Gesamtpreis as the cash that moved, always.
     A row with a Gesamtpreis books it as its `gross_amount` (§1); a row
     without one, as a converter writes it, books its Betrag. A negative
-    Steuern split off as a refund is taken out of a Gesamtpreis-booking
-    parent, so the row's bookings still move its Gesamtpreis (§5). The
-    content hash keeps reading the Betrag (`hash_amount`, §3). The kinds
-    without cash ignore every money cell.
+    Steuern split off as a refund is taken out of the parent's cash cell,
+    the Gesamtpreis or a converter row's Betrag, so the row's bookings still
+    move that cell (§5, and A1 of the amendment of 2026-10-07). The content
+    hash keeps reading the Betrag (`hash_amount`, §3). The kinds without
+    cash ignore every money cell.
   - The CSV uses `Konto`/`Gegenkonto` to disambiguate cash-source vs.
     cash-target accounts. For trades, `Konto` is the depot (PP
     "portfolio") and `Gegenkonto` is the cash account. For cash-only
@@ -336,7 +337,15 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
         date: date,
         time: time,
         currency_code: "EUR",
-        gross_amount: booked_cash(direction(kind, side), gross, total, tax_refund),
+        # ADR-0053 §1, §5 and A1: the row's cash cell is its Gesamtpreis, the
+        # cash Portfolio Performance writes, or its Betrag when it has none,
+        # as a converter writes it; a refund split off books beside it.
+        gross_amount:
+          PortfolioPerformance.parent_cash(
+            PortfolioPerformance.direction(kind, side),
+            total || gross,
+            tax_refund
+          ),
         # ADR-0053 §3: the content hash reads the file's Betrag.
         hash_amount: if(kind in @no_cash_kinds, do: nil, else: gross),
         fees: fees,
@@ -361,7 +370,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
       readings = %{betrag: gross, total: total, fees: raw_fees, taxes: raw_taxes}
 
       case account_error(kind, cells) || PortfolioPerformance.row_error(entry) ||
-             reading_error(direction(kind, side), readings, cells) do
+             reading_error(PortfolioPerformance.direction(kind, side), readings, cells) do
         nil -> {:ok, entry}
         message -> {:error, message}
       end
@@ -408,29 +417,6 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
   # Gesamtpreis included, as they did before it was read.
   defp gesamtpreis(kind, _cells) when kind in @no_cash_kinds, do: {:ok, nil}
   defp gesamtpreis(_kind, cells), do: Decimals.parse_de(Map.get(cells, "Gesamtpreis"))
-
-  # ADR-0053 §2: the way a row's kind moves money on its cash account. A cash
-  # transfer's comes from its label (#1023): the sending row debits, the
-  # receiving row credits. The kinds without cash have none.
-  @debit_kinds ~w(buy removal fee tax)
-  @credit_kinds ~w(sell dividend interest deposit tax_refund)
-
-  defp direction("cash_transfer", :receiving), do: :credit
-  defp direction("cash_transfer", _sending), do: :debit
-  defp direction(kind, _side) when kind in @debit_kinds, do: :debit
-  defp direction(kind, _side) when kind in @credit_kinds, do: :credit
-  defp direction(_kind, _side), do: nil
-
-  # ADR-0053 §1 and §5: the cash a row books. A row with a Gesamtpreis books
-  # it, the cash Portfolio Performance writes; a row without one books its
-  # Betrag, as a converter writes it. A refund split off a Gesamtpreis row is
-  # booked beside it, so the parent books the rest and the two together move
-  # the Gesamtpreis: a credit's parent is credited G − r, a debit's parent is
-  # debited G + r.
-  defp booked_cash(nil, _betrag, _total, _refund), do: nil
-  defp booked_cash(_direction, betrag, nil, _refund), do: betrag
-  defp booked_cash(:credit, _betrag, total, refund), do: Decimal.sub(total, refund || 0)
-  defp booked_cash(:debit, _betrag, total, refund), do: Decimal.add(total, refund || 0)
 
   # ADR-0053 §2: a row carrying both readings books only when they agree to
   # the cent, both sides rounded to two places. U is Gebühren as booked (its
@@ -507,7 +493,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
 
   # PP CSV exports a single signed value per fee/tax column. Mirror the
   # JSON-parser semantics: abs() the magnitude into the parent entry,
-  # emit a companion `tax_refund` for any negative tax amount.
+  # emit a companion `tax_refund` for any negative tax amount, which the
+  # parent's cash leaves out (ADR-0053 §5, A1).
   defp normalize_fees_taxes(raw_fees, raw_taxes) do
     fees = raw_fees |> normalize_decimal() |> Decimal.abs()
     taxes_raw = normalize_decimal(raw_taxes)

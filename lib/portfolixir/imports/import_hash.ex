@@ -14,7 +14,9 @@ defmodule Portfolixir.Imports.ImportHash do
   ADR-0053 made the row book the Gesamtpreis, so every hash stored before
   stays byte-identical, and a re-drop of a file imported under the old
   reading is all hash hits. For a JSON row it is the `amount`, which is also
-  its booked cash. The parsers carry it as the entry's `hash_amount`; an
+  its booked cash unless a tax refund is split off it (ADR-0053 A1: the row
+  then books the `amount` less the refund on a credit, plus it on a debit).
+  The parsers carry it as the entry's `hash_amount`; an
   entry without one (a split-off refund, an entry built by hand) is hashed
   over its `gross_amount`.
 

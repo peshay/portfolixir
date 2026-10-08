@@ -172,6 +172,24 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
       assert refund.date == parent.date
     end
 
+    # ADR-0053 A1 (the amendment of 2026-10-07): PP's `amount` already
+    # holds the refund, so the parent credits it less the refund, and the
+    # two together book the `amount`, which the hash keeps reading.
+    test "the parent dividend books its amount less the refund split off it", %{
+      preview: preview
+    } do
+      [parent] = preview.entries
+      [refund] = parent.companion_entries
+
+      assert Decimal.equal?(parent.gross_amount, Decimal.new("181.48"))
+      assert Decimal.equal?(parent.hash_amount, Decimal.new("181.49"))
+
+      assert Decimal.equal?(
+               Decimal.add(parent.gross_amount, refund.gross_amount),
+               Decimal.new("181.49")
+             )
+    end
+
     test "companion source_row is derived from the parent row for traceability", %{
       preview: preview
     } do
@@ -216,6 +234,48 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
       assert Decimal.to_string(sale.hash_price, :normal) == "12.5"
       assert purchase.hash_price == nil
       assert deposit.hash_price == nil
+    end
+
+    # ADR-0053 A1: a sale credits its `amount` less the refund, a purchase
+    # debits its `amount` plus the refund, so each row's bookings net to its
+    # `amount`, PP's cash; the hash keeps reading the `amount`.
+    test "the parent books its amount less the refund on a sale, plus it on a purchase", %{
+      preview: preview
+    } do
+      [_deposit, purchase, sale] = preview.entries
+
+      assert [refund] = sale.companion_entries
+      assert Decimal.equal?(sale.gross_amount, Decimal.new("95.00"))
+      assert Decimal.equal?(refund.gross_amount, Decimal.new("25.00"))
+      assert Decimal.equal?(sale.hash_amount, Decimal.new("120.00"))
+      assert Decimal.equal?(purchase.gross_amount, Decimal.new("100.00"))
+
+      body =
+        Jason.encode!(%{
+          version: 1,
+          transactions: [
+            %{
+              type: "PURCHASE",
+              account: "Test-Cash",
+              portfolio: "Test-Depot",
+              date: "2024-01-15",
+              currency: "EUR",
+              amount: Jason.Fragment.new("1001.5"),
+              shares: Jason.Fragment.new("10.0"),
+              security: %{name: "Synthetic AG", currency: "EUR"},
+              units: [
+                %{type: "FEE", amount: Jason.Fragment.new("2.5")},
+                %{type: "TAX", amount: Jason.Fragment.new("-1.0")}
+              ]
+            }
+          ]
+        })
+
+      assert {:ok, %Preview{errors: [], entries: [buy]}} = JsonParser.parse(body)
+      assert [buy_refund] = buy.companion_entries
+      assert Decimal.equal?(buy.gross_amount, Decimal.new("1002.50"))
+      assert Decimal.equal?(buy_refund.gross_amount, Decimal.new("1.00"))
+      assert Decimal.equal?(buy.hash_amount, Decimal.new("1001.50"))
     end
   end
 

@@ -54,7 +54,9 @@ defmodule Portfolixir.Imports.Entry do
             gross_amount: nil,
             # The amount the content hash reads (ADR-0053 §3), apart from the
             # cash the entry books: a Portfolio Performance CSV row's Betrag,
-            # a JSON row's `amount`. `nil` makes the hash read `gross_amount`.
+            # a JSON row's `amount` (which a row with a split-off refund no
+            # longer books whole, A1). `nil` makes the hash read
+            # `gross_amount`.
             hash_amount: nil,
             # The price the content hash reads (ADR-0053 A3), apart from the
             # price the entry books: a JSON purchase's or sale's price derived

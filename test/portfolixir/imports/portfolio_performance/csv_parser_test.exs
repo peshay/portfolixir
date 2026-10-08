@@ -116,6 +116,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
   #   summing to its Gesamtpreis: on a credit row the parent books the
   #   Gesamtpreis minus the refund, on a debit row the parent's debit is the
   #   Gesamtpreis plus the refund, and the refund is booked beside it.
+  # - A converter row without a Gesamtpreis does the same with its Betrag,
+  #   its cash cell (the amendment of 2026-10-07, A1 and K13).
   describe "parse/2 the cash a row books" do
     @header "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n"
 
@@ -231,13 +233,25 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
              )
     end
 
-    test "a refund split off a converter row books as before" do
-      assert [dividend] =
-               booked("2024-03-15 00:00:00;Dividende;Synthetic AG;10;;9,00;;-1,00;;Cash;;;\n")
+    # ADR-0053 A1 and K13: a converter row's cash cell is its Betrag, which
+    # already holds the refund, so the parent books the Betrag less the
+    # refund on a credit and plus it on a debit.
+    test "a refund split off a converter row leaves the row summing to its Betrag" do
+      assert [dividend, buy] =
+               booked("""
+               2024-03-15 00:00:00;Dividende;Synthetic AG;10;;9,00;;-1,00;;Cash;;;
+               2024-01-15 10:01:00;Kauf;Synthetic AG;10;100,00;1.001,50;2,50;-1,00;;Depot;Cash;;
+               """)
 
       assert [refund] = dividend.companion_entries
-      assert cash(dividend) == "9.00"
+      assert cash(dividend) == "8.00"
       assert cash(refund) == "1.00"
+      assert cash(%{gross_amount: dividend.hash_amount}) == "9.00"
+
+      assert [buy_refund] = buy.companion_entries
+      assert cash(buy) == "1002.50"
+      assert cash(buy_refund) == "1.00"
+      assert cash(%{gross_amount: buy.hash_amount}) == "1001.50"
     end
   end
 
