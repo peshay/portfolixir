@@ -200,6 +200,30 @@ defmodule Portfolixir.Imports do
     do: Correction.detect(preview, import_portfolio_id(opts))
 
   @doc """
+  The row errors of a parsed preview as the preview shows them in the
+  portfolio: `preview.errors`, except that a credit row ADR-0053 A5 refuses
+  whose would-be booking a stored transaction already holds (by its
+  content hash: the row was imported under an older reading) says that it
+  is already imported and cannot be corrected here, instead of asking for
+  the booking by hand, which would book it twice (#1118; how such a booking
+  is corrected is #1193). See `Portfolixir.Imports.Correction.stored_refusals/2`.
+
+  Read-only. The portfolio as for `cash_corrections/2`; without one, the
+  errors as parsed.
+  """
+  @spec row_errors(Preview.t(), keyword()) :: [%{row: pos_integer() | nil, message: String.t()}]
+  def row_errors(%Preview{errors: errors} = preview, opts \\ []) when is_list(opts) do
+    stored = Correction.stored_refusals(preview, import_portfolio_id(opts))
+
+    Enum.map(errors, fn error ->
+      case Map.fetch(stored, error.row) do
+        {:ok, message} -> %{error | message: message}
+        :error -> error
+      end
+    end)
+  end
+
+  @doc """
   Corrects the bookings `cash_corrections/2` lists for `preview`, on
   behalf of `actor` (ADR-0053 §6, A6): the correction section's own confirm,
   separate from `apply/2`, whose hash hits still change nothing (ADR-0050

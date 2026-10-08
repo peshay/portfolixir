@@ -191,6 +191,49 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
 
   def credit_error(_direction, _booked, _written), do: nil
 
+  @doc """
+  The row message for a credit `credit_error/3` refuses when a stored
+  booking already holds the row's content hash: the row was imported under
+  an older reading, before A5 refused it (#1118). Its cash would be 0 or
+  less, so the correction cannot rewrite it (how it is corrected is #1193),
+  and following the refusal's remedy would book it twice; the message says
+  so and points to the handbook. `written` as for `credit_error/3`.
+  """
+  @spec stored_credit_message(map()) :: String.t()
+  def stored_credit_message(%{refund: nil} = written),
+    do:
+      gettext(
+        "%{cell} %{cash} leaves nothing to credit — already imported, and it cannot be corrected here, as its cash would be 0 or less — do not enter it again; see “A negative tax inside a row” in the product documentation",
+        cell: written.cell,
+        cash: written.cash
+      )
+
+  def stored_credit_message(written),
+    do:
+      gettext(
+        "%{cell} %{cash} less the tax refund %{refund} leaves %{rest} to credit — already imported, and it cannot be corrected here, as its cash would be 0 or less — do not enter it again; see “A negative tax inside a row” in the product documentation",
+        cell: written.cell,
+        cash: written.cash,
+        refund: written.refund,
+        rest: written.rest
+      )
+
+  @doc """
+  `credit_error/3`, with what the preview keeps of a refused row: `nil`
+  when the credit is booked, otherwise `{message, refused}`, where
+  `refused` holds the row's would-be `entry` and the message it shows
+  instead when a stored booking holds that entry's content hash
+  (`stored_credit_message/1`).
+  """
+  @spec credit_refusal(:debit | :credit | nil, Entry.t(), map()) ::
+          nil | {String.t(), %{entry: Entry.t(), message: String.t()}}
+  def credit_refusal(direction, %Entry{} = entry, written) do
+    case credit_error(direction, entry.gross_amount, written) do
+      nil -> nil
+      message -> {message, %{entry: entry, message: stored_credit_message(written)}}
+    end
+  end
+
   defp credit_message(%{refund: nil} = written),
     do:
       gettext(

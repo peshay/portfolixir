@@ -2869,7 +2869,11 @@ Eine Gutschrift, die nach Abzug der Erstattung nichts oder weniger buchen
 würde (eine wertlose Position, zu einem symbolischen Kurs verkauft, deren
 Verlust Steuer erstattet), bleibt mit einer Parser-Warnung draußen, wie unten
 beschrieben: den Verkauf von Hand erfassen und die Erstattung als eigene
-Steuerrückerstattung.
+Steuerrückerstattung. Wurde eine solche Zeile importiert, bevor Portfolixir
+sie zurückwies, sagt ihre Warnung stattdessen, dass sie bereits importiert ist
+und hier nicht korrigiert werden kann, da die Gutschrift 0 oder weniger wäre:
+nicht noch einmal erfassen; wie eine solche Buchung korrigiert wird, ist noch
+offen (Issue #1193).
 
 Eine Historie, die importiert wurde, bevor Portfolixir die Erstattung aus
 ihrer Buchung nahm, hat eine solche Erstattung doppelt gezählt, neben einer

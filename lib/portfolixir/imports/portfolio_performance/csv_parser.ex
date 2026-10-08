@@ -115,16 +115,22 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
           # #1128: a row is numbered as a spreadsheet shows the file, the
           # header being row 1, so the first booking row is row 2. No content
           # hash reads the number (`ImportHash.parts/2`).
-          {tagged, errors} =
+          {tagged, errors, refused} =
             data_rows
             |> Enum.with_index(2)
-            |> Enum.reduce({[], []}, fn {raw, row}, {acc_entries, acc_errors} ->
+            |> Enum.reduce({[], [], []}, fn {raw, row}, {acc_entries, acc_errors, acc_refused} ->
               case to_entry(header_row, raw, row) do
                 {:ok, entry, side} ->
-                  {[{entry, side} | acc_entries], acc_errors}
+                  {[{entry, side} | acc_entries], acc_errors, acc_refused}
 
                 {:error, message} ->
-                  {acc_entries, [%{row: row, message: message} | acc_errors]}
+                  {acc_entries, [%{row: row, message: message} | acc_errors], acc_refused}
+
+                # ADR-0053 A5: a refused credit keeps its would-be entry
+                # (#1118).
+                {:refused, message, credit} ->
+                  {acc_entries, [%{row: row, message: message} | acc_errors],
+                   [Map.put(credit, :row, row) | acc_refused]}
               end
             end)
 
@@ -135,7 +141,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
              format: :csv,
              source_filename: Keyword.get(opts, :filename),
              entries: entries,
-             errors: Enum.sort_by(Enum.reverse(errors) ++ paired, & &1.row)
+             errors: Enum.sort_by(Enum.reverse(errors) ++ paired, & &1.row),
+             refused_credits: Enum.reverse(refused)
            }}
         end
     end
@@ -378,14 +385,14 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
       readings = %{betrag: gross, total: total, fees: raw_fees, taxes: raw_taxes}
       direction = PortfolioPerformance.direction(kind, side)
 
-      case account_error(kind, cells) || PortfolioPerformance.row_error(entry) ||
-             reading_error(direction, readings, cells) ||
-             PortfolioPerformance.credit_error(
-               direction,
-               entry.gross_amount,
-               credit_written(cells, total, tax_refund, entry.gross_amount)
-             ) do
-        nil -> {:ok, entry}
+      with nil <-
+             account_error(kind, cells) || PortfolioPerformance.row_error(entry) ||
+               reading_error(direction, readings, cells),
+           written = credit_written(cells, total, tax_refund, entry.gross_amount),
+           nil <- PortfolioPerformance.credit_refusal(direction, entry, written) do
+        {:ok, entry}
+      else
+        {message, refused} -> {:refused, message, refused}
         message -> {:error, message}
       end
     else

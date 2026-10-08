@@ -2624,7 +2624,11 @@ own.
 A credit that would book nothing or less once the refund is taken out (a
 worthless position sold at a nominal price, its loss refunding tax) is left
 out with a parser warning, described below: enter the sale by hand, and the
-refund as a tax refund of its own.
+refund as a tax refund of its own. If such a row was imported before
+Portfolixir refused it, its warning says instead that it is already imported
+and cannot be corrected here, as its cash would be 0 or less: do not enter it
+again; how such a booking is corrected is still an open question (issue
+#1193).
 
 A history imported before Portfolixir took the refund out of its booking
 counted such a refund twice, beside a booking that already held it, and
