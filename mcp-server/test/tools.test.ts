@@ -4371,7 +4371,10 @@ describe("Portfolixir MCP tools", () => {
   });
 
   // E25 S4, F11 (#889): a parent that loops the tree or sits in another
-  // classification is refused; the category tools say so.
+  // classification is refused; the category tools say so. #940: so is a
+  // parent that would put a category below the tree's last level, and the
+  // tools name the bound, so an agent meets it in the description before the
+  // API's 422 names the level.
   it("states the parent rule on the category write tools", () => {
     for (const name of [
       "portfolixir.classifications.categories.create",
@@ -4379,6 +4382,7 @@ describe("Portfolixir MCP tools", () => {
     ]) {
       const description = listTools().find((tool) => tool.name === name)?.description ?? "";
       assert.match(description, /same classification/, name);
+      assert.match(description, /a tree has at most 32 levels; any other parent answers 422/, name);
     }
 
     const update =

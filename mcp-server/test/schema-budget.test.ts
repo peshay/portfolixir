@@ -202,6 +202,16 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 103_284,
     book: 176_305,
     full: 206_702
+  },
+  {
+    since: "2026-10-08",
+    why:
+      "Sprint 20 PR γ, C3 (#940): the category writes name the tree's 32-level bound, paid " +
+      "for by dropping categories.update's restatement of the fields its schema lists, and " +
+      "lowered to the figure measured with it (D-10)",
+    read: 103_284,
+    book: 176_298,
+    full: 206_695
   }
 ];
 

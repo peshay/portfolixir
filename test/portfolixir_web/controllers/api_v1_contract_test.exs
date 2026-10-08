@@ -108,6 +108,20 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "position targets" and &1 =~ "#1135")
            )
 
+    # #940 (C3): a parent past the tree's 32nd level is refused on parent_id,
+    # and the category tools name the bound.
+    assert newest["summary"] =~ "#940"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(
+                 &1,
+                 "POST /api/v1/classifications/:classification_id/categories"
+               ) and
+                 &1 =~ "would put a category on level 33" and
+                 &1 =~ "portfolixir.classifications.categories.update" and &1 =~ "#940")
+           )
+
     # Sprint 20, commit group β (version 16, after Sprint 19 PR β's 15): what
     # the ledger reports about it, the ADR-0015 amendment of 2026-10-07. B1
     # opened the entry (#1108): a cross-currency closed trade's fees and

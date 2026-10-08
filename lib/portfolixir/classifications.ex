@@ -213,14 +213,19 @@ defmodule Portfolixir.Classifications do
     end
   end
 
-  # Root-to-category path capped at @max_tree_depth as a cycle guard; a
-  # corrupted parent chain yields a truncated path instead of an endless loop.
-  # `parent_id` is only foreign-key checked, so a cycle is reachable through
-  # the ordinary write path and every walk over it needs this bound — which
-  # is why the number is public rather than private to this module.
+  # The levels a tree may have. The category writers refuse a parent that
+  # would put any category below it (#940), so a walk over a tree they built
+  # never reaches the cap, and the level columns and the level count read
+  # every level. The walks keep the cap because a loop or a deeper chain
+  # stored before the guards (F11, #940) must still end in a truncated path,
+  # never an endless loop; the screen's level count stops at the same number,
+  # which is why it is public rather than private to this module.
   @max_tree_depth 32
 
-  @doc "The depth at which a parent walk stops, as a cycle guard."
+  @doc """
+  The levels a classification may have: the writers refuse a parent past it
+  (#940), and every parent walk stops at it over a chain stored before.
+  """
   @spec max_tree_depth() :: pos_integer()
   def max_tree_depth, do: @max_tree_depth
 
@@ -587,9 +592,11 @@ defmodule Portfolixir.Classifications do
   end
 
   # A parent is a category of the same classification that is neither the
-  # category itself nor one of its descendants. Checked only when the parent
-  # changes, so a loop stored before this guard can still be renamed or
-  # re-homed out of. An id that names no category is the foreign key's.
+  # category itself nor one of its descendants, and under which no category
+  # of the written one's subtree sits below the tree's last level (#940).
+  # Checked only when the parent changes, so a loop or a deeper chain stored
+  # before these guards can still be renamed or re-homed out of. An id that
+  # names no category is the foreign key's.
   defp validate_parent(%Ecto.Changeset{valid?: true} = changeset) do
     case Ecto.Changeset.fetch_change(changeset, :parent_id) do
       {:ok, parent_id} when is_integer(parent_id) ->
@@ -624,8 +631,57 @@ defmodule Portfolixir.Classifications do
         )
 
       true ->
+        check_depth(changeset, parent_id, parents)
+    end
+  end
+
+  # #940: the deepest category of the written one's subtree — the category
+  # itself when it is new — may sit on level @max_tree_depth at most: the
+  # parent's level, one for the category, and the levels below it.
+  defp check_depth(changeset, parent_id, parents) do
+    case level(parent_id, parents) + 1 + height(changeset.data.id, parents) do
+      deepest when deepest > @max_tree_depth ->
+        Ecto.Changeset.add_error(
+          changeset,
+          :parent_id,
+          "would put a category on level %{level}; a classification has at most %{max} levels",
+          level: deepest,
+          max: @max_tree_depth,
+          validation: :tree_depth
+        )
+
+      _within ->
         changeset
     end
+  end
+
+  # The level a category sits on, the root being 1. The visited set ends the
+  # walk on a loop stored before the guard.
+  defp level(id, parents), do: level(id, parents, MapSet.new())
+
+  defp level(nil, _parents, _seen), do: 0
+
+  defp level(id, parents, seen) do
+    if MapSet.member?(seen, id),
+      do: 0,
+      else: 1 + level(Map.get(parents, id), parents, MapSet.put(seen, id))
+  end
+
+  # How many levels sit below a category: 0 for a leaf and for a new one.
+  # The moved subtree's deepest category lands this many levels below it.
+  defp height(nil, _parents), do: 0
+
+  defp height(id, parents) do
+    children = Enum.group_by(parents, &elem(&1, 1), &elem(&1, 0))
+    height(id, children, MapSet.new([id]))
+  end
+
+  defp height(id, children, seen) do
+    children
+    |> Map.get(id, [])
+    |> Enum.reject(&MapSet.member?(seen, &1))
+    |> Enum.map(&(1 + height(&1, children, MapSet.put(seen, &1))))
+    |> Enum.max(fn -> 0 end)
   end
 
   # Whether walking up from `id` meets `target` (a new category has no id and

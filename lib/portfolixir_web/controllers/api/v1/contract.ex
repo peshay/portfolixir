@@ -44,7 +44,7 @@ defmodule PortfolixirWeb.Api.V1.Contract do
       version: 17,
       # Sprint 20's commit group γ (nothing a screen shows changes): the
       # group's one entry, opened by C2's first surface change (#1103); C2's
-      # other stories and C4 extend it, each item named by its issue. 17, not
+      # other stories, C3 and C4 extend it, each item named by its issue. 17, not
       # 16: β's entry 16 sits beneath it once the groups are put in order,
       # and the meta-test asks for decreasing versions, not contiguous ones.
       date: ~D[2026-10-08],
@@ -60,7 +60,9 @@ defmodule PortfolixirWeb.Api.V1.Contract do
           "as the plan editor does (#1143). The plan duplicate and delete descriptions name " <>
           "the position targets they copy and delete (#1135). The " <>
           "schema budget pays for every byte C2 adds, and the ceilings are lowered to the " <>
-          "figures measured (D-10).",
+          "figures measured (D-10). E25's follow-ups (C3): a category write whose parent " <>
+          "would put a category below a tree's 32nd level is refused on parent_id, and the " <>
+          "category tools name the bound (#940).",
       endpoints: [],
       tools: [],
       parameters: [
@@ -68,7 +70,8 @@ defmodule PortfolixirWeb.Api.V1.Contract do
         "GET /api/v1/securities?data_quality=&limit=&offset= (portfolixir.securities.list): stale_quote, missing_quote, missing_fx and two_scales, whose rules read quotes, rates or bookings, now apply limit and offset to the matching securities, after the rule, where they cut the catalog first and a page could come back short or empty while later pages held matches; missing_logo, all query, already did. Only a set's last page is short now. Without limit and offset nothing changes (#1113)",
         "PUT /api/v1/portfolios/:portfolio_id/targets (a body field), DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id and DELETE /api/v1/portfolios/:portfolio_id/position_targets/:category_id/:security_id (a query parameter) take an optional plan_id: the plan version to write, a draft or the active plan, instead of the view's active plan, which a write without it addresses as before. A malformed id answers 422 errors.plan_id [\"is invalid\"]; an unknown plan or another portfolio's [\"is not a plan of this portfolio\"]; on the PUT, another classification's [\"is a plan of another classification\"]; beside a view= naming another view [\"is a plan of another view\"]; an archived plan [\"is archived: activate it, or duplicate it into a draft\"]; each writes nothing. The reads take no plan_id and keep following the active plan. MCP: portfolixir.targets.set, portfolixir.targets.delete and portfolixir.targets.delete_position take plan_id, an integer, and say so; portfolixir.plans.duplicate's description names it as the way to edit the draft (#1133; ADR-0027, note of 2026-10-08)",
         "PUT /api/v1/portfolios/:portfolio_id/targets (portfolixir.targets.set) and PUT /api/v1/portfolios/:portfolio_id/cash_target (portfolixir.portfolios.set_cash_target): a weight refused for lying outside [0, 1] or for more than 6 decimal places now also carries errors.row beside its field error, the row the plan editor puts first: on the targets write {category_id, security_id} of the refused row of the batch, security_id null for a category row; on the cash-target write \"cash\". The field errors are unchanged, a refusal that is not a row's weight (the batch's shape, a category, a plan) carries no row, and the MCP tools pass errors.row through, their descriptions unchanged. This is #945's API half, the two-way coverage the plan editor's row-first refusal was owed (#1143)",
-        "portfolixir.plans.duplicate and portfolixir.plans.delete (POST /api/v1/plans/:id/duplicate, DELETE /api/v1/plans/:id): their descriptions name the category and the position targets a version's copy and delete carry, where they said category targets; both routes have always copied and deleted every target of the plan, position rows included, and nothing in their behaviour changes. portfolixir.plans.activate's description no longer restates that a scope has at most one active plan (#1135)"
+        "portfolixir.plans.duplicate and portfolixir.plans.delete (POST /api/v1/plans/:id/duplicate, DELETE /api/v1/plans/:id): their descriptions name the category and the position targets a version's copy and delete carry, where they said category targets; both routes have always copied and deleted every target of the plan, position rows included, and nothing in their behaviour changes. portfolixir.plans.activate's description no longer restates that a scope has at most one active plan (#1135)",
+        "POST /api/v1/classifications/:classification_id/categories and PATCH /api/v1/classifications/:classification_id/categories/:id (portfolixir.classifications.categories.create and portfolixir.classifications.categories.update): a parent_id under which the written category, or the deepest category of the subtree a PATCH moves, would sit below level 32, a tree's last, answers 422 errors.parent_id [\"would put a category on level 33; a classification has at most 32 levels\"], naming the level it would take, and writes nothing. The level walks stopped at 32 before, so a tree built deeper read wrong in the level columns and the level count without notice. Both tool descriptions name the bound; categories.update's no longer lists the fields its schema carries (#940)"
       ],
       removed_endpoints: [],
       removed_tools: [],
