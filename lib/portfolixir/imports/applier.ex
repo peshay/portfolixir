@@ -1158,9 +1158,9 @@ defmodule Portfolixir.Imports.Applier do
   defp process_companion(
          entry,
          _index,
-         %{parent: %{outcome: {:unresolved, key, reason}}} = state
+         %{parent: %{outcome: {:unresolved, key, cause}}} = state
        ),
-       do: {:ok, record_unresolved(state, entry, key, reason)}
+       do: {:ok, record_unresolved(state, entry, key, cause)}
 
   defp process_companion(entry, _index, state) do
     parent_row = state.parent && state.parent.row
@@ -1388,8 +1388,8 @@ defmodule Portfolixir.Imports.Applier do
         {:ok, state |> track_resolved_security(id) |> maybe_record_alias(entry, ref, tier, id),
          id}
 
-      {:ok, {:unresolved, reason}} ->
-        {:skip, record_unresolved(state, entry, key, reason)}
+      {:ok, {:unresolved, cause}} ->
+        {:skip, record_unresolved(state, entry, key, cause)}
 
       :error ->
         first_resolution(entry, ref, key, state)
@@ -1458,37 +1458,70 @@ defmodule Portfolixir.Imports.Applier do
         {:ok, state, security.id}
 
       {:conflict, conflict} ->
-        mark_unresolved(entry, key, state, conflict_reason(conflict))
+        mark_unresolved(entry, key, state, conflict_cause(conflict))
 
       :create ->
         case SecurityResolver.config_at_risk(ref, state.live_index) do
-          [] -> create_security(entry, ref, key, state)
-          at_risk -> mark_unresolved(entry, key, state, config_at_risk_reason(at_risk))
+          [] ->
+            create_security(entry, ref, key, state)
+
+          at_risk ->
+            cause = {:config_at_risk, Enum.map(at_risk, &named(&1.security))}
+            mark_unresolved(entry, key, state, cause)
         end
     end
   end
 
-  defp mark_unresolved(entry, key, state, reason) do
-    state = cache_resolution(state, key, {:unresolved, reason})
-    {:skip, record_unresolved(state, entry, key, reason)}
+  defp mark_unresolved(entry, key, state, cause) do
+    state = cache_resolution(state, key, {:unresolved, cause})
+    {:skip, record_unresolved(state, entry, key, cause)}
   end
 
-  defp conflict_reason(%{type: :ambiguous, tier: tier, candidates: candidates}) do
-    "ambiguous match: #{length(candidates)} existing securities share the #{tier_word(tier)}"
-  end
+  @typedoc """
+  Why no security resolves for a row (ADR-0029 §2), as each of the result's
+  `unresolved_entries` carries it in `cause`, beside its English `reason`:
+  several securities share the tier's identifier, a likely match differs
+  on a stronger identifier, the identifiers point at different securities,
+  or a creation would strand strategy configuration. The Imports page
+  states it in its own words.
+  """
+  @type unresolved_cause ::
+          {:ambiguous, atom(), pos_integer()}
+          | {:identifier_veto, named()}
+          | {:cross_tier, [named()]}
+          | {:config_at_risk, [named()]}
 
-  defp conflict_reason(%{type: :identifier_veto, candidates: [candidate]}) do
+  @typedoc "A security the cause names, by id and name."
+  @type named :: %{id: integer(), name: String.t()}
+
+  defp conflict_cause(%{type: :ambiguous, tier: tier, candidates: candidates}),
+    do: {:ambiguous, tier, length(candidates)}
+
+  defp conflict_cause(%{type: :identifier_veto, candidates: [candidate]}),
+    do: {:identifier_veto, named(candidate)}
+
+  defp conflict_cause(%{type: :cross_tier, candidates: candidates}),
+    do: {:cross_tier, Enum.map(candidates, &named/1)}
+
+  defp named(security), do: %{id: security.id, name: security.name}
+
+  # The result's English text of each cause, unchanged since the reasons
+  # were plain text.
+  defp unresolved_text({:ambiguous, tier, count}),
+    do: "ambiguous match: #{count} existing securities share the #{tier_word(tier)}"
+
+  defp unresolved_text({:identifier_veto, candidate}) do
     "conflicts with \"#{candidate.name}\" (security ##{candidate.id}) on a " <>
       "stronger identifier — possibly an unrecorded ISIN change (ADR-0029 §3)"
   end
 
-  defp conflict_reason(%{type: :cross_tier, candidates: candidates}) do
+  defp unresolved_text({:cross_tier, candidates}) do
     names = Enum.map_join(candidates, ", ", &"\"#{&1.name}\" (##{&1.id})")
     "identifiers point at different existing securities: #{names}"
   end
 
-  defp config_at_risk_reason(at_risk) do
-    names = Enum.map_join(at_risk, ", ", &"\"#{&1.security.name}\" (##{&1.security.id})")
+  defp unresolved_text({:config_at_risk, at_risk}) do
+    names = Enum.map_join(at_risk, ", ", &"\"#{&1.name}\" (##{&1.id})")
 
     "creating it would strand strategy configuration (category assignments " <>
       "or position targets) on: #{names} — requires an explicit decision"
@@ -1655,11 +1688,17 @@ defmodule Portfolixir.Imports.Applier do
 
   defp maybe_record_alias(state, _entry, _ref, _tier, _security_id), do: state
 
-  defp record_unresolved(state, %Entry{} = entry, key, reason) do
+  defp record_unresolved(state, %Entry{} = entry, key, cause) do
     state
-    |> Map.put(:outcome, {:unresolved, key, reason})
+    |> Map.put(:outcome, {:unresolved, key, cause})
     |> Map.update!(:result, fn %Result{} = r ->
-      unresolved = %{row: entry.source_row, key: key, reason: reason}
+      unresolved = %{
+        row: entry.source_row,
+        key: key,
+        reason: unresolved_text(cause),
+        cause: cause
+      }
+
       %Result{r | unresolved_entries: [unresolved | r.unresolved_entries]}
     end)
   end

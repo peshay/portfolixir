@@ -3134,6 +3134,22 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   Betrag — nichts zu buchen", "<Kind> is never imported" / "<Art> wird nie
   importiert", and for a refund whose row was not imported "the row itself
   was not imported" / "die Zeile selbst wurde nicht importiert".
+  **The records no security resolves for** say why in the page's words too
+  *(amended 2026-10-08, the α closing act; read off the result's `cause`,
+  the result's English `reason` unchanged)*, naming securities by name in
+  the page's quotes, never by record number or ADR: "a likely match,
+  “Foo AG”, differs on a stronger identifier — possibly an ISIN change not
+  recorded yet" / "ein wahrscheinlicher Treffer, „Foo AG“, weicht bei einem
+  stärkeren Identifikator ab — möglicherweise ein noch nicht erfasster
+  ISIN-Wechsel"; "different identifiers point at different existing
+  securities: “A” and “B”" / "verschiedene Identifikatoren zeigen auf
+  verschiedene bestehende Wertpapiere: …"; "2 existing securities share
+  this identifier: WKN" (or "ticker and currency", "name and currency") /
+  "2 bestehende Wertpapiere teilen diesen Identifikator: WKN" ("Ticker und
+  Währung", "Name und Währung"); and "creating it would leave strategy
+  configuration (category assignments or position targets) stranded on: …"
+  / "das Anlegen würde Strategie-Konfiguration (Kategorie-Zuordnungen oder
+  Positionsziele) stranden lassen auf: …".
 
 ## Amendment 2026-09-26 — The author of a policy rule *(Sprint 16 pick G12.1-A, E25 S7, G30)*
 

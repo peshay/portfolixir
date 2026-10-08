@@ -432,6 +432,132 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
              ]
     end
 
+    # User story (the α closing act, A5's leftover):
+    # As the operator reading which records no security could be found for,
+    # I want each reason in the page's language, naming the securities by
+    # name,
+    # so that I know what to decide when I import the file again, without
+    # the applier's English, its record numbers or its ADR references.
+    #
+    # Acceptance criteria:
+    # - Two purchases of "Foo AG" under two ISINs: the second matches the
+    #   security the first created except for its ISIN, and reads "Zeile 3:
+    #   ein wahrscheinlicher Treffer, „Foo AG“, weicht bei einem stärkeren
+    #   Identifikator ab — möglicherweise ein noch nicht erfasster
+    #   ISIN-Wechsel", in English "Row 3: a likely match, “Foo AG”, differs
+    #   on a stronger identifier — possibly an ISIN change not recorded yet".
+    # - A purchase whose WKN leads to the security an earlier row created and
+    #   whose name leads to a stored one reads "Row 3: different identifiers
+    #   point at different existing securities: “Foo AG” and “Bar Holding”".
+    # - A purchase whose WKN two securities share (a stored one, and one the
+    #   operator chose to create on an earlier row) reads "Row 3: 2 existing
+    #   securities share this identifier: WKN"; a shared ticker reads
+    #   "… ticker and currency", a shared name "… name and currency".
+    # - No "#", no "ADR" and no "ambiguous match" on the page.
+    test "a record no security resolves for is named in the page's words", %{conn: conn} do
+      # Each import's deposit is a booking of its own, so no name of a later
+      # file is known to the stored history while another is not (#904).
+      {:ok, view, _html} = live(german(conn), "/imports")
+
+      upload!(view, [
+        deposit("Test-Cash", "5000.00", "2026-01-02"),
+        purchase("Foo AG", %{"isin" => "DE000EXMPL25"}, "2026-01-15"),
+        purchase("Foo AG", %{"isin" => "DE000EXMPL33"}, "2026-01-16")
+      ])
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Import abgeschlossen"
+
+      assert texts(view, "[data-role='unresolved-entries'] li") == [
+               "Zeile 3: ein wahrscheinlicher Treffer, „Foo AG“, weicht bei einem stärkeren Identifikator ab — möglicherweise ein noch nicht erfasster ISIN-Wechsel"
+             ]
+
+      {:ok, view, _html} = live(conn, "/imports")
+
+      upload!(view, [
+        deposit("Test-Cash", "5000.00", "2026-01-03"),
+        purchase("Qux AG", %{"isin" => "DE000EXMPL41"}, "2026-01-15"),
+        purchase("Qux AG", %{"isin" => "DE000EXMPL58"}, "2026-01-16")
+      ])
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Import complete"
+
+      assert texts(view, "[data-role='unresolved-entries'] li") == [
+               "Row 3: a likely match, “Qux AG”, differs on a stronger identifier — possibly an ISIN change not recorded yet"
+             ]
+
+      {:ok, _bar} =
+        Catalog.create_security(Actor.owner_ui(), %{
+          name: "Bar Holding",
+          currency_code: "EUR",
+          ticker_symbol: "BARH"
+        })
+
+      {:ok, view, _html} = live(conn, "/imports")
+
+      upload!(view, [
+        deposit("Test-Cash", "5000.00", "2026-01-04"),
+        purchase("Foo Neu AG", %{"wkn" => "SYN001"}, "2026-02-15"),
+        purchase("Bar Holding", %{"wkn" => "SYN001", "ticker" => "BARH"}, "2026-02-16")
+      ])
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Import complete"
+
+      assert texts(view, "[data-role='unresolved-entries'] li") == [
+               "Row 3: different identifiers point at different existing securities: “Foo Neu AG” and “Bar Holding”"
+             ]
+
+      # A stored security, a first row the operator chooses to create
+      # beside it (its ISIN differs), and a second row whose identifier
+      # both then carry: for each tier that can be shared.
+      for {tier, stored, first, second, date, label} <- [
+            {:wkn, %{name: "Share Class A", wkn: "AMB002", isin: "XS000SYNTH19"},
+             {"Share Class Neu", %{"isin" => "DE000EXMPL66", "wkn" => "AMB002"}},
+             {"Share Class Other", %{"wkn" => "AMB002"}}, "2026-01-05", "WKN"},
+            {:ticker, %{name: "Ticker Fund", ticker_symbol: "TCKA", isin: "XS000SYNTH27"},
+             {"Ticker Fund Neu", %{"isin" => "DE000EXMPL74", "ticker" => "TCKA"}},
+             {"Ticker Fund Other", %{"ticker" => "TCKA"}}, "2026-01-06", "ticker and currency"},
+            {:name, %{name: "Namesake Fund", isin: "XS000SYNTH35"},
+             {"Namesake Fund", %{"isin" => "DE000EXMPL82"}}, {"Namesake Fund", %{}}, "2026-01-07",
+             "name and currency"}
+          ] do
+        {:ok, _stored} =
+          Catalog.create_security(Actor.owner_ui(), Map.put(stored, :currency_code, "EUR"))
+
+        {first_name, first_ids} = first
+        {second_name, second_ids} = second
+
+        rows = [
+          deposit("Test-Cash", "5000.00", date),
+          purchase(first_name, first_ids, "2026-03-15"),
+          purchase(second_name, second_ids, "2026-03-16")
+        ]
+
+        {:ok, view, _html} = live(conn, "/imports")
+        upload!(view, rows)
+
+        {:ok, preview} =
+          Imports.parse_portfolio_performance(body(rows), filename: "synthetic.json")
+
+        %{resolutions: resolutions} = Imports.resolve_securities(preview)
+        decision = Enum.find(resolutions, &(&1.status == :needs_decision)).key
+        choice = %{"security" => %{decision => %{"choice" => "create"}}}
+
+        view |> element("form#pp-import-apply") |> render_change(choice)
+        view |> element("form#pp-import-apply") |> render_submit(choice)
+        assert render_async(view, 1_000) =~ "Import complete", "#{tier}"
+
+        assert texts(view, "[data-role='unresolved-entries'] li") == [
+                 "Row 3: 2 existing securities share this identifier: #{label}"
+               ],
+               "#{tier}"
+
+        refute text(view, "[data-role='unresolved-entries']") =~ ~r/#|ADR|ambiguous match/
+      end
+    end
+
     # User story:
     # As the operator who drops a file again whose dividend split off a
     # refund,
@@ -515,6 +641,30 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
   end
 
   # Shares delivered into a depot: a booking that names no cash account.
+  defp deposit(account, amount, date) do
+    %{
+      "type" => "DEPOSIT",
+      "account" => account,
+      "date" => date,
+      "currency" => "EUR",
+      "amount" => num(amount)
+    }
+  end
+
+  defp purchase(name, identifiers, date) do
+    %{
+      "type" => "PURCHASE",
+      "account" => "Test-Cash",
+      "portfolio" => "Depot Muster",
+      "date" => date,
+      "time" => "10:00",
+      "currency" => "EUR",
+      "amount" => num("100.00"),
+      "shares" => num("10"),
+      "security" => Map.merge(%{"name" => name, "currency" => "EUR"}, identifiers)
+    }
+  end
+
   defp delivery(depot) do
     %{
       "type" => "INBOUND_DELIVERY",
