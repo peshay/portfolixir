@@ -215,6 +215,31 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     refute rows =~ "Zeile 6"
   end
 
+  # User story (#1140; board ux-design-2026-10-07/01-import-preview ④):
+  # As the operator reading the parser warnings on a phone,
+  # I want the row list to take the note's full width under its word,
+  # so that the rows are not squeezed into about 240 px beside the glyph and
+  # "ACHTUNG", and a third warning is not hidden by the scroller.
+  #
+  # Acceptance criteria (rule ①):
+  # - Under 560 px the parser-warnings note wraps: the glyph and the word form
+  #   a heading row and the body takes the note's full width.
+  # - It is the correction note's rule, written as ONE selector list with it
+  #   and with the mapping row's notes, not a copy.
+  test "the parser-warnings note takes the full width under 560 px (#1140)" do
+    [block] =
+      Regex.run(
+        ~r/@media \(max-width: 560px\) \{\s*#import-correction-table-wrapper.*?\n\}/s,
+        File.read!("priv/static/app.css")
+      )
+
+    assert block =~
+             ~r/\[data-role="parser-warnings"\],\s*#import-correction \.data-note,\s*\[data-role="mapping-unseen-name"\],\s*\[data-role="mapping-ambiguous"\] \{\s*flex-wrap: wrap;\s*\}/
+
+    assert block =~
+             ~r/\[data-role="parser-warnings"\] \.data-note__body,\s*#import-correction \.data-note__body,\s*\[data-role="mapping-unseen-name"\] \.data-note__body,\s*\[data-role="mapping-ambiguous"\] \.data-note__body \{\s*flex-basis: 100%;\s*\}/
+  end
+
   # #1044 review round: the row list follows the `.data-note__body .mono`
   # precedent DESIGN.md's amendment of 2026-10-06 names, which keeps the
   # note's 12 px; at 0.85rem (13.6 px) the rows read larger than the note's
