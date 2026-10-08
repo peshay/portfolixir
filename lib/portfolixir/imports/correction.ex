@@ -23,7 +23,11 @@ defmodule Portfolixir.Imports.Correction do
   Each line carries the booking as stored, the changes the confirm writes,
   and its signed cash effect before and after (`Ledger.Projection`, the one
   reducer per kind), per cash account. A booking that has since become
-  another kind is no longer the row's and is not listed.
+  another kind is no longer the row's and is not listed, nor is a row whose
+  split-off refund is no longer stored (deleted by hand since): its
+  correction takes the refund out of its cash because the refund is booked
+  beside it, so corrected alone it would leave the cash below the stored
+  state.
 
   **What the confirm writes**, per listed booking, and nothing else:
 
@@ -124,6 +128,7 @@ defmodule Portfolixir.Imports.Correction do
 
     flat_entries
     |> Enum.zip(hashes)
+    |> drop_parents_missing_a_refund(stored)
     |> Enum.flat_map(fn {entry, row_hashes} ->
       case Enum.find_value(row_hashes, &Map.get(stored, &1)) do
         %Transaction{} = transaction -> List.wrap(item(entry, transaction, format))
@@ -167,6 +172,38 @@ defmodule Portfolixir.Imports.Correction do
       timeout: Applier.transaction_timeout()
     )
   end
+
+  # A1: a parent's cash today is its cash cell less (or plus) the refund
+  # split off it, so its correction takes out the refund only because the
+  # refund is booked beside it. A row whose split-off refund is not stored
+  # (deleted by hand since) is left out, with its refunds: corrected alone,
+  # it would leave the cash below the stored state by that refund. `stored`
+  # holds every hash of the file, a refund's among them.
+  defp drop_parents_missing_a_refund(rows, stored) do
+    rows
+    |> Enum.chunk_while(
+      [],
+      fn
+        {%Entry{companion_index: nil}, _hashes} = parent, [] ->
+          {:cont, [parent]}
+
+        {%Entry{companion_index: nil}, _hashes} = parent, group ->
+          {:cont, Enum.reverse(group), [parent]}
+
+        companion, group ->
+          {:cont, [companion | group]}
+      end,
+      fn
+        [] -> {:cont, []}
+        group -> {:cont, Enum.reverse(group), []}
+      end
+    )
+    |> Enum.flat_map(fn [_parent | refunds] = group ->
+      if Enum.all?(refunds, &stored?(&1, stored)), do: group, else: []
+    end)
+  end
+
+  defp stored?({_entry, hashes}, stored), do: Enum.any?(hashes, &Map.has_key?(stored, &1))
 
   defp stored_by_hash([], _lock?), do: %{}
 

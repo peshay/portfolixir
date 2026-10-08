@@ -344,6 +344,43 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
               norm(sale.changes.settlement_fx_rate)} == {"100", "125", "0.8"}
     end
 
+    # User story (ADR-0053 A1, A6; found by the α closing act, money lens):
+    # As the operator whose JSON sale was stored under the old reading
+    # beside its split-off refund, and who has since deleted that refund by
+    # hand,
+    # I want the correction not to list the sale,
+    # so that confirming it alone never takes out a refund the account no
+    # longer holds and leaves the cash below the stored state.
+    #
+    # Acceptance criteria:
+    # - sale_with_negative_tax.json applied under the old reading (sale
+    #   120.00, refund 25.00, Test-Cash 1,145.00), the refund deleted by
+    #   hand (Test-Cash 1,120.00): a re-drop lists nothing, and its
+    #   correction changes nothing and leaves Test-Cash at 1,120.00, never
+    #   1,095.00.
+    # - With the refund stored, the same sale is listed (the K15 case).
+    test "a refund-carrying row whose refund is no longer stored is not listed" do
+      portfolio = portfolio!("Refund deleted by hand")
+      sale_file = fixture("sale_with_negative_tax.json")
+      apply!(old_reading(parse!(sale_file, "sale.json")), portfolio)
+
+      assert [%Item{row: 3}] =
+               Imports.cash_corrections(parse!(sale_file, "sale.json"),
+                 portfolio_id: portfolio.id
+               )
+
+      {:ok, _} = Ledger.delete_transaction(Actor.owner_ui(), booking(portfolio, "tax_refund"))
+      assert balances(portfolio) == %{"Test-Cash" => "1120"}
+      before = snapshot()
+
+      assert Imports.cash_corrections(parse!(sale_file, "sale.json"), portfolio_id: portfolio.id) ==
+               []
+
+      assert correct!(parse!(sale_file, "sale.json"), portfolio) == []
+      assert snapshot() == before
+      assert balances(portfolio) == %{"Test-Cash" => "1120"}
+    end
+
     # User story (ADR-0053 §6, UX-DR2):
     # As the operator re-dropping a file whose bookings all agree with it,
     # I want nothing listed,
