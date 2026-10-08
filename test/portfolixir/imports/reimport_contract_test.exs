@@ -637,8 +637,11 @@ defmodule Portfolixir.Imports.ReimportContractTest do
           Map.put(purchase(3), "amount", num("500.000")),
           purchase(4, security: other, date: "2025-02-03"),
           purchase(5, security: other, date: "2025-02-03"),
+          # A fee of 0 under the security: unimportable at the apply. (A
+          # credit of 0 is a row error of the preview since ADR-0053 A5, so
+          # it would be no entry to count.)
           %{
-            "type" => "DIVIDEND",
+            "type" => "FEE",
             "account" => "Giro",
             "date" => "2025-03-02",
             "currency" => "EUR",

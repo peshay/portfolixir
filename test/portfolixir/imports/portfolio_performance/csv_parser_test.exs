@@ -2,6 +2,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
   use ExUnit.Case, async: true
 
   alias Portfolixir.Imports.Entry
+  alias Portfolixir.Imports.ImportHash
   alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.PortfolioPerformance.CsvParser
   alias Portfolixir.Imports.Preview
@@ -428,6 +429,114 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
   #   Gesamtpreis beside it; a split-off refund's is the refund it books.
   # - A kind that settles no cash (a delivery, a security transfer) carries
   #   none, as its hash read none before.
+  # User story (ADR-0053 A5, K14, #1118; risk-tier: money):
+  # As the operator dropping a CSV whose sale's own booking would credit
+  # nothing or less, because the tax refund split off it is larger than the
+  # cash it moved, or because the cash itself is nothing,
+  # I want that row named in the preview with what to do instead, while the
+  # rest of the file previews,
+  # so that the sale is never silently skipped at apply and its position
+  # never stays held without a word.
+  #
+  # Acceptance criteria:
+  # - A credit row whose own booking, its cash cell less its split-off
+  #   refund, is 0 or less is a row error naming the cell, the refund and
+  #   what is left, and the remedy: enter the booking by hand, and the
+  #   refund as a tax refund of its own. A PP row's cash cell is its
+  #   Gesamtpreis, a converter row's its Betrag.
+  # - Without a refund, a credit row whose cash cell is 0 or less is a row
+  #   error naming the cell and the remedy.
+  # - The file's other rows preview, each with the content hash it has
+  #   without the refused row beside it; a debit row is not refused.
+  # - In German it reads "… — Zeile nicht übernommen".
+  describe "parse/2 a credit row that nets to nothing (#1118)" do
+    @header "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n"
+
+    # #1118's reproduction: a worthless position sold at a nominal price,
+    # the loss refunding tax. Betrag 1,00 - (5,90 + (-25,00)) = 20,10.
+    @rows """
+    2024-01-02 00:00:00;Einlage;;;;1.000,00;;;1.000,00;Cash;;;
+    2024-01-15 10:01:00;Kauf;Synthetic AG;100;2,00;200,00;5,90;;205,90;Depot;Cash;;
+    2024-06-14 15:30:00;Verkauf;Synthetic AG;100;0,01;1,00;5,90;-25,00;20,10;Depot;Cash;;
+    """
+
+    test "a sale whose refund exceeds its Gesamtpreis is named, and the rest previews" do
+      assert {:ok, %Preview{entries: [deposit, buy], errors: [%{row: 3, message: message}]}} =
+               CsvParser.parse(@header <> @rows)
+
+      assert message ==
+               "Gesamtpreis 20,10 less the tax refund 25,00 leaves -4,90 to credit — " <>
+                 "enter this booking by hand, and the refund as a tax refund of its own " <>
+                 "— row not imported"
+
+      {:ok, %Preview{entries: alone}} =
+        CsvParser.parse(
+          @header <> (@rows |> String.split("\n") |> Enum.take(2) |> Enum.join("\n"))
+        )
+
+      assert Enum.map([deposit, buy], &ImportHash.compute(&1, 42)) ==
+               Enum.map(alone, &ImportHash.compute(&1, 42))
+    end
+
+    test "a credit whose cash cell is nothing or less is named, a refund split off or not" do
+      assert {:ok, %Preview{entries: [debit], errors: errors}} =
+               CsvParser.parse(
+                 @header <>
+                   """
+                   2024-06-14 15:30:00;Verkauf;Synthetic AG;100;0,01;1,00;5,90;;-4,90;Depot;Cash;;
+                   2024-03-15 00:00:00;Dividende;Synthetic AG;10;;1,00;;-1,00;;Cash;;;
+                   2024-01-02 00:00:00;Einlage;;;;0,00;;;0,00;Cash;;;
+                   2024-03-16 00:00:00;Steuern;;;;1,00;;-1,00;;Cash;;;
+                   """
+               )
+
+      assert debit.kind == "tax"
+
+      assert errors == [
+               %{
+                 row: 1,
+                 message:
+                   "Gesamtpreis -4,90 leaves nothing to credit — enter this booking by hand " <>
+                     "— row not imported"
+               },
+               %{
+                 row: 2,
+                 message:
+                   "Betrag 1,00 less the tax refund 1,00 leaves 0,00 to credit — " <>
+                     "enter this booking by hand, and the refund as a tax refund of its own " <>
+                     "— row not imported"
+               },
+               %{
+                 row: 3,
+                 message:
+                   "Gesamtpreis 0,00 leaves nothing to credit — enter this booking by hand " <>
+                     "— row not imported"
+               }
+             ]
+    end
+
+    test "says it in German" do
+      Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+
+      assert {:ok, %Preview{errors: errors}} =
+               CsvParser.parse(
+                 @header <>
+                   @rows <>
+                   """
+                   2024-01-02 00:00:00;Einlage;;;;0,00;;;0,00;Cash;;;
+                   """
+               )
+
+      assert Enum.map(errors, & &1.message) == [
+               "Gesamtpreis 20,10 abzüglich der Steuerrückerstattung 25,00 lässt -4,90 zur " <>
+                 "Gutschrift — diese Buchung von Hand erfassen und die Erstattung als eigene " <>
+                 "Steuerrückerstattung — Zeile nicht übernommen",
+               "Gesamtpreis 0,00 lässt nichts zur Gutschrift — diese Buchung von Hand " <>
+                 "erfassen — Zeile nicht übernommen"
+             ]
+    end
+  end
+
   describe "parse/2 the content hash's amount input" do
     test "carries each cash row's Betrag, and nothing for a kind without cash" do
       body = """

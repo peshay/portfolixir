@@ -25,7 +25,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     without one, as a converter writes it, books its Betrag. A negative
     Steuern split off as a refund is taken out of the parent's cash cell,
     the Gesamtpreis or a converter row's Betrag, so the row's bookings still
-    move that cell (§5, and A1 of the amendment of 2026-10-07). The content
+    move that cell (§5, and A1 of the amendment of 2026-10-07); a credit
+    row that would then book 0 or less is a row error (A5). The content
     hash keeps reading the Betrag (`hash_amount`, §3). The kinds without
     cash ignore every money cell.
   - The CSV uses `Konto`/`Gegenkonto` to disambiguate cash-source vs.
@@ -366,11 +367,17 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
       # and S5 (F33): a security that names nothing, and text the ledger
       # would refuse, are this row's error; then a Gesamtpreis that
       # contradicts the Betrag (ADR-0053 §2), so a value no column holds is
-      # named first.
+      # named first; then a credit that would book 0 or less (A5, #1118).
       readings = %{betrag: gross, total: total, fees: raw_fees, taxes: raw_taxes}
+      direction = PortfolioPerformance.direction(kind, side)
 
       case account_error(kind, cells) || PortfolioPerformance.row_error(entry) ||
-             reading_error(PortfolioPerformance.direction(kind, side), readings, cells) do
+             reading_error(direction, readings, cells) ||
+             PortfolioPerformance.credit_error(
+               direction,
+               entry.gross_amount,
+               credit_written(cells, total, tax_refund, entry.gross_amount)
+             ) do
         nil -> {:ok, entry}
         message -> {:error, message}
       end
@@ -489,6 +496,20 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
           expected: expected
         )
     end
+  end
+
+  # ADR-0053 A5: the figures of a credit that would book 0 or less, in the
+  # file's own notation: the cash cell as written (the Gesamtpreis, or the
+  # Betrag of a row without one), the refund split off and what is left.
+  defp credit_written(cells, total, refund, booked) do
+    cell = if total, do: "Gesamtpreis", else: "Betrag"
+
+    %{
+      cell: cell,
+      cash: cells |> Map.get(cell, "") |> String.trim(),
+      refund: refund && Decimals.format_de(refund),
+      rest: booked && Decimals.format_de(booked)
+    }
   end
 
   # PP CSV exports a single signed value per fee/tax column. Mirror the

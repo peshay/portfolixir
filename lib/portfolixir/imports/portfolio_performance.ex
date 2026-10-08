@@ -172,6 +172,43 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   def parent_cash(:credit, %Decimal{} = cash, %Decimal{} = refund), do: Decimal.sub(cash, refund)
   def parent_cash(:debit, %Decimal{} = cash, %Decimal{} = refund), do: Decimal.add(cash, refund)
 
+  @doc """
+  The row message for a credit whose own booking would move 0 or less
+  (ADR-0053 A5, #1118), or `nil`. Only a positive amount is importable, so
+  the apply would skip such a row, its split-off refund with it, and leave a
+  sale's position held; the preview names it instead, with the remedy, and
+  the rest of the file previews. It fails closed, as §2 does, whether or not
+  a refund was split off, and no hash changes.
+
+  `written` names the row's figures as the file wrote them: `cell`, the
+  column or field of the cash cell; `cash`, its value; `refund`, the refund
+  split off (`nil` when none); and `rest`, what the booking would credit.
+  """
+  @spec credit_error(:debit | :credit | nil, Decimal.t() | nil, map()) :: String.t() | nil
+  def credit_error(:credit, %Decimal{} = booked, written) do
+    if Decimal.compare(booked, 0) != :gt, do: credit_message(written)
+  end
+
+  def credit_error(_direction, _booked, _written), do: nil
+
+  defp credit_message(%{refund: nil} = written),
+    do:
+      gettext(
+        "%{cell} %{cash} leaves nothing to credit — enter this booking by hand — row not imported",
+        cell: written.cell,
+        cash: written.cash
+      )
+
+  defp credit_message(written),
+    do:
+      gettext(
+        "%{cell} %{cash} less the tax refund %{refund} leaves %{rest} to credit — enter this booking by hand, and the refund as a tax refund of its own — row not imported",
+        cell: written.cell,
+        cash: written.cash,
+        refund: written.refund,
+        rest: written.rest
+      )
+
   # The text of an entry the ledger stores, each with the rule its column
   # applies (E25 S4, G24): a name is one line within its column's width, a
   # note keeps its line breaks.
