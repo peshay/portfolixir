@@ -3,7 +3,9 @@ defmodule PortfolixirWeb.ApiV1CrossCurrencyTradesTest do
   # a cross-currency closed trade read over the API, through the security's
   # trades read and the realized-gains read, is in one currency — its fees
   # and taxes, recorded in the cash account's currency, converted at the
-  # trade's own stored settlement_fx_rate — and the payloads say so.
+  # trade's own stored settlement_fx_rate — and the payloads say so. The
+  # Costs roll-up reads the same fees in that account's currency (#1107,
+  # identity 2).
   # Synthetic figures only.
   use PortfolixirWeb.ConnCase
 
@@ -140,5 +142,49 @@ defmodule PortfolixirWeb.ApiV1CrossCurrencyTradesTest do
     basis = data["computation_basis"]["fees_and_taxes"]
     assert basis =~ "cash account's currency"
     assert basis =~ "settlement_fx_rate"
+  end
+
+  # User story (#1107, identity 2 over the API):
+  # As the operating LLM agent,
+  # I want the Costs roll-up to read a cross-currency trade's fees and taxes
+  # in its cash account's currency,
+  # so that the costs I report are the euros the broker charged.
+  #
+  # Acceptance criteria:
+  # - Buy 10 at 100 USD settled 790.00 EUR, fees 5.00 and taxes 1.00 EUR:
+  #   the month reads fees 5, taxes 1, the year total 6 (before: 4, 0.8, 4.8).
+  # - computation_basis.currency states the rule.
+  test "GET /api/v1/costs reads identity 2 in the account's currency", %{conn: conn} do
+    world = base_world(name: "Wire Costs", cash_name: "Wire Cost Cash", depot_name: "Wire Desk")
+    fund = create_security!(name: "Wire Cost Fund", ticker: "WCF", currency: "USD")
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2026-05-05],
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    cross_trade!(world, fund,
+      quantity: "10",
+      price: "100",
+      settled: "790.00",
+      fees: "5.00",
+      taxes: "1.00",
+      gross: "796.00",
+      date: ~D[2026-05-05]
+    )
+
+    %{"data" => data} = get_json(conn, "/api/v1/costs")
+
+    assert [year] = data["annual"]
+    assert year["months"]["5"] == %{"fees" => "5", "taxes" => "1"}
+    assert year["total"] == "6"
+    assert data["excluded"] == %{"count" => 0, "currencies" => []}
+    assert data["computation_basis"]["currency"] =~ "cash account's currency"
   end
 end
