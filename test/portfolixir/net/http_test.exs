@@ -80,11 +80,14 @@ defmodule Portfolixir.Net.HttpTest do
     assert {:error, :deadline} = Http.get(req, url: @url, plug: plug)
   end
 
-  test "carries a connect timeout, a pool that never reuses a connection, and retries off" do
+  # The pool keeps Finch's idle connections (#1116): Finch 0.24.0 closes a
+  # connection a request failed on, which the pool's zero idle time did
+  # before (http_pool_test.exs pins it through the real transport).
+  test "carries a connect timeout, a pool that keeps idle connections, and retries off" do
     req = Http.new(max_bytes: 100, allowed_hosts: @hosts)
 
     assert get_in(req.options, [:finch, :conn_opts, :transport_opts, :timeout]) == 5_000
-    assert get_in(req.options, [:finch, :conn_max_idle_time]) == 0
+    refute Keyword.has_key?(req.options[:finch], :conn_max_idle_time)
     assert req.options[:retry] == false
   end
 

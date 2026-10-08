@@ -8,9 +8,10 @@ defmodule Portfolixir.Net.Http do
       `Content-Length` over the cap is refused on the first chunk, and a body
       that grows past the cap is cut there; either becomes
       `{:error, %Portfolixir.Net.Http.BodyTooLarge{}}` rather than a response;
-    * **a connect timeout** next to the receive timeout, and **a fresh
-      connection per request**, so a request that timed out can leave no
-      half-read connection behind for the next one;
+    * **a connect timeout** next to the receive timeout, and **no
+      connection a request failed on serves another**, so a request that
+      timed out leaves no half-read connection behind for the next one
+      (Finch closes it; a connection answered in time is kept, #1116);
     * **a deadline on the whole request**, because a receive timeout is per
       `recv` and a slow-drip upstream never trips it. Every redirect hop runs
       inside the same deadline.
@@ -51,14 +52,17 @@ defmodule Portfolixir.Net.Http do
   @default_deadline_ms 30_000
   @default_receive_timeout 10_000
   @connect_timeout 5_000
-  # The Finch pool every bounded request runs in: the connect timeout, and a
-  # connection that is never handed to a second request. mint 1.11 keeps a
-  # connection open after a receive timeout and Finch checks it back in
-  # with the timed-out request still pending, so a reused connection could
-  # give the next request to that host the late answer meant for the one
-  # before. A zero idle time closes every checked-in connection at its next
-  # checkout; a quote sync pays one handshake per request for that.
-  @pool [conn_max_idle_time: 0, conn_opts: [transport_opts: [timeout: @connect_timeout]]]
+  # The Finch pool every bounded request runs in, with the connect timeout.
+  # mint 1.11 keeps a connection open after a receive timeout, and Finch
+  # 0.23.0 checked it back in with the timed-out request still pending, so
+  # the next request to that host could read the late answer meant for the
+  # one before; a zero idle time kept every connection to one request.
+  # Finch 0.24.0 closes an HTTP/1 connection after a request or response
+  # error before it goes back to the pool, which covers that case (#1116,
+  # http_pool_test.exs through the real transport), so the pool keeps
+  # Finch's idle connections again and a quote sync pays one handshake per
+  # host, not per request. A Finch below 0.24.0 turns that test red.
+  @pool [conn_opts: [transport_opts: [timeout: @connect_timeout]]]
   @default_max_redirects 3
   @redirect_statuses [301, 302, 303, 307, 308]
   # The only headers a hop to another origin keeps. Every other header the

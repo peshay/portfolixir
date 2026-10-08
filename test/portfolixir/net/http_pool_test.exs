@@ -1,10 +1,14 @@
 defmodule Portfolixir.Net.HttpPoolTest do
   # mint 1.11.0 leaves a connection open after a receive timeout, and Finch
-  # 0.23.0 then checks it back into its pool with the timed-out request still
-  # pending on it. The next request to the same host was sent on that
+  # 0.23.0 then checked it back into its pool with the timed-out request
+  # still pending on it. The next request to the same host was sent on that
   # connection and read the late answer meant for the one before (a
-  # CaseClauseError inside Finch). The bounded client's pool keeps no idle
-  # connection, so a request always gets a connection nobody has used.
+  # CaseClauseError inside Finch). The bounded client's pool kept no idle
+  # connection for that. Finch 0.24.0 closes an HTTP/1 connection after a
+  # request or response error before it goes back to the pool (upstream
+  # #397), and #1116's experiment showed that covers this case, so the pool
+  # keeps idle connections again: a connection answered in time serves the
+  # next request, one a request timed out on serves none.
   #
   # These tests go through the real transport, to a listener on the loopback
   # interface this test opens itself: no request leaves the machine. They call
@@ -24,7 +28,8 @@ defmodule Portfolixir.Net.HttpPoolTest do
   # Acceptance criteria:
   # - A request whose answer is late ends in a receive timeout.
   # - The next request to the same host arrives on a connection of its own
-  #   and gets its own answer.
+  #   and gets its own answer, in a pool that keeps idle connections (#1116).
+  # - So does one sent after the late answer reached the closed connection.
   test "a request after a receive timeout gets its own connection and its own answer" do
     %{base: base} = start_server()
     req = Http.new(max_bytes: 1_000, allowed_hosts: :any, receive_timeout: 200)
@@ -35,17 +40,25 @@ defmodule Portfolixir.Net.HttpPoolTest do
     assert_receive {:request, slow_conn, "/slow"}
     assert_receive {:request, fast_conn, "/fast"}
     assert slow_conn != fast_conn
+
+    assert {:error, %Req.TransportError{reason: :timeout}} = Req.get(req, url: base <> "/slow")
+    # The late answer (600 ms) has been written by now.
+    Process.sleep(700)
+    assert {:ok, %Req.Response{status: 200, body: "fast"}} = Req.get(req, url: base <> "/fast")
   end
 
-  # User story:
-  # As an operator,
-  # I want the bounded client to open a fresh connection per request,
-  # so that no request can inherit another request's unread answer.
+  # User story (#1116):
+  # As an operator whose quote sync asks one provider for many securities in
+  # a row,
+  # I want a connection answered in time to serve the next request to that
+  # host,
+  # so that the sync does not pay a handshake per request, now that Finch
+  # 0.24.0 closes a connection a request failed on.
   #
   # Acceptance criteria:
-  # - Two requests in a row to one host, both answered in time, arrive on two
-  #   connections.
-  test "every request gets a connection nobody has used" do
+  # - Two requests in a row to one host, both answered in time, arrive on
+  #   one connection, and each gets its own answer.
+  test "a connection answered in time serves the next request" do
     %{base: base} = start_server()
     req = Http.new(max_bytes: 1_000, allowed_hosts: :any)
 
@@ -54,7 +67,7 @@ defmodule Portfolixir.Net.HttpPoolTest do
 
     assert_receive {:request, first, "/fast"}
     assert_receive {:request, second, "/fast"}
-    assert first != second
+    assert first == second
   end
 
   # User story:
@@ -66,7 +79,8 @@ defmodule Portfolixir.Net.HttpPoolTest do
   #
   # Acceptance criteria:
   # - A request to an IPv6-literal host carries inet6 in its connection
-  #   options, next to the pool's connect timeout and zero idle time.
+  #   options, next to the pool's connect timeout; the pool sets no idle
+  #   time of its own (#1116).
   # - A request to a host name carries no inet6.
   test "a request to an IPv6-literal host keeps IPv6 in its pool options" do
     test = self()
@@ -91,7 +105,7 @@ defmodule Portfolixir.Net.HttpPoolTest do
     assert_receive {:finch, "2606:4700::1", literal}
     assert get_in(literal, [:conn_opts, :transport_opts, :inet6]) == true
     assert get_in(literal, [:conn_opts, :transport_opts, :timeout]) == 5_000
-    assert literal[:conn_max_idle_time] == 0
+    refute Keyword.has_key?(literal, :conn_max_idle_time)
 
     assert_receive {:finch, "upstream.test", named}
     assert get_in(named, [:conn_opts, :transport_opts, :inet6]) == nil
