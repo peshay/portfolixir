@@ -3054,6 +3054,27 @@ es abwählen. Wird ein in der Vorschau zugeordnetes Konto vor dem
 Bestätigen zusammengeführt oder gelöscht, hält der Import an, bevor er etwas
 schreibt, und die Kontenzuordnung wird neu vorbelegt.
 
+**Ein Name, unter dem nichts importiert ist.** Konto- und Depotnamen gehen in
+den Inhalts-Hash jeder Zeile ein; wird ein Konto oder ein Depot in Portfolio
+Performance umbenannt und erneut exportiert, gleicht daher keine Zeile unter
+dem neuen Namen einer gespeicherten Buchung. Gleicht keine Zeile eines Namens
+einer gespeicherten Buchung, während die anderen Namen der Datei es tun, rät
+die Vorschau nicht, wohin der Name gehört: Die Auswahl zeigt *Entscheiden…*,
+gleich womit der Name sonst vorbelegt worden wäre — *+ Neu anlegen* oder ein
+Konto, das ihn als Namen oder als früheren Namen trägt —, und die Zeile sagt
+*Unter diesem Namen ist noch keine Buchung importiert, unter den anderen Namen
+dieser Datei schon. Wurde das Konto in Portfolio Performance umbenannt, hier
+das bestehende Konto wählen, sonst „+ Neu anlegen“.* (bei einem Depot *das
+bestehende Depot*). **Import bestätigen** wartet, bis Sie wählen, und der
+Hinweis „Vor dem Import noch zuzuordnen“ darüber nennt die Zeile. Wählen Sie
+das bestehende Konto, das umbenannt wurde: Seine früheren Buchungen werden als
+bereits gebucht erkannt, nichts wird doppelt gebucht, und **Zuordnung merken**
+(angehakt) behält den neuen Namen als früheren Namen dieses Kontos, sodass der
+nächste Import ihn selbst vorbelegt. *+ Neu anlegen* bucht die Zeilen auf ein
+neues Konto; wählen Sie es nur für ein Konto, das wirklich neu ist. Ein erster
+Import und eine Datei, in der kein Name oder jeder Name gespeicherten
+Buchungen gleicht, wird wie bisher vorbelegt.
+
 **Was jede Zeile des Zuordnungsschritts sagt.** Jedes Verrechnungskonto und
 Depot der Datei zählt seine Buchungen: wie viele **bereits importiert** sind,
 wie viele **interne Umbuchungen entfallen** und wie viele neu sind, oder

@@ -2789,6 +2789,25 @@ a prefill — keeps the mapping to this import when you untick it. An account
 mapped in a preview that is merged or deleted before you confirm stops the
 import before it writes anything, and the account mapping is refreshed.
 
+**A name no booking was imported under.** Account and depot names are part
+of each row's content hash, so after you rename an account or a depot in
+Portfolio Performance and export again, no row under the new name matches a
+stored booking. When none of a name's rows matches one while the file's
+other names do, the preview does not guess where that name belongs: its
+select reads *Decide…*, whatever the name would have been prefilled with —
+*+ Create new*, or an account that carries it as its name or a former name
+— and the row says *No booking under this name has been imported yet,
+though the file's other names have. If the account was renamed in Portfolio
+Performance, choose the existing account here; otherwise “+ Create new”.*
+(for a depot, *the existing depot*). **Confirm import** waits until you
+choose, and the still-to-map line above it names the row. Choose the account
+it was renamed from: its earlier bookings are recognised as already booked,
+nothing is booked twice, and **Remember this mapping** (ticked) keeps the new
+name as a former name of that account, so the next import prefills it by
+itself. *+ Create new* books the rows on a new account; choose it only for an
+account that really is new. A first import, and a file in which no name or
+every name matches stored bookings, is prefilled as before.
+
 **What each row of the mapping step says.** Every cash account and depot of
 the file counts its bookings: how many are **already imported**, how many
 **internal transfers are dropped**, and how many are new, or *nothing to
