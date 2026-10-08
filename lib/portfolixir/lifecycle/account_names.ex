@@ -352,8 +352,12 @@ defmodule Portfolixir.Lifecycle.AccountNames do
   @spec name_error(schema(), integer() | nil, String.t()) :: String.t() | nil
   def name_error(schema, portfolio_id, name) when schema in @schemas and is_binary(name) do
     case name_conflict(schema, portfolio_id, name, nil) do
-      nil -> nil
-      conflict -> conflict_message(schema, conflict)
+      nil ->
+        nil
+
+      conflict ->
+        {message, keys} = conflict_message(schema, conflict)
+        String.replace(message, "%{holder_id}", to_string(keys[:holder_id]))
     end
   end
 
@@ -391,26 +395,33 @@ defmodule Portfolixir.Lifecycle.AccountNames do
   end
 
   defp refuse(changeset, schema, {kind, _holder} = conflict) when kind in [:live, :former] do
-    Changeset.add_error(changeset, :name, conflict_message(schema, conflict),
-      validation: :name_taken
-    )
+    {message, keys} = conflict_message(schema, conflict)
+    Changeset.add_error(changeset, :name, message, [validation: :name_taken] ++ keys)
   end
 
   defp refuse(changeset, schema, {:former_names, holder, name, what}) do
     Changeset.add_error(
       changeset,
       :former_names,
-      "include \"#{name}\", #{what} of #{noun(schema)} ##{holder.id} in this portfolio",
-      validation: :name_taken
+      "include #{what} of #{noun(schema)} #%{holder_id} in this portfolio",
+      validation: :name_taken,
+      holder_id: holder.id,
+      former_name: name
     )
   end
 
+  # #965 (F75's rule): a refusal names the other account by its kind and id,
+  # so a stored name that reads like an instruction never sits inside a
+  # sentence an agent reads; a stored name travels as data (`holder_name`,
+  # `former_name`), for the operator's screen, which keeps its sentence
+  # (`PortfolixirWeb.NamedRecordRefusal`).
   defp conflict_message(schema, {:live, holder}),
-    do: "is already the name of #{noun(schema)} ##{holder.id} in this portfolio"
+    do: {"is already the name of #{noun(schema)} ##{holder.id} in this portfolio", []}
 
   defp conflict_message(schema, {:former, holder}) do
-    "is a former name of #{noun(schema)} ##{holder.id} (\"#{holder.name}\"): an import " <>
-      "naming it books there. Remove it from that account's former names first"
+    {"is a former name of #{noun(schema)} #%{holder_id}: an import naming it books there. " <>
+       "Remove it from that account's former names first",
+     holder_id: holder.id, holder_name: holder.name}
   end
 
   defp live_holder(_schema, nil, _name, _id), do: nil

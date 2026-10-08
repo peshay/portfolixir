@@ -136,7 +136,8 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
         {:error,
          error_changeset(
            :former_isin,
-           "is still the current ISIN of \"#{other.name}\" (security ##{other.id})"
+           "is still the current ISIN of security #%{security_id}",
+           named(other)
          )}
     end
   end
@@ -267,14 +268,22 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
         {:ok, :clear}
 
       %IdentifierAlias{security: aliased} ->
-        {:error, Changeset.add_error(changeset, :isin, aliased_isin_message(aliased))}
+        {:error,
+         Changeset.add_error(
+           changeset,
+           :isin,
+           "is recorded as a former ISIN of security #%{security_id}; delete that alias or " <>
+             "record an ISIN change instead",
+           named(aliased)
+         )}
     end
   end
 
-  defp aliased_isin_message(%Security{} = aliased) do
-    "is recorded as a former ISIN of \"#{aliased.name}\" (security ##{aliased.id}); " <>
-      "delete that alias or record an ISIN change instead"
-  end
+  # #965 (F75's rule): a refusal names the security it collides with by its
+  # id, so a stored name that reads like an instruction never sits inside a
+  # sentence an agent reads; the name travels as data, for the operator's
+  # screen, which keeps its sentence (`PortfolixirWeb.NamedRecordRefusal`).
+  defp named(%Security{} = other), do: [security_id: other.id, security_name: other.name]
 
   defp alias_with_security_query(isin) do
     from(a in IdentifierAlias, where: a.former_isin == ^isin, preload: :security)
@@ -325,7 +334,8 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
         {:error,
          error_changeset(
            :new_isin,
-           "is already the current ISIN of \"#{other.name}\" (security ##{other.id})"
+           "is already the current ISIN of security #%{security_id}",
+           named(other)
          )}
     end
   end
@@ -343,7 +353,8 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
         {:error,
          error_changeset(
            :new_isin,
-           "is recorded as a former ISIN of \"#{other.name}\" (security ##{other.id})"
+           "is recorded as a former ISIN of security #%{security_id}",
+           named(other)
          )}
     end
   end
@@ -418,7 +429,8 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
              Changeset.add_error(
                changeset,
                :former_isin,
-               "is already the current ISIN of \"#{other.name}\" (security ##{other.id})"
+               "is already the current ISIN of security #%{security_id}",
+               named(other)
              )}
         end
     end
@@ -444,9 +456,9 @@ defmodule Portfolixir.Catalog.IdentifierAliases do
     :ok
   end
 
-  defp error_changeset(field, message) do
+  defp error_changeset(field, message, keys \\ []) do
     %IdentifierAlias{}
     |> Changeset.change()
-    |> Changeset.add_error(field, message)
+    |> Changeset.add_error(field, message, keys)
   end
 end

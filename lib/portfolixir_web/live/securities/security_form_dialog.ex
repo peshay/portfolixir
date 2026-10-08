@@ -53,6 +53,7 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   alias PortfolixirWeb.DecimalInput
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.NamedRecordRefusal
   alias PortfolixirWeb.ReferenceCounts
 
   @impl true
@@ -1133,7 +1134,10 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
     |> Map.new(fn {field, msgs} -> {Atom.to_string(field), Enum.join(msgs, ", ")} end)
   end
 
-  defp translate_error({msg, opts}, data) do
+  defp translate_error(error, data) do
+    # #965: a refusal that names another security keeps the dialog's sentence.
+    {msg, opts} = NamedRecordRefusal.screen(error)
+
     cond do
       opts[:validation] == :frozen and match?(%Security{id: id} when is_integer(id), data) ->
         data |> Freeze.freezing_references() |> ReferenceCounts.frozen()

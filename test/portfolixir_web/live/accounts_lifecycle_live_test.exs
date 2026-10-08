@@ -207,6 +207,43 @@ defmodule PortfolixirWeb.AccountsLifecycleLiveTest do
     assert Portfolios.get_cash_account(w.giro.id).name == "Giro"
   end
 
+  # User story (#965):
+  # As the operator renaming an account that keeps a former name another
+  # account carries as its name (a state from before the name guard),
+  # I want the dialog to keep naming that name as it did,
+  # so that keeping the agent's sentences free of stored names changes
+  # nothing on my screen.
+  #
+  # Acceptance criteria:
+  # - The refusal at the field reads, byte for byte, the sentence it read
+  #   before #965; nothing is written.
+  test "a former name another account carries is refused in the words the dialog showed", %{
+    conn: conn
+  } do
+    w = world()
+
+    {:ok, _} =
+      Ecto.Multi.new()
+      |> Ecto.Multi.update(:account, Ecto.Changeset.change(w.giro, former_names: ["Festgeld"]))
+      |> Journal.record(Actor.owner_ui(),
+        resource_type: "cash_account",
+        operation: :update,
+        source: :account,
+        before: w.giro
+      )
+      |> Repo.transaction()
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+
+    open_menu_item(view, "cash", w.giro.id, "rename")
+    view |> form("#rename-form", rename: %{name: "Hauptkonto"}) |> render_submit()
+
+    assert text(view, "#rename-error") ==
+             ~s|include "Festgeld", the name of cash account ##{w.festgeld.id} in this portfolio|
+
+    assert Portfolios.get_cash_account(w.giro.id).name == "Giro"
+  end
+
   # User story (E25 S7, G20 on the L5a rename):
   # As the operator renaming an account on screen,
   # I want a name carrying a character I cannot see refused at the field,

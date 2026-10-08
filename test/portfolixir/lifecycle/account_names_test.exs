@@ -153,9 +153,12 @@ defmodule Portfolixir.Lifecycle.AccountNamesTest do
 
       assert {:error, changeset} = create_cash(portfolio, "Giro")
 
+      # #965: the holder by its kind and id; its stored name travels as data.
       assert %{name: [message]} = errors_on(changeset)
-      assert message =~ "is a former name of cash account ##{main.id} (\"Main account\")"
+      assert message =~ "is a former name of cash account ##{main.id}: "
       assert message =~ "an import naming it books there"
+      assert {_message, opts} = changeset.errors[:name]
+      assert opts[:holder_name] == "Main account"
 
       assert {:error, changeset} =
                Portfolios.update_cash_account(agent(), savings, %{name: "Giro"})
@@ -199,7 +202,9 @@ defmodule Portfolixir.Lifecycle.AccountNamesTest do
                Portfolios.update_securities_account(agent(), other, %{name: "Depot"})
 
       assert %{name: [message]} = errors_on(changeset)
-      assert message =~ "is a former name of securities account ##{depot.id} (\"Broker\")"
+      assert message =~ "is a former name of securities account ##{depot.id}: "
+      assert {_message, opts} = changeset.errors[:name]
+      assert opts[:holder_name] == "Broker"
     end
 
     # User story:
@@ -235,8 +240,11 @@ defmodule Portfolixir.Lifecycle.AccountNamesTest do
       assert {:error, changeset} =
                Portfolios.update_cash_account(agent(), renamed, %{portfolio_id: other.id})
 
+      # #965: the name itself travels as data, not inside the sentence.
       assert %{former_names: [message]} = errors_on(changeset)
-      assert message =~ ~s(include "Giro", the name of cash account #)
+      assert message =~ "include the name of cash account #"
+      assert {_message, opts} = changeset.errors[:former_names]
+      assert opts[:former_name] == "Giro"
 
       # A former name another account there carries as a former name.
       {:ok, bank_there} =
@@ -251,7 +259,10 @@ defmodule Portfolixir.Lifecycle.AccountNamesTest do
       assert %{former_names: [message]} = errors_on(changeset)
 
       assert message ==
-               ~s(include "Bank", a former name of cash account ##{bank_there.id} in this portfolio)
+               "include a former name of cash account ##{bank_there.id} in this portfolio"
+
+      assert {_message, opts} = changeset.errors[:former_names]
+      assert opts[:former_name] == "Bank"
 
       assert reload(bank_here).portfolio_id == portfolio.id
     end

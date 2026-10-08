@@ -82,8 +82,9 @@ defmodule PortfolixirWeb.ApiV1IsinChangeTest do
     assert %{"new_isin" => [_ | _]} = response["errors"]
   end
 
+  # #965: named by its id, never by its stored name.
   test "rejects a collision with another security's live ISIN, naming it", %{conn: conn} do
-    _other = create_security!(%{name: "Other AG", isin: "DE0009999995"})
+    other = create_security!(%{name: "Other AG", isin: "DE0009999995"})
     security = create_security!(%{isin: "DE0001234565"})
 
     response =
@@ -93,8 +94,11 @@ defmodule PortfolixirWeb.ApiV1IsinChangeTest do
       })
       |> json_response(422)
 
-    assert [message | _] = response["errors"]["new_isin"]
-    assert message =~ "Other AG"
+    assert response["errors"]["new_isin"] == [
+             "is already the current ISIN of security ##{other.id}"
+           ]
+
+    refute inspect(response) =~ "Other AG"
   end
 
   test "rejects an invalid changed_on date with 422", %{conn: conn} do

@@ -423,7 +423,9 @@ then the aliases — so re-imports of old exports (former ISIN) and new exports
   change back to one of the same security's own former ISINs consumes that
   alias (a revert). Every security-ISIN write path — create, update, and the
   import's create path — symmetrically rejects an ISIN that exists as an
-  alias, naming the aliased security.
+  alias, naming the aliased security. A conflict names the other security by
+  its id (`security #12`), never by its stored name (see "A record named in a
+  sentence" below).
 - An identifier **changed** on an existing security through
   `PATCH /api/v1/securities/:id` meets the same catalog rules, or answers `422`
   naming the field: an `isin` of the ISIN shape with a check digit that
@@ -3444,6 +3446,15 @@ same spelling Portfolixir's screens show the operator for that row, and the
 server instructions say so. The JSON API itself answers stored text as it is
 stored. A text the agent writes back carries the escapes as the visible
 letters they are.
+
+**A record named in a sentence (#965).** A sentence the app writes names
+another record by its kind and id, never by its stored name, so a name that
+reads like an instruction never sits inside the app's own words: an
+ISIN-change or alias refusal names `security #12`, and a former-name refusal
+of a cash-account or depot write names `cash account #5` or `securities
+account #5` (`errors.former_names`: "include the name of cash account #5 in
+this portfolio"). The record's name is a field of the record, read by its
+id. Portfolixir's screens keep naming it by its name.
 
 **A write that times out.** Every API call carries a 30-second deadline. A
 read that misses it — a `GET`, or one of the tools routed through `POST` that
