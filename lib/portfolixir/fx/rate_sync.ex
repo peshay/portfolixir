@@ -126,10 +126,11 @@ defmodule Portfolixir.Fx.RateSync do
   Returns `:not_needed` (nothing due; the provider is not asked),
   `{:ok, result}` (`backfill/1`'s result plus `sought`, the due currencies,
   now recorded so they are not due again), `{:error,
-  :history_unsupported}`, `{:error, :backfill_in_progress}`, or `{:error,
-  reason}` when the fetch or the store failed: logged by `backfill/1`'s
-  path, nothing recorded, so the next trigger tries again. It never raises
-  for a provider failure.
+  :history_unsupported}`, `{:error, :backfill_in_progress}`, `{:error,
+  :empty_history}` when the fetch answered no storable rate, or `{:error,
+  reason}` when the fetch or the store failed. Each failure is logged and
+  records nothing, so the next trigger tries again. It never raises for a
+  provider failure.
 
   Options: as `backfill/1`.
   """
@@ -184,6 +185,17 @@ defmodule Portfolixir.Fx.RateSync do
         sought = due |> Map.keys() |> Enum.sort()
 
         case backfill_unlocked(opts) do
+          # A series with no rate in it closes nothing, so it is no
+          # completed run: nothing is recorded, and the next trigger tries
+          # again, as after a failed fetch.
+          {:ok, %{upserted: 0}} ->
+            Logger.warning(
+              "fx history fetch via #{inspect(opts[:provider])} returned no rates; " <>
+                "nothing recorded, the next start or import tries again"
+            )
+
+            {:error, :empty_history}
+
           {:ok, result} ->
             :ok = HistoryGaps.record_sought(sought)
 
