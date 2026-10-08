@@ -1025,8 +1025,10 @@ added migrations, restore the database backup taken before that upgrade.
   queries, the parameters of each request and page event, and the session
   contents that the `debug` level writes stay out of the log.
 - Every request and every open page runs in its own process under a heap
-  cap of 512 MiB, counting the large binaries it holds: a request that grows
-  past it fails alone, logged, instead of exhausting the machine's memory.
+  cap of 512 MiB, counting the large binaries it holds, and so does every
+  task a page hands its work to (the performance walk, the valuations, an
+  import's apply, a quote sync): a request or a page's load that grows past
+  it fails alone, logged, instead of exhausting the machine's memory.
   No ordinary read or write comes near it; `max_heap_bytes` under
   `PortfolixirWeb.HeapCap` in `config/config.exs` changes it. The in-memory
   cache of derived figures keeps to its own budget (5000 entries, 128 MiB).

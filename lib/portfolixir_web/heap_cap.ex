@@ -15,7 +15,9 @@ defmodule PortfolixirWeb.HeapCap do
   self-hosted instance. A killed process is logged by the runtime.
 
   Used as a plug at the top of the endpoint, so it covers every request
-  process, and as an `on_mount` hook of the LiveView session.
+  process, and as an `on_mount` hook of the LiveView session. A process flag
+  is not inherited, so every task a page starts caps itself the same way, as
+  its first act, through `PortfolixirWeb.CappedAsync` (#941).
   """
 
   @behaviour Plug
@@ -48,7 +50,9 @@ defmodule PortfolixirWeb.HeapCap do
     div(bytes, :erlang.system_info(:wordsize))
   end
 
-  defp cap! do
+  @doc "Caps the calling process's heap: the first act of every task a page starts (#941)."
+  @spec cap!() :: :ok
+  def cap! do
     Process.flag(:max_heap_size, %{
       size: max_heap_words(),
       kill: true,

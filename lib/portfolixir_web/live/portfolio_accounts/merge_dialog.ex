@@ -39,11 +39,14 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias PortfolixirWeb.AccountNames
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PortfolioAccounts.MergePreview
   alias PortfolixirWeb.StoredText
+
+  require CappedAsync
 
   @impl true
   def mount(socket) do
@@ -309,7 +312,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeDialog do
     {:noreply,
      socket
      |> assign(:applying, true)
-     |> start_async(:apply_merge, fn -> merge(kind, source.id, target_id, consent) end)}
+     |> CappedAsync.start_async(:apply_merge, fn -> merge(kind, source.id, target_id, consent) end)}
   end
 
   @impl true

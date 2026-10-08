@@ -17,11 +17,14 @@ defmodule PortfolixirWeb.DashboardLive do
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.SecurityEventLabel
   alias PortfolixirWeb.TransactionKindLabel
   alias PortfolixirWeb.ValuationNotes
+
+  require CappedAsync
 
   # A category counts as "needs attention" when its drift exceeds ±5 pp of the
   # steering basis (ADR-0022 dashboard; drift per ADR-0023: actual − target).
@@ -65,7 +68,7 @@ defmodule PortfolixirWeb.DashboardLive do
 
   defp start_loading(socket) do
     if connected?(socket) do
-      start_async(socket, :overview, fn ->
+      CappedAsync.start_async(socket, :overview, fn ->
         # One value card scoped to the user's default view — Everything when
         # none is set (ADR-0024: views, not portfolios, are the grouping the
         # dashboard aggregates over). The drift alerts steer against the same
@@ -101,7 +104,7 @@ defmodule PortfolixirWeb.DashboardLive do
   # the report's newest five, its exclusions and its base currency — not
   # the whole report it used to cut down.
   defp start_closed_trades(%{assigns: %{has_sells: true}} = socket) do
-    start_async(socket, :closed_trades, fn ->
+    CappedAsync.start_async(socket, :closed_trades, fn ->
       RealizedGains.newest_trades(@closed_trades_shown)
     end)
   end
