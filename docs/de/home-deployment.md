@@ -253,7 +253,8 @@ Kurshistorie jedes Wertpapiers, das einen Kursanbieter hat. Einmal, nach
 diesem ersten Devisenabgleich oder nach einem Import, lädt es außerdem die
 historische Reihe der EZB
 (`https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml`, Issue
-#1120), wenn eine Buchung in einer Nicht-EUR-Währung vor dem frühesten
+#1120), wenn eine Buchung in einer Nicht-EUR-Währung (ihrer eigenen, der
+ihres Verrechnungskontos oder der ihres Wertpapiers) vor dem frühesten
 gespeicherten Kurs dieser Währung liegt. Beide Zeitpläne
 und die Logo-Suche sind in einem Release eingeschaltet (`config/prod.exs`).
 `PORTFOLIXIR_BACKGROUND_FETCH=off` lässt alle drei ab dem Start aus, die

@@ -1629,10 +1629,11 @@ Portfolios rechnet den Marktwert jeder Position und jeden Cash-Saldo in die
 Basiswährung des Portfolios um.
 
 **Die historischen Wechselkurse kommen von selbst** (Issue #1120). Die
-geplante Synchronisierung holt nur die Kurse des Tages. Ist eine Buchung oder
-ein Verrechnungskonto in einer anderen Währung vor dem frühesten
-gespeicherten Kurs dieser Währung datiert — typischerweise bei einer aus
-Portfolio Performance importierten Historie —, holt die Instanz die
+geplante Synchronisierung holt nur die Kurse des Tages. Ist eine Buchung, ein
+Verrechnungskonto oder ein gehaltenes Wertpapier in einer anderen Währung vor
+dem frühesten gespeicherten Kurs dieser Währung datiert — typischerweise bei
+einer aus Portfolio Performance importierten Historie, auch bei einer von
+einem Euro-Konto gekauften Dollar-Aktie —, holt die Instanz die
 historische EZB-Reihe von selbst, einmal, im Hintergrund: nach dem Start
 (direkt nach den Kursen des Tages) und nach einem Import. Niemand muss etwas
 drücken, und der Import wartet nicht darauf. Ist sie gelaufen, wird die
