@@ -138,6 +138,43 @@ defmodule Portfolixir.Imports.UnseenNameProbeTest do
     assert counts.unseen_names == %{cash_accounts: [], depots: []}
   end
 
+  # User story (found by the α closing act, edge-case hunter EC-F3):
+  # As the operator whose export holds a booking the import never books (a
+  # fee of 0.00) under a name of its own,
+  # I want that name not to count as unknown to the stored history,
+  # so that a row the apply skips before any name resolves never makes me
+  # map an account nothing will be booked on.
+  #
+  # Acceptance criteria:
+  # - The history applied, then dropped again with a fee of 0.00 on
+  #   "Spesenkonto" (unimportable: a cash kind without a positive amount),
+  #   names no name unknown, in the first pass and the refined one; the row
+  #   counts as unimportable under the name.
+  # - So does a removal without an amount on "Nebenkonto" whose negative
+  #   tax splits a refund off: the refund is skipped with its row.
+  test "a name whose only rows are unimportable is not unknown", %{portfolio: portfolio} do
+    applied!(portfolio, history())
+
+    removal = %{
+      "type" => "REMOVAL",
+      "account" => "Nebenkonto",
+      "date" => "2026-02-16",
+      "currency" => "EUR",
+      "units" => [%{"type" => "TAX", "amount" => num("-1.00")}]
+    }
+
+    drop = parse!(history() ++ [fee("Spesenkonto", "0.00", "2026-02-15"), removal])
+    assert drop.errors == []
+
+    for dry_run <- [false, true] do
+      counts = Imports.reimport_counts(drop, portfolio_id: portfolio.id, dry_run: dry_run)
+
+      assert counts.cash_accounts["Spesenkonto"].unimportable == 1
+      assert counts.cash_accounts["Nebenkonto"].unimportable == 2
+      assert counts.unseen_names == %{cash_accounts: [], depots: []}
+    end
+  end
+
   # User story:
   # As the operator re-importing after a merge removed a booking,
   # I want a name whose only booking is a retired content hash to count as
@@ -275,6 +312,16 @@ defmodule Portfolixir.Imports.UnseenNameProbeTest do
       "type" => "CASH_TRANSFER",
       "account" => from,
       "otherAccount" => to,
+      "date" => date,
+      "currency" => "EUR",
+      "amount" => num(amount)
+    }
+  end
+
+  defp fee(account, amount, date) do
+    %{
+      "type" => "FEE",
+      "account" => account,
       "date" => date,
       "currency" => "EUR",
       "amount" => num(amount)
