@@ -2568,8 +2568,10 @@ below).
 An export imported before Portfolixir read the Gesamtpreis keeps its content
 hashes, so dropping it again books nothing. Its rows keep Portfolio
 Performance's gross value as their cash: each row with fees or taxes is off
-by exactly those, and its cash account with it. Dropping the file again does
-not change them, and the import has no correction for them yet.
+by exactly those, and its cash account with it. Dropping the same file again
+lists those rows in the preview, and confirming that list corrects them (see
+[Bookings already imported, with a different amount](#bookings-already-imported-with-a-different-amount)
+below).
 
 For other currencies and for matching by ISIN, export **JSON v1** instead: it
 carries a currency per row and each security's ISIN, WKN and ticker.
@@ -2596,9 +2598,11 @@ refund as a tax refund of its own.
 A history imported before Portfolixir took the refund out of its booking
 counted such a refund twice, beside a booking that already held it, and
 priced a JSON sale with it. Dropping the same export again books nothing
-twice. To correct those bookings, export the history from Portfolio
-Performance again, drop the fresh export and confirm the correction section
-its preview shows.
+twice. To correct those bookings, drop the export again, or a fresh export of
+the same history from Portfolio Performance, and confirm the correction
+section its preview shows (see
+[Bookings already imported, with a different amount](#bookings-already-imported-with-a-different-amount)
+below).
 
 ### Files and rows the preview refuses
 
@@ -2834,6 +2838,60 @@ added in Portfolio Performance to a sale already imported books on the next
 import. A refund whose row is not imported is skipped with it. Within one file,
 a row that repeats an earlier row exactly books once, and the repeat is listed
 as already booked.
+
+### Bookings already imported, with a different amount
+
+A booking keeps the content hash it was imported with, so dropping the same
+export again books nothing, and the hash also finds that booking again. Two
+readings of a Portfolio Performance row changed after the first releases
+(ADR-0053 and its amendment of 2026-10-07):
+
+- a CSV row books its `Gesamtpreis`, where it used to book Portfolio
+  Performance's gross value, the `Betrag`;
+- a row with a negative tax books its cash less the refund booked beside it,
+  where it used to book its whole cash and the refund again (a JSON row's
+  `amount`, a converter-written row's `Betrag`), and a JSON purchase or sale
+  is priced from its gross value.
+
+When a dropped file (a Portfolio Performance CSV, a converter-written CSV or
+a JSON v1 export) holds rows whose content hash a stored booking carries, and
+that booking's cash differs from what the row books today, the preview lists
+them in a section of its own, **Already imported, with a different amount**,
+before the account mapping. Each line names the row, the date and the
+booking (its kind, security and account), and its cash **as booked**, **per
+the file** and the **difference**, signed as the account sees them (a debit
+is negative). A cross-currency trade also shows its settlement before and
+after, and a JSON trade its price. Under the list stand the total per account
+and **Correct N bookings…**.
+
+The correction is **a step of its own**, apart from **Confirm import**:
+confirming the import never changes a booking it finds already imported,
+whether or not the section is shown. **Correct N bookings…** opens a dialog
+that says how each account changes and what changes with a trade. Its confirm
+then rewrites, for each listed booking, its cash; for a JSON purchase or sale
+also its price; and for a cross-currency trade also its settlement amount,
+security amount and rate, in the same write. Nothing else changes: not the
+booking's id, its content hash, its fees or taxes, nor a CSV row's price (its
+`Kurs`). Each change is recorded in the audit journal under the operator,
+labelled *import correction*, with the values it replaced; balances,
+valuation, returns and income are recalculated from the corrected bookings. A
+line where the section stood then says how many bookings were corrected and
+what each account moved.
+
+Because the content hashes stay as they are, dropping the same file again
+books nothing and shows no section: nothing is left to correct. When every
+stored booking agrees with the file, there is no section at all. If you
+confirm the import first, its result says how many bookings stayed
+uncorrected; drop the same file again to correct them.
+
+The correction needs the file, because no stored booking records which
+format it came from. It finds a booking by the content hash its row still
+carries: a row that changed in Portfolio Performance since (an edited
+booking, a moved time of day) matches no stored hash, is recognised as
+already booked by its date, security, quantity and amount, and is not listed.
+Like the import, the correction is an operator action with no API route and
+no MCP tool; an agent reads the corrected bookings through every existing
+read.
 
 ### Security matching and the mapping step
 

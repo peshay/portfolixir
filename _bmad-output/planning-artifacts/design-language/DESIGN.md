@@ -5807,3 +5807,115 @@ logo file is gone (`logo_file_missing`) renders the monogram or the flag,
 counts in the Overview's existing "ohne Logo" finding, and is listed by
 `?dq=missing_logo`, the same set; the logo dialog's sentence for it is the
 2026-10-06 amendment above.
+
+## Amendment 2026-10-08 — Import preview: bookings already imported with a different amount *(Sprint 19 pick J9 = A, board `mockups/ux-design-2026-10-04/09-import-correction`; Sprint 20 board `mockups/ux-design-2026-10-07/01-import-preview` ⑧; ADR-0053 §6 and A6, Sprint 20 PR α A2)*
+
+A re-dropped Portfolio Performance export whose rows hit stored content
+hashes, and whose stored cash differs from what the rows book today, shows
+the bookings it corrects in a section of its own with its own confirm. Built
+in `PortfolixirWeb.ImportsLive` on `Imports.cash_corrections/2` and
+`Imports.correct_cash/3`.
+
+- **Its place.** A `.panel.inner` (`#import-correction`) of its own,
+  **outside** the apply form `#pp-import-apply`, after the counts by kind and
+  the parser warnings and before the mapping: it needs no mapping, and its
+  button is a different act from "Confirm import", which still inserts and
+  changes nothing on a hash hit (ADR-0050 §3, K8).
+- **Its wording.** Heading "Already imported, with a different amount" /
+  "Bereits importiert, mit anderem Betrag": the page's own "already
+  imported" plus what differs, never "wrong" (the operator did nothing
+  wrong) and never "hash". The finding is ONE `attention` data note
+  (UX-DR17, `data-role="import-correction"`) whose body holds, in order, the
+  sentence, the list, the total and the remedy (rule 3: the remedy is a
+  child of the note). **The sentence names the Portfolio Performance file,
+  not a column of one format (board 01 ⑧)**, plural-aware: "%{count}
+  bookings already imported differ from this file: what was booked is the
+  gross value; the Portfolio Performance file states what the account
+  moved. The difference is the row's fees and taxes." / "5 bereits
+  importierte Buchungen weichen von dieser Datei ab: Gebucht ist der
+  Bruttowert; was das Konto bewegt, nennt die Portfolio-Performance-Datei.
+  Die Differenz sind die Gebühren und Steuern der Zeile." Board 09's
+  "(Spalte „Betrag“) … als „Gesamtpreis“" is retired: a JSON v1 file has
+  neither column.
+- **Its columns.** Row · Date · Booking · Booked · Per the file · Difference
+  (Zeile · Datum · Buchung · Gebucht · Laut Datei · Differenz) in a
+  `.data-table` (`#import-correction-table`); the booking is "kind · security
+  · account" in one cell, each stored name in `<bdi>`, as the history's phone
+  row reads; the three figures are signed cash effects on the booking's own
+  account (a debit negative), each in its sign colour (`is-positive` /
+  `is-negative` from the displayed sign; "semantic colour wherever a sign
+  exists").
+- **What changes with the cash** stands under the booking in the basis voice
+  (`.import-correction__legs`, 12 px muted, one line per `<span>`):
+  - a cross-currency trade's settlement, "Settlement booked: 125.00 EUR =
+    156.25 USD" / "Settlement per the file: 100.00 EUR = 125.00 USD"
+    (ADR-0015: the legs change in the same write, so the settlement guard
+    holds);
+  - a JSON purchase's or sale's price, "Price booked: 12.50 EUR" / "Price
+    per the file: 10.00 EUR" (A2, A6). **Added to board 09**, which drew a
+    CSV file, where no price changes: a write the dialog performs is said
+    before it.
+- **Phone rows under 560 px** (UX-DR27): the table hides and
+  `#import-correction-phone-rows` shows two-line rows — the security, or the
+  account for a row without one, over "Row N · date · kind · account"; the
+  difference over "booked → per the file"; the legs and the price under the
+  subject. Under 560 px the note's body takes the note's full width, under
+  the glyph and the word.
+- **The total per account** (`.import-correction__total`, the body's colour,
+  tabular figures): "Together **-25.51 EUR**: Girokonto -24.31 EUR,
+  Tagesgeld -1.20 EUR." / "Zusammen … ", the total bold in its sign colour.
+  Accounts of different currencies have no common total: the line then
+  reads "Per account: …" / "Je Konto: …".
+- **The remedy** (`.import-correction__foot`): "Correct N bookings…" /
+  "N Buchungen korrigieren…" (`.button`, an ellipsis because a dialog
+  follows; singular "Correct one booking…" / "Eine Buchung korrigieren…"),
+  beside the basis line "a step of its own, apart from “Confirm import”" /
+  "ein eigener Schritt, unabhängig von „Import bestätigen“".
+- **The confirm dialog** (`#import-correction-dialog`, `.modal
+  .import-correction-dialog` on the `ModalDialog` hook) **joins the narrow
+  destructive modal's selector lists** beside `.quote-release-dialog` and
+  `.booking-delete-dialog` (460 px; the bottom sheet under 720 px, the
+  confirm on its own first line, Cancel on the next) and reuses
+  `.booking-delete__subject`: title "Correct booked amounts" / "Gebuchte
+  Beträge korrigieren"; the subject box "5 bookings · Rows 2, 5, 8, 11, 13 ·
+  Girokonto, Tagesgeld" over the total and "Fees and taxes"; the consequence,
+  "Afterwards Girokonto has 24.31 EUR less and Tagesgeld has 1.20 EUR less."
+  / "Danach hat Girokonto 24,31 EUR weniger und Tagesgeld 1,20 EUR
+  weniger.", one sentence per trade whose settlement or price changes ("Beim
+  Kauf von … am … ändert sich die Abrechnung mit: 1.500,00 EUR = 1.633,50
+  USD." / "… ändert sich der Kurs mit: …"), and "Balances, valuation, return
+  and income are recalculated."; then the journal sentence, "Each change is
+  kept in the journal with the previous amount; the import hashes stay as
+  they are, so importing the same file again books nothing." / "Jede
+  Änderung wird mit dem bisherigen Betrag im Journal festgehalten; die
+  Import-Hashes bleiben, wie sie sind, also bucht ein erneuter Import
+  derselben Datei nichts." Cancel is focused first.
+- **Its confirm is primary, not danger** ("Correct 5 bookings" / "5
+  Buchungen korrigieren", `.button-primary`): nothing is lost — every
+  replaced value stays in the journal with its before-image and is readable
+  in the file. Danger marks a loss the screen cannot take back (delete,
+  merge, release).
+- **The result line stands where the section stood**: the page's inline
+  result slot (`#import-correction-result`, `.inline-result--page`, no
+  footprint at rest) shows "Correcting…" while the write runs and then the
+  note "5 bookings corrected: Girokonto -24.31 EUR, Tagesgeld -1.20 EUR. The
+  journal keeps the previous amounts." / "5 Buchungen korrigiert: … Das
+  Journal hält die bisherigen Beträge.", until it is dismissed or the next
+  action. The section is read again after the write, so a corrected file
+  shows none; the dialog returns the focus to the result slot. A refused
+  write is a `problem` result naming the row and the reason, and nothing is
+  corrected.
+- **Nothing differs: no section and no all-clear** (UX-DR2) — no "the
+  amounts agree" badge. A file whose rows are all hash hits says only what
+  the 2026-09-26 amendment's nothing-to-import note says.
+- **The import confirmed first** leaves the listed bookings as they were
+  (K8); the done page says so in `.import-skipped`'s form
+  (`data-role="correction-not-applied"`): "5 bookings already imported with
+  a different amount from the file are not corrected. Drop the same file
+  again to correct them." / "5 bereits importierte Buchungen mit anderem
+  Betrag als in der Datei sind nicht korrigiert. Dieselbe Datei erneut
+  ablegen, um sie zu korrigieren."
+- **Superseded on board 09:** its "a file with no Gesamtpreis (a converter
+  file) never shows it" — since A6 a converter file whose negative Steuern
+  was counted twice shows the section too. The new row-error reasons of
+  Part 9's list are recorded in the 2026-10-06 amendment above.
