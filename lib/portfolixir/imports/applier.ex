@@ -14,9 +14,11 @@ defmodule Portfolixir.Imports.Applier do
   portfolio id) by `Portfolixir.Imports.ImportHash`, injective since E25 S5
   (F36) with every stored hash still valid. The `transactions.import_hash`
   unique partial index rejects re-inserts; the applier counts those as
-  `skipped_duplicates` and continues. The #533 economic key of a CSV row
-  that books its Gesamtpreis is checked under the Betrag reading too
-  (ADR-0053 §4), so a drifted re-export of a row booked before is skipped.
+  `skipped_duplicates` and continues. The #533 economic key of a row that
+  books other than its hash reads (a CSV row's Gesamtpreis beside its
+  Betrag, a cash cell less a split-off refund, a JSON trade's price from its
+  gross value) is checked under the hash's amount and price too (ADR-0053
+  §4, A4), so a drifted re-export of a row booked before is skipped.
 
   The re-import contract (ADR-0050 §2–§6) fixes the order of the checks:
 
@@ -1992,9 +1994,11 @@ defmodule Portfolixir.Imports.Applier do
     # existing and no earlier inserted booking: nothing was booked on an
     # account that does not exist yet.
     #
-    # ADR-0053 §4: a Portfolio Performance CSV row books its Gesamtpreis,
-    # while a booking stored before that record holds the row's Betrag, so
-    # the pre-import set is also asked under the Betrag reading.
+    # ADR-0053 §4 and A4: a Portfolio Performance CSV row books its
+    # Gesamtpreis, a row with a split-off refund its cash cell less the
+    # refund, and a JSON trade with one a price from its gross value, while a
+    # booking stored before holds the file's amount and the old price, so
+    # the pre-import set is also asked under that old reading.
     cond do
       booked_before?(state.existing_dedup_keys, key, entry, attrs) ->
         {:ok, record_duplicate(state, entry, :economics)}
@@ -2009,30 +2013,47 @@ defmodule Portfolixir.Imports.Applier do
     end
   end
 
-  # ADR-0053 §4: the economic key under both readings of a CSV row, against
-  # the pre-import set only. A row whose hash amount (the file's Betrag)
-  # differs from the cash it books (its Gesamtpreis) is a duplicate when
-  # either key is stored: a drifted re-export (a time of day changed, so no
-  # hash matches) of a row booked before ADR-0053 is still recognised and
-  # not booked twice. It errs towards "already booked", as ADR-0029's legacy
-  # hash does, and the result names the row it skipped. The in-run key is
-  # the booked one alone.
+  # ADR-0053 §4 and A4: the economic key under both readings of a row,
+  # against the pre-import set only. A row whose hash inputs differ from what
+  # it books (a CSV row's Betrag beside the Gesamtpreis it books, a cash cell
+  # beside the cash it books less a split-off refund, a JSON trade's old
+  # price beside its price from the gross value) is a duplicate when either
+  # key is stored: the booked cash and price, or the hash's amount and price,
+  # which is what the importer booked before. A drifted re-export (a time of
+  # day changed, so no hash matches) of a row booked under the old reading is
+  # still recognised and not booked twice. It errs towards "already booked",
+  # as ADR-0029's legacy hash does, and the result names the row it skipped.
+  # The in-run key is the booked one alone.
   defp booked_before?(existing_keys, key, %Entry{} = entry, attrs) do
     MapSet.member?(existing_keys, key) or
-      case betrag_reading(entry, attrs) do
+      case old_reading(entry, attrs) do
         nil -> false
-        betrag_attrs -> MapSet.member?(existing_keys, DedupKey.of(betrag_attrs))
+        old_attrs -> MapSet.member?(existing_keys, DedupKey.of(old_attrs))
       end
   end
 
-  defp betrag_reading(
-         %Entry{hash_amount: %Decimal{} = betrag},
-         %{gross_amount: %Decimal{} = cash} = attrs
-       ) do
-    unless Decimal.equal?(betrag, cash), do: %{attrs | gross_amount: betrag}
+  # The booking's attrs as the hash reads its row: the hash amount as its
+  # cash and, on a JSON trade with a negative tax unit, the hash price as its
+  # price; `nil` when that is the booking itself.
+  defp old_reading(%Entry{} = entry, attrs) do
+    old_attrs =
+      attrs
+      |> put_old(:gross_amount, entry.hash_amount)
+      |> put_old(:price, entry.hash_price)
+
+    unless old_attrs == attrs, do: old_attrs
   end
 
-  defp betrag_reading(_entry, _attrs), do: nil
+  defp put_old(attrs, field, %Decimal{} = old) do
+    with %Decimal{} = booked <- Map.get(attrs, field),
+         false <- Decimal.equal?(old, booked) do
+      %{attrs | field => old}
+    else
+      _same_or_none -> attrs
+    end
+  end
+
+  defp put_old(attrs, _field, nil), do: attrs
 
   # N:1 within-run dedup (ADR-0029 §2): two file rows carrying different
   # identities of ONE paper (old + new ISIN) resolve to the same security and
