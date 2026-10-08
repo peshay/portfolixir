@@ -606,9 +606,11 @@ Until the token lands in `app.css`, `.alert-error`'s 4.02:1 stands as a live con
 
 Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI components/graphics 3:1. "Large-only" = passes 3:1 but not 4.5:1.
 
+**Recomputed 2026-10-08 (issue 1170): the chart rows, against {colors.bg}.** `.chart-frame` paints `--color-bg` in both themes — the token both halos took in Sprint 19's closing act — not {colors.chart-surface}, the card colour the four marker rows were measured against. Each marker row keeps its colour and gives its chart-surface figure beside the new one. New rows give the markers as the build paints them (`--color-positive` for buy, `--color-danger` for sell) and the axis text (`--color-text-muted`, the 9 px values and dates), each on the frame. One pair is under its floor, as it was on chart-surface: `#10b981` on the light frame, 2.37:1 against 3:1 for graphics — a colour the light build does not paint; the light buy marker it paints, `#047857`, measures 5.12:1. Every other chart pair clears its floor. The commitments above (meaningful graphics ≥ 3:1 against {colors.chart-surface}) and `{components.chart-frame}`'s background still name chart-surface; which surface the chart should be is not this recomputation's to settle.
+
 **Recomputed 2026-10-03 (Sprint 18 pick H5, issue 908): the coral rows, after {colors.accent-coral} was darkened from `#e11d48` to `#ce1b42` in light mode.** Every other figure in the table was re-checked to two decimals and is correct. One verdict was inverted and is corrected ("accent-coral / bg-elevated 4.70 — fail normal text": 4.70 passed). New rows give every accent on the surfaces where a remedy link actually sits — {colors.bg-muted} (note-severity data note), {colors.warning-soft} (attention) and {colors.danger-soft} (problem). The "selected" rows are re-keyed to the accent tints: since issue 644 `--color-selected` is `var(--color-accent-soft)`, so `#ede9fe` was only the violet case, and `selected-dark #1f2c42` cited a colour `app.css` no longer has. **The thinnest margins are stated, not absorbed:** coral on coral-soft and on danger-soft (the same `#ffe4e6`) clears the bar by 0.03, teal on danger-soft by 0.06; lightening either tint later reopens those rows.
 
-**Recomputed 2026-08-05 (accessibility pass): the four `{colors.danger}` rows**, after the token was darkened from `#dc2626` to `#b91c1c` to close the danger-tint gate. The `#dc2626` figures are kept in the gate section above as the before/after evidence and are wrong everywhere else. The `{colors.tx-sell}` rows below still cite `#ef4444`, the declared token; the build resolves `--color-danger` for that marker and defines no `--color-tx-*` (Violations), so the shipped light-mode sell marker now measures 6.47:1 on {colors.chart-surface}, not the 3.76:1 this table records for the token.
+**Recomputed 2026-08-05 (accessibility pass): the four `{colors.danger}` rows**, after the token was darkened from `#dc2626` to `#b91c1c` to close the danger-tint gate. The `#dc2626` figures are kept in the gate section above as the before/after evidence and are wrong everywhere else. The `{colors.tx-sell}` rows below still cite `#ef4444`, the declared token; the build resolves `--color-danger` for that marker and defines no `--color-tx-*` (Violations), so the shipped light-mode sell marker now measures 6.47:1 on {colors.chart-surface}, not the 3.76:1 this table records for the token (6.04:1 on {colors.bg}, the chart frame it sits on — issue 1170).
 
 | Pair | Ratio | Verdict | Where used |
 |---|---|---|---|
@@ -647,8 +649,11 @@ Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI compo
 | danger #b91c1c / danger-soft #ffe4e6 | 5.39 | pass | problem-severity data note |
 | warning #b45309 / bg | 4.69 | pass | stale timestamps |
 | warning / bg-elevated | 5.02 | pass | warning alerts |
-| tx-buy #10b981 / chart-surface #ffffff | **2.54** | **fail 3:1 graphics** | buy markers on light charts |
-| tx-sell #ef4444 / chart-surface | 3.76 | pass 3:1 graphics (fail as text) | sell markers |
+| tx-buy #10b981 / bg #f6f7fa (the chart frame) | **2.37** | **fail 3:1 graphics** (2.54 on chart-surface) | buy markers on light charts painted `#10b981`; the build paints the row after next |
+| tx-sell #ef4444 / bg (the chart frame) | 3.51 | pass 3:1 graphics (fail as text; 3.76 on chart-surface) | sell markers |
+| buy marker as built, positive #047857 / bg (the chart frame) | 5.12 | pass 3:1 graphics | light buy markers (`--color-positive`) |
+| sell marker as built, danger #b91c1c / bg (the chart frame) | 6.04 | pass 3:1 graphics | light sell markers (`--color-danger`) |
+| chart axis, text-muted #5a6577 / bg (the chart frame) | 5.50 | pass | axis values and dates, 9 px |
 | text / accent-soft (selected): violet #ede9fe · teal #ccfbf1 · coral #ffe4e6 | 15.59 · 16.43 · 15.42 | pass | selected-row content |
 | text-muted / accent-soft (selected): violet · teal · coral | 4.96 · 5.23 · 4.91 | pass | selected-row meta |
 | **Dark mode** | | | |
@@ -669,8 +674,11 @@ Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI compo
 | danger-dark #fb7185 / bg-dark | 7.14 | pass | losses |
 | danger-dark / bg-elevated-dark | 6.50 | pass | losses in panels |
 | warning-dark #fbbf24 / bg-dark | 11.51 | pass | stale timestamps |
-| tx-buy #10b981 / chart-surface-dark #131a23 | 6.90 | pass | buy markers (dark) |
-| tx-sell #ef4444 / chart-surface-dark | 4.65 | pass | sell markers (dark) |
+| tx-buy #10b981 / bg-dark #0b0f14 (the chart frame) | 7.58 | pass (6.90 on chart-surface-dark) | buy markers (dark) |
+| tx-sell #ef4444 / bg-dark (the chart frame) | 5.11 | pass (4.65 on chart-surface-dark) | sell markers (dark) |
+| buy marker as built, positive-dark #34d399 / bg-dark (the chart frame) | 10.00 | pass | dark buy markers (`--color-positive`) |
+| sell marker as built, danger-dark #fb7185 / bg-dark (the chart frame) | 7.14 | pass | dark sell markers (`--color-danger`) |
+| chart axis, text-muted-dark #8b97a8 / bg-dark (the chart frame) | 6.49 | pass | axis values and dates (dark) |
 | accent-teal-dark / teal-soft-dark composite (#17383c over bg-elevated-dark) | 6.77 | pass | active nav text in wash, teal |
 | accent-coral-dark / coral-soft-dark composite (#341a29 over bg-elevated-dark) | 5.89 | pass | active nav text in wash, coral |
 | text-dark / accent-soft-dark composites over bg-elevated-dark (selected): violet #2b2c45 · teal #17383c · coral #341a29 | 11.24 · 10.44 · 13.13 | pass | selected-row content |

@@ -89,6 +89,65 @@ defmodule Portfolixir.Invariants.CssAccentContrastTest do
     assert_in_delta contrast({185, 28, 28, 1.0}, {255, 228, 230, 1.0}), 5.39, 0.005
   end
 
+  # User story (#1170):
+  # As the designer reading the chart's rows of DESIGN.md's contrast table,
+  # I want them measured against the colour the chart frame paints,
+  # so that a marker or an axis value the table passes does pass on the
+  # screen.
+  #
+  # Acceptance criteria:
+  # - Every chart row is measured against `--color-bg`, which `.chart-frame`
+  #   paints in both themes (css_chart_axis_test.exs holds the frame to
+  #   it): the tx-buy and tx-sell token rows, the markers as the build
+  #   paints them (`--color-positive`, `--color-danger`) and the axis text
+  #   (`--color-text-muted`), in light and dark, each figure the one
+  #   computed here from app.css to two decimals.
+  # - No chart row is measured against chart-surface any more.
+  test "the table's chart rows are measured against the chart frame" do
+    rows =
+      "_bmad-output/planning-artifacts/design-language/DESIGN.md"
+      |> File.read!()
+      |> String.split("\n")
+      |> Enum.filter(&String.starts_with?(&1, "| "))
+
+    {light, night} = {root(), dark_media()}
+    frame = color(light, "color-bg")
+    night_frame = color(night, "color-bg")
+    buy = parse("#10b981")
+    sell = parse("#ef4444")
+
+    expected = [
+      {"tx-buy #10b981 / bg #f6f7fa (the chart frame)", buy, frame},
+      {"tx-sell #ef4444 / bg (the chart frame)", sell, frame},
+      {"buy marker as built, positive #047857 / bg (the chart frame)",
+       color(light, "color-positive"), frame},
+      {"sell marker as built, danger #b91c1c / bg (the chart frame)",
+       color(light, "color-danger"), frame},
+      {"chart axis, text-muted #5a6577 / bg (the chart frame)", color(light, "color-text-muted"),
+       frame},
+      {"tx-buy #10b981 / bg-dark #0b0f14 (the chart frame)", buy, night_frame},
+      {"tx-sell #ef4444 / bg-dark (the chart frame)", sell, night_frame},
+      {"buy marker as built, positive-dark #34d399 / bg-dark (the chart frame)",
+       color(night, "color-positive"), night_frame},
+      {"sell marker as built, danger-dark #fb7185 / bg-dark (the chart frame)",
+       color(night, "color-danger"), night_frame},
+      {"chart axis, text-muted-dark #8b97a8 / bg-dark (the chart frame)",
+       color(night, "color-text-muted"), night_frame}
+    ]
+
+    for {pair, ink, ground} <- expected do
+      figure = :erlang.float_to_binary(contrast(ink, ground), decimals: 2)
+      row = Enum.find(rows, &String.starts_with?(&1, "| #{pair} |")) || flunk("no row: #{pair}")
+      [_pair, ratio | _] = row |> String.split("|", trim: true) |> Enum.map(&String.trim/1)
+
+      assert String.trim(ratio, "*") == figure,
+             "#{pair}: the table says #{ratio}, app.css #{figure}"
+    end
+
+    refute Enum.any?(rows, &(&1 =~ ~r/^\| (tx-buy|tx-sell)[^|]*chart-surface/)),
+           "a marker row is still measured against chart-surface"
+  end
+
   # --- tokens ----------------------------------------------------------------
 
   defp root, do: tokens(~r/\A:root \{(.*?)\n\}/s)
