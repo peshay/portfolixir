@@ -12331,3 +12331,8 @@ msgstr ""
 #, elixir-autogen, elixir-format
 msgid "Not added: under “%{parent}” the new category would sit on level %{level} — a classification has at most %{max} levels. Under “Parent”, pick a category higher up."
 msgstr ""
+
+#: lib/portfolixir_web/live/classifications_live.ex:3269
+#, elixir-autogen, elixir-format
+msgid "Parent category"
+msgstr ""

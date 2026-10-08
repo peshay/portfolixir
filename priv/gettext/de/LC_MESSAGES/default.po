@@ -12341,3 +12341,8 @@ msgstr "Verkauf"
 #, elixir-autogen, elixir-format
 msgid "Not added: under “%{parent}” the new category would sit on level %{level} — a classification has at most %{max} levels. Under “Parent”, pick a category higher up."
 msgstr "Nicht angelegt: Unter „%{parent}“ läge die neue Kategorie auf Ebene %{level} — eine Klassifizierung hat höchstens %{max} Ebenen. Bei „Übergeordnet“ eine Kategorie weiter oben wählen."
+
+#: lib/portfolixir_web/live/classifications_live.ex:3269
+#, elixir-autogen, elixir-format
+msgid "Parent category"
+msgstr "Übergeordnete Kategorie"

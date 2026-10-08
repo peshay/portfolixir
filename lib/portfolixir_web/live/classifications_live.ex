@@ -3264,6 +3264,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
   end
 
   defp field_label(:name), do: gettext("Name")
+  # #940 (board 02, found while drawing 6): a parent refusal opens in the
+  # page's language, not with the humanized "Parent".
+  defp field_label(:parent_id), do: gettext("Parent category")
   defp field_label(field), do: Phoenix.Naming.humanize(field)
 
   defp translate_error({message, opts}) do
