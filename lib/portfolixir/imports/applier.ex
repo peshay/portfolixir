@@ -595,6 +595,20 @@ defmodule Portfolixir.Imports.Applier do
     end)
   end
 
+  @doc """
+  Every content hash that identifies each row of `flat_entries`
+  (`Entry.flatten/1`'s order) in `portfolio_id`, in file order: the hashes the
+  apply's first check looks up (ADR-0050 §3) — a row's own hash and the one
+  the Sprint 15 formula gave it (E25 S5, F36), a companion's hash with its
+  parent and the hashes it carried as a row of its own (F37). A transaction
+  holding any of them is the row's stored booking: the apply skips the row
+  as a hash hit, and the cash correction of ADR-0053 §6 compares it with
+  the row. Computes; never reads the database.
+  """
+  @spec row_hashes([Entry.t()], integer()) :: [[String.t()]]
+  def row_hashes(flat_entries, portfolio_id) when is_integer(portfolio_id),
+    do: flat_entries |> row_identities(portfolio_id) |> Enum.map(&elem(&1, 1))
+
   # Each row's content hash and every stored hash that identifies it; a
   # companion is hashed with the row before it.
   defp row_identities(flat_entries, portfolio_id) do
@@ -1954,12 +1968,37 @@ defmodule Portfolixir.Imports.Applier do
          true <- is_binary(security_currency) and security_currency != entry_currency,
          %Decimal{} = quantity <- entry.quantity,
          %Decimal{} = price <- entry.price,
-         %Date{} = date <- entry.date,
-         settlement_amount =
-           SettlementGuard.trade_amount(entry.kind, entry.gross_amount, entry.fees, entry.taxes) ||
-             Decimal.mult(quantity, price),
-         {:ok, %Decimal{} = security_amount} <-
-           Fx.convert(settlement_amount, entry_currency, security_currency, date),
+         %Date{} = date <- entry.date do
+      settlement_amount =
+        SettlementGuard.trade_amount(entry.kind, entry.gross_amount, entry.fees, entry.taxes) ||
+          Decimal.mult(quantity, price)
+
+      derived_settlement_legs(settlement_amount, entry_currency, security_currency, date)
+    else
+      _no_derivable_native_leg -> %{}
+    end
+  end
+
+  @doc """
+  The ADR-0015 settlement legs the import stores for a cross-currency trade
+  whose trade amount in the account currency is `settlement_amount`
+  (ADR-0033): that amount converted through the STORED hub rate at the
+  booking `date` into the security's currency (`security_amount`), and
+  their ratio, rounded to six places (`settlement_fx_rate`). `%{}` when no
+  stored rate converts it, or it converts to zero: no native leg is derived
+  then, never a guess. The cash correction of ADR-0053 §6 derives a
+  corrected trade's legs here too, so they are the legs a fresh import of
+  the row stores.
+  """
+  @spec derived_settlement_legs(Decimal.t(), String.t(), String.t(), Date.t()) :: map()
+  def derived_settlement_legs(
+        %Decimal{} = settlement_amount,
+        account_currency,
+        security_currency,
+        %Date{} = date
+      ) do
+    with {:ok, %Decimal{} = security_amount} <-
+           Fx.convert(settlement_amount, account_currency, security_currency, date),
          false <- Decimal.equal?(security_amount, 0) do
       %{
         security_amount: security_amount,
