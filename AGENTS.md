@@ -1,8 +1,11 @@
 # AGENTS.md
 
 The rules for every coding agent working on Portfolixir, and their single
-source of truth (Claude Code reads it through `CLAUDE.md`; Codex, Copilot,
-Cursor and Gemini CLI read it directly).
+source of truth. Claude Code, Codex, Copilot, Cursor and Gemini CLI read it
+directly. **Do not add a `CLAUDE.md` or `CLAUDE.local.md`** (`/init` creates
+one). *Why:* Claude Code reads `AGENTS.md` only while neither exists in the
+working directory or above it, and a second file is a second copy to drift
+(Claude Code docs, "How Claude remembers your project" → AGENTS.md).
 
 **Every rule carries its reason** (*Why*) and its source. Justify an action by
 the reason, not by the rule. When a reason no longer holds, propose changing
