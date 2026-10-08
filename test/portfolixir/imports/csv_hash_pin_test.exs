@@ -65,6 +65,19 @@ defmodule Portfolixir.Imports.CsvHashPinTest do
     {"1.tax_refund.1", "e7ae49ca22957bbf7d071eabc6ef322e9eee5ef2a4b480c29d481bdad30ddb31"}
   ]
 
+  # ADR-0053 K10 (the amendment of 2026-10-07; risk-tier: import
+  # idempotency). Taken on 12117072, before the amendment changes what a
+  # JSON row with a negative tax unit books and how its price is derived:
+  # sale_with_negative_tax.json's sale (amount 120.0, 10 shares, FEE 5.0,
+  # TAX -25.0) hashed its `amount` and the price derived then, 12.5. Every
+  # later commit is held to these digests, the split-off refund's included.
+  @sale_with_negative_tax_json [
+    {1, "119dc41cd9a8a7ef8751de58efe225d1d886cd71614da39015e3b9e52d212986"},
+    {2, "2a1c9e4f47d23520781659b3c5e99c4fa7b7a3821ce3eaa743c94bdfcad6f405"},
+    {3, "3da6386e6fe2d4a2df78a941b444448bb502bba83fee8c72ad54fda0293f4a46"},
+    {"3.tax_refund.1", "92d2155b3fb988a734e76f6a09228608daf44a193c1208e8b593dff83a3776ee"}
+  ]
+
   # Each row's content hash, computed as the applier computes it: a row of
   # the file by `ImportHash.compute/2`, a split-off refund by
   # `ImportHash.companion/4` with the hash of the row before it.
@@ -132,5 +145,20 @@ defmodule Portfolixir.Imports.CsvHashPinTest do
   test "the JSON corpus keeps every content hash pinned before ADR-0053" do
     assert digests("sample.json") == @sample_json
     assert digests("sample_with_negative_tax.json") == @sample_with_negative_tax_json
+  end
+
+  # User story (ADR-0053 K10, the amendment of 2026-10-07):
+  # As the operator of an instance that imported a Portfolio Performance JSON
+  # export whose rows carry a negative tax unit,
+  # I want every content hash of those rows to stay byte-identical when the
+  # importer changes the cash and the price such a row books,
+  # so that dropping the same export again books nothing twice.
+  #
+  # Acceptance criteria:
+  # - Every row of sale_with_negative_tax.json, a sale with a FEE and a
+  #   negative TAX unit among them, hashes to the digest pinned before the
+  #   amendment's change; so does the refund split off the sale.
+  test "a JSON sale with a negative tax unit keeps every content hash pinned before the amendment" do
+    assert digests("sale_with_negative_tax.json") == @sale_with_negative_tax_json
   end
 end
