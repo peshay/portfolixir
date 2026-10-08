@@ -24,11 +24,17 @@ defmodule Portfolixir.Portfolios.Income do
 
   ## Currency
 
-  Amounts are converted into the portfolio's `base_currency_code` through the
+  A booking's cash and withheld tax are read in its **cash account's
+  currency**, the currency the account was credited in (the ADR-0015
+  amendment of 2026-10-07): a dividend of a foreign security credited to an
+  account in another currency is read in the account's, never in the
+  security's. Amounts are converted into the portfolio's `base_currency_code`
+  through the
   **EUR hub** (`Portfolixir.Fx`), at the most recent stored rate **on or before
   the booking date** — the same mechanics `Portfolixir.Portfolios.Valuation`
-  uses, reused rather than reimplemented. The original transaction currency is
-  retained on each per-position row and per-transaction detail. A booking with
+  uses, reused rather than reimplemented. Each per-transaction detail names
+  the currency its native amounts are in (`currency`, the account's); each
+  per-position row keeps the booking's currency (`security_currency`). A booking with
   no rate path to the base currency is converted at parity and surfaces in
   `unconverted_count` so a missing rate never silently distorts a total. The
   chosen basis is described in `base_currency` and `conversion_note`
@@ -38,6 +44,7 @@ defmodule Portfolixir.Portfolios.Income do
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.CashAccount
 
   @zero Decimal.new("0")
   @months 1..12
@@ -77,9 +84,10 @@ defmodule Portfolixir.Portfolios.Income do
     native_net = tx.gross_amount || @zero
     native_tax = if tx.type == "dividend", do: tx.taxes || @zero, else: @zero
     native_gross = Decimal.add(native_net, native_tax)
+    cash_currency = cash_currency(tx)
 
-    {gross, converted?} = convert(native_gross, tx.currency_code, base_currency, tx.date)
-    {tax, _} = convert(native_tax, tx.currency_code, base_currency, tx.date)
+    {gross, converted?} = convert(native_gross, cash_currency, base_currency, tx.date)
+    {tax, _} = convert(native_tax, cash_currency, base_currency, tx.date)
     net = Decimal.sub(gross, tax)
 
     %{
@@ -89,7 +97,10 @@ defmodule Portfolixir.Portfolios.Income do
       month: tx.date.month,
       security_id: tx.security_id,
       security_name: security_name(tx),
-      currency: tx.currency_code,
+      # The currency the native amounts are in, the cash account's; the
+      # per-position table keeps grouping by the booking's currency.
+      currency: cash_currency,
+      booking_currency: tx.currency_code,
       native_gross: native_gross,
       native_tax: native_tax,
       native_net: native_net,
@@ -133,7 +144,7 @@ defmodule Portfolixir.Portfolios.Income do
 
   defp positions(entries) do
     entries
-    |> Enum.group_by(&{&1.security_id, &1.currency})
+    |> Enum.group_by(&{&1.security_id, &1.booking_currency})
     |> Enum.map(fn {{security_id, currency}, group} ->
       position_row(security_id, currency, group)
     end)
@@ -199,6 +210,19 @@ defmodule Portfolixir.Portfolios.Income do
 
   defp convert(%Decimal{} = amount, _from, _base, _date), do: {amount, true}
 
+  # The ADR-0015 amendment of 2026-10-07 (the income report's sibling of
+  # #1107): a booking's cash and taxes are in its CASH ACCOUNT's currency, the
+  # currency the projection credits them in. A dividend booked in a foreign
+  # security's currency and credited to an account in another (ADR-0015, with
+  # its stored settlement rate) is therefore read in the account's currency,
+  # as the performance walk reads its cash. A booking without a cash account
+  # is read in its own currency.
+  defp cash_currency(%{cash_account: %CashAccount{currency_code: currency}})
+       when is_binary(currency),
+       do: currency
+
+  defp cash_currency(tx), do: tx.currency_code
+
   defp security_name(%{security: %{name: name}}) when is_binary(name), do: name
   defp security_name(_tx), do: nil
 
@@ -211,6 +235,8 @@ defmodule Portfolixir.Portfolios.Income do
 
   defp conversion_note(base_currency) do
     "Amounts converted to #{base_currency} via the EUR hub at each booking " <>
-      "date's stored rate; original currency retained."
+      "date's stored rate; original currency retained. A booking's cash and " <>
+      "withheld tax are read in its cash account's currency, the currency they " <>
+      "were credited in."
   end
 end

@@ -110,4 +110,81 @@ defmodule PortfolixirWeb.ApiV1IncomeTest do
 
     assert missing == %{"errors" => %{"detail" => "not found"}}
   end
+
+  # User story (the ADR-0015 amendment of 2026-10-07, the income report's
+  # sibling of #1107):
+  # As the operating LLM agent,
+  # I want a dividend credited to an account in another currency than its
+  # security's read in the account's currency,
+  # so that the native amounts I quote carry the currency they are in and the
+  # converted ones are the cash that arrived.
+  #
+  # Acceptance criteria:
+  # - A USD security's dividend credited 80.00 EUR net with 20.00 EUR withheld
+  #   to a EUR account reads gross 100, tax 20, net 80, its detail with
+  #   currency EUR and native_gross 100 (before: 80, 16 and 64, and USD).
+  # - conversion_note says the cash is read in the account's currency.
+  test "a dividend credited across currencies is read in its account's currency", %{
+    conn: conn
+  } do
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2025-07-01],
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    world = WorldFixtures.base_world(currency: "EUR")
+    security = WorldFixtures.create_security!(name: "Wire Payer", ticker: "WPY", currency: "USD")
+
+    {:ok, _dividend} =
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        security_id: security.id,
+        type: "dividend",
+        date: ~D[2025-07-01],
+        gross_amount: "80.00",
+        taxes: "20.00",
+        currency_code: "USD",
+        settlement_fx_rate: "0.8"
+      })
+
+    %{"data" => data} =
+      conn
+      |> api_conn()
+      |> get("/api/v1/portfolios/#{world.portfolio.id}/income")
+      |> json_response(200)
+
+    assert [detail] = data["transactions"]
+
+    assert Map.take(detail, [
+             "currency",
+             "native_gross",
+             "native_tax",
+             "native_net",
+             "gross",
+             "tax",
+             "net",
+             "converted"
+           ]) == %{
+             "currency" => "EUR",
+             "native_gross" => "100",
+             "native_tax" => "20",
+             "native_net" => "80",
+             "gross" => "100",
+             "tax" => "20",
+             "net" => "80",
+             "converted" => true
+           }
+
+    assert [%{"security_currency" => "USD", "gross" => "100", "net" => "80"}] =
+             data["positions"]
+
+    assert data["conversion_note"] =~ "cash account's currency"
+  end
 end
