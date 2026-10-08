@@ -614,9 +614,15 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
     parts([nonzero(count(summary, ["identifier_aliases", "reassigned"]), &carried/1)])
   end
 
+  # #1167: an ISIN adopted from the source is named on the ISIN line, so the
+  # count here leaves it out. The record lists it among identifiers.adopted
+  # exactly when the source alone carried an ISIN (ADR-0050 §9), the ISIN
+  # line's own condition; the stored record keeps its shape.
   defp line_value(:master_data, _kind, summary) do
+    adopted = count(summary, ["identifiers", "adopted"])
+
     parts([
-      nonzero(count(summary, ["identifiers", "adopted"]), fn n ->
+      nonzero(if(source_isin_only?(summary), do: adopted - 1, else: adopted), fn n ->
         pngettext(
           "merge record",
           "%{count} field adopted, the target had none",
@@ -644,9 +650,10 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
   end
 
   # #1067 (board 07.5): the line keys on the ISINs the record holds, not on
-  # the choice it was given. An API or MCP merge records a choice as given
-  # even when none was required, and keying on it printed "stays; is now a
-  # former ISIN" with an empty slot. Neither side, or the target alone: no
+  # the choice it was given. An API or MCP merge recorded a choice as given
+  # even when none was required (a record written before #1159 still holds
+  # one), and keying on it printed "stays; is now a former ISIN" with an
+  # empty slot. Neither side, or the target alone: no
   # line, nothing changed. The source alone: the target adopted it. Both: the
   # choice the merge required, as given.
   defp line_value(:isin, :security, summary) do
@@ -759,6 +766,12 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
   end
 
   defp isin(_none), do: nil
+
+  # The source alone carried an ISIN: the one the target adopted from it.
+  defp source_isin_only?(summary) do
+    isin(get(summary, ["identifiers", "source_isin"])) != nil and
+      isin(get(summary, ["identifiers", "target_isin"])) == nil
+  end
 
   defp removed_for("collapsed_duplicate", n),
     do: ngettext("%{count} duplicate removed", "%{count} duplicates removed", n)

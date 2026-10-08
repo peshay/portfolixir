@@ -3666,7 +3666,7 @@ be the two-way gap in the other direction.
   | Bucket-Zuordnungen | `cash_account_buckets.removed`, `securities_account_buckets.removed` | "N entfernt" |
   | Frühere Namen | `former_names.appended`, `.not_kept` | "N übernommen · N nicht übernommen" |
   | Frühere ISINs | `identifier_aliases.reassigned` | "N übernommen" |
-  | Stammdaten | `identifiers.adopted`, `.differences` | "N Felder übernommen, das Ziel hatte keine · N abweichend, die des Ziels gelten" |
+  | Stammdaten | `identifiers.adopted`, `.differences` | "N Felder übernommen, das Ziel hatte keine · N abweichend, die des Ziels gelten"; *amended 2026-10-08 (issue 1167):* an ISIN adopted from the source is counted on the ISIN line only, so N counts the other fields, and an ISIN adopted alone leaves no Stammdaten line |
   | Rundung beim Split | `rounding_differences` | "N Abweichung(en)" |
   | ISIN | `choices.identity_choice`, `.isin_changed_on`, `identifiers.source_isin`, `.target_isin`, `identifier_aliases.created` | "<ISIN> bleibt; <ISIN> ist jetzt frühere ISIN", or "<ISIN> übernommen; <ISIN> ist jetzt frühere ISIN · Änderung vom <date>", or "<ISIN> von der Quelle übernommen"; *amended 2026-10-07 (issue 1067):* keyed on the stored ISINs, not the given choice — with an ISIN on both sides the choice's sentence, on the source only "… von der Quelle übernommen", on the target only or on neither no line |
   | Wahl | `choices.collapse_key_equal` | "gleiche Buchungen: als Duplikate entfernt" / "… beide behalten"; absent when there was nothing to choose |
@@ -6006,7 +6006,10 @@ lists only lines with something to say. An API or MCP merge records a
 choice as given even when none was required, so two ISIN-less securities
 printed "bleibt; ist jetzt frühere ISIN" with both slots empty, and a
 one-sided pair one slot empty. The payload is unchanged; the agent reads
-the choice verbatim.
+the choice verbatim. *Amended 2026-10-08 (issue 1159):* a merge now records
+the choice, and the ISIN change's date, only where it made that choice, both
+sides carrying an ISIN; a record written before keeps the choice as given,
+and the line still keys on the stored ISINs, so it reads the same.
 
 ### The coarse ⓘ *(board `mockups/ux-design-2026-10-04/04-trades`, found while drawing 3)*
 
