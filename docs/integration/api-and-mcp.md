@@ -590,7 +590,10 @@ confirms with the same `plan_digest`, so both see the same plan.
   every quote moved and every quote dropped with its close and the target's
   close that won, the assignments, position targets and events moved or
   dropped, the former ISINs reassigned and created, the identifiers adopted
-  and the differences, and the choices) and `already_applied: false`. In one
+  and the differences, and the choices — `identity_choice` and
+  `isin_changed_on` only where the merge made that choice, both securities
+  carrying an ISIN, and `null` otherwise, whatever the request sent) and
+  `already_applied: false`. In one
   transaction, one audit-journal entry per row: with `true` the source's
   paired bookings are deleted and their content hashes retired; a split the
   target carries on the same day in the same portfolio is deleted; every
@@ -1430,7 +1433,10 @@ Example quote sync response:
   `transactions.deleted_by_reason`, the same rows counted per reason
   (`internal_transfer`, `collapsed_duplicate`, `folded_anchor`,
   `collapsed_split`; only the reasons present, `{}` when none), and the
-  operator's choices as given. `meta` carries `order`, `count` and `limit`.
+  operator's choices as given, a security merge's `identity_choice` and
+  `isin_changed_on` only where it made that choice (a record written by an
+  earlier version may hold them as sent). `meta` carries `order`, `count`
+  and `limit`.
   `limit` is the list family's: default 100, capped at 1000, and zero, a
   negative or a non-number answers `422`. The operator reads the same
   records, with the same counts, in **Merges** at the end of Accounts &

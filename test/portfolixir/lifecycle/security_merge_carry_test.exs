@@ -554,6 +554,56 @@ defmodule Portfolixir.Lifecycle.SecurityMergeCarryTest do
       assert Repo.get!(Security, ctx.target.id).isin == @isin_source
     end
 
+    # User story (#1159):
+    # As the operator reading back an agent's merge of two securities,
+    # I want the merge record to hold an ISIN choice, and the date of an
+    # ISIN change, only when the merge made that choice,
+    # so that the record never claims a decision, or a change dated by one,
+    # that did not happen.
+    #
+    # Acceptance criteria:
+    # - Neither security, the source alone or the target alone carries an
+    #   ISIN: no choice is required. An apply that sends identity_choice and
+    #   isin_changed_on anyway records both as null in the manifest's
+    #   choices, creates no former ISIN, and the target's ISIN is the one
+    #   the preview promised.
+    # - With an ISIN on both, the choice and the date are recorded as given
+    #   (pinned by "keep_target_isin: the source's ISIN becomes a former ISIN
+    #   of the target").
+    # - A record already stored keeps what it holds; nothing is rewritten.
+    test "a merge records an ISIN choice and its date only when it made the choice" do
+      for {label, source_isin, target_isin} <- [
+            {"Neither", nil, nil},
+            {"Source", @isin_source, nil},
+            {"Target", nil, @isin_target}
+          ] do
+        target = security!(%{name: "Choice Fund #{label}", isin: target_isin})
+        source = security!(%{name: "Choice Fund #{label}", isin: source_isin})
+        {:ok, preview} = Lifecycle.preview_security_merge(source.id, target.id)
+        refute preview.identifiers.choice_required
+
+        assert {:ok, record, :applied} =
+                 Lifecycle.merge_security(agent(), source.id, target.id, %{
+                   plan_digest: preview.plan_digest,
+                   identity_choice: "adopt_source_isin",
+                   isin_changed_on: ~D[2025-05-01]
+                 })
+
+        assert {label, record.manifest["choices"]} ==
+                 {label,
+                  %{
+                    "collapse_key_equal" => nil,
+                    "identity_choice" => nil,
+                    "isin_changed_on" => nil
+                  }}
+
+        assert {label, record.manifest["identifier_aliases"]["created"], aliases(target)} ==
+                 {label, nil, []}
+
+        assert Repo.get!(Security, target.id).isin == preview.identifiers.outcomes.no_choice.isin
+      end
+    end
+
     # User story:
     # As the operator merging a duplicate that carries a quote feed with its
     # URL, into a security that has no feed,

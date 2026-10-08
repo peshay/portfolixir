@@ -3471,4 +3471,34 @@ defmodule Portfolixir.DocsTest do
       end
     end
   end
+
+  # User story (#1159):
+  # As the agent reading back a security merge it applied,
+  # I want the reference to say when the record holds an ISIN choice and its
+  # date,
+  # so that a null there reads as "no choice was needed", and a choice in an
+  # older record is not taken for a decision the merge made.
+  #
+  # Acceptance criteria:
+  # - The EN and DE API pages say the merge record's identity_choice and
+  #   isin_changed_on are recorded only where the merge made that choice,
+  #   null otherwise whatever the request sent, and that a record written by
+  #   an earlier version may hold them as sent.
+  test "the API pages say a merge record holds an ISIN choice only where one was made" do
+    for {path, fragments} <- [
+          {"docs/integration/api-and-mcp.md",
+           [
+             "`identity_choice` and `isin_changed_on` only where the merge made that choice, both securities carrying an ISIN, and `null` otherwise, whatever the request sent",
+             "a security merge's `identity_choice` and `isin_changed_on` only where it made that choice (a record written by an earlier version may hold them as sent)"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "`identity_choice` und `isin_changed_on` nur, wo die Zusammenführung diese Wahl getroffen hat, weil beide Wertpapiere eine ISIN trugen, sonst `null`, was die Anfrage auch schickte",
+             "bei einer Wertpapier-Zusammenführung `identity_choice` und `isin_changed_on` nur, wo sie diese Wahl getroffen hat (ein Protokoll einer früheren Version kann sie tragen, wie sie geschickt wurden)"
+           ]}
+        ],
+        fragment <- fragments do
+      assert normalized_text(path) =~ fragment, "#{path}: #{fragment}"
+    end
+  end
 end

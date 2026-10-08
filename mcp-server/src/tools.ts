@@ -3724,14 +3724,15 @@ const declaredTools: DeclaredTool[] = [
       "portfolixir.securities_accounts.merge, portfolixir.securities.merge). Each record carries id, kind " +
       "(cash_account, securities_account or security), source {id, name} (the name recorded), target {id, name, merged_into} — merged_into is null while the target lives, " +
       "otherwise the id a later merge moved it into, followed to the live end —, portfolio_id (null for a " +
-      "security), actor_type and actor_label (for an API or MCP token, the name of the token entry that applied " +
-      "the merge), inserted_at, and manifest_summary: the merge's manifest with every " +
+      "security), actor_type and actor_label (for a token, the name of its token entry), inserted_at, and " +
+      "manifest_summary: the merge's manifest with every " +
       "list replaced by its count (transactions moved, restated, deleted; former names appended; quotes moved " +
       "and dropped; …), transactions.deleted_by_reason (internal_transfer, collapsed_duplicate, folded_anchor, " +
-      "collapsed_split; only those present) and the operator's choices as given. A read of a merged-away id — one security, cash " +
+      "collapsed_split; only those present) and the operator's choices as given (an ISIN choice only where " +
+      "one was made). A read of a merged-away id — one security, cash " +
       "account or depot, and every route under a security (its quotes, trades, metrics, notes, events, logo) — " +
-      "answers 404 with errors.merged_into. There is no unmerge: the record and the audit journal's before-images " +
-      "(portfolixir.journal.list) are what make a merge reconstructable. limit keeps the newest records " +
+      "answers 404 with errors.merged_into. There is no unmerge: the record and the journal's before-images " +
+      "(portfolixir.journal.list) make a merge reconstructable. limit keeps the newest records " +
       "(default 100, capped at 1000, echoed in meta.limit). The operator reads them in the Merges section at the " +
       "end of Accounts & depots.",
     mergesListSchema,

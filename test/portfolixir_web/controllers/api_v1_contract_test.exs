@@ -173,6 +173,18 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "#974")
            )
 
+    # #1159 (C5): a security merge records an ISIN choice and its date only
+    # where it made the choice; a stored record keeps what it holds.
+    assert newest["summary"] =~ "#1159"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "POST /api/v1/securities/:id/merge") and
+                 &1 =~ "portfolixir.merges.list" and
+                 &1 =~ "manifest.choices holds identity_choice and isin_changed_on only where" and
+                 &1 =~ "A record stored before keeps what it holds" and &1 =~ "#1159")
+           )
+
     # Sprint 20, commit group β (version 16, after Sprint 19 PR β's 15): what
     # the ledger reports about it, the ADR-0015 amendment of 2026-10-07. B1
     # opened the entry (#1108): a cross-currency closed trade's fees and

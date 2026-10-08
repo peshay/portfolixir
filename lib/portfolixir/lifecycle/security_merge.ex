@@ -2573,17 +2573,22 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   # assignment, position target, event and former ISIN moved, dropped or
   # created, the identifiers the target adopted and the differences that
   # followed it, the split events before and after, the rounding differences
-  # and the operator's choices.
+  # and the operator's choices. The identity choice and the ISIN change's
+  # date are the operator's only where the merge made that choice (both
+  # securities carried an ISIN); otherwise both are null, whatever the
+  # request sent, so the record claims no decision that did not happen
+  # (#1159). Records stored before keep what they hold.
   defp manifest(plan, outcome, choices, written) do
     s = plan.source.id
     t = plan.target.id
     carry = plan.carry
+    chose? = choices.choice != :no_choice
 
     jsonable(%{
       choices: %{
         collapse_key_equal: choices.collapse,
-        identity_choice: choices.given,
-        isin_changed_on: choices.changed_on
+        identity_choice: if(chose?, do: choices.given),
+        isin_changed_on: if(chose?, do: choices.changed_on)
       },
       quotes: %{
         moved:
