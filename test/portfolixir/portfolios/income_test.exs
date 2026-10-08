@@ -168,4 +168,66 @@ defmodule Portfolixir.Portfolios.IncomeTest do
     interest_detail = Enum.find(detail, &(&1.kind == "interest"))
     assert Decimal.equal?(interest_detail.gross, Decimal.new("15"))
   end
+
+  # User story (the ADR-0015 amendment of 2026-10-07, the income report's
+  # sibling of #1107, found while triaging it):
+  # As a maintainer whose USD security pays its dividend into my EUR account,
+  # I want the income report to read the euros credited as euros,
+  # so that the dividend is the cash that arrived, not that cash converted a
+  # second time as if it were dollars.
+  #
+  # Acceptance criteria (exact Decimal expectations, risk-tier):
+  # - A dividend booked in USD (the security's currency) with a stored
+  #   settlement rate, 80.00 EUR credited net and 20.00 EUR withheld, through
+  #   a EUR account, 1 EUR = 1.25 USD: gross 100.00, tax 20.00, net 80.00 EUR
+  #   (before the amendment 80.00, 16.00 and 64.00, read as dollars).
+  # - Its detail names the currency its native amounts are in, the
+  #   account's: EUR, native gross 100.00.
+  # - The per-position row keeps the booking's currency, USD.
+  test "a dividend credited to an account in another currency is read in that account's currency" do
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2025-07-01],
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    world = WorldFixtures.base_world(currency: "EUR", cash_currency: "EUR")
+    security = WorldFixtures.create_security!(name: "Cross Payer", ticker: "CRP", currency: "USD")
+
+    {:ok, _dividend} =
+      Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        security_id: security.id,
+        type: "dividend",
+        date: ~D[2025-07-01],
+        gross_amount: "80.00",
+        taxes: "20.00",
+        currency_code: "USD",
+        settlement_fx_rate: "0.8"
+      })
+
+    income = Income.for_portfolio(world.portfolio.id)
+
+    assert [detail] = income.transactions
+    assert Decimal.equal?(detail.gross, Decimal.new("100.00"))
+    assert Decimal.equal?(detail.tax, Decimal.new("20.00"))
+    assert Decimal.equal?(detail.net, Decimal.new("80.00"))
+    assert detail.currency == "EUR"
+    assert Decimal.equal?(detail.native_gross, Decimal.new("100.00"))
+
+    assert [row] = income.positions
+    assert row.security_currency == "USD"
+    assert Decimal.equal?(row.gross, Decimal.new("100.00"))
+    assert Decimal.equal?(row.net, Decimal.new("80.00"))
+
+    years = Map.new(income.annual, &{&1.year, &1})
+    assert Decimal.equal?(years[2025].dividends_total, Decimal.new("100.00"))
+    assert income.unconverted_count == 0
+  end
 end
