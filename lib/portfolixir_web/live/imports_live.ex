@@ -12,12 +12,15 @@ defmodule PortfolixirWeb.ImportsLive do
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AccountNames
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.ReferenceCounts
   alias PortfolixirWeb.StoredText
   alias PortfolixirWeb.TransactionKindLabel
+
+  require CappedAsync
 
   @max_upload_bytes 20_000_000
 
@@ -977,7 +980,9 @@ defmodule PortfolixirWeb.ImportsLive do
          socket
          |> assign(:applying, true)
          |> assign(:error, nil)
-         |> start_async(:apply_import, fn -> Imports.apply(preview, applier_params) end)}
+         |> CappedAsync.start_async(:apply_import, fn ->
+           Imports.apply(preview, applier_params)
+         end)}
 
       {:error, message} ->
         {:noreply, assign(socket, :error, message)}
@@ -1370,7 +1375,9 @@ defmodule PortfolixirWeb.ImportsLive do
 
       socket
       |> assign(:counts_token, token)
-      |> start_async(:refine_counts, fn -> {token, Imports.reimport_counts(preview)} end)
+      |> CappedAsync.start_async(:refine_counts, fn ->
+        {token, Imports.reimport_counts(preview)}
+      end)
     else
       assign(socket, :counts_token, nil)
     end

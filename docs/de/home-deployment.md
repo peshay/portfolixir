@@ -1097,8 +1097,11 @@ Datenbanksicherung zurück.
   schreibt, bleiben aus dem Log.
 - Jede Anfrage und jede offene Seite läuft in einem eigenen Prozess unter
   einer Heap-Grenze von 512 MiB, die die großen Binärdaten des Prozesses
-  mitzählt: Eine Anfrage, die darüber wächst, scheitert allein und wird
-  protokolliert, statt den Speicher der Maschine zu erschöpfen. Kein
+  mitzählt, und ebenso jeder Task, dem eine Seite ihre Arbeit übergibt (die
+  Performance-Berechnung, die Bewertungen, das Anwenden eines Imports, eine
+  Kurssynchronisation): Eine Anfrage oder ein Ladevorgang einer Seite, der
+  darüber wächst, scheitert allein und wird protokolliert, statt den
+  Speicher der Maschine zu erschöpfen. Kein
   gewöhnliches Lesen oder Schreiben kommt in ihre Nähe; `max_heap_bytes`
   unter `PortfolixirWeb.HeapCap` in `config/config.exs` ändert sie. Der
   Arbeitsspeicher-Cache abgeleiteter Kennzahlen hält sein eigenes Budget ein

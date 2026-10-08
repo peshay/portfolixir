@@ -35,6 +35,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Settings
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.BenchmarkScope
+  alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.ColumnPicker
   alias PortfolixirWeb.Components.SecurityChart
@@ -44,6 +45,8 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.TransactionManagementLive
   alias PortfolixirWeb.ValuationNotes
+
+  require CappedAsync
   import PortfolixirWeb.ViewSwitcher
 
   @unassigned_color "#9ca3af"
@@ -471,7 +474,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     classification_id = socket.assigns.classification_id
     view_id = socket.assigns[:active_view_id]
 
-    start_async(socket, :overview, fn ->
+    CappedAsync.start_async(socket, :overview, fn ->
       # The header totals and cash come from the cross-portfolio view valuation
       # (ADR-0024): the page's primary scope is the active view — Everything
       # when none is picked — deduplicated at the account level. The allocation
@@ -515,7 +518,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     classification_id = socket.assigns.classification_id
     view_id = socket.assigns[:active_view_id]
 
-    start_async(socket, :allocation, fn ->
+    CappedAsync.start_async(socket, :allocation, fn ->
       case Allocation.for_portfolio(portfolio_id, classification_id, view: view_id) do
         {:ok, allocation} -> allocation
         {:error, :view_not_found} -> :view_not_found
@@ -539,7 +542,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     socket
     |> assign(:analysis_read, nil)
     |> serve_previous_analysis(view_id, base_currency)
-    |> start_async(:performance, fn ->
+    |> CappedAsync.start_async(:performance, fn ->
       read(view_id, fn -> Performance.view_analysis(view_id, base_currency: base_currency) end)
     end)
   end
@@ -561,7 +564,7 @@ defmodule PortfolixirWeb.PortfolioLive do
 
     socket
     |> assign(contribution: nil, contribution_read: nil, contribution_failed: false)
-    |> start_async(:contribution, fn ->
+    |> CappedAsync.start_async(:contribution, fn ->
       {period,
        read(view_id, fn ->
          Contribution.for_view(view_id, period: period, base_currency: base_currency)
@@ -3763,7 +3766,7 @@ defmodule PortfolixirWeb.PortfolioLive do
     socket =
       socket
       |> assign(fx_syncing: true, fx_sync_result: nil)
-      |> start_async(:sync_rates, fn -> RateSync.sync() end)
+      |> CappedAsync.start_async(:sync_rates, fn -> RateSync.sync() end)
 
     {:noreply, socket}
   end

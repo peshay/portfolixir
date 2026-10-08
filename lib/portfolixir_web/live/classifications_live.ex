@@ -12,12 +12,15 @@ defmodule PortfolixirWeb.ClassificationsLive do
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.PolicyRuleReferences
   alias PortfolixirWeb.StoredText
   alias PortfolixirWeb.ViewSwitcher
+
+  require CappedAsync
 
   @zero Decimal.new("0")
   @hundred Decimal.new("100")
@@ -58,7 +61,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp start_holdings(socket) do
     if connected?(socket) do
       view_id = socket.assigns.active_view_id
-      start_async(socket, :holdings, fn -> scoped_holdings(view_id) end)
+      CappedAsync.start_async(socket, :holdings, fn -> scoped_holdings(view_id) end)
     else
       socket
     end
@@ -2383,7 +2386,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp start_results(socket, classification_id) do
     if connected?(socket) do
       view_id = socket.assigns.active_view_id
-      start_async(socket, :results, fn -> scoped_result(view_id, classification_id) end)
+
+      CappedAsync.start_async(socket, :results, fn ->
+        scoped_result(view_id, classification_id)
+      end)
     else
       socket
     end

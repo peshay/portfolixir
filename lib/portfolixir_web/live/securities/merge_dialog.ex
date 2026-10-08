@@ -37,10 +37,13 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
   alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.Delete
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.Securities.MergePreview
   alias PortfolixirWeb.StoredText
+
+  require CappedAsync
 
   @max_candidates 25
   @max_query 100
@@ -500,7 +503,7 @@ defmodule PortfolixirWeb.Securities.MergeDialog do
     {:noreply,
      socket
      |> assign(:applying, true)
-     |> start_async(:apply_merge, fn ->
+     |> CappedAsync.start_async(:apply_merge, fn ->
        Lifecycle.merge_security(Actor.owner_ui(), source.id, target_id, params)
      end)}
   end

@@ -38,6 +38,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   alias Portfolixir.Portfolios.Bonds
   alias Portfolixir.Portfolios.Valuation
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.ChangedSince
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.ColumnPicker
@@ -4700,7 +4701,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   def handle_event("sync_now", _params, socket) do
     parent = self()
 
-    Task.start(fn ->
+    CappedAsync.start(fn ->
       result =
         try do
           QuoteSync.sync_all()
@@ -5363,7 +5364,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       parent = self()
       sec_id = sec.id
 
-      Task.Supervisor.start_child(Portfolixir.LogoSupervisor, fn ->
+      CappedAsync.start_child(Portfolixir.LogoSupervisor, fn ->
         result = LogoLookup.run(sec)
         send(parent, {:logo_update_done, sec_id, result})
       end)
@@ -6182,7 +6183,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp start_security_sync(socket, %Security{} = sec) do
     parent = self()
 
-    Task.start(fn ->
+    CappedAsync.start(fn ->
       result =
         try do
           QuoteSync.sync_security(sec)

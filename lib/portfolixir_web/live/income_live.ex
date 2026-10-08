@@ -21,9 +21,12 @@ defmodule PortfolixirWeb.IncomeLive do
   alias Portfolixir.Portfolios.Income
   alias Portfolixir.Portfolios.RealizedGains
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.TransactionManagementLive
+
+  require CappedAsync
 
   @months 1..12
 
@@ -168,7 +171,7 @@ defmodule PortfolixirWeb.IncomeLive do
     socket =
       socket
       |> assign(fx_backfilling: true, fx_backfill_result: nil)
-      |> start_async(:backfill_rates, fn -> RateSync.backfill() end)
+      |> CappedAsync.start_async(:backfill_rates, fn -> RateSync.backfill() end)
 
     {:noreply, socket}
   end
