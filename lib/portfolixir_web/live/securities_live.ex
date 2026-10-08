@@ -123,6 +123,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:deleting_split, nil)
      |> assign(:action_result, nil)
      |> assign(:sync_running?, false)
+     |> assign(:sync_tasks, %{})
      |> assign(:selected_security, nil)
      |> assign(:detail_tab, @default_tab)
      |> assign(:detail_fullscreen?, false)
@@ -4701,26 +4702,27 @@ defmodule PortfolixirWeb.SecuritiesLive do
   def handle_event("sync_now", _params, socket) do
     parent = self()
 
-    CappedAsync.start(fn ->
-      result =
-        try do
-          QuoteSync.sync_all()
-        rescue
-          exception ->
-            Logger.error(
-              "QuoteSync.sync_all crashed: " <>
-                Exception.format(:error, exception, __STACKTRACE__)
-            )
+    {:ok, task} =
+      CappedAsync.start(fn ->
+        result =
+          try do
+            QuoteSync.sync_all()
+          rescue
+            exception ->
+              Logger.error(
+                "QuoteSync.sync_all crashed: " <>
+                  Exception.format(:error, exception, __STACKTRACE__)
+              )
 
-            sync_crash_result(:crashed)
-        catch
-          kind, reason ->
-            Logger.error("QuoteSync.sync_all exited: #{inspect({kind, reason})}")
-            sync_crash_result(:exited)
-        end
+              sync_crash_result(:crashed)
+          catch
+            kind, reason ->
+              Logger.error("QuoteSync.sync_all exited: #{inspect({kind, reason})}")
+              sync_crash_result(:exited)
+          end
 
-      send(parent, {:sync_done, result})
-    end)
+        send(parent, {:sync_done, result})
+      end)
 
     # The sync button itself signals progress (spins + disabled via
     # `sync_running?`), so we no longer raise a sticky "Syncing…" toast on top.
@@ -4728,6 +4730,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     # running it is that result's next action.
     {:noreply,
      socket
+     |> watch_sync(task, sync_crash_result(:exited))
      |> assign(:sync_running?, true)
      |> assign(:action_result, nil)
      |> assign(:quotes_release_result, nil)}
@@ -5650,6 +5653,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
     handle_info({:sync_done, {:ok, %{ok: 0, skipped: 0, error: 0}}}, socket)
   end
 
+  # #941: a sync task's exit. A normal one comes after the task's own
+  # `:sync_done` (a process's messages arrive before its exit); an abnormal
+  # one, such as the heap cap's kill, sent nothing, so the page answers as
+  # the task's body does for an exit.
+  def handle_info({:DOWN, ref, :process, _pid, reason}, %{assigns: %{sync_tasks: tasks}} = socket)
+      when is_map_key(tasks, ref) do
+    socket = assign(socket, :sync_tasks, Map.delete(tasks, ref))
+
+    case reason do
+      :normal -> {:noreply, socket}
+      _abnormal -> handle_info({:sync_done, Map.fetch!(tasks, ref)}, socket)
+    end
+  end
+
   def handle_info({:sync_done, result}, socket) do
     summary = sync_summary(result)
 
@@ -6183,34 +6200,44 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp start_security_sync(socket, %Security{} = sec) do
     parent = self()
 
-    CappedAsync.start(fn ->
-      result =
-        try do
-          QuoteSync.sync_security(sec)
-        rescue
-          exception ->
-            Logger.error(
-              "QuoteSync.sync_security crashed for ##{sec.id}: " <>
-                Exception.format(:error, exception, __STACKTRACE__)
-            )
+    {:ok, task} =
+      CappedAsync.start(fn ->
+        result =
+          try do
+            QuoteSync.sync_security(sec)
+          rescue
+            exception ->
+              Logger.error(
+                "QuoteSync.sync_security crashed for ##{sec.id}: " <>
+                  Exception.format(:error, exception, __STACKTRACE__)
+              )
 
-            %{status: :error, reason: :crashed}
-        catch
-          kind, reason ->
-            Logger.error(
-              "QuoteSync.sync_security exited for ##{sec.id}: #{inspect({kind, reason})}"
-            )
+              %{status: :error, reason: :crashed}
+          catch
+            kind, reason ->
+              Logger.error(
+                "QuoteSync.sync_security exited for ##{sec.id}: #{inspect({kind, reason})}"
+              )
 
-            %{status: :error, reason: :exited}
-        end
+              %{status: :error, reason: :exited}
+          end
 
-      send(parent, {:sync_done, result})
-    end)
+        send(parent, {:sync_done, result})
+      end)
 
     # Progress is shown by the busy sync button (`sync_running?`); no toast.
     socket
+    |> watch_sync(task, %{status: :error, reason: :exited})
     |> assign(:sync_running?, true)
     |> assign(:action_result, nil)
+  end
+
+  # #941: the heap cap kills a sync task past it, and a killed task never
+  # reaches its own `send`. Each sync task is monitored, with the answer its
+  # body gives for an exit, so the busy button still ends.
+  defp watch_sync(socket, task, exit_result) do
+    ref = Process.monitor(task)
+    assign(socket, :sync_tasks, Map.put(socket.assigns.sync_tasks, ref, exit_result))
   end
 
   # #1012 (Sprint 18 U5, board ux-design-2026-10-02/07-phone-390, H7.1b): the

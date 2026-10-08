@@ -24,6 +24,17 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     def fetch(_security, _opts), do: raise("boom")
   end
 
+  # #941: the heap cap kills a task past it. A kill is neither a raise nor a
+  # throw, so nothing after it in the task's body runs.
+  defmodule KilledAdapter do
+    @moduledoc false
+    @behaviour Portfolixir.Catalog.QuoteSync.Provider
+    @impl true
+    def id, do: :killed
+    @impl true
+    def fetch(_security, _opts), do: Process.exit(self(), :kill)
+  end
+
   describe "list view" do
     # User story:
     # As a local portfolio maintainer,
@@ -701,6 +712,54 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
           refute has_element?(view, "button#sync-prices[disabled]")
         end)
+      after
+        Application.put_env(:portfolixir, Portfolixir.Catalog.QuoteSync, prior_cfg)
+      end
+    end
+
+    # User story (#941):
+    # As the operator who pressed "Sync prices",
+    # I want the busy sync button to end with the page's failure answer when
+    # the sync's task is killed (the heap cap kills a task past it),
+    # so that a killed sync does not leave the button busy until I reload.
+    #
+    # Acceptance criteria:
+    # - The toolbar's sync and one security's sync each clear the busy flag
+    #   when their task exits abnormally without answering.
+    # - The result says what a crashed sync already says: "Price sync
+    #   finished: 0 synced, 0 skipped, 1 failed." for the toolbar's sync,
+    #   "Price sync failed: exited" for one security's.
+    test "a sync whose task is killed ends the busy state with the failure answer",
+         %{conn: conn} do
+      {:ok, sec} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "Killed",
+          currency_code: "USD",
+          provider: "manual"
+        })
+
+      prior_cfg = Application.get_env(:portfolixir, Portfolixir.Catalog.QuoteSync, [])
+
+      Application.put_env(
+        :portfolixir,
+        Portfolixir.Catalog.QuoteSync,
+        Keyword.put(prior_cfg, :adapter_for, %{"manual" => KilledAdapter})
+      )
+
+      try do
+        {:ok, view, _html} = live(conn, "/securities")
+
+        view |> element("button#sync-prices") |> render_click()
+        await_sync_idle(view)
+
+        assert view |> element("#securities-action-result") |> render() =~
+                 "Price sync finished: 0 synced, 0 skipped, 1 failed."
+
+        render_click(view, "row_action", %{"action" => "sync", "id" => to_string(sec.id)})
+        await_sync_idle(view)
+
+        assert view |> element("#securities-action-result") |> render() =~
+                 "Price sync failed: exited"
       after
         Application.put_env(:portfolixir, Portfolixir.Catalog.QuoteSync, prior_cfg)
       end
@@ -2205,6 +2264,21 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       {:ok, de_view, _} = live(de_conn, "/securities/#{security.id}")
       de_html = render(de_view)
       assert de_html =~ "1.234,50"
+    end
+  end
+
+  # The sync runs in a task; the busy flag on the toolbar's sync button
+  # clears when its answer has landed.
+  defp await_sync_idle(view, tries \\ 100)
+
+  defp await_sync_idle(view, 0), do: refute(has_element?(view, "button#sync-prices[disabled]"))
+
+  defp await_sync_idle(view, tries) do
+    if has_element?(view, "button#sync-prices[disabled]") do
+      Process.sleep(20)
+      await_sync_idle(view, tries - 1)
+    else
+      :ok
     end
   end
 
