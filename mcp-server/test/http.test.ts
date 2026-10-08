@@ -12,6 +12,7 @@ import {
   requireMcpToken,
   allowedHostsFor,
   allowedOriginsFor,
+  mcpHost,
   createFailureThrottle,
   createHttpApp,
   mcpAuthMiddleware,
@@ -252,6 +253,49 @@ describe("MCP HTTP security helpers", () => {
       "127.0.0.1:14001"
     ]);
   });
+
+  // #1137: the host the index hands the listener; the spawned companion's
+  // test in transport.test.ts pins the same through PORTFOLIXIR_MCP_HOST.
+  it("reads an unset, empty or blank host as the loopback default", () => {
+    assert.equal(mcpHost(undefined), "127.0.0.1");
+    assert.equal(mcpHost(""), "127.0.0.1");
+    assert.equal(mcpHost(" \t "), "127.0.0.1");
+    assert.equal(mcpHost(" 0.0.0.0 "), "0.0.0.0");
+    assert.equal(mcpHost("::1"), "::1");
+  });
+
+  // User story (#1137):
+  // As an operator who binds the companion to an IPv6 address,
+  // I want it to answer the Host header a client sends for the URL it prints,
+  // so that a client following that URL is not refused by the companion's own
+  // Host guard.
+  //
+  // Acceptance criteria:
+  // - For a bind to an IPv6 address, the allowed hosts hold the address in
+  //   brackets with the port, as a URL's Host writes it, and never the bare
+  //   form with the port glued on (`::1:4001`); its origin is listed the same
+  //   way.
+  // - For every bind, the Host of the URL the companion prints is allowed.
+  // - A bare IPv6 address in PORTFOLIXIR_MCP_ALLOWED_HOSTS is listed in
+  //   brackets too.
+  it("answers an IPv6 bind under its own URL's Host", () => {
+    assert.deepEqual(allowedHostsFor("::1", 4001), ["127.0.0.1:4001", "localhost:4001", "[::1]:4001"]);
+    assert.deepEqual(allowedHostsFor("fd00::7", 4001), [
+      "127.0.0.1:4001",
+      "localhost:4001",
+      "[::1]:4001",
+      "[fd00::7]:4001"
+    ]);
+    assert.ok(allowedOriginsFor("fd00::7", 4001).includes("http://[fd00::7]:4001"));
+
+    for (const host of ["127.0.0.1", "localhost", "192.0.2.10", "::1", "[::1]", "fd00::7", "[fd00::7]"]) {
+      const printed = new URL(mcpUrl(host, 4001));
+      assert.ok(allowedHostsFor(host, 4001).includes(printed.host), `${host}: ${printed.host}`);
+      assert.ok(allowedOriginsFor(host, 4001).includes(printed.origin), `${host}: ${printed.origin}`);
+    }
+
+    assert.deepEqual(allowedHostsFor("127.0.0.1", 4001, "fd00::9").slice(3), ["[fd00::9]:4001", "[fd00::9]"]);
+  });
 });
 
 // The companion's HTTP app on a loopback port the OS picks, answering under
@@ -259,7 +303,8 @@ describe("MCP HTTP security helpers", () => {
 // client is never called.
 async function withApp(
   run: (base: string, port: number) => Promise<void>,
-  profile: McpProfile = "full"
+  profile: McpProfile = "full",
+  boundHost = "127.0.0.1"
 ): Promise<void> {
   const server = createServer();
   server.listen(0, "127.0.0.1");
@@ -273,8 +318,8 @@ async function withApp(
       }
     },
     token: soundToken,
-    allowedHosts: allowedHostsFor("127.0.0.1", port),
-    allowedOrigins: allowedOriginsFor("127.0.0.1", port),
+    allowedHosts: allowedHostsFor(boundHost, port),
+    allowedOrigins: allowedOriginsFor(boundHost, port),
     profile
   });
   server.on("request", app);
@@ -505,6 +550,42 @@ describe("MCP HTTP transport", () => {
       assert.equal(ipv6.status, 200, ipv6.body);
       assert.match(ipv6.body, /"serverInfo":\{"name":"portfolixir"/);
     });
+  });
+
+  // User story (#1137):
+  // As an operator who binds the companion to an IPv6 address,
+  // I want a request under the Host of the URL the companion prints to reach
+  // the MCP server,
+  // so that neither the companion's Host guard nor the SDK's refuses it.
+  //
+  // Acceptance criteria:
+  // - With the lists of an IPv6 bind, a request under `[address]:port` with
+  //   the matching origin and the token reaches the MCP server; the bare form
+  //   `address:port` is refused 403. (The app listens on IPv4 loopback here;
+  //   the lists are what is under test.)
+  it("lets a request under an IPv6 bind's own Host through both Host checks", async () => {
+    await withApp(
+      async (_base, port) => {
+        const headers = {
+          authorization: `Bearer ${soundToken}`,
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream"
+        };
+
+        const own = await rawRequest(
+          port,
+          { ...headers, host: `[fd00::7]:${port}`, origin: `http://[fd00::7]:${port}` },
+          initialize
+        );
+        assert.equal(own.status, 200, own.body);
+        assert.match(own.body, /"serverInfo":\{"name":"portfolixir"/);
+
+        const bare = await rawRequest(port, { ...headers, host: `fd00::7:${port}` }, initialize);
+        assert.equal(bare.status, 403, bare.body);
+      },
+      "full",
+      "fd00::7"
+    );
   });
 
   // E25 S7, G26 and A1 (#992): the profile reaches the HTTP transport, whose

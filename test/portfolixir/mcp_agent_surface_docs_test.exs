@@ -100,6 +100,36 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
     ])
   end
 
+  # User story (#1137):
+  # As an operator setting the companion's HTTP host,
+  # I want the reference and the agent guide to say what an empty host binds
+  # and under which Host an IPv6 bind answers,
+  # so that a blank `.env` line is known to stay on loopback and an IPv6
+  # client's URL is written as the companion answers it.
+  #
+  # Acceptance criteria:
+  # - The EN and DE MCP pages and agent guides say an empty
+  #   PORTFOLIXIR_MCP_HOST binds 127.0.0.1, never every interface, and that
+  #   an IPv6 address is answered in brackets.
+  test "the MCP pages state the companion's empty and IPv6 host" do
+    assert_fragments([
+      {"docs/integration/api-and-mcp.md",
+       [
+         "An empty or blank `PORTFOLIXIR_MCP_HOST` binds `127.0.0.1`, as an unset one does, never every interface",
+         "an IPv6 address it binds is answered in brackets (`[::1]:4001`)"
+       ]},
+      {"docs/de/integration/api-and-mcp.md",
+       [
+         "Ein leeres `PORTFOLIXIR_MCP_HOST` bindet `127.0.0.1` wie ein nicht gesetztes, nie jede Schnittstelle",
+         "eine IPv6-Adresse, an die er bindet, gilt in Klammern (`[::1]:4001`)"
+       ]},
+      {"docs/integration/connect-an-agent.md",
+       ["unset, empty or blank is `127.0.0.1`, never every interface"]},
+      {"docs/de/integration/connect-an-agent.md",
+       ["nicht gesetzt, leer oder nur Leerzeichen ist `127.0.0.1`, nie jede Schnittstelle"]}
+    ])
+  end
+
   # User story (E25 S7, F23, the companion's half):
   # As an operator whose API sits behind a redirect,
   # I want the reference to say that the companion follows none and how the

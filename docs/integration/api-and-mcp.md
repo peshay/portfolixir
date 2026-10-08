@@ -48,7 +48,11 @@ refuses to start with a token shorter than 32 bytes or equal to a placeholder,
 naming the variable. A `PORTFOLIXIR_MCP_PORT` that is not a whole number from
 1 to 65535, or a port the listener cannot take (another process holds it),
 stops the companion with exit status 1 and one line naming the variable and
-its value, or the address and the cause, such as `EADDRINUSE`. Repeated wrong
+its value, or the address and the cause, such as `EADDRINUSE`. An empty or
+blank `PORTFOLIXIR_MCP_HOST` binds `127.0.0.1`, as an unset one does, never
+every interface (#1137), and an IPv6 address it binds is answered in brackets
+(`[::1]:4001`), the `Host` a client sends for the URL the companion prints.
+Repeated wrong
 tokens from one connecting address are
 answered `429` with `Retry-After` for a growing interval. Behind the published
 port every client connects from the Docker bridge, so a guesser there delays
