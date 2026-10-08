@@ -10,6 +10,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
   # Every name and amount is synthetic.
   use PortfolixirWeb.ConnCase
 
+  import Ecto.Query, only: [from: 2]
   import Phoenix.LiveViewTest
 
   alias Portfolixir.Actor
@@ -20,7 +21,10 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Journal
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.CashAccount
+  alias Portfolixir.Repo
 
   # A Portfolio Performance CSV as PP writes it, the shape of board 09: a
   # purchase, a dividend and a sale on Girokonto, interest on Tagesgeld,
@@ -537,6 +541,150 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       view |> element("form#pp-import-apply") |> render_submit()
       render_async(view, 1_000)
       refute has_element?(view, "[data-role='correction-not-applied']")
+    end
+  end
+
+  describe "the section's row names and the subject's caption (board 03 ③)" do
+    # Two accounts in two currencies, each with a dividend whose negative tax
+    # unit was counted twice under the old reading.
+    @two_currencies_json """
+    {
+      "version": 1,
+      "transactions": [
+        {"type": "DEPOSIT", "account": "EUR-Cash", "date": "2026-01-02",
+         "currency": "EUR", "amount": 1000.0},
+        {"type": "DIVIDEND", "account": "EUR-Cash", "date": "2026-03-16",
+         "currency": "EUR", "amount": 50.0,
+         "security": {"name": "Nordwind Industrie AG", "currency": "EUR"},
+         "units": [{"type": "TAX", "amount": -5.0}]},
+        {"type": "DEPOSIT", "account": "USD-Cash", "date": "2026-01-02",
+         "currency": "USD", "amount": 1000.0},
+        {"type": "DIVIDEND", "account": "USD-Cash", "date": "2026-03-17",
+         "currency": "USD", "amount": 40.0,
+         "security": {"name": "Harborline Freight Inc", "currency": "USD"},
+         "units": [{"type": "TAX", "amount": -4.0}]}
+      ]
+    }
+    """
+
+    # User story (found by the α closing act, edge-case hunter EC-F7):
+    # As the operator who changed a split-off tax refund by hand and drops
+    # the file again,
+    # I want the correction to name that refund by its row and kind, as the
+    # rest of the page does,
+    # so that I can find it in the file.
+    #
+    # Acceptance criteria:
+    # - The converter sale's refund (row 4), edited from 25.00 to 26.00, is
+    #   listed as "4 (Tax refund)" in the table, "Row 4 (Tax refund)" in its
+    #   phone row and in the dialog's subject; never "4.tax_refund.1".
+    test "a split-off refund is named by its row and kind", %{conn: conn} do
+      portfolio = portfolio!()
+      apply_as_read_today!(portfolio, @converter_csv, "converter.csv")
+
+      refund =
+        portfolio.id
+        |> Ledger.list_transactions_for_portfolio()
+        |> Enum.find(&(&1.type == "tax_refund"))
+
+      {:ok, _edited} =
+        Ledger.update_transaction(Actor.owner_ui(), refund, %{gross_amount: "26.00"})
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "converter.csv", @converter_csv, "text/csv")
+
+      assert text(view, "#import-correction-table tbody tr:nth-child(1)") ==
+               "4 (Tax refund) 2024-06-14 Tax refund · Arbolia Inc. · Test-Cash +26.00 +25.00 -1.00"
+
+      assert text(view, "#import-correction-phone-rows li:nth-child(1)") ==
+               "Arbolia Inc. Row 4 (Tax refund) · 2024-06-14 · Tax refund · Test-Cash -1.00 +26.00 → +25.00"
+
+      view |> element("#import-correction-open") |> render_click()
+
+      assert text(view, "#import-correction-subject") ==
+               "1 booking Row 4 (Tax refund) · Test-Cash -1.00 EUR Difference"
+
+      refute render(view) =~ "tax_refund.1"
+    end
+
+    # User story (ADR-0053 §6; EC-F7's row name in the refusal):
+    # As the operator whose correction the ledger refuses,
+    # I want the result to name the row as the page names it, the reason,
+    # and that nothing was corrected,
+    # so that one refused booking never leaves the others half-corrected.
+    #
+    # Acceptance criteria:
+    # - The refund edited by hand sits on an account whose currency is no
+    #   longer the booking's (a stored state the ledger's update refuses
+    #   without a settlement rate): the confirm answers "Row 4 (Tax refund):
+    #   the correction was refused: … Nothing was corrected.", the refund
+    #   keeps its cash, and the journal holds no correction.
+    test "a refused write names its row and corrects nothing", %{conn: conn} do
+      portfolio = portfolio!()
+      apply_as_read_today!(portfolio, @converter_csv, "converter.csv")
+
+      refund =
+        portfolio.id
+        |> Ledger.list_transactions_for_portfolio()
+        |> Enum.find(&(&1.type == "tax_refund"))
+
+      {:ok, _edited} =
+        Ledger.update_transaction(Actor.owner_ui(), refund, %{gross_amount: "26.00"})
+
+      # A stored state no public write reaches, set under a system actor
+      # the journal trigger admits.
+      {:ok, {1, nil}} =
+        Repo.transaction(fn ->
+          Repo.query!("SELECT set_config('portfolixir.journal_actor', 'system_job:test', true)")
+
+          Repo.update_all(
+            from(c in CashAccount, where: c.name == "Test-Cash"),
+            set: [currency_code: "USD"]
+          )
+        end)
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "converter.csv", @converter_csv, "text/csv")
+      view |> element("#import-correction-open") |> render_click()
+      view |> element("#import-correction-confirm") |> render_click()
+      render_async(view, 1_000)
+
+      assert text(view, "#import-correction-result") =~
+               "Row 4 (Tax refund): the correction was refused: Exchange rate is required for a cross-currency settlement. Nothing was corrected."
+
+      assert Decimal.equal?(Repo.get!(Transaction, refund.id).gross_amount, Decimal.new("26"))
+
+      assert Journal.list_entries(resource_type: "transaction", operation: :update) |> length() ==
+               1
+    end
+
+    # User story (found by the α closing act, edge-case hunter EC-F8;
+    # board 03 ③):
+    # As the operator correcting bookings on accounts of two currencies,
+    # I want the dialog's subject box to caption no figure it does not show,
+    # so that "Difference" never stands alone.
+    #
+    # Acceptance criteria:
+    # - Two dividends, one on a EUR and one on a USD account, have no common
+    #   total: the subject box shows no figure and no caption; the section's
+    #   total line reads "Per account: …".
+    test "the subject box shows no caption without a common total", %{conn: conn} do
+      portfolio = portfolio!()
+      apply_old_reading!(portfolio, @two_currencies_json, "two.json")
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "two.json", @two_currencies_json, "application/json")
+
+      assert text(view, "#import-correction .import-correction__total") ==
+               "Per account: EUR-Cash -5.00 EUR, USD-Cash -4.00 USD."
+
+      view |> element("#import-correction-open") |> render_click()
+
+      assert text(view, "#import-correction-subject") ==
+               "2 bookings Rows 2, 4 · EUR-Cash, USD-Cash"
+
+      refute has_element?(view, "#import-correction-subject .phone-row__figure")
+      refute has_element?(view, "#import-correction-subject .phone-row__figure2")
     end
   end
 

@@ -162,7 +162,8 @@ defmodule PortfolixirWeb.ImportsLive do
           ),
         decision_resolutions:
           Enum.filter(resolutions, &(&1.status in [:needs_decision, :config_at_risk])),
-        correction_lines: Enum.map(assigns.corrections, &correction_line/1),
+        correction_lines:
+          Enum.map(assigns.corrections, &correction_line(&1, file_rows(assigns.preview))),
         correction_totals: correction_totals(assigns.corrections),
         nothing_to_import: nothing_to_import?(assigns.account_states.counts.total),
         # Found while drawing 3 (board 01): a file that books nothing
@@ -381,6 +382,7 @@ defmodule PortfolixirWeb.ImportsLive do
         :if={@correcting and @corrections != []}
         corrections={@corrections}
         totals={@correction_totals}
+        file_rows={file_rows(@preview)}
       />
 
       <form id="pp-import-apply" phx-change="mapping_changed" phx-submit="apply">
@@ -1154,7 +1156,7 @@ defmodule PortfolixirWeb.ImportsLive do
        :correction_result,
        {:problem,
         gettext("Row %{row}: the correction was refused: %{reason}. Nothing was corrected.",
-          row: row,
+          row: row_label(file_rows(socket.assigns.preview), row),
           reason: correction_refusal(reason)
         )}
      )
@@ -1874,10 +1876,13 @@ defmodule PortfolixirWeb.ImportsLive do
   # One listed booking as the section shows it: the row, the date, the kind,
   # the booking's names, its signed cash as booked and per the file, and
   # what changes with it (a trade's settlement legs, a JSON trade's price).
-  defp correction_line(%Correction.Item{transaction: tx, changes: changes} = item) do
+  # A split-off refund (listed when its cash was changed by hand) is named
+  # by its row and kind, as the rest of the page names it (the α closing
+  # act, EC-F7).
+  defp correction_line(%Correction.Item{transaction: tx, changes: changes} = item, file_rows) do
     %{
       id: tx.id,
-      row: item.row,
+      row: row_label(file_rows, item.row),
       date: Format.date(tx.date),
       kind: kind_label(tx.type),
       security: tx.security && tx.security.name,
@@ -2004,8 +2009,8 @@ defmodule PortfolixirWeb.ImportsLive do
 
   # The dialog's subject box: the bookings, their rows and accounts, the
   # total they move.
-  defp correction_subject(items, totals) do
-    rows = Enum.map_join(items, ", ", &to_string(&1.row))
+  defp correction_subject(items, totals, file_rows) do
+    rows = Enum.map_join(items, ", ", &to_string(row_label(file_rows, &1.row)))
 
     %{
       name: ngettext("%{count} booking", "%{count} bookings", length(items)),
@@ -2185,11 +2190,12 @@ defmodule PortfolixirWeb.ImportsLive do
   # stays in the journal and in the file.
   attr(:corrections, :list, required: true)
   attr(:totals, :list, required: true)
+  attr(:file_rows, :map, required: true)
 
   defp correction_dialog(assigns) do
     assigns =
       assign(assigns,
-        subject: correction_subject(assigns.corrections, assigns.totals),
+        subject: correction_subject(assigns.corrections, assigns.totals, assigns.file_rows),
         consequence: correction_consequence(assigns.corrections, assigns.totals)
       )
 
@@ -2222,13 +2228,15 @@ defmodule PortfolixirWeb.ImportsLive do
             <span class="phone-row__ids"><span><%= @subject.rows %> · <%= @subject.accounts %></span></span>
           </span>
           <span class="phone-row__figures">
+            <%!-- Board 03 ②: the table's own column word; ③ only beside
+                 its figure (accounts of different currencies have no
+                 common total). --%>
             <%= if @subject.total do %>
               <span class={["phone-row__figure", sign_class(elem(@subject.total, 0))]}>
                 <%= signed_amount(elem(@subject.total, 0), elem(@subject.total, 1)) %>
               </span>
+              <span class="phone-row__figure2"><%= gettext("Difference") %></span>
             <% end %>
-            <%!-- Board 03 ②: the table's own column word. --%>
-            <span class="phone-row__figure2"><%= gettext("Difference") %></span>
           </span>
         </p>
         <p class="hint" data-role="import-correction-consequence">
