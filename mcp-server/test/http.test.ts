@@ -701,6 +701,55 @@ describe("MCP HTTP transport", () => {
     }
   });
 
+  // User story (#1137):
+  // As an operator who writes PORTFOLIXIR_MCP_HOST=[::1], as a URL writes it,
+  // I want the listener to bind the IPv6 loopback as it does for ::1,
+  // so that the bracketed form the URL and the allow-lists accept also starts.
+  //
+  // Acceptance criteria:
+  // - `::1` and `[::1]` reach the same bind and fail it with the same cause:
+  //   the port held on ::1 where the host has IPv6 (EADDRINUSE), the address
+  //   family where it has none. Neither is looked up as a name (ENOTFOUND).
+  // - The line naming either reads http://[::1]:<port>/mcp.
+  it("binds a bracketed IPv6 host as its bare address", async () => {
+    const holder = createServer();
+    let port = 4001;
+    let expected: string | undefined;
+
+    holder.once("error", (error: NodeJS.ErrnoException) => {
+      expected = error.code;
+    });
+    holder.listen(0, "::1");
+    await Promise.race([once(holder, "listening"), once(holder, "error")]).catch(() => undefined);
+
+    if (holder.listening) {
+      port = (holder.address() as AddressInfo).port;
+      expected = "EADDRINUSE";
+    }
+
+    try {
+      assert.ok(expected !== undefined && expected !== "ENOTFOUND", `a bind on ::1 failed with ${expected}`);
+
+      for (const host of ["::1", "[::1]"]) {
+        await assert.rejects(
+          startHttpServer({ client: { request: async () => null }, token: soundToken, host, port }),
+          (error: Error) => {
+            const prefix = `Portfolixir MCP server could not listen on http://[::1]:${port}/mcp: `;
+
+            assert.ok(error.message.startsWith(prefix), `${host}: ${error.message}`);
+            assert.equal(/^E[A-Z]+/.exec(error.message.slice(prefix.length))?.[0], expected, `${host}: ${error.message}`);
+            return true;
+          }
+        );
+      }
+    } finally {
+      if (holder.listening) {
+        holder.close();
+        await once(holder, "close");
+      }
+    }
+  });
+
   // #1043 review round: PORTFOLIXIR_MCP_HOST=[::1] is an IPv6 host already
   // in brackets; the line naming it reads http://[::1]:…, never
   // http://[[::1]]:…. Read without a listen, so no name is resolved.
