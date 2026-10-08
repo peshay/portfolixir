@@ -57,7 +57,7 @@ date: '2026-06-12'
 > | **decided, not enforced** | an ADR decided it, nothing checks it | follow the ADR; this document is not the source |
 > | **proposed** | no ADR, no gate, never built | **not citable in review**; treat as an idea, never as a description of the repository |
 >
-> **Precedence, in order:** `AGENTS.md` and `CLAUDE.md` bind unconditionally →
+> **Precedence, in order:** `AGENTS.md` binds unconditionally →
 > the ADR corpus wins on everything it covers → `epics.md` is the live
 > requirement registry (the founding PRD wins on intent and wording) → this
 > document is authoritative **only** for seams no ADR has since covered.
@@ -1856,7 +1856,7 @@ being a claim by the caller.
 
 **Precedence, so an implementing agent is not misled by the sections above:**
 
-1. `AGENTS.md` and `CLAUDE.md` bind unconditionally.
+1. `AGENTS.md` binds unconditionally (there is no `CLAUDE.md` since 2026-10-08).
 2. The ADR corpus (0001–0038) is the authority on every decision it covers; where an ADR and this
    document disagree, **the ADR wins** — D1 → ADR-0017, D3 → ADR-0016, D10 → ADR-0034, caching →
    ADR-0032/0035, grouping → ADR-0018/0024, kinds → ADR-0028.

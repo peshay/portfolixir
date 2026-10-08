@@ -322,10 +322,14 @@ aspirational.
 
 ## Tool notes
 
-- **Claude Code** reads `AGENTS.md` through `CLAUDE.md`, which holds only
-  `@AGENTS.md`. Its PR tools: `subscribe_pr_activity` and
-  `unsubscribe_pr_activity` for the watch; `update_pull_request` with
-  `draft: false` to promote.
+- **Claude Code** reads `AGENTS.md` directly from v2.1.277 on, and only
+  while no `CLAUDE.md`, `.claude/CLAUDE.md` or `CLAUDE.local.md` exists in
+  the working directory or above it; a personal `~/.claude/CLAUDE.md` does
+  not count. An interactive session confirms it with "no CLAUDE.md found;
+  AGENTS.md loaded", and `/context` lists the file. An older version reads
+  nothing from the repository: update it. Its PR tools:
+  `subscribe_pr_activity` and `unsubscribe_pr_activity` for the watch;
+  `update_pull_request` with `draft: false` to promote.
 - **Codex** reads `AGENTS.md` directly and stops at 32 KiB. *Why this
   matters:* `AGENTS.md` once grew past that, and Codex never saw its
   security and authorship sections; keep it short.
