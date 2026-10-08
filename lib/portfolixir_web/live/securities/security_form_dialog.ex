@@ -20,6 +20,24 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
   }
   @bond_decimals ~w(coupon_rate face_value)
 
+  # #942 (the F15 allow-list, T-5): the fields the form renders outside the
+  # bond section, read by `to_overrides/1`. A fixed map: a key the form does
+  # not render — the provider marker, the online id, the security flags, the
+  # latest feed — never reaches the write, and no key is turned into an atom.
+  @form_fields %{
+    "name" => :name,
+    "ticker_symbol" => :ticker_symbol,
+    "isin" => :isin,
+    "wkn" => :wkn,
+    "currency_code" => :currency_code,
+    "exchange_code" => :exchange_code,
+    "asset_class" => :asset_class,
+    "feed" => :feed,
+    "feed_url" => :feed_url,
+    "treat_quotes_as_raw" => :treat_quotes_as_raw,
+    "note" => :note
+  }
+
   alias Phoenix.LiveView.JS
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
@@ -1064,13 +1082,14 @@ defmodule PortfolixirWeb.Securities.SecurityFormDialog do
 
   defp blank_to_nil(value), do: value
 
+  # Only the form's own fields (#942); any other key is dropped, where an
+  # unknown one used to throw the whole form away.
   defp to_overrides(params) when is_map(params) do
-    params
-    |> Enum.reject(fn {_k, v} -> is_nil(v) or v == "" end)
-    |> Enum.map(fn {k, v} -> {String.to_existing_atom(k), v} end)
-    |> Map.new()
-  rescue
-    ArgumentError -> %{}
+    for {key, value} <- params,
+        Map.has_key?(@form_fields, key),
+        value not in [nil, ""],
+        into: %{},
+        do: {Map.fetch!(@form_fields, key), value}
   end
 
   # Editing a security, or "Update existing" on the match the search found:

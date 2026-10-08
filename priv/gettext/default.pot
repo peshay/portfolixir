@@ -43,7 +43,7 @@ msgstr ""
 #: lib/portfolixir_web/live/securities/merge_preview.ex:117
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:128
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:227
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:138
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:156
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:61
 #: lib/portfolixir_web/live/securities_live.ex:579
 #: lib/portfolixir_web/live/transaction_management_live.ex:237
@@ -72,7 +72,7 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:159
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:113
 #: lib/portfolixir_web/live/portfolio_live.ex:2688
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:413
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:431
 #: lib/portfolixir_web/live/securities_live.ex:4216
 #: lib/portfolixir_web/live/transaction_management_live.ex:1561
 #, elixir-autogen
@@ -146,7 +146,7 @@ msgstr ""
 
 #: lib/portfolixir/catalog/security_fields.ex:71
 #: lib/portfolixir_web/field_label.ex:56
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:421
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:439
 #, elixir-autogen
 msgid "Exchange"
 msgstr ""
@@ -169,7 +169,7 @@ msgstr ""
 #: lib/portfolixir_web/field_label.ex:53
 #: lib/portfolixir_web/live/portfolio_live.ex:2686
 #: lib/portfolixir_web/live/securities/merge_preview.ex:899
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:401
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:419
 #: lib/portfolixir_web/security_names.ex:175
 #, elixir-autogen
 msgid "ISIN"
@@ -234,7 +234,7 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:327
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:220
 #: lib/portfolixir_web/live/securities/merge_preview.ex:904
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:388
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:406
 #: lib/portfolixir_web/live/snapshots_live.ex:572
 #: lib/portfolixir_web/live/snapshots_live.ex:619
 #, elixir-autogen
@@ -414,7 +414,7 @@ msgstr ""
 #: lib/portfolixir_web/field_label.ex:57
 #: lib/portfolixir_web/live/risk_live.ex:341
 #: lib/portfolixir_web/live/securities/merge_preview.ex:905
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:427
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:445
 #: lib/portfolixir_web/live/securities_live.ex:4231
 #, elixir-autogen, elixir-format
 msgid "Asset class"
@@ -459,7 +459,7 @@ msgstr ""
 msgid "Add filter"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:692
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:710
 #: lib/portfolixir_web/live/securities_live.ex:484
 #: lib/portfolixir_web/live/securities_live.ex:485
 #, elixir-autogen, elixir-format
@@ -475,8 +475,8 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:201
 #: lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex:93
 #: lib/portfolixir_web/live/securities/merge_preview.ex:97
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:302
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:502
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:320
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:520
 #, elixir-autogen, elixir-format
 msgid "Back"
 msgstr ""
@@ -486,7 +486,7 @@ msgstr ""
 msgid "Choose columns"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:695
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:713
 #, elixir-autogen, elixir-format
 msgid "Choose market"
 msgstr ""
@@ -504,7 +504,7 @@ msgstr ""
 msgid "Columns"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:698
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:716
 #, elixir-autogen, elixir-format
 msgid "Confirm details"
 msgstr ""
@@ -519,7 +519,7 @@ msgstr ""
 msgid "Created %{name}"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:381
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:399
 #, elixir-autogen, elixir-format
 msgid "Default currency EUR — please confirm or edit."
 msgstr ""
@@ -533,32 +533,32 @@ msgstr ""
 msgid "Filter"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:323
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:341
 #, elixir-autogen, elixir-format
 msgid "Market"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:711
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:729
 #, elixir-autogen, elixir-format
 msgid "Matching existing entry: %{summary}"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:364
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:382
 #, elixir-autogen, elixir-format
 msgid "Merge online fields"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:185
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:203
 #, elixir-autogen, elixir-format
 msgid "New cryptocurrency"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:172
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:190
 #, elixir-autogen, elixir-format
 msgid "New security"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:253
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:271
 #, elixir-autogen, elixir-format
 msgid "No matches"
 msgstr ""
@@ -571,7 +571,7 @@ msgstr ""
 
 #: lib/portfolixir/catalog/security_fields.ex:129
 #: lib/portfolixir_web/field_label.ex:40
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:478
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:496
 #: lib/portfolixir_web/live/securities_live.ex:1752
 #: lib/portfolixir_web/live/securities_live.ex:1775
 #: lib/portfolixir_web/live/securities_live.ex:1778
@@ -602,14 +602,14 @@ msgstr ""
 
 #: lib/portfolixir/catalog/security_fields.ex:146
 #: lib/portfolixir_web/field_label.ex:58
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:434
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:452
 #, elixir-autogen, elixir-format
 msgid "Quote feed"
 msgstr ""
 
 #: lib/portfolixir/catalog/security_fields.ex:151
 #: lib/portfolixir_web/field_label.ex:59
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:441
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:459
 #, elixir-autogen, elixir-format
 msgid "Quote feed URL"
 msgstr ""
@@ -623,13 +623,13 @@ msgstr ""
 #: lib/portfolixir_web/live/buckets_live.ex:150
 #: lib/portfolixir_web/live/buckets_live.ex:264
 #: lib/portfolixir_web/live/classifications_live.ex:1121
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:505
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:523
 #: lib/portfolixir_web/live/securities_live.ex:1795
 #, elixir-autogen, elixir-format
 msgid "Save"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:219
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:237
 #, elixir-autogen, elixir-format
 msgid "Search by name, ISIN or ticker…"
 msgstr ""
@@ -639,12 +639,12 @@ msgstr ""
 msgid "Search by name, ISIN, WKN or ticker…"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:187
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:205
 #, elixir-autogen, elixir-format
 msgid "Search coins via CoinGecko."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:693
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:711
 #, elixir-autogen, elixir-format
 msgid "Search cryptocurrency"
 msgstr ""
@@ -654,17 +654,17 @@ msgstr ""
 msgid "Search securities"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:694
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:712
 #, elixir-autogen, elixir-format
 msgid "Search security"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:174
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:192
 #, elixir-autogen, elixir-format
 msgid "Search stocks, ETFs, funds and bonds via Portfolio Performance."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:231
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:249
 #, elixir-autogen, elixir-format
 msgid "Searching…"
 msgstr ""
@@ -674,17 +674,17 @@ msgstr ""
 msgid "Securities toolbar"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:373
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:391
 #, elixir-autogen, elixir-format
 msgid "Show existing"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:164
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:182
 #, elixir-autogen, elixir-format
 msgid "Source type"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:355
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:373
 #, elixir-autogen, elixir-format
 msgid "This security already exists"
 msgstr ""
@@ -692,7 +692,7 @@ msgstr ""
 #: lib/portfolixir/catalog/security_fields.ex:58
 #: lib/portfolixir_web/field_label.ex:55
 #: lib/portfolixir_web/live/securities/merge_preview.ex:901
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:395
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:413
 #, elixir-autogen, elixir-format
 msgid "Ticker"
 msgstr ""
@@ -717,7 +717,7 @@ msgstr ""
 #: lib/portfolixir_web/live/imports_live.ex:2430
 #: lib/portfolixir_web/live/portfolio_live.ex:2687
 #: lib/portfolixir_web/live/securities/merge_preview.ex:900
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:407
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:425
 #: lib/portfolixir_web/security_names.ex:176
 #, elixir-autogen, elixir-format
 msgid "WKN"
@@ -763,7 +763,7 @@ msgstr ""
 msgid "starts with"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:673
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:691
 #, elixir-autogen, elixir-format
 msgid "—"
 msgstr ""
@@ -1020,7 +1020,7 @@ msgstr ""
 #: lib/portfolixir_web/live/securities/merge_dialog.ex:254
 #: lib/portfolixir_web/live/securities/quote_release_dialog.ex:237
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:269
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:490
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:508
 #: lib/portfolixir_web/live/securities/split_wizard_dialog.ex:141
 #: lib/portfolixir_web/live/securities_live.ex:1239
 #: lib/portfolixir_web/live/securities_live.ex:1793
@@ -1086,7 +1086,7 @@ msgstr ""
 msgid "Edit"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:696
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:714
 #, elixir-autogen, elixir-format
 msgid "Edit security"
 msgstr ""
@@ -1137,7 +1137,7 @@ msgstr ""
 msgid "Row actions"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:493
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:511
 #: lib/portfolixir_web/live/transaction_management_live.ex:2460
 #, elixir-autogen, elixir-format
 msgid "Save changes"
@@ -1158,7 +1158,7 @@ msgstr ""
 msgid "Ticker copied"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:505
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:523
 #, elixir-autogen, elixir-format
 msgid "Update existing"
 msgstr ""
@@ -3899,7 +3899,7 @@ msgid "Stored"
 msgstr ""
 
 #: lib/portfolixir_web/field_label.ex:64
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:465
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:483
 #, elixir-autogen, elixir-format
 msgid "Treat synced quotes as raw"
 msgstr ""
@@ -4358,7 +4358,7 @@ msgstr ""
 msgid "These securities carry strategy configuration (category assignments or position targets) but match no entry in this file — likely a rename or ISIN change in Portfolio Performance. Remedy: record the ISIN change on the security (or, without an ISIN, rename it in-app to match, or remap it below), then re-run the import."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:470
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:488
 #, elixir-autogen, elixir-format
 msgid "For providers that never back-adjust pre-split quotes — the display applies the split factors instead."
 msgstr ""
@@ -4511,7 +4511,7 @@ msgstr ""
 msgid "This allowance order no longer exists: it was deleted while the new one was recorded, so nothing was saved. Record it again."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:1096
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:1115
 #, elixir-autogen, elixir-format
 msgid "This security no longer exists: it was deleted after the dialog opened, so nothing was saved."
 msgstr ""
@@ -5041,32 +5041,32 @@ msgstr ""
 msgid "The comparison is gross and price development only — dividends are not yet included."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:697
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:715
 #, elixir-autogen, elixir-format
 msgid "Enter security details"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:202
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:220
 #, elixir-autogen, elixir-format
 msgid "Enter the details yourself — for instruments no search knows."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:200
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:218
 #, elixir-autogen, elixir-format
 msgid "Manual entry"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:291
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:309
 #, elixir-autogen, elixir-format
 msgid "More markets"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:266
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:284
 #, elixir-autogen, elixir-format
 msgid "Not listed? Enter manually"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:284
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:302
 #, elixir-autogen, elixir-format
 msgid "Recommended"
 msgstr ""
@@ -6040,7 +6040,7 @@ msgstr ""
 msgid "About classification per tree"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:468
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:486
 #, elixir-autogen, elixir-format
 msgid "About raw quotes"
 msgstr ""
@@ -6060,7 +6060,7 @@ msgstr ""
 msgid "Income needs a depot with a cash account."
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:281
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:299
 #, elixir-autogen, elixir-format
 msgid "Market for %{name}"
 msgstr ""
@@ -11044,7 +11044,7 @@ msgstr ""
 msgid ", last own trade price"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:532
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:550
 #, elixir-autogen, elixir-format
 msgid "Bond data"
 msgstr ""
@@ -11060,7 +11060,7 @@ msgid "Coupon and price in percent of face: one unit held is a hundredth of the 
 msgstr ""
 
 #: lib/portfolixir_web/field_label.ex:68
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:536
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:554
 #, elixir-autogen, elixir-format
 msgid "Coupon p. a. (%)"
 msgstr ""
@@ -11081,7 +11081,7 @@ msgid "Denomination"
 msgstr ""
 
 #: lib/portfolixir_web/field_label.ex:72
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:561
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:579
 #, elixir-autogen, elixir-format
 msgid "Denomination (face value)"
 msgstr ""
@@ -11092,23 +11092,23 @@ msgid "Enter bond data…"
 msgstr ""
 
 #: lib/portfolixir_web/field_label.ex:73
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:567
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:585
 #, elixir-autogen, elixir-format
 msgid "Face value currency"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:574
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:592
 #, elixir-autogen, elixir-format
 msgid "In the holding, one unit is a hundredth of the nominal: 100 units are a nominal of 10,000. That is how a Portfolio Performance export books a percent-quoted bond, and why its price reads as percent of face."
 msgstr ""
 
 #: lib/portfolixir_web/field_label.ex:69
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:542
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:560
 #, elixir-autogen, elixir-format
 msgid "Interest payment"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:555
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:573
 #, elixir-autogen, elixir-format
 msgid "Issue date (optional)"
 msgstr ""
@@ -11120,7 +11120,7 @@ msgstr ""
 
 #: lib/portfolixir_web/field_label.ex:70
 #: lib/portfolixir_web/live/securities/bond_strip.ex:86
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:549
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:567
 #, elixir-autogen, elixir-format
 msgid "Maturity"
 msgstr ""
@@ -11156,7 +11156,7 @@ msgid "Yield to maturity"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/bond_strip.ex:331
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:544
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:562
 #, elixir-autogen, elixir-format
 msgid "annual"
 msgstr ""
@@ -11205,7 +11205,7 @@ msgid "quotes around 100 (latest %{close} on %{date}),"
 msgstr ""
 
 #: lib/portfolixir_web/live/securities/bond_strip.ex:332
-#: lib/portfolixir_web/live/securities/security_form_dialog.ex:544
+#: lib/portfolixir_web/live/securities/security_form_dialog.ex:562
 #, elixir-autogen, elixir-format
 msgid "semi-annual"
 msgstr ""
