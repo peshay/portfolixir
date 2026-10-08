@@ -37,6 +37,22 @@ defmodule Portfolixir.Invariants.ScopeB3DependencyClassesTest do
   # The MCP companion's direct dependencies are held to an explicit allowlist
   # by mcp_dependency_allowlist_test.exs (ADR-0002); this file widens the
   # scope-line half of that idea to both trees and to transitive packages.
+  #
+  # Outside B3 (#926, the Sprint 20 plan's D-4): the Python manifests the
+  # repository carries for its agent and CI tooling — the PEP 723
+  # `dependencies` blocks of the vendored BMAD skills' scripts under
+  # `.claude/skills/` (and `.claude/skills/bmad-story-automator/pyproject.toml`,
+  # which declares a build backend and no runtime dependency), of the BMAD
+  # runtime's scripts under `_bmad/` and of the repository's own agent
+  # skills under `skills/`, and CI's hash-pinned
+  # `.github/pre-commit/requirements.txt`. They are deliberately not read:
+  # none reaches the release image (Dockerfile.release copies mix.exs,
+  # mix.lock, config, lib and priv), none locks a transitive tree, and the
+  # scope line binds the app ("no external LLM calls from the app"), while
+  # the agent tooling is LLM tooling by design, so B3's vocabulary would not
+  # apply to it unchanged. A Python dependency the tooling gains is reviewed
+  # where its re-pin is, in the maintenance lane's version report; a Python
+  # manifest anywhere else fails the last test below until it is named here.
 
   # Each class: the gate it backs (and any it also backs), whether it is a
   # permanent non-goal or a gated capability, and its vocabulary. `words` match a whole name token
@@ -265,6 +281,63 @@ defmodule Portfolixir.Invariants.ScopeB3DependencyClassesTest do
                "#{package} is gated: its entry must name an accepted ADR, got #{inspect(entry[:adr])}"
       end
     end
+  end
+
+  # User story (#926; the Sprint 20 plan's D-4):
+  # As the maintainer re-pinning the vendored agent tooling,
+  # I want this file to say which Python manifests B3 does not read, and
+  # why,
+  # so that a Python dependency the tooling gains is a recorded scope
+  # decision, not one nobody noticed.
+  #
+  # Acceptance criteria:
+  # - The header names the Python manifests as outside B3, with the reason:
+  #   none reaches the release image, none locks a transitive tree, and the
+  #   scope line binds the app, which the agent tooling is not. No scan is
+  #   added.
+  # - Every Python manifest the repository tracks — a pyproject.toml, a
+  #   requirements file, a script's PEP 723 block — sits under a path the
+  #   header names, so a manifest anywhere else is not outside B3 unsaid.
+  #   Only paths and the PEP 723 marker are read, never a dependency.
+  test "the header names the Python manifests outside B3, and every one sits there" do
+    header =
+      __ENV__.file
+      |> File.read!()
+      |> String.split("\n")
+      |> Enum.take_while(&(not String.starts_with?(&1, "  @classes")))
+      |> Enum.join("\n")
+      |> String.replace(~r/\n\s*#\s*/, " ")
+
+    assert header =~ "Outside B3 (#926"
+
+    outside = ~w(.claude/skills/ _bmad/ skills/ .github/pre-commit/requirements.txt)
+
+    for path <- outside, do: assert(header =~ "`#{path}`", path)
+
+    assert header =~ "none reaches the release image"
+    assert header =~ "binds the app"
+
+    {tracked, 0} = System.cmd("git", ["ls-files"])
+
+    manifests =
+      for path <- String.split(tracked, "\n", trim: true),
+          python_manifest?(path),
+          do: path
+
+    assert ".github/pre-commit/requirements.txt" in manifests
+    assert ".claude/skills/bmad-story-automator/pyproject.toml" in manifests
+
+    unnamed =
+      Enum.reject(manifests, fn path -> Enum.any?(outside, &String.starts_with?(path, &1)) end)
+
+    assert unnamed == [], "Python manifests the header does not name: #{inspect(unnamed)}"
+  end
+
+  defp python_manifest?(path) do
+    name = Path.basename(path)
+
+    name == "pyproject.toml" or name =~ ~r/^requirements.*\.txt$/ or
+      (String.ends_with?(name, ".py") and File.read!(path) =~ ~r/^# \/\/\/ script$/m)
   end
 
   # --- matcher -------------------------------------------------------------
