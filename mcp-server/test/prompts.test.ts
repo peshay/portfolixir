@@ -329,4 +329,24 @@ describe("the companion's prompts", () => {
       /a row whose currency, or whose security's currency, is any other code is refused/
     );
   });
+
+  // User story (ADR-0053 A7, the amendment of 2026-10-07; #1098):
+  // As the user's agent converting an export that records a tax refund,
+  // I want the import_converter prompt to say where a refund of tax goes,
+  // so that I write it as its own row and never as a negative Steuern beside
+  // a Betrag that already holds it.
+  //
+  // Acceptance criteria:
+  // - The text says that a refund of tax is its own Steuerrückerstattung row
+  //   and that Steuern is never negative in a converter file.
+  // - It still says to write every amount as a positive magnitude.
+  it("import_converter says a refund of tax is its own row", async () => {
+    const text = await promptText("import_converter");
+
+    assert.match(text, /Write every amount as a positive magnitude; the type gives the direction/);
+    assert.match(
+      text,
+      /A refund of tax is its own Steuerrückerstattung row, and Steuern is never negative in a converter file/
+    );
+  });
 });
