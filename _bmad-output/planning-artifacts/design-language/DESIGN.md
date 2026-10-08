@@ -1820,8 +1820,13 @@ for a condition *in* the total; this one is rows *out* of it.
   (`#dashboard-wealth-card-status`) that exists before the async read lands,
   as the data-quality line's does, so the note arriving with the card is
   announced once (UX-DR17). Empty, it takes no room in the section's gap
-  (`.wealth-card-status:empty { display: none }`, the merge dialogs'
-  precedent).
+  and stays in the accessibility tree: `.wealth-card-status:empty {
+  position: absolute }`, shared with the merge dialogs' and the booking
+  delete's regions, the page result slot's idiom (#1119). `display: none`,
+  which this sentence prescribed until Sprint 20, takes an empty region out
+  of the tree, so its note would enter the tree with it, unannounced; out
+  of the flow and empty, the region paints nothing and takes no row, so the
+  picture is the same.
 - **The Overview now carries two UX-DR25 notes**, each beside its own
   figure: this one under the total, and the trades card's under its head.
 
