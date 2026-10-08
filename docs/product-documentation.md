@@ -2194,6 +2194,22 @@ named. The same backfill is `scope=history` on the exchange-rate sync
 endpoint and MCP tool; the deposits-and-withdrawals and costs facets carry
 the same control in their exclusion notes.
 
+**A trade across currencies is in one currency** (issue #1108, the
+ADR-0015 amendment of 2026-10-07). A USD security bought and sold through a
+EUR account has its price in dollars and its fees and taxes in euros, the
+currency of the cash they were charged to. Before they enter the cost and
+the proceeds they are converted into dollars at the trade's own rate — the
+one its settlement records, the rate the broker applied to that trade —
+never at the day's hub rate, which would convert the same euros a second,
+different time. So the cost, the proceeds and the result of such a trade
+are all in dollars, and its result in euros is the cash the round trip
+moved whenever the broker's rate and the hub's agree: 10 shares bought at
+100 USD for 800.00 EUR plus 6.00 EUR in fees and taxes, and sold at 120 USD
+for 960.00 EUR less 3.00 EUR in fees, cost 1,007.50 USD, bring 1,196.25 USD
+and realise 188.75 USD — 151.00 EUR, the 957.00 EUR received less the
+806.00 EUR paid. A trade imported from Portfolio Performance is booked in
+the account's currency, its fees with it, and needs no conversion.
+
 **Sells with no matched buy** are named too (issue #984). The matcher pairs
 each sell with earlier **buys** of the same security, first in, first out,
 in one queue across every depot, and an inbound delivery opens no lot — so
@@ -2224,7 +2240,10 @@ sells are all there is, the note stands alone, without a table. A line
 under the list states the rules: across every depot, deliveries open no lot,
 fees and taxes are in the realised P&L but not in the average buy and sell
 prices, income received while a trade was open is not included, and p. a.
-only from 365 days of holding and only where a rate solves the flows. On a
+only from 365 days of holding and only where a rate solves the flows. The
+realised P&L and its fees and taxes are in the trade's currency, a trade
+across currencies converting them at its own rate, as on the facet (issue
+#1108). On a
 phone the table gives way to two-line rows: opened → closed over the
 quantity and the days, the result over its percent and, from a year of
 holding, the p. a. figure. Since issue #1060 the
@@ -2257,8 +2276,12 @@ sums the fee and tax **legs** riding any transaction plus the standalone fee
 and tax bookings, and nets tax refunds against taxes; it never sums gross
 amounts, whose fee-inclusiveness differs between buys (inclusive) and sells
 (net) — the surface states that rule in its composition line. Same FX basis
-and the same excluded-and-named rule as the sibling facets, with
-unconvertible costs named by their currency.
+and the same excluded-and-named rule as the sibling facets. Each fee and tax
+is read in the currency of the cash account it was charged to — euros for a
+USD security bought through a EUR account — and converted from it at the
+rate of its booking date, as the performance's trade costs are, so the two
+read one figure (issue #1107); an unconvertible cost is named by that
+currency.
 
 Every figure on the area says what it contains: the Income facet states that it
 covers *dividends and interest* and that it **excludes** realized gains,
@@ -2292,7 +2315,11 @@ a gap, and the shape answers "where did the year stand by April" instead of
 "what came in in April".
 
 Amounts are reported in the portfolio's base currency; the original currency
-stays visible on each row. The conversion methodology (EUR hub at each booking
+stays visible on each row. A payment is read in the currency of the account
+it was credited to: a USD security's dividend credited to a EUR account is
+the euros that arrived, and its row among the year's payments names EUR,
+while the per-position table keeps the booking's currency (the ADR-0015
+amendment of 2026-10-07). The conversion methodology (EUR hub at each booking
 date's stored rate — the same conversion the valuation uses) sits behind the
 ⓘ affordance next to the currency line. The report is also
 available over the API (`GET /api/v1/portfolios/:id/income`) and the

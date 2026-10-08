@@ -1768,6 +1768,23 @@ Beispiel-Payloads für Konten:
   und der Rest steht hier. Beides fehlt in den Kennzahlen, der Liste und der
   Matrix; `computation_basis.unmatched_sells` sagt es. Der Trades-Read des
   Wertpapiers unten führt dieselben Verkäufe als `orphan_sells`.
+
+  Seit Issue #1108 (die Ergänzung von ADR-0015 vom 07.10.2026) werden die
+  Gebühren und Steuern eines Trades in der Währung seines
+  Verrechnungskontos gelesen, der Währung des Geldbeins, zu dem sie gehören:
+  Ein währungsübergreifender Trade, gebucht in der Wertpapierwährung, rechnet
+  sie zu seinem eigenen gespeicherten `settlement_fx_rate` (Gebühr ÷ Kurs,
+  Kontoeinheiten je einer Wertpapiereinheit) in diese um, nie zu einem
+  Hub-Kurs, bevor sie in `basis` und `proceeds` eingehen. `basis`,
+  `proceeds`, `realized_pnl_abs` und `realized_pnl_pct` stehen also im
+  `currency_code` des Trades, und `realized_base` ist das Geld, das die Runde
+  bewegt hat, wenn Broker- und Hub-Kurs übereinstimmen: 10 Stück, gekauft zu
+  100 USD für 800,00 EUR mit 6,00 EUR Gebühren und Steuern und verkauft zu
+  120 USD für 960,00 EUR mit 3,00 EUR Gebühren, lesen `basis` `"1007.5"`,
+  `proceeds` `"1196.25"`, `realized_pnl_abs` `"188.75"` und `realized_base`
+  `"151"`. Ein Trade in der Kontowährung (die Form eines Portfolio-
+  Performance-Imports) oder ohne gespeicherten Kurs addiert sie wie erfasst.
+  `computation_basis.fees_and_taxes` nennt die Regel.
 - `GET /api/v1/external_flows` (Issue #725) liefert das
   Ein-/Auszahlungs-Rollup: die gebuchten externen **Cash**-Flüsse (`deposit`
   und `removal`) über alle Portfolios, je Jahr und Monat mit Einzahlungen,
@@ -1791,7 +1808,15 @@ Beispiel-Payloads für Konten:
   **gemindert**, eine Bruttosumme beschriebe also etwas anderes. Diese Regel
   steht in `computation_basis.series`. FX-Basis wie in den
   Schwester-Facetten: EUR-Hub zum Kurs des eigenen Buchungstags,
-  unkonvertierbare Kosten ausgeschlossen und nach **Währung** benannt. Die
+  unkonvertierbare Kosten ausgeschlossen und nach **Währung** benannt. Seit
+  Issue #1107 wird jeder Kostenbetrag in der Währung seines
+  Verrechnungskontos gelesen, der Währung des Geldbeins, zu dem er gehört,
+  so wie der Performance-Lauf die Handelskosten liest: Die Gebühren und
+  Steuern eines währungsübergreifenden Trades werden aus der Kontowährung
+  umgerechnet, nie aus der Wertpapierwährung, und ein unkonvertierbarer
+  Betrag wird nach der Währung des Verrechnungskontos benannt; eine Buchung
+  ohne Verrechnungskonto wird in ihrer eigenen gelesen.
+  `computation_basis.currency` nennt die Regel. Die
   menschliche Sicht ist `/cashflow?tab=costs`.
   `limit` begrenzt die Jahresmatrix auf ihre neuesten Jahre (Standard 100,
   max. 1000); `computation_basis.window` nennt den Schnitt, wenn Jahre
@@ -2097,8 +2122,14 @@ Beispiel-Payloads für Konten:
   EUR-Hub zum gespeicherten Kurs des jeweiligen Buchungsdatums (dieselbe Mechanik
   wie der Bewertungs-Endpunkt), mit beibehaltener ursprünglicher Währung;
   `unconverted_count` zählt Buchungen ohne Kurspfad (zur Parität umgerechnet), und
-  `conversion_note` nennt die Basis. Unbekannte Portfolios liefern
-  `404 Not Found`.
+  `conversion_note` nennt die Basis. Bargeld und einbehaltene Steuer einer
+  Buchung werden in der Währung ihres Verrechnungskontos gelesen, der
+  Währung, in der sie gutgeschrieben wurden (die Ergänzung von ADR-0015 vom
+  07.10.2026): Die Dividende eines USD-Wertpapiers, einem EUR-Konto
+  gutgeschrieben, wird aus Euro umgerechnet, und ihre `transactions`-Zeile
+  nennt in `currency` EUR, die Währung ihrer `native_*`-Beträge, während ihre
+  `positions`-Zeile die Buchungswährung in `security_currency` behält.
+  Unbekannte Portfolios liefern `404 Not Found`.
   Seit ADR-0020 gehört ein SOLL-Zielplan zu einer **Sicht (View)**: Die
   Lese-/Schreib-Endpunkte für Ziele akzeptieren ein optionales `view` (eine
   View-id). Wird es weggelassen (oder als `null` gesendet), adressiert es den
@@ -2517,6 +2548,13 @@ Beispiel-Payloads für Konten:
   `annualized_return_reason`, dieselbe Zahl nach derselben Regel wie das
   Realisiert-Rollup oben, und die Antwort trägt
   `computation_basis.annualized_return`.
+  Seit Issue #1108 stehen `buy_fees` und `buy_taxes` eines offenen Lots und
+  `buy_fees`, `buy_taxes`, `sell_fees` und `sell_taxes` eines geschlossenen
+  Round-Trips in seinem `currency_code`, wie `basis` und `proceeds`: Ein
+  währungsübergreifender Trade, gebucht in der Wertpapierwährung, rechnet sie
+  zu seinem eigenen gespeicherten `settlement_fx_rate` aus der Währung des
+  Verrechnungskontos um, wie beim Realisiert-Rollup oben beschrieben, und
+  `computation_basis.fees_and_taxes` nennt die Regel.
 - `GET /api/v1/snapshots` listet Depot-**Snapshot-Marker** (ADR-0027): jeder
   ist ein `name`, ein Geltungsbereich (`view_id`, `null` = alles) und ein
   `as_of`-Datum. Ein Snapshot kopiert keine Finanzdaten — die Bestände, die er

@@ -1641,6 +1641,22 @@ Example account payloads:
   closes what it can and leaves the rest here. Neither is in the figures, the
   list or the matrix; `computation_basis.unmatched_sells` says so. The
   security's own trades read below lists the same sells as `orphan_sells`.
+
+  Since issue #1108 (the ADR-0015 amendment of 2026-10-07) a trade's fees
+  and taxes are read in its cash account's currency, the currency of the
+  cash leg they are part of: a cross-currency trade booked in the
+  security's currency converts them into it at its own stored
+  `settlement_fx_rate` (fee ÷ rate, account units per one security unit),
+  never at a hub rate, before they enter `basis` and `proceeds`. So
+  `basis`, `proceeds`, `realized_pnl_abs` and `realized_pnl_pct` are in the
+  trade's `currency_code`, and `realized_base` is the cash the round trip
+  moved when the broker's rate and the hub's agree: 10 bought at 100 USD for
+  800.00 EUR with 6.00 EUR in fees and taxes and sold at 120 USD for 960.00
+  EUR with 3.00 EUR in fees read `basis` `"1007.5"`, `proceeds`
+  `"1196.25"`, `realized_pnl_abs` `"188.75"` and `realized_base` `"151"`.
+  A trade booked in its account's currency (a Portfolio Performance
+  import's form) or without a stored rate adds them as recorded.
+  `computation_basis.fees_and_taxes` states the rule.
 - `GET /api/v1/external_flows` (issue #725) returns the Deposits &
   withdrawals roll-up: the booked external **cash** flows (`deposit` and
   `removal`) across all portfolios, per year and month with deposits,
@@ -1662,7 +1678,13 @@ Example account payloads:
   a gross sum would describe something else. The legs-not-gross rule is
   stated in `computation_basis.series`. FX basis as in the sibling facets:
   EUR hub at the rate stored on each booking's own date, unconvertible costs
-  excluded and named by their **currency**. The human view is `/cashflow?tab=costs`.
+  excluded and named by their **currency**. Since issue #1107 each cost is
+  read in its cash account's currency, the currency of the cash leg it is
+  part of, as the performance walk reads trade costs: a cross-currency
+  trade's fees and taxes are converted from the account's currency, never
+  from the security's, and an unconvertible one is named by the cash
+  account's currency; a booking without a cash account is read in its own.
+  `computation_basis.currency` states the rule. The human view is `/cashflow?tab=costs`.
   `limit` bounds the annual matrix to its newest years (default 100, max
   1000); `computation_basis.window` names the cut when years were dropped, and
   the answer echoes the applied `limit`.
@@ -1949,6 +1971,12 @@ Example account payloads:
   booking date's stored rate (the same mechanics as the valuation endpoint), with
   the original currency retained; `unconverted_count` counts bookings with no
   rate path (converted at parity), and `conversion_note` states the basis.
+  A booking's cash and withheld tax are read in its cash account's currency,
+  the currency it was credited in (the ADR-0015 amendment of 2026-10-07): a
+  dividend of a USD security credited to a EUR account is converted from
+  euros, and its `transactions` row's `currency` names EUR, the currency its
+  `native_*` amounts are in, while its `positions` row keeps the booking
+  currency in `security_currency`.
   Unknown portfolios return `404 Not Found`.
   Since ADR-0020 a target plan **belongs to a view**: the target read/write
   endpoints accept an optional `view` (a view id). Omitting it (or sending
@@ -2478,6 +2506,13 @@ church tax withheld at a zero church-tax rate.
   Since issue #984 every closed round-trip carries `annualized_return` and
   `annualized_return_reason`, the same figure and rule as the realized-gains
   read above, and the payload carries `computation_basis.annualized_return`.
+  Since issue #1108 an open lot's `buy_fees` and `buy_taxes` and a closed
+  round-trip's `buy_fees`, `buy_taxes`, `sell_fees` and `sell_taxes` are in
+  its `currency_code`, like its `basis` and `proceeds`: a cross-currency
+  trade booked in the security's currency converts them from the cash
+  account's currency at its own stored `settlement_fx_rate`, as the
+  realized-gains read above describes, and
+  `computation_basis.fees_and_taxes` states the rule.
 
 ## Policy rules (ADR-0049)
 

@@ -2402,6 +2402,24 @@ Dasselbe Backfill ist `scope=history` am Wechselkurs-Sync-Endpunkt und
 MCP-Tool; die Facetten Ein- & Auszahlungen und Kosten tragen dieselbe
 Schaltfläche in ihren Ausschluss-Hinweisen.
 
+**Ein Trade über Währungen hinweg steht in einer Währung** (Issue #1108, die
+Ergänzung von ADR-0015 vom 07.10.2026). Ein USD-Wertpapier, über ein
+EUR-Konto gekauft und verkauft, hat seinen Kurs in Dollar und seine
+Gebühren und Steuern in Euro, der Währung des Geldes, dem sie belastet
+wurden. Bevor sie in Einstand und Erlös eingehen, werden sie zum eigenen
+Kurs des Trades in Dollar umgerechnet — dem Kurs, den seine Abrechnung
+festhält, dem Kurs, den der Broker auf diesen Trade angewandt hat —, nie zum
+Hub-Kurs des Tages, der dieselben Euro ein zweites, anderes Mal umrechnen
+würde. Einstand, Erlös und Ergebnis eines solchen Trades stehen also alle in
+Dollar, und sein Ergebnis in Euro ist das Geld, das die Runde bewegt hat,
+wann immer Broker- und Hub-Kurs übereinstimmen: 10 Stück, gekauft zu
+100 USD für 800,00 EUR zuzüglich 6,00 EUR Gebühren und Steuern und verkauft
+zu 120 USD für 960,00 EUR abzüglich 3,00 EUR Gebühren, kosten 1.007,50 USD,
+bringen 1.196,25 USD und realisieren 188,75 USD — 151,00 EUR, die erhaltenen
+957,00 EUR abzüglich der gezahlten 806,00 EUR. Ein aus Portfolio Performance
+importierter Trade ist in der Kontowährung gebucht, seine Gebühren mit ihm,
+und braucht keine Umrechnung.
+
 **Verkäufe ohne zugeordneten Kauf** werden ebenfalls benannt (Issue #984).
 Der Matcher ordnet jeden Verkauf früheren **Käufen** desselben Wertpapiers
 zu, zuerst gekauft, zuerst verkauft, in einer Warteschlange über alle Depots,
@@ -2437,6 +2455,9 @@ Liste nennt die Regeln: über alle Depots, Einlieferungen eröffnen keinen
 Lot, Gebühren und Steuern stehen im realisierten G/V, nicht in Ø Kauf und
 Ø Verkauf, Erträge während der Haltedauer sind nicht enthalten, und p. a.
 erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst.
+Der realisierte G/V und seine Gebühren und Steuern stehen in der Währung des
+Trades, bei einem Trade über Währungen hinweg zu seinem eigenen Kurs
+umgerechnet, wie in der Facette (Issue #1108).
 Auf dem Telefon wird die Tabelle zu
 zweizeiligen Zeilen: Eröffnet → Geschlossen über der Stückzahl und den
 Tagen, das Ergebnis über seiner Rendite und, ab einem Jahr Haltedauer, der
@@ -2472,8 +2493,12 @@ Steuererstattungen werden gegen die Steuern verrechnet. Bruttobeträge werden
 nie summiert — beim Kauf enthält das Brutto die Nebenbeträge, beim Verkauf
 ist es um sie gemindert — und die Oberfläche nennt diese Regel in ihrer
 Zusammensetzungszeile. Gleiche FX-Basis und gleiche
-Ausschluss-und-Benennungs-Regel wie die Schwester-Facetten; unkonvertierbare
-Kosten werden nach Währung benannt.
+Ausschluss-und-Benennungs-Regel wie die Schwester-Facetten. Jede Gebühr und
+jede Steuer wird in der Währung des Verrechnungskontos gelesen, dem sie
+belastet wurde — in Euro bei einem USD-Wertpapier, das über ein EUR-Konto
+gekauft wurde — und von ihr zum Kurs ihres Buchungsdatums umgerechnet, wie
+die Handelskosten der Performance, sodass beide eine Zahl lesen (Issue
+#1107); unkonvertierbare Kosten werden nach dieser Währung benannt.
 
 Jede Kennzahl des Bereichs nennt, was sie enthält: der Income-Bereich schreibt,
 dass er *Dividenden und Zinsen* abdeckt und realisierte Gewinne, Ein- und
@@ -2510,7 +2535,12 @@ und die Kurve „wo stand das Jahr im April" beantwortet statt „was kam im Apr
 herein".
 
 Beträge werden in der Basiswährung des Portfolios ausgewiesen; die
-ursprüngliche Währung bleibt je Zeile sichtbar. Die Umrechnungsmethodik
+ursprüngliche Währung bleibt je Zeile sichtbar. Eine Zahlung wird in der
+Währung des Kontos gelesen, dem sie gutgeschrieben wurde: Die Dividende
+eines USD-Wertpapiers, einem EUR-Konto gutgeschrieben, sind die Euro, die
+angekommen sind, und ihre Zeile unter den Zahlungen des Jahres nennt EUR,
+während die Tabelle je Position die Währung der Buchung behält (die
+Ergänzung von ADR-0015 vom 07.10.2026). Die Umrechnungsmethodik
 (EUR-Hub zum gespeicherten Kurs des jeweiligen Buchungsdatums — dieselbe
 Umrechnung wie die Bewertung) steht hinter dem ⓘ neben der Währungszeile.
 Der Bericht ist auch über die API (`GET /api/v1/portfolios/:id/income`) und das
