@@ -5,8 +5,10 @@ defmodule PortfolixirWeb.Securities.MasterDataCreationTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Classifications
   alias Portfolixir.Portfolios
+  alias Portfolixir.Repo
 
   defp open_security_dialog(conn) do
     {:ok, view, _html} = live(conn, "/securities")
@@ -69,6 +71,56 @@ defmodule PortfolixirWeb.Securities.MasterDataCreationTest do
       |> render_click()
 
       assert has_element?(view, "#security-dialog-form")
+    end
+
+    # User story (#942; the F15 allow-list precedent, T-5):
+    # As the operator whose security dialog writes what it shows,
+    # I want a save to take only the fields the dialog renders,
+    # so that a crafted form payload cannot set the provider marker or the
+    # security's flags, and an unknown key does not throw the form away.
+    #
+    # Acceptance criteria:
+    # - A manual save whose payload also carries provider, online_id,
+    #   is_benchmark, is_retired, latest_feed and latest_feed_url creates the
+    #   security from the rendered fields alone: the manual provider marker,
+    #   no online id, neither a benchmark nor retired, no latest feed.
+    # - A key no field is named after is dropped, and the rest of the form is
+    #   saved.
+    test "a save takes only the fields the dialog renders", %{conn: conn} do
+      for {name, extra} <- [
+            {"Allowlisted Holding AG",
+             %{
+               "provider" => "coingecko",
+               "online_id" => "synthetic-online-id",
+               "is_benchmark" => "true",
+               "is_retired" => "true",
+               "latest_feed" => "COINGECKO",
+               "latest_feed_url" => "https://quotes.example.invalid/latest"
+             }},
+            {"Unknown Key Holding AG", %{"zz_no_such_field_942" => "anything"}}
+          ] do
+        view = open_security_dialog(conn)
+
+        view
+        |> element(~s(button[phx-click="choose_mode"][phx-value-mode="manual"]))
+        |> render_click()
+
+        view
+        |> form("#security-dialog-form", %{
+          "security" => %{"name" => name, "currency_code" => "EUR", "asset_class" => "equity"}
+        })
+        |> render_submit(%{"security" => extra})
+
+        assert {^name, %Security{} = security} =
+                 {name, Repo.get_by(Security, name: name)}
+
+        assert security.provider == "manual"
+        assert security.online_id == nil
+        assert security.is_benchmark == false
+        assert security.is_retired == false
+        assert security.latest_feed == nil
+        assert security.latest_feed_url == nil
+      end
     end
   end
 
