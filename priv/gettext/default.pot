@@ -8882,7 +8882,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:426
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:777
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:781
 #: lib/portfolixir_web/live/securities/merge_preview.ex:1456
 #, elixir-autogen, elixir-format
 msgid "%{count} duplicate removed"
@@ -9956,17 +9956,17 @@ msgstr[1] ""
 msgid "%{isin} adopted from the source"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:753
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:757
 #, elixir-autogen, elixir-format
 msgid "%{isin} adopted; %{former} is now a former ISIN"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:749
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:753
 #, elixir-autogen, elixir-format
 msgid "%{isin} stays; %{former} is now a former ISIN"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:704
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:708
 #, elixir-autogen, elixir-format
 msgid "Balance confirmed %{days}"
 msgstr ""
@@ -9987,12 +9987,12 @@ msgstr ""
 msgid "No merge yet — “Merge into…” is in the row menu of every account, depot and security."
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:712
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:716
 #, elixir-autogen, elixir-format
 msgid "Quantity confirmed %{days} for %{securities}"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:725
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:729
 #, elixir-autogen, elixir-format
 msgid "Quantity confirmed %{days} in %{depots}"
 msgstr ""
@@ -10022,25 +10022,25 @@ msgstr ""
 msgid "a security deleted since"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:754
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:758
 #, elixir-autogen, elixir-format
 msgid "change dated %{date}"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:681
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:685
 #, elixir-autogen, elixir-format
 msgid "equal bookings: both kept"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:680
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:684
 #, elixir-autogen, elixir-format
 msgid "equal bookings: removed as duplicates"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:698
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:701
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:709
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:722
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:702
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:705
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:713
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:726
 #, elixir-autogen, elixir-format
 msgid "nothing to check"
 msgstr ""
@@ -10072,7 +10072,7 @@ msgid_plural "the newest %{count} · latest %{date}"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:727
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:731
 #, elixir-autogen, elixir-format
 msgctxt "merge check"
 msgid "%{count} depot"
@@ -10080,7 +10080,7 @@ msgid_plural "%{count} depots"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:715
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:719
 #, elixir-autogen, elixir-format
 msgctxt "merge check"
 msgid "%{count} security"
@@ -10088,7 +10088,7 @@ msgid_plural "%{count} securities"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:693
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:697
 #, elixir-autogen, elixir-format
 msgctxt "merge check"
 msgid "on %{count} day"
@@ -10120,7 +10120,7 @@ msgid_plural "%{count} assignments moved"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:804
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:808
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} carried over"
@@ -10152,7 +10152,7 @@ msgid_plural "%{count} differ, the target's stand"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:801
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:805
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} dropped"
@@ -10176,7 +10176,7 @@ msgid_plural "%{count} fields adopted, the target had none"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:781
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:785
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} internal transfer dropped"
@@ -10185,7 +10185,7 @@ msgstr[0] ""
 msgstr[1] ""
 
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:481
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:800
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:804
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} moved"
@@ -10241,7 +10241,7 @@ msgid_plural "%{count} possibly twice now"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:790
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:794
 #, elixir-autogen, elixir-format
 msgctxt "merge record"
 msgid "%{count} same-day set balance dropped"
@@ -10249,7 +10249,7 @@ msgid_plural "%{count} same-day set balances dropped"
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:798
+#: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:802
 #: lib/portfolixir_web/live/securities/merge_preview.ex:1460
 #, elixir-autogen, elixir-format
 msgctxt "merge record"

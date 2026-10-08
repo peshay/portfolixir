@@ -590,7 +590,8 @@ confirms with the same `plan_digest`, so both see the same plan.
   every quote moved and every quote dropped with its close and the target's
   close that won, the assignments, position targets and events moved or
   dropped, the former ISINs reassigned and created, the identifiers adopted
-  and the differences, and the choices — `identity_choice` and
+  and the differences, and the choices — `collapse_key_equal` only where
+  the preview listed `key_equal_pairs`, `identity_choice` and
   `isin_changed_on` only where the merge made that choice, both securities
   carrying an ISIN, and `null` otherwise, whatever the request sent) and
   `already_applied: false`. In one
@@ -1260,7 +1261,8 @@ Example quote sync response:
   the **merge record** (`id`, `kind`, `source_id`, `target_id`,
   `portfolio_id`, `source_snapshot`, `manifest` — every booking moved,
   restated or deleted, the depots re-pointed, the bucket links removed, the
-  names appended, the choice —, `plan_digest`, `actor_type`, `actor_label`,
+  names appended, the choice, `null` where the preview listed no
+  `key_equal_pairs` —, `plan_digest`, `actor_type`, `actor_label`,
   `inserted_at`) and `already_applied: false`. In one transaction, one
   audit-journal entry per row: the transfers between the two and, with
   `true`, the source's paired bookings are deleted and their content hashes
@@ -1396,7 +1398,8 @@ Example quote sync response:
   Created` with the merge record (as for a cash account; its `manifest`
   lists every booking moved or deleted, the overrides `carried`, `dropped`
   and `cleared`, the default buckets removed, the names appended, the
-  rounding differences and the choice) and `already_applied: false`. In one
+  rounding differences and the choice, `null` where the preview listed no
+  `key_equal_pairs`) and `already_applied: false`. In one
   transaction, one audit-journal entry per row: the transfers between the
   two and, with `true`, the source's paired bookings are deleted and their
   content hashes retired; every other booking of the source moves onto the
@@ -1433,7 +1436,8 @@ Example quote sync response:
   `transactions.deleted_by_reason`, the same rows counted per reason
   (`internal_transfer`, `collapsed_duplicate`, `folded_anchor`,
   `collapsed_split`; only the reasons present, `{}` when none), and the
-  operator's choices as given, a security merge's `identity_choice` and
+  operator's choices as given — `collapse_key_equal` only where the merge
+  had key-equal pairs, a security merge's `identity_choice` and
   `isin_changed_on` only where it made that choice (a record written by an
   earlier version may hold them as sent). `meta` carries `order`, `count`
   and `limit`.

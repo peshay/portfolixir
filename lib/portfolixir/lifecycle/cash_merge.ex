@@ -233,7 +233,8 @@ defmodule Portfolixir.Lifecycle.CashMerge do
     with {:ok, _preview, plan} <- build(source, target_id, target, true),
          :ok <- same_digest(plan, digest),
          {:ok, collapse?} <- MergeFlow.choose(plan.pairs, collapse),
-         {:ok, record} <- execute(actor, plan, collapse?, collapse) do
+         {:ok, record} <-
+           execute(actor, plan, collapse?, MergeFlow.recorded_choice(plan.pairs, collapse)) do
       {:applied, record}
     else
       {:error, refusal} -> Repo.rollback(refusal)
@@ -1157,7 +1158,8 @@ defmodule Portfolixir.Lifecycle.CashMerge do
   end
 
   # Per table, every row moved, restated, deleted or re-pointed, and the
-  # operator's choice. `restated_anchors` names every anchor that stands on
+  # operator's choice, `nil` where there were no key-equal pairs to choose
+  # about (`MergeFlow.recorded_choice/2`). `restated_anchors` names every anchor that stands on
   # the target for the merged account — the import reads it to report a row
   # booked behind one (§2).
   defp manifest(plan, outcome, choice, appended, not_kept) do

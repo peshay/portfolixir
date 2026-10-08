@@ -484,7 +484,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
          {:ok, choice} <- identity_choice(plan, identity.choice),
          choices = %{
            collapse?: collapse?,
-           collapse: collapse,
+           collapse: MergeFlow.recorded_choice(plan.pairs, collapse),
            choice: choice,
            given: identity.choice,
            changed_on: identity.changed_on
@@ -2573,7 +2573,9 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   # assignment, position target, event and former ISIN moved, dropped or
   # created, the identifiers the target adopted and the differences that
   # followed it, the split events before and after, the rounding differences
-  # and the operator's choices. The identity choice and the ISIN change's
+  # and the operator's choices. The collapse choice is the operator's only
+  # where the plan listed key-equal pairs (`MergeFlow.recorded_choice/2`),
+  # otherwise null. The identity choice and the ISIN change's
   # date are the operator's only where the merge made that choice (both
   # securities carried an ISIN); otherwise both are null, whatever the
   # request sent, so the record claims no decision that did not happen

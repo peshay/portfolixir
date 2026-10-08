@@ -185,6 +185,19 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "A record stored before keeps what it holds" and &1 =~ "#1159")
            )
 
+    # #1159's rule on the collapse choice (D-14): every merge records
+    # collapse_key_equal only where it had key-equal pairs.
+    assert newest["summary"] =~ "collapse_key_equal only where it had key-equal pairs"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "POST /api/v1/cash_accounts/:id/merge") and
+                 &1 =~ "portfolixir.merges.list" and
+                 &1 =~
+                   "manifest.choices.collapse_key_equal holds the operator's choice only where" and
+                 &1 =~ "a record stored before keeps what it holds" and &1 =~ "#1159")
+           )
+
     # Sprint 20, commit group β (version 16, after Sprint 19 PR β's 15): what
     # the ledger reports about it, the ADR-0015 amendment of 2026-10-07. B1
     # opened the entry (#1108): a cross-currency closed trade's fees and
