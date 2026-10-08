@@ -38,8 +38,8 @@ defmodule PortfolixirWeb.ApiAuthPlug do
     case matching_principal(bearer_token(conn), principals()) do
       {:ok, name} ->
         Throttle.success(:api, source)
-        # Every configured token is read-write (FR-28 / ADR-0017). A future
-        # read-only token (D4) assigns :api_token_ro here instead.
+        # Every configured token is read-write, with the same full authority
+        # (ADR-0054 §1, which superseded the architecture's read-only D4).
         assign(conn, :actor, Portfolixir.Actor.api_token_rw(name))
 
       :error ->

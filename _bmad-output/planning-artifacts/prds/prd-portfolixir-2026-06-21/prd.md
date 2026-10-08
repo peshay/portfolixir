@@ -442,7 +442,10 @@ explicitly asking for nothing.)*
 
 - **OD-4.** Write authorization model for Feature C: does the shared bearer
   token stay sufficient, or do writes need a distinct token or scope? Bound to
-  the founding PRD's NFR-4 and OQ-8.
+  the founding PRD's NFR-4 and OQ-8. *Closed 2026-10-08 by
+  [ADR-0054](../../../../docs/decisions/0054-the-agents-surface-one-authority-named-principals-escaped-text.md):
+  every token carries the same full authority, and the journal names the
+  token that wrote.*
 
 **Assumption register.** Load-bearing means: if this is wrong, a feature
 changes shape or disappears.

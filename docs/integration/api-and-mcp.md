@@ -32,7 +32,9 @@ entry the presented token matched, never from the request.
 that way, so the companion's writes read `mcp`. Every entry is
 checked at boot like the one token, and a name or a token may appear only
 once. A name attributes a write; it does not narrow what the token may do:
-every token has the same full authority.
+every token has the same full authority. Why, and the boundary for stored
+text below, is decided in
+[ADR-0054](/decisions/0054-the-agents-surface-one-authority-named-principals-escaped-text.html).
 
 The MCP companion uses `PORTFOLIXIR_API_TOKEN` to call Portfolixir at
 `PORTFOLIXIR_API_BASE_URL`, and it follows no redirect from there: a `3xx`
