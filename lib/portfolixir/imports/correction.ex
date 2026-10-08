@@ -39,18 +39,40 @@ defmodule Portfolixir.Imports.Correction do
       guard holds in the same write.
 
   Never the import hash, the id, the fees or the taxes.
+
+  **How it writes** (`apply/3`). Each booking is changed by the ledger's own
+  update, `Portfolixir.Ledger.update_transaction/3`, the path the API's
+  `PATCH /api/v1/transactions/:id` takes: the public changeset (which
+  refuses an import hash), the settlement guard on the changed cash, the
+  audit journal with the before-image re-read under the row's lock
+  (ADR-0017), and the derived-value bump inside the writing transaction
+  (`Journal.record/3` → `Derived.Invalidation`, ADR-0039). The whole
+  confirm is one transaction that first takes the apply's account-identity
+  lock for the portfolio (`Lifecycle.AccountNames.lock_identity/2`), then
+  lists the bookings again under their row locks, so it corrects what is
+  stored when it runs and nothing a concurrent writer changed in between;
+  a refused write rolls every change back. A second run finds nothing to
+  correct.
+
+  The ordinary apply is untouched by this module: a hash hit still inserts
+  nothing and changes nothing (ADR-0050 §3, K8). Like the import, the
+  correction is an operator action with no API route and no MCP tool
+  (ADR-0029); every corrected value is read through the existing reads.
   """
 
   import Ecto.Query
 
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Imports.Applier
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Input.BoundedDecimal
+  alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Repo
 
@@ -109,6 +131,41 @@ defmodule Portfolixir.Imports.Correction do
       end
     end)
     |> Enum.uniq_by(& &1.transaction.id)
+  end
+
+  @doc """
+  Corrects every booking of `portfolio_id` that `detect/3` lists for
+  `preview`, under `actor`, and answers the corrected items as they were
+  listed (each `transaction` as stored before, its `changes` as written).
+  One transaction: the apply's account-identity lock first, then the
+  bookings listed again under their row locks, then one
+  `Ledger.update_transaction/3` per booking, each journaled with its
+  before-image. A refused write rolls them all back and answers
+  `{:error, %{row: row, reason: reason}}`. Nothing listed corrects nothing:
+  `{:ok, []}`.
+  """
+  @spec apply(Actor.t(), Preview.t(), integer()) ::
+          {:ok, [Item.t()]} | {:error, %{row: term(), reason: term()}}
+  def apply(%Actor{} = actor, %Preview{} = preview, portfolio_id) when is_integer(portfolio_id) do
+    Repo.transaction(
+      fn ->
+        :ok = AccountNames.lock_identity(portfolio_id)
+
+        preview
+        |> detect(portfolio_id, lock: true)
+        |> Enum.reduce_while([], fn %Item{} = item, corrected ->
+          case Ledger.update_transaction(actor, item.transaction, item.changes) do
+            {:ok, _transaction} -> {:cont, [item | corrected]}
+            {:error, reason} -> {:halt, {:error, %{row: item.row, reason: reason}}}
+          end
+        end)
+        |> case do
+          {:error, refusal} -> Repo.rollback(refusal)
+          corrected -> Enum.reverse(corrected)
+        end
+      end,
+      timeout: Applier.transaction_timeout()
+    )
   end
 
   defp stored_by_hash([], _lock?), do: %{}
