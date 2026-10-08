@@ -2920,4 +2920,74 @@ defmodule Portfolixir.DocsTest do
     assert en =~ "/product-documentation.html#risk-concentration-and-movement"
     assert de =~ "/de/product-documentation.html#risiko-konzentration-und-schwankung"
   end
+
+  # User story (the ADR-0015 amendment of 2026-10-07, #1108, #1107):
+  # As an operator who trades a foreign security through an account in
+  # another currency, and the agent that reads the reports for me,
+  # I want the handbook and the API reference, in English and German, to say
+  # which currency a booking's fees and taxes are read in and at which rate
+  # each report converts them,
+  # so that a closed trade, the Costs facet and the income report can be
+  # checked against the cash the broker moved.
+  #
+  # Acceptance criteria:
+  # - The handbook's Trades facet states that a trade across currencies is
+  #   in one currency, its fees converted at the trade's own rate and never
+  #   at the hub rate, with identity 1's figures; the Trades tab's rules say
+  #   so too; Costs reads each cost in its cash account's currency and names
+  #   an unconvertible one by it; Income reads a payment in the currency of
+  #   the account it was credited to.
+  # - The API reference names computation_basis.fees_and_taxes on the trades
+  #   and realized-gains reads, computation_basis.currency on the Costs read,
+  #   and the income read's currency rule.
+  test "the docs state the currency a booking's fees and taxes are read in, in English and German" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "**A trade across currencies is in one currency**",
+             "at the trade's own rate",
+             "never at the day's hub rate",
+             "cost 1,007.50 USD, bring 1,196.25 USD and realise 188.75 USD",
+             "151.00 EUR, the 957.00 EUR received less the 806.00 EUR paid",
+             "in the trade's currency, a trade across currencies converting them at its own rate",
+             "Each fee and tax is read in the currency of the cash account it was charged to",
+             "an unconvertible cost is named by that currency",
+             "A payment is read in the currency of the account it was credited to"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "**Ein Trade über Währungen hinweg steht in einer Währung**",
+             "zum eigenen Kurs des Trades",
+             "nie zum Hub-Kurs des Tages",
+             "kosten 1.007,50 USD, bringen 1.196,25 USD und realisieren 188,75 USD",
+             "151,00 EUR, die erhaltenen 957,00 EUR abzüglich der gezahlten 806,00 EUR",
+             "in der Währung des Trades, bei einem Trade über Währungen hinweg zu seinem eigenen Kurs umgerechnet",
+             "Jede Gebühr und jede Steuer wird in der Währung des Verrechnungskontos gelesen, dem sie belastet wurde",
+             "unkonvertierbare Kosten werden nach dieser Währung benannt",
+             "Eine Zahlung wird in der Währung des Kontos gelesen, dem sie gutgeschrieben wurde"
+           ]},
+          {"docs/integration/api-and-mcp.md",
+           [
+             "`computation_basis.fees_and_taxes`",
+             "at its own stored `settlement_fx_rate` (fee ÷ rate, account units per one security unit)",
+             "`computation_basis.currency`",
+             "named by the cash account's currency",
+             "read in its cash account's currency"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "`computation_basis.fees_and_taxes`",
+             "zu seinem eigenen gespeicherten `settlement_fx_rate` (Gebühr ÷ Kurs, Kontoeinheiten je einer Wertpapiereinheit)",
+             "`computation_basis.currency`",
+             "nach der Währung des Verrechnungskontos benannt",
+             "in der Währung ihres Verrechnungskontos gelesen"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
 end
