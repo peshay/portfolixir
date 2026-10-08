@@ -136,11 +136,14 @@ msgid_plural "must have at most %{count} decimal places"
 msgstr[0] ""
 msgstr[1] ""
 
-## Portfolixir.Classifications: a category's parent (F11).
+## Portfolixir.Classifications: a category's parent (F11), and its depth (#940).
 msgid "must belong to the same classification"
 msgstr ""
 
 msgid "would make the category its own ancestor"
+msgstr ""
+
+msgid "would put a category on level %{level}; a classification has at most %{max} levels"
 msgstr ""
 
 ## Portfolixir.Input.Text: a free-form map the database refuses (G24).

@@ -134,6 +134,67 @@ defmodule Portfolixir.Classifications.CategoryParentTest do
     assert rehomed.parent_id == a.id
   end
 
+  # User story (#940; board 02, "a category below level 32 is refused"):
+  # As the operator or the agent building a classification tree,
+  # I want a parent that would put a category below the tree's last level
+  # refused with a field error naming the level it would take,
+  # so that no write builds a tree whose level columns and level count would
+  # then be read wrong without notice.
+  #
+  # Acceptance criteria:
+  # - Under the category on level 32, a new category is refused on parent_id
+  #   naming level 33 and the bound 32, and nothing is stored.
+  # - Under the category on level 31, it is created.
+  # - Moving a category that has a child under level 31 is refused, naming
+  #   the level its child would take (33); moving a leaf there is accepted.
+  test "a parent that would put a category below level 32 is refused on create and update" do
+    tree = tree!("Depth")
+
+    chain =
+      Enum.scan(1..32, nil, fn level, parent -> category!(tree, "Level #{level}", parent) end)
+
+    level_31 = Enum.at(chain, 30)
+    level_32 = List.last(chain)
+    assert Classifications.max_tree_depth() == 32
+
+    assert {:error, changeset} =
+             Classifications.create_category(Actor.owner_ui(), %{
+               classification_id: tree.id,
+               name: "Level 33",
+               parent_id: level_32.id
+             })
+
+    assert {"would put a category on level %{level}; a classification has at most %{max} levels",
+            opts} = parent_error(changeset)
+
+    assert {opts[:level], opts[:max]} == {33, 32}
+    refute Repo.get_by(Category, classification_id: tree.id, name: "Level 33")
+
+    assert {:ok, %Category{}} =
+             Classifications.create_category(Actor.owner_ui(), %{
+               classification_id: tree.id,
+               name: "Another level 32",
+               parent_id: level_31.id
+             })
+
+    branch = category!(tree, "Branch")
+    _twig = category!(tree, "Twig", branch)
+
+    assert {:error, changeset} =
+             Classifications.update_category(Actor.owner_ui(), branch, %{parent_id: level_31.id})
+
+    assert {_message, opts} = parent_error(changeset)
+    assert {opts[:level], opts[:max]} == {33, 32}
+    assert Repo.get!(Category, branch.id).parent_id == nil
+
+    lone = category!(tree, "Lone")
+
+    assert {:ok, %Category{parent_id: parent_id}} =
+             Classifications.update_category(Actor.owner_ui(), lone, %{parent_id: level_31.id})
+
+    assert parent_id == level_31.id
+  end
+
   # User story:
   # As the operator whose tree already holds a parent loop from before the
   # guard,

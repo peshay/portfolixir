@@ -3064,6 +3064,11 @@ neu zugeordnet werden.
   Klassifizierung sein, die weder die Kategorie selbst noch eine ihrer
   Unterkategorien ist; jede andere Oberkategorie liefert `422` an `parent_id`,
   und nichts wird geschrieben, sodass ein Baum nie im Kreis läuft (E25 S4).
+  Ein Baum hat höchstens 32 Ebenen: Eine Oberkategorie, unter der die
+  geschriebene Kategorie oder die tiefste Kategorie des Teilbaums, den ein
+  `PATCH` verschiebt, unter Ebene 32 läge, liefert ebenfalls `422` an
+  `parent_id` und nennt die Ebene („would put a category on level 33; a
+  classification has at most 32 levels“, Issue #940).
 - `DELETE /api/v1/classifications/:classification_id/categories/:id` löscht eine
   Kategorie mit den Kategorien darunter, den dort zugeordneten Wertpapieren und
   den dort abgelegten Zielen; jede Zeile wird als eigene Löschung

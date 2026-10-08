@@ -2828,7 +2828,11 @@ tree stays intrinsic and cannot be reassigned.
   On both writes a `parent_id` must name a category of the same classification
   that is neither the category itself nor one of its descendants; any other
   parent answers `422` on `parent_id` and nothing is written, so a tree never
-  loops (E25 S4).
+  loops (E25 S4). A tree has at most 32 levels: a parent under which the
+  written category, or the deepest category of the subtree a `PATCH` moves,
+  would sit below level 32 answers `422` on `parent_id` as well, naming the
+  level ("would put a category on level 33; a classification has at most 32
+  levels", issue #940).
 - `DELETE /api/v1/classifications/:classification_id/categories/:id` deletes a
   category with the categories below it, the securities assigned there and
   the targets filed under them; each row is journaled as its own delete,

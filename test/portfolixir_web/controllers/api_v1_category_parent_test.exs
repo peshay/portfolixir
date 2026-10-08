@@ -69,4 +69,63 @@ defmodule PortfolixirWeb.ApiV1CategoryParentTest do
     assert Repo.get!(Category, root.id).parent_id == nil
     assert Repo.get!(Category, child.id).parent_id == root.id
   end
+
+  # User story (#940):
+  # As the agent building a classification tree over the API,
+  # I want a parent that would put a category below the tree's 32nd level
+  # answered with a field error naming the level,
+  # so that I learn the bound from the refusal, as the screen's operator does.
+  #
+  # Acceptance criteria:
+  # - POST under the category on level 32 answers 422 on parent_id: "would
+  #   put a category on level 33; a classification has at most 32 levels".
+  # - PATCH moving a category with a child under level 31 answers the same,
+  #   naming the level its child would take, and moves nothing.
+  test "a parent below the tree's last level answers 422 on parent_id", ctx do
+    %{conn: conn, tree: tree, root: root, child: child} = ctx
+    base = "/api/v1/classifications/#{tree.id}/categories"
+
+    # R and C are levels 1 and 2; levels 3 to 32 below them.
+    deepest =
+      Enum.reduce(3..32, child, fn level, parent ->
+        {:ok, category} =
+          Classifications.create_category(Actor.owner_ui(), %{
+            classification_id: tree.id,
+            name: "L#{level}",
+            parent_id: parent.id
+          })
+
+        category
+      end)
+
+    refusal = ["would put a category on level 33; a classification has at most 32 levels"]
+
+    response =
+      conn
+      |> post(base, %{"category" => %{"name" => "L33", "parent_id" => deepest.id}})
+      |> json_response(422)
+
+    assert response["errors"]["parent_id"] == refusal
+
+    level_31 = Repo.get!(Category, deepest.parent_id)
+
+    {:ok, branch} =
+      Classifications.create_category(Actor.owner_ui(), %{classification_id: tree.id, name: "B"})
+
+    {:ok, _twig} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: tree.id,
+        name: "T",
+        parent_id: branch.id
+      })
+
+    response =
+      conn
+      |> patch("#{base}/#{branch.id}", %{"category" => %{"parent_id" => level_31.id}})
+      |> json_response(422)
+
+    assert response["errors"]["parent_id"] == refusal
+    assert Repo.get!(Category, branch.id).parent_id == nil
+    assert root.parent_id == nil
+  end
 end
