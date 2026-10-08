@@ -222,6 +222,16 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 103_275,
     book: 176_289,
     full: 206_686
+  },
+  {
+    since: "2026-10-08",
+    why:
+      "Sprint 20 PR γ, D-14 (#1159's flaw, on collapse_key_equal): merges.list says each choice is " +
+      "held only where one was made, shorter than its ISIN-only sentence, and lowered to the " +
+      "figure measured with it (D-10)",
+    read: 103_265,
+    book: 176_279,
+    full: 206_676
   }
 ];
 

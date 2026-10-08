@@ -675,6 +675,10 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergeRecords do
 
   defp line_value(:isin, _kind, _summary), do: nil
 
+  # The collapse choice the record holds. A merge records one only where it
+  # had key-equal pairs to choose about (#1159's rule, for
+  # collapse_key_equal), so a merge with nothing to choose has no line; a
+  # record stored before holds the choice as sent and reads as it did.
   defp line_value(:choice, _kind, summary) do
     case get(summary, ["choices", "collapse_key_equal"]) do
       true -> gettext("equal bookings: removed as duplicates")

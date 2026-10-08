@@ -245,7 +245,8 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
     with {:ok, _preview, plan} <- build(source, target_id, target, true),
          :ok <- same_digest(plan, digest),
          {:ok, collapse?} <- MergeFlow.choose(plan.pairs, collapse),
-         {:ok, record} <- execute(actor, plan, collapse?, collapse) do
+         {:ok, record} <-
+           execute(actor, plan, collapse?, MergeFlow.recorded_choice(plan.pairs, collapse)) do
       {:applied, record}
     else
       {:error, refusal} -> Repo.rollback(refusal)
@@ -1124,7 +1125,8 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
 
   # Per table, every row moved or deleted, every override carried, dropped or
   # cleared, the default buckets removed, the names appended, the rounding
-  # differences and the operator's choice.
+  # differences and the operator's choice, `nil` where there were no
+  # key-equal pairs to choose about (`MergeFlow.recorded_choice/2`).
   defp manifest(plan, outcome, choice, overrides, {appended, not_kept}) do
     s = plan.source.id
     t = plan.target.id

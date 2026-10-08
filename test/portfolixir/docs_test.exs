@@ -3538,4 +3538,38 @@ defmodule Portfolixir.DocsTest do
     [section7] = Regex.run(~r/### 7\. Cash-account and depot merge.*?(?=### 8\.)/s, adr)
     assert section7 =~ "*(Corrected by the amendment of 2026-10-08:"
   end
+
+  # User story (#1159's rule on the collapse choice; the Sprint 20 plan's
+  # D-14):
+  # As the agent reading back a merge it applied,
+  # I want the reference to say when a merge record holds the collapse
+  # choice,
+  # so that a null there reads as "there was nothing to choose", and a
+  # choice in an older record is not taken for one the merge made.
+  #
+  # Acceptance criteria:
+  # - The EN and DE API pages say the three merge records hold
+  #   collapse_key_equal only where the preview listed key-equal pairs,
+  #   null otherwise, and the merges list says so beside the ISIN choice.
+  test "the API pages say a merge record holds the collapse choice only where it had one" do
+    for {path, fragments} <- [
+          {"docs/integration/api-and-mcp.md",
+           [
+             "the names appended, the choice, `null` where the preview listed no `key_equal_pairs` —",
+             "the rounding differences and the choice, `null` where the preview listed no `key_equal_pairs`)",
+             "and the choices — `collapse_key_equal` only where the preview listed `key_equal_pairs`, `identity_choice`",
+             "operator's choices as given — `collapse_key_equal` only where the merge had key-equal pairs, a security merge's"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "die angehängten Namen, die Wahl, `null`, wo die Vorschau keine `key_equal_pairs` nannte —",
+             "die Rundungsdifferenzen und die Wahl, `null`, wo die Vorschau keine `key_equal_pairs` nannte)",
+             "und die Wahlen — `collapse_key_equal` nur, wo die Vorschau `key_equal_pairs` nannte, `identity_choice`",
+             "Wahl des Operators, wie gegeben — `collapse_key_equal` nur, wo die Zusammenführung gleiche Buchungspaare hatte, bei einer Wertpapier-Zusammenführung"
+           ]}
+        ],
+        fragment <- fragments do
+      assert normalized_text(path) =~ fragment, "#{path}: #{fragment}"
+    end
+  end
 end

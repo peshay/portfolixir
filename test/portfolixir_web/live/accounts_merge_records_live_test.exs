@@ -189,6 +189,50 @@ defmodule PortfolixirWeb.AccountsMergeRecordsLiveTest do
     end
   end
 
+  # User story (#1159's flaw, on the collapse choice):
+  # As the operator reading back an agent's merge of two accounts that
+  # shared no booking,
+  # I want no "Wahl" line under it,
+  # so that the record does not say "gleiche Buchungen: als Duplikate
+  # entfernt" for a merge that had nothing to choose (DESIGN.md: absent
+  # when there was nothing to choose).
+  #
+  # Acceptance criteria:
+  # - A merge without key-equal pairs that was sent collapse_key_equal true
+  #   anyway reads no "Wahl" line.
+  # - A record stored before the fix, which holds the choice as sent with
+  #   nothing to choose, keeps what it holds and reads as it did: "gleiche
+  #   Buchungen: als Duplikate entfernt".
+  test "the choice line reads a choice only where the merge made one", ctx do
+    giro = cash!(ctx.portfolio, "Girokonto")
+    old = cash!(ctx.portfolio, "Tagesgeld (alt)")
+    deposit!(ctx.portfolio, old, "50.00", ~D[2026-03-02])
+    deposit!(ctx.portfolio, giro, "70.00", ~D[2026-03-03])
+    {:ok, preview} = Lifecycle.preview_cash_merge(old.id, giro.id)
+
+    {:ok, record, :applied} =
+      Lifecycle.merge_cash_account(Actor.api_token_rw("synthetic"), old.id, giro.id, %{
+        plan_digest: preview.plan_digest,
+        collapse_key_equal: true
+      })
+
+    {:ok, older} =
+      Lifecycle.record_merge(Actor.api_token_rw("synthetic"), %{
+        kind: :cash_account,
+        source_id: 900_000 + System.unique_integer([:positive]),
+        target_id: giro.id,
+        portfolio_id: ctx.portfolio.id,
+        source_snapshot: record.source_snapshot,
+        manifest: put_in(record.manifest, ["choices", "collapse_key_equal"], true),
+        plan_digest: record.plan_digest
+      })
+
+    {:ok, view, _html} = live(ctx.conn, "/portfolios?locale=de")
+
+    assert record_lines(view, record)["Wahl"] == nil
+    assert record_lines(view, older)["Wahl"] == "gleiche Buchungen: als Duplikate entfernt"
+  end
+
   # User story:
   # As the operator whose earlier merge target was merged on or deleted,
   # I want the row to say where the bookings live now, or that the target is
@@ -494,6 +538,22 @@ defmodule PortfolixirWeb.AccountsMergeRecordsLiveTest do
   end
 
   defp squish(nodes), do: nodes |> Floki.text() |> String.split() |> Enum.join(" ")
+
+  # A merge record's disclosure lines, label to value.
+  defp record_lines(view, record) do
+    counts =
+      view
+      |> element("#merge-records tr[data-merge='#{record.id}'] .merge-manifest__counts")
+      |> render()
+      |> Floki.parse_fragment!()
+
+    Map.new(
+      Enum.zip(
+        counts |> Floki.find("dt") |> Enum.map(&squish/1),
+        counts |> Floki.find("dd") |> Enum.map(&squish/1)
+      )
+    )
+  end
 
   defp merge_cash!(actor, source, target) do
     {:ok, preview} = Lifecycle.preview_cash_merge(source.id, target.id)

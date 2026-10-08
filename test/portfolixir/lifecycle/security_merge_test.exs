@@ -991,6 +991,36 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       assert held(ctx.d1, ctx.target) == dec("5")
     end
 
+    # User story (#1159's flaw, on the collapse choice):
+    # As the operator reading back an agent's merge of two securities that
+    # shared no booking,
+    # I want the merge record to hold no collapse choice,
+    # so that the record never claims a decision about equal bookings that
+    # there was nothing to make.
+    #
+    # Acceptance criteria:
+    # - Without key-equal pairs, an apply that sends collapse_key_equal true
+    #   or false anyway records it as null in the manifest's choices.
+    # - With pairs, the choice is recorded as given (pinned by the worked
+    #   example's two applies).
+    test "without key-equal pairs, a choice sent anyway is recorded as none", ctx do
+      for collapse <- [true, false] do
+        ctx = fresh_pair!(ctx, "Spare Fund #{collapse}")
+        buy!(ctx, ctx.d1, ctx.c1, ctx.source, "2", "40.00", ~D[2025-01-02])
+        buy!(ctx, ctx.d1, ctx.c1, ctx.target, "3", "40.00", ~D[2025-01-02])
+        {:ok, preview} = Lifecycle.preview_security_merge(ctx.source.id, ctx.target.id)
+        refute preview.choice_required
+
+        assert {:ok, record, :applied} =
+                 Lifecycle.merge_security(agent(), ctx.source.id, ctx.target.id, %{
+                   plan_digest: preview.plan_digest,
+                   collapse_key_equal: collapse
+                 })
+
+        assert {collapse, record.manifest["choices"]["collapse_key_equal"]} == {collapse, nil}
+      end
+    end
+
     # User story:
     # As the maintainer of the digest,
     # I want one pair to have one digest whatever the operator will choose,

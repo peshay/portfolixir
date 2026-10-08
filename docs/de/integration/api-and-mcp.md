@@ -666,8 +666,9 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
   Schlusskurs und dem des Ziels, der gewann, die verschobenen oder
   verworfenen Zuordnungen, Positionsziele und Termine, die umgehängten und
   angelegten früheren ISINs, die übernommenen Kennzeichen, die Unterschiede
-  und die Wahlen — `identity_choice` und `isin_changed_on` nur, wo die
-  Zusammenführung diese Wahl getroffen hat, weil beide Wertpapiere eine ISIN
+  und die Wahlen — `collapse_key_equal` nur, wo die Vorschau
+  `key_equal_pairs` nannte, `identity_choice` und `isin_changed_on` nur, wo
+  die Zusammenführung diese Wahl getroffen hat, weil beide Wertpapiere eine ISIN
   trugen, sonst `null`, was die Anfrage auch schickte) und
   `already_applied: false`. In einer Transaktion, ein
   Audit-Journal-Eintrag je Zeile: Mit `true` werden die gepaarten Buchungen
@@ -1352,7 +1353,8 @@ Beispiel-Antwort für Kurssynchronisierung:
   `kind`, `source_id`, `target_id`, `portfolio_id`, `source_snapshot`,
   `manifest` — jede verschobene, angepasste oder gelöschte Buchung, die
   umgehängten Depots, die entfernten Bucket-Verknüpfungen, die angehängten
-  Namen, die Wahl —, `plan_digest`, `actor_type`, `actor_label`,
+  Namen, die Wahl, `null`, wo die Vorschau keine `key_equal_pairs` nannte
+  —, `plan_digest`, `actor_type`, `actor_label`,
   `inserted_at`) und `already_applied: false`. In einer Transaktion, ein
   Audit-Journal-Eintrag je Zeile: Die Umbuchungen zwischen beiden und, mit
   `true`, die gepaarten Buchungen der Quelle werden gelöscht, ihre
@@ -1504,7 +1506,8 @@ Beispiel-Antwort für Kurssynchronisierung:
   einem Geldkonto; sein `manifest` nennt jede verschobene oder gelöschte
   Buchung, die Overrides `carried`, `dropped` und `cleared`, die entfernten
   Standard-Buckets, die angehängten Namen, die Rundungsdifferenzen und die
-  Wahl) und `already_applied: false`. In einer Transaktion, ein
+  Wahl, `null`, wo die Vorschau keine `key_equal_pairs` nannte) und
+  `already_applied: false`. In einer Transaktion, ein
   Audit-Journal-Eintrag je Zeile: Die Umbuchungen zwischen beiden und, mit
   `true`, die gepaarten Buchungen der Quelle werden gelöscht und ihre
   Inhalts-Hashes stillgelegt; jede andere Buchung der Quelle geht auf das
@@ -1547,10 +1550,11 @@ Beispiel-Antwort für Kurssynchronisierung:
   entfernt hat) `transactions.deleted_by_reason`, dieselben Zeilen je Grund
   gezählt (`internal_transfer`, `collapsed_duplicate`, `folded_anchor`,
   `collapsed_split`; nur die vorkommenden Gründe, `{}` wenn keine), und die
-  Wahl des Operators, wie gegeben, bei einer Wertpapier-Zusammenführung
-  `identity_choice` und `isin_changed_on` nur, wo sie diese Wahl getroffen
-  hat (ein Protokoll einer früheren Version kann sie tragen, wie sie
-  geschickt wurden). `meta` trägt `order`, `count` und `limit`. `limit`
+  Wahl des Operators, wie gegeben — `collapse_key_equal` nur, wo die
+  Zusammenführung gleiche Buchungspaare hatte, bei einer
+  Wertpapier-Zusammenführung `identity_choice` und `isin_changed_on` nur, wo
+  sie diese Wahl getroffen hat (ein Protokoll einer früheren Version kann sie
+  tragen, wie sie geschickt wurden). `meta` trägt `order`, `count` und `limit`. `limit`
   folgt der Listen-Familie: Standard 100, gedeckelt bei 1000, und null, eine
   negative Zahl oder keine Zahl antwortet `422`. Der Operator liest dieselben
   Protokolle mit denselben Zahlen unter **Zusammenführungen** am Ende von

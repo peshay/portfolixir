@@ -80,6 +80,17 @@ defmodule Portfolixir.Lifecycle.MergeFlow do
 
   def choose(_pairs, collapse), do: {:ok, collapse == true}
 
+  @doc """
+  The collapse choice a merge record holds: the operator's where the plan
+  listed key-equal pairs, `nil` where there was nothing to choose, whatever
+  the request sent, so the record claims no decision that did not happen
+  (#1159's rule, for `collapse_key_equal`). Records stored before keep what
+  they hold.
+  """
+  @spec recorded_choice([term()], boolean() | nil) :: boolean() | nil
+  def recorded_choice([], _collapse), do: nil
+  def recorded_choice(_pairs, collapse), do: collapse
+
   @doc "A guard's result."
   @spec guard(atom(), String.t(), boolean(), String.t()) :: guard()
   def guard(code, check, passed?, detail),
