@@ -1019,12 +1019,17 @@ defmodule PortfolixirWeb.DashboardLive do
     |> Decimal.to_string(:normal)
   end
 
+  defp signed_percent(nil), do: Format.percent(nil)
+
   defp signed_percent(value) do
     formatted = Format.percent(value)
     if Decimal.compare(value, 0) == :gt, do: "+" <> formatted, else: formatted
   end
 
-  # Gain/loss colour by sign, never the accent (UX-DR7, issue 637).
+  # Gain/loss colour by sign, never the accent (UX-DR7, issue 637). A
+  # percentage a trade with no cost basis does not have (#1142) has none.
+  defp sign_class(nil), do: nil
+
   defp sign_class(value) do
     case Decimal.compare(value, 0) do
       :gt -> "is-positive"

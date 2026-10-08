@@ -15,6 +15,11 @@ defmodule Portfolixir.Ledger.TradeReturn do
   `realized_pnl_pct` it annualizes; the base-currency result is not what
   it annualizes.
 
+  **With no cost basis it is `nil`** (#1142, plan D-6), before either rule
+  below: a trade whose `basis` is zero (a buy booked at a price of 0 with no
+  fees or taxes) has nothing to annualize, however long it was held, and its
+  reason says so rather than the solver's or the holding period's.
+
   **Under 365 days of holding it is `nil`** (ADR-0034 §2 refuses to
   annualize a window under a year for the MWR, and the GIPS convention is
   the same): 5 % in 14 days would read as about 257 % a year. The holding
@@ -39,7 +44,7 @@ defmodule Portfolixir.Ledger.TradeReturn do
   @min_holding_days 365
 
   @type reason ::
-          :holding_period_under_365_days | IRR.reason()
+          :no_cost_basis | :holding_period_under_365_days | IRR.reason()
 
   @doc """
   The annualized return of a closed trade from `TradeMatcher.match/1`:
@@ -52,6 +57,10 @@ defmodule Portfolixir.Ledger.TradeReturn do
           annualized_return_reason: reason() | nil
         }
   def annualized(trade, opts \\ [])
+
+  # #1142: no cost, nothing to annualize — the first reason, before the
+  # holding period's and the solver's.
+  def annualized(%{basis: %Decimal{coef: 0}}, _opts), do: none(:no_cost_basis)
 
   def annualized(%{holding_period_days: days}, _opts) when days < @min_holding_days,
     do: none(:holding_period_under_365_days)
@@ -80,7 +89,9 @@ defmodule Portfolixir.Ledger.TradeReturn do
       "proceeds net of fees and taxes on the close date, in the trade's own currency, the " <>
       "one realized_pnl_pct is in, never the base currency; rounded to 6 decimal places, " <>
       "and a loss stays above -1. No benchmark or other reference series enters it. " <>
-      "It is null with annualized_return_reason " <>
+      "It is null with annualized_return_reason no_cost_basis when basis is 0 (a buy booked " <>
+      "at a price of 0 with no fees or taxes): with no cost there is nothing to annualize, " <>
+      "however long the trade was held, so this reason comes first; null with " <>
       "holding_period_under_365_days when holding_period_days (the quantity-weighted days " <>
       "the trade shows, not the span from its oldest lot) is below #{@min_holding_days}, " <>
       "because annualizing a short window explodes the figure; and null with the solver's " <>

@@ -38,8 +38,10 @@ defmodule Portfolixir.Portfolios.RealizedGains do
   Each trade carries `annualized_return` and `annualized_return_reason`
   from `Ledger.TradeReturn`, the figure the security's own trades read
   serves: the trade's money-weighted return per year in its own currency,
-  `nil` under 365 days of holding or when no rate solves the trade's flows.
-  `computation_basis.annualized_return` states the rule.
+  `nil` with no cost basis, under 365 days of holding or when no rate solves
+  the trade's flows. `computation_basis.annualized_return` states the rule.
+  A trade whose basis is zero has a `nil` `realized_pnl_pct` too (#1142),
+  stated in `computation_basis.realized_pnl_pct`.
 
   ## The sells no buy was matched to (#984, T1b)
 
@@ -133,6 +135,8 @@ defmodule Portfolixir.Portfolios.RealizedGains do
             "not zero. The matrix is unaffected by limit= here: the figures always read the " <>
             "full history, while limit= cuts only the years the matrix shows.",
         annualized_return: TradeReturn.basis(),
+        # #1142 (plan D-6): a trade with no cost basis has no percentage.
+        realized_pnl_pct: Ledger.realized_pnl_pct_basis(),
         # The ADR-0015 amendment of 2026-10-07 (#1108): every trade's basis,
         # proceeds and realized_pnl_abs are in its currency_code, fees and
         # taxes included, before the close-date conversion.

@@ -99,6 +99,43 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "security_currency" and &1 =~ "#1107")
            )
 
+    # B3 extends the entry (#1142, plan D-6): a return on no cost basis is
+    # null, never "0", with its rule in the payload's computation basis,
+    # on each read that serves the percentage, and annualized_return_reason
+    # gains no_cost_basis.
+    assert sprint20["summary"] =~ "B3, a zero cost basis has no return (#1142)"
+
+    for {read, tool, fragments} <- [
+          {"GET /api/v1/securities/:security_id/trades", "portfolixir.trades.list",
+           [
+             "realized_pnl_pct null",
+             "unrealized_pnl_pct null",
+             "annualized_return_reason no_cost_basis",
+             "computation_basis.realized_pnl_pct",
+             "computation_basis.unrealized_pnl_pct"
+           ]},
+          {"GET /api/v1/realized_gains", "portfolixir.cashflow.realized_gains",
+           [
+             "realized_pnl_pct null",
+             "annualized_return_reason no_cost_basis",
+             "computation_basis.realized_pnl_pct"
+           ]},
+          {"GET /api/v1/portfolios/:portfolio_id/holdings", "portfolixir.holdings.list",
+           [
+             "unrealized_pnl_pct null",
+             "security_id=",
+             "fields=",
+             "computation_basis.unrealized_pnl_pct"
+           ]}
+        ] do
+      assert Enum.any?(
+               sprint20["parameters"],
+               &(String.starts_with?(&1, read) and &1 =~ tool and &1 =~ "#1142" and
+                   Enum.all?(fragments, fn fragment -> &1 =~ fragment end))
+             ),
+             read
+    end
+
     # The deposits-and-withdrawals read, the amendment's point 1 for a
     # deposit's or removal's cash (#1107).
     assert sprint20["summary"] =~ "deposits-and-withdrawals"

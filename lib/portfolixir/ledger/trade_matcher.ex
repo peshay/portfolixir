@@ -9,7 +9,9 @@ defmodule Portfolixir.Ledger.TradeMatcher do
   - `:closed_trades` — realised round-trips, one entry per sell, with
                       weighted-average cost basis across consumed lots and
                       the consumed lots themselves (`lots`: open date,
-                      quantity taken, prorated cost; #984)
+                      quantity taken, prorated cost; #984); its
+                      `realized_pnl_pct` is `nil` where its basis is zero
+                      (#1142)
   - `:orphan_sells` — sell quantities with no preceding buy stock, so the
                       caller can surface them rather than silently losing
                       data
@@ -236,7 +238,7 @@ defmodule Portfolixir.Ledger.TradeMatcher do
       |> Decimal.sub(sell_taxes)
 
     realized = Decimal.sub(proceeds, basis)
-    realized_pct = safe_div(realized, basis)
+    realized_pct = return_on(realized, basis)
 
     weighted_open_date_days =
       consumed
@@ -331,4 +333,11 @@ defmodule Portfolixir.Ledger.TradeMatcher do
 
   defp safe_div(_num, %Decimal{coef: 0}), do: Decimal.new(0)
   defp safe_div(num, den), do: Decimal.div(num, den)
+
+  # #1142 (plan D-6): a trade whose basis is zero — a buy booked at a price
+  # of 0 with no fees or taxes, a bonus or free share — has no percentage
+  # return. Its result is undefined against no cost, not 0 %, which would
+  # read as a flat trade; `realized_pnl_abs` still states it.
+  defp return_on(_realized, %Decimal{coef: 0}), do: nil
+  defp return_on(realized, basis), do: Decimal.div(realized, basis)
 end

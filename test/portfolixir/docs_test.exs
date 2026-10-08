@@ -3024,4 +3024,37 @@ defmodule Portfolixir.DocsTest do
       end
     end
   end
+
+  # User story (#1142, Sprint 20 β B3, plan D-6):
+  # As the agent that reads the API reference, and the operator who reads it
+  # in German,
+  # I want it to say which reads answer a return on no cost basis with null,
+  # and where the rule is stated,
+  # so that a null percentage is read as undefined, never as a missing 0.
+  test "the API reference states the null return on a zero cost basis, in English and German" do
+    for {path, fragments} <- [
+          {"docs/integration/api-and-mcp.md",
+           [
+             "reads `unrealized_pnl_pct` `null`, never `\"0\"`: a return on no cost is undefined",
+             "`computation_basis.unrealized_pnl_pct` states the rule",
+             "**`annualized_return_reason`** `no_cost_basis` when the trade's `basis` is `\"0\"`",
+             "`realized_pnl_pct` `null`, never `\"0\"`: its `realized_pnl_abs`",
+             "`computation_basis.realized_pnl_pct` and `computation_basis.unrealized_pnl_pct` state the rules"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "liest `unrealized_pnl_pct` `null`, nie `\"0\"`: Eine Rendite auf keine Kosten ist unbestimmt",
+             "`computation_basis.unrealized_pnl_pct` der Antwort nennt die Regel",
+             "**`annualized_return_reason`** `no_cost_basis`, wenn `basis` des Trades `\"0\"` ist",
+             "`realized_pnl_pct` `null`, nie `\"0\"`: `realized_pnl_abs`",
+             "`computation_basis.realized_pnl_pct` und `computation_basis.unrealized_pnl_pct` nennen die Regeln"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
 end

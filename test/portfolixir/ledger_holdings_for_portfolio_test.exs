@@ -279,6 +279,8 @@ defmodule Portfolixir.LedgerHoldingsForPortfolioTest do
     assert Decimal.equal?(o_row.cost_basis, Decimal.new("0"))
     assert Decimal.equal?(o_row.market_value, Decimal.new("-600"))
     assert Decimal.equal?(o_row.unrealized_pnl_abs, Decimal.new("-600"))
-    assert Decimal.equal?(o_row.unrealized_pnl_pct, Decimal.new("0"))
+    # #1142 (Sprint 20 β B3, plan D-6): a zero cost basis has no percentage
+    # return, null where it read 0.
+    assert o_row.unrealized_pnl_pct == nil
   end
 end
