@@ -170,7 +170,7 @@ msgstr "Deutsch"
 #: lib/portfolixir_web/live/portfolio_live.ex:2686
 #: lib/portfolixir_web/live/securities/merge_preview.ex:899
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:420
-#: lib/portfolixir_web/security_names.ex:175
+#: lib/portfolixir_web/security_names.ex:188
 #, elixir-autogen
 msgid "ISIN"
 msgstr "ISIN"
@@ -718,7 +718,7 @@ msgstr "Wert"
 #: lib/portfolixir_web/live/portfolio_live.ex:2687
 #: lib/portfolixir_web/live/securities/merge_preview.ex:900
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:426
-#: lib/portfolixir_web/security_names.ex:176
+#: lib/portfolixir_web/security_names.ex:189
 #, elixir-autogen, elixir-format
 msgid "WKN"
 msgstr "WKN"
@@ -8775,12 +8775,12 @@ msgstr "eine Zeile der Datei"
 msgid "an account already has this name"
 msgstr "ein Konto heißt schon so"
 
-#: lib/portfolixir_web/account_names.ex:37
+#: lib/portfolixir_web/account_names.ex:45
 #, elixir-autogen, elixir-format
 msgid "at %{depots}"
 msgstr "bei %{depots}"
 
-#: lib/portfolixir_web/account_names.ex:84
+#: lib/portfolixir_web/account_names.ex:92
 #: lib/portfolixir_web/live/securities/merge_dialog.ex:648
 #: lib/portfolixir_web/live/securities/merge_preview.ex:157
 #, elixir-autogen, elixir-format
@@ -8797,14 +8797,14 @@ msgstr "über früheren Namen zugeordnet — %{account}, früher „%{name}“"
 msgid "no account under this name; it is created only with its first new booking"
 msgstr "kein Konto unter diesem Namen; angelegt wird es erst mit seiner ersten neuen Buchung"
 
-#: lib/portfolixir_web/account_names.ex:36
+#: lib/portfolixir_web/account_names.ex:44
 #, elixir-autogen, elixir-format
 msgid "no depot"
 msgstr "ohne Depot"
 
-#: lib/portfolixir_web/account_names.ex:88
-#: lib/portfolixir_web/security_names.ex:179
-#: lib/portfolixir_web/security_names.ex:189
+#: lib/portfolixir_web/account_names.ex:96
+#: lib/portfolixir_web/security_names.ex:192
+#: lib/portfolixir_web/security_names.ex:202
 #, elixir-autogen, elixir-format
 msgid "no. %{id}"
 msgstr "Nr. %{id}"
@@ -8814,7 +8814,7 @@ msgstr "Nr. %{id}"
 msgid "nothing to create"
 msgstr "nichts anzulegen"
 
-#: lib/portfolixir_web/account_names.ex:46
+#: lib/portfolixir_web/account_names.ex:54
 #, elixir-autogen, elixir-format
 msgid "with %{cash}"
 msgstr "mit %{cash}"

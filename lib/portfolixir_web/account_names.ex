@@ -10,11 +10,19 @@ defmodule PortfolixirWeb.AccountNames do
   currency, its creation date, its number; a depot: its cash account, its
   creation date, its number. An account with a unique name carries none, and
   its label is its name.
+
+  Two names are one where they print the same
+  (`PortfolixirWeb.SecurityNames.twin_key/1`: Unicode NFC and whitespace
+  runs as one space, case kept; #1152). The name guard and the import's
+  resolution compare names exactly, so "Demo Depot" and "Demo  Depot" can
+  both exist; the options tell them apart (ADR-0050's amendment of
+  2026-10-07, point 6).
   """
 
   use Gettext, backend: PortfolixirWeb.Gettext
 
   alias PortfolixirWeb.Format
+  alias PortfolixirWeb.SecurityNames
 
   @type tags :: %{
           cash: %{optional(integer()) => String.t()},
@@ -62,7 +70,7 @@ defmodule PortfolixirWeb.AccountNames do
 
   defp kind_tags(accounts, features) do
     accounts
-    |> Enum.group_by(& &1.name)
+    |> Enum.group_by(&SecurityNames.twin_key(&1.name))
     |> Enum.flat_map(fn
       {_name, [_single]} ->
         []

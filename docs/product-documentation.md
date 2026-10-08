@@ -2967,7 +2967,9 @@ of the preview, shows no bucket tag, and its confirm books nothing. Two
 accounts of the same name are
 told apart in the list by what differs — a cash account's linked depots, else
 its currency, else the day it was created; a depot's cash account — and an
-ambiguous row names its candidates the same way. *+ Create new* for a name
+ambiguous row names its candidates the same way. Names that print the same
+count as one name there, such as one written with a doubled space, although
+the import matches a file's names exactly. *+ Create new* for a name
 the import may not create (another account's name, another account's former
 name, or the name of several accounts) stays in the list, disabled, with the
 reason, so nothing you pick fails the import at the end.

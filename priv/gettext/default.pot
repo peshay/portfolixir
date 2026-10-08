@@ -170,7 +170,7 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_live.ex:2686
 #: lib/portfolixir_web/live/securities/merge_preview.ex:899
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:420
-#: lib/portfolixir_web/security_names.ex:175
+#: lib/portfolixir_web/security_names.ex:188
 #, elixir-autogen
 msgid "ISIN"
 msgstr ""
@@ -718,7 +718,7 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_live.ex:2687
 #: lib/portfolixir_web/live/securities/merge_preview.ex:900
 #: lib/portfolixir_web/live/securities/security_form_dialog.ex:426
-#: lib/portfolixir_web/security_names.ex:176
+#: lib/portfolixir_web/security_names.ex:189
 #, elixir-autogen, elixir-format
 msgid "WKN"
 msgstr ""
@@ -8770,12 +8770,12 @@ msgstr ""
 msgid "an account already has this name"
 msgstr ""
 
-#: lib/portfolixir_web/account_names.ex:37
+#: lib/portfolixir_web/account_names.ex:45
 #, elixir-autogen, elixir-format
 msgid "at %{depots}"
 msgstr ""
 
-#: lib/portfolixir_web/account_names.ex:84
+#: lib/portfolixir_web/account_names.ex:92
 #: lib/portfolixir_web/live/securities/merge_dialog.ex:648
 #: lib/portfolixir_web/live/securities/merge_preview.ex:157
 #, elixir-autogen, elixir-format
@@ -8792,14 +8792,14 @@ msgstr ""
 msgid "no account under this name; it is created only with its first new booking"
 msgstr ""
 
-#: lib/portfolixir_web/account_names.ex:36
+#: lib/portfolixir_web/account_names.ex:44
 #, elixir-autogen, elixir-format
 msgid "no depot"
 msgstr ""
 
-#: lib/portfolixir_web/account_names.ex:88
-#: lib/portfolixir_web/security_names.ex:179
-#: lib/portfolixir_web/security_names.ex:189
+#: lib/portfolixir_web/account_names.ex:96
+#: lib/portfolixir_web/security_names.ex:192
+#: lib/portfolixir_web/security_names.ex:202
 #, elixir-autogen, elixir-format
 msgid "no. %{id}"
 msgstr ""
@@ -8809,7 +8809,7 @@ msgstr ""
 msgid "nothing to create"
 msgstr ""
 
-#: lib/portfolixir_web/account_names.ex:46
+#: lib/portfolixir_web/account_names.ex:54
 #, elixir-autogen, elixir-format
 msgid "with %{cash}"
 msgstr ""

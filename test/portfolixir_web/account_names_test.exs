@@ -51,4 +51,47 @@ defmodule PortfolixirWeb.AccountNamesTest do
       Gettext.put_locale(PortfolixirWeb.Gettext, previous)
     end
   end
+
+  # User story (#1152; ADR-0050's amendment of 2026-10-07, point 6):
+  # As the operator picking an account in the import preview or the merge
+  # flow, where the name guard compares names exactly,
+  # I want two accounts whose names print the same to be told apart in the
+  # options,
+  # so that "Demo Depot" and "Demo  Depot", which the guard lets coexist, do
+  # not read as one option.
+  #
+  # Acceptance criteria:
+  # - Accounts of one kind whose names differ only in Unicode form or in
+  #   inner whitespace are same-named for the options, and each takes the
+  #   first feature that tells them apart; a label keeps its own name.
+  # - Names that differ in letter case stay two names, untagged.
+  # - The guard and the resolution stay exact; only the options' tags fold.
+  test "same-named accounts are the names that print the same, whatever their bytes" do
+    at = ~N[2026-10-03 09:00:00]
+
+    cash = [
+      %{id: 1, name: "Giro", currency_code: "EUR", inserted_at: at},
+      %{id: 2, name: "Reserve", currency_code: "EUR", inserted_at: at},
+      %{id: 3, name: "Kasse M\u00FCnchen", currency_code: "EUR", inserted_at: at},
+      %{id: 4, name: "Kasse Mu\u0308nchen", currency_code: "USD", inserted_at: at}
+    ]
+
+    depots = [
+      %{id: 10, name: "Demo Depot", cash_account_id: 1, inserted_at: at},
+      %{id: 11, name: "Demo  Depot", cash_account_id: 2, inserted_at: at},
+      %{id: 12, name: "demo depot", cash_account_id: 1, inserted_at: at}
+    ]
+
+    Gettext.with_locale(PortfolixirWeb.Gettext, "en", fn ->
+      tags = AccountNames.tags(cash, depots)
+
+      assert tags == %{
+               cash: %{3 => "EUR", 4 => "USD"},
+               depot: %{10 => "with Giro", 11 => "with Reserve"}
+             }
+
+      assert AccountNames.label(tags, :depot, Enum.at(depots, 1)) == "Demo  Depot · with Reserve"
+      assert AccountNames.label(tags, :depot, Enum.at(depots, 2)) == "demo depot"
+    end)
+  end
 end

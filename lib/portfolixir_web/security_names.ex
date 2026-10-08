@@ -8,7 +8,11 @@ defmodule PortfolixirWeb.SecurityNames do
   A security whose name another security of the same list carries adds,
   after a middle dot, what tells it apart: its ISIN, else its ticker, else
   "no. <id>" — the first of them present and different on every twin.
-  Unique names are unchanged.
+  Unique names are unchanged. "Carries" means "prints the same", the key
+  `display_key/1` gives the tables (#1152): a picker and a table agree on
+  which names are twins, while the account guard and the import's
+  resolution keep comparing names exactly (ADR-0050's amendment of
+  2026-10-07, point 6).
 
   **The table rows' rule** (issue 1057, board
   `mockups/ux-design-2026-10-04/06-phone-wealth`, pick J6.2 A) is the same
@@ -28,13 +32,14 @@ defmodule PortfolixirWeb.SecurityNames do
 
   @doc """
   Per security whose name another one of `securities` also carries, the tag
-  that tells it apart; securities with a unique name carry none.
+  that tells it apart; securities with a unique name carry none. Two names
+  are one where `display_key/1` reads them the same (#1152).
   """
   @spec tags([map()]) :: %{optional(integer()) => String.t()}
   def tags(securities) when is_list(securities) do
     securities
     |> Enum.uniq_by(& &1.id)
-    |> Enum.group_by(& &1.name)
+    |> Enum.group_by(&twin_key(&1.name))
     |> Enum.flat_map(fn
       {_name, [_single]} ->
         []
@@ -134,6 +139,14 @@ defmodule PortfolixirWeb.SecurityNames do
   end
 
   def display_key(_name), do: nil
+
+  @doc """
+  The key a picker's twins are grouped by (#1152): `display_key/1`, or the
+  name as it is where that leaves nothing, so a name with no printed text
+  collides only with the same text, as before.
+  """
+  @spec twin_key(term()) :: term()
+  def twin_key(name), do: display_key(name) || name
 
   defp group_ids(group_key, group) do
     twins = Enum.uniq_by(group, & &1.security_id)
