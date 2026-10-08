@@ -1655,7 +1655,8 @@ Example account payloads:
   EUR with 3.00 EUR in fees read `basis` `"1007.5"`, `proceeds`
   `"1196.25"`, `realized_pnl_abs` `"188.75"` and `realized_base` `"151"`.
   A trade booked in its account's currency (a Portfolio Performance
-  import's form) or without a stored rate adds them as recorded.
+  import's form), in a third currency or without a stored rate adds them as
+  recorded.
   `computation_basis.fees_and_taxes` states the rule.
 - `GET /api/v1/external_flows` (issue #725) returns the Deposits &
   withdrawals roll-up: the booked external **cash** flows (`deposit` and

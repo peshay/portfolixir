@@ -1783,7 +1783,8 @@ Beispiel-Payloads für Konten:
   120 USD für 960,00 EUR mit 3,00 EUR Gebühren, lesen `basis` `"1007.5"`,
   `proceeds` `"1196.25"`, `realized_pnl_abs` `"188.75"` und `realized_base`
   `"151"`. Ein Trade in der Kontowährung (die Form eines Portfolio-
-  Performance-Imports) oder ohne gespeicherten Kurs addiert sie wie erfasst.
+  Performance-Imports), in einer dritten Währung oder ohne gespeicherten Kurs
+  addiert sie wie erfasst.
   `computation_basis.fees_and_taxes` nennt die Regel.
 - `GET /api/v1/external_flows` (Issue #725) liefert das
   Ein-/Auszahlungs-Rollup: die gebuchten externen **Cash**-Flüsse (`deposit`
