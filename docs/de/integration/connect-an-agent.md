@@ -110,8 +110,10 @@ MCP-Client erledigt das alles, sobald URL und Header gesetzt sind.
 Jede Anfrage trägt den Header `Authorization: Bearer
 <PORTFOLIXIR_MCP_TOKEN>`. Ein falsches Token ergibt `401`, und wiederholt
 falsche Tokens von einer Adresse sperren diese Adresse für eine wachsende
-Zeit; hinter dem veröffentlichten Port ist jeder Client des Hosts diese eine
-Adresse, und `docker compose restart mcp` setzt die Zählung zurück. Der
+Zeit, beantwortet mit `429`; die Sperre trifft nur falsche Tokens: Ein
+richtiges Token kommt durch, solange sie gilt (#974). Hinter dem
+veröffentlichten Port ist jeder Client des Hosts diese eine Adresse;
+`docker compose restart mcp` setzt die Zählung zurück. Der
 Begleitdienst antwortet nur unter den Loopback-Namen mit seinem Port
 (`127.0.0.1:4001`, `localhost:4001`, `[::1]:4001`) und nimmt die Anfrage
 eines Browsers nur von diesen Origins über `http://` an. Tragen Sie in

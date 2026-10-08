@@ -520,11 +520,13 @@ Container von der einen Gateway-Adresse der Docker-Bridge aus (siehe
 „Reverse-Proxy“ unten). Der MCP-Begleitdienst zählt fehlgeschlagene Tokens je
 verbindender Adresse, so wie die Anwendung fehlgeschlagene Anmeldungen zählt;
 für ihn ist also jeder Client auf dem Host eine Quelle: ein Prozess auf dem
-Host, der ein falsches Token schickt, sperrt auch deinen Agenten aus, nach
-wiederholten Fehlschlägen und mit jedem weiteren länger bis zu einer
-Obergrenze, und solange die Sperre gilt, wird auch ein richtiges Token mit
-`429` beantwortet. Die Zählungen liegen
-nur im Speicher:
+Host, der falsche Tokens schickt, sperrt diese Adresse nach wiederholten
+Fehlschlägen, mit jedem weiteren länger bis zu einer Obergrenze. Seit Sprint
+20 (#974) trifft die Sperre nur falsche Tokens: Das richtige Token deines
+Agenten kommt durch, solange sie gilt, sodass ein veralteter Client, der nach
+einem Tausch noch ein altes Token schickt, abgewiesen wird, ohne deinen
+Agenten auszusperren. Die API der Anwendung prüft ihre Tokens genauso. Die
+Zählungen liegen nur im Speicher:
 `docker compose restart mcp` löscht sie sofort.
 
 CI fährt diesen Weg bei jeder Änderung an dem, was er baut: Der Job

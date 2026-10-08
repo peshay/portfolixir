@@ -103,9 +103,10 @@ URL and the header are set.
 
 Every request carries the header `Authorization: Bearer
 <PORTFOLIXIR_MCP_TOKEN>`. A wrong token answers `401`, and repeated wrong
-tokens from one address lock that address out for a growing time; behind the
-published port every client on the host is that one address, so
-`docker compose restart mcp` clears the count. The companion answers only
+tokens from one address lock that address for a growing time, answered `429`;
+the lock answers only wrong tokens: a correct token passes while it lasts
+(#974). Behind the published port every client on the host is that one
+address; `docker compose restart mcp` clears the count. The companion answers only
 under the loopback names with its port (`127.0.0.1:4001`, `localhost:4001`,
 `[::1]:4001`), and takes a browser's request only from those origins over
 `http://`. Add to `PORTFOLIXIR_MCP_ALLOWED_HOSTS` the proxy's name behind a
