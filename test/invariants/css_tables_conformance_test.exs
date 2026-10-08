@@ -66,8 +66,12 @@ defmodule Portfolixir.Invariants.CssTablesConformanceTest do
   # - The table-scoped copies of the sign rule are gone, because the general
   #   rule makes them redundant: Sprint 17's `#realized-trades-table` copy
   #   (board 01 rule ⑥) and the security Trades tab's
-  #   `#detail-closed-trades-table` copy (pick H1, rule ①). Their muted-dash
-  #   lines stay: a muted class in a cell is not a sign.
+  #   `#detail-closed-trades-table` copy (pick H1, rule ①).
+  # - Their muted-dash lines went the same way (#1142, Sprint 20 board
+  #   ux-design-2026-10-07/02-money-findings, rule ②): the open lots', the
+  #   Holdings tab's and Wealth's cells carry the reason dash too, so one
+  #   general `.data-table td.trade-pa--na` (0,2,1) outranks `.data-table
+  #   tbody td { color }` (0,1,2) in every data table.
   test "a signed cell keeps its sign colour in every data table" do
     assert block(".data-table td.is-positive") =~ ~r/color:\s*var\(--color-positive\);/
     assert block(".data-table td.is-negative") =~ ~r/color:\s*var\(--color-danger\);/
@@ -75,10 +79,12 @@ defmodule Portfolixir.Invariants.CssTablesConformanceTest do
     assert block(".drift-table tr.is-muted td.is-negative") =~
              ~r/color:\s*var\(--color-danger\);/
 
+    assert block(".data-table td.trade-pa--na") =~ ~r/color:\s*var\(--color-text-muted\);/
+
     for table <- ["#realized-trades-table", "#detail-closed-trades-table"] do
       refute @css =~ "#{table} td.is-positive", "#{table} still carries its own sign rule"
       refute @css =~ "#{table} td.is-negative", "#{table} still carries its own sign rule"
-      assert block("#{table} td.trade-pa--na") =~ ~r/color:\s*var\(--color-text-muted\);/
+      refute @css =~ "#{table} td.trade-pa--na", "#{table} still carries its own dash rule"
     end
   end
 

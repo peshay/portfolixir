@@ -10710,6 +10710,16 @@ dialog.merge-dialog {
   cursor: help;
 }
 
+/* Issue 1142 (Sprint 20 board ux-design-2026-10-07/02-money-findings, rule ②):
+   the reason dash is muted in every data table. `.data-table tbody td
+   { color }` (0,1,2) outranks the bare class, so this general rule (0,2,1)
+   replaces the two table-scoped copies this block carried, as issue 1010
+   did for the sign colours: the open lots' table has no id, and the
+   Holdings tab's "%" and Wealth's "P&L %" carry the dash too. */
+.data-table td.trade-pa--na {
+  color: var(--color-text-muted);
+}
+
 /* Rule ②: the basis line under the trades list and on the Overview card,
    in the basis voice. `.summary-basis` has no context-free rule, so the
    rule is scoped to the two places this pick writes one. */
@@ -10741,11 +10751,8 @@ dialog.merge-dialog {
 /* Rule ⑥, the sign colour inside the trades table, was retired by issue
    1010 (Sprint 18 pick H4): the general `.data-table td.is-positive /
    .is-negative` gives every data table the colour this table had alone.
-   Rule ① inside the table (closing act γ D4): `.data-table tbody td
-   { color }` outranked the muted dash, which printed in the text colour. */
-#realized-trades-table td.trade-pa--na {
-  color: var(--color-text-muted);
-}
+   Rule ① inside the table (closing act γ D4) went the same way with issue 1142:
+   the general `.data-table td.trade-pa--na` above mutes the dash here. */
 
 /* Rule ⑦ (closing act γ D9; the board left it to the story): a reading
    table, not a matrix — it fits its wrapper, the name and the dates wrap,
@@ -10783,14 +10790,11 @@ dialog.merge-dialog {
 /* ===== The security's Trades tab: the p. a. column, the unmatched-sells
    note, the basis line and the phone rows (issue 1029, Sprint 18 pick H1;
    board ux-design-2026-10-02/01-trades-tab-pa, "after") ===== */
-/* Rule ①: the closed-trades table's muted dash. `.data-table tbody td
-   { color }` outranks the bare .trade-pa--na, so the rule is scoped to this
-   table, as the facet's is to its own. Its two sign lines went with issue
-   1010 (pick H4): the general `.data-table td.is-positive / .is-negative`
-   colours p. a., "Realised P&L" and "%" here and the open lots above. */
-#detail-closed-trades-table td.trade-pa--na {
-  color: var(--color-text-muted);
-}
+/* Rule ①, the closed-trades table's muted dash, is the general
+   `.data-table td.trade-pa--na` since issue 1142 (board 02 rule ②). Its two sign
+   lines went with issue 1010 (pick H4): the general `.data-table
+   td.is-positive / .is-negative` colours p. a., "Realised P&L" and "%" here
+   and the open lots above. */
 
 /* Rule ②: the unmatched-sells note leads the closed-trades section
    (UX-DR25), the facet's anatomy. The security is the page's own, so its

@@ -2618,13 +2618,18 @@ defmodule PortfolixirWeb.PortfolioLive do
   # Board ux-design-2026-10-07/02-money-findings, found while drawing 4: the
   # "P&L %" cell is a percentage in DESIGN.md's form, so it carries its sign
   # colour, decided on the percent as shown (issue 1010's rule: every signed
-  # cell of a data table).
+  # cell of a data table). A position on no cost (#1142) is the muted reason
+  # dash, its reason in the cell's title (#1089's anatomy).
   defp holdings_cell_attrs(row, "unrealized_pnl_pct" = key) do
-    case Format.displayed_percent_sign(row.unrealized_pnl_pct) do
-      :positive -> %{class: "num is-positive"}
-      :negative -> %{class: "num is-negative"}
-      :zero -> %{class: "num is-flat"}
-      nil -> holdings_num_attrs(key)
+    if holdings_return_absent?(row) do
+      %{class: "num trade-pa--na", title: gettext("No return: no cost basis")}
+    else
+      case Format.displayed_percent_sign(row.unrealized_pnl_pct) do
+        :positive -> %{class: "num is-positive"}
+        :negative -> %{class: "num is-negative"}
+        :zero -> %{class: "num is-flat"}
+        nil -> holdings_num_attrs(key)
+      end
     end
   end
 
@@ -2655,7 +2660,19 @@ defmodule PortfolixirWeb.PortfolioLive do
   # Found while drawing 4 (board 02): a percentage, not the raw fraction —
   # DESIGN.md's percent form, one decimal with the sign and "%" glued on
   # ("+18,7%"), where it printed every digit of 0.1871… under a "%" header.
-  defp holdings_cell(row, "unrealized_pnl_pct"), do: holdings_percent(row.unrealized_pnl_pct)
+  # #1142 (board 02): a position on no cost has no return, so the cell is
+  # the dash, aria-hidden, with its reason for the screen reader.
+  defp holdings_cell(row, "unrealized_pnl_pct") do
+    if holdings_return_absent?(row) do
+      assigns = %{sentence: gettext("no return, no cost basis")}
+
+      ~H"""
+      <span aria-hidden="true">—</span><span class="visually-hidden"><%= @sentence %></span>
+      """
+    else
+      holdings_percent(row.unrealized_pnl_pct)
+    end
+  end
 
   # The projection's own values, unrounded: this table is the human read of
   # what the API serves, so a figure here is the figure there. The separators
@@ -2670,6 +2687,12 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   defp holdings_percent(%Decimal{} = fraction), do: Format.signed_percent(fraction) <> "%"
   defp holdings_percent(_none), do: "—"
+
+  # #1142: a P&L with no percentage beside it is one on no cost — the ledger
+  # leaves the percentage nil exactly where the cost basis is zero, and both
+  # nil where there is no price.
+  defp holdings_return_absent?(row),
+    do: not is_nil(row.unrealized_pnl_abs) and is_nil(row.unrealized_pnl_pct)
 
   # The phone row's quantity (#1065): the table's own digits, with the
   # history's unit words — one unit is a unit, any other quantity units.

@@ -737,7 +737,10 @@ defmodule PortfolixirWeb.RealizedTradesLiveTest do
     css = File.read!("priv/static/app.css")
 
     assert css =~ ~r/\.trade-pa--na\s*\{[^}]*color:\s*var\(--color-text-muted\)/
-    assert css =~ ~r/#realized-trades-table td\.trade-pa--na\s*\{[^}]*var\(--color-text-muted\)/
+    # #1142 (board 02 rule ②): the table's own dash rule became the general
+    # one, which every data table's reason dash shares.
+    assert css =~ ~r/\n\.data-table td\.trade-pa--na\s*\{[^}]*var\(--color-text-muted\)/
+    refute css =~ "#realized-trades-table td.trade-pa--na"
     assert css =~ ~r/\.data-table-wrapper > #realized-trades-table\s*\{[^}]*min-width:\s*0/
 
     assert css =~

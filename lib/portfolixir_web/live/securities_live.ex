@@ -2134,7 +2134,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   <td class={["num", shown_class(lot.unrealized_pnl_abs, 2)]}>
                     <%= signed_decimal_or_dash(lot.unrealized_pnl_abs, 2) %>
                   </td>
-                  <td class={["num", shown_percent_class(lot.unrealized_pnl_pct)]}>
+                  <%!-- #1142 (board 02): a lot on no cost (a buy at
+                       0.00) has no return — the reason dash, not "0.0%". --%>
+                  <.no_return_cell :if={return_absent?(lot.unrealized_pnl_abs, lot.unrealized_pnl_pct)} />
+                  <td
+                    :if={not return_absent?(lot.unrealized_pnl_abs, lot.unrealized_pnl_pct)}
+                    class={["num", shown_percent_class(lot.unrealized_pnl_pct)]}
+                  >
                     <%= signed_pa(decimal_for_display(lot.unrealized_pnl_pct)) %>
                   </td>
                   <td class={["num", shown_class(lot.price_return_abs, 2)]} data-role="price-return">
@@ -2254,7 +2260,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
                   <td class={["num", shown_class(trade.realized_pnl_abs, 2)]}>
                     <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %>
                   </td>
-                  <td class={["num", shown_percent_class(trade.realized_pnl_pct)]}>
+                  <%!-- #1142 (board 02): a trade on no cost has no
+                       return — the reason dash, not "0.0%". --%>
+                  <.no_return_cell :if={is_nil(trade.realized_pnl_pct)} />
+                  <td
+                    :if={trade.realized_pnl_pct}
+                    class={["num", shown_percent_class(trade.realized_pnl_pct)]}
+                  >
                     <%= signed_pa(decimal_for_display(trade.realized_pnl_pct)) %>
                   </td>
                 </tr>
@@ -2293,7 +2305,13 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <span class={["phone-row__figure", shown_class(trade.realized_pnl_abs, 2)]}>
                 <%= signed_decimal_or_dash(trade.realized_pnl_abs, 2) %><small class="value-suffix"><%= trade.currency_code || @currency_code %></small>
               </span>
-              <span class="phone-row__figure2">
+              <%!-- #1142 (board 02): at 390 px a trade on no cost says so on
+                   the row, in words, where "0.0%" stood: "— no cost basis",
+                   the dash aria-hidden. --%>
+              <span :if={is_nil(trade.realized_pnl_pct)} class="phone-row__figure2"><span data-role="return-absent"><span aria-hidden="true">—</span> <%= gettext(
+                    "no cost basis"
+                  ) %></span></span>
+              <span :if={trade.realized_pnl_pct} class="phone-row__figure2">
                 <span class={percent_figure_class(trade.realized_pnl_pct)}><%= signed_pa(
                   trade.realized_pnl_pct
                 ) %></span><%= if trade.annualized_return do %> · <span class={
@@ -2303,12 +2321,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <%!-- #1089 at every width (the PR γ closing act): the table
                    dash's reason, for the screen reader, so the phone row
                    says why it has no p. a. as the table row does; the basis
-                   line says it on the screen. --%>
+                   line says it on the screen. A trade on no cost names its
+                   one reason (#1142, board 02). --%>
               <span
                 :if={is_nil(trade.annualized_return)}
                 class="visually-hidden"
                 data-role="pa-absent"
-              ><%= pa_absent_sentence(trade.annualized_return_reason) %></span>
+              ><%= if trade.realized_pnl_pct,
+                do: pa_absent_sentence(trade.annualized_return_reason),
+                else: no_return_sentence() %></span>
             </span>
           </li>
         </ul>
@@ -2383,17 +2404,43 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # their words. Under 365 days of holding the figure is withheld by rule
   # (ADR-0034 §2); any other reason means no rate solves the trade's flows,
   # a total loss among them.
+  # A trade on no cost (#1142) names that first: there is nothing to
+  # annualize, however long it was held.
+  defp pa_absent_title(:no_cost_basis),
+    do: gettext("No annualized return: no cost basis")
+
   defp pa_absent_title(:holding_period_under_365_days),
     do: gettext("Not annualized under one year of holding")
 
   defp pa_absent_title(_reason),
     do: gettext("No annualized return: no rate solves this trade's flows")
 
+  defp pa_absent_sentence(:no_cost_basis),
+    do: gettext("no annualized return, no cost basis")
+
   defp pa_absent_sentence(:holding_period_under_365_days),
     do: gettext("not annualized, under one year of holding")
 
   defp pa_absent_sentence(_reason),
     do: gettext("no annualized return, no rate solves this trade's flows")
+
+  # #1142 (board 02): a gain or loss with no percentage beside it is one on
+  # no cost — the ledger leaves the percentage nil exactly where the cost it
+  # divides by is zero, and leaves both nil where there is no price.
+  defp return_absent?(pnl_abs, pnl_pct), do: not is_nil(pnl_abs) and is_nil(pnl_pct)
+
+  defp no_return_sentence, do: gettext("no return, no cost basis")
+
+  # #1142 (board 02): the "%" cell of a figure on no cost, the muted dash
+  # with #1089's reason anatomy, muted in every data table by the general
+  # `.data-table td.trade-pa--na`.
+  defp no_return_cell(assigns) do
+    ~H"""
+    <td class="num trade-pa--na" title={gettext("No return: no cost basis")}>
+      <span aria-hidden="true">—</span><span class="visually-hidden"><%= no_return_sentence() %></span>
+    </td>
+    """
+  end
 
   attr(:holdings, :list, required: true)
   attr(:currency_code, :string, default: nil)
@@ -2492,7 +2539,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
                        the Trades tab's "%" form, one decimal with the sign
                        and "%" glued on, coloured by the percent as shown,
                        not by the amount beside it. --%>
-                  <td class={["num", shown_percent_class(h.unrealized_pnl_pct)]}>
+                  <%!-- #1142 (board 02, the issue's own example): a
+                       position on no cost (shares delivered in at no cost)
+                       has no return — the reason dash, in the dash's
+                       colour, not "0.00 %" in the amount's. A position with
+                       no price keeps the plain dash. --%>
+                  <.no_return_cell :if={return_absent?(h.unrealized_pnl_abs, h.unrealized_pnl_pct)} />
+                  <td
+                    :if={not return_absent?(h.unrealized_pnl_abs, h.unrealized_pnl_pct)}
+                    class={["num", shown_percent_class(h.unrealized_pnl_pct)]}
+                  >
                     <%= signed_pa(decimal_for_display(h.unrealized_pnl_pct)) %>
                   </td>
                   <td class={["num", pnl_class(h.price_return_abs)]} data-role="price-return">

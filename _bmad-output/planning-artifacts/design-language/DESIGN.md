@@ -3350,7 +3350,10 @@ under "Trades: reach, the p. a. column and the unmatched sells".
   which printed in the text colour (closing act γ D4). *Since Sprint 18
   (issue 1010, pick H4) the sign half is the general `.data-table
   td.is-positive / .is-negative` and the scoped copy is gone; the dash line
-  stays — see Amendment 2026-10-03.*
+  stays — see Amendment 2026-10-03.* *Amended 2026-10-08 (issue 1142):* the
+  dash line is the general `.data-table td.trade-pa--na` too, and a trade on
+  no cost basis carries the dash in its Result sub-line and p. a. cell — see
+  Amendment 2026-10-08 — A return on no cost basis.
 - **A reading table** (rule ⑦, settled by the story as board 01 left it,
   closing act γ D9): `.data-table-wrapper > #realized-trades-table {
   min-width: 0 }`, the `.num` cells `nowrap`, the security cell at least 12ch
@@ -3525,7 +3528,8 @@ The open-lots table above is unchanged.
   for a trade held long enough whose flows no rate solves (a total loss).
 - **Sign colour** (rule ①): `#detail-closed-trades-table td.trade-pa--na`
   restores the muted dash that `.data-table tbody td { color }` takes from
-  the bare class. The sign colour of p. a., the result and "%" — and of the
+  the bare class. *(Amended 2026-10-08, issue 1142: the general
+  `.data-table td.trade-pa--na` replaced this scoped copy.)* The sign colour of p. a., the result and "%" — and of the
   open lots above — is the general `.data-table td.is-positive /
   .is-negative` of issue 1010 (pick H4, Amendment 2026-10-03), which made
   this rule's two sign lines redundant; they are gone. *Amended 2026-10-07
@@ -4136,7 +4140,10 @@ match it.
   `#realized-trades-table td.is-positive / .is-negative` (board 01 rule ⑥)
   and pick H1's `#detail-closed-trades-table` pair. Their muted-dash lines
   stay: a muted class in a cell is outranked the same way, but it is not a
-  sign, and a general muted rule is outside this issue.
+  sign, and a general muted rule is outside this issue. *Amended 2026-10-08
+  (issue 1142, Sprint 20 board 02 rule ②):* that general rule exists now,
+  `.data-table td.trade-pa--na`, and the two muted-dash lines are gone with
+  it.
 - A `<span>` carrying a sign class inside a cell was never affected.
 
 ### The split ratio and the Balance join the `.num` family *(issue 913, rule ③)*
@@ -6217,3 +6224,52 @@ issue 1142 changes (plan D-14):
   (`signed_pa/1`: "+18,7%"), coloured by the percent as shown
   (`shown_percent_class/1`), as the Trades tab's "%" columns are since the
   Sprint 19 U2 review. The other figures of the tab are unchanged.
+
+**A return on no cost basis is the reason dash** (issue 1142, plan D-6).
+A closed trade whose basis is zero (a buy booked at 0,00 with no fees or
+taxes: bonus shares) and a position or open lot whose cost is zero (shares
+delivered in at no cost: a spin-off) have no percentage return. "0,0%" read
+as a flat trade; a share that cost nothing rose by an undefined percentage,
+not by none. The precedent is the category result ("a category with no cost
+has no result to state, and a zero would claim it is flat").
+
+- **Where:** the Trades facet's Result cell (its sub-line under the amount)
+  and phone row; the security's Trades tab, both "%" columns (open lots and
+  closed trades) and its phone row; the security's Holdings tab "%"; and
+  Wealth's "P&L %". Each is the existing muted dash with #1089's reason
+  anatomy (Sprint 19's pick J4): `aria-hidden` "—", the reason in the
+  `title` ("Keine Rendite: keine Kostenbasis" / "No return: no cost
+  basis") and in a `.visually-hidden` sentence ("keine Rendite, keine
+  Kostenbasis" / "no return, no cost basis"). The figure beside it keeps
+  its amount: the facet's Result still reads "+330,00 EUR", the open lot
+  "+167,20", the holding "+336,00", in their sign colours. The dash takes
+  the dash's colour, never the amount's.
+- **The p. a. cell's reason comes first:** a trade on no cost carries the
+  p. a. dash with "Keine annualisierte Rendite: keine Kostenbasis" /
+  "keine annualisierte Rendite, keine Kostenbasis", before the 365-day rule
+  and the solver's reason. With no cost there is nothing to annualize,
+  however long the trade was held (the API's `annualized_return_reason`
+  `no_cost_basis`).
+- **At 390 px the reason is on the row, in words:** the phone rows of the
+  facet and of the Trades tab read "— keine Kostenbasis" / "— no cost basis"
+  (`span[data-role="return-absent"]`, the dash `aria-hidden`) where
+  "0,0% gesamt" (facet) or "0,0%" (tab) stood. No "gesamt": there is no
+  total return to qualify. The row's hidden `pa-absent` sentence reads "keine
+  Rendite, keine Kostenbasis". Measured on the board: the line is 118 px wide
+  on one 15 px line, and the rows keep their heights (59/60 px). The basis
+  line is not the place: a zero basis is a fact about one booking that the
+  phone row does not show, and a touch screen has no `title`.
+- **The Overview card "Abgeschlossene Trades"** (found while drawing 9): a
+  trade on no cost reads "— keine Kostenbasis" under its result, as the
+  phone rows do, where it read "0,0% gesamt".
+- **Not the plain dash:** a position or lot with no price, or with no
+  derivable native cost, keeps the plain "—" with no reason. Its percentage
+  is missing for want of a price, not of a cost. The cell knows which by the
+  amount beside it: a gain or loss with no percentage is one on no cost.
+- **One general muted-dash rule** (board rule ②): `.data-table
+  td.trade-pa--na { color: var(--color-text-muted) }` (0,2,1) outranks
+  `.data-table tbody td { color }` (0,1,2) in every data table. It replaces
+  the two scoped copies (`#realized-trades-table td.trade-pa--na`,
+  `#detail-closed-trades-table td.trade-pa--na`), as issue 1010 did for the
+  sign colours, because the open lots' table has no id and the Holdings
+  tab's and Wealth's cells carry the dash too.

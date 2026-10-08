@@ -503,9 +503,18 @@ defmodule PortfolixirWeb.IncomeLive do
                         data-role="trade-result"
                       >
                         <%= Format.signed_decimal(trade.realized_base, 2) %><small class="value-suffix"><%= @realized.base_currency %></small>
-                        <span class="stat__sub">
+                        <span :if={trade.realized_pnl_pct} class="stat__sub">
                           <%= Format.signed_percent(trade.realized_pnl_pct) %>%
                         </span>
+                        <%!-- #1142 (board 02): a trade on no cost has no
+                             return; the sub-line is the muted dash with its
+                             reason, #1089's anatomy, where "0.0%" read as a
+                             flat trade. --%>
+                        <span
+                          :if={is_nil(trade.realized_pnl_pct)}
+                          class="stat__sub trade-pa--na"
+                          title={no_return_title()}
+                        ><span aria-hidden="true">—</span><span class="visually-hidden"><%= no_return_sentence() %></span></span>
                       </td>
                     </tr>
                   </tbody>
@@ -541,7 +550,14 @@ defmodule PortfolixirWeb.IncomeLive do
                     <span class={["phone-row__figure", money_sign_class(trade.realized_base)]}>
                       <%= Format.signed_decimal(trade.realized_base, 2) %><small class="value-suffix"><%= @realized.base_currency %></small>
                     </span>
-                    <span class="phone-row__figure2">
+                    <%!-- #1142 (board 02): at 390 px a trade on no cost
+                         says so on the row, in words, where "0.0% total"
+                         stood: "— no cost basis", the dash aria-hidden, no
+                         "total" (there is no total return to qualify). --%>
+                    <span :if={is_nil(trade.realized_pnl_pct)} class="phone-row__figure2"><span data-role="return-absent"><span aria-hidden="true">—</span> <%= gettext(
+                          "no cost basis"
+                        ) %></span></span>
+                    <span :if={trade.realized_pnl_pct} class="phone-row__figure2">
                       <span class={percent_figure_class(trade.realized_pnl_pct)}><%= Format.signed_percent(
                         trade.realized_pnl_pct
                       ) %>%</span><%= if trade.annualized_return do %> · <span class={
@@ -553,12 +569,15 @@ defmodule PortfolixirWeb.IncomeLive do
                     <%!-- #1089 at every width (the PR γ closing act): the
                          table dash's reason, for the screen reader, so the
                          phone row says why it has no p. a. as the table row
-                         does; the basis line says it on the screen. --%>
+                         does; the basis line says it on the screen. A trade
+                         on no cost names its one reason (#1142, board 02). --%>
                     <span
                       :if={is_nil(trade.annualized_return)}
                       class="visually-hidden"
                       data-role="pa-absent"
-                    ><%= pa_absent_sentence(trade.annualized_return_reason) %></span>
+                    ><%= if trade.realized_pnl_pct,
+                      do: pa_absent_sentence(trade.annualized_return_reason),
+                      else: no_return_sentence() %></span>
                   </span>
                 </li>
               </ul>
@@ -1394,18 +1413,30 @@ defmodule PortfolixirWeb.IncomeLive do
 
   # #984: why a trade's p. a. cell is a dash. Under 365 days of holding the
   # figure is withheld by rule (ADR-0034 §2); any other reason means no rate
-  # solves the trade's flows — a total loss among them.
+  # solves the trade's flows — a total loss among them. A trade on no cost
+  # (#1142) names that first: there is nothing to annualize.
+  defp pa_absent_title(:no_cost_basis),
+    do: gettext("No annualized return: no cost basis")
+
   defp pa_absent_title(:holding_period_under_365_days),
     do: gettext("Not annualized under one year of holding")
 
   defp pa_absent_title(_reason),
     do: gettext("No annualized return: no rate solves this trade's flows")
 
+  defp pa_absent_sentence(:no_cost_basis),
+    do: gettext("no annualized return, no cost basis")
+
   defp pa_absent_sentence(:holding_period_under_365_days),
     do: gettext("not annualized, under one year of holding")
 
   defp pa_absent_sentence(_reason),
     do: gettext("no annualized return, no rate solves this trade's flows")
+
+  # #1142 (board 02): a trade whose basis is zero has no percentage return,
+  # and its dash says why, in #1089's anatomy.
+  defp no_return_title, do: gettext("No return: no cost basis")
+  defp no_return_sentence, do: gettext("no return, no cost basis")
 
   defp month_label(1), do: gettext("Jan")
   defp month_label(2), do: gettext("Feb")

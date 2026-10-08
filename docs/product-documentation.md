@@ -2167,7 +2167,13 @@ opening line. On a phone the table gives way to two-line rows: the name
 over bought → sold and the days, the result over its percent and, from a
 year of holding, the p. a. figure; a trade without one — held under a year,
 or a total loss no rate solves — ends its percent in **total**
-("-38.9% total"), the word the Overview card uses. The year × month matrix the facet used to open with
+("-38.9% total"), the word the Overview card uses. **A trade on no cost has
+no return** (issue #1142): bonus shares booked as a buy at 0 and sold later
+made "+330.00 EUR" on nothing, and a percentage of nothing is not 0 % but
+undefined. Its percent is the muted dash with the reason "No return: no cost
+basis" as its tooltip, its p. a. dash names the same reason before any
+other, and on a phone the row, like the Overview card, reads "— no cost
+basis" where the percent stood. The year × month matrix the facet used to open with
 keeps every number, now under **Realized per period** behind a **Year and
 month matrix** disclosure beneath the list. Where a sale could not be
 converted, the note saying how many and which leads the section — above the
@@ -2243,7 +2249,11 @@ prices, income received while a trade was open is not included, and p. a.
 only from 365 days of holding and only where a rate solves the flows. The
 realised P&L and its fees and taxes are in the trade's currency, a trade
 across currencies converting them at its own rate, as on the facet (issue
-#1108). On a
+#1108). An open lot or a closed trade on no cost shows the dash with "No
+return: no cost basis" in its "%" column, and so do the security's
+**Holdings** tab and Wealth's optional **P&L %** column for shares
+delivered in at no cost, such as a spin-off (issue #1142); a holding with
+no price keeps the plain dash. On a
 phone the table gives way to two-line rows: opened → closed over the
 quantity and the days, the result over its percent and, from a year of
 holding, the p. a. figure. Since issue #1060 the
