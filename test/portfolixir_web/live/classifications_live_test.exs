@@ -1158,6 +1158,68 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     refute Classifications.get_classification(classification.id)
   end
 
+  # User story (#940; board 02 "a category below level 32 is refused"):
+  # As the operator adding a category under the deepest one a tree allows,
+  # I want the page to refuse it in the page's result slot, saying where the
+  # category would have gone, the bound and what to pick instead, and to
+  # bring that refusal to me,
+  # so that I am not told "Category created" for a category every level
+  # column then reads wrong.
+  #
+  # Acceptance criteria:
+  # - Picking the category on level 32 as the parent and adding answers, in
+  #   the result slot, "Nicht angelegt: Unter „Stufe 32“ läge die neue
+  #   Kategorie auf Ebene 33 — eine Klassifizierung hat höchstens 32 Ebenen.
+  #   Bei „Übergeordnet“ eine Kategorie weiter oben wählen." (English: "Not
+  #   added: under “Stufe 32” the new category would sit on level 33 — a
+  #   classification has at most 32 levels. Under “Parent”, pick a category
+  #   higher up."), the stored name in <bdi>.
+  # - The refusal is brought into view and focused (found while drawing, 5);
+  #   nothing is created.
+  test "a category below level 32 is refused in the page's result slot", %{conn: conn} do
+    {:ok, classification} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Tiefentest"})
+
+    deepest =
+      Enum.reduce(1..32, nil, fn level, parent ->
+        {:ok, category} =
+          Classifications.create_category(Actor.owner_ui(), %{
+            classification_id: classification.id,
+            name: "Stufe #{level}",
+            parent_id: parent && parent.id
+          })
+
+        category
+      end)
+
+    for {locale, sentence} <- [
+          {"de",
+           "Nicht angelegt: Unter „<bdi>Stufe 32</bdi>“ läge die neue Kategorie auf Ebene 33 — " <>
+             "eine Klassifizierung hat höchstens 32 Ebenen. Bei „Übergeordnet“ eine Kategorie " <>
+             "weiter oben wählen."},
+          {"en",
+           "Not added: under “<bdi>Stufe 32</bdi>” the new category would sit on level 33 — " <>
+             "a classification has at most 32 levels. Under “Parent”, pick a category higher up."}
+        ] do
+      {:ok, view, _html} =
+        live_drained(conn, "/classifications/#{classification.id}?locale=#{locale}")
+
+      view
+      |> form(".category-form", %{
+        "category" => %{"name" => "Stufe 33", "parent_id" => to_string(deepest.id)}
+      })
+      |> render_submit()
+
+      assert view |> element("#classifications-result") |> render() =~ sentence
+      assert_push_event(view, "focus-into-view", %{id: "classifications-result"})
+    end
+
+    refute Portfolixir.Repo.get_by(Portfolixir.Classifications.Category,
+             classification_id: classification.id,
+             name: "Stufe 33"
+           )
+  end
+
   defp assignments(classification_id) do
     Classifications.list_trees()
     |> Enum.find(&(&1.classification.id == classification_id))

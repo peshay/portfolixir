@@ -1323,6 +1323,12 @@ Der Anlageklassen-Baum ist eine editierbare Taxonomie: die Klasse eines
 Wertpapiers wird aus einem inferierten Standard vorbelegt und durch Ziehen
 zwischen Kategorien korrigiert.
 
+Ein Baum hat höchstens 32 Ebenen. **Hinzufügen** unter einer Kategorie auf
+Ebene 32 wird oben auf der Seite abgelehnt, mit der gewählten Oberkategorie,
+der Ebene, die die neue Kategorie bekommen hätte, und der Grenze; das Formular
+behält, was du eingegeben hast (Issue #940). Die API lehnt dasselbe für eine
+Kategorie ab, die sie unter Ebene 32 anlegen oder verschieben würde.
+
 Jedes Portfolio kann ein **Zielgewicht** je Kategorie speichern (ein Anteil am
 Portfolio, zum Beispiel 25 %). Die **Allokations**-Aufschlüsselung vergleicht dann
 je Kategorie das tatsächliche Gewicht (seinen Anteil an den bewerteten Positionen)
