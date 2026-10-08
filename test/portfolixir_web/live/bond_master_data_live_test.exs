@@ -330,9 +330,14 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
     world = base_world()
     {:ok, _tree} = Classifications.create_classification(Actor.owner_ui(), %{name: "Strategie"})
 
+    # Quoted today: a fixed date ages past the stale-quote threshold
+    # (`DataQuality.stale_days/0`), and the stale-priced note then names the
+    # share this test keeps out of the two-scales notes.
+    quoted_on = Clock.today()
+
     forward = bond!(%{name: "Kestrel Anleihe 2030 2,75%", isin: "XSLIVEBD0301"})
     buy!(world, forward, quantity: "10000", price: "0.985", date: ~D[2026-03-12])
-    put_quote!(forward, ~D[2026-09-30], "97.25")
+    put_quote!(forward, quoted_on, "97.25")
 
     {:ok, unclassed} =
       Catalog.create_security(Actor.owner_ui(), %{
@@ -343,17 +348,17 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
 
     assert unclassed.asset_class == nil
     buy!(world, unclassed, quantity: "10000", price: "0.991", date: ~D[2026-03-12])
-    put_quote!(unclassed, ~D[2026-09-30], "99.10")
+    put_quote!(unclassed, quoted_on, "99.10")
 
     reverse = bond!(%{name: "Birkenhain Wasser Anleihe 2029 1,50%", isin: "XSLIVEBD0293"})
     buy!(world, reverse, quantity: "100", price: "98.40", date: ~D[2026-03-12])
-    put_quote!(reverse, ~D[2026-09-30], "0.981")
+    put_quote!(reverse, quoted_on, "0.981")
 
     {:ok, share} =
       Catalog.create_security(Actor.owner_ui(), %{name: "Ostsee Holz", currency_code: "EUR"})
 
     buy!(world, share, quantity: "10", price: "4", date: ~D[2026-03-12])
-    put_quote!(share, ~D[2026-09-30], "100")
+    put_quote!(share, quoted_on, "100")
 
     {:ok, wealth, _html} = live(german(conn), "/portfolio")
     render_async(wealth)
