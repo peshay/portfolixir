@@ -2889,7 +2889,17 @@ Scope-Leiter).
   Während einer läuft, liefert ein zweiter `409 Conflict`. Die menschliche
   Sicht ist die
   Schaltfläche **Historische Kurse nachladen** in den Ausschluss-Hinweisen
-  auf `/cashflow`.
+  auf `/cashflow`. Seit Issue #1120 (Sprint-20-D-5) führt die Instanz dieses
+  Backfill auch **von selbst** aus, einmal, nach ihrem Start-Abgleich und
+  nach einem Import, wenn eine Buchung oder ein Verrechnungskonto in einer
+  Nicht-EUR-Währung vor dem frühesten gespeicherten Kurs dieser Währung
+  liegt, außer die Hintergrund-Downloads sind abgeschaltet
+  (`PORTFOLIXIR_BACKGROUND_FETCH=off`). `scope=history` bleibt für einen
+  Lauf von Hand: wo der automatische den Anbieter nicht erreicht hat, auf
+  einer Instanz mit abgeschalteten Hintergrund-Downloads oder aus jedem
+  anderen Grund für ein erneutes Holen; während der automatische läuft,
+  antwortet es wie jedes zweite Backfill mit `409`. Es kommt kein Parameter
+  hinzu, und kein Tool ändert sich.
 
 ## Klassifizierungen
 

@@ -239,14 +239,19 @@ public addresses (`SECURITY.md`). On its own schedule the release also fetches
 the ECB's euro reference rates
 (`https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml`), five seconds
 after it starts and then every 12 hours, and the quote history of every
-security that has a quote provider, every 6 hours. Both schedules and logo
-discovery are on in a release (`config/prod.exs`). `PORTFOLIXIR_BACKGROUND_FETCH=off` leaves all
-three off from boot: the quotes and rates already stored stay as they are, and
-every figure is computed from them. The switch stops what the instance does by
-itself, not what someone asks of it. A quote or rate sync started on a screen
-or by the agent, a logo update and the security search still reach their
-providers, so a host that must not reach them at all still needs its egress
-blocked. On an IPv6-only host behind DNS64, use the
+security that has a quote provider, every 6 hours. Once, after that first
+rate sync or after an import, when a booking in a non-EUR currency predates
+that currency's earliest stored rate, it also fetches the ECB's historical
+series (`https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml`,
+issue #1120). Both schedules and logo discovery are on in a release
+(`config/prod.exs`). `PORTFOLIXIR_BACKGROUND_FETCH=off` leaves all three off
+from boot, the historical series included: the quotes and rates already
+stored stay as they are, and every figure is computed from them. The switch
+stops what the instance does by itself, not what someone asks of it. A quote
+or rate sync started on a screen or by the agent, a logo update and the
+security search still reach their providers, so a host that must not reach
+them at all still needs its egress blocked. On an IPv6-only host behind
+DNS64, use the
 well-known NAT64 prefix `64:ff9b::/96`: an address in it is judged by the IPv4
 address it carries. The local-use translation prefix `64:ff9b:1::/48` is a
 special-purpose block like the private ranges, so every address a DNS64 builds

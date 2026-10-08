@@ -1628,6 +1628,27 @@ Zentralbank), und andere Paare werden darüber trianguliert. Die Live-Bewertung 
 Portfolios rechnet den Marktwert jeder Position und jeden Cash-Saldo in die
 Basiswährung des Portfolios um.
 
+**Die historischen Wechselkurse kommen von selbst** (Issue #1120). Die
+geplante Synchronisierung holt nur die Kurse des Tages. Ist eine Buchung oder
+ein Verrechnungskonto in einer anderen Währung vor dem frühesten
+gespeicherten Kurs dieser Währung datiert — typischerweise bei einer aus
+Portfolio Performance importierten Historie —, holt die Instanz die
+historische EZB-Reihe von selbst, einmal, im Hintergrund: nach dem Start
+(direkt nach den Kursen des Tages) und nach einem Import. Niemand muss etwas
+drücken, und der Import wartet nicht darauf. Ist sie gelaufen, wird die
+Historie ab ihrem ersten Tag bewertet, und kein erster Kurs landet als
+Sprung im Ergebnis. Das geht nicht ohne Netzwerk, nicht bei abgeschalteten
+Hintergrund-Downloads (`PORTFOLIXIR_BACKGROUND_FETCH=off`), nicht für eine
+Währung, die die EZB nicht veröffentlicht, und nicht für eine Buchung vor
+1999, wo die Reihe der EZB beginnt. Ein solcher Saldo zählt dann bis zum
+ersten Kurs seiner Währung null und wird unter der Beitragstabelle genannt
+(siehe *Beitrag je Position*). Für eine Währung, die die EZB nicht
+veröffentlicht, und eine Buchung vor 1999 wird einmal geholt; die Instanz
+versucht es nicht bei jedem Start erneut. Ohne Netzwerk versucht sie es beim
+nächsten Start oder Import wieder. Von Hand holt **Historische Kurse
+nachladen** in den Ausschluss-Hinweisen unter Cashflow oder `scope=history`
+am Wechselkurs-Sync-Endpunkt und MCP-Tool dieselbe Reihe.
+
 Ein Wertpapier ohne jeden Kurs wird mit dem **zuletzt eigenen Handelspreis
 über alle Portfolios** bepreist — ein Kauf oder Verkauf ist eine
 Preisbeobachtung, genau so, wie Portfolio Performance Preise aus Buchungen
@@ -2288,7 +2309,11 @@ Vermerk des Kontos („Tagesgeld CHF: 18 Tage null“). Ein Konto, das am letzte
 Tag des Zeitraums noch keinen Wechselkurs hat, „zählt bis zum Ende des
 Zeitraums null“. Bei einem Zeitraum, der nach dem Tag des ersten
 Wechselkurses beginnt, verschwindet das Konto wie der Sprung aus Tabelle und
-Hinweis.
+Hinweis. Weil die historischen Wechselkurse von selbst kommen (siehe
+*Wechselkurse und Bewertung*), bleibt ein solches Konto nur, wo sie es nicht
+konnten: bei einer Währung, die die EZB nicht veröffentlicht, bei Geld vor
+1999 oder auf einer Instanz, die sie noch nicht geholt hat (kein Netzwerk,
+Hintergrund-Downloads abgeschaltet).
 
 [![Beitrag je Position über ein Jahr: Anfangswert, Zu-/Abflüsse, Erträge, Kosten, Endwert und Beitrag der zehn größten Positionen mit ihren Balken, Alle 34 anzeigen, die drei Posten ohne Position, die Summenzeile und ein Hinweis auf die Positionen, die an einigen Tagen null zählten](../screenshots/contribution.png)](../screenshots/contribution.png)
 
