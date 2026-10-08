@@ -1164,16 +1164,17 @@ defmodule Portfolixir.DocsTest do
   # - Both wire it: the application connects as the runtime role, the
   #   migrations run as the owner in a one-off service, and a restore runs as
   #   the owner.
-  # - Both say it is for a new install and that an existing instance's move is
-  #   not described; SECURITY.md names the shipped default as a known limit.
+  # - Both say it is for a new install; an existing instance's move is its
+  #   own procedure since #898 (the next test). SECURITY.md names the shipped
+  #   default as a known limit.
   test "the deployment guide recommends an owner role and a runtime role without TRUNCATE" do
     read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
 
     for {path, owner_words, runtime_words, new_install} <- [
           {"docs/home-deployment.md", "not a superuser", "holds no `TRUNCATE`",
-           "Moving an existing instance onto these roles"},
+           "This is for a new install, before its first start"},
           {"docs/de/home-deployment.md", "kein Superuser", "hat kein `TRUNCATE`",
-           "Eine bestehende Instanz auf diese Rollen umzustellen"}
+           "Das gilt für eine neue Installation, vor ihrem ersten Start"}
         ] do
       doc = read.(path)
 
@@ -1199,6 +1200,85 @@ defmodule Portfolixir.DocsTest do
 
     security = read.("SECURITY.md")
     assert security =~ "connects as the database's bootstrap superuser"
+  end
+
+  # User story (#898, answered by the Sprint 20 decision pass):
+  # As an operator whose instance already runs as the database's bootstrap
+  # superuser,
+  # I want the deployment guide to move it onto the owner role and the
+  # runtime role, step by step,
+  # so that the append-only and journal triggers bind my running instance's
+  # credential too, without a new install and without losing a record.
+  #
+  # Acceptance criteria:
+  # - EN and DE carry the move as its own procedure, in this order: stop the
+  #   application, back up and check that the backup reads, create the two
+  #   roles, replace the database with an empty one the owner owns with the
+  #   runtime role's grants and default privileges, restore the backup as the
+  #   owner in one transaction, compare the trigger count, migrate as the
+  #   owner, start.
+  # - Neither says any longer that an existing instance's move is not
+  #   described.
+  # - Both say that, with the roles, only the runtime role writes while the
+  #   application runs, because a delta read's as_of sees only its own role's
+  #   transactions (DeltaCursor), and an upgrade therefore stops the
+  #   application before it migrates as the owner. SECURITY.md points to the
+  #   move.
+  test "the deployment guide moves an existing instance onto the owner and runtime roles" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s*\\\n\s*/, " ") end
+
+    for {path, heading, gone, one_role, upgrade} <- [
+          {"docs/home-deployment.md", "### Moving an existing instance onto the roles",
+           "is not described here", "only the runtime role writes while the application runs",
+           "An upgrade stops the application and the companion"},
+          {"docs/de/home-deployment.md", "### Eine bestehende Instanz auf die Rollen umstellen",
+           "wird hier nicht beschrieben",
+           "schreibt nur die Laufzeitrolle, solange die Anwendung läuft",
+           "Ein Upgrade hält die Anwendung und den Begleiter an"}
+        ] do
+      doc = read.(path)
+      assert doc =~ heading, path
+      refute doc =~ gone, path
+
+      flat = String.replace(doc, ~r/\s+/, " ")
+      assert flat =~ one_role, path
+      assert flat =~ upgrade, path
+      assert flat =~ "`as_of`", path
+
+      [_, move] = String.split(doc, heading, parts: 2)
+      [move | _] = String.split(move, ~r/^## /m, parts: 2)
+
+      steps = [
+        "docker compose stop app mcp",
+        "pg_dump -U portfolixir -d portfolixir_prod --format=custom",
+        ~s(echo "backup reads"),
+        "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal",
+        "CREATE ROLE portfolixir_owner LOGIN",
+        "CREATE ROLE portfolixir_app LOGIN",
+        "dropdb -U portfolixir portfolixir_prod",
+        "createdb -U portfolixir -O portfolixir_owner portfolixir_prod",
+        "GRANT CONNECT ON DATABASE portfolixir_prod TO portfolixir_app;",
+        "ALTER DEFAULT PRIVILEGES FOR ROLE portfolixir_owner IN SCHEMA public",
+        "pg_restore -U portfolixir -d portfolixir_prod --no-owner --role=portfolixir_owner " <>
+          "--exit-on-error --single-transaction",
+        "docker compose run --rm --build migrate",
+        "docker compose up --build -d"
+      ]
+
+      positions =
+        for step <- steps do
+          case :binary.match(move, step) do
+            {at, _length} -> at
+            :nomatch -> flunk("#{path}: the move lacks #{step}")
+          end
+        end
+
+      assert positions == Enum.sort(positions), "#{path}: the move's steps are out of order"
+      refute move =~ ~r/GRANT[^;]*TRUNCATE[^;]*TO portfolixir_app/, path
+    end
+
+    assert "SECURITY.md" |> File.read!() |> String.replace(~r/\s+/, " ") =~
+             "and moves an existing instance onto them"
   end
 
   # User story (E25 S2, F76):

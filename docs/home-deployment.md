@@ -279,8 +279,9 @@ job:
   rows, owns nothing and holds no `TRUNCATE`, so it can neither change a table
   nor switch off or drop a trigger.
 
-This is for a new install, before its first start. Moving an existing instance
-onto these roles is a migration of that instance and is not described here.
+This is for a new install, before its first start. An instance that already
+runs moves onto the roles by a backup and a restore as the owner: see "Moving an
+existing instance onto the roles" below.
 
 1. Add two passwords to `.env`, each from `openssl rand -hex 32`:
    `PORTFOLIXIR_OWNER_DB_PASSWORD` and `PORTFOLIXIR_APP_DB_PASSWORD`.
@@ -346,7 +347,13 @@ onto these roles is a migration of that instance and is not described here.
    docker compose up --build -d
    ```
 
-With these roles, two procedures below change. An upgrade runs
+With these roles, only the runtime role writes while the application runs. A
+delta read's `as_of` (`since=`) is bounded by the transactions in flight that
+the application's own role can see, so a write under another role while the
+application serves reads could slip past a poll; the owner therefore migrates
+only while the application is stopped, and the bootstrap superuser only backs
+up and restores. Two procedures below change. An upgrade stops the application
+and the companion (`docker compose stop app mcp`) and runs
 `docker compose run --rm --build migrate` after the build and before
 `docker compose up -d`, because the application no longer migrates on start. A
 restore gives the new database back to the owner after its step 2, restores as
@@ -366,6 +373,103 @@ The recipe was checked with PostgreSQL's own tools and the release outside
 Compose: the runtime role writes journaled records and is refused `TRUNCATE`,
 switching a trigger off, dropping one and creating a table; a backup restored
 as the owner keeps every trigger and grant.
+
+### Moving an existing instance onto the roles
+
+An instance that already runs as the bootstrap superuser moves onto the two
+roles by a backup and a restore as the owner. Compose creates roles only on an
+empty database volume, and a restore as the owner is what hands every table,
+sequence and trigger to it; the records themselves do not change. The
+instance is stopped from step 2 until step 6 starts it.
+
+1. Add the two passwords to `.env`, each from `openssl rand -hex 32`:
+   `PORTFOLIXIR_OWNER_DB_PASSWORD` and `PORTFOLIXIR_APP_DB_PASSWORD`.
+2. Stop the application and the companion, back up the database, which keeps
+   running, and note its trigger count and the three figures "Check the
+   restore" below compares:
+
+   ```bash
+   docker compose stop app mcp
+   umask 077
+   mkdir -p ~/portfolixir-backups
+   docker compose exec -T db \
+     pg_dump -U portfolixir -d portfolixir_prod --format=custom \
+     > ~/portfolixir-backups/portfolixir-before-roles.dump
+   docker compose exec -T db \
+     pg_restore --list < ~/portfolixir-backups/portfolixir-before-roles.dump \
+     > /dev/null && echo "backup reads"
+   docker compose exec -T db psql -U portfolixir -d portfolixir_prod -tAc \
+     "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal"
+   ```
+
+   Go on only after it printed `backup reads`: step 4 removes the database,
+   and the backup is then its only copy.
+3. Create the two roles. The passwords reach `psql` on its standard input,
+   never on a command line:
+
+   ```bash
+   OWNER_PW=$(grep '^PORTFOLIXIR_OWNER_DB_PASSWORD=' .env | cut -d= -f2-)
+   APP_PW=$(grep '^PORTFOLIXIR_APP_DB_PASSWORD=' .env | cut -d= -f2-)
+   docker compose exec -T db psql -v ON_ERROR_STOP=1 -U portfolixir -d portfolixir_prod <<SQL
+   CREATE ROLE portfolixir_owner LOGIN PASSWORD '$OWNER_PW';
+   CREATE ROLE portfolixir_app LOGIN PASSWORD '$APP_PW';
+   SQL
+   ```
+
+4. Replace the database with an empty one the owner owns, carrying the runtime
+   role's grants and the default privileges every table the restore creates
+   receives:
+
+   ```bash
+   docker compose exec -T db dropdb -U portfolixir portfolixir_prod
+   docker compose exec -T db createdb -U portfolixir -O portfolixir_owner portfolixir_prod
+   docker compose exec -T db psql -v ON_ERROR_STOP=1 -U portfolixir -d portfolixir_prod <<'SQL'
+   REVOKE ALL ON DATABASE portfolixir_prod FROM PUBLIC;
+   GRANT CONNECT ON DATABASE portfolixir_prod TO portfolixir_app;
+   REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+   GRANT USAGE ON SCHEMA public TO portfolixir_app;
+   ALTER DEFAULT PRIVILEGES FOR ROLE portfolixir_owner IN SCHEMA public
+     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO portfolixir_app;
+   ALTER DEFAULT PRIVILEGES FOR ROLE portfolixir_owner IN SCHEMA public
+     GRANT USAGE, SELECT ON SEQUENCES TO portfolixir_app;
+   SQL
+   ```
+
+5. Restore the backup as the owner, in one transaction: every table and
+   sequence it creates is the owner's and, by the default privileges, the
+   runtime role's to read and write, without `TRUNCATE`. Then count the
+   triggers again; the count equals step 2's:
+
+   ```bash
+   docker compose exec -T db \
+     pg_restore -U portfolixir -d portfolixir_prod --no-owner \
+     --role=portfolixir_owner --exit-on-error --single-transaction \
+     < ~/portfolixir-backups/portfolixir-before-roles.dump \
+     && echo "restore complete"
+   docker compose exec -T db psql -U portfolixir -d portfolixir_prod -tAc \
+     "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal"
+   ```
+
+   A restore that ends with an error leaves the database empty: find the
+   cause and repeat steps 4 and 5. Start nothing before it printed
+   `restore complete`.
+6. Create `docker-compose.override.yml` as in step 3 of the new install above,
+   then migrate as the owner and start the instance as the runtime role:
+
+   ```bash
+   docker compose run --rm --build migrate
+   docker compose up --build -d
+   ```
+
+Compare the three figures as "Check the restore" below describes. Until
+something new is written, the way back is the old shape: remove
+`docker-compose.override.yml` and restore the step 2 backup as "Restore"
+describes, which connects the instance as the bootstrap superuser again. The
+move was checked with PostgreSQL 16's own tools outside Compose, on a copy of
+a migrated database: the restore as the owner kept every trigger and the
+journal's rows, every table and sequence belonged to the owner and was granted
+to the runtime role, and the runtime role was refused `TRUNCATE`, switching a
+trigger off, dropping one and creating a table.
 
 ## Start
 

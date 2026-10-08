@@ -109,7 +109,8 @@ Known limits, recorded rather than hidden: as shipped, the application
 connects as the database's bootstrap superuser, which also owns the tables, so
 the append-only and audit-journal triggers bind the application's code rather
 than its credential (`docs/home-deployment.md` gives the recommended owner role
-and a runtime role without `TRUNCATE` for a new install); the outbound URL
+and a runtime role without `TRUNCATE` for a new install, and moves an existing
+instance onto them); the outbound URL
 policy resolves a name once for the check and the client resolves it again to
 connect, so a name whose answer changes in between can pass (the byte cap, the
 deadline and the redirect re-check bound what such a fetch can do); an address

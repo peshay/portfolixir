@@ -294,9 +294,10 @@ empfohlene Einrichtung gibt der Datenbank drei Rollen mit je einer Aufgabe:
   schreibt Zeilen, besitzt nichts und hat kein `TRUNCATE`, kann also weder eine
   Tabelle ändern noch einen Trigger abschalten oder löschen.
 
-Das gilt für eine neue Installation, vor ihrem ersten Start. Eine bestehende
-Instanz auf diese Rollen umzustellen ist eine Migration dieser Instanz und wird
-hier nicht beschrieben.
+Das gilt für eine neue Installation, vor ihrem ersten Start. Eine Instanz, die
+schon läuft, kommt durch eine Sicherung und eine Wiederherstellung als
+Eigentümer auf die Rollen: siehe „Eine bestehende Instanz auf die Rollen
+umstellen“ unten.
 
 1. Zwei Passwörter in die `.env` eintragen, jedes aus `openssl rand -hex 32`:
    `PORTFOLIXIR_OWNER_DB_PASSWORD` und `PORTFOLIXIR_APP_DB_PASSWORD`.
@@ -362,9 +363,16 @@ hier nicht beschrieben.
    docker compose up --build -d
    ```
 
-Mit diesen Rollen ändern sich zwei Abläufe weiter unten. Ein Upgrade führt nach
-dem Bauen und vor `docker compose up -d` `docker compose run --rm --build
-migrate` aus, weil die Anwendung beim Start nicht mehr migriert. Eine
+Mit diesen Rollen schreibt nur die Laufzeitrolle, solange die Anwendung läuft.
+Das `as_of` eines Delta-Lesens (`since=`) ist durch die laufenden Transaktionen
+begrenzt, die die eigene Rolle der Anwendung sieht; ein Schreiben unter einer
+anderen Rolle, während die Anwendung liest, könnte deshalb an einer Abfrage
+vorbeigehen. Der Eigentümer migriert darum nur, solange die Anwendung
+angehalten ist, und der Bootstrap-Superuser sichert und stellt nur wieder her.
+Zwei Abläufe weiter unten ändern sich. Ein Upgrade hält die Anwendung und den
+Begleiter an (`docker compose stop app mcp`) und führt nach dem Bauen und vor
+`docker compose up -d` `docker compose run --rm --build migrate` aus, weil die
+Anwendung beim Start nicht mehr migriert. Eine
 Wiederherstellung gibt die neue Datenbank nach ihrem Schritt 2 an den
 Eigentümer zurück, stellt in Schritt 3 als Eigentümer wieder her, indem
 `pg_restore` `--role=portfolixir_owner` erhält, damit die Tabellen ihren
@@ -384,6 +392,108 @@ Compose geprüft: die Laufzeitrolle schreibt journalisierte Datensätze und wird
 bei `TRUNCATE`, beim Abschalten und Löschen eines Triggers und beim Anlegen
 einer Tabelle abgewiesen; eine als Eigentümer wiederhergestellte Sicherung
 behält jeden Trigger und jedes Recht.
+
+### Eine bestehende Instanz auf die Rollen umstellen
+
+Eine Instanz, die schon als Bootstrap-Superuser läuft, kommt durch eine
+Sicherung und eine Wiederherstellung als Eigentümer auf die beiden Rollen.
+Compose legt Rollen nur auf einem leeren Datenbank-Volume an, und erst eine
+Wiederherstellung als Eigentümer übergibt ihm jede Tabelle, jede Sequenz und
+jeden Trigger; die Datensätze selbst ändern sich nicht. Die Instanz steht von
+Schritt 2 an still, bis Schritt 6 sie startet.
+
+1. Zwei Passwörter in die `.env` eintragen, jedes aus `openssl rand -hex 32`:
+   `PORTFOLIXIR_OWNER_DB_PASSWORD` und `PORTFOLIXIR_APP_DB_PASSWORD`.
+2. Die Anwendung und den Begleiter anhalten, die Datenbank, die weiterläuft,
+   sichern und ihre Trigger-Zahl und die drei Zahlen notieren, die
+   „Wiederherstellung prüfen“ unten vergleicht:
+
+   ```bash
+   docker compose stop app mcp
+   umask 077
+   mkdir -p ~/portfolixir-backups
+   docker compose exec -T db \
+     pg_dump -U portfolixir -d portfolixir_prod --format=custom \
+     > ~/portfolixir-backups/portfolixir-before-roles.dump
+   docker compose exec -T db \
+     pg_restore --list < ~/portfolixir-backups/portfolixir-before-roles.dump \
+     > /dev/null && echo "backup reads"
+   docker compose exec -T db psql -U portfolixir -d portfolixir_prod -tAc \
+     "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal"
+   ```
+
+   Erst weitermachen, wenn `backup reads` ausgegeben wurde: Schritt 4 entfernt
+   die Datenbank, und die Sicherung ist dann ihre einzige Kopie.
+3. Die beiden Rollen anlegen. Die Passwörter erreichen `psql` über die
+   Standardeingabe, nie über eine Befehlszeile:
+
+   ```bash
+   OWNER_PW=$(grep '^PORTFOLIXIR_OWNER_DB_PASSWORD=' .env | cut -d= -f2-)
+   APP_PW=$(grep '^PORTFOLIXIR_APP_DB_PASSWORD=' .env | cut -d= -f2-)
+   docker compose exec -T db psql -v ON_ERROR_STOP=1 -U portfolixir -d portfolixir_prod <<SQL
+   CREATE ROLE portfolixir_owner LOGIN PASSWORD '$OWNER_PW';
+   CREATE ROLE portfolixir_app LOGIN PASSWORD '$APP_PW';
+   SQL
+   ```
+
+4. Die Datenbank durch eine leere ersetzen, die dem Eigentümer gehört und die
+   Rechte der Laufzeitrolle trägt, dazu die Default Privileges, die jede
+   Tabelle der Wiederherstellung erhält:
+
+   ```bash
+   docker compose exec -T db dropdb -U portfolixir portfolixir_prod
+   docker compose exec -T db createdb -U portfolixir -O portfolixir_owner portfolixir_prod
+   docker compose exec -T db psql -v ON_ERROR_STOP=1 -U portfolixir -d portfolixir_prod <<'SQL'
+   REVOKE ALL ON DATABASE portfolixir_prod FROM PUBLIC;
+   GRANT CONNECT ON DATABASE portfolixir_prod TO portfolixir_app;
+   REVOKE CREATE ON SCHEMA public FROM PUBLIC;
+   GRANT USAGE ON SCHEMA public TO portfolixir_app;
+   ALTER DEFAULT PRIVILEGES FOR ROLE portfolixir_owner IN SCHEMA public
+     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO portfolixir_app;
+   ALTER DEFAULT PRIVILEGES FOR ROLE portfolixir_owner IN SCHEMA public
+     GRANT USAGE, SELECT ON SEQUENCES TO portfolixir_app;
+   SQL
+   ```
+
+5. Die Sicherung als Eigentümer wiederherstellen, in einer Transaktion: Jede
+   Tabelle und Sequenz, die sie anlegt, gehört dem Eigentümer, und die
+   Laufzeitrolle darf sie über die Default Privileges lesen und schreiben, ohne
+   `TRUNCATE`. Danach die Trigger erneut zählen; die Zahl gleicht der aus
+   Schritt 2:
+
+   ```bash
+   docker compose exec -T db \
+     pg_restore -U portfolixir -d portfolixir_prod --no-owner \
+     --role=portfolixir_owner --exit-on-error --single-transaction \
+     < ~/portfolixir-backups/portfolixir-before-roles.dump \
+     && echo "restore complete"
+   docker compose exec -T db psql -U portfolixir -d portfolixir_prod -tAc \
+     "SELECT count(*) FROM pg_trigger WHERE NOT tgisinternal"
+   ```
+
+   Eine Wiederherstellung, die mit einem Fehler endet, hinterlässt die
+   Datenbank leer: die Ursache finden und die Schritte 4 und 5 wiederholen.
+   Nichts starten, bevor `restore complete` ausgegeben wurde.
+6. `docker-compose.override.yml` wie in Schritt 3 der neuen Installation oben
+   anlegen, dann als Eigentümer migrieren und die Instanz als Laufzeitrolle
+   starten:
+
+   ```bash
+   docker compose run --rm --build migrate
+   docker compose up --build -d
+   ```
+
+Die drei Zahlen vergleichen, wie „Wiederherstellung prüfen“ unten beschreibt.
+Solange nichts Neues geschrieben ist, führt der Weg zurück zur alten Form:
+`docker-compose.override.yml` entfernen und die Sicherung aus Schritt 2 wie
+unter „Wiederherstellen“ beschrieben zurückspielen; die Instanz verbindet sich
+dann wieder als Bootstrap-Superuser. Der Umzug wurde mit den Werkzeugen von
+PostgreSQL 16 außerhalb von Compose geprüft, an einer Kopie einer migrierten
+Datenbank: Die Wiederherstellung als Eigentümer behielt jeden Trigger und die
+Zeilen des Journals, jede Tabelle und Sequenz gehörte dem Eigentümer und war
+der Laufzeitrolle freigegeben, und die Laufzeitrolle wurde bei `TRUNCATE`,
+beim Abschalten und Löschen eines Triggers und beim Anlegen einer Tabelle
+abgewiesen.
 
 ## Start
 
