@@ -3115,8 +3115,14 @@ zwei seiner Konten zusammengeführt haben —, und eine Umbuchung zwischen zwei
 Namen, die jetzt zu einem Konto führen, entfällt. Eine Entscheidung, die Sie
 in der Vorschau noch treffen (ein Wertpapier, ein anderes Konto), kann
 ändern, was mit den neuen Buchungen einer Zeile geschieht. Eine
-Vorbelegung über einen früheren Namen sagt das unter der Auswahl, und *+ Neu
-anlegen* auf einer Zeile ohne neue Buchung sagt, dass es nichts anlegt. Zwei
+Vorbelegung über einen früheren Namen sagt das unter der Auswahl. Eine Zeile,
+von deren Buchungen keine neu ist, zeigt gar keine Auswahl: Sie sagt *Keine
+Zuordnung nötig: Der Import bucht unter diesem Namen nichts*, behält das
+Konto, dem sie zugeordnet wurde, und hält **Import bestätigen** nie auf. Zwei
+Zeilen behalten ihre Auswahl trotzdem: ein Name, den die gespeicherte
+Historie nie gesehen hat (oben), und ein Verrechnungskonto, mit dem ein Depot
+mit neuen Buchungen abrechnet. Eine Datei ganz ohne Neues sagt das am Kopf
+der Vorschau, zeigt keinen Bucket-Tag, und ihre Bestätigung bucht nichts. Zwei
 Konten gleichen Namens werden in der Liste durch das unterschieden, was
 abweicht — bei einem Verrechnungskonto seine verknüpften Depots, sonst seine
 Währung, sonst der Tag, an dem es angelegt wurde; bei einem Depot sein

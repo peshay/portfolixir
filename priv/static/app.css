@@ -4454,6 +4454,19 @@ input[pattern]:invalid:not(:placeholder-shown) {
   }
 }
 
+/* A row with no new booking shows no select (issue 1168; board
+   ux-design-2026-10-07/01-import-preview ②, rule ③): one `.mapping-basis`
+   line stands in `.mapping-target`, with the choice as hidden inputs. A
+   depot row then has no cash select either, so above 720 px it takes the
+   cash rows' two columns and every row reads alike. Under 720 px every row
+   is one column already; the media query keeps this (0,3,0) selector from
+   overriding that block. */
+@media (min-width: 721px) {
+  .mapping-row.depot:has(> .mapping-target:last-child) {
+    grid-template-columns: minmax(10rem, 1fr) minmax(14rem, 1.4fr);
+  }
+}
+
 .panel.inner {
   margin-top: 1rem;
 }

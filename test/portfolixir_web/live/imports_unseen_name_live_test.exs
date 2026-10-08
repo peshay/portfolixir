@@ -334,10 +334,12 @@ defmodule PortfolixirWeb.ImportsUnseenNameLiveTest do
   # so that the probe never asks where every name is known.
   #
   # Acceptance criteria (P4):
-  # - The history plus one new interest payment, after Test-Cash was renamed
-  #   "Girokonto" in Portfolixir: every name has a hit, and every row is
-  #   prefilled exactly as today's prefill does, Test-Cash through its
-  #   former name with that line under the select.
+  # - The history plus one new interest payment and one new deposit on
+  #   Test-Cash, after Test-Cash was renamed "Girokonto" in Portfolixir:
+  #   every name has a hit, and every row is prefilled exactly as today's
+  #   prefill does, Test-Cash through its former name with that line under
+  #   the select. (Since #1168 a row with no new booking shows no select, so
+  #   the former-name row carries a new booking here.)
   # - No row carries the note, and Confirm is enabled.
   test "P4: a file in which every name has a hit prefills exactly as today", %{conn: conn} do
     portfolio = portfolio!()
@@ -348,7 +350,18 @@ defmodule PortfolixirWeb.ImportsUnseenNameLiveTest do
         name: "Girokonto"
       })
 
-    drop = history() ++ [interest("Tagesgeld", "1.40", "2026-03-31")]
+    drop =
+      history() ++
+        [
+          interest("Tagesgeld", "1.40", "2026-03-31"),
+          %{
+            "type" => "DEPOSIT",
+            "account" => "Test-Cash",
+            "date" => "2026-04-01",
+            "currency" => "EUR",
+            "amount" => num("100.00")
+          }
+        ]
 
     {:ok, view, _html} = live(conn, "/imports")
     upload!(view, drop)
@@ -696,7 +709,9 @@ defmodule PortfolixirWeb.ImportsUnseenNameLiveTest do
 
   defp row(kind, name), do: "#mapping-#{kind}-#{row_key(kind, name)}"
 
-  # The value of the option a row's account select shows as chosen.
+  # The value of the option a row's account select shows as chosen; on a
+  # row with no new booking, which shows no select since #1168 (board 01 ②),
+  # the value its hidden input carries under the select's name.
   defp selected(view, "cash", name),
     do: selected_in(view, row("cash", name), "cash[#{row_key("cash", name)}]")
 
@@ -704,15 +719,24 @@ defmodule PortfolixirWeb.ImportsUnseenNameLiveTest do
     do: selected_in(view, row("depot", name), "depot[#{row_key("depot", name)}][target]")
 
   defp selected_in(view, row, field) do
-    view
-    |> element("#{row} select[name='#{field}']")
-    |> render()
-    |> Floki.parse_fragment!()
-    |> Floki.find("option[selected]")
-    |> Floki.attribute("value")
-    |> case do
-      [value] -> value
-      [] -> nil
+    if has_element?(view, "#{row} select[name='#{field}']") do
+      view
+      |> element("#{row} select[name='#{field}']")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.find("option[selected]")
+      |> Floki.attribute("value")
+      |> case do
+        [value] -> value
+        [] -> nil
+      end
+    else
+      view
+      |> element(~s(#{row} input[type="hidden"][name="#{field}"]))
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.attribute("value")
+      |> hd()
     end
   end
 

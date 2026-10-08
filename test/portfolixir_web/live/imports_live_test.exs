@@ -2482,9 +2482,11 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     # so that a prefill of "create" does not read as a new account.
     #
     # Acceptance criteria:
-    # - Beside "+ Create new" on a row with no new booking, the row says no
-    #   account carries the name and one is created only with its first new
-    #   booking; confirming creates nothing.
+    # - A row with no new booking prefilled "+ Create new" says the import
+    #   books nothing under the name; confirming creates nothing. Since #1168
+    #   (board ux-design-2026-10-07/01-import-preview ②) such a row shows no
+    #   select: one line stands in its place, and the prefill rides along as a
+    #   hidden input under the select's name.
     test "a create-new row with nothing new says it creates nothing", %{conn: conn} do
       portfolio = setup_portfolio()
       reserve = cash_account!(portfolio, "Reserve")
@@ -2512,11 +2514,14 @@ defmodule PortfolixirWeb.ImportsLiveTest do
 
       assert has_element?(
                view,
-               ~s(select[name="cash[#{row_key("cash", "Savings")}]"] option[value="create:Savings"][selected])
+               ~s(#{row("cash", "Savings")} input[type="hidden"][name="cash[#{row_key("cash", "Savings")}]"][value="create:Savings"])
              )
 
-      assert view |> element(row("cash", "Savings") <> " [data-role='mapping-basis']") |> render() =~
-               "no account under this name; it is created only with its first new booking"
+      refute has_element?(view, row("cash", "Savings") <> " select")
+
+      assert view
+             |> element(row("cash", "Savings") <> " [data-role='mapping-nothing-new']")
+             |> render() =~ "No mapping needed: the import books nothing under this name."
 
       view |> element("form#pp-import-apply") |> render_submit()
       assert render_async(view, 1_000) =~ "Created transactions: 0"
