@@ -9,7 +9,7 @@ defmodule PortfolixirWeb.NavigationTest do
   # User story:
   # As a local portfolio maintainer,
   # I want the dashboard navigation to show the active local workflow
-  # plus the PP-import tool (AGENTS.md goal #9),
+  # plus the PP-import tool (AGENTS.md, "What Portfolixir is"),
   # so that the supported surfaces are visible and prototype document/
   # taxonomy/report surfaces do not guide my work.
   #

@@ -103,7 +103,7 @@ defmodule PortfolixirWeb.ApiV1JournalTest do
     assert body["meta"]["filters"]["limit"] == 1
   end
 
-  # User story (#811, AGENTS.md -> "Surface check"):
+  # User story (#811, docs/development/sprint-workflow.md -> "Surface check"):
   # As the operator's agent reading the bounded list family over the API,
   # I want the journal read to spell `limit=` exactly the way the rest of the
   # family spells it,

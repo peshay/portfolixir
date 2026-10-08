@@ -102,9 +102,9 @@ defmodule Portfolixir.CITest do
   #   for compatibility — and creates the release with generated notes
   #   from a verified tag.
   # - It builds no installable artifacts and needs only contents: write.
-  # - A hand-pushed tag stays the owner's fallback: AGENTS.md step 5 names
-  #   it for the case the calendar job below fails (Sprint 17 plan D-11
-  #   replaced the owner-run tag of PR #780 with that job).
+  # - A hand-pushed tag stays the owner's fallback: the sprint workflow's
+  #   close-out names it for the case the calendar job below fails (Sprint 17
+  #   plan D-11 replaced the owner-run tag of PR #780 with that job).
   test "a tag push creates the GitHub release with generated notes" do
     release = File.read!(".github/workflows/release.yml")
 
@@ -115,9 +115,11 @@ defmodule Portfolixir.CITest do
     refute release =~ "upload-artifact"
 
     # Prose wraps freely; the assertions read it as one line.
-    agents = "AGENTS.md" |> File.read!() |> String.replace(~r/\s+/, " ")
-    assert agents =~ "the owner's fallback"
-    assert agents =~ "an annotated tag the owner creates by hand"
+    workflow =
+      "docs/development/sprint-workflow.md" |> File.read!() |> String.replace(~r/\s+/, " ")
+
+    assert workflow =~ "the owner's fallback"
+    assert workflow =~ "an annotated tag the owner creates by hand"
   end
 
   # User story:
@@ -145,7 +147,7 @@ defmodule Portfolixir.CITest do
   #   notes cover it).
   # - No run script contains a context expression (F61): refs and SHAs reach
   #   the script through the environment.
-  # - AGENTS.md step 5 and ADR-0026 record the amendment.
+  # - The sprint workflow's close-out and ADR-0026 record the amendment.
   test "a push to main that changes shipped code creates a calendar release" do
     release = File.read!(".github/workflows/release.yml")
 
@@ -185,9 +187,11 @@ defmodule Portfolixir.CITest do
       refute block =~ "${{", "a run script carries a context expression:\n#{block}"
     end
 
-    agents = "AGENTS.md" |> File.read!() |> String.replace(~r/\s+/, " ")
-    assert agents =~ "`YYYY.M.N`"
-    assert agents =~ "Sprint 17 plan D-11"
+    workflow =
+      "docs/development/sprint-workflow.md" |> File.read!() |> String.replace(~r/\s+/, " ")
+
+    assert workflow =~ "`YYYY.M.N`"
+    assert workflow =~ "Sprint 17 plan D-11"
 
     adr = File.read!("docs/decisions/0026-epic-batch-workflow.md")
     assert adr =~ "Amendment: calendar versions made by the Release workflow"

@@ -55,6 +55,8 @@
 
 - title: Development
   items:
+    - title: Sprint Workflow
+      url: /development/sprint-workflow.html
     - title: Story Workflow
       url: /development/story-workflow.html
     - title: Development Guide
