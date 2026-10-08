@@ -334,7 +334,9 @@ verengen, was der Betreiber sieht.
   (`slim`/`full`) und `limit`/`offset` zur
   Paginierung (`limit` eine positive Ganzzahl, Standard 5000, max. 20000, seit
   #771; `offset` nichtnegativ). Nutze diese, um große
-  Kataloge zu paginieren, statt die ganze Tabelle auf einmal zu holen. Die
+  Kataloge zu paginieren, statt die ganze Tabelle auf einmal zu holen. Eine
+  `data_quality`-Menge wird gefiltert, bevor `limit`/`offset` sie
+  paginieren, sodass nur ihre letzte Seite kurz ist (Issue #1113). Die
   **menschliche Sicht** dieser Verengungen ist die One-Tap-Chipzeile auf der
   Wertpapierseite (Issue #717): ihre Chips fahren auf demselben URL-Zustand
   (`holding=`, `dq=`, `filter[]=asset_class:is_nil`, plus `cur[]=` und

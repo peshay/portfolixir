@@ -70,6 +70,15 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "empty list" and &1 =~ "#1103")
            )
 
+    # #1113: a data_quality set pages after its rule.
+    assert newest["summary"] =~ "#1113"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/securities?data_quality=&limit=&offset=") and
+                 &1 =~ "after the rule" and &1 =~ "#1113")
+           )
+
     # Sprint 20, commit group β (version 16, after Sprint 19 PR β's 15): what
     # the ledger reports about it, the ADR-0015 amendment of 2026-10-07. B1
     # opened the entry (#1108): a cross-currency closed trade's fees and
