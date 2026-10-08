@@ -176,8 +176,11 @@ defmodule Portfolixir.Ledger do
 
   Each closed round-trip carries its consumed `lots` and its
   `annualized_return` with `annualized_return_reason`
-  (`Ledger.TradeReturn`, #984): nil under 365 days of holding or when no
-  rate solves the trade's flows.
+  (`Ledger.TradeReturn`, #984): nil with no cost basis, under 365 days of
+  holding or when no rate solves the trade's flows. A closed trade whose
+  basis is zero, and an open lot whose cost is zero, carry a `nil`
+  percentage (#1142, `realized_pnl_pct_basis/0`,
+  `unrealized_pnl_pct_basis/0`).
 
   Fees and taxes enter every lot and closed trade in the trade's price
   currency: a cross-currency trade booked in the security's currency has
@@ -294,7 +297,9 @@ defmodule Portfolixir.Ledger do
   depot, and unpriced deliveries move quantity at zero cost. Fees and taxes
   are not folded into the basis. A holding whose security has no quote is
   returned with `nil` price, market value and P&L, so a missing price never
-  distorts the rest of the list.
+  distorts the rest of the list. A holding whose cost basis is zero (shares
+  delivered in at no cost) keeps its P&L and has a `nil` percentage (#1142,
+  `unrealized_pnl_pct_basis/0`).
 
   Currency basis (ADR-0033): `cost_basis`, `avg_cost`, `latest_price`,
   `market_value` and the unrealized P&L are in the security's **own**
@@ -498,16 +503,11 @@ defmodule Portfolixir.Ledger do
     market_value = Decimal.mult(row.quantity, latest_price)
     abs_pnl = Decimal.sub(market_value, row.cost_basis)
 
-    pct_pnl =
-      if Decimal.equal?(row.cost_basis, 0),
-        do: Decimal.new(0),
-        else: Decimal.div(abs_pnl, row.cost_basis)
-
     Map.merge(row, %{
       latest_price: latest_price,
       market_value: market_value,
       unrealized_pnl_abs: abs_pnl,
-      unrealized_pnl_pct: pct_pnl
+      unrealized_pnl_pct: return_on(abs_pnl, row.cost_basis)
     })
   end
 
@@ -956,18 +956,20 @@ defmodule Portfolixir.Ledger do
     current_value = Decimal.mult(row.quantity, latest_price)
     abs_pnl = Decimal.sub(current_value, row.cost_basis)
 
-    pct_pnl =
-      if Decimal.equal?(row.cost_basis, 0),
-        do: Decimal.new(0),
-        else: Decimal.div(abs_pnl, row.cost_basis)
-
     Map.merge(row, %{
       latest_price: latest_price,
       current_value: current_value,
       unrealized_pnl_abs: abs_pnl,
-      unrealized_pnl_pct: pct_pnl
+      unrealized_pnl_pct: return_on(abs_pnl, row.cost_basis)
     })
   end
+
+  # #1142 (plan D-6): a position, or an open lot, whose cost is zero — shares
+  # delivered in at no cost (a spin-off), or bought at a price of 0 — has no
+  # percentage return. Its gain is undefined against no cost, not 0 %, which
+  # would read as flat; `unrealized_pnl_abs` still states it.
+  defp return_on(_pnl, %Decimal{coef: 0}), do: nil
+  defp return_on(pnl, cost), do: Decimal.div(pnl, cost)
 
   defp transaction_for_matcher(%Transaction{} = tx, security_currency) do
     %{
@@ -1042,6 +1044,35 @@ defmodule Portfolixir.Ledger do
       "stored rate and a trade without a cash account add them as recorded."
   end
 
+  @doc """
+  The rule of a closed trade's `realized_pnl_pct`, as the sentence the trades
+  and realized-gains payloads carry (#1142, plan D-6; the AGENTS.md metric
+  rule): `nil` where the trade's basis is zero.
+  """
+  @spec realized_pnl_pct_basis() :: String.t()
+  def realized_pnl_pct_basis do
+    "realized_pnl_pct is realized_pnl_abs / basis, a fraction (0.1 = 10 %) in the trade's " <>
+      "currency_code. It is null, never 0, where basis is 0, a buy booked at a price of 0 " <>
+      "with no fees or taxes (a bonus or free share): a return on no cost is undefined, and " <>
+      "0 would read as a flat trade. realized_pnl_abs still states the result, and " <>
+      "annualized_return is then null with annualized_return_reason no_cost_basis."
+  end
+
+  @doc """
+  The rule of `unrealized_pnl_pct` on a holding and on an open lot, as the
+  sentence the holdings and trades payloads carry (#1142, plan D-6): `nil`
+  where the cost it is measured against is zero.
+  """
+  @spec unrealized_pnl_pct_basis() :: String.t()
+  def unrealized_pnl_pct_basis do
+    "unrealized_pnl_pct is unrealized_pnl_abs / the cost it is measured against, a fraction " <>
+      "(0.1 = 10 %) in the security's own currency: a holding's cost_basis, an open lot's " <>
+      "quantity x buy_price_native. It is null where unrealized_pnl_abs is (no price, or no " <>
+      "derivable native cost), and null, never 0, where that cost is 0, shares delivered in " <>
+      "at no cost (a spin-off) or bought at a price of 0: a return on no cost is undefined, " <>
+      "and 0 would read as flat. unrealized_pnl_abs still states the gain."
+  end
+
   defp native_unit_price(tx, security_currency) do
     cond do
       is_nil(security_currency) or tx.currency_code == security_currency ->
@@ -1112,10 +1143,9 @@ defmodule Portfolixir.Ledger do
         current_value = Decimal.mult(lot.quantity, latest_price)
         cost = Decimal.mult(lot.quantity, lot.buy_price_native)
         abs_pnl = Decimal.sub(current_value, cost)
-        pct_pnl = if Decimal.equal?(cost, 0), do: Decimal.new(0), else: Decimal.div(abs_pnl, cost)
 
         lot
-        |> Map.merge(%{unrealized_pnl_abs: abs_pnl, unrealized_pnl_pct: pct_pnl})
+        |> Map.merge(%{unrealized_pnl_abs: abs_pnl, unrealized_pnl_pct: return_on(abs_pnl, cost)})
         |> Map.merge(
           open_lot_decomposition(lot, current_value, cost, security_currency, fx_rates)
         )

@@ -152,6 +152,17 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 103_454,
     book: 176_536,
     full: 206_884
+  },
+  {
+    since: "2026-10-08",
+    why:
+      "Sprint 20 β, B3 (#1142): trades.list and cashflow.realized_gains name a zero cost " +
+      "basis among annualized_return_reason's reasons and say realized_pnl_pct is null on it, " +
+      "paid for by dropping realized_gains' neighbouring-date clause the conversion_note " +
+      "carries and tightening both descriptions, and lowered to the figure measured (D-10)",
+    read: 103_438,
+    book: 176_520,
+    full: 206_868
   }
 ];
 

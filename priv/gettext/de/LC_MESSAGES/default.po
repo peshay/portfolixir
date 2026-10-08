@@ -19,7 +19,7 @@ msgstr "Basiswährung"
 msgid "Cash account created"
 msgstr "Verrechnungskonto angelegt"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1164
+#: lib/portfolixir_web/live/dashboard_live.ex:1169
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:332
 #: lib/portfolixir_web/live/portfolio_live.ex:2521
 #, elixir-autogen
@@ -116,7 +116,7 @@ msgstr "Datum"
 msgid "Depot"
 msgstr "Depot"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1168
+#: lib/portfolixir_web/live/dashboard_live.ex:1173
 #: lib/portfolixir_web/live/imports_live.ex:224
 #: lib/portfolixir_web/live/imports_live.ex:918
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:331
@@ -308,7 +308,7 @@ msgid "Review current holdings"
 msgstr "Aktuelle Bestände prüfen"
 
 #: lib/portfolixir_web/components/app_shell.ex:308
-#: lib/portfolixir_web/live/dashboard_live.ex:1160
+#: lib/portfolixir_web/live/dashboard_live.ex:1165
 #: lib/portfolixir_web/live/imports_live.ex:214
 #: lib/portfolixir_web/live/imports_live.ex:910
 #: lib/portfolixir_web/live/portfolio_live.ex:1034
@@ -389,7 +389,7 @@ msgid "Transaction recorded"
 msgstr "Transaktion erfasst"
 
 #: lib/portfolixir_web/components/app_shell.ex:315
-#: lib/portfolixir_web/live/dashboard_live.ex:1172
+#: lib/portfolixir_web/live/dashboard_live.ex:1177
 #: lib/portfolixir_web/live/securities/bond_strip.ex:310
 #: lib/portfolixir_web/live/securities_live.ex:3630
 #: lib/portfolixir_web/live/transaction_management_live.ex:107
@@ -3312,7 +3312,7 @@ msgstr "Portfoliodatensätze (Kompatibilität)"
 msgid "Seeded"
 msgstr "Seed"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1158
+#: lib/portfolixir_web/live/dashboard_live.ex:1163
 #, elixir-autogen, elixir-format
 msgid "Setup counts"
 msgstr "Einrichtungszähler"
@@ -4964,14 +4964,14 @@ msgstr "Logo-Suche für alle Wertpapiere ohne Logo eingereiht."
 msgid "Retry logo lookup for all"
 msgstr "Logo-Suche für alle wiederholen"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1103
+#: lib/portfolixir_web/live/dashboard_live.ex:1108
 #, elixir-autogen, elixir-format
 msgid "one without a logo"
 msgid_plural "%{count} without a logo"
 msgstr[0] "eins ohne Logo"
 msgstr[1] "%{count} ohne Logo"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1090
+#: lib/portfolixir_web/live/dashboard_live.ex:1095
 #, elixir-autogen, elixir-format
 msgid "one without an asset class"
 msgid_plural "%{count} without an asset class"
@@ -11526,21 +11526,21 @@ msgstr "Details in Vermögen →"
 msgid "Not in the total: %{groups}."
 msgstr "Nicht in der Summe: %{groups}."
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1068
+#: lib/portfolixir_web/live/dashboard_live.ex:1073
 #, elixir-autogen, elixir-format
 msgid "one security in the catalog without a quote in 7 days"
 msgid_plural "%{count} securities in the catalog without a quote in 7 days"
 msgstr[0] "ein Wertpapier im Katalog ohne Kurs seit 7 Tagen"
 msgstr[1] "%{count} Wertpapiere im Katalog ohne Kurs seit 7 Tagen"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1102
+#: lib/portfolixir_web/live/dashboard_live.ex:1107
 #, elixir-autogen, elixir-format
 msgid "one security without a logo"
 msgid_plural "%{count} securities without a logo"
 msgstr[0] "ein Wertpapier ohne Logo"
 msgstr[1] "%{count} Wertpapiere ohne Logo"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1085
+#: lib/portfolixir_web/live/dashboard_live.ex:1090
 #, elixir-autogen, elixir-format
 msgid "one security without an asset class"
 msgid_plural "%{count} securities without an asset class"
@@ -11552,7 +11552,7 @@ msgstr[1] "%{count} Wertpapiere ohne Anlageklasse"
 msgid "Not in the total: %{groups}"
 msgstr "Nicht in der Summe: %{groups}"
 
-#: lib/portfolixir_web/live/dashboard_live.ex:1113
+#: lib/portfolixir_web/live/dashboard_live.ex:1118
 #, elixir-autogen, elixir-format
 msgid "one bond priced on two scales"
 msgid_plural "%{count} bonds priced on two scales"

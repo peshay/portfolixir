@@ -1708,7 +1708,13 @@ Beispiel-Payloads für Konten:
   gespeicherter aktueller Kurs; `"no_price"`) und niemals eine geratene
   Zahl. Die Antwort ist selbstbeschreibend (FR-13): sie trägt
   `currency_basis: "security_currency"` plus eine `currency_basis_note`, die
-  benennt, welches Feld in welcher Währung ist, und ein `as_of`-Datum.
+  benennt, welches Feld in welcher Währung ist, und ein `as_of`-Datum. Seit
+  Issue #1142 behält ein Bestand mit `cost_basis` `"0"` (Stücke, die ohne
+  Kosten eingeliefert wurden, etwa aus einem Spin-off, oder zu einem Kurs
+  von 0 gekauft) sein `unrealized_pnl_abs` und liest `unrealized_pnl_pct`
+  `null`, nie `"0"`: Eine Rendite auf keine Kosten ist unbestimmt, und `0`
+  läse sich als unverändert. `computation_basis.unrealized_pnl_pct` der
+  Antwort nennt die Regel.
   Bestände werden beim Lesen abgeleitet, ohne gespeicherten Snapshot, daher
   ist `as_of` das Lesedatum. Unbekannte Portfolios liefern `404 Not Found`.
   Optionale Filter: `security_id`, `securities_account_id`. Ein optionales
@@ -1751,13 +1757,23 @@ Beispiel-Payloads für Konten:
   des Verkaufs am Schlusstag — in der Währung des Trades; annualisiert wird
   also `realized_pnl_pct`, nicht `realized_base`. Gerundet auf 6 Stellen,
   und ein Verlust bleibt über −1. Der Wert ist `null` mit
-  **`annualized_return_reason`** `holding_period_under_365_days`, wenn die
+  **`annualized_return_reason`** `no_cost_basis`, wenn `basis` des Trades
+  `"0"` ist (seit Issue #1142; dieser Grund kommt zuerst, denn ohne Kosten
+  gibt es nichts zu annualisieren, wie lange der Trade auch gehalten wurde),
+  `null` mit `holding_period_under_365_days`, wenn die
   `holding_period_days` des Trades unter 365 liegen (ADR-0034 §2 annualisiert
   kein Fenster unter einem Jahr: 5 % in 14 Tagen wären rund 257 % im Jahr),
   und `null` mit dem Grund des Lösers (`no_sign_change`, darunter ein
   Totalverlust; `no_root`; `amount_out_of_range`), wenn kein Satz die
   Zahlungen löst. Dividenden und Zinsen während der Haltedauer sind nicht
   enthalten. `computation_basis.annualized_return` nennt die Regel.
+
+  Seit Issue #1142 liest ein Trade mit `basis` `"0"` — ein Kauf zu einem Kurs
+  von 0 ohne Gebühren oder Steuern, eine Bonus- oder Gratisaktie —
+  `realized_pnl_pct` `null`, nie `"0"`: `realized_pnl_abs` und
+  `realized_base` nennen das Ergebnis weiter, aber eine Rendite auf keine
+  Kosten ist unbestimmt, und `0` läse sich als unveränderter Trade.
+  `computation_basis.realized_pnl_pct` nennt die Regel.
 
   Seit Issue #984 nennt die Payload außerdem die Verkäufe, denen der
   FIFO-Matcher keinen Kauf zuordnen konnte, in **`unmatched_sells`**: ein
@@ -2560,6 +2576,13 @@ Beispiel-Payloads für Konten:
   zu seinem eigenen gespeicherten `settlement_fx_rate` aus der Währung des
   Verrechnungskontos um, wie beim Realisiert-Rollup oben beschrieben, und
   `computation_basis.fees_and_taxes` nennt die Regel.
+  Seit Issue #1142 liest ein geschlossener Round-Trip mit `basis` `"0"`
+  `realized_pnl_pct` `null` mit `annualized_return_reason` `no_cost_basis`,
+  wie im Realisiert-Rollup, und ein offener Lot, dessen Kosten (`quantity` ×
+  `buy_price_native`) `"0"` sind, behält sein `unrealized_pnl_abs` und liest
+  `unrealized_pnl_pct` `null`, nie `"0"`;
+  `computation_basis.realized_pnl_pct` und
+  `computation_basis.unrealized_pnl_pct` nennen die Regeln.
 - `GET /api/v1/snapshots` listet Depot-**Snapshot-Marker** (ADR-0027): jeder
   ist ein `name`, ein Geltungsbereich (`view_id`, `null` = alles) und ein
   `as_of`-Datum. Ein Snapshot kopiert keine Finanzdaten — die Bestände, die er

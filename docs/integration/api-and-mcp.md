@@ -1580,7 +1580,12 @@ Example account payloads:
   currency; `"missing_fx"` — no stored current rate; `"no_price"`), never a
   guessed number. The response is self-describing (FR-13): it carries
   `currency_basis: "security_currency"` plus a `currency_basis_note` naming
-  which field is in which currency, and an `as_of` date. Holdings are derived
+  which field is in which currency, and an `as_of` date. Since issue #1142 a
+  holding whose `cost_basis` is `"0"` (shares delivered in at no cost, such
+  as a spin-off, or bought at a price of 0) keeps its `unrealized_pnl_abs`
+  and reads `unrealized_pnl_pct` `null`, never `"0"`: a return on no cost is
+  undefined, and `0` would read as flat. The envelope's
+  `computation_basis.unrealized_pnl_pct` states the rule. Holdings are derived
   on read with no stored snapshot, so `as_of` is the read date. Unknown
   portfolios return `404 Not Found`. Optional filters: `security_id`,
   `securities_account_id`. An optional `fields=` (FR-37, comma-separated)
@@ -1624,14 +1629,24 @@ Example account payloads:
   the quantity taken), and the sell's proceeds on the close date — in the
   trade's own currency, so it annualizes `realized_pnl_pct`, not
   `realized_base`; rounded to 6 places, and a loss stays above −1. It is
-  `null` with **`annualized_return_reason`**
-  `holding_period_under_365_days` when the trade's `holding_period_days` is
+  `null` with **`annualized_return_reason`** `no_cost_basis` when the
+  trade's `basis` is `"0"` (since issue #1142; this reason comes first,
+  because with no cost there is nothing to annualize however long the trade
+  was held), `null` with `holding_period_under_365_days` when the trade's
+  `holding_period_days` is
   below 365 (ADR-0034 §2 does not annualize a window under a year: 5 % in 14
   days would read as about 257 % a year), and `null` with the solver's
   reason (`no_sign_change`, a total loss among them; `no_root`;
   `amount_out_of_range`) when no rate solves the flows. Dividends and
   interest received while the trade was open are not included.
   `computation_basis.annualized_return` states the rule.
+
+  Since issue #1142 a trade whose `basis` is `"0"` — a buy booked at a price
+  of 0 with no fees or taxes, a bonus or free share — reads
+  `realized_pnl_pct` `null`, never `"0"`: its `realized_pnl_abs` and
+  `realized_base` still state the result, but a return on no cost is
+  undefined, and `0` would read as a flat trade.
+  `computation_basis.realized_pnl_pct` states the rule.
 
   Since issue #984 the payload also names the sells the FIFO matcher could
   not pair with a buy, in **`unmatched_sells`**: a `count` and, newest first,
@@ -2518,6 +2533,13 @@ church tax withheld at a zero church-tax rate.
   account's currency at its own stored `settlement_fx_rate`, as the
   realized-gains read above describes, and
   `computation_basis.fees_and_taxes` states the rule.
+  Since issue #1142 a closed round-trip whose `basis` is `"0"` reads
+  `realized_pnl_pct` `null` with `annualized_return_reason` `no_cost_basis`,
+  as on the realized-gains read, and an open lot whose cost (`quantity` ×
+  `buy_price_native`) is `"0"` keeps its `unrealized_pnl_abs` and reads
+  `unrealized_pnl_pct` `null`, never `"0"`;
+  `computation_basis.realized_pnl_pct` and
+  `computation_basis.unrealized_pnl_pct` state the rules.
 
 ## Policy rules (ADR-0049)
 
