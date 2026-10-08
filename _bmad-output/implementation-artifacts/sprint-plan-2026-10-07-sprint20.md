@@ -1,5 +1,12 @@
 # Sprint 20 — the numbers a switcher's import books, and a backlog closed by decision
 
+> **Amended 2026-10-08 by ADR-0026's two-PR amendment** (adopted by the merge
+> of the PR that carries it). α, β and γ are **commit groups of one sprint
+> PR** on `agent/<provider>/sprint-20`, built in that order by a fresh
+> implementation session. Wherever this plan says "PR α", "PR β", "PR γ" or
+> "lane PR", read "commit group"; wherever it says "γ's merge", read "the
+> sprint PR's merge". D-9 carries the details.
+
 **Status: ADOPTED by the merge of the Sprint 20 planning PR.**
 The merge is the signature (ADR-0026 step 1 as amended on PR #780). This
 planning PR **signs three decision gates**, all risk-tier:
@@ -584,6 +591,15 @@ them. **No new copy:** the page's scope line already names the scope. The
 rows change, and the anatomy does not.
 
 ### D-9: three lane PRs, merged in order, and the retrospective's carry-forwards (standing, amended)
+
+> **Amended 2026-10-08** (ADR-0026, two-PR amendment). The table's order
+> stands as the commit-group order, and "merged" reads "built". Carry-forward
+> 1 lapses: no PR's base moves under another. Each closing act still runs
+> when its group is done: α's and β's round trips, γ's launch test. One
+> briefing, one Lane Z checklist and one close-out ride the sprint PR, and
+> the retrospective is its last commits before promotion. The sprint PR
+> estimates its commit count when it opens; above 90 it splits γ off as a
+> stacked PR and says why. The owner merges once, by rebase-merge.
 
 | PR | Lanes | Merged | Why this order |
 |---|---|---|---|
