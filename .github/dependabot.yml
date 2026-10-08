@@ -4,9 +4,9 @@
 # uses: Mix, npm, pip (CI's pre-commit install), GitHub Actions, the
 # Dockerfiles and the Compose files. Update PRs are reviewed like any
 # dependency PR and are NEVER auto-merged (standing decision, Dependency
-# Update Policy in _bmad-output/project-context.md). The per-batch
-# maintenance lane (AGENTS.md, Epic-Batch Workflow) remains the deciding
-# reviewer; a fuller point-in-time picture comes from
+# Update Policy in _bmad-output/project-context.md). The per-sprint
+# maintenance lane (docs/development/sprint-workflow.md, close-out) remains
+# the deciding reviewer; a fuller point-in-time picture comes from
 # scripts/version-report.sh.
 version: 2
 updates:

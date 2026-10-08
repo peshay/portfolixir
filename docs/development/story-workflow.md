@@ -51,16 +51,11 @@ API and MCP coverage is part of the story contract. When a visible function is
 added or changed, update `/api/v1` and `mcp-server/` tests and behavior in the
 same story, or document why that surface is not applicable.
 
-Run the required gates before review:
-
-```bash
-mix format
-mix test
-mix coveralls
-pre-commit run --all-files
-npm test --prefix mcp-server
-npm run build --prefix mcp-server
-```
+Run the required gates before review: the full list in `AGENTS.md` at the
+repository root ("Required Local Checks"). It is CI's `pre-commit`, `test` and
+`quality` jobs, so a branch that passes it passes CI. The six-command copy
+this page carried omitted eight of CI's checks, and a batch that skipped two
+of them cost a round (Sprint 13 retrospective).
 
 Review user-facing documentation for every story. Update docs when the story
 changes routes, screens, labels, setup, API/MCP usage, or visible behavior. For

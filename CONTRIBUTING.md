@@ -29,8 +29,10 @@ Portfolixir currently focuses on:
 
 Out of scope unless a reviewed story explicitly changes it:
 
-- document intake other than the Portfolio Performance CSV/JSON v1 export (broker
-  PDFs, binary `.portfolio` workspaces, Portfolio Performance XML);
+- document intake other than the Portfolio Performance CSV/JSON v1 export
+  (binary `.portfolio` workspaces, Portfolio Performance XML); broker-PDF
+  intake only as ADR-0021's sandboxed, per-broker, preview-then-confirm
+  importer;
 - broker sync;
 - bank sync;
 - trading, payment, order, or rebalance behavior;
@@ -211,8 +213,8 @@ The recommendation is the default pick; a comment naming another option changes
 it; the story writes the picked anatomy into `design-language/DESIGN.md`.
 
 A change with no rendered difference needs no board. "Too small to draw" is not
-that case; "the picture is identical" is. AGENTS.md → "A UI change is mocked
-before it is built" carries the full rule.
+that case; "the picture is identical" is. `docs/development/sprint-workflow.md`
+→ "UI changes are mocked first" carries the full rule and its reason.
 
 ## Required Local Checks
 

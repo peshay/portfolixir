@@ -19,6 +19,7 @@ defmodule Portfolixir.DocsTest do
     "docs/home-deployment.md",
     "docs/integration/api-and-mcp.md",
     "docs/development/story-workflow.md",
+    "docs/development/sprint-workflow.md",
     "docs/development/guide.md"
   ]
 
@@ -234,6 +235,7 @@ defmodule Portfolixir.DocsTest do
           "title: Integration",
           "title: API and MCP",
           "title: Development",
+          "title: Sprint Workflow",
           "title: Story Workflow",
           "title: Development Guide"
         ] do
@@ -246,6 +248,7 @@ defmodule Portfolixir.DocsTest do
           "url: /product-documentation.html#securities",
           "url: /home-deployment.html",
           "url: /integration/api-and-mcp.html",
+          "url: /development/sprint-workflow.html",
           "url: /development/story-workflow.html",
           "url: /development/guide.html"
         ] do

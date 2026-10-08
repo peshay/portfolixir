@@ -213,7 +213,7 @@ What agents must know beyond "run the gates":
   rejects commits that are not authored by an accountable human on
   `.github/commit-authorship-allowlist.txt`, and rejects AI-identity trailers.
   **Do not add `Model:` / `Thinking level:` / `Co-authored-by:` (AI) /
-  `Claude-Session:` footers** — AGENTS.md and CLAUDE.md forbid them; record
+  `Claude-Session:` footers** — AGENTS.md forbids them; record
   model and reasoning level in the PR description instead. (An earlier
   `llm-commit-footer` hook required the opposite; it is gone, and this file
   said so until 2026-07-25.)
@@ -271,15 +271,18 @@ API/MCP parity gate (stays a PR-review checklist item); `mix xref` cycle gate
 
 ### Development Workflow Rules
 
-AGENTS.md is the binding contract (branch naming `agent/<provider>/<topic>`,
-Model/Thinking-level commit footer — enforced by pre-commit —, required local
-checks, story workflow, scope lock). On top:
+AGENTS.md is the binding contract, and it wins where this file disagrees
+(branch naming `agent/<provider>/<topic>`, no AI commit footers, required
+local checks, story workflow, scope lock; the procedures behind it are in
+`docs/development/sprint-workflow.md`). On top:
 
 - **Conventional commits with scope** (`feat(cash):`, `refactor(ledger):`,
   `chore(deps):`) — applies to commits AND PR titles.
-- **PRs are squash-merged onto `main`** (`required_linear_history` is enforced;
-  the PR title becomes the main commit — write it as a conventional-commit
-  line). Direct pushes and force-pushes to `main` are blocked.
+- **A sprint PR is rebase-merged, a small single-concern PR squash-merged**
+  (ADR-0026 merge-method amendment; `required_linear_history` is enforced, and
+  a squashed PR's title becomes the main commit — write it as a
+  conventional-commit line). Direct pushes and force-pushes to `main` are
+  blocked.
 - **Merge blockers agents must expect:** required status check `test` with
   `strict: true` (branch must be up to date with `main` — rebase when main
   moves) and `required_conversation_resolution` (every PR conversation must be

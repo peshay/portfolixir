@@ -1,72 +1,92 @@
 # AGENTS.md
 
-These instructions apply to all coding agents working on Portfolixir.
+The rules for every coding agent working on Portfolixir, and their single
+source of truth (Claude Code reads it through `CLAUDE.md`; Codex, Copilot,
+Cursor and Gemini CLI read it directly).
 
-## Project Goal
+**Every rule carries its reason** (*Why*) and its source. Justify an action by
+the reason, not by the rule. When a reason no longer holds, propose changing
+the rule in a PR with the new reason; do not follow it blindly or quietly
+ignore it. A new rule lands only with its reason; *(inferred)* marks a reason
+not yet recorded. *Why:* a rule whose reason is known can be questioned and
+waived correctly, and a model follows an instruction better when it knows the
+goal (ADR-0026, amendment of 2026-10-08).
 
-Portfolixir is a self-hosted portfolio system with **two first-class users: the
-operator, and the LLM agent the operator runs.** Everything it knows is
-reachable through the local JSON API and the MCP companion, and everything it
-knows is also visible on a screen. One dataset, one instance, one operator — no
-cloud, no tenancy, no broker. (Identity decided 2026-08-12 by the product brief
-of that date, accepted as #663; the PRD's sections 1, 2 and 4 carry the full
-statement.)
+**This file stays short; procedures are read when they apply.** *Why:* it loads
+into every session, long instruction files are followed less well, and Codex
+reads only the first 32 KiB, which once cut off the security and authorship
+sections. Procedures: [sprint workflow](docs/development/sprint-workflow.md)
+(planning, the sprint PR, closing act, close-out, owning a PR, UI boards, risk
+tier, issues) and [story workflow](docs/development/story-workflow.md) (the
+nine test-first steps); also the [development
+guide](docs/development/guide.md), [CONTRIBUTING.md](CONTRIBUTING.md) and
+[SECURITY.md](SECURITY.md).
 
-Keep the product focused on auditable local records:
+**Sources:** `ADR-NNNN` is `docs/decisions/NNNN-*.md`; "brief" and "addendum"
+are `_bmad-output/planning-artifacts/briefs/brief-portfolixir-2026-08-12/`;
+"PRD" is
+`_bmad-output/planning-artifacts/prds/prd-portfolixir-2026-06-12/prd.md`;
+plans, retrospectives and the close-out log (`sprint-status.yaml`) are in
+`_bmad-output/implementation-artifacts/`; the requirement registry is
+`_bmad-output/planning-artifacts/epics.md`.
 
-1. Create securities.
-2. Create portfolios.
-3. Create securities accounts/depots linked to cash accounts.
-4. Record manual buy and sell transactions, plus the broader Portfolio
-   Performance transaction kinds (dividend, interest, deposit, removal,
-   fee, tax, tax refund, cash transfer, inbound delivery, outbound
-   delivery, security transfer) when needed to round-trip an imported
-   bookkeeping history.
-5. Calculate current holdings from transactions.
-6. Store and display quote history.
-7. Show a security detail chart with price history.
-8. Expose supported app functions through the JSON API and MCP companion.
-9. Bulk-import Portfolio Performance transaction exports (CSV/JSON v1)
-   via a dedicated Imports view: drag-and-drop file intake, parse,
-   preview the records that would be created (transactions, missing
-   securities, missing portfolios/depots/cash accounts) with user-driven
-   mapping, then apply atomically with content-hash idempotency.
-10. Organise securities into classification trees: custom trees plus
-    built-in asset-class and currency trees derived from security data.
-11. Value multi-currency portfolios by converting positions and cash
-    balances through stored exchange rates (EUR hub).
-12. Store per-category target weights and report the target/actual allocation
-    breakdown with per-category drift.
-13. Keep a per-security research log of dated, sourced, typed entries that are
-    never updated or deleted (a retraction is an entry), and derive the thesis
-    state from it (ADR-0044).
+## What Portfolixir is
 
-New functionality must stay small, reviewed, locally tested, and documented.
+A self-hosted portfolio system with **two first-class users: the operator, and
+the LLM agent the operator runs.** Everything it knows is reachable through the
+local JSON API and the MCP companion, and visible on a screen. One dataset, one
+instance, one operator: no cloud, no tenancy, no broker. *Why:* figures kept
+next to the system drifted within days, and the agent recomputed what the
+server could have handed over (product brief 2026-08-12; PRD §1–2).
+
+Its scope is auditable local records: securities, portfolios, depots linked to
+cash accounts, the Portfolio Performance transaction kinds and their import,
+holdings derived from transactions, quotes and charts, classification trees,
+multi-currency valuation through stored EUR-hub rates, target weights with
+drift, and a per-security research log that is never rewritten (ADR-0044).
+Stories and commits stay small; a sprint PR is large and briefed. *Why:* the
+figures can be trusted only because they reproduce from the ledger (ADR-0004);
+verification, not code, is the bottleneck (ADR-0026).
 
 ## Hard Rules
 
-- Follow TDD strictly.
-- Write tests before implementation.
-- Work only on the requested story or story batch.
-- Do not add adjacent features.
-- Do not silently change architecture decisions.
-- Do not commit real financial data.
-- Use synthetic fixtures only.
-- Do not make external network calls in tests.
-- Never create atoms from external input with `String.to_atom/1`.
-- Use `Decimal` for money, quantities, prices, fees, taxes, and FX rates.
-- Do not use floats for persisted financial values.
-- Do not implement document intake (binary `.portfolio`, PP XML),
-  broker sync, bank sync, trading, payment, order, rebalance, or LLM behavior
-  unless a reviewed story explicitly changes scope. The Portfolio Performance
-  CSV/JSON v1 import flow defined in goal #9 is an in-scope exception.
-  Broker-PDF transaction intake is also an in-scope exception per ADR-0021,
-  constrained to a sandboxed, text-extraction-only, per-broker, preview-then-
-  confirm importer (binary `.portfolio` intake stays out of scope).
-  Display-only rebalancing hints are an in-scope exception per ADR-0023:
-  computing and showing indicative corrective quantities next to the
-  allocation drift is allowed, but anything that creates, stores, or
-  transmits an order remains forbidden.
+- **Test first.** Write the test, see it fail for the expected reason, then
+  write the smallest code that passes, as the [story
+  workflow](docs/development/story-workflow.md) orders it. *Why:* the owner
+  does not read code, so a test that failed first stands in for that read (PRD
+  §1 "Stakes and quality bar"; ADR-0036).
+- **Stay in scope.** Work only on the requested story or sprint and add no
+  adjacent feature. A larger design issue or a new idea found on the way is
+  filed: file a new issue immediately rather than solving it opportunistically.
+  *Why:* every change stays reviewable against a decision, and a session's
+  memory ends with it while an issue does not (ADR-0022, Context; E17–E19
+  retrospective §5).
+- **Do not silently change architecture decisions**; amend the ADR. *Why:* the
+  owner reviews decisions, not diffs, so a decision changed in code is changed
+  unreviewed (ADR-0026 step 1).
+- **Use `Decimal` for money, quantities, prices, fees, taxes and FX rates;
+  never persist a float.** *Why:* binary floats cannot represent decimal
+  amounts, and the drift is unacceptable in auditable records (ADR-0003).
+- **Make no external network call in a test; use synthetic fixtures and fake
+  providers.** *Why (inferred):* tests stay deterministic and offline, and no
+  token or data leaves the machine (ADR-0005, Consequences).
+- **Never create atoms from external input with `String.to_atom/1`.** *Why
+  (inferred):* atoms are never garbage-collected, so input-made atoms can fill
+  the atom table and stop the VM (Sobelow flags it).
+- Do not implement document intake (binary `.portfolio`, PP XML), broker sync,
+  bank sync, trading, payment, order, rebalance, or LLM behavior unless a
+  reviewed story explicitly changes scope. The Portfolio Performance CSV/JSON
+  v1 import flow is an in-scope exception. Broker-PDF transaction intake is
+  also an in-scope exception per ADR-0021, constrained to a sandboxed,
+  text-extraction-only, per-broker, preview-then-confirm importer (binary
+  `.portfolio` intake stays out of scope). Display-only rebalancing hints are
+  an in-scope exception per ADR-0023: computing and showing indicative
+  corrective quantities next to the allocation drift is allowed, but anything
+  that creates, stores, or transmits an order remains forbidden. *Why:* each
+  needs a decision not yet taken — sync stores bank credentials, PDFs are
+  hostile input, an order or an in-app model would make the system act instead
+  of prepare (PRD §4 gate table; ADR-0021; ADR-0023). Why the binary
+  `.portfolio` format stays out is not recorded.
 - Analytics scope follows the **scope ladder** (ADR reference: identity gate
   B3.1), which replaced the blanket "no advanced reports" rule:
   - **(a) derived metrics** per security and per view — moving averages,
@@ -79,20 +99,27 @@ New functionality must stay small, reviewed, locally tested, and documented.
     its own decision gate.
   Level (c) scores what was recorded before its outcome was known; level (d)
   replays a counterfactual. If an analytic needs a history in which the rule
-  was already there, it is (d).
+  was already there, it is (d). *Why:* the blanket rule was drawn before anyone
+  knew where the line was; a replay manufactures a history the rule never ran
+  against (PRD §4 "Scope ladder"; ADR-0049 §4).
 - Every metric in (a)–(c) must state its **computation basis** in its API and
   MCP payload: input series, window, reference series or benchmark where one
   exists, and the treatment of gaps. Review-blocking; a doc page does not
-  satisfy it.
+  satisfy it. *Why:* a metric whose basis is unstated cannot be checked by
+  anyone, human or agent (brief addendum, "Every metric documents its
+  computation basis").
 - **Advanced classifications stay out of scope** — stored partial-weight
   assignments of one security to several categories (`CONTRIBUTING.md`). Level
   (b) may *report* a factor, sector or region breakdown from data the catalog
   already holds; a decomposition that needs such weights needs its own
-  decision.
+  decision. *Why:* partial weights change the data model, not a report, and no
+  decision has opened them (PRD §4).
 - Gated, and none of them openable by citing the ladder: rule backtesting
   (level (d)); data acquisition beyond quotes and FX (B3.3); push delivery to
   external endpoints (B3.7); a local model beyond ADR-0021's PDF-intake path
-  (B3.8).
+  (B3.8). *Why:* B3.3 needs a design for sources, failures and retention, B3.7
+  brings request forgery and stored secrets, and B3.8 should stay rare because
+  deterministic code comes first (brief addendum, "Parked, with reasons").
 - **Permanent non-goals — identity, not backlog**, and no capacity argument
   reopens them: no **order-placing** broker connection, no order creation or
   transmission, no automated trading or payment, no advice, no raw news
@@ -103,143 +130,139 @@ New functionality must stay small, reviewed, locally tested, and documented.
   stays permitted in principle and gated in practice (Phase 3, still forbidden
   here until its ADR lands); and "no advice" does not retract ADR-0023's
   display-only rebalancing hints, which are arithmetic beside a drift figure.
+  *Why:* they are what the product is: intelligence stays outside and
+  replaceable, and the operator stays the one who acts (product brief, "Scope";
+  PRD §1 "Cornerstone principle").
 - **Machine-extracted data is a proposal until confirmed.** Anything extracted
   from an unstructured source carries its source link and a `machine_generated`
   marker and lands only after a human or an agent confirms it — the
   preview-then-apply shape the Portfolio Performance import uses. Independent
-  of whether a local model is ever adopted.
-- Do not claim production readiness.
-- Public files must be normal readable multiline files.
-- Write every repository artifact in English: issues, PR titles and
-  descriptions, commit messages, ADRs, code comments, and documentation.
-  Translated end-user documentation (the EN/DE docs site) keeps English
-  as the source baseline.
-- Never commit personal or private data. See "Privacy And Disclosure"
-  below — it applies to every artifact, including agent-generated ones.
+  of whether a local model is ever adopted. *Why:* an extractor can invent, and
+  nothing it produces may land silently (PRD NFR-10).
+- **Do not claim production readiness.** *Why:* there is no upgrade guarantee
+  and one maintainer (launch readiness, Sprint 19).
+- **Public files are normal, readable multiline files.** *Why (inferred):* a
+  one-line or generated-looking file hides its changes from review; the
+  pre-commit hooks guard line endings and invisible Unicode.
+- **Write every repository artifact in English** — issues, PRs, commit
+  messages, ADRs, code comments, documentation; the German docs translate the
+  English source. *Why (inferred):* a public repository with one working
+  language for agents and reviewers (PRD NFR-7; ADR-0014).
 
 ## Privacy And Disclosure
 
-This is a public repository. Nothing that describes the maintainer's (or any
-other real person's) private life or finances may be committed — in any
-artifact: code, tests, fixtures, docs, ADRs, commit messages, issues text
-mirrored into the repo, and especially agent-generated output (`_bmad-output/`
-planning artifacts, design-session notes, decision logs, brainstorming
-results, epics, implementation artifacts).
+This repository is public. **Never commit anything that describes a real
+person's private life or finances**, in any artifact: code, tests, fixtures,
+docs, ADRs, commit messages, and above all agent output (`_bmad-output/` plans,
+session notes, reviews). That means:
 
-Forbidden in committed content:
+- no real portfolio data — balances, net worth, invested capital, performance
+  figures, credit lines, positions, transactions; synthetic data stays
+  synthetic all the way down, including its description;
+- no names of household members, partners, children or pets; use placeholders
+  such as `Family` or `Guest`;
+- no personal banking relationships or private tooling (naming a provider as a
+  generic integration target is fine);
+- no local machine details: home paths, usernames, hostnames, internal IPs;
+- no personal agent state: `_bmad/config.user.toml`, `_bmad/memory/**`
+  (gitignored; never force-add).
 
-- Real portfolio data: net worth, account balances, invested capital,
-  performance/IRR figures, wealth multiples, credit lines, position
-  quantities, real security positions, real transactions. Never label test
-  data or examples as "the owner's real case" — synthetic data must be
-  synthetic all the way down, including its description.
-- Names of household members, partners, children, or pets, and any other
-  family or personal details. Use generic placeholders (`Family`, `Guest`,
-  "a non-owner") in examples and fixtures.
-- The maintainer's personal banking relationships and private tooling:
-  which banks/brokers hold their accounts, private sync scripts, credential
-  or TAN setups. Naming a provider as a generic integration target
-  ("a comdirect CSV export looks like …") is fine; attaching it to the
-  owner's accounts is not.
-- Local machine details: absolute home-directory paths, local usernames,
-  hostnames, internal IPs.
-- Personal configuration and agent memory: `_bmad/config.user.toml`,
-  `_bmad/memory/**` (agent sanctums: `MEMORY.md`, `BOND.md`, `PERSONA.md`
-  and friends), and any file whose header marks it as scoped to a person.
-  These are gitignored — never force-add them.
+Scrub session artifacts before committing; when in doubt, leave it out. *Why:*
+agent sessions routinely surface real data, and Git history cannot be cleaned
+afterwards — a rewrite breaks every clone and never reaches copies already
+fetched; five committed records had to be scrubbed in Sprint 16 (Sprint 16 plan
+D-11; [SECURITY.md](SECURITY.md)).
 
-Agent sessions (brainstorming, design sessions, PRD interviews, walkthroughs
-on the live instance) routinely surface real data. Before committing any
-session artifact, scrub it: replace real figures with qualitative wording
-("absurdly high", "the credit line") and real names with placeholders. If a
-document only works with the real numbers, it belongs on the live instance
-or in a private note — not in this repo. When in doubt, leave it out.
+## Commit Authorship
 
-## Active Architecture
+Every commit is authored by the accountable human under their own GitHub
+identity (`user.name`/`user.email`, ideally the `…@users.noreply.github.com`
+address listed in `.github/commit-authorship-allowlist.txt`), even when an
+agent wrote it. Never a bot or agent identity, never a `Co-authored-by:` that
+credits an AI, never `Model:`, `Thinking level:`, `Claude-Session:` or
+session-URL footers; put the model in the PR description. A `commit-msg` hook
+and the "Commit authorship" CI workflow enforce it; do not work around them.
+*Why:* a person owns the result and answers for it; the rule was re-examined
+and kept (Sprint 17 plan D-10; `scripts/check-commit-authorship.sh`), and CI
+re-checks because a local hook can be skipped.
 
-Use a small modular Phoenix monolith plus a thin MCP API companion:
+## Security Boundaries
 
-```text
-Portfolixir.Catalog      # securities and security quotes
-Portfolixir.Portfolios   # portfolios, cash accounts, depots
-Portfolixir.Ledger       # transactions (13 PP kinds + balance snapshot) and holdings
-Portfolixir.Tax          # recorded tax-statement snapshots and consistency checks
-Portfolixir.Knowledge    # append-only security research log and the thesis-state projection
-Portfolixir.Lifecycle    # rename, merge and delete of accounts, depots and securities (ADR-0050)
-PortfolixirWeb           # LiveViews, router, JSON API, components
-mcp-server/              # TypeScript MCP server wrapping the JSON API only
-```
+- **No secrets in source**; the API and the MCP companion authenticate with
+  local bearer tokens from the environment. *Why:* the repository is public, so
+  a committed key is a leaked key ([SECURITY.md](SECURITY.md);
+  `test/invariants/scope_b1_no_stored_credentials_test.exs`).
+- **No `.env` writing from the web UI.** *Why (inferred):* the UI runs without
+  a login unless one is configured (ADR-0045), so a UI that writes `.env` would
+  let anyone who reaches it change the secrets.
+- No external LLM calls, orders, payments or trading: see Hard Rules.
 
-Keep domain modules separate from LiveViews, controllers, and MCP wrapper code.
-MCP tools must call the public JSON API; they must not bypass it by talking
-directly to the database or Elixir contexts.
+## Architecture
+
+- **A modular Phoenix monolith**: one context per domain under
+  `lib/portfolixir/` (Catalog, Portfolios, Ledger, Imports, Knowledge,
+  Lifecycle, Tax and the rest), the web layer in `lib/portfolixir_web/`, and
+  `mcp-server/`, a TypeScript MCP companion. Contexts never depend on the web
+  layer. *Why:* a single-user tool gains nothing from services but overhead,
+  and clear seams keep the domain testable (ADR-0001).
+- **MCP tools call the public JSON API only** — never the database or the
+  Elixir contexts. *Why:* one integration contract and no second data path
+  around the API's validation and auth (ADR-0002;
+  `test/invariants/mcp_dependency_allowlist_test.exs`).
 
 ## API And MCP Coverage
 
-Coverage runs **both ways** (amended 2026-08-12, identity gate B3.1). Either
-direction may lead; neither may be silently skipped.
+- **Coverage runs both ways.** A new user-visible function gets API and MCP
+  coverage, or the PR says why not. A new agent-visible capability may ship
+  over API and MCP alone, with the reason stated, when its human view lands in
+  the same or the next sprint; a missing view after that is a close-out
+  finding. *Why:* both users are first-class, and without the deadline the rule
+  decays into "agent only, forever" (brief addendum, "API and MCP Coverage
+  becomes symmetric").
+- **Endpoints live under `/api/v1`; financial decimals are strings** in API
+  responses and in MCP tool schemas. *Why:* JSON numbers become binary floats
+  in most clients and lose cents (ADR-0003).
+- **The MCP companion installs and runs on its own, outside Docker Compose.**
+  *Why (inferred):* MCP clients start it themselves as a local process (connect
+  an agent).
 
-- Every new **user-visible** function must include API and MCP coverage, or the
-  PR must explicitly document why coverage is not applicable.
-- Every new **agent-visible** capability may ship over API and MCP alone, with
-  no human view, provided the PR states why. The human view then lands in the
-  **same or the next epic batch**, and its absence after that is a close-out
-  finding. The deadline is the whole point: without it the rule degrades into
-  "agent only, forever", which hollows out the operator half of the two-user
-  identity in the Project Goal.
+## How Work Is Done
 
-Rules that hold in both directions:
-
-- JSON API endpoints belong under `/api/v1`.
-- API and MCP authentication must use local bearer tokens from environment
-  configuration.
-- API and MCP responses must serialize financial decimals as strings.
-- MCP tool schemas must expose financial decimals as strings.
-- API/MCP tests must use synthetic fixtures and fake providers only.
-- The MCP companion must remain installable and runnable separately from Docker
-  Compose.
-
-## Testing Expectations
-
-Every story must include tests.
-
-For user-visible stories, start in the test file. Add a short user story
-comment, then place the functional test for that story directly below it. Use
-this shape unless a narrower format already exists in the touched test file:
-
-```elixir
-# User story:
-# As a local portfolio maintainer,
-# I want to record a manual buy transaction,
-# so that my current holdings are derived from auditable local data.
-#
-# Acceptance criteria:
-# - The transaction is stored with Decimal quantity and price values.
-# - The holdings view includes the bought quantity.
-test "records a manual buy transaction and updates holdings" do
-  ...
-end
-```
-
-Minimum test types:
-
-- contexts and schemas: `DataCase`;
-- web routes and LiveViews: `ConnCase` with `Phoenix.LiveViewTest`;
-- JSON API routes: `ConnCase`;
-- MCP companion: TypeScript tests in `mcp-server/test`;
-- calculations: deterministic fixtures and exact `Decimal` expectations where
-  practical.
-
-Do not make real network calls in tests.
+- **A sprint is two sessions and two PRs.** A planning session writes the
+  planning PR, and the owner's merge is the signature; a fresh implementation
+  session builds the whole sprint on one branch as one sprint PR, with the
+  lanes as commit groups and the retrospective as its last commits. *Why:* two
+  owner touchpoints per sprint instead of five, and a fresh session tests
+  whether the plan is complete (ADR-0026, amendment of 2026-10-08; [sprint
+  workflow](docs/development/sprint-workflow.md)).
+- **A UI change is mocked on a board before it is built**, risk-tier work gets
+  its own commit group and verification pass, and issues are thin pointers: see
+  the sprint workflow for each rule and its reason.
+- **A PR you open is yours until it is merged or closed**: subscribe to its
+  events as soon as it exists (never offer to and wait for a yes), drive CI to
+  green, keep it current with `main`. Never weaken a quality gate, never fix
+  outside the PR's scope, **never merge**. *Why:* an offer declined by silence
+  leaves the PR unwatched, and a lapsed watch makes no noise (Sprint 10
+  retrospective); the gates stand in for the human read (ADR-0026,
+  "Compensating controls"; ADR-0036), and the merge is the owner's acceptance
+  (ADR-0026 step 4).
+- **Ask the owner only what only the owner knows**: a fact on the owner's own
+  instance, a change to how stored money data is booked or corrected, scope and
+  non-goals. Decide everything else with its reason, flippable by a comment,
+  and open every plan and PR body with "What you need to do". *Why:* the
+  owner's attention is the scarcest resource (ADR-0038; ADR-0026, amendment of
+  2026-10-08).
+- **Branches** are `agent/<provider>/<topic>`, a sprint
+  `agent/<provider>/sprint-<N>`; `codex/<topic>` is legacy. *Why (inferred):*
+  the name shows which agent made a branch.
+- **Stop the moment the owner says stop.**
 
 ## Required Local Checks
 
-Run these before opening a PR. **The list is CI's `pre-commit`, `test` and
-`quality` jobs**, so a branch that passes here passes there. It was six commands
-until 2026-09-20; the eight it omitted — the four quality checks and the four
-supply-chain ones — were run out of habit rather than instruction, and a batch
-that skipped two of them cost a round (recorded in the Sprint 13 retrospective,
-amended by the Sprint 14 planning PR).
+Run these before opening a PR and before every push. The list is CI's
+`pre-commit`, `test` and `quality` jobs, so a branch that passes here passes
+there. *Why:* a shorter list omitted eight of CI's checks, and a batch that
+skipped two of them cost a round (Sprint 13 retrospective).
 
 ```bash
 mix format
@@ -259,433 +282,7 @@ npm run build --prefix mcp-server
 npm audit --audit-level=high --prefix mcp-server
 ```
 
-Two of these behave differently from the rest. `mix dialyzer` builds a PLT on
-its first run, so it is slow once rather than every time. `mix hex.audit` and
-`mix deps.audit` read a live advisory database, so a green run does not stay
-green — a gate that turns red with nobody pushing anything is an advisory
-published since, not a regression.
-
-If pre-commit is not installed:
-
-```bash
-pre-commit install --install-hooks
-```
-
-Commit under the accountable human's own Git identity (their GitHub account).
-An LLM or coding agent commits AS that person; it must not introduce a bot
-author/committer, a `Co-authored-by:` line that credits itself, or `Model:` /
-`Thinking level:` / `Claude-Session:` footers. Record the model and reasoning
-level in the pull request description instead, where they do not become part of
-the permanent commit authorship record. See "Commit Authorship And
-Accountability" below.
-
-## Branch Naming For Agent Work
-
-- `agent/<provider>/<topic-slug>` — e.g. `agent/claude/design-system`,
-  `agent/codex/product-documentation`, `agent/gemini/locale-copy`.
-- `codex/<topic-slug>` — legacy, while existing work still carries it.
-
-## Pull Request Lifecycle
-
-These are owner rules of 2026-08-12. Their rationale is recorded with the
-decisions themselves; this section states only what an agent must do.
-
-**Open the PR with the first commit, as a draft.** A branch without a PR is
-invisible to the owner and CI does not run on it. **Exception: a planning PR
-is opened ready for review** — it carries no closing act, its content is the
-decision, and the merge is the signature (Epic-Batch Workflow step 1).
-
-**Promote it yourself** once all four hold — the conditions are the permission,
-so do not ask:
-
-1. the agentic review closing act has run and every confirmed finding is fixed
-   on the branch;
-2. CI is green on the head commit, required checks included;
-3. every question put to the owner has been answered;
-4. the branch is current with `main`, conflict-free, and you judge it mergeable.
-
-A question *put to the owner* blocks promotion. A question the work
-*deliberately records* — an `OQ-n`, a `[NOTE FOR PM]`, a named follow-up — does
-not: it is part of the deliverable, and blocking on it would mean never
-shipping a document honest about what it does not know.
-
-Do not flip the status back and forth. A red check after promotion is fixed on
-the branch; return to draft only when the work turns out to need an owner
-decision, and say on the PR why. **Ready for review is not a merge request.**
-
-**Name the issues the diff closes** with a GitHub closing keyword and a real
-number — `Closes #675` — so the merge closes them by itself. If the diff closes
-nothing, say so in one clause and why. Two exceptions, both places where a
-keyword does damage:
-
-- an issue the diff **invalidates rather than implements** is closed by hand
-  with the evidence — a keyword would record "done" for work that was never
-  work;
-- a keyword is only for issues this diff actually finishes; closing adjacent
-  work by accident loses the thread.
-
-Before opening, ask what is easy to skip when the branch did not start from an
-issue: *does this diff finish something already on the backlog?* An ADR, a gate
-artifact or a documentation PR is exactly the kind that has no issue of its own
-and still satisfies one.
-
-The Epic-Batch close-out (step 5) is not a competing mechanism. Keywords close
-at the merge; step 5 runs after it and covers what a keyword cannot reach — the
-epic tracker, `sprint-status.yaml`, the retrospective, and issues needing a
-written reason. PRs that never enter step 5 are the gap keywords fill.
-
-**You own the PR until it is merged or closed.** Three duties, running until
-the merge:
-
-1. **Watch it.** Subscribe to its activity as soon as it exists. Never poll by
-   sleeping or on a timer — wait for the events.
-2. **Drive CI to green.** Diagnose and fix on the branch, round after round,
-   until the checks pass. Push the fix; the diff is the report. Reply on the PR
-   only when a round resolves the failure, hits a real blocker, or raises a
-   question the owner must answer.
-3. **Resolve conflicts and stale bases.** Merge or rebase, re-run the gates
-   locally, push. Ask only when both sides changed the same logic and picking
-   one would lose behavior.
-
-Four limits, none of them optional:
-
-- **never weaken a quality gate to get green** — lowering a threshold, adding
-  an ignore, skipping a test or baselining a finding is a review reject, not a
-  fix;
-- **never fix outside the PR's scope** — say so on the PR and leave it;
-- **never merge** — only the maintainer merges;
-- **a failure that reproduces on the base branch is not silently yours** — say
-  so once, and act on it when the base recovers.
-
-Stop the moment the owner says stop.
-
-## Story Workflow
-
-1. User Story documented.
-2. Functional test written directly below the User Story comment.
-3. Test failure confirmed for the expected reason.
-4. Smallest implementation code written.
-5. API coverage reviewed and updated, or explicitly marked not applicable.
-6. MCP coverage reviewed and updated, or explicitly marked not applicable.
-7. User documentation reviewed and updated when visible behavior changed.
-8. Security audit performed.
-9. Required gates run.
-
-The nine steps above are the canonical order. `workflow_docs_test.exs` asserts
-each step string against the **concatenation** of this file, `README.md`,
-`CONTRIBUTING.md` and `docs/development/story-workflow.md`, so one document
-carrying a step satisfies the test for all of them — renumbering here would
-pass CI while silently disagreeing with `docs/development/story-workflow.md`.
-Treat the numbering as shared state and change it in every document that
-carries it, or in none. Three clarifications ride the existing steps rather
-than adding a tenth:
-
-- **Steps 5 and 6 run in both directions** per "API And MCP Coverage": a
-  user-visible function needs API/MCP coverage, and an agent-visible capability
-  needs its human view in the same or the next batch.
-- **A story that adds or changes a metric** must state that metric's
-  **computation basis** in the API and MCP payload (series, window, reference,
-  gap treatment) before step 9 passes. Review-blocking; a code comment or a
-  documentation page does not satisfy it, because the payload is where the
-  reviewer and the agent both read it.
-- **A story that changes rendered output is mocked before step 4** — see "A UI
-  change is mocked before it is built" under the Epic-Batch Workflow. The
-  mockup rides step 1 as part of documenting the story; it is not a tenth step
-  and it does not move the TDD order, because a board is not code.
-
-For AI-assisted changes, the above cycle is required to run as distinct
-iterations.
-
-## Epic-Batch Workflow (ADR-0026)
-
-Feature trees are delivered as epic batches by default; the maintainer
-reviews decisions and behavior, agents review code:
-
-1. **Decision gate:** an ADR or spec with acceptance criteria, signed off by
-   the owner before the batch starts. **A gate-closing ADR names its asks**
-   ([ADR-0043](docs/decisions/0043-a-gate-closing-adr-names-its-asks.md)): it
-   carries the list of questions the gate was opened on, each marked answered
-   or deferred **with a reason**, and the list is checked at the signature. A
-   deferred ask is filed as an issue in the same pass, so "closed" never
-   silently means "the parts nobody re-read". **The merge is the signature
-   (owner decision 2026-09-07, PR #780):** a planning PR — the sprint plan,
-   the gate-closing ADR and the decisions it carries — is written as
-   *adopted*, its status naming the PR whose merge adopts it. No `DRAFT` or
-   `Proposed` status in the documents, no GitHub draft flag on the PR: the
-   owner reads and merges to adopt, or comments to change, and nothing has
-   to be edited between "passt" and the merge. A decision the owner rejects
-   is removed on the PR before the merge, never merged as "proposed".
-2. **Batch:** the feature tree is worked on ONE epic branch
-   (`agent/<provider>/<epic-slug>`), one commit or small commit group per
-   issue, every commit passing the local gates, the branch rebased onto
-   `main` at least daily. Epic branches live days, not weeks. The Story
-   Workflow above applies unchanged inside the batch.
-3. **Agentic review closing act (mandatory):** multi-role adversarial review
-   (at minimum correctness hunter, edge-case hunter, a UAT persona
-   walkthrough on seeded synthetic data, and — for batches with user-visible
-   surface — a design critic reviewing against the living design-language
-   spec per ADR-0038), confirmed findings fixed on the branch, plus a
-   reviewer briefing on the PR — what is new, what changed, where to look,
-   deliberate trade-offs — with screenshots for UI work.
-4. **Acceptance:** the owner reviews behavior against the briefing, feedback
-   lands as a UAT fix round on the same branch, and the maintainer merges —
-   **epic-batch PRs by rebase-merge, small single-concern PRs by squash**
-   (ADR-0026 merge-method amendment, 2026-08-14). Before promotion the
-   batch agent cleans the branch history for that rebase: mechanical
-   fix-ups folded into the commits that caused them, substantive
-   review-round commits kept, final tree byte-identical (empty diff against
-   a backup ref), force-push only with `--force-with-lease`. Agents never
-   merge. No separate per-epic owner UAT
-   session is assumed beyond this review (ADR-0038): day-to-day
-   observations from live use reach the backlog at any time as
-   unstructured owner dumps, which the PM agent triages into dated
-   planning artifacts, dedups against the pipeline, and turns into thin
-   issues after owner confirmation. The UX designer role owns the living
-   design-language spec that design work and the design-critic review are
-   held against.
-5. **Bookkeeping close-out (mandatory, after the merge):** in the same pass
-   as the post-merge cleanup, the batch's agent updates
-   `sprint-status.yaml` and the epics document — since
-   [ADR-0042](docs/decisions/0042-one-planning-structure.md) that means the
-   **FR Coverage Map, the Tracker Index and a dated reconciliation**, never a
-   story row — closes the issues the merge's keywords did not and the epic
-   tracker, records a short
-   retrospective section, confirms the merge's own CI runs — required
-   checks included — are green, and **names the calendar release the merge
-   produced** (Sprint 17 plan D-11, 2026-10-01, superseding the owner-run
-   `X.Y.Z` tag of PR #780). Every push to `main` that touches shipped code
-   makes the Release workflow create the next `YYYY.M.N` as an annotated tag
-   and its GitHub Release in one job, with generated notes and the API
-   contract version named; docs-only, test-only and planning pushes make
-   none, and a lane PR's merge is a release. If that job fails, the
-   close-out records the failure and the owner's fallback: an annotated tag
-   the owner creates by hand still triggers the Release workflow's tag job.
-   The release is a rollback point for self-hosted instances plus a
-   communicable changelog, never an installable artifact (issue #659, added
-   2026-08-10). The batch ends at the merge; the epic ends here. (Added
-   2026-07-31 from the combined E17–E19 retrospective: all observed
-   process failures of that period sat in the unowned space after the
-   merge.)
-
-   **Maintenance lane (owner decision 2026-08-12, issue #675).** Every batch
-   carries a lane that reviews available updates for Hex, npm, Elixir/OTP,
-   PostgreSQL, BMAD and the external BMAD modules, applies what passes the
-   gates, and **reports what it deliberately did not update, with the
-   reason**. It attaches here, to the close-out. It is a step in this
-   document rather than a scheduling habit, because habits depend on someone
-   remembering. The lane *reviews and decides* inside the batch; an update
-   itself still lands as its own commit or commit group, never mixed into a
-   feature story. Read that together with ADR-0036 below rather than against
-   it: ADR-0036 withdrew the separate-PR-with-human-review ceremony for
-   risk-tier work, not the requirement that a dependency bump stay
-   independently readable and revertable.
-
-   **Close-out check that the two-way coverage rule needs:** this same pass is
-   where an agent-only capability from an earlier batch is checked for its
-   human view. A capability whose view has not landed by the end of the next
-   batch is a finding recorded here — which is what gives the deadline in "API
-   And MCP Coverage" a place to be enforced instead of a place to be intended.
-
-   **Surface check (owner decision 2026-09-03, from the 2026-08-27 triage
-   §0.3).** When a read-ergonomics parameter lands (`include_positions`,
-   `min_drift`, `fields=`, `since=`, or a successor), the close-out names
-   **every endpoint of that parameter's family** and states which of them
-   carry it. A coverage rule stated per requirement lets a requirement be done
-   while its surface is half-done — FR-37 shipped on the portfolio scope and
-   skipped the view scope (#740) — and the sentence in the close-out is what
-   makes the gap visible before the agent's next requirements edition carries
-   it a third time. One sentence, in the close-out; not a new step.
-
-**A UI change is mocked before it is built (owner decision 2026-09-20).**
-Any story whose diff changes rendered output — a new surface, a changed layout,
-a control, a state, a colour, a label's placement — gets a **mockup board
-before the code**, and the board carries **comparison options**. It is not a
-courtesy for large features; it is the rule for every UI change, including a
-one-rule CSS repair.
-
-1. **Options, or a before/after.** Where there is a genuine choice, the board
-   shows at least two variants, each argued, with one marked **recommended**.
-   Where the living spec already fixes the answer — a conformance repair — the
-   board shows **before and after** instead. A repair is still a UI change:
-   `DESIGN.md` described the `.num` defect in words for two sprints and it
-   shipped twice anyway, because words about alignment do not show a reader
-   two columns of proportional digits.
-2. **Before the code, and before the batch where the work is already known.**
-   A surface a decision record places belongs on a board on the **planning
-   PR**, not at branch opening. A surface discovered mid-batch is boarded
-   before its story is implemented.
-3. **How a pick is made.** The recommendation is the default; a comment naming
-   another option changes it; silence adopts the recommendation. The picked
-   anatomy is written into `DESIGN.md` by the story that builds it, so the
-   spec and the screen do not drift apart again.
-4. **What a board is.** An HTML artboard under
-   `_bmad-output/planning-artifacts/design-language/mockups/<pass>/` that links
-   the real `priv/static/app.css`, rendered to PNG, using **synthetic data
-   only** — no real instrument, position, weight or threshold, per "Privacy And
-   Disclosure". Boards are proposals held against `DESIGN.md` and
-   `EXPERIENCE.md` (ADR-0038); they never amend the spec by existing.
-5. **The exception, stated so it is not stretched.** A change with **no
-   rendered difference** needs no board — an ARIA attribute that was absent and
-   is now correct, a `to_string/1` on a boolean, a test-only change. "Too
-   small to draw" is not that exception; "identical picture" is.
-
-The design-critic role in the closing act reviews the built surface against its
-board as well as against the spec, and a batch whose UI landed without one is a
-finding in the close-out.
-
-**Risk-tier work rides the batch (ADR-0036, 2026-08-04).** Ledger/money-domain
-math and invariants, security-relevant changes, dependency updates, and
-anything touching import idempotency or projection semantics ship inside the
-epic batch like everything else — the former "dedicated small PR with real
-human review" exception is withdrawn, because with one reviewer it produced a
-queue of unread micro-PRs rather than review. "Risk-tier" is now an attention
-label, and marking a change so means:
-
-1. its own commit or commit group, never mixed into an unrelated commit, so it
-   stays independently readable and revertable;
-2. a dedicated verification pass in the agentic review on the invariant at
-   stake (the money identity, the idempotency property, the projection
-   semantics), findings verified before they are surfaced;
-3. an explicit callout in the reviewer briefing — what changed, which
-   invariant protects it, which test pins it;
-4. the decision gate unchanged: semantics-changing risk-tier work still needs
-   its ADR signed off before the batch starts.
-
-The compensating controls are therefore blocking, not aspirational: TDD first
-with exact `Decimal` expectations on money code, and every quality gate green.
-Weakening a quality gate to make a batch pass is a review reject.
-
-## Issue Tracking Convention
-
-GitHub issues are thin pointers: the authoritative spec lives in the
-ADR/epics document, never in the issue body. An issue carries a title, a
-one-paragraph scope statement, links to the authoritative sections, and its
-dependencies. Do not duplicate acceptance-criteria text into an issue —
-copies drift, and the ADR/epics source is what reviewers hold the work
-against.
-
-**Which document is authoritative for what** was settled by
-[ADR-0042](docs/decisions/0042-one-planning-structure.md) (Accepted
-2026-08-17), after two structures had claimed the same job since June:
-
-- **`epics.md` is the requirement registry.** It owns the Requirements
-  Inventory (FR/NFR/UX-DR), the FR Coverage Map, the scope-ladder boundaries,
-  the dated Implementation Status reconciliations, and a **Tracker Index** —
-  one line per epic giving its name, its tracker issue where one exists, and
-  its intent. It is **not** a work breakdown: the Epic Detail sections and the
-  `##### Story` rows are gone.
-- **The GitHub tracker set is the work ledger** — an agent artifact, kept for
-  closing keywords, external intake and cross-references, not because the owner
-  reads it.
-- **`sprint-status.yaml`** keeps the close-out/reconciliation log and the
-  `epic-N` / `epic-N-retrospective` keys. It no longer carries story rows, and
-  `bmad-sprint-planning`'s `generate` path no longer applies to this project;
-  its readiness gate and status view still do.
-- **The sprint lane plan** (`sprint-plan-<date>-sprint<N>.md`) is the execution
-  artifact.
-
-**Filing an issue is bookkeeping, not communication.** Issue numbers are agent
-addresses. Where the owner needs to know something it goes in an ADR, the
-triage document, the lane plan or the reviewer briefing — never cited as an
-issue number and left there. A third party's report is triaged into the next
-triage document or lane plan, or the public intake channel terminates nowhere.
-
-### Working agreement (preserved from #321)
-
-`#321` was the roadmap index; it is closed, and this is the part of it worth
-keeping. Two of its clauses were overtaken by
-[ADR-0026](docs/decisions/0026-epic-batch-workflow.md) and are marked as such
-rather than preserved as if still binding.
-
-1. **One topic = one issue.** The issue plus the artifacts it points at are the
-   complete specification — a session should not need context from previous
-   sessions. *(ADR-0026 superseded the "= one chat = one PR" half: a feature
-   tree ships as an epic batch on one branch with one PR, not one PR per
-   issue.)*
-2. The PR closes the issue via `Closes #N`. *(The "and tick it off in the
-   roadmap index" half dies with #321; the FR Coverage Map's issue column is
-   the one place traceability now lives.)*
-3. Branch convention per "Branch Naming For Agent Work" below; TDD with a
-   failing test first; update docs and API/MCP coverage; all gates green.
-4. **New ideas discovered while working are filed immediately**, never
-   "remembered" in the session. Same duty as "Scope Lock" below:
-   file a new issue immediately rather than solving it opportunistically.
-5. All repository artifacts are written in English.
-6. Labels: `agentic` = implementable and mergeable autonomously · `needs-uat` =
-   requires human UAT before merge · `needs-decision` = blocked on a maintainer
-   decision · `tracking` = collection issue, no direct PR.
-
-**How an issue closes** is stated once, under "Branch Naming For Agent Work":
-the pull request that finishes it names it with a GitHub closing keyword, so
-the merge closes it; an issue the work *invalidates* rather than implements is
-closed by hand with the reason. That rule lives with the PR lifecycle because
-it is a rule about the PR body, and it is cross-referenced here because this is
-where a reader looks for the issue lifecycle.
-
-## AI Authoring Contract
-
-Agent commits must follow this order and keep each iteration reviewable:
-
-1. Write the user story and acceptance criteria.
-2. Add the user-story-backed test cases first.
-3. Implement only the minimal behavior needed by the tests.
-4. Review and update API and MCP coverage.
-5. Update docs when user-visible behavior changes.
-6. Run a security review pass and harden risks introduced by the patch.
-
-All AI-assisted commits are authored under the accountable human's own Git
-identity (see "Commit Authorship And Accountability"). Document the model and
-reasoning level in the PR description, not in the commit, and use a PR body
-structure that includes evidence for each iteration step.
-
-Read the user-visible problem, expected behavior, affected screen, route, or
-surface, severity, acceptance criteria, and non-goals before editing. Keep every
-change inside the story scope. Every user-visible change updates user
-documentation when behavior changes.
-
-## Commit Authorship And Accountability
-
-Every commit must be attributable to an accountable human. An LLM or coding
-agent is a tool: it drafts changes, but a person owns the result and commits
-under their own Git identity (the name and email of their GitHub account).
-
-- Configure Git so `user.name` and `user.email` resolve to the human running
-  the agent. Prefer a GitHub-verified address, e.g. the
-  `name@users.noreply.github.com` address GitHub provides.
-- Never commit under a bot/agent identity (for example `Claude`, `Codex`,
-  `OpenClaw`, or generic `agent@…` addresses).
-- Never add a `Co-authored-by:` trailer that credits an AI agent, and never add
-  `Model:`, `Thinking level:`, `Claude-Session:`, or `claude.ai/code/session`
-  footers. Record model and reasoning level in the PR description if useful.
-- Accountable identities live in `.github/commit-authorship-allowlist.txt`. Add
-  a teammate by appending their GitHub-verified email.
-
-Enforcement (do not work around it):
-
-- Local: a `commit-msg` hook (`scripts/check-commit-authorship.sh`, wired through
-  `.pre-commit-config.yaml`) rejects non-human authors and AI-identity trailers.
-- CI: the "Commit authorship" workflow re-checks every commit in a push or pull
-  request, so the rule holds even when local hooks are bypassed.
-
-## Scope Lock
-
-If you discover a larger design issue, leave a follow-up note instead of solving
-it opportunistically.
-
-## Security Boundaries
-
-- no external LLM calls from the app;
-- no market-data network calls in tests;
-- no stored API keys in source;
-- no `.env` writing from the web UI;
-- no real bank, broker, wallet, payment, order, trading, or rebalance action;
-- no automatic trading or payment functionality.
-
-## Naming
-
-- Project: `Portfolixir`
-- Repo: `portfolixir`
-- OTP app: `:portfolixir`
-- Root module: `Portfolixir`
-- Web module: `PortfolixirWeb`
-- Database names: `portfolixir_dev`, `portfolixir_test`, `portfolixir_prod`
+`mix dialyzer` builds its PLT once, slowly. `mix hex.audit` and `mix
+deps.audit` read a live advisory database, so a gate can turn red with nobody
+pushing: that is a new advisory, not a regression. Install the hooks with
+`pre-commit install --install-hooks`.

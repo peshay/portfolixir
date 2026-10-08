@@ -5,7 +5,8 @@ defmodule Portfolixir.WorkflowDocsTest do
     "README.md",
     "CONTRIBUTING.md",
     "AGENTS.md",
-    "docs/development/story-workflow.md"
+    "docs/development/story-workflow.md",
+    "docs/development/sprint-workflow.md"
   ]
 
   # User story:
@@ -93,24 +94,31 @@ defmodule Portfolixir.WorkflowDocsTest do
   # merged pull request closes the issues it finished without me asking.
   #
   # Acceptance criteria:
-  # - AGENTS.md binds the maintenance lane to the epic-batch close-out, including
-  #   the duty to report what was deliberately not updated (issue #675).
-  # - AGENTS.md requires every PR body to name the issues its diff closes using a
-  #   GitHub closing keyword, or to say why none applies.
-  # - AGENTS.md keeps the carve-out for an issue a diff invalidates rather than
-  #   implements: it is closed with a written reason, not by a keyword.
+  # - The sprint workflow binds the maintenance lane to the sprint close-out,
+  #   including the duty to report what was deliberately not updated (issue
+  #   #675).
+  # - The sprint workflow requires every PR body to name the issues its diff
+  #   closes using a GitHub closing keyword, or to say why none applies.
+  # - The sprint workflow keeps the carve-out for an issue a diff invalidates
+  #   rather than implements: it is closed with a written reason, not by a
+  #   keyword.
+  # - The procedures moved out of AGENTS.md on 2026-10-08 (ADR-0026, two-PR
+  #   amendment), which keeps the rules and points at the procedure.
   # - The pull-request template offers a working closing-keyword line — one that
   #   references a GitHub issue number, not the non-resolving `PFX-...` form it
   #   carried until 2026-08-12.
   test "docs bind the maintenance lane and make a merged PR close its issues" do
-    agents = File.read!("AGENTS.md")
+    workflow =
+      "docs/development/sprint-workflow.md" |> File.read!() |> String.replace(~r/\s+/, " ")
+
+    assert File.read!("AGENTS.md") =~ "docs/development/sprint-workflow.md"
 
     for maintenance_lane <- [
           "Maintenance lane",
           "reviews available updates for Hex, npm, Elixir/OTP",
           "reports what it deliberately did not update"
         ] do
-      assert agents =~ maintenance_lane
+      assert workflow =~ maintenance_lane
     end
 
     for issue_closing <- [
@@ -119,7 +127,7 @@ defmodule Portfolixir.WorkflowDocsTest do
           "invalidates rather than implements",
           "say so in one clause and why"
         ] do
-      assert agents =~ issue_closing
+      assert workflow =~ issue_closing
     end
 
     pr_template = File.read!(".github/pull_request_template.md")
@@ -184,8 +192,8 @@ defmodule Portfolixir.WorkflowDocsTest do
   #   `epic-N-retrospective` keys stay, because `development_status` is required,
   #   the status view fails without it, and it is the retrospective ledger
   #   ADR-0026 step 5 depends on.
-  # - #321's working agreement survives in `AGENTS.md`, the destination this
-  #   decision leaves standing once the epic sections go.
+  # - #321's working agreement survives: the issue convention in the sprint
+  #   workflow, the duty to file a new idea at once in `AGENTS.md`.
   test "the planning structure is the requirement registry, not a work breakdown" do
     epics = File.read!("_bmad-output/planning-artifacts/epics.md")
 
@@ -233,8 +241,7 @@ defmodule Portfolixir.WorkflowDocsTest do
     assert development_status =~ "epic-19-retrospective: "
 
     # #321's working agreement, preserved before the issue is closed by hand.
-    agents = File.read!("AGENTS.md")
-    assert agents =~ "One topic = one issue"
-    assert agents =~ "file a new issue immediately"
+    assert File.read!("docs/development/sprint-workflow.md") =~ "One topic = one issue"
+    assert File.read!("AGENTS.md") =~ "file a new issue immediately"
   end
 end
