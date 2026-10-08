@@ -63,6 +63,33 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
     def fetch(_opts), do: {:ok, []}
   end
 
+  # A provider whose id/0 raises: every store of what it fetched raises past
+  # the fetch's own rescue, as nothing else in the path can.
+  defmodule CrashingFeed do
+    @moduledoc false
+    @behaviour Portfolixir.Fx.RateSync.Provider
+
+    @impl true
+    def id, do: raise("synthetic provider failure")
+
+    @impl true
+    def fetch(_opts), do: {:ok, []}
+
+    @impl true
+    def fetch_history(_opts) do
+      {:ok,
+       [
+         %{
+           base_currency: "EUR",
+           quote_currency: "USD",
+           date: ~D[2022-03-14],
+           rate: "1.25",
+           source: "ecb"
+         }
+       ]}
+    end
+  end
+
   defp row(quote_currency, date, rate) do
     %{base_currency: "EUR", quote_currency: quote_currency, date: date, rate: rate, source: "ecb"}
   end
@@ -247,6 +274,26 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
       send(provider, :release)
       assert {:ok, %{sought: ["USD"]}} = Task.await(automatic)
       assert history_fetches() == 0
+    end
+
+    # The α closing act, coverage: the info line a completed run writes.
+    test "a completed run logs the currencies it sought and the rates it stored" do
+      booked!("USD", "500", ~D[2022-03-15], "Dollar")
+      previous = Logger.level()
+      Logger.configure(level: :info)
+      on_exit(fn -> Logger.configure(level: previous) end)
+
+      log =
+        capture_log([level: :info], fn ->
+          assert {:ok, %{sought: ["USD"]}} =
+                   RateSync.backfill_when_needed(
+                     provider: HistoryFeed,
+                     test_pid: self(),
+                     history: {:ok, [row("USD", ~D[2022-03-14], "1.25")]}
+                   )
+        end)
+
+      assert log =~ "fx history backfill ran by itself for USD: 1 rate(s) stored"
     end
 
     test "answers a provider without a history and records nothing" do
@@ -555,6 +602,49 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
       assert await_history_run() == :not_needed
       refute_received {:fetched, :history, _provider}
       assert HistoryGaps.open() == %{"TWD" => ~D[2024-04-01]}
+    end
+
+    # The α closing act, coverage: the scheduler's later ticks, and a run
+    # that raises past the provider's own rescue.
+    test "a later tick fetches the day's rates and, disabled, schedules no next one" do
+      scheduled!(false, daily: {:ok, []})
+
+      pid =
+        start_supervised!(
+          {RateSync,
+           [name: :fx_history_tick, enabled?: false, interval_ms: 50, provider: HistoryFeed]}
+        )
+
+      send(pid, :tick)
+      assert_receive {:fetched, :daily, _provider}, 2_000
+      refute_receive {:fetched, :daily, _provider}, 200
+      assert Process.alive?(pid)
+    end
+
+    test "a boot whose sync and history run raise logs both and stays up" do
+      booked!("USD", "500", ~D[2022-03-15], "Dollar")
+
+      log =
+        capture_log(fn ->
+          pid =
+            start_supervised!(
+              {RateSync,
+               [
+                 name: :fx_history_crash,
+                 enabled?: true,
+                 startup_delay_ms: 0,
+                 provider: CrashingFeed,
+                 notify: self()
+               ]}
+            )
+
+          assert await_history_run() == {:error, :crashed}
+          assert Process.alive?(pid)
+        end)
+
+      assert log =~ "fx rate sync tick crashed: synthetic provider failure"
+      assert log =~ "fx history backfill crashed: synthetic provider failure"
+      assert HistoryGaps.sought() == []
     end
 
     test "with background fetches off, neither the boot nor an import asks the provider" do

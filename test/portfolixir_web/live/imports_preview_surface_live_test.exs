@@ -459,17 +459,24 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
       # file is known to the stored history while another is not (#904).
       {:ok, view, _html} = live(german(conn), "/imports")
 
+      # A second purchase under the conflicting ISIN reuses the run's
+      # decision for its key, and is named the same way.
       upload!(view, [
         deposit("Test-Cash", "5000.00", "2026-01-02"),
         purchase("Foo AG", %{"isin" => "DE000EXMPL25"}, "2026-01-15"),
-        purchase("Foo AG", %{"isin" => "DE000EXMPL33"}, "2026-01-16")
+        purchase("Foo AG", %{"isin" => "DE000EXMPL33"}, "2026-01-16"),
+        purchase("Foo AG", %{"isin" => "DE000EXMPL33"}, "2026-01-17")
       ])
 
       view |> element("form#pp-import-apply") |> render_submit()
       assert render_async(view, 1_000) =~ "Import abgeschlossen"
 
-      assert texts(view, "[data-role='unresolved-entries'] li") == [
-               "Zeile 3: ein wahrscheinlicher Treffer, „Foo AG“, weicht bei einem stärkeren Identifikator ab — möglicherweise ein noch nicht erfasster ISIN-Wechsel"
+      veto =
+        "ein wahrscheinlicher Treffer, „Foo AG“, weicht bei einem stärkeren Identifikator ab — möglicherweise ein noch nicht erfasster ISIN-Wechsel"
+
+      assert texts(view, "[data-role='unresolved-entries'] li") |> Enum.sort() == [
+               "Zeile 3: " <> veto,
+               "Zeile 4: " <> veto
              ]
 
       {:ok, view, _html} = live(conn, "/imports")

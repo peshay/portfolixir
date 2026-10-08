@@ -434,6 +434,33 @@ defmodule PortfolixirWeb.ImportsUnseenNameLiveTest do
     assert Repo.get!(SecuritiesAccount, depot.id).former_names == ["Depot Muster Neu"]
   end
 
+  # User story (the α closing act, coverage):
+  # As the operator who renamed a depot and the cash account it settles
+  # through,
+  # I want the still-to-map line to name both for the depot's row,
+  # so that I know the depot needs a target and a cash account.
+  #
+  # Acceptance criteria:
+  # - "Test-Cash Neu" and "Depot Muster Neu" both wait for a choice;
+  #   Confirm is disabled and the hint names "depot and its cash account:
+  #   Depot Muster Neu" beside "cash account: Test-Cash Neu".
+  test "a renamed depot whose cash account was renamed too names both", %{conn: conn} do
+    portfolio = portfolio!()
+    applied!(portfolio, history())
+    drop = history(cash: "Test-Cash Neu", depot: "Depot Muster Neu")
+
+    {:ok, view, _html} = live(conn, "/imports")
+    upload!(view, drop)
+
+    assert selected(view, "depot", "Depot Muster Neu") == ""
+    assert selected(view, "cash", "Test-Cash Neu") == ""
+    assert has_element?(view, "#pp-import-confirm[disabled]")
+
+    hint = view |> element("#import-missing-hint") |> render()
+    assert hint =~ "cash account: Test-Cash Neu"
+    assert hint =~ "depot and its cash account: Depot Muster Neu"
+  end
+
   # User story:
   # As the operator whose renamed account's new name two of my accounts
   # carry from before the name guard,
