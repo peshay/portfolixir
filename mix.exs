@@ -5,7 +5,10 @@ defmodule Portfolixir.MixProject do
     [
       app: :portfolixir,
       version: "0.1.0",
-      elixir: "~> 1.16",
+      # The floor the code, the suite and the dev tooling need (#1132): the
+      # suite's async modules share ExUnit groups (`group:`), which exist from
+      # 1.18 on; `Date.shift/2` and yaml_elixir (under mix_audit) need 1.17.
+      elixir: "~> 1.18",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,
       licenses: ["MIT"],

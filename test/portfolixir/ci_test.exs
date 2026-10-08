@@ -377,6 +377,68 @@ defmodule Portfolixir.CITest do
     assert install_script =~ ~s(OTP_VERSION="${OTP_VERSION:-#{otp}}")
   end
 
+  # User story (#1132):
+  # As a stranger building Portfolixir from source,
+  # I want mix.exs to refuse an Elixir the code, the test suite and the
+  # development tooling cannot run on,
+  # so that an older Elixir stops at once with the version named, instead of
+  # failing in a compile step, in a dependency, or in a suite whose grouped
+  # async modules run unserialised and bring back the lock waits #1047
+  # removed.
+  #
+  # Acceptance criteria:
+  # - mix.exs requires Elixir 1.18 or newer: ExUnit's `group:`, which the
+  #   suite's async modules use, exists from 1.18 on; `Date.shift/2` in the
+  #   code and yaml_elixir under mix_audit need 1.17. 1.17 is refused.
+  # - The floor satisfies every dependency's own Elixir requirement, and
+  #   CI's Elixir satisfies the floor.
+  # - The development guide names the floor.
+  test "mix.exs refuses an Elixir older than the code, the suite and the tooling need" do
+    requirement = Mix.Project.config()[:elixir]
+    floor = "1.18.0"
+
+    grouped =
+      for path <- Path.wildcard("test/**/*_test.exs"),
+          File.read!(path) =~ ~r/use [\w.]+, async: true, group: :/,
+          do: path
+
+    assert grouped != [], "the floor's reason, ExUnit groups, is no longer used"
+    assert File.read!("lib/portfolixir/engines/price_metrics.ex") =~ "Date.shift("
+
+    assert Version.match?(floor, requirement), "mix.exs refuses #{floor}: #{requirement}"
+
+    for older <- ["1.16.3", "1.17.3"] do
+      refute Version.match?(older, requirement),
+             "mix.exs accepts Elixir #{older}, which has no ExUnit groups: #{requirement}"
+    end
+
+    # Every dependency's own floor, where its mix.exs states one literally or
+    # through a module attribute, admits ours.
+    stated =
+      for {app, path} <- Mix.Project.deps_paths(),
+          source = Path.join(path, "mix.exs"),
+          File.exists?(source),
+          [_, dep_requirement] <-
+            [Regex.run(~r/(?:elixir:|@elixir_requirement) "([^"]+)"/, File.read!(source))],
+          do: {app, dep_requirement}
+
+    assert {:yaml_elixir, "~> 1.17"} in stated
+
+    for {app, dep_requirement} <- stated do
+      assert Version.match?(floor, dep_requirement),
+             "#{app} needs #{dep_requirement}, which Elixir #{floor} does not meet"
+    end
+
+    [[ci_elixir] | _] =
+      Regex.scan(~r/elixir-version: ['"]?([^'"\s]+)['"]?/, File.read!(".github/workflows/ci.yml"),
+        capture: :all_but_first
+      )
+
+    assert Version.match?(ci_elixir, requirement)
+
+    assert File.read!("docs/development/guide.md") =~ "Elixir 1.18 or newer"
+  end
+
   # User story (the 2026-09-24 runtime hotfix):
   # As an operator upgrading my instance,
   # I want the documented upgrade to fetch the current base images,
