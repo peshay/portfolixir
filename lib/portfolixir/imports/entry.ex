@@ -30,6 +30,7 @@ defmodule Portfolixir.Imports.Entry do
           currency_code: String.t() | nil,
           gross_amount: Decimal.t() | nil,
           hash_amount: Decimal.t() | nil,
+          hash_price: Decimal.t() | nil,
           fees: Decimal.t() | nil,
           taxes: Decimal.t() | nil,
           quantity: Decimal.t() | nil,
@@ -55,6 +56,11 @@ defmodule Portfolixir.Imports.Entry do
             # cash the entry books: a Portfolio Performance CSV row's Betrag,
             # a JSON row's `amount`. `nil` makes the hash read `gross_amount`.
             hash_amount: nil,
+            # The price the content hash reads (ADR-0053 A3), apart from the
+            # price the entry books: a JSON purchase's or sale's price derived
+            # the way it was before the amendment of 2026-10-07, set only on a
+            # row with a negative tax unit. `nil` makes the hash read `price`.
+            hash_price: nil,
             fees: nil,
             taxes: nil,
             quantity: nil,

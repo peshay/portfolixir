@@ -4273,13 +4273,13 @@ msgid "Row %{row}: %{message}"
 msgstr ""
 
 #: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:554
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:239
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:245
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (before 1900) — fix the booking in the source and re-import"
 msgstr ""
 
 #: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:572
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:251
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:257
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
 msgstr ""
@@ -5837,12 +5837,12 @@ msgstr ""
 msgid "The file has %{n} rows; the import is sized for at most %{max}."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:264
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:270
 #, elixir-autogen, elixir-format
 msgid "invalid date %{date}"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:315
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:321
 #, elixir-autogen, elixir-format
 msgid "invalid unit %{unit}"
 msgstr ""
@@ -7935,7 +7935,7 @@ msgstr ""
 msgid "The file expands to %{n} entries (its rows and the tax refunds they split off); the import is sized for at most %{max}."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:294
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:300
 #, elixir-autogen, elixir-format
 msgid "more units (fees and taxes) than one booking carries"
 msgstr ""
@@ -11726,8 +11726,8 @@ msgid "sell without a counter account — row not imported"
 msgstr ""
 
 #: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:394
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:355
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:358
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:361
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:364
 #, elixir-autogen, elixir-format
 msgid "transfer without a counter account — row not imported"
 msgstr ""

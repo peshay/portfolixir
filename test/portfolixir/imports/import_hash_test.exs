@@ -131,4 +131,38 @@ defmodule Portfolixir.Imports.ImportHashTest do
 
     assert ImportHash.legacy(deposit, 42) == @deposit_hash_sprint15
   end
+
+  # User story (ADR-0053 A3, K10; risk-tier: idempotency):
+  # As the operator who imported a Portfolio Performance JSON export whose
+  # trades carry a negative tax unit,
+  # I want the content hash to keep reading the price it read then, whatever
+  # price the row now books,
+  # so that dropping the same export again books nothing twice.
+  #
+  # Acceptance criteria:
+  # - An entry carrying a hash price is hashed over it, never over the price
+  #   it books: a buy priced 150.00 whose hash price is 150.25 keeps the hash
+  #   the Sprint 15 formula gave the row priced 150.25.
+  # - An entry without a hash price is hashed over its booked price, as
+  #   before.
+  # - The legacy hash of a separator-bearing row reads the same input.
+  test "the hash reads the entry's hash price, and its booked price when it has none" do
+    repriced = %{buy() | price: Decimal.new("150.00"), hash_price: Decimal.new("150.25")}
+
+    assert ImportHash.compute(repriced, 42) == @buy_hash_sprint15
+    assert ImportHash.compute(%{buy() | hash_price: nil}, 42) == @buy_hash_sprint15
+
+    refute ImportHash.compute(%{repriced | hash_price: nil}, 42) == @buy_hash_sprint15
+
+    separated = buy_in("Depot|A", "Cash")
+
+    resplit = %{
+      separated
+      | price: Decimal.new("150.00"),
+        hash_price: Decimal.new("150.25")
+    }
+
+    assert ImportHash.legacy(resplit, 42) == ImportHash.legacy(separated, 42)
+    assert ImportHash.compute(resplit, 42) == ImportHash.compute(separated, 42)
+  end
 end

@@ -18,6 +18,13 @@ defmodule Portfolixir.Imports.ImportHash do
   entry without one (a split-off refund, an entry built by hand) is hashed
   over its `gross_amount`.
 
+  **The price is the file's too** (ADR-0053 A3, the amendment of
+  2026-10-07). A JSON purchase or sale with a negative tax unit carries the
+  price derived the way it was before that amendment as its `hash_price`,
+  and the hash reads it in place of the booked `price`, so the hash of every
+  such row stays byte-identical. An entry without one (every other row, a CSV
+  row whose price is its Kurs) is hashed over its `price`.
+
   A tax refund the parser splits off a row (a companion) is hashed with its
   row, `companion/4` (E25 S5, F37), and the applier checks it by that hash
   and the one this module gave it before as a row of its own.
@@ -91,7 +98,7 @@ defmodule Portfolixir.Imports.ImportHash do
       time_str(entry.time),
       security_key(entry.security),
       decimal_str(entry.quantity),
-      decimal_str(entry.price),
+      decimal_str(hash_price(entry)),
       decimal_str(hash_amount(entry)),
       decimal_str(entry.fees),
       decimal_str(entry.taxes),
@@ -106,6 +113,11 @@ defmodule Portfolixir.Imports.ImportHash do
   # ADR-0053 §3: the file's amount, never the cash a CSV row now books.
   defp hash_amount(%Entry{hash_amount: nil, gross_amount: gross_amount}), do: gross_amount
   defp hash_amount(%Entry{hash_amount: hash_amount}), do: hash_amount
+
+  # ADR-0053 A3: the price a JSON trade with a negative tax unit was hashed
+  # with before the amendment of 2026-10-07, never the price it now books.
+  defp hash_price(%Entry{hash_price: nil, price: price}), do: price
+  defp hash_price(%Entry{hash_price: hash_price}), do: hash_price
 
   defp separator_bearing?(parts), do: Enum.any?(parts, &String.contains?(&1, @separator))
 

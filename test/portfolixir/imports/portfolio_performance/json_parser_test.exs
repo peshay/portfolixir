@@ -182,6 +182,43 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
     end
   end
 
+  # User story (ADR-0053 A3, K10; risk-tier: idempotency):
+  # As the operator who imported a Portfolio Performance JSON export whose
+  # sale carries a negative tax unit,
+  # I want that sale's content hash to keep reading the price it read when it
+  # was imported,
+  # so that dropping the export again finds it, whatever price it now books.
+  #
+  # Acceptance criteria:
+  # - A purchase or sale with a negative TAX unit carries, as its hash price,
+  #   the price derived from its `amount`, its fees and its positive taxes:
+  #   the synthetic sale (amount 120.0, 10 shares, FEE 5.0, TAX -25.0) carries
+  #   12.5, written as the hash wrote it before.
+  # - A row without a negative TAX unit, and a kind without a price, carries
+  #   none, so its hash reads its price as before.
+  describe "parse/2 a trade with a negative TAX unit" do
+    setup do
+      {:ok, preview} =
+        JsonParser.parse(read!("sale_with_negative_tax.json"),
+          filename: "sale_with_negative_tax.json"
+        )
+
+      {:ok, preview: preview}
+    end
+
+    test "carries the price derived before the amendment as its hash price", %{
+      preview: preview
+    } do
+      assert %Preview{errors: []} = preview
+      [deposit, purchase, sale] = preview.entries
+
+      assert %Decimal{} = sale.hash_price
+      assert Decimal.to_string(sale.hash_price, :normal) == "12.5"
+      assert purchase.hash_price == nil
+      assert deposit.hash_price == nil
+    end
+  end
+
   describe "parse/2 error paths" do
     test "rejects an unsupported PP version" do
       body = read!("invalid_version.json")
