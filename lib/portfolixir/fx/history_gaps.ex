@@ -9,10 +9,12 @@ defmodule Portfolixir.Fx.HistoryGaps do
   all. A booking is "in" a currency when the currency is the booking's own
   (`currency_code`, a trade's price currency), the currency of the cash
   account it settles through (a cross-currency trade's cash leg, ADR-0015),
-  or its portfolio's base currency, which every day of the walk converts
-  into. EUR is the hub and is never open; GBX is read as GBP, the stored
-  rate it derives from (`Portfolixir.Fx`). The date is the currency's
-  earliest booking date.
+  the currency of the security it moves (the walk values a position in it
+  from its first day, also when the import booked the trade in the
+  account's currency, ADR-0033), or its portfolio's base currency, which
+  every day of the walk converts into. EUR is the hub and is never open;
+  GBX is read as GBP, the stored rate it derives from (`Portfolixir.Fx`).
+  The date is the currency's earliest booking date.
 
   **The guard ("once").** A completed backfill fetches the provider's whole
   series, so after one a currency can stay open only where no fetch can
@@ -24,12 +26,13 @@ defmodule Portfolixir.Fx.HistoryGaps do
   (ADR-0051 §10). A run that failed records nothing, so the next trigger
   tries again.
 
-  Read-only except `record_sought/1`; three grouped queries and one
+  Read-only except `record_sought/1`; four grouped queries and one
   settings read, issued by the background trigger, never by a read path.
   """
 
   import Ecto.Query
 
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Fx.ExchangeRate
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.CashAccount
@@ -74,7 +77,7 @@ defmodule Portfolixir.Fx.HistoryGaps do
   def record_sought(currencies) when is_list(currencies),
     do: Settings.add_fx_history_sought(currencies)
 
-  # `%{currency => earliest booking date}` over the three ways a booking is
+  # `%{currency => earliest booking date}` over the four ways a booking is
   # in a currency, GBX read as GBP and the hub left out.
   defp earliest_bookings do
     own =
@@ -92,6 +95,17 @@ defmodule Portfolixir.Fx.HistoryGaps do
         select: %{currency: c.currency_code, date: min(t.date)}
       )
 
+    # A Portfolio Performance import books a trade in its account's
+    # currency (ADR-0033), so a dollar share bought from a euro account
+    # names no dollar in `currency_code` or in its cash account.
+    held =
+      from(t in Transaction,
+        join: s in Security,
+        on: s.id == t.security_id,
+        group_by: s.currency_code,
+        select: %{currency: s.currency_code, date: min(t.date)}
+      )
+
     base =
       from(t in Transaction,
         join: p in Portfolio,
@@ -102,6 +116,7 @@ defmodule Portfolixir.Fx.HistoryGaps do
 
     own
     |> union_all(^settling)
+    |> union_all(^held)
     |> union_all(^base)
     |> Repo.all()
     |> Enum.reduce(%{}, fn %{currency: currency, date: date}, acc ->

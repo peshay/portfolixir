@@ -16,6 +16,8 @@ defmodule Portfolixir.Fx.HistoryGapsTest do
 
   alias Portfolixir.Fx
   alias Portfolixir.Fx.HistoryGaps
+  alias Portfolixir.Imports
+  alias Portfolixir.Ledger
 
   # The rows' days are this module's own: rates are unique per (base,
   # quote, date), and another async module storing the same day would make
@@ -50,6 +52,9 @@ defmodule Portfolixir.Fx.HistoryGapsTest do
   #   even when the booking is priced in another currency (a cross-currency
   #   trade, ADR-0015), and so does the portfolio's base currency; a GBX
   #   price is read as GBP, the stored currency it derives from.
+  # - The security's currency counts too: the import books a dollar share
+  #   bought from a euro account in EUR (ADR-0033), and the position is
+  #   still valued in dollars (found by the α closing act).
   describe "open/0, the condition" do
     test "a USD booking before USD's earliest stored rate names USD with its earliest date" do
       world = base_world(cash_currency: "USD", cash_name: "Broker USD")
@@ -126,6 +131,50 @@ defmodule Portfolixir.Fx.HistoryGapsTest do
                "GBP" => ~D[2021-02-09],
                "USD" => ~D[2021-02-10]
              }
+    end
+
+    # The importer's own booking form (ADR-0033): a Portfolio Performance
+    # file books a trade in its account's currency, so a dollar share
+    # bought from a euro account is stored with currency_code EUR and a EUR
+    # price. The position is still valued in dollars from its first day, so
+    # the security's currency counts too; a GBX security's as GBP.
+    test "a dollar share bought from a euro account, as the import books it, names USD" do
+      rate!("USD", ~D[2021-05-17], "1.25")
+      rate!("GBP", ~D[2021-05-17], "0.8")
+
+      body = """
+      {
+        "version": 1,
+        "transactions": [
+          {"type": "DEPOSIT", "account": "Giro", "date": "2021-02-01",
+           "time": "09:00", "currency": "EUR", "amount": 1000.00},
+          {"type": "PURCHASE", "account": "Giro", "portfolio": "Depot",
+           "date": "2021-02-11", "time": "10:00", "currency": "EUR",
+           "amount": 800.00, "shares": 10.0,
+           "security": {"name": "Examplia Robotics Corp.", "ticker": "EXRB",
+                        "currency": "USD"}},
+          {"type": "PURCHASE", "account": "Giro", "portfolio": "Depot",
+           "date": "2021-02-12", "time": "10:00", "currency": "EUR",
+           "amount": 100.00, "shares": 4.0,
+           "security": {"name": "Examplia plc", "ticker": "EXPL",
+                        "currency": "GBX"}}
+        ]
+      }
+      """
+
+      {:ok, preview} = Imports.parse_portfolio_performance(body, filename: "Giro.json")
+      assert preview.errors == []
+
+      assert {:ok, _result} =
+               Imports.apply(preview, %{
+                 cash_accounts: %{"Giro" => {:create, "Giro"}},
+                 depots: %{"Depot" => %{target: {:create, "Depot"}, cash: "Giro"}}
+               })
+
+      assert [%{currency_code: "EUR"}, %{currency_code: "EUR"}] =
+               Enum.filter(Ledger.list_transactions(), &(&1.type == "buy"))
+
+      assert HistoryGaps.open() == %{"GBP" => ~D[2021-02-12], "USD" => ~D[2021-02-11]}
     end
   end
 

@@ -1485,9 +1485,10 @@ triangulated through it. The live portfolio valuation converts each position's
 market value and each cash balance into the portfolio base currency.
 
 **The historical rates arrive by themselves** (issue #1120). The scheduled
-sync fetches the day's rates only. When a booking or a cash account in
-another currency is dated before that currency's earliest stored rate —
-typically a history imported from Portfolio Performance — the instance
+sync fetches the day's rates only. When a booking, a cash account or a
+held security in another currency is dated before that currency's earliest
+stored rate — typically a history imported from Portfolio Performance,
+including a dollar share bought from a euro account — the instance
 fetches the ECB's historical series by itself, once, in the background:
 after it starts (right after the day's rates) and after an import. Nothing
 has to be pressed, and the import does not wait for it. Once it has run, the

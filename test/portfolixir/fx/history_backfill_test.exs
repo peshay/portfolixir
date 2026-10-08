@@ -10,13 +10,14 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
   use Portfolixir.DataCase, async: false
 
   import ExUnit.CaptureLog
-  import Portfolixir.WorldFixtures, only: [base_world: 1, deposit!: 4]
+  import Portfolixir.WorldFixtures, only: [base_world: 1, deposit!: 4, put_quote!: 3]
 
   alias Portfolixir.Fx
   alias Portfolixir.Fx.HistoryGaps
   alias Portfolixir.Fx.RateSync
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Applier.Result
+  alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Performance.Contribution
@@ -257,6 +258,26 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
     {~D[2026-09-29], "1.6"}
   ]
 
+  # The same switcher's share bought from a euro account, as Portfolio
+  # Performance's JSON export writes it and the import books it (ADR-0033):
+  # 1,000.00 EUR paid into "Giro" on 2024-10-01 and 10 shares of the
+  # dollar-priced share bought from it the same day for 800.00 EUR, booked
+  # in EUR (100 USD a share at 0.80 EUR).
+  @eur_account_history """
+  {
+    "version": 1,
+    "transactions": [
+      {"type": "DEPOSIT", "account": "Giro", "date": "2024-10-01",
+       "time": "09:00", "currency": "EUR", "amount": 1000.00},
+      {"type": "PURCHASE", "account": "Giro", "portfolio": "Depot",
+       "date": "2024-10-01", "time": "10:00", "currency": "EUR",
+       "amount": 800.00, "shares": 10.0,
+       "security": {"name": "Examplia Robotics Corp.", "ticker": "EXRB",
+                    "currency": "USD"}}
+    ]
+  }
+  """
+
   defp usd_series, do: Enum.map(@usd_series, fn {date, rate} -> row("USD", date, rate) end)
 
   # A fresh instance's boot sync stored the day's rate before anything was
@@ -268,14 +289,14 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
 
   # The Imports page's apply: no portfolio chosen (the internal default one,
   # ADR-0024), the file's account and depot created under their own names.
-  defp import!(body) do
+  defp import!(body, cash \\ "Broker USD", depot \\ "Depot USD") do
     {:ok, preview} = Imports.parse_portfolio_performance(body, filename: "Dollar.json")
     assert preview.errors == []
 
     assert {:ok, %Result{created_transactions: created}} =
              Imports.apply(preview, %{
-               cash_accounts: %{"Broker USD" => {:create, "Broker USD"}},
-               depots: %{"Depot USD" => %{target: {:create, "Depot USD"}, cash: "Broker USD"}}
+               cash_accounts: %{cash => {:create, cash}},
+               depots: %{depot => %{target: {:create, depot}, cash: cash}}
              })
 
     {Portfolios.first_portfolio(), created}
@@ -406,6 +427,48 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
 
       assert {:ok, %{scope: :history, upserted: 3, sought: ["USD"]}} = run
       assert_received {:fetched, :history, _provider}
+      assert HistoryGaps.open() == %{}
+    end
+
+    # #1120's position half (found by the α closing act): the import books
+    # a dollar share bought from a euro account in EUR (ADR-0033), so
+    # neither the booking's currency nor its account's names the dollar the
+    # position is valued in. Before HistoryGaps read the security's
+    # currency, no run was due (`:not_needed`), the position counted zero
+    # for 728 days (`unvalued_reason: :no_rate`) and entered at 625.00 EUR
+    # on the first rate's day: TTWROR +3.125 from a value of 200.00 EUR.
+    test "a dollar share bought from a euro account is valued from its first day, untouched" do
+      fresh_instance!()
+      scheduled!(true, history: {:ok, usd_series()})
+
+      {portfolio, 2} = import!(@eur_account_history, "Giro", "Depot")
+      run = await_history_run()
+
+      [%{security_id: security_id} = buy] =
+        Enum.filter(Ledger.list_transactions(portfolio_id: portfolio.id), &(&1.type == "buy"))
+
+      assert buy.currency_code == "EUR"
+      assert_eur(buy.price, "80", "buy.price")
+      put_quote!(security_id, ~D[2024-10-01], "100")
+
+      {performance, contribution} = reads(portfolio.id)
+      [position] = contribution.positions
+
+      assert position.unvalued_days == 0
+      assert position.unvalued_reason == nil
+      assert_eur(position.net_flows, "800", "position.net_flows")
+      assert_eur(position.end_value, "625", "position.end_value")
+      assert_eur(position.contribution, "-175", "position.contribution")
+      assert_eur(contribution.remainder.cash_currency_effect, "0", "cash_currency_effect")
+      assert_eur(contribution.totals.result, "-175", "totals.result")
+
+      # 1,000.00 EUR on 2024-10-01 (200.00 cash, 10 x 100 USD at 0.80),
+      # 825.00 EUR on the last day (200.00 cash, 10 x 100 USD at 0.625).
+      assert_eur(performance.net_external_flows, "1000", "performance.net_external_flows")
+      assert_eur(performance.end_value, "825", "performance.end_value")
+      assert_eur(performance.ttwror, "-0.175", "performance.ttwror")
+
+      assert {:ok, %{scope: :history, upserted: 3, sought: ["USD"]}} = run
       assert HistoryGaps.open() == %{}
     end
   end

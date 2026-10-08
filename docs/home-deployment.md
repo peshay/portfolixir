@@ -240,8 +240,9 @@ the ECB's euro reference rates
 (`https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml`), five seconds
 after it starts and then every 12 hours, and the quote history of every
 security that has a quote provider, every 6 hours. Once, after that first
-rate sync or after an import, when a booking in a non-EUR currency predates
-that currency's earliest stored rate, it also fetches the ECB's historical
+rate sync or after an import, when a booking in a non-EUR currency (its
+own, its cash account's or its security's) predates that currency's earliest
+stored rate, it also fetches the ECB's historical
 series (`https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml`,
 issue #1120). Both schedules and logo discovery are on in a release
 (`config/prod.exs`). `PORTFOLIXIR_BACKGROUND_FETCH=off` leaves all three off
