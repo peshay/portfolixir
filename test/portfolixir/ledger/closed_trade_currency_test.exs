@@ -307,6 +307,45 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
     assert exact(realized_row(fund).realized_base) == "89.400000000000000000"
   end
 
+  # User story (#1108, the ADR-0015 amendment's identity 4):
+  # As a maintainer with a booking priced in neither its security's currency
+  # nor its account's,
+  # I want the fix to leave it alone,
+  # so that a rate stored between the account's and the security's currency
+  # never converts fees into a third one.
+  #
+  # Acceptance criteria:
+  # - A CHF security bought through a EUR account, priced in USD, with a
+  #   stored settlement rate (EUR per CHF), keeps its fees as recorded: the
+  #   open lot's buy_fees read "5.000000" as before. Only a trade priced in
+  #   the security's currency converts them.
+  test "a booking priced in a third currency keeps its fees as recorded (identity 4)" do
+    world = base_world(name: "Third", cash_name: "Third Cash", depot_name: "Third Depot")
+    swiss = create_security!(name: "Swiss Third", ticker: "SWT", currency: "CHF")
+
+    {:ok, _buy} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        cash_account_id: world.cash.id,
+        security_id: swiss.id,
+        type: "buy",
+        date: ~D[2025-04-01],
+        quantity: "10",
+        price: "100",
+        fees: "5",
+        currency_code: "USD",
+        security_amount: "900",
+        settlement_amount: "800",
+        settlement_fx_rate: "0.888889",
+        gross_amount: "805"
+      })
+
+    assert [lot] = open(swiss)
+    assert exact(lot.buy_fees) == "5.000000"
+    assert exact(lot.buy_taxes) == "0.000000"
+  end
+
   # -- identities 1 and 3: a closed trade in one currency ------------------------
 
   defp exactly?(%Decimal{} = value, expected), do: Decimal.equal?(value, Decimal.new(expected))

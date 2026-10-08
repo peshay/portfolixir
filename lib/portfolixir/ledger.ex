@@ -979,8 +979,8 @@ defmodule Portfolixir.Ledger do
       price: tx.price,
       # The ADR-0015 amendment of 2026-10-07 (#1108): in the price's currency,
       # so a lot's basis and a closed trade's proceeds add one currency.
-      fees: in_price_currency(tx.fees, tx),
-      taxes: in_price_currency(tx.taxes, tx),
+      fees: in_price_currency(tx.fees, tx, security_currency),
+      taxes: in_price_currency(tx.taxes, tx, security_currency),
       currency_code: tx.currency_code,
       split_ratio_numerator: tx.split_ratio_numerator,
       split_ratio_denominator: tx.split_ratio_denominator,
@@ -1003,23 +1003,26 @@ defmodule Portfolixir.Ledger do
   # this cash leg, and it is transaction data, so the matcher stays pure
   # (ADR-0033). Not converted: a row without a stored positive rate, a row
   # whose price is in its account's currency (the Portfolio Performance
-  # import's form, whose fees are in that currency already), and a row
-  # without a cash account, whose fees are read in the booking's currency as
-  # the walk reads them (`Performance.trade_cost/2`). Full precision, nothing
-  # rounded (ADR-0016).
-  defp in_price_currency(%Decimal{} = amount, %Transaction{} = tx) do
-    with %Decimal{} = rate <- tx.settlement_fx_rate,
+  # import's form, whose fees are in that currency already), a row priced in
+  # a third currency, which the rate between the account's and the
+  # security's currency does not reach, and a row without a cash account,
+  # whose fees are read in the booking's currency as the walk reads them
+  # (`Performance.trade_cost/2`). Full precision, nothing rounded (ADR-0016).
+  defp in_price_currency(%Decimal{} = amount, %Transaction{} = tx, security_currency)
+       when is_binary(security_currency) do
+    with true <- tx.currency_code == security_currency,
+         %Decimal{} = rate <- tx.settlement_fx_rate,
          true <- positive_decimal?(rate),
          %CashAccount{currency_code: cash_currency} when is_binary(cash_currency) <-
            tx.cash_account,
-         true <- cash_currency != tx.currency_code do
+         true <- cash_currency != security_currency do
       Decimal.div(amount, rate)
     else
       _same_currency -> amount
     end
   end
 
-  defp in_price_currency(amount, _tx), do: amount
+  defp in_price_currency(amount, _tx, _security_currency), do: amount
 
   @doc """
   The rule by which a closed trade's fees and taxes enter its basis and
@@ -1035,8 +1038,8 @@ defmodule Portfolixir.Ledger do
       "rate for that cash leg, never a hub rate, before they enter basis and proceeds; so " <>
       "buy_fees, buy_taxes, sell_fees, sell_taxes, basis, proceeds and realized_pnl_abs are " <>
       "all in currency_code. A trade booked in its account's currency (a Portfolio " <>
-      "Performance import's form), a trade without a stored rate and a trade without a cash " <>
-      "account add them as recorded."
+      "Performance import's form), a trade booked in a third currency, a trade without a " <>
+      "stored rate and a trade without a cash account add them as recorded."
   end
 
   defp native_unit_price(tx, security_currency) do
