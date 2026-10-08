@@ -112,7 +112,8 @@ Three cases need more:
   image on a machine that does, and move it with `docker save` and
   `docker load`. Portfolixir publishes no image: a release is a tag of this
   repository, never an installable artifact, so the image you move is your
-  own build.
+  own build. Without a second machine, the README's "Run from source" starts
+  Portfolixir as a development server (`MIX_ENV=dev`) instead, not a release.
 
 A build through a proxy on the host's loopback, from mirrors:
 
