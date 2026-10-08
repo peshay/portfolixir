@@ -2806,8 +2806,10 @@ Ein Export, der importiert wurde, bevor Portfolixir den Gesamtpreis las,
 behält seine Inhalts-Hashes, also bucht ihn erneut abzulegen nichts. Seine
 Zeilen behalten den Bruttowert aus Portfolio Performance als Geld: Jede Zeile
 mit Gebühren oder Steuern liegt um genau diese daneben, und ihr Geldkonto mit
-ihr. Die Datei erneut abzulegen, ändert sie nicht, und der Import hat dafür
-noch keine Korrektur.
+ihr. Dieselbe Datei erneut abzulegen, listet diese Zeilen in der Vorschau
+auf, und diese Liste zu bestätigen, korrigiert sie (siehe
+[Bereits importiert, mit anderem Betrag](#bereits-importiert-mit-anderem-betrag)
+unten).
 
 Für andere Währungen und die Zuordnung über die ISIN exportiere **JSON v1**:
 Es trägt eine Währung je Zeile und je Wertpapier ISIN, WKN und Tickersymbol.
@@ -2838,9 +2840,11 @@ Eine Historie, die importiert wurde, bevor Portfolixir die Erstattung aus
 ihrer Buchung nahm, hat eine solche Erstattung doppelt gezählt, neben einer
 Buchung, die sie schon enthielt, und einen JSON-Verkauf mit ihr bewertet.
 Denselben Export erneut abzulegen, bucht nichts doppelt. Um diese Buchungen
-zu korrigieren, exportiere die Historie erneut aus Portfolio Performance, lege
-den frischen Export ab und bestätige den Korrekturabschnitt, den seine
-Vorschau zeigt.
+zu korrigieren, lege den Export erneut ab, oder einen frischen Export
+derselben Historie aus Portfolio Performance, und bestätige den
+Korrekturabschnitt, den seine Vorschau zeigt (siehe
+[Bereits importiert, mit anderem Betrag](#bereits-importiert-mit-anderem-betrag)
+unten).
 
 ### Dateien und Zeilen, die die Vorschau ablehnt
 
@@ -3110,6 +3114,68 @@ importierten Verkauf hinzukam, wird beim nächsten Import gebucht. Eine
 Erstattung, deren Zeile nicht importiert wird, wird mit ihr übersprungen.
 Innerhalb einer Datei wird eine Zeile, die eine frühere genau wiederholt,
 einmal gebucht, und die Wiederholung steht bei den bereits gebuchten.
+
+### Bereits importiert, mit anderem Betrag
+
+Eine Buchung behält den Inhalts-Hash, mit dem sie importiert wurde: Denselben
+Export erneut abzulegen, bucht nichts, und der Hash findet diese Buchung auch
+wieder. Zwei Lesarten einer Portfolio-Performance-Zeile haben sich nach
+den ersten Versionen geändert (ADR-0053 und seine Ergänzung vom 07.10.2026):
+
+- eine CSV-Zeile bucht ihren `Gesamtpreis`, wo sie früher den Bruttowert aus
+  Portfolio Performance buchte, den `Betrag`;
+- eine Zeile mit negativer Steuer bucht ihr Geld abzüglich der daneben
+  gebuchten Erstattung, wo sie früher ihr ganzes Geld buchte und die
+  Erstattung noch einmal dazu (der `amount` einer JSON-Zeile, der `Betrag`
+  einer von einem Konverter geschriebenen Zeile), und ein JSON-Kauf oder
+  -Verkauf erhält seinen Kurs aus dem Bruttowert.
+
+Enthält eine abgelegte Datei (eine Portfolio-Performance-CSV, eine von einem
+Konverter geschriebene CSV oder ein JSON-v1-Export) Zeilen, deren
+Inhalts-Hash eine gespeicherte Buchung trägt, und weicht das Geld dieser
+Buchung von dem ab, was die Zeile heute bucht, listet die Vorschau sie in
+einem eigenen Abschnitt auf, **Bereits importiert, mit anderem Betrag**, vor
+der Kontenzuordnung. Jede Zeile nennt die Zeilennummer, das Datum und die
+Buchung (ihre Art, ihr Wertpapier und ihr Konto) sowie ihr Geld **gebucht**,
+**laut Datei** und die **Differenz**, mit Vorzeichen, wie das Konto sie sieht
+(eine Belastung ist negativ). Ein Handel in fremder Währung zeigt zusätzlich
+seine Abrechnung vorher und nachher, ein JSON-Handel seinen Kurs. Unter der
+Liste stehen die Summe je Konto und **N Buchungen korrigieren…**.
+
+Die Korrektur ist **ein eigener Schritt**, unabhängig von **Import
+bestätigen**: Den Import zu bestätigen, ändert nie eine Buchung, die er als
+bereits importiert findet, ob der Abschnitt gezeigt wird oder nicht. **N
+Buchungen korrigieren…** öffnet einen Dialog, der sagt, wie sich jedes Konto
+ändert und was sich mit einem Handel ändert. Seine Bestätigung schreibt dann
+für jede aufgelistete Buchung ihr Geld neu; bei einem JSON-Kauf oder -Verkauf
+auch seinen Kurs; und bei einem Handel in fremder Währung auch seinen
+Abrechnungsbetrag, seinen Betrag in Wertpapierwährung und den Kurs der
+Abrechnung, im selben Schreibvorgang. Sonst ändert sich nichts: nicht die ID
+der Buchung, ihr Inhalts-Hash, ihre Gebühren oder Steuern, auch nicht der
+Kurs einer CSV-Zeile (ihr `Kurs`). Jede Änderung wird mit den Werten, die sie
+ersetzt, im Audit-Journal unter dem Betreiber festgehalten, gekennzeichnet
+als *import correction*; Kontostände, Bewertung, Renditen und Erträge werden
+aus den korrigierten Buchungen neu berechnet. Eine Zeile an der Stelle des
+Abschnitts sagt danach, wie viele Buchungen korrigiert wurden und was sich
+auf jedem Konto bewegt hat.
+
+Die Inhalts-Hashes bleiben, wie sie sind: Dieselbe Datei erneut abzulegen,
+bucht nichts und zeigt keinen Abschnitt, denn es bleibt nichts zu
+korrigieren.
+Stimmt jede gespeicherte Buchung mit der Datei überein, gibt es keinen
+Abschnitt. Bestätigst du zuerst den Import, sagt sein Ergebnis, wie viele
+Buchungen unkorrigiert geblieben sind; lege dieselbe Datei erneut ab, um sie
+zu korrigieren.
+
+Die Korrektur braucht die Datei, weil keine gespeicherte Buchung festhält,
+aus welchem Format sie stammt. Sie findet eine Buchung über den Inhalts-Hash,
+den ihre Zeile noch trägt: Eine Zeile, die sich seither in Portfolio
+Performance geändert hat (eine bearbeitete Buchung, eine verschobene
+Uhrzeit), trifft keinen gespeicherten Hash, wird über Datum, Wertpapier,
+Stückzahl und Betrag als bereits gebucht erkannt und nicht aufgelistet. Wie
+der Import ist die Korrektur eine Handlung des Betreibers, ohne API-Route und
+ohne MCP-Tool; ein Agent liest die korrigierten Buchungen über jeden
+bestehenden Lesezugriff.
 
 ### Wertpapier-Matching und der Zuordnungsschritt
 

@@ -1483,6 +1483,63 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (ADR-0053 §6, A6):
+  # As the operator whose history was imported under an older reading of
+  # its rows,
+  # I want the handbook, in English and German, to say how the preview lists
+  # the bookings whose stored cash differs from the file and what its own
+  # confirm changes,
+  # so that I know how to correct them and what stays as it was.
+  #
+  # Acceptance criteria:
+  # - The import handbook has a section on the correction: its heading as the
+  #   preview names it, that it is a step of its own apart from the import's
+  #   confirm, what it writes and never writes, the journal, that a second
+  #   drop shows nothing, that it finds a booking by its content hash, and
+  #   that it has no API route and no MCP tool.
+  # - The CSV paragraph no longer says the import has no correction, and the
+  #   CSV and negative-tax paragraphs point at the section.
+  test "the handbook describes the correction of bookings imported under an older reading" do
+    for {path, fragments, stale} <- [
+          {"docs/product-documentation.md",
+           [
+             "### Bookings already imported, with a different amount",
+             "**Already imported, with a different amount**",
+             "**a step of its own**, apart from **Confirm import**",
+             "for a JSON purchase or sale also its price",
+             "its settlement amount, security amount and rate",
+             "not the booking's id, its content hash, its fees or taxes, nor a CSV row's price",
+             "audit journal under the operator, labelled *import correction*",
+             "dropping the same file again books nothing and shows no section",
+             "finds a booking by the content hash its row still carries",
+             "no API route and no MCP tool",
+             "(#bookings-already-imported-with-a-different-amount)"
+           ], "the import has no correction for them yet"},
+          {"docs/de/product-documentation.md",
+           [
+             "### Bereits importiert, mit anderem Betrag",
+             "**Bereits importiert, mit anderem Betrag**",
+             "**ein eigener Schritt**, unabhängig von **Import bestätigen**",
+             "bei einem JSON-Kauf oder -Verkauf auch seinen Kurs",
+             "seinen Abrechnungsbetrag, seinen Betrag in Wertpapierwährung und den Kurs der Abrechnung",
+             "nicht die ID der Buchung, ihr Inhalts-Hash, ihre Gebühren oder Steuern, auch nicht der Kurs einer CSV-Zeile",
+             "im Audit-Journal unter dem Betreiber festgehalten, gekennzeichnet als *import correction*",
+             "Dieselbe Datei erneut abzulegen, bucht nichts und zeigt keinen Abschnitt",
+             "findet eine Buchung über den Inhalts-Hash, den ihre Zeile noch trägt",
+             "ohne API-Route und ohne MCP-Tool",
+             "(#bereits-importiert-mit-anderem-betrag)"
+           ], "noch keine Korrektur"}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+
+      refute doc =~ stale, "#{path}: #{stale}"
+    end
+  end
+
   # User story:
   # As the operator or the agent renaming an imported account, or mapping an
   # export's account onto one of another name,
