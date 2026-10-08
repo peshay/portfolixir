@@ -23,12 +23,17 @@ defmodule Portfolixir.Imports.Preview do
             errors: []
 
   @doc """
-  Counts per kind across all entries in the preview.
+  Counts per kind across all entries in the preview, a companion split off
+  a row (a tax refund) under its own kind, so the counts add up to the
+  entries the preview holds (board ux-design-2026-10-07/01-import-preview,
+  found while drawing 2).
 
   Returns a map of `%{"purchase" => 12, "dividend" => 4, ...}`.
   """
   def counts_by_kind(%__MODULE__{entries: entries}) do
-    Enum.reduce(entries, %{}, fn entry, acc ->
+    entries
+    |> Entry.flatten()
+    |> Enum.reduce(%{}, fn entry, acc ->
       Map.update(acc, entry.kind, 1, &(&1 + 1))
     end)
   end

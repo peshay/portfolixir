@@ -33,6 +33,31 @@ defmodule Portfolixir.Imports.PreviewTest do
     assert Preview.counts_by_kind(pv) == %{"buy" => 2, "dividend" => 1}
   end
 
+  # User story (board ux-design-2026-10-07/01-import-preview, found while
+  # drawing 2):
+  # As the operator reading a preview whose sale splits off a tax refund,
+  # I want the counts by kind to add up to the "Entries" card,
+  # so that the two figures of one preview never disagree.
+  #
+  # Acceptance criteria:
+  # - A companion split off a row (a tax refund) counts under its own kind,
+  #   so the counts by kind add up to the entries the preview holds.
+  test "counts_by_kind/1 counts a split-off companion under its kind" do
+    pv =
+      preview([
+        entry(kind: "sell", companion_entries: [entry(kind: "tax_refund")]),
+        entry(kind: "dividend", companion_entries: [entry(kind: "tax_refund")]),
+        entry(kind: "buy")
+      ])
+
+    assert Preview.counts_by_kind(pv) == %{
+             "sell" => 1,
+             "dividend" => 1,
+             "buy" => 1,
+             "tax_refund" => 2
+           }
+  end
+
   test "unique_securities/1 dedupes by ISIN, then {name, currency}, then name" do
     pv =
       preview([
