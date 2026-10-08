@@ -5,9 +5,10 @@ defmodule Portfolixir.Imports.CsvGesamtpreisReimportTest do
   # again under the Gesamtpreis reading (ADR-0050 §2, "a file already
   # applied is a no-op").
   #
-  # The old reading is reproduced by blanking the Gesamtpreis column: a row
-  # without one books its Betrag, exactly as every row booked before
-  # ADR-0053. Every name and amount is synthetic.
+  # The old reading is reproduced from the file as Portfolio Performance
+  # writes it: every row books its Betrag, the hash amount it still carries,
+  # exactly as every row booked before ADR-0053, and a negative Steuern books
+  # its refund beside it. Every name and amount is synthetic.
   #
   # async: false — the applier's after-commit enrichment runs in a task that
   # needs the shared sandbox connection.
@@ -18,6 +19,7 @@ defmodule Portfolixir.Imports.CsvGesamtpreisReimportTest do
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Applier.Result
   alias Portfolixir.Imports.PortfolioPerformance
+  alias Portfolixir.Imports.Preview
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
 
@@ -38,16 +40,14 @@ defmodule Portfolixir.Imports.CsvGesamtpreisReimportTest do
 
   defp pp_file, do: File.read!(Path.join(@fixtures, "hash_pin.csv"))
 
-  # The Gesamtpreis column, the ninth, emptied on every row.
-  defp old_reading(csv) do
-    csv
-    |> String.split("\n")
-    |> Enum.with_index()
-    |> Enum.map_join("\n", fn
-      {line, 0} -> line
-      {"", _index} -> ""
-      {line, _index} -> line |> String.split(";") |> List.replace_at(8, "") |> Enum.join(";")
-    end)
+  # The bookings the importer made before ADR-0053: every row's Betrag as
+  # its cash, its refund split off beside it. Blanking the Gesamtpreis
+  # column reproduced them until the amendment of 2026-10-07 (A1) made a row
+  # without a Gesamtpreis leave its refund out of its Betrag too, so the
+  # entries are rewritten instead; each keeps its content hash, which reads
+  # the Betrag (§3).
+  defp old_reading(%Preview{entries: entries} = preview) do
+    %{preview | entries: Enum.map(entries, &%{&1 | gross_amount: &1.hash_amount})}
   end
 
   # A re-export whose every time of day moved by one second: no row keeps
@@ -62,10 +62,10 @@ defmodule Portfolixir.Imports.CsvGesamtpreisReimportTest do
     preview
   end
 
-  defp apply!(csv, portfolio) do
-    assert {:ok, %Result{} = result} =
-             Imports.apply(parse!(csv), %{portfolio_id: portfolio.id})
+  defp apply!(csv, portfolio) when is_binary(csv), do: apply!(parse!(csv), portfolio)
 
+  defp apply!(%Preview{} = preview, portfolio) do
+    assert {:ok, %Result{} = result} = Imports.apply(preview, %{portfolio_id: portfolio.id})
     result
   end
 
@@ -127,7 +127,7 @@ defmodule Portfolixir.Imports.CsvGesamtpreisReimportTest do
   test "a PP CSV applied under the old reading and dropped again books nothing", %{
     portfolio: portfolio
   } do
-    first = apply!(old_reading(pp_file()), portfolio)
+    first = apply!(old_reading(parse!(pp_file())), portfolio)
     assert first.created_transactions == @entries
 
     before = counts()
@@ -166,8 +166,18 @@ defmodule Portfolixir.Imports.CsvGesamtpreisReimportTest do
   test "a drifted re-export is recognised by the Betrag reading's economic key", %{
     portfolio: portfolio
   } do
-    first = apply!(old_reading(pp_file()), portfolio)
+    first = apply!(old_reading(parse!(pp_file())), portfolio)
     assert first.created_transactions == @entries
+
+    # Row 5's Dividende booked its Betrag, 10,00, as before ADR-0053, with
+    # its refund of 1,00 beside it.
+    dividends =
+      portfolio.id
+      |> Ledger.list_transactions_for_portfolio()
+      |> Enum.filter(&(&1.type == "dividend"))
+      |> Enum.map(&Decimal.to_string(Decimal.normalize(&1.gross_amount), :normal))
+
+    assert Enum.sort(dividends) == ["10", "11.54"]
 
     before = counts()
     balances = cash_balances(portfolio)
