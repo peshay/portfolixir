@@ -31,9 +31,9 @@ defmodule Portfolixir.Fx do
   @doc """
   Bulk upsert of EUR-hub rates keyed by `(base_currency, quote_currency, date)`.
 
-  Validates each row through the schema changeset first; if any row fails, or
-  two rows name one key (#937), we return `{:error, changeset}` and write
-  nothing. Returns `{:ok, count}`.
+  Validates each row through the schema changeset first; if any row fails, a
+  row is not a map, or two rows name one key (#937), we return
+  `{:error, changeset}` and write nothing. Returns `{:ok, count}`.
   """
   def upsert_many(rows) when is_list(rows) do
     now = NaiveDateTime.utc_now() |> NaiveDateTime.truncate(:second)
@@ -346,32 +346,45 @@ defmodule Portfolixir.Fx do
   # A key named twice is refused here, by name (#937, the F13 pattern of
   # Quotes.prepare_rows/3): in one insert chunk the database would refuse the
   # upsert as a whole, and across two chunks the later row would win unseen.
+  # A row that is not a map is refused by name too, where the changeset's
+  # cast would raise.
   defp prepare_rows(rows, now) do
-    Enum.reduce_while(rows, {:ok, [], MapSet.new()}, fn row, {:ok, acc, seen} ->
-      case ExchangeRate.changeset(%ExchangeRate{}, row) do
-        %{valid?: true} = changeset ->
-          entry =
-            changeset.changes
-            |> Map.take([:base_currency, :quote_currency, :date, :rate, :source])
-            |> Map.put(:inserted_at, now)
-            |> Map.put(:updated_at, now)
-
-          key = {entry.base_currency, entry.quote_currency, entry.date}
-
-          if MapSet.member?(seen, key) do
-            {:halt, {:error, repeated_key(changeset, key)}}
-          else
-            {:cont, {:ok, [entry | acc], MapSet.put(seen, key)}}
-          end
-
-        invalid ->
-          {:halt, {:error, invalid}}
-      end
+    Enum.reduce_while(rows, {:ok, [], MapSet.new()}, fn
+      row, {:ok, acc, seen} when is_map(row) -> prepare_row(row, acc, seen, now)
+      _not_a_row, _acc -> {:halt, {:error, not_a_rate()}}
     end)
     |> case do
       {:ok, prepared, _seen} -> {:ok, Enum.reverse(prepared)}
       {:error, _} = err -> err
     end
+  end
+
+  defp prepare_row(row, acc, seen, now) do
+    case ExchangeRate.changeset(%ExchangeRate{}, row) do
+      %{valid?: true} = changeset ->
+        entry =
+          changeset.changes
+          |> Map.take([:base_currency, :quote_currency, :date, :rate, :source])
+          |> Map.put(:inserted_at, now)
+          |> Map.put(:updated_at, now)
+
+        key = {entry.base_currency, entry.quote_currency, entry.date}
+
+        if MapSet.member?(seen, key) do
+          {:halt, {:error, repeated_key(changeset, key)}}
+        else
+          {:cont, {:ok, [entry | acc], MapSet.put(seen, key)}}
+        end
+
+      invalid ->
+        {:halt, {:error, invalid}}
+    end
+  end
+
+  defp not_a_rate do
+    %ExchangeRate{}
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.add_error(:rates, "must be a list of rate objects")
   end
 
   defp repeated_key(changeset, {base, quote, date}) do
