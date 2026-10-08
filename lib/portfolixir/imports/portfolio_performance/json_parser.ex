@@ -32,7 +32,14 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   Numbers are decoded via `Jason.decode/2` with `floats: :decimals` so
   no float passes through. Unknown PP types end up in `preview.errors`
   rather than as silent `Entry` skips, and so does a row whose booking or
-  security currency the catalog does not list (#948).
+  security currency the catalog does not list (#948), and a credit whose own
+  booking would move 0 or less (ADR-0053 A5, #1118).
+
+  A negative TAX unit is split off into a `tax_refund` companion, and the
+  row's own booking leaves it out of its `amount`, which already holds it
+  (ADR-0053 A1); a purchase or sale is priced from its gross value, the
+  taxes read with their sign (A2), while its content hash keeps reading the
+  `amount` and the price derived before (§3, A3).
   """
 
   use Gettext, backend: PortfolixirWeb.Gettext
@@ -233,8 +240,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
       # #1044: a transfer without its other side first; then E25 S4 (G24)
       # and S5 (F33): a security that names nothing, and text the ledger would
       # refuse, are this row's error; so is a currency the catalog does not
-      # list (#948).
-      case counter_error(entry) || PortfolioPerformance.row_error(entry) do
+      # list (#948); then a credit that would book 0 or less (ADR-0053 A5,
+      # #1118).
+      case counter_error(entry) || PortfolioPerformance.row_error(entry) ||
+             credit_error(kind, amount, refund_amounts, entry.gross_amount) do
         nil -> {:ok, entry}
         message -> {:error, message}
       end
@@ -342,6 +351,19 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
       {:ok, {fees, taxes, refunds}} -> {:ok, {fees, taxes, Enum.reverse(refunds)}}
       {:error, _} = error -> error
     end
+  end
+
+  # ADR-0053 A5: a credit that would book 0 or less, named with its figures
+  # as the file wrote them.
+  defp credit_error(kind, amount, refunds, booked) do
+    refund = refund_total(refunds)
+
+    PortfolioPerformance.credit_error(PortfolioPerformance.direction(kind, nil), booked, %{
+      cell: "amount",
+      cash: amount && Decimal.to_string(amount, :normal),
+      refund: refund && Decimal.to_string(refund, :normal),
+      rest: booked && Decimal.to_string(booked, :normal)
+    })
   end
 
   # The row's taxes with their sign: the positive TAX units less the

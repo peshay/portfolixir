@@ -4272,89 +4272,89 @@ msgstr ""
 msgid "Row %{row}: %{message}"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:541
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:262
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:562
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:271
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (before 1900) — fix the booking in the source and re-import"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:559
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:274
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:580
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:283
 #, elixir-autogen, elixir-format
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:388
+#: lib/portfolixir/imports/portfolio_performance.ex:425
 #, elixir-autogen, elixir-format
 msgid "security name"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:389
+#: lib/portfolixir/imports/portfolio_performance.ex:426
 #, elixir-autogen, elixir-format
 msgid "security ISIN"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:390
+#: lib/portfolixir/imports/portfolio_performance.ex:427
 #, elixir-autogen, elixir-format
 msgid "security WKN"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:391
+#: lib/portfolixir/imports/portfolio_performance.ex:428
 #, elixir-autogen, elixir-format
 msgid "security ticker"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:392
+#: lib/portfolixir/imports/portfolio_performance.ex:429
 #, elixir-autogen, elixir-format
 msgid "portfolio"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:393
+#: lib/portfolixir/imports/portfolio_performance.ex:430
 #, elixir-autogen, elixir-format
 msgid "account"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:394
+#: lib/portfolixir/imports/portfolio_performance.ex:431
 #, elixir-autogen, elixir-format
 msgid "counter portfolio"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:395
+#: lib/portfolixir/imports/portfolio_performance.ex:432
 #, elixir-autogen, elixir-format
 msgid "counter account"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:396
+#: lib/portfolixir/imports/portfolio_performance.ex:433
 #, elixir-autogen, elixir-format
 msgid "note"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:420
+#: lib/portfolixir/imports/portfolio_performance.ex:457
 #, elixir-autogen, elixir-format
 msgid "%{field} is longer than %{count} characters"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:423
+#: lib/portfolixir/imports/portfolio_performance.ex:460
 #, elixir-autogen, elixir-format
 msgid "%{field} contains a control character"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:426
+#: lib/portfolixir/imports/portfolio_performance.ex:463
 #, elixir-autogen, elixir-format
 msgid "%{field} is not valid UTF-8 text"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:151
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:158
 #, elixir-autogen, elixir-format
 msgid "missing transaction type"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:191
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:192
 #, elixir-autogen, elixir-format
 msgid "unknown PP CSV type %{type}"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:147
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:154
 #, elixir-autogen, elixir-format
 msgid "unknown PP transaction type %{type}"
 msgstr ""
@@ -5837,12 +5837,12 @@ msgstr ""
 msgid "The file has %{n} rows; the import is sized for at most %{max}."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:287
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:296
 #, elixir-autogen, elixir-format
 msgid "invalid date %{date}"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:339
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:348
 #, elixir-autogen, elixir-format
 msgid "invalid unit %{unit}"
 msgstr ""
@@ -7920,7 +7920,7 @@ msgstr ""
 msgid "The file is not UTF-8 encoded. Remedy: export it again from Portfolio Performance and drop the file without saving it in a spreadsheet first."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:369
+#: lib/portfolixir/imports/portfolio_performance.ex:406
 #, elixir-autogen, elixir-format
 msgid "security without a name and without an ISIN — row not imported"
 msgstr ""
@@ -7935,52 +7935,52 @@ msgstr ""
 msgid "The file expands to %{n} entries (its rows and the tax refunds they split off); the import is sized for at most %{max}."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:318
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:327
 #, elixir-autogen, elixir-format
 msgid "more units (fees and taxes) than one booking carries"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:329
+#: lib/portfolixir/imports/portfolio_performance.ex:366
 #, elixir-autogen, elixir-format
 msgid "%{field} has more than %{digits} digits before the decimal point"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:339
+#: lib/portfolixir/imports/portfolio_performance.ex:376
 #, elixir-autogen, elixir-format
 msgid "tax refund"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:341
+#: lib/portfolixir/imports/portfolio_performance.ex:378
 #, elixir-autogen, elixir-format
 msgid "gross amount"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:342
+#: lib/portfolixir/imports/portfolio_performance.ex:379
 #, elixir-autogen, elixir-format
 msgid "quantity"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:343
+#: lib/portfolixir/imports/portfolio_performance.ex:380
 #, elixir-autogen, elixir-format
 msgid "price"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:344
+#: lib/portfolixir/imports/portfolio_performance.ex:381
 #, elixir-autogen, elixir-format
 msgid "fees"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:345
+#: lib/portfolixir/imports/portfolio_performance.ex:382
 #, elixir-autogen, elixir-format
 msgid "taxes"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:362
+#: lib/portfolixir/imports/portfolio_performance.ex:399
 #, elixir-autogen, elixir-format
 msgid "number %{value} cannot be read or is out of range"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:299
+#: lib/portfolixir/imports/portfolio_performance.ex:336
 #, elixir-autogen, elixir-format
 msgid "ISIN %{isin} is not a valid ISIN (shape or check digit) — row not imported"
 msgstr ""
@@ -9729,7 +9729,7 @@ msgstr ""
 msgid "Version by:"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:414
+#: lib/portfolixir/imports/portfolio_performance.ex:451
 #, elixir-autogen, elixir-format
 msgid "%{field} contains invisible characters (%{characters})"
 msgstr ""
@@ -10518,7 +10518,7 @@ msgid_plural "The merge the link names is not among the newest %{count} listed h
 msgstr[0] ""
 msgstr[1] ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:230
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:231
 #, elixir-autogen, elixir-format
 msgid "receiving side of the transfer in row %{row} — booked once, from that row"
 msgstr ""
@@ -11593,22 +11593,22 @@ msgstr ""
 msgid "%{name} (price %{price} %{currency})"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:457
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:464
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount} (expected %{expected}) — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:465
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:472
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount} and Gebühren %{fees} (expected %{expected}) — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:474
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:481
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount} and Steuern %{taxes} (expected %{expected}) — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:483
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:490
 #, elixir-autogen, elixir-format
 msgid "Gesamtpreis %{total} does not match Betrag %{amount}, Gebühren %{fees} and Steuern %{taxes} (expected %{expected}) — row not imported"
 msgstr ""
@@ -11705,34 +11705,34 @@ msgstr ""
 msgid "Settlement amount"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:409
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:416
 #, elixir-autogen, elixir-format
 msgid "buy without a counter account — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:236
+#: lib/portfolixir/imports/portfolio_performance.ex:273
 #, elixir-autogen, elixir-format
 msgid "currency “%{currency}” is not supported — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:242
+#: lib/portfolixir/imports/portfolio_performance.ex:279
 #, elixir-autogen, elixir-format
 msgid "security currency “%{currency}” is not supported — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:412
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:419
 #, elixir-autogen, elixir-format
 msgid "sell without a counter account — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:403
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:388
-#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:391
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:410
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:410
+#: lib/portfolixir/imports/portfolio_performance/json_parser.ex:413
 #, elixir-autogen, elixir-format
 msgid "transfer without a counter account — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:406
+#: lib/portfolixir/imports/portfolio_performance/csv_parser.ex:413
 #, elixir-autogen, elixir-format
 msgid "transfer without an account — row not imported"
 msgstr ""
@@ -11941,4 +11941,14 @@ msgstr ""
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:482
 #, elixir-autogen, elixir-format
 msgid "last booking %{date}"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex:196
+#, elixir-autogen, elixir-format
+msgid "%{cell} %{cash} leaves nothing to credit — enter this booking by hand — row not imported"
+msgstr ""
+
+#: lib/portfolixir/imports/portfolio_performance.ex:204
+#, elixir-autogen, elixir-format
+msgid "%{cell} %{cash} less the tax refund %{refund} leaves %{rest} to credit — enter this booking by hand, and the refund as a tax refund of its own — row not imported"
 msgstr ""

@@ -2,6 +2,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
   use ExUnit.Case, async: true
 
   alias Portfolixir.Imports.Entry
+  alias Portfolixir.Imports.ImportHash
   alias Portfolixir.Imports.PortfolioPerformance.JsonParser
   alias Portfolixir.Imports.Preview
 
@@ -318,6 +319,106 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
       assert {:ok, %Preview{errors: [], entries: [buy]}} = JsonParser.parse(body)
       assert Decimal.equal?(buy.price, Decimal.new("100.00"))
       assert Decimal.equal?(buy.hash_price, Decimal.new("99.90"))
+    end
+  end
+
+  # User story (ADR-0053 A5, K14, #1118; risk-tier: money):
+  # As the operator dropping a JSON export whose sale's own booking would
+  # credit nothing or less, because the tax refund split off it is larger
+  # than the cash it moved, or because the cash itself is nothing,
+  # I want that row named in the preview with what to do instead, while the
+  # rest of the file previews,
+  # so that the sale is never silently skipped at apply.
+  #
+  # Acceptance criteria:
+  # - A credit row whose `amount` less its split-off refunds is 0 or less is
+  #   a row error naming the amount, the refund and what is left, as the
+  #   file wrote them, and the remedy: enter the booking by hand, and the
+  #   refund as a tax refund of its own.
+  # - Without a refund, a credit row whose `amount` is 0 or less is a row
+  #   error naming it and the remedy.
+  # - The file's other rows preview, with the content hash each has without
+  #   the refused row; a debit row is not refused.
+  describe "parse/2 a credit row that nets to nothing (#1118)" do
+    defp tx(fields) do
+      Map.merge(
+        %{
+          type: "SALE",
+          account: "Test-Cash",
+          portfolio: "Test-Depot",
+          date: "2024-06-14",
+          currency: "EUR",
+          shares: Jason.Fragment.new("100.0"),
+          security: %{name: "Synthetic AG", currency: "EUR"}
+        },
+        fields
+      )
+    end
+
+    defp deposit do
+      %{
+        type: "DEPOSIT",
+        account: "Test-Cash",
+        date: "2024-01-02",
+        currency: "EUR",
+        amount: Jason.Fragment.new("1000.0")
+      }
+    end
+
+    defp unit(type, amount), do: %{type: type, amount: Jason.Fragment.new(amount)}
+
+    test "a sale whose refund exceeds its amount is named, and the rest previews" do
+      sale =
+        tx(%{
+          amount: Jason.Fragment.new("20.1"),
+          units: [unit("FEE", "5.9"), unit("TAX", "-25.0")]
+        })
+
+      body = Jason.encode!(%{version: 1, transactions: [deposit(), sale]})
+
+      assert {:ok, %Preview{entries: [kept], errors: [%{row: 2, message: message}]}} =
+               JsonParser.parse(body)
+
+      assert message ==
+               "amount 20.1 less the tax refund 25.0 leaves -4.9 to credit — " <>
+                 "enter this booking by hand, and the refund as a tax refund of its own " <>
+                 "— row not imported"
+
+      {:ok, %Preview{entries: [alone]}} =
+        JsonParser.parse(Jason.encode!(%{version: 1, transactions: [deposit()]}))
+
+      assert ImportHash.compute(kept, 42) == ImportHash.compute(alone, 42)
+    end
+
+    test "a credit whose amount is nothing or less is named, a refund split off or not" do
+      body =
+        Jason.encode!(%{
+          version: 1,
+          transactions: [
+            tx(%{type: "DIVIDEND", amount: Jason.Fragment.new("0.00")}),
+            tx(%{amount: Jason.Fragment.new("25.0"), units: [unit("TAX", "-25.0")]}),
+            tx(%{type: "TAX", amount: Jason.Fragment.new("1.0"), units: [unit("TAX", "-1.0")]})
+          ]
+        })
+
+      assert {:ok, %Preview{entries: [debit], errors: errors}} = JsonParser.parse(body)
+      assert debit.kind == "tax"
+
+      assert errors == [
+               %{
+                 row: 1,
+                 message:
+                   "amount 0.00 leaves nothing to credit — enter this booking by hand " <>
+                     "— row not imported"
+               },
+               %{
+                 row: 2,
+                 message:
+                   "amount 25.0 less the tax refund 25.0 leaves 0.0 to credit — " <>
+                     "enter this booking by hand, and the refund as a tax refund of its own " <>
+                     "— row not imported"
+               }
+             ]
     end
   end
 
