@@ -4,6 +4,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Allocation
   alias Portfolixir.Portfolios.Portfolio
+  alias Portfolixir.Portfolios.Target
   alias Portfolixir.Portfolios.Targets
   alias PortfolixirWeb.Api.V1.DriftParam
   alias PortfolixirWeb.Api.V1.IdParam
@@ -230,7 +231,8 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
       case Targets.set_cash_target(conn.assigns.actor, pid, weight, ViewParam.opts(view)) do
         :ok -> json(conn, %{data: JSON.cash_target(weight)})
         {:error, :not_found} -> not_found(conn)
-        {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
+        # #1143: the refused row is the plan's cash target.
+        {:error, changeset} -> unprocessable(conn, Map.put(JSON.errors(changeset), :row, "cash"))
       end
     else
       :error -> not_found(conn)
@@ -313,7 +315,7 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
   end
 
   defp render_error(conn, %Ecto.Changeset{} = changeset),
-    do: unprocessable(conn, JSON.errors(changeset))
+    do: unprocessable(conn, changeset |> JSON.errors() |> put_refused_row(changeset))
 
   defp render_error(conn, :not_found), do: not_found(conn)
 
@@ -365,6 +367,25 @@ defmodule PortfolixirWeb.Api.V1.TargetController do
           "a plan carries one position row per security: security #{security_id} already has " <>
             "a position target under a different category, or appears more than once in this batch"
       })
+
+  # #1143 (#945's API half): a row of the batch refused by its changeset, a
+  # weight out of range or too fine, is named beside the field error, read
+  # off the changeset as the plan editor reads it: the position under its
+  # category, or the category row with security_id null.
+  defp put_refused_row(errors, %Ecto.Changeset{data: %Target{}} = changeset) do
+    case Ecto.Changeset.get_field(changeset, :category_id) do
+      category_id when is_integer(category_id) ->
+        Map.put(errors, :row, %{
+          category_id: category_id,
+          security_id: Ecto.Changeset.get_field(changeset, :security_id)
+        })
+
+      _no_category ->
+        errors
+    end
+  end
+
+  defp put_refused_row(errors, _changeset), do: errors
 
   defp invalid_view(conn), do: unprocessable(conn, %{view: ["is invalid"]})
 

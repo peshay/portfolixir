@@ -2386,6 +2386,45 @@ describe("Portfolixir MCP tools", () => {
     assert.match(describe("portfolixir.targets.delete_position"), /plan_id/);
   });
 
+  // User story (#1143, #945's API half):
+  // As the operator's agent writing a batch of targets over MCP,
+  // I want the refused row the API names to reach me,
+  // so that I can tell which row of the batch to correct.
+  //
+  // Acceptance criteria:
+  // - A 422 from PUT /targets or PUT /cash_target that carries errors.row
+  //   surfaces with the row's ids, or "cash", in the tool's failure.
+  it("passes a refused target's errors.row through to the agent (#1143)", async () => {
+    const answering = (errors: unknown) =>
+      createApiClient({
+        baseUrl: "http://portfolixir.test",
+        token: "api-token",
+        fetch: async () =>
+          new Response(JSON.stringify({ errors }), {
+            status: 422,
+            headers: { "content-type": "application/json" }
+          })
+      });
+
+    await assert.rejects(
+      callTool(
+        answering({ target_weight: ["must be less than or equal to 1"], row: { category_id: 9, security_id: 12 } }),
+        "portfolixir.targets.set",
+        { portfolio_id: 3, classification_id: 5, targets: [{ category_id: 9, security_id: 12, target_weight: "1.5" }] }
+      ),
+      /"row":\{"category_id":9,"security_id":12\}/
+    );
+
+    await assert.rejects(
+      callTool(
+        answering({ cash_target_weight: ["must be less than or equal to 1"], row: "cash" }),
+        "portfolixir.portfolios.set_cash_target",
+        { portfolio_id: 3, cash_target_weight: "1.5" }
+      ),
+      /"row":"cash"/
+    );
+  });
+
   it("routes position target tools and forwards a position security_id (ADR-0030, #481)", async () => {
     const { client, requests } = createRecordingClient({
       data: { position_targets: [], effective_targets: [] }

@@ -127,6 +127,82 @@ defmodule PortfolixirWeb.ApiV1TargetWeightScaleTest do
     assert non_finite(allocation) == []
   end
 
+  # User story (#1143, #945's API half):
+  # As the operator's agent writing a batch of targets,
+  # I want a refused weight to name its row beside the field error, as the
+  # plan editor puts the refused row first,
+  # so that I can tell which row of the batch to correct.
+  #
+  # Acceptance criteria:
+  # - A position row refused for its precision answers errors.row
+  #   {category_id, security_id} beside errors.target_weight.
+  # - A category row refused for its range answers errors.row with
+  #   security_id null.
+  # - A cash target refused for its range or precision answers errors.row
+  #   "cash" beside errors.cash_target_weight.
+  # - Nothing is written, and a refusal that is not a weight's carries no
+  #   row.
+  test "a refused target or cash-target weight names its row",
+       %{conn: conn, world: world, classification: classification, growth: growth, value: value} do
+    pid = world.portfolio.id
+    security = create_security!(name: "Meridian Global Equity ETF", ticker: "MGE")
+    assign!(security, classification, growth)
+
+    put_targets = fn rows ->
+      conn
+      |> put("/api/v1/portfolios/#{pid}/targets", %{
+        "classification_id" => classification.id,
+        "targets" => rows
+      })
+      |> json_response(422)
+      |> Map.fetch!("errors")
+    end
+
+    errors =
+      put_targets.([
+        %{"category_id" => value.id, "target_weight" => "0.4"},
+        %{
+          "category_id" => growth.id,
+          "security_id" => security.id,
+          "target_weight" => "0.1234567"
+        },
+        %{"category_id" => growth.id, "target_weight" => "0.6"}
+      ])
+
+    assert errors["row"] == %{"category_id" => growth.id, "security_id" => security.id}
+    assert Map.has_key?(errors, "target_weight")
+
+    errors =
+      put_targets.([
+        %{"category_id" => growth.id, "target_weight" => "0.5"},
+        %{"category_id" => value.id, "target_weight" => "1.5"}
+      ])
+
+    assert errors["row"] == %{"category_id" => value.id, "security_id" => nil}
+    assert Map.has_key?(errors, "target_weight")
+    assert Repo.aggregate(Target, :count) == 0
+
+    for weight <- ["1.2", "0.0500001"] do
+      errors =
+        conn
+        |> put("/api/v1/portfolios/#{pid}/cash_target", %{"cash_target_weight" => weight})
+        |> json_response(422)
+        |> Map.fetch!("errors")
+
+      assert errors["row"] == "cash", weight
+      assert Map.has_key?(errors, "cash_target_weight"), weight
+    end
+
+    # A refusal of the batch's shape names no row.
+    errors =
+      put_targets.([
+        %{"category_id" => growth.id, "target_weight" => "0.5"},
+        %{"category_id" => growth.id, "target_weight" => "0.5"}
+      ])
+
+    refute Map.has_key?(errors, "row")
+  end
+
   # User story (board 12, "zero-value drift", before/after):
   # As the operator reading which positions to act on,
   # I want a position valued at 0 to carry no share of its category's drift,

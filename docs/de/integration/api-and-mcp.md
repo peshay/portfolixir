@@ -2210,7 +2210,11 @@ Beispiel-Payloads für Konten:
   beim Upgrade nicht schon ein feineres Gewicht hielt (das Upgrade protokolliert
   dann, wie viele). Das Duplizieren eines Plans oder sein Speichern im
   SOLL-Editor rundet ein solches gespeichertes Gewicht kaufmännisch auf 6
-  Nachkommastellen. Ziele müssen sich nicht zu `1` summieren. Nur die übergebenen Kategorien werden geändert.
+  Nachkommastellen. Ein Gewicht, das wegen seiner Genauigkeit oder als Wert
+  außerhalb von `[0, 1]` abgelehnt wird, nennt auch seine Zeile, wie der
+  Plan-Editor die abgelehnte Zeile voranstellt: `errors.row` ist
+  `{"category_id": id, "security_id": id}`, mit `security_id` `null` bei einer
+  Kategoriezeile, neben `errors.target_weight` (Issue #1143). Ziele müssen sich nicht zu `1` summieren. Nur die übergebenen Kategorien werden geändert.
   Eine Kategorie aus einem anderen Baum liefert `422 Unprocessable Entity`, und
   eine unbekannte Klassifizierung liefert `404 Not Found`. Ein Stapel nennt jede
   Kategoriezeile einmal und trägt höchstens eine Zeile je Kategorie und eine je
@@ -2574,7 +2578,9 @@ Beispiel-Payloads für Konten:
   `null`) das Cash-Ziel eines Plans. Der Body ist `{"cash_target_weight":
   "0.05"}` und kann ein optionales `"view": id` tragen (weggelassen = Gesamt). Es
   gibt den gespeicherten Wert zurück. Gewichte außerhalb des Bereichs und
-  Gewichte mit mehr als 6 Nachkommastellen liefern `422 Unprocessable Entity`. Das Cash-Ziel speist die `cash`-Zeile der Allokation
+  Gewichte mit mehr als 6 Nachkommastellen liefern `422 Unprocessable Entity`
+  auf `cash_target_weight`, neben `errors.row` `"cash"`, der Zeile, die der
+  Plan-Editor nennt (Issue #1143). Das Cash-Ziel speist die `cash`-Zeile der Allokation
   und den `top_level_target_sum` der adressierten View.
 - `PATCH /api/v1/portfolios/:portfolio_id` patcht die Stammdaten eines Portfolios.
   **Veraltet (ADR-0024)** — antwortet mit `Deprecation: true`; nur
