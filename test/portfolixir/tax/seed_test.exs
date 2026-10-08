@@ -63,10 +63,16 @@ defmodule Portfolixir.Tax.SeedTest do
   end
 
   test "the rollback removes only built-in rows, each journaled" do
+    # tax_parameters is unique on (jurisdiction, tax_year), and
+    # ParametersTest, async as this module, upserts DE/2027: with that year
+    # here, one test's insert waited on the other's uncommitted row until
+    # that test ended (#1131, the class of #1047). Which unseeded year the
+    # operator's row takes is incidental, so it takes one no other module
+    # writes.
     {:ok, operator_row} =
       Tax.upsert_parameters(Actor.owner_ui(), %{
         jurisdiction: "DE",
-        tax_year: 2027,
+        tax_year: 2029,
         capital_gains_tax_rate: Decimal.new("0.25"),
         solidarity_surcharge_rate: Decimal.new("0.055"),
         saver_allowance_single: Decimal.new("1100.00"),

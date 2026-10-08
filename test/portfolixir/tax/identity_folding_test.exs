@@ -131,20 +131,27 @@ defmodule Portfolixir.Tax.IdentityFoldingTest do
   #   of its name, from its latest statement: a later statement under
   #   another case spelling of the same bank replaces the earlier one.
   test "spellings of one holder and one institution roll up once" do
-    snapshot!("Anna Muster", "Bank Eins", ~D[2025-06-30])
+    # tax_statement_snapshots_identity_index is unique on (lower(institution),
+    # lower(holder), tax_year, as_of), and IdentityBackfillTest, async as this
+    # module, folds a stored spelling onto Anna Muster / Bank Eins / 2025 /
+    # 2025-06-30: with that identity here, one test's write waited on the
+    # other's uncommitted row until that test ended (#1131, the class of
+    # #1047). Which taxpayer the spellings name is incidental, so this test
+    # names one of its own.
+    snapshot!("Clara Beispiel", "Bank Eins", ~D[2025-06-30])
 
-    snapshot!("ANNA\u{00A0}MUSTER", "BANK EINS", ~D[2025-09-30], %{
+    snapshot!("CLARA\u{00A0}BEISPIEL", "BANK EINS", ~D[2025-09-30], %{
       allowance_used: Decimal.new("300.00")
     })
 
-    snapshot!("anna muster", "Bank Zwei", ~D[2025-08-31])
+    snapshot!("clara beispiel", "Bank Zwei", ~D[2025-08-31])
     snapshot!("Mu\u{0308}ller", "Bank Eins", ~D[2025-08-31])
     snapshot!("müller", "Bank Eins", ~D[2025-09-30])
 
     assert Tax.list_snapshot_holders() |> length() == 2
     assert "Müller" in Tax.list_snapshot_holders() or "müller" in Tax.list_snapshot_holders()
 
-    summary = Tax.holder_summary("Anna Muster", 2025)
+    summary = Tax.holder_summary("Clara Beispiel", 2025)
     assert length(summary.institutions) == 2
     assert summary.complete?
     # Bank Eins counts its later statement (used 300), Bank Zwei its only one.
