@@ -330,7 +330,15 @@ defmodule Portfolixir.Portfolios.ValuationTest do
     end
 
     deposit!(world, "300", ~D[2026-01-01])
-    {:ok, everything} = Buckets.create_view(Actor.owner_ui(), %{name: "Everything"})
+
+    # View names are unique instance-wide, and CategoryResultTest, async as
+    # this module, created a view named "Everything" too: one test's insert
+    # waited on the other's uncommitted row until that test ended (#1131,
+    # the class of #1018). The view gets a name of its own.
+    {:ok, everything} =
+      Buckets.create_view(Actor.owner_ui(), %{
+        name: "Everything #{System.unique_integer([:positive])}"
+      })
 
     for valuation <- [
           Valuation.for_portfolio(world.portfolio.id),
