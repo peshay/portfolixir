@@ -2071,10 +2071,24 @@ Example account payloads:
   race to file the security under another category answers the same `422`
   and stores nothing. Each serialized target carries `security_id` (`null` for
   a category row).
+  **A plan version (issue #1133):** an optional `"plan_id": id` writes that
+  plan version — a draft from `POST /api/v1/plans/:id/duplicate`, or the
+  active plan — instead of the view's active plan, so a draft's category and
+  position targets are edited over the API as in the SOLL editor, and
+  activated when ready; the reads keep following the active plan. The plan
+  must be one of this portfolio's, of this classification and, when `view` is
+  given, of that view, and it must not be `archived`: an archived version
+  steers nothing and is reused by activating it or duplicating it into a
+  draft. A malformed id, an unknown plan or another portfolio's, another
+  classification's, another view's and an archived one each answer `422` on
+  `plan_id` (`is invalid`, `is not a plan of this portfolio`, `is a plan of
+  another classification`, `is a plan of another view`, `is archived: activate
+  it, or duplicate it into a draft`) and write nothing.
 - `DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id` removes a
   portfolio's **category** target for one category and returns `{deleted}` (the
   number of rows removed). Position rows for the category are left in place.
-  Optional `view` selects the plan (omitted = Gesamt).
+  Optional `view` selects the plan (omitted = Gesamt); optional `plan_id`
+  addresses a plan version as on the `PUT`, with the same `422`s.
 - `GET /api/v1/portfolios/:portfolio_id/position_targets` lists a portfolio's
   **position-level** SOLL targets (ADR-0030): `{"position_targets": [...],
   "effective_targets": [...]}`. Each `position_targets` row is a target on a
@@ -2101,7 +2115,8 @@ Example account payloads:
   a `422`.
 - `DELETE /api/v1/portfolios/:portfolio_id/position_targets/:category_id/:security_id`
   removes one position target and returns `{deleted}`. The category row and the
-  category's other positions are untouched. Optional `view` selects the plan.
+  category's other positions are untouched. Optional `view` selects the plan;
+  optional `plan_id` addresses a plan version as on the `PUT`.
 - `GET /api/v1/portfolios/:portfolio_id/plans` lists a portfolio's SOLL **plan
   versions** (ADR-0027): active first, then drafts and archived plans, each with
   `name`, `status` (`active` / `draft` / `archived`), its scope (`view_id`,
@@ -3782,9 +3797,11 @@ Category-only calls are unchanged.
 Since ADR-0027 the plan tools (`portfolixir.plans.list`,
 `portfolixir.plans.duplicate`, `portfolixir.plans.activate`,
 `portfolixir.plans.rename`, `portfolixir.plans.delete`) manage named plan
-**versions**: duplicate the active plan into a draft, edit the draft in the SOLL
-editor (the target tools take no plan id: their writes, with or without a
-`view`, edit the active plan), then activate it. The snapshot tools
+**versions**: duplicate the active plan into a draft, edit the draft by passing
+its id as `plan_id` to `portfolixir.targets.set`, `portfolixir.targets.delete`
+and `portfolixir.targets.delete_position` (issue #1133; without it they write
+the view's active plan, and an archived plan is refused), or in the SOLL
+editor, then activate it. The snapshot tools
 (`portfolixir.snapshots.list`, `portfolixir.snapshots.create`,
 `portfolixir.snapshots.delete`, `portfolixir.snapshots.comparison`) freeze a
 depot state as a marker and read the counterfactual comparison; every financial

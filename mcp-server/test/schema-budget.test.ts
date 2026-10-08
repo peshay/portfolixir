@@ -180,6 +180,18 @@ const PINNED_HISTORY: readonly CeilingRow[] = [
     read: 103_360,
     book: 176_442,
     full: 206_790
+  },
+  {
+    since: "2026-10-08",
+    why:
+      "Sprint 20 PR γ, C2 (#1133): the three target writes take plan_id and their descriptions " +
+      "say so, plans.duplicate names the way to edit its draft, paid for by tightening " +
+      "targets.set's batch and sums sentences, dropping requirement and issue ids from the " +
+      "target family and trimming events.delete's and snapshots.delete's closing clauses, and " +
+      "lowered to the figure measured with it (D-10)",
+    read: 103_284,
+    book: 176_346,
+    full: 206_730
   }
 ];
 

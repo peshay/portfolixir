@@ -2233,11 +2233,27 @@ Beispiel-Payloads für Konten:
   Wertpapier unter einer anderen Kategorie verliert, `422` liefert und nichts
   speichert. Jedes serialisierte Ziel trägt `security_id` (`null` bei einer
   Kategoriezeile).
+  **Eine Planversion (Issue #1133):** Ein optionales `"plan_id": id` schreibt
+  diese Planversion — einen Entwurf aus `POST /api/v1/plans/:id/duplicate`
+  oder den aktiven Plan — statt des aktiven Plans der View, sodass die
+  Kategorie- und Positionsziele eines Entwurfs über die API bearbeitet werden
+  wie im SOLL-Editor und er aktiviert wird, wenn er fertig ist; die Lesezugriffe
+  folgen weiter dem aktiven Plan. Der Plan muss einer dieses Portfolios sein,
+  dieser Klassifizierung und, wenn `view` angegeben ist, dieser View, und er
+  darf nicht `archived` sein: Eine archivierte Version steuert nichts und wird
+  wiederverwendet, indem man sie aktiviert oder in einen Entwurf dupliziert.
+  Eine fehlerhafte id, ein unbekannter Plan oder der eines anderen Portfolios,
+  einer anderen Klassifizierung, einer anderen View und ein archivierter
+  liefern je `422` auf `plan_id` (`is invalid`, `is not a plan of this
+  portfolio`, `is a plan of another classification`, `is a plan of another
+  view`, `is archived: activate it, or duplicate it into a draft`) und
+  schreiben nichts.
 - `DELETE /api/v1/portfolios/:portfolio_id/targets/:category_id` entfernt das
   **Kategorie**-Zielgewicht eines Portfolios für eine Kategorie und liefert
   `{deleted}` (die Zahl der entfernten Zeilen). Die Positionszeilen der
   Kategorie bleiben bestehen. Optionales `view` wählt den Plan (weggelassen =
-  Gesamt).
+  Gesamt); optionales `plan_id` adressiert eine Planversion wie beim `PUT`,
+  mit denselben `422`.
 - `GET /api/v1/portfolios/:portfolio_id/position_targets` listet die SOLL-Ziele
   eines Portfolios auf **Positionsebene** (ADR-0030): `{"position_targets":
   [...], "effective_targets": [...]}`. Jede `position_targets`-Zeile ist ein
@@ -2268,7 +2284,8 @@ Beispiel-Payloads für Konten:
 - `DELETE /api/v1/portfolios/:portfolio_id/position_targets/:category_id/:security_id`
   entfernt ein Positionsziel und liefert `{deleted}`. Die Kategoriezeile und
   die übrigen Positionen der Kategorie bleiben unberührt. Optionales `view`
-  wählt den Plan.
+  wählt den Plan; optionales `plan_id` adressiert eine Planversion wie beim
+  `PUT`.
 - `GET /api/v1/portfolios/:portfolio_id/plans` listet die SOLL-**Planversionen**
   eines Portfolios (ADR-0027): zuerst die aktive, dann Entwürfe und
   archivierte Pläne, jeweils mit `name`, `status` (`active` / `draft` /
@@ -4095,9 +4112,11 @@ Seit ADR-0027 verwalten die Plan-Tools (`portfolixir.plans.list`,
 `portfolixir.plans.duplicate`, `portfolixir.plans.activate`,
 `portfolixir.plans.rename`, `portfolixir.plans.delete`) benannte
 Plan-**Versionen**: den aktiven Plan in einen Entwurf duplizieren, den Entwurf
-im SOLL-Editor bearbeiten (die SOLL-Ziel-Tools nehmen keine Plan-id, ihre
-Schreibzugriffe bearbeiten also, mit oder ohne `view`, den aktiven Plan) und
-ihn dann aktivieren. Die Snapshot-Tools (`portfolixir.snapshots.list`,
+bearbeiten, indem seine id als `plan_id` an `portfolixir.targets.set`,
+`portfolixir.targets.delete` und `portfolixir.targets.delete_position` geht
+(Issue #1133; ohne sie schreiben sie den aktiven Plan der View, und ein
+archivierter Plan wird abgelehnt), oder im SOLL-Editor, und ihn dann
+aktivieren. Die Snapshot-Tools (`portfolixir.snapshots.list`,
 `portfolixir.snapshots.create`, `portfolixir.snapshots.delete`,
 `portfolixir.snapshots.comparison`) frieren einen Depotstand als Marker ein
 und lesen den kontrafaktischen Vergleich; jeder Finanzwert im Vergleich ist
