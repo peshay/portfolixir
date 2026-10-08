@@ -7,7 +7,8 @@ description: Heuristic asset class classification runs at read time on name/ISIN
 # ADR-0012: Asset class inference at read time
 
 - **Status:** Accepted; its summary of the pipeline is corrected to the code
-  by the note of 2026-10-03 below (#929), the decision unchanged
+  by the note of 2026-10-03 below (#929), and the note of 2026-10-08 adds
+  the bond step (#1127), the decision unchanged
 - **Date:** 2026-06-11
 
 ## Context
@@ -85,6 +86,29 @@ inference entirely.
 > - **The `is_nil` filter is keyed on the stored class** (#700): it lists
 >   every security with no stored class, including those whose class is
 >   inferred (shown as derived), not only those no heuristic resolves.
+
+> **Note 2026-10-08 (#1127, the Sprint 20 plan's D-4):** the pipeline gains
+> a **bond** step between the derivative leaf class and `equity_or_nil`, so
+> a bond named with its issuer's legal form is no longer read as a share. A
+> name is `bond` when it carries Anleihe, Schuldverschreibung or Pfandbrief,
+> also as the last part of a compound (Unternehmensanleihe,
+> Inhaberschuldverschreibung, Hypothekenpfandbrief), or the word Notes,
+> Obligation or Obligationen, and no structured-product word (a certificate
+> is legally a Schuldverschreibung too). Not "Bond", which company names
+> use, and not a bare coupon-and-year pattern ("4,10% 2028/2033"), which
+> shares and funds carry too. The steps before it still decide first:
+> "Aktienanleihe" stays `reverse_convertible`, "Bundesanleihe"
+> `government_bond`, an ETF token `etf`. It reaches new securities only, as
+> Sprint 19's D-5 keeps the stored class: a class stored before — such a
+> bond was stored as `equity` — is not rewritten, and the step reaches a
+> stored row only by the paths the note of 2026-10-03 names. The decision
+> is unchanged. The pipeline as the code runs it:
+>
+> ```
+> stored class → government_bond → etf → crypto → commodity →
+>   derivative leaf class → bond → equity_or_nil → fund_or_nil →
+>   logo fallback (equity) → nil
+> ```
 
 ## Consequences
 

@@ -883,11 +883,14 @@ asset class changes. They are read while the effective asset class is
 has **no** asset class, stored or inferred (its `asset_class` is `null` and
 the name and logo rules infer none), carries a `maturity_date` or a
 `coupon_rate`, and has a name the inference does not read as a structured
-product's: the name inference recognises only government-bond names, so
-that master data is what marks a corporate bond without a class as a bond.
-A security with any other class, stored or inferred, is no bond, whatever
-master data it carries; a bond whose name carries its issuer's legal form is
-stored as `equity` on create and needs its `asset_class` set to `bond`.
+product's: the name inference recognises government-bond names and, since
+issue #1127, the explicit bond words (Anleihe, Schuldverschreibung,
+Pfandbrief, Notes, Obligation), so that master data is what marks a
+corporate bond named without one and without a class as a bond. A security
+with any other class, stored or inferred, is no bond, whatever master data
+it carries; a bond whose name carries its issuer's legal form and no bond
+word is stored as `equity` on create, as is one with a bond word stored
+before issue #1127, and needs its `asset_class` set to `bond`.
 The MCP tools `portfolixir.securities.create` and
 `portfolixir.securities.update` take them (the update also `null`).
 

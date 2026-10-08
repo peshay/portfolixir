@@ -127,7 +127,20 @@ Reihenfolge, und die erste, die greift, entscheidet:
 
    Eine allgemeine Derivate-Klasse gibt es nicht: Ein Zertifikat, auf das
    keines dieser Wörter passt (etwa ein Indexzertifikat), bleibt ohne Klasse.
-6. **equity** — der Name trägt eine Aktien- oder Rechtsform-Markierung —
+6. **bond** (#1127) — der Name sagt, dass es eine Anleihe ist: Anleihe,
+   Schuldverschreibung oder Pfandbrief, auch als letzter Teil eines
+   zusammengesetzten Worts (Unternehmensanleihe, Inhaberschuldverschreibung,
+   Hypothekenpfandbrief, nicht aber Anleihenfonds), oder Notes, Obligation
+   oder Obligationen als Wort — **und** kein Wort eines strukturierten
+   Produkts (die Ausschlüsse der Regel 7; ein Zertifikat ist rechtlich
+   ebenfalls eine Schuldverschreibung). Sie kommt vor den Aktien, weil der
+   Name einer Anleihe oft die Rechtsform ihres Emittenten trägt („Muster SE
+   Anleihe 2030“). „Bond“ gehört nicht zu den Wörtern, weil Firmennamen es
+   tragen, ebenso wenig ein bloßer Kupon mit Jahr („Muster AG 4,10%
+   2028/2033“), den auch Aktien und Fonds tragen; Aktienanleihe,
+   Bundesanleihe und einen Namen mit ETF-Kennung entscheiden die Regeln
+   davor.
+7. **equity** — der Name trägt eine Aktien- oder Rechtsform-Markierung —
    Registered Shares, Reg. Shares, Registered Part. Shares, Inhaber-Aktien,
    Namens-Aktien, Vorzugsaktien, Actions, Aandelen, Common Stock, Inc., Corp.,
    Corporation, Company, Co., Ltd., AG, SE, PLC, S.p.A., S.A. oder SA, S.A.S.
@@ -137,15 +150,15 @@ Reihenfolge, und die erste, die greift, entscheidet:
    INH.ON, **und** kein Wort eines strukturierten Produkts (Turbo, Disc,
    Discount, Call, Put, Optionsschein, Zertifikat, O.End,
    Em.-u.Handelsg.mbH).
-7. **fund** — der Name trägt einen Fondsanbieter (iShares, Vanguard, Lyxor,
+8. **fund** — der Name trägt einen Fondsanbieter (iShares, Vanguard, Lyxor,
    Amundi, AIS-AM, Xtrackers, SPDR, Invesco, WisdomTree, VanEck, Fidelity,
    Deka), und keine Regel oben griff; ein Name, der zusätzlich eine
-   Rechtsform trägt, ist nach Regel 6, die vorher läuft, eine Aktie.
-8. **equity, aus dem Logo** (#408) — ein Wertpapier, das keine Regel
+   Rechtsform trägt, ist nach Regel 7, die vorher läuft, eine Aktie.
+9. **equity, aus dem Logo** (#408) — ein Wertpapier, das keine Regel
    aufgelöst hat und das eine ISIN **und** ein gespeichertes Firmen-Logo hat,
    gilt als Aktie: Die Logo-Suche hat schon entschieden, dass es ein
    Unternehmen ist, und die ISIN kennzeichnet ein börsennotiertes Instrument.
-9. Sonst hat das Wertpapier keine Klasse: Es ist nicht klassifiziert.
+10. Sonst hat das Wertpapier keine Klasse: Es ist nicht klassifiziert.
 
 Die Regeln unterscheiden nicht zwischen Groß- und Kleinschreibung, und die
 meisten passen nur auf ganze Wörter. Seit Issue #1078 gilt das auch für die
@@ -169,7 +182,7 @@ zu setzen, klärt jeden Fall, den die Regeln verfehlen.
 **Wann eine Klasse gespeichert wird.** Die Klasse wird nicht nur beim Lesen
 abgeleitet. Jedes Anlegen oder Ändern der Stammdaten eines Wertpapiers — in
 der App, über die API oder MCP oder durch einen Import — speichert die
-Klasse, die die Regeln 1–7 ergeben, solange noch keine gespeichert ist (die
+Klasse, die die Regeln 1–8 ergeben, solange noch keine gespeichert ist (die
 Logo-Regel läuft nur beim Lesen), und das Speichern des Formulars eines
 Wertpapiers speichert die Klasse, die das Formular zeigt, ob abgeleitet oder
 nicht. Eine gespeicherte Klasse, gleich wer sie gespeichert hat, wird
@@ -576,14 +589,18 @@ seine Übersicht zeigt den Anleiheblock, und der Wächter liest es —, wenn
 seine Anlageklasse Anleihe oder Staatsanleihe ist — gesetzt oder aus dem
 Namen abgeleitet — **oder** wenn es **keine** Anlageklasse zeigt (keine
 gesetzte, keine abgeleitete) und Anleihe-Stammdaten trägt: eine Fälligkeit
-oder einen Kupon. Die Namensinferenz erkennt nur Namen von Staatsanleihen;
-eine Unternehmensanleihe ohne Klasse kommt also unter den Wächter, sobald
-ihre Fälligkeit oder ihr Kupon erfasst ist (oder ihre Klasse gesetzt); der
-Dialog zeigt ihre *Anleihedaten*, solange die Klasse leer ist, sodass sie
-dort korrigiert werden können. Eine Anleihe, deren Name die Rechtsform ihres
-Emittenten trägt („Muster AG 4,10% 2028/2033“), wird beim Anlegen als Aktie
-gespeichert, und die Stammdaten allein ändern daran nichts: Ihre Klasse
-muss auf Anleihe (oder Staatsanleihe) gesetzt werden. Ein Wertpapier ohne
+oder einen Kupon. Die Namensinferenz erkennt Namen von Staatsanleihen und,
+seit Issue #1127, die ausdrücklichen Anleihe-Wörter der Regel 6 (Anleihe,
+Schuldverschreibung, Pfandbrief, Notes, Obligation); eine
+Unternehmensanleihe ohne Klasse, deren Name keines davon trägt, kommt also
+unter den Wächter, sobald ihre Fälligkeit oder ihr Kupon erfasst ist (oder
+ihre Klasse gesetzt); der Dialog zeigt ihre *Anleihedaten*, solange die
+Klasse leer ist, sodass sie dort korrigiert werden können. Eine Anleihe,
+deren Name die Rechtsform ihres Emittenten, aber kein Anleihe-Wort trägt
+(„Muster AG 4,10% 2028/2033“), wird beim Anlegen als Aktie gespeichert,
+ebenso eine mit Anleihe-Wort, die vor Issue #1127 angelegt wurde und ihre
+gespeicherte Klasse behält; die Stammdaten allein ändern daran nichts: Ihre
+Klasse muss auf Anleihe (oder Staatsanleihe) gesetzt werden. Ein Wertpapier ohne
 Klasse und ohne Stammdaten — etwa eine nicht klassifizierte Aktie, die sich
 verzwanzigfacht hat — wird nie genannt; ebenso wenig ein Name, den die
 Inferenz als strukturiertes Produkt liest, dessen Laufzeitende als

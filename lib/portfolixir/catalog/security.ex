@@ -346,10 +346,38 @@ defmodule Portfolixir.Catalog.Security do
       crypto_name?(name) or crypto_ticker?(ticker_symbol) -> "crypto"
       commodity_name?(name) -> "commodity"
       # Certificate/leverage products are checked before equities because their
-      # names often also carry an issuer suffix (e.g. "Aktienanleihe … AG").
-      true -> derivative_class(name) || equity_or_nil(name) || fund_or_nil(name)
+      # names often also carry an issuer suffix (e.g. "Aktienanleihe … AG"),
+      # and so are the explicit bond words (#1127), for the same reason.
+      true -> derivative_class(name) || bond_or_nil(name) || company_class(name)
     end
   end
+
+  defp company_class(name), do: equity_or_nil(name) || fund_or_nil(name)
+
+  # #1127 (the Sprint 20 plan's D-4): a name that says it is a bond is one,
+  # whatever legal form its issuer carries. Anleihe, Schuldverschreibung and
+  # Pfandbrief also end a German compound (Unternehmensanleihe,
+  # Inhaberschuldverschreibung, Hypothekenpfandbrief), whose last part names
+  # the thing, so "Anleihenfonds" is no bond; Notes and Obligation(en) are
+  # words. "Bond" is not one of them, because company names use it, and
+  # neither is a bare coupon-and-year pattern ("4,10% 2028"), which shares
+  # and funds carry too. The rules before this one still decide first
+  # ("Aktienanleihe" is a reverse convertible, "Bundesanleihe" a government
+  # bond, an ETF token an etf), and a structured-product word keeps a name
+  # from bond as it does from equity: a certificate is legally a
+  # Schuldverschreibung as well.
+  defp bond_or_nil(name) do
+    if bond_name?(name) and not structured_product_name?(name), do: "bond", else: nil
+  end
+
+  defp bond_name?(name) when is_binary(name) do
+    Regex.match?(
+      ~r/(anleihe|schuldverschreibung|pfandbrief)\b|\bNotes\b|\bObligation(?:en)?\b/iu,
+      name
+    )
+  end
+
+  defp bond_name?(_), do: false
 
   # Physically-backed precious-metal products (e.g. EUWAX/Xetra Gold) and
   # bare precious-metal holdings (e.g. a "Gold" position on bitcoin.de). The

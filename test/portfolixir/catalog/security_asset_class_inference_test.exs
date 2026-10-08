@@ -154,6 +154,73 @@ defmodule Portfolixir.Catalog.SecurityAssetClassInferenceTest do
     end
   end
 
+  # User story (#1127; the Sprint 20 plan's D-4):
+  # As the operator adding a corporate bond whose name carries its issuer's
+  # legal form,
+  # I want a name that says "Anleihe", "Schuldverschreibung", "Pfandbrief",
+  # "Notes" or "Obligation" classed as a bond, not as a share,
+  # so that the bond comes under the two-scales guard without my setting
+  # its class by hand.
+  #
+  # Acceptance criteria:
+  # - The explicit bond words map to `bond`, ahead of the legal-form rule:
+  #   Anleihe, Schuldverschreibung and Pfandbrief also as the last part of a
+  #   compound (Unternehmensanleihe, Inhaberschuldverschreibung,
+  #   Hypothekenpfandbrief); Notes, Obligation and Obligationen as words.
+  # - Not a bond: a bare coupon-and-year pattern ("4,10% 2028/2033") and the
+  #   word "Bond", which company names use; a compound whose last part is
+  #   another noun ("Anleihenfonds"), and "Notes" inside a word.
+  # - The rules before it still decide first: "Aktienanleihe" stays
+  #   `reverse_convertible`, "Bundesanleihe" `government_bond`, a name with
+  #   an ETF token `etf`; and a name with a structured-product word is no
+  #   bond (a certificate is legally a Schuldverschreibung too).
+  # - New securities only (Sprint 19's D-5): a stored class is kept on a
+  #   later write; nothing stored is reclassified.
+  describe "bond heuristics — explicit bond words (#1127)" do
+    for {name, class} <- [
+          {"Muster Industrie AG Anleihe 2028/2033", "bond"},
+          {"Muster SE Anleihe 2030", "bond"},
+          {"Muster Corp 5% Notes 2031", "bond"},
+          {"Muster Logistik AG Unternehmensanleihe 2029", "bond"},
+          {"Muster Bank AG Inhaberschuldverschreibung 2029", "bond"},
+          {"Muster Bank AG Schuldverschreibung 2030", "bond"},
+          {"Muster Hypothekenbank AG Pfandbrief 2031", "bond"},
+          {"Muster Hypothekenbank Hypothekenpfandbrief 2032", "bond"},
+          {"Muster Kantonalbank Obligation 2030", "bond"},
+          {"Muster Energie AG Obligationen 2031", "bond"},
+          {"Muster Industrie AG 4,10% 2028/2033", "equity"},
+          {"Muster Bond Corp", "equity"},
+          {"Muster Bond 2030", nil},
+          {"Muster Anleihenfonds", nil},
+          {"Muster Notesbank AG", "equity"},
+          {"Muster Bank AG Aktienanleihe 2027", "reverse_convertible"},
+          {"Bundesanleihe 2030", "government_bond"},
+          {"Muster Pfandbrief UCITS ETF", "etf"},
+          {"Muster Bank AG Indexzertifikat Schuldverschreibung", nil}
+        ] do
+      test "'#{name}' is #{inspect(class)}" do
+        assert stored_class(unquote(name)) == unquote(class)
+      end
+    end
+
+    test "a class stored before is kept when the security is written again" do
+      {:ok, security} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: "Muster Industrie AG 3,50% 2030",
+          currency_code: "EUR"
+        })
+
+      assert security.asset_class == "equity"
+
+      {:ok, renamed} =
+        Catalog.update_security(Portfolixir.Actor.owner_ui(), security, %{
+          name: "Muster Industrie AG Anleihe 3,50% 2030"
+        })
+
+      assert renamed.asset_class == "equity"
+    end
+  end
+
   describe "equity heuristics — ADR / GDR / depositary receipts" do
     for {name, ticker, description} <- [
           {"Daeyang Motor Co GDRs", nil, "GDRs"},

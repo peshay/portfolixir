@@ -14,9 +14,10 @@ defmodule Portfolixir.Portfolios.Bonds do
   effective asset class is `bond` or `government_bond`, **or** one that
   has no asset class as shown (no effective class: none stored, none
   inferred) and carries ADR-0052's master data — a maturity date or a
-  coupon rate. The name inference recognises only government-bond names,
-  so a corporate bond without a class escaped the guard before; the master
-  data is the positive signal that brings it back. It does not widen to
+  coupon rate. The name inference recognises government-bond names and
+  explicit bond words only (#1127), so a corporate bond named without one
+  and without a class escaped the guard before; the master data is the
+  positive signal that brings it back. It does not widen to
   every unclassed security, which would name an unclassed share that rose
   twentyfold, nor to a name the inference reads as a structured product
   (`Security.structured_product_name?/1`), whose expiry may be stored as a

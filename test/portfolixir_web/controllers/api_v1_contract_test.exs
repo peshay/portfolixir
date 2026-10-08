@@ -198,6 +198,17 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "a record stored before keeps what it holds" and &1 =~ "#1159")
            )
 
+    # #1127 (C6): a security write that leaves the class empty stores bond
+    # for a name with an explicit bond word; a stored class is kept.
+    assert newest["summary"] =~ "#1127"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "POST /api/v1/securities and PATCH") and
+                 &1 =~ "stores bond where the name carries an explicit bond word" and
+                 &1 =~ "A class stored before is kept" and &1 =~ "#1127")
+           )
+
     # Sprint 20, commit group β (version 16, after Sprint 19 PR β's 15): what
     # the ledger reports about it, the ADR-0015 amendment of 2026-10-07. B1
     # opened the entry (#1108): a cross-currency closed trade's fees and

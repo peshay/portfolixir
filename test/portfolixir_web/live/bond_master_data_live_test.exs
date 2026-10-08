@@ -496,7 +496,7 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
 
     {:ok, reverse} =
       Catalog.create_security(Actor.owner_ui(), %{
-        name: "Ostsee Hafen Anleihe",
+        name: "Ostsee Hafen 3% 2031",
         currency_code: "EUR",
         coupon_rate: "3"
       })
@@ -519,7 +519,7 @@ defmodule PortfolixirWeb.BondMasterDataLiveTest do
                "a quote around 1 is not a percent of face:"
 
     assert reverse_note =~
-             "Ostsee Hafen Anleihe no asset class (quote 0.981 · price per unit 98.4)"
+             "Ostsee Hafen 3% 2031 no asset class (quote 0.981 · price per unit 98.4)"
 
     assert has_element?(
              wealth,
