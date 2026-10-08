@@ -88,9 +88,13 @@ defmodule Portfolixir.Imports do
   cash-account and depot name, where a row counts under every name it
   carries; per security reference (`securities`, keyed as
   `resolve_securities/1` keys its resolutions) on the hash layers alone
-  (#923). See `Portfolixir.Imports.Applier.reimport_counts/3`;
-  `dry_run: false` counts on the hash layers alone, without the rolled-back
-  run of the apply that judges the rest.
+  (#923); and the file's names unknown to the stored history
+  (`unseen_names`, ADR-0050 §2 as amended on 2026-10-07: no row under the
+  name is held by a stored or a retired content hash, while another name of
+  the file has one), which the preview leaves without a prefill. See
+  `Portfolixir.Imports.Applier.reimport_counts/3`; `dry_run: false` counts on
+  the hash layers alone, without the rolled-back run of the apply that judges
+  the rest, and names the same unseen names.
 
   Read-only. The hash names the portfolio the import binds to: `:portfolio_id`
   when given, otherwise the internal default portfolio the Imports view binds
@@ -101,7 +105,8 @@ defmodule Portfolixir.Imports do
           total: Applier.layer_counts(),
           cash_accounts: %{String.t() => Applier.layer_counts()},
           depots: %{String.t() => Applier.layer_counts()},
-          securities: %{String.t() => Applier.layer_counts()}
+          securities: %{String.t() => Applier.layer_counts()},
+          unseen_names: Applier.unseen_names()
         }
   def reimport_counts(%Preview{} = preview, opts \\ []) when is_list(opts) do
     Applier.reimport_counts(preview, import_portfolio_id(opts),
