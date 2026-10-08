@@ -18,9 +18,10 @@ defmodule Portfolixir.Buckets do
 
   This context is the **only** writer of the bucket/view tables, with that
   frozen pair as the one exception: plain SQL that only the migration runs.
-  Its seed journals what the writers here journal; its rollback journals only
-  the bucket deletes and lets the foreign keys remove the links, unjournaled,
-  as that version did. Every other write is born actor-first (ADR-0017):
+  Its seed journals what the writers here journaled at its version, an
+  assignment's new set with no before-image (the writers here add one since
+  #953); its rollback journals only the bucket deletes and lets the foreign
+  keys remove the links, unjournaled, as that version did. Every other write is born actor-first (ADR-0017):
   bucket-definition, assignment and view-definition writes are routed
   through `Journal.record/3` in the same `Ecto.Multi`, so each is
   attributable in the audit journal. View-definition writes were
@@ -372,7 +373,9 @@ defmodule Portfolixir.Buckets do
 
   @doc """
   Replaces the depot's default bucket set with `bucket_ids` on behalf of `actor`.
-  Recorded as one aggregate `depot_bucket_assignment` journal entry.
+  Recorded as one aggregate `depot_bucket_assignment` journal entry, with the
+  set as stored before and after the write (#953); resending the stored set
+  journals nothing (G02).
 
   The depot row is locked first (E25 S6, G10), so two writers of one set
   take turns and the later one's set is the one stored. A depot deleted in
@@ -388,23 +391,30 @@ defmodule Portfolixir.Buckets do
 
     Multi.new()
     |> lock_owner(SecuritiesAccount, sa_id)
+    |> Multi.run(:before_set, fn _repo, _changes -> {:ok, depot_set_image(sa_id)} end)
     |> validate_assignment(bucket_ids, check)
     |> Multi.delete_all(
       :clear,
       from(x in SecuritiesAccountBucket, where: x.securities_account_id == ^sa_id)
     )
     |> insert_all_step(:assign, SecuritiesAccountBucket, entries)
-    |> Multi.run(:record, fn _repo, _changes ->
-      {:ok, %{id: nil, securities_account_id: sa_id, bucket_ids: bucket_ids}}
-    end)
+    |> Multi.run(:record, fn _repo, _changes -> {:ok, depot_set_image(sa_id)} end)
     |> Journal.record(actor,
       resource_type: "depot_bucket_assignment",
       operation: :update,
-      source: :record
+      source: :record,
+      before_step: :before_set
     )
     |> Repo.transaction()
     |> normalize_assignment_result()
   end
+
+  # #953: a depot's default set as its journal entry images it, the set as
+  # stored, in id order. Read under the depot's lock it is the before-image;
+  # read after the write, the after-image, so an unchanged set leaves no
+  # entry (ADR-0017, G02).
+  defp depot_set_image(sa_id),
+    do: %{id: nil, securities_account_id: sa_id, bucket_ids: depot_default_bucket_ids(sa_id)}
 
   @doc "Bucket ids in a depot's default set."
   def depot_default_bucket_ids(securities_account_id) do
@@ -421,7 +431,9 @@ defmodule Portfolixir.Buckets do
 
   @doc """
   Replaces a cash account's bucket set with `bucket_ids` on behalf of `actor`.
-  Recorded as one aggregate `cash_account_bucket_assignment` journal entry.
+  Recorded as one aggregate `cash_account_bucket_assignment` journal entry,
+  with the set as stored before and after the write (#953); resending the
+  stored set journals nothing (G02).
 
   The cash-account row is locked first (E25 S6, G10), as the depot writer
   locks its depot. A cash account deleted in the meantime answers
@@ -437,23 +449,28 @@ defmodule Portfolixir.Buckets do
 
     Multi.new()
     |> lock_owner(CashAccount, ca_id)
+    |> Multi.run(:before_set, fn _repo, _changes -> {:ok, cash_set_image(ca_id)} end)
     |> validate_assignment(bucket_ids, check)
     |> Multi.delete_all(
       :clear,
       from(x in CashAccountBucket, where: x.cash_account_id == ^ca_id)
     )
     |> insert_all_step(:assign, CashAccountBucket, entries)
-    |> Multi.run(:record, fn _repo, _changes ->
-      {:ok, %{id: nil, cash_account_id: ca_id, bucket_ids: bucket_ids}}
-    end)
+    |> Multi.run(:record, fn _repo, _changes -> {:ok, cash_set_image(ca_id)} end)
     |> Journal.record(actor,
       resource_type: "cash_account_bucket_assignment",
       operation: :update,
-      source: :record
+      source: :record,
+      before_step: :before_set
     )
     |> Repo.transaction()
     |> normalize_assignment_result()
   end
+
+  # #953: a cash account's set as its journal entry images it, as the depot's
+  # is.
+  defp cash_set_image(ca_id),
+    do: %{id: nil, cash_account_id: ca_id, bucket_ids: cash_account_bucket_ids(ca_id)}
 
   @doc "Bucket ids assigned to a cash account."
   def cash_account_bucket_ids(cash_account_id) do
@@ -484,6 +501,10 @@ defmodule Portfolixir.Buckets do
   to bucket rows. The security is held next, the order the hardened security
   delete takes (#919). A depot or a security deleted in the meantime answers
   `{:error, :not_found}`.
+
+  Journaled with the override as stored before and after the write (#953):
+  none before for an inheriting position, an empty set for explicit-empty.
+  Resending the stored override journals nothing (G02).
   """
   def set_position_override(
         %Actor{} = actor,
@@ -512,16 +533,16 @@ defmodule Portfolixir.Buckets do
     Multi.new()
     |> lock_owner(SecuritiesAccount, sa_id)
     |> hold_security(sec_id)
+    |> Multi.run(:before_override, fn _repo, _changes -> {:ok, override_image(sa_id, sec_id)} end)
     |> validate_assignment(bucket_ids, check)
     |> Multi.delete_all(:clear, position_override_query(sa_id, sec_id))
     |> Multi.insert_all(:assign, PositionBucketOverride, entries)
-    |> Multi.run(:record, fn _repo, _changes ->
-      {:ok, %{id: nil, securities_account_id: sa_id, security_id: sec_id, bucket_ids: bucket_ids}}
-    end)
+    |> Multi.run(:record, fn _repo, _changes -> {:ok, override_image(sa_id, sec_id)} end)
     |> Journal.record(actor,
       resource_type: "position_bucket_override",
       operation: :update,
-      source: :record
+      source: :record,
+      before_step: :before_override
     )
     |> Repo.transaction()
     |> normalize_assignment_result()
@@ -529,9 +550,10 @@ defmodule Portfolixir.Buckets do
 
   @doc """
   Clears the per-position override, returning the position to **inherit** the
-  depot default. Recorded as a `position_bucket_override` delete. Takes the
-  depot's lock first, then holds the security, like the override writer
-  (E25 S6, G10; #919).
+  depot default. Recorded as a `position_bucket_override` delete whose
+  before-image is the override it removed (#953). Takes the depot's lock
+  first, then holds the security, like the override writer (E25 S6, G10;
+  #919).
   """
   def clear_position_override(
         %Actor{} = actor,
@@ -541,6 +563,7 @@ defmodule Portfolixir.Buckets do
     Multi.new()
     |> lock_owner(SecuritiesAccount, sa_id)
     |> hold_security(sec_id)
+    |> Multi.run(:before_override, fn _repo, _changes -> {:ok, override_image(sa_id, sec_id)} end)
     |> Multi.delete_all(:clear, position_override_query(sa_id, sec_id))
     |> Multi.run(:record, fn _repo, _changes ->
       {:ok, %{id: nil, securities_account_id: sa_id, security_id: sec_id}}
@@ -548,7 +571,8 @@ defmodule Portfolixir.Buckets do
     |> Journal.record(actor,
       resource_type: "position_bucket_override",
       operation: :delete,
-      source: :record
+      source: :record,
+      before_step: :before_override
     )
     |> Repo.transaction()
     |> normalize_assignment_result()
@@ -565,6 +589,22 @@ defmodule Portfolixir.Buckets do
     )
     |> Repo.all()
     |> classify_override({securities_account_id, security_id})
+  end
+
+  # #953: a position's override as its journal entry images it: none for an
+  # inheriting position, an empty set for explicit-empty, else the set as
+  # stored, in id order.
+  defp override_image(sa_id, sec_id) do
+    case position_override(sa_id, sec_id) do
+      :inherit ->
+        nil
+
+      :explicit_empty ->
+        %{id: nil, securities_account_id: sa_id, security_id: sec_id, bucket_ids: []}
+
+      {:explicit, bucket_ids} ->
+        %{id: nil, securities_account_id: sa_id, security_id: sec_id, bucket_ids: bucket_ids}
+    end
   end
 
   @doc "The resolved effective bucket ids for a position (override wins over depot default)."

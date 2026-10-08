@@ -49,7 +49,8 @@ defmodule Portfolixir.Journal do
       serialized into `before`. Defaults to `nil` (creates).
     * `:before_step` — instead of `:before`, the name of an earlier Multi step
       whose result is the prior image, for an aggregate the write reads
-      inside its own transaction (a view's definition, E25 S6, F45).
+      inside its own transaction (a view's definition, E25 S6, F45; a bucket
+      assignment's set, #953).
     * `:resource_id` — the id the entry is filed under when the `:source`
       record is an aggregate without one of its own (a security's quotes are
       filed under the security's id, E25 S6); defaults to the record's `id`.
