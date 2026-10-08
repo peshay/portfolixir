@@ -1587,7 +1587,7 @@ defmodule Portfolixir.DocsTest do
   #   first import and a file whose every name is known are prefilled as
   #   before.
   test "the handbook says why a renamed account's row waits for a choice" do
-    for {path, fragments} <- [
+    for {path, fragments, stale} <- [
           {"docs/product-documentation.md",
            [
              "**A name no booking was imported under.**",
@@ -1597,9 +1597,12 @@ defmodule Portfolixir.DocsTest do
              "**Confirm import** waits until you choose",
              "nothing is booked twice",
              "keeps the new name as a former name of that account",
+             # The α closing act (EC-F2): the name maps by itself only once
+             # a booking under it has been imported.
+             "which an import maps by itself once a booking under the new name has been imported",
              "*+ Create new* books the rows on a new account",
              "is prefilled as before"
-           ]},
+           ], "so the next import prefills it by itself"},
           {"docs/de/product-documentation.md",
            [
              "**Ein Name, unter dem nichts importiert ist.**",
@@ -1609,15 +1612,18 @@ defmodule Portfolixir.DocsTest do
              "**Import bestätigen** wartet, bis Sie wählen",
              "nichts wird doppelt gebucht",
              "behält den neuen Namen als früheren Namen dieses Kontos",
+             "den ein Import selbst zuordnet, sobald eine Buchung unter dem neuen Namen importiert ist",
              "*+ Neu anlegen* bucht die Zeilen auf ein neues Konto",
              "wird wie bisher vorbelegt"
-           ]}
+           ], "sodass der nächste Import ihn selbst vorbelegt"}
         ] do
       doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
 
       for fragment <- fragments do
         assert doc =~ fragment, "#{path}: #{fragment}"
       end
+
+      refute doc =~ stale, "#{path}: #{stale}"
     end
   end
 

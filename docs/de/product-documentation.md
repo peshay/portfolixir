@@ -3108,8 +3108,10 @@ bestehende Depot*). **Import bestätigen** wartet, bis Sie wählen, und der
 Hinweis „Vor dem Import noch zuzuordnen“ darüber nennt die Zeile. Wählen Sie
 das bestehende Konto, das umbenannt wurde: Seine früheren Buchungen werden als
 bereits gebucht erkannt, nichts wird doppelt gebucht, und **Zuordnung merken**
-(angehakt) behält den neuen Namen als früheren Namen dieses Kontos, sodass der
-nächste Import ihn selbst vorbelegt. *+ Neu anlegen* bucht die Zeilen auf ein
+(angehakt) behält den neuen Namen als früheren Namen dieses Kontos, den ein
+Import selbst zuordnet, sobald eine Buchung unter dem neuen Namen importiert
+ist; bis dahin fragt die Zeile erneut, und dasselbe Konto erneut zu wählen,
+bucht weiterhin nichts doppelt. *+ Neu anlegen* bucht die Zeilen auf ein
 neues Konto; wählen Sie es nur für ein Konto, das wirklich neu ist. Ein erster
 Import und eine Datei, in der kein Name oder jeder Name gespeicherten
 Buchungen gleicht, wird wie bisher vorbelegt.
