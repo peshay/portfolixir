@@ -607,30 +607,35 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
       assert {:error, {:refused, guards}} =
                Lifecycle.preview_depot_merge(ctx.source.id, ctx.target.id)
 
-      assert %{code: :position_buckets_mismatch, detail: detail} =
+      assert %{code: :position_buckets_mismatch, detail: detail, positions: [position]} =
                Enum.find(guards, &(not &1.passed))
 
-      assert detail =~ "Kestrel Industrial Group NV"
+      # #965: the position by its security's id; the name is the guard's data.
+      assert detail =~ "security ##{ctx.kestrel.id} carries an override"
+      refute detail =~ "Kestrel Industrial Group NV"
+      assert position.security_name == "Kestrel Industrial Group NV"
       assert detail =~ "scope"
       assert fingerprint() == before
     end
   end
 
-  describe "refusal details name the buckets (#978)" do
+  describe "refusal details name the buckets (#978, #965)" do
     # User story:
     # As the operator, or the agent, reading why a depot merge was refused,
-    # I want the refusal to name each bucket by its name and its id,
-    # so that I can find the bucket, rather than read the charlist
-    # (`~c"AB"`) that `inspect/1` printed for a list of small ids.
+    # I want the refusal to name each bucket and the position by its id,
+    # so that I can find them, rather than read the charlist (`~c"AB"`) that
+    # `inspect/1` printed for a list of small ids (#978), and so that a stored
+    # name that reads like an instruction never sits inside the app's own
+    # sentence (#965; ADR-0054 §4).
     #
     # Acceptance criteria:
     # - With bucket ids in the printable range, the default-bucket refusal
-    #   names each depot's buckets as "<name>" (#<id>), and says "no bucket"
-    #   for a depot that defaults to none.
-    # - The position refusal names the position's buckets in the source and
-    #   in the target the same way.
+    #   names each depot's buckets as #<id>, and says "no bucket" for a depot
+    #   that defaults to none; no bucket's name is in it.
+    # - The position refusal names the position as security #<id> and its
+    #   buckets in the source and in the target the same way.
     # - The refusal of a carried override with more than one scope bucket
-    #   names those buckets the same way.
+    #   names the position and those buckets the same way.
     # - No detail carries a charlist.
     test "the default-bucket and position refusals name printable-range buckets", ctx do
       worked_example!(ctx)
@@ -644,17 +649,21 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
 
       assert detail =~
                ~s[the source depot defaults to no bucket and the target depot to the buckets ] <>
-                 ~s["#{long.name}" (##{long.id}), "#{spec.name}" (##{spec.id}): view membership]
+                 ~s[##{long.id}, ##{spec.id}: view membership]
 
+      refute detail =~ long.name
+      refute detail =~ spec.name
       refute detail =~ "~c"
 
       :ok = Buckets.set_position_override(Actor.owner_ui(), ctx.source, ctx.meridian, [spec.id])
       detail = refused_detail!(ctx.source.id, ctx.target.id, :position_buckets_mismatch)
 
       assert detail =~
-               ~s[Meridian Global Equity ETF (security ##{ctx.meridian.id}) sits in the bucket ] <>
-                 ~s["#{spec.name}" (##{spec.id}) in the source and in no bucket in the target:]
+               ~s[security ##{ctx.meridian.id} sits in the bucket ##{spec.id} in the source ] <>
+                 ~s[and in no bucket in the target:]
 
+      refute detail =~ spec.name
+      refute detail =~ "Meridian"
       refute detail =~ "~c"
     end
 
@@ -673,10 +682,13 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
       detail = refused_detail!(ctx.source.id, ctx.target.id, :position_buckets_mismatch)
 
       assert detail =~
-               ~s[Kestrel Industrial Group NV (security ##{ctx.kestrel.id}) carries an override in ] <>
-                 ~s[the source with more than one scope bucket, "#{one.name}" (##{one.id}), ] <>
-                 ~s["#{two.name}" (##{two.id}), stored before a position could hold only one:]
+               ~s[security ##{ctx.kestrel.id} carries an override in the source with more ] <>
+                 ~s[than one scope bucket, ##{one.id}, ##{two.id}, stored before a position ] <>
+                 ~s[could hold only one:]
 
+      refute detail =~ one.name
+      refute detail =~ two.name
+      refute detail =~ "Kestrel"
       refute detail =~ "~c"
     end
   end
@@ -942,7 +954,9 @@ defmodule Portfolixir.Lifecycle.DepotMergeTest do
       assert %{code: :position_buckets_mismatch, detail: detail} =
                Enum.find(guards, &(not &1.passed))
 
-      assert detail =~ "Meridian Global Equity ETF"
+      # #965: the position by its security's id, never by its stored name.
+      assert detail =~ "security ##{ctx.meridian.id} sits in"
+      refute detail =~ "Meridian Global Equity ETF"
       refute detail =~ "Kestrel"
 
       # L5a: the refusal names its positions as data too, so a page can say

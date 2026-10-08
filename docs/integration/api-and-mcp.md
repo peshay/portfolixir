@@ -2738,7 +2738,9 @@ surviving it. A rule deleted since it was read is a `404` on all three.
 **What a rule reads is protected.** Deleting a security, a category, a
 classification or a view that a rule version (or a rule's context) references
 answers **`409`** with `errors.policy_rules` — each rule's `id`, `name` and
-`status` — and a `detail` stating the remedy. A version that has been in force
+`status` — and a `detail` naming each rule by its id and status
+(`policy rule(s): #7 (in_force)`), never by its name (#965), and stating the
+remedy. A version that has been in force
 keeps its subject as the record of what the standard was, so retiring the rule
 stops its evaluation but does not free the object; only a rule none of whose
 versions was ever in force can be deleted, which does. A security stays
@@ -3478,10 +3480,14 @@ account #5` (`errors.former_names`: "include the name of cash account #5 in
 this portfolio"), and a security merge's guard detail names its rules,
 depots, buckets and portfolios by their ids (`policy rule(s): #7 (in_force)`,
 `In depot #3`, `in portfolio #1`) and an identity's name as "its recorded
-name". The record's name is a field of the record, read by its id, or of the
-guard's data (`policy_rules[].name`, `positions[].securities_account_name`,
-`conflicts[].portfolio_name`, `failure.securities_account_name`,
-`unresolvable[].ref.name`). Portfolixir's screens keep naming it by its name.
+name". A delete refused because a policy rule reads the object (`409`) names
+the rules the same way, and a cash-account or depot merge's guard detail names
+its buckets and a position by their ids (`the buckets #3, #7`,
+`security #12 sits in the bucket #9`). The record's name is a field of the
+record, read by its id, or of the guard's data (`policy_rules[].name`,
+`positions[].securities_account_name`, `conflicts[].portfolio_name`,
+`failure.securities_account_name`, `unresolvable[].ref.name`). Portfolixir's
+screens keep naming it by its name.
 
 **A write that times out.** Every API call carries a 30-second deadline. A
 read that misses it — a `GET`, or one of the tools routed through `POST` that

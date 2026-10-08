@@ -382,6 +382,8 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
   # - The answer names the rules (id, name, status) and states the remedy:
   #   a rule that has been in force keeps its subject as part of its history;
   #   retiring stops its evaluation, and only a rule never in force is deleted.
+  # - The detail names each rule by its id and status, never by its stored
+  #   name, which travels in errors.policy_rules (#965; ADR-0054 §4).
   test "deleting what a rule reads is a 409 naming the rules",
        %{conn: conn, world: world, security: security} do
     {:ok, tree} =
@@ -458,7 +460,8 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleControllerTest do
 
       assert id == rule.id
       assert name == rule.name
-      assert errors["detail"] =~ "policy rule"
+      assert errors["detail"] =~ "is read by 1 policy rule(s): ##{rule.id} (in_force). "
+      refute errors["detail"] =~ rule.name
       assert errors["detail"] =~ "retire"
     end
 
