@@ -12,7 +12,7 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
   use Portfolixir.DataCase
 
   import Portfolixir.WorldFixtures,
-    only: [add_depot: 2, base_world: 1, buy!: 3, create_security!: 1, sell!: 3]
+    only: [add_depot: 2, base_world: 1, buy!: 3, create_security!: 1, cross_trade!: 3, sell!: 3]
 
   alias Portfolixir.Actor
   alias Portfolixir.Fx
@@ -305,5 +305,128 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
            }
 
     assert exact(realized_row(fund).realized_base) == "89.400000000000000000"
+  end
+
+  # -- identities 1 and 3: a closed trade in one currency ------------------------
+
+  defp exactly?(%Decimal{} = value, expected), do: Decimal.equal?(value, Decimal.new(expected))
+
+  defp cross_world do
+    world = base_world(name: "Cross", cash_name: "Cross Cash", depot_name: "Cross Depot")
+    fund = create_security!(name: "Dollar Fund", ticker: "DFD", currency: "USD")
+
+    # 1 EUR = 1.25 USD on every date, the rate stored as EUR per USD (0.8).
+    usd_rate!([~D[2025-04-01], ~D[2025-05-02]])
+
+    {world, fund}
+  end
+
+  # User story (#1108, the ADR-0015 amendment's identity 1):
+  # As a maintainer who buys and sells a USD security through my EUR account,
+  # I want the closed trade's basis, proceeds and realized result in dollars,
+  # with the fees my broker charged in euros converted at the trade's own rate,
+  # so that the realized result in euros is the cash the round trip moved.
+  #
+  # Acceptance criteria (exact Decimal expectations, risk-tier):
+  # - Buy 10 at 100 USD settled 800.00 EUR, fees 5.00 and taxes 1.00 EUR;
+  #   sell 10 at 120 USD settled 960.00 EUR, fees 3.00 EUR: basis 1,007.50
+  #   USD, proceeds 1,196.25 USD, realized 188.75 USD.
+  # - The fees and taxes the trade shows are in dollars: 6.25, 1.25 and 3.75.
+  # - The realized result is 151.00 EUR at the sale date's hub rate, equal to
+  #   the cash the round trip moved: 957.00 − 806.00.
+  # - The realized-gains report and the Overview card's newest trades read it.
+  test "a cross-currency closed trade is in its price currency, fees at its own rate (identity 1)" do
+    {world, fund} = cross_world()
+
+    buy =
+      cross_trade!(world, fund,
+        quantity: "10",
+        price: "100",
+        settled: "800.00",
+        fees: "5.00",
+        taxes: "1.00",
+        gross: "806.00",
+        date: ~D[2025-04-01]
+      )
+
+    sell =
+      cross_trade!(world, fund,
+        type: "sell",
+        quantity: "10",
+        price: "120",
+        settled: "960.00",
+        fees: "3.00",
+        gross: "957.00",
+        date: ~D[2025-05-02]
+      )
+
+    assert [trade] = closed(fund)
+    assert trade.currency_code == "USD"
+    assert exactly?(trade.basis, "1007.50")
+    assert exactly?(trade.proceeds, "1196.25")
+    assert exactly?(trade.realized_pnl_abs, "188.75")
+    assert exactly?(trade.buy_fees, "6.25")
+    assert exactly?(trade.buy_taxes, "1.25")
+    assert exactly?(trade.sell_fees, "3.75")
+    assert exactly?(trade.sell_taxes, "0")
+    assert [%{cost: lot_cost}] = trade.lots
+    assert exactly?(lot_cost, "1007.50")
+
+    cash_moved = Decimal.sub(sell.gross_amount, buy.gross_amount)
+    assert exactly?(cash_moved, "151.00")
+
+    row = realized_row(fund)
+    assert exactly?(row.realized_base, "151.00")
+    assert Decimal.equal?(row.realized_base, cash_moved)
+
+    assert %{trades: [newest]} = RealizedGains.newest_trades(1, base_currency: "EUR")
+    assert newest.security_id == fund.id
+    assert exactly?(newest.realized_base, "151.00")
+    assert exactly?(newest.basis, "1007.50")
+  end
+
+  # User story (#1108, the ADR-0015 amendment's identity 3):
+  # As a maintainer whose broker's rate is not the hub's,
+  # I want a cross-currency trade's fees converted at the rate the broker
+  # applied to that trade, not at the hub rate of its day,
+  # so that a cost converted once by the broker is not converted a second,
+  # different time.
+  #
+  # Acceptance criteria (exact Decimal expectations, risk-tier):
+  # - Buy 10 at 100 USD settled 750.00 EUR (0.75 EUR per USD), fees 6.00 and
+  #   taxes 1.50 EUR; sell 10 at 120 USD settled 960.00 EUR, fees 4.00 EUR:
+  #   basis 1,010.00 USD, proceeds 1,195.00 USD, realized 185.00 USD.
+  # - The realized result is 148.00 EUR at the sale date's hub rate; the hub
+  #   rate alternative would read 148.50, the code before the amendment
+  #   150.80.
+  test "a cross-currency trade's fees convert at the trade's own rate, not the hub's (identity 3)" do
+    {world, fund} = cross_world()
+
+    cross_trade!(world, fund,
+      quantity: "10",
+      price: "100",
+      settled: "750.00",
+      fees: "6.00",
+      taxes: "1.50",
+      gross: "757.50",
+      date: ~D[2025-04-01]
+    )
+
+    cross_trade!(world, fund,
+      type: "sell",
+      quantity: "10",
+      price: "120",
+      settled: "960.00",
+      fees: "4.00",
+      gross: "956.00",
+      date: ~D[2025-05-02]
+    )
+
+    assert [trade] = closed(fund)
+    assert exactly?(trade.basis, "1010.00")
+    assert exactly?(trade.proceeds, "1195.00")
+    assert exactly?(trade.realized_pnl_abs, "185.00")
+
+    assert exactly?(realized_row(fund).realized_base, "148.00")
   end
 end

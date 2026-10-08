@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Portfolixir.Journal.Entry, as: JournalEntry
   alias Portfolixir.Knowledge.SecurityEvent
   alias Portfolixir.Knowledge.SecurityNote
+  alias Portfolixir.Ledger
   alias Portfolixir.Ledger.TradeReturn
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.Allocation
@@ -506,6 +507,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # realized-gains read carries.
       computation_basis: %{
         annualized_return: TradeReturn.basis(),
+        # The ADR-0015 amendment of 2026-10-07 (#1108): the currency the
+        # fees and taxes in every lot and closed trade are in.
+        fees_and_taxes: Ledger.trade_fees_basis(),
         orphan_sells:
           "a sell the FIFO matcher could not pair with a buy, with the quantity no lot " <>
             "covered: an inbound delivery opens no lot, and a sell larger than the shares " <>
