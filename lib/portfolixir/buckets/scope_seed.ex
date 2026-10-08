@@ -40,6 +40,8 @@ defmodule Portfolixir.Buckets.ScopeSeed do
       portfolio as that version's data holds the name;
     * **the derived-data invalidation:** no derived value exists at that
       version (`derived_values` arrives with `20260814120000`);
+    * **an assignment entry's before-image** (#953): the seed journals an
+      account's new set only, as the writers did at that version;
     * **in the rollback, the journaled rewrites of a bucket's memberships
       before its delete,** and the protection of a view a policy rule reads.
       The rollback is the migration's `down`: it journals only the bucket

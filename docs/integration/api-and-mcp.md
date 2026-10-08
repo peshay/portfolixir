@@ -3244,6 +3244,12 @@ they replaced or released as the before-image.
   at their column's scale. Two writes made from one read therefore chain: the
   second's `before` is the first's `after`. A write to a record deleted in
   the meantime answers `404` and leaves no entry.
+- A bucket assignment's entry (`depot_bucket_assignment`,
+  `cash_account_bucket_assignment`, `position_bucket_override`) images the
+  set as stored, its `bucket_ids` in id order: `before` is the set when the
+  write locked its account, `after` the set it stored. A position override's
+  `before` is `null` where the position inherited its depot's set, and `[]`
+  where it had no buckets. Resending the stored set leaves no entry.
 
 Every financial write context journals: the rollout ADR-0017 sequenced is
 complete. Each table that holds financial records carries a guard trigger that

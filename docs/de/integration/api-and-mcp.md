@@ -3510,6 +3510,14 @@ freigegebenen Zeilen als Vorher-Abbild.
   daher aneinander: Das `before` des zweiten ist das `after` des ersten. Ein
   Schreibvorgang auf einen inzwischen gelöschten Datensatz antwortet mit `404`
   und hinterlässt keinen Eintrag.
+- Der Eintrag einer Bucket-Zuordnung (`depot_bucket_assignment`,
+  `cash_account_bucket_assignment`, `position_bucket_override`) bildet die
+  Menge ab, wie sie gespeichert ist, ihre `bucket_ids` nach id geordnet:
+  `before` ist die Menge, als der Schreibvorgang ihr Konto gesperrt hat,
+  `after` die Menge, die er gespeichert hat. Bei einer Positionsausnahme ist
+  `before` `null`, wo die Position die Menge ihres Depots geerbt hat, und
+  `[]`, wo sie keine Buckets hatte. Wer die gespeicherte Menge erneut sendet,
+  hinterlässt keinen Eintrag.
 
 Jeder Schreibkontext mit Finanzdaten journalisiert: Die Einführung, die
 ADR-0017 in Schritten geplant hat, ist abgeschlossen. Jede Tabelle mit
