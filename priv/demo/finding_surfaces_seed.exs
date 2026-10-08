@@ -122,15 +122,20 @@ if Ledger.list_transactions(portfolio_id: portfolio.id) == [] do
   IO.puts(
     "import: #{result.created_securities} securities, #{result.created_transactions} transactions"
   )
+
+  # Offline quote history for every imported security, with the import and
+  # only then (#1126): quotes_seed.exs writes a history for every security
+  # the catalog holds when it runs, so on a re-run it also reached the
+  # securities the later steps create — each with quotes of its own, or
+  # deliberately none — and, its random stream shifted by them, rewrote the
+  # imported ones. A re-run leaves the quotes as the first run left them.
+  Code.eval_file("priv/demo/quotes_seed.exs")
 else
-  IO.puts("import: already present, skipped")
+  IO.puts("import: already present, skipped (and the quote history with it)")
 end
 
-# Offline quote history for every imported security; both of these seeds are
-# idempotent in their own right (the quote upsert replaces, the Strategies tree
-# is dropped and rebuilt).
-Code.eval_file("priv/demo/quotes_seed.exs")
-# Strategies tree + target weights.
+# Strategies tree + target weights; idempotent in its own right (the tree is
+# dropped and rebuilt).
 Code.eval_file("priv/demo/strategies_seed.exs")
 
 # The demo seed's plan is complete: 85 % across the categories plus a 15 %
