@@ -13,6 +13,7 @@ defmodule Portfolixir.Buckets.AssignmentJournalTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Derived.DataVersion
   alias Portfolixir.Journal
 
   defp owner, do: Actor.owner_ui()
@@ -153,5 +154,54 @@ defmodule Portfolixir.Buckets.AssignmentJournalTest do
     assert cleared.operation == :delete
     assert cleared.before["bucket_ids"] == []
     assert Buckets.position_override(world.depot.id, security.id) == :inherit
+  end
+
+  # User story (#953, the clear's half):
+  # As the operator auditing a position's own buckets,
+  # I want clearing the override of a position that already inherits its
+  # depot's buckets to leave no journal entry and to invalidate nothing,
+  # so that the journal holds no delete that removed nothing, as a resent set
+  # leaves none (ADR-0017, G02).
+  #
+  # Acceptance criteria:
+  # - Clearing a position that inherits answers :ok, journals no
+  #   position_bucket_override entry, and bumps no derived basis: the
+  #   portfolio's data version is unchanged.
+  # - Clearing an override the position has still journals the delete with
+  #   the override it removed, and bumps the portfolio's data version.
+  # - Clearing it once more journals nothing and bumps nothing.
+  test "clearing an override a position does not have leaves no entry and bumps nothing" do
+    world = base_world(name: "Override Clear Portfolio")
+    security = create_security!(name: "Quarry Bay Logistics AG", ticker: "QBL")
+    core = bucket!("Core")
+    basis = DataVersion.portfolio_basis(world.portfolio.id)
+
+    override_entries = fn ->
+      "position_bucket_override"
+      |> entries("security_id", security.id)
+      |> Enum.filter(&(&1.after["securities_account_id"] == world.depot.id))
+    end
+
+    assert Buckets.position_override(world.depot.id, security.id) == :inherit
+    version = DataVersion.current(basis)
+
+    assert :ok = Buckets.clear_position_override(owner(), world.depot, security)
+    assert override_entries.() == []
+    assert DataVersion.current(basis) == version
+
+    assert :ok = Buckets.set_position_override(owner(), world.depot, security, [core.id])
+    assert [set] = override_entries.()
+    version = DataVersion.current(basis)
+
+    assert :ok = Buckets.clear_position_override(owner(), world.depot, security)
+    assert [cleared, ^set] = override_entries.()
+    assert cleared.operation == :delete
+    assert cleared.before["bucket_ids"] == [core.id]
+    assert DataVersion.current(basis) > version
+    version = DataVersion.current(basis)
+
+    assert :ok = Buckets.clear_position_override(owner(), world.depot, security)
+    assert [^cleared, ^set] = override_entries.()
+    assert DataVersion.current(basis) == version
   end
 end

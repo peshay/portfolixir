@@ -551,9 +551,10 @@ defmodule Portfolixir.Buckets do
   @doc """
   Clears the per-position override, returning the position to **inherit** the
   depot default. Recorded as a `position_bucket_override` delete whose
-  before-image is the override it removed (#953). Takes the depot's lock
-  first, then holds the security, like the override writer (E25 S6, G10;
-  #919).
+  before-image is the override it removed (#953); clearing a position that
+  already inherits removes nothing and journals nothing, bumping no derived
+  basis (G02). Takes the depot's lock first, then holds the security, like the
+  override writer (E25 S6, G10; #919).
   """
   def clear_position_override(
         %Actor{} = actor,

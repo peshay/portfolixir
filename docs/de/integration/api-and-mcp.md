@@ -3547,7 +3547,8 @@ freigegebenen Zeilen als Vorher-Abbild.
   `after` die Menge, die er gespeichert hat. Bei einer Positionsausnahme ist
   `before` `null`, wo die Position die Menge ihres Depots geerbt hat, und
   `[]`, wo sie keine Buckets hatte. Wer die gespeicherte Menge erneut sendet,
-  hinterlässt keinen Eintrag.
+  hinterlässt keinen Eintrag, und ebenso, wer die Ausnahme einer Position
+  aufhebt, die schon erbt (#953).
 
 Jeder Schreibkontext mit Finanzdaten journalisiert: Die Einführung, die
 ADR-0017 in Schritten geplant hat, ist abgeschlossen. Jede Tabelle mit
