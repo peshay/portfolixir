@@ -4336,13 +4336,18 @@ input[pattern]:invalid:not(:placeholder-shown) {
      Board ux-design-2026-10-07/01-import-preview rule ①: the notes under a
      mapping row's select join the list — a name unknown to the stored
      history (pick L1 = A, issue 904) and an ambiguous name (found while
-     drawing, item 8) — which beside the word kept 180 px at 390. */
+     drawing, item 8) — which beside the word kept 180 px at 390. The
+     parser-warnings note joins it too (issue 1140): beside its glyph and
+     "ACHTUNG" its row list kept about 240 px, and the 12rem scroller hid
+     the third warning. Above 560 px nothing changes. */
+  [data-role="parser-warnings"],
   #import-correction .data-note,
   [data-role="mapping-unseen-name"],
   [data-role="mapping-ambiguous"] {
     flex-wrap: wrap;
   }
 
+  [data-role="parser-warnings"] .data-note__body,
   #import-correction .data-note__body,
   [data-role="mapping-unseen-name"] .data-note__body,
   [data-role="mapping-ambiguous"] .data-note__body {

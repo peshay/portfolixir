@@ -5181,6 +5181,18 @@ the Imports page. Built in `PortfolixirWeb.ImportsLive`, the two parsers and
   heading and carries no live-region role (Components → data-note,
   announcement); its `<pre>` takes `tabindex="0"` and the shared focus ring,
   so a keyboard reaches the scroller. The "Warnings" stat card is unchanged.
+  **Under 560 px the note wraps** *(2026-10-08; issue 1140, Sprint 20 PR α
+  A5; board `mockups/ux-design-2026-10-07/01-import-preview` ④, rule ①)*:
+  the glyph and the word form a heading row, and the body — the head line
+  with its copy button, then the rows — takes the note's full width (at
+  390 px the row list grows from about 243 to 332 px, and three warnings fit
+  the 12rem scroller). Above 560 px nothing changes. **A data note that
+  carries a list or a remedy wraps the same way on a phone, through ONE
+  selector list** in `app.css`'s 560 px block, never a copy per note:
+  `[data-role="parser-warnings"]`, `#import-correction .data-note`,
+  `[data-role="mapping-unseen-name"]` and `[data-role="mapping-ambiguous"]`
+  get `flex-wrap: wrap`, and their `.data-note__body` gets
+  `flex-basis: 100%`. A further note of that kind joins the list.
 - **The German preview heading reads "Vorschau".** "Übersicht" is the
   Overview's name.
 - **An insert rejection names the field's label, never its key**, with the
