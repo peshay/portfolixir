@@ -331,6 +331,16 @@ function hostName(host: string): string {
   return host.includes(":") && !bracketed ? `[${host}]` : host;
 }
 
+// An address as the listener binds it: an IPv6 address given in brackets
+// (`[::1]`, as a URL writes it) without them, since Node would look the
+// bracketed form up as a name and fail with ENOTFOUND (#1137); anything else
+// as it is.
+function bindAddress(host: string): string {
+  const bracketed = host.startsWith("[") && host.endsWith("]");
+
+  return bracketed ? host.slice(1, -1) : host;
+}
+
 // The names a client reaches the listener itself under (#956): the loopback
 // names, the IPv6 one in brackets as a Host header and a URL write it, and
 // the bound address, an IPv6 one in brackets too (#1137), unless it is a
@@ -539,7 +549,7 @@ export async function startHttpServer(options: HttpServerOptions): Promise<void>
     let server: ReturnType<typeof app.listen>;
 
     try {
-      server = app.listen(port, host);
+      server = app.listen(port, bindAddress(host));
     } catch (error) {
       reject(listenFailure(host, port, error));
       return;
