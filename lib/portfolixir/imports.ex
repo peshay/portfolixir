@@ -19,6 +19,7 @@ defmodule Portfolixir.Imports do
       # Ecto.Multi, using content-hash idempotency so re-runs skip duplicates.
   """
 
+  alias Portfolixir.Actor
   alias Portfolixir.Imports.Applier
   alias Portfolixir.Imports.Correction
   alias Portfolixir.Imports.Mapping
@@ -183,4 +184,36 @@ defmodule Portfolixir.Imports do
   @spec cash_corrections(Preview.t(), keyword()) :: [Correction.Item.t()]
   def cash_corrections(%Preview{} = preview, opts \\ []) when is_list(opts),
     do: Correction.detect(preview, import_portfolio_id(opts))
+
+  @doc """
+  Corrects the bookings `cash_corrections/2` lists for `preview`, on
+  behalf of `actor` (ADR-0053 §6, A6): the correction section's own confirm,
+  separate from `apply/2`, whose hash hits still change nothing (ADR-0050
+  §3). Each booking's cash — and a JSON trade's price, and a cross-currency
+  trade's settlement legs — is rewritten through the ledger's own update,
+  journaled with its before-image, under the apply's lock. Answers the
+  corrected items; a second run finds nothing to correct. See
+  `Portfolixir.Imports.Correction.apply/3`.
+
+  An operator action like the import itself: no API route and no MCP tool
+  (ADR-0029). The portfolio is `:portfolio_id` when given, otherwise the
+  internal default portfolio (ADR-0024); without one there is nothing to
+  correct.
+  """
+  @spec correct_cash(Actor.t(), Preview.t(), keyword()) ::
+          {:ok, [Correction.Item.t()]} | {:error, %{row: term(), reason: term()}}
+  def correct_cash(%Actor{} = actor, %Preview{} = preview, opts \\ []) when is_list(opts) do
+    case import_portfolio_id(opts) do
+      nil -> {:ok, []}
+      portfolio_id -> Correction.apply(actor, preview, portfolio_id)
+    end
+  end
+
+  @doc """
+  The actor a correction confirmed on the Imports page is journaled under:
+  the operator (`:owner_ui`), labelled as an import correction, so the
+  journal tells it from an edit made by hand (ADR-0053 §6).
+  """
+  @spec correction_actor() :: Actor.t()
+  def correction_actor, do: Actor.new(:owner_ui, "import correction")
 end

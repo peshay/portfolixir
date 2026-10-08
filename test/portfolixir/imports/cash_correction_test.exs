@@ -20,6 +20,8 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
   use Portfolixir.DataCase, async: false
 
   alias Portfolixir.Actor
+  alias Portfolixir.Derived
+  alias Portfolixir.Derived.DataVersion
   alias Portfolixir.Fx
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Applier.Result
@@ -27,6 +29,10 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.Preview
+  alias Portfolixir.Journal
+  alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.SettlementGuard
+  alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios
 
   @fixtures Path.expand("../../support/fixtures/portfolio_performance", __DIR__)
@@ -118,6 +124,52 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
     Enum.map(items, fn %Item{} = item ->
       {item.row, norm(item.booked), norm(item.stated), norm(item.difference)}
     end)
+  end
+
+  # Every stored booking's persisted fields but its timestamps, by id: what
+  # the correction may change, and must not change elsewhere.
+  @fields Transaction.__schema__(:fields) -- [:inserted_at, :updated_at]
+
+  defp snapshot do
+    Transaction |> Repo.all() |> Map.new(&{&1.id, Map.take(&1, @fields)})
+  end
+
+  # The fields that changed, per booking that changed.
+  defp changed_fields(before, after_) do
+    for {id, row} <- after_,
+        fields = for({field, value} <- row, Map.get(before[id], field) != value, do: field),
+        fields != [],
+        into: %{},
+        do: {id, Enum.sort(fields)}
+  end
+
+  defp identities(snapshot), do: Map.new(snapshot, fn {id, row} -> {id, row.import_hash} end)
+
+  defp correct!(%Preview{} = preview, portfolio) do
+    assert {:ok, corrected} =
+             Imports.correct_cash(Imports.correction_actor(), preview, portfolio_id: portfolio.id)
+
+    corrected
+  end
+
+  # Each cash account's balance by name: the balances of two portfolios
+  # compare by the names the same file gave their accounts.
+  defp balances(portfolio) do
+    names = Map.new(Portfolios.list_cash_accounts(), &{&1.id, &1.name})
+
+    [portfolio_id: portfolio.id]
+    |> Ledger.cash_balances()
+    |> Map.new(fn {id, balance} -> {names[id], norm(balance)} end)
+  end
+
+  defp corrections_journal do
+    Journal.list_entries(resource_type: "transaction", operation: :update)
+  end
+
+  defp booking(portfolio, kind) do
+    portfolio.id
+    |> Ledger.list_transactions_for_portfolio()
+    |> Enum.find(&(&1.type == kind))
   end
 
   defp account_totals(items) do
@@ -318,6 +370,260 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
         assert Imports.cash_corrections(parse!(body, name), portfolio_id: fresh.id) == [], name
         assert Imports.cash_corrections(parse!(body, name), portfolio_id: nil) == [], name
       end
+    end
+  end
+
+  describe "the correction's own confirm (ADR-0053 §6, A6; K7, K8, K15)" do
+    # User story (ADR-0053 §6, K7):
+    # As the operator whose instance imported a Portfolio Performance CSV
+    # while the importer booked PP's gross Betrag as the cash,
+    # I want to confirm the correction the re-dropped export lists,
+    # so that every balance is what Portfolio Performance shows, with each
+    # old amount kept in the journal.
+    #
+    # Acceptance criteria:
+    # - Exactly the five listed bookings change, and in each only its cash.
+    # - Every id and every content hash stays as it was.
+    # - Each change is one journal update under the operator's actor,
+    #   labelled an import correction, its before-image the stored cash and
+    #   its after-image the file's.
+    # - Every account's balance then equals the balance of the same export
+    #   imported under today's reading: Pin-Cash 8,098.59 -> 8,076.48,
+    #   Pin-Cash-2 700.00.
+    # - The portfolio's derived values are invalidated (ADR-0039).
+    # - A second drop lists nothing, and a second confirm changes and
+    #   journals nothing.
+    test "K7: a PP CSV's correction rewrites only the listed cash, keeps every hash, journals each change" do
+      portfolio = portfolio!("Gesamtpreis correction")
+      reference = portfolio!("Gesamtpreis reference")
+      csv = fixture("hash_pin.csv")
+      apply!(old_reading(parse!(csv, "export.csv")), portfolio)
+      apply!(parse!(csv, "export.csv"), reference)
+
+      assert balances(portfolio) == %{"Pin-Cash" => "8098.59", "Pin-Cash-2" => "700"}
+      before = snapshot()
+      version = Derived.current_version(DataVersion.portfolio_basis(portfolio.id))
+
+      corrected = correct!(parse!(csv, "export.csv"), portfolio)
+
+      assert Enum.map(corrected, & &1.row) == [2, 3, 5, 6, 16]
+      after_ = snapshot()
+      ids = Enum.map(corrected, & &1.transaction.id)
+
+      assert changed_fields(before, after_) == Map.new(ids, &{&1, [:gross_amount]})
+      assert identities(after_) == identities(before)
+
+      journal = corrections_journal()
+      assert length(journal) == 5
+      assert Enum.all?(journal, &(&1.actor_type == :owner_ui))
+      assert Enum.all?(journal, &(&1.actor_label == "import correction"))
+
+      assert journal |> Enum.map(&String.to_integer(&1.resource_id)) |> Enum.sort() ==
+               Enum.sort(ids)
+
+      for entry <- journal do
+        id = String.to_integer(entry.resource_id)
+        assert Decimal.equal?(Decimal.new(entry.before["gross_amount"]), before[id].gross_amount)
+        assert Decimal.equal?(Decimal.new(entry.after["gross_amount"]), after_[id].gross_amount)
+        assert entry.before["import_hash"] == entry.after["import_hash"]
+      end
+
+      assert balances(portfolio) == %{"Pin-Cash" => "8076.48", "Pin-Cash-2" => "700"}
+      assert balances(portfolio) == balances(reference)
+      assert Derived.current_version(DataVersion.portfolio_basis(portfolio.id)) > version
+
+      assert Imports.cash_corrections(parse!(csv, "export.csv"), portfolio_id: portfolio.id) ==
+               []
+
+      assert correct!(parse!(csv, "export.csv"), portfolio) == []
+      assert snapshot() == after_
+      assert length(corrections_journal()) == 5
+    end
+
+    # User story (ADR-0053 A1, A6, K15):
+    # As the operator who imported a converter-written CSV whose sale's
+    # negative Steuern was counted twice,
+    # I want the correction to take the refund out of the sale's cash,
+    # so that the account holds what the converter's file says.
+    #
+    # Acceptance criteria:
+    # - Only the sale changes, and only its cash: +120.00 -> +95.00. Its
+    #   price stays the file's Kurs, 10.00.
+    # - Test-Cash 1,145.00 -> 1,120.00, the PP balance (K9).
+    # - Hashes and ids stay; one journal update; a second drop lists
+    #   nothing.
+    test "K15: a converter CSV's correction takes the refund out of the sale's cash" do
+      portfolio = portfolio!("Converter correction")
+      apply!(old_reading(parse!(@converter_csv, "converter.csv")), portfolio)
+      assert balances(portfolio) == %{"Test-Cash" => "1145"}
+      before = snapshot()
+
+      [item] = correct!(parse!(@converter_csv, "converter.csv"), portfolio)
+
+      after_ = snapshot()
+      assert changed_fields(before, after_) == %{item.transaction.id => [:gross_amount]}
+      assert identities(after_) == identities(before)
+      assert length(corrections_journal()) == 1
+
+      sale = booking(portfolio, "sell")
+      assert norm(sale.gross_amount) == "95"
+      assert norm(sale.price) == "10"
+      assert balances(portfolio) == %{"Test-Cash" => "1120"}
+
+      assert Imports.cash_corrections(parse!(@converter_csv, "converter.csv"),
+               portfolio_id: portfolio.id
+             ) == []
+    end
+
+    # User story (ADR-0053 A2, A6, K15):
+    # As the operator who imported a Portfolio Performance JSON export with
+    # a negative tax unit before it was booked once,
+    # I want the correction to rewrite the cash and a trade's price,
+    # so that every balance is PP's and a sale's realized result leaves the
+    # refund out.
+    #
+    # Acceptance criteria (K9's figures):
+    # - sale_with_negative_tax.json: only the sale changes, its cash and its
+    #   price: 120.00 -> 95.00 at 12.50 -> 10.00; Test-Cash 1,145.00 ->
+    #   1,120.00; the refund stays 25.00.
+    # - sample_with_negative_tax.json: only the dividend's cash changes,
+    #   181.49 -> 181.48; Test-Cash 181.50 -> 181.49.
+    # - Hashes and ids stay; each change is journaled with its price
+    #   before and after; a second drop of each file lists nothing.
+    test "K15: a JSON file's correction rewrites the cash and a trade's price" do
+      sale_portfolio = portfolio!("JSON sale correction")
+      sale_file = fixture("sale_with_negative_tax.json")
+      apply!(old_reading(parse!(sale_file, "sale.json")), sale_portfolio)
+      assert balances(sale_portfolio) == %{"Test-Cash" => "1145"}
+      before = snapshot()
+
+      [item] = correct!(parse!(sale_file, "sale.json"), sale_portfolio)
+
+      after_ = snapshot()
+      assert changed_fields(before, after_) == %{item.transaction.id => [:gross_amount, :price]}
+      assert identities(after_) == identities(before)
+
+      sale = booking(sale_portfolio, "sell")
+      assert norm(sale.gross_amount) == "95"
+      assert norm(sale.price) == "10"
+      assert norm(booking(sale_portfolio, "tax_refund").gross_amount) == "25"
+      assert balances(sale_portfolio) == %{"Test-Cash" => "1120"}
+
+      assert [entry] = corrections_journal()
+      assert {entry.before["price"], entry.after["price"]} == {"12.500000", "10.000000"}
+
+      assert Imports.cash_corrections(parse!(sale_file, "sale.json"),
+               portfolio_id: sale_portfolio.id
+             ) == []
+
+      dividend_portfolio = portfolio!("JSON dividend correction")
+      dividend_file = fixture("sample_with_negative_tax.json")
+      apply!(old_reading(parse!(dividend_file, "dividend.json")), dividend_portfolio)
+      assert balances(dividend_portfolio) == %{"Test-Cash" => "181.5"}
+      before = snapshot()
+
+      [item] = correct!(parse!(dividend_file, "dividend.json"), dividend_portfolio)
+
+      after_ = snapshot()
+      assert changed_fields(before, after_) == %{item.transaction.id => [:gross_amount]}
+      assert identities(after_) == identities(before)
+      assert norm(booking(dividend_portfolio, "dividend").gross_amount) == "181.48"
+      assert balances(dividend_portfolio) == %{"Test-Cash" => "181.49"}
+
+      assert Imports.cash_corrections(parse!(dividend_file, "dividend.json"),
+               portfolio_id: dividend_portfolio.id
+             ) == []
+    end
+
+    # User story (ADR-0053 §6, ADR-0015, K15):
+    # As the operator correcting a sale that settled a USD security through
+    # a EUR account,
+    # I want its settlement legs rewritten with its cash in the same write,
+    # so that the settlement guard holds and the cost basis reads the
+    # corrected trade.
+    #
+    # Acceptance criteria:
+    # - The sale's cash, price, settlement amount and security amount
+    #   change (95.00, 10.00, 100.00 EUR, 125.00 USD); its rate stays 0.80,
+    #   the same stored hub rate on the same date; nothing else changes.
+    # - No stored trade misses the settlement guard afterwards.
+    test "K15: a cross-currency trade's settlement legs are rewritten with its cash" do
+      usd_rate!()
+      portfolio = portfolio!("Cross-currency correction")
+      apply!(old_reading(parse!(@cross_currency_json, "fx.json")), portfolio)
+      before = snapshot()
+
+      [item] = correct!(parse!(@cross_currency_json, "fx.json"), portfolio)
+
+      after_ = snapshot()
+
+      assert changed_fields(before, after_) == %{
+               item.transaction.id => [
+                 :gross_amount,
+                 :price,
+                 :security_amount,
+                 :settlement_amount
+               ]
+             }
+
+      assert identities(after_) == identities(before)
+
+      sale = after_[item.transaction.id]
+
+      assert {norm(sale.gross_amount), norm(sale.price), norm(sale.settlement_amount),
+              norm(sale.security_amount),
+              norm(sale.settlement_fx_rate)} ==
+               {"95", "10", "100", "125", "0.8"}
+
+      assert SettlementGuard.violations() == []
+      assert balances(portfolio) == %{"FX-Cash" => "1020"}
+    end
+
+    # User story (ADR-0053 §6, ADR-0050 §3, K8):
+    # As the operator who confirms the import of a re-dropped file rather
+    # than its correction,
+    # I want the import to change no stored value,
+    # so that a hash hit never rewrites a booking behind my back, whether or
+    # not the preview listed a correction.
+    #
+    # Acceptance criteria:
+    # - With the correction listed (a file stored under the old reading),
+    #   the ordinary apply is all hash hits, inserts nothing and changes no
+    #   stored value; the same bookings are still listed afterwards.
+    # - Without one (a file stored as it reads today), the same holds and
+    #   nothing is listed.
+    test "K8: the ordinary apply of an all-hash-hit file changes no stored value" do
+      for {name, body, listed} <- [
+            {"export.csv", fixture("hash_pin.csv"), [2, 3, 5, 6, 16]},
+            {"converter.csv", @converter_csv, [3]},
+            {"sale.json", fixture("sale_with_negative_tax.json"), [3]}
+          ] do
+        portfolio = portfolio!("K8 #{name}")
+        apply!(old_reading(parse!(body, name)), portfolio)
+
+        listed_before = Imports.cash_corrections(parse!(body, name), portfolio_id: portfolio.id)
+        assert Enum.map(listed_before, & &1.row) == listed, name
+        before = snapshot()
+
+        result = apply!(parse!(body, name), portfolio)
+
+        assert result.created_transactions == 0, name
+        assert result.already_imported.economics == 0, name
+        assert snapshot() == before, name
+
+        listed_after = Imports.cash_corrections(parse!(body, name), portfolio_id: portfolio.id)
+        assert figures(listed_after) == figures(listed_before), name
+
+        agreeing = portfolio!("K8 agreeing #{name}")
+        apply!(parse!(body, name), agreeing)
+        assert Imports.cash_corrections(parse!(body, name), portfolio_id: agreeing.id) == []
+        before = snapshot()
+
+        assert apply!(parse!(body, name), agreeing).created_transactions == 0, name
+        assert snapshot() == before, name
+      end
+
+      assert corrections_journal() == []
     end
   end
 end
