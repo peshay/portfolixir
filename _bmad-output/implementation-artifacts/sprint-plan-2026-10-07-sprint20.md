@@ -433,6 +433,16 @@ cannot run measures the environment.
 Either way, **the same two hosts unblock Lane M's Debian image date and
 #1136**, which wait for a build that can run (Lane M).
 
+> **Note (2026-10-08).** The owner asked why the build has to run on their
+> host. It does not: the `compose-smoke` CI job proves the build half of
+> criterion 3, on the sprint PR's head and on `main`. On a GitHub-hosted
+> runner it runs `docker compose up --build -d` on generated secrets, waits
+> for the app's health and the companion, and reads the page, an API read
+> and a companion tool call. The owner's own run is no longer needed for
+> criterion 3, only to upgrade their own instance. The job runs on amd64
+> only and starts on an empty database, so it does not test the upgrade of
+> an existing volume.
+
 ### D-4: the decision pass: every open question gets an answer (recommended; each row flips by naming its issue)
 
 **Closed as not planned at the merge (27 of the 46 `needs-decision`

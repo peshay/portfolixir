@@ -405,6 +405,11 @@ Obergrenze, und solange die Sperre gilt, wird auch ein richtiges Token mit
 nur im Speicher:
 `docker compose restart mcp` löscht sie sofort.
 
+CI fährt diesen Weg bei jeder Änderung an dem, was er baut: Der Job
+`compose-smoke` führt `docker compose up --build -d` mit erzeugten Geheimnissen
+auf einer leeren Datenbank aus und prüft, dass die Seite, ein API-Lesezugriff
+und der MCP-Begleitdienst antworten.
+
 ## Reverse-Proxy
 
 Die Anwendung ist auf dem Loopback des Hosts erreichbar; ein Reverse-Proxy auf

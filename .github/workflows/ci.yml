@@ -359,3 +359,184 @@ jobs:
       # their own, so a broken upgrade path reads as this job's failure.
       - name: Seeded upgrades over legacy rows
         run: MIX_ENV=test mix test --only seeded_upgrade
+
+  # The Compose build route, proven here (Sprint 20 plan, D-3 as noted on
+  # 2026-10-08): the job builds both images from this checkout exactly as an
+  # operator does, `docker compose up --build -d`, starts the stack on secrets
+  # it generates, and reads the page, an API read and a companion tool call
+  # that goes through the app. It pushes, tags and publishes nothing: a
+  # release is never an installable artifact (release.yml). It runs on the
+  # runner's platform (amd64) and on an empty database, so it proves a fresh
+  # install, not the upgrade of an existing volume.
+  #
+  # No `needs:`: it is the longest job and gates nothing, so it starts at once.
+  compose-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    # A newer push to a pull request replaces its running build; on main every
+    # head finishes, so each one's result stands.
+    concurrency:
+      group: compose-smoke-${{ github.ref }}
+      cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history, so the filter below finds the commit it compares
+          # with and needs no fetch (and so no token) of its own.
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The stack is built only when a change can change what it builds: the
+      # paths release.yml cuts a release for, the two build contexts'
+      # .dockerignore files, and this workflow. A `paths:` filter on the
+      # workflow would hold back every other job, and a third-party filter
+      # action would be one more dependency on the runner, so git compares
+      # the commits here. A pull request is compared with its base, a push
+      # with the commit main moved from; where there is no such commit here
+      # (a new branch, a force push), the stack is built. ci_test runs this
+      # script against a scratch repository and holds the list equal to
+      # release.yml's.
+      - name: Decide whether the change touches the build
+        id: changes
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then base="$BASE_SHA"; else base="$BEFORE"; fi
+          if [ -z "$base" ] || ! git merge-base "$base" HEAD > /dev/null 2>&1; then
+            echo "No commit to compare with: the stack is built."
+            echo "build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          changed="$(git diff --name-only "$base"...HEAD -- \
+            ':(glob)lib/**' \
+            ':(glob)priv/**' \
+            ':(glob)config/**' \
+            ':(glob)mix.exs' \
+            ':(glob)mix.lock' \
+            ':(glob)Dockerfile.release' \
+            ':(glob)docker/**' \
+            ':(glob)docker-compose.yml' \
+            ':(glob)mcp-server/src/**' \
+            ':(glob)mcp-server/package.json' \
+            ':(glob)mcp-server/package-lock.json' \
+            ':(glob)mcp-server/tsconfig.json' \
+            ':(glob)mcp-server/.npmrc' \
+            ':(glob)mcp-server/Dockerfile' \
+            ':(glob).dockerignore' \
+            ':(glob)mcp-server/.dockerignore' \
+            ':(glob).github/workflows/ci.yml')"
+          if [ -n "$changed" ]; then
+            echo "The change touches what the stack builds:"
+            echo "$changed"
+            echo "build=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nothing the stack builds changed: no build."
+            echo "build=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # One fresh secret for every `${VAR:?...}` docker-compose.yml requires,
+      # generated as docs/home-deployment.md says (POSTGRES_PASSWORD in hex,
+      # because it is spliced into a URL). The values are masked before any
+      # step could print them and never leave this runner; .dockerignore keeps
+      # .env out of the build context. The background fetches stay off: the
+      # instance under test calls no provider, so the job proves the build and
+      # the boot, not a provider's uptime.
+      - name: Write a .env of generated secrets
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          umask 077
+          : > .env
+          for name in POSTGRES_PASSWORD SECRET_KEY_BASE PORTFOLIXIR_API_TOKEN PORTFOLIXIR_MCP_TOKEN; do
+            if [ "$name" = POSTGRES_PASSWORD ]; then
+              value="$(openssl rand -hex 32)"
+            else
+              value="$(openssl rand -base64 48 | tr -d '\n')"
+            fi
+            echo "::add-mask::$value"
+            printf '%s=%s\n' "$name" "$value" >> .env
+          done
+          echo "PORTFOLIXIR_BACKGROUND_FETCH=off" >> .env
+
+      - name: Build and start the Compose stack
+        if: steps.changes.outputs.build == 'true'
+        run: docker compose up --build -d
+
+      # Compose starts the companion once the app's own health check passes;
+      # the companion has no health check, so its readiness is the line it
+      # logs once it is bound. Bounded at five minutes.
+      - name: Wait for the app's health and the companion's listener
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          deadline=$((SECONDS + 300))
+          until [ "$(docker inspect --format '{{.State.Health.Status}}' "$(docker compose ps -q app)" 2> /dev/null)" = healthy ] &&
+            docker compose logs mcp 2> /dev/null | grep -q 'MCP server listening on'; do
+            if [ "$SECONDS" -ge "$deadline" ]; then
+              echo "The app was not healthy, or the companion not listening, within five minutes."
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "The app is healthy and the companion listens."
+
+      # Through the published loopback port, under 127.0.0.1, a Host the app
+      # always allows.
+      - name: The page answers
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          page="$(curl -fsSL --max-time 30 http://127.0.0.1:4000/)"
+          if ! grep -q '<title>Portfolixir</title>' <<< "$page"; then
+            echo "The page answered without the application's title."
+            exit 1
+          fi
+          echo "The page answers."
+
+      # The token reaches curl on its standard input, never on its command
+      # line, as in docs/home-deployment.md.
+      - name: An API read answers with the generated token
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          token="$(grep '^PORTFOLIXIR_API_TOKEN=' .env | cut -d= -f2-)"
+          contract="$(printf 'Authorization: Bearer %s\n' "$token" | curl -fsS --max-time 30 -H @- http://127.0.0.1:4000/api/v1/contract)"
+          if ! grep -q '"contract_note"' <<< "$contract"; then
+            echo "The contract read answered without its payload."
+            exit 1
+          fi
+          echo "The API answers its contract read."
+
+      # One stateless streamable-HTTP call: the companion takes its own token,
+      # reads the contract from the app under its Compose name with the API
+      # token, and answers with the app's payload, whose contract_note only
+      # the app writes.
+      - name: The companion answers a tool call through the app
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          token="$(grep '^PORTFOLIXIR_MCP_TOKEN=' .env | cut -d= -f2-)"
+          call='{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"portfolixir.contract.get","arguments":{}}}'
+          answer="$(printf 'Authorization: Bearer %s\n' "$token" | curl -fsS --max-time 30 -H @- \
+            -H 'Content-Type: application/json' \
+            -H 'Accept: application/json, text/event-stream' \
+            --data "$call" http://127.0.0.1:4001/mcp)"
+          if ! grep -q '"contract_note"' <<< "$answer" || grep -q '"isError":true' <<< "$answer"; then
+            echo "The companion did not answer the contract read through the app:"
+            echo "$answer"
+            exit 1
+          fi
+          echo "The companion answers through the app."
+
+      - name: Print the stack's state and logs
+        if: failure() && steps.changes.outputs.build == 'true'
+        run: |
+          docker compose ps --all
+          docker compose logs --no-color --timestamps
+
+      - name: Tear the stack down
+        if: always() && steps.changes.outputs.build == 'true'
+        run: |
+          if [ -f .env ]; then docker compose down -v; fi
+          rm -f .env
