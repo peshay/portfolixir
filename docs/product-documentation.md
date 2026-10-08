@@ -2562,7 +2562,8 @@ row with an empty Gesamtpreis, and every row of a file without that column,
 is read as a converter-written file and books its Betrag as the cash: that is
 the shape the `import_converter` prompt teaches. A tax refund a negative
 `Steuern` splits off is booked beside its row, and the two together move the
-Gesamtpreis.
+Gesamtpreis, or a converter row's Betrag (see "A negative tax inside a row"
+below).
 
 An export imported before Portfolixir read the Gesamtpreis keeps its content
 hashes, so dropping it again books nothing. Its rows keep Portfolio
@@ -2572,6 +2573,32 @@ not change them, and the import has no correction for them yet.
 
 For other currencies and for matching by ISIN, export **JSON v1** instead: it
 carries a currency per row and each security's ISIN, WKN and ticker.
+
+### A negative tax inside a row
+
+Portfolio Performance can record a refund of tax inside a booking, as a
+negative tax: a sale whose loss refunds tax, or a dividend whose withheld tax
+was corrected. The import books it as a **tax refund beside its booking**, in
+every format. The row's cash already holds the refund (a JSON row's `amount`,
+a CSV row's `Gesamtpreis`, a converter-written row's `Betrag`), so the
+booking itself is credited that cash less the refund, or on a purchase
+debited it plus the refund. The two together move exactly the row's cash,
+and every account ends at the balance Portfolio Performance shows. A JSON
+trade is priced from its gross value, as Portfolio Performance prices it, so
+a sale's realised result leaves the refund out: the refund is income of its
+own.
+
+A credit that would book nothing or less once the refund is taken out (a
+worthless position sold at a nominal price, its loss refunding tax) is left
+out with a parser warning, described below: enter the sale by hand, and the
+refund as a tax refund of its own.
+
+A history imported before Portfolixir took the refund out of its booking
+counted such a refund twice, beside a booking that already held it, and
+priced a JSON sale with it. Dropping the same export again books nothing
+twice. To correct those bookings, export the history from Portfolio
+Performance again, drop the fresh export and confirm the correction section
+its preview shows.
 
 ### Files and rows the preview refuses
 
@@ -2618,6 +2645,16 @@ confirm. These rows are left out the same way, each named with its row:
 - **A CSV *Kauf* or *Verkauf* with an empty `Gegenkonto`**, the cash account
   the trade settles against: *buy without a counter account — row not
   imported*, or *sell …*.
+- **A credit that would book nothing or less**: a sale, dividend, interest
+  payment, deposit or tax refund whose cash is 0 or less once the tax refund
+  split off it is taken out (see "A negative tax inside a row" above), or on
+  its own. The import only books a positive amount, so it would otherwise
+  skip the row, and a sale's position would stay held: *Gesamtpreis 20,10
+  less the tax refund 25,00 leaves -4,90 to credit — enter this booking by
+  hand, and the refund as a tax refund of its own — row not imported*, or
+  *Gesamtpreis 0,00 leaves nothing to credit — enter this booking by hand —
+  row not imported*. A converter row names its `Betrag`, a JSON row its
+  `amount`.
 - **A JSON row whose currency Portfolixir does not support**, named as the
   file wrote it, in capitals: *currency “EURO” is not supported — row not
   imported* for the booking's currency, and *security currency “XEU” is not

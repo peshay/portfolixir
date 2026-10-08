@@ -566,6 +566,20 @@ re-drop of an already-imported file books nothing. A JSON row's amount input
 stays its `amount`. The #533 economic key of a CSV row is checked under both
 readings (ADR-0053 §4).
 
+## Note (2026-10-08): a JSON trade's hash may read a price apart from its booked price (ADR-0053, amended)
+
+The [amendment of 2026-10-07](0053-a-pp-csv-books-its-gesamtpreis.html) to
+ADR-0053 books a negative tax unit once: the row's own booking leaves the
+refund split off it out of its cash cell (A1), and a JSON purchase or sale is
+priced from its gross value, its taxes read with their sign (A2). The content
+hash of such a JSON trade keeps reading the price derived the way it was
+before that amendment, carried on the entry as the hash's **price input**
+apart from the booked price (A3), as it keeps reading the `amount` as its
+amount input. So every hash stored before stays byte-identical and a re-drop
+books nothing; every other row's price input is its booked price. The #533
+economic key is checked under the old reading too, the hash's amount and
+price (A4).
+
 ## References
 
 - [ADR-0006](0006-classifications-with-target-weights.html) — built-in trees derived on read; custom assignments stored

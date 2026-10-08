@@ -2798,7 +2798,9 @@ Import rät nicht, welche Zelle falsch ist. Eine Zeile mit leerem Gesamtpreis, u
 Spalte, wird als von einem Konverter geschriebene Datei gelesen und bucht
 ihren Betrag als Geld: So lehrt es der Prompt `import_converter`. Eine
 Steuererstattung, die ein negativer Wert in `Steuern` abspaltet, wird neben
-ihrer Zeile gebucht, und beide zusammen bewegen den Gesamtpreis.
+ihrer Zeile gebucht, und beide zusammen bewegen den Gesamtpreis, in einer
+Konverter-Zeile den Betrag (siehe „Eine negative Steuer in einer Zeile“
+unten).
 
 Ein Export, der importiert wurde, bevor Portfolixir den Gesamtpreis las,
 behält seine Inhalts-Hashes, also bucht ihn erneut abzulegen nichts. Seine
@@ -2809,6 +2811,36 @@ noch keine Korrektur.
 
 Für andere Währungen und die Zuordnung über die ISIN exportiere **JSON v1**:
 Es trägt eine Währung je Zeile und je Wertpapier ISIN, WKN und Tickersymbol.
+
+### Eine negative Steuer in einer Zeile
+
+Portfolio Performance kann eine Steuererstattung innerhalb einer Buchung
+festhalten, als negative Steuer: ein Verkauf, dessen Verlust Steuer erstattet,
+oder eine Dividende, deren einbehaltene Steuer korrigiert wurde. Der Import
+bucht sie in jedem Format als **Steuererstattung neben ihrer Buchung**. Das
+Geld der Zeile enthält die Erstattung schon (der `amount` einer JSON-Zeile,
+der `Gesamtpreis` einer CSV-Zeile, der `Betrag` einer von einem Konverter
+geschriebenen Zeile), also wird der Buchung selbst dieses Geld abzüglich der
+Erstattung gutgeschrieben, bei einem Kauf zuzüglich der Erstattung belastet.
+Beide zusammen bewegen genau das Geld der Zeile, und jedes Konto endet auf
+dem Saldo, den Portfolio Performance zeigt. Ein JSON-Handel erhält seinen
+Kurs aus dem Bruttowert, wie Portfolio Performance ihn bildet, also lässt das
+realisierte Ergebnis eines Verkaufs die Erstattung draußen: Die Erstattung ist
+ein eigener Ertrag.
+
+Eine Gutschrift, die nach Abzug der Erstattung nichts oder weniger buchen
+würde (eine wertlose Position, zu einem symbolischen Kurs verkauft, deren
+Verlust Steuer erstattet), bleibt mit einer Parser-Warnung draußen, wie unten
+beschrieben: den Verkauf von Hand erfassen und die Erstattung als eigene
+Steuerrückerstattung.
+
+Eine Historie, die importiert wurde, bevor Portfolixir die Erstattung aus
+ihrer Buchung nahm, hat eine solche Erstattung doppelt gezählt, neben einer
+Buchung, die sie schon enthielt, und einen JSON-Verkauf mit ihr bewertet.
+Denselben Export erneut abzulegen, bucht nichts doppelt. Um diese Buchungen
+zu korrigieren, exportiere die Historie erneut aus Portfolio Performance, lege
+den frischen Export ab und bestätige den Korrekturabschnitt, den seine
+Vorschau zeigt.
 
 ### Dateien und Zeilen, die die Vorschau ablehnt
 
@@ -2861,6 +2893,18 @@ Zeilen bleiben ebenso draußen, jede mit ihrer Zeile benannt:
 - **Ein CSV-*Kauf* oder -*Verkauf* mit leerem `Gegenkonto`**, dem
   Verrechnungskonto, gegen das der Handel abgerechnet wird: *Kauf ohne
   Gegenkonto — Zeile nicht übernommen* oder *Verkauf …*.
+- **Eine Gutschrift, die nichts oder weniger buchen würde**: ein Verkauf, eine
+  Dividende, Zinsen, eine Einlage oder eine Steuerrückerstattung, deren Geld
+  nach Abzug der abgespaltenen Steuererstattung (siehe „Eine negative Steuer
+  in einer Zeile“ oben) oder schon für sich 0 oder weniger ist. Der Import
+  bucht nur einen positiven Betrag, würde die Zeile also sonst überspringen,
+  und die Position eines Verkaufs bliebe im Bestand: *Gesamtpreis 20,10
+  abzüglich der Steuerrückerstattung 25,00 lässt -4,90 zur Gutschrift — diese
+  Buchung von Hand erfassen und die Erstattung als eigene
+  Steuerrückerstattung — Zeile nicht übernommen* oder *Gesamtpreis 0,00 lässt
+  nichts zur Gutschrift — diese Buchung von Hand erfassen — Zeile nicht
+  übernommen*. Eine Konverter-Zeile nennt ihren `Betrag`, eine JSON-Zeile
+  ihren `amount`.
 - **Eine JSON-Zeile, deren Währung Portfolixir nicht unterstützt**, benannt so,
   wie die Datei sie schreibt, in Großbuchstaben: *Währung „EURO“ wird nicht
   unterstützt — Zeile nicht übernommen* für die Währung der Buchung und
