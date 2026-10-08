@@ -625,6 +625,41 @@ defmodule PortfolixirWeb.PerformanceContributionLiveTest do
              text_of(view, "[data-role='period-badge'] [data-role='period-badge-money']")
   end
 
+  # User story (#1058):
+  # As a local portfolio maintainer clicking through periods quickly,
+  # I want the table to land for the period I stopped on,
+  # so that the walks for the periods I passed neither run beside it nor
+  # overwrite it.
+  #
+  # Acceptance criteria:
+  # - Four switches in a row, without waiting for a table, end with the
+  #   table and its scope line on the last period and the sum on the badge.
+  test "rapid period switches land the table for the last one", %{conn: conn} do
+    world = base_world(name: "Clicking World", cash_name: "Giro", depot_name: "Depot")
+    delta = create_security!(name: "Delta Shipping ASA", ticker: "DLTA")
+
+    deposit!(world, "1000", days_ago(500))
+    buy!(world, delta, quantity: "10", price: "100", date: days_ago(500))
+    put_quotes!(delta, [{days_ago(500), "100"}, {days_ago(400), "150"}, {today(), "150"}])
+
+    {:ok, view, _html} = live(conn, "/portfolio")
+    settle(view)
+
+    for period <- ~w(3y ytd 5y max) do
+      view |> element("button[phx-value-period='#{period}']") |> render_click()
+    end
+
+    settle(view)
+
+    assert text_of(view, "#performance-contribution [data-role='contribution-scope']") =~
+             "Max · "
+
+    assert text_of(view, "[data-role='contribution-sum-figure']") == "+500.00 EUR"
+
+    assert text_of(view, "[data-role='contribution-sum-figure']") ==
+             text_of(view, "[data-role='period-badge'] [data-role='period-badge-money']")
+  end
+
   # User story (FR-41 review round, ADR-0051 §12, ADR-0032 §6):
   # As a local portfolio maintainer whose data changes while the page is open
   # (a second tab, an agent's booking, an import, the background quote sync),
