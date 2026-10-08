@@ -6298,6 +6298,14 @@ has no result to state, and a zero would claim it is flat").
 - **A move** has no control on this screen. The API refuses it with the
   changeset's message on `parent_id`, naming the level the moved subtree's
   deepest category would take.
-- **Left as it is:** the cycle refusal's "Parent würde …" prefix (found
-  while drawing, 6). Changing it changes another refusal's words, outside
-  the one string this story draws.
+- **The parent field's other refusals read German** (found while drawing,
+  6; fixed on the branch under the plan's D-14, which the board document
+  sanctions: "fix in the story, on the message path it touches"). The page's
+  field-prefixed changeset message labelled `parent_id` through
+  `Phoenix.Naming.humanize/1`, in English, so the cycle refusal read
+  "Parent würde die Kategorie zu ihrer eigenen Oberkategorie machen". The
+  field now has its own label: "Übergeordnete Kategorie würde die Kategorie
+  zu ihrer eigenen Oberkategorie machen" (English: "Parent category would
+  make the category its own ancestor"), and the same label opens "… muss
+  zur selben Klassifikation gehören". Only the label changes: the slot, the
+  severity and the sentence after the label stay as they were.

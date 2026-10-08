@@ -1220,6 +1220,53 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
            )
   end
 
+  # User story (#940; board 02, found while drawing 6):
+  # As the operator reading a refusal of a category's parent on the German
+  # page,
+  # I want the field it names in German, as the rest of the sentence is,
+  # so that the page does not open a refusal with the English "Parent".
+  #
+  # Acceptance criteria:
+  # - A parent that would make a category its own ancestor answers, in the
+  #   result slot, "Übergeordnete Kategorie würde die Kategorie zu ihrer
+  #   eigenen Oberkategorie machen" (English: "Parent category would make the
+  #   category its own ancestor").
+  # - Nothing is moved.
+  test "a parent refusal names its field in the page's language", %{conn: conn} do
+    {:ok, classification} =
+      Classifications.create_classification(Actor.owner_ui(), %{name: "Zyklustest"})
+
+    {:ok, root} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Wurzel"
+      })
+
+    {:ok, child} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Zweig",
+        parent_id: root.id
+      })
+
+    for {locale, sentence} <- [
+          {"de",
+           "Übergeordnete Kategorie würde die Kategorie zu ihrer eigenen Oberkategorie machen"},
+          {"en", "Parent category would make the category its own ancestor"}
+        ] do
+      {:ok, view, _html} =
+        live_drained(conn, "/classifications/#{classification.id}?locale=#{locale}")
+
+      render_hook(view, "update_category", %{
+        "category" => %{"id" => to_string(root.id), "parent_id" => to_string(child.id)}
+      })
+
+      assert view |> element("#classifications-result") |> render() =~ sentence
+    end
+
+    assert Portfolixir.Repo.reload!(root).parent_id == nil
+  end
+
   defp assignments(classification_id) do
     Classifications.list_trees()
     |> Enum.find(&(&1.classification.id == classification_id))
