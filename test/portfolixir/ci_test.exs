@@ -1920,63 +1920,27 @@ defmodule Portfolixir.CITest do
 
   # User story:
   # As a maintainer starting a BMAD skill in a Claude Code web session,
-  # I want the session to carry the user-scope answers the BMAD installer
-  # keeps in the gitignored `_bmad/config.user.toml`,
-  # so that a fresh cloud clone renders `bmad-build` instead of halting on
-  # "missing config value `communication_language`".
+  # I want the committed `_bmad/config.toml` to carry the user-scope defaults
+  # that BMAD 6.12.1's installer writes there,
+  # so that a fresh cloud clone renders `bmad-build` without the gitignored
+  # `_bmad/config.user.toml` and without a seeding step of our own (#1099).
   #
   # Acceptance criteria:
-  # - The web session hook runs the seed script.
-  # - The seed script writes `_bmad/config.user.toml` from the committed
-  #   per-module `config.yaml` answers: `user_name` and
-  #   `communication_language` under `[core]`, `user_skill_level` under
-  #   `[modules.bmm]`.
-  # - It never overwrites an existing `_bmad/config.user.toml`, so a local
-  #   checkout keeps its own answers.
-  # - The seeded file stays gitignored.
-  test "a web session seeds the gitignored BMAD user config from the committed module answers" do
-    seed = ".claude/scripts/seed-bmad-user-config.sh"
+  # - `_bmad/config.toml` holds `user_name` and `communication_language`
+  #   under `[core]` and `user_skill_level` under `[modules.bmm]`.
+  # - The web session hook no longer seeds `_bmad/config.user.toml`.
+  # - `_bmad/config.user.toml` stays gitignored.
+  test "the committed BMAD config carries the user-scope defaults a fresh clone renders with" do
+    config = File.read!("_bmad/config.toml")
 
-    assert File.read!(".claude/hooks/session-start.sh") =~
-             ~s(bash "${ROOT}/#{seed}" "${ROOT}")
+    assert config =~ ~r/^\[core\]\nuser_name = "[^"]+"\ncommunication_language = "[^"]+"\n/m
+    assert config =~ ~r/^\[modules\.bmm\]\nuser_skill_level = "[^"]+"\n/m
+
+    refute File.read!(".claude/hooks/session-start.sh") =~ "seed-bmad-user-config"
+    refute File.exists?(".claude/scripts/seed-bmad-user-config.sh")
 
     assert {"_bmad/config.user.toml\n", 0} =
              System.cmd("git", ["check-ignore", "_bmad/config.user.toml"])
-
-    dir = Path.join(System.tmp_dir!(), "bmad-seed-#{System.unique_integer([:positive])}")
-    File.mkdir_p!(Path.join(dir, "_bmad/core"))
-    File.mkdir_p!(Path.join(dir, "_bmad/bmm"))
-
-    File.write!(Path.join(dir, "_bmad/core/config.yaml"), """
-    # CORE Module Configuration
-    user_name: Guest
-    project_name: synthetic
-    communication_language: "Esperanto"
-    document_output_language: English
-    """)
-
-    File.write!(Path.join(dir, "_bmad/bmm/config.yaml"), """
-    # BMM Module Configuration
-    user_skill_level: expert
-    planning_artifacts: "{project-root}/_bmad-output/planning-artifacts"
-    user_name: Guest
-    communication_language: Esperanto
-    """)
-
-    user_config = Path.join(dir, "_bmad/config.user.toml")
-
-    try do
-      assert {_, 0} = System.cmd("bash", [seed, dir], stderr_to_stdout: true)
-
-      assert File.read!(user_config) =~
-               ~r/^\[core\]\nuser_name = "Guest"\ncommunication_language = "Esperanto"\n\n\[modules\.bmm\]\nuser_skill_level = "expert"\n\z/m
-
-      File.write!(user_config, "[core]\ncommunication_language = \"Klingon\"\n")
-      assert {_, 0} = System.cmd("bash", [seed, dir], stderr_to_stdout: true)
-      assert File.read!(user_config) == "[core]\ncommunication_language = \"Klingon\"\n"
-    after
-      File.rm_rf!(dir)
-    end
   end
 
   defp git!(dir, args) do
