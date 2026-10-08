@@ -24,7 +24,11 @@ characters on an instance bound beyond loopback is named in a startup warning;
 both bearer tokens, the API's and the MCP companion's, must be at least 32
 bytes and not a placeholder, and, like the UI password, are throttled per
 source after repeated failures, with the escalation kept well past the longest
-lock; failed UI logins also meet a rolling ceiling across all sources, which
+lock; a bearer token is compared before its source's lock is consulted, so a
+correct token passes a locked source and a wrong one still counts and is
+answered `429` while the lock lasts (Sprint 20, #974): a locked guesser who
+guesses right is let in, which the 32-byte floor makes infeasible, while the
+UI password, which a person chooses, meets the lock first; failed UI logins also meet a rolling ceiling across all sources, which
 asks everyone to wait, the operator included, while existing sessions keep
 working, and restarting the application clears it, because the counts live in
 memory only; every server-side fetch of a caller- or provider-supplied URL
@@ -79,8 +83,9 @@ the application, keeps the instance on the host's loopback, and a UI password,
 because the other containers and the host itself still reach it; and backups.
 For the same reason the MCP companion counts failed tokens per connecting
 address with every host client as one source: a local process sending wrong
-tokens locks the operator's agent out with it until the lock runs out or the
-companion restarts.
+tokens locks that address until the lock runs out or the companion restarts,
+and the lock answers only wrong tokens, so the operator's agent, whose token
+is correct, keeps working (#974).
 
 Sessions: a UI login lasts `PORTFOLIXIR_SESSION_DAYS` days (default 30),
 renewed while the instance is used, enforced on the server rather than trusted

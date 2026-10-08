@@ -56,10 +56,14 @@ ihren Wert nennt oder die Adresse und die Ursache, etwa `EADDRINUSE`. Ein
 leeres `PORTFOLIXIR_MCP_HOST` bindet `127.0.0.1` wie ein nicht gesetztes, nie
 jede Schnittstelle (#1137), und eine IPv6-Adresse, an die er bindet, gilt in
 Klammern (`[::1]:4001`), dem `Host`, den ein Client für die URL schickt, die
-der Begleitdienst ausgibt. Wiederholt falsche Tokens von einer verbindenden Adresse werden mit `429` und
-`Retry-After` für ein wachsendes Intervall beantwortet. Hinter dem
-veröffentlichten Port verbindet jeder Client über die Docker-Bridge, ein
-Rater dort bremst also auch den Agenten. Vor allem anderen prüft der
+der Begleitdienst ausgibt. Wiederholt falsche Tokens von einer verbindenden Adresse sperren sie für ein
+wachsendes Intervall, in dem jedes weitere falsche Token von ihr mit `429` und
+`Retry-After` beantwortet wird und die Sperre verlängert. Das Token wird
+zuerst verglichen: Ein richtiges Token kommt durch, solange seine Adresse
+gesperrt ist (#974), sodass hinter dem veröffentlichten Port, wo jeder Client
+über die Docker-Bridge verbindet, ein Rater oder ein veralteter Client dort
+den Agenten nicht aussperrt. Die Bearer-Prüfung der API selbst verhält sich
+genauso. Vor allem anderen prüft der
 Begleitdienst den `Host`-Header genau, Name und Port: Eine Anfrage unter einem
 `Host`, auf den der Listener nicht antwortet (die Loopback-Namen und seine
 gebundene Adresse mit seinem Port sowie die Namen in

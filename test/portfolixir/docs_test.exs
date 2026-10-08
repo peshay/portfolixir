@@ -1108,7 +1108,7 @@ defmodule Portfolixir.DocsTest do
   # the one Docker bridge gateway address,
   # so that I know naming that address trusts every local process's
   # forwarding headers, and that a local process sending wrong tokens to the
-  # companion locks my agent out with it.
+  # companion locks that one address, which my agent shares.
   #
   # Acceptance criteria:
   # - The Reverse proxy section (EN, DE) says every client on the host arrives
@@ -1117,7 +1117,9 @@ defmodule Portfolixir.DocsTest do
   #   stack's network and name its container address.
   # - The companion's section (EN, DE) says the companion counts failed tokens
   #   per connecting address, that a local process sending wrong tokens locks
-  #   the agent out, and that restarting the companion clears the counts.
+  #   that address, and that restarting the companion clears the counts.
+  #   Since #974 the lock answers wrong tokens only, so it no longer says the
+  #   agent is locked out with it (pinned below).
   # - SECURITY.md says both.
   test "the guide says every host client shares the bridge gateway address" do
     read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
@@ -1125,11 +1127,11 @@ defmodule Portfolixir.DocsTest do
     for {path, shared, network, lockout, restart} <- [
           {"docs/home-deployment.md", "every client on the host arrives from that same address",
            "attach the proxy to the stack's network and name its container address",
-           "a process on the host that sends a wrong token locks your agent out too",
+           "a process on the host that sends wrong tokens locks that address",
            "`docker compose restart mcp`"},
           {"docs/de/home-deployment.md", "jeder Client auf dem Host kommt von derselben Adresse",
            "hänge den Proxy an das Netzwerk des Stacks und nenne seine Container-Adresse",
-           "ein Prozess auf dem Host, der ein falsches Token schickt, sperrt auch deinen Agenten aus",
+           "ein Prozess auf dem Host, der falsche Tokens schickt, sperrt diese Adresse",
            "`docker compose restart mcp`"}
         ] do
       doc = read.(path)
@@ -1145,6 +1147,72 @@ defmodule Portfolixir.DocsTest do
              "every client on the host reaches the published ports from that one address"
 
     assert security =~ "the MCP companion counts failed tokens per connecting address"
+  end
+
+  # User story (#974, the Sprint 20 plan's D-11):
+  # As an operator whose host clients all share one address to the published
+  # ports,
+  # I want every page that describes the token lockout to say that a correct
+  # token passes a locked address and a wrong one still counts,
+  # so that a stale client is recognised as harmless to my agent, and the
+  # cost of that order is stated where the decision lives.
+  #
+  # Acceptance criteria:
+  # - The deployment guide (EN, DE), SECURITY.md, the API and MCP reference
+  #   (EN, DE) and the agent guide (EN, DE) say the token is compared first:
+  #   a correct token passes while its address is locked, a wrong one counts
+  #   and keeps the lock.
+  # - SECURITY.md and ADR-0045 §1's dated note state the cost and the 32-byte
+  #   floor that makes it acceptable, and that the UI password stays
+  #   lock-first.
+  test "the guides say a correct token passes a locked source and a wrong one still counts" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+
+    for {path, fragments} <- [
+          {"docs/home-deployment.md",
+           [
+             "the lock answers only wrong tokens: your agent's correct token passes while it lasts",
+             "a stale client that still sends an old token after a rotation"
+           ]},
+          {"docs/de/home-deployment.md",
+           [
+             "trifft die Sperre nur falsche Tokens: Das richtige Token deines Agenten kommt durch, solange sie gilt",
+             "ein veralteter Client, der nach einem Tausch noch ein altes Token schickt"
+           ]},
+          {"docs/integration/api-and-mcp.md",
+           [
+             "The token is compared first: a correct token passes while its address is locked (#974)"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "Das Token wird zuerst verglichen: Ein richtiges Token kommt durch, solange seine Adresse gesperrt ist (#974)"
+           ]},
+          {"docs/integration/connect-an-agent.md",
+           ["the lock answers only wrong tokens: a correct token passes while it lasts (#974)"]},
+          {"docs/de/integration/connect-an-agent.md",
+           [
+             "die Sperre trifft nur falsche Tokens: Ein richtiges Token kommt durch, solange sie gilt (#974)"
+           ]},
+          {"SECURITY.md",
+           [
+             "a bearer token is compared before its source's lock is consulted",
+             "a locked guesser who guesses right is let in, which the 32-byte floor makes infeasible",
+             "the UI password, which a person chooses, meets the lock first",
+             "the lock answers only wrong tokens, so the operator's agent, whose token is correct, keeps working"
+           ]},
+          {"docs/decisions/0045-optional-built-in-authentication.md",
+           [
+             "Note (2026-10-08, Sprint 20, #974): the bearer tokens compare first",
+             "A locked guesser who guesses right is let in",
+             "The UI password stays lock-first"
+           ]}
+        ] do
+      doc = read.(path)
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
   end
 
   # User story (E25 S2, F54):

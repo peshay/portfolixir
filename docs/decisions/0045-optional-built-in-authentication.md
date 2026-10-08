@@ -99,6 +99,24 @@ first start after this change asks for the password once. The revocation
 decision above is unchanged (T-4 of the 2026-09-24 triage): this is a second
 lever beside rotating `SECRET_KEY_BASE`, not a server-side session list.
 
+**Note (2026-10-08, Sprint 20, #974): the bearer tokens compare first.** §1
+throttles failed password attempts per source; the bearer tokens took the
+same throttle (#771 for the API, E25 S1 for the MCP companion) and, like the
+password, consulted the lock before the credential. Under the Compose
+deployment every client on the host reaches the published ports from the one
+bridge-gateway address, so a stale client that still sent an old token after
+a rotation locked the operator's own agent out for as long as the escalation
+was kept. Both token checks now compare the token first (the Sprint 20 plan's
+D-11): a correct token passes while its source is locked; a wrong one still
+counts, locked or not, and is answered 429 while the lock lasts, each one
+extending it. A locked guesser who guesses right is let in: that is the
+cost, and the 32-byte floor every token meets at boot makes that guess
+infeasible. The UI password stays lock-first: a person chooses it and no
+floor holds its length (a startup warning names a short one), so the lock is
+what bounds guessing it. Whether the login should let a correct password
+through its lock is a separate question, which nobody has asked. The bullet "The `/api/v1` routes
+are untouched" still holds: the UI password is never accepted there.
+
 ### 2. The deployment contract
 
 - **Production binds loopback by default.** `config/runtime.exs` gains the

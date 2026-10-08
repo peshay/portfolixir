@@ -53,10 +53,12 @@ blank `PORTFOLIXIR_MCP_HOST` binds `127.0.0.1`, as an unset one does, never
 every interface (#1137), and an IPv6 address it binds is answered in brackets
 (`[::1]:4001`), the `Host` a client sends for the URL the companion prints.
 Repeated wrong
-tokens from one connecting address are
-answered `429` with `Retry-After` for a growing interval. Behind the published
-port every client connects from the Docker bridge, so a guesser there delays
-the agent as well. Before anything else, the companion checks the `Host`
+tokens from one connecting address lock it for a growing interval, during
+which every further wrong token from it is answered `429` with `Retry-After`
+and extends the lock. The token is compared first: a correct token passes
+while its address is locked (#974), so behind the published port, where every
+client connects from the Docker bridge, a guesser or a stale client there does
+not lock the agent out. The API's own bearer check behaves the same way. Before anything else, the companion checks the `Host`
 header exactly, name and port: a request under a `Host` the listener does not
 answer to (the loopback names and its bound address with its port, and the
 names in `PORTFOLIXIR_MCP_ALLOWED_HOSTS`) is answered `403` before its origin
