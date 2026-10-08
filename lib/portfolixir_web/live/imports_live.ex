@@ -764,7 +764,7 @@ defmodule PortfolixirWeb.ImportsLive do
               <li>
                 <%= gettext("Row %{row}: %{reason}",
                   row: row_label(@file_rows, unresolved.row),
-                  reason: unresolved.reason
+                  reason: unresolved_reason(unresolved)
                 ) %>
               </li>
             <% end %>
@@ -2379,6 +2379,47 @@ defmodule PortfolixirWeb.ImportsLive do
         reason
     end
   end
+
+  # Why no security resolves for a row, in the page's words rather than the
+  # applier's (the α closing act, A5's leftover): the securities by name,
+  # never by record number, and no ADR reference.
+  defp unresolved_reason(%{cause: {:ambiguous, tier, count}}) do
+    ngettext(
+      "one existing security shares this identifier: %{identifier}",
+      "%{count} existing securities share this identifier: %{identifier}",
+      count,
+      identifier: identifier_label(tier)
+    )
+  end
+
+  defp unresolved_reason(%{cause: {:identifier_veto, %{name: name}}}) do
+    gettext(
+      "a likely match, %{name}, differs on a stronger identifier — possibly an ISIN change not recorded yet",
+      name: quoted(name)
+    )
+  end
+
+  defp unresolved_reason(%{cause: {:cross_tier, securities}}) do
+    gettext("different identifiers point at different existing securities: %{names}",
+      names: quoted_names(securities)
+    )
+  end
+
+  defp unresolved_reason(%{cause: {:config_at_risk, securities}}) do
+    gettext(
+      "creating it would leave strategy configuration (category assignments or position targets) stranded on: %{names}",
+      names: quoted_names(securities)
+    )
+  end
+
+  defp identifier_label(:wkn), do: gettext("WKN")
+  defp identifier_label(:ticker), do: gettext("ticker and currency")
+  defp identifier_label(:name), do: gettext("name and currency")
+
+  defp quoted(name), do: gettext("“%{name}”", name: name)
+
+  defp quoted_names(securities),
+    do: securities |> Enum.map(&quoted(&1.name)) |> ReferenceCounts.and_list()
 
   # What a file row books, in the page's words: its kind and date, the
   # security, the amount (or the quantity), and the file's account names.
