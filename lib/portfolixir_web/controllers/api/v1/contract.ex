@@ -41,6 +41,31 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 17,
+      # Sprint 20's commit group γ (nothing a screen shows changes): the
+      # group's one entry, opened by C2's first surface change (#1103); C2's
+      # other stories and C4 extend it, each item named by its issue. 17, not
+      # 16: β's entry 16 sits beneath it once the groups are put in order,
+      # and the meta-test asks for decreasing versions, not contiguous ones.
+      date: ~D[2026-10-08],
+      summary:
+        "Sprint 20 γ, the agent's reads and writes (C2): the securities list takes " <>
+          "is_retired, as it takes is_benchmark, so an agent finds what it retired in order " <>
+          "to restore it, and a data_quality set beside a narrowing it contradicts now " <>
+          "matches nothing where the set's own exclusion replaced the caller's (#1103). The " <>
+          "schema budget pays for every byte C2 adds, and the ceilings are lowered to the " <>
+          "figures measured (D-10).",
+      endpoints: [],
+      tools: [],
+      parameters: [
+        "GET /api/v1/securities?is_retired= (portfolixir.securities.list, whose schema and description now carry it): true lists only the retired securities, false leaves them out, blank counts as absent, any other value is a 422 on is_retired, as is_benchmark= answers; it narrows together with query, holding_status, is_benchmark, logo_status, data_quality, since and limit/offset. Beside data_quality=stale_quote, missing_quote or missing_logo, which leave retired and benchmark securities out, is_retired=true answers an empty list, and so does is_benchmark=true, which the set's own exclusion used to replace, answering the set's other members; logo_status=present beside missing_logo likewise. Every other combination answers as before (#1103)"
+      ],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 16,
       # Sprint 20's commit group β (what the ledger reports about it), after
       # Sprint 19 PR β's 15: the group's one entry, opened by its first

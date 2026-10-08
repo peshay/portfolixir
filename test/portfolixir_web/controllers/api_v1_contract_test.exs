@@ -49,6 +49,27 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
     assert newest["endpoints"] != [] or newest["tools"] != [] or
              newest["parameters"] != []
 
+    # Sprint 20, commit group γ (version 17; β's 16 sits beneath it once the
+    # groups are put in order): the agent's reads and writes, one entry for
+    # the group, opened by C2's first surface change and extended by each
+    # story after it. No route and no tool is added.
+    assert newest["version"] == 17
+    assert newest["date"] == "2026-10-08"
+    assert newest["summary"] =~ "Sprint 20 γ"
+    assert newest["endpoints"] == []
+    assert newest["tools"] == []
+
+    # #1103: the securities list takes is_retired, and a data_quality set
+    # beside a narrowing it contradicts matches nothing.
+    assert newest["summary"] =~ "#1103"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/securities?is_retired=") and
+                 &1 =~ "portfolixir.securities.list" and &1 =~ "is_benchmark=true" and
+                 &1 =~ "empty list" and &1 =~ "#1103")
+           )
+
     # Sprint 20, commit group β (version 16, after Sprint 19 PR β's 15): what
     # the ledger reports about it, the ADR-0015 amendment of 2026-10-07. B1
     # opened the entry (#1108): a cross-currency closed trade's fees and

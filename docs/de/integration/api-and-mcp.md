@@ -344,6 +344,15 @@ verengen, was der Betreiber sieht.
   Wertpapiere (ADR-0046: die Referenzreihen des Benchmark-Vergleichs),
   `is_benchmark=false` lässt sie weg; das Kennzeichen ist ein Feld der vollen
   Projektion und von `fields=`, und `POST`/`PATCH` nehmen es an.
+  `is_retired=true` beschränkt die Abfrage auf die stillgelegten Wertpapiere
+  (Issue #1103): Ein Wertpapier, das aus den Hygiene-Mengen stillgelegt
+  wurde, ist so wieder zu finden und mit `PATCH`
+  `{"security": {"is_retired": false}}` zu reaktivieren; `is_retired=false`
+  lässt sie weg. Beide Kennzeichen nehmen `true` oder `false` (leer zählt als
+  nicht gesetzt, alles andere ist ein `422`, das das Kennzeichen nennt) und
+  verengen zusammen mit den anderen Parametern: Neben einer
+  `data_quality`-Menge, die solche Wertpapiere auslässt, trifft
+  `is_retired=true` oder `is_benchmark=true` nichts.
   **Gehalten** (`holding_status=held` und jeder andere Gehalten-Filter: die
   unreviewten Positionen des Research-Logs und `held_only` der Ereignisse)
   bedeutet eines: eine von null verschiedene Nettomenge über alle Depots,

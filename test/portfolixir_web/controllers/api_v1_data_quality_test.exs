@@ -330,4 +330,68 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
     assert page.("limit=2") == ["C Active AG", "D Active AG"]
     assert page.("limit=2&offset=2") == ["E Active AG"]
   end
+
+  # User story (#1103, answered by the Sprint 20 decision pass):
+  # As the operator's agent that retired securities in bulk,
+  # I want to list the retired ones, or leave them out, as I can the
+  # benchmarks,
+  # so that I find a security I retired to restore it without reading the
+  # whole catalog and filtering it myself.
+  #
+  # Acceptance criteria:
+  # - is_retired=true lists only the retired securities, false only the
+  #   others; blank counts as absent; any other value is a 422 naming it.
+  # - It composes with is_benchmark, query and paging.
+  # - A catalog-hygiene data_quality set still leaves a retired security
+  #   out: beside is_retired=true it matches nothing, as two narrowings do,
+  #   where the predicate's own exclusion used to replace the caller's (the
+  #   same holds for is_benchmark=true). The predicate is never widened.
+  test "the securities listing filters on is_retired", %{conn: conn} do
+    for {name, ticker, retired?, benchmark?} <- [
+          {"Retired Alpha AG", "RAA", true, false},
+          {"Retired Beta AG", "RBA", true, false},
+          {"Retired Index", "RIX", true, true},
+          {"Active Gamma AG", "AGA", false, false}
+        ] do
+      security = create_security!(name: name, ticker: ticker)
+
+      {:ok, _} =
+        Catalog.update_security(Portfolixir.Actor.owner_ui(), security, %{
+          is_retired: retired?,
+          is_benchmark: benchmark?
+        })
+    end
+
+    list = fn query ->
+      conn
+      |> recycle()
+      |> get_json("/api/v1/securities?" <> query)
+      |> json_response(200)
+      |> names()
+    end
+
+    assert list.("is_retired=true") == ["Retired Alpha AG", "Retired Beta AG", "Retired Index"]
+    assert list.("is_retired=false") == ["Active Gamma AG"]
+
+    assert list.("is_retired=") ==
+             ["Active Gamma AG", "Retired Alpha AG", "Retired Beta AG", "Retired Index"]
+
+    assert list.("is_retired=true&is_benchmark=false") == ["Retired Alpha AG", "Retired Beta AG"]
+    assert list.("is_retired=true&query=Beta") == ["Retired Beta AG"]
+    assert list.("is_retired=true&limit=1&offset=1") == ["Retired Beta AG"]
+
+    # missing_logo leaves a retired security out in the query; asking for
+    # the retired ones does not widen it.
+    assert list.("data_quality=missing_logo&is_retired=true") == []
+    assert list.("data_quality=missing_logo&is_retired=false") == ["Active Gamma AG"]
+    assert list.("data_quality=missing_logo&is_benchmark=true") == []
+    assert list.("data_quality=stale_quote&is_retired=true") == []
+
+    for value <- ["yes", "1", "TRUE"] do
+      assert conn
+             |> recycle()
+             |> get_json("/api/v1/securities?is_retired=#{value}")
+             |> json_response(422) == %{"errors" => %{"is_retired" => ["is invalid"]}}
+    end
+  end
 end
