@@ -74,9 +74,11 @@ defmodule Portfolixir.Lifecycle.DepotMerge do
        before the merge, at every date. Otherwise the merge
        rolls back with `identity_check_failed`, a bug catcher, never an
        expected answer. From a split on, the combined position rounded once
-       may differ from the sum of the two rounded apart by a unit of the
-       volume scale; that is expected, listed in the preview, never a
-       failure;
+       may differ from the sum of the two rounded apart; the preview lists
+       that difference per position and split date (`rounding_differences`)
+       and no bound per split is enforced, since splits that compound scale
+       an earlier difference (ADR-0050, amendment of 2026-10-08). It is
+       expected, never a failure;
     4. the bucket plan, through the journaled `Portfolixir.Buckets` writers
        (one aggregate entry per position);
     5. delete S through the hardened delete (its default buckets first, one

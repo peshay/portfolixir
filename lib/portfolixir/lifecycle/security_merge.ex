@@ -49,9 +49,12 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       value of the choice. The check runs in exact rational arithmetic
       (`Portfolixir.Lifecycle.MergeFigures.eod_exact/1`), so a collapsed
       split scaling the combined position once — whose rounding at volume
-      scale 6 can differ from the two positions rounded apart by a unit per
-      split, listed in the preview — never refuses, and any other difference
-      does, naming the split date. This catches a target-side split that
+      scale 6 can differ from the two positions rounded apart, the
+      difference listed in the preview per position and split date
+      (`rounding_differences`) and held to no bound per split, since splits
+      that compound scale an earlier difference (ADR-0050, amendment of
+      2026-10-08) — never refuses, and any other difference does, naming
+      the split date. This catches a target-side split that
       would rescale moved rows (ADR-0028 §1), and a source split that would
       rescale the target's own history;
     * `legacy_hashed_split` — a source split the merge would move still

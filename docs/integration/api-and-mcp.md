@@ -1379,10 +1379,13 @@ Example quote sync response:
     over the position's sales, each sale's quantity times its price in the
     security's currency less the cost it removed at the running average, and
     `null` where that price or cost is not derivable;
-    `rounding_differences` lists each split of an affected security where
-    the combined position rounded once differs, at the end of the split's
-    day, from the two positions rounded apart — by a unit of the volume scale
-    per split, expected and never a refusal;
+    `rounding_differences` lists, per position and split date, each split
+    of an affected security where the combined position rounded once
+    differs, at the end of the split's day, from the two positions rounded
+    apart, with both quantities and their difference — expected and never a
+    refusal, and held to no bound per split: where splits compound, a
+    difference one split leaves is scaled by the next (ADR-0050, amendment
+    of 2026-10-08);
   - `reimport_note`, what the merge does to the next Portfolio Performance
     import, as for a cash merge.
 
