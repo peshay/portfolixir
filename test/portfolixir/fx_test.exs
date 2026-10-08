@@ -165,6 +165,26 @@ defmodule Portfolixir.FxTest do
     assert length(Fx.list_rates()) == before
   end
 
+  # User story (#937, F13's other half for rates):
+  # As an operator whose rate sync and backfill write one batch each,
+  # I want a batch with a row that is not a rate object refused with a named
+  # error, as a quote batch is,
+  # so that the writer keeps its {:error, changeset} contract instead of
+  # raising inside the changeset.
+  #
+  # Acceptance criteria:
+  # - upsert_many/1 returns {:error, changeset} whose rates error says the
+  #   batch must be a list of rate objects, and writes nothing.
+  test "upsert_many/1 refuses a row that is not a rate object, by name" do
+    before = length(Fx.list_rates())
+
+    assert {:error, %Ecto.Changeset{valid?: false} = changeset} =
+             Fx.upsert_many([rate("USD", "1.25"), "EUR/GBP 0.8"])
+
+    assert errors_on(changeset) == %{rates: ["must be a list of rate objects"]}
+    assert length(Fx.list_rates()) == before
+  end
+
   # User story (#724, D-1 signed 2026-08-20 -- risk-tier verification pass on
   # the invariant at stake, per ADR-0036 step 2):
   # As a local portfolio maintainer reading a realized-gains figure,
