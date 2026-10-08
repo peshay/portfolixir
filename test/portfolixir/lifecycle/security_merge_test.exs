@@ -307,6 +307,7 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
     #   portfolio on the same day refuse as split_ratio_mismatch, naming the
     #   date and both ratios, on the preview and the apply; every table is
     #   unchanged.
+    # - The detail names the portfolio by its id, its name as data (#965).
     test "a same-day split of another ratio in the same portfolio refuses", ctx do
       buy!(ctx, ctx.d1, ctx.c1, ctx.source, "2", "10.00", ~D[2025-01-10])
       buy!(ctx, ctx.d1, ctx.c1, ctx.target, "3", "10.00", ~D[2025-01-12])
@@ -317,6 +318,8 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       assert detail =~ "2025-03-01"
       assert detail =~ "2:1"
       assert detail =~ "3:1"
+      assert detail =~ "On 2025-03-01 in portfolio ##{ctx.main.id} the source splits"
+      refute detail =~ ~s("Main")
 
       # The refusal names its conflict as data too, for the operator's page
       # to say it in the operator's language (L5b, board 03).
@@ -440,6 +443,8 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
     #   in the portfolio where the target holds Broker B unsplit: the merge
     #   refuses as split_linearity naming the date and the depot, and writes
     #   nothing.
+    # - The detail names the depot and the portfolio by their ids, never by
+    #   their stored names, which travel as data (#965).
     test "a split that would rescale the other side's bookings refuses", ctx do
       buy!(ctx, ctx.d1, ctx.c1, ctx.source, "2", "10.00", ~D[2025-01-10])
       split!(ctx.main, ctx.source, ~D[2025-03-01], {2, 1})
@@ -449,7 +454,10 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
 
       detail = refused!(ctx, :split_linearity)
       assert detail =~ "2025-03-01"
-      assert detail =~ "Broker B"
+      assert detail =~ "in portfolio ##{ctx.main.id} would rescale"
+      assert detail =~ "in depot ##{ctx.d2.id} on 2025-03-01"
+      refute detail =~ "Broker B"
+      refute detail =~ ~s("Main")
 
       assert %{date: ~D[2025-03-01], securities_account_name: "Broker B"} =
                refused_guard!(ctx, :split_linearity).failure
@@ -475,7 +483,8 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
 
       detail = refused!(ctx, :split_linearity)
       assert detail =~ "2025-03-01"
-      assert detail =~ "Broker B"
+      assert detail =~ "in depot ##{ctx.d2.id}"
+      refute detail =~ "Broker B"
       assert detail =~ "4"
     end
   end
@@ -495,8 +504,9 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
     # - A dead override of the target in a depot only the source holds,
     #   while the source's position inherits, is cleared.
     # - A differing effective set where both hold refuses as
-    #   position_buckets_mismatch naming the depot, and the buckets by name
-    #   and id, never as a charlist (#978).
+    #   position_buckets_mismatch naming the depot and the buckets by their
+    #   ids, never as a charlist (#978); the depot's name travels as data,
+    #   and no stored name sits in the sentence (#965).
     test "an override is carried, dropped or cleared so every position keeps its set", ctx do
       worked_example!(ctx)
       d4 = depot!(ctx.main, ctx.c1, "Broker D")
@@ -535,13 +545,13 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       :ok = Buckets.set_position_override(Actor.owner_ui(), ctx.d1, ctx.source, [spec.id])
 
       detail = refused!(ctx, :position_buckets_mismatch)
-      assert detail =~ "Broker A"
-      refute detail =~ "Broker B"
 
       assert detail =~
-               ~s[In depot "Broker A" the source's position sits in the bucket "#{spec.name}" ] <>
-                 ~s[(##{spec.id}) and the target's in no bucket: view membership is retroactive]
+               ~s[In depot ##{ctx.d1.id} the source's position sits in the bucket ##{spec.id} ] <>
+                 ~s[and the target's in no bucket: view membership is retroactive]
 
+      refute detail =~ "Broker"
+      refute detail =~ spec.name
       refute detail =~ "~c"
 
       spec_id = spec.id
@@ -566,9 +576,10 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
     #
     # Acceptance criteria:
     # - The override to carry, with two scope-dimension buckets, refuses as
-    #   position_buckets_mismatch naming the depot, the buckets (by name and
-    #   id, never as a charlist, #978) and the one-scope rule, lists the
-    #   position as refuse_carry, and writes nothing.
+    #   position_buckets_mismatch naming the depot, the buckets (by their
+    #   ids, never as a charlist, #978; no stored name in the sentence, #965)
+    #   and the one-scope rule, lists the position as refuse_carry, and
+    #   writes nothing.
     test "a carried override with two scope buckets refuses, naming the depot", ctx do
       worked_example!(ctx)
       d4 = depot!(ctx.main, ctx.c1, "Broker D")
@@ -587,13 +598,14 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       guard = refused_guard!(ctx, :position_buckets_mismatch)
 
       assert guard.detail =~
-               ~s[In depot "Broker D" the source's position carries an override with more ] <>
-                 ~s[than one scope bucket, "#{one.name}" (##{one.id}), "#{two.name}" (##{two.id}), ] <>
+               ~s[In depot ##{d4.id} the source's position carries an override with more ] <>
+                 ~s[than one scope bucket, ##{one.id}, ##{two.id}, ] <>
                  ~s[stored before a position could hold only one]
 
       refute guard.detail =~ "~c"
 
-      refute guard.detail =~ "Broker A"
+      refute guard.detail =~ "Broker"
+      refute guard.detail =~ one.name
 
       assert [%{securities_account_name: "Broker D", target_buckets: [], action: :refuse_carry}] =
                guard.positions
@@ -845,7 +857,8 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
     # - Notes on the source refuse as research_notes; the remedy is to merge
     #   the other way while the reverse merge passes its guards.
     # - A rule version naming the source refuses as policy_rules, naming the
-    #   rule and its status, in ADR-0049 §8's shape.
+    #   rule and its status, in ADR-0049 §8's shape: the sentence by the
+    #   rule's id, its name as data (#965).
     # - With notes on both, the remedy is to keep both; merging the other way
     #   is not offered.
     # - A mergeable preview reports whether the reverse merge would pass.
@@ -870,7 +883,8 @@ defmodule Portfolixir.Lifecycle.SecurityMergeTest do
       worked_example!(ctx)
       rule = rule!(ctx.main, ctx.source)
       guard = refused_guard!(ctx, :policy_rules)
-      assert guard.detail =~ "Fund Y at most 12 %"
+      assert guard.detail =~ "is read by 1 policy rule(s): ##{rule.id} ("
+      refute guard.detail =~ "Fund Y at most 12 %"
       assert [%{id: rule_id, name: "Fund Y at most 12 %", status: _status}] = guard.policy_rules
       assert rule_id == rule.id
       assert guard.remedy == :merge_other_way
