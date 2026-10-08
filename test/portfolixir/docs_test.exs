@@ -754,7 +754,7 @@ defmodule Portfolixir.DocsTest do
           "Save plan",
           "PP Import",
           "Portfolio records (compatibility)",
-          "No tag — leave the new accounts untagged",
+          "Optional: a bucket tag for the accounts this import creates.",
           "Exclude buckets",
           "Composition as of today"
         ] do
@@ -774,7 +774,7 @@ defmodule Portfolixir.DocsTest do
           "Plan speichern",
           "PP Import",
           "Portfoliodatensätze (Kompatibilität)",
-          "Kein Tag – die neuen Konten bleiben ohne Bucket",
+          "Optional: ein Bucket-Tag für die Konten, die dieser Import anlegt.",
           "Buckets ausschließen",
           "Zusammensetzung per heute"
         ] do

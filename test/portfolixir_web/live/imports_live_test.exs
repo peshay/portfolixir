@@ -409,14 +409,16 @@ defmodule PortfolixirWeb.ImportsLiveTest do
   # Acceptance criteria:
   # - The Target-portfolio picker disappears; the portfolio binding happens
   #   internally via Portfolios.default_portfolio/1 (import actor).
-  # - The preview shows an editable bucket-tag field, pre-filled with a
-  #   date-stamped default, plus a "no tag" skip option.
+  # - The preview shows an editable bucket-tag field. Since #1174 (board
+  #   ux-design-2026-10-07/01-import-preview ⑦) it starts empty with its
+  #   placeholder, and the empty field is the "no tag" its former skip box
+  #   said, so there is no box.
   # - On apply the NEWLY created depots/cash accounts get the (tag-dimension)
   #   bucket; existing-mapped accounts keep their tags untouched.
   # - A bucket with the entered name is reused, not duplicated.
   # - Re-applying the same file stays a no-op and does not duplicate bucket
   #   assignments; blank tag behaves like skip; no new accounts → no bucket.
-  test "preview shows an editable date-stamped bucket tag instead of a portfolio picker",
+  test "preview shows an editable bucket tag instead of a portfolio picker",
        %{conn: conn} do
     {:ok, view, _html} = live(conn, "/imports")
     upload_sample(view)
@@ -427,11 +429,9 @@ defmodule PortfolixirWeb.ImportsLiveTest do
     refute html =~ "Target portfolio"
     refute html =~ "Create new portfolio"
 
-    # The editable bucket tag is pre-filled with a date-stamped default and
-    # offers a skip option.
-    default_tag = "PP Import #{Date.utc_today() |> Date.to_iso8601()}"
-    assert has_element?(view, "input[name='bucket_tag'][value='#{default_tag}']")
-    assert has_element?(view, "input[type='checkbox'][name='bucket_skip']")
+    # The editable bucket tag starts empty, with its placeholder (#1174).
+    assert has_element?(view, "input[name='bucket_tag'][value=''][placeholder='e.g. PP Import']")
+    refute has_element?(view, "input[name='bucket_skip']")
     assert html =~ "bucket tag"
   end
 

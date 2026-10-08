@@ -40,9 +40,7 @@ defmodule Portfolixir.Invariants.DisplayedDatesTest do
     {"lib/portfolixir_web/live/securities_live.ex", :research_today_value} =>
       "the research entry's as-of input default",
     {"lib/portfolixir_web/live/transaction_management_live.ex", :date_field_value} =>
-      "the booking drawer's date input and the notes drawer's disabled one",
-    {"lib/portfolixir_web/live/imports_live.ex", :default_bucket_tag} =>
-      "a bucket name the import stores: data, like a file name"
+      "the booking drawer's date input and the notes drawer's disabled one"
   }
 
   # User story:

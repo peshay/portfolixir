@@ -2957,6 +2957,20 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
     drawing 3). When no booking of the file is new, no account is created,
     so the "Bucket tag for new accounts" panel is not shown; the absent
     field leaves the mapping's value as it was, and the apply tags nothing.
+- **The bucket tag starts empty** *(2026-10-08; issue 1174, Sprint 20 PR α
+  A5; board `mockups/ux-design-2026-10-07/01-import-preview` ⑦ and its
+  found-while-drawing item 5)*. The panel `#import-bucket-tag` ("Bucket tag
+  for new accounts" / "Bucket-Tag für neue Konten") offers the tag rather
+  than promising it: the sentence over the field reads "Optional: a bucket
+  tag for the accounts this import creates." / "Optional: ein Bucket-Tag für
+  die Konten, die dieser Import anlegt."; the field starts empty and shows
+  its placeholder, "e.g. PP Import" / "z. B. PP Import"; the closing line
+  about reusing a bucket and the tags of mapped accounts is unchanged. The
+  "No tag — leave the new accounts untagged" checkbox is gone: the empty
+  field is no tag, as it always was. An import therefore creates no bucket
+  unless the operator names one, and never labels a converted bank file a
+  Portfolio Performance import. What Apply sends is unchanged: an empty or
+  blank field reaches the apply as no tag.
 - **A row none of whose bookings is new needs no decision** — the account
   rows' rule (board 04, note 4: an ambiguous cash or depot name with nothing
   new is left undecided and blocks nothing), and since 2026-10-06 the

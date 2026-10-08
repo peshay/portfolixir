@@ -3,7 +3,6 @@ defmodule PortfolixirWeb.ImportsLive do
 
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
-  alias Portfolixir.Clock
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Correction
   alias Portfolixir.Imports.Mapping
@@ -370,8 +369,11 @@ defmodule PortfolixirWeb.ImportsLive do
       <form id="pp-import-apply" phx-change="mapping_changed" phx-submit="apply">
         <section :if={not @creates_nothing} class="panel inner" id="import-bucket-tag">
           <h3><%= gettext("Bucket tag for new accounts") %></h3>
+          <%!-- #1174 (board 01 ⑦, found while drawing 5): the field starts
+               empty, so the sentence offers the tag rather than promising
+               it, and the empty field is the "no tag" a checkbox once said. --%>
           <p class="muted">
-            <%= gettext("The accounts created by this import get the bucket tag:") %>
+            <%= gettext("Optional: a bucket tag for the accounts this import creates.") %>
           </p>
           <label>
             <span><%= gettext("Bucket tag") %></span>
@@ -379,20 +381,9 @@ defmodule PortfolixirWeb.ImportsLive do
               type="text"
               name="bucket_tag"
               value={@mapping.bucket_tag}
-              disabled={@mapping.bucket_skip}
               maxlength="100"
               placeholder={gettext("e.g. PP Import")}
             />
-          </label>
-          <label>
-            <input type="hidden" name="bucket_skip" value="false" />
-            <input
-              type="checkbox"
-              name="bucket_skip"
-              value="true"
-              checked={@mapping.bucket_skip}
-            />
-            <span><%= gettext("No tag — leave the new accounts untagged") %></span>
           </label>
           <p class="muted">
             <%= gettext(
@@ -2355,9 +2346,13 @@ defmodule PortfolixirWeb.ImportsLive do
     |> assign(:existing_securities, Catalog.list_securities(is_benchmark: false))
   end
 
+  # #1174: the bucket tag starts empty, so an import tags nothing unless the
+  # operator names a bucket; an empty field is "no tag" (`effective_bucket_tag/1`).
+  # `bucket_skip` stays for a mapping parked before the field lost its
+  # checkbox, and is false for every new one.
   defp blank_mapping do
     %{
-      bucket_tag: default_bucket_tag(),
+      bucket_tag: "",
       bucket_skip: false,
       cash: %{},
       depot: %{},
@@ -2369,12 +2364,6 @@ defmodule PortfolixirWeb.ImportsLive do
       # choice the operator changed from it is a remap to remember.
       prefill: %{"cash" => %{}, "depot" => %{}}
     }
-  end
-
-  # The date-stamped default bucket name is data (a bucket name), not UI
-  # copy — deliberately not translated.
-  defp default_bucket_tag do
-    "PP Import #{Date.to_iso8601(Clock.today())}"
   end
 
   # Auto-prefill (ADR-0050 §4) through the resolution the apply uses: an

@@ -114,11 +114,12 @@ Buckets and views replace that habit without the bookkeeping split.
   bucket + view per portfolio and is safe to re-run (already-seeded
   portfolios are skipped).
 - **What imports do now.** The import preview no longer asks for a target
-  portfolio. Instead it offers an editable bucket tag — *The accounts created
-  by this import get the bucket tag:* — pre-filled with a date-stamped
-  `PP Import <date>`. Keep it to find the imported accounts later, type the
-  name of an existing bucket to reuse it, or check *No tag — leave the new
-  accounts untagged* to skip tagging entirely.
+  portfolio. Instead it offers an optional bucket tag — *Optional: a bucket
+  tag for the accounts this import creates.* — that starts empty (its
+  placeholder reads *e.g. PP Import*). Left empty, the new accounts stay
+  untagged and no bucket is created. Type a name such as `PP Import` to find
+  the imported accounts later, or the name of an existing bucket to reuse
+  it.
   <!-- screenshot: import-preview-bucket-tag -->
 - **Where the portfolio records went.** Portfolios still exist as internal
   compatibility records, but they carry no behavior in the UI. The
