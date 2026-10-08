@@ -20,6 +20,12 @@ defmodule Portfolixir.Fx.RateSync do
   conversion (a realized gain at its own close date) can find its rate. It
   does not change the rate-availability rule: a date the provider never
   published stays absent, and the consumer keeps excluding and naming it.
+
+  `backfill_when_needed/1` (#1120, D-5 of the Sprint 20 plan, amending
+  Sprint 9's D-1 to "on demand, and once by itself when needed") is that
+  backfill run only when a booking predates its currency's earliest stored
+  rate and no completed run has sought the currency yet
+  (`Portfolixir.Fx.HistoryGaps`), under the same single-flight key.
   """
 
   use GenServer
@@ -27,6 +33,7 @@ defmodule Portfolixir.Fx.RateSync do
 
   alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Fx
+  alias Portfolixir.Fx.HistoryGaps
   alias Portfolixir.SingleFlight
 
   @default_interval :timer.hours(12)
@@ -101,13 +108,71 @@ defmodule Portfolixir.Fx.RateSync do
     end
   end
 
+  @doc """
+  The history backfill **when needed** (#1120, D-5 of the Sprint 20 plan):
+  `backfill/1`, run only when a booking in some currency predates that
+  currency's earliest stored rate and no completed run has sought that
+  currency yet (`Portfolixir.Fx.HistoryGaps.due/0`).
+
+  It holds `backfill/1`'s single-flight key for the whole check, fetch and
+  record, so it never runs beside a manual backfill: while either runs, the
+  other answers `{:error, :backfill_in_progress}` and asks the provider
+  nothing.
+
+  Returns `:not_needed` (nothing due; the provider is not asked),
+  `{:ok, result}` (`backfill/1`'s result plus `sought`, the due currencies,
+  now recorded so they are not due again), `{:error,
+  :history_unsupported}`, `{:error, :backfill_in_progress}`, or `{:error,
+  reason}` when the fetch or the store failed: logged by `backfill/1`'s
+  path, nothing recorded, so the next trigger tries again. It never raises
+  for a provider failure.
+
+  Options: as `backfill/1`.
+  """
+  @spec backfill_when_needed(keyword()) :: :not_needed | {:ok, map()} | {:error, term()}
+  def backfill_when_needed(opts \\ []) do
+    provider = Keyword.get(opts, :provider, runtime_provider())
+    opts = Keyword.put(opts, :provider, provider)
+
+    if history?(provider) do
+      case SingleFlight.run(:fx_backfill, fn -> when_needed_unlocked(opts) end) do
+        {:ok, result} -> result
+        {:error, :in_progress} -> {:error, :backfill_in_progress}
+      end
+    else
+      {:error, :history_unsupported}
+    end
+  end
+
+  defp when_needed_unlocked(opts) do
+    case HistoryGaps.due() do
+      due when map_size(due) == 0 ->
+        :not_needed
+
+      due ->
+        sought = due |> Map.keys() |> Enum.sort()
+
+        case backfill_unlocked(opts) do
+          {:ok, result} ->
+            :ok = HistoryGaps.record_sought(sought)
+
+            Logger.info(
+              "fx history backfill ran by itself for #{Enum.join(sought, ", ")}: " <>
+                "#{result.upserted} rate(s) stored"
+            )
+
+            {:ok, Map.put(result, :sought, sought)}
+
+          {:error, _reason} = error ->
+            error
+        end
+    end
+  end
+
   defp backfill_unlocked(opts) do
     provider = Keyword.get(opts, :provider, runtime_provider())
 
-    # function_exported?/3 is false for a module not loaded yet, so the
-    # provider is loaded first; otherwise the answer would depend on whether
-    # anything had called the adapter before.
-    if Code.ensure_loaded?(provider) and function_exported?(provider, :fetch_history, 1) do
+    if history?(provider) do
       case safe_fetch_history(provider, opts) do
         {:ok, rows} when is_list(rows) ->
           persist(provider, rows, :history)
@@ -124,6 +189,12 @@ defmodule Portfolixir.Fx.RateSync do
       {:error, :history_unsupported}
     end
   end
+
+  # function_exported?/3 is false for a module not loaded yet, so the
+  # provider is loaded first; otherwise the answer would depend on whether
+  # anything had called the adapter before.
+  defp history?(provider),
+    do: Code.ensure_loaded?(provider) and function_exported?(provider, :fetch_history, 1)
 
   # -- GenServer callbacks ---------------------------------------------------
 
