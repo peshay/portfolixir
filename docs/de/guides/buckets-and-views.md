@@ -127,12 +127,12 @@ Buchhaltung aufzuspalten.
   ist gefahrlos wiederholbar (bereits migrierte Portfolios werden
   übersprungen).
 - **Was Importe jetzt tun.** Die Import-Vorschau fragt nicht mehr nach einem
-  Ziel-Portfolio. Stattdessen bietet sie einen bearbeitbaren Bucket-Tag an —
-  *Die von diesem Import angelegten Konten erhalten den Bucket-Tag:* —
-  vorbefüllt mit einem datierten `PP Import <Datum>`. Behalte ihn, um die
-  importierten Konten später wiederzufinden, tippe den Namen eines
-  bestehenden Buckets, um ihn wiederzuverwenden, oder hake *Kein Tag – die
-  neuen Konten bleiben ohne Bucket* an, um das Markieren zu überspringen.
+  Ziel-Portfolio. Stattdessen bietet sie einen optionalen Bucket-Tag an —
+  *Optional: ein Bucket-Tag für die Konten, die dieser Import anlegt.* —, der
+  leer beginnt (der Platzhalter lautet *z. B. PP Import*). Bleibt er leer,
+  bleiben die neuen Konten ohne Tag, und es entsteht kein Bucket. Tippe einen
+  Namen wie `PP Import`, um die importierten Konten später wiederzufinden,
+  oder den Namen eines bestehenden Buckets, um ihn wiederzuverwenden.
   <!-- screenshot: import-preview-bucket-tag -->
 - **Wo die Portfoliodatensätze geblieben sind.** Portfolios existieren
   weiterhin als interne Kompatibilitätsdatensätze, tragen in der Oberfläche

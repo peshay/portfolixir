@@ -2525,13 +2525,14 @@ JSON v1 format. Files are parsed into a preview before any records are saved.
 The preview shows translated transaction-kind labels, the records that would be
 created, and account/depot mappings for missing targets.
 
-Instead of asking for a target portfolio, the preview offers an editable
-**bucket tag** for the accounts the import will create, pre-filled with a
-date-stamped default such as `PP Import 2026-07-12`. Rename it, enter the name
-of an existing bucket to reuse it, or pick *no tag* to leave the new accounts
-untagged (a blank field behaves the same). Accounts mapped to existing records
-keep their current tags, and an import that creates no new accounts creates no
-bucket. The internal portfolio binding happens automatically and never needs a
+Instead of asking for a target portfolio, the preview offers an optional
+**bucket tag** for the accounts the import will create: *Optional: a bucket
+tag for the accounts this import creates.* The field starts empty, and left
+empty the new accounts stay untagged and no bucket is created. Type a name,
+such as `PP Import`, to find the imported accounts later, or the name of an
+existing bucket to reuse it. Accounts mapped to existing records keep their
+current tags, and an import that creates no new accounts creates no bucket; a
+file with nothing new does not show the field at all. The internal portfolio binding happens automatically and never needs a
 choice (see the Portfolios section).
 
 The parsed preview and account mapping are preserved in memory across language

@@ -221,6 +221,66 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
              ~r/@media \(min-width: 721px\) \{\s*\.mapping-row\.depot:has\(> \.mapping-target:last-child\) \{\s*grid-template-columns: minmax\(10rem, 1fr\) minmax\(14rem, 1\.4fr\);\s*\}\s*\}/
   end
 
+  describe "the bucket tag starts empty (#1174; board 01 ⑦, found while drawing 5)" do
+    # User story (#1174):
+    # As the operator whose import creates accounts,
+    # I want the bucket tag to start empty and to say that it is optional,
+    # so that an import never invents a group I did not name, nor labels a
+    # converted bank file as a Portfolio Performance import.
+    #
+    # Acceptance criteria:
+    # - The field starts empty and shows its placeholder, "e.g. PP Import" /
+    #   "z. B. PP Import".
+    # - The sentence over it reads "Optional: a bucket tag for the accounts
+    #   this import creates." / "Optional: ein Bucket-Tag für die Konten, die
+    #   dieser Import anlegt.", and the "No tag" checkbox is gone: the empty
+    #   field already means no tag.
+    # - Confirming with the field left empty creates the accounts and no
+    #   bucket; a tag typed into it still tags them.
+    test "the field starts empty, says it is optional, and an untouched one tags nothing",
+         %{conn: conn} do
+      {:ok, view, _html} = live(conn, "/imports")
+      upload!(view, history())
+
+      assert has_element?(
+               view,
+               ~s(#import-bucket-tag input[name="bucket_tag"][value=""][placeholder="e.g. PP Import"])
+             )
+
+      assert text(view, "#import-bucket-tag") =~
+               "Optional: a bucket tag for the accounts this import creates."
+
+      refute text(view, "#import-bucket-tag") =~ "get the bucket tag"
+      refute has_element?(view, "input[name='bucket_skip']")
+
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Import complete"
+
+      assert Portfolios.count_cash_accounts() == 2
+      assert Portfolixir.Buckets.list_buckets() == []
+
+      {:ok, view, _html} = live(german(conn), "/imports")
+      upload!(view, [interest("Reserve", "2.00", "2026-04-30")])
+
+      assert has_element?(
+               view,
+               ~s(#import-bucket-tag input[name="bucket_tag"][value=""][placeholder="z. B. PP Import"])
+             )
+
+      assert text(view, "#import-bucket-tag") =~
+               "Optional: ein Bucket-Tag für die Konten, die dieser Import anlegt."
+
+      view
+      |> element("form#pp-import-apply")
+      |> render_submit(%{"bucket_tag" => "Reserven"})
+
+      assert render_async(view, 1_000) =~ "Import abgeschlossen"
+      assert [%{name: "Reserven"} = bucket] = Portfolixir.Buckets.list_buckets()
+      reserve = named!(CashAccount, "Reserve")
+      assert Portfolixir.Buckets.cash_account_bucket_ids(reserve.id) == [bucket.id]
+    end
+  end
+
   # --- the exports ---------------------------------------------------------------
 
   # The history the instance imported (board 01): Test-Cash, Tagesgeld and

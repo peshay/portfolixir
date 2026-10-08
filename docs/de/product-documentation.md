@@ -2763,14 +2763,15 @@ CSV oder JSON v1. Dateien werden in eine Vorschau geparst, bevor Datensätze
 gespeichert werden. Die Vorschau zeigt übersetzte Transaktionsart-Labels, die
 Datensätze, die angelegt würden, und Konto-/Depotzuordnungen für fehlende Ziele.
 
-Statt nach einem Zielportfolio zu fragen, bietet die Vorschau einen editierbaren
-**Bucket-Tag** für die Konten an, die der Import anlegen wird — vorbelegt mit
-einem datumsgestempelten Standard wie `PP Import 2026-07-12`. Benenne ihn um,
-gib den Namen eines bestehenden Buckets ein, um ihn wiederzuverwenden, oder
-wähle *kein Tag*, um die neuen Konten ohne Bucket zu lassen (ein leeres Feld
-verhält sich genauso). Konten, die bestehenden Einträgen zugeordnet sind,
+Statt nach einem Zielportfolio zu fragen, bietet die Vorschau einen optionalen
+**Bucket-Tag** für die Konten an, die der Import anlegen wird: *Optional: ein
+Bucket-Tag für die Konten, die dieser Import anlegt.* Das Feld beginnt leer,
+und bleibt es leer, bleiben die neuen Konten ohne Tag, und es entsteht kein
+Bucket. Gib einen Namen wie `PP Import` ein, um die importierten Konten
+später wiederzufinden, oder den Namen eines bestehenden Buckets, um ihn
+wiederzuverwenden. Konten, die bestehenden Einträgen zugeordnet sind,
 behalten ihre aktuellen Tags, und ein Import, der keine neuen Konten anlegt,
-erzeugt keinen Bucket. Die interne Portfolio-Bindung geschieht automatisch und
+erzeugt keinen Bucket; eine Datei ohne Neues zeigt das Feld gar nicht. Die interne Portfolio-Bindung geschieht automatisch und
 erfordert nie eine Auswahl (siehe den Abschnitt Portfolios).
 
 Parser-Warnungen erscheinen in einer Notiz **Achtung** unter den Anzahlen je
