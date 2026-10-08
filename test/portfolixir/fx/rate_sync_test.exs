@@ -64,6 +64,31 @@ defmodule Portfolixir.Fx.RateSyncTest do
     assert Decimal.equal?(usd, Decimal.new("125"))
   end
 
+  # User story (#937; F26's rule that a bad provider row is dropped, not
+  # fatal):
+  # As an operator whose provider answers one pair on one day twice,
+  # I want the sync to keep the first of them, as the quote adapters keep
+  # the first close of a day, and to log what it dropped,
+  # so that one repeated row neither fails the run at the writer, which
+  # refuses repeats, nor lets a later row win unannounced.
+  #
+  # Acceptance criteria:
+  # - The run stores every other row and the first rate of the repeated key,
+  #   and reports the count it stored.
+  # - The log names how many repeated rows were dropped.
+  test "drops a repeated pair and day before the writer, keeping the first" do
+    Fake.put_response({:ok, [row("USD", "1.25"), row("GBP", "0.8"), row("USD", "1.26")]})
+
+    log =
+      capture_log(fn ->
+        assert {:ok, %{status: :ok, upserted: 2}} = RateSync.sync(provider: Fake)
+      end)
+
+    assert log =~ "fx rate sync dropped 1 repeated provider rate(s)"
+    assert Decimal.equal?(Fx.at_or_before("EUR", "USD", ~D[2026-05-04]).rate, Decimal.new("1.25"))
+    assert Decimal.equal?(Fx.at_or_before("EUR", "GBP", ~D[2026-05-04]).rate, Decimal.new("0.8"))
+  end
+
   test "surfaces provider errors and writes nothing" do
     Fake.put_response({:error, :boom})
 

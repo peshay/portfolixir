@@ -144,6 +144,27 @@ defmodule Portfolixir.FxTest do
     assert {:ok, 0} = Fx.upsert_many([])
   end
 
+  # User story (#937, the F13 pattern for rates):
+  # As an operator whose rate sync and backfill write one batch each,
+  # I want a batch that names one pair on one day twice refused, with that
+  # pair and day named,
+  # so that neither the database's chunking decides which rate wins nor the
+  # run fails with an unspecific persistence error.
+  #
+  # Acceptance criteria:
+  # - upsert_many/1 returns {:error, changeset} whose date error names the
+  #   pair and the day, and writes nothing.
+  # - The pair is compared as the changeset normalizes it (" usd" is USD).
+  test "upsert_many/1 refuses a batch that names one pair on one day twice" do
+    before = length(Fx.list_rates())
+
+    assert {:error, %Ecto.Changeset{valid?: false} = changeset} =
+             Fx.upsert_many([rate("USD", "1.25"), rate("GBP", "0.8"), rate(" usd", "1.26")])
+
+    assert errors_on(changeset) == %{date: ["EUR/USD on 2026-06-04 is given more than once"]}
+    assert length(Fx.list_rates()) == before
+  end
+
   # User story (#724, D-1 signed 2026-08-20 -- risk-tier verification pass on
   # the invariant at stake, per ADR-0036 step 2):
   # As a local portfolio maintainer reading a realized-gains figure,
