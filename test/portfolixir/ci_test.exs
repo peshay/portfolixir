@@ -1084,6 +1084,136 @@ defmodule Portfolixir.CITest do
     end
   end
 
+  # User story (Sprint 20, D-3 as noted on 2026-10-08):
+  # As the owner who signs off the build route,
+  # I want CI to build the Compose deployment from the checkout, start it on
+  # secrets it generates and read the page, the API and the companion,
+  # on every change to what the images ship,
+  # so that the build half of the launch test is proven where a build can
+  # run, and my own run is only my instance's upgrade.
+  #
+  # Acceptance criteria:
+  # - A `compose-smoke` job on ubuntu-latest, with a timeout, its own
+  #   concurrency group and a token that reads the repository only, builds
+  #   and starts the stack with `docker compose up --build -d`.
+  # - Its .env holds a secret from `openssl rand` for every variable
+  #   docker-compose.yml requires (`${VAR:?…}`), and nothing else secret.
+  # - It waits, bounded, for the app's health check and the companion's
+  #   listener, then reads the page, an API read with the generated token and
+  #   a companion tool call with the companion's token. A token reaches curl
+  #   on its standard input, never on its command line.
+  # - On a failure it prints `docker compose ps` and `docker compose logs`;
+  #   it always ends with `docker compose down -v`. It pushes and publishes
+  #   nothing.
+  # - It builds when the change touches a path release.yml cuts a release
+  #   for, a .dockerignore file or ci.yml, and skips the build otherwise:
+  #   its own filter, run against a scratch repository, says so.
+  test "the compose-smoke job builds, starts and reads the Compose deployment" do
+    job = job!(ci_workflow(), "compose-smoke")
+
+    assert job =~ ~r/^    runs-on: ubuntu-latest$/m
+    assert job =~ ~r/^    timeout-minutes: \d+$/m
+    assert job =~ ~r/^    permissions:\n      contents: read$/m
+    assert job =~ ~r/^    concurrency:\n      group: compose-smoke-/m
+    assert job =~ "uses: actions/checkout@"
+    refute job =~ ~r/docker (?:compose )?(?:push|login|tag)\b/
+
+    up = job |> step!("Build and start the Compose stack") |> run_scripts() |> Enum.join("\n")
+    assert String.trim(up) == "docker compose up --build -d"
+
+    # Every secret docker-compose.yml requires, and only those, generated here.
+    required =
+      ~r/\$\{([A-Z0-9_]+):\?/
+      |> Regex.scan(File.read!("docker-compose.yml"), capture: :all_but_first)
+      |> List.flatten()
+      |> MapSet.new()
+
+    [env] = job |> step!("Write a .env of generated secrets") |> run_scripts()
+    [_, names] = Regex.run(~r/^for name in ([A-Z0-9_ ]+); do$/m, env)
+    assert MapSet.new(String.split(names)) == required
+    assert env =~ "openssl rand -hex 32"
+    assert env =~ "openssl rand -base64 48"
+    assert env =~ "umask 077"
+
+    [wait] =
+      job |> step!("Wait for the app's health and the companion's listener") |> run_scripts()
+
+    assert wait =~ ~r/deadline=\$\(\(SECONDS \+ \d+\)\)/
+    assert wait =~ "{{.State.Health.Status}}"
+    assert wait =~ "healthy"
+
+    [page] = job |> step!("The page answers") |> run_scripts()
+    assert page =~ "http://127.0.0.1:4000/"
+    assert page =~ "<title>Portfolixir</title>"
+
+    [api] = job |> step!("An API read answers with the generated token") |> run_scripts()
+    assert api =~ "http://127.0.0.1:4000/api/v1/contract"
+
+    [companion] =
+      job |> step!("The companion answers a tool call through the app") |> run_scripts()
+
+    assert companion =~ "http://127.0.0.1:4001/mcp"
+    assert companion =~ "portfolixir.contract.get"
+
+    for line <- String.split(api <> "\n" <> companion, "\n"), line =~ "Bearer" do
+      assert line =~ ~r/printf 'Authorization: Bearer %s\\n' "\$\w+" \| curl .*-H @-/,
+             "a token reaches curl other than on its standard input: #{line}"
+    end
+
+    diagnostics = step!(job, "Print the stack's state and logs")
+    assert diagnostics =~ ~r/^\s+if: failure\(\)/m
+    assert diagnostics =~ "docker compose ps"
+    assert diagnostics =~ "docker compose logs"
+
+    teardown = step!(job, "Tear the stack down")
+    assert teardown =~ ~r/^\s+if: always\(\)/m
+    assert teardown =~ "docker compose down -v"
+
+    # The filter builds on the paths release.yml ships, the build contexts'
+    # .dockerignore files and this workflow, and on nothing else.
+    [filter] = job |> step!("Decide whether the change touches the build") |> run_scripts()
+
+    [release_paths] =
+      Regex.run(
+        ~r/^    paths:\n((?:      - ".*"\n)+)/m,
+        File.read!(".github/workflows/release.yml"),
+        capture: :all_but_first
+      )
+
+    shipped = ~r/- "(.*)"/ |> Regex.scan(release_paths, capture: :all_but_first) |> List.flatten()
+
+    pathspecs =
+      ~r/':\(glob\)([^']+)'/ |> Regex.scan(filter, capture: :all_but_first) |> List.flatten()
+
+    assert pathspecs ==
+             shipped ++ [".dockerignore", "mcp-server/.dockerignore", ".github/workflows/ci.yml"]
+
+    for step <- steps(job),
+        not (step =~ ~r/^\s+- name: (Checkout|Decide whether the change touches the build)$/m) do
+      assert step =~ ~r/^\s+if: (?:\w+\(\) && )?steps\.changes\.outputs\.build == 'true'$/m,
+             "a step runs without the filter's answer:\n#{step}"
+    end
+
+    for {path, build} <- [
+          {"lib/portfolixir/widget.ex", "true"},
+          {"mcp-server/src/widget.ts", "true"},
+          {"docker-compose.yml", "true"},
+          {".dockerignore", "true"},
+          {".github/workflows/ci.yml", "true"},
+          {"docs/widget.md", "false"},
+          {"test/portfolixir/widget_test.exs", "false"},
+          {"mcp-server/test/widget.test.ts", "false"},
+          {"docker-compose.dev.yml", "false"}
+        ] do
+      assert {output, 0} = run_compose_filter(filter, path, :pull_request)
+      assert output == "build=#{build}\n", "#{path}: #{output}"
+    end
+
+    assert {"build=false\n", 0} = run_compose_filter(filter, "docs/widget.md", :push)
+    assert {"build=true\n", 0} = run_compose_filter(filter, "lib/widget.ex", :push)
+    assert {"build=true\n", 0} = run_compose_filter(filter, "docs/widget.md", :new_branch)
+  end
+
   # User story (E25 S8, F58 -- #893):
   # As an operator building the MCP companion's image, or installing the
   # companion on its own,
@@ -1394,6 +1524,53 @@ defmodule Portfolixir.CITest do
         env: [{"BASE_SHA", base} | @git_env],
         stderr_to_stdout: true
       )
+    after
+      File.rm_rf!(dir)
+    end
+  end
+
+  # Runs the compose-smoke filter's script in a scratch repository whose HEAD
+  # changes one file against its base, as the runner would: the event's
+  # commits in the environment, `bash -e`, and GITHUB_OUTPUT a file whose
+  # contents are returned. `:new_branch` is a push with no commit before it.
+  defp run_compose_filter(script, path, event) do
+    dir = Path.join(System.tmp_dir!(), "compose-filter-#{System.unique_integer([:positive])}")
+    repo = Path.join(dir, "repo")
+    output = Path.join(dir, "github-output")
+    File.mkdir_p!(repo)
+
+    try do
+      git!(repo, ["init", "--quiet"])
+      File.write!(Path.join(repo, "README.md"), "synthetic\n")
+      git!(repo, ["add", "--all"])
+      git!(repo, ["commit", "--quiet", "--message", "base"])
+      base = repo |> git!(["rev-parse", "HEAD"]) |> String.trim()
+
+      File.mkdir_p!(Path.join(repo, Path.dirname(path)))
+      File.write!(Path.join(repo, path), "synthetic change\n")
+      git!(repo, ["add", "--all"])
+      git!(repo, ["commit", "--quiet", "--message", "change"])
+
+      commits =
+        case event do
+          :pull_request ->
+            [{"EVENT", "pull_request"}, {"BASE_SHA", base}, {"BEFORE", ""}]
+
+          :push ->
+            [{"EVENT", "push"}, {"BASE_SHA", ""}, {"BEFORE", base}]
+
+          :new_branch ->
+            [{"EVENT", "push"}, {"BASE_SHA", ""}, {"BEFORE", String.duplicate("0", 40)}]
+        end
+
+      {_log, status} =
+        System.cmd("bash", ["-e", "-c", script],
+          cd: repo,
+          env: [{"GITHUB_OUTPUT", output} | commits ++ @git_env],
+          stderr_to_stdout: true
+        )
+
+      {File.read!(output), status}
     after
       File.rm_rf!(dir)
     end

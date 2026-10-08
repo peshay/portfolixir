@@ -386,6 +386,10 @@ repeated failures and for longer with each further one, up to a ceiling, and a
 correct token is answered `429` while the lock lasts. The counts live in memory only:
 `docker compose restart mcp` clears them at once.
 
+CI runs this route on every change to what it builds: its `compose-smoke` job
+runs `docker compose up --build -d` on generated secrets and an empty
+database, and checks that the page, an API read and the MCP companion answer.
+
 ## Reverse proxy
 
 The application is reachable on the host's loopback; a reverse proxy on the
