@@ -20,6 +20,7 @@ defmodule Portfolixir.Imports do
   """
 
   alias Portfolixir.Imports.Applier
+  alias Portfolixir.Imports.Correction
   alias Portfolixir.Imports.Mapping
   alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.Preview
@@ -167,4 +168,19 @@ defmodule Portfolixir.Imports do
 
   @spec apply(Preview.t(), Applier.apply_params()) :: {:ok, Applier.Result.t()} | {:error, term()}
   defdelegate apply(preview, params), to: Applier
+
+  @doc """
+  The bookings already imported whose stored cash differs from what the
+  rows of a parsed preview book today (ADR-0053 §6, A6), for the preview's
+  correction section: each found by the content hash its row still carries,
+  in file order. See `Portfolixir.Imports.Correction.detect/3`.
+
+  Read-only. The portfolio is `:portfolio_id` when given, otherwise the
+  internal default portfolio the Imports view binds to (ADR-0024), read
+  without creating it — before the first import there is none, and nothing
+  is listed.
+  """
+  @spec cash_corrections(Preview.t(), keyword()) :: [Correction.Item.t()]
+  def cash_corrections(%Preview{} = preview, opts \\ []) when is_list(opts),
+    do: Correction.detect(preview, import_portfolio_id(opts))
 end
