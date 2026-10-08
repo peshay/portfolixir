@@ -122,6 +122,18 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "portfolixir.classifications.categories.update" and &1 =~ "#940")
            )
 
+    # #953 (C3): an assignment's entry carries its before-image; a resent set
+    # and a clear of an inheriting position leave none.
+    assert newest["summary"] =~ "#953"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/journal (portfolixir.journal.list)") and
+                 &1 =~ "position_bucket_override" and
+                 &1 =~ "a clear of a position that already inherits leaves no entry" and
+                 &1 =~ "#953")
+           )
+
     # #965 (C3): a delete's policy-rule 409 and an account merge's guard
     # name records by their ids.
     assert newest["summary"] =~ "#965"

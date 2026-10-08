@@ -3275,7 +3275,8 @@ they replaced or released as the before-image.
   set as stored, its `bucket_ids` in id order: `before` is the set when the
   write locked its account, `after` the set it stored. A position override's
   `before` is `null` where the position inherited its depot's set, and `[]`
-  where it had no buckets. Resending the stored set leaves no entry.
+  where it had no buckets. Resending the stored set leaves no entry, and so
+  does clearing the override of a position that already inherits (#953).
 
 Every financial write context journals: the rollout ADR-0017 sequenced is
 complete. Each table that holds financial records carries a guard trigger that

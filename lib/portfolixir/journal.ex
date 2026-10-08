@@ -62,7 +62,10 @@ defmodule Portfolixir.Journal do
   trigger sees it during the business write) and reset last.
 
   An `update` whose record equals its `:before` snapshot changed nothing and
-  records no entry: the step answers `:unchanged` (E25 S6, G02).
+  records no entry: the step answers `:unchanged` (E25 S6, G02). So does a
+  `delete` whose before-image, read by its `:before_step` under the write's
+  lock, is none: there was nothing to delete (#953, a position override
+  cleared where the position already inherits).
 
   **The before-image is read under a lock** (E25 S6, F49). When `:before` is
   a stored row (a schema struct with an id) of an `update`, a `delete` or an
@@ -91,6 +94,7 @@ defmodule Portfolixir.Journal do
     journal_step = Keyword.get(opts, :journal_step, :journal_entry)
     filed_under = Keyword.get(opts, :resource_id)
     lock_step = lock_step(operation, before, journal_step)
+    imaged? = Keyword.has_key?(opts, :before_step)
     image_step = Keyword.get(opts, :before_step) || lock_step
 
     multi
@@ -100,7 +104,7 @@ defmodule Portfolixir.Journal do
       before = locked_before(changes, image_step, before)
       record = stored_after(repo, operation, lock_step, Map.fetch!(changes, source))
 
-      if unchanged?(operation, before, record) do
+      if unchanged?(operation, before, record, imaged?) do
         {:ok, :unchanged}
       else
         id = if filed_under, do: to_string(filed_under), else: resource_id(record)
@@ -278,10 +282,15 @@ defmodule Portfolixir.Journal do
   # valid changeset without changes is not written (Ecto returns the row
   # untouched), and it leaves no entry either (E25 S6, G02). A real change
   # keeps ADR-0017's full before and after snapshots.
-  defp unchanged?(:update, before, record) when not is_nil(before),
+  defp unchanged?(:update, before, record, _imaged?) when not is_nil(before),
     do: Serializer.snapshot(before) == Serializer.snapshot(record)
 
-  defp unchanged?(_operation, _before, _record), do: false
+  # A delete whose own write read its before-image under its lock
+  # (`:before_step`) and found none deleted nothing: no entry, and no derived
+  # basis bumped (#953, G02). A delete given no image at all keeps its entry.
+  defp unchanged?(:delete, nil, _record, true = _imaged?), do: true
+
+  defp unchanged?(_operation, _before, _record, _imaged?), do: false
 
   defp resource_id(%{id: id}) when not is_nil(id), do: to_string(id)
   defp resource_id(_record), do: nil
