@@ -1484,6 +1484,25 @@ stored against a EUR hub (with European Central Bank sync), and other pairs are
 triangulated through it. The live portfolio valuation converts each position's
 market value and each cash balance into the portfolio base currency.
 
+**The historical rates arrive by themselves** (issue #1120). The scheduled
+sync fetches the day's rates only. When a booking or a cash account in
+another currency is dated before that currency's earliest stored rate —
+typically a history imported from Portfolio Performance — the instance
+fetches the ECB's historical series by itself, once, in the background:
+after it starts (right after the day's rates) and after an import. Nothing
+has to be pressed, and the import does not wait for it. Once it has run, the
+history is valued from its first day, and no first rate lands in the result
+as a jump. It cannot when there is no network, when background fetches are
+off (`PORTFOLIXIR_BACKGROUND_FETCH=off`), for a currency the ECB does not
+publish, or for a booking before 1999, where the ECB's series begins. Such a
+balance then counts zero until its currency's first rate and is named under
+the contribution table (see *Contribution by position*). A currency the ECB
+does not publish, and a booking before 1999, are fetched for once; the
+instance does not try again on every start. Without a network it tries
+again at the next start or import. By hand, **Backfill historical rates** in
+Cash flow's exclusion notes, or `scope=history` on the exchange-rate sync
+endpoint and MCP tool, fetches the same series.
+
 A security without any quote yet is priced at the **latest own trade price
 across all portfolios** — a buy or sell is a price observation, exactly how
 Portfolio Performance seeds prices from bookings — so a freshly imported
@@ -2086,7 +2105,11 @@ which day the balance entered the currency effect; that line carries the
 account's marker ("Tagesgeld CHF: 18 days at zero"). An account still
 without a rate on the period's last day is said to count zero until the end
 of the period. Pick a period that starts after the first rate's day and the
-account, like the jump, is gone from the table and the note.
+account, like the jump, is gone from the table and the note. Since the
+historical rates arrive by themselves (see *Exchange Rates and Valuation*),
+such an account is left only where they could not: a currency the ECB does
+not publish, money held before 1999, or an instance that has not fetched
+them yet (no network, background fetches off).
 
 [![Contribution by position over one year: start value, flows, income, costs, end value and contribution for the ten largest positions with their bars, Show all 34, the three lines not attributed to a position, the sum row, and a note naming the positions that counted zero on some days](screenshots/contribution.png)](screenshots/contribution.png)
 

@@ -249,9 +249,15 @@ nur zu öffentlichen Adressen (`SECURITY.md`). Nach eigenem Zeitplan lädt das
 Release außerdem die Euro-Referenzkurse der EZB
 (`https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml`), fünf
 Sekunden nach dem Start und dann alle 12 Stunden, und alle 6 Stunden die
-Kurshistorie jedes Wertpapiers, das einen Kursanbieter hat. Beide Zeitpläne
+Kurshistorie jedes Wertpapiers, das einen Kursanbieter hat. Einmal, nach
+diesem ersten Devisenabgleich oder nach einem Import, lädt es außerdem die
+historische Reihe der EZB
+(`https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml`, Issue
+#1120), wenn eine Buchung in einer Nicht-EUR-Währung vor dem frühesten
+gespeicherten Kurs dieser Währung liegt. Beide Zeitpläne
 und die Logo-Suche sind in einem Release eingeschaltet (`config/prod.exs`).
-`PORTFOLIXIR_BACKGROUND_FETCH=off` lässt alle drei ab dem Start aus: Die schon
+`PORTFOLIXIR_BACKGROUND_FETCH=off` lässt alle drei ab dem Start aus, die
+historische Reihe eingeschlossen: Die schon
 gespeicherten Kurse und Devisenkurse bleiben, wie sie sind, und jede Zahl wird
 aus ihnen berechnet. Der Schalter stoppt, was die Instanz von sich aus tut,
 nicht, worum jemand sie bittet. Ein Kurs- oder Devisenabgleich, den jemand auf

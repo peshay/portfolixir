@@ -2668,7 +2668,15 @@ level (d)).
   store, returns `502 Bad Gateway` with nothing stored. One backfill runs at a
   time: while one runs, a second answers `409 Conflict`. The
   human view is the **Backfill historical rates** control inside the
-  exclusion notes on `/cashflow`.
+  exclusion notes on `/cashflow`. Since issue #1120 (Sprint 20 D-5) the
+  instance also runs this backfill **by itself**, once, after its boot sync
+  and after an import, when a booking or a cash account in a non-EUR
+  currency predates that currency's earliest stored rate, unless background
+  fetches are off (`PORTFOLIXIR_BACKGROUND_FETCH=off`). `scope=history`
+  remains for a manual run: where the automatic one could not reach the
+  provider, on an instance with background fetches off, or for any other
+  reason to refetch; while the automatic one runs it answers `409` like any
+  second backfill. No parameter is added and no tool changes.
 
 ## Classifications
 
