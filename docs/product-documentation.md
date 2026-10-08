@@ -2843,8 +2843,14 @@ on the account the name leads to — the case of an export saved again after
 you merged two of its accounts — and a transfer between two names that now
 lead to one account is dropped. A decision you still make in the preview (a
 security, another account) can change what a row's new bookings do. A prefill found
-through a former name says so under the select, and *+ Create new* on a row
-with nothing new says it creates nothing. Two accounts of the same name are
+through a former name says so under the select. A row none of whose bookings
+is new shows no choice at all: it says *No mapping needed: the import books
+nothing under this name*, keeps the account it was matched to, and never
+holds up **Confirm import**. Two rows keep their choice anyway: a name the
+stored history never saw (above), and a cash account that a depot with new
+bookings settles against. A file with nothing new at all says so at the head
+of the preview, shows no bucket tag, and its confirm books nothing. Two
+accounts of the same name are
 told apart in the list by what differs — a cash account's linked depots, else
 its currency, else the day it was created; a depot's cash account — and an
 ambiguous row names its candidates the same way. *+ Create new* for a name

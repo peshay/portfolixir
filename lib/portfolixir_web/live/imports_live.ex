@@ -164,7 +164,12 @@ defmodule PortfolixirWeb.ImportsLive do
         decision_resolutions:
           Enum.filter(resolutions, &(&1.status in [:needs_decision, :config_at_risk])),
         correction_lines: Enum.map(assigns.corrections, &correction_line/1),
-        correction_totals: correction_totals(assigns.corrections)
+        correction_totals: correction_totals(assigns.corrections),
+        nothing_to_import: nothing_to_import?(assigns.account_states.counts.total),
+        # Found while drawing 3 (board 01): a file that books nothing
+        # creates no account, so a tag "for new accounts" changes nothing.
+        # Hidden, the field sends nothing and the mapping keeps its value.
+        creates_nothing: assigns.account_states.counts.total.new == 0
       )
 
     ~H"""
@@ -175,6 +180,17 @@ defmodule PortfolixirWeb.ImportsLive do
           format: assigns.preview.format |> to_string() |> String.upcase()
         ) %>
       </p>
+
+      <%!-- ADR-0050 §2: a file already applied is a no-op; the preview says
+           so once, for the whole file, and leads with it (#1168, board 01
+           ②): under the format line and before the cards, not above the
+           confirm after a mapping it does not need. The confirm stays: it
+           writes nothing and reports every duplicate with its layer. --%>
+      <AppShell.data_note
+        :if={@nothing_to_import}
+        severity={:note}
+        data-role="nothing-to-import"
+      ><%= nothing_to_import(@account_states.counts.total) %></AppShell.data_note>
 
       <div class="import-stats">
         <div class="import-stat-card">
@@ -352,7 +368,7 @@ defmodule PortfolixirWeb.ImportsLive do
       />
 
       <form id="pp-import-apply" phx-change="mapping_changed" phx-submit="apply">
-        <section class="panel inner" id="import-bucket-tag">
+        <section :if={not @creates_nothing} class="panel inner" id="import-bucket-tag">
           <h3><%= gettext("Bucket tag for new accounts") %></h3>
           <p class="muted">
             <%= gettext("The accounts created by this import get the bucket tag:") %>
@@ -398,7 +414,11 @@ defmodule PortfolixirWeb.ImportsLive do
                     <%= pp_name %>
                     <.mapping_count counts={row_counts(@account_states, "cash", pp_name)} />
                   </div>
-                  <div class="mapping-target">
+                  <div :if={nothing_to_map?(assigns, "cash", pp_name)} class="mapping-target">
+                    <.nothing_to_map />
+                    <input type="hidden" name={"cash[#{key}]"} value={chosen || ""} />
+                  </div>
+                  <div :if={not nothing_to_map?(assigns, "cash", pp_name)} class="mapping-target">
                     <select name={"cash[#{key}]"}>
                       <%!-- ADR-0050 §4: an ambiguous name is prefilled with
                            nothing, and the select says so rather than showing
@@ -438,7 +458,18 @@ defmodule PortfolixirWeb.ImportsLive do
                     <%= pp_name %>
                     <.mapping_count counts={row_counts(@account_states, "depot", pp_name)} />
                   </div>
-                  <div class="mapping-target">
+                  <%!-- #1168: with no select, the row's target is its last
+                       child and it takes the cash rows' two columns. --%>
+                  <div :if={nothing_to_map?(assigns, "depot", pp_name)} class="mapping-target">
+                    <.nothing_to_map />
+                    <input type="hidden" name={"depot[#{key}][target]"} value={chosen || ""} />
+                    <input
+                      type="hidden"
+                      name={"depot[#{key}][cash]"}
+                      value={depot_cash_value(@mapping, pp_name) || ""}
+                    />
+                  </div>
+                  <div :if={not nothing_to_map?(assigns, "depot", pp_name)} class="mapping-target">
                     <select name={"depot[#{key}][target]"}>
                       <option :if={chosen in [nil, ""]} value="" selected>
                         <%= gettext("Decide…") %>
@@ -457,7 +488,10 @@ defmodule PortfolixirWeb.ImportsLive do
                     <.mapping_notes group="depot" key={key} name={pp_name} chosen={chosen} {row_note_assigns(assigns, "depot", pp_name)} />
                   </div>
                   <% chosen_cash = depot_cash_value(@mapping, pp_name) %>
-                  <select name={"depot[#{key}][cash]"}>
+                  <select
+                    :if={not nothing_to_map?(assigns, "depot", pp_name)}
+                    name={"depot[#{key}][cash]"}
+                  >
                     <option value="" selected={chosen_cash in [nil, ""]}>
                       <%= gettext("Pick a cash account…") %>
                     </option>
@@ -624,17 +658,6 @@ defmodule PortfolixirWeb.ImportsLive do
             </ul>
           </section>
         <% end %>
-
-        <%!-- ADR-0050 §2: a file already applied is a no-op; the preview says
-             so once, above the confirm, instead of in every row (board 04,
-             "Randfall"). The confirm stays: it writes nothing and reports
-             every duplicate with its layer. --%>
-        <% total = @account_states.counts.total %>
-        <AppShell.data_note
-          :if={total.new == 0 and nothing_new?(total)}
-          severity={:note}
-          data-role="nothing-to-import"
-        ><%= nothing_to_import(total) %></AppShell.data_note>
 
         <% missing = missing_mappings(assigns) %>
         <%= if not @applying and missing != [] do %>
@@ -1465,6 +1488,40 @@ defmodule PortfolixirWeb.ImportsLive do
 
   # Nothing new, but something the import recognises: a file already applied.
   defp nothing_new?(counts), do: already_imported(counts) + counts.internal_transfer > 0
+
+  # The whole file is a no-op (ADR-0050 §2), said once at the head (#1168).
+  defp nothing_to_import?(total), do: total.new == 0 and nothing_new?(total)
+
+  # #1168 (board 01 ②): a row none of whose bookings is new asks for no
+  # mapping. Its select gives way to one line, and its choice rides along as
+  # hidden inputs under the select's names, so Apply sends what it sent. Two
+  # rows keep their selects whatever their count: a name unknown to the
+  # stored history (board 01 ①, counted missing until chosen), and a cash
+  # name that a depot row still asking names as its cash account
+  # (`depot_cash_ok?/3` reads that row's choice).
+  defp nothing_to_map?(assigns, "cash", pp_name) do
+    nothing_new_row?(assigns.account_states, "cash", pp_name) and
+      not Enum.any?(assigns.depot_pp_names, fn depot ->
+        depot_cash_value(assigns.mapping, depot) == "pp:" <> pp_name and
+          not nothing_to_map?(assigns, "depot", depot)
+      end)
+  end
+
+  defp nothing_to_map?(assigns, "depot", pp_name),
+    do: nothing_new_row?(assigns.account_states, "depot", pp_name)
+
+  defp nothing_new_row?(states, group, pp_name),
+    do: row_counts(states, group, pp_name).new == 0 and not unseen?(states, group, pp_name)
+
+  # The line in a select's place on a row that asks for no mapping (#1168),
+  # the #923 security row's anatomy (board 09 ③).
+  defp nothing_to_map(assigns) do
+    ~H"""
+    <span class="mapping-basis" data-role="mapping-nothing-new">
+      <%= gettext("No mapping needed: the import books nothing under this name.") %>
+    </span>
+    """
+  end
 
   attr(:name, :string, required: true)
   attr(:chosen, :string, default: nil)
@@ -2642,16 +2699,21 @@ defmodule PortfolixirWeb.ImportsLive do
   defp cash_row_state(assigns, pp_name) do
     choice = Map.get(assigns.mapping.cash, pp_name)
 
-    cond do
-      not chosen?(choice) ->
-        if decision_needed?(assigns.account_states, "cash", pp_name), do: :missing, else: :skip
+    state =
+      cond do
+        not chosen?(choice) ->
+          if decision_needed?(assigns.account_states, "cash", pp_name),
+            do: :missing,
+            else: :skip
 
-      refused_create?(assigns, "cash", pp_name, choice) ->
-        :missing
+        refused_create?(assigns, "cash", pp_name, choice) ->
+          :missing
 
-      true ->
-        :ok
-    end
+        true ->
+          :ok
+      end
+
+    unasked(state, assigns, "cash", pp_name)
   end
 
   # :ok, :skip, or {:missing, :both | :target | :cash}.
@@ -2666,13 +2728,27 @@ defmodule PortfolixirWeb.ImportsLive do
       target_ok? = chosen?(target) and not refused_create?(assigns, "depot", pp_name, target)
       cash_ok? = chosen?(cash) and depot_cash_ok?(assigns, target, cash)
 
-      case {target_ok?, cash_ok?} do
-        {true, true} -> :ok
-        {false, false} -> {:missing, :both}
-        {false, true} -> {:missing, :target}
-        {true, false} -> {:missing, :cash}
-      end
+      state =
+        case {target_ok?, cash_ok?} do
+          {true, true} -> :ok
+          {false, false} -> {:missing, :both}
+          {false, true} -> {:missing, :target}
+          {true, false} -> {:missing, :cash}
+        end
+
+      unasked(state, assigns, "depot", pp_name)
     end
+  end
+
+  # #1168: a row that asks for no mapping (no new booking) never blocks the
+  # confirm. A complete prefill is passed as before; an incomplete one — a
+  # depot whose file names no cash account for it — is left to the apply's
+  # own resolution, the path of an undecided row with nothing new, which
+  # holds the name (ADR-0050 §3, §4).
+  defp unasked(state, assigns, group, pp_name) do
+    if state not in [:ok, :skip] and nothing_to_map?(assigns, group, pp_name),
+      do: :skip,
+      else: state
   end
 
   # A depot's cash account named by a file cash name the mapping leaves

@@ -1,0 +1,365 @@
+defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
+  # The import preview's own surface (Sprint 20 PR α A5), as the board
+  # `ux-design-2026-10-07/01-import-preview` draws its before/afters: a
+  # re-drop whose rows are all hits (#1168, ②), and the board's "found while
+  # drawing" items fixed in the story (D-14).
+  #
+  # The board's world: Test-Cash, Tagesgeld and Depot Muster, imported from
+  # Portfolio Performance and dropped again. Every name, amount and
+  # identifier is synthetic.
+  use PortfolixirWeb.ConnCase
+
+  import Ecto.Query
+  import Phoenix.LiveViewTest
+
+  alias Portfolixir.Actor
+  alias Portfolixir.Catalog
+  alias Portfolixir.Imports
+  alias Portfolixir.Imports.Mapping
+  alias Portfolixir.Ledger
+  alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.CashAccount
+  alias Portfolixir.Portfolios.SecuritiesAccount
+  alias Portfolixir.Repo
+
+  @fund %{"name" => "Example Fund", "isin" => "DE000EXMPL17", "currency" => "EUR"}
+
+  @nothing_new "No mapping needed: the import books nothing under this name."
+
+  describe "a re-drop whose rows are all hits (#1168; board 01 ②)" do
+    # User story (#1168):
+    # As the operator who drops an export again whose bookings are all
+    # imported,
+    # I want the preview to lead with "nothing will be booked" and to ask for
+    # no mapping it does not need,
+    # so that a re-drop does not read like a fresh import.
+    #
+    # Acceptance criteria (board 01 ②, after; found while drawing 3):
+    # - The nothing-to-import note leads the preview: under the format line,
+    #   before the cards, outside the apply form, said once.
+    # - A row with no new booking shows no select: its count keeps "nothing to
+    #   create", and `.mapping-target` holds one `.mapping-basis` line, "No
+    #   mapping needed: the import books nothing under this name.", in German
+    #   "Keine Zuordnung nötig: Der Import bucht unter diesem Namen nichts."
+    # - What Apply sends is unchanged: the row carries its prefill as hidden
+    #   inputs under the select's names, `cash[<key>]`, `depot[<key>][target]`
+    #   and `depot[<key>][cash]`.
+    # - The bucket-tag panel is not shown: the file creates no account.
+    # - "Confirm import" stays enabled, and confirming books nothing.
+    test "the note leads, no row asks for a mapping, and the confirm books nothing",
+         %{conn: conn} do
+      portfolio = portfolio!()
+      applied!(portfolio, history())
+      test_cash = named!(CashAccount, "Test-Cash")
+      tagesgeld = named!(CashAccount, "Tagesgeld")
+      depot = named!(SecuritiesAccount, "Depot Muster")
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload!(view, history())
+
+      assert has_element?(view, "[data-role='nothing-to-import'] + .import-stats")
+      refute has_element?(view, "form#pp-import-apply [data-role='nothing-to-import']")
+      assert count(view, "[data-role='nothing-to-import']") == 1
+
+      assert text(view, "[data-role='nothing-to-import'] .data-note__body") ==
+               "All 5 entries are already imported. The import creates nothing: no booking, no account, no depot, no security."
+
+      for {kind, name, fields} <- [
+            {"cash", "Test-Cash",
+             [{"cash[#{key("cash", "Test-Cash")}]", "existing:#{test_cash.id}"}]},
+            {"cash", "Tagesgeld",
+             [{"cash[#{key("cash", "Tagesgeld")}]", "existing:#{tagesgeld.id}"}]},
+            {"depot", "Depot Muster",
+             [
+               {"depot[#{key("depot", "Depot Muster")}][target]", "existing:#{depot.id}"},
+               {"depot[#{key("depot", "Depot Muster")}][cash]", "pp:Test-Cash"}
+             ]}
+          ] do
+        refute has_element?(view, row(kind, name) <> " select"), name
+
+        assert text(view, row(kind, name) <> " [data-role='mapping-count']") =~
+                 "nothing to create"
+
+        assert text(view, row(kind, name) <> " .mapping-target [data-role='mapping-nothing-new']") ==
+                 @nothing_new
+
+        for {field, value} <- fields do
+          assert has_element?(
+                   view,
+                   ~s(#{row(kind, name)} .mapping-target input[type="hidden"][name="#{field}"][value="#{value}"])
+                 ),
+                 "#{name}: #{field}"
+        end
+      end
+
+      refute has_element?(view, "#import-bucket-tag")
+      refute has_element?(view, "input[name='bucket_tag']")
+
+      refute has_element?(view, "#pp-import-confirm[disabled]")
+      refute has_element?(view, "#import-missing-hint")
+
+      before = counts()
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Created transactions: 0"
+      assert counts() == before
+
+      {:ok, view, _html} = live(german(conn), "/imports")
+      upload!(view, history())
+
+      assert text(view, row("cash", "Test-Cash") <> " [data-role='mapping-nothing-new']") ==
+               "Keine Zuordnung nötig: Der Import bucht unter diesem Namen nichts."
+    end
+
+    # User story (#1168):
+    # As the operator who drops an export again with a few new bookings,
+    # I want only the rows that book something to ask for a mapping,
+    # so that I decide what matters and nothing else.
+    #
+    # Acceptance criteria (board 01 ②: the rule is per row):
+    # - Tagesgeld, with a new interest payment, keeps its select; the lead
+    #   note is not shown, and the bucket-tag panel is.
+    # - Depot Muster, with a new delivery, keeps both selects.
+    # - Test-Cash has nothing new, but the depot with new bookings names it as
+    #   its cash account ("pp:Test-Cash"), so it keeps its select: that
+    #   depot's link reads it.
+    # - Once the depot's cash account is an existing account instead, no row
+    #   with new bookings links Test-Cash, and its row shows the line.
+    test "a row with new bookings asks, and a cash row a new depot links keeps its select",
+         %{conn: conn} do
+      portfolio = portfolio!()
+      applied!(portfolio, history())
+      test_cash = named!(CashAccount, "Test-Cash")
+      drop = history() ++ [interest("Tagesgeld", "1.40", "2026-03-31"), delivery("Depot Muster")]
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload!(view, drop)
+
+      refute has_element?(view, "[data-role='nothing-to-import']")
+      assert has_element?(view, "#import-bucket-tag")
+
+      assert has_element?(view, row("cash", "Tagesgeld") <> " select")
+      assert has_element?(view, row("depot", "Depot Muster") <> " select[name$='[target]']")
+      assert has_element?(view, row("depot", "Depot Muster") <> " select[name$='[cash]']")
+      refute has_element?(view, row("cash", "Tagesgeld") <> " [data-role='mapping-nothing-new']")
+
+      assert text(view, row("cash", "Test-Cash") <> " [data-role='mapping-count']") =~
+               "nothing to create"
+
+      assert has_element?(view, row("cash", "Test-Cash") <> " select")
+      refute has_element?(view, row("cash", "Test-Cash") <> " [data-role='mapping-nothing-new']")
+
+      view
+      |> element("form#pp-import-apply")
+      |> render_change(
+        keyed(%{"depot" => %{"Depot Muster" => %{"cash" => "existing:#{test_cash.id}"}}})
+      )
+
+      refute has_element?(view, row("cash", "Test-Cash") <> " select")
+
+      assert text(view, row("cash", "Test-Cash") <> " [data-role='mapping-nothing-new']") ==
+               @nothing_new
+    end
+
+    # User story (#1168):
+    # As the operator who drops again an export whose depot only ever
+    # received deliveries, so the file names no cash account for it,
+    # I want the preview not to ask for that depot's cash account,
+    # so that a file that books nothing can be confirmed.
+    #
+    # Acceptance criteria (#1168's report: "Vor dem Import noch zuzuordnen:
+    # Verrechnungskonto für Depot …" for a depot that now exists):
+    # - The depot's row shows no select and no still-to-map hint names it.
+    # - "Confirm import" is enabled, and confirming books nothing.
+    test "a depot whose file names no cash account is not asked for one", %{conn: conn} do
+      portfolio = portfolio!()
+      applied!(portfolio, history())
+      test_cash = named!(CashAccount, "Test-Cash")
+
+      {:ok, preview} =
+        Imports.parse_portfolio_performance(body([delivery("Depot Zwei")]), filename: "d.json")
+
+      {:ok, _result} =
+        Imports.apply(preview, %{
+          portfolio: {:existing, portfolio.id},
+          cash_accounts: %{},
+          depots: %{
+            "Depot Zwei" => %{target: {:create, "Depot Zwei"}, cash: {:existing, test_cash.id}}
+          }
+        })
+
+      rows = history() ++ [delivery("Depot Zwei")]
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload!(view, rows)
+
+      refute has_element?(view, row("depot", "Depot Zwei") <> " select")
+
+      assert text(view, row("depot", "Depot Zwei") <> " [data-role='mapping-nothing-new']") ==
+               @nothing_new
+
+      refute has_element?(view, "#import-missing-hint")
+      refute has_element?(view, "#pp-import-confirm[disabled]")
+
+      before = counts()
+      view |> element("form#pp-import-apply") |> render_submit()
+      assert render_async(view, 1_000) =~ "Created transactions: 0"
+      assert counts() == before
+    end
+  end
+
+  # User story (#1168):
+  # As the operator reading a re-drop on a desktop,
+  # I want a depot row with nothing to map to read like the cash rows,
+  # so that all rows with nothing new line up.
+  #
+  # Acceptance criteria (board 01, rule ③):
+  # - Above 720 px a depot row whose target is its last child (no cash
+  #   select) takes the cash rows' two columns; under 720 px every row is one
+  #   column already, so the rule sits in a `min-width: 721px` block.
+  test "a depot row with no select takes the cash rows' columns above 720 px (rule ③)" do
+    assert File.read!("priv/static/app.css") =~
+             ~r/@media \(min-width: 721px\) \{\s*\.mapping-row\.depot:has\(> \.mapping-target:last-child\) \{\s*grid-template-columns: minmax\(10rem, 1fr\) minmax\(14rem, 1\.4fr\);\s*\}\s*\}/
+  end
+
+  # --- the exports ---------------------------------------------------------------
+
+  # The history the instance imported (board 01): Test-Cash, Tagesgeld and
+  # Depot Muster.
+  defp history do
+    [
+      %{
+        "type" => "DEPOSIT",
+        "account" => "Test-Cash",
+        "date" => "2026-01-02",
+        "currency" => "EUR",
+        "amount" => num("2000.00")
+      },
+      %{
+        "type" => "CASH_TRANSFER",
+        "account" => "Test-Cash",
+        "otherAccount" => "Tagesgeld",
+        "date" => "2026-01-05",
+        "currency" => "EUR",
+        "amount" => num("500.00")
+      },
+      %{
+        "type" => "PURCHASE",
+        "account" => "Test-Cash",
+        "portfolio" => "Depot Muster",
+        "date" => "2026-01-15",
+        "time" => "10:00",
+        "currency" => "EUR",
+        "amount" => num("1000.00"),
+        "shares" => num("10"),
+        "security" => @fund
+      },
+      interest("Tagesgeld", "1.25", "2026-01-31"),
+      interest("Tagesgeld", "1.30", "2026-02-28")
+    ]
+  end
+
+  defp interest(account, amount, date) do
+    %{
+      "type" => "INTEREST",
+      "account" => account,
+      "date" => date,
+      "currency" => "EUR",
+      "amount" => num(amount)
+    }
+  end
+
+  # Shares delivered into a depot: a booking that names no cash account.
+  defp delivery(depot) do
+    %{
+      "type" => "INBOUND_DELIVERY",
+      "portfolio" => depot,
+      "date" => "2026-03-02",
+      "currency" => "EUR",
+      "amount" => num("200.00"),
+      "shares" => num("2"),
+      "security" => @fund
+    }
+  end
+
+  # A JSON number written as its literal digits, never through a float.
+  defp num(digits), do: Jason.Fragment.new(digits)
+
+  defp body(rows), do: Jason.encode!(%{"version" => 1, "transactions" => rows})
+
+  defp applied!(portfolio, rows) do
+    {:ok, preview} = Imports.parse_portfolio_performance(body(rows), filename: "synthetic.json")
+    {:ok, _result} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+    :ok
+  end
+
+  # The preview's counts are refined in the background once the file is
+  # parsed; the page is read after that.
+  defp upload!(view, rows) do
+    file_input(view, "#pp-import-form", :pp_file, [
+      %{
+        name: "synthetic.json",
+        content: body(rows),
+        type: "application/json",
+        last_modified: 1_700_000_000_000
+      }
+    ])
+    |> render_upload("synthetic.json")
+
+    render_async(view)
+  end
+
+  # --- reading the page --------------------------------------------------------------
+
+  defp key(kind, name), do: Mapping.row_key(kind, name)
+
+  defp row(kind, name), do: "#mapping-#{kind}-#{key(kind, name)}"
+
+  defp keyed(%{} = params) do
+    Enum.reduce(["cash", "depot"], params, fn kind, acc ->
+      case Map.get(acc, kind) do
+        %{} = rows -> Map.put(acc, kind, Map.new(rows, fn {n, v} -> {key(kind, n), v} end))
+        _other -> acc
+      end
+    end)
+  end
+
+  defp text(view, selector) do
+    view
+    |> element(selector)
+    |> render()
+    |> Floki.parse_fragment!()
+    |> Floki.text()
+    |> String.replace(~r/\s+/, " ")
+    |> String.trim()
+  end
+
+  defp count(view, selector) do
+    view
+    |> render()
+    |> Floki.parse_document!()
+    |> Floki.find(selector)
+    |> length()
+  end
+
+  defp german(conn), do: put_req_header(conn, "accept-language", "de-DE,de;q=0.9")
+
+  # --- the world -------------------------------------------------------------
+
+  defp portfolio!(name \\ "PP Import Target") do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Actor.owner_ui(), %{name: name, base_currency_code: "EUR"})
+
+    portfolio
+  end
+
+  defp named!(schema, name), do: Repo.one!(from(a in schema, where: a.name == ^name))
+
+  defp counts do
+    %{
+      cash: Portfolios.count_cash_accounts(),
+      depots: Portfolios.count_securities_accounts(),
+      securities: Catalog.count_securities(),
+      transactions: Ledger.count_transactions()
+    }
+  end
+end

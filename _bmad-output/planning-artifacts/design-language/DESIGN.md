@@ -2912,10 +2912,51 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   12 px muted): "matched by a former name — <account>, formerly “<name>”"
   when a former name did the prefill; "no account under this name; it is
   created only with its first new booking" when "+ Create new" has nothing
-  new to create. A file with nothing new at all says once, above the
-  confirm, how many entries are already imported and how many internal
-  transfers are dropped, then: "The import creates nothing: no booking, no
-  account, no depot, no security."
+  new to create (since 2026-10-08 only where such a row still shows its
+  select, see below). A file with nothing new at all says once, at the head
+  of the preview, how many entries are already imported and how many
+  internal transfers are dropped, then: "The import creates nothing: no
+  booking, no account, no depot, no security."
+- **A re-drop with nothing new leads with that note and asks for no mapping
+  it does not need** *(2026-10-08; issue 1168, Sprint 20 PR α A5; board
+  `mockups/ux-design-2026-10-07/01-import-preview` ②, before/after)*.
+  - **The note leads.** The nothing-to-import `note` data note
+    (`data-role="nothing-to-import"`) stands under the format line and
+    before the cards, outside the apply form, said once; nothing repeats it
+    above the confirm. It shows when no booking of the file is new and the
+    import recognises something (a hit on any layer, or a dropped transfer).
+  - **A mapping row with no new booking shows no select**, in any file, the
+    rule being per row. Its count keeps "N bookings already imported ·
+    **nothing to create**"; in the select's place `.mapping-target` holds one
+    `.mapping-basis` line (`data-role="mapping-nothing-new"`), the #923
+    security row's anatomy: "No mapping needed: the import books nothing
+    under this name." / "Keine Zuordnung nötig: Der Import bucht unter diesem
+    Namen nichts." The notes under a select (a former-name match, "+ Create
+    new" creating nothing, the remember box) give way with it. A depot row
+    loses its cash select too, and above 720 px takes the cash rows' two
+    columns (`.mapping-row.depot:has(> .mapping-target:last-child)`, under
+    `min-width: 721px` so it cannot override the 720 px one-column block).
+  - **Two rows keep their selects whatever their count:** a name the stored
+    history never saw (its note and its choice stay, as above: it is counted
+    missing until chosen), and a cash row that a depot row still showing its
+    selects names as its cash account (`"pp:<name>"`), because that depot's
+    link reads it. The exception follows the depot's current choice: once
+    the depot settles against an existing account instead, the cash row
+    shows the line.
+  - **What Apply sends is unchanged.** A row with no select carries its
+    choice as hidden inputs under the select's names — `cash[<key>]`,
+    `depot[<key>][target]`, `depot[<key>][cash]` — so the mapping, the
+    still-to-map hint and the apply's parameters read what they read before.
+    One case could not be confirmed before and can now: a depot row with no
+    new booking whose file names no cash account for it (a depot that only
+    ever received deliveries) is not asked for one and is passed to the apply
+    as an undecided row with nothing new, which resolves the name itself and
+    holds it (ADR-0050 §3, §4). "Confirm import" stays enabled; it writes
+    nothing and reports every duplicate with its layer.
+  - **No bucket tag on a file that creates nothing** (board 01, found while
+    drawing 3). When no booking of the file is new, no account is created,
+    so the "Bucket tag for new accounts" panel is not shown; the absent
+    field leaves the mapping's value as it was, and the apply tags nothing.
 - **A row none of whose bookings is new needs no decision** — the account
   rows' rule (board 04, note 4: an ambiguous cash or depot name with nothing
   new is left undecided and blocks nothing), and since 2026-10-06 the
