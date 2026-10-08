@@ -2971,6 +2971,12 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   unless the operator names one, and never labels a converted bank file a
   Portfolio Performance import. What Apply sends is unchanged: an empty or
   blank field reaches the apply as no tag.
+- **The counts by kind add up to "Entries"** *(2026-10-08; board
+  `mockups/ux-design-2026-10-07/01-import-preview`, found while drawing 2)*.
+  A refund a row splits off counts under its own kind
+  (`Preview.counts_by_kind/1` reads the companions), as the "Entries" card
+  always counted it: a file whose dividend splits off a refund reads
+  "Einträge 3" over "Einlage 1 · Dividende 1 · Steuererstattung 1".
 - **A fresh instance's portfolio record is named** *(2026-10-08; issue 1173,
   Sprint 20 PR α A5; board `mockups/ux-design-2026-10-07/01-import-preview`
   ⑥)*. The page passes no portfolio; on an instance with none, the apply

@@ -330,6 +330,49 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
     end
   end
 
+  describe "the counts by kind add up to the entries (board 01, found while drawing 2)" do
+    # User story:
+    # As the operator reading a preview whose dividend splits off a tax
+    # refund,
+    # I want the counts by kind to add up to the "Entries" card,
+    # so that two figures of one preview never disagree.
+    #
+    # Acceptance criteria:
+    # - The refund split off a row counts under its own kind: "Einträge 3"
+    #   over "Einlage 1", "Dividende 1" and "Steuererstattung 1".
+    test "a refund split off a row counts under its own kind", %{conn: conn} do
+      {:ok, view, _html} = live(german(conn), "/imports")
+
+      drop!(
+        view,
+        "refund.csv",
+        """
+        Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+        2026-01-02 00:00:00;Einlage;;;;1.000,00;;;1.000,00;Test-Cash;;;
+        2026-03-16 00:00:00;Dividende;Synthetic AG;10;;20,00;;-1,00;;Test-Cash;;;
+        """,
+        "text/csv"
+      )
+
+      assert text(view, ".import-stats .import-stat-card:first-child .label") == "Einträge"
+      assert text(view, ".import-stats .import-stat-card:first-child .value") == "3"
+
+      chips =
+        view
+        |> element(".kind-chips")
+        |> render()
+        |> Floki.parse_fragment!()
+        |> Floki.find(".kind-chip")
+        |> Enum.map(fn chip ->
+          {Floki.find(chip, ".name") |> Floki.text(),
+           Floki.find(chip, ".count") |> Floki.text() |> String.to_integer()}
+        end)
+        |> Map.new()
+
+      assert chips == %{"Einlage" => 1, "Dividende" => 1, "Steuererstattung" => 1}
+    end
+  end
+
   # --- the exports ---------------------------------------------------------------
 
   # The history the instance imported (board 01): Test-Cash, Tagesgeld and
@@ -403,16 +446,13 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
 
   # The preview's counts are refined in the background once the file is
   # parsed; the page is read after that.
-  defp upload!(view, rows) do
+  defp upload!(view, rows), do: drop!(view, "synthetic.json", body(rows), "application/json")
+
+  defp drop!(view, name, content, type) do
     file_input(view, "#pp-import-form", :pp_file, [
-      %{
-        name: "synthetic.json",
-        content: body(rows),
-        type: "application/json",
-        last_modified: 1_700_000_000_000
-      }
+      %{name: name, content: content, type: type, last_modified: 1_700_000_000_000}
     ])
-    |> render_upload("synthetic.json")
+    |> render_upload(name)
 
     render_async(view)
   end
