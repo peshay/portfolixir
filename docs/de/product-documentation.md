@@ -2776,7 +2776,10 @@ erfordert nie eine Auswahl (siehe den Abschnitt Portfolios).
 Parser-Warnungen erscheinen in einer Notiz **Achtung** unter den Anzahlen je
 Art, mit einer scrollbaren Liste der Zeilen und einem Kopier-Button. Der
 kopierte Text nutzt stabile `Zeile N: Meldung`-Zeilen, sodass die Diagnose
-beim Quell-Export verbleiben kann. Das Anwenden des Imports ist atomar und
+beim Quell-Export verbleiben kann. In einer CSV-Datei ist *Zeile N* die Zeile,
+die eine Tabellenkalkulation zeigt, die Kopfzeile als Zeile 1, die erste
+Buchung also Zeile 2; jede Liste der Vorschau und des Ergebnisses nennt eine
+CSV-Zeile genauso. Das Anwenden des Imports ist atomar und
 nutzt Inhalts-Hashes, um Duplikate bei erneutem Lauf zu überspringen.
 
 ### Was eine Portfolio-Performance-CSV voraussetzt

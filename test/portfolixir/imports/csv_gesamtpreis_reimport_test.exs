@@ -169,7 +169,7 @@ defmodule Portfolixir.Imports.CsvGesamtpreisReimportTest do
     first = apply!(old_reading(parse!(pp_file())), portfolio)
     assert first.created_transactions == @entries
 
-    # Row 5's Dividende booked its Betrag, 10,00, as before ADR-0053, with
+    # Row 6's Dividende booked its Betrag, 10,00, as before ADR-0053, with
     # its refund of 1,00 beside it.
     dividends =
       portfolio.id
@@ -195,7 +195,7 @@ defmodule Portfolixir.Imports.CsvGesamtpreisReimportTest do
     assert again.already_imported == %{hash: 0, retired: 0, economics: @entries}
 
     assert again.duplicate_entries |> Enum.map(& &1.row) |> Enum.sort_by(&to_string/1) ==
-             Enum.sort_by(Enum.to_list(1..17) ++ ["5.tax_refund.1"], &to_string/1)
+             Enum.sort_by(Enum.to_list(2..18) ++ ["6.tax_refund.1"], &to_string/1)
 
     assert Enum.all?(again.duplicate_entries, &(&1.layer == :economics))
     assert counts() == before

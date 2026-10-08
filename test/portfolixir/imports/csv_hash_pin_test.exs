@@ -20,28 +20,31 @@ defmodule Portfolixir.Imports.CsvHashPinTest do
   # Betrag the gross values, Gesamtpreis the cash, Gesamtpreis = Betrag ∓
   # (Gebühren + Steuern) to the cent) carrying every kind, fees and taxes on
   # the trades and the income rows, one negative Steuern split off as a
-  # refund (row 5), both sides of a cash and of a depot transfer (rows 10,
-  # 11, 14 and 15, four different transfers, so none pairs), and one
-  # converter-written row with an empty Gesamtpreis (row 17).
+  # refund (row 6), both sides of a cash and of a depot transfer (rows 11,
+  # 12, 15 and 16, four different transfers, so none pairs), and one
+  # converter-written row with an empty Gesamtpreis (row 18). Each digest is
+  # keyed by its row as a spreadsheet shows the file, the header being row 1
+  # (#1128); the row numbers moved by one with that change and the digests
+  # did not, because no hash reads the number.
   @hash_pin_csv [
-    {1, "29196d3632ecc95ce726b6a190c3f267e2158d44e8e14d0c8b01b2ea15346048"},
-    {2, "c617ce890b5f8558e188042a832929939eb17b81bd946bfb581366fa4857ed3b"},
-    {3, "c379707c24666abd3c522d026bbf0cfadc3fa6babcff464f332d5f15e90a76a0"},
-    {4, "dffd9c1b5d647bb77dfa3c3bc280f5f0b7d71c7f9aa05412ba630405327b2721"},
-    {5, "64fc1fc3701ed7b9a0fc7f8c44a8016acb5962b5bcdb680be6def33e4272c259"},
-    {"5.tax_refund.1", "b5709e471cdaf67ce537757132a0d7c7d32453dbffae72d204178fd7fc88dfca"},
-    {6, "2099337cf552d1c284850b4a5a71f9369e58a024c4ce6ab8527524f0785449af"},
-    {7, "233ba136caa384051c60b427adfec9f05690dea4e5a83f259d5a87adf2c144b0"},
-    {8, "dfdfb2d4ac2d6e9b176da6954259ce25e0e8a02a4c431ab89242a5d37e669f95"},
-    {9, "b42c3b59ff3983089ecd1cffcf6fc20c59bd9107f9229c68091ebffefe23441d"},
-    {10, "eae58270522768f84d7bb91cb50feca4a444228e7cd408424e80496dab6ac27b"},
-    {11, "df100a768db301e0a9e68c5f0d3a1b1394aae9fa5b66b52dad04628e902df97b"},
-    {12, "513586c834f399a6cb96b9a82f52c06fb025b1a50f022f56a89b6f34453d367c"},
-    {13, "c176547ab345ef84c9980e52502d733b33c360a5ff204aeae30366af6f549a27"},
-    {14, "ce8b0d1fc60434b904932c6a91090f79233e127e6f46252b41891b0bbf84ab7b"},
-    {15, "bf3963b61001ba75247cdb13ad68d8e29b2ceb223bfcafe54476500f8c4ea249"},
-    {16, "190836c60f621f33401af15083c4a889df387890c58df8e997acfd913b8be83f"},
-    {17, "fc5b6246d031d9e5b434a8f88f8c22e370771b5902c364c5ed9410c9c8022452"}
+    {2, "29196d3632ecc95ce726b6a190c3f267e2158d44e8e14d0c8b01b2ea15346048"},
+    {3, "c617ce890b5f8558e188042a832929939eb17b81bd946bfb581366fa4857ed3b"},
+    {4, "c379707c24666abd3c522d026bbf0cfadc3fa6babcff464f332d5f15e90a76a0"},
+    {5, "dffd9c1b5d647bb77dfa3c3bc280f5f0b7d71c7f9aa05412ba630405327b2721"},
+    {6, "64fc1fc3701ed7b9a0fc7f8c44a8016acb5962b5bcdb680be6def33e4272c259"},
+    {"6.tax_refund.1", "b5709e471cdaf67ce537757132a0d7c7d32453dbffae72d204178fd7fc88dfca"},
+    {7, "2099337cf552d1c284850b4a5a71f9369e58a024c4ce6ab8527524f0785449af"},
+    {8, "233ba136caa384051c60b427adfec9f05690dea4e5a83f259d5a87adf2c144b0"},
+    {9, "dfdfb2d4ac2d6e9b176da6954259ce25e0e8a02a4c431ab89242a5d37e669f95"},
+    {10, "b42c3b59ff3983089ecd1cffcf6fc20c59bd9107f9229c68091ebffefe23441d"},
+    {11, "eae58270522768f84d7bb91cb50feca4a444228e7cd408424e80496dab6ac27b"},
+    {12, "df100a768db301e0a9e68c5f0d3a1b1394aae9fa5b66b52dad04628e902df97b"},
+    {13, "513586c834f399a6cb96b9a82f52c06fb025b1a50f022f56a89b6f34453d367c"},
+    {14, "c176547ab345ef84c9980e52502d733b33c360a5ff204aeae30366af6f549a27"},
+    {15, "ce8b0d1fc60434b904932c6a91090f79233e127e6f46252b41891b0bbf84ab7b"},
+    {16, "bf3963b61001ba75247cdb13ad68d8e29b2ceb223bfcafe54476500f8c4ea249"},
+    {17, "190836c60f621f33401af15083c4a889df387890c58df8e997acfd913b8be83f"},
+    {18, "fc5b6246d031d9e5b434a8f88f8c22e370771b5902c364c5ed9410c9c8022452"}
   ]
 
   @sample_json [
