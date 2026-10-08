@@ -17,15 +17,19 @@ defmodule Portfolixir.Portfolios.Costs do
 
   ## FX basis
 
-  Each cost converts into the base currency through the **EUR hub** at the
-  rate stored on its own booking date; a cost with no
-  stored rate for that day is **excluded from the totals and named** by its
+  Each cost is read in its **cash account's currency**, the currency of the
+  cash leg it is part of (the ADR-0015 amendment of 2026-10-07, #1107): on a
+  cross-currency trade that is not the booking's currency, which is the
+  security's. It converts into the base currency through the **EUR hub** at
+  the rate stored on its own booking date; a cost with no
+  stored rate for that day is **excluded from the totals and named** by that
   currency — the same excluded-and-named rule as the sibling facets.
   """
 
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
+  alias Portfolixir.Portfolios.CashAccount
 
   @zero Decimal.new("0")
   @months 1..12
@@ -69,6 +73,13 @@ defmodule Portfolixir.Portfolios.Costs do
           "fee and tax legs riding any transaction plus standalone fee/tax bookings, " <>
             "with tax_refund netted against taxes; gross amounts are never summed " <>
             "(a buy's gross includes its legs, a sell's is net of them)",
+        # The ADR-0015 amendment of 2026-10-07 (#1107).
+        currency:
+          "each cost is read in its cash account's currency, the currency of the cash leg " <>
+            "it is part of, and converted from that currency at the EUR hub rate stored on " <>
+            "its booking date: a cross-currency trade's fees and taxes (ADR-0015) are never " <>
+            "read in the security's currency; a booking without a cash account is read in " <>
+            "its own currency; an excluded cost is named by the currency it was read in",
         window: window(full, annual, "grouped by booking date"),
         reference: "EUR hub rates on each booking date itself",
         gaps: "a cost with no stored booking-date rate is excluded from the totals and named"
@@ -107,8 +118,21 @@ defmodule Portfolixir.Portfolios.Costs do
   end
 
   defp cost(tx, series, amount) do
-    %{date: tx.date, series: series, currency_code: tx.currency_code, amount: amount}
+    %{date: tx.date, series: series, currency_code: cost_currency(tx), amount: amount}
   end
+
+  # The ADR-0015 amendment of 2026-10-07 (#1107): a booking's fees and taxes,
+  # and a standalone cost's cash, are in its CASH ACCOUNT's currency, the
+  # currency of the cash leg they are part of (`Ledger.SettlementGuard`). On a
+  # cross-currency trade that is not the booking's currency, which is the
+  # security's. This is the walk's reading since #1051
+  # (`Performance.trade_cost/2`), and like the walk it falls back to the
+  # booking's currency only where the booking has no cash account.
+  defp cost_currency(%{cash_account: %CashAccount{currency_code: currency}})
+       when is_binary(currency),
+       do: currency
+
+  defp cost_currency(tx), do: tx.currency_code
 
   defp convert_cost(%{amount: nil}, _base), do: {:ok, nil}
 
