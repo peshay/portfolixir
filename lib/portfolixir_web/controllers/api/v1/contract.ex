@@ -41,6 +41,48 @@ defmodule PortfolixirWeb.Api.V1.Contract do
   # Newest first.
   @entries [
     %{
+      version: 16,
+      # Sprint 20's commit group β (what the ledger reports about it), after
+      # Sprint 19 PR β's 15: the group's one entry, opened by its first
+      # surface change (B1); B2 rides it, and B3 and B4 extend it.
+      date: ~D[2026-10-08],
+      summary:
+        "Sprint 20 β, what the ledger reports about it, the ADR-0015 amendment of " <>
+          "2026-10-07: a booking's fees and taxes are in its cash account's currency, the " <>
+          "currency of the cash leg they are part of, and every reader now converts them " <>
+          "from it. B1, a cross-currency closed trade is in one currency: the FIFO matcher " <>
+          "adds a trade's fees and taxes to quantity x price only after converting them " <>
+          "into the price's currency at the trade's own stored settlement_fx_rate (fee / " <>
+          "rate), never a hub rate, so basis, proceeds, realized_pnl_abs and " <>
+          "realized_pnl_pct, a lot's buy_fees and buy_taxes, a closed trade's sell_fees and " <>
+          "sell_taxes and the annualized return move on such a trade, and realized_base " <>
+          "with them; a trade booked in its account's currency or in a third currency, a " <>
+          "trade without a stored rate and a same-currency trade read byte-identical figures " <>
+          "(#1108). B2, the Costs " <>
+          "report reads each fee and tax in its cash account's currency and converts it at " <>
+          "the EUR hub rate of its booking date, as the performance walk has since #1051, so " <>
+          "a cross-currency trade's fees and taxes move and an unconvertible cost is named " <>
+          "by the account's currency (#1107); the income report reads a dividend's cash and " <>
+          "withheld tax in its cash account's currency too, so a foreign security's dividend " <>
+          "credited to an account in another currency moves, and its detail's currency " <>
+          "names the account's. No computation version moves: none of these reads is a " <>
+          "registered derived analytic (ADR-0039), so no stored value serves the old " <>
+          "figures, and the walk's analytics keep theirs, the walk having read the account's " <>
+          "currency since #1051 (entry 14). No route, tool or schema byte is added.",
+      endpoints: [],
+      tools: [],
+      parameters: [
+        "GET /api/v1/securities/:security_id/trades (portfolixir.trades.list): on a cross-currency trade booked in the security's currency (ADR-0015), each open lot's buy_fees and buy_taxes and each closed trade's buy_fees, buy_taxes, sell_fees and sell_taxes are converted from the cash account's currency at the trade's own stored settlement_fx_rate (fee / rate), so they, basis, proceeds, realized_pnl_abs, realized_pnl_pct, the lots' costs and annualized_return are all in currency_code. Identity 1: buy 10 at 100 USD settled 800.00 EUR with 5.00 fees and 1.00 taxes, sell 10 at 120 USD settled 960.00 EUR with 3.00 fees: basis 1007.5, proceeds 1196.25, realized_pnl_abs 188.75 USD, where they read 1006, 1197 and 191. A trade booked in its account's currency or in a third currency, one without a stored rate and a same-currency trade are unchanged. computation_basis.fees_and_taxes, new, states the rule (B1, #1108)",
+        "GET /api/v1/realized_gains (portfolixir.cashflow.realized_gains): each trade's basis, proceeds, realized_pnl_abs, realized_pnl_pct and annualized_return move as on the trades read, and realized_base, summary.realized_total, the hit rate and the annual matrix with them; identity 1 reads realized_base 151 EUR, the cash the round trip moved (957.00 - 806.00), where it read 152.8. computation_basis.fees_and_taxes, new, states the rule; the close-date conversion is unchanged (B1, #1108)",
+        "GET /api/v1/costs (portfolixir.cashflow.costs): each fee and tax, a trade's legs and a standalone cost's cash alike, is read in its cash account's currency and converted from it at the EUR hub rate of its booking date, where it was read in the booking's currency, which on a cross-currency trade is the security's; a booking without a cash account is read in its own. Identity 2: buy 10 at 100 USD settled 790.00 EUR with 5.00 fees and 1.00 taxes reads fees 5, taxes 1, total 6 EUR, where it read 4, 0.8 and 4.8, equal to the walk's trade costs of the day. An unconvertible cost is excluded and named by the account's currency. computation_basis.currency, new, states the rule; series, window, reference and gaps are unchanged (B2, #1107)",
+        "GET /api/v1/portfolios/:portfolio_id/income (portfolixir.portfolios.income): a booking's cash and withheld tax are read in its cash account's currency and converted from it, where they were read in the booking's currency, so a dividend of a USD security credited 80.00 EUR net with 20.00 EUR withheld to a EUR account reads gross 100, tax 20, net 80 EUR, where it read 80, 16 and 64, and its transactions row's currency is the account's (EUR), the currency native_gross, native_tax and native_net are in; positions keep grouping by and naming the booking's currency in security_currency. conversion_note says it (B2, #1107)"
+      ],
+      removed_endpoints: [],
+      removed_tools: [],
+      prompts: [],
+      removed_prompts: []
+    },
+    %{
       version: 15,
       # Sprint 19's PR β (a stranger's first run, and the agent's reads), after
       # PR α's 14: the lane PR's one entry, opened by its first surface change
