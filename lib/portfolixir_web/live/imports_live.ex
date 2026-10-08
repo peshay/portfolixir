@@ -1265,12 +1265,17 @@ defmodule PortfolixirWeb.ImportsLive do
   # background and refines the counts when it answers. The page is never
   # frozen by a large file, and a stale answer (another file, a reset) is
   # dropped by its token.
+  #
+  # The names unknown to the stored history (ADR-0050 §2 as amended on
+  # 2026-10-07, #904) are read from the first pass: they rest on the stored
+  # content hashes alone, so the refined pass names the same ones.
   defp assign_account_states(socket, nil) do
     socket
     |> assign(:counts_token, nil)
     |> assign(:account_states, %{
       resolutions: %{"cash" => %{}, "depot" => %{}},
-      counts: %{"cash" => %{}, "depot" => %{}, "security" => %{}, total: @empty_counts}
+      counts: %{"cash" => %{}, "depot" => %{}, "security" => %{}, total: @empty_counts},
+      unseen: %{"cash" => MapSet.new(), "depot" => MapSet.new()}
     })
   end
 
@@ -1281,7 +1286,11 @@ defmodule PortfolixirWeb.ImportsLive do
     socket
     |> assign(:account_states, %{
       resolutions: %{"cash" => cash, "depot" => depots},
-      counts: state_counts(counts)
+      counts: state_counts(counts),
+      unseen: %{
+        "cash" => MapSet.new(counts.unseen_names.cash_accounts),
+        "depot" => MapSet.new(counts.unseen_names.depots)
+      }
     })
     |> refine_counts(preview)
   end
@@ -1314,6 +1323,13 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp resolution(states, group, pp_name),
     do: states.resolutions |> Map.fetch!(group) |> Map.get(pp_name, :none)
+
+  # A file name no booking was imported under, while the file's other names
+  # have bookings (ADR-0050 §2 as amended on 2026-10-07; board 01 ①, pick
+  # L1 = A): it gets no prefill, whatever its resolution, and the row says
+  # why.
+  defp unseen?(states, group, pp_name),
+    do: states.unseen |> Map.fetch!(group) |> MapSet.member?(pp_name)
 
   # ADR-0050 §4 (board 04b, G4b-A): "+ Create new: X" is impossible when the
   # name guard refuses X — another account's live or former name. That is
@@ -1395,6 +1411,7 @@ defmodule PortfolixirWeb.ImportsLive do
       counts: row_counts(assigns.account_states, group, pp_name),
       resolution: resolution(assigns.account_states, group, pp_name),
       prefill: get_in(assigns.mapping, [:prefill, group, pp_name]),
+      unseen: unseen?(assigns.account_states, group, pp_name),
       remember_outcome: Map.get(assigns.remember_outcomes, {group, pp_name}),
       remember_on: get_in(assigns.mapping, [:remember, group, pp_name]) != "false",
       account_names: assigns.account_names[group],
@@ -1476,12 +1493,15 @@ defmodule PortfolixirWeb.ImportsLive do
   attr(:counts, :map, required: true)
   attr(:resolution, :any, required: true)
   attr(:prefill, :string, default: nil)
+  attr(:unseen, :boolean, default: false)
   attr(:remember_outcome, :any, default: nil)
   attr(:remember_on, :boolean, default: true)
   attr(:account_names, :map, required: true)
   attr(:option_tags, :map, required: true)
 
-  # Under the select, only what is not obvious (board 04): why the row is
+  # Under the select, only what is not obvious (board 04): why a name
+  # unknown to the stored history is not prefilled (board 01 ①, pick L1 =
+  # A; it stays after a choice, so the row does not reflow), why the row is
   # prefilled when a former name did it, that "+ Create new" creates nothing
   # without a new booking, the "remember" box of a changed prefill (G4-A),
   # why remembering is not offered, and an ambiguous name's note.
@@ -1489,6 +1509,9 @@ defmodule PortfolixirWeb.ImportsLive do
     assigns = assign(assigns, basis: basis(assigns), remember: remember_mode(assigns))
 
     ~H"""
+    <AppShell.data_note :if={@unseen} severity={:attention} data-role="mapping-unseen-name">
+      <%= unseen_sentence(@group) %>
+    </AppShell.data_note>
     <%= case @basis do %>
       <% {:former, account} -> %>
         <span class="mapping-basis" data-role="mapping-basis">
@@ -1540,9 +1563,26 @@ defmodule PortfolixirWeb.ImportsLive do
     """
   end
 
+  # ADR-0050 §2 as amended on 2026-10-07 (board 01 ①): no booking under the
+  # name is known, both remedies named.
+  defp unseen_sentence("cash") do
+    gettext(
+      "No booking under this name has been imported yet, though the file's other names have. If the account was renamed in Portfolio Performance, choose the existing account here; otherwise “+ Create new”."
+    )
+  end
+
+  defp unseen_sentence("depot") do
+    gettext(
+      "No booking under this name has been imported yet, though the file's other names have. If the depot was renamed in Portfolio Performance, choose the existing depot here; otherwise “+ Create new”."
+    )
+  end
+
   # Why the row is prefilled, said only where it is not obvious (board 04).
+  # A name unknown to the stored history was prefilled with nothing, so a
+  # choice of the account its former name names is the operator's, not a
+  # match.
   defp basis(%{resolution: {:ok, id, :former}} = assigns) do
-    if assigns.chosen == "existing:#{id}",
+    if assigns.chosen == "existing:#{id}" and not assigns.unseen,
       do: {:former, Map.get(assigns.account_names, id, "##{id}")}
   end
 
@@ -2282,8 +2322,12 @@ defmodule PortfolixirWeb.ImportsLive do
 
   # Auto-prefill (ADR-0050 §4) through the resolution the apply uses: an
   # exact live name, then a former name → that account; a name found by
-  # neither → create-new; an ambiguous name → nothing ("Decide…").
-  defp initial_mapping_for(%Preview{} = preview, %{resolutions: resolutions}) do
+  # neither → create-new; an ambiguous name → nothing ("Decide…"). A name
+  # unknown to the stored history, in a file whose other names are known,
+  # → nothing either, whatever it resolves to (§2 as amended on 2026-10-07):
+  # every row under it is a hash miss, so a prefill would book the history
+  # it names a second time.
+  defp initial_mapping_for(%Preview{} = preview, %{resolutions: resolutions} = states) do
     %{"cash" => cash_resolutions, "depot" => depot_resolutions} = resolutions
 
     cash_pp_names = Mapping.unique_cash_pp_names(preview)
@@ -2293,12 +2337,22 @@ defmodule PortfolixirWeb.ImportsLive do
 
     cash =
       Map.new(cash_pp_names, fn pp_name ->
-        {pp_name, prefill(Map.fetch!(cash_resolutions, pp_name), pp_name)}
+        {pp_name,
+         prefill(
+           unseen?(states, "cash", pp_name),
+           Map.fetch!(cash_resolutions, pp_name),
+           pp_name
+         )}
       end)
 
     depot =
       Map.new(depot_pp_names, fn pp_name ->
-        target = prefill(Map.fetch!(depot_resolutions, pp_name), pp_name)
+        target =
+          prefill(
+            unseen?(states, "depot", pp_name),
+            Map.fetch!(depot_resolutions, pp_name),
+            pp_name
+          )
 
         default_cash_pp = Map.get(default_cash, pp_name)
 
@@ -2318,9 +2372,10 @@ defmodule PortfolixirWeb.ImportsLive do
     %{blank_mapping() | cash: cash, depot: depot, prefill: prefill}
   end
 
-  defp prefill({:ok, id, _tier}, _pp_name), do: "existing:#{id}"
-  defp prefill(:none, pp_name), do: "create:#{pp_name}"
-  defp prefill({:ambiguous, _tier, _ids}, _pp_name), do: ""
+  defp prefill(true = _unseen, _resolution, _pp_name), do: ""
+  defp prefill(false, {:ok, id, _tier}, _pp_name), do: "existing:#{id}"
+  defp prefill(false, :none, pp_name), do: "create:#{pp_name}"
+  defp prefill(false, {:ambiguous, _tier, _ids}, _pp_name), do: ""
 
   # The mapping takes only the shapes its form sends (E25 S4, F17): a string
   # per cash name, a map of strings per depot and per security row, a string
