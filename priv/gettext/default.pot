@@ -8775,7 +8775,7 @@ msgstr ""
 msgid "at %{depots}"
 msgstr ""
 
-#: lib/portfolixir_web/account_names.ex:92
+#: lib/portfolixir_web/account_names.ex:95
 #: lib/portfolixir_web/live/securities/merge_dialog.ex:648
 #: lib/portfolixir_web/live/securities/merge_preview.ex:157
 #, elixir-autogen, elixir-format
@@ -8797,7 +8797,7 @@ msgstr ""
 msgid "no depot"
 msgstr ""
 
-#: lib/portfolixir_web/account_names.ex:96
+#: lib/portfolixir_web/account_names.ex:99
 #: lib/portfolixir_web/security_names.ex:192
 #: lib/portfolixir_web/security_names.ex:202
 #, elixir-autogen, elixir-format

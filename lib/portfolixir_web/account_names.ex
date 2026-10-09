@@ -5,8 +5,8 @@ defmodule PortfolixirWeb.AccountNames do
   merge flow's first step (the closing act, #328).
 
   Per account whose name another account of its kind also carries, the tag
-  that tells it apart: the first of its features whose values differ across
-  the accounts of that name. A cash account: its linked depots, its
+  that tells it apart: the first of its features whose values print
+  differently across the accounts of that name, compared as the names are. A cash account: its linked depots, its
   currency, its creation date, its number; a depot: its cash account, its
   creation date, its number. An account with a unique name carries none, and
   its label is its name.
@@ -76,10 +76,13 @@ defmodule PortfolixirWeb.AccountNames do
         []
 
       {_name, same} ->
+        # A feature tells the twins apart only where its values print
+        # differently, compared as the names are (#1152): two tags that read
+        # the same would stand for two accounts.
         feature =
           Enum.find(features, List.last(features), fn feature ->
             values = Enum.map(same, feature)
-            length(Enum.uniq(values)) == length(values)
+            length(Enum.uniq_by(values, &SecurityNames.twin_key/1)) == length(values)
           end)
 
         Enum.map(same, &{&1.id, feature.(&1)})
