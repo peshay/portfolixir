@@ -1604,9 +1604,9 @@ Example account payloads:
   date — one journaled `split` row per portfolio, inserted atomically — and
   returns the created transactions (`201`, regular transaction shape). A
   portfolio with zero position at the effective date gets no row. A second
-  same-day split for the same security is rejected with `422` naming the
-  existing event (a retried timeout cannot compound the multiplicative
-  event); a future-dated effective date and a security nobody held at the
+  same-day split for the same security is rejected with `422` on `date`,
+  naming the existing event, its transaction and its portfolio by their ids
+  (a retried timeout cannot compound the multiplicative event); a future-dated effective date and a security nobody held at the
   effective date are rejected with `422` too. The security's splits, each
   counted by its own magnitude (`2:1` and `1:2` both count 2), may multiply to
   at most `10^12` with the new one included; a ratio past that answers `422`
@@ -3500,7 +3500,8 @@ account #5` (`errors.former_names`: "include the name of cash account #5 in
 this portfolio"), and a security merge's guard detail names its rules,
 depots, buckets and portfolios by their ids (`policy rule(s): #7 (in_force)`,
 `In depot #3`, `in portfolio #1`) and an identity's name as "its recorded
-name". A delete refused because a policy rule reads the object (`409`) names
+name", and a split booked again names the existing event's portfolio by its
+id (`for portfolio #1`). A delete refused because a policy rule reads the object (`409`) names
 the rules the same way, and a cash-account or depot merge's guard detail names
 its buckets and a position by their ids (`the buckets #3, #7`,
 `security #12 sits in the bucket #9`). The record's name is a field of the

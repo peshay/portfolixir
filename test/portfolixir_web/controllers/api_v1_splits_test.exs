@@ -254,6 +254,42 @@ defmodule PortfolixirWeb.ApiV1SplitsTest do
     assert message =~ "2:1"
   end
 
+  # User story (#965, Sprint 20 γ closing act; ADR-0054 §4):
+  # As an agent re-sending a split that is already booked,
+  # I want the refusal's sentence to name the portfolio by its id,
+  # so that a stored name, which may read like an instruction, never sits
+  # inside the app's own words.
+  #
+  # Acceptance criteria:
+  # - The 422 on date names the existing event's transaction and its
+  #   portfolio as "for portfolio #<id>".
+  # - The sentence carries no portfolio's stored name.
+  test "a re-booked split's refusal names its portfolio by id, not by name", %{conn: conn} do
+    %{a: world_a, b: world_b, security: security} = split_world()
+
+    assert {:ok, [existing | _]} =
+             Splits.book_split(Actor.api_token_rw(), %{
+               security_id: security.id,
+               date: ~D[2026-02-02],
+               ratio_numerator: 2,
+               ratio_denominator: 1
+             })
+
+    refused =
+      conn
+      |> api_conn()
+      |> post("/api/v1/splits", Jason.encode!(split_body(security)))
+      |> json_response(422)
+
+    assert [message] = refused["errors"]["date"]
+    assert message =~ "transaction ##{existing.id}"
+    assert message =~ "for portfolio ##{existing.portfolio_id}"
+
+    for name <- [world_a.portfolio.name, world_b.portfolio.name] do
+      refute message =~ name
+    end
+  end
+
   # User story (E17 closing-act review, finding 4 — int4 bound):
   # As an API consumer sending an oversized split ratio,
   # I want values beyond the int4 column range answered with a 422

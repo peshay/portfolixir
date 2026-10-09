@@ -146,6 +146,15 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "security #<id> sits in" and &1 =~ "#965")
            )
 
+    # #965, the γ closing act (security lens): a re-booked split's 422 names
+    # its portfolio by id.
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "POST /api/v1/securities/:security_id/isin-change") and
+                 &1 =~ "POST /api/v1/splits (portfolixir.splits.create)" and
+                 &1 =~ "for portfolio #<id>" and &1 =~ "#965")
+           )
+
     # #956 (C3) and #1137 (C4): the companion's HTTP listener compares a
     # browser's Origin whole, and binds loopback for an empty host.
     assert newest["summary"] =~ "#956"
