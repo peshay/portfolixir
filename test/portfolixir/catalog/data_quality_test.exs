@@ -385,4 +385,71 @@ defmodule Portfolixir.Catalog.DataQualityTest do
 
     assert DataQuality.refine([%{}], "two_scales") == []
   end
+
+  # User story (#1101, Sprint 20 plan D-7; board ux-design-2026-10-07/02,
+  # pick L2 A):
+  # As the operator whose Overview counts what needs work,
+  # I want the held securities whose quotes contradict their own bookings
+  # as a data-quality set of their own,
+  # so that the Overview's count, the securities page's
+  # dq=implausible_quote list and the agent's data_quality=implausible_quote
+  # read are one rule (#705).
+  #
+  # Acceptance criteria:
+  # - implausible_quote holds a held security bought at 48.20 and quoted
+  #   4.87 that day, and keeps it retired or flagged as a benchmark: its
+  #   value is as wrong as before. Its query half is the held filter.
+  # - It leaves out a security sold out since (its sell at 61.40 beside
+  #   618.90 the day before names it while held), a twentyfold riser, a
+  #   held security with no quote in any booking's window, and a bond the
+  #   two-scales guard names.
+  # - The count is the list's length, and a row with no security is no
+  #   finding.
+  test "implausible_quote is the held securities whose quotes contradict their bookings" do
+    world = base_world()
+
+    held = security!(%{name: "Wrenfield Gardens AG"})
+    buy!(world, held, quantity: "120", price: "48.20", date: ~D[2026-05-12])
+    put_quote!(held, ~D[2026-05-12], "4.87")
+
+    sold_out = security!(%{name: "Arbolia Inc."})
+    buy!(world, sold_out, quantity: "10", price: "58.20", date: ~D[2025-11-03])
+
+    Portfolixir.WorldFixtures.sell!(world, sold_out,
+      quantity: "10",
+      price: "61.40",
+      date: ~D[2026-04-03]
+    )
+
+    put_quote!(sold_out, ~D[2026-04-02], "618.90")
+
+    riser = security!(%{name: "Halden Robotics AG"})
+    buy!(world, riser, quantity: "30", price: "10.00", date: ~D[2024-01-10])
+    put_quote!(riser, ~D[2024-01-10], "10.20")
+    put_quote!(riser, ~D[2026-10-06], "210.00")
+
+    priced!(world, security!(%{name: "Ostsee Holz"}), "4", "100")
+
+    bond = security!(%{name: "Kestrel Anleihe 2030 2,75%", asset_class: "bond"})
+    buy!(world, bond, quantity: "10000", price: "0.985", date: ~D[2026-03-12])
+    put_quote!(bond, ~D[2026-03-12], "97.25")
+
+    assert DataQuality.valid?("implausible_quote")
+    assert "implausible_quote" in DataQuality.ids()
+    assert DataQuality.list_opts("implausible_quote") == [holding_status: :held]
+    assert names(DataQuality.list("implausible_quote")) == ["Wrenfield Gardens AG"]
+    assert DataQuality.count("implausible_quote") == 1
+    assert names(DataQuality.list("two_scales")) == ["Kestrel Anleihe 2030 2,75%"]
+
+    retire!(held, true)
+    {:ok, _} = Catalog.update_security(Actor.owner_ui(), held, %{is_benchmark: true})
+    assert names(DataQuality.list("implausible_quote")) == ["Wrenfield Gardens AG"]
+    assert DataQuality.count("implausible_quote") == 1
+
+    # The in-memory half reads held too: rows loaded without the query half
+    # cannot bring the sold-out security back.
+    rows = Catalog.list_securities_with_metrics()
+    assert names(DataQuality.refine(rows, "implausible_quote")) == ["Wrenfield Gardens AG"]
+    assert DataQuality.refine([%{}], "implausible_quote") == []
+  end
 end

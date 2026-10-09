@@ -20,6 +20,7 @@ defmodule Portfolixir.Catalog.DataQuality do
   | `missing_logo` | no stored logo and not deliberately locked to "no logo", or a stored logo whose file is gone, whatever its lock (#933) |
   | `missing_fx` | priced, but no stored rate from its currency to the base (EUR hub) |
   | `two_scales` | a bond priced on two scales, in either direction: its latest stored quote is #{20} to #{500} times a booked price per unit, or 1/#{500} to 1/#{20} of one (`Portfolixir.Portfolios.Bonds`) |
+  | `implausible_quote` | held, and a booking's quote — on its date, or the latest within #{7} days before — is below half or above twice its price per unit, unless `two_scales` names it (`Portfolixir.Portfolios.QuotePlausibility`) |
 
   `missing_quote` is a subset of `stale_quote`, and that is deliberate rather
   than an oversight: the dashboard's finding has always read "without a quote
@@ -49,6 +50,18 @@ defmodule Portfolixir.Catalog.DataQuality do
   has figures as wrong as before, so it stays in the set, and the Overview
   counts it through `count/2`, as it counts the others.
 
+  `implausible_quote` (#1101, Sprint 20 plan D-7) is its general case, and
+  not catalog hygiene either: every **held** security whose stored quotes
+  contradict its own bookings — for a buy, a sell or a priced inbound
+  delivery, the quote of the booking's date (or the latest within 7 days
+  before it) below half or above twice the booking's price per unit, in
+  the security's currency and on one split basis — which is
+  `Portfolixir.Portfolios.QuotePlausibility.findings_among/1` over the held
+  rows. A security `two_scales` names is not counted again. Held is
+  `Portfolixir.Ledger.HeldSecurities`' answer, in the query and in memory
+  alike; a retired or benchmark security that is held stays in the set, as
+  its value is as wrong as before.
+
   ## Two halves, and why a caller must apply both
 
   A predicate narrows in the query where it can (`missing_logo` is a JSONB
@@ -65,10 +78,12 @@ defmodule Portfolixir.Catalog.DataQuality do
   alias Portfolixir.Catalog.SecurityWithMetrics
   alias Portfolixir.Clock
   alias Portfolixir.Fx
+  alias Portfolixir.Ledger.HeldSecurities
   alias Portfolixir.Portfolios.Bonds
+  alias Portfolixir.Portfolios.QuotePlausibility
 
   @stale_days 7
-  @ids ~w(stale_quote missing_quote missing_logo missing_fx two_scales)
+  @ids ~w(stale_quote missing_quote missing_logo missing_fx two_scales implausible_quote)
 
   @doc "Every predicate id."
   @spec ids() :: [String.t()]
@@ -114,6 +129,8 @@ defmodule Portfolixir.Catalog.DataQuality do
   benchmark and retired exclusions. The quote conditions themselves are
   metric-derived, cannot be expressed in SQL over the quote history, and are
   `refine/3`'s; so is the two-scales guard, which reads quotes and bookings.
+  `implausible_quote` pushes its held filter here and its guard to
+  `refine/3`.
   """
   @spec list_opts(String.t()) :: keyword()
   # ADR-0046 §1: a benchmark security is a reference, not a holding, so the
@@ -127,6 +144,9 @@ defmodule Portfolixir.Catalog.DataQuality do
 
   def list_opts("missing_fx"), do: []
   def list_opts("two_scales"), do: []
+  # #1101 (D-7): the held securities, whatever their flags, as two_scales
+  # keeps its rows.
+  def list_opts("implausible_quote"), do: [holding_status: :held]
   def list_opts(id) when id in @ids, do: [is_benchmark: false, is_retired: false]
 
   @doc """
@@ -167,6 +187,16 @@ defmodule Portfolixir.Catalog.DataQuality do
     |> Keyword.merge(list_opts("two_scales"))
     |> Catalog.list_securities()
     |> Bonds.two_scales_among()
+    |> length()
+  end
+
+  # #1101: the same for implausible_quote, whose guard reads bookings and
+  # quotes, not the metrics.
+  def count("implausible_quote", opts) do
+    opts
+    |> Keyword.merge(list_opts("implausible_quote"))
+    |> Catalog.list_securities()
+    |> QuotePlausibility.findings_among()
     |> length()
   end
 
@@ -222,6 +252,24 @@ defmodule Portfolixir.Catalog.DataQuality do
 
     Enum.filter(rows, fn row ->
       Enum.any?(security_list(row), &MapSet.member?(flagged, &1.id))
+    end)
+  end
+
+  # #1101 (D-7): the guard over the rows' held securities. The held filter
+  # is applied here too, so rows loaded without the query half cannot bring
+  # a sold-out security back; a row without a security is no finding.
+  def refine(rows, "implausible_quote", _today) do
+    held = MapSet.new(HeldSecurities.held_ids())
+
+    named =
+      rows
+      |> Enum.flat_map(&security_list/1)
+      |> Enum.filter(&MapSet.member?(held, &1.id))
+      |> QuotePlausibility.findings_among()
+      |> MapSet.new(& &1.security_id)
+
+    Enum.filter(rows, fn row ->
+      Enum.any?(security_list(row), &MapSet.member?(named, &1.id))
     end)
   end
 

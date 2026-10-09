@@ -6486,6 +6486,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp dq_label("missing_fx"), do: gettext("Missing FX rate")
   # #1068 (D-15): the bonds the two-scales guard flags, either direction.
   defp dq_label("two_scales"), do: gettext("Priced on two scales")
+  # #1101 (D-7; board 02, L2 A): the held securities whose quotes contradict
+  # their own bookings. A removable chip, as two_scales'; no one-tap chip.
+  defp dq_label("implausible_quote"), do: gettext("Quote does not match bookings")
 
   # -- #717 chip helpers ------------------------------------------------------
 

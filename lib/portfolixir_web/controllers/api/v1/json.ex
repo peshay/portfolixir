@@ -144,6 +144,29 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   defp bond_field(_security), do: nil
 
   @doc """
+  One `implausible_quote` finding (#1101, plan D-7) as the securities
+  listing's envelope serves it under `data_quality=implausible_quote`: the
+  latest booking whose quote is outside [1/2, 2] of its price per unit,
+  the quote it was compared with (`close` on the booking's split basis),
+  the `ratio` close ÷ price rounded half up at scale 6, and
+  `bookings_outside`. Decimals are strings; the envelope's
+  `computation_basis` states the rule.
+  """
+  def implausible_quote_finding(finding) do
+    %{
+      security_id: finding.security_id,
+      kind: finding.kind,
+      date: date(finding.date),
+      price: decimal(finding.price),
+      currency_code: finding.currency_code,
+      quote_date: date(finding.quote_date),
+      close: decimal(finding.close),
+      ratio: decimal(Decimal.round(finding.ratio, 6, :half_up)),
+      bookings_outside: finding.bookings_outside
+    }
+  end
+
+  @doc """
   A bond's reading (#330, ADR-0052): the nominal held under the hundredth
   convention, the remaining term, the current yield and the linear yield to
   maturity, each with its `computation_basis`, and the two-scales finding

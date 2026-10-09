@@ -153,6 +153,18 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
 
     refute Enum.any?(sprint20["parameters"], &(&1 =~ "of the decomposition are unchanged"))
 
+    # B4 extends the entry (#1101, plan D-7): data_quality takes
+    # implausible_quote, the held securities whose quotes contradict their
+    # own bookings, with the findings and the computation basis in the
+    # envelope; the MCP enum carries it.
+    assert Enum.any?(
+             sprint20["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/securities?data_quality=") and
+                 &1 =~ "portfolixir.securities.list" and &1 =~ "implausible_quote" and
+                 &1 =~ "[1/2, 2]" and &1 =~ "7 days before" and &1 =~ "two_scales" and
+                 &1 =~ "findings" and &1 =~ "computation_basis" and &1 =~ "#1101")
+           )
+
     # The deposits-and-withdrawals read, the amendment's point 1 for a
     # deposit's or removal's cash (#1107).
     assert sprint20["summary"] =~ "deposits-and-withdrawals"
