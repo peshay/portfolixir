@@ -151,6 +151,17 @@ Three readers do not:
 4. **The figures that change move their computation version**, the payloads'
    basis says so, and the API contract gains an entry.
 
+   *Note (2026-10-09, #1108, the Sprint 20 β closing act):* no computation
+   version moves, because none of the readers whose figures change carries
+   one. The trades and realized-gains reads and the Costs, income and
+   deposits-and-withdrawals reports are no registered derived analytic
+   (ADR-0039), so no stored value serves their old figures, and the
+   performance walk's analytics keep their versions, the walk having read
+   the account's currency since #1051. The payloads' basis states the rule
+   (`computation_basis.fees_and_taxes`, `computation_basis.currency`), and
+   the API contract's entry 16 records the change and says that no
+   computation version moves.
+
 **Why the trade's own rate, not a hub rate.** The hub rate of the trade date
 is a second, different conversion of cash that was converted once already,
 at the broker's rate. Only the trade's own rate makes a closed trade's
