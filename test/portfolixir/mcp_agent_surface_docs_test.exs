@@ -111,17 +111,24 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
   # - The EN and DE MCP pages and agent guides say an empty
   #   PORTFOLIXIR_MCP_HOST binds 127.0.0.1, never every interface, and that
   #   an IPv6 address is answered in brackets.
+  # - The EN and DE MCP pages say an empty pair of brackets (`[]`) reads as
+  #   the loopback default too (the Sprint 20 γ closing act, SL-F2), and that
+  #   the allowed hosts are compared in lower case (SL-N2).
   test "the MCP pages state the companion's empty and IPv6 host" do
     assert_fragments([
       {"docs/integration/api-and-mcp.md",
        [
          "An empty or blank `PORTFOLIXIR_MCP_HOST` binds `127.0.0.1`, as an unset one does, never every interface",
-         "an IPv6 address it binds is answered in brackets (`[::1]:4001`)"
+         "and so does an empty pair of brackets (`[]`), which reads as the loopback default as an empty value does",
+         "an IPv6 address it binds is answered in brackets (`[::1]:4001`)",
+         "The names, the bound host's and those in `PORTFOLIXIR_MCP_ALLOWED_HOSTS`, are compared in lower case"
        ]},
       {"docs/de/integration/api-and-mcp.md",
        [
          "Ein leeres `PORTFOLIXIR_MCP_HOST` bindet `127.0.0.1` wie ein nicht gesetztes, nie jede Schnittstelle",
-         "eine IPv6-Adresse, an die er bindet, gilt in Klammern (`[::1]:4001`)"
+         "und ebenso ein leeres Klammerpaar (`[]`), das wie ein leerer Wert als Loopback-Standard gilt",
+         "eine IPv6-Adresse, an die er bindet, gilt in Klammern (`[::1]:4001`)",
+         "Die Namen, der des gebundenen Hosts und die in `PORTFOLIXIR_MCP_ALLOWED_HOSTS`, werden in Kleinbuchstaben verglichen"
        ]},
       {"docs/integration/connect-an-agent.md",
        ["unset, empty or blank is `127.0.0.1`, never every interface"]},
