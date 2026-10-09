@@ -136,6 +136,23 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
              read
     end
 
+    # #1142's last sibling (D-14; D-6 answers it): the decomposition's three
+    # percentages on a zero base_cost are null too, on a holding and on an
+    # open lot, with the rule in computation_basis.decomposition_pct; the
+    # B3 line no longer says they are unchanged.
+    assert Enum.any?(
+             sprint20["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/portfolios/:portfolio_id/holdings") and
+                 &1 =~ "portfolixir.holdings.list" and
+                 &1 =~ "GET /api/v1/securities/:security_id/trades" and
+                 &1 =~ "portfolixir.trades.list" and
+                 &1 =~ "price_return_pct, currency_return_pct and total_return_base_pct null" and
+                 &1 =~ "base_cost is \"0\"" and
+                 &1 =~ "computation_basis.decomposition_pct" and &1 =~ "#1142")
+           )
+
+    refute Enum.any?(sprint20["parameters"], &(&1 =~ "of the decomposition are unchanged"))
+
     # The deposits-and-withdrawals read, the amendment's point 1 for a
     # deposit's or removal's cash (#1107).
     assert sprint20["summary"] =~ "deposits-and-withdrawals"

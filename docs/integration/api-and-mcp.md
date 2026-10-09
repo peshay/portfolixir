@@ -1585,7 +1585,11 @@ Example account payloads:
   as a spin-off, or bought at a price of 0) keeps its `unrealized_pnl_abs`
   and reads `unrealized_pnl_pct` `null`, never `"0"`: a return on no cost is
   undefined, and `0` would read as flat. The envelope's
-  `computation_basis.unrealized_pnl_pct` states the rule. Holdings are derived
+  `computation_basis.unrealized_pnl_pct` states the rule. In the same way a
+  holding whose `base_cost` is `"0"` reads `price_return_pct`,
+  `currency_return_pct` and `total_return_base_pct` `null` beside its three
+  amounts, and `computation_basis.decomposition_pct` states the rule.
+  Holdings are derived
   on read with no stored snapshot, so `as_of` is the read date. Unknown
   portfolios return `404 Not Found`. Optional filters: `security_id`,
   `securities_account_id`. An optional `fields=` (FR-37, comma-separated)
@@ -2539,7 +2543,10 @@ church tax withheld at a zero church-tax rate.
   `buy_price_native`) is `"0"` keeps its `unrealized_pnl_abs` and reads
   `unrealized_pnl_pct` `null`, never `"0"`;
   `computation_basis.realized_pnl_pct` and
-  `computation_basis.unrealized_pnl_pct` state the rules.
+  `computation_basis.unrealized_pnl_pct` state the rules. As on the holdings
+  read, an open lot whose `base_cost` is `"0"` reads the decomposition's
+  three percentages `null` too, and `computation_basis.decomposition_pct`
+  states the rule.
 
 ## Policy rules (ADR-0049)
 

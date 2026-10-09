@@ -17,6 +17,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
   alias Portfolixir.Knowledge.SecurityEvent
   alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.PnlDecomposition
   alias Portfolixir.Ledger.TradeReturn
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Portfolios.Allocation
@@ -510,6 +511,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
         # #1142 (plan D-6): a return on no cost is null, never 0.
         realized_pnl_pct: Ledger.realized_pnl_pct_basis(),
         unrealized_pnl_pct: Ledger.unrealized_pnl_pct_basis(),
+        decomposition_pct: PnlDecomposition.pct_basis(),
         # The ADR-0015 amendment of 2026-10-07 (#1108): the currency the
         # fees and taxes in every lot and closed trade are in.
         fees_and_taxes: Ledger.trade_fees_basis(),
@@ -625,8 +627,11 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       # read date.
       currency_basis: "security_currency",
       currency_basis_note: holdings_currency_basis_note(),
-      # #1142 (plan D-6): the percentage's rule, null on a zero cost basis.
-      computation_basis: %{unrealized_pnl_pct: Ledger.unrealized_pnl_pct_basis()},
+      # #1142 (plan D-6): the percentages' rules, null on a zero cost basis.
+      computation_basis: %{
+        unrealized_pnl_pct: Ledger.unrealized_pnl_pct_basis(),
+        decomposition_pct: PnlDecomposition.pct_basis()
+      },
       as_of: date(Clock.today()),
       data: Enum.map(holdings, &holding(&1, portfolio_id))
     }
