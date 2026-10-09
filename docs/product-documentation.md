@@ -2625,21 +2625,29 @@ own.
 A credit that would book nothing or less once the refund is taken out (a
 worthless position sold at a nominal price, its loss refunding tax) is left
 out with a parser warning, described below, whose remedy reads: book the
-sale by hand, and the refund as a tax refund of its own. No screen books a
-tax refund yet (issue #1206). Book it as a one-row CSV in the export's German
-shape whose `Typ` is *Steuerrückerstattung*, the refund in `Betrag` and
-`Gesamtpreis` and its cash account in `Konto`, or over the API
-(`POST /api/v1/transactions` with the type `tax_refund`) or the MCP companion
-(`portfolixir.transactions.create`):
+sale by hand, and the refund as a tax refund of its own. A sale's own cash
+must be above zero, so "by hand" means three bookings: the sale at its
+`Betrag`, without fees or taxes; its `Gebühren` as a fee booking; and the
+refund as a tax refund. Together they move the row's `Gesamtpreis`. For a
+row with Betrag 7,50, Gebühren 9,90, Steuern -12,40 and Gesamtpreis 10,00,
+that is the sale credited 7,50, the fee debited 9,90 and the refund credited
+12,40: 7,50 - 9,90 + 12,40 = 10,00.
+
+No screen books a fee or a tax refund yet (issue #1206). Book them as rows of
+a CSV in the export's German shape, one row each, or over the API
+(`POST /api/v1/transactions` with the types `sell`, `fee` and `tax_refund`)
+or the MCP companion (`portfolixir.transactions.create`):
 
 ```text
 Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
-2024-06-14 15:30:00;Steuerrückerstattung;;;;25,00;;;25,00;Test-Cash;;;
+2024-06-14 15:30:00;Verkauf;Arbolia Inc.;750;0,01;7,50;;;7,50;Test-Depot;Test-Cash;;
+2024-06-14 15:30:00;Gebühren;;;;9,90;;;9,90;Test-Cash;;;
+2024-06-14 15:30:00;Steuerrückerstattung;;;;12,40;;;12,40;Test-Cash;;;
 ```
 
-Drop it like an export and map `Konto` onto the account the sale books on.
-If such a row was imported before
-Portfolixir refused it, its warning says instead that it is already imported
+Give the rows the refused row's date, security, shares and accounts, drop the
+file like an export, and map its depot and cash account onto the ones the
+sale books on. If such a row was imported before Portfolixir refused it, its warning says instead that it is already imported
 and cannot be corrected here, as its cash would be 0 or less: do not enter it
 again; how such a booking is corrected is still an open question (issue
 #1193).

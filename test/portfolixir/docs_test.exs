@@ -1,6 +1,10 @@
 defmodule Portfolixir.DocsTest do
   use ExUnit.Case, async: true
 
+  alias Portfolixir.Imports.PortfolioPerformance
+  alias Portfolixir.Imports.PortfolioPerformance.CsvParser
+  alias Portfolixir.Imports.Preview
+
   @doc_files [
     "README.md",
     "CONTRIBUTING.md",
@@ -1610,49 +1614,90 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
-  # User story (#1118; found by the α closing act, UAT persona):
+  # User story (#1118; found by the α closing act, UAT persona; board
+  # ux-design-2026-10-07/01-import-preview ③, "What 'by hand' means"):
   # As the operator whose sale the preview refused with "Book the sale by
   # hand, and the refund as a tax refund of its own",
-  # I want the handbook to say how I book that refund today,
-  # so that I am not left looking for a screen that does not book one.
+  # I want the handbook to say what "by hand" means and how I book each
+  # part today,
+  # so that I am not left looking for a screen that does not book one, and
+  # the account ends where Portfolio Performance shows it.
   #
   # Acceptance criteria:
-  # - The negative-tax section repeats the remedy in the warning's words,
-  #   says no screen books a tax refund yet (#1206), and names the routes
-  #   that work: a one-row CSV whose `Typ` is *Steuerrückerstattung* (with
-  #   an example), or the API (`POST /api/v1/transactions`, type
-  #   `tax_refund`) and the MCP companion (`portfolixir.transactions.create`).
-  # - In German alike, the remedy with "Steuererstattung", the app's name for
-  #   the kind.
-  test "the handbook names how to book the refund the refused row asks for" do
+  # - The negative-tax section repeats the remedy in the warning's words and
+  #   gives the board's recipe: the sale at its `Betrag`, its `Gebühren` as
+  #   a fee booking, the refund as a tax refund; together they move the
+  #   row's `Gesamtpreis`.
+  # - A synthetic worked example whose figures add up to the Gesamtpreis
+  #   (7,50 - 9,90 + 12,40 = 10,00), as CSV rows that the import reads to
+  #   exactly that cash.
+  # - It says no screen books a fee or a tax refund yet (#1206) and names
+  #   the routes that work: one CSV row each, or the API (`POST
+  #   /api/v1/transactions`, types `sell`, `fee`, `tax_refund`) and the MCP
+  #   companion (`portfolixir.transactions.create`).
+  # - In German alike, the remedy with "Steuererstattung".
+  test "the handbook says what booking a refused sale by hand means, and how" do
     for {path, fragments} <- [
           {"docs/product-documentation.md",
            [
              "book the sale by hand, and the refund as a tax refund of its own.",
-             "No screen books a tax refund yet (issue #1206). Book it as a one-row CSV " <>
-               "in the export's German shape whose `Typ` is *Steuerrückerstattung*, the " <>
-               "refund in `Betrag` and `Gesamtpreis` and its cash account in `Konto`, or " <>
-               "over the API (`POST /api/v1/transactions` with the type `tax_refund`) or " <>
-               "the MCP companion (`portfolixir.transactions.create`):",
-             "2024-06-14 15:30:00;Steuerrückerstattung;;;;25,00;;;25,00;Test-Cash;;;"
+             "A sale's own cash must be above zero, so \"by hand\" means three bookings: " <>
+               "the sale at its `Betrag`, without fees or taxes; its `Gebühren` as a fee " <>
+               "booking; and the refund as a tax refund. Together they move the row's " <>
+               "`Gesamtpreis`.",
+             "Betrag 7,50, Gebühren 9,90, Steuern -12,40 and Gesamtpreis 10,00, that is " <>
+               "the sale credited 7,50, the fee debited 9,90 and the refund credited " <>
+               "12,40: 7,50 - 9,90 + 12,40 = 10,00.",
+             "No screen books a fee or a tax refund yet (issue #1206). Book them as rows " <>
+               "of a CSV in the export's German shape, one row each, or over the API " <>
+               "(`POST /api/v1/transactions` with the types `sell`, `fee` and " <>
+               "`tax_refund`) or the MCP companion (`portfolixir.transactions.create`):"
            ]},
           {"docs/de/product-documentation.md",
            [
              "den Verkauf von Hand buchen, die Erstattung als eigene Steuererstattung.",
-             "Noch bucht keine Maske eine Steuererstattung (Issue #1206). Buche sie als " <>
-               "einzeilige CSV in der deutschen Form des Exports, deren `Typ` " <>
-               "*Steuerrückerstattung* ist, die Erstattung in `Betrag` und `Gesamtpreis` " <>
-               "und ihr Verrechnungskonto in `Konto`, oder über die API (`POST " <>
-               "/api/v1/transactions` mit dem Typ `tax_refund`) oder den MCP-Begleiter " <>
-               "(`portfolixir.transactions.create`):",
-             "2024-06-14 15:30:00;Steuerrückerstattung;;;;25,00;;;25,00;Test-Cash;;;"
+             "Das eigene Geld eines Verkaufs muss über null liegen, also heißt „von Hand“ " <>
+               "drei Buchungen: der Verkauf zu seinem `Betrag`, ohne Gebühren und Steuern; " <>
+               "seine `Gebühren` als Gebührenbuchung; und die Erstattung als " <>
+               "Steuererstattung. Zusammen bewegen sie den `Gesamtpreis` der Zeile.",
+             "Betrag 7,50, Gebühren 9,90, Steuern -12,40 und Gesamtpreis 10,00 heißt das: " <>
+               "der Verkauf mit 7,50 gutgeschrieben, die Gebühr mit 9,90 belastet und die " <>
+               "Erstattung mit 12,40 gutgeschrieben, 7,50 - 9,90 + 12,40 = 10,00.",
+             "Noch bucht keine Maske eine Gebühr oder eine Steuererstattung (Issue #1206). " <>
+               "Buche sie als Zeilen einer CSV in der deutschen Form des Exports, je eine " <>
+               "Zeile, oder über die API (`POST /api/v1/transactions` mit den Typen " <>
+               "`sell`, `fee` und `tax_refund`) oder den MCP-Begleiter " <>
+               "(`portfolixir.transactions.create`):"
            ]}
         ] do
-      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+      raw = File.read!(path)
+      doc = String.replace(raw, ~r/\s+/, " ")
 
       for fragment <- fragments do
         assert doc =~ fragment, "#{path}: #{fragment}"
       end
+
+      # The worked example's rows, read by the import, move the Gesamtpreis.
+      [example] =
+        Regex.scan(~r/```text\n(Datum;Typ;[^`]*Steuerrückerstattung;;;;12,40[^`]*)```/u, raw,
+          capture: :all_but_first
+        )
+        |> List.flatten()
+
+      assert {:ok, %Preview{errors: [], entries: entries}} =
+               CsvParser.parse(example)
+
+      assert Enum.map(entries, & &1.kind) == ["sell", "fee", "tax_refund"]
+
+      moved =
+        Enum.reduce(entries, Decimal.new(0), fn entry, sum ->
+          case PortfolioPerformance.direction(entry.kind, nil) do
+            :credit -> Decimal.add(sum, entry.gross_amount)
+            :debit -> Decimal.sub(sum, entry.gross_amount)
+          end
+        end)
+
+      assert Decimal.equal?(moved, Decimal.new("10.00")), "#{path}: #{moved}"
     end
   end
 
