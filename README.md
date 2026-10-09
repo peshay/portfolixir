@@ -261,10 +261,10 @@ docker compose down -v
 
 ### Run from source
 
-The route for a host where the Compose build cannot run, for example one that
-reaches no Debian mirror: a development server (`MIX_ENV=dev`), not a release,
-on Elixir 1.18 or newer and a database you run: PostgreSQL 15 or newer, with
-its contrib modules (btree_gist).
+The route for a machine without Docker, or a host where the Compose build
+cannot run, for example one that reaches no Debian mirror: a development
+server (`MIX_ENV=dev`), not a release, on Elixir 1.18 or newer and a database
+you run: PostgreSQL 15 or newer, with its contrib modules (btree_gist).
 
 `mix` reads no `.env`: export what the server needs in the shell you run the
 commands below from. Set them before `mix ecto.setup`, which creates and
