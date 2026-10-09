@@ -10,6 +10,11 @@ description: "Design gate for FR-41 (scope-ladder level (b)), written in Sprint 
   PR (ADR-0026 step 1, as amended on PR #780: the merge is the signature).
 - **Date:** 2026-09-25 (written in Sprint 16; signed at Sprint 17's
   planning).
+- **Amended:** 2026-10-03: what the building batch's review round found the
+  record left open, with its notes of 2026-10-05 and 2026-10-06 (see
+  "Amendment (2026-10-03)" below). 2026-10-09, adopted by the merge of the
+  Sprint 21 planning PR: a security-linked interest booking is its
+  position's income (#928; see "Amendment (2026-10-09)" below).
 - **Answers:** FR-41, contribution analysis, scope-ladder level (b):
   *"which position produced how much of the return, over a selectable
   period, scoped to a view."*
@@ -68,6 +73,7 @@ One fact comes from the same sprint's bond discovery
 (`planning-artifacts/bond-discovery-2026-09-25.md`). An interest booking
 carries no security, so a bond's coupons reach the cash account with no link
 to the bond. That matters for the income term in §1 and the remainder in §3.
+*The 2026-10-09 amendment keeps the link on import (#928).*
 
 ## Decision
 
@@ -114,7 +120,8 @@ The terms of A are defined as follows:
   flow is converted at the booking day's rate, exactly as the walk converts.
 - **Income.** Dividends as credited, meaning the booking's amount, which is
   the net after the withheld tax recorded on it. This is the Income facet's
-  "net".
+  "net". *The 2026-10-09 amendment adds the interest bookings that name the
+  position's security, as credited.*
 - **Costs.** The fees and taxes carried by the position's own trades. These
   are #708's trade costs
   ([ADR-0027](0027-plan-versions-and-depot-snapshots.html) amendment
@@ -139,7 +146,7 @@ The remainder is itemised. Each line is computed from its own bookings:
 
 | Remainder line | What it holds |
 |---|---|
-| Interest | Every `interest` booking: account interest, and bond coupons, which carry no security link today (bond discovery 2026-09-25) |
+| Interest | Every `interest` booking: account interest, and bond coupons, which carry no security link today (bond discovery 2026-09-25). *Since the 2026-10-09 amendment, only the interest bookings that name no security* |
 | Standalone fees and taxes | `fee`, `tax` and `tax_refund` bookings that no trade carries, even when one names a security. This is #708's definition; the asymmetry of dividend withholding stays ADR-0027 §2's follow-up |
 | Currency effect on cash | The revaluation of cash balances in foreign currencies, plus the settlement difference of a cross-currency trade between its cash leg and its security leg on the booking day ([ADR-0015](0015-cross-currency-settlement-fx-rate.html), [ADR-0033](0033-per-position-pnl-fx-decomposition.html)) |
 
@@ -186,6 +193,7 @@ values at the two ends.
 | split | 0 (a scale leg, [ADR-0028](0028-corporate-actions-as-ledger-events.html)) | — | — |
 | dividend | — | `+` the credited amount | — |
 | interest, fee, tax, tax refund | — (they go to the remainder, §3) | — | — |
+| *interest naming a security (the 2026-10-09 amendment)* | — | `+` the credited amount | — |
 | deposit, removal, cash transfer, balance snapshot | — (cash only) | — | — |
 
 **#545's basis steps are part of a position's contribution.** They change the
@@ -365,6 +373,8 @@ story that builds it.
 | I8 | The payload carries no signal, recommendation, rating, score or action key (the meta-test). |
 | I9 | With the accumulators on, the walk's TTWROR, IRR, series and every existing output are byte-identical. The existing walk tests pass unchanged. |
 
+*I10 to I13 are added by the 2026-10-09 amendment, below.*
+
 ## The asks, answered and deferred (ADR-0043)
 
 **Where the asks come from:** FR-41 in the requirements inventory, the twelve
@@ -523,3 +533,168 @@ cash account's currency, the cash leg they are part of
   effect on cash, which together are what they were. The walk's and the
   contribution's computation versions ride the ones the 2026-10-05 note
   moved.
+
+## Amendment (2026-10-09): a security-linked interest booking is its position's income
+
+**Status.** Signed by the merge of the Sprint 21 planning PR, as the Sprint
+20 plan's answer to #928 (its D-4) said it would be. **Risk tier**
+([ADR-0036](0036-risk-tier-rides-the-batch.html)): money, because an amount
+moves between a position and the remainder; and import idempotency, because
+the #533 key reads the security.
+
+**Why.** The importer resolves the security an `INTEREST` row names, and
+creates it when the catalog lacks it (`Imports.Applier`'s
+`resolve_security`). Then it drops it: `build_transaction_attrs` writes only
+the cash account for an interest booking, as for a deposit or a removal. §3
+put every interest booking in the remainder for that reason, so a bond's
+coupons never reach its position, and its contribution reads as its price
+move alone. The Income facet cannot place them either (#928, bond discovery
+2026-09-25).
+
+**What changes.**
+
+1. **The import keeps the security.** An imported interest booking stores
+   the security its row names, from a Portfolio Performance JSON or CSV
+   file alike, as a dividend, fee or tax booking does. It stores no depot,
+   as today: a CSV interest row books to its cash account and names none
+   (`CsvParser.map_accounts`), a JSON row's `portfolio` stays unread so no
+   depot is created for a coupon (ADR-0050 §4), and the walk reads no depot
+   for income. A row that names no security stores none.
+2. **What the stored booking names decides, not how it was written.** The
+   API has accepted a security on an interest booking all along: the
+   changeset casts it for every kind, and an interest booking requires only
+   its cash account and amount. Such a booking, written over the API or
+   `portfolixir.transactions.create` before this amendment or after it, is
+   read like an imported one from the build on. That tool's description
+   gains a sentence: an interest booking may name the security whose
+   coupon it is.
+3. **§1, §3 and §5.** The income term reads: dividends, and the interest
+   bookings that name the position's security, each as credited. §5's
+   table gains the row "interest naming a security: + the credited amount
+   as income", and its remainder row holds the interest naming none. §3's
+   interest line holds the interest bookings that name no security: account
+   interest, and every coupon stored without its bond. Scoped to a view, a
+   coupon credited to an in-view account is its security's income even when
+   the position sits outside the view, as a dividend is (§6); a coupon
+   credited to an account outside the view is kept nowhere, as a dividend
+   is. In the walk this is the interest clause of
+   `Performance.keep_internal`, which today adds every interest booking to
+   the line.
+4. **The hash and the key.** The content hash reads the file's security
+   (its ISIN, else its name) before anything resolves, never the resolved
+   id (`ImportHash`), so every stored hash stays byte-identical and a
+   re-drop is all hash hits (ADR-0050 §2–§3, O1). The #533 key reads
+   `security_id` (`DedupKey.of`), so a coupon stored without its security
+   keys apart from the same coupon imported now. The applier's pre-import
+   check (`booked_before?` and `old_reading`) therefore also asks for an
+   interest row's key **with no security**, under each cash reading it
+   already asks for (ADR-0053 §4 and A4): a coupon stored before this
+   amendment, before or after ADR-0053 changed its cash, is recognised in a
+   drifted re-export and not booked twice. It errs towards "already
+   booked", as those readings do, and the result names the row under
+   `economics`. The in-run key reads the security too, so two coupons of
+   two bonds, equal in date, amount, account and time, no longer collapse
+   into one booking in a fresh import (ADR-0050 §6); a file applied before
+   that collapsed such a pair still books nothing when dropped again.
+5. **The payload.** No field changes. The basis's `assumptions` name the
+   new income term and the narrower interest line. `performance_contribution`
+   and `performance_view_contribution` move from computation version 3 to 4
+   (`Derived.Registry`), so no value computed by the old clause is served
+   (ADR-0039 §5); the view-less read uses the second. The batch's contract
+   entry names the three contribution routes and their two tools, the
+   income read, and the create tool's description. The EN and DE
+   integration docs (the remainder's `interest`) and product documentation
+   (the income term, the Income facet) follow, and so does the screen's
+   note under the interest line, which says an interest booking carries no
+   security.
+6. **The Income facet's per-position table.** `Income.positions` groups
+   dividends and interest together by security and booking currency, so a
+   coupon that names its bond leaves the row without a security, shown as
+   "Interest", and joins the bond's row. "Top contributors", the first five
+   of those rows, follows, and the year detail names the bond where it read
+   "Interest". The year × month matrix, the bars and the totals split by
+   kind, not by security, and do not change. The income read
+   (`GET /api/v1/portfolios/:portfolio_id/income`,
+   `portfolixir.portfolios.income`) carries the same rows. The security's
+   own Transactions tab lists the coupon, and the transactions list's
+   security filter finds it; no figure moves there.
+
+**Stated, not changed.**
+
+- Cash, balances, and the walk's TTWROR, IRR, series, money result and
+  computation version stay as they are: an interest booking moves cash only,
+  with or without a security (`Projection.effects`), and a security that
+  appears only on a coupon is priced but never held, so it adds nothing to
+  any day's value or basis step (I9). The benchmark comparison and the
+  portfolio metrics keep their versions.
+- I1 holds as it did, to the same precision: the amount moves between a
+  position's income and the interest line, converted at the booking day's
+  rate either way (§1, as amended 2026-10-03).
+- Rows stored before stay as they are: no repair and no backfill. A re-drop
+  cannot repair them, because a hash hit changes nothing (ADR-0050 §3), and
+  ADR-0053 §6's correction writes cash, price and settlement legs, never a
+  security. They stay in the interest line, as its basis says. An operator
+  who wants one under its bond can name the security on the booking
+  (`PATCH /api/v1/transactions/:id`, journaled); nothing does it for them.
+- A security merge moves a coupon with its security, as it moves a dividend
+  (ADR-0050 §9). The bond characterization test's figures (the valuation,
+  the cash and the walk) stand; only its `security_id == nil` flips.
+
+**The identities the building batch pins.**
+
+- **I10.** A fresh import of an `INTEREST` row that names a security stores
+  that security on the booking and no depot, from a JSON and a CSV file
+  alike; a row that names none stores none. The bond characterization
+  test's `security_id == nil` becomes the bond's id on purpose, and its
+  other expectations pass unchanged.
+- **I11.** Every content hash is byte-identical before and after the
+  build. Before the first change, on unchanged code, the digest list of
+  `csv_hash_pin_test.exs` gains the rows of `bond_invented.json`, whose
+  `INTEREST` row names its bond, and of I12's file. A file applied before
+  the build (in the test, its coupon's security cleared, as today's import
+  leaves it) inserts nothing when dropped again (zero transactions,
+  accounts, depots and securities). Neither does a re-export of it with the
+  coupon's time of day moved, which misses the hash and is found by the
+  key's no-security reading, named under `economics`.
+- **I12.** One EUR portfolio, invented throughout and imported from one
+  Portfolio Performance JSON file. A bond, *Larkspur Rail AG 4,00 % Anleihe
+  2031*, ISIN `XSLARKSPUR33` (its check digit holds, and no real `XS`
+  number has letters in its national part), face value 10,000.00 held as
+  100 shares, the bond discovery's hundredth reading. Its cash account
+  takes a deposit of 10,000.00 on 2025-03-02 and pays for the buy on
+  2025-03-10: 100 shares, amount 9,955.00 with a fee of 5.00, so priced
+  99.50, leaving 45.00.
+  Quotes: 99.00 on 2025-12-31, 100.25 on 2026-06-30. Inside the window
+  2026-01-01 to 2026-06-30 (`from=`/`to=`): account interest of 1.10 naming
+  no security on 2026-03-31, and the coupon, 400.00 (4.00 % of 10,000.00)
+  naming the bond, on 2026-04-15. The start value is 9,945.00 (bond
+  9,900.00, cash 45.00), the end value 10,471.10 (bond 10,025.00, cash
+  446.10), and no external flow is in the window, so `totals.result` is
+  **526.10**, before the build and after it. After: the bond's row has
+  start 9,900.00, end 10,025.00, net flows 0, income **400.00**, costs 0
+  and contribution **525.00**; the interest line is **1.10** and the other
+  two lines 0; 525.00 + 1.10 = 526.10, exact (I1). The same coupon stored
+  without a security reads as before: the bond **125.00**, the interest
+  line **401.10**. On the Income facet the bond's row reads 400.00, one
+  payment, last on 2026-04-15, and the row without a security 1.10, one
+  payment, last on 2026-03-31, where one row read 401.10 with two; 2026's
+  interest total stays 401.10.
+- **I13.** On I12's fixture, a view that holds the cash account but not the
+  depot counts the coupon as the bond's income: its row has start and end
+  0, held at neither end, income and contribution **400.00**; the interest
+  line is 1.10; the view's result is **401.10** (cash 45.00 to 446.10),
+  which the interest line alone held before. A view that holds the depot
+  but not the account keeps no coupon, before and after: the bond 125.00,
+  every line 0, the result 125.00. Both contribution analytics are
+  registered at computation version 4, so no value stored under version 3
+  is served.
+
+**Order.** I11's digests are taken first, on unchanged code, with its
+re-drop and re-export tests, which pass there. The red tests of I10, I12 and
+I13 come next. Then three commits: the attrs (I10 turns green, and I11's
+re-export turns red, because the stored coupon has no security and the new
+key has one); the key's no-security reading (I11 green again); and the
+walk's interest clause with the basis and the computation version (I12 and
+I13 green). The docs, the screen's note and a dated note in ADR-0029
+pointing here follow. The verification pass takes I11 first, then I12 and
+I13 against I1 and I9, and the reviewer briefing names all four.
