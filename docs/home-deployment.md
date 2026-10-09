@@ -223,6 +223,21 @@ Without a UI password and with the port opened beyond loopback, the
 application logs a warning at startup naming this table; with a UI password
 shorter than 12 characters it warns as well, and starts either way.
 
+A server run from source (the README's "Run from source", `mix phx.server`
+under `MIX_ENV=dev`) reads no `.env`, no `POSTGRES_PASSWORD` and no
+`DATABASE_URL`: it takes its port and its database from the shell's
+environment, under the names `config/dev.exs` reads.
+
+| Variable | Default | What it does |
+|---|---|---|
+| `PORT` | `4000` | The port the server listens on. |
+| `DATABASE_NAME` | `portfolixir_dev` | The database `mix ecto.setup` creates and migrates, and the server uses. |
+| `DATABASE_HOST` | `127.0.0.1` | The PostgreSQL server's host. |
+| `DATABASE_PORT` | `5432` | The PostgreSQL server's port. |
+
+It connects as user `postgres` with password `postgres`, which
+`config/dev.exs` fixes: no variable changes them.
+
 ### Reach
 
 A release started on its own listens on loopback unless `PHX_BIND_ALL` says

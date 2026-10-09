@@ -97,12 +97,15 @@ Where the Compose build cannot run at all, on a host that reaches no Debian
 mirror and with no second machine to build the image on, the README's "Run from
 source" is the fallback: `mix phx.server` under `MIX_ENV=dev`, a development
 server and not a release, on Elixir 1.18 or newer and a database the operator
-runs: PostgreSQL 15 or newer, with its contrib modules (btree_gist). `mix` reads no `.env`: export `PORTFOLIXIR_API_TOKEN` and
-`PORTFOLIXIR_UI_PASSWORD` in the shell that starts it, and name the database
-with `DATABASE_NAME`, `DATABASE_HOST` and `DATABASE_PORT` (default
-`portfolixir_dev` on `127.0.0.1:5432`, user and password `postgres`). It listens
-on loopback; without `PORTFOLIXIR_UI_PASSWORD` its web UI asks for no login.
-Connect the companion to it over stdio (below).
+runs: PostgreSQL 15 or newer, with its contrib modules (btree_gist). `mix`
+reads no `.env`: export `PORTFOLIXIR_API_TOKEN` and `PORTFOLIXIR_UI_PASSWORD`
+in the shell that starts it, and name the database with `DATABASE_NAME`,
+`DATABASE_HOST` and `DATABASE_PORT` (default `portfolixir_dev` on
+`127.0.0.1:5432`); it connects as user `postgres` with password `postgres`,
+which `config/dev.exs` fixes: no variable changes them. It listens on
+loopback, on `PORT` (default `4000`); without `PORTFOLIXIR_UI_PASSWORD` its web
+UI asks for no login. Connect the companion to it over stdio (below), with
+`PORTFOLIXIR_API_BASE_URL` naming the same port.
 
 ## Connect the MCP companion
 
