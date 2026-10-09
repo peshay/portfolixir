@@ -233,14 +233,18 @@ Ansicht lässt sich als Lesezeichen speichern oder verlinken:
 - `?since=<ISO8601>` — der **Geändert-seit**-Schnitt (siehe unten); die Chips
   *Heute / 7 Tage / 30 Tage* schreiben hier ein konkretes ISO-Datum, sodass
   der Link bedeutet, was er beim Teilen bedeutete.
-- `?dq=stale_quote|missing_quote|missing_logo|missing_fx|two_scales` — die
-  Datenqualitäts-Schnellfilter: kein Kurs in den letzten 7 Tagen (inklusive
-  „gar kein Kurs"); gar kein Kurs; kein hinterlegtes Logo; *Kein
+- `?dq=stale_quote|missing_quote|missing_logo|missing_fx|two_scales|implausible_quote`
+  — die Datenqualitäts-Schnellfilter: kein Kurs in den letzten 7 Tagen
+  (inklusive „gar kein Kurs"); gar kein Kurs; kein hinterlegtes Logo; *Kein
   Wechselkurs* (Issue #717): bepreist, aber ohne gespeicherten Kurs von
   seiner Währung zur Basiswährung, das Speichern des Kurses leert also die
-  Menge; und *Auf zwei Skalen bepreist* (Issue #1068): die Anleihen, die der
+  Menge; *Auf zwei Skalen bepreist* (Issue #1068): die Anleihen, die der
   Zwei-Skalen-Wächter nennt, in beiden Richtungen (siehe *Anleihen* unten),
-  die Liste, die der Zwei-Skalen-Zähler der Übersicht öffnet. Die
+  die Liste, die der Zwei-Skalen-Zähler der Übersicht öffnet; und *Kurs
+  passt nicht zu Buchungen* (Issue #1101): die gehaltenen Wertpapiere, deren
+  gespeicherte Kurse ihren eigenen Buchungen widersprechen (siehe *Ein Kurs,
+  der nicht zu den Buchungen passt* unter Kurse und Charts), die Liste, die
+  der Zähler der Übersicht für sie öffnet. Die
   ersten drei lassen eine Benchmark und ein stillgelegtes Wertpapier in
   Ruhe: Ein ausverkauftes oder delistetes Wertpapier, das Sie stilllegen,
   verlässt alle drei, und die Zahlen der Übersicht sinken mit ihm;
@@ -1801,10 +1805,12 @@ Drift-Balken um die Null neben ihrem Text und verlinkt in den Tab
 Klassifikationsbaum und aktiven Plan nennt, gegen den die Drift gerechnet
 wird (oder dass mehrere Pläne aktiv sind oder keiner) — und die
 **Datenqualitätszeile**: ein Hinweis,
-der die Wertpapiere im Katalog ohne aktuellen Kurs, Anlageklasse oder Logo
-und die auf zwei Skalen bepreisten Anleihen aufzählt („25 Wertpapiere im
-Katalog ohne Kurs seit 7 Tagen · 4 ohne Anlageklasse · eine Anleihe auf
-zwei Skalen bepreist"), wobei jeder Zähler auf die exakt darauf
+der die Wertpapiere im Katalog ohne aktuellen Kurs, Anlageklasse oder Logo,
+die auf zwei Skalen bepreisten Anleihen und die gehaltenen Wertpapiere,
+deren Kurse nicht zu ihren eigenen Buchungen passen, aufzählt („25
+Wertpapiere im Katalog ohne Kurs seit 7 Tagen · 4 ohne Anlageklasse · eine
+Anleihe auf zwei Skalen bepreist · 2 gehaltene Wertpapiere, deren Kurse
+nicht zu ihren Buchungen passen"), wobei jeder Zähler auf die exakt darauf
 vorgefilterte Wertpapierliste verlinkt — ein Zähler N öffnet eine Liste von
 N: Die Zähler für veraltete Kurse und fehlende Logos und ihre Listen lassen
 Benchmarks und stillgelegte Wertpapiere aus, der Zähler für fehlende
@@ -1813,10 +1819,15 @@ behalten Benchmarks, und der Zähler für zwei Skalen (Issue #1068) umfasst
 mit Absicht den ganzen Katalog und behält beide, verkaufte Anleihen
 eingeschlossen, denn die gebuchte Geschichte einer solchen Anleihe — ihre
 früheren Werte und ihr realisiertes Ergebnis — liegt hundertfach daneben,
-ob sie gehalten wird oder nicht. Der Befund, der die Zeile eröffnet, trägt
-das Substantiv („4 Wertpapiere ohne Anlageklasse"). Der Hinweis nimmt die
-höchste vorhandene Stufe an: Problem, solange eine Anleihe auf zwei Skalen
-bepreist ist, Achtung, solange ein Kurs veraltet ist, sonst Hinweis.
+ob sie gehalten wird oder nicht. Der Zähler der gehaltenen Wertpapiere,
+deren Kurse nicht zu ihren Buchungen passen (Issue #1101), sagt
+„gehaltene", weil die Zeile sonst den Katalog zählt, und behält ein
+gehaltenes Wertpapier, das stillgelegt oder eine Benchmark ist. Der Befund,
+der die Zeile eröffnet, trägt das Substantiv („4 Wertpapiere ohne
+Anlageklasse"). Der Hinweis nimmt die höchste vorhandene Stufe an: Problem,
+solange eine Anleihe auf zwei Skalen bepreist ist oder die Kurse eines
+gehaltenen Wertpapiers nicht zu seinen Buchungen passen, Achtung, solange
+ein Kurs veraltet ist, sonst Hinweis.
 Die Zeile erscheint nur, wenn mindestens ein Zähler größer als null ist; ein
 sauberer Katalog zeigt nichts (kein grünes „alles in Ordnung"). Die Daten
 der Karte **Fällig** folgen der Oberflächensprache (15.10.2026 auf
@@ -2117,13 +2128,19 @@ stattdessen am ersten plausiblen Tag angewendet wurden, sowie Anleihen, die
 Stückpreisen um 1, sodass sie hundertfach zu hoch zählen, jede verlinkt auf
 ihre Transaktionen; und in einem eigenen Hinweis Kurse um 1 neben gebuchten
 Stückpreisen um 100, sodass sie hundertfach zu niedrig zählen, jede
-verlinkt auf ihre Kurse (siehe *Anleihen* unter Wertpapiere). Eine dort
-ohne Anlageklasse genannte Anleihe — durch ihre Fälligkeit oder ihren Kupon
-unter den Wächter gekommen — ist mit *ohne Anlageklasse* markiert. Jeder
-Befund ist eine Notiz in seiner eigenen Stufe — Hinweis für den
-Handelspreis-Rückfall,
-Achtung für ausgenommene und veraltete Positionen, Problem für negative
-Bestände und für zwei Skalen — und trägt sein Mittel in der Notiz: das Bedienelement
+verlinkt auf ihre Kurse (siehe *Anleihen* unter Wertpapiere); und
+Positionen, deren Kurse nicht zu ihren eigenen Buchungen passen — der Kurs
+am Tag einer Buchung unter der Hälfte oder über dem Doppelten ihres Preises
+je Stück —, jede mit dieser Buchung und dem Kurs ihres Tages genannt,
+„Wrenfield Gardens AG (Kauf 12.05.2026 zu 48,2 EUR · Kurs 12.05.2026: 4,87
+EUR, das 0,10-Fache)“, und auf ihre Kurse verlinkt (siehe *Ein Kurs, der
+nicht zu den Buchungen passt* unter Kurse und Charts). Eine dort ohne
+Anlageklasse genannte Anleihe — durch ihre Fälligkeit oder ihren Kupon unter
+den Wächter gekommen — ist mit *ohne Anlageklasse* markiert. Jeder Befund
+ist eine Notiz in seiner eigenen Stufe — Hinweis für den
+Handelspreis-Rückfall, Achtung für ausgenommene und veraltete Positionen,
+Problem für negative Bestände, für zwei Skalen und für Kurse, die nicht zu
+ihren Buchungen passen — und trägt sein Mittel in der Notiz: das Bedienelement
 **Wechselkurse synchronisieren** steht im Befund zum fehlenden Wechselkurs,
 und ein Verrechnungskonto, das mangels Kurs ausgenommen ist, wird mit seinem
 Saldo in der eigenen Währung genannt — „USD Settlement (1.850,00 USD)“ — und
@@ -3472,6 +3489,60 @@ Synchronisierung meldet, wie viele manuelle Zeilen sie unangetastet gelassen
 hat, und protokolliert eine Warnung, wenn diese Zahl größer als null ist.
 Wer einen Kurs von Hand bearbeitet, überschreibt weiterhin den gespeicherten
 Wert — auch zuvor synchronisierte.
+
+#### Ein Kurs, der nicht zu den Buchungen passt (Issue #1101)
+
+Ein Ticker oder eine Online-ID, die auf eine andere Notierung zeigt, speichert
+frische Kurse des falschen Instruments. Der Bestand wird mit ihnen bewertet,
+und weil der Kurs aktuell ist, markiert ihn sonst nichts. Deshalb werden die
+gespeicherten Kurse jedes gehaltenen Wertpapiers mit seinen eigenen
+Buchungen verglichen: Für jeden Kauf, Verkauf und jede bepreiste
+Einlieferung wird der gespeicherte Kurs am Tag der Buchung, oder der letzte
+innerhalb von 7 Tagen davor, mit dem Preis je Stück der Buchung in der
+Währung des Wertpapiers verglichen (eine Buchung in anderer Währung mit
+ihrem Bein in der Wertpapierwährung). Das Wertpapier wird genannt, wenn
+dieser Kurs bei mindestens einer Buchung unter der Hälfte oder über dem
+Doppelten des Preises je Stück der Buchung liegt. Eine Aktie, die auf das
+Zwanzigfache gestiegen ist, wird nie genannt, weil jede ihrer Buchungen zum
+Kurs ihres eigenen Tages passte; ein vom ersten Tag an falsch zugeordneter
+Ticker wird genannt, ebenso ein Pence-/Pfund-Fehler.
+
+- Eine Buchung zum Preis 0 — Gratisaktien, eine Einlieferung ohne Kosten —
+  hat kein Verhältnis und wird übersprungen, und eine Buchung ohne Kurs in
+  ihrem Fenster wird nicht verglichen.
+- Kurse und Preise werden auf einer Split-Basis verglichen: Die
+  rückwirkend bereinigten Kurse eines Anbieters werden so gelesen, wie am
+  Tag der Buchung gehandelt wurde, ein erfasster Split wird also nicht
+  genannt. Ein nicht erfasster Split wird genannt: den Split erfassen (der
+  Split-Assistent auf der Seite des Wertpapiers), dann verschwindet der
+  Befund.
+- Eine Anleihe, die der Zwei-Skalen-Wächter nennt (siehe *Anleihen*), wird
+  hier nicht noch einmal gezählt. Eine Anleihe mit 1.000er Stückelung, je
+  Stück gebucht neben Prozentkursen, etwa ein Zehntel ihres gebuchten
+  Preises, liegt außerhalb beider Zwei-Skalen-Bänder und wird hier genannt;
+  ihre Korrektur ist die gebuchte Stückzahl.
+
+Der Befund ist ein **Problem**: Gebuchter Preis und Kurs sind zwei
+gespeicherte Fakten über einen Tag, mehr als einen Faktor zwei auseinander,
+also ist entweder der Wert (ein falscher Kurs) oder Einstand und Ergebnis
+(eine falsche Buchung) in den Summen falsch. Die Datenqualitätszeile der
+Übersicht zählt die gehaltenen Wertpapiere, die er nennt („2 gehaltene
+Wertpapiere, deren Kurse nicht zu ihren Buchungen passen"), und verlinkt auf
+`?dq=implausible_quote`, wo sie unter dem entfernbaren Chip *Kurs passt
+nicht zu Buchungen* stehen; Vermögen → Bestände nennt jede Position seines
+Bereichs mit der Buchung und dem Kurs ihres Tages und verlinkt auf den Tab
+**Kurse** des Wertpapiers. Der Agent liest dieselbe Menge, mit der Buchung,
+der jedes Wertpapier widerspricht, und der Regel, über
+`GET /api/v1/securities?data_quality=implausible_quote`. Nichts wird
+umgerechnet.
+
+**Was ihn aufhebt.** Zuerst die Kursquelle prüfen (Ticker, Börse), dann die
+Buchung. Der Yahoo-Adapter holt bei jeder Synchronisierung die ganze Reihe,
+die erste Synchronisierung nach korrigierter Zuordnung schreibt also die
+Kurse an den Buchungstagen neu. Ein Tag, an dem die neue Notierung nicht
+handelt, behält den alten Kurs, und ein manueller Kurs wird nicht
+überschrieben, bis er freigegeben (siehe *Manuelle Kurse freigeben* unten)
+oder von Hand korrigiert wird.
 
 #### Manuelle Kurse freigeben (T-9)
 

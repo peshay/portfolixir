@@ -158,3 +158,39 @@ sweeps.
 > the reverse band mirrors the forward one, so a bond legitimately booked
 > near par and quoted at under 5 % of it would be named the same way, and
 > costs the same one check.
+
+> **Note 2026-10-09 (#1101, Sprint 20 plan D-7):** the merge of the Sprint
+> 20 planning PR adopted D-7, which gives §4's guard a general sibling.
+> §1 to §4 stand as taken; what is added sits beside §4 and, like it,
+> names and converts nothing.
+>
+> - **`implausible_quote`.** For each buy, sell or priced inbound delivery
+>   of a held security, the stored quote on the booking's date — or, where
+>   that date has none, the latest within 7 days before it — is compared
+>   with the booking's price per unit, in the security's currency. The
+>   security is named when the quote falls outside [1/2, 2] of the price,
+>   both ends included. It is the general case of §4: a ticker mapped to
+>   another listing, a pence/pound slip or a mistyped price, in any asset
+>   class. Because it compares each booking with the quote of its own day,
+>   a share that rose twentyfold is not named.
+> - **The overlap.** A security `two_scales` names is not counted again:
+>   that finding names the cause more precisely. A bond of a 1,000
+>   denomination booked per piece beside percent quotes has a ratio of
+>   about 1/10, outside both of §4's bands (the reverse band's quote must
+>   be at most 5), and is named by `implausible_quote`; its fix is the
+>   booked quantity.
+> - **One price basis.** A booked price is as traded on its date, while a
+>   provider's stored quotes may be back-adjusted for later splits
+>   (ADR-0028 §2), so the quote is read on the booking's own basis: a
+>   recorded split is not named, and an unrecorded one is, its remedy
+>   being to record the split. A booking at a price of 0 has no ratio and
+>   is skipped; a booking with no quote in the window is not compared.
+> - **Where it shows.** A `Portfolixir.Catalog.DataQuality` predicate over
+>   the held securities, counted on the Overview's data-quality line and
+>   listed at `dq=implausible_quote`; Wealth names the positions of its
+>   scope in a problem note of its own, each with the booking and the quote
+>   of its day. The API's `data_quality=implausible_quote` envelope carries
+>   each finding and its computation basis (input series, reference,
+>   window, gaps, threshold). Its severity is problem, as §4's (pick L2 A):
+>   the booked price and the quote are two stored facts about one day, and
+>   one of them is wrong.
