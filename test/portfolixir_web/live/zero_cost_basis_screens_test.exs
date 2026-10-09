@@ -213,6 +213,42 @@ defmodule PortfolixirWeb.ZeroCostBasisScreensTest do
     assert_reason_dash(wealth_pct, @no_return, "Wealth P&L %")
   end
 
+  # User story (#1142, Sprint 20 β closing act, design critic BDC-1):
+  # As a local portfolio maintainer on a phone, reading a security with a
+  # lot or a position on no cost,
+  # I want the page to stay as wide as the screen,
+  # so that the reason dash's hidden sentence does not make it scroll
+  # sideways (181 px on the Trades tab, 169 px on the Holdings tab, at
+  # 390 px).
+  #
+  # Acceptance criteria:
+  # - The Trades tab's lots and closed-trades tables and the Holdings tab's
+  #   table sit in `.data-table-wrap`, the security page's scroller.
+  # - The scroller is the containing block of the absolutely positioned
+  #   `.visually-hidden` sentence (`position: relative`), as
+  #   `.data-table-wrapper` is since #796, so the sentence stays clipped by
+  #   it instead of widening the page.
+  test "the security page's scroller holds the reason dash's hidden sentence", %{
+    conn: conn,
+    larkspur: larkspur,
+    fennwick: fennwick
+  } do
+    {:ok, trades, _html} = live(conn, "/securities/#{larkspur.id}?tab=trades")
+    assert has_element?(trades, ".data-table-wrap > table.detail-trades-table td.trade-pa--na")
+    assert has_element?(trades, "#detail-closed-trades-table-wrap.data-table-wrap > table")
+
+    {:ok, holdings, _html} = live(conn, "/securities/#{fennwick.id}?tab=holdings")
+
+    assert has_element?(
+             holdings,
+             ".data-table-wrap > table.detail-holdings-table td.trade-pa--na"
+           )
+
+    css = File.read!("priv/static/app.css")
+    assert css =~ ~r/\.visually-hidden\s*\{[^}]*position:\s*absolute/
+    assert css =~ ~r/\n\.data-table-wrap\s*\{[^}]*position:\s*relative[^}]*overflow-x:\s*auto/
+  end
+
   # User story (#1142; board 02, found while drawing 9):
   # As a local portfolio maintainer reading the Overview's closed trades,
   # I want a trade on no cost to read "— no cost basis" where "0.0% total"

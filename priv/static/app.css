@@ -3287,6 +3287,13 @@ img.security-logo {
 }
 
 .data-table-wrap {
+  /* The security page's scroller is the containing block of anything
+     absolutely positioned inside its table, as `.data-table-wrapper` is
+     (issue 796): the reason dash's visually hidden sentence on a lot or a
+     position on no cost stays clipped by it instead of widening the page
+     (issue 1142 at 390 px: the Trades tab scrolled 181 px sideways, the
+     Holdings tab 169 px). */
+  position: relative;
   overflow-x: auto;
 }
 
