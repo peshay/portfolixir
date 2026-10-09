@@ -230,6 +230,22 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "A class stored before is kept" and &1 =~ "#1127")
            )
 
+    # #1154, the γ closing act (correctness hunter): the contribution
+    # analytics' stored rows gained the WKN, so both move to computation
+    # version 3; the payload is unchanged.
+    assert newest["summary"] =~ "#1154"
+
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(
+                 &1,
+                 "GET /api/v1/portfolios/:portfolio_id/performance/contribution"
+               ) and
+                 &1 =~ "performance_contribution and performance_view_contribution" and
+                 &1 =~ "from computation version 2 to 3" and &1 =~ "carries no wkn" and
+                 &1 =~ "#1154")
+           )
+
     # Sprint 20, commit group β (version 16, after Sprint 19 PR β's 15): what
     # the ledger reports about it, the ADR-0015 amendment of 2026-10-07. B1
     # opened the entry (#1108): a cross-currency closed trade's fees and
