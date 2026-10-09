@@ -78,6 +78,17 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "computation_basis.fees_and_taxes" and &1 =~ "#1108")
            )
 
+    # BCH-1 (closing act): the claim "all in currency_code" holds where the
+    # sell and the lots it closes are booked in one currency, and the entry
+    # names the case where they are not (#1198, an open decision).
+    assert Enum.any?(
+             sprint20["parameters"],
+             &(String.starts_with?(&1, "GET /api/v1/securities/:security_id/trades") and
+                 &1 =~
+                   "all in currency_code where the sell and every lot it closes are " <>
+                     "booked in one currency" and &1 =~ "#1198")
+           )
+
     assert Enum.any?(
              sprint20["parameters"],
              &(String.starts_with?(&1, "GET /api/v1/realized_gains") and

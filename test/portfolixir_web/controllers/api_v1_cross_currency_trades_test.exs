@@ -144,6 +144,45 @@ defmodule PortfolixirWeb.ApiV1CrossCurrencyTradesTest do
     assert basis =~ "settlement_fx_rate"
   end
 
+  # User story (#1108 closing act, BCH-1; the AGENTS.md metric rule):
+  # As the operating LLM agent quoting a closed trade's figures,
+  # I want computation_basis.fees_and_taxes to say when they are in
+  # currency_code and when they are not,
+  # so that a security whose trades are booked in more than one currency
+  # (issue #1198, an open decision) does not read as one currency.
+  #
+  # Acceptance criteria:
+  # - On the trades read and the realized-gains read, the sentence says the
+  #   figures are all in currency_code, the sell's, where the sell and every
+  #   lot it closes are booked in one currency.
+  # - It names the case where they are not: a closed trade closing a lot
+  #   booked in another currency than its sell adds amounts in two
+  #   currencies, unconverted, and points to issue #1198.
+  test "computation_basis.fees_and_taxes names the trade whose lots mix currencies (#1198)", %{
+    conn: conn
+  } do
+    fund = seed!()
+
+    for path <- ["/api/v1/securities/#{fund.id}/trades", "/api/v1/realized_gains"] do
+      %{"data" => %{"computation_basis" => %{"fees_and_taxes" => basis}}} =
+        get_json(conn, path)
+
+      assert basis =~ "a closed trade's currency_code is its sell's", path
+
+      assert basis =~
+               "where the sell and every lot it closes are booked in one currency, buy_fees, " <>
+                 "buy_taxes, sell_fees, sell_taxes, basis, proceeds and realized_pnl_abs are " <>
+                 "all in currency_code",
+             path
+
+      assert basis =~ "a closed trade can close a lot booked in another currency than its sell",
+             path
+
+      assert basis =~ "then add amounts in two currencies, unconverted", path
+      assert basis =~ "(issue #1198, an open decision)", path
+    end
+  end
+
   # User story (#1107, identity 2 over the API):
   # As the operating LLM agent,
   # I want the Costs roll-up to read a cross-currency trade's fees and taxes

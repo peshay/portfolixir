@@ -3088,6 +3088,8 @@ defmodule Portfolixir.DocsTest do
   # - The API reference names computation_basis.fees_and_taxes on the trades
   #   and realized-gains reads, computation_basis.currency on the Costs read,
   #   and the income read's currency rule.
+  # - It names the closed trade whose lots are booked in another currency
+  #   than its sell, issue #1198, an open decision (closing act, BCH-1).
   test "the docs state the currency a booking's fees and taxes are read in, in English and German" do
     for {path, fragments} <- [
           {"docs/product-documentation.md",
@@ -3120,7 +3122,10 @@ defmodule Portfolixir.DocsTest do
              "at its own stored `settlement_fx_rate` (fee ÷ rate, account units per one security unit)",
              "`computation_basis.currency`",
              "named by the cash account's currency",
-             "read in its cash account's currency"
+             "read in its cash account's currency",
+             "closes a lot booked in another currency than its sell adds the amounts as " <>
+               "booked, unconverted, in two currencies under one `currency_code`: issue " <>
+               "#1198, an open decision"
            ]},
           {"docs/de/integration/api-and-mcp.md",
            [
@@ -3128,7 +3133,10 @@ defmodule Portfolixir.DocsTest do
              "zu seinem eigenen gespeicherten `settlement_fx_rate` (Gebühr ÷ Kurs, Kontoeinheiten je einer Wertpapiereinheit)",
              "`computation_basis.currency`",
              "nach der Währung des Verrechnungskontos benannt",
-             "in der Währung ihres Verrechnungskontos gelesen"
+             "in der Währung ihres Verrechnungskontos gelesen",
+             "der ein Lot in einer anderen Währung als sein Verkauf schließt, addiert die " <>
+               "Beträge wie gebucht, unumgerechnet, in zwei Währungen unter einem " <>
+               "`currency_code`: Issue #1198, eine offene Entscheidung"
            ]}
         ] do
       doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
