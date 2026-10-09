@@ -1,9 +1,13 @@
 defmodule PortfolixirWeb.HeapCap do
   @moduledoc """
   A heap cap on every HTTP request process and every LiveView process
-  (E25 S4, G05): past it the process is killed and fails alone, instead of
-  growing until the node runs out of memory and takes every other request
-  with it.
+  (E25 S4, G05), instead of one growing until the node runs out of memory
+  and takes every other request with it: a request's process or a page's
+  own process past it is killed and fails alone. A page's `start_async`
+  load runs in a task linked to the page, so the cap's kill takes the page
+  down with it, and the page reconnects (#1204 holds whether it should fail
+  alone); a task the page starts apart from itself (`CappedAsync.start/1`,
+  `start_child/2`) fails alone.
 
   Defence in depth, not the bound itself: the inputs, lists, memo and walks
   are bounded where they arrive. The cap counts the off-heap binaries the

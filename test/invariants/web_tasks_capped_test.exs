@@ -6,8 +6,11 @@ defmodule Portfolixir.Invariants.WebTasksCappedTest do
   # background tasks,
   # I want every task the web layer starts to run under the heap cap its page
   # runs under, and a new one unable to start any other way,
-  # so that one runaway load fails alone instead of taking the node's memory,
-  # whichever process it runs in.
+  # so that one runaway load is killed instead of taking the node's memory,
+  # whichever process it runs in: a request's process or a page's own
+  # process fails alone; a page's `start_async` load takes the page down
+  # with it, and the page reconnects (#1204 holds whether it should fail
+  # alone); a task started apart from the page fails alone.
   #
   # Acceptance criteria:
   # - No module under lib/portfolixir_web/ starts a process itself:

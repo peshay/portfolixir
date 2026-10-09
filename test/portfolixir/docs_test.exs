@@ -1285,8 +1285,22 @@ defmodule Portfolixir.DocsTest do
   #   it, and the page reconnects; a quote sync and a logo lookup run apart
   #   from the page and fail alone.
   # - It no longer says a page's load past the cap fails alone.
+  # - HeapCap's moduledoc and the capped-tasks invariant's user story say
+  #   the same: a request's process or a page's own process fails alone; a
+  #   page's `start_async` load takes the page down with it, and the page
+  #   reconnects (#1204 holds whether it should).
   test "the guide says a page's load past the heap cap takes the page down" do
-    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+    # A test file's user story is read without its comment markers.
+    read = fn path ->
+      text = File.read!(path)
+
+      text =
+        if String.ends_with?(path, ".exs"),
+          do: String.replace(text, ~r/^\s*# ?/m, ""),
+          else: text
+
+      String.replace(text, ~r/\s+/, " ")
+    end
 
     for {path, fragments, refuted} <- [
           {"docs/home-deployment.md",
@@ -1301,7 +1315,17 @@ defmodule Portfolixir.DocsTest do
              "Der Ladevorgang einer Seite läuft in einem Task, der mit der Seite verbunden ist: Wächst er darüber, reißt er die Seite mit, es wird protokolliert, und die Seite verbindet sich neu",
              "eine Kurssynchronisation und eine Logo-Suche laufen getrennt von der Seite und scheitern allein"
            ],
-           "Eine Anfrage oder ein Ladevorgang einer Seite, der darüber wächst, scheitert allein"}
+           "Eine Anfrage oder ein Ladevorgang einer Seite, der darüber wächst, scheitert allein"},
+          {"lib/portfolixir_web/heap_cap.ex",
+           [
+             "a request's process or a page's own process past it is killed and fails alone",
+             "A page's `start_async` load runs in a task linked to the page, so the cap's kill takes the page down with it, and the page reconnects (#1204 holds whether it should fail alone)"
+           ], "past it the process is killed and fails alone, instead of"},
+          {"test/invariants/web_tasks_capped_test.exs",
+           [
+             "a request's process or a page's own process fails alone",
+             "a page's `start_async` load takes the page down with it, and the page reconnects (#1204 holds whether it should fail alone)"
+           ], "so that one runaway load fails alone instead of taking the node's memory"}
         ] do
       doc = read.(path)
 
