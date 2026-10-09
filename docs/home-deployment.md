@@ -384,9 +384,10 @@ instance is stopped from step 2 until step 6 starts it.
 
 1. Add the two passwords to `.env`, each from `openssl rand -hex 32`:
    `PORTFOLIXIR_OWNER_DB_PASSWORD` and `PORTFOLIXIR_APP_DB_PASSWORD`.
-2. Stop the application and the companion, back up the database, which keeps
-   running, and note its trigger count and the three figures "Check the
-   restore" below compares:
+2. While the instance still runs, note the three figures "Check the restore"
+   below compares: the Wealth page and the API read them only from a running
+   application. Then stop the application and the companion, back up the
+   database, which keeps running, and note its trigger count:
 
    ```bash
    docker compose stop app mcp

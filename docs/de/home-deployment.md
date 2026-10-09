@@ -404,9 +404,11 @@ Schritt 2 an still, bis Schritt 6 sie startet.
 
 1. Zwei Passwörter in die `.env` eintragen, jedes aus `openssl rand -hex 32`:
    `PORTFOLIXIR_OWNER_DB_PASSWORD` und `PORTFOLIXIR_APP_DB_PASSWORD`.
-2. Die Anwendung und den Begleiter anhalten, die Datenbank, die weiterläuft,
-   sichern und ihre Trigger-Zahl und die drei Zahlen notieren, die
-   „Wiederherstellung prüfen“ unten vergleicht:
+2. Solange die Instanz noch läuft, die drei Zahlen notieren, die
+   „Wiederherstellung prüfen“ unten vergleicht: Die Vermögensseite und die API
+   lesen sie nur aus einer laufenden Anwendung. Dann die Anwendung und den
+   Begleiter anhalten, die Datenbank, die weiterläuft, sichern und ihre
+   Trigger-Zahl notieren:
 
    ```bash
    docker compose stop app mcp

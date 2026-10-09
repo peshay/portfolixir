@@ -1475,6 +1475,43 @@ defmodule Portfolixir.DocsTest do
              "and moves an existing instance onto them"
   end
 
+  # User story (#898, Sprint 20 γ closing act, the install lens):
+  # As an operator moving an instance onto the roles,
+  # I want to note the three figures "Check the restore" compares while the
+  # instance still runs,
+  # so that I can read them at all: the Wealth page and the API answer only
+  # while the application runs, and step 2 stops it.
+  #
+  # Acceptance criteria:
+  # - Step 2 (EN, DE) notes the three figures while the instance runs, then
+  #   stops the application and the companion, backs up, and notes the
+  #   trigger count.
+  # - It no longer notes the three figures after stopping the application.
+  test "the move notes the three figures while the instance runs" do
+    for {path, heading, running, then_stop, gone} <- [
+          {"docs/home-deployment.md", "### Moving an existing instance onto the roles",
+           "2. While the instance still runs, note the three figures \"Check the restore\" below compares",
+           "Then stop the application and the companion, back up the database, which keeps running, and note its trigger count",
+           "and note its trigger count and the three figures"},
+          {"docs/de/home-deployment.md", "### Eine bestehende Instanz auf die Rollen umstellen",
+           "2. Solange die Instanz noch läuft, die drei Zahlen notieren, die „Wiederherstellung prüfen“ unten vergleicht",
+           "Dann die Anwendung und den Begleiter anhalten, die Datenbank, die weiterläuft, sichern und ihre Trigger-Zahl notieren",
+           "und ihre Trigger-Zahl und die drei Zahlen notieren"}
+        ] do
+      [_, move] = path |> File.read!() |> String.split(heading, parts: 2)
+      [move | _] = String.split(move, ~r/^## /m, parts: 2)
+      move = String.replace(move, ~r/\s+/, " ")
+
+      assert move =~ running, path
+      assert move =~ then_stop, path
+      refute move =~ gone, path
+
+      {noted, _} = :binary.match(move, running)
+      {stopped, _} = :binary.match(move, "docker compose stop app mcp")
+      assert noted < stopped, "#{path}: the figures are noted after the stop"
+    end
+  end
+
   # User story (E25 S2, F76):
   # As an operator running the Compose deployment,
   # I want the guide to say what actually keeps the instance on my machine,
