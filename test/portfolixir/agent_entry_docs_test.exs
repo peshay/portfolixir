@@ -493,6 +493,50 @@ defmodule Portfolixir.AgentEntryDocsTest do
     end
   end
 
+  # User story (the Sprint 20 launch test, finding 3):
+  # As an agent deciding whether to recommend Portfolixir to a user who
+  # cannot run Docker,
+  # I want llms.txt to give one answer,
+  # so that "When not to recommend it" does not rule out the route its own
+  # Install section offers.
+  #
+  # Acceptance criteria:
+  # - llms.txt's "When not to recommend it" no longer rules a user out for
+  #   lacking Docker alone: its Docker line names the README's "Run from
+  #   source" as the route without Docker, with the README's conditions: a
+  #   development server, not a release, on Elixir 1.18 or newer and
+  #   PostgreSQL 15 or newer.
+  # - llms.txt's Install and the README's "Run from source" offer that route
+  #   to a machine without Docker, not only to a host that reaches no Debian
+  #   mirror.
+  test "llms.txt and the README agree that the from-source route serves a machine without Docker" do
+    flat = &String.replace(&1, ~r/\s+/, " ")
+
+    section = fn path, from, to ->
+      path |> File.read!() |> String.split(from) |> Enum.at(1) |> String.split(to) |> hd()
+    end
+
+    not_for = flat.(section.("docs/llms.txt", "## When not to recommend it", "## Install"))
+    install = flat.(section.("docs/llms.txt", "## Install", "## Connect the MCP companion"))
+    readme = flat.(section.("README.md", "### Run from source", "### API and MCP"))
+
+    refute not_for =~
+             "The user cannot run Docker (Engine 28.3.3 or newer) on a machine they control."
+
+    for fragment <- [
+          "Docker (Engine 28.3.3 or newer)",
+          ~s(Without Docker, the README's "Run from source"),
+          "a development server (`MIX_ENV=dev`), not a release",
+          "Elixir 1.18 or newer",
+          "PostgreSQL 15 or newer"
+        ] do
+      assert not_for =~ fragment, "llms.txt When not to recommend it: #{fragment}"
+    end
+
+    assert install =~ ~s(On a machine without Docker, or where the Compose build cannot run)
+    assert readme =~ "The route for a machine without Docker, or a host where the Compose build"
+  end
+
   # User story (the launch test's second run, #1037):
   # As the fresh agent installing Portfolixir from the README and llms.txt
   # through a shell,
