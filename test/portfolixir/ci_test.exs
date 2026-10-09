@@ -904,14 +904,24 @@ defmodule Portfolixir.CITest do
   # - The Sobelow step is `mix sobelow --skip --exit` with no --ignore.
   # - config/prod.exs states the HTTPS posture: the force_ssl key is present
   #   and off by default, the runtime opt-in PHX_FORCE_SSL switching it on.
+  # - The agents' project context says the same (the Sprint 20 γ closing
+  #   act): Sobelow runs as `mix sobelow --skip --exit` with no --ignore, and
+  #   the two findings no annotation can carry are skipped in .sobelow-skips.
   test "sobelow runs with no ignore and prod.exs states the HTTPS posture" do
     ci_workflow = File.read!(".github/workflows/ci.yml")
     prod_config = File.read!("config/prod.exs")
+
+    project_context =
+      "_bmad-output/project-context.md" |> File.read!() |> String.replace(~r/\s+/, " ")
 
     assert ci_workflow =~ "run: mix sobelow --skip --exit\n"
     refute ci_workflow =~ "sobelow --skip --exit --ignore"
     assert prod_config =~ "force_ssl: false"
     assert prod_config =~ "PHX_FORCE_SSL"
+
+    assert project_context =~ "Sobelow runs as `mix sobelow --skip --exit`, with no `--ignore`"
+    assert project_context =~ "`.sobelow-skips`"
+    refute project_context =~ "--ignore Config.CSP,Config.HTTPS"
   end
 
   # User story (#1006, Sprint 18 Lane M):
