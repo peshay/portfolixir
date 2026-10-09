@@ -1215,6 +1215,64 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (#974, Sprint 20 γ closing act, the security lens):
+  # As an operator who runs the server from source,
+  # I want the records of the token-first order to say where the 32-byte
+  # floor that makes it safe holds, and what happens where it does not,
+  # so that a short PORTFOLIXIR_API_TOKEN is not read as protected by a
+  # floor it was never held to.
+  #
+  # Acceptance criteria:
+  # - ADR-0045's note, SECURITY.md, the deployment guide (EN, DE) and the API
+  #   reference (EN, DE) say the floor holds for a release's tokens and the
+  #   companion's, and that a from-source server reading PORTFOLIXIR_API_TOKEN
+  #   alone holds it to none, so a shorter token meets the lock first.
+  # - None of them says any longer that every token meets the floor at boot.
+  test "the records say where the token floor holds" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+
+    for {path, fragments} <- [
+          {"docs/decisions/0045-optional-built-in-authentication.md",
+           [
+             "The floor holds where a token is checked at boot",
+             "the API compares first only while every configured token meets the floor"
+           ]},
+          {"SECURITY.md",
+           [
+             "the floor holds for every token a release boots with and for the companion's",
+             "while any configured token is shorter, the API consults the lock first, as before"
+           ]},
+          {"docs/home-deployment.md",
+           [
+             "a server run from source that reads `PORTFOLIXIR_API_TOKEN` alone holds it to no length floor",
+             "a locked address is refused before its token is compared, the correct one too"
+           ]},
+          {"docs/de/home-deployment.md",
+           [
+             "ein aus dem Quellcode gestarteter Server, der nur `PORTFOLIXIR_API_TOKEN` liest, hält es an keine Mindestlänge",
+             "wird eine gesperrte Adresse abgewiesen, bevor ihr Token verglichen wird, auch das richtige"
+           ]},
+          {"docs/integration/api-and-mcp.md",
+           [
+             "while every token it is configured with meets the 32-byte floor",
+             "with a shorter token it consults the lock first"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "solange jedes konfigurierte Token die Mindestlänge von 32 Bytes erreicht",
+             "mit einem kürzeren Token prüft sie zuerst die Sperre"
+           ]}
+        ] do
+      doc = read.(path)
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+
+      refute doc =~ "every token meets at boot", "#{path}: every token meets at boot"
+    end
+  end
+
   # User story (E25 S2, F54):
   # As an operator restoring a backup,
   # I want the restore to be all or nothing, the instance started only after

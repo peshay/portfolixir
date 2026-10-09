@@ -19,21 +19,43 @@ defmodule PortfolixirWeb.ApiAuthPlug do
   import Phoenix.Controller, only: [json: 2]
 
   alias Portfolixir.Auth.Throttle
+  alias Portfolixir.RuntimeConfig
 
   def init(opts), do: opts
 
-  # The token is compared first (#974, the Sprint 20 plan's D-11): a correct
-  # token passes whether its source is locked out (#771) or not, so a stale
-  # client sharing the operator's address (every host client behind the
+  # The token is compared first (#974, the Sprint 20 plan's D-11) when every
+  # configured token meets the 32-byte floor (`RuntimeConfig.min_token_bytes/0`):
+  # a correct token passes whether its source is locked out (#771) or not, so a
+  # stale client sharing the operator's address (every host client behind the
   # Compose port) cannot lock the agent out. A wrong token counts against its
   # source, locked or not, and is answered 429 while the lock lasts. The cost:
-  # a locked guesser who guesses right is let in, which the 32-byte floor every
-  # token meets at boot (`Portfolixir.RuntimeConfig.api_tokens!/3`) makes
-  # infeasible. The UI password stays lock-first (`SessionController`).
+  # a locked guesser who guesses right is let in, which the floor makes
+  # infeasible. A release holds every token to it at boot
+  # (`RuntimeConfig.api_tokens!/3`), and so does a from-source server with
+  # PORTFOLIXIR_API_TOKENS or PORTFOLIXIR_API_PRINCIPAL set; one that reads
+  # PORTFOLIXIR_API_TOKEN alone holds it to none. While any configured token
+  # is shorter, the order stays lock-first, as before #974: a locked source is
+  # answered 429 before its token is compared, so a short token is never
+  # guessed through the lock. The UI password stays lock-first
+  # (`SessionController`).
   def call(conn, _opts) do
     source = Throttle.source_key(conn.remote_ip)
+    principals = principals()
 
-    case matching_principal(bearer_token(conn), principals()) do
+    if Enum.all?(principals, &sound_token?/1) do
+      authenticate(conn, source, principals)
+    else
+      case Throttle.check(:api, source) do
+        {:locked, seconds} -> locked(conn, seconds)
+        :ok -> authenticate(conn, source, principals)
+      end
+    end
+  end
+
+  defp sound_token?({_name, token}), do: byte_size(token) >= RuntimeConfig.min_token_bytes()
+
+  defp authenticate(conn, source, principals) do
+    case matching_principal(bearer_token(conn), principals) do
       {:ok, name} ->
         admit(source)
         # Every configured token is read-write, with the same full authority

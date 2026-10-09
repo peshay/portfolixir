@@ -500,7 +500,11 @@ failures, for longer with each further one, up to a ceiling. Since Sprint 20
 (#974) the lock answers only wrong tokens: your agent's correct token passes
 while it lasts, so a stale client that still sends an old token after a
 rotation is refused without locking your agent out. The application's API
-checks its tokens the same way. The counts live in memory only:
+checks its tokens the same way, since a release holds every token to 32 bytes
+at boot; a server run from source that reads `PORTFOLIXIR_API_TOKEN` alone
+holds it to no length floor, so while that token is shorter than 32 bytes a
+locked address is refused before its token is compared, the correct one too.
+The counts live in memory only:
 `docker compose restart mcp` clears them at once.
 
 CI runs this route on every change to what it builds: its `compose-smoke` job
