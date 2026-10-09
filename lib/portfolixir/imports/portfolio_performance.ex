@@ -192,8 +192,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   def credit_error(_direction, _booked, _written), do: nil
 
   @doc """
-  The row message for a credit `credit_error/3` refuses when a stored
-  booking already holds the row's content hash: the row was imported under
+  The row message for a credit `credit_error/3` refuses when the stored
+  history already holds the row's content hash (a live booking, or a hash a
+  merge retired): the row was imported under
   an older reading, before A5 refused it (#1118). Its cash would be 0 or
   less, so the correction cannot rewrite it (how it is corrected is #1193),
   and following the refusal's remedy would book it twice; the message says
@@ -222,7 +223,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   `credit_error/3`, with what the preview keeps of a refused row: `nil`
   when the credit is booked, otherwise `{message, refused}`, where
   `refused` holds the row's would-be `entry` and the message it shows
-  instead when a stored booking holds that entry's content hash
+  instead when the stored history holds that entry's content hash
   (`stored_credit_message/1`).
   """
   @spec credit_refusal(:debit | :credit | nil, Entry.t(), map()) ::

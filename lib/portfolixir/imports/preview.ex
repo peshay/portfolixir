@@ -14,9 +14,9 @@ defmodule Portfolixir.Imports.Preview do
   A credit row ADR-0053 A5 refuses (its own booking would credit 0 or
   less), kept beside its row error: its would-be `entry` (with the refunds
   split off it), so the preview can hash it in a portfolio, and `message`,
-  the row's message when a stored booking already holds that hash, the row
-  having been imported under an older reading (#1118; how such a booking is
-  corrected is #1193).
+  the row's message when the stored history already holds that hash (a
+  live booking, or a hash a merge retired), the row having been imported
+  under an older reading (#1118; how such a booking is corrected is #1193).
   """
   @type refused_credit :: %{row: pos_integer(), entry: Entry.t(), message: String.t()}
 

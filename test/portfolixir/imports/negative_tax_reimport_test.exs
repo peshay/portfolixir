@@ -26,6 +26,8 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
   alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Ledger
+  alias Portfolixir.Lifecycle
+  alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.Portfolios
 
   @fixtures Path.expand("../../support/fixtures/portfolio_performance", __DIR__)
@@ -434,5 +436,55 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
                "imported, and it cannot be corrected here, as its cash would be 0 or less — " <>
                "do not enter it again; see “A negative tax inside a row” in the product " <>
                "documentation"
+  end
+
+  # User story (#1118; ADR-0050 §3 and its amendment of 2026-10-07, point 1:
+  # "held by a live transaction or a retired hash"):
+  # As the operator whose nominal sale, imported before A5 refused such a
+  # row, was then removed by a merge as a duplicate of an equal sale,
+  # I want a re-drop of the export to say the row is already imported,
+  # so that I do not enter by hand a sale the merge already kept once.
+  #
+  # Acceptance criteria:
+  # - The old reading's sale on "Test-Cash" and an equal sale on "Cash Neu";
+  #   "Test-Cash" merged into "Cash Neu", collapsing the key-equal pair: the
+  #   old sale is removed and its content hash retired.
+  # - The re-dropped file's refused row then says "… already imported, and
+  #   it cannot be corrected here …", as for a live booking.
+  test "a refused credit row whose booking a merge retired says it is already imported", %{
+    portfolio: portfolio
+  } do
+    preview = refused!(@nominal_sale_json, "nominal.json")
+    [deposit, purchase] = preview.entries
+    old_sale = nominal_sale_as_booked_before(purchase)
+    twin = %{old_sale | source_row: 4, pp_account_name: "Cash Neu", companion_entries: []}
+
+    old = %{preview | entries: [deposit, purchase, old_sale, twin]}
+    assert apply!(old, portfolio).created_transactions == 5
+
+    source = Enum.find(Portfolios.list_cash_accounts(), &(&1.name == "Test-Cash"))
+    target = Enum.find(Portfolios.list_cash_accounts(), &(&1.name == "Cash Neu"))
+
+    {:ok, merge} = Lifecycle.preview_cash_merge(source.id, target.id)
+    assert [_sale_pair] = merge.key_equal_pairs
+
+    {:ok, _record, :applied} =
+      Lifecycle.merge_cash_account(Actor.owner_ui(), source.id, target.id, %{
+        plan_digest: merge.plan_digest,
+        collapse_key_equal: true
+      })
+
+    assert [%RetiredImportHash{reason: :collapsed_duplicate}] = Repo.all(RetiredImportHash)
+
+    assert Imports.row_errors(preview, portfolio_id: portfolio.id) == [
+             %{
+               row: 3,
+               message:
+                 "amount 20.10 less the tax refund 25.0 leaves -4.90 to credit — already " <>
+                   "imported, and it cannot be corrected here, as its cash would be 0 or " <>
+                   "less — do not enter it again; see “A negative tax inside a row” in the " <>
+                   "product documentation"
+             }
+           ]
   end
 end
