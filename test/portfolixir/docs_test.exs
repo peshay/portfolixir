@@ -2373,6 +2373,38 @@ defmodule Portfolixir.DocsTest do
     assert note =~ "names and converts nothing"
   end
 
+  # User story (#1124, Sprint 20 plan D-8; ADR-0024):
+  # As a local portfolio maintainer reading what Wealth's positions table
+  # covers,
+  # I want the handbook, in English and German, to say that its rows follow
+  # the page's scope,
+  # so that the table, its totals and its notes are read as one scope.
+  #
+  # Acceptance criteria:
+  # - The Positions paragraph says the rows follow the page's scope: every
+  #   portfolio's holdings under Everything, the view's positions under a
+  #   view.
+  test "the handbooks say Wealth's positions follow the page's scope (#1124)" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "The rows follow the page's scope, as every figure on the page does (issue #1124)",
+             "under **Everything** they are the holdings of every portfolio, under a view the positions that view holds"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "Die Zeilen folgen dem Geltungsbereich der Seite, wie jede Zahl auf ihr (Issue #1124)",
+             "unter **Alles** sind es die Bestände aller Portfolios, unter einer Ansicht die Positionen, die diese Ansicht hält"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
+
   @features_en "docs/features.md"
   @features_de "docs/de/features.md"
 

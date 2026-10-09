@@ -1711,7 +1711,10 @@ stored price, as the line under the heading says — with a **Columns**
 picker over that projection's own fields: beyond the default depot,
 security and quantity it offers ISIN, WKN,
 currency, average cost, latest price, market value and the unrealised result
-in money and percent. These are the same fields an agent selects with the
+in money and percent. The rows follow the page's scope, as every figure on
+the page does (issue #1124): under **Everything** they are the holdings of
+every portfolio, under a view the positions that view holds, so a holding
+the totals and the notes count is a row here. These are the same fields an agent selects with the
 holdings API's `fields=` sparse fieldset, read from the same projection, so
 a figure here is the figure there — with your locale's separators, and with
 the row's currency after every money figure, so a market value states its

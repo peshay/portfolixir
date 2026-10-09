@@ -1875,7 +1875,11 @@ zuletzt gespeicherten Kurs, wie die Zeile unter der Überschrift sagt — mit
 einer **Spalten**-Auswahl über die Felder
 genau dieser Projektion: neben den Vorgaben Depot, Wertpapier und Stückzahl
 ISIN, WKN, Währung, durchschnittlicher Einstand, letzter Preis, Marktwert und
-das unrealisierte Ergebnis in Geld und Prozent. Es sind dieselben Felder, die
+das unrealisierte Ergebnis in Geld und Prozent. Die Zeilen folgen dem
+Geltungsbereich der Seite, wie jede Zahl auf ihr (Issue #1124): unter
+**Alles** sind es die Bestände aller Portfolios, unter einer Ansicht die
+Positionen, die diese Ansicht hält — eine Position, die die Summen und die
+Hinweise zählen, ist hier eine Zeile. Es sind dieselben Felder, die
 ein Agent über `fields=` der Bestands-API auswählt, aus derselben Projektion
 gelesen — mit den Trennzeichen Ihrer Sprache und mit der Währung der Zeile
 hinter jedem Geldbetrag, damit ein Marktwert seine Währung nennt, auch wenn
