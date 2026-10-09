@@ -77,6 +77,7 @@ defmodule Portfolixir.Imports.Correction do
   alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Lifecycle.AccountNames
+  alias Portfolixir.Lifecycle.RetiredImportHash
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Repo
 
@@ -140,13 +141,15 @@ defmodule Portfolixir.Imports.Correction do
 
   @doc """
   The credit rows of `preview` that ADR-0053 A5 refuses (their own booking
-  would credit 0 or less) and whose would-be booking a stored transaction
-  of `portfolio_id` already holds, by its content hash, as `%{row =>
+  would credit 0 or less) and whose would-be booking the stored history of
+  `portfolio_id` already holds, by its content hash, as `%{row =>
   message}`, each with the message the preview shows for it instead of the
   refusal's remedy (#1118). Such a row was imported under an older reading.
-  It is not listed by `detect/3`: its cash would be 0 or less, which no
-  write can store, and how it is corrected is #1193. Read-only; `%{}`
-  without a portfolio.
+  The history holds a hash as the apply's first check reads it (ADR-0050
+  §3; the amendment of 2026-10-07, point 1): a live transaction holds it,
+  or it is retired because a merge removed its row. It is not listed by
+  `detect/3`: its cash would be 0 or less, which no write can store, and
+  how it is corrected is #1193. Read-only; `%{}` without a portfolio.
   """
   @spec stored_refusals(Preview.t(), integer() | nil) :: %{pos_integer() => String.t()}
   def stored_refusals(%Preview{}, nil), do: %{}
@@ -159,12 +162,14 @@ defmodule Portfolixir.Imports.Correction do
       |> Enum.map(&%{&1.entry | companion_entries: []})
       |> Applier.row_hashes(portfolio_id)
 
-    stored = stored_by_hash(List.flatten(hashes), false)
+    flat = List.flatten(hashes)
+    stored = stored_by_hash(flat, false)
+    retired = retired_hashes(flat)
 
     refused
     |> Enum.zip(hashes)
     |> Enum.filter(fn {_refused, row_hashes} ->
-      Enum.any?(row_hashes, &Map.has_key?(stored, &1))
+      Enum.any?(row_hashes, &(Map.has_key?(stored, &1) or MapSet.member?(retired, &1)))
     end)
     |> Map.new(fn {%{row: row, message: message}, _row_hashes} -> {row, message} end)
   end
@@ -235,6 +240,12 @@ defmodule Portfolixir.Imports.Correction do
   end
 
   defp stored?({_entry, hashes}, stored), do: Enum.any?(hashes, &Map.has_key?(stored, &1))
+
+  defp retired_hashes(hashes) do
+    from(r in RetiredImportHash, where: r.import_hash in ^hashes, select: r.import_hash)
+    |> Repo.all()
+    |> MapSet.new()
+  end
 
   defp stored_by_hash([], _lock?), do: %{}
 

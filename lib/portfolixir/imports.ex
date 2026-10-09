@@ -202,8 +202,9 @@ defmodule Portfolixir.Imports do
   @doc """
   The row errors of a parsed preview as the preview shows them in the
   portfolio: `preview.errors`, except that a credit row ADR-0053 A5 refuses
-  whose would-be booking a stored transaction already holds (by its
-  content hash: the row was imported under an older reading) says that it
+  whose would-be booking the stored history already holds (by its content
+  hash, held by a live transaction or retired by a merge: the row was
+  imported under an older reading) says that it
   is already imported and cannot be corrected here, instead of asking for
   the booking by hand, which would book it twice (#1118; how such a booking
   is corrected is #1193). See `Portfolixir.Imports.Correction.stored_refusals/2`.

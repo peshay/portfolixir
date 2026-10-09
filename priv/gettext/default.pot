@@ -4273,62 +4273,62 @@ msgstr ""
 msgid "implausible date %{date} (after %{latest}) — fix the booking in the source and re-import"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:468
+#: lib/portfolixir/imports/portfolio_performance.ex:469
 #, elixir-autogen, elixir-format
 msgid "security name"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:469
+#: lib/portfolixir/imports/portfolio_performance.ex:470
 #, elixir-autogen, elixir-format
 msgid "security ISIN"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:470
+#: lib/portfolixir/imports/portfolio_performance.ex:471
 #, elixir-autogen, elixir-format
 msgid "security WKN"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:471
+#: lib/portfolixir/imports/portfolio_performance.ex:472
 #, elixir-autogen, elixir-format
 msgid "security ticker"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:472
+#: lib/portfolixir/imports/portfolio_performance.ex:473
 #, elixir-autogen, elixir-format
 msgid "portfolio"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:473
+#: lib/portfolixir/imports/portfolio_performance.ex:474
 #, elixir-autogen, elixir-format
 msgid "account"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:474
+#: lib/portfolixir/imports/portfolio_performance.ex:475
 #, elixir-autogen, elixir-format
 msgid "counter portfolio"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:475
+#: lib/portfolixir/imports/portfolio_performance.ex:476
 #, elixir-autogen, elixir-format
 msgid "counter account"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:476
+#: lib/portfolixir/imports/portfolio_performance.ex:477
 #, elixir-autogen, elixir-format
 msgid "note"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:500
+#: lib/portfolixir/imports/portfolio_performance.ex:501
 #, elixir-autogen, elixir-format
 msgid "%{field} is longer than %{count} characters"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:503
+#: lib/portfolixir/imports/portfolio_performance.ex:504
 #, elixir-autogen, elixir-format
 msgid "%{field} contains a control character"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:506
+#: lib/portfolixir/imports/portfolio_performance.ex:507
 #, elixir-autogen, elixir-format
 msgid "%{field} is not valid UTF-8 text"
 msgstr ""
@@ -7910,7 +7910,7 @@ msgstr ""
 msgid "The file is not UTF-8 encoded. Remedy: export it again from Portfolio Performance and drop the file without saving it in a spreadsheet first."
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:449
+#: lib/portfolixir/imports/portfolio_performance.ex:450
 #, elixir-autogen, elixir-format
 msgid "security without a name and without an ISIN — row not imported"
 msgstr ""
@@ -7930,47 +7930,47 @@ msgstr ""
 msgid "more units (fees and taxes) than one booking carries"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:409
+#: lib/portfolixir/imports/portfolio_performance.ex:410
 #, elixir-autogen, elixir-format
 msgid "%{field} has more than %{digits} digits before the decimal point"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:419
+#: lib/portfolixir/imports/portfolio_performance.ex:420
 #, elixir-autogen, elixir-format
 msgid "tax refund"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:421
+#: lib/portfolixir/imports/portfolio_performance.ex:422
 #, elixir-autogen, elixir-format
 msgid "gross amount"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:422
+#: lib/portfolixir/imports/portfolio_performance.ex:423
 #, elixir-autogen, elixir-format
 msgid "quantity"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:423
+#: lib/portfolixir/imports/portfolio_performance.ex:424
 #, elixir-autogen, elixir-format
 msgid "price"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:424
+#: lib/portfolixir/imports/portfolio_performance.ex:425
 #, elixir-autogen, elixir-format
 msgid "fees"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:425
+#: lib/portfolixir/imports/portfolio_performance.ex:426
 #, elixir-autogen, elixir-format
 msgid "taxes"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:442
+#: lib/portfolixir/imports/portfolio_performance.ex:443
 #, elixir-autogen, elixir-format
 msgid "number %{value} cannot be read or is out of range"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:379
+#: lib/portfolixir/imports/portfolio_performance.ex:380
 #, elixir-autogen, elixir-format
 msgid "ISIN %{isin} is not a valid ISIN (shape or check digit) — row not imported"
 msgstr ""
@@ -9714,7 +9714,7 @@ msgstr ""
 msgid "Version by:"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:494
+#: lib/portfolixir/imports/portfolio_performance.ex:495
 #, elixir-autogen, elixir-format
 msgid "%{field} contains invisible characters (%{characters})"
 msgstr ""
@@ -11696,12 +11696,12 @@ msgstr ""
 msgid "buy without a counter account — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:316
+#: lib/portfolixir/imports/portfolio_performance.ex:317
 #, elixir-autogen, elixir-format
 msgid "currency “%{currency}” is not supported — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:322
+#: lib/portfolixir/imports/portfolio_performance.ex:323
 #, elixir-autogen, elixir-format
 msgid "security currency “%{currency}” is not supported — row not imported"
 msgstr ""
@@ -11929,12 +11929,12 @@ msgstr ""
 msgid "last booking %{date}"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:239
+#: lib/portfolixir/imports/portfolio_performance.ex:240
 #, elixir-autogen, elixir-format
 msgid "%{cell} %{cash} leaves nothing to credit — enter this booking by hand — row not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:247
+#: lib/portfolixir/imports/portfolio_performance.ex:248
 #, elixir-autogen, elixir-format
 msgid "%{cell} %{cash} less the tax refund %{refund} leaves %{rest} to credit — enter this booking by hand, and the refund as a tax refund of its own — row not imported"
 msgstr ""
@@ -12178,12 +12178,12 @@ msgstr[1] ""
 msgid "the row itself was not imported"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:205
+#: lib/portfolixir/imports/portfolio_performance.ex:206
 #, elixir-autogen, elixir-format
 msgid "%{cell} %{cash} leaves nothing to credit — already imported, and it cannot be corrected here, as its cash would be 0 or less — do not enter it again; see “A negative tax inside a row” in the product documentation"
 msgstr ""
 
-#: lib/portfolixir/imports/portfolio_performance.ex:213
+#: lib/portfolixir/imports/portfolio_performance.ex:214
 #, elixir-autogen, elixir-format
 msgid "%{cell} %{cash} less the tax refund %{refund} leaves %{rest} to credit — already imported, and it cannot be corrected here, as its cash would be 0 or less — do not enter it again; see “A negative tax inside a row” in the product documentation"
 msgstr ""
