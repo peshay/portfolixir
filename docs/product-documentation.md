@@ -2815,8 +2815,9 @@ books nothing twice. A name two accounts carry is prefilled with nothing:
 the select reads *Decide…*, and the import waits until you pick the account;
 it never guesses. Changing a prefilled choice to an account with a different
 name **remembers** the mapping by default: the name becomes a former name of
-that account, and the next import prefills it by itself. A prefill you leave
-as it is remembers nothing. When the name is another account's name, the
+that account, which an import maps by itself once a booking under the name
+has been imported (see *A name no booking was imported under* below). A
+prefill you leave as it is remembers nothing. When the name is another account's name, the
 choice holds for this import only. When it is another account's former name,
 remembering **moves** it, and the row says so before you confirm (*“X”
 becomes a former name of A and is then no longer a former name of B*). The
