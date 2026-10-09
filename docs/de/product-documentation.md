@@ -1362,6 +1362,15 @@ zur Basiswährung), bleibt auf **beiden** Seiten der Summe außen vor und wird i
 der Markierung „abgedeckt von gesamt" mitgezählt, statt als Null zu gelten, was
 die Kategorie still kleinrechnen würde.
 
+Die Zahlen folgen dem Baum, während Sie ihn bearbeiten (Issue #1110): eine
+Kategorie anlegen oder löschen, ein Wertpapier zuordnen, die Zuordnung aufheben
+oder es verschieben, oder eine Kategorie unter eine andere verschieben,
+berechnet sie neu. Die Wertpapiere einer gelöschten Kategorie zählen dann nicht
+mehr in ihrer Elternkategorie, und der Hinweis auf ausgelassene Positionen
+nennt kein Wertpapier mehr, das dort nicht mehr eingeordnet ist. Die Suche im
+Baum und der Schalter **Nur aktuelle Positionen** grenzen die Zeilen ein und
+berechnen nichts; ebenso wenig das Umbenennen oder Umfärben einer Kategorie.
+
 Die Zahlen sind **in EUR**, und die Basiszeile sagt das zuerst („in EUR ·
 Ergebnis: heutige Zusammensetzung, …"). Eine Position in einem Portfolio, dessen
 Basiswährung nicht EUR ist, wurde nicht in EUR bezahlt und hat deshalb keinen

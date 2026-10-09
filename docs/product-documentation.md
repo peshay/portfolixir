@@ -1240,6 +1240,14 @@ price, or no exchange rate to your base currency) is left out of **both** sides
 of the sum and counted in the "covered of total" marker, rather than counted as
 zero, which would quietly understate the category.
 
+The figures follow the tree as you edit it (issue #1110): creating or deleting
+a category, assigning, unassigning or moving a security, or moving a category
+under another parent computes them again, so a deleted category's securities
+no longer count in its parent and the note on left-out positions no longer
+names a security that is no longer filed. Searching the tree or switching **Current positions
+only** narrows the rows and computes nothing; neither does renaming or
+recolouring a category.
+
 The figures are **in EUR**, and the basis line says so first ("in EUR · Result:
 today's composition, …"). A position held in a portfolio whose base currency is
 not EUR was not paid for in EUR, so it has no EUR cost to add: it is left out of

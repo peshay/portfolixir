@@ -2405,6 +2405,39 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (#1110; ADR-0041 §1):
+  # As a local portfolio maintainer editing a classification tree,
+  # I want the handbook, in English and German, to say which edits compute
+  # the category figures again and which only narrow the rows,
+  # so that I know the figures beside the tree are the tree I see.
+  #
+  # Acceptance criteria:
+  # - The category-result paragraphs say that a create, a delete, an
+  #   assignment, an unassignment or a move computes the figures again, and
+  #   that the search and the "Current positions only" toggle do not.
+  test "the handbooks say a tree edit computes the category figures again (#1110)" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "The figures follow the tree as you edit it (issue #1110)",
+             "creating or deleting a category, assigning, unassigning or moving a security, or moving a category under another parent computes them again",
+             "Searching the tree or switching **Current positions only** narrows the rows and computes nothing"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "Die Zahlen folgen dem Baum, während Sie ihn bearbeiten (Issue #1110)",
+             "eine Kategorie anlegen oder löschen, ein Wertpapier zuordnen, die Zuordnung aufheben oder es verschieben, oder eine Kategorie unter eine andere verschieben, berechnet sie neu",
+             "Die Suche im Baum und der Schalter **Nur aktuelle Positionen** grenzen die Zeilen ein und berechnen nichts"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
+
   @features_en "docs/features.md"
   @features_de "docs/de/features.md"
 
