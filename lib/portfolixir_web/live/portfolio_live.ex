@@ -192,7 +192,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:flat_sort, {:drift, :desc})
           |> assign(:holdings_columns, @holdings_column_defaults)
           |> assign(:column_picker_open?, false)
-          |> assign(:holding_rows, holding_rows(portfolio))
+          |> assign_holding_rows()
           |> assign(:fx_syncing, false)
           |> assign(:fx_sync_result, nil)
           |> assign(:fx_sync_flash, false)
@@ -677,6 +677,8 @@ defmodule PortfolixirWeb.PortfolioLive do
     |> assign(:active_view, nil)
     |> assign(:active_view_id, nil)
     |> assign(:view_gone_notice, true)
+    # #1124: the positions table follows the page back to Everything.
+    |> assign_holding_rows()
   end
 
   # The selected classification tree was deleted in another tab while this
@@ -2594,26 +2596,47 @@ defmodule PortfolixirWeb.PortfolioLive do
     end)
   end
 
-  # The rows are the API's projection, decorated with the depot's name so the
-  # human column reads as a name where the payload carries an id.
-  defp holding_rows(nil), do: []
+  # #1124 (Sprint 20 plan D-8): the rows read the scope the page reads
+  # (ADR-0024) — the active view's positions across every portfolio,
+  # Everything when none is picked — narrowed exactly as the view valuation
+  # narrows its positions, so a holding the page's totals and notes count is
+  # a row here. A view gone since the page resolved it degrades the page to
+  # Everything, the way every other section's read does.
+  defp assign_holding_rows(socket) do
+    case holding_rows(socket.assigns[:active_view_id]) do
+      {:ok, rows} -> assign(socket, :holding_rows, rows)
+      {:error, :view_not_found} -> degrade_to_everything(socket)
+    end
+  end
 
-  defp holding_rows(portfolio) do
-    names = Map.new(Portfolios.list_securities_accounts(), &{&1.id, &1.name})
+  # The rows are the API's projection, each portfolio's own, decorated with
+  # the depot's name so the human column reads as a name where the payload
+  # carries an id.
+  defp holding_rows(view_id) do
+    with scope when not is_tuple(scope) <- Buckets.load_global_scope(view_id) do
+      names = Map.new(Portfolios.list_securities_accounts(), &{&1.id, &1.name})
 
-    portfolio.id
-    |> Ledger.holdings_for_portfolio()
-    |> Enum.map(fn row ->
-      Map.put(
-        row,
-        :securities_account_name,
-        Map.get(names, row.securities_account_id, gettext("Unknown depot"))
-      )
-    end)
-    |> Enum.sort_by(&{&1.securities_account_name, &1.security_name})
-    # #1057 (pick J6.2 A): a name collides over the whole table — depot names
-    # may read alike, the Depot column may be off; one security never does.
-    |> SecurityNames.put_twin_ids(& &1.security_name)
+      rows =
+        Portfolios.list_portfolios()
+        |> Enum.flat_map(&Ledger.holdings_for_portfolio(&1.id))
+        |> Enum.filter(
+          &Buckets.position_in_scope?(scope, &1.securities_account_id, &1.security_id)
+        )
+        |> Enum.map(fn row ->
+          Map.put(
+            row,
+            :securities_account_name,
+            Map.get(names, row.securities_account_id, gettext("Unknown depot"))
+          )
+        end)
+        |> Enum.sort_by(&{&1.securities_account_name, &1.security_name})
+        # #1057 (pick J6.2 A): a name collides over the whole table — depot
+        # names may read alike, the Depot column may be off; one security
+        # never does.
+        |> SecurityNames.put_twin_ids(& &1.security_name)
+
+      {:ok, rows}
+    end
   end
 
   defp holdings_num_attrs(key)
