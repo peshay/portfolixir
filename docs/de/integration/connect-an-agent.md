@@ -150,4 +150,6 @@ Bestätigung. Für einen Bank- oder Broker-Export, den Portfolixir nicht liest,
 nutzen Sie den Prompt `import_converter`: Der Agent schreibt einen Konverter,
 der auf Ihrem Rechner läuft, und übergibt Ihnen eine Datei für die
 Import-Seite (Transaktionen → Import, `/imports`), wo Sie sie in der Vorschau
-prüfen und übernehmen.
+prüfen und übernehmen. Die Datei ist eine Portfolio-Performance-CSV v1 (sie
+trägt keine ISIN und bucht jede Zeile in EUR) oder die JSON-v1-Variante, die
+der Prompt für andere Währungen und für ISINs vorsieht.

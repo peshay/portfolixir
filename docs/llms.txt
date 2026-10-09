@@ -149,9 +149,13 @@ The companion offers two MCP prompts:
   proposes cash accounts, depots, buckets and views, explains how data gets in,
   and writes nothing without the operator's confirmation. Start here.
 - `import_converter`: has you write and run, on the operator's machine, a
-  converter from a bank or broker export to a Portfolio Performance CSV v1 file
-  the operator drops on the Imports page. It states the format exactly. There is
-  no import tool, on purpose: the preview is the operator's step.
+  converter from a bank or broker export to a file the operator drops on the
+  Imports page: Portfolio Performance CSV v1, which carries no ISIN (a security
+  matches by its name) and books every row in EUR, or the JSON v1 variant,
+  which the prompt keeps for other currencies and for ISINs. An export in
+  another currency is not converted by hand: the prompt has you write the JSON
+  v1 variant. It states both formats exactly. There is no import tool, on
+  purpose: the preview is the operator's step.
 
 ## What connecting costs
 

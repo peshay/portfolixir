@@ -140,4 +140,6 @@ and views, and writes nothing without your confirmation. To bring in a bank or
 broker export Portfolixir does not read, use the `import_converter` prompt:
 the agent writes a converter that runs on your machine and hands you a file for
 the Imports page (Transactions → Import, `/imports`), where you preview it and
-apply it.
+apply it. The file is a Portfolio Performance CSV v1, which carries no ISIN and
+books every row in EUR, or the JSON v1 variant, which the prompt keeps for
+other currencies and for ISINs.
