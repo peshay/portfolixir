@@ -105,7 +105,10 @@ defmodule PortfolixirWeb.Api.V1.SplitController do
   defp error_shape(:no_position),
     do: %{security_id: ["no portfolio holds a position in this security at the effective date"]}
 
-  # Write idempotency (ADR-0028 §1): the rejection names the existing event.
+  # Write idempotency (ADR-0028 §1): the rejection names the existing event,
+  # and its portfolio by id, never by its stored name (#965; ADR-0054 §4): a
+  # name that reads like an instruction would read as the app's own words.
+  # The split wizard writes its own sentence and names the portfolio.
   defp existing_split_message(%Transaction{} = existing) do
     "a split for this security is already booked on #{Date.to_iso8601(existing.date)}: " <>
       "transaction ##{existing.id} records ratio " <>
@@ -113,8 +116,8 @@ defmodule PortfolixirWeb.Api.V1.SplitController do
       existing_portfolio_suffix(existing)
   end
 
-  defp existing_portfolio_suffix(%Transaction{portfolio: %{name: name}}) when is_binary(name),
-    do: " for portfolio \"#{name}\""
+  defp existing_portfolio_suffix(%Transaction{portfolio_id: id}) when is_integer(id),
+    do: " for portfolio ##{id}"
 
   defp existing_portfolio_suffix(_existing), do: ""
 

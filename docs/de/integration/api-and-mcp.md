@@ -1734,9 +1734,10 @@ Beispiel-Payloads für Konten:
   journalisierte `split`-Zeile je Portfolio, atomar eingefügt — und liefert
   die erzeugten Transaktionen (`201`, reguläres Transaktionsformat). Ein
   Portfolio ohne Bestand am Wirksamkeitsdatum erhält keine Zeile. Ein
-  zweiter Split am selben Tag für dasselbe Wertpapier wird mit `422`
-  abgelehnt und benennt das bestehende Ereignis (ein wiederholter Timeout
-  kann den multiplikativen Effekt nicht verdoppeln); ein Datum in der
+  zweiter Split am selben Tag für dasselbe Wertpapier wird mit `422` an
+  `date` abgelehnt und benennt das bestehende Ereignis, seine Transaktion und
+  sein Portfolio mit ihren ids (ein wiederholter Timeout kann den
+  multiplikativen Effekt nicht verdoppeln); ein Datum in der
   Zukunft und ein Wertpapier ohne Bestand am Wirksamkeitsdatum werden
   ebenfalls mit `422` abgelehnt. Die Splits eines Wertpapiers, jeder mit
   seinem eigenen Betrag gezählt (`2:1` und `1:2` zählen beide 2), dürfen sich
@@ -3795,8 +3796,9 @@ Schreiben eines Geldkontos oder Depots nennt `cash account #5` oder
 account #5 in this portfolio“), und das Detail einer Prüfung beim
 Zusammenführen von Wertpapieren nennt Regeln, Depots, Buckets und Portfolios
 mit ihren ids (`policy rule(s): #7 (in_force)`, `In depot #3`,
-`in portfolio #1`) und den Namen einer Identität als „its recorded name“. Ein
-Löschen, das abgelehnt wird, weil eine Richtlinienregel das Objekt liest
+`in portfolio #1`) und den Namen einer Identität als „its recorded name“, und
+ein erneut gebuchter Split nennt das Portfolio des bestehenden Ereignisses mit
+seiner id (`for portfolio #1`). Ein Löschen, das abgelehnt wird, weil eine Richtlinienregel das Objekt liest
 (`409`), nennt die Regeln ebenso, und das Detail einer Prüfung beim
 Zusammenführen von Geldkonten oder Depots nennt Buckets und eine Position mit
 ihren ids (`the buckets #3, #7`, `security #12 sits in the bucket #9`). Der

@@ -147,6 +147,9 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
   #   depot, a portfolio and a bucket travel there by id alone. They claim no
   #   depot or portfolio name in the guard's data, which `errors` never
   #   carried (`MergeJSON.guard_facts/1`).
+  # - A re-booked split's refusal names the existing event's portfolio by id
+  #   (`for portfolio #1`), in the paragraph and at the split booking (the γ
+  #   closing act).
   test "the MCP pages say a delete's 409 and an account merge's guard name records by id" do
     assert_fragments([
       {"docs/integration/api-and-mcp.md",
@@ -155,7 +158,9 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
          "a cash-account or depot merge's guard detail names its buckets and a position by their ids",
          "The record's name is a field of the record, read by its id",
          "A refusal's `errors` carry a name beside the detail in two places only: `errors.policy_rules[].name`",
-         "`errors.unresolvable[].ref.name`, the identity's recorded name; a depot, a portfolio and a bucket travel there by their ids alone"
+         "`errors.unresolvable[].ref.name`, the identity's recorded name; a depot, a portfolio and a bucket travel there by their ids alone",
+         "a split booked again names the existing event's portfolio by its id (`for portfolio #1`)",
+         "naming the existing event, its transaction and its portfolio by their ids"
        ]},
       {"docs/de/integration/api-and-mcp.md",
        [
@@ -163,7 +168,9 @@ defmodule Portfolixir.McpAgentSurfaceDocsTest do
          "das Detail einer Prüfung beim Zusammenführen von Geldkonten oder Depots nennt Buckets und eine Position mit ihren ids",
          "Der Name ist ein Feld des Datensatzes, über seine id zu lesen",
          "Die `errors` einer Ablehnung tragen einen Namen neben dem Detail nur an zwei Stellen: `errors.policy_rules[].name`",
-         "`errors.unresolvable[].ref.name`, den erfassten Namen der Identität; ein Depot, ein Portfolio und ein Bucket stehen dort nur mit ihren ids"
+         "`errors.unresolvable[].ref.name`, den erfassten Namen der Identität; ein Depot, ein Portfolio und ein Bucket stehen dort nur mit ihren ids",
+         "ein erneut gebuchter Split nennt das Portfolio des bestehenden Ereignisses mit seiner id (`for portfolio #1`)",
+         "benennt das bestehende Ereignis, seine Transaktion und sein Portfolio mit ihren ids"
        ]}
     ])
 
