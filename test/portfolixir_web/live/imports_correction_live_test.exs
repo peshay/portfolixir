@@ -146,8 +146,11 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
     # - "Already imported, with a different amount", outside the apply form,
     #   after the counts and before the mapping.
     # - One attention note: the format-neutral sentence of ⑧, then the table
-    #   Row · Date · Booking · Booked · Per the file · Difference, signed and
-    #   in the sign colours; the same rows as two-line phone rows.
+    #   Row · Date · Booking · Booked · Corrected · Difference (board 03 ④:
+    #   the middle column shows what the correction writes, which for a
+    #   refund counted twice is not what the file states; the α closing
+    #   act's UAT-4), signed and in the sign colours; the same rows as
+    #   two-line phone rows.
     # - The total per account, then "Correct 5 bookings…" beside "a step of
     #   its own, apart from “Confirm import”".
     test "lists each booking with its stored cash, the file's cash and the difference", %{
@@ -171,7 +174,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
                "4 bookings already imported differ from this file: they were booked as an earlier version of the import read their rows — a CSV row's gross value, or a cash amount that also held the tax refund booked beside it. The Portfolio Performance file states what the account moved; the difference is the row's fees and taxes, or that refund."
 
       assert text(view, "#import-correction-table thead") ==
-               "Row Date Booking Booked Per the file Difference"
+               "Row Date Booking Booked Corrected Difference"
 
       assert text(view, "#import-correction-table tbody tr:nth-child(1)") ==
                "3 2024-01-15 Buy · Nordwind Industrie AG · Girokonto -1,500.00 -1,502.50 -2.50"
@@ -235,7 +238,8 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
     # so that it reads true for a CSV and a JSON export alike.
     #
     # Acceptance criteria:
-    # - The heading, the columns, the note's sentence as board 03 ① gives it
+    # - The heading, the columns (board 03 ④: Gebucht · Korrigiert ·
+    #   Differenz), the note's sentence as board 03 ① gives it
     #   (⑧'s file clause, true for a gross value and for a refund counted
     #   twice), the total and the button read in German; a one-booking file
     #   reads in the singular.
@@ -252,7 +256,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
                "4 bereits importierte Buchungen weichen von dieser Datei ab: Gebucht ist, wie eine frühere Version des Imports ihre Zeilen las — der Bruttowert einer CSV-Zeile oder ein Geldbetrag, der auch die daneben gebuchte Steuererstattung enthielt. Was das Konto bewegt, nennt die Portfolio-Performance-Datei; die Differenz sind die Gebühren und Steuern der Zeile oder diese Erstattung."
 
       assert text(view, "#import-correction-table thead") ==
-               "Zeile Datum Buchung Gebucht Laut Datei Differenz"
+               "Zeile Datum Buchung Gebucht Korrigiert Differenz"
 
       assert text(view, "#import-correction-table tbody tr:nth-child(1)") ==
                "3 15.01.2024 Kauf · Nordwind Industrie AG · Girokonto -1.500,00 -1.502,50 -2,50"

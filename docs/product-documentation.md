@@ -2940,11 +2940,12 @@ a JSON v1 export) holds rows whose content hash a stored booking carries, and
 that booking's cash differs from what the row books today, the preview lists
 them in a section of its own, **Already imported, with a different amount**,
 before the account mapping. Each line names the row, the date and the
-booking (its kind, security and account), and its cash **as booked**, **per
-the file** and the **difference**, signed as the account sees them (a debit
-is negative). A cross-currency trade also shows its settlement before and
-after, and a JSON trade its price. Under the list stand the total per account
-and **Correct N bookings…**.
+booking (its kind, security and account), and its cash **as booked**,
+**corrected** (what the correction writes, the cash the row books today) and
+the **difference**, signed as the account sees them (a debit is negative). A
+cross-currency trade also shows its settlement before and after, and a JSON
+trade its price. Under the list stand the total per account and **Correct N
+bookings…**.
 
 The correction is **a step of its own**, apart from **Confirm import**:
 confirming the import never changes a booking it finds already imported,

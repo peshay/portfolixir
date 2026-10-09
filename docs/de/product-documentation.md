@@ -3223,8 +3223,9 @@ Buchung von dem ab, was die Zeile heute bucht, listet die Vorschau sie in
 einem eigenen Abschnitt auf, **Bereits importiert, mit anderem Betrag**, vor
 der Kontenzuordnung. Jede Zeile nennt die Zeilennummer, das Datum und die
 Buchung (ihre Art, ihr Wertpapier und ihr Konto) sowie ihr Geld **gebucht**,
-**laut Datei** und die **Differenz**, mit Vorzeichen, wie das Konto sie sieht
-(eine Belastung ist negativ). Ein Handel in fremder Währung zeigt zusätzlich
+**korrigiert** (was die Korrektur schreibt, das Geld, das die Zeile heute
+bucht) und die **Differenz**, mit Vorzeichen, wie das Konto sie sieht (eine
+Belastung ist negativ). Ein Handel in fremder Währung zeigt zusätzlich
 seine Abrechnung vorher und nachher, ein JSON-Handel seinen Kurs. Unter der
 Liste stehen die Summe je Konto und **N Buchungen korrigieren…**.
 
