@@ -1,0 +1,669 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Übersicht: Zählen, Kennzahlen-Leiste, Datenqualität, Link nach Vermögen (N1–N4; #1169, #1114, #1121, #1122, #1171, #1208)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: what the G1 stories (board 01) change on the Overview.
+     The frames are srcdoc iframes built from the live markup of
+     dashboard_live.ex (overview/1, closed_trades_card/1, wealth_card_excluded/1,
+     dq_findings/1), portfolio_live.ex (the KPI band, the view switcher row,
+     the period tokens) and income_live.ex (the Trades facet's exclusion note),
+     with the German msgstrs, so a 390, 600 or 768 px frame is a real viewport
+     and app.css's 560/720 px blocks fire. "Heute" frames render app.css as
+     shipped; "Nachher" and variant frames also get this block. Its rules are
+     scoped to the frames of their own variant by an attribute on the frame's
+     <html> (data-n1, data-n2) — board scaffolding only: the story writes each
+     rule bare. N3, N4, #1171 and #1208 change markup and copy only. -->
+<style id="proposal">
+  /* N1 (#1169) — OWNER PICK; silence keeps today's count-up.
+     A: no CSS — the money slots lose phx-hook="CountUp"
+        (dashboard_live.ex:327, portfolio_live.ex:1041 and :1156).
+     B (recommended by the planning session): no CSS — one line in the
+        CountUp hook (layout_view.ex, animate()):
+        `var from = this.lastValue === null ? target : this.lastValue;`
+        so a first value is painted as it is, and only a later value counts,
+        from the real figure before it.
+     C: one rule — the digits are hidden while the bar runs. */
+  html[data-n1="C"] .count-up.is-settling [data-count-digits] {
+    visibility: hidden;
+  }
+
+  /* N2 (#1114) A, recommended: the strip's two-by-two block moves from
+     560 px to 680 px. It EDITS the existing block (app.css:8551-8563): the
+     same three rules, a new breakpoint. Measured threshold: with a wide
+     fallback font (DejaVu Sans) the dates leave their cells' padding only
+     from 665 px; 680 keeps 15 px of margin. */
+  @media (max-width: 680px) {
+    html[data-n2="A"] .kpi-strip__cells {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    html[data-n2="A"] .kpi-strip__cell:nth-child(3) {
+      border-left: 0;
+    }
+
+    html[data-n2="A"] .kpi-strip__cell:nth-child(n + 3) {
+      border-top: 1px solid var(--color-border);
+    }
+  }
+
+  /* N2 B: the value shrinks between the two layouts, 16 to 20 px. */
+  @media (min-width: 561px) and (max-width: 720px) {
+    html[data-n2="B"] .kpi-strip__cell strong {
+      font-size: clamp(16px, calc(4vw - 7px), 20px);
+    }
+  }
+
+  /* N2 C: the cells' side padding drops from 16 to 10 px under 720 px. */
+  @media (max-width: 720px) {
+    html[data-n2="C"] .kpi-strip__cell {
+      padding-inline: 10px;
+    }
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: hidden; }
+  .mock-frame > .mock-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .cap code { text-transform: none; letter-spacing: 0; }
+  .col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul, .notes ol { margin: 0; }
+  .notes ul, .notes ol { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code, .measure code, table.sweep code { font-size: 11.5px; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .owner { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-warning, #b45309); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .adopted { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--mock-ink); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .w561 iframe { display: block; width: 561px; border: 0; }
+  .w600 iframe { display: block; width: 600px; border: 0; }
+  .w681 iframe { display: block; width: 681px; border: 0; }
+  .w768 iframe { display: block; width: 768px; border: 0; }
+  .w561, .w600, .w681, .w768 { flex: none; width: fit-content; max-width: 100%; }
+  .mock-row { margin-top: 12px; }
+  .measure { font-size: 11.5px; color: var(--mock-ink); margin: 4px 0 0; max-width: 980px; }
+  .measure b.off { color: var(--color-danger); }
+  .measure b.ok { color: var(--color-positive); }
+  .grid2 { display: grid; grid-template-columns: repeat(2, 392px); gap: 18px 24px; margin-top: 12px; }
+  table.sweep { border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+  table.sweep th, table.sweep td { padding: 4px 9px; border-bottom: 1px solid var(--color-border); text-align: right; font-variant-numeric: tabular-nums; }
+  table.sweep th:first-child, table.sweep td:first-child { text-align: left; }
+  table.sweep th { font-size: 11px; color: var(--mock-ink); }
+  table.sweep td.bad { color: var(--color-danger); font-weight: 650; }
+  table.sweep td.warn { color: #92400e; }
+  table.sweep td.ok { color: var(--color-positive); }
+  .tab-only, .w600-only, .phone-only { display: none; }
+  @media (min-width: 701px) and (max-width: 900px) {
+    body { padding: 0; }
+    .desk-only, .phone-only, .w600-only { display: none !important; }
+    .tab-only { display: block; }
+    .not-tab { display: none !important; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .tab-cap, .tab-only .measure, .tab-only .cap { padding: 0 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+  }
+  @media (min-width: 561px) and (max-width: 700px) {
+    body { padding: 0; }
+    .desk-only, .phone-only, .tab-only { display: none !important; }
+    .w600-only { display: block; }
+    .not-600 { display: none !important; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .cap, .measure, .notes { padding: 0 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+  }
+  @media (max-width: 560px) {
+    body { padding: 0; }
+    .desk-only, .tab-only, .w600-only { display: none !important; }
+    .phone-only { display: block; }
+    .not-phone { display: none !important; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap, .measure { padding: 0 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 10px; }
+    .grid2 { grid-template-columns: 390px; gap: 14px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph { width: 390px; }
+  }
+</style>
+</head>
+<body data-widths="1200,768,600,390">
+
+<div class="pickbar desk-only"><b>Board 01 — the Overview (G1).</b>
+<b>N1 — #1169, the total counts up from 0,00:</b> <b>A</b> no count on money figures · <b>B</b> a page load shows the figure that exists, and a count runs only between two real figures · <b>C</b> the digits are hidden while the bar runs. <span class="owner">Owner pick</span> It reverses your ruling of 2026-08-05, so <b>silence keeps today's count-up</b>; "N1 B" (recommended by the planning session), "N1 A" or "N1 C" in a comment builds it.<br>
+<b>N2 — #1114, the KPI strip between 561 and ~665 px:</b> <b>A</b> the two-by-two switch moves to 680 px · <b>B</b> the value shrinks to 16–20 px · <b>C</b> the cells' padding drops to 10 px. <span class="rec">Recommended A</span><br>
+<b>N3 — #1121, the card half — a bond on two scales and a quote that contradicts its bookings, against the total:</b> <b>A</b> the data-quality line's finding says what it does to the total, the card stays silent · <b>B</b> the card's note gains an in-the-total clause · <b>C</b> a second note under the card. <span class="rec">Recommended A</span><br>
+<b>N4 — #1122, "Details in Vermögen →":</b> options 1, 2 and 3 drawn; <b>option 3</b> <span class="adopted">adopted by Sprint 20's D-4</span> — the link carries the card's period, read on arrival and not stored, and the note names the active view where it differs.<br>
+Before/after, nothing to pick: <b>#1171</b> the trades card's basis line names both limits of p.&nbsp;a.; <b>#1208</b> no doubled full stop after a name that ends in one (card and Trades facet).
+A comment on the planning PR naming the code and a letter (e.g. "N2 B") changes a pick; silence adopts the recommendation, except N1. "Heute" is app.css and the templates as built; "Nachher" and the variants add <code>&lt;style id="proposal"&gt;</code>. Rendered at 1200, 768, 600 and 390&nbsp;px; every frame is a real viewport of the width it is labelled with (desktop frames: 980&nbsp;px, 1200 − 220 sidebar). Every name, figure, date and identifier is invented. <b>Dashed = new.</b></div>
+<div class="pickbar tab-only"><b>Board 01 at 768&nbsp;px.</b> The whole Overview in a real 768&nbsp;px window, Heute and Nachher (N2 A, N3 A, N4 option 3, #1171, #1208 together; N1 is the owner's pick and not in either frame). At 768&nbsp;px N2 A changes nothing: the strip keeps four columns. Synthetic data only. <b>Dashed = new.</b></div>
+<div class="pickbar w600-only"><b>Board 01 at 600&nbsp;px — N2 (#1114).</b> Real 600&nbsp;px windows: the strip in four columns today, and under each variant; then the whole Overview with the recommendations. Recommended: N2 A. Synthetic data only. <b>Dashed = new.</b></div>
+<div class="pickbar phone-only"><b>Board 01 at 390&nbsp;px.</b> Real 390&nbsp;px viewports: app.css's 560&nbsp;px block fires. N1 is the owner's pick (silence keeps today's count-up; the planning session recommends B). Recommended: N2 A, N3 A; N4 option 3 adopted. Synthetic data only. <b>Dashed = new.</b></div>
+
+<!-- ============================ N1 ============================ -->
+<section class="mock-board not-tab not-600" id="n1">
+  <h2>N1 — #1169: the total counts up from 0,00 <span class="owner">Owner pick</span> <small>Übersicht → „Alles“ · Vermögen → Bestände → „Gesamt inkl. Cash“ · stills of one count</small></h2>
+  <p class="mock-note">Today the CountUp hook (<code>layout_view.ex:1371-1470</code>) counts every money slot it is given from <b>0</b> on its first value (<code>var from = this.lastValue === null ? 0 : …</code>, <code>:1413</code>) over 600&nbsp;ms, ease-out cubic, digits muted and the accent bar growing beneath them (the settling state, owner pick S1 of 2026-08-05). The Overview gets one value per page load, so its total counts from 0,00 on every visit; Wealth counts its total and its securities value the same way, and counts again from the old figure when the rate sync re-values them (<code>portfolio_live.ex:801-813</code>). A glance, a screenshot or an agent's read in that window takes a plausible figure that never existed ("73.645,32" for 73.657,92 in the Sprint 19 first-look test). The stills are the hook's own frames for 0 → 62.639,10: 16&nbsp;ms reads 4.812,30, 300&nbsp;ms reads 54.809,21. Your ruling of 2026-08-05 — "a cosmetic count-up to the final value is acceptable and wanted, provided it is visually evident that the number is still counting" (<code>feedback-triage-2026-08-05.md</code>; DESIGN.md → Motion) — is what today builds; every variant below reverses part of it, so <b>silence keeps "Heute"</b>.</p>
+
+  <p class="cap desk-only" style="margin-top:12px">Heute — the Overview at 980&nbsp;px, 300&nbsp;ms into the count</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — 300 ms nach dem Laden: „54.809,21“ (gedimmt, Balken halb)</span><iframe data-tpl="ovtop" data-o='{"count":"mid"}' title="N1 heute, Desktop"></iframe></div>
+  </div>
+
+  <div class="grid2">
+    <div class="col">
+      <p class="cap">Heute — counts from 0,00 on load</p>
+      <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="film" data-o='{"v":"today"}' title="N1 heute, Standbilder"></iframe></div>
+    </div>
+    <div class="col">
+      <p class="cap">B <span class="rec">recommended by the planning session</span> — no count on load; a count between two real figures</p>
+      <div class="ph mock-frame mock-after"><span class="mock-tag">B — 390 px</span><iframe data-tpl="film" data-o='{"v":"B"}' data-proposal title="N1 B, Standbilder"></iframe></div>
+    </div>
+    <div class="col">
+      <p class="cap">A — no count on money figures</p>
+      <div class="ph mock-frame mock-after"><span class="mock-tag vtag">A — 390 px</span><iframe data-tpl="film" data-o='{"v":"A"}' data-proposal title="N1 A, Standbilder"></iframe></div>
+    </div>
+    <div class="col">
+      <p class="cap">C — the digits hidden while the bar runs</p>
+      <div class="ph mock-frame mock-after"><span class="mock-tag vtag">C — 390 px</span><iframe data-tpl="film" data-o='{"v":"C"}' data-proposal data-n1="C" title="N1 C, Standbilder"></iframe></div>
+    </div>
+  </div>
+  <div class="notes" style="margin-top:14px;max-width:980px">
+    <p><b>B, as the planning session recommends it.</b> A page load paints the figure that exists: pending stays exactly as today (on the Overview the last known YTD return, dimmed, with its cue and date — the only memoised figure; the total itself has none), and the total arrives final. A count runs only from one real figure to the next — on Wealth when the rate sync re-values the total in place — so every intermediate frame lies between two figures the ledger produced, and the bar still says "not final". It keeps what your ruling was for: <i>"anything beats staring at three dots"</i> is about the wait, which is pending's job, and B leaves pending alone. One line of JS; no CSS, no markup.</p>
+    <p><b>What B builds, measured against the code (found while drawing 1).</b> The Overview has no view or period control, and Wealth's view switch is a full page load (<code>view_switcher.ex:140</code>, plain <code>href</code>): both mount the hook afresh, so under B neither counts on a view switch. The period does not move the counted figures (total, securities value). The one place B still counts is a figure re-valued in place: Wealth after the rate sync. In practice B shows money figures as A does, and keeps the hook for the re-value.</p>
+    <p><b>A</b> drops the hook from the three money slots: every figure lands whole, a re-value swaps the digits in one frame. Simplest, and the ninth hook then serves nothing — the story would remove it and DESIGN.md's Motion entry with it. <b>C</b> keeps the 600&nbsp;ms but shows no digits during it: no wrong figure can be read, but the slot is blank with a bar under it for 600&nbsp;ms on every load — the void your ruling disliked, after the wait instead of during it.</p>
+    <p><b>Unchanged in every variant:</b> <code>prefers-reduced-motion: reduce</code> already paints the final value (the hook returns before the first frame); <code>aria-busy</code> flips as today; the server-rendered digits are the value of record.</p>
+  </div>
+</section>
+
+<!-- ============================ N2 ============================ -->
+<section class="mock-board not-tab" id="n2">
+  <h2>N2 — #1114: between 561 and ~665&nbsp;px the KPI strip's dates fill their cells <small>Übersicht → Kennzahlen · real 561, 600 and 681&nbsp;px viewports</small></h2>
+  <p class="mock-note">The strip is four equal columns down to 561&nbsp;px and two by two below (<code>app.css:8439-8460</code>, <code>:8551-8563</code>); a value is 20&nbsp;px/700, tabular, <code>nowrap</code> (<code>:8482-8490</code>), so the widest value — a date, "02.10.2026" — is the floor. <b>How much it overflows depends on the font the reader's system supplies</b>: <code>--font-sans</code> names Inter first and the app ships no font file (no <code>@font-face</code> in app.css, none in <code>priv/static</code>). Measured in real viewports, 1&nbsp;px steps: with Inter the date's ink runs into the cell's 16&nbsp;px right padding from 561 to 612&nbsp;px (13.4&nbsp;px at 561) and never crosses the cell's edge; with DejaVu Sans, the usual Linux fallback, it crosses the edge from 561 to 597&nbsp;px (9.8&nbsp;px at 561, clipped in the fourth cell by the frame's <code>overflow: hidden</code>, laid over the divider in the third) and sits in the padding up to 664&nbsp;px — the "about 660" of the issue. #1114's "26 px at 561" was measured in a padded board frame, not a real viewport (found while drawing 2). The frames below use DejaVu Sans unless labelled Inter.</p>
+
+  <div class="col not-phone not-600" style="margin-top:12px">
+    <p class="cap">Heute — 561&nbsp;px, DejaVu Sans</p>
+    <div class="w561 mock-frame mock-before"><span class="mock-tag">Heute — 561 px</span><iframe data-tpl="strip" data-o='{"font":"dejavu"}' data-measure="strip" title="N2 heute 561"></iframe></div>
+    <p class="measure" data-out="strip-today-561-dejavu"></p>
+  </div>
+  <div class="col not-phone" style="margin-top:12px">
+    <p class="cap">Heute — 600&nbsp;px, DejaVu Sans</p>
+    <div class="w600 mock-frame mock-before"><span class="mock-tag">Heute — 600 px</span><iframe data-tpl="strip" data-o='{"font":"dejavu"}' data-measure="strip" title="N2 heute 600"></iframe></div>
+    <p class="measure" data-out="strip-today-600-dejavu"></p>
+  </div>
+  <div class="col not-phone" style="margin-top:12px">
+    <p class="cap">Heute — 600&nbsp;px, Inter</p>
+    <div class="w600 mock-frame mock-before"><span class="mock-tag">Heute — 600 px, Inter</span><iframe data-tpl="strip" data-o='{"font":"inter"}' data-measure="strip" title="N2 heute 600 Inter"></iframe></div>
+    <p class="measure" data-out="strip-today-600-inter"></p>
+  </div>
+  <div class="col not-phone" style="margin-top:18px">
+    <p class="cap">A <span class="rec">recommended</span> — two by two up to 680&nbsp;px · 600&nbsp;px</p>
+    <div class="w600 mock-frame mock-after"><span class="mock-tag">A — empfohlen, 600 px</span><iframe data-tpl="strip" data-o='{"font":"dejavu"}' data-proposal data-n2="A" data-measure="strip" title="N2 A 600"></iframe></div>
+    <p class="measure" data-out="strip-A-600-dejavu"></p>
+  </div>
+  <div class="col not-phone not-600" style="margin-top:12px">
+    <p class="cap">A — 681&nbsp;px: four columns again</p>
+    <div class="w681 mock-frame mock-after"><span class="mock-tag">A — 681 px</span><iframe data-tpl="strip" data-o='{"font":"dejavu"}' data-proposal data-n2="A" data-measure="strip" title="N2 A 681"></iframe></div>
+    <p class="measure" data-out="strip-A-681-dejavu"></p>
+  </div>
+  <div class="col not-phone" style="margin-top:18px">
+    <p class="cap">B — the value 16–20&nbsp;px · 600&nbsp;px</p>
+    <div class="w600 mock-frame mock-after"><span class="mock-tag vtag">B — 600 px</span><iframe data-tpl="strip" data-o='{"font":"dejavu"}' data-proposal data-n2="B" data-measure="strip" title="N2 B 600"></iframe></div>
+    <p class="measure" data-out="strip-B-600-dejavu"></p>
+  </div>
+  <div class="col not-phone" style="margin-top:12px">
+    <p class="cap">C — cell padding 10&nbsp;px · 600&nbsp;px</p>
+    <div class="w600 mock-frame mock-after"><span class="mock-tag vtag">C — 600 px</span><iframe data-tpl="strip" data-o='{"font":"dejavu"}' data-proposal data-n2="C" data-measure="strip" title="N2 C 600"></iframe></div>
+    <p class="measure" data-out="strip-C-600-dejavu"></p>
+  </div>
+  <div class="col phone-only" style="margin-top:12px">
+    <p class="cap">390&nbsp;px — unchanged under every variant (two by two already)</p>
+    <div class="ph mock-frame"><span class="mock-tag vtag">Heute = A = B = C — 390 px</span><iframe data-tpl="strip" data-o='{"font":"dejavu"}' data-proposal data-n2="A" data-measure="strip" title="N2 390"></iframe></div>
+    <p class="measure" data-out="strip-A-390-dejavu"></p>
+  </div>
+
+  <div class="notes" style="margin-top:14px;max-width:980px">
+    <p class="not-phone"><b>The sweep</b> (Playwright, real viewports 540–780&nbsp;px in 1&nbsp;px steps, this strip's markup and data; "pad" = the widest date's ink inside the cell's right padding, "edge" = past the cell's border, i.e. over the divider or clipped):</p>
+    <table class="sweep not-phone">
+      <thead><tr><th>Variant · font</th><th>ink in the padding</th><th>ink past the cell's edge</th><th>at 561&nbsp;px</th><th>at 600&nbsp;px</th><th>at 640&nbsp;px</th><th>value size 561–680</th></tr></thead>
+      <tbody>
+        <tr><td>Heute · DejaVu Sans</td><td class="warn">561–664</td><td class="bad">561–597</td><td class="bad">9.8 past</td><td class="warn">16.0 in (at the edge)</td><td class="warn">6.0 in</td><td>20&nbsp;px</td></tr>
+        <tr><td>Heute · Inter</td><td class="warn">561–612</td><td class="ok">none</td><td class="warn">13.4 in</td><td class="warn">3.7 in</td><td class="ok">clear</td><td>20&nbsp;px</td></tr>
+        <tr><td><b>A</b> · DejaVu Sans</td><td class="ok">none</td><td class="ok">none</td><td class="ok">2×2, 106.0 clear</td><td class="ok">2×2, 125.5 clear</td><td class="ok">2×2, 145.5 clear</td><td>20&nbsp;px</td></tr>
+        <tr><td><b>A</b> · Inter</td><td class="ok">none</td><td class="ok">none</td><td class="ok">2×2, 118.3 clear</td><td class="ok">2×2, 137.8 clear</td><td class="ok">2×2, 157.8 clear</td><td>20&nbsp;px</td></tr>
+        <tr><td>B · DejaVu Sans</td><td class="warn">561–562</td><td class="ok">none</td><td class="warn">0.9 in</td><td class="ok">2.6 clear</td><td class="ok">2.7 clear</td><td>16 → 20&nbsp;px</td></tr>
+        <tr><td>B · Inter</td><td class="ok">none</td><td class="ok">none</td><td class="ok">9.0 clear</td><td class="ok">13.1 clear</td><td class="ok">14.2 clear</td><td>16 → 20&nbsp;px</td></tr>
+        <tr><td>C · DejaVu Sans</td><td class="warn">561–613</td><td class="bad">561–573</td><td class="bad">3.8 past</td><td class="warn">4.0 in</td><td class="ok">6.0 clear</td><td>20&nbsp;px</td></tr>
+        <tr><td>C · Inter</td><td class="warn">561–564</td><td class="ok">none</td><td class="warn">1.4 in</td><td class="ok">8.3 clear</td><td class="ok">18.3 clear</td><td>20&nbsp;px</td></tr>
+      </tbody>
+    </table>
+    <p class="phone-only">The 1&nbsp;px sweep of all four variants in both fonts is on the 1200 and 600&nbsp;px renders; at 390&nbsp;px every variant is the two-by-two strip above.</p>
+    <p><b>Why A.</b> It is the only variant that clears the padding with both fonts at every width, and it changes no anatomy: the two-by-two strip is already drawn, specified and tested for phones (DESIGN.md → Overview KPI strip), and the value keeps its 20&nbsp;px (DESIGN.md's figure). The number is measured, not guessed: with DejaVu Sans the four columns hold their dates inside the content box from 665&nbsp;px; 680 adds 15&nbsp;px for a wider fallback. Its cost is height: between 561 and 680&nbsp;px the strip takes two rows (measured below the frames). <b>B</b> fixes the overflow but prints the Overview's four key figures smaller than the phone does (16–19.6&nbsp;px between 561 and 680, 20&nbsp;px at 390) — a third size for one anatomy, and a size that steps with the window. <b>C</b> is not enough on its own: 12&nbsp;px more per cell, and DejaVu Sans still crosses the edge up to 573&nbsp;px.</p>
+  </div>
+</section>
+
+<!-- ============================ N3 ============================ -->
+<section class="mock-board not-tab not-600" id="n3">
+  <h2>N3 — #1121, the card half: a wrongly valued holding, and the total above it <small>Übersicht → „Alles“ and „Datenqualität“</small></h2>
+  <p class="mock-note">Since #1068 and #1101 the data-quality line counts "eine Anleihe auf zwei Skalen bepreist" and "2 gehaltene Wertpapiere, deren Kurse nicht zu ihren Buchungen passen", at problem severity; the line is the Overview's last block, six blocks under the total those holdings distort. Nothing on the page connects the two: the card's note (J1 A, #1081) names only what the total <i>leaves out</i>, and DESIGN.md says the card "says nothing about it … this line is the alarm" (S20 D-7, DESIGN.md:861) — EXPERIENCE.md's #703 split: the Overview keeps the count as the alarm for a condition <i>in</i> a total, Wealth names. The data: "Kestrel Anleihe 2030 2,75%" held on two scales (counted a hundredfold too high); "Arbolia Inc." and "Wrenfield Gardens AG" valued at quotes that contradict their bookings; the card's existing J1 note as built.</p>
+
+  <p class="cap" style="margin-top:14px">Heute</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="n3" data-o='{"v":"today"}' title="N3 heute"></iframe></div>
+  </div>
+  <div class="mock-row phone-only">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="n3" data-o='{"v":"today"}' title="N3 heute 390"></iframe></div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">A <span class="rec">recommended</span> — the line says what each finding does to the total; the card stays silent</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — empfohlen</span><iframe data-tpl="n3" data-o='{"v":"A"}' data-proposal data-measure="n3" title="N3 A"></iframe></div>
+    <p class="measure" data-out="n3-A-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">A — empfohlen, 390 px</span><iframe data-tpl="n3" data-o='{"v":"A"}' data-proposal data-measure="n3" title="N3 A 390"></iframe></div>
+    <div class="notes">
+      <p class="measure phone-only" data-out="n3-A-phone" style="padding:0"></p>
+      <p><b>A.</b> Each of the two findings keeps its link (the count and its noun, to the pre-filtered list) and gains a clause after it, in the note's body ink, that names its effect on the figure above: "— gehalten zählt sie in der Summe oben hundertfach zu hoch oder zu niedrig", "— ihr Wert in der Summe oben oder ihr Einstand ist daher falsch". The words are Wealth's own ("zählt hundertfach zu hoch in den Summen", "ihr Wert oder ihr Einstand ist daher falsch"), so the two pages say one thing. The card, its note and their severities are untouched.</p>
+      <p><b>Why A.</b> It answers #1121 where the spec puts the alarm: the line already carries the problem severity and the link to the list that fixes it; it only lacked the sentence that ties it to the total. It keeps both recorded rules — EXPERIENCE.md's #703 split (a condition <i>in</i> a total: the Overview counts, Wealth names) and D-7's "the value card says nothing about it" — so nothing is amended, and it needs no new read: the line's counts are all the clauses need. The clause is conditional ("gehalten") because the two-scales count is catalog-wide on purpose (sold-out, retired and benchmark bonds kept), and only a held bond is in the total.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">B — the card's note gains an in-the-total clause</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">B</span><iframe data-tpl="n3" data-o='{"v":"B"}' data-proposal data-measure="n3" title="N3 B"></iframe></div>
+    <p class="measure" data-out="n3-B-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag vtag">B — 390 px</span><iframe data-tpl="n3" data-o='{"v":"B"}' data-proposal data-measure="n3" title="N3 B 390"></iframe></div>
+    <div class="notes">
+      <p class="measure phone-only" data-out="n3-B-phone" style="padding:0"></p>
+      <p><b>B</b> puts the names beside the figure: the J1 note continues "In der Summe, aber falsch bewertet: …" and, holding a problem, takes the problem severity (UX-DR17: one note, its highest severity). It mixes two findings in one note — rows <i>out</i> of the total (UX-DR25) and rows <i>in</i> it — so the "Nicht in der Summe" sentence now sits under a red octagon though nothing about it changed. It amends #703's split and D-7's sentence, and the card would need per-bond data the Overview does not read today (names and direction come from Wealth's <code>two_scales</code> and <code>implausible_quotes</code> reads).</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">C — a second note under the card</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">C</span><iframe data-tpl="n3" data-o='{"v":"C"}' data-proposal data-measure="n3" title="N3 C"></iframe></div>
+    <p class="measure" data-out="n3-C-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag vtag">C — 390 px</span><iframe data-tpl="n3" data-o='{"v":"C"}' data-proposal data-measure="n3" title="N3 C 390"></iframe></div>
+    <div class="notes">
+      <p class="measure phone-only" data-out="n3-C-phone" style="padding:0"></p>
+      <p><b>C</b> keeps the J1 note as it is and adds a problem note of its own under it. The total then carries two notes and the line a third statement of the same finding: the alarm is said twice on one page, at two places that can drift apart. It amends the same two rules as B and needs the same new read.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ N4 ============================ -->
+<section class="mock-board not-tab not-600" id="n4">
+  <h2>N4 — #1122: "Details in Vermögen →" lands on another view and another period <span class="adopted">option 3 adopted</span> <small>Übersicht → Vermögen</small></h2>
+  <p class="mock-note">The card reads the <b>default view</b> ("Alles") and says its result "seit Jahresbeginn"; its note's link — and the card itself — open <code>/portfolio</code>, which shows the <b>session's view</b> (<code>ViewScope</code>) at <b>1J</b> (<code>portfolio_live.ex:160</code>). In the review seed, after "Nur Neuzugang" was picked on Wealth, the link opened a 240,00&nbsp;EUR scope with no notes; and at 1J the contribution table names another largest contributor than the year to date. #1122's options: (1) link with the card's view, and store it; (2) say the card's view on the card; (3) name the active view at the link. Its comment adds: whatever the link carries, it also carries the card's period. <b>Answered by Sprint 20's D-4: option 3</b> — the link carries <code>?period=ytd</code>, which Wealth reads on arrival and does not store, and the note names the active view where it differs from the card's. Drawn here so the merge sees what it adopted.</p>
+
+  <p class="cap" style="margin-top:14px">Heute</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — der Link öffnet „Nur Neuzugang“ bei 1J</span><iframe data-tpl="n4" data-o='{"opt":"today"}' title="N4 heute"></iframe></div>
+  </div>
+  <div class="mock-row phone-only">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="n4" data-o='{"opt":"today"}' title="N4 heute 390"></iframe></div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Option 3 <span class="adopted">adopted</span> — the period travels; the note names the active view where it differs</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">Option 3 — angenommen (S20 D-4)</span><iframe data-tpl="n4" data-o='{"opt":"3"}' data-proposal data-measure="n4" title="N4 Option 3"></iframe></div>
+    <p class="measure" data-out="n4-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">Option 3 — 390 px</span><iframe data-tpl="n4" data-o='{"opt":"3"}' data-proposal data-measure="n4" title="N4 Option 3 390"></iframe></div>
+    <div class="notes">
+      <p class="measure phone-only" data-out="n4-phone" style="padding:0"></p>
+      <p><b>Option 3.</b> The note's link and the card's own <code>href</code> become <code>/portfolio?period=ytd</code>; Wealth reads <code>period</code> in <code>mount/3</code> (a valid token only, else its 1J default) and stores nothing — its period was never stored. When the session's view is not the card's, one sentence before the link says so in the switcher's own words: "Vermögen ist gerade auf die Ansicht „Nur Neuzugang“ eingegrenzt; diese Summe zählt „Alles“." With the two views equal the note is as today. Wealth opens on YTD, still on the reader's view, which the switcher's "Eingegrenzt auf Ansicht: Nur Neuzugang" confirms on arrival — no choice is made for the operator (#1081's rule; EXPERIENCE.md Flow 3, one active view).</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Option 1 — link with the card's view, and store it</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">Option 1</span><iframe data-tpl="n4" data-o='{"opt":"1"}' data-proposal title="N4 Option 1"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag vtag">Option 1 — 390 px</span><iframe data-tpl="n4" data-o='{"opt":"1"}' data-proposal title="N4 Option 1 390"></iframe></div>
+    <div class="notes">
+      <p><b>Option 1</b> lands on the figures the note named — "Alles", YTD, the same total and its notes — but <code>?view=</code> is a stored choice (<code>ViewScope</code> writes it to the session and the year-long cookie), so one click on the Overview silently replaces the operator's "Nur Neuzugang" on every page, Wealth, Cash flow and the next visit included. #1081 rejected it for that reason.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Option 2 — the card says its view</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">Option 2</span><iframe data-tpl="n4" data-o='{"opt":"2"}' data-proposal title="N4 Option 2"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag vtag">Option 2 — 390 px</span><iframe data-tpl="n4" data-o='{"opt":"2"}' data-proposal title="N4 Option 2 390"></iframe></div>
+    <div class="notes">
+      <p><b>Option 2</b> labels the card "Ansicht Alles" (the existing "Ansicht %{name}"), always. The reader can then compare it with Wealth's "Eingegrenzt auf Ansicht: Nur Neuzugang" — but only after arriving, and only by noticing; the link still lands on figures that do not explain the note. It costs nothing where the views agree, which is most of the time, and helps least where they differ.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1171 + #1208 ============================ -->
+<section class="mock-board not-tab not-600" id="trades">
+  <h2>#1171 and #1208 — the closed-trades card <small>Vorher / Nachher: Übersicht → „Abgeschlossene Trades“; Vermögen → Cashflow → Trades</small></h2>
+  <p class="mock-note"><b>#1171.</b> The card's basis line names only the 365-day limit (<code>dashboard_live.ex:667-669</code>), while the Trades facet and the security's Trades tab name both since #1089 (<code>income_live.ex:601</code>, <code>securities_live.ex:2347</code>): "Saltmarsh Logistics SE", held 604 days, sold for almost nothing, shows "-100,0% gesamt" and no p.&nbsp;a., which reads as the card breaking its own rule. Nachher: the facet's clause, word for word (DESIGN.md → The list's basis line, amended 2026-10-07). <b>#1208.</b> The card's exclusion note ends its name list with the sentence's full stop, so "Larkspur Rail Corp." reads "Larkspur Rail Corp.." (<code>dashboard_live.ex:656-663</code>), and so does the facet's (<code>income_live.ex:326-331</code>); #1081's M6 fixed the same doubling for the total's note only (<code>excluded_sentence/1</code>, <code>:752-760</code>). Nachher: one shared rule, M6's — a list whose last name ends in "." takes no further stop (DESIGN.md H8.8: no name's last character meets a full stop of the app's). The Nachher facet frame carries #1150's control wording (board 04), which ships in the same sprint.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „Corp..“, und p. a. nennt nur 365 Tage</span><iframe data-tpl="trades" data-o='{}' title="Trades-Karte heute"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher</span><iframe data-tpl="trades" data-o='{"fix":true}' data-proposal data-measure="trades" title="Trades-Karte nachher"></iframe></div>
+    <p class="measure" data-out="trades-desk"></p>
+    <div class="dk mock-frame mock-before" style="margin-top:14px"><span class="mock-tag">Heute — die Trades-Facette, „Corp..“</span><iframe data-tpl="facet" data-o='{}' title="Facette heute"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher</span><iframe data-tpl="facet" data-o='{"fix":true}' data-proposal title="Facette nachher"></iframe></div>
+  </div>
+  <div class="mock-row phone-only">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="trades" data-o='{}' title="Trades-Karte heute 390"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="trades" data-o='{"fix":true}' data-proposal data-measure="trades" title="Trades-Karte nachher 390"></iframe></div>
+    <p class="measure" data-out="trades-phone"></p>
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — Facette, 390 px</span><iframe data-tpl="facet" data-o='{}' title="Facette heute 390"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — Facette, 390 px</span><iframe data-tpl="facet" data-o='{"fix":true}' data-proposal title="Facette nachher 390"></iframe></div>
+  </div>
+</section>
+
+<!-- ============================ 768 / 600: the whole page ============================ -->
+<section class="mock-board tab-only" id="tab">
+  <h2>The Overview at 768&nbsp;px <small>Heute, then Nachher (N2 A, N3 A, N4 option 3, #1171, #1208)</small></h2>
+  <div class="w768 mock-frame mock-before"><span class="mock-tag">Heute — 768 px</span><iframe data-tpl="ovfull" data-o='{}' data-measure="ovfull" title="Übersicht heute 768"></iframe></div>
+  <p class="measure" data-out="ovfull-today-768"></p>
+  <div class="w768 mock-frame mock-after" style="margin-top:14px"><span class="mock-tag">Nachher — 768 px</span><iframe data-tpl="ovfull" data-o='{"fix":true}' data-proposal data-n2="A" data-measure="ovfull" title="Übersicht nachher 768"></iframe></div>
+  <p class="measure" data-out="ovfull-after-768"></p>
+</section>
+<section class="mock-board w600-only" id="w600">
+  <h2>The Overview at 600&nbsp;px, Nachher <small>N2 A two by two, N3 A, N4 option 3, #1171, #1208</small></h2>
+  <div class="w600 mock-frame mock-after"><span class="mock-tag">Nachher — 600 px (DejaVu Sans)</span><iframe data-tpl="ovfull" data-o='{"fix":true,"font":"dejavu"}' data-proposal data-n2="A" data-measure="ovfull" title="Übersicht nachher 600"></iframe></div>
+  <p class="measure" data-out="ovfull-after-600"></p>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc)
+   from the live markup of dashboard_live.ex, portfolio_live.ex,
+   view_switcher.ex and income_live.ex with the German msgstrs. The
+   stylesheet is linked by an absolute file:// URL computed from this
+   board's address, so it resolves inside srcdoc. Synthetic data. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', location.href).href;
+const P = {
+  tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+  oct: '<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>',
+  ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>',
+  chart_line: '<path d="M3 17 9 11l4 4 8-8"/>',
+  pie: '<path d="M21 12A9 9 0 1 1 12 3v9Z"/><path d="M21 12a9 9 0 0 0-9-9v9h9Z"/>',
+  chart_bar: '<path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"/>',
+  camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/>',
+  calc: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6"/><path d="M9 17h6"/>',
+  shield: '<path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/>'
+};
+const svg = (n, s = 14) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+const SEV = { note: ['ast', 'Hinweis'], attention: ['tri', 'Achtung'], problem: ['oct', 'Problem'] };
+const note = (sev, body, attrs = '', cls = '') => `<div class="data-note data-note--${sev}${cls ? ' ' + cls : ''}" ${attrs}><span class="data-note__icon" aria-hidden="true">${svg(SEV[sev][0])}</span><span class="data-note__word">${SEV[sev][1]}</span><div class="data-note__body">${body}</div></div>`;
+const sep = '<span aria-hidden="true"> · </span>';
+const wrap = (inner) => `<main class="app-main app-main--workspace"><div class="workspace-page">${inner}</div></main>`;
+const stub = (t) => `<div class="stub">${t}</div>`;
+
+/* ---------- the value card ---------- */
+const EXCLUDED = 'Nicht in der Summe: 2 Verrechnungskonten ohne Wechselkurs zu EUR — USD Settlement (1.850,00 USD), US Broker (60,00 USD) · 1 gehaltene Position ohne Preis — Placeholder Anleihe 2031 3,25%.';
+const digits = (text, o = {}) => `<span id="count-wealth-card" class="count-up${o.settling ? ' is-settling' : ''}"${o.settling ? ' aria-busy="true"' : ''}><span data-count-digits${o.final ? ` data-final="${o.final}"` : ''}>${text}</span>${o.settling ? `<span class="count-up__bar" aria-hidden="true" style="width:${o.bar}%"></span>` : ''}</span>`;
+function card(o = {}) {
+  const label = o.label || 'Alles';
+  const value = o.digits || digits('62.639,10');
+  const href = o.href || '/portfolio';
+  return `<a id="dashboard-wealth-card" href="${href}" class="stat stat--link"><span${o.labelNew ? ' class="is-new"' : ''}>${label}</span><strong>${value}<small class="value-suffix">EUR</small></strong><small data-role="card-ttwror"><span class="is-positive">+4,12%</span> seit Jahresbeginn</small></a>`;
+}
+function pendingCard() {
+  return `<article class="stat" data-role="overview-stale"><span>seit Jahresbeginn</span><strong class="value-slot-stale" aria-busy="true"><span class="visually-hidden">Letzter bekannter Wert —</span><span class="stale-value">+4,08%</span></strong><small data-role="stale-ttwror" class="recomputing-cue"><span class="spinner"></span> Letzter Stand: +4,08% seit Jahresbeginn — 214 Buchungen bis 02.10.2026, per 08.10.2026. Wird neu berechnet.</small></article>`;
+}
+function cardSection(o = {}) {
+  const notes = o.notes != null ? o.notes : note('attention', `${EXCLUDED} <a href="${o.linkHref || '/portfolio'}" data-role="wealth-card-excluded-link">Details in Vermögen →</a>`, 'data-role="wealth-card-excluded"');
+  return `<section id="dashboard-wealth" class="workspace-section" aria-label="Vermögenswert">${o.pending ? pendingCard() : card(o)}<div id="dashboard-wealth-card-status" role="status" class="wealth-card-status">${notes}</div></section>`;
+}
+
+/* ---------- the KPI strip ---------- */
+function strip() {
+  return `<section id="dashboard-kpi-strip" class="workspace-section kpi-strip" aria-label="Kennzahlen"><div class="kpi-strip__cells">
+    <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-ttwror"><span class="kpi-strip__label">TTWROR 1J</span><strong class="is-positive">+8,37%</strong><small class="kpi-strip__sub">IRR +7,91%</small></a>
+    <a href="/portfolio" class="kpi-strip__cell" data-role="kpi-cash-quote"><span class="kpi-strip__label">Cashquote</span><strong>7,4%</strong><small class="kpi-strip__sub">4.618,25 EUR Cash</small></a>
+    <a href="/transactions" class="kpi-strip__cell" data-role="kpi-last-booking"><span class="kpi-strip__label">Letzte Buchung</span><strong>02.10.2026</strong><small class="kpi-strip__sub">Kauf · Nordwind Industrie AG</small></a>
+    <a href="/securities?dq=stale_quote" class="kpi-strip__cell" data-role="kpi-freshness"><span class="kpi-strip__label">Kurse</span><strong>08.10.2026</strong><small class="kpi-strip__sub kpi-strip__sub--attention">${svg('tri', 12)}<span>25 veraltet im Katalog</span></small></a>
+  </div><div class="summary-basis kpi-strip__basis" data-role="kpi-strip-basis">Ansicht Alles · Rendite über 1J bis 08.10.2026 · in EUR · Kurse: der neueste über die gehaltenen Positionen <details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zu diesen Kennzahlen">ⓘ</summary><p role="tooltip">…</p></details></div></section>`;
+}
+
+/* ---------- the closed-trades card (#1171, #1208) ---------- */
+const BASIS_TODAY = 'Die 3 zuletzt abgeschlossenen · Ergebnis in EUR · FIFO über alle Depots, unabhängig von der Ansicht · p. a. erst ab 365 Tagen Haltedauer';
+const BASIS_AFTER = 'Die 3 zuletzt abgeschlossenen · Ergebnis in EUR · FIFO über alle Depots, unabhängig von der Ansicht · p. a. erst ab 365 Tagen Haltedauer <span class="is-new">und nur, wo ein Zinssatz die Zahlungen löst</span>';
+function trades(o = {}) {
+  const fix = !!o.fix;
+  const name = fix ? '<span class="is-new">Larkspur Rail Corp.</span>' : 'Larkspur Rail Corp..';
+  const excluded = note('attention', `1 Verkauf ohne gespeicherten Wechselkurs an seinem Schlussdatum fehlt bei den Trades: ${name} Das Nachladen der Wechselkurse steht unter „Alle Trades“.`, 'data-role="trades-card-excluded"');
+  const row = (n, sold, days, res, cls, sub) => `<li><a href="#" class="attention-item" data-role="closed-trade"><span class="attention-name">${n}<small class="attention-item__sub">verkauft ${sold} · ${days} Tage</small></span><span class="num"><span class="${cls}">${res}</span><small class="value-suffix">EUR</small><small class="attention-item__sub">${sub}</small></span></a></li>`;
+  return `<section id="dashboard-trades" class="workspace-section"><div class="section-head"><h2>Abgeschlossene Trades</h2><a class="kpi-summary__link" href="/cashflow?tab=realized">Alle Trades →</a></div>
+    ${excluded}
+    <p class="summary-basis" data-role="trades-card-basis">${fix ? BASIS_AFTER : BASIS_TODAY}</p>
+    <ul class="attention-list">
+      ${row('Alder Creek Timber Fund', '18.09.2026', 780, '+412,60', 'is-positive', '<span class="is-positive">+9,4%</span> p. a.')}
+      ${row('Saltmarsh Logistics SE', '11.09.2026', 604, '-1.480,00', 'is-negative', '<span class="is-negative">-100,0%</span> gesamt')}
+      ${row('Halvorsen Shipping AS', '03.08.2026', 128, '-86,15', 'is-negative', '<span class="is-negative">-4,8%</span> gesamt')}
+    </ul></section>`;
+}
+function facet(o = {}) {
+  const fix = !!o.fix;
+  const name = fix ? '<span class="is-new">Larkspur Rail Corp.</span>' : 'Larkspur Rail Corp..';
+  const ctrl = fix
+    ? '<div class="fx-backfill" data-role="fx-backfill"><span class="muted">Die tägliche Synchronisation der Wechselkurse kann einen vergangenen Tag nicht nachtragen. Das Nachladen holt die historische EZB-Reihe einmalig und speichert jeden veröffentlichten Tag; ein Tag, den die EZB nicht veröffentlicht hat, bleibt ausgeschlossen.</span><button type="button" id="fx-backfill-button" class="button-mini">Historische Wechselkurse nachladen</button></div>'
+    : '<div class="fx-backfill" data-role="fx-backfill"><span class="muted">Die tägliche Kurssynchronisation kann einen vergangenen Tag nicht nachtragen. Das Nachladen holt die historische EZB-Reihe einmalig und speichert jeden veröffentlichten Tag; ein Tag, den die EZB nicht veröffentlicht hat, bleibt ausgeschlossen.</span><button type="button" id="fx-backfill-button" class="button-mini">Historische Kurse nachladen</button></div>';
+  return wrap(`<p class="cap">Vermögen → Cashflow → Trades</p><section class="workspace-section"><div class="summary-basis" data-role="facet-basis">Beträge in EUR · FIFO je Wertpapier · alle Depots <details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zu dieser Facette">ⓘ</summary><p role="tooltip">…</p></details></div></section>
+    <section id="realized-trades" class="workspace-section kpi-band">${note('attention', `1 Verkauf konnte nicht konvertiert werden — kein gespeicherter Wechselkurs an seinem Schlussdatum — und ist aus jeder Summe ausgeschlossen: ${name}${ctrl}`, 'id="realized-excluded" data-role="realized-excluded"')}</section>
+    ${stub('… Realisiert gesamt, Trefferquote, Haltedauer, die Liste: unverändert …')}`);
+}
+
+/* ---------- the data-quality line (N3) ---------- */
+const TWO_SCALES = '<a href="/securities?dq=two_scales" data-role="dq-two-scales">eine Anleihe auf zwei Skalen bepreist</a>';
+const IMPLAUSIBLE = '<a href="/securities?dq=implausible_quote" data-role="dq-implausible-quote">2 gehaltene Wertpapiere, deren Kurse nicht zu ihren Buchungen passen</a>';
+function dqLine(o = {}) {
+  const ts = o.clauses ? `${TWO_SCALES}<span class="is-new"> — gehalten zählt sie in der Summe oben hundertfach zu hoch oder zu niedrig</span>` : TWO_SCALES;
+  const iq = o.clauses ? `${IMPLAUSIBLE}<span class="is-new"> — ihr Wert in der Summe oben oder ihr Einstand ist daher falsch</span>` : IMPLAUSIBLE;
+  const F = ['<a href="/securities?dq=stale_quote" data-role="dq-quotes">25 Wertpapiere im Katalog ohne Kurs seit 7 Tagen</a>', '<a href="#" data-role="dq-class">4 ohne Anlageklasse</a>', '<a href="/securities?dq=missing_logo" data-role="dq-logo">6 ohne Logo</a>', ts, iq];
+  return `<section id="dashboard-data-quality" class="workspace-section"><h2>Datenqualität</h2><div role="status">${note('problem', F.join(sep), 'id="dashboard-dq-line" data-role="data-quality-line"')}</div></section>`;
+}
+const IN_TOTAL = 'eine Anleihe auf zwei Skalen — Kestrel Anleihe 2030 2,75% (hundertfach zu hoch) · 2 Wertpapiere, deren Kurse nicht zu ihren Buchungen passen — Arbolia Inc., Wrenfield Gardens AG';
+function n3(o) {
+  let notes;
+  if (o.v === 'B') {
+    notes = note('problem', `${EXCLUDED} <span class="is-new">In der Summe, aber falsch bewertet: ${IN_TOTAL}.</span> <a href="/portfolio">Details in Vermögen →</a>`, 'data-role="wealth-card-excluded"');
+  } else if (o.v === 'C') {
+    notes = note('attention', `${EXCLUDED} <a href="/portfolio">Details in Vermögen →</a>`, 'data-role="wealth-card-excluded"') + note('problem', `In der Summe, aber falsch bewertet: ${IN_TOTAL}. <a href="/portfolio">Details in Vermögen →</a>`, 'data-role="wealth-card-misvalued" style="margin-top:var(--space-2)"', 'is-new');
+  }
+  return wrap(`<p class="cap">Übersicht</p>${cardSection(notes ? { notes } : {})}${stub('… Kennzahlen, Abgeschlossene Trades, Ziel-Abweichungen, Fällig: unverändert …')}${dqLine({ clauses: o.v === 'A' })}`);
+}
+
+/* ---------- N4: the link and Wealth on arrival ---------- */
+const VIEW_SENTENCE = '<span class="is-new" data-role="wealth-card-view">Vermögen ist gerade auf die Ansicht „Nur Neuzugang“ eingegrenzt; diese Summe zählt „Alles“.</span> ';
+function wealthArrival(o) {
+  const views = ['Alles', 'Nur Neuzugang', 'Depot Muster'];
+  const chips = views.map((v) => `<a class="view-chip${v === o.view ? ' is-active' : ''}" href="#"${v === o.view ? ' aria-current="true"' : ''}>${v}</a>`).join('');
+  const isDefault = o.view === 'Alles';
+  const tabs = [['chart_line', 'Bestände', true], ['pie', 'Allokation & Ziele'], ['chart_bar', 'Cashflow'], ['camera', 'Snapshots'], ['calc', 'Steuern'], ['shield', 'Risiko']]
+    .map(([i, l, on]) => `<a href="#" class="area-tab${on ? ' is-active' : ''}"${on ? ' aria-current="page"' : ''}><span class="area-tab__icon" aria-hidden="true">${svg(i)}</span><span class="area-tab__label" data-label="${l}">${l}</span></a>`).join('');
+  const periods = ['YTD', '1J', '3J', '5J', 'Max'].map((p) => `<button type="button" class="segmented-control__option${p === o.period ? ' is-active' : ''}" aria-pressed="${p === o.period}">${p}</button>`).join('');
+  const lead = o.view === 'Alles'
+    ? `<article class="stat stat--lead"><span>Gesamt inkl. Cash</span><strong><span class="count-up"><span data-count-digits>62.639,10</span></span><small class="value-suffix">EUR</small></strong><small class="stat__sub">Wertpapiere <b>58.020,85</b> · Cash <b>4.618,25</b></small></article><article class="stat stat--lead"><div class="stat__head"><span>TTWROR (${o.period})</span></div><strong class="is-positive">+4,12%</strong><small class="stat__sub"><b class="is-positive">+2.481,30</b> EUR im Zeitraum</small></article>`
+    : `<article class="stat stat--lead"><span>Gesamt inkl. Cash</span><strong><span class="count-up"><span data-count-digits>240,00</span></span><small class="value-suffix">EUR</small></strong><small class="stat__sub">Wertpapiere <b>0,00</b> · Cash <b>240,00</b></small></article><article class="stat stat--lead"><div class="stat__head"><span>TTWROR (${o.period})</span></div><strong class="stat-empty">—</strong></article>`;
+  const dq = o.view === 'Alles'
+    ? `<section class="workspace-section data-quality"><h2>Datenqualität</h2><div role="status" data-role="dq-notes">${note('attention', '2 Verrechnungskonten zählen nicht in die Summen, weil kein Wechselkurs zu EUR vorliegt: USD Settlement (1.850,00 USD), US Broker (60,00 USD).', 'data-role="dq-unvalued-cash"')}${note('attention', 'Eine gehaltene Position hat gar keinen Preis und fehlt in den Summen: Placeholder Anleihe 2031 3,25%', 'data-role="dq-no-price" style="margin-top:var(--space-2)"')}</div></section>`
+    : '';
+  return `<p class="cap">Vermögen beim Ankommen — <code>${o.href}</code>${o.stored ? ' · <b>gespeichert: „Alles“ ersetzt „Nur Neuzugang“ auf jeder Seite</b>' : ''}</p>
+    <nav id="area-tabs" class="area-tabs" data-role="area-tabs" aria-label="Bereichs-Tabs">${tabs}</nav>
+    <div class="workspace-section workspace-section--controls"><div class="view-switcher" role="group" aria-label="Aktive Ansicht"><nav class="view-switcher__options" aria-label="Aktive Ansicht">${chips}</nav><a class="view-switcher__manage" data-role="manage-views" href="/buckets">${svg('settings', 13)} Ansichten</a>${isDefault ? '<span class="hint" data-role="default-view-marker">Standard-Ansicht</span>' : '<button type="button" class="button-mini" data-role="set-default-view">Als Standard festlegen</button>'}${isDefault ? '' : `<p class="view-switcher__active" data-role="active-view" role="status">Eingegrenzt auf Ansicht: ${o.view}</p>`}</div></div>
+    ${dq}
+    <section id="portfolio-kpis" class="workspace-section kpi-band"><div class="kpi-band__lead">${lead}</div></section>
+    <section id="portfolio-performance" class="workspace-section"><header class="section-head"><h2>Performance</h2><div class="section-head-controls"><div class="segmented-control" role="group" aria-label="Diagrammreihe"><button type="button" class="segmented-control__option is-active">% (TTWROR)</button><button type="button" class="segmented-control__option">Wert (EUR)</button></div><div class="segmented-control${o.periodNew ? ' is-new' : ''}" data-role="period-tokens" role="group" aria-label="Zeitraum">${periods}</div></div></header>${stub('… Diagramm und „Beitrag je Position“ für ' + (o.period === 'YTD' ? 'das laufende Jahr' : 'ein Jahr') + ' …')}</section>`;
+}
+function n4(o) {
+  const linkFor = { today: '/portfolio', 1: '/portfolio?view=total&amp;period=ytd', 2: '/portfolio?period=ytd', 3: '/portfolio?period=ytd' }[o.opt];
+  const shown = { today: '/portfolio', 1: '/portfolio?view=total&period=ytd', 2: '/portfolio?period=ytd', 3: '/portfolio?period=ytd' }[o.opt];
+  const sentence = o.opt === '3' ? VIEW_SENTENCE : '';
+  const notes = note('attention', `${EXCLUDED} ${sentence}<a href="${linkFor}" data-role="wealth-card-excluded-link"${o.opt !== 'today' ? ' class="is-new"' : ''}>Details in Vermögen →</a>`, 'data-role="wealth-card-excluded"');
+  const cardOpts = { notes, href: linkFor };
+  if (o.opt === '2') { cardOpts.label = 'Ansicht Alles'; cardOpts.labelNew = true; }
+  const arrival = o.opt === '1'
+    ? { view: 'Alles', period: 'YTD', href: shown, stored: true, periodNew: true }
+    : o.opt === 'today'
+      ? { view: 'Nur Neuzugang', period: '1J', href: shown }
+      : { view: 'Nur Neuzugang', period: 'YTD', href: shown, periodNew: true };
+  return wrap(`<p class="cap">Übersicht — Standardansicht „Alles“; in dieser Sitzung zuletzt gewählt: „Nur Neuzugang“</p>${cardSection(cardOpts)}`) + `<main class="app-main app-main--workspace"><div class="workspace-page">${wealthArrival(arrival)}</div></main>`;
+}
+
+/* ---------- N1: the count, as stills ---------- */
+function lead(text, o = {}) {
+  return `<section id="portfolio-kpis" class="workspace-section kpi-band"><div class="kpi-band__lead"><article id="kpi-total" class="stat stat--lead"><span>Gesamt inkl. Cash</span><strong><span id="count-kpi-total" class="count-up${o.settling ? ' is-settling' : ''}"><span data-count-digits${o.final ? ` data-final="${o.final}"` : ''}>${text}</span>${o.settling ? `<span class="count-up__bar" aria-hidden="true" style="width:${o.bar}%"></span>` : ''}</span><small class="value-suffix">EUR</small></strong><small class="stat__sub" data-role="total-composition">Wertpapiere <b>${o.sec}</b> · Cash <b>4.618,25</b></small></article></div></section>`;
+}
+const still = (cap, inner) => `<p class="cap">${cap}</p>${inner}`;
+const ovCard = (d) => `<section id="dashboard-wealth" class="workspace-section" aria-label="Vermögenswert">${card({ digits: d })}</section>`;
+const ovPending = () => `<section id="dashboard-wealth" class="workspace-section" aria-label="Vermögenswert">${pendingCard()}</section>`;
+function film(o) {
+  const F = '62.639,10';
+  const s = (text, bar) => digits(text, { settling: true, bar, final: F });
+  const R = { from: '62.639,10', mid: '63.046,63', to: '63.104,85' };
+  const parts = [];
+  parts.push('<p class="cap" style="margin-top:14px;color:#111">Übersicht — die Seite lädt</p>');
+  parts.push(still('Ausstehend (wie heute, in jeder Variante)', ovPending()));
+  if (o.v === 'today') {
+    parts.push(still('0 ms — der Wert ist bekannt, die Zählung beginnt bei 0,00', ovCard(s('0,00', 0))));
+    parts.push(still('16 ms — „4.812,30“', ovCard(s('4.812,30', 2.6))));
+    parts.push(still('300 ms — „54.809,21“', ovCard(s('54.809,21', 50))));
+  } else if (o.v === 'C') {
+    parts.push(still('0–600 ms — Ziffern verborgen, der Balken läuft', ovCard(s('54.809,21', 50))));
+  } else {
+    parts.push(still('0 ms — der Wert erscheint final, ohne Zählen', ovCard(digits(F))));
+  }
+  if (o.v === 'today' || o.v === 'C') parts.push(still('600 ms — final', ovCard(digits(F))));
+  parts.push('<p class="cap" style="margin-top:18px;color:#111">Vermögen — die Wechselkurs-Synchronisation bewertet neu (zwei echte Werte)</p>');
+  parts.push(still('vorher', lead(R.from, { sec: '58.020,85' })));
+  if (o.v === 'today' || o.v === 'B') {
+    parts.push(still('300 ms — „63.046,63“, zwischen zwei echten Werten', lead(R.mid, { settling: true, bar: 50, final: R.to, sec: '58.486,60' })));
+  } else if (o.v === 'C') {
+    parts.push(still('300 ms — Ziffern verborgen', lead(R.mid, { settling: true, bar: 50, final: R.to, sec: '58.486,60' })));
+  }
+  parts.push(still(o.v === 'A' ? 'sofort — die Ziffern wechseln in einem Bild' : '600 ms — final', lead(R.to, { sec: '58.486,60' })));
+  return wrap(parts.join(''));
+}
+function ovtop(o) {
+  return wrap(`<p class="cap">Übersicht — 300 ms nach dem Laden</p><section id="dashboard-wealth" class="workspace-section" aria-label="Vermögenswert">${card({ digits: digits('54.809,21', { settling: true, bar: 50, final: '62.639,10' }) })}<div class="wealth-card-status" role="status">${note('attention', `${EXCLUDED} <a href="/portfolio">Details in Vermögen →</a>`, 'data-role="wealth-card-excluded"')}</div></section>${strip()}${stub('… Abgeschlossene Trades, Ziel-Abweichungen, Fällig, Datenqualität …')}`);
+}
+
+/* ---------- the whole page (768 / 600 renders) ---------- */
+function offTarget() {
+  return `<section id="dashboard-attention" class="workspace-section"><h2>Ziel-Abweichungen</h2><p class="hint" data-role="attention-explainer"><span data-role="attention-basis">Ansicht Alles · Plan „Grundaufteilung“ auf Anlageklasse · </span>Kategorien, die mehr als ±5 pp von ihrem Soll-Gewicht abweichen.</p><ul class="attention-list"><li><a href="#" data-role="drift-alert" class="attention-item"><span class="attention-name">Aktien</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-over" style="width: 45%"></span></span><span class="num">7,2 pp über dem Soll · 4.510,00 EUR</span></a></li><li><a href="#" data-role="drift-alert" class="attention-item"><span class="attention-name">Anleihen</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-under" style="width: 26%"></span></span><span class="num is-negative">4,1 pp unter dem Soll · 2.568,20 EUR</span></a></li></ul></section>`;
+}
+function ovfull(o) {
+  const fix = !!o.fix;
+  const notes = note('attention', `${EXCLUDED} ${fix ? VIEW_SENTENCE : ''}<a href="${fix ? '/portfolio?period=ytd' : '/portfolio'}">Details in Vermögen →</a>`, 'data-role="wealth-card-excluded"');
+  const tradeSection = trades({ fix });
+  return wrap(`${cardSection({ notes, href: fix ? '/portfolio?period=ytd' : '/portfolio' })}${strip()}${tradeSection}${offTarget()}${stub('… Fällig: unverändert …')}${dqLine({ clauses: fix })}`);
+}
+
+const TPL = {
+  strip: () => wrap(strip()),
+  n3, n4, film, ovtop, ovfull,
+  trades: (o) => wrap(trades(o)),
+  facet
+};
+
+/* ---------- measurements ---------- */
+const r1 = (x) => (Math.round(x * 10) / 10).toFixed(1);
+const MEASURE = {
+  strip(doc, f, w, o) {
+    const cells = [...doc.querySelectorAll('.kpi-strip__cell')];
+    let pad = -Infinity, past = -Infinity;
+    cells.forEach((c) => {
+      const s = c.querySelector('strong'); const rg = doc.createRange(); rg.selectNodeContents(s);
+      const tr = rg.getBoundingClientRect().right; const cb = c.getBoundingClientRect(); const pr = parseFloat(getComputedStyle(c).paddingRight);
+      pad = Math.max(pad, tr - (cb.right - pr)); past = Math.max(past, tr - cb.right);
+    });
+    const cols = getComputedStyle(doc.querySelector('.kpi-strip__cells')).gridTemplateColumns.split(' ').length;
+    const h = doc.querySelector('.kpi-strip__cells').getBoundingClientRect().height;
+    const fs = getComputedStyle(cells[0].querySelector('strong')).fontSize;
+    const cw = cells[0].getBoundingClientRect().width;
+    const verdict = past > 0.5 ? `<b class="off">${r1(past)} px past the cell's edge</b>` : pad > 0.5 ? `<b class="off">${r1(pad)} px into the cell's ${parseFloat(getComputedStyle(cells[3]).paddingRight)} px padding</b>` : `<b class="ok">${r1(-pad)} px clear of the padding</b>`;
+    return `Measured at ${w} px (${o.font === 'inter' ? 'Inter' : 'DejaVu Sans'}): ${cols} columns, cell ${Math.round(cw)} px, value ${parseFloat(fs).toFixed(1)} px; the widest date ${verdict}; strip ${Math.round(h)} px tall.`;
+  },
+  n3(doc, f, w) {
+    const line = doc.querySelector('#dashboard-dq-line');
+    const sec = doc.querySelector('#dashboard-wealth');
+    return `Measured at ${w} px: card section ${Math.round(sec.getBoundingClientRect().height)} px tall · data-quality note ${Math.round(line.getBoundingClientRect().height)} px tall.`;
+  },
+  n4(doc, f, w) {
+    const n = doc.querySelector('[data-role="wealth-card-excluded"]');
+    const s = doc.querySelector('[data-role="wealth-card-view"]');
+    const rects = s ? s.getClientRects().length : 0;
+    return `Measured at ${w} px: the note ${Math.round(n.getBoundingClientRect().height)} px tall with the view sentence (${rects} line box${rects === 1 ? '' : 'es'}); it renders only while the session's view differs from the card's.`;
+  },
+  trades(doc, f, w) {
+    const b = doc.querySelector('[data-role="trades-card-basis"]');
+    const lh = parseFloat(getComputedStyle(b).lineHeight) || 16;
+    return `Measured at ${w} px: the basis line ${Math.round(b.getBoundingClientRect().height)} px tall (${Math.round(b.getBoundingClientRect().height / lh)} lines at ${Math.round(lh)} px).`;
+  },
+  ovfull(doc, f, w, o) {
+    const s = doc.querySelector('.kpi-strip__cells');
+    const cols = getComputedStyle(s).gridTemplateColumns.split(' ').length;
+    const body = doc.body.getBoundingClientRect().width;
+    const over = [...doc.querySelectorAll('body *')].filter((e) => e.getBoundingClientRect().right > body + 0.5 && !e.closest('.kpi-strip__cells, details')).length;
+    return `Measured at ${w} px: page ${Math.round(doc.documentElement.scrollHeight)} px tall · strip ${cols} columns, ${Math.round(s.getBoundingClientRect().height)} px · elements past the viewport: ${over ? '<b class="off">' + over + '</b>' : '<b class="ok">0</b>'}.`;
+  }
+};
+
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .app-main,.workspace-page,.workspace-panel{min-height:0!important;} .is-new{outline:2px dashed var(--color-accent);outline-offset:1px;border-radius:4px;} .cap{margin:12px clamp(16px,2.4vw,28px) 4px;font:700 11px/1.35 var(--font-sans);letter-spacing:.06em;text-transform:uppercase;color:#5a6577;} .cap code,.cap b{text-transform:none;letter-spacing:0;font-size:11px;} .stub{margin:0;padding:8px clamp(16px,2.4vw,28px);font-size:12px;font-style:italic;color:#5a6577;border-bottom:1px solid var(--color-border);}</style>';
+const FONT = { dejavu: "<style>:root{--font-sans:'DejaVu Sans', sans-serif;}</style>", inter: '' };
+
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  const css = CSS_MOCK + (FONT[o.font] || '') + ('proposal' in f.dataset ? document.getElementById('proposal').outerHTML : '');
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument;
+    const finish = () => {
+      /* the hook pins the slot's final footprint before the first frame */
+      doc.querySelectorAll('[data-final]').forEach((d) => {
+        d.style.minWidth = '';
+        const probe = doc.createElement('span');
+        probe.textContent = d.dataset.final; probe.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap';
+        d.parentNode.appendChild(probe);
+        d.style.display = 'inline-block'; d.style.minWidth = probe.getBoundingClientRect().width + 'px';
+        probe.remove();
+      });
+      f.style.height = Math.ceil(doc.documentElement.scrollHeight) + 'px';
+      const m = f.dataset.measure;
+      if (m && MEASURE[m] && f.offsetParent !== null) {
+        const w = Math.round(f.getBoundingClientRect().width);
+        let key;
+        if (m === 'strip') key = `strip-${f.dataset.n2 || 'today'}-${w}-${o.font}`;
+        else if (m === 'ovfull') key = `ovfull-${o.fix ? 'after' : 'today'}-${w}`;
+        else if (m === 'n3') key = `n3-${o.v}-${w > 500 ? 'desk' : 'phone'}`;
+        else key = `${m}-${w > 500 ? 'desk' : 'phone'}`;
+        const out = document.querySelector(`[data-out="${key}"]`);
+        if (out) out.innerHTML = MEASURE[m](doc, f, w, o);
+      }
+    };
+    finish();
+    if (doc.fonts) doc.fonts.ready.then(finish);
+  });
+  const attrs = (f.dataset.n1 ? ` data-n1="${f.dataset.n1}"` : '') + (f.dataset.n2 ? ` data-n2="${f.dataset.n2}"` : '');
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"${attrs}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>

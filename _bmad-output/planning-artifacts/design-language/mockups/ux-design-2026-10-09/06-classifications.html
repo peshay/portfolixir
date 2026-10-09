@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Klassifizierung (Picks N17, N18; #1165, #1211, #1158, #1187)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: what the N17 / N18 / #1158 / #1187 stories add to app.css.
+     Every frame is a srcdoc iframe as wide as the board's own render (1200,
+     600 or 390 px), built from the live markup of classifications_live.ex
+     (render/1 :show, category_node/1, security_row/1, soll_editor/1),
+     ViewSwitcher and AppShell (shell, inline_result, data_note), with the
+     German msgstrs. A frame is a real viewport, so app.css's 900 px sidebar
+     rule and the tree's 560 px blocks fire as on the device. "Heute" frames
+     render app.css as shipped; the other frames add the blocks named on them.
+     Silence adopts: proposal + proposal-n17-a + proposal-n18-a. -->
+<style id="proposal">
+  /* #1158: under 560 px a security row inside an open category is a
+     two-track grid, the Wealth Positions row's shape (UX-DR27): the name
+     (wrapping) over its identifiers, the value over the quantity on the
+     right. No markup moves: the li stays the drag source
+     (`[data-drag-security]`) and its children keep their classes; the
+     quantity's unit word is a span the desktop hides (msgid "units"). Today
+     the row is a nowrap flex line whose figures have no rule, so it runs
+     past the screen and `.workspace-page` clips it. */
+  .dnd-row .row-quantity__unit {
+    display: none;
+  }
+
+  /* The cause of the overflow (found while drawing): the list is a column
+     flexbox that still carries the base rule's `flex-wrap: wrap`
+     (app.css:4647), and a wrapping flex line is as wide as its widest
+     item's max-content, so every row took the width of its name, ticker,
+     currency and figures on one line (measured: rows to x 467 in a body
+     ending at x 359). One line of rows is what the list means. */
+  .classifications-detail .cat-securities {
+    flex-wrap: nowrap;
+  }
+
+  @media (max-width: 560px) {
+    .classifications-detail .dnd-row {
+      display: grid;
+      grid-template-columns: auto auto minmax(0, 1fr) auto;
+      align-items: baseline;
+      column-gap: 6px;
+      row-gap: 1px;
+    }
+
+    .classifications-detail .dnd-row .row-name {
+      grid-column: 1 / 4;
+      grid-row: 1;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      font-weight: 600;
+    }
+
+    .classifications-detail .dnd-row .row-ticker {
+      grid-column: 1;
+      grid-row: 2;
+      font-size: 12px;
+    }
+
+    .classifications-detail .dnd-row .row-ccy {
+      grid-column: 2;
+      grid-row: 2;
+      font-size: 12px;
+    }
+
+    .classifications-detail .dnd-row:not(:has(.row-ticker)) .row-ccy {
+      grid-column: 1;
+    }
+
+    /* "WGA · EUR", the separator of every phone row's second line. */
+    .classifications-detail .dnd-row .row-ticker + .row-ccy::before {
+      content: "· ";
+    }
+
+    .classifications-detail .dnd-row .negative-holding-chip {
+      grid-column: 3;
+      grid-row: 2;
+      justify-self: start;
+    }
+
+    .classifications-detail .dnd-row .row-value {
+      grid-column: 4;
+      grid-row: 1;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+
+    .classifications-detail .dnd-row .row-quantity {
+      grid-column: 4;
+      grid-row: 2;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+      color: var(--color-text-muted);
+    }
+
+    .dnd-row .row-quantity__unit {
+      display: inline;
+    }
+  }
+
+  /* #1187: an archived version is read-only. No new rule: the weights are
+     `disabled` inputs (the cash input's existing state, app.css's disabled
+     look), the remedies are `.link-button`s inside a `note` data note (H6.1),
+     and "Plan speichern" and the copy form are not rendered. */
+</style>
+<style id="proposal-n17-a">
+  /* N17 A (recommended): the tree's phone layout up to 720 px. The story
+     changes the two `@media (max-width: 560px)` blocks of the tree
+     (app.css:9137 and :9159) to 720 px and nothing else; the board can only
+     repeat them at 720 px. */
+  @media (max-width: 720px) {
+    .cat-summary {
+      grid-template-columns: 0.7rem minmax(0, 1fr) 6rem 6rem 2.6rem;
+      row-gap: 2px;
+    }
+
+    .tree-head {
+      grid-template-columns: minmax(0, 1fr) 6rem 6rem 2.6rem;
+    }
+
+    .cat-positions,
+    .cat-invested,
+    .tree-head__num:nth-child(2),
+    .tree-head__num:nth-child(4) {
+      display: none;
+    }
+
+    .cat-summary::before {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    .cat-summary .cat-name {
+      grid-column: 2 / 5;
+      grid-row: 1;
+      flex-wrap: wrap;
+      row-gap: 0;
+    }
+
+    .cat-summary .cat-swatch {
+      flex: none;
+    }
+
+    .cat-summary .cat-name__text {
+      white-space: normal;
+    }
+
+    .cat-summary .cat-actions {
+      grid-column: 5;
+      grid-row: 1;
+    }
+
+    .cat-summary .cat-value {
+      grid-column: 3;
+      grid-row: 2;
+    }
+
+    .cat-summary .cat-result {
+      grid-column: 4;
+      grid-row: 2;
+    }
+  }
+</style>
+<style id="proposal-n17-b">
+  /* N17 B: a middle band, 561–720 px, keeps one line per category and drops
+     "Positionen" and "Einstand" (as the phone does); the name takes their
+     11.5 rem. */
+  @media (min-width: 561px) and (max-width: 720px) {
+    .cat-summary {
+      grid-template-columns: 0.7rem minmax(0, 1fr) 7rem 7rem 3.6rem;
+    }
+
+    .tree-head {
+      grid-template-columns: minmax(0, 1fr) 7rem 7rem 3.6rem;
+    }
+
+    .cat-positions,
+    .cat-invested,
+    .tree-head__num:nth-child(2),
+    .tree-head__num:nth-child(4) {
+      display: none;
+    }
+  }
+</style>
+<style id="proposal-n17-c">
+  /* N17 C: the head and the tree get one wrapper (`.tree-scroller`, new
+     markup) that scrolls sideways under 720 px, and the tree inside keeps a
+     floor of 40 rem, so the name column never falls under ~110 px. */
+  @media (min-width: 561px) and (max-width: 720px) {
+    .tree-scroller {
+      overflow-x: auto;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius-md);
+      padding: 0 6px 6px;
+    }
+
+    .tree-scroller > .tree-head,
+    .tree-scroller > .tree {
+      min-width: 40rem;
+    }
+  }
+</style>
+<style id="proposal-n18-a">
+  /* N18 A (recommended): no new rule. The parent select sits in the edit
+     form in `.recolor-label`, the label style the built-in tree's colour
+     field already uses ("Farbe" before its control). */
+  .cat-edit-form .recolor-label select {
+    width: auto;
+    min-width: 0;
+    max-width: 16rem;
+    font-size: 13px;
+  }
+
+  /* The description gives up 4 rem of its basis so the form keeps one line
+     at 1200 px with the new field (it wrapped "Abbrechen" at 14 rem). */
+  .cat-edit-form:has(select[name="category[parent_id]"]) input[name="category[description]"] {
+    flex-basis: 10rem;
+  }
+</style>
+<style id="proposal-n18-b">
+  /* N18 B: a third row action, so the actions column grows on every row. */
+  .cat-summary {
+    grid-template-columns: 0.7rem minmax(0, 1fr) 4.5rem 7rem 7rem 7rem 5.4rem;
+  }
+
+  .tree-head {
+    grid-template-columns: minmax(0, 1fr) 4.5rem 7rem 7rem 7rem 5.4rem;
+  }
+
+  .move-targets {
+    display: grid;
+    gap: 2px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    max-height: 18rem;
+    overflow-y: auto;
+  }
+
+  .move-targets label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    font-size: 13px;
+  }
+
+  .move-targets label.is-disabled {
+    color: var(--color-text-muted);
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  body { padding: 0; }
+  .band { display: none; }
+  @media (min-width: 901px) { .band.w1200 { display: block; } }
+  @media (min-width: 451px) and (max-width: 900px) { .band.w600 { display: block; } }
+  @media (max-width: 450px) { .band.w390 { display: block; } }
+  .pickbar { margin: 16px 24px 18px; max-width: none; }
+  .mock-board { max-width: none; margin: 0 0 30px; }
+  .mock-board > h2, .mock-board > p.mock-note, .cap, .measure, .notes, .strings { margin-left: 24px; margin-right: 24px; }
+  .mock-board > h2 { padding-top: 6px; }
+  .mock-board > p.mock-note { max-width: 120ch; }
+  .cap { margin-top: 18px; margin-bottom: 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 1px; }
+  .fr { border-top: 3px solid var(--color-border-strong); border-bottom: 1px solid var(--color-border); background: var(--color-bg); }
+  .fr.before { border-top-color: var(--color-danger); }
+  .fr.after { border-top-color: var(--color-positive); }
+  .fr.alt { border-top-color: var(--mock-ink); }
+  .fr > .tag { display: block; padding: 4px 24px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .fr.before > .tag { color: var(--color-danger); background: var(--color-danger-soft); }
+  .fr.after > .tag { color: var(--color-positive); background: #ecfdf5; }
+  .fr.alt > .tag { color: var(--mock-ink); background: var(--color-bg-muted); }
+  .fr iframe { display: block; width: 100%; border: 0; height: 200px; }
+  .measure { font-size: 11.5px; color: var(--mock-ink); margin-top: 6px; margin-bottom: 0; max-width: 130ch; }
+  .measure b.off { color: var(--color-danger); }
+  .measure b.ok { color: var(--color-positive); }
+  .notes { font-size: 12.5px; max-width: 120ch; display: grid; gap: 6px; margin-top: 10px; }
+  .notes p, .notes ul { margin: 0; }
+  .notes ul { padding-left: 18px; }
+  .notes code, .pickbar code, .measure code, .mock-note code { font-size: 11.5px; }
+  .side { display: flex; gap: 24px; align-items: flex-start; flex-wrap: wrap; margin: 10px 24px 0; }
+  .side .optlist { display: grid; gap: 4px; font-size: 12px; color: var(--mock-ink); }
+  .side .optlist select { font-size: 13px; width: 240px; padding: 4px; border: 1px solid var(--color-border-strong); border-radius: 6px; background: var(--color-bg-elevated); color: var(--color-text); }
+  table.th { border-collapse: collapse; font-size: 12px; margin: 8px 24px 0; }
+  table.th th, table.th td { border: 1px solid var(--color-border); padding: 4px 8px; text-align: right; font-variant-numeric: tabular-nums; }
+  table.th th:first-child, table.th td:first-child { text-align: left; }
+  table.th thead th { background: var(--color-bg-muted); font-weight: 700; }
+  @media (max-width: 900px) {
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board > h2, .mock-board > p.mock-note, .cap, .measure, .notes, .strings { margin-left: 12px; margin-right: 12px; }
+    .fr > .tag { padding: 4px 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .side { margin: 10px 12px 0; }
+  }
+</style>
+</head>
+<body data-widths="1200,600,390">
+
+<div class="pickbar"><b>Board 06 — Klassifizierung.</b> Rendered at 1200, 600 and 390&nbsp;px; every frame is as wide as the render, a real viewport, so app.css's 900&nbsp;px sidebar rule and the tree's 560&nbsp;px blocks fire. <b>Two picks:</b> <b>N17</b> the tree between 561 and 720&nbsp;px (#1165) — <b>A</b> the existing two-line rows up to 720&nbsp;px · <b>B</b> a middle band without "Positionen" and "Einstand" · <b>C</b> a floor for the name and a scroller of its own, <span class="rec">recommended A</span>; <b>N18</b> moving a category under another parent (#1211) — <b>A</b> "Übergeordnet" in the edit form · <b>B</b> a "Verschieben nach…" row action with a picker dialog · <b>C</b> drag a category onto another, <span class="rec">recommended A</span>. <b>Before/after, nothing to pick:</b> <b>#1158</b> an open category's security rows at 390&nbsp;px; <b>#1187</b> an archived plan version in the SOLL editor. A comment naming the pick and a letter ("N18 B") changes it; silence adopts the recommendation. "Heute" is app.css as shipped; other frames add the <code>&lt;style&gt;</code> blocks they name. All names, figures and identifiers are invented. <b>Dashed = new.</b></div>
+
+<!-- ============================ N17 ============================ -->
+<section class="mock-board" id="n17">
+  <h2>N17 — #1165: between 561 and 720 px the tree's name column collapses and "Kategorie" runs into "Positionen" <small>Klassifizierungen · Regionen</small></h2>
+  <p class="mock-note">Above 560&nbsp;px every category row is one grid line whose figure and action columns are fixed: 0.7 + 4.5 + 7 + 7 + 7 + 3.6&nbsp;rem and six gaps of 0.45&nbsp;rem, about 520&nbsp;px (<code>.cat-summary</code>, app.css:9021). The name column gets what is left: at 600&nbsp;px, after the page's gutter and the node's border and padding, a few px at the top level and nothing one level down, since each level indents. The head's "Kategorie" is wider than its 0&nbsp;px cell and is drawn over "Positionen". Under 560&nbsp;px the tree already switches to two lines (app.css:9137, :9159).</p>
+
+  <div class="band w600">
+    <p class="cap">Heute — 600 px</p>
+    <div class="fr before"><span class="tag">Heute — 600 px</span><iframe id="f-n17-today" data-tpl="page" data-o='{"tree":"n17","stub":true}' data-measure="n17" title="N17 heute"></iframe></div>
+    <p class="measure" data-out="f-n17-today"></p>
+
+    <p class="cap">Variante A <span class="rec">recommended</span> — the two-line rows of the phone, up to 720 px</p>
+    <div class="fr after"><span class="tag">A — empfohlen · proposal-n17-a</span><iframe id="f-n17-a" data-tpl="page" data-o='{"tree":"n17","stub":true}' data-css="proposal-n17-a" data-measure="n17" title="N17 A"></iframe></div>
+    <p class="measure" data-out="f-n17-a"></p>
+
+    <p class="cap">Variante B — one line, without "Positionen" and "Einstand" (561–720 px)</p>
+    <div class="fr alt"><span class="tag">B · proposal-n17-b</span><iframe id="f-n17-b" data-tpl="page" data-o='{"tree":"n17","stub":true}' data-css="proposal-n17-b" data-measure="n17" title="N17 B"></iframe></div>
+    <p class="measure" data-out="f-n17-b"></p>
+
+    <p class="cap">Variante C — the tree keeps 40 rem and scrolls sideways in a wrapper of its own</p>
+    <div class="fr alt"><span class="tag">C · proposal-n17-c</span><iframe id="f-n17-c" data-tpl="page" data-o='{"tree":"n17","stub":true,"scroller":true}' data-css="proposal-n17-c" data-measure="n17" title="N17 C"></iframe></div>
+    <p class="measure" data-out="f-n17-c"></p>
+  </div>
+  <div class="band w1200 w390">
+    <div class="notes"><p>Drawn at 600&nbsp;px (the 600 render of this board). At 1200&nbsp;px nothing changes under any variant; at 390&nbsp;px A is today's phone tree, and B and C do not apply.</p></div>
+  </div>
+
+  <p class="cap band w1200">Measured — the name column (swatch and name) per level, today and per variant</p>
+  <div class="band w600 w390"><div class="notes"><p>The table of every width is in the 1200 render; each frame above carries its own measured line.</p></div></div>
+  <div data-out="n17-table" class="measure band w1200" style="max-width:none"><table class="th"><thead><tr><th>viewport (px)</th><th>560</th><th>600</th><th>640</th><th>700</th><th>720</th><th>721</th><th>800</th><th>901*</th><th>940*</th><th>960*</th><th>1024*</th><th>1200*</th></tr></thead><tbody><tr><td>Heute</td><td>446 / 417 ²</td><td>33 / 4</td><td>73 / 44</td><td>132 / 103</td><td>151 / 122</td><td>152 / 123</td><td>227 / 198</td><td>103 / 74</td><td>140 / 111</td><td>159 / 130</td><td>220 / 191</td><td>389 / 360</td></tr><tr><td>A</td><td>446 / 417 ²</td><td>486 / 457 ²</td><td>526 / 497 ²</td><td>584 / 555 ²</td><td>604 / 574 ²</td><td>152 / 123</td><td>227 / 198</td><td>103 / 74</td><td>140 / 111</td><td>159 / 130</td><td>220 / 191</td><td>389 / 360</td></tr><tr><td>B</td><td>446 / 417 ²</td><td>232 / 203</td><td>272 / 243</td><td>330 / 301</td><td>349 / 320</td><td>152 / 123</td><td>227 / 198</td><td>103 / 74</td><td>140 / 111</td><td>159 / 130</td><td>220 / 191</td><td>389 / 360</td></tr><tr><td>C</td><td>446 / 417 ²</td><td>105 / 76</td><td>105 / 76</td><td>118 / 89</td><td>137 / 108</td><td>152 / 123</td><td>227 / 198</td><td>103 / 74</td><td>140 / 111</td><td>159 / 130</td><td>220 / 191</td><td>389 / 360</td></tr><tr><td>the tree's width</td><td>528</td><td>568</td><td>608</td><td>666</td><td>685</td><td>686</td><td>762</td><td>638</td><td>675</td><td>694</td><td>755</td><td>924</td></tr></tbody></table>
+  <p class="measure" style="margin-left:0">Each cell: the name column at level 1 / level 2, in px (swatch included); ² the row lies on two lines, where the name has the row's width. * with the sidebar open (220&nbsp;px). The last row is the tree's own width at each viewport: with the sidebar open, 901 to about 950&nbsp;px give the tree less room than 721&nbsp;px without it.</p></div><!-- /n17-table -->
+
+  <div class="notes">
+    <p><b>Why A.</b> It reuses a layout that is built, pinned (issue 873's G8 = A) and already read on every phone, and moves one number: the band where the name has no room becomes the band where it gets the row. B keeps one line and gives the name 232&nbsp;px at 600, but it drops two of the four figures exactly as the phone does while keeping the desktop's one line, a third layout of the same tree (desktop, middle band, phone) for a 160&nbsp;px band. C keeps every figure but makes the reader scroll a tree sideways to see a category's result, beside a drag-and-drop surface whose rows already scroll the page vertically; it is the one variant that needs new markup.</p>
+    <p><b>The sidebar band (found while drawing).</b> The 720&nbsp;px bound is the viewport's, as are the tree's other breakpoints. Above 900&nbsp;px the sidebar takes 220&nbsp;px, so from 901 to about 950&nbsp;px the tree is narrower than at 721 without it (the last row of the table) and its name column is 103 / 74&nbsp;px at 901. Written as a container query on the page (the tree's own width under 686&nbsp;px, which is what 720&nbsp;px of viewport leaves), A covers that band too, the N15 A pattern; the board draws A as decided, at 720&nbsp;px of viewport.</p>
+  </div>
+</section>
+
+<!-- ============================ N18 ============================ -->
+<section class="mock-board" id="n18">
+  <h2>N18 — #1211: a category cannot be moved under another parent on screen <small>Klassifizierungen · Regionen · "USA" under "Amerika"</small></h2>
+  <p class="mock-note">"✎" opens the category's edit form inside its body: name, description, colour, "Speichern", "Abbrechen" (<code>category_node/1</code>, <code>classifications_live.ex:1101-1122</code>). The parent select exists only in "Neue Kategorie" (<code>:390</code>). The context already takes a parent on update and refuses a cycle and a subtree past level 32 (<code>Classifications.update_category/3</code>, <code>validate_parent/1</code>), and <code>handle_event("update_category")</code> passes the form's params through, so the screen is the missing piece. Today moving "USA" under "Amerika" means the API, or deleting and re-creating it, which drops its two assignments.</p>
+
+  <div class="band w1200">
+    <p class="cap">Heute — "✎" on "USA"</p>
+    <div class="fr before"><span class="tag">Heute — 1200 px</span><iframe id="f-n18-today" data-tpl="page" data-o='{"tree":"n18","stub":true,"edit":7}' data-measure="n18" title="N18 heute"></iframe></div>
+    <p class="measure" data-out="f-n18-today"></p>
+
+    <p class="cap">Variante A <span class="rec">recommended</span> — "Übergeordnet" in the edit form, the new-category form's select without the category itself and what is below it</p>
+    <div class="fr after"><span class="tag">A — empfohlen · proposal-n18-a</span><iframe id="f-n18-a" data-tpl="page" data-o='{"tree":"n18","stub":true,"edit":7,"move":"A","pick":4}' data-css="proposal-n18-a" data-measure="n18" title="N18 A"></iframe></div>
+    <p class="measure" data-out="f-n18-a"></p>
+    <div class="side">
+      <div class="optlist">The select's options, drawn open (for "USA"):
+        <select size="7" aria-label="Optionen"><option>— Oberste Ebene —</option><option>Europa</option><option>— Deutschland</option><option>— Frankreich</option><option selected>Amerika</option><option>— Kanada</option><option>Asien</option></select>
+      </div>
+      <div class="optlist">… and for "Europa", which has sub-categories:
+        <select size="5" aria-label="Optionen"><option selected>— Oberste Ebene —</option><option>Amerika</option><option>— Kanada</option><option>Asien</option><option>USA</option></select>
+      </div>
+      <div class="notes" style="margin:0;max-width:60ch"><p>"— Oberste Ebene —" and every category of the tree, indented as in "Neue Kategorie", the current parent selected. The category itself and its descendants are left out, so the cycle the context refuses cannot be picked. A parent whose level would push the subtree past level 32 is listed, and the save is refused in the page's result slot, as "Hinzufügen" is: <i>Nicht verschoben: Unter „Stufe 31“ käme eine Kategorie auf Ebene 33 — eine Klassifizierung hat höchstens 32 Ebenen. Bei „Übergeordnet“ eine Kategorie weiter oben wählen.</i> (the level is the deepest the moved subtree would reach, as the changeset states it).</p></div>
+    </div>
+
+    <p class="cap">Variante A, saved — the category stands where it landed, and the slot says where</p>
+    <div class="fr after"><span class="tag">A — nach „Speichern“</span><iframe id="f-n18-a2" data-tpl="page" data-o='{"tree":"n18-after","stub":true,"result":"moved"}' data-css="proposal-n18-a" title="N18 A gespeichert"></iframe></div>
+
+    <p class="cap">Variante B — "Verschieben nach…" as a third row action, and a dialog that picks the parent</p>
+    <div class="fr alt"><span class="tag">B · proposal-n18-b</span><iframe id="f-n18-b" data-tpl="page" data-o='{"tree":"n18","stub":true,"move":"B","dialog":true}' data-css="proposal-n18-b" data-measure="n18" title="N18 B"></iframe></div>
+    <p class="measure" data-out="f-n18-b"></p>
+
+    <p class="cap">Variante C — drag "USA" onto "Amerika"</p>
+    <div class="fr alt"><span class="tag">C · no new CSS (the drop zone's existing <code>.is-dropping</code>)</span><iframe id="f-n18-c" data-tpl="page" data-o='{"tree":"n18","stub":true,"move":"C"}' title="N18 C"></iframe></div>
+  </div>
+
+  <div class="band w390">
+    <p class="cap">Heute — 390 px, "✎" on "USA"</p>
+    <div class="fr before"><span class="tag">Heute — 390 px</span><iframe id="f-n18-today-p" data-tpl="page" data-o='{"tree":"n18","stub":true,"edit":7,"only":[7]}' data-measure="n18" title="N18 heute 390"></iframe></div>
+    <p class="measure" data-out="f-n18-today-p"></p>
+    <p class="cap">Variante A <span class="rec">recommended</span> — 390 px</p>
+    <div class="fr after"><span class="tag">A — empfohlen · proposal-n18-a</span><iframe id="f-n18-a-p" data-tpl="page" data-o='{"tree":"n18","stub":true,"edit":7,"move":"A","pick":4,"only":[7]}' data-css="proposal-n18-a" data-measure="n18" title="N18 A 390"></iframe></div>
+    <p class="measure" data-out="f-n18-a-p"></p>
+  </div>
+  <div class="band w600">
+    <div class="notes"><p>Drawn at 1200 and 390&nbsp;px.</p></div>
+  </div>
+
+  <div class="notes">
+    <p><b>Why A.</b> A move is a change of one attribute of the category, and the edit form is where its other attributes change; the API and MCP move it the same way (<code>parent_id</code> on the category update). It reuses the select the operator meets in "Neue Kategorie", with its label, its "— Oberste Ebene —" and its indent, and answers in the page's result slot like every write on this screen. B adds a fourth way to open something on a row (✎, ×, the disclosure, now ↳), widens the actions column by 1.8&nbsp;rem on every row at every width (measured: 58 → 86&nbsp;px, 28&nbsp;px of every name), and a dialog for one choice. C has no keyboard path (it would need A or B anyway), HTML5 drag does not start on touch, the dragged row is the disclosure's own summary, and the drop zones already take securities: one gesture with two meanings.</p>
+  </div>
+</section>
+
+<!-- ============================ #1158 ============================ -->
+<section class="mock-board" id="b1158">
+  <h2>#1158 — at 390 px an open category's security rows run past the screen <small>before/after</small></h2>
+  <p class="mock-note">A security row (<code>li.dnd-row</code>, <code>security_row/1</code>) is a nowrap flex line: the name (ellipsized), the ticker, the currency, the quantity and the value; the last two have no rule of their own (app.css:4820-4853, :5313-5319). On a phone the line is wider than the category's body, and <code>.workspace-page { overflow-x: clip }</code> cuts its figures. The cause, found while drawing: the list (<code>ul.cat-securities</code>) is a column flexbox that keeps the base rule's <code>flex-wrap: wrap</code> (app.css:4647), and a wrapping flex line is as wide as its widest item's max-content, so the rows never take the body's width. The spec it applies: DESIGN.md → Phone lists, two-line rows (UX-DR27), "Wealth's Positions" (rule ① of board <code>ux-design-2026-10-04/06-phone-wealth</code>): two tracks, the name (600, wrapping) over its second line, the figures right.</p>
+  <div class="band w390">
+    <p class="cap">Heute — "Deutschland" open</p>
+    <div class="fr before"><span class="tag">Heute — 390 px</span><iframe id="f-1158-today" data-tpl="page" data-o='{"tree":"rows","stub":true,"only":[1]}' data-measure="rows" title="#1158 heute"></iframe></div>
+    <p class="measure" data-out="f-1158-today"></p>
+    <p class="cap">Nachher</p>
+    <div class="fr after"><span class="tag">Nachher · proposal</span><iframe id="f-1158-after" data-tpl="page" data-o='{"tree":"rows","stub":true,"only":[1],"unit":true}' data-css="proposal" data-measure="rows" title="#1158 nachher"></iframe></div>
+    <p class="measure" data-out="f-1158-after"></p>
+  </div>
+  <div class="band w1200 w600">
+    <p class="cap">Above 560 px the row is unchanged (here at the render's width)</p>
+    <div class="fr after"><span class="tag">Nachher · proposal — unchanged above 560 px</span><iframe id="f-1158-desk" data-tpl="page" data-o='{"tree":"rows","stub":true,"only":[1],"unit":true}' data-css="proposal proposal-n17-a" data-measure="rows" title="#1158 desktop"></iframe></div>
+    <p class="measure" data-out="f-1158-desk"></p>
+  </div>
+  <div class="notes">
+    <p><b>Drag and drop keeps working:</b> the li keeps <code>draggable</code>, <code>data-drag-security</code> and its classes, and the hook finds a row by <code>closest("[data-drag-security]")</code> (<code>layout_view.ex:1650</code>), so the grid changes no target. On a phone the move is the select toolbar's "In Kategorie verschieben", as today. The quantity's unit word on the phone is msgid "units" ("Stück"), hidden above 560&nbsp;px; Wealth's phone rows print "18 Stück" the same way.</p>
+  </div>
+</section>
+
+<!-- ============================ #1187 ============================ -->
+<section class="mock-board" id="b1187">
+  <h2>#1187 — the SOLL editor saves targets into an archived plan version <small>before/after</small></h2>
+  <p class="mock-note">Picking an archived version in "Plan-Version:" loads it with every input enabled and "Plan speichern" live; <code>save_soll_plan/2</code> sends <code>plan: &lt;id&gt;</code> and <code>Targets.edit_plan/5</code> writes it (<code>targets.ex:448-462</code>, no status check). Since #1133 the API and MCP refuse the same write ("is archived: activate it, or duplicate it into a draft", <code>target_controller.ex:270</code>). The version hint for an archived plan reads "Archiviert — die Vermögensseite folgt dem aktiven Plan; aktiviere ihn, um ihn wiederzuverwenden.", which neither says the version is read-only nor names the copy. The spec it applies: ADR-0027 §3 and its note of 2026-10-08 ("An archived plan … steers nothing, and is reused by activating it or duplicating it into a draft"); UX-DR17 with the remedy inside the note (H6.1).</p>
+  <div class="band w1200">
+    <p class="cap">Heute — "Plan 2025 · archiviert" picked</p>
+    <div class="fr before"><span class="tag">Heute — 1200 px</span><iframe id="f-1187-today" data-tpl="page" data-o='{"tree":"none","soll":"today","stub":true}' data-measure="soll" title="#1187 heute"></iframe></div>
+    <p class="measure" data-out="f-1187-today"></p>
+    <p class="cap">Nachher — the archived version opens read-only, its two remedies in the note</p>
+    <div class="fr after"><span class="tag">Nachher · proposal (no new rule)</span><iframe id="f-1187-after" data-tpl="page" data-o='{"tree":"none","soll":"after","stub":true}' data-css="proposal" data-measure="soll" title="#1187 nachher"></iframe></div>
+    <p class="measure" data-out="f-1187-after"></p>
+    <p class="cap">Nachher — a save from a page loaded while the version was still active (another tab activated "Plan 2026"): the context refuses it, and the editor reloads as archived</p>
+    <div class="fr after"><span class="tag">Nachher · the refusal in the page's result slot</span><iframe id="f-1187-refused" data-tpl="page" data-o='{"tree":"none","soll":"stale","stub":true,"result":"archived"}' data-css="proposal" title="#1187 verweigert"></iframe></div>
+  </div>
+  <div class="band w390">
+    <p class="cap">Heute — 390 px</p>
+    <div class="fr before"><span class="tag">Heute — 390 px</span><iframe id="f-1187-today-p" data-tpl="page" data-o='{"tree":"none","soll":"today","stub":true}' data-measure="soll" title="#1187 heute 390"></iframe></div>
+    <p class="measure" data-out="f-1187-today-p"></p>
+    <p class="cap">Nachher — 390 px</p>
+    <div class="fr after"><span class="tag">Nachher · proposal</span><iframe id="f-1187-after-p" data-tpl="page" data-o='{"tree":"none","soll":"after","stub":true}' data-css="proposal" data-measure="soll" title="#1187 nachher 390"></iframe></div>
+    <p class="measure" data-out="f-1187-after-p"></p>
+  </div>
+  <div class="band w600">
+    <div class="notes"><p>Drawn at 1200 and 390&nbsp;px.</p></div>
+  </div>
+  <div class="notes">
+    <p><b>After, in order:</b> the version bar keeps the picker and "Umbenennen" (both act on the version, not its targets); "Plan duplizieren" and "Diesen Plan aktivieren" leave the bar for the note, where they are the remedies; the weights are <code>disabled</code> inputs, as the cash target already is for a version; "Plan speichern" and "Aus anderer Ansicht übernehmen…" are not rendered (a copy-in fills inputs nothing can save); "Plan löschen" stays, since deleting a version is not a write into it. <b>The context refuses too:</b> <code>Targets.edit_plan/5</code> returns <code>{:error, :plan_archived}</code> for an archived plan, so the controller's own check (<code>writable_plan/2</code>) and the screen read one rule, and a form loaded before another tab archived the version gets the problem note above, brought into view and focused as every plan refusal is (#945).</p>
+  </div>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc)
+   from the live markup of classifications_live.ex, ViewSwitcher and
+   AppShell, with the German msgstrs. Synthetic data. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', document.baseURI).href;
+const P = {
+  oct: '<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>',
+  tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+  ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>',
+  settings: '<circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/>',
+  chevron: '<path d="m9 6 6 6-6 6"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>'
+};
+const svg = (n, s = 14, cls = '') => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"${cls ? ` class="${cls}"` : ''} aria-hidden="true">${P[n]}</svg>`;
+const SEV = { note: ['ast', 'Hinweis'], attention: ['tri', 'Achtung'], problem: ['oct', 'Problem'] };
+const note = (sev, body, attrs = '', cls = '') => `<div class="data-note data-note--${sev}${cls ? ' ' + cls : ''}" ${attrs}><span class="data-note__icon" aria-hidden="true">${svg(SEV[sev][0])}</span><span class="data-note__word">${SEV[sev][1]}</span><div class="data-note__body">${body}</div></div>`;
+const dismiss = '<button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button>';
+
+function shell(inner) {
+  const nav = (label, on) => `<a class="nav-link${on ? ' is-active' : ''}" href="#"${on ? ' aria-current="page"' : ''}><span class="nav-marker" aria-hidden="true"></span><span class="nav-ico" aria-hidden="true"></span><span class="nav-label">${label}</span></a>`;
+  return `<div id="app-shell" class="app-shell">
+    <input id="app-sidebar-toggle" class="sidebar-toggle-control" type="checkbox" aria-label="Navigation umschalten">
+    <aside id="app-sidebar" class="app-sidebar" aria-label="Anwendungsnavigation">
+      <a class="brand" href="#"><span class="brand-wordmark">Portfolixir</span></a>
+      <nav class="primary-nav"><div class="nav-group nav-group-unlabeled">${nav('Übersicht')}${nav('Vermögen')}${nav('Wertpapiere')}${nav('Transaktionen')}</div>
+      <div class="nav-group"><div class="nav-group-head"><span>Verwaltung</span></div>${nav('Konten &amp; Depots')}${nav('Ansichten')}${nav('Klassifizierungen', true)}</div></nav>
+    </aside>
+    <label class="sidebar-backdrop" for="app-sidebar-toggle" aria-hidden="true"></label>
+    <div class="app-frame">
+      <header class="topbar"><label class="sidebar-toggle" for="app-sidebar-toggle" aria-label="Navigation öffnen"><span class="burger-bars" aria-hidden="true"></span></label>
+        <div class="topbar-primary"><a class="topbar-brand" href="#"><span>Portfolixir</span></a><div class="topbar-page"><h1 id="app-topbar-title">Regionen</h1><p id="app-topbar-subtitle">Wertpapiere per Drag-and-drop zwischen Kategorien einsortieren</p></div></div>
+      </header>
+      <main class="app-main app-main--workspace">${inner}</main>
+    </div>
+  </div>`;
+}
+
+/* ---- the data (invented) ---- */
+const S = {
+  wga: { id: 31, name: 'Wrenfield Gardens AG', ticker: 'WGA', ccy: 'EUR', qty: '120,00', value: '6.240,00' },
+  exh: { id: 32, name: 'Example Holdings International SE', ticker: 'EXH', ccy: 'EUR', qty: '85,00', value: '5.225,00' },
+  lra: { id: 33, name: 'Larkspur Rail AG', ticker: 'LRA', ccy: 'EUR', qty: '64,00', value: '2.650,00' },
+  bce: { id: 34, name: 'Belcourt Énergie SA', ticker: 'BCE', ccy: 'EUR', qty: '150,00', value: '4.590,00' },
+  mar: { id: 35, name: 'Maison Ardenne SA', ticker: '', ccy: 'EUR', qty: '40,00', value: '3.000,00' },
+  hnr: { id: 36, name: 'Halvorsen Northern Rail Inc.', ticker: 'HNR', ccy: 'CAD', qty: '90,00', value: '2.480,00' },
+  arb: { id: 37, name: 'Arbolia Inc.', ticker: 'ARBL', ccy: 'USD', qty: '40,00', value: '5.120,00' },
+  fwl: { id: 38, name: 'Fennwick Labs Inc.', ticker: 'FWL', ccy: 'USD', qty: '25,00', value: '1.875,00' }
+};
+const C = {
+  1: { name: 'Europa', color: '#2563eb', pos: 5, value: '21.705,00', cost: '18.940,00', res: '+2.765,00', pct: '+14,6%', tone: 'is-positive', kids: [2, 3], secs: [] },
+  2: { name: 'Deutschland', color: '#0ea5e9', pos: 3, value: '14.115,00', cost: '12.200,00', res: '+1.915,00', pct: '+15,7%', tone: 'is-positive', kids: [], secs: ['wga', 'exh', 'lra'] },
+  3: { name: 'Frankreich', color: '#38bdf8', pos: 2, value: '7.590,00', cost: '6.740,00', res: '+850,00', pct: '+12,6%', tone: 'is-positive', kids: [], secs: ['bce', 'mar'] },
+  4: { name: 'Amerika', color: '#16a34a', pos: 1, value: '2.480,00', cost: '2.950,00', res: '-470,00', pct: '-15,9%', tone: 'is-negative', kids: [5], secs: [] },
+  5: { name: 'Kanada', color: '#22c55e', pos: 1, value: '2.480,00', cost: '2.950,00', res: '-470,00', pct: '-15,9%', tone: 'is-negative', kids: [], secs: ['hnr'] },
+  6: { name: 'Asien', color: '#f59e0b', pos: 0, value: null, kids: [], secs: [] },
+  7: { name: 'USA', color: '#dc2626', pos: 2, value: '6.995,00', cost: '6.100,00', res: '+895,00', pct: '+14,7%', tone: 'is-positive', kids: [], secs: ['arb', 'fwl'] }
+};
+const ROOTS = [1, 4, 6, 7];
+
+function secRow(k, o) {
+  const s = S[k];
+  const qty = o.unit ? `${s.qty}<span class="row-quantity__unit is-new"> Stück</span>` : s.qty;
+  return `<li class="dnd-row is-draggable" draggable="true" data-drag-security="${s.id}" data-security-id="${s.id}" data-role="security-row">
+      <span class="row-name" title="${s.name}">${s.name}</span>
+      ${s.ticker ? `<small class="row-ticker">${s.ticker}</small>` : ''}
+      <small class="row-ccy">${s.ccy}</small>
+      <span class="row-quantity" data-role="security-quantity">
+        ${qty}
+      </span>
+      <span class="row-value" data-role="security-value">
+        ${s.value}
+      </span>
+    </li>`;
+}
+const na = '<span class="cat-na">—</span>';
+function parentOptions(selfId, picked) {
+  const out = ['<option value="">— Oberste Ebene —</option>'];
+  const walk = (id, depth) => {
+    if (id === selfId) return;
+    out.push(`<option value="${id}"${id === picked ? ' selected' : ''}>${'— '.repeat(depth)}${C[id].name}</option>`);
+    C[id].kids.forEach((k) => walk(k, depth + 1));
+  };
+  (o_roots || ROOTS).forEach((r) => walk(r, 0));
+  return out.join('');
+}
+let o_roots = null;
+function editForm(id, o) {
+  const c = C[id];
+  const parent = o.move === 'A' ? `
+            <label class="recolor-label is-new"><span>Übergeordnet</span><select name="category[parent_id]">${parentOptions(id, o.pick)}</select></label>` : '';
+  return `<form class="cat-edit-form">
+            <input type="hidden" name="category[id]" value="${id}">
+            <input name="category[name]" value="${c.name}" aria-label="Name" required>
+            <input name="category[description]" value="" placeholder="Beschreibung">${parent}
+            <input type="color" name="category[color]" value="${c.color}" class="color-mini" aria-label="Farbe">
+            <button type="submit" class="button">Speichern</button>
+            <button type="button">Abbrechen</button>
+          </form>`;
+}
+function catNode(id, o, depth) {
+  const c = C[id];
+  const open = (o.open || []).includes(id);
+  const figures = c.value
+    ? `<span class="cat-value" data-role="category-value" title="EUR-Wert der sichtbaren Positionen">${c.value}</span>
+        <span class="cat-invested" data-role="category-invested" title="Was die hier einsortierten Positionen gekostet haben, in EUR">${c.cost}</span>
+        <span class="cat-result ${c.tone}" data-role="category-result"><b>${c.res}</b><small>${c.pct}</small></span>`
+    : `<span class="cat-value" data-role="category-value">${na}</span><span class="cat-invested" data-role="category-invested">${na}</span><span class="cat-result" data-role="category-result">${na}</span>`;
+  const move = o.move === 'B' ? `<button type="button" class="icon-mini is-new" aria-label="Verschieben nach…" title="Verschieben nach…">↳</button>` : '';
+  const dragging = o.move === 'C' && id === 7;
+  const dropping = o.move === 'C' && id === 4;
+  return `<details class="cat-node${dropping ? ' is-dropping' : ''}"${open ? ' open' : ''} data-dropzone data-drop-kind="category" data-category="${id}" data-depth="${depth}"${dragging ? ' style="opacity:.45;outline:2px dashed var(--color-accent);outline-offset:-2px"' : ''}>
+      <summary class="cat-summary">
+        <span class="cat-name">
+          <span class="cat-swatch" style="background:${c.color}" aria-hidden="true"></span>
+          <span class="cat-name__text" title="${c.name}">${c.name}</span>
+        </span>
+        <span class="cat-positions" data-role="category-positions" title="Sichtbare Positionen in dieser Kategorie und ihren Unterkategorien">${c.pos}</span>
+        ${figures}
+        <span class="cat-actions" data-no-toggle>
+          <button type="button" class="icon-mini" aria-label="Kategorie bearbeiten" title="Kategorie bearbeiten">✎</button>${move}
+          <button type="button" class="icon-mini" aria-label="Kategorie löschen" title="Kategorie löschen">×</button>
+        </span>
+      </summary>
+      <div class="cat-body">
+        ${o.edit === id ? editForm(id, o) : ''}
+        <ul class="cat-securities">${c.secs.map((k) => secRow(k, o)).join('')}</ul>
+        ${c.kids.map((k) => catNode(k, o, depth + 1)).join('')}
+      </div>
+    </details>`;
+}
+const viewSwitcher = `<div class="workspace-section workspace-section--controls"><div class="view-switcher" role="group" aria-label="Aktive Filter">
+      <nav class="view-switcher__options" aria-label="Aktive Filter"><a id="view-switch-total" class="view-chip is-active" href="#" aria-current="true" aria-label="Alles">Alles</a><a class="view-chip" href="#" aria-label="Langfrist">Langfrist<span class="view-chip__plan-dot" aria-hidden="true">•</span></a><a class="view-chip" href="#" aria-label="Sparplan">Sparplan</a></nav>
+      <a class="view-switcher__manage" data-role="manage-views" href="#">${svg('settings', 13)} Ansichten</a>
+      <details class="view-switcher__help"><summary aria-label="Über Ansichten">ⓘ</summary><p role="tooltip">…</p></details>
+    </div></div>`;
+const treeHead = '<div class="tree-head" data-role="tree-head"><span class="tree-head__name">Kategorie</span><span class="tree-head__num">Positionen</span><span class="tree-head__num">Wert</span><span class="tree-head__num">Einstand</span><span class="tree-head__num">Ergebnis</span><span class="tree-head__actions" aria-hidden="true"></span></div>';
+const basis = '<div class="summary-basis tree-basis" data-role="category-result-basis"><span>Ansicht Alles&nbsp;· in EUR&nbsp;· Ergebnis: heutige Zusammensetzung, keine Periodenrendite</span><details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zum Ergebnis">ⓘ</summary><p role="tooltip">…</p></details></div>';
+const stub = (t) => `<p class="stub">${t}</p>`;
+
+/* ---- the SOLL editor ---- */
+const PLAN_ROWS = [[1, 0, '55'], [2, 1, '35'], [3, 1, '20'], [4, 0, '15'], [5, 1, '15'], [6, 0, '10'], [7, 0, '15']];
+function soll(mode) {
+  const ro = mode === 'after';
+  const versions = `<div class="soll-plan-versions">
+          <form id="soll-plan-picker-form" class="soll-plan-picker"><label class="soll-view-picker__label" for="soll-plan-select">Plan-Version:</label>
+            <select id="soll-plan-select" name="soll_plan"><option>Plan 2026 · aktiv</option><option selected>Plan 2025 · archiviert</option><option>Plan 2026 (copy) · Entwurf</option></select></form>
+          ${ro ? '' : '<button type="button" class="button">Plan duplizieren</button>'}
+          <details class="plan-rename"><summary class="disclosure-summary">${svg('chevron', 12, 'disclosure-chevron')} Umbenennen</summary></details>
+          ${ro ? '' : '<button type="button" class="button-primary">Diesen Plan aktivieren</button><span class="hint" data-role="soll-version-hint">Archiviert — die Vermögensseite folgt dem aktiven Plan; aktiviere ihn, um ihn wiederzuverwenden.</span>'}
+        </div>
+        ${ro ? `<div role="status">${note('note', 'Archiviert — diese Version steuert nichts und ist nur lesbar; die Vermögensseite folgt dem aktiven Plan. Zum Ändern aktivieren oder als Entwurf duplizieren. <button type="button" class="link-button">Aktivieren</button> · <button type="button" class="link-button">Als Entwurf duplizieren</button>', 'data-role="soll-archived-note"', 'is-new')}</div>` : ''}`;
+  const rows = PLAN_ROWS.map(([id, depth, w]) => `<tr class="soll-row"><th scope="row" class="soll-row__name"><span aria-hidden="true">${'— '.repeat(depth)}</span>${C[id].name}</th><td class="num"><label class="sr-only" for="soll-weight-${id}">Zielgewicht für ${C[id].name}</label><input type="number" id="soll-weight-${id}" name="weights[${id}]" value="${w}" step="any" inputmode="decimal"${ro ? ' disabled class="is-new"' : ''}></td></tr>`).join('');
+  return `<section id="soll-editor" class="workspace-section soll-editor">
+      <header class="soll-editor__head"><h2 id="soll-editor-heading" tabindex="-1">Soll-Plan</h2><span class="soll-editor__scope" data-role="soll-editor-scope">für Ansicht Alles</span></header>
+      ${versions}
+      <form id="soll-plan-form">
+        <div class="data-table-wrapper"><table class="soll-table">
+          <thead><tr><th scope="col">Kategorie</th><th scope="col" class="num">Soll %</th></tr></thead>
+          <tbody>${rows}
+            <tr class="soll-row soll-row--cash"><th scope="row" class="soll-row__name">Cash</th><td class="num"><label class="sr-only" for="soll-cash-target">Cash-Ziel</label><input type="number" id="soll-cash-target" name="cash_target" value="5" disabled aria-describedby="soll-cash-lock-hint"><span class="hint" id="soll-cash-lock-hint" data-role="soll-cash-lock-hint">Folgt dem aktiven Plan, bis diese Version aktiviert wird</span></td></tr>
+          </tbody>
+          <tfoot><tr class="soll-row soll-row--sum"><th scope="row">Σ</th><td class="num" data-role="soll-sum">100%<span class="soll-ok" aria-hidden="true">✓</span></td></tr></tfoot>
+        </table></div>
+        <div class="soll-editor__actions">
+          ${ro ? '' : '<button type="submit" class="button-primary">Plan speichern</button>'}
+          <button type="button" class="button-danger">Plan löschen</button>
+        </div>
+      </form>
+      ${ro ? '' : '<form id="soll-copy-form" class="soll-copy"><label class="soll-copy__label" for="soll-copy-from">Aus anderer Ansicht übernehmen…</label><select id="soll-copy-from" name="copy_from"><option value="">— Ansicht wählen —</option><option>Langfrist</option></select></form>'}
+    </section>`;
+}
+
+function resultSlot(o) {
+  let status = '', alert = '';
+  if (o.result === 'moved') status = `<div class="is-new">${note('note', `„USA“ liegt jetzt unter „Amerika“. ${dismiss}`)}</div>`;
+  if (o.result === 'archived') alert = `<div class="is-new">${note('problem', `Nicht gespeichert: „Plan 2025“ ist archiviert und steuert nichts. Aktivieren oder als Entwurf duplizieren, dann ändern. ${dismiss}`)}</div>`;
+  return `<div id="classifications-result" class="inline-result inline-result--page" data-role="action-result" tabindex="-1">
+      <div id="classifications-result-status" role="status" class="inline-result__region">${status}
+      </div>
+      <div id="classifications-result-alert" role="alert" class="inline-result__region">${alert}
+      </div>
+    </div>`;
+}
+
+function moveDialog() {
+  const items = [['', '— Oberste Ebene —', 0, false], [1, 'Europa', 0], [2, 'Deutschland', 1], [3, 'Frankreich', 1], [4, 'Amerika', 0], [5, 'Kanada', 1], [6, 'Asien', 0]];
+  return `<dialog id="category-move-dialog" class="modal is-new" aria-labelledby="category-move-title" style="max-width:440px">
+      <header class="modal-head"><h2 id="category-move-title">„USA“ verschieben</h2><button type="button" class="icon-button" aria-label="Schließen">${svg('x', 16)}</button></header>
+      <div class="modal-body">
+        <p class="hint" style="margin:0">Übergeordnete Kategorie wählen. Die Zuordnungen und Unterkategorien von „USA“ ziehen mit.</p>
+        <ul class="move-targets">${items.map(([id, label, depth]) => `<li><label><input type="radio" name="parent_id" value="${id}"${id === 4 ? ' checked' : ''}><span style="padding-left:${depth * 16}px">${label}</span></label></li>`).join('')}</ul>
+        <div class="modal-footer"><button type="button" class="button-ghost">Abbrechen</button><button type="submit" class="button-primary">Verschieben</button></div>
+      </div>
+    </dialog>`;
+}
+
+function page(o) {
+  let open = [];
+  let roots = ROOTS;
+  let saved = false;
+  if (o.tree === 'n17') open = [1, 2, 4];
+  if (o.tree === 'n18') open = [4, 7];
+  if (o.tree === 'n18-after') { open = [4]; saved = true; }
+  if (o.tree === 'rows') open = [1, 2];
+  if (o.only) roots = o.only;
+  if (o.edit) open = Array.from(new Set(open.concat([o.edit])));
+  const oo = Object.assign({}, o, { open });
+  /* the saved state: USA sits under Amerika */
+  const origKids = C[4].kids;
+  const origFig = Object.assign({}, C[4]);
+  if (saved) Object.assign(C[4], { kids: [5, 7], pos: 3, value: '9.475,00', cost: '9.050,00', res: '+425,00', pct: '+4,7%', tone: 'is-positive' });
+  o_roots = saved ? [1, 4, 6] : null;
+  let tree = '';
+  if (o.tree !== 'none') {
+    const nodes = (saved ? [1, 4, 6] : roots).map((r) => catNode(r, oo, 0)).join('');
+    const marked = saved ? nodes.replace('data-category="7" data-depth="1"', 'data-category="7" data-depth="1" data-moved') : nodes;
+    tree = basis + (o.scroller ? `<div class="tree-scroller is-new">${treeHead}<section class="tree">${marked}</section></div>` : `${treeHead}<section class="tree">${marked}</section>`) +
+      stub('… „Nicht zugeordnet“: unverändert …');
+  }
+  Object.assign(C[4], origFig);
+  o_roots = null;
+  const forms = o.stub ? stub('… Suche, „Nur aktuelle Positionen“ und „Neue Kategorie“: unverändert …') : '';
+  const sollPart = o.soll ? soll(o.soll === 'stale' ? 'after' : o.soll) : '';
+  return shell(`<div id="classifications-workspace" class="workspace-page classifications-detail" data-classification="9">
+    ${resultSlot(o)}
+    <header class="detail-head"><h2 id="classification-heading" tabindex="-1">Regionen</h2><button type="button" class="button-danger">Klassifizierung löschen</button></header>
+    ${viewSwitcher}
+    ${sollPart}
+    ${o.tree === 'none' ? '' : forms}
+    ${tree}
+  </div>`) + (o.dialog ? moveDialog() : '');
+}
+
+const TPL = { page };
+const CSS_MOCK = '<style>body{background:var(--color-bg);} .is-new{outline:2px dashed var(--color-accent);outline-offset:1px;border-radius:4px;} input.is-new{outline-offset:2px;} .app-main,.workspace-page{min-height:0!important;} .stub{margin:0 clamp(16px,2.4vw,28px);padding:6px 0;font-size:12px;font-style:italic;color:#5a6577;} [data-moved] > summary{outline:2px dashed var(--color-accent);outline-offset:1px;border-radius:4px;}</style>';
+window.frameDoc = (tpl, o, ids) => `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${CSS_MOCK}${(ids || []).map((id) => document.getElementById(id).outerHTML).join('')}</head><body>${TPL[tpl](o)}</body></html>`;
+
+const r0 = (x) => Math.round(x);
+function nameCells(doc) {
+  return [...doc.querySelectorAll('.cat-summary .cat-name')].map((n) => ({ name: n.querySelector('.cat-name__text').textContent, depth: Number(n.closest('.cat-node').dataset.depth), w: n.getBoundingClientRect().width, h: n.getBoundingClientRect().height, text: n.querySelector('.cat-name__text') }));
+}
+const MEASURE = {
+  n17(doc, w) {
+    const cells = nameCells(doc);
+    const lvl = (d) => cells.find((c) => c.depth === d);
+    const l1 = lvl(0), l2 = lvl(1);
+    const clip = (c) => (c.text.scrollWidth > c.text.clientWidth + 1 ? ' <b class="off">cut</b>' : '');
+    const head = doc.querySelector('.tree-head__name');
+    const hn = head.getBoundingClientRect();
+    const range = doc.createRange(); range.selectNodeContents(head); const hr = range.getBoundingClientRect();
+    const nums = [...doc.querySelectorAll('.tree-head__num')].filter((n) => getComputedStyle(n).display !== 'none');
+    const first = nums[0].getBoundingClientRect();
+    const overlap = r0(hr.right - first.left);
+    const sc = doc.querySelector('.tree-scroller');
+    const rows = doc.querySelectorAll('.cat-summary');
+    const two = rows[0].getBoundingClientRect().height > 50;
+    return `Measured at ${w} px: name column ${r0(l1.w)} px on level 1 ("${l1.name}")${clip(l1)}, ${r0(l2.w)} px on level 2 ("${l2.name}")${clip(l2)}` +
+      ` · the head "Kategorie" ${overlap > 0 ? `<b class="off">runs ${overlap} px into "${nums[0].textContent}"</b>` : `ends ${-overlap} px before "${nums[0].textContent}"`}` +
+      ` · figure columns shown: ${nums.map((n) => n.textContent).join(', ')}` + ` · a row ${two ? 'on two lines' : 'on one line'} (${r0(rows[0].getBoundingClientRect().height)} px)` +
+      (sc ? ` · the scroller ${r0(sc.clientWidth)} px wide, scrolls ${sc.scrollWidth - sc.clientWidth} px` : '') + '.';
+  },
+  n18(doc, w) {
+    const f = doc.querySelector('.cat-edit-form');
+    const sel = f && f.querySelector('select');
+    const sum = doc.querySelector('.cat-summary .cat-name');
+    let s = `Measured at ${w} px`;
+    if (f) s += `: the edit form ${r0(f.getBoundingClientRect().width)} × ${r0(f.getBoundingClientRect().height)} px` + (sel ? `; "Übergeordnet" and its select ${r0(sel.closest('label').getBoundingClientRect().width)} px wide, the select ${r0(sel.getBoundingClientRect().width)} px` : '');
+    const acts = doc.querySelector('.cat-summary .cat-actions');
+    s += ` · the row's actions column ${r0(acts.getBoundingClientRect().width)} px, the top-level name column ${r0(sum.getBoundingClientRect().width)} px`;
+    const dlg = doc.querySelector('dialog[open]');
+    if (dlg) s += ` · the dialog ${r0(dlg.getBoundingClientRect().width)} × ${r0(dlg.getBoundingClientRect().height)} px`;
+    return s + '.';
+  },
+  rows(doc, w) {
+    const body = doc.querySelector('.cat-node[data-category="2"] > .cat-body').getBoundingClientRect();
+    const page = doc.querySelector('.workspace-page').getBoundingClientRect();
+    const rows = [...doc.querySelectorAll('.cat-node[data-category="2"] .dnd-row')];
+    const maxRight = Math.max(...rows.map((r) => r.getBoundingClientRect().right));
+    const val = rows.map((r) => r.querySelector('.row-value').getBoundingClientRect());
+    const vis = val.filter((v) => v.right <= page.right + 0.5).length;
+    const nameEl = rows[1].querySelector('.row-name');
+    const cut = nameEl.scrollWidth > nameEl.clientWidth + 1;
+    return `Measured at ${w} px: the category body ends at x ${r0(body.right)}, its rows at x ${r0(maxRight)} ${maxRight > page.right + 0.5 ? `<b class="off">(${r0(maxRight - page.right)} px past the screen, clipped)</b>` : '<b class="ok">(inside)</b>'}` +
+      ` · values in view: ${vis === rows.length ? '<b class="ok">' + vis + ' of ' + rows.length + '</b>' : '<b class="off">' + vis + ' of ' + rows.length + '</b>'}` +
+      ` · "Example Holdings International SE" ${cut ? '<b class="off">ellipsized</b>' : '<b class="ok">whole</b>'}, rows ${rows.map((r) => r0(r.getBoundingClientRect().height)).join(' / ')} px tall · every row still <code>draggable</code> with its <code>data-drag-security</code>: ${rows.every((r) => r.getAttribute('draggable') === 'true' && r.dataset.dragSecurity) ? 'yes' : 'no'}.`;
+  },
+  soll(doc, w) {
+    const inputs = [...doc.querySelectorAll('#soll-plan-form input[type="number"]')];
+    const enabled = inputs.filter((i) => !i.disabled).length;
+    const save = [...doc.querySelectorAll('#soll-editor button')].find((b) => b.textContent.trim() === 'Plan speichern');
+    const n = doc.querySelector('[data-role="soll-archived-note"]');
+    return `Measured at ${w} px: ${enabled} of ${inputs.length} target inputs editable · "Plan speichern" ${save ? '<b class="off">present</b>' : '<b class="ok">absent</b>'}` + (n ? ` · the note ${r0(n.getBoundingClientRect().width)} × ${r0(n.getBoundingClientRect().height)} px` : '') + '.';
+  }
+};
+
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  const ids = (f.dataset.css || '').split(/\s+/).filter(Boolean);
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument;
+    setTimeout(() => {
+      const dlg = doc.querySelector('dialog.modal');
+      if (dlg && !dlg.open) dlg.showModal();
+      if (o.move === 'C') {
+        const src = doc.querySelector('.cat-node[data-category="7"] > summary');
+        const tgt = doc.querySelector('.cat-node[data-category="4"] > summary').getBoundingClientRect();
+        const ghost = doc.createElement('div');
+        ghost.innerHTML = '<span class="cat-swatch" style="background:#dc2626;width:.7rem;height:.7rem" aria-hidden="true"></span><b>USA</b><span style="color:var(--color-text-muted);font-weight:500">2 Positionen</span>';
+        ghost.style.cssText = `position:absolute;left:${tgt.left + 150}px;top:${tgt.top + 6}px;display:flex;align-items:center;gap:8px;padding:6px 12px;font:600 13.6px var(--font-sans);background:var(--color-bg-elevated);box-shadow:var(--shadow-md);border:1px solid var(--color-accent);border-radius:8px;opacity:.95;pointer-events:none;z-index:5;transform:rotate(-1.5deg)`;
+        doc.body.appendChild(ghost);
+        const cap = doc.createElement('div');
+        cap.textContent = 'Loslassen: „USA“ unter „Amerika“';
+        cap.style.cssText = `position:absolute;left:${tgt.left + 330}px;top:${tgt.top + 12}px;font:600 12px var(--font-sans);color:#fff;background:var(--color-accent);padding:2px 8px;border-radius:4px;z-index:6`;
+        doc.body.appendChild(cap);
+      }
+      let h = doc.documentElement.scrollHeight;
+      if (dlg) h = Math.max(h, dlg.getBoundingClientRect().bottom + 24);
+      f.style.height = Math.ceil(h) + 'px';
+      const m = f.dataset.measure;
+      const out = document.querySelector(`[data-out="${f.id}"]`);
+      if (m && MEASURE[m] && out && f.offsetParent !== null) out.innerHTML = MEASURE[m](doc, Math.round(f.getBoundingClientRect().width));
+    }, 60);
+  });
+  if (f.offsetParent !== null) f.srcdoc = window.frameDoc(f.dataset.tpl, o, ids);
+}
+
+/* N17's table: the name column per level in hidden frames of each width,
+   today and per variant; 901 px and up carry the sidebar (220 px). The
+   result is also written into the page as measured, because the renderer
+   captures 300 ms after load; opening the board recomputes it. */
+async function n17Table() {
+  const out = document.querySelector('[data-out="n17-table"]');
+  if (!out || out.offsetParent === null) return;
+  const widths = [560, 600, 640, 700, 720, 721, 800, 901, 940, 960, 1024, 1200];
+  const treeW = [];
+  const sets = [['Heute', []], ['A', ['proposal-n17-a']], ['B', ['proposal-n17-b']], ['C', ['proposal-n17-c']]];
+  const head = `<tr><th>viewport (px)</th>${widths.map((w) => `<th>${w}${w > 900 ? '*' : ''}</th>`).join('')}</tr>`;
+  const rows = [];
+  for (const [label, ids] of sets) {
+    const cells = [];
+    for (const w of widths) {
+      const f = document.createElement('iframe');
+      f.style.cssText = `position:absolute;left:-3000px;top:0;width:${w}px;height:600px;border:0`;
+      document.body.appendChild(f);
+      await new Promise((res) => { f.addEventListener('load', () => setTimeout(res, 40)); f.srcdoc = window.frameDoc('page', { tree: 'n17', stub: true, scroller: label === 'C' }, ids); });
+      const c = nameCells(f.contentDocument);
+      const a = c.find((x) => x.depth === 0), b = c.find((x) => x.depth === 1);
+      const two = f.contentDocument.querySelector('.cat-summary').getBoundingClientRect().height > 50;
+      if (label === 'Heute') treeW.push(r0(f.contentDocument.querySelector('.tree').getBoundingClientRect().width));
+      cells.push(`<td>${r0(a.w)} / ${r0(b.w)}${two ? ' ²' : ''}</td>`);
+      f.remove();
+    }
+    rows.push(`<tr><td>${label}</td>${cells.join('')}</tr>`);
+  }
+  rows.push(`<tr><td>the tree's width</td>${treeW.map((x) => `<td>${x}</td>`).join('')}</tr>`);
+  out.innerHTML = `<table class="th"><thead>${head}</thead><tbody>${rows.join('')}</tbody></table>
+  <p class="measure" style="margin-left:0">Each cell: the name column at level 1 / level 2, in px (swatch included); ² the row lies on two lines, where the name has the row's width. * with the sidebar open (220&nbsp;px). The last row is the tree's own width at each viewport: with the sidebar open, 901 to about 950&nbsp;px give the tree less room than 721&nbsp;px without it.</p>`;
+}
+setTimeout(n17Table, 50);
+</script>
+</body>
+</html>

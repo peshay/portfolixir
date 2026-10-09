@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Geldzustände: Trade ohne Umrechnung, Währungen, Kupons (Picks N8, N9; #1198, #1213, #928)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: what the N8 / N9 stories and #928's before/after change
+     on a security's Trades and Transactions tabs, Cash flow → Trades and
+     → Income, the Overview's closed-trades card, the booking drawer and
+     Wealth's contribution table. The frames are srcdoc iframes built from
+     the live markup of securities_live.ex (trades_tab_panel/1,
+     transactions_tab_panel/1), income_live.ex (the realized facet and the
+     income facet's "Je Position"), dashboard_live.ex (closed_trades_card/1),
+     transaction_management_live.ex (the notes-only drawer) and
+     portfolio/contribution_table.ex, with the German msgstrs, so a 390 px
+     frame is a real 390 px viewport and app.css's 560 px and 720 px blocks
+     fire. "Heute" frames render app.css as shipped; "Nachher" and variant
+     frames also get this block. -->
+<style id="proposal">
+  /* ① N8 A (#1198): on the security's Trades tab an unavailable trade's
+     cells are the existing reason dash (.trade-pa--na, muted in every data
+     table by the general rule of issue 1142), so the table needs no rule.
+     Its phone row's result slot mutes its dash the same way. Income's list
+     and the Overview card leave the trade out and name it in the exclusion
+     notes they already have: no rule. (The card selector serves variant B
+     drawn here, not A.) */
+  .phone-row__figure [data-role="result-absent"],
+  .attention-item [data-role="result-absent"] {
+    color: var(--color-text-muted);
+  }
+
+  /* ② N9 A (#1213): no CSS. A cross-currency row's money cells carry the
+     <small> suffix the Price cell already has; the Trades tab's result cell
+     carries the trade's currency at every width, as its phone row does.
+     (Variant C only, not adopted: the line under the row.) */
+  .detail-transactions-table tr.tx-currency-line td {
+    padding-top: 0;
+    border-top: 0;
+    font-size: 12px;
+    color: var(--color-text-muted);
+  }
+
+  /* ③ #928: no CSS. A value change inside the contribution table's and the
+     Income facet's existing anatomy, and one sentence under the interest
+     line. */
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: hidden; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul, .notes ol { margin: 0; }
+  .notes ul, .notes ol { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code, .measure code { font-size: 11.5px; }
+  .mock-board > h2 code, .mock-note code { overflow-wrap: anywhere; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .measure { font-size: 11.5px; color: var(--mock-ink); margin: 4px 0 0; max-width: 980px; }
+  .phone-only { display: none; }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap, .measure { padding: 0 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 10px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph { width: 390px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Board 09 — money states.</b> Two picks: <b>N8</b> (#1198) how a closed trade reads that the ADR-0015 amendment of 2026-10-09 makes <i>unavailable</i> — a lot it sold has no leg in the sale's currency, so it is named, excluded from every total, never summed — <b>A</b> the security's Trades tab keeps the row with the reason dash and names its remedy; Income and the Overview card leave it out and name it in their existing exclusion note <span class="rec">Recommended A</span> · B the row leaves every list, the tab's included, and a note of its own names it; <b>N9</b> (#1213) which currency a cross-currency booking's money figures name on the security's tabs — <b>A</b> a suffix on every money cell of a cross-currency row only <span class="rec">Recommended A</span> · B a suffix on every row · C a currency line under the row; with the drawer's "Betrag (USD)" before/after.<br>
+Before/after, nothing to pick: <b>#928</b> a bond's coupon moves from the contribution table's "Zinsen" line into the bond's own income, and on Cash flow → Erträge from the row without a security into the bond's row (ADR-0051 amendment of 2026-10-09, I12's figures). A comment naming another variant ("N8 B") changes a pick; silence adopts the recommendation. Desktop frames: 980&nbsp;px content. Every name, figure, date and identifier is invented. <b>Dashed = new or changed.</b></div>
+<div class="pickbar phone-only"><b>Board 09 at 390&nbsp;px.</b> Real 390-px viewports: app.css's 560-px and 720-px blocks fire. Recommended: N8 A, N9 A. Synthetic data only. <b>Dashed = new or changed.</b></div>
+
+<!-- ============================ N8 ============================ -->
+<section class="mock-board" id="n8">
+  <h2>N8 — #1198: a closed trade whose lot has no leg in the sale's currency <small>Wertpapiere → Arbolia Inc. → Trades · Vermögen → Cashflow → Trades · Übersicht → Abgeschlossene Trades</small></h2>
+  <p class="mock-note">The data: "Arbolia Inc." (USD) in "Depot Muster", whose cash account "Test-Cash" is in EUR. A buy of 10 imported from Portfolio Performance on 12.02.2025 in the account's currency — 80,00 EUR per share — with <b>no settlement legs</b> (no hub rate was stored for its day at import, and no history backfill has run since); a hand-booked sale of those 10 on 14.08.2026 at 120,00 USD, settled 960,00 EUR at 0,80, fee 3,00 EUR. An earlier round trip (06.02.2024 → 18.06.2025, both hand-booked) is in USD throughout. <b>Today</b> the matcher folds the EUR lot into a USD queue as it stands: basis "800,00 USD", result "+396,25 USD" and "+317,00 EUR" in the totals — both wrong, and nothing says so (the issue's reproduction). <b>Signed</b> (ADR-0015 amendment 2026-10-09, point 3): a lot without the leg it needs makes its closed trade <i>unavailable</i>, never summed. The trades read keeps it with its sell's own figures (quantity, dates, Ø Verkauf, the sell's fees and taxes, proceeds 1.196,25 USD), null for the rest, and the reason <code>missing_settlement_leg</code> with the lot's open date and currency. The realized-gains report, the Overview card and Income name it in <code>excluded</code>, told apart from a sale excluded for a missing close-date rate, and leave it out of the rows, the matrix and the three figures. The Trades tab names it unavailable with its remedy: the lot's legs (point 6: the history backfill derives them), or a rate for the lot's date.</p>
+
+  <p class="cap" style="margin-top:14px">Heute — the mixed queue prints as a result</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="n8" data-o='{"v":"today"}' title="N8 heute"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="n8" data-o='{"v":"today"}' title="N8 heute 390"></iframe></div>
+    <div class="notes">
+      <p><b>Heute.</b> Ø Kauf "80,00" is euros under a USD sale; "+396,25" and "+49,5%" compare 1.196,25 dollars with 800 euros; "+317,00 EUR" converts that difference at the sale's rate and sums it into "Realisiert gesamt", the hit rate, the average holding period and the matrix. Every surface the trade reaches reads it as a good trade.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A <span class="rec">recommended</span> — the Trades tab keeps the row with the reason dash and names its remedy; Income and the Overview card leave it out and name it in their existing exclusion note</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — empfohlen</span><iframe data-tpl="n8" data-o='{"v":"A"}' data-proposal data-measure="n8" title="N8 A"></iframe></div>
+    <p class="measure" data-out="n8-A-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — empfohlen, 390 px</span><iframe data-tpl="n8" data-o='{"v":"A"}' data-proposal data-measure="n8" title="N8 A 390"></iframe></div>
+    <div class="notes">
+      <p class="measure" data-out="n8-A-phone" style="padding:0"></p>
+      <p><b>The Trades tab keeps the row</b> — the trades read keeps it. Ø Kauf, p.&nbsp;a., Realisierter G/V and "%" are the reason dash (#1089's anatomy, Sprint 20's zero-basis pattern): muted "—" <code>aria-hidden</code>, the reason in the <code>title</code> — "Ohne Umrechnung: Ein Kauf in EUR hat keinen Gegenwert in USD" — and in a visually hidden sentence; Ø Verkauf, Tage and Stückzahl stay. At 390&nbsp;px the reason is on the row in words, "ohne Umrechnung", under a muted dash. <b>The tab names it with its remedy</b>, an attention note leading "Abgeschlossene Trades" as the unmatched-sells note does: "1 Trade ohne Umrechnung: Der Kauf vom 12.02.2025 ist in EUR gebucht und hat keinen Gegenwert in USD, der Währung des Verkaufs; Einstand und Ergebnis des Trades fehlen, und er zählt in keiner Summe. Abhilfe: ein Wechselkurs für den 12.02.2025 — das Nachladen der Wechselkurse unter „Alle Trades“ speichert ihn und leitet daraus den Gegenwert ab — oder der Gegenwert in USD an der Buchung."</p>
+      <p><b>Income and the Overview card leave it out</b> and name it in the exclusion note each already has for a sale with no close-date rate, with a reason sentence of its own (the two remedies differ): "1 Verkauf ist ohne Umrechnung — ein Kauf, den er schließt, hat keinen Gegenwert in der Währung des Verkaufs — und aus jeder Summe ausgeschlossen: Arbolia Inc." on the facet, beside the backfill control, which now also derives the missing legs (point 6; its sentence says so); "1 Verkauf ohne Umrechnung — … — fehlt bei den Trades: Arbolia Inc. Das Nachladen der Wechselkurse steht unter „Alle Trades“." on the card. One exclusion shape: out of the rows, the matrix and the three figures ("+195,02 EUR · 66,7% über 3 abgeschlossene Trades · 396 Tage"), named in one note (UX-DR25 clause 1), no figure converted (clause 2).</p>
+      <p><b>Why A:</b> it is the signed text. The security's own page keeps the trade that happened — a sale in Transaktionen with no trade would read like an unmatched sell, and 548 days of holding and the proceeds are right — and says what fixes it, where the operator looks at that security. The aggregates, whose job is the totals, keep the one shape they have for a trade they cannot convert.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — the row leaves every list; a note above names it</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">B</span><iframe data-tpl="n8" data-o='{"v":"B"}' data-proposal data-measure="n8" title="N8 B"></iframe></div>
+    <p class="measure" data-out="n8-B-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">B — 390 px</span><iframe data-tpl="n8" data-o='{"v":"B"}' data-proposal data-measure="n8" title="N8 B 390"></iframe></div>
+    <div class="notes">
+      <p class="measure" data-out="n8-B-phone" style="padding:0"></p>
+      <p><b>B</b> leaves the trade out everywhere, the security's Trades tab included, and names it in a note of its own above each list — on the facet ("… und aus jeder Summe und der Liste ausgeschlossen: …"), on the tab leading "Abgeschlossene Trades" as the unmatched-sells note does, and on the Overview card ("1 Trade ohne Umrechnung fehlt bei den Trades: Arbolia Inc."). On Income and the card it differs from A in having a second note beside the no-rate one rather than a sentence in it.</p>
+      <p><b>What B costs.</b> The tab lists one trade for a security that closed two; the reader must match the note's dates against Transaktionen to see which sale it was, and the proceeds and the holding period, both correct, are gone with the row. It also departs from the signed text, which keeps the trade in the trades read and on the tab.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ N9 ============================ -->
+<section class="mock-board" id="n9">
+  <h2>N9 — #1213: a cross-currency booking's money figures name no currency <small>Wertpapiere → Arbolia Inc. → Transaktionen (the fees, taxes and gross) and → Trades (the result); the booking drawer</small></h2>
+  <p class="mock-note">Since the ADR-0015 amendment of 2026-10-07 a booking's cash, fees and taxes are in its <b>cash account's</b> currency; its price, and gross = quantity × price (<code>tx_gross/1</code>, <code>securities_live.ex:3284-3290</code>), in the <b>booking's</b>. A hand-booked sale of the USD security via the EUR account (14.08.2026) therefore reads Preis "120,00 USD", Gebühren "3,00", Brutto "1.200,00" — the fee is euros, the gross dollars, and the bare cells read as dollars beside the price. <b>Where the cells are:</b> the security's <b>Transaktionen</b> tab (<code>transactions_tab_panel/1</code>, <code>:2044-2046</code>), not the Trades tab; the Trades tab's own gap is its desktop result cell, "+98,89" with no currency where its phone row says "+98,89 USD" (the issue's comment of 2026-10-09). Rows: two hand-booked cross-currency trades in "Depot Muster" (Test-Cash, EUR), one buy in "Depot USD" (US Broker, USD), one buy imported in Portfolio Performance's form (booked in EUR, the account's currency).</p>
+
+  <p class="cap" style="margin-top:14px">Heute — Transaktionen</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="txTab" data-o='{"v":"today"}' data-measure="tx" title="N9 heute"></iframe></div>
+    <p class="measure" data-out="tx-today-desk"></p>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A <span class="rec">recommended</span> — a suffix on every money cell of a cross-currency row, and only there</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — empfohlen</span><iframe data-tpl="txTab" data-o='{"v":"A"}' data-proposal data-measure="tx" title="N9 A"></iframe></div>
+    <p class="measure" data-out="tx-A-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px, gescrollt</span><iframe data-tpl="txTab" data-o='{"v":"today"}' data-measure="tx" title="N9 heute 390"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — 390 px, gescrollt</span><iframe data-tpl="txTab" data-o='{"v":"A"}' data-proposal data-measure="tx" title="N9 A 390"></iframe></div>
+    <div class="notes">
+      <p class="measure" data-out="tx-today-phone" style="padding:0"></p>
+      <p class="measure" data-out="tx-A-phone" style="padding:0"></p>
+      <p><b>A.</b> A row whose booking currency differs from its cash account's (the drawer's settlement case) gets the <code>&lt;small&gt;</code> suffix the Preis cell already carries on Gebühren and Steuern (the account's currency, "EUR") and on Brutto (the booking's, "USD"). A same-currency row — the Depot USD buy, the imported EUR buy — stays as it is: its Preis already names the one currency all its figures are in. The tab has no phone rows: under 560&nbsp;px the table scrolls inside itself (app.css's phone rule <code>table { display: block; overflow-x: auto }</code>), and the 390&nbsp;px frames draw it scrolled to its end.</p>
+      <p><b>The Trades tab, A's rule for one closed trade:</b> its result cell carries the trade's currency at every width, "+98,89 USD", as its phone row does. After the ADR-0015 amendment of 2026-10-09 a closed trade is in its sale's currency, so two trades of one security can be in two currencies, and a bare result cell cannot say which. Drawn below.</p>
+      <p><b>Why A:</b> the suffix appears exactly where the reader would otherwise assume the price's currency and be wrong, and nowhere else; a same-currency history — most of them — looks as it does today.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — a suffix on every money cell of every row</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">B</span><iframe data-tpl="txTab" data-o='{"v":"B"}' data-proposal data-measure="tx" title="N9 B"></iframe></div>
+    <p class="measure" data-out="tx-B-desk"></p>
+  </div>
+  <p class="cap" style="margin-top:22px">Variante C — a currency line under a cross-currency row</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">C</span><iframe data-tpl="txTab" data-o='{"v":"C"}' data-proposal data-measure="tx" title="N9 C"></iframe></div>
+    <p class="measure" data-out="tx-C-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">B — 390 px, gescrollt</span><iframe data-tpl="txTab" data-o='{"v":"B"}' data-proposal data-measure="tx" title="N9 B 390"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">C — 390 px, gescrollt</span><iframe data-tpl="txTab" data-o='{"v":"C"}' data-proposal data-measure="tx" title="N9 C 390"></iframe></div>
+    <div class="notes">
+      <p class="measure" data-out="tx-B-phone" style="padding:0"></p>
+      <p class="measure" data-out="tx-C-phone" style="padding:0"></p>
+      <p><b>B</b> is one rule with no condition: every Gebühren, Steuern and Brutto cell names its currency. It is the simplest to build and test, and never wrong. Its cost is not width — a column is as wide as its widest cell, which A already suffixes, so the table measures 816 against A's 815&nbsp;px at 390 — but noise: "EUR" or "USD" three more times on every row of every security, on rows whose Preis already names the one currency, and the cross-currency row that matters looks like all the others, so the suffix stops carrying news.</p>
+      <p><b>C</b> keeps the figures bare and adds a muted line under a cross-currency row: "Preis und Brutto in USD · Gebühren und Steuern in EUR (Test-Cash)". It explains the split in words once per row, but each row grows by a line, the line sits under the Depot and Notizen columns where nobody reads for a currency, and at 390&nbsp;px the line scrolls away with the table while the figures it explains stay in view. It adds the only CSS of the three (rule ②, C only).</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Vorher / Nachher — the Trades tab's result cell (A), and the drawer's "Betrag (USD)"</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="labels" data-o='{"v":"today"}' title="N9 Etiketten heute"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher</span><iframe data-tpl="labels" data-o='{"v":"after"}' data-proposal title="N9 Etiketten nachher"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px, das Blatt</span><iframe data-tpl="labels" data-o='{"v":"today","drawerOnly":true}' title="N9 Drawer heute 390"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="labels" data-o='{"v":"after","drawerOnly":true}' data-proposal title="N9 Drawer nachher 390"></iframe></div>
+    <div class="notes">
+      <p><b>The drawer.</b> A dividend of Arbolia Inc. credited 80,00 EUR to Test-Cash, with 12,00 EUR withheld. The notes-only drawer labels the amount <code>gettext("Amount (%{currency})", currency: tx.currency_code)</code> — the booking's currency, "Betrag (USD)" (<code>transaction_management_live.ex:2127</code>; the cash transfer's at <code>:2084</code> takes the same fix), while the history reads "80,00 EUR" and Erträge counts EUR 80. After: the cash account's currency, "Betrag (EUR)", and the withheld tax beside it names it too, "Steuern (EUR)" (new msgid <code>"Taxes (%{currency})"</code>). The drawer's controls are board 03's (N12, the one-amount kinds booked on screen); the label rule holds there unchanged.</p>
+      <p><b>The Trades tab</b> (desktop): "Realisierter G/V" reads "+98,89 USD", the phone row's figure and suffix; Ø Kauf and Ø Verkauf stay bare, in the same currency as the result beside them.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #928 ============================ -->
+<section class="mock-board" id="z928">
+  <h2>#928 — a bond's coupon is its position's income <small>Vermögen → Bestände → Performance → Beitrag je Position · Vermögen → Cashflow → Erträge → Je Position · ADR-0051 amendment 2026-10-09, I12</small></h2>
+  <p class="mock-note">I12's fixture: one EUR portfolio, the bond "Larkspur Rail AG 4,00 % Anleihe 2031" (<code>XSLARKSPUR33</code>), 100 units of a 10.000,00 face bought 10.03.2025 at 99,50; the window 01.01.2026 – 30.06.2026; inside it account interest of 1,10 naming no security (31.03.2026) and the coupon, 400,00, naming the bond (15.04.2026). <b>Heute</b> the importer drops the coupon's security (<code>applier.ex:2036-2037</code>), so the walk puts it in the remainder: the bond contributes +125,00 (its price move), "Zinsen" +401,10. <b>Nachher</b>: the bond's Erträge +400,00 and its contribution +525,00; "Zinsen" +1,10. The result, +526,10 EUR, is the same before and after (I1). Coupons stored before the build stay in "Zinsen" (no repair). A value change in a signed anatomy — plus one sentence: the note under "Zinsen", "Konto und Kupons; eine Zinsbuchung trägt kein Wertpapier", is false once a coupon carries its bond.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="coupon" data-o='{"v":"today"}' data-measure="coupon" title="#928 heute"></iframe></div>
+    <p class="measure" data-out="coupon-today-desk"></p>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher</span><iframe data-tpl="coupon" data-o='{"v":"after"}' data-proposal data-measure="coupon" title="#928 nachher"></iframe></div>
+    <p class="measure" data-out="coupon-after-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="coupon" data-o='{"v":"today"}' data-measure="coupon" title="#928 heute 390"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="coupon" data-o='{"v":"after"}' data-proposal data-measure="coupon" title="#928 nachher 390"></iframe></div>
+    <div class="notes">
+      <p class="measure" data-out="coupon-today-phone" style="padding:0"></p>
+      <p class="measure" data-out="coupon-after-phone" style="padding:0"></p>
+      <p><b>The contribution table.</b> The bond's row gains "+400,00" under Erträge and its Beitrag moves from +125,00 to +525,00 (the bar keeps 45&nbsp;% of the track: it is still the largest); "Zinsen" drops to +1,10; the sum row's Erträge reads +400,00 and its Beitrag stays +526,10 EUR. At 390&nbsp;px the bond's line gains "· Erträge 400,00" and the remainder row reads "Zinsen +1,10 · …" with +1,10 on the right.</p>
+      <p><b>The note under "Zinsen"</b> (desktop only; the phone's remainder row has none): "Zinsbuchungen ohne Wertpapier: Kontozinsen und Kupons, die ohne ihre Anleihe gebucht sind" / "Interest bookings that name no security: account interest, and coupons stored without their bond" — ADR-0051 §3 as amended, word for word in substance. It names no release date: a coupon written over the API without its security after the build lands here too (point 2), so the condition, not the date, is what holds.</p>
+      <p><b>Cash flow → Erträge → Je Position</b> (<code>Income.positions</code>): the row without a security, shown as "Zinsen", 401,10 from 2 payments, splits into the bond's row, 400,00, 1 payment, last 15.04.2026, and "Zinsen", 1,10, 1 payment, last 31.03.2026. "Top-Beiträge", the first five of those rows, follows. The year bars, the year × month matrix and 2026's interest total (401,10) split by kind, not by security, and do not change. The table has no phone rows; at 390&nbsp;px it is its own scroller.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc)
+   from the live markup of securities_live.ex, income_live.ex,
+   dashboard_live.ex, transaction_management_live.ex and
+   portfolio/contribution_table.ex with the German msgstrs. Synthetic data. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', document.baseURI).href;
+const P = {
+  tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+  oct: '<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>',
+  ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  chevron_right: '<path d="m9 6 6 6-6 6"/>',
+  max: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'
+};
+const svg = (n, s = 14, cls = '') => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"${cls ? ` class="${cls}"` : ''} aria-hidden="true">${P[n]}</svg>`;
+const SEV = { note: ['ast', 'Hinweis'], attention: ['tri', 'Achtung'], problem: ['oct', 'Problem'] };
+const note = (sev, body, attrs = '', cls = '') => `<div class="data-note data-note--${sev}${cls ? ' ' + cls : ''}" ${attrs}><span class="data-note__icon" aria-hidden="true">${svg(SEV[sev][0])}</span><span class="data-note__word">${SEV[sev][1]}</span><div class="data-note__body">${body}</div></div>`;
+const NEW = (on) => (on ? ' is-new' : '');
+const wrap = (inner) => `<main class="app-main app-main--workspace"><div class="workspace-page">${inner}</div></main>`;
+const cap = (t) => `<p class="cap">${t}</p>`;
+const PANE_TABS = [['overview', 'Übersicht'], ['chart', 'Diagramm'], ['transactions', 'Transaktionen'], ['trades', 'Trades'], ['quotes', 'Kurse'], ['holdings', 'Bestände'], ['classifications', 'Klassifizierungen'], ['research', 'Research'], ['events', 'Termine']];
+const ARB = { name: 'Arbolia Inc.', sub: 'US000000000A · ARBL · USD · Letzter 124,60 (06.10.2026)' };
+function pane(s, active, body) {
+  return `<aside class="detail-pane" aria-label="Ausgewähltes Wertpapier"><header class="detail-pane-head"><div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial" aria-hidden="true">${s.name[0]}</span><div><h2>${s.name}</h2><p class="detail-pane-sub">${s.sub}</p></div></div><div class="detail-pane-head__actions"><button type="button" class="button-ghost">Bearbeiten</button><button type="button" class="button-ghost">Split erfassen</button><button type="button" class="icon-button" aria-label="Maximieren">${svg('max', 16)}</button><button type="button" class="icon-button" aria-label="Detail schließen">${svg('x', 16)}</button></div></header><nav class="detail-pane-tabs" role="tablist" aria-label="Wertpapier-Detailansicht">${PANE_TABS.map(([k, t]) => `<button type="button" role="tab" class="detail-pane-tab${k === active ? ' is-active' : ''}"${k === active ? ' aria-selected="true"' : ''}>${t}</button>`).join('')}</nav>${body}</aside>`;
+}
+
+/* ================= N8 ================= */
+const WHY_NA = ['Ohne Umrechnung: Ein Kauf in EUR hat keinen Gegenwert in USD', 'ohne Umrechnung, ein Kauf in EUR ohne Gegenwert in USD'];
+const WHY_SHORT = ['Unter einem Jahr Haltedauer nicht annualisiert', 'nicht annualisiert, unter einem Jahr Haltedauer'];
+const dashTd = (why, cls, isNew) => `<td class="num ${cls} trade-pa--na${NEW(isNew)}" title="${why[0]}"><span aria-hidden="true">—</span><span class="visually-hidden">${why[1]}</span></td>`;
+const sc = (s) => (s > 0 ? 'is-positive' : s < 0 ? 'is-negative' : 'is-flat');
+const dc = (s) => (s > 0 ? 'decimal-positive' : s < 0 ? 'decimal-negative' : 'is-flat');
+
+/* the security's Trades tab: closed trades (the open lot of the Depot USD buy is unchanged and left out) */
+const CLOSED = [
+  { o: '06.02.2024', c: '18.06.2025', q: '10,0000', b: '50,00', s: '62,00', d: 498, pa: '+14,0%', r: '+98,89', pct: '+19,6%' },
+  { o: '12.02.2025', c: '14.08.2026', q: '10,0000', b: '80,00', s: '120,00', d: 548, pa: '+30,7%', r: '+396,25', pct: '+49,5%', na: true }
+];
+function tradesTab(o) {
+  const A = o.v === 'A', B = o.v === 'B';
+  const keep = (t) => !(t.na && (B || o.only1));
+  const rows = CLOSED.filter(keep).map((t) => {
+    if (A && t.na) return `<tr class="is-new"><td>${t.o}</td><td>${t.c}</td><td class="num">${t.q}</td>${dashTd(WHY_NA, '')}<td class="num">${t.s}</td><td class="num">${t.d}</td>${dashTd(WHY_NA, 'trade-pa')}${dashTd(WHY_NA, '')}${dashTd(WHY_NA, '')}</tr>`;
+    return `<tr><td>${t.o}</td><td>${t.c}</td><td class="num">${t.q}</td><td class="num">${t.b}</td><td class="num">${t.s}</td><td class="num">${t.d}</td><td class="num trade-pa is-positive">${t.pa}</td><td class="num is-positive">${t.r}${o.suffix ? ' <small class="is-new">USD</small>' : ''}</td><td class="num is-positive">${t.pct}</td></tr>`;
+  }).join('');
+  const phone = CLOSED.filter(keep).map((t) => {
+    const figs = (A && t.na)
+      ? `<span class="phone-row__figure"><span data-role="result-absent" aria-hidden="true">—</span></span><span class="phone-row__figure2 is-new"><span>ohne Umrechnung</span></span><span class="visually-hidden">${WHY_NA[1]}</span>`
+      : `<span class="phone-row__figure is-positive">${t.r}<small class="value-suffix">USD</small></span><span class="phone-row__figure2"><span class="decimal-positive">${t.pct}</span> · <span class="decimal-positive">${t.pa}</span> p.&nbsp;a.</span>`;
+    return `<li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">${t.o} → ${t.c}</span><span class="phone-row__ids">${t.q} Stück · ${t.d} Tage</span></span><span class="phone-row__figures">${figs}</span></li>`;
+  }).join('');
+  const bnote = o.only1 ? '' : B ? note('attention', '1 Trade ohne Umrechnung ist in keinem abgeschlossenen Trade enthalten: Der Kauf, aus dem er verkauft, ist in EUR gebucht und hat keinen Gegenwert in USD, der Währung des Verkaufs — Verkauf 14.08.2026, 10,0000 Stück; Kauf 12.02.2025 zu 80,00 EUR.', 'data-role="trades-unavailable"', 'is-new')
+    : A ? note('attention', '1 Trade ohne Umrechnung: Der Kauf vom 12.02.2025 ist in EUR gebucht und hat keinen Gegenwert in USD, der Währung des Verkaufs; Einstand und Ergebnis des Trades fehlen, und er zählt in keiner Summe. Abhilfe: ein Wechselkurs für den 12.02.2025 — das Nachladen der Wechselkurse unter „<a href="/cashflow?tab=realized">Alle Trades</a>“ speichert ihn und leitet daraus den Gegenwert ab — oder der Gegenwert in USD an der Buchung.', 'id="detail-closed-trades-unavailable" data-role="trades-unavailable"', 'is-new') : '';
+  const body = `<section role="tabpanel" class="detail-tab-panel detail-tab-panel--trades"><p class="stub" style="padding:0">… Offene Positionen (FIFO): der Kauf vom 20.03.2026 im Depot USD, unverändert, hier ausgelassen …</p><h3 class="detail-section-title">Abgeschlossene Trades (FIFO)</h3>${bnote}<div id="detail-closed-trades-table-wrap" class="data-table-wrap"><table id="detail-closed-trades-table" class="data-table detail-trades-table"><thead><tr><th>Eröffnet</th><th>Geschlossen</th><th class="num">Stückzahl</th><th class="num">Ø Kauf</th><th class="num">Ø Verkauf</th><th class="num">Tage</th><th class="num">p.&nbsp;a.</th><th class="num">Realisierter G/V</th><th class="num">%</th></tr></thead><tbody>${rows}</tbody></table></div><ul id="detail-closed-trades-phone-rows" class="phone-rows" aria-label="Abgeschlossene Trades">${phone}</ul><p id="detail-closed-trades-basis" class="detail-tab-hint" data-role="trades-basis">Über alle Depots · Einlieferungen eröffnen keinen Lot · Gebühren und Steuern im G/V, nicht in Ø Kauf und Ø Verkauf · Erträge während der Haltedauer nicht enthalten · p.&nbsp;a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst</p></section>`;
+  return `<section class="workspace-section">${pane(ARB, 'trades', body)}</section>`;
+}
+
+/* Cash flow → Trades (the realized facet) */
+const FACET = [
+  { n: 'Arbolia Inc.', o: '12.02.2025', c: '14.08.2026', d: 548, q: '10,0000', b: '800,00', p: '1.196,25', cur: 'USD', pa: '+30,7%', r: '+317,00', pct: '+49,5%', s: 1, na: true },
+  { n: 'Larkspur Rail AG', o: '03.03.2025', c: '13.08.2026', d: 528, q: '10,0000', b: '1.240,00', p: '1.402,00', cur: 'EUR', pa: '+8,9%', r: '+162,00', pct: '+13,1%', s: 1 },
+  { n: 'Wrenfield Gardens AG', o: '20.01.2026', c: '02.07.2026', d: 163, q: '15,0000', b: '900,00', p: '846,00', cur: 'EUR', pa: null, r: '-54,00', pct: '-6,0%', s: -1 },
+  { n: 'Arbolia Inc.', o: '06.02.2024', c: '18.06.2025', d: 498, q: '10,0000', b: '505,43', p: '604,32', cur: 'USD', pa: '+14,0%', r: '+87,02', pct: '+19,6%', s: 1 }
+];
+function facet(o) {
+  const A = o.v === 'A', B = o.v === 'B', ex = A || B;
+  const fig = ex ? { total: '+195,02', hit: '66,7%', over: 'über 3 abgeschlossene Trades', days: '396 Tage' } : { total: '+512,02', hit: '75,0%', over: 'über 4 abgeschlossene Trades', days: '434 Tage' };
+  const backfill = '<div class="fx-backfill" data-role="fx-backfill"><span class="muted is-new">Die tägliche Kurssynchronisation kann einen vergangenen Tag nicht nachtragen. Das Nachladen holt die historische EZB-Reihe einmalig, speichert jeden veröffentlichten Tag und leitet daraus die Gegenwerte ab, die importierten Käufen und Verkäufen fehlen; ein Tag, den die EZB nicht veröffentlicht hat, bleibt ausgeschlossen.</span> <button type="button" id="fx-backfill-button" class="button-mini">Historische Kurse nachladen</button></div>';
+  const notes = A
+    ? note('attention', '<span class="is-new">1 Verkauf ist ohne Umrechnung — ein Kauf, den er schließt, hat keinen Gegenwert in der Währung des Verkaufs — und aus jeder Summe ausgeschlossen: Arbolia Inc.</span>' + backfill, 'id="realized-excluded" data-role="realized-excluded"')
+    : B ? note('attention', '1 Trade ohne Umrechnung ist aus jeder Summe und aus der Liste ausgeschlossen: Ein Kauf, aus dem er verkauft, ist in einer anderen Währung gebucht als der Verkauf und hat keinen Gegenwert in dessen Währung: <b>Arbolia Inc.</b> (Verkauf 14.08.2026 in USD; Kauf 12.02.2025 zu 80,00 EUR).', 'id="realized-unavailable" data-role="realized-unavailable"', 'is-new') : '';
+  const figures = `<div id="realized-figures" class="kpi-band__lead" data-role="realized-figures"><article class="stat stat--lead"><span>Realisiert gesamt</span><strong data-role="realized-total" class="is-positive${NEW(ex)}">${fig.total}<small class="value-suffix">EUR</small></strong></article><article class="stat stat--lead"><span>Trefferquote</span><strong data-role="realized-hit-rate">${fig.hit}</strong><small class="stat__sub">${fig.over}</small></article><article class="stat stat--lead"><span>Durchschnittliche Haltedauer</span><strong data-role="realized-holding-period">${fig.days}</strong></article></div>`;
+  const list = FACET.filter((t) => !(ex && t.na));
+  const head = '<thead><tr><th>Wertpapier</th><th>Gekauft → verkauft</th><th class="num">Haltedauer</th><th class="num">Stückzahl</th><th class="num">Einstand</th><th class="num">Erlös</th><th class="num">p. a.</th><th class="num col-subject">Ergebnis</th></tr></thead>';
+  const rows = list.map((t) => {
+    const na = A && t.na;
+    const cost = na ? dashTd(WHY_NA, '', true) : `<td class="num">${t.b}<small class="value-suffix">${t.cur}</small></td>`;
+    const pa = na ? dashTd(WHY_NA, 'trade-pa', true) : t.pa ? `<td class="num trade-pa ${sc(t.s)}">${t.pa}</td>` : dashTd(WHY_SHORT, 'trade-pa');
+    const res = na ? dashTd(WHY_NA, 'col-subject', true) : `<td class="num col-subject ${sc(t.s)}" data-role="trade-result">${t.r}<small class="value-suffix">EUR</small> <span class="stat__sub">${t.pct}</span></td>`;
+    return `<tr data-role="realized-trade"><td><a href="#">${t.n}</a></td><td>${t.o} → ${t.c}</td><td class="num">${t.d} Tage</td><td class="num">${t.q}</td>${cost}<td class="num">${t.p}<small class="value-suffix">${t.cur}</small></td>${pa}${res}</tr>`;
+  }).join('');
+  const phone = list.map((t) => {
+    const na = A && t.na;
+    const figs = na
+      ? `<span class="phone-row__figure"><span data-role="result-absent" aria-hidden="true">—</span></span><span class="phone-row__figure2 is-new"><span>ohne Umrechnung</span></span><span class="visually-hidden">${WHY_NA[1]}</span>`
+      : `<span class="phone-row__figure ${sc(t.s)}">${t.r}<small class="value-suffix">EUR</small></span><span class="phone-row__figure2"><span class="${dc(t.s)}">${t.pct}</span>${t.pa ? ` · <span class="${dc(t.s)}">${t.pa}</span> p. a.` : ' gesamt'}</span>`;
+    return `<li class="phone-row" data-role="phone-row"><span class="phone-row__body"><a class="phone-row__target" href="#"><span class="phone-row__name">${t.n}</span></a><span class="phone-row__ids">${t.o} → ${t.c} · ${t.d} Tage</span></span><span class="phone-row__figures">${figs}</span></li>`;
+  }).join('');
+  return `<section class="workspace-section"><div class="summary-basis" data-role="facet-basis">Beträge in EUR · FIFO je Wertpapier · alle Depots</div></section><section id="realized-trades" class="workspace-section kpi-band">${notes}${figures}<div id="realized-trades-table-wrapper" class="data-table-wrapper"><table id="realized-trades-table" class="data-table">${head}<tbody>${rows}</tbody></table></div><ul id="realized-trades-phone-rows" class="phone-rows" aria-label="Trades">${phone}</ul><p class="summary-basis" data-role="trades-basis">Einlieferungen eröffnen keinen Lot · Gebühren und Steuern in Einstand und Erlös · Erträge während der Haltedauer nicht enthalten · p. a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst</p></section>`;
+}
+
+/* Overview → "Abgeschlossene Trades" */
+function card(o) {
+  const A = o.v === 'A', B = o.v === 'B';
+  const list = FACET.filter((t) => !((A || B) && t.na));
+  const items = list.map((t) => {
+    const na = A && t.na;
+    const fig = na
+      ? `<span class="num is-new"><span data-role="result-absent" aria-hidden="true">—</span><small class="attention-item__sub">ohne Umrechnung</small></span>`
+      : `<span class="num"><span class="${sc(t.s)}">${t.r}</span><small class="value-suffix">EUR</small><small class="attention-item__sub">${t.pa ? `<span class="${sc(t.s)}">${t.pa}</span> p. a.` : `<span class="${sc(t.s)}">${t.pct}</span> gesamt`}</small></span>`;
+    return `<li><a href="#" class="attention-item" data-role="closed-trade"><span class="attention-name">${t.n}<small class="attention-item__sub">verkauft ${t.c} · ${t.d} Tage</small></span>${fig}</a></li>`;
+  }).join('');
+  const bnote = B ? note('attention', '1 Trade ohne Umrechnung fehlt bei den Trades: Arbolia Inc. Mehr unter „Alle Trades“.', 'data-role="trades-card-unavailable"', 'is-new')
+    : A ? note('attention', '<span class="is-new">1 Verkauf ohne Umrechnung — ein Kauf, den er schließt, hat keinen Gegenwert in der Währung des Verkaufs — fehlt bei den Trades: Arbolia Inc.</span> Das Nachladen der Wechselkurse steht unter „Alle Trades“.', 'data-role="trades-card-excluded"') : '';
+  const n = list.length;
+  return `<section id="dashboard-trades" class="workspace-section"><div class="section-head"><h2>Abgeschlossene Trades</h2><a class="kpi-summary__link" href="#">Alle Trades →</a></div>${bnote}<p class="summary-basis${NEW(A || B)}" data-role="trades-card-basis">Die ${n} zuletzt abgeschlossenen · Ergebnis in EUR · FIFO über alle Depots, unabhängig von der Ansicht · p. a. erst ab 365 Tagen Haltedauer</p><ul class="attention-list">${items}</ul></section>`;
+}
+function n8(o) {
+  return wrap(cap('Wertpapiere → Arbolia Inc. → Trades') + tradesTab(o) + cap('Vermögen → Cashflow → Trades') + facet(o) + cap('Übersicht → Abgeschlossene Trades') + card(o));
+}
+
+/* ================= N9 ================= */
+const TXS = [
+  { d: '14.08.2026', t: 'sell', k: 'Verkauf', q: '10,0000', p: '120,00', cur: 'USD', f: '3,00', x: '0,00', g: '1.200,00', dep: 'Depot Muster', acc: 'Test-Cash', acur: 'EUR' },
+  { d: '20.03.2026', t: 'buy', k: 'Kauf', q: '5,0000', p: '58,00', cur: 'USD', f: '1,00', x: '0,00', g: '290,00', dep: 'Depot USD', acc: 'US Broker', acur: 'USD' },
+  { d: '18.06.2025', t: 'sell', k: 'Verkauf', q: '10,0000', p: '62,00', cur: 'USD', f: '5,00', x: '8,80', g: '620,00', dep: 'Depot Muster', acc: 'Test-Cash', acur: 'EUR' },
+  { d: '12.02.2025', t: 'buy', k: 'Kauf', q: '10,0000', p: '80,00', cur: 'EUR', f: '0,00', x: '0,00', g: '800,00', dep: 'Depot Muster', acc: 'Test-Cash', acur: 'EUR', note: 'PP-Import' },
+  { d: '06.02.2024', t: 'buy', k: 'Kauf', q: '10,0000', p: '50,00', cur: 'USD', f: '5,00', x: '0,00', g: '500,00', dep: 'Depot Muster', acc: 'Test-Cash', acur: 'EUR' }
+];
+function txTab(o) {
+  const rows = TXS.map((t) => {
+    const cross = t.cur !== t.acur;
+    const sfx = (c) => {
+      if (o.v === 'A' && cross) return ` <small class="is-new">${c}</small>`;
+      if (o.v === 'B') return ` <small class="is-new">${c}</small>`;
+      return '';
+    };
+    const main = `<tr class="tx-row tx-row--${t.t}"><td>${t.d}</td><td><span class="badge tx-badge tx-badge--${t.t}">${t.k}</span></td><td class="num">${t.q}</td><td class="num" data-role="price">${t.p} <small>${t.cur}</small></td><td class="num">${t.f}${sfx(t.acur)}</td><td class="num">${t.x}${sfx(t.acur)}</td><td class="num">${t.g}${sfx(t.cur)}</td><td>${t.dep}</td><td>${t.note || ''}</td></tr>`;
+    const line = o.v === 'C' && cross ? `<tr class="tx-currency-line is-new"><td></td><td colspan="8">Preis und Brutto in ${t.cur} · Gebühren und Steuern in ${t.acur} (${t.acc})</td></tr>` : '';
+    return main + line;
+  }).join('');
+  const body = `<section role="tabpanel" class="detail-tab-panel detail-tab-panel--transactions"><div class="data-table-wrap" data-scroll="money"><table class="data-table detail-transactions-table"><thead><tr><th>Datum</th><th>Typ</th><th class="num">Stückzahl</th><th class="num">Preis</th><th class="num">Gebühren</th><th class="num">Steuern</th><th class="num">Brutto</th><th>Depot</th><th>Notizen</th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+  return wrap(`<section class="workspace-section">${pane(ARB, 'transactions', body)}</section>`);
+}
+function drawer(o) {
+  const after = o.v === 'after';
+  const facts = [
+    ['Typ', 'select', 'Dividende'], ['Datum', 'input', '2026-05-14'], ['Wertpapier', 'select', 'Arbolia Inc. (ARBL)'], ['Verrechnungskonto', 'select', 'Test-Cash'],
+    [after ? 'Betrag (EUR)' : 'Betrag (USD)', 'num', '80,00', after], [after ? 'Steuern (EUR)' : 'Steuern', 'num', '12,00', after]
+  ].map(([l, c, v, n]) => `<label class="${n ? 'is-new' : ''}"><span>${l}</span>${c === 'select' ? `<select disabled><option selected>${v}</option></select>` : `<input type="text" value="${v}" class="${c === 'num' ? 'num' : ''}" disabled>`}</label>`).join('');
+  return `<div class="detail-pane booking-drawer" role="dialog" aria-labelledby="booking-drawer-title"><header class="detail-pane-head"><div class="detail-pane-head__title"><div><h2 id="booking-drawer-title">Transaktion bearbeiten</h2><p class="detail-pane-sub">Die Art „Dividende“ bucht die Oberfläche nicht; hier ändert sich nur die Notiz, und das Journal hält die Änderung fest.</p></div></div><div class="detail-pane-head__actions"><button type="button" class="icon-button" aria-label="Schließen">${svg('x', 16)}</button></div></header><form id="note-form"><div id="booking-facts" class="form-grid">${facts}</div><p id="booking-edit-help" class="form-help">Datum, Beträge und Konten dieser Buchung stehen hier fest; die Oberfläche bucht nur Käufe und Verkäufe. Korrigiert wird die Buchung über API oder MCP, oder sie wird gelöscht und dort neu gebucht. <button type="button" class="link-button">Löschen…</button></p></form></div>`;
+}
+function labels(o) {
+  const after = o.v === 'after';
+  if (o.drawerOnly) return `<div class="sheet-wrap">${drawer(o)}</div>`;
+  const tab = tradesTab({ v: 'today', suffix: after, only1: true });
+  const hist = '<div class="stub" style="padding:0">… Transaktionsverlauf: 14.05.2026 · Dividende · Arbolia Inc. · Test-Cash · <b>80,00 EUR</b> …</div>';
+  return wrap(cap('Wertpapiere → Arbolia Inc. → Trades (Desktop)') + tab + cap('Transaktionen → Bearbeiten, eine Dividende') + `<section class="workspace-section"><div class="transactions-columns transactions-columns--drawer" style="display:grid">${hist}${drawer(o)}</div></section>`);
+}
+
+/* ================= #928 ================= */
+function coupon(o) {
+  const after = o.v === 'after';
+  const pos = { name: 'Larkspur Rail AG 4,00 % Anleihe 2031', start: '9.900,00', flows: '0,00', inc: after ? '+400,00' : '0,00', costs: '0,00', end: '10.025,00', c: after ? '+525,00' : '+125,00' };
+  const zins = after ? '+1,10' : '+401,10';
+  const zinsNote = after ? 'Zinsbuchungen ohne Wertpapier: Kontozinsen und Kupons, die ohne ihre Anleihe gebucht sind' : 'Konto und Kupons; eine Zinsbuchung trägt kein Wertpapier';
+  const lines = [['Zinsen', zinsNote, zins, after], ['Einzelne Gebühren und Steuern', 'Ohne Handelsbezug, auch mit Wertpapier', '0,00'], ['Währungseffekt auf Bargeld', 'Fremdwährungskonten und Abrechnungsdifferenzen von Käufen und Verkäufen', '0,00']];
+  const none = '<td class="num contribution-table__none">—</td>'.repeat(5);
+  const rest = lines.map(([l, n, v, mark]) => `<tr class="contribution-table__rest" data-role="contribution-remainder"><td class="contribution-table__name">${l}<small class="contribution-table__note${NEW(mark)}">${n}</small></td>${none}<td class="num${NEW(mark)}"><span class="${v === '0,00' ? '' : 'is-positive'}">${v}</span></td></tr>`).join('');
+  const table = `<div id="contribution-table-wrap" class="data-table-wrapper"><table id="contribution-table" class="data-table contribution-table"><thead><tr><th scope="col">Wertpapier</th><th scope="col" class="num">Anfangswert</th><th scope="col" class="num">Zu-/Abflüsse</th><th scope="col" class="num">Erträge</th><th scope="col" class="num">Kosten</th><th scope="col" class="num">Endwert</th><th scope="col" class="num">Beitrag</th></tr></thead><tbody>
+    <tr data-role="contribution-row"><td class="contribution-table__name">${pos.name}</td><td class="num">${pos.start}</td><td class="num">${pos.flows}</td><td class="num${NEW(after)}">${pos.inc}</td><td class="num">${pos.costs}</td><td class="num">${pos.end}</td><td class="num contribution-table__figure${NEW(after)}"><span class="is-positive">${pos.c}</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill is-over" style="width: 45%"></span></span></td></tr>
+    <tr class="contribution-table__rest-head"><td colspan="7" data-role="contribution-rest-head">Keiner Position zugeordnet</td></tr>${rest}
+    <tr class="contribution-table__sum" data-role="contribution-sum"><td>Summe = Ergebnis im Zeitraum</td><td class="num">9.900,00</td><td class="num">0,00</td><td class="num${NEW(after)}">${after ? '+400,00' : '0,00'}</td><td class="num">0,00</td><td class="num">10.025,00</td><td class="num" data-role="contribution-sum-figure"><span class="is-positive">+526,10</span><small class="value-suffix">EUR</small></td></tr></tbody></table></div>`;
+  const phone = `<ul id="contribution-phone-rows" class="phone-rows contribution-phone-rows" aria-label="Beitrag je Position">
+    <li class="phone-row" data-role="contribution-row"><span class="phone-row__body"><span class="phone-row__name">${pos.name}</span><span class="phone-row__ids${NEW(after)}">9.900,00 → 10.025,00${after ? ' · Erträge 400,00' : ''}</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive${NEW(after)}">${pos.c}</span></span></li>
+    <li class="phone-row contribution-phone-rows__rest" data-role="contribution-phone-rest"><span class="phone-row__body"><span class="phone-row__name">Keiner Position zugeordnet</span><span class="phone-row__ids${NEW(after)}">Zinsen ${zins} · Gebühren/Steuern 0,00 · Währung 0,00</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive${NEW(after)}">${zins}</span></span></li>
+    <li class="phone-row contribution-phone-rows__sum" data-role="contribution-phone-sum"><span class="phone-row__body"><span class="phone-row__name">Summe = Ergebnis im Zeitraum</span><span class="phone-row__ids">Positionen und Restposten</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+526,10 <small class="value-suffix">EUR</small></span></span></li></ul>`;
+  const contribution = `<section id="portfolio-performance" class="workspace-section"><p class="stub" style="padding:0 0 8px">… Kopf, Zeitraum, Diagramm und Grundlagenzeilen unverändert, hier ausgelassen …</p><div id="performance-contribution" class="contribution" data-role="contribution"><div class="contribution__head"><h3 id="contribution-title">Beitrag je Position</h3><span class="contribution__scope" data-role="contribution-scope">01.01.2026 – 30.06.2026 · Ansicht Alles · sortiert nach Beitrag</span></div>${table}${phone}<p class="summary-basis" data-role="contribution-basis">Beitrag = Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten · je Position in EUR, einschließlich der Währungsbewegung · Anfangswert: der Schluss des Vortags · Positionen und Restposten ergeben genau das Ergebnis im Zeitraum; Einzahlungen und Entnahmen sind kein Ergebnis</p></div></section>`;
+  const incRows = after
+    ? [['Larkspur Rail AG 4,00 % Anleihe 2031', '400,00', '1', '15.04.2026', true], ['Zinsen', '1,10', '1', '31.03.2026', true]]
+    : [['Zinsen', '401,10', '2', '15.04.2026']];
+  const top = `<section id="income-top-contributors" class="workspace-section"><h2>Top-Beiträge</h2><ol class="contributor-list">${incRows.map(([n, g, , , m]) => `<li class="contributor-row${NEW(m)}"><span class="contributor-name">${n}</span><span class="contributor-figures"><strong>${g}</strong> <span class="muted">netto ${g}</span></span></li>`).join('')}</ol></section>`;
+  const positions = `<section id="income-positions" class="workspace-section"><h2>Je Position</h2><div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Wertpapier</th><th>Währung</th><th class="num">Brutto</th><th class="num">Einbehaltene Steuer</th><th class="num">Netto</th><th class="num">Zahlungen</th><th>Letzte Zahlung</th></tr></thead><tbody>${incRows.map(([n, g, c, d, m]) => `<tr class="${m ? 'is-new' : ''}"><td>${n}</td><td>EUR</td><td class="num">${g}</td><td class="num">0,00</td><td class="num">${g}</td><td class="num">${c}</td><td>${d}</td></tr>`).join('')}</tbody></table></div></section>`;
+  const income = `<section class="workspace-section"><div class="summary-basis" data-role="facet-basis">Beträge in EUR · Dividenden und Zinsen · dieses Portfolio</div><p class="stub" style="padding:6px 0 0">… Jahresbalken, Monatsmatrix und 2026: Zinsen 401,10 — unverändert, hier ausgelassen …</p></section>${top}${positions}`;
+  return wrap(cap('Vermögen → Bestände → Performance → Beitrag je Position') + contribution + cap('Vermögen → Cashflow → Erträge') + income);
+}
+
+const TPL = { n8, txTab, labels, coupon };
+
+/* ---------------- measurements ---------------- */
+const R = (el) => el.getBoundingClientRect();
+const px = (v) => Math.round(v);
+const vis = (el) => el && R(el).width > 0 && R(el).height > 0;
+const MEASURE = {
+  n8(doc, f, w, o) {
+    const out = [];
+    const tab = doc.querySelector(w > 500 ? '#detail-closed-trades-table' : '#detail-closed-trades-phone-rows');
+    const rows = [...tab.querySelectorAll(w > 500 ? 'tbody tr' : 'li')].map((r) => px(R(r).height));
+    out.push(`Trades tab ${w > 500 ? 'rows' : 'phone rows'} ${rows.join(' / ')} px`);
+    const fr = [...doc.querySelectorAll(w > 500 ? '#realized-trades-table tbody tr' : '#realized-trades-phone-rows li')].map((r) => px(R(r).height));
+    out.push(`facet ${w > 500 ? 'rows' : 'phone rows'} ${fr.join(' / ')} px`);
+    const n = doc.querySelector('#realized-unavailable') || doc.querySelector('#realized-excluded');
+    if (n) out.push(`facet note ${px(R(n).width)} × ${px(R(n).height)} px`);
+    const absent = [...doc.querySelectorAll('.phone-row__figure2.is-new')].filter(vis);
+    if (absent.length) out.push(`"ohne Umrechnung" ${px(R(absent[0].firstElementChild).width)} × ${px(R(absent[0].firstElementChild).height)} px`);
+    const card = [...doc.querySelectorAll('#dashboard-trades .attention-item')].map((r) => px(R(r).height));
+    out.push(`card rows ${card.join(' / ')} px`);
+    const cb = doc.querySelector('[data-role="trades-card-unavailable"]') || doc.querySelector('[data-role="trades-card-excluded"]');
+    const tn = doc.querySelector('#detail-closed-trades-unavailable');
+    if (tn) out.push(`tab note ${px(R(tn).width)} × ${px(R(tn).height)} px`);
+    if (cb) out.push(`card note ${px(R(cb).width)} × ${px(R(cb).height)} px`);
+    return `${o.v} at ${w} px: ${out.join('; ')}.`;
+  },
+  tx(doc, f, w, o) {
+    const ths = [...doc.querySelectorAll('.detail-transactions-table thead th')];
+    const pick = (i) => px(R(ths[i]).width);
+    const wrapEl = doc.querySelector('.data-table-wrap');
+    const table = doc.querySelector('.detail-transactions-table');
+    const rows = [...table.querySelectorAll('tbody tr')].map((r) => px(R(r).height));
+    return `${o.v === 'today' ? 'Heute' : o.v} at ${w} px: Gebühren / Steuern / Brutto columns ${pick(4)} / ${pick(5)} / ${pick(6)} px; table ${px(wrapEl.dataset.natural || table.scrollWidth)} px of content in a ${px(table.clientWidth)} px ${w > 500 ? 'scroller' : 'table box that scrolls itself'}; rows ${rows.join(' / ')} px.`;
+  },
+  coupon(doc, f, w, o) {
+    if (w > 500) {
+      const nt = doc.querySelector('[data-role="contribution-remainder"] .contribution-table__note');
+      const row = doc.querySelector('[data-role="contribution-remainder"]');
+      return `${o.v === 'after' ? 'Nachher' : 'Heute'} at ${w} px: the interest line is ${px(R(row).height)} px tall, its note ${px(R(nt).width)} × ${px(R(nt).height)} px; the table ${px(R(doc.querySelector('#contribution-table')).height)} px; "Je Position" ${px(R(doc.querySelector('#income-positions table')).height)} px.`;
+    }
+    const li = [...doc.querySelectorAll('#contribution-phone-rows li')].map((r) => px(R(r).height));
+    return `${o.v === 'after' ? 'Nachher' : 'Heute'} at ${w} px: contribution phone rows ${li.join(' / ')} px; "Je Position" table ${px(doc.querySelector('#income-positions table').scrollWidth)} px in its ${px(doc.querySelector('#income-positions .data-table-wrapper').clientWidth)} px scroller.`;
+  }
+};
+
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .is-new{outline:2px dashed var(--color-accent);outline-offset:1px;border-radius:4px;} td.is-new,th.is-new,tr.is-new{outline-offset:-2px;border-radius:0;} .cap{margin:14px clamp(16px,2.4vw,28px) -4px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#5a6577;} .stub{margin:0;padding:8px clamp(16px,2.4vw,28px);font-size:12px;font-style:italic;color:#5a6577;} .app-main,.workspace-page,.workspace-panel{min-height:0!important;} .sheet-wrap{padding:0;} .sheet-wrap .booking-drawer{margin:0;border-radius:var(--radius-md,8px) var(--radius-md,8px) 0 0;} .transactions-columns--drawer .booking-drawer{margin:0;}</style>';
+
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  const css = CSS_MOCK + ('proposal' in f.dataset ? document.getElementById('proposal').outerHTML : '');
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument;
+    for (const dt of doc.querySelectorAll('.detail-pane-tabs')) {
+      const a = dt.querySelector('.is-active');
+      if (a && dt.scrollWidth > dt.clientWidth) dt.scrollLeft = Math.max(0, a.offsetLeft - dt.offsetLeft - 60);
+    }
+    /* the scroller drawn scrolled to the money columns: a negative margin
+       rather than a scroll, because the full-page capture re-lays out the
+       board and resets a scroll (the 2026-10-07 board's precedent) */
+    setTimeout(() => {
+      /* under 560 px app.css makes the table itself the scroller
+         (table { display: block; overflow-x: auto }), so the shift is on
+         its row groups */
+      for (const sw of doc.querySelectorAll('[data-scroll="money"]')) {
+        const t = sw.firstElementChild;
+        if (t.scrollWidth > t.clientWidth + 1) {
+          const th = t.querySelectorAll('thead th')[6];
+          const shift = th.offsetLeft + th.offsetWidth - t.clientWidth + 2;
+          sw.dataset.natural = t.scrollWidth;
+          t.style.overflow = 'hidden';
+          for (const g of t.querySelectorAll(':scope > thead, :scope > tbody')) g.style.transform = `translateX(${-shift}px)`;
+        }
+      }
+      f.style.height = Math.ceil(doc.documentElement.scrollHeight) + 'px';
+      const m = f.dataset.measure;
+      if (m && MEASURE[m]) {
+        const w = Math.round(f.getBoundingClientRect().width);
+        const side = w > 500 ? 'desk' : 'phone';
+        const key = `${m}-${o.v}-${side}`;
+        const out = document.querySelector(`[data-out="${key}"]`);
+        if (out && f.offsetParent !== null && !out.dataset.done) { out.innerHTML = MEASURE[m](doc, f, w, o); out.dataset.done = '1'; }
+      }
+    }, 120);
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>

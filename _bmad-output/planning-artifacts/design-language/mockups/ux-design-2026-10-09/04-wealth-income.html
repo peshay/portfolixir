@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Vermögen, Erträge und Cashflow: Wertspalten, Beitrag am Telefon, Null ohne Vorzeichen, Kosten je Monat, Wechselkurs (N5; #1125, #1123, #1149, #1210, #1150)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: what the G4 stories (board 04) change on Wealth and on
+     Cash flow. The frames are srcdoc iframes built from the live markup of
+     portfolio_live.ex (the Positions table, holdings_cell/2),
+     portfolio/contribution_table.ex (desktop_table/1, phone_rows/1,
+     phone_line/1), securities_live.ex (overview_tab_panel/1) and
+     income_live.ex (the Trades, Flows and Costs facets, fx_backfill_control/1),
+     with the German msgstrs, so a 390 px frame is a real 390 px viewport and
+     app.css's 560 px block fires (tables give way to phone rows, matrices
+     scroll). "Heute" frames render app.css as shipped; "Nachher" and variant
+     frames also get this block. Every story on this board changes markup,
+     a format call or a msgstr — none adds CSS, so the block is empty. -->
+<style id="proposal">
+  /* N5 (#1125): no CSS. holdings_cell/2 (portfolio_live.ex:2695-2704)
+     formats per column — A: money through Format.money, prices through the
+     stored-figure rule R10c, quantities as today — and the template writes
+     a text space before the suffix (:2506-2512), the contribution table's
+     sum row's form. */
+  /* #1123: no CSS. phone_line/1 (contribution_table.ex:621-629) gains
+     "costs %{amount}" where not zero. */
+  /* #1149: no CSS. Format.money/2 and Format.percent/2 drop the negative
+     zero (format.ex:21-41); pnl_class/1 (securities_live.ex:3234) and the
+     other raw-value sign classes take the displayed sign
+     (Format.displayed_sign/2). */
+  /* #1210: no CSS. The Costs read gains months[m].total; the Total row's
+     colspan (income_live.ex:825-829) becomes twelve .num cells. */
+  /* #1150: no CSS. German msgstrs only. */
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: hidden; }
+  .mock-frame > .mock-tag { display: block; padding: 4px 10px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .cap code { text-transform: none; letter-spacing: 0; }
+  .col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul, .notes ol { margin: 0; }
+  .notes ul, .notes ol { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code, .measure code, table.strings code { font-size: 11.5px; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .measure { font-size: 11.5px; color: var(--mock-ink); margin: 4px 0 0; max-width: 980px; }
+  .measure b.off { color: var(--color-danger); }
+  .measure b.ok { color: var(--color-positive); }
+  .phone-only { display: none; }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap, .measure { padding: 0 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 10px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph { width: 390px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Board 04 — Wealth, Income and Cash flow (G4).</b>
+<b>N5 — #1125, Wealth's optional value columns print "2.569,676EUR":</b> <b>A</b> money columns through <code>Format.money</code>, price columns by the history's stored-figure rule (R10c), a space before the suffix · <b>B</b> every value column through <code>Format.money</code> · <b>C</b> keep every stored digit, fix only the space. <span class="rec">Recommended A</span> (it amends DESIGN.md's "the table's money columns keep the projection's unrounded digits" in favour of ADR-0016 §4).<br>
+Before/after, nothing to pick: <b>#1123</b> the contribution table's phone row names a position's costs; <b>#1149</b> a figure that reads zero carries no sign and no gain/loss colour; <b>#1210</b> the Costs matrix's "Gesamt" row shows each month; <b>#1150</b> the shared rate-backfill control and the Flows and Costs notes say "Wechselkurs".
+A comment on the planning PR naming the code and a letter (e.g. "N5 C") changes the pick; silence adopts the recommendation. "Heute" is app.css and the templates as built; "Nachher" and the variants add <code>&lt;style id="proposal"&gt;</code> (empty: no story here adds CSS). Desktop frames: 980&nbsp;px (1200 − 220 sidebar); phone frames are real 390&nbsp;px viewports. Every name, figure, date and identifier is invented. <b>Dashed = new.</b></div>
+<div class="pickbar phone-only"><b>Board 04 at 390&nbsp;px.</b> Real 390&nbsp;px viewports: app.css's 560&nbsp;px block fires — Wealth's Positions and the contribution table give way to phone rows, the Cash-flow matrices scroll. Recommended: N5 A. Synthetic data only. <b>Dashed = new.</b></div>
+
+<!-- ============================ N5 ============================ -->
+<section class="mock-board" id="n5">
+  <h2>N5 — #1125: Wealth's optional value columns <small>Vermögen → Bestände → Positionen, every column switched on</small></h2>
+  <p class="mock-note">The column picker (#814) offers the holdings projection's valuation fields. <code>holdings_cell/2</code> prints all of them through <code>Format.exact</code> — every digit the projection carries, trailing zeros trimmed (<code>portfolio_live.ex:2697-2704</code>, <code>:2721-2729</code>) — and the template puts the currency suffix right after the digits with no text between them (<code>:2506-2512</code>), so the cell's text reads "2.569,676EUR" (the 4&nbsp;px gap is the suffix's margin, not a character). It is deliberate today: DESIGN.md (2026-10-08 amendment, <code>:6242-6243</code>) says "The table's money columns keep the projection's unrounded digits". ADR-0016 §4 says the human boundary rounds money to two places. The data: two depots, six positions; "Saltmarsh Logistics SE" was bought for 100,00 EUR in three shares, so its average cost is the projection's 100 ÷ 3 at 28 digits.</p>
+
+  <p class="cap desk-only" style="margin-top:14px">Heute</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — Format.exact, kein Leerzeichen</span><iframe data-tpl="pos" data-o='{"v":"today"}' data-measure="pos" title="N5 heute"></iframe></div>
+    <p class="measure" data-out="pos-today"></p>
+  </div>
+
+  <p class="cap desk-only" style="margin-top:22px">A <span class="rec">recommended</span> — money to two places, prices by the stored-figure rule, a space before the suffix</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — empfohlen</span><iframe data-tpl="pos" data-o='{"v":"A"}' data-proposal data-measure="pos" title="N5 A"></iframe></div>
+    <p class="measure" data-out="pos-A"></p>
+  </div>
+  <div class="notes desk-only" style="margin-top:10px;max-width:980px">
+    <p><b>A.</b> "Marktwert" and "G&amp;V" are money: <code>Format.money</code>, two places — "2.569,68". "Ø Kosten" and "Letzter Kurs" are prices per unit: the history's stored-figure rule R10c (DESIGN.md, the history's price column, amended 2026-10-07) — every stored digit up to four places, at least two, a price under 1 at least three significant digits — so "128,4838" stays what the Kurse tab and the history print for the same quote, and the projection's 28-digit average becomes "33,3333". "Stückzahl" keeps its stored digits, as everywhere. A text space goes before every suffix ("2.569,68 EUR"), the contribution table's sum row's form, so the cell reads as it looks.</p>
+    <p><b>Why A.</b> It follows ADR-0016 §4 — round at the human boundary, money to two places — which the DESIGN.md sentence contradicts; the sentence was a side remark of the "G&amp;V %" repair, not a decision with a reason of its own. The reason it gave, "this table is the human read of what the API serves", is kept where it matters: the API and MCP serve every digit, and the basis line already says the table is valued "zum zuletzt gespeicherten Kurs". A price is not money: rounding "128,4838" to "128,48" (B) would make Wealth disagree with the security's own Kurse tab and the history for one stored quote.</p>
+    <p><b>Found while drawing (fixed in this story, D-14):</b> "G&amp;V" is a signed figure with neither its "+" nor its colour ("60", "-65"), against DESIGN.md → Colors ("wherever a sign exists, at every level of a table") and issue 1010's rule; the story prints it signed in its sign colour, decided on the figure as displayed (#1149), in every variant — dashed below.</p>
+  </div>
+
+  <p class="cap desk-only" style="margin-top:22px">B — every value column through Format.money</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">B</span><iframe data-tpl="pos" data-o='{"v":"B"}' data-proposal data-measure="pos" title="N5 B"></iframe></div>
+    <p class="measure" data-out="pos-B"></p>
+  </div>
+  <div class="notes desk-only" style="margin-top:10px;max-width:980px">
+    <p><b>B</b> is one rule for every value column and the simplest code. It rounds prices to cents: Nordwind's quote, stored as 128,4838 and printed so on the Kurse tab and in the history, reads 128,48 here; a price under one cent (a penny stock, a fund unit priced at 0,0045) reads 0,00.</p>
+  </div>
+
+  <p class="cap desk-only" style="margin-top:22px">C — keep every stored digit, add the space</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">C</span><iframe data-tpl="pos" data-o='{"v":"C"}' data-proposal data-measure="pos" title="N5 C"></iframe></div>
+    <p class="measure" data-out="pos-C"></p>
+  </div>
+  <div class="notes desk-only" style="margin-top:10px;max-width:980px">
+    <p><b>C</b> keeps DESIGN.md's sentence and fixes only the run-in suffix. The figures still disagree with every other money cell in the app ("1.100 USD" beside "4.618,25 EUR"), and a computed average keeps all 28 digits, which sets the column's width (measured above).</p>
+  </div>
+
+  <div class="mock-row phone-only">
+    <div class="ph mock-frame"><span class="mock-tag vtag">Heute = A = B = C — 390 px</span><iframe data-tpl="posphone" data-o='{}' title="N5 390"></iframe></div>
+    <div class="notes"><p>Under 560&nbsp;px the table gives way to two-line rows with the quantity alone (#1065, a fixed composition the picker does not touch): N5 changes nothing here. The variants are drawn at 1200&nbsp;px.</p></div>
+  </div>
+</section>
+
+<!-- ============================ #1123 ============================ -->
+<section class="mock-board" id="z1123">
+  <h2>#1123 — the contribution table's phone row names a position's costs <small>Vorher / Nachher: Vermögen → Bestände → Performance → „Beitrag je Position“, 390&nbsp;px</small></h2>
+  <p class="mock-note">At 1200&nbsp;px the table has a Kosten column (<code>contribution_table.ex:179</code>, <code>:204</code>). Under 560&nbsp;px the row's second line is <code>phone_line/1</code> (<code>:621-629</code>): the two ends, the flow and the income where not zero — never the costs. A position whose fees and taxes are part of its contribution cannot be reconciled on a phone: Larkspur Rail AG reads "Zufluss in die Position 920,00" and "+32,50", where 962,50 − 920,00 is 42,50 and the 10,00 of costs are the difference. Nachher, by DESIGN.md → the contribution table, "Under 560 px (UX-DR27)": "· Kosten 10,00" after the income, where not zero — the formula's order (flows, income, costs) and the desktop column's figure, unsigned as there.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame"><span class="mock-tag vtag">1200 px — unverändert, die Zeile, die das Telefon wiederholt</span><iframe data-tpl="contrib" data-o='{}' title="#1123 Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="contrib" data-o='{"phone":true}' data-measure="contrib" title="#1123 heute 390"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="contrib" data-o='{"phone":true,"fix":true}' data-proposal data-measure="contrib" title="#1123 nachher 390"></iframe></div>
+    <div class="notes">
+      <p class="measure" data-out="contrib-today" style="padding:0"></p>
+      <p class="measure" data-out="contrib-after" style="padding:0"></p>
+      <p><b>The order</b> is the basis line's formula — "Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten" — so the line reads in the order the reader adds it up. <b>Unsigned</b>, as the desktop column and the sum row print costs; the word carries the direction. <b>Zero is left out</b>, as the flow and the income are. The remainder row's "Gebühren/Steuern" is a different figure (fees and taxes booked on no trade) and is unchanged.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1149 ============================ -->
+<section class="mock-board" id="z1149">
+  <h2>#1149 — a figure that reads zero has no sign and no gain/loss colour <small>Vorher / Nachher: Wertpapiere → Nordwind Industrie AG → Übersicht; Vermögen → Cashflow → Trades → „Realisiert je Periode“</small></h2>
+  <p class="mock-note">The Trades amendment's rule (DESIGN.md, 2026-10-07: "the sign and the colour are decided on the figure as displayed", <code>Format.displayed_sign/2</code>) holds on the Trades facet and the security's Trades tab only. Elsewhere two gaps remain. <b>The colour:</b> <code>pnl_class/1</code> (<code>securities_live.ex:3234-3245</code>) colours by the raw value, so on the security's Übersicht a day change of +0,004&nbsp;% reads "0,00 %" in the gain colour and an unrealised result of −0,004&nbsp;EUR reads "0,00" in the loss colour. <b>The negative zero:</b> <code>Format.money/2</code> and <code>Format.percent/2</code> round and print <code>Decimal</code>'s "-0.00" (<code>format.ex:21-41</code>), so the "Realisiert je Periode" matrix (<code>income_live.ex:647</code>) shows "-0,00" for a February whose one sale netted −0,004&nbsp;EUR. Nachher: "0,00" in body ink. The percents keep today's form here; #1201 (board 02) changes their digits on the same metrics.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „0,00 %“ grün, „0,00“ rot</span><iframe data-tpl="detail" data-o='{}' title="#1149 Detail heute"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — ohne Vorzeichenfarbe</span><iframe data-tpl="detail" data-o='{"fix":true}' data-proposal title="#1149 Detail nachher"></iframe></div>
+  </div>
+  <div class="mock-row phone-only">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="detail" data-o='{}' title="#1149 Detail heute 390"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="detail" data-o='{"fix":true}' data-proposal title="#1149 Detail nachher 390"></iframe></div>
+  </div>
+  <div class="col desk-only" style="margin-top:16px">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „-0,00“ im Februar</span><iframe data-tpl="rmatrix" data-o='{}' title="#1149 Matrix heute"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — „0,00“</span><iframe data-tpl="rmatrix" data-o='{"fix":true}' data-proposal title="#1149 Matrix nachher"></iframe></div>
+  </div>
+  <div class="mock-row phone-only">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="rmatrix" data-o='{}' title="#1149 Matrix heute 390"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="rmatrix" data-o='{"fix":true}' data-proposal title="#1149 Matrix nachher 390"></iframe></div>
+  </div>
+  <div class="notes" style="margin-top:12px;max-width:980px">
+    <p><b>One rule, all callers.</b> <code>Format.money/2</code> and <code>Format.percent/2</code> print a value that rounds to zero without its sign (the private <code>signed_text/2</code> already does it for the signed forms); every class helper that colours a figure by its raw sign — <code>pnl_class/1</code> here, and the ones found while drawing (contribution table, Overview card, Wealth's badge) — takes <code>Format.displayed_sign/2</code>. Its own commit, with a sweep test over the exact strings (the plan's G4).</p>
+  </div>
+</section>
+
+<!-- ============================ #1210 ============================ -->
+<section class="mock-board" id="z1210">
+  <h2>#1210 — the Costs matrix shows each month's total <small>Vorher / Nachher: Vermögen → Cashflow → Kosten → „Gebühren und Steuern je Periode“</small></h2>
+  <p class="mock-note">The read's months carry <code>fees</code> and <code>taxes</code> only (<code>costs.ex:156-160</code>), so the "Gesamt" row spans its twelve month cells with one empty cell (<code>income_live.ex:825-829</code>) and prints only the year's total. A January with 5,00 of fees and 1,00 of taxes never shows its 6,00 — the figure ADR-0015's amendment of 2026-10-07 names in identity 2. Nachher: the read gains <code>months[m].total</code> (fees + taxes, with its computation basis and contract entry), and the row prints it in each month, in the row's own type, as the two series rows print theirs — "0,00" in an empty month, as they do.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „Gesamt“ leer bis auf das Jahr</span><iframe data-tpl="costs" data-o='{}' data-measure="costs" title="#1210 heute"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher</span><iframe data-tpl="costs" data-o='{"fix":true}' data-proposal data-measure="costs" title="#1210 nachher"></iframe></div>
+    <p class="measure" data-out="costs-desk"></p>
+  </div>
+  <div class="mock-row phone-only">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="costs" data-o='{}' title="#1210 heute 390"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="costs" data-o='{"fix":true}' data-proposal data-measure="costs" title="#1210 nachher 390"></iframe></div>
+    <p class="measure" data-out="costs-phone"></p>
+  </div>
+</section>
+
+<!-- ============================ #1150 ============================ -->
+<section class="mock-board" id="z1150">
+  <h2>#1150 — "Wechselkurs", never "Kurs", in the backfill control and the two notes beside it <small>Vorher / Nachher: Vermögen → Cashflow → Trades, Ein- &amp; Auszahlungen, Kosten</small></h2>
+  <p class="mock-note"><code>fx_backfill_control/1</code> (<code>income_live.ex:100-146</code>) renders inside the exclusion note of three facets. Since #1089 the Trades note says "kein gespeicherter Wechselkurs"; the control beside it still says "Die tägliche Kurssynchronisation …", "Historische Kurse nachladen" and "Nachladen hat 214 Kurse gespeichert." — and the Flows and Costs notes still say "kein gespeicherter Kurs". On this screen "Kurs" is a security's quote (DESIGN.md, the contribution table's account sentence, <code>:4019</code>: "‘Wechselkurs’, never ‘Kurs’, which the screen keeps for a security's price"; the Trades currency note, <code>:3326-3329</code>). Nachher: the German msgstrs only — the English msgids already say "rate". Three states drawn: the Trades note at rest, the Flows note after a backfill, the Costs note while it runs.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „Kurs“</span><iframe data-tpl="fx" data-o='{}' title="#1150 heute"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — „Wechselkurs“</span><iframe data-tpl="fx" data-o='{"fix":true}' data-proposal data-measure="fx" title="#1150 nachher"></iframe></div>
+    <p class="measure" data-out="fx-desk"></p>
+  </div>
+  <div class="mock-row phone-only">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="fx" data-o='{}' title="#1150 heute 390"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="fx" data-o='{"fix":true}' data-proposal data-measure="fx" title="#1150 nachher 390"></iframe></div>
+    <p class="measure" data-out="fx-phone"></p>
+  </div>
+  <div class="notes" style="margin-top:12px;max-width:980px">
+    <p><b>Also in the story, not drawn (no rendered difference outside an opened ⓘ):</b> the Flows and Costs facets' ⓘ say "zum Kurs seines eigenen Buchungstags", "kein Kurs gespeichert" and "zum Kurs eines Nachbartags" — three "Kurs" each, where the Trades facet's ⓘ says "Wechselkurs" (found while drawing); and the German handbook names the button in three places — <code>docs/de/product-documentation.md:2456-2458</code> and <code>docs/de/integration/api-and-mcp.md:3072</code>, which the triage found, and <code>docs/de/product-documentation.md:1687</code>, which it did not (found while drawing).</p>
+  </div>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc)
+   from the live markup of portfolio_live.ex, contribution_table.ex,
+   securities_live.ex and income_live.ex with the German msgstrs. The
+   stylesheet is linked by an absolute file:// URL computed from this
+   board's address, so it resolves inside srcdoc. Synthetic data. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', location.href).href;
+const P = {
+  tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+  oct: '<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>',
+  ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>',
+  chart_line: '<path d="M3 17 9 11l4 4 8-8"/>',
+  pie: '<path d="M21 12A9 9 0 1 1 12 3v9Z"/><path d="M21 12a9 9 0 0 0-9-9v9h9Z"/>',
+  chart_bar: '<path d="M3 20V8M9 20V4M15 20v-8M21 20v-5"/>',
+  camera: '<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2Z"/><circle cx="12" cy="13" r="4"/>',
+  calc: '<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 7h6"/><path d="M9 17h6"/>',
+  shield: '<path d="M12 21s7-3.5 7-9V5.5L12 3 5 5.5V12c0 5.5 7 9 7 9Z"/>',
+  columns: '<rect x="3" y="4" width="6" height="16" rx="1"/><rect x="11" y="4" width="6" height="16" rx="1"/><rect x="19" y="4" width="2" height="16" rx="1"/>',
+  chevron_right: '<path d="m9 6 6 6-6 6"/>',
+  max: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>'
+};
+const svg = (n, s = 14, cls = '') => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"${cls ? ` class="${cls}"` : ''} aria-hidden="true">${P[n]}</svg>`;
+const SEV = { note: ['ast', 'Hinweis'], attention: ['tri', 'Achtung'], problem: ['oct', 'Problem'] };
+const note = (sev, body, attrs = '', cls = '') => `<div class="data-note data-note--${sev}${cls ? ' ' + cls : ''}" ${attrs}><span class="data-note__icon" aria-hidden="true">${svg(SEV[sev][0])}</span><span class="data-note__word">${SEV[sev][1]}</span><div class="data-note__body">${body}</div></div>`;
+const wrap = (inner) => `<main class="app-main app-main--workspace"><div class="workspace-page">${inner}</div></main>`;
+const stub = (t) => `<div class="stub">${t}</div>`;
+const NEW = (on) => (on ? ' is-new' : '');
+const areaTabs = (active) => `<nav id="area-tabs" class="area-tabs" data-role="area-tabs" aria-label="Bereichs-Tabs">${[['chart_line', 'Bestände'], ['pie', 'Allokation & Ziele'], ['chart_bar', 'Cashflow'], ['camera', 'Snapshots'], ['calc', 'Steuern'], ['shield', 'Risiko']].map(([i, l]) => `<a href="#" class="area-tab${l === active ? ' is-active' : ''}"${l === active ? ' aria-current="page"' : ''}><span class="area-tab__icon" aria-hidden="true">${svg(i)}</span><span class="area-tab__label" data-label="${l}">${l}</span></a>`).join('')}</nav>`;
+const facets = (active) => `<div class="workspace-section workspace-section--controls"><nav class="segmented-control" data-role="cashflow-facets" aria-label="Cashflow-Facette">${['Erträge', 'Trades', 'Ein- & Auszahlungen', 'Kosten'].map((f) => `<a href="#" class="segmented-control__option${f === active ? ' is-active' : ''}"${f === active ? ' aria-current="true"' : ''}>${f}</a>`).join('')}</nav></div>`;
+
+/* ================= N5 — #1125 ================= */
+/* Each position: the projection's values as Format.exact prints them, and
+   the two formats the variants apply. */
+const POS = [
+  { depot: 'Depot Muster', name: 'Arbolia Inc.', q: '40', cur: 'USD', avg: ['26', '26,00', '26,00'], last: ['27,5', '27,50', '27,50'], mv: ['1.100', '1.100,00'], pnl: ['60', '+60,00', '+60'], s: 1, pct: '+5,8%' },
+  { depot: 'Depot Muster', name: 'Halvorsen Shipping AS', q: '52', cur: 'USD', avg: ['21,25', '21,25', '21,25'], last: ['20', '20,00', '20,00'], mv: ['1.040', '1.040,00'], pnl: ['-65', '-65,00', '-65'], s: -1, pct: '-5,9%' },
+  { depot: 'Depot Muster', name: 'Nordwind Industrie AG', q: '20', cur: 'EUR', avg: ['115,77', '115,77', '115,77'], last: ['128,4838', '128,4838', '128,48'], mv: ['2.569,676', '2.569,68'], pnl: ['254,276', '+254,28', '+254,276'], s: 1, pct: '+11,0%' },
+  { depot: 'Depot Nord', name: 'Larkspur Rail AG', q: '8', cur: 'EUR', avg: ['0', '0,00', '0,00'], last: ['20,9', '20,90', '20,90'], mv: ['167,2', '167,20'], pnl: ['167,2', '+167,20', '+167,2'], s: 1, pct: null },
+  { depot: 'Depot Nord', name: 'Saltmarsh Logistics SE', q: '3', cur: 'EUR', avg: ['33,33333333333333333333333333', '33,3333', '33,33'], last: ['34,1', '34,10', '34,10'], mv: ['102,3', '102,30'], pnl: ['2,3', '+2,30', '+2,3'], s: 1, pct: '+2,3%' },
+  { depot: 'Depot Nord', name: 'Wrenfield Gardens AG', q: '120', cur: 'EUR', avg: ['48,2', '48,20', '48,20'], last: ['58,43', '58,43', '58,43'], mv: ['7.011,6', '7.011,60'], pnl: ['1.227,6', '+1.227,60', '+1.227,6'], s: 1, pct: '+21,2%' }
+];
+function pos(o) {
+  const v = o.v;
+  const sfx = (cur, space, isNew) => `${space ? (isNew ? '<span class="is-new">&nbsp;</span>' : ' ') : ''}<small class="value-suffix">${cur}</small>`;
+  const space = v !== 'today';
+  const fmtPrice = (arr) => (v === 'today' || v === 'C' ? arr[0] : v === 'A' ? arr[1] : arr[2]);
+  const fmtMoney = (arr) => (v === 'today' || v === 'C' ? arr[0] : arr[1]);
+  const fmtPnl = (r) => (v === 'today' ? r.pnl[0] : v === 'C' ? r.pnl[2] : r.pnl[1]);
+  const sc = (s) => (s > 0 ? 'is-positive' : s < 0 ? 'is-negative' : 'is-flat');
+  const changed = v !== 'today';
+  const rows = POS.map((r) => `<tr data-role="holdings-position"><td>${r.depot}</td><td>${r.name}</td><td class="num">${r.q}</td><td>${r.cur}</td>`
+    + `<td class="num${NEW(changed && v !== 'C')}">${fmtPrice(r.avg)}${sfx(r.cur, space)}</td>`
+    + `<td class="num${NEW(changed && v !== 'C')}">${fmtPrice(r.last)}${sfx(r.cur, space)}</td>`
+    + `<td class="num${NEW(changed && v !== 'C')}">${fmtMoney(r.mv)}${sfx(r.cur, space)}</td>`
+    + `<td class="num${changed ? ' ' + sc(r.s) + ' is-new' : ''}">${fmtPnl(r)}${sfx(r.cur, space)}</td>`
+    + (r.pct ? `<td class="num ${sc(r.s)}">${r.pct}</td>` : '<td class="num trade-pa--na" title="Keine Rendite: keine Kostenbasis"><span aria-hidden="true">—</span><span class="visually-hidden">keine Rendite, keine Kostenbasis</span></td>')
+    + '</tr>').join('');
+  return wrap(`${areaTabs('Bestände')}<p class="cap">Vermögen → Bestände → Positionen — alle Spalten an</p><section id="portfolio-positions" class="workspace-section"><header class="section-head"><h2>Positionen</h2><div class="popover-container"><button type="button" id="holdings-column-toggle" class="button-ghost column-picker-toggle" aria-haspopup="dialog" aria-expanded="false">${svg('columns', 14)} Spalten</button></div></header><p class="summary-basis" data-role="positions-basis">Eine Zeile je Depot und Wertpapier, bewertet zum zuletzt gespeicherten Kurs.</p><div id="holdings-positions-wrapper" class="data-table-wrapper"><table id="holdings-positions-table" class="data-table"><thead><tr><th>Depot</th><th>Wertpapier</th><th class="num">Stückzahl</th><th>Währung</th><th class="num">Ø Kosten</th><th class="num">Letzter Kurs</th><th class="num">Marktwert</th><th class="num">G&amp;V</th><th class="num">G&amp;V %</th></tr></thead><tbody>${rows}</tbody></table></div></section>`);
+}
+function posphone() {
+  const rows = POS.map((r) => `<li class="phone-row" data-role="holdings-position"><span class="phone-row__body"><span class="phone-row__name">${r.name}</span><span class="phone-row__ids">${r.depot}</span></span><span class="phone-row__figures"><span class="phone-row__figure">${r.q} Stück</span></span></li>`).join('');
+  return wrap(`<p class="cap">Vermögen → Bestände → Positionen</p><section id="portfolio-positions" class="workspace-section"><header class="section-head"><h2>Positionen</h2><div class="popover-container"><button type="button" class="button-ghost column-picker-toggle">${svg('columns', 14)} Spalten</button></div></header><p class="summary-basis">Eine Zeile je Depot und Wertpapier, bewertet zum zuletzt gespeicherten Kurs.</p><div id="holdings-positions-wrapper" class="data-table-wrapper"><table class="data-table"><tbody><tr><td>…</td></tr></tbody></table></div><ul id="holdings-phone-rows" class="phone-rows" aria-label="Positionen">${rows}</ul></section>`);
+}
+
+/* ================= #1123 — the contribution table ================= */
+const CT = [
+  { name: 'Arbolia Inc.', start: '4.210,00', flows: '0,00', income: '0,00', costs: '0,00', end: '4.655,40', c: '+445,40', s: 1, w: 45, ends: '4.210,00 → 4.655,40', extra: [] },
+  { name: 'Halvorsen Shipping AS', held: 'am Ende nicht mehr im Bestand', start: '1.240,00', flows: '-1.402,00', income: '0,00', costs: '9,90', end: '0,00', c: '+152,10', s: 1, w: 15.4, extra: ['Abfluss aus der Position 1.402,00'], k: '9,90' },
+  { name: 'Larkspur Rail AG', held: 'zu Beginn nicht im Bestand', start: '0,00', flows: '+920,00', income: '0,00', costs: '10,00', end: '962,50', c: '+32,50', s: 1, w: 3.3, extra: ['Zufluss in die Position 920,00'], k: '10,00' },
+  { name: 'Wrenfield Gardens AG', start: '5.784,00', flows: '0,00', income: '+96,00', costs: '14,40', end: '5.412,00', c: '-290,40', s: -1, w: 29.3, ends: '5.784,00 → 5.412,00', extra: ['Erträge 96,00'], k: '14,40' }
+];
+function contrib(o) {
+  const sc = (s) => (s > 0 ? 'is-positive' : 'is-negative');
+  const head = '<div class="contribution__head"><h3 id="contribution-title">Beitrag je Position</h3><span class="contribution__scope" data-role="contribution-scope">1J · Ansicht Alles · sortiert nach Beitrag</span></div>';
+  const rows = CT.map((p) => `<tr data-role="contribution-row"><td class="contribution-table__name">${p.name}${p.held ? `<small class="contribution-table__note">${p.held}</small>` : ''}</td><td class="num">${p.start}</td><td class="num">${p.flows}</td><td class="num">${p.income}</td><td class="num">${p.costs}</td><td class="num">${p.end}</td><td class="num contribution-table__figure"><span class="${sc(p.s)}">${p.c}</span><span class="drift-bar" aria-hidden="true"><span class="drift-bar__fill ${p.s > 0 ? 'is-over' : 'is-under'}" style="width: ${p.w}%"></span></span></td></tr>`).join('');
+  const rest = [['Zinsen', 'Konto und Kupons; eine Zinsbuchung trägt kein Wertpapier', '+12,40', 1], ['Einzelne Gebühren und Steuern', 'Ohne Handelsbezug, auch mit Wertpapier', '-4,00', -1], ['Währungseffekt auf Bargeld', 'Fremdwährungskonten und Abrechnungsdifferenzen von Käufen und Verkäufen', '+18,25', 1]]
+    .map(([l, n, f, s]) => `<tr class="contribution-table__rest" data-role="contribution-remainder"><td class="contribution-table__name">${l}<small class="contribution-table__note">${n}</small></td>${'<td class="num contribution-table__none">—</td>'.repeat(5)}<td class="num"><span class="${sc(s)}">${f}</span></td></tr>`).join('');
+  const table = `<div id="contribution-table-wrap" class="data-table-wrapper"><table id="contribution-table" class="data-table contribution-table" aria-labelledby="contribution-title"><thead><tr><th scope="col">Wertpapier</th><th scope="col" class="num">Anfangswert</th><th scope="col" class="num">Zu-/Abflüsse</th><th scope="col" class="num">Erträge</th><th scope="col" class="num">Kosten</th><th scope="col" class="num">Endwert</th><th scope="col" class="num">Beitrag</th></tr></thead><tbody>${rows}<tr class="contribution-table__rest-head"><td colspan="7" data-role="contribution-rest-head">Keiner Position zugeordnet</td></tr>${rest}<tr class="contribution-table__sum" data-role="contribution-sum"><td>Summe = Ergebnis im Zeitraum</td><td class="num">11.234,00</td><td class="num">-482,00</td><td class="num">+96,00</td><td class="num">34,30</td><td class="num">11.029,90</td><td class="num"><span class="is-positive">+366,25</span><small class="value-suffix">EUR</small></td></tr></tbody></table></div>`;
+  const line = (p) => {
+    const parts = [p.held || p.ends].concat(p.extra);
+    if (o.fix && p.k) parts.push(`<span class="is-new">Kosten ${p.k}</span>`);
+    return parts.join(' · ');
+  };
+  const phone = `<ul id="contribution-phone-rows" class="phone-rows contribution-phone-rows" aria-label="Beitrag je Position">${CT.map((p) => `<li class="phone-row" data-role="contribution-row"><span class="phone-row__body"><span class="phone-row__name">${p.name}</span><span class="phone-row__ids">${line(p)}</span></span><span class="phone-row__figures"><span class="phone-row__figure ${sc(p.s)}">${p.c}</span></span></li>`).join('')}<li class="phone-row contribution-phone-rows__rest" data-role="contribution-phone-rest"><span class="phone-row__body"><span class="phone-row__name">Keiner Position zugeordnet</span><span class="phone-row__ids">Zinsen +12,40 · Gebühren/Steuern -4,00 · Währung +18,25</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+26,65</span></span></li><li class="phone-row contribution-phone-rows__sum" data-role="contribution-phone-sum"><span class="phone-row__body"><span class="phone-row__name">Summe = Ergebnis im Zeitraum</span><span class="phone-row__ids">Positionen und Restposten</span></span><span class="phone-row__figures"><span class="phone-row__figure is-positive">+366,25 <small class="value-suffix">EUR</small></span></span></li></ul>`;
+  const basis = '<p class="summary-basis" data-role="contribution-basis">Beitrag = Endwert − Anfangswert − Zu-/Abflüsse + Erträge − Kosten · je Position in EUR, einschließlich der Währungsbewegung · Anfangswert: der Schluss des Vortags · Positionen und Restposten ergeben genau das Ergebnis im Zeitraum; Einzahlungen und Entnahmen sind kein Ergebnis</p>';
+  return wrap(`<p class="cap">Vermögen → Bestände → Performance (1J)</p><section id="portfolio-performance" class="workspace-section">${stub('… Performance, Zeitraum 1J, das Diagramm …')}<div id="performance-contribution" class="contribution" data-role="contribution">${head}${table}${phone}${basis}</div></section>`);
+}
+
+/* ================= #1149 — the security's Übersicht ================= */
+const PANE_TABS = ['Übersicht', 'Diagramm', 'Transaktionen', 'Trades', 'Kurse', 'Bestände', 'Klassifizierungen', 'Research', 'Termine'];
+function pane(name, sub, active, body) {
+  return `<div class="detail-pane" aria-label="Ausgewähltes Wertpapier"><header class="detail-pane-head"><div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial">${name[0]}</span><div><h2>${name}</h2><p class="detail-pane-sub">${sub}</p></div></div><div class="detail-pane-head__actions"><button type="button" class="button-ghost">Bearbeiten</button><button type="button" class="button-ghost">Split erfassen</button><button type="button" class="icon-button" aria-label="Maximieren">${svg('max', 16)}</button><button type="button" class="icon-button" aria-label="Detail schließen">${svg('x', 16)}</button></div></header><nav class="detail-pane-tabs" role="tablist" aria-label="Wertpapier-Detailansicht">${PANE_TABS.map((t) => `<button type="button" role="tab" class="detail-pane-tab${t === active ? ' is-active' : ''}"${t === active ? ' aria-selected="true"' : ''}>${t}</button>`).join('')}</nav>${body}</div>`;
+}
+function detail(o) {
+  const fix = !!o.fix;
+  const metrics = `<dl class="overview-metrics">
+    <div class="overview-metric" data-role="overview-latest-price"><dt>Letzter Kurs</dt><dd>61,24 <small class="overview-metric__unit">EUR</small><small class="overview-metric__sub">(08.10.2026)</small></dd></div>
+    <div class="overview-metric" data-role="overview-day-change"><dt>Tagesänderung</dt><dd class="${fix ? 'is-new' : 'is-positive'}">0,00 %</dd></div>
+    <div class="overview-metric" data-role="overview-1y"><dt>1J</dt><dd class="is-positive">+12,48 %<small class="overview-metric__sub">nur Kurs</small></dd></div>
+    <div class="overview-metric" data-role="overview-holding"><dt>Bestand</dt><dd>37,0000 <small class="overview-metric__unit">Stück</small><small class="overview-metric__sub">Depot Muster</small></dd></div>
+    <div class="overview-metric" data-role="overview-value"><dt>Wert</dt><dd>2.265,88 <small class="overview-metric__unit">EUR</small></dd></div>
+    <div class="overview-metric" data-role="overview-unrealised"><dt>Unrealisiert</dt><dd class="${fix ? 'is-new' : 'is-negative'}">0,00<small class="overview-metric__sub">0,00 % · gegen den Durchschnittseinstand</small></dd></div>
+  </dl>`;
+  const body = `<section id="detail-tab-panel-overview" role="tabpanel" class="detail-tab-panel detail-tab-panel--overview"><div class="overview-reading"><div class="overview-reading__main">${metrics}${stub('… das Kursdiagramm und die Grundlage …')}</div><div class="overview-reading__side">${stub('… These und Notiz …')}</div></div></section>`;
+  return wrap(`<p class="cap">Wertpapiere → Nordwind Industrie AG → Übersicht</p><section class="workspace-section">${pane('Nordwind Industrie AG', 'DE000000000N · NWI · EUR · Letzter 61,24 (08.10.2026)', 'Übersicht', body)}</section>`);
+}
+
+/* ================= #1149 — the realized matrix ================= */
+const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+function rmatrix(o) {
+  const fix = !!o.fix;
+  const y26 = ['0,00', fix ? '<span class="is-new">0,00</span>' : '-0,00', '0,00', '0,00', '0,00', '0,00', '0,00', '-86,15', '-1.067,40', '0,00', '0,00', '0,00'];
+  const y25 = ['0,00', '0,00', '0,00', '0,00', '0,00', '0,00', '0,00', '0,00', '0,00', '0,00', '240,30', '0,00'];
+  const row = (y, cells, total) => `<tr><td>${y} <span class="muted">(EUR)</span></td>${cells.map((c) => `<td class="num">${c}</td>`).join('')}<td class="num col-subject">${total}</td></tr>`;
+  return wrap(`${facets('Trades')}<section id="realized-annual" class="workspace-section"><h2>Realisiert je Periode</h2><details id="realized-annual-disclosure" class="section-disclosure" open><summary class="disclosure-summary">${svg('chevron_right', 14, 'disclosure-chevron')} Matrix nach Jahr und Monat</summary><p class="detail-tab-hint">Dieselben abgeschlossenen Trades, nach Jahr und Monat aggregiert.</p><div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Jahr</th>${MONTHS.map((m) => `<th class="num">${m}</th>`).join('')}<th class="num col-subject">Gesamt</th></tr></thead><tbody>${row(2026, y26, '-1.153,55')}${row(2025, y25, '240,30')}</tbody></table></div></details></section>`);
+}
+
+/* ================= #1210 — the Costs matrix ================= */
+function costs(o) {
+  const fix = !!o.fix;
+  const fees = ['5,00', '0,00', '9,90', '0,00', '7,50', '0,00', '4,90', '9,90', '2,50', '0,00', '0,00', '0,00'];
+  const taxes = ['1,00', '0,00', '0,00', '14,40', '2,50', '0,00', '18,40', '0,00', '0,00', '0,00', '0,00', '0,00'];
+  const totals = ['6,00', '0,00', '9,90', '14,40', '10,00', '0,00', '23,30', '9,90', '2,50', '0,00', '0,00', '0,00'];
+  const fees25 = ['0,00', '0,00', '0,00', '0,00', '0,00', '0,00', '0,00', '0,00', '0,00', '0,00', '9,90', '0,00'];
+  const zero = Array(12).fill('0,00');
+  const tot25 = fees25;
+  const cells = (arr) => arr.map((c) => `<td class="num">${c}</td>`).join('');
+  const totalRow = (arr, t) => `<tr class="totals-row"><td>Gesamt</td>${fix ? arr.map((c) => `<td class="num is-new">${c}</td>`).join('') : '<td class="num" colspan="12"></td>'}<td class="num col-subject">${t}</td></tr>`;
+  const year = (y, f, tx, tot, ft, tt, t) => `<tr><td rowspan="3">${y} <span class="muted">(EUR)</span></td><td>Gebühren</td>${cells(f)}<td class="num col-subject">${ft}</td></tr><tr><td>Steuern</td>${cells(tx)}<td class="num col-subject">${tt}</td></tr>${totalRow(tot, t)}`;
+  return wrap(`${facets('Kosten')}<section class="workspace-section"><div class="summary-basis" data-role="facet-basis">Beträge in EUR · Gebühren und Steuern auf Überblicksebene · alle Portfolios <details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zu dieser Facette">ⓘ</summary><p role="tooltip">…</p></details></div></section><section id="costs-annual" class="workspace-section"><h2>Gebühren und Steuern je Periode</h2><div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Jahr</th><th>Reihe</th>${MONTHS.map((m) => `<th class="num">${m}</th>`).join('')}<th class="num col-subject">Gesamt</th></tr></thead><tbody>${year(2026, fees, taxes, totals, '39,70', '36,30', '76,00')}${year(2025, fees25, zero, tot25, '9,90', '0,00', '9,90')}</tbody></table></div></section>`);
+}
+
+/* ================= #1150 — the backfill control ================= */
+function fx(o) {
+  const fix = !!o.fix;
+  const K = (old, neu) => (fix ? `<span class="is-new">${neu}</span>` : old);
+  const sync = fix
+    ? '<span class="is-new">Die tägliche Synchronisation der Wechselkurse</span> kann einen vergangenen Tag nicht nachtragen. Das Nachladen holt die historische EZB-Reihe einmalig und speichert jeden veröffentlichten Tag; ein Tag, den die EZB nicht veröffentlicht hat, bleibt ausgeschlossen.'
+    : 'Die tägliche Kurssynchronisation kann einen vergangenen Tag nicht nachtragen. Das Nachladen holt die historische EZB-Reihe einmalig und speichert jeden veröffentlichten Tag; ein Tag, den die EZB nicht veröffentlicht hat, bleibt ausgeschlossen.';
+  const button = `<button type="button" id="fx-backfill-button" class="button-mini${NEW(fix)}">${fix ? 'Historische Wechselkurse nachladen' : 'Historische Kurse nachladen'}</button>`;
+  const control = (state) => {
+    if (state === 'busy') return `<div class="fx-backfill" data-role="fx-backfill"><span class="muted">${sync}</span><button type="button" id="fx-backfill-button" class="button-mini" disabled><span class="spinner" aria-hidden="true"></span> Lädt nach…</button><span class="hint" data-role="fx-backfill-status" role="status">Historische Reihe wird geholt…</span></div>`;
+    const result = state === 'done' ? `<span class="hint" data-role="fx-backfill-result" role="status">Nachladen hat 214 ${K('Kurse', 'Wechselkurse')} gespeichert.</span>` : '';
+    return `<div class="fx-backfill" data-role="fx-backfill"><span class="muted">${sync}</span>${button}${result}</div>`;
+  };
+  const trades = note('attention', `1 Verkauf konnte nicht konvertiert werden — kein gespeicherter Wechselkurs an seinem Schlussdatum — und ist aus jeder Summe ausgeschlossen: Halvorsen Shipping AS.${control('rest')}`, 'id="realized-excluded" data-role="realized-excluded"');
+  const flows = note('attention', `1 Zahlungsstrom konnte nicht konvertiert werden — kein gespeicherter ${K('Kurs', 'Wechselkurs')} zu seinem Buchungsdatum — und ist aus allen Summen ausgeschlossen. Betroffenes Konto: USD Settlement.${control('done')}`, 'id="flows-excluded" data-role="flows-excluded"');
+  const cost = note('attention', `2 Kostenposten konnten nicht konvertiert werden — kein gespeicherter ${K('Kurs', 'Wechselkurs')} zu ihren Buchungsdaten — und sind aus allen Summen ausgeschlossen. Betroffene Währung: USD.${control('busy')}`, 'id="costs-excluded" data-role="costs-excluded"');
+  return wrap(`<p class="cap">Cashflow → Trades — in Ruhe</p><section id="realized-trades" class="workspace-section kpi-band">${trades}</section><p class="cap">Cashflow → Ein- &amp; Auszahlungen — nach dem Nachladen (ein Wochenendtag bleibt)</p><section id="flows-annual" class="workspace-section"><h2>Ein- und Auszahlungen je Periode</h2>${flows}</section><p class="cap">Cashflow → Kosten — während des Nachladens</p><section id="costs-annual" class="workspace-section"><h2>Gebühren und Steuern je Periode</h2>${cost}</section>`);
+}
+
+const TPL = { pos, posphone, contrib, detail, rmatrix, costs, fx };
+
+/* ---------- measurements ---------- */
+const MEASURE = {
+  pos(doc, f, w, o) {
+    const wrapEl = doc.querySelector('#holdings-positions-wrapper');
+    const table = doc.querySelector('#holdings-positions-table');
+    const cells = [...doc.querySelectorAll('#holdings-positions-table td.num')].filter((td) => td.querySelector('.value-suffix'));
+    const gaps = cells.map((td) => { const s = td.querySelector('.value-suffix'); const t = td.firstChild; const rg = doc.createRange(); rg.setStart(t, 0); rg.setEnd(t, t.data.trimEnd().length); return s.getBoundingClientRect().left - rg.getBoundingClientRect().right; });
+    const avgCol = [...doc.querySelectorAll('#holdings-positions-table tbody tr')].map((tr) => tr.children[4].getBoundingClientRect().width);
+    const text = cells[2].textContent.replace(/\s+/g, ' ').trim();
+    const over = table.scrollWidth - wrapEl.clientWidth;
+    return `Measured at ${w} px: table ${Math.round(table.scrollWidth)} px in a ${Math.round(wrapEl.clientWidth)} px scroller (${over > 0 ? `<b class="off">${Math.round(over)} px out of view, scrolls</b>` : '<b class="ok">fits</b>'}) · "Ø Kosten" column ${Math.round(Math.max(...avgCol))} px · digits to suffix ${Math.min(...gaps).toFixed(1)}–${Math.max(...gaps).toFixed(1)} px · a cell's text reads "${text}".`;
+  },
+  contrib(doc, f, w, o) {
+    const rows = [...doc.querySelectorAll('#contribution-phone-rows .phone-row[data-role="contribution-row"]')];
+    const hs = rows.map((r) => Math.round(r.getBoundingClientRect().height));
+    const ids = rows.map((r) => r.querySelector('.phone-row__ids'));
+    const lines = ids.map((e) => Math.round(e.getBoundingClientRect().height / (parseFloat(getComputedStyle(e).lineHeight) || 16)));
+    return `${o.fix ? 'Nachher' : 'Heute'}, measured at ${w} px: position rows ${hs.join(' / ')} px tall; second lines ${lines.join(' / ')} line(s); list ${Math.round(doc.querySelector('#contribution-phone-rows').getBoundingClientRect().height)} px.`;
+  },
+  costs(doc, f, w, o) {
+    const wrapEl = doc.querySelector('.data-table-wrapper');
+    const t = wrapEl.querySelector('table');
+    const tr = doc.querySelector('tr.totals-row');
+    return `Nachher, measured at ${w} px: matrix ${Math.round(t.scrollWidth)} px in a ${Math.round(wrapEl.clientWidth)} px scroller${t.scrollWidth > wrapEl.clientWidth + 1 ? ' (scrolls, UX-DR15)' : ''}; the "Gesamt" row ${Math.round(tr.getBoundingClientRect().height)} px tall, ${tr.children.length} cells (was 3).`;
+  },
+  fx(doc, f, w) {
+    const b = doc.querySelector('#realized-excluded #fx-backfill-button');
+    const n = doc.querySelector('#realized-excluded');
+    return `Nachher, measured at ${w} px: the button "Historische Wechselkurse nachladen" ${Math.round(b.getBoundingClientRect().width)} × ${Math.round(b.getBoundingClientRect().height)} px, on one line: ${b.getClientRects().length === 1 && b.getBoundingClientRect().height < 40 ? '<b class="ok">yes</b>' : '<b class="off">no</b>'}; the Trades note ${Math.round(n.getBoundingClientRect().height)} px tall.`;
+  }
+};
+
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .app-main,.workspace-page,.workspace-panel{min-height:0!important;} .is-new{outline:2px dashed var(--color-accent);outline-offset:1px;border-radius:4px;} td.is-new{outline-offset:-2px;border-radius:0;} .cap{margin:12px clamp(16px,2.4vw,28px) 4px;font:700 11px/1.35 var(--font-sans);letter-spacing:.06em;text-transform:uppercase;color:#5a6577;} .stub{margin:0;padding:8px clamp(16px,2.4vw,28px);font-size:12px;font-style:italic;color:#5a6577;}</style>';
+
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  const css = CSS_MOCK + ('proposal' in f.dataset ? document.getElementById('proposal').outerHTML : '');
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument;
+    const finish = () => {
+      f.style.height = Math.ceil(doc.documentElement.scrollHeight) + 'px';
+      const m = f.dataset.measure;
+      if (m && MEASURE[m] && f.offsetParent !== null) {
+        const w = Math.round(f.getBoundingClientRect().width);
+        let key;
+        if (m === 'pos') key = `pos-${o.v}`;
+        else if (m === 'contrib') key = `contrib-${o.fix ? 'after' : 'today'}`;
+        else key = `${m}-${w > 500 ? 'desk' : 'phone'}`;
+        const out = document.querySelector(`[data-out="${key}"]`);
+        if (out) out.innerHTML = MEASURE[m](doc, f, w, o);
+      }
+    };
+    finish();
+    if (doc.fonts) doc.fonts.ready.then(finish);
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>
