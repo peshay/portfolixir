@@ -22,17 +22,16 @@ sprint PR and one stacked PR (D-8).
      bond's coupon is its position's income (#928, answered by Sprint 20's
      D-4 and signed here, as that answer said).
 
-   The merge also adopts D-1 to D-14 and the design picks N2 to N21 (D-10).
-2. **One pick only you can make: N1, the Overview's count-up (#1169).** It
-   reverses your ruling of 2026-08-05, so silence does not adopt it.
-   - **Silence keeps your ruling**, and #1169 closes as not planned right
-     after the merge.
-   - **"N1 B" in a comment builds B** (recommended). The waiting stays as
-     today: the last known year-to-date figure, or a skeleton, while the
-     total computes. When the computed total arrives, it appears at once,
-     instead of counting up from 0,00 over 600 ms. A count runs only between
-     two real figures, which on today's code is almost never, so B is close
-     to "no count on money" (D-3). Board 01 draws A, B and C.
+   The merge also adopts D-1 to D-14 and the design picks N1 to N21 (D-10).
+2. **N1, the Overview's count-up (#1169), is picked: B** (the owner, on
+   2026-10-09, during this PR's review). It reverses the owner's ruling of
+   2026-08-05, so it was the owner's to make, and it was made.
+   - The waiting stays as today: the last known year-to-date figure, or a
+     skeleton, while the total computes.
+   - When the computed total arrives, it appears at once, instead of
+     counting up from 0,00 over 600 ms.
+   - A count runs only between two real figures, which on today's code is
+     almost never (D-3). γ1 builds it, and #1169 closes by its keyword.
 3. **Hold the live correction until this sprint merges.** #1098's correction
    is on your instance's next upgrade, but today it overwrites a booking you
    edited by hand since its import (#1194), and it does not list a row whose
@@ -108,7 +107,7 @@ its issue.
    screen books the tax refund that the import's refusal names as its remedy
    (#1206).
 5. **The backlog is small enough to empty a class of it.** 84 are open. The
-   sprint closes 64 by keyword if it lands whole. What stays is the
+   sprint closes 65 by keyword if it lands whole. What stays is the
    trackers, the owner's runs, the later lanes D-11 names, the eight this
    PR files, and what the build files.
 
@@ -123,7 +122,7 @@ its issue.
   merge.** Each is a dated amendment of an existing ADR, written on this PR
   with its identities.
 - **Every UI change is on a board.** Nine boards draw 51
-  issues. The recommendation is the default, except N1.
+  issues. The recommendation is the default; N1 was the owner's pick, B.
 - **The decision pass leaves no question unanswered.** All ten
   `needs-decision` issues get an answer: nine are built, and one closes as
   not planned. Two `agentic` issues, #1190 and #1177, need a decision
@@ -367,8 +366,7 @@ the board's anatomy into `DESIGN.md` (the sprint workflow's rule 3). The
 design critic reviews each built surface against its board.
 
 - **γ1, the Overview (board 01):** #1114 (N2), #1121's card half (N3),
-  #1122 (N4, option 3), #1171 and #1208. It also carries #1169 if N1 is
-  picked.
+  #1122 (N4, option 3), #1171, #1208, and #1169 (N1, the owner's pick B).
 - **γ2, the securities list and a security's page (board 02):** #1104 (N6),
   #1121's list half (N3.2), #1112 (N7), #1139, #1151, #1163 and #1201.
 - **γ3, the history (board 03):** #1147 (N10) and #1148 (N11). α11 and α6
@@ -399,8 +397,6 @@ design critic reviews each built surface against its board.
 - **Right after the merge:**
   - close #1182 and #1190 by hand, each with its reason and what reopens it
     (D-4);
-  - if the merge brought no comment naming N1, close #1169 as not planned,
-    with your ruling of 2026-08-05 as the reason;
   - relabel #1177 `needs-decision`, with its answer and what builds it
     (D-4);
   - relabel the nine answered `needs-decision` issues `agentic`;
@@ -476,8 +472,8 @@ hold:
      Wealth, Accounts, Classifications and Imports on the review seed.
 4. **The count:**
    - **Fewer than 60 open issues at the close-out.** The merge leaves 90:
-     two closed by hand, eight filed. It leaves 89 if #1169 closes. The
-     sprint closes 64 by keyword, or 65 if N1 is picked, which leaves 25.
+     two closed by hand, eight filed. The sprint closes 65 by keyword, which
+     leaves 25.
      That allows 34 filings, against the 31 Sprint 20's build and closing
      acts filed.
    - **Every `needs-decision` issue open at the close-out carries its
@@ -540,7 +536,7 @@ for the fourth.
     are untouched.
   - **The cost:** the contribution analytics move to computation version 4.
 
-### D-3: #1169 is your pick, and silence keeps your ruling (owner)
+### D-3: #1169 was the owner's pick: B (owner, picked 2026-10-09)
 
 **Why it is yours.** On 2026-08-05 you ruled the count-up "acceptable and
 wanted, provided it is visually evident that the number is still counting".
@@ -579,8 +575,10 @@ leaves step 1 as it is.
 - **C:** the digits are hidden while counting. That brings back the blank you
   disliked.
 
-**Silence:** your ruling stands, and #1169 closes as not planned after the
-merge. **"N1 B"** (or A, or C) builds it in γ1.
+**Picked: B**, by the owner on 2026-10-09, during this PR's review, after
+the two steps above were set out. γ1 builds it on the Overview's total and
+on Wealth's two counted cards, and amends `DESIGN.md` → Motion, which
+records the count-up as decided. #1169 closes by γ1's keyword.
 
 ### D-4: the decision pass: every open question gets an answer (recommended; each row flips by naming its issue)
 
@@ -737,7 +735,7 @@ not budgeted.
 lowers the ceilings to the new figures.** A raised ceiling is a weakened
 gate and a review reject.
 
-### D-10: the design picks (recommended; silence adopts them, except N1)
+### D-10: the design picks (recommended; silence adopts them; N1 picked by the owner)
 
 Nine boards, under
 `planning-artifacts/design-language/mockups/ux-design-2026-10-09/`, argued
@@ -746,7 +744,7 @@ in `planning-artifacts/ux-design-2026-10-09-sprint21.md`. The pick letter is
 
 | Pick | Item | Board | Plan | Recommended |
 |---|---|---|---|---|
-| **N1** | The Overview's total counts up from 0,00 (#1169) | `01-overview` | γ1, only if picked | **your pick**; silence keeps your ruling; B recommended (D-3) |
+| **N1** | The Overview's total counts up from 0,00 (#1169) | `01-overview` | γ1 | **B**, the owner's pick of 2026-10-09: the computed total appears at once; a count runs only between two real figures (D-3) |
 | **N2** | The KPI strip's dates between 561 and about 665 px (#1114) | `01-overview` | γ1 | **A**: the two-by-two switch moves from 560 to 680 px |
 | **N3** | A wrongly valued holding and the total, the card half (#1121) | `01-overview` | γ1 | **A**: the data-quality findings say what they do to the total; the card stays silent |
 | **N3.2** | `?dq=two_scales` lists bonds with no direction or remedy (#1121) | `02-securities` | γ2 | **A**: a problem note per direction above the list, each bond linking to its remedy |
@@ -847,7 +845,7 @@ every row alone (#1126).
 ## Sequencing
 
 ```text
-after the merge ── Lane Z: #1182, #1190 closed (and #1169 if silent);
+after the merge ── Lane Z: #1182, #1190 closed;
                    #1177 relabelled; nine relabelled agentic; the
                    design pass's off-surface findings filed; three re-parented
 sprint PR opens ─▶ Lane M ─▶ α: α1 #1199 ─▶ α2 #1196 ─▶ α3 #1198
@@ -906,8 +904,8 @@ the owner ──────── merges the sprint PR (a release), then the st
    Each identity is pinned, seen failing first, and mutation-checked.
 3. **D-1's four exit criteria are recorded**, each pass or fail with its
    step.
-4. **The decision pass is carried out:** two closed by hand at the merge
-   (three if silent on N1), nine relabelled, #1177 relabelled with its
+4. **The decision pass is carried out:** two closed by hand at the merge,
+   nine relabelled, #1177 relabelled with its
    answer, and the design pass's findings filed with their parents.
 5. **#1052 and #1206 close, so the two-way debt Sprint 19 recorded is
    paid.** #1185 closes the read half of Sprint 20's #1133.
