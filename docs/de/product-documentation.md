@@ -2869,21 +2869,32 @@ Eine Gutschrift, die nach Abzug der Erstattung nichts oder weniger buchen
 würde (eine wertlose Position, zu einem symbolischen Kurs verkauft, deren
 Verlust Steuer erstattet), bleibt mit einer Parser-Warnung draußen, wie unten
 beschrieben, deren Abhilfe lautet: den Verkauf von Hand buchen, die
-Erstattung als eigene Steuererstattung. Noch bucht keine Maske eine
-Steuererstattung (Issue #1206). Buche sie als einzeilige CSV in der deutschen
-Form des Exports, deren `Typ` *Steuerrückerstattung* ist, die Erstattung in
-`Betrag` und `Gesamtpreis` und ihr Verrechnungskonto in `Konto`, oder über
-die API (`POST /api/v1/transactions` mit dem Typ `tax_refund`) oder den
-MCP-Begleiter (`portfolixir.transactions.create`):
+Erstattung als eigene Steuererstattung. Das eigene Geld eines Verkaufs muss
+über null liegen, also heißt „von Hand“ drei Buchungen: der Verkauf zu seinem
+`Betrag`, ohne Gebühren und Steuern; seine `Gebühren` als Gebührenbuchung;
+und die Erstattung als Steuererstattung. Zusammen bewegen sie den
+`Gesamtpreis` der Zeile. Für eine Zeile mit Betrag 7,50, Gebühren 9,90,
+Steuern -12,40 und Gesamtpreis 10,00 heißt das: der Verkauf mit 7,50
+gutgeschrieben, die Gebühr mit 9,90 belastet und die Erstattung mit 12,40
+gutgeschrieben, 7,50 - 9,90 + 12,40 = 10,00.
+
+Noch bucht keine Maske eine Gebühr oder eine Steuererstattung (Issue #1206).
+Buche sie als Zeilen einer CSV in der deutschen Form des Exports, je eine
+Zeile, oder über die API (`POST /api/v1/transactions` mit den Typen `sell`,
+`fee` und `tax_refund`) oder den MCP-Begleiter
+(`portfolixir.transactions.create`):
 
 ```text
 Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
-2024-06-14 15:30:00;Steuerrückerstattung;;;;25,00;;;25,00;Test-Cash;;;
+2024-06-14 15:30:00;Verkauf;Arbolia Inc.;750;0,01;7,50;;;7,50;Test-Depot;Test-Cash;;
+2024-06-14 15:30:00;Gebühren;;;;9,90;;;9,90;Test-Cash;;;
+2024-06-14 15:30:00;Steuerrückerstattung;;;;12,40;;;12,40;Test-Cash;;;
 ```
 
-Lege sie wie einen Export ab und ordne `Konto` dem Konto zu, auf dem der
-Verkauf bucht. Wurde eine solche Zeile importiert, bevor Portfolixir
-sie zurückwies, sagt ihre Warnung stattdessen, dass sie bereits importiert ist
+Gib den Zeilen Datum, Wertpapier, Stückzahl und Konten der zurückgewiesenen
+Zeile, lege die Datei wie einen Export ab und ordne ihr Depot und ihr
+Verrechnungskonto denen zu, auf denen der Verkauf bucht. Wurde eine solche
+Zeile importiert, bevor Portfolixir sie zurückwies, sagt ihre Warnung stattdessen, dass sie bereits importiert ist
 und hier nicht korrigiert werden kann, da die Gutschrift 0 oder weniger wäre:
 nicht noch einmal erfassen; wie eine solche Buchung korrigiert wird, ist noch
 offen (Issue #1193).
