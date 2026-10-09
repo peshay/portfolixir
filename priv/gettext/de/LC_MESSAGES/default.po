@@ -8780,7 +8780,7 @@ msgstr "ein Konto heißt schon so"
 msgid "at %{depots}"
 msgstr "bei %{depots}"
 
-#: lib/portfolixir_web/account_names.ex:92
+#: lib/portfolixir_web/account_names.ex:95
 #: lib/portfolixir_web/live/securities/merge_dialog.ex:648
 #: lib/portfolixir_web/live/securities/merge_preview.ex:157
 #, elixir-autogen, elixir-format
@@ -8802,7 +8802,7 @@ msgstr "kein Konto unter diesem Namen; angelegt wird es erst mit seiner ersten n
 msgid "no depot"
 msgstr "ohne Depot"
 
-#: lib/portfolixir_web/account_names.ex:96
+#: lib/portfolixir_web/account_names.ex:99
 #: lib/portfolixir_web/security_names.ex:192
 #: lib/portfolixir_web/security_names.ex:202
 #, elixir-autogen, elixir-format

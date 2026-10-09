@@ -94,4 +94,39 @@ defmodule PortfolixirWeb.AccountNamesTest do
       assert AccountNames.label(tags, :depot, Enum.at(depots, 2)) == "demo depot"
     end)
   end
+
+  # User story (#1152, Sprint 20 γ closing act, the correctness hunter):
+  # As the operator picking between two accounts of one name,
+  # I want the tag that tells them apart to print differently too,
+  # so that two tags that read the same never stand for two accounts.
+  #
+  # Acceptance criteria:
+  # - A feature tells twins apart only where its values print differently:
+  #   compared as the names are (`SecurityNames.twin_key/1`), so linked
+  #   depots "Demo Depot" and "Demo  Depot", or cash accounts "Giro Konto"
+  #   and "Giro  Konto", do not; the next feature that does is the tag.
+  test "a twin's tag is a feature whose values print differently" do
+    cash = [
+      %{id: 1, name: "Settlement", currency_code: "EUR", inserted_at: ~N[2026-10-03 09:00:00]},
+      %{id: 2, name: "Settlement", currency_code: "EUR", inserted_at: ~N[2026-10-04 09:00:00]},
+      %{id: 3, name: "Giro Konto", currency_code: "EUR", inserted_at: ~N[2026-10-03 09:00:00]},
+      %{id: 4, name: "Giro  Konto", currency_code: "EUR", inserted_at: ~N[2026-10-03 09:00:00]}
+    ]
+
+    depots = [
+      %{id: 10, name: "Demo Depot", cash_account_id: 1, inserted_at: ~N[2026-10-03 09:00:00]},
+      %{id: 11, name: "Demo  Depot", cash_account_id: 2, inserted_at: ~N[2026-10-03 09:00:00]},
+      %{id: 12, name: "Trading", cash_account_id: 3, inserted_at: ~N[2026-10-03 09:00:00]},
+      %{id: 13, name: "Trading", cash_account_id: 4, inserted_at: ~N[2026-10-05 09:00:00]}
+    ]
+
+    Gettext.with_locale(PortfolixirWeb.Gettext, "en", fn ->
+      tags = AccountNames.tags(cash, depots)
+
+      assert tags.cash[1] == "created 2026-10-03"
+      assert tags.cash[2] == "created 2026-10-04"
+      assert tags.depot[12] == "created 2026-10-03"
+      assert tags.depot[13] == "created 2026-10-05"
+    end)
+  end
 end
