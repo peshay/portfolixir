@@ -279,6 +279,94 @@ defmodule Portfolixir.AgentEntryDocsTest do
     end
   end
 
+  # User story (#1172, Sprint 20 γ closing act, the install lens):
+  # As a stranger installing Portfolixir from source, by the README alone,
+  # I want the database it needs, the order of its first commands, the way
+  # to start the companion and the token to give it written where I read,
+  # so that the first `mix ecto.setup` meets the right database, and the
+  # companion speaks JSON-RPC on its stdout from the first byte.
+  #
+  # Acceptance criteria:
+  # - The README (its prerequisites and "Run from source"), llms.txt's
+  #   Install and the development guide name "PostgreSQL 15 or newer, with
+  #   its contrib modules (btree_gist)", the floor the migrations set
+  #   (`NULLS NOT DISTINCT`, `CREATE EXTENSION ... btree_gist`).
+  # - The README's "Run from source" sets its exports, the database, the
+  #   UI password and the API token, before `mix deps.get`, and says they
+  #   are set before `mix ecto.setup`.
+  # - The README and CONTRIBUTING.md start the companion with
+  #   `node mcp-server/dist/index.js`, never `npm start --prefix mcp-server`,
+  #   whose banner precedes the JSON-RPC on stdout.
+  # - The Connect page's stdio section (EN, DE) takes the token the instance
+  #   runs with: from `.env` for Compose, the exported value for a server
+  #   run from source; it no longer says "from the instance's `.env`".
+  test "the from-source install names its database floor, its order and its companion start" do
+    flat = &String.replace(&1, ~r/\s+/, " ")
+    floor = "PostgreSQL 15 or newer, with its contrib modules (btree_gist)"
+
+    migrations = Path.wildcard("priv/repo/migrations/*.exs") |> Enum.map(&File.read!/1)
+    assert Enum.any?(migrations, &(&1 =~ "NULLS NOT DISTINCT"))
+    assert Enum.any?(migrations, &(&1 =~ "CREATE EXTENSION IF NOT EXISTS btree_gist"))
+
+    section = fn path, from, to ->
+      path |> File.read!() |> String.split(from) |> Enum.at(1) |> String.split(to) |> hd()
+    end
+
+    readme = File.read!("README.md")
+    prerequisites = flat.(section.("README.md", "### Prerequisites", "\n## "))
+    from_source = section.("README.md", "### Run from source", "### API and MCP")
+    install = flat.(section.("docs/llms.txt", "## Install", "## Connect the MCP companion"))
+    guide = normalized("docs/development/guide.md")
+
+    for {where, text} <- [
+          {"README prerequisites", prerequisites},
+          {"README Run from source", flat.(from_source)},
+          {"llms.txt Install", install},
+          {"docs/development/guide.md", guide}
+        ] do
+      assert text =~ floor, "#{where}: #{floor}"
+    end
+
+    at = fn needle ->
+      case :binary.match(from_source, needle) do
+        {at, _length} -> at
+        :nomatch -> flunk("README Run from source lacks #{needle}")
+      end
+    end
+
+    for export <- [
+          "export DATABASE_NAME=",
+          "read -rs PORTFOLIXIR_UI_PASSWORD",
+          "export PORTFOLIXIR_API_TOKEN="
+        ] do
+      assert at.(export) < at.("mix deps.get"), "README: #{export} comes after mix deps.get"
+    end
+
+    assert flat.(from_source) =~ "Set them before `mix ecto.setup`"
+
+    for {path, text} <- [
+          {"README.md", readme},
+          {"CONTRIBUTING.md", File.read!("CONTRIBUTING.md")}
+        ] do
+      refute text =~ "npm start --prefix mcp-server", path
+      assert text =~ "node mcp-server/dist/index.js", path
+    end
+
+    for {path, token} <- [
+          {@connect_en,
+           "the token the instance runs with: from `.env` for Compose, the value you exported for a server run from source"},
+          {@connect_de,
+           "dem Token, mit dem die Instanz läuft: aus der `.env` für Compose, dem Wert, den Sie für einen aus dem Quellcode gestarteten Server exportiert haben"}
+        ] do
+      page = normalized(path)
+      assert page =~ token, path
+      refute page =~ "from the instance's `.env`", path
+      refute page =~ "aus der `.env` der Instanz", path
+      refute page =~ "PORTFOLIXIR_API_TOKEN from .env>", path
+      refute page =~ "PORTFOLIXIR_API_TOKEN aus .env>", path
+    end
+  end
+
   # User story (the launch test's second run, #1037):
   # As the fresh agent installing Portfolixir from the README and llms.txt
   # through a shell,

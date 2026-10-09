@@ -55,8 +55,9 @@ npm run build --prefix mcp-server
 ```
 
 Tragen Sie ihn dann in die Konfiguration des Clients ein, mit dem absoluten
-Pfad Ihres Checkouts und dem `PORTFOLIXIR_API_TOKEN` aus der `.env` der
-Instanz:
+Pfad Ihres Checkouts und, als `PORTFOLIXIR_API_TOKEN`, dem Token, mit dem die
+Instanz läuft: aus der `.env` für Compose, dem Wert, den Sie für einen aus dem
+Quellcode gestarteten Server exportiert haben:
 
 ```json
 {
@@ -66,7 +67,7 @@ Instanz:
       "args": ["/absoluter/pfad/zu/portfolixir/mcp-server/dist/index.js"],
       "env": {
         "PORTFOLIXIR_API_BASE_URL": "http://127.0.0.1:4000",
-        "PORTFOLIXIR_API_TOKEN": "<PORTFOLIXIR_API_TOKEN aus .env>",
+        "PORTFOLIXIR_API_TOKEN": "<das Token, mit dem die Instanz läuft>",
         "PORTFOLIXIR_MCP_PROFILE": "book"
       }
     }
