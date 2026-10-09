@@ -395,7 +395,8 @@ describe("MCP HTTP security helpers", () => {
 async function withApp(
   run: (base: string, port: number) => Promise<void>,
   profile: McpProfile = "full",
-  boundHost = "127.0.0.1"
+  boundHost = "127.0.0.1",
+  extraHosts: string[] = []
 ): Promise<void> {
   const server = createServer();
   server.listen(0, "127.0.0.1");
@@ -409,8 +410,8 @@ async function withApp(
       }
     },
     token: soundToken,
-    allowedHosts: allowedHostsFor(boundHost, port),
-    allowedOrigins: allowedOriginsFor(boundHost, port),
+    allowedHosts: allowedHostsFor(boundHost, port, ...extraHosts),
+    allowedOrigins: allowedOriginsFor(boundHost, port, ...extraHosts),
     profile
   });
   server.on("request", app);
@@ -677,6 +678,50 @@ describe("MCP HTTP transport", () => {
       "full",
       "fd00::7"
     );
+  });
+
+  // User story (#956, Sprint 20 γ closing act):
+  // As an operator who writes a name with capitals in
+  // PORTFOLIXIR_MCP_ALLOWED_HOSTS or PORTFOLIXIR_MCP_HOST (`MCP.Example.LAN`),
+  // I want a browser's request under that name, which it sends in lower case,
+  // to reach the MCP server,
+  // so that the companion's own Host guard, which ignores case, and the SDK's
+  // check, which compares exactly, give the same answer.
+  //
+  // Acceptance criteria:
+  // - The allowed hosts hold a configured name in lower case, a bare one and
+  //   one with its own port alike, and so does a bound host name.
+  // - A request under the lower-case name with its origin and the token is
+  //   answered 200 by the MCP server, through both Host checks.
+  it("answers a configured name with capitals under its lower-case Host", async () => {
+    await withApp(
+      async (_base, port) => {
+        const headers = {
+          authorization: `Bearer ${soundToken}`,
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream"
+        };
+
+        for (const host of [`mcp.example.lan:${port}`, "mcp.example.lan", "localhost:6274", `mybox.lan:${port}`]) {
+          const answer = await rawRequest(port, { ...headers, host, origin: `http://${host}` }, initialize);
+          assert.equal(answer.status, 200, `${host}: ${answer.body}`);
+          assert.match(answer.body, /"serverInfo":\{"name":"portfolixir"/, host);
+        }
+      },
+      "full",
+      "MyBox.LAN",
+      ["MCP.Example.LAN", "LocalHost:6274"]
+    );
+
+    assert.deepEqual(allowedHostsFor("MyBox.LAN", 4001, "MCP.Example.LAN", "LocalHost:6274"), [
+      "127.0.0.1:4001",
+      "localhost:4001",
+      "[::1]:4001",
+      "mybox.lan:4001",
+      "mcp.example.lan:4001",
+      "mcp.example.lan",
+      "localhost:6274"
+    ]);
   });
 
   // E25 S7, G26 and A1 (#992): the profile reaches the HTTP transport, whose
