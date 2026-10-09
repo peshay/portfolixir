@@ -1714,7 +1714,10 @@ Beispiel-Payloads für Konten:
   von 0 gekauft) sein `unrealized_pnl_abs` und liest `unrealized_pnl_pct`
   `null`, nie `"0"`: Eine Rendite auf keine Kosten ist unbestimmt, und `0`
   läse sich als unverändert. `computation_basis.unrealized_pnl_pct` der
-  Antwort nennt die Regel.
+  Antwort nennt die Regel. Ebenso liest ein Bestand mit `base_cost` `"0"`
+  `price_return_pct`, `currency_return_pct` und `total_return_base_pct`
+  `null` neben seinen drei Beträgen, und `computation_basis.decomposition_pct`
+  nennt die Regel.
   Bestände werden beim Lesen abgeleitet, ohne gespeicherten Snapshot, daher
   ist `as_of` das Lesedatum. Unbekannte Portfolios liefern `404 Not Found`.
   Optionale Filter: `security_id`, `securities_account_id`. Ein optionales
@@ -2582,7 +2585,10 @@ Beispiel-Payloads für Konten:
   `buy_price_native`) `"0"` sind, behält sein `unrealized_pnl_abs` und liest
   `unrealized_pnl_pct` `null`, nie `"0"`;
   `computation_basis.realized_pnl_pct` und
-  `computation_basis.unrealized_pnl_pct` nennen die Regeln.
+  `computation_basis.unrealized_pnl_pct` nennen die Regeln. Wie beim
+  Bestands-Endpunkt liest ein offener Lot mit `base_cost` `"0"` die drei
+  Prozentwerte der Zerlegung ebenfalls `null`, und
+  `computation_basis.decomposition_pct` nennt die Regel.
 - `GET /api/v1/snapshots` listet Depot-**Snapshot-Marker** (ADR-0027): jeder
   ist ein `name`, ein Geltungsbereich (`view_id`, `null` = alles) und ein
   `as_of`-Datum. Ein Snapshot kopiert keine Finanzdaten — die Bestände, die er

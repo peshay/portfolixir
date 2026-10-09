@@ -184,4 +184,56 @@ defmodule PortfolixirWeb.ApiV1ZeroCostBasisTest do
 
     assert selected == %{"security_id" => fennwick.id, "unrealized_pnl_pct" => nil}
   end
+
+  # User story (#1142's last sibling, D-14; the plan's D-6 answers it):
+  # As the operating LLM agent reading a position's or an open lot's
+  # base-currency decomposition,
+  # I want its percentages on no cost served as null with the rule in the
+  # basis,
+  # so that price_return_pct, currency_return_pct and total_return_base_pct
+  # do not read "0" beside the null unrealized_pnl_pct.
+  #
+  # Acceptance criteria:
+  # - GET /api/v1/portfolios/:id/holdings: Fennwick's row reads base_cost
+  #   "0", price_return_abs "336", total_return_base_abs "336", decomposed
+  #   true, and the three percentages null (before: "0").
+  # - GET /api/v1/securities/:id/trades: the open lot of the 4 remaining
+  #   bonus shares reads base_cost "0", price_return_abs "167.2" and the
+  #   three percentages null (before: "0").
+  # - Both envelopes' computation_basis.decomposition_pct, new, states the
+  #   rule.
+  test "the decomposition's percentages on no cost are null, with the rule", %{conn: conn} do
+    %{world: world, larkspur: larkspur, fennwick: fennwick} = seed!()
+    pct_keys = ["price_return_pct", "currency_return_pct", "total_return_base_pct"]
+    nulls = Map.new(pct_keys, &{&1, nil})
+
+    holdings = get_json(conn, "/api/v1/portfolios/#{world.portfolio.id}/holdings")
+    row = Enum.find(holdings["data"], &(&1["security_id"] == fennwick.id))
+
+    assert Map.take(row, ["base_cost", "price_return_abs", "total_return_base_abs", "decomposed"]) ==
+             %{
+               "base_cost" => "0",
+               "price_return_abs" => "336",
+               "total_return_base_abs" => "336",
+               "decomposed" => true
+             }
+
+    assert Map.take(row, pct_keys) == nulls
+
+    assert holdings["computation_basis"]["decomposition_pct"] =~
+             "null, never 0, where base_cost is 0"
+
+    %{"data" => trades} = get_json(conn, "/api/v1/securities/#{larkspur.id}/trades")
+    assert [lot] = trades["open_lots"]
+
+    assert Map.take(lot, ["base_cost", "price_return_abs"]) == %{
+             "base_cost" => "0",
+             "price_return_abs" => "167.2"
+           }
+
+    assert Map.take(lot, pct_keys) == nulls
+
+    assert trades["computation_basis"]["decomposition_pct"] =~
+             "null, never 0, where base_cost is 0"
+  end
 end

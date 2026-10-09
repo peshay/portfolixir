@@ -3039,7 +3039,12 @@ defmodule Portfolixir.DocsTest do
              "`computation_basis.unrealized_pnl_pct` states the rule",
              "**`annualized_return_reason`** `no_cost_basis` when the trade's `basis` is `\"0\"`",
              "`realized_pnl_pct` `null`, never `\"0\"`: its `realized_pnl_abs`",
-             "`computation_basis.realized_pnl_pct` and `computation_basis.unrealized_pnl_pct` state the rules"
+             "`computation_basis.realized_pnl_pct` and `computation_basis.unrealized_pnl_pct` state the rules",
+             # #1142's last sibling: the decomposition's percentages, on a
+             # holding and on an open lot.
+             "a holding whose `base_cost` is `\"0\"` reads `price_return_pct`, `currency_return_pct` and `total_return_base_pct` `null`",
+             "an open lot whose `base_cost` is `\"0\"` reads the decomposition's three percentages `null` too",
+             "`computation_basis.decomposition_pct` states the rule"
            ]},
           {"docs/de/integration/api-and-mcp.md",
            [
@@ -3047,7 +3052,10 @@ defmodule Portfolixir.DocsTest do
              "`computation_basis.unrealized_pnl_pct` der Antwort nennt die Regel",
              "**`annualized_return_reason`** `no_cost_basis`, wenn `basis` des Trades `\"0\"` ist",
              "`realized_pnl_pct` `null`, nie `\"0\"`: `realized_pnl_abs`",
-             "`computation_basis.realized_pnl_pct` und `computation_basis.unrealized_pnl_pct` nennen die Regeln"
+             "`computation_basis.realized_pnl_pct` und `computation_basis.unrealized_pnl_pct` nennen die Regeln",
+             "liest ein Bestand mit `base_cost` `\"0\"` `price_return_pct`, `currency_return_pct` und `total_return_base_pct` `null`",
+             "liest ein offener Lot mit `base_cost` `\"0\"` die drei Prozentwerte der Zerlegung ebenfalls `null`",
+             "`computation_basis.decomposition_pct` nennt die Regel"
            ]}
         ] do
       doc = path |> File.read!() |> String.replace(~r/\s+/, " ")

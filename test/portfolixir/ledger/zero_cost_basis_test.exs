@@ -18,6 +18,7 @@ defmodule Portfolixir.Ledger.ZeroCostBasisTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Ledger
+  alias Portfolixir.Ledger.PnlDecomposition
   alias Portfolixir.Ledger.TradeMatcher
   alias Portfolixir.Ledger.TradeReturn
   alias Portfolixir.Portfolios.RealizedGains
@@ -226,5 +227,61 @@ defmodule Portfolixir.Ledger.ZeroCostBasisTest do
     assert Decimal.equal?(held.current_value, d("336.00"))
     assert Decimal.equal?(held.unrealized_pnl_abs, d("336.00"))
     assert held.unrealized_pnl_pct == nil
+  end
+
+  # User story (#1142's last sibling, D-14; the plan's D-6 answers it):
+  # As the operator and the agent reading a position's base-currency
+  # decomposition,
+  # I want its three percentages to carry no return on no cost either,
+  # so that price_return_pct, currency_return_pct and total_return_base_pct
+  # do not read "0" beside the null unrealized_pnl_pct.
+  #
+  # Acceptance criteria (exact Decimal expectations):
+  # - Fennwick's holding (15 delivered in at no price, 336.00, base_cost 0):
+  #   price_return_abs 336.00, currency_return_abs 0, total_return_base_abs
+  #   336.00, decomposed true, and price_return_pct, currency_return_pct and
+  #   total_return_base_pct nil (before: 0), on holdings_for_portfolio/1.
+  # - Larkspur's open lot of the 4 remaining bonus shares (base_cost 0):
+  #   price_return_abs 167.20 and total_return_base_abs 167.20, the three
+  #   percentages nil (before: 0); the lot bought at 38.50 keeps them,
+  #   82.50 / 962.50 on price and total, and 0 on currency.
+  # - PnlDecomposition.decompose/4 on a zero base cost: the amounts, and nil
+  #   percentages.
+  test "a decomposition on a zero base cost has no percentage returns" do
+    %{world: world, larkspur: larkspur} = larkspur!()
+    fennwick = fennwick!(world)
+
+    row =
+      world.portfolio.id
+      |> Ledger.holdings_for_portfolio()
+      |> Enum.find(&(&1.security_id == fennwick.id))
+
+    assert Decimal.equal?(row.base_cost, d("0"))
+    assert row.decomposed == true
+    assert Decimal.equal?(row.price_return_abs, d("336.00"))
+    assert Decimal.equal?(row.currency_return_abs, d("0"))
+    assert Decimal.equal?(row.total_return_base_abs, d("336.00"))
+
+    assert Map.take(row, [:price_return_pct, :currency_return_pct, :total_return_base_pct]) ==
+             %{price_return_pct: nil, currency_return_pct: nil, total_return_base_pct: nil}
+
+    assert [free, bought] = Ledger.list_trades_for_security(larkspur.id).open_lots
+    assert Decimal.equal?(free.base_cost, d("0"))
+    assert Decimal.equal?(free.price_return_abs, d("167.20"))
+    assert Decimal.equal?(free.total_return_base_abs, d("167.20"))
+
+    assert Map.take(free, [:price_return_pct, :currency_return_pct, :total_return_base_pct]) ==
+             %{price_return_pct: nil, currency_return_pct: nil, total_return_base_pct: nil}
+
+    on_cost = Decimal.div(d("82.50"), d("962.50"))
+    assert Decimal.equal?(bought.price_return_pct, on_cost)
+    assert Decimal.equal?(bought.currency_return_pct, d("0"))
+    assert Decimal.equal?(bought.total_return_base_pct, on_cost)
+
+    decomposition = PnlDecomposition.decompose(d("336.00"), d("0"), d("0"), d("1"))
+    assert Decimal.equal?(decomposition.total_return_base_abs, d("336.00"))
+    assert decomposition.price_return_pct == nil
+    assert decomposition.currency_return_pct == nil
+    assert decomposition.total_return_base_pct == nil
   end
 end

@@ -21,8 +21,6 @@ defmodule Portfolixir.Ledger.PnlDecomposition do
   (ADR-0015).
   """
 
-  @zero Decimal.new("0")
-
   @unavailable %{
     price_return_abs: nil,
     price_return_pct: nil,
@@ -39,7 +37,8 @@ defmodule Portfolixir.Ledger.PnlDecomposition do
   All four arguments are Decimals; `rate` is the current rate converting one
   unit of the security currency into the base currency. The component
   percentages share the `base_cost` denominator, so they add exactly; a zero
-  base cost yields zero percentages (the existing P&L convention).
+  base cost yields `nil` percentages beside the amounts (#1142, plan D-6:
+  a return on no cost is undefined, and 0 would read as flat; `pct_basis/0`).
   """
   def decompose(
         %Decimal{} = market_value_native,
@@ -72,11 +71,22 @@ defmodule Portfolixir.Ledger.PnlDecomposition do
     Map.put(@unavailable, :undecomposed_reason, reason)
   end
 
-  defp pct(value, base_cost) do
-    if Decimal.equal?(base_cost, @zero) do
-      @zero
-    else
-      Decimal.div(value, base_cost)
-    end
+  @doc """
+  The rule of the three decomposition percentages, as the sentence the
+  holdings and trades payloads carry (#1142's last sibling, plan D-6; the
+  AGENTS.md metric rule): `nil` where `base_cost` is zero.
+  """
+  @spec pct_basis() :: String.t()
+  def pct_basis do
+    "price_return_pct, currency_return_pct and total_return_base_pct are price_return_abs, " <>
+      "currency_return_abs and total_return_base_abs / base_cost, fractions (0.1 = 10 %) in " <>
+      "base_currency that add exactly. They are null where their amounts are (decomposed " <>
+      "false), and null, never 0, where base_cost is 0, shares delivered in at no cost or " <>
+      "bought at a price of 0: a return on no cost is undefined, and 0 would read as flat. " <>
+      "The amounts still state the gain."
   end
+
+  # #1142 (plan D-6): no percentage on no cost, as `unrealized_pnl_pct`.
+  defp pct(_value, %Decimal{coef: 0}), do: nil
+  defp pct(value, base_cost), do: Decimal.div(value, base_cost)
 end
