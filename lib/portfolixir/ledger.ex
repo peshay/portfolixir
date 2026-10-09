@@ -1513,27 +1513,52 @@ defmodule Portfolixir.Ledger do
   # waits for this booking and is frozen by it, or this booking waits for
   # the change and checks the currency it committed. An unlocked read let a
   # booking pass on the old currency and commit after the change.
+  #
+  # Only the accounts the booking newly points to are locked (#922 closing
+  # act). The ones an update's stored row already references are frozen by
+  # that row, a committed reference the update holds under the journal
+  # step's lock (ADR-0050 §11, §16 invariant 15), so their currency is read
+  # without one. A key-share lock asked on them after that row lock closed a
+  # cycle with the cash merge, which locks the accounts first and then their
+  # bookings: a note edit deadlocked with a merge of its account (40P01).
+  # The newly pointed-to accounts are locked as their foreign-key check
+  # locks them, after the row: the order a move took before #922.
   defp validate_cash_account_currency(%Ecto.Changeset{valid?: false} = changeset),
     do: changeset
 
-  defp validate_cash_account_currency(%Ecto.Changeset{} = changeset) do
-    cash_account_id = Ecto.Changeset.get_field(changeset, :cash_account_id)
-    counter_cash_account_id = Ecto.Changeset.get_field(changeset, :counter_cash_account_id)
-    currencies = locked_cash_account_currencies([cash_account_id, counter_cash_account_id])
+  defp validate_cash_account_currency(%Ecto.Changeset{data: %Transaction{} = stored} = changeset) do
+    referenced = Enum.reject([stored.cash_account_id, stored.counter_cash_account_id], &is_nil/1)
 
+    {held, new} =
+      [:cash_account_id, :counter_cash_account_id]
+      |> Enum.map(&Ecto.Changeset.get_field(changeset, &1))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.uniq()
+      |> Enum.split_with(&(&1 in referenced))
+
+    currencies = Map.merge(cash_account_currencies(held), locked_cash_account_currencies(new))
     Transaction.validate_cash_account_currency(changeset, currencies)
+  end
+
+  defp cash_account_currencies([]), do: %{}
+
+  defp cash_account_currencies(ids) do
+    from(c in CashAccount, where: c.id in ^ids, select: {c.id, c.currency_code})
+    |> Repo.all()
+    |> Map.new()
   end
 
   @doc """
   The currencies of the cash accounts `ids` (`nil`s skipped), as
   `%{id => currency_code}`, read under a key-share lock taken in id order
-  (#922): what a booking's same-currency check reads, inside its write's
-  transaction, so the account's currency cannot change before the booking
-  commits. The lock conflicts only with `FOR UPDATE` -- the identity-field
-  freeze's and the hardened delete's -- never with a write of the account's
-  other fields, and the order is the one the cash merge locks its two
-  accounts in. Outside a transaction the lock ends with the statement. The
-  importer's copy of the check reads through it too.
+  (#922): what a booking's same-currency check reads for the accounts it
+  newly points to, inside its write's transaction, so the account's
+  currency cannot change before the booking commits. The lock conflicts
+  only with `FOR UPDATE` -- the identity-field freeze's and the hardened
+  delete's -- never with a write of the account's other fields, and the
+  order is the one the cash merge locks its two accounts in. Outside a
+  transaction the lock ends with the statement. The importer's copy of the
+  check reads through it too.
   """
   @spec locked_cash_account_currencies([integer() | nil]) :: %{integer() => String.t()}
   def locked_cash_account_currencies(ids) when is_list(ids) do

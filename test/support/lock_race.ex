@@ -29,6 +29,11 @@ defmodule Portfolixir.LockRace do
   few milliseconds until it shows (PostgreSQL announces no lock wait). The
   only timed waits are the limits after which a stuck race fails.
 
+  `second: :passes` turns step 2 around, for a lock a writer no longer takes
+  (#922): the second writer must end while the first is held, and one the
+  database reports blocked by the first fails the race. The first then
+  resumes, as in step 3.
+
   A deadlock is read from every query each writer sends (the repo's
   telemetry event carries the query's result): an `ERROR 40P01
   (deadlock_detected)` fails the race even when the writer rescues it -- as
@@ -85,11 +90,11 @@ defmodule Portfolixir.LockRace do
   Runs `first` (paused after the first query `pause_after?` matches) and
   `second` against `db` through the barrier above, and answers what each
   returned, `{first, second}`. Fails the test on a deadlock, on a writer that
-  raises or exits, on a second writer that never waits on the first, and on a
-  step of the barrier not reached within `opts[:timeout]` milliseconds
-  (default 10 s; the harness's own tests shorten it). Every writer still
-  running when the race ends, however it ends, is killed with its
-  transaction.
+  raises or exits, on a second writer that never waits on the first (with
+  `opts[:second]` `:passes`, on one that does), and on a step of the barrier
+  not reached within `opts[:timeout]` milliseconds (default 10 s; the
+  harness's own tests shorten it). Every writer still running when the race
+  ends, however it ends, is killed with its transaction.
   """
   @spec race!(ScratchDatabase.t(), {(-> a), (map() -> boolean())}, (-> b), keyword()) :: {a, b}
         when a: term(), b: term()
@@ -101,7 +106,12 @@ defmodule Portfolixir.LockRace do
       held = start_writer(db, :first, first, pause_after?)
       await!(held, :paused, timeout)
       waiting = start_writer(db, :second, second, nil)
-      await_blocked!(db, waiting, held, timeout)
+
+      case Keyword.get(opts, :second, :waits) do
+        :waits -> await_blocked!(db, waiting, held, timeout)
+        :passes -> await_passed!(db, waiting, held, timeout)
+      end
+
       send(held.pid, {:resume, held.ref})
 
       outcomes = Enum.map([held, waiting], &{&1.role, await!(&1, :done, timeout)})
@@ -267,6 +277,31 @@ defmodule Portfolixir.LockRace do
         receive do
         after
           @poll_interval -> await_blocked!(db, second, first, timeout, waited + @poll_interval)
+        end
+    end
+  end
+
+  # `second: :passes`: until the second writer ends while the first is held.
+  # One the database reports blocked by the first takes a lock the first
+  # holds, the lock the case pins as gone.
+  defp await_passed!(db, second, first, timeout, waited \\ 0) do
+    cond do
+      done?(second) ->
+        :passed
+
+      blocked_by?(db, second.backend, first.backend) ->
+        flunk("""
+        the second writer waited on the first, which it was to pass: it takes a
+        lock the first one holds
+        """)
+
+      waited >= timeout ->
+        flunk("the second writer neither ended nor waited on the first within #{timeout} ms")
+
+      true ->
+        receive do
+        after
+          @poll_interval -> await_passed!(db, second, first, timeout, waited + @poll_interval)
         end
     end
   end

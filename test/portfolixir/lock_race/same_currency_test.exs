@@ -30,6 +30,8 @@ defmodule Portfolixir.LockRace.SameCurrencyTest do
   alias Portfolixir.Imports
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.Lifecycle.CashMerge
+  alias Portfolixir.Lifecycle.MergeRecord
   alias Portfolixir.LockRace
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
@@ -233,5 +235,105 @@ defmodule Portfolixir.LockRace.SameCurrencyTest do
 
     assert currency(cash) == "USD"
     assert bookings_on(cash) == []
+  end
+
+  # -- an edit against a cash merge of its account ------------------------------
+
+  # The cash merge locks both accounts FOR UPDATE, in id order, and then
+  # every booking of either FOR UPDATE (`CashMerge`, ADR-0050 §10). An edit
+  # holds its booking's row first (the journal step's FOR NO KEY UPDATE); a
+  # key-share lock it then asked on an account the booking already
+  # references closed a cycle with the merge (40P01).
+
+  # The edit's lock on its booking's row.
+  defp row_lock, do: LockRace.query?("FOR NO KEY UPDATE")
+
+  # The merge's lock on its two accounts.
+  defp merge_lock do
+    fn
+      %{query: query} when is_binary(query) ->
+        String.contains?(query, ~s(FROM "cash_accounts")) and
+          String.contains?(query, "FOR UPDATE")
+
+      _metadata ->
+        false
+    end
+  end
+
+  # A booking on `source`, and the plan of merging `source` into `target`
+  # the operator approved.
+  defp merge_world(name) do
+    %{portfolio: portfolio, accounts: [source, target]} =
+      world(name, ["#{name} Source", "#{name} Target"])
+
+    {:ok, booking} = deposit(portfolio, source)
+    {:ok, preview} = CashMerge.preview(source.id, target.id)
+    %{source: source, target: target, booking: booking, digest: preview.plan_digest}
+  end
+
+  defp merge(w),
+    do: CashMerge.apply(owner(), w.source.id, w.target.id, %{plan_digest: w.digest})
+
+  defp edit_note(w), do: Ledger.update_transaction(owner(), w.booking, %{notes: "edited"})
+
+  defp booking(w), do: Repo.get!(Transaction, w.booking.id)
+
+  # The merge after the edit committed, both ways it may end: the plan
+  # fingerprints a booking's `updated_at`, a timestamp in seconds, so an edit
+  # within the approved preview's second leaves the plan as approved and the
+  # merge applies, moving the edited booking; a later edit changes it, and
+  # the merge answers a fresh preview with nothing moved. The note survives
+  # either way.
+  defp assert_merged_after_edit(merged, w) do
+    assert %Transaction{notes: "edited", cash_account_id: account_id} = booking(w)
+
+    case merged do
+      {:ok, %MergeRecord{source_id: source_id}, :applied} ->
+        assert source_id == w.source.id
+        assert account_id == w.target.id
+
+      {:error, {:plan_changed, %{plan_digest: fresh}}} ->
+        refute fresh == w.digest
+        assert account_id == w.source.id
+
+      other ->
+        flunk("the merge neither applied nor previewed afresh: #{inspect(other, limit: 5)}")
+    end
+  end
+
+  # User story (#922 closing act; ADR-0050 §10, §11; ADR-0036, risk-tier):
+  # As the operator editing a booking's note while its cash account is
+  # merged into another,
+  # I want the edit and the merge to take turns, never to deadlock,
+  # so that the edit is saved instead of answering a server error.
+  #
+  # Acceptance criteria:
+  # - An edit that leaves the booking's accounts as stored takes no lock on
+  #   them: the accounts its stored row references are frozen by that row,
+  #   which the edit holds (ADR-0050 §11, §16 invariant 15).
+  # - With the edit holding its booking's row, the merge waits for it and
+  #   then runs on the edited booking.
+  # - With the merge holding both accounts, the edit passes it without
+  #   waiting, and the merge then runs on the edited booking.
+  test "a cash merge waits for a note edit holding its booking", %{db: db} do
+    w = merge_world("Edit First")
+
+    {edited, merged} =
+      LockRace.race!(db, {fn -> edit_note(w) end, row_lock()}, fn -> merge(w) end)
+
+    assert {:ok, %Transaction{notes: "edited"}} = edited
+    assert_merged_after_edit(merged, w)
+  end
+
+  test "a note edit passes a cash merge holding its account", %{db: db} do
+    w = merge_world("Merge First")
+
+    {merged, edited} =
+      LockRace.race!(db, {fn -> merge(w) end, merge_lock()}, fn -> edit_note(w) end,
+        second: :passes
+      )
+
+    assert {:ok, %Transaction{notes: "edited"}} = edited
+    assert_merged_after_edit(merged, w)
   end
 end
