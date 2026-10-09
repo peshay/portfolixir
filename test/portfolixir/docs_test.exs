@@ -1273,6 +1273,46 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (#941, Sprint 20 γ closing act, the correctness hunter):
+  # As an operator reading what the heap cap does,
+  # I want the guide to say what fails when a page's load grows past it,
+  # so that a page that drops and reconnects is recognised, and not taken
+  # for a load that failed alone.
+  #
+  # Acceptance criteria:
+  # - The guide (EN, DE) says a request past the cap fails alone, a page's
+  #   load runs in a task linked to its page and takes the page down with
+  #   it, and the page reconnects; a quote sync and a logo lookup run apart
+  #   from the page and fail alone.
+  # - It no longer says a page's load past the cap fails alone.
+  test "the guide says a page's load past the heap cap takes the page down" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+
+    for {path, fragments, refuted} <- [
+          {"docs/home-deployment.md",
+           [
+             "a request that grows past it fails alone, logged, instead of exhausting the machine's memory",
+             "A page's load runs in a task linked to the page, so one that grows past it takes the page down with it, logged, and the page reconnects",
+             "a quote sync and a logo lookup run apart from the page and fail alone"
+           ], "a request or a page's load that grows past it fails alone"},
+          {"docs/de/home-deployment.md",
+           [
+             "Eine Anfrage, die darüber wächst, scheitert allein und wird protokolliert, statt den Speicher der Maschine zu erschöpfen",
+             "Der Ladevorgang einer Seite läuft in einem Task, der mit der Seite verbunden ist: Wächst er darüber, reißt er die Seite mit, es wird protokolliert, und die Seite verbindet sich neu",
+             "eine Kurssynchronisation und eine Logo-Suche laufen getrennt von der Seite und scheitern allein"
+           ],
+           "Eine Anfrage oder ein Ladevorgang einer Seite, der darüber wächst, scheitert allein"}
+        ] do
+      doc = read.(path)
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+
+      refute doc =~ refuted, "#{path}: #{refuted}"
+    end
+  end
+
   # User story (E25 S2, F54):
   # As an operator restoring a backup,
   # I want the restore to be all or nothing, the instance started only after

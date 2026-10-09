@@ -1105,9 +1105,13 @@ Datenbanksicherung zurück.
   einer Heap-Grenze von 512 MiB, die die großen Binärdaten des Prozesses
   mitzählt, und ebenso jeder Task, dem eine Seite ihre Arbeit übergibt (die
   Performance-Berechnung, die Bewertungen, das Anwenden eines Imports, eine
-  Kurssynchronisation): Eine Anfrage oder ein Ladevorgang einer Seite, der
-  darüber wächst, scheitert allein und wird protokolliert, statt den
-  Speicher der Maschine zu erschöpfen. Kein
+  Kurssynchronisation): Eine Anfrage, die darüber wächst, scheitert allein
+  und wird protokolliert, statt den Speicher der Maschine zu erschöpfen. Der
+  Ladevorgang einer Seite läuft in einem Task, der mit der Seite verbunden
+  ist: Wächst er darüber, reißt er die Seite mit, es wird protokolliert, und
+  die Seite verbindet sich neu; eine Kurssynchronisation und eine Logo-Suche
+  laufen getrennt von der Seite und scheitern allein, und die Seite
+  antwortet mit ihrem Fehlerhinweis. Kein
   gewöhnliches Lesen oder Schreiben kommt in ihre Nähe; `max_heap_bytes`
   unter `PortfolixirWeb.HeapCap` in `config/config.exs` ändert sie. Der
   Arbeitsspeicher-Cache abgeleiteter Kennzahlen hält sein eigenes Budget ein
