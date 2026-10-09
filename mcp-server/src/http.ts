@@ -352,10 +352,11 @@ function bindAddress(host: string): string {
 // names, the IPv6 one in brackets as a Host header and a URL write it, and
 // the bound address, an IPv6 one in brackets too (#1137), unless it is a
 // wildcard, which no client sends. Each is answered under the listener's
-// port only.
+// port only. The bound name is listed in lower case, as a browser sends it:
+// the SDK's Host check compares exactly, where the companion's ignores case.
 function listenerNames(host: string): string[] {
   const names = ["127.0.0.1", "localhost", "[::1]"];
-  const bound = hostName(host);
+  const bound = hostName(host).toLowerCase();
 
   if (!["0.0.0.0", "[::]"].includes(bound) && !names.includes(bound)) {
     names.push(bound);
@@ -368,14 +369,17 @@ function listenerNames(host: string): string[] {
 // port looks like. A bare IPv6 address is not one, its last group no port.
 const HOST_WITH_PORT = /^(\[[^\]]*\]|[^:[\]]+):[0-9]+$/;
 
-// The names the operator adds (PORTFOLIXIR_MCP_ALLOWED_HOSTS), trimmed, as
-// the Host values each stands for: an entry that carries its own port
-// (`localhost:6274`, a published port `127.0.0.1:14001`) stands for itself;
-// a bare name, a bare IPv6 address in brackets (#1137), for itself with the
-// listener's port and without one, as a proxy on 80 or 443 passes it.
+// The names the operator adds (PORTFOLIXIR_MCP_ALLOWED_HOSTS), trimmed and in
+// lower case, as the Host values each stands for: an entry that carries its
+// own port (`localhost:6274`, a published port `127.0.0.1:14001`) stands for
+// itself; a bare name, a bare IPv6 address in brackets (#1137), for itself
+// with the listener's port and without one, as a proxy on 80 or 443 passes
+// it. Lower case because a browser sends a name so and the SDK's Host check
+// compares exactly, where the companion's own guard ignores case: an entry
+// written `MCP.Example.LAN` passes both (#956).
 function extraHostValues(port: number, extraHosts: string[]): string[] {
   return extraHosts
-    .map((name) => name.trim())
+    .map((name) => name.trim().toLowerCase())
     .filter(Boolean)
     .flatMap((name) => {
       if (HOST_WITH_PORT.test(name)) {
