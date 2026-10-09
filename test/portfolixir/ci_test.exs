@@ -1708,6 +1708,141 @@ defmodule Portfolixir.CITest do
     end
   end
 
+  # User story (#1136, Sprint 20 Lane M):
+  # As an operator building the release image behind a proxy that re-signs
+  # TLS,
+  # I want the build CA trusted in the step that sources the script and in
+  # no other,
+  # so that no later step of the build stage trusts it, and no layer, build
+  # cache entry or `--target build` image carries it.
+  #
+  # Acceptance criteria:
+  # - With the secret, docker/trust-build-ca.sh adds the CA to the stage's
+  #   store and points Hex at that store, so the step's downloads trust it
+  #   (#1026).
+  # - When the step's shell exits, the CA is taken out again and the store is
+  #   rebuilt fresh, so no file holds the CA when the step's layer is written.
+  # - The step keeps its own exit status. A CA that cannot be taken out fails
+  #   a step that would have passed, with one line that says so.
+  # - Without the secret the script adds nothing and arms nothing.
+  test "the build CA is trusted for the step that sources the script and taken out when it ends" do
+    for {step, status} <- [{"true", 0}, {"false", 1}, {"exit 3", 3}] do
+      trusted = run_trust_build_ca(ca: true, step: step)
+      assert trusted.status == status, trusted.output
+      assert trusted.output == ""
+      assert trusted.during == "hex=<dir>/certs/ca-certificates.crt store_has_ca=1"
+      assert trusted.calls == ["update-ca-certificates", "update-ca-certificates --fresh"]
+      assert trusted.local == []
+      assert trusted.store == "synthetic system store\n"
+      assert trusted.ca_elsewhere == []
+
+      plain = run_trust_build_ca(ca: false, step: step)
+      assert plain.status == status, plain.output
+      assert plain.during == "hex= store_has_ca=0"
+      assert plain.calls == []
+      assert plain.store == "synthetic system store\n"
+    end
+
+    stuck = run_trust_build_ca(ca: true, step: "true", fail_fresh: true)
+    assert stuck.status != 0
+    assert [line] = String.split(stuck.output, "\n", trim: true)
+    assert line =~ "trust-build-ca"
+    assert line =~ "build CA"
+
+    assert run_trust_build_ca(ca: true, step: "exit 3", fail_fresh: true).status == 3
+  end
+
+  # Sources docker/trust-build-ca.sh as a step of Dockerfile.release does,
+  # from a copy whose secret, local CA directory and system store point into
+  # a directory of the test's own, with an update-ca-certificates stub ahead
+  # on PATH. The stub records its arguments and rebuilds the store from a
+  # synthetic system bundle and every local .crt, as Debian's does; told to,
+  # it fails on --fresh. The step records what it sees, then runs `step`.
+  defp run_trust_build_ca(opts) do
+    dir = Path.join(System.tmp_dir!(), "trust-build-ca-#{System.unique_integer([:positive])}")
+    bin = Path.join(dir, "bin")
+    local = Path.join(dir, "local")
+    store = Path.join(dir, "certs/ca-certificates.crt")
+    secret = Path.join(dir, "build_ca")
+    log = Path.join(dir, "calls.log")
+    seen = Path.join(dir, "seen")
+    script = Path.join(dir, "trust-build-ca")
+
+    try do
+      for path <- [bin, local, Path.dirname(store)], do: File.mkdir_p!(path)
+      File.write!(store, "synthetic system store\n")
+      if opts[:ca], do: File.write!(secret, "synthetic CA\n")
+
+      File.write!(
+        script,
+        "docker/trust-build-ca.sh"
+        |> File.read!()
+        |> String.replace("/run/secrets/build_ca", secret)
+        |> String.replace("/usr/local/share/ca-certificates/", local <> "/")
+        |> String.replace("/etc/ssl/certs/ca-certificates.crt", store)
+      )
+
+      stub = Path.join(bin, "update-ca-certificates")
+
+      File.write!(stub, ~S"""
+      #!/bin/sh
+      echo "update-ca-certificates $*" >>"$STUB_LOG"
+      if [ "$*" = "--fresh" ] && [ -n "${STUB_FAIL_FRESH:-}" ]; then
+        exit 1
+      fi
+      {
+        echo "synthetic system store"
+        for crt in "$STUB_LOCAL"/*.crt; do
+          if [ -f "$crt" ]; then cat "$crt"; fi
+        done
+      } >"$STUB_STORE"
+      """)
+
+      File.chmod!(stub, 0o755)
+
+      record =
+        ~S[echo "hex=${HEX_CACERTS_PATH:-} store_has_ca=$(grep -c 'synthetic CA' "$STUB_STORE")" >"$STUB_SEEN"]
+
+      env = [
+        {"PATH", bin <> ":" <> System.get_env("PATH")},
+        {"STUB_LOG", log},
+        {"STUB_LOCAL", local},
+        {"STUB_STORE", store},
+        {"STUB_SEEN", seen},
+        {"STUB_FAIL_FRESH", if(opts[:fail_fresh], do: "1")},
+        {"HEX_CACERTS_PATH", nil}
+      ]
+
+      {output, status} =
+        System.cmd("sh", ["-c", ". #{script} && #{record} && #{opts[:step]}"],
+          env: env,
+          stderr_to_stdout: true
+        )
+
+      read_if_there = fn path -> if File.exists?(path), do: File.read!(path), else: "" end
+
+      ca_elsewhere =
+        for path <- Path.wildcard(Path.join(dir, "**/*"), match_dot: true),
+            path != secret,
+            File.regular?(path),
+            File.read!(path) =~ "synthetic CA",
+            do: path
+
+      %{
+        status: status,
+        output: output,
+        during: seen |> read_if_there.() |> String.replace(dir, "<dir>") |> String.trim(),
+        calls:
+          log |> read_if_there.() |> String.split("\n", trim: true) |> Enum.map(&String.trim/1),
+        local: File.ls!(local),
+        store: File.read!(store),
+        ca_elsewhere: ca_elsewhere
+      }
+    after
+      File.rm_rf!(dir)
+    end
+  end
+
   # User story (#1092, Sprint 19 B2a):
   # As an operator building the release image behind a proxy that only
   # tunnels HTTPS, or on a host whose egress blocks deb.debian.org,
