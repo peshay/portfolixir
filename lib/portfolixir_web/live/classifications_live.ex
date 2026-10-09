@@ -459,10 +459,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
             </p>
           </details>
         </div>
+        <%!-- #1119 (the Sprint 20 γ closing act): the region is there before
+              the result, empty, so a note that arrives with the result is
+              announced; empty, it leaves the flow (app.css). --%>
         <.excluded_note
-          :if={@results}
-          excluded={@results.excluded}
-          currency={@results.base_currency}
+          excluded={if @results, do: @results.excluded, else: []}
+          currency={@results && @results.base_currency}
           categories={@tree.flat}
           holdings={@holdings}
         />
@@ -787,8 +789,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
       |> assign(:single, single_member(assigns.excluded))
 
     ~H"""
-    <div role="status" data-role="category-result-excluded-region">
-      <AppShell.data_note
+    <div role="status" class="category-result-excluded-region" data-role="category-result-excluded-region"><AppShell.data_note
         :if={@excluded != []}
         severity={:attention}
         data-role="category-result-excluded"
@@ -818,8 +819,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
             </ul>
           </details>
         <% end %>
-      </AppShell.data_note>
-    </div>
+      </AppShell.data_note></div>
     """
   end
 

@@ -16,34 +16,37 @@ defmodule Portfolixir.Invariants.CssStatusRegionTest do
       "lib/portfolixir_web/live/portfolio_accounts/merge_preview.ex"
     ],
     "booking-delete__region" => ["lib/portfolixir_web/live/transactions/booking_delete_dialog.ex"],
-    "wealth-card-status" => ["lib/portfolixir_web/live/dashboard_live.ex"]
+    "wealth-card-status" => ["lib/portfolixir_web/live/dashboard_live.ex"],
+    "category-result-excluded-region" => ["lib/portfolixir_web/live/classifications_live.ex"]
   }
 
   # User story (#1119):
   # As an operator using a screen reader,
   # I want the Overview's exclusion note, a merge dialog's changed-plan note
-  # or refusal and the booking delete's changed-split note announced when
-  # they arrive,
+  # or refusal, the booking delete's changed-split note and the
+  # classification screen's note on the members its result leaves out (the
+  # Sprint 20 γ closing act) announced when they arrive,
   # so that I hear them, which a region hidden with `display: none` while
   # empty does not promise: it enters the accessibility tree together with
   # its note.
   #
   # Acceptance criteria:
   # - The empty regions (`.merge-region`, `.booking-delete__region`,
-  #   `.wealth-card-status`) leave the flow with `position: absolute`, and
-  #   no rule gives them `display: none`.
+  #   `.wealth-card-status`, `.category-result-excluded-region`) leave the
+  #   flow with `position: absolute`, and no rule gives them `display: none`.
   # - The picture is identical: no other rule styles these regions, so the
   #   out-of-flow empty box has no padding, border, background or size and
   #   paints nothing, and as an out-of-flow child it takes no row and no gap
   #   of its container's grid, as before.
   # - Each region is a `role` live region whose markup holds nothing but its
-  #   note, no whitespace, so `:empty` holds while there is none.
+  #   note, no whitespace, so `:empty` holds while there is none (a
+  #   `data-role` after its class is allowed).
   # - DESIGN.md prescribes `position: absolute` for the empty region, not
   #   `display: none`.
   test "an empty status region leaves the flow and stays in the accessibility tree" do
     [_, selectors, body] =
       Regex.run(
-        ~r/\n((?:\.(?:merge-region|booking-delete__region|wealth-card-status):empty,?\s*)+)\{([^}]*)\}/,
+        ~r/\n((?:\.(?:merge-region|booking-delete__region|wealth-card-status|category-result-excluded-region):empty,?\s*)+)\{([^}]*)\}/,
         @css
       )
 
@@ -59,7 +62,8 @@ defmodule Portfolixir.Invariants.CssStatusRegionTest do
       for template <- templates do
         source = File.read!(template)
 
-        assert source =~ ~r/<div (id="[^"]+" )?role="(status|alert)" class="#{class}"><[.A-Z]/,
+        assert source =~
+                 ~r/<div (id="[^"]+" )?role="(status|alert)" class="#{class}"( data-role="[^"]+")?><[.A-Z]/,
                "#{template}: the #{class} region holds its note and no whitespace"
       end
     end
