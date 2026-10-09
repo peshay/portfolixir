@@ -496,4 +496,42 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
 
     assert exactly?(realized_row(fund).realized_base, "148.00")
   end
+
+  # User story (#1108 closing act, BML-2; ADR-0016 §1):
+  # As a maintainer whose broker's rate has six places,
+  # I want a converted fee to keep every digit of fee ÷ rate,
+  # so that no figure is rounded in the computation, only on the screen.
+  #
+  # Acceptance criteria (exact Decimal expectations, risk-tier):
+  # - Buy 7 at 113.37 USD (793.59 USD) settled 731.22 EUR, the stored rate
+  #   0.921408 EUR per USD, fees 4.90 EUR: the open lot's buy_fees read
+  #   4.90 ÷ 0.921408 unrounded, to Decimal's 34 significant digits,
+  #   "5.317948183649371396818781690629992" -- a quotient that does not
+  #   terminate, so a rounding step shows.
+  test "a converted fee keeps every digit of a quotient that does not terminate" do
+    {world, fund} = cross_world()
+
+    {:ok, _buy} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        cash_account_id: world.cash.id,
+        security_id: fund.id,
+        type: "buy",
+        date: ~D[2025-04-01],
+        quantity: "7",
+        price: "113.37",
+        fees: "4.90",
+        currency_code: "USD",
+        security_amount: "793.59",
+        settlement_amount: "731.22",
+        settlement_fx_rate: "0.921408",
+        gross_amount: "736.12"
+      })
+
+    assert [lot] = open(fund)
+    assert exact(lot.buy_fees) == "5.317948183649371396818781690629992"
+    assert Decimal.equal?(lot.buy_fees, Decimal.div(Decimal.new("4.90"), Decimal.new("0.921408")))
+    assert exact(lot.buy_taxes) == "0"
+  end
 end
