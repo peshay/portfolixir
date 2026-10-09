@@ -2624,8 +2624,21 @@ own.
 
 A credit that would book nothing or less once the refund is taken out (a
 worthless position sold at a nominal price, its loss refunding tax) is left
-out with a parser warning, described below: enter the sale by hand, and the
-refund as a tax refund of its own. If such a row was imported before
+out with a parser warning, described below, whose remedy reads: book the
+sale by hand, and the refund as a tax refund of its own. No screen books a
+tax refund yet (issue #1206). Book it as a one-row CSV in the export's German
+shape whose `Typ` is *Steuerrückerstattung*, the refund in `Betrag` and
+`Gesamtpreis` and its cash account in `Konto`, or over the API
+(`POST /api/v1/transactions` with the type `tax_refund`) or the MCP companion
+(`portfolixir.transactions.create`):
+
+```text
+Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+2024-06-14 15:30:00;Steuerrückerstattung;;;;25,00;;;25,00;Test-Cash;;;
+```
+
+Drop it like an export and map `Konto` onto the account the sale books on.
+If such a row was imported before
 Portfolixir refused it, its warning says instead that it is already imported
 and cannot be corrected here, as its cash would be 0 or less: do not enter it
 again; how such a booking is corrected is still an open question (issue
