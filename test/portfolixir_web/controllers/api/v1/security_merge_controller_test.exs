@@ -409,7 +409,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
           "SELECT set_config('portfolixir.journal_actor', 'owner_ui', true)"
         )
 
-        Portfolixir.Repo.query!("UPDATE securities SET isin = 'XS0000004560' WHERE id = $1", [
+        Portfolixir.Repo.query!("UPDATE securities SET isin = 'XS0000054560' WHERE id = $1", [
           ctx.source.id
         ])
       end)
@@ -424,7 +424,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
              |> json_response(409)
 
     assert errors["code"] == "invalid_source_isin"
-    assert errors["detail"] =~ "XS0000004560"
+    assert errors["detail"] =~ "XS0000054560"
 
     assert %{"errors" => %{"code" => "invalid_source_isin"}} =
              ctx.conn

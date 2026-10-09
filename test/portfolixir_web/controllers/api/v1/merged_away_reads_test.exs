@@ -219,7 +219,7 @@ defmodule PortfolixirWeb.Api.V1.MergedAwayReadsTest do
       {:delete, "/api/v1/securities/#{id}/logo", nil},
       {:post, "/api/v1/securities/#{id}/logo/discover", %{}},
       {:post, "/api/v1/securities/#{id}/isin-change",
-       %{"isin_change" => %{"new_isin" => "XS00EXSRCE01"}}},
+       %{"isin_change" => %{"new_isin" => "XS00EXSRCH08"}}},
       {:delete, "/api/v1/securities/#{id}/identifier_aliases/1", nil}
     ]
   end
