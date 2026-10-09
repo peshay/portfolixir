@@ -205,13 +205,17 @@ be bookmarked or linked to:
 - `?since=<ISO8601>` — the **Changed since** cut (see below); the *Today /
   7 days / 30 days* chips write a concrete ISO date here, so the link keeps
   meaning what it meant when it was shared.
-- `?dq=stale_quote|missing_quote|missing_logo|missing_fx|two_scales` — the
-  data-quality shortcut filters: no quote in the last 7 days (including none
-  at all); no quote at all; no stored logo; *Missing FX* (issue #717):
-  priced, but with no stored rate from its currency to the base currency, so
-  storing the rate empties the set; and *Priced on two scales* (issue
-  #1068): the bonds the two-scales guard names, in either direction (see
-  *Bonds* below), the list the Overview's two-scales count opens. The first
+- `?dq=stale_quote|missing_quote|missing_logo|missing_fx|two_scales|implausible_quote`
+  — the data-quality shortcut filters: no quote in the last 7 days
+  (including none at all); no quote at all; no stored logo; *Missing FX*
+  (issue #717): priced, but with no stored rate from its currency to the
+  base currency, so storing the rate empties the set; *Priced on two
+  scales* (issue #1068): the bonds the two-scales guard names, in either
+  direction (see *Bonds* below), the list the Overview's two-scales count
+  opens; and *Quote does not match bookings* (issue #1101): the held
+  securities whose stored quotes contradict their own bookings (see *A
+  quote that does not match the bookings* under Quotes and Charts), the
+  list the Overview's count of them opens. The first
   three leave a benchmark and a retired security alone: a sold-out or
   delisted security you retire leaves all three, and the Overview's counts
   drop with it; reactivated, it is back in those it matches. The same
@@ -1642,9 +1646,11 @@ zero beside its text and linking into the Wealth area's Allocation & targets
 tab, under a basis line naming the view, classification tree and
 active plan the drift steers against (or that several plans are active, or
 none) — and the **data-quality line**: one note listing the securities
-in the catalog without a recent quote, asset class, or logo, and the bonds
-priced on two scales ("25 securities in the catalog without a quote in 7
-days · 4 without an asset class · one bond priced on two scales"), each
+in the catalog without a recent quote, asset class, or logo, the bonds
+priced on two scales, and the held securities whose quotes do not match
+their own bookings ("25 securities in the catalog without a quote in 7
+days · 4 without an asset class · one bond priced on two scales · 2 held
+securities whose quotes do not match their bookings"), each
 count linking to the securities list pre-filtered to exactly that set — a
 count of N opens a list of N: the stale-quote and logo counts and their
 lists leave out benchmarks and retired securities, the asset-class count and
@@ -1652,10 +1658,13 @@ its list leave out retired securities and keep benchmarks, and the
 two-scales count (issue #1068) is catalog-wide on purpose and keeps both,
 sold-out bonds included, because such a bond's booked history — its past
 values and its realized result — is a hundredfold off whether it is held or
-not. Whichever finding opens the line carries the noun ("4 securities
-without an asset class"). The note takes the highest severity present: a
-problem while a bond is priced on two scales, attention while a quote is
-stale, otherwise a note. The line renders only when at least one count is
+not. The count of held securities whose quotes do not match their bookings
+(issue #1101) says "held", because the line otherwise counts the catalog,
+and keeps a held security that is retired or a benchmark. Whichever finding
+opens the line carries the noun ("4 securities without an asset class").
+The note takes the highest severity present: a problem while a bond is
+priced on two scales or a held security's quotes do not match its
+bookings, attention while a quote is stale, otherwise a note. The line renders only when at least one count is
 non-zero; a clean catalog shows nothing (no all-clear badge). The **Due**
 card's dates follow the interface language (15.10.2026 in German). There is
 deliberately no activity feed: the audit journal owns the forensic detail,
@@ -1930,12 +1939,18 @@ first plausible day instead, and bonds **priced on two scales** — quotes near
 100 beside booked unit prices near 1, so they count a hundred times too high,
 each linked to its transactions; and, in a note of their own, quotes near 1
 beside booked unit prices near 100, so they count a hundred times too low,
-each linked to its quotes (see *Bonds* under Securities). A bond named there
-without an asset class — brought under the guard by its maturity or coupon —
-is marked *no asset class*. Each finding is a note at its own severity —
-a hint for the trade-price fallback,
-attention for excluded and stale positions, a problem for negative holdings
-and for two scales — and carries its remedy inside
+each linked to its quotes (see *Bonds* under Securities); and positions
+whose quotes do not match their own bookings — the quote of a booking's day
+below half or above twice its price per unit — each named with that booking
+and the quote of its day, "Wrenfield Gardens AG (buy 2026-05-12 at 48.2 EUR
+· quote 2026-05-12: 4.87 EUR, 0.10 times that)", and linked to its quotes
+(see *A quote that does not match the bookings* under Quotes and Charts). A
+bond named there without an asset class — brought under the guard by its
+maturity or coupon — is marked *no asset class*. Each finding is a note at
+its own severity — a hint for the trade-price fallback, attention for
+excluded and stale positions, a problem for negative holdings, for two
+scales and for quotes that do not match their bookings — and carries its
+remedy inside
 the note: the **Sync exchange rates** control sits in the missing-rate
 finding, and a cash account left out for want of a rate is named with its
 balance in its own currency — "USD Settlement (1,850.00 USD)" — and also
@@ -3170,6 +3185,54 @@ row whose source is `manual`, even when the provider history covers the same
 date. Each sync reports how many manual rows it left untouched and logs a
 warning when that count is above zero. Editing a quote by hand still
 overwrites whatever is stored, including previously synced values.
+
+#### A quote that does not match the bookings (issue #1101)
+
+A ticker or online id that points at another listing stores fresh quotes
+from the wrong instrument. The holding is valued at them, and because the
+quote is current, nothing else marks it. So each held security's stored
+quotes are compared with its own bookings: for each buy, sell or priced
+inbound delivery, the stored quote on the booking's date, or the latest
+within 7 days before it, is compared with the booking's price per unit in
+the security's currency (a booking in another currency at its
+security-currency leg). The security is named when, for at least one
+booking, that quote is below half or above twice the booking's price per
+unit. A share that rose twentyfold is never named, because each of its
+bookings matched the quote of its own day; a ticker mapped wrong from the
+first day is, and so is a pence/pound slip.
+
+- A booking at a price of 0 — bonus shares, a delivery at no cost — has no
+  ratio and is skipped, and a booking with no quote in its window is not
+  compared.
+- Quotes and prices are compared on one split basis: a provider's
+  back-adjusted quotes are read as traded on the booking's day, so a
+  recorded split is not named. A split that is not recorded is named: record
+  the split (the split wizard on the security's page), and the finding
+  clears.
+- A bond the two-scales guard names (see *Bonds*) is not counted again
+  here. A bond of a 1,000 denomination booked per piece beside percent
+  quotes, about a tenth of its booked price, is outside both two-scales
+  bands and is named here; its fix is the booked quantity.
+
+The finding is a **problem**: the booked price and the quote are two stored
+facts about one day, more than a factor of two apart, so either the value
+(a wrong quote) or the cost and result (a wrong booking) in the totals is
+wrong. The Overview's data-quality line counts the held securities it names
+("2 held securities whose quotes do not match their bookings") and links to
+`?dq=implausible_quote`, where they are listed under the removable chip
+*Quote does not match bookings*; Wealth → Holdings names each position of
+its scope with the booking and the quote of its day, linking to the
+security's **Quotes** tab. The agent reads the same set, with the booking
+each security contradicts and the rule, over
+`GET /api/v1/securities?data_quality=implausible_quote`. Nothing is
+converted.
+
+**What clears it.** Check the quote source first (ticker, exchange), then
+the booking. The Yahoo adapter fetches the whole series on every sync, so
+the first sync after the mapping is fixed rewrites the quotes on the
+booking dates. A day the new listing does not trade keeps the old quote,
+and a manual quote is not overwritten until it is released (see *Releasing
+manual quotes* below) or corrected by hand.
 
 #### Releasing manual quotes (T-9)
 

@@ -2290,6 +2290,89 @@ defmodule Portfolixir.DocsTest do
     assert note =~ "reverses"
   end
 
+  # User story (#1101, Sprint 20 plan D-7; board 02, pick L2 A):
+  # As the operator and the agent reading why a held security is named as
+  # having quotes that do not match its bookings,
+  # I want the handbooks and the API references, in English and German, to
+  # state the rule, its basis, where it shows and what clears it, and
+  # ADR-0052 §4 to carry a dated note on its sibling,
+  # so that the record, the docs and the code say the same thing.
+  #
+  # Acceptance criteria:
+  # - The handbooks name dq=implausible_quote, the rule (the quote of the
+  #   booking's day or the latest within 7 days before it, outside [1/2, 2]
+  #   of the price per unit), what is skipped (a price of 0, no quote in the
+  #   window), the one split basis and the unrecorded split, the bond booked
+  #   per piece, the overlap with two scales, the problem severity, the
+  #   Overview's finding with its scope word, Wealth's note, and what clears
+  #   it.
+  # - The API references name data_quality implausible_quote with its
+  #   envelope's findings and computation_basis.
+  # - ADR-0052 carries a note dated 2026-10-09 citing D-7 on §4's sibling.
+  test "the docs and ADR-0052 describe implausible_quote (#1101)" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "`?dq=stale_quote|missing_quote|missing_logo|missing_fx|two_scales|implausible_quote`",
+             "#### A quote that does not match the bookings (issue #1101)",
+             "or the latest within 7 days before it",
+             "below half or above twice the booking's price per unit",
+             "A booking at a price of 0",
+             "record the split",
+             "booked per piece",
+             "is not counted again",
+             "2 held securities whose quotes do not match their bookings",
+             "a problem for negative holdings, for two scales and for quotes that do not match their bookings",
+             "What clears it."
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "`?dq=stale_quote|missing_quote|missing_logo|missing_fx|two_scales|implausible_quote`",
+             "#### Ein Kurs, der nicht zu den Buchungen passt (Issue #1101)",
+             "oder der letzte innerhalb von 7 Tagen davor",
+             "unter der Hälfte oder über dem Doppelten des Preises je Stück der Buchung",
+             "Eine Buchung zum Preis 0",
+             "den Split erfassen",
+             "je Stück gebucht",
+             "wird hier nicht noch einmal gezählt",
+             "2 gehaltene Wertpapiere, deren Kurse nicht zu ihren Buchungen passen",
+             "Problem für negative Bestände, für zwei Skalen und für Kurse, die nicht zu ihren Buchungen passen",
+             "Was ihn aufhebt."
+           ]},
+          {"docs/integration/api-and-mcp.md",
+           [
+             "`implausible_quote` — issue #1101",
+             "the envelope adds `findings`",
+             "`computation_basis`"
+           ]},
+          {"docs/de/integration/api-and-mcp.md",
+           [
+             "`implausible_quote` — Issue #1101",
+             "ergänzt der Umschlag `findings`",
+             "`computation_basis`"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+
+    adr =
+      "docs/decisions/0052-bond-master-data-in-dedicated-columns.md"
+      |> File.read!()
+      |> String.replace(~r/\s*\n\s*>?\s*/, " ")
+
+    [note] = Regex.run(~r/\*\*Note 2026-10-09 \(#1101, Sprint 20 plan D-7\).*/, adr)
+    assert note =~ "implausible_quote"
+    assert note =~ "[1/2, 2]"
+    assert note =~ "7 days before"
+    assert note =~ "two_scales"
+    assert note =~ "per piece"
+    assert note =~ "names and converts nothing"
+  end
+
   @features_en "docs/features.md"
   @features_de "docs/de/features.md"
 
