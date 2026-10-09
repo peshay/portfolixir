@@ -169,6 +169,17 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "#1137")
            )
 
+    # The γ closing act (security lens, SL-F2 and SL-N2): an empty pair of
+    # brackets reads as the loopback default, and the allowed hosts compare
+    # in lower case.
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "The MCP companion's HTTP listener") and
+                 &1 =~ "and so does an empty pair of brackets ([])" and
+                 &1 =~ "compared in lower case" and
+                 &1 =~ "where a name with capitals was answered 403 by the SDK's Host check")
+           )
+
     # #974 (C4, the plan's D-11): the bearer checks compare the token first,
     # on the API and on the companion.
     assert newest["summary"] =~ "#974"

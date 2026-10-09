@@ -50,8 +50,10 @@ naming the variable. A `PORTFOLIXIR_MCP_PORT` that is not a whole number from
 stops the companion with exit status 1 and one line naming the variable and
 its value, or the address and the cause, such as `EADDRINUSE`. An empty or
 blank `PORTFOLIXIR_MCP_HOST` binds `127.0.0.1`, as an unset one does, never
-every interface (#1137), and an IPv6 address it binds is answered in brackets
-(`[::1]:4001`), the `Host` a client sends for the URL the companion prints.
+every interface (#1137), and so does an empty pair of brackets (`[]`), which
+reads as the loopback default as an empty value does; an IPv6 address it binds
+is answered in brackets (`[::1]:4001`), the `Host` a client sends for the URL
+the companion prints.
 Repeated wrong
 tokens from one connecting address lock it for a growing interval, during
 which every further wrong token from it is answered `429` with `Retry-After`
@@ -71,6 +73,9 @@ A name in `PORTFOLIXIR_MCP_ALLOWED_HOSTS` is answered with that port and
 without one, as a proxy on port 443 passes it; an entry that carries its own
 port is answered under that port alone, such as `127.0.0.1:14001` for a Compose
 mapping that publishes the companion on another host port than its own.
+The names, the bound host's and those in `PORTFOLIXIR_MCP_ALLOWED_HOSTS`, are
+compared in lower case, as a browser sends them, so an entry written with
+capitals passes both the companion's check and the MCP SDK's.
 A browser request's `Origin` is then compared whole, scheme, name and port
 (#956): it passes as `http://` on a loopback name or the bound address with
 the listener's port, or as `http://` or `https://` on a `Host` value from

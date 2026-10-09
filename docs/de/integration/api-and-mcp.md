@@ -54,9 +54,10 @@ Port, den der Listener nicht bekommt (ein anderer Prozess hält ihn), stoppt
 den Begleitdienst mit dem Exit-Status 1 und einer Zeile, die die Variable und
 ihren Wert nennt oder die Adresse und die Ursache, etwa `EADDRINUSE`. Ein
 leeres `PORTFOLIXIR_MCP_HOST` bindet `127.0.0.1` wie ein nicht gesetztes, nie
-jede Schnittstelle (#1137), und eine IPv6-Adresse, an die er bindet, gilt in
-Klammern (`[::1]:4001`), dem `Host`, den ein Client für die URL schickt, die
-der Begleitdienst ausgibt. Wiederholt falsche Tokens von einer verbindenden Adresse sperren sie für ein
+jede Schnittstelle (#1137), und ebenso ein leeres Klammerpaar (`[]`), das wie
+ein leerer Wert als Loopback-Standard gilt; eine IPv6-Adresse, an die er
+bindet, gilt in Klammern (`[::1]:4001`), dem `Host`, den ein Client für die
+URL schickt, die der Begleitdienst ausgibt. Wiederholt falsche Tokens von einer verbindenden Adresse sperren sie für ein
 wachsendes Intervall, in dem jedes weitere falsche Token von ihr mit `429` und
 `Retry-After` beantwortet wird und die Sperre verlängert. Das Token wird
 zuerst verglichen: Ein richtiges Token kommt durch, solange seine Adresse
@@ -77,7 +78,10 @@ Port des Listeners. Ein Name in `PORTFOLIXIR_MCP_ALLOWED_HOSTS` gilt mit
 diesem Port und ohne Port, wie ihn ein Proxy auf Port 443 durchreicht; ein
 Eintrag mit eigenem Port gilt nur unter diesem Port, etwa `127.0.0.1:14001` für
 eine Compose-Zuordnung, die den Begleitdienst auf einem anderen Host-Port als
-seinem eigenen veröffentlicht. Das `Origin` einer Browser-Anfrage wird danach
+seinem eigenen veröffentlicht. Die Namen, der des gebundenen Hosts und die in
+`PORTFOLIXIR_MCP_ALLOWED_HOSTS`, werden in Kleinbuchstaben verglichen, wie ein
+Browser sie schickt, sodass ein Eintrag mit Großbuchstaben die Prüfung des
+Begleitdienstes und die des MCP-SDK besteht. Das `Origin` einer Browser-Anfrage wird danach
 als Ganzes verglichen, Schema, Name und Port (#956): Es gilt als `http://` auf
 einem Loopback-Namen oder der gebundenen Adresse mit dem Port des Listeners
 oder als `http://` oder `https://` auf einem `Host`-Wert aus
