@@ -436,6 +436,63 @@ defmodule Portfolixir.AgentEntryDocsTest do
     end
   end
 
+  # User story (the Sprint 20 launch test, finding 2):
+  # As an agent installing Portfolixir from source through a shell nobody
+  # types into,
+  # I want the README to set the UI password without a prompt, and to run the
+  # server in the background and stop it,
+  # so that I lock the web UI without typing, keep the password off every
+  # command line and out of the shell history, and get my shell back.
+  #
+  # Acceptance criteria:
+  # - The README's "Run from source" generates the password into a file only
+  #   its owner can read (`umask 077`, `openssl rand -base64 24`) and exports
+  #   it from that file; every value it gives PORTFOLIXIR_UI_PASSWORD comes
+  #   from a command substitution, never a literal.
+  # - It starts `mix phx.server` in the background with `nohup`, its output in
+  #   a log file and its process id in a file, stops it with `kill` on that
+  #   id, and says Ctrl+C twice stops the server in the foreground.
+  # - llms.txt's Install names both and sends the agent to the README's
+  #   commands.
+  test "the from-source route sets its UI password without a prompt and runs in the background" do
+    flat = &String.replace(&1, ~r/\s+/, " ")
+
+    section = fn path, from, to ->
+      path |> File.read!() |> String.split(from) |> Enum.at(1) |> String.split(to) |> hd()
+    end
+
+    from_source = section.("README.md", "### Run from source", "### API and MCP")
+    install = flat.(section.("docs/llms.txt", "## Install", "## Connect the MCP companion"))
+
+    for command <- [
+          "(umask 077 && openssl rand -base64 24 > ~/portfolixir-ui-password)",
+          ~S|export PORTFOLIXIR_UI_PASSWORD="$(cat ~/portfolixir-ui-password)"|,
+          "nohup mix phx.server > ~/portfolixir.log 2>&1 < /dev/null &",
+          "echo $! > ~/portfolixir.pid",
+          ~S|kill "$(cat ~/portfolixir.pid)"|
+        ] do
+      assert from_source =~ command, "README Run from source: #{command}"
+    end
+
+    for [value] <-
+          Regex.scan(~r/PORTFOLIXIR_UI_PASSWORD=(\S*)/, from_source, capture: :all_but_first) do
+      assert String.starts_with?(value, "\"$("), "README: PORTFOLIXIR_UI_PASSWORD=#{value}"
+    end
+
+    assert flat.(from_source) =~ "Ctrl+C twice stops it"
+
+    for fragment <- [
+          "`umask 077`",
+          "`openssl rand -base64 24`",
+          "no command line and no shell history holds it",
+          "`nohup`",
+          "`kill`",
+          ~s(the README's "Run from source" has the commands)
+        ] do
+      assert install =~ fragment, "llms.txt Install: #{fragment}"
+    end
+  end
+
   # User story (the launch test's second run, #1037):
   # As the fresh agent installing Portfolixir from the README and llms.txt
   # through a shell,

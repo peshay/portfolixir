@@ -288,6 +288,16 @@ read -rs PORTFOLIXIR_UI_PASSWORD && export PORTFOLIXIR_UI_PASSWORD
 export PORTFOLIXIR_API_TOKEN="$(openssl rand -base64 48)"
 ```
 
+Where nobody types at a prompt, as in a script or an agent's shell, replace
+the `read` line: generate the password once into a file only you can read,
+outside the checkout, and export it from there. Neither line holds the
+password, and the file is where you read it for the login:
+
+```sh
+(umask 077 && openssl rand -base64 24 > ~/portfolixir-ui-password)
+export PORTFOLIXIR_UI_PASSWORD="$(cat ~/portfolixir-ui-password)"
+```
+
 Then, in the same shell:
 
 ```sh
@@ -299,6 +309,18 @@ mix phx.server
 Open the URL the server prints, `http://localhost:4000` at the default
 `PORT`; the login is at `/login`. With another `PORT`, give the companion's
 `PORTFOLIXIR_API_BASE_URL` the same port.
+
+`mix phx.server` keeps the shell; Ctrl+C twice stops it. To keep the shell
+instead, start the server in the background in place of that last line, with
+its output and its process id in files outside the checkout:
+
+```sh
+nohup mix phx.server > ~/portfolixir.log 2>&1 < /dev/null &
+echo $! > ~/portfolixir.pid
+```
+
+The log shows `Running PortfolixirWeb.Endpoint` once it listens, and
+`kill "$(cat ~/portfolixir.pid)"` stops it.
 
 ### API and MCP
 

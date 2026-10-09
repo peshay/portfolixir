@@ -104,7 +104,12 @@ in the shell that starts it, and name the database with `DATABASE_NAME`,
 `127.0.0.1:5432`); it connects as user `postgres` with password `postgres`,
 which `config/dev.exs` fixes: no variable changes them. It listens on
 loopback, on `PORT` (default `4000`); without `PORTFOLIXIR_UI_PASSWORD` its web
-UI asks for no login. Connect the companion to it over stdio (below), with
+UI asks for no login. Where nobody types at a prompt, as in an agent's shell,
+generate the password into a file only the operator can read (`umask 077`,
+`openssl rand -base64 24`) and export it from there, so no command line and no
+shell history holds it; start the server in the background with `nohup` and
+stop it with `kill` on its saved process id: the README's "Run from source"
+has the commands. Connect the companion to it over stdio (below), with
 `PORTFOLIXIR_API_BASE_URL` naming the same port.
 
 ## Connect the MCP companion
