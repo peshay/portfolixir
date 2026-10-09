@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="de" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Wertpapiere: Liste und Detail (Picks N6, N3.2, N7; #1104, #1121, #1112, #1139, #1151, #1163, #1201)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: what the N6 / N3.2 / N7 stories and the four
+     before/afters change on the securities list and a security's detail.
+     The frames are srcdoc iframes built from the live markup of
+     securities_live.ex (render/1's list, overview_tab_panel/1,
+     quotes_tab_panel/1, the Chart tab), bond_strip.ex (the W1 slot),
+     filter_popover.ex, column_picker.ex, security_chart.ex and the
+     ChartCrosshair hook in layout_view.ex, so a 390 px frame is a real 390 px
+     viewport and app.css's 560 px and 720 px blocks fire as on a phone.
+     "Heute" frames render app.css as shipped; "Nachher" and variant frames
+     also get this block. Each rule is numbered by its item. -->
+<style id="proposal">
+  /* ① N6 (#1104): no CSS. One chip label per boolean field,
+     "%{field}: ja" / "%{field}: nein" (securities_live.ex chip_label/1 and
+     operator_label/1), and the builder popover's two options for a boolean
+     field read the same words (filter_popover.ex operator_label/1). */
+
+  /* ② N3.2 A (#1121, list half): the two-scales notes sit above the
+     filtered list, inside #securities-panel, with the gutter the panel's
+     other blocks keep (.workspace-panel > .alert-success's margin), one
+     note per direction in one status region, stacked with the --space-2
+     gap Wealth's [data-role="dq-notes"] has. */
+  .workspace-panel > .securities-dq-notes {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin: 12px clamp(14px, 2.2vw, 24px) 0;
+  }
+
+  /* ③ N7 (#1112): no CSS. The reverse and the implausible-quote notes are
+     AppShell.data_note problem notes in the Overview's W1 slot (A), the
+     slot BondStrip.two_scales_note/1 fills today; the tab panel is already
+     a flex column with an 18 px gap. */
+
+  /* ④ #1139: the securities list's phone rows get the page gutter; the
+     monogram no longer touches the left edge, the kebab not the right. */
+  #securities-phone-rows .phone-row {
+    padding-inline: 16px;
+  }
+
+  /* ⑤ #1151: the securities list's open column picker hides with its
+     toggle under 560 px, as Wealth's #holdings-column-picker does (U4). In
+     app.css the id joins the existing selector list of the 560 px block. */
+  @media (max-width: 560px) {
+    #column-picker {
+      display: none;
+    }
+  }
+
+  /* ⑥ #1163: no CSS. The tooltip keeps its three lines and classes; the
+     server sends display strings beside the raw values (security_chart.ex
+     build_payload/6, build_tx_payload/6) and the hook prints them. */
+
+  /* ⑦ #1201: no CSS. The Overview's dd cells take is-positive /
+     is-negative / is-flat from the figure as shown; the sub-line's percent
+     is a decimal-positive / decimal-negative span, the phone rows' second
+     line's anatomy. */
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-frame { overflow: hidden; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul, .notes ol { margin: 0; }
+  .notes ul, .notes ol { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code, .measure code { font-size: 11.5px; }
+  .mock-board > h2 code, .mock-note code { overflow-wrap: anywhere; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .measure { font-size: 11.5px; color: var(--mock-ink); margin: 4px 0 0; max-width: 980px; }
+  .title-mock { display: inline-block; padding: 2px 6px; border: 1px solid #767676; background: #fffff0; color: #000; font: 12px/1.3 system-ui, sans-serif; box-shadow: 1px 1px 2px rgba(0,0,0,.25); }
+  .phone-only { display: none; }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap, .measure { padding: 0 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 10px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph { width: 390px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Board 02 — the securities list and a security's detail.</b> Three picks: <b>N6</b> (#1104) how a boolean filter chip reads — <b>A</b> "Stillgelegt: nein" <span class="rec">Recommended A</span> · B "Nicht stillgelegt" · C "Stillgelegt ist falsch"; <b>N3.2</b> (#1121, the list half) what <code>?dq=two_scales</code> says above its list — <b>A</b> a problem note per direction with each bond and its remedy <span class="rec">Recommended A</span> · B a direction badge per row; <b>N7</b> (#1112, widened by #1101) where the detail page names a bond on the reverse scales and a quote that does not match the bookings — <b>A</b> both in the Overview's W1 slot <span class="rec">Recommended A</span> · B the implausible note on the Quotes tab.<br>
+Before/after, nothing to pick: <b>#1139</b> the phone rows' gutter · <b>#1151</b> an open column picker below 560&nbsp;px · <b>#1163</b> the chart tooltip and markers in German · <b>#1201</b> the Overview tab's percentages. A comment on the planning PR naming another variant ("N6 B") changes a pick; silence adopts the recommendation. "Heute" is app.css and the templates as built; the rest add <code>&lt;style id="proposal"&gt;</code>. Desktop frames: 980&nbsp;px content (1200 − 220 sidebar). Every name, figure, date and identifier is invented. <b>Dashed = new or changed.</b></div>
+<div class="pickbar phone-only"><b>Board 02 at 390&nbsp;px.</b> Real 390-px viewports: app.css's 560-px and 720-px blocks fire. Recommended: N6 A, N3.2 A, N7 A. Synthetic data only. <b>Dashed = new or changed.</b></div>
+
+<!-- ============================ N6 ============================ -->
+<section class="mock-board" id="n6">
+  <h2>N6 — #1104: a boolean filter chip reads "Stillgelegt = false" <small>Wertpapiere · <code>?filter[]=asset_class:is_nil&amp;filter[]=is_retired:is_false</code>, the Overview's asset-class link</small></h2>
+  <p class="mock-note">The Overview's "4 ohne Anlageklasse" opens the list with the one-tap chip "Ohne Anlageklasse" active and the builder's condition <code>is_retired:is_false</code> as a removable chip (PR #1102). <code>chip_label/1</code> joins the field's label, <code>operator_label(:is_false)</code> — the literal <code>"= false"</code>, not gettext — and <code>format_value(_, false)</code>, which is <code>""</code>: the chip reads "Stillgelegt = false" on the German page. The builder popover names the same operator "ist falsch" (<code>filter_popover.ex:246-247</code>). The two boolean fields are Stillgelegt and Benchmark (<code>SecurityFields</code>); one rule covers both.</p>
+
+  <p class="cap" style="margin-top:14px">Heute — "Stillgelegt = false"</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="chips" data-o='{"v":"today"}' data-measure="chip" title="N6 heute, Desktop"></iframe></div>
+    <p class="measure" data-out="chip-today-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="chips" data-o='{"v":"today"}' data-measure="chip" title="N6 heute, 390 px"></iframe></div>
+    <div class="col">
+      <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — der Baukasten (Optionen offen gezeichnet)</span><iframe data-tpl="popover" data-o='{"v":"today"}' title="N6 Popover heute"></iframe></div>
+    </div>
+    <div class="notes">
+      <p class="measure" data-out="chip-today-phone" style="padding:0"></p>
+      <p><b>Heute.</b> At 390&nbsp;px the one-tap families sit behind "Filter" (the sheet), and the removable chip row stays: the only active condition the phone shows in words reads "Stillgelegt = false". The builder that made it says "Operator: ist falsch" — the chip and the control that set it use two vocabularies, and neither is German for "not retired".</p>
+      <p>The popover frame draws both selects open (<code>size="2"</code>) so their options show; on the page they are closed selects.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A <span class="rec">recommended</span> — "Stillgelegt: nein", one rule for every boolean field; the builder's options read "ja" / "nein"</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — empfohlen</span><iframe data-tpl="chips" data-o='{"v":"A"}' data-proposal data-measure="chip" title="N6 A, Desktop"></iframe></div>
+    <p class="measure" data-out="chip-A-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — empfohlen, 390 px</span><iframe data-tpl="chips" data-o='{"v":"A"}' data-proposal data-measure="chip" title="N6 A, 390 px"></iframe></div>
+    <div class="col">
+      <div class="ph mock-frame mock-after"><span class="mock-tag">A — der Baukasten folgt</span><iframe data-tpl="popover" data-o='{"v":"A"}' data-proposal title="N6 A Popover"></iframe></div>
+    </div>
+    <div class="notes">
+      <p class="measure" data-out="chip-A-phone" style="padding:0"></p>
+      <p><b>A.</b> The chip reads the field, a colon and the value: "Stillgelegt: nein", "Stillgelegt: ja", "Benchmark: nein" — <code>gettext("%{field}: %{value}")</code> over two words, <code>pgettext("boolean filter", "yes"/"no")</code>. It is the family chips' rule (DESIGN.md, Filter chips D2: "Family chips render their value in the label") applied to a two-valued family, and it holds for any boolean field the registry gains, with no string per field.</p>
+      <p><b>The popover follows A.</b> For a boolean field the builder has no value input (<code>@operator not in [:is_true, :is_false, :is_nil]</code>), so its operator select <i>is</i> the value: under A it is labelled "Wert" (the existing msgid "Value") and offers "ja" / "nein". What the operator picks is then the word the chip shows. The stored filter stays <code>is_retired:is_false</code>; URLs, the API and MCP are unchanged.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — "Nicht stillgelegt"</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">B</span><iframe data-tpl="chips" data-o='{"v":"B"}' data-proposal data-measure="chip" title="N6 B, Desktop"></iframe></div>
+  </div>
+  <p class="cap" style="margin-top:22px">Variante C — "Stillgelegt ist falsch"</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">C</span><iframe data-tpl="chips" data-o='{"v":"C"}' data-proposal data-measure="chip" title="N6 C, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">B — 390 px</span><iframe data-tpl="chips" data-o='{"v":"B","only":"chips"}' data-proposal title="N6 B, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">C — 390 px</span><iframe data-tpl="chips" data-o='{"v":"C","only":"chips"}' data-proposal title="N6 C, 390 px"></iframe></div>
+    <div class="notes">
+      <p class="measure" data-out="chip-B-desk" style="padding:0"></p>
+      <p class="measure" data-out="chip-C-desk" style="padding:0"></p>
+      <p><b>B</b> reads most naturally for this one field, but it is a sentence per field and per value: "Nicht stillgelegt" / "Stillgelegt", "Kein Benchmark" / "Benchmark" — four msgids today, two more with each boolean field, and the negation has to be written by hand each time (German has no one prefix for it). The popover's "ist wahr / ist falsch" would stay a second vocabulary.</p>
+      <p><b>C</b> reuses the popover's msgstr, so it adds no string and the two agree. But "Stillgelegt ist falsch" reads as a statement about the data — "the retired flag is wrong" — on a page whose other removable chips are data-quality findings ("Auf zwei Skalen bepreist", "Kurs passt nicht zu Buchungen"). It describes the predicate, not the set the list shows.</p>
+      <p><b>Why A:</b> one rule, two new words, the family-chip anatomy the row already uses, and a builder that speaks the chip's words.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ N3.2 ============================ -->
+<section class="mock-board" id="n32">
+  <h2>N3.2 — #1121 (the list half): <code>?dq=two_scales</code> lists the bonds with no direction and no remedy <small>Wertpapiere · the Overview line's "3 Anleihen auf zwei Skalen bepreist"</small></h2>
+  <p class="mock-note">The data: "Ostsee Hafen 2029 3,00%" (quotes around 100, a buy of the nominal booked as the quantity at 0,985), "Kestrel Kommunal 2033 1,75%" (the same direction, no asset class stored or inferred — named as a bond by its maturity date, so it carries the neutral "ohne Anlageklasse" badge), "Brackwater Anleihe 2031 2,50%" (the reverse: stored quotes around 1, booked at 98,4). The Overview's line counts all three, catalog-wide, at problem severity, and links here (D-15). Today the list shows the three rows under the removable chip "Auf zwei Skalen bepreist" and nothing else: which way each bond is off, and what to check, live only on Wealth (W2 and its reverse note) and on the bond's own Overview (forward only).</p>
+
+  <p class="cap" style="margin-top:14px">Heute — three rows, no direction</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="twoScales" data-o='{"v":"today"}' data-measure="dq" title="N3.2 heute, Desktop"></iframe></div>
+    <p class="measure" data-out="dq-today-desk"></p>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A <span class="rec">recommended</span> — a problem note per direction above the list, each bond with its figures and its remedy's tab</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — empfohlen</span><iframe data-tpl="twoScales" data-o='{"v":"A"}' data-proposal data-measure="dq" title="N3.2 A, Desktop"></iframe></div>
+    <p class="measure" data-out="dq-A-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="twoScales" data-o='{"v":"today"}' data-measure="dq" title="N3.2 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — empfohlen, 390 px</span><iframe data-tpl="twoScales" data-o='{"v":"A"}' data-proposal data-measure="dq" title="N3.2 A, 390 px"></iframe></div>
+    <div class="notes">
+      <p class="measure" data-out="dq-today-phone" style="padding:0"></p>
+      <p class="measure" data-out="dq-A-phone" style="padding:0"></p>
+      <p><b>A.</b> Wealth's two notes, as a block above the list: one problem note per direction present, forward first (UX-DR17: one finding per note — the consequence and the remedy point opposite ways). Each entry is W2's: the name linking to the tab where the fix is made (forward → Transaktionen, the booked quantity; reverse → Kurse, the stored quotes), the neutral "ohne Anlageklasse" badge where the bond shows none, and "(Kurs 97,25 · Preis je Stück 0,985)" as <code>Format.exact</code> writes them. A count of N opens a list of N (#705): the notes name exactly the rows below.</p>
+      <p><b>One clause changes from Wealth's sentence.</b> Wealth says "zählt hundertfach zu hoch <i>in den Summen</i>" because its notes follow the page's scope. This list is catalog-wide on purpose (sold-out, retired and benchmark bonds stay, D-15), so the clause reads "<i>wo immer sie bewertet wird</i>" — true for a held bond's total, a sold bond's past values and a benchmark's comparison alike (J1.2's rule: a scope word where the scope differs). Two new msgids, plural forms; the entries reuse Wealth's.</p>
+      <p><b>Where.</b> In <code>#securities-panel</code>, between the removable chips and the list, in one <code>role="status"</code> region, with the panel's 14–24&nbsp;px gutter (rule ②). Only on <code>?dq=two_scales</code>.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — a direction badge per row, no remedy</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">B</span><iframe data-tpl="twoScales" data-o='{"v":"B"}' data-proposal data-measure="dq" title="N3.2 B, Desktop"></iframe></div>
+    <p class="measure" data-out="dq-B-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">B — 390 px</span><iframe data-tpl="twoScales" data-o='{"v":"B"}' data-proposal data-measure="dq" title="N3.2 B, 390 px"></iframe></div>
+    <div class="notes">
+      <p class="measure" data-out="dq-B-phone" style="padding:0"></p>
+      <p><b>B</b> puts the direction on the row: a <code>badge badge--danger</code> after the name, "hundertfach zu hoch" or "hundertfach zu niedrig", on the table row and in the phone row's identifier line. It is compact and stays with its row when the list is sorted or searched.</p>
+      <p><b>What B costs.</b> The badge says which way, not why and not what to check, so the reader still leaves for Wealth or the bond's page to learn that a forward bond's <i>quantity</i> is wrong and a reverse bond's <i>quotes</i> are — the opposite remedies the two notes exist to keep apart. It is also a second anatomy for the same finding (a badge here, a note on Wealth, a note on the Overview tab), and a colour-tinted badge in a table row is the "ad-hoc chip" the data-note component replaced (DESIGN.md, Data note: <code>.negative-holding-chip</code> and its kin). At 390&nbsp;px the badge takes a line of its own under the class select (measured above).</p>
+      <p><b>Why A:</b> the list is where the Overview's alarm lands; A answers there with the same words and remedies the reader would otherwise have to find on Wealth.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ N7 ============================ -->
+<section class="mock-board" id="n7">
+  <h2>N7 — #1112: the detail page is silent about a bond on the reverse two scales and about a quote that does not match the bookings <small>Wertpapiere → Brackwater Anleihe 2031 2,50% / Arbolia Inc. → Übersicht, Kurse</small></h2>
+  <p class="mock-note">Two securities. <b>"Brackwater Anleihe 2031 2,50%"</b>: 100 units bought 12.03.2026 at 98,4 (percent of face, the hundredth convention), its stored quotes around 1 (latest 0,981 on 05.10.2026) — the reverse two scales, so it counts a hundredfold too low: value 98,10 EUR, "unrealisiert" −9.741,90. <code>BondStrip.two_scales_note/1</code> renders only <code>direction: :forward</code> (<code>bond_strip.ex:289</code>; <code>:316</code> renders nothing otherwise). <b>"Arbolia Inc."</b> (USD): mapped to another listing, sold 03.04.2026 at 61,40, the quote of 02.04.2026 is 618,90 (ratio 10,08) — Sprint 20's <code>implausible_quote</code> (#1101). Wealth names it and links to the Quotes tab; the security's own pages say nothing, and its Overview shows +22.320,00 USD "unrealisiert". A security on two scales is left to that finding, so one security never carries both notes.</p>
+
+  <p class="cap" style="margin-top:14px">Heute — Übersicht, nothing above the figures</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — Brackwater (umgekehrt)</span><iframe data-tpl="detail" data-o='{"sec":"bond","v":"today","pct":"old"}' title="N7 heute Anleihe"></iframe></div>
+    <div class="dk mock-frame mock-before" style="margin-top:10px"><span class="mock-tag">Heute — Arbolia (Kurs passt nicht)</span><iframe data-tpl="detail" data-o='{"sec":"arb","v":"today","pct":"old"}' title="N7 heute Arbolia"></iframe></div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A <span class="rec">recommended</span> — both as problem notes in the Overview's W1 slot, above the figures they falsify, linking to the tabs where the fix is made</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — empfohlen, Brackwater</span><iframe data-tpl="detail" data-o='{"sec":"bond","v":"A","pct":"new"}' data-proposal data-measure="w1" title="N7 A Anleihe"></iframe></div>
+    <p class="measure" data-out="w1-bond-desk"></p>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">A — empfohlen, Arbolia</span><iframe data-tpl="detail" data-o='{"sec":"arb","v":"A","pct":"new"}' data-proposal data-measure="w1" title="N7 A Arbolia"></iframe></div>
+    <p class="measure" data-out="w1-arb-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — 390 px, Brackwater</span><iframe data-tpl="detail" data-o='{"sec":"bond","v":"A","pct":"new","short":true}' data-proposal data-measure="w1" title="N7 A Anleihe 390"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — 390 px, Arbolia</span><iframe data-tpl="detail" data-o='{"sec":"arb","v":"A","pct":"new","short":true}' data-proposal data-measure="w1" title="N7 A Arbolia 390"></iframe></div>
+    <div class="notes">
+      <p class="measure" data-out="w1-bond-phone" style="padding:0"></p>
+      <p class="measure" data-out="w1-arb-phone" style="padding:0"></p>
+      <p><b>The reverse note</b> is W1's forward note turned round, with DESIGN.md's reverse sentence (Wealth's <code>dq-two-scales-reverse</code>): "Auf zwei Skalen bepreist: Kurse um 1 (zuletzt 0,981 am 05.10.2026), gebuchter Preis je Stück um 100 (1 Buchung: 98,4 am 12.03.2026). Dann zählen Wert, Gewinn und Gewicht hundertfach zu niedrig. Die gespeicherten Kurse prüfen — ein Kurs um 1 ist kein Prozent vom Nennwert: <u>Kurse</u>". The forward note's link goes to Transaktionen (the quantity); this one to Kurse (the quotes). <code>data-role="two-scales-reverse-note"</code>.</p>
+      <p><b>The implausible note</b> takes the same anatomy — bold lead, the facts, the consequence, the remedy, the link — with Wealth's entry and DESIGN.md's sentence for one position: "Kurs passt nicht zu den Buchungen: Verkauf 03.04.2026 zu 61,4 USD · Kurs 02.04.2026: 618,9 USD, das 10,08-Fache (am Buchungstag unter der Hälfte oder über dem Doppelten des Preises je Stück). Wert oder Einstand dieser Position ist daher falsch. Die Kursquelle prüfen (Ticker, Börse), dann die Buchung: <u>Kurse</u> · <u>Transaktionen</u>". It names the latest booking outside the band, and how many there are when more than one ("2 Buchungen, zuletzt …"), as W1 does. <code>data-role="implausible-quote-note"</code>. The Kurse link comes first because the remedy checks the quote source first.</p>
+      <p><b>Why A:</b> the Overview is the tab a security opens on, from the list, a search, Wealth's names and the Overview's links, and its Wert and Unrealisiert are exactly the figures each finding makes wrong. UX-DR17's placement rule puts the note in the section with the data it describes, above it, as W1 already does for the forward case. One slot, three notes, one anatomy.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — the reverse note on the Overview, the implausible note on the Quotes tab</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">B — Arbolia, Kurse</span><iframe data-tpl="detail" data-o='{"sec":"arb","v":"B","tab":"quotes","pct":"new"}' data-proposal data-measure="w1" title="N7 B Kurse"></iframe></div>
+    <p class="measure" data-out="w1-arbq-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">B — 390 px, Arbolia, Kurse</span><iframe data-tpl="detail" data-o='{"sec":"arb","v":"B","tab":"quotes","pct":"new","short":true}' data-proposal title="N7 B Kurse 390"></iframe></div>
+    <div class="notes">
+      <p><b>B</b> keeps the Overview for the bond findings (forward and reverse in W1) and puts the implausible note at the head of the Quotes tab, above the range line and the table, where the stored quote of 02.04.2026 can be checked. Wealth's entry links to <code>?tab=quotes</code> (L2 A), so a reader arriving from Wealth lands on it.</p>
+      <p><b>What B costs.</b> A reader who opens Arbolia from the list or a search lands on the Overview and reads "+22.320,00 USD unrealisiert" with no word that it is wrong; the finding is one tab away, on a tab one opens when one already suspects the quotes. The Brackwater frame under B is A's (the reverse note is in W1 in both), so it is not drawn twice.</p>
+      <p><b>Under A, the Quotes tab stays silent</b> for a reader who arrives from Wealth's entry. Kept so: the entry already states the booking, the quote and the ratio, and the Overview carries the note one tap back (decided here, not filed).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1139 and #1151 ============================ -->
+<section class="mock-board" id="z1139">
+  <h2>#1139 and #1151 — the list at 390 px <small>Vorher / Nachher: the phone rows' gutter; a column picker opened at 1200 px, the window then narrowed</small></h2>
+  <p class="mock-note"><b>#1139.</b> <code>.phone-row</code> has <code>padding: 10px 0</code> (<code>app.css:8635-8642</code>) and <code>.workspace-panel</code> no inline padding, so the monogram starts at the viewport's left edge and the kebab ends at its right. After: <code>#securities-phone-rows .phone-row { padding-inline: 16px }</code> (rule ④), the page gutter of the toolbar's search field. <b>#1151.</b> The 560&nbsp;px block hides <code>#toggle-column-popover</code> and Wealth's <code>#holdings-column-picker</code> (U4), not the securities list's <code>#column-picker</code> (<code>app.css:8908-8913</code>; <code>securities_live.ex:518-526</code>). A picker opened at 1200&nbsp;px survives the resize: it stays over the list with its toggle gone. After: the id joins the selector list (rule ⑤). A still is enough: the frame renders the picker open, as <code>@open_popover == :columns</code> leaves it.</p>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — #1139, 390 px</span><iframe data-tpl="phoneList" data-o='{}' data-measure="gutter" title="#1139 heute"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — #1139</span><iframe data-tpl="phoneList" data-o='{"fix":true}' data-proposal data-measure="gutter" title="#1139 nachher"></iframe></div>
+    <div class="notes">
+      <p class="measure" data-out="gutter-before" style="padding:0"></p>
+      <p class="measure" data-out="gutter-after" style="padding:0"></p>
+      <p>The row's four tracks keep their order (logo · body · figures · kebab); only the row's own inline padding changes, so the border between rows still runs edge to edge, as the other phone lists' do. The Quotes tab's and the Trades tab's phone rows sit inside the detail pane's padding and are not touched.</p>
+    </div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — #1151, 390 px, Spalten offen</span><iframe data-tpl="phoneList" data-o='{"picker":true}' data-measure="picker" data-fixed="560" title="#1151 heute"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — #1151</span><iframe data-tpl="phoneList" data-o='{"picker":true,"fix":true}' data-proposal data-measure="picker" data-fixed="560" title="#1151 nachher"></iframe></div>
+    <div class="notes">
+      <p class="measure" data-out="picker-before" style="padding:0"></p>
+      <p class="measure" data-out="picker-after" style="padding:0"></p>
+      <p>After, the panel is out of the layout below 560&nbsp;px while <code>@open_popover</code> stays <code>:columns</code>; widening the window again shows it, as Wealth's does. The phone rows are a fixed composition (UX-DR27), so a picker there would change nothing the reader sees.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1163 ============================ -->
+<section class="mock-board" id="z1163">
+  <h2>#1163 — the chart tooltip and the trade markers read ISO dates, raw decimals and English <small>Wertpapiere → Tamarisk Systems Inc. → Diagramm, "Transaktionen anzeigen" an, hovering the buy of 15.05.2026</small></h2>
+  <p class="mock-note">The <code>ChartCrosshair</code> hook builds the tooltip from the payload: <code>points</code> are <code>[iso, close, x, y]</code> with the close as <code>Decimal.to_string</code> (<code>security_chart.ex:181</code>, <code>point_display/1</code>), and <code>txs</code> carry <code>type</code>, <code>quantity</code> and <code>price</code> raw (<code>:238-242</code>); <code>renderTooltip</code> prints <code>tx.type + " " + quantity + " @ " + price</code> (<code>layout_view.ex:955-972</code>). The marker's SVG <code>&lt;title&gt;</code> is <code>"#{tx.type} on #{Format.date(date)} at #{price}"</code> (<code>:425</code>). After: the server sends display strings beside the raw values — the raw ISO date stays, because the zoom sends it back as the custom range — and the hook prints the display strings. The marker title is a gettext sentence.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="chartTab" data-o='{"v":"today"}' data-measure="tip" title="#1163 heute"></iframe></div>
+    <p class="measure" data-out="tip-today-desk"></p>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher</span><iframe data-tpl="chartTab" data-o='{"v":"after"}' data-proposal data-measure="tip" title="#1163 nachher"></iframe></div>
+    <p class="measure" data-out="tip-after-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="chartTab" data-o='{"v":"today"}' data-measure="tip" title="#1163 heute 390"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="chartTab" data-o='{"v":"after"}' data-proposal data-measure="tip" title="#1163 nachher 390"></iframe></div>
+    <div class="notes">
+      <p class="measure" data-out="tip-today-phone" style="padding:0"></p>
+      <p class="measure" data-out="tip-after-phone" style="padding:0"></p>
+      <p><b>The tooltip, after.</b> Date through <code>Format.date</code> ("15.05.2026"); the close through <code>Format.decimal(close, 2)</code>, the form of the Quotes table and the pane's head ("41,40 USD"); the trade line "Kauf 12 zu 41,12 USD" — the kind through <code>TransactionKindLabel</code>, the quantity as stored (<code>Format.exact</code>), the price by the history's stored-figure rule (R10c), the booking's currency. A percent-mode point prints the signed percent the axis prints ("+10,4%"); Wealth's and the snapshots' charts already send a localised <code>label</code>, and now get the localised date too, since the date is built in the shared <code>build_payload/6</code>.</p>
+      <p><b>The marker title</b> (the native tooltip, drawn here because a screenshot cannot show it):<br>Heute <span class="title-mock">buy on 15.05.2026 at 41.12</span><br>Nachher <span class="title-mock">Kauf am 15.05.2026 zu 41,12 USD</span></p>
+      <p><b>The payload</b> gains <code>points[i][4]</code> (the display date) and <code>txs[i].label</code>; <code>points[i][0]</code> stays ISO and <code>points[i][1]</code> was already a display string slot. Every value still goes in through <code>textContent</code> (#770).</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1201 ============================ -->
+<section class="mock-board" id="z1201">
+  <h2>#1201 — the Overview tab prints "+10,00 %", coloured from the raw value <small>Wertpapiere → Larkspur Rail AG → Übersicht: Tagesänderung, 1J, Unrealisiert</small></h2>
+  <p class="mock-note"><code>signed_percent_or_dash/1</code> (<code>securities_live.ex:3302-3313</code>) prints two decimals and a breaking space before "%" — the form #1060 retired on the Trades tab and Sprint 20 on the Holdings tab and Wealth's G&amp;V&nbsp;%. The cells take their class from <code>pnl_class/1</code> on the raw value (<code>:3234</code>): Larkspur's day change of +0,0041&nbsp;% prints "0,00 %" in the gain colour. After: <code>Format.signed_percent</code> with "%" glued on (the tab's <code>signed_pa/1</code>), one decimal, and the colour decided on the figure as shown (<code>shown_percent_class/1</code>): "0,0%" in body ink, "+10,0%", "+26,1%". The Unrealisiert amount keeps its two places and takes <code>shown_class(amount, 2)</code>; its sub-line percent is a coloured span in the muted line, as the phone rows' second line.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="detail" data-o='{"sec":"lark","v":"today","pct":"old","figuresOnly":true}' data-measure="pct" title="#1201 heute"></iframe></div>
+    <p class="measure" data-out="pct-old-desk"></p>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher</span><iframe data-tpl="detail" data-o='{"sec":"lark","v":"after","pct":"new","figuresOnly":true}' data-proposal data-measure="pct" title="#1201 nachher"></iframe></div>
+    <p class="measure" data-out="pct-new-desk"></p>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="detail" data-o='{"sec":"lark","v":"today","pct":"old","figuresOnly":true}' data-measure="pct" title="#1201 heute 390"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="detail" data-o='{"sec":"lark","v":"after","pct":"new","figuresOnly":true}' data-proposal data-measure="pct" title="#1201 nachher 390"></iframe></div>
+    <div class="notes">
+      <p class="measure" data-out="pct-old-phone" style="padding:0"></p>
+      <p class="measure" data-out="pct-new-phone" style="padding:0"></p>
+      <p>Nothing else in the six figures changes: the price, the holding and the value keep <code>Format.decimal</code>; "nur Kurs" and "gegen den Durchschnittseinstand" stay. <code>security_detail_overview_test.exs:99</code> pins today's "+10,00 %" and flips on purpose.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc)
+   from the live markup of securities_live.ex, bond_strip.ex,
+   filter_popover.ex, column_picker.ex and security_chart.ex with the German
+   msgstrs of priv/gettext/de. Synthetic data. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', document.baseURI).href;
+const P = {
+  tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+  oct: '<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>',
+  ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  filter: '<path d="M3 5h18l-7 9v6l-4-2v-4Z"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 4v5h-5"/>',
+  columns: '<rect x="3" y="4" width="6" height="16" rx="1"/><rect x="11" y="4" width="6" height="16" rx="1"/><rect x="19" y="4" width="2" height="16" rx="1"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  kebab: '<circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/>',
+  chevron_right: '<path d="m9 6 6 6-6 6"/>',
+  max: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>'
+};
+const svg = (n, s = 14, cls = '') => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"${cls ? ` class="${cls}"` : ''} aria-hidden="true">${P[n]}</svg>`;
+const SEV = { note: ['ast', 'Hinweis'], attention: ['tri', 'Achtung'], problem: ['oct', 'Problem'] };
+const note = (sev, body, attrs = '', cls = '') => `<div class="data-note data-note--${sev}${cls ? ' ' + cls : ''}" ${attrs}><span class="data-note__icon" aria-hidden="true">${svg(SEV[sev][0])}</span><span class="data-note__word">${SEV[sev][1]}</span><div class="data-note__body">${body}</div></div>`;
+const NEW = (on) => (on ? ' is-new' : '');
+const wrap = (inner) => `<main class="app-main app-main--workspace"><div class="workspace-page">${inner}</div></main>`;
+
+/* ---------------- the list ---------------- */
+const CLASSES = ['Aktie', 'ETF', 'Fonds', 'Staatsanleihe', 'Anleihe', 'Kryptowährung', 'Rohstoff', 'Index', 'Sonstiges'];
+const classSelect = (prefix, id, sel) => `<form id="${prefix}-${id}" class="quick-assign-form"><select name="asset_class" class="quick-assign-select" aria-label="Anlageklasse zuweisen"><option value=""${sel ? '' : ' selected'}>—</option>${CLASSES.map((l) => `<option${l === sel ? ' selected' : ''}>${l}</option>`).join('')}</select></form>`;
+const logo = (r) => `<span class="security-logo security-logo--row security-logo--initial" aria-hidden="true">${r.name[0]}</span>`;
+const kebab = (prefix, r) => `<button type="button" id="${prefix}-kebab-${r.id}" class="row-actions__kebab" aria-label="Aktionen für ${r.name}" aria-haspopup="menu" aria-expanded="false">${svg('kebab', 16)}</button>`;
+const chip = (id, label, on) => `<button type="button" id="sec-chip-${id}" class="filter-chip${on ? ' is-active' : ''}" aria-pressed="${on ? 'true' : 'false'}">${label}</button>`;
+const PICKER = [
+  ['Stammdaten', [['Name', 1], ['Ticker', 1], ['ISIN', 1], ['WKN', 0], ['Währung', 1], ['Börse', 0], ['Anlageklasse', 1], ['Stillgelegt', 0], ['Benchmark', 0]]],
+  ['Kurse', [['Letzter Kurs', 1], ['Datum letzter Kurs', 0], ['Tagesänderung', 0], ['Tagesänderung %', 1], ['Performance 1M', 0], ['Performance 1J', 0]]],
+  ['Online-Quelle', [['Anbieter', 0], ['Online-ID', 0], ['Kursquelle', 0]]]
+];
+const picker = () => `<div id="column-picker" class="popover column-picker" role="dialog" aria-label="Spalten wählen"><div class="popover-head"><h3>Spalten</h3><button type="button" class="icon-button" data-role="column-picker-close" aria-label="Schließen">${svg('x', 14)}</button></div><form id="securities-column-form">${PICKER.map(([legend, cols]) => `<fieldset class="column-group"><legend>${legend}</legend>${cols.map(([l, on]) => `<label class="checkbox-row"><input type="checkbox" name="columns[]"${on ? ' checked' : ''}><span>${l}</span></label>`).join('')}</fieldset>`).join('')}</form></div>`;
+
+function list(o) {
+  const rows = o.rows.map((r) => `<tr id="security-row-${r.id}" class="security-row" role="link"><td class="row-actions">${kebab('row', r)}</td><td><a class="row-target row-target--with-logo" href="#">${logo(r)}<span class="row-target__label">${r.name}</span></a>${r.badge || ''}</td><td>${r.ticker}</td><td>${r.isin}</td><td>${r.cur}</td><td>${classSelect('quick-assign', r.id, r.cls)}</td><td class="num">${r.price}</td><td class="num"><span class="${r.chCls}">${r.change}</span></td></tr>`).join('');
+  const phone = o.rows.map((r) => `<li id="security-phone-${r.id}" class="phone-row" data-role="phone-row">${logo(r)}<span class="phone-row__body"><a class="phone-row__target" href="#"><span class="phone-row__name">${r.name}</span></a><span class="phone-row__ids">${r.ticker} · ${r.isin} · ${classSelect('phone-quick-assign', r.id, r.cls)}${r.badge || ''}</span></span><span class="phone-row__figures"><span class="phone-row__figure">${r.price}<small class="value-suffix">${r.cur}</small></span><span class="phone-row__figure2"><span class="${r.chCls}">${r.change}</span></span></span>${kebab('phone', r)}</li>`).join('');
+  const removable = (o.removable || []).map((c) => `<li class="chip${NEW(c.isNew)}"><span>${c.label}</span><button type="button" class="chip-remove" aria-label="Filter entfernen">${svg('x', 12)}</button></li>`).join('');
+  const more = o.more || 0;
+  return `<section class="workspace-panel" id="securities-panel">
+      <div class="toolbar" role="toolbar" aria-label="Wertpapier-Werkzeugleiste">
+        <form class="search-field" id="securities-search-form">${svg('search', 16)}<input type="search" name="query" value="" placeholder="Nach Name, ISIN, WKN oder Ticker suchen…" autocomplete="off" aria-label="Wertpapiere suchen"></form>
+        <button type="button" id="filter-sheet-toggle" class="filter-sheet-toggle" aria-haspopup="dialog" aria-expanded="false">${svg('filter', 16)}Filter${o.sheetCount ? `<span class="badge" data-role="filter-sheet-count">${o.sheetCount}</span>` : ''}</button>
+        <div class="toolbar-actions">
+          <button type="button" class="icon-button" aria-label="Neu anlegen">${svg('plus', 16)}</button>
+          <button type="button" class="icon-button" aria-label="Kurse aktualisieren">${svg('refresh', 16)}</button>
+          <button type="button" id="toggle-column-popover" class="icon-button${o.picker ? ' is-active' : ''}" aria-label="Spalten" aria-expanded="${o.picker ? 'true' : 'false'}">${svg('columns', 16)}</button>
+          <div class="popover-container">${o.picker ? picker() : ''}</div>
+        </div>
+      </div>
+      <div id="securities-filter-chips" class="filter-chips" role="group" aria-label="Liste filtern">
+        ${chip('held', 'Im Bestand')}${chip('not_held', 'Ohne Bestand')}${chip('unclassified', 'Ohne Anlageklasse', o.unclass)}${chip('stale_quote', 'Kurs veraltet')}${chip('missing_quote', 'Kein Kurs')}${chip('missing_fx', 'Kein Wechselkurs')}
+        <span class="filter-chips__family">Währung</span>${chip('cur-EUR', 'EUR')}${chip('cur-USD', 'USD')}
+        <span class="filter-chips__group" role="group" aria-label="Geändert seit"><span class="filter-chips__family">Geändert seit</span><button type="button" class="filter-chip" aria-pressed="false">Heute</button><button type="button" class="filter-chip" aria-pressed="false">7 Tage</button><button type="button" class="filter-chip" aria-pressed="false">30 Tage</button></span>
+        <button type="button" id="more-filters-toggle" class="more-filters-link" aria-expanded="false">${svg('filter', 16)}Weitere Filter${more ? `<span class="badge" data-role="more-filters-count">${more}</span>` : ''}</button>
+      </div>
+      ${removable ? `<ul class="filter-chips" id="filter-chips" aria-label="Aktive Filter">${removable}</ul>` : ''}
+      ${o.dqNotes || ''}
+      <div id="securities-workspace" class="securities-workspace securities-workspace--list-only">
+        <div id="securities-list-pane" class="securities-list-pane">
+          <div class="data-table-wrapper" id="securities-table"><table class="data-table"><thead><tr><th class="row-actions-head" aria-label="Zeilenaktionen"></th><th><button type="button" class="sort-toggle">Name ↑</button></th><th><button type="button" class="sort-toggle">Ticker</button></th><th><button type="button" class="sort-toggle">ISIN</button></th><th><button type="button" class="sort-toggle">Währung</button></th><th><button type="button" class="sort-toggle">Anlageklasse</button></th><th class="num"><button type="button" class="sort-toggle">Letzter Kurs</button></th><th class="num"><button type="button" class="sort-toggle">Tagesänderung %</button></th></tr></thead><tbody>${rows}</tbody></table></div>
+          <ul id="securities-phone-rows" class="phone-rows" aria-label="Wertpapiere">${phone}</ul>
+        </div>
+      </div>
+    </section>`;
+}
+
+/* N6 */
+const UNCLASSED = [
+  { id: 41, name: 'Fennwick Labs AG', ticker: 'FWL', isin: 'DE000000000F', cur: 'EUR', cls: '', price: '22,40', change: '+0,90 %', chCls: 'decimal-positive' },
+  { id: 42, name: 'Halvorsen Shipping AS', ticker: 'HSA', isin: 'NO000000000H', cur: 'EUR', cls: '', price: '13,85', change: '-0,36 %', chCls: 'decimal-negative' },
+  { id: 43, name: 'Wrenfield Gardens AG', ticker: 'WGA', isin: 'DE000000000W', cur: 'EUR', cls: '', price: '48,10', change: '0,00 %', chCls: '' }
+];
+const CHIP = { today: 'Stillgelegt = false ', A: 'Stillgelegt: nein', B: 'Nicht stillgelegt', C: 'Stillgelegt ist falsch' };
+function chips(o) {
+  const l = list({ rows: o.only ? [] : UNCLASSED, unclass: true, more: 1, sheetCount: 2, removable: [{ label: CHIP[o.v], isNew: o.v !== 'today' }] });
+  return `<main class="app-main app-main--workspace">${l}</main>`;
+}
+function popover(o) {
+  const a = o.v === 'A';
+  const opLabel = a ? 'Wert' : 'Operator';
+  const opts = a ? ['ja', 'nein'] : ['ist wahr', 'ist falsch'];
+  return `<div class="popover-wrap"><div id="filter-popover" class="popover" role="dialog" aria-label="Filter hinzufügen">
+    <div class="popover-head"><h3>Filter</h3></div>
+    <form id="securities-dq-form"><label><span>Datenqualität</span><select name="dq"><option>Alle</option></select></label></form>
+    <form id="securities-filter-form"><label><span>Spalte</span><select name="field"><option selected>Stillgelegt</option></select></label>
+      <label class="${a ? 'is-new' : ''}"><span>${opLabel}</span><select name="operator" size="2">${opts.map((x, i) => `<option${i === 1 ? ' selected' : ''}>${x}</option>`).join('')}</select></label>
+      <div class="popover-actions"><button type="submit" class="button-primary">Filter anwenden</button></div></form></div></div>`;
+}
+
+/* N3.2 */
+const BONDS = [
+  { id: 61, name: 'Brackwater Anleihe 2031 2,50%', ticker: 'BRW31', isin: 'DE000000000B', cur: 'EUR', cls: 'Anleihe', price: '0,98', change: '-0,10 %', chCls: 'decimal-negative', dir: 'reverse', q: '0,981', p: '98,4' },
+  { id: 62, name: 'Kestrel Kommunal 2033 1,75%', ticker: 'KSK33', isin: 'DE000000000K', cur: 'EUR', cls: '', price: '101,40', change: '+0,05 %', chCls: 'decimal-positive', dir: 'forward', q: '101,4', p: '1,014', unclassed: true },
+  { id: 63, name: 'Ostsee Hafen 2029 3,00%', ticker: 'OSH29', isin: 'DE000000000O', cur: 'EUR', cls: 'Anleihe', price: '97,25', change: '+0,12 %', chCls: 'decimal-positive', dir: 'forward', q: '97,25', p: '0,985' }
+];
+const entry = (b, tab) => `<span class="dq-negative-entry"><a href="/securities/${b.id}?tab=${tab}">${b.name}</a>${b.unclassed ? ' <span class="badge badge--neutral" data-role="dq-two-scales-unclassed">ohne Anlageklasse</span>' : ''} (Kurs ${b.q} · Preis je Stück ${b.p})</span>`;
+function twoScalesNotes() {
+  const fw = BONDS.filter((b) => b.dir === 'forward');
+  const rv = BONDS.filter((b) => b.dir === 'reverse');
+  const fwText = `${fw.length} Anleihen sind auf zwei Skalen bepreist (Kurse um 100, gebuchter Preis je Stück um 1) und zählen hundertfach zu hoch, wo immer sie bewertet werden; die Rendite zeigt es nicht. Stückzahl ihrer Buchungen gegen das Nominal der Abrechnung prüfen:`;
+  const rvText = 'Eine Anleihe ist auf zwei Skalen bepreist (Kurse um 1, gebuchter Preis je Stück um 100) und zählt hundertfach zu niedrig, wo immer sie bewertet wird. Ihre gespeicherten Kurse prüfen — ein Kurs um 1 ist kein Prozent vom Nennwert:';
+  return `<div class="securities-dq-notes is-new" role="status" data-role="securities-dq-notes">${note('problem', `${fwText} ${fw.map((b) => entry(b, 'transactions')).join(' ')}`, 'data-role="securities-dq-two-scales"')}${note('problem', `${rvText} ${rv.map((b) => entry(b, 'quotes')).join(' ')}`, 'data-role="securities-dq-two-scales-reverse"')}</div>`;
+}
+function twoScales(o) {
+  const rows = BONDS.map((b) => ({ ...b, badge: o.v === 'B' ? ` <span class="badge badge--danger is-new" data-role="two-scales-direction">${b.dir === 'forward' ? 'hundertfach zu hoch' : 'hundertfach zu niedrig'}</span>` : '' }));
+  return `<main class="app-main app-main--workspace">${list({ rows, more: 1, sheetCount: 1, removable: [{ label: 'Auf zwei Skalen bepreist' }], dqNotes: o.v === 'A' ? twoScalesNotes() : '' })}</main>`;
+}
+
+/* #1139 / #1151 */
+const MIXED = [
+  { id: 71, name: 'Arbolia Inc.', ticker: 'ARBL', isin: 'US000000000A', cur: 'USD', cls: 'Aktie', price: '619,40', change: '+0,42 %', chCls: 'decimal-positive' },
+  { id: 72, name: 'Fennwick Labs AG', ticker: 'FWL', isin: 'DE000000000F', cur: 'EUR', cls: 'Aktie', price: '22,40', change: '+0,90 %', chCls: 'decimal-positive' },
+  { id: 73, name: 'Larkspur Rail AG', ticker: 'LKR', isin: 'DE000000000L', cur: 'EUR', cls: 'Aktie', price: '41,80', change: '0,00 %', chCls: '' },
+  { id: 74, name: 'Nordic Timber Holdings AB', ticker: 'NTH', isin: 'SE000000000N', cur: 'EUR', cls: 'Aktie', price: '18,02', change: '-1,15 %', chCls: 'decimal-negative' },
+  { id: 75, name: 'Ostsee Hafen 2029 3,00%', ticker: 'OSH29', isin: 'DE000000000O', cur: 'EUR', cls: 'Anleihe', price: '97,25', change: '+0,12 %', chCls: 'decimal-positive' }
+];
+function phoneList(o) {
+  return `<main class="app-main app-main--workspace">${list({ rows: MIXED, picker: o.picker })}</main>`;
+}
+
+/* ---------------- the detail pane ---------------- */
+const PANE_TABS = [['overview', 'Übersicht'], ['chart', 'Diagramm'], ['transactions', 'Transaktionen'], ['trades', 'Trades'], ['quotes', 'Kurse'], ['holdings', 'Bestände'], ['classifications', 'Klassifizierungen'], ['research', 'Research'], ['events', 'Termine']];
+function pane(s, active, body) {
+  return `<aside class="detail-pane" id="security-detail-pane" aria-label="Ausgewähltes Wertpapier"><header class="detail-pane-head"><div class="detail-pane-head__title"><span class="security-logo security-logo--lg security-logo--initial" aria-hidden="true">${s.name[0]}</span><div><h2>${s.name}</h2><p class="detail-pane-sub">${s.sub}</p></div></div><div class="detail-pane-head__actions"><button type="button" class="button-ghost">Bearbeiten</button><button type="button" class="button-ghost">Split erfassen</button><button type="button" class="icon-button" aria-label="Maximieren">${svg('max', 16)}</button><button type="button" class="icon-button" aria-label="Detail schließen">${svg('x', 16)}</button></div></header><nav class="detail-pane-tabs" role="tablist" aria-label="Wertpapier-Detailansicht">${PANE_TABS.map(([k, t]) => `<button type="button" role="tab" class="detail-pane-tab${k === active ? ' is-active' : ''}"${k === active ? ' aria-selected="true"' : ''}>${t}</button>`).join('')}</nav>${body}</aside>`;
+}
+/* A deterministic quote series and the chart's SVG, as security_chart.ex
+   draws it (960 x 320, padding 16/24/28/56), with the hook's --chart-upx and
+   data-axis-inside applied after load (see the frame loop). */
+function series(n, base, amp, drift, seed) {
+  const out = [];
+  for (let i = 0; i < n; i++) out.push(base + drift * i / n + amp * Math.sin(i / 7 + seed) + amp * 0.4 * Math.sin(i / 2.3 + seed * 2));
+  return out;
+}
+function chartSvg(c) {
+  const W = 960, H = 320, L = 56, R = 24, T = 16, B = 28, pw = W - L - R, ph = H - T - B;
+  const n = c.pts.length, lo = c.lo, hi = c.hi;
+  const xs = (i) => L + pw * i / (n - 1), ys = (v) => T + ph * (1 - (v - lo) / (hi - lo));
+  const line = c.pts.map((v, i) => `${xs(i).toFixed(1)},${ys(v).toFixed(1)}`).join(' ');
+  const area = `M${xs(0).toFixed(1)},${(T + ph).toFixed(1)} L` + c.pts.map((v, i) => `${xs(i).toFixed(1)},${ys(v).toFixed(1)}`).join(' L') + ` L${xs(n - 1).toFixed(1)},${(T + ph).toFixed(1)} Z`;
+  let grid = '', labels = '';
+  for (let k = 0; k <= 4; k++) {
+    const y = (T + ph - ph * k / 4).toFixed(1);
+    grid += `<line x1="${L}" y1="${y}" x2="${W - R}" y2="${y}"/>`;
+    labels += `<text class="chart-axis-y${k === 4 ? ' is-top' : ''}" x="${L - 6}" y="${y}" text-anchor="end" dominant-baseline="central">${c.ticks[k]}</text>`;
+  }
+  labels += `<text class="chart-axis-x" x="${L}" y="${H - 6}" text-anchor="start">${c.first}</text><text class="chart-axis-x" x="${W - R}" y="${H - 6}" text-anchor="end">${c.last}</text>`;
+  const markers = (c.markers || []).map((m) => { const x = xs(m.i), y = ys(c.pts[m.i]); return `<path class="tx-marker tx-${m.type}" d="M${x.toFixed(1)},${(y - 5).toFixed(1)} L${(x + 4.5).toFixed(1)},${(y + 3.5).toFixed(1)} L${(x - 4.5).toFixed(1)},${(y + 3.5).toFixed(1)} Z"><title>${m.title}</title></path>`; }).join('');
+  const hover = c.hover != null ? ` data-hover-x="${xs(c.hover).toFixed(1)}" data-hover-y="${ys(c.pts[c.hover]).toFixed(1)}"` : '';
+  return `<div class="chart-frame" data-chart${hover}><svg class="security-chart" role="img" aria-label="${c.aria || 'Kurschart'}" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" width="100%"><g class="chart-axes" stroke="currentColor" stroke-opacity="0.15">${grid}</g><path class="quote-area" d="${area}"/><polyline class="quote-line" fill="none" stroke="currentColor" stroke-width="1.6" points="${line}"/>${markers}<g class="chart-axis-labels">${labels}</g></svg>${c.tooltip || ''}</div>`;
+}
+const SECS = {
+  bond: {
+    name: 'Brackwater Anleihe 2031 2,50%', sub: 'DE000000000B · BRW31 · EUR · Letzter 0,98 (05.10.2026)', cur: 'EUR',
+    price: '0,98', date: '05.10.2026', day: { old: '-0,10 %', new: '-0,1%', cls: 'is-negative', ncls: 'is-negative' }, y1: { old: '-1,20 %', new: '-1,2%', cls: 'is-negative', ncls: 'is-negative' },
+    qty: '100,0000', where: 'Depot Muster', value: '98,10', un: { abs: '-9.741,90', cls: 'is-negative', old: '-99,00 %', new: '-99,0%', pcls: 'decimal-negative' },
+    bond: true, chart: { pts: series(90, 0.975, 0.004, 0.006, 1), lo: 0.96, hi: 0.995, ticks: ['0,96', '0,97', '0,98', '0,99', '1,00'], first: '06.10.2025', last: '05.10.2026' }
+  },
+  arb: {
+    name: 'Arbolia Inc.', sub: 'US000000000A · ARBL · USD · Letzter 619,40 (06.10.2026)', cur: 'USD',
+    price: '619,40', date: '06.10.2026', day: { old: '+0,42 %', new: '+0,4%', cls: 'is-positive', ncls: 'is-positive' }, y1: { old: '+12,30 %', new: '+12,3%', cls: 'is-positive', ncls: 'is-positive' },
+    qty: '40,0000', where: 'Depot Muster', value: '24.776,00', un: { abs: '+22.320,00', cls: 'is-positive', old: '+908,79 %', new: '+908,8%', pcls: 'decimal-positive' },
+    chart: { pts: series(90, 560, 18, 60, 2), lo: 520, hi: 640, ticks: ['520', '550', '580', '610', '640'], first: '06.10.2025', last: '06.10.2026' }
+  },
+  lark: {
+    name: 'Larkspur Rail AG', sub: 'DE000000000L · LKR · EUR · Letzter 41,80 (06.10.2026)', cur: 'EUR',
+    price: '41,80', date: '06.10.2026', day: { old: '0,00 %', new: '0,0%', cls: 'is-positive', ncls: '' }, y1: { old: '+10,00 %', new: '+10,0%', cls: 'is-positive', ncls: 'is-positive' },
+    qty: '29,0000', where: 'Depot Muster', value: '1.212,20', un: { abs: '+250,70', cls: 'is-positive', old: '+26,07 %', new: '+26,1%', pcls: 'decimal-positive' },
+    chart: { pts: series(90, 38, 1.2, 4, 3), lo: 36, hi: 44, ticks: ['36,00', '38,00', '40,00', '42,00', '44,00'], first: '06.10.2025', last: '06.10.2026' }
+  }
+};
+function reverseNote() {
+  return note('problem', '<strong>Auf zwei Skalen bepreist:</strong> Kurse um 1 (zuletzt 0,981 am 05.10.2026), gebuchter Preis je Stück um 100 (1 Buchung: 98,4 am 12.03.2026). Dann zählen Wert, Gewinn und Gewicht hundertfach zu niedrig. Die gespeicherten Kurse prüfen — ein Kurs um 1 ist kein Prozent vom Nennwert: <a href="?tab=quotes">Kurse</a>', 'data-role="two-scales-reverse-note"', 'is-new');
+}
+function implNote(onQuotes) {
+  const links = onQuotes ? '<a href="?tab=transactions">Transaktionen</a>' : '<a href="?tab=quotes">Kurse</a> · <a href="?tab=transactions">Transaktionen</a>';
+  return note('problem', `<strong>Kurs passt nicht zu den Buchungen:</strong> Verkauf 03.04.2026 zu 61,4 USD · Kurs 02.04.2026: 618,9 USD, das 10,08-Fache (am Buchungstag unter der Hälfte oder über dem Doppelten des Preises je Stück). Wert oder Einstand dieser Position ist daher falsch. Die Kursquelle prüfen (Ticker, Börse), dann die Buchung: ${links}`, 'data-role="implausible-quote-note"', 'is-new');
+}
+function overview(s, o) {
+  const P2 = o.pct === 'new';
+  const after = o.v !== 'today';
+  const pc = (f) => (P2 ? f.ncls : f.cls);
+  const pnew = P2 && o.v === 'after';
+  let w1 = '';
+  if (o.v === 'A' && o.sec === 'bond') w1 = reverseNote();
+  if (o.v === 'A' && o.sec === 'arb') w1 = implNote();
+  if (o.v === 'B' && o.sec === 'bond') w1 = reverseNote();
+  const unSub = P2 ? `<span class="${s.un.pcls}">${s.un.new}</span>` : s.un.old;
+  const metrics = `<dl class="overview-metrics">
+      <div class="overview-metric" data-role="overview-latest-price"><dt>Letzter Kurs</dt><dd>${s.price} <small class="overview-metric__unit">${s.cur}</small> <small class="overview-metric__sub">(${s.date})</small></dd></div>
+      <div class="overview-metric" data-role="overview-day-change"><dt>Tagesänderung</dt><dd class="${pc(s.day)}${NEW(pnew)}">${P2 ? s.day.new : s.day.old}</dd></div>
+      <div class="overview-metric" data-role="overview-1y"><dt>1J</dt><dd class="${pc(s.y1)}"><span class="${pnew ? 'is-new' : ''}">${P2 ? s.y1.new : s.y1.old}</span> <small class="overview-metric__sub">nur Kurs</small></dd></div>
+      <div class="overview-metric" data-role="overview-holding"><dt>Bestand</dt><dd>${s.qty} <small class="overview-metric__unit">Stück</small> <small class="overview-metric__sub">${s.where}</small></dd></div>
+      <div class="overview-metric" data-role="overview-value"><dt>Wert</dt><dd>${s.value} <small class="overview-metric__unit">${s.cur}</small></dd></div>
+      <div class="overview-metric" data-role="overview-unrealised"><dt>Unrealisiert</dt><dd class="${s.un.cls}">${s.un.abs} <small class="overview-metric__sub"><span class="${pnew ? 'is-new' : ''}">${unSub}</span> · gegen den Durchschnittseinstand</small></dd></div>
+    </dl>`;
+  if (o.figuresOnly) return `<section id="detail-tab-panel-overview" role="tabpanel" class="detail-tab-panel detail-tab-panel--overview"><div class="overview-reading"><div class="overview-reading__main">${metrics}</div></div></section>`;
+  const bondStub = s.bond ? '<p class="stub" style="padding:0">… Anleihe-Block (Fälligkeit, Kupon, Nominal im Bestand, Restlaufzeit, Renditen) unverändert, hier ausgelassen …</p>' : '';
+  const chart = o.short ? '' : `<div class="overview-chart">${chartSvg({ ...s.chart, aria: 'Kursverlauf' })}</div>`;
+  const side = `<div class="overview-reading__side"><section class="overview-card" data-role="overview-thesis"><div class="overview-card__head"><h3>These</h3><span class="badge badge--thesis-none">Keine</span></div><p class="detail-tab-empty">Noch keine These erfasst.</p><button type="button" class="button-ghost">Research-Log</button></section>${o.short ? '' : '<section class="overview-card" data-role="overview-note"><div class="overview-card__head"><h3>Notiz</h3><button type="button" class="button-ghost">Hinzufügen</button></div><p class="detail-tab-empty">Noch keine persönliche Notiz.</p></section>'}</div>`;
+  return `<section id="detail-tab-panel-overview" role="tabpanel" class="detail-tab-panel detail-tab-panel--overview">${w1}<div class="overview-reading"><div class="overview-reading__main">${metrics}${bondStub}${chart}<p class="summary-basis" data-role="overview-basis"><span class="summary-basis__text">Anlageklasse ${s.bond ? 'Anleihe' : 'Aktie'}</span></p></div>${side}</div></section>`;
+}
+const QROWS = [['06.10.2026', '619,40'], ['05.10.2026', '616,80'], ['02.10.2026', '612,10'], ['…', '…'], ['06.04.2026', '622,30'], ['02.04.2026', '618,90'], ['01.04.2026', '615,40']];
+function quotes(o) {
+  const n = o.v === 'B' ? implNote(true) : '';
+  const rows = QROWS.map(([d, c]) => d === '…' ? '<tr><td colspan="4" class="stub" style="padding:6px 8px">… Kurse vom 03.04. bis 01.10.2026 …</td></tr>' : `<tr><td>${d}</td><td class="num">${c} <small>USD</small></td><td class="num">${c}</td><td><span class="badge quote-source">Automatisch</span></td></tr>`).join('');
+  const phone = QROWS.filter(([d]) => d !== '…').map(([d, c]) => `<li class="phone-row"><span class="phone-row__body"><span class="phone-row__name">${d}</span><span class="phone-row__ids"><span class="badge quote-source">Automatisch</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">${c} <small class="value-suffix">USD</small></span></span></li>`).join('');
+  return `<section id="detail-tab-panel-quotes" role="tabpanel" class="detail-tab-panel detail-tab-panel--quotes">${n}<p class="summary-basis" data-role="quotes-range-basis">Zeitraum 1J · wie im Diagramm</p><p class="detail-tab-hint" data-role="quotes-basis"><span class="quotes-basis__table">Kursbasis: wie erfasst. Die Spalte Gespeichert zeigt die unveränderten Werte.</span><span class="quotes-basis__rows">Kursbasis: wie erfasst. Wo ein Split einen Schlusskurs angepasst hat, zeigt „gespeichert“ darunter den unveränderten Wert.</span></p><div class="data-table-wrap" id="quotes-table-wrapper"><table class="data-table detail-quotes-table"><thead><tr><th>Datum</th><th class="num">Schlusskurs</th><th class="num">Gespeichert</th><th>Quelle</th></tr></thead><tbody>${rows}</tbody></table></div><ul id="quote-phone-rows" class="phone-rows" aria-label="Kurse">${phone}</ul></section>`;
+}
+function detail(o) {
+  const s = SECS[o.sec];
+  const tab = o.tab || 'overview';
+  const body = tab === 'quotes' ? quotes(o) : overview(s, o);
+  return wrap(`<section class="workspace-section">${pane(s, tab, body)}</section>`);
+}
+
+/* ---------------- #1163 the Chart tab ---------------- */
+const TAM = { name: 'Tamarisk Systems Inc.', sub: 'US000000000T · TMSK · USD · Letzter 43,23 (06.10.2026)' };
+function chartTab(o) {
+  const pts = series(120, 34.98, 1.6, 7, 4);
+  const hi = 120 * (222 / 365) | 0; /* 15.05.2026 on a 1J axis from 06.10.2025 */
+  const close = Math.round(pts[hi] * 100) / 100;
+  const raw = String(close), de = close.toFixed(2).replace('.', ',');
+  const after = o.v === 'after';
+  const tip = after
+    ? `<div class="chart-tooltip is-new" data-role="tip"><div class="chart-tooltip__date">15.05.2026</div><div class="chart-tooltip__price">${de} USD</div><div class="chart-tooltip__tx chart-tooltip__tx--buy">Kauf 12 zu 41,12 USD</div></div>`
+    : `<div class="chart-tooltip" data-role="tip"><div class="chart-tooltip__date">2026-05-15</div><div class="chart-tooltip__price">${raw} USD</div><div class="chart-tooltip__tx chart-tooltip__tx--buy">buy 12 @ 41.12</div></div>`;
+  const cross = '<div class="chart-crosshair" data-role="cross"></div>';
+  const title = after ? 'Kauf am 15.05.2026 zu 41,12 USD' : 'buy on 15.05.2026 at 41.12';
+  const c = chartSvg({ pts, lo: 32, hi: 46, ticks: ['32,00', '35,50', '39,00', '42,50', '46,00'], first: '06.10.2025', last: '06.10.2026', markers: [{ i: hi, type: 'buy', title }, { i: 30, type: 'buy', title: '' }], hover: hi, tooltip: cross + tip });
+  const ranges = ['1M', '3M', '6M', 'YTD', '1J', '3J', '5J', 'Max'].map((r) => `<button type="button" class="range-button${r === '1J' ? ' is-active' : ''}">${r}</button>`).join('');
+  const toggles = `<div class="chart-toggles"><button type="button" class="chart-toggle">Logarithmische Skala</button><button type="button" class="chart-toggle">Prozent</button><button type="button" class="chart-toggle is-active" aria-pressed="true">Transaktionen anzeigen</button><button type="button" class="chart-toggle">MA30</button><button type="button" class="chart-toggle">MA50</button><button type="button" class="chart-toggle">MA200</button><button type="button" class="chart-toggle">Einstandspreis</button></div>`;
+  const body = `<section id="detail-tab-panel-chart" role="tabpanel" class="detail-tab-panel detail-tab-panel--chart"><div class="detail-pane-toolbar" role="toolbar" aria-label="Chart-Optionen"><div class="range-buttons" role="group" aria-label="Zeitraum">${ranges}</div>${toggles}</div>${c}</section>`;
+  return wrap(`<section class="workspace-section">${pane(TAM, 'chart', body)}</section>`);
+}
+
+const TPL = { chips, popover, twoScales, phoneList, detail, chartTab };
+
+/* ---------------- measurements, quoted under the frames ---------------- */
+const R = (el) => el.getBoundingClientRect();
+const px = (v) => Math.round(v);
+const MEASURE = {
+  chip(doc, f, w, o) {
+    const c = doc.querySelector('#filter-chips .chip');
+    const r = R(c);
+    return `${o.v === 'today' ? 'Heute' : o.v} at ${w} px: the removable chip is ${px(r.width)} × ${px(r.height)} px ("${c.querySelector('span').textContent.trim()}").`;
+  },
+  dq(doc, f, w, o) {
+    if (o.v === 'today') {
+      const rows = [...doc.querySelectorAll(w > 500 ? '#securities-table tbody tr' : '#securities-phone-rows li')].map((x) => px(R(x).height));
+      return `Heute at ${w} px: the rows are ${rows.join(' / ')} px tall; the first starts ${px(R(doc.querySelector(w > 500 ? '#securities-table tbody tr' : '#securities-phone-rows li')).top)} px down the frame.`;
+    }
+    if (o.v === 'A') {
+      const ns = [...doc.querySelectorAll('.securities-dq-notes .data-note')];
+      const box = R(doc.querySelector('.securities-dq-notes'));
+      const first = R(doc.querySelector(w > 500 ? '#securities-table tbody tr' : '#securities-phone-rows li'));
+      return `A at ${w} px: the two notes are ${ns.map((n) => `${px(R(n).width)} × ${px(R(n).height)}`).join(' and ')} px (block ${px(box.height)} px, left edge ${px(box.left)} px); the first row starts ${px(first.top)} px down the frame.`;
+    }
+    const b = [...doc.querySelectorAll('[data-role="two-scales-direction"]')].filter((x) => R(x).width > 0);
+    const rows = [...doc.querySelectorAll(w > 500 ? '#securities-table tbody tr' : '#securities-phone-rows li')].map((x) => px(R(x).height));
+    return `B at ${w} px: the badges are ${b.map((x) => px(R(x).width)).join(', ')} px wide; the rows ${rows.join(' / ')} px tall.`;
+  },
+  w1(doc, f, w, o) {
+    const n = doc.querySelector('.data-note');
+    if (!n) return '';
+    const fig = doc.querySelector('.overview-metrics') || doc.querySelector('.detail-quotes-table');
+    const key = { bond: 'bond', arb: o.tab === 'quotes' ? 'arbq' : 'arb' }[o.sec];
+    return `${o.v} ${o.sec === 'bond' ? 'Brackwater' : 'Arbolia'}${o.tab === 'quotes' ? ' (Kurse)' : ''} at ${w} px: the note is ${px(R(n).width)} × ${px(R(n).height)} px; ${o.tab === 'quotes' ? 'the quotes table' : 'the six figures'} ${o.tab === 'quotes' ? 'starts' : 'start'} ${px(R(fig).top - R(n).bottom)} px below it.`;
+  },
+  gutter(doc, f, w, o) {
+    const li = doc.querySelector('#securities-phone-rows li');
+    const lg = R(li.querySelector('.security-logo'));
+    const kb = R(li.querySelector('.row-actions__kebab'));
+    const vw = doc.documentElement.clientWidth;
+    return `${o.fix ? 'Nachher' : 'Heute'}: the monogram starts ${px(lg.left)} px from the left edge, the kebab ends ${px(vw - kb.right)} px from the right; the row is ${px(R(li).height)} px tall, its name column ${px(R(li.querySelector('.phone-row__body')).width)} px wide.`;
+  },
+  picker(doc, f, w, o) {
+    const p = doc.querySelector('#column-picker');
+    const t = doc.querySelector('#toggle-column-popover');
+    const r = R(p);
+    const vis = getComputedStyle(p).display !== 'none' && r.width > 0;
+    return `${o.fix ? 'Nachher' : 'Heute'} at ${w} px: the toggle is ${getComputedStyle(t).display === 'none' ? 'hidden' : 'shown'}; the panel is ${vis ? `shown, ${px(r.width)} × ${px(r.height)} px, from x ${px(r.left)} to ${px(r.right)} over the list` : 'out of the layout (display: none)'}.`;
+  },
+  tip(doc, f, w, o) {
+    const t = doc.querySelector('.chart-tooltip');
+    const r = R(t);
+    return `${o.v === 'after' ? 'Nachher' : 'Heute'} at ${w} px: the tooltip is ${px(r.width)} × ${px(r.height)} px; its lines read "${[...t.children].map((c) => c.textContent).join(' / ')}"; the chart frame is ${px(R(doc.querySelector('.chart-frame')).width)} px wide.`;
+  },
+  pct(doc, f, w, o) {
+    const cells = ['overview-day-change', 'overview-1y', 'overview-unrealised'].map((k) => doc.querySelector(`[data-role="${k}"] dd`));
+    const col = (el) => getComputedStyle(el).color;
+    const day = cells[0];
+    const lines = (el) => { const lh = parseFloat(getComputedStyle(el).lineHeight) || 20; return Math.round(R(el).height / lh); };
+    return `${o.pct === 'new' ? 'Nachher' : 'Heute'} at ${w} px: Tagesänderung "${day.textContent.trim()}" in ${col(day)}; 1J dd ${px(R(cells[1]).width)} × ${px(R(cells[1]).height)} px; Unrealisiert dd ${px(R(cells[2]).width)} × ${px(R(cells[2]).height)} px; the figure grid is ${px(R(doc.querySelector('.overview-metrics')).height)} px tall.`;
+  }
+};
+
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .is-new{outline:2px dashed var(--color-accent);outline-offset:1px;border-radius:4px;} td.is-new,th.is-new{outline-offset:-2px;border-radius:0;} html.screen,html.screen body{overflow:hidden;} .stub{margin:0;padding:8px clamp(16px,2.4vw,28px);font-size:12px;font-style:italic;color:#5a6577;} .app-main,.workspace-page,.workspace-panel{min-height:0!important;} .popover-wrap{padding:12px;} .popover-wrap .popover{position:static;max-width:none;} .popover-wrap select[size]{height:auto;}</style>';
+
+function placeTip(doc) {
+  const frame = doc.querySelector('.chart-frame[data-hover-x]');
+  if (!frame) return;
+  const s = frame.querySelector('svg');
+  const fr = R(frame), sr = R(s);
+  const sx = sr.width / 960, sy = sr.height / 320;
+  const cssX = sr.left - fr.left + parseFloat(frame.dataset.hoverX) * sx;
+  const cssY = sr.top - fr.top + parseFloat(frame.dataset.hoverY) * sy;
+  const cr = frame.querySelector('.chart-crosshair');
+  cr.style.left = cssX + 'px'; cr.style.top = (sr.top - fr.top) + 'px'; cr.style.height = sr.height + 'px';
+  const t = frame.querySelector('.chart-tooltip');
+  const tw = t.offsetWidth || 120, pad = 8;
+  let x = cssX + 12;
+  if (x + tw + pad > fr.width) { x = cssX - tw - 12; if (x < pad) x = pad; }
+  t.style.left = x + 'px'; t.style.top = Math.max(pad, cssY - 16) + 'px';
+}
+function chartHook(doc) {
+  /* the ChartCrosshair hook's scale and flag (J5 A, rules ② and ③) */
+  for (const frame of doc.querySelectorAll('.chart-frame')) {
+    const s = frame.querySelector('svg');
+    const r = R(s);
+    if (!r.width) continue;
+    const upx = Math.max(960 / r.width, 320 / r.height);
+    frame.style.setProperty('--chart-upx', upx.toFixed(4));
+    if (r.width <= 760) frame.setAttribute('data-axis-inside', ''); else frame.removeAttribute('data-axis-inside');
+  }
+}
+
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  const css = CSS_MOCK + ('proposal' in f.dataset ? document.getElementById('proposal').outerHTML : '');
+  const fixed = f.dataset.fixed;
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument;
+    const dt = doc.querySelector('.detail-pane-tabs');
+    const dta = dt && dt.querySelector('.is-active');
+    if (dt && dta && dt.scrollWidth > dt.clientWidth) dt.scrollLeft = Math.max(0, dta.offsetLeft - dt.offsetLeft - 60);
+    chartHook(doc);
+    setTimeout(() => {
+      placeTip(doc);
+      if (fixed) { f.style.height = fixed + 'px'; doc.documentElement.classList.add('screen'); }
+      else f.style.height = Math.ceil(doc.documentElement.scrollHeight) + 'px';
+      const m = f.dataset.measure;
+      if (m && MEASURE[m]) {
+        const w = Math.round(f.getBoundingClientRect().width);
+        const side = w > 500 ? 'desk' : 'phone';
+        let key;
+        if (m === 'chip') key = `chip-${o.v}-${side}`;
+        else if (m === 'dq') key = `dq-${o.v}-${side}`;
+        else if (m === 'w1') key = `w1-${o.sec === 'bond' ? 'bond' : (o.tab === 'quotes' ? 'arbq' : 'arb')}-${side}`;
+        else if (m === 'gutter' || m === 'picker') key = `${m}-${o.fix ? 'after' : 'before'}`;
+        else if (m === 'tip') key = `tip-${o.v}-${side}`;
+        else if (m === 'pct') key = `pct-${o.pct}-${side}`;
+        const out = document.querySelector(`[data-out="${key}"]`);
+        if (out && f.offsetParent !== null && !out.dataset.done) { out.innerHTML = MEASURE[m](doc, f, w, o); out.dataset.done = '1'; }
+      }
+    }, 120);
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,810 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Konten &amp; Depots (Picks N15, N16; #1145, #1162, #1161, #1160)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: what the N15 / N16 / #1161 / #1160 stories add to app.css.
+     Every frame is a srcdoc iframe as wide as the board's own render (1200,
+     1024, 768 or 390 px), built from the live markup of
+     portfolio_accounts_live.ex (render/1, bucket_chips/1, chip/1,
+     liquidity_role_field/1, cash_balance_cell/1, term_info/1) and
+     AppShell.shell / AppShell.inline_result, with the German msgstrs. A frame
+     is therefore a real viewport: app.css's 900 px sidebar rule and its
+     640 px card rules fire as on the device. "Heute" frames render app.css
+     as shipped; the other frames add the blocks named on them.
+
+     The blocks below are split by pick so each variant frame carries only
+     its own rules. Silence adopts: proposal + proposal-n15-a +
+     proposal-n16-a. -->
+<style id="proposal">
+  /* Any N15 variant (#1145, the design critic's comment of 2026-10-07): the
+     balance and its action keep their words whole. Today the amount
+     (`.cash-balance__amount`, white-space: normal) drops "EUR" to a second
+     line and "Saldo setzen" wraps inside a 62 × 48 button at 768 and 1024 px. */
+  .cash-balance__amount,
+  .cash-balance__action {
+    white-space: nowrap;
+  }
+
+  /* #1161: the chip's × is the 22 × 22 that rule ⑧ declares for the +,
+     outside a coarse pointer too. `min-height: 0` takes back the base
+     button's 34 px floor (app.css:1233), which made it 14.7 × 34 and every
+     chip holding one 40 px tall. A chip holding a × gives up its block and
+     right padding, so the × fills the pill's end (the coarse rule's shape at
+     22 px) and the chip stays as tall as one without it. The coarse block
+     (app.css:7686-7700) still wins under `pointer: coarse` (44 × 44). */
+  .bucket-chip__remove {
+    width: 22px;
+    height: 22px;
+    min-height: 0;
+    padding: 0;
+    border-radius: 0 999px 999px 0;
+  }
+
+  .bucket-chip:has(> .bucket-chip__remove) {
+    padding-block: 0;
+    padding-right: 0;
+  }
+
+  /* #1160: an empty result region is empty. The component's regions always
+     hold template whitespace, so `.inline-result__region:not(:empty)`
+     (app.css:6712) matched at rest and every remaining slot took 8 px, plus
+     the section grid's 16 px gap on Accounts. The page slot's rule
+     (app.css:879-907) becomes the component's: a margin only around a
+     result, and inside a section's grid an empty slot leaves the flow (it
+     stays a live region in the accessibility tree). The story replaces
+     `:not(:empty)` in place; the board can only add the override. */
+  .inline-result__region:has(> *) {
+    margin: 8px 0;
+  }
+
+  .workspace-section > .inline-result:not(:has(.inline-result__region > *)) {
+    position: absolute;
+  }
+</style>
+<style id="shim-1160">
+  /* BOARD ONLY, not a proposal: app.css's `.inline-result__region:not(:empty)`
+     (0,2,0) still matches the whitespace; the story replaces that selector
+     with the `:has(> *)` rule above, which the board cannot do. */
+  .inline-result__region:not(:empty):not(:has(> *)) {
+    margin: 0;
+  }
+</style>
+<style id="proposal-n15-a">
+  /* N15 A (recommended): the stacked-card layout follows the table's own
+     width, not the viewport's. The wrapper is the query container; the card
+     takes over wherever the table would not fit. Measured with the nowrap
+     rule above: 618 px of columns that do not depend on the data (Währung
+     80, Liquiditätsrolle 155, Saldo 121, Buckets 220, the kebab 42) and a
+     Name column of 216 px (13.5rem), which holds a 27-letter compound on a
+     cash row's indented line ("Wertpapierverrechnungskonto", the longest
+     unbreakable word on the board), make 834 px; a seven-digit balance
+     ("1.250.000,00 EUR") widens Saldo by 4 px, so the bound is 840 px. The
+     story moves the three 640 px blocks of the accounts table into this
+     one container query (app.css:7384 rule ⑦, :7713-7805 the card,
+     :9741-9768 the kebab grid) and keeps their rules unchanged; written
+     out here. */
+  .data-table-wrapper:has(> .accounts-table) {
+    container: accounts / inline-size;
+  }
+
+  /* The Name column keeps those 216 px as its floor, and a name longer than
+     that breaks inside the cell, so no name moves the bound: without the
+     floor, `overflow-wrap: anywhere` alone lets the table's auto layout
+     squeeze a long name into three lines at 1200 px (drawn and measured
+     while making this board). */
+  .accounts-table thead th:first-child {
+    min-width: 13.5rem;
+  }
+
+  .accounts-table .cell-name {
+    overflow-wrap: anywhere;
+  }
+
+  @container accounts (width < 840px) {
+    .accounts-table thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      margin: -1px;
+      padding: 0;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .accounts-table tbody.account-pair {
+      display: block;
+      padding: 8px 0;
+    }
+
+    .accounts-table tbody.account-pair + tbody.account-pair {
+      border-top: 1px solid var(--color-border);
+    }
+
+    .accounts-table tbody.account-pair + tbody.account-pair tr:first-child td {
+      border-top: 0;
+    }
+
+    .accounts-table tbody.account-pair tr {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      border: 0;
+    }
+
+    .accounts-table tbody.account-pair td {
+      display: block;
+      grid-column: 1;
+      padding: 3px 9px;
+      border: 0;
+    }
+
+    .accounts-table tbody.account-pair td.row-actions {
+      grid-column: 2;
+      grid-row: 1;
+      width: auto;
+      padding-block: 0;
+    }
+
+    .accounts-table tbody.account-pair td.cell-name {
+      white-space: normal;
+    }
+
+    .accounts-table tbody.account-pair td.cell-name--cash {
+      padding-left: 1.9rem;
+    }
+
+    .accounts-table .cell-name--cash::before {
+      top: 0.15em;
+      height: 0.75em;
+    }
+
+    .accounts-table tbody.account-pair td:empty,
+    .accounts-table .cell-currency--empty,
+    .accounts-table .cell-role--empty {
+      display: none;
+    }
+
+    .accounts-term-info--phone {
+      display: inline-block;
+    }
+
+    .accounts-table thead .metric-tooltip {
+      display: none;
+    }
+
+    .accounts-table td.cell-role {
+      position: relative;
+    }
+
+    .accounts-table td .accounts-term-info--phone {
+      position: static;
+    }
+
+    .accounts-table td .accounts-term-info--phone p {
+      left: 0;
+      right: 0;
+      width: auto;
+      max-width: none;
+    }
+
+    .accounts-table .bucket-picker {
+      position: static;
+      min-width: 0;
+      width: 100%;
+    }
+
+    .accounts-table tbody.account-pair:hover tr {
+      background: var(--color-hover);
+    }
+  }
+
+  /* Rule ⑦ follows the card: the role label is hidden only where the head
+     states it. In the story this replaces `@media (width > 640px)`. */
+  @container accounts (width >= 840px) {
+    .accounts-table .liquidity-role-field__label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+  }
+</style>
+<style id="shim-n15-a">
+  /* BOARD ONLY, not a proposal: app.css still hides the role label at
+     `@media (width > 640px)`, which the story rewrites as the container
+     query above. Inside the card band this undoes the old rule so the frame
+     shows what the story builds. */
+  @container accounts (width < 840px) {
+    .accounts-table .liquidity-role-field__label {
+      position: static;
+      width: auto;
+      height: auto;
+      overflow: visible;
+      clip: auto;
+    }
+  }
+</style>
+<style id="proposal-n15-b">
+  /* N15 B: the wrapper scrolls as every reading table's does (UX-DR15), and
+     the bucket picker leaves the table for the top layer (`popover`,
+     placed under its + by a small hook), so the scroller cannot clip it.
+     The head's two ⓘ panels open upward out of the wrapper today; inside a
+     scroller (overflow-x: auto makes overflow-y auto too) they would be
+     clipped as well, so they move to the top layer with the picker. */
+  .data-table-wrapper:has(.accounts-table) {
+    overflow-x: auto;
+  }
+
+  .accounts-table .bucket-picker[popover] {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    min-width: 260px;
+  }
+</style>
+<style id="proposal-n15-c">
+  /* N15 C: the table stays a table and gives up width: tighter cell
+     padding, a narrower bucket floor (220 → 168 px), chip names at 10ch
+     (14ch today) and the date line under the amount. */
+  .accounts-table thead th,
+  .accounts-table tbody td {
+    padding-inline: 6px;
+  }
+
+  .accounts-table .cell-buckets {
+    min-width: 168px;
+  }
+
+  .accounts-table .bucket-chip__name {
+    max-width: 10ch;
+  }
+
+  .accounts-table .liquidity-role-field select {
+    max-width: 8.5rem;
+  }
+</style>
+<style id="proposal-n16-a">
+  /* N16 A (recommended): rule ⑦ for the buckets. The card names the cell
+     "Buckets" with the ⓘ beside the word, as it names the role select; the
+     scope line keeps its sentence only. The label shows exactly where the
+     head is hidden (the card), so in the story it sits in the same 640 px
+     block, or under N15 A in the container query. */
+  .bucket-chip-group__label {
+    display: none;
+  }
+
+  @media (max-width: 640px) {
+    .bucket-chip-group__label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-right: 2px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+    }
+  }
+
+  @container accounts (width < 840px) {
+    .bucket-chip-group__label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-right: 2px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--color-text-muted);
+    }
+  }
+</style>
+<style id="proposal-n16-b">
+  /* N16 B: the scope line names the term before its sentence on the card. */
+  .bucket-chip-group__term {
+    display: none;
+  }
+
+  @media (max-width: 640px) {
+    .bucket-chip-group__term {
+      display: inline;
+      font-weight: 600;
+    }
+  }
+</style>
+<style id="proposal-n16-c">
+  /* N16 C: no ⓘ on the card's bucket cell. (In the story: the phone copy
+     is not rendered; the role's ⓘ stays.) */
+  @media (max-width: 640px) {
+    .accounts-table .bucket-chip-group__scope .accounts-term-info--phone {
+      display: none;
+    }
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  body { padding: 0; }
+  .band { display: none; }
+  @media (min-width: 1101px) { .band.w1200 { display: block; } }
+  @media (min-width: 901px) and (max-width: 1100px) { .band.w1024 { display: block; } }
+  @media (min-width: 601px) and (max-width: 900px) { .band.w768 { display: block; } }
+  @media (max-width: 600px) { .band.w390 { display: block; } }
+  .pickbar { margin: 16px 24px 18px; max-width: none; }
+  .mock-board { max-width: none; margin: 0 0 30px; }
+  .mock-board > h2, .mock-board > p.mock-note, .cap, .measure, .notes { margin-left: 24px; margin-right: 24px; }
+  .mock-board > h2 { padding-top: 6px; }
+  .mock-board > p.mock-note { max-width: 120ch; }
+  .cap { margin-top: 18px; margin-bottom: 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 1px; }
+  .fr { border-top: 3px solid var(--color-border-strong); border-bottom: 1px solid var(--color-border); background: var(--color-bg); }
+  .fr.before { border-top-color: var(--color-danger); }
+  .fr.after { border-top-color: var(--color-positive); }
+  .fr.alt { border-top-color: var(--mock-ink); }
+  .fr > .tag { display: block; padding: 4px 24px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .fr.before > .tag { color: var(--color-danger); background: var(--color-danger-soft); }
+  .fr.after > .tag { color: var(--color-positive); background: #ecfdf5; }
+  .fr.alt > .tag { color: var(--mock-ink); background: var(--color-bg-muted); }
+  .fr iframe { display: block; width: 100%; border: 0; height: 200px; }
+  .measure { font-size: 11.5px; color: var(--mock-ink); margin-top: 6px; margin-bottom: 0; max-width: 130ch; }
+  .measure b.off { color: var(--color-danger); }
+  .measure b.ok { color: var(--color-positive); }
+  .notes { font-size: 12.5px; max-width: 120ch; display: grid; gap: 6px; margin-top: 10px; }
+  .notes p, .notes ul { margin: 0; }
+  .notes ul { padding-left: 18px; }
+  .notes code, .pickbar code, .measure code, .mock-note code { font-size: 11.5px; }
+  table.th { border-collapse: collapse; font-size: 12px; margin: 8px 24px 0; }
+  table.th th, table.th td { border: 1px solid var(--color-border); padding: 4px 8px; text-align: right; font-variant-numeric: tabular-nums; }
+  table.th th:first-child, table.th td:first-child { text-align: left; }
+  table.th thead th { background: var(--color-bg-muted); font-weight: 700; }
+  @media (max-width: 600px) {
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board > h2, .mock-board > p.mock-note, .cap, .measure, .notes { margin-left: 12px; margin-right: 12px; }
+    .fr > .tag { padding: 4px 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    table.th { margin: 8px 12px 0; font-size: 11px; }
+  }
+</style>
+</head>
+<body data-widths="1200,1024,768,390">
+
+<div class="pickbar"><b>Board 05 — Konten &amp; Depots.</b> Rendered at 1200, 1024, 768 and 390&nbsp;px; every frame is as wide as the render, a real viewport, so app.css's 900&nbsp;px sidebar rule and 640&nbsp;px card rules fire. <b>Two picks:</b> <b>N15</b> the accounts table between the card and the desktop (#1145) — <b>A</b> the card by a container query on the table's own width · <b>B</b> the wrapper scrolls, the bucket picker goes to the top layer · <b>C</b> tighter columns, <span class="rec">recommended A</span>; <b>N16</b> the Buckets ⓘ on the phone card (#1162) — <b>A</b> a "Buckets" label on the card, the ⓘ beside it · <b>B</b> "Buckets ·" before the scope line · <b>C</b> no ⓘ on the card, <span class="rec">recommended A</span>. <b>Before/after, nothing to pick:</b> <b>#1161</b> a bucket chip's × on the desktop; <b>#1160</b> Accounts' empty result slot. A comment naming the pick and a letter ("N15 B") changes it; silence adopts the recommendation. "Heute" is app.css as shipped; other frames add the <code>&lt;style&gt;</code> blocks they name. All names, figures and dates are invented. <b>Dashed = new.</b></div>
+
+<!-- ============================ N15 ============================ -->
+<section class="mock-board" id="n15">
+  <h2>N15 — #1145: the accounts table is clipped, not scrolled, and its kebab column is lost <small>Konten &amp; Depots · <code>/portfolios</code></small></h2>
+  <p class="mock-note">The table's wrapper is <code>overflow: visible</code> (app.css:7246) so the bucket picker, an absolutely placed popover, can leave it; the table is <code>width: 100%; min-width: 0</code> (:7254) because it was meant to fit. Between the card layout (≤&nbsp;640&nbsp;px viewport) and a content width the table needs, it does not fit, grows past its wrapper, and <code>.workspace-page { overflow-x: clip }</code> (:5302) cuts its right edge: first the kebab column, then the bucket cell. The data: two depots with their cash accounts (one pair tagged together, one split) and a lone "Tagesgeld"; the measured widths below are for this data, and every cell but the select and the chips wraps.</p>
+
+  <!-- 1200: the table fits; every variant is the same picture here -->
+  <div class="band w1200">
+    <p class="cap">Heute — 1200 px (980 px of content): the table fits; A, B and C draw the same picture here</p>
+    <div class="fr before"><span class="tag">Heute — 1200 px</span><iframe id="f-n15-1200-today" data-tpl="accounts" data-o='{"v":"today"}' data-measure="n15" title="Heute, 1200 px"></iframe></div>
+    <p class="measure" data-out="f-n15-1200-today"></p>
+    <div class="notes"><p>The 1024 and 768&nbsp;px renders of this board draw the four frames where the pick matters. Measured thresholds are in the table at the end of this section.</p></div>
+  </div>
+
+  <!-- 1024 and 768: the four frames each -->
+  <div class="band w1024 w768">
+    <p class="cap">Heute — the table runs past its page; the kebab column is cut</p>
+    <div class="fr before"><span class="tag">Heute</span><iframe id="f-n15-mid-today" data-tpl="accounts" data-o='{"v":"today"}' data-measure="n15" title="Heute"></iframe></div>
+    <p class="measure" data-out="f-n15-mid-today"></p>
+
+    <p class="cap">Variante A <span class="rec">recommended</span> — the card takes over where the table would not fit (container query on the wrapper; + nowrap; + N16 A)</p>
+    <div class="fr after"><span class="tag">A — empfohlen · proposal + proposal-n15-a + proposal-n16-a</span><iframe id="f-n15-mid-a" data-tpl="accounts" data-o='{"v":"A","n16":"A"}' data-css="shim-1160 proposal proposal-n15-a shim-n15-a proposal-n16-a" data-measure="n15" title="Variante A"></iframe></div>
+    <p class="measure" data-out="f-n15-mid-a"></p>
+    <div class="notes">
+      <p><b>A.</b> The card that the phone already shows (two-column grid per band, every kebab at the end of its own name line, the role label and both ⓘ in the rows) takes over whenever the wrapper is narrower than the table needs, measured by the wrapper itself (<code>container: accounts / inline-size</code>), not by the viewport. Nothing new is drawn: the three 640&nbsp;px blocks move into one container query, unchanged. The wrapper stays <code>overflow: visible</code>, so the picker still escapes. The bound follows the table, so it is right with the sidebar open, collapsed to its rail or gone, which a viewport breakpoint cannot be (the sidebar alone moves the table's width by 220&nbsp;px at the same viewport).</p>
+    </div>
+
+    <p class="cap">Variante B — the wrapper scrolls; the bucket picker leaves for the top layer (drawn open on "Wertpapierverrechnungskonto")</p>
+    <div class="fr alt"><span class="tag">B · proposal + proposal-n15-b</span><iframe id="f-n15-mid-b" data-tpl="accounts" data-o='{"v":"B","picker":"cash-22"}' data-css="shim-1160 proposal proposal-n15-b" data-measure="n15" title="Variante B"></iframe></div>
+    <p class="measure" data-out="f-n15-mid-b"></p>
+    <div class="notes">
+      <p><b>B.</b> The reading-table rule (UX-DR15): the table keeps one line per account and scrolls inside its bordered wrapper. The cost is two moves out of the table: the bucket picker becomes a <code>popover</code> placed under its + (a hook, since the scroller would clip an absolute panel), and the head's two ⓘ panels, which open upward over the page head today, go to the top layer too: <code>overflow-x: auto</code> forces <code>overflow-y: auto</code>, so a panel inside would be cut. Scrolled, the kebab is reachable, but the name column scrolls away with it (no sticky subject column on this table).</p>
+    </div>
+
+    <p class="cap">Variante C — the table stays and gives up width</p>
+    <div class="fr alt"><span class="tag">C · proposal + proposal-n15-c</span><iframe id="f-n15-mid-c" data-tpl="accounts" data-o='{"v":"C"}' data-css="shim-1160 proposal proposal-n15-c" data-measure="n15" title="Variante C"></iframe></div>
+    <p class="measure" data-out="f-n15-mid-c"></p>
+    <div class="notes">
+      <p><b>C.</b> Six px of cell padding instead of nine, a 168&nbsp;px bucket floor instead of 220, chip names cut at 10ch and a narrower role select. It moves the edge, it does not remove it: below 751&nbsp;px of content (the table under this section) the cut returns, at 768&nbsp;px 21&nbsp;px past the wrapper, and the chip names lose four more characters everywhere, the desktop included.</p>
+    </div>
+  </div>
+
+  <div class="band w390">
+    <p class="cap">390 px — the card, unchanged by every N15 variant</p>
+    <div class="notes"><p>Under 640&nbsp;px the card already applies; A keeps it (its container is far below the bound), B and C do not touch it. The N16 frames below show the card.</p></div>
+  </div>
+
+  <p class="cap">Measured — the content width the table needs, and the viewports that gives</p>
+  <div data-out="thresholds" class="measure band w1200 w1024 w768" style="max-width:none"></div>
+  <div class="band w390"><div class="notes"><p>The measured widths are in the table of the wider renders.</p></div></div>
+
+  <div class="notes">
+    <p><b>Why A.</b> It is the one variant with no width at which something is cut or hidden: the table shows where it fits and the card everywhere else, with the bound taken from the table itself. It adds no component and no new picture (the card is shipped and pinned), keeps the picker's escape the wrapper was made for, and needs no hook. B is the house rule for reading tables, but this one is a control surface: two of its five data cells are controls (the role select, the chips with their picker), and B pays for scrolling with three top-layer panels and a name column that leaves the screen when the kebab arrives. C buys 80&nbsp;px (831 → 751), so the cut stays in the band it was filed for: at 768&nbsp;px it is 21&nbsp;px past its wrapper, and with the sidebar open it is cut up to 1022&nbsp;px.</p>
+    <p><b>Any variant:</b> the amount and "Saldo setzen" never wrap (<code>white-space: nowrap</code>), the design critic's comment on the issue. "letzte Buchung …" keeps wrapping under 1200&nbsp;px, as the 2026-10-07 amendment specifies.</p>
+  </div>
+</section>
+
+<!-- ============================ N16 ============================ -->
+<section class="mock-board" id="n16">
+  <h2>N16 — #1162: on the phone the Buckets ⓘ explains a word the card never shows <small>Konten &amp; Depots at 390 px</small></h2>
+  <p class="mock-note">Under 640&nbsp;px the head row is hidden, so "Buckets" appears nowhere on the card; the row copy of its ⓘ (<code>term_info(:buckets, phone)</code>, <code>portfolio_accounts_live.ex:847-851</code>) stands after the scope line "Gilt für das Verrechnungskonto". The role's ⓘ had the same defect until rule ⑦ (#1085) gave its select a visible label on the card: "Liquiditätsrolle ⓘ [Verfügbares Cash]".</p>
+
+  <div class="band w390">
+    <p class="cap">Heute</p>
+    <div class="fr before"><span class="tag">Heute — 390 px</span><iframe id="f-n16-today" data-tpl="accounts" data-o='{"v":"today","n16":"today","cards":2}' data-measure="n16" title="N16 heute"></iframe></div>
+    <p class="measure" data-out="f-n16-today"></p>
+
+    <p class="cap">Variante A <span class="rec">recommended</span> — "Buckets ⓘ" opens the bucket cell, as "Liquiditätsrolle ⓘ" opens the role</p>
+    <div class="fr after"><span class="tag">A — empfohlen · proposal + proposal-n16-a</span><iframe id="f-n16-a" data-tpl="accounts" data-o='{"v":"today","n16":"A","cards":2}' data-css="shim-1160 proposal proposal-n16-a" data-measure="n16" title="N16 A"></iframe></div>
+    <p class="measure" data-out="f-n16-a"></p>
+
+    <p class="cap">Variante B — the scope line begins "Buckets ·"</p>
+    <div class="fr alt"><span class="tag">B · proposal + proposal-n16-b</span><iframe id="f-n16-b" data-tpl="accounts" data-o='{"v":"today","n16":"B","cards":2}' data-css="shim-1160 proposal proposal-n16-b" data-measure="n16" title="N16 B"></iframe></div>
+    <p class="measure" data-out="f-n16-b"></p>
+
+    <p class="cap">Variante C — no ⓘ on the card's bucket cell</p>
+    <div class="fr alt"><span class="tag">C · proposal + proposal-n16-c</span><iframe id="f-n16-c" data-tpl="accounts" data-o='{"v":"today","n16":"C","cards":2}' data-css="shim-1160 proposal proposal-n16-c" data-measure="n16" title="N16 C"></iframe></div>
+    <p class="measure" data-out="f-n16-c"></p>
+  </div>
+  <div class="band w1200 w1024 w768">
+    <div class="notes"><p>Drawn at 390&nbsp;px (the 390 render of this board). Above the card nothing changes: the head says "Buckets ⓘ" once. Under N15 A the card, and with it N16's label, also shows wherever the container query applies (the A frame of N15 at 768&nbsp;px carries it).</p></div>
+  </div>
+  <div class="notes">
+    <p><b>Why A.</b> It is rule ⑦ applied to the second term: a term and its ⓘ stand together, and the card names each cell the head names on the desktop. The label is the head's own word (msgid "Buckets"), so no string is added, and it shows exactly where the head is hidden. B makes the scope line carry two things, a name and a sentence, and the ⓘ still trails the sentence, explaining the first word from the end of the line. C removes the only definition the phone has: "Buckets" is a word the operator meets on Views and in the import's tag field, and #1090 added the ⓘ because a newcomer misread it.</p>
+  </div>
+</section>
+
+<!-- ============================ #1161 and #1160 ============================ -->
+<section class="mock-board" id="b1161">
+  <h2>#1161 — a bucket chip's × on the desktop; #1160 — Accounts' empty result slot <small>before/after, fine pointer</small></h2>
+  <p class="mock-note"><b>#1161.</b> With a mouse the ×  (<code>.bucket-chip__remove</code>, app.css:7470) takes the base button's 34&nbsp;px floor, so a chip holding one stands taller than the "Kein Bucket" word, the + and the scope chip beside it. Rule ⑧ fixed the + (22 × 22, <code>min-height: 0</code>) and gave both 44&nbsp;px under a coarse pointer; the × on the desktop was not drawn. <b>#1160.</b> <code>#accounts-result</code> renders two live regions holding template whitespace, so <code>.inline-result__region:not(:empty)</code> gives each an 8&nbsp;px margin at rest, and the section's grid adds its 16&nbsp;px gap for the slot.</p>
+  <div class="band w1200">
+    <p class="cap">Heute — 1200 px</p>
+    <div class="fr before"><span class="tag">Heute</span><iframe id="f-chip-today" data-tpl="accounts" data-o='{"v":"today","only":2}' data-measure="chip" title="#1161 heute"></iframe></div>
+    <p class="measure" data-out="f-chip-today"></p>
+    <p class="cap">Nachher — 1200 px</p>
+    <div class="fr after"><span class="tag">Nachher · proposal (+ proposal-n15-a, proposal-n16-a: no change at 1200)</span><iframe id="f-chip-after" data-tpl="accounts" data-o='{"v":"A","n16":"A","only":2}' data-css="shim-1160 proposal proposal-n15-a proposal-n16-a" data-measure="chip" title="#1161 nachher"></iframe></div>
+    <p class="measure" data-out="f-chip-after"></p>
+  </div>
+  <div class="band w1024 w768 w390">
+    <div class="notes"><p>Drawn at 1200&nbsp;px. #1161 changes nothing under a coarse pointer (the 44 × 44 block still wins there); #1160's slot is empty at rest at every width.</p></div>
+  </div>
+  <div class="notes">
+    <p><b>#1161, the spec it applies:</b> DESIGN.md → Amendment 2026-10-07 → Accounts &amp; depots, rule ⑧, and the front matter's <code>bucket-cell.target-size</code> ("On the desktop the + is the 22px circle it declares"). The × takes the same 22 × 22, and the chip that holds it gives up its block and right padding, as it does under a coarse pointer, so the × fills the pill's end and the chip is no taller than one without it. Its inset focus ring (PR γ closing act) already fits that shape.</p>
+    <p><b>#1160, the spec it applies:</b> DESIGN.md → A page's result is an inline result ("nothing at rest"), which left "Accounts' own, Snapshots, Securities" with their footprint. The fix goes into the component, so every remaining slot (Accounts, Snapshots, Securities, the quotes release) loses its rest footprint at once: <code>:has(&gt; *)</code> instead of <code>:not(:empty)</code>, and the section-grid rule widened from <code>.inline-result--page</code> to every inline result.</p>
+  </div>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc)
+   from the live markup of portfolio_accounts_live.ex and AppShell, with the
+   German msgstrs. Synthetic data. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', document.baseURI).href;
+const kebabSvg = '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5.5" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="12" cy="18.5" r="1.7"/></svg>';
+const plusSvg = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+
+function shell(inner) {
+  const nav = (label, on) => `<a class="nav-link${on ? ' is-active' : ''}" href="#"${on ? ' aria-current="page"' : ''}><span class="nav-marker" aria-hidden="true"></span><span class="nav-ico" aria-hidden="true"></span><span class="nav-label">${label}</span></a>`;
+  return `<div id="app-shell" class="app-shell">
+    <input id="app-sidebar-toggle" class="sidebar-toggle-control" type="checkbox" aria-label="Navigation umschalten">
+    <aside id="app-sidebar" class="app-sidebar" aria-label="Anwendungsnavigation">
+      <a class="brand" href="#"><span class="brand-wordmark">Portfolixir</span></a>
+      <nav class="primary-nav"><div class="nav-group nav-group-unlabeled">${nav('Übersicht')}${nav('Vermögen')}${nav('Wertpapiere')}${nav('Transaktionen')}</div>
+      <div class="nav-group"><div class="nav-group-head"><span>Verwaltung</span></div>${nav('Konten &amp; Depots', true)}${nav('Ansichten')}${nav('Klassifizierungen')}</div></nav>
+    </aside>
+    <label class="sidebar-backdrop" for="app-sidebar-toggle" aria-hidden="true"></label>
+    <div class="app-frame">
+      <header class="topbar"><label class="sidebar-toggle" for="app-sidebar-toggle" aria-label="Navigation öffnen"><span class="burger-bars" aria-hidden="true"></span></label>
+        <div class="topbar-primary"><a class="topbar-brand" href="#"><span>Portfolixir</span></a><div class="topbar-page"><h1 id="app-topbar-title">Konten &amp; Depots</h1><p id="app-topbar-subtitle">Depots, Verrechnungskonten und ihre Buckets</p></div></div>
+      </header>
+      <main class="app-main app-main--workspace">${inner}</main>
+    </div>
+  </div>`;
+}
+
+/* ---- the data (invented) ---- */
+const BK = {
+  def: { name: 'Default', color: '#475569', scope: true },
+  lang: { name: 'Langfristig', color: '#0f766e' },
+  not: { name: 'Notgroschen', color: '#b45309' },
+  imp: { name: 'PP Import 2026-10-07', color: null },
+  spar: { name: 'Sparplan', color: '#7c3aed' }
+};
+const ROWS = [
+  { depot: { id: 11, name: 'Depot Muster' }, cash: { id: 21, name: 'Test-Cash', ccy: 'EUR', role: 'free_cash', bal: '4.230,15', date: '22.09.2026' }, merged: true, depotB: [BK.def, BK.lang], cashB: [BK.def, BK.lang] },
+  { depot: { id: 12, name: 'Depot Sparplan', former: 'Depot 2' }, cash: { id: 22, name: 'Wertpapierverrechnungskonto', ccy: 'EUR', role: 'reserve', bal: '812,40', date: '01.10.2026' }, merged: false, depotB: [BK.spar], cashB: [BK.not, BK.imp] },
+  { lone: { id: 23, name: 'Tagesgeld', ccy: 'EUR', role: 'reserve', bal: '12.500,00', date: '30.09.2026', former: 'Tagesgeld (alt)' }, cashB: [] }
+];
+
+const TERM = {
+  role: ['Zur Liquiditätsrolle', 'Liquiditätsrolle — wie ein Verrechnungskonto zählt: Verfügbares Cash geht in die Cashquote ein, Reserve und Kreditlinie nicht.'],
+  buckets: ['Zu den Buckets', 'Buckets — Tags für Depots und Verrechnungskonten. Eine Ansicht wählt Buckets aus und grenzt jede Kennzahl auf deren Konten ein; ein Konto kann mehreren angehören.']
+};
+const termInfo = (t, phone, cls, role) => `<details class="metric-tooltip metric-tooltip--inline${phone ? ' accounts-term-info--phone' : ''}${cls ? ' ' + cls : ''}"${role ? ` data-role="${role}"` : ''}>
+        <summary aria-label="${TERM[t][0]}">ⓘ</summary>
+        <p role="tooltip">${TERM[t][1]}</p>
+      </details>`;
+const ROLE = { free_cash: 'Verfügbares Cash', credit_line: 'Kreditlinie', reserve: 'Reserve' };
+const roleField = (c) => `<form id="liquidity-role-form-${c.id}" class="liquidity-role-field">
+      <input type="hidden" name="account_id" value="${c.id}">
+      <label class="liquidity-role-field__label" for="liquidity-role-${c.id}">Liquiditätsrolle</label>
+      ${termInfo('role', true, '', 'liquidity-role-info')}
+      <select id="liquidity-role-${c.id}" name="liquidity_role">${Object.keys(ROLE).map((k) => `<option value="${k}"${k === c.role ? ' selected' : ''}>${ROLE[k]}</option>`).join('')}</select>
+    </form>`;
+const balance = (c) => `<span id="cash-balance-${c.id}" class="cash-balance">
+          <span class="cash-balance__amount num">
+            ${c.bal} ${c.ccy}
+          </span>
+          <span class="cash-balance__asof">
+            letzte Buchung ${c.date}
+          </span>
+    </span>
+    <button type="button" id="set-balance-${c.id}" class="cash-balance__action">
+      Saldo setzen
+    </button>`;
+const chip = (b) => `<span class="bucket-chip${b.scope ? ' bucket-chip--scope' : ''}"${b.color ? ` style="--chip-color: ${b.color}"` : ''} title="${b.name}">
+      <span class="bucket-chip__name">${b.name}</span>
+      <button type="button" class="bucket-chip__remove" data-role="bucket-remove" aria-label="Bucket ${b.name} entfernen" title="Bucket ${b.name} entfernen">×</button>
+    </span>`;
+const ALL = Object.values(BK);
+function picker(owner, id, assigned, popover) {
+  const avail = ALL.filter((b) => !assigned.includes(b));
+  return `<div id="bucket-picker-${owner}-${id}" class="bucket-picker is-new" data-role="bucket-picker"${popover ? ' popover="manual"' : ''}>
+      <ul class="bucket-picker__options">${avail.map((b) => `<li><button type="button" class="bucket-chip${b.scope ? ' bucket-chip--scope' : ''}"${b.color ? ` style="--chip-color: ${b.color}"` : ''} title="${b.name}"><span class="bucket-chip__name">${b.name}</span></button></li>`).join('')}</ul>
+      <form class="bucket-picker__create"><input name="bucket_name" autocomplete="off" placeholder="Neuer Tag" aria-label="Neuer Tag"><button type="submit" class="button">Tag anlegen</button></form>
+    </div>`;
+}
+function chips(owner, id, assigned, scope, o) {
+  const n16 = o.n16 || 'today';
+  const open = o.picker === `${owner}-${id}`;
+  const label = n16 === 'A' ? `<span class="bucket-chip-group__label is-new" data-role="bucket-label">Buckets${termInfo('buckets', true, '', 'buckets-info')}</span>` : '';
+  const term = n16 === 'B' ? '<span class="bucket-chip-group__term is-new">Buckets · </span>' : '';
+  const info = n16 === 'A' || n16 === 'C' ? '' : termInfo('buckets', true, '', 'buckets-info');
+  return `<div class="bucket-chip-group" id="${owner}-buckets-${id}" data-role="bucket-chips">
+      ${label}${assigned.length ? '' : '<span class="bucket-chip-group__empty" data-role="bucket-empty">Kein Bucket</span>'}
+      ${assigned.map(chip).join('\n')}
+      <button type="button" class="bucket-chip-add" data-role="bucket-add" aria-expanded="${open}" aria-label="Bucket hinzufügen" title="Bucket hinzufügen">+</button>
+      <div class="bucket-chip-group__scope" data-role="bucket-scope">${term}${scope}${info}</div>
+      ${open ? picker(owner, id, assigned, o.v === 'B') : ''}
+    </div>`;
+}
+const kebab = (id, name) => `<button type="button" id="${id}" class="row-actions__kebab" aria-label="Aktionen für ${name}" aria-haspopup="menu" aria-expanded="false">${kebabSvg}</button>`;
+const former = (n) => (n ? `<span class="account-sub account-sub--former" data-role="account-former">früher: ${n}</span>` : '');
+
+function band(r, o) {
+  if (r.lone) {
+    const c = r.lone;
+    return `<tbody class="account-pair account-pair--lone" id="account-row-cash-${c.id}" data-role="account-row">
+      <tr class="account-row--cash account-row--lone-cash">
+        <td class="cell-name cell-name--lone"><span class="account-name">${c.name}</span>
+          <span class="account-microtag">Verrechnungskonto</span>
+          ${former(c.former)}</td>
+        <td class="cell-currency">${c.ccy}</td>
+        <td class="cell-role">${roleField(c)}</td>
+        <td class="cell-balance">${balance(c)}</td>
+        <td class="cell-buckets">${chips('cash', c.id, r.cashB, 'Gilt für das Verrechnungskonto', o)}</td>
+        <td class="row-actions">${kebab('cash-kebab-' + c.id, c.name)}</td>
+      </tr>
+    </tbody>`;
+  }
+  const d = r.depot, c = r.cash;
+  const depotBuckets = r.merged
+    ? `<td class="cell-buckets cell-buckets--pair" rowspan="2">${chips('pair', d.id, r.depotB, 'Gilt für Depot und Verrechnungskonto', o)}</td>`
+    : `<td class="cell-buckets">${chips('depot', d.id, r.depotB, 'Gilt für das Depot', o)}</td>`;
+  return `<tbody class="account-pair" id="account-row-depot-${d.id}" data-role="account-row">
+      <tr class="account-row--depot">
+        <td class="cell-name cell-name--depot"><span class="account-name">${d.name}</span>
+          ${former(d.former)}</td>
+        <td class="cell-currency cell-currency--empty"></td>
+        <td class="cell-role cell-role--empty"></td>
+        <td class="cell-balance cell-balance--empty"></td>
+        ${depotBuckets}
+        <td class="row-actions">${kebab('account-kebab-' + d.id, d.name)}</td>
+      </tr>
+      <tr class="account-row--cash">
+        <td class="cell-name cell-name--cash"><span class="account-cash-name">${c.name}</span>
+          </td>
+        <td class="cell-currency">${c.ccy}</td>
+        <td class="cell-role">${roleField(c)}</td>
+        <td class="cell-balance">${balance(c)}</td>
+        ${r.merged ? '' : `<td class="cell-buckets">${chips('cash', c.id, r.cashB, 'Gilt für das Verrechnungskonto', o)}</td>`}
+        <td class="row-actions">${kebab('cash-kebab-' + c.id, c.name)}</td>
+      </tr>
+    </tbody>`;
+}
+
+function accounts(o) {
+  let rows = ROWS;
+  if (o.cards) rows = ROWS.slice(1, 1 + o.cards);
+  if (o.only) rows = ROWS.slice(0, o.only);
+  const result = `<div id="accounts-result" class="inline-result" data-role="action-result">
+      <div id="accounts-result-status" role="status" class="inline-result__region">
+      </div>
+      <div id="accounts-result-alert" role="alert" class="inline-result__region">
+      </div>
+    </div>`;
+  return shell(`<div id="portfolios-workspace" class="workspace-page">
+    <section id="accounts-panel" class="workspace-section">
+      <div class="section-head">
+        <h2>Depots und Verrechnungskonten</h2>
+        <button id="add-account-button" type="button" class="button-primary">${plusSvg} Depot &amp; Konto anlegen</button>
+      </div>
+      ${result}
+      <div class="data-table-wrapper">
+        <table id="accounts-table" class="data-table accounts-table" data-role="accounts-table">
+          <thead><tr>
+            <th>Name</th>
+            <th>Währung</th>
+            <th class="accounts-term-head">Liquiditätsrolle${termInfo('role', false)}</th>
+            <th>Saldo</th>
+            <th class="accounts-term-head">Buckets${termInfo('buckets', false, 'metric-tooltip--end')}</th>
+            <th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th>
+          </tr></thead>
+          ${rows.map((r) => band(r, o)).join('\n')}
+        </table>
+      </div>
+    </section>
+    <p class="stub">… Zusammenführungen und Portfolio-Datensätze, unverändert …</p>
+  </div>`);
+}
+
+const TPL = { accounts };
+window.TPL = TPL;
+const CSS_MOCK = '<style>body{background:var(--color-bg);} .is-new{outline:2px dashed var(--color-accent);outline-offset:1px;border-radius:4px;} .app-main,.workspace-page{min-height:0!important;} .stub{margin:0;padding:8px clamp(16px,2.4vw,28px) 16px;font-size:12px;font-style:italic;color:#5a6577;}</style>';
+window.CSS_MOCK = CSS_MOCK;
+window.CSS_HREF = CSS_HREF;
+window.frameDoc = (tpl, o, ids) => `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${CSS_MOCK}${(ids || []).map((id) => document.getElementById(id).outerHTML).join('')}</head><body>${TPL[tpl](o)}</body></html>`;
+
+const r0 = (x) => Math.round(x);
+const r1 = (x) => Math.round(x * 10) / 10;
+function linesOf(el) {
+  const lh = parseFloat(getComputedStyle(el).lineHeight) || 18;
+  return Math.round(el.getBoundingClientRect().height / lh);
+}
+const MEASURE = {
+  n15(doc, w) {
+    const wrap = doc.querySelector('.data-table-wrapper');
+    const table = doc.querySelector('#accounts-table');
+    const page = doc.querySelector('.workspace-page').getBoundingClientRect();
+    const wr = wrap.getBoundingClientRect(), tr = table.getBoundingClientRect();
+    const scrolls = getComputedStyle(wrap).overflowX !== 'visible';
+    const right = scrolls ? Math.min(page.right, wr.right - 1) : page.right;
+    const keb = [...doc.querySelectorAll('.row-actions__kebab')];
+    const out = keb.filter((k) => k.getBoundingClientRect().left >= right - 1).length;
+    const cut = keb.filter((k) => { const b = k.getBoundingClientRect(); return b.right > right + 0.5 && b.left < right - 1; }).length;
+    const amt = [...doc.querySelectorAll('.cash-balance__amount')];
+    const amtLines = Math.max(...amt.map(linesOf));
+    const btn = doc.querySelector('.cash-balance__action').getBoundingClientRect();
+    const card = getComputedStyle(doc.querySelector('tbody.account-pair')).display === 'block';
+    const scroll = wrap.scrollWidth - wrap.clientWidth;
+    const pk = doc.querySelector('.bucket-picker');
+    let pick = '';
+    if (pk) { const p = pk.getBoundingClientRect(); pick = ` · the picker ${r0(p.width)} × ${r0(p.height)} px at x ${r0(p.left)}–${r0(p.right)}, ${p.right <= page.right && p.left >= page.left ? '<b class="ok">whole, over the scroller</b>' : '<b class="off">cut</b>'}`; }
+    const over = r0(tr.right - (wr.right - 1));
+    let fit;
+    if (card) fit = '';
+    else if (scrolls) fit = scroll > 0 ? ` — the wrapper <b class="ok">scrolls ${scroll} px</b>` : ' — <b class="ok">fits</b>';
+    else fit = over > 0 ? ` — <b class="off">${over} px past the wrapper</b>, ${r0(tr.right - page.right)} px past the page edge, which clips` : ' — <b class="ok">fits</b>';
+    const whole = keb.length - out - cut;
+    const kebs = ` · kebabs: ${whole} whole in view, ${cut ? '<b class="off">' + cut + ' cut</b>' : '0 cut'}, ${out ? (scrolls ? out + ' out of view (reachable by scrolling)' : '<b class="off">' + out + ' gone</b>') : '0 out of view'}`;
+    return `Measured at ${w} px: ${card ? '<b class="ok">card layout</b>; ' : ''}wrapper ${r0(wr.width)} px wide, table ${r0(tr.width)} px${fit}${kebs}` +
+      ` · the amount on ${amtLines === 1 ? '<b class="ok">1 line</b>' : '<b class="off">' + amtLines + ' lines</b>'} · "Saldo setzen" ${r0(btn.width)} × ${r0(btn.height)} px${pick}.`;
+  },
+  n16(doc, w) {
+    const grp = doc.querySelector('#cash-buckets-22');
+    const info = grp.querySelector('[data-role="buckets-info"]');
+    const lab = grp.querySelector('.bucket-chip-group__label');
+    const scope = grp.querySelector('.bucket-chip-group__scope');
+    const wordEl = lab || scope.querySelector('.bucket-chip-group__term');
+    const g = grp.getBoundingClientRect();
+    let ws = null;
+    if (wordEl && getComputedStyle(wordEl).display !== 'none') { const rg = doc.createRange(); rg.selectNodeContents(wordEl.firstChild); ws = rg.getBoundingClientRect(); }
+    let s = `Measured at ${w} px on "Wertpapierverrechnungskonto": the bucket cell ${r0(g.width)} × ${r0(g.height)} px`;
+    if (ws) s += ` · the word "Buckets" at x ${r0(ws.left)}–${r0(ws.right)}, y ${r0(ws.top - g.top)} in the cell`;
+    else s += ' · the word "Buckets": <b class="off">nowhere on the card</b>';
+    if (info && getComputedStyle(info).display !== 'none') { const b = info.getBoundingClientRect(); s += ` · its ⓘ at x ${r0(b.left)}, y ${r0(b.top - g.top)}` + (ws ? (Math.abs(b.top - ws.top) < 8 ? (b.left - ws.right < 40 ? ` — <b class="ok">${r0(b.left - ws.right)} px after the word, on its line</b>` : ` — <b class="off">${r0(b.left - ws.right)} px after the word, at the end of the scope sentence</b>`) : ` — <b class="off">${r0(b.top - ws.top)} px below the word, after the scope sentence</b>`) : ' — <b class="off">beside no word</b>'); }
+    else s += ' · <b class="off">no ⓘ</b> in the cell';
+    return s + ` · the scope line ${r0(scope.getBoundingClientRect().height)} px tall.`;
+  },
+  chip(doc, w) {
+    const withX = doc.querySelector('#depot-buckets-12 .bucket-chip') || doc.querySelector('.bucket-chip:has(.bucket-chip__remove)');
+    const x = withX.querySelector('.bucket-chip__remove').getBoundingClientRect();
+    const c = withX.getBoundingClientRect();
+    const add = doc.querySelector('#depot-buckets-12 .bucket-chip-add').getBoundingClientRect();
+    const empty = doc.querySelector('.bucket-chip-group__empty');
+    const name = withX.querySelector('.bucket-chip__name').getBoundingClientRect();
+    const wrap = doc.querySelector('.data-table-wrapper').getBoundingClientRect();
+    const head = doc.querySelector('.section-head').getBoundingClientRect();
+    const slot = doc.querySelector('#accounts-result').getBoundingClientRect();
+    const row = doc.querySelector('#account-row-depot-12 tr').getBoundingClientRect();
+    const bare = doc.createElement('span'); bare.className = 'bucket-chip'; bare.innerHTML = '<span class="bucket-chip__name">Sparplan</span>';
+    withX.parentElement.appendChild(bare); const bh = bare.getBoundingClientRect().height; bare.remove();
+    return `#1161 at ${w} px: the × ${r1(x.width)} × ${r1(x.height)} px; the chip holding it ${r1(c.width)} × ${r1(c.height)} px (a chip without one, as in the picker: ${r1(bh)} px); its name line ${r1(name.height)} px; the + ${r1(add.width)} × ${r1(add.height)} px; the "Depot Sparplan" row ${r0(row.height)} px tall. ` +
+      `#1160: the slot at rest ${r1(slot.height)} px${getComputedStyle(doc.querySelector('#accounts-result')).position === 'absolute' ? ' (out of the flow)' : ''}; section head → table ${r0(wrap.top - head.bottom)} px.`;
+  }
+};
+
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  const ids = (f.dataset.css || '').split(/\s+/).filter(Boolean);
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument;
+    const finish = () => {
+      if (o.picker && o.v === 'B') {
+        const pk = doc.querySelector('[popover]');
+        const btn = doc.querySelector('.bucket-chip-add[aria-expanded="true"]');
+        if (pk && btn && pk.showPopover) {
+          pk.showPopover();
+          const b = btn.getBoundingClientRect();
+          const width = Math.max(260, pk.getBoundingClientRect().width);
+          const left = Math.min(b.left, doc.documentElement.clientWidth - width - 8);
+          pk.style.top = (b.bottom + 4) + 'px';
+          pk.style.left = Math.max(8, left) + 'px';
+        }
+      }
+      f.style.height = Math.ceil(doc.documentElement.scrollHeight) + 'px';
+      const pk = doc.querySelector('[popover]');
+      if (pk) { const r = pk.getBoundingClientRect(); if (r.bottom + 12 > doc.documentElement.scrollHeight) f.style.height = Math.ceil(r.bottom + 16) + 'px'; }
+      const m = f.dataset.measure;
+      const out = document.querySelector(`[data-out="${f.id}"]`);
+      if (m && MEASURE[m] && out && f.offsetParent !== null) out.innerHTML = MEASURE[m](doc, Math.round(f.getBoundingClientRect().width));
+    };
+    setTimeout(finish, 60);
+  });
+  if (f.offsetParent !== null) f.srcdoc = window.frameDoc(f.dataset.tpl, o, ids);
+}
+
+/* The thresholds: the table's own minimum width under each CSS set, read
+   in a hidden 700 px frame whose wrapper is squeezed to 1 px, and the
+   viewports that width needs with the sidebar open (220 px), at its rail
+   (72 px) and gone (≤ 900 px). The section's side padding is
+   clamp(16px, 2.4vw, 28px) of the viewport, the wrapper's border 1 px. */
+const SETS = [
+  ['Heute (app.css as shipped)', []],
+  ['+ nowrap (any variant)', ['shim-1160', 'proposal']],
+  ['C (+ proposal-n15-c)', ['shim-1160', 'proposal', 'proposal-n15-c']]
+];
+function viewportFor(need, sidebar) {
+  for (let vw = 300; vw < 2000; vw++) {
+    const side = sidebar === 'none' ? 0 : sidebar;
+    if (sidebar !== 'none' && vw <= 900) continue;
+    if (sidebar === 'none' && vw > 900) return null;
+    const gutter = Math.min(28, Math.max(16, vw * 0.024));
+    const content = vw - side - 2 * gutter - 2;
+    if (content >= need) return vw;
+  }
+  return null;
+}
+async function thresholds() {
+  const out = document.querySelector('[data-out="thresholds"]');
+  if (!out || out.offsetParent === null) return;
+  const rows = [];
+  for (const [label, ids] of SETS) {
+    const f = document.createElement('iframe');
+    f.style.cssText = 'position:absolute;left:-3000px;top:0;width:700px;height:400px;border:0';
+    document.body.appendChild(f);
+    await new Promise((res) => { f.addEventListener('load', () => setTimeout(res, 60)); f.srcdoc = window.frameDoc('accounts', { v: label.startsWith('C') ? 'C' : 'today' }, ids); });
+    const d = f.contentDocument;
+    const wrap = d.querySelector('.data-table-wrapper');
+    wrap.style.width = '1px';
+    const need = Math.ceil(d.querySelector('#accounts-table').getBoundingClientRect().width);
+    f.remove();
+    const vSide = viewportFor(need, 220), vRail = viewportFor(need, 72), vNone = viewportFor(need, 'none');
+    rows.push(`<tr><td>${label}</td><td>${need}</td><td>${vSide ? '≥ ' + vSide : '—'}</td><td>${vRail ? '≥ ' + vRail : '—'}</td><td>${vNone ? vNone + '–900' : 'never'}</td></tr>`);
+  }
+  const A = 840, aSide = viewportFor(A, 220), aRail = viewportFor(A, 72), aNone = viewportFor(A, 'none');
+  rows.push(`<tr><td><b>A</b>: the table from its bound up, the card below it</td><td>bound ${A}</td><td>table ≥ ${aSide}, card below</td><td>table ≥ ${aRail}, card below</td><td>table ${aNone}–900, card 641–${aNone - 1}</td></tr>`);
+  out.innerHTML = `<table class="th"><thead><tr><th>CSS</th><th>table needs (px)</th><th>fits, sidebar open (viewport px)</th><th>fits, sidebar at its rail</th><th>fits, no sidebar (≤ 900)</th></tr></thead><tbody>${rows.join('')}</tbody></table>
+  <p class="measure" style="margin-left:0">Read: under "Heute" the table is cut at every viewport from 641 to 837&nbsp;px, and from 901 to 1068&nbsp;px with the sidebar open (to 912 at its rail); the nowrap rule every variant carries widens that band by 36&nbsp;px. C narrows it but keeps it (641–790 and 901–1022). Under A no width cuts the table: the card takes every width where it would not fit, measured on the wrapper, so the sidebar's state needs no breakpoint of its own. The issue's own figures agree: about 795&nbsp;px of content (its body), and 784 from its comment's 53&nbsp;px of overrun at 768 and 29 at 1024.</p>`;
+}
+setTimeout(thresholds, 50);
+</script>
+</body>
+</html>

@@ -1,0 +1,849 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Imports: the correction's line states, a count that follows the choice, and the preview's and done page's repairs (Picks N21, N20; #1188, #1195, #1130, #1179, #1178, #1181, #962, #1207, #1197)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the rules the Sprint 21 import stories add to app.css.
+     Everything else in the frames is markup and classes that already ship in
+     imports_live.ex (render_preview/1: .import-stats, .kind-chips, the
+     parser-warnings data note, the correction section #import-correction
+     with .import-correction__legs/__total/__foot and its phone rows, the
+     mapping .mapping-row/.mapping-count/.mapping-target/.mapping-basis/
+     .mapping-remember, #import-missing-hint; correction_dialog/1;
+     render_done/1: .import-done, .import-skipped, .dup-group) and AppShell
+     (.area-tabs, .data-note, .inline-result, .recomputing-cue + .spinner).
+     The frames are srcdoc iframes built from that markup, so a 390 px frame
+     is a real 390 px viewport and app.css's 720 and 560 px blocks fire as on
+     a phone. "Heute" frames render app.css as shipped; "Nachher" and
+     variant frames also get this block (and a variant's own block). -->
+<style id="proposal">
+  /* ① N21 A — a correction line's state, under its booking in the basis
+     voice of .import-correction__legs. A line found by its figures says so
+     muted; a line the confirm leaves ("bleibt") leads with its reason in
+     bold, in the table's text colour, then what the operator does. */
+  .import-correction__state {
+    display: block;
+    margin-top: 2px;
+    font-size: 12px;
+    color: var(--color-text-muted);
+    white-space: normal;
+  }
+
+  /* Inside its scroller every table sizes to its content (app.css,
+     `.data-table-wrapper > table { min-width: max-content }`), so a state
+     sentence would set the table's width and push the figures out of view.
+     This table takes its MIN-content as its floor instead: it fills the
+     note's width, its text cells wrap, and it still scrolls when even its
+     min-content does not fit. */
+  .data-table-wrapper > #import-correction-table {
+    min-width: min-content;
+  }
+
+  /* On a phone row the state takes the row's full width, under the subject
+     and the figures, not the subject column beside the figures. */
+  #import-correction-phone-rows .phone-row > .import-correction__state {
+    grid-column: 1 / -1;
+  }
+
+  .import-correction__state--kept {
+    color: var(--color-text);
+  }
+
+  .import-correction__state--kept b {
+    font-weight: 650;
+  }
+
+  /* The middle figure of a kept line is the word "bleibt", not a figure. */
+  #import-correction-table td.import-correction__kept,
+  #import-correction-phone-rows .import-correction__kept {
+    color: var(--color-text-muted);
+  }
+
+  /* N21 A — the price column of a JSON trade ("12,50 → 10,00"), shown only
+     when a listed line's price differs. It replaces the two "Kurs …" detail
+     lines on the desktop table; the phone rows keep the detail lines. */
+  #import-correction-table .import-correction__price {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ② N20 A — the row's count while its recount runs: the count dims (the
+     pending treatment, .stale-value) and the computing cue stands under it
+     (DESIGN.md → the recomputing cue). Also #1195's withheld row while its
+     dry run runs. */
+  .mapping-count .stale-value b {
+    color: var(--color-text-muted);
+  }
+
+  .mapping-count > .recomputing-cue {
+    margin-top: 2px;
+  }
+
+  /* ⑤ #1130 — the leftover-configuration list is ONE attention data note
+     (UX-DR17), the parser warnings' move: its body stretches, the head line,
+     the sentence and the list in order; the list is data, in the text
+     colour. Under 560 px it joins the ONE selector list of notes that carry
+     a list (the story adds it to that list, not a copy). */
+  [data-role="unmatched-config"] {
+    margin: var(--space-4) 0;
+  }
+
+  [data-role="unmatched-config"] .data-note__body {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: grid;
+    gap: var(--space-2);
+  }
+
+  [data-role="unmatched-config"] h3,
+  [data-role="unmatched-config"] p,
+  [data-role="unmatched-config"] ul {
+    margin: 0;
+  }
+
+  [data-role="unmatched-config"] h3 {
+    font-size: 13px;
+    color: inherit;
+  }
+
+  [data-role="unmatched-config"] ul {
+    padding-left: 18px;
+    color: var(--color-text);
+  }
+
+  @media (max-width: 560px) {
+    [data-role="unmatched-config"] {
+      flex-wrap: wrap;
+    }
+
+    [data-role="unmatched-config"] .data-note__body {
+      flex-basis: 100%;
+    }
+  }
+
+  /* ⑨ #1181 — .button-secondary is the family's outline secondary
+     (DESIGN.md: "the outline button is the secondary; invisible grey inline
+     text is not an action treatment"). In app.css it joins .button-ghost's
+     two selector lists (shape, colour, hover), which sit before .button, so
+     Tax's "button button-secondary" keeps .button's size; the Tax-page rule
+     that made it a muted text colour retires. A link carrying it aligns as
+     a button does. */
+  .button-secondary {
+    cursor: pointer;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: var(--color-text);
+  }
+
+  .button-secondary:not(.button) {
+    font: inherit;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .button-secondary:hover {
+    background: var(--color-hover);
+  }
+
+  a.button-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    min-height: 34px;
+    text-decoration: none;
+  }
+
+  /* #1188, the negative FEE unit, #1195, #1179, #1178, #962, #1207, #1197:
+     no CSS — each is existing markup with new text, or a new line in an
+     existing form (.import-skipped, the muted line, the data note). */
+</style>
+<!-- Variant N21 B only: the second list under the table. -->
+<style id="proposal-n21b">
+  .import-correction__kept-head {
+    margin: var(--space-2) 0 0;
+    font-size: 13px;
+    color: inherit;
+  }
+
+  .import-correction__kept-list {
+    margin: 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 6px;
+    color: var(--color-text);
+    font-size: 12.5px;
+  }
+
+  .import-correction__kept-list b {
+    font-weight: 650;
+  }
+</style>
+<!-- Variant N20 B only: the line under the count of a changed row. -->
+<style id="proposal-n20b">
+  .mapping-count__basis {
+    display: block;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--color-text-muted);
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-board > p.mock-note { max-width: 118ch; }
+  .mock-frame { overflow: hidden; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul, .notes ol { margin: 0; }
+  .notes ul, .notes ol { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .dl { width: 522px; flex: none; }
+  .dl iframe { display: block; width: 520px; border: 0; }
+  .hf { width: 482px; flex: none; }
+  .hf iframe { display: block; width: 480px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .stub { padding: 10px 14px; font-size: 12px; color: var(--mock-ink); margin: 0; }
+  .consequence { margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--color-danger); background: var(--color-danger-soft); font-size: 12px; }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  .verdict { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; max-width: 1120px; margin: 0 auto 32px; }
+  .verdict > div { border: 1px solid var(--color-border); border-radius: var(--radius-md); padding: 12px 14px; background: var(--color-bg-elevated); font-size: 12.5px; }
+  .verdict h3 { margin: 0 0 6px; font-size: 13px; }
+  .verdict ul { margin: 0; padding-left: 18px; }
+  .verdict li { margin: 0 0 4px; }
+  .legend { display: grid; grid-template-columns: max-content 1fr; gap: 3px 10px; margin: 0; font-size: 12px; }
+  .legend dt { font-weight: 700; }
+  .legend dd { margin: 0; }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap, .stub { padding-left: 12px; padding-right: 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph, .dl, .hf { width: 390px; }
+    .dl iframe, .hf iframe { width: 390px; }
+    .verdict { grid-template-columns: 1fr; padding: 0 12px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Board 07 — Imports (Transaktionen → Import): the preview, its correction section and the done page.</b> <b>Two picks.</b> <b>N21 — the correction section's three new line states</b> (#1193, #1194, #1205; ADR-0053 amendment of 2026-10-09): a stored booking whose row A5 now refuses, a booking changed by hand since its import, and a row found by its figures rather than its import hash. <b>A</b> — every state a line of the one table, its state said under its booking and „bleibt“ in its „Korrigiert“ cell, the confirm counting only the lines it changes; a JSON trade listed on its price alone keeps the shipped „Kurs“ detail lines (the briefed „Kurs“ column is drawn and measured, not recommended) · <b>B</b> — the table keeps only the lines the confirm changes; the others go to a list „Nicht automatisch korrigierbar“ under it. <span class="rec">Recommended A</span> <b>N20 — #1180, a mapping row's count after the operator's choice:</b> <b>A</b> — recount through the existing async dry run, the count showing the computing cue meanwhile · <b>B</b> — keep the automatic count and say so on the changed row · <b>C</b> — hide the count on a changed row. <span class="rec">Recommended A</span><br><b>Before/afters with nothing to pick:</b> #1188 and the negative FEE unit (one named row error each, the rest previews) · #1195 (a drifted name is withheld only while the dry run runs) · #1130 (the leftover-configuration box becomes an attention data note) · #1179 („Eintrag N“ for a JSON file) · #1207 (the lead note names the correction; the done page names the refused rows) · #1197 (the set balance that absorbs a correction is named) · #1178, #962, #1181 on the done page (and #1181 on Risk and Tax). A comment naming „N21 B“, „N21 Kurs-Spalte“, „N20 B“ or „N20 C“ on the planning PR changes a pick; silence adopts A. Every name, amount, date and identifier is invented. <b>Dashed = new.</b></div>
+<p class="phone-only phone-cap"><b>Board 07 at 390&nbsp;px.</b> Real 390-px viewports: app.css' rules under 720 and 560&nbsp;px apply. Recommended: N21&nbsp;A, N20&nbsp;A. All data invented. The desktop frames and the arguments are in the 1200-px render.</p>
+
+<!-- ============================ N21 ============================ -->
+<section class="mock-board" id="n21">
+  <h2>① N21 · #1193, #1194, #1205 — the correction section's line states <small>„Bereits importiert, mit anderem Betrag“ · ADR-0053 amendment of 2026-10-09</small></h2>
+  <p class="mock-note desk-only"><b>The file.</b> In July 2026 the instance imported a Portfolio Performance <b>JSON</b> export under the old reading: a negative TAX unit was booked inside the cash <i>and</i> split off as a tax refund beside it (A1). Since then the operator changed Larkspur's dividend by hand (Eintrag 9: 7,80 → 8,00, on 14.09.2026) and fixed Wrenfield's sale's cash by hand but not its price (Eintrag 12: 120,00 → 95,00, price still 12,50). Today the re-export is dropped. Portfolio Performance now writes Larkspur's sale a minute later (Eintrag 15, 15:30 → 15:31) and added an ISIN to Kestrel Point AG (Eintrag 18), so those two rows hit no stored import hash; Kestrel paid two equal dividends into Test-Cash on 14.08.2026, so two stored bookings match Eintrag 18 by their figures. Fennwick's sale (Eintrag 7: Gesamtpreis 20,10, FEE 5,00, TAX −25,00) is refused by A5 since Sprint 20. JSON rows read „Eintrag N“ in the after frames (#1179, ⑥).</p>
+
+  <p class="cap desk-only">Heute — hash hits only, cash only, no journal</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — drei Zeilen; Eintrag 9 würde überschrieben, 7, 12, 15 und 18 fehlen</span><iframe data-tpl="corr" data-o='{"v":"today"}' data-m="n21-today-980" title="N21 heute, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="corr" data-o='{"v":"today"}' title="N21 heute, 390 px"></iframe></div>
+    <div class="notes">
+      <p class="consequence"><b>One confirm, five wrong outcomes, none said.</b> (1) Eintrag 9's hand edit 8,00 is rewritten to 7,80 (#1194, case 1). (2) Larkspur's sale (15) stays 20,00 too high: its hash drifted, so it is skipped as an economic duplicate and never listed — the done page even describes it with the corrected figure (#1205). (3) Wrenfield's sale (12) keeps the price 12,50; its realized result reads +20,00 instead of −5,00 (#1194, case 2). (4) Fennwick's sale (7) is only a parser warning, and Test-Cash stays 25,00 too high (#1193). (5) Kestrel's dividend (18) is silent.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A <span class="rec">empfohlen</span> — every state a line of the one table; the confirm counts only what it changes</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — sieben Zeilen, drei korrigiert der Schritt, vier bleiben (je mit Grund)</span><iframe data-tpl="corr" data-o='{"v":"A"}' data-proposal data-m="n21-a-980" title="N21 A, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — 390 px</span><iframe data-tpl="corr" data-o='{"v":"A"}' data-proposal data-m="n21-a-390" title="N21 A, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>Why A.</b> One finding, one list, in the file's order: the operator who checks the file against the screen finds every listed booking where its entry is, and the sentence's count and the table's rows agree. The state is read where the figures are.</p>
+      <ul>
+        <li><b>The state is a line under the booking</b> (<code>.import-correction__state</code>, the legs' basis voice). A line found by its figures (15) says so muted and keeps its confirm (#1205: exactly one stored booking matches, and no other row claims it). A line the confirm leaves leads with its reason in bold, „— bleibt, wie es ist“, then what to do; its „Korrigiert“ cell reads <b>bleibt</b>, so the column's question — what does the confirm write? — is answered in the column, not by colour.</li>
+        <li><b>The confirm counts only the lines it changes</b>: „3 Buchungen korrigieren…“, the total „Die 3 Buchungen, die der Schritt korrigiert, zusammen …“, the dialog's subject „Einträge 4, 15, 21“. The sentence splits once: what the step corrects (with the board-03 cause sentence, true for those three) and „4 bleiben, wie sie sind; jede Zeile nennt den Grund.“ — the cause sentence would be false for a hand edit.</li>
+        <li><b>A JSON trade listed on its price alone</b> (12, #1194): its cash agrees (Differenz 0,00); the shipped detail lines „Kurs gebucht / Kurs laut Datei“ under its booking show the difference, and its state says so. The briefed „Kurs“ column is drawn below and measured; it is not recommended.</li>
+        <li><b>The table fills the note and wraps</b> (one rule): inside its scroller every table sizes to its max-content, so a state sentence would push the figures out of view; this table takes its min-content as its floor instead.</li>
+        <li><b>The refused row is listed once more, in the section</b> (#1193), with its remedy; its parser warning stops repeating the remedy and points to the section. The remedy needs a fee booking by hand, which the booking drawer gains this sprint, one story earlier (#1206, α6).</li>
+      </ul>
+    </div>
+  </div>
+  <div class="mock-row">
+    <div class="dl mock-frame mock-after desk-only"><span class="mock-tag">A — „3 Buchungen korrigieren…“ geöffnet</span><iframe data-tpl="cdlg" data-o='{"v":"n21"}' data-proposal data-m="n21-dlg-520" title="N21 A, Dialog"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">A — der Dialog, 390 px</span><iframe data-tpl="cdlg" data-o='{"v":"n21"}' data-proposal title="N21 A, Dialog, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <ul>
+        <li><b>The dialog counts what it changes</b>: the subject names the three entries the confirm writes, and one more sentence says the other four stay. Everything else is board 09's dialog.</li>
+        <li><b>Nothing to confirm</b> (below): when every listed line stays, the section still shows (#1193: listed without a confirm) — the sentence, the table, and no total, no button, no basis line. UX-DR2 is not touched: a kept line is a finding, not an all-clear.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="col" style="margin-top:12px">
+    <div class="dk mock-frame mock-after desk-only"><span class="mock-tag">A — nichts zu bestätigen: kein Knopf, keine Summe</span><iframe data-tpl="corr" data-o='{"v":"Aone"}' data-proposal data-m="n21-aone" title="N21 A, nur eine bleibende Zeile"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">A — nichts zu bestätigen, 390 px</span><iframe data-tpl="corr" data-o='{"v":"Aone"}' data-proposal title="N21 A, nur eine bleibende Zeile, 390 px"></iframe></div>
+  </div>
+
+  <p class="cap desk-only" style="margin-top:22px">A with a „Kurs“ column, as briefed — drawn and measured, not recommended</p>
+  <div class="mock-row desk-only" style="margin-top:0">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">A + Kurs-Spalte — die Buchungsspalte verliert 106 px, die Gründe brechen öfter um</span><iframe data-tpl="corr" data-o='{"v":"A","kurs":true}' data-proposal data-m="n21-akurs-980" title="N21 A mit Kurs-Spalte, Desktop"></iframe></div>
+  </div>
+  <div class="notes desk-only" style="margin-top:8px">
+    <ul>
+      <li><b>Why the price stays in the detail lines.</b> The only line a „Kurs“ column helps is a price-only one (12): its cash agrees, so its figures read +95,00 · bleibt · 0,00. The shipped detail lines already say „Kurs gebucht: 12,50 EUR / Kurs laut Datei: 10,00 EUR“ under its booking, and its state says „Der Betrag stimmt mit der Datei überein, der Kurs nicht.“ The column, measured at 980 px: the figure columns already sit at their min-content, so the column's 105 px come out of the booking column (360 → 254 px), and the refused line's reason grows from 6 to 9 lines (108 → 162 px). A price-only line arises only from a hand edit of a JSON trade's cash (A2 derives the price from the cash), so the column would stand for a rare line and cost every line. <b>To flip by comment:</b> „N21 Kurs-Spalte“.</li>
+    </ul>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — the table keeps the lines the confirm changes; „Nicht automatisch korrigierbar“ lists the rest under it</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">B</span><iframe data-tpl="corr" data-o='{"v":"B"}' data-proposal data-css="proposal-n21b" data-m="n21-b-980" title="N21 B, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">B — 390 px</span><iframe data-tpl="corr" data-o='{"v":"B"}' data-proposal data-css="proposal-n21b" data-m="n21-b-390" title="N21 B, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>B</b> keeps the table exactly as shipped — every line in it is corrected, so „Korrigiert“ never reads „bleibt“ — and puts the four other lines in a sentence list of their own after the confirm. <b>Against it:</b></p>
+      <ul>
+        <li><b>One finding becomes two lists with two anatomies.</b> The sentence counts seven bookings; the table shows three. A reader who matches the file entry by entry has to look in two places, and the list's lines carry their figures as prose („gebucht +8,00, laut Datei +7,80“), not in the columns the table taught.</li>
+        <li><b>The kept lines come last, after the button.</b> The lines most likely to need the operator's hand are read after the act that ignores them.</li>
+        <li><b>The phone gets a third anatomy</b>: table, phone rows, and now a prose list. A keeps one phone row with one more line.</li>
+        <li><b>What B does better:</b> no „bleibt“ inside a figure column, and no „Kurs“ column (its only price-only line is prose). If the owner prefers the table to stay a pure act list, B is the honest alternative.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ N20 ============================ -->
+<section class="mock-board" id="n20">
+  <h2>② N20 · #1180 — a mapping row's „N Buchungen neu“ after the operator's choice <small>„Verrechnungskonten aus dem Export“</small></h2>
+  <p class="mock-note desk-only"><b>The case</b> is board 01 ①'s (Sprint 20, L1 = A): in Portfolio Performance „Tagesgeld“ became „Tagesgeld Extra“; the row is withheld, and the operator picks „Tagesgeld“. The counts are computed once per preview under the automatic resolution (<code>assign_account_states/2</code>: the hash layers at once, then <code>refine_counts/2</code>'s dry run in the background); <code>mapping_changed</code> (:955) recounts nothing. <b>Today</b> the row keeps „13 Buchungen neu“, though the apply's economic layer will skip the 12 already booked under „Tagesgeld“ and book one. The lead note and the cards are counted the same way.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „Tagesgeld“ gewählt, die Zahl bleibt „13 Buchungen neu“</span><iframe data-tpl="n20" data-o='{"v":"today"}' data-m="n20-today-980" title="N20 heute, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="n20" data-o='{"v":"today"}' title="N20 heute, 390 px"></iframe></div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A <span class="rec">empfohlen</span> — recount through the existing async dry run; the computing cue meanwhile</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — gleich nach der Wahl: die Zahl gedimmt, darunter „vor der Wahl gezählt · wird neu berechnet“</span><iframe data-tpl="n20" data-o='{"v":"Abusy"}' data-proposal data-m="n20-abusy-980" title="N20 A, zählt, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">A — die Antwort: „12 Buchungen bereits importiert · 1 neu“</span><iframe data-tpl="n20" data-o='{"v":"Adone"}' data-proposal data-m="n20-adone-980" title="N20 A, gezählt, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — zählt, 390 px</span><iframe data-tpl="n20" data-o='{"v":"Abusy"}' data-proposal data-m="n20-abusy-390" title="N20 A zählt, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">A — gezählt, 390 px</span><iframe data-tpl="n20" data-o='{"v":"Adone"}' data-proposal title="N20 A gezählt, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>Why A.</b> The count is the row's promise of what the confirm books. After a choice it is the one figure on the page that disagrees with the apply — and it disagrees exactly on the row the operator just decided.</p>
+      <ul>
+        <li><b>The machinery exists.</b> <code>refine_counts/2</code> already runs the apply's dry run under <code>CappedAsync</code> with a token, so a stale answer (another change, a reset) is dropped. A change starts a new token with the operator's mapping instead of the automatic one; the hash-layer pass needs no rerun.</li>
+        <li><b>The cue is DESIGN.md's</b> (the recomputing cue: the shipped <code>.spinner</code>, the basis, the mandatory word): the count dims to the pending colour and „vor der Wahl gezählt · wird neu berechnet“ stands under it, inside the count's own block, so the row does not move sideways. The dry run costs what an apply costs: the seconds class, which the cue is reserved for (2026-08-22).</li>
+        <li><b>Near the risk tier:</b> the count must equal what the apply then does. The story pins it with an equality test (recounted row = the apply's inserted and skipped counts for that row, the file's mapping as chosen).</li>
+        <li><b>The lead note and the „Einträge“ figures follow</b> from the same answer: if the choice makes the file a no-op, the nothing-to-import note appears.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — the automatic count stays, and the changed row says so · Variante C — no count on a changed row</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">B — „vor der Wahl gezählt; …“</span><iframe data-tpl="n20" data-o='{"v":"B"}' data-proposal data-css="proposal-n20b" data-m="n20-b-980" title="N20 B, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag vtag">C — keine Zahl</span><iframe data-tpl="n20" data-o='{"v":"C"}' data-proposal data-m="n20-c-980" title="N20 C, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">B — 390 px</span><iframe data-tpl="n20" data-o='{"v":"B"}' data-proposal data-css="proposal-n20b" title="N20 B, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">C — 390 px</span><iframe data-tpl="n20" data-o='{"v":"C"}' data-proposal title="N20 C, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>B</b> costs nothing at run time: the count stays, and one muted line under it says it was counted before the choice and that the apply skips what is already booked under the chosen account. <b>Against it:</b> the row still shows the wrong number in bold, and the sentence asks the operator to subtract in their head what the page could have counted; the lead note and the cards stay wrong without a word.</p>
+      <p><b>C</b> removes the wrong figure and says nothing instead. <b>Against it:</b> the row loses the one figure that tells a renamed account (12 already booked) from a genuinely new one (13 new) — exactly the question L1 asked the operator to decide — and a missing count reads as „nothing here“.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1188 ============================ -->
+<section class="mock-board" id="i1188">
+  <h2>③ #1188, and the negative FEE unit — one named row error each, the rest of the file previews <small>before/after · ADR-0053 amendment of 2026-10-09 · the J9 row-error frame</small></h2>
+  <p class="mock-note desk-only"><b>The file</b> is a fresh Portfolio Performance JSON export of 23 transactions. Eintrag 5 is an <code>INBOUND_DELIVERY</code> of 30 Larkspur Rail AG shares carrying a TAX unit of −12,40; Eintrag 9 a sale of Wrenfield Gardens AG with two FEE units, 4,90 and −1,90 (a fee partly refunded). <b>Today</b> the parser splits the negative tax off the delivery as a <code>tax_refund</code> companion, which names no cash account, so „Import bestätigen“ fails on the companion and rolls back the <b>whole file</b> (<code>apply_error_message/1</code> prints the companion's internal id). The negative fee is folded to its magnitude (<code>fold_unit/5</code>): the sale is stored with fees 6,80 instead of 3,00, silently. <b>After</b> both rows are row errors in the existing parser-warnings note, each naming the remedy; the „Warnungen“ card counts them, the rows (and the delivery's companion) leave the counts, and the other 21 preview and import. A cash transfer and a security transfer with a negative tax unit take the same path (the cash transfer's own sentence is in the strings).</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — nach „Import bestätigen“: alles zurückgerollt; Eintrag 9 unbemerkt</span><iframe data-tpl="j1188" data-o='{"after":false}' title="#1188 heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — zwei benannte Zeilenfehler, die übrigen 21 Einträge in der Vorschau</span><iframe data-tpl="j1188" data-o='{"after":true}' data-proposal data-m="i1188-after-980" title="#1188 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="j1188" data-o='{"after":false}' title="#1188 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="j1188" data-o='{"after":true}' data-proposal data-m="i1188-after-390" title="#1188 nachher, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <ul>
+        <li><b>Wording</b> follows the existing reasons: what the file wrote, then why, then „— Eintrag nicht übernommen“, then the remedy as its own sentence (A5's pattern). „Steuererstattung“ is the app's kind, not PP's word.</li>
+        <li><b>Why a row error, not a refund without an account:</b> a delivery moves no cash in Portfolio Performance, so a refund beside it would book money PP never moved; storing the delivery's taxes with their sign would change its cost basis and needs its own record (#1188).</li>
+        <li><b>The FEE remedy</b> names the net fee the hand booking takes (4,90 − 1,90 = 3,00), until a fee-refund kind exists (#1177, now needs-decision with its answer).</li>
+        <li><b>The CSV path</b> takes the same sentences for an Einlieferung or Auslieferung with a negative „Steuern“ („Zeile N“). A CSV cash transfer with a negative Steuern already stored since Sprint 19 is a stored refusal: the correction section lists it as ① A's refused line.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1195 ============================ -->
+<section class="mock-board" id="i1195">
+  <h2>④ #1195 — a name whose rows are all booked keeps its prefill once the dry run says so <small>before/after · ADR-0050 amendment of 2026-10-09</small></h2>
+  <p class="mock-note desk-only"><b>The case</b> (the third of #1195's, the design critic's): „Tagesgeld“ was renamed „Tagesgeld Plus“ both in Portfolixir and in Portfolio Performance. Names are hash inputs, so none of its 12 rows hits a stored hash, while Test-Cash's and Depot Muster's do: the probe of board 01 ① withholds the prefill. The name resolves to the live account „Tagesgeld Plus“, and the dry run finds every row already booked there. <b>Today</b>, once the dry run answers, the row reads „12 Buchungen bereits importiert · nichts anzulegen“ <i>and</i> „Unter diesem Namen ist noch keine Buchung importiert“; the lead note says the import creates nothing while „Import bestätigen“ waits for a choice that books nothing and remembers nothing — on every re-drop. <b>After</b> (the amendment, „the probe reads the dry run“): until the dry run answers, the row is withheld as before; a name whose rows the dry run finds all booked on its resolution is not unknown, so it keeps its prefill. With nothing new, that is #1168's read-only row, the prefill riding as the hidden input. A remembered former name is <b>not</b> counted as seen: a later export with a new booking under it stays withheld, as today (last frame).</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — nach dem Probelauf: „nichts anzulegen“ und zugleich „noch keine Buchung importiert“; Bestätigen gesperrt</span><iframe data-tpl="r1195" data-o='{"v":"today"}' data-m="i1195-today-980" title="#1195 heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher 1 — während der Probelauf läuft: zurückgehalten, die Zahl mit dem Rechen-Hinweis</span><iframe data-tpl="r1195" data-o='{"v":"busy"}' data-proposal data-m="i1195-busy-980" title="#1195 nachher, Probelauf läuft, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher 2 — der Probelauf hat geantwortet: alles gebucht, vorbelegt, keine Zuordnung nötig, Bestätigen frei</span><iframe data-tpl="r1195" data-o='{"v":"done"}' data-proposal data-m="i1195-done-980" title="#1195 nachher, vorbelegt, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher = heute, gewollt — ein gemerkter früherer Name mit einer neuen Buchung bleibt zurückgehalten, Bestätigen wartet</span><iframe data-tpl="r1195" data-o='{"v":"former"}' data-proposal data-m="i1195-former-980" title="#1195 nachher, gemerkter Name, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="r1195" data-o='{"v":"today"}' title="#1195 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher 1 — 390 px</span><iframe data-tpl="r1195" data-o='{"v":"busy"}' data-proposal title="#1195 nachher 1, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher 2 — 390 px</span><iframe data-tpl="r1195" data-o='{"v":"done"}' data-proposal title="#1195 nachher 2, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <ul>
+        <li><b>Nachher 1 is today's first-pass row plus the cue.</b> While a withheld row's dry run runs it is the one row whose state can still change, so its count carries N20 A's cue, „vorläufig · wird neu berechnet“ (the basis: the hash layers' first count). Under N20 B or C the cue is not built and this frame equals today's first pass.</li>
+        <li><b>Nachher 2:</b> the dry run's answer prefills the row (its resolution, „Tagesgeld Plus“) unless the operator chose already; with nothing new, the select gives way to „Keine Zuordnung nötig: …“ and the choice rides as <code>cash[&lt;key&gt;]</code>. The hint goes, the confirm unlocks, the lead note leads. P1–P5 still hold: a name with even one row that would book stays withheld.</li>
+        <li><b>A remembered former name vouches for nothing on its own — by design</b> (the amendment's point 3; #1195's case 2 is not taken). <code>former_names</code> records no author: a rename, a merge and a remembered remap write the same list, so the probe cannot tell a name the operator tied to this account from one Portfolio Performance has since given to another, renamed account; counted as seen, it could prefill the wrong account and book a history twice (P1). So after „Tagesgeld Extra“ was remembered for Tagesgeld, a later export that brings <b>one new booking</b> under the name is withheld once more — no prefill, the note, Confirm waits — exactly today's state (frame above), until a booking under the name has been imported and its hash holds it. A re-drop of the same file, or a drifted re-export whose rows are all booked, stops asking once the dry run answers (Nachher 2).</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1130 ============================ -->
+<section class="mock-board" id="i1130">
+  <h2>⑤ #1130 — the leftover-configuration box becomes an attention data note <small>before/after · UX-DR17; DESIGN.md 2026-10-06, „Drift recorded, not repaired here“</small></h2>
+  <p class="mock-note desk-only"><b>Today</b> <code>#import-unmatched-config</code> wears <code>.import-warning-box</code>, the accent banner UX-DR17 retired: accent text on the accent tint, no severity word, no glyph — it reads as decoration in the accent's colour. <b>After</b>, the parser warnings' move (Sprint 19 B4): ONE <code>attention</code> data note (<code>AppShell.data_note</code>, <code>data-role="unmatched-config"</code>, the id kept), the head line, the sentence with its remedy, and the list, each security name linking to its security, where the ISIN change is recorded (found while drawing). Under 560 px it joins the notes that wrap. <code>.import-warning-box</code> leaves <code>app.css</code>.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — das Akzent-Banner</span><iframe data-tpl="u1130" data-o='{"after":false}' title="#1130 heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — „Achtung“, mit Glyphe und Wort</span><iframe data-tpl="u1130" data-o='{"after":true}' data-proposal data-m="i1130-after-980" title="#1130 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="u1130" data-o='{"after":false}' title="#1130 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="u1130" data-o='{"after":true}' data-proposal data-m="i1130-after-390" title="#1130 nachher, 390 px"></iframe></div>
+  </div>
+</section>
+
+<!-- ============================ #1179 ============================ -->
+<section class="mock-board" id="i1179">
+  <h2>⑥ #1179 — a JSON file's „Zeile N“ becomes „Eintrag N“ on every label <small>before/after · the value's word only</small></h2>
+  <p class="mock-note desk-only">Since #1128 a CSV's „Zeile N“ is the row a spreadsheet shows. A JSON file's number is the N-th object of its <code>transactions</code> array (<code>json_parser.ex</code>, <code>Enum.with_index(1)</code>), not a line of the file, so the same word meant two things. <b>After</b>, a JSON preview and its done page say <b>„Eintrag“</b> wherever they number a row: the parser warnings (and the reason's own ending, „— Eintrag nicht übernommen“), the correction table's first column and its phone rows, the dialog's subject („Einträge 4, 15, 21“), the correction's refusal line, every list on the done page, a split-off refund („Eintrag 7 (Steuererstattung)“) and the apply's error line. A CSV file keeps „Zeile“. The anatomy changes nowhere.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — JSON, „Zeile 12“</span><iframe data-tpl="e1179" data-o='{"after":false}' title="#1179 heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — JSON, „Eintrag 12“</span><iframe data-tpl="e1179" data-o='{"after":true}' data-proposal title="#1179 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="e1179" data-o='{"after":false,"phone":true}' title="#1179 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="e1179" data-o='{"after":true,"phone":true}' data-proposal title="#1179 nachher, 390 px"></iframe></div>
+  </div>
+</section>
+
+<!-- ============================ #1207 ============================ -->
+<section class="mock-board" id="i1207">
+  <h2>⑦ #1207 — the page reads as done while work remains: the lead note names the correction <small>before/after · the done page's half is in ⑨</small></h2>
+  <p class="mock-note desk-only"><b>Today</b> a re-drop with nothing new leads with „Der Import legt nichts an“ (#1168), and the correction section with work to confirm stands below it. A hasty switcher reads „nothing to do“ and leaves (Sprint 20 α UAT). <b>After</b>, when the section is shown, the lead note's last sentence names it, with the heading as a link to it: „3 bereits importierte Buchungen weichen aber von der Datei ab: unten unter „Bereits importiert, mit anderem Betrag“ korrigieren.“ The note keeps its <code>note</code> severity — the section below it is the finding, at <code>attention</code>.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „Der Import legt nichts an“, und darunter Arbeit</span><iframe data-tpl="l1207" data-o='{"after":false}' title="#1207 heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — der Hinweis nennt die Korrektur</span><iframe data-tpl="l1207" data-o='{"after":true}' data-proposal data-m="i1207-after-980" title="#1207 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="l1207" data-o='{"after":false}' title="#1207 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="l1207" data-o='{"after":true}' data-proposal data-m="i1207-after-390" title="#1207 nachher, 390 px"></iframe></div>
+  </div>
+</section>
+
+<!-- ============================ #1197 ============================ -->
+<section class="mock-board" id="i1197">
+  <h2>⑧ #1197 — the correction's dialog and result name the set balance that absorbs it <small>before/after · ADR-0009; the done page's „gesetzter Saldo … am …“</small></h2>
+  <p class="mock-note desk-only"><b>The case:</b> three corrections, Test-Cash −22,41 and Tagesgeld −1,20 (the interest of 30.09.2026). Tagesgeld has a set balance on 01.10.2026, after that booking. A set balance absorbs every change before it (ADR-0009), so Tagesgeld's balance does not move. <b>Today</b> the dialog says „Danach hat … Tagesgeld 1,20 EUR weniger“ and the result „Tagesgeld -1,20 EUR“. <b>After</b>, per account, the first set balance on or after its earliest corrected booking is named, in the done page's words: the dialog says the balance stays, the result says which set balance holds it. An account with no such set balance reads as today.</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dl mock-frame mock-before"><span class="mock-tag">Heute — „Tagesgeld 1,20 EUR weniger“</span><iframe data-tpl="cdlg" data-o='{"v":"b1197"}' title="#1197 Dialog heute"></iframe></div>
+    <div class="dl mock-frame mock-after"><span class="mock-tag">Nachher — der gesetzte Saldo hält den Kontostand</span><iframe data-tpl="cdlg" data-o='{"v":"a1197"}' data-proposal data-m="i1197-dlg-after" title="#1197 Dialog nachher"></iframe></div>
+  </div>
+  <div class="col" style="margin-top:12px">
+    <div class="dk mock-frame mock-before desk-only"><span class="mock-tag">Heute — das Ergebnis, wo der Abschnitt stand</span><iframe data-tpl="cres" data-o='{"after":false}' title="#1197 Ergebnis heute"></iframe></div>
+    <div class="dk mock-frame mock-after desk-only"><span class="mock-tag">Nachher — das Ergebnis nennt den gesetzten Saldo</span><iframe data-tpl="cres" data-o='{"after":true}' data-proposal title="#1197 Ergebnis nachher"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">Nachher — das Ergebnis, 390 px</span><iframe data-tpl="cres" data-o='{"after":true}' data-proposal title="#1197 Ergebnis nachher, 390 px"></iframe></div>
+  </div>
+</section>
+
+<!-- ============================ the done page ============================ -->
+<section class="mock-board" id="done">
+  <h2>⑨ The done page — #1178, #1207, #1179, #1181; #962 <small>before/after · „Import abgeschlossen“</small></h2>
+  <p class="mock-note desk-only"><b>(a) A first import on a fresh instance</b> — ③'s JSON file, its two refused entries left in the preview. <b>#1178:</b> the import created the portfolio record „Default“ (EUR); one muted line says so, in #1173's preview words, from a created-portfolio field the result now carries. <b>#1207 ②:</b> the rows the <i>preview</i> refused are listed first, in <code>.import-skipped</code>'s form, each with its remedy — today nothing after the apply reminds the operator that a refused sale was not booked. <b>#1179:</b> „Eintrag N“. <b>#1181:</b> „Transaktionen ansehen“ is a <code>.button-secondary</code> link, which <code>app.css</code> defines only as a muted text colour (a Tax-page rule); after, it is the family's outline secondary beside the primary. <b>(b) A later re-drop</b> — <b>#962:</b> the bookings that reached an account or a depot through a former name are counted beside the former-ISIN line, per name; that line's manual plural („Datensatz/Datensätze“) becomes a real one.</p>
+  <p class="cap">(a) Erster Import, frische Instanz</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — 980 px: „Transaktionen ansehen“ als graue Schrift, oben ausgerichtet</span><iframe data-tpl="done" data-o='{"s":"fresh","after":false}' data-m="done-a-today-980" title="Ergebnis (a) heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — 980 px</span><iframe data-tpl="done" data-o='{"s":"fresh","after":true}' data-proposal data-m="done-a-after-980" title="Ergebnis (a) nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">(a) Heute — 390 px</span><iframe data-tpl="done" data-o='{"s":"fresh","after":false}' data-m="done-a-today-390" title="Ergebnis (a) heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">(a) Nachher — 390 px</span><iframe data-tpl="done" data-o='{"s":"fresh","after":true}' data-proposal data-m="done-a-after-390" title="Ergebnis (a) nachher, 390 px"></iframe></div>
+  </div>
+  <p class="cap" style="margin-top:18px">(b) Erneuter Import, ein früherer Name — #962</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — 980 px</span><iframe data-tpl="done" data-o='{"s":"redrop","after":false}' title="Ergebnis (b) heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — 980 px</span><iframe data-tpl="done" data-o='{"s":"redrop","after":true}' data-proposal data-m="done-b-after-980" title="Ergebnis (b) nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row phone-only">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">(b) Nachher — 390 px</span><iframe data-tpl="done" data-o='{"s":"redrop","after":true}' data-proposal data-m="done-b-after-390" title="Ergebnis (b) nachher, 390 px"></iframe></div>
+  </div>
+  <p class="cap" style="margin-top:18px">#1181 — the class's other two uses: Risk „Regel anlegen“, Tax „Abbrechen“</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Risiko — heute: gedämpfte Schrift auf einem Knopf, liest sich gesperrt</span><iframe data-tpl="btn" data-o='{"p":"risk","after":false}' data-m="btn-risk-today" title="Risiko heute"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Risiko — nachher</span><iframe data-tpl="btn" data-o='{"p":"risk","after":true}' data-proposal data-m="btn-risk-after" title="Risiko nachher"></iframe></div>
+    <div class="dk mock-frame mock-before" style="margin-top:10px"><span class="mock-tag">Steuern — heute</span><iframe data-tpl="btn" data-o='{"p":"tax","after":false}' data-m="btn-tax-today" title="Steuern heute"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Steuern — nachher</span><iframe data-tpl="btn" data-o='{"p":"tax","after":true}' data-proposal data-m="btn-tax-after" title="Steuern nachher"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Risiko — heute, 390 px</span><iframe data-tpl="btn" data-o='{"p":"risk","after":false}' title="Risiko heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Risiko — nachher, 390 px</span><iframe data-tpl="btn" data-o='{"p":"risk","after":true}' data-proposal title="Risiko nachher, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-before phone-only"><span class="mock-tag">Steuern — heute, 390 px</span><iframe data-tpl="btn" data-o='{"p":"tax","after":false}' title="Steuern heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">Steuern — nachher, 390 px</span><iframe data-tpl="btn" data-o='{"p":"tax","after":true}' data-proposal data-m="btn-tax-after-390" title="Steuern nachher, 390 px"></iframe></div>
+  </div>
+  <div class="notes desk-only" style="margin-top:10px">
+    <ul>
+      <li><b>Order on the done page</b>: the correction left undone, then the refused rows (both say what remains to do), then what matched how (former ISIN, former names, manual mappings), then what was skipped. The portfolio line stands under the counts, as #1173's stands under „Quellformat“.</li>
+      <li><b>#1181 on Risk and Tax:</b> Risk's „Regel anlegen“ is a <code>&lt;button&gt;</code>, so it had a button's box but muted text, which reads as disabled; Tax's „Abbrechen“ is <code>button button-secondary</code>, so it keeps <code>.button</code>'s size and only its colour changes.</li>
+    </ul>
+  </div>
+</section>
+
+<div class="verdict desk-only">
+  <div>
+    <h3>Why A for N21 and for N20</h3>
+    <ul>
+      <li><b>N21 A:</b> one finding, one list in the file's order; the state is read where the figures are; „bleibt“ answers the „Korrigiert“ column in words; the confirm, the total and the dialog count only what they change; the price stays in the detail lines (a „Kurs“ column costs every line 106 px of the booking column).</li>
+      <li><b>N20 A:</b> the count is the row's promise of what the confirm books; the async dry run exists, token-guarded; the cue is the spec's, for the seconds class; an equality test pins the count to the apply.</li>
+    </ul>
+  </div>
+  <div>
+    <h3>What the stories write into DESIGN.md</h3>
+    <ul>
+      <li>The 2026-10-08 correction amendment: the line states, „bleibt“, the split sentence, the total and the dialog's count of corrected lines, the table's min-content floor, the section without a confirm (N21); the set balance named in the dialog and the result (#1197).</li>
+      <li>The 2026-09-26 preview amendment: the recount and its cue (N20); the dry-run release of a withheld name, and why a remembered former name still asks (#1195); the lead note naming the correction (#1207).</li>
+      <li>The 2026-10-06 row-error list: the delivery's and the cash transfer's negative tax, the negative fee (#1188); „Eintrag N“ (#1179); the leftover-configuration note replaces the recorded drift (#1130).</li>
+      <li>The done page: the portfolio line (#1178), the refused rows (#1207), the former-name count (#962); the button family: <code>.button-secondary</code> is the outline secondary (#1181).</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc, the
+   stylesheet by an absolute URL computed from this board) from the live
+   markup of imports_live.ex (render_preview/1, correction_dialog/1,
+   render_done/1), risk_live.ex, tax_live.ex and AppShell. German labels
+   from priv/gettext/de/LC_MESSAGES/default.po. Synthetic data only. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', location.href).href;
+const P = {
+  bars: '<path d="M4 4h16M4 12h16M4 20h16"/>',
+  upload: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 19h14"/>',
+  copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
+  ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>',
+  tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+  oct: '<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>',
+  x: '<path d="M18 6 6 18M6 6l12 12"/>',
+  chev: '<path d="m9 6 6 6-6 6"/>'
+};
+const svg = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+const nw = (on) => (on ? ' is-new' : '');
+const NEW = (t, on = true) => (on ? `<span class="is-new">${t}</span>` : t);
+
+/* AppShell.data_note */
+function note(sev, body, attrs = '', isNew = false) {
+  const glyph = { note: 'ast', attention: 'tri', problem: 'oct' }[sev];
+  const word = { note: 'Hinweis', attention: 'Achtung', problem: 'Problem' }[sev];
+  return `<div class="data-note data-note--${sev}${nw(isNew)}"${attrs}><span class="data-note__icon" aria-hidden="true">${svg(glyph, 14)}</span><span class="data-note__word">${word}</span><div class="data-note__body">${body}</div></div>`;
+}
+function areaTabs() {
+  const t = [['Historie', 'bars'], ['Import', 'upload', true]];
+  return `<nav id="area-tabs" class="area-tabs" data-role="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs">${t.map(([l, i, on]) => `<a class="area-tab${on ? ' is-active' : ''}"${on ? ' aria-current="page"' : ''}><span class="area-tab__icon" aria-hidden="true">${svg(i, 14)}</span><span class="area-tab__label" data-label="${l}">${l}</span></a>`).join('')}</nav>`;
+}
+function page(inner, o = {}) {
+  const err = o.error ? `<p class="alert-error" role="alert">${o.error}</p>` : '';
+  return `<main class="app-main app-main--workspace"><div id="imports-workspace" class="workspace-page">${o.tabs ? areaTabs() : ''}${err}<section class="workspace-section${o.cls ? ' ' + o.cls : ''}">${inner}</section></div></main>`;
+}
+const elide = (t) => `<p class="elide">… ${t}</p>`;
+const head = (fmt) => `<h2>Vorschau</h2><p class="muted">Quellformat: ${fmt}</p>`;
+function stats(cards) {
+  return `<div class="import-stats">${cards.map(([l, v, w]) => `<div class="import-stat-card${w ? ' warning' : ''}"><span class="label">${l}</span><span class="value">${v}</span></div>`).join('')}</div>`;
+}
+const CARD = { e: 'Einträge', s: 'Wertpapiere', c: 'Verrechnungs&shy;konten', d: 'Depots', w: 'Warnungen' };
+function kinds(list) {
+  return `<h3>Anzahl pro Art</h3><ul class="kind-chips">${list.map(([k, n]) => `<li class="kind-chip"><span class="name">${k}</span><span class="count">${n}</span></li>`).join('')}</ul>`;
+}
+function warnings(rows, isNew) {
+  return note('attention', `<div class="parser-warnings__head"><h3 id="parser-warnings-title">Parser-Warnungen</h3><button type="button" id="copy-parser-warnings" class="icon-button" aria-label="Parser-Warnungen kopieren" title="Parser-Warnungen kopieren">${svg('copy')}</button></div><pre class="parser-warnings__rows${nw(isNew)}" tabindex="0">${rows.join('\n')}</pre>`, ' id="parser-warnings-box" data-role="parser-warnings" role="region" aria-labelledby="parser-warnings-title"');
+}
+function actions(disabled) {
+  return `<div class="actions"><button type="submit" id="pp-import-confirm" class="button-primary"${disabled ? ' disabled aria-describedby="import-missing-hint"' : ''}>Import bestätigen</button><button type="button">Verwerfen</button></div>`;
+}
+const sign = (v) => (v.startsWith('-') ? ' is-negative' : v.startsWith('+') ? ' is-positive' : '');
+
+/* ---------------- ① N21 — the correction section ---------------- */
+const KEPT = {
+  refused: '<b>Nicht automatisch korrigierbar</b> — bleibt, wie es ist: Nach der Steuererstattung 25,00 blieben dem Verkauf laut Datei -4,90, und ein Verkauf bucht mehr als 0. In der <a href="#">Historie</a> von Hand richtigstellen: den Verkauf auf 0,10 ohne Gebühren ändern, die Gebühren 5,00 als eigene Buchung erfassen; die Steuererstattung ist schon gebucht.',
+  hand1: '<b>Seit dem Import von Hand geändert</b> (14.09.2026) — bleibt, wie es ist. Laut Datei: +7,80.',
+  hand2: '<b>Seit dem Import von Hand geändert</b> (20.09.2026) — bleibt, wie es ist. Der Betrag stimmt mit der Datei überein, der Kurs nicht.',
+  twin: '<b>2 gespeicherte Buchungen passen</b> zu Datum und Beträgen — bleibt, wie es ist. Die richtige von Hand in der <a href="#">Historie</a> korrigieren.'
+};
+const FIGURES = 'Über Datum und Beträge gefunden: Portfolio Performance schreibt diesen Eintrag seit dem Import anders.';
+const LINES = {
+  e4: { n: 4, date: '12.03.2026', kind: 'Dividende', sec: 'Wrenfield Gardens AG', acct: 'Test-Cash', booked: '+11,54', corr: '+9,13', diff: '-2,41' },
+  e7: { n: 7, date: '03.04.2026', kind: 'Verkauf', sec: 'Fennwick Labs AG', acct: 'Test-Cash', booked: '+20,10', corr: null, diff: '-25,00', state: 'refused', bfile: '-4,90 nach der Steuererstattung 25,00', bwhy: 'Ein Verkauf bucht mehr als 0; in der <a href="#">Historie</a> von Hand richtigstellen: den Verkauf auf 0,10 ohne Gebühren, die Gebühren 5,00 als eigene Buchung; die Steuererstattung ist schon gebucht.' },
+  e9: { n: 9, date: '15.05.2026', kind: 'Dividende', sec: 'Larkspur Rail AG', acct: 'Test-Cash', booked: '+8,00', corr: null, diff: '-0,20', state: 'hand1', bfile: '+7,80', bwhy: 'Seit dem Import von Hand geändert (14.09.2026).' },
+  e12: { n: 12, date: '02.06.2026', kind: 'Verkauf', sec: 'Wrenfield Gardens AG', acct: 'Test-Cash', booked: '+95,00', corr: null, diff: '0,00', price: ['12,50', '10,00'], state: 'hand2', bfile: '+95,00, Kurs 10,00 statt 12,50', bwhy: 'Seit dem Import von Hand geändert (20.09.2026); der Kurs weicht ab.' },
+  e15: { n: 15, date: '30.06.2026', kind: 'Verkauf', sec: 'Larkspur Rail AG', acct: 'Test-Cash', booked: '+96,00', corr: '+76,00', diff: '-20,00', price: ['12,50', '10,00'], state: 'figures' },
+  e18: { n: 18, date: '14.08.2026', kind: 'Dividende', sec: 'Kestrel Point AG', acct: 'Test-Cash', booked: '+7,30', corr: null, diff: '-1,10', state: 'twin', bfile: '+6,20', bwhy: 'Über Datum und Beträge gefunden, doch 2 gespeicherte Buchungen passen dazu; die richtige von Hand in der <a href="#">Historie</a> korrigieren.' },
+  e21: { n: 21, date: '30.09.2026', kind: 'Zinsen', sec: null, acct: 'Tagesgeld', booked: '+5,75', corr: '+4,55', diff: '-1,20' }
+};
+const TODAY_SENT = '3 bereits importierte Buchungen weichen von dieser Datei ab: Gebucht ist, wie eine frühere Version des Imports ihre Zeilen las — der Bruttowert einer CSV-Zeile oder ein Geldbetrag, der auch die daneben gebuchte Steuererstattung enthielt. Was das Konto bewegt, nennt die Portfolio-Performance-Datei; die Differenz sind die Gebühren und Steuern der Zeile oder diese Erstattung.';
+const CAUSE = 'Gebucht ist, wie eine frühere Version des Imports ihre Zeilen las — der Bruttowert einer CSV-Zeile oder ein Geldbetrag, der auch die daneben gebuchte Steuererstattung enthielt. Was das Konto bewegt, nennt die Portfolio-Performance-Datei; die Differenz sind die Gebühren und Steuern der Zeile oder diese Erstattung.';
+
+function stateLine(l, isNew = true) {
+  if (!l.state) return '';
+  if (l.state === 'figures') return `<span class="import-correction__state${nw(isNew)}">${FIGURES}</span>`;
+  return `<span class="import-correction__state import-correction__state--kept${nw(isNew)}" data-state="kept">${KEPT[l.state]}</span>`;
+}
+function priceLegs(l) {
+  return l.price ? `<span class="import-correction__legs"><span>Kurs gebucht: ${l.price[0]} EUR</span><span>Kurs laut Datei: ${l.price[1]} EUR</span></span>` : '';
+}
+function cTable(lines, o) {
+  const word = o.word;
+  const priceCol = o.priceCol && lines.some((l) => l.price);
+  const th = `<tr><th class="num" scope="col">${NEW(word, !!o.wordNew)}</th><th scope="col">Datum</th><th scope="col">Buchung</th><th class="num" scope="col">Gebucht</th><th class="num" scope="col">Korrigiert</th><th class="num" scope="col">Differenz</th>${priceCol ? `<th class="num" scope="col">${NEW('Kurs', !!o.isNew)}</th>` : ''}</tr>`;
+  const rows = lines.map((l) => {
+    const corrCell = l.corr ? `<td class="num${sign(l.corr)}">${l.corr}</td>` : `<td class="num import-correction__kept">${NEW('bleibt', !!o.isNew)}</td>`;
+    const price = priceCol ? `<td class="num import-correction__price">${l.price ? NEW(`${l.price[0]} → ${l.price[1]}`, !!o.isNew) : ''}</td>` : '';
+    const detail = priceCol ? '' : priceLegs(l);
+    return `<tr${l.corr ? '' : ' data-state="kept"'}><td class="num">${l.n}</td><td>${l.date}</td><td>${l.kind}${l.sec ? ` · <bdi>${l.sec}</bdi>` : ''} · <bdi>${l.acct}</bdi>${detail}${o.states ? stateLine(l, !!o.isNew) : ''}</td><td class="num${sign(l.booked)}">${l.booked}</td>${corrCell}<td class="num${sign(l.diff)}">${l.diff}</td>${price}</tr>`;
+  }).join('');
+  return `<div class="data-table-wrapper" id="import-correction-table-wrapper"><table class="data-table" id="import-correction-table"><thead>${th}</thead><tbody>${rows}</tbody></table></div>`;
+}
+function cPhone(lines, o) {
+  return `<ul id="import-correction-phone-rows" class="phone-rows" aria-label="Buchungen mit anderem Betrag">${lines.map((l) => `<li class="phone-row"><span class="phone-row__body"><span class="phone-row__name"><bdi>${l.sec || l.acct}</bdi></span><span class="phone-row__ids"><span>${NEW(o.word, !!o.wordNew)} ${l.n} · ${l.date} · ${l.kind}${l.sec ? ` · <bdi>${l.acct}</bdi>` : ''}</span></span>${priceLegs(l)}</span><span class="phone-row__figures"><span class="phone-row__figure${sign(l.diff)}">${l.diff}</span><span class="phone-row__figure2">${l.booked} → ${l.corr ? l.corr : `<span class="import-correction__kept">${NEW('bleibt', !!o.isNew)}</span>`}</span></span>${o.states ? stateLine(l, !!o.isNew) : ''}</li>`).join('')}</ul>`;
+}
+function cSection(body) {
+  return `<section class="panel inner" id="import-correction" aria-labelledby="import-correction-head"><h3 id="import-correction-head">Bereits importiert, mit anderem Betrag</h3><div role="status">${note('attention', body, ' data-role="import-correction"')}</div></section>`;
+}
+const FOOT = (n) => `<div class="import-correction__foot"><button type="button" id="import-correction-open" class="button">${n === 1 ? 'Eine Buchung korrigieren…' : `${n} Buchungen korrigieren…`}</button><p class="summary-basis">ein eigener Schritt, unabhängig von „Import bestätigen“</p></div>`;
+const E7_TODAY = 'Zeile 7: Verkauf mit Gesamtpreis 20,10 und Steuererstattung 25,00: Dem Verkauf blieben -4,90 — bereits importiert und hier nicht zu korrigieren. Den Verkauf nicht noch einmal buchen; siehe „Eine negative Steuer in einer Zeile“ in der Produktdokumentation.';
+const E7_AFTER = 'Eintrag 7: Verkauf mit Gesamtpreis 20,10 und Steuererstattung 25,00: Dem Verkauf blieben -4,90 — <span class="is-new">bereits importiert; aufgeführt unter „Bereits importiert, mit anderem Betrag“.</span>';
+
+function corr(o) {
+  const L = LINES;
+  const top = (fmtNote) => head('JSON') + elide('die Karten (Einträge 23, Warnungen 1) und „Anzahl pro Art“') + fmtNote;
+  const tail = elide('die Zuordnung (jede Zeile „nichts anzulegen“) und „Import bestätigen“');
+  if (o.v === 'today') {
+    const lines = [L.e4, { ...L.e9, corr: '+7,80' }, L.e21];
+    const body = `<p data-role="import-correction-finding">${TODAY_SENT}</p>${cTable(lines, { word: 'Zeile' })}${cPhone(lines, { word: 'Zeile' })}<p class="import-correction__total">Zusammen <b class="is-negative">-3,81 EUR</b>: <bdi>Test-Cash</bdi> -2,61 EUR, <bdi>Tagesgeld</bdi> -1,20 EUR.</p>${FOOT(3)}`;
+    return page(top(warnings([E7_TODAY], false)) + cSection(body) + tail);
+  }
+  if (o.v === 'A') {
+    const lines = [L.e4, L.e7, L.e9, L.e12, L.e15, L.e18, L.e21];
+    const sentence = `7 bereits importierte Buchungen weichen von dieser Datei ab. ${NEW('3 davon korrigiert der Schritt unten:')} ${CAUSE} ${NEW('4 bleiben, wie sie sind; jede Zeile nennt den Grund.')}`;
+    const opt = { word: 'Eintrag', wordNew: false, states: true, priceCol: !!o.kurs, isNew: true };
+    const body = `<p data-role="import-correction-finding">${sentence}</p>${cTable(lines, opt)}${cPhone(lines, opt)}<p class="import-correction__total">${NEW('Die 3 Buchungen, die der Schritt korrigiert,')} zusammen <b class="is-negative">-23,61 EUR</b>: <bdi>Test-Cash</bdi> -22,41 EUR, <bdi>Tagesgeld</bdi> -1,20 EUR.</p>${FOOT(3)}`;
+    return page(top(warnings([E7_AFTER], false)) + cSection(body) + tail);
+  }
+  if (o.v === 'Aone') {
+    const lines = [L.e9];
+    const opt = { word: 'Eintrag', states: true, priceCol: false, isNew: true };
+    const body = `<p data-role="import-correction-finding">${NEW('Eine bereits importierte Buchung weicht von dieser Datei ab und bleibt, wie sie ist; die Zeile nennt den Grund.')}</p>${cTable(lines, opt)}${cPhone(lines, opt)}`;
+    return page(elide('Vorschau, Quellformat: JSON, die Karten') + cSection(body) + elide('die Zuordnung'));
+  }
+  if (o.v === 'B') {
+    const lines = [L.e4, L.e15, L.e21];
+    const kept = [L.e7, L.e9, L.e12, L.e18];
+    const sentence = `7 bereits importierte Buchungen weichen von dieser Datei ab. ${NEW('3 davon korrigiert der Schritt unten:')} ${CAUSE} ${NEW('4 weitere sind nicht automatisch zu korrigieren (unten).')}`;
+    const opt = { word: 'Eintrag', states: true, priceCol: false, isNew: true };
+    const keptList = `<h4 class="import-correction__kept-head is-new">Nicht automatisch korrigierbar</h4><ul class="import-correction__kept-list is-new">${kept.map((l) => `<li><b>Eintrag ${l.n}</b> · ${l.date} · ${l.kind} · <bdi>${l.sec}</bdi> · <bdi>${l.acct}</bdi>: gebucht ${l.booked}, laut Datei ${l.bfile}. ${l.bwhy}</li>`).join('')}</ul>`;
+    /* B keeps the figure-match basis line on its confirmable line 15 */
+    const body = `<p data-role="import-correction-finding">${sentence}</p>${cTable(lines, opt)}${cPhone(lines, opt)}<p class="import-correction__total">Zusammen <b class="is-negative">-23,61 EUR</b>: <bdi>Test-Cash</bdi> -22,41 EUR, <bdi>Tagesgeld</bdi> -1,20 EUR.</p>${FOOT(3)}${keptList}`;
+    return page(top(warnings([E7_AFTER], false)) + cSection(body) + tail);
+  }
+  return '';
+}
+
+/* the dialog (correction_dialog/1), drawn static in a stage */
+function cdlg(o) {
+  let subject;
+  let consequence;
+  let extra = '';
+  if (o.v === 'n21') {
+    subject = { name: '3 Buchungen', ids: 'Einträge 4, 15, 21 · <bdi>Test-Cash</bdi>, <bdi>Tagesgeld</bdi>', total: '-23,61 EUR' };
+    consequence = 'Danach hat Test-Cash 22,41 EUR weniger und Tagesgeld 1,20 EUR weniger. Beim Verkauf von Larkspur Rail AG am 30.06.2026 ändert sich der Kurs mit: 10,00 EUR. Kontostände, Bewertung, Rendite und Erträge werden neu berechnet.';
+    extra = '<p class="hint is-new">Die 4 übrigen Einträge der Liste bleiben, wie sie sind.</p>';
+  } else {
+    subject = { name: '3 Buchungen', ids: 'Einträge 4, 15, 21 · <bdi>Test-Cash</bdi>, <bdi>Tagesgeld</bdi>', total: '-23,61 EUR' };
+    consequence = o.v === 'a1197'
+      ? 'Danach hat Test-Cash 22,41 EUR weniger. <span class="is-new">Bei Tagesgeld nimmt der gesetzte Saldo vom 01.10.2026 die 1,20 EUR auf: Sein Kontostand bleibt, wie er ist.</span> Beim Verkauf von Larkspur Rail AG am 30.06.2026 ändert sich der Kurs mit: 10,00 EUR. Kontostände, Bewertung, Rendite und Erträge werden neu berechnet.'
+      : 'Danach hat Test-Cash 22,41 EUR weniger und Tagesgeld 1,20 EUR weniger. Beim Verkauf von Larkspur Rail AG am 30.06.2026 ändert sich der Kurs mit: 10,00 EUR. Kontostände, Bewertung, Rendite und Erträge werden neu berechnet.';
+  }
+  return `<div class="dlg-stage"><div class="modal booking-delete-dialog import-correction-dialog" role="dialog" aria-labelledby="corr-title"><header class="modal-head"><h2 id="corr-title">Gebuchte Beträge korrigieren</h2><button type="button" class="icon-button" aria-label="Schließen">${svg('x')}</button></header><div class="modal-body"><p id="import-correction-subject" class="booking-delete__subject"><span class="phone-row__body"><span class="phone-row__name">${subject.name}</span><span class="phone-row__ids"><span>${subject.ids}</span></span></span><span class="phone-row__figures"><span class="phone-row__figure is-negative">${subject.total}</span><span class="phone-row__figure2">Differenz</span></span></p><p class="hint" data-role="import-correction-consequence">${consequence}</p>${extra}<p class="hint" data-role="import-correction-journal">Jede Änderung wird mit dem bisherigen Betrag im Journal festgehalten; die Import-Hashes bleiben, wie sie sind, also bucht ein erneuter Import derselben Datei nichts.</p></div><div class="modal-footer modal-footer--band"><button type="button" class="button-ghost">Abbrechen</button><span class="modal-footer__spacer"></span><button type="button" class="button-primary">3 Buchungen korrigieren</button></div></div></div>`;
+}
+
+/* the result line where the section stood */
+function cres(o) {
+  const msg = o.after
+    ? '3 Buchungen korrigiert: <bdi>Test-Cash</bdi> -22,41 EUR, <bdi>Tagesgeld</bdi> -1,20 EUR <span class="is-new">— den Kontostand von Tagesgeld hält der gesetzte Saldo vom 01.10.2026</span>. Das Journal hält die bisherigen Beträge.'
+    : '3 Buchungen korrigiert: <bdi>Test-Cash</bdi> -22,41 EUR, <bdi>Tagesgeld</bdi> -1,20 EUR. Das Journal hält die bisherigen Beträge.';
+  return page(head('JSON') + elide('die Karten und „Anzahl pro Art“') + `<div id="import-correction-result" class="inline-result inline-result--page" data-role="action-result" tabindex="-1"><div role="status" class="inline-result__region">${note('note', `${msg} <button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button>`)}</div></div>` + elide('die Zuordnung und „Import bestätigen“'));
+}
+
+/* ---------------- ② N20 — the mapping row's count ---------------- */
+const B = (n) => `${n} ${n === 1 ? 'Buchung' : 'Buchungen'}`;
+const sel = (label) => `<select><option selected>${label}</option></select>`;
+const UNSEEN = note('attention', 'Unter diesem Namen ist noch keine Buchung importiert, unter den anderen Namen dieser Datei schon. Wurde das Konto in Portfolio Performance umbenannt, hier das bestehende Konto wählen, sonst „+ Neu anlegen“.', ' data-role="mapping-unseen-name"');
+const REMEMBER = (name, acct) => `<div class="mapping-remember" data-role="mapping-remember"><label><input type="checkbox" checked><span>Zuordnung merken</span></label><small>„${name}“ wird früherer Name von ${acct}; sobald eine Buchung unter dem Namen importiert ist, ordnet ein künftiger Import den Namen selbst zu.</small></div>`;
+function cashRow(name, countHtml, target) {
+  return `<div class="mapping-row"><div class="source"><small>PP-Konto</small>${name}${countHtml}</div><div class="mapping-target">${target}</div></div>`;
+}
+const cnt = (inner, extra = '') => `<span class="mapping-count" data-role="mapping-count"${extra}>${inner}</span>`;
+const panel = (title, rows) => `<section class="panel inner"><h3>${title}</h3><div class="mapping-grid">${rows}</div></section>`;
+const CUE = (basis, word = 'wird neu berechnet') => `<span class="recomputing-cue is-new"><span class="spinner"></span>${basis ? basis + ' · ' : ''}${word}</span>`;
+
+function n20(o) {
+  const testCash = cashRow('Test-Cash', cnt(`33 Buchungen bereits importiert · <b>2 neu</b>`), sel('Test-Cash'));
+  let count;
+  if (o.v === 'today') count = cnt('<b>13 Buchungen neu</b>');
+  if (o.v === 'Abusy') count = cnt(`<span class="stale-value"><b>13 Buchungen neu</b></span>${CUE('vor der Wahl gezählt')}`, ' aria-busy="true"');
+  if (o.v === 'Adone') count = cnt(`<span class="is-new">12 Buchungen bereits importiert · <b>1 neu</b></span>`);
+  if (o.v === 'B') count = cnt(`<b>13 Buchungen neu</b><span class="mapping-count__basis is-new">vor der Wahl gezählt; was unter Tagesgeld schon gebucht ist, überspringt der Import</span>`);
+  if (o.v === 'C') count = '';
+  const row = cashRow('Tagesgeld Extra', count, sel('Tagesgeld') + UNSEEN + REMEMBER('Tagesgeld Extra', 'Tagesgeld'));
+  return page(elide('„Vorschau“, Quellformat: CSV, die Karten (Einträge 50), „Anzahl pro Art“, „Bucket-Tag für neue Konten“') +
+    `<form id="pp-import-apply">${panel('Verrechnungskonten aus dem Export', testCash + row)}${elide('„Depots aus dem Export“ und „Wertpapiere aus dem Export“ wie heute')}${actions(false)}</form>`);
+}
+
+/* ---------------- ③ #1188 and the negative FEE ---------------- */
+const R1188 = 'Eintrag 5: Einlieferung mit Steuererstattung 12,40: Eine Einlieferung bewegt kein Geld, die Erstattung hätte kein Konto — Eintrag nicht übernommen. Die Einlieferung ohne sie von Hand buchen; ist Geld geflossen, das als eigene Steuererstattung.';
+const RFEE = 'Eintrag 9: Verkauf mit einer negativen Gebühr (-1,90): Eine Gebührenerstattung bucht der Import noch nicht — Eintrag nicht übernommen. Den Verkauf von Hand buchen, mit den Gebühren abzüglich der Erstattung (3,00).';
+function j1188(o) {
+  if (!o.after) {
+    return page(head('JSON') + stats([[CARD.e, 24], [CARD.s, 6], [CARD.c, 2], [CARD.d, 1]]) +
+      kinds([['Kauf', 7], ['Einlage', 3], ['Dividende', 5], ['Einlieferung', 1], ['Steuererstattung', 1], ['Verkauf', 3], ['Zinsen', 4]]) +
+      elide('keine Parser-Warnungen; die Zuordnung vollständig — nichts nennt Eintrag 5 oder 9') + actions(false),
+      { tabs: true, error: 'Zeile 5.tax_refund.1: Verrechnungskonto darf nicht leer sein' });
+  }
+  return page(head('JSON') + stats([[CARD.e, 21], [CARD.s, 6], [CARD.c, 2], [CARD.d, 1], [CARD.w, 2, true]]) +
+    kinds([['Kauf', 7], ['Einlage', 3], ['Dividende', 5], ['Verkauf', 2], ['Zinsen', 4]]) +
+    warnings([`<span class="is-new">${R1188}</span>`, `<span class="is-new">${RFEE}</span>`], false) +
+    elide('die Zuordnung für die übrigen 21 Einträge, unverändert') + actions(false), { tabs: true });
+}
+
+/* ---------------- ④ #1195 ---------------- */
+function r1195(o) {
+  const lead = note('note', 'Alle 45 Einträge sind bereits importiert. Der Import legt nichts an: keine Buchung, kein Konto, kein Depot, kein Wertpapier.', ' data-role="nothing-to-import"');
+  const testCash = cashRow('Test-Cash', cnt('33 Buchungen bereits importiert · <b>nichts anzulegen</b>'), `<span class="mapping-basis" data-role="mapping-nothing-new">Keine Zuordnung nötig: Der Import bucht unter diesem Namen nichts.</span>`);
+  const hint = '<p id="import-missing-hint" class="form-help" role="status">Vor dem Import noch zuzuordnen: Verrechnungskonto: Tagesgeld Plus</p>';
+  if (o.v === 'former') {
+    const row = cashRow('Tagesgeld Extra', cnt('12 Buchungen bereits importiert · <b>1 neu</b>'), sel('Entscheiden…') + UNSEEN);
+    const hintX = '<p id="import-missing-hint" class="form-help" role="status">Vor dem Import noch zuzuordnen: Verrechnungskonto: Tagesgeld Extra</p>';
+    return page(elide('„Vorschau“, Quellformat: CSV, die Karten, „Anzahl pro Art“; „Tagesgeld Extra“ ist seit dem letzten Import früherer Name von Tagesgeld (gemerkt), doch unter ihm wurde noch nichts gebucht; diese Datei bringt eine neue Zinsbuchung') +
+      `<form id="pp-import-apply">${panel('Verrechnungskonten aus dem Export', cashRow('Test-Cash', cnt('33 Buchungen bereits importiert · <b>2 neu</b>'), sel('Test-Cash')) + row)}${hintX}${actions(true)}</form>`);
+  }
+  let row;
+  let top = '';
+  let disabled = true;
+  let h = hint;
+  if (o.v === 'today') {
+    top = lead;
+    row = cashRow('Tagesgeld Plus', cnt('12 Buchungen bereits importiert · <b>nichts anzulegen</b>'), sel('Entscheiden…') + UNSEEN);
+  }
+  if (o.v === 'busy') {
+    row = cashRow('Tagesgeld Plus', cnt(`<span class="stale-value"><b>12 Buchungen neu</b></span>${CUE('vorläufig')}`, ' aria-busy="true"'), sel('Entscheiden…') + UNSEEN);
+  }
+  if (o.v === 'done') {
+    top = `<div class="is-new" style="border-radius:8px">${lead}</div>`;
+    row = cashRow('Tagesgeld Plus', cnt('<span class="is-new">12 Buchungen bereits importiert · <b>nichts anzulegen</b></span>'), `<span class="mapping-basis is-new" data-role="mapping-nothing-new">Keine Zuordnung nötig: Der Import bucht unter diesem Namen nichts.</span><input type="hidden" name="cash[k2]" value="existing:2">`);
+    disabled = false;
+    h = '';
+  }
+  return page(head('CSV') + top + elide('die Karten (Einträge 45) und „Anzahl pro Art“') +
+    `<form id="pp-import-apply">${panel('Verrechnungskonten aus dem Export', testCash + row)}${elide('„Depots aus dem Export“ (Depot Muster: nichts anzulegen) und „Wertpapiere aus dem Export“')}${h}${actions(disabled)}</form>`, { tabs: true });
+}
+
+/* ---------------- ⑤ #1130 ---------------- */
+const U_SENT = 'Diese Wertpapiere tragen Strategie-Konfiguration (Kategorie-Zuordnungen oder Positionsziele), passen aber zu keinem Eintrag dieser Datei — vermutlich eine Umbenennung oder ein ISIN-Wechsel in Portfolio Performance. Abhilfe: den ISIN-Wechsel am Wertpapier erfassen (oder, ohne ISIN, das Wertpapier in der App passend umbenennen bzw. unten neu zuordnen), dann den Import erneut starten.';
+function u1130(o) {
+  const secs = elide('„Wertpapiere aus dem Export“: 4 passen zu bestehenden Einträgen');
+  const box = o.after
+    ? note('attention', `<h3>Konfigurierte Wertpapiere, die dieser Import nicht berührt</h3><p>${U_SENT}</p><ul><li><a href="#" class="is-new">Halvorsen Mills AG</a> · DE000000000H</li><li><a href="#" class="is-new">Brightwater Utilities SE</a> · DE000000000B</li></ul>`, ' id="import-unmatched-config" data-role="unmatched-config"', true)
+    : `<section class="import-warning-box" id="import-unmatched-config"><h3>Konfigurierte Wertpapiere, die dieser Import nicht berührt</h3><p class="muted">${U_SENT}</p><ul><li>Halvorsen Mills AG · DE000000000H</li><li>Brightwater Utilities SE · DE000000000B</li></ul></section>`;
+  return page(elide('„Vorschau“, Quellformat: CSV, die Karten, „Anzahl pro Art“, die Kontenzuordnung') + `<form id="pp-import-apply">${secs}${box}${actions(false)}</form>`);
+}
+
+/* ---------------- ⑥ #1179 ---------------- */
+function e1179(o) {
+  const w = o.after ? 'Eintrag' : 'Zeile';
+  const ws = (t) => (o.after ? `<span class="is-new">${t}</span>` : t);
+  const rows = [
+    `${ws(`${w} 12`)}: Währung „EURO“ wird nicht unterstützt — ${ws(o.after ? 'Eintrag' : 'Zeile')} nicht übernommen`,
+    `${ws(`${w} 17`)}: Umbuchung ohne Gegenkonto — ${ws(o.after ? 'Eintrag' : 'Zeile')} nicht übernommen`
+  ];
+  const lines = [LINES.e4, LINES.e21];
+  const opt = { word: w, wordNew: o.after };
+  const body = `<p data-role="import-correction-finding">2 bereits importierte Buchungen weichen von dieser Datei ab: …</p>${cTable(lines, opt)}${cPhone(lines, opt)}`;
+  return page(head('JSON') + elide('die Karten (Einträge 21, Warnungen 2) und „Anzahl pro Art“') + warnings(rows, false) + cSection(body) + elide('die Summe, „2 Buchungen korrigieren…“ und die Zuordnung'));
+}
+
+/* ---------------- ⑦ #1207 ---------------- */
+function l1207(o) {
+  const extra = o.after ? ' <span class="is-new">3 bereits importierte Buchungen weichen aber von der Datei ab: unten unter <a href="#import-correction">„Bereits importiert, mit anderem Betrag“</a> korrigieren.</span>' : '';
+  const lead = note('note', `Alle 45 Einträge sind bereits importiert. Der Import legt nichts an: keine Buchung, kein Konto, kein Depot, kein Wertpapier.${extra}`, ' data-role="nothing-to-import"');
+  const lines = [LINES.e4, { ...LINES.e15, state: null }, LINES.e21];
+  const sent = '3 bereits importierte Buchungen weichen von dieser Datei ab: ' + CAUSE.replace('Gebucht ist,', 'Gebucht ist,');
+  const body = `<p data-role="import-correction-finding">${sent}</p>${cTable(lines, { word: o.after ? 'Eintrag' : 'Zeile' })}${cPhone(lines, { word: o.after ? 'Eintrag' : 'Zeile' })}<p class="import-correction__total">Zusammen <b class="is-negative">-23,61 EUR</b>: <bdi>Test-Cash</bdi> -22,41 EUR, <bdi>Tagesgeld</bdi> -1,20 EUR.</p>${FOOT(3)}`;
+  return page(head('JSON') + lead + elide('die Karten (Einträge 45) und „Anzahl pro Art“') + cSection(body) + elide('die Zuordnung: jede Zeile „Keine Zuordnung nötig“; „Import bestätigen“'), { tabs: true });
+}
+
+/* ---------------- ⑨ the done page ---------------- */
+function done(o) {
+  const a = o.after;
+  const icon = '<svg class="success-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>';
+  const cards = (s, c, d) => `<div class="summary"><div class="import-stat-card"><span class="label">Wertpapiere</span><span class="value">${s}</span></div><div class="import-stat-card"><span class="label">Verrechnungs&shy;konten</span><span class="value">${c}</span></div><div class="import-stat-card"><span class="label">Depots</span><span class="value">${d}</span></div></div>`;
+  const acts = `<div class="actions"><button type="button" class="button-primary">Weitere Datei importieren</button><a class="button-secondary${nw(a)}" href="#">Transaktionen ansehen</a></div>`;
+  if (o.s === 'fresh') {
+    const portfolio = a ? '<p class="muted is-new" data-role="import-portfolio">Der Import hat den Portfoliodatensatz „Default“ (EUR) angelegt und darin gebucht.</p>' : '';
+    const refused = a ? `<div class="import-skipped is-new" data-role="refused-rows"><p class="muted">2 Einträge, die die Vorschau abgelehnt hat, sind nicht importiert:</p><ul><li>${R1188}</li><li>${RFEE}</li></ul></div>` : '';
+    return page(`${icon}<h2>Import abgeschlossen</h2><p class="muted">Erzeugte Transaktionen: 21 · Übersprungene Duplikate: 0</p>${portfolio}${refused}${cards(6, 2, 1)}${acts}`, { cls: 'import-done' });
+  }
+  const alias = a ? '<p class="muted is-new" data-role="alias-matches">Ein Datensatz über eine frühere ISIN zugeordnet.</p>' : '<p class="muted" data-role="alias-matches">1 Datensatz/Datensätze über frühere ISIN zugeordnet.</p>';
+  const former = a ? '<div class="import-skipped is-new" data-role="former-name-matches"><p class="muted">3 Buchungen über einen früheren Namen gebucht:</p><ul><li>„Tagesgeld Extra“, jetzt <bdi>Tagesgeld</bdi> · 1 Buchung</li><li>„Depot Alt“, jetzt <bdi>Depot Muster</bdi> · 2 Buchungen</li></ul></div>' : '';
+  const dups = `<div class="import-skipped" data-role="duplicate-entries"><p class="muted">41 bereits gebuchte Datensätze übersprungen:</p><details class="dup-group" data-layer="hash"><summary class="disclosure-summary">${svg('chev', 14)}<span><b>41</b> · eine identische Zeile wurde bereits importiert (gespeicherter Inhalts-Hash)</span></summary></details></div>`;
+  return page(`${icon}<h2>Import abgeschlossen</h2><p class="muted">Erzeugte Transaktionen: 3 · Übersprungene Duplikate: 41</p>${alias}${former}${dups}${cards(0, 0, 0)}${acts}`, { cls: 'import-done' });
+}
+
+/* ---------------- #1181 on Risk and Tax ---------------- */
+function btn(o) {
+  if (o.p === 'risk') {
+    return `<main class="app-main app-main--workspace"><div class="workspace-page"><section class="workspace-section policy-rules" id="policy-rules"><header class="section-head"><h2 id="policy-rules-title">Eigene Regeln <span class="section-head__meta">· 1 verletzt · 0 nicht bestimmbar · 3 eingehalten</span></h2><button type="button" class="button-secondary${nw(o.after)}">Regel anlegen</button></header><p class="elide">… die Regeln</p></section></div></main>`;
+  }
+  return `<main class="app-main app-main--workspace"><div class="workspace-page"><section class="workspace-section"><p class="elide">… „Abrechnung erfassen“, die Felder, „Notiz“</p><div class="tax-form__actions"><button type="submit" class="button">Korrektur speichern</button><button type="button" class="button button-secondary${nw(o.after)}">Abbrechen</button></div></section></div></main>`;
+}
+
+const TPL = { corr, cdlg, cres, n20, j1188, r1195, u1130, e1179, l1207, done, btn };
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .app-main,.workspace-page{min-height:0 !important;} .is-new{outline:2px dashed var(--color-accent);outline-offset:2px;border-radius:4px;} .elide{margin:0;font-size:12px;color:#5a6577;font-style:italic;} pre span.is-new{outline:none;border-radius:2px;background:color-mix(in srgb,var(--color-accent) 12%,transparent);box-shadow:inset 0 -2px 0 var(--color-accent);} .dlg-stage{padding:16px;background:color-mix(in srgb,var(--color-text) 18%,var(--color-bg));} .dlg-stage .modal{position:static;margin:0 auto;max-width:460px;width:100%;} .import-done{text-align:center;}</style>';
+
+let pending = 0;
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  let css = CSS_MOCK;
+  if ('proposal' in f.dataset) css += document.getElementById('proposal').outerHTML;
+  if (f.dataset.css) css += document.getElementById(f.dataset.css).outerHTML;
+  pending++;
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument;
+    f.style.height = Math.ceil(doc.documentElement.scrollHeight) + 'px';
+    if (--pending === 0) document.body.dataset.ready = '1';
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>

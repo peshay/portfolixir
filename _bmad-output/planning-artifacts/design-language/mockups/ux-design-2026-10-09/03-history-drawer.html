@@ -1,0 +1,691 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>History and Drawer</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- Board 03, Sprint 21 design pass (2026-10-09): the transaction history and
+     its booking drawer. Picks N10 (#1147, the amount's sign), N11 (#1148, the
+     price's currency), N12 (#1052 and #1206, the drawer books and corrects the
+     one-amount cash kinds); before/afters #1209 (the Betrag is the cash the
+     balance moves) and #1213's drawer half (the amount label names the
+     account's currency).
+
+     THE PROPOSAL: the rules the Sprint 21 stories add to app.css. Everything
+     else in the frames is markup and classes that already ship in
+     transaction_management_live.ex (the history table #transaction-list, the
+     phone rows #transaction-phone-rows, the booking drawer and the notes-only
+     drawer, both dialog.detail-pane.booking-drawer) and AppShell
+     (area_tabs, inline_result, data_note, row_kebab). The frames are srcdoc
+     iframes built from that markup, so a 390 px frame is a real 390 px
+     viewport and app.css's 720 px and 560 px blocks fire. "Heute" frames
+     render app.css as shipped; "Nachher" and variant frames add this block. -->
+<style id="proposal">
+  /* N12 = A (#1052, #1206): the drawer's cash form puts type, date, cash
+     account and security on full rows (the existing nth-child(-n + 4) rule)
+     and pairs the amount with the withheld taxes for a dividend or interest,
+     as quantity and price are paired. A kind without taxes leaves the amount
+     as the grid's fifth and last label; it takes the full row instead of
+     half of it. */
+  .booking-drawer .form-grid > label:nth-child(5):last-child {
+    grid-column: 1 / -1;
+  }
+
+  /* N10, N11, #1209 and #1213 need no CSS: N10 A is Format.signed_decimal
+     in the amount cell and the phone row (no sign class: a flow's sign is a
+     direction, not a gain); N11 A is the existing .value-suffix after the
+     price; #1209 and #1213 change values and one label. */
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-board > p.mock-note { max-width: 118ch; }
+  .mock-frame { overflow: hidden; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul, .notes ol { margin: 0; }
+  .notes ul, .notes ol { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .mini iframe { display: block; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .consequence { margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--color-danger); background: var(--color-danger-soft); font-size: 12px; }
+  .measured { margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--color-accent); background: var(--color-accent-soft); font-size: 12px; }
+  .measured li { margin: 0 0 3px; }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap { padding-left: 12px; padding-right: 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph { width: 390px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Board 03 — the transaction history and its booking drawer (Sprint 21, the UI batch γ and α A10/A11).</b> Three picks: <b>N10</b> (#1147) an inflow and an outflow differ only by a minus — <b>A</b> an explicit „+“ on inflows, no colour · <b>B</b> the sign and the gain/loss colour · <b>C</b> colour on the running balance only, <span class="rec">recommended A</span> · <b>N11</b> (#1148) the Preis cell names no currency — <b>A</b> always the price's own currency · <b>B</b> only where it differs from the amount's · <b>C</b> the Währung column on by default, <span class="rec">recommended A</span> · <b>N12</b> (#1052, #1206) the drawer books and corrects dividend, interest, deposit, removal, fee, tax and tax refund — <b>A</b> one drawer, the kind select first · <b>B</b> a dialog per kind from a menu · <b>C</b> inline edit in the history row, <span class="rec">recommended A</span>. <b>Two before/afters with nothing to pick:</b> #1209 (the Betrag is the cash the balance moves; a zero reads „0,00“) and #1213's drawer half (the amount's label names the account's currency). A comment naming a pick and a letter (e.g. „N11 B“) on the planning PR changes it; silence adopts the recommendation. Every name, amount, date and identifier is invented. <b>Dashed = new.</b></div>
+<p class="phone-only phone-cap"><b>Board 03 at 390&nbsp;px.</b> Real 390-px viewports: app.css' rules under 720 and 560&nbsp;px apply. Recommended: N10&nbsp;A, N11&nbsp;A, N12&nbsp;A. All data invented. The desktop frames and the arguments are in the 1200-px render.</p>
+
+<!-- ============================ N10 — #1147 ============================ -->
+<section class="mock-board" id="n10">
+  <h2>N10 · #1147 — an inflow and an outflow differ only by a minus <small>Transaktionen → Historie, the Betrag cell and the phone row's amount</small></h2>
+  <p class="mock-note desk-only"><b>Today</b> <code>signed_money/3</code> (<code>transaction_management_live.ex:1806-1819</code>) negates the four outflow kinds (<code>@outflow_kinds</code>: buy, removal, fee, tax; a transfer by the account in view) and prints every other amount bare, through <code>Format.money/1</code>. A dividend of 12,50 and a fee of 4,90 differ by one hyphen, and a zero outflow prints „-0,00“ (a buy at 0,00, a bonus share). The cell carries no sign class (<code>:400-404</code>), the phone row neither (<code>phone_amount/2</code>, <code>:1743-1751</code>). DESIGN.md records the gap in Transactions → the target vocabulary: „Positive amounts still carry no „+“ and history rows no sign colour; that gap against the Accessibility Floor is its own story.“ EXPERIENCE.md → Accessibility Floor: signed values render an explicit „+/−“, and colour never carries a sign alone. The data: October 2026 across Test-Cash, Tagesgeld and Depot Muster, all filters off.</p>
+
+  <p class="cap desk-only">Heute</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „12,50“ und „-4,90“: nur der Bindestrich unterscheidet</span><iframe data-tpl="hist" data-o='{"set":"n10","sign":"today"}' data-m="n10-today" title="N10 heute, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="hist" data-o='{"set":"n10","sign":"today","phone":true}' data-m="n10-today-ph" title="N10 heute, 390 px"></iframe></div>
+    <div class="notes">
+      <p class="consequence"><b>A reader has to know the kind to read the figure.</b> „Steuererstattung 12,40“ and „Gebühren -4,90“ sit one hyphen apart; on the phone the hyphen is a 5&nbsp;px glyph at the start of a right-aligned figure. „Kauf -0,00“ claims a direction that a zero has not (Format's own rule, <code>displayed_sign/2</code>: „a value that rounds to zero is directionless“).</p>
+      <ul class="desk-only">
+        <li>The balance snapshot („Saldo gesetzt 3.250,00“) is a level, not a flow; it keeps its stored sign in every variant.</li>
+        <li>A transfer reads from the sender („-200,00“), or from the receiver when the chips select it alone (Sprint 19, found while drawing 1); every variant keeps that rule.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A <span class="rec">empfohlen</span> — „+“ vor jedem Zufluss, keine Farbe; null ohne Vorzeichen</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — „+12,50“ / „-4,90“, ungefärbt</span><iframe data-tpl="hist" data-o='{"set":"n10","sign":"A"}' data-proposal data-m="n10-A" title="N10 A, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — empfohlen</span><iframe data-tpl="hist" data-o='{"set":"n10","sign":"A","phone":true}' data-proposal data-m="n10-A-ph" title="N10 A, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>Why A.</b> A booking's amount is a <b>flow</b>: its sign is a direction, not a gain. That is the contribution table's settled rule, DESIGN.md → Wealth → the contribution table: „Zu-/Abflüsse and Erträge signed and <b>uncoloured</b> — a flow's sign is a direction, not a gain.“ The history is the same kind of figure, so it takes the same form.</p>
+      <ul>
+        <li><b>It closes the Accessibility-Floor gap by the text</b>: „+“ and „-“ are the carriers, and nothing depends on hue (UX-DR7). It reads the same in forced colours and in the dark theme.</li>
+        <li><b>Colour would say the wrong thing.</b> A deposit is not a gain, a buy is not a loss, and a fee is a cost, not a loss either. Green on every Einlage and red on every Kauf would make a month of buying read as a month of losing, beside a Wealth page whose green and red mean exactly gain and loss.</li>
+        <li><b>The house formatter already does it:</b> <code>Format.signed_decimal(amount, 2)</code> prints „+“, „-“, and nothing for a figure that rounds to zero. <code>signed_money/3</code> keeps deciding the direction (kind, transfer side); only the formatter changes, in the cell, the phone row and the delete dialog's box, which reads <code>phone_amount/2</code>.</li>
+        <li><b>The level stays a level:</b> „Saldo gesetzt 3.250,00“ carries no „+“ — it states where the balance is, not what moved.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — Vorzeichen und Gewinn-/Verlustfarbe</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">B — „+“ grün, „-“ rot</span><iframe data-tpl="hist" data-o='{"set":"n10","sign":"B"}' data-proposal data-m="n10-B" title="N10 B, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">B</span><iframe data-tpl="hist" data-o='{"set":"n10","sign":"B","phone":true}' data-proposal title="N10 B, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>B</b> follows DESIGN.md → Colors to the letter („Semantic colour applies wherever a sign exists“), as the trades facet and the Trades tab do. It costs one class per cell (<code>.is-positive</code> / <code>.is-negative</code> on the <code>td</code>; the history is no <code>.data-table</code>, so the bare classes colour it without a new rule). <b>Against it:</b></p>
+      <ul>
+        <li><b>The colours mean gain and loss everywhere else.</b> Here they would mean „in“ and „out“: every Kauf red, every Einlage green. The frame above reads as a red month — four buys and a fee — while the portfolio may have gained.</li>
+        <li><b>It contradicts the flows rule</b> the contribution table settled one release ago; one of the two would then have to change.</li>
+        <li>The sign is still the carrier (UX-DR7); the colour adds a second, wrong meaning on top.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante C — Farbe nur am laufenden Saldo</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">C — Chip „Test-Cash“ aktiv; der Saldo trägt die Richtung der Zeile</span><iframe data-tpl="hist" data-o='{"set":"n10c","sign":"C"}' data-proposal data-m="n10-C" title="N10 C, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">C</span><iframe data-tpl="hist" data-o='{"set":"n10c","sign":"C","phone":true}' data-proposal title="N10 C, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>C</b> leaves the Betrag as it is and colours the running balance by the move that produced it: risen in the positive colour, fallen in the danger colour, unchanged plain. <b>Against it:</b></p>
+      <ul>
+        <li><b>The balance column exists only when the chips narrow to one account</b> (<code>@balance_account</code>, „never via the picker“). On the unfiltered history — the page's default and the frame „Heute“ above — C changes nothing, and #1147 stays open.</li>
+        <li><b>A balance is a level.</b> Coloured green it reads „this balance is good“; an overdrawn account that rose would be green and negative at once.</li>
+        <li>Colour is the only carrier of the direction it adds, which is exactly what UX-DR7 forbids; the Betrag still lacks its „+“.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ N11 — #1148 ============================ -->
+<section class="mock-board" id="n11">
+  <h2>N11 · #1148 — the Preis cell names no currency <small>Transaktionen → Historie, the Preis cell and the phone row's size</small></h2>
+  <p class="mock-note desk-only"><b>Today</b> the Preis cell prints <code>stored_figure(transaction.price)</code> with no suffix (<code>:394</code>), and so does the phone row's size „8 × 100,00“ (<code>phone_size/1</code>, <code>:1761-1762</code>). The Betrag beside it carries the cash account's currency (<code>money_currency/1</code>). The price is in the <b>booking's</b> currency (<code>currency_code</code>): the security's for a cross-currency trade (row 1, booked in USD through the EUR account Test-Cash), the account's for a trade an import booked in the account's currency (row 3, a USD security booked by a Portfolio Performance import at 88,10 EUR — ADR-0015's amendment, #1198's case 1). Nothing on the row tells the two apart. The Währung column exists in the picker, off by default; it prints <code>currency_code</code>. Every frame keeps today's amount form, so only the price differs.</p>
+
+  <p class="cap desk-only">Heute</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „100,00“ neben „-806,00 EUR“</span><iframe data-tpl="hist" data-o='{"set":"n11","price":"today"}' data-m="n11-today" title="N11 heute, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute</span><iframe data-tpl="hist" data-o='{"set":"n11","price":"today","phone":true}' data-m="n11-today-ph" title="N11 heute, 390 px"></iframe></div>
+    <div class="notes">
+      <p class="consequence"><b>Row 1 reads „100,00“ beside „-806,00 EUR“.</b> The reader takes 8 × 100,00 EUR = 800 EUR and the 806 as 800 plus costs; it was 800 USD, settled at the stored rate. On the phone it is „8 × 100,00“ under „-806,00 EUR“: the same reading.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A <span class="rec">empfohlen</span> — immer die Währung des Preises</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — „100,00 USD“, „48,20 EUR“, „88,10 EUR“</span><iframe data-tpl="hist" data-o='{"set":"n11","price":"A"}' data-proposal data-m="n11-A" title="N11 A, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — empfohlen</span><iframe data-tpl="hist" data-o='{"set":"n11","price":"A","phone":true}' data-proposal data-m="n11-A-ph" title="N11 A, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>Why A.</b> Every money figure on the page then names its currency the one way the page already uses: the value-slot suffix (<code>&lt;small class="value-suffix"&gt;</code>, EXPERIENCE.md → Value slot; the Betrag, the Saldo, the summary). One rule, no comparison, nothing for the reader to infer.</p>
+      <ul>
+        <li><b>It is right in both directions:</b> row 1's USD and row 3's EUR are each the price's own currency, though both rows are the same USD security. B and C cannot say row 3's EUR without the reader comparing.</li>
+        <li><b>The phone row says it the same way:</b> „8 × 100,00 USD“, the currency after the price as the amount line has it after the amount. The size line fits at 390&nbsp;px (measured below).</li>
+        <li><b>Cost:</b> one suffix in the cell and in <code>phone_size/1</code>; the delete dialog's box reads <code>phone_size/1</code>, so it follows. A split's ratio and a dash carry none.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — nur, wo sie von der Währung des Betrags abweicht</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">B — nur Zeile 1 und die Dividende sind betroffen</span><iframe data-tpl="hist" data-o='{"set":"n11","price":"B"}' data-proposal title="N11 B, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">B</span><iframe data-tpl="hist" data-o='{"set":"n11","price":"B","phone":true}' data-proposal title="N11 B, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>B</b> is the quietest: same-currency rows stay as they are, and the suffix marks the exception. <b>Against it:</b> a bare price then means „the same as the Betrag“, a rule the reader has to know, and the column mixes suffixed and bare figures, so its digits no longer line up on the right edge (the suffix is 30&nbsp;px wide, measured). The comparison is per row, so a filter that changes the account in view never changes it — but a stored column choice that hides the Betrag (ColumnPrefs) leaves every bare price without its reference.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante C — die Spalte „Währung“ ab Werk eingeschaltet</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">C — „Währung“ nach dem Betrag, wie der Picker sie ordnet</span><iframe data-tpl="hist" data-o='{"set":"n11","price":"C"}' data-proposal data-m="n11-C" title="N11 C, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">C — auf dem Telefon unverändert</span><iframe data-tpl="hist" data-o='{"set":"n11","price":"C","phone":true}' data-proposal title="N11 C, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>C</b> needs no new markup: <code>@tx_column_defaults</code> gains <code>currency</code>. <b>Against it:</b></p>
+      <ul>
+        <li><b>The column names the booking's currency, after the Betrag</b> (<code>@tx_column_keys</code> order): row 1 reads „-806,00 EUR · USD“ and the dividend „80,00 EUR · USD“. The column sits beside the figure it does not describe.</li>
+        <li><b>The phone rows are a fixed composition</b> (UX-DR27; the picker hides under 560&nbsp;px), so on the phone C changes nothing.</li>
+        <li>A reader with a stored column choice (ColumnPrefs) keeps it and never sees the column.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ N12 — #1052, #1206 ============================ -->
+<section class="mock-board" id="n12">
+  <h2>N12 · #1052, #1206 — the drawer books and corrects the one-amount cash kinds <small>Transaktionen → „Transaktion erfassen“ and a row's „Bearbeiten“</small></h2>
+  <p class="mock-note desk-only"><b>Today</b> the drawer's Typ offers Kauf and Verkauf only (<code>:2262</code>, <code>for type &lt;- ["buy", "sell"]</code>), and „Bearbeiten“ on any other kind opens the notes-only drawer (<code>fixed_booking/2</code>, <code>:889-894</code>; pick H2b A): the facts disabled, the help line „Datum, Beträge und Konten dieser Buchung stehen hier fest; die Oberfläche bucht nur Käufe und Verkäufe. Korrigiert wird die Buchung über API oder MCP, oder sie wird gelöscht und neu importiert.“ No screen books a fee or a tax refund, which is exactly the remedy the import's refusal names (ADR-0053 A5: „Den Verkauf von Hand buchen, die Erstattung als eigene Steuererstattung“, plus the fee, #1206's comment). <b>The planning decision:</b> the drawer gains booking and in-place correction of dividend, interest, deposit, removal, fee, tax and tax refund, through <code>Ledger.create_transaction/3</code> and <code>Ledger.update_transaction/3</code>, the writes the API uses; transfers, deliveries and balance snapshots keep the notes-only drawer and its delete-and-re-import help line, as stated today. The data: the remedy of board <code>ux-design-2026-10-07/01</code> ③ (a refund of 12,40, a fee of 9,90) and an imported dividend.</p>
+
+  <p class="cap desk-only">Heute</p>
+  <div class="mock-row desk-only" style="margin-top:0">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „Transaktion erfassen“: Typ kennt Kauf und Verkauf</span><iframe data-tpl="page" data-o='{"drawer":"trade"}' data-m="n12-today-trade" data-fit="drawer" title="N12 heute, Erfassen, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — „Bearbeiten“ auf „Gebühren“</span><iframe data-tpl="sheet" data-o='{"drawer":"notes-fee"}' data-fixed="844" title="N12 heute, Bearbeiten, 390 px"></iframe></div>
+    <div class="mini mock-frame mock-before desk-only" style="flex:none"><span class="mock-tag">Heute — die Liste „Typ“</span><iframe data-tpl="kinds" data-o='{"v":"today"}' style="width:240px" title="Typ heute"></iframe></div>
+    <div class="notes">
+      <p class="consequence"><b>The import's remedy cannot be finished on a screen.</b> A sale refused by A5 is booked by hand in three parts — the sale, the fee, the refund — and the drawer books one of them. Sprint 20's UAT finished the other two through a one-row CSV import or the API.</p>
+      <ul class="desk-only">
+        <li>The notes-only drawer states the gap honestly (UX-DR26), and the API's update corrects every field in place: the two-way coverage gap AGENTS.md names, filed as #1052.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A <span class="rec">empfohlen</span> — ein Drawer: die Art zuerst, dann Datum, Verrechnungskonto, Betrag, Wertpapier wo die Art eines kennt, Notiz</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — neu: „Steuererstattung“</span><iframe data-tpl="page" data-o='{"drawer":"new"}' data-proposal data-m="n12-A-new" data-fit="drawer" title="N12 A neu, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">A — „Bearbeiten“ auf einer importierten Dividende: Art und Konto stehen fest</span><iframe data-tpl="page" data-o='{"drawer":"edit"}' data-proposal data-m="n12-A-edit" data-fit="drawer" title="N12 A bearbeiten, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">A — abgelehnt: Betrag „-9,90“ bei „Gebühren“</span><iframe data-tpl="page" data-o='{"drawer":"refused"}' data-proposal data-m="n12-A-refused" data-fit="drawer" title="N12 A abgelehnt, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — neu, 390 px</span><iframe data-tpl="sheet" data-o='{"drawer":"new"}' data-proposal data-fixed="844" data-m="n12-A-new-ph" title="N12 A neu, 390 px"></iframe></div>
+    <div class="mini mock-frame mock-after desk-only" style="flex:none"><span class="mock-tag">A — die Liste „Typ“</span><iframe data-tpl="kinds" data-o='{"v":"A"}' data-proposal style="width:240px" title="Typ A"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>Why A.</b> The drawer is already the one place a booking is made and corrected (#803, C6; „shaped for the edit view to reuse“). A learns one more choice, the kind, at the place the operator already makes it, and every kind then reads, books and corrects the same way.</p>
+      <ul>
+        <li><b>The fields follow the kind</b>, the stored fields the notes-only drawer already lists per kind (<code>kind_facts/3</code>): Datum, Verrechnungskonto, Betrag; Wertpapier for a dividend (required) and for interest, fee, tax and tax refund (optional, „Kein Wertpapier“ — ADR-0051's security-linked interest, #928, is in this sprint); Steuern for a dividend or interest, paired with the Betrag as Stückzahl and Preis are. A deposit or a removal names no security.</li>
+        <li><b>The account decides the currency</b> (the trade's rule, #473): „Betrag (EUR)“ once Test-Cash is chosen; the booking is in the account's currency, as <code>Ledger.set_cash_balance/3</code> books a level. Under the amount one line says what the booking will do — „Wird Test-Cash gutgeschrieben.“ / „Wird von Test-Cash abgebucht.“ — so a sign is never typed: the kind gives the direction.</li>
+        <li><b>Edit reuses the form, prefilled.</b> The kind and the cash account are disabled (the reading of „identity fields frozen“ this board takes, see the edit frame), the help line states that limit with „Löschen…“ as its remedy, and the rest is corrected in place through <code>Ledger.update_transaction/3</code>.</li>
+        <li><b>Transfers, deliveries and the balance snapshot keep the notes-only drawer</b>, whose help line then reads „…; die Oberfläche bucht Käufe, Verkäufe und Kontobuchungen, diese Art nicht. …“ (strings in the UX document).</li>
+      </ul>
+    </div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — bearbeiten, 390 px</span><iframe data-tpl="sheet" data-o='{"drawer":"edit"}' data-proposal data-fixed="844" data-m="n12-A-edit-ph" title="N12 A bearbeiten, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — abgelehnt, 390 px</span><iframe data-tpl="sheet" data-o='{"drawer":"refused"}' data-proposal data-fixed="844" data-m="n12-A-refused-ph" title="N12 A abgelehnt, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <ul>
+        <li><b>The refusal is today's pair:</b> the field error under „Betrag (EUR)“ („muss größer als 0 sein“, errors domain, <code>aria-invalid</code>) and the page's result, a problem („Betrag muss größer als 0 sein“, <code>FieldLabel.changeset_message/1</code>). What was typed stays (#869). The direction line above the error already says why no sign is needed.</li>
+        <li><b>At 390&nbsp;px the drawer is the modal bottom sheet</b> (88&nbsp;vh); the page's result lies under the backdrop, as it does for a refused buy today, and the field error inside the sheet is the visible answer (<code>role="alert"</code>).</li>
+        <li><b>An imported booking says what a correction does to the next import</b>, as the delete dialog says what a delete does (A3): the row keeps its content hash, so the same file does not book it again, and the correction section names it as edited by hand rather than rewriting it (ADR-0053 A6 as amended on this PR, #1194).</li>
+        <li><b>A one-amount booking in a currency other than its account's</b> (an API booking with a stored rate; the importer books these kinds in the account's currency) keeps the notes-only drawer: its rate is no field of this form, and correcting the amount alone would leave the rate stale (found while drawing 3).</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — „Transaktion erfassen“ wird ein Menü; je Art ein eigener Dialog</p>
+  <div class="mock-row desk-only" style="margin-top:0">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">B — das Menü</span><iframe data-tpl="menuB" data-o='{}' data-proposal data-fixed="470" title="N12 B Menü, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="dk mock-frame mock-after desk-only" style="width:auto;flex:1 1 560px"><span class="mock-tag vtag">B — „Steuererstattung erfassen“</span><iframe data-tpl="dialogB" data-o='{}' data-proposal data-fixed="660" style="width:100%" title="N12 B Dialog, Desktop"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">B — 390 px</span><iframe data-tpl="dialogB" data-o='{}' data-proposal data-fixed="660" title="N12 B Dialog, 390 px"></iframe></div>
+  </div>
+  <div class="notes desk-only" style="margin-top:10px">
+    <p><b>B</b> gives each kind a narrow dialog with only its fields and a title that names it, and leaves the trade drawer untouched. <b>Against it:</b></p>
+    <ul>
+      <li><b>Two booking surfaces where there was one</b>: a non-modal drawer beside the history for trades, a modal dialog over it for everything else. The modal hides the history the operator copies a statement from; the drawer was made non-modal for that reason (#803).</li>
+      <li><b>„Bearbeiten“ must open the right one</b> — eight places a booking is corrected, and a correction of the kind itself would cross from one dialog to another.</li>
+      <li><b>About sixteen new strings</b> (eight menu items, seven titles, a submit label) against A's handful; the menu adds a second click to the commonest act, recording a buy.</li>
+    </ul>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante C — direkt in der Zeile der Historie bearbeiten</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">C — die Dividende in der Zeile</span><iframe data-tpl="inlineC" data-o='{}' data-proposal data-m="n12-C" title="N12 C, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">C — 390 px: die Telefonzeile klappt auf</span><iframe data-tpl="inlineC" data-o='{"phone":true}' data-proposal title="N12 C, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>C</b> corrects a figure where it is read, with no panel at all. <b>Against it:</b></p>
+      <ul>
+        <li><b>The history is a reading table that fits its wrapper</b> (Sprint 19 U1). Inputs need widths a reading cell does not have: at 980&nbsp;px the row fits only by squeezing — the date input cut, the security's name cut in its select, the two buttons in a column the kebab had alone (measured below). Under the table's floor of about 780&nbsp;px the edited row scrolls sideways.</li>
+        <li><b>A new booking has no row.</b> C answers #1052 (correct) and leaves #1206 (book a refund) to something else — a second surface again.</li>
+        <li><b>The phone has no table</b> (UX-DR27): the row has to open into a form of its own, which is A's form without A's place.</li>
+        <li>A refusal has nowhere to stand: a field error under an input inside a 32&nbsp;px row.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="notes desk-only" style="margin-top:10px"><ul class="measured" id="m-n12"></ul></div>
+</section>
+
+<!-- ============================ #1209 ============================ -->
+<section class="mock-board" id="i1209">
+  <h2>#1209 — the Betrag is the cash the balance moves <small>before / after · nothing to pick</small></h2>
+  <p class="mock-note desk-only"><b>Today</b> the Betrag is <code>tx_money/1</code>: the stored <code>gross_amount</code>, else quantity × price (<code>:1795-1798</code>); the summary adds <code>tx_amount/1</code>, the same rule (<code>:1490-1495</code>). The balance follows <code>Projection.effects/1</code>, which adds a buy's fees and taxes to quantity × price when no gross amount was stored (<code>buy_cost/1</code>, <code>projection.ex:338-346</code>; a sell subtracts them). A buy booked without a gross amount therefore reads less than the balance moves. That is the API's route (#1209) <b>and the drawer's own</b> for a same-currency trade: <code>SettlementForm.prepare(params, nil)</code> sends no <code>gross_amount</code> (found while drawing 1). A zero outflow prints „-0,00“. The frames show Test-Cash alone (one chip, so the Saldo column is on) and the picker's „Gebühren“ column; the 20 Wrenfield Gardens shares were bought through the drawer with a fee of 1,00. Both frames keep today's sign form, so only #1209 differs.</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — Betrag -964,00, der Saldo fällt um 965,00</span><iframe data-tpl="hist" data-o='{"set":"i1209","after1209":false}' data-m="i1209-today" title="#1209 heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — Betrag = Bewegung des Saldos; null ohne Vorzeichen</span><iframe data-tpl="hist" data-o='{"set":"i1209","after1209":true}' data-proposal data-m="i1209-after" title="#1209 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="hist" data-o='{"set":"i1209","after1209":false,"phone":true}' title="#1209 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="hist" data-o='{"set":"i1209","after1209":true,"phone":true}' data-proposal title="#1209 nachher, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <ul class="measured" id="m-1209"></ul>
+      <ul>
+        <li><b>The rule:</b> the Betrag is the cash leg of <code>Projection.effects/1</code> for the row's cash account, read through one exposed function, so the column, the summary and the balance cannot disagree again. A trade with a stored gross amount (row 3, cross-currency) reads as before.</li>
+        <li><b>The summary's basis line</b> named „gebuchte Bruttobeträge“; it now names the cash moved (strings below). The per-kind sums stay unsigned.</li>
+        <li><b>The zero:</b> „0,00“ with no sign, from either side — <code>Format.signed_decimal/2</code>'s rule, which N10 A uses anyway; without N10 the story strips the sign of a zero itself.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1213 ============================ -->
+<section class="mock-board" id="i1213">
+  <h2>#1213, the drawer's half — the amount's label names the account's currency <small>before / after · nothing to pick</small></h2>
+  <p class="mock-note desk-only"><b>Today</b> the notes-only drawer labels a cash kind's amount <code>gettext("Amount (%{currency})", currency: tx.currency_code)</code> (<code>:2127</code>; a transfer <code>:2084</code>). Since the ADR-0015 amendment of 2026-10-07 a booking's cash, fees and taxes are in its cash account's currency, while <code>currency_code</code> is the booking's. A dividend of the USD security Arbolia Inc., credited 80,00 EUR to Test-Cash with its rate stored, reads „Betrag (USD) 80,00“, while the history row reads „80,00 EUR“ and Income EUR 80. Its withheld taxes name no currency. <b>After:</b> the label names the cash account's currency, the history's <code>money_currency/1</code> rule, and the taxes take the same suffix. Under N12 A a one-amount booking in its account's currency opens the editable form, which carries the same two labels (its edit frame above); this one, booked in USD over the API with a stored rate, keeps the notes-only drawer (the board's found while drawing 3), so the label rule is needed here. A transfer's and a balance snapshot's <code>currency_code</code> is their account's, so their labels read the same before and after.</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — „Betrag (USD)“</span><iframe data-tpl="sheet" data-o='{"drawer":"notes-div","after1213":false,"inline":true}' data-m="i1213-today" title="#1213 heute"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — „Betrag (EUR)“, „Steuern (EUR)“</span><iframe data-tpl="sheet" data-o='{"drawer":"notes-div","after1213":true,"inline":true}' data-proposal data-m="i1213-after" title="#1213 nachher"></iframe></div>
+    <div class="notes desk-only">
+      <p>Drawn as the drawer's panel alone (the same dialog at every width; under 720&nbsp;px it is the bottom sheet). The Trades tab's half of #1213 — gross, fees, taxes and the desktop result cell — is board 09's (N9).</p>
+      <ul class="measured" id="m-1213"></ul>
+    </div>
+  </div>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc) from
+   the live markup of transaction_management_live.ex and AppShell, German
+   labels from priv/gettext/de/LC_MESSAGES/default.po and errors.po.
+   Synthetic data only. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', location.href).href;
+const P = {
+  bars: '<path d="M4 4h16M4 12h16M4 20h16"/>',
+  upload: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 19h14"/>',
+  filter: '<path d="M3 5h18l-7 9v6l-4-2v-4Z"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  columns: '<rect x="3" y="4" width="6" height="16" rx="1"/><rect x="11" y="4" width="6" height="16" rx="1"/><rect x="19" y="4" width="2" height="16" rx="1"/>',
+  kebab: '<circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  chev: '<path d="m9 6 6 6-6 6"/>',
+  down: '<path d="m6 9 6 6 6-6"/>',
+  ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>',
+  tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+  oct: '<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>',
+  edit: '<path d="M4 20h4l10-10-4-4L4 16Z"/>',
+  trash: '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7"/><path d="M10 11v7M14 11v7"/>'
+};
+const svg = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+const nw = (on) => (on ? ' is-new' : '');
+const bdi = (s) => `<bdi>${s}</bdi>`;
+
+/* AppShell.data_note */
+function note(sev, body, attrs = '', isNew = false) {
+  const glyph = { note: 'ast', attention: 'tri', problem: 'oct' }[sev];
+  const word = { note: 'Hinweis', attention: 'Achtung', problem: 'Problem' }[sev];
+  return `<div class="data-note data-note--${sev}${nw(isNew)}"${attrs}><span class="data-note__icon" aria-hidden="true">${svg(glyph, 14)}</span><span class="data-note__word">${word}</span><div class="data-note__body">${body}</div></div>`;
+}
+/* AppShell.inline_result, the page slot */
+function result(r) {
+  const n = (sev) => (r && r[0] === sev ? note(sev, `${r[1]}<button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button>`) : '');
+  return `<div id="transactions-result" class="inline-result inline-result--page" data-role="action-result"><div id="transactions-result-status" role="status" class="inline-result__region">\n${n('note')}\n</div><div id="transactions-result-alert" role="alert" class="inline-result__region">\n${n('problem')}\n</div></div>`;
+}
+function areaTabs() {
+  const t = [['Historie', 'bars', true], ['Import', 'upload']];
+  return `<nav id="area-tabs" class="area-tabs" data-role="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs">${t.map(([l, i, on]) => `<a class="area-tab${on ? ' is-active' : ''}"${on ? ' aria-current="page"' : ''}><span class="area-tab__icon" aria-hidden="true">${svg(i, 14)}</span><span class="area-tab__label" data-label="${l}">${l}</span></a>`).join('')}</nav>`;
+}
+function sectionHead(o = {}) {
+  const rec = o.menuB
+    ? `<button type="button" id="open-booking" class="button-primary" aria-haspopup="menu" aria-expanded="true">${svg('plus', 14)} Transaktion erfassen ${svg('down', 14)}</button>`
+    : `<button type="button" id="open-booking" class="button-primary" aria-haspopup="dialog" aria-expanded="${o.drawer ? 'true' : 'false'}">${svg('plus', 14)} Transaktion erfassen</button>`;
+  return `<header class="section-head"><h2 id="transaction-history-heading" tabindex="-1">Transaktionshistorie</h2><div class="section-head-controls"><button type="button" id="transaction-filter-sheet-toggle" class="filter-sheet-toggle" aria-haspopup="dialog" aria-expanded="false">${svg('filter')} Filter${o.chip ? ' <span class="badge">1</span>' : ''}</button>${rec}</div></header>`;
+}
+function chips(active) {
+  const acc = ['Test-Cash', 'Tagesgeld', 'USD-Konto'];
+  const types = ['Kauf', 'Verkauf', 'Dividende', 'Einlage', 'Gebühren', 'Steuererstattung', 'Umbuchung'];
+  const chip = (l) => `<button type="button" class="filter-chip${l === active ? ' is-active' : ''}" aria-pressed="${l === active}">${l}</button>`;
+  return `<div id="transaction-chips" class="filter-chips" role="group" aria-label="Historie filtern"><span><span class="filter-chips__family">Konto</span>${acc.map(chip).join('')}</span><span><span class="filter-chips__family">Typ</span>${types.map(chip).join('')}</span></div>`;
+}
+const elide = (t) => `<p class="summary-basis" style="font-style:italic">… ${t} …</p>`;
+function summary(entries, total, basisNew) {
+  const basis = basisNew
+    ? '<span class="is-new">Anzahl und bewegtes Geld je Art der Transaktionen, die dieser Filter auswählt — je Währung summiert, ohne Vorzeichen und nicht umgerechnet.</span>'
+    : 'Anzahl und gebuchte Bruttobeträge der Transaktionen, die dieser Filter auswählt — je Währung summiert und nicht umgerechnet.';
+  return `<div id="transaction-summary" class="transaction-summary" role="status"><span class="summary-total"><strong data-role="summary-total">${total}</strong>\nTransaktionen</span>${entries.map(([k, c, a, cur, isNew]) => `<span class="summary-type">${k}:\n<strong data-role="summary-count">${c}</strong>\n· <span class="currency-total${nw(isNew)}" data-role="sum-${k}">${a}\n<small>${cur}</small></span></span>`).join('')}<p class="summary-basis" data-role="summary-basis">${basis}</p></div>`;
+}
+const columnBar = () => `<div class="column-picker-bar popover-container"><button type="button" id="tx-column-toggle" class="button-ghost column-picker-toggle" aria-haspopup="dialog" aria-expanded="false">${svg('columns', 14)} Spalten</button></div>`;
+const kebab = (r, id) => `<button type="button"${id ? ` id="${id}"` : ''} class="row-actions__kebab" aria-label="Aktionen für ${r.k}, ${r.sec || r.acctPlain || r.acct}, ${r.d}" aria-haspopup="menu" aria-expanded="false">${svg('kebab')}</button>`;
+
+/* ---------------------------------------------------------------- data */
+/* dir: -1 out, 1 in; level: a set balance; zero: an outflow of 0,00.
+   pcur: the booking's currency (the price's); cur: the amount's (the
+   account's). bal: the running balance after the row (one chip only). */
+const SETS = {
+  n10: { months: [
+    ['Oktober 2026', [
+      { d: '08.10.2026', k: 'Steuererstattung', acct: 'Test-Cash', amt: '12,40', cur: 'EUR', dir: 1 },
+      { d: '07.10.2026', k: 'Kauf', sec: 'Larkspur Rail AG', acct: 'Test-Cash', qty: '12', price: '0,00', pcur: 'EUR', amt: '0,00', cur: 'EUR', dir: -1, zero: true },
+      { d: '06.10.2026', k: 'Dividende', sec: 'Arbolia Inc.', acct: 'Test-Cash', amt: '12,50', cur: 'EUR', dir: 1 },
+      { d: '05.10.2026', k: 'Gebühren', acct: 'Test-Cash', amt: '4,90', cur: 'EUR', dir: -1 },
+      { d: '02.10.2026', k: 'Kauf', sec: 'Wrenfield Gardens AG', acct: 'Test-Cash', qty: '20', price: '48,20', pcur: 'EUR', amt: '964,90', cur: 'EUR', dir: -1 },
+      { d: '01.10.2026', k: 'Verkauf', sec: 'Larkspur Rail AG', acct: 'Test-Cash', qty: '10', price: '41,25', pcur: 'EUR', amt: '402,60', cur: 'EUR', dir: 1 },
+      { d: '01.10.2026', k: 'Umbuchung', acct: `${bdi('Test-Cash')} → ${bdi('Tagesgeld')}`, acctPlain: 'Test-Cash → Tagesgeld', amt: '200,00', cur: 'EUR', dir: -1 },
+      { d: '01.10.2026', k: 'Einlage', acct: 'Test-Cash', amt: '1.500,00', cur: 'EUR', dir: 1 }
+    ]],
+    ['September 2026', [
+      { d: '30.09.2026', k: 'Saldo gesetzt', acct: 'Tagesgeld', amt: '3.250,00', cur: 'EUR', dir: 0, level: true }
+    ]]
+  ] },
+  n11: { months: [
+    ['Oktober 2026', [
+      { d: '08.10.2026', k: 'Kauf', sec: 'Arbolia Inc.', acct: 'Test-Cash', qty: '8', price: '100,00', pcur: 'USD', amt: '806,00', cur: 'EUR', dir: -1 },
+      { d: '06.10.2026', k: 'Kauf', sec: 'Wrenfield Gardens AG', acct: 'Test-Cash', qty: '20', price: '48,20', pcur: 'EUR', amt: '964,90', cur: 'EUR', dir: -1 },
+      { d: '05.10.2026', k: 'Dividende', sec: 'Arbolia Inc.', acct: 'Test-Cash', pcur: 'USD', amt: '80,00', cur: 'EUR', dir: 1 },
+      { d: '03.10.2026', k: 'Kauf', sec: 'Arbolia Inc.', acct: 'Test-Cash', qty: '5', price: '88,10', pcur: 'EUR', amt: '440,50', cur: 'EUR', dir: -1 },
+      { d: '01.10.2026', k: 'Verkauf', sec: 'Arbolia Inc.', acct: 'USD-Konto', qty: '10', price: '61,40', pcur: 'USD', amt: '609,10', cur: 'USD', dir: 1 }
+    ]]
+  ] },
+  i1209: { chip: 'Test-Cash', balance: true, fees: true, months: [
+    ['Oktober 2026', [
+      { d: '08.10.2026', k: 'Kauf', sec: 'Wrenfield Gardens AG', acct: 'Test-Cash', qty: '20', price: '48,20', pcur: 'EUR', amt: '964,00', amtAfter: '965,00', fees: '1,00', cur: 'EUR', dir: -1, bal: '2.764,50' },
+      { d: '06.10.2026', k: 'Kauf', sec: 'Larkspur Rail AG', acct: 'Test-Cash', qty: '12', price: '0,00', pcur: 'EUR', amt: '0,00', fees: '0,00', cur: 'EUR', dir: -1, zero: true, bal: '3.729,50' },
+      { d: '03.10.2026', k: 'Kauf', sec: 'Arbolia Inc.', acct: 'Test-Cash', qty: '8', price: '100,00', pcur: 'USD', amt: '806,00', fees: '5,00', cur: 'EUR', dir: -1, bal: '3.729,50' },
+      { d: '01.10.2026', k: 'Einlage', acct: 'Test-Cash', amt: '1.500,00', fees: '0,00', cur: 'EUR', dir: 1, bal: '4.535,50' }
+    ]]
+  ] }
+};
+/* C: Test-Cash alone, the running balance after each row. */
+SETS.n10c = { chip: 'Test-Cash', balance: true, months: [[SETS.n10.months[0][0], SETS.n10.months[0][1].map((r, i) => Object.assign({}, r, { bal: ['4.757,70', '4.745,30', '4.745,30', '4.732,80', '4.737,70', '5.702,60', '5.300,00', '5.500,00'][i], mv: [1, 0, 1, -1, -1, 1, -1, 1][i] }))]] };
+
+/* ------------------------------------------------------- the amount */
+function amtText(r, o) {
+  const mode = o.sign || 'today';
+  let a = r.amt;
+  if (o.after1209 && r.amtAfter) a = r.amtAfter;
+  if (r.level) return a;
+  if (r.zero) return (mode === 'today' && !o.after1209) ? '-0,00' : '0,00';
+  if (mode === 'A' || mode === 'B') return (r.dir < 0 ? '-' : '+') + a;
+  return (r.dir < 0 ? '-' : '') + a;
+}
+function amtNew(r, o) {
+  const mode = o.sign || 'today';
+  if (o.after1209) return !!(r.amtAfter || r.zero);
+  if (mode === 'A' || mode === 'B') return !r.level && (r.dir > 0 || r.zero);
+  return false;
+}
+function amtCls(r, o) {
+  if (o.sign === 'B' && !r.level && !r.zero) return r.dir < 0 ? 'is-negative' : 'is-positive';
+  return '';
+}
+function balCls(r, o) {
+  if (o.sign !== 'C' || r.mv === undefined || r.mv === 0) return '';
+  return r.mv < 0 ? 'is-negative' : 'is-positive';
+}
+/* ---------------------------------------------------------- the price */
+function priceHtml(r, o) {
+  if (!r.price) return '—';
+  const m = o.price || 'today';
+  const suf = (m === 'A' || (m === 'B' && r.pcur !== r.cur));
+  return suf ? `${r.price}<small class="value-suffix is-new">${r.pcur}</small>` : r.price;
+}
+function sizeText(r, o) {
+  if (!r.qty) return null;
+  if (!r.price) return `${r.qty} Stück`;
+  const m = o.price || 'today';
+  const suf = (m === 'A' || (m === 'B' && r.pcur !== r.cur));
+  return suf ? `${r.qty} × ${r.price} <span class="is-new">${r.pcur}</span>` : `${r.qty} × ${r.price}`;
+}
+
+function deskTable(set, o) {
+  const cols = [['Datum'], ['Typ'], ['Wertpapier'], ['Konto'], ['Stückzahl', 'num'], ['Preis', 'num'], ['Betrag', 'num']];
+  if (set.fees) cols.push(['Gebühren', 'num']);
+  if (o.price === 'C') cols.push(['<span class="is-new">Währung</span>']);
+  const n = cols.length + (set.balance ? 2 : 1);
+  const th = cols.map(([l, c]) => `<th${c ? ` class="${c}"` : ''}>${l}</th>`).join('') + (set.balance ? '<th class="num col-subject">Saldo\n<small>EUR</small></th>' : '') + '<th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th>';
+  let i = 0;
+  const body = set.months.map(([month, rows]) => `<tr class="tx-group-head"><th colspan="${n}" scope="colgroup"><span class="tx-group-month">${month}</span><span class="tx-group-subtotal">${rows.length} ${rows.length === 1 ? 'Transaktion' : 'Transaktionen'}</span></th></tr>` + rows.map((r) => {
+    i += 1;
+    const cls = ['num', amtCls(r, o), amtNew(r, o) ? 'is-new' : ''].filter(Boolean).join(' ');
+    return `<tr data-transaction="${i}"><td class="cell-date">${r.d}</td><td class="cell-kind">${r.k}</td><td class="cell-name">${r.sec || ''}</td><td class="cell-name" data-role="account">${r.acct}</td><td class="num">${r.qty || ''}</td><td class="num" data-role="price">${priceHtml(r, o)}</td><td class="${cls}" data-role="amount">${amtText(r, o)}<small class="value-suffix">${r.cur}</small></td>${set.fees ? `<td class="num">${r.fees || '0,00'}</td>` : ''}${o.price === 'C' ? `<td class="is-new">${r.pcur || r.cur}</td>` : ''}${set.balance ? `<td class="num col-subject ${balCls(r, o)}${o.sign === 'C' && balCls(r, o) ? ' is-new' : ''}" data-role="running-balance">${r.bal}</td>` : ''}<td class="row-actions">${kebab(r)}</td></tr>`;
+  }).join('')).join('');
+  return `<div id="transaction-table-wrapper" class="data-table-wrapper"><table id="transaction-list"><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table></div>`;
+}
+function phoneRows(set, o) {
+  const li = set.months.map(([month, rows]) => `<li class="phone-rows__group"><span class="tx-group-month">${month}</span><span class="tx-group-subtotal">${rows.length} ${rows.length === 1 ? 'Transaktion' : 'Transaktionen'}</span></li>` + rows.map((r) => {
+    const size = sizeText(r, o);
+    const cls = ['phone-row__figure', amtCls(r, o), amtNew(r, o) ? 'is-new' : ''].filter(Boolean).join(' ');
+    const bal = set.balance ? `<span class="phone-row__figure2 ${balCls(r, o)}${o.sign === 'C' && balCls(r, o) ? ' is-new' : ''}" data-role="running-balance">Saldo ${r.bal}<small class="value-suffix">EUR</small></span>` : '';
+    return `<li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">${r.d} · ${r.k}</span><span class="phone-row__ids"><span>${r.sec || r.acct}</span></span></span><span class="phone-row__figures"><span class="${cls}" data-role="phone-amount">${amtText(r, o)} ${r.cur}</span>${size ? `<span class="phone-row__figure2" data-role="phone-size">${size}</span>` : ''}${bal}</span>${kebab(r)}</li>`;
+  }).join('')).join('');
+  return `<ul id="transaction-phone-rows" class="phone-rows" aria-label="Transaktionen">${li}</ul>`;
+}
+
+/* ---------------------------------------------------------- the history */
+function hist(o) {
+  const set = SETS[o.set];
+  let top;
+  if (o.set === 'i1209') {
+    const kauf = o.after1209 ? '1.771,00' : '1.770,00';
+    top = chips('Test-Cash') + summary([['Kauf', 3, kauf, 'EUR', o.after1209], ['Einlage', 1, '1.500,00', 'EUR']], 4, o.after1209);
+  } else if (set.chip) {
+    top = chips(set.chip) + elide('Zusammenfassung wie heute, hier ausgelassen');
+  } else {
+    top = elide('Chips, Weitere Filter und Zusammenfassung wie heute, hier ausgelassen');
+  }
+  return `<main class="app-main app-main--workspace"><div id="transactions-workspace" class="workspace-page">${areaTabs()}${result(null)}<div class="transactions-columns"><section id="transaction-list-panel" class="workspace-section">${sectionHead({ chip: set.chip })}${top}${columnBar()}${deskTable(set, o)}${phoneRows(set, o)}</section></div></div></main>`;
+}
+
+/* ------------------------------------------------------- the drawer */
+const ACCOUNTS = ['Test-Cash (EUR)', 'Tagesgeld (EUR)', 'USD-Konto (USD)'];
+const field = (label, control, o = {}) => `<label${o.cls ? ` class="${o.cls}"` : ''}><span>${label}</span>${control}${o.after || ''}</label>`;
+const sel = (name, value, o = {}) => `<select name="${name}"${o.disabled ? ' disabled' : ''}${o.isNew ? ' class="is-new"' : ''}><option selected>${value}</option></select>`;
+const inp = (name, value, o = {}) => `<input type="text" name="${name}" value="${value}"${o.num ? ' class="num' + (o.isNew ? ' is-new' : '') + '"' : (o.isNew ? ' class="is-new"' : '')}${o.ph ? ` placeholder="${o.ph}"` : ''}${o.disabled ? ' disabled' : ''}${o.invalid ? ` aria-invalid="true" aria-describedby="tx-error-${o.invalid}"` : ''}${o.num ? ' inputmode="decimal"' : ''}>`;
+function drawerShell(title, sub, body, o = {}) {
+  return `<dialog id="booking-drawer" class="detail-pane booking-drawer"${o.modal ? ' data-mock-modal' : ' open'} aria-labelledby="booking-drawer-title"><header class="detail-pane-head"><div class="detail-pane-head__title"><div><h2 id="booking-drawer-title">${title}</h2><p class="detail-pane-sub">${sub}</p></div></div><div class="detail-pane-head__actions"><button type="button" class="icon-button" aria-label="Schließen">${svg('x')}</button></div></header>${body}</dialog>`;
+}
+function tradeDrawer(o) {
+  const body = `<form id="transaction-form"><div class="form-grid">${field('Typ', sel('transaction[type]', 'Kauf'))}${field('Datum', inp('transaction[date]', '2026-10-08', { ph: 'YYYY-MM-DD' }))}${field('Bucht auf Depot', sel('transaction[securities_account_id]', 'Depot Muster — Test-Cash (EUR)'))}${field('Wertpapier', sel('transaction[security_id]', 'Wertpapier auswählen'))}${field('Stückzahl', inp('transaction[quantity]', '', { num: true }))}${field('Preis', inp('transaction[price]', '', { num: true }))}</div><p class="form-help" data-role="derived-currency">Währung: EUR</p><details id="transaction-costs" class="transaction-costs"><summary class="disclosure-summary">${svg('chev', 12)} Kosten und Notiz</summary></details><div class="booking-drawer__foot"><button type="submit" class="button-primary">Transaktion erfassen</button><button type="button" id="booking-cancel" class="button-ghost">Abbrechen</button></div></form>`;
+  return drawerShell('Transaktion erfassen', 'Bucht gegen das gewählte Depot; das Geld bewegt sich in der Währung seines Geldkontos.', body, o);
+}
+function notesDrawer(o) {
+  const fee = o.drawer === 'notes-fee';
+  const facts = fee
+    ? field('Typ', sel('note[type]', 'Gebühren', { disabled: true })) + field('Datum', inp('note[date]', '2026-10-05', { disabled: true })) + field('Verrechnungskonto', sel('note[cash_account_id]', 'Test-Cash', { disabled: true })) + field('Betrag (EUR)', inp('note[gross_amount]', '4,90', { num: true, disabled: true }))
+    : field('Typ', sel('note[type]', 'Dividende', { disabled: true })) + field('Datum', inp('note[date]', '2026-10-05', { disabled: true })) + field('Wertpapier', sel('note[security_id]', 'Arbolia Inc. (ARBO)', { disabled: true })) + field('Verrechnungskonto', sel('note[cash_account_id]', 'Test-Cash', { disabled: true })) +
+      field(o.after1213 ? '<span class="is-new" data-role="amount-label">Betrag (EUR)</span>' : '<span data-role="amount-label">Betrag (USD)</span>', inp('note[gross_amount]', '80,00', { num: true, disabled: true })) +
+      field(o.after1213 ? '<span class="is-new" data-role="taxes-label">Steuern (EUR)</span>' : '<span data-role="taxes-label">Steuern</span>', inp('note[taxes]', '12,00', { num: true, disabled: true }));
+  const kind = fee ? 'Gebühren' : 'Dividende';
+  const help = 'Datum, Beträge und Konten dieser Buchung stehen hier fest; die Oberfläche bucht nur Käufe und Verkäufe. Korrigiert wird die Buchung über API oder MCP, oder sie wird gelöscht und neu importiert.';
+  const body = `<form id="note-form"><div id="booking-facts" class="form-grid">${facts}</div><p id="booking-edit-help" class="form-help">${help} <button type="button" class="link-button">Löschen…</button></p><label><span>Notizen</span><textarea name="note[notes]"></textarea></label><div class="booking-drawer__foot"><button type="submit" class="button-primary">Notiz speichern</button><button type="button" id="booking-cancel" class="button-ghost">Abbrechen</button></div></form>`;
+  return drawerShell('Transaktion bearbeiten', `Die Art „${kind}“ bucht die Oberfläche nicht; hier ändert sich nur die Notiz, und das Journal hält die Änderung fest.`, body, o);
+}
+/* N12 A: the cash form. */
+function cashDrawer(o) {
+  const st = o.drawer;
+  const edit = st === 'edit';
+  const refused = st === 'refused';
+  const kind = edit ? 'Dividende' : refused ? 'Gebühren' : 'Steuererstattung';
+  const typ = field('Typ', sel('transaction[type]', kind, { disabled: edit, isNew: !edit }));
+  const date = field('Datum', inp('transaction[date]', edit ? '2026-10-05' : '2026-10-08', { ph: 'YYYY-MM-DD' }));
+  const acct = field('Verrechnungskonto', sel('transaction[cash_account_id]', 'Test-Cash (EUR)', { disabled: edit, isNew: true }));
+  const sec = edit
+    ? field('Wertpapier', sel('transaction[security_id]', 'Arbolia Inc. (ARBO)'))
+    : field('Wertpapier', sel('transaction[security_id]', 'Kein Wertpapier', { isNew: true }));
+  const amtVal = edit ? '80,00' : refused ? '-9,90' : '12,40';
+  const err = refused ? '<p id="tx-error-gross_amount" class="field-error" role="alert">muss größer als 0 sein</p>' : '';
+  const amount = field('<span class="is-new" data-role="amount-label">Betrag (EUR)</span>', inp('transaction[gross_amount]', amtVal, { num: true, invalid: refused ? 'gross_amount' : '' }), { after: err });
+  const taxes = edit ? field('<span data-role="taxes-label">Steuern (EUR)</span>', inp('transaction[taxes]', '12,00', { num: true })) : '';
+  const dir = refused ? 'Wird von <bdi>Test-Cash</bdi> abgebucht.' : 'Wird <bdi>Test-Cash</bdi> gutgeschrieben.';
+  const imported = edit ? note('attention', 'Diese Buchung stammt aus einem Import. Hier korrigiert, bleibt sie so: Ein erneuter Import derselben Datei bucht sie nicht noch einmal, und die Import-Korrektur nennt sie als von Hand bearbeitet.', ' data-role="booking-imported"', true) : '';
+  const frozen = edit ? `<p id="booking-edit-help" class="form-help is-new">Art und Verrechnungskonto einer gebuchten Transaktion stehen fest; eine Buchung der falschen Art oder auf dem falschen Konto wird gelöscht und neu erfasst. <button type="button" class="link-button">Löschen…</button></p>` : '';
+  const notes = `<label><span>Notizen</span><textarea name="transaction[notes]">${edit ? 'Quartalsdividende Q3' : ''}</textarea></label>`;
+  const body = `<form id="transaction-form">${imported}<div class="form-grid">${typ}${date}${acct}${sec}${amount}${taxes}</div><p class="form-help is-new" data-role="cash-direction">${dir}</p>${frozen}${notes}<div class="booking-drawer__foot"><button type="submit" class="button-primary">${edit ? 'Änderungen speichern' : 'Transaktion erfassen'}</button><button type="button" id="booking-cancel" class="button-ghost">Abbrechen</button></div></form>`;
+  const sub = edit
+    ? 'Korrigiert die Buchung an Ort und Stelle; die abgeleiteten Bestände folgen, und das Journal hält die Änderung fest.'
+    : '<span class="is-new">Bucht auf das gewählte Verrechnungskonto, in dessen Währung.</span>';
+  return drawerShell(edit ? 'Transaktion bearbeiten' : 'Transaktion erfassen', sub, body, o);
+}
+function drawerFor(o) {
+  if (o.drawer === 'trade') return tradeDrawer(o);
+  if (o.drawer && o.drawer.startsWith('notes')) return notesDrawer(o);
+  return cashDrawer(o);
+}
+/* A short history beside the drawer. */
+const SHORT = { months: [['Oktober 2026', SETS.n10.months[0][1].slice(0, 5)]] };
+function page(o) {
+  const r = o.drawer === 'refused' ? ['problem', 'Betrag muss größer als 0 sein'] : null;
+  const shortTable = deskTable(SHORT, { sign: 'today' }).replace('<table id="transaction-list">', '<table id="transaction-list" data-short>');
+  return `<main class="app-main app-main--workspace"><div id="transactions-workspace" class="workspace-page">${areaTabs()}${result(r)}<div class="transactions-columns transactions-columns--drawer"><section id="transaction-list-panel" class="workspace-section">${sectionHead({ drawer: true })}${elide('Chips und Zusammenfassung')}${shortTable}</section>${drawerFor(o)}</div></div></main>`;
+}
+/* The phone: the modal bottom sheet over the history (showModal). With
+   `inline`, the drawer's panel alone, for the #1213 labels. */
+function sheet(o) {
+  if (o.inline) return `<div class="inline-panel" style="padding:12px">${drawerFor(Object.assign({}, o, { inlinePanel: true }))}</div>`;
+  const r = o.drawer === 'refused' ? ['problem', 'Betrag muss größer als 0 sein'] : null;
+  return `<main class="app-main app-main--workspace"><div id="transactions-workspace" class="workspace-page">${areaTabs()}${result(r)}<div class="transactions-columns transactions-columns--drawer"><section id="transaction-list-panel" class="workspace-section">${sectionHead({ drawer: true })}${phoneRows(SHORT, { sign: 'today' })}</section>${drawerFor(Object.assign({}, o, { modal: true }))}</div></div></main>`;
+}
+/* The kind select, opened: a listbox of the same options. */
+function kinds(o) {
+  const today = ['Kauf', 'Verkauf'];
+  const a = ['Kauf', 'Verkauf', 'Dividende', 'Zinsen', 'Einlage', 'Entnahme', 'Gebühren', 'Steuern', 'Steuererstattung'];
+  const list = o.v === 'A' ? a : today;
+  return `<div style="padding:12px;display:grid;gap:6px"><label style="display:grid;gap:4px"><span>Typ</span><select size="${list.length}" style="height:auto">${list.map((k, i) => `<option${(o.v === 'A' ? k === 'Steuererstattung' : i === 0) ? ' selected' : ''}${o.v === 'A' && i > 1 ? ' class="is-new"' : ''}>${k}</option>`).join('')}</select></label></div>`;
+}
+/* N12 B: the menu, and one kind's dialog. */
+function menuB() {
+  const items = ['Kauf oder Verkauf…', 'Dividende…', 'Zinsen…', 'Einlage…', 'Entnahme…', 'Gebühren…', 'Steuern…', 'Steuererstattung…'];
+  const menu = `<div class="row-context-menu is-new" role="menu" aria-label="Transaktion erfassen" style="top:140px;right:36px;left:auto">${items.map((t, i) => `<button type="button" class="row-context-menu__item" role="menuitem"${i === 1 ? ' style="border-top:1px solid var(--color-border);border-radius:0"' : ''}>${t}</button>`).join('')}</div>`;
+  return `<main class="app-main app-main--workspace"><div id="transactions-workspace" class="workspace-page">${areaTabs()}${result(null)}<div class="transactions-columns"><section id="transaction-list-panel" class="workspace-section">${sectionHead({ menuB: true })}${elide('Chips und Zusammenfassung')}${deskTable(SHORT, { sign: 'today' })}</section></div></div></main>${menu}`;
+}
+function dialogB() {
+  const body = `<div class="modal-body"><form class="form-grid" style="grid-template-columns:minmax(0,1fr)">${field('Datum', inp('d', '2026-10-08', { ph: 'YYYY-MM-DD' }))}${field('Verrechnungskonto', sel('a', 'Test-Cash (EUR)'))}${field('Wertpapier', sel('s', 'Kein Wertpapier'))}${field('Betrag (EUR)', inp('g', '12,40', { num: true }))}${field('Notizen', '<textarea></textarea>')}</form></div><div class="modal-footer" style="padding:0 18px 18px"><button type="button" class="button-ghost">Abbrechen</button><button type="button" class="button-primary">Erfassen</button></div>`;
+  return `<main class="app-main app-main--workspace"><div class="workspace-page">${areaTabs()}<section class="workspace-section">${sectionHead({ menuB: false })}${elide('die Historie')}</section></div></main><dialog class="modal is-new" data-mock-modal aria-labelledby="b-title" style="max-width:460px"><header class="modal-head"><h2 id="b-title">Steuererstattung erfassen</h2><button type="button" class="icon-button" aria-label="Schließen">${svg('x')}</button></header>${body}</dialog>`;
+}
+/* N12 C: the row in edit. */
+function inlineC(o) {
+  const rows = SHORT.months[0][1];
+  if (o.phone) {
+    const li = rows.map((r) => {
+      const open = r.k === 'Dividende';
+      const base = `<li class="phone-row" data-role="phone-row"><span class="phone-row__body"><span class="phone-row__name">${r.d} · ${r.k}</span><span class="phone-row__ids"><span>${r.sec || r.acct}</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">${amtText(r, {})} ${r.cur}</span></span>${kebab(r)}</li>`;
+      if (!open) return base;
+      return base + `<li class="is-new" style="padding:10px 0 14px;border-top:0;list-style:none"><div class="form-grid" style="gap:10px">${field('Datum', inp('d', '2026-10-06'))}${field('Betrag (EUR)', inp('g', '12,50', { num: true }))}${field('Wertpapier', sel('s', 'Arbolia Inc. (ARBO)'))}</div><div class="booking-drawer__foot" style="margin-top:10px"><button type="button" class="button-primary">Speichern</button><button type="button" class="button-ghost">Abbrechen</button></div></li>`;
+    }).join('');
+    return `<main class="app-main app-main--workspace"><div class="workspace-page">${areaTabs()}<section class="workspace-section">${sectionHead({})}<ul id="transaction-phone-rows" class="phone-rows"><li class="phone-rows__group"><span class="tx-group-month">Oktober 2026</span><span class="tx-group-subtotal">5 Transaktionen</span></li>${li}</ul></section></div></main>`;
+  }
+  const head = '<th>Datum</th><th>Typ</th><th>Wertpapier</th><th>Konto</th><th class="num">Stückzahl</th><th class="num">Preis</th><th class="num">Betrag</th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th>';
+  const body = rows.map((r) => {
+    if (r.k !== 'Dividende') return `<tr><td class="cell-date">${r.d}</td><td class="cell-kind">${r.k}</td><td class="cell-name">${r.sec || ''}</td><td class="cell-name">${r.acct}</td><td class="num">${r.qty || ''}</td><td class="num">${r.price || '—'}</td><td class="num">${amtText(r, {})}<small class="value-suffix">${r.cur}</small></td><td class="row-actions">${kebab(r)}</td></tr>`;
+    return `<tr class="is-new" data-role="inline-edit"><td class="cell-date"><input type="text" value="2026-10-06" style="width:11ch"></td><td class="cell-kind">Dividende</td><td class="cell-name"><select style="width:100%;min-width:16ch"><option>Arbolia Inc. (ARBO)</option></select></td><td class="cell-name">Test-Cash</td><td class="num"></td><td class="num">—</td><td class="num"><input type="text" class="num" value="12,50" style="width:12ch"></td><td class="row-actions" style="white-space:nowrap"><button type="button" class="button-primary">Speichern</button> <button type="button" class="button-ghost">Abbrechen</button></td></tr>`;
+  }).join('');
+  return `<main class="app-main app-main--workspace"><div class="workspace-page">${areaTabs()}<div class="transactions-columns"><section id="transaction-list-panel" class="workspace-section">${sectionHead({})}${elide('Chips und Zusammenfassung')}<div id="transaction-table-wrapper" class="data-table-wrapper"><table id="transaction-list"><thead><tr>${head}</tr></thead><tbody><tr class="tx-group-head"><th colspan="8" scope="colgroup"><span class="tx-group-month">Oktober 2026</span><span class="tx-group-subtotal">5 Transaktionen</span></th></tr>${body}</tbody></table></div></section></div></div></main>`;
+}
+
+const TPL = { hist, page, sheet, kinds, menuB, dialogB, inlineC };
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .app-main,.workspace-page{min-height:0 !important;} .is-new{outline:2px dashed var(--color-accent);outline-offset:2px;border-radius:4px;} td.is-new,th.is-new,tr.is-new{outline-offset:-2px;border-radius:0;} .elide{margin:0;font-size:12px;color:#5a6577;font-style:italic;} html.screen,html.screen body{overflow:hidden;} option.is-new{outline:none;background:color-mix(in srgb,var(--color-accent) 12%,transparent);} small.value-suffix.is-new{outline-offset:1px;} .inline-panel dialog.booking-drawer{position:static;inset:auto;width:auto;max-height:none;margin:0;padding:var(--space-3);border:1px solid var(--color-border);border-radius:var(--radius-lg);box-shadow:var(--shadow-md);}</style>';
+/* Opens a phone sheet modally as the ModalDialog hook does under 720 px, then
+   gives the focus back so no ring is drawn that nobody asked for. */
+const OPEN = '<script>document.querySelectorAll("dialog[data-mock-modal]").forEach(function(d){d.showModal();});if(document.activeElement)document.activeElement.blur();<\/script>';
+
+let pending = 0;
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  const css = CSS_MOCK + ('proposal' in f.dataset ? document.getElementById('proposal').outerHTML : '');
+  const fixed = f.dataset.fixed;
+  pending++;
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument;
+    if (f.dataset.fit === 'drawer') {
+      /* The drawer is sticky and capped at the viewport (100vh minus the top
+         bar): the frame first gets a tall viewport, then the height the page
+         and the whole drawer need, so the drawer is drawn uncut. */
+      f.style.height = '1600px';
+      requestAnimationFrame(() => {
+        const d = doc.querySelector('#booking-drawer');
+        const main = doc.querySelector('.app-main');
+        const hh = Math.max(main.getBoundingClientRect().bottom, d.getBoundingClientRect().top + d.scrollHeight + 16);
+        f.style.height = Math.ceil(hh) + 'px';
+        if (--pending === 0) setTimeout(measure, 80);
+      });
+      return;
+    }
+    f.style.height = (fixed ? fixed : Math.ceil(doc.documentElement.scrollHeight)) + 'px';
+    if (--pending === 0) setTimeout(measure, 80);
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"${fixed ? ' class="screen"' : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}${OPEN}</body></html>`;
+}
+
+/* Board chrome: figures measured inside the frames. */
+function measure() {
+  const fr = (m) => document.querySelector(`iframe[data-m="${m}"]`);
+  const q = (m, s) => { const f = fr(m); return f && f.contentDocument.querySelector(s); };
+  const w = (m, s) => { const e = q(m, s); return e ? Math.round(e.getBoundingClientRect().width) : 0; };
+  const h = (m, s) => { const e = q(m, s); return e ? Math.round(e.getBoundingClientRect().height) : 0; };
+  const m12 = document.getElementById('m-n12');
+  if (m12 && fr('n12-A-new')) {
+    const tw = (m) => { const e = q(m, '#transaction-list'); return e ? e.scrollWidth : 0; };
+    const ww = (m) => { const e = q(m, '#transaction-table-wrapper'); return e ? e.clientWidth : 0; };
+    m12.innerHTML =
+      `<li><b>Drawer at 980&nbsp;px:</b> ${w('n12-A-new', '#booking-drawer')}&nbsp;px wide beside a ${w('n12-A-new', '#transaction-list-panel')}&nbsp;px history; „Betrag (EUR)“ ${w('n12-A-new', 'input[name="transaction[gross_amount]"]')}&nbsp;px on its own row (the proposal's rule); paired with Steuern in the edit frame ${w('n12-A-edit', 'input[name="transaction[gross_amount]"]')}&nbsp;px.</li>` +
+      `<li><b>Drawer heights at 980&nbsp;px:</b> today's trade ${h('n12-today-trade', '#booking-drawer')}&nbsp;px; A new ${h('n12-A-new', '#booking-drawer')}, refused ${h('n12-A-refused', '#booking-drawer')}, edit ${h('n12-A-edit', '#booking-drawer')}&nbsp;px. In a 1200 × 800 window the cap is 724&nbsp;px, so the edit state scrolls inside the drawer, as a buy with its costs open does today.</li>` +
+      `<li><b>Bottom sheet at 390 × 844:</b> new ${h('n12-A-new-ph', '#booking-drawer')}&nbsp;px, refused ${h('n12-A-refused-ph', '#booking-drawer')}&nbsp;px, edit ${h('n12-A-edit-ph', '#booking-drawer')}&nbsp;px — the 88&nbsp;vh cap (${Math.round(844 * 0.88)}&nbsp;px); the edit form needs ${(() => { const e = q('n12-A-edit-ph', '#booking-drawer'); return e ? e.scrollHeight : 0; })()}&nbsp;px, so „Änderungen speichern“ is reached by scrolling the sheet.</li>` +
+      `<li><b>C's row at 980&nbsp;px:</b> the date input ${(() => { const e = q('n12-C', 'tr[data-role=inline-edit] input'); return e ? `${e.clientWidth}&nbsp;px for ${e.scrollWidth}&nbsp;px of text` : ''; })()}, the security select ${w('n12-C', 'tr[data-role=inline-edit] select')}&nbsp;px, the actions column ${w('n12-C', 'tr[data-role=inline-edit] td:last-child')}&nbsp;px; the table ${tw('n12-C')}&nbsp;px in a ${ww('n12-C')}&nbsp;px wrapper.</li>` +
+      `<li><b>Beside the open drawer</b> (today and A alike) the history's table needs ${tw('n12-A-new')}&nbsp;px in a ${ww('n12-A-new')}&nbsp;px wrapper: Preis and Betrag scroll out of view (found while drawing 2).</li>`;
+  }
+  const m09 = document.getElementById('m-1209');
+  if (m09 && fr('i1209-today')) {
+    const amounts = (m) => [...fr(m).contentDocument.querySelectorAll('#transaction-list td[data-role="amount"]')].map((e) => e.firstChild.textContent.trim());
+    const num = (t) => Number(t.replace(/\./g, '').replace(',', '.'));
+    const sum = (m) => amounts(m).reduce((a, t) => a + num(t), 0).toFixed(2).replace('.', ',');
+    m09.innerHTML = `<li><b>Σ Betrag</b> of the four rows: ${sum('i1209-today')} today, ${sum('i1209-after')} after; the Saldo moves from 3.035,50 to 2.764,50, by -271,00.</li><li><b>„Kauf: 3“</b> reads ${q('i1209-today', '[data-role="sum-Kauf"]').textContent.replace(/\s+/g, ' ').trim()} today and ${q('i1209-after', '[data-role="sum-Kauf"]').textContent.replace(/\s+/g, ' ').trim()} after.</li>`;
+  }
+  const m13 = document.getElementById('m-1213');
+  if (m13 && fr('i1213-today')) {
+    m13.innerHTML = `<li><b>The label</b> „Betrag (USD)“ ${w('i1213-today', '[data-role="amount-label"]')}&nbsp;px, „Betrag (EUR)“ ${w('i1213-after', '[data-role="amount-label"]')}&nbsp;px; the panel is ${h('i1213-today', '#booking-drawer')}&nbsp;px tall in both.</li>`;
+  }
+}
+</script>
+</body>
+</html>

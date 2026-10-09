@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Shared Components and Copy</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- Board 08, Sprint 21 design pass (2026-10-09): shared components and copy.
+     Picks N13 (#1166, where the focus goes when an inline result is
+     dismissed) and N14 (#1155, a twin's identifier in a sentence);
+     before/afters: #1166's ring, #1155's tables, #1138 (dialog footers),
+     #1160 (an empty result slot takes no room), #1157 (progress labels in the
+     house form), #1191 (the former-name and ISIN-alias refusals in German).
+
+     THE PROPOSAL: the rules the Sprint 21 stories add to app.css. Everything
+     else in the frames is markup and classes that already ship: AppShell
+     (inline_result, data_note), securities_live.ex (the toolbar, the result
+     slot), transaction_management_live.ex (the history heading),
+     portfolio_accounts_live.ex (#accounts-result), snapshots_live.ex,
+     logo_override_dialog.ex, security_form_dialog.ex, portfolio_live.ex
+     (fx_sync_control, the allocation tables), income_live.ex,
+     dashboard_live.ex, contribution_table.ex, rename_dialog.ex,
+     merge_dialog.ex / merge_preview.ex and SecurityNames.twin_id/1. The
+     frames are srcdoc iframes, so a 390 px frame is a real 390 px viewport.
+     "Heute" frames render app.css as shipped; "Nachher" and variant frames
+     add this block. A focus ring is DRAWN (a frame cannot hold keyboard
+     focus in nine places at once): .ring-ua stands in for Chromium's own
+     `outline: auto 1px`, .ring-house for the 2 px accent ring at a 2 px
+     offset that the rule it names declares. -->
+<style id="proposal">
+  /* ① #1166: the dismiss draws the button family's ring (issue 1062's rule
+     ③), not Chromium's `auto 1px`. */
+  .inline-result__dismiss:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  /* ② N13 = A: when the control that produced the result is gone, the
+     focus falls back to the section's heading, which then takes
+     `tabindex="-1"` and the house ring, as #transaction-history-heading,
+     #soll-editor-heading and #classification-heading already do. One class
+     for the fallback headings the story names, landing below the sticky
+     top bar. */
+  .result-focus-fallback {
+    scroll-margin-top: calc(var(--topbar-height) + var(--space-3));
+  }
+
+  .result-focus-fallback:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* ③ #1138: a footer that is the dialog's own child, not inside its body,
+     takes the body's padding (the precedent of .confirm-delete-blocked,
+     app.css:2757, which this rule makes redundant). A band footer has its
+     own. */
+  .modal > .modal-footer:not(.modal-footer--band) {
+    padding: 0 18px 18px;
+  }
+
+  /* ④ #1160: the component asks for a result, not for an element that is
+     not :empty — its regions always hold whitespace. REPLACES app.css:6712
+     `.inline-result__region:not(:empty) { margin: 8px 0 }`; the first rule
+     below exists only because a board adds rules and cannot delete one. */
+  .inline-result__region:not(:empty) {
+    margin: 0;
+  }
+
+  .inline-result__region:has(> *) {
+    margin: 8px 0;
+  }
+
+  /* In a section's grid the empty slot leaves the flow (it stays in the
+     accessibility tree, a live region waiting for its result): the page
+     slot's rule (app.css:901) widened to every inline result. */
+  .workspace-section > .inline-result:not(:has(.inline-result__region > *)) {
+    position: absolute;
+  }
+
+  /* N14 (#1155) needs no CSS: the tables and the notes use the existing
+     `.twin-id` (app.css:11042). #1157 and #1191 are strings. */
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-board > p.mock-note { max-width: 118ch; }
+  .mock-frame { overflow: hidden; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul, .notes ol { margin: 0; }
+  .notes ul, .notes ol { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .half { width: 982px; max-width: 100%; flex: none; }
+  .half iframe { display: block; width: 980px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .consequence { margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--color-danger); background: var(--color-danger-soft); font-size: 12px; }
+  .measured { margin: 6px 0 0; padding: 8px 10px 8px 26px; border-left: 3px solid var(--color-accent); background: var(--color-accent-soft); font-size: 12px; }
+  .measured li { margin: 0 0 3px; }
+  table.copy { border-collapse: collapse; font-size: 12.5px; width: 100%; background: var(--color-bg-elevated); }
+  table.copy th, table.copy td { border: 1px solid var(--color-border); padding: 6px 8px; text-align: left; vertical-align: top; }
+  table.copy th { background: var(--color-bg-muted); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--mock-ink); }
+  table.copy td.old { background: color-mix(in srgb, var(--color-danger) 8%, transparent); }
+  table.copy td.new { background: color-mix(in srgb, var(--color-positive) 10%, transparent); }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap { padding-left: 12px; padding-right: 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph { width: 390px; }
+    table.copy { font-size: 12px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Board 08 — shared components and copy (Sprint 21, the UI batch γ).</b> Two picks: <b>N13</b> (#1166) where the focus goes when an inline result is dismissed — <b>A</b> the control that produced the result, else the section's heading (the Classifications precedent) · <b>B</b> the emptied slot · <b>C</b> always the heading, <span class="rec">recommended A</span> · <b>N14</b> (#1155) a twin security named in a note's sentence — <b>A</b> the <code>.twin-id</code> tag after the name, inside the sentence · <b>B</b> „(ISIN …)“ in brackets · <b>C</b> no identifier, <span class="rec">recommended A</span>. <b>Before/afters with nothing to pick:</b> #1166's ring (the dismiss draws the family's 2&nbsp;px accent ring) · #1155's tables (the „Twin names“ rule on the history, the Trades facet, Wealth's allocation and the Overview) · #1138 (a dialog's own footer takes the body's padding) · #1160 (an empty result slot takes no room) · #1157 (progress labels in the house form „Wird …“) · #1191 (the former-name and ISIN-alias refusals in German). A comment naming a pick and a letter on the planning PR changes it; silence adopts the recommendation. All names, identifiers and figures are invented. <b>Dashed = new; a solid ring is drawn focus.</b></div>
+<p class="phone-only phone-cap"><b>Board 08 at 390&nbsp;px.</b> Real 390-px viewports. Recommended: N13&nbsp;A, N14&nbsp;A. Focus is drawn as a ring. All data invented. The arguments are in the 1200-px render.</p>
+
+<!-- ============================ N13 — #1166 ============================ -->
+<section class="mock-board" id="n13">
+  <h2>N13 · #1166 — dismissing an inline result <small>AppShell.inline_result, on every page that answers an action in place</small></h2>
+  <p class="mock-note desk-only"><b>Today</b> the dismiss (<code>.inline-result__dismiss</code>, <code>app_shell.ex:506-514</code>) has no <code>:focus-visible</code> rule (<code>app.css:6729-6753</code>), so Chromium draws its own <code>auto 1px</code> ring; and its <code>phx-click</code> removes the note — and with it the focused button — so the focus falls to <code>&lt;body&gt;</code>: the next Tab starts again at the top of the page. Sprint 19's U5 put the component on four more pages (#1064). One page already answers the second half: Classifications' <code>dismiss_focus/1</code> (<code>classifications_live.ex:3221-3225</code>) gives the focus to the input the refusal named, else the plan editor's heading, else the tree's — „where the operator was editing“. The frames: the securities list after „Kurse aktualisieren“ answered „Kurse aktualisiert.“, and the history after a confirmed delete.</p>
+
+  <p class="cap">① Der Ring des „×“ <span style="text-transform:none;font-weight:500">— before / after</span></p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="half mock-frame mock-before desk-only"><span class="mock-tag">Heute — Chromiums „auto 1px“</span><iframe data-tpl="sec" data-o='{"result":"note","ring":"ua"}' data-fixed="205" data-m="n13-ring-today" title="Ring heute"></iframe></div>
+    <div class="half mock-frame mock-after desk-only"><span class="mock-tag">Nachher — 2 px Akzent, 2 px Abstand</span><iframe data-tpl="sec" data-o='{"result":"note","ring":"house"}' data-proposal data-fixed="205" data-m="n13-ring-after" title="Ring nachher"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="sec" data-o='{"result":"note","ring":"ua","phone":true}' title="Ring heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="sec" data-o='{"result":"note","ring":"house","phone":true}' data-proposal data-m="n13-ring-after-ph" title="Ring nachher, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>The rule is the button family's</b> (issue 1062, rule ③): <code>outline: 2px solid {colors.accent}; outline-offset: 2px</code>, the ring the toolbar's icon buttons beside it already draw. The note's own box does not clip it (<code>.data-note</code> sets no overflow); under a coarse pointer it wraps the 44&nbsp;px target H6.4 gave the button.</p>
+      <ul class="measured" id="m-ring"></ul>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">② Wohin der Fokus nach dem Schließen geht</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="half mock-frame mock-before desk-only"><span class="mock-tag">Heute — der Fokus fällt auf &lt;body&gt;</span><iframe data-tpl="sec" data-o='{"result":null,"top":true,"focus":"body"}' data-fixed="262" data-m="n13-today" title="Fokus heute"></iframe></div>
+    <div class="notes">
+      <p class="consequence"><b>The next Tab starts at the top of the page</b> — the sidebar, then the top bar, then the toolbar again. A screen reader announces nothing and reads from the document's start. The operator was one button away from where they had been.</p>
+    </div>
+  </div>
+  <p class="cap" style="margin-top:14px">Variante A <span class="rec">empfohlen</span> — die auslösende Schaltfläche, sonst die Überschrift des Abschnitts</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="half mock-frame mock-after desk-only"><span class="mock-tag">A — „Kurse aktualisieren“ steht noch: der Fokus kehrt dorthin zurück</span><iframe data-tpl="sec" data-o='{"result":null,"top":true,"focus":"trigger"}' data-proposal data-fixed="262" data-m="n13-A" title="A Auslöser"></iframe></div>
+    <div class="half mock-frame mock-after desk-only"><span class="mock-tag">A — nach dem Löschen ist die Zeile fort: die Überschrift</span><iframe data-tpl="hist" data-o='{"focus":"heading"}' data-proposal data-m="n13-A2" title="A Überschrift"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — 390 px</span><iframe data-tpl="sec" data-o='{"result":null,"top":true,"focus":"trigger","phone":true}' data-proposal title="A, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>Why A.</b> It returns the operator to where the action started — the same answer the page's dialogs give (the delete dialog's <code>data-focus-return</code>, else <code>data-focus-fallback</code>; WCAG 2.4.3), and the one Classifications already gives a dismiss. A keyboard user who synced the prices and read the answer is on „Kurse aktualisieren“ again, one Tab from the list.</p>
+      <ul>
+        <li><b>The trigger is known when the result is set:</b> the LiveView sets the result in the handler of the event that produced it, so the slot can carry its trigger's id (<code>focus_return</code>) and a fallback (<code>focus_fallback</code>, the section's heading) beside the result; the dismiss focuses the first that is on the page. Classifications' <code>dismiss_focus/1</code> becomes the general rule rather than a second one.</li>
+        <li><b>The fallback is a heading, not the page's top:</b> the history's <code>#transaction-history-heading</code> already takes the focus after a delete (issue 912), with the house ring. A page's heading that becomes a fallback takes <code>tabindex="-1"</code> and the class <code>.result-focus-fallback</code> (rule ②); a page without a section heading (Securities) falls back to its toolbar's first control, the search field.</li>
+        <li><b>A busy line has no dismiss</b>, and a result replaced by the next action keeps today's behaviour; only the ×'s own removal moves the focus.</li>
+      </ul>
+    </div>
+  </div>
+  <p class="cap" style="margin-top:14px">Variante B — der geleerte Ergebnis-Platz</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="half mock-frame mock-after desk-only"><span class="mock-tag vtag">B — der Ring um einen leeren Platz</span><iframe data-tpl="sec" data-o='{"result":null,"top":true,"focus":"slot"}' data-proposal data-fixed="262" data-m="n13-B" title="B Platz"></iframe></div>
+    <div class="notes">
+      <p><b>B</b> focuses the slot itself (<code>tabindex="-1"</code>, as <code>#securities-action-result</code> is already focusable for #920). It is the cheapest — one target per page, no trigger to remember. <b>Against it:</b> the slot is empty once the note is gone, so the ring draws around nothing (with #1160 it has no height at all), and a screen reader announces an empty group; the reader is not where they were, only near it.</p>
+    </div>
+  </div>
+  <p class="cap" style="margin-top:14px">Variante C — immer die Überschrift</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="half mock-frame mock-after desk-only"><span class="mock-tag vtag">C — die Wertpapierliste hat keine eigene: die Überschrift der Seite</span><iframe data-tpl="sec" data-o='{"result":null,"top":true,"focus":"h1"}' data-proposal data-fixed="262" data-m="n13-C" title="C Überschrift"></iframe></div>
+    <div class="notes">
+      <p><b>C</b> is predictable — the same place on every page — and matches the history after a delete. <b>Against it:</b> where the trigger still stands, C sends the operator away from it. The securities list has no section heading at all; its heading is the top bar's „Wertpapiere“, above the search and the chips (measured below). Three pages with a slot (Securities, Snapshots, the Quotes tab) would first need a heading to land on.</p>
+      <ul class="measured desk-only" id="m-focus"></ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ N14 — #1155 ============================ -->
+<section class="mock-board" id="n14">
+  <h2>N14 · #1155 — twin names: the tables, and a note's sentence <small>the history, the Trades facet, Wealth's allocation, the Overview; the notes that list names</small></h2>
+  <p class="mock-note desk-only">Two securities stored under one name — here „Arbolia Inc.“ twice, a duplicate awaiting a merge with the ISINs <code>DE000000000A</code> and <code>DE000000000B</code>. DESIGN.md → „Twin names“ (2026-10-07, J6.2 A) gives a row whose displayed name collides with another's a <code>.twin-id</code> tag after the name (ISIN, else WKN, else „Nr. …“; mono, 12&nbsp;px, muted; a hidden „ISIN“ for a screen reader), and names the surfaces it has not reached yet: the contribution's unvalued note, the allocation tree and its flat positions, the history, the trades, the Overview. Today <code>SecurityNames.put_twin_ids/2</code> runs for Wealth's Positions and the contribution table only. The security's own Trades tab lists one security, so it has no twins to tell apart and is not changed.</p>
+  <p class="cap">① Die Tabellen <span style="text-transform:none;font-weight:500">— before / after (the rule DESIGN.md already states)</span></p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="half mock-frame mock-before desk-only"><span class="mock-tag">Heute — vier Flächen, zweimal derselbe Name</span><iframe data-tpl="twins" data-o='{"after":false}' data-m="n14-t-today" title="Tabellen heute"></iframe></div>
+    <div class="half mock-frame mock-after desk-only"><span class="mock-tag">Nachher — die Kennung nach dem Namen</span><iframe data-tpl="twins" data-o='{"after":true}' data-proposal data-m="n14-t-after" title="Tabellen nachher"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="twins" data-o='{"after":false,"phone":true}' title="Tabellen heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="twins" data-o='{"after":true,"phone":true}' data-proposal data-m="n14-t-after-ph" title="Tabellen nachher, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <ul>
+        <li><b>One rule, one module:</b> each surface hands its rows to <code>SecurityNames.put_twin_ids/2</code> and renders <code>&lt;SecurityNames.twin_id tag={row.twin_id} /&gt;</code> after the name, in the name's own cell or <code>.phone-row__name</code> / <code>.attention-name</code>. The collision is decided over the surface's whole payload (DESIGN.md), so a card that shows five trades still tags a twin whose sibling is the sixth.</li>
+        <li><b>The history</b> decides over the loaded history, not the filtered rows, so a filter never makes a tag appear or vanish. The kebab's label already names a twin with its ISIN (<code>SecurityNames.label/2</code>); the cell now says what the label says.</li>
+        <li><b>The Overview and the facet</b> read <code>security_name</code> from payloads that carry the security's id; the ISIN is joined where the rows are built (<code>dashboard_live.ex</code>, <code>income_live.ex</code>), as Wealth's Positions does.</li>
+      </ul>
+      <ul class="measured" id="m-twins"></ul>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">② In einem Satz — Variante A <span class="rec">empfohlen</span>: das Kennzeichen <code style="text-transform:none">.twin-id</code> nach dem Namen</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dk mock-frame mock-after desk-only"><span class="mock-tag">A — drei Hinweise, die Namen aufzählen</span><iframe data-tpl="notes" data-o='{"v":"A"}' data-proposal data-m="n14-A" title="Hinweise A"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — 390 px</span><iframe data-tpl="notes" data-o='{"v":"A","phone":true}' data-proposal data-m="n14-A-ph" title="Hinweise A, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>Why A.</b> A name in a sentence is the same name as in the table, so it carries the same tag: one anatomy for the twin wherever it is named, and nothing new to learn. The tag is quieter than the sentence (mono, muted), so it reads as part of the name, not as a clause; a unique name stays bare, exactly as in the tables.</p>
+      <ul>
+        <li><b>The note decides over the names it lists</b> (and, where it names positions of a table, over that table's rows, as the contribution note does).</li>
+        <li><b>Cost:</b> a sentence that interpolates a joined string (<code>Enum.join(@stale_priced.names, ", ")</code>, the Overview's <code>%{securities}</code>) renders its list as markup instead: the msgid ends at the colon and the list follows it, the way the contribution note already renders <code>&lt;b&gt;name&lt;/b&gt; (detail)</code> per entry. The Overview's sentence, whose list sits mid-sentence, splits its msgid in two.</li>
+      </ul>
+    </div>
+  </div>
+  <p class="cap" style="margin-top:14px">Variante B — „(ISIN …)“ in Klammern</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dk mock-frame mock-after desk-only"><span class="mock-tag vtag">B</span><iframe data-tpl="notes" data-o='{"v":"B"}' data-proposal title="Hinweise B"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">B — 390 px</span><iframe data-tpl="notes" data-o='{"v":"B","phone":true}' data-proposal title="Hinweise B, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>B</b> keeps the sentence plain text — the identifier can travel inside the interpolated string, so no msgid changes. <b>Against it:</b> it is a second anatomy for the same fact; the contribution note's entries already carry a bracket („(12 Tage, kein Kurs gespeichert)“), so a twin there reads „Arbolia Inc. (ISIN DE000000000A) (12 Tage, …)“; and a twin without an ISIN needs „(WKN …)“ or „(Nr. …)“ words the tables never print.</p>
+    </div>
+  </div>
+  <p class="cap" style="margin-top:14px">Variante C — keine Kennung (heute)</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dk mock-frame mock-before desk-only"><span class="mock-tag vtag">C = heute</span><iframe data-tpl="notes" data-o='{"v":"C"}' title="Hinweise C"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag vtag">C — 390 px</span><iframe data-tpl="notes" data-o='{"v":"C","phone":true}' title="Hinweise C, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>C</b> leaves sentences alone: the tables tell the twins apart, and a note's link or the table below it lets the reader find which. <b>Against it:</b> „Arbolia Inc., Arbolia Inc.“ reads as a stutter or a bug; the contribution note's two entries differ only by their reasons, and the Overview's note has no table below it at all.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1138 ============================ -->
+<section class="mock-board" id="i1138">
+  <h2>#1138 — a dialog's own footer sits flush with its edge <small>before / after · the Manage-logo dialog</small></h2>
+  <p class="mock-note desk-only"><b>Today</b> <code>.modal-footer</code> sets flex, gap and a top margin but no padding (<code>app.css:2335-2340</code>). Inside a <code>.modal-body</code> the body's 18&nbsp;px pad it; the logo dialog's footer is the dialog's own child (<code>logo_override_dialog.ex:79</code>), so „Logo entfernen“ touches the dialog's right and bottom edges, and <code>dialog.modal { overflow-y: auto }</code> clips the part of its focus ring that falls outside. Issue 1062 already gave the buttons the accent ring, so the ring's colour is right; its edge is cut. The precedent is <code>.confirm-delete-blocked .modal-footer { padding: 0 18px 18px }</code> (<code>:2757</code>). Of the ten <code>.modal-footer</code> call sites, three are the dialog's own child (this one and the two „cannot delete“ dialogs, which have the precedent); the others sit inside a body or a form within it. A band footer (<code>.modal-footer--band</code>, the merge and delete dialogs) keeps its own. The ring on „Logo entfernen“ is drawn.</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="half mock-frame mock-before desk-only"><span class="mock-tag">Heute — bündig, der Ring abgeschnitten</span><iframe data-tpl="logo" data-o='{}' data-fixed="470" data-m="i1138-today" title="Logo-Dialog heute"></iframe></div>
+    <div class="half mock-frame mock-after desk-only"><span class="mock-tag">Nachher — 18 px wie der Körper</span><iframe data-tpl="logo" data-o='{}' data-proposal data-fixed="470" data-m="i1138-after" title="Logo-Dialog nachher"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="logo" data-o='{}' data-fixed="500" data-m="i1138-today-ph" title="Logo-Dialog heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="logo" data-o='{}' data-proposal data-fixed="500" data-m="i1138-after-ph" title="Logo-Dialog nachher, 390 px"></iframe></div>
+    <div class="notes desk-only"><ul class="measured" id="m-1138"></ul></div>
+  </div>
+</section>
+
+<!-- ============================ #1160 ============================ -->
+<section class="mock-board" id="i1160">
+  <h2>#1160 — an empty result slot takes room at rest <small>before / after · Accounts, Securities, Snapshots</small></h2>
+  <p class="mock-note desk-only"><b>Today</b> <code>AppShell.inline_result</code>'s two regions always hold whitespace (<code>app_shell.ex:471-491</code>), so <code>.inline-result__region:not(:empty) { margin: 8px 0 }</code> (<code>app.css:6712</code>) always matches: an empty slot is 8&nbsp;px tall, and inside a section's grid it is also a grid row, so Accounts (<code>#accounts-result</code> in <code>.workspace-section</code>, gap 16&nbsp;px) gets a second gap. Sprint 19's page slots (<code>.inline-result--page</code>) fixed it for their four pages; Accounts' own slot, Snapshots, Securities and the Quotes tab's release result keep it. <b>After</b>, the component's rule asks for a result (<code>:has(&gt; *)</code>), and the page slot's grid rule is widened to every inline result, so every slot looks as it did before any action until one answers. A result, when it comes, takes the same 8&nbsp;px margins as today. The tinted band marks the space between the block above the slot and the block below it.</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="half mock-frame mock-before desk-only"><span class="mock-tag">Heute — Konten &amp; Depots</span><iframe data-tpl="accounts" data-o='{}' data-m="i1160-acc-today" title="Konten heute"></iframe></div>
+    <div class="half mock-frame mock-after desk-only"><span class="mock-tag">Nachher</span><iframe data-tpl="accounts" data-o='{"after":true}' data-proposal data-m="i1160-acc-after" title="Konten nachher"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="half mock-frame mock-before desk-only"><span class="mock-tag">Heute — Wertpapiere</span><iframe data-tpl="sec" data-o='{"result":null,"band":true}' data-m="i1160-sec-today" title="Wertpapiere heute"></iframe></div>
+    <div class="half mock-frame mock-after desk-only"><span class="mock-tag">Nachher</span><iframe data-tpl="sec" data-o='{"result":null,"band":true,"after":true}' data-proposal data-m="i1160-sec-after" title="Wertpapiere nachher"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="half mock-frame mock-before desk-only"><span class="mock-tag">Heute — Snapshots</span><iframe data-tpl="snap" data-o='{}' data-m="i1160-snap-today" title="Snapshots heute"></iframe></div>
+    <div class="half mock-frame mock-after desk-only"><span class="mock-tag">Nachher</span><iframe data-tpl="snap" data-o='{"after":true}' data-proposal data-m="i1160-snap-after" title="Snapshots nachher"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — Konten, 390 px</span><iframe data-tpl="accounts" data-o='{"phone":true}' data-m="i1160-acc-today-ph" title="Konten heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="accounts" data-o='{"after":true,"phone":true}' data-proposal data-m="i1160-acc-after-ph" title="Konten nachher, 390 px"></iframe></div>
+    <div class="notes desk-only"><ul class="measured" id="m-1160"></ul>
+      <p>The release result on the Quotes tab (<code>#quotes-release-result</code>) takes the component rule too; it sits in the tab panel's flow, not a grid, so it loses its 8&nbsp;px (not drawn).</p></div>
+  </div>
+</section>
+
+<!-- ============================ #1157 ============================ -->
+<section class="mock-board" id="i1157">
+  <h2>#1157 — progress labels in the first person <small>before / after · three German strings, and two found while drawing</small></h2>
+  <p class="mock-note desk-only">EXPERIENCE.md → Voice and Tone: „Impersonal voice (owner rule 2026-07-23, binding)“. The house form for a running action is the impersonal passive — „Wird importiert…“, „Wird gebucht…“, „Wird korrigiert…“, „Wechselkurse werden synchronisiert…“. Three labels speak as a first person: „Suche…“ (the security dialog's search, <code>security_form_dialog.ex:250</code>; it also reads as the noun „Search“), „Suche Logo…“ (the logo lookup's busy line, <code>securities_live.ex:5385</code>) and „Synchronisiere…“ (Wealth's exchange-rate sync inside the missing-rate note, <code>portfolio_live.ex:4241, 4245</code>). <code>microcopy_voice_test.exs</code> does not catch them: its du-imperative pattern is lower-case for the verb inside a sentence and needs a space after a capitalised one.</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="half mock-frame mock-before desk-only"><span class="mock-tag">Heute</span><iframe data-tpl="copy" data-o='{"after":false}' data-m="i1157-today" title="Fortschritt heute"></iframe></div>
+    <div class="half mock-frame mock-after desk-only"><span class="mock-tag">Nachher</span><iframe data-tpl="copy" data-o='{"after":true}' data-m="i1157-after" title="Fortschritt nachher"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="copy" data-o='{"after":false,"phone":true}' title="Fortschritt heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="copy" data-o='{"after":true,"phone":true}' data-m="i1157-after-ph" title="Fortschritt nachher, 390 px"></iframe></div>
+    <div class="notes">
+      <table class="copy">
+        <tr><th>msgid</th><th>Heute</th><th>Nachher</th></tr>
+        <tr><td><code>Searching…</code></td><td class="old">Suche…</td><td class="new">Wird gesucht…</td></tr>
+        <tr><td><code>Looking up logo…</code></td><td class="old">Suche Logo…</td><td class="new">Logo wird gesucht…</td></tr>
+        <tr><td><code>Syncing…</code></td><td class="old">Synchronisiere…</td><td class="new">Wird synchronisiert…</td></tr>
+        <tr><td colspan="3" style="font-size:11px;color:var(--mock-ink)"><b>Found while drawing</b> — the same form, the same catalog:</td></tr>
+        <tr><td><code>Saving…</code> (Accounts, „Saldo setzen“, <code>phx-disable-with</code>)</td><td class="old">Speichern…</td><td class="new">Wird gespeichert…</td></tr>
+        <tr><td><code>Backfilling…</code> (Income, the rate backfill)</td><td class="old">Lädt nach…</td><td class="new">Wird nachgeladen…</td></tr>
+      </table>
+      <p class="desk-only">„Speichern…“ reads as a button that opens a dialog (the house ellipsis, „Löschen…“), not as work in progress. The invariant the story adds: every English progress label (a msgid whose first word ends in „-ing“ and which ends in „…“) has a German translation in the passive („wird“ / „werden“), so the next one is caught.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ #1191 ============================ -->
+<section class="mock-board" id="i1191">
+  <h2>#1191 — the former-name and ISIN-alias refusals print English on the German page <small>before / after · the rename dialog and the security merge dialog</small></h2>
+  <p class="mock-note desk-only"><b>Today</b> <code>PortfolixirWeb.NamedRecordRefusal.screen/1</code> (<code>named_record_refusal.ex:21-49</code>) swaps the domain's id-naming message for the sentence the screen showed before #965, the stored name in it — and the screens pass that sentence to <code>dgettext("errors", …)</code>, where it has no entry, so it prints in English. <b>The rename dialog:</b> renaming „Tagesgeld“ to „Tagesgeld Plus“ keeps „Tagesgeld“ as a former name, and the write refuses it because Verrechnungskonto #12 carries „Tagesgeld“ as a former name already; <code>changeset_error/1</code> (<code>rename_dialog.ex:363-370</code>) prints the message without its field, so the sentence starts with a verb. <b>The security merge dialog:</b> a refused write prints „(%{errors})“ inside the German sentence, the field as its raw key (<code>merge_dialog.ex:620-631</code>). After: the ten sentences go through gettext (<code>dgettext_noop("errors", …)</code> beside the map) with German msgstrs; both dialogs name the field by <code>FieldLabel.label/1</code>, as <code>FieldLabel.changeset_message/1</code> does on the Imports page.</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="half mock-frame mock-before desk-only"><span class="mock-tag">Heute — „Umbenennen“</span><iframe data-tpl="rename" data-o='{"after":false}' data-fixed="430" data-m="i1191-ren-today" title="Umbenennen heute"></iframe></div>
+    <div class="half mock-frame mock-after desk-only"><span class="mock-tag">Nachher</span><iframe data-tpl="rename" data-o='{"after":true}' data-fixed="430" data-m="i1191-ren-after" title="Umbenennen nachher"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="half mock-frame mock-before desk-only"><span class="mock-tag">Heute — „Zusammenführen“, Schritt 2</span><iframe data-tpl="merge" data-o='{"after":false}' data-fixed="400" data-m="i1191-mrg-today" title="Zusammenführen heute"></iframe></div>
+    <div class="half mock-frame mock-after desk-only"><span class="mock-tag">Nachher</span><iframe data-tpl="merge" data-o='{"after":true}' data-fixed="400" data-m="i1191-mrg-after" title="Zusammenführen nachher"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="rename" data-o='{"after":false}' data-fixed="520" title="Umbenennen heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="rename" data-o='{"after":true}' data-fixed="520" data-m="i1191-ren-after-ph" title="Umbenennen nachher, 390 px"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="merge" data-o='{"after":false}' data-fixed="560" title="Zusammenführen heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="merge" data-o='{"after":true}' data-fixed="560" data-m="i1191-mrg-after-ph" title="Zusammenführen nachher, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <ul>
+        <li><b>A record is named by kind and id</b> (ADR-0054), in the German the app already uses for one: „Transaktion #%{id}“ → „Verrechnungskonto #12“, „Depot #3“, „Wertpapier #31“. The stored name stays data inside „…“.</li>
+        <li><b>The remedy is the house infinitive</b>: „Zuerst aus den früheren Namen jenes Kontos entfernen“, „diesen Alias löschen oder stattdessen einen ISIN-Wechsel erfassen“.</li>
+        <li><b>The API and MCP keep their English</b>: <code>screen/1</code> runs only on the screen's path; the translation is a msgstr, not a new message.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc) from
+   the live markup named in the head comment, German labels from
+   priv/gettext/de/LC_MESSAGES/default.po and errors.po. Synthetic data. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', location.href).href;
+const IMG = new URL('../../../../../priv/static/images/', location.href).href;
+const P = {
+  bars: '<path d="M4 4h16M4 12h16M4 20h16"/>',
+  upload: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 19h14"/>',
+  filter: '<path d="M3 5h18l-7 9v6l-4-2v-4Z"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  columns: '<rect x="3" y="4" width="6" height="16" rx="1"/><rect x="11" y="4" width="6" height="16" rx="1"/><rect x="19" y="4" width="2" height="16" rx="1"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 4v5h-5"/>',
+  kebab: '<circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/>',
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>',
+  tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+  oct: '<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>',
+  layers: '<path d="m12 2 10 6-10 6L2 8Z"/><path d="m2 16 10 6 10-6"/><path d="m2 12 10 6 10-6"/>',
+  camera: '<rect x="3" y="6" width="18" height="14" rx="2"/><circle cx="12" cy="13" r="3.5"/><path d="M9 6l1.5-2h3L15 6"/>',
+  chart: '<path d="M3 17 9 11l4 4 8-8"/>',
+  monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'
+};
+const svg = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+const nw = (on) => (on ? ' is-new' : '');
+function note(sev, body, attrs = '', isNew = false) {
+  const glyph = { note: 'ast', attention: 'tri', problem: 'oct' }[sev];
+  const word = { note: 'Hinweis', attention: 'Achtung', problem: 'Problem' }[sev];
+  return `<div class="data-note data-note--${sev}${nw(isNew)}"${attrs}><span class="data-note__icon" aria-hidden="true">${svg(glyph, 14)}</span><span class="data-note__word">${word}</span><div class="data-note__body">${body}</div></div>`;
+}
+/* AppShell.inline_result: whitespace in both regions, as rendered. */
+function result(id, r, o = {}) {
+  const dismiss = `<button type="button" class="inline-result__dismiss${o.ring ? ' ring-' + o.ring : ''}" aria-label="Schließen" title="Schließen">&times;</button>`;
+  const status = r && (r[0] === 'note' || r[0] === 'attention') ? note(r[0], r[1] + dismiss) : r && r[0] === 'busy' ? `<span class="inline-result__busy"><span class="spinner" aria-hidden="true"></span>\n${r[1]}\n</span>` : '';
+  const alert = r && r[0] === 'problem' ? note('problem', r[1] + dismiss) : '';
+  return `<div id="${id}" class="inline-result${o.cls ? ' ' + o.cls : ''}${o.focusRing ? ' ring-house' : ''}" data-role="action-result"${o.focusable ? ' tabindex="-1"' : ''}${o.band ? ' data-band' : ''}>\n<div id="${id}-status" role="status" class="inline-result__region">\n${status}\n</div>\n<div id="${id}-alert" role="alert" class="inline-result__region">\n${alert}\n</div>\n</div>`;
+}
+function topbar(title, sub, ring) {
+  return `<header class="topbar"><label class="sidebar-toggle" aria-label="Navigation öffnen"><span class="burger-bars" aria-hidden="true"></span></label><div class="topbar-primary"><a class="topbar-brand" aria-label="Portfolixir"><span class="brand-logo" aria-hidden="true"><img class="topbar-mark brand-mark-light" src="${IMG}logo-mark-light.svg" alt=""><img class="topbar-mark brand-mark-dark" src="${IMG}logo-mark-dark.svg" alt=""></span><span>Portfolixir</span></a><div class="topbar-page" aria-live="polite"><h1${ring ? ' tabindex="-1" class="ring-house" style="border-radius:var(--radius-sm)"' : ''}>${title}</h1><p>${sub}</p></div></div><div class="topbar-controls" aria-label="Darstellung"><nav class="locale-switcher" aria-label="Sprache"><a class="locale-link">EN</a><a class="locale-link is-active" aria-current="true">DE</a></nav></div></header>`;
+}
+const elide = (t) => `<p class="elide">… ${t} …</p>`;
+const T1 = { name: 'Arbolia Inc.', isin: 'DE000000000A' };
+const T2 = { name: 'Arbolia Inc.', isin: 'DE000000000B' };
+const twin = (t, on, mark = true) => (on ? ` <span class="twin-id${mark ? ' is-new' : ''}"><span class="visually-hidden">ISIN</span> ${t.isin}</span>` : '');
+
+/* ----------------------------------------------- the securities list (N13, #1160) */
+function sec(o) {
+  const ringFor = (target) => (o.focus === target ? ' ring-house' : '');
+  const iconFocus = o.focus === 'trigger' ? ' sim-icon-focus' : '';
+  const toolbar = `<div class="toolbar" role="toolbar" aria-label="Wertpapier-Werkzeugleiste"><form class="search-field">${svg('search')}<input type="search" placeholder="Nach Name, ISIN, WKN oder Ticker suchen…" aria-label="Wertpapiere suchen"></form><button type="button" id="filter-sheet-toggle" class="filter-sheet-toggle">${svg('filter')} Filter</button><div class="toolbar-actions"><button type="button" id="open-new-dialog" class="icon-button" aria-label="Neu anlegen">${svg('plus')}</button><button type="button" id="sync-prices" class="icon-button${iconFocus}${o.focus === 'trigger' ? ' ring-house' : ''}" aria-label="Kurse aktualisieren" title="Kurse aktualisieren">${svg('refresh')}</button><button type="button" id="toggle-column-popover" class="icon-button" aria-label="Spalten">${svg('columns')}</button></div></div>`;
+  const chips = `<div id="securities-filter-chips" class="filter-chips" role="group"><span><span class="filter-chips__family">Bestand</span><button type="button" class="filter-chip is-active" aria-pressed="true">Gehalten</button><button type="button" class="filter-chip">Alle</button></span><span><span class="filter-chips__family">Währung</span><button type="button" class="filter-chip">EUR</button><button type="button" class="filter-chip">USD</button></span></div>`;
+  const r = o.result === 'note' ? ['note', 'Kurse aktualisiert.'] : o.result === 'busy' ? ['busy', o.busyText] : null;
+  const slot = result('securities-action-result', r, { focusable: true, ring: o.ring, focusRing: o.focus === 'slot', band: o.band });
+  const table = `<div class="securities-workspace"><div id="securities-table" class="data-table-wrapper"><table class="data-table"><thead><tr><th>Name</th><th>ISIN</th><th class="num">Kurs</th></tr></thead><tbody><tr><td>Arbolia Inc.</td><td class="mono">DE000000000A</td><td class="num">61,40<small class="value-suffix">USD</small></td></tr><tr><td>Larkspur Rail AG</td><td class="mono">DE000000000L</td><td class="num">41,25<small class="value-suffix">EUR</small></td></tr></tbody></table></div><ul class="phone-rows"><li class="phone-row" style="grid-template-columns:minmax(0,1fr) auto"><span class="phone-row__body"><span class="phone-row__name">Arbolia Inc.</span><span class="phone-row__ids">DE000000000A</span></span><span class="phone-row__figures"><span class="phone-row__figure">61,40 USD</span></span></li><li class="phone-row" style="grid-template-columns:minmax(0,1fr) auto"><span class="phone-row__body"><span class="phone-row__name">Larkspur Rail AG</span><span class="phone-row__ids">DE000000000L</span></span><span class="phone-row__figures"><span class="phone-row__figure">41,25 EUR</span></span></li></ul></div>`;
+  const body = `<main class="app-main app-main--workspace"><section class="workspace-panel" id="securities-panel">${toolbar}${o.phone ? '' : chips}${slot}${table}</section></main>`;
+  const head = o.top ? topbar('Wertpapiere', 'Suchen, filtern und den Anlagekatalog pflegen.', o.focus === 'h1') : '';
+  return `${head}${body}${o.focus === 'body' ? '<div class="focus-flag">Fokus: &lt;body&gt;</div>' : ''}`;
+}
+/* the history after a confirmed delete: the row is gone, the heading takes
+   the focus (A's fallback; issue 912 already does this for the dialog). */
+function hist(o) {
+  const tabs = `<nav class="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs"><a class="area-tab is-active" aria-current="page"><span class="area-tab__icon" aria-hidden="true">${svg('bars', 14)}</span><span class="area-tab__label">Historie</span></a><a class="area-tab"><span class="area-tab__icon" aria-hidden="true">${svg('upload', 14)}</span><span class="area-tab__label">Import</span></a></nav>`;
+  return `<main class="app-main app-main--workspace"><div class="workspace-page">${tabs}${result('transactions-result', null, { cls: 'inline-result--page' })}<section id="transaction-list-panel" class="workspace-section"><header class="section-head"><h2 id="transaction-history-heading" tabindex="-1" class="ring-house" style="border-radius:var(--radius-sm)">Transaktionshistorie</h2><div class="section-head-controls"><button type="button" class="button-primary">${svg('plus', 14)} Transaktion erfassen</button></div></header>${elide('„Transaktion gelöscht: Kauf · Arbolia Inc. · 06.10.2026.“ geschlossen; die Historie ohne die Zeile')}</section></div></main>`;
+}
+
+/* ----------------------------------------------------------- N14: twins */
+function twins(o) {
+  const a = o.after;
+  const cap = (t) => `<p class="twin-cap">${t}</p>`;
+  const kebab = `<button type="button" class="row-actions__kebab" aria-label="Aktionen">${svg('kebab')}</button>`;
+  if (o.phone) {
+    const hist = `<ul class="phone-rows" style="display:block">${[[T1, '06.10.2026 · Kauf', '-964,90 EUR', '20 × 48,20'], [T2, '02.10.2026 · Kauf', '-440,50 EUR', '5 × 88,10']].map(([t, n, amt, size]) => `<li class="phone-row" style="grid-template-columns:minmax(0,1fr) auto auto"><span class="phone-row__body"><span class="phone-row__name">${n}</span><span class="phone-row__ids"><span>${t.name}${twin(t, a)}</span></span></span><span class="phone-row__figures"><span class="phone-row__figure">${amt}</span><span class="phone-row__figure2">${size}</span></span>${kebab}</li>`).join('')}</ul>`;
+    const trades = `<ul class="phone-rows" style="display:block">${[[T1, '+188,75 EUR', '12.03.2025 → 03.10.2026'], [T2, '-42,10 EUR', '20.05.2026 → 01.10.2026']].map(([t, r, d]) => `<li class="phone-row" style="grid-template-columns:minmax(0,1fr) auto"><span class="phone-row__body"><span class="phone-row__name">${t.name}${twin(t, a)}</span><span class="phone-row__ids">${d}</span></span><span class="phone-row__figures"><span class="phone-row__figure ${r[0] === '+' ? 'is-positive' : 'is-negative'}">${r}</span></span></li>`).join('')}</ul>`;
+    return `<div class="twin-wrap">${cap('Transaktionen → Historie')}${hist}${cap('Cashflow → Abgeschlossene Trades')}${trades}${cap('Vermögen → Allokation, flach')}${flat(a)}${cap('Übersicht → Abgeschlossene Trades')}${card(a)}</div>`;
+  }
+  const histT = `<div class="data-table-wrapper"><table id="transaction-list"><thead><tr><th>Datum</th><th>Typ</th><th>Wertpapier</th><th>Konto</th><th class="num">Betrag</th></tr></thead><tbody><tr><td class="cell-date">06.10.2026</td><td class="cell-kind">Kauf</td><td class="cell-name">${T1.name}${twin(T1, a)}</td><td class="cell-name">Test-Cash</td><td class="num">-964,90<small class="value-suffix">EUR</small></td></tr><tr><td class="cell-date">02.10.2026</td><td class="cell-kind">Kauf</td><td class="cell-name">${T2.name}${twin(T2, a)}</td><td class="cell-name">Test-Cash</td><td class="num">-440,50<small class="value-suffix">EUR</small></td></tr></tbody></table></div>`;
+  const tradesT = `<div class="data-table-wrapper"><table class="data-table"><thead><tr><th>Wertpapier</th><th>Gekauft → verkauft</th><th class="num">Haltedauer</th><th class="num col-subject">Ergebnis</th></tr></thead><tbody><tr><td><a>${T1.name}</a>${twin(T1, a)}</td><td>12.03.2025 → 03.10.2026</td><td class="num">570 Tage</td><td class="num col-subject is-positive">+188,75<small class="value-suffix">EUR</small></td></tr><tr><td><a>${T2.name}</a>${twin(T2, a)}</td><td>20.05.2026 → 01.10.2026</td><td class="num">134 Tage</td><td class="num col-subject is-negative">-42,10<small class="value-suffix">EUR</small></td></tr></tbody></table></div>`;
+  const tree = `<div class="data-table-wrapper"><table class="drift-table"><thead><tr><th>Kategorie</th><th class="num">Wert</th><th class="num">Ist</th></tr></thead><tbody><tr><td><span class="cat-swatch" style="background:#7c3aed" aria-hidden="true"></span> Aktien</td><td class="num">6.204,80</td><td class="num">62,0%</td></tr><tr class="is-position is-muted"><td style="padding-left:2rem">${T1.name}${twin(T1, a)}</td><td class="num">2.456,00</td><td class="num">24,5%</td></tr><tr class="is-position is-muted"><td style="padding-left:2rem">${T2.name}${twin(T2, a)}</td><td class="num">440,50</td><td class="num">4,4%</td></tr></tbody></table></div>`;
+  return `<div class="twin-wrap">${cap('Transaktionen → Historie')}${histT}${cap('Cashflow → Abgeschlossene Trades')}${tradesT}${cap('Vermögen → Allokation, Baum (die Positionen einer Kategorie) und flach')}${tree}${flat(a)}${cap('Übersicht → Abgeschlossene Trades')}${card(a)}</div>`;
+}
+function flat(a) {
+  return `<div class="data-table-wrapper"><table class="drift-table" data-role="flat-positions"><thead><tr><th>Wertpapier</th><th>Kategorie</th><th class="num">Wert</th><th class="num">Ist</th></tr></thead><tbody><tr><td>${T1.name}${twin(T1, a)}</td><td>Aktien</td><td class="num">2.456,00</td><td class="num">24,5%</td></tr><tr><td>${T2.name}${twin(T2, a)}</td><td>Aktien</td><td class="num">440,50</td><td class="num">4,4%</td></tr></tbody></table></div>`;
+}
+function card(a) {
+  return `<ul class="attention-list">${[[T1, 'verkauft 03.10.2026 · 570 Tage', '+188,75', '+12,1', 'p. a.'], [T2, 'verkauft 01.10.2026 · 134 Tage', '-42,10', '-8,7', 'gesamt']].map(([t, sub, r, p, w]) => `<li><a class="attention-item"><span class="attention-name">${t.name}${twin(t, a)}<small class="attention-item__sub">${sub}</small></span><span class="num"><span class="${r[0] === '+' ? 'is-positive' : 'is-negative'}">${r}</span><small class="value-suffix">EUR</small><small class="attention-item__sub"><span class="${p[0] === '+' ? 'is-positive' : 'is-negative'}">${p}%</span> ${w}</small></span></a></li>`).join('')}</ul>`;
+}
+/* ----------------------------------------------------- N14: the notes */
+function notes(o) {
+  const name = (t, bold = false) => {
+    const n = bold ? `<b>${t.name}</b>` : t.name;
+    if (o.v === 'A') return n + twin(t, true);
+    if (o.v === 'B') return `${n} <span class="is-new">(ISIN ${t.isin})</span>`;
+    return n;
+  };
+  const stale = note('attention', `<a href="#">2 gehaltene Positionen werden mit Kursen bewertet, die älter als 30 Tage sind; die Summen können daher veraltet sein — stilllegen, wenn die Notierungen endeten, oder die Kurse aktualisieren:</a> ${name(T1)}, ${name(T2)}`, ' data-role="dq-stale-quote"');
+  const contrib = note('attention', `2 Positionen zählten an einigen Tagen des Zeitraums null: <span>${name(T1, true)} (12 Tage, kein Kurs gespeichert)</span><span>, ${name(T2, true)} (4 Tage, kein Wechselkurs gespeichert)</span>. Sie bleiben in der Summe, so wie im Ergebnis darüber.`, ' data-role="contribution-unvalued"');
+  const card = note('attention', `2 Verkäufe ohne gespeicherten Wechselkurs an ihren Schlussdaten fehlen bei den Trades: ${name(T1)}, ${name(T2)}. Das Nachladen der Wechselkurse steht unter „Alle Trades“.`, ' data-role="trades-card-excluded"');
+  const cap = (t) => `<p class="twin-cap">${t}</p>`;
+  return `<div class="twin-wrap">${cap('Vermögen → Bestände: der Hinweis zu alten Kursen')}${stale}${cap('Vermögen → Bestände → Performance: der Beitrag, Positionen ohne Wert')}${contrib}${cap('Übersicht → Abgeschlossene Trades: Verkäufe ohne Kurs')}${card}</div>`;
+}
+
+/* ---------------------------------------------------- #1138: the logo dialog */
+function logo() {
+  return `<main class="app-main app-main--workspace"><section class="workspace-panel">${elide('die Wertpapierliste')}</section></main><dialog class="modal logo-override" data-mock-modal aria-labelledby="logo-title"><header class="modal-head"><h2 id="logo-title">Logo verwalten</h2><button type="button" class="icon-button" aria-label="Schließen">${svg('x')}</button></header><div class="modal-body"><p class="detail-pane-sub">Wrenfield Gardens AG</p><p>Ein manuelles Logo ist gesetzt (automatische Suche überschreibt es nicht).</p><form class="logo-override__form"><label for="u">Bild-URL</label><input type="url" id="u" placeholder="https://…" value=""><button type="button" class="button-primary">URL speichern</button></form></div><div class="modal-footer"><button type="button" class="button-ghost">Erneut suchen</button><button type="button" class="button-ghost ring-house" data-role="remove-logo">Logo entfernen</button></div></dialog>`;
+}
+
+/* ------------------------------------------------- #1160: Accounts, Snapshots */
+function accounts(o) {
+  const head = `<div class="section-head"><h2>Depots und Verrechnungskonten</h2><button id="add-account-button" type="button" class="button-primary">${svg('plus', 14)} Depot &amp; Konto anlegen</button></div>`;
+  const table = `<div class="data-table-wrapper"><table id="accounts-table" class="data-table accounts-table"><thead><tr><th>Name</th><th>Währung</th><th class="accounts-term-head">Liquiditätsrolle</th><th>Saldo</th><th class="accounts-term-head">Buckets</th><th class="row-actions-head"><span class="visually-hidden">Aktionen</span></th></tr></thead><tbody><tr><td>Depot Muster</td><td>EUR</td><td></td><td></td><td></td><td></td></tr><tr><td>Test-Cash</td><td>EUR</td><td>Liquidität</td><td class="num">4.757,70</td><td></td><td></td></tr></tbody></table></div>`;
+  return `<main class="app-main app-main--workspace"><div id="portfolios-workspace" class="workspace-page"><section id="accounts-panel" class="workspace-section">${head}${result('accounts-result', null, { band: true })}${table}</section></div></main>`;
+}
+function snap(o) {
+  const tabs = `<nav class="area-tabs" data-tab-level="1" aria-label="Bereichs-Tabs"><a class="area-tab"><span class="area-tab__icon" aria-hidden="true">${svg('chart', 14)}</span><span class="area-tab__label">Bestände</span></a><a class="area-tab is-active" aria-current="page"><span class="area-tab__icon" aria-hidden="true">${svg('camera', 14)}</span><span class="area-tab__label">Snapshots</span></a></nav>`;
+  return `<main class="app-main app-main--workspace"><div class="workspace-page">${tabs}${result('snapshots-action-result', null, { band: true })}<section class="workspace-section"><h2>Vergleich</h2>${elide('der Vergleich mit dem jüngsten Snapshot')}</section></div></main>`;
+}
+
+/* ------------------------------------------------------- #1157: the copy */
+function copy(o) {
+  const a = o.after;
+  const t = (old, neu) => (a ? `<span class="is-new">${neu}</span>` : old);
+  const dialog = `<div class="modal static-modal"><header class="modal-head"><h2>Wertpapier suchen</h2><button type="button" class="icon-button" aria-label="Schließen">${svg('x')}</button></header><div class="modal-body"><form><label class="search-field">${svg('search')}<input type="search" value="Arbolia" placeholder="Nach Name, ISIN oder Ticker suchen…"></label><ul class="search-results"><li class="search-result-empty" data-role="searching">${t('Suche…', 'Wird gesucht…')}</li></ul></form></div></div>`;
+  const busy = `<section class="workspace-panel">${result('securities-action-result', ['busy', t('Suche Logo…', 'Logo wird gesucht…')], {})}</section>`;
+  const fx = note('attention', `Eine gehaltene Position hat einen Preis, aber keinen gespeicherten Wechselkurs zu EUR und fehlt daher in den Summen: Arbolia Inc. (USD). <span class="fx-sync" data-role="fx-sync"><button type="button" disabled><span class="spinner" aria-hidden="true"></span> ${t('Synchronisiere…', 'Wird synchronisiert…')}</button></span>`, ' data-role="dq-missing-fx"');
+  const cap = (x) => `<p class="twin-cap">${x}</p>`;
+  return `<div class="twin-wrap">${cap('Wertpapiere → Neu anlegen → Wertpapier suchen')}${dialog}${cap('Wertpapiere → Zeilenmenü → Logo suchen')}${busy}${cap('Vermögen → Bestände: Wechselkurs fehlt')}${fx}</div>`;
+}
+
+/* ----------------------------------------------- #1191: rename and merge */
+function rename(o) {
+  const err = o.after
+    ? '<span class="is-new">Frühere Namen enthalten „Tagesgeld“, einen früheren Namen von Verrechnungskonto #12 in diesem Portfolio</span>'
+    : 'include "Tagesgeld", a former name of cash account #12 in this portfolio';
+  return `<main class="app-main app-main--workspace"><div class="workspace-page">${elide('Konten &amp; Depots')}</div></main><dialog class="modal rename-dialog" data-mock-modal aria-labelledby="r-title"><header class="modal-head"><h2 id="r-title">Umbenennen — <bdi>Tagesgeld</bdi></h2><button type="button" class="icon-button" aria-label="Schließen">${svg('x')}</button></header><div class="modal-body"><form id="rename-form"><div class="form-grid"><label><span>Name</span><input type="text" name="rename[name]" value="Tagesgeld Plus" aria-invalid="true" aria-describedby="rename-error"><span id="rename-error" class="field-error" role="alert" data-role="rename-error">${err}</span></label></div></form><p class="hint" data-role="rename-former-case">Der bisherige Name „Tagesgeld“ bleibt als früherer Name gespeichert: Ein Import, der ihn noch nennt, bucht weiter auf dieses Konto.</p><div class="modal-footer"><button type="button" class="button-ghost">Abbrechen</button><button type="submit" class="button-primary">Umbenennen</button></div></div></dialog>`;
+}
+function merge(o) {
+  const inner = o.after
+    ? '<span class="is-new">Frühere ISIN ist als frühere ISIN von „Larkspur Rail AG“ (Wertpapier #31) erfasst</span>'
+    : 'former_isin is recorded as a former ISIN of "Larkspur Rail AG" (security #31)';
+  const prob = note('problem', `Nichts wurde zusammengeführt: Eine Zeile ließ sich nicht schreiben (${inner}). Erneut prüfen.`, ' data-role="merge-problem"');
+  return `<main class="app-main app-main--workspace"><section class="workspace-panel">${elide('die Wertpapierliste')}</section></main><dialog class="modal merge-dialog security-merge-dialog" data-mock-modal aria-labelledby="m-title"><header class="modal-head"><h2 id="m-title"><bdi>Arbolia Incorporated</bdi> zusammenführen <span class="modal-head__step">Schritt 2 von 2 · Vorschau</span></h2><button type="button" class="icon-button" aria-label="Schließen">${svg('x')}</button></header><div class="modal-body"><div role="status" class="merge-region"></div><div role="alert" class="merge-region">${prob}</div>${elide('das Paar, die Vorschau und die Wahl der Identität')}</div><div class="modal-footer modal-footer--band"><button type="button" class="button-ghost">Zurück</button><span class="modal-footer__spacer"></span><button type="button" class="button-danger">In Arbolia Inc. zusammenführen</button></div></dialog>`;
+}
+
+const TPL = { sec, hist, twins, notes, logo, accounts, snap, copy, rename, merge };
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .app-main,.workspace-page,.workspace-panel{min-height:0 !important;} .is-new{outline:2px dashed var(--color-accent);outline-offset:2px;border-radius:4px;} .elide{margin:0;padding:10px clamp(16px,2.4vw,28px);font-size:12px;color:#5a6577;font-style:italic;} html.screen,html.screen body{overflow:hidden;}'
+  + ' .ring-ua{outline:-webkit-focus-ring-color auto 1px !important;}'
+  + ' .ring-house{outline:2px solid var(--color-accent) !important;outline-offset:2px !important;}'
+  + ' .sim-icon-focus{color:var(--color-text);border-color:var(--color-border-strong);background:var(--color-hover);}'
+  + ' .focus-flag{position:fixed;left:8px;bottom:8px;padding:2px 8px;border-radius:999px;background:var(--color-danger);color:#fff;font:700 11px/18px var(--font-sans);}'
+  + ' .twin-id.is-new{outline-offset:1px;} .twin-wrap{padding:14px clamp(14px,2.2vw,22px);display:grid;gap:8px;} .twin-cap{margin:6px 0 0;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#5a6577;} .twin-cap:first-child{margin-top:0;}'
+  + ' .static-modal{max-width:520px;box-shadow:var(--shadow-md);border:1px solid var(--color-border);}'
+  + ' .mock-band{position:absolute;left:0;right:0;pointer-events:none;background:repeating-linear-gradient(45deg,color-mix(in srgb,var(--band) 22%,transparent) 0 4px,color-mix(in srgb,var(--band) 8%,transparent) 4px 8px);border-top:1px solid var(--band);border-bottom:1px solid var(--band);} .mock-band b{position:absolute;right:6px;top:50%;transform:translateY(-50%);font:700 10px/1 var(--font-sans);color:var(--band);background:var(--color-bg-elevated);padding:1px 4px;border-radius:3px;}'
+  + '</style>';
+/* In the frame: open a modal as the ModalDialog hook does and give the focus
+   back; draw the band between the blocks around an empty slot. */
+const FRAME_JS = '<script>document.querySelectorAll("dialog[data-mock-modal]").forEach(function(d){d.showModal();});if(document.activeElement)document.activeElement.blur();'
+  + 'window.drawBands=function(color){document.querySelectorAll("[data-band]").forEach(function(s){var p=s.previousElementSibling,n=s.nextElementSibling;if(!p||!n)return;var top=p.getBoundingClientRect().bottom+scrollY,bot=n.getBoundingClientRect().top+scrollY,b=document.createElement("div");b.className="mock-band";b.style.setProperty("--band",color);b.style.top=top+"px";b.style.height=Math.max(1,bot-top)+"px";b.dataset.gap=Math.round(bot-top);b.innerHTML="<b>"+Math.round(bot-top)+" px</b>";document.body.appendChild(b);});};<\/script>';
+
+let pending = 0;
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  const css = CSS_MOCK + ('proposal' in f.dataset ? document.getElementById('proposal').outerHTML : '');
+  const fixed = f.dataset.fixed;
+  pending++;
+  f.addEventListener('load', () => {
+    const doc = f.contentDocument;
+    if (doc.querySelector('[data-band]')) f.contentWindow.drawBands('proposal' in f.dataset ? '#047857' : '#be123c');
+    f.style.height = (fixed ? fixed : Math.ceil(doc.documentElement.scrollHeight)) + 'px';
+    if (--pending === 0) setTimeout(measure, 80);
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"${fixed ? ' class="screen"' : ''}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body style="position:relative">${TPL[f.dataset.tpl](o)}${FRAME_JS}</body></html>`;
+}
+
+/* Board chrome: figures measured inside the frames. */
+function measure() {
+  const fr = (m) => document.querySelector(`iframe[data-m="${m}"]`);
+  const q = (m, s) => { const f = fr(m); return f && f.contentDocument.querySelector(s); };
+  const rect = (m, s) => { const e = q(m, s); return e ? e.getBoundingClientRect() : null; };
+  const px = (v) => Math.round(v * 10) / 10;
+  const put = (id, html) => { const e = document.getElementById(id); if (e) e.innerHTML = html; };
+  const rr = rect('n13-ring-after', '.inline-result__dismiss');
+  const nr = rect('n13-ring-after', '#securities-action-result .data-note');
+  if (rr && nr) put('m-ring', `<li><b>The ×</b> is ${px(rr.width)} × ${px(rr.height)}&nbsp;px; with the ring its box is ${px(rr.width + 8)} × ${px(rr.height + 8)}&nbsp;px, ${px(rr.top - 4 - nr.top)}&nbsp;px inside the note's top edge and ${px(nr.bottom - rr.bottom - 4)}&nbsp;px inside its bottom edge (980&nbsp;px frame): nothing clips it.</li>`);
+  const t = rect('n13-A', '#sync-prices');
+  const h1 = rect('n13-C', '.topbar-page h1');
+  const sl = rect('n13-B', '#securities-action-result');
+  const t2 = rect('n13-C', '#sync-prices');
+  if (t && h1 && sl) put('m-focus', `<li><b>A</b> lands on „Kurse aktualisieren“, ${px(t.width)} × ${px(t.height)}&nbsp;px, where the action started.</li><li><b>B</b>'s target is the emptied slot: ${px(sl.width)} × ${px(sl.height)}&nbsp;px in this frame, which carries #1160 (8&nbsp;px tall without it).</li><li><b>C</b>'s heading, „Wertpapiere“ in the top bar, is ${Math.round(t2.top - h1.bottom)}&nbsp;px above the trigger but two Tab stops before it (the search field, „Neu anlegen“; three at 390&nbsp;px, where „Filter“ shows), and its 2&nbsp;px ring at a 2&nbsp;px offset runs over the top bar's subtitle line.</li>`);
+  const tw = rect('n14-t-after', '.twin-id');
+  const twp = rect('n14-t-after-ph', '.twin-id');
+  if (tw && twp) put('m-twins', `<li><b>The tag</b> is ${px(tw.width)}&nbsp;px wide at 980&nbsp;px and ${px(twp.width)}&nbsp;px at 390&nbsp;px (12&nbsp;px mono, <code>white-space: nowrap</code>); a name and its tag wrap as a unit only at the space before the tag.</li>`);
+  const btT = rect('i1138-today', '[data-role="remove-logo"]');
+  const dT = rect('i1138-today', 'dialog');
+  const btA = rect('i1138-after', '[data-role="remove-logo"]');
+  const dA = rect('i1138-after', 'dialog');
+  const btP = rect('i1138-today-ph', '[data-role="remove-logo"]');
+  const dP = rect('i1138-today-ph', 'dialog');
+  if (btT && dT && btA && dA) put('m-1138', `<li><b>Today</b> „Logo entfernen“ ends ${px(dT.right - btT.right)}&nbsp;px from the dialog's right edge and ${px(dT.bottom - btT.bottom)}&nbsp;px from its bottom (${px(dP.right - btP.right)} and ${px(dP.bottom - btP.bottom)}&nbsp;px at 390); a 2&nbsp;px ring at a 2&nbsp;px offset needs 4, so its right and bottom sides are cut.</li><li><b>After</b> ${px(dA.right - btA.right)}&nbsp;px and ${px(dA.bottom - btA.bottom)}&nbsp;px; the dialog grows by ${px(dA.height - dT.height)}&nbsp;px.</li>`);
+  const band = (m) => { const f = fr(m); const b = f && f.contentDocument.querySelector('.mock-band'); return b ? b.dataset.gap : '?'; };
+  const slotH = (m, s) => { const e = rect(m, s); return e ? px(e.height) : '?'; };
+  put('m-1160', `<li><b>Accounts</b>, the section head to the table: ${band('i1160-acc-today')}&nbsp;px today, ${band('i1160-acc-after')}&nbsp;px after — the empty slot's ${slotH('i1160-acc-today', '#accounts-result')}&nbsp;px and one more 16&nbsp;px grid gap gone. At 390&nbsp;px ${band('i1160-acc-today-ph')} → ${band('i1160-acc-after-ph')}&nbsp;px.</li><li><b>Securities</b>, the chips to the list: ${band('i1160-sec-today')} → ${band('i1160-sec-after')}&nbsp;px.</li><li><b>Snapshots</b>, the area tabs to the comparison: ${band('i1160-snap-today')} → ${band('i1160-snap-after')}&nbsp;px.</li>`);
+}
+</script>
+</body>
+</html>
