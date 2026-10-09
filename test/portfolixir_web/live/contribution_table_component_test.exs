@@ -121,7 +121,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
   #   with "no exchange rate stored".
   test "rows name a nameless security, a sold-out position and a missing rate" do
     positions = [
-      position(1, "30", %{name: nil, isin: "XSEXMPL40031"}),
+      position(1, "30", %{name: nil, isin: "XSEXMPL40072"}),
       position(2, "20", %{name: nil}),
       position(3, "-10", %{held_at_end: false, end_value: d("0")}),
       position(4, "-15", %{unvalued_days: 12, unvalued_reason: :no_rate})
@@ -130,7 +130,7 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
     html = render_table(result(positions))
 
     assert text(html, "#contribution-table tr[data-security-id='1'] td:first-child") ==
-             "XSEXMPL40031"
+             "XSEXMPL40072"
 
     assert text(html, "#contribution-table tr[data-security-id='2'] td:first-child") == "—"
 

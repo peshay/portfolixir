@@ -51,8 +51,8 @@ defmodule PortfolixirWeb.MergeRecordsPhraseTest do
   test "a security merge's phrase counts the split it collapsed", %{conn: conn} = ctx do
     giro = cash!(ctx.portfolio, "Girokonto")
     depot = depot!(ctx.portfolio, "Depot 1", giro)
-    target = security!("Kestrel Industrial Group NV", "XS0000000017")
-    source = security!("Kestrel Industrial Group NV", "XS0000000025")
+    target = security!("Kestrel Industrial Group NV", "XS0000200013")
+    source = security!("Kestrel Industrial Group NV", "XS0000200021")
     deposit!(ctx.portfolio, giro, "5000.00", ~D[2025-01-02])
     buy!(ctx.portfolio, depot, giro, target, "10", "100.00", ~D[2025-01-10])
     buy!(ctx.portfolio, depot, giro, source, "5", "110.00", ~D[2025-02-10])

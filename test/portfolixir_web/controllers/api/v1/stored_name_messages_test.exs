@@ -67,14 +67,14 @@ defmodule PortfolixirWeb.Api.V1.StoredNameMessagesTest do
   # - No answer carries the stored name.
   test "an ISIN refusal names the other security by its id, never by its stored name",
        %{conn: conn} do
-    live = security!(@instruction, "XS0000000017")
-    renamed = security!(@instruction <> " now", "XS0000000025")
-    {:ok, _} = Catalog.record_isin_change(Actor.owner_ui(), renamed, "XS0000000033")
-    changing = security!("Plain Fund", "XS0000000041")
+    live = security!(@instruction, "XS0000100015")
+    renamed = security!(@instruction <> " now", "XS0000100023")
+    {:ok, _} = Catalog.record_isin_change(Actor.owner_ui(), renamed, "XS0000100031")
+    changing = security!("Plain Fund", "XS0000100049")
 
     for {new_isin, message} <- [
-          {"XS0000000017", "is already the current ISIN of security ##{live.id}"},
-          {"XS0000000025", "is recorded as a former ISIN of security ##{renamed.id}"}
+          {"XS0000100015", "is already the current ISIN of security ##{live.id}"},
+          {"XS0000100023", "is recorded as a former ISIN of security ##{renamed.id}"}
         ] do
       response =
         conn
@@ -89,7 +89,7 @@ defmodule PortfolixirWeb.Api.V1.StoredNameMessagesTest do
     response =
       conn
       |> post("/api/v1/securities", %{
-        security: %{name: "New Fund", isin: "XS0000000025", currency_code: "EUR"}
+        security: %{name: "New Fund", isin: "XS0000100023", currency_code: "EUR"}
       })
       |> json_response(422)
 

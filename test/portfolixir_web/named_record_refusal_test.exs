@@ -45,17 +45,17 @@ defmodule PortfolixirWeb.NamedRecordRefusalTest do
   # - Each refusal reads, on the Imports page, the sentence it read before
   #   #965, byte for byte.
   test "the Imports page states each named refusal as it did" do
-    live = security!("Lindwurm Holding", "XS0000000017")
-    renamed = security!("Kranich Werke", "XS0000000025")
-    {:ok, _} = Catalog.record_isin_change(Actor.owner_ui(), renamed, "XS0000000033")
-    changing = security!("Plain Fund", "XS0000000041")
+    live = security!("Lindwurm Holding", "XS0000400019")
+    renamed = security!("Kranich Werke", "XS0000400027")
+    {:ok, _} = Catalog.record_isin_change(Actor.owner_ui(), renamed, "XS0000400035")
+    changing = security!("Plain Fund", "XS0000400043")
 
-    {:error, live_isin} = Catalog.record_isin_change(Actor.owner_ui(), changing, "XS0000000017")
+    {:error, live_isin} = Catalog.record_isin_change(Actor.owner_ui(), changing, "XS0000400019")
 
     assert FieldLabel.changeset_message(live_isin) ==
              ~s|New ISIN is already the current ISIN of "Lindwurm Holding" (security ##{live.id})|
 
-    {:error, aliased} = Catalog.record_isin_change(Actor.owner_ui(), changing, "XS0000000025")
+    {:error, aliased} = Catalog.record_isin_change(Actor.owner_ui(), changing, "XS0000400027")
 
     assert FieldLabel.changeset_message(aliased) ==
              ~s|New ISIN is recorded as a former ISIN of "Kranich Werke" (security ##{renamed.id})|
@@ -63,7 +63,7 @@ defmodule PortfolixirWeb.NamedRecordRefusalTest do
     {:error, created} =
       Catalog.create_security(Actor.owner_ui(), %{
         name: "New Fund",
-        isin: "XS0000000025",
+        isin: "XS0000400027",
         currency_code: "EUR"
       })
 
@@ -158,11 +158,11 @@ defmodule PortfolixirWeb.NamedRecordRefusalTest do
   #   which the security merge dialog states field and message, reads as it
   #   did, the security's name in it.
   test "the security merge dialog's refused ISIN reads as it did" do
-    live = security!("Lindwurm Holding", "XS0000000017")
-    target = security!("Plain Fund", "XS0000000041")
+    live = security!("Lindwurm Holding", "XS0000400019")
+    target = security!("Plain Fund", "XS0000400043")
 
     {:error, changeset} =
-      IdentifierAliases.record_merged_isin(Actor.owner_ui(), target, "XS0000000017")
+      IdentifierAliases.record_merged_isin(Actor.owner_ui(), target, "XS0000400019")
 
     assert [former_isin: error] = changeset.errors
     {message, opts} = NamedRecordRefusal.screen(error)

@@ -75,16 +75,16 @@ defmodule PortfolixirWeb.SecuritiesVanishedRowTest do
   #
   # Acceptance criteria:
   # - Edit on a merged-away row reloads the list without the row and shows
-  #   a note: "“Meridian Global Equity ETF · XS0000000025” was merged into
-  #   Meridian Global Equity ETF · XS0000000017 meanwhile; the list is
+  #   a note: "“Meridian Global Equity ETF · XS0000300029” was merged into
+  #   Meridian Global Equity ETF · XS0000300011 meanwhile; the list is
   #   reloaded." — the names as the stale list told the twins apart, the
   #   survivor a link to its detail, each name in <bdi>.
   # - Retire on a deleted row reloads the list without it: "“Helios Solar
   #   Systems SE” was deleted meanwhile; the list is reloaded."
   # - No dialog opens for the vanished security.
   test "a row action on a vanished security reloads the list and says why", %{conn: conn} do
-    target = security!("Meridian Global Equity ETF", "XS0000000017")
-    source = security!("Meridian Global Equity ETF", "XS0000000025")
+    target = security!("Meridian Global Equity ETF", "XS0000300011")
+    source = security!("Meridian Global Equity ETF", "XS0000300029")
     helios = security!("Helios Solar Systems SE", nil)
 
     {:ok, view, _html} = live(conn, "/securities")
@@ -98,12 +98,12 @@ defmodule PortfolixirWeb.SecuritiesVanishedRowTest do
     refute has_element?(view, "#security-form-dialog")
 
     assert note_text(view) =~
-             "“Meridian Global Equity ETF · XS0000000025” was merged into Meridian Global Equity ETF · XS0000000017 meanwhile; the list is reloaded."
+             "“Meridian Global Equity ETF · XS0000300029” was merged into Meridian Global Equity ETF · XS0000300011 meanwhile; the list is reloaded."
 
     assert has_element?(
              view,
              ~s(#securities-action-result a[href^="/securities/#{target.id}"] bdi),
-             "Meridian Global Equity ETF · XS0000000017"
+             "Meridian Global Equity ETF · XS0000300011"
            )
 
     open_menu(view, helios)
@@ -205,8 +205,8 @@ defmodule PortfolixirWeb.SecuritiesVanishedRowTest do
   #   names the survivor and links it.
   test "Cannot delete's way out on a security merged away meanwhile closes and says why",
        %{conn: conn} do
-    target = security!("Meridian Global Equity ETF", "XS0000000017")
-    source = security!("Meridian Global Equity ETF", "XS0000000025")
+    target = security!("Meridian Global Equity ETF", "XS0000300011")
+    source = security!("Meridian Global Equity ETF", "XS0000300029")
     put_quotes!(source, [{~D[2026-01-05], "100"}, {~D[2026-01-06], "101"}])
 
     {:ok, view, _html} = live(conn, "/securities")
@@ -226,7 +226,7 @@ defmodule PortfolixirWeb.SecuritiesVanishedRowTest do
     refute row?(view, source)
 
     assert note_text(view) =~
-             "“Meridian Global Equity ETF · XS0000000025” was merged into Meridian Global Equity ETF · XS0000000017 meanwhile; the list is reloaded."
+             "“Meridian Global Equity ETF · XS0000300029” was merged into Meridian Global Equity ETF · XS0000300011 meanwhile; the list is reloaded."
 
     assert has_element?(view, ~s(#securities-action-result a[href^="/securities/#{target.id}"]))
   end
@@ -241,11 +241,11 @@ defmodule PortfolixirWeb.SecuritiesVanishedRowTest do
   # - The survivor, absent from the list the page showed, is named by its
   #   stored name and linked to its detail.
   test "a survivor the list did not show yet is named from the catalog", %{conn: conn} do
-    source = security!("Halvorsen Shipping Bond 2031", "XS0000000025")
+    source = security!("Halvorsen Shipping Bond 2031", "XS0000300029")
 
     {:ok, view, _html} = live(conn, "/securities")
 
-    survivor = security!("Halvorsen Shipping Bond 2031 (EUR)", "XS0000000017")
+    survivor = security!("Halvorsen Shipping Bond 2031 (EUR)", "XS0000300011")
     open_menu(view, source)
     merge!(source, survivor)
     click(view, source, "edit")
