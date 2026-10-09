@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
 import { STATUS_CODES, createServer, request as httpRequest } from "node:http";
-import type { AddressInfo } from "node:net";
+import { Server, type AddressInfo } from "node:net";
 import { describe, it } from "node:test";
 
 import type { NextFunction, Request, Response } from "express";
@@ -301,6 +301,58 @@ describe("MCP HTTP security helpers", () => {
     assert.equal(mcpHost(" \t "), "127.0.0.1");
     assert.equal(mcpHost(" 0.0.0.0 "), "0.0.0.0");
     assert.equal(mcpHost("::1"), "::1");
+  });
+
+  // User story (#1137, Sprint 20 γ closing act):
+  // As an operator who writes PORTFOLIXIR_MCP_HOST=[] (brackets around
+  // nothing, as a URL would hold an IPv6 address),
+  // I want the companion to bind the loopback default, as an empty value does,
+  // so that an empty pair of brackets never opens the listener on every
+  // interface.
+  //
+  // Acceptance criteria:
+  // - One pair of brackets is unwrapped and its inside trimmed: `[]`, ` [] `
+  //   and `[ ]` read as 127.0.0.1, `[::1]` and `[ ::1 ]` as ::1.
+  // - The listener is handed 127.0.0.1 for `[]` and ` [] `, never an empty
+  //   address, which Node binds on every interface. The listen is captured,
+  //   never made, so the test binds nothing.
+  it("reads an empty pair of brackets as the loopback default", () => {
+    assert.equal(mcpHost("[]"), "127.0.0.1");
+    assert.equal(mcpHost(" [] "), "127.0.0.1");
+    assert.equal(mcpHost("[ ]"), "127.0.0.1");
+    assert.equal(mcpHost("[::1]"), "::1");
+    assert.equal(mcpHost("[ ::1 ]"), "::1");
+  });
+
+  it("hands the listener 127.0.0.1 for an empty pair of brackets", async () => {
+    const original = Server.prototype.listen;
+    const listened: unknown[][] = [];
+
+    // A listen that records its arguments and fails, so nothing is bound.
+    Server.prototype.listen = function (this: Server, ...args: unknown[]) {
+      listened.push(args);
+      process.nextTick(() => this.emit("error", Object.assign(new Error("captured"), { code: "EACCES" })));
+      return this;
+    } as typeof Server.prototype.listen;
+
+    try {
+      for (const host of ["[]", " [] "]) {
+        await assert.rejects(
+          startHttpServer({ client: { request: async () => null }, token: soundToken, host, port: 4001 }),
+          /could not listen on http:\/\/127\.0\.0\.1:4001\/mcp/
+        );
+      }
+    } finally {
+      Server.prototype.listen = original;
+    }
+
+    assert.deepEqual(
+      listened.map((args) => args.slice(0, 2)),
+      [
+        [4001, "127.0.0.1"],
+        [4001, "127.0.0.1"]
+      ]
+    );
   });
 
   // User story (#1137):

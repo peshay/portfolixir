@@ -91,13 +91,18 @@ export const MCP_DEFAULT_PORT = 4001;
 export const MCP_DEFAULT_HOST = "127.0.0.1";
 
 /**
- * The listener's address from `PORTFOLIXIR_MCP_HOST` (#1137), trimmed: unset,
- * empty or blank is 127.0.0.1, as an empty port is 4001 (#1043). An empty
+ * The listener's address from `PORTFOLIXIR_MCP_HOST` (#1137), trimmed, one
+ * pair of brackets around it unwrapped (`[::1]`, as a URL writes it, is ::1)
+ * and the inside trimmed again: unset, empty, blank or an empty pair of
+ * brackets (`[]`) is 127.0.0.1, as an empty port is 4001 (#1043). An empty
  * address handed to the listener binds every interface, so a line left blank
- * in an `.env` file never opens the companion beyond loopback.
+ * in an `.env` file, or brackets around nothing, never opens the companion
+ * beyond loopback.
  */
 export function mcpHost(configuredHost: string | undefined): string {
-  const value = (configuredHost ?? "").trim();
+  const trimmed = (configuredHost ?? "").trim();
+  const bracketed = trimmed.length >= 2 && trimmed.startsWith("[") && trimmed.endsWith("]");
+  const value = bracketed ? trimmed.slice(1, -1).trim() : trimmed;
 
   return value === "" ? MCP_DEFAULT_HOST : value;
 }
@@ -334,11 +339,13 @@ function hostName(host: string): string {
 // An address as the listener binds it: an IPv6 address given in brackets
 // (`[::1]`, as a URL writes it) without them, since Node would look the
 // bracketed form up as a name and fail with ENOTFOUND (#1137); anything else
-// as it is.
+// as it is. Never an empty address, which Node binds on every interface: an
+// empty one is the loopback default, as `mcpHost` reads it.
 function bindAddress(host: string): string {
   const bracketed = host.startsWith("[") && host.endsWith("]");
+  const address = (bracketed ? host.slice(1, -1) : host).trim();
 
-  return bracketed ? host.slice(1, -1) : host;
+  return address === "" ? MCP_DEFAULT_HOST : address;
 }
 
 // The names a client reaches the listener itself under (#956): the loopback
