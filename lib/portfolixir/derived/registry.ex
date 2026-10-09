@@ -65,8 +65,11 @@ defmodule Portfolixir.Derived.Registry do
     # position `costs`, and the settlement difference on
     # `cash_currency_effect` that balances them, read its fees and taxes in
     # its cash account's currency.
-    performance_contribution: %{computation_version: 2, default_lifetime: :request},
-    performance_view_contribution: %{computation_version: 2, default_lifetime: :request},
+    # v3 (2026-10-08, #1154, Sprint 20 γ): every row carries the security's
+    # `wkn`, which tells twins without an ISIN apart on the screen's table; a
+    # v2 payload lacks it, and its rows would fall through to the number.
+    performance_contribution: %{computation_version: 3, default_lifetime: :request},
+    performance_view_contribution: %{computation_version: 3, default_lifetime: :request},
     # The benchmark comparison (ADR-0046 §5, Sprint 11 Lane B): a read model
     # over a walk and a benchmark's price series, keyed under the global
     # basis because a benchmark the portfolio never held is outside the
