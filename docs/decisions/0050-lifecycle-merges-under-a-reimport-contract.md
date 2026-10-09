@@ -29,6 +29,11 @@ description: "Decision for #328 and #608, taken together because they are one op
   build added, and its compound-split sentence is corrected (#972). See
   "Amendment (2026-10-08)" below. Answered by the Sprint 20 planning PR's
   decision pass (D-4), adopted by its merge.
+- **Amended:** 2026-10-09: the first limit's probe releases a name whose
+  rows the dry run finds all already booked on its resolution, and prefills
+  nothing before that answer; a former name still counts for nothing on its
+  own (#1195). See "Amendment (2026-10-09)" below. Adopted by the merge of
+  the Sprint 21 planning PR.
 - **Opens nothing else.** No scope gate is touched. Cross-portfolio moves,
   unmerge and merger/spin-off stay out (§14).
 
@@ -159,7 +164,9 @@ Three limits are stated, not hidden:
   armed, and so absent from §4's backfill, is in the same position. A probe
   that fails closed is deferred (§15). *(Built by the amendment of
   2026-10-07: a name with no hash hit in a file that otherwise overlaps the
-  stored history gets no prefill.)*
+  stored history gets no prefill.)* *(Narrowed by the amendment of
+  2026-10-09: not, once the dry run answers, a name whose rows are all
+  already booked on its resolution. Both halves above stay withheld.)*
 - **The pre-import economic layer keeps set semantics.** After an account
   merge, a hash-miss row from S whose key equals an existing T row's key is
   absorbed at the economic layer. It is **reported** in the result's duplicate
@@ -750,7 +757,8 @@ ordinary.
    transaction or a retired hash, while at least one other name of the same
    file in the same portfolio has such a hit. The counts are the hash-layer
    counts `Applier.reimport_counts/3` already computes. The economic layer is
-   not read, because it cannot see a name.
+   not read, because it cannot see a name. *(Corrected by the amendment of
+   2026-10-09, which quotes the point as it now reads.)*
 2. **What the preview does.** Such a name gets **no prefill**, whatever
    resolution (§4: exact live name, then former name) would have
    prefilled. Its mapping row says that no booking under this name is known
@@ -766,7 +774,8 @@ ordinary.
 4. **When it does not trip.** A file in which no name has a hit (a first
    import, or an export of only new bookings) trips nothing; the prefill is
    today's. A genuinely new account in an otherwise known file trips it and
-   costs one choice.
+   costs one choice. *(Corrected by the amendment of 2026-10-09, which
+   quotes the point as it now reads.)*
 5. **What it does not change.** It is a preview rule: no hash, no key, no
    apply condition and no obligation (O1–O3) changes, and a file already
    applied stays a no-op. It has no API route, because the import is an
@@ -854,6 +863,239 @@ their difference), and **enforces no bound per split**. The linearity check
 compares the merged position with the fold of both depots' rows as one
 depot, and in exact arithmetic with the sum of both, never with a tolerance.
 That is the answer: the sentence is corrected, the code stays.
+
+## Amendment (2026-10-09): the probe reads the dry run
+
+**Status:** adopted by the merge of the Sprint 21 planning PR. The change is
+risk-tier (import idempotency), so it is signed before the batch that builds
+it. It answers #1195 (option (a)) and the case its comment adds, except
+that a former name is **not** counted as seen; that half is deferred below.
+
+### Why the probe asks less, now
+
+The probe of 2026-10-07 fails closed, and nothing is booked twice. But three
+ordinary re-drops trip it on **every** drop, not once (#1195):
+
+- **Drift, nothing renamed.** A re-export in which the rows under one name
+  drifted while another name's rows still match: Portfolio Performance moved
+  a booking's time or added an ISIN (both hash inputs, §3). The rows are
+  economic duplicates, so no hash under that name is ever stored. The row
+  reads "N bookings already imported · nothing to create" beside "No booking
+  under this name has been imported yet", Confirm waits, and choosing the
+  name's own account books nothing and remembers nothing, so the next drop
+  asks again.
+- **A just-remembered former name.** After the operator maps the renamed
+  name onto its old account with "Remember this mapping" ticked, the next
+  drop withholds the prefill again until a booking under the new name has
+  been inserted, although the Sprint 20 board `01-import-preview` promised
+  that "the next drop prefills through the former name, and the question
+  does not come back".
+- **One rename made in both programs** (#1195's comment). The file's name is
+  the renamed account's live name, the dry run counts every row already
+  booked, and the row still withholds and waits.
+
+A question asked on every drop is answered without reading, and then the
+one choice the probe asks for protects nothing. This amendment stops the
+first and the third case asking once the dry run answers, and the second
+for a re-drop whose rows are all already booked. A remembered former name in
+a later export that carries a new booking still asks once more (point 3).
+
+### What changes
+
+1. **A name whose rows are all already booked on its resolution is not
+   unknown.** When the dry run of `Applier.reimport_counts/3` runs to its
+   end, a name every importable row of which it judges already booked on the
+   economic layer (`:economics`), none `:new` and none an internal transfer,
+   is not unknown, and keeps the prefill its resolution gives (§4: live name,
+   then former name). The dry run needs no mapping: it is the auto-resolving
+   apply rolled back, and it resolves every file name itself through the
+   same `AccountNames.resolve/2` the prefill uses. The economic key
+   (`DedupKey.of/1`) cannot see a name, but it carries the cash account,
+   depot and counter ids a row resolves onto, so it sees the account the
+   name leads to. A name the stored history never saw resolves onto an
+   account the rolled-back run would create, its rows carry a pending
+   placeholder in their key (`{:pending, kind, name}`), and they can never
+   count as booked. An internal transfer is void, not booked: under this
+   name's resolution the name and its counterparty land on one account,
+   which is the very resolution the probe exists to question. Only a hash
+   hit arms the probe, so a released name makes no other name unknown.
+   *Reason:* the withheld prefill would book nothing, so withholding it
+   protects nothing. Booking nothing is harmless on any account, and a later
+   drop that would book under the name still trips the probe, because the
+   apply stored no hash under it.
+2. **Nothing is prefilled on a guess.** Until the dry run's answer arrives,
+   a name the first pass names unknown stays withheld: no prefill, the note,
+   and Confirm waits, as point 2 of 2026-10-07 says. When the answer
+   arrives, a name it releases loses the note and takes its prefill, into
+   the mapping and into the preview's record of what it prefilled (so a
+   choice changed from it is a remap to remember, §4), unless the operator
+   has already chosen for that row: a choice stands, because the probe stops
+   the default, never a choice (P2). A dry run that stops (a name the
+   prefill finds ambiguous, a refused write) or fails (a lost connection, an
+   exited task) releases nothing: the counts stay on the hash layers, and
+   every withheld row stays withheld. The dry run is one run over the whole
+   file, so **one ambiguous name that a row needs stops it for every name
+   of the file**; that is fail-closed, and the remedy is the ambiguous
+   name's own (§4: merge or rename one of its accounts). The answer can only
+   release a name; it never withholds one the first pass prefilled, so a
+   prefill on the screen never disappears.
+3. **A former name vouches for nothing on its own.** A file name that §4's
+   second tier resolves (`AccountNames.resolve/2` answers
+   `{:ok, id, :former}`) is judged like any other name: by its hash hits,
+   then by the dry run. #1195 recommended counting a remembered former name
+   as seen; that is not taken. *Reason:* `former_names` records no author.
+   A rename, a merge and the preview's remembered remap all write the same
+   list, so the probe cannot tell a name the operator tied to this account
+   from a name Portfolio Performance has since given to a different, renamed
+   account. Counted as seen, that second name would prefill the wrong
+   account, and one confirm would book the renamed account's history a
+   second time there: the very hazard P1 to P5 close. Fail-closed wins.
+   **What stays**, by design: a remembered former name in a later export
+   that carries a new booking under it still asks once more, until that
+   booking has been imported under the name and its hash holds it. The
+   re-drop of the same file and a drifted re-export stop asking once the dry
+   run answers (point 1).
+4. **P1 to P5 keep holding.** A real rename, a name with no hash hit whose
+   rows are not all booked on its resolution, still gets no prefill, before
+   the answer and after it, and Confirm still waits: a rename onto a name
+   the stored history never saw (P1, P5), onto another account's live name
+   or former name (its rows count new there), and a name whose rows are
+   booked but for one new row. The release withholds no name and arms
+   nothing, so P2, P3 and P4 are untouched.
+5. **What it does not change.** It is a preview rule: no hash, no key, no
+   apply condition and no obligation (O1–O3) changes, and the apply judges
+   every row again on every layer. The probe stays on the Imports page, with
+   no API route and no MCP tool, because the import is an operator action
+   ([ADR-0029](0029-stable-identities-and-reimport-survival.html),
+   "Non-interactive paths fail closed"; §14).
+
+### Deferred, with its trigger
+
+| Ask | Source | Verdict |
+|---|---|---|
+| Count as seen a former name that the import preview's "Remember this mapping" wrote, told apart from one a rename or a merge recorded by reading the audit journal (the remembered remap writes `former_names` under the import-session actor: `AccountNames.remember/4`, called from the applier) | #1195, recommended answer | **Deferred.** *Reopened by:* an operator reporting the repeated question on a remembered name. |
+
+#1195's own condition for point 1 stands as well: a case where an
+all-duplicates name resolves onto the wrong account and booking nothing
+there is itself harmful.
+
+### The text of the 2026-10-07 amendment this corrects
+
+Point 1 gains one exception in its first sentence, and its last two
+sentences ("The counts are the hash-layer counts `Applier.reimport_counts/3`
+already computes. The economic layer is not read, because it cannot see a
+name.") are replaced. It now reads:
+
+> 1. **The signal.** In the preview, a file's cash-account name or depot
+>    name (a PP account or a PP portfolio) is **unknown to the stored
+>    history** when none of the rows listed under it has a content hash held
+>    by a live transaction or a retired hash, while at least one other name
+>    of the same file in the same portfolio has such a hit, unless the dry
+>    run finds every importable row under it already booked on its
+>    resolution. The hash-layer counts `Applier.reimport_counts/3` already
+>    computes decide the first pass, only a hash hit makes another name
+>    unknown, and a former name vouches for nothing on its own. The
+>    economic layer cannot see a name, but its key carries the accounts a
+>    row resolves onto, so the dry run reads it on the name's resolution;
+>    its answer can release a name, never withhold one.
+
+Point 4 gains a second sentence, and its last sentence names what still
+trips it. It now reads:
+
+> 4. **When it does not trip.** A file in which no name has a hit (a first
+>    import, or an export of only new bookings) trips nothing; the prefill
+>    is today's. A name whose rows the dry run finds all already booked on
+>    its resolution stops tripping it when the answer arrives, and keeps the
+>    prefill its resolution gives. A genuinely new account in an otherwise
+>    known file trips it and costs one choice, and so do a rename onto a
+>    name the stored history never saw or onto another account's live or
+>    former name, and a remembered former name whose rows include a new
+>    booking, until one booking under it has been imported.
+
+### The identities the building batch pins
+
+Each is set in the Sprint 20 board's synthetic world: an instance that
+imported Test-Cash, Tagesgeld and Depot Muster from Portfolio Performance,
+with a 2,000.00 EUR deposit on 2026-01-02, a 500.00 EUR transfer from
+Test-Cash to Tagesgeld on 2026-01-05, a purchase of 10 Example Fund
+(DE000EXMPL17) into Depot Muster for 1,000.00 EUR on 2026-01-15 at 10:00,
+and interest of 1.25 and 1.30 EUR on Tagesgeld on 2026-01-31 and 2026-02-28.
+
+| | Identity |
+|---|---|
+| P6 | The issue's three re-drops, each dropped twice: the purchase re-exported at 10:30; P1's file again after its "Tagesgeld Extra" was mapped onto Tagesgeld with "Remember this mapping" ticked; and "Tagesgeld" renamed "Tagesgeld Extra" in Portfolixir and in Portfolio Performance alike. Once the dry run answers, no row carries the note and Confirm needs no choice; each apply inserts nothing (zero transactions, accounts, depots and securities), and the second drop, once answered, asks nothing either. |
+| P7 | A remembered former name asks once more for a new booking, and only then: after P1's remembered mapping, a later export that adds 1.35 EUR of interest on 2026-03-31 under "Tagesgeld Extra" reads "3 bookings already imported · 1 new" and stays withheld after the answer, with the note and no "matched by a former name" line. Mapped onto Tagesgeld, it inserts exactly that one booking, on Tagesgeld, and the next drop of that export is known by its hash. P1's file without the new booking is withheld before the answer and prefilled with Tagesgeld after it. |
+| P8 | A drifted re-export of an account nobody renamed is prefilled once the dry run answers: the first pass names "Depot Muster" unknown (its one row moved from 10:00 to 10:30, a hash input the economic key does not carry); the refined pass, which finds the purchase already booked on Depot Muster against Test-Cash, does not; the row reads "1 booking already imported · nothing to create", is prefilled with Depot Muster and asks for no choice. The account renamed in both programs does the same with "3 bookings already imported · nothing to create". |
+| P9 | A real rename stays withheld after the answer: P1's "Tagesgeld Extra", which the stored history never saw (the dry run books its three rows on an account it would create, so they count new); the same name as the live name of another, empty account, and as a former name of another account, "Festgeld" (its rows count new on that account); and the account renamed in both programs with P7's 1.35 EUR payment added, which reads "3 bookings already imported · 1 new": a name whose rows would book anything still trips. |
+| P10 | Nothing is prefilled on a guess: P8's drop, read before the dry run answers, shows "Depot Muster" withheld ("Decide…", the note, Confirm disabled and named in the still-to-map line), and the answer releases it. A depot the operator chose for the row before the answer ("Depot Zwei") stays chosen. A drop that also carries a new deposit under "Festgeld", a name two accounts carry from before the name guard, stops the dry run for the whole file: the counts stay on the hash layers, and "Depot Muster" stays withheld. |
+
+Each is written before the code, seen failing for the expected reason, and
+mutation-verified in the closing act (shown red against the named breakage,
+then reverted). The signal tests live in
+`test/portfolixir/imports/unseen_name_probe_test.exs`
+(`Portfolixir.Imports.UnseenNameProbeTest`), the end-to-end tests in
+`test/portfolixir_web/live/imports_unseen_name_live_test.exs`
+(`PortfolixirWeb.ImportsUnseenNameLiveTest`).
+
+| | Pinned by | Shown red by |
+|---|---|---|
+| P6 | `ImportsUnseenNameLiveTest` "P6: the issue's three re-drops ask nothing once the dry run answers, twice" | `unseen_names` as the 2026-10-07 build has it: hash layers alone, the same on both passes |
+| P7 | `ImportsUnseenNameLiveTest` "P7: a remembered former name asks once more for a new booking, and is prefilled when every row is booked"; `UnseenNameProbeTest` "a former name alone does not make a name known" | a former-name resolution counted as seen (the new booking prefilled); the refined pass naming exactly what the first pass names (the booked file withheld) |
+| P8 | `ImportsUnseenNameLiveTest` "P8: a drifted depot and a name renamed in both programs are prefilled once the dry run answers", replacing "a row whose bookings are found by their economics still waits"; `UnseenNameProbeTest` "a name whose rows are all booked on its resolution is known once the dry run answers", replacing "the economic layer is not read" | the refined pass naming exactly what the first pass names |
+| P9 | P1, "P1 onto a live name" and "P1 onto a former name", unchanged (they read the page after the answer, and must keep passing); `ImportsUnseenNameLiveTest` "P9: a name booked but for one new row still waits" | a name released when any of its rows counts `:economics` rather than when none counts `:new` (P9 red); a row on a pending account counted as booked (P1 red); a former-name resolution counted as seen ("P1 onto a former name" red) |
+| P10 | `ImportsUnseenNameLiveTest` "P10: a withheld row waits for the dry run's answer, and a choice made before it stands"; `UnseenNameProbeTest` "a stopped dry run releases nothing" | a withheld row prefilled with its resolution before the answer; the answer overwriting a choice; a stopped dry run releasing |
+
+Two Sprint 20 tests change with point 1: "the economic layer is not read"
+and "a row whose bookings are found by their economics still waits" become
+P8's. "P1 onto a former name" stays as it is and keeps passing, as does
+every other test of both files. Beside them, `Portfolixir.DocsTest` "the
+handbook says why a renamed account's row waits for a choice" pins the
+handbook's paragraph, which changes with the words.
+
+**#1195** is answered by this amendment, its former-name half deferred.
+
+### Consequences
+
+- **Risk-tier attention** (ADR-0036; the sprint workflow's "Risk-tier
+  attention"). The change rides the sprint as its own commit group in the
+  order below, each commit readable and revertable alone; it gets a
+  verification pass on the invariant at stake (no default books a history a
+  second time); the briefing's callout names what changed (points 1 and 2),
+  the invariant (P1 to P5 and P9), the tests above, and what still asks (a
+  remembered former name with a new booking, and every name of a file whose
+  dry run an ambiguous name stops); and this amendment is the signature
+  before the sprint.
+- **Order for the building batch**, each commit adding its tests, seen red
+  first, with the code that turns them green:
+  1. point 1 in `Applier.reimport_counts/3`'s `unseen_names`: the refined
+     pass releases a name all of whose importable rows count `:economics`,
+     and a stopped dry run releases nothing; the signal tests of P7, P8 and
+     P9, "a stopped dry run releases nothing", and the rewrite of "the
+     economic layer is not read";
+  2. point 2 in `PortfolixirWeb.ImportsLive`: `handle_async/3` for
+     `:refine_counts` takes the refined `unseen_names` and fills a released
+     row's prefill where no choice was made; P6 to P10 end to end, with the
+     rewrite of "a row whose bookings are found by their economics still
+     waits". The suite's `upload!/2` awaits the answer (`render_async/1`),
+     so P10 needs a way to read the page before it, which this commit adds;
+  3. the words: the docs of `Imports.reimport_counts/2` and
+     `Applier.reimport_counts/3` ("names the same unseen names", "both passes
+     name the same"), the LiveView's comments, and the product documentation
+     in English and German ("A name no booking was imported under": a name
+     whose rows are all booked is prefilled once the counts are refined, and
+     "until then the row asks again" holds only for a file with a new
+     booking under the name), with `Portfolixir.DocsTest`'s handbook test
+     extended first.
+- **Order of the verification pass.** P1 to P5 first: every test of both
+  files except the two rewritten ones, "P1 onto a former name" among them,
+  run unchanged on the group's last commit, with §16's re-import invariants
+  1, 2, 5 and 6, which no point touches. Then P6 to P10, then each breakage
+  of the table above, shown red and reverted. All of it runs again after the
+  fix rounds.
+- **The row's picture changes.** Every end state is an anatomy that exists
+  (the withheld row of board 01 ①, #1168's "No mapping needed"), and no new
+  copy is needed, but #1195's rows now move from one to the other when the
+  answer arrives, so the sprint workflow's board rule applies.
 
 ## References
 
