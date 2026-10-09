@@ -27,10 +27,12 @@ sprint PR and one stacked PR (D-8).
    reverses your ruling of 2026-08-05, so silence does not adopt it.
    - **Silence keeps your ruling**, and #1169 closes as not planned right
      after the merge.
-   - **"N1 B" in a comment builds B** (recommended): a page load shows the
-     figure that exists, and a count runs only between two real figures. On
-     today's code that is almost never, so B is close to "no count on
-     money" (D-3). Board 01 draws A, B and C.
+   - **"N1 B" in a comment builds B** (recommended). The waiting stays as
+     today: the last known year-to-date figure, or a skeleton, while the
+     total computes. When the computed total arrives, it appears at once,
+     instead of counting up from 0,00 over 600 ms. A count runs only between
+     two real figures, which on today's code is almost never, so B is close
+     to "no count on money" (D-3). Board 01 draws A, B and C.
 3. **Hold the live correction until this sprint merges.** #1098's correction
    is on your instance's next upgrade, but today it overwrites a booking you
    edited by hand since its import (#1194), and it does not list a row whose
@@ -546,12 +548,29 @@ wanted, provided it is visually evident that the number is still counting".
 existed. A recommendation that reverses your own ruling is not adopted by
 silence.
 
+**What happens today, step by step** (read from `dashboard_live.ex` and the
+CountUp hook in `layout_view.ex`):
+
+1. **The total is computed in the background** once the page connects, and
+   that takes as long as the valuation takes. Meanwhile the card shows its
+   pending state: the last known year-to-date figure, dimmed and labelled
+   "Letzter Stand … Wird neu berechnet", or a skeleton with "wird
+   berechnet". The total in EUR has no stored last value, because the
+   valuation is not memoised.
+2. **Only when the computed total has arrived does the count-up start.** It
+   runs from 0,00 to that already-known figure over 600 ms.
+
+So the count-up does not cover the computing time. It adds 600 ms of
+figures that never existed after the real one is known. Every variant below
+leaves step 1 as it is.
+
 **The variants, on board 01:**
 
 - **A:** no count on money figures.
-- **B, recommended:** the first value appears as it is, and a count runs
-  only between two real figures. The reason you gave, the three dots, belongs
-  to the pending state, which B leaves alone.
+- **B, recommended:** when the computed total arrives, it appears as it is,
+  and a count runs only between two real figures. The reason you gave, the
+  three dots, belongs to the pending state of step 1, which B leaves
+  alone.
   - **What B means in practice, measured on the code:** almost never a
     count. The Overview has no view or period control. Wealth's view switch
     is a full page load, and its period does not change the counted
