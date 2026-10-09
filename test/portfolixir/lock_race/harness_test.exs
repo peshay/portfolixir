@@ -76,6 +76,30 @@ defmodule Portfolixir.LockRace.HarnessTest do
     end
   end
 
+  # User story (#922 closing act):
+  # As the maintainer pinning a lock a writer no longer takes,
+  # I want a race in which the second writer must pass the held first one,
+  # so that a lock that comes back fails the case by name.
+  #
+  # Acceptance criteria:
+  # - With `second: :passes`, a second writer that ends while the first is
+  #   held passes the race, and the first then resumes and ends.
+  # - One the database reports blocked by the first fails the race.
+  test "a second writer that is to pass the first passes it or fails the race", %{db: db} do
+    assert {{:ok, [12]}, {:ok, [13]}} =
+             LockRace.race!(db, {lock_rows([12]), &LockRace.lock?/1}, lock_rows([13]),
+               second: :passes
+             )
+
+    assert_raise ExUnit.AssertionError,
+                 ~r/the second writer waited on the first, which it was to pass/,
+                 fn ->
+                   LockRace.race!(db, {lock_rows([14]), &LockRace.lock?/1}, lock_rows([14]),
+                     second: :passes
+                   )
+                 end
+  end
+
   test "a writer that raises fails the race with its exception", %{db: db} do
     raising = fn ->
       lock_rows([7]).()
