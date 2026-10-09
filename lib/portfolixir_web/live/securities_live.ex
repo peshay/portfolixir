@@ -123,7 +123,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
      |> assign(:deleting_split, nil)
      |> assign(:action_result, nil)
      |> assign(:sync_running?, false)
-     |> assign(:sync_tasks, %{})
+     |> assign(:watched_tasks, %{})
      |> assign(:selected_security, nil)
      |> assign(:detail_tab, @default_tab)
      |> assign(:detail_fullscreen?, false)
@@ -4704,6 +4704,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
     {:ok, task} =
       CappedAsync.start(fn ->
+        await_watch()
+
         result =
           try do
             QuoteSync.sync_all()
@@ -4730,7 +4732,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
     # running it is that result's next action.
     {:noreply,
      socket
-     |> watch_sync(task, sync_crash_result(:exited))
+     |> watch_task(task, {:sync_done, sync_crash_result(:exited)})
      |> assign(:sync_running?, true)
      |> assign(:action_result, nil)
      |> assign(:quotes_release_result, nil)}
@@ -5367,12 +5369,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
       parent = self()
       sec_id = sec.id
 
-      CappedAsync.start_child(Portfolixir.LogoSupervisor, fn ->
-        result = LogoLookup.run(sec)
-        send(parent, {:logo_update_done, sec_id, result})
-      end)
+      {:ok, task} =
+        CappedAsync.start_child(Portfolixir.LogoSupervisor, fn ->
+          await_watch()
+          result = LogoLookup.run(sec)
+          send(parent, {:logo_update_done, sec_id, result})
+        end)
 
-      {:noreply, assign(socket, :action_result, {:busy, gettext("Looking up logo…")})}
+      # #941: a lookup the heap cap kills never answers; its exit lands as a
+      # failed lookup ("Logo lookup failed"), so the busy note ends and the
+      # action is armed again.
+      {:noreply,
+       socket
+       |> watch_task(task, {:logo_update_done, sec_id, {:error, :exited}})
+       |> assign(:action_result, {:busy, gettext("Looking up logo…")})}
     end
   end
 
@@ -5653,17 +5663,20 @@ defmodule PortfolixirWeb.SecuritiesLive do
     handle_info({:sync_done, {:ok, %{ok: 0, skipped: 0, error: 0}}}, socket)
   end
 
-  # #941: a sync task's exit. A normal one comes after the task's own
-  # `:sync_done` (a process's messages arrive before its exit); an abnormal
-  # one, such as the heap cap's kill, sent nothing, so the page answers as
-  # the task's body does for an exit.
-  def handle_info({:DOWN, ref, :process, _pid, reason}, %{assigns: %{sync_tasks: tasks}} = socket)
+  # #941: a watched task's exit, a sync's or a logo lookup's. A normal one
+  # comes after the task's own answer (a process's messages arrive before its
+  # exit); an abnormal one, such as the heap cap's kill, sent nothing, so the
+  # page answers as the task's body does for an exit.
+  def handle_info(
+        {:DOWN, ref, :process, _pid, reason},
+        %{assigns: %{watched_tasks: tasks}} = socket
+      )
       when is_map_key(tasks, ref) do
-    socket = assign(socket, :sync_tasks, Map.delete(tasks, ref))
+    socket = assign(socket, :watched_tasks, Map.delete(tasks, ref))
 
     case reason do
       :normal -> {:noreply, socket}
-      _abnormal -> handle_info({:sync_done, Map.fetch!(tasks, ref)}, socket)
+      _abnormal -> handle_info(Map.fetch!(tasks, ref), socket)
     end
   end
 
@@ -6202,6 +6215,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
     {:ok, task} =
       CappedAsync.start(fn ->
+        await_watch()
+
         result =
           try do
             QuoteSync.sync_security(sec)
@@ -6227,17 +6242,29 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
     # Progress is shown by the busy sync button (`sync_running?`); no toast.
     socket
-    |> watch_sync(task, %{status: :error, reason: :exited})
+    |> watch_task(task, {:sync_done, %{status: :error, reason: :exited}})
     |> assign(:sync_running?, true)
     |> assign(:action_result, nil)
   end
 
-  # #941: the heap cap kills a sync task past it, and a killed task never
-  # reaches its own `send`. Each sync task is monitored, with the answer its
-  # body gives for an exit, so the busy button still ends.
-  defp watch_sync(socket, task, exit_result) do
+  # #941: the heap cap kills a task past it, and a killed task never reaches
+  # its own `send`. Each sync task and each logo lookup is monitored, with the
+  # message its body would answer for an exit, so the busy button or the busy
+  # note still ends. The task's body opens with `await_watch/0`: it runs once
+  # its monitor is set, so it cannot end before it. A task that ended first
+  # would be reported `:noproc`, which cannot tell one that answered from one
+  # that was killed, and a fast lookup's answer would be followed by its
+  # failure.
+  defp watch_task(socket, task, exit_message) do
     ref = Process.monitor(task)
-    assign(socket, :sync_tasks, Map.put(socket.assigns.sync_tasks, ref, exit_result))
+    send(task, :watched)
+    assign(socket, :watched_tasks, Map.put(socket.assigns.watched_tasks, ref, exit_message))
+  end
+
+  defp await_watch do
+    receive do
+      :watched -> :ok
+    end
   end
 
   # #1012 (Sprint 18 U5, board ux-design-2026-10-02/07-phone-390, H7.1b): the

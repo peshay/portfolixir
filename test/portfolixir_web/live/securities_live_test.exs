@@ -2267,6 +2267,23 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
     end
   end
 
+  # A logo lookup runs in a task; its busy state in the action-result slot
+  # clears when its answer has landed.
+  defp await_logo_result(view, tries \\ 100)
+
+  defp await_logo_result(view, 0), do: render(view)
+
+  defp await_logo_result(view, tries) do
+    html = render(view)
+
+    if html =~ "Looking up logo…" do
+      Process.sleep(20)
+      await_logo_result(view, tries - 1)
+    else
+      html
+    end
+  end
+
   # The sync runs in a task; the busy flag on the toolbar's sync button
   # clears when its answer has landed.
   defp await_sync_idle(view, tries \\ 100)
@@ -2416,6 +2433,71 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
 
       assert result_html =~ "No logo source available"
       refute result_html =~ "inline-result__busy"
+    end
+
+    # User story (#941, Sprint 20 γ closing act, the correctness hunter):
+    # As the operator who chose "Update logo" on a row,
+    # I want the busy "Looking up logo…" to end with the page's failure note
+    # when the lookup's task is killed (the heap cap kills a task past it),
+    # so that a killed lookup does not leave the action dead until I reload.
+    #
+    # Acceptance criteria:
+    # - A lookup task the heap cap kills, which never answers, ends the busy
+    #   state with "Logo lookup failed", the note a failed lookup shows.
+    # - The action is armed again: a second lookup runs and answers.
+    test "a logo lookup whose task is killed ends the busy state with the failure note",
+         %{conn: conn} do
+      # A coin the logo source's map does not know: its lookup reads the name
+      # in lower case and answers "No logo source available" without a
+      # network call. A name of 252 characters makes that read allocate past
+      # a small heap, so a task under a small cap is collected, and killed,
+      # before it answers.
+      {:ok, coin} =
+        Catalog.create_security(Portfolixir.Actor.owner_ui(), %{
+          name: String.duplicate("Capped Coin ", 21),
+          currency_code: "EUR",
+          provider: "manual",
+          asset_class: "crypto"
+        })
+
+      {:ok, view, _html} = live(conn, "/securities")
+      lookup = %{"action" => "update_logo", "id" => Integer.to_string(coin.id)}
+
+      # The cap the next task takes as its first act, set after the page
+      # mounted under its own: 2 KiB, below what the lookup holds once it has
+      # read the name, so the runtime kills the task at a collection.
+      prior = Application.get_env(:portfolixir, PortfolixirWeb.HeapCap, [])
+
+      Application.put_env(
+        :portfolixir,
+        PortfolixirWeb.HeapCap,
+        Keyword.put(prior, :max_heap_bytes, 2_048)
+      )
+
+      # A lookup that runs answers "No logo source available", so "Logo
+      # lookup failed" can only be the killed task's exit. The runtime's
+      # report of the kill is captured, not asserted: it may land after the
+      # page has answered.
+      ExUnit.CaptureLog.capture_log(fn ->
+        html =
+          try do
+            assert render_hook(view, "row_action", lookup) =~ "Looking up logo…"
+            await_logo_result(view)
+          after
+            Application.put_env(:portfolixir, PortfolixirWeb.HeapCap, prior)
+          end
+
+        refute html =~ "inline-result__busy"
+
+        assert has_element?(
+                 view,
+                 "#securities-action-result-alert .data-note--problem",
+                 "Logo lookup failed"
+               )
+
+        render_hook(view, "row_action", lookup)
+        assert await_logo_result(view) =~ "No logo source available"
+      end)
     end
 
     test "clicking dismiss clears the result", %{conn: conn, sec: sec} do
