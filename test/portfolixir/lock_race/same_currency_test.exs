@@ -27,6 +27,7 @@ defmodule Portfolixir.LockRace.SameCurrencyTest do
   import Ecto.Query
 
   alias Portfolixir.Actor
+  alias Portfolixir.Imports
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.LockRace
@@ -111,8 +112,9 @@ defmodule Portfolixir.LockRace.SameCurrencyTest do
   #   cross-currency settlement without a rate.
   # - With the booking held after its lock, the currency change waits for it
   #   and is frozen by the booking it then counts.
-  # - The same holds for a transfer's counter account and for an update
-  #   that moves a booking onto the account. Neither writer deadlocks.
+  # - The same holds for a transfer's counter account, for an update that
+  #   moves a booking onto the account, and for the importer's copy of the
+  #   check. Neither writer deadlocks.
   test "a booking waits for a currency change of its account and is refused", %{db: db} do
     %{portfolio: portfolio, accounts: [cash]} = world("Race Change First", ["Change First"])
 
@@ -196,5 +198,40 @@ defmodule Portfolixir.LockRace.SameCurrencyTest do
     assert currency(target) == "USD"
     assert bookings_on(target) == []
     assert bookings_on(home) == ["EUR"]
+  end
+
+  test "an import waits for a currency change of the account it books onto and is refused",
+       %{db: db} do
+    %{portfolio: portfolio, accounts: [cash]} = world("Race Import", ["Import Cash"])
+
+    body =
+      Jason.encode!(%{
+        "version" => 1,
+        "transactions" => [
+          %{
+            "type" => "DEPOSIT",
+            "account" => "Import Cash",
+            "date" => "2026-01-05",
+            "currency" => "EUR",
+            "amount" => Jason.Fragment.new("10.00")
+          }
+        ]
+      })
+
+    {:ok, preview} = Imports.parse_portfolio_performance(body, filename: "synthetic.json")
+
+    {changed, imported} =
+      LockRace.race!(db, {fn -> to_usd(cash) end, freeze_lock()}, fn ->
+        Imports.apply(preview, %{portfolio_id: portfolio.id})
+      end)
+
+    assert {:ok, %CashAccount{currency_code: "USD"}} = changed
+    assert {:error, %{reason: {:insert_failed, changeset}}} = imported
+
+    assert {"is required for a cross-currency settlement", _} =
+             changeset.errors[:settlement_fx_rate]
+
+    assert currency(cash) == "USD"
+    assert bookings_on(cash) == []
   end
 end
