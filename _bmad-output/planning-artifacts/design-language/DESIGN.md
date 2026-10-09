@@ -3134,7 +3134,11 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   Betrag — nichts zu buchen", "<Kind> is never imported" / "<Art> wird nie
   importiert", and for a refund whose row was not imported "the row itself
   was not imported" / "die Zeile selbst wurde nicht importiert".
-  **The records no security resolves for** say why in the page's words too
+  **The records no security resolves for** head with a real plural too,
+  "One record could not be resolved to a security and was not imported:" /
+  "%{count} records could not …" ("Ein Datensatz konnte keinem Wertpapier
+  zugeordnet werden und wurde nicht importiert:" / "%{count} Datensätze
+  konnten … wurden nicht importiert:"), and say why in the page's words
   *(amended 2026-10-08, the α closing act; read off the result's `cause`,
   the result's English `reason` unchanged)*, naming securities by name in
   the page's quotes, never by record number or ADR: "a likely match,

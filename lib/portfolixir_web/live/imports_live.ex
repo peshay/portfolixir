@@ -755,8 +755,12 @@ defmodule PortfolixirWeb.ImportsLive do
       <%= if @result.unresolved_entries != [] do %>
         <div class="import-skipped" data-role="unresolved-entries">
           <p class="muted">
-            <%= gettext("%{n} record(s) could not be resolved to a security and were not imported:",
-              n: length(@result.unresolved_entries)
+            <%!-- Board 01, found while drawing 1: a real plural, as the
+                 skipped records' heading has. --%>
+            <%= ngettext(
+              "One record could not be resolved to a security and was not imported:",
+              "%{count} records could not be resolved to a security and were not imported:",
+              length(@result.unresolved_entries)
             ) %>
           </p>
           <ul>
