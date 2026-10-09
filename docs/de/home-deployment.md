@@ -525,8 +525,12 @@ Fehlschlägen, mit jedem weiteren länger bis zu einer Obergrenze. Seit Sprint
 20 (#974) trifft die Sperre nur falsche Tokens: Das richtige Token deines
 Agenten kommt durch, solange sie gilt, sodass ein veralteter Client, der nach
 einem Tausch noch ein altes Token schickt, abgewiesen wird, ohne deinen
-Agenten auszusperren. Die API der Anwendung prüft ihre Tokens genauso. Die
-Zählungen liegen nur im Speicher:
+Agenten auszusperren. Die API der Anwendung prüft ihre Tokens genauso, weil
+ein Release jedes Token beim Start an 32 Bytes hält; ein aus dem Quellcode
+gestarteter Server, der nur `PORTFOLIXIR_API_TOKEN` liest, hält es an keine
+Mindestlänge: Solange dieses Token kürzer als 32 Bytes ist, wird eine
+gesperrte Adresse abgewiesen, bevor ihr Token verglichen wird, auch das
+richtige. Die Zählungen liegen nur im Speicher:
 `docker compose restart mcp` löscht sie sofort.
 
 CI fährt diesen Weg bei jeder Änderung an dem, was er baut: Der Job

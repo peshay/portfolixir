@@ -110,9 +110,16 @@ was kept. Both token checks now compare the token first (the Sprint 20 plan's
 D-11): a correct token passes while its source is locked; a wrong one still
 counts, locked or not, and is answered 429 while the lock lasts, each one
 extending it. A locked guesser who guesses right is let in: that is the
-cost, and the 32-byte floor every token meets at boot makes that guess
-infeasible. The UI password stays lock-first: a person chooses it and no
-floor holds its length (a startup warning names a short one), so the lock is
+cost, and the 32-byte floor makes that guess infeasible. The floor holds
+where a token is checked at boot: every token a release starts with, a
+from-source server's when `PORTFOLIXIR_API_TOKENS` or
+`PORTFOLIXIR_API_PRINCIPAL` is set, and the companion's, which refuses to
+start without it. A from-source server that reads `PORTFOLIXIR_API_TOKEN`
+alone holds it to none, so the API compares first only while every configured
+token meets the floor; with a shorter one it consults the lock first, as
+before, and a locked source is refused before its token is compared (Sprint
+20's closing act, the security lens). The UI password stays lock-first: a
+person chooses it and no floor holds its length (a startup warning names a short one), so the lock is
 what bounds guessing it. Whether the login should let a correct password
 through its lock is a separate question, which nobody has asked. The bullet "The `/api/v1` routes
 are untouched" still holds: the UI password is never accepted there.

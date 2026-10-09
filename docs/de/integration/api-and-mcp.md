@@ -63,7 +63,10 @@ zuerst verglichen: Ein richtiges Token kommt durch, solange seine Adresse
 gesperrt ist (#974), sodass hinter dem veröffentlichten Port, wo jeder Client
 über die Docker-Bridge verbindet, ein Rater oder ein veralteter Client dort
 den Agenten nicht aussperrt. Die Bearer-Prüfung der API selbst verhält sich
-genauso. Vor allem anderen prüft der
+genauso, solange jedes konfigurierte Token die Mindestlänge von 32 Bytes
+erreicht; ein aus dem Quellcode gestarteter Server, der nur
+`PORTFOLIXIR_API_TOKEN` liest, hält es an keine, und mit einem kürzeren Token
+prüft sie zuerst die Sperre. Vor allem anderen prüft der
 Begleitdienst den `Host`-Header genau, Name und Port: Eine Anfrage unter einem
 `Host`, auf den der Listener nicht antwortet (die Loopback-Namen und seine
 gebundene Adresse mit seinem Port sowie die Namen in

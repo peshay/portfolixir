@@ -28,7 +28,12 @@ lock; a bearer token is compared before its source's lock is consulted, so a
 correct token passes a locked source and a wrong one still counts and is
 answered `429` while the lock lasts (Sprint 20, #974): a locked guesser who
 guesses right is let in, which the 32-byte floor makes infeasible, while the
-UI password, which a person chooses, meets the lock first; failed UI logins also meet a rolling ceiling across all sources, which
+UI password, which a person chooses, meets the lock first; the floor holds for
+every token a release boots with and for the companion's, and on a server run
+from source only when `PORTFOLIXIR_API_TOKENS` or `PORTFOLIXIR_API_PRINCIPAL`
+is set, so where `PORTFOLIXIR_API_TOKEN` alone is read with no floor and while
+any configured token is shorter, the API consults the lock first, as before,
+the correct token refused with the rest; failed UI logins also meet a rolling ceiling across all sources, which
 asks everyone to wait, the operator included, while existing sessions keep
 working, and restarting the application clears it, because the counts live in
 memory only; every server-side fetch of a caller- or provider-supplied URL

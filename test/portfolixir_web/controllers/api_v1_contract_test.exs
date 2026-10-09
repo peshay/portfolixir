@@ -173,6 +173,18 @@ defmodule PortfolixirWeb.ApiV1ContractTest do
                  &1 =~ "#974")
            )
 
+    # #974, the γ closing act (security lens): the token compares first only
+    # where the 32-byte floor holds; a from-source server reading
+    # PORTFOLIXIR_API_TOKEN alone holds it to none and stays lock-first.
+    assert Enum.any?(
+             newest["parameters"],
+             &(String.starts_with?(&1, "Every authenticated /api/v1 route") and
+                 &1 =~ "while every configured token meets the 32-byte floor" and
+                 &1 =~ "reads PORTFOLIXIR_API_TOKEN alone holds it to none" and
+                 &1 =~ "consults the lock first, as before" and
+                 not (&1 =~ "every token meets at boot"))
+           )
+
     # #1159 (C5): a security merge records an ISIN choice and its date only
     # where it made the choice; a stored record keeps what it holds.
     assert newest["summary"] =~ "#1159"
