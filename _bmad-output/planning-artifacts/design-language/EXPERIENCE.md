@@ -1142,9 +1142,10 @@ story.
   there, so "182.450,30 EUR" stays on one line on a half-width card
   (DESIGN.md → Stat card, the value suffix). Above 560 px nothing changed,
   and at 768 and 1024 px a five-figure amount still drops "EUR" under its
-  digits. Whether wider cards meet the rule — and how — is an open decision
-  (issue 1156); until it is taken, the suffix on a wider compact card is
-  the known exception, not a defect to fix card by card.
+  digits. *Decided 2026-10-07 (Sprint 20's D-4, issue 1156):* the exception
+  stands, because the digits never break; the suffix on a wider compact card
+  is the known exception, not a defect to fix card by card. It is reopened by
+  digits that break, or by a wrapped suffix someone misreads.
 - **Tables:** zero cells in a matrix render as a quiet "–" in
   {colors.text-subtle}. A destructive row action lives in the row menu, never
   as a standing button on every row.
