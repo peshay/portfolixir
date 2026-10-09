@@ -204,11 +204,15 @@ What agents must know beyond "run the gates":
   file — never raise a threshold, and refactor a function over it rather
   than exclude it. A further step is a refactor story of its own.
 - **Dialyzer has no ignore file — keep it at zero;** the first ignore entry is
-  the beginning of the end. **Sobelow ignores are deliberate and documented:**
-  `--ignore Config.CSP,Config.HTTPS` (TLS is the operator's reverse-proxy
-  concern; CSP needs nonce support first — follow-up tracked in #314), and
-  per-function `# sobelow_skip` annotations require a written reason. Never
-  add a skip without one.
+  the beginning of the end. **Sobelow skips are deliberate and documented:**
+  Sobelow runs as `mix sobelow --skip --exit`, with no `--ignore` since
+  Sprint 11 (#382 ended the `Config.CSP` and `Config.HTTPS` ignores). A
+  finding is skipped by a per-function or per-pipeline `# sobelow_skip`
+  annotation with a written reason; the two that have nowhere to carry one
+  (the HTTPS posture in `config/prod.exs`, TLS being the operator's
+  reverse-proxy concern, and the LiveView socket's origin check, set at
+  runtime) are skipped by fingerprint in `.sobelow-skips`, each with its
+  reason (#1006). Never add a skip without one.
 - **Pre-commit hooks modify files** (whitespace/EOF/line-ending fixers) —
   re-stage and re-commit. The `commit-authorship` hook (commit-msg stage)
   rejects commits that are not authored by an accountable human on
