@@ -1668,6 +1668,10 @@ defmodule Portfolixir.DocsTest do
              "a re-export that changed inside Portfolio Performance",
              "A name two accounts carry is prefilled with nothing",
              "**remembers** the mapping by default",
+             # The α fix round (EC-F2's caveat, #1195 holds the behaviour):
+             # the name maps by itself only once a booking under it is
+             # imported.
+             "the name becomes a former name of that account, which an import maps by itself once a booking under the name has been imported",
              "A prefill you leave as it is remembers nothing",
              "remembering **moves** it",
              "the choice holds for this import only",
@@ -1682,6 +1686,7 @@ defmodule Portfolixir.DocsTest do
              "ein Export, der sich in Portfolio Performance verändert hat",
              "Ein Name, den zwei Konten tragen, wird mit nichts vorbelegt",
              "wird die Zuordnung standardmäßig **gemerkt**",
+             "Der Name wird früherer Name dieses Kontos, den ein Import selbst zuordnet, sobald eine Buchung unter dem Namen importiert ist",
              "Eine unveränderte Vorbelegung merkt nichts",
              "**verschiebt** das Merken ihn",
              "gilt die Wahl nur für diesen Import",

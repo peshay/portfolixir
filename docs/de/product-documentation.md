@@ -3081,9 +3081,10 @@ das umbenannte Konto findet und nichts doppelt bucht. Ein Name, den zwei
 Konten tragen, wird mit nichts vorbelegt: Die Auswahl zeigt *Entscheiden…*,
 und der Import wartet, bis das Konto gewählt ist; er rät nie. Wird eine
 Vorbelegung auf ein Konto anderen Namens geändert, wird die Zuordnung
-standardmäßig **gemerkt**: Der Name wird früherer Name dieses Kontos, und der
-nächste Import belegt ihn selbst vor. Eine unveränderte Vorbelegung merkt
-nichts. Ist der Name der Name eines anderen Kontos, gilt die Wahl nur für
+standardmäßig **gemerkt**: Der Name wird früherer Name dieses Kontos, den ein
+Import selbst zuordnet, sobald eine Buchung unter dem Namen importiert ist
+(siehe *Ein Name, unter dem nichts importiert ist* unten). Eine unveränderte
+Vorbelegung merkt nichts. Ist der Name der Name eines anderen Kontos, gilt die Wahl nur für
 diesen Import. Ist er früherer Name eines anderen Kontos, **verschiebt** das
 Merken ihn, und die Zeile sagt das vor dem Bestätigen (*„X“ wird früherer Name
 von A und ist dann kein früherer Name von B mehr*). Das Kästchen **Zuordnung
