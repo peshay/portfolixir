@@ -1584,6 +1584,52 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (#1118; found by the α closing act, UAT persona):
+  # As the operator whose sale the preview refused with "Book the sale by
+  # hand, and the refund as a tax refund of its own",
+  # I want the handbook to say how I book that refund today,
+  # so that I am not left looking for a screen that does not book one.
+  #
+  # Acceptance criteria:
+  # - The negative-tax section repeats the remedy in the warning's words,
+  #   says no screen books a tax refund yet (#1206), and names the routes
+  #   that work: a one-row CSV whose `Typ` is *Steuerrückerstattung* (with
+  #   an example), or the API (`POST /api/v1/transactions`, type
+  #   `tax_refund`) and the MCP companion (`portfolixir.transactions.create`).
+  # - In German alike, the remedy with "Steuererstattung", the app's name for
+  #   the kind.
+  test "the handbook names how to book the refund the refused row asks for" do
+    for {path, fragments} <- [
+          {"docs/product-documentation.md",
+           [
+             "book the sale by hand, and the refund as a tax refund of its own.",
+             "No screen books a tax refund yet (issue #1206). Book it as a one-row CSV " <>
+               "in the export's German shape whose `Typ` is *Steuerrückerstattung*, the " <>
+               "refund in `Betrag` and `Gesamtpreis` and its cash account in `Konto`, or " <>
+               "over the API (`POST /api/v1/transactions` with the type `tax_refund`) or " <>
+               "the MCP companion (`portfolixir.transactions.create`):",
+             "2024-06-14 15:30:00;Steuerrückerstattung;;;;25,00;;;25,00;Test-Cash;;;"
+           ]},
+          {"docs/de/product-documentation.md",
+           [
+             "den Verkauf von Hand buchen, die Erstattung als eigene Steuererstattung.",
+             "Noch bucht keine Maske eine Steuererstattung (Issue #1206). Buche sie als " <>
+               "einzeilige CSV in der deutschen Form des Exports, deren `Typ` " <>
+               "*Steuerrückerstattung* ist, die Erstattung in `Betrag` und `Gesamtpreis` " <>
+               "und ihr Verrechnungskonto in `Konto`, oder über die API (`POST " <>
+               "/api/v1/transactions` mit dem Typ `tax_refund`) oder den MCP-Begleiter " <>
+               "(`portfolixir.transactions.create`):",
+             "2024-06-14 15:30:00;Steuerrückerstattung;;;;25,00;;;25,00;Test-Cash;;;"
+           ]}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+    end
+  end
+
   # User story (#1118; found by the α closing act, UAT persona and design
   # critic):
   # As the operator reading the handbook's list of rows the preview refuses,

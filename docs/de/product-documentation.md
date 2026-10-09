@@ -2868,8 +2868,21 @@ ein eigener Ertrag.
 Eine Gutschrift, die nach Abzug der Erstattung nichts oder weniger buchen
 würde (eine wertlose Position, zu einem symbolischen Kurs verkauft, deren
 Verlust Steuer erstattet), bleibt mit einer Parser-Warnung draußen, wie unten
-beschrieben: den Verkauf von Hand erfassen und die Erstattung als eigene
-Steuerrückerstattung. Wurde eine solche Zeile importiert, bevor Portfolixir
+beschrieben, deren Abhilfe lautet: den Verkauf von Hand buchen, die
+Erstattung als eigene Steuererstattung. Noch bucht keine Maske eine
+Steuererstattung (Issue #1206). Buche sie als einzeilige CSV in der deutschen
+Form des Exports, deren `Typ` *Steuerrückerstattung* ist, die Erstattung in
+`Betrag` und `Gesamtpreis` und ihr Verrechnungskonto in `Konto`, oder über
+die API (`POST /api/v1/transactions` mit dem Typ `tax_refund`) oder den
+MCP-Begleiter (`portfolixir.transactions.create`):
+
+```text
+Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+2024-06-14 15:30:00;Steuerrückerstattung;;;;25,00;;;25,00;Test-Cash;;;
+```
+
+Lege sie wie einen Export ab und ordne `Konto` dem Konto zu, auf dem der
+Verkauf bucht. Wurde eine solche Zeile importiert, bevor Portfolixir
 sie zurückwies, sagt ihre Warnung stattdessen, dass sie bereits importiert ist
 und hier nicht korrigiert werden kann, da die Gutschrift 0 oder weniger wäre:
 nicht noch einmal erfassen; wie eine solche Buchung korrigiert wird, ist noch
