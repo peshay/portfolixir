@@ -1029,7 +1029,10 @@ defmodule Portfolixir.Ledger do
   @doc """
   The rule by which a closed trade's fees and taxes enter its basis and
   proceeds (the ADR-0015 amendment of 2026-10-07, #1108), as the sentence the
-  trades and realized-gains payloads carry (the AGENTS.md metric rule).
+  trades and realized-gains payloads carry (the AGENTS.md metric rule). It
+  names what the matcher computes where a security's trades are booked in
+  more than one currency: each lot as booked, unconverted, under the sell's
+  currency_code (#1198, an open decision the sentence does not take).
   """
   @spec trade_fees_basis() :: String.t()
   def trade_fees_basis do
@@ -1037,11 +1040,18 @@ defmodule Portfolixir.Ledger do
       "cash leg they are part of. A cross-currency trade booked in the security's currency " <>
       "(ADR-0015) converts them into that currency at the trade's own stored " <>
       "settlement_fx_rate (account units per one security unit, so fee / rate), the broker's " <>
-      "rate for that cash leg, never a hub rate, before they enter basis and proceeds; so " <>
-      "buy_fees, buy_taxes, sell_fees, sell_taxes, basis, proceeds and realized_pnl_abs are " <>
-      "all in currency_code. A trade booked in its account's currency (a Portfolio " <>
-      "Performance import's form), a trade booked in a third currency, a trade without a " <>
-      "stored rate and a trade without a cash account add them as recorded."
+      "rate for that cash leg, never a hub rate, before they enter basis and proceeds. A " <>
+      "trade booked in its account's currency (a Portfolio Performance import's form), a " <>
+      "trade booked in a third currency, a trade without a stored rate and a trade without a " <>
+      "cash account add them as recorded. Each buy and sell so enters in the currency it is " <>
+      "booked in, and a closed trade's currency_code is its sell's: where the sell and every " <>
+      "lot it closes are booked in one currency, buy_fees, buy_taxes, sell_fees, sell_taxes, " <>
+      "basis, proceeds and realized_pnl_abs are all in currency_code. Where a security's " <>
+      "trades are booked in more than one currency, as when a Portfolio Performance import's " <>
+      "form meets a trade booked in the security's currency, a closed trade can close a lot " <>
+      "booked in another currency than its sell: its buy_fees, buy_taxes and basis then add " <>
+      "amounts in two currencies, unconverted, under currency_code, and so does every figure " <>
+      "computed from them (issue #1198, an open decision)."
   end
 
   @doc """

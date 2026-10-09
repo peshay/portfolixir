@@ -1821,8 +1821,11 @@ Beispiel-Payloads für Konten:
   `proceeds` `"1196.25"`, `realized_pnl_abs` `"188.75"` und `realized_base`
   `"151"`. Ein Trade in der Kontowährung (die Form eines Portfolio-
   Performance-Imports), in einer dritten Währung oder ohne gespeicherten Kurs
-  addiert sie wie erfasst.
-  `computation_basis.fees_and_taxes` nennt die Regel.
+  addiert sie wie erfasst. Ein geschlossener Trade, der ein Lot in einer
+  anderen Währung als sein Verkauf schließt, addiert die Beträge wie
+  gebucht, unumgerechnet, in zwei Währungen unter einem `currency_code`:
+  Issue #1198, eine offene Entscheidung.
+  `computation_basis.fees_and_taxes` nennt die Regel und diesen Fall.
 - `GET /api/v1/external_flows` (Issue #725) liefert das
   Ein-/Auszahlungs-Rollup: die gebuchten externen **Cash**-Flüsse (`deposit`
   und `removal`) über alle Portfolios, je Jahr und Monat mit Einzahlungen,
