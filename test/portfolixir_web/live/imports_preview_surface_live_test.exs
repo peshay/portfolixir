@@ -447,8 +447,13 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
     #   ISIN-Wechsel", in English "Row 3: a likely match, “Foo AG”, differs
     #   on a stronger identifier — possibly an ISIN change not recorded yet".
     # - A purchase whose WKN leads to the security an earlier row created and
-    #   whose name leads to a stored one reads "Row 3: different identifiers
-    #   point at different existing securities: “Foo AG” and “Bar Holding”".
+    #   whose name leads to a stored one reads "Zeile 3: verschiedene
+    #   Identifikatoren zeigen auf verschiedene bestehende Wertpapiere: „Foo
+    #   Neu AG“ und „Bar Holding“".
+    # - The heading counts in words, with a real singular: "One record could
+    #   not be resolved to a security and was not imported:", "Ein Datensatz
+    #   konnte keinem Wertpapier zugeordnet werden und wurde nicht
+    #   importiert:", "2 Datensätze konnten …".
     # - A purchase whose WKN two securities share (a stored one, and one the
     #   operator chose to create on an earlier row) reads "Row 3: 2 existing
     #   securities share this identifier: WKN"; a shared ticker reads
@@ -479,6 +484,9 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
                "Zeile 4: " <> veto
              ]
 
+      assert text(view, "[data-role='unresolved-entries'] p") ==
+               "2 Datensätze konnten keinem Wertpapier zugeordnet werden und wurden nicht importiert:"
+
       {:ok, view, _html} = live(conn, "/imports")
 
       upload!(view, [
@@ -494,6 +502,9 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
                "Row 3: a likely match, “Qux AG”, differs on a stronger identifier — possibly an ISIN change not recorded yet"
              ]
 
+      assert text(view, "[data-role='unresolved-entries'] p") ==
+               "One record could not be resolved to a security and was not imported:"
+
       {:ok, _bar} =
         Catalog.create_security(Actor.owner_ui(), %{
           name: "Bar Holding",
@@ -501,7 +512,7 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
           ticker_symbol: "BARH"
         })
 
-      {:ok, view, _html} = live(conn, "/imports")
+      {:ok, view, _html} = live(german(conn), "/imports")
 
       upload!(view, [
         deposit("Test-Cash", "5000.00", "2026-01-04"),
@@ -510,11 +521,16 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
       ])
 
       view |> element("form#pp-import-apply") |> render_submit()
-      assert render_async(view, 1_000) =~ "Import complete"
+      assert render_async(view, 1_000) =~ "Import abgeschlossen"
 
       assert texts(view, "[data-role='unresolved-entries'] li") == [
-               "Row 3: different identifiers point at different existing securities: “Foo Neu AG” and “Bar Holding”"
+               "Zeile 3: verschiedene Identifikatoren zeigen auf verschiedene bestehende Wertpapiere: „Foo Neu AG“ und „Bar Holding“"
              ]
+
+      # One record in German: no "1 Datensätze" (board 01, found while
+      # drawing 1; the manual plural is drift per EXPERIENCE.md).
+      assert text(view, "[data-role='unresolved-entries'] p") ==
+               "Ein Datensatz konnte keinem Wertpapier zugeordnet werden und wurde nicht importiert:"
 
       # A stored security, a first row the operator chooses to create
       # beside it (its ISIN differs), and a second row whose identifier
