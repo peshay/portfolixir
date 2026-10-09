@@ -6,6 +6,7 @@ defmodule Portfolixir.ReviewSeedTest do
   # keeps logo discovery and the quote and FX sync off, as the seed demands.
   use Portfolixir.DataCase, async: false
 
+  import Ecto.Query
   import ExUnit.CaptureIO
 
   alias Portfolixir.Catalog.Quote
@@ -38,6 +39,41 @@ defmodule Portfolixir.ReviewSeedTest do
     assert row_counts() == rows
     # Written by the second run: none; changed or removed by it: none.
     assert {length(second -- first), length(first -- second)} == {0, 0}
+  end
+
+  # User story (#1127, Sprint 20 γ closing act, the correctness hunter):
+  # As the reviewer walking the review instance's data-quality surfaces,
+  # I want the README and the seed to name the held security that stores no
+  # asset class,
+  # so that the "Unclassified" surface is looked for where it is.
+  #
+  # Acceptance criteria:
+  # - "Placeholder Anleihe 2031 3,25%", the delivered position with no
+  #   price, keeps its name and stores bond (#1127 reads its bond word);
+  #   "Ostsee Logistik 4,10% 2028/2033" stores no asset class.
+  # - The README names Ostsee Logistik as the held security with no asset
+  #   class and no longer says the delivered position has none; the seed's
+  #   step 2 says the same.
+  test "the README names the held security that stores no asset class" do
+    seed!()
+
+    assert stored_class("Placeholder Anleihe 2031 3,25%") == "bond"
+    assert stored_class("Ostsee Logistik 4,10% 2028/2033") == nil
+
+    for path <- ["priv/demo/README.md", @seed] do
+      text = path |> File.read!() |> String.replace(~r/[\s#]+/, " ")
+
+      assert text =~
+               "the held security with no asset class is \"Ostsee Logistik 4,10% 2028/2033\"",
+             path
+
+      refute text =~ "a delivered position with no price and no asset class", path
+      refute text =~ "no quote at all and no asset class", path
+    end
+  end
+
+  defp stored_class(name) do
+    Repo.one!(from(s in Security, where: s.name == ^name, select: s.asset_class))
   end
 
   defp row_counts,

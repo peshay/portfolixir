@@ -209,8 +209,10 @@ if dropped != [] do
   IO.puts("stale surface: released #{length(dropped)} quote(s) newer than #{stale_cutoff}")
 end
 
-# 2. A position delivered in with no quote at all and no asset class (fires
-#    "no price", "unclassified" and "no logo").
+# 2. A position delivered in with no quote at all (fires "no price" and "no
+#    logo"). The write stores it as a bond: #1127 reads the bond word in its
+#    name. So the held security with no asset class is "Ostsee Logistik
+#    4,10% 2028/2033" (16d), which fires "unclassified".
 {_bond_state, bond} =
   seed_position.(
     "Placeholder Anleihe 2031 3,25%",
