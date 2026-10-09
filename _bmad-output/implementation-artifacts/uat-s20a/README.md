@@ -29,3 +29,12 @@ and reduced to a 256-colour palette, as the boards are.
 | `row-errors-fresh` | The parser-warnings note of a CSV: a refused credit row (#1118) and a transfer without a counter-account, each with the line a spreadsheet shows (#1128); at 390 px the note's body takes the full width (#1140) | 01 ③ ④ ⑤ |
 | `row-errors-imported` | The refused credit row of a JSON file whose sale the previous release already booked: "bereits importiert und hier nicht zu korrigieren" (#1118, #1193) | 01 ③ |
 | `done-page` | The done page with the skip reasons in German and a real plural ("2 nicht importierbare Datensätze übersprungen") | 01 |
+
+**Refreshed after the second fix round** (2026-10-09, the same scripts on a
+database of their own, the old release at `12117072` booking the old reading
+first): `correction-section-*` (the middle column reads "Korrigiert", board
+03 ④; the two 390 px files come out byte-identical, as the phone rows carry
+no column word), `row-errors-fresh-*` and `row-errors-imported-*` (the
+refused credit row in board 01 ③'s sentence, "Steuererstattung", the figures
+in the page's notation). `correction-dialog-*` is unchanged: the dialog shows
+no column word.
