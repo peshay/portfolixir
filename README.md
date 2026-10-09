@@ -270,10 +270,12 @@ its contrib modules (btree_gist).
 commands below from. Set them before `mix ecto.setup`, which creates and
 migrates the database they name; `mix phx.server` reads the rest. The database
 is named by `DATABASE_NAME`, `DATABASE_HOST` and `DATABASE_PORT` (default
-`portfolixir_dev` on `127.0.0.1:5432`, user and password `postgres`); only a
-release reads `DATABASE_URL`. The server listens on loopback, and its web UI
-asks for a login only when `PORTFOLIXIR_UI_PASSWORD` is exported before
-`mix phx.server`: without it, the UI is open to every process on the machine.
+`portfolixir_dev` on `127.0.0.1:5432`), and the server connects to it as
+user `postgres` with password `postgres`, which `config/dev.exs` fixes: no
+variable changes them. Only a release reads `DATABASE_URL`. The server listens
+on loopback, on `PORT` (default `4000`), and its web UI asks for a login only
+when `PORTFOLIXIR_UI_PASSWORD` is exported before `mix phx.server`: without it,
+the UI is open to every process on the machine.
 The `read` below locks it: type a password of at least 12 characters at its
 prompt (bash or zsh), which neither shows it nor keeps it in the shell's
 history. `/api/v1` and the MCP companion share one bearer token,
@@ -281,6 +283,7 @@ history. `/api/v1` and the MCP companion share one bearer token,
 
 ```sh
 export DATABASE_NAME=portfolixir_dev DATABASE_HOST=127.0.0.1 DATABASE_PORT=5432
+export PORT=4000
 read -rs PORTFOLIXIR_UI_PASSWORD && export PORTFOLIXIR_UI_PASSWORD
 export PORTFOLIXIR_API_TOKEN="$(openssl rand -base64 48)"
 ```
@@ -293,8 +296,9 @@ mix ecto.setup
 mix phx.server
 ```
 
-Open the Phoenix URL printed by the server, usually
-`http://localhost:4000`; the login is at `/login`.
+Open the URL the server prints, `http://localhost:4000` at the default
+`PORT`; the login is at `/login`. With another `PORT`, give the companion's
+`PORTFOLIXIR_API_BASE_URL` the same port.
 
 ### API and MCP
 

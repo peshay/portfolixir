@@ -367,6 +367,75 @@ defmodule Portfolixir.AgentEntryDocsTest do
     end
   end
 
+  # User story (the Sprint 20 launch test, finding 1):
+  # As the fresh agent installing Portfolixir from source by the README and
+  # llms.txt alone,
+  # I want the port and the database settings the server reads named where I
+  # read, and its fixed database login said to be fixed,
+  # so that I move the port without reading config/dev.exs, and do not look
+  # for a variable that changes the database user.
+  #
+  # Acceptance criteria:
+  # - config/dev.exs reads PORT, DATABASE_NAME, DATABASE_HOST and
+  #   DATABASE_PORT, each with a default, and fixes the database user and
+  #   password at `postgres`, with no variable for either.
+  # - The README's "Run from source" and llms.txt's Install name `PORT` with
+  #   its default, and the two, the deployment guide (EN) and .env.example say
+  #   the user and the password `postgres` are fixed in config/dev.exs; none
+  #   of them lists "user and password `postgres`" among the defaults.
+  # - The deployment guide (EN, DE) gives the from-source route a table of the
+  #   four variables, each with the default config/dev.exs gives it.
+  test "the from-source route names its port and the database settings it reads" do
+    flat = &String.replace(&1, ~r/\s+/, " ")
+    dev = File.read!("config/dev.exs")
+
+    defaults =
+      ~r/System\.get_env\("([A-Z_]+)", "([^"]+)"\)/
+      |> Regex.scan(dev, capture: :all_but_first)
+      |> Map.new(fn [name, default] -> {name, default} end)
+      |> Map.take(~w(PORT DATABASE_NAME DATABASE_HOST DATABASE_PORT))
+
+    assert map_size(defaults) == 4, "config/dev.exs reads with a default: #{inspect(defaults)}"
+    assert dev =~ ~r/username: "postgres",\s+password: "postgres",/
+
+    section = fn path, from, to ->
+      path |> File.read!() |> String.split(from) |> Enum.at(1) |> String.split(to) |> hd()
+    end
+
+    readme = flat.(section.("README.md", "### Run from source", "### API and MCP"))
+    install = flat.(section.("docs/llms.txt", "## Install", "## Connect the MCP companion"))
+    guide_en = normalized("docs/home-deployment.md")
+    guide_de = normalized("docs/de/home-deployment.md")
+    env_example = flat.(String.replace(File.read!(".env.example"), ~r/^# ?/m, ""))
+
+    fixed =
+      "user `postgres` with password `postgres`, which `config/dev.exs` fixes: " <>
+        "no variable changes them"
+
+    for {path, doc} <- [{"README.md", readme}, {"docs/llms.txt", install}] do
+      assert doc =~ "`PORT` (default `#{defaults["PORT"]}`)", path
+      assert doc =~ fixed, path
+      refute doc =~ "user and password `postgres`", path
+    end
+
+    assert guide_en =~ fixed
+
+    assert guide_de =~
+             "Benutzer `postgres` mit dem Passwort `postgres`, die `config/dev.exs` festlegt: " <>
+               "keine Variable ändert sie"
+
+    assert env_example =~ "user postgres with password postgres, which config/dev.exs fixes"
+    refute env_example =~ "user and password postgres"
+
+    for {path, guide} <- [
+          {"docs/home-deployment.md", guide_en},
+          {"docs/de/home-deployment.md", guide_de}
+        ],
+        {name, default} <- defaults do
+      assert guide =~ "| `#{name}` | `#{default}` |", "#{path}: #{name} defaults to #{default}"
+    end
+  end
+
   # User story (the launch test's second run, #1037):
   # As the fresh agent installing Portfolixir from the README and llms.txt
   # through a shell,
