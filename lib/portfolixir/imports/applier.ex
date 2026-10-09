@@ -136,6 +136,7 @@ defmodule Portfolixir.Imports.Applier do
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Imports.SecurityResolver
   alias Portfolixir.Journal
+  alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Projection
   alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Ledger.Transaction
@@ -2409,19 +2410,17 @@ defmodule Portfolixir.Imports.Applier do
   # currencies and runs the same pure validator. An auto-created cash
   # account is created with the entry's currency, so only an existing
   # account with a different currency can trip this.
-  defp cash_currencies_for(attrs) do
-    [attrs[:cash_account_id], attrs[:counter_cash_account_id]]
-    |> Enum.reject(&is_nil/1)
-    |> Enum.uniq()
-    |> case do
-      [] ->
-        %{}
-
-      ids ->
-        Repo.all(from(c in CashAccount, where: c.id in ^ids, select: {c.id, c.currency_code}))
-        |> Map.new()
-    end
-  end
+  #
+  # #922: the currencies are read as the ledger's check reads them, under a
+  # key-share lock in id order (`Ledger.locked_cash_account_currencies/1`),
+  # inside the apply's transaction, so a currency change of the account
+  # cannot commit between this check and the import's commit.
+  defp cash_currencies_for(attrs),
+    do:
+      Ledger.locked_cash_account_currencies([
+        attrs[:cash_account_id],
+        attrs[:counter_cash_account_id]
+      ])
 
   # The portfolio's existing bookings as a set of stable dedup keys (#533). Loaded
   # once per import so a re-import can skip a booking that already exists even when

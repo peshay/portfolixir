@@ -1532,7 +1532,8 @@ defmodule Portfolixir.Ledger do
   commits. The lock conflicts only with `FOR UPDATE` -- the identity-field
   freeze's and the hardened delete's -- never with a write of the account's
   other fields, and the order is the one the cash merge locks its two
-  accounts in. Outside a transaction the lock ends with the statement.
+  accounts in. Outside a transaction the lock ends with the statement. The
+  importer's copy of the check reads through it too.
   """
   @spec locked_cash_account_currencies([integer() | nil]) :: %{integer() => String.t()}
   def locked_cash_account_currencies(ids) when is_list(ids) do
