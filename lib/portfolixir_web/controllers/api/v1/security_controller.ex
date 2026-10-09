@@ -8,6 +8,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
   alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Knowledge
   alias Portfolixir.Portfolios.Bonds
+  alias Portfolixir.Portfolios.QuotePlausibility
   alias PortfolixirWeb.Api.V1.FieldSelection
   alias PortfolixirWeb.Api.V1.IntegerParam
   alias PortfolixirWeb.Api.V1.JSON
@@ -43,9 +44,12 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
         opts
         |> put_updated_since(since)
         |> list_by(data_quality)
-        |> Enum.map(serializer)
 
-      json(conn, SinceParam.put_envelope(%{data: securities}, since))
+      envelope =
+        %{data: Enum.map(securities, serializer)}
+        |> put_findings(data_quality, securities)
+
+      json(conn, SinceParam.put_envelope(envelope, since))
     else
       {:error, field} ->
         conn
@@ -73,6 +77,22 @@ defmodule PortfolixirWeb.Api.V1.SecurityController do
     |> DataQuality.list(opts)
     |> Enum.map(& &1.security)
   end
+
+  # #1101 (plan D-7; the AGENTS.md metric rule): implausible_quote names a
+  # ratio, so its rule travels in the envelope, with each listed security's
+  # finding — the booking it contradicts — for the agent to check, as
+  # Wealth's note names it for the operator.
+  defp put_findings(envelope, "implausible_quote", securities) do
+    Map.merge(envelope, %{
+      findings:
+        securities
+        |> QuotePlausibility.findings_among()
+        |> Enum.map(&JSON.implausible_quote_finding/1),
+      computation_basis: QuotePlausibility.computation_basis()
+    })
+  end
+
+  defp put_findings(envelope, _data_quality, _securities), do: envelope
 
   # String-keyed and whitelisted: a query param never mints an atom.
   defp data_quality_param(%{"data_quality" => ""}), do: {:ok, nil}

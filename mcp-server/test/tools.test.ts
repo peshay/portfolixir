@@ -352,8 +352,10 @@ describe("Portfolixir MCP tools", () => {
   // Acceptance criteria:
   // - The tool exposes exactly the predicates the engine defines — since
   //   #717 that includes missing_fx (priced, but no stored rate to the
-  //   base currency), and since #1068 two_scales (a bond priced on two
-  //   scales, either way).
+  //   base currency), since #1068 two_scales (a bond priced on two
+  //   scales, either way), and since #1101 implausible_quote (a held
+  //   security whose quotes contradict its own bookings, with the findings
+  //   and computation_basis the API's envelope carries).
   // - It forwards the choice to the API rather than filtering client-side.
   // - Its description says that missing_logo holds a stored logo whose file
   //   is gone (#933).
@@ -368,19 +370,31 @@ describe("Portfolixir MCP tools", () => {
       "missing_quote",
       "missing_logo",
       "missing_fx",
-      "two_scales"
+      "two_scales",
+      "implausible_quote"
     ]);
 
     // The threshold and the stale/missing distinction travel with the tool.
     assert.match(securitiesList?.description ?? "", /7 days/);
     assert.match(securitiesList?.description ?? "", /INCLUDING never-priced/);
     assert.match(securitiesList?.description ?? "", /two_scales \(/);
+    assert.match(securitiesList?.description ?? "", /implausible_quote \(held/);
+    assert.match(securitiesList?.description ?? "", /findings and computation_basis/);
     // #933: a stored logo whose file is gone is in the missing_logo set.
     assert.match(securitiesList?.description ?? "", /missing_logo \(none and unlocked, or file gone\)/);
 
     const twoScales = createRecordingClient({ data: [] });
     await callTool(twoScales.client, "portfolixir.securities.list", { data_quality: "two_scales" });
     assert.equal(twoScales.requests[0].path, "/api/v1/securities?data_quality=two_scales");
+
+    const implausible = createRecordingClient({ data: [] });
+    await callTool(implausible.client, "portfolixir.securities.list", {
+      data_quality: "implausible_quote"
+    });
+    assert.equal(
+      implausible.requests[0].path,
+      "/api/v1/securities?data_quality=implausible_quote"
+    );
 
     const { client, requests } = createRecordingClient({ data: [] });
 

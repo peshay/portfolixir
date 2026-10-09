@@ -133,6 +133,63 @@ defmodule PortfolixirWeb.ApiV1DataQualityTest do
            ]
   end
 
+  # User story (#1101, Sprint 20 plan D-7; contract entry 16):
+  # As the LLM agent the operator runs,
+  # I want to ask for the held securities whose quotes contradict their own
+  # bookings, with the booking each one contradicts and the rule,
+  # so that I can work the set the Overview counts and Wealth names, and
+  # check each finding without a second read.
+  #
+  # Acceptance criteria:
+  # - data_quality=implausible_quote answers the held "Wrenfield Gardens
+  #   AG" (bought 48.20, quoted 4.87 that day) and nothing of the seed.
+  # - The envelope's findings name its booking exactly: security_id, kind
+  #   "buy", date "2026-05-12", price "48.2", currency_code "EUR",
+  #   quote_date "2026-05-12", close "4.87", ratio "0.101037" (4.87 / 48.20
+  #   at scale 6, half up), bookings_outside 1.
+  # - The envelope's computation_basis states input_series, reference,
+  #   window, gaps and threshold (the AGENTS.md metric rule); another
+  #   data_quality carries neither key.
+  test "data_quality=implausible_quote lists the held set with its findings and basis",
+       %{conn: conn} do
+    seed()
+    world = base_world([])
+    wrenfield = create_security!(name: "Wrenfield Gardens AG", ticker: "WGA")
+    buy!(world, wrenfield, quantity: "120", price: "48.20", date: ~D[2026-05-12])
+    put_quote!(wrenfield, ~D[2026-05-12], "4.87")
+
+    response =
+      get_json(conn, "/api/v1/securities?data_quality=implausible_quote") |> json_response(200)
+
+    assert names(response) == ["Wrenfield Gardens AG"]
+
+    assert response["findings"] == [
+             %{
+               "security_id" => wrenfield.id,
+               "kind" => "buy",
+               "date" => "2026-05-12",
+               "price" => "48.2",
+               "currency_code" => "EUR",
+               "quote_date" => "2026-05-12",
+               "close" => "4.87",
+               "ratio" => "0.101037",
+               "bookings_outside" => 1
+             }
+           ]
+
+    basis = response["computation_basis"]
+
+    assert Map.keys(basis) |> Enum.sort() ==
+             ~w(assumptions gaps input_series reference threshold window)
+
+    assert basis["window"] =~ "within 7 days before the booking date"
+    assert basis["threshold"] =~ "below 1/2 or above 2"
+
+    other = get_json(conn, "/api/v1/securities?data_quality=stale_quote") |> json_response(200)
+    refute Map.has_key?(other, "findings")
+    refute Map.has_key?(other, "computation_basis")
+  end
+
   test "it composes with the listing's other narrowings", %{conn: conn} do
     seed()
 

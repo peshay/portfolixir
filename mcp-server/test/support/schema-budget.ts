@@ -163,6 +163,18 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 103_438,
     book: 176_520,
     full: 206_868
+  },
+  {
+    since: "2026-10-08",
+    why:
+      "Sprint 20 β, B4 (#1101): securities.list takes data_quality implausible_quote and " +
+      "says what it holds and that the envelope carries findings and computation_basis, " +
+      "paid for by tightening the delta-read sentences of securities.list and notes.list " +
+      "and dropping the list's pointer to the security writes, and lowered to the figure " +
+      "measured (D-10)",
+    read: 103_375,
+    book: 176_457,
+    full: 206_805
   }
 ];
 

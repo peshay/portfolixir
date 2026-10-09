@@ -723,42 +723,42 @@ msgstr ""
 msgid "WKN"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/filter_popover.ex:239
+#: lib/portfolixir_web/live/securities/filter_popover.ex:242
 #, elixir-autogen, elixir-format
 msgid "contains"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/filter_popover.ex:237
+#: lib/portfolixir_web/live/securities/filter_popover.ex:240
 #, elixir-autogen, elixir-format
 msgid "equals"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/filter_popover.ex:241
+#: lib/portfolixir_web/live/securities/filter_popover.ex:244
 #, elixir-autogen, elixir-format
 msgid "greater than"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/filter_popover.ex:244
+#: lib/portfolixir_web/live/securities/filter_popover.ex:247
 #, elixir-autogen, elixir-format
 msgid "is false"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/filter_popover.ex:243
+#: lib/portfolixir_web/live/securities/filter_popover.ex:246
 #, elixir-autogen, elixir-format
 msgid "is true"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/filter_popover.ex:242
+#: lib/portfolixir_web/live/securities/filter_popover.ex:245
 #, elixir-autogen, elixir-format
 msgid "less than"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/filter_popover.ex:238
+#: lib/portfolixir_web/live/securities/filter_popover.ex:241
 #, elixir-autogen, elixir-format
 msgid "not equal"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/filter_popover.ex:240
+#: lib/portfolixir_web/live/securities/filter_popover.ex:243
 #, elixir-autogen, elixir-format
 msgid "starts with"
 msgstr ""
@@ -2452,7 +2452,7 @@ msgstr ""
 msgid "Logo removed"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities/filter_popover.ex:245
+#: lib/portfolixir_web/live/securities/filter_popover.ex:248
 #: lib/portfolixir_web/live/securities_live.ex:4490
 #, elixir-autogen, elixir-format
 msgid "is unclassified"
@@ -5348,7 +5348,7 @@ msgstr ""
 msgid "Filter the list"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:6499
+#: lib/portfolixir_web/live/securities_live.ex:6502
 #, elixir-autogen, elixir-format
 msgid "Missing FX"
 msgstr ""
@@ -5359,12 +5359,12 @@ msgstr ""
 msgid "Missing FX rate"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:6498
+#: lib/portfolixir_web/live/securities_live.ex:6501
 #, elixir-autogen, elixir-format
 msgid "No price"
 msgstr ""
 
-#: lib/portfolixir_web/live/securities_live.ex:6497
+#: lib/portfolixir_web/live/securities_live.ex:6500
 #, elixir-autogen, elixir-format
 msgid "Stale quote"
 msgstr ""
@@ -12285,4 +12285,10 @@ msgstr ""
 #: lib/portfolixir_web/live/securities_live.ex:2432
 #, elixir-autogen, elixir-format
 msgid "no return, no cost basis"
+msgstr ""
+
+#: lib/portfolixir_web/live/securities/filter_popover.ex:238
+#: lib/portfolixir_web/live/securities_live.ex:6491
+#, elixir-autogen, elixir-format
+msgid "Quote does not match bookings"
 msgstr ""
