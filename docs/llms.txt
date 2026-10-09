@@ -96,8 +96,8 @@ all).
 Where the Compose build cannot run at all, on a host that reaches no Debian
 mirror and with no second machine to build the image on, the README's "Run from
 source" is the fallback: `mix phx.server` under `MIX_ENV=dev`, a development
-server and not a release, on Elixir 1.18 or newer and a PostgreSQL the operator
-runs. `mix` reads no `.env`: export `PORTFOLIXIR_API_TOKEN` and
+server and not a release, on Elixir 1.18 or newer and a database the operator
+runs: PostgreSQL 15 or newer, with its contrib modules (btree_gist). `mix` reads no `.env`: export `PORTFOLIXIR_API_TOKEN` and
 `PORTFOLIXIR_UI_PASSWORD` in the shell that starts it, and name the database
 with `DATABASE_NAME`, `DATABASE_HOST` and `DATABASE_PORT` (default
 `portfolixir_dev` on `127.0.0.1:5432`, user and password `postgres`). It listens

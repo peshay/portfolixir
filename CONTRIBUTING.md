@@ -96,8 +96,11 @@ npm ci --ignore-scripts --prefix mcp-server
 npm run build --prefix mcp-server
 PORTFOLIXIR_API_BASE_URL=http://127.0.0.1:4000 \
 PORTFOLIXIR_API_TOKEN=replace-me \
-npm start --prefix mcp-server
+node mcp-server/dist/index.js
 ```
+
+`node` runs the built companion directly: `npm start` prints its own banner on
+stdout, where the companion speaks JSON-RPC over stdio.
 
 ## Development Workflow
 

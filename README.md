@@ -182,7 +182,9 @@ regenerates them._
   your machine; the home deployment guide's
   [prerequisites](docs/home-deployment.md#prerequisites) say why.
 - From source: Elixir 1.18 or newer, which [mix.exs](mix.exs) requires (CI
-  runs 1.18.5 on Erlang/OTP 27), and PostgreSQL.
+  runs 1.18.5 on Erlang/OTP 27), and PostgreSQL 15 or newer, with its contrib
+  modules (btree_gist): the migrations use `NULLS NOT DISTINCT` and create the
+  `btree_gist` extension.
 - For the MCP companion run on its own: Node 24.
 
 The first build pulls the pinned base images and downloads Debian packages, Hex
@@ -261,7 +263,29 @@ docker compose down -v
 
 The route for a host where the Compose build cannot run, for example one that
 reaches no Debian mirror: a development server (`MIX_ENV=dev`), not a release,
-on Elixir 1.18 or newer and a PostgreSQL you run.
+on Elixir 1.18 or newer and a database you run: PostgreSQL 15 or newer, with
+its contrib modules (btree_gist).
+
+`mix` reads no `.env`: export what the server needs in the shell you run the
+commands below from. Set them before `mix ecto.setup`, which creates and
+migrates the database they name; `mix phx.server` reads the rest. The database
+is named by `DATABASE_NAME`, `DATABASE_HOST` and `DATABASE_PORT` (default
+`portfolixir_dev` on `127.0.0.1:5432`, user and password `postgres`); only a
+release reads `DATABASE_URL`. The server listens on loopback, and its web UI
+asks for a login only when `PORTFOLIXIR_UI_PASSWORD` is exported before
+`mix phx.server`: without it, the UI is open to every process on the machine.
+The `read` below locks it: type a password of at least 12 characters at its
+prompt (bash or zsh), which neither shows it nor keeps it in the shell's
+history. `/api/v1` and the MCP companion share one bearer token,
+`PORTFOLIXIR_API_TOKEN`; keep its value for the companion.
+
+```sh
+export DATABASE_NAME=portfolixir_dev DATABASE_HOST=127.0.0.1 DATABASE_PORT=5432
+read -rs PORTFOLIXIR_UI_PASSWORD && export PORTFOLIXIR_UI_PASSWORD
+export PORTFOLIXIR_API_TOKEN="$(openssl rand -base64 48)"
+```
+
+Then, in the same shell:
 
 ```sh
 mix deps.get
@@ -269,32 +293,14 @@ mix ecto.setup
 mix phx.server
 ```
 
-`mix` reads no `.env`: export what the server needs in the shell you start it
-from. The database is named by `DATABASE_NAME`, `DATABASE_HOST` and
-`DATABASE_PORT` (default `portfolixir_dev` on `127.0.0.1:5432`, user and
-password `postgres`); only a release reads `DATABASE_URL`. The server listens
-on loopback, and its web UI asks for a login only when
-`PORTFOLIXIR_UI_PASSWORD` is exported before `mix phx.server`: without it, the
-UI is open to every process on the machine. To lock it, type a password of at
-least 12 characters at this prompt (bash or zsh), which neither shows it nor
-keeps it in the shell's history:
-
-```sh
-read -rs PORTFOLIXIR_UI_PASSWORD && export PORTFOLIXIR_UI_PASSWORD
-```
-
 Open the Phoenix URL printed by the server, usually
 `http://localhost:4000`; the login is at `/login`.
 
 ### API and MCP
 
-`/api/v1` and the MCP companion share one bearer token. From source, export it
-in the shell you start the server from, before `mix phx.server`, and keep the
-value for the companion:
-
-```sh
-export PORTFOLIXIR_API_TOKEN="$(openssl rand -base64 48)"
-```
+`/api/v1` and the MCP companion share one bearer token: for Compose,
+`PORTFOLIXIR_API_TOKEN` in `.env`; from source, the one you exported above
+before `mix phx.server`.
 
 Run the MCP companion separately when you do not use Docker Compose.
 `npm ci` installs exactly the versions in `package-lock.json`, and
@@ -307,8 +313,11 @@ npm ci --ignore-scripts --prefix mcp-server
 npm run build --prefix mcp-server
 PORTFOLIXIR_API_BASE_URL=http://127.0.0.1:4000 \
 PORTFOLIXIR_API_TOKEN="<the same token>" \
-npm start --prefix mcp-server
+node mcp-server/dist/index.js
 ```
+
+`node` runs the built companion directly: `npm start` would print its own
+banner on stdout before the companion's first JSON-RPC message.
 
 ### Connect your agent
 
