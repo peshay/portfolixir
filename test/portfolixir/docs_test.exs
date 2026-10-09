@@ -1554,6 +1554,32 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (ADR-0053 §6; found by the α closing act, UAT persona):
+  # As the operator reading the handbook beside the correction section,
+  # I want it to name the table's figure columns as the page names them,
+  # so that "per the file" does not promise a figure the file does not hold.
+  #
+  # Acceptance criteria:
+  # - The section names the cash "as booked", "corrected" — what the
+  #   correction writes, the cash the row books today — and the
+  #   "difference" (board ux-design-2026-10-07/03-correction-sentence ④),
+  #   in German "gebucht", "korrigiert" und die "Differenz"; the retired
+  #   column word is gone from that sentence.
+  test "the handbook names the correction table's columns as the page does" do
+    for {path, fragment, stale} <- [
+          {"docs/product-documentation.md",
+           "its cash **as booked**, **corrected** (what the correction writes, the cash " <>
+             "the row books today) and the **difference**", "**per the file**"},
+          {"docs/de/product-documentation.md",
+           "ihr Geld **gebucht**, **korrigiert** (was die Korrektur schreibt, das Geld, " <>
+             "das die Zeile heute bucht) und die **Differenz**", "**laut Datei**"}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+      assert doc =~ fragment, "#{path}: #{fragment}"
+      refute doc =~ stale, "#{path}: #{stale}"
+    end
+  end
+
   # User story (#1118, #1193; found by the α closing act):
   # As the operator whose nominal sale with a tax refund was imported
   # before the preview refused such a row,

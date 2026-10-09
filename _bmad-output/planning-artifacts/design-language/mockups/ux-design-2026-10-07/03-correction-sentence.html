@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mockup — Import correction: a sentence true for every reading, the dialog's caption (α closing act CH3 = EC-F4, EC-F8; ADR-0053 §6, A1, A6)</title>
+<title>Mockup — Import correction: a sentence true for every reading, the dialog's caption, the columns (α closing act CH3 = EC-F4, EC-F8, UAT-4; ADR-0053 §6, A1, A6)</title>
 <link rel="stylesheet" href="../../../../../priv/static/app.css">
 <link rel="stylesheet" href="mock.css">
 <!-- THE PROPOSAL: no CSS. Two strings change and one caption is rendered
-     only beside its figure. Everything in the frames is markup and classes
+     only beside its figure (① ② ③); one column word changes (④). Everything in the frames is markup and classes
      that already ship in imports_live.ex (the correction section
      #import-correction: .panel.inner, the attention data note, the
      .data-table, .import-correction__legs, .import-correction__total,
@@ -17,8 +17,8 @@
      390 px viewport and app.css's 720 and 560 px blocks fire as on a
      phone. -->
 <style id="proposal">
-  /* Nothing: the sentence (①), the caption's word (②) and the caption's
-     condition (③) need no rule. */
+  /* Nothing: the sentence (①), the caption's word (②), the caption's
+     condition (③) and the column word (④) need no rule. */
 </style>
 <style>
   /* Board chrome only — nothing below is a proposal. */
@@ -61,7 +61,7 @@
 </head>
 <body data-widths="1200,390">
 
-<div class="pickbar desk-only"><b>Board 03 — the correction section's sentence and the dialog's caption (found by Sprint 20 PR α's closing act: correctness hunter CH3, edge-case hunter EC-F4 and EC-F8).</b> <b>Before/after, nothing to pick.</b> Board 01 ⑧ made the sentence name the Portfolio Performance file instead of a CSV column, but kept its claim: „Gebucht ist der Bruttowert … Die Differenz sind die Gebühren und Steuern der Zeile.“ Since ADR-0053 A6 the section also lists a JSON or a converter row whose tax refund was counted twice (A1). There, what was booked is no gross value, and the difference is that refund, not fees or taxes; the dialog's caption „Gebühren und Steuern“ under the total says the same wrong thing. <b>After:</b> one sentence true for both readings, the caption „Differenz“, and no caption where no figure stands beside it. Every name, amount and date is invented. <b>Dashed = new.</b></div>
+<div class="pickbar desk-only"><b>Board 03 — the correction section's sentence and the dialog's caption (found by Sprint 20 PR α's closing act: correctness hunter CH3, edge-case hunter EC-F4 and EC-F8).</b> <b>Before/after, nothing to pick.</b> Board 01 ⑧ made the sentence name the Portfolio Performance file instead of a CSV column, but kept its claim: „Gebucht ist der Bruttowert … Die Differenz sind die Gebühren und Steuern der Zeile.“ Since ADR-0053 A6 the section also lists a JSON or a converter row whose tax refund was counted twice (A1). There, what was booked is no gross value, and the difference is that refund, not fees or taxes; the dialog's caption „Gebühren und Steuern“ under the total says the same wrong thing. <b>After:</b> one sentence true for both readings, the caption „Differenz“, and no caption where no figure stands beside it. <b>④, added by the second fix round (the UAT persona's UAT-4):</b> the middle figure column „Laut Datei“ shows the booking after the refund is split off, not what the file states, so it becomes „Korrigiert“. Every name, amount and date is invented. <b>Dashed = new.</b></div>
 <p class="phone-only phone-cap"><b>Board 03 at 390&nbsp;px.</b> Real 390-px viewports: app.css' rules under 720 and 560&nbsp;px apply. All data invented. The arguments and the desktop frames are in the 1200-px render.</p>
 
 <!-- ============================ ① the sentence ============================ -->
@@ -114,6 +114,40 @@
   </div>
 </section>
 
+<!-- ============================ ④ the columns ============================ -->
+<section class="mock-board" id="columns">
+  <h2>④ The columns — „Gebucht · Korrigiert · Differenz“ <small>the table of „Bereits importiert, mit anderem Betrag“ (α closing act, second fix round: UAT-4)</small></h2>
+  <p class="mock-note desk-only">The same JSON sale as ①. The file states the sale's cash as 120,00 (PP's <code>amount</code>, the refund inside it); the correction books the sale 95,00, the cash less the refund 25,00 booked beside it (A1). The middle column, „Laut Datei“, shows +95,00 — a figure the file does not hold. For a PP CSV row whose gross value was booked, the column happens to equal the Gesamtpreis, which is why the word held on board 09; for every A1 correction it is false. The column shows what the correction writes, so it is named for that: <b>„Korrigiert“ / „Corrected“</b>. „Gebucht“ and „Differenz“ stay. The figures, signs and colours do not change.</p>
+
+  <p class="cap desk-only">Heute — „Laut Datei“ +95,00, the file says 120,00</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „Gebucht · Laut Datei · Differenz“</span><iframe data-tpl="corr" data-o='{"after":true,"file":"json","cols":"before"}' title="Spalten heute, JSON, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row desk-only">
+    <div class="notes">
+      <p class="consequence"><b>The column names a source the figure does not come from.</b> An operator who opens the file to check „Laut Datei +95,00“ finds 120,00 in it, and the table seems to misread the file it is about to correct the ledger with.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Nachher — the column says what the correction writes</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">Nachher — „Gebucht · Korrigiert · Differenz“</span><iframe data-tpl="corr" data-o='{"after":true,"file":"json","cols":"after"}' data-proposal title="Spalten nachher, JSON, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — PP CSV file: the same three words</span><iframe data-tpl="corr" data-o='{"after":true,"file":"csv","cols":"after"}' data-proposal title="Spalten nachher, CSV, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px: no column words</span><iframe data-tpl="corr" data-o='{"after":true,"file":"json","cols":"after"}' data-proposal title="Spalten nachher, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <ul>
+        <li><b>One word changes:</b> the column header „Laut Datei“ → „Korrigiert“ (msgid „Per the file“ → „Corrected“). „Gebucht“ (msgid „Booked“) and „Differenz“ („Difference“) are unchanged, so the dialog's caption „Differenz“ (②) still repeats the table's own column word.</li>
+        <li><b>The phone rows carry no column words</b> (under 560 px the table hides): the difference over „gebucht → korrigiert“, as „+120,00 → +95,00“. Their list keeps its label „Buchungen mit anderem Betrag“; no aria label names a column. Nothing changes at 390 px.</li>
+        <li><b>The section's sentence stays</b> (①): it names what the file states („Was das Konto bewegt, nennt die Portfolio-Performance-Datei“) without promising that a column shows it.</li>
+        <li><b>Not changed here:</b> the lines under a booking, „Kurs laut Datei“ and „Abrechnung laut Datei“. They name the price and the settlement Portfolio Performance derives from the row, and are outside this fix round.</li>
+        <li><b>Decided by the orchestrator</b> of the fix round; it flips by the owner's comment.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
 <section class="mock-board desk-only" id="strings">
   <h2>The strings <small>English msgid, German msgstr</small></h2>
   <table class="strings">
@@ -124,6 +158,7 @@
     <tr><th>① DE, mehrere</th><td>%{count} bereits importierte Buchungen weichen von dieser Datei ab: Gebucht ist der Bruttowert; …</td><td>%{count} bereits importierte Buchungen weichen von dieser Datei ab: Gebucht ist, wie eine frühere Version des Imports ihre Zeilen las — der Bruttowert einer CSV-Zeile oder ein Geldbetrag, der auch die daneben gebuchte Steuererstattung enthielt. Was das Konto bewegt, nennt die Portfolio-Performance-Datei; die Differenz sind die Gebühren und Steuern der Zeile oder diese Erstattung.</td></tr>
     <tr><th>② caption</th><td>Fees and taxes / Gebühren und Steuern</td><td>Difference / Differenz (the table's column word, one msgid)</td></tr>
     <tr><th>③ condition</th><td>always</td><td>only when the subject box shows a total</td></tr>
+    <tr><th>④ column</th><td>Per the file / Laut Datei</td><td>Corrected / Korrigiert (the table's middle figure column; Booked / Gebucht and Difference / Differenz unchanged)</td></tr>
   </table>
 </section>
 
@@ -179,8 +214,9 @@ const LINES = {
 function legs(l) {
   return l.legs ? `<span class="import-correction__legs">${l.legs.map((t) => `<span>${t}</span>`).join('')}</span>` : '';
 }
-function table(rows) {
-  return `<div class="data-table-wrapper" id="import-correction-table-wrapper"><table class="data-table" id="import-correction-table"><thead><tr><th class="num" scope="col">Zeile</th><th scope="col">Datum</th><th scope="col">Buchung</th><th class="num" scope="col">Gebucht</th><th class="num" scope="col">Laut Datei</th><th class="num" scope="col">Differenz</th></tr></thead><tbody>${rows.map((l) => `<tr><td class="num">${l.row}</td><td>${l.date}</td><td>${l.kind} · <bdi>${l.security}</bdi> · <bdi>${l.account}</bdi>${legs(l)}</td><td class="num${sign(l.booked)}">${l.booked}</td><td class="num${sign(l.stated)}">${l.stated}</td><td class="num${sign(l.diff)}">${l.diff}</td></tr>`).join('')}</tbody></table></div>`;
+function table(rows, cols) {
+  const middle = cols === 'after' ? '<span class="is-new">Korrigiert</span>' : 'Laut Datei';
+  return `<div class="data-table-wrapper" id="import-correction-table-wrapper"><table class="data-table" id="import-correction-table"><thead><tr><th class="num" scope="col">Zeile</th><th scope="col">Datum</th><th scope="col">Buchung</th><th class="num" scope="col">Gebucht</th><th class="num" scope="col">${middle}</th><th class="num" scope="col">Differenz</th></tr></thead><tbody>${rows.map((l) => `<tr><td class="num">${l.row}</td><td>${l.date}</td><td>${l.kind} · <bdi>${l.security}</bdi> · <bdi>${l.account}</bdi>${legs(l)}</td><td class="num${sign(l.booked)}">${l.booked}</td><td class="num${sign(l.stated)}">${l.stated}</td><td class="num${sign(l.diff)}">${l.diff}</td></tr>`).join('')}</tbody></table></div>`;
 }
 function phoneRows(rows) {
   return `<ul id="import-correction-phone-rows" class="phone-rows" aria-label="Buchungen mit anderem Betrag">${rows.map((l) => `<li class="phone-row"><span class="phone-row__body"><span class="phone-row__name"><bdi>${l.security}</bdi></span><span class="phone-row__ids"><span>Zeile ${l.row} · ${l.date} · ${l.kind} · <bdi>${l.account}</bdi></span></span>${legs(l)}</span><span class="phone-row__figures"><span class="phone-row__figure${sign(l.diff)}">${l.diff}</span><span class="phone-row__figure2">${l.booked} → ${l.stated}</span></span></li>`).join('')}</ul>`;
@@ -193,7 +229,8 @@ function corr(o) {
   const s = (o.after ? AFTER : BEFORE)[n === 1 ? 1 : 'n'];
   const sentence = typeof s === 'function' ? s(n) : s;
   const button = n === 1 ? 'Eine Buchung korrigieren…' : `${n} Buchungen korrigieren…`;
-  const body = `<p data-role="import-correction-finding">${sentence}</p>${table(f.rows)}${phoneRows(f.rows)}<p class="import-correction__total">${f.total}</p><div class="import-correction__foot"><button type="button" id="import-correction-open" class="button">${button}</button><p class="summary-basis">ein eigener Schritt, unabhängig von „Import bestätigen“</p></div>`;
+  const sentenceShown = o.cols ? sentence.replace(/<span class="is-new">([^<]*)<\/span>/g, '$1') : sentence;
+  const body = `<p data-role="import-correction-finding">${sentenceShown}</p>${table(f.rows, o.cols)}${phoneRows(f.rows)}<p class="import-correction__total">${f.total}</p><div class="import-correction__foot"><button type="button" id="import-correction-open" class="button">${button}</button><p class="summary-basis">ein eigener Schritt, unabhängig von „Import bestätigen“</p></div>`;
   return page(`<h2>Vorschau</h2><p class="muted">Quellformat: ${f.format}</p>` + elide('die Karten, „Anzahl pro Art“ und die Parser-Warnungen') +
     `<section class="panel inner" id="import-correction" aria-labelledby="import-correction-head"><h3 id="import-correction-head">Bereits importiert, mit anderem Betrag</h3><div role="status">${note(body, ' data-role="import-correction"')}</div></section>` +
     elide('die Zuordnung und „Import bestätigen“'));

@@ -316,7 +316,11 @@ defmodule PortfolixirWeb.ImportsLive do
                     <th scope="col"><%= gettext("Date") %></th>
                     <th scope="col"><%= gettext("Booking") %></th>
                     <th class="num" scope="col"><%= gettext("Booked") %></th>
-                    <th class="num" scope="col"><%= gettext("Per the file") %></th>
+                    <%!-- Board ux-design-2026-10-07/03-correction-sentence ④:
+                         the figure the correction writes, which for a
+                         refund counted twice (A1) is not what the file
+                         states, so the column says "Corrected". --%>
+                    <th class="num" scope="col"><%= gettext("Corrected") %></th>
                     <th class="num" scope="col"><%= gettext("Difference") %></th>
                   </tr>
                 </thead>
@@ -337,7 +341,7 @@ defmodule PortfolixirWeb.ImportsLive do
             </div>
             <%!-- UX-DR27: under 560 px the list gives way to two-line rows,
                  the subject over "Row · Date · Kind · Account", the
-                 difference over "booked → per the file". --%>
+                 difference over "booked → corrected". --%>
             <ul
               id="import-correction-phone-rows"
               class="phone-rows"
@@ -1878,7 +1882,7 @@ defmodule PortfolixirWeb.ImportsLive do
       )
 
   # One listed booking as the section shows it: the row, the date, the kind,
-  # the booking's names, its signed cash as booked and per the file, and
+  # the booking's names, its signed cash as booked and as corrected, and
   # what changes with it (a trade's settlement legs, a JSON trade's price).
   # A split-off refund (listed when its cash was changed by hand) is named
   # by its row and kind, as the rest of the page names it (the α closing

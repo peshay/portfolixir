@@ -6096,11 +6096,17 @@ in `PortfolixirWeb.ImportsLive` on `Imports.cash_corrections/2` and
   nothing booked is a gross value and the difference is that refund.
   Board 09's "(Spalte „Betrag“) … als „Gesamtpreis“" is retired too: a JSON
   v1 file has neither column.
-- **Its columns.** Row · Date · Booking · Booked · Per the file · Difference
-  (Zeile · Datum · Buchung · Gebucht · Laut Datei · Differenz) in a
-  `.data-table` (`#import-correction-table`); a split-off tax refund (listed
-  when its cash was changed by hand) is named by its row and kind, "4 (Tax
-  refund)" / "4 (Steuererstattung)", here, in its phone row and in the
+- **Its columns.** Row · Date · Booking · Booked · Corrected · Difference
+  (Zeile · Datum · Buchung · Gebucht · Korrigiert · Differenz) in a
+  `.data-table` (`#import-correction-table`) *(amended 2026-10-09, board
+  `mockups/ux-design-2026-10-07/03-correction-sentence` ④, the α closing
+  act's second fix round, UAT-4: board 09's middle column "Per the file" /
+  "Laut Datei" shows what the correction writes — for a refund counted
+  twice (A1) the file's cash less that refund, +95,00 where the file states
+  120,00 — so it is named "Corrected" / "Korrigiert"; decided by the fix
+  round's orchestrator, it flips by the owner's comment)*; a split-off tax
+  refund (listed when its cash was changed by hand) is named by its row and
+  kind, "4 (Tax refund)" / "4 (Steuererstattung)", here, in its phone row and in the
   dialog's subject, as the done page names it *(amended 2026-10-08, the α
   closing act's EC-F7)*; the booking is "kind · security
   · account" in one cell, each stored name in `<bdi>`, as the history's phone
@@ -6121,8 +6127,8 @@ in `PortfolixirWeb.ImportsLive` on `Imports.cash_corrections/2` and
 - **Phone rows under 560 px** (UX-DR27): the table hides and
   `#import-correction-phone-rows` shows two-line rows — the security, or the
   account for a row without one, over "Row N · date · kind · account"; the
-  difference over "booked → per the file"; the legs and the price under the
-  subject. Under 560 px the note's body takes the note's full width, under
+  difference over "booked → corrected" (no column word, so board 03 ④
+  changes nothing here); the legs and the price under the subject. Under 560 px the note's body takes the note's full width, under
   the glyph and the word.
 - **The total per account** (`.import-correction__total`, the body's colour,
   tabular figures): "Together **-25.51 EUR**: Girokonto -24.31 EUR,
