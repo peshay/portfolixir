@@ -2941,13 +2941,17 @@ Zeilen bleiben ebenso draußen, jede mit ihrer Zeile benannt:
   nach Abzug der abgespaltenen Steuererstattung (siehe „Eine negative Steuer
   in einer Zeile“ oben) oder schon für sich 0 oder weniger ist. Der Import
   bucht nur einen positiven Betrag, würde die Zeile also sonst überspringen,
-  und die Position eines Verkaufs bliebe im Bestand: *Gesamtpreis 20,10
-  abzüglich der Steuerrückerstattung 25,00 lässt -4,90 zur Gutschrift — diese
-  Buchung von Hand erfassen und die Erstattung als eigene
-  Steuerrückerstattung — Zeile nicht übernommen* oder *Gesamtpreis 0,00 lässt
-  nichts zur Gutschrift — diese Buchung von Hand erfassen — Zeile nicht
-  übernommen*. Eine Konverter-Zeile nennt ihren `Betrag`, eine JSON-Zeile
-  ihren `amount`.
+  und die Position eines Verkaufs bliebe im Bestand: *Verkauf mit
+  Gesamtpreis 20,10 und Steuererstattung 25,00: Dem Verkauf blieben -4,90 —
+  Zeile nicht übernommen. Den Verkauf von Hand buchen, die Erstattung als
+  eigene Steuererstattung.*, ohne Erstattung *Verkauf mit Gesamtpreis -4,90:
+  Dem Verkauf bliebe nichts — Zeile nicht übernommen. Den Verkauf von Hand
+  buchen.* Jede andere Gutschrift heißt *Buchung*, wo ein Verkauf *Verkauf*
+  heißt (*Buchung mit Gesamtpreis 0,00: Der Buchung bliebe nichts — Zeile
+  nicht übernommen. Die Buchung von Hand erfassen.*). Eine Konverter-Zeile
+  nennt ihren `Betrag`; eine JSON-Zeile nennt ihren `amount` als
+  Gesamtpreis, ihre Zahlen in der Schreibweise der Seite (*20,10*, auf
+  Englisch *20.10*), die einer CSV-Zeile so, wie die Datei sie schreibt.
 - **Eine JSON-Zeile, deren Währung Portfolixir nicht unterstützt**, benannt so,
   wie die Datei sie schreibt, in Großbuchstaben: *Währung „EURO“ wird nicht
   unterstützt — Zeile nicht übernommen* für die Währung der Buchung und

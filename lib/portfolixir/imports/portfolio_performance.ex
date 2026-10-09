@@ -180,9 +180,19 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   the rest of the file previews. It fails closed, as §2 does, whether or not
   a refund was split off, and no hash changes.
 
-  `written` names the row's figures as the file wrote them: `cell`, the
-  column or field of the cash cell; `cash`, its value; `refund`, the refund
-  split off (`nil` when none); and `rest`, what the booking would credit.
+  The sentence is board ux-design-2026-10-07/01-import-preview ③'s, "sell
+  with Gesamtpreis 10,00 and a tax refund of 12,40: -2,40 would remain for
+  the sale — row not imported. Book the sale by hand, and the refund as a
+  tax refund of its own."; every other credit kind takes it for "the
+  booking", so no dividend or deposit is called a sale.
+
+  `written` names the row: `kind`, its ledger kind; `cell`, the name of its
+  cash cell (a CSV row's Gesamtpreis or a converter row's Betrag, a JSON
+  row's `amount` named as the board names it, "Gesamtpreis"); `cash`, that
+  cell's figure; `refund`, the refund split off (`nil` when none); and
+  `rest`, what the booking would credit. The figures come written as the
+  message quotes them: a CSV row's in the file's notation, a JSON row's in
+  the reader's.
   """
   @spec credit_error(:debit | :credit | nil, Decimal.t() | nil, map()) :: String.t() | nil
   def credit_error(:credit, %Decimal{} = booked, written) do
@@ -197,24 +207,43 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   merge retired): the row was imported under
   an older reading, before A5 refused it (#1118). Its cash would be 0 or
   less, so the correction cannot rewrite it (how it is corrected is #1193),
-  and following the refusal's remedy would book it twice; the message says
-  so and points to the handbook. `written` as for `credit_error/3`.
+  and following the refusal's remedy would book it twice; the message keeps
+  the refusal's figures, says so and points to the handbook. `written` as
+  for `credit_error/3`.
   """
   @spec stored_credit_message(map()) :: String.t()
+  def stored_credit_message(%{kind: "sell", refund: nil} = written),
+    do:
+      gettext(
+        "sell with %{cell} %{total}: nothing would remain for the sale — already imported, and it cannot be corrected here. Do not book the sale again; see “A negative tax inside a row” in the product documentation.",
+        cell: written.cell,
+        total: written.cash
+      )
+
+  def stored_credit_message(%{kind: "sell"} = written),
+    do:
+      gettext(
+        "sell with %{cell} %{total} and a tax refund of %{refund}: %{rest} would remain for the sale — already imported, and it cannot be corrected here. Do not book the sale again; see “A negative tax inside a row” in the product documentation.",
+        cell: written.cell,
+        total: written.cash,
+        refund: written.refund,
+        rest: written.rest
+      )
+
   def stored_credit_message(%{refund: nil} = written),
     do:
       gettext(
-        "%{cell} %{cash} leaves nothing to credit — already imported, and it cannot be corrected here, as its cash would be 0 or less — do not enter it again; see “A negative tax inside a row” in the product documentation",
+        "booking with %{cell} %{total}: nothing would remain for the booking — already imported, and it cannot be corrected here. Do not enter the booking again; see “A negative tax inside a row” in the product documentation.",
         cell: written.cell,
-        cash: written.cash
+        total: written.cash
       )
 
   def stored_credit_message(written),
     do:
       gettext(
-        "%{cell} %{cash} less the tax refund %{refund} leaves %{rest} to credit — already imported, and it cannot be corrected here, as its cash would be 0 or less — do not enter it again; see “A negative tax inside a row” in the product documentation",
+        "booking with %{cell} %{total} and a tax refund of %{refund}: %{rest} would remain for the booking — already imported, and it cannot be corrected here. Do not enter the booking again; see “A negative tax inside a row” in the product documentation.",
         cell: written.cell,
-        cash: written.cash,
+        total: written.cash,
         refund: written.refund,
         rest: written.rest
       )
@@ -224,31 +253,51 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   when the credit is booked, otherwise `{message, refused}`, where
   `refused` holds the row's would-be `entry` and the message it shows
   instead when the stored history holds that entry's content hash
-  (`stored_credit_message/1`).
+  (`stored_credit_message/1`). The row's kind comes from `entry`.
   """
   @spec credit_refusal(:debit | :credit | nil, Entry.t(), map()) ::
           nil | {String.t(), %{entry: Entry.t(), message: String.t()}}
   def credit_refusal(direction, %Entry{} = entry, written) do
+    written = Map.put(written, :kind, entry.kind)
+
     case credit_error(direction, entry.gross_amount, written) do
       nil -> nil
       message -> {message, %{entry: entry, message: stored_credit_message(written)}}
     end
   end
 
+  defp credit_message(%{kind: "sell", refund: nil} = written),
+    do:
+      gettext(
+        "sell with %{cell} %{total}: nothing would remain for the sale — row not imported. Book the sale by hand.",
+        cell: written.cell,
+        total: written.cash
+      )
+
+  defp credit_message(%{kind: "sell"} = written),
+    do:
+      gettext(
+        "sell with %{cell} %{total} and a tax refund of %{refund}: %{rest} would remain for the sale — row not imported. Book the sale by hand, and the refund as a tax refund of its own.",
+        cell: written.cell,
+        total: written.cash,
+        refund: written.refund,
+        rest: written.rest
+      )
+
   defp credit_message(%{refund: nil} = written),
     do:
       gettext(
-        "%{cell} %{cash} leaves nothing to credit — enter this booking by hand — row not imported",
+        "booking with %{cell} %{total}: nothing would remain for the booking — row not imported. Enter the booking by hand.",
         cell: written.cell,
-        cash: written.cash
+        total: written.cash
       )
 
   defp credit_message(written),
     do:
       gettext(
-        "%{cell} %{cash} less the tax refund %{refund} leaves %{rest} to credit — enter this booking by hand, and the refund as a tax refund of its own — row not imported",
+        "booking with %{cell} %{total} and a tax refund of %{refund}: %{rest} would remain for the booking — row not imported. Enter the booking by hand, and the refund as a tax refund of its own.",
         cell: written.cell,
-        cash: written.cash,
+        total: written.cash,
         refund: written.refund,
         rest: written.rest
       )

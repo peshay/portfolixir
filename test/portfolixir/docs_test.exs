@@ -1584,6 +1584,56 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (#1118; found by the α closing act, UAT persona and design
+  # critic):
+  # As the operator reading the handbook's list of rows the preview refuses,
+  # I want it to quote the refused credit row as the page now shows it,
+  # so that I recognise the warning I see and nothing quotes a retired
+  # sentence.
+  #
+  # Acceptance criteria:
+  # - The list quotes the sale's warning in the sentence of board
+  #   ux-design-2026-10-07/01-import-preview ③, with and without a refund,
+  #   and says that another credit kind reads "booking" and that a JSON row
+  #   names its `amount` as the Gesamtpreis, in the page's notation.
+  # - German as the board writes it, "Steuererstattung" in the sentence.
+  # - The retired "… leaves -4,90 to credit" / "… lässt -4,90 zur
+  #   Gutschrift" is quoted nowhere.
+  test "the handbook quotes the refused credit row as the page shows it" do
+    for {path, fragments, stale} <- [
+          {"docs/product-documentation.md",
+           [
+             "*sell with Gesamtpreis 20,10 and a tax refund of 25,00: -4,90 would remain " <>
+               "for the sale — row not imported. Book the sale by hand, and the refund as a " <>
+               "tax refund of its own.*",
+             "*sell with Gesamtpreis -4,90: nothing would remain for the sale — row not " <>
+               "imported. Book the sale by hand.*",
+             "Any other credit reads *booking* where a sale reads *sale*",
+             "a JSON row names its `amount` as the Gesamtpreis, its figures in the page's " <>
+               "notation"
+           ], "to credit —"},
+          {"docs/de/product-documentation.md",
+           [
+             "*Verkauf mit Gesamtpreis 20,10 und Steuererstattung 25,00: Dem Verkauf " <>
+               "blieben -4,90 — Zeile nicht übernommen. Den Verkauf von Hand buchen, die " <>
+               "Erstattung als eigene Steuererstattung.*",
+             "*Verkauf mit Gesamtpreis -4,90: Dem Verkauf bliebe nichts — Zeile nicht " <>
+               "übernommen. Den Verkauf von Hand buchen.*",
+             "Jede andere Gutschrift heißt *Buchung*, wo ein Verkauf *Verkauf* heißt",
+             "eine JSON-Zeile nennt ihren `amount` als Gesamtpreis, ihre Zahlen in der " <>
+               "Schreibweise der Seite"
+           ], "zur Gutschrift —"}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+
+      refute doc =~ stale, "#{path}: #{stale}"
+    end
+  end
+
   # User story (ADR-0050 §2 as amended on 2026-10-07, #904):
   # As the operator who renamed an account or a depot in Portfolio
   # Performance and dropped its export again,

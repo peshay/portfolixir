@@ -41,7 +41,20 @@ defmodule Portfolixir.Imports.Decimals do
   figure a message quotes beside the file's own cells, so it reads as they
   do; `parse_de/1` reads it back to the same cent.
   """
-  def format_de(%Decimal{} = value) do
+  def format_de(%Decimal{} = value), do: format_cents(value, ".", ",")
+
+  @doc """
+  Write a decimal to the cent in the notation of `locale`, the gettext
+  locale a message is translated in: German as `format_de/1` writes it
+  (`"1.505,00"`), any other locale with a comma every three integer digits
+  and a decimal point (`"1,505.00"`), as the pages write money. For a figure
+  a message quotes from a file without a notation of its own, a JSON
+  export's numbers (#1118), so it reads as the sentence around it.
+  """
+  def format_locale(%Decimal{} = value, "de"), do: format_de(value)
+  def format_locale(%Decimal{} = value, _locale), do: format_cents(value, ",", ".")
+
+  defp format_cents(value, group, point) do
     rounded = Decimal.round(value, 2)
     sign = if Decimal.negative?(rounded), do: "-", else: ""
 
@@ -53,10 +66,10 @@ defmodule Portfolixir.Imports.Decimals do
       |> String.reverse()
       |> String.graphemes()
       |> Enum.chunk_every(3)
-      |> Enum.map_join(".", &Enum.join/1)
+      |> Enum.map_join(group, &Enum.join/1)
       |> String.reverse()
 
-    sign <> grouped <> "," <> frac
+    sign <> grouped <> point <> frac
   end
 
   @doc """

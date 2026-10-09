@@ -438,17 +438,25 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
   # so that the sale is never silently skipped at apply and its position
   # never stays held without a word.
   #
-  # Acceptance criteria:
-  # - A credit row whose own booking, its cash cell less its split-off
-  #   refund, is 0 or less is a row error naming the cell, the refund and
-  #   what is left, and the remedy: enter the booking by hand, and the
-  #   refund as a tax refund of its own. A PP row's cash cell is its
-  #   Gesamtpreis, a converter row's its Betrag.
-  # - Without a refund, a credit row whose cash cell is 0 or less is a row
-  #   error naming the cell and the remedy.
+  # Acceptance criteria (the wording as board ux-design-2026-10-07/
+  # 01-import-preview ③ draws it; the α closing act, UAT persona):
+  # - A sale whose own booking, its cash cell less its split-off refund, is
+  #   0 or less is a row error in the board's sentence: "sell with
+  #   Gesamtpreis 20,10 and a tax refund of 25,00: -4,90 would remain for the
+  #   sale — row not imported. Book the sale by hand, and the refund as a tax
+  #   refund of its own." A PP row's cash cell is its Gesamtpreis, a
+  #   converter row's its Betrag; the cells as the file wrote them, the
+  #   other figures in its notation.
+  # - Without a refund, a sale whose cash cell is 0 or less: "… nothing would
+  #   remain for the sale — row not imported. Book the sale by hand."
+  # - Every other credit kind takes the same sentence for "the booking", so
+  #   no dividend or deposit is called a sale.
   # - The file's other rows preview, each with the content hash it has
   #   without the refused row beside it; a debit row is not refused.
-  # - In German it reads "… — Zeile nicht übernommen".
+  # - In German as the board writes it: "Verkauf mit Gesamtpreis … und
+  #   Steuererstattung …: Dem Verkauf blieben … — Zeile nicht übernommen.
+  #   Den Verkauf von Hand buchen, die Erstattung als eigene
+  #   Steuererstattung." ("Steuererstattung", the kind's name in the app).
   describe "parse/2 a credit row that nets to nothing (#1118)" do
     @header "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n"
 
@@ -460,14 +468,24 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
     2024-06-14 15:30:00;Verkauf;Synthetic AG;100;0,01;1,00;5,90;-25,00;20,10;Depot;Cash;;
     """
 
+    # A sale with no refund whose Gesamtpreis is below zero, a converter
+    # dividend whose refund takes its whole Betrag, a deposit of nothing,
+    # and a debit with a refund, which is never refused.
+    @others """
+    2024-06-14 15:30:00;Verkauf;Synthetic AG;100;0,01;1,00;5,90;;-4,90;Depot;Cash;;
+    2024-03-15 00:00:00;Dividende;Synthetic AG;10;;1,00;;-1,00;;Cash;;;
+    2024-01-02 00:00:00;Einlage;;;;0,00;;;0,00;Cash;;;
+    2024-03-16 00:00:00;Steuern;;;;1,00;;-1,00;;Cash;;;
+    """
+
     test "a sale whose refund exceeds its Gesamtpreis is named, and the rest previews" do
       assert {:ok, %Preview{entries: [deposit, buy], errors: [%{row: 4, message: message}]}} =
                CsvParser.parse(@header <> @rows)
 
       assert message ==
-               "Gesamtpreis 20,10 less the tax refund 25,00 leaves -4,90 to credit — " <>
-                 "enter this booking by hand, and the refund as a tax refund of its own " <>
-                 "— row not imported"
+               "sell with Gesamtpreis 20,10 and a tax refund of 25,00: -4,90 would remain " <>
+                 "for the sale — row not imported. Book the sale by hand, and the refund as " <>
+                 "a tax refund of its own."
 
       {:ok, %Preview{entries: alone}} =
         CsvParser.parse(
@@ -480,15 +498,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
 
     test "a credit whose cash cell is nothing or less is named, a refund split off or not" do
       assert {:ok, %Preview{entries: [debit], errors: errors}} =
-               CsvParser.parse(
-                 @header <>
-                   """
-                   2024-06-14 15:30:00;Verkauf;Synthetic AG;100;0,01;1,00;5,90;;-4,90;Depot;Cash;;
-                   2024-03-15 00:00:00;Dividende;Synthetic AG;10;;1,00;;-1,00;;Cash;;;
-                   2024-01-02 00:00:00;Einlage;;;;0,00;;;0,00;Cash;;;
-                   2024-03-16 00:00:00;Steuern;;;;1,00;;-1,00;;Cash;;;
-                   """
-               )
+               CsvParser.parse(@header <> @others)
 
       assert debit.kind == "tax"
 
@@ -496,43 +506,41 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
                %{
                  row: 2,
                  message:
-                   "Gesamtpreis -4,90 leaves nothing to credit — enter this booking by hand " <>
-                     "— row not imported"
+                   "sell with Gesamtpreis -4,90: nothing would remain for the sale — " <>
+                     "row not imported. Book the sale by hand."
                },
                %{
                  row: 3,
                  message:
-                   "Betrag 1,00 less the tax refund 1,00 leaves 0,00 to credit — " <>
-                     "enter this booking by hand, and the refund as a tax refund of its own " <>
-                     "— row not imported"
+                   "booking with Betrag 1,00 and a tax refund of 1,00: 0,00 would remain " <>
+                     "for the booking — row not imported. Enter the booking by hand, and the " <>
+                     "refund as a tax refund of its own."
                },
                %{
                  row: 4,
                  message:
-                   "Gesamtpreis 0,00 leaves nothing to credit — enter this booking by hand " <>
-                     "— row not imported"
+                   "booking with Gesamtpreis 0,00: nothing would remain for the booking — " <>
+                     "row not imported. Enter the booking by hand."
                }
              ]
     end
 
-    test "says it in German" do
+    test "says it in German, as the board writes it" do
       Gettext.put_locale(PortfolixirWeb.Gettext, "de")
 
-      assert {:ok, %Preview{errors: errors}} =
-               CsvParser.parse(
-                 @header <>
-                   @rows <>
-                   """
-                   2024-01-02 00:00:00;Einlage;;;;0,00;;;0,00;Cash;;;
-                   """
-               )
+      assert {:ok, %Preview{errors: errors}} = CsvParser.parse(@header <> @rows <> @others)
 
       assert Enum.map(errors, & &1.message) == [
-               "Gesamtpreis 20,10 abzüglich der Steuerrückerstattung 25,00 lässt -4,90 zur " <>
-                 "Gutschrift — diese Buchung von Hand erfassen und die Erstattung als eigene " <>
-                 "Steuerrückerstattung — Zeile nicht übernommen",
-               "Gesamtpreis 0,00 lässt nichts zur Gutschrift — diese Buchung von Hand " <>
-                 "erfassen — Zeile nicht übernommen"
+               "Verkauf mit Gesamtpreis 20,10 und Steuererstattung 25,00: Dem Verkauf " <>
+                 "blieben -4,90 — Zeile nicht übernommen. Den Verkauf von Hand buchen, die " <>
+                 "Erstattung als eigene Steuererstattung.",
+               "Verkauf mit Gesamtpreis -4,90: Dem Verkauf bliebe nichts — Zeile nicht " <>
+                 "übernommen. Den Verkauf von Hand buchen.",
+               "Buchung mit Betrag 1,00 und Steuererstattung 1,00: Der Buchung blieben " <>
+                 "0,00 — Zeile nicht übernommen. Die Buchung von Hand erfassen, die " <>
+                 "Erstattung als eigene Steuererstattung.",
+               "Buchung mit Gesamtpreis 0,00: Der Buchung bliebe nichts — Zeile nicht " <>
+                 "übernommen. Die Buchung von Hand erfassen."
              ]
     end
   end

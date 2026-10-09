@@ -361,17 +361,22 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
     end
   end
 
-  # ADR-0053 A5: a credit that would book 0 or less, named with its figures
-  # as the file wrote them; the refusal keeps the row's would-be entry, so
-  # the preview can tell a row already imported (#1118).
+  # ADR-0053 A5: a credit that would book 0 or less, named with its figures;
+  # the refusal keeps the row's would-be entry, so the preview can tell a row
+  # already imported (#1118). A JSON number has no notation of its own, so
+  # its figures are written to the cent in the reader's, the gettext locale
+  # the sentence around them is translated in, and its `amount` is named as
+  # board ux-design-2026-10-07/01-import-preview ③ names the cash a row
+  # moves, "Gesamtpreis" (the α closing act, UAT persona).
   defp credit_refusal(kind, amount, refunds, %Entry{gross_amount: booked} = entry) do
     refund = refund_total(refunds)
+    locale = Gettext.get_locale(PortfolixirWeb.Gettext)
 
     written = %{
-      cell: "amount",
-      cash: amount && Decimal.to_string(amount, :normal),
-      refund: refund && Decimal.to_string(refund, :normal),
-      rest: booked && Decimal.to_string(booked, :normal)
+      cell: "Gesamtpreis",
+      cash: amount && Decimals.format_locale(amount, locale),
+      refund: refund && Decimals.format_locale(refund, locale),
+      rest: booked && Decimals.format_locale(booked, locale)
     }
 
     case PortfolioPerformance.credit_refusal(

@@ -5289,6 +5289,77 @@ the Imports page. Built in `PortfolixirWeb.ImportsLive`, the two parsers and
     default. A CSV row books in EUR and never meets this reason. The
     handbook names the list the reason refers to: the currencies the
     security dialog offers.
+  - **A credit row whose own booking would be 0 or less (ADR-0053 A5,
+    #1118)** *(2026-10-09; the α closing act, UAT persona and design critic;
+    board `mockups/ux-design-2026-10-07/01-import-preview` ③)*: a credit
+    whose cash, less the tax refund split off it, is 0 or less, which the
+    apply would otherwise skip silently. The sentence is the board's: the
+    kind and its cash cell with the figures, then what would remain, then
+    "— row not imported", then the remedy as a sentence of its own. A sale
+    reads "sell"/"Verkauf"; every other credit kind (a dividend, interest, a
+    deposit, a tax refund, a received transfer) reads "booking"/"Buchung",
+    so none is called a sale (the board's open point, "one sentence per
+    kind or the sale only", answered as "transfer" serves both transfer
+    kinds above; it flips by comment to a sentence per kind). The cash cell is named as the file names it
+    (a CSV row's Gesamtpreis, a converter row's Betrag) and a JSON row's
+    `amount` as the board names it, "Gesamtpreis". A CSV row's figures are
+    quoted in the file's notation, its cash cell as written; a JSON row's
+    are written to the cent in the reader's notation ("20.10" / "20,10"),
+    the locale the sentence is translated in. "Steuererstattung" is the
+    kind's name in the app, never PP's "Steuerrückerstattung".
+    - Fresh, with a refund: "sell with Gesamtpreis 20,10 and a tax refund
+      of 25,00: -4,90 would remain for the sale — row not imported. Book
+      the sale by hand, and the refund as a tax refund of its own." /
+      "Verkauf mit Gesamtpreis 20,10 und Steuererstattung 25,00: Dem
+      Verkauf blieben -4,90 — Zeile nicht übernommen. Den Verkauf von Hand
+      buchen, die Erstattung als eigene Steuererstattung."; for another
+      credit: "booking with Betrag 1,00 and a tax refund of 1,00: 0,00 would
+      remain for the booking — row not imported. Enter the booking by hand,
+      and the refund as a tax refund of its own." / "Buchung mit Betrag
+      1,00 und Steuererstattung 1,00: Der Buchung blieben 0,00 — Zeile
+      nicht übernommen. Die Buchung von Hand erfassen, die Erstattung als
+      eigene Steuererstattung."
+    - Fresh, without a refund: "sell with Gesamtpreis -4,90: nothing would
+      remain for the sale — row not imported. Book the sale by hand." /
+      "Verkauf mit Gesamtpreis -4,90: Dem Verkauf bliebe nichts — Zeile
+      nicht übernommen. Den Verkauf von Hand buchen."; for another credit:
+      "booking with Gesamtpreis 0,00: nothing would remain for the booking —
+      row not imported. Enter the booking by hand." / "Buchung mit
+      Gesamtpreis 0,00: Der Buchung bliebe nichts — Zeile nicht übernommen.
+      Die Buchung von Hand erfassen."
+    - Already imported (the stored history holds the row's content hash, a
+      live booking or one a merge retired; how such a booking is corrected
+      is #1193), with a refund: "sell with Gesamtpreis 20,10 and a tax
+      refund of 25,00: -4,90 would remain for the sale — already imported,
+      and it cannot be corrected here. Do not book the sale again; see “A
+      negative tax inside a row” in the product documentation." /
+      "Verkauf mit Gesamtpreis 20,10 und Steuererstattung 25,00: Dem
+      Verkauf blieben -4,90 — bereits importiert und hier nicht zu
+      korrigieren. Den Verkauf nicht noch einmal buchen; siehe „Eine
+      negative Steuer in einer Zeile“ in der Produktdokumentation."; for
+      another credit: "booking with Betrag 1,00 and a tax refund of 1,00:
+      0,00 would remain for the booking — already imported, and it cannot
+      be corrected here. Do not enter the booking again; see “A negative
+      tax inside a row” in the product documentation." / "Buchung mit
+      Betrag 1,00 und Steuererstattung 1,00: Der Buchung blieben 0,00 —
+      bereits importiert und hier nicht zu korrigieren. Die Buchung nicht
+      noch einmal erfassen; siehe „Eine negative Steuer in einer Zeile“ in
+      der Produktdokumentation."
+    - Already imported, without a refund: "sell with Gesamtpreis -4,90:
+      nothing would remain for the sale — already imported, and it cannot
+      be corrected here. Do not book the sale again; see “A negative tax
+      inside a row” in the product documentation." / "Verkauf mit
+      Gesamtpreis -4,90: Dem Verkauf bliebe nichts — bereits importiert und
+      hier nicht zu korrigieren. Den Verkauf nicht noch einmal buchen;
+      siehe „Eine negative Steuer in einer Zeile“ in der
+      Produktdokumentation."; for another credit: "booking with Gesamtpreis
+      0,00: nothing would remain for the booking — already imported, and it
+      cannot be corrected here. Do not enter the booking again; see “A
+      negative tax inside a row” in the product documentation." / "Buchung
+      mit Gesamtpreis 0,00: Der Buchung bliebe nichts — bereits importiert
+      und hier nicht zu korrigieren. Die Buchung nicht noch einmal erfassen;
+      siehe „Eine negative Steuer in einer Zeile“ in der
+      Produktdokumentation."
 - **The parser warnings are ONE `attention` data note** (UX-DR17), no longer
   the accent banner UX-DR17 retired. It keeps `#parser-warnings-box`, sits
   where the box sat (after the counts by kind, before the mapping form), and
