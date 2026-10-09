@@ -168,7 +168,9 @@ defmodule PortfolixirWeb.ClassificationsLive do
         |> load_soll()
         # Started here rather than in load_show/2: reload/1 also calls that, so
         # putting it there recomputed the roll-up on every holdings arrival and
-        # every edit. It depends on the SELECTION, which changes here.
+        # every filter change. It depends on the SELECTION, which changes here,
+        # and on the composition, which the tree's edits change
+        # (`reload_composition/1`, #1110).
         |> start_reads()
 
       _ ->
@@ -1498,7 +1500,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   def handle_event("create_category", %{"category" => params}, socket) do
     case Classifications.create_category(Actor.owner_ui(), LiveParam.map(params)) do
       {:ok, _category} ->
-        {:noreply, socket |> success(gettext("Category created")) |> reload()}
+        {:noreply, socket |> success(gettext("Category created")) |> reload_composition()}
 
       {:error, reason} ->
         {:noreply, failure(socket, error_message(reason))}
@@ -1519,12 +1521,12 @@ defmodule PortfolixirWeb.ClassificationsLive do
   def handle_event("update_category", %{"category" => %{"id" => id} = params}, socket) do
     with {:ok, category_id} <- LiveParam.fetch_id(id),
          category when not is_nil(category) <- Classifications.get_category(category_id),
-         {:ok, _} <- Classifications.update_category(Actor.owner_ui(), category, params) do
+         {:ok, updated} <- Classifications.update_category(Actor.owner_ui(), category, params) do
       {:noreply,
        socket
        |> assign(:editing_id, nil)
        |> success(gettext("Category updated"))
-       |> reload()}
+       |> reload_after_update(category, updated)}
     else
       {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
       _ -> {:noreply, socket}
@@ -1546,7 +1548,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
     with {:ok, category_id} <- LiveParam.fetch_id(id),
          category when not is_nil(category) <- Classifications.get_category(category_id),
          {:ok, _} <- Classifications.delete_category(Actor.owner_ui(), category) do
-      {:noreply, socket |> success(gettext("Category deleted")) |> reload()}
+      {:noreply, socket |> success(gettext("Category deleted")) |> reload_composition()}
     else
       {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
       _ -> {:noreply, socket}
@@ -1722,7 +1724,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
              classification_id,
              category_id
            ) do
-      {:noreply, reload(socket)}
+      {:noreply, reload_composition(socket)}
     else
       {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
       :error -> {:noreply, socket}
@@ -1735,7 +1737,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
       {:ok, _} =
         Classifications.unassign_security(Actor.owner_ui(), security_id, classification_id)
 
-      {:noreply, reload(socket)}
+      {:noreply, reload_composition(socket)}
     else
       :error -> {:noreply, socket}
     end
@@ -1923,14 +1925,14 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # trees write the stored assignment.
   defp do_assign(%{assigns: %{tree: %{reclassify: true}}} = socket, ids, _cid, category_id) do
     case Classifications.reclassify_securities(ids, category_id) do
-      {:ok, count} -> {:noreply, socket |> success(moved_message(count)) |> reload()}
+      {:ok, count} -> {:noreply, socket |> success(moved_message(count)) |> reload_composition()}
       {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
     end
   end
 
   defp do_assign(socket, ids, classification_id, category_id) do
     case Classifications.assign_securities(Actor.owner_ui(), ids, classification_id, category_id) do
-      {:ok, count} -> {:noreply, socket |> success(moved_message(count)) |> reload()}
+      {:ok, count} -> {:noreply, socket |> success(moved_message(count)) |> reload_composition()}
       {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
     end
   end
@@ -1938,18 +1940,40 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # Asset-class tree: "unassign" resets each security's asset_class to automatic.
   defp do_unassign(%{assigns: %{tree: %{reclassify: true}}} = socket, ids, _classification_id) do
     {:ok, count} = Classifications.reset_asset_class(ids)
-    {:noreply, socket |> success(unassigned_message(count)) |> reload()}
+    {:noreply, socket |> success(unassigned_message(count)) |> reload_composition()}
   end
 
   defp do_unassign(socket, ids, classification_id) do
     {:ok, count} = Classifications.unassign_securities(Actor.owner_ui(), ids, classification_id)
-    {:noreply, socket |> success(unassigned_message(count)) |> reload()}
+    {:noreply, socket |> success(unassigned_message(count)) |> reload_composition()}
   end
 
   # -- data loading ---------------------------------------------------------
 
   defp reload(%{assigns: %{selected_id: nil}} = socket), do: socket
   defp reload(socket), do: load_show(socket, socket.assigns.selected_id)
+
+  # #1110 (ADR-0041 §1): the category result is a statement about the
+  # current composition, so an edit that changes the tree computes it again
+  # -- a create (the result lists every category), a delete, an assignment,
+  # a move. `reload/1` alone rebuilds the rows from the result already
+  # computed, which is right for a filter change (the search, the
+  # current-positions toggle) and for a rename or a recolour: none of them
+  # changes what is filed where.
+  defp reload_composition(socket), do: socket |> reload() |> restart_results()
+
+  defp restart_results(%{assigns: %{selected_id: classification_id}} = socket)
+       when is_integer(classification_id),
+       do: start_results(socket, classification_id)
+
+  defp restart_results(socket), do: socket
+
+  # A category update moves it when its parent changed (the context takes a
+  # `parent_id`, validated against the tree); otherwise it renamed it.
+  defp reload_after_update(socket, %{parent_id: parent_id}, %{parent_id: parent_id}),
+    do: reload(socket)
+
+  defp reload_after_update(socket, _before, _after), do: reload_composition(socket)
 
   # -- SOLL plan loading -----------------------------------------------------
 
