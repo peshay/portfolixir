@@ -67,8 +67,10 @@ per-category drift.
 The closing act of an epic batch walks the app on data that fires every alarm
 surface. `finding_surfaces_seed.exs` builds exactly that instance: it imports
 the demo dataset, seeds the quote history and the Strategies tree, and adds a
-held position whose quote went stale, a delivered position with no price and
-no asset class, a watch-list security with no classification, a USD cash
+held position whose quote went stale, a delivered position with no price
+("Placeholder Anleihe 2031 3,25%", stored as a bond since #1127 reads its
+bond word; the held security with no asset class is "Ostsee Logistik 4,10%
+2028/2033", below), a watch-list security with no classification, a USD cash
 account with a balance and no exchange rate, recent bookings, buckets and a
 view, a depot snapshot, a tax profile with a recorded statement, a
 research log whose risk entry is superseded by a retraction, and a
