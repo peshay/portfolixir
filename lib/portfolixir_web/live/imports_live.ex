@@ -1041,7 +1041,7 @@ defmodule PortfolixirWeb.ImportsLive do
      |> assign(:correcting, false)
      |> assign(:correction_running, true)
      |> assign(:correction_result, {:busy, gettext("Correcting…")})
-     |> start_async(:correct_cash, fn ->
+     |> CappedAsync.start_async(:correct_cash, fn ->
        Imports.correct_cash(Imports.correction_actor(), preview)
      end)}
   end
