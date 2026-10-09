@@ -37,11 +37,14 @@ gib ihn mit Dockers vordefinierten Proxy-Build-Argumenten in den Build
 `docker compose build --build-arg HTTPS_PROXY=http://proxy.example:3128`) oder
 über die Proxy-Konfiguration des Docker-Clients. Hinter einem Proxy, der TLS
 aufbricht, gib seine CA als Build-Secret `build_ca` in den Build: Beide
-Dockerfiles vertrauen ihr für ihre Downloads, die Debian-Pakete eingeschlossen,
-und lassen sie aus den Images heraus, die sie ausliefern. Ohne das Secret
-bleiben die Builds unverändert. Docker rechnet ein Secret nicht in seinen
-Build-Cache ein: Baue nach einem Wechsel oder Wegfall der CA einmal mit
-`--no-cache`.
+Dockerfiles vertrauen ihr in den Schritten, die herunterladen, die Debian-Pakete
+eingeschlossen, und in keinem anderen Schritt. Keine Schicht behält sie, also
+tragen sie weder die Images, die sie ausliefern, noch Dockers Build-Cache; ein
+Cache, den eine frühere Version mit dem Secret gebaut hat, kann sie noch in
+einer Schicht der Build-Stage halten, und `docker builder prune` räumt das ab.
+Ohne das Secret bleiben die Builds unverändert. Docker rechnet ein Secret nicht
+in seinen Build-Cache ein: Baue nach einem Wechsel oder Wegfall der CA einmal
+mit `--no-cache`.
 
 ```bash
 docker build --secret id=build_ca,src=/pfad/zu/proxy-ca.crt -f Dockerfile.release .

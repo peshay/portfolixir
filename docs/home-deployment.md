@@ -35,10 +35,13 @@ it into the build with Docker's predefined proxy build arguments (`HTTP_PROXY`,
 `docker compose build --build-arg HTTPS_PROXY=http://proxy.example:3128`) or the
 Docker client's proxy configuration. Behind a proxy that intercepts TLS, pass
 its CA to the build as the build secret `build_ca`: both Dockerfiles trust it
-for their downloads, the Debian packages included, and leave it out of the
-images they ship. Without the secret, the builds are unchanged. Docker does not
-count a secret in its build cache, so after changing or dropping the CA, build
-once with `--no-cache`.
+in the steps that download, the Debian packages included, and in no other
+step. No layer keeps it, so neither the images they ship nor Docker's build
+cache carry it; a cache built with the secret by an earlier version may still
+hold it in a build-stage layer, and `docker builder prune` clears that. Without
+the secret, the builds are unchanged. Docker does not count a secret in its
+build cache, so after changing or dropping the CA, build once with
+`--no-cache`.
 
 ```bash
 docker build --secret id=build_ca,src=/path/to/proxy-ca.crt -f Dockerfile.release .

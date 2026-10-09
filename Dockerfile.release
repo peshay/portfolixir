@@ -37,8 +37,10 @@ RUN --mount=type=secret,id=build_ca,mode=0444 \
 # (docker/trust-build-ca.sh, which says why each step does it itself),
 #   docker build --secret id=build_ca,src=proxy-ca.crt -f Dockerfile.release .
 # Each step sources the script, so with the secret its Hex reads the system
-# store the CA lands in. Without the secret nothing is added and Hex keeps its
-# own bundle. The runtime stage reads it for apt alone, where it is mounted.
+# store the CA lands in, and the script takes the CA out again when the step
+# ends (#1136): no later step trusts it, and no layer keeps it. Without the
+# secret nothing is added and Hex keeps its own bundle. The runtime stage
+# reads it for apt alone, where it is mounted.
 COPY --chmod=0755 docker/trust-build-ca.sh /usr/local/bin/trust-build-ca
 
 RUN --mount=type=secret,id=build_ca \
