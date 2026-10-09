@@ -1056,12 +1056,17 @@ defmodule PortfolixirWeb.DashboardLive do
   # #1068 (D-15, board 01 pin 5): the bonds priced on two scales, in either
   # direction, close the line with their own noun, so the finding reads the
   # same wherever it stands.
+  #
+  # #1101 (D-7, board 02 L2 A): the held securities whose quotes contradict
+  # their own bookings follow two scales, with their noun and their scope
+  # word ("held"), since the line otherwise counts the catalog (J1.2).
   defp dq_findings(dq) do
     [
       dq.without_quote > 0 && {:quotes, dq.without_quote},
       dq.without_class > 0 && {:class, dq.without_class},
       dq.without_logo > 0 && {:logo, dq.without_logo},
-      dq.two_scales > 0 && {:two_scales, dq.two_scales}
+      dq.two_scales > 0 && {:two_scales, dq.two_scales},
+      dq.implausible_quote > 0 && {:implausible_quote, dq.implausible_quote}
     ]
     |> Enum.filter(& &1)
     |> Enum.with_index()
@@ -1128,17 +1133,35 @@ defmodule PortfolixirWeb.DashboardLive do
     }
   end
 
+  defp dq_finding(:implausible_quote, count, _first?) do
+    %{
+      role: "dq-implausible-quote",
+      href: "/securities?dq=implausible_quote",
+      text:
+        ngettext(
+          "one held security whose quotes do not match its bookings",
+          "%{count} held securities whose quotes do not match their bookings",
+          count
+        )
+    }
+  end
+
   # Highest severity present (UX-DR17): a bond priced on two scales counts a
   # hundredfold too high or too low in the total, so it is a problem (#1068,
-  # D-15); a stale quote skews valuations, so it is attention-level; a
-  # missing class or logo is a note-level catalog gap.
+  # D-15), and so is a held security whose quotes contradict its own
+  # bookings — two stored facts about one day, one of them wrong, and a
+  # figure in the totals with it (#1101, D-7, pick L2 A); a stale quote
+  # skews valuations, so it is attention-level; a missing class or logo is
+  # a note-level catalog gap.
   defp dq_severity(%{two_scales: n}) when n > 0, do: :problem
+  defp dq_severity(%{implausible_quote: n}) when n > 0, do: :problem
   defp dq_severity(%{without_quote: n}) when n > 0, do: :attention
   defp dq_severity(_dq), do: :note
 
   # Securities needing attention (#337 data-quality card): no recent quote
   # (none at all, or older than 7 days), no persisted asset class, no logo,
-  # and since #1068 a bond priced on two scales.
+  # since #1068 a bond priced on two scales, and since #1101 a held security
+  # whose quotes contradict its own bookings.
   defp data_quality_report do
     # The counts come from the shared predicates (#705), so each finding's
     # number is produced by the same rule as the list its link opens. The
@@ -1156,7 +1179,8 @@ defmodule PortfolixirWeb.DashboardLive do
           &is_nil(&1.asset_class)
         ),
       without_logo: DataQuality.count("missing_logo"),
-      two_scales: DataQuality.count("two_scales")
+      two_scales: DataQuality.count("two_scales"),
+      implausible_quote: DataQuality.count("implausible_quote")
     }
   end
 

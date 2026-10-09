@@ -29,6 +29,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   alias Portfolixir.Portfolios.Performance.Benchmark
   alias Portfolixir.Portfolios.Performance.Contribution
   alias Portfolixir.Portfolios.PricingContext
+  alias Portfolixir.Portfolios.QuotePlausibility
   alias Portfolixir.Portfolios.Targets
   alias Portfolixir.Portfolios.Valuation
   alias Portfolixir.Settings
@@ -166,6 +167,7 @@ defmodule PortfolixirWeb.PortfolioLive do
           |> assign(:valuation, nil)
           |> assign(:negative_report, nil)
           |> assign(:two_scales, [])
+          |> assign(:implausible_quotes, [])
           |> assign(:allocation, nil)
           |> assign(:analysis, nil)
           |> assign(:analysis_read, nil)
@@ -496,9 +498,10 @@ defmodule PortfolixirWeb.PortfolioLive do
         # of the active view, so the report is global and loads with the
         # other data-quality inputs. A bond priced on two scales (#330,
         # ADR-0052) is named where it inflates this total: among the
-        # positions the valuation holds.
+        # positions the valuation holds; so is a position whose quotes
+        # contradict its own bookings (#1101, D-7).
         {valuation, classification_id, allocation, Ledger.negative_holdings_report(),
-         two_scales_in(valuation)}
+         two_scales_in(valuation), implausible_quotes_in(valuation)}
       else
         {:error, :view_not_found} -> :view_not_found
         {:error, :not_found} -> :classification_not_found
@@ -745,7 +748,9 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   def handle_async(
         :overview,
-        {:ok, {valuation, classification_id, allocation, negative_report, two_scales}},
+        {:ok,
+         {valuation, classification_id, allocation, negative_report, two_scales,
+          implausible_quotes}},
         socket
       ) do
     socket =
@@ -753,6 +758,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> assign(:valuation, valuation)
       |> assign(:negative_report, negative_report)
       |> assign(:two_scales, two_scales)
+      |> assign(:implausible_quotes, implausible_quotes)
 
     # Cross-key staleness guard (async-hardening round): LiveView's ref pruning
     # only cancels same-key tasks, so a mount-era :overview can land after the
@@ -1363,6 +1369,7 @@ defmodule PortfolixirWeb.PortfolioLive do
             analysis={@analysis}
             negative={@negative_report}
             two_scales={@two_scales}
+            implausible_quotes={@implausible_quotes}
             fx_syncing={@fx_syncing}
             fx_sync_flash={@fx_sync_flash}
             fx_sync_result={@fx_sync_result}
@@ -2736,6 +2743,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       |> assign(:unvalued_cash, ValuationNotes.unvalued_cash(assigns.valuation))
       |> assign(:negative_entries, negative_entries(assigns.negative))
       |> assign_new(:two_scales, fn -> [] end)
+      |> assign_new(:implausible_quotes, fn -> [] end)
 
     # #1068 (D-15, board 02): the two directions are two findings, each with
     # its own consequence and remedy, so each has its own note.
@@ -2749,7 +2757,7 @@ defmodule PortfolixirWeb.PortfolioLive do
       :if={
         @no_price.count > 0 or @missing_fx.count > 0 or @trade_priced.count > 0 or
           @stale_priced.count > 0 or @suspect_dates != [] or @unvalued_cash != [] or
-          @negative_entries != [] or @two_scales != []
+          @negative_entries != [] or @two_scales != [] or @implausible_quotes != []
       }
       id="portfolio-data-quality"
       class="workspace-section data-quality"
@@ -2894,6 +2902,33 @@ defmodule PortfolixirWeb.PortfolioLive do
           ) %>
           <.two_scales_entries findings={@two_scales_reverse} tab="quotes" />
         </AppShell.data_note>
+        <%!-- #1101 (D-7, board 02 L2 A): a held position valued at quotes
+             that contradict its own bookings — two stored facts about one
+             day more than a factor of two apart — has a wrong value or a
+             wrong cost, so the note is a problem, after the other problem
+             notes. The sentence states the rule, the consequence and the
+             remedy in order, the quote source first, then the booking;
+             each entry names one booking with the quote of its day, and
+             each name links to its Quotes tab. It names; nothing is
+             converted. --%>
+        <AppShell.data_note
+          :if={@implausible_quotes != []}
+          severity={:problem}
+          data-role="dq-implausible-quote"
+        >
+          <a href="/securities?dq=implausible_quote">
+            <%= ngettext(
+              "One held position is valued at quotes that do not match its own bookings (on a booking's day, below half or above twice the price per unit), so its value or its cost is wrong. Check its quote source (ticker, exchange), then the booking:",
+              "%{count} held positions are valued at quotes that do not match their own bookings (on a booking's day, below half or above twice the price per unit), so their value or their cost is wrong. Check their quote sources (ticker, exchange), then the bookings:",
+              length(@implausible_quotes)
+            ) %>
+          </a>
+          <.implausible_quote_entry
+            :for={{finding, index} <- Enum.with_index(@implausible_quotes)}
+            finding={finding}
+            lead_space={index > 0}
+          />
+        </AppShell.data_note>
       </div>
     </section>
     """
@@ -2947,6 +2982,39 @@ defmodule PortfolixirWeb.PortfolioLive do
     </span>
     """
   end
+
+  attr(:finding, :map, required: true)
+  attr(:lead_space, :boolean, default: false)
+
+  # One position of the implausible-quote note (#1101, board 02 L2 A): its
+  # name linking to its Quotes tab, then the booking and the quote of its
+  # day — kind, date, booked price, the quote's own date (the day before
+  # when none is stored on the booking's), the close and the ratio with two
+  # places. The figures are as `Format.exact` writes them, as the two-scales
+  # entries'; `lead_space` keeps one space between entries outside them.
+  defp implausible_quote_entry(assigns) do
+    ~H"""
+    <%= if @lead_space, do: " " %><span class="dq-negative-entry">
+      <.link navigate={"/securities/#{@finding.security_id}?tab=quotes"}><%= @finding.name %></.link>
+      (<%= gettext(
+        "%{kind} %{date} at %{price} %{currency} · quote %{quote_date}: %{close} %{currency}, %{ratio} times that",
+        kind: implausible_quote_kind(@finding.kind),
+        date: Format.date(@finding.date),
+        price: Format.exact(@finding.price),
+        currency: @finding.currency_code,
+        quote_date: Format.date(@finding.quote_date),
+        close: Format.exact(@finding.close),
+        ratio: Format.decimal(@finding.ratio, 2)
+      ) %>)
+    </span>
+    """
+  end
+
+  defp implausible_quote_kind("buy"), do: gettext("buy")
+  defp implausible_quote_kind("sell"), do: gettext("sell")
+
+  defp implausible_quote_kind("inbound_delivery"),
+    do: gettext("inbound delivery")
 
   # The display currency for user-facing labels (ADR-0024): taken from the
   # loaded valuation (the number the label describes), with the EUR hub as the
@@ -4199,6 +4267,15 @@ defmodule PortfolixirWeb.PortfolioLive do
     do: Enum.reject(positions, &Map.get(&1, :retired, false))
 
   defp reject_retired(positions, _reason), do: positions
+
+  # #1101 (D-7): the valued positions whose stored quotes contradict their
+  # own bookings, a security two_scales_in/1 names left out by the rule.
+  defp implausible_quotes_in(%{positions: positions}) do
+    positions
+    |> Enum.map(& &1.security_id)
+    |> Enum.reject(&is_nil/1)
+    |> QuotePlausibility.findings()
+  end
 
   # #330 (ADR-0052 §4): the bonds among the valued positions whose quotes and
   # booked unit prices sit on two scales.
