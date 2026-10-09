@@ -226,7 +226,7 @@ msgstr "Violett"
 
 #: lib/portfolixir/catalog/security_fields.ex:54
 #: lib/portfolixir_web/field_label.ex:54
-#: lib/portfolixir_web/live/classifications_live.ex:556
+#: lib/portfolixir_web/live/classifications_live.ex:558
 #: lib/portfolixir_web/live/classifications_live.ex:1106
 #: lib/portfolixir_web/live/classifications_live.ex:3266
 #: lib/portfolixir_web/live/portfolio_accounts/rename_dialog.ex:94
@@ -422,8 +422,8 @@ msgstr "Anlageklasse"
 
 #: lib/portfolixir_web/components/app_shell.ex:344
 #: lib/portfolixir_web/live/classifications_live.ex:247
-#: lib/portfolixir_web/live/classifications_live.ex:569
-#: lib/portfolixir_web/live/classifications_live.ex:577
+#: lib/portfolixir_web/live/classifications_live.ex:571
+#: lib/portfolixir_web/live/classifications_live.ex:579
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:128
 #: lib/portfolixir_web/live/securities_live.ex:3692
 #: lib/portfolixir_web/live/securities_live.ex:3775
@@ -702,7 +702,7 @@ msgstr "Ticker"
 msgid "Updated %{name}"
 msgstr "%{name} aktualisiert"
 
-#: lib/portfolixir_web/live/classifications_live.ex:475
+#: lib/portfolixir_web/live/classifications_live.ex:477
 #: lib/portfolixir_web/live/portfolio_live.ex:2017
 #: lib/portfolixir_web/live/portfolio_live.ex:2339
 #: lib/portfolixir_web/live/risk_live.ex:342
@@ -1063,7 +1063,7 @@ msgstr "Status konnte nicht geändert werden."
 
 #: lib/portfolixir_web/live/buckets_live.ex:538
 #: lib/portfolixir_web/live/buckets_live.ex:576
-#: lib/portfolixir_web/live/classifications_live.ex:711
+#: lib/portfolixir_web/live/classifications_live.ex:713
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:647
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:189
 #: lib/portfolixir_web/live/snapshots_live.ex:684
@@ -1888,7 +1888,7 @@ msgstr "Allokation"
 msgid "Classification"
 msgstr "Klassifizierung"
 
-#: lib/portfolixir_web/live/classifications_live.ex:473
+#: lib/portfolixir_web/live/classifications_live.ex:475
 #: lib/portfolixir_web/live/classifications_live.ex:1266
 #: lib/portfolixir_web/live/portfolio_live.ex:2016
 #: lib/portfolixir_web/live/portfolio_live.ex:2328
@@ -2002,7 +2002,7 @@ msgid "Add"
 msgstr "Hinzufügen"
 
 #: lib/portfolixir_web/live/classifications_live.ex:285
-#: lib/portfolixir_web/live/classifications_live.ex:616
+#: lib/portfolixir_web/live/classifications_live.ex:618
 #: lib/portfolixir_web/live/securities_live.ex:2709
 #, elixir-autogen, elixir-format
 msgid "Built-in"
@@ -2093,8 +2093,8 @@ msgstr "Reserve"
 msgid "Create & assign"
 msgstr "Anlegen & zuordnen"
 
-#: lib/portfolixir_web/live/classifications_live.ex:553
-#: lib/portfolixir_web/live/classifications_live.ex:559
+#: lib/portfolixir_web/live/classifications_live.ex:555
+#: lib/portfolixir_web/live/classifications_live.ex:561
 #, elixir-autogen, elixir-format
 msgid "Create classification"
 msgstr "Klassifizierung anlegen"
@@ -2116,7 +2116,7 @@ msgid "Delete this category?"
 msgstr "Diese Kategorie löschen?"
 
 #: lib/portfolixir_web/live/classifications_live.ex:293
-#: lib/portfolixir_web/live/classifications_live.ex:708
+#: lib/portfolixir_web/live/classifications_live.ex:710
 #, elixir-autogen, elixir-format
 msgid "Delete this classification and all its categories?"
 msgstr "Diese Klassifizierung und alle ihre Kategorien löschen?"
@@ -2140,7 +2140,7 @@ msgstr "Fertig"
 msgid "Edit category"
 msgstr "Kategorie bearbeiten"
 
-#: lib/portfolixir_web/live/classifications_live.ex:533
+#: lib/portfolixir_web/live/classifications_live.ex:535
 #, elixir-autogen, elixir-format
 msgid "Everything is sorted."
 msgstr "Alles ist einsortiert."
@@ -2172,14 +2172,14 @@ msgstr "Neue Kategorie"
 msgid "New category name"
 msgstr "Name der neuen Kategorie"
 
-#: lib/portfolixir_web/live/classifications_live.ex:545
-#: lib/portfolixir_web/live/classifications_live.ex:583
-#: lib/portfolixir_web/live/classifications_live.ex:584
+#: lib/portfolixir_web/live/classifications_live.ex:547
+#: lib/portfolixir_web/live/classifications_live.ex:585
+#: lib/portfolixir_web/live/classifications_live.ex:586
 #, elixir-autogen, elixir-format
 msgid "New classification"
 msgstr "Neue Klassifizierung"
 
-#: lib/portfolixir_web/live/classifications_live.ex:494
+#: lib/portfolixir_web/live/classifications_live.ex:496
 #, elixir-autogen, elixir-format
 msgid "No categories yet."
 msgstr "Noch keine Kategorien."
@@ -2243,7 +2243,7 @@ msgstr[1] "Zuordnung von %{count} Wertpapieren entfernt"
 
 #: lib/portfolixir_web/live/buckets_live.ex:929
 #: lib/portfolixir_web/live/classifications_live.ex:350
-#: lib/portfolixir_web/live/classifications_live.ex:505
+#: lib/portfolixir_web/live/classifications_live.ex:507
 #: lib/portfolixir_web/live/portfolio_live.ex:4339
 #: lib/portfolixir_web/live/portfolio_live.ex:4357
 #: lib/portfolixir_web/live/portfolio_live.ex:4378
@@ -3161,7 +3161,7 @@ msgstr "Alles einklappen"
 msgid "Expand all"
 msgstr "Alles ausklappen"
 
-#: lib/portfolixir_web/live/classifications_live.ex:474
+#: lib/portfolixir_web/live/classifications_live.ex:476
 #: lib/portfolixir_web/live/portfolio_live.ex:1789
 #: lib/portfolixir_web/live/portfolio_live.ex:2446
 #: lib/portfolixir_web/live/portfolio_live.ex:2523
@@ -4627,14 +4627,14 @@ msgstr "Kein aktueller Kurs — in den Summen zum letzten eigenen Handelspreis v
 msgid "Not counted in the portfolio totals — no price is known for this security (no quote and no own trade)."
 msgstr "Nicht in den Summen berücksichtigt — für dieses Wertpapier ist kein Preis bekannt (kein Kurs und kein eigener Handel)."
 
-#: lib/portfolixir_web/live/classifications_live.ex:742
+#: lib/portfolixir_web/live/classifications_live.ex:744
 #: lib/portfolixir_web/live/portfolio_live.ex:4128
 #: lib/portfolixir_web/live/securities_live.ex:2513
 #, elixir-autogen, elixir-format
 msgid "The derived holding quantity is negative — likely an unmodeled corporate action from an imported history. Repair the security's transaction history."
 msgstr "Die abgeleitete Bestandsmenge ist negativ — vermutlich eine nicht modellierte Kapitalmaßnahme aus einer importierten Historie. Die Transaktionshistorie des Wertpapiers korrigieren."
 
-#: lib/portfolixir_web/live/classifications_live.ex:747
+#: lib/portfolixir_web/live/classifications_live.ex:749
 #: lib/portfolixir_web/live/portfolio_live.ex:4133
 #: lib/portfolixir_web/live/securities_live.ex:2518
 #, elixir-autogen, elixir-format
@@ -4787,7 +4787,7 @@ msgstr "Noch keine Konten — erstes Depot und Verrechnungskonto anlegen."
 msgid "No open positions for this security in any depot."
 msgstr "Keine offenen Positionen für dieses Wertpapier in irgendeinem Depot."
 
-#: lib/portfolixir_web/live/classifications_live.ex:497
+#: lib/portfolixir_web/live/classifications_live.ex:499
 #, elixir-autogen, elixir-format
 msgid "No securities match the search."
 msgstr "Keine Wertpapiere passen zur Suche."
@@ -6649,13 +6649,13 @@ msgstr "Kosten und Notiz"
 msgid "About the result"
 msgstr "Zum Ergebnis"
 
-#: lib/portfolixir_web/live/classifications_live.ex:476
+#: lib/portfolixir_web/live/classifications_live.ex:478
 #: lib/portfolixir_web/live/income_live.ex:442
 #, elixir-autogen, elixir-format
 msgid "Cost"
 msgstr "Einstand"
 
-#: lib/portfolixir_web/live/classifications_live.ex:477
+#: lib/portfolixir_web/live/classifications_live.ex:479
 #: lib/portfolixir_web/live/income_live.ex:449
 #: lib/portfolixir_web/live/portfolio_accounts/merge_records.ex:269
 #, elixir-autogen, elixir-format
@@ -6904,43 +6904,43 @@ msgstr[1] "über %{count} abgeschlossene Trades"
 msgid "Holding period"
 msgstr "Haltedauer"
 
-#: lib/portfolixir_web/live/classifications_live.ex:628
+#: lib/portfolixir_web/live/classifications_live.ex:630
 #, elixir-autogen, elixir-format
 msgid "%{assigned} of %{total} securities assigned"
 msgstr "%{assigned} von %{total} Wertpapieren zugeordnet"
 
-#: lib/portfolixir_web/live/classifications_live.ex:619
+#: lib/portfolixir_web/live/classifications_live.ex:621
 #, elixir-autogen, elixir-format
 msgid "%{count} category"
 msgid_plural "%{count} categories"
 msgstr[0] "%{count} Kategorie"
 msgstr[1] "%{count} Kategorien"
 
-#: lib/portfolixir_web/live/classifications_live.ex:623
+#: lib/portfolixir_web/live/classifications_live.ex:625
 #, elixir-autogen, elixir-format
 msgid "%{count} level"
 msgid_plural "%{count} levels"
 msgstr[0] "%{count} Ebene"
 msgstr[1] "%{count} Ebenen"
 
-#: lib/portfolixir_web/live/classifications_live.ex:646
+#: lib/portfolixir_web/live/classifications_live.ex:648
 #, elixir-autogen, elixir-format
 msgid "%{count} unassigned"
 msgid_plural "%{count} unassigned"
 msgstr[0] "%{count} nicht zugeordnet"
 msgstr[1] "%{count} nicht zugeordnet"
 
-#: lib/portfolixir_web/live/classifications_live.ex:689
+#: lib/portfolixir_web/live/classifications_live.ex:691
 #, elixir-autogen, elixir-format
 msgid "Classification actions"
 msgstr "Klassifizierungsaktionen"
 
-#: lib/portfolixir_web/live/classifications_live.ex:670
+#: lib/portfolixir_web/live/classifications_live.ex:672
 #, elixir-autogen, elixir-format
 msgid "No plan"
 msgstr "Kein Plan"
 
-#: lib/portfolixir_web/live/classifications_live.ex:698
+#: lib/portfolixir_web/live/classifications_live.ex:700
 #, elixir-autogen, elixir-format
 msgid "Open"
 msgstr "Öffnen"
@@ -7099,7 +7099,7 @@ msgstr "Hat stattgefunden"
 msgid "Dates"
 msgstr "Termine"
 
-#: lib/portfolixir_web/live/classifications_live.ex:656
+#: lib/portfolixir_web/live/classifications_live.ex:658
 #, elixir-autogen, elixir-format
 msgid "Plan: %{name}"
 msgstr "Plan: %{name}"
@@ -7141,7 +7141,7 @@ msgstr "6 Monate"
 msgid "90 days"
 msgstr "90 Tage"
 
-#: lib/portfolixir_web/live/classifications_live.ex:596
+#: lib/portfolixir_web/live/classifications_live.ex:598
 #, elixir-autogen, elixir-format
 msgid "No classification trees yet."
 msgstr "Noch keine Klassifizierungen."
@@ -11428,7 +11428,7 @@ msgid_plural "They are included in “Value”."
 msgstr[0] "Im „Wert“ ist sie enthalten."
 msgstr[1] "Im „Wert“ sind sie enthalten."
 
-#: lib/portfolixir_web/live/classifications_live.ex:806
+#: lib/portfolixir_web/live/classifications_live.ex:807
 #, elixir-autogen, elixir-format
 msgid "The position"
 msgid_plural "The %{count} positions"

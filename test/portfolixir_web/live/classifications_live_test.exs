@@ -1361,6 +1361,55 @@ defmodule PortfolixirWeb.ClassificationsLiveTest do
     assert Floki.children(region) |> Enum.filter(&is_tuple/1) == []
   end
 
+  # User story (#1119, Sprint 20 γ closing act):
+  # As an operator using a screen reader on the classification screen,
+  # I want the note on the members the result leaves out announced when it
+  # arrives with the result,
+  # so that I hear it, which a region that enters the page together with its
+  # note does not promise.
+  #
+  # Acceptance criteria:
+  # - Before the result has loaded, the page already holds the empty
+  #   role="status" region the note arrives in.
+  # - Once the result leaves a member out, the note is inside that region.
+  test "the excluded-members region is there before the result arrives", %{conn: conn} do
+    {:ok, classification} =
+      Classifications.create_classification(Portfolixir.Actor.owner_ui(), %{name: "Vorab"})
+
+    {:ok, category} =
+      Classifications.create_category(Portfolixir.Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Core"
+      })
+
+    world = Portfolixir.WorldFixtures.base_world()
+    usd = security!(%{name: "Dollar Corp", currency_code: "USD"})
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Portfolixir.Actor.owner_ui(),
+        usd.id,
+        classification.id,
+        category.id
+      )
+
+    Portfolixir.WorldFixtures.deposit!(world, "10000", ~D[2026-01-01])
+    Portfolixir.WorldFixtures.buy!(world, usd, quantity: "1", price: "100", currency_code: "USD")
+
+    {:ok, view, html} = live(conn, "/classifications/#{classification.id}")
+    region = ~s([role="status"][data-role="category-result-excluded-region"])
+
+    # The mount's render, before the result's task has answered.
+    refute html =~ ~s(data-role="category-result-basis")
+    assert [before] = html |> Floki.parse_document!() |> Floki.find(region)
+    assert Floki.children(before) == []
+
+    render_async(view)
+
+    assert [landed] = view |> render() |> Floki.parse_document!() |> Floki.find(region)
+    assert Floki.find(landed, ~s([data-role="category-result-excluded"])) != []
+  end
+
   # ADR-0041 §4 on the human surface, plus the loss case: a category whose
   # members are not all derivable must SAY so rather than present a partial sum
   # as complete, and a negative result must read as negative without relying on

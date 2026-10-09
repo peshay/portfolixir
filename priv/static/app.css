@@ -10305,16 +10305,19 @@ dialog.merge-dialog {
 }
 
 /* An empty live region takes no room in the body's gap — the merge
-   dialogs' and the booking delete's (the closing act, R5), and the
+   dialogs' and the booking delete's (the closing act, R5), the
    Overview's region under its total, empty while the total leaves nothing
-   out (issue 1081, pick J1 A). It leaves the flow rather than the page
+   out (issue 1081, pick J1 A), and the classification screen's region for
+   the members its result leaves out, there before the result (issue 1119,
+   the Sprint 20 γ closing act). It leaves the flow rather than the page
    (issue 1119): `display: none` would take it out of the accessibility
    tree, and its note would enter the tree with it, unannounced. Out of the
    flow and empty, it is no grid item and paints nothing, so the picture is
    the same — the page result slot's idiom above. */
 .merge-region:empty,
 .booking-delete__region:empty,
-.wealth-card-status:empty {
+.wealth-card-status:empty,
+.category-result-excluded-region:empty {
   position: absolute;
 }
 
