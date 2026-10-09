@@ -192,9 +192,9 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-1 | — | shipped (ledger projection, ADR-0011) |
 | FR-2 | #343 | currency consistency |
 | FR-3 | #344 | rounding-policy ADR (needs-decision) |
-| FR-4 | #327, #328, #608, #884 (L2); deferred by ADR-0050 §15: #902–#906 | portfolio switcher; merge/rename/delete. **Design gate: [ADR-0050](../../docs/decisions/0050-lifecycle-merges-under-a-reimport-contract.md)** (lifecycle merges under a post-merge re-import contract, risk-tier), signed by the merge of the Sprint 16 planning PR and built in Sprint 16's Lane L. #608, the security merge, is the same mechanism and carries FR-34's identity ladder across a merge (ADR-0050 §9). The "move between portfolios" clause of FR-4 is out of scope since ADR-0024 made portfolios internal (ADR-0050 §14). **Filed at branch opening (2026-09-24, Sprint 16 Lane Z), all under #417:** #884, the importer half (L2: hash first, retired hashes, lazy account creation, former names), which closes today's rename hazard on its own; and ADR-0050 §15's deferrals, each needing a decision — #902 (a tombstone for a source that research notes or rule versions name), #903 (generalized identifier aliases with remembered security remaps, for ISIN-less merges), #904 (a fail-closed probe for account identities the database never saw), #905 (one-to-one matching on the pre-import #533 layer) and #906 (unmerge). The sixth deferral, merger and spin-off, is #907 on FR-23's row. **Shipped 2026-09-29 (Sprint 16, PR #914, fast-forwarded onto `main` at `daeab17`)**: L1 (merge records and retired import hashes, append-only and journal-armed; a disposition for every foreign key onto accounts, depots and securities; hardened deletes answering 409 with the reference and a remedy, or 409 with nothing deleted when they lose a race; identity freezes), L2 (#884, the re-import contract with former names behind one name guard), L3 (cash and depot merge under a plan digest, Decimal-exact), L4 (#608, the security merge carrying FR-34's identity ladder) and L5 (the screens on picks G1–G4, G4b and G13.1). #884 and #608 closed by keyword. **#328 stays open under `needs-uat`**: its API, MCP and screen shipped and the UAT persona ran its five-step plan on the synthetic seed; the owner's run on real data is the remaining step. **Agent-first, due in Sprint 17:** the merge-record list view for `GET /api/v1/merges` (ADR-0050 §12). **Shipped 2026-10-02 (Sprint 17 PR γ, #1035, `main` at `e06bd4fd`)**: the list at the end of Accounts & depots (pick G2-A), every kind in one collapsed read-only list with each result's counts per table, the survivor's date and a security's basis line linking its entry; `deleted_by_reason` added to the read. The deadline is met |
-| FR-5 | #333 | XML import **gated**; CSV/JSON shipped. **#333 closed 2026-09-23** by the backlog triage (§3.4, adopted by the Sprint 15 planning PR): classifications are Portfolixir-owned and survive a re-import (E18), quote history has an API (`PUT /api/v1/securities/:security_id/quotes`), master data is maintained here; XML intake stays forbidden by the hard rule **#1076 (Sprint 19 planning, 2026-10-04):** the CSV path booked Portfolio Performance's gross `Betrag` as the cash. **Design gate: [ADR-0053](../../docs/decisions/0053-a-pp-csv-books-its-gesamtpreis.md)** (risk-tier, signed by the merge of the Sprint 19 planning PR): a row with a `Gesamtpreis` books it, checked to the cent; a converter-written row (empty `Gesamtpreis`) books its `Betrag` as before; the content hash keeps reading `Betrag`, so a re-drop books nothing (FR-6 holds); bookings made under the old reading are corrected by a separate, journaled confirm fed by a re-dropped PP CSV. Built in Sprint 19's PR α. **Built 2026-10-06 by PR α #1100** (§1–§5, §7, §8; K1–K6 pinned, each seen failing first, with mutation checks): a PP CSV row books its `Gesamtpreis`, the hash keeps reading `Betrag`, and every stored hash is byte-identical. **§6, the correction, was cut** by the owner's answer "JSON" to the plan's D-2, so it stays decided and unbuilt; the handbooks say that a PP CSV imported before 2026.10.10 keeps PP's gross value as its cash. ADR-0053's two deferrals are #1097 and #1098. **Sprint 20 planning (2026-10-07):** #1098 is confirmed against PP's source — the JSON path books a split-off negative tax twice, and a converter CSV with a negative Steuern does the same. The **ADR-0053 amendment of 2026-10-07** (risk-tier, signed by the merge of the Sprint 20 planning PR) books the cash cell minus the refund in every format, derives a JSON price from the gross, keeps every stored hash, refuses a credit row that nets to nothing (#1118), and builds §6's correction for JSON and converter files (K9–K15), in Sprint 20's PR α. #1097 closes as not planned (the plan's D-4) |
-| FR-6 | — | shipped (preview/idempotent/atomic). **Sprint 20 planning (2026-10-07):** the **ADR-0050 amendment of 2026-10-07** (risk-tier) builds §2's deferred fail-closed probe (#904): a file name with no hash hit in a file that otherwise overlaps the stored history gets no prefill, so a Portfolio Performance-side rename can no longer book an account's history twice behind one default; built in Sprint 20's PR α |
+| FR-4 | #327, #328, #608, #884 (L2); deferred by ADR-0050 §15: #902–#906 | portfolio switcher; merge/rename/delete. **Design gate: [ADR-0050](../../docs/decisions/0050-lifecycle-merges-under-a-reimport-contract.md)** (lifecycle merges under a post-merge re-import contract, risk-tier), signed by the merge of the Sprint 16 planning PR and built in Sprint 16's Lane L. #608, the security merge, is the same mechanism and carries FR-34's identity ladder across a merge (ADR-0050 §9). The "move between portfolios" clause of FR-4 is out of scope since ADR-0024 made portfolios internal (ADR-0050 §14). **Filed at branch opening (2026-09-24, Sprint 16 Lane Z), all under #417:** #884, the importer half (L2: hash first, retired hashes, lazy account creation, former names), which closes today's rename hazard on its own; and ADR-0050 §15's deferrals, each needing a decision — #902 (a tombstone for a source that research notes or rule versions name), #903 (generalized identifier aliases with remembered security remaps, for ISIN-less merges), #904 (a fail-closed probe for account identities the database never saw), #905 (one-to-one matching on the pre-import #533 layer) and #906 (unmerge). The sixth deferral, merger and spin-off, is #907 on FR-23's row. **Shipped 2026-09-29 (Sprint 16, PR #914, fast-forwarded onto `main` at `daeab17`)**: L1 (merge records and retired import hashes, append-only and journal-armed; a disposition for every foreign key onto accounts, depots and securities; hardened deletes answering 409 with the reference and a remedy, or 409 with nothing deleted when they lose a race; identity freezes), L2 (#884, the re-import contract with former names behind one name guard), L3 (cash and depot merge under a plan digest, Decimal-exact), L4 (#608, the security merge carrying FR-34's identity ladder) and L5 (the screens on picks G1–G4, G4b and G13.1). #884 and #608 closed by keyword. **#328 stays open under `needs-uat`**: its API, MCP and screen shipped and the UAT persona ran its five-step plan on the synthetic seed; the owner's run on real data is the remaining step. **Agent-first, due in Sprint 17:** the merge-record list view for `GET /api/v1/merges` (ADR-0050 §12). **Shipped 2026-10-02 (Sprint 17 PR γ, #1035, `main` at `e06bd4fd`)**: the list at the end of Accounts & depots (pick G2-A), every kind in one collapsed read-only list with each result's counts per table, the survivor's date and a security's basis line linking its entry; `deleted_by_reason` added to the read. The deadline is met. **Sprint 20 (2026-10-09):** of ADR-0050 §15's deferrals, **#904 is built** by the sprint PR #1184 (see FR-6) and closed by its keyword, and #902, #903, #905 and #906 were closed as not planned at the planning merge (the plan's D-4), each with what reopens it. The stacked PR #1215 carries ADR-0050's amendment of 2026-10-08 (§7 keeps the three merge refusals by name; #972), and closes #1159 and #1167 (a merge record names its ISIN and collapse choices only where it made one, and an adopted ISIN once) and #1152 (pickers group twins by how names print, the guard staying exact) |
+| FR-5 | #333 | XML import **gated**; CSV/JSON shipped. **#333 closed 2026-09-23** by the backlog triage (§3.4, adopted by the Sprint 15 planning PR): classifications are Portfolixir-owned and survive a re-import (E18), quote history has an API (`PUT /api/v1/securities/:security_id/quotes`), master data is maintained here; XML intake stays forbidden by the hard rule **#1076 (Sprint 19 planning, 2026-10-04):** the CSV path booked Portfolio Performance's gross `Betrag` as the cash. **Design gate: [ADR-0053](../../docs/decisions/0053-a-pp-csv-books-its-gesamtpreis.md)** (risk-tier, signed by the merge of the Sprint 19 planning PR): a row with a `Gesamtpreis` books it, checked to the cent; a converter-written row (empty `Gesamtpreis`) books its `Betrag` as before; the content hash keeps reading `Betrag`, so a re-drop books nothing (FR-6 holds); bookings made under the old reading are corrected by a separate, journaled confirm fed by a re-dropped PP CSV. Built in Sprint 19's PR α. **Built 2026-10-06 by PR α #1100** (§1–§5, §7, §8; K1–K6 pinned, each seen failing first, with mutation checks): a PP CSV row books its `Gesamtpreis`, the hash keeps reading `Betrag`, and every stored hash is byte-identical. **§6, the correction, was cut** by the owner's answer "JSON" to the plan's D-2, so it stays decided and unbuilt; the handbooks say that a PP CSV imported before 2026.10.10 keeps PP's gross value as its cash. ADR-0053's two deferrals are #1097 and #1098. **Sprint 20 planning (2026-10-07):** #1098 is confirmed against PP's source — the JSON path books a split-off negative tax twice, and a converter CSV with a negative Steuern does the same. The **ADR-0053 amendment of 2026-10-07** (risk-tier, signed by the merge of the Sprint 20 planning PR) books the cash cell minus the refund in every format, derives a JSON price from the gross, keeps every stored hash, refuses a credit row that nets to nothing (#1118), and builds §6's correction for JSON and converter files (K9–K15), in Sprint 20's PR α. #1097 closes as not planned (the plan's D-4). **Built 2026-10-09 by the sprint PR #1184** (α A1 and A2; K9–K15 pinned, each seen failing first, with mutation checks): a row with a split-off tax refund books its cash cell less the refund on a credit, plus it on a debit, in every format; a JSON trade is priced from its gross value with signed taxes; the content hash keeps reading the file's amount and the price derived before; a credit that would book 0 or less is a preview row error in both parsers. **§6, the correction, is built**: a re-dropped PP CSV, converter CSV or JSON whose rows hit stored hashes with a different cash lists them under a confirm of its own, which writes through `Ledger.update_transaction/3` with the journal's before-image. It finds bookings by content hash only, so a re-export whose hashed fields drifted is not listed (#1205, needs-decision). #1098 and #1118 closed by keyword. The other open decisions on this surface: #1188, #1193 and #1194 |
+| FR-6 | — | shipped (preview/idempotent/atomic). **Sprint 20 planning (2026-10-07):** the **ADR-0050 amendment of 2026-10-07** (risk-tier) builds §2's deferred fail-closed probe (#904): a file name with no hash hit in a file that otherwise overlaps the stored history gets no prefill, so a Portfolio Performance-side rename can no longer book an account's history twice behind one default; built in Sprint 20's PR α. **Built 2026-10-09 by the sprint PR #1184** (α A3; P1–P5 pinned, with mutation checks): a file's cash-account or depot name none of whose rows hits a stored hash (live or retired), while another name of the file does, gets no prefill and Apply waits; mapped onto its old account, the drop books nothing and remembers the name. It is a preview rule only: no hash, key or apply condition changes. #904 closed by keyword. Open: #1195 (needs-decision), the probe asking on every re-drop when the rows' hashes drifted |
 | FR-7 | #326 | import gaps surfaced (logos) |
 | FR-8 | #316, #577, #563, #568 (ADR-0034) | IRR; TTWROR shipped. **#577 shipped 2026-08-04** — TTWROR/IRR for a bucket view now cover the deduplicated account union across all portfolios, so the header total and the return always speak about the same accounts; the multi-portfolio scope disclaimer is gone. **#563 shipped** — previous-year/any-year and custom from-to periods, pure re-chains. #568 (net invested, wealth multiple, XIRR) has its design note in ADR-0034 but is **not implemented**. **Sprint 11 Lane X (PR #810, merged 2026-09-15; #779 and #610 closed; D-3, risk-tier):** a priced delivery enters F_d and the lot queue at its booked price and seeds an unpriced security's price, a retired security's stale quote is not a measurement (its next own trade restates the basis), `price_date` per position and `stale_priced_count` on the valuation with the Wealth page naming the holdings to retire; ADR-0010 amended 2026-09-15, registry computation version 3 |
 | FR-9 | #572 (ADR-0046) | **Shipped 2026-09-15 (Sprint 11 Lane B, PR #810; #572 closed)** — ADR-0046 executed as signed (gate Accepted 2026-09-07 by the merge of PR #780): two benchmark kinds (a fixed effective annual rate compounding daily Act/365, or an `is_benchmark` security through the existing sync — OQ-3 answered: no new quote source), two comparisons ("bought once" rebased next to TTWROR, "savings plan" replay of ADR-0034 §1's flows with an end-value delta, two IRRs and the period MWR pair), portfolio-wide and per view, on `GET /portfolios/:id/performance/benchmark` and `GET /views/:id/performance/benchmark` with their MCP tools first and the Wealth page's picker, overlays and comparison block in the same batch (DE and EN). The three identities of ADR-0046 are pinned by exact-Decimal tests; the computation basis is in the payload (metric-basis rule). **Ungated 2026-08-12** — the scope ladder released it as level (b). Deferred by ADR-0046 §6: a dated CPI table, the after-tax dimension (OQ-9), a stored per-view default |
@@ -213,10 +213,10 @@ Each requirement maps to a GitHub issue (the executable story unit — "one issu
 | FR-27 | #332 | what-if simulator. **Still gated after 2026-08-12**, on new grounds: blind-follow backtesting is ladder level (d), which is out for now and reopens after the policy-rules work (gate B3.6). OQ-11 (quotes for never-held securities) remains an independent blocker underneath | **Retired 2026-09-23** by the backlog triage (§3.3, adopted by the Sprint 15 planning PR): its differentiating half is ladder level (d) and its simple half is answered by ADR-0027's snapshot counterfactual and ADR-0046's benchmark; #332 closed by hand. A future simulator needs a new gate |
 | FR-28 | **#353** | audit journal (new) |
 | FR-29 | #354 | **rescoped 2026-07-22**: documented `pg_dump` backup/restore only; PP export dropped. **The procedure shipped 2026-09-24 (Sprint 15, PR #867)**: backup, restore and the restore check in `docs/home-deployment.md` (EN/DE), verified end to end with Docker on the demo seed. #354 stays open under `needs-uat` for the owner's restore on the real instance |
-| NFR-1 | #347, #348, #314, #344 | correctness suites + gates |
+| NFR-1 | #347, #348, #314, #344 | correctness suites + gates. **#314 closes with Sprint 20's stacked PR #1215** (γ C7): Credo's complexity ceiling 13 → 12, `map_asset_class/2` a table with its 38 cases pinned first |
 | NFR-2 | #353 | auditability = audit journal |
 | NFR-3 | #346, #347, #350 | AI-agentic guards |
-| NFR-4–6 | **#757** (E21 tracker; #758–#772), gate **ADR-0045** Accepted 2026-09-05 | foundational (security, self-hosted, single-user). **NFR-4's perimeter shipped with E21** (Sprint 10, PR #773 merged 2026-09-06, #758–#771 closed): Host guard answering 421, loopback by default with a startup warning, session cookie attributes and derived salts, opt-in `PHX_FORCE_SSL`, a production release image with no secret defaults, the deny-by-default URL policy and bounded HTTP client on every outbound fetch, constant-time token comparison with a per-source throttle, system-set provenance, and the optional built-in UI authentication of ADR-0045 (OQ-8 answered). **The family closed with Sprint 11 (PR #810, merged 2026-09-15):** #772 (Bandit serves the endpoint, cowlib and its three advisories out of the tree, the Hex pin gone from CI, every Action pinned to a SHA), #382 (the per-request CSP nonce, no inline handler left, `force_ssl` off by default and opt-in through `PHX_FORCE_SSL` — D-2 — so Sobelow runs with no ignore) and #776 (`limit` on the nine remaining collection reads and their MCP tools; the journal read's own parser is #811). Nothing in the family stays open |
+| NFR-4–6 | **#757** (E21 tracker; #758–#772), gate **ADR-0045** Accepted 2026-09-05 | foundational (security, self-hosted, single-user). **NFR-4's perimeter shipped with E21** (Sprint 10, PR #773 merged 2026-09-06, #758–#771 closed): Host guard answering 421, loopback by default with a startup warning, session cookie attributes and derived salts, opt-in `PHX_FORCE_SSL`, a production release image with no secret defaults, the deny-by-default URL policy and bounded HTTP client on every outbound fetch, constant-time token comparison with a per-source throttle, system-set provenance, and the optional built-in UI authentication of ADR-0045 (OQ-8 answered). **The family closed with Sprint 11 (PR #810, merged 2026-09-15):** #772 (Bandit serves the endpoint, cowlib and its three advisories out of the tree, the Hex pin gone from CI, every Action pinned to a SHA), #382 (the per-request CSP nonce, no inline handler left, `force_ssl` off by default and opt-in through `PHX_FORCE_SSL` — D-2 — so Sobelow runs with no ignore) and #776 (`limit` on the nine remaining collection reads and their MCP tools; the journal read's own parser is #811). Nothing in the family stays open. **Sprint 20's stacked PR #1215 (γ C3, C4):** the API's and the companion's bearer checks compare a token before its source's lock while every configured token meets the 32-byte floor, so a correct token passes a locked source and a wrong one still counts (#974, plan D-11, ADR-0045 §1's note of 2026-10-08); the companion compares a browser's Origin whole (#956) and binds an IPv6 or an empty host safely (#1137); [ADR-0054](../../docs/decisions/0054-the-agents-surface-one-authority-named-principals-escaped-text.md) records the agent-surface posture and supersedes the architecture's D4. One decision is open in the family again: #1202 (the token floor checks length only) |
 | NFR-7 | #313 | localization / docs site |
 | NFR-8 | #562 (ADR-0032), #619 (ADR-0035) | cross-cutting perf; watch in perf-sensitive stories. ADR-0032 accepted 2026-07-29 — the daily TTWROR walk is memoized in volatile memory with warm-up, targeted invalidation and a labelled stale-serve. **#619 shipped 2026-08-04** (ADR-0035): the redundancy was removed rather than cached — market data is preloaded once per read and threaded through every valuation and allocation, replacing six re-derivations and hundreds of per-row lookups. Measured A/B: the warm dashboard block 1,105 ms → 265 ms and 2,614 → 115 queries, output identical. Nothing is memoized by this change; ADR-0032's memo is untouched |
 | UX-DR1–20 | **#356** (tracker) + #414, #672 open, plus #701–#704, #707 filed 2026-08-15; #412, #491, #560, #565, #566 shipped | UX/a11y tracker. Rules are defined in `design-language/EXPERIENCE.md` and `DESIGN.md`, not in this document (ADR-0038). **Sprint 7 (PR #716, merged 2026-08-19) closed #414, #672, #701–#704, #706 and #707**; the 2026-08-18 design engagement filed #717–#721 and #723, and the Sprint-7 walkthrough filed #729 and #730 — all attach here. **Sprint 8 (PR #735, merged 2026-08-22) closed all eight** (#717–#721, #723, #729, #730) and added UX-DR25 (an excluded row is named where the total is read) and UX-DR26 (a deliberate limit is stated on the surface that lacks it) to the living spec. #336, #337, #339, #319 and #606 are closed. **#606 shipped 2026-08-04** — the impersonal microcopy voice rule, applied retroactively to all pre-rule UI strings and the EN/DE docs, and now part of DR11 rather than only an agent rule. DR15–DR20 were added by the 2026-08-05 design session; the alignment stories are cut from the spec. **Sprint 12 (PR #813, rebase-merged 2026-09-15, `main` at `5ea57ea3`) shipped the second E11 alignment pass and closed all twenty-two of its issues, #784–#805 contiguous** — cut from the 2026-09-12 whole-surface review (`planning-artifacts/ux-review-2026-09-12.md`), which filed #784–#808 with #809 following on 2026-09-14, across Lanes F (defect sweep), N (data notes and freshness), S (Tax, Snapshots, Views, sunburst, income chart), K (Wealth KPI band, Overview strip), P (phone rows, filter sheet), T (booking drawer) and D (detail pane, tree rows, custom range). UX-DR27 (phone list rows) was added by the 2026-09-12 spine amendment and UX-DR2 amended 2026-09-14 for the Overview strip (#798-B); `DESIGN.md` names all eight owner picks (C1-A, C2-B, C3-A, C4-B, C5-A, C6-C, C7-A, C8-A). **Still open under #356:** #806, #807, #808, #809 (Sprint 13 candidates declared by D-3 before the batch started) and the closing act's three findings #815 (the `/classifications` index is a bare bullet list), #816 (the transaction history needs the phone filter sheet the securities list got) and #817 (the detail pane's tab row is held to none of the D6 shipped form). **E11 CLOSED 2026-09-19 (Sprint 13, PR #832, `main` at `6e7de6ef`)**: all six shipped — #806 (the bucket cell saying what a set applies to, variant A), #807 (the Realized-gains facet as the Trades view), #808 (the Classifications index as rows), #809 (edit a booking from the history), #816 (the history's filter sheet under 560 px) and #817 (the tab row on the D6 form, now pinned by `css_layout_sweep_test.exs`) — with #815 closed by hand as #808's duplicate and **tracker #356 closed with the evidence**. The design-critic review of this batch added `bucket-list`, `bucket-cell`, `security-metric-grid`, `security-events-tab` and `due-card` to DESIGN.md and restated the D6 tab-row paragraph as a rule. Its findings that fell outside the PR's scope are filed rather than widened: #833 (`.num` has no generic rule), #834 (the kebab's focus ring and coarse-pointer floor), #835 (two column-picker treatments), #836 (`aria-pressed`/`aria-expanded` as bare booleans), #837 (the tablist's roving tabindex) and #842 (the `+N` chip's `title`). **E11 does not reopen** — further UX work is held against the living spec by the standing design-critic gate (ADR-0038), not by a tracker. **The Sprint 16 design pass's Scope Lock observations** (`ux-design-2026-09-24-sprint16.md` Part 13) were filed at branch opening (2026-09-24) without a parent, since no open tracker holds UI debt, and no Sprint 16 lane schedules them: #908 (light-mode link text below `DESIGN.md`'s contrast bar, with the contrast table to re-check), #909 (the German summary-card label on the import result runs past its card), #910 (the rule dialog's version list numbers each entry twice), #911 (Allocation → Positions: the pinned column does not pin, the basis line has no style, the drift ⓘ omits the allocated portion), #912 (deleting a split has no screen, the missing human view of an existing API and MCP capability) and #913 (the history's split-ratio cell sits left in a right-aligned column without `.num`) |
@@ -654,6 +654,149 @@ and the design-engagement issues #717–#721/#723 attach to #356.
 Retrospective: `sprint-7-retro-2026-08-19.md`. Close-out ledger and the
 process findings live there and in `sprint-status.yaml`'s log; this section
 records only what changed in the requirement registry.
+
+## Implementation Status — reconciled with code (2026-10-09, Sprint 20 close-out)
+
+Verification basis: the commits on `main` (`979340d6..86c577ec`, linear, zero
+merge commits) and the stacked PR's branch. Under ADR-0026's two-PR amendment
+of 2026-10-08, the sprint was one sprint PR, with γ split off as a stacked PR
+because the commit count passed 90 (plan D-9: 81 + 65):
+
+- the sprint PR #1184 (Lane M, α, β): 81 commits, rebase-merged 2026-10-09
+  05:04 UTC, `main` at `86c577ec`;
+- the stacked PR #1215 (γ and this close-out): 70 commits on `86c577ec`
+  before these records. It merges by rebase after #1184, and the next
+  planning PR records its merge and release.
+
+#1184's merged tree is identical to the head CI tested on the PR. The Actions
+runs on its merge push are green (CI, compose-smoke included, and Commit
+authorship), and the Release workflow's calendar job made **2026.10.13**, API
+contract version 16. #1215 was green in CI and in all fifteen local gates
+(4,734 tests, coverage 94.3 %) at the tree the launch test ran on; it
+carries contract version 17. Before the
+sprint PR, `main` took the planning PR and ADR-0026's two-PR amendment
+(`34521a68..979340d6`). The basis also includes the issue list read after
+#1184's merge.
+
+**Shipped by Sprint 20.** The numbers a switcher's import books, with no
+screen lane. Nothing was shrunk: the owner's D-2 count went unanswered, so
+silence built the correction.
+
+- **What the importer books** (α, in #1184):
+  - a negative tax books once, in every format, under ADR-0053's amendment
+    (#1098, #1118), and §6's correction for a re-dropped PP CSV, converter
+    CSV or JSON;
+  - a renamed account is not booked twice: the fail-closed probe under
+    ADR-0050's amendment (#904);
+  - the historical exchange rates arrive by themselves (#1120, D-5);
+  - the import preview's own surface (#1168, #1140, #1128, #1173, #1174).
+- **What the ledger reports about it** (β, in #1184):
+  - a cross-currency trade's fees and taxes enter a lot's basis and a
+    closed trade's proceeds at the trade's own rate, under ADR-0015's
+    amendment (#1108), and the Costs, income and deposits-and-withdrawals
+    reports read them in the cash account's currency (#1107);
+  - a return on a zero cost basis is `null`, with its reason (#1142);
+  - `implausible_quote` names a held security whose quote lies far from its
+    own booking price (#1101, D-7);
+  - Wealth's positions follow the page's scope (#1124), the category result
+    computes again after any tree edit (#1110), and the same-currency check
+    reads under a key-share lock (#922).
+- **Maintenance** (Lane M, in #1184): BMAD 6.12.1, `phoenix_pubsub` 2.4.1,
+  the images' Debian date, and #1136 (the build CA leaves the store after
+  its step).
+- **Nothing a screen shows changes** (γ, in #1215, 34 issues):
+  - a stranger's install (#1132, #1172, #898);
+  - the agent's reads and writes (#1103, #1133, #1143, #1113, #1135,
+    #1154);
+  - E25's nine follow-ups (#937, #938, #940, #941 with #1058, #942, #953,
+    #956, #965, #967, the last as ADR-0054);
+  - two security fixes (#974, #1137);
+  - merge records and names (#1159, #1167, #1146, #1152, #972);
+  - classes and live regions (#1127, #1119);
+  - tests and tooling (#1131, #1126, #1116, #314, #926, #1170).
+
+**The four exit criteria (plan D-1): all four pass once #1215 merges.**
+
+1. **Every H issue closed by keyword: pass once #1215 merges.** Nine closed
+   with #1184; #1132 and #1172 close with #1215.
+2. **The switcher's round trips: pass**, on synthetic data in the German UI.
+   - The negative tax: Test-Cash read 181,49 EUR, the sale and its PP CSV
+     twin 1.120,00 EUR, and a second drop booked nothing. An older import read 181,50 and
+     1.145,00 EUR, and 181,49 and 1.120,00 EUR after the correction.
+   - The rename: no prefill, Apply waits, and the drop mapped onto the old
+     account booked nothing.
+   - The rates: pass by the integration test with the fake provider. The
+     ECB's host answers 403 from this session, so the live fetch is
+     unproven here.
+   - The cross-currency trade: 151,00 EUR.
+3. **The build route: pass.** CI's `compose-smoke` builds and boots the
+   release images on every change that can change them, and was green on
+   `main` after #1184's merge. The agent's launch test passed from source
+   against #1215's tree; its three answers (13,659.20, +200.75 and 2,297.75
+   EUR) were exact. No CI job tests the upgrade of an existing volume.
+4. **Fewer than 100 open issues: pass once #1215 merges.** 118 were open
+   after #1184's merge, and #1215 closes 34, which leaves 84.
+
+The records are in `sprint-status.yaml`'s Sprint 20 entry and in
+`launch-readiness-2026-10-09-sprint20.md`.
+
+**Registry rows this batch moves:**
+
+- **FR-5:** ADR-0053's amendment is built, §6's correction included.
+- **FR-6:** ADR-0050's fail-closed probe (#904) is built.
+- **FR-4:** #904 is built; #902, #903, #905 and #906 were closed as not
+  planned at the planning merge.
+- **NFR-1:** #314 closes with #1215.
+- **NFR-4–6:** a correct token passes a locked source while every token
+  meets the 32-byte floor (#974); #1202 opens a decision in the family.
+- **The Tracker Index:** E3's line (#904 built, the other deferrals closed)
+  and E26's line (Sprint 20, the area trackers, #991 full).
+
+No other row's issue column names an issue this sprint closed, and no other
+row's status moved.
+
+**Two-way coverage.**
+
+- **Due this batch:** #1143, the API half of #945's refusal, closes with
+  #1215, so #945 holds both ways.
+- **#1052 stays missed on purpose** (Sprint 19's D-6, kept by D-13): the
+  screen still cannot correct a dividend's, a deposit's or a fee's facts in
+  place.
+- **Screen-only by decision:** the correction and the rename probe have no
+  API route and no MCP tool, because the import is an operator action
+  (ADR-0029). Every corrected value is visible through the existing reads.
+- **Found and filed:** no screen books a tax refund or a fee, which a
+  refused sale's remedy asks for; a one-row CSV, the API and the companion
+  can (#1206, the UI batch).
+
+**Surface check (the 2026-09-03 owner decision):**
+
+- **`implausible_quote` (#1101):** the Overview's line, Wealth's notes, the
+  securities filter and the data-quality read carry it, with findings and
+  basis.
+- **#1142's `null` return:** the trades, realized-gains, holdings, lot and
+  decomposition reads, each with its reason in the computation basis.
+- **#1103's `is_retired`:** `portfolixir.securities.list` and its route.
+- **#1133's `plan_id`:** the target writes take it; the target reads do not,
+  filed as #1185.
+
+**Schema budget (D-10):** the ceilings went down in every profile, from read
+103,454, book 176,536 and full 206,884 bytes to 103,375, 176,457 and 206,805
+after β, and to 103,261, 176,275 and 206,672 after γ.
+
+**Filed and not built (Scope Lock), 37:**
+
+- at the planning merge: six, ADR-0053's amendment's deferral and the design
+  pass's five findings;
+- by the build and the closing acts: #1185–#1214;
+- by this close-out's launch test: #1216.
+
+The 31 since the planning merge each have their area parent: #416 (15),
+#417 (3), #418 (6), #419 (3) and #420 (4). Nine wait on a decision: #1188,
+#1193, #1194, #1195, #1196, #1198, #1202, #1204 and #1205.
+
+**Closed: 85** once #1215 merges: 33 by hand and #973 by keyword at the
+planning merge, 17 by #1184's keywords and 34 by #1215's.
 
 ## Implementation Status — reconciled with code (2026-10-07, Sprint 19 close-out)
 
@@ -1509,7 +1652,12 @@ issue state and the merge commits on `main`.
   (Sprint 16, PR #914, `main` at `daeab17`)**: the whole of ADR-0050's build
   order, L1 to L5; #884 and #608 closed by keyword. **E3 stays open** on #328,
   which carries `needs-uat` for the owner's run on real data, and on the §15
-  deferrals #902–#906, each needing a decision.
+  deferrals #902–#906, each needing a decision. **Sprint 20:** #904 is built
+  by the sprint PR #1184 (FR-6), and #902, #903, #905 and #906 were closed as
+  not planned at the planning merge (D-4), so of those reasons #328 remains.
+  Since that merge #417 is also the area parent of open issues on portfolio
+  structure and instrument lifecycle (D-14); Sprint 20 filed #1187, #1191 and
+  #1211 under it.
 - **E4 — Import completeness** — *phase 1, XML gated.* No tracker since the
   Sprint 16 planning: **#470** (transactions/imports UX) is closed by hand with
   all seven sub-issues done, and the gated item #333 was closed by the
@@ -1822,4 +1970,20 @@ issue state and the merge commits on `main`.
   each with what reopens it). The build route of the launch test moves to
   the owner's host (D-3). Four exit criteria: every H issue closed, the
   switcher's round trips, the build route in two halves, and fewer than
-  100 open issues with every open question answered.
+  100 open issues with every open question answered. **Sprint 20 built
+  2026-10-09**, under ADR-0026's two-PR amendment of 2026-10-08: the sprint
+  PR #1184 (Lane M, α, β) merged (`main` at `86c577ec`, release
+  2026.10.13), and the stacked PR #1215 (γ and the close-out) merges after
+  it. Nothing was shrunk; silence on D-2 built the correction. All four exit
+  criteria pass once #1215 merges: every H issue closed by keyword; the four
+  round trips (the rates by their integration test, since the ECB's host
+  answers 403 from this session); the build route, by CI's `compose-smoke`
+  for the build and the agent's launch test from source for its part, with
+  three exact answers; and 84 open issues. **#991 is full** at GitHub's 100
+  sub-issues and closes with the announcement decision. Since the planning
+  merge every open issue has its area tracker (D-14): #416 data, import,
+  export and audit; #417 portfolio structure and instrument lifecycle; #418
+  analytics, dashboard and charts; #419 LLM and MCP; #420 engineering
+  quality and process. The sprint's 31 filings sit under them (15, 3, 6, 3
+  and 4). The epic stays in progress for the owner's announcement decision
+  alone, and `launch-readiness-2026-10-09-sprint20.md` is its input.
