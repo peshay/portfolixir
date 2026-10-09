@@ -26,9 +26,11 @@ shows it.
   is atomic, and dropping the same file again books nothing twice.
 - **Your bank's or broker's own export, through your agent.** The MCP
   companion's `import_converter` prompt has your agent write a converter that
-  runs on your machine and turns the export into a Portfolio Performance CSV
-  file for the Imports page. Nothing connects to your bank, and the converter
-  makes no network call.
+  runs on your machine and turns the export into a file for the Imports page:
+  a Portfolio Performance CSV v1 in the shape above, which carries no ISIN and
+  books every row in EUR, or the JSON v1 variant, which the prompt keeps for
+  other currencies and for ISINs. Nothing connects to your bank, and the
+  converter makes no network call.
 - **By hand.** Record a transaction on the Transactions page, or have your
   agent book one at a time over the API or the MCP companion.
 - **Broker PDFs: decided, not built.** Reading broker statements in the app is

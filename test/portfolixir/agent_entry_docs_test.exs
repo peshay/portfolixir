@@ -537,6 +537,77 @@ defmodule Portfolixir.AgentEntryDocsTest do
     assert readme =~ "The route for a machine without Docker, or a host where the Compose build"
   end
 
+  # User story (the Sprint 20 launch test, finding 4):
+  # As an agent that knows the import_converter prompt only from the pages,
+  # I want them to name the file the prompt has me write as the prompt does,
+  # so that I do not write a CSV, which carries no ISIN and books in EUR
+  # only, for an export the prompt sends to JSON v1.
+  #
+  # Acceptance criteria:
+  # - The prompt states that the CSV carries no ISIN and books every row in
+  #   EUR, sends an export in another currency to the JSON v1 variant, and
+  #   keeps that variant for other currencies and for ISINs.
+  # - The README's "How your data gets in", llms.txt's Prompts and the
+  #   Connect page's "First steps" (EN, DE) name both files: the CSV v1, which
+  #   carries no ISIN and books every row in EUR, and the JSON v1 variant for
+  #   other currencies and for ISINs; the README and llms.txt no longer say
+  #   the converter writes a CSV and nothing else.
+  test "the pages name the converter's file as the import_converter prompt does" do
+    flat = &String.replace(&1, ~r/\s+/, " ")
+
+    section = fn path, from, to ->
+      path |> File.read!() |> String.split(from) |> Enum.at(1) |> String.split(to) |> hd()
+    end
+
+    prompt = File.read!("mcp-server/src/prompts.ts")
+
+    for rule <- [
+          "The CSV carries no ISIN",
+          "The CSV books every row in EUR",
+          "If the export holds amounts in another currency, do not convert them yourself; " <>
+            "write the JSON v1 variant",
+          "## The JSON v1 variant, for other currencies and for ISINs"
+        ] do
+      assert prompt =~ rule, "prompts.ts: #{rule}"
+    end
+
+    readme = flat.(section.("README.md", "## How your data gets in", "There is no bank"))
+    prompts = flat.(section.("docs/llms.txt", "## Prompts", "## What connecting costs"))
+    first_en = flat.(section.(@connect_en, "## First steps", "\n## "))
+    first_de = flat.(section.(@connect_de, "## Erste Schritte", "\n## "))
+
+    for {where, text} <- [
+          {"README How your data gets in", readme},
+          {"llms.txt Prompts", prompts},
+          {"#{@connect_en} First steps", first_en}
+        ] do
+      for fragment <- [
+            "CSV v1",
+            "carries no ISIN",
+            "books every row in EUR",
+            "JSON v1 variant",
+            "for other currencies and for ISINs"
+          ] do
+        assert text =~ fragment, "#{where}: #{fragment}"
+      end
+    end
+
+    for fragment <- [
+          "CSV v1",
+          "trägt keine ISIN",
+          "bucht jede Zeile in EUR",
+          "JSON-v1-Variante",
+          "für andere Währungen und für ISINs"
+        ] do
+      assert first_de =~ fragment, "#{@connect_de} Erste Schritte: #{fragment}"
+    end
+
+    refute readme =~ "turns the export into a Portfolio Performance CSV file"
+
+    refute prompts =~
+             "a converter from a bank or broker export to a Portfolio Performance CSV v1 file"
+  end
+
   # User story (the launch test's second run, #1037):
   # As the fresh agent installing Portfolixir from the README and llms.txt
   # through a shell,
