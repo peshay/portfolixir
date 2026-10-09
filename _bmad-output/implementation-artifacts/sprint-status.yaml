@@ -74,8 +74,8 @@ story_location: _bmad-output/implementation-artifacts
 #   the contribution analytics move to computation version 4 (#928, I10 to
 #   I13).
 # It carries the design pass ux-design-2026-10-09-sprint21.md with nine
-# boards (picks N1 to N21, N19 unused; N1, #1169, is the owner's, and
-# silence keeps the ruling of 2026-08-05).
+# boards (picks N1 to N21, N19 unused; N1, #1169, was the owner's to make,
+# and the owner picked B on 2026-10-09).
 # Verification basis: `main` at 6f9d7d1 with CI 1776 and Commit authorship
 # 790 green; Sprint 20's two merges made releases 2026.10.13 (#1184,
 # contract version 16) and 2026.10.14 (#1215, contract version 17); 84 open
@@ -96,7 +96,7 @@ story_location: _bmad-output/implementation-artifacts
 #   #1208; #1104, #1112, #1139, #1151, #1163, #1201; #1147, #1148; #1125,
 #   #1123, #1149, #1210, #1150; #1145, #1162, #1161; #1165, #1211, #1158,
 #   #1187; #1180, #1130, #1178, #1179, #1181, #962, #1207; #1166, #1155,
-#   #1138, #1160, #1157, #1191; and #1169 if the owner picks N1.
+#   #1138, #1160, #1157, #1191; and #1169 (N1 B, the owner's pick).
 # D-1: four exit criteria: every money issue closed (#1198, #1199, #1196,
 # #928, #1188, #1193, #1194, #1205, #1195, #1209, #1212, #1214, #1052);
 # five round trips (import then sell 188,75 USD = 151,00 EUR; the coupon

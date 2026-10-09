@@ -57,14 +57,15 @@ maintenance lane.
 
 - **The recommendation is the default.** A comment naming another variant
   changes it, and silence adopts it — **except N1**, which reverses the
-  owner's ruling of 2026-08-05: silence keeps that ruling (the plan's D-3).
+  owner's ruling of 2026-08-05 and so was the owner's to make. **The owner
+  picked B on 2026-10-09** (the plan's D-3).
 - **A before/after board has nothing to pick:** the spec already fixes the
   answer, and the board shows the reader what the words describe.
 - **The story that builds a pick writes its anatomy into `DESIGN.md`.**
 
 | Pick | Item | Board | Plan | Kind | Recommended |
 |---|---|---|---|---|---|
-| **N1** | The Overview total counts up from 0,00 (#1169) — **owner pick** | `01-overview` | γ1, only if picked | variants | **none by silence** (today's count-up stays); the planning session recommends **B**: a page load shows the figure that exists, a count runs only between two real figures |
+| **N1** | The Overview total counts up from 0,00 (#1169) — **owner pick** | `01-overview` | γ1 | variants | **B**, the owner's pick of 2026-10-09: the computed total appears at once, and a count runs only between two real figures |
 | **N2** | The KPI strip's dates fill their cells between 561 and ~665 px (#1114) | `01-overview` | γ1 | variants | **A**: the two-by-two switch moves from 560 to 680 px |
 | **N3** | A wrongly valued holding and the total above it — the card half (#1121) | `01-overview` | γ1 | variants | **A**: the data-quality line's two findings say what they do to the total; the card stays silent |
 | **N4** | "Details in Vermögen →" lands on another view and period (#1122) | `01-overview` | γ1 | options 1–3, **3 adopted** (Sprint 20 D-4) | **3**: the link carries `?period=ytd`, read on arrival and not stored; the note names the active view where it differs |
