@@ -2689,12 +2689,17 @@ confirm. These rows are left out the same way, each named with its row:
   payment, deposit or tax refund whose cash is 0 or less once the tax refund
   split off it is taken out (see "A negative tax inside a row" above), or on
   its own. The import only books a positive amount, so it would otherwise
-  skip the row, and a sale's position would stay held: *Gesamtpreis 20,10
-  less the tax refund 25,00 leaves -4,90 to credit — enter this booking by
-  hand, and the refund as a tax refund of its own — row not imported*, or
-  *Gesamtpreis 0,00 leaves nothing to credit — enter this booking by hand —
-  row not imported*. A converter row names its `Betrag`, a JSON row its
-  `amount`.
+  skip the row, and a sale's position would stay held: *sell with
+  Gesamtpreis 20,10 and a tax refund of 25,00: -4,90 would remain for the
+  sale — row not imported. Book the sale by hand, and the refund as a tax
+  refund of its own.*, or without a refund *sell with Gesamtpreis -4,90:
+  nothing would remain for the sale — row not imported. Book the sale by
+  hand.* Any other credit reads *booking* where a sale reads *sale* (*booking
+  with Gesamtpreis 0,00: nothing would remain for the booking — row not
+  imported. Enter the booking by hand.*). A converter row names its
+  `Betrag`; a JSON row names its `amount` as the Gesamtpreis, its figures in
+  the page's notation (*20.10*, or *20,10* in German), while a CSV row's
+  read as the file wrote them.
 - **A JSON row whose currency Portfolixir does not support**, named as the
   file wrote it, in capitals: *currency “EURO” is not supported — row not
   imported* for the booking's currency, and *security currency “XEU” is not

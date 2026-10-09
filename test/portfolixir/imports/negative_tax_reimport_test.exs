@@ -362,10 +362,12 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
   # Acceptance criteria:
   # - #1118's JSON sale booked as the parser of 12117072 booked it (cash
   #   20.10, price 2.51, the refund 25.00 beside it; Test-Cash 1,045.10):
-  #   the row's message in that portfolio says it is already imported, that
-  #   it cannot be corrected here as its cash would be 0 or less, not to
-  #   enter it again, and where the handbook explains it; it no longer asks
-  #   for the booking by hand.
+  #   the row's message in that portfolio keeps the refusal's figures (what
+  #   would remain for the sale, 0 or less), says it is already imported,
+  #   that it cannot be corrected here, not to book the sale again, and
+  #   where the handbook explains it; it no longer asks for the booking by
+  #   hand (the wording of board ux-design-2026-10-07/01-import-preview ③,
+  #   its figures to the cent in the page's notation).
   # - In a portfolio that never imported it, the refusal keeps its remedy.
   # - The correction lists nothing for it (its correction is #1193), the
   #   apply books nothing twice, and no balance moves.
@@ -382,8 +384,9 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
     assert Decimal.equal?(booked, Decimal.new("1045.10"))
 
     remedy =
-      "amount 20.10 less the tax refund 25.0 leaves -4.90 to credit — enter this booking " <>
-        "by hand, and the refund as a tax refund of its own — row not imported"
+      "sell with Gesamtpreis 20.10 and a tax refund of 25.00: -4.90 would remain for the " <>
+        "sale — row not imported. Book the sale by hand, and the refund as a tax refund of " <>
+        "its own."
 
     assert preview.errors == [%{row: 3, message: remedy}]
 
@@ -391,10 +394,10 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
              %{
                row: 3,
                message:
-                 "amount 20.10 less the tax refund 25.0 leaves -4.90 to credit — already " <>
-                   "imported, and it cannot be corrected here, as its cash would be 0 or " <>
-                   "less — do not enter it again; see “A negative tax inside a row” in the " <>
-                   "product documentation"
+                 "sell with Gesamtpreis 20.10 and a tax refund of 25.00: -4.90 would remain " <>
+                   "for the sale — already imported, and it cannot be corrected here. Do not " <>
+                   "book the sale again; see “A negative tax inside a row” in the product " <>
+                   "documentation."
              }
            ]
 
@@ -432,10 +435,9 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
     assert [%{row: 4, message: message}] = Imports.row_errors(csv, portfolio_id: csv_portfolio.id)
 
     assert message ==
-             "Gesamtpreis 20,10 less the tax refund 25,00 leaves -4,90 to credit — already " <>
-               "imported, and it cannot be corrected here, as its cash would be 0 or less — " <>
-               "do not enter it again; see “A negative tax inside a row” in the product " <>
-               "documentation"
+             "sell with Gesamtpreis 20,10 and a tax refund of 25,00: -4,90 would remain for " <>
+               "the sale — already imported, and it cannot be corrected here. Do not book the " <>
+               "sale again; see “A negative tax inside a row” in the product documentation."
   end
 
   # User story (#1118; ADR-0050 §3 and its amendment of 2026-10-07, point 1:
@@ -480,10 +482,10 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
              %{
                row: 3,
                message:
-                 "amount 20.10 less the tax refund 25.0 leaves -4.90 to credit — already " <>
-                   "imported, and it cannot be corrected here, as its cash would be 0 or " <>
-                   "less — do not enter it again; see “A negative tax inside a row” in the " <>
-                   "product documentation"
+                 "sell with Gesamtpreis 20.10 and a tax refund of 25.00: -4.90 would remain " <>
+                   "for the sale — already imported, and it cannot be corrected here. Do not " <>
+                   "book the sale again; see “A negative tax inside a row” in the product " <>
+                   "documentation."
              }
            ]
   end

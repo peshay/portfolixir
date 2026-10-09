@@ -60,6 +60,29 @@ defmodule Portfolixir.Imports.DecimalsTest do
     end
   end
 
+  # User story (#1118; found by the α closing act, UAT persona):
+  # As an operator reading a JSON row error that quotes the row's figures,
+  # I want them written to the cent in my page's notation,
+  # so that "amount 20.10 … 25.0 … -4.90" no longer mixes dot decimals and
+  # uneven precision into a German sentence.
+  #
+  # Acceptance criteria:
+  # - German writes as format_de/1 does: 1505 → "1.505,00".
+  # - Every other locale writes a decimal point and a comma every three
+  #   integer digits, as the pages do: 1505 → "1,505.00", 25.0 → "25.00".
+  # - A negative value keeps its minus sign; a sub-cent one is zero.
+  describe "format_locale/2" do
+    test "writes a value to the cent in the reader's notation" do
+      assert Decimals.format_locale(Decimal.new("1505"), "de") == "1.505,00"
+      assert Decimals.format_locale(Decimal.new("-4.9"), "de") == "-4,90"
+      assert Decimals.format_locale(Decimal.new("1505"), "en") == "1,505.00"
+      assert Decimals.format_locale(Decimal.new("1234567.8"), "en") == "1,234,567.80"
+      assert Decimals.format_locale(Decimal.new("25.0"), "en") == "25.00"
+      assert Decimals.format_locale(Decimal.new("-4.9"), "en") == "-4.90"
+      assert Decimals.format_locale(Decimal.new("-0.001"), "en") == "0.00"
+    end
+  end
+
   describe "parse/1" do
     test "passes through an existing Decimal" do
       d = Decimal.new("1.23")

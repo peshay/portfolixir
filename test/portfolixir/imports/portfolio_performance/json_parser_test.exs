@@ -326,17 +326,21 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
   # As the operator dropping a JSON export whose sale's own booking would
   # credit nothing or less, because the tax refund split off it is larger
   # than the cash it moved, or because the cash itself is nothing,
-  # I want that row named in the preview with what to do instead, while the
-  # rest of the file previews,
+  # I want that row named in the preview with what to do instead, in the
+  # page's notation, while the rest of the file previews,
   # so that the sale is never silently skipped at apply.
   #
-  # Acceptance criteria:
-  # - A credit row whose `amount` less its split-off refunds is 0 or less is
-  #   a row error naming the amount, the refund and what is left, as the
-  #   file wrote them, and the remedy: enter the booking by hand, and the
-  #   refund as a tax refund of its own.
-  # - Without a refund, a credit row whose `amount` is 0 or less is a row
-  #   error naming it and the remedy.
+  # Acceptance criteria (board ux-design-2026-10-07/01-import-preview ③;
+  # the α closing act, UAT persona):
+  # - A sale whose `amount` less its split-off refunds is 0 or less is a
+  #   row error in the board's sentence, its `amount` named as the board
+  #   names the cash, "Gesamtpreis", and every figure to the cent in the
+  #   reader's notation: "sell with Gesamtpreis 20.10 and a tax refund of
+  #   25.00: -4.90 would remain for the sale — row not imported. Book the
+  #   sale by hand, and the refund as a tax refund of its own."
+  # - Without a refund, a credit whose `amount` is 0 or less: "… nothing
+  #   would remain for …"; a credit other than a sale is "the booking".
+  # - In German the figures read "20,10", "25,00", "-4,90".
   # - The file's other rows preview, with the content hash each has without
   #   the refused row; a debit row is not refused.
   describe "parse/2 a credit row that nets to nothing (#1118)" do
@@ -367,22 +371,23 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
 
     defp unit(type, amount), do: %{type: type, amount: Jason.Fragment.new(amount)}
 
-    test "a sale whose refund exceeds its amount is named, and the rest previews" do
-      sale =
-        tx(%{
-          amount: Jason.Fragment.new("20.1"),
-          units: [unit("FEE", "5.9"), unit("TAX", "-25.0")]
-        })
+    defp nominal_sale do
+      tx(%{
+        amount: Jason.Fragment.new("20.1"),
+        units: [unit("FEE", "5.9"), unit("TAX", "-25.0")]
+      })
+    end
 
-      body = Jason.encode!(%{version: 1, transactions: [deposit(), sale]})
+    test "a sale whose refund exceeds its amount is named, and the rest previews" do
+      body = Jason.encode!(%{version: 1, transactions: [deposit(), nominal_sale()]})
 
       assert {:ok, %Preview{entries: [kept], errors: [%{row: 2, message: message}]}} =
                JsonParser.parse(body)
 
       assert message ==
-               "amount 20.1 less the tax refund 25.0 leaves -4.9 to credit — " <>
-                 "enter this booking by hand, and the refund as a tax refund of its own " <>
-                 "— row not imported"
+               "sell with Gesamtpreis 20.10 and a tax refund of 25.00: -4.90 would remain " <>
+                 "for the sale — row not imported. Book the sale by hand, and the refund as " <>
+                 "a tax refund of its own."
 
       {:ok, %Preview{entries: [alone]}} =
         JsonParser.parse(Jason.encode!(%{version: 1, transactions: [deposit()]}))
@@ -397,7 +402,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
           transactions: [
             tx(%{type: "DIVIDEND", amount: Jason.Fragment.new("0.00")}),
             tx(%{amount: Jason.Fragment.new("25.0"), units: [unit("TAX", "-25.0")]}),
-            tx(%{type: "TAX", amount: Jason.Fragment.new("1.0"), units: [unit("TAX", "-1.0")]})
+            tx(%{type: "TAX", amount: Jason.Fragment.new("1.0"), units: [unit("TAX", "-1.0")]}),
+            tx(%{amount: Jason.Fragment.new("-1234.5")})
           ]
         })
 
@@ -408,16 +414,46 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
                %{
                  row: 1,
                  message:
-                   "amount 0.00 leaves nothing to credit — enter this booking by hand " <>
-                     "— row not imported"
+                   "booking with Gesamtpreis 0.00: nothing would remain for the booking — " <>
+                     "row not imported. Enter the booking by hand."
                },
                %{
                  row: 2,
                  message:
-                   "amount 25.0 less the tax refund 25.0 leaves 0.0 to credit — " <>
-                     "enter this booking by hand, and the refund as a tax refund of its own " <>
-                     "— row not imported"
+                   "sell with Gesamtpreis 25.00 and a tax refund of 25.00: 0.00 would remain " <>
+                     "for the sale — row not imported. Book the sale by hand, and the refund " <>
+                     "as a tax refund of its own."
+               },
+               %{
+                 row: 4,
+                 message:
+                   "sell with Gesamtpreis -1,234.50: nothing would remain for the sale — " <>
+                     "row not imported. Book the sale by hand."
                }
+             ]
+    end
+
+    test "says it in German, its figures in the German notation" do
+      Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+
+      body =
+        Jason.encode!(%{
+          version: 1,
+          transactions: [
+            nominal_sale(),
+            tx(%{type: "INTEREST", amount: Jason.Fragment.new("1.5"), units: [unit("TAX", "-2")]})
+          ]
+        })
+
+      assert {:ok, %Preview{errors: errors}} = JsonParser.parse(body)
+
+      assert Enum.map(errors, & &1.message) == [
+               "Verkauf mit Gesamtpreis 20,10 und Steuererstattung 25,00: Dem Verkauf " <>
+                 "blieben -4,90 — Zeile nicht übernommen. Den Verkauf von Hand buchen, die " <>
+                 "Erstattung als eigene Steuererstattung.",
+               "Buchung mit Gesamtpreis 1,50 und Steuererstattung 2,00: Der Buchung " <>
+                 "blieben -0,50 — Zeile nicht übernommen. Die Buchung von Hand erfassen, " <>
+                 "die Erstattung als eigene Steuererstattung."
              ]
     end
   end

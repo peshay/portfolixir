@@ -892,31 +892,32 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
     # so that I do not enter the sale by hand a second time.
     #
     # Acceptance criteria:
-    # - The parser warning of row 4 names the figures, says the row is
-    #   already imported, that it cannot be corrected here as its cash would
-    #   be 0 or less, not to enter it again, and points to the product
-    #   documentation; it no longer says "enter this booking by hand".
+    # - The parser warning of row 4 names the figures in the sentence of
+    #   board ux-design-2026-10-07/01-import-preview ③, says the row is
+    #   already imported, that it cannot be corrected here, not to book the
+    #   sale again, and points to the product documentation; it no longer
+    #   says "Book the sale by hand".
     # - The copied warnings read the same.
-    # - In German, in the page's register.
+    # - In German, as the board writes it ("Steuererstattung").
     # - A file never imported keeps the remedy.
     test "its parser warning says it is already imported, in English and German", %{conn: conn} do
       {:ok, view, _html} = live(conn, "/imports")
       upload(view, "nominal.csv", @nominal_sale_csv, "text/csv")
 
-      assert text(view, "#parser-warnings-box pre") =~
-               "Row 4: Gesamtpreis 20,10 less the tax refund 25,00 leaves -4,90 to credit — enter this booking by hand"
+      assert text(view, "#parser-warnings-box pre") ==
+               "Row 4: sell with Gesamtpreis 20,10 and a tax refund of 25,00: -4,90 would remain for the sale — row not imported. Book the sale by hand, and the refund as a tax refund of its own."
 
       portfolio = portfolio!()
       apply_before_the_refusal!(portfolio)
 
       warning =
-        "Row 4: Gesamtpreis 20,10 less the tax refund 25,00 leaves -4,90 to credit — already imported, and it cannot be corrected here, as its cash would be 0 or less — do not enter it again; see “A negative tax inside a row” in the product documentation"
+        "Row 4: sell with Gesamtpreis 20,10 and a tax refund of 25,00: -4,90 would remain for the sale — already imported, and it cannot be corrected here. Do not book the sale again; see “A negative tax inside a row” in the product documentation."
 
       {:ok, view, _html} = live(conn, "/imports")
       upload(view, "nominal.csv", @nominal_sale_csv, "text/csv")
 
       assert text(view, "#parser-warnings-box pre") == warning
-      refute render(view) =~ "enter this booking by hand"
+      refute render(view) =~ "Book the sale by hand"
       refute has_element?(view, "#import-correction")
 
       view |> element("#copy-parser-warnings") |> render_click()
@@ -926,7 +927,45 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       upload(view, "nominal.csv", @nominal_sale_csv, "text/csv")
 
       assert text(view, "#parser-warnings-box pre") ==
-               "Zeile 4: Gesamtpreis 20,10 abzüglich der Steuerrückerstattung 25,00 lässt -4,90 zur Gutschrift — bereits importiert und hier nicht zu korrigieren, da die Gutschrift 0 oder weniger wäre — nicht noch einmal erfassen; siehe „Eine negative Steuer in einer Zeile“ in der Produktdokumentation"
+               "Zeile 4: Verkauf mit Gesamtpreis 20,10 und Steuererstattung 25,00: Dem Verkauf blieben -4,90 — bereits importiert und hier nicht zu korrigieren. Den Verkauf nicht noch einmal buchen; siehe „Eine negative Steuer in einer Zeile“ in der Produktdokumentation."
+    end
+
+    # The same sale as a Portfolio Performance JSON export: `amount` 20.10,
+    # a fee unit of 5.90 and a tax unit of -25.00.
+    @nominal_sale_json """
+    {"version": 1, "transactions": [
+      {"type": "DEPOSIT", "account": "Girokonto", "date": "2024-01-02",
+       "currency": "EUR", "amount": 1000.0},
+      {"type": "SALE", "account": "Girokonto", "portfolio": "Depot",
+       "date": "2024-06-14", "currency": "EUR", "amount": 20.10, "shares": 100.0,
+       "security": {"name": "Nordwind Industrie AG", "currency": "EUR"},
+       "units": [{"type": "FEE", "amount": 5.9}, {"type": "TAX", "amount": -25.0}]}
+    ]}
+    """
+
+    # User story (#1118; found by the α closing act, UAT persona):
+    # As the operator dropping a JSON export in the German page,
+    # I want the refused row's figures in the page's notation and its cash
+    # named as the board names it,
+    # so that "amount 20.10 … 25.0 … -4.90" no longer reads as a raw field
+    # with dot decimals inside a German sentence.
+    #
+    # Acceptance criteria:
+    # - German: "Zeile 2: Verkauf mit Gesamtpreis 20,10 und Steuererstattung
+    #   25,00: Dem Verkauf blieben -4,90 — Zeile nicht übernommen. …".
+    # - English: the same figures as "20.10", "25.00", "-4.90".
+    test "a JSON file's refused row reads its figures in the page's notation", %{conn: conn} do
+      {:ok, view, _html} = live(german(conn), "/imports")
+      upload(view, "nominal.json", @nominal_sale_json, "application/json")
+
+      assert text(view, "#parser-warnings-box pre") ==
+               "Zeile 2: Verkauf mit Gesamtpreis 20,10 und Steuererstattung 25,00: Dem Verkauf blieben -4,90 — Zeile nicht übernommen. Den Verkauf von Hand buchen, die Erstattung als eigene Steuererstattung."
+
+      {:ok, view, _html} = live(conn, "/imports")
+      upload(view, "nominal.json", @nominal_sale_json, "application/json")
+
+      assert text(view, "#parser-warnings-box pre") ==
+               "Row 2: sell with Gesamtpreis 20.10 and a tax refund of 25.00: -4.90 would remain for the sale — row not imported. Book the sale by hand, and the refund as a tax refund of its own."
     end
   end
 
