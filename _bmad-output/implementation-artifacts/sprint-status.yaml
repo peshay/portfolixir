@@ -1,5 +1,5 @@
 # generated: 2026-07-25
-# last_updated: 2026-10-07 (Sprint 20 PLANNED: sprint-plan-2026-10-07-sprint20.md, adopted by the merge of its planning PR, which SIGNS three risk-tier amendments -- ADR-0053 (#1098 confirmed: the JSON import books a split-off negative tax twice; #1118), ADR-0015 (#1108, #1107: a cross-currency booking's fees and taxes are in the account's currency) and ADR-0050 (#904: the fail-closed probe; #973) -- and a decision pass that answers all 46 needs-decision issues, 27 of them not planned; three lane PRs, the numbers a switcher's import books, no screen lane; earlier the same day, Sprint 19 CLOSED OUT: alpha #1100, beta #1129 and gamma #1144 merged in order, releases 2026.10.10-2026.10.12; every H issue closed and the first-look test PASS; the agent's launch test PASSES on the from-source route and is not proven on the build route, which needs a Debian mirror this machine cannot reach; 132 open issues FAIL the fewer-than-100 criterion; E26 stays in progress, launch-readiness-2026-10-07-sprint19.md is the input; earlier, Sprint 19 PLANNED: sprint-plan-2026-10-04-sprint19.md, adopted by the merge of its planning PR, which SIGNS ADR-0053 (#1076, risk-tier: a PP CSV books its Gesamtpreis, the hash keeps reading Betrag, a separate correction) -- trust before the announcement in three lane PRs, four exit criteria including fewer than 100 open issues; earlier the same day, Sprint 18 CLOSED OUT: alpha #1040, beta #1049, gamma #1054 and delta #1075 merged in order, releases 2026.10.4-2026.10.7; FR-41 shipped; the operator's first-look test and the agent's launch test both PASS; E26 stays in progress for the owner's announcement decision, with the launch-readiness summary; earlier, Sprint 18 PLANNED: sprint-plan-2026-10-02-sprint18.md, adopted by the merge of its planning PR, which SIGNS the ADR-0034 amendment for #1031 -- the operator's half of E26 in four lane PRs, the two money bugs first, the operator's first-look test as a second exit criterion; earlier the same day, Sprint 17 CLOSED OUT: alpha #1005, beta #1008 and gamma through #1035 merged, releases 2026.10.1-2026.10.3; earlier, Sprint 17 PR alpha opened: E26 tracker #991 and its issues filed; earlier the same day, Sprint 17 PLANNED: sprint-plan-2026-10-01-sprint17.md, adopted by the merge of its planning PR, which SIGNS ADR-0051 (FR-41) and answers the 2026-10-01 triage's OQ-1 to OQ-6 -- the agent's first contact in three lane PRs, the launch test as the exit criterion, FR-41's build in Sprint 18, calendar versions by workflow, the authorship rule kept and its friction removed)
+# last_updated: 2026-10-09 (Sprint 20 CLOSED OUT, under ADR-0026's two-PR amendment of 2026-10-08: the sprint PR #1184 (Lane M, alpha, beta) rebase-merged, release 2026.10.13, and the stacked PR #1215 (gamma and this close-out) merges by rebase after it; every H issue closes, the four round trips pass, the build route is proven by CI's compose-smoke and the agent's launch test PASSES from source, and 84 open issues pass the fewer-than-100 criterion once #1215 merges; E26 stays in progress for the owner's announcement decision alone, launch-readiness-2026-10-09-sprint20.md is its input; earlier, 2026-10-07, Sprint 20 PLANNED: sprint-plan-2026-10-07-sprint20.md, adopted by the merge of its planning PR, which SIGNS three risk-tier amendments -- ADR-0053 (#1098 confirmed: the JSON import books a split-off negative tax twice; #1118), ADR-0015 (#1108, #1107: a cross-currency booking's fees and taxes are in the account's currency) and ADR-0050 (#904: the fail-closed probe; #973) -- and a decision pass that answers all 46 needs-decision issues, 27 of them not planned; three lane PRs, the numbers a switcher's import books, no screen lane; earlier the same day, Sprint 19 CLOSED OUT: alpha #1100, beta #1129 and gamma #1144 merged in order, releases 2026.10.10-2026.10.12; every H issue closed and the first-look test PASS; the agent's launch test PASSES on the from-source route and is not proven on the build route, which needs a Debian mirror this machine cannot reach; 132 open issues FAIL the fewer-than-100 criterion; E26 stays in progress, launch-readiness-2026-10-07-sprint19.md is the input; earlier, Sprint 19 PLANNED: sprint-plan-2026-10-04-sprint19.md, adopted by the merge of its planning PR, which SIGNS ADR-0053 (#1076, risk-tier: a PP CSV books its Gesamtpreis, the hash keeps reading Betrag, a separate correction) -- trust before the announcement in three lane PRs, four exit criteria including fewer than 100 open issues; earlier the same day, Sprint 18 CLOSED OUT: alpha #1040, beta #1049, gamma #1054 and delta #1075 merged in order, releases 2026.10.4-2026.10.7; FR-41 shipped; the operator's first-look test and the agent's launch test both PASS; E26 stays in progress for the owner's announcement decision, with the launch-readiness summary; earlier, Sprint 18 PLANNED: sprint-plan-2026-10-02-sprint18.md, adopted by the merge of its planning PR, which SIGNS the ADR-0034 amendment for #1031 -- the operator's half of E26 in four lane PRs, the two money bugs first, the operator's first-look test as a second exit criterion; earlier the same day, Sprint 17 CLOSED OUT: alpha #1005, beta #1008 and gamma through #1035 merged, releases 2026.10.1-2026.10.3; earlier, Sprint 17 PR alpha opened: E26 tracker #991 and its issues filed; earlier the same day, Sprint 17 PLANNED: sprint-plan-2026-10-01-sprint17.md, adopted by the merge of its planning PR, which SIGNS ADR-0051 (FR-41) and answers the 2026-10-01 triage's OQ-1 to OQ-6 -- the agent's first contact in three lane PRs, the launch test as the exit criterion, FR-41's build in Sprint 18, calendar versions by workflow, the authorship rule kept and its friction removed)
 # project: portfolixir
 # project_key: NOKEY
 # tracking_system: file-system
@@ -42,7 +42,7 @@
 # requests, not assumed -- an issue's state lags the PR that fixes it.
 
 generated: 2026-07-25
-last_updated: 2026-10-07
+last_updated: 2026-10-09
 project: portfolixir
 project_key: NOKEY
 tracking_system: file-system
@@ -51,6 +51,354 @@ story_location: _bmad-output/implementation-artifacts
 # ---------------------------------------------------------------------------
 # CLOSE-OUT / RECONCILIATION LOG -- newest first
 # ---------------------------------------------------------------------------
+#
+# CLOSED OUT (2026-10-09, Sprint 20) -- one sprint PR and a stacked PR,
+# under ADR-0026's two-PR amendment of 2026-10-08 (plan D-9 as amended):
+# - the sprint PR #1184 (Lane M, alpha, beta), rebase-merged at
+#   2026-10-09 05:04 UTC (`main` at 86c577ec, 81 commits);
+# - the stacked PR #1215 (gamma and this close-out). Its base moved to
+#   `main` when #1184 merged, and it merges by rebase after it. Its merge,
+#   the CI run on that push and the release it makes are recorded by the
+#   next planning PR's verification basis (sprint workflow §5, "After the
+#   merge").
+# Why two: D-9's commit count. #1184 carried 81 commits and gamma 65,
+# together above the 90 at which the sprint PR splits gamma off. The owner
+# merges both, #1184 first; no agent merges either.
+# Before the sprint PR, `main` took the planning PR and ADR-0026's two-PR
+# amendment (34521a68..979340d6, 12 commits).
+# Verification basis:
+# - #1184's commits on `main` (979340d6..86c577ec, 81, linear, zero merge
+#   commits). The merged tree is byte-identical to 4a9ee85e, the head CI
+#   tested on the PR: quality, test, migration-roundtrip,
+#   migration-immutability, compose-smoke, pre-commit and
+#   human-accountability green; Codecov patch 96.8 %, project 94.46 %.
+# - The Actions runs on #1184's merge push, all green: CI 1773 (every job,
+#   compose-smoke included) and Commit authorship 787. The Release
+#   workflow's calendar job made 2026.10.13 (05:04:44 UTC, contract
+#   version 16).
+# - #1215 before these records: 70 commits on 86c577ec (gamma's 62, three
+#   from stacking, and the launch test's five documentation commits), head
+#   b89d4e56. CI on #1215 was green at 3cb436cd (all nine checks), whose
+#   tree is bb654015's; all fifteen local gates passed at bb654015 (4,734
+#   tests, 0 failures, coverage 94.3 %). Every commit compiles with
+#   --warnings-as-errors and keeps its catalogs current; the walk found
+#   one stale .pot reference, rebuilt on its commit. Contract version 17
+#   once it merges.
+# - The issue list read at about 05:30 UTC on 2026-10-09, after #1184's
+#   merge.
+#
+# WHAT CLOSED:
+# - By the sprint's keywords (51):
+#   - #1184 (17), at its merge: alpha #1098, #1118, #904, #1120, #1168,
+#     #1140, #1128, #1173 and #1174; Lane M #1136; beta #1108, #1107,
+#     #1142, #1101, #1124, #1110 and #922;
+#   - #1215 (34, all open at this close-out): #1132, #1172, #898; #1103,
+#     #1133, #1143, #1113, #1135, #1154; #937, #938, #940, #941, #1058,
+#     #942, #953, #956, #965, #967; #974, #1137; #1159, #1167, #1146,
+#     #1152, #972; #1127, #1119; #1131, #1126, #1116, #314, #926, #1170.
+# - At the planning merge (2026-10-08, 07:44-07:49 UTC): 33 by hand (D-4,
+#   each with its reason and what reopens it) and #973 by the planning
+#   PR's keyword.
+# - In all, 85 once #1215 merges.
+# - STAYS OPEN: #991, E26's tracker, full at 100 sub-issues, until the
+#   owner's announcement decision (D-13, D-14).
+#
+# NOTHING WAS SHRUNK. D-2's count went unanswered, so silence built A2,
+# the correction. Every story of the three commit groups landed, and none
+# of the shrink order's items was cut.
+# D-3 CHANGED BY ITS NOTE OF 2026-10-08. The owner asked why the build had
+# to run on their host. It does not: the `compose-smoke` CI job (from
+# 63c0aee9) proves the build half of criterion 3. The owner's own run is
+# needed only to upgrade the live instance.
+#
+# RECORDS: the three amendments of 2026-10-07 are built as signed:
+# ADR-0053's K9-K15 (alpha A1, A2), ADR-0015's identities 1-4 (beta B1,
+# B2) and ADR-0050's P1-P5 (alpha A3). Dated notes: ADR-0015 (no
+# computation version moves) and ADR-0052 §4 (#1101) in #1184; ADR-0012
+# (#1127), ADR-0027 (#1133) and ADR-0045 §1 (#974), ADR-0050's amendment
+# of 2026-10-08 (#972), and ADR-0054 (new, #967), all in #1215.
+# ADR-0054 is adopted by #1215's merge: it supersedes the architecture's
+# D4 (graduated token scopes, never built) and closes the Data-Import
+# PRD's OD-4. Contract entries 16 (beta) and 17 (gamma).
+#
+# THE FOUR EXIT CRITERIA (D-1): ALL FOUR PASS ONCE #1215 MERGES.
+#   1. Every H issue closed by keyword: PASS once #1215 merges. Alpha's
+#      #1098, #1118, #904 and #1120 and beta's #1108, #1107, #1142, #1101
+#      and #1124 closed with #1184; gamma's #1132 and #1172 close with
+#      #1215. Each is in its PR body's Closes lines.
+#   2. The switcher's round trips, on synthetic data in the German UI:
+#      PASS.
+#      - 1, the negative tax (alpha's UAT persona): Test-Cash 181,49 EUR;
+#        the sale and its PP CSV twin 1.120,00 EUR; a second drop books
+#        nothing. An export imported on the release before reads 181,50
+#        and 1.145,00 EUR, and 181,49 and 1.120,00 EUR after the
+#        correction.
+#      - 2, the rename: the renamed row shows no prefill and Apply waits;
+#        mapped onto its old account, the drop books nothing.
+#      - 3, the rates: PASS by its integration test with the fake provider
+#        (14 tests, 0 failures). The ECB's host answers 403 from this
+#        session, so the live fetch is unproven here, and the record says
+#        so, as the plan asks.
+#      - 4, the cross-currency trade (beta's UAT persona): the
+#        realized-gains read 151; the Overview's closed-trades card and
+#        Income's realized list +151,00 EUR; Test-Cash moved 957,00 -
+#        806,00; the Trades tab +188,75, identity 1's figure in the
+#        trade's currency (USD).
+#   3. The build route, as D-3 and its note split it: PASS.
+#      - The build half: CI's `compose-smoke` runs `docker compose up
+#        --build -d` on a GitHub runner on generated secrets, waits for
+#        the app's health and the companion, and reads the page, an API
+#        read and a companion tool call. It runs on every change that can
+#        change what the stack builds. Green on 63c0aee9 (job
+#        113512945741), on f67501f5, on 4a9ee85e (with the Debian
+#        20261005 images) and in `main`'s CI 1773 after #1184's merge.
+#      - The agent's half: the launch test from source PASSES (below).
+#      - Not covered: the job runs on amd64 and starts on an empty
+#        database, so the upgrade of an existing volume stays the owner's
+#        (D-3's note).
+#   4. Fewer than 100 open issues: PASS once #1215 merges.
+#      - 118 open, read after #1184's merge: agentic 100, needs-decision
+#        10 (#1182, #1188, #1193, #1194, #1195, #1196, #1198, #1202, #1204
+#        and #1205), tracking 6 (#416-#420, #991), needs-uat 2 (#328,
+#        #354).
+#      - #1215 closes 34, all open: 84 after its merge (agentic 66,
+#        needs-decision 10, tracking 6, needs-uat 2).
+#      - The plan's arithmetic: 104 after the planning merge, 50 to close
+#        by the sprint's keywords, and 45 filings allowed. The sprint
+#        closed 51 by keyword and filed 31.
+#      - Every needs-decision issue open at the planning was answered by
+#        D-4 at the planning merge.
+#      - Nothing was withheld to make the count (D-15).
+#
+# THE AGENT'S LAUNCH TEST (D-3's second half, #998's protocol): PASS.
+# The run: 2026-10-09, against #1215's tree at bb654015 (gamma stacked on
+# #1184, before the launch test's documentation commits). The agent under
+# test was a fresh Claude Code subagent. It worked in an export of that
+# tree (git archive) without test/fixtures/launch_test/ and without git
+# history, with the user's CSV outside it. It was given README.md,
+# docs/llms.txt and the pages they link, and the environment's facts only:
+# no Docker daemon, PostgreSQL 16 with its default login, the ports, and
+# the package registries reachable. The tree's checksum was unchanged
+# after the run (3,277 files).
+#   a. Setup: "Run from source" on a database of its own on port 4300, the
+#      UI password set (a generated one), the server detached; the
+#      companion built (npm ci --ignore-scripts; Node 22 gave an engine
+#      warning and worked).
+#   b. The agent's part:
+#      - the companion over stdio with the book profile (114 tools,
+#        contract version 17);
+#      - first_setup read-only: an empty instance, nothing created;
+#      - import_converter: Portfolio Performance JSON v1, as the prompt's
+#        rule says for an export with ISINs; nine bookings from a
+#        deterministic converter, its self-check run on a throwaway
+#        instance the agent then deleted.
+#   c. The drop: the stand-in user (Playwright, German UI, logged in)
+#      dropped the file. The preview showed no error and no warning; its
+#      note said no portfolio record exists yet and the import creates
+#      "Default" (EUR). Every proposal was accepted: 9 created, 0
+#      duplicates skipped.
+#   d. The questions, all answered by reads:
+#      - 13,659.20 EUR, through portfolixir.views.valuation without an id;
+#      - +200.75 EUR (235.75 - 35.00), through
+#        portfolixir.cashflow.realized_gains;
+#      - 2,297.75 EUR, through cash_accounts.list.
+#      All three are exact.
+#   e. Audit, from the agent's transcript: its 64 + 4 tool calls touched
+#      nothing under the maintainer's checkout, test/fixtures/launch_test,
+#      _bmad-output, GitHub or the web; one Read was of its own saved tool
+#      output.
+#   Its seven findings:
+#   - fixed on #1215 (D-14, #1172's surface) in five documentation
+#     commits: the from-source route's port and database settings (1);
+#     its UI password without a prompt, and a background run and stop
+#     (2); llms.txt's "not when no Docker" against the from-source route
+#     (3); the pages name the converter's file as the prompt does (5);
+#     and, beside them, .env.example's PORT line, which nothing reads;
+#   - filed: #1216 (6), the import_converter prompt's "with a decimal
+#     point" against its own example's "20" shares, widened because its
+#     description and first_setup still say CSV only (under #419);
+#   - not findings: Node 22 worked where 24 is declared (4: the declared
+#     engine stands), and llms.txt links the published pages (7: by
+#     design).
+#
+# THE CLOSING ACTS (D-15), WHAT THEY FIXED AND FILED:
+# - Alpha: correctness hunter; money and idempotency lens on K9-K15 and
+#   P1-P5; edge-case hunter on the correction and the probe; design critic
+#   against board 01; the UAT persona (round trips 1-3). Two fix rounds.
+#   - Fixed on the branch (D-14): the major finding, the FX history
+#     backfill ignored a security's own currency (a USD security bought
+#     from EUR cash triggered nothing); a fetch that answers no rates is
+#     retried, not recorded; the correction lists a refund-carrying row
+#     only while its refund is stored, so it never leaves an account below
+#     its stored state; a refused credit row already imported says so
+#     instead of asking for it by hand; the correction's sentence, its
+#     "Difference" caption and its columns (Gebucht · Korrigiert ·
+#     Differenz, board 03); the refused row as board 01 draws it, in the
+#     page's notation; the handbook's recipe for "by hand". Patch coverage
+#     rose to 97.4 %.
+#   - Filed: #1193, #1194, #1195, #1196 and #1205 (needs-decision);
+#     #1197, #1203, #1206, #1207 and #1208.
+# - Beta: correctness hunter; money lens on the ADR-0015 amendment's
+#   identities (1-4 hold in every reader, and each conversion mutation
+#   turns a test red); the lock-race lens over #922; design critic against
+#   board 02 (every item matches); the UAT persona (round trip 4). One fix
+#   round.
+#   - Fixed: B7's lock made a note-only edit deadlock with a cash merge of
+#     its account (an edit now locks only the accounts it newly points
+#     to); a zero-cost row's hidden reason sentence widened the security
+#     page by up to 181 px at 390 px; the fees basis sentence now names a
+#     trade whose lots mix currencies (#1198); two tests the money lens
+#     found missing; ADR-0015's note that no computation version moves.
+#   - Filed: #1209-#1214; comments on #1125, #1198, #1206, #1208 and
+#     #1213.
+# - Gamma: correctness hunter; security lens over #974, #956, #1137, #938
+#   and #965; install lens over #1132 and #1172 (a stranger's from-source
+#   run reached the app, locked the UI and connected the companion).
+#   - Fixed: a re-booked split's 422 named its portfolio by stored name;
+#     PORTFOLIXIR_MCP_HOST=[] bound every interface; a sub-floor
+#     from-source token could be guessed through compare-first; a Host
+#     with capitals passed one guard and not the SDK's; a killed logo
+#     lookup stayed busy; "fails alone" was false for a page's start_async
+#     load; twin tags compared byte for byte; the review seed's comment;
+#     the contribution analytics move to computation version 3; the
+#     PostgreSQL 15 and btree_gist floor, the exports' order, the stdio
+#     start and the Connect page's token; #898's figures noted while the
+#     instance runs; the Sobelow bullet; the excluded-members region.
+#   - Filed: #1202 and #1204 (needs-decision).
+# - Stacking gamma on #1184 found three more, all fixed on #1215: alpha's
+#   correction task started past CappedAsync (gamma's #941 invariant named
+#   it); #1156's D-4 rewrite of EXPERIENCE.md was missing; three commit
+#   messages cut by the rebase's message cleanup were restored word for
+#   word, the tree unchanged.
+#
+# TWO-WAY COVERAGE:
+# - Due by the end of this batch: #1143, the API half of #945's refusal (a
+#   refused target or cash-target weight names its row in errors.row),
+#   closes with #1215. #945 then holds both ways.
+# - #1052 stays MISSED ON PURPOSE (Sprint 19's D-6, kept by D-13): the
+#   screen still cannot correct a dividend's, a deposit's or a fee's facts
+#   in place.
+# - Screen-only by decision: the correction (A2) and the rename probe (A3)
+#   have no API route and no MCP tool, because the import is an operator
+#   action (ADR-0029). Every corrected value is visible through the
+#   existing reads.
+# - No API change needed: Wealth's positions follow the page's scope
+#   (#1124), and the agent reads views.valuation and holdings.list.
+# - Found and filed: no screen books a tax refund or a fee, the remedy a
+#   refused sale's row names; a one-row CSV, the API and the MCP companion
+#   can (#1206, the UI batch).
+#
+# SURFACE CHECK (the 2026-09-03 owner decision; the plan's "done", item
+# 8):
+# - implausible_quote (#1101, beta B4): the Overview's line, Wealth's
+#   notes, the securities filter and the data-quality read carry it, with
+#   findings and basis, beside two_scales.
+# - #1142's null return on a zero cost basis: the trades, realized-gains,
+#   holdings, lot and decomposition reads, each with its reason in the
+#   computation basis; every screen that showed 0,0 % shows the reason
+#   dash.
+# - #1103's is_retired: portfolixir.securities.list and its route take it
+#   (gamma C2). A data-quality set beside a narrowing it contradicts now
+#   matches nothing (contract entry 17).
+# - #1133's plan_id: the target writes take it (the active plan by
+#   default, an archived plan refused); the target reads do not, filed as
+#   #1185.
+#
+# SCHEMA BUDGET (D-10): the ceilings went down in every profile, from
+# read 103,454, book 176,536 and full 206,884 bytes (Sprint 19's) to
+# 103,375, 176,457 and 206,805 after beta, and to 103,261, 176,275 and
+# 206,672 after gamma. Alpha added no tool or parameter. Gamma's rows were
+# re-measured per commit on beta's base; #1103 now pays with its own text.
+#
+# FILED AND NOT BUILT (Scope Lock), 37 during the sprint:
+# - at the planning merge (Lane Z): six, ADR-0053's amendment's deferral
+#   and the design pass's five findings off the lanes' surfaces;
+# - by the build and the closing acts: #1185-#1214 (30);
+# - by this close-out's launch test: #1216.
+# (#1215 is the stacked PR.) The 31 since the planning merge were searched
+# first and filed under their area tracker (D-14):
+# - #416, data, import, export and audit (15): #1188, #1190,
+#   #1193-#1197, #1199, #1203, #1205-#1207, #1209, #1213 and #1214;
+# - #417, portfolio structure and lifecycle (3): #1187, #1191 and #1211;
+# - #418, analytics, dashboard and charts (6): #1198, #1200, #1201,
+#   #1208, #1210 and #1212;
+# - #419, LLM and MCP (3): #1185, #1186 and #1216;
+# - #420, engineering quality and process (4): #1189, #1192, #1202 and
+#   #1204.
+# Waiting on a decision among them (9): #1188, #1193, #1194, #1195,
+# #1196, #1198, #1202, #1204 and #1205.
+#
+# MAINTENANCE LANE: version-report-2026-10-09-sprint20.md (Lane M, in
+# #1184) took BMAD 6.12.1 (the branch's first commit; #1099's seed
+# retires), phoenix_pubsub 2.4.1 and the images' Debian date
+# bookworm-20261005 (a libpcre2 security upload); #1136 is fixed, so the
+# build CA leaves the store after its step. Deliberately not taken, with
+# reasons in the report:
+# - Node 26 (#977, LTS on 2026-10-28) and @types/node 26;
+# - 13 transitive npm updates inside their ranges (no advisory);
+# - the MCP SDK v2 (#1115);
+# - Elixir/OTP (#727's triggers unchanged) and PostgreSQL;
+# - CI's rebuilt postgres:18.6 digest.
+#
+# THE OWNER'S CHECKS are in launch-readiness-2026-10-09-sprint20.md: the
+# correction on the live instance (D-2), its upgrade by Compose, #328 and
+# #354, and optionally #1136's secret path.
+#
+# RETROSPECTIVE (Sprint 20, E26's fourth).
+# * THE STATE LIVED IN GIT, NOT IN THE AGENT. Two container restarts
+#   killed running agents: Lane M's resumed, while alpha's fix-round agent
+#   and the gamma stack agent were lost. Their worktrees and a paused
+#   rebase survived, and the session finished the work from them. Carry
+#   forward: an agent commits each test-first step as it lands, and a
+#   paused rebase is resumable by anyone.
+# * A SHARED DEPS DIRECTORY CARRIED ONE LANE'S LOCK INTO ANOTHER. The
+#   worktrees shared one deps symlink, so Lane M's lock change broke
+#   compilation elsewhere: gate run 9 failed on a lock mismatch, and
+#   MIX_DEPS_PATH worked around it. Carry forward: a dependency change gets
+#   its own deps directory until it lands.
+# * A LOCK FIX OPENED A DEADLOCK. B7's lock made a note-only edit deadlock
+#   with a cash merge (BLR-1), and only the lock-race lens found it. Carry
+#   forward: a new lock is reviewed against every writer that locks the
+#   same rows in another order (a lock-order table), not only against the
+#   race it closes.
+# * A PRE-EXISTING TEST-ISOLATION DEADLOCK COST THREE GATE RUNS. Async
+#   test modules shared ISINs, two of them from gamma's own #965, and
+#   deadlocked (40P01) until gamma's fix. Carry forward: a test module
+#   that creates securities takes ISINs of its own; the scan in the fix
+#   commit can become a test.
+# * PARALLEL COMMIT GROUPS MEET ONLY WHEN STACKED. Gamma's #941 invariant
+#   caught alpha's new start_async, and gamma's #1103 schema payment
+#   double-counted a clause beta had spent. Carry forward: stack early, or
+#   run the other group's invariants on the parallel branch.
+# * A REBASE'S MESSAGE CLEANUP CUT THREE COMMIT MESSAGES. `rebase
+#   --continue` with GIT_EDITOR=true stripped the lines starting with "#"
+#   from three gamma messages; they were restored word for word. Carry
+#   forward: the script continues with `-c commit.cleanup=verbatim` (or
+#   whitespace).
+# * RECOVERED WORK SKIPPED A GATE. The implementation session committed a
+#   lost agent's test without running credo (rc=2 at d8b4a4d3, fixed by a
+#   fixup! commit). Carry forward: work recovered from a lost agent runs
+#   the full gates before its commit.
+# * "ONLY THE OWNER CAN" WAS NOT CHECKED AGAINST CI. The plan's D-3
+#   assumed the owner must build; the owner asked, and CI could
+#   (compose-smoke). Carry forward: an "only the owner can" claim is
+#   checked against what CI can do before it enters a plan.
+# * FILING HELD. Every filing was searched first and parented, and Lane
+#   Z's checklist held: the build and the closing acts filed 30 and the
+#   launch test one, against 85 closed once #1215 merges.
+# * THE AUTHORSHIP FRICTION IS UNCHANGED. The environment's stop hook
+#   still asks, after each turn that leaves commits, to recommit them
+#   under an agent identity, and each request is declined under AGENTS.md.
+#
+# EPIC STATES AFTER THIS MERGE: E26 STAYS IN PROGRESS, FOR THE OWNER'S
+# ANNOUNCEMENT DECISION ALONE. All four exit criteria pass once #1215
+# merges: every H issue closed, the four round trips, the build route
+# (compose-smoke for the build, the launch test from source for the
+# agent's part) and 84 open issues. Passing them is necessary for the
+# announcement and not sufficient (D-1). The announcement stays the
+# owner's decision, #991 closes with it, and
+# launch-readiness-2026-10-09-sprint20.md is its input. The retrospective
+# above is E26's fourth.
 #
 # PLANNED (2026-10-07, Sprint 20) -- sprint-plan-2026-10-07-sprint20.md,
 # adopted by the merge of the Sprint 20 planning PR, which SIGNS three
@@ -2836,5 +3184,13 @@ development_status:
   # numbers a switcher's import books (#1098, #1118, #904, #1120, #1108,
   # #1107), the decision pass over all 46 needs-decision issues, and the
   # build route proven on the owner's host. The epic stays in progress.
+  # SPRINT 20 BUILT 2026-10-09: the sprint PR #1184 (Lane M, alpha, beta)
+  # merged, release 2026.10.13; the stacked PR #1215 (gamma and the
+  # close-out) merges after it. All four exit criteria pass once #1215
+  # merges: every H issue closed, the four round trips, the build route
+  # (CI's compose-smoke for the build, the agent's launch test from source)
+  # and 84 open issues. The epic stays in progress for the owner's
+  # announcement decision alone, with which #991 closes;
+  # launch-readiness-2026-10-09-sprint20.md is the input.
   epic-26: in-progress
-  epic-26-retrospective: done  # Sprint 17's, 18's and 19's, each in its close-out entry
+  epic-26-retrospective: done  # Sprint 17's, 18's, 19's and 20's, each in its close-out entry
