@@ -1349,13 +1349,12 @@ defmodule Portfolixir.Ledger do
   """
   def create_transaction(%Actor{} = actor, attrs, opts \\ []) when is_map(attrs) do
     with {:ok, attrs} <- maybe_derive_linked_cash_account(attrs) do
-      changeset =
-        %Transaction{}
-        |> transaction_changeset(derive_settlement_fx_rate(attrs), opts)
-        |> validate_cash_account_currency()
+      changeset = transaction_changeset(%Transaction{}, derive_settlement_fx_rate(attrs), opts)
 
+      # #922: the currency check runs inside the write's transaction, against
+      # the account rows it locks (`validate_cash_account_currency/1`).
       Multi.new()
-      |> Multi.insert(:transaction, changeset)
+      |> Multi.insert(:transaction, fn _changes -> validate_cash_account_currency(changeset) end)
       |> Journal.record(actor,
         resource_type: "transaction",
         operation: :create,
@@ -1505,18 +1504,38 @@ defmodule Portfolixir.Ledger do
   # (ADR-0007 FX derivation stays out of scope). A changeset that is
   # already invalid is left untouched so the currency error never masks a
   # more fundamental one.
+  #
+  # #922: it runs inside the write's transaction, and the currencies are
+  # read under a key-share lock on the account rows, taken in id order, so
+  # the check holds at commit. The identity-field freeze (ADR-0050 §11)
+  # changes an account's currency under `FOR UPDATE` and counts committed
+  # references only; the two locks conflict, so a currency change either
+  # waits for this booking and is frozen by it, or this booking waits for
+  # the change and checks the currency it committed. An unlocked read let a
+  # booking pass on the old currency and commit after the change.
   defp validate_cash_account_currency(%Ecto.Changeset{valid?: false} = changeset),
     do: changeset
 
   defp validate_cash_account_currency(%Ecto.Changeset{} = changeset) do
     cash_account_id = Ecto.Changeset.get_field(changeset, :cash_account_id)
     counter_cash_account_id = Ecto.Changeset.get_field(changeset, :counter_cash_account_id)
-    currencies = cash_account_currencies([cash_account_id, counter_cash_account_id])
+    currencies = locked_cash_account_currencies([cash_account_id, counter_cash_account_id])
 
     Transaction.validate_cash_account_currency(changeset, currencies)
   end
 
-  defp cash_account_currencies(ids) do
+  @doc """
+  The currencies of the cash accounts `ids` (`nil`s skipped), as
+  `%{id => currency_code}`, read under a key-share lock taken in id order
+  (#922): what a booking's same-currency check reads, inside its write's
+  transaction, so the account's currency cannot change before the booking
+  commits. The lock conflicts only with `FOR UPDATE` -- the identity-field
+  freeze's and the hardened delete's -- never with a write of the account's
+  other fields, and the order is the one the cash merge locks its two
+  accounts in. Outside a transaction the lock ends with the statement.
+  """
+  @spec locked_cash_account_currencies([integer() | nil]) :: %{integer() => String.t()}
+  def locked_cash_account_currencies(ids) when is_list(ids) do
     ids
     |> Enum.reject(&is_nil/1)
     |> Enum.uniq()
@@ -1525,12 +1544,13 @@ defmodule Portfolixir.Ledger do
         %{}
 
       present ->
-        Repo.all(
-          from(c in CashAccount,
-            where: c.id in ^present,
-            select: {c.id, c.currency_code}
-          )
+        from(c in CashAccount,
+          where: c.id in ^present,
+          order_by: [asc: c.id],
+          lock: "FOR KEY SHARE",
+          select: {c.id, c.currency_code}
         )
+        |> Repo.all()
         |> Map.new()
     end
   end
