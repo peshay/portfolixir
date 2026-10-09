@@ -804,4 +804,29 @@ defmodule Portfolixir.AgentEntryDocsTest do
       end
     end
   end
+
+  # User story (found by Sprint 20's launch test at the close-out):
+  # As the operator copying .env.example to .env,
+  # I want every setting in it to be one the instance reads,
+  # so that changing a line changes something.
+  #
+  # Acceptance criteria:
+  # - .env.example carries no PORT line: both Compose files set PORT: 4000
+  #   for the application themselves and read no env_file, and mix reads no
+  #   .env, so a PORT in .env changed nothing.
+  # - Its comment says where the published host port is changed instead.
+  test ".env.example carries no PORT line, which nothing reads" do
+    env_example = File.read!(".env.example")
+
+    refute env_example =~ ~r/^PORT=/m
+
+    assert String.replace(env_example, ~r/\s+/, " ") =~
+             "docker-compose.yml publishes it on 127.0.0.1:4000"
+
+    for compose <- ["docker-compose.yml", "docker-compose.dev.yml"] do
+      body = File.read!(compose)
+      assert body =~ ~r/^\s+PORT: 4000$/m, compose
+      refute body =~ "env_file", compose
+    end
+  end
 end
