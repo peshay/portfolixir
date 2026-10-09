@@ -109,6 +109,29 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
     tx
   end
 
+  # A trade in the security's currency through an account in that same
+  # currency, with a settlement_fx_rate of 0.8 stored beside it.
+  defp same_currency_rated_trade!(world, security, opts) do
+    {:ok, tx} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: world.portfolio.id,
+        securities_account_id: world.depot.id,
+        cash_account_id: world.cash.id,
+        security_id: security.id,
+        type: Keyword.fetch!(opts, :type),
+        date: Keyword.fetch!(opts, :date),
+        quantity: Keyword.fetch!(opts, :quantity),
+        price: Keyword.fetch!(opts, :price),
+        fees: Keyword.get(opts, :fees, "0"),
+        taxes: Keyword.get(opts, :taxes, "0"),
+        currency_code: security.currency_code,
+        settlement_fx_rate: "0.8"
+      })
+
+    assert Decimal.equal?(tx.settlement_fx_rate, Decimal.new("0.8"))
+    tx
+  end
+
   # -- identity 4: what does not move ------------------------------------------
 
   # User story (#1108, the ADR-0015 amendment's identity 4):
@@ -149,21 +172,26 @@ defmodule Portfolixir.Ledger.ClosedTradeCurrencyTest do
 
     sell!(world, mill, quantity: "6", price: "120", fees: "3", date: ~D[2025-03-03])
 
-    buy!(usd_world, forge,
+    # The USD trades carry a stored settlement_fx_rate the ledger accepts on
+    # a same-currency booking (closing act, BML-1): their fees stay as
+    # recorded because the account is in the price's currency, not because
+    # no rate is stored, so a matcher that converted at any stored rate
+    # (5 / 0.8 = 6.25) would move every figure below.
+    same_currency_rated_trade!(usd_world, forge,
+      type: "buy",
       quantity: "10",
       price: "100",
       fees: "5",
       taxes: "1",
-      date: ~D[2025-02-03],
-      currency: "USD"
+      date: ~D[2025-02-03]
     )
 
-    sell!(usd_world, forge,
+    same_currency_rated_trade!(usd_world, forge,
+      type: "sell",
       quantity: "6",
       price: "120",
       fees: "3",
-      date: ~D[2025-03-03],
-      currency: "USD"
+      date: ~D[2025-03-03]
     )
 
     for security <- [mill, forge] do
