@@ -70,7 +70,7 @@ already in force in the codebase.
 | [0039](0039-durable-derived-values.html) | Durable derived values — one memoization mechanism with a lifetime per analytic | Accepted (gate B3.2; supersedes 0032) |
 | [0040](0040-unallocated-remainder-in-target-plans.html) | A target plan states its unallocated remainder | Accepted |
 | [0041](0041-per-category-performance.html) | Category result — the positions in a category, rolled up and decomposable | Accepted |
-| [0042](0042-one-planning-structure.html) | One planning structure — the requirement registry and the work breakdown stop competing | Accepted |
+| [0042](0042-one-planning-structure.html) | One planning structure — the requirement registry and the work breakdown stop competing | Accepted (amended 2026-10-27: the idea list is the stage before the registry and the fifth owner-facing artifact) |
 | [0043](0043-a-gate-closing-adr-names-its-asks.html) | A gate-closing ADR names the asks it answers — and the ones it does not | Accepted (amends 0026) |
 | [0044](0044-security-knowledge-as-an-append-only-log.html) | Security knowledge as an append-only log — the thesis state is its projection, retractions never vanish | Accepted (gate B4.1 + P0-6) |
 | [0045](0045-optional-built-in-authentication.html) | Optional built-in authentication for the web UI, and the deployment contract that goes with it — one password by one variable, loopback and Host-validated by default | Accepted (answers OQ-8) |
