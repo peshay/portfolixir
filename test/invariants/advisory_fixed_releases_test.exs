@@ -1,6 +1,8 @@
 defmodule Portfolixir.Invariants.AdvisoryFixedReleasesTest do
   use ExUnit.Case, async: true
 
+  alias Mix.Dep.Lock
+
   # User story (2026-10-12 security review triage, H28 and T-11):
   # As the operator who never reads the code,
   # I want a meta-test that fails when the money library every figure runs
@@ -37,7 +39,7 @@ defmodule Portfolixir.Invariants.AdvisoryFixedReleasesTest do
   end
 
   test "the lock holds every package at or above the release that fixed its advisory" do
-    lock = Mix.Dep.Lock.read()
+    lock = Lock.read()
 
     for {package, floor} <- @floors do
       locked = locked_version(lock, package)
