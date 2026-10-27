@@ -191,7 +191,7 @@ names the group it shipped in.
 | H35 (S6b) and α1 (#1199) in the settlement guard | H35 first | α1 adds its refusal beside H35's, on the same insert-and-update triggers; neither weakens the other's 422 |
 | K09 (S6b) and α3 (#1198) in `TradeMatcher` | K09 first | α3's identity 4, the diff of every payload, is taken on K09's head, so it shows α3's change alone |
 | K11 (S6b) and α3 | K11 first | the merge preview's realized figures go through the same matcher; α3's unavailable state appears in the preview's after-figure, named |
-| K10 (S6b) and α6 (#1052, #1206) in the booking drawer | K10 first | α6's kind select is drawn without a split kind (board Q-K10 on top of board 03's N12) |
+| K10 (S6b) and α6 (#1052, #1206) in the booking drawer | K10 first | K10 is server-side (an allow-list and the ledger's refusal) and renders nothing; N12's adopted kind list already has no split, and α6 keeps it so |
 | H58, H59 (S-medium, S4) and α5 (#1188) in the two parsers | H58, H59 first | K25's hash list is taken on their head; every stored hash stays byte-identical |
 | H07, H08 (S4) and α7, α8 on the parked preview | S4 first | α7's correction lines and α8's release survive a remount from the parked state |
 | H38 (S3) and γ2 (board 02) on a security's page | H38 first | γ2's redraw keeps the upload control of H38's board |
@@ -236,7 +236,36 @@ argued in
 [`ux-design-2026-10-27-sprint21-security.md`](../planning-artifacts/ux-design-2026-10-27-sprint21-security.md).
 The pick letter is **Q**.
 
-<!-- PICKS-TABLE -->
+Seven boards. Every frame links the real `priv/static/app.css`, rendered at
+1200 and 390 px, with invented data.
+
+| Pick | Item | Board | Group | Recommended |
+|---|---|---|---|---|
+| — | H38: the logo dialog takes a browser upload instead of an image URL | `01-logo-upload` | S3 | before/after: after |
+| **Q1** | H45: the import's security mapping without the whole catalog in every row | `02-imports-mapping` | γ7 | **B**: each row says "Wird neu angelegt: …"; "Anders zuordnen…" opens the merge dialog's existing search and cards inside the row |
+| **Q2** | H57: a ticker in the file that the catalog refuses | `02-imports-mapping` | S5 | **B**: a row warning; the security is created without the ticker and every entry imports |
+| — | H14 and K12: the Agent mark on a renamed rule, and on tax statements and allowance orders an agent recorded or corrected, which stop reading "manuell erfasst" | `03-author-marks` | S7 | before/after: after |
+| **Q3** | K12: where the trim budget's basis line puts the mark | `03-author-marks` | S7 | **A**: "(Agent)" right after the institution it covers |
+| **Q4** | K11: where the security merge preview states the FIFO restatement | `04-merge-restatement` | S6b | **A**: its own open block under the holdings, per close year and for the open lots, built like the depot preview's table |
+| — | K11's depot half ("Realisiert (gleit. Ø)", and FIFO gains unchanged); H11's refusals name the identity by kind and carry the values as data lines | `04-merge-restatement` | S6b, S7 | before/after: after |
+| **Q5** | K07: an income payment with no rate path to the base currency | `05-income-rate-path` | S6b | **A**: out of every total, named in an attention note with the existing backfill control, as the other Cash-flow facets do |
+| **Q6** | H17: Delete in the Accounts row menu when the menu opened with references | `06-delete-confirm` | S6b | **A**: always ask; the question no longer claims the account is free when the menu saw references |
+| — | The copy sheet: K13, H36, H37, H39, H56 on screen; H31, H36, H37 over the API | `07-copy-sheet` | S4, S3, S5 | before/after: after |
+
+**Items with no board:** K10 (identical picture, see D-5), and every other
+row the design document's "Rows that render nothing new" lists. H08 renders
+nothing only in its first fix shape (park what the remount needs); its
+second shape (refuse to park, with a message) needs a board before its
+story.
+
+**Found while drawing** (the design document's list): nine are fixed in the
+story that touches the surface. One is filed at the merge under S7's
+tracker: merge refusals on the page still put stored names inside their
+sentences, the rule H11 applies to identifiers. **H38's coverage:** the
+upload is a screen path the API does not offer; the API keeps its URL path
+behind the outbound policy, and the S3 story states that in its PR text as
+the coverage rule allows. A manual logo sent as bytes over the API joins the
+idea list.
 
 ## D-9: the closing acts (standing, Sprint 21's D-13 extended)
 
@@ -287,7 +316,8 @@ seed stays synthetic, and a second run leaves every row alone (#1126).
 ## Sequencing
 
 ```text
-after the merge ── Lane Z: sprint-status, the ideas list's first triage
+after the merge ── Lane Z: the S7 filing from the design pass (merge
+                   refusals that quote stored names)
 sprint PR opens ─▶ Lane M ─▶ S0 (H63) ─▶ S-medium (H01, H02, H58, H09)
                    ─▶ S6a (table ▶ #1214 ▶ H60 ▶ H54) ─▶ S6b
                    ─▶ S1 (+ #1202) ─▶ S4 (+ #1204 ▶ K08) ─▶ S5 ─▶ S2

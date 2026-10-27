@@ -110,6 +110,7 @@ decision pass.
 | U2 | **An audit journal viewer** | `captured` | product documentation ("a planned follow-up"); the API and MCP read exist | no issue, no board | **the two-way coverage rule: the journal has no human view** |
 | U3 | Income per instrument, readable | `captured` | feedback triage 2026-08-05 | a design session | — |
 | U4 | Feedback for background actions | `captured` | brainstorming 2026-06-18 | whether later inline results already cover it | — |
+| U5 | A manual logo sent as bytes over the API and MCP | `captured` | security design pass 2026-10-27 (H38) | once H38 lands, the API's URL path is the only non-screen way to set a manual logo; is an upload route wanted | the outbound policy; the API's body bounds |
 
 **Docs and process**
 
