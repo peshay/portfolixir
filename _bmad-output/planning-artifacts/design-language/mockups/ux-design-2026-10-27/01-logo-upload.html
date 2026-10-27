@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — the logo dialog: an upload instead of an image URL (H38)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the rules the H38 story adds to app.css. Everything else
+     in the frames is markup and classes that already ship in
+     securities/logo_override_dialog.ex (dialog/1: .modal.logo-override,
+     .modal-head, .modal-body, .detail-pane-sub, .logo-override__form,
+     .modal-footer) and AppShell (.icon-button, .field-error, .hint,
+     .security-logo--lg, .visually-hidden). The frames are srcdoc iframes,
+     so a 390 px frame is a real 390 px viewport. "Heute" frames render
+     app.css as shipped; "Nachher" frames also get this block. -->
+<style id="proposal">
+  /* H38 — the upload form takes the URL form's slot: a label, the chooser
+     row, the basis line, the field error, the confirm. One column, the
+     modal-body's own gap between its parts. */
+  .logo-override__form {
+    display: grid;
+    gap: var(--space-2);
+    justify-items: start;
+  }
+
+  .logo-override__label {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  /* The chooser is the label of the visually hidden file input
+     (live_file_input), drawn as the outline button. */
+  .logo-override__choose {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: 34px;
+    padding: 6px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    cursor: pointer;
+  }
+
+  /* The chosen file: its preview at the detail header's logo size, the file
+     name and size, and the × that clears the choice. */
+  .logo-override__chosen {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .logo-override__chosen .security-logo--lg {
+    margin-right: 0;
+  }
+
+  .logo-override__file {
+    display: grid;
+    min-width: 0;
+    font-size: 13px;
+  }
+
+  .logo-override__file b {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .logo-override__file small {
+    color: var(--color-text-muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .logo-override__form .hint {
+    margin: 0;
+  }
+
+  .logo-override__form .field-error {
+    margin: 0;
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-board > p.mock-note { max-width: 118ch; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul { margin: 0; }
+  .notes ul { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .dl { width: 522px; flex: none; }
+  .dl iframe { display: block; width: 520px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .consequence { margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--color-danger); background: var(--color-danger-soft); font-size: 12px; }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap { padding-left: 12px; padding-right: 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .dl, .ph { width: 390px; }
+    .dl iframe { width: 390px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Board 01 — Wertpapiere → row menu → „Logo verwalten“.</b> <b>H38</b> (S3, class: ssrf; fix: the manual logo becomes a browser-side upload, <code>allow_upload</code> in the logo dialog and <code>LogoStore.store_manual_bytes/4</code>, and the URL form leaves the UI). <b>Before/after, nothing to pick:</b> the upload takes the URL form's place in the dialog; its states are drawn — nothing chosen, a file chosen, a file refused — and the „file is missing“ sentence that named the URL. Every name and file is invented. <b>Dashed = new.</b></div>
+<p class="phone-only phone-cap"><b>Board 01 at 390&nbsp;px.</b> The logo dialog at a real 390-px viewport. H38, before/after. All data invented. The arguments are in the 1200-px render.</p>
+
+<section class="mock-board" id="h38">
+  <h2>① H38 — the manual logo: from an image URL to an upload <small>„Logo verwalten“ · <code>LogoOverrideDialog.dialog/1</code></small></h2>
+  <p class="mock-note desk-only"><b>Today</b> the dialog's one way to set a logo is a form „Bild-URL“ with „URL speichern“ (<code>save_logo_url</code> → <code>Catalog.set_logo_override/3</code> → <code>LogoStore.store_manual_override/3</code>, which fetches the address server-side). app.css has no rule for <code>.logo-override__form</code>; the generic form rules stack label, field and button. <b>After</b> the image travels from the operator's browser over the LiveView socket (<code>allow_upload(:logo, accept: ~w(.png .jpg .jpeg .webp), max_entries: 1)</code>), and the server stores the bytes with <code>store_manual_bytes/4</code>, which already checks the type, the size and the image header. Nothing is fetched by the server for a manual logo. „Erneut suchen“ (discovery) and „Logo entfernen“ stay as they are.</p>
+
+  <p class="cap">Heute — the URL form</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dl mock-frame mock-before desk-only"><span class="mock-tag">Heute — „Bild-URL“, „URL speichern“</span><iframe data-tpl="dlg" data-o='{"v":"today"}' title="H38 heute"></iframe></div>
+    <div class="ph mock-frame mock-before phone-only"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="dlg" data-o='{"v":"today"}' title="H38 heute, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p class="consequence"><b>The server fetches whatever address the form names.</b> The fetch runs under the outbound policy (host checks, redirect re-check, byte cap), and the review still found the URL form to be the one path where the operator's page makes the server reach out on a value typed into it (class: ssrf). The fix removes the path rather than tightening it again.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Nachher — the upload, in the URL form's slot</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dl mock-frame mock-after desk-only"><span class="mock-tag">Nachher 1 — nichts gewählt</span><iframe data-tpl="dlg" data-o='{"v":"empty"}' data-proposal title="H38 nachher, leer"></iframe></div>
+    <div class="dl mock-frame mock-after desk-only"><span class="mock-tag">Nachher 2 — ein Bild gewählt</span><iframe data-tpl="dlg" data-o='{"v":"chosen"}' data-proposal title="H38 nachher, gewählt"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">Nachher 1 — 390 px</span><iframe data-tpl="dlg" data-o='{"v":"empty"}' data-proposal title="H38 nachher, leer, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">Nachher 2 — 390 px</span><iframe data-tpl="dlg" data-o='{"v":"chosen"}' data-proposal title="H38 nachher, gewählt, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">Nachher 3 — 390 px</span><iframe data-tpl="dlg" data-o='{"v":"refused"}' data-proposal title="H38 nachher, abgelehnt, 390 px"></iframe></div>
+    <div class="dl mock-frame mock-after desk-only"><span class="mock-tag">Nachher 3 — die Datei abgelehnt</span><iframe data-tpl="dlg" data-o='{"v":"refused"}' data-proposal title="H38 nachher, abgelehnt"></iframe></div>
+    <div class="notes desk-only">
+      <ul>
+        <li><b>One control in the old slot.</b> „Bilddatei“, then „Bild wählen…“ — the label of the visually hidden <code>live_file_input</code>, drawn as the outline button — and the basis line: what is accepted, and that discovery leaves the stored image alone (the lock <code>store_manual_bytes/4</code> sets).</li>
+        <li><b>A chosen file shows itself</b> before it is stored: <code>live_img_preview</code> at the detail header's logo size (40 px, <code>.security-logo--lg</code>, on the logo plate), the file name and size, and an × („Auswahl entfernen“) that cancels the entry. „Logo speichern“ is disabled until a file is chosen, as a button with nothing to send.</li>
+        <li><b>A refused file is a field error under the chooser</b> (<code>aria-describedby</code>, UX-DR13), the upload's existing words: „Datei zu groß.“, „Dateityp nicht erlaubt.“ (<code>imports_live.ex</code> <code>error_to_string/1</code>). A file whose bytes are not the image its type claims is refused by <code>image_bytes_ok</code> after the upload: „Die Datei ist kein lesbares Bild.“, new.</li>
+        <li><b>Dropping a file on the dialog</b> also chooses it (<code>phx-drop-target</code> on the form), with no zone drawn: the dialog is small, and a phone has nothing to drop.</li>
+        <li><b>The answer</b> is today's: the dialog closes and the page's result says „Logo aktualisiert“.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">A stored logo whose file is missing — the sentence named the URL</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dl mock-frame mock-before desk-only"><span class="mock-tag">Heute — „Über eine Bild-URL erneut setzen“</span><iframe data-tpl="dlg" data-o='{"v":"missing-today"}' title="Datei fehlt, heute"></iframe></div>
+    <div class="dl mock-frame mock-after desk-only"><span class="mock-tag">Nachher — „Das Bild erneut hochladen“</span><iframe data-tpl="dlg" data-o='{"v":"missing-after"}' data-proposal title="Datei fehlt, nachher"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">Nachher — Datei fehlt, 390 px</span><iframe data-tpl="dlg" data-o='{"v":"missing-after"}' data-proposal title="Datei fehlt, nachher, 390 px"></iframe></div>
+  </div>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc, the
+   stylesheet by an absolute URL computed from this board) from the live
+   markup of securities/logo_override_dialog.ex and AppShell. German labels
+   from priv/gettext/de/LC_MESSAGES/default.po. Synthetic data only. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', location.href).href;
+const P = {
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  upload: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 19h14"/>',
+  image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/>'
+};
+const svg = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+const NEW = (t, on = true) => (on ? `<span class="is-new">${t}</span>` : t);
+/* An invented logo: a leaf in a rounded square, drawn here. */
+const LOGO = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="12" fill="#2f7d5b"/><path d="M18 44c0-16 12-26 30-26-2 18-12 28-28 28" fill="#d9f2e4"/><path d="M20 44 38 26" stroke="#2f7d5b" stroke-width="3" fill="none"/></svg>');
+
+const STATUS = {
+  none: 'Noch kein Logo gefunden.',
+  missingToday: 'Die gespeicherte Logodatei fehlt. Über eine Bild-URL erneut setzen oder das Logo entfernen.',
+  missingAfter: `Die gespeicherte Logodatei fehlt. ${NEW('Das Bild erneut hochladen')} oder das Logo entfernen.`
+};
+const URL_FORM = `<form class="logo-override__form"><label for="logo-override-url">Bild-URL</label>
+  <input type="url" id="logo-override-url" name="logo[url]" placeholder="https://…" value="">
+  <button type="submit" class="button-primary">URL speichern</button></form>`;
+function uploadForm(state) {
+  const help = 'PNG, JPEG oder WebP, höchstens 256 KB. Das Bild wird auf dieser Instanz gespeichert; die automatische Suche überschreibt es nicht.';
+  const chooser = `<label for="logo-file" class="logo-override__choose">${svg('upload', 14)}<span>Bild wählen…</span></label><input type="file" id="logo-file" class="visually-hidden" accept=".png,.jpg,.jpeg,.webp" aria-describedby="logo-upload-help${state === 'refused' ? ' logo-upload-error' : ''}"${state === 'refused' ? ' aria-invalid="true"' : ''}>`;
+  const chosen = (name, size) => `<div class="logo-override__chosen"><img class="security-logo security-logo--lg" src="${LOGO}" alt="Vorschau"><span class="logo-override__file"><b>${name}</b><small>${size}</small></span><button type="button" class="icon-button" aria-label="Auswahl entfernen" title="Auswahl entfernen">${svg('x')}</button></div>`;
+  let middle = '';
+  if (state === 'chosen') middle = chosen('arbolia-logo.png', '48 KB');
+  if (state === 'refused') middle = `<div class="logo-override__chosen"><span class="security-logo security-logo--lg security-logo--initial" aria-hidden="true">${svg('image', 18)}</span><span class="logo-override__file"><b>arbolia-banner.png</b><small>1,4 MB</small></span><button type="button" class="icon-button" aria-label="Auswahl entfernen" title="Auswahl entfernen">${svg('x')}</button></div><span class="field-error" id="logo-upload-error">Datei zu groß.</span>`;
+  return `<form id="logo-upload-form" class="logo-override__form is-new"><span class="logo-override__label">Bilddatei</span>${chooser}${middle}<p class="hint" id="logo-upload-help">${help}</p><button type="submit" class="button-primary"${state === 'chosen' ? '' : ' disabled'}>Logo speichern</button></form>`;
+}
+function dlg(o) {
+  const after = o.v !== 'today' && o.v !== 'missing-today';
+  const status = o.v === 'missing-today' ? STATUS.missingToday : o.v === 'missing-after' ? STATUS.missingAfter : STATUS.none;
+  const form = after ? uploadForm(o.v === 'missing-after' ? 'empty' : o.v) : URL_FORM;
+  const removeDisabled = o.v.startsWith('missing') ? '' : ' disabled';
+  return `<div class="dlg-stage"><dialog open id="logo-override-dialog" class="modal logo-override" aria-labelledby="logo-override-title">
+  <header class="modal-head"><h2 id="logo-override-title">Logo verwalten</h2><button type="button" class="icon-button" aria-label="Schließen">${svg('x')}</button></header>
+  <div class="modal-body"><p class="detail-pane-sub">Arbolia Inc.</p><p>${status}</p>${form}</div>
+  <div class="modal-footer"><button type="button" class="button-ghost">Erneut suchen</button><button type="button" class="button-ghost"${removeDisabled}>Logo entfernen</button></div>
+</dialog></div>`;
+}
+
+const TPL = { dlg };
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .is-new{outline:2px dashed var(--color-accent);outline-offset:2px;border-radius:4px;} .dlg-stage{padding:16px;background:color-mix(in srgb,var(--color-text) 18%,var(--color-bg));} dialog.modal{position:static !important;inset:auto !important;max-height:none !important;overflow:visible !important;margin:0 auto !important;max-width:460px;width:100%;}</style>';
+
+let pending = 0;
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  let css = CSS_MOCK;
+  if ('proposal' in f.dataset) css += document.getElementById('proposal').outerHTML;
+  pending++;
+  f.addEventListener('load', () => {
+    f.style.height = Math.ceil(f.contentDocument.documentElement.scrollHeight) + 'px';
+    if (--pending === 0) document.body.dataset.ready = '1';
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>

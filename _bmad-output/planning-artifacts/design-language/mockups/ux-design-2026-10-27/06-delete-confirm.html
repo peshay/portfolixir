@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Accounts: Delete asks whatever the menu saw when it opened (Pick Q6; H17)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: no new rule. The frames are srcdoc iframes built from
+     portfolio_accounts_live.ex (account_menu/1 through AppShell.row_menu/1:
+     .row-context-menu with its caption and items; delete_blocked_dialog/1;
+     the page's inline result) and the root layout's capture-phase listener,
+     which turns data-confirm into the browser's own confirm prompt
+     (layout_view.ex, pinned by test/invariants/destructive_confirmations_test.exs).
+     The prompt is the browser's; it is drawn here schematically (.prompt-mock,
+     board chrome), never styled by the app. The menu is drawn in place
+     (the PositionedMenu hook places it on the kebab). -->
+<style id="proposal">
+  /* Q6: no CSS. */
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-board > p.mock-note { max-width: 118ch; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul, .notes ol { margin: 0; }
+  .notes ul, .notes ol { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .dl { width: 522px; flex: none; }
+  .dl iframe { display: block; width: 520px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .consequence { margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--color-danger); background: var(--color-danger-soft); font-size: 12px; }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap { padding-left: 12px; padding-right: 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .dl, .ph { width: 390px; }
+    .dl iframe { width: 390px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Board 06 — Konten &amp; Depots → a row's menu → „Löschen“.</b> <b>Q6 — H17</b> (S6, class: hardening gap; fix: render the confirmation on the Delete item regardless of the menu's snapshot, or refuse the delete when the menu was opened with references and ask once more; add the control to the destructive-confirmations invariant). <b>A</b> — Delete always carries its confirmation; a menu that saw references asks in a sentence that does not claim the account is free · <b>B</b> — Delete stays prompt-less on such a menu, the server refuses to delete on it and asks to choose „Löschen“ again. <span class="rec">Recommended A</span> A comment naming „Q6 B“ on the planning PR changes it; silence adopts A. Every name is invented. <b>Dashed = new.</b></div>
+<p class="phone-only phone-cap"><b>Board 06 at 390&nbsp;px.</b> Real 390-px viewports; the browser's prompt drawn schematically. Q6 recommended A. All data invented.</p>
+
+<section class="mock-board" id="q6">
+  <h2>① Q6 · H17 — Delete asks whatever the menu saw when it opened <small>„Aktionen für Tagesgeld“ · <code>account_menu/1</code></small></h2>
+  <p class="mock-note desk-only"><b>Today</b> the menu reads what references the account as it opens (<code>handle_event("open_account_menu", …)</code>), and the Delete item carries <code>data-confirm={if @menu.refs == %{}, do: delete_confirmation(…)}</code>: a free account asks once (board 01 of the lifecycle pass, G1-A), a referenced one opens the refusal „Kann nicht gelöscht werden“ directly. The snapshot is taken when the menu opens. When the references go between that moment and the click — the bookings merged away in another tab, or by the agent — the item has no confirmation, and <code>delete_account/3</code> finds the account free and deletes it with no prompt and no word on the page. The destructive-confirmations invariant does not catch it: it finds the text <code>data-confirm=</code> on the element, which the conditional satisfies.</p>
+
+  <div class="mock-row" style="margin-top:0">
+    <div class="dl mock-frame mock-before"><span class="mock-tag">Heute — das Menü öffnete mit 12 Buchungen: „Löschen“ ohne Rückfrage</span><iframe data-tpl="menu" data-o='{}' title="Q6 Menü"></iframe></div>
+    <div class="dl mock-frame mock-before"><span class="mock-tag">Heute — inzwischen frei: gelöscht, ohne Frage und ohne Wort</span><iframe data-tpl="page" data-o='{"v":"gone"}' title="Q6 heute, gelöscht"></iframe></div>
+    <div class="notes desk-only">
+      <p class="consequence"><b>A delete with no ask, on a page that runs without a login unless one is configured</b> (ADR-0045). Rare, and exactly the case #765's rule exists for: every destructive click asks once.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A <span class="rec">empfohlen</span> — the item always asks; the sentence follows what the menu saw</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dl mock-frame mock-after"><span class="mock-tag">A — das Menü sah Buchungen: die Rückfrage behauptet nichts</span><iframe data-tpl="prompt" data-o='{"v":"refs"}' data-proposal title="Q6 A, Menü mit Verweisen"></iframe></div>
+    <div class="dl mock-frame mock-after desk-only"><span class="mock-tag">A — das Menü sah ein freies Konto: die Rückfrage wie heute</span><iframe data-tpl="prompt" data-o='{"v":"free"}' data-proposal title="Q6 A, freies Konto"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>Why A.</b></p>
+      <ul>
+        <li><b>The rule becomes literal:</b> the Delete item carries <code>data-confirm</code> unconditionally, so the invariant can assert the attribute's value is never empty, and no snapshot can switch the ask off.</li>
+        <li><b>The sentence stays true.</b> A free account keeps today's („… Das Konto hat keine Buchungen und kein verknüpftes Depot.“). A menu that saw references asks without claiming emptiness and says what happens if they are still there: OK → still referenced → the refusal opens as today; no longer referenced → deleted, as asked.</li>
+        <li><b>The cost</b> is one prompt before a refusal the operator usually expects. G1-A's „a referenced account opens its refusal directly“ becomes „… after one ask“; DESIGN.md records it.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — the server refuses on a stale menu and asks to choose again</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dl mock-frame mock-after"><span class="mock-tag vtag">B — nichts gelöscht; das Ergebnis bittet um eine neue Wahl</span><iframe data-tpl="page" data-o='{"v":"B"}' data-proposal title="Q6 B"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>B</b> keeps G1-A as it is: the item carries the snapshot it was opened with; a delete sent from a menu that saw references never deletes. Still referenced → the refusal; free now → nothing is deleted and the page's result says so; the next menu opens free and asks once. <b>Against it:</b> two menus and two clicks to delete what is now free; a result note for a state the operator did not cause; and the invariant has to read the event's handling, not the element, to stay meaningful.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc, the
+   stylesheet by an absolute URL computed from this board) from the live
+   markup of portfolio_accounts_live.ex and AppShell. German labels from
+   priv/gettext/de. Synthetic data only. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', location.href).href;
+const P = {
+  edit: '<path d="M4 20h4l10-10-4-4L4 16Z"/>',
+  merge: '<path d="M4 6h4.5l5.5 6h6"/><path d="M4 18h4.5l5.5-6"/><path d="m17 9 3 3-3 3"/>',
+  trash: '<path d="M4 7h16"/><path d="M9 7V4h6v3"/><path d="M6 7v13a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7"/><path d="M10 11v7M14 11v7"/>',
+  ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>'
+};
+const svg = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+const elide = (t) => `<p class="elide">… ${t}</p>`;
+function menu() {
+  return `<div class="menu-stage"><div class="row-context-menu" role="menu" aria-label="Aktionen für Tagesgeld"><div class="row-context-menu__caption" aria-hidden="true"><b>Tagesgeld</b><span class="row-context-menu__kind">&nbsp;· Verrechnungskonto</span></div><button type="button" class="row-context-menu__item" role="menuitem">${svg('edit')}<span>Umbenennen</span></button><button type="button" class="row-context-menu__item" role="menuitem">${svg('merge')}<span>Zusammenführen in…</span></button><button type="button" class="row-context-menu__item row-context-menu__item--danger" role="menuitem">${svg('trash')}<span>Löschen</span></button></div></div>`;
+}
+function prompt(o) {
+  const text = o.v === 'free'
+    ? '„Tagesgeld“ löschen? Das Konto hat keine Buchungen und kein verknüpftes Depot.'
+    : '<span class="is-new">„Tagesgeld“ löschen? Hat das Konto noch Buchungen oder ein verknüpftes Depot, wird das Löschen abgelehnt, und nichts ändert sich.</span>';
+  return `${menu()}<div class="prompt-mock" aria-hidden="true"><small>Die Seite meldet</small><p>${text}</p><div><span class="pb">Abbrechen</span><span class="pb pb--ok">OK</span></div></div>`;
+}
+function page(o) {
+  const note = o.v === 'B'
+    ? `<div class="inline-result inline-result--page is-new"><div role="status" class="inline-result__region"><div class="data-note data-note--note"><span class="data-note__icon" aria-hidden="true">${svg('ast', 14)}</span><span class="data-note__word">Hinweis</span><div class="data-note__body">Nichts wurde gelöscht: <bdi>Tagesgeld</bdi> hat seit dem Öffnen des Menüs keine Buchungen mehr. Zum Löschen das Menü erneut öffnen. <button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button></div></div></div></div>`
+    : '';
+  const rows = ['Depot Muster · Test-Cash', 'Depot USD · US-Konto'].concat(o.v === 'B' ? ['Tagesgeld'] : []);
+  return `<main class="app-main app-main--workspace"><div class="workspace-page"><section class="workspace-section">${note}<ul class="acct-mock">${rows.map((r) => `<li>${r}</li>`).join('')}</ul>${elide(o.v === 'gone' ? 'die Liste — „Tagesgeld“ ist fort; kein Ergebnis, keine Meldung' : 'die übrigen Konten')}</section></div></main>`;
+}
+
+const TPL = { menu, prompt, page };
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .app-main,.workspace-page{min-height:0 !important;} .is-new{outline:2px dashed var(--color-accent);outline-offset:2px;border-radius:4px;} .elide{margin:8px 0 0;font-size:12px;color:#5a6577;font-style:italic;} .menu-stage{padding:16px;} .row-context-menu{position:static !important;max-height:none !important;} .prompt-mock{margin:0 16px 16px;padding:14px 16px;border:1px solid #9aa3af;border-radius:8px;background:#fff;color:#1f2328;font:13px/1.45 system-ui,sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.18);max-width:420px;} .prompt-mock small{display:block;color:#57606a;margin-bottom:6px;} .prompt-mock p{margin:0 0 12px;} .prompt-mock div{display:flex;justify-content:flex-end;gap:8px;} .pb{padding:5px 14px;border:1px solid #9aa3af;border-radius:6px;} .pb--ok{background:#2f5bd3;border-color:#2f5bd3;color:#fff;} .acct-mock{list-style:none;margin:0;padding:0;} .acct-mock li{padding:10px 0;border-bottom:1px solid var(--color-border);font-size:14px;}</style>';
+
+let pending = 0;
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  let css = CSS_MOCK;
+  if ('proposal' in f.dataset) css += document.getElementById('proposal').outerHTML;
+  pending++;
+  f.addEventListener('load', () => {
+    f.style.height = Math.ceil(f.contentDocument.documentElement.scrollHeight) + 'px';
+    if (--pending === 0) document.body.dataset.ready = '1';
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>

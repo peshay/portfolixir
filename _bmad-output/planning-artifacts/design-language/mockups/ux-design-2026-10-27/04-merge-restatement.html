@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — merges: the FIFO restatement in the preview, the moving average named, and refusals that carry values as data (Pick Q4; K11, H11)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the rules the K11 and H11 stories add to app.css. The
+     frames are srcdoc iframes built from securities/merge_preview.ex
+     (step/1, pair/1, body/1: .merge-pair, .merge-identity, .merge-basis,
+     .merge-counts; refusal/1: .merge-refusal__lead, __position, __remedy)
+     and portfolio_accounts/merge_preview.ex (the depot preview's
+     .merge-positions table, its .merge-lines phone rows under 720 px and
+     its .merge-basis), inside the dialog chrome of merge_dialog.ex. "Heute"
+     frames render app.css as shipped; "Nachher" and variant frames add
+     this block. -->
+<style id="proposal">
+  /* ① Q4 A — the restatement block reuses the depot preview's anatomy:
+     .merge-block-head, a .merge-wide table, .merge-lines rows under
+     720 px, a .merge-basis line. Only the change column is new: signed,
+     tabular, muted where it is zero. */
+  .merge-fifo td.merge-fifo__change {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .merge-fifo tr.merge-fifo__open td {
+    border-top: 1px solid var(--color-border-strong);
+  }
+
+  /* ③ H11 — an identity a refusal names by kind: its kind as a muted
+     label, its stored value as data after it, isolated and never wrapped
+     inside the value. */
+  .merge-refusal__position .merge-refusal__kind {
+    color: var(--color-text-muted);
+  }
+
+  .merge-refusal__position bdi {
+    overflow-wrap: anywhere;
+  }
+
+  /* An identifier (ISIN, WKN, ticker) in the mono face the pair cards use;
+     a name stays in the text face. */
+  .merge-refusal__position bdi.mono {
+    font-size: 12.5px;
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-board > p.mock-note { max-width: 118ch; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul { margin: 0; }
+  .notes ul { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .dm { width: 982px; max-width: 100%; flex: none; }
+  .dm iframe { display: block; width: 980px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .consequence { margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--color-danger); background: var(--color-danger-soft); font-size: 12px; }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap { padding-left: 12px; padding-right: 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph, .dm { width: 390px; }
+    .dm iframe { width: 390px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Board 04 — the merges: a security's preview, a depot's preview, a security merge's refusal.</b> <b>K11</b> (S6, class: integrity; fix: state the figure the merge changes — the FIFO closed trades over each security before and over the combined rows after, the realized total per close year and the open lots' cost for source, target and result in the preview, its digest and the dialog; in the depot preview, FIFO gains unchanged and the moving-average figure named for what it is). <b>One pick:</b> <b>Q4 — where the security preview states the restatement</b>: <b>A</b> — its own block under the holdings, open, in the depot preview's table anatomy · <b>B</b> — a line in the counts and the table behind a closed disclosure. <span class="rec">Recommended A</span> <b>Before/afters:</b> the depot preview's column and basis line (K11); <b>H11</b> (S7, class: injection; fix: merge guards and refusals name the identity by kind and carry the stored values as data fields, never inside the sentence) — the refusal's page copy. A comment naming „Q4 B“ changes the pick; silence adopts A. Every name, identifier and figure is invented. <b>Dashed = new.</b></div>
+<p class="phone-only phone-cap"><b>Board 04 at 390&nbsp;px.</b> The merge dialog becomes the bottom sheet under 720&nbsp;px; drawn here in place. Q4 recommended A; K11's depot half and H11 before/after. All data invented.</p>
+
+<!-- ============================ Q4 ============================ -->
+<section class="mock-board" id="q4">
+  <h2>① Q4 · K11 — the security merge states the FIFO restatement <small>„Larkspur Rail Holding AG zusammenführen“ · Schritt 2 von 2 · Vorschau</small></h2>
+  <p class="mock-note desk-only"><b>The pair.</b> An import created „Larkspur Rail Holding AG“ (the source, 10 shares bought 2024) beside the stored „Larkspur Rail AG“ (the target, bought 2025 and partly sold in 2025 and 2026). Since ADR-0015's amendment of 2026-10-09 a security has one FIFO queue across portfolios; the merge pools the two queues, so the target's 2026 sale now closes the source's older, cheaper lot first. The realized gain of 2026 rises by 46,40 EUR, and the open lots' cost falls by the same amount; 2025 is unchanged. <b>Today</b> the preview states holdings, counts, quotes, settings and events (<code>MergePreview.body/1</code>) and nothing about realized gains: the restatement is silent until the Trades facet shows it after the confirm.</p>
+
+  <div class="mock-row" style="margin-top:0">
+    <div class="dm mock-frame mock-before desk-only"><span class="mock-tag">Heute — kein Wort zu den realisierten Gewinnen</span><iframe data-tpl="sec" data-o='{"v":"today"}' title="Q4 heute, Desktop"></iframe></div>
+    <div class="ph mock-frame mock-before phone-only"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="sec" data-o='{"v":"today"}' title="Q4 heute, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p class="consequence"><b>A confirm that restates closed years without saying so.</b> The holdings identity is exact and checked; the realized figures, which a tax-year view and the Trades facet read, change with no line in the preview and no entry in its digest.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A <span class="rec">empfohlen</span> — a block of its own, under the holdings, open</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dm mock-frame mock-after desk-only"><span class="mock-tag">A — „Realisierte Gewinne (FIFO)“ je Abschlussjahr und offene Posten</span><iframe data-tpl="sec" data-o='{"v":"A"}' data-proposal title="Q4 A, Desktop"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">A — 390 px: die Zeilen der Depot-Vorschau</span><iframe data-tpl="sec" data-o='{"v":"A"}' data-proposal title="Q4 A, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>Why A.</b></p>
+      <ul>
+        <li><b>It is the one money consequence the merge has.</b> Holdings are conserved and checked; the realized figures are not, and closed years change. They belong in view before the confirm, next to the holdings identity they complement — not behind a click.</li>
+        <li><b>No new anatomy.</b> The depot preview already states before and after per position in <code>.merge-positions</code> (a table above 720 px, <code>.merge-lines</code> below) with a basis line; the block reuses it: per close year „Quelle · Ziel → Danach“ and the change, then the open lots' cost.</li>
+        <li><b>Unchanged says so in one line.</b> A pair with no sale in either queue, or whose matching does not move, shows „Realisierte Gewinne (FIFO) ändern sich nicht“ in place of the table, so the block's absence never has to be read.</li>
+        <li><b>The digest covers it</b> (the fix): a changed plan whose restatement moved answers with the fresh preview, as for holdings.</li>
+        <li><b>Board 09 (2026-10-09) stands:</b> a closed trade α3 makes unavailable is not summed; the block's basis line names it, the facet's sentence.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — a counts line, the table in a closed disclosure</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dm mock-frame mock-after desk-only"><span class="mock-tag vtag">B — „1 Abschlussjahr ändert seine realisierten Gewinne — Tabelle“</span><iframe data-tpl="sec" data-o='{"v":"B"}' data-proposal title="Q4 B, Desktop"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag vtag">B — 390 px</span><iframe data-tpl="sec" data-o='{"v":"B"}' data-proposal title="Q4 B, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>B</b> keeps the preview's length: one line in <code>.merge-counts</code> in its „— Tabelle“ form, the table behind a closed <code>details</code> below. <b>Against it:</b> the figure is money, restated in a closed year; a count says that something changes and hides by how much, and the preview's other money figure (holdings) is never behind a click. B is the better choice only if previews with many years become common.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ depot ============================ -->
+<section class="mock-board" id="depot">
+  <h2>② K11 — the depot merge names its moving average, and says FIFO is unchanged <small>„Depot Alt zusammenführen“ · Schritt 2 von 2 · Vorschau</small></h2>
+  <p class="mock-note desk-only"><b>Today</b> the depot preview's table heads its last column „Realisierter G/V“ and its basis line explains a moving average over both depots' buys (<code>portfolio_accounts/merge_preview.ex</code>). The figure is the depot's moving-average result, which no other screen shows; the realized gains the Trades facet and the security's Trades tab read are FIFO over the security's one queue, and a depot merge does not move them. A reader who compares the column with the facet finds two different „realisiert“ and no word on which is which.</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dm mock-frame mock-before desk-only"><span class="mock-tag">Heute — „Realisierter G/V“</span><iframe data-tpl="depot" data-o='{"after":false}' title="Depot heute, Desktop"></iframe></div>
+    <div class="dm mock-frame mock-after desk-only"><span class="mock-tag">Nachher — „Realisiert (gleit. Ø)“; FIFO unverändert</span><iframe data-tpl="depot" data-o='{"after":true}' data-proposal title="Depot nachher, Desktop"></iframe></div>
+    <div class="ph mock-frame mock-before phone-only"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="depot" data-o='{"after":false}' title="Depot heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="depot" data-o='{"after":true}' data-proposal title="Depot nachher, 390 px"></iframe></div>
+  </div>
+</section>
+
+<!-- ============================ H11 ============================ -->
+<section class="mock-board" id="h11">
+  <h2>③ H11 — a refusal names the identity by kind; the values are data <small>the security merge's refusal · <code>MergePreview.refusal/1</code></small></h2>
+  <p class="mock-note desk-only"><b>Today</b> <code>reason/4</code> writes stored identifiers into the sentence: „Nach der Zusammenführung führte eine Kennung der beiden nicht mehr zum Ziel: ISIN DE000000002L; Name „Larkspur Rail Holding AG“ (EUR).“ (<code>identifier/1</code>; the name is not even isolated), „Die ISIN DE00000000X3 der Quelle hat eine falsche Prüfziffer …“, and the remedy „… — DE000000001L in dieses Wertpapier.“ <b>After</b> the sentence names the kind and the count; each value stands on its own line in the refusal (the <code>.merge-refusal__position</code> lines <code>detail_lines/1</code> already uses for positions), its kind as a label, the value isolated in <code>&lt;bdi&gt;</code>. The API's detail follows the same rule with the values as fields — that half renders nothing.</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dm mock-frame mock-before desk-only"><span class="mock-tag">Heute — die Werte im Satz</span><iframe data-tpl="ref" data-o='{"after":false}' title="H11 heute, Desktop"></iframe></div>
+    <div class="dm mock-frame mock-after desk-only"><span class="mock-tag">Nachher — die Art im Satz, die Werte als Zeilen</span><iframe data-tpl="ref" data-o='{"after":true}' data-proposal title="H11 nachher, Desktop"></iframe></div>
+    <div class="ph mock-frame mock-before phone-only"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="ref" data-o='{"after":false}' title="H11 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="ref" data-o='{"after":true}' data-proposal title="H11 nachher, 390 px"></iframe></div>
+  </div>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc, the
+   stylesheet by an absolute URL computed from this board) from the live
+   markup of securities/merge_dialog.ex, securities/merge_preview.ex and
+   portfolio_accounts/merge_preview.ex. German labels from priv/gettext/de.
+   Synthetic data only. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', location.href).href;
+const P = {
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  chev: '<path d="m9 6 6 6-6 6"/>',
+  ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>',
+  tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+  oct: '<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>'
+};
+const svg = (n, s = 16, cls = '') => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"${cls ? ` class="${cls}"` : ''} aria-hidden="true">${P[n]}</svg>`;
+function note(sev, body, attrs = '') {
+  const g = { note: 'ast', attention: 'tri', problem: 'oct' }[sev];
+  const w = { note: 'Hinweis', attention: 'Achtung', problem: 'Problem' }[sev];
+  return `<div class="data-note data-note--${sev}"${attrs}><span class="data-note__icon" aria-hidden="true">${svg(g, 14)}</span><span class="data-note__word">${w}</span><div class="data-note__body">${body}</div></div>`;
+}
+const elide = (t) => `<p class="elide">… ${t}</p>`;
+const nw = (on) => (on ? ' is-new' : '');
+function dialog(title, body, footer) {
+  return `<div class="dlg-stage"><dialog open class="modal merge-dialog security-merge-dialog"><header class="modal-head"><h2>${title}<span class="modal-head__step">Schritt 2 von 2 · Vorschau</span></h2><button type="button" class="icon-button" aria-label="Schließen">${svg('x')}</button></header><div class="modal-body">${body}</div><div class="modal-footer modal-footer--band">${footer}</div></dialog></div>`;
+}
+const PAIR = `<div class="merge-pair"><div class="merge-pair__side"><span class="merge-pair__role merge-pair__role--gone">Quelle · wird gelöscht</span><b><bdi>Larkspur Rail Holding AG</bdi></b><span class="mono">DE000000002L</span><small>3 Buchungen · angelegt 12.10.2026</small></div><span class="merge-pair__arrow" aria-hidden="true">→</span><span class="visually-hidden">in</span><div class="merge-pair__side"><span class="merge-pair__role">Ziel · bleibt</span><b><bdi>Larkspur Rail AG</bdi></b><span class="mono">DE000000001L</span><small>9 Buchungen · angelegt 14.02.2025</small></div></div>`;
+const IDENTITY = `<div class="merge-identity"><div class="merge-identity__term"><i>Quelle</i><b class="num">10<small>Stück</small></b></div><span class="merge-identity__op" aria-hidden="true">+</span><div class="merge-identity__term"><i><span class="merge-identity__sign" aria-hidden="true">+ </span>Ziel</i><b class="num">25<small>Stück</small></b></div><span class="merge-identity__op" aria-hidden="true">=</span><div class="merge-identity__term merge-identity__result"><i><span class="merge-identity__sign" aria-hidden="true">= </span>Bestand danach</i><b class="num">35<small>Stück</small></b></div></div><p class="merge-basis">Bestand in allen Depots am 27.10.2026, aus den Buchungen berechnet. Die Summe gilt je Depot an jedem Tag und wird vor dem Speichern geprüft.</p>`;
+const COUNTS = (extra = '') => `<dl class="merge-counts"><dt>3</dt><dd>Buchungen wechseln zum Ziel</dd><dt>41</dt><dd>Kurse der Quelle füllen Lücken im Ziel</dd>${extra}</dl>`;
+const FOOT = '<button type="button" class="button-ghost">Zurück</button><span class="modal-footer__spacer"></span><button type="button" class="button-danger">In Larkspur Rail AG zusammenführen</button>';
+
+/* The restatement, invented: 2025 unchanged, 2026 +46,40; open cost −46,40. */
+const YEARS = [
+  { y: '2025', s: '—', t: '+340,00', a: '+340,00', d: '0,00' },
+  { y: '2026', s: '—', t: '+205,00', a: '+251,40', d: '+46,40' }
+];
+const OPEN = { s: '1.180,00', t: '2.460,00', a: '3.593,60', d: '-46,40' };
+const sgn = (v) => (v.startsWith('+') && v !== '+0,00' ? ' is-positive' : v.startsWith('-') ? ' is-negative' : '');
+function fifoBlock(isNew) {
+  const rows = YEARS.map((r) => `<tr><td>${r.y}</td><td class="num"><small>${r.s} · ${r.t} →</small> <b class="${sgn(r.a)}">${r.a}</b></td><td class="num merge-fifo__change${r.d === '0,00' ? '' : sgn(r.d)}">${r.d === '0,00' ? '<span class="muted">unverändert</span>' : r.d}</td></tr>`).join('');
+  const open = `<tr class="merge-fifo__open"><td>Offene Posten (Einstand)</td><td class="num"><small>${OPEN.s} + ${OPEN.t} →</small> <b>${OPEN.a}</b></td><td class="num merge-fifo__change">${OPEN.d}</td></tr>`;
+  const lines = YEARS.map((r) => `<li><span class="merge-lines__head">Realisiert ${r.y}</span><span class="merge-lines__figure num">${r.s} · ${r.t} → <b>${r.a}</b><small>${r.d === '0,00' ? 'unverändert' : `Änderung ${r.d}`}</small></span></li>`).join('') + `<li><span class="merge-lines__head">Offene Posten (Einstand)</span><span class="merge-lines__figure num">${OPEN.s} + ${OPEN.t} → <b>${OPEN.a}</b><small>Änderung ${OPEN.d}</small></span></li>`;
+  return `<div class="merge-fifo${nw(isNew)}"><h3 class="merge-block-head">Realisierte Gewinne (FIFO)</h3><div class="data-table-wrapper merge-wide"><table class="data-table merge-positions"><thead><tr><th>Abschlussjahr</th><th class="num">Quelle · Ziel → danach</th><th class="num">Änderung</th></tr></thead><tbody>${rows}${open}</tbody></table></div><ul class="merge-lines merge-narrow">${lines}</ul><p class="merge-basis">In EUR, der Währung des Wertpapiers. Vorher je Wertpapier über seine eigene FIFO-Reihe, danach über die zusammengeführte: Ein Verkauf schließt dann die ältesten Posten beider. Realisiert und offener Einstand ändern sich um denselben Betrag; die Erlöse bleiben.</p></div>`;
+}
+function sec(o) {
+  const title = 'Larkspur Rail Holding AG zusammenführen';
+  let body = PAIR + IDENTITY;
+  if (o.v === 'A') body += fifoBlock(true) + COUNTS();
+  else if (o.v === 'B') body += COUNTS(`<dt class="is-new">1</dt><dd class="is-new">Abschlussjahr ändert seine realisierten Gewinne (FIFO), 2026: +46,40 <small>— Tabelle</small></dd>`) + `<details class="perf-table-disclosure is-new"><summary class="disclosure-summary">${svg('chev', 12, 'disclosure-chevron')}Realisierte Gewinne (FIFO) je Abschlussjahr</summary></details>`;
+  else body += COUNTS();
+  body += elide('die Einstellungen der Quelle, die Stammdaten, der Hinweis und die Löschwarnung wie heute');
+  return dialog(title, body, FOOT);
+}
+
+/* ② the depot preview */
+function depot(o) {
+  const col = o.after ? '<span class="is-new">Realisiert (gleit. Ø)</span>' : 'Realisierter G/V';
+  const rows = [['Larkspur Rail AG', '25 + 10 →', '35', '84,20 · 78,00 →', '82,43', '+120,00 · 0,00 →', '+120,00'], ['Wrenfield Gardens AG', '40 + 0 →', '40', '12,10 · — →', '12,10', '+18,40 · — →', '+18,40']];
+  const table = `<div class="data-table-wrapper merge-wide"><table class="data-table merge-positions"><thead><tr><th>Wertpapier</th><th class="num">Stückzahl</th><th class="num">Ø Kosten</th><th class="num">${col}</th></tr></thead><tbody>${rows.map((r) => `<tr><td>${r[0]}</td><td class="num"><small>${r[1]}</small> <b>${r[2]}</b></td><td class="num"><small>${r[3]}</small> <b>${r[4]}</b></td><td class="num"><small>${r[5]}</small> <b>${r[6]}</b></td></tr>`).join('')}</tbody></table></div>`;
+  const lab = o.after ? '<span class="is-new">Realisiert (gleit. Ø)</span>' : 'Realisierter G/V';
+  const lines = `<ul class="merge-lines merge-narrow">${rows.map((r) => `<li><span class="merge-lines__head">${r[0]}</span><span class="merge-lines__figure num">${r[1]} <b>${r[2]}</b><small>Ø Kosten: ${r[3]} ${r[4]}</small><small>${lab}: ${r[5]} ${r[6]}</small></span></li>`).join('')}</ul>`;
+  const basisToday = 'Je Zelle oben vorher (Depot Alt + Depot Muster bzw. Depot Alt · Depot Muster), unten danach. Ø Kosten und realisierter G/V in der Währung des Wertpapiers, gleitender Durchschnitt über die Käufe beider Depots, ohne Gebühren und Steuern. Stückzahl je Wertpapier = Summe beider Depots, an jedem Tag geprüft; der Marktwert beider Depots zusammen bleibt gleich.';
+  const basisAfter = 'Je Zelle oben vorher (Depot Alt + Depot Muster bzw. Depot Alt · Depot Muster), unten danach. Ø Kosten und <span class="is-new">„Realisiert (gleit. Ø)“: das Ergebnis des Depots nach gleitendem Durchschnitt</span> über die Käufe beider Depots, in der Währung des Wertpapiers, ohne Gebühren und Steuern. Stückzahl je Wertpapier = Summe beider Depots, an jedem Tag geprüft; der Marktwert beider Depots zusammen bleibt gleich. <span class="is-new">Die realisierten Gewinne nach FIFO (Erträge → Realisiert, der Trades-Tab) ändern sich nicht: Die FIFO-Reihe gehört dem Wertpapier, nicht dem Depot.</span>';
+  const body = `${elide('die beiden Depots, „4 Buchungen wechseln nach Depot Muster“')}<h3 class="merge-block-head">Betroffene Positionen</h3>${table}${lines}<p class="merge-basis">${o.after ? basisAfter : basisToday}</p>${elide('der Hinweis und die Löschwarnung')}`;
+  return `<div class="dlg-stage"><dialog open class="modal merge-dialog"><header class="modal-head"><h2>Depot Alt zusammenführen<span class="modal-head__step">Schritt 2 von 2 · Vorschau</span></h2><button type="button" class="icon-button" aria-label="Schließen">${svg('x')}</button></header><div class="modal-body">${body}</div><div class="modal-footer modal-footer--band"><button type="button" class="button-ghost">Zurück</button><span class="modal-footer__spacer"></span><button type="button" class="button-danger">In Depot Muster zusammenführen</button></div></dialog></div>`;
+}
+
+/* ③ H11 — the refusal */
+function ref(o) {
+  const pos = (kind, value, extra = '', mono = true) => `<p class="merge-refusal__position is-new"><span class="merge-refusal__kind">${kind}</span> <bdi${mono ? ' class="mono"' : ''}>${value}</bdi>${extra}</p>`;
+  const refusal = o.after
+    ? `<p class="merge-refusal__lead">Zusammenführen nicht möglich: Nach der Zusammenführung <span class="is-new">führten 2 Kennungen der beiden</span> nicht mehr zum Ziel:</p>${pos('ISIN der Quelle (wie importiert):', 'DE000000002L')}${pos('Name der Quelle (wie importiert):', 'Larkspur Rail Holding AG', ' · EUR', false)}<p class="merge-refusal__lead">Außerdem: Die ISIN der Quelle hat eine falsche Prüfziffer, und die Zusammenführung würde sie auf das Ziel schreiben.</p>${pos('ISIN der Quelle:', 'DE00000000X3')}<p class="merge-refusal__remedy">Abhilfe: die ISIN der Quelle in ihren Stammdaten korrigieren oder leeren, dann erneut prüfen.</p><p class="merge-refusal__remedy">Diese Version kennt keinen Weg darum herum; beide Wertpapiere bleiben unverändert.</p>`
+    : '<p class="merge-refusal__lead">Zusammenführen nicht möglich: Nach der Zusammenführung führte eine Kennung der beiden nicht mehr zum Ziel: ISIN DE000000002L; Name „Larkspur Rail Holding AG“ (EUR).</p><p class="merge-refusal__lead">Außerdem: Die ISIN DE00000000X3 der Quelle hat eine falsche Prüfziffer, und die Zusammenführung würde sie auf das Ziel schreiben.</p><p class="merge-refusal__remedy">Abhilfe: die ISIN der Quelle in ihren Stammdaten korrigieren oder leeren, dann erneut prüfen.</p><p class="merge-refusal__remedy">Diese Version kennt keinen Weg darum herum; beide Wertpapiere bleiben unverändert.</p>';
+  const pair = PAIR.replace('DE000000002L</span>', 'DE00000000X3</span>');
+  const body = `<div role="alert" class="merge-region">${pair}${note('problem', refusal + '<span class="merge-refusal__actions"><button type="button" class="button">Erneut prüfen</button></span>')}</div>`;
+  return dialog('Larkspur Rail Holding AG zusammenführen', body, '<button type="button" class="button-ghost">Zurück</button><span class="modal-footer__spacer"></span><button type="button" class="button-ghost">Schließen</button>');
+}
+
+const TPL = { sec, depot, ref };
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .is-new{outline:2px dashed var(--color-accent);outline-offset:2px;border-radius:4px;} .elide{margin:0;font-size:12px;color:#5a6577;font-style:italic;} .dlg-stage{padding:16px;background:color-mix(in srgb,var(--color-text) 18%,var(--color-bg));} dialog.modal,dialog.modal.merge-dialog{position:static !important;inset:auto !important;max-height:none !important;overflow:visible !important;margin:0 auto !important;box-shadow:var(--shadow-panel) !important;} .merge-dialog > .modal-body{overflow:visible !important;} @media (max-width:720px){.dlg-stage{padding:16px 0 0;}}</style>';
+
+let pending = 0;
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  let css = CSS_MOCK;
+  if ('proposal' in f.dataset) css += document.getElementById('proposal').outerHTML;
+  pending++;
+  f.addEventListener('load', () => {
+    f.style.height = Math.ceil(f.contentDocument.documentElement.scrollHeight) + 'px';
+    if (--pending === 0) document.body.dataset.ready = '1';
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>
