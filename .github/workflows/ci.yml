@@ -198,16 +198,16 @@ jobs:
       # express, zod, tsx and typescript), and both gates below pass without.
       # Issue #728: the MCP gates ran on whatever Node ubuntu-latest shipped
       # that week — the one unpinned toolchain in this workflow. Pinned to
-      # the 24 LTS line, the same major the companion's Dockerfile ships and
+      # the 26 LTS line, the same major the companion's Dockerfile ships and
       # `engines.node` in mcp-server/package.json records, so CI, the image
       # and a local run agree — and `@types/node` has a runtime major to
       # follow instead of the registry's latest.
       - name: Setup Node
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
-          node-version: "24"
+          node-version: "26"
 
-      # D-7 (Sprint 15): the audit runs on the pinned Node 24 and its npm, not
+      # D-7 (Sprint 15): the audit runs on the pinned Node 26 and its npm, not
       # on whatever npm the runner image ships. CI 1558 ran it before Setup
       # Node: that npm fell back to the quick-audit endpoint the registry is
       # retiring, which answered 400 and turned the gate red with no advisory

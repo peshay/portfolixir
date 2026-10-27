@@ -47,7 +47,7 @@ steht in [API und MCP](api-and-mcp.html#mcp-tools).
 
 ## Über stdio: Der Client startet den Begleitdienst
 
-Bauen Sie den Begleitdienst einmal, mit Node 24:
+Bauen Sie den Begleitdienst einmal, mit Node 26:
 
 ```bash
 npm ci --ignore-scripts --prefix mcp-server

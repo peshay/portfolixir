@@ -1018,7 +1018,7 @@ defmodule Portfolixir.CITest do
   #
   # Acceptance criteria:
   # - In the quality job the npm audit step runs after the Setup Node step
-  #   (Node 24, the pinned line) — CI 1558 ran it before, on the image's npm,
+  #   (Node 26, the pinned line) — CI 1558 ran it before, on the image's npm,
   #   and failed on the retiring quick-audit endpoint's 400.
   # - The gate is unchanged: `--audit-level=high`, no `|| true`, no
   #   `continue-on-error`.
@@ -1033,7 +1033,7 @@ defmodule Portfolixir.CITest do
       :binary.match(quality, "run: npm audit --audit-level=high --prefix mcp-server")
 
     assert setup_node < audit, "the npm audit runs before the pinned Node is set up"
-    assert quality =~ ~s(node-version: "24")
+    assert quality =~ ~s(node-version: "26")
 
     audit_step = binary_part(quality, audit, byte_size(quality) - audit)
     audit_step = audit_step |> String.split("\n      - name:") |> hd()

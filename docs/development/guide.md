@@ -76,9 +76,9 @@ before opening a PR. It is CI's `pre-commit`, `test`
 and `quality` jobs, so a branch that passes it locally passes them; it is not
 copied here, because a copy is what fell behind before (#1022).
 
-The `npm` checks need **Node 24** (the Active LTS line). That version is
+The `npm` checks need **Node 26** (the Active LTS line). That version is
 pinned in three places that must agree: `actions/setup-node` in CI,
-`engines.node` in `mcp-server/package.json`, and the Node 24 base image in
+`engines.node` in `mcp-server/package.json`, and the Node 26 base image in
 `mcp-server/Dockerfile` (an exact tag pinned by digest) —
 `test/portfolixir/ci_test.exs` asserts that they do, and that `@types/node`
 describes the same major. Running the checks on another

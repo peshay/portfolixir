@@ -42,7 +42,7 @@ set `book` leaves out, and why, is in [API and MCP](api-and-mcp.html#mcp-tools).
 
 ## Over stdio: the client starts the companion
 
-Build the companion once, with Node 24:
+Build the companion once, with Node 26:
 
 ```bash
 npm ci --ignore-scripts --prefix mcp-server

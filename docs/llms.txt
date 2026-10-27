@@ -121,7 +121,7 @@ stdio (below), with `PORTFOLIXIR_API_BASE_URL` naming the same port.
 - Over HTTP, to the companion the Compose stack runs: the URL
   http://127.0.0.1:4001/mcp with the header `Authorization: Bearer
   <PORTFOLIXIR_MCP_TOKEN>`.
-- Over stdio, the client starting the companion itself: with Node 24, run `npm
+- Over stdio, the client starting the companion itself: with Node 26, run `npm
   ci --ignore-scripts --prefix mcp-server` and `npm run build --prefix
   mcp-server` once, then the command is `node mcp-server/dist/index.js` with
   `PORTFOLIXIR_API_BASE_URL=http://127.0.0.1:4000` and `PORTFOLIXIR_API_TOKEN`

@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=24 <25"
+    "node": ">=26 <27"
   },
   "bin": {
     "portfolixir-mcp": "./dist/index.js"
@@ -22,7 +22,7 @@
   },
   "devDependencies": {
     "@types/express": "^5.0.0",
-    "@types/node": "^24.19.0",
+    "@types/node": "^26.6.5",
     "tsx": "^4.19.0",
     "typescript": "^7.0.2"
   }

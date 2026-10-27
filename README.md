@@ -187,7 +187,7 @@ regenerates them._
   runs 1.18.5 on Erlang/OTP 27), and PostgreSQL 15 or newer, with its contrib
   modules (btree_gist): the migrations use `NULLS NOT DISTINCT` and create the
   `btree_gist` extension.
-- For the MCP companion run on its own: Node 24.
+- For the MCP companion run on its own: Node 26.
 
 The first build pulls the pinned base images and downloads Debian packages, Hex
 packages from hex.pm and npm packages from the npm registry. Behind a proxy, pass
