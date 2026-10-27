@@ -282,6 +282,39 @@ walkthrough
 exact `Decimal` expectations and every gate green are blocking, not
 aspirational.
 
+## Ideas
+
+- **An idea is recorded, not built.** When the owner says "Idee:" or
+  "Idea:", or raises something not yet worked out, the session writes it
+  into the idea list (`_bmad-output/planning-artifacts/ideas.md`) as said,
+  with status `captured`, and touches no code. *Why:* ideas built as an
+  agent read them, before their details, screen or kind were settled, were
+  built worse than they would have been after one conversation (owner,
+  2026-10-27; [ADR-0042, amendment of
+  2026-10-27](../decisions/0042-one-planning-structure.html)).
+- **Triage is the agent's job, not the owner's.** Before an idea is
+  discussed, an agent searches where it is already described (planning
+  artifacts, plans, issues), checks it against the ADRs, the scope ladder
+  and the non-goals, names its kind (feature, UI, docs, app page, process,
+  data), merges duplicates into one row, and sets `triaged`. *Why:* the
+  owner's attention is the scarcest resource (ADR-0038), and the
+  conversation is shorter when the homework is done.
+- **One idea per session goes deep.** A planning session proposes at most
+  one `triaged` idea to work through with the owner, and leaves with it
+  `worked-out` or with the open question written into its row. A UI idea
+  is worked out against a board, as any UI change is. *Why (inferred):* an
+  idea discussed between other work is half-discussed.
+- **A `no-brainer` skips the conversation.** A triaged idea with one
+  obvious answer, inside scope and touching no money semantics, may go
+  straight into a plan, which names it as such. *Why:* not every idea needs
+  a meeting, and the owner can still flip it on the planning PR.
+- **A worked-out idea leaves the list.** It moves into `epics.md` or an
+  issue, its row becomes a pointer, and the close-out marks it `built` when
+  its sprint builds it. *Why:* the list must never become a second registry
+  (ADR-0042).
+- **The list is public.** No instance facts, figures or names; an idea is
+  stated generically. *Why:* the privacy rules of `AGENTS.md`.
+
 ## Issues and the registry
 
 - **Issues are thin pointers**: a title, a one-paragraph scope, links to the
@@ -300,8 +333,10 @@ aspirational.
   unread place is a defect (ADR-0042, "Who reads what").
 - **One topic = one issue.** The issue plus the artifacts it points at are
   the complete specification; a session must not need context from earlier
-  sessions. New ideas found while working are filed immediately, with their
-  area tracker as parent (#416–#420), after searching the open titles. *Why:*
+  sessions. Findings made while working are filed immediately, with their
+  area tracker as parent (#416–#420), after searching the open titles; an
+  idea that is not yet worked out goes into the idea list instead (see
+  "Ideas"). *Why:*
   a session's memory ends with it; an issue does not (#321's working
   agreement; Sprint 19 retrospective for the parent and the title search).
 - **A `needs-decision` issue carries its recommended answer** and what would

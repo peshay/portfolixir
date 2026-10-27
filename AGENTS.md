@@ -59,11 +59,12 @@ verification, not code, is the bottleneck (ADR-0026).
   does not read code, so a test that failed first stands in for that read (PRD
   §1 "Stakes and quality bar"; ADR-0036).
 - **Stay in scope.** Work only on the requested story or sprint and add no
-  adjacent feature. A larger design issue or a new idea found on the way is
-  filed: file a new issue immediately rather than solving it opportunistically.
-  *Why:* every change stays reviewable against a decision, and a session's
-  memory ends with it while an issue does not (ADR-0022, Context; E17–E19
-  retrospective §5).
+  adjacent feature. For a defect or a larger design issue found on the way,
+  file a new issue immediately; a new idea goes into the idea list at once.
+  Neither is solved opportunistically. *Why:* every change
+  stays reviewable against a decision, and a session's memory ends with it
+  while an issue or a list row does not (ADR-0022, Context; E17–E19
+  retrospective §5; ADR-0042, amendment of 2026-10-27).
 - **Do not silently change architecture decisions**; amend the ADR. *Why:* the
   owner reviews decisions, not diffs, so a decision changed in code is changed
   unreviewed (ADR-0026 step 1).
@@ -238,6 +239,10 @@ re-checks because a local hook can be skipped.
   owner touchpoints per sprint instead of five, and a fresh session tests
   whether the plan is complete (ADR-0026, amendment of 2026-10-08; [sprint
   workflow](docs/development/sprint-workflow.md)).
+- **An idea is recorded, not built**: it goes into the idea list with a
+  status, an agent triages it, and it is built only once worked out; see the
+  sprint workflow's "Ideas". *Why:* ideas built as first read were built
+  worse than after one conversation (ADR-0042, amendment of 2026-10-27).
 - **A UI change is mocked on a board before it is built**, risk-tier work gets
   its own commit group and verification pass, and issues are thin pointers: see
   the sprint workflow for each rule and its reason.
