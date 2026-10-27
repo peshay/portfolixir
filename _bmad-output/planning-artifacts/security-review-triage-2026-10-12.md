@@ -13,15 +13,16 @@ Sobelow and both npm gates are clean; `hex.audit` is red (S8): on 2026-10-13
 on one transitive dependency advisory with no reachable call site, and by
 2026-10-27 on fourteen more, published after the scan, thirteen of them
 against the HTTP server library and one against the cookie-signing library,
-every one fixed in a release the lock admits (T-11). **The full report, which
-carries reproduction tests, is held privately by the owner and is not
-committed.** `SECURITY.md` asks for private reporting, and a public repository
-does not publish reproductions of its own unfixed weaknesses. This document
-names each item by its **class** and its **fix**, which is what the work
-ledger needs, and carries no reproduction steps. The review's identifiers are
-kept so the private report and this plan can be read side by side: `H01`–`H72`
-for the first round and `K01`–`K19` for the completeness round (twelve of them
-merged into siblings that describe the same weakness).
+every one cleared by the hotfix T-11, merged on 2026-10-27 as PR #1239 ahead
+of this document's adoption. **The full report, which carries reproduction
+tests, is held privately by the owner and is not committed.** `SECURITY.md`
+asks for private reporting, and a public repository does not publish
+reproductions of its own unfixed weaknesses. This document names each item by
+its **class** and its **fix**, which is what the work ledger needs, and
+carries no reproduction steps. The review's identifiers are kept so the
+private report and this plan can be read side by side: `H01`–`H72` for the
+first round and `K01`–`K19` for the completeness round (twelve of them merged
+into siblings that describe the same weakness).
 
 This is the PM triage per ADR-0038: what the review covered, what it found
 sound, the dedup against the pipeline, the decisions the owner has to make,
@@ -66,19 +67,20 @@ frame size, turn cleartext HTTP/2 off and set the listener's connection and
 header deadlines, and detach the parser's strings from the upload body. They
 are S2 and S4, and they ship first.
 
-**3. One gate is red on `main` today and it is not this review's doing.** `mix
-hex.audit` reports advisories the lock admits a fix for: on 2026-10-13 one, on
-`decimal` 3.1.1, a transitive dependency no call site in the application can
-reach (H28); by 2026-10-27 fifteen, after thirteen Bandit advisories (ten of
-them high, all on what the listener accepts before any credential: HTTP/2 flow
-control and settings, chunked bodies, header parsing, WebSocket fragments) and
-one on `plug_crypto` (the secret key base written to a stack trace on a
-wrongly typed argument) were published between 2026-10-15 and 2026-10-26.
-Bandit 1.14.0, `plug_crypto` 2.2.1 and `decimal` 3.1.2 fix all fifteen.
-Because the quality job runs the live-feed audits ahead of Sobelow, Credo,
-Dialyzer and the companion's tests, a new advisory turns all of them silent
-(H63). T-11 ships the three lock moves as a hotfix ahead of the batch, as T-1
-did for the runtime in September.
+**3. One gate was red on `main` until the hotfix, and it was not this review's
+doing.** `mix hex.audit` reports advisories the lock admits a fix for: on
+2026-10-13 one, on `decimal` 3.1.1, a transitive dependency no call site in
+the application can reach (H28); by 2026-10-27 fifteen, after thirteen Bandit
+advisories (ten of them high, all on what the listener accepts before any
+credential: HTTP/2 flow control and settings, chunked bodies, header parsing,
+WebSocket fragments) and one on `plug_crypto` (the secret key base written to
+a stack trace on a wrongly typed argument) were published between 2026-10-15
+and 2026-10-26. Bandit 1.14.0, `plug_crypto` 2.2.1 and `decimal` 3.1.2 fix all
+fifteen. Because the quality job runs the live-feed audits ahead of Sobelow,
+Credo, Dialyzer and the companion's tests, a new advisory turns all of them
+silent (H63). T-11 shipped the three lock moves, and the companion's six npm
+advisories found the same day, as a hotfix ahead of the batch (PR #1239,
+merged 2026-10-27), as T-1 did for the runtime in September.
 
 **4. What the agent surface still cannot say.** Three low findings sit on
 ADR-0054's promise that stored text reaches the agent as data and that every
@@ -165,7 +167,8 @@ labels and documentation drift.
   with; `mix deps.audit` and `npm audit` report nothing; `mix hex.audit`
   reported one advisory on 2026-10-13 (`decimal`, S8, H28) and fifteen on
   2026-10-27, the fourteen new ones published after the first scan against
-  Bandit and `plug_crypto` and all fixed upstream (Part 0, point 3; T-11).
+  Bandit and `plug_crypto` and all cleared by the T-11 hotfix (PR #1239,
+  merged 2026-10-27; Part 0, point 3).
 - **Known limits honoured:** the limits `SECURITY.md` records (the URL policy
   resolving a name twice, the WebSocket handshake ahead of the Host guard,
   inline style attributes under the CSP, the import preview budget, the MCP
@@ -184,7 +187,7 @@ labels and documentation drift.
 
 | Review item | Already in the pipeline | Ruling |
 |---|---|---|
-| H27, H28, H63 (the advisories and the gate order) | the `hex.audit` red on `main`: on `decimal` since 2026-10-10, on Bandit and `plug_crypto` since their advisories of 2026-10-15 to 2026-10-26 | the three lock moves ship as a hotfix ahead of the batch (T-11); the gate order is a one-line CI change in S8 |
+| H27, H28, H63 (the advisories and the gate order) | the `hex.audit` red on `main`: on `decimal` since 2026-10-10, on Bandit and `plug_crypto` since their advisories of 2026-10-15 to 2026-10-26 | the lock moves shipped as the T-11 hotfix (PR #1239, 2026-10-27); the gate order is a one-line CI change in S8 |
 | H60 (merge and split interleaving) | **#1214** (a booking edit deadlocks with a merge) | sibling of the same lock-order class; one commit group takes both (S6) |
 | H20 (the token floor is a length check) | **#1202** (the floor checks length only) | #1202 is the open decision; H20 adds the verified consequence and closes with it (S1) |
 | H49, H03 (throttle tables without an entry cap) | — | companion and application share one fix shape (S1) |
@@ -235,7 +238,7 @@ reproduction, payload or request sequence.
 
 | Id | Severity | Reach | Class | Fix | Pinning test |
 |---|---|---|---|---|---|
-| H27 | medium | hostile | supply chain | Move the lock to Bandit 1.14.0 (T-11), which fixes this advisory (in 1.13.0) and the twelve published after it; then turn cleartext HTTP/2 off and bound the listener (T-12) as defence in depth. Run the full check list on the bump: 1.14.0 tightens the HTTP/1 request line and changes the HTTP/2 defaults. | reproduction test on file (private report); promoted red-first in the batch |
+| H27 | medium | hostile | supply chain | Shipped in the T-11 hotfix (Bandit 1.14.0, PR #1239, merged 2026-10-27), which fixes this advisory and the twelve published after it; then turn cleartext HTTP/2 off and bound the listener (T-12) as defence in depth. | reproduction test on file (private report); promoted red-first in the batch |
 | H09 | low | hostile | resource exhaustion | Set the listener's bounds in the endpoint's http options: a connection cap, acceptor count and header read timeout sized for one operator plus the companion; cleartext HTTP/2 off; the container's file-descriptor limit above the connection cap; and a deployment-guide sentence that the port is meant to sit behind an L7 proxy with header timeouts (T-12). | reproduction test on file (private report); promoted red-first in the batch |
 | H69 | low | hostile | injection | Escape control characters on their way to the console through a logger filter for prod and dev; turn cleartext HTTP/2 off so no line feed can arrive inside a path; optionally answer 400 to a request path carrying a control byte ahead of the telemetry plug. | reproduction test on file (private report); promoted red-first in the batch |
 | H70 | low | hostile | resource exhaustion | Give every service in docker-compose.yml (and docker-compose.dev.yml) a rotating driver, logging: {driver: local} or json-file with max-size and max-file, and name log rotation in the deployment guide for runs outside Compose. | reproduction test on file (private report); promoted red-first in the batch |
@@ -326,7 +329,7 @@ reproduction, payload or request sequence.
 |---|---|---|---|---|---|
 | H64 | low | hostile | ci trust | In the invisible-Unicode gate skip only files an explicit binary allow-list or .gitattributes names, and report every other file that holds a NUL or does not decode as UTF-8 as a violation; run the gate's own unit tests in the pre-commit job. | reproduction test on file (private report); promoted red-first in the batch |
 | H65 | low | hostile | supply chain | Stop resolving packages at hook-install time: install the hook packages from the hashed requirements file through system hooks, or reimplement the four hooks as local scripts that need no third-party package; correct the CI comment either way. | reproduction test on file (private report); promoted red-first in the batch |
-| H28 | low | hygiene | supply chain | Declare `decimal` in mix.exs and move the lock to 3.1.2 in the T-11 hotfix, together with `plug_crypto` 2.2.1 (the secret key base in a stack trace on a wrongly typed argument, published 2026-10-23); take decimal 3.2 as its own reviewed bump, because it changes division and rounding results. | reproduction test on file (private report); promoted red-first in the batch |
+| H28 | low | hygiene | supply chain | Shipped in the T-11 hotfix (PR #1239): `decimal` declared in mix.exs and at 3.1.2, `plug_crypto` at 2.2.1, an invariant test pinning the floors; take decimal 3.2 as its own reviewed bump, because it changes division and rounding results. | reproduction test on file (private report); promoted red-first in the batch |
 | H63 | low | hygiene | ci trust | Move the three live-feed audits into a job of their own so a new advisory turns one check red while Credo, Sobelow, Dialyzer and the companion gates keep running, or let every deterministic step run when an earlier one fails; optionally run the advisories job on a weekly schedule. | reproduction test on file (private report); promoted red-first in the batch |
 | H66 | info | hygiene | docs-vs-code | Cut the calendar release only from a CI run that passed on main (a workflow_run trigger that checks out nothing from the triggering run, or a check-run query), have the tag job verify the tag is reachable from main and green, or reword the guide from 'known-good' to 'a merged point'. | written red-first in the batch |
 | H68 | info | hygiene | hardening gap | Add ci_test assertions: every workflow declares workflow-level permissions, ci.yml and commit-authorship.yml exactly `contents: read`, release.yml exactly `contents: write`; no workflow uses pull_request_target, workflow_run or issue_comment. | written red-first in the batch |
@@ -335,17 +338,18 @@ reproduction, payload or request sequence.
 
 ## Part 4 — Decisions for the owner (T-11 … T-21)
 
-### T-11 — Three lock moves ship as a hotfix ahead of the batch: Bandit 1.14.0, `plug_crypto` 2.2.1, `decimal` 3.1.2. **Recommend: yes, now**
+### T-11 — The advisory hotfix ahead of the batch: Bandit 1.14.0, `plug_crypto` 2.2.1, `decimal` 3.1.2 and the companion's npm locks. **Shipped: PR #1239, merged 2026-10-27**
 
-The red gate hides every later check (H63), and Dependabot cannot propose the
-`decimal` move because the package is not declared (H28). The Bandit
-advisories are the part that cannot wait: ten high-severity items on the
+The red gate hid every later check (H63), and Dependabot could not propose the
+`decimal` move because the package was not declared (H28). The Bandit
+advisories were the part that could not wait: ten high-severity items on the
 unauthenticated listener, H27 among them, all fixed in 1.14.0 (released
-2026-10-26) and 1.13.0 before it. The hotfix declares `decimal`, moves the
-three locks, and adds nothing else; it runs the full required check list,
-because Bandit 1.14.0 tightens the HTTP/1 request line and changes the HTTP/2
-defaults (the Compose smoke test and the socket tests are where a regression
-would show). The gate order change rides the batch.
+2026-10-26) and 1.13.0 before it. The hotfix declared `decimal`, moved the
+three Hex locks and the companion's eight npm lock entries (two high and four
+moderate advisories `npm audit` reported the same day), added an invariant
+test that pins the declaration and the floors, and passed the full required
+check list, Compose smoke test included. The gate order change (H63) rides the
+batch.
 
 ### T-12 — Cleartext HTTP/2 off, and the listener bounded, as defence in depth behind the Bandit move. **Recommend: yes**
 
@@ -446,7 +450,8 @@ can compute.
 ## Part 5 — The work ledger (filed after adoption)
 
 One tracker issue per group, thin pointers to this document's rows, filed at
-branch opening of the fix batch; the hotfix (T-11) is filed on adoption:
+branch opening of the fix batch; the hotfix (T-11) has shipped as PR #1239 and
+needs no issue:
 
 - S1 credentials, sessions and the perimeter: H03, H04, H18, H22, H41, H19,
   H20, H49, K02, K18 — one issue, with #1202 folded in.
