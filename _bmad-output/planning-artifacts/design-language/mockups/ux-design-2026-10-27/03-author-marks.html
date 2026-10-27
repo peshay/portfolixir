@@ -1,0 +1,201 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — the agent's mark on a rule's name and on the Tax page (Pick Q3; H14, K12)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: one rule (the name's mark takes the words line's voice). Every mark on this board is the existing author
+     mark of rule versions (risk_live.ex author_mark/1, DESIGN.md amendment
+     2026-09-26, pick G12.1-A): the word "Agent" after a middle dot, in the
+     line's own muted text, a .visually-hidden lead before it, no badge and
+     no colour. The frames are srcdoc iframes built from risk_live.ex
+     (policy_rules_section: #policy-findings, .policy-rule__name,
+     .policy-rule__words) and tax_live.ex (render/1: .tax-budget,
+     .budget-meter, [data-role=budget-basis], .tax-statement__head,
+     .tax-orders). "Heute" frames render app.css as shipped; "Nachher" and
+     variant frames add the empty proposal block, kept for the mechanics. -->
+<style id="proposal">
+  /* H14 — the name's mark: the words line's voice (12 px, muted), beside the
+     name's button and outside it, so the button's name stays the rule's
+     name. It never breaks inside "· Agent". K12 and Q3 need no CSS: their
+     mark is text in a line that is already muted; the basis line's
+     "(Agent)" is joined to its institution by a no-break space, so it never
+     starts a line alone. */
+  [data-role="policy-rule-name-author"] {
+    font-size: 12px;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-board > p.mock-note { max-width: 118ch; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul { margin: 0; }
+  .notes ul { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .consequence { margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--color-danger); background: var(--color-danger-soft); font-size: 12px; }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  .legend { display: grid; grid-template-columns: max-content 1fr; gap: 3px 10px; margin: 0; font-size: 12px; }
+  .legend dt { font-weight: 700; }
+  .legend dd { margin: 0; }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap { padding-left: 12px; padding-right: 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph { width: 390px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Board 03 — the agent's mark where a token's write was invisible: a rule's name on Risk, a statement and an allowance order on Tax.</b> <b>H14</b> (S7, class: integrity; fix: record who last named the rule, <code>name_author</code> from the actor in <code>create_rule</code> and <code>rename_rule</code>, an Agent mark beside the name on the Risk page) and <b>K12</b> (S7, class: integrity; fix: an actor-derived author on statement snapshots and allowance orders at create and on every update, a mark on the Tax page and in the budget's basis line, and a token's write no longer presented as a manual transcription). <b>Before/after</b> for the rule's name, the statement's head and the order list; <b>one pick</b>: <b>Q3 — where the budget's basis line marks the institution an agent's statement covers</b>: <b>A</b> — „(Agent)“ after that institution's name · <b>B</b> — a closing clause „· vom Agenten: Bank B“. <span class="rec">Recommended A</span> A comment naming „Q3 B“ changes it; silence adopts A. Every mark reuses rule versions' existing „· Agent“ (G12.1-A): no badge, no colour, a hidden lead for a reader. Every name and figure is invented. <b>Dashed = new.</b></div>
+<p class="phone-only phone-cap"><b>Board 03 at 390&nbsp;px.</b> Real 390-px viewports. H14 and K12 before/after; Q3 recommended A. All data invented. The arguments are in the 1200-px render.</p>
+
+<!-- ============================ H14 ============================ -->
+<section class="mock-board" id="h14">
+  <h2>① H14 — a rule an agent renamed carries the mark beside its name <small>Risiko → „Eigene Regeln“ · <code>RiskLive</code> <code>author_mark/1</code></small></h2>
+  <p class="mock-note desk-only"><b>The rules.</b> „Klumpengrenze Larkspur“: the operator created it and wrote its version; an API token renamed it on 21.10.2026 (it was „Larkspur max. 12 %“). „Cash-Puffer“: the agent wrote its version in force. „Anleihen im Band“: the agent named it and wrote its version. <b>Today</b> the mark follows the version only (DESIGN.md, 2026-09-26: „A rename is no version and moves no mark: the word follows the line, not the name“), so the token's rename reads as the operator's own name. <b>After</b> a second mark of the same anatomy follows the name, from <code>name_author</code>; its hidden lead says what it covers.</p>
+
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — „Klumpengrenze Larkspur“ trägt kein Zeichen, obwohl ein Token sie benannt hat</span><iframe data-tpl="risk" data-o='{"after":false}' title="H14 heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — „· Agent“ nach dem Namen (Name), wie nach der Zeile (Version)</span><iframe data-tpl="risk" data-o='{"after":true}' data-proposal title="H14 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="risk" data-o='{"after":false}' title="H14 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px</span><iframe data-tpl="risk" data-o='{"after":true}' data-proposal title="H14 nachher, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <ul>
+        <li><b>The same mark, one more place.</b> „· Agent“ after the name's button, outside it, in the muted line colour of the words below; hidden lead „Name von:“ („Named by:“). The version's mark keeps its place and its lead („Version in Kraft von:“), so a rule the agent both named and wrote reads „Anleihen im Band · Agent“ over „Drift · Anleihen · Band · Warnung · Agent“, and a reader hears which is which.</li>
+        <li><b>Only the exception is marked</b>, as G12.1-A rules: the operator's names carry nothing, so a portfolio without the agent's renames reads as before.</li>
+        <li><b>Scheduled and retired rules</b> (the two lists under the table) carry the name's mark after the name's link, the same way.</li>
+        <li><b>The dialog</b> names the rename in its head line: „Name von: Agent“ where the agent named it; its version list is unchanged.</li>
+        <li><b>The mark is the current name's author.</b> The journal keeps every rename and its actor; the page shows who named it last, as the version mark shows who wrote the version in force.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ K12 ============================ -->
+<section class="mock-board" id="k12">
+  <h2>② K12 — a statement or an allowance order the agent recorded or corrected <small>Vermögen → Steuern · <code>TaxLive</code> <code>source_label/1</code>, <code>orders_summary/1</code></small></h2>
+  <p class="mock-note desk-only"><b>The year.</b> Taxpayer „Family“, 2026, three institutions. Bank A's statement: the operator typed it. Bank B's: recorded by an API token. Bank C's: the operator typed it, a token corrected its allowance used on 22.10.2026. Bank B's allowance order: put by a token. <b>Today</b> <code>source_label("manual")</code> prints „manuell erfasst“ for all three — the source is system-set, and a token's write is stored as <code>manual</code> — and the budget meter, which sums the three, says nothing about who wrote them. <b>After</b> the row's head line ends with the existing mark: „erfasst · Agent“ for a statement the agent recorded (no longer „manuell“), „manuell erfasst · korrigiert · Agent“ for one the agent changed last; the allowance order list and its summary mark Bank B's order; the budget's basis line marks the institution (Q3).</p>
+
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — dreimal „manuell erfasst“; der Spielraum nennt niemanden</span><iframe data-tpl="tax" data-o='{"v":"today"}' title="K12 heute, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="tax" data-o='{"v":"today"}' title="K12 heute, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p class="consequence"><b>A token's figures move the trim budget unmarked.</b> „manuell erfasst“ tells the operator they transcribed Bank B's statement themselves; they did not, and the 1.284,50 EUR above counts it. ADR-0054 §3 promised every write attributed; the triage's T-16 names this residual.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Q3 — Variante A <span class="rec">empfohlen</span> — „(Agent)“ after the institution in the basis line</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — „Bank B (Agent), Bank C (Agent)“; Köpfe und Aufträge mit „· Agent“</span><iframe data-tpl="tax" data-o='{"v":"A"}' data-proposal title="K12 A, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — 390 px</span><iframe data-tpl="tax" data-o='{"v":"A"}' data-proposal title="K12 A, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>Why A.</b> The mark stands next to what it qualifies, as on Risk: in a comma list a closing „· Agent“ would read as a mark on the last institution or on the whole line, so the word goes in parentheses after the institution it covers. One word per institution; the hidden lead („Abrechnung von:“) tells a reader what it is. B repeats the institution's name in a second clause and grows the line by a clause for each institution, and the reader has to match the two lists.</p>
+      <dl class="legend">
+        <dt>Statement head</dt><dd>operator: „manuell erfasst“ (unchanged) · agent recorded: „erfasst · Agent“ · agent corrected last: „manuell erfasst · korrigiert · Agent“ (or „erfasst · Agent“ when the agent did both)</dd>
+        <dt>Basis line</dt><dd>„(Agent)“ after each institution whose counted statement the agent recorded or last corrected</dd>
+        <dt>Orders</dt><dd>„· Agent“ after the institution in the list; „(Agent)“ in the closed summary, the basis line's form</dd>
+      </dl>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Q3 — Variante B — a closing clause naming the institutions</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dk mock-frame mock-after desk-only"><span class="mock-tag vtag">B — „· vom Agenten: Bank B, Bank C“</span><iframe data-tpl="tax" data-o='{"v":"B","only":"budget"}' data-proposal title="K12 B, Desktop"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag vtag">B — 390 px</span><iframe data-tpl="tax" data-o='{"v":"B","only":"budget"}' data-proposal title="K12 B, 390 px"></iframe></div>
+  </div>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc, the
+   stylesheet by an absolute URL computed from this board) from the live
+   markup of risk_live.ex and tax_live.ex. German labels from
+   priv/gettext/de. Synthetic data only. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', location.href).href;
+const P = {
+  chev: '<path d="m9 6 6 6-6 6"/>',
+  kebab: '<circle cx="12" cy="6" r="1.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="12" cy="18" r="1.4"/>'
+};
+const svg = (n, s = 16, cls = '') => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"${cls ? ` class="${cls}"` : ''} aria-hidden="true">${P[n]}</svg>`;
+const mark = (lead, isNew, paren = false, role = 'policy-rule-author') => paren
+  ? `&nbsp;<span class="${isNew ? 'is-new' : ''}" data-role="tax-author">(<span class="visually-hidden">${lead} </span>Agent)</span>`
+  : ` <span class="${isNew ? 'is-new' : ''}" data-role="${role}">· <span class="visually-hidden">${lead} </span>Agent</span>`;
+const kebab = (row) => `<button type="button" class="row-actions__kebab" aria-label="Aktionen für ${row}" aria-haspopup="menu" aria-expanded="false">${svg('kebab')}</button>`;
+const elide = (t) => `<p class="elide">… ${t}</p>`;
+const wrap = (inner) => `<main class="app-main app-main--workspace"><div class="workspace-page">${inner}</div></main>`;
+
+/* ① Risk */
+const RULES = [
+  { name: 'Klumpengrenze Larkspur', nameAgent: true, words: 'Gewicht · <bdi>Larkspur Rail AG</bdi> · Obergrenze · hart', verAgent: false, measured: '13,1&nbsp;%', line: '12,0&nbsp;%', badge: ['badge--danger', 'verletzt · +1,1&nbsp;Pp'] },
+  { name: 'Cash-Puffer', nameAgent: false, words: 'Gewicht · Cash · Untergrenze · Warnung', verAgent: true, measured: '6,2&nbsp;%', line: '5,0&nbsp;%', badge: ['badge--neutral', 'eingehalten'] },
+  { name: 'Anleihen im Band', nameAgent: true, words: 'Drift · Anleihen · Band · Warnung', verAgent: true, measured: '-1,2&nbsp;Pp', line: '-3,0&nbsp;Pp … +3,0&nbsp;Pp', badge: ['badge--neutral', 'eingehalten'] }
+];
+function risk(o) {
+  const rows = RULES.map((r) => `<tr><td><button type="button" class="link-button policy-rule__name">${r.name}</button>${o.after && r.nameAgent ? mark('Name von:', true, false, 'policy-rule-name-author') : ''}<span class="policy-rule__words">${r.words}${r.verAgent ? mark('Version in Kraft von:', false) : ''}</span></td><td class="num">${r.measured}<span class="policy-rule__line-sub">Grenze ${r.line}</span></td><td class="num policy-col-line">${r.line}</td><td><span class="badge ${r.badge[0]}">${r.badge[1]}</span></td></tr>`).join('');
+  return wrap(`<section class="workspace-section policy-rules" id="policy-rules"><header class="section-head"><h2 id="policy-rules-title">Eigene Regeln <span class="section-head__meta">· 1 verletzt · 0 nicht bestimmbar · 2 eingehalten</span></h2><button type="button" class="button-secondary">Regel anlegen</button></header><div class="data-table-wrapper"><table class="data-table policy-findings-table risk-fit-table" id="policy-findings"><thead><tr><th>Regel</th><th class="num">Gemessen</th><th class="num policy-col-line">Grenze</th><th>Stand</th></tr></thead><tbody>${rows}</tbody></table></div>${elide('die Basiszeile „Ausgewertet beim Lesen, Stand 27.10.2026 …“')}</section>`);
+}
+
+/* ② Tax */
+function tax(o) {
+  const after = o.v !== 'today';
+  const instA = (name, agent) => (agent && o.v === 'A' ? `${name}${mark('Abrechnung von:', true, true)}` : name);
+  let inst = `${instA('Bank A', false)}, ${instA('Bank B', true)}, ${instA('Bank C', true)}`;
+  if (o.v === 'B') inst += ` <span class="is-new">· <span class="visually-hidden">Abrechnungen </span>vom Agenten: Bank B, Bank C</span>`;
+  const budget = `<div class="tax-budget-grid"><article class="stat tax-budget" data-role="budget-meter"><span>Steuerfreier Verkaufsspielraum</span><strong data-role="budget-value">1.284,50 <small class="value-suffix">EUR</small></strong><div class="budget-meter" aria-hidden="true"><div class="budget-meter__fill" style="width: 72%"></div></div><p class="summary-basis" data-role="budget-basis">Freistellungsauftrag 715,50 von 1.000,00 verbraucht · Stand 30.09.2026 <span>· ${inst}</span></p></article>${elide('„Zusammensetzung“')}</div>`;
+  if (o.only === 'budget') return wrap(`<section class="workspace-section">${budget}</section>`);
+  const head = (inst, label) => `<div class="tax-statement__head"><h3>${inst}</h3><span class="hint">30.09.2026 · Steuerjahr 2026 · ${label}</span>${kebab(`${inst}, 30.09.2026`)}</div>`;
+  const stmt = (inst, label, budgetValue) => `<li class="tax-statement">${head(inst, label)}${elide('die Zahlen der Abrechnung')}<p class="summary-basis">Steuerfreier Verkaufsspielraum bei diesem Institut: ${budgetValue}.</p></li>`;
+  const labelB = after ? `<span class="is-new">erfasst</span>${mark('Erfasst von:', true)}` : 'manuell erfasst';
+  const labelC = after ? `manuell erfasst <span class="is-new">· korrigiert</span>${mark('Zuletzt korrigiert von:', true)}` : 'manuell erfasst';
+  const list = `<ul class="tax-statements" role="list">${stmt('Bank A', 'manuell erfasst', '612,00')}${stmt('Bank B', labelB, '400,00')}${stmt('Bank C', labelC, '272,50')}</ul>`;
+  const sumB = after ? `Bank B 400,00${mark('Freistellungsauftrag von:', true, true)}` : 'Bank B 400,00';
+  const orderB = after ? `Bank B${mark('Freistellungsauftrag von:', true)}` : 'Bank B';
+  const orders = `<details class="tax-orders-disclosure" data-role="orders" open><summary class="disclosure-summary">${svg('chev', 12, 'disclosure-chevron')}Hinterlegte Freistellungsaufträge · Bank A 600,00 · ${sumB}</summary><p class="summary-basis">Was je Institut beauftragt wurde — zum Vergleich mit dem, was die Bank angewendet hat.</p><ul class="tax-orders" role="list"><li><span>Bank A</span><span class="num">600,00</span>${kebab('Bank A')}</li><li><span>${orderB}</span><span class="num">400,00</span>${kebab('Bank B')}</li></ul></details>`;
+  return wrap(`<section class="workspace-section">${elide('Steuerpflichtige Person „Family“ · Steuerjahr 2026')}${budget}</section><section class="workspace-section" id="tax-statements"><header class="section-head"><h2>Erfasste Abrechnungen</h2></header>${list}${orders}</section>`);
+}
+
+const TPL = { risk, tax };
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .app-main,.workspace-page{min-height:0 !important;} .is-new{outline:2px dashed var(--color-accent);outline-offset:2px;border-radius:4px;} .elide{margin:0;font-size:12px;color:#5a6577;font-style:italic;}</style>';
+
+let pending = 0;
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  let css = CSS_MOCK;
+  if ('proposal' in f.dataset) css += document.getElementById('proposal').outerHTML;
+  pending++;
+  f.addEventListener('load', () => {
+    f.style.height = Math.ceil(f.contentDocument.documentElement.scrollHeight) + 'px';
+    if (--pending === 0) document.body.dataset.ready = '1';
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>

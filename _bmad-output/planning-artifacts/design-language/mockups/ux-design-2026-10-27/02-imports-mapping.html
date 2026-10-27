@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Imports: the security mapping without a catalog per row, and a ticker the catalog refuses (Picks Q1, Q2; H45, H57)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the rules the H45 and H57 stories add to app.css. The
+     frames are drawn on top of board 07 of the 2026-10-09 pass as adopted
+     (N20 A, N21 A, #1179's „Eintrag“): its markup and classes ship in
+     imports_live.ex (render_preview/1: #import-security-mapping,
+     .mapping-grid, .mapping-row, .mapping-target, .mapping-basis,
+     security_choice_select/1, isin_change_offer/1; the parser-warnings
+     data note) and in the merge dialog's step 1 (.search-field,
+     .merge-targets, .merge-target), which Q1 B reuses. "Heute" frames
+     render app.css as shipped; variant frames add this block. -->
+<style id="proposal">
+  /* ① Q1 B — the row's target when nothing is remapped: one line saying
+     what the import does, and the control that opens the picker. */
+  .mapping-target__current {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 10px;
+    font-size: 13px;
+  }
+
+  .mapping-target__current b {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  /* The picker, opened on the operator's ask: the merge dialog's search
+     field and its list of radio cards, inside the row's target column. */
+  .mapping-remap {
+    display: grid;
+    gap: 8px;
+    margin-top: 6px;
+    min-width: 0;
+  }
+
+  .mapping-remap .search-field {
+    margin: 0;
+  }
+
+  .mapping-remap .merge-targets legend {
+    font-size: 12px;
+  }
+
+  /* The decision row's search link stands clear of its cards. */
+  [data-role="security-decision"] .merge-targets + .link-button {
+    margin-top: 8px;
+  }
+
+  .mapping-remap__basis {
+    margin: 0;
+    font-size: 12px;
+    color: var(--color-text-muted);
+  }
+</style>
+<!-- Variant Q1 A only: one shared datalist; each row a text input. -->
+<style id="proposal-q1a">
+  .mapping-row input[list] {
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .datalist-mock {
+    margin-top: 2px;
+    border: 1px solid var(--color-border-strong);
+    border-radius: 6px;
+    background: var(--color-bg-elevated);
+    box-shadow: var(--shadow-md);
+    font-size: 13px;
+    overflow: hidden;
+  }
+
+  .datalist-mock div {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .datalist-mock div:last-child {
+    border-bottom: 0;
+  }
+
+  .datalist-mock small {
+    display: block;
+    color: var(--color-text-muted);
+    font-size: 11.5px;
+  }
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-board > p.mock-note { max-width: 118ch; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul { margin: 0; }
+  .notes ul { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .consequence { margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--color-danger); background: var(--color-danger-soft); font-size: 12px; }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap { padding-left: 12px; padding-right: 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph { width: 390px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Board 02 — Imports (Transaktionen → Import): the preview's security mapping, on top of board 07 of 2026-10-09 as adopted.</b> <b>Two picks.</b> <b>Q1 — H45</b> (S4, class: resource exhaustion; fix: the catalog's options are rendered once, a shared datalist or a searchable picker loaded on demand, instead of a full select per row; „create“ stays the per-row default and the remap control opens only when the operator asks): <b>A</b> — one shared <code>&lt;datalist&gt;</code>, each row a text input · <b>B</b> — „Wird neu angelegt“ stays the row's line; „Anders zuordnen…“ opens the merge dialog's search and its radio cards in the row. <span class="rec">Recommended B</span> <b>Q2 — H57</b> (S5, class: hardening gap; fix: the catalog's ticker rule applies in the import, as a named row error or as a row warning that drops the ticker): <b>A</b> — a row error, the security's entries are not imported · <b>B</b> — a row warning, the security is created without the ticker. <span class="rec">Recommended B</span> A comment naming „Q1 A“ or „Q2 A“ on the planning PR changes a pick; silence adopts B. Every name, identifier and count is invented. <b>Dashed = new.</b></div>
+<p class="phone-only phone-cap"><b>Board 02 at 390&nbsp;px.</b> Real 390-px viewports. Recommended: Q1&nbsp;B, Q2&nbsp;B. All data invented. The desktop frames and the arguments are in the 1200-px render.</p>
+
+<!-- ============================ Q1 ============================ -->
+<section class="mock-board" id="q1">
+  <h2>① Q1 · H45 — the security mapping without the catalog in every row <small>„Wertpapiere aus dem Export“ · <code>security_choice_select/1</code></small></h2>
+  <p class="mock-note desk-only"><b>The file</b> brings two securities the catalog does not know and one it knows twice. „Sorrel Bay Foods AG“ is new. „Larkspur Rail Holding AG“ is what Portfolio Performance now calls „Larkspur Rail AG“ (a rename the operator recognises; the file's ISIN differs from the stored one, so a remap offers the ISIN change). „Brightwater Utilities SE“ matches two stored securities by name. <b>Today</b> <code>security_choice_select/1</code> renders <code>&lt;option&gt;</code>s for every security of the catalog (<code>@existing_securities</code>, <code>Catalog.list_securities(is_benchmark: false)</code>) in every row that has a choice: the plain creates, every decision row and every row that books nothing. The page grows with rows × catalog, and every re-render of the preview sends it again.</p>
+
+  <p class="cap">Heute — a select of the whole catalog per row (one opened)</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — jede Zeile trägt den ganzen Katalog; die mittlere Liste geöffnet gezeichnet</span><iframe data-tpl="map" data-o='{"v":"today"}' title="Q1 heute, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="map" data-o='{"v":"today"}' title="Q1 heute, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p class="consequence"><b>The cost is the catalog times the rows.</b> A security that needs no decision still carries the whole list; on a phone each opened select is the system's full-screen wheel of every security, alphabetical, with no search. The decision row lists its two candidates as text and then asks the same question again through the whole catalog.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A — one shared datalist; every row a text input</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">A — „Lark“ getippt; die Vorschläge zeichnet der Browser</span><iframe data-tpl="map" data-o='{"v":"A"}' data-proposal data-css="proposal-q1a" title="Q1 A, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag vtag">A — 390 px</span><iframe data-tpl="map" data-o='{"v":"A"}' data-proposal data-css="proposal-q1a" title="Q1 A, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>A</b> renders the catalog once, as <code>&lt;datalist id="import-security-options"&gt;</code> under <code>phx-update="ignore"</code>, and each row becomes <code>&lt;input list=…&gt;</code> whose empty value means „create“. <b>Against it:</b></p>
+      <ul>
+        <li><b>The whole catalog still goes to the page</b>, once per preview instead of once per row: the bound is better, not gone.</li>
+        <li><b>A datalist answers with text, not with a record.</b> The typed or picked label has to be matched back to a security; two securities with one label (twins, the decision row's case) cannot be told apart by the label alone, so the input needs a hidden id beside it and a script to keep the two in step.</li>
+        <li><b>The suggestions are the browser's</b>: their look, their filtering (prefix or substring), their keyboard behaviour and what a screen reader announces differ between browsers, and on a phone they shrink to the keyboard's suggestion strip. None of it can be styled to the design language or tested by the suite.</li>
+        <li><b>„Create“ becomes an empty field</b> — the default reads as a missing answer.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B <span class="rec">empfohlen</span> — „Wird neu angelegt“ stays the row; „Anders zuordnen…“ opens a search in the row</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">B — ruhend: jede Zeile sagt, was der Import tut; die Entscheidungszeile wählt unter ihren Kandidaten</span><iframe data-tpl="map" data-o='{"v":"B"}' data-proposal title="Q1 B ruhend, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">B — „Anders zuordnen…“ geöffnet, „Lark“ gesucht</span><iframe data-tpl="map" data-o='{"v":"Bopen"}' data-proposal title="Q1 B offen, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">B — zugeordnet: die Zeile nennt das Ziel; der ISIN-Wechsel wird angeboten wie heute</span><iframe data-tpl="map" data-o='{"v":"Bdone"}' data-proposal title="Q1 B zugeordnet, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">B ruhend — 390 px</span><iframe data-tpl="map" data-o='{"v":"B"}' data-proposal title="Q1 B ruhend, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">B offen — 390 px</span><iframe data-tpl="map" data-o='{"v":"Bopen"}' data-proposal title="Q1 B offen, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>Why B.</b></p>
+      <ul>
+        <li><b>The page carries no catalog at rest.</b> A row that is created as the file names it — the common case — renders one line and one button. The picker exists only in the row the operator opened, and holds only what the search found.</li>
+        <li><b>It is a picker the app already has.</b> The merge dialog's step 1 searches the catalog server-side („Name, ISIN, WKN oder Ticker“, debounced, capped, nothing suggested before a search) and lists radio cards with each security's currency and ISIN (<code>.search-field</code>, <code>.merge-targets</code>, <code>.merge-target</code>). One search, one card anatomy, one set of tests; the cards keep the 44 px touch floor and the focus ring the merge dialog's closing act gave them.</li>
+        <li><b>Accessible by construction:</b> a labelled search field and a fieldset of native radios, read and operated the same in every browser and by the suite's LiveView tests; no browser-drawn popup.</li>
+        <li><b>The decision row answers its own question</b>: its candidates become the first radio cards, with „+ Neu anlegen“ beside them and „Anderes Wertpapier suchen…“ for the rare case that is neither — instead of the candidates as text and then the whole catalog.</li>
+        <li><b>The default reads as an answer</b> („Wird neu angelegt: Sorrel Bay Foods AG“), and a remap reads as one („Zugeordnet: Larkspur Rail AG · EUR · DE000000001L · Ändern…“). The ISIN-change offer of <code>isin_change_offer/1</code> follows the chosen target as today.</li>
+        <li><b>Board 07 stands:</b> N20's recount runs on a remap exactly as on an account choice; a security row's count, where it has one, dims with the cue while the dry run answers.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ Q2 ============================ -->
+<section class="mock-board" id="q2">
+  <h2>② Q2 · H57 — a ticker in the file that the catalog refuses <small>Vorschau → „Parser-Warnungen“</small></h2>
+  <p class="mock-note desk-only"><b>The file</b> (JSON, 24 entries) names „Sorrel Bay Foods AG“ with a ticker the catalog's rule refuses (<code>Security.changeset</code>, „is not a ticker symbol“); its buy and two dividends are entries 12, 15 and 21. <b>Today</b> the preview does not apply the ticker rule, so nothing names it; „Import bestätigen“ fails at the security's insert, the whole apply rolls back, and the page's error reads the changeset's message — in English, because the errors domain has no German for it.</p>
+
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — nach „Import bestätigen“: alles zurückgerollt, die Meldung auf Englisch</span><iframe data-tpl="tick" data-o='{"v":"today"}' title="Q2 heute, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="tick" data-o='{"v":"today"}' title="Q2 heute, 390 px"></iframe></div>
+    <div class="ph mock-frame mock-after"><span class="mock-tag">B — 390 px</span><iframe data-tpl="tick" data-o='{"v":"B"}' data-proposal title="Q2 B, 390 px"></iframe></div>
+  </div>
+  <p class="cap" style="margin-top:22px">Variante A — a named row error: the security's entries are not imported</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag vtag">A — drei Einträge nicht übernommen</span><iframe data-tpl="tick" data-o='{"v":"A"}' data-proposal title="Q2 A, Desktop"></iframe></div>
+  </div>
+  <p class="cap" style="margin-top:22px">Variante B <span class="rec">empfohlen</span> — a row warning: the security is created without the ticker</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dk mock-frame mock-after desk-only"><span class="mock-tag">B — eine Warnung, alle 24 Einträge übernommen</span><iframe data-tpl="tick" data-o='{"v":"B"}' data-proposal title="Q2 B, Desktop"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag vtag">A — 390 px</span><iframe data-tpl="tick" data-o='{"v":"A"}' data-proposal title="Q2 A, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>Why B.</b> A ticker is the weakest identifier the file carries and the only one the catalog may lack: the security is still matched and created by its ISIN or its name (ADR-0029's tiers), and its bookings are the operator's records. A drops three bookings to protect a field that only the quote sync reads; B keeps every booking, says once what was left out and why, and names the remedy — the ticker set by hand on the security, where the rule's field error explains itself. The warning is a parser warning like the others (#1188's row errors and #1179's „Eintrag“, board 07), so it adds no anatomy. A is the honest alternative if a security without its ticker should never be created silently.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc, the
+   stylesheet by an absolute URL computed from this board) from the live
+   markup of imports_live.ex (render_preview/1) and merge_dialog.ex
+   (render_target_step/1), with board 07 of 2026-10-09's adopted state.
+   German labels from priv/gettext/de. Synthetic data only. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', location.href).href;
+const P = {
+  search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+  tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>',
+  oct: '<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>',
+  ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>',
+  copy: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/>',
+  bars: '<path d="M4 4h16M4 12h16M4 20h16"/>',
+  upload: '<path d="M12 3v12M7 8l5-5 5 5"/><path d="M5 19h14"/>'
+};
+const svg = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+const NEW = (t, on = true) => (on ? `<span class="is-new">${t}</span>` : t);
+const nw = (on) => (on ? ' is-new' : '');
+function note(sev, body, attrs = '') {
+  const g = { note: 'ast', attention: 'tri', problem: 'oct' }[sev];
+  const w = { note: 'Hinweis', attention: 'Achtung', problem: 'Problem' }[sev];
+  return `<div class="data-note data-note--${sev}"${attrs}><span class="data-note__icon" aria-hidden="true">${svg(g, 14)}</span><span class="data-note__word">${w}</span><div class="data-note__body">${body}</div></div>`;
+}
+const elide = (t) => `<p class="elide">… ${t}</p>`;
+function page(inner, o = {}) {
+  const tabs = o.tabs ? `<nav class="area-tabs" aria-label="Bereichs-Tabs"><a class="area-tab"><span class="area-tab__icon" aria-hidden="true">${svg('bars', 14)}</span><span class="area-tab__label">Historie</span></a><a class="area-tab is-active" aria-current="page"><span class="area-tab__icon" aria-hidden="true">${svg('upload', 14)}</span><span class="area-tab__label">Import</span></a></nav>` : '';
+  const err = o.error ? `<p class="alert-error" role="alert">${o.error}</p>` : '';
+  return `<main class="app-main app-main--workspace"><div id="imports-workspace" class="workspace-page">${tabs}${err}<section class="workspace-section">${inner}</section></div></main>`;
+}
+
+/* The catalog, invented. */
+const CATALOG = [
+  'Arbolia Inc. · USD', 'Brightwater Utilities SE · EUR · DE000000000B', 'Brightwater Utilities SE · EUR',
+  'Corvane Energy ASA · NOK', 'Fennwick Labs AG · EUR', 'Halvorsen Mills AG · EUR · DE000000000H',
+  'Kestrel Point AG · EUR', 'Larkspur Rail AG · EUR · DE000000001L', 'Larkspur Rail AG 4,00 % Anleihe 2031 · EUR · XSLARKSPUR33',
+  'Quillon Textiles SA · EUR', 'Tamsin Robotics Corp. · USD', 'Velden Water AG · CHF', 'Wrenfield Gardens AG · EUR'
+];
+const fullSelect = (first, open) => `<select${open ? ' size="9" class="is-open-mock"' : ''}>${first}${CATALOG.map((c) => `<option>${c}</option>`).join('')}</select>`;
+const srcCell = (name) => `<div class="source"><small>PP-Wertpapier</small>${name}</div>`;
+const AMBIG = 'Mehrere bestehende Wertpapiere teilen diesen Identifikator — das richtige auswählen oder ein neues Wertpapier anlegen.';
+const ISIN_OFFER = '<label><input type="checkbox"><span>DE000000002L als ISIN-Wechsel erfassen (die aktuelle ISIN DE000000001L wird ein Alt-ISIN-Alias)</span></label>';
+
+function card(name, meta, books, checked, extra = '') {
+  return `<label class="merge-target${checked ? ' is-on' : ''}"><input type="radio" name="pick"${checked ? ' checked' : ''}><span class="merge-target__name"><b>${name}</b>${meta ? `<small>${meta}</small>` : ''}</span><span class="merge-target__balance num">${books}</span>${extra}</label>`;
+}
+function bRow(name, state) {
+  if (state === 'rest') {
+    return `<div class="mapping-row">${srcCell(name)}<div class="mapping-target"><span class="mapping-target__current is-new"><span>Wird neu angelegt: <b>${name}</b></span><button type="button" class="link-button">Anders zuordnen…</button></span></div></div>`;
+  }
+  if (state === 'open') {
+    return `<div class="mapping-row">${srcCell(name)}<div class="mapping-target"><span class="mapping-target__current"><span>Wird neu angelegt: <b>${name}</b></span></span><div class="mapping-remap is-new" role="group" aria-label="Anders zuordnen: ${name}"><label class="search-field">${svg('search')}<input type="search" value="Lark" aria-label="Wertpapier suchen: Name, ISIN, WKN oder Ticker" placeholder="Name, ISIN, WKN oder Ticker"></label><fieldset class="merge-targets"><legend>Zuordnen zu</legend>${card(`+ Neu anlegen: ${name}`, '', '', true)}${card('Larkspur Rail AG', 'EUR · DE000000001L · angelegt 14.02.2025', '9 Buchungen', false)}${card('Larkspur Rail AG 4,00 % Anleihe 2031', 'EUR · XSLARKSPUR33 · angelegt 03.03.2026', '2 Buchungen', false)}</fieldset><p class="mapping-remap__basis">Gesucht wird im Katalog nach Name, ISIN, WKN und Ticker; vorgeschlagen wird nichts.</p></div></div></div>`;
+  }
+  /* done */
+  return `<div class="mapping-row">${srcCell(name)}<div class="mapping-target"><span class="mapping-target__current is-new"><span>Zugeordnet: <b>Larkspur Rail AG</b> · EUR · DE000000001L</span><button type="button" class="link-button">Ändern…</button></span>${ISIN_OFFER}</div></div>`;
+}
+function bDecision() {
+  return `<div class="mapping-row" data-role="security-decision">${srcCell('Brightwater Utilities SE')}<div><p class="muted">${AMBIG}</p><fieldset class="merge-targets is-new"><legend class="visually-hidden">Zuordnen zu</legend>${card('Brightwater Utilities SE', 'EUR · DE000000000B · angelegt 08.01.2025', '14 Buchungen', false)}${card('Brightwater Utilities SE', 'EUR · ohne ISIN · angelegt 21.07.2026', '1 Buchung', false)}${card('+ Neu anlegen: Brightwater Utilities SE', '', '', false)}</fieldset><button type="button" class="link-button is-new">Anderes Wertpapier suchen…</button></div></div>`;
+}
+function map(o) {
+  const head = elide('„Vorschau“, Quellformat: JSON, die Karten, „Anzahl pro Art“; „Verrechnungskonten aus dem Export“ und „Depots aus dem Export“ wie Board 07 (N20 A)');
+  const matched = '<details data-role="matched-securities"><summary>9 Wertpapiere passen zu bestehenden Einträgen</summary></details>';
+  let creates;
+  let decision;
+  if (o.v === 'today') {
+    const r = (n, open) => `<div class="mapping-row">${srcCell(n)}${fullSelect(`<option selected>+ Neu anlegen: ${n}</option>`, open)}</div>`;
+    creates = r('Sorrel Bay Foods AG', false) + r('Larkspur Rail Holding AG', true);
+    decision = `<div class="mapping-row" data-role="security-decision">${srcCell('Brightwater Utilities SE')}<div><p class="muted">${AMBIG}</p><ul><li>Brightwater Utilities SE · EUR · DE000000000B</li><li>Brightwater Utilities SE · EUR</li></ul>${fullSelect('<option selected>Entscheiden…</option><option>+ Neu anlegen: Brightwater Utilities SE</option>', false)}</div></div>`;
+  } else if (o.v === 'A') {
+    const r = (n, typed) => `<div class="mapping-row">${srcCell(n)}<div><input class="is-new" list="import-security-options" value="${typed || ''}" placeholder="+ Neu anlegen: ${n}" aria-label="Zuordnung für ${n}">${typed ? `<div class="datalist-mock" aria-hidden="true"><div>Larkspur Rail AG<small>EUR · DE000000001L</small></div><div>Larkspur Rail AG 4,00 % Anleihe 2031<small>EUR · XSLARKSPUR33</small></div></div>` : ''}</div></div>`;
+    creates = r('Sorrel Bay Foods AG') + r('Larkspur Rail Holding AG', 'Lark');
+    decision = `<div class="mapping-row" data-role="security-decision">${srcCell('Brightwater Utilities SE')}<div><p class="muted">${AMBIG}</p><ul><li>Brightwater Utilities SE · EUR · DE000000000B</li><li>Brightwater Utilities SE · EUR</li></ul><input class="is-new" list="import-security-options" placeholder="Entscheiden…" aria-label="Zuordnung für Brightwater Utilities SE"></div></div><datalist id="import-security-options"></datalist>`;
+  } else {
+    const larkState = o.v === 'Bopen' ? 'open' : o.v === 'Bdone' ? 'done' : 'rest';
+    creates = bRow('Sorrel Bay Foods AG', 'rest') + bRow('Larkspur Rail Holding AG', larkState);
+    decision = bDecision();
+  }
+  const count = o.v === 'Bdone' ? '1 neues Wertpapier wird angelegt' : '2 neue Wertpapiere werden angelegt';
+  const body = `<section class="panel inner" id="import-security-mapping"><h3>Wertpapiere aus dem Export</h3>${matched}<details data-role="plain-creates" open><summary>${count}</summary><div class="mapping-grid">${creates}</div></details><div class="mapping-grid">${decision}</div></section>`;
+  return page(head + body + elide('„Import bestätigen“'));
+}
+
+/* ② Q2 — the ticker */
+function warnings(rows) {
+  return note('attention', `<div class="parser-warnings__head"><h3 id="parser-warnings-title">Parser-Warnungen</h3><button type="button" class="icon-button" aria-label="Parser-Warnungen kopieren" title="Parser-Warnungen kopieren">${svg('copy')}</button></div><pre class="parser-warnings__rows" tabindex="0">${rows.join('\n')}</pre>`, ' data-role="parser-warnings" role="region"');
+}
+function stats(cards) {
+  return `<div class="import-stats">${cards.map(([l, v, w]) => `<div class="import-stat-card${w ? ' warning' : ''}"><span class="label">${l}</span><span class="value">${v}</span></div>`).join('')}</div>`;
+}
+const head = '<h2>Vorschau</h2><p class="muted">Quellformat: JSON</p>';
+const actions = '<div class="actions"><button type="submit" class="button-primary">Import bestätigen</button><button type="button">Verwerfen</button></div>';
+function tick(o) {
+  if (o.v === 'today') {
+    return page(head + stats([['Einträge', 24], ['Wertpapiere', 5], ['Verrechnungs&shy;konten', 2], ['Depots', 1]]) + elide('„Anzahl pro Art“; keine Parser-Warnungen; die Zuordnung: „Sorrel Bay Foods AG“ wird neu angelegt') + actions,
+      { tabs: true, error: 'Anlegen des Wertpapiers fehlgeschlagen: Ticker is not a ticker symbol' });
+  }
+  if (o.v === 'A') {
+    const w = ['Eintrag 12', 'Eintrag 15', 'Eintrag 21'].map((e) => `<span class="is-new">${e}: Sorrel Bay Foods AG: Der Ticker aus der Datei ist kein gültiges Ticker-Symbol — Eintrag nicht übernommen. Das Wertpapier von Hand anlegen und die Einträge buchen.</span>`);
+    return page(head + stats([['Einträge', 21], ['Wertpapiere', 4], ['Verrechnungs&shy;konten', 2], ['Depots', 1], ['Warnungen', 3, true]]) + warnings(w) + elide('die Zuordnung der übrigen 21 Einträge') + actions, { tabs: true });
+  }
+  const w = ['<span class="is-new">Eintrag 12: Sorrel Bay Foods AG: Der Ticker aus der Datei ist kein gültiges Ticker-Symbol und wird nicht übernommen; das Wertpapier wird ohne Ticker angelegt. Den Ticker danach am Wertpapier erfassen.</span>'];
+  return page(head + stats([['Einträge', 24], ['Wertpapiere', 5], ['Verrechnungs&shy;konten', 2], ['Depots', 1], ['Warnungen', 1, true]]) + warnings(w) + elide('die Zuordnung: „Sorrel Bay Foods AG“ wird neu angelegt') + actions, { tabs: true });
+}
+
+const TPL = { map, tick };
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .app-main,.workspace-page{min-height:0 !important;} .is-new{outline:2px dashed var(--color-accent);outline-offset:2px;border-radius:4px;} .elide{margin:0;font-size:12px;color:#5a6577;font-style:italic;} pre span.is-new{outline:none;border-radius:2px;background:color-mix(in srgb,var(--color-accent) 12%,transparent);box-shadow:inset 0 -2px 0 var(--color-accent);} select.is-open-mock{height:auto;}</style>';
+
+let pending = 0;
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  let css = CSS_MOCK;
+  if ('proposal' in f.dataset) css += document.getElementById('proposal').outerHTML;
+  if (f.dataset.css) css += document.getElementById(f.dataset.css).outerHTML;
+  pending++;
+  f.addEventListener('load', () => {
+    f.style.height = Math.ceil(f.contentDocument.documentElement.scrollHeight) + 'px';
+    if (--pending === 0) document.body.dataset.ready = '1';
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>

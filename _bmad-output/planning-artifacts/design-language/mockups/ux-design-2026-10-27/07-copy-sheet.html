@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — the copy sheet: a field error or a named answer where a page crashed (H31, K13, H36, H37, H39, H56)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: the rule the K13 and H36 stories add to app.css (none
+     beyond the field association) and the strings. The frames are srcdoc
+     iframes built from portfolio_accounts/account_form_dialog.ex
+     (render_form/1, text_field/1), tax_live.ex (the statement form and its
+     problem note), securities_live.ex (the list's sort toggles and the page's
+     inline result) and AppShell. "Heute" frames show what the operator's
+     screen shows after the page process stopped: the LiveView remounts,
+     the dialog or form is closed, the input is gone, nothing is said.
+     "Nachher" frames add this block. -->
+<style id="proposal">
+  /* K13 — the account dialog's text fields, now associated with their
+     error (aria-invalid + aria-describedby): app.css's
+     [aria-invalid="true"] rule already draws the danger border, so no new
+     rule is needed. Kept empty for the mechanics. */
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-board > p.mock-note { max-width: 118ch; }
+  .col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul { margin: 0; }
+  .notes ul { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code, .copy code { font-size: 11.5px; }
+  .dl { width: 522px; flex: none; }
+  .dl iframe { display: block; width: 520px; border: 0; }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  .copy { width: 100%; border-collapse: collapse; font-size: 12px; background: var(--color-bg-elevated); border: 1px solid var(--color-border); }
+  .copy th { text-align: left; font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; color: var(--color-text-muted); background: var(--color-bg-muted); padding: 6px 8px; }
+  .copy td { padding: 7px 8px; border-top: 1px solid var(--color-border); vertical-align: top; }
+  .copy td:first-child { font-weight: 700; white-space: nowrap; }
+  .copy .was { color: var(--color-danger); }
+  .wrap-x { overflow-x: auto; }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap { padding-left: 12px; padding-right: 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .dl, .ph { width: 390px; }
+    .dl iframe { width: 390px; }
+    .copy { font-size: 11.5px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Board 07 — the copy sheet: where a page stopped, it now answers.</b> Six rows of the triage give a page (or the API) a field error or a named answer where today the page process stops and the screen remounts with nothing said: <b>K13</b> (a control character in an account name or a new tag), <b>H36</b> (the statement's taxpayer), <b>H37</b> (sorting by a registry number), <b>H39</b> (a second price sync while one runs), <b>H56</b> (an import file whose version is not a scalar), <b>H31</b> (a category position out of range — API and MCP only). <b>Before/after, nothing to pick.</b> Every string follows the errors domain's existing wording where one exists (<code>priv/gettext/de/LC_MESSAGES/errors.po</code>) and EXPERIENCE.md's rules: impersonal, the fact and its remedy, „&lt;label&gt; &lt;message&gt;“ for a field. Every name is invented. <b>Dashed = new.</b></div>
+<p class="phone-only phone-cap"><b>Board 07 at 390&nbsp;px.</b> The copy sheet and the four frames that render. All data invented.</p>
+
+<!-- ============================ the sheet ============================ -->
+<section class="mock-board" id="sheet">
+  <h2>① The strings <small>German first, as the page shows it; the msgid in English</small></h2>
+  <div class="wrap-x">
+  <table class="copy">
+    <thead><tr><th>Row</th><th>Where</th><th>Today</th><th>After — German</th><th>After — msgid</th></tr></thead>
+    <tbody>
+      <tr><td>K13</td><td>Konten &amp; Depots → „Depot &amp; Konto anlegen“, the name fields</td><td class="was">the page remounts; the dialog closes, the input is lost, nothing is said</td><td>under the field: „darf keine Steuerzeichen und keine Zeilenumbrüche enthalten“ (errors domain, existing)</td><td>must not contain control characters or line breaks</td></tr>
+      <tr><td>K13</td><td>the same dialog, „Neuer Tag (optional)“; the Imports page's bucket tag</td><td class="was">as above</td><td>the dialog's alert: „Neuer Tag darf keine Steuerzeichen und keine Zeilenumbrüche enthalten.“</td><td>New tag %{message}. (label + errors-domain message)</td></tr>
+      <tr><td>H36</td><td>Vermögen → Steuern → „Abrechnung erfassen“, „Steuerpflichtige Person“</td><td class="was">as above</td><td>the form's problem note: „Steuerpflichtige Person: darf keine Steuerzeichen und keine Zeilenumbrüche enthalten“; the field <code>aria-invalid</code></td><td>(existing errors-domain message; the label „Taxpayer“ replaces the raw key)</td></tr>
+      <tr><td>H36</td><td>API and MCP: tax parameters and statement holder</td><td class="was">500</td><td>— (the API answers in English)</td><td>422, the field's existing message</td></tr>
+      <tr><td>H37</td><td>Wertpapiere, sorting by „Rang Marktkapitalisierung“</td><td class="was">the list remounts in name order; nothing said</td><td>the list sorts; a stored value that is no number sorts with the empty ones, last</td><td>— (no string)</td></tr>
+      <tr><td>H37</td><td>API and MCP: a security's attributes</td><td class="was">accepted, then breaks the sort</td><td>—</td><td>422: attributes: market_cap_rank must be a whole number</td></tr>
+      <tr><td>H39</td><td>Wertpapiere, „Kurse aktualisieren“ while the scheduled or another window's sync runs</td><td class="was">a second sync runs beside the first</td><td>the page's result (Hinweis): „Eine Kursaktualisierung aller Wertpapiere läuft bereits; sie wurde nicht ein zweites Mal gestartet.“</td><td>A price sync of every security is already running; it was not started a second time.</td></tr>
+      <tr><td>H56</td><td>Transaktionen → Import, a file whose version field is not a number or a text</td><td class="was">the page remounts; the file is gone, nothing is said</td><td>„Die Datei ist nicht als Portfolio-Performance-Export lesbar.“ (existing)</td><td>The file could not be read as a Portfolio Performance export.</td></tr>
+      <tr><td>H31</td><td>API and MCP: a classification's or category's position</td><td class="was">500</td><td>— (no page posts a position)</td><td>422: position must be greater than or equal to / less than or equal to %{number} (errors domain, existing); the MCP schemas gain the same minimum and maximum</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ============================ K13 ============================ -->
+<section class="mock-board" id="k13">
+  <h2>② K13 — the account dialog answers with a field error <small>„Neues Verrechnungskonto“ · <code>AccountFormDialog.render_form/1</code></small></h2>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dl mock-frame mock-before"><span class="mock-tag">Heute — die Seite lädt neu: kein Dialog, keine Eingabe, kein Wort</span><iframe data-tpl="crash" data-o='{"p":"accounts"}' title="K13 heute"></iframe></div>
+    <div class="dl mock-frame mock-after"><span class="mock-tag">Nachher — der Dialog bleibt offen, mit Feldfehler und Hinweis oben</span><iframe data-tpl="acct" data-o='{}' data-proposal title="K13 nachher"></iframe></div>
+    <div class="notes desk-only">
+      <ul>
+        <li><b>Refuse before binding</b> (the fix): the name and the tag run the text rule before any lookup, so the dialog's own refusal paths answer.</li>
+        <li><b>The field is associated with its error</b> (UX-DR13): today <code>text_field/1</code> renders <code>.field-error</code> under the input with neither <code>aria-invalid</code> nor <code>aria-describedby</code>; the story adds both (found while drawing 1). The danger border is app.css's existing <code>[aria-invalid="true"]</code> rule.</li>
+        <li><b>The typed input stays</b>, as State Patterns → Error — validation requires.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ H36 ============================ -->
+<section class="mock-board" id="h36">
+  <h2>③ H36 — the statement form names the taxpayer field <small>„Abrechnung erfassen“ · <code>TaxLive</code> <code>error_text/1</code></small></h2>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dl mock-frame mock-before"><span class="mock-tag">Heute — die Seite lädt neu: das Formular ist zu, die Zahlen sind fort</span><iframe data-tpl="crash" data-o='{"p":"tax"}' title="H36 heute"></iframe></div>
+    <div class="dl mock-frame mock-after"><span class="mock-tag">Nachher — die Problem-Notiz mit dem Feldnamen; das Feld markiert</span><iframe data-tpl="tax" data-o='{}' data-proposal title="H36 nachher"></iframe></div>
+    <div class="notes desk-only">
+      <ul>
+        <li><b>The statement changeset checks the holder's text rule before the profile lookup</b>, the guard the allowance-order path already carries; the refusal then reaches the form's existing problem note.</li>
+        <li><b>The note names the field by its label.</b> Today <code>error_text/1</code> labels only the money fields and prints any other field's key: a refused institution reads „institution: …“. The story labels the holder, the institution and the date (found while drawing 2), and puts <code>aria-invalid</code> on the holder field as it does on the others.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ H37 + H39 ============================ -->
+<section class="mock-board" id="h37">
+  <h2>④ H37 and H39 — the securities list sorts, and a second sync is named <small>Wertpapiere · <code>toggle_sort</code>, <code>sync_now</code></small></h2>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — nach dem Klick auf „Rang Marktkapitalisierung“: die Liste kommt neu, nach Namen</span><iframe data-tpl="list" data-o='{"v":"today"}' title="H37 heute, Desktop"></iframe></div>
+    <div class="dk mock-frame mock-after" style="margin-top:10px"><span class="mock-tag">Nachher — sortiert; der Wert ohne Zahl steht bei den leeren; ein zweiter Sync wird genannt (H39)</span><iframe data-tpl="list" data-o='{"v":"after"}' data-proposal title="H37 nachher, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row phone-only">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">Nachher — 390 px: das Ergebnis von H39</span><iframe data-tpl="list" data-o='{"v":"after","phone":true}' data-proposal title="H39 nachher, 390 px"></iframe></div>
+  </div>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc, the
+   stylesheet by an absolute URL computed from this board) from the live
+   markup of account_form_dialog.ex, tax_live.ex, securities_live.ex and
+   AppShell. German labels from priv/gettext/de. Synthetic data only. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', location.href).href;
+const P = {
+  x: '<path d="M6 6l12 12M18 6 6 18"/>',
+  ast: '<path d="M12 5v14M5.94 8.5l12.12 7M18.06 8.5l-12.12 7"/>',
+  oct: '<path d="M7.86 2h8.28L22 7.86v8.28L16.14 22H7.86L2 16.14V7.86L7.86 2Z"/><path d="M12 8v4"/><circle cx="12" cy="16" r=".6"/>',
+  refresh: '<path d="M21 12a9 9 0 1 1-3.2-6.9"/><path d="M21 4v5h-5"/>'
+};
+const svg = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+const elide = (t) => `<p class="elide">… ${t}</p>`;
+function note(sev, body, attrs = '') {
+  const g = { note: 'ast', problem: 'oct' }[sev];
+  const w = { note: 'Hinweis', problem: 'Problem' }[sev];
+  return `<div class="data-note data-note--${sev}"${attrs}><span class="data-note__icon" aria-hidden="true">${svg(g, 14)}</span><span class="data-note__word">${w}</span><div class="data-note__body">${body}</div></div>`;
+}
+function crash(o) {
+  const t = o.p === 'accounts' ? 'Konten &amp; Depots — die Liste wie vor dem Klick; kein Dialog, keine Meldung' : 'Steuern — „Erfasste Abrechnungen“, beide Formulare zu; keine Meldung';
+  return `<main class="app-main app-main--workspace"><div class="workspace-page"><section class="workspace-section">${elide(t)}</section></div></main>`;
+}
+function acct() {
+  return `<div class="dlg-stage"><dialog open class="modal" aria-labelledby="acct-title"><header class="modal-head"><h2 id="acct-title">Neues Verrechnungskonto</h2><button type="button" class="icon-button" aria-label="Schließen">${svg('x')}</button></header><div class="modal-body"><form><p class="alert-error is-new" role="alert">Neuer Tag darf keine Steuerzeichen und keine Zeilenumbrüche enthalten.</p><div class="form-grid"><label><span>Name des Verrechnungskontos</span><input type="text" value="Tagesgeld" required aria-invalid="true" aria-describedby="cash-name-error"><span class="field-error is-new" id="cash-name-error">darf keine Steuerzeichen und keine Zeilenumbrüche enthalten</span></label><label><span>Währung</span><select><option>EUR</option></select></label></div><fieldset class="bucket-fieldset"><legend>Anfängliche Buckets (optional)</legend><label><span>Neuer Tag (optional)</span><input value="Haushalt" aria-invalid="true" placeholder="z. B. Haushalt"></label></fieldset><div class="modal-footer"><button type="button" class="button-ghost">Zurück</button><button type="submit" class="button-primary">Verrechnungskonto anlegen</button></div></form></div></dialog></div>`;
+}
+function tax() {
+  return `<main class="app-main app-main--workspace"><div class="workspace-page"><section class="workspace-section"><div class="tax-panel">${note('problem', '<span class="is-new">Steuerpflichtige Person</span>: darf keine Steuerzeichen und keine Zeilenumbrüche enthalten', ' id="tax-form-error" role="alert"')}<form class="tax-form"><label>Steuerpflichtige Person <input type="text" value="Family" aria-invalid="true" aria-describedby="tax-form-error"></label><label>Steuerjahr <input type="number" value="2026"></label><label>Institut <input type="text" value="Bank B"></label><label>Stichtag der Abrechnung <input type="text" value="2026-09-30"></label></form>${elide('„Zahlen der Abrechnung“, „Notiz“, „Abrechnung erfassen“ — die Eingaben stehen noch')}</div></section></div></main>`;
+}
+function list(o) {
+  const after = o.v === 'after';
+  const rows = after
+    ? [['Arbolia Inc.', 'USD', '4'], ['Corvane Energy ASA', 'NOK', '57'], ['Tamsin Robotics Corp.', 'USD', '212'], ['Larkspur Rail AG', 'EUR', ''], ['Velden Water AG', 'CHF', 'n. a.'], ['Wrenfield Gardens AG', 'EUR', '']]
+    : [['Arbolia Inc.', 'USD', '4'], ['Corvane Energy ASA', 'NOK', '57'], ['Larkspur Rail AG', 'EUR', ''], ['Tamsin Robotics Corp.', 'USD', '212'], ['Velden Water AG', 'CHF', 'n. a.'], ['Wrenfield Gardens AG', 'EUR', '']];
+  const head = `<tr><th class="row-actions-head" aria-label="Zeilenaktionen"></th><th><button type="button" class="sort-toggle">Name${after ? '' : ' ↑'}</button></th><th><button type="button" class="sort-toggle">Währung</button></th><th class="num"><button type="button" class="sort-toggle">Rang Marktkapitalisierung${after ? ' <span class="is-new">↑</span>' : ''}</button></th></tr>`;
+  const body = rows.map((r) => `<tr class="security-row"><td class="row-actions"></td><td>${r[0]}</td><td>${r[1]}</td><td class="num">${r[2]}</td></tr>`).join('');
+  const result = after ? `<div class="inline-result inline-result--page is-new"><div role="status" class="inline-result__region">${note('note', 'Eine Kursaktualisierung aller Wertpapiere läuft bereits; sie wurde nicht ein zweites Mal gestartet. <button type="button" class="inline-result__dismiss" aria-label="Schließen" title="Schließen">&times;</button>')}</div></div>` : '';
+  const toolbar = `<div class="mock-toolbar"><button type="button" class="button-ghost">${svg('refresh', 14)} Kurse aktualisieren</button></div>`;
+  if (o.phone) return `<main class="app-main app-main--workspace"><div class="workspace-page">${toolbar}${result}${elide('die Liste')}</div></main>`;
+  return `<main class="app-main app-main--workspace"><div class="workspace-page">${toolbar}${result}<div class="data-table-wrapper"><table class="data-table"><thead>${head}</thead><tbody>${body}</tbody></table></div></div></main>`;
+}
+
+const TPL = { crash, acct, tax, list };
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .app-main,.workspace-page{min-height:0 !important;} .is-new{outline:2px dashed var(--color-accent);outline-offset:2px;border-radius:4px;} .elide{margin:8px 0;font-size:12px;color:#5a6577;font-style:italic;} .dlg-stage{padding:16px;background:color-mix(in srgb,var(--color-text) 18%,var(--color-bg));} dialog.modal{position:static !important;inset:auto !important;max-height:none !important;overflow:visible !important;margin:0 auto !important;max-width:460px;width:100%;} .mock-toolbar{display:flex;justify-content:flex-end;margin-bottom:8px;} .mock-toolbar svg{vertical-align:-2px;}</style>';
+
+let pending = 0;
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  let css = CSS_MOCK;
+  if ('proposal' in f.dataset) css += document.getElementById('proposal').outerHTML;
+  pending++;
+  f.addEventListener('load', () => {
+    f.style.height = Math.ceil(f.contentDocument.documentElement.scrollHeight) + 'px';
+    if (--pending === 0) document.body.dataset.ready = '1';
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>

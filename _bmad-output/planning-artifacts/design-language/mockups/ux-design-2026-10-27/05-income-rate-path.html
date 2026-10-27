@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-accent="violet">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mockup — Income: a payment with no rate path to the base currency (Pick Q5; K07)</title>
+<link rel="stylesheet" href="../../../../../priv/static/app.css">
+<link rel="stylesheet" href="mock.css">
+<!-- THE PROPOSAL: no new rule. Q5 A is the exclusion note every other
+     Cash-flow facet already carries (income_live.ex: the realized facet's
+     #realized-excluded with fx_backfill_control/1, the flows' and costs'
+     notes); Q5 B is a clause in the facet's basis line. The frames are
+     srcdoc iframes built from income_live.ex (the income facet:
+     [data-role=facet-basis], #income-annual with .income-chart, its legend,
+     bars and year labels, #income-top-contributors). "Heute" frames
+     render app.css as shipped; variant frames add the empty block below,
+     kept for the mechanics. -->
+<style id="proposal">
+  /* Q5: no CSS. */
+</style>
+<style>
+  /* Board chrome only — nothing below is a proposal. */
+  .mock-board > p.mock-note { max-width: 118ch; }
+  .cap { margin: 0 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mock-ink); }
+  .col { display: grid; gap: 6px; align-content: start; min-width: 0; }
+  .notes { flex: 1 1 300px; display: grid; gap: 8px; align-content: start; font-size: 12.5px; min-width: 0; }
+  .notes p, .notes ul { margin: 0; }
+  .notes ul { padding-left: 18px; }
+  .notes li { margin: 0 0 5px; }
+  .notes code, .mock-note code, .pickbar code { font-size: 11.5px; }
+  .rec { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; background: var(--color-positive); color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; vertical-align: 2px; }
+  .vtag { color: var(--mock-ink) !important; background: var(--color-bg-muted) !important; }
+  .dk { width: 982px; max-width: 100%; }
+  .dk iframe { display: block; width: 980px; border: 0; }
+  .ph { width: 392px; flex: none; }
+  .ph iframe { display: block; width: 390px; border: 0; }
+  .mock-row { margin-top: 12px; }
+  .consequence { margin: 6px 0 0; padding: 8px 10px; border-left: 3px solid var(--color-danger); background: var(--color-danger-soft); font-size: 12px; }
+  .phone-only { display: none; }
+  .phone-cap { margin: 0 0 12px; padding: 10px 12px; font-size: 12px; background: var(--color-accent-soft); border-bottom: 1px solid var(--color-accent); }
+  @media (max-width: 600px) {
+    body { padding: 0; }
+    .desk-only { display: none !important; }
+    .phone-only { display: block; }
+    .pickbar { margin: 0 0 14px; border-radius: 0; border-left-width: 0; border-right-width: 0; }
+    .mock-board { margin: 0 0 22px; }
+    .mock-board > h2, .mock-board > p.mock-note, .notes, .cap { padding-left: 12px; padding-right: 12px; }
+    .mock-board > h2 small { display: block; margin: 2px 0 0; }
+    .mock-row { gap: 12px; }
+    .mock-frame { border-radius: 0; border-left: 0; border-right: 0; box-shadow: none; }
+    .ph { width: 390px; }
+  }
+</style>
+</head>
+<body data-widths="1200,390">
+
+<div class="pickbar desk-only"><b>Board 05 — Vermögen → Cashflow → Erträge: a dividend whose currency has no rate path to the base currency.</b> <b>Q5 — K07</b> (S6, class: integrity; fix: keep a booking without a rate path out of the income's base-currency totals and name it — count and currencies — or, if parity stays by decision, state it where the figure is read: the payload's computation basis, the conversion note, the MCP description and the page). <b>A</b> — out of every total, named in an attention note with the backfill control, the pattern of the realized, flows and costs facets and of Sprint 21's α3 (board 09, N8) · <b>B</b> — parity stays, and the facet's basis line says so. <span class="rec">Recommended A</span> A comment naming „Q5 B“ on the planning PR changes it; silence adopts A. Every name and figure is invented. <b>Dashed = new.</b></div>
+<p class="phone-only phone-cap"><b>Board 05 at 390&nbsp;px.</b> Real 390-px viewports. Q5 recommended A. All data invented. The arguments are in the 1200-px render.</p>
+
+<section class="mock-board" id="q5">
+  <h2>① Q5 · K07 — a payment with no rate path to EUR <small>„Erträge“ · <code>Portfolixir.Portfolios.Income</code> <code>convert/4</code></small></h2>
+  <p class="mock-note desk-only"><b>The case.</b> „Velden Water AG“ paid a dividend of 52,00 CHF into a CHF account on 08.01.2026. The instance stores CHF rates from its daily sync since 12.01.2026 and has never run the history backfill, so no CHF rate exists on or before the booking date. <b>Today</b> <code>Income.convert/4</code> falls back to parity when <code>Fx.convert/4</code> finds no path: the 52,00 CHF are added to the EUR totals as 52,00 EUR, and the entry is counted in <code>unconverted_count</code>, which the JSON API serialises and no page reads. The facet’s ⓘ says „Beträge über den EUR-Hub zum gespeicherten Kurs des jeweiligen Buchungsdatums … umgerechnet“ — for this payment, untrue. Every other facet of the page (Realisiert, Ein- &amp; Auszahlungen, Kosten) excludes such an amount and names it.</p>
+
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-before"><span class="mock-tag">Heute — 52,00 CHF als 52,00 EUR in 2026 und in den Top-Beiträgen; kein Wort</span><iframe data-tpl="inc" data-o='{"v":"today"}' title="Q5 heute, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-before"><span class="mock-tag">Heute — 390 px</span><iframe data-tpl="inc" data-o='{"v":"today"}' title="Q5 heute, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p class="consequence"><b>A sum of two currencies, read as one.</b> The 2026 bar and its label (412,85) include 52,00 that are francs; the top contributors rank Velden Water by francs among euros. A franc moves against the euro by a few per cent a year, so the error is small here — and unbounded for a currency far from parity.</p>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante A <span class="rec">empfohlen</span> — out of every total, named, with the backfill as its remedy</p>
+  <div class="col desk-only">
+    <div class="dk mock-frame mock-after"><span class="mock-tag">A — die Notiz vor den Zahlen; 2026 ohne die 52,00; Velden Water nicht unter den Top-Beiträgen</span><iframe data-tpl="inc" data-o='{"v":"A"}' data-proposal title="Q5 A, Desktop"></iframe></div>
+  </div>
+  <div class="mock-row">
+    <div class="ph mock-frame mock-after"><span class="mock-tag">A — 390 px</span><iframe data-tpl="inc" data-o='{"v":"A"}' data-proposal title="Q5 A, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>Why A.</b></p>
+      <ul>
+        <li><b>It is the page's own rule.</b> Realisiert, Ein- &amp; Auszahlungen and Kosten each exclude an amount they cannot convert and name it in an attention note that leads the facet („… and is excluded from every total“), never at a neighbouring date's rate; Sprint 21's α3 extends the same shape to an unavailable trade (board 09, N8). Income is the one facet that adds the unconverted amount instead.</li>
+        <li><b>The remedy exists and sits in the note:</b> <code>fx_backfill_control/1</code>, as on Realisiert. After a backfill the payment converts at its own day's rate and the note disappears.</li>
+        <li><b>The note names count and currencies</b> (the fix) and, like the realized note, the securities, so the operator finds the payment.</li>
+        <li><b>Every figure of the facet agrees</b>: the bars, the year labels, the matrix, the top contributors and the per-position table all leave the payment out; the payments table of the drilled year keeps the payment in its own currency, as it lists native amounts.</li>
+      </ul>
+    </div>
+  </div>
+
+  <p class="cap" style="margin-top:22px">Variante B — parity stays; the basis line says so</p>
+  <div class="mock-row" style="margin-top:0">
+    <div class="dk mock-frame mock-after desk-only"><span class="mock-tag vtag">B — „1 Zahlung in CHF ohne Wechselkurs, 1 : 1 gezählt“</span><iframe data-tpl="inc" data-o='{"v":"B"}' data-proposal title="Q5 B, Desktop"></iframe></div>
+    <div class="ph mock-frame mock-after phone-only"><span class="mock-tag vtag">B — 390 px</span><iframe data-tpl="inc" data-o='{"v":"B"}' data-proposal title="Q5 B, 390 px"></iframe></div>
+    <div class="notes desk-only">
+      <p><b>B</b> changes no figure and states the basis in the facet's basis line and its ⓘ. <b>Against it:</b> it keeps a sum of two currencies and asks the reader to discount it; it is the only facet that would do so; and a basis line is the weakest place for a fact that makes a total wrong (UX-DR17 puts such a fact in an attention note). B fits only if the owner wants Income's totals never to drop a payment.</p>
+    </div>
+  </div>
+</section>
+
+<script>
+/* Assembly only; nothing here is a proposal. Builds the frames (srcdoc, the
+   stylesheet by an absolute URL computed from this board) from the live
+   markup of income_live.ex. German labels from priv/gettext/de. Synthetic
+   data only. */
+const CSS_HREF = new URL('../../../../../priv/static/app.css', location.href).href;
+const P = {
+  tri: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><path d="M12 9v4"/><circle cx="12" cy="17" r=".6"/>'
+};
+const svg = (n, s = 16) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${P[n]}</svg>`;
+const wrap = (inner) => `<main class="app-main app-main--workspace"><div class="workspace-page">${inner}</div></main>`;
+const elide = (t) => `<p class="elide">… ${t}</p>`;
+
+/* Invented: 2025 dividends 318,40 + interest 41,20; 2026 dividends 360,85
+   (308,85 EUR-convertible + 52,00 CHF at parity) + interest 52,00. */
+function data(v) {
+  const div26 = v === 'A' ? 308.85 : 360.85;
+  return [{ y: 2025, d: 318.40, i: 41.20 }, { y: 2026, d: div26, i: 52.00 }];
+}
+const fmt = (n) => n.toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+function chart(years) {
+  const max = Math.max(...years.map((b) => b.d + b.i));
+  const bars = years.map((b, x) => {
+    const h = ((b.d + b.i) / max) * 92; const hd = (b.d / max) * 92; const hi = (b.i / max) * 92;
+    return `<rect class="income-bar income-bar--dividends" x="${x + 0.1}" y="${100 - h}" width="0.8" height="${hd}"></rect><rect class="income-bar income-bar--interest" x="${x + 0.1}" y="${100 - h + hd}" width="0.8" height="${hi}"></rect>`;
+  }).join('');
+  const labels = years.map((b) => `<button type="button" class="income-bar-label" aria-pressed="false"><strong>${b.y}</strong><span>${fmt(b.d + b.i)}</span></button>`).join('');
+  return `<div id="income-chart" class="income-chart"><ul class="chart-legend income-legend"><li class="chart-legend__item"><span class="chart-legend__swatch income-legend__swatch--dividends" aria-hidden="true"></span>Dividenden</li><li class="chart-legend__item"><span class="chart-legend__swatch income-legend__swatch--interest" aria-hidden="true"></span>Zinsen</li></ul><div class="income-chart-track"><svg class="income-bars" viewBox="0 0 ${years.length} 100" preserveAspectRatio="none" role="img" aria-label="Dividenden und Zinsen pro Jahr">${bars}</svg><div class="income-bar-labels">${labels}</div></div></div>`;
+}
+const BACKFILL = '<div class="fx-backfill" data-role="fx-backfill"><span class="muted">Die tägliche Kurssynchronisation kann einen vergangenen Tag nicht nachtragen. Das Nachladen holt die historische EZB-Reihe einmalig und speichert jeden veröffentlichten Tag; ein Tag, den die EZB nicht veröffentlicht hat, bleibt ausgeschlossen.</span><button type="button" class="button-mini">Historische Kurse nachladen</button></div>';
+function inc(o) {
+  const years = data(o.v);
+  let basis = 'Beträge in EUR · Dividenden und Zinsen · nur dieses Portfolio';
+  if (o.v === 'B') basis += ' <span class="is-new">· 1 Zahlung in CHF ohne Wechselkurs nach EUR, 1&nbsp;:&nbsp;1 gezählt</span>';
+  const facetBasis = `<div class="summary-basis" data-role="facet-basis">${basis} <details class="metric-tooltip metric-tooltip--inline"><summary aria-label="Zu dieser Facette">ⓘ</summary></details></div>`;
+  const noteA = o.v === 'A' ? `<div class="data-note data-note--attention is-new" id="income-excluded" data-role="income-excluded"><span class="data-note__icon" aria-hidden="true">${svg('tri', 14)}</span><span class="data-note__word">Achtung</span><div class="data-note__body">1 Zahlung konnte nicht umgerechnet werden — kein gespeicherter Wechselkurs nach EUR an oder vor ihrem Buchungstag — und ist aus jeder Summe ausgeschlossen. Betroffene Währung: CHF (Velden Water AG). ${BACKFILL}</div></div>` : '';
+  const top = [['Larkspur Rail AG', '148,00', '108,94'], ['Wrenfield Gardens AG', '96,50', '71,03'], ['Velden Water AG', '52,00', '33,80'], ['Zinsen', '52,00', '52,00'], ['Kestrel Point AG', '40,20', '29,59']]
+    .filter((r) => !(o.v === 'A' && r[0] === 'Velden Water AG'));
+  const topList = `<section id="income-top-contributors" class="workspace-section"><h2>Top-Beiträge</h2><ol class="contributor-list">${top.map((r) => `<li class="contributor-row"><span class="contributor-name">${r[0]}</span><span class="contributor-figures"><strong>${r[1]}</strong> <span class="muted">netto ${r[2]}</span></span></li>`).join('')}</ol></section>`;
+  return wrap(`<section class="workspace-section">${facetBasis}</section>${noteA ? `<section class="workspace-section" role="status">${noteA}</section>` : ''}<section id="income-annual" class="workspace-section"><h2>Jahresübersicht</h2>${chart(years)}${elide('„Daten als Tabelle“ (Jahr × Monat)')}</section>${topList}${elide('„Je Position“')}`);
+}
+
+const TPL = { inc };
+const CSS_MOCK = '<style>body{background:var(--color-bg);margin:0;} .app-main,.workspace-page{min-height:0 !important;} .is-new{outline:2px dashed var(--color-accent);outline-offset:2px;border-radius:4px;} .elide{margin:0 16px 12px;font-size:12px;color:#5a6577;font-style:italic;}</style>';
+
+let pending = 0;
+for (const f of document.querySelectorAll('iframe[data-tpl]')) {
+  const o = JSON.parse(f.dataset.o || '{}');
+  let css = CSS_MOCK;
+  if ('proposal' in f.dataset) css += document.getElementById('proposal').outerHTML;
+  pending++;
+  f.addEventListener('load', () => {
+    f.style.height = Math.ceil(f.contentDocument.documentElement.scrollHeight) + 'px';
+    if (--pending === 0) document.body.dataset.ready = '1';
+  });
+  f.srcdoc = `<!doctype html><html lang="de" data-theme="light" data-accent="violet"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="stylesheet" href="${CSS_HREF}">${css}</head><body>${TPL[f.dataset.tpl](o)}</body></html>`;
+}
+</script>
+</body>
+</html>
