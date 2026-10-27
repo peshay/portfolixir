@@ -1,6 +1,10 @@
 # Sprint 21 — after the first import: the second sale, the coupon, the re-export, and the screens that waited
 
 **Status: ADOPTED by the merge of the Sprint 21 planning PR.**
+**Amended 2026-10-27, before its build:** the security review's fix batch
+joins as Lane S and builds first, and the sprint becomes three PRs. See
+[`sprint-plan-2026-10-27-sprint21-amendment.md`](sprint-plan-2026-10-27-sprint21-amendment.md),
+which names every item it moves; everything else here stands.
 The merge is the signature (ADR-0026 step 1, as amended on 2026-10-08). This
 is the first plan written for ADR-0026's two-PR shape from the start: a fresh
 implementation session builds it on `agent/<provider>/sprint-21`, as one
