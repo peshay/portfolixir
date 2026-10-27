@@ -10,6 +10,11 @@ description: 'Two parallel epic structures have coexisted since June and drifted
   [ADR-0026](0026-epic-batch-workflow.html))
 - **Date:** 2026-08-17 (rewritten the same day before sign-off — see "Who
   reads what")
+- **Amended:** 2026-10-27: an idea list,
+  `_bmad-output/planning-artifacts/ideas.md`, is the stage before the
+  registry and the fifth owner-facing artifact; an idea lives there only
+  until it is worked out (see "Amendment (2026-10-27)" below). Adopted by
+  the merge of the Sprint 21 amendment's planning PR.
 
 ## Context
 
@@ -327,3 +332,51 @@ reason, not by a keyword — it is invalidated rather than implemented.
   question, decidable after this one and independent of it.
 - **Anything about scope, gates or the scope ladder.** This is a decision about
   where work is written down, not about what work is permitted.
+
+## Amendment (2026-10-27): the idea list, the stage before the registry
+
+**Context.** The owner raises ideas faster than they can be worked out, in
+whatever session is open. Until now an idea took one of two paths. It was
+filed as an issue, in the tracker this record says the owner does not read.
+Or it went straight into a plan and was built as an agent read it, before
+anyone had settled its details, its screen or whether it was a document
+change at all. Several of the owner's ideas would have been built better
+after one conversation (owner, 2026-10-27). Ideas also sit in places
+nobody re-reads: a brainstorming session, triage documents, "not in this
+sprint" sections, `needs-decision` issues.
+
+**Decision.**
+
+1. **`_bmad-output/planning-artifacts/ideas.md` is the idea list.** It
+   holds every idea that is not yet worked out enough to build: one row per
+   idea, with its kind (feature, UI, docs, app page, process, data), its
+   status and the places it is already described.
+2. **The statuses are a closed list:** `captured` (recorded as said),
+   `triaged` (an agent has checked where it is already described, what in
+   the ADRs and non-goals stands against it, and what it touches),
+   `discussing` (the owner and an agent are working it through),
+   `worked-out` (ready to plan), `planned` (named in a sprint plan),
+   `built`, `dropped` (with its reason) and `gated` (behind a decision gate
+   that names it). A `no-brainer` mark on a triaged idea says it needs no
+   conversation and may go straight into a plan.
+3. **The list claims no job the registry has.** An idea moves to `epics.md`
+   or to an issue when it is `worked-out`, and from then on its row is a
+   pointer to where it went. Acceptance criteria are never written in the
+   list.
+4. **It is the fifth owner-facing artifact.** Decision 2a's list of four
+   closed too early: the owner reads the idea list to see where an idea
+   stands. The other four are unchanged.
+5. **It is public, so it carries no instance facts:** no account or record
+   identifier from the owner's instance, no figures, no names. An idea that
+   cannot be stated without them is stated generically.
+
+**Why not the tracker.** It is the agent's work ledger, and this record's
+own finding stands: the owner does not read it. **Why not `epics.md`.** It
+is the requirement registry; an unshaped idea is not a requirement yet, and
+mixing the two is the drift this record was written to end.
+
+**Consequences.** A planning session reads the list, proposes at most one
+idea to work through with the owner, and may pull a `no-brainer` into its
+plan. The rule lives in the sprint workflow ("Ideas"). The list can drift
+like any document; the close-out of each sprint moves the ideas its build
+finished to `built`, so a stale row is a close-out finding.
