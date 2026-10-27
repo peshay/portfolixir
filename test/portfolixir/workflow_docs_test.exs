@@ -244,4 +244,24 @@ defmodule Portfolixir.WorkflowDocsTest do
     assert File.read!("docs/development/sprint-workflow.md") =~ "One topic = one issue"
     assert File.read!("AGENTS.md") =~ "file a new issue immediately"
   end
+
+  # Acceptance criteria (ADR-0042, amendment of 2026-10-27):
+  # - the idea list exists as a planning artifact, before the registry;
+  # - its statuses are the amendment's closed list;
+  # - the sprint workflow carries the "Ideas" rule and `AGENTS.md` points an
+  #   idea to the list rather than to an issue.
+  test "an idea goes into the idea list, the stage before the registry" do
+    ideas = File.read!("_bmad-output/planning-artifacts/ideas.md")
+
+    for status <-
+          ~w(captured triaged discussing worked-out planned built dropped gated no-brainer) do
+      assert ideas =~ "`#{status}`", "the idea list does not define the status #{status}"
+    end
+
+    assert File.read!("docs/development/sprint-workflow.md") =~ "## Ideas"
+    assert File.read!("AGENTS.md") =~ "a new idea goes into the idea list"
+
+    assert File.read!("docs/decisions/0042-one-planning-structure.md") =~
+             "## Amendment (2026-10-27): the idea list"
+  end
 end
