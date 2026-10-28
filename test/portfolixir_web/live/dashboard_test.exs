@@ -237,7 +237,7 @@ defmodule PortfolixirWeb.DashboardTest do
       Portfolixir.Buckets.create_view(Actor.owner_ui(), %{name: "Mine", include_all: false})
 
     :ok = Portfolixir.Buckets.set_view_buckets(Actor.owner_ui(), mine, [bucket.id], [])
-    :ok = Portfolixir.Settings.set_default_view(mine.id)
+    :ok = Portfolixir.Settings.set_default_view(Portfolixir.Actor.owner_ui(), mine.id)
 
     {:ok, view, _html} = live(conn, "/")
     html = render_async(view)

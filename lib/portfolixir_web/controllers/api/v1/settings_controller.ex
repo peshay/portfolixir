@@ -3,6 +3,7 @@ defmodule PortfolixirWeb.Api.V1.SettingsController do
   JSON API for the minimal user preferences (ADR-0024): today only the
   default-view preference the Wealth page and dashboard open on. `view_id` is
   `null` for the built-in Everything scope. No financial decimals are involved.
+  A change is journaled under the request's actor (H61).
   """
   use PortfolixirWeb, :controller
 
@@ -15,14 +16,14 @@ defmodule PortfolixirWeb.Api.V1.SettingsController do
   end
 
   def set_default_view(conn, %{"view_id" => nil}) do
-    :ok = Settings.set_default_view(nil)
+    :ok = Settings.set_default_view(conn.assigns.actor, nil)
     json(conn, %{data: default_view_payload()})
   end
 
   def set_default_view(conn, %{"view_id" => view_id}) when is_integer(view_id) do
     case Buckets.get_view(view_id) do
       %View{} = view ->
-        :ok = Settings.set_default_view(view.id)
+        :ok = Settings.set_default_view(conn.assigns.actor, view.id)
         json(conn, %{data: default_view_payload()})
 
       nil ->

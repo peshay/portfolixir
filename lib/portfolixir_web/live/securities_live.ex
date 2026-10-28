@@ -5177,7 +5177,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
   def handle_event("remove_logo_override", %{"id" => id_str}, socket) do
     with {:ok, id} <- LiveParam.fetch_id(id_str),
          %Security{} = sec <- Catalog.get_security(id),
-         {:ok, _updated} <- Catalog.remove_logo(sec, logo_opts()) do
+         {:ok, _updated} <- Catalog.remove_logo(Actor.owner_ui(), sec, logo_opts()) do
       {:noreply,
        socket
        |> assign(:logo_dialog_security, nil)
@@ -5372,7 +5372,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
       {:ok, task} =
         CappedAsync.start_child(Portfolixir.LogoSupervisor, fn ->
           await_watch()
-          result = LogoLookup.run(sec)
+          result = LogoLookup.run(Actor.owner_ui(), sec, [])
           send(parent, {:logo_update_done, sec_id, result})
         end)
 
@@ -5455,7 +5455,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp store_logo_url(socket, sec, url) do
     {kind, flash} =
-      case Catalog.set_logo_override(sec, url, logo_opts()) do
+      case Catalog.set_logo_override(Actor.owner_ui(), sec, url, logo_opts()) do
         {:ok, _updated} -> {:note, gettext("Logo updated")}
         {:error, _reason} -> {:problem, gettext("Could not load that image")}
       end

@@ -1070,9 +1070,14 @@ Hand gesetzt. Ein manuelles Logo oder ein ausdrückliches „kein Logo“
   gesperrt. Eine fehlende URL liefert `422` mit `errors.url`; ein Bild, das
   sich nicht laden lässt oder die Prüfung nicht besteht, liefert `422` mit
   `errors.logo`, einer festen Meldung, die weder Adresse noch Status nennt.
+  Der Journaleintrag nennt den Prinzipal des Tokens, und sein Nachher-Abbild
+  trägt `logo_source_host`, den Host, den die URL nannte.
 - `DELETE /api/v1/securities/:security_id/logo` entfernt das Logo und hält die
   ausdrückliche Entscheidung „kein Logo“ fest (die Zeile zeigt wieder ihre
   Initialen oder ihre Flagge); auch das sperrt das Wertpapier gegen die Suche.
+  Journalisiert unter dem Prinzipal des Tokens, wie das manuelle Logo und die
+  erneute Suche; nur die Suche im Hintergrund wird als Systemjob `logo`
+  journalisiert.
 - `POST /api/v1/securities/:security_id/logo/discover` startet die
   automatische Suche erneut („Erneut suchen“). Die Antwort enthält ein
   `result`: `updated`, `no_source` oder `failed`. Gesperrte Wertpapiere bleiben
@@ -3403,6 +3408,9 @@ Finanzielle Decimals kommen hier nicht vor.
   einer existierenden View-id, oder `{"view_id": null}` zum Zurücksetzen auf
   Alles. Eine unbekannte View-id liefert `404` (nichts wird geschrieben); eine
   fehlerhafte `view_id` liefert `422`. Die Antwort entspricht dem `GET`-Format.
+  Eine Änderung wird unter dem Prinzipal des Tokens journalisiert
+  (`resource_type` `setting`, ein `upsert`, beim Zurücksetzen ein `delete`),
+  sodass die vorige Voreinstellung in ihrem Vorher-Abbild steht.
 
 ## Importe
 

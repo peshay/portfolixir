@@ -994,10 +994,13 @@ discovery never overwrites the choice.
   stored locally; the security is locked to the manual choice. A missing URL
   returns `422` with `errors.url`; an image that cannot be fetched or fails
   the check returns `422` with `errors.logo`, a fixed message that names no
-  address and no status.
+  address and no status. The journal entry names the token's principal, and
+  its after-image carries `logo_source_host`, the host the URL named.
 - `DELETE /api/v1/securities/:security_id/logo` removes the logo and records an
   explicit "no logo" decision (the row falls back to its initials/flag), also
-  locking it against discovery.
+  locking it against discovery. Journaled under the token's principal, like
+  the override and the rediscovery; only the background discovery is
+  journaled as the system job `logo`.
 - `POST /api/v1/securities/:security_id/logo/discover` re-runs automatic
   discovery ("search again"). The response includes a `result` of `updated`,
   `no_source`, or `failed`. Locked securities are left untouched and answer
@@ -3156,7 +3159,9 @@ decimals are involved.
 - `PUT /api/v1/settings/default_view` sets it. Body: `{"view_id": <id>}` with a
   live view id, or `{"view_id": null}` to clear back to Everything. An unknown
   view id returns `404` (nothing is written); a malformed `view_id` returns
-  `422`. The response mirrors the `GET` shape.
+  `422`. The response mirrors the `GET` shape. A change is journaled under
+  the token's principal (`resource_type` `setting`, an `upsert`, or a
+  `delete` when cleared), so the previous default is in its before-image.
 
 ## Imports
 

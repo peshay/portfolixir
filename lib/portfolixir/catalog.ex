@@ -420,15 +420,26 @@ defmodule Portfolixir.Catalog do
   end
 
   @doc """
-  Writes the logo bookkeeping on a security (#766): the only path that sets
-  `logo_path`, `logo_source` and `logo_locked`. Journaled under the fixed logo
-  system actor like every other logo write; a nil value removes the key.
+  The background logo discovery's write of the logo bookkeeping (#766),
+  journaled under the fixed logo system job: `put_logo_attributes/3` with
+  `Actor.system_job("logo")`. A write a person or a token asked for (an
+  override, a removal, a rediscovery) goes through `put_logo_attributes/3`
+  with the request's actor (security review 2026-10-12, H61).
   """
-  def put_logo_attributes(%Security{} = security, logo_attrs) when is_map(logo_attrs) do
+  def put_logo_attributes(%Security{} = security, logo_attrs) when is_map(logo_attrs),
+    do: put_logo_attributes(Actor.system_job("logo"), security, logo_attrs)
+
+  @doc """
+  Writes the logo bookkeeping on a security on behalf of `actor` (#766, H61):
+  the only path that sets `logo_path`, `logo_source`, `logo_source_host` and
+  `logo_locked`. A nil value removes the key.
+  """
+  def put_logo_attributes(%Actor{} = actor, %Security{} = security, logo_attrs)
+      when is_map(logo_attrs) do
     multi =
       Multi.new()
       |> Multi.update(:security, &Security.logo_changeset(Journal.locked_row(&1), logo_attrs))
-      |> Journal.record(Actor.system_job("logo"),
+      |> Journal.record(actor,
         resource_type: "security",
         operation: :update,
         source: :security,
@@ -543,16 +554,21 @@ defmodule Portfolixir.Catalog do
   end
 
   @doc """
-  Sets a manual logo override from an image URL. Locks the security so
-  background discovery never replaces the manual choice.
+  Sets a manual logo override from an image URL on behalf of `actor`. Locks
+  the security so background discovery never replaces the manual choice. The
+  journal entry names `actor` and the URL's host (H61).
   """
-  def set_logo_override(%Security{} = security, url, opts \\ []) when is_binary(url) do
-    LogoStore.store_manual_override(security, url, opts)
+  def set_logo_override(%Actor{} = actor, %Security{} = security, url, opts \\ [])
+      when is_binary(url) do
+    LogoStore.store_manual_override(actor, security, url, opts)
   end
 
-  @doc "Removes a security's logo and records an explicit \"no logo\" decision."
-  def remove_logo(%Security{} = security, opts \\ []) do
-    LogoStore.remove_logo(security, opts)
+  @doc """
+  Removes a security's logo on behalf of `actor` and records an explicit
+  "no logo" decision.
+  """
+  def remove_logo(%Actor{} = actor, %Security{} = security, opts \\ []) do
+    LogoStore.remove_logo(actor, security, opts)
   end
 
   @doc """
@@ -688,14 +704,15 @@ defmodule Portfolixir.Catalog do
 
   @doc """
   Re-runs automatic logo discovery for a single security synchronously,
-  bypassing the background queue. Used by the "search again" action. A locked
-  security is left untouched.
+  bypassing the background queue, on behalf of `actor`, whom the journal
+  names (H61). Used by the "search again" action. A locked security is left
+  untouched.
   """
-  def rediscover_logo(%Security{} = security, opts \\ []) do
+  def rediscover_logo(%Actor{} = actor, %Security{} = security, opts \\ []) do
     if logo_status(security).locked do
       :skip
     else
-      LogoLookup.run(security, opts)
+      LogoLookup.run(actor, security, opts)
     end
   end
 

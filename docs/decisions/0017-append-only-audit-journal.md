@@ -317,6 +317,31 @@ than the quote module writes the quote schema or the `security_quotes` table
 by a Repo write, a changeset or SQL (review round). The operations stay
 `create | update | delete | upsert`.
 
+### Amendment: a logo write someone asked for, and the default view, name their actor (Sprint 21, H61, T-16)
+
+Slice 1's fixed `system_job` actor for logo writes predates the named
+principals of [ADR-0054](0054-the-agents-surface-one-authority-named-principals-escaped-text.html)
+§3, and its reason ("operational") fits the background discovery, not a
+manual override that sends the instance to a URL its caller chose. The
+security review of 2026-10-12 (finding H61, decision T-16 of its triage)
+narrows it:
+
+- **Under the request's actor:** the manual override, the removal and the
+  rediscovery (`Catalog.set_logo_override/4`, `remove_logo/3`,
+  `rediscover_logo/3`), over the API with the matched token's principal and
+  from the Securities page as `owner_ui`. The override's after-image carries
+  `logo_source_host`, the host its URL named.
+- **Under a fixed `system_job`:** the background discovery (`logo`) and the
+  boot reconciliation (`logo_reconcile`), as before.
+- **The default view** (`Settings.set_default_view/2`) is journaled under its
+  setter's actor as the new `resource_type` `setting`, an `upsert` or a
+  `delete`; a preference moves no derived value, so it bumps no portfolio or
+  security basis. The `settings` table stays an unarmed scope table: the
+  instance writes other keys there without an actor.
+
+The write-actor gate names these writers one by one, because its classifier
+does not follow a write made through another module.
+
 ## Consequences
 
 - **Every change to financial data becomes attributable and reversible by

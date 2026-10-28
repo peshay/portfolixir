@@ -327,7 +327,7 @@ defmodule PortfolixirWeb.SecuritiesLogoRenderTest do
     end
 
     File.write!(Path.join(tmp, "#{present.id}.png"), @png)
-    {:ok, _} = LogoStore.remove_logo(chosen, storage_dir: tmp)
+    {:ok, _} = LogoStore.remove_logo(Portfolixir.Actor.owner_ui(), chosen, storage_dir: tmp)
 
     assert {:ok, %{marked: 1}} = LogoStore.reconcile_missing_files(storage_dir: tmp)
 

@@ -3876,8 +3876,11 @@ abfragbar (siehe [API und MCP](integration/api-and-mcp.html)). Es deckt jeden
 Bereich ab, der Finanzdaten schreibt: Wertpapiere und die Kurse, die jemand
 eingibt, Portfolios, Geldkonten und Depots, Buchungen (auch die eines Imports),
 Klassifizierungen und SOLL-Pläne, Steuerdaten, Recherche-Notizen und Termine,
-eigene Regeln, Zusammenführungen sowie Buckets und Views. Eine eigene Ansicht
-in der App ist als Folgeschritt geplant.
+eigene Regeln, Zusammenführungen, Buckets und Views sowie die
+Standard-Ansicht, mit der die Seiten öffnen. Ein Logo, das jemand setzt,
+entfernt oder erneut suchen lässt, nennt, wer es war; nur die Logo-Suche im
+Hintergrund wird als Systemjob journalisiert. Eine eigene Ansicht in der App
+ist als Folgeschritt geplant.
 
 Das Löschen eines Geldkontos, eines Depots oder eines Wertpapiers nimmt nie
 stillschweigend etwas mit (ADR-0050 §11). Eine Zeile, auf die noch Buchungen

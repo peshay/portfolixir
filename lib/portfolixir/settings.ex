@@ -6,11 +6,14 @@ defmodule Portfolixir.Settings do
   smallest server-side mechanism that lets the LiveView mount read the
   user-settable **default view** and dismissed one-time notices (client-only
   storage cannot feed a mount). UI preferences are not financial records, so
-  writes are not audit-journaled (ADR-0017 arms bookkeeping tables only).
+  the table is not guard-armed (ADR-0017 arms bookkeeping tables only); the
+  default view, which an agent can set over the API, is journaled under its
+  setter's actor all the same (security review 2026-10-12, H61), so a switch
+  of the scope the pages open on is attributable.
 
   Domain helpers wrap the raw store so callers never parse strings themselves:
 
-    * `default_view_id/0` / `set_default_view/1` — the view the Wealth page and
+    * `default_view_id/0` / `set_default_view/2` — the view the Wealth page and
       dashboard open on; `nil` means the built-in "Everything" scope.
     * `migration_notice_dismissed?/0` / `dismiss_migration_notice/0` — the
       one-time "your portfolios are now views" notice (ADR-0024 migration).
@@ -24,7 +27,10 @@ defmodule Portfolixir.Settings do
 
   import Ecto.Query
 
+  alias Ecto.Multi
+  alias Portfolixir.Actor
   alias Portfolixir.Buckets
+  alias Portfolixir.Journal
   alias Portfolixir.Repo
   alias Portfolixir.Settings.Setting
 
@@ -75,12 +81,55 @@ defmodule Portfolixir.Settings do
     end
   end
 
-  @doc "Persists `view_id` as the default view; `nil` clears back to Everything."
-  @spec set_default_view(integer() | nil) :: :ok
-  def set_default_view(nil), do: delete(@default_view_key)
+  @doc """
+  Persists `view_id` as the default view on behalf of `actor`; `nil` clears
+  back to Everything. Journaled under `actor` as a `"setting"` upsert, or a
+  delete when cleared, in the same transaction (H61); clearing an unset
+  default writes nothing and journals nothing.
+  """
+  @spec set_default_view(Actor.t(), integer() | nil) :: :ok
+  def set_default_view(%Actor{} = actor, nil) do
+    Multi.new()
+    |> Multi.run(:prior, fn repo, _changes -> {:ok, locked_setting(repo, @default_view_key)} end)
+    |> Multi.run(:setting, fn
+      _repo, %{prior: nil} -> {:ok, nil}
+      repo, %{prior: prior} -> repo.delete(prior)
+    end)
+    |> Journal.record(actor,
+      resource_type: "setting",
+      operation: :delete,
+      source: :setting,
+      before_step: :prior
+    )
+    |> commit_setting()
+  end
 
-  def set_default_view(view_id) when is_integer(view_id) and view_id > 0 do
-    put(@default_view_key, Integer.to_string(view_id))
+  def set_default_view(%Actor{} = actor, view_id) when is_integer(view_id) and view_id > 0 do
+    changeset =
+      Setting.changeset(%Setting{}, %{key: @default_view_key, value: Integer.to_string(view_id)})
+
+    Multi.new()
+    |> Multi.run(:prior, fn repo, _changes -> {:ok, locked_setting(repo, @default_view_key)} end)
+    |> Multi.insert(:setting, changeset,
+      on_conflict: {:replace, [:value, :updated_at]},
+      conflict_target: :key,
+      returning: true
+    )
+    |> Journal.record(actor,
+      resource_type: "setting",
+      operation: :upsert,
+      source: :setting,
+      before_step: :prior
+    )
+    |> commit_setting()
+  end
+
+  defp locked_setting(repo, key),
+    do: repo.one(from(s in Setting, where: s.key == ^key, lock: "FOR UPDATE"))
+
+  defp commit_setting(multi) do
+    {:ok, _changes} = Repo.transaction(multi)
+    :ok
   end
 
   @doc "Whether the one-time portfolio-migration notice was dismissed."

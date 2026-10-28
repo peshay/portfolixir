@@ -3535,7 +3535,10 @@ The journal is queryable through `GET /api/v1/journal` and the matching
 financial data: securities and the quotes someone enters, portfolios, cash
 accounts and depots, bookings (an import's included), classifications and SOLL
 plans, tax records, research notes and events, policy rules, merges, and
-buckets and views. A dedicated in-app viewer is a planned follow-up.
+buckets and views, and the default view the pages open on. A logo someone
+sets, removes or searches again names who did; only the background logo
+discovery is journaled as a system job. A dedicated in-app viewer is a
+planned follow-up.
 
 Deleting a cash account, a depot or a security never takes anything with it
 silently (ADR-0050 §11). A row that bookings still reference — or, for a

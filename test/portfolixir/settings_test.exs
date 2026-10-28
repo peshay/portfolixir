@@ -43,13 +43,13 @@ defmodule Portfolixir.SettingsTest do
     {:ok, view} =
       Buckets.create_view(Actor.owner_ui(), %{name: "Mine #{System.unique_integer([:positive])}"})
 
-    :ok = Settings.set_default_view(view.id)
+    :ok = Settings.set_default_view(Portfolixir.Actor.owner_ui(), view.id)
     assert Settings.default_view_id() == view.id
 
-    :ok = Settings.set_default_view(nil)
+    :ok = Settings.set_default_view(Portfolixir.Actor.owner_ui(), nil)
     assert Settings.default_view_id() == nil
 
-    :ok = Settings.set_default_view(view.id)
+    :ok = Settings.set_default_view(Portfolixir.Actor.owner_ui(), view.id)
     {:ok, _} = Buckets.delete_view(Actor.owner_ui(), view)
     assert Settings.default_view_id() == nil
   end

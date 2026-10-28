@@ -154,6 +154,7 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
        %{tmp: tmp, security: sec} do
     assert {:ok, updated} =
              LogoStore.store_manual_override(
+               Portfolixir.Actor.owner_ui(),
                sec,
                "https://example.test/logo.png",
                req: png_stub(@png),
@@ -200,7 +201,8 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
 
     assert File.exists?(Path.join(tmp, "#{sec.id}.png"))
 
-    assert {:ok, removed} = LogoStore.remove_logo(with_logo, storage_dir: tmp)
+    assert {:ok, removed} =
+             LogoStore.remove_logo(Portfolixir.Actor.owner_ui(), with_logo, storage_dir: tmp)
 
     refute removed.attributes["logo_path"]
     refute removed.attributes["logo_source"]
@@ -361,7 +363,11 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
       assert stored |> Enum.map(&Path.extname(&1.attributes["logo_path"])) |> Enum.sort() ==
                [".jpg", ".png", ".webp"]
 
-      {:ok, no_logo} = LogoStore.remove_logo(security!("Dunmere AG"), storage_dir: tmp)
+      {:ok, no_logo} =
+        LogoStore.remove_logo(Portfolixir.Actor.owner_ui(), security!("Dunmere AG"),
+          storage_dir: tmp
+        )
+
       before = Enum.map([no_logo | stored], &{&1.attributes, journal(&1)})
       :ok = LogoStore.subscribe()
 
@@ -495,6 +501,7 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
 
       {:ok, chosen} =
         LogoStore.store_manual_override(
+          Portfolixir.Actor.owner_ui(),
           marked.(security!("Brindle AG")),
           "https://example.test/l.png",
           req: png_stub(@png),
@@ -510,7 +517,10 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
           storage_dir: tmp
         )
 
-      {:ok, removed} = LogoStore.remove_logo(marked.(security!("Dunmere AG")), storage_dir: tmp)
+      {:ok, removed} =
+        LogoStore.remove_logo(Portfolixir.Actor.owner_ui(), marked.(security!("Dunmere AG")),
+          storage_dir: tmp
+        )
 
       for security <- [uploaded, chosen, discovered, removed] do
         refute Map.has_key?(reload(security).attributes, "logo_file_missing")
@@ -833,7 +843,9 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
         )
 
       :ok = LogoStore.subscribe()
-      assert {:ok, _removed} = LogoStore.remove_logo(with_logo, storage_dir: tmp)
+
+      assert {:ok, _removed} =
+               LogoStore.remove_logo(Portfolixir.Actor.owner_ui(), with_logo, storage_dir: tmp)
 
       assert_receive {:security_logo_updated, id}
       assert id == sec.id

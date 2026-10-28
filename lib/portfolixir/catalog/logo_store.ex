@@ -23,17 +23,20 @@ defmodule Portfolixir.Catalog.LogoStore do
 
   require Logger
 
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Net.Http
   alias Portfolixir.Net.UrlPolicy
   alias Portfolixir.Repo
 
-  # Logo bytes are operational, machine-discovered assets that happen to live on
-  # the guard-armed `securities` table (ADR-0017). They are journaled like any
-  # other security write, attributed to a fixed system actor inside
-  # `Catalog.put_logo_attributes/2` rather than threaded from the caller —
-  # logos are not financial records authored by a user.
+  # Logo bytes live on the guard-armed `securities` table (ADR-0017) and are
+  # journaled like any other security write. The background discovery's
+  # writes are attributed to the fixed logo system job
+  # (`Catalog.put_logo_attributes/2`); a write a person or a token asked for —
+  # a manual override, a removal, a rediscovery — takes that actor first and
+  # is journaled under it, the override with the host its URL named
+  # (security review 2026-10-12, H61).
 
   @pubsub Portfolixir.PubSub
   @topic "security_logos"
@@ -60,11 +63,23 @@ defmodule Portfolixir.Catalog.LogoStore do
 
   @spec download_and_store(Security.t(), String.t(), atom(), keyword()) ::
           {:ok, Security.t()} | {:error, term()}
+  def download_and_store(%Security{} = security, url, source, opts \\ [])
+      when is_binary(url) and is_atom(source),
+      do: fetch_and_store(:logo_job, security, url, source, opts)
+
+  @doc """
+  `download_and_store/4` on behalf of `actor`, whom the journal names (H61).
+  """
+  @spec download_and_store(Actor.t(), Security.t(), String.t(), atom(), keyword()) ::
+          {:ok, Security.t()} | {:error, term()}
+  def download_and_store(%Actor{} = actor, %Security{} = security, url, source, opts)
+      when is_binary(url) and is_atom(source),
+      do: fetch_and_store(actor, security, url, source, opts)
+
   # storage_dir comes from app config/opts and the filename from the security
   # id plus a validated extension — no user-controlled path segments.
   # sobelow_skip ["Traversal.FileModule"]
-  def download_and_store(%Security{} = security, url, source, opts \\ [])
-      when is_binary(url) and is_atom(source) do
+  defp fetch_and_store(actor, security, url, source, opts) do
     max_bytes = Keyword.get(opts, :max_bytes, @default_max_bytes)
     storage_dir = Keyword.get(opts, :storage_dir) || default_storage_dir()
     allowed_hosts = allowed_hosts_for(source)
@@ -78,22 +93,30 @@ defmodule Portfolixir.Catalog.LogoStore do
          :ok <- File.mkdir_p(storage_dir),
          file_path = Path.join(storage_dir, "#{security.id}.#{ext}"),
          :ok <- File.write(file_path, response.body),
-         {:ok, updated} <- update_security_attributes(security, ext, source, opts) do
+         {:ok, updated} <-
+           update_security_attributes(actor, security, ext, source, url_opts(url, source, opts)) do
       broadcast_logo_change(updated.id)
       {:ok, updated}
     end
   end
 
-  @doc """
-  Sets a manual logo from a user-supplied image URL.
+  # A manual override records the host its URL named (H61): the one fetch a
+  # caller points the instance at is then recoverable from the journal.
+  defp url_opts(url, :manual, opts), do: Keyword.put(opts, :source_host, URI.parse(url).host)
+  defp url_opts(_url, _source, opts), do: opts
 
-  Stored with `logo_source = "manual"` and `logo_locked = true`, so the
-  background discovery never overwrites a manual choice.
+  @doc """
+  Sets a manual logo from a user-supplied image URL on behalf of `actor`.
+
+  Stored with `logo_source = "manual"`, `logo_source_host` (the URL's host)
+  and `logo_locked = true`, so the background discovery never overwrites a
+  manual choice; journaled under `actor` (H61).
   """
-  @spec store_manual_override(Security.t(), String.t(), keyword()) ::
+  @spec store_manual_override(Actor.t(), Security.t(), String.t(), keyword()) ::
           {:ok, Security.t()} | {:error, term()}
-  def store_manual_override(%Security{} = security, url, opts \\ []) when is_binary(url) do
-    download_and_store(security, url, :manual, Keyword.put(opts, :lock, true))
+  def store_manual_override(%Actor{} = actor, %Security{} = security, url, opts \\ [])
+      when is_binary(url) do
+    download_and_store(actor, security, url, :manual, Keyword.put(opts, :lock, true))
   end
 
   @doc """
@@ -116,35 +139,40 @@ defmodule Portfolixir.Catalog.LogoStore do
          :ok <- File.mkdir_p(storage_dir),
          file_path = Path.join(storage_dir, "#{security.id}.#{ext}"),
          :ok <- File.write(file_path, body),
-         {:ok, updated} <- update_security_attributes(security, ext, :manual, lock: true) do
+         {:ok, updated} <-
+           update_security_attributes(:logo_job, security, ext, :manual, lock: true) do
       broadcast_logo_change(updated.id)
       {:ok, updated}
     end
   end
 
   @doc """
-  Removes a security's logo and records an explicit "no logo" decision.
+  Removes a security's logo on behalf of `actor` and records an explicit
+  "no logo" decision.
 
-  The stored file (if any) is deleted, `logo_path`/`logo_source` are cleared
-  and `logo_locked = true` is set so discovery treats the security as
-  intentionally logo-less and leaves the initials/flag fallback in place.
+  The stored file (if any) is deleted, `logo_path`/`logo_source` (and an
+  override's `logo_source_host`) are cleared and `logo_locked = true` is set
+  so discovery treats the security as intentionally logo-less and leaves the
+  initials/flag fallback in place. Journaled under `actor` (H61).
   """
-  @spec remove_logo(Security.t(), keyword()) :: {:ok, Security.t()} | {:error, term()}
+  @spec remove_logo(Actor.t(), Security.t(), keyword()) ::
+          {:ok, Security.t()} | {:error, term()}
   # storage_dir comes from app config/opts; the deleted path is the one we
   # previously wrote under that dir — no user-controlled path segments.
   # sobelow_skip ["Traversal.FileModule"]
-  def remove_logo(%Security{} = security, opts \\ []) do
+  def remove_logo(%Actor{} = actor, %Security{} = security, opts \\ []) do
     storage_dir = Keyword.get(opts, :storage_dir) || default_storage_dir()
     delete_existing_logo_file(security, storage_dir)
 
     logo_attrs = %{
       "logo_path" => nil,
       "logo_source" => nil,
+      "logo_source_host" => nil,
       "logo_locked" => true,
       "logo_file_missing" => nil
     }
 
-    case Catalog.put_logo_attributes(security, logo_attrs) do
+    case Catalog.put_logo_attributes(actor, security, logo_attrs) do
       {:ok, updated} ->
         broadcast_logo_change(updated.id)
         {:ok, updated}
@@ -414,17 +442,22 @@ defmodule Portfolixir.Catalog.LogoStore do
   defp image_bytes_ok(<<"RIFF", _::binary-size(4), "WEBP", _::binary>>, "webp"), do: :ok
   defp image_bytes_ok(_body, _ext), do: {:error, :unsupported_content_type}
 
-  defp update_security_attributes(security, ext, source, opts) do
+  defp update_security_attributes(actor, security, ext, source, opts) do
     # A stored file answers the reconciliation's mark (#933): it is cleared.
+    # The source host is a manual override's only; any other store clears it.
     base = %{
       "logo_path" => @url_prefix <> "#{security.id}.#{ext}",
       "logo_source" => Atom.to_string(source),
+      "logo_source_host" => Keyword.get(opts, :source_host),
       "logo_file_missing" => nil
     }
 
     base = if Keyword.get(opts, :lock, false), do: Map.put(base, "logo_locked", true), else: base
 
-    Catalog.put_logo_attributes(security, base)
+    case actor do
+      :logo_job -> Catalog.put_logo_attributes(security, base)
+      %Actor{} -> Catalog.put_logo_attributes(actor, security, base)
+    end
   end
 
   defp build_req(opts, max_bytes, allowed_hosts) do

@@ -108,6 +108,7 @@ defmodule PortfolixirWeb.ApiV1LogoTest do
   } do
     {:ok, _} =
       Catalog.set_logo_override(
+        Portfolixir.Actor.owner_ui(),
         security,
         "https://example.test/logo.png",
         Application.get_env(:portfolixir, :logo_discovery_opts, [])

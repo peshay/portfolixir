@@ -293,7 +293,7 @@ defmodule PortfolixirWeb.ViewScopeTest do
          %{conn: conn} do
       world()
       {:ok, mine} = Buckets.create_view(Actor.owner_ui(), %{name: "Mine"})
-      :ok = Settings.set_default_view(mine.id)
+      :ok = Settings.set_default_view(Portfolixir.Actor.owner_ui(), mine.id)
 
       # No explicit choice anywhere: the default view scopes the page.
       {:ok, scoped, html} = live(conn, "/portfolio")

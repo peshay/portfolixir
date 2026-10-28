@@ -16,6 +16,7 @@ defmodule PortfolixirWeb.PortfolioLive do
 
   use PortfolixirWeb, :live_view
 
+  alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog.DataQuality
   alias Portfolixir.Classifications
@@ -3788,7 +3789,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   # chosen. Everything active (`nil`) clears the preference — Everything IS
   # the built-in default.
   def handle_event("set_default_view", _params, socket) do
-    :ok = Settings.set_default_view(socket.assigns.active_view_id)
+    :ok = Settings.set_default_view(Actor.owner_ui(), socket.assigns.active_view_id)
     {:noreply, assign(socket, :default_view_id, socket.assigns.active_view_id)}
   end
 
