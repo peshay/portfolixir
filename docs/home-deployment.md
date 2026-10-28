@@ -998,7 +998,9 @@ release from starting:
   the way a new write stores them, each change in the audit journal. A name
   that would then equal another record of the same key is left as it was and
   named in the log (`tax identity backfill`); the upgrade goes on, and you
-  correct or remove one of the two records on the Tax page.
+  correct or remove one of the two records on the Tax page. So is a name that
+  would outgrow its column once stored that way, or that the database refuses
+  to store: the log names its table and id, and you correct it there.
 
 ## Rebuild Derived Values
 

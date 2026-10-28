@@ -17,8 +17,13 @@ defmodule Portfolixir.Tax.IdentityBackfill do
   A row is **reported, never written** when its normalised spelling another
   row of its table already holds under the table's unique key (which row
   stays is the operator's choice, never the backfill's), when normalising
-  leaves it blank, or when it would outgrow its column. The row keeps its
-  stored spelling; the migration logs each refusal and the upgrade goes on.
+  leaves it blank, or when it would outgrow its column, counted in code
+  points as the column and every writer count it (normalising to NFC can
+  lengthen a value without adding a character a reader sees). A row the
+  database refuses for any other reason is reported too, by table and id,
+  and kept, so no single row can stop an upgrade (security review
+  2026-10-12, K01). The row keeps its stored spelling; the migration logs
+  each refusal and the upgrade goes on.
 
   Idempotent: a second run finds nothing to normalise and journals nothing.
   It reads and writes the tables schemaless, naming only the columns they
@@ -37,6 +42,7 @@ defmodule Portfolixir.Tax.IdentityBackfill do
 
   alias Ecto.Multi
   alias Portfolixir.Actor
+  alias Portfolixir.Input.Text
   alias Portfolixir.Journal
   alias Portfolixir.Repo
   alias Portfolixir.Tax.Identity
@@ -58,13 +64,13 @@ defmodule Portfolixir.Tax.IdentityBackfill do
         inserted_at updated_at)a}
   ]
 
-  # The identity columns are varchar(255).
+  # The identity columns are varchar(255), counted in code points.
   @max_length 255
 
   @type refusal :: %{
           table: String.t(),
           id: integer(),
-          reason: :identity_of_another_row | :blank | :too_long,
+          reason: :identity_of_another_row | :blank | :too_long | :refused_by_database,
           holder_id: integer() | nil
         }
 
@@ -102,6 +108,9 @@ defmodule Portfolixir.Tax.IdentityBackfill do
 
         :too_long ->
           "normalised, it would outgrow its column; correct it on the Tax page"
+
+        :refused_by_database ->
+          "normalised, the database refused to store it; correct it on the Tax page"
       end
   end
 
@@ -120,8 +129,14 @@ defmodule Portfolixir.Tax.IdentityBackfill do
           {written, refused}
 
         nil ->
-          :ok = write_row(actor, {table, resource_type, columns}, row.id, changes)
-          {[%{table: table, id: row.id} | written], refused}
+          case write_row(actor, {table, resource_type, columns}, row.id, changes) do
+            :ok ->
+              {[%{table: table, id: row.id} | written], refused}
+
+            :refused ->
+              refusal = %{table: table, id: row.id, reason: :refused_by_database, holder_id: nil}
+              {written, [refusal | refused]}
+          end
 
         refusal ->
           {written, [refusal | refused]}
@@ -139,7 +154,7 @@ defmodule Portfolixir.Tax.IdentityBackfill do
       Enum.any?(changes, fn {_field, value} -> value == "" end) ->
         %{table: table, id: row.id, reason: :blank, holder_id: nil}
 
-      Enum.any?(changes, fn {_field, value} -> String.length(value) > @max_length end) ->
+      Enum.any?(changes, fn {_field, value} -> Text.codepoint_length(value) > @max_length end) ->
         %{table: table, id: row.id, reason: :too_long, holder_id: nil}
 
       holder = holder_of(table, values, key, row) ->
@@ -175,15 +190,30 @@ defmodule Portfolixir.Tax.IdentityBackfill do
     |> Repo.one()
   end
 
+  # The update runs under a savepoint of its own (`mode: :savepoint`): a
+  # value the database refuses rolls back that one statement, and the row is
+  # left unchanged instead of the error unwinding the backfill's and the
+  # migration's transaction. Its after-image is then its before-image, so the
+  # journal records nothing for it.
   defp write_row(actor, {table, resource_type, columns}, id, changes) do
     row = from(r in table, where: r.id == ^id, select: map(r, ^columns))
     before = row |> lock("FOR UPDATE") |> Repo.one!()
     now = NaiveDateTime.truncate(NaiveDateTime.utc_now(), :second)
 
     Multi.new()
-    |> Multi.run(:row, fn repo, _changes ->
-      {1, [written]} = repo.update_all(row, set: changes ++ [updated_at: now])
-      {:ok, written}
+    |> Multi.run(:attempt, fn repo, _changes ->
+      try do
+        {1, [written]} =
+          repo.update_all(row, [set: changes ++ [updated_at: now]], mode: :savepoint)
+
+        {:ok, {:written, written}}
+      rescue
+        _error in Postgrex.Error -> {:ok, :refused}
+      end
+    end)
+    |> Multi.run(:row, fn
+      _repo, %{attempt: {:written, written}} -> {:ok, written}
+      _repo, %{attempt: :refused} -> {:ok, before}
     end)
     |> Journal.record(actor,
       resource_type: resource_type,
@@ -193,7 +223,8 @@ defmodule Portfolixir.Tax.IdentityBackfill do
     )
     |> Repo.transaction()
     |> case do
-      {:ok, _changes} -> :ok
+      {:ok, %{attempt: {:written, _written}}} -> :ok
+      {:ok, %{attempt: :refused}} -> :refused
     end
   end
 end

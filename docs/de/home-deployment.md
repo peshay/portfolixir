@@ -1064,7 +1064,10 @@ verhindert also den Start des neuen Release:
   Prüfprotokoll. Ein Name, der danach einem anderen Eintrag desselben
   Schlüssels gliche, bleibt, wie er war, und wird im Log genannt
   (`tax identity backfill`); das Upgrade läuft weiter, und du korrigierst oder
-  entfernst einen der beiden Einträge auf der Steuerseite.
+  entfernst einen der beiden Einträge auf der Steuerseite. Ebenso bleibt ein
+  Name, der so gespeichert seine Spalte sprengen würde oder den die Datenbank
+  nicht speichern will: Das Log nennt Tabelle und ID, und du korrigierst ihn
+  dort.
 
 ## Abgeleitete Werte neu aufbauen
 
