@@ -245,8 +245,14 @@ defmodule Portfolixir.RuntimeConfigTest do
       end
     end
 
-    for config <- ["config/dev.exs", "config/test.exs"] do
-      [_, committed] = Regex.run(~r/secret_key_base:\s*"([^"]+)"/, File.read!(config))
+    for {config, env} <- [{"config/dev.exs", :dev}, {"config/test.exs", :test}] do
+      # What the file evaluates to is committed, however it is spelled there.
+      committed =
+        config
+        |> Config.Reader.read!(env: env, target: :host)
+        |> Keyword.fetch!(:portfolixir)
+        |> Keyword.fetch!(PortfolixirWeb.Endpoint)
+        |> Keyword.fetch!(:secret_key_base)
 
       assert_raise ArgumentError, ~r/SECRET_KEY_BASE/, fn ->
         RuntimeConfig.validate_secret_key_base!(committed)
