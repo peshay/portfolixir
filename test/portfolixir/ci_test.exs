@@ -1189,6 +1189,10 @@ defmodule Portfolixir.CITest do
   #   listener, then reads the page, an API read with the generated token and
   #   a companion tool call with the companion's token. A token reaches curl
   #   on its standard input, never on its command line.
+  # - Before the build, the runner's Docker daemon pulls Docker Hub images
+  #   through Google's mirror (#1218): the base images are named by digest,
+  #   so the mirror serves the same bytes, and Docker Hub's unauthenticated
+  #   quota, which a shared runner's neighbours can spend, is not involved.
   # - On a failure it prints `docker compose ps` and `docker compose logs`;
   #   it always ends with `docker compose down -v`. It pushes and publishes
   #   nothing.
@@ -1207,6 +1211,17 @@ defmodule Portfolixir.CITest do
 
     up = job |> step!("Build and start the Compose stack") |> run_scripts() |> Enum.join("\n")
     assert String.trim(up) == "docker compose up --build -d"
+
+    [mirror] =
+      job |> step!("Pull Docker Hub images through Google's mirror") |> run_scripts()
+
+    assert mirror =~ ~s("registry-mirrors": ["https://mirror.gcr.io"])
+    assert mirror =~ "/etc/docker/daemon.json"
+    assert mirror =~ "systemctl restart docker"
+
+    {mirrored, _} = :binary.match(job, "- name: Pull Docker Hub images through Google's mirror")
+    {built, _} = :binary.match(job, "- name: Build and start the Compose stack")
+    assert mirrored < built, "the daemon is pointed at the mirror after the build pulled"
 
     # Every secret docker-compose.yml requires, and only those, generated here.
     required =
@@ -1449,7 +1464,9 @@ defmodule Portfolixir.CITest do
   #
   # Acceptance criteria:
   # - Every CI service container names an exact PostgreSQL tag and a sha256
-  #   digest, the same in every job.
+  #   digest, the same in every job, and pulls it through Google's Docker Hub
+  #   mirror, so no unauthenticated Docker Hub quota a shared runner can spend
+  #   turns a job red (#1218); the digest keeps the image byte-identical.
   # - Both stages of the MCP image name one Node tag with a sha256 digest.
   # - The agent install script hard-codes a SHA-256 for the OTP and the
   #   Elixir archive; a version override without its own checksum is refused.
@@ -1460,7 +1477,7 @@ defmodule Portfolixir.CITest do
     images = Regex.scan(~r/^\s+image: (.*)$/m, ci_workflow(), capture: :all_but_first)
     assert images != []
     assert [[image]] = Enum.uniq(images), "CI jobs disagree on the database image"
-    assert image =~ ~r/^postgres:\d+\.\d+@sha256:[0-9a-f]{64}$/
+    assert image =~ ~r/^mirror\.gcr\.io\/library\/postgres:\d+\.\d+@sha256:[0-9a-f]{64}$/
 
     froms = Regex.scan(~r/^FROM (\S+)/m, File.read!("mcp-server/Dockerfile"))
     assert [[_, build], [_, runtime]] = froms
