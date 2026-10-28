@@ -67,7 +67,8 @@ can bring the history in from a Portfolio Performance export.
    variable (such a passphrase holds no single quote, which ends the quoted
    value, and does not end in a backslash, which escapes the closing quote).
    A token
-   shorter than 32 bytes, or left as the placeholder, stops the stack at start;
+   shorter than 32 bytes, or left as the placeholder, stops the stack at start,
+   and so does an empty `POSTGRES_PASSWORD` or one shorter than 32 bytes;
    with `PORTFOLIXIR_UI_PASSWORD` left empty, the web UI is open and asks for no
    login.
 3. Run `docker compose up --build -d`: it builds and starts the stack in the

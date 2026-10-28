@@ -118,6 +118,11 @@ only (E25), and it holds synthetic data, never an operator's real records. An
 instance still running the development stack as its deployment, as the
 documentation described it before the production release (#760), moves off it
 by a backup and a restore (`docs/home-deployment.md`, "Development stack").
+A server run from source (`mix phx.server`) shares that database posture: it
+connects as the superuser `postgres` with the password `postgres`, which
+`config/dev.exs` fixes, so the PostgreSQL it uses accepts that public login
+from every process on the machine; a release, by contrast, refuses to boot on
+an empty, placeholder or short database password.
 
 Known limits, recorded rather than hidden: as shipped, the application
 connects as the database's bootstrap superuser, which also owns the tables, so

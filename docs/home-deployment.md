@@ -185,7 +185,8 @@ The stack refuses to start while a secret is missing, the application and the
 MCP companion refuse to start with a token shorter than 32 bytes or equal to a
 placeholder, and the application refuses a `SECRET_KEY_BASE` shorter than 64
 bytes, equal to a placeholder, or equal to a value committed in this
-repository. Generate each token and `SECRET_KEY_BASE`
+repository, and a database password that is empty, shorter than 32 bytes or
+equal to a placeholder. Generate each token and `SECRET_KEY_BASE`
 with `openssl rand -base64 48`, and `POSTGRES_PASSWORD` with
 `openssl rand -hex 32`:
 the Compose file splices it into the database URL, where a `/` or `#` from
