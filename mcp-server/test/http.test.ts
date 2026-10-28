@@ -261,6 +261,43 @@ describe("MCP HTTP security helpers", () => {
     assert.equal(refused.headers["retry-after"], String(throttle.baseLockSeconds * 2));
   });
 
+  // User story (security review 2026-10-12, H49):
+  // As an operator whose companion listens over HTTP,
+  // I want the failed-token throttle to remember a bounded number of sources,
+  // so that wrong tokens from many addresses cannot grow the companion's
+  // memory for the whole retention hour.
+  //
+  // Acceptance criteria:
+  // - After failures from more distinct sources than the cap, each in its own
+  //   IPv6 /64, the throttle holds no more records than its cap.
+  // - Every one of those wrong tokens is still answered 401.
+  // - A source locked before the flood is still locked after it.
+  it("remembers a bounded number of failing sources and keeps a lock through a flood", () => {
+    const now = 1_000;
+    const throttle = createFailureThrottle();
+    const auth = mcpAuthMiddleware(soundToken, throttle, () => now);
+
+    for (let attempt = 1; attempt <= throttle.maxFailures; attempt += 1) {
+      authenticate(auth, "Bearer wrong", "10.0.0.5");
+    }
+
+    assert.equal(throttle.check("10.0.0.5", now).locked, true);
+
+    const flood = 50_000;
+    const statuses = new Map<number, number>();
+
+    for (let i = 1; i <= flood; i += 1) {
+      const source = `2001:db8:${(i >> 16).toString(16)}:${(i & 0xffff).toString(16)}::1`;
+      const status = authenticate(auth, "Bearer wrong", source).statusCode;
+      statuses.set(status, (statuses.get(status) ?? 0) + 1);
+    }
+
+    assert.deepEqual([...statuses], [[401, flood]]);
+    const size = (throttle as unknown as { size(): number }).size();
+    assert.ok(size < flood, `no cap: ${size} records kept for ${flood} failing sources`);
+    assert.equal(throttle.check("10.0.0.5", now).locked, true);
+  });
+
   // Issue #761: the SDK's DNS-rebinding protection is fed the names this
   // listener actually answers under.
   //
