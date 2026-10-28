@@ -1708,7 +1708,8 @@ Beispiel-Payloads für Konten:
   `gross_amount` und dem Betrag, der gebucht würde: Ein Kurs ist nicht der
   Betrag, den der Broker abgerechnet hat, und nichts wird aus ihm
   abgeleitet. Die Prüfung läuft beim Anlegen und bei einem `PATCH`, das `gross_amount`,
-  `settlement_amount`, `fees`, `taxes` oder `type` ändert, oder bei einer
+  `settlement_amount`, `fees`, `taxes`, `type`, `currency_code`,
+  `cash_account_id` oder `securities_account_id` ändert, oder bei einer
   Buchung ohne `gross_amount` ihre `quantity` oder ihren `price` — ein `PATCH`
   der Notiz oder des Datums einer älteren Buchung wird deswegen nie
   abgelehnt.

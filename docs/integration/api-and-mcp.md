@@ -1585,7 +1585,8 @@ Example account payloads:
   the amount it would book: a rate is not the cash the broker settled, and
   nothing is derived from it. The check
   runs on create and on a `PATCH` that changes `gross_amount`,
-  `settlement_amount`, `fees`, `taxes` or `type`, or, on a booking without a
+  `settlement_amount`, `fees`, `taxes`, `type`, `currency_code`,
+  `cash_account_id` or `securities_account_id`, or, on a booking without a
   `gross_amount`, its `quantity` or `price` — a `PATCH` of the notes or the
   date of an older booking is never refused by it.
 - `GET /api/v1/transactions/:id` returns one transaction.
