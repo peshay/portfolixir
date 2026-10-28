@@ -1888,7 +1888,10 @@ whenever no other view has been explicitly picked (an explicit pick — includin
 Everything — always wins). A view, a benchmark or a language that arrives in a
 link from another site applies to the page that link opens and is not
 remembered (E25): only a choice made on the instance itself, or typed into the
-address bar, changes what the next page shows. That page's own links (the
+address bar, changes what the next page shows. Reached over plain HTTP at a
+LAN name or address, where the browser does not say where a request came
+from, the instance remembers only a choice made on its own pages, and a typed
+one applies to that page (H41). That page's own links (the
 language switch, the tabs) do not pass the foreign view on, and a login in
 between drops the view, benchmark and language from the address it returns
 to. When the active view's buckets share an account, a

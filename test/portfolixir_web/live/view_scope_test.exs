@@ -11,6 +11,11 @@ defmodule PortfolixirWeb.ViewScopeTest do
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Valuation
 
+  # The instance on loopback, where the browser labels every request it
+  # sends, so a choice made by following the page's own links is remembered
+  # (H41).
+  setup %{conn: conn}, do: %{conn: %{conn | host: "localhost"}}
+
   defp world do
     # Built-in trees are seeded at startup in prod (#529); seed them within the
     # test sandbox so the view switcher / scoping surfaces resolve them.
@@ -176,6 +181,7 @@ defmodule PortfolixirWeb.ViewScopeTest do
     defp run_plug(conn) do
       conn
       |> Map.put(:secret_key_base, PortfolixirWeb.Endpoint.config(:secret_key_base))
+      |> put_req_header("sec-fetch-site", "same-origin")
       |> Plug.Test.init_test_session(%{})
       |> ViewScope.call(ViewScope.init([]))
     end

@@ -192,7 +192,13 @@ defmodule PortfolixirWeb.UiAuthTest do
     test "a login rotates the CSRF token", %{conn: conn} do
       Throttle.success(:ui, Throttle.source_key(conn.remote_ip))
 
-      login_page = conn |> with_csrf() |> get("/login?locale=de")
+      # The login page's own language link, which the browser labels.
+      login_page =
+        conn
+        |> with_csrf()
+        |> put_req_header("sec-fetch-site", "same-origin")
+        |> get("/login?locale=de")
+
       pre_login_token = form_csrf_token(html_response(login_page, 200))
       pre_login_session_token = Plug.Conn.get_session(login_page, "_csrf_token")
       assert is_binary(pre_login_session_token)

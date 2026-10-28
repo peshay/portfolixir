@@ -19,6 +19,11 @@ defmodule PortfolixirWeb.ClassificationsViewScopeTest do
   alias Portfolixir.Portfolios.Targets
   alias PortfolixirWeb.Format
 
+  # The instance on loopback, where the browser labels every request it
+  # sends, so a choice made by following the page's own links is remembered
+  # (H41).
+  setup %{conn: conn}, do: %{conn: %{conn | host: "localhost"}}
+
   @auth {"authorization", "Bearer test-api-token"}
 
   defp live_drained(conn, path) do

@@ -3,7 +3,9 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
   # parameters on a plain GET, so any site could link the operator's browser
   # to `/?view=…` and rewrite the stored UI scope. A choice is remembered only
   # when the browser says the request came from this origin, from the address
-  # bar or a bookmark, or does not say (an older browser, a script).
+  # bar or a bookmark, or does not say where browsers always say (an older
+  # browser, a script); off loopback over plain HTTP, where no browser says,
+  # only when the Referer names the instance itself (H41).
   use PortfolixirWeb.ConnCase
 
   import Phoenix.LiveViewTest
@@ -64,8 +66,9 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
   #   S7E-4): the session keeps the stored choice, which every later mount
   #   reads.
   # - The stored choice is what the next request without a parameter reads.
-  # - A GET whose Sec-Fetch-Site is same-origin or none, or that carries none,
-  #   still remembers the choice.
+  # - A GET whose Sec-Fetch-Site is same-origin or none still remembers the
+  #   choice; one that carries none does on loopback, or off it over plain
+  #   HTTP with the instance's own Referer (H41).
   test "a cross-site GET applies a view, benchmark and locale to itself only", %{conn: conn} do
     stored =
       conn
@@ -200,8 +203,17 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
   end
 
   test "a same-origin, typed or unlabelled GET remembers the choice", %{conn: conn} do
-    for site <- ["same-origin", "none", nil] do
-      request = if site, do: from(conn, site), else: conn
+    unlabelled_loopback = %{conn | host: "localhost"}
+    unlabelled_own_referer = put_req_header(conn, "referer", "http://www.example.com/portfolio")
+
+    for site <- ["same-origin", "none", :loopback, :own_referer] do
+      request =
+        case site do
+          :loopback -> unlabelled_loopback
+          :own_referer -> unlabelled_own_referer
+          header -> from(conn, header)
+        end
+
       response = get(request, "/?view=7&benchmark[]=security:9&locale=de")
 
       assert PortfolixirWeb.PreferenceCookieHelpers.remembered(response, @view_cookie) == "7",

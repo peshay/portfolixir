@@ -61,7 +61,13 @@ refusals built outside the router included, carries
 the same browser can neither embed nor probe them, and a view, benchmark or
 language choice in a link from another site (`Sec-Fetch-Site` other than
 `same-origin` or `none`) applies to the page it opens and is never remembered
-(E25); a remembered choice is read only from a cookie the instance signed,
+(E25). Browsers send no `Sec-Fetch-Site` to plain HTTP at any name or address
+but loopback, so there a choice is remembered only when the `Referer` names the
+instance's own origin, and otherwise applies to that page alone (H41); the
+limit that remains is an older browser without the header (Safari before 16.4)
+on HTTPS or loopback, whose unlabelled requests are still remembered, and over
+plain HTTP off loopback a choice typed into the address bar applies to its
+page only. A remembered choice is read only from a cookie the instance signed,
 sent once under its name, and over HTTPS named with the `__Host-` prefix, so
 another port or a sibling name of the same host cannot plant one (K02). Text an agent reads carries no character the operator cannot see:
 every writer, the importer included, refuses Unicode tag characters,

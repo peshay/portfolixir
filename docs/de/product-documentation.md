@@ -2075,7 +2075,10 @@ Wahl — auch von „Alles" — gewinnt immer). Eine Ansicht, eine Benchmark ode
 eine Sprache, die mit einem Link von einer anderen Website kommt, gilt für die
 Seite, die dieser Link öffnet, und wird nicht gemerkt (E25): Nur eine Wahl auf
 der Instanz selbst oder eine in die Adresszeile getippte ändert, was die
-nächste Seite zeigt. Die eigenen Links dieser Seite (Sprachwechsel, Reiter)
+nächste Seite zeigt. Über einfaches HTTP unter einem LAN-Namen oder einer
+LAN-Adresse, wo der Browser nicht sagt, woher eine Anfrage kommt, merkt sich
+die Instanz nur eine Wahl auf ihren eigenen Seiten, und eine getippte gilt für
+diese Seite (H41). Die eigenen Links dieser Seite (Sprachwechsel, Reiter)
 geben die fremde Ansicht nicht weiter, und eine Anmeldung dazwischen entfernt
 Ansicht, Benchmark und Sprache aus der Adresse, zu der sie zurückführt. Teilen sich die Buckets der aktiven
 Ansicht ein Konto, erinnert ein Badge neben der Summe — *Überlappende Buckets –

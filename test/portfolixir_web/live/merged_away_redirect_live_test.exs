@@ -13,6 +13,11 @@ defmodule PortfolixirWeb.MergedAwayRedirectLiveTest do
   alias Portfolixir.Lifecycle
   alias Portfolixir.WorldFixtures
 
+  # The instance on loopback, where the browser labels every request it
+  # sends, so a choice made by following the page's own links is remembered
+  # (H41).
+  setup %{conn: conn}, do: %{conn: %{conn | host: "localhost"}}
+
   # User story:
   # As the operator following an old link to a security that was merged
   # into another,
