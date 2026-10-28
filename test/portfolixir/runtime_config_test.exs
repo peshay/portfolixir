@@ -10,18 +10,82 @@ defmodule Portfolixir.RuntimeConfigTest do
   #
   # Acceptance criteria:
   # - DATABASE_SSL defaults to false.
-  # - The accepted true values are 1, true, and yes.
+  # - The accepted true values are 1, true, yes and on (H06).
   # - Other values are parsed as false.
   test "parses DATABASE_SSL with a false default and explicit true values" do
     refute RuntimeConfig.database_ssl?(nil)
     refute RuntimeConfig.database_ssl?("")
     refute RuntimeConfig.database_ssl?("false")
     refute RuntimeConfig.database_ssl?("no")
+    refute RuntimeConfig.database_ssl?("off")
+    refute RuntimeConfig.database_ssl?("require")
 
     assert RuntimeConfig.database_ssl?("1")
     assert RuntimeConfig.database_ssl?("true")
     assert RuntimeConfig.database_ssl?("TRUE")
     assert RuntimeConfig.database_ssl?("yes")
+    assert RuntimeConfig.database_ssl?("on")
+  end
+
+  # User story (security review 2026-10-12, H06):
+  # As an operator who writes a switch the way Docker, systemd and many
+  # guides write it,
+  # I want every boolean switch to read one vocabulary, and a value outside
+  # it to be named at boot for the switches that protect the instance,
+  # so that a switch I believe is on is never silently off.
+  #
+  # Acceptance criteria:
+  # - switch/2 reads 1, true, yes, on as true and 0, false, no, off as false,
+  #   trimmed and in any case; unset or blank gives the default; anything else
+  #   is {:error, value}.
+  # - PHX_FORCE_SSL, DATABASE_SSL and PHX_BIND_ALL accept on; the background
+  #   fetch switch accepts the same words.
+  # - switch_warning/3 names the variable and the value it could not read,
+  #   and the state it is read as; a recognised or absent value gives :ok.
+  # - protective_switch_warnings/1 checks PHX_FORCE_SSL, DATABASE_SSL and
+  #   PORTFOLIXIR_BACKGROUND_FETCH.
+  test "reads one switch vocabulary and names an unrecognised protective switch" do
+    for value <- ["1", "true", "YES", " on ", "On"] do
+      assert RuntimeConfig.switch(value, false) == {:ok, true}
+    end
+
+    for value <- ["0", "false", "No", "OFF "] do
+      assert RuntimeConfig.switch(value, true) == {:ok, false}
+    end
+
+    assert RuntimeConfig.switch(nil, true) == {:ok, true}
+    assert RuntimeConfig.switch("  ", false) == {:ok, false}
+    assert RuntimeConfig.switch("enabled", false) == {:error, "enabled"}
+
+    assert [_ | _] = RuntimeConfig.force_ssl_opts("on", nil)
+    assert RuntimeConfig.force_ssl_opts("off", nil) == false
+    assert RuntimeConfig.bind_ip("on") == {0, 0, 0, 0}
+    refute RuntimeConfig.background_fetch?("off")
+    assert RuntimeConfig.background_fetch?("on")
+
+    assert RuntimeConfig.switch_warning("PHX_FORCE_SSL", "on", false) == :ok
+    assert RuntimeConfig.switch_warning("PHX_FORCE_SSL", nil, false) == :ok
+
+    assert {:warn, message} = RuntimeConfig.switch_warning("PHX_FORCE_SSL", "enabled", false)
+    assert message =~ "PHX_FORCE_SSL"
+    assert message =~ ~s("enabled")
+    assert message =~ "read as off"
+
+    assert {:warn, message} =
+             RuntimeConfig.switch_warning("PORTFOLIXIR_BACKGROUND_FETCH", "disabled", true)
+
+    assert message =~ "read as on"
+
+    env = %{"PHX_FORCE_SSL" => "enabled", "DATABASE_SSL" => "require"}
+    warnings = RuntimeConfig.protective_switch_warnings(&Map.get(env, &1))
+
+    assert [{:warn, force_ssl}, {:warn, database_ssl}] =
+             Enum.filter(warnings, &match?({:warn, _}, &1))
+
+    assert force_ssl =~ "PHX_FORCE_SSL"
+    assert database_ssl =~ "DATABASE_SSL"
+
+    assert Enum.all?(RuntimeConfig.protective_switch_warnings(fn _ -> nil end), &(&1 == :ok))
   end
 
   # User story:

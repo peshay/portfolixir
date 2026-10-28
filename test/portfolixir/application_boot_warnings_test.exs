@@ -114,6 +114,35 @@ defmodule Portfolixir.ApplicationBootWarningsTest do
     assert log =~ unreadable
   end
 
+  # User story (security review 2026-10-12, H06):
+  # As an operator who wrote a protective switch in a spelling the
+  # application does not read,
+  # I want the boot log to name the variable and the value,
+  # so that I learn the switch is off before I rely on it.
+  #
+  # Acceptance criteria:
+  # - With PHX_FORCE_SSL=enabled in the environment, warn_if_exposed/0 logs
+  #   a warning naming PHX_FORCE_SSL and the value, and returns :ok.
+  test "names an unrecognised protective switch value at boot" do
+    previous = System.get_env("PHX_FORCE_SSL")
+
+    on_exit(fn ->
+      if previous,
+        do: System.put_env("PHX_FORCE_SSL", previous),
+        else: System.delete_env("PHX_FORCE_SSL")
+    end)
+
+    System.put_env("PHX_FORCE_SSL", "enabled")
+
+    log =
+      capture_log([level: :warning], fn ->
+        assert Portfolixir.Application.warn_if_exposed() == :ok
+      end)
+
+    {:warn, message} = RuntimeConfig.switch_warning("PHX_FORCE_SSL", "enabled", false)
+    assert log =~ message
+  end
+
   # #930, review pass 2: after_start/0, the step start/2 runs once the
   # supervisor is up, logs the loop warning exactly once (the seed and the
   # logo reconciliation are gated off in the test configuration).
