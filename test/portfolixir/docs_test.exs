@@ -1162,9 +1162,9 @@ defmodule Portfolixir.DocsTest do
   #   (EN, DE) and the agent guide (EN, DE) say the token is compared first:
   #   a correct token passes while its address is locked, a wrong one counts
   #   and keeps the lock.
-  # - SECURITY.md and ADR-0045 §1's dated note state the cost and the 32-byte
-  #   floor that makes it acceptable, and that the UI password stays
-  #   lock-first.
+  # - SECURITY.md and ADR-0045 §1's dated note state the cost and that the
+  #   UI password stays lock-first; what makes the cost acceptable is pinned
+  #   by the next test (H20, #1202).
   test "the guides say a correct token passes a locked source and a wrong one still counts" do
     read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
 
@@ -1196,7 +1196,8 @@ defmodule Portfolixir.DocsTest do
           {"SECURITY.md",
            [
              "a bearer token is compared before its source's lock is consulted",
-             "a locked guesser who guesses right is let in, which the 32-byte floor makes infeasible",
+             "the lock labels wrong tokens and slows nothing",
+             "a locked guesser who guesses right is let in",
              "the UI password, which a person chooses, meets the lock first",
              "the lock answers only wrong tokens, so the operator's agent, whose token is correct, keeps working"
            ]},
@@ -1213,6 +1214,43 @@ defmodule Portfolixir.DocsTest do
         assert doc =~ fragment, "#{path}: #{fragment}"
       end
     end
+  end
+
+  # User story (security review 2026-10-12, H20; #1202, answer (a); T-17):
+  # As the operator who generates the tokens,
+  # I want the records to say that a random token, not the length floor,
+  # makes a guess infeasible, and how to generate one,
+  # so that I do not take the 32-byte check for a guarantee it does not give.
+  #
+  # Acceptance criteria:
+  # - SECURITY.md, .env.example, the deployment guide (EN, DE) and llms.txt
+  #   say "a random token from `openssl rand -base64 48`" (DE: "ein
+  #   zufälliges Token aus").
+  # - SECURITY.md says the floor checks length only and no longer credits it
+  #   with making a right guess infeasible.
+  # - ADR-0045's note of 2026-10-08 carries a dated correction of 2026-10-28.
+  test "the records say a random token, not the length floor, makes guessing infeasible" do
+    read = fn path -> path |> File.read!() |> String.replace(~r/\s+/, " ") end
+    env_example = ".env.example" |> File.read!() |> String.replace(~r/^# ?/m, "")
+
+    for {path, doc} <- [
+          {"SECURITY.md", read.("SECURITY.md")},
+          {".env.example", String.replace(env_example, ~r/\s+/, " ")},
+          {"docs/home-deployment.md", read.("docs/home-deployment.md")},
+          {"docs/llms.txt", read.("docs/llms.txt")}
+        ] do
+      assert doc =~ "a random token from `openssl rand -base64 48`", path
+    end
+
+    assert read.("docs/de/home-deployment.md") =~
+             "ein zufälliges Token aus `openssl rand -base64 48`"
+
+    security = read.("SECURITY.md")
+    assert security =~ "checks length only"
+    refute security =~ "which the 32-byte floor makes infeasible"
+
+    assert read.("docs/decisions/0045-optional-built-in-authentication.md") =~
+             "Correction (2026-10-28"
   end
 
   # User story (#974, Sprint 20 γ closing act, the security lens):

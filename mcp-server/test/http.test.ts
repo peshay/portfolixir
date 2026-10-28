@@ -16,6 +16,7 @@ import {
   createFailureThrottle,
   createHttpApp,
   mcpAuthMiddleware,
+  mcpTokenWarning,
   MCP_TOKEN_MIN_BYTES,
   mcpUrl,
   startHttpServer
@@ -179,6 +180,32 @@ describe("MCP HTTP security helpers", () => {
         placeholder
       );
     }
+  });
+
+  // User story (security review 2026-10-12, H20; #1202; T-17):
+  // As an operator whose companion listens over HTTP,
+  // I want a token with few distinct characters named in a warning at start,
+  // so that a hand-typed token the length floor accepts does not pass for a
+  // random one, now that the lock no longer slows guessing.
+  //
+  // Acceptance criteria:
+  // - A token of one repeated character or of a counting run meets the
+  //   floor, and the warning names PORTFOLIXIR_MCP_TOKEN, says how to
+  //   generate one and never carries the token.
+  // - A token generated as documented gets no warning.
+  it("names a token with few distinct characters in a warning, never the token", () => {
+    const random = Buffer.from(Array.from({ length: 48 }, (_, i) => ((i + 1) * 53 + 7) % 256)).toString("base64");
+
+    for (const weak of ["a".repeat(32), "0123456789".repeat(3) + "01"]) {
+      assert.equal(requireMcpToken(weak), weak);
+      const warning = mcpTokenWarning(weak);
+      assert.ok(warning, weak);
+      assert.match(warning, /PORTFOLIXIR_MCP_TOKEN/);
+      assert.match(warning, /openssl rand -base64 48/);
+      assert.ok(!warning.includes(weak));
+    }
+
+    assert.equal(mcpTokenWarning(random), undefined);
   });
 
   // User story (E25 S1, F01; #974, the Sprint 20 plan's D-11):
