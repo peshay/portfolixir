@@ -134,6 +134,60 @@ defmodule Portfolixir.RuntimeConfigTest do
              RuntimeConfig.trusted_proxies(System.get_env("PORTFOLIXIR_TRUSTED_PROXIES"))
   end
 
+  # User story (security review 2026-10-12, H04):
+  # As an operator naming the proxy in front of the instance,
+  # I want a block wide enough to cover the clients refused and named,
+  # so that a copied catch-all does not trust every client's forwarding
+  # headers, and two halves cannot stand in for it.
+  #
+  # Acceptance criteria:
+  # - An IPv4 block shorter than /8 and an IPv6 block shorter than /32 are
+  #   dropped by trusted_proxies/1 and listed by overbroad_trusted_proxies/1,
+  #   never as unreadable.
+  # - A single address, a /29, a /8 and an IPv6 /32 still parse.
+  # - overbroad_proxies_warning/1 names the variable, quotes each entry and
+  #   says what such a block would do; none, no warning.
+  test "refuses and names a trusted-proxy block wide enough to cover the clients" do
+    raw =
+      "0.0.0.0/0, 0.0.0.0/1, 128.0.0.0/1, 127.0.0.0/7, ::/0, 2001:db8::/31, " <>
+        "172.18.0.1, 192.0.2.0/29, 10.0.0.0/8, 2001:db8::/32, nope"
+
+    assert RuntimeConfig.trusted_proxies(raw) == [
+             {{172, 18, 0, 1}, 32},
+             {{192, 0, 2, 0}, 29},
+             {{10, 0, 0, 0}, 8},
+             {{0x2001, 0xDB8, 0, 0, 0, 0, 0, 0}, 32}
+           ]
+
+    overbroad = [
+      "0.0.0.0/0",
+      "0.0.0.0/1",
+      "128.0.0.0/1",
+      "127.0.0.0/7",
+      "::/0",
+      "2001:db8::/31"
+    ]
+
+    assert RuntimeConfig.overbroad_trusted_proxies(raw) == overbroad
+    assert RuntimeConfig.unreadable_trusted_proxies(raw) == ["nope"]
+    assert RuntimeConfig.overbroad_trusted_proxies("172.18.0.1") == []
+    assert RuntimeConfig.overbroad_trusted_proxies(nil) == []
+
+    assert RuntimeConfig.overbroad_trusted_proxies() ==
+             RuntimeConfig.overbroad_trusted_proxies(
+               System.get_env("PORTFOLIXIR_TRUSTED_PROXIES")
+             )
+
+    assert RuntimeConfig.overbroad_proxies_warning([]) == :ok
+    assert {:warn, message} = RuntimeConfig.overbroad_proxies_warning(overbroad)
+    assert message =~ "PORTFOLIXIR_TRUSTED_PROXIES"
+    assert message =~ "X-Forwarded-For"
+
+    for entry <- overbroad do
+      assert message =~ inspect(entry)
+    end
+  end
+
   # User story (#777):
   # As an operator who does not want to type the password every day,
   # I want the session lifetime to be a setting with a sensible default,
