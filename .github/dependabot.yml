@@ -33,8 +33,9 @@ updates:
     schedule:
       interval: "weekly"
 
-  # pre-commit and its dependencies, pinned by version and sha256 for CI's
-  # install (E25 S8, F60): the bot regenerates requirements.txt from
+  # pre-commit and its dependencies, and pre-commit-hooks the local hygiene
+  # hooks run on (H65), pinned by version and sha256 for CI's install (E25
+  # S8, F60): the bot regenerates requirements.txt from
   # requirements.in with pip-compile --generate-hashes, so the hash pin does
   # not harden into a stale version. One grouped PR rather than one per
   # package.

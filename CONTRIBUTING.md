@@ -264,12 +264,14 @@ python -m pip install --require-hashes --only-binary :all: -r .github/pre-commit
 pre-commit install --install-hooks
 ```
 
-The Git hooks find that environment by themselves; activate it again in a new
-shell before running `pre-commit run --all-files` from the list above.
+Activate that environment in every shell you commit from or run `pre-commit
+run --all-files` in: the hooks run the tools it installed.
 
 The pre-commit setup uses standard hygiene hooks and `mix format --check-formatted`.
-Remote hook repositories are frozen to commit SHAs; `pre-commit autoupdate
---freeze` moves one.
+Every hook is local and builds no environment of its own: the hygiene hooks
+run on `pre-commit-hooks` as the same hash-pinned file pins it, so a new
+upload to the package index changes nothing a hook runs (H65). Dependabot
+proposes its updates with the rest of that file.
 
 ## Test Rules
 

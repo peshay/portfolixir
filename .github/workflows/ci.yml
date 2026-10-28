@@ -51,8 +51,10 @@ jobs:
       # pre-commit and every dependency it pulls, pinned by version and sha256
       # (E25 S8, F60): --require-hashes refuses anything the file does not
       # name with a matching hash, and --only-binary installs wheels only, so
-      # no package's build script runs either. The hook repositories are
-      # frozen to commits in .pre-commit-config.yaml.
+      # no package's build script runs either. The same file pins what the
+      # hooks run on, pre-commit-hooks and its dependencies: every hook in
+      # .pre-commit-config.yaml is local and builds no environment of its own,
+      # so nothing is resolved from the package index after this step (H65).
       - name: Install pre-commit
         run: |
           python3 -m pip install --require-hashes --only-binary :all: -r .github/pre-commit/requirements.txt

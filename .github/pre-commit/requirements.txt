@@ -34,6 +34,10 @@ pre-commit==4.7.0 \
     --hash=sha256:1f3deee12b914c8fa184bd2b5953391c2e4f36763e403d4a23dc9983fa7c6e86 \
     --hash=sha256:2e229038ad3656081b70c27913157e4b636ef306f643f024a8a8e3f0f7b2f877
     # via -r requirements.in
+pre-commit-hooks==5.0.0 \
+    --hash=sha256:10626959a9eaf602fbfc22bc61b6e75801436f82326bfcee82bb1f2fc4bc646e \
+    --hash=sha256:8d71cfb582c5c314a5498d94e0104b6567a8b93fb35903ea845c491f4e290a7a
+    # via -r requirements.in
 python-discovery==1.6.1 \
     --hash=sha256:cf87d3627dfb4412437fdd5b13eae402607722998d21567993aedbc59b23c15e \
     --hash=sha256:d43fcdef879fe795352bd13ccf8d185ba5a9f86f36cfcd00529f596e737442b3
@@ -113,6 +117,10 @@ pyyaml==6.0.3 \
     --hash=sha256:fa160448684b4e94d80416c0fa4aac48967a969efe22931448d853ada8baf926 \
     --hash=sha256:fc09d0aa354569bc501d4e787133afc08552722d3ab34836a80547331bb5d4a0
     # via pre-commit
+ruamel-yaml==0.19.1 \
+    --hash=sha256:27592957fedf6e0b62f281e96effd28043345e0e66001f97683aa9a40c667c93 \
+    --hash=sha256:53eb66cd27849eff968ebf8f0bf61f46cdac2da1d1f3576dd4ccee9b25c31993
+    # via pre-commit-hooks
 virtualenv==21.12.1 \
     --hash=sha256:878db9e963d0ef0b38561a344a4f9b12dc5c7741b6245d7ed10e9291cfea28bc \
     --hash=sha256:be5a0a62cb2d1529ff6999652e2e7826f95bf7faa9b96b88cc39847c023d90a0

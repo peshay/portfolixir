@@ -1357,7 +1357,9 @@ defmodule Portfolixir.CITest do
   #
   # Acceptance criteria:
   # - Every remote hook repository's `rev:` is a 40-hex commit SHA, with the
-  #   tag it was resolved from in a `# frozen: vX.Y.Z` comment.
+  #   tag it was resolved from in a `# frozen: vX.Y.Z` comment. (Since H65
+  #   no remote hook repository remains: the hygiene hooks are local and run
+  #   on the hash-pinned pre-commit-hooks, pre_commit_hooks_test.exs.)
   # - CI installs pre-commit with `--require-hashes`, wheels only, from
   #   .github/pre-commit/requirements.txt; `pip install --upgrade
   #   pre-commit` is gone.
@@ -1368,7 +1370,6 @@ defmodule Portfolixir.CITest do
     remote_repos = Regex.scan(~r/^\s*- repo: https:\/\//m, config)
     revs = Regex.scan(~r/^\s+rev: (.*)$/m, config, capture: :all_but_first)
 
-    assert remote_repos != []
     assert length(revs) == length(remote_repos), "a remote hook repository has no rev"
 
     for [rev] <- revs do
