@@ -365,4 +365,61 @@ defmodule Portfolixir.Ledger.SettlementGuardTest do
       assert Decimal.equal?(row.difference, Decimal.new("181.82"))
     end
   end
+
+  # User story (security review 2026-10-12, H35):
+  # As the operator booking a USD security through a EUR cash account,
+  # I want a trade that carries a settlement rate but neither its cash amount
+  # nor its settlement amount refused on every write path the guard covers,
+  # so that quantity × price in dollars is never booked as euros.
+  #
+  # Acceptance criteria:
+  # - Through the ledger, a buy and a sell with only the rate are refused on
+  #   gross_amount, the message naming the cash quantity × price with fees
+  #   and taxes would book; nothing is written.
+  # - The importer's changeset with its currency check refuses the same shape
+  #   the same way.
+  # - A trade booked in its cash account's currency with a stored rate is not
+  #   cross-currency and is not refused.
+  # - Recording the cash the broker settled is the remedy: the same buy with
+  #   its gross_amount passes.
+  describe "a cross-currency trade with a rate and neither amount (H35)" do
+    test "is refused through the ledger and the importer's changeset" do
+      w = world()
+      rate_only = %{security_amount: nil, settlement_amount: nil, gross_amount: nil}
+
+      assert {:error, changeset} = trade(w, "buy", rate_only)
+      assert [message] = gross_error(changeset)
+      assert message =~ "(2004.9)"
+
+      assert {:error, changeset} = trade(w, "sell", rate_only)
+      assert [message] = gross_error(changeset)
+      assert message =~ "(1995.1)"
+
+      import_changeset =
+        Transaction.import_changeset(%Transaction{}, %{
+          portfolio_id: w.portfolio.id,
+          securities_account_id: w.depot.id,
+          cash_account_id: w.cash.id,
+          security_id: w.security.id,
+          type: "buy",
+          date: ~D[2026-04-01],
+          quantity: Decimal.new("10"),
+          price: Decimal.new("200.00"),
+          currency_code: "USD",
+          settlement_fx_rate: Decimal.new("0.90909"),
+          import_hash: "h35-rate-only"
+        })
+        |> Transaction.validate_cash_account_currency(%{w.cash.id => "EUR"})
+
+      assert [_message] = gross_error(import_changeset)
+
+      assert Repo.all(Transaction) |> Enum.filter(&(&1.security_id == w.security.id)) == []
+
+      assert {:ok, %Transaction{}} =
+               trade(w, "buy", %{rate_only | gross_amount: Decimal.new("1823.08")})
+
+      assert {:ok, %Transaction{gross_amount: nil}} =
+               trade(w, "buy", Map.put(rate_only, :currency_code, "EUR"))
+    end
+  end
 end
