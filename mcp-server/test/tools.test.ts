@@ -2094,6 +2094,10 @@ describe("Portfolixir MCP tools", () => {
     assert.match(preview, /realized_result/);
     assert.match(preview, /positions_basis/);
     assert.match(preview, /plan_digest/);
+    // K11: the depot's realized_result is a moving average, and a depot
+    // merge leaves the FIFO realized gains as they are.
+    assert.match(preview, /moving-average/);
+    assert.match(preview, /FIFO realized gains do not change/);
     assert.equal(find("portfolixir.securities_accounts.merge_preview")?.annotations?.readOnlyHint, true);
     assert.match(
       describe("portfolixir.securities_accounts.delete"),
@@ -2199,6 +2203,13 @@ describe("Portfolixir MCP tools", () => {
     assert.match(preview, /after_by_identity_choice/);
     assert.match(preview, /manual_collisions/);
     assert.match(preview, /plan_digest/);
+    // Security review 2026-10-12, K11: the merge pools two FIFO queues, and
+    // the preview names the fields that state the restatement.
+    assert.match(preview, /fifo_realized/);
+    assert.match(preview, /close year/);
+    assert.match(preview, /open_lots/);
+    assert.match(preview, /fifo_basis/);
+    assert.match(preview, /moving-average/);
     assert.equal(find("portfolixir.securities.merge_preview")?.annotations?.readOnlyHint, true);
     assert.match(describe("portfolixir.securities.delete"), /portfolixir\.securities\.merge_preview/);
     assert.match(describe("portfolixir.securities.get"), /merged_into/);
