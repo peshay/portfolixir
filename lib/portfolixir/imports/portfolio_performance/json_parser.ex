@@ -76,6 +76,10 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   def parse(body, opts \\ []) when is_binary(body) do
     max_rows = PortfolioPerformance.max_rows()
 
+    with :ok <- within_shape(body, max_rows), do: decode(body, max_rows, opts)
+  end
+
+  defp decode(body, max_rows, opts) do
     case Jason.decode(body, floats: :decimals) do
       {:ok, %{"version" => 1, "transactions" => txs}} when is_list(txs) ->
         rows = length(txs)
@@ -102,6 +106,86 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         {:error, {:invalid_json, Exception.message(e)}}
     end
   end
+
+  # Security review 2026-10-12, H59: the shape of the body is judged before
+  # it is decoded, by one pass over its bytes that builds nothing. An export
+  # nests five levels (the document, its transactions, a transaction, its
+  # units, a unit), so a body nested deeper than this is no export.
+  @max_depth 32
+
+  # The most elements an object, or an array below the document's own keys
+  # (a transaction's units), may hold before the body is decoded: far more
+  # than an export writes (a transaction has some fifteen keys and at most
+  # `PortfolioPerformance.max_units/0` units, a units list past that being a
+  # row error), so no export is refused by it.
+  @max_nested_elements 1_000
+
+  # The document's own arrays (its transactions) hold at most `max_rows`
+  # elements: past it, the row cap's refusal, naming the longest one's
+  # length. An object or a nested array past its bound, or a body nested past
+  # `@max_depth`, is no export. A body the pass cannot judge (unbalanced
+  # brackets) is left to the decoder, which names it.
+  defp within_shape(body, max_rows),
+    do: scan(body, [], {max_rows, max(max_rows, @max_nested_elements)}, 0)
+
+  defp scan(<<?", rest::binary>>, stack, limits, over),
+    do: scan_string(rest, stack, limits, over)
+
+  defp scan(<<?[, rest::binary>>, stack, limits, over),
+    do: open(rest, :array, stack, limits, over)
+
+  defp scan(<<?{, rest::binary>>, stack, limits, over),
+    do: open(rest, :object, stack, limits, over)
+
+  defp scan(<<c, rest::binary>>, [container | stack], {max_rows, _} = limits, over)
+       when c in [?], ?}],
+       do: scan(rest, stack, limits, past_cap(container, max_rows, over))
+
+  defp scan(<<?,, rest::binary>>, [{:array, commas, depth} | stack], limits, over)
+       when depth <= 2,
+       do: scan(rest, [{:array, commas + 1, depth} | stack], limits, over)
+
+  defp scan(<<?,, _rest::binary>>, [{_type, commas, _depth} | _stack], {_, nested}, _over)
+       when commas + 1 >= nested,
+       do: {:error, :malformed_payload}
+
+  defp scan(<<?,, rest::binary>>, [{type, commas, depth} | stack], limits, over),
+    do: scan(rest, [{type, commas + 1, depth} | stack], limits, over)
+
+  defp scan(<<_byte, rest::binary>>, stack, limits, over),
+    do: scan(rest, stack, limits, over)
+
+  defp scan(<<>>, stack, {max_rows, _}, over) do
+    case Enum.reduce(stack, over, &past_cap(&1, max_rows, &2)) do
+      0 -> :ok
+      elements -> {:error, {:too_many_rows, elements}}
+    end
+  end
+
+  defp scan_string(<<?\\, _escaped, rest::binary>>, stack, limits, over),
+    do: scan_string(rest, stack, limits, over)
+
+  defp scan_string(<<?", rest::binary>>, stack, limits, over),
+    do: scan(rest, stack, limits, over)
+
+  defp scan_string(<<_byte, rest::binary>>, stack, limits, over),
+    do: scan_string(rest, stack, limits, over)
+
+  defp scan_string(<<>>, stack, limits, over), do: scan(<<>>, stack, limits, over)
+
+  defp open(_rest, _type, stack, _limits, _over) when length(stack) >= @max_depth,
+    do: {:error, :malformed_payload}
+
+  defp open(rest, type, stack, limits, over),
+    do: scan(rest, [{type, 0, length(stack) + 1} | stack], limits, over)
+
+  # The longest of the document's own arrays past the cap so far: an array
+  # of n commas holds n + 1 elements.
+  defp past_cap({:array, commas, depth}, max_rows, over)
+       when depth <= 2 and commas + 1 > max_rows,
+       do: max(over, commas + 1)
+
+  defp past_cap(_container, _max_rows, over), do: over
 
   defp expanded_count(txs) do
     Enum.reduce(txs, 0, fn tx, count -> count + 1 + refund_units(tx) end)

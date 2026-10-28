@@ -206,6 +206,28 @@ defmodule PortfolixirWeb.ImportsUploadSizeBoundsTest do
 
     # User story (security review 2026-10-12, H59):
     # As the operator,
+    # I want a JSON transaction with far more units than any export writes
+    # refused before it is decoded,
+    # so that its length is a named file error, never a stopped parser.
+    #
+    # Acceptance criteria:
+    # - Such a file is a named file error, and the parser process returns.
+    test "a JSON transaction with millions of units is a named file error, not a killed parser" do
+      unit = ~s({"type":"FEE","amount":1})
+
+      body =
+        ~s({"version":1,"transactions":[{"type":"DEPOSIT","date":"2024-01-02","amount":1,"units":[) <>
+          Enum.join(List.duplicate(unit, 2_000_000), ",") <> "]}]}"
+
+      {result, log, ms} = parse_capped(body, "units.json")
+
+      assert result == {:returned, {:error, :malformed_payload}},
+             "units: the parser process ended (#{inspect(result, limit: 4)}) after #{ms} ms " <>
+               "instead of naming the file; log: #{excerpt(log)}"
+    end
+
+    # User story (security review 2026-10-12, H59):
+    # As the operator,
     # I want a JSON file nested deeper than any export refused before it is
     # decoded,
     # so that its nesting is a named file error, never a stopped parser.
