@@ -58,6 +58,24 @@ defmodule Portfolixir.Portfolios do
   """
 
   @doc """
+  Runs several account writes as one (K14): `fun` calls the context
+  writers — each actor-first, each journaling in its own `Ecto.Multi` — and
+  answers `{:ok, value}` or `{:error, reason}`. An error rolls back every
+  write `fun` made, journal entries included, and is answered as is; so the
+  account dialog's tag, cash account, depot and bucket sets land together
+  or not at all.
+  """
+  @spec all_or_nothing((-> {:ok, term()} | {:error, term()})) :: {:ok, term()} | {:error, term()}
+  def all_or_nothing(fun) when is_function(fun, 0) do
+    Repo.transaction(fn ->
+      case fun.() do
+        {:ok, value} -> value
+        {:error, reason} -> Repo.rollback(reason)
+      end
+    end)
+  end
+
+  @doc """
   Resolves the ONE deterministic internal default portfolio that new depots
   and cash accounts bind to (ADR-0024): the earliest record when any exists,
   otherwise a freshly created "Default" (EUR) — journaled under `actor` like

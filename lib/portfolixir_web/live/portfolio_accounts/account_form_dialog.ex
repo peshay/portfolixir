@@ -280,12 +280,22 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
     form = normalize_form(socket.assigns.form, params["account"])
     socket = assign(socket, :form, form)
 
-    with {:ok, bucket_ids} <- resolve_initial_buckets(form),
-         {:ok, records} <- create_records(socket.assigns.mode, form, socket),
-         :ok <- assign_initial_buckets(records, bucket_ids) do
-      notify_parent(socket, {:created, success_message(socket.assigns.mode)})
-      {:noreply, socket}
-    else
+    # K14: the tag, the cash account, the depot and the bucket sets land
+    # together or not at all — a refusal at any step rolls back the writes
+    # before it, so nothing is left behind and a retry starts clean.
+    save = fn ->
+      with {:ok, bucket_ids} <- resolve_initial_buckets(form),
+           {:ok, records} <- create_records(socket.assigns.mode, form, socket),
+           :ok <- assign_initial_buckets(records, bucket_ids) do
+        {:ok, records}
+      end
+    end
+
+    case save |> Portfolios.all_or_nothing() |> map_refusal() do
+      {:ok, _records} ->
+        notify_parent(socket, {:created, success_message(socket.assigns.mode)})
+        {:noreply, socket}
+
       {:error, :scope_conflict} ->
         {:noreply,
          assign(
@@ -319,8 +329,8 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
   # -- create flow ------------------------------------------------------------
 
   # Resolves the checked buckets plus the optional inline tag into one id set,
-  # rejecting more than one exclusive scope bucket BEFORE anything is created —
-  # the invariant fails loud and early, never after a partial write.
+  # rejecting more than one exclusive scope bucket; the save's one
+  # transaction (K14) rolls back the inline tag with the refusal.
   defp resolve_initial_buckets(form) do
     selected = LiveParam.ids(form["bucket_ids"])
 
@@ -356,8 +366,9 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
 
   defp create_records("depot", form, socket) do
     # The depot name is pre-validated so a blank one, or one another depot
-    # already answers to (ADR-0050 §4), can never leave a freshly created cash
-    # account dangling without its depot.
+    # already answers to (ADR-0050 §4), is refused before the cash account is
+    # written; any refusal the depot's own changeset makes after it rolls the
+    # cash account back with the save's one transaction (K14).
     with :ok <- require_field(form, "depot_name"),
          :ok <- require_free_depot_name(form),
          {:ok, cash, created?} <- resolve_cash_account(form, socket),
@@ -390,7 +401,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
       "currency_code" => form["currency_code"],
       "portfolio_id" => Portfolios.default_portfolio(Actor.owner_ui()).id
     })
-    |> map_changeset_errors("cash", %{"name" => "cash_name"})
+    |> refused_as("cash", %{"name" => "cash_name"})
   end
 
   defp create_depot(form, cash) do
@@ -399,7 +410,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
       "cash_account_id" => cash.id,
       "portfolio_id" => Portfolios.default_portfolio(Actor.owner_ui()).id
     })
-    |> map_changeset_errors("depot", %{"name" => "depot_name"})
+    |> refused_as("depot", %{"name" => "depot_name"})
   end
 
   defp assign_initial_buckets(_records, []), do: :ok
@@ -456,7 +467,19 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
     end
   end
 
-  defp map_changeset_errors({:ok, record}, _kind, _mapping), do: {:ok, record}
+  # A record's refusal travels out of the save's transaction as it is, and
+  # its messages are read after the rollback (K14): naming the account a
+  # name belongs to reads the database, which a refused transaction no
+  # longer answers.
+  defp refused_as({:ok, record}, _kind, _mapping), do: {:ok, record}
+
+  defp refused_as({:error, %Ecto.Changeset{} = changeset}, kind, mapping),
+    do: {:error, {:refused, kind, mapping, changeset}}
+
+  defp map_refusal({:error, {:refused, kind, mapping, changeset}}),
+    do: map_changeset_errors({:error, changeset}, kind, mapping)
+
+  defp map_refusal(result), do: result
 
   # #921: the field errors in the page's language — the name guard
   # (`validation: :name_taken`) in the rename dialog's words, every other
