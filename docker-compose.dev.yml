@@ -55,6 +55,12 @@ services:
       PORTFOLIXIR_ALLOWED_HOSTS: app
       PORTFOLIXIR_API_TOKEN: ${PORTFOLIXIR_API_TOKEN:?set PORTFOLIXIR_API_TOKEN in .env}
       PORT: 4000
+    # Descriptors above the listener's connection cap (500, config/config.exs),
+    # so a flood of connections meets the cap, not the descriptor table.
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 4096
     ports:
       - "127.0.0.1:4000:4000"
     command: ["mix", "phx.server"]

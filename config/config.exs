@@ -15,6 +15,20 @@ config :portfolixir, PortfolixirWeb.Endpoint,
   # dev.exs, test.exs and runtime.exs (ip, port) merge into the ones below.
   adapter: Bandit.PhoenixAdapter,
   http: [
+    # The listener's bounds (security review 2026-10-12, H09), sized for one
+    # operator and the MCP companion: a browser holds a handful of
+    # connections and one socket per open page, the companion a few, so
+    # 10 acceptors of 50 connections each, 500 at once, leave room for a
+    # reverse proxy's upstream pool. A connection whose client sends nothing
+    # for 15 seconds is closed, whether it is idle between requests or stuck
+    # in its request header; the socket's own timeout keeps an open page's
+    # connection. The port is meant to sit behind a reverse proxy that times
+    # the whole header (docs/home-deployment.md, "Reverse proxy").
+    thousand_island_options: [num_acceptors: 10, num_connections: 50, read_timeout: 15_000],
+    # No cleartext HTTP/2: no browser speaks it without TLS, the documented
+    # proxies and the companion talk HTTP/1.1 to the application, and it
+    # would carry many request processes on one connection.
+    http_2_options: [enabled: false],
     # A message sent in fragments meets the LiveView socket's frame bound
     # too (security review 2026-10-12, H02; PortfolixirWeb.LiveSocket).
     websocket_options: [max_fragmented_message_size: 524_288]

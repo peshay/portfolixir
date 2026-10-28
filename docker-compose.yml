@@ -83,6 +83,12 @@ services:
       # "off" leaves logo discovery and the scheduled quote and FX downloads
       # off from boot, for a host that must not call out (#1026).
       PORTFOLIXIR_BACKGROUND_FETCH: ${PORTFOLIXIR_BACKGROUND_FETCH:-}
+    # Descriptors above the listener's connection cap (500, config/config.exs),
+    # so a flood of connections meets the cap, not the descriptor table.
+    ulimits:
+      nofile:
+        soft: 4096
+        hard: 4096
     ports:
       - "127.0.0.1:4000:4000"
     volumes:
