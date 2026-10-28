@@ -609,6 +609,10 @@ Fehlgeschlagene Anmeldungen zählen außerdem über alle Quellen zusammen in ein
 gleitenden Zeitfenster, damit auf viele Adressen verteilte Versuche sich nicht
 vervielfachen; über dieser Obergrenze lässt die Anmeldung alle warten, den
 Betreiber eingeschlossen, während bereits angemeldete Sitzungen weiterlaufen.
+Die Zählungen sind in ihrer Zahl begrenzt, nicht nur in der Zeit: ein
+IPv6-Client zählt als sein /64, und falsche Token von Adressen, die die API
+noch nicht kennt, treffen auf eine eigene gleitende Obergrenze, über der eine
+solche Adresse warten muss und nicht gespeichert wird.
 Ein Neustart der Anwendung löscht die Zählungen, die der Obergrenze
 eingeschlossen, weil sie nur im Speicher liegen: `docker compose restart app`
 gibt die Anmeldung sofort wieder frei. `PORTFOLIXIR_UI_PASSWORD` in `.env` zu

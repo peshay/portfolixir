@@ -577,6 +577,10 @@ container through the Docker bridge must be named there for the cookie to be
 across all sources together over a rolling window, so guesses spread over many
 addresses cannot multiply; past that ceiling the login asks everyone to wait,
 the operator included, while sessions already logged in keep working.
+The counts are bounded in number as well as in time: an IPv6 client counts as
+its /64, and wrong tokens from addresses the API does not remember yet meet a
+rolling ceiling of their own, past which such an address is asked to wait and
+is not remembered.
 Restarting the application clears the counts, the ceiling's included, because
 they are kept in memory only: `docker compose restart app` gives the login
 back at once. Changing `PORTFOLIXIR_UI_PASSWORD` in `.env` and running

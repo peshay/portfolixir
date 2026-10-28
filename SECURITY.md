@@ -24,7 +24,9 @@ characters on an instance bound beyond loopback is named in a startup warning;
 both bearer tokens, the API's and the MCP companion's, must be at least 32
 bytes and not a placeholder, and, like the UI password, are throttled per
 source after repeated failures, with the escalation kept well past the longest
-lock; a bearer token is compared before its source's lock is consulted, so a
+lock, and the counts bounded in number (an IPv6 source counts as its /64, and
+past a rolling ceiling on wrong tokens from sources not yet counted such a
+source waits unrecorded); a bearer token is compared before its source's lock is consulted, so a
 correct token passes a locked source and a wrong one still counts and is
 answered `429` while the lock lasts (Sprint 20, #974): a locked guesser who
 guesses right is let in, which the 32-byte floor makes infeasible, while the
