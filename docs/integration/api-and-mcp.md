@@ -205,7 +205,11 @@ characters, and every text value, in a nested object or list too, is free
 text; otherwise the write answers `422` on `attributes`. The map as stored,
 merged with the attributes already there, is at most 65536 bytes as compact
 JSON; a write that would pass that answers `422` on `attributes` and stores
-nothing. An update that changes nothing writes no row and leaves no journal
+nothing. `market_cap_rank`, the attribute the securities list sorts as a
+number, is a whole number or its text and is stored as a number; anything
+else answers `422` on `attributes` ("market_cap_rank must be a whole
+number"), and a search provider's value that is no whole number is dropped.
+An update that changes nothing writes no row and leaves no journal
 entry. A search provider's property that breaks the
 rule is dropped before it reaches the attributes. A read's text filter — the
 securities `query`, the journal's `resource_type` and `resource_id`, the tax

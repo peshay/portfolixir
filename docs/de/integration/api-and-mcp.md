@@ -228,6 +228,10 @@ Freitext; sonst liefert der Schreibzugriff `422` auf `attributes`. Die
 Zuordnung, wie sie gespeichert wird — zusammengeführt mit den vorhandenen
 Attributen —, ist als kompaktes JSON höchstens 65536 Byte groß; ein
 Schreibzugriff darüber liefert `422` auf `attributes` und speichert nichts.
+`market_cap_rank`, das Attribut, das die Wertpapierliste als Zahl sortiert,
+ist eine ganze Zahl oder ihr Text und wird als Zahl gespeichert; alles andere
+liefert `422` auf `attributes` („market_cap_rank must be a whole number“),
+und ein Wert eines Suchanbieters, der keine ganze Zahl ist, wird verworfen.
 Eine Änderung, die nichts ändert, schreibt keine Zeile und hinterlässt keinen
 Journaleintrag. Eine
 Eigenschaft eines Suchanbieters, die gegen die Regel verstößt, wird verworfen,
