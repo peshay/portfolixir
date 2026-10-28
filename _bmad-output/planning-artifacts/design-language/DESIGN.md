@@ -2754,6 +2754,18 @@ adds. Built by Sprint 16 Lane L5a in
   line; and — board 13 — one line per split whose combined rounding differs
   from the two rounded apart, with its date and ratio. Its note adds that
   the target keeps its cash account.
+  - **The realized column is named for its moving average** *(security
+    review 2026-10-12, K11; board `mockups/ux-design-2026-10-27/04-merge-restatement`
+    ②, before/after)*: the column head and the phone line's label read
+    "Realized (moving avg.)" / "Realisiert (gleit. Ø)", never "Realized
+    gain/loss", and the basis line names it — "the depot's result by moving
+    average over both depots' buys" — and ends with one sentence: "Realized
+    gains by FIFO (Cash flow → Trades, a security's Trades tab) do not
+    change: the FIFO queue belongs to the security, not the depot." / "Die
+    realisierten Gewinne nach FIFO (Cashflow → Trades, der Trades-Tab eines
+    Wertpapiers) ändern sich nicht: Die FIFO-Reihe gehört dem Wertpapier,
+    nicht dem Depot." Two figures called "realized" never stand side by side
+    unnamed.
 - **The confirm** is `.button-danger` "Merge into <target>" at the band's
   end. While the equal bookings' choice is missing it is disabled —
   `.button-danger:disabled` at 45 % opacity with the not-allowed cursor,
@@ -2854,6 +2866,35 @@ records only what the security adds.
   are dropped, the events that move); the equal bookings as G2's
   `fieldset.merge-choice`, its table cut to three rows with "Show the other
   N pairs" (`.merge-more`) and the two unpreselected options.
+- **The FIFO restatement, under the holdings** *(security review
+  2026-10-12, K11; board `mockups/ux-design-2026-10-27/04-merge-restatement`
+  ①, pick Q4 A)*: the merge pools the two securities' FIFO queues, so a sale
+  can close the other's older lot — the merge's one money consequence that
+  the holdings sum does not conserve. Between the holdings' basis line and
+  `.merge-counts` stands `div.merge-fifo` (`data-role="merge-fifo"`), open,
+  in the depot preview's anatomy and nothing new: a `.merge-block-head`
+  "Realized gains (FIFO)" / "Realisierte Gewinne (FIFO)"; a `.merge-wide`
+  `table.merge-positions` with "Close year · Source · Target → afterwards ·
+  Change" (one row per close year, "source · target →" small over the bold
+  after figure, "—" where a side closes no trade that year, the change
+  signed or a muted "unchanged" / "unverändert"), then the row "Open
+  positions (cost)" / "Offene Positionen (Einstand)" as "source + target →"
+  over its after figure, set off by a `--color-border-strong` top rule
+  (`tr.merge-fifo__open`); under 720 px the same rows as `.merge-lines`
+  ("Realized 2026" / "Realisiert 2026" over "source · target → **after**"
+  and "Change +46.40" / "Änderung +46,40" small); and a `.merge-basis`
+  line: in the security's currency, before each security over its own
+  queue, afterwards over the merged one, realized and open cost moving by
+  the same amount unless a sale no lot covered before is covered afterwards,
+  the proceeds staying. The change column is tabular
+  (`td.merge-fifo__change`). A row in another currency than the security's
+  names it after its label. **Unchanged state:** where no figure moves the
+  block is one `.merge-basis` line, "Realized gains (FIFO) do not change." /
+  "Realisierte Gewinne (FIFO) ändern sich nicht.", in place of the head and
+  the table. The figures follow the equal bookings' choice, as the holdings
+  do. "Open positions" is the Trades tab's own term ("Open positions
+  (FIFO)" / "Offene Positionen (FIFO)"), reused with "(cost)" rather than
+  the board's new "Offene Posten" (board 04, found while drawing 2).
 - **Four tables, each only when it has rows** (`.merge-table`, a cell's
   reason muted under its value): the colliding **manual** quotes ("Date ·
   Target · applies · Source · dropped", the source's struck through in

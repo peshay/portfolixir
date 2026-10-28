@@ -9875,6 +9875,18 @@ dialog.merge-dialog {
   color: var(--color-text-muted);
 }
 
+/* K11 (board 04, Q4 A): the security merge's FIFO restatement reuses the
+   depot preview's anatomy — .merge-block-head, a .merge-wide table,
+   .merge-lines rows under 720 px, a .merge-basis line. Only the change
+   column is new: signed, tabular; the open lots' row is set off. */
+.merge-fifo td.merge-fifo__change {
+  font-variant-numeric: tabular-nums;
+}
+
+.merge-fifo tr.merge-fifo__open td {
+  border-top: 1px solid var(--color-border-strong);
+}
+
 /* Step 1: every account, the ones that cannot take the history disabled
    with their reason as text (board 02). */
 .merge-targets {

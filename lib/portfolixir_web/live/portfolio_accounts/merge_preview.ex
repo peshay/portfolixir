@@ -353,7 +353,9 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
               <th><%= gettext("Security") %></th>
               <th class="num"><%= gettext("Quantity") %></th>
               <th class="num"><%= gettext("Avg. cost") %></th>
-              <th class="num"><%= gettext("Realized gain/loss") %></th>
+              <%!-- K11 (board 04): the depot's moving-average result, named
+                   apart from the FIFO realized gains the app reads. --%>
+              <th class="num"><%= gettext("Realized (moving avg.)") %></th>
             </tr>
           </thead>
           <tbody>
@@ -388,14 +390,14 @@ defmodule PortfolixirWeb.PortfolioAccounts.MergePreview do
               <%= gettext("Avg. cost") %>: <%= money(position.source, :avg_cost) %> · <%= money(position.target, :avg_cost) %> → <%= money(position.after, :avg_cost) %>
             </small>
             <small>
-              <%= gettext("Realized gain/loss") %>: <%= money(position.source, :realized_result) %> · <%= money(position.target, :realized_result) %> → <%= money(position.after, :realized_result) %>
+              <%= gettext("Realized (moving avg.)") %>: <%= money(position.source, :realized_result) %> · <%= money(position.target, :realized_result) %> → <%= money(position.after, :realized_result) %>
             </small>
           </span>
         </li>
       </ul>
       <p class="merge-basis">
         <%= gettext(
-          "In each cell before above (%{source} + %{target}, or %{source} · %{target}), after below. Average cost and realized gain/loss in the security's currency, a moving average over both depots' buys, fees and taxes not included. Quantity per security = the sum of both depots, checked on every day; the market value of both depots together stays the same.",
+          "In each cell before above (%{source} + %{target}, or %{source} · %{target}), after below. Avg. cost and “Realized (moving avg.)”: the depot's result by moving average over both depots' buys, in the security's currency, fees and taxes not included. Quantity per security = the sum of both depots, checked on every day; the market value of both depots together stays the same. Realized gains by FIFO (Cash flow → Trades, a security's Trades tab) do not change: the FIFO queue belongs to the security, not the depot.",
           source: @names.source,
           target: @names.target
         ) %>

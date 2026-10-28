@@ -253,6 +253,7 @@ defmodule PortfolixirWeb.Securities.MergePreview do
           date: Format.date(Clock.today())
         ) %>
       </p>
+      <.fifo_restatement fifo={@outcome.fifo_realized} currency={@preview.target.currency_code} />
       <.counts preview={@preview} outcome={@outcome} settings={@settings} />
       <.pair_choice
         :if={@pairs != []}
@@ -271,6 +272,109 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     <.master_data preview={@preview} />
     <.notes preview={@preview} source={@source} />
     """
+  end
+
+  # -- the FIFO restatement (K11, board 04, Q4 A) ------------------------------------
+
+  # The merge pools the two FIFO queues, so a sale can close the other
+  # security's older lot: per close year the realized result of the source
+  # and the target before and of the merged security after, and the open
+  # lots' cost — the figures the realized gains and the Trades tab read.
+  # The depot preview's anatomy; one line where nothing moves.
+  attr(:fifo, :map, required: true)
+  attr(:currency, :string, required: true)
+
+  defp fifo_restatement(assigns) do
+    ~H"""
+    <div class="merge-fifo" data-role="merge-fifo">
+      <%= if @fifo.unchanged do %>
+        <p class="merge-basis"><%= gettext("Realized gains (FIFO) do not change.") %></p>
+      <% else %>
+        <h3 class="merge-block-head"><%= gettext("Realized gains (FIFO)") %></h3>
+        <div class="data-table-wrapper merge-wide">
+          <table class="data-table merge-positions">
+            <thead>
+              <tr>
+                <th><%= gettext("Close year") %></th>
+                <th class="num"><%= gettext("Source · Target → afterwards") %></th>
+                <th class="num"><%= gettext("Change") %></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={year <- @fifo.years} data-role="merge-fifo-year" data-year={year.year}>
+                <td><%= fifo_label(year.year, year.currency_code, @currency) %></td>
+                <td class="num">
+                  <small><%= fifo_money(year.source) %> · <%= fifo_money(year.target) %> →</small>
+                  <b><%= fifo_money(year.after) %></b>
+                </td>
+                <td class="num merge-fifo__change">
+                  <span :if={fifo_zero?(year.change)} class="muted"><%= gettext("unchanged") %></span>
+                  <%= if not fifo_zero?(year.change), do: Format.signed_decimal(year.change, 2) %>
+                </td>
+              </tr>
+              <tr :for={open <- @fifo.open_lots} class="merge-fifo__open" data-role="merge-fifo-open">
+                <td><%= fifo_label(gettext("Open positions (cost)"), open.currency_code, @currency) %></td>
+                <td class="num">
+                  <small><%= fifo_money(open.source) %> + <%= fifo_money(open.target) %> →</small>
+                  <b><%= fifo_money(open.after) %></b>
+                </td>
+                <td class="num merge-fifo__change">
+                  <span :if={fifo_zero?(open.change)} class="muted"><%= gettext("unchanged") %></span>
+                  <%= if not fifo_zero?(open.change), do: Format.signed_decimal(open.change, 2) %>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <ul class="merge-lines merge-narrow">
+          <li :for={year <- @fifo.years} data-role="merge-fifo-year-line" data-year={year.year}>
+            <span class="merge-lines__head">
+              <%= fifo_label(gettext("Realized %{year}", year: year.year), year.currency_code, @currency) %>
+            </span>
+            <span class="merge-lines__figure num">
+              <%= fifo_money(year.source) %> · <%= fifo_money(year.target) %> →
+              <b><%= fifo_money(year.after) %></b>
+              <small><%= fifo_change_line(year.change) %></small>
+            </span>
+          </li>
+          <li :for={open <- @fifo.open_lots} data-role="merge-fifo-open-line">
+            <span class="merge-lines__head">
+              <%= fifo_label(gettext("Open positions (cost)"), open.currency_code, @currency) %>
+            </span>
+            <span class="merge-lines__figure num">
+              <%= fifo_money(open.source) %> + <%= fifo_money(open.target) %> →
+              <b><%= fifo_money(open.after) %></b>
+              <small><%= fifo_change_line(open.change) %></small>
+            </span>
+          </li>
+        </ul>
+        <p class="merge-basis">
+          <%= gettext(
+            "In %{currency}, the security's currency. Before, each security over its own FIFO queue; afterwards over the merged one, so a sale closes the oldest lots of both. Realized and open cost change by the same amount, unless a sale no lot covered before is covered afterwards; the proceeds stay.",
+            currency: @currency
+          ) %>
+        </p>
+      <% end %>
+    </div>
+    """
+  end
+
+  # A row in another currency than the security's (a booking priced in
+  # another) names it; the basis line names the security's.
+  defp fifo_label(label, currency, currency), do: to_string(label)
+  defp fifo_label(label, currency, _security_currency), do: "#{label} · #{currency}"
+
+  defp fifo_money(nil), do: "—"
+  defp fifo_money(%Decimal{} = value), do: Format.money(value)
+
+  # A change below a cent reads as none: the prorated fees of a split lot
+  # can part the two sums in a far digit (`TradeMatcher.lot_cost/1`).
+  defp fifo_zero?(%Decimal{} = change), do: Decimal.equal?(Decimal.round(change, 2), 0)
+
+  defp fifo_change_line(%Decimal{} = change) do
+    if fifo_zero?(change),
+      do: gettext("unchanged"),
+      else: gettext("Change %{amount}", amount: Format.signed_decimal(change, 2))
   end
 
   # Holdings in every depot: the target's elsewhere plus, per depot the

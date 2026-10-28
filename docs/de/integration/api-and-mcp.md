@@ -663,9 +663,26 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
     `deleted` (`collapsed_duplicate` oder `collapsed_split`), `positions`
     (je Depot, in dem die Quelle hält: `source`, `target` und `after`,
     jeweils `quantity`, `cost_basis`, `avg_cost` und `realized_result`),
-    `rounding_differences`, `cash_accounts` und `flow_changes`, mit
-    `positions_basis` wie bei einer Depot-Zusammenführung; `reimport_note`
-    sagt, was die Zusammenführung für den nächsten Import bedeutet.
+    `fifo_realized`, `rounding_differences`, `cash_accounts` und
+    `flow_changes`, mit `positions_basis` wie bei einer
+    Depot-Zusammenführung; `reimport_note` sagt, was die Zusammenführung für
+    den nächsten Import bedeutet;
+  - `fifo_realized`, in jedem Ergebnis: die realisierten Gewinne nach FIFO,
+    die die Zusammenführung neu feststellt (Sicherheitsprüfung 2026-10-12,
+    K11). Die realisierten Gewinne der App (`GET /api/v1/realized_gains`,
+    die Trades eines Wertpapiers) laufen nach FIFO über eine Reihe je
+    Wertpapier über alle Depots; die Zusammenführung legt beide Reihen
+    zusammen, sodass ein Verkauf den älteren Posten des anderen Wertpapiers
+    schließen kann. `years` nennt je Abschlussjahr und Währung das
+    realisierte Ergebnis der Quelle und des Ziels, jeweils über die eigene
+    Reihe vorher (`null`, wo es in dem Jahr keinen Trade schließt), des
+    Ziels über die zusammengeführten Buchungen danach, und die Änderung
+    (`change`); `open_lots` den Einstand der offenen Posten ebenso;
+    `unmatched_sells` die Verkäufe, die kein Posten deckt, je Seite;
+    `unchanged` ist wahr, wenn sich keine Zahl bewegt. Beträge stehen in der
+    Währung jedes Trades, nie umgerechnet; `fifo_basis` nennt die Regel.
+    `realized_result` in `positions` ist das Ergebnis des Depots nach
+    gleitendem Durchschnitt, nicht diese Zahl.
 
   Jede Stückzahl, jeder Kurs, jedes Gewicht und jede Dezimalzahl ist ein
   String. Der Digest deckt beide Wertpapiere, jede Buchung beider, ihre
@@ -1517,10 +1534,15 @@ Beispiel-Antwort für Kurssynchronisierung:
     die Käufe beider Depots einen gemeinsamen Durchschnitt, die Kosten ändern
     sich also zu Recht, und ein Verkauf, den das Ziel zwischen zwei Käufen
     getätigt hat, verbraucht danach den gemeinsamen Durchschnitt;
-    `realized_result` ist über die Verkäufe der Position die Stückzahl jedes
-    Verkaufs mal sein Kurs in der Währung des Wertpapiers, abzüglich der
-    Kosten, die er zum laufenden Durchschnitt entnommen hat, und `null`, wo
-    dieser Kurs oder diese Kosten nicht ableitbar sind;
+    `realized_result` ist das Ergebnis des Depots nach gleitendem
+    Durchschnitt, nicht die realisierten Gewinne der App: über die Verkäufe
+    der Position die Stückzahl jedes Verkaufs mal sein Kurs in der Währung
+    des Wertpapiers, abzüglich der Kosten, die er zum laufenden Durchschnitt
+    entnommen hat, und `null`, wo dieser Kurs oder diese Kosten nicht
+    ableitbar sind. Die realisierten Gewinne nach FIFO
+    (`GET /api/v1/realized_gains`, die Trades eines Wertpapiers) ändern sich
+    bei einer Depot-Zusammenführung nicht: Die FIFO-Reihe gehört dem
+    Wertpapier, nicht dem Depot;
     `rounding_differences` nennt je Position und Split-Datum jeden Split
     eines betroffenen Wertpapiers, bei dem die gemeinsam einmal gerundete
     Position am Ende des Split-Tags von den zwei getrennt gerundeten

@@ -137,7 +137,11 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   `collapse_key_equal`: every position of S (per depot) with its quantity,
   moving-average cost and realized result for S and for T before and for T
   after (`Portfolixir.Ledger.position_costs/1`; the cost basis is
-  legitimately restated, because lots combine), the rounding difference each
+  legitimately restated, because lots combine); the FIFO realized gains per
+  close year and the open lots' cost of S and of T before and of T after
+  (`Portfolixir.Lifecycle.MergeFifo`: the merge pools the two FIFO queues,
+  so it can restate the realized gains the app reads; security review
+  2026-10-12, K11); the rounding difference each
   split leaves between the combined position rounded once and the two
   rounded apart, and the cash accounts a collapsed booking changes. Its
   `plan_digest` covers all of it.
@@ -223,6 +227,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
   alias Portfolixir.Lifecycle
   alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Lifecycle.Delete
+  alias Portfolixir.Lifecycle.MergeFifo
   alias Portfolixir.Lifecycle.MergeFigures
   alias Portfolixir.Lifecycle.MergeFlow
   alias Portfolixir.Lifecycle.MergeRecord
@@ -1001,6 +1006,14 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
       folds: folds,
       linearity: linearity(base, folds),
       positions: positions(base, Ledger.position_costs(after_rows)),
+      # K11: the FIFO realized gains the merge restates, by pooling the two
+      # queues, and the open lots' cost — the figures the app's realized
+      # gains read, where `positions` states the moving average.
+      fifo_realized:
+        MergeFifo.restatement(base.s_all, base.t_all, after_rows, %{
+          source: base.source.currency_code,
+          target: base.target.currency_code
+        }),
       rounding_differences: rounding_differences(base, folds),
       cash_accounts: MergeFigures.collapsed_cash_accounts(pairs),
       flow_changes: MergeFigures.collapse_flow_changes(pairs)
@@ -2113,6 +2126,7 @@ defmodule Portfolixir.Lifecycle.SecurityMerge do
           }
         end),
       positions: outcome.positions,
+      fifo_realized: outcome.fifo_realized,
       rounding_differences: outcome.rounding_differences,
       cash_accounts: outcome.cash_accounts,
       flow_changes: outcome.flow_changes

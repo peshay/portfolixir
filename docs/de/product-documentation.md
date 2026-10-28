@@ -387,7 +387,8 @@ und beide lesen dieselbe Vorschau.
 
 Die Vorschau zeigt alles, was die Zusammenführung tut, bevor etwas
 geschrieben wird: die Position beider Wertpapiere in jedem Depot vorher und
-nachher, die Buchungen, die bei beiden stehen (Sie entscheiden, ob es
+nachher, die realisierten Gewinne (FIFO) je Abschlussjahr und den noch
+offenen Einstand vorher und nachher, die Buchungen, die bei beiden stehen (Sie entscheiden, ob es
 Duplikate sind — nichts ist vorausgewählt), die Splits, die zusammenfallen,
 die Kurse, die Klassifizierungs- und Planzeilen, die Termine und die
 Kennzeichen. Was die Zusammenführung tut:
@@ -396,6 +397,13 @@ Kennzeichen. Was die Zusammenführung tut:
   eine Buchung, die Sie als Duplikat bestätigen, wird gelöscht, und ein
   Split, den beide am selben Tag tragen, bleibt einmal erhalten. Die
   Stückzahl jedes Tages in jedem Depot wird gegen beide Historien geprüft.
+- **Realisierte Gewinne** werden first-in, first-out über eine Reihe je
+  Wertpapier über alle Depots zugeordnet. Sind die beiden Wertpapiere eines,
+  kann ein Verkauf den älteren Posten des anderen schließen; die
+  realisierten Gewinne eines Abschlussjahres und der noch offene Einstand
+  können sich also ändern. Der Block *Realisierte Gewinne (FIFO)* der
+  Vorschau nennt sie je Abschlussjahr oder sagt in einer Zeile, dass sie
+  sich nicht ändern.
 - **Kurse** füllen die Lücken des Wertpapiers, das bleibt; an einem Tag, an
   dem beide einen Kurs haben, gewinnt der des bleibenden. Ein von Hand
   erfasster Schlusskurs, der so entfiele, wird vorher aufgeführt. Die
@@ -868,9 +876,12 @@ einem Dialog:
    sobald die beiden eines sind), die verknüpften Depots, die umziehen, und
    die gesetzten Salden, die angepasst werden — jeder mit seinem Datum und
    seinem Wert danach — oder entfallen. Für Depots zeigt sie je betroffener
-   Position Stückzahl, Durchschnittskosten und realisierten Gewinn/Verlust
-   vorher und nachher sowie einen Split, dessen Rundung sich unterscheidet,
-   sobald beide Historien vereint sind. **Buchungen, die in beiden Konten
+   Position Stückzahl, Durchschnittskosten und *Realisiert (gleit. Ø)* — das
+   Ergebnis des Depots nach gleitendem Durchschnitt — vorher und nachher
+   sowie einen Split, dessen Rundung sich unterscheidet, sobald beide
+   Historien vereint sind. Die realisierten Gewinne nach FIFO (Cashflow →
+   Trades, der Trades-Tab eines Wertpapiers) ändern sich nicht: Ihre Reihe
+   gehört dem Wertpapier, nicht dem Depot. **Buchungen, die in beiden Konten
    gleich sind** — gleicher Tag, gleiche Art, gleiche Beträge, typischerweise
    ein Import, der zweimal ankam — stehen mit zwei Wahlmöglichkeiten da,
    *als Duplikate entfernen* oder *beide behalten*, jede mit dem Saldo, zu

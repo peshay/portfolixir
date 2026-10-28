@@ -349,15 +349,23 @@ Your agent has the same merge
 tools), and both read the same preview.
 
 The preview shows everything the merge does before anything is written: each
-depot's position of both securities before and after, the bookings that
-appear on both (you decide whether they are duplicates — nothing is
-preselected), the splits that coincide, the quotes, the classification and
-plan rows, the calendar events and the identifiers. What the merge does:
+depot's position of both securities before and after, the realized gains
+(FIFO) per close year and the cost still open, before and after, the
+bookings that appear on both (you decide whether they are duplicates —
+nothing is preselected), the splits that coincide, the quotes, the
+classification and plan rows, the calendar events and the identifiers. What
+the merge does:
 
 - **Bookings** move onto the security you keep, in every depot; a booking you
   confirm as a duplicate is deleted, and a split both carry on the same day is
   kept once. Every day's quantity in every depot is checked against both
   histories.
+- **Realized gains** are matched first-in, first-out over one queue per
+  security, across every depot. Once the two securities are one, a sale can
+  close the other's older lot, so the realized gains of a close year, and
+  the cost still open, can change; the preview's *Realized gains (FIFO)*
+  block states them per close year, or says in one line that they do not
+  change.
 - **Quotes** fill the gaps of the security you keep; on a day both have a
   quote, the kept security's wins. A close you typed by hand that would be
   dropped this way is listed first. The dropped closes stay in the merge
@@ -793,9 +801,11 @@ everything. It takes two steps in one dialog:
    between the two that are dropped (they cancel out once the two are one),
    the linked depots that move, and the set balances that are adjusted —
    each with its date and its value afterwards — or dropped. For depots it
-   shows each affected position's quantity, average cost and realized
-   gain/loss before and after, and a split whose rounding differs once both
-   histories are combined. **Bookings that are equal in both accounts** —
+   shows each affected position's quantity, average cost and *Realized
+   (moving avg.)* — the depot's result by moving average — before and after,
+   and a split whose rounding differs once both histories are combined. The
+   realized gains by FIFO (Cash flow → Trades, a security's Trades tab) do not
+   change: their queue belongs to the security, not the depot. **Bookings that are equal in both accounts** —
    same day, same kind, same amounts, typically one import that landed twice
    — are listed with two choices, *remove as duplicates* or *keep both*,
    each with the balance it leads to (for cash accounts); *remove as

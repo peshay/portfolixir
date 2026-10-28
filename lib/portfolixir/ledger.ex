@@ -240,6 +240,26 @@ defmodule Portfolixir.Ledger do
   end
 
   @doc """
+  The FIFO matcher over `transactions` — `%Transaction{}` rows of one
+  security with their `cash_account` preloaded — fed exactly as
+  `list_trades_for_security/2` feeds it, with nothing decorated: for a
+  reader that holds the rows a write would leave behind rather than the
+  stored ones (the security merge preview, which states the realized gains
+  before and after it pools two queues; security review 2026-10-12, K11).
+  `security_currency` is the currency of the security the rows are read as.
+  """
+  @spec match_trades([%Transaction{}], String.t() | nil) :: %{
+          open_lots: list(map()),
+          closed_trades: list(map()),
+          orphan_sells: list(map())
+        }
+  def match_trades(transactions, security_currency) when is_list(transactions) do
+    transactions
+    |> Enum.map(&transaction_for_matcher(&1, security_currency))
+    |> TradeMatcher.match()
+  end
+
+  @doc """
   The FIFO matcher's closed round-trips of every security with a sell
   booked, as `[{%Security{}, closed_trades}]`: the securities in the order
   `RealizedGains.report/1` reads them (by their newest sell, newest first),

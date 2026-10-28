@@ -3045,28 +3045,28 @@ const declaredTools: DeclaredTool[] = [
       "portfolixir.securities.merge takes; both securities (identifiers, split events, booking count); the guards; " +
       "the key_equal_pairs (a source booking whose day, kind, depot, cash account and amounts equal a target " +
       "booking's); the splits that collapse or move and the split events after; position_buckets per depot; quotes " +
-      "(source_count, moved_count — the source's quotes on dates the target has none —, collision_count — dates " +
-      "both have, where the target's quote wins — and manual_collisions, each colliding source quote typed by hand " +
-      "with both closes); configuration (category_assignments and position_targets, each with its action: move, " +
-      "or drop with the reason collides or stale); events (moved, and possible_duplicates of the same kind on the " +
+      "(source_count; moved_count, the source's on dates the target lacks; collision_count, dates both have, the " +
+      "target's wins; manual_collisions, colliding source quotes typed by hand, with both closes); " +
+      "configuration (category_assignments and position_targets, each with its action: move, or drop with the " +
+      "reason collides or stale); events (moved, and possible_duplicates of the same kind on the " +
       "same day); identifiers (identity_choice_required; after_by_identity_choice with keep_target_isin and " +
       "adopt_source_isin when both carry an ISIN, else after: the target's ISIN, WKN, ticker, feed, name, asset " +
       "class and former ISINs; adopted, what the target takes from the source; differences, every source value " +
-      "that follows the target instead, a WKN or ticker the catalog refuses on a change among them, with the " +
-      "target's null); reverse, whether merging the other way would pass; and " +
+      "that follows the target instead, a WKN or ticker the catalog refuses among them); reverse, whether merging the other way would pass; and " +
       "outcome_by_collapse_key_equal with \"false\" and \"true\": per depot the source holds, quantity, " +
-      "cost_basis, avg_cost and realized_result of both before and of the target after, rounding_differences, and " +
-      "the cash accounts a collapsed booking changes; positions_basis states how. Show the operator the outcomes " +
+      "cost_basis, avg_cost and realized_result (moving-average) of both before and of the target after " +
+      "(positions_basis); fifo_realized, the FIFO realized gains the app reads, which pooling both queues " +
+      "restates: per close year source, target, after and change, open_lots' cost alike, unchanged (fifo_basis); " +
+      "rounding_differences; the cash accounts a collapsed booking changes. Show the operator the outcomes " +
       "of both choices; the choices are theirs. Quantities, closes, weights and decimals are strings. A pair that " +
       "may not merge answers 409 with errors.code (same_security, not_live, currency_mismatch, benchmark_mismatch, " +
       "retired_target, quote_basis_mismatch, research_notes, policy_rules with errors.policy_rules, " +
       "position_buckets_mismatch, split_ratio_mismatch, split_event_mismatch, split_linearity, " +
-      "legacy_hashed_split (a split to move still carries an import hash from a re-type before the import-hash " +
-      "check; errors.splits names it — change its kind back or delete it), invalid_source_isin (the source's " +
+      "legacy_hashed_split (a split to move still carries an import hash; errors.splits names it — change " +
+      "its kind back or delete it), invalid_source_isin (the source's " +
       "ISIN fails its check digit: correct or clear it on the source first), or " +
-      "identity_unresolvable with errors.unresolvable: an identity of either security — as stored, as its " +
-      "Portfolio Performance import recorded it, or with a former ISIN — or of a security merged into either " +
-      "before (merged_stored, merged_imported), that would no longer find the target) " +
+      "identity_unresolvable with errors.unresolvable: an identity of either security, as stored, imported or " +
+      "with a former ISIN, or of one merged into either before, that would no longer find the target) " +
       "and errors.guards; a source already merged answers 409 already_merged with errors.merged_into.",
     securityMergePreviewSchema,
     securityMergePreviewZ
@@ -3386,9 +3386,10 @@ const declaredTools: DeclaredTool[] = [
       "gains (former_names.after), and outcome_by_collapse_key_equal with \"false\" and \"true\": the target's " +
       "booking count after, the bookings moved and deleted, positions (every security the source holds: " +
       "quantity, cost_basis, avg_cost and realized_result on the source and the target before and on the target " +
-      "after — the moving-average cost is restated because both depots' lots combine), rounding_differences (per " +
+      "after — moving-average figures, restated as both depots' lots combine; the FIFO realized gains do not " +
+      "change), rounding_differences (per " +
       "position and split date, the combined position rounded once less the two rounded apart — expected, " +
-      "never a refusal, no bound per split), the cash accounts a collapsed booking changes, the flows it " +
+      "never a refusal), the cash accounts a collapsed booking changes, the flows it " +
       "moves into a later balance anchor of such an account (flow_changes), and other_depots: a third depot a " +
       "collapsed transfer names, with its quantity before and after. " +
       "positions_basis states how those figures are computed. Show the operator both outcomes; the choice is " +

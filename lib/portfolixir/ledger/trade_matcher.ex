@@ -298,18 +298,24 @@ defmodule Portfolixir.Ledger.TradeMatcher do
   # (`Ledger.TradeReturn`) solves over these flows, each at its own open
   # date, rather than over one averaged date.
   defp consumed_lot(lot) do
+    %{open_date: lot.open_date, quantity: lot.quantity, cost: lot_cost(lot)}
+  end
+
+  @doc """
+  The cost a lot carries for its `quantity` — quantity × buy price plus its
+  buy fees and taxes prorated by that quantity — in the lot's currency: what
+  a consumed lot's `cost` states (#984), and for an open lot what is still
+  open of it. The security merge preview sums it over the open lots (K11).
+  """
+  @spec lot_cost(map()) :: Decimal.t()
+  def lot_cost(lot) do
     fees = prorate(lot.buy_fees, lot.quantity, lot.original_quantity)
     taxes = prorate(lot.buy_taxes, lot.quantity, lot.original_quantity)
 
-    %{
-      open_date: lot.open_date,
-      quantity: lot.quantity,
-      cost:
-        lot.quantity
-        |> Decimal.mult(lot.buy_price)
-        |> Decimal.add(fees)
-        |> Decimal.add(taxes)
-    }
+    lot.quantity
+    |> Decimal.mult(lot.buy_price)
+    |> Decimal.add(fees)
+    |> Decimal.add(taxes)
   end
 
   defp orphan(tx, qty) do

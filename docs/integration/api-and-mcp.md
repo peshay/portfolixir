@@ -588,10 +588,23 @@ confirms with the same `plan_digest`, so both see the same plan.
     target's `transaction_count` after, `moved_transaction_ids`, `deleted`
     (`collapsed_duplicate` or `collapsed_split`), `positions` (per depot the
     source holds: `source`, `target` and `after`, each `quantity`,
-    `cost_basis`, `avg_cost` and `realized_result`), `rounding_differences`,
-    `cash_accounts` and `flow_changes`, with `positions_basis` as for a
-    depot merge; `reimport_note` says what the merge does to the next
-    import.
+    `cost_basis`, `avg_cost` and `realized_result`), `fifo_realized`,
+    `rounding_differences`, `cash_accounts` and `flow_changes`, with
+    `positions_basis` as for a depot merge; `reimport_note` says what the
+    merge does to the next import;
+  - `fifo_realized`, in each outcome: the FIFO realized gains the merge
+    restates (security review 2026-10-12, K11). The realized gains the app
+    reads (`GET /api/v1/realized_gains`, a security's trades) are FIFO over
+    one queue per security across every depot; the merge pools the two
+    queues, so a sale can close the other security's older lot. `years`
+    lists per close year and currency the realized result of the source
+    and of the target, each over its own queue before (`null` where it
+    closes no trade that year), of the target over the merged rows after,
+    and the `change`; `open_lots` the open lots' cost likewise;
+    `unmatched_sells` the sells no lot covers, per side; `unchanged` is
+    true when no figure moves. Amounts are in each trade's currency, never
+    converted; `fifo_basis` states the rule. `realized_result` in
+    `positions` is the depot's moving-average result, not this figure.
 
   Every quantity, close, weight and decimal is a string. The digest covers
   both securities, every booking of either, their quotes, category
@@ -1408,10 +1421,13 @@ Example quote sync response:
     moving-average cost `GET /api/v1/portfolios/:id/holdings` states, in the
     security's currency, fees and taxes not included — after the merge both
     depots' lots combine, so the cost is restated, and a sale the target made
-    between two buys now consumes the combined average; `realized_result` is,
-    over the position's sales, each sale's quantity times its price in the
+    between two buys now consumes the combined average; `realized_result` is
+    the depot's moving-average result, not the app's realized gains: over
+    the position's sales, each sale's quantity times its price in the
     security's currency less the cost it removed at the running average, and
-    `null` where that price or cost is not derivable;
+    `null` where that price or cost is not derivable. The FIFO realized
+    gains (`GET /api/v1/realized_gains`, a security's trades) do not change
+    in a depot merge: the FIFO queue belongs to the security, not the depot;
     `rounding_differences` lists, per position and split date, each split
     of an affected security where the combined position rounded once
     differs, at the end of the split's day, from the two positions rounded
