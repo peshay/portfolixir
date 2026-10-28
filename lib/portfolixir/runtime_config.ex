@@ -289,6 +289,9 @@ defmodule Portfolixir.RuntimeConfig do
   # A token's name is written into the journal's actor label and read back by
   # agents, so it is a short identifier, never free text.
   @principal_name ~r/\A[a-z0-9][a-z0-9_-]{0,31}\z/
+  # What a refusal may quote of a value that fails the name rule (H22): a
+  # short run of identifier characters, which no token generator prints alone.
+  @name_shaped ~r/\A[A-Za-z0-9_-]{1,32}\z/
 
   @doc """
   The API's principals (E25 S7, G26; the architecture's FU-6, named
@@ -365,8 +368,9 @@ defmodule Portfolixir.RuntimeConfig do
       name ->
         unless Regex.match?(@principal_name, name) do
           raise ArgumentError,
-                "PORTFOLIXIR_API_PRINCIPAL: the name #{inspect(name)} must be 1 to 32 " <>
-                  "characters of a-z, 0-9, _ and -, starting with a letter or a digit"
+                "PORTFOLIXIR_API_PRINCIPAL: #{describe_bad_name(name)} must be 1 to 32 " <>
+                  "characters of a-z, 0-9, _ and -, starting with a letter or a digit; " <>
+                  "the token itself goes into PORTFOLIXIR_API_TOKEN"
         end
 
         if List.keymember?(named, name, 0) do
@@ -391,6 +395,14 @@ defmodule Portfolixir.RuntimeConfig do
 
   defp reject_orphan_name!(_unset), do: :ok
 
+  # A refused name is quoted only when it is name-shaped; anything else may
+  # be a token written in the wrong place, so only its length is told.
+  defp describe_bad_name(name) do
+    if Regex.match?(@name_shaped, name),
+      do: "the name #{inspect(name)}",
+      else: "a name of #{String.length(name)} characters (not shown: it may be a token)"
+  end
+
   defp named_entries(value) when is_binary(value) do
     value
     |> String.split(",")
@@ -408,8 +420,9 @@ defmodule Portfolixir.RuntimeConfig do
 
         unless Regex.match?(@principal_name, name) do
           raise ArgumentError,
-                "PORTFOLIXIR_API_TOKENS entry #{position}: the name #{inspect(name)} must be 1 " <>
-                  "to 32 characters of a-z, 0-9, _ and -, starting with a letter or a digit"
+                "PORTFOLIXIR_API_TOKENS entry #{position}: #{describe_bad_name(name)} must " <>
+                  "be 1 to 32 characters of a-z, 0-9, _ and -, starting with a letter or a " <>
+                  "digit; if this entry is a bare token, write it as name=token"
         end
 
         # Spaces around the "=" belong to neither side: a token kept with
