@@ -18,6 +18,13 @@ defmodule Portfolixir.Auth.Throttle do
   the attempts. The UI password has one; the API token, whose length the boot
   check enforces, does not.
 
+  Bounded in count as well as in time (security review 2026-10-12, H03): an
+  IPv6 source is keyed by its /64, the table holds at most `max_rows/0`
+  rows (past it a new source is not recorded), and a scope may carry a
+  rolling ceiling on first failures from sources it does not remember
+  (`new_source_ceiling/1`): past it, every such source is told to wait and is
+  not recorded. The API token has one.
+
   The table is public and written by the calling process: a lockout must not
   serialise every request through one GenServer.
   """
@@ -35,6 +42,12 @@ defmodule Portfolixir.Auth.Throttle do
   # buckets so every write is an atomic counter bump.
   @scope_ceilings %{ui: {100, 60 * 60}}
   @bucket_seconds 60
+
+  # The most rows the table holds.
+  @max_rows 50_000
+  # First failures from sources the scope does not remember, over a rolling
+  # window, in the same one-minute buckets.
+  @new_source_ceilings %{api: {1_000, 60 * 60}}
 
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, :ok, Keyword.put_new(opts, :name, __MODULE__))
@@ -60,8 +73,29 @@ defmodule Portfolixir.Auth.Throttle do
   @spec scope_ceiling(atom()) :: {pos_integer(), pos_integer()} | nil
   def scope_ceiling(scope), do: Map.get(@scope_ceilings, scope)
 
-  @doc "The throttle key for a source address."
+  @doc "The most rows the table holds."
+  @spec max_rows() :: pos_integer()
+  def max_rows, do: @max_rows
+
+  @doc """
+  The rolling ceiling on first failures from sources the scope does not
+  remember, as `{failures, window_seconds}`, or `nil`.
+  """
+  @spec new_source_ceiling(atom()) :: {pos_integer(), pos_integer()} | nil
+  def new_source_ceiling(scope), do: Map.get(@new_source_ceilings, scope)
+
+  @doc """
+  The throttle key for a source address: an IPv4 address as text, an IPv6
+  address as the text of its /64 (one client's prefix is one source), an
+  IPv4-mapped IPv6 address as its IPv4 text.
+  """
   @spec source_key(:inet.ip_address() | term()) :: String.t()
+  def source_key({0, 0, 0, 0, 0, 0xFFFF, high, low}),
+    do: source_key({div(high, 256), rem(high, 256), div(low, 256), rem(low, 256)})
+
+  def source_key({a, b, c, d, _, _, _, _}),
+    do: {a, b, c, d, 0, 0, 0, 0} |> :inet.ntoa() |> to_string()
+
   def source_key(ip) when is_tuple(ip), do: ip |> :inet.ntoa() |> to_string()
   def source_key(other), do: inspect(other)
 
@@ -72,19 +106,27 @@ defmodule Portfolixir.Auth.Throttle do
 
     case :ets.lookup(@table, {scope, key}) do
       [{_, _count, locked_until, _seen}] when locked_until > now -> {:locked, locked_until - now}
-      _ -> check_scope(scope, now)
+      [_known] -> check_scope(scope, now)
+      [] -> with :ok <- check_new_sources(scope, now), do: check_scope(scope, now)
     end
   end
 
-  @doc "Records a failed check for the source and extends its lock past the threshold."
+  @doc """
+  Records a failed check for the source and extends its lock past the
+  threshold. A source the table does not remember is recorded only below
+  `max_rows/0` and the scope's `new_source_ceiling/1`.
+  """
   @spec failure(atom(), String.t(), keyword()) :: :ok
   def failure(scope, key, opts \\ []) do
     now = Keyword.get(opts, :now, now())
 
-    # The count is bumped atomically so concurrent failures never lose one.
-    count = :ets.update_counter(@table, {scope, key}, {2, 1}, {{scope, key}, 0, 0, now})
-    locked_until = if count >= @max_failures, do: now + lock_seconds(count), else: 0
-    :ets.update_element(@table, {scope, key}, [{3, locked_until}, {4, now}])
+    if :ets.member(@table, {scope, key}) or record_new_source?(scope, now) do
+      # The count is bumped atomically so concurrent failures never lose one.
+      count = :ets.update_counter(@table, {scope, key}, {2, 1}, {{scope, key}, 0, 0, now})
+      locked_until = if count >= @max_failures, do: now + lock_seconds(count), else: 0
+      :ets.update_element(@table, {scope, key}, [{3, locked_until}, {4, now}])
+    end
+
     count_for_scope(scope, now)
   end
 
@@ -96,33 +138,61 @@ defmodule Portfolixir.Auth.Throttle do
   end
 
   defp count_for_scope(scope, now) do
-    if scope_ceiling(scope) do
-      bucket = div(now, @bucket_seconds)
-      key = {scope, {:scope_failures, bucket}}
-      # The fourth field is the bucket's start, so the sweep ages it like a source.
-      :ets.update_counter(@table, key, {2, 1}, {key, 0, 0, bucket * @bucket_seconds})
-    end
-
+    if scope_ceiling(scope), do: bump_bucket(scope, :scope_failures, now)
     :ok
+  end
+
+  # A new source is recorded while the table has room and the scope's
+  # first-failure ceiling is not reached; its first failure is then counted.
+  # The ceiling buckets count towards the room; they are a bounded handful.
+  defp record_new_source?(scope, now) do
+    cond do
+      :ets.info(@table, :size) >= @max_rows -> false
+      new_source_ceiling(scope) == nil -> true
+      check_new_sources(scope, now) == :ok -> bump_bucket(scope, :new_sources, now) > 0
+      true -> false
+    end
+  end
+
+  defp bump_bucket(scope, tag, now) do
+    bucket = div(now, @bucket_seconds)
+    key = {scope, {tag, bucket}}
+    # The fourth field is the bucket's start, so the sweep ages it like a source.
+    :ets.update_counter(@table, key, {2, 1}, {key, 0, 0, bucket * @bucket_seconds})
   end
 
   # Past the ceiling every source waits until enough failures have aged out of
   # the window for the rest to sit below it again.
   defp check_scope(scope, now) do
     case scope_ceiling(scope) do
-      nil -> :ok
-      {ceiling, window} -> check_ceiling(scope, now, ceiling, div(window, @bucket_seconds))
+      nil ->
+        :ok
+
+      {ceiling, window} ->
+        check_ceiling({scope, :scope_failures}, now, ceiling, div(window, @bucket_seconds))
+    end
+  end
+
+  # Past the first-failure ceiling every source the scope does not remember
+  # waits the same way; the sources it remembers keep their own counts.
+  defp check_new_sources(scope, now) do
+    case new_source_ceiling(scope) do
+      nil ->
+        :ok
+
+      {ceiling, window} ->
+        check_ceiling({scope, :new_sources}, now, ceiling, div(window, @bucket_seconds))
     end
   end
 
   # The window's buckets are read by their keys, oldest first: a bounded number
   # of hash lookups, never a scan of every source the table remembers.
-  defp check_ceiling(scope, now, ceiling, window_buckets) do
+  defp check_ceiling({scope, tag}, now, ceiling, window_buckets) do
     current = div(now, @bucket_seconds)
 
     buckets =
       for bucket <- (current - window_buckets + 1)..current//1,
-          {_key, count, _, _} <- :ets.lookup(@table, {scope, {:scope_failures, bucket}}),
+          {_key, count, _, _} <- :ets.lookup(@table, {scope, {tag, bucket}}),
           do: {bucket, count}
 
     total = buckets |> Enum.map(&elem(&1, 1)) |> Enum.sum()
