@@ -17,7 +17,14 @@ defmodule PortfolixirWeb.Endpoint do
     http_only: true
   ]
 
-  socket("/live", Phoenix.LiveView.Socket, websocket: [connect_info: [session: @session_options]])
+  socket("/live", PortfolixirWeb.LiveSocket,
+    websocket: [
+      connect_info: [session: @session_options],
+      # The frame bound and the guard before decoding (security review
+      # 2026-10-12, H02): PortfolixirWeb.LiveSocket says how it was sized.
+      max_frame_size: PortfolixirWeb.LiveSocket.max_message_bytes()
+    ]
+  )
 
   # First of all, so a body or a read that runs away fails its own process
   # rather than the node (E25 S4, G05).
@@ -80,11 +87,19 @@ defmodule PortfolixirWeb.Endpoint do
   # the parser wrote every file part to disk before any credential was
   # checked. A future upload route parses multipart in its own pipeline,
   # behind its authentication.
+  #
+  # The bound is sized to the largest documented API body (security review
+  # 2026-10-12, H02): a quote upsert of 10,000 rows, the row cap
+  # ListLimit.quote_upsert_max_rows/0 enforces, at under 100 bytes a row as
+  # compact JSON, with room for indentation and a `source` per row; 200 bytes
+  # a row is 2,000,000 bytes. Nothing larger arrives over HTTP: the Imports
+  # upload travels over the LiveView socket. The JSON decoder refuses a body
+  # nested past PortfolixirWeb.JsonDepth's bound with 400 before decoding it.
   plug(Plug.Parsers,
     parsers: [:urlencoded, :json],
     pass: ["*/*"],
-    length: 8_000_000,
-    json_decoder: Phoenix.json_library()
+    length: 2_000_000,
+    json_decoder: PortfolixirWeb.JsonDepth
   )
 
   plug(Plug.MethodOverride)

@@ -12,8 +12,13 @@ config :phoenix, :filter_parameters, ["password", "rows", "_csrf_token"]
 
 config :portfolixir, PortfolixirWeb.Endpoint,
   # Bandit serves HTTP and the LiveView socket (#772); the http: options in
-  # dev.exs, test.exs and runtime.exs (ip, port) are passed through unchanged.
+  # dev.exs, test.exs and runtime.exs (ip, port) merge into the ones below.
   adapter: Bandit.PhoenixAdapter,
+  http: [
+    # A message sent in fragments meets the LiveView socket's frame bound
+    # too (security review 2026-10-12, H02; PortfolixirWeb.LiveSocket).
+    websocket_options: [max_fragmented_message_size: 524_288]
+  ],
   render_errors: [
     formats: [html: PortfolixirWeb.ErrorView, json: PortfolixirWeb.ErrorView],
     layout: false

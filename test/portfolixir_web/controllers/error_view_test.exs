@@ -8,8 +8,8 @@ defmodule PortfolixirWeb.ErrorViewTest do
   alias Phoenix.LiveView.Rendered
   alias PortfolixirWeb.ErrorView
 
-  # One byte past the endpoint's body bound (Plug.Parsers length: 8_000_000).
-  @too_large 8_000_001
+  # One byte past the endpoint's body bound (Plug.Parsers length: 2_000_000).
+  @too_large 2_000_001
 
   # User story (E25 S2, F68; design pass Part 11 item 4, board 11):
   # As an operator whose browser meets an error the app answers,
