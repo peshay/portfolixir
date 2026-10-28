@@ -2626,8 +2626,14 @@ eines USD-Wertpapiers, einem EUR-Konto gutgeschrieben, sind die Euro, die
 angekommen sind, und ihre Zeile unter den Zahlungen des Jahres nennt EUR,
 während die Tabelle je Position die Währung der Buchung behält (die
 Ergänzung von ADR-0015 vom 07.10.2026). Die Umrechnungsmethodik
-(EUR-Hub zum gespeicherten Kurs des jeweiligen Buchungsdatums — dieselbe
-Umrechnung wie die Bewertung) steht hinter dem ⓘ neben der Währungszeile.
+(EUR-Hub zum letzten gespeicherten Kurs an oder vor dem jeweiligen
+Buchungsdatum — dieselbe Umrechnung wie die Bewertung) steht hinter dem ⓘ
+neben der Währungszeile. Eine Zahlung ohne solchen Kurs — eine Währung, die
+die Kursquelle nicht veröffentlicht, oder ein Datum vor dem ersten
+gespeicherten Kurs — steht in keiner Zahl: Ein Achtung-Hinweis über der
+Jahresübersicht nennt, wie viele, ihre Währung und ihr Wertpapier, und bietet
+das Nachladen der historischen Kurse an; die Zahlungen des aufgeklappten
+Jahres listen sie weiter in ihrer eigenen Währung.
 Der Bericht ist auch über die API (`GET /api/v1/portfolios/:id/income`) und das
 MCP-Tool `portfolixir.portfolios.income` verfügbar.
 

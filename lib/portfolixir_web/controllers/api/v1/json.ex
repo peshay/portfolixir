@@ -1729,7 +1729,9 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       portfolio_id: income.portfolio_id,
       base_currency: income.base_currency,
       conversion_note: income.conversion_note,
+      computation_basis: income.computation_basis,
       unconverted_count: income.unconverted_count,
+      excluded: income.excluded,
       annual: Enum.map(income.annual, &income_year/1),
       positions: Enum.map(income.positions, &income_position/1),
       transactions: Enum.map(income.transactions, &income_transaction/1)

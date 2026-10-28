@@ -196,6 +196,15 @@ defmodule PortfolixirWeb.IncomeLive do
     {:noreply, assign(socket, fx_backfilling: false, fx_backfill_result: :error)}
   end
 
+  # K07: each currency with the securities it was paid for, as the realized
+  # note names its securities — "CHF (Velden Water AG)"; interest names none.
+  defp excluded_currencies(currencies) do
+    Enum.map_join(currencies, ", ", fn
+      %{currency_code: code, securities: []} -> code
+      %{currency_code: code, securities: names} -> "#{code} (#{Enum.join(names, ", ")})"
+    end)
+  end
+
   # Re-reads whatever this session already loaded (the facets are lazy), so the
   # figures on screen reflect the rates that just landed.
   defp reload_facets(%{assigns: %{portfolio: %{id: portfolio_id}}} = socket) do
@@ -849,12 +858,32 @@ defmodule PortfolixirWeb.IncomeLive do
                 <summary aria-label={gettext("About this facet")}>ⓘ</summary>
                 <p role="tooltip" data-role="facet-composition">
                   <%= gettext(
-                    "Dividends and interest booked in the ledger for this portfolio; the other three facets cover every portfolio, so with more than one portfolio their figures are wider than this one. Excludes realized gains from sales, deposits and withdrawals, and costs — each has its own Cash flow facet. Amounts converted to %{currency} via the EUR hub at each booking date's stored rate; original currency retained.",
+                    "Dividends and interest booked in the ledger for this portfolio; the other three facets cover every portfolio, so with more than one portfolio their figures are wider than this one. Excludes realized gains from sales, deposits and withdrawals, and costs — each has its own Cash flow facet. Amounts converted to %{currency} via the EUR hub at the most recent stored rate on or before each booking date; a payment with no such rate is excluded and named. Original currency retained.",
                     currency: @income.base_currency
                   ) %>
                 </p>
               </details>
             </div>
+        </section>
+
+        <%!-- K07 (board 05, pick Q5 A; UX-DR25): a payment with no rate
+             path to the base currency is in no figure below — the bars, the
+             matrix, the top contributors and the per-position table — and is
+             named here with the backfill as its remedy, as the sibling
+             facets name theirs. The drilled year's payments keep it, in its
+             own currency. --%>
+        <section :if={@income.excluded.count > 0} class="workspace-section">
+          <AppShell.data_note severity={:attention} id="income-excluded" data-role="income-excluded">
+            <%= ngettext(
+              "%{count} payment could not be converted — no stored exchange rate to %{currency} on or before its booking date — and is excluded from every total. Affected currency: %{currencies}.",
+              "%{count} payments could not be converted — no stored exchange rate to %{currency} on or before their booking dates — and are excluded from every total. Affected currencies: %{currencies}.",
+              @income.excluded.count,
+              count: @income.excluded.count,
+              currency: @income.base_currency,
+              currencies: excluded_currencies(@income.excluded.currencies)
+            ) %>
+            <.fx_backfill_control backfilling={@fx_backfilling} result={@fx_backfill_result} />
+          </AppShell.data_note>
         </section>
 
         <section id="income-annual" class="workspace-section">

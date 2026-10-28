@@ -2394,9 +2394,14 @@ stays visible on each row. A payment is read in the currency of the account
 it was credited to: a USD security's dividend credited to a EUR account is
 the euros that arrived, and its row among the year's payments names EUR,
 while the per-position table keeps the booking's currency (the ADR-0015
-amendment of 2026-10-07). The conversion methodology (EUR hub at each booking
-date's stored rate — the same conversion the valuation uses) sits behind the
-ⓘ affordance next to the currency line. The report is also
+amendment of 2026-10-07). The conversion methodology (EUR hub at the most
+recent stored rate on or before each booking date — the same conversion the
+valuation uses) sits behind the ⓘ affordance next to the currency line. A
+payment with no such rate — a currency the rate source does not publish, or
+a date before the first stored rate — is in no figure: an attention note
+above the annual overview names how many, their currency and security, and
+offers the historical backfill; the drilled year's payments still list it in
+its own currency. The report is also
 available over the API (`GET /api/v1/portfolios/:id/income`) and the
 `portfolixir.portfolios.income` MCP tool.
 

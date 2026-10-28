@@ -1593,6 +1593,26 @@ Three clauses:
    than no control. The note said "Store the missing exchange rates." and
    pointed at a page with no rate control at all until this batch removed it.
 
+**Income joins the three** *(security review 2026-10-12, K07; board
+`mockups/ux-design-2026-10-27/05-income-rate-path`, pick Q5 A)*. The income
+facet counted a payment with no rate path to the base currency at parity,
+one to one; it now excludes it from every figure — the bars, the year
+labels, the matrix, the top contributors and the per-position table — and
+names it in `#income-excluded`, an `attention` data note in its own
+`.workspace-section` between the facet's basis line and "Annual overview",
+with `fx_backfill_control/1` inside it as on Realized: "1 payment could not
+be converted — no stored exchange rate to EUR on or before its booking date
+— and is excluded from every total. Affected currency: CHF (Velden Water
+AG)." / "1 Zahlung konnte nicht umgerechnet werden — kein gespeicherter
+Wechselkurs nach EUR an oder vor ihrem Buchungstag — und ist aus jeder Summe
+ausgeschlossen. Betroffene Währung: CHF (Velden Water AG)." Each currency
+carries its securities in parentheses (an interest payment names none). The
+drilled year's payments table keeps the payment in its own currency, which
+clause 2 allows: that table lists native amounts. The facet's ⓘ states the
+rate rule the code applies — the most recent stored rate on or before each
+booking date, a payment with no such rate excluded and named — and after a
+backfill that stores its day's rate the payment converts and the note goes.
+
 ### UX-DR26 (new) — a deliberate limit is stated on the surface that lacks it
 
 Where a surface stops short **by decision**, it says so where a reader would

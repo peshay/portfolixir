@@ -2113,10 +2113,16 @@ Example account payloads:
   `native_tax`/`native_net`, the base-currency `gross`/`tax`/`net`, and
   `converted`). A dividend's gross is its net cash (`gross_amount`) plus the
   withheld tax; interest carries no withholding. All amounts are Decimal strings
-  in the portfolio's `base_currency`, converted via the EUR hub at each
-  booking date's stored rate (the same mechanics as the valuation endpoint), with
-  the original currency retained; `unconverted_count` counts bookings with no
-  rate path (converted at parity), and `conversion_note` states the basis.
+  in the portfolio's `base_currency`, converted via the EUR hub at the most
+  recent stored rate on or before each booking date (the same mechanics as the
+  valuation endpoint), with the original currency retained. A booking with no
+  such rate path is excluded from every total (`annual`, its months,
+  `positions`) and named in `excluded` (`count`, and per currency its
+  `currency_code`, `count` and `securities`), as the other Cash-flow reads
+  do; `transactions` keeps it with `converted: false` and its native amounts
+  (security review 2026-10-12, K07). `unconverted_count` counts it,
+  `conversion_note` states the basis and `computation_basis` (`series`,
+  `currency`, `window`, `reference`, `gaps`) the rule.
   A booking's cash and withheld tax are read in its cash account's currency,
   the currency it was credited in (the ADR-0015 amendment of 2026-10-07): a
   dividend of a USD security credited to a EUR account is converted from

@@ -115,7 +115,7 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     note = view |> element(~s([data-role="facet-basis"])) |> render()
     assert note =~ "ⓘ"
     assert note =~ ~s(role="tooltip")
-    assert note =~ "original currency retained"
+    assert note =~ "Original currency retained"
   end
 
   test "translates the conversion note for the German locale", %{conn: conn} do
@@ -126,7 +126,7 @@ defmodule PortfolixirWeb.IncomeLiveTest do
     {:ok, _view, html} = live(conn, "/cashflow?locale=de")
 
     assert html =~ "Originalwährung beibehalten"
-    refute html =~ "original currency retained"
+    refute html =~ "Original currency retained"
   end
 
   # User story (Steve UAT, reconsolidation):
