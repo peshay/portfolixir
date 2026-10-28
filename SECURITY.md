@@ -71,8 +71,9 @@ only peers whose scheme is believed. When `PHX_FORCE_SSL` is on, the listener
 is bound beyond loopback and that variable names no readable address beyond
 loopback in the listener's IP family, the application logs a startup warning
 naming the redirect loop a proxy on the Docker bridge would get. A second
-warning names every entry of the variable it could not read; the application
-starts either way. What the instance still expects of the
+warning names every entry of the variable it could not read, and a third every
+block too wide to name a proxy (wider than `/8` for IPv4 or `/32` for IPv6),
+which is ignored; the application starts either way. What the instance still expects of the
 operator: a reverse proxy that terminates TLS, passes `Host` through, sets
 `X-Forwarded-Proto` itself, appends the connecting address to `X-Forwarded-For`
 or overwrites it, never passes a value the client sent through, and injects

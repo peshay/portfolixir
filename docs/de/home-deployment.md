@@ -588,7 +588,10 @@ das Netzwerk des Stacks anlegt; prüfe sie erneut, wann immer das Netzwerk des
 Stacks neu angelegt wird, etwa nach einem `docker compose down`: Eine Adresse,
 die nicht mehr passt, ist so gut wie keine. Nenne die eine Adresse statt eines
 privaten Blocks: jede Adresse in einem genannten Block wird geglaubt, ein Block
-vertraut also auch allem anderen in diesem Netz. Auch die eine Adresse wird
+vertraut also auch allem anderen in diesem Netz. Ein Block, der weiter ist als
+`/8` (IPv4) oder `/32` (IPv6), etwa `0.0.0.0/0`, würde fast jedem Client
+glauben; die Anwendung ignoriert ihn deshalb und nennt ihn in einer Warnung
+beim Start. Auch die eine Adresse wird
 geteilt: über einen veröffentlichten Port kommt nicht nur der Proxy, sondern
 jeder Client auf dem Host kommt von derselben Adresse, und wer sie nennt,
 glaubt den Weiterleitungs-Headern jedes Prozesses auf dem Host. Ein solcher

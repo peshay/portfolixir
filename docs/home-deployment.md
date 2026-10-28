@@ -558,7 +558,9 @@ creates the stack's network, so check it again whenever the stack's network is
 recreated, after a `docker compose down` for instance: an address that no
 longer matches is as good as none. Name the one address rather than a
 private block: every address inside a named block is believed, so a block also
-trusts whatever else shares that network. The one address is shared too:
+trusts whatever else shares that network. A block wider than `/8` (IPv4) or
+`/32` (IPv6), such as `0.0.0.0/0`, would believe nearly every client, so the
+application ignores it and names it in a startup warning. The one address is shared too:
 through a published port, every client on the host arrives from that same
 address, not only the proxy, so naming it believes the forwarding headers of
 every process on the host. Such a process can then choose the address the
