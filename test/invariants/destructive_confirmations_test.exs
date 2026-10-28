@@ -36,7 +36,15 @@ defmodule Portfolixir.Invariants.DestructiveConfirmationsTest do
       assert element, "#{file}: #{marker} is not on a <button>"
       assert element =~ "data-confirm=", "#{file}: #{marker} has no data-confirm"
 
-      refute element =~ ~r/data-confirm=\{\s*if\b/,
+      # Every conditional form: if, unless, cond, case, and a boolean
+      # operator (&&, ||, and, or). String literals are blanked first, so
+      # the words of the question itself never count.
+      code = String.replace(element, ~r/"(?:[^"\\]|\\.)*"/, ~s(""))
+
+      refute code =~ ~r/data-confirm=\{\s*(if|unless|cond|case)\b/,
+             "#{file}: #{marker} asks only under a condition"
+
+      refute code =~ ~r/data-confirm=\{[^}]*(&&|\|\||\band\b|\bor\b)/,
              "#{file}: #{marker} asks only under a condition"
     end
   end
