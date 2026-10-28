@@ -29,7 +29,13 @@ defmodule Portfolixir.Ledger.TradeMatcher do
   (ADR-0028 §3) is a named mandatory change site: it scales open lot
   quantities by its ratio and divides the per-share `buy_price`, keeping
   each lot's total cost invariant (`decorate_open_lot` computes
-  quantity x buy_price); a split row scales only lots of its own portfolio.
+  quantity x buy_price). The queue is the security's across every portfolio
+  (the ADR-0015 amendment of 2026-10-09), and a sale consumes the oldest lot
+  whatever portfolio bought it, so a split scales **every** open lot when
+  its date passes, whatever portfolio label the lot carries (security
+  review 2026-10-12, K09; owner decision T-21). A split is booked one row
+  per positioned portfolio (ADR-0028 §1); the rows of one event — the same
+  date and the same normalized ratio — scale the queue once.
   """
 
   alias Portfolixir.Ledger.Projection
@@ -62,7 +68,7 @@ defmodule Portfolixir.Ledger.TradeMatcher do
   def match(transactions) when is_list(transactions) do
     sorted = Projection.replay_sort(transactions)
 
-    state = %{lots: :queue.new(), closed: [], orphans: []}
+    state = %{lots: :queue.new(), closed: [], orphans: [], splits: MapSet.new()}
 
     final =
       Enum.reduce(sorted, state, fn tx, acc ->
@@ -97,48 +103,54 @@ defmodule Portfolixir.Ledger.TradeMatcher do
       buy_price_native: Map.get(tx, :native_unit_price, tx.price),
       settlement_unit_price: Map.get(tx, :settlement_unit_price, tx.price),
       settlement_currency: Map.get(tx, :settlement_currency, Map.get(tx, :currency_code)),
-      # Carried so a split — booked one row per portfolio (ADR-0028 §1) —
-      # scales only its own portfolio's lots.
+      # The portfolio that bought the lot; a split scales the lot whatever
+      # it is (K09).
       portfolio_id: Map.get(tx, :portfolio_id)
     }
 
     %{state | lots: :queue.in(lot, state.lots)}
   end
 
-  # Scales the open lots of the split's own portfolio: lot quantity
-  # multiplies by p/q (quantized once at volume scale 6, ADR-0028 §3), the
-  # per-share buy_price divides by the ratio at full precision, so the lot's
-  # total cost stays invariant. Fee/tax prorating stays consistent because
-  # `original_quantity` scales alongside `quantity`.
+  # Scales every open lot of the security's queue, whatever its portfolio
+  # (K09, T-21): lot quantity multiplies by p/q (quantized once at volume
+  # scale 6, ADR-0028 §3), the per-share buy_price divides by the ratio at
+  # full precision, so the lot's total cost stays invariant. Fee/tax
+  # prorating stays consistent because `original_quantity` scales alongside
+  # `quantity`. The event's other rows (one per portfolio, ADR-0028 §1) find
+  # it applied and scale nothing.
   defp handle_split(state, tx) do
-    ratio = {tx.split_ratio_numerator, tx.split_ratio_denominator}
-    portfolio_id = Map.get(tx, :portfolio_id)
+    ratio = normalized_ratio(tx.split_ratio_numerator, tx.split_ratio_denominator)
+    event = {tx.date, ratio}
 
-    lots =
-      state.lots
-      |> :queue.to_list()
-      |> Enum.map(&scale_lot(&1, portfolio_id, ratio))
-      |> :queue.from_list()
+    if MapSet.member?(state.splits, event) do
+      state
+    else
+      lots =
+        state.lots
+        |> :queue.to_list()
+        |> Enum.map(&scale_lot(&1, ratio))
+        |> :queue.from_list()
 
-    %{state | lots: lots}
+      %{state | lots: lots, splits: MapSet.put(state.splits, event)}
+    end
   end
 
-  defp scale_lot(lot, portfolio_id, {numerator, denominator} = ratio) do
-    if Map.get(lot, :portfolio_id) == portfolio_id do
-      %{
-        lot
-        | quantity: Projection.scale_quantity(lot.quantity, ratio),
-          original_quantity: Projection.scale_quantity(lot.original_quantity, ratio),
-          buy_price: lot.buy_price |> Decimal.mult(denominator) |> Decimal.div(numerator),
-          # The per-unit legs divide like the buy price, so the lot's total
-          # cost pair stays invariant through the split (ADR-0028 §3).
-          buy_price_native: scale_unit_price(lot.buy_price_native, numerator, denominator),
-          settlement_unit_price:
-            scale_unit_price(lot.settlement_unit_price, numerator, denominator)
-      }
-    else
+  defp normalized_ratio(numerator, denominator) do
+    divisor = Integer.gcd(numerator, denominator)
+    {div(numerator, divisor), div(denominator, divisor)}
+  end
+
+  defp scale_lot(lot, {numerator, denominator} = ratio) do
+    %{
       lot
-    end
+      | quantity: Projection.scale_quantity(lot.quantity, ratio),
+        original_quantity: Projection.scale_quantity(lot.original_quantity, ratio),
+        buy_price: lot.buy_price |> Decimal.mult(denominator) |> Decimal.div(numerator),
+        # The per-unit legs divide like the buy price, so the lot's total
+        # cost pair stays invariant through the split (ADR-0028 §3).
+        buy_price_native: scale_unit_price(lot.buy_price_native, numerator, denominator),
+        settlement_unit_price: scale_unit_price(lot.settlement_unit_price, numerator, denominator)
+    }
   end
 
   defp scale_unit_price(nil, _numerator, _denominator), do: nil
