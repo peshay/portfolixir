@@ -85,10 +85,10 @@ defmodule PortfolixirWeb.CappedAsyncTest do
   # As the operator whose pages hand their heaviest work to tasks,
   # I want each such task to run under the heap cap its page runs under,
   # so that a runaway load is killed instead of exhausting the machine: a
-  # request fails alone; a load under `start_async`, linked to its page,
-  # takes the page down with it, and the page reconnects (#1204 asks
-  # whether it should fail alone); a task started by `start` or
-  # `start_child` runs apart from the page and fails alone.
+  # request fails alone; a load under `start_async` runs in a worker its
+  # task watches and fails alone, the page receiving the failure (#1204);
+  # a task started by `start` or `start_child` runs apart from the page and
+  # fails alone.
   #
   # Acceptance criteria:
   # - A task started by `start_async`, by `start` and under a supervisor by

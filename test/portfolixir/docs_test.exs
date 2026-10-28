@@ -1311,23 +1311,23 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
-  # User story (#941, Sprint 20 γ closing act, the correctness hunter):
+  # User story (#941, Sprint 20 γ closing act, the correctness hunter;
+  # #1204, Sprint 21 D-4 answer (b)):
   # As an operator reading what the heap cap does,
   # I want the guide to say what fails when a page's load grows past it,
-  # so that a page that drops and reconnects is recognised, and not taken
-  # for a load that failed alone.
+  # so that a page's failure note after a killed load is recognised, and not
+  # taken for a page that drops and reconnects.
   #
   # Acceptance criteria:
-  # - The guide (EN, DE) says a request past the cap fails alone, a page's
-  #   load runs in a task linked to its page and takes the page down with
-  #   it, and the page reconnects; a quote sync and a logo lookup run apart
-  #   from the page and fail alone.
-  # - It no longer says a page's load past the cap fails alone.
+  # - The guide (EN, DE) says a request past the cap fails alone, and a
+  #   page's load, a quote sync and a logo lookup each run apart from the
+  #   page, fail alone, and the page answers with its failure note.
+  # - It no longer says a page's load takes the page down with it.
   # - HeapCap's moduledoc and the capped-tasks invariant's user story say
   #   the same: a request's process or a page's own process fails alone; a
-  #   page's `start_async` load takes the page down with it, and the page
-  #   reconnects (#1204 holds whether it should).
-  test "the guide says a page's load past the heap cap takes the page down" do
+  #   page's `start_async` load fails alone too, and the page shows its own
+  #   failure state (#1204).
+  test "the guide says a page's load past the heap cap fails alone and the page shows its failure" do
     # A test file's user story is read without its comment markers.
     read = fn path ->
       text = File.read!(path)
@@ -1344,26 +1344,23 @@ defmodule Portfolixir.DocsTest do
           {"docs/home-deployment.md",
            [
              "a request that grows past it fails alone, logged, instead of exhausting the machine's memory",
-             "A page's load runs in a task linked to the page, so one that grows past it takes the page down with it, logged, and the page reconnects",
-             "a quote sync and a logo lookup run apart from the page and fail alone"
-           ], "a request or a page's load that grows past it fails alone"},
+             "A page's load, a quote sync and a logo lookup each run apart from the page, so one that grows past it fails alone, logged, and the page answers with its failure note"
+           ], "takes the page down with it"},
           {"docs/de/home-deployment.md",
            [
              "Eine Anfrage, die darüber wächst, scheitert allein und wird protokolliert, statt den Speicher der Maschine zu erschöpfen",
-             "Der Ladevorgang einer Seite läuft in einem Task, der mit der Seite verbunden ist: Wächst er darüber, reißt er die Seite mit, es wird protokolliert, und die Seite verbindet sich neu",
-             "eine Kurssynchronisation und eine Logo-Suche laufen getrennt von der Seite und scheitern allein"
-           ],
-           "Eine Anfrage oder ein Ladevorgang einer Seite, der darüber wächst, scheitert allein"},
+             "Der Ladevorgang einer Seite, eine Kurssynchronisation und eine Logo-Suche laufen jeweils getrennt von der Seite: Wächst einer davon darüber, scheitert er allein, es wird protokolliert, und die Seite antwortet mit ihrem Fehlerhinweis"
+           ], "reißt er die Seite mit"},
           {"lib/portfolixir_web/heap_cap.ex",
            [
              "a request's process or a page's own process past it is killed and fails alone",
-             "A page's `start_async` load runs in a task linked to the page, so the cap's kill takes the page down with it, and the page reconnects (#1204 holds whether it should fail alone)"
-           ], "past it the process is killed and fails alone, instead of"},
+             "A page's `start_async` load runs in a worker its task watches, so the cap's kill reaches the page as a failed load, and the page shows its own failure state (#1204)"
+           ], "takes the page down with it"},
           {"test/invariants/web_tasks_capped_test.exs",
            [
              "a request's process or a page's own process fails alone",
-             "a page's `start_async` load takes the page down with it, and the page reconnects (#1204 holds whether it should fail alone)"
-           ], "so that one runaway load fails alone instead of taking the node's memory"}
+             "a page's `start_async` load fails alone too, and the page shows its own failure state (#1204)"
+           ], "takes the page down with it"}
         ] do
       doc = read.(path)
 

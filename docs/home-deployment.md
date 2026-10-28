@@ -1098,11 +1098,10 @@ added migrations, restore the database backup taken before that upgrade.
   cap of 512 MiB, counting the large binaries it holds, and so does every
   task a page hands its work to (the performance walk, the valuations, an
   import's apply, a quote sync): a request that grows past it fails alone,
-  logged, instead of exhausting the machine's memory. A page's load runs in
-  a task linked to the page, so one that grows past it takes the page down
-  with it, logged, and the page reconnects; a quote sync and a logo lookup
-  run apart from the page and fail alone, the page answering with its
-  failure note. No ordinary read or write comes near it; `max_heap_bytes` under
+  logged, instead of exhausting the machine's memory. A page's load, a quote
+  sync and a logo lookup each run apart from the page, so one that grows
+  past it fails alone, logged, and the page answers with its failure note.
+  No ordinary read or write comes near it; `max_heap_bytes` under
   `PortfolixirWeb.HeapCap` in `config/config.exs` changes it. The in-memory
   cache of derived figures keeps to its own budget (5000 entries, 128 MiB).
 - The release starts without Erlang distribution, so it opens no listener
