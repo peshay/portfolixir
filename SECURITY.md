@@ -162,8 +162,9 @@ cannot download logos or follow provider redirects (the well-known prefix
 `64:ff9b::/96` is judged by the IPv4 address it carries,
 `docs/home-deployment.md`); an Imports preview is parked in memory per browser
 session until it is applied, discarded or left for two hours, within a fixed
-number of parked previews of which the oldest-touched is evicted, judged by
-its key and timestamp alone (E25): only a session past the UI password, or,
+number of parked previews and a fixed byte budget, of which the oldest-touched
+is evicted, judged by its key, timestamp and size alone, and a preview too
+large for its share of the budget is not parked (E25; H07): only a session past the UI password, or,
 without one, a browser that reaches the instance on its loopback binding, can
 park one, so an instance bound beyond loopback without a UI password lets
 anyone who reaches it fill that budget; and the WebSocket handshake is dispatched ahead of the Host guard and rests on

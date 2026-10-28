@@ -2827,7 +2827,8 @@ confirm. These rows are left out the same way, each named with its row:
   row books in EUR and is never refused for its currency.
 
 A preview is kept for your next visit (a language switch, a reload) only once
-it has been shown.
+it has been shown, and only while it is not too large to keep: the preview of
+a very large file is not kept, and the next visit shows the drop zone again.
 
 ### Transfers in a Portfolio Performance CSV
 

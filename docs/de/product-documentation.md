@@ -3096,7 +3096,9 @@ Zeilen bleiben ebenso draußen, jede mit ihrer Zeile benannt:
   CSV-Zeile bucht in EUR und wird nie wegen ihrer Währung abgelehnt.
 
 Eine Vorschau wird für den nächsten Besuch (Sprachwechsel, Neuladen) erst
-aufbewahrt, wenn sie einmal angezeigt wurde.
+aufbewahrt, wenn sie einmal angezeigt wurde, und nur, solange sie dafür nicht
+zu groß ist: Die Vorschau einer sehr großen Datei wird nicht aufbewahrt, und
+der nächste Besuch zeigt wieder das Ablagefeld.
 
 ### Umbuchungen in einer Portfolio-Performance-CSV
 
