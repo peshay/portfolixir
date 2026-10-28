@@ -75,8 +75,13 @@ defmodule PortfolixirWeb.Endpoint do
   plug(Plug.Telemetry, event_prefix: [:phoenix, :endpoint])
 
   # Explicit body bound (#771): the default, stated so it is a decision.
+  # No multipart parser (security review 2026-10-12, H01): no route reads a
+  # multipart body, the Imports upload travels over the LiveView socket, and
+  # the parser wrote every file part to disk before any credential was
+  # checked. A future upload route parses multipart in its own pipeline,
+  # behind its authentication.
   plug(Plug.Parsers,
-    parsers: [:urlencoded, :multipart, :json],
+    parsers: [:urlencoded, :json],
     pass: ["*/*"],
     length: 8_000_000,
     json_decoder: Phoenix.json_library()
