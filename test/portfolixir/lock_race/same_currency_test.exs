@@ -336,4 +336,54 @@ defmodule Portfolixir.LockRace.SameCurrencyTest do
     assert {:ok, %Transaction{notes: "edited"}} = edited
     assert_merged_after_edit(merged, w)
   end
+
+  # -- an edit that moves its booking onto the merge's target -------------------
+
+  defp move_to_target(w),
+    do: Ledger.update_transaction(owner(), w.booking, %{cash_account_id: w.target.id})
+
+  # User story (#1214; ADR-0050 §10, §11; ADR-0036, risk-tier):
+  # As the operator moving a booking from one cash account to another while
+  # the first is merged into the second,
+  # I want the edit and the merge to take their locks in one order,
+  # so that one waits for the other and neither is aborted by a deadlock.
+  #
+  # Acceptance criteria:
+  # - The edit takes the lock of the account it moves the booking onto
+  #   before its booking's row lock, the order the merge takes them in.
+  # - With the edit holding its booking, the merge waits for it; the edit
+  #   moves the booking, and the merge, whose plan the move changed, answers
+  #   a fresh preview with nothing merged.
+  # - With the merge holding both accounts, the edit waits for it; the merge
+  #   moves the booking onto the target and removes the source, and the edit
+  #   then finds its booking already there.
+  # - Neither writer deadlocks.
+  test "a cash merge waits for an edit moving its booking onto the target", %{db: db} do
+    w = merge_world("Move First")
+
+    {moved, merged} =
+      LockRace.race!(db, {fn -> move_to_target(w) end, row_lock()}, fn -> merge(w) end)
+
+    target_id = w.target.id
+    assert {:ok, %Transaction{cash_account_id: ^target_id}} = moved
+    assert {:error, {:plan_changed, %{plan_digest: fresh}}} = merged
+    refute fresh == w.digest
+    assert %Transaction{cash_account_id: ^target_id} = booking(w)
+    assert Repo.get(CashAccount, w.source.id)
+  end
+
+  test "an edit moving its booking onto the target waits for the cash merge", %{db: db} do
+    w = merge_world("Merge Before Move")
+
+    {merged, moved} =
+      LockRace.race!(db, {fn -> merge(w) end, merge_lock()}, fn -> move_to_target(w) end)
+
+    target_id = w.target.id
+    source_id = w.source.id
+    assert {:ok, %MergeRecord{source_id: ^source_id}, :applied} = merged
+    assert {:ok, %Transaction{cash_account_id: ^target_id}} = moved
+    assert %Transaction{cash_account_id: ^target_id, gross_amount: amount} = booking(w)
+    assert Decimal.equal?(amount, Decimal.new("10"))
+    refute Repo.get(CashAccount, w.source.id)
+  end
 end
