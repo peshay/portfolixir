@@ -39,11 +39,7 @@ defmodule PortfolixirWeb.ImportsLive do
     # The store key is a hash of the session token (#768), never the token.
     session_token = PreviewStore.key_for(Map.get(session, "_csrf_token"))
 
-    {stage, preview, mapping} =
-      case PreviewStore.get(session_token) do
-        {stored_preview, stored_mapping} -> {:preview, stored_preview, stored_mapping}
-        nil -> {:idle, nil, blank_mapping()}
-      end
+    {stage, preview, mapping} = restore(socket, session_token)
 
     socket =
       socket
@@ -72,6 +68,22 @@ defmodule PortfolixirWeb.ImportsLive do
     {:ok, socket}
   end
 
+  # Security review 2026-10-12, H07: the dead render of a session with a
+  # parked preview neither copies it out of the store nor renews its lease;
+  # it renders the stage empty, and the connected mount right after it
+  # restores the preview. A plain load of the page costs the same whatever
+  # its session has parked.
+  defp restore(socket, session_token) do
+    if not connected?(socket) and PreviewStore.parked?(session_token) do
+      {:restoring, nil, blank_mapping()}
+    else
+      case PreviewStore.get(session_token) do
+        {stored_preview, stored_mapping} -> {:preview, stored_preview, stored_mapping}
+        nil -> {:idle, nil, blank_mapping()}
+      end
+    end
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
@@ -88,6 +100,7 @@ defmodule PortfolixirWeb.ImportsLive do
         <% end %>
 
         <%= case @stage do %>
+          <% :restoring -> %>
           <% :idle -> %>
             <%= render_idle(assigns) %>
           <% :preview -> %>

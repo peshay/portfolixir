@@ -31,6 +31,15 @@ defmodule Portfolixir.Imports.PreviewStore do
   # At most this many parked previews (#768); the oldest-touched is evicted.
   @default_max_entries 32
 
+  # Security review 2026-10-12, H07: at most this many bytes of parked
+  # previews, as their terms measure (`:erts_debug.flat_size/1`), whatever
+  # their number; the oldest-touched are evicted to make room. One preview
+  # may take at most a quarter of it: a file at the parser's caps measures
+  # about half of the budget, and is not parked (a remount shows the drop
+  # zone again) rather than evicting every other session's preview.
+  @default_max_bytes 256 * 1024 * 1024
+  @entry_share 4
+
   ## Client API
 
   @doc "Starts the store, normally called from `Portfolixir.Application`."
@@ -42,6 +51,18 @@ defmodule Portfolixir.Imports.PreviewStore do
   @spec max_entries() :: pos_integer()
   def max_entries,
     do: Application.get_env(:portfolixir, :import_preview_max_entries, @default_max_entries)
+
+  @doc """
+  The byte budget: how many bytes of parked previews the store keeps at once
+  (`:import_preview_max_bytes`, H07). One entry may take a quarter of it.
+  """
+  @spec max_bytes() :: pos_integer()
+  def max_bytes,
+    do: Application.get_env(:portfolixir, :import_preview_max_bytes, @default_max_bytes)
+
+  @doc "The most bytes one parked preview may take: a quarter of `max_bytes/0` (H07)."
+  @spec max_entry_bytes() :: pos_integer()
+  def max_entry_bytes, do: div(max_bytes(), @entry_share)
 
   @doc """
   The store key for a browser session (#768): a hash of the session token, so
@@ -57,16 +78,26 @@ defmodule Portfolixir.Imports.PreviewStore do
 
   @doc """
   Stores `preview` and `mapping` under `key`. An existing entry is replaced;
-  past the budget the oldest-touched entry is evicted first. An empty key is
-  refused (`:ignored`).
+  past either budget, the number of entries or their bytes, the
+  oldest-touched entries are evicted first. An empty key is refused
+  (`:ignored`). A preview larger than one entry may take (`max_entry_bytes/0`)
+  is not stored, and the entry `key` held before is dropped with it, so a
+  remount never brings back an older file (`:too_large`, H07).
   """
-  @spec put(String.t() | nil, term(), term(), keyword()) :: :ok | :ignored
+  @spec put(String.t() | nil, term(), term(), keyword()) :: :ok | :ignored | :too_large
   def put(key, preview, mapping, opts \\ [])
 
   def put(key, preview, mapping, opts) when is_binary(key) and key != "" do
-    unless :ets.member(@table, key), do: evict_past_budget()
-    :ets.insert(@table, {key, preview, mapping, Keyword.get(opts, :touched_at, now())})
-    :ok
+    bytes = :erts_debug.flat_size({preview, mapping}) * :erlang.system_info(:wordsize)
+
+    if bytes > max_entry_bytes() do
+      :ets.delete(@table, key)
+      :too_large
+    else
+      evict_past_budget(key, bytes)
+      :ets.insert(@table, {key, preview, mapping, Keyword.get(opts, :touched_at, now()), bytes})
+      :ok
+    end
   end
 
   def put(_key, _preview, _mapping, _opts), do: :ignored
@@ -86,7 +117,7 @@ defmodule Portfolixir.Imports.PreviewStore do
   @spec get(String.t() | nil) :: {term(), term()} | nil
   def get(key) when is_binary(key) and key != "" do
     case :ets.lookup(@table, key) do
-      [{^key, preview, mapping, _touched_at}] ->
+      [{^key, preview, mapping, _touched_at, _bytes}] ->
         :ets.update_element(@table, key, {4, now()})
         {preview, mapping}
 
@@ -96,6 +127,14 @@ defmodule Portfolixir.Imports.PreviewStore do
   end
 
   def get(_key), do: nil
+
+  @doc """
+  Whether a preview is parked under `key`, without copying it out of the
+  store or renewing its lease (H07).
+  """
+  @spec parked?(String.t() | nil) :: boolean()
+  def parked?(key) when is_binary(key) and key != "", do: :ets.member(@table, key)
+  def parked?(_key), do: false
 
   @doc "Empties the store. For tests that reason about the budget on the shared table."
   @spec clear() :: :ok
@@ -113,21 +152,35 @@ defmodule Portfolixir.Imports.PreviewStore do
 
   def delete(_key), do: :ok
 
-  # Drops the oldest-touched entries until one slot is free. Only keys and
-  # timestamps leave the table (E25 S5, F41): copying every parked preview
-  # into the caller's heap to find the oldest cost as much as all of them.
-  @keys_and_touched [{{:"$1", :_, :_, :"$2"}, [], [{{:"$2", :"$1"}}]}]
+  # Drops the oldest-touched entries, other than the one `key` replaces,
+  # until the new entry of `bytes` fits both budgets: a free slot and room in
+  # the bytes. Only keys, timestamps and sizes leave the table (E25 S5, F41):
+  # copying every parked preview into the caller's heap to find the oldest
+  # cost as much as all of them.
+  @keys_touched_bytes [{{:"$1", :_, :_, :"$2", :"$3"}, [], [{{:"$2", :"$1", :"$3"}}]}]
 
-  defp evict_past_budget do
-    overflow = :ets.info(@table, :size) - max_entries() + 1
-
-    if overflow > 0 do
+  defp evict_past_budget(key, bytes) do
+    others =
       @table
-      |> :ets.select(@keys_and_touched)
+      |> :ets.select(@keys_touched_bytes)
+      |> Enum.reject(fn {_touched, other, _bytes} -> other == key end)
       |> Enum.sort()
-      |> Enum.take(overflow)
-      |> Enum.each(fn {_touched, key} -> :ets.delete(@table, key) end)
-    end
+
+    room = %{
+      slots: max_entries() - 1,
+      bytes: max_bytes() - bytes
+    }
+
+    held = %{slots: length(others), bytes: Enum.sum(Enum.map(others, &elem(&1, 2)))}
+
+    Enum.reduce_while(others, held, fn {_touched, other, other_bytes}, held ->
+      if held.slots <= room.slots and held.bytes <= room.bytes do
+        {:halt, held}
+      else
+        :ets.delete(@table, other)
+        {:cont, %{slots: held.slots - 1, bytes: held.bytes - other_bytes}}
+      end
+    end)
   end
 
   ## GenServer callbacks
@@ -142,7 +195,7 @@ defmodule Portfolixir.Imports.PreviewStore do
   @impl true
   def handle_info(:sweep, state) do
     cutoff = now() - @ttl_seconds
-    :ets.select_delete(@table, [{{:_, :_, :_, :"$1"}, [{:<, :"$1", cutoff}], [true]}])
+    :ets.select_delete(@table, [{{:_, :_, :_, :"$1", :_}, [{:<, :"$1", cutoff}], [true]}])
     schedule_sweep()
     {:noreply, state}
   end
