@@ -6,9 +6,12 @@ defmodule PortfolixirWeb.DevSocketRebindingTest do
   import Ecto.Query, only: [from: 2]
   import ExUnit.CaptureLog
 
+  alias Phoenix.LiveView.Static
+  alias Plug.Session.COOKIE
   alias Portfolixir.Buckets
   alias Portfolixir.Buckets.Bucket
   alias Portfolixir.Repo
+  alias Portfolixir.RuntimeConfig
   alias Portfolixir.WorldFixtures
 
   @root "."
@@ -117,7 +120,7 @@ defmodule PortfolixirWeb.DevSocketRebindingTest do
     refute dev.live_view_salt in committed_literal_salts()
 
     assert dev.live_view_salt ==
-             Portfolixir.RuntimeConfig.derived_salt(dev.secret_key_base, "live_view")
+             RuntimeConfig.derived_salt(dev.secret_key_base, "live_view")
   end
 
   test "the README and llms.txt require the UI password on the run-from-source route" do
@@ -181,11 +184,11 @@ defmodule PortfolixirWeb.DevSocketRebindingTest do
 
     # 2. The `_portfolixir_key` cookie, signed with the public dev secret and
     #    the session salt derived from it by the repository's own algorithm.
-    session_salt = Portfolixir.RuntimeConfig.derived_salt(attacker.secret_key_base, "session")
-    cookie_opts = Plug.Session.COOKIE.init(signing_salt: session_salt)
+    session_salt = RuntimeConfig.derived_salt(attacker.secret_key_base, "session")
+    cookie_opts = COOKIE.init(signing_salt: session_salt)
 
     cookie =
-      Plug.Session.COOKIE.put(
+      COOKIE.put(
         %Plug.Conn{secret_key_base: attacker.secret_key_base},
         nil,
         %{"_csrf_token" => csrf_state},
@@ -200,7 +203,7 @@ defmodule PortfolixirWeb.DevSocketRebindingTest do
       Phoenix.Token.sign(
         attacker.secret_key_base,
         attacker.live_view_salt,
-        {Phoenix.LiveView.Static.token_vsn(),
+        {Static.token_vsn(),
          %{
            id: lv_id,
            view: PortfolixirWeb.PortfolioAccountsLive,
@@ -356,7 +359,7 @@ defmodule PortfolixirWeb.DevSocketRebindingTest do
 
     derivable =
       if public_secret,
-        do: [Portfolixir.RuntimeConfig.derived_salt(public_secret, "live_view")],
+        do: [RuntimeConfig.derived_salt(public_secret, "live_view")],
         else: []
 
     lv_salt =
