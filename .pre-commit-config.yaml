@@ -26,6 +26,15 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+      # The gates' own unit tests (H64): every scripts/test_*.py, the
+      # invisible-Unicode scanner's among them, so CI's pre-commit job proves
+      # the gate it runs. -B keeps __pycache__ out of the checkout.
+      - id: scripts-self-tests
+        name: Unit tests of the gate scripts (scripts/test_*.py)
+        entry: python3 -B -m unittest discover --start-directory scripts --pattern "test_*.py"
+        language: system
+        pass_filenames: false
+        always_run: true
       - id: mix-format-check
         name: Elixir formatting check
         entry: mix format --check-formatted
