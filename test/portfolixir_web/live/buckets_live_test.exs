@@ -328,7 +328,8 @@ defmodule PortfolixirWeb.BucketsLiveTest do
   #
   # Acceptance criteria:
   # - Saving a view's buckets with a non-existent bucket id shows the
-  #   "bucket no longer exists" error and leaves the view's filter empty.
+  #   "bucket no longer exists" error and leaves the view's filter as it was
+  #   (H44: the include-all view still includes every bucket).
   test "saving view buckets with a stale bucket id surfaces a friendly error", %{conn: conn} do
     world()
     # A real bucket makes the include checkbox input render; deleting it behind
@@ -356,7 +357,7 @@ defmodule PortfolixirWeb.BucketsLiveTest do
 
     assert html =~ "That bucket no longer exists"
     {:ok, filter} = Buckets.view_filter(v.id)
-    assert filter.include == []
+    assert filter.include == :all
     assert filter.exclude == []
   end
 

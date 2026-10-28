@@ -76,6 +76,44 @@ defmodule Portfolixir.Buckets.ViewDefinitionJournalTest do
     assert length(view_entries(view.id)) == 2
   end
 
+  # User story (security review 2026-10-12, H44):
+  # As the operator saving a view's bucket picker,
+  # I want the include-all flag and both bucket sets written as one locked,
+  # journaled write,
+  # so that a refused save changes nothing and a save leaves one trace.
+  #
+  # Acceptance criteria:
+  # - set_view_buckets with include_all sets the flag and the sets together
+  #   and journals one entry carrying the flag before and after.
+  # - A refusal (a bucket deleted meanwhile) leaves the flag and the sets as
+  #   they were and journals nothing.
+  test "set_view_buckets sets include_all with the sets in one journaled write, or nothing" do
+    core = bucket!("Core")
+    doomed = bucket!("Doomed")
+    view = view!("Picker")
+    assert view.include_all
+
+    assert :ok =
+             Buckets.set_view_buckets(owner(), view, [core.id], [], include_all: false)
+
+    assert [entry] = view_entries(view.id)
+    assert entry.before["include_all"] == true
+    assert entry.after["include_all"] == false
+    assert entry.after["include_bucket_ids"] == [core.id]
+    refute Buckets.get_view(view.id).include_all
+
+    {:ok, _} = Buckets.delete_bucket(owner(), doomed)
+    entries = view_entries(view.id)
+
+    assert {:error, :bucket_ids} =
+             Buckets.set_view_buckets(owner(), view, [], [doomed.id], include_all: true)
+
+    refute Buckets.get_view(view.id).include_all
+    assert {:ok, %{include: [core_id], exclude: []}} = Buckets.view_filter(view.id)
+    assert core_id == core.id
+    assert view_entries(view.id) == entries
+  end
+
   # User story:
   # As the operator whose rule reads a view,
   # I want deleting a bucket that the view includes to leave the view's prior

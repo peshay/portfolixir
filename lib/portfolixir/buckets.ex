@@ -813,9 +813,14 @@ defmodule Portfolixir.Buckets do
   view never observes a half-applied filter, journaled with the view's whole
   definition before and after (F45); resending the same sets journals
   nothing. A view that is gone answers `{:error, :not_found}`.
+
+  Option `include_all:` (a boolean) sets the view's include-all flag in the
+  same locked, journaled transaction (H44): the bucket picker saves the
+  flag and both sets as one write, so a refused set (a bucket deleted
+  meanwhile) leaves the flag as it was too, and a save journals one entry.
   """
-  def set_view_buckets(%Actor{} = actor, %View{id: view_id}, include_ids, exclude_ids)
-      when is_list(include_ids) and is_list(exclude_ids) do
+  def set_view_buckets(%Actor{} = actor, %View{id: view_id}, include_ids, exclude_ids, opts \\ [])
+      when is_list(include_ids) and is_list(exclude_ids) and is_list(opts) do
     # A bucket named twice counts once, as in the sibling writers (E25 S4,
     # F12): the join tables hold each (view, bucket) pair once.
     include_ids = Enum.uniq(include_ids)
@@ -831,11 +836,12 @@ defmodule Portfolixir.Buckets do
     Multi.new()
     |> lock_view(view_id, :edit)
     |> validate_assignment(include_ids ++ exclude_ids, :exists)
+    |> put_include_all(Keyword.fetch(opts, :include_all))
     |> Multi.delete_all(:clear_in, from(x in ViewIncludeBucket, where: x.view_id == ^view_id))
     |> Multi.delete_all(:clear_ex, from(x in ViewExcludeBucket, where: x.view_id == ^view_id))
     |> insert_all_step(:include, ViewIncludeBucket, include_entries)
     |> insert_all_step(:exclude, ViewExcludeBucket, exclude_entries)
-    |> Multi.run(:definition, fn repo, %{locked_view: view} ->
+    |> Multi.run(:definition, fn repo, %{view: view} ->
       {:ok, ViewDefinition.of(repo, view)}
     end)
     |> Journal.record(actor,
@@ -850,6 +856,17 @@ defmodule Portfolixir.Buckets do
       {:error, :locked_view, :not_found, _} -> {:error, :not_found}
       {:error, _, reason, _} -> {:error, reason}
     end
+  end
+
+  # The view as the write leaves it: the locked row, with its include-all flag
+  # set under the same lock when the caller passes one (H44).
+  defp put_include_all(multi, :error),
+    do: Multi.run(multi, :view, fn _repo, %{locked_view: view} -> {:ok, view} end)
+
+  defp put_include_all(multi, {:ok, include_all}) when is_boolean(include_all) do
+    Multi.update(multi, :view, fn %{locked_view: view} ->
+      View.changeset(view, %{include_all: include_all})
+    end)
   end
 
   # -- view scope (read seam for analytics, #444) ----------------------------

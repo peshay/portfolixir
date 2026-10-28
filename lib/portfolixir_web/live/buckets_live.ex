@@ -793,13 +793,15 @@ defmodule PortfolixirWeb.BucketsLive do
          include_all? <- params["include_all"] == "true",
          include <- LiveParam.ids(params["include"]),
          exclude <- LiveParam.ids(params["exclude"]),
-         {:ok, _} <- Buckets.update_view(Actor.owner_ui(), view, %{include_all: include_all?}),
+         # H44: the flag and both sets in one locked, journaled write, so a
+         # refused save changes nothing.
          :ok <-
            Buckets.set_view_buckets(
              Actor.owner_ui(),
              view,
              if(include_all?, do: [], else: include),
-             exclude
+             exclude,
+             include_all: include_all?
            ) do
       {:noreply,
        socket
