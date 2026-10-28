@@ -264,9 +264,11 @@ und sein `as_of` ist dann ein Cursor auf die letzte Zeile der Seite,
 lesen. Zeilen mit demselben Stempel (ein Import schreibt Tausende in einer
 Sekunde) unterscheidet die id, sodass eine Seitengrenze zwischen ihnen keine
 überspringt und keine wiederholt. Ein Cursor liegt nie hinter der obigen
-Grenze: Ist die letzte Zeile der Seite neuer, ist `as_of` die Grenze, und der
-nächste Read liefert die neueren Zeilen erneut. Eine nicht volle Seite trägt
-`has_more: false` und die Grenze, wie bisher. Ein fehlerhafter Cursor ist
+Grenze: Ist die letzte Zeile der Seite neuer, ist `as_of` die Grenze, ohne
+`~<id>`, und `has_more` bleibt wahr — der Rest wartet hinter einem noch
+laufenden Schreibvorgang, also später erneut abfragen, nicht sofort: Bis
+dieser endet, liefert ein sofortiger Read dieselbe Seite. Eine nicht volle
+Seite trägt `has_more: false` und die Grenze, wie bisher. Ein fehlerhafter Cursor ist
 dasselbe `422` wie jedes ungültige `since`.
 
 **Löschungen sind

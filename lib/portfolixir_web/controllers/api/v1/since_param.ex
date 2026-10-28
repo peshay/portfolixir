@@ -35,7 +35,9 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
   told apart by the id, so a page boundary inside them skips none and
   repeats none. A cursor never lies past the read's own bound (see
   `Portfolixir.DeltaCursor`): when the page's last row is newer than that
-  bound, `as_of` is the bound and the next read re-delivers the newer rows.
+  bound, `as_of` is the bound (no `~<id>`) with `has_more` still true, and
+  the note tells the agent to poll again later: until the write holding the
+  bound ends, a read at once returns the same page.
   """
 
   alias Portfolixir.DeltaCursor
@@ -49,10 +51,12 @@ defmodule PortfolixirWeb.Api.V1.SinceParam do
                 "next read may re-deliver a row but never skips one."
 
   @page_rule "Use this response's `as_of` as the next `since`. When `has_more` is true the " <>
-               "page held `limit` rows and more are waiting: `as_of` is then a cursor at the " <>
-               "page's last row, so read again with it at once. Otherwise `as_of` lies no " <>
-               "later than the start of the oldest write still in flight, so the next read " <>
-               "may re-deliver a row but never skips one."
+               "page held `limit` rows and more are waiting: an `as_of` ending in `~<id>` is a " <>
+               "cursor at the page's last row, so read again with it at once; an `as_of` " <>
+               "without `~<id>` means the rest waits behind a write still in flight, so poll " <>
+               "again later, not at once. `as_of` never lies later than the start of the " <>
+               "oldest write still in flight, so the next read may re-deliver a row but never " <>
+               "skips one."
 
   @paged_delta_note "Rows created or updated strictly after `since` (UTC), by their " <>
                       "updated_at, oldest change first. Deletions are not represented - a " <>

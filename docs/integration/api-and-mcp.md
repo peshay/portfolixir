@@ -238,8 +238,10 @@ matched than the answer holds). A delta read whose page is full also carries
 once. Rows sharing one stamp (an import writes thousands within a second)
 are told apart by the id, so a page boundary among them skips none and
 repeats none. A cursor never lies past the bound above: when the page's last
-row is newer, `as_of` is the bound and the next read re-delivers the newer
-rows. A page that is not full carries `has_more: false` and the bound, as
+row is newer, `as_of` is the bound, without `~<id>`, and `has_more` stays
+true — the rest waits behind a write still in flight, so poll again later,
+not at once: until that write ends, a read at once returns the same page.
+A page that is not full carries `has_more: false` and the bound, as
 before. A malformed cursor is the same `422` as any invalid `since`.
 
 **Deletions are not
