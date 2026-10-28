@@ -44,11 +44,12 @@ defmodule Portfolixir.Ledger.SettlementGuard do
   check); nothing is derived from the rate. `violations/0` lists a stored
   one against the cash its own rate implies.
 
-  **Risk-tier (ADR-0036).** The guard is a ledger invariant. When it runs is
-  fixed by the Sprint 15 plan's D-5: on insert, and on an update that changes
-  `gross_amount`, `settlement_amount`, `fees`, `taxes` or the type — and,
-  for a row without a cash amount, its quantity or price, which then change
-  the cash booked (F71). A row that predates the guard is never revalidated
+  **Risk-tier (ADR-0036).** The guard is a ledger invariant. When it runs was
+  fixed by the Sprint 15 plan's D-5 and widened by the ADR-0015 amendment of
+  2026-10-09, point 1 (H35): on insert, and on an update that changes
+  `gross_amount`, `settlement_amount`, `fees`, `taxes`, the type, the
+  currency, the cash account or the depot — and, for a row without a cash
+  amount, its quantity or price, which then change the cash booked (F71). A row that predates the guard is never revalidated
   behind the operator's back — editing its note must not start failing — and
   `violations/0` lists such rows read-only; repairing one is the operator's
   decision (NFR-2).
@@ -63,7 +64,18 @@ defmodule Portfolixir.Ledger.SettlementGuard do
 
   @tolerance Decimal.new("0.01")
   @guarded_types ["buy", "sell"]
-  @trigger_fields [:gross_amount, :settlement_amount, :fees, :taxes, :type]
+  # The currency, the cash account and the depot decide whether a trade is
+  # cross-currency at all (the ADR-0015 amendment of 2026-10-09, point 1; H35).
+  @trigger_fields [
+    :gross_amount,
+    :settlement_amount,
+    :fees,
+    :taxes,
+    :type,
+    :currency_code,
+    :cash_account_id,
+    :securities_account_id
+  ]
   # Without a cash amount the booked cash follows these as well (F71).
   @fallback_trigger_fields [:quantity, :price]
 
@@ -122,9 +134,10 @@ defmodule Portfolixir.Ledger.SettlementGuard do
   def booked_cash(_type, _row), do: nil
 
   @doc """
-  The changeset step (D-5): checks a cross-currency buy or sell on insert and
-  on an update that changes an amount or the type; leaves every other write
-  alone. The error lands on `gross_amount` and names the implied amount —
+  The changeset step (D-5, widened by the ADR-0015 amendment of 2026-10-09):
+  checks a cross-currency buy or sell on insert and on an update that changes
+  an amount, the type, the currency, the cash account or the depot; leaves
+  every other write alone. The error lands on `gross_amount` and names the implied amount —
   nothing is corrected silently.
   """
   @spec validate(Ecto.Changeset.t()) :: Ecto.Changeset.t()
@@ -137,7 +150,7 @@ defmodule Portfolixir.Ledger.SettlementGuard do
   than its cash account's that carries a `settlement_fx_rate` but neither a
   `gross_amount` nor a `settlement_amount` is refused on `gross_amount`,
   the message naming the cash `quantity × price` with fees and taxes would
-  book. It runs when `validate/1` runs (D-5), and only where the caller has
+  book. It runs when `validate/1` runs (its triggers), and only where the caller has
   found the currencies to differ — `Transaction.validate_cash_account_currency/2`,
   which alone knows the account's currency — so a trade booked in its
   account's currency with a rate stored beside it is left alone.
