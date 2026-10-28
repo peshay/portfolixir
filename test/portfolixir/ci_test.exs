@@ -1542,6 +1542,69 @@ defmodule Portfolixir.CITest do
     assert output =~ "refusing"
   end
 
+  # User story (security review 2026-10-12, H68):
+  # As the owner whose merge rests on green gates instead of a read of the
+  # workflows,
+  # I want the workflows' pull-request trust model pinned: least-privilege
+  # tokens declared for each whole workflow, and no trigger that runs with a
+  # write token or secrets on behalf of someone else's change,
+  # so that a change that widens a token or adds such a trigger fails a gate
+  # instead of passing every one.
+  #
+  # Acceptance criteria:
+  # - Every workflow declares workflow-level `permissions:`: ci.yml and
+  #   commit-authorship.yml exactly `contents: read`, release.yml exactly
+  #   `contents: write`; a new workflow needs its own entry here.
+  # - No job widens its workflow's token: a job-level `permissions:` names
+  #   only scopes the workflow grants, at the same or a lower level.
+  # - No workflow is triggered by pull_request_target, workflow_run or
+  #   issue_comment.
+  test "every workflow pins its token and refuses the triggers that run foreign changes with it" do
+    expected = %{
+      ".github/workflows/ci.yml" => %{"contents" => "read"},
+      ".github/workflows/commit-authorship.yml" => %{"contents" => "read"},
+      ".github/workflows/release.yml" => %{"contents" => "write"}
+    }
+
+    paths = Path.wildcard(".github/workflows/*.{yml,yaml}")
+    assert Enum.sort(paths) == Enum.sort(Map.keys(expected)), "a workflow has no entry here"
+
+    for path <- paths do
+      workflow = YamlElixir.read_from_file!(path)
+      granted = workflow["permissions"]
+
+      assert granted == expected[path],
+             "#{path}: workflow-level permissions are #{inspect(granted)}, " <>
+               "not #{inspect(expected[path])}"
+
+      for {job, spec} <- workflow["jobs"], Map.has_key?(spec, "permissions") do
+        assert is_map(spec["permissions"]),
+               "#{path}: job #{job} grants #{inspect(spec["permissions"])}"
+
+        for {scope, level} <- spec["permissions"] do
+          assert permission_rank(level) <= permission_rank(granted[scope]),
+                 "#{path}: job #{job} widens #{scope} to #{level}"
+        end
+      end
+
+      triggers =
+        case workflow["on"] do
+          on when is_map(on) -> Map.keys(on)
+          on -> List.wrap(on)
+        end
+
+      assert triggers != [], "#{path}: no trigger read"
+
+      for trigger <- ~w(pull_request_target workflow_run issue_comment) do
+        refute trigger in triggers, "#{path}: triggered by #{trigger}"
+      end
+    end
+  end
+
+  defp permission_rank("write"), do: 2
+  defp permission_rank("read"), do: 1
+  defp permission_rank(_none), do: 0
+
   defp ci_workflow, do: File.read!(".github/workflows/ci.yml")
 
   # One job of a workflow: its `  name:` line under `jobs:` and every
