@@ -38,6 +38,13 @@ services:
       start_period: 5s
     ports:
       - "127.0.0.1:5432:5432"
+    # Rotated, so a client that makes the application log a lot cannot fill
+    # the disk the database lives on (security review 2026-10-12, H70).
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   app:
     build:
@@ -74,6 +81,13 @@ services:
       - .:/app
       - app-deps:/app/deps
       - app-build:/app/_build
+    # Rotated, so a client that makes the application log a lot cannot fill
+    # the disk the database lives on (security review 2026-10-12, H70).
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   mcp:
     build:
@@ -95,6 +109,13 @@ services:
       PORTFOLIXIR_MCP_PROFILE: ${PORTFOLIXIR_MCP_PROFILE:-}
     ports:
       - "127.0.0.1:4001:4001"
+    # Rotated, so a client that makes the application log a lot cannot fill
+    # the disk the database lives on (security review 2026-10-12, H70).
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "5"
 
 volumes:
   portfolixir-dev-postgres-data:

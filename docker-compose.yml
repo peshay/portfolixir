@@ -42,6 +42,13 @@ services:
       retries: 10
       start_period: 5s
     restart: unless-stopped
+    # Rotated, so a client that makes the application log a lot cannot fill
+    # the disk the database lives on (security review 2026-10-12, H70).
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   app:
     build:
@@ -102,6 +109,13 @@ services:
       retries: 12
       start_period: 20s
     restart: unless-stopped
+    # Rotated, so a client that makes the application log a lot cannot fill
+    # the disk the database lives on (security review 2026-10-12, H70).
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "5"
 
   mcp:
     build:
@@ -126,6 +140,13 @@ services:
     ports:
       - "127.0.0.1:4001:4001"
     restart: unless-stopped
+    # Rotated, so a client that makes the application log a lot cannot fill
+    # the disk the database lives on (security review 2026-10-12, H70).
+    logging:
+      driver: local
+      options:
+        max-size: "10m"
+        max-file: "5"
 
 volumes:
   portfolixir-postgres-data:
