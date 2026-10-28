@@ -59,6 +59,7 @@ alias Portfolixir.{
 }
 
 alias Portfolixir.Portfolios.Snapshots
+alias Portfolixir.Ledger.Splits
 
 # No outbound calls (#963): see the header.
 background_fetch = [
@@ -999,14 +1000,11 @@ if security_by_isin.("XS0000000108") == nil do
   buy.(demo, twin, "4", "56.10", ~D[2025-02-11])
 
   {:ok, _} =
-    Ledger.create_transaction(owner, %{
-      portfolio_id: portfolio.id,
+    Splits.book_split(owner, %{
       security_id: split_copy.id,
-      type: "split",
       date: ~D[2025-06-02],
-      currency_code: "EUR",
-      split_ratio_numerator: 2,
-      split_ratio_denominator: 1
+      ratio_numerator: 2,
+      ratio_denominator: 1
     })
 end
 
@@ -1074,14 +1072,11 @@ if security_by_isin.("XS0000000132") == nil do
 
   for {security, numerator} <- [{juniper, 2}, {juniper_copy, 3}] do
     {:ok, _} =
-      Ledger.create_transaction(owner, %{
-        portfolio_id: portfolio.id,
+      Splits.book_split(owner, %{
         security_id: security.id,
-        type: "split",
         date: ~D[2025-06-02],
-        currency_code: "EUR",
-        split_ratio_numerator: numerator,
-        split_ratio_denominator: 1
+        ratio_numerator: numerator,
+        ratio_denominator: 1
       })
   end
 end

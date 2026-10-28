@@ -971,7 +971,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   end
 
   defp save_booking(socket, params, prepared) do
-    case book(socket.assigns.editing_id, prepared) do
+    case book_trade(socket.assigns.editing_id, prepared) do
       {:ok, _transaction} ->
         {:noreply,
          socket
@@ -1006,6 +1006,24 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> assign(:transaction_form, params)
          |> failure(raced_message())}
     end
+  end
+
+  # K10: the drawer books the kinds its select offers, buy and sell, and no
+  # other: any other kind pushed at it writes nothing and is answered with the
+  # booking's own field errors plus an invalid type. A split is booked through
+  # the split flow only.
+  defp book_trade(id, params) do
+    if params["type"] in Transaction.manual_trade_types(),
+      do: book(id, params),
+      else: {:error, refused_kind(params)}
+  end
+
+  defp refused_kind(params) do
+    changeset = Transaction.changeset(%Transaction{}, params)
+
+    if Keyword.has_key?(changeset.errors, :type),
+      do: changeset,
+      else: Ecto.Changeset.add_error(changeset, :type, "is invalid", validation: :inclusion)
   end
 
   # #809: the one place the two ledger calls diverge. A booking that vanished
@@ -2280,7 +2298,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           <label>
             <span><%= gettext("Type") %></span>
             <select name="transaction[type]">
-              <%= for type <- ["buy", "sell"] do %>
+              <%= for type <- Transaction.manual_trade_types() do %>
                 <option value={type} selected={type == @transaction_form["type"]}>
                   <%= tx_type_label(type) %>
                 </option>

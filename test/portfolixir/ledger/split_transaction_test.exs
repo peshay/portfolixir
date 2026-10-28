@@ -58,7 +58,11 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
   end
 
   defp split!(world, security, opts) do
-    {:ok, tx} = Ledger.create_transaction(Actor.owner_ui(), split_attrs(world, security, opts))
+    {:ok, tx} =
+      Ledger.create_transaction(Actor.owner_ui(), split_attrs(world, security, opts),
+        split_flow: true
+      )
+
     tx
   end
 
@@ -95,7 +99,8 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
         assert {:error, changeset} =
                  Ledger.create_transaction(
                    Actor.owner_ui(),
-                   split_attrs(world, world.security, numerator: p, denominator: q)
+                   split_attrs(world, world.security, numerator: p, denominator: q),
+                   split_flow: true
                  )
 
         assert %{split_ratio_numerator: [message]} = errors_on(changeset)
@@ -109,7 +114,8 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
       assert {:error, changeset} =
                Ledger.create_transaction(
                  Actor.owner_ui(),
-                 world |> split_attrs(world.security, []) |> Map.delete(:security_id)
+                 world |> split_attrs(world.security, []) |> Map.delete(:security_id),
+                 split_flow: true
                )
 
       assert %{security_id: _} = errors_on(changeset)
@@ -117,7 +123,8 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
       assert {:error, changeset} =
                Ledger.create_transaction(
                  Actor.owner_ui(),
-                 split_attrs(world, world.security, numerator: 0)
+                 split_attrs(world, world.security, numerator: 0),
+                 split_flow: true
                )
 
       assert %{split_ratio_numerator: _} = errors_on(changeset)
@@ -125,7 +132,8 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
       assert {:error, changeset} =
                Ledger.create_transaction(
                  Actor.owner_ui(),
-                 split_attrs(world, world.security, denominator: -3)
+                 split_attrs(world, world.security, denominator: -3),
+                 split_flow: true
                )
 
       assert %{split_ratio_denominator: _} = errors_on(changeset)
@@ -146,7 +154,8 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
         assert {:error, changeset} =
                  Ledger.create_transaction(
                    Actor.owner_ui(),
-                   split_attrs(world, world.security, extra: %{field => value})
+                   split_attrs(world, world.security, extra: %{field => value}),
+                   split_flow: true
                  )
 
         assert %{^field => [message]} = errors_on(changeset)
@@ -206,7 +215,8 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
       assert {:error, changeset} =
                Ledger.create_transaction(
                  Actor.owner_ui(),
-                 split_attrs(world, world.security, date: ~D[2026-03-01], numerator: 3)
+                 split_attrs(world, world.security, date: ~D[2026-03-01], numerator: 3),
+                 split_flow: true
                )
 
       assert %{date: [message]} = errors_on(changeset)

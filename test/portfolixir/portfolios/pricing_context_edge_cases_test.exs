@@ -128,15 +128,19 @@ defmodule Portfolixir.Portfolios.PricingContextEdgeCasesTest do
           {two_splits, ~D[2026-04-01], 5, 2}
         ] do
       {:ok, _} =
-        Ledger.create_transaction(Actor.owner_ui(), %{
-          portfolio_id: w.portfolio.id,
-          security_id: sec.id,
-          type: "split",
-          date: date,
-          currency_code: sec.currency_code,
-          split_ratio_numerator: p,
-          split_ratio_denominator: q
-        })
+        Ledger.create_transaction(
+          Actor.owner_ui(),
+          %{
+            portfolio_id: w.portfolio.id,
+            security_id: sec.id,
+            type: "split",
+            date: date,
+            currency_code: sec.currency_code,
+            split_ratio_numerator: p,
+            split_ratio_denominator: q
+          },
+          split_flow: true
+        )
     end
 
     # A stale close from BEFORE the split effective dates, so adjustment bites.

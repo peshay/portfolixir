@@ -1365,10 +1365,19 @@ defmodule Portfolixir.Ledger do
   Records a transaction on behalf of `actor` (FR-28). The `transactions` row and
   its audit-journal entry commit in one transaction (ADR-0017); the table is
   guard-armed, so every ledger write is attributable.
+
+  A **split** is refused here, an error on `:type`, unless the split flow
+  (`Splits.book_split/2`) calls with `split_flow: true` (security review
+  2026-10-12, K10): the flow's checks — the effective date, the positions, a
+  conflicting same-day ratio, the cumulative factor — and its fan-out are
+  what make a split row safe, as `update_transaction/3` already holds.
   """
   def create_transaction(%Actor{} = actor, attrs, opts \\ []) when is_map(attrs) do
     with {:ok, attrs} <- maybe_derive_linked_cash_account(attrs) do
-      changeset = transaction_changeset(%Transaction{}, derive_settlement_fx_rate(attrs), opts)
+      changeset =
+        %Transaction{}
+        |> transaction_changeset(derive_settlement_fx_rate(attrs), opts)
+        |> refuse_split_outside_flow(opts)
 
       # #922: the currency check runs inside the write's transaction, against
       # the account rows it locks (`validate_cash_account_currency/1`).
@@ -1381,6 +1390,21 @@ defmodule Portfolixir.Ledger do
       )
       |> Repo.transaction()
       |> transaction_write_result()
+    end
+  end
+
+  defp refuse_split_outside_flow(changeset, opts) do
+    if Ecto.Changeset.get_field(changeset, :type) == "split" and
+         Keyword.get(opts, :split_flow) != true do
+      Ecto.Changeset.add_error(
+        changeset,
+        :type,
+        "is booked through the split flow (POST /api/v1/splits), never as a " <>
+          "single booking",
+        validation: :split_fact
+      )
+    else
+      changeset
     end
   end
 

@@ -24,15 +24,19 @@ defmodule PortfolixirWeb.ApiV1SplitTransactionTest do
     security = create_security!(name: "Api Split Co", ticker: "ASP")
 
     {:ok, _tx} =
-      Ledger.create_transaction(Actor.owner_ui(), %{
-        portfolio_id: world.portfolio.id,
-        security_id: security.id,
-        type: "split",
-        date: ~D[2026-03-01],
-        currency_code: "EUR",
-        split_ratio_numerator: 10,
-        split_ratio_denominator: 5
-      })
+      Ledger.create_transaction(
+        Actor.owner_ui(),
+        %{
+          portfolio_id: world.portfolio.id,
+          security_id: security.id,
+          type: "split",
+          date: ~D[2026-03-01],
+          currency_code: "EUR",
+          split_ratio_numerator: 10,
+          split_ratio_denominator: 5
+        },
+        split_flow: true
+      )
 
     response =
       conn

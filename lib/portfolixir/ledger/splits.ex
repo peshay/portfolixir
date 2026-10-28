@@ -9,7 +9,8 @@ defmodule Portfolixir.Ledger.Splits do
   per portfolio, plus warnings) without writing anything; `book_split/2`
   inserts the whole row group atomically in one `Ecto.Multi`, each row
   journaled individually (ADR-0017) through the same
-  `Ledger.create_transaction/2` path as every other ledger write.
+  `Ledger.create_transaction/3` path as every other ledger write, passing
+  `split_flow: true`: the one caller the ledger books a split for (K10).
 
   **Group identity is the natural key `(security_id, date, normalized
   ratio)`** — deliberately no grouping column and no migration (migrations
@@ -702,7 +703,7 @@ defmodule Portfolixir.Ledger.Splits do
   defp insert_multi(actor, params, portfolio_ids) do
     Enum.reduce(portfolio_ids, Multi.new(), fn portfolio_id, multi ->
       Multi.run(multi, {:split, portfolio_id}, fn _repo, _changes ->
-        Ledger.create_transaction(actor, row_attrs(params, portfolio_id))
+        Ledger.create_transaction(actor, row_attrs(params, portfolio_id), split_flow: true)
       end)
     end)
   end

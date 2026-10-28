@@ -131,8 +131,8 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
   # quote/price-basis adjustment engine (§2, issue #590) is not in yet, so a
   # split booked through the generic endpoint would produce a phantom
   # valuation/TTWROR spike. Reject it at this public boundary, before any
-  # write. The domain `Ledger.create_transaction/2` stays permissive so the
-  # fan-out shell (later slice) and the fold tests can create splits through it.
+  # write. The domain `Ledger.create_transaction/3` refuses a split too unless
+  # the split flow calls it (K10); this boundary keeps its own message.
   @split_rejection %{
     type: [
       "split transactions are booked via the dedicated split flow, not the generic transaction endpoint"

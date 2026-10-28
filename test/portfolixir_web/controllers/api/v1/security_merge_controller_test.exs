@@ -690,15 +690,19 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
 
   defp split!(portfolio, security, date, {numerator, denominator}) do
     {:ok, tx} =
-      Ledger.create_transaction(Actor.owner_ui(), %{
-        portfolio_id: portfolio.id,
-        security_id: security.id,
-        type: "split",
-        date: date,
-        currency_code: security.currency_code,
-        split_ratio_numerator: numerator,
-        split_ratio_denominator: denominator
-      })
+      Ledger.create_transaction(
+        Actor.owner_ui(),
+        %{
+          portfolio_id: portfolio.id,
+          security_id: security.id,
+          type: "split",
+          date: date,
+          currency_code: security.currency_code,
+          split_ratio_numerator: numerator,
+          split_ratio_denominator: denominator
+        },
+        split_flow: true
+      )
 
     tx
   end
