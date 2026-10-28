@@ -99,8 +99,9 @@ quote closes, and monetary totals. Request payloads for those values should also
 send strings.
 
 The errors the server answers itself, rather than an endpoint, use the same
-envelope with their own status: an unreadable body is `400`, a body over the server's size
-bound `413`, an unknown route `404`, an internal error `500`, each as
+envelope with their own status: an unreadable body, or one nesting arrays and
+objects more than 100 levels deep, is `400`, a body over the server's size
+bound of 2,000,000 bytes `413`, an unknown route `404`, an internal error `500`, each as
 `{"errors": {"detail": "Bad Request"}}` with the status's reason phrase.
 
 `DELETE /api/v1/securities/:id` is the success exception: it returns

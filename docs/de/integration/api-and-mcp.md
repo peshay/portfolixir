@@ -107,8 +107,9 @@ Gebühren, Steuern, Kurs-Schlusswerte und monetärer Summen. Request-Payloads f�
 diese Werte sollten ebenfalls Strings senden.
 
 Die Fehler, die der Server selbst statt eines Endpunkts beantwortet, nutzen
-denselben Umschlag mit ihrem eigenen Status: ein unlesbarer Body ist `400`, ein
-Body über der Größengrenze des Servers `413`, eine unbekannte Route `404`, ein
+denselben Umschlag mit ihrem eigenen Status: ein unlesbarer Body, oder einer, der
+Arrays und Objekte mehr als 100 Ebenen tief verschachtelt, ist `400`, ein Body
+über der Größengrenze des Servers von 2.000.000 Bytes `413`, eine unbekannte Route `404`, ein
 interner Fehler `500`, jeweils als `{"errors": {"detail": "Bad Request"}}` mit
 der englischen Statusbezeichnung.
 
