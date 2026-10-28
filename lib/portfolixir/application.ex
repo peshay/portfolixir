@@ -29,9 +29,13 @@ defmodule Portfolixir.Application do
       holds up or stops the boot; config-gated (off in tests), see
       `Catalog.reconcile_logos_on_boot/1`.
     * The startup warnings, `warn_if_exposed/0`.
+    * In a release, the log filter that keeps a crashing live page's form
+      values and session out of the log (security review 2026-10-12, H71);
+      config-gated, see `PortfolixirWeb.SocketCrashReport.install_on_boot/0`.
   """
   @spec after_start() :: :ok
   def after_start do
+    PortfolixirWeb.SocketCrashReport.install_on_boot()
     Portfolixir.Classifications.seed_builtins_on_boot()
     Portfolixir.Catalog.reconcile_logos_on_boot()
     warn_if_exposed()

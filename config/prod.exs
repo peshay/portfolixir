@@ -9,6 +9,11 @@ config :portfolixir, Portfolixir.Repo,
 # the container log. Info keeps the request line, warnings and errors.
 config :logger, level: :info
 
+# A crashing live page is logged by its topic and event name, without the
+# form's values or the session the runtime's report would otherwise name
+# (security review 2026-10-12, H71; PortfolixirWeb.SocketCrashReport).
+config :portfolixir, :redact_socket_crash_reports, true
+
 # Keep static asset manifest config near endpoint and document follow-up for release-time asset wiring when needed.
 config :portfolixir, PortfolixirWeb.Endpoint,
   url: [host: "127.0.0.1", port: 4000],
