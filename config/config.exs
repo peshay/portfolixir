@@ -10,6 +10,15 @@ config :portfolixir,
 # with its parameters at info, the production level (E25 S2, F66).
 config :phoenix, :filter_parameters, ["password", "rows", "_csrf_token"]
 
+# The console handler writes every control character of a log entry as a
+# visible escape (security review 2026-10-12, H69), in every environment;
+# the remote group-leader filter is the one the handler carries by default.
+config :logger, :default_handler,
+  filters: [
+    remote_gl: {&:logger_filters.remote_gl/2, :stop},
+    escape_control: {&Portfolixir.LogEscape.filter/2, []}
+  ]
+
 config :portfolixir, PortfolixirWeb.Endpoint,
   # Bandit serves HTTP and the LiveView socket (#772); the http: options in
   # dev.exs, test.exs and runtime.exs (ip, port) merge into the ones below.
