@@ -22,8 +22,8 @@ defmodule Portfolixir.LockRace.DefaultPortfolioTest do
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Applier.Result
   alias Portfolixir.Imports.PortfolioPerformance
-  alias Portfolixir.LockRace
   alias Portfolixir.Ledger.Transaction
+  alias Portfolixir.LockRace
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
   alias Portfolixir.Repo
@@ -121,8 +121,9 @@ defmodule Portfolixir.LockRace.DefaultPortfolioTest do
   # Acceptance criteria:
   # - With the first import held right after it created the default
   #   portfolio, the second import waits for it.
-  # - Afterwards there is one portfolio holding the file's 13 bookings once;
-  #   the second import books none and skips all 13 as duplicates.
+  # - Afterwards there is one portfolio holding the file's 13 bookings once:
+  #   one import books all 13, the other none, skipping all 13 as
+  #   duplicates.
   test "two first imports of one file leave one default portfolio and one copy of the file",
        %{db: db} do
     assert Portfolios.count_portfolios() == 0
@@ -133,8 +134,16 @@ defmodule Portfolixir.LockRace.DefaultPortfolioTest do
         Imports.apply(preview, page_params())
       end)
 
-    assert {:ok, %Result{created_transactions: 13}} = first
-    assert {:ok, %Result{created_transactions: 0, skipped_duplicates: 13}} = second
+    # Either import may take the portfolio's account-identity lock first
+    # once the default is committed: one books the file, the other skips it.
+    assert {:ok, %Result{} = first} = first
+    assert {:ok, %Result{} = second} = second
+
+    assert Enum.sort([
+             {first.created_transactions, first.skipped_duplicates},
+             {second.created_transactions, second.skipped_duplicates}
+           ]) == [{0, 13}, {13, 0}]
+
     assert [%{id: default_id}] = Portfolios.list_portfolios()
     assert Repo.aggregate(Transaction, :count, :id) == 13
 

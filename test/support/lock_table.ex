@@ -51,7 +51,7 @@ defmodule Portfolixir.LockTable do
   | 6 | **Cash account create** (`Portfolios.create_cash_account/2`) | `adv(account identity, portfolio)` (the name guard) → INSERT (`FK` on the portfolio). |
   | 7 | **Former names** (`Lifecycle.AccountNames.remember/4`, `remove_former_name/3`) | `adv(account identity, portfolio)` → cash `NKU` → UPDATE. Locks no booking. |
   | 8 | **Hardened delete** (`Portfolios.delete_cash_account/2` → `Lifecycle.Delete.delete/2`) | cash `U` → reference count (plain reads) → bucket links (cash `NKU`, held; buckets `S`) → DELETE. Locks no booking. |
-  | 9 | **Importer** (`Imports.Applier.apply/2`, both paths, one transaction of up to ten minutes) | Mapped path without a portfolio: the default portfolio is resolved first, inside the transaction (`Portfolios.default_portfolio/1`, no lock). Then `adv(account identity, portfolio)` → remembered names (row 7: cash `NKU`) → per row: an account it creates (INSERT, `FK`) → cash the row names `KS`, id order (`Ledger.locked_cash_account_currencies/1`) → INSERT booking (`FK`) → the bucket tag (row 11). Locks no stored booking. |
+  | 9 | **Importer** (`Imports.Applier.apply/2`, both paths, one transaction of up to ten minutes) | Mapped path without a portfolio: the default portfolio is resolved first, before the transaction opens, in a short one of its own that commits it (`Portfolios.default_portfolio/1`: `adv(default portfolio)`, then the record read again and created when none exists; H54). Then, in the import's transaction, `adv(account identity, portfolio)` → remembered names (row 7: cash `NKU`) → per row: an account it creates (INSERT, `FK`) → cash the row names `KS`, id order (`Ledger.locked_cash_account_currencies/1`) → INSERT booking (`FK`) → the bucket tag (row 11). Locks no stored booking. |
   | 10 | **Import correction** (`Imports.Correction.apply/3`) | `adv(account identity, portfolio)` → the listed bookings `NKU` (`detect(lock: true)`) → per booking row 3, which changes amounts only and so takes no cash lock. |
   | 11 | **Bucket writers** (`Buckets.set_cash_account_buckets/3`, `set_depot_default_buckets/3`, `set_position_override/4`, `delete_bucket/2`) | the owner (depot or cash) `NKU` → an override's security `KS` → buckets `S`, id order. `delete_bucket/2`: views, depots, cash `NKU`, each in id order → the bucket `U`. Locks no booking. |
   | 12 | **Depot merge** (`Lifecycle.DepotMerge.apply/4`, under `Lifecycle.MergeFlow.transaction/2`) | `adv(account identity, portfolio)` → both depots `U`, id order → every booking either names `U`, id order → the portfolio's split rows of their securities `U` → its writes on rows it holds (override writes: security `KS`, buckets `S`; the source deleted; the target `U` for its names). Locks no cash: a moved booking keeps its cash account. |
@@ -76,6 +76,11 @@ defmodule Portfolixir.LockTable do
     * Rows 9 and 10 against row 1: all three take the portfolio's
       account-identity lock first, so they serialize on it before any row
       lock.
+    * Row 9's default-portfolio lock (H54) is held only by the short
+      transaction that creates the record, which takes no other lock but the
+      new row's and the journal's; every other writer that resolves the
+      default (the API's and the screen's account creates) takes it outside
+      any transaction. It closes no cycle.
     * Row 1 against row 12: the cash merge locks the depots linked to its
       source after the bookings, the depot merge its depots before theirs.
       Two merges whose rows overlap can close a cycle; both run under
