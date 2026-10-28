@@ -298,7 +298,13 @@ defmodule PortfolixirWeb.PolicyRuleReferenceLiveTest do
         severity: "hard"
       })
 
-    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, buckets, _html} = live(conn, "/buckets")
     html = render_hook(buckets, "delete_view", %{"id" => to_string(spekulativ.id)})
 

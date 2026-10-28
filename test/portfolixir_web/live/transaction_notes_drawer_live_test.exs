@@ -240,7 +240,12 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
     {:ok, anchor} =
       Ledger.set_cash_balance(Actor.owner_ui(), world.cash, %{date: ~D[2026-09-30], amount: "900"})
 
-    german = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    german =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
     for {tx, sub} <- [
           {dividend, "Die Art „Dividende“ bucht die Oberfläche nicht;"},
@@ -276,7 +281,13 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
     view = open_edit(conn, delivery)
     assert has_element?(view, "#booking-facts input[name='note[price]'][value='41.1234']")
 
-    german = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    german =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     view = open_edit(german, delivery)
     assert has_element?(view, "#booking-facts input[name='note[price]'][value='41,1234']")
   end

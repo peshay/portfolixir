@@ -66,7 +66,13 @@ defmodule PortfolixirWeb.SecuritiesTradesTabTest do
 
   defp class_of(node), do: node |> Floki.attribute("class") |> List.first("")
 
-  defp de_conn(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+  defp de_conn(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
   # User story (#1029, Sprint 18 F6; board ux-design-2026-10-02/01-trades-tab-pa,
   # pick H1 "after"; DESIGN.md → Amendment 2026-10-01 — Trades):

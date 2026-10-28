@@ -29,18 +29,19 @@ defmodule PortfolixirWeb.BenchmarkScope do
   applies to that request only and leaves the cookie and the session as they
   were (`PortfolixirWeb.FetchSite`, E25 S7, F18 and the review round's
   S7E-4): the page it opens reads it from its own address
-  (`PortfolixirWeb.LiveBenchmarkScope`).
+  (`PortfolixirWeb.LiveBenchmarkScope`). The cookie is signed, read only
+  when its name appears once, and named with the `__Host-` prefix over HTTPS
+  (`PortfolixirWeb.PreferenceCookie`, K02).
   """
 
   import Plug.Conn
 
   alias Portfolixir.Portfolios.Performance.Benchmark
   alias PortfolixirWeb.FetchSite
+  alias PortfolixirWeb.PreferenceCookie
 
   @cookie "portfolixir_benchmarks"
   @session_key "active_benchmarks"
-  # 1 year, same horizon as the view and locale cookies.
-  @max_age 60 * 60 * 24 * 365
   @max_benchmarks 2
   @hundred Decimal.new(100)
   # Longer than any rate the engine holds exactly (sign, two integer digits,
@@ -78,7 +79,7 @@ defmodule PortfolixirWeb.BenchmarkScope do
   @doc "The session key the LiveView on_mount reads the selectors from."
   def session_key, do: @session_key
 
-  @doc "The cookie name the selection is persisted under."
+  @doc "The cookie name the selection is persisted under (over plain HTTP)."
   def cookie_name, do: @cookie
 
   @doc """
@@ -180,21 +181,18 @@ defmodule PortfolixirWeb.BenchmarkScope do
     end
   end
 
-  defp remember(conn, []), do: delete_resp_cookie(conn, @cookie)
+  defp remember(conn, []), do: PreferenceCookie.delete(conn, @cookie)
 
   defp remember(conn, selectors),
-    do:
-      put_resp_cookie(conn, @cookie, Enum.join(selectors, ","),
-        max_age: @max_age,
-        same_site: "Lax"
-      )
+    do: PreferenceCookie.put(conn, @cookie, Enum.join(selectors, ","))
 
   # The remembered selection is re-validated on every request; one that no
   # longer passes is dropped from the session and from the cookie. The
   # rewrite takes nothing from the request, so it happens whatever site the
-  # request came from.
+  # request came from. Only a value this server signed, and only one of its
+  # name, is read (`PortfolixirWeb.PreferenceCookie`, K02).
   defp carry_cookie(conn) do
-    case conn.cookies[@cookie] do
+    case PreferenceCookie.read(conn, @cookie) do
       raw when is_binary(raw) ->
         selectors = raw |> String.split(",") |> normalize_selectors()
         conn = put_session(conn, @session_key, selectors)

@@ -339,7 +339,13 @@ defmodule PortfolixirWeb.RiskPolicyRulesLiveTest do
         today: Date.add(today(), -3)
       )
 
-    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, view, _html} = live(conn, "/risk")
 
     view |> element("#policy-findings button[phx-value-id='#{rule.id}']") |> render_click()
@@ -394,7 +400,13 @@ defmodule PortfolixirWeb.RiskPolicyRulesLiveTest do
         severity: "warn"
       })
 
-    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, view, _html} = live(conn, "/risk")
     html = render_async(view)
 
@@ -779,7 +791,13 @@ defmodule PortfolixirWeb.RiskPolicyRulesLiveTest do
     assert length(PolicyRules.get_rule(old.id).versions) == 1
 
     # On a German page the dialog says it in German.
-    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, view, _html} = live(conn, "/risk")
     view |> element("#policy-findings button[phx-value-id='#{rule.id}']") |> render_click()
     html = view |> form("#policy-rule-form", rule: %{name: "Barreserve"}) |> render_change()

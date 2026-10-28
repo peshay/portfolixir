@@ -107,7 +107,13 @@ defmodule PortfolixirWeb.ClassificationsPlanRemainderTest do
   test "the remainder row reads in German, in the page's number format", %{conn: conn} do
     %{classification: classification, equity: equity, bonds: bonds} = plan_world()
 
-    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
     view |> element("button[phx-click='create_soll_plan']") |> render_click()
 

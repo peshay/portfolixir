@@ -240,7 +240,13 @@ defmodule PortfolixirWeb.FloorSecondPassLiveTest do
   test "a Buckets refusal reads in the page's language", %{conn: conn} do
     {:ok, _taken} = Portfolixir.Buckets.create_bucket(Actor.owner_ui(), %{name: "Kern"})
     {:ok, _taken} = Portfolixir.Buckets.create_view(Actor.owner_ui(), %{name: "Langfrist"})
-    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
     {:ok, buckets, _html} = live(conn, "/buckets")
     buckets |> form("#bucket-form", bucket: %{name: "Kern"}) |> render_submit()

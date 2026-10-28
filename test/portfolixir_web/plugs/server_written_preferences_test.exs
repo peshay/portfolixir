@@ -3,6 +3,9 @@ defmodule PortfolixirWeb.ServerWrittenPreferencesTest do
 
   import Phoenix.LiveViewTest
 
+  alias Phoenix.Socket.Transport
+  alias Plug.Conn.Cookies
+  alias Plug.Session.Store
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Portfolios
@@ -49,7 +52,7 @@ defmodule PortfolixirWeb.ServerWrittenPreferencesTest do
   defp session_options_for_socket do
     # What the endpoint hands the /live socket (connect_info session).
     opts = PortfolixirWeb.Endpoint.session_options()
-    store = Plug.Session.Store.get(Keyword.fetch!(opts, :store))
+    store = Store.get(Keyword.fetch!(opts, :store))
 
     {Keyword.fetch!(opts, :key), store,
      {"_csrf_token", store.init(Keyword.drop(opts, [:store, :key]))}}
@@ -64,7 +67,7 @@ defmodule PortfolixirWeb.ServerWrittenPreferencesTest do
       |> put_req_header("cookie", cookie_header)
       |> Plug.Conn.fetch_query_params()
 
-    Phoenix.Socket.Transport.connect_info(conn, PortfolixirWeb.Endpoint, [
+    Transport.connect_info(conn, PortfolixirWeb.Endpoint, [
       {:session, session_options_for_socket()}
     ]).session
   end
@@ -298,7 +301,7 @@ defmodule PortfolixirWeb.ServerWrittenPreferencesTest do
 
     # Why a twin must be refused rather than resolved: Plug keeps the first.
     test "Plug keeps the first of a duplicated cookie name" do
-      assert Plug.Conn.Cookies.decode("#{@view_cookie}=7; #{@view_cookie}=total") ==
+      assert Cookies.decode("#{@view_cookie}=7; #{@view_cookie}=total") ==
                %{@view_cookie => "7"}
     end
   end

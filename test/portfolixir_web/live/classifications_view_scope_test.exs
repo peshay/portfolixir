@@ -531,7 +531,9 @@ defmodule PortfolixirWeb.ClassificationsViewScopeTest do
     refute has_element?(lv, "#view-switch-total[data-has-plan]")
 
     followed = get(conn, path(world, "view=#{world.view.id}"))
-    assert followed.resp_cookies["portfolixir_view"].value == "#{world.view.id}"
+
+    assert PortfolixirWeb.PreferenceCookieHelpers.remembered(followed, "portfolixir_view") ==
+             "#{world.view.id}"
 
     {:ok, wealth, _html} = live(recycle(followed), "/portfolio")
     assert has_element?(wealth, "#view-switch-#{world.view.id}.is-active")

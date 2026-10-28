@@ -21,7 +21,13 @@ defmodule PortfolixirWeb.ImplausibleQuoteLiveTest do
   alias Portfolixir.Clock
   alias Portfolixir.Fx
 
-  defp german(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+  defp german(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
   defp text(view, selector) do
     view

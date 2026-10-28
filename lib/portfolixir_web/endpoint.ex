@@ -8,9 +8,10 @@ defmodule PortfolixirWeb.Endpoint do
   # The salt is derived from the secret key base per installation (#759,
   # ADR-0045 §2) instead of a literal shared by every checkout; `secure` is
   # left to Plug, which sets it when the scheme is https — real or, behind a
-  # proxy, rewritten from x-forwarded-proto below.
+  # proxy, rewritten from x-forwarded-proto below. The store reads past a
+  # twin of the session cookie the server did not sign (K02).
   @session_options [
-    store: :cookie,
+    store: PortfolixirWeb.SessionCookieStore,
     key: "_portfolixir_key",
     signing_salt: {__MODULE__, :session_signing_salt, []},
     same_site: "Lax",

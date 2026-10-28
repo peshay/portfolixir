@@ -131,7 +131,12 @@ defmodule PortfolixirWeb.TransactionDeleteConsequenceLiveTest do
                "From the balance set on 2026-10-01 on, the balance of Girokonto stays unchanged. " <>
                "Holdings, balances, returns and trades are recomputed without this booking."
 
-    german = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    german =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
     assert consequence(german, buy) =~
              "Danach hält Depot 1 40 Stück Kestrel Robotik SE weniger, und Girokonto hat bis zum 30.09.2026 2.504,90 EUR mehr. " <>

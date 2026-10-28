@@ -124,7 +124,10 @@ defmodule PortfolixirWeb.ErrorViewTest do
       {403, _headers, body} =
         assert_error_sent(403, fn ->
           conn
-          |> put_req_cookie("portfolixir_locale", "de")
+          |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+            "portfolixir_locale",
+            "de"
+          )
           |> with_csrf()
           |> post("/login", %{"password" => "x"})
         end)
@@ -150,7 +153,16 @@ defmodule PortfolixirWeb.ErrorViewTest do
             {"406.html", "406 · Format nicht verfügbar"},
             {"500.html", "500 · Interner Fehler"}
           ] do
-        de = put_req_cookie(conn, "portfolixir_locale", "de")
+        # As the endpoint hands it to the error view: with its secret, so the
+        # signed cookie verifies.
+        de =
+          conn
+          |> Map.put(:secret_key_base, PortfolixirWeb.Endpoint.config(:secret_key_base))
+          |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+            "portfolixir_locale",
+            "de"
+          )
+
         assert status_line(ErrorView.render(template, %{conn: de})) == line
       end
 
@@ -177,7 +189,10 @@ defmodule PortfolixirWeb.ErrorViewTest do
       {403, _headers, body} =
         assert_error_sent(403, fn ->
           conn
-          |> put_req_cookie("portfolixir_locale", "de")
+          |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+            "portfolixir_locale",
+            "de"
+          )
           |> with_csrf()
           |> post("/login", %{"password" => "x"})
         end)

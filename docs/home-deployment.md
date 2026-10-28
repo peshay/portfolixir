@@ -595,6 +595,18 @@ back at once. Changing `PORTFOLIXIR_UI_PASSWORD` in `.env` and running
 Reverse-proxy authentication and the built-in UI password compose: keep
 either, or both.
 
+Give the instance a host name of its own. Browsers do not separate cookies by
+port, and a sibling name under the same parent domain can set cookies for the
+parent, so another web app on the same name or beside it shares the
+instance's cookies in the browser. The instance reads only the view, benchmark
+and language choices it wrote itself: they are signed, a name the browser
+sends twice is not read, and over HTTPS they carry the `__Host-` prefix, which
+no other port or name can imitate. Such an app can still make the instance
+forget a choice, and it is one more thing able to reach the browser's cookies
+for that name. After the upgrade that brought the signing, choices the browser
+remembered from before are not read: the pages open on the default view, with
+no benchmark and in the browser's language, until a choice is made again.
+
 ### The TLS contract
 
 TLS is the proxy's job, in full. The application never terminates TLS and

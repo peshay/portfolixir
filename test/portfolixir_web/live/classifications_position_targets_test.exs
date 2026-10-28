@@ -396,7 +396,13 @@ defmodule PortfolixirWeb.ClassificationsPositionTargetsTest do
   # Acceptance criteria (closing act, edge-case hunter): the page's other
   # refusals read in its language too — a blank tree name on a German page.
   test "a refused tree name reads in German", %{conn: conn} do
-    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, view, _html} = live(conn, "/classifications/new")
 
     html =

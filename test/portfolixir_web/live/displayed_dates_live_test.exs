@@ -26,7 +26,13 @@ defmodule PortfolixirWeb.DisplayedDatesLiveTest do
 
   @iso ~r/\b\d{4}-\d{2}-\d{2}\b/
 
-  defp german(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+  defp german(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
   defp de(date), do: Format.date(date, "de")
   defp day(offset), do: Date.add(Clock.today(), offset)

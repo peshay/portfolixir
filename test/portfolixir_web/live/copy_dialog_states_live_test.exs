@@ -38,7 +38,13 @@ defmodule PortfolixirWeb.CopyDialogStatesLiveTest do
   defp text(html) when is_binary(html),
     do: html |> Floki.parse_fragment!() |> Floki.text() |> String.replace(~r/\s+/, " ")
 
-  defp german(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+  defp german(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
   defp world_with_holding do
     world = base_world(name: "Hauptportfolio", cash_name: "Girokonto", depot_name: "Depot 1")

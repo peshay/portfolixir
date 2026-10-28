@@ -383,7 +383,13 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
     assert view |> element("#transactions-result .data-note--note") |> render() |> text() =~
              "Split deleted: Nordwind Industrie AG · 2:1 · 2026-09-15."
 
-    german = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    german =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, view, _html} = live(german, "/transactions")
     ask_delete(view, delivery)
 
@@ -610,7 +616,13 @@ defmodule PortfolixirWeb.TransactionDeleteLiveTest do
   # - "Löschen…", "Transaktion löschen", the consequence sentence with the
   #   locale's figures, and "Transaktion gelöscht: …" with the German date.
   test "the dialog speaks the board's German", %{conn: conn, buy: buy} do
-    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, view, _html} = live(conn, "/transactions")
 
     assert view |> open_menu(buy) |> element("#tx-delete-#{buy.id}") |> render() =~ "Löschen…"

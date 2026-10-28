@@ -270,6 +270,7 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
   describe "BenchmarkScope plug" do
     defp run_plug(conn) do
       conn
+      |> Map.put(:secret_key_base, PortfolixirWeb.Endpoint.config(:secret_key_base))
       |> Plug.Test.init_test_session(%{})
       |> BenchmarkScope.call(BenchmarkScope.init([]))
     end
@@ -287,7 +288,9 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
         |> run_plug()
 
       assert get_session(conn, BenchmarkScope.session_key()) == ["security:7", "security:9"]
-      assert %{value: "security:7,security:9"} = conn.resp_cookies[BenchmarkScope.cookie_name()]
+
+      assert PortfolixirWeb.PreferenceCookieHelpers.remembered(conn, BenchmarkScope.cookie_name()) ==
+               "security:7,security:9"
 
       conn = "benchmark[]=security:7&benchmark_rate=2.5" |> with_query() |> run_plug()
       assert get_session(conn, BenchmarkScope.session_key()) == ["security:7", "rate:0.025"]
@@ -301,7 +304,10 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
       conn =
         ""
         |> with_query()
-        |> Plug.Test.put_req_cookie(BenchmarkScope.cookie_name(), "rate:0.02,security:3,bogus")
+        |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+          BenchmarkScope.cookie_name(),
+          "rate:0.02,security:3,bogus"
+        )
         |> run_plug()
 
       assert get_session(conn, BenchmarkScope.session_key()) == ["rate:0.02", "security:3"]
@@ -356,11 +362,16 @@ defmodule PortfolixirWeb.PortfolioBenchmarkLiveTest do
       conn =
         ""
         |> with_query()
-        |> Plug.Test.put_req_cookie(BenchmarkScope.cookie_name(), "rate:1e-400,security:3")
+        |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+          BenchmarkScope.cookie_name(),
+          "rate:1e-400,security:3"
+        )
         |> run_plug()
 
       assert get_session(conn, BenchmarkScope.session_key()) == ["security:3"]
-      assert %{value: "security:3"} = conn.resp_cookies[BenchmarkScope.cookie_name()]
+
+      assert PortfolixirWeb.PreferenceCookieHelpers.remembered(conn, BenchmarkScope.cookie_name()) ==
+               "security:3"
     end
 
     test "one spelling per rate: 2 and 2.0 are the same selector" do

@@ -168,7 +168,13 @@ defmodule PortfolixirWeb.InvisibleTextNotesLiveTest do
            )
 
     # The board's German words.
-    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, view, _html} = live(conn, "/securities/#{security.id}")
     note = note_in(view, "#security-detail-pane")
     assert note =~ "Der Name enthält 1 unsichtbares Zeichen."

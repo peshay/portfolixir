@@ -61,7 +61,9 @@ refusals built outside the router included, carries
 the same browser can neither embed nor probe them, and a view, benchmark or
 language choice in a link from another site (`Sec-Fetch-Site` other than
 `same-origin` or `none`) applies to the page it opens and is never remembered
-(E25). Text an agent reads carries no character the operator cannot see:
+(E25); a remembered choice is read only from a cookie the instance signed,
+sent once under its name, and over HTTPS named with the `__Host-` prefix, so
+another port or a sibling name of the same host cannot plant one (K02). Text an agent reads carries no character the operator cannot see:
 every writer, the importer included, refuses Unicode tag characters,
 bidirectional controls, the other invisible format characters and runs of
 variation selectors, naming them by code point, and the MCP companion hands

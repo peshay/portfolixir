@@ -630,7 +630,13 @@ defmodule PortfolixirWeb.DashboardTest do
       put_quote!(security, ~D[2026-09-30], close)
     end
 
-    conn = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    conn =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, view, _html} = live(conn, "/")
     render_async(view)
 
@@ -682,7 +688,13 @@ defmodule PortfolixirWeb.DashboardTest do
 
     put_quote!(stale, Date.add(Date.utc_today(), -30), "12.50")
 
-    german = Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+    german =
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
+
     {:ok, view, _html} = live(german, "/")
     render_async(view)
 

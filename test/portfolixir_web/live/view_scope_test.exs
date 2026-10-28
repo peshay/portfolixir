@@ -175,6 +175,7 @@ defmodule PortfolixirWeb.ViewScopeTest do
 
     defp run_plug(conn) do
       conn
+      |> Map.put(:secret_key_base, PortfolixirWeb.Endpoint.config(:secret_key_base))
       |> Plug.Test.init_test_session(%{})
       |> ViewScope.call(ViewScope.init([]))
     end
@@ -192,7 +193,9 @@ defmodule PortfolixirWeb.ViewScopeTest do
         |> run_plug()
 
       assert get_session(conn, ViewScope.session_key()) == 7
-      assert %{value: "7"} = conn.resp_cookies[ViewScope.cookie_name()]
+
+      assert PortfolixirWeb.PreferenceCookieHelpers.remembered(conn, ViewScope.cookie_name()) ==
+               "7"
     end
 
     # An explicit Everything choice is stored (not cleared): with a
@@ -206,7 +209,9 @@ defmodule PortfolixirWeb.ViewScopeTest do
         |> run_plug()
 
       assert get_session(conn, ViewScope.session_key()) == "total"
-      assert %{value: "total"} = conn.resp_cookies[ViewScope.cookie_name()]
+
+      assert PortfolixirWeb.PreferenceCookieHelpers.remembered(conn, ViewScope.cookie_name()) ==
+               "total"
     end
 
     test "a non-integer ?view= value is rejected and clears the preference" do
@@ -225,7 +230,10 @@ defmodule PortfolixirWeb.ViewScopeTest do
         :get
         |> Phoenix.ConnTest.build_conn("/")
         |> Map.put(:query_string, "")
-        |> Map.put(:cookies, %{ViewScope.cookie_name() => "42"})
+        |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+          ViewScope.cookie_name(),
+          "42"
+        )
         |> run_plug()
 
       assert get_session(conn, ViewScope.session_key()) == 42
@@ -238,7 +246,10 @@ defmodule PortfolixirWeb.ViewScopeTest do
         :get
         |> Phoenix.ConnTest.build_conn("/")
         |> Map.put(:query_string, "")
-        |> Map.put(:cookies, %{ViewScope.cookie_name() => "garbage"})
+        |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+          ViewScope.cookie_name(),
+          "garbage"
+        )
         |> run_plug()
 
       assert get_session(conn, ViewScope.session_key()) == nil
@@ -249,7 +260,10 @@ defmodule PortfolixirWeb.ViewScopeTest do
         :get
         |> Phoenix.ConnTest.build_conn("/")
         |> Map.put(:query_string, "")
-        |> Map.put(:cookies, %{ViewScope.cookie_name() => "total"})
+        |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+          ViewScope.cookie_name(),
+          "total"
+        )
         |> run_plug()
 
       assert get_session(conn, ViewScope.session_key()) == "total"

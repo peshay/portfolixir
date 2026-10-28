@@ -20,7 +20,13 @@ defmodule PortfolixirWeb.SecuritiesDeleteRefusalTest do
   alias Portfolixir.Knowledge.Events
   alias PortfolixirWeb.Securities.RowContextMenu
 
-  defp german(conn), do: Plug.Test.put_req_cookie(conn, "portfolixir_locale", "de")
+  defp german(conn),
+    do:
+      PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+        conn,
+        "portfolixir_locale",
+        "de"
+      )
 
   defp delete_row(view, security) do
     view
