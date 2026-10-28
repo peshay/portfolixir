@@ -6,10 +6,9 @@ defmodule PortfolixirWeb.Endpoint do
   @before_compile PortfolixirWeb.DefaultResponseHeaders
 
   # The salt is derived from the secret key base per installation (#759,
-  # ADR-0045 §2) instead of a literal shared by every checkout; `secure` is
-  # left to Plug, which sets it when the scheme is https — real or, behind a
-  # proxy, rewritten from x-forwarded-proto below. The store reads past a
-  # twin of the session cookie the server did not sign (K02).
+  # ADR-0045 §2); `secure` is left to Plug, which sets it when the scheme is
+  # https, real or rewritten from x-forwarded-proto below. The store reads
+  # past a twin of the session cookie the server did not sign (K02).
   @session_options [
     store: PortfolixirWeb.SessionCookieStore,
     key: "_portfolixir_key",
