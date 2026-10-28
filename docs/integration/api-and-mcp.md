@@ -1581,7 +1581,10 @@ Example account payloads:
   `security_id`, `portfolio_id`, `type` or ratio answers 422 naming the field,
   because a split is booked through `POST /api/v1/splits`, whose checks a
   generic update would pass by. A wrong split is deleted whole
-  (`DELETE /api/v1/splits/:transaction_id`, below) and booked again.
+  (`DELETE /api/v1/splits/:transaction_id`, below) and booked again. An
+  update that collides with a concurrent write of the same rows, such as a
+  cash-account merge, and loses answers **409** with `errors.detail` only:
+  nothing was saved; read the transaction again and retry the update.
 - `DELETE /api/v1/transactions/:id` deletes a transaction. Because trades and
   holdings are derived, correcting or removing the transaction fixes them too.
   An imported booking's content hash goes with it, so a re-import of the same

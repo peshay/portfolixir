@@ -872,6 +872,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> close_drawer()
          |> failure(gone_message())
          |> load_state()}
+
+      :raced ->
+        {:noreply,
+         socket
+         |> assign(:editing_fixed, %{socket.assigns.editing_fixed | notes: notes})
+         |> failure(raced_message())}
     end
   end
 
@@ -886,6 +892,12 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   end
 
   defp gone_message, do: gettext("That transaction no longer exists.")
+
+  defp raced_message,
+    do:
+      gettext(
+        "That transaction changed while it was being saved, so nothing was saved. Try again."
+      )
 
   # The kinds the drawer books are buy and sell (AGENTS.md goal 4); every
   # other row opens notes-only: the row as stored now (its note current),
@@ -986,6 +998,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> assign(:editing_id, nil)
          |> failure(gone_message())
          |> load_state()}
+
+      # The drawer keeps what was typed, as on a refusal.
+      :raced ->
+        {:noreply,
+         socket
+         |> assign(:transaction_form, params)
+         |> failure(raced_message())}
     end
   end
 
@@ -999,6 +1018,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         # Deleted between this read and the write's lock (E25 S6, F49).
         case Ledger.update_transaction(Actor.owner_ui(), transaction, params) do
           {:error, :not_found} -> :gone
+          # Lost a lock cycle with a concurrent write and saved nothing (#1214).
+          {:error, :raced} -> :raced
           result -> result
         end
 

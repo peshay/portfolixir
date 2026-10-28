@@ -45,7 +45,7 @@ defmodule Portfolixir.LockTable do
   |---|---|---|
   | 1 | **Cash merge** (`Lifecycle.CashMerge.apply/4`, under `Lifecycle.MergeFlow.transaction/2`) | `adv(account identity, portfolio)` → both cash `U`, id order → every booking of either `U`, id order → the depots linked to the source `U` → its writes on rows it holds: rows deleted, anchors restated, rows and depots re-pointed (`FK` on the target, held), the source deleted through `Lifecycle.Delete.remove/2` (bucket links: cash `NKU`, held; buckets `S`), the target's former names. A 40P01 or a lock timeout answers `:raced`, then a fresh preview. |
   | 2 | **Booking create** (`Ledger.create_transaction/3`: API, MCP, the drawer, `Ledger.set_cash_balance/3`) | cash it names `KS`, id order (`Ledger.locked_cash_account_currencies/1`) → INSERT (`FK` on portfolio, depots, security; the cash `KS` already held). Locks no other booking. |
-  | 3 | **Booking update** (`Ledger.update_transaction/3`: API, MCP, the drawer, the import correction, the settlement backfill) | booking `NKU` (the journal's lock step) → cash it newly points to `KS`, id order → UPDATE (`FK` on each changed reference). Cash its stored row already references takes no lock: that row, held, freezes it (ADR-0050 §11). **Breaks the rule for a move** (#1214): the booking before the new cash, the opposite of row 1. |
+  | 3 | **Booking update** (`Ledger.update_transaction/3`: API, MCP, the drawer, the import correction, the settlement backfill) | cash it moves the booking onto `KS`, id order, read off the caller's copy of the row (#1214) → booking `NKU` (the journal's lock step) → cash the stored row newly points to `KS` again (held; one a stale copy missed is taken here) → UPDATE (`FK` on each changed reference). Cash its stored row already references takes no lock: that row, held, freezes it (ADR-0050 §11). A 40P01 or a lock timeout answers `:raced`, or is raised on inside a caller's transaction. |
   | 4 | **Booking delete** (`Ledger.delete_transaction/2`: API, MCP, the drawer's delete dialog, the merges' row deletes) | booking `U` (the journal's lock step) → DELETE. Locks no parent. |
   | 5 | **Currency change and identity freeze** (`Portfolios.update_cash_account/3` → `Lifecycle.Freeze.validate/1`) | Without a rename: cash `NKU` (the journal's lock step) → cash `U` (the freeze, `prepare_changes`) → reference count (plain reads) → UPDATE. With a rename or a portfolio move (`Lifecycle.AccountNames.with_stored/3`): `adv(account identity, old and new portfolio)` → cash `U` → the same. Locks no booking. |
   | 6 | **Cash account create** (`Portfolios.create_cash_account/2`) | `adv(account identity, portfolio)` (the name guard) → INSERT (`FK` on the portfolio). |
@@ -58,7 +58,7 @@ defmodule Portfolixir.LockTable do
   | 13 | **Security merge** (`Lifecycle.SecurityMerge.apply/4`, under `Lifecycle.MergeFlow.transaction/2`) | `adv(account identity, every portfolio)` → `adv(ISIN writes)` → the depots either security names `NKU`, id order → both securities `U`, id order → their bookings `U` → its writes on rows it holds. Locks no cash. |
   | 14 | **Split booking** (`Ledger.Splits.book_split/2`) | `adv(split event, security)` → the fan-out read (plain reads) → INSERT one booking per portfolio (`FK` on portfolio and security). |
   | 15 | **Split delete** (`Ledger.Splits.delete_split/3`) | the anchor read → `adv(split event, security)` → the event's rows `U`, id order → DELETE each (row 4, held). |
-  | 16 | **The booking drawer** (`PortfolixirWeb.TransactionManagementLive`) | A booking is row 2. An edit is row 3: it sends no cash account (a buy or a sell keeps the stored one), a notes-only edit sends the note alone. A delete is row 4, a split's row 15. |
+  | 16 | **The booking drawer** (`PortfolixirWeb.TransactionManagementLive`) | A booking is row 2. An edit is row 3: it sends no cash account (a buy or a sell keeps the stored one), a notes-only edit sends the note alone. A delete is row 4, a split's row 15. An edit answered `:raced` keeps the drawer open and says to try again. |
   | 17 | **Settlement backfill** (`Ledger.SettlementBackfill`) | row 3 per booking; it changes settlement legs only and so takes no cash lock. |
 
   ## Where two rows meet
@@ -67,8 +67,10 @@ defmodule Portfolixir.LockTable do
       a create holds no booking, so it waits at the cash or the merge waits
       for it.
     * Row 1 against row 3: a note edit holds its booking and asks no cash
-      (#922's closing act). A move asks the new cash after its booking: the
-      cycle of #1214.
+      (#922's closing act); a move takes the new cash before its booking,
+      as the merge does (#1214). Only an edit built on a stale copy of its
+      row still asks a cash after its booking; the side PostgreSQL aborts
+      then answers `:raced`, the edit a 409 and the merge a fresh preview.
     * Row 1 against rows 5, 7, 8 and 11: none of them locks a booking, so
       they queue at the cash row.
     * Rows 9 and 10 against row 1: all three take the portfolio's

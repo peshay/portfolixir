@@ -158,6 +158,7 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
         nil -> not_found(conn)
         :error -> not_found(conn)
         {:error, :not_found} -> not_found(conn)
+        {:error, :raced} -> raced(conn)
         {:error, changeset} -> unprocessable(conn, JSON.errors(changeset))
       end
     end
@@ -237,6 +238,20 @@ defmodule PortfolixirWeb.Api.V1.TransactionController do
     conn
     |> put_status(:not_found)
     |> json(%{errors: %{detail: "not found"}})
+  end
+
+  # #1214: the update lost a lock cycle with a concurrent write (40P01) and
+  # wrote nothing; reading the booking again and retrying decides.
+  defp raced(conn) do
+    conn
+    |> put_status(:conflict)
+    |> json(%{
+      errors: %{
+        detail:
+          "transaction changed while it was being saved, and nothing was saved: " <>
+            "read it again and retry the update"
+      }
+    })
   end
 
   defp conflict(conn) do

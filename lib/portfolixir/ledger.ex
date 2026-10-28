@@ -1418,6 +1418,12 @@ defmodule Portfolixir.Ledger do
   date, security, portfolio, type or ratio among them — is a changeset error
   on that field, and a wrong split is deleted and booked again. For the same
   reason no other booking becomes a split here.
+
+  An edit that moves the booking onto another cash account locks that
+  account before the booking's row, in the cash merge's order (#1214). An
+  update PostgreSQL aborts in a lock cycle all the same (40P01), or whose
+  lock wait times out, writes nothing and answers `{:error, :raced}`: read
+  the booking again and retry.
   """
   def update_transaction(%Actor{} = actor, %Transaction{} = transaction, attrs)
       when is_map(attrs) do
@@ -1425,6 +1431,8 @@ defmodule Portfolixir.Ledger do
 
     # The changeset starts from the row as stored, re-read under its lock by
     # the journal step, never from the caller's earlier read (E25 S6, F49).
+    # #1214: the accounts the edit moves the booking onto are locked first,
+    # ahead of that row lock (`lock_moved_onto/2`).
     Multi.new()
     |> Multi.update(:transaction, fn changes ->
       changes
@@ -1439,9 +1447,60 @@ defmodule Portfolixir.Ledger do
       source: :transaction,
       before: transaction
     )
-    |> Repo.transaction()
+    |> Multi.prepend(lock_moved_onto(transaction, attrs))
+    |> transact_update()
     |> transaction_write_result()
   end
+
+  # #1214: the cash accounts an edit moves its booking onto, read off the
+  # caller's copy of the row, are key-share-locked in id order before the
+  # booking's row lock: the order of the cash merge, which locks both
+  # accounts and then their bookings (`Lifecycle.CashMerge`, ADR-0050 §10).
+  # Taken after the row lock, as the foreign-key check takes it, the lock
+  # closed a cycle with a merge of the booking's account into the new one.
+  # A stale copy (the row moved since) misses an account the stored row does
+  # not reference; the check after the row lock still locks it there
+  # (`validate_cash_account_currency/1`), and the lock cycle that can close
+  # then is answered by `transact_update/1`.
+  defp lock_moved_onto(%Transaction{} = read, attrs) do
+    referenced = [read.cash_account_id, read.counter_cash_account_id]
+
+    moved_onto =
+      read
+      |> Ecto.Changeset.cast(attrs, [:cash_account_id, :counter_cash_account_id])
+      |> then(fn changeset ->
+        Enum.map(
+          [:cash_account_id, :counter_cash_account_id],
+          &Ecto.Changeset.get_field(changeset, &1)
+        )
+      end)
+      |> Enum.filter(&(is_integer(&1) and &1 not in referenced))
+
+    Multi.run(Multi.new(), :moved_onto_lock, fn _repo, _changes ->
+      {:ok, locked_cash_account_currencies(moved_onto)}
+    end)
+  end
+
+  # #1214: an update PostgreSQL aborted to break a lock cycle (40P01), or
+  # whose lock wait reached the session's `lock_timeout`, wrote nothing and
+  # answers `{:error, :raced}`: read the booking again and retry. Inside a
+  # caller's own transaction the error is raised on, so the caller's whole
+  # write rolls back (the import correction's confirm); that transaction is
+  # aborted and can answer nothing else.
+  defp transact_update(multi) do
+    Repo.transaction(multi)
+  rescue
+    error in Postgrex.Error ->
+      if lost_lock?(error) and not Repo.in_transaction?(),
+        do: {:error, :raced},
+        else: reraise(error, __STACKTRACE__)
+  end
+
+  defp lost_lock?(%Postgrex.Error{postgres: %{code: code}})
+       when code in [:deadlock_detected, :lock_not_available],
+       do: true
+
+  defp lost_lock?(_error), do: false
 
   @doc """
   Deletes a transaction on behalf of `actor` (FR-28). The deletion is journaled
@@ -1504,6 +1563,8 @@ defmodule Portfolixir.Ledger do
   defp transaction_write_result({:error, {:journal_lock, _}, :not_found, _changes}),
     do: {:error, :not_found}
 
+  defp transaction_write_result({:error, :raced}), do: {:error, :raced}
+
   # Cross-record currency check (issue #343): a transaction is booked in
   # its cash account's currency, so its `currency_code` must equal the
   # linked cash account's currency and, for a `cash_transfer`, the counter
@@ -1531,8 +1592,10 @@ defmodule Portfolixir.Ledger do
   # without one. A key-share lock asked on them after that row lock closed a
   # cycle with the cash merge, which locks the accounts first and then their
   # bookings: a note edit deadlocked with a merge of its account (40P01).
-  # The newly pointed-to accounts are locked as their foreign-key check
-  # locks them, after the row: the order a move took before #922.
+  # The newly pointed-to accounts are locked before the row, from the
+  # caller's copy of it (`lock_moved_onto/2`, #1214); here they are locked
+  # again, which a transaction that holds the lock passes at once, and an
+  # account a stale copy missed is locked after the row.
   defp validate_cash_account_currency(%Ecto.Changeset{valid?: false} = changeset),
     do: changeset
 

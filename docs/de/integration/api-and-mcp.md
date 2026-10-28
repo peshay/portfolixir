@@ -1705,7 +1705,10 @@ Beispiel-Payloads für Konten:
   Feld, denn ein Split wird über `POST /api/v1/splits` gebucht, dessen
   Prüfungen eine allgemeine Änderung umgehen würde. Ein falscher Split wird
   als Ganzes gelöscht (`DELETE /api/v1/splits/:transaction_id`, unten) und
-  neu gebucht.
+  neu gebucht. Eine Änderung, die mit einem gleichzeitigen Schreibvorgang auf
+  denselben Zeilen kollidiert, etwa einer Kontozusammenführung, und dabei
+  unterliegt, antwortet mit **409** und nur `errors.detail`: Es wurde nichts
+  gespeichert; die Transaktion neu lesen und die Änderung wiederholen.
 - `DELETE /api/v1/transactions/:id` löscht eine Transaktion. Da Trades und
   Bestände abgeleitet sind, korrigiert oder entfernt das Korrigieren oder Entfernen
   der Transaktion auch sie. Mit einer importierten Buchung geht ihr
