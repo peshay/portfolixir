@@ -71,8 +71,12 @@ jobs:
         # An exact tag and its digest (E25 S8, F60): the digest is what gets
         # pulled, the tag says which release that is. Dependabot does not read
         # service images, so the maintenance lane's PostgreSQL review moves
-        # the pin, in both jobs at once -- ci_test holds them equal.
-        image: postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
+        # the pin, in both jobs at once -- ci_test holds them equal. Pulled
+        # through Google's Docker Hub mirror (#1218): GitHub-hosted runners
+        # share addresses, so Docker Hub's unauthenticated pull quota can be
+        # spent by others and turn the job red before a step runs; the digest
+        # keeps the image byte-identical to Docker Hub's.
+        image: mirror.gcr.io/library/postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -341,7 +345,7 @@ jobs:
     services:
       db:
         # The test job's pin, tag and digest alike (E25 S8, F60).
-        image: postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
+        image: mirror.gcr.io/library/postgres:18.6@sha256:5a5a84b19854a9ffaa54082c166ff4ec27473a361e496e5ea167f298f2da9722
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -500,6 +504,20 @@ jobs:
             printf '%s=%s\n' "$name" "$value" >> .env
           done
           echo "PORTFOLIXIR_BACKGROUND_FETCH=off" >> .env
+
+      # The base images and the database image come from Docker Hub, named by
+      # digest; the daemon pulls them through Google's mirror (#1218), so a
+      # quota a shared runner's neighbours spent cannot fail the build, and
+      # the digests keep the bytes Docker Hub's. A mirror that fails falls
+      # back to Docker Hub. The runner's existing daemon settings are kept.
+      - name: Pull Docker Hub images through Google's mirror
+        if: steps.changes.outputs.build == 'true'
+        run: |
+          config=/etc/docker/daemon.json
+          if sudo test -s "$config"; then current="$(sudo cat "$config")"; else current='{}'; fi
+          jq '. + {"registry-mirrors": ["https://mirror.gcr.io"]}' <<< "$current" | sudo tee "$config" > /dev/null
+          sudo systemctl restart docker
+          docker info --format 'Registry mirrors: {{.RegistryConfig.Mirrors}}'
 
       - name: Build and start the Compose stack
         if: steps.changes.outputs.build == 'true'
