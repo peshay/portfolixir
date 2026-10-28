@@ -59,7 +59,7 @@ defmodule Portfolixir.LockTable do
   | 14 | **Split booking** (`Ledger.Splits.book_split/2`) | `adv(split event, security)` → the security `KS` (H60) → the fan-out read (plain reads) → INSERT one booking per portfolio (`FK` on portfolio; the security's `KS` already held). |
   | 15 | **Split delete** (`Ledger.Splits.delete_split/3`) | the anchor read → `adv(split event, security)` → the security `KS` (H60) → the event's rows `U`, id order → DELETE each (row 4, held). |
   | 16 | **The booking drawer** (`PortfolixirWeb.TransactionManagementLive`) | A booking is row 2. An edit is row 3: it sends no cash account (a buy or a sell keeps the stored one), a notes-only edit sends the note alone. A delete is row 4, a split's row 15. An edit answered `:raced` keeps the drawer open and says to try again. |
-  | 17 | **Settlement backfill** (`Ledger.SettlementBackfill`) | row 3 per booking; it changes settlement legs only and so takes no cash lock. |
+  | 17 | **Settlement backfill** (`Ledger.SettlementBackfill`) | row 3 per booking; it changes settlement legs only and so takes no cash lock. A booking answered `:raced` stops the run as `{:error, {id, :raced}}`, and the mix task says to re-run it. |
 
   ## Where two rows meet
 

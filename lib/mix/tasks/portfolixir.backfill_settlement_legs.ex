@@ -46,6 +46,13 @@ defmodule Mix.Tasks.Portfolixir.BackfillSettlementLegs do
           )
         end)
 
+      # #1214: the row's update lost a lock cycle with a concurrent write.
+      {:error, {transaction_id, :raced}} ->
+        Mix.raise(
+          "Backfill stopped at transaction ##{transaction_id}: its update lost a lock cycle " <>
+            "with a concurrent write and nothing was written for it. Re-run the task."
+        )
+
       {:error, {transaction_id, changeset}} ->
         Mix.raise(
           "Backfill failed for transaction ##{transaction_id}: #{inspect(changeset.errors)}"
