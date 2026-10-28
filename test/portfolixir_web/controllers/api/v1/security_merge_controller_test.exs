@@ -158,7 +158,9 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
   # - POST /api/v1/securities/:id/merge with target_id, plan_digest,
   #   collapse_key_equal, identity_choice and isin_changed_on answers 201
   #   with the merge record.
-  # - Right after, the holdings show the preview's after-figures; GET
+  # - Right after, the holdings show the preview's after-figures, and the
+  #   FIFO figures it states for after (K11) are what GET
+  #   /api/v1/realized_gains and the target's trades read; GET
   #   /api/v1/securities/:target carries the preview's identifiers after the
   #   choice made, its former ISINs among the identifier aliases with the
   #   operator's date; its quotes number the target's plus the moved ones.
@@ -210,6 +212,37 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
         assert Decimal.equal?(Decimal.new(holding[field]), Decimal.new(after_figures[field]))
       end
     end
+
+    # §16 invariant 12 for the FIFO restatement (security review
+    # 2026-10-12, K11): the realized gains per close year and the open lots'
+    # cost the preview states for after are what the reads answer.
+    fifo = outcome["fifo_realized"]
+    assert is_map(fifo), "the preview states no FIFO realized gains"
+
+    realized =
+      ctx.conn |> get("/api/v1/realized_gains") |> json_response(200) |> Map.fetch!("data")
+
+    for year <- fifo["years"], year["after"] != nil do
+      read = Enum.find(realized["annual"], &(&1["year"] == year["year"]))
+      assert Decimal.equal?(Decimal.new(read["total"]), Decimal.new(year["after"]))
+    end
+
+    open_lots =
+      ctx.conn
+      |> get("/api/v1/securities/#{ctx.target.id}/trades")
+      |> json_response(200)
+      |> get_in(["data", "open_lots"])
+
+    open_cost =
+      Enum.reduce(open_lots, Decimal.new(0), fn lot, acc ->
+        lot["quantity"]
+        |> Decimal.new()
+        |> Decimal.mult(Decimal.new(lot["buy_price"]))
+        |> Decimal.add(acc)
+      end)
+
+    assert [%{"after" => open_after}] = fifo["open_lots"]
+    assert Decimal.equal?(open_cost, Decimal.new(open_after))
 
     kept = ctx.conn |> get("/api/v1/securities/#{ctx.target.id}") |> json_response(200)
 
