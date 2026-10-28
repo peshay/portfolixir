@@ -77,7 +77,8 @@ defmodule Portfolixir.CITest do
   # so that vulnerable dependencies cannot land on the base branch unnoticed.
   #
   # Acceptance criteria:
-  # - The quality job runs `mix deps.audit`.
+  # - The advisories job runs `mix deps.audit` (H63 moved it there from the
+  #   quality job).
   # - The mix_audit dependency stays declared.
   # - The historical "intentionally NOT wired" placeholder is gone.
   test "ci audits hex dependencies for security advisories" do
@@ -293,7 +294,10 @@ defmodule Portfolixir.CITest do
     assert ci_workflow =~ "actions/setup-node",
            "the MCP gates would otherwise run on whatever Node ubuntu-latest ships"
 
-    assert [[_, ci_major]] = Regex.scan(~r/node-version: ['"](\d+)['"]/, ci_workflow)
+    # The quality job's MCP gates and the advisories job's npm audit (H63)
+    # each set Node up; both name the one major.
+    assert [[_, ci_major]] =
+             ~r/node-version: ['"](\d+)['"]/ |> Regex.scan(ci_workflow) |> Enum.uniq()
 
     # The pinned line is an Active LTS major, not the newest release: type
     # definitions describe the runtime, and the runtime is the one the
@@ -1020,25 +1024,26 @@ defmodule Portfolixir.CITest do
   # called an audit endpoint the registry is retiring.
   #
   # Acceptance criteria:
-  # - In the quality job the npm audit step runs after the Setup Node step
+  # - In the advisories job (H63 moved it there from the quality job) the
+  #   npm audit step runs after the Setup Node step
   #   (Node 26, the pinned line) — CI 1558 ran it before, on the image's npm,
   #   and failed on the retiring quick-audit endpoint's 400.
   # - The gate is unchanged: `--audit-level=high`, no `|| true`, no
   #   `continue-on-error`.
   test "the npm audit runs on the pinned Node and keeps its level" do
     ci = File.read!(".github/workflows/ci.yml")
-    [_before, quality] = String.split(ci, ~r/^  quality:$/m, parts: 2)
-    quality = quality |> String.split(~r/^  [a-z-]+:$/m) |> hd()
+    [_before, advisories] = String.split(ci, ~r/^  advisories:$/m, parts: 2)
+    advisories = advisories |> String.split(~r/^  [a-z-]+:$/m) |> hd()
 
-    {setup_node, _} = :binary.match(quality, "uses: actions/setup-node@")
+    {setup_node, _} = :binary.match(advisories, "uses: actions/setup-node@")
 
     {audit, _} =
-      :binary.match(quality, "run: npm audit --audit-level=high --prefix mcp-server")
+      :binary.match(advisories, "run: npm audit --audit-level=high --prefix mcp-server")
 
     assert setup_node < audit, "the npm audit runs before the pinned Node is set up"
-    assert quality =~ ~s(node-version: "26")
+    assert advisories =~ ~s(node-version: "26")
 
-    audit_step = binary_part(quality, audit, byte_size(quality) - audit)
+    audit_step = binary_part(advisories, audit, byte_size(advisories) - audit)
     audit_step = audit_step |> String.split("\n      - name:") |> hd()
     refute audit_step =~ "|| true"
     refute audit_step =~ "continue-on-error"

@@ -72,8 +72,8 @@ Start the project with either:
 ## Required local checks
 
 Run the list in `AGENTS.md` at the repository root ("Required Local Checks")
-before opening a PR. It is CI's `pre-commit`, `test`
-and `quality` jobs, so a branch that passes it locally passes them; it is not
+before opening a PR. It is CI's `pre-commit`, `test`,
+`quality` and `advisories` jobs, so a branch that passes it locally passes them; it is not
 copied here, because a copy is what fell behind before (#1022).
 
 The `npm` checks need **Node 26** (the Active LTS line). That version is

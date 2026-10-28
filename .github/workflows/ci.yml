@@ -167,32 +167,13 @@ jobs:
       - name: Gettext catalogs match the source
         run: mix gettext.extract --check-up-to-date
 
-      # `mix hex.audit` on the current Hex: retirements plus the hex.pm EEF
-      # advisory feed, which Hex 2.5 gates on with no ignore mechanism. Until
-      # Sprint 11 this step pinned Hex 2.4.1 (the last retirement-only
-      # hex.audit) because cowlib carried three advisories with no fixed
-      # release; Bandit replaced Cowboy (#772), cowlib left the tree, and the
-      # pin and its exception went with it. An advisory that appears here
-      # again is cleared by an upgrade, not by a pin.
-      - name: Audit Hex packages (retirements and advisories)
-        run: mix hex.audit
-
-      # Fails the build on known security advisories in the Hex dependency
-      # tree (mix_audit), with no ignore list: the cowlib advisory the list
-      # used to carry (GHSA-g2wm-735q-3f56, no fixed release) left the tree
-      # with the Bandit swap (#772, Sprint 11). This mirrors the HIGH-gated
-      # posture of the npm audit (`--audit-level=high`); advisories are
-      # cleared by upgrades, not by ignores.
-      - name: Audit Hex dependencies
-        run: mix deps.audit
-
       # AGENTS.md has always required `npm test` and `npm run build` for the
       # MCP companion, but CI only audited its dependencies — so an MCP-only
       # change (or a transitive major bump underneath the SDK) rested on an
       # unverifiable local claim. Under ADR-0036 "every quality gate green"
       # replaces the per-PR human read, so the companion's own gates have to
-      # run here too. `npm ci` installs from the lockfile the audit above
-      # already checked. `--ignore-scripts` blocks dependency lifecycle
+      # run here too. `npm ci` installs from the lockfile the advisories job
+      # audits. `--ignore-scripts` blocks dependency lifecycle
       # scripts, which are arbitrary code execution on the runner at install
       # time; nothing in this tree needs them (the deps are the MCP SDK,
       # express, zod, tsx and typescript), and both gates below pass without.
@@ -206,15 +187,6 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "26"
-
-      # D-7 (Sprint 15): the audit runs on the pinned Node 26 and its npm, not
-      # on whatever npm the runner image ships. CI 1558 ran it before Setup
-      # Node: that npm fell back to the quick-audit endpoint the registry is
-      # retiring, which answered 400 and turned the gate red with no advisory
-      # behind it. The level is unchanged — the fix is reading the right
-      # endpoint, never making the gate optional.
-      - name: Audit MCP server dependencies (npm)
-        run: npm audit --audit-level=high --prefix mcp-server
 
       - name: Install MCP server dependencies
         run: npm ci --ignore-scripts --prefix mcp-server
@@ -254,6 +226,70 @@ jobs:
 
       - name: Dialyzer
         run: mix dialyzer --format short
+
+  # The live-feed audits (H63, the 2026-10-12 security review): `mix
+  # hex.audit`, `mix deps.audit` and `npm audit` read advisory and retirement
+  # feeds that turn red with nobody pushing. In the quality job a red feed
+  # skipped every later step -- the companion's tests and build, Credo,
+  # Sobelow and Dialyzer -- so their own job keeps the deterministic gates
+  # running while a feed is red, and this job alone shows the advisory. Each
+  # audit after the first runs with `!cancelled()`, so one red feed hides
+  # neither of the others; every audit still fails this job and keeps its
+  # level.
+  advisories:
+    runs-on: ubuntu-latest
+    needs: pre-commit
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup Elixir
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          elixir-version: '1.18.5'
+          otp-version: '27.3.4.18'
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      # `mix hex.audit` on the current Hex: retirements plus the hex.pm EEF
+      # advisory feed, which Hex 2.5 gates on with no ignore mechanism. Until
+      # Sprint 11 this step pinned Hex 2.4.1 (the last retirement-only
+      # hex.audit) because cowlib carried three advisories with no fixed
+      # release; Bandit replaced Cowboy (#772), cowlib left the tree, and the
+      # pin and its exception went with it. An advisory that appears here
+      # again is cleared by an upgrade, not by a pin.
+      - name: Audit Hex packages (retirements and advisories)
+        run: mix hex.audit
+
+      # Fails the build on known security advisories in the Hex dependency
+      # tree (mix_audit), with no ignore list: the cowlib advisory the list
+      # used to carry (GHSA-g2wm-735q-3f56, no fixed release) left the tree
+      # with the Bandit swap (#772, Sprint 11). This mirrors the HIGH-gated
+      # posture of the npm audit (`--audit-level=high`); advisories are
+      # cleared by upgrades, not by ignores.
+      - name: Audit Hex dependencies
+        if: ${{ !cancelled() }}
+        run: mix deps.audit
+
+      - name: Setup Node
+        if: ${{ !cancelled() }}
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "26"
+
+      # D-7 (Sprint 15): the audit runs on the pinned Node 26 and its npm, not
+      # on whatever npm the runner image ships. CI 1558 ran it before Setup
+      # Node: that npm fell back to the quick-audit endpoint the registry is
+      # retiring, which answered 400 and turned the gate red with no advisory
+      # behind it. The level is unchanged — the fix is reading the right
+      # endpoint, never making the gate optional.
+      - name: Audit MCP server dependencies (npm)
+        if: ${{ !cancelled() }}
+        run: npm audit --audit-level=high --prefix mcp-server
 
   migration-immutability:
     runs-on: ubuntu-latest

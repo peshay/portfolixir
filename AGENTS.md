@@ -268,9 +268,9 @@ re-checks because a local hook can be skipped.
 ## Required Local Checks
 
 Run these before opening a PR and before every push. The list is CI's
-`pre-commit`, `test` and `quality` jobs, so a branch that passes here passes
-there. *Why:* a shorter list omitted eight of CI's checks, and a batch that
-skipped two of them cost a round (Sprint 13 retrospective).
+`pre-commit`, `test`, `quality` and `advisories` jobs, so a branch that passes
+here passes there. *Why:* a shorter list omitted eight of CI's checks, and a
+batch that skipped two of them cost a round (Sprint 13 retrospective).
 
 ```bash
 mix format
