@@ -379,3 +379,15 @@ an omission.
   budget is the same rebuild measurement §6 already requires.
 - Risk-tier attention: the coalescing rules are where an import turns into a
   recomputation storm. The import scenario is a test, not a review note.
+
+## Amendment: the version log is compacted while the instance runs (2026-10-29, Sprint 21, H10)
+
+The security review of 2026-10-12 (finding H10) found that the append-only
+version events of §5 grew with every bump, by up to two rows per basis and
+write since the post-commit bump (F47), and that only the rebuild compacted
+them. `Portfolixir.Derived.PostCommit` now compacts them on its interval:
+every settled event of a basis below that basis's newest settled event is
+deleted (`DataVersion.compact_settled/1`). A version is the highest event id,
+so every current version stays exactly what it was — the rule the rebuild's
+compaction applies — and a pending event, whose mark makes the post-commit
+bump happen, is never touched. Nothing else in this decision changes.
