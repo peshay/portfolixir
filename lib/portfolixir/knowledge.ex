@@ -25,6 +25,7 @@ defmodule Portfolixir.Knowledge do
   alias Portfolixir.Actor
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Clock
+  alias Portfolixir.DeltaCursor
   alias Portfolixir.Journal
   alias Portfolixir.Knowledge.SecurityNote
   alias Portfolixir.Knowledge.ThesisState
@@ -105,13 +106,17 @@ defmodule Portfolixir.Knowledge do
   Option `:inserted_since` (a naive-UTC cut, FR-38 / #830) keeps the entries
   inserted strictly after it — the delta read. The log is append-only, so an
   entry's `inserted_at` is the last time it changed.
+
+  Option `:delta` (a `Portfolixir.DeltaCursor` cursor, K17) is the API's
+  paged delta read: the entries inserted after the cursor, oldest first, so
+  a capped page continues where the last one ended.
   """
   @spec list_notes(integer(), keyword()) :: [SecurityNote.t()]
   def list_notes(security_id, opts \\ []) when is_integer(security_id) do
     SecurityNote
     |> where([n], n.security_id == ^security_id)
     |> maybe_inserted_since(Keyword.get(opts, :inserted_since))
-    |> order_by([n], desc: n.as_of, desc: n.inserted_at, desc: n.id)
+    |> order_notes(Keyword.get(opts, :delta))
     |> maybe_limit(Keyword.get(opts, :limit))
     |> Repo.all()
     |> annotate_superseded()
@@ -261,6 +266,12 @@ defmodule Portfolixir.Knowledge do
   # #776: a bound on the rows one read materialises, in each read's own order.
   defp maybe_limit(query, nil), do: query
   defp maybe_limit(query, n) when is_integer(n) and n > 0, do: limit(query, ^n)
+
+  defp order_notes(query, nil),
+    do: order_by(query, [n], desc: n.as_of, desc: n.inserted_at, desc: n.id)
+
+  defp order_notes(query, cursor),
+    do: DeltaCursor.page(query, dynamic([n], n.inserted_at), cursor)
 
   defp maybe_inserted_since(query, nil), do: query
 

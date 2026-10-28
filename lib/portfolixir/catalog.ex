@@ -20,6 +20,7 @@ defmodule Portfolixir.Catalog do
   alias Portfolixir.Catalog.SecurityFields.Field
   alias Portfolixir.Catalog.SecuritySearch.SearchResult
   alias Portfolixir.Catalog.SecurityWithMetrics
+  alias Portfolixir.DeltaCursor
   alias Portfolixir.Journal
   alias Portfolixir.Ledger.HeldSecurities
   alias Portfolixir.Lifecycle.Delete
@@ -36,6 +37,9 @@ defmodule Portfolixir.Catalog do
     * `:sort` – `{field_key, :asc | :desc}`, default `{:name, :asc}`
     * `:limit` – cap the number of rows returned (for pagination)
     * `:offset` – skip this many rows (for pagination)
+    * `:delta` – a `Portfolixir.DeltaCursor` cursor: the rows changed after
+      it, oldest change first, replacing `:sort` (the API's paged delta
+      read, K17)
     * `:is_benchmark` – `true` lists only the benchmark securities
       (ADR-0046 §1), `false` leaves them out; absent lists both
     * `:is_retired` – `true` lists only the retired securities, `false`
@@ -54,7 +58,7 @@ defmodule Portfolixir.Catalog do
     |> apply_logo_status(opts[:logo_status])
     |> apply_updated_since(opts[:updated_since])
     |> apply_currencies(opts[:currencies])
-    |> apply_sort(db_sort_or_default(sort))
+    |> apply_sort_or_delta(db_sort_or_default(sort), opts[:delta])
     |> apply_limit(opts[:limit])
     |> apply_offset(opts[:offset])
     |> Repo.all()
@@ -155,10 +159,13 @@ defmodule Portfolixir.Catalog do
   def list_securities_with_metrics(opts \\ []) when is_list(opts) do
     sort = opts[:sort] || {:name, :asc}
 
-    opts
-    |> list_securities()
-    |> Quotes.attach_metrics()
-    |> sort_metric_rows(sort)
+    rows =
+      opts
+      |> list_securities()
+      |> Quotes.attach_metrics()
+
+    # A paged delta read keeps its change order (K17).
+    if opts[:delta], do: rows, else: sort_metric_rows(rows, sort)
   end
 
   @doc """
@@ -1033,6 +1040,11 @@ defmodule Portfolixir.Catalog do
   end
 
   defp apply_sort(query, _), do: from(s in query, order_by: [asc: s.name])
+
+  defp apply_sort_or_delta(query, sort, nil), do: apply_sort(query, sort)
+
+  defp apply_sort_or_delta(query, _sort, cursor),
+    do: DeltaCursor.page(query, dynamic([s], s.updated_at), cursor)
 
   defp order_by_field(query, %Field{source: :column, key: key}, :asc) do
     from(s in query, order_by: [asc: field(s, ^key)])

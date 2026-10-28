@@ -54,6 +54,7 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   alias Portfolixir.Actor
   alias Portfolixir.Classifications.Category
   alias Portfolixir.Clock
+  alias Portfolixir.DeltaCursor
   alias Portfolixir.Derived.Invalidation
   alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Journal
@@ -345,6 +346,9 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     * `:include_retired` — `true` adds the rules retired by `as_of`;
     * `:updated_since` — a naive-UTC cut: rules whose row or any version was
       written strictly after it (FR-38);
+    * `:delta` — a `Portfolixir.DeltaCursor` cursor, the API's paged delta
+      read (K17): the rules changed after it by `changed_at/1`, oldest change
+      first, so a capped page continues where the last one ended;
     * `:limit`.
 
   Oldest rule first.
@@ -359,7 +363,7 @@ defmodule Portfolixir.Portfolios.PolicyRules do
     |> maybe_context(Keyword.get(opts, :view, :any))
     |> maybe_updated_since(Keyword.get(opts, :updated_since))
     |> maybe_not_retired(include_retired, as_of)
-    |> order_by([r], asc: r.id)
+    |> order_rules(Keyword.get(opts, :delta))
     |> maybe_limit(Keyword.get(opts, :limit))
     |> preload(:versions)
     |> Repo.all()
@@ -757,6 +761,35 @@ defmodule Portfolixir.Portfolios.PolicyRules do
 
   defp maybe_context(query, view_id) when is_integer(view_id),
     do: where(query, [r], r.view_id == ^view_id)
+
+  @doc """
+  A rule's change stamp: the latest write of its row or of any version, the
+  stamp the `:updated_since` and `:delta` reads compare. Needs the versions
+  loaded.
+  """
+  @spec changed_at(PolicyRule.t()) :: NaiveDateTime.t()
+  def changed_at(%PolicyRule{updated_at: updated_at, versions: versions}) do
+    versions
+    |> Enum.map(& &1.updated_at)
+    |> Enum.concat([updated_at])
+    |> Enum.max(NaiveDateTime)
+  end
+
+  defp order_rules(query, nil), do: order_by(query, [r], asc: r.id)
+
+  defp order_rules(query, cursor) do
+    stamp =
+      dynamic(
+        [r],
+        fragment(
+          "GREATEST(?, (SELECT max(v.updated_at) FROM policy_rule_versions v WHERE v.policy_rule_id = ?))",
+          r.updated_at,
+          r.id
+        )
+      )
+
+    DeltaCursor.page(query, stamp, cursor)
+  end
 
   defp maybe_updated_since(query, nil), do: query
 

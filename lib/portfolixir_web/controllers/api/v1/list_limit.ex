@@ -29,6 +29,23 @@ defmodule PortfolixirWeb.Api.V1.ListLimit do
     end
   end
 
+  @doc """
+  The rows a capped read fetches for a page of `limit`: one more, so the read
+  knows whether rows were left out (K17).
+  """
+  @spec fetch(pos_integer()) :: pos_integer()
+  def fetch(limit) when is_integer(limit) and limit > 0, do: limit + 1
+
+  @doc """
+  Splits rows fetched with `fetch/1` into the page and its `truncated` flag:
+  true when more rows matched than the page holds.
+  """
+  @spec page([term()], pos_integer()) :: {[term()], boolean()}
+  def page(rows, limit) when is_list(rows) and is_integer(limit) and limit > 0 do
+    {page, rest} = Enum.split(rows, limit)
+    {page, rest != []}
+  end
+
   defp parse_binary(value, max) do
     case Integer.parse(value) do
       {int, ""} when int > 0 -> {:ok, min(int, max)}

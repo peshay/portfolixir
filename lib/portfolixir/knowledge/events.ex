@@ -42,6 +42,7 @@ defmodule Portfolixir.Knowledge.Events do
   alias Ecto.Multi
   alias Portfolixir.Actor
   alias Portfolixir.Clock
+  alias Portfolixir.DeltaCursor
   alias Portfolixir.Journal
   alias Portfolixir.Knowledge.SecurityEvent
   alias Portfolixir.Ledger.HeldSecurities
@@ -184,14 +185,17 @@ defmodule Portfolixir.Knowledge.Events do
 
   Option `:limit` keeps the earliest rows. Option `:updated_since` (a
   naive-UTC cut, FR-38 / #830) keeps the rows created or updated strictly
-  after it — the delta read.
+  after it — the delta read. Option `:delta` (a `Portfolixir.DeltaCursor`
+  cursor, K17) is the API's paged delta read: the rows changed after the
+  cursor, oldest change first, so a capped page continues where the last
+  one ended.
   """
   @spec list_for_security(integer(), keyword()) :: [SecurityEvent.t()]
   def list_for_security(security_id, opts \\ []) when is_integer(security_id) do
     SecurityEvent
     |> where([e], e.security_id == ^security_id)
     |> maybe_updated_since(Keyword.get(opts, :updated_since))
-    |> order_by([e], asc: e.date, asc: e.id)
+    |> order_events(Keyword.get(opts, :delta))
     |> maybe_limit(Keyword.get(opts, :limit))
     |> Repo.all()
   end
@@ -305,6 +309,11 @@ defmodule Portfolixir.Knowledge.Events do
 
   defp maybe_limit(query, nil), do: query
   defp maybe_limit(query, n) when is_integer(n) and n > 0, do: limit(query, ^n)
+
+  defp order_events(query, nil), do: order_by(query, [e], asc: e.date, asc: e.id)
+
+  defp order_events(query, cursor),
+    do: DeltaCursor.page(query, dynamic([e], e.updated_at), cursor)
 
   defp maybe_updated_since(query, nil), do: query
 

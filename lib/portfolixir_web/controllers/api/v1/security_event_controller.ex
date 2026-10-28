@@ -61,23 +61,29 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
 
   def index(conn, %{"security_id" => security_id} = params) do
     with {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit),
-         {:ok, since} <- SinceParam.parse(params),
+         {:ok, since} <- SinceParam.parse_page(params),
          %Security{} = security <- Catalog.get_security(security_id) do
-      opts = [limit: limit] ++ if(since, do: [updated_since: since.cut], else: [])
+      # K17: one row past the limit tells a full page from the whole answer,
+      # and a delta read is a page after the cursor.
+      opts =
+        [limit: ListLimit.fetch(limit)] ++
+          if(since, do: [delta: SinceParam.cursor(since)], else: [])
+
+      {events, truncated} =
+        security.id |> Events.list_for_security(opts) |> ListLimit.page(limit)
 
       payload = %{
         data: %{
           security_id: security.id,
-          events:
-            security.id
-            |> Events.list_for_security(opts)
-            |> Enum.map(&JSON.security_event/1),
+          events: Enum.map(events, &JSON.security_event/1),
           limit: limit,
+          truncated: truncated,
           events_note: @events_note
         }
       }
 
-      json(conn, SinceParam.put_envelope(payload, since))
+      page = %{has_more: truncated, last: last_stamp(events)}
+      json(conn, SinceParam.put_page_envelope(payload, since, page))
     else
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
       nil -> MergedAway.not_found(conn, :security, security_id)
@@ -340,4 +346,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityEventController do
     |> put_status(:not_found)
     |> json(%{errors: %{detail: "not found"}})
   end
+
+  defp last_stamp([]), do: nil
+  defp last_stamp(events), do: events |> List.last() |> then(&{&1.updated_at, &1.id})
 end

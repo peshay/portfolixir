@@ -269,11 +269,12 @@ defmodule PortfolixirWeb.ApiV1DeltaPagingTest do
     assert whole["truncated"] == false
     refute Map.has_key?(whole, "has_more")
 
+    security = WorldFixtures.create_security!(name: "Echo Calendar")
+    WorldFixtures.create_security!(name: "Echo Second")
+
     securities = Jason.decode!(get(api_conn(), "/api/v1/securities?limit=1").resp_body)
     assert securities["limit"] == 1
     assert securities["truncated"] == true
-
-    security = WorldFixtures.create_security!(name: "Echo Calendar")
 
     events =
       Jason.decode!(get(api_conn(), "/api/v1/securities/#{security.id}/events").resp_body)
@@ -290,5 +291,12 @@ defmodule PortfolixirWeb.ApiV1DeltaPagingTest do
       )
 
     assert rules["data"]["truncated"] == false
+  end
+
+  test "a malformed page cursor is refused as an invalid since" do
+    for since <- ["~5", "2026-01-01T00:00:00Z~0", "2026-01-01T00:00:00Z~x", "soon~5", "a~b~c"] do
+      conn = get(api_conn(), "/api/v1/transactions?" <> URI.encode_query(%{"since" => since}))
+      assert %{"errors" => %{"since" => _}} = json_response(conn, 422), since
+    end
   end
 end

@@ -61,18 +61,22 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
          {:ok, view} <- view_param(params),
          {:ok, as_of} <- date_param(params, "as_of"),
          {:ok, include_retired} <- boolean_param(params, "include_retired"),
-         {:ok, since} <- SinceParam.parse(params),
+         {:ok, since} <- SinceParam.parse_page(params),
          {:ok, limit} <- ListLimit.parse(params, @default_limit, @max_limit) do
       as_of = as_of || Clock.today()
 
-      rules =
-        PolicyRules.list_rules(pid,
+      # K17: one row past the limit tells a full page from the whole answer,
+      # and a delta read is a page after the cursor.
+      {rules, truncated} =
+        pid
+        |> PolicyRules.list_rules(
           view: view,
           as_of: as_of,
           include_retired: include_retired,
-          updated_since: since && since.cut,
-          limit: limit
+          delta: since && SinceParam.cursor(since),
+          limit: ListLimit.fetch(limit)
         )
+        |> ListLimit.page(limit)
 
       payload = %{
         data: %{
@@ -81,12 +85,14 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
           as_of: JSON.date(as_of),
           include_retired: include_retired,
           limit: limit,
+          truncated: truncated,
           rules: Enum.map(rules, &PolicyJSON.rule/1),
           rules_note: @rules_note
         }
       }
 
-      json(conn, SinceParam.put_envelope(payload, since))
+      page = %{has_more: truncated, last: last_stamp(rules)}
+      json(conn, SinceParam.put_page_envelope(payload, since, page))
     else
       {:error, field} -> unprocessable(conn, %{field => ["is invalid"]})
       :view_not_found -> not_found(conn)
@@ -316,4 +322,9 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
     |> put_status(:not_found)
     |> json(%{errors: %{detail: "not found"}})
   end
+
+  defp last_stamp([]), do: nil
+
+  defp last_stamp(rules),
+    do: rules |> List.last() |> then(&{PolicyRules.changed_at(&1), &1.id})
 end

@@ -26,6 +26,7 @@ defmodule Portfolixir.Ledger do
   alias Portfolixir.Catalog.Quotes
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Clock
+  alias Portfolixir.DeltaCursor
   alias Portfolixir.Fx
   alias Portfolixir.Journal
   alias Portfolixir.Ledger.PnlDecomposition
@@ -44,7 +45,8 @@ defmodule Portfolixir.Ledger do
   @hub "EUR"
 
   def list_transactions(opts \\ []) when is_list(opts) do
-    ordered_transactions()
+    opts[:delta]
+    |> delta_or_ordered_transactions()
     |> filter_transactions(opts)
     |> preload([:security, :cash_account, :securities_account])
     |> Repo.all()
@@ -67,6 +69,13 @@ defmodule Portfolixir.Ledger do
 
   defp filter_transaction_updated_since(query, %NaiveDateTime{} = cut),
     do: where(query, [t], t.updated_at > ^cut)
+
+  # A paged delta read (K17): oldest change first, after the cursor, so a
+  # capped page continues where the last one ended.
+  defp delta_or_ordered_transactions(nil), do: ordered_transactions()
+
+  defp delta_or_ordered_transactions(cursor),
+    do: DeltaCursor.page(Transaction, dynamic([t], t.updated_at), cursor)
 
   defp filter_transaction_limit(query, nil), do: query
 
