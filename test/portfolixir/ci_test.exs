@@ -133,8 +133,9 @@ defmodule Portfolixir.CITest do
   # Acceptance criteria:
   # - The Release workflow also runs on pushes to `main`, but only when the
   #   push touches shipped paths (the release image's and the companion
-  #   image's inputs, the operator's Compose file); docs, tests, planning
-  #   artifacts and CI files make no release.
+  #   image's inputs, the two build contexts' .dockerignore files (#1189),
+  #   the operator's Compose file); docs, tests, planning artifacts and CI
+  #   files make no release.
   # - One job computes the next `YYYY.M.N` (N counts up within the month and
   #   starts at 1), creates an ANNOTATED tag through the API (a tag object,
   #   then the ref), and creates the release in the same job, because a tag
@@ -156,6 +157,12 @@ defmodule Portfolixir.CITest do
 
     for shipped <- ["lib/**", "priv/**", "config/**", "mix.exs", "mix.lock", "mcp-server/src/**"] do
       assert release =~ ~s("#{shipped}"), "#{shipped} is shipped and must trigger a release"
+    end
+
+    # The two build contexts' .dockerignore files decide what enters the
+    # images, so a change to either is a change to what ships (#1189).
+    for context <- [".dockerignore", "mcp-server/.dockerignore"] do
+      assert release =~ ~s(      - "#{context}"\n), "#{context} decides what ships"
     end
 
     for unshipped <- ["docs/**", "test/**", "_bmad-output/**", ".github/**"] do
@@ -1186,8 +1193,8 @@ defmodule Portfolixir.CITest do
   #   it always ends with `docker compose down -v`. It pushes and publishes
   #   nothing.
   # - It builds when the change touches a path release.yml cuts a release
-  #   for, a .dockerignore file or ci.yml, and skips the build otherwise:
-  #   its own filter, run against a scratch repository, says so.
+  #   for (a .dockerignore file among them) or ci.yml, and skips the build
+  #   otherwise: its own filter, run against a scratch repository, says so.
   test "the compose-smoke job builds, starts and reads the Compose deployment" do
     job = job!(ci_workflow(), "compose-smoke")
 
@@ -1249,8 +1256,9 @@ defmodule Portfolixir.CITest do
     assert teardown =~ ~r/^\s+if: always\(\)/m
     assert teardown =~ "docker compose down -v"
 
-    # The filter builds on the paths release.yml ships, the build contexts'
-    # .dockerignore files and this workflow, and on nothing else.
+    # The filter builds on the paths release.yml ships (the build contexts'
+    # .dockerignore files among them since #1189) and this workflow, and on
+    # nothing else.
     [filter] = job |> step!("Decide whether the change touches the build") |> run_scripts()
 
     [release_paths] =
@@ -1265,8 +1273,8 @@ defmodule Portfolixir.CITest do
     pathspecs =
       ~r/':\(glob\)([^']+)'/ |> Regex.scan(filter, capture: :all_but_first) |> List.flatten()
 
-    assert pathspecs ==
-             shipped ++ [".dockerignore", "mcp-server/.dockerignore", ".github/workflows/ci.yml"]
+    assert ".dockerignore" in shipped and "mcp-server/.dockerignore" in shipped
+    assert pathspecs == shipped ++ [".github/workflows/ci.yml"]
 
     for step <- steps(job),
         not (step =~ ~r/^\s+- name: (Checkout|Decide whether the change touches the build)$/m) do
