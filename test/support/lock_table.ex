@@ -56,8 +56,8 @@ defmodule Portfolixir.LockTable do
   | 11 | **Bucket writers** (`Buckets.set_cash_account_buckets/3`, `set_depot_default_buckets/3`, `set_position_override/4`, `delete_bucket/2`) | the owner (depot or cash) `NKU` → an override's security `KS` → buckets `S`, id order. `delete_bucket/2`: views, depots, cash `NKU`, each in id order → the bucket `U`. Locks no booking. |
   | 12 | **Depot merge** (`Lifecycle.DepotMerge.apply/4`, under `Lifecycle.MergeFlow.transaction/2`) | `adv(account identity, portfolio)` → both depots `U`, id order → every booking either names `U`, id order → the portfolio's split rows of their securities `U` → its writes on rows it holds (override writes: security `KS`, buckets `S`; the source deleted; the target `U` for its names). Locks no cash: a moved booking keeps its cash account. |
   | 13 | **Security merge** (`Lifecycle.SecurityMerge.apply/4`, under `Lifecycle.MergeFlow.transaction/2`) | `adv(account identity, every portfolio)` → `adv(ISIN writes)` → the depots either security names `NKU`, id order → both securities `U`, id order → their bookings `U` → its writes on rows it holds. Locks no cash. |
-  | 14 | **Split booking** (`Ledger.Splits.book_split/2`) | `adv(split event, security)` → the fan-out read (plain reads) → INSERT one booking per portfolio (`FK` on portfolio and security). |
-  | 15 | **Split delete** (`Ledger.Splits.delete_split/3`) | the anchor read → `adv(split event, security)` → the event's rows `U`, id order → DELETE each (row 4, held). |
+  | 14 | **Split booking** (`Ledger.Splits.book_split/2`) | `adv(split event, security)` → the security `KS` (H60) → the fan-out read (plain reads) → INSERT one booking per portfolio (`FK` on portfolio; the security's `KS` already held). |
+  | 15 | **Split delete** (`Ledger.Splits.delete_split/3`) | the anchor read → `adv(split event, security)` → the security `KS` (H60) → the event's rows `U`, id order → DELETE each (row 4, held). |
   | 16 | **The booking drawer** (`PortfolixirWeb.TransactionManagementLive`) | A booking is row 2. An edit is row 3: it sends no cash account (a buy or a sell keeps the stored one), a notes-only edit sends the note alone. A delete is row 4, a split's row 15. An edit answered `:raced` keeps the drawer open and says to try again. |
   | 17 | **Settlement backfill** (`Ledger.SettlementBackfill`) | row 3 per booking; it changes settlement legs only and so takes no cash lock. |
 
@@ -83,8 +83,14 @@ defmodule Portfolixir.LockTable do
       answers a fresh preview and writes nothing.
     * Rows 12 and 13 lock no cash: they meet row 1 only through bookings,
       which all three take `U` in id order.
-    * Row 14 meets row 13 at the security only through its INSERT's
-      foreign-key check, after its fan-out was read; row 15 meets it only at
-      the split rows both lock `U`.
+    * Rows 14 and 15 meet row 13 at the security, which the split holds in
+      `KS` before it reads its fan-out and the merge holds `U` before it
+      reads the bookings (H60): either the split reads the merged bookings
+      or the merge reads the split's rows. Neither holds a lock the other
+      takes before that one: the split flow locks no depot and no booking
+      before the security.
+    * Rows 14 and 15 against row 12: the depot merge takes the securities'
+      split rows `U` after its depots and bookings and the security only
+      `KS`; the split's `KS` does not conflict with it.
   """
 end
