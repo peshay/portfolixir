@@ -1111,6 +1111,24 @@ describe("Portfolixir MCP tools", () => {
     assert.match(result.content[0].text, /170/);
   });
 
+  // User story (security review 2026-10-12, K07):
+  // As the agent reading the income report,
+  // I want its description to say how a payment with no rate path to the
+  // base currency is treated,
+  // so that I never read a total as converted when part of it could not be.
+  //
+  // Acceptance criteria:
+  // - The description says such a payment is excluded from every total and
+  //   named in excluded, and names computation_basis.
+  it("states that the income report excludes and names a payment with no rate", () => {
+    const description =
+      listTools().find((tool) => tool.name === "portfolixir.portfolios.income")?.description ?? "";
+    assert.match(description, /on or before/);
+    assert.match(description, /excluded from every total/);
+    assert.match(description, /excluded \(count, currencies/);
+    assert.match(description, /computation_basis/);
+  });
+
   it("issues a POST to /exchange_rates/sync for portfolixir.exchange_rates.sync", async () => {
     const { client, requests } = createRecordingClient({
       data: { provider: "ecb", status: "ok", upserted: 25 }
