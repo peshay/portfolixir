@@ -1128,7 +1128,10 @@ Datenbanksicherung zurück.
   Socket-Verbindungsaufbau jeder Live-Seite mit herausgefiltertem CSRF-Token,
   Warnungen und Fehler. Die Datenbankabfragen, die Parameter jeder Anfrage
   und jedes Seitenereignisses und die Sitzungsinhalte, die die Stufe `debug`
-  schreibt, bleiben aus dem Log.
+  schreibt, bleiben aus dem Log. Ein Steuerzeichen in einem Log-Eintrag wird
+  als sichtbare Escape-Folge geschrieben (`\x1B` für ESC), sodass nichts, was
+  eine Anfrage mitbringt, eine Log-Zeile fälschen oder das Terminal erreichen
+  kann, das das Log liest.
 - Jede Anfrage und jede offene Seite läuft in einem eigenen Prozess unter
   einer Heap-Grenze von 512 MiB, die die großen Binärdaten des Prozesses
   mitzählt, und ebenso jeder Task, dem eine Seite ihre Arbeit übergibt (die

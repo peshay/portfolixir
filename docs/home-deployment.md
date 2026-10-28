@@ -1056,7 +1056,10 @@ added migrations, restore the database backup taken before that upgrade.
 - The release logs at `info`: the request lines, each live page's socket
   connect with its CSRF token filtered out, warnings and errors. The database
   queries, the parameters of each request and page event, and the session
-  contents that the `debug` level writes stay out of the log.
+  contents that the `debug` level writes stay out of the log. A control
+  character in a log entry is written as a visible escape (`\x1B` for ESC),
+  so nothing a request carries can forge a log line or reach the terminal
+  that reads the log.
 - Every request and every open page runs in its own process under a heap
   cap of 512 MiB, counting the large binaries it holds, and so does every
   task a page hands its work to (the performance walk, the valuations, an
