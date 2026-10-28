@@ -226,6 +226,27 @@ defmodule Portfolixir.RuntimeConfig do
        Enum.map_join(entries, ", ", &inspect/1) <> "."}
   end
 
+  @doc """
+  The startup check behind H04 (security review 2026-10-12): the entries of
+  `PORTFOLIXIR_TRUSTED_PROXIES` too wide to name a proxy
+  (`overbroad_trusted_proxies/1`) are named in a warning of their own,
+  whatever `PHX_FORCE_SSL` and the bind say, with what such a block would
+  do. Pure; `Portfolixir.Application` logs it.
+  """
+  @spec overbroad_proxies_warning([String.t()]) :: :ok | {:warn, String.t()}
+  def overbroad_proxies_warning([]), do: :ok
+
+  def overbroad_proxies_warning(entries) when is_list(entries) do
+    {:warn,
+     "PORTFOLIXIR_TRUSTED_PROXIES holds blocks wider than " <>
+       "/#{min_trusted_proxy_prefix(:ipv4)} (IPv4) or /#{min_trusted_proxy_prefix(:ipv6)} " <>
+       "(IPv6), which would believe the X-Forwarded-For and X-Forwarded-Proto of nearly " <>
+       "every client, letting each choose its throttle source and its scheme; they are " <>
+       "ignored, and no proxy is trusted for them: " <>
+       Enum.map_join(entries, ", ", &inspect/1) <>
+       ". Name the proxy's exact address (docs/home-deployment.md, \"Reverse proxy\")."}
+  end
+
   @min_token_bytes 32
   @placeholder_prefixes ~w(dev-api-token dev-mcp-token test-api-token replace change secret token password example)
 
@@ -609,15 +630,39 @@ defmodule Portfolixir.RuntimeConfig do
   `PORTFOLIXIR_TRUSTED_PROXIES`, comma-separated addresses or CIDR blocks
   (`127.0.0.1`, `172.18.0.1`, `::1`, a block such as `192.0.2.0/29`). Empty
   by default: a header nobody vouches for is never a source. Entries that do
-  not parse are dropped.
+  not parse are dropped, and so is a block wider than
+  `min_trusted_proxy_prefix/1` (security review 2026-10-12, H04), which would
+  believe nearly every client; `overbroad_trusted_proxies/1` lists those.
   """
   @spec trusted_proxies(String.t() | nil) :: [{:inet.ip_address(), non_neg_integer()}]
   def trusted_proxies(value \\ System.get_env("PORTFOLIXIR_TRUSTED_PROXIES"))
 
-  def trusted_proxies(value) when is_binary(value),
-    do: value |> proxy_entries() |> Enum.flat_map(&parse_cidr/1)
+  def trusted_proxies(value) when is_binary(value) do
+    for entry <- proxy_entries(value), {:ok, block} <- [parse_cidr(entry)], do: block
+  end
 
   def trusted_proxies(_value), do: []
+
+  @doc """
+  The shortest prefix a trusted-proxy block may have, per address family: a
+  shorter one covers the clients as well as any proxy (H04).
+  """
+  @spec min_trusted_proxy_prefix(:ipv4 | :ipv6) :: pos_integer()
+  def min_trusted_proxy_prefix(:ipv4), do: 8
+  def min_trusted_proxy_prefix(:ipv6), do: 32
+
+  @doc """
+  The entries of `PORTFOLIXIR_TRUSTED_PROXIES` that parse but are wider than
+  `min_trusted_proxy_prefix/1`, and that `trusted_proxies/1` therefore drops,
+  trimmed and in order: the startup warning names them (H04).
+  """
+  @spec overbroad_trusted_proxies(String.t() | nil) :: [String.t()]
+  def overbroad_trusted_proxies(value \\ System.get_env("PORTFOLIXIR_TRUSTED_PROXIES"))
+
+  def overbroad_trusted_proxies(value) when is_binary(value),
+    do: value |> proxy_entries() |> Enum.filter(&(parse_cidr(&1) == :overbroad))
+
+  def overbroad_trusted_proxies(_value), do: []
 
   @doc """
   The entries of `PORTFOLIXIR_TRUSTED_PROXIES` that do not parse, and that
@@ -628,7 +673,7 @@ defmodule Portfolixir.RuntimeConfig do
   def unreadable_trusted_proxies(value \\ System.get_env("PORTFOLIXIR_TRUSTED_PROXIES"))
 
   def unreadable_trusted_proxies(value) when is_binary(value),
-    do: value |> proxy_entries() |> Enum.filter(&(parse_cidr(&1) == []))
+    do: value |> proxy_entries() |> Enum.filter(&(parse_cidr(&1) == :error))
 
   def unreadable_trusted_proxies(_value), do: []
 
@@ -654,11 +699,14 @@ defmodule Portfolixir.RuntimeConfig do
 
     with {:ok, ip} <- :inet.parse_strict_address(to_charlist(address)),
          {:ok, bits} <- prefix_for(ip, prefix) do
-      [{ip, bits}]
+      if bits < min_trusted_proxy_prefix(ip_family(ip)), do: :overbroad, else: {:ok, {ip, bits}}
     else
-      _ -> []
+      _ -> :error
     end
   end
+
+  defp ip_family(ip) when tuple_size(ip) == 4, do: :ipv4
+  defp ip_family(_ip), do: :ipv6
 
   defp prefix_for({_, _, _, _}, :whole), do: {:ok, 32}
   defp prefix_for({_, _, _, _, _, _, _, _}, :whole), do: {:ok, 128}

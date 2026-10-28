@@ -358,7 +358,7 @@ defmodule Portfolixir.RuntimeConfigTest do
     refute message =~ "not set or not readable"
     assert {:warn, _} = RuntimeConfig.trusted_proxies_warning(on, any6, loopback)
 
-    for beyond <- ["127.0.0.1, 172.18.0.1", "127.0.0.0/7", "2001:db8::1, 172.18.0.1"] do
+    for beyond <- ["127.0.0.1, 172.18.0.1", "10.0.0.0/8", "2001:db8::1, 172.18.0.1"] do
       assert RuntimeConfig.trusted_proxies_warning(on, any, RuntimeConfig.trusted_proxies(beyond)) ==
                :ok,
              beyond

@@ -86,7 +86,8 @@ defmodule Portfolixir.Application do
   S1 F67) with a short one, is named in the log at startup; so is (#930)
   `PHX_FORCE_SSL` on beyond loopback with no trusted proxy beyond loopback,
   the redirect loop's cause; and, whatever the bind, the entries of
-  `PORTFOLIXIR_TRUSTED_PROXIES` that did not parse. The decisions are pure
+  `PORTFOLIXIR_TRUSTED_PROXIES` that did not parse, and (H04) those too wide
+  to name a proxy. The decisions are pure
   functions in `Portfolixir.RuntimeConfig`, so they are unit-tested; this is
   only the wiring. Always `:ok`: a warning, never a refusal.
   """
@@ -100,12 +101,14 @@ defmodule Portfolixir.Application do
     force_ssl = Application.get_env(:portfolixir, :force_ssl)
     proxies = Application.get_env(:portfolixir, :trusted_proxies)
     unreadable = Portfolixir.RuntimeConfig.unreadable_trusted_proxies()
+    overbroad = Portfolixir.RuntimeConfig.overbroad_trusted_proxies()
 
     for {:warn, message} <- [
           Portfolixir.RuntimeConfig.exposure_warning(ip, password),
           Portfolixir.RuntimeConfig.password_warning(ip, password),
           Portfolixir.RuntimeConfig.trusted_proxies_warning(force_ssl, ip, proxies),
-          Portfolixir.RuntimeConfig.unreadable_proxies_warning(unreadable)
+          Portfolixir.RuntimeConfig.unreadable_proxies_warning(unreadable),
+          Portfolixir.RuntimeConfig.overbroad_proxies_warning(overbroad)
         ] do
       Logger.warning(message)
     end
