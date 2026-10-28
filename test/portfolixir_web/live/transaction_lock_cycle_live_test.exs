@@ -10,7 +10,9 @@ defmodule PortfolixirWeb.TransactionLockCycleLiveTest do
   use PortfolixirWeb.ConnCase, async: false
 
   import Phoenix.LiveViewTest
-  import Portfolixir.WorldFixtures, only: [base_world: 1, deposit!: 3]
+
+  import Portfolixir.WorldFixtures,
+    only: [base_world: 1, buy!: 3, create_security!: 1, deposit!: 3]
 
   alias Portfolixir.Ledger
   alias Portfolixir.LostLockCycle
@@ -20,7 +22,10 @@ defmodule PortfolixirWeb.TransactionLockCycleLiveTest do
   setup do
     :ok = LostLockCycle.install!(@marker)
     world = base_world(name: "Lock Cycle Drawer", cash_name: "Lock Cycle Drawer Cash")
-    %{booking: deposit!(world, "250.00", ~D[2026-09-03])}
+    security = create_security!(name: "Lock Cycle Drawer AG", ticker: "LCDA")
+    booking = deposit!(world, "250.00", ~D[2026-09-03])
+    buy = buy!(world, security, quantity: "2", price: "40", date: ~D[2026-09-04])
+    %{booking: booking, buy: buy}
   end
 
   # User story (#1214; ADR-0050 §10):
@@ -50,5 +55,29 @@ defmodule PortfolixirWeb.TransactionLockCycleLiveTest do
 
     assert has_element?(view, "dialog#booking-drawer #note-form textarea", @marker)
     assert Ledger.get_transaction(booking.id).notes == nil
+  end
+
+  # Acceptance criteria (the buy and sell drawer):
+  # - Saving an edit of a buy that the database aborted keeps the drawer
+  #   open with what was typed and says to try again; the buy is stored as
+  #   before.
+  test "a buy edit aborted in a lock cycle says to try again", %{conn: conn, buy: buy} do
+    {:ok, view, _html} = live(conn, "/transactions")
+    view |> element("#tx-kebab-#{buy.id}") |> render_click()
+    view |> element("#tx-edit-#{buy.id}") |> render_click()
+
+    html =
+      view
+      |> form("#transaction-form", %{"transaction" => %{"notes" => @marker}})
+      |> render_submit()
+
+    assert html =~
+             "That transaction changed while it was being saved, so nothing was saved. Try again."
+
+    assert has_element?(view, "#transaction-form textarea[name='transaction[notes]']", @marker)
+
+    stored = Ledger.get_transaction(buy.id)
+    assert stored.notes == nil
+    assert stored.quantity == Decimal.new("2.000000000000")
   end
 end
