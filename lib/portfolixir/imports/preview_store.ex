@@ -77,7 +77,9 @@ defmodule Portfolixir.Imports.PreviewStore do
   def key_for(_missing), do: nil
 
   @doc """
-  Stores `preview` and `mapping` under `key`. An existing entry is replaced;
+  Stores `preview` and `mapping` under `key`, with what a remount of the page
+  shows from them (`summary:`, H08: computed once, on upload, rather than on
+  every remount; `nil` when not given). An existing entry is replaced;
   past either budget, the number of entries or their bytes, the
   oldest-touched entries are evicted first. An empty key is refused
   (`:ignored`). A preview larger than one entry may take (`max_entry_bytes/0`)
@@ -88,14 +90,16 @@ defmodule Portfolixir.Imports.PreviewStore do
   def put(key, preview, mapping, opts \\ [])
 
   def put(key, preview, mapping, opts) when is_binary(key) and key != "" do
-    bytes = :erts_debug.flat_size({preview, mapping}) * :erlang.system_info(:wordsize)
+    summary = Keyword.get(opts, :summary)
+    bytes = :erts_debug.flat_size({preview, mapping, summary}) * :erlang.system_info(:wordsize)
 
     if bytes > max_entry_bytes() do
       :ets.delete(@table, key)
       :too_large
     else
       evict_past_budget(key, bytes)
-      :ets.insert(@table, {key, preview, mapping, Keyword.get(opts, :touched_at, now()), bytes})
+      touched_at = Keyword.get(opts, :touched_at, now())
+      :ets.insert(@table, {key, preview, mapping, touched_at, bytes, summary})
       :ok
     end
   end
@@ -111,22 +115,57 @@ defmodule Portfolixir.Imports.PreviewStore do
   def put_mapping(_key, _mapping), do: :ignored
 
   @doc """
+  Replaces only the summary of an existing entry (H08): what the page shows
+  changed after the upload (a correction, a refreshed resolution), and a
+  remount shows it as it is now. `:ignored` when absent. The entry's size
+  stays as measured at `put/4`: a summary is small beside its preview.
+  """
+  @spec put_summary(String.t() | nil, term()) :: :ok | :ignored
+  def put_summary(key, summary) when is_binary(key) and key != "" do
+    if :ets.update_element(@table, key, [{6, summary}, {4, now()}]), do: :ok, else: :ignored
+  end
+
+  def put_summary(_key, _summary), do: :ignored
+
+  @doc """
+  The summary parked under `key`, read without the preview it belongs to and
+  without renewing the lease (H08); `nil` when absent or stored without one.
+  """
+  @spec summary(String.t() | nil) :: term()
+  def summary(key) when is_binary(key) and key != "",
+    do: :ets.lookup_element(@table, key, 6, nil)
+
+  def summary(_key), do: nil
+
+  @doc """
   Returns `{preview, mapping}` for `session_token`, or `nil` when absent or
   expired.
   """
   @spec get(String.t() | nil) :: {term(), term()} | nil
-  def get(key) when is_binary(key) and key != "" do
+  def get(key) do
+    case restore(key) do
+      {preview, mapping, _summary} -> {preview, mapping}
+      nil -> nil
+    end
+  end
+
+  @doc """
+  Returns `{preview, mapping, summary}` for `key`, as `get/1` does, with the
+  summary `put/4` or `put_summary/2` stored (`nil` when none was), or `nil`.
+  """
+  @spec restore(String.t() | nil) :: {term(), term(), term()} | nil
+  def restore(key) when is_binary(key) and key != "" do
     case :ets.lookup(@table, key) do
-      [{^key, preview, mapping, _touched_at, _bytes}] ->
+      [{^key, preview, mapping, _touched_at, _bytes, summary}] ->
         :ets.update_element(@table, key, {4, now()})
-        {preview, mapping}
+        {preview, mapping, summary}
 
       [] ->
         nil
     end
   end
 
-  def get(_key), do: nil
+  def restore(_key), do: nil
 
   @doc """
   Whether a preview is parked under `key`, without copying it out of the
@@ -157,7 +196,7 @@ defmodule Portfolixir.Imports.PreviewStore do
   # the bytes. Only keys, timestamps and sizes leave the table (E25 S5, F41):
   # copying every parked preview into the caller's heap to find the oldest
   # cost as much as all of them.
-  @keys_touched_bytes [{{:"$1", :_, :_, :"$2", :"$3"}, [], [{{:"$2", :"$1", :"$3"}}]}]
+  @keys_touched_bytes [{{:"$1", :_, :_, :"$2", :"$3", :_}, [], [{{:"$2", :"$1", :"$3"}}]}]
 
   defp evict_past_budget(key, bytes) do
     others =
@@ -195,7 +234,7 @@ defmodule Portfolixir.Imports.PreviewStore do
   @impl true
   def handle_info(:sweep, state) do
     cutoff = now() - @ttl_seconds
-    :ets.select_delete(@table, [{{:_, :_, :_, :"$1", :_}, [{:<, :"$1", cutoff}], [true]}])
+    :ets.select_delete(@table, [{{:_, :_, :_, :"$1", :_, :_}, [{:<, :"$1", cutoff}], [true]}])
     schedule_sweep()
     {:noreply, state}
   end

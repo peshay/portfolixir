@@ -221,6 +221,74 @@ defmodule PortfolixirWeb.ImportsParkedPreviewRemountTest do
              inspect(observed.remount_passes)
   end
 
+  # A Portfolio Performance CSV whose rows carry fees or taxes, so its
+  # Gesamtpreis differs from its Betrag: stored under the older reading, it
+  # lists bookings to correct.
+  @correctable_csv """
+  Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle
+  2024-01-02 00:00:00;Einlage;;;;10.000,00;;;10.000,00;Girokonto;;;
+  2024-01-15 10:01:00;Kauf;Nordwind Industrie AG;10;150,00;1.500,00;2,50;;1.502,50;Depot;Girokonto;;
+  2024-06-30 00:00:00;Zinsen;;;;5,75;;1,20;4,55;Tagesgeld;;;
+  """
+
+  # User story (security review 2026-10-12, H08):
+  # As the operator who corrected the bookings a parked preview listed,
+  # I want a remount of the page to show the preview as it is after the
+  # correction,
+  # so that what the upload computed never brings back what I already did.
+  #
+  # Acceptance criteria:
+  # - After the correction, a remount in the session shows the preview with
+  #   no booking left to correct.
+  test "a remount after a correction shows the parked preview as it is now", %{conn: conn} do
+    conn = init_test_session(conn, %{"_csrf_token" => @token})
+    key = PreviewStore.key_for(@token)
+    on_exit(fn -> PreviewStore.delete(key) end)
+
+    {:ok, portfolio} =
+      Portfolixir.Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Correction target",
+        base_currency_code: "EUR"
+      })
+
+    {:ok, preview} =
+      Imports.parse_portfolio_performance(@correctable_csv, filename: "export.csv")
+
+    old =
+      Enum.map(preview.entries, fn entry ->
+        %{entry | gross_amount: entry.hash_amount, price: entry.hash_price || entry.price}
+      end)
+
+    {:ok, _result} = Imports.apply(%{preview | entries: old}, %{portfolio_id: portfolio.id})
+
+    {:ok, view, _html} = live(conn, "/imports")
+
+    view
+    |> file_input("#pp-import-form", :pp_file, [
+      %{
+        name: "export.csv",
+        content: @correctable_csv,
+        type: "text/csv",
+        last_modified: 1_700_000_000_000
+      }
+    ])
+    |> render_upload("export.csv")
+
+    render_async(view)
+    assert has_element?(view, "#import-correction")
+    assert PreviewStore.parked?(key)
+
+    view |> element("#import-correction-open") |> render_click()
+    view |> element("#import-correction-confirm") |> render_click()
+    render_async(view)
+    refute has_element?(view, "#import-correction")
+
+    {:ok, remounted, html} = live(conn, "/imports")
+    render_async(remounted)
+    assert html =~ "Preview"
+    refute has_element?(remounted, "#import-correction")
+  end
+
   defp flush_exits do
     receive do
       {:EXIT, _pid, _reason} -> flush_exits()

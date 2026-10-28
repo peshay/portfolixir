@@ -228,6 +228,31 @@ defmodule Portfolixir.Imports.PreviewStoreTest do
       refute PreviewStore.parked?(kept)
     end
 
+    # User story (security review 2026-10-12, H08):
+    # As the operator who reloads the Imports page with a preview parked,
+    # I want what the page shows of it parked beside it,
+    # so that a remount shows it without computing it again.
+    #
+    # Acceptance criteria:
+    # - put/4 with a summary parks it; restore/1 answers it with the preview
+    #   and the mapping; get/1 still answers the preview and the mapping.
+    # - put_summary/2 replaces only the summary; summary/1 reads it alone;
+    #   both ignore an absent key.
+    test "parks a summary beside the preview and replaces only it" do
+      key = token("summary")
+      assert :ok = PreviewStore.put(key, :preview, :mapping, summary: %{counts: 1})
+      assert {:preview, :mapping, %{counts: 1}} = PreviewStore.restore(key)
+      assert {:preview, :mapping} = PreviewStore.get(key)
+
+      assert :ok = PreviewStore.put_summary(key, %{counts: 2})
+      assert PreviewStore.summary(key) == %{counts: 2}
+      assert {:preview, :mapping, %{counts: 2}} = PreviewStore.restore(key)
+
+      assert :ignored = PreviewStore.put_summary(token("absent"), %{})
+      assert PreviewStore.summary(token("absent")) == nil
+      assert PreviewStore.restore(nil) == nil
+    end
+
     test "put_mapping/2 replaces only the mapping" do
       key = token("mapping")
       assert :ok = PreviewStore.put(key, :preview, :m1)

@@ -39,7 +39,7 @@ defmodule PortfolixirWeb.ImportsLive do
     # The store key is a hash of the session token (#768), never the token.
     session_token = PreviewStore.key_for(Map.get(session, "_csrf_token"))
 
-    {stage, preview, mapping} = restore(socket, session_token)
+    {stage, preview, mapping, summary} = restore(socket, session_token)
 
     socket =
       socket
@@ -52,10 +52,7 @@ defmodule PortfolixirWeb.ImportsLive do
       |> assign_correction_idle()
       |> reload_lookups()
       |> assign(:mapping, mapping)
-      |> maybe_assign_preview_pp_names(preview)
-      |> assign_security_resolutions(preview)
-      |> assign_account_states(preview)
-      |> assign_corrections(preview)
+      |> assign_preview_state(preview, summary)
       |> assign_remember_outcomes()
       |> allow_upload(:pp_file,
         accept: ~w(.csv .json application/json text/csv text/plain),
@@ -75,13 +72,69 @@ defmodule PortfolixirWeb.ImportsLive do
   # its session has parked.
   defp restore(socket, session_token) do
     if not connected?(socket) and PreviewStore.parked?(session_token) do
-      {:restoring, nil, blank_mapping()}
+      {:restoring, nil, blank_mapping(), nil}
     else
-      case PreviewStore.get(session_token) do
-        {stored_preview, stored_mapping} -> {:preview, stored_preview, stored_mapping}
-        nil -> {:idle, nil, blank_mapping()}
+      case PreviewStore.restore(session_token) do
+        {preview, mapping, summary} -> {:preview, preview, mapping, summary}
+        nil -> {:idle, nil, blank_mapping(), nil}
       end
     end
+  end
+
+  # Security review 2026-10-12, H08: what the page shows of a preview,
+  # computed once on upload from the preview and the database as they were,
+  # and parked with it; a remount shows it instead of computing it over every
+  # entry again. The catalog list and the parser warnings are read again
+  # (neither walks the entries), and a connected mount refines the counts as
+  # the upload did. Each recompute after the upload (a correction, a refreshed
+  # resolution, the refined counts) parks the summary again (`repark/1`).
+  @parked_assigns [
+    :cash_pp_names,
+    :depot_pp_names,
+    :row_names,
+    :security_resolutions,
+    :unmatched_config,
+    :unmatched_config_scope,
+    :account_states,
+    :corrections
+  ]
+
+  defp parked_summary(socket),
+    do: socket.assigns |> Map.take([:park | @parked_assigns])
+
+  defp assign_preview_state(socket, %Preview{} = preview, %{park: park} = summary)
+       when is_reference(park) do
+    if Enum.all?(@parked_assigns, &Map.has_key?(summary, &1)) do
+      socket
+      |> assign(Map.take(summary, [:park | @parked_assigns]))
+      |> assign(:existing_securities, Catalog.list_securities(is_benchmark: false))
+      |> assign(:row_errors, Imports.row_errors(preview))
+      |> refine_counts(preview)
+    else
+      assign_preview_state(socket, preview, nil)
+    end
+  end
+
+  defp assign_preview_state(socket, preview, _no_summary) do
+    socket
+    |> maybe_assign_preview_pp_names(preview)
+    |> assign_security_resolutions(preview)
+    |> assign_account_states(preview)
+    |> assign_corrections(preview)
+  end
+
+  # Only the summary of the preview this page parked: another tab of the
+  # session may have parked another file under the same key since.
+  defp repark(socket) do
+    park = Map.get(socket.assigns, :park)
+    key = socket.assigns.session_token
+
+    if socket.assigns.stage == :preview and is_reference(park) and
+         match?(%{park: ^park}, PreviewStore.summary(key)) do
+      PreviewStore.put_summary(key, parked_summary(socket))
+    end
+
+    socket
   end
 
   @impl true
@@ -1074,7 +1127,8 @@ defmodule PortfolixirWeb.ImportsLive do
       PreviewStore.put(
         socket.assigns.session_token,
         socket.assigns.preview,
-        socket.assigns.mapping
+        socket.assigns.mapping,
+        summary: parked_summary(socket)
       )
     end
 
@@ -1086,7 +1140,10 @@ defmodule PortfolixirWeb.ImportsLive do
   @impl true
   def handle_async(:refine_counts, {:ok, {token, counts}}, socket) do
     if token == socket.assigns.counts_token do
-      {:noreply, update(socket, :account_states, &Map.put(&1, :counts, state_counts(counts)))}
+      {:noreply,
+       socket
+       |> update(:account_states, &Map.put(&1, :counts, state_counts(counts)))
+       |> repark()}
     else
       {:noreply, socket}
     end
@@ -1171,7 +1228,8 @@ defmodule PortfolixirWeb.ImportsLive do
      socket
      |> assign(:correction_running, false)
      |> assign(:correction_result, correction_result(corrected))
-     |> assign_corrections(socket.assigns.preview)}
+     |> assign_corrections(socket.assigns.preview)
+     |> repark()}
   end
 
   def handle_async(:correct_cash, {:ok, {:error, %{row: row, reason: reason}}}, socket) do
@@ -1186,7 +1244,8 @@ defmodule PortfolixirWeb.ImportsLive do
           reason: correction_refusal(reason)
         )}
      )
-     |> assign_corrections(socket.assigns.preview)}
+     |> assign_corrections(socket.assigns.preview)
+     |> repark()}
   end
 
   def handle_async(:correct_cash, {:exit, _reason}, socket) do
@@ -1197,7 +1256,8 @@ defmodule PortfolixirWeb.ImportsLive do
        :correction_result,
        {:problem, gettext("The correction failed unexpectedly. Nothing was corrected.")}
      )
-     |> assign_corrections(socket.assigns.preview)}
+     |> assign_corrections(socket.assigns.preview)
+     |> repark()}
   end
 
   # The accounts, their resolutions and the counts read again, and the
@@ -1225,6 +1285,7 @@ defmodule PortfolixirWeb.ImportsLive do
     socket
     |> assign(:mapping, mapping)
     |> assign_remember_outcomes()
+    |> repark()
   end
 
   # The path comes from LiveView's own managed upload temp file, not from
