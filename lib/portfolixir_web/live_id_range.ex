@@ -39,6 +39,9 @@ defmodule PortfolixirWeb.LiveIdRange do
 
   defp guard(_params, url, socket) do
     uri = URI.parse(url)
+    # The navigation target is a local path even when the request's raw path
+    # carries a doubled leading slash the router accepted (H26).
+    uri = %{uri | path: local_path(uri.path)}
     query = URI.decode_query(uri.query || "")
 
     path_out_of_range? =
@@ -82,6 +85,8 @@ defmodule PortfolixirWeb.LiveIdRange do
   end
 
   defp out_of_range?(_value), do: false
+
+  defp local_path(path), do: "/" <> Enum.join(String.split(path || "", "/", trim: true), "/")
 
   # `/securities/99…9` → `/securities`: the id is the path's last segment.
   defp parent(path) do

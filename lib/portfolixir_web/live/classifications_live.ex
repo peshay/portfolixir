@@ -131,14 +131,31 @@ defmodule PortfolixirWeb.ClassificationsLive do
   defp start_reads(socket), do: socket
 
   @impl true
-  def handle_params(params, uri, socket) do
-    path = URI.parse(uri).path
+  def handle_params(params, _uri, socket) do
+    action = socket.assigns.live_action
 
     {:noreply,
      socket
-     |> assign(:current_path, path)
-     |> apply_action(socket.assigns.live_action, params)}
+     |> assign(:current_path, current_path(action, params))
+     |> apply_action(action, params)}
   end
+
+  # The page's own path, derived from the route and never copied from the
+  # request URI (H26): the locale and view links are built from it, and a raw
+  # path the router accepts (a doubled leading slash) is no local path.
+  defp current_path(:new, _params), do: "/classifications/new"
+
+  defp current_path(:show, %{"id" => id}) do
+    case LiveParam.id(id) do
+      classification_id when is_integer(classification_id) ->
+        "/classifications/#{classification_id}"
+
+      _malformed ->
+        "/classifications"
+    end
+  end
+
+  defp current_path(_action, _params), do: "/classifications"
 
   # The index owns the tree list (ADR-0022): the per-classification tree left
   # the sidebar, so this page is where every tree stays reachable.
