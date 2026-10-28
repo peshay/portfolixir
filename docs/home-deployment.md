@@ -1059,7 +1059,11 @@ added migrations, restore the database backup taken before that upgrade.
   contents that the `debug` level writes stay out of the log. A control
   character in a log entry is written as a visible escape (`\x1B` for ESC),
   so nothing a request carries can forge a log line or reach the terminal
-  that reads the log.
+  that reads the log. In Compose every container logs through Docker's
+  `local` log driver, which keeps at most five files of 10 MB each per
+  container. A release run outside Compose writes its log to standard
+  output, so rotate it where it is kept (journald, or a file under
+  logrotate): an unrotated log grows with every request.
 - Every request and every open page runs in its own process under a heap
   cap of 512 MiB, counting the large binaries it holds, and so does every
   task a page hands its work to (the performance walk, the valuations, an
