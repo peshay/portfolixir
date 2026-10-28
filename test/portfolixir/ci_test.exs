@@ -547,7 +547,10 @@ defmodule Portfolixir.CITest do
       assert env_example =~ variable <> "="
     end
 
-    assert env_example =~ "rand-hex-32"
+    # H18 (security review 2026-10-12): the database password ships empty,
+    # so Compose refuses to start until it is set, with how to generate it.
+    assert env_example =~ ~r/^POSTGRES_PASSWORD=$/m
+    assert env_example =~ "openssl rand -hex 32"
   end
 
   # User story (E25 S2, F08):
