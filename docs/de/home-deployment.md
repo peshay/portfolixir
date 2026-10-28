@@ -569,6 +569,17 @@ Header mit dieser Adresse. Er reicht nie einen Wert durch, den der Client
 geschickt hat: ein Weiterleitungs-Header, der die Anwendung so erreicht, wie
 der Client ihn geschrieben hat, lässt den Client die Quelle der Drossel wählen.
 
+Der Port der Anwendung ist dafür gedacht, hinter einem solchen Proxy zu
+stehen, der den ganzen Header einer Anfrage unter seinen eigenen
+Header-Timeouts liest, bevor er sich mit der Anwendung verbindet (bei nginx
+`client_header_timeout`, bei Caddy `read_header_timeout`). Die Anwendung
+begrenzt ihren Listener für
+einen Betreiber und den Begleiter: höchstens 500 Verbindungen zugleich, eine
+Verbindung wird geschlossen, sobald ihr Client 15 Sekunden lang nichts
+geschickt hat, und nur HTTP/1.1, kein HTTP/2 ohne TLS. Sie misst jedes Lesen,
+nicht den ganzen Header; einen Client, der einen Header Byte für Byte
+tröpfeln lässt, hält der Proxy auf.
+
 Nenne die genaue Adresse, von der aus der Proxy verbindet, in
 `PORTFOLIXIR_TRUSTED_PROXIES`. Über den veröffentlichten Port ist das das
 Gateway der Docker-Bridge, das `docker network inspect` zeigt, zum Beispiel

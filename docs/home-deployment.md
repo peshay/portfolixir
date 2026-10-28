@@ -540,6 +540,16 @@ browser used, which is what marks the session cookie `Secure` and what
 the client sent through: a forwarding header that reaches the application as
 the client wrote it lets the client choose the throttle's source.
 
+The application's port is meant to sit behind such a proxy, one that reads a
+request's whole header under its own header timeouts before it connects
+upstream (nginx's `client_header_timeout`, Caddy's `read_header_timeout`).
+The application bounds
+its listener for one operator and the companion: at most 500 connections at
+once, a connection closed once its client has sent nothing for 15 seconds,
+and HTTP/1.1 only, with no cleartext HTTP/2. It times each read, not the
+whole header, so a client that trickles a header byte by byte is the
+proxy's to stop.
+
 Name the exact address the proxy connects from in
 `PORTFOLIXIR_TRUSTED_PROXIES`. Through the published port that is the Docker
 bridge gateway, which `docker network inspect` shows, for example
