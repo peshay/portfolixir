@@ -141,6 +141,8 @@ defmodule Portfolixir.WriteActorTest do
     {Portfolixir.Catalog, :set_logo_override} => "lib/portfolixir/catalog.ex",
     {Portfolixir.Catalog, :remove_logo} => "lib/portfolixir/catalog.ex",
     {Portfolixir.Catalog, :rediscover_logo} => "lib/portfolixir/catalog.ex",
+    {Portfolixir.Classifications, :reclassify_securities} => "lib/portfolixir/classifications.ex",
+    {Portfolixir.Classifications, :reset_asset_class} => "lib/portfolixir/classifications.ex",
     {Portfolixir.Settings, :set_default_view} => "lib/portfolixir/settings.ex"
   }
 
