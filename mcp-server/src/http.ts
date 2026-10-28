@@ -170,9 +170,11 @@ export interface FailureThrottle {
   readonly maxFailures: number;
   readonly baseLockSeconds: number;
   readonly maxLockSeconds: number;
+  readonly maxRecords: number;
   check(source: string, now: number): { locked: false } | { locked: true; retryAfter: number };
   failure(source: string, now: number): void;
   success(source: string): void;
+  size(): number;
 }
 
 interface FailureRecord {
@@ -187,15 +189,36 @@ interface FailureRecord {
  * failure a source is locked for two seconds, doubling per further failure up
  * to five minutes; a success clears it. A source's count is kept for an hour
  * after its last failure, so waiting out a lock does not reset the escalation,
- * and older records are pruned so the map stays bounded by that window.
+ * and older records are pruned so the map stays bounded by that window. It is
+ * bounded in count as well (security review 2026-10-12, H49): past
+ * `maxRecords`, a new source evicts the record whose last failure is oldest
+ * and that is not locked, and is not recorded when every record is locked.
  */
 export function createFailureThrottle(): FailureThrottle {
   const maxFailures = 10;
   const baseLockSeconds = 2;
   const maxLockSeconds = 300;
   const retentionSeconds = 60 * 60;
+  const maxRecords = 10_000;
+  // Kept in the order of each source's last failure, oldest first.
   const records = new Map<string, FailureRecord>();
   let lastPrune = 0;
+
+  // Room for one more source: the oldest record that is not locked goes.
+  const makeRoom = (now: number): boolean => {
+    if (records.size < maxRecords) {
+      return true;
+    }
+
+    for (const [source, record] of records) {
+      if (record.lockedUntil <= now) {
+        records.delete(source);
+        return true;
+      }
+    }
+
+    return false;
+  };
 
   const prune = (now: number): void => {
     if (now - lastPrune < maxLockSeconds) {
@@ -215,6 +238,7 @@ export function createFailureThrottle(): FailureThrottle {
     maxFailures,
     baseLockSeconds,
     maxLockSeconds,
+    maxRecords,
     check(source, now) {
       const record = records.get(source);
 
@@ -224,7 +248,13 @@ export function createFailureThrottle(): FailureThrottle {
     },
     failure(source, now) {
       prune(now);
-      const record = records.get(source) ?? { count: 0, lockedUntil: 0, lastFailure: now };
+      const known = records.get(source);
+
+      if (!known && !makeRoom(now)) {
+        return;
+      }
+
+      const record = known ?? { count: 0, lockedUntil: 0, lastFailure: now };
       record.count += 1;
       record.lastFailure = now;
 
@@ -233,10 +263,15 @@ export function createFailureThrottle(): FailureThrottle {
         record.lockedUntil = now + Math.min(baseLockSeconds * 2 ** exponent, maxLockSeconds);
       }
 
+      // Re-inserted, so the map's order stays the order of last failures.
+      records.delete(source);
       records.set(source, record);
     },
     success(source) {
       records.delete(source);
+    },
+    size() {
+      return records.size;
     }
   };
 }

@@ -293,8 +293,9 @@ describe("MCP HTTP security helpers", () => {
     }
 
     assert.deepEqual([...statuses], [[401, flood]]);
-    const size = (throttle as unknown as { size(): number }).size();
+    const size = throttle.size();
     assert.ok(size < flood, `no cap: ${size} records kept for ${flood} failing sources`);
+    assert.ok(size <= throttle.maxRecords);
     assert.equal(throttle.check("10.0.0.5", now).locked, true);
   });
 

@@ -89,7 +89,8 @@ deployment, Docker Engine 28.3.3 or newer, because there the port mapping, not
 the application, keeps the instance on the host's loopback, and a UI password,
 because the other containers and the host itself still reach it; and backups.
 For the same reason the MCP companion counts failed tokens per connecting
-address with every host client as one source: a local process sending wrong
+address, remembering a bounded number of addresses, with every host client as
+one source: a local process sending wrong
 tokens locks that address until the lock runs out or the companion restarts,
 and the lock answers only wrong tokens, so the operator's agent, whose token
 is correct, keeps working (#974).
