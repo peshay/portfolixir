@@ -1683,8 +1683,12 @@ Beispiel-Payloads für Konten:
   Geldbetrag, und genau das wird verglichen: Ein Handel, der in der Währung des
   Wertpapiers bepreist und ohne Geldbetrag gesendet wird, antwortet mit 422
   auf `gross_amount` und nennt den Betrag, der gebucht würde, und den, den die
-  Abrechnung ergibt — sende den Betrag, den der Broker abgerechnet hat. Die
-  Prüfung läuft beim Anlegen und bei einem `PATCH`, das `gross_amount`,
+  Abrechnung ergibt — sende den Betrag, den der Broker abgerechnet hat. Ein
+  Handel, der einen `settlement_fx_rate` trägt, aber weder `gross_amount`
+  noch `settlement_amount`, wird ebenso abgelehnt, mit 422 auf
+  `gross_amount` und dem Betrag, der gebucht würde: Ein Kurs ist nicht der
+  Betrag, den der Broker abgerechnet hat, und nichts wird aus ihm
+  abgeleitet. Die Prüfung läuft beim Anlegen und bei einem `PATCH`, das `gross_amount`,
   `settlement_amount`, `fees`, `taxes` oder `type` ändert, oder bei einer
   Buchung ohne `gross_amount` ihre `quantity` oder ihren `price` — ein `PATCH`
   der Notiz oder des Datums einer älteren Buchung wird deswegen nie

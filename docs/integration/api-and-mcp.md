@@ -1562,7 +1562,11 @@ Example account payloads:
   a buy, less them on a sale) as the cash, so that is what is compared: a
   trade priced in the security's currency and sent without its cash amount
   answers 422 on `gross_amount` naming both the amount it would book and the
-  one the settlement implies — send the cash the broker settled. The check
+  one the settlement implies — send the cash the broker settled. A trade
+  that carries a `settlement_fx_rate` but neither `gross_amount` nor
+  `settlement_amount` is refused the same way, 422 on `gross_amount` naming
+  the amount it would book: a rate is not the cash the broker settled, and
+  nothing is derived from it. The check
   runs on create and on a `PATCH` that changes `gross_amount`,
   `settlement_amount`, `fees`, `taxes` or `type`, or, on a booking without a
   `gross_amount`, its `quantity` or `price` — a `PATCH` of the notes or the
