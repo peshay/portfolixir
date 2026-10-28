@@ -11,7 +11,7 @@ msgstr ""
 msgid "is invalid"
 msgstr ""
 
-#: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:453
+#: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:464
 #, elixir-autogen
 msgid "can't be blank"
 msgstr ""

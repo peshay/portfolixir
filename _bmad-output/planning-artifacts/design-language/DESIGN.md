@@ -6331,3 +6331,29 @@ has no result to state, and a zero would claim it is flat").
   make the category its own ancestor"), and the same label opens "… muss
   zur selben Klassifikation gehören". Only the label changes: the slot, the
   severity and the sentence after the label stay as they were.
+
+## Amendment 2026-10-28 — Accounts & depots: Delete always asks *(Sprint 21 pick Q6 = A, board `mockups/ux-design-2026-10-27/06-delete-confirm`; security review 2026-10-12, H17)*
+
+Amends G1-A's row menu (Amendment 2026-09-26, "Delete asks only when it can
+succeed").
+
+- **Delete always asks once.** The row menu's Delete carries its native
+  confirmation whatever the menu read when it opened, so no state switches
+  the ask off; `test/invariants/destructive_confirmations_test.exs` pins it
+  as an unconditional `data-confirm`.
+- **The sentence follows what the menu saw.** A menu that saw a free account
+  asks as before ("…has no bookings and no linked depot.", plus the bucket
+  line). A menu that saw references claims nothing it cannot know: "Delete
+  “Tagesgeld”? If the account still has bookings or a linked depot, the
+  deletion is refused and nothing changes." — for a depot, "If the depot
+  still has bookings, …". German: "„Tagesgeld“ löschen? Hat das Konto noch
+  Buchungen oder ein verknüpftes Depot, wird das Löschen abgelehnt, und
+  nichts ändert sich."
+- **A referenced account's refusal follows the ask**: after OK, "Cannot
+  delete" opens as before when references remain; when they are gone, the
+  account is deleted, as asked.
+- **A delete says so** (board 06, found while drawing 1): a successful
+  delete puts "“Tagesgeld” deleted." („Tagesgeld“ gelöscht.) as a note in
+  the page's inline result (`#accounts-result`), the stored name in
+  `<bdi>`, as a merge reports its result; the row disappearing is no longer
+  the only word.

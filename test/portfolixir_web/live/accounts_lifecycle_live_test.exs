@@ -342,8 +342,9 @@ defmodule PortfolixirWeb.AccountsLifecycleLiveTest do
   # so that I never lose history and know the way forward.
   #
   # Acceptance criteria:
-  # - Delete on a referenced account opens "Cannot delete" directly — no
-  #   confirmation first — naming its bookings and linked depots, counted.
+  # - Delete on a referenced account asks once (H17, Q6 A: its question
+  #   says a referenced account's delete is refused), then opens "Cannot
+  #   delete", naming its bookings and linked depots, counted.
   # - "Merge into…" in that dialog opens the merge's first step for it.
   # - A depot with bookings names its bookings the same way.
   test "a referenced account's delete opens the refusal with Merge instead", %{conn: conn} do
@@ -355,7 +356,10 @@ defmodule PortfolixirWeb.AccountsLifecycleLiveTest do
     view |> element("#cash-kebab-#{w.old.id}") |> render_click()
 
     delete = element(view, "#cash-row-menu-#{w.old.id} [data-role='menu-delete']")
-    refute render(delete) =~ "data-confirm"
+
+    assert render(delete) =~
+             "data-confirm=\"Delete “Tagesgeld (alt)”? If the account still has bookings or a linked depot, the deletion is refused and nothing changes.\""
+
     render_click(delete)
 
     dialog = view |> element("#delete-blocked-dialog") |> render()

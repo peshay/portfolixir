@@ -58,7 +58,15 @@ defmodule PortfolixirWeb.AccountsDeleteConfirmTest do
 
     refute Portfolios.get_cash_account(tagesgeld.id)
     refute has_element?(view, "#delete-blocked-dialog")
-    assert render(view) =~ "“Tagesgeld” deleted."
+
+    result =
+      view
+      |> element("#accounts-result")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.text()
+
+    assert result =~ "“Tagesgeld” deleted."
   end
 
   test "a depot's Delete asks with the depot's sentence and still refuses while it has bookings",
