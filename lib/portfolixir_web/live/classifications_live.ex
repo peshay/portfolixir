@@ -1932,7 +1932,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
   # Asset-class tree: a "move" edits each security's asset_class field; other
   # trees write the stored assignment.
   defp do_assign(%{assigns: %{tree: %{reclassify: true}}} = socket, ids, _cid, category_id) do
-    case Classifications.reclassify_securities(ids, category_id) do
+    case Classifications.reclassify_securities(Actor.owner_ui(), ids, category_id) do
       {:ok, count} -> {:noreply, socket |> success(moved_message(count)) |> reload_composition()}
       {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
     end
@@ -1947,7 +1947,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   # Asset-class tree: "unassign" resets each security's asset_class to automatic.
   defp do_unassign(%{assigns: %{tree: %{reclassify: true}}} = socket, ids, _classification_id) do
-    {:ok, count} = Classifications.reset_asset_class(ids)
+    {:ok, count} = Classifications.reset_asset_class(Actor.owner_ui(), ids)
     {:noreply, socket |> success(unassigned_message(count)) |> reload_composition()}
   end
 

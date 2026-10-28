@@ -379,7 +379,13 @@ defmodule Portfolixir.ClassificationsTest do
     asset_class = Enum.find(trees, &(&1.classification.key == "asset_class"))
     etf = Enum.find(asset_class.categories, &(&1.key == "etf"))
 
-    assert {:ok, 1} = Classifications.reclassify_securities([security.id], etf.id)
+    assert {:ok, 1} =
+             Classifications.reclassify_securities(
+               Portfolixir.Actor.owner_ui(),
+               [security.id],
+               etf.id
+             )
+
     assert Catalog.get_security(security.id).asset_class == "etf"
 
     # The derived asset-class assignment now reflects the edit.
@@ -390,14 +396,20 @@ defmodule Portfolixir.ClassificationsTest do
     assert %{security_id: security.id, category_id: etf.id} in refreshed.assignments
 
     # Dragging to "Unsorted" resets it to automatic (inferred on read).
-    assert {:ok, 1} = Classifications.reset_asset_class([security.id])
+    assert {:ok, 1} =
+             Classifications.reset_asset_class(Portfolixir.Actor.owner_ui(), [security.id])
+
     assert Catalog.get_security(security.id).asset_class == nil
 
     # The currency tree is intrinsic and cannot be reassigned this way.
     currency = Enum.find(trees, &(&1.classification.key == "currency"))
 
     assert {:error, :not_reclassifiable} =
-             Classifications.reclassify_securities([security.id], hd(currency.categories).id)
+             Classifications.reclassify_securities(
+               Portfolixir.Actor.owner_ui(),
+               [security.id],
+               hd(currency.categories).id
+             )
   end
 
   test "seeds the certificate/leverage groups as a hierarchy" do

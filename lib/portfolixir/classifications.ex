@@ -939,14 +939,14 @@ defmodule Portfolixir.Classifications do
   stored custom-tree assignments, the asset-class tree is derived from the
   security field, so a "move" here edits the security (see ADR-0006). Only the
   `asset_class` built-in tree is reclassifiable; the currency tree is intrinsic.
+  Journaled under `actor` (FR-28).
   """
-  def reclassify_securities(security_ids, category_id) when is_list(security_ids) do
+  def reclassify_securities(%Actor{} = actor, security_ids, category_id)
+      when is_list(security_ids) do
     with %Category{} = category <- Repo.get(Category, category_id),
          {:ok, classification} <- fetch_classification_by_id(category.classification_id),
          :ok <- ensure_asset_class(classification) do
-      # FR-28 transitional: a fixed owner actor until Classifications is made
-      # actor-first (leaf-first slice 2); the journal still attributes the write.
-      {:ok, Catalog.set_asset_class(Actor.owner_ui(), security_ids, category.key)}
+      {:ok, Catalog.set_asset_class(actor, security_ids, category.key)}
     else
       nil -> {:error, :category_not_found}
       {:error, reason} -> {:error, reason}
@@ -955,10 +955,11 @@ defmodule Portfolixir.Classifications do
 
   @doc """
   Resets the given securities' `asset_class` to automatic (inferred on read),
-  i.e. dragging them to the asset-class tree's "Unsorted" bucket.
+  i.e. dragging them to the asset-class tree's "Unsorted" bucket, on behalf of
+  `actor` (FR-28).
   """
-  def reset_asset_class(security_ids) when is_list(security_ids) do
-    {:ok, Catalog.set_asset_class(Actor.owner_ui(), security_ids, nil)}
+  def reset_asset_class(%Actor{} = actor, security_ids) when is_list(security_ids) do
+    {:ok, Catalog.set_asset_class(actor, security_ids, nil)}
   end
 
   defp ensure_asset_class(%Classification{key: "asset_class"}), do: :ok
