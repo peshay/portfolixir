@@ -87,9 +87,10 @@ defmodule Portfolixir.Application do
   `PHX_FORCE_SSL` on beyond loopback with no trusted proxy beyond loopback,
   the redirect loop's cause; and, whatever the bind, the entries of
   `PORTFOLIXIR_TRUSTED_PROXIES` that did not parse, and (H04) those too wide
-  to name a proxy; and (H20) an API token with few distinct characters. The
-  decisions are pure
-  functions in `Portfolixir.RuntimeConfig`, so they are unit-tested; this is
+  to name a proxy; (H20) an API token with few distinct characters; and
+  (H19) a `PORTFOLIXIR_SESSION_DAYS` that is not a whole number of days.
+  The decisions are pure functions in `Portfolixir.RuntimeConfig`, so they
+  are unit-tested; this is
   only the wiring. Always `:ok`: a warning, never a refusal.
   """
   @spec warn_if_exposed() :: :ok
@@ -105,13 +106,18 @@ defmodule Portfolixir.Application do
     overbroad = Portfolixir.RuntimeConfig.overbroad_trusted_proxies()
     principals = Application.get_env(:portfolixir, :api_tokens)
 
+    session_days =
+      Application.get_env(:portfolixir, :session_days) ||
+        System.get_env("PORTFOLIXIR_SESSION_DAYS")
+
     for {:warn, message} <- [
           Portfolixir.RuntimeConfig.exposure_warning(ip, password),
           Portfolixir.RuntimeConfig.password_warning(ip, password),
           Portfolixir.RuntimeConfig.trusted_proxies_warning(force_ssl, ip, proxies),
           Portfolixir.RuntimeConfig.unreadable_proxies_warning(unreadable),
           Portfolixir.RuntimeConfig.overbroad_proxies_warning(overbroad),
-          Portfolixir.RuntimeConfig.weak_tokens_warning(principals)
+          Portfolixir.RuntimeConfig.weak_tokens_warning(principals),
+          Portfolixir.RuntimeConfig.session_days_warning(session_days)
         ] do
       Logger.warning(message)
     end

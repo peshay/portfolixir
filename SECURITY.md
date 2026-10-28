@@ -110,7 +110,12 @@ is correct, keeps working (#974).
 
 Sessions: a UI login lasts `PORTFOLIXIR_SESSION_DAYS` days (default 30),
 renewed while the instance is used, enforced on the server rather than trusted
-to the cookie's expiry, and bound to the password it was issued under. What
+to the cookie's expiry, and bound to the password it was issued under. The
+lifetime is checked on every browser request and at every LiveView mount, and
+an open page checks it again before each event and when it runs out, which
+sends the page to the login; only a request renews it, never the page's
+socket. A value that is not a whole number of days falls back to 30 and is
+named in a warning at startup (H19). What
 ends one is narrower than "log out" suggests: a logout clears the login in that
 browser only and closes its live pages, while a copy of the session cookie
 taken earlier stays valid on the same terms as the original.

@@ -86,6 +86,13 @@ session's LiveViews, and rotating `SECRET_KEY_BASE` invalidates every session
 everywhere. With longer-lived cookies that second lever is the one to
 document, and `SECURITY.md` now does.
 
+**Note (2026-10-28, security review 2026-10-12, H19): an open page keeps the
+lifetime too.** A page mounted inside the lifetime re-checks the session it
+mounted with before each event and when the stamp runs out, and is then sent
+to the login; the stamp is still renewed only by a browser request, never over
+the socket. A `PORTFOLIXIR_SESSION_DAYS` that is not a whole number of days
+keeps falling back to 30 and is named in a startup warning.
+
 **Amendment, 2026-09-24 (E25 S1, #886): a session is bound to the password.**
 The 2026-09-24 security review (F02) found that changing
 `PORTFOLIXIR_UI_PASSWORD` left every existing session valid, because a session

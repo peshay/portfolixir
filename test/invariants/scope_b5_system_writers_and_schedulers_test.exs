@@ -78,7 +78,10 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
     "Portfolixir.Imports.PreviewStore" =>
       "sweeps expired import previews; the preview itself waits for a confirm",
     "PortfolixirWeb.PortfolioLive" =>
-      "clears the FX-sync success flash three seconds after it shows; dies with the page"
+      "clears the FX-sync success flash three seconds after it shows; dies with the page",
+    "PortfolixirWeb.LiveUiAuth" =>
+      "re-checks an open page's UI login when its lifetime runs out (H19) and sends the " <>
+        "page to the login; writes nothing, dies with the page"
   }
 
   # Modules allowed to name the journal's `scenario_id` at all: the writer

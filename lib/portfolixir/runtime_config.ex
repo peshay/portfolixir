@@ -723,6 +723,34 @@ defmodule Portfolixir.RuntimeConfig do
   def session_max_age(_value), do: @default_session_days * 86_400
 
   @doc """
+  The startup check behind `session_max_age/1` (security review 2026-10-12,
+  H19): a `PORTFOLIXIR_SESSION_DAYS` that is set but not a whole number of
+  days — a fraction, a unit suffix, a negative number, a typo — falls back to
+  the #{@default_session_days}-day default, and the warning names the value so
+  the fallback is not silent. Unset, blank, `0` and a positive whole number
+  pass. Pure; `Portfolixir.Application` logs it.
+  """
+  @spec session_days_warning(String.t() | integer() | nil) :: :ok | {:warn, String.t()}
+  def session_days_warning(value) when is_binary(value) do
+    trimmed = String.trim(value)
+
+    case Integer.parse(trimmed) do
+      _blank when trimmed == "" -> :ok
+      {days, ""} when days >= 0 -> :ok
+      _unreadable -> unreadable_session_days(value)
+    end
+  end
+
+  def session_days_warning(_value), do: :ok
+
+  defp unreadable_session_days(value) do
+    {:warn,
+     "PORTFOLIXIR_SESSION_DAYS is #{inspect(value)}, not a whole number of days; a UI " <>
+       "login lasts the default #{@default_session_days} days instead. Set a whole " <>
+       "number of days, or 0 for a login that ends when the browser closes."}
+  end
+
+  @doc """
   The proxies whose forwarding headers the application believes (#771, E25 S1
   F09): their `x-forwarded-for` names the throttle's source, and their
   `x-forwarded-proto` the scheme, which loopback may also set.
