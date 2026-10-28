@@ -11,6 +11,7 @@ defmodule PortfolixirWeb.ApiV1RateOnlyTradeRefusalTest do
   alias Portfolixir.Ledger.SettlementGuard
   alias Portfolixir.Ledger.Transaction
   alias Portfolixir.Repo
+  alias Portfolixir.WorldFixtures
 
   defp api_conn(conn) do
     conn
@@ -220,6 +221,131 @@ defmodule PortfolixirWeb.ApiV1RateOnlyTradeRefusalTest do
       stored = Repo.get!(Transaction, tx.id)
       assert is_nil(stored.gross_amount)
       assert is_nil(stored.settlement_amount)
+    end
+  end
+
+  # A row as a writer before the refusal left it: a USD buy through the EUR
+  # account with a rate and neither amount, written past the changeset with
+  # the journal actor set.
+  defp stored_rate_only_buy!(w) do
+    {:ok, tx} =
+      Repo.transaction(fn ->
+        {type, _label} = Actor.to_columns(Actor.owner_ui())
+        Repo.query!("SELECT set_config('portfolixir.journal_actor', $1, true)", [type])
+
+        Repo.insert!(%Transaction{
+          portfolio_id: w.portfolio.id,
+          securities_account_id: w.depot.id,
+          cash_account_id: w.cash.id,
+          security_id: w.security.id,
+          type: "buy",
+          date: ~D[2026-04-01],
+          quantity: Decimal.new("10"),
+          price: Decimal.new("100"),
+          fees: Decimal.new("0"),
+          taxes: Decimal.new("0"),
+          currency_code: "USD",
+          settlement_fx_rate: Decimal.new("0.9")
+        })
+      end)
+
+    tx
+  end
+
+  defp more_accounts(w) do
+    usd =
+      WorldFixtures.add_depot(w.portfolio,
+        cash_currency: "USD",
+        cash_name: "USD Cash",
+        depot_name: "USD Depot"
+      )
+
+    eur = WorldFixtures.add_depot(w.portfolio, cash_name: "EUR Cash 2", depot_name: "EUR Depot 2")
+    %{usd: usd, eur: eur}
+  end
+
+  # A buy in the account's own currency with a rate stored beside it and no
+  # amounts: accepted, it books its own currency's cash.
+  defp same_currency_rate_only_buy!(w) do
+    conn =
+      post_json("/api/v1/transactions", %{
+        "transaction" =>
+          trade(w, "buy", %{"currency_code" => "EUR", "settlement_fx_rate" => "0.9"})
+      })
+
+    json_response(conn, 201)["data"]["id"]
+  end
+
+  defp patch_tx(id, attrs),
+    do: patch_json("/api/v1/transactions/#{id}", %{"transaction" => attrs})
+
+  # User story (security review 2026-10-12, H35; the ADR-0015 amendment of
+  # 2026-10-09, point 1):
+  # As the operator whose agent edits a stored trade,
+  # I want an update that changes the trade's currency, its cash account or
+  # its depot checked by the settlement guard as an insert is,
+  # so that no edit leaves a cross-currency trade with a rate and neither
+  # amount behind.
+  #
+  # Acceptance criteria:
+  # - A same-currency trade with a rate and no amounts answers 422 on
+  #   gross_amount when a PATCH changes only its currency_code, or only its
+  #   cash_account_id to an account of another currency; the row is unchanged.
+  # - A stored rate-only cross-currency trade answers 422 on gross_amount when
+  #   a PATCH changes only its securities_account_id.
+  # - A trade that carries its amounts passes the settlement check on the
+  #   same PATCHes as before.
+  describe "an update that changes the currency, the account or the depot" do
+    test "a currency change on a same-currency rate-only trade is refused", %{world: w} do
+      id = same_currency_rate_only_buy!(w)
+      assert Decimal.equal?(eur_balance(w), Decimal.new("9000"))
+
+      conn = patch_tx(id, %{"currency_code" => "USD"})
+
+      assert %{"errors" => %{"gross_amount" => [message]}} = json_response(conn, 422)
+      assert message =~ "(1000)"
+      assert Repo.get!(Transaction, id).currency_code == "EUR"
+      assert Decimal.equal?(eur_balance(w), Decimal.new("9000"))
+    end
+
+    test "a move to an account of another currency is refused", %{world: w} do
+      %{usd: usd} = more_accounts(w)
+      id = same_currency_rate_only_buy!(w)
+
+      conn = patch_tx(id, %{"cash_account_id" => usd.cash.id})
+
+      assert %{"errors" => %{"gross_amount" => [_message]}} = json_response(conn, 422)
+      assert Repo.get!(Transaction, id).cash_account_id == w.cash.id
+    end
+
+    test "a depot change on a stored rate-only trade is refused", %{world: w} do
+      %{eur: eur} = more_accounts(w)
+      tx = stored_rate_only_buy!(w)
+
+      conn = patch_tx(tx.id, %{"securities_account_id" => eur.depot.id})
+
+      assert %{"errors" => %{"gross_amount" => [_message]}} = json_response(conn, 422)
+      assert Repo.get!(Transaction, tx.id).securities_account_id == w.depot.id
+    end
+
+    test "a trade that carries its amounts passes the same updates", %{world: w} do
+      %{eur: eur} = more_accounts(w)
+
+      id =
+        json_response(post_json("/api/v1/transactions", %{"transaction" => correct_buy(w)}), 201)[
+          "data"
+        ]["id"]
+
+      assert %{"data" => _} =
+               json_response(patch_tx(id, %{"securities_account_id" => eur.depot.id}), 200)
+
+      assert %{"data" => _} =
+               json_response(patch_tx(id, %{"cash_account_id" => eur.cash.id}), 200)
+
+      assert %{"data" => %{"currency_code" => "EUR"}} =
+               json_response(patch_tx(id, %{"currency_code" => "EUR"}), 200)
+
+      assert Decimal.equal?(Repo.get!(Transaction, id).gross_amount, Decimal.new("900"))
     end
   end
 

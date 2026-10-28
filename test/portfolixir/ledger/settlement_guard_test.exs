@@ -1,7 +1,7 @@
 defmodule Portfolixir.Ledger.SettlementGuardTest do
   use Portfolixir.DataCase, async: true
 
-  import Portfolixir.WorldFixtures, only: [base_world: 1, create_security!: 1]
+  import Portfolixir.WorldFixtures, only: [add_depot: 2, base_world: 1, create_security!: 1]
 
   alias Portfolixir.Actor
   alias Portfolixir.Ledger
@@ -420,6 +420,100 @@ defmodule Portfolixir.Ledger.SettlementGuardTest do
 
       assert {:ok, %Transaction{gross_amount: nil}} =
                trade(w, "buy", Map.put(rate_only, :currency_code, "EUR"))
+    end
+  end
+
+  # User story (security review 2026-10-12, H35; the ADR-0015 amendment of
+  # 2026-10-09, point 1):
+  # As the operator editing a stored trade through the ledger,
+  # I want an update that changes its currency, its cash account or its depot
+  # checked by the settlement guard,
+  # so that no edit leaves a cross-currency trade with a rate and neither
+  # amount behind.
+  #
+  # Acceptance criteria:
+  # - A same-currency trade with a rate and no amounts is refused on
+  #   gross_amount when an update changes only its currency_code, or only
+  #   its cash_account_id to an account of another currency.
+  # - A stored rate-only cross-currency trade is refused on gross_amount when
+  #   an update changes only its securities_account_id.
+  # - A trade that carries its amounts passes the same updates.
+  describe "an update that changes the currency, the account or the depot (H35)" do
+    setup do
+      w = world()
+
+      usd =
+        add_depot(w.portfolio,
+          cash_currency: "USD",
+          cash_name: "USD Cash",
+          depot_name: "USD Depot"
+        )
+
+      eur = add_depot(w.portfolio, cash_name: "EUR Cash 2", depot_name: "EUR Depot 2")
+      rate_only = %{security_amount: nil, settlement_amount: nil, gross_amount: nil}
+      %{w: w, usd: usd, eur: eur, rate_only: rate_only}
+    end
+
+    test "a same-currency rate-only trade moved to another currency is refused",
+         %{w: w, usd: usd, rate_only: rate_only} do
+      {:ok, tx} = trade(w, "buy", Map.put(rate_only, :currency_code, "EUR"))
+
+      assert {:error, changeset} =
+               Ledger.update_transaction(Actor.owner_ui(), tx, %{currency_code: "USD"})
+
+      assert [message] = gross_error(changeset)
+      assert message =~ "(2004.9)"
+
+      assert {:error, changeset} =
+               Ledger.update_transaction(Actor.owner_ui(), tx, %{cash_account_id: usd.cash.id})
+
+      assert [_message] = gross_error(changeset)
+    end
+
+    test "a stored rate-only trade whose depot changes is refused", %{w: w, eur: eur} do
+      {:ok, tx} =
+        Repo.transaction(fn ->
+          {type, _label} = Actor.to_columns(Actor.owner_ui())
+          Repo.query!("SELECT set_config('portfolixir.journal_actor', $1, true)", [type])
+
+          Repo.insert!(%Transaction{
+            portfolio_id: w.portfolio.id,
+            securities_account_id: w.depot.id,
+            cash_account_id: w.cash.id,
+            security_id: w.security.id,
+            type: "buy",
+            date: ~D[2026-04-01],
+            quantity: Decimal.new("10"),
+            price: Decimal.new("200.00"),
+            fees: Decimal.new("4.90"),
+            taxes: Decimal.new("0"),
+            currency_code: "USD",
+            settlement_fx_rate: Decimal.new("0.90909")
+          })
+        end)
+
+      assert {:error, changeset} =
+               Ledger.update_transaction(Actor.owner_ui(), tx, %{
+                 securities_account_id: eur.depot.id
+               })
+
+      assert [message] = gross_error(changeset)
+      assert message =~ "(2004.9)"
+    end
+
+    test "a trade that carries its amounts passes the same updates", %{w: w, eur: eur} do
+      {:ok, tx} = trade(w, "buy", %{gross_amount: Decimal.new("1823.08")})
+
+      assert {:ok, tx} =
+               Ledger.update_transaction(Actor.owner_ui(), tx, %{
+                 securities_account_id: eur.depot.id
+               })
+
+      assert {:ok, tx} =
+               Ledger.update_transaction(Actor.owner_ui(), tx, %{cash_account_id: eur.cash.id})
+
+      assert {:ok, %Transaction{currency_code: "EUR"}} =
+               Ledger.update_transaction(Actor.owner_ui(), tx, %{currency_code: "EUR"})
     end
   end
 end
