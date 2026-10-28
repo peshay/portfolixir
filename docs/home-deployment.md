@@ -686,8 +686,8 @@ browser extension injected script into it — the policy did its job.
 
 ## Development stack
 
-The development configuration — source mounted, Mix present, debug pages,
-origin checks off, the database port published for local tooling — lives in
+The development configuration — source mounted, Mix present, debug pages, a
+public session key, the database port published for local tooling — lives in
 `docker-compose.dev.yml` and is never the documented deployment:
 
 ```bash

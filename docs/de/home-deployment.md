@@ -730,8 +730,8 @@ hat ihre Arbeit getan.
 ## Entwicklungs-Stack
 
 Die Entwicklungskonfiguration — Quelltext eingebunden, Mix vorhanden,
-Debug-Seiten, Origin-Prüfungen aus, der Datenbank-Port für lokale Werkzeuge
-veröffentlicht — liegt in `docker-compose.dev.yml` und ist nie das
+Debug-Seiten, ein öffentlicher Sitzungsschlüssel, der Datenbank-Port für
+lokale Werkzeuge veröffentlicht — liegt in `docker-compose.dev.yml` und ist nie das
 dokumentierte Deployment:
 
 ```bash

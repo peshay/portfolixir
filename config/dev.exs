@@ -16,19 +16,6 @@ config :portfolixir, Portfolixir.Repo,
 
 dev_http_port = String.to_integer(System.get_env("PORT", "4000"))
 
-config :portfolixir, PortfolixirWeb.Endpoint,
-  url: [host: System.get_env("PHX_HOST", "localhost"), port: dev_http_port],
-  http: [
-    ip: if(bind_all_http in ["1", "true", "yes"], do: {0, 0, 0, 0}, else: {127, 0, 0, 1}),
-    port: dev_http_port
-  ],
-  check_origin: false,
-  code_reloader: true,
-  debug_errors: true,
-  secret_key_base:
-    "dev_secret_key_base_which_should_be_changed_in_production_and_is_long_enough_for_sessions",
-  watchers: []
-
 # The Host allow-list (ADR-0045 §2, #758): PHX_HOST, the loopback names, and
 # PORTFOLIXIR_ALLOWED_HOSTS for a LAN address or a proxy name.
 # Inlined rather than delegated to Portfolixir.RuntimeConfig because this file
@@ -38,12 +25,40 @@ dev_extra_hosts =
   |> System.get_env("")
   |> String.split(",")
 
-config :portfolixir, PortfolixirWeb.HostGuard,
-  hosts:
-    ([System.get_env("PHX_HOST", "localhost"), "localhost", "127.0.0.1"] ++ dev_extra_hosts)
-    |> Enum.map(&(&1 |> String.trim() |> String.downcase()))
-    |> Enum.reject(&(&1 == ""))
-    |> Enum.uniq()
+dev_hosts =
+  ([System.get_env("PHX_HOST", "localhost"), "localhost", "127.0.0.1"] ++ dev_extra_hosts)
+  |> Enum.map(&(&1 |> String.trim() |> String.downcase()))
+  |> Enum.reject(&(&1 == ""))
+  |> Enum.uniq()
+
+# Public: committed here, so it signs nothing an operator should rely on; the
+# run-from-source route requires the UI password (README, SECURITY.md).
+dev_secret_key_base =
+  "dev_secret_key_base_which_should_be_changed_in_production_and_is_long_enough_for_sessions"
+
+config :portfolixir, PortfolixirWeb.Endpoint,
+  url: [host: System.get_env("PHX_HOST", "localhost"), port: dev_http_port],
+  http: [
+    ip: if(bind_all_http in ["1", "true", "yes"], do: {0, 0, 0, 0}, else: {127, 0, 0, 1}),
+    port: dev_http_port
+  ],
+  # The socket handshake accepts the names the Host guard accepts, as a
+  # release's does (K18): the socket is dispatched ahead of the guard.
+  check_origin: Enum.map(dev_hosts, &("//" <> &1)),
+  # Derived from the secret as config/runtime.exs derives a release's
+  # (Portfolixir.RuntimeConfig.derived_salt/2, inlined for the reason above).
+  live_view: [
+    signing_salt:
+      :hmac
+      |> :crypto.mac(:sha256, dev_secret_key_base, "portfolixir.live_view.signing_salt")
+      |> Base.url_encode64(padding: false)
+  ],
+  code_reloader: true,
+  debug_errors: true,
+  secret_key_base: dev_secret_key_base,
+  watchers: []
+
+config :portfolixir, PortfolixirWeb.HostGuard, hosts: dev_hosts
 
 # Logo discovery and the quote and FX sync fetch from public hosts by
 # themselves, at boot and after every new security.

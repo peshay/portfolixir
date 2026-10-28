@@ -1,5 +1,5 @@
 # The DEVELOPMENT configuration (#760): source mounted, Mix present, debug
-# pages, origin checks off. Never the documented deployment — that is
+# pages, a public session key. Never the documented deployment — that is
 # docker-compose.yml (a production release). Run with:
 #   docker compose -f docker-compose.dev.yml up --build
 # The database port is published for local tooling; the tokens have no

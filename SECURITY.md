@@ -123,8 +123,8 @@ cookie may be in someone else's hands (ADR-0045).
 
 The development stack, `docker-compose.dev.yml`, is not a deployment. It runs
 on public development secrets: the database password `postgres` and the
-`SECRET_KEY_BASE` committed in `config/dev.exs`, with debug pages and origin
-checks off. Anyone who reaches its ports can read and change its data, so both
+`SECRET_KEY_BASE` committed in `config/dev.exs`, with debug pages on. Anyone
+who reaches its ports can read and change its data, so both
 its ports, the application's and the database's, are published on loopback
 only (E25), and it holds synthetic data, never an operator's real records. An
 instance still running the development stack as its deployment, as the
@@ -135,6 +135,12 @@ connects as the superuser `postgres` with the password `postgres`, which
 `config/dev.exs` fixes, so the PostgreSQL it uses accepts that public login
 from every process on the machine; a release, by contrast, refuses to boot on
 an empty, placeholder or short database password.
+Running from source (`mix phx.server`, the README's "Run from source") uses
+the same development configuration and so the same public session key: its
+socket accepts only the names its Host guard does and its LiveView salt is
+derived from the secret, as a release's are, but anyone can sign a session for
+it, so that route requires `PORTFOLIXIR_UI_PASSWORD`, without which every
+process on the machine can use the UI (K18).
 
 Known limits, recorded rather than hidden: as shipped, the application
 connects as the database's bootstrap superuser, which also owns the tables, so

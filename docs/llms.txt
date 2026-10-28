@@ -109,8 +109,10 @@ modules (btree_gist). `mix` reads no `.env`: export `PORTFOLIXIR_API_TOKEN` and
 with `DATABASE_NAME`, `DATABASE_HOST` and `DATABASE_PORT` (default
 `portfolixir_dev` on `127.0.0.1:5432`); it connects as user `postgres` with
 password `postgres`, which `config/dev.exs` fixes: no variable changes them. It
-listens on loopback, on `PORT` (default `4000`); without
-`PORTFOLIXIR_UI_PASSWORD` its web UI asks for no login. Where nobody types at a
+listens on loopback, on `PORT` (default `4000`); the route requires
+`PORTFOLIXIR_UI_PASSWORD`: without it its web UI asks for no login, and the
+development configuration's session key is public, so the password is its only
+lock. Where nobody types at a
 prompt, as in an agent's shell, generate the password into a file only the
 operator can read (`umask 077`, `openssl rand -base64 24`) and export it from
 there, so no command line and no shell history holds it; start the server in the
