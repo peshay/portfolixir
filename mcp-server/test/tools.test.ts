@@ -1255,6 +1255,9 @@ describe("Portfolixir MCP tools", () => {
       assert.match(description(name), /has_more=true/, name);
       assert.match(description(name), /cursor past the last (row|entry)|cursor past its last row/, name);
       assert.match(description(name), /truncated/, name);
+      // A page held at the in-flight bound: no ~id, poll again later.
+      assert.match(description(name), /no ~id/, name);
+      assert.match(description(name), /poll later/, name);
     }
 
     const rules = description("portfolixir.policy_rules.list");

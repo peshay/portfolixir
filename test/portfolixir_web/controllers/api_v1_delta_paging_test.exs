@@ -245,6 +245,47 @@ defmodule PortfolixirWeb.ApiV1DeltaPagingTest do
   end
 
   # User story (security review 2026-10-12, K17):
+  # As the agent paging a delta read,
+  # I want a full page whose rows sit behind a write still in flight to say
+  # that the rest waits on that write,
+  # so that I poll again later instead of re-reading the same page at once.
+  #
+  # Acceptance criteria:
+  # - When the page's last row is newer than the read's in-flight bound, the
+  #   page carries `has_more: true` and an `as_of` without `~<id>`: the bound.
+  # - The delta note tells the two apart: a cursor ending in `~<id>` is read
+  #   again at once, an `as_of` without it means poll again later.
+  test "a full page held at the in-flight bound says to poll again later, not at once" do
+    world = WorldFixtures.base_world(name: "Paging Held")
+
+    for amount <- ["1.00", "2.00", "3.00"],
+        do: WorldFixtures.deposit!(world, amount, ~D[2026-01-02])
+
+    # Rows stamped after the read's bound: what a write still in flight, or
+    # one committed within the bound's margin, leaves.
+    later =
+      NaiveDateTime.utc_now() |> NaiveDateTime.add(60, :second) |> NaiveDateTime.truncate(:second)
+
+    Repo.query!("SELECT set_config('portfolixir.journal_actor', 'test_backdate', true)")
+    Repo.query!("UPDATE transactions SET updated_at = $1", [later])
+
+    extra = %{"limit" => "2", "fields" => "id"}
+    assert {200, first} = poll("/api/v1/transactions", previous_cursor(), extra)
+
+    assert first["has_more"] == true
+    refute first["as_of"] =~ "~"
+    assert first["delta_note"] =~ "ending in `~<id>`"
+    assert first["delta_note"] =~ "read again with it at once"
+    assert first["delta_note"] =~ "without `~<id>`"
+    assert first["delta_note"] =~ "poll again later, not at once"
+
+    # Polling at once re-reads the held page: nothing is lost, nothing moves.
+    assert {200, again} = poll("/api/v1/transactions", first["as_of"], extra)
+    assert again["has_more"] == true
+    assert Enum.map(again["data"], & &1["id"]) == Enum.map(first["data"], & &1["id"])
+  end
+
+  # User story (security review 2026-10-12, K17):
   # As the agent reading a capped list,
   # I want every read of the delta-capable lists to echo the limit it applied
   # and whether rows were left out,
