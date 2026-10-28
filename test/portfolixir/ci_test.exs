@@ -94,7 +94,7 @@ defmodule Portfolixir.CITest do
   # As a self-hosted operator upgrading between sprints,
   # I want every sprint merge to produce a version tag and a GitHub release
   # with generated notes,
-  # so that a known-good rollback point and a communicable changelog exist
+  # so that a rollback point and a communicable changelog exist
   # without any manual release work (issue 659, ADR-0026 step 5).
   #
   # Acceptance criteria:
@@ -203,6 +203,40 @@ defmodule Portfolixir.CITest do
 
     adr = File.read!("docs/decisions/0026-epic-batch-workflow.md")
     assert adr =~ "Amendment: calendar versions made by the Release workflow"
+  end
+
+  # User story (security review 2026-10-12, H66):
+  # As a self-hosted operator pinning or rolling back to a release,
+  # I want the deployment guide to say what a release is: a merged point, cut
+  # on the push to `main` while CI runs on the same commit, not after it,
+  # so that I check the commit's CI run before I rely on it instead of
+  # trusting a label no gate stands behind.
+  #
+  # Acceptance criteria:
+  # - While the calendar release runs on the push itself (no CI result is
+  #   read before the tag is made), the guide, in English and in German,
+  #   calls a release a merged point, not a known-good one, and says to check
+  #   the CI run on the release's commit first.
+  test "the deployment guide calls a release what the workflow makes it" do
+    release = File.read!(".github/workflows/release.yml")
+
+    # The release is cut on the push, beside CI, with nothing that reads CI.
+    assert release =~ ~r/^on:\n  push:\n/m
+    refute release =~ "check-runs"
+    refute release =~ "workflow_run"
+
+    for {path, merged, known_good, check_ci} <- [
+          {"docs/home-deployment.md", "a merged point", ~r/known.good/i,
+           "check that the CI run on its commit passed"},
+          {"docs/de/home-deployment.md", "ein gemergter Stand", ~r/bekannt gute/i,
+           "prüfe, ob der CI-Lauf auf seinem Commit grün war"}
+        ] do
+      guide = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      assert guide =~ merged, "#{path}: a release is not called a merged point"
+      refute guide =~ known_good, "#{path}: a release is still called known-good"
+      assert guide =~ check_ci, "#{path}: no word on checking the release's CI run"
+    end
   end
 
   # The version arithmetic of the calendar job, run as the job runs it: the
