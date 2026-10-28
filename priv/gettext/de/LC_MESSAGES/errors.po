@@ -209,3 +209,7 @@ msgstr "wurde bei einer Zusammenführung stillgelegt und kann nicht erneut gebuc
 
 msgid "is never set on a balance anchor or a split"
 msgstr "wird bei „Saldo gesetzt“ und einem Split nie gesetzt"
+
+## Portfolixir.Catalog.Security: a whole-number attribute typed at write (H37).
+msgid "%{key} must be a whole number"
+msgstr "%{key} muss eine ganze Zahl sein"

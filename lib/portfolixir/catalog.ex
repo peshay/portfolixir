@@ -1071,14 +1071,25 @@ defmodule Portfolixir.Catalog do
     from(s in query, order_by: [desc: field(s, ^key)])
   end
 
-  defp order_by_field(query, %Field{source: {:attributes, jsonb_key}, type: type}, :asc)
-       when type in [:integer, :decimal] do
-    from(s in query, order_by: [asc: fragment("(? ->> ?)::numeric", s.attributes, ^jsonb_key)])
-  end
+  # The cast runs only on a value of numeric shape (H37): one stored before
+  # the write was typed sorts with the empty ones instead of failing the read.
+  @numeric_text "^-?[0-9]+(\\.[0-9]+)?$"
 
-  defp order_by_field(query, %Field{source: {:attributes, jsonb_key}, type: type}, :desc)
-       when type in [:integer, :decimal] do
-    from(s in query, order_by: [desc: fragment("(? ->> ?)::numeric", s.attributes, ^jsonb_key)])
+  defp order_by_field(query, %Field{source: {:attributes, jsonb_key}, type: type}, dir)
+       when type in [:integer, :decimal] and dir in [:asc, :desc] do
+    from(s in query,
+      order_by: [
+        {^dir,
+         fragment(
+           "CASE WHEN (? ->> ?) ~ ? THEN (? ->> ?)::numeric END",
+           s.attributes,
+           ^jsonb_key,
+           ^@numeric_text,
+           s.attributes,
+           ^jsonb_key
+         )}
+      ]
+    )
   end
 
   defp order_by_field(query, %Field{source: {:attributes, jsonb_key}}, :asc) do

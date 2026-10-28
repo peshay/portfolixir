@@ -23,6 +23,7 @@ defmodule Portfolixir.Catalog.SecuritySearch.SearchResult do
   attributes read, as bounded scalars — never the provider's whole entry.
   """
 
+  alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Catalog.SecuritySearch.Market
   alias Portfolixir.Catalog.SecuritySearch.Properties
 
@@ -166,6 +167,21 @@ defmodule Portfolixir.Catalog.SecuritySearch.SearchResult do
     result
     |> base_attributes(market)
     |> Properties.sanitize()
+    |> type_whole_numbers()
+  end
+
+  # A provider's value under a key the registry types as a whole number is
+  # stored as a number or not at all (H37): the operator cannot correct what
+  # a provider sent, so it is dropped rather than refused.
+  defp type_whole_numbers(attributes) do
+    Enum.reduce(SecurityFields.whole_number_attribute_keys(), attributes, fn key, acc ->
+      with {:ok, value} <- Map.fetch(acc, key),
+           {:ok, number} <- SecurityFields.whole_number(value) do
+        Map.put(acc, key, number)
+      else
+        :error -> Map.delete(acc, key)
+      end
+    end)
   end
 
   defp base_attributes(%__MODULE__{} = result, nil) do

@@ -216,3 +216,7 @@ msgstr ""
 
 msgid "is never set on a balance anchor or a split"
 msgstr ""
+
+## Portfolixir.Catalog.Security: a whole-number attribute typed at write (H37).
+msgid "%{key} must be a whole number"
+msgstr ""

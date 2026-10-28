@@ -6,6 +6,7 @@ defmodule Portfolixir.Catalog.Security do
   alias Portfolixir.Catalog.Currencies
   alias Portfolixir.Catalog.Feeds
   alias Portfolixir.Catalog.Isin
+  alias Portfolixir.Catalog.SecurityFields
   alias Portfolixir.Input.BoundedDate
   alias Portfolixir.Input.BoundedDecimal
   alias Portfolixir.Input.Text
@@ -116,6 +117,10 @@ defmodule Portfolixir.Catalog.Security do
     # value, which would otherwise be a failed write.
     |> Text.validate_map(:attributes)
     |> protect_attributes()
+    # The registry's whole-number attributes are typed at write (H37): a
+    # number or its text is stored as a number, anything else is a field
+    # error, so a numeric sort never meets a word.
+    |> type_whole_number_attributes()
     # The map as it will be stored, merged with what is there, is bounded
     # (E25 S6, G02): a writer adding keys on every call cannot grow the row,
     # and each journal entry of it, without end.
@@ -546,6 +551,38 @@ defmodule Portfolixir.Catalog.Security do
 
       _no_change ->
         changeset
+    end
+  end
+
+  defp type_whole_number_attributes(changeset) do
+    case fetch_change(changeset, :attributes) do
+      {:ok, attributes} when is_map(attributes) ->
+        existing = changeset.data.attributes || %{}
+
+        Enum.reduce(SecurityFields.whole_number_attribute_keys(), changeset, fn key, acc ->
+          type_whole_number(acc, key, Map.get(attributes, key), Map.get(existing, key))
+        end)
+
+      _no_change ->
+        changeset
+    end
+  end
+
+  # A value stored before the rule and left as it is stays (the sort reads it
+  # as empty); only what this write brings is typed.
+  defp type_whole_number(changeset, _key, nil, _existing), do: changeset
+  defp type_whole_number(changeset, _key, same, same), do: changeset
+
+  defp type_whole_number(changeset, key, value, _existing) do
+    case SecurityFields.whole_number(value) do
+      {:ok, number} ->
+        update_change(changeset, :attributes, &Map.put(&1, key, number))
+
+      :error ->
+        add_error(changeset, :attributes, "%{key} must be a whole number",
+          key: key,
+          validation: :whole_number
+        )
     end
   end
 
