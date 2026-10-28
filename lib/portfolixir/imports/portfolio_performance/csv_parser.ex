@@ -188,16 +188,15 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParser do
     end
   end
 
-  defp count_lines(body, from, lines) when from >= byte_size(body), do: {:ok, lines}
+  # One pass over the bytes, `length` the bytes of the line read so far.
+  defp count_lines(<<?\n, rest::binary>>, lines, _length), do: count_lines(rest, lines + 1, 0)
+  defp count_lines(_rest, _lines, length) when length > @max_line_bytes, do: :too_long
 
-  defp count_lines(body, from, lines) do
-    case :binary.match(body, "\n", scope: {from, byte_size(body) - from}) do
-      {at, 1} when at - from > @max_line_bytes -> :too_long
-      {at, 1} -> count_lines(body, at + 1, lines + 1)
-      :nomatch when byte_size(body) - from > @max_line_bytes -> :too_long
-      :nomatch -> {:ok, lines + 1}
-    end
-  end
+  defp count_lines(<<_byte, rest::binary>>, lines, length),
+    do: count_lines(rest, lines, length + 1)
+
+  defp count_lines(<<>>, lines, 0), do: {:ok, lines}
+  defp count_lines(<<>>, lines, _length), do: {:ok, lines + 1}
 
   # The body's lines, each with its line break, as the stream parser reads a
   # file.
