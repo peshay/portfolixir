@@ -1056,7 +1056,9 @@ added migrations, restore the database backup taken before that upgrade.
 - The release logs at `info`: the request lines, each live page's socket
   connect with its CSRF token filtered out, warnings and errors. The database
   queries, the parameters of each request and page event, and the session
-  contents that the `debug` level writes stay out of the log. A control
+  contents that the `debug` level writes stay out of the log; a page that
+  crashes is logged with its reason and stack and the name of the event it
+  was handling, without the last message's values. A control
   character in a log entry is written as a visible escape (`\x1B` for ESC),
   so nothing a request carries can forge a log line or reach the terminal
   that reads the log. In Compose every container logs through Docker's

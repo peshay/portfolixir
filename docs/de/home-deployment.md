@@ -1128,7 +1128,10 @@ Datenbanksicherung zurück.
   Socket-Verbindungsaufbau jeder Live-Seite mit herausgefiltertem CSRF-Token,
   Warnungen und Fehler. Die Datenbankabfragen, die Parameter jeder Anfrage
   und jedes Seitenereignisses und die Sitzungsinhalte, die die Stufe `debug`
-  schreibt, bleiben aus dem Log. Ein Steuerzeichen in einem Log-Eintrag wird
+  schreibt, bleiben aus dem Log; eine Seite, die abstürzt, wird mit Grund,
+  Stack und dem Namen des Ereignisses protokolliert, das sie gerade
+  verarbeitete, ohne die Werte der letzten Nachricht. Ein
+  Steuerzeichen in einem Log-Eintrag wird
   als sichtbare Escape-Folge geschrieben (`\x1B` für ESC), sodass nichts, was
   eine Anfrage mitbringt, eine Log-Zeile fälschen oder das Terminal erreichen
   kann, das das Log liest. In Compose schreibt jeder Container über Dockers
