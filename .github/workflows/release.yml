@@ -16,7 +16,9 @@ name: Release
 # Path filters are not evaluated for tag pushes, so the tag patterns trigger
 # on every hand-pushed version tag while a push to `main` triggers only when
 # it changes what the release image (Dockerfile.release), the companion's
-# image (mcp-server/Dockerfile) or the operator's Compose file ship.
+# image (mcp-server/Dockerfile) or the operator's Compose file ship. The two
+# build contexts' .dockerignore files decide what enters the images, so they
+# are shipped paths too (#1189).
 on:
   push:
     tags: ["v*", "[0-9]*.[0-9]*.[0-9]*"]
@@ -36,6 +38,8 @@ on:
       - "mcp-server/tsconfig.json"
       - "mcp-server/.npmrc"
       - "mcp-server/Dockerfile"
+      - ".dockerignore"
+      - "mcp-server/.dockerignore"
 
 # contents: write is required to create a tag and a release; this workflow
 # touches nothing else.

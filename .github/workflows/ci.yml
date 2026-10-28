@@ -429,8 +429,8 @@ jobs:
           persist-credentials: false
 
       # The stack is built only when a change can change what it builds: the
-      # paths release.yml cuts a release for, the two build contexts'
-      # .dockerignore files, and this workflow. A `paths:` filter on the
+      # paths release.yml cuts a release for (the two build contexts'
+      # .dockerignore files among them, #1189), and this workflow. A `paths:` filter on the
       # workflow would hold back every other job, and a third-party filter
       # action would be one more dependency on the runner, so git compares
       # the commits here. A pull request is compared with its base, a push
