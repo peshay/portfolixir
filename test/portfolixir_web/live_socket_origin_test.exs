@@ -10,7 +10,8 @@ defmodule PortfolixirWeb.LiveSocketOriginTest do
   @release_env %{
     "SECRET_KEY_BASE" => String.duplicate("k7Qm", 16),
     "PHX_HOST" => "portfolixir.example",
-    "DATABASE_URL" => "ecto://portfolixir:synthetic@db.example/portfolixir_prod",
+    "DATABASE_URL" =>
+      "ecto://portfolixir:#{String.duplicate("d8Wq", 16)}@db.example/portfolixir_prod",
     "PORTFOLIXIR_API_TOKEN" => String.duplicate("t3Zx", 12),
     "PORTFOLIXIR_ALLOWED_HOSTS" => "nas.example"
   }

@@ -521,6 +521,56 @@ defmodule Portfolixir.RuntimeConfig do
           "SECRET_KEY_BASE is required; generate one with `openssl rand -base64 48`"
   end
 
+  # What `openssl rand -hex 32` prints is twice this.
+  @min_database_password_bytes 32
+
+  @doc """
+  The `DATABASE_URL` a release boots with (security review 2026-10-12, H18;
+  T-14): its password, which the Compose deployment takes from
+  `POSTGRES_PASSWORD`, is present, at least #{@min_database_password_bytes}
+  bytes and not a placeholder the example files ship. Raises naming the
+  variables, never the value; the URL is returned unchanged.
+  """
+  @spec validate_database_url!(String.t()) :: String.t()
+  def validate_database_url!(url) when is_binary(url) do
+    password = database_password(url)
+
+    cond do
+      password == "" ->
+        database_password_error!("is empty")
+
+      byte_size(password) < @min_database_password_bytes ->
+        database_password_error!(
+          "is shorter than #{@min_database_password_bytes} bytes (got #{byte_size(password)})"
+        )
+
+      placeholder?(password) ->
+        database_password_error!("is a placeholder")
+
+      true ->
+        url
+    end
+  end
+
+  defp database_password(url) do
+    case URI.parse(url).userinfo do
+      nil ->
+        ""
+
+      userinfo ->
+        case String.split(userinfo, ":", parts: 2) do
+          [_user, password] -> URI.decode(password)
+          [_user] -> ""
+        end
+    end
+  end
+
+  defp database_password_error!(what) do
+    raise ArgumentError,
+          "the database password in DATABASE_URL (POSTGRES_PASSWORD in the Compose " <>
+            "deployment) #{what}; generate one with `openssl rand -hex 32`"
+  end
+
   defp truthy?(value) do
     value
     |> String.trim()

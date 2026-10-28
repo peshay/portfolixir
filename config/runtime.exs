@@ -88,7 +88,7 @@ if config_env() == :prod do
          )
 
   config :portfolixir, Portfolixir.Repo,
-    url: System.fetch_env!("DATABASE_URL"),
+    url: Portfolixir.RuntimeConfig.validate_database_url!(System.fetch_env!("DATABASE_URL")),
     ssl: Portfolixir.RuntimeConfig.database_ssl?(),
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
 end
