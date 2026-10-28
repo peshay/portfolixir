@@ -462,7 +462,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   defp parse_currency(_which, value) when is_binary(value) do
     case value |> String.trim() |> String.upcase() do
       "" -> {:ok, nil}
-      code -> {:ok, code}
+      # H58: detached from the upload body, as `present_string/1` is.
+      code -> {:ok, :binary.copy(code)}
     end
   end
 
@@ -477,10 +478,15 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
 
   defp present_string(nil), do: nil
 
+  # Security review 2026-10-12, H58: a cell the entry keeps is copied out of
+  # the upload body. Trimmed, it is a slice of the body; a slice longer than
+  # 64 bytes that crosses into another process (a page task, the preview
+  # store) references the whole body there, and the heap cap counts the body
+  # once per such slice.
   defp present_string(value) when is_binary(value) do
     case String.trim(value) do
       "" -> nil
-      trimmed -> trimmed
+      trimmed -> :binary.copy(trimmed)
     end
   end
 

@@ -12,7 +12,11 @@ defmodule PortfolixirWeb.HeapCap do
   Defence in depth, not the bound itself: the inputs, lists, memo and walks
   are bounded where they arrive. The cap counts the off-heap binaries the
   process references (`include_shared_binaries`), so a large body or upload
-  held by one process counts against it too.
+  held by one process counts against it too. A slice of such a body must
+  therefore not cross into another capped process: copied there (a task's
+  closure, an ETS read), each slice longer than 64 bytes references the whole
+  body and is counted as the whole body, so what is kept from a large body is
+  copied out of it first (security review 2026-10-12, H58).
 
   The size is `max_heap_bytes` under this module's configuration
   (512 MiB by default), far above any legitimate read or write of a
