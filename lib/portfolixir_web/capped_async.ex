@@ -19,6 +19,15 @@ defmodule PortfolixirWeb.CappedAsync do
   mid-query takes its database connection with it (under the test sandbox,
   the test's own), so a superseded walk still ends, but only the first and
   the latest of a burst of asks ever run.
+
+  A page's load runs in two processes (#1204). LiveView links the task it
+  starts to the page; that task is a wrapper that stays uncapped and only
+  watches: the load itself runs in a worker it monitors, and the worker caps
+  its heap first. A worker the cap kills is reported by the wrapper as its
+  own exit, so the page's `handle_async/3` receives `{:exit, reason}` and
+  shows its own failure state instead of going down with a linked task. The
+  wrapper traps exits, so a page that goes away or cancels the load reaches
+  it as a message; it stops the worker and exits the same way.
   """
 
   alias Phoenix.LiveView.Socket
@@ -30,15 +39,15 @@ defmodule PortfolixirWeb.CappedAsync do
   @flights :portfolixir_capped_async
 
   @doc """
-  `Phoenix.LiveView.start_async/3`, its task capping its heap first. A macro,
-  so LiveView still checks the function at compile time for a captured
-  socket or assigns.
+  `Phoenix.LiveView.start_async/3`, its load running in a worker that caps
+  its heap first and whose death the page receives as `{:exit, reason}`
+  (#1204). A macro, so LiveView still checks the function at compile time
+  for a captured socket or assigns.
   """
   defmacro start_async(socket, name, fun) do
     quote do
       Phoenix.LiveView.start_async(unquote(socket), unquote(name), fn ->
-        PortfolixirWeb.HeapCap.cap!()
-        unquote(fun).()
+        PortfolixirWeb.CappedAsync.__watch__(unquote(fun))
       end)
     end
   end
@@ -86,7 +95,55 @@ defmodule PortfolixirWeb.CappedAsync do
   defp run(socket, name, fun) do
     socket
     |> put_flight(name, :running)
-    |> Phoenix.LiveView.start_async(name, capped(fun))
+    |> Phoenix.LiveView.start_async(name, fn -> __watch__(fun) end)
+  end
+
+  @doc false
+  # The body of a page's load task (#1204): runs `fun` in a capped worker it
+  # monitors and answers as if it had run `fun` itself. A value is returned,
+  # a raise, throw or exit inside `fun` is raised here again with its own
+  # stacktrace, and a worker that died without one (killed past the cap)
+  # becomes this task's exit with the worker's reason.
+  @spec __watch__((-> term())) :: term()
+  def __watch__(fun) when is_function(fun, 0) do
+    Process.flag(:trap_exit, true)
+    caller = self()
+    tag = make_ref()
+
+    {:ok, worker} =
+      Task.start(fn ->
+        HeapCap.cap!()
+        send(caller, {tag, outcome(fun)})
+      end)
+
+    watch = Process.monitor(worker)
+    await(worker, watch, tag)
+  end
+
+  defp outcome(fun) do
+    {:ok, fun.()}
+  catch
+    kind, reason -> {:caught, kind, reason, __STACKTRACE__}
+  end
+
+  defp await(worker, watch, tag) do
+    receive do
+      {^tag, {:ok, result}} ->
+        Process.demonitor(watch, [:flush])
+        result
+
+      {^tag, {:caught, kind, reason, stacktrace}} ->
+        Process.demonitor(watch, [:flush])
+        :erlang.raise(kind, reason, stacktrace)
+
+      {:DOWN, ^watch, :process, ^worker, reason} ->
+        exit(reason)
+
+      # The page went away, or cancelled the load: the worker goes with it.
+      {:EXIT, _from, reason} ->
+        Process.exit(worker, :kill)
+        exit(reason)
+    end
   end
 
   defp capped(fun) do
