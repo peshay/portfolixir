@@ -2672,7 +2672,10 @@ Beispiel-Payloads für Konten:
   werden). Ein Lot ohne ableitbares Wertpapierwährungs-Leg meldet `null`-G/V
   statt eines blinden währungsübergreifenden Vergleichs. Die Antwort ist
   selbstbeschreibend (FR-13): sie trägt `method: "fifo"`, sodass ein Client nie
-  annehmen muss, wie Lots gegen Verkäufe gepaart wurden. Optionales `from`/`to`
+  annehmen muss, wie Lots gegen Verkäufe gepaart wurden. Da ein Verkauf das
+  älteste Lot verbraucht, gleich welches Portfolio es gekauft hat, skaliert ein
+  Split an seinem Datum jedes offene Lot des Wertpapiers einmal, sodass die
+  Lots den gehaltenen Stücken folgen. Optionales `from`/`to`
   (ISO-Daten) filtert jedes Bein nach seinem eigenen Datum: offene Lots nach
   Eröffnungsdatum, geschlossene Round-Trips nach Schlussdatum, verwaiste Verkäufe
   nach Verkaufsdatum.

@@ -2621,7 +2621,9 @@ church tax withheld at a zero church-tax rate.
   with no derivable native leg reports `null` P&L instead of a blind
   cross-currency figure. The response is self-describing (FR-13):
   it carries `method: "fifo"`, so a client never has to assume how lots were
-  paired against sells. Optional `from`/`to` (ISO dates) filter each leg by its
+  paired against sells. Since a sale consumes the oldest lot whatever
+  portfolio bought it, a split scales every open lot of the security once on
+  its date, so the lots follow the shares held. Optional `from`/`to` (ISO dates) filter each leg by its
   own date: open lots by open date, closed round-trips by close date, orphan
   sells by sell date.
   There is no `limit`: `from`/`to` are the bound (the FIFO matcher needs the
