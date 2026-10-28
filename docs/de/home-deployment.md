@@ -1117,10 +1117,13 @@ Kalenderversion getaggt (`YYYY.M.N`, das `N`-te Release des Monats; bis
 September 2026 lautete das Schema `X.Y.Z` und endet bei `0.14.0`) und
 automatisch als GitHub-Release mit generierten Notizen und der ausgelieferten
 API-Vertragsversion veröffentlicht. Ein
-Release ist ein bekannt guter Stand, auf den sich eine selbst gehostete
-Instanz festlegen oder zurücksetzen lässt (vor dem Bauen das Tag auschecken),
-plus ein lesbares Änderungsprotokoll — nie ein installierbares Artefakt.
-Migrationen sind additiv; beim Rollback über ein Release hinweg, das
+Release ist ein gemergter Stand, auf den sich eine selbst gehostete Instanz
+festlegen oder zurücksetzen lässt (vor dem Bauen das Tag auschecken), plus
+ein lesbares Änderungsprotokoll — nie ein installierbares Artefakt. Es
+entsteht, sobald der Merge ankommt, während CI auf demselben Commit läuft,
+nicht erst nach bestandener CI: Bevor du eine Instanz auf ein Release
+festlegst oder zurücksetzt, prüfe, ob der CI-Lauf auf seinem Commit grün war
+(die Prüfzeichen neben dem Commit auf GitHub). Migrationen sind additiv; beim Rollback über ein Release hinweg, das
 Migrationen hinzugefügt hat, spielst du die vor diesem Upgrade angelegte
 Datenbanksicherung zurück.
 

@@ -1047,10 +1047,13 @@ the client configuration for each transport.
 Every merge that changes shipped code is tagged with a calendar version
 (`YYYY.M.N`, the `N`-th release of that month; until September 2026 the
 scheme was `X.Y.Z`, ending at `0.14.0`) and published automatically as a
-GitHub Release with generated notes and the API contract version it ships. A release is a
-known-good point to pin or roll a self-hosted instance back to (check out the
-tag before building) plus a readable changelog — never an installable
-artifact. Migrations are additive; when rolling back across a release that
+GitHub Release with generated notes and the API contract version it ships. A
+release is a merged point to pin or roll a self-hosted instance back to (check
+out the tag before building) plus a readable changelog — never an installable
+artifact. It is cut when the merge lands, while CI runs on the same commit,
+not after CI has passed: before you pin or roll back to a release, check that
+the CI run on its commit passed (the check marks beside the commit on
+GitHub). Migrations are additive; when rolling back across a release that
 added migrations, restore the database backup taken before that upgrade.
 
 ## Notes
