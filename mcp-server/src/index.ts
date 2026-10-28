@@ -3,7 +3,7 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 import { createApiClient } from "./api-client.js";
-import { mcpHost, requireMcpPort, requireMcpToken, startHttpServer } from "./http.js";
+import { mcpHost, mcpTokenWarning, requireMcpPort, requireMcpToken, startHttpServer } from "./http.js";
 import { createPortfolixirMcpServer, profileSwitch } from "./server.js";
 import type { McpProfile } from "./profiles.js";
 
@@ -49,6 +49,14 @@ if (transport === "http") {
   } catch (error) {
     console.error(error instanceof Error ? error.message : String(error));
     process.exit(1);
+  }
+
+  // A token the floor accepts but that is plainly not random is named in a
+  // warning, never refused (H20, #1202, T-17).
+  const tokenWarning = mcpTokenWarning(token);
+
+  if (tokenWarning) {
+    console.error(tokenWarning);
   }
 
   // A listener that cannot start stops the companion with the address and

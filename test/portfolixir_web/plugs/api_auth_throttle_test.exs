@@ -85,8 +85,9 @@ defmodule PortfolixirWeb.ApiAuthThrottleTest do
   #   configured token meets the 32-byte floor.
   # - The lock stays: the source is still locked, and the next wrong token
   #   from it is still 429.
-  # (The floor, `RuntimeConfig.min_token_bytes/0`, is what makes a locked
-  # guesser's correct guess infeasible.)
+  # (A random token, not the floor `RuntimeConfig.min_token_bytes/0`, which
+  # checks length only, is what makes a locked guesser's correct guess
+  # infeasible: H20, #1202.)
   test "a correct token passes while its source is locked, and the lock stays", %{conn: conn} do
     assert byte_size(@sound_token) == RuntimeConfig.min_token_bytes()
     with_tokens([{nil, @sound_token}])

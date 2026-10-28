@@ -28,9 +28,12 @@ defmodule PortfolixirWeb.ApiAuthPlug do
   # a correct token passes whether its source is locked out (#771) or not, so a
   # stale client sharing the operator's address (every host client behind the
   # Compose port) cannot lock the agent out. A wrong token counts against its
-  # source, locked or not, and is answered 429 while the lock lasts. The cost:
-  # a locked guesser who guesses right is let in, which the floor makes
-  # infeasible. A release holds every token to it at boot
+  # source, locked or not, and is answered 429 while the lock lasts, so the
+  # lock labels wrong tokens and slows nothing. The cost: a locked guesser who
+  # guesses right is let in, which a random token from
+  # `openssl rand -base64 48` makes infeasible; the floor checks length only,
+  # and a token with few distinct characters is named in a startup warning
+  # (H20, #1202). A release holds every token to the floor at boot
   # (`RuntimeConfig.api_tokens!/3`), and so does a from-source server with
   # PORTFOLIXIR_API_TOKENS or PORTFOLIXIR_API_PRINCIPAL set; one that reads
   # PORTFOLIXIR_API_TOKEN alone holds it to none. While any configured token

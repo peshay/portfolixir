@@ -250,6 +250,42 @@ defmodule Portfolixir.RuntimeConfig do
   @min_token_bytes 32
   @placeholder_prefixes ~w(dev-api-token dev-mcp-token test-api-token replace change secret token password example)
 
+  # Fewer distinct characters than this, and a token is plainly not random:
+  # `openssl rand -base64 48` prints about forty (H20, T-17).
+  @min_token_distinct_chars 12
+
+  @doc """
+  The startup check behind H20 (security review 2026-10-12; #1202; T-17):
+  the 32-byte floor checks length only, and since #974 the lock slows no
+  guess, so a configured token with fewer than
+  #{@min_token_distinct_chars} distinct characters is named, by its variable
+  or its name and never by its value, in a warning. A warning, never a
+  refusal: an entropy floor would refuse tokens that work today. Pure;
+  `Portfolixir.Application` logs it.
+  """
+  @spec weak_tokens_warning([{String.t() | nil, String.t()}] | nil) :: :ok | {:warn, String.t()}
+  def weak_tokens_warning(principals) when is_list(principals) do
+    case for({name, token} <- principals, few_distinct?(token), do: describe_principal(name)) do
+      [] ->
+        :ok
+
+      weak ->
+        {:warn,
+         "API tokens with fewer than #{@min_token_distinct_chars} distinct characters: " <>
+           Enum.join(weak, ", ") <>
+           ". The 32-byte floor checks length only and the lock slows no guess, so " <>
+           "only a random token keeps the API unguessable: replace each with a random " <>
+           "token from `openssl rand -base64 48`."}
+    end
+  end
+
+  def weak_tokens_warning(_unset), do: :ok
+
+  defp few_distinct?(token) when is_binary(token),
+    do: token |> String.graphemes() |> Enum.uniq() |> length() < @min_token_distinct_chars
+
+  defp few_distinct?(_token), do: false
+
   @doc "The bearer tokens' length floor; the MCP companion holds its token to it too (F01)."
   @spec min_token_bytes() :: pos_integer()
   def min_token_bytes, do: @min_token_bytes

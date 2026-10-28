@@ -263,8 +263,9 @@ describe("MCP HTTP security helpers", () => {
   // - While the source is locked, the right token reaches the next handler.
   // - The lock stays as it was: the source is still locked for the same time,
   //   and the next wrong token from it is answered 429 and counted.
-  // (The 32-byte floor `requireMcpToken` holds the token to is what makes a
-  // locked guesser's correct guess infeasible.)
+  // (A random token, not the 32-byte floor `requireMcpToken` holds the token
+  // to, which checks length only, is what makes a locked guesser's correct
+  // guess infeasible: H20, #1202.)
   it("lets a correct token through a locked source, and keeps the lock", () => {
     const now = 1_000;
     const throttle = createFailureThrottle();

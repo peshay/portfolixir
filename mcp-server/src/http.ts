@@ -166,6 +166,31 @@ export function requireMcpToken(configuredToken: string | undefined): string {
   return token;
 }
 
+/**
+ * Fewer distinct characters than this, and a token is plainly not random:
+ * `openssl rand -base64 48` prints about forty (H20, #1202, T-17).
+ */
+export const MCP_TOKEN_MIN_DISTINCT_CHARS = 12;
+
+/**
+ * The floor `requireMcpToken` holds checks length only, and since #974 the
+ * lock slows no guess, so a token with few distinct characters is named in a
+ * warning at start (H20, #1202, T-17): a warning, never a refusal, and never
+ * the token itself. `undefined` for a token that passes.
+ */
+export function mcpTokenWarning(token: string): string | undefined {
+  if (new Set(token).size >= MCP_TOKEN_MIN_DISTINCT_CHARS) {
+    return undefined;
+  }
+
+  return (
+    `PORTFOLIXIR_MCP_TOKEN has fewer than ${MCP_TOKEN_MIN_DISTINCT_CHARS} distinct characters. ` +
+    "The 32-byte floor checks length only and the lock slows no guess, so only a random " +
+    "token keeps the companion unguessable: replace it with a random token from " +
+    "`openssl rand -base64 48`."
+  );
+}
+
 export interface FailureThrottle {
   readonly maxFailures: number;
   readonly baseLockSeconds: number;
@@ -284,9 +309,12 @@ export function createFailureThrottle(): FailureThrottle {
  * the source's count unless the source is locked, so the agent's requests
  * never lift a guesser's lock. A wrong token counts
  * against its source, locked or not, and is answered 429 with the lock its
- * own failure extended while the lock lasts, 401 before. The cost: a locked
- * guesser who guesses right is let in, which the 32-byte floor
- * `requireMcpToken` holds the token to makes infeasible. The source is the
+ * own failure extended while the lock lasts, 401 before, so the lock labels
+ * wrong tokens and slows nothing. The cost: a locked guesser who guesses
+ * right is let in, which a random token from `openssl rand -base64 48` makes
+ * infeasible; the 32-byte floor `requireMcpToken` holds the token to checks
+ * length only, and `mcpTokenWarning` names a token with few distinct
+ * characters at start (H20, #1202). The source is the
  * connecting address. The Host and Origin guards run ahead of it.
  */
 export function mcpAuthMiddleware(
