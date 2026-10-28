@@ -3098,7 +3098,10 @@ Zeilen bleiben ebenso draußen, jede mit ihrer Zeile benannt:
 Eine Vorschau wird für den nächsten Besuch (Sprachwechsel, Neuladen) erst
 aufbewahrt, wenn sie einmal angezeigt wurde, und nur, solange sie dafür nicht
 zu groß ist: Die Vorschau einer sehr großen Datei wird nicht aufbewahrt, und
-der nächste Besuch zeigt wieder das Ablagefeld.
+der nächste Besuch zeigt wieder das Ablagefeld. Eine aufbewahrte Vorschau
+kehrt so zurück, wie sie beim Ablegen der Datei berechnet wurde, mit den
+seither vorgenommenen Korrekturen; das Bestätigen prüft sie erneut gegen den
+aktuellen Datenbestand.
 
 ### Umbuchungen in einer Portfolio-Performance-CSV
 
