@@ -3319,8 +3319,13 @@ defmodule PortfolixirWeb.ImportsLive do
   defp parse_error_message(:unknown_format),
     do: gettext("Unknown file format — expected Portfolio Performance JSON or CSV.")
 
-  defp parse_error_message({:unsupported_version, v}),
+  # Security review 2026-10-12, H56: the version is named only when it is
+  # one; any other value the file holds there is a file no export writes.
+  defp parse_error_message({:unsupported_version, v}) when is_binary(v) or is_integer(v),
     do: gettext("Unsupported PP JSON version: %{v}", v: to_string(v))
+
+  defp parse_error_message({:unsupported_version, _not_a_version}),
+    do: parse_error_message(:malformed_payload)
 
   # The closing act, UAT-14: the finding and the remedy in the page's
   # language, never the JSON library's English message — only the position
