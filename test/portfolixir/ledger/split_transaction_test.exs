@@ -322,12 +322,18 @@ defmodule Portfolixir.Ledger.SplitTransactionTest do
       assert Decimal.equal?(untouched.quantity, Decimal.new("10"))
       assert Decimal.equal?(untouched.avg_cost, Decimal.new("100"))
 
-      # FIFO lots scale per portfolio too.
+      # The FIFO queue is the security's, not a portfolio's (the ADR-0015
+      # amendment of 2026-10-09), so a split scales every open lot in it once
+      # (security review 2026-10-12, K09; owner decision T-21). The split
+      # flow books a row for every positioned portfolio, so the lots and the
+      # positions agree there; this row, written for A alone, shows the
+      # matcher's rule, not a state the split flow leaves.
       trades = Ledger.list_trades_for_security(world_a.security.id)
-      quantities = trades.open_lots |> Enum.map(& &1.quantity) |> Enum.sort(Decimal)
-      assert [ten, twenty] = quantities
-      assert Decimal.equal?(ten, Decimal.new("10"))
-      assert Decimal.equal?(twenty, Decimal.new("20"))
+      assert [lot_a, lot_b] = trades.open_lots
+      assert Decimal.equal?(lot_a.quantity, Decimal.new("20"))
+      assert Decimal.equal?(lot_a.buy_price, Decimal.new("50"))
+      assert Decimal.equal?(lot_b.quantity, Decimal.new("20"))
+      assert Decimal.equal?(lot_b.buy_price, Decimal.new("50"))
     end
   end
 

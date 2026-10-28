@@ -220,4 +220,107 @@ defmodule Portfolixir.Ledger.TradeMatcherTest do
       assert Decimal.equal?(trade.realized_pnl_abs, Decimal.new("74"))
     end
   end
+
+  # The queue is the security's across portfolios (the ADR-0015 amendment of
+  # 2026-10-09); a split is booked one row per positioned portfolio
+  # (ADR-0028 §1). Exact Decimal identities, one at a time.
+  defp in_portfolio(tx, portfolio_id, id),
+    do: Map.merge(tx, %{portfolio_id: portfolio_id, id: id})
+
+  defp split(date, numerator, denominator, portfolio_id, id) do
+    %{
+      type: "split",
+      date: date,
+      quantity: nil,
+      price: nil,
+      split_ratio_numerator: numerator,
+      split_ratio_denominator: denominator,
+      portfolio_id: portfolio_id,
+      id: id
+    }
+  end
+
+  # User story (security review 2026-10-12, K09):
+  # As the operator holding one security in two portfolios,
+  # I want a split to scale every open lot of the security's FIFO queue once,
+  # whatever portfolio label the lot carries,
+  # so that the pooled queue and the split's scaling agree and the closed
+  # trades follow the shares actually held.
+  #
+  # Acceptance criteria:
+  # - A split booked for portfolio A only scales a lot labelled B that a
+  #   sale in B left open: 10 at 100 becomes 20 at 50, and A's sale of 20
+  #   at 55 closes it for exactly +100 with no orphan sell.
+  # - The rows of one split event, one per portfolio on the same date with
+  #   the same ratio, scale each lot once, never once per row.
+  # - After the split, a sale in one portfolio consumes another portfolio's
+  #   scaled lot at its post-split cost.
+  describe "a split over the security's pooled queue (K09)" do
+    test "a split booked for one portfolio scales the lot another portfolio's label carries" do
+      result =
+        TradeMatcher.match([
+          in_portfolio(buy(~D[2026-02-02], "10", "100"), :a, 1),
+          in_portfolio(buy(~D[2026-02-03], "10", "100"), :b, 2),
+          in_portfolio(sell(~D[2026-02-04], "10", "110"), :b, 3),
+          split(~D[2026-03-02], 2, 1, :a, 4),
+          in_portfolio(sell(~D[2026-03-05], "20", "55"), :a, 5)
+        ])
+
+      assert result.open_lots == []
+      assert result.orphan_sells == []
+      assert [b_trade, a_trade] = result.closed_trades
+
+      assert Decimal.equal?(b_trade.quantity, Decimal.new("10"))
+      assert Decimal.equal?(b_trade.realized_pnl_abs, Decimal.new("100"))
+
+      assert Decimal.equal?(a_trade.quantity, Decimal.new("20"))
+      assert Decimal.equal?(a_trade.avg_buy_price, Decimal.new("50"))
+      assert Decimal.equal?(a_trade.basis, Decimal.new("1000"))
+      assert Decimal.equal?(a_trade.proceeds, Decimal.new("1100"))
+      assert Decimal.equal?(a_trade.realized_pnl_abs, Decimal.new("100"))
+    end
+
+    test "the rows of one split event scale each lot once" do
+      result =
+        TradeMatcher.match([
+          in_portfolio(buy(~D[2026-02-02], "10", "100"), :a, 1),
+          in_portfolio(buy(~D[2026-02-03], "10", "100"), :b, 2),
+          split(~D[2026-03-02], 2, 1, :a, 3),
+          split(~D[2026-03-02], 2, 1, :b, 4)
+        ])
+
+      assert [lot_a, lot_b] = result.open_lots
+
+      for lot <- [lot_a, lot_b] do
+        assert Decimal.equal?(lot.quantity, Decimal.new("20"))
+        assert Decimal.equal?(lot.original_quantity, Decimal.new("20"))
+        assert Decimal.equal?(lot.buy_price, Decimal.new("50"))
+      end
+    end
+
+    test "after the split a sale in one portfolio consumes another's scaled lot at its cost" do
+      result =
+        TradeMatcher.match([
+          in_portfolio(buy(~D[2026-02-02], "10", "100"), :a, 1),
+          in_portfolio(buy(~D[2026-02-03], "10", "80"), :b, 2),
+          split(~D[2026-03-02], 2, 1, :a, 3),
+          split(~D[2026-03-02], 2, 1, :b, 4),
+          in_portfolio(sell(~D[2026-03-05], "20", "55"), :b, 5),
+          in_portfolio(sell(~D[2026-03-06], "20", "60"), :a, 6)
+        ])
+
+      assert result.open_lots == []
+      assert result.orphan_sells == []
+      assert [b_trade, a_trade] = result.closed_trades
+
+      # B's sale takes A's older lot: 20 at 50, basis 1000, proceeds 1100.
+      assert Decimal.equal?(b_trade.avg_buy_price, Decimal.new("50"))
+      assert Decimal.equal?(b_trade.realized_pnl_abs, Decimal.new("100"))
+
+      # A's sale takes B's lot: 20 at 40, basis 800, proceeds 1200.
+      assert Decimal.equal?(a_trade.avg_buy_price, Decimal.new("40"))
+      assert Decimal.equal?(a_trade.basis, Decimal.new("800"))
+      assert Decimal.equal?(a_trade.realized_pnl_abs, Decimal.new("400"))
+    end
+  end
 end
