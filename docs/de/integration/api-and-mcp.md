@@ -250,7 +250,25 @@ hat und noch offen ist, je nachdem, was früher liegt: Eine Zeile wird
 gestempelt, wenn ihre Transaktion sie schreibt, nicht wenn diese committet,
 sodass ein Cursor zum Lesezeitpunkt eine Zeile überspränge, die ein langer
 Schreibvorgang (ein Import) nach dem Read committet. Der nächste Read kann
-eine Zeile daher erneut liefern, überspringt aber keine. **Löschungen sind
+eine Zeile daher erneut liefern, überspringt aber keine.
+
+**Ein begrenzter Delta-Read ist eine Seite (K17).** Die Delta-Reads mit
+`limit` — Buchungen, Wertpapiere, die Notizen und Ereignisse eines
+Wertpapiers, die Policy-Regeln eines Portfolios — liefern ihre Zeilen nach
+ältester Änderung zuerst, und jeder ihrer Reads, Delta oder voll, spiegelt
+`limit` und `truncated` (wahr, wenn mehr Zeilen passten, als die Antwort
+enthält). Ein Delta-Read mit voller Seite trägt zusätzlich `has_more: true`,
+und sein `as_of` ist dann ein Cursor auf die letzte Zeile der Seite,
+`<ISO8601-Zeitpunkt>~<id>`: als nächstes `since` übergeben und sofort weiter
+lesen. Zeilen mit demselben Stempel (ein Import schreibt Tausende in einer
+Sekunde) unterscheidet die id, sodass eine Seitengrenze zwischen ihnen keine
+überspringt und keine wiederholt. Ein Cursor liegt nie hinter der obigen
+Grenze: Ist die letzte Zeile der Seite neuer, ist `as_of` die Grenze, und der
+nächste Read liefert die neueren Zeilen erneut. Eine nicht volle Seite trägt
+`has_more: false` und die Grenze, wie bisher. Ein fehlerhafter Cursor ist
+dasselbe `422` wie jedes ungültige `since`.
+
+**Löschungen sind
 in einem Delta-Read nicht repräsentiert**; wer Löschungen erkennen muss,
 macht einen vollen Read. Ein ungültiges `since` ist ein `422`. Delta-Reads
 sind **pull-only**: Push-Zustellung (Webhooks an einen konfigurierten

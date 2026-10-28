@@ -225,7 +225,23 @@ instant, or before the start of the oldest transaction that has written and
 is still open, whichever is earlier: a row is stamped when its transaction
 writes it, not when that transaction commits, so a cursor at the read instant
 would skip a row a long write (an import) commits after the read. The next
-read may therefore re-deliver a row, but never skips one. **Deletions are not
+read may therefore re-deliver a row, but never skips one.
+
+**A capped delta read is a page (K17).** The delta reads bounded by `limit`
+— transactions, securities, a security's notes and events, a portfolio's
+policy rules — return their rows oldest change first, and every read of
+them, delta or full, echoes `limit` and `truncated` (true when more rows
+matched than the answer holds). A delta read whose page is full also carries
+`has_more: true`, and its `as_of` is then a cursor at the page's last row,
+`<ISO8601 instant>~<id>`: pass it as the next `since` and read again at
+once. Rows sharing one stamp (an import writes thousands within a second)
+are told apart by the id, so a page boundary among them skips none and
+repeats none. A cursor never lies past the bound above: when the page's last
+row is newer, `as_of` is the bound and the next read re-delivers the newer
+rows. A page that is not full carries `has_more: false` and the bound, as
+before. A malformed cursor is the same `422` as any invalid `since`.
+
+**Deletions are not
 represented** in a delta read; a caller that must detect deletions performs a
 full read. An invalid `since` is a `422`. Delta reads are **pull-only**: push
 delivery (webhooks to a user-configured endpoint) is a separate, still-gated

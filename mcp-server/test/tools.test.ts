@@ -1236,6 +1236,29 @@ describe("Portfolixir MCP tools", () => {
     }
   });
 
+  // K17: a capped delta read is a page. The tools say that a full page
+  // carries has_more and a cursor as_of, and that the reads echo limit and
+  // truncated, so a full page is never taken for the whole answer.
+  it("states that a capped delta read pages with has_more and echoes limit and truncated", () => {
+    const description = (name: string) =>
+      listTools().find((tool) => tool.name === name)?.description ?? "";
+
+    for (const name of [
+      "portfolixir.securities.list",
+      "portfolixir.transactions.list",
+      "portfolixir.notes.list",
+      "portfolixir.events.list"
+    ]) {
+      assert.match(description(name), /has_more=true/, name);
+      assert.match(description(name), /cursor past the last (row|entry)|cursor past its last row/, name);
+      assert.match(description(name), /truncated/, name);
+    }
+
+    const rules = description("portfolixir.policy_rules.list");
+    assert.match(rules, /paged as in portfolixir\.securities\.list/);
+    assert.match(rules, /truncated/);
+  });
+
   // E25 S6, F43: a delete removes its children through their journaled
   // writers first, one entry per row, and the tools say what goes with it.
   it("states the per-row journaled children of the classification, category, plan and view deletes", () => {
