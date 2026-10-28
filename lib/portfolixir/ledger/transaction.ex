@@ -137,7 +137,8 @@ defmodule Portfolixir.Ledger.Transaction do
     case get_field(changeset, :settlement_fx_rate) do
       %Decimal{} = rate ->
         if Decimal.compare(rate, 0) == :gt do
-          changeset
+          # H35: a rate is not the cash the broker settled.
+          SettlementGuard.validate_rate_only(changeset)
         else
           add_error(
             changeset,
