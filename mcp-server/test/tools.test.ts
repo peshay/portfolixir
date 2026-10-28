@@ -182,6 +182,9 @@ describe("Portfolixir MCP tools", () => {
     const transactionUpdate = tools.find((tool) => tool.name === "portfolixir.transactions.update");
     assert.match(transactionUpdate?.description ?? "", /re-checks the cross-currency settlement/);
     assert.match(transactionUpdate?.description ?? "", /notes or date on an older booking/);
+    // #1214: an update that lost a lock cycle is a retryable 409, named where
+    // the agent reads the tool.
+    assert.match(transactionUpdate?.description ?? "", /409 with errors\.detail alone and saves nothing: re-read it and retry/);
 
     const securitiesList = tools.find((tool) => tool.name === "portfolixir.securities.list");
     assert.deepEqual(securitiesList?.inputSchema.properties.holding_status.enum, [
