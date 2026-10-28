@@ -58,8 +58,9 @@ can bring the history in from a Portfolio Performance export.
 
 1. Clone the repository, https://github.com/peshay/portfolixir.
 2. Create `.env` from `.env.example` (`install -m 600 .env.example .env`) and
-   set its secrets: `SECRET_KEY_BASE`, `PORTFOLIXIR_API_TOKEN` and
-   `PORTFOLIXIR_MCP_TOKEN` each from `openssl rand -base64 48`,
+   set its secrets: `SECRET_KEY_BASE` from `openssl rand -base64 48`,
+   `PORTFOLIXIR_API_TOKEN` and `PORTFOLIXIR_MCP_TOKEN` each a random token
+   from `openssl rand -base64 48` (the 32-byte floor checks length only),
    `POSTGRES_PASSWORD` from `openssl rand -hex 32`, and
    `PORTFOLIXIR_UI_PASSWORD`, the web UI's login, from `openssl rand -base64 24`
    or a passphrase of at least 12 characters the operator chooses, in single

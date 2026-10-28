@@ -186,8 +186,12 @@ MCP companion refuse to start with a token shorter than 32 bytes or equal to a
 placeholder, and the application refuses a `SECRET_KEY_BASE` shorter than 64
 bytes, equal to a placeholder, or equal to a value committed in this
 repository, and a database password that is empty, shorter than 32 bytes or
-equal to a placeholder. Generate each token and `SECRET_KEY_BASE`
-with `openssl rand -base64 48`, and `POSTGRES_PASSWORD` with
+equal to a placeholder. Make each token a random token from `openssl rand
+-base64 48`: the 32-byte floor checks length only, and the lock that follows
+wrong tokens slows no guess, so the token's randomness is what keeps it
+unguessable (a token with few distinct characters is named in a startup
+warning). Generate `SECRET_KEY_BASE`
+with `openssl rand -base64 48` as well, and `POSTGRES_PASSWORD` with
 `openssl rand -hex 32`:
 the Compose file splices it into the database URL, where a `/` or `#` from
 base64 would break the connection string. Generate `PORTFOLIXIR_UI_PASSWORD`,

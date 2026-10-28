@@ -124,6 +124,18 @@ what bounds guessing it. Whether the login should let a correct password
 through its lock is a separate question, which nobody has asked. The bullet "The `/api/v1` routes
 are untouched" still holds: the UI password is never accepted there.
 
+**Correction (2026-10-28, Sprint 21, #1202, security review H20): the floor
+checks length only.** The note above credits the 32-byte floor with making a
+locked guesser's right guess infeasible. The floor checks a token's length
+and refuses the placeholders, nothing more: one character repeated 32 times
+passes it. Under compare-first the lock labels wrong tokens and slows
+nothing, so what makes the guess infeasible is a random token from `openssl
+rand -base64 48`, which the documentation now says wherever a token is set
+(#1202, answer (a)). The floor stays a length check, since an entropy floor
+would refuse tokens that work today; the application and the companion name a
+token with few distinct characters in a startup warning instead (T-17 of the
+2026-10-12 security triage).
+
 ### 2. The deployment contract
 
 - **Production binds loopback by default.** `config/runtime.exs` gains the

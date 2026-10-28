@@ -28,9 +28,13 @@ lock, and the counts bounded in number (an IPv6 source counts as its /64, and
 past a rolling ceiling on wrong tokens from sources not yet counted such a
 source waits unrecorded); a bearer token is compared before its source's lock is consulted, so a
 correct token passes a locked source and a wrong one still counts and is
-answered `429` while the lock lasts (Sprint 20, #974): a locked guesser who
-guesses right is let in, which the 32-byte floor makes infeasible, while the
-UI password, which a person chooses, meets the lock first; the floor holds for
+answered `429` while the lock lasts (Sprint 20, #974), so the lock labels
+wrong tokens and slows nothing: a locked guesser who guesses right is let in,
+and what makes that guess infeasible is a random token from `openssl rand
+-base64 48`, as the examples generate it, not the 32-byte floor, which checks
+length only (a token with few distinct characters is named in a startup
+warning, by the application and the companion alike), while the UI password,
+which a person chooses, meets the lock first; the floor holds for
 every token a release boots with and for the companion's, and on a server run
 from source only when `PORTFOLIXIR_API_TOKENS` or `PORTFOLIXIR_API_PRINCIPAL`
 is set, so where `PORTFOLIXIR_API_TOKEN` alone is read with no floor and while

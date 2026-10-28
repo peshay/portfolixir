@@ -193,8 +193,12 @@ MCP-Begleitdienst verweigern den Start mit einem Token, das kürzer als 32 Bytes
 oder ein Platzhalter ist, und die Anwendung verweigert einen
 `SECRET_KEY_BASE`, der kürzer als 64 Bytes, ein Platzhalter oder ein in diesem
 Repository veröffentlichter Wert ist, sowie ein Datenbankpasswort, das leer,
-kürzer als 32 Bytes oder ein Platzhalter ist. Erzeuge jedes Token und
-`SECRET_KEY_BASE` mit `openssl rand -base64 48` und `POSTGRES_PASSWORD` mit
+kürzer als 32 Bytes oder ein Platzhalter ist. Jedes Token muss ein
+zufälliges Token aus `openssl rand -base64 48` sein: Die 32-Byte-Grenze prüft
+nur die Länge, und die Sperre nach falschen Tokens bremst kein Raten, also hält
+erst der Zufall das Token unerratbar (eine Warnung beim Start nennt ein Token
+mit wenigen verschiedenen Zeichen). Erzeuge auch `SECRET_KEY_BASE` mit
+`openssl rand -base64 48` und `POSTGRES_PASSWORD` mit
 `openssl rand -hex 32`:
 die Compose-Datei setzt es in die Datenbank-URL ein, wo ein `/` oder `#` aus
 Base64 die Verbindungszeichenkette zerlegen würde. Erzeuge
