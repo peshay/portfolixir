@@ -2292,8 +2292,9 @@ Beispiel-Payloads für Konten:
   aus jeder Summe (`annual`, seine Monate, `positions`) ausgeschlossen und in
   `excluded` genannt (`count`, und je Währung `currency_code`, `count` und
   `securities`), wie bei den anderen Cashflow-Lesungen; `transactions` behält
-  sie mit `converted: false` und ihren nativen Beträgen (Sicherheitsprüfung
-  2026-10-12, K07). `unconverted_count` zählt sie, `conversion_note` nennt die
+  sie mit `converted: false`, ihren nativen Beträgen und `null` für `gross`,
+  `tax` und `net` in Basiswährung — nie ihr nativer Betrag zur Parität
+  (Sicherheitsprüfung 2026-10-12, K07). `unconverted_count` zählt sie, `conversion_note` nennt die
   Basis und `computation_basis` (`series`, `currency`, `window`, `reference`,
   `gaps`) die Regel. Bargeld und einbehaltene Steuer einer
   Buchung werden in der Währung ihres Verrechnungskontos gelesen, der

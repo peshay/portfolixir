@@ -1189,9 +1189,11 @@ defmodule PortfolixirWeb.IncomeLive do
                       <td><%= Format.date(tx.date) %></td>
                       <td><%= kind_label(tx.kind) %></td>
                       <td><%= tx.security_name || gettext("Interest") %></td>
-                      <td class="num"><%= money(tx.gross) %></td>
-                      <td class="num"><%= money(tx.tax) %></td>
-                      <td class="num"><%= money(tx.net) %></td>
+                      <%!-- K07: a payment no rate converts stands in its
+                           own currency, from its native figures. --%>
+                      <td class="num"><%= money(if tx.converted, do: tx.gross, else: tx.native_gross) %></td>
+                      <td class="num"><%= money(if tx.converted, do: tx.tax, else: tx.native_tax) %></td>
+                      <td class="num"><%= money(if tx.converted, do: tx.net, else: tx.native_net) %></td>
                       <td><%= tx.currency %></td>
                     </tr>
                   <% end %>

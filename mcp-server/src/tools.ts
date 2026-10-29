@@ -3682,7 +3682,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.portfolios.income",
     "Portfolio income (dividends + interest)",
-    "A portfolio's booked dividends and interest (no forecast): a year x month matrix of both with yearly totals, per-position rows (gross, withheld tax, net, payment count, last payment) and per-transaction detail. Gross is net plus withheld tax. Decimal strings in the base currency, converted via the EUR hub at the latest stored rate on or before each booking date; a payment with no such rate is excluded from every total and named in excluded (count, currencies), kept in transactions (converted false). computation_basis states the rule.",
+    "A portfolio's booked dividends and interest (no forecast): a year x month matrix, yearly totals, per-position rows (gross, withheld tax, net, payment count, last payment) and per-transaction detail. Gross is net plus withheld tax. Decimal strings in the base currency, converted via the EUR hub at the latest stored rate on or before each booking date; a payment with no such rate is excluded from every total and named in excluded (count, currencies), kept in transactions (converted false, base figures null). computation_basis states the rule.",
     incomeSchema,
     incomeZ
   ),

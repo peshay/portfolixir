@@ -43,7 +43,8 @@ defmodule Portfolixir.Portfolios.Income do
   sibling Cash-flow facets do (security review 2026-10-12, K07): never
   counted at parity, which would add two currencies one to one. The
   per-transaction detail keeps it, flagged `converted: false`, with its
-  native amounts; `unconverted_count` counts it. The chosen basis is
+  native amounts and `nil` base-currency `gross`, `tax` and `net`;
+  `unconverted_count` counts it. The chosen basis is
   described in `base_currency`, `conversion_note` and `computation_basis`
   (FR-13, AGENTS.md metric rule).
   """
@@ -126,7 +127,8 @@ defmodule Portfolixir.Portfolios.Income do
       gaps:
         "a payment with no stored rate on or before its booking date is excluded from " <>
           "every total (annual, months, positions) and named in excluded; the transactions " <>
-          "list keeps it with converted false and its native amounts, never converted at parity"
+          "list keeps it with converted false, its native amounts and null base-currency " <>
+          "gross, tax and net, never converted at parity"
     }
   end
 
@@ -232,12 +234,17 @@ defmodule Portfolixir.Portfolios.Income do
       native_gross: entry.native_gross,
       native_tax: entry.native_tax,
       native_net: entry.native_net,
-      gross: entry.gross,
-      tax: entry.tax,
-      net: entry.net,
+      # K07: a payment with no rate path has no base-currency figure — nil,
+      # never its native amount at parity; its native figures stand.
+      gross: base_figure(entry, entry.gross),
+      tax: base_figure(entry, entry.tax),
+      net: base_figure(entry, entry.net),
       converted: entry.converted
     }
   end
+
+  defp base_figure(%{converted: true}, amount), do: amount
+  defp base_figure(%{converted: false}, _amount), do: nil
 
   defp sum_gross(entries, kind) do
     entries

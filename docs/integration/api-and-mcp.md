@@ -2122,8 +2122,9 @@ Example account payloads:
   such rate path is excluded from every total (`annual`, its months,
   `positions`) and named in `excluded` (`count`, and per currency its
   `currency_code`, `count` and `securities`), as the other Cash-flow reads
-  do; `transactions` keeps it with `converted: false` and its native amounts
-  (security review 2026-10-12, K07). `unconverted_count` counts it,
+  do; `transactions` keeps it with `converted: false`, its native amounts and
+  `null` base-currency `gross`, `tax` and `net` — never its native amount at
+  parity (security review 2026-10-12, K07). `unconverted_count` counts it,
   `conversion_note` states the basis and `computation_basis` (`series`,
   `currency`, `window`, `reference`, `gaps`) the rule.
   A booking's cash and withheld tax are read in its cash account's currency,
