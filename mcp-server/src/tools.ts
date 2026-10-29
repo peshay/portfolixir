@@ -3997,14 +3997,14 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.allowance_orders.list",
     "List configured Freistellungsauftraege",
-    "List the Freistellungsauftraege the taxpayer INSTRUCTED, per holder, institution and tax year. This is the instruction side; what the bank actually applied is recorded on the statement snapshot. Filters fold case, so 'comdirect' and 'Comdirect' are the same institution.",
+    "List the Freistellungsauftraege the taxpayer INSTRUCTED, per holder, institution and tax year; what the bank applied is on the statement. Each carries author and corrected_by (operator | agent). Filters fold case, so 'comdirect' and 'Comdirect' are the same institution.",
     allowanceOrdersListSchema,
     allowanceOrdersListZ
   ),
   tool(
     "portfolixir.allowance_orders.put",
     "Record a configured Freistellungsauftrag",
-    "Record or replace the instructed allowance for one (holder, institution, tax_year). amount_granted is a non-negative Decimal string. Recording the same triple again updates it - identity folds case, so it never silently becomes a second order." + TAX_AMOUNTS,
+    "Record or replace the instructed allowance for one (holder, institution, tax_year). amount_granted is a non-negative Decimal string. Recording the same triple again updates it (corrected_by: agent) - identity folds case, never a second order." + TAX_AMOUNTS,
     allowanceOrderPutSchema,
     allowanceOrderPutZ
   ),
@@ -4018,28 +4018,28 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.tax_snapshots.list",
     "List recorded tax statements",
-    "List recorded broker tax statements (Verlustverrechnungstoepfe / Freistellungsauftrag block), newest as-of first. THESE POTS ARE RECORDED, NOT DERIVED. Note carefully WHY, because the obvious objection is wrong: Portfolixir DOES match lots FIFO (see portfolixir.trades.list), so the missing piece is not the cost method. It is that Teilfreistellung, Vorabpauschale, chronological allowance consumption and certified prior-year carry-forward are not in the transaction data at all, and that the pots are kept per tax-reporting institution, which Portfolixir does not model. FIFO gives you a GROSS GAIN; a gross gain is not a tax pot. So do NOT try to compute these from holdings or from trades - read the recorded statement. Each row carries allowance_remaining, tax_free_trim_budget, its as_of basis, a stale flag, a staleness object (#667: age_days vs age_threshold_days AND activity_since_count - the count of tax-relevant bookings of activity_kinds dated after as_of; warning=true is the signal to act on, the bare stale flag flips the day after any as_of) and the advisory consistency findings. All money values are Decimal strings.",
+    "List recorded broker tax statements (Verlustverrechnungstoepfe / Freistellungsauftrag block), newest as-of first. THESE POTS ARE RECORDED, NOT DERIVED. WHY, since the obvious objection is wrong: Portfolixir DOES match lots FIFO (see portfolixir.trades.list), so the missing piece is not the cost method. It is that Teilfreistellung, Vorabpauschale, chronological allowance consumption and certified prior-year carry-forward are not in the transaction data at all, and that the pots are kept per tax-reporting institution, which Portfolixir does not model. FIFO gives you a GROSS GAIN; a gross gain is not a tax pot. So do NOT compute these from holdings or trades - read the recorded statement. Each row carries author and corrected_by (who recorded, who last corrected: operator | agent), allowance_remaining, tax_free_trim_budget, its as_of basis, a stale flag, a staleness object (#667: age_days vs age_threshold_days AND activity_since_count, tax-relevant bookings of activity_kinds after as_of; act on warning=true, the bare stale flag flips the day after any as_of) and the advisory consistency findings. All money values are Decimal strings.",
     taxSnapshotsListSchema,
     taxSnapshotsListZ
   ),
   tool(
     "portfolixir.tax_snapshots.get",
     "Read one recorded tax statement",
-    "Read one recorded statement by id with its derived figures (allowance_remaining, tax_free_trim_budget), its as_of basis, staleness, and the advisory findings. A finding names the recorded and the expected number and the gap; it never proposes a corrected value.",
+    "Read one recorded statement by id with author, corrected_by, derived figures (allowance_remaining, tax_free_trim_budget), as_of, staleness and advisory findings. A finding names the recorded and the expected number and the gap; it never proposes a corrected value.",
     taxSnapshotIdSchema,
     taxSnapshotIdZ
   ),
   tool(
     "portfolixir.tax_snapshots.create",
     "Record a tax statement",
-    "Transcribe the tax block of a broker statement for one (institution, holder, tax_year, as_of). The source of a recorded statement is manual, set by the system and never by the request. Every money field is a POSITIVE MAGNITUDE Decimal string - a loss pot is the volume of loss available for offsetting, NOT the negative number the statement prints; a negative input is rejected rather than silently flipped. as_of must not be in the future. Omit church_tax_rate to take the holder's profile in force at as_of, which is then frozen on the row. Arithmetic advisories come back in the response and never block the write." + TAX_AMOUNTS,
+    "Transcribe the tax block of a broker statement for one (institution, holder, tax_year, as_of). source (manual) and author (agent, for a token) are set by the system, never by the request. Every money field is a POSITIVE MAGNITUDE Decimal string - a loss pot is the volume of loss available for offsetting, NOT the negative number the statement prints; a negative input is rejected rather than silently flipped. as_of must not be in the future. Omit church_tax_rate to take the holder's profile in force at as_of, which is then frozen on the row. Arithmetic advisories come back in the response and never block the write." + TAX_AMOUNTS,
     taxSnapshotCreateSchema,
     taxSnapshotCreateZ
   ),
   tool(
     "portfolixir.tax_snapshots.update",
     "Correct a recorded tax statement",
-    "Correct a recorded statement in place - the case of a re-issued statement for the same position date. Same magnitude rules as create." + TAX_AMOUNTS,
+    "Correct a recorded statement in place (a re-issue for the same date); sets corrected_by: agent. Same magnitude rules as create." + TAX_AMOUNTS,
     taxSnapshotUpdateSchema,
     taxSnapshotUpdateZ
   ),
@@ -4053,7 +4053,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.tax_snapshots.trim_budget",
     "Tax-free trim budget for a holder and year",
-    "The volume of realised EQUITY gain still free of Kapitalertragsteuer, rolled up across institutions for one holder and tax year: the latest statement per institution (holder and institution matched by the database's case fold, so case spellings of one taxpayer or bank are one), its equity loss pot plus its remaining allowance (the response also carries the summed allowance_granted and allowance_used the remaining allowance is derived from). Always read the as_of and the coverage before acting on it - the figure decays without any action by the maintainer (dividends and interest consume the allowance chronologically), and complete=false with missing_institutions lists banks that have a configured allowance order but no recorded statement, so the total is a partial picture. The response carries a staleness object: warning=true when the roll-up's as_of is older than age_threshold_days OR when activity_since_count tax-relevant bookings (activity_kinds) landed after it - the activity condition is the one to act on. This is a DECISION INPUT, never an instruction: nothing here creates, stores or transmits an order.",
+    "The volume of realised EQUITY gain still free of Kapitalertragsteuer, rolled up across institutions for one holder and tax year: the latest statement per institution (holder and institution matched by the database's case fold, so case spellings of one taxpayer or bank are one), its equity loss pot plus its remaining allowance (also the summed allowance_granted and allowance_used). agent_institutions: those resting on a statement the agent recorded or last corrected. Always read the as_of and the coverage before acting on it - the figure decays without any action by the maintainer (dividends and interest consume the allowance chronologically), and complete=false with missing_institutions lists banks that have a configured allowance order but no recorded statement, so the total is a partial picture. Its staleness object sets warning=true when as_of is older than age_threshold_days OR activity_since_count tax-relevant bookings (activity_kinds) landed after it - act on the activity condition. This is a DECISION INPUT, never an instruction: nothing here creates, stores or transmits an order.",
     taxTrimBudgetSchema,
     taxTrimBudgetZ
   )

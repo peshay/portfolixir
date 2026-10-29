@@ -9,7 +9,9 @@ description: "Records the agent-surface posture the architecture's FU-6 asked fo
 - **Status:** Accepted. Adopted by the merge of the Sprint 20 sprint PR
   (ADR-0026 step 1, as amended on PR #780: the merge is the signature). No
   owner question is outstanding: the architecture's FU-6 row says the
-  product identity settles it.
+  product identity settles it. **Amended in Sprint 21** by the security
+  review's H14 and K12 (decision T-16): §1's author mark reaches a rule's
+  name and the tax rows.
 - **Date:** 2026-10-08
 - **Answers:** #967 and the architecture's follow-up FU-6.
 - **Supersedes:** the architecture's decision D4 ("graduated token scopes",
@@ -78,7 +80,14 @@ the architecture's precedence names: that is the ADR corpus. This record is.
   records its author, `agent` for an API or MCP token
   ([ADR-0049](0049-policy-rules-as-first-class-objects.html), amendment of
   Sprint 16, T-8). It is in force as the operator's would be; it is not held
-  back for adoption.
+  back for adoption. *Amended 2026-10-29 (Sprint 21, security review
+  2026-10-12, decision T-16):* the same author, derived the same way
+  (`Portfolixir.Actor.author/1`), now also names who last named a policy
+  rule (`name_author`, H14), and who recorded and who last corrected a tax
+  statement or an allowance order (`author`, `corrected_by`, K12); the Risk
+  and Tax pages mark the agent's with the same word, and a tax row's source
+  stays the system's, so a token's write no longer reads as a manual
+  transcription.
 
 ### 2. The threat model
 

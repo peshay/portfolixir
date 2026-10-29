@@ -2780,6 +2780,13 @@ eine Datennotiz an seiner Zeile mit dem Prüf-Bedienelement darin, und
 öffnen sich aus einem Aufklappen und sind standardmäßig geschlossen; die
 Vorzeichenregel ist Feldhilfe an den Betragsfeldern, und die hinterlegten
 Freistellungsaufträge sitzen hinter einem Aufklappen, das ihren Zweck nennt.
+Was Ihr Agent mit seinem Token geschrieben hat, trägt das Wort „Agent" (K12):
+Eine Abrechnung, die er erfasst hat, liest „erfasst · Agent" statt „manuell
+erfasst", eine, die Sie erfasst und er zuletzt korrigiert hat, „manuell
+erfasst · korrigiert · Agent", ein Freistellungsauftrag, den er erteilt hat,
+trägt „· Agent", und die Basiszeile nennt „(Agent)" hinter jedem Institut,
+dessen gezählte Abrechnung vom Agenten stammt. Ihre eigenen Einträge tragen
+kein Wort.
 
 **Der Verkaufsspielraum** ist der Verlusttopf Aktien plus der verbleibende
 Freistellungsauftrag (`erteilt − verbraucht`). Er wird immer **mit seinem

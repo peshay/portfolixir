@@ -2536,6 +2536,12 @@ with the check control inside, and "Correct" and "Delete" sit in the row
 menu. Both entry forms open from a disclosure and are closed by default; the
 sign convention is field help on the amount inputs, and the configured
 Freistellungsaufträge sit behind a disclosure that states their purpose.
+What your agent wrote with its token is marked with the word "Agent" (K12):
+a statement it recorded reads "recorded · Agent" instead of "recorded
+manually", one you recorded and it corrected last reads "recorded manually ·
+corrected · Agent", an allowance order it put carries "· Agent", and the
+basis line names "(Agent)" after each institution whose counted statement is
+the agent's. Your own entries carry no word.
 
 **The trim budget** is the equity loss pot plus the remaining allowance
 (`granted − used`). It is always shown **with its as-of date** and warns

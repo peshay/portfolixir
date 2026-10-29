@@ -2896,13 +2896,24 @@ beschrieben.)
   Übertragung umschreibt. Dasselbe `(institution, holder, tax_year, as_of)`
   erneut zu erfassen ist ein `422`, kein stilles Duplikat. Die Quelle einer
   erfassten Steuerbescheinigung setzt das System (`manual`); eine `source` im
-  Body einer Anlage oder einer Korrektur wird ignoriert.
+  Body einer Anlage oder einer Korrektur wird ignoriert. Wer sie geschrieben
+  hat, ist ein eigenes Paar (Sicherheitsprüfung K12): `author` ist, wer sie
+  erfasst hat, und `corrected_by`, wer sie zuletzt korrigiert hat (`null`
+  bis zu einer Korrektur), jeweils `operator` für die Steuern-Seite und
+  `agent` für ein API- oder MCP-Token, abgeleitet aus dem Zugang des
+  Schreibzugriffs und nie aus dem Body gelesen. Eine Änderung, die nichts
+  ändert, setzt kein `corrected_by`. Ein Freistellungsauftrag trägt dasselbe
+  Paar für sein erstes Erfassen und sein letztes Ersetzen. Zeilen von vor
+  den Autoren erhalten, was ihr Anlegen und ihre letzte Korrektur im Journal
+  nennen, `null` ohne einen solchen Eintrag.
 - `GET /api/v1/tax/trim_budget` rollt die jeweils neueste Bescheinigung je
   Institut zu einer Person und einem Jahr auf (Pflichtparameter `holder` und
   `tax_year`); Institute werden nach der Groß-/Kleinschreibungsfaltung der
   Datenbank gruppiert, sodass eine spätere Bescheinigung unter einer anderen
   Schreibweise derselben Bank die frühere ersetzt. Die Antwort nennt, welche
-  `institutions` sie abdeckt, das `as_of` ihres **ältesten** Bestandteils, die
+  `institutions` sie abdeckt, welche davon auf einer Bescheinigung beruhen,
+  die der Agent erfasst oder zuletzt korrigiert hat (`agent_institutions`,
+  K12), das `as_of` ihres **ältesten** Bestandteils, die
   summierten `allowance_granted` und `allowance_used`, aus denen der
   Füllstand auf der Steuern-Seite gelesen wird (neben `allowance_remaining`),
   und `complete: false` mit `missing_institutions`, wenn ein hinterlegter

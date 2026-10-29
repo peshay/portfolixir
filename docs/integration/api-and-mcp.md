@@ -2331,12 +2331,22 @@ under "Transactions and Holdings" above.)
   never rewrites a recorded transcription. Re-recording the same
   `(institution, holder, tax_year, as_of)` is a `422`, not a silent duplicate.
   A recorded statement's `source` is `manual`, set by the system: a `source`
-  in the body of a create or a correction is ignored.
+  in the body of a create or a correction is ignored. Who wrote it is a
+  separate pair (security review K12): `author` is who recorded it and
+  `corrected_by` who corrected it last (`null` until a correction), each
+  `operator` for the Tax page and `agent` for an API or MCP token, derived
+  from the write's credential and never read from the body. An update that
+  changes nothing sets no `corrected_by`. An allowance order carries the same
+  pair for its first put and its last replacing put. Rows stored before
+  authors existed take what their journaled creation and last correction
+  name, `null` without one.
 - `GET /api/v1/tax/trim_budget` rolls the latest statement per institution up
   to one holder and year (required `holder` and `tax_year`); institutions are
   grouped by the database's case fold, so a later statement under another
   case spelling of one bank replaces the earlier one. It reports which
-  `institutions` it covers, the `as_of` of its **oldest** component, the
+  `institutions` it covers, which of them rest on a statement the agent
+  recorded or corrected last (`agent_institutions`, K12), the `as_of` of its
+  **oldest** component, the
   summed `allowance_granted` and `allowance_used` the fill level on the Tax
   page is read from (beside `allowance_remaining`), and
   `complete: false` with `missing_institutions` when a configured allowance
