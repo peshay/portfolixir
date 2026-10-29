@@ -495,4 +495,53 @@ defmodule Portfolixir.RuntimeConfigTest do
 
     assert File.read!("config/runtime.exs") =~ "Portfolixir.RuntimeConfig.logo_dir()"
   end
+
+  # User story (security review 2026-10-12, H72):
+  # As an operator whose database password holds a character a URL reserves,
+  # I want the release to refuse DATABASE_URL at boot naming the variable and
+  # what is wrong with it, never its value,
+  # so that the password never lands in the container log or a bug report.
+  #
+  # Acceptance criteria:
+  # - A URL with a host, a port and one database name is returned as given;
+  #   so is one whose password is percent-encoded.
+  # - A password holding '/', '#', '?' or a malformed percent sequence, a URL
+  #   without a host or without a database name, and an unset variable each
+  #   raise an ArgumentError that names DATABASE_URL and holds no part of the
+  #   password.
+  # - Every URL it returns parses for the Repo without an error.
+  # - The production runtime configuration reads DATABASE_URL through it.
+  test "refuses a malformed DATABASE_URL naming the variable, never the password" do
+    for url <- [
+          "postgres://portfolixir:0123abcd@db:5432/portfolixir_prod",
+          "postgres://portfolixir:Synthetic%2FPw%23x@db:5432/portfolixir_prod",
+          "postgresql://portfolixir@127.0.0.1/portfolixir_prod"
+        ] do
+      assert RuntimeConfig.database_url!(url) == url
+      assert Keyword.fetch!(Ecto.Repo.Supervisor.parse_url(url), :database) == "portfolixir_prod"
+    end
+
+    for password <- [
+          "SyntheticPw/With+Slash=",
+          "SyntheticPw#Hash",
+          "SyntheticPw?Query",
+          "SyntheticPw%zzBad"
+        ] do
+      url = "postgres://portfolixir:#{password}@db:5432/portfolixir_prod"
+      error = assert_raise ArgumentError, fn -> RuntimeConfig.database_url!(url) end
+      assert error.message =~ "DATABASE_URL"
+      refute error.message =~ "SyntheticPw"
+    end
+
+    for url <- ["postgres:///portfolixir_prod", "postgres://db:5432/", "postgres://db:5432/a/b"] do
+      error = assert_raise ArgumentError, fn -> RuntimeConfig.database_url!(url) end
+      assert error.message =~ "DATABASE_URL"
+    end
+
+    error = assert_raise ArgumentError, fn -> RuntimeConfig.database_url!(nil) end
+    assert error.message =~ "DATABASE_URL is required"
+
+    assert File.read!("config/runtime.exs") =~
+             ~s|Portfolixir.RuntimeConfig.database_url!(System.get_env("DATABASE_URL"))|
+  end
 end
