@@ -36,23 +36,23 @@ function proxyFor(protocol: string, env: NodeJS.ProcessEnv): string | undefined 
   return httpProxy;
 }
 
-// Whether NO_PROXY already names the host: `*`, the host itself, or a domain
-// it lies in (`example.test` or `.example.test`), with or without its port.
-function excluded(noProxy: string, hostname: string, port: string): boolean {
+// Whether NO_PROXY exempts the host, read the way Node's fetch reads it
+// (undici's EnvHttpProxyAgent): entries split on commas and spaces, an entry
+// with a port covers that port only, a plain entry covers that exact host and
+// never its subdomains, an entry starting with "." or "*" covers what ends
+// with the rest (subdomains only; "*" alone covers everything).
+function excluded(noProxy: string, hostname: string, port: number): boolean {
   return noProxy
-    .split(",")
-    .map((entry) => entry.trim().toLowerCase())
+    .split(/[,\s]/)
     .filter((entry) => entry !== "")
     .some((entry) => {
-      if (entry === "*") return true;
+      const parsed = /^(.+):(\d+)$/.exec(entry);
+      const host = (parsed ? parsed[1]! : entry).toLowerCase();
+      const entryPort = parsed ? Number.parseInt(parsed[2]!, 10) : 0;
 
-      const [name, entryPort] = entry.startsWith("[")
-        ? [entry.slice(0, entry.indexOf("]") + 1), entry.slice(entry.indexOf("]") + 2)]
-        : entry.split(":", 2);
-      const domain = (name ?? "").replace(/^\*?\./, "");
-
-      if (present(entryPort) && entryPort !== port) return false;
-      return hostname === domain || hostname.endsWith(`.${domain}`);
+      if (entryPort !== 0 && entryPort !== port) return false;
+      if (!/^[.*]/.test(host)) return hostname === host;
+      return hostname.endsWith(host.replace(/^\*/, ""));
     });
 }
 
@@ -68,8 +68,10 @@ export function apiProxyDecision(
   }
 
   const hostname = url.hostname.toLowerCase();
-  const port = url.port || (url.protocol === "https:" ? "443" : "80");
-  const noProxy = [env.no_proxy, env.NO_PROXY].find(present) ?? "";
+  const port = Number.parseInt(url.port, 10) || (url.protocol === "https:" ? 443 : 80);
+  // As Node reads it: the lower-case variable wins whenever it is set, even
+  // blank, which then exempts nothing.
+  const noProxy = env.no_proxy ?? env.NO_PROXY ?? "";
 
   if (excluded(noProxy, hostname, port)) {
     return { kind: "direct" };
