@@ -219,7 +219,7 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
          {:ok, scope} <- loaded(Buckets.load_scope(portfolio_id, view)) do
       compute = fn ->
         portfolio_id
-        |> Performance.contribution_analysis(scope, period, today: today)
+        |> Performance.contribution_analysis(scope, period, today: today, from_baseline: true)
         |> build(period)
         |> Map.merge(%{portfolio_id: portfolio_id, view_id: view})
       end
@@ -263,7 +263,8 @@ defmodule Portfolixir.Portfolios.Performance.Contribution do
         view_id
         |> Performance.view_contribution_analysis(scope, period,
           base_currency: base,
-          today: today
+          today: today,
+          from_baseline: true
         )
         |> build(period)
         |> Map.merge(%{portfolio_id: nil, view_id: view_id})

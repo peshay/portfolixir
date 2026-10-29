@@ -389,12 +389,22 @@ defmodule Portfolixir.Portfolios.Performance do
   # `nil` when the window holds no walked day. Never memoised as a walk:
   # `Portfolixir.Portfolios.Performance.Contribution` registers its own
   # analytic. The period is validated by the caller.
+  #
+  # `from_baseline: true` (K08, the contribution reads) walks from the
+  # window's baseline day, seeded with the state the full walk carries into
+  # it: the daily series then holds that day and the ones after it, each
+  # identical to the full walk's but for the baseline day's basis step,
+  # which no window reads, and every summary of the window is identical.
   @spec contribution_analysis(integer(), :unscoped | map(), term(), keyword()) :: map()
   def contribution_analysis(portfolio_id, scope, period, opts \\ [])
       when is_integer(portfolio_id) do
     today = Keyword.get(opts, :today, Clock.today())
     transactions = sorted_transactions(portfolio_id)
-    window = contribution_window(period, today, walk_start(transactions, today))
+
+    window =
+      period
+      |> contribution_window(today, walk_start(transactions, today))
+      |> from_baseline(opts)
 
     portfolio_id
     |> walk_portfolio(transactions, scope, base_currency(portfolio_id), today, window)
@@ -405,7 +415,8 @@ defmodule Portfolixir.Portfolios.Performance do
   # The cross-portfolio twin of `contribution_analysis/4` over
   # `view_analysis/2`'s walk: the window is clamped to the merged history,
   # exactly as `summarise/2` clamps the merged series, and each portfolio's
-  # kept figures are summed per position. Options: `:base_currency`, `:today`.
+  # kept figures are summed per position. Options: `:base_currency`, `:today`,
+  # `:from_baseline` (as in `contribution_analysis/4`).
   @spec view_contribution_analysis(integer() | nil, :unscoped | map(), term(), keyword()) :: map()
   def view_contribution_analysis(view_id, scope, period, opts \\ [])
       when is_integer(view_id) or is_nil(view_id) do
@@ -419,7 +430,7 @@ defmodule Portfolixir.Portfolios.Performance do
       |> Enum.reject(&is_nil/1)
       |> Enum.min(Date, fn -> nil end)
 
-    window = contribution_window(period, today, first)
+    window = period |> contribution_window(today, first) |> from_baseline(opts)
 
     analyses =
       Enum.map(ledgers, fn {portfolio_id, txs} ->
@@ -900,6 +911,15 @@ defmodule Portfolixir.Portfolios.Performance do
   # portfolio value (base currency) and net external flow. All pricing data
   # (quotes, own trade prices, FX rates) is preloaded; the walk is pure.
   #
+  # Its memory follows held security-days (K08): each security's closes are
+  # loaded only from its own first booking through the day its position
+  # ends for good (`init_pricing/4`), and a contribution `window`'s walk
+  # starts on the window's baseline day, its quantities and cash seeded from
+  # the bookings before it (`seed_state/3`), instead of at the first booking.
+  # Neither moves a figure: a day's value reads only the held quantities, the
+  # cash, and each held security's latest price and rate, and those are the
+  # same on every walked day.
+  #
   # Returns `{series, kept, fx}`: `kept` is `nil` unless a contribution
   # `window` was given, in which case it holds the per-position figures the
   # walk kept apart inside it (ADR-0051 §5). They ride in the state under
@@ -908,19 +928,20 @@ defmodule Portfolixir.Portfolios.Performance do
   defp daily_series(portfolio_id, transactions, walk_start, today, base, scope, window) do
     by_day = Enum.group_by(transactions, &effective_date(&1, walk_start))
     currencies = account_currencies(portfolio_id)
+    from = first_walked_day(window, walk_start)
 
     context = %{
       base: base,
       currencies: currencies,
       scope: scope,
-      pricing: init_pricing(transactions, walk_start),
-      fx: init_fx(transactions, currencies, base, walk_start)
+      pricing: init_pricing(transactions, walk_start, from, held_until(by_day, scope)),
+      fx: init_fx(transactions, currencies, base, from)
     }
 
-    state = open_kept(%{qty: %{}, cash: %{}}, window, transactions)
+    state = open_kept(seed_state(by_day, from, scope), window, transactions)
 
     {series, state, _context} =
-      Enum.reduce(Date.range(walk_start, today), {[], state, context}, &walk_day(by_day, &1, &2))
+      Enum.reduce(Date.range(from, today), {[], state, context}, &walk_day(by_day, &1, &2))
 
     {Enum.reverse(series), Map.get(state, :kept), context.fx}
   end
@@ -928,6 +949,80 @@ defmodule Portfolixir.Portfolios.Performance do
   defp effective_date(tx, walk_start) do
     if Date.compare(tx.date, walk_start) == :lt, do: walk_start, else: tx.date
   end
+
+  # A contribution read's walk starts on its window's baseline day, the day
+  # before the window, whose close is the start value (ADR-0051 §4); a walk
+  # that would start there or later, and every other walk, starts at the
+  # first booking.
+  defp first_walked_day(%{start: window_start, from_baseline: true}, walk_start) do
+    baseline = Date.add(window_start, -1)
+    if Date.compare(baseline, walk_start) == :gt, do: baseline, else: walk_start
+  end
+
+  defp first_walked_day(_window, walk_start), do: walk_start
+
+  # The quantities and cash at the close of the day before `from`: every
+  # earlier day's bookings applied in the walk's own order through the same
+  # leg reducers, so they are exactly the state the walk carries into
+  # `from`. The state never reads a price or a rate.
+  defp seed_state(by_day, from, scope) do
+    by_day
+    |> Enum.filter(fn {day, _txs} -> Date.compare(day, from) == :lt end)
+    |> Enum.sort_by(fn {day, _txs} -> Date.to_erl(day) end)
+    |> Enum.reduce(%{qty: %{}, cash: %{}}, fn {_day, txs}, state ->
+      txs |> sort_within_day() |> Enum.reduce(state, &apply_legs(&1, &2, scope))
+    end)
+  end
+
+  # The last day each security's held quantity moved, or `:open` when the
+  # walk still holds it after its last booking. After that day the walk
+  # never values it again, so no later close is needed.
+  defp held_until(by_day, scope) do
+    {state, last} =
+      by_day
+      |> Enum.sort_by(fn {day, _txs} -> Date.to_erl(day) end)
+      |> Enum.reduce({%{qty: %{}, cash: %{}}, %{}}, fn {day, txs}, acc ->
+        txs
+        |> sort_within_day()
+        |> Enum.reduce(acc, fn tx, {state, last} ->
+          moved =
+            for {_leg, security_id} <- quantity_legs(tx, scope), into: %{}, do: {security_id, day}
+
+          {apply_legs(tx, state, scope), Map.merge(last, moved)}
+        end)
+      end)
+
+    Map.new(last, fn {security_id, day} ->
+      {security_id, if(Map.has_key?(state.qty, security_id), do: :open, else: day)}
+    end)
+  end
+
+  # One booking's effect on the walk's quantities and cash, exactly as
+  # `apply_transaction/3` applies it in its scope, without the flow.
+  defp apply_legs(tx, state, scope) do
+    state =
+      tx
+      |> Projection.effects()
+      |> Map.fetch!(:cash)
+      |> Enum.filter(&(scope == :unscoped or cash_leg_in_scope?(&1, scope)))
+      |> Enum.reduce(state, fn leg, st -> leg |> apply_cash_leg(st) |> elem(0) end)
+
+    tx
+    |> quantity_legs(scope)
+    |> Enum.reduce(state, fn
+      {{:scale, %{ratio: ratio}}, security_id}, st -> scale_qty(st, security_id, ratio)
+      {{_account_id, _security_id, delta}, security_id}, st -> add_qty(st, security_id, delta)
+    end)
+  end
+
+  defp quantity_legs(tx, scope) do
+    for leg <- Projection.effects(tx).quantities,
+        scope == :unscoped or qty_leg_in_scope?(leg, scope),
+        do: {leg, leg_security_id(leg)}
+  end
+
+  defp leg_security_id({:scale, %{security_id: security_id}}), do: security_id
+  defp leg_security_id({_account_id, security_id, _delta}), do: security_id
 
   defp walk_day(by_day, day, {acc, state, context}) do
     {pricing, steps} = advance_pricing(context.pricing, day)
@@ -1351,7 +1446,7 @@ defmodule Portfolixir.Portfolios.Performance do
   # fold scales — the events are security-level (deduplicated across the
   # per-portfolio fan-out), so a portfolio without its own split row still
   # prices every era correctly.
-  defp init_pricing(transactions, walk_start) do
+  defp init_pricing(transactions, walk_start, from, held_until) do
     events_by_security =
       transactions
       |> Enum.map(& &1.security_id)
@@ -1364,17 +1459,28 @@ defmodule Portfolixir.Portfolios.Performance do
     |> Enum.group_by(& &1.security_id)
     |> Map.new(fn {security_id, txs} ->
       events = Map.get(events_by_security, security_id, [])
-      {security_id, init_security_pricing(security_id, txs, walk_start, events)}
+      held = {quotes_from(txs, walk_start, from), Map.get(held_until, security_id, :never)}
+      {security_id, init_security_pricing(security_id, txs, walk_start, events, held)}
     end)
   end
 
-  defp init_security_pricing(security_id, txs, walk_start, events) do
+  # A security's closes matter from its own first booking, or from the
+  # first walked day when that is later.
+  defp quotes_from(txs, walk_start, from) do
+    txs
+    |> Enum.map(&effective_date(&1, walk_start))
+    |> Enum.min(Date)
+    |> then(&Enum.max([&1, from], Date))
+  end
+
+  defp init_security_pricing(security_id, txs, walk_start, events, {from, until} = held) do
     currency = security_currency(hd(txs))
     security = security_struct(hd(txs))
+    retired? = security_retired?(security)
 
     quote_points =
       security_id
-      |> Quotes.range(walk_start, ~D[9999-12-31])
+      |> held_quotes(walk_start, held)
       |> Enum.map(
         &%{
           date: &1.date,
@@ -1403,8 +1509,50 @@ defmodule Portfolixir.Portfolios.Performance do
       price: carried,
       upcoming: points,
       measured?: not is_nil(carried),
-      retired?: security_retired?(security)
+      retired?: retired?,
+      quoted_beyond?: retired? and quoted_beyond?(security_id, from, until)
     }
+  end
+
+  # The closes the walk can read (K08): the last one before `from` when it
+  # lies inside the walk (the price the security carries into `from`; an
+  # older one is the carried seed), then every close from `from` through
+  # the last day the position is held. Before `from` only the latest close
+  # sets the carried price, and after the position ends for good no day
+  # values it again.
+  defp held_quotes(security_id, walk_start, {from, until}) do
+    lead =
+      with :gt <- Date.compare(from, walk_start),
+           %{date: date} = row <- Quotes.at_or_before(security_id, Date.add(from, -1)),
+           true <- Date.compare(date, walk_start) != :lt do
+        [row]
+      else
+        _none -> []
+      end
+
+    lead ++ held_range(security_id, from, until)
+  end
+
+  defp held_range(security_id, from, :open), do: Quotes.range(security_id, from, ~D[9999-12-31])
+
+  defp held_range(security_id, from, %Date{} = until) do
+    if Date.compare(until, from) == :lt, do: [], else: Quotes.range(security_id, from, until)
+  end
+
+  defp held_range(_security_id, _from, :never), do: []
+
+  # Whether a close exists after the last one loaded: the retired-security
+  # rule (#610) asks whether any close lies ahead, wherever the load ends.
+  defp quoted_beyond?(_security_id, _from, :open), do: false
+
+  defp quoted_beyond?(security_id, from, until) do
+    through =
+      case until do
+        %Date{} -> Enum.max([until, Date.add(from, -1)], Date)
+        :never -> Date.add(from, -1)
+      end
+
+    Quotes.range(security_id, Date.add(through, 1), ~D[9999-12-31], limit: 1) != []
   end
 
   defp security_retired?(%Portfolixir.Catalog.Security{is_retired: retired?}),
@@ -1512,13 +1660,16 @@ defmodule Portfolixir.Portfolios.Performance do
   # newer quote row exists — the feed has stopped, and the price the walk
   # carries is the last close, however old — so the trade point that replaces
   # it emits the basis step like a never-quoted position's would. A quote row
-  # anywhere ahead (`upcoming` holds every row from the walk start on) keeps
-  # the security measured, and the next row re-latches it. The catalog flag,
+  # anywhere ahead (in `upcoming`, or past the last loaded close,
+  # `quoted_beyond?`) keeps the security measured, and the next row
+  # re-latches it. The catalog flag,
   # never a day count, is the signal: an actively quoted portfolio is never
   # reclassified, which keeps the #545 byte-identical guarantee by
   # construction.
-  defp stale_retired?(%{retired?: true, upcoming: upcoming}),
-    do: not Enum.any?(upcoming, &match?(%{price_source: :quote}, &1))
+  defp stale_retired?(%{retired?: true, upcoming: upcoming} = entry),
+    do:
+      not entry.quoted_beyond? and
+        not Enum.any?(upcoming, &match?(%{price_source: :quote}, &1))
 
   defp stale_retired?(_entry), do: false
 
@@ -1950,6 +2101,15 @@ defmodule Portfolixir.Portfolios.Performance do
       do: nil,
       else: %{start: start_date, end: end_date}
   end
+
+  defp from_baseline(%{} = window, opts),
+    do:
+      if(Keyword.get(opts, :from_baseline, false),
+        do: Map.put(window, :from_baseline, true),
+        else: window
+      )
+
+  defp from_baseline(nil, _opts), do: nil
 
   defp open_kept(state, nil, _transactions), do: state
 
