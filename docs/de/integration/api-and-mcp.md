@@ -3222,6 +3222,10 @@ neu zugeordnet werden.
   `PATCH` verschiebt, unter Ebene 32 läge, liefert ebenfalls `422` an
   `parent_id` und nennt die Ebene („would put a category on level 33; a
   classification has at most 32 levels“, Issue #940).
+  Eine `position`, an einer Klassifikation oder einer Kategorie, ist eine
+  ganze Zahl von -2147483648 bis 2147483647 (der Bereich der Spalte); jede
+  andere liefert `422` an `position`, und nichts wird geschrieben. Die Schemas
+  des Begleitdienstes tragen dieselben Grenzen.
 - `DELETE /api/v1/classifications/:classification_id/categories/:id` löscht eine
   Kategorie mit den Kategorien darunter, den dort zugeordneten Wertpapieren und
   den dort abgelegten Zielen; jede Zeile wird als eigene Löschung

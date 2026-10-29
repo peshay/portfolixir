@@ -2967,6 +2967,10 @@ tree stays intrinsic and cannot be reassigned.
   would sit below level 32 answers `422` on `parent_id` as well, naming the
   level ("would put a category on level 33; a classification has at most 32
   levels", issue #940).
+  A `position`, on a classification or a category, is an integer from
+  -2147483648 to 2147483647 (the column's range); any other answers `422` on
+  `position` and nothing is written. The companion's schemas carry the same
+  bounds.
 - `DELETE /api/v1/classifications/:classification_id/categories/:id` deletes a
   category with the categories below it, the securities assigned there and
   the targets filed under them; each row is journaled as its own delete,
