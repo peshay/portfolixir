@@ -2944,9 +2944,17 @@ records only what the security adds.
   with its state and view, G6-A's reference) plus "A rule that has been in
   force keeps its subject as part of its history.", a split one side lacks
   with its date, ratio and the side's earlier booking or quote, a split that
-  would restate a depot it did not restate before. Where the reverse merge
-  passes, the remedy says so ("merge the other way — <ISIN> into this
-  security") and **Merge the other way** opens that pair's preview; where it
+  would restate a depot it did not restate before. A reason names
+  identities by kind and count ("2 identifiers of the two would no longer
+  lead to the target:", "the source's ISIN fails its check digit"); their
+  values follow as data lines (board 04 ③, H11): one
+  `.merge-refusal__position` line each, its kind as a muted
+  `.merge-refusal__kind` label ("ISIN of the source (as imported):", "Name
+  of the target:"), the value in `<bdi>`, an identifier in the pair cards'
+  mono face, a name in the text face with its currency after it. Where the
+  reverse merge passes, the remedy says so ("merge the other way — the
+  target into this security") and **Merge the other way** opens that pair's
+  preview; where it
   is refused too, "The other way is refused too: …" and "No direction is
   possible; both securities stay unchanged.", with no remedy the version
   does not have. A split mismatch offers **Check again** after its remedy;

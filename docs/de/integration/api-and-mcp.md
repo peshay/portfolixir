@@ -608,7 +608,8 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
   (`legacy_hashed_split`, mit `errors.splits`; seine Art zurücksetzen oder ihn
   löschen — einen, den die Zusammenführung zusammenlegt, löscht sie und legt
   seinen Hash still). Eine ISIN der Quelle mit falscher Prüfziffer wird
-  abgelehnt (`invalid_source_isin`): Die Zusammenführung würde sie auf das
+  abgelehnt (`invalid_source_isin`, der gespeicherte Wert in
+  `errors.source_isin`): Die Zusammenführung würde sie auf das
   Ziel schreiben, was der Katalog für ein gespeichertes Wertpapier ablehnt;
   sie ist daher zuerst an der Quelle zu korrigieren oder zu leeren. Schließlich
   muss jede Identität beider Wertpapiere nach der Zusammenführung das Ziel
@@ -703,7 +704,9 @@ demselben `plan_digest`, sodass beide denselben Plan sehen.
   führt unter dem Token zusammen (`portfolixir.securities.merge`).
   `collapse_key_equal` ist Pflicht, wenn die Vorschau `key_equal_pairs`
   nennt, und `identity_choice`, wenn beide Wertpapiere eine ISIN tragen —
-  ohne sie jeweils ein `422`, und nie vorausgewählt: Frag den Operator.
+  ohne sie jeweils ein `422`, und nie vorausgewählt: Frag den Operator. Die
+  Ablehnung zu `identity_choice` nennt die ISINs nach ihrer Art und trägt
+  beide in `errors.isins` (`source_isin`, `target_isin`).
   `keep_target_isin` behält die ISIN des Ziels und zeichnet die der Quelle
   als frühere ISIN des Ziels auf; `adopt_source_isin` gibt dem Ziel die ISIN
   der Quelle und zeichnet seine alte als frühere ISIN auf (die Reparatur des
@@ -3906,7 +3909,8 @@ Schreiben eines Geldkontos oder Depots nennt `cash account #5` oder
 account #5 in this portfolio“), und das Detail einer Prüfung beim
 Zusammenführen von Wertpapieren nennt Regeln, Depots, Buckets und Portfolios
 mit ihren ids (`policy rule(s): #7 (in_force)`, `In depot #3`,
-`in portfolio #1`) und den Namen einer Identität als „its recorded name“, und
+`in portfolio #1`) und Namen und Kennungen einer Identität nach ihrer Art
+(„its recorded name“, „its stored ISIN“), und
 ein erneut gebuchter Split nennt das Portfolio des bestehenden Ereignisses mit
 seiner id (`for portfolio #1`). Ein Löschen, das abgelehnt wird, weil eine Richtlinienregel das Objekt liest
 (`409`), nennt die Regeln ebenso, und das Detail einer Prüfung beim
@@ -3919,8 +3923,10 @@ eines Wertpapiers über `GET /api/v1/securities/:id`, eines Portfolios über
 `GET /api/v1/portfolios`). Die `errors` einer Ablehnung tragen einen Namen
 neben dem Detail nur an zwei Stellen: `errors.policy_rules[].name`, mit `id`
 und `status` jeder Regel, und `errors.unresolvable[].ref.name`, den erfassten
-Namen der Identität; ein Depot, ein Portfolio und ein Bucket stehen dort nur
-mit ihren ids. Die Oberfläche von Portfolixir nennt ihn weiter beim Namen.
+Namen der Identität. Die Ablehnung einer Wertpapier-Zusammenführung trägt
+ISIN, WKN und Ticker einer Identität ebenso als Daten neben dem Satz:
+`errors.unresolvable[].ref`, `errors.source_isin` und `errors.isins`. Ein
+Depot, ein Portfolio und ein Bucket stehen dort nur mit ihren ids. Die Oberfläche von Portfolixir nennt ihn weiter beim Namen.
 
 **Ein Schreibvorgang ohne Antwort.** Jeder API-Aufruf hat eine Frist von 30
 Sekunden. Ein Lesezugriff, der sie verpasst — ein `GET` oder eines der über

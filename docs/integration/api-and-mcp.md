@@ -538,7 +538,8 @@ confirms with the same `plan_digest`, so both see the same plan.
   check (`legacy_hashed_split`, with `errors.splits`; change its kind back
   or delete it — one the merge collapses is deleted with its hash retired).
   A source ISIN that fails its check digit is refused
-  (`invalid_source_isin`): the merge would write it onto the target, which
+  (`invalid_source_isin`, the stored value in `errors.source_isin`): the
+  merge would write it onto the target, which
   the catalog refuses for a stored security, so correct or clear it on the
   source first. Finally, every identity of both
   securities must still find the target after the merge
@@ -624,7 +625,9 @@ confirms with the same `plan_digest`, so both see the same plan.
   merges under the token (`portfolixir.securities.merge`).
   `collapse_key_equal` is required when the preview lists `key_equal_pairs`,
   and `identity_choice` when both securities carry an ISIN — each a `422`
-  without it, and never preselected: ask the operator.
+  without it, and never preselected: ask the operator. The `identity_choice`
+  refusal names the ISINs by their kind and carries both in `errors.isins`
+  (`source_isin`, `target_isin`).
   `keep_target_isin` keeps the target's ISIN and records the source's as a
   former ISIN of the target; `adopt_source_isin` gives the target the
   source's ISIN and records the target's old one as its former ISIN (the
@@ -3594,8 +3597,8 @@ of a cash-account or depot write names `cash account #5` or `securities
 account #5` (`errors.former_names`: "include the name of cash account #5 in
 this portfolio"), and a security merge's guard detail names its rules,
 depots, buckets and portfolios by their ids (`policy rule(s): #7 (in_force)`,
-`In depot #3`, `in portfolio #1`) and an identity's name as "its recorded
-name", and a split booked again names the existing event's portfolio by its
+`In depot #3`, `in portfolio #1`) and an identity's name and identifiers by
+their kind ("its recorded name", "its stored ISIN"), and a split booked again names the existing event's portfolio by its
 id (`for portfolio #1`). A delete refused because a policy rule reads the object (`409`) names
 the rules the same way, and a cash-account or depot merge's guard detail names
 its buckets and a position by their ids (`the buckets #3, #7`,
@@ -3606,8 +3609,10 @@ a bucket's from `GET /api/v1/buckets/:id`, a rule's from
 a portfolio's from `GET /api/v1/portfolios`). A refusal's `errors` carry a
 name beside the detail in two places only: `errors.policy_rules[].name`, with
 each rule's `id` and `status`, and `errors.unresolvable[].ref.name`, the
-identity's recorded name; a depot, a portfolio and a bucket travel there by
-their ids alone. Portfolixir's screens keep naming it by its name.
+identity's recorded name. A security merge's refusal carries an identity's
+stored ISIN, WKN and ticker the same way, as data beside the sentence:
+`errors.unresolvable[].ref`, `errors.source_isin` and `errors.isins`. A
+depot, a portfolio and a bucket travel there by their ids alone. Portfolixir's screens keep naming it by its name.
 
 **A write that times out.** Every API call carries a 30-second deadline. A
 read that misses it — a `GET`, or one of the tools routed through `POST` that
