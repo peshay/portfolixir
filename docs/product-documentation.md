@@ -3216,8 +3216,10 @@ Quote sources in this iteration:
   (for example iShares, Vanguard, Lyxor, Amundi, Xtrackers, SPDR, Invesco).
   Structured/leverage products (warrants, knock-outs, certificates) carry no
   own logo but show their issuer's logo (BNP Paribas, Morgan Stanley, Société
-  Générale, …) when the issuer is recognizable. A manual override (image URL)
-  always wins and locks the security against background discovery.
+  Générale, …) when the issuer is recognizable. A manual override always
+  wins and locks the security against background discovery: on the page an
+  image file uploaded in the Manage-logo dialog (PNG, JPEG or WebP, at most
+  256 KB), over the API an image URL under the outbound policy.
   Government bonds use the `government_bond` asset class for ISIN country flag fallbacks.
 - Quote-history fetch uses Yahoo Finance for both. Two reasons:
   - PP's own API exposes only search, no price history.

@@ -5530,6 +5530,58 @@ had no words for that state. Built as drawn; no `app.css` rule changes.
   field's `type="url"` refuses it on save; the field starts empty in every
   state, its placeholder showing the shape it takes.
 
+## Amendment 2026-10-29 — The logo dialog: an upload instead of an image URL *(Sprint 21 Lane S, S3, security review 2026-10-12 H38; board `mockups/ux-design-2026-10-27/01-logo-upload`, before / after)*
+
+The Manage-logo dialog (`securities/logo_override_dialog.ex`) sets a manual
+logo from an image file the operator's browser uploads; the image-URL form
+and its "Save URL" are gone, so nothing typed into the page makes the server
+fetch an address. "Search again" (discovery under the outbound policy) and
+"Remove logo" are unchanged. This supersedes the 2026-10-06 amendment's
+image-URL bullet and its status sentence.
+
+- **Anatomy, in the URL form's slot** (`#logo-upload-form`,
+  `.logo-override__form`, one column, `--space-2` between parts): the label
+  "Image file" (`.logo-override__label`); the chooser "Choose image…", the
+  label of the visually hidden `live_file_input`, drawn as the outline
+  button (`.logo-override__choose`, a focus ring while the input has focus);
+  the chosen file's row; the field error; the basis line (`.hint`); "Save
+  logo" (`.button-primary`).
+- **Three states.** *Nothing chosen:* "Save logo" disabled. *A file chosen:*
+  its `live_img_preview` at the detail header's logo size
+  (`.security-logo--lg`, 40 px, on the logo plate), the file name (600,
+  wrapping anywhere) over its size (muted, tabular), and an × ("Remove the
+  selection", `aria-label` and `title`) that cancels the entry; "Save logo"
+  enabled. The answer is the page's result "Logo updated", and the dialog
+  closes. *A file refused:* the image glyph on the initial plate in the
+  preview's place, and a `.field-error` under the chosen file
+  (`#logo-upload-error`), the input `aria-invalid` and described by it
+  (UX-DR13); "Save logo" disabled until the file is removed or replaced.
+- **The refusal's words** are the Imports upload's ("File too large.",
+  "File type not accepted.", "Only one file at a time."); a file whose bytes
+  are not the image its type names is refused by the store after the upload
+  and stays chosen, with "The file is not a readable image." under it. A
+  store fault that is not the file's reads "Could not save the logo." in the
+  same place.
+- **Dropping a file on the form** chooses it too (`phx-drop-target`), with
+  no zone drawn: the dialog is small, and a phone has nothing to drop.
+- **The basis line** names what is accepted and the lock: "PNG, JPEG or
+  WebP, at most 256 KB. The image is stored on this instance; discovery does
+  not overwrite it." The accept list and the size are `LogoStore`'s own
+  (`upload_accept/0`, `upload_max_bytes/0`), which `allow_upload/3` reads,
+  so the browser and the store refuse the same files.
+- **The file-missing sentence** names the upload: "The stored logo file is
+  missing. Upload the image again, or remove the logo." (de "Die
+  gespeicherte Logodatei fehlt. Das Bild erneut hochladen oder das Logo
+  entfernen.").
+- **The source is a word** (found while drawing 1, Voice and Tone): "Current
+  logo source: manually uploaded" for the manual source, "found
+  automatically" for every discovery adapter; the stored adapter name never
+  reaches the sentence, and a meta-test keeps it so.
+- **The API keeps its URL path** (`PUT /api/v1/securities/:id/logo`, under
+  the outbound policy): the upload is a screen path the API does not offer,
+  as the coverage rule allows; a manual logo as bytes over the API and MCP
+  is on the idea list.
+
 ## Amendment 2026-10-07 — Copy and dialog states *(Sprint 19 pick J8 = A, PR γ U6; issues 1090, 1074, 1066, 1072, 944, 945)*
 
 Board `mockups/ux-design-2026-10-04/08-copy-dialogs` (the design pass's
