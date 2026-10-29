@@ -147,6 +147,8 @@ defmodule Portfolixir.Invariants.ScopeB2OutboundChokepointTest do
        "the production database URL, which carries the database role's password; it names " <>
          "the operator's own database"},
     "DATABASE_SSL" => {:config, "turns TLS on for the production database connection"},
+    "DATABASE_SSL_CA_FILE" =>
+      {:config, "the CA file that verifies the production database's certificate (K03)"},
     "POOL_SIZE" => {:config, "the database connection pool's size"},
     "DATABASE_HOST" => {:config, "the dev and test database's host (local PostgreSQL)"},
     "DATABASE_PORT" => {:config, "the dev and test database's port (local PostgreSQL)"},

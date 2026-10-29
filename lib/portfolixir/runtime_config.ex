@@ -20,7 +20,8 @@ defmodule Portfolixir.RuntimeConfig do
   Anything else is `{:error, value}`, which the callers read as `default`
   and `switch_warning/3` names at boot.
   """
-  @spec switch(String.t() | nil, boolean()) :: {:ok, boolean()} | {:error, String.t()}
+  @spec switch(String.t() | nil, default) :: {:ok, boolean() | default} | {:error, String.t()}
+        when default: boolean() | nil
   def switch(value, default) when is_binary(value) do
     case value |> String.trim() |> String.downcase() do
       "" -> {:ok, default}
@@ -737,6 +738,168 @@ defmodule Portfolixir.RuntimeConfig do
   # something else than the operator wrote, silently.
   defp decodable?(nil), do: true
   defp decodable?(userinfo), do: not Regex.match?(~r/%(?![0-9A-Fa-f]{2})/, userinfo)
+
+  # The query keys the Repo is handed through the URL, all integers; the TLS
+  # keys are read here and taken out of it, so nothing in the URL overrides
+  # the decision below (Ecto merges the URL's options over the Repo's).
+  @kept_query_keys ~w(pool_size timeout idle_interval)
+  @verifying_tls_modes ~w(require verify-ca verify-full)
+  @permissive_tls_modes ~w(disable allow prefer)
+
+  @doc """
+  The Repo's `url` and `ssl` options (security review 2026-10-12, K03), from
+  `DATABASE_URL` (checked by `database_url!/1`), `DATABASE_SSL` and
+  `DATABASE_SSL_CA_FILE`.
+
+  The URL's query is read here: libpq's `sslmode=require`, `verify-ca` and
+  `verify-full`, and `ssl=true`, turn TLS on, always verifying the server's
+  certificate and name (Postgrex's defaults over the operating system's
+  trust store); `ssl=false` turns it off. `sslmode=disable`, `allow` and
+  `prefer`, which let a connection run without TLS, any other `ssl` or
+  `sslmode` value, and any key other than those and `pool_size`, `timeout`
+  and `idle_interval` are refused. A URL setting that contradicts an
+  explicit `DATABASE_SSL` is refused naming both; when one of them is silent
+  the other decides, and with both silent TLS is off. The TLS keys are taken
+  out of the URL the Repo reads.
+
+  `DATABASE_SSL_CA_FILE`, an absolute path to a readable PEM file, names the
+  CA that signed the database's certificate (a private CA) in place of the
+  trust store, keeping the verification; it needs TLS on. Every refusal
+  names the variable, never a value from the URL.
+  """
+  @spec database_options!(String.t() | nil, String.t() | nil, String.t() | nil) :: keyword()
+  def database_options!(url, ssl, ca_file) do
+    url = database_url!(url)
+    {base, query} = split_query(url)
+    {kept, url_tls} = database_query!(query)
+    tls = database_tls!(url_tls, database_ssl_switch(ssl))
+
+    [url: rebuild_query(base, kept), ssl: database_ssl_option!(tls, ca_file)]
+  end
+
+  defp split_query(url) do
+    case String.split(url, "?", parts: 2) do
+      [base, query] -> {base, query}
+      [base] -> {base, ""}
+    end
+  end
+
+  defp rebuild_query(base, []), do: base
+  defp rebuild_query(base, kept), do: base <> "?" <> URI.encode_query(kept)
+
+  defp database_query!(query) do
+    query
+    |> decode_query!()
+    |> Enum.reduce({[], []}, fn {key, value}, {kept, tls} ->
+      case database_query_key!(key, value) do
+        {:keep, pair} -> {[pair | kept], tls}
+        {:tls, on?} -> {kept, [on? | tls]}
+      end
+    end)
+    |> then(fn {kept, tls} -> {Enum.reverse(kept), url_tls!(Enum.uniq(tls))} end)
+  end
+
+  defp decode_query!(query) do
+    Enum.to_list(URI.query_decoder(query))
+  rescue
+    ArgumentError ->
+      reraise ArgumentError,
+              [message: "DATABASE_URL holds a query that is not percent-encoded"],
+              __STACKTRACE__
+  end
+
+  defp database_query_key!("ssl", "true"), do: {:tls, true}
+  defp database_query_key!("ssl", "false"), do: {:tls, false}
+
+  defp database_query_key!("ssl", _value),
+    do: raise(ArgumentError, "DATABASE_URL holds an ssl= other than true or false")
+
+  defp database_query_key!("sslmode", mode) when mode in @verifying_tls_modes, do: {:tls, true}
+
+  defp database_query_key!("sslmode", mode) when mode in @permissive_tls_modes do
+    raise ArgumentError,
+          "DATABASE_URL asks for sslmode=#{mode}, which lets the connection run without " <>
+            "TLS; use sslmode=verify-full, or remove it and leave TLS to DATABASE_SSL"
+  end
+
+  defp database_query_key!("sslmode", _mode) do
+    raise ArgumentError,
+          "DATABASE_URL holds an sslmode the application does not read; use " <>
+            "sslmode=verify-full or require"
+  end
+
+  defp database_query_key!(key, value) when key in @kept_query_keys do
+    case Integer.parse(value) do
+      {_int, ""} ->
+        {:keep, {key, value}}
+
+      _ ->
+        raise ArgumentError, "DATABASE_URL holds a #{key} that is not a whole number"
+    end
+  end
+
+  defp database_query_key!(key, _value) do
+    raise ArgumentError,
+          "DATABASE_URL holds the query key #{inspect(key)}, which the application does " <>
+            "not read; it reads ssl, sslmode, pool_size, timeout and idle_interval"
+  end
+
+  defp url_tls!([]), do: nil
+  defp url_tls!([on?]), do: on?
+
+  defp url_tls!(_both) do
+    raise ArgumentError,
+          "DATABASE_URL turns TLS both on and off in its query; keep one setting"
+  end
+
+  # DATABASE_SSL as `switch/2` reads it; an unreadable value is silent here,
+  # as it is off everywhere else, and named at boot (H06).
+  defp database_ssl_switch(value) do
+    case switch(value, nil) do
+      {:ok, setting} -> setting
+      {:error, _value} -> nil
+    end
+  end
+
+  defp database_tls!(nil, nil), do: false
+  defp database_tls!(nil, env), do: env
+  defp database_tls!(url, nil), do: url
+  defp database_tls!(same, same), do: same
+
+  defp database_tls!(url, env) do
+    raise ArgumentError,
+          "DATABASE_URL turns TLS to the database #{on_off(url)} while DATABASE_SSL turns " <>
+            "it #{on_off(env)}; remove one of the two settings or make them agree"
+  end
+
+  defp on_off(true), do: "on"
+  defp on_off(false), do: "off"
+
+  defp database_ssl_option!(tls, ca_file) do
+    case ca_file && String.trim(ca_file) do
+      blank when blank in [nil, ""] -> tls
+      path -> [cacertfile: ca_file!(tls, path)]
+    end
+  end
+
+  defp ca_file!(false, _path) do
+    raise ArgumentError,
+          "DATABASE_SSL_CA_FILE is set but TLS to the database is off; set " <>
+            "DATABASE_SSL=true or add sslmode=verify-full to DATABASE_URL"
+  end
+
+  defp ca_file!(true, path) do
+    cond do
+      Path.type(path) != :absolute ->
+        raise ArgumentError, "DATABASE_SSL_CA_FILE must be an absolute path, got a relative one"
+
+      not File.regular?(path) ->
+        raise ArgumentError, "DATABASE_SSL_CA_FILE names no readable file"
+
+      true ->
+        path
+    end
+  end
 
   defp truthy?(value), do: switch(value, false) == {:ok, true}
 

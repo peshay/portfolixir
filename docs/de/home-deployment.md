@@ -233,17 +233,19 @@ und braucht keine Anführungszeichen. Leer ist die Web-Oberfläche offen.
 | `TZ` | nein | Die Zeitzone, die entscheidet, welcher Tag „heute“ ist, als tz-Name (`Europe/Berlin`); leer ist UTC. Jede Datumsprüfung — eine Abrechnung oder ein Kurs nicht in der Zukunft, eine Regelversion nicht rückdatiert — liest den Kalendertag der Anwendung in dieser Zone, und jede Datenbanksitzung übernimmt beim Verbinden dieselbe Zone, sodass die Datumsprüfungen der Datenbank mit ihr übereinstimmen; die Einstellung `timezone` des Datenbankservers spielt dann keine Rolle. Ein Wert, den die Datenbank nicht als Zonennamen kennt, wird beim Start einmal protokolliert, und die Sitzung behält die Zone des Servers. |
 | `PORTFOLIXIR_BACKGROUND_FETCH` | nein | `off` (oder `0`, `false`, `no`) lässt die Logo-Suche und die geplanten Kurs- und Devisen-Downloads ab dem Start aus, sodass die Instanz nur nach außen verbindet, wenn jemand sie darum bittet. Nicht gesetzt oder jeder andere Wert lässt sie an; der Schalter kann das Laden nur abschalten. |
 | `PORTFOLIXIR_LOGO_DIR` | nein | Das absolute Verzeichnis, in dem gespeicherte Logos liegen. Das Release-Image setzt es auf `/var/lib/portfolixir/logos`, das Volume `portfolixir-logos`, weil das Release selbst für den Benutzer, unter dem es läuft, schreibgeschützt ist; in Compose nicht ändern. |
+| `DATABASE_SSL` | nein | Für ein Release, das eine Datenbank außerhalb des Compose-Netzes nutzt: `true` schaltet TLS für die Datenbankverbindung ein und prüft Zertifikat und Namen des Servers gegen den Zertifikatsspeicher des Systems; standardmäßig aus, weil der Compose-Stack seine Datenbank im eigenen Netz hält. `DATABASE_URL` kann dasselbe mit `?sslmode=require`, `verify-ca` oder `verify-full` (jede davon prüft vollständig) oder `?ssl=true` sagen. `sslmode=disable`, `allow` oder `prefer`, ein anderer Abfrageschlüssel als diese und `pool_size`, `timeout` und `idle_interval` sowie eine Angabe in der URL, die `DATABASE_SSL` widerspricht, beenden den Start der Anwendung und nennen die Variable. |
+| `DATABASE_SSL_CA_FILE` | nein | Der absolute Pfad einer PEM-Datei mit der Zertifizierungsstelle, die das Zertifikat der Datenbank signiert hat, für eine Datenbank mit privater Zertifizierungsstelle; Zertifikat und Name werden weiter geprüft. Sie setzt eingeschaltetes TLS voraus; bei ausgeschaltetem TLS oder ohne lesbare Datei beendet sie den Start der Anwendung. |
 
 Ohne UI-Passwort und mit einem über Loopback hinaus geöffneten Port
 protokolliert die Anwendung beim Start eine Warnung, die diese Tabelle nennt;
 bei einem UI-Passwort unter 12 Zeichen warnt sie ebenfalls und startet
 trotzdem.
 
-Die Schalter der Anwendung (`PHX_FORCE_SSL`, `PHX_BIND_ALL`,
+Die Schalter der Anwendung (`PHX_FORCE_SSL`, `PHX_BIND_ALL`, `DATABASE_SSL`,
 `PORTFOLIXIR_BACKGROUND_FETCH`) lesen `1`, `true`, `yes` oder `on` als an und
 `0`, `false`, `no` oder `off` als aus, in beliebiger Schreibung. Jeder andere
-Wert gilt als Voreinstellung des Schalters, und für `PHX_FORCE_SSL` und
-`PORTFOLIXIR_BACKGROUND_FETCH` nennt das Startprotokoll Variable und Wert.
+Wert gilt als Voreinstellung des Schalters, und für alle außer `PHX_BIND_ALL`
+nennt das Startprotokoll Variable und Wert.
 
 Ein aus dem Quellcode gestarteter Server („Run from source“ im README,
 `mix phx.server` unter `MIX_ENV=dev`) liest keine `.env`, kein

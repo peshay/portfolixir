@@ -224,16 +224,18 @@ needs no quotes. Left empty, the web UI is open.
 | `TZ` | no | The zone that decides what "today" is, as a tz name (`Europe/Berlin`); empty is UTC. Every date check — a statement or a quote not in the future, a rule version not backdated — reads the application's calendar day in this zone, and each database session takes the same zone when it connects, so the database's own date checks agree with it; the database server's `timezone` setting then does not matter. A value the database does not know as a zone name is logged once at startup and the session keeps the server's zone. |
 | `PORTFOLIXIR_BACKGROUND_FETCH` | no | `off` (or `0`, `false`, `no`) leaves logo discovery and the scheduled quote and FX downloads off from boot, so the instance calls out only when someone asks it to. Unset or anything else keeps them on; it can only turn fetching off. |
 | `PORTFOLIXIR_LOGO_DIR` | no | The absolute directory stored logos are kept in. The release image sets it to `/var/lib/portfolixir/logos`, the `portfolixir-logos` volume, because the release itself is read-only for the user it runs as; leave it alone in Compose. |
+| `DATABASE_SSL` | no | For a release run against a database outside the Compose network: `true` turns TLS on for the database connection, verifying the server's certificate and name against the system's trust store; off by default, as the Compose stack keeps its database on its own network. `DATABASE_URL` may say the same with `?sslmode=require`, `verify-ca` or `verify-full` (each verifies fully) or `?ssl=true`. `sslmode=disable`, `allow` or `prefer`, a query key other than those and `pool_size`, `timeout` and `idle_interval`, and a URL setting that contradicts `DATABASE_SSL` stop the application at boot, naming the variable. |
+| `DATABASE_SSL_CA_FILE` | no | The absolute path of a PEM file holding the CA that signed the database's certificate, for a database a private CA serves; the certificate and its name are still verified. It needs TLS on; set with TLS off, or naming no readable file, it stops the application at boot. |
 
 Without a UI password and with the port opened beyond loopback, the
 application logs a warning at startup naming this table; with a UI password
 shorter than 12 characters it warns as well, and starts either way.
 
-The application's switches (`PHX_FORCE_SSL`, `PHX_BIND_ALL`,
+The application's switches (`PHX_FORCE_SSL`, `PHX_BIND_ALL`, `DATABASE_SSL`,
 `PORTFOLIXIR_BACKGROUND_FETCH`) read `1`, `true`, `yes` or `on` as on and `0`,
 `false`, `no` or `off` as off, in any case. Any other value is read as the
-switch's default, and for `PHX_FORCE_SSL` and `PORTFOLIXIR_BACKGROUND_FETCH`
-the startup log names the variable and the value.
+switch's default, and for every one of them but `PHX_BIND_ALL` the startup
+log names the variable and the value.
 
 A server run from source (the README's "Run from source", `mix phx.server`
 under `MIX_ENV=dev`) reads no `.env`, no `POSTGRES_PASSWORD` and no
