@@ -143,7 +143,9 @@ defmodule Portfolixir.WriteActorTest do
     {Portfolixir.Catalog, :rediscover_logo} => "lib/portfolixir/catalog.ex",
     {Portfolixir.Classifications, :reclassify_securities} => "lib/portfolixir/classifications.ex",
     {Portfolixir.Classifications, :reset_asset_class} => "lib/portfolixir/classifications.ex",
-    {Portfolixir.Settings, :set_default_view} => "lib/portfolixir/settings.ex"
+    {Portfolixir.Settings, :set_default_view} => "lib/portfolixir/settings.ex",
+    {Portfolixir.Catalog.LogoStore, :store_manual_bytes} =>
+      "lib/portfolixir/catalog/logo_store.ex"
   }
 
   test "every pinned writer takes an Actor first in every clause" do

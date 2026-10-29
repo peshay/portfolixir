@@ -10,6 +10,7 @@ defmodule PortfolixirWeb.SecuritiesLogoUploadTest do
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.LogoStore
+  alias Portfolixir.Journal
   alias PortfolixirWeb.Securities.LogoOverrideDialog
 
   # A host nobody configured: not a provider, resolves to a public address.
@@ -123,7 +124,8 @@ defmodule PortfolixirWeb.SecuritiesLogoUploadTest do
   #   PNG, JPEG or WebP and the store's own size limit, "Save logo" disabled.
   # - A chosen PNG shows its name and a × "Remove the selection"; "Save logo"
   #   is enabled; saving stores it as a locked manual logo, closes the dialog,
-  #   says "Logo updated", and no request leaves the server.
+  #   says "Logo updated", and no request leaves the server; the journal
+  #   names the operator.
   # - A file the upload refuses (too large, wrong type) is a field error under
   #   the chooser with the Imports page's words, the input aria-invalid and
   #   described by it; a file whose bytes are not the image its type names is
@@ -154,7 +156,8 @@ defmodule PortfolixirWeb.SecuritiesLogoUploadTest do
 
     # Too large: refused before anything is stored.
     big = choose(view, "arbolia-banner.png", @png <> :binary.copy(<<0>>, 300 * 1024), "image/png")
-    assert render_upload(big, "arbolia-banner.png") =~ "File too large."
+    render_upload(big, "arbolia-banner.png")
+    assert has_element?(view, "#logo-upload-error.field-error", "File too large.")
     assert has_element?(view, "#logo-upload-form input[type=file][aria-invalid=true]")
     assert has_element?(view, "#logo-upload-form button[type=submit][disabled]")
 
@@ -166,6 +169,13 @@ defmodule PortfolixirWeb.SecuritiesLogoUploadTest do
     render_upload(fake, "not-an-image.png")
     html = view |> element("#logo-upload-form") |> render_submit()
     assert html =~ "The file is not a readable image."
+
+    assert has_element?(
+             view,
+             "#logo-upload-error.field-error",
+             "The file is not a readable image."
+           )
+
     assert has_element?(view, "#logo-upload-form input[type=file][aria-invalid=true]")
     assert File.ls!(tmp) == []
 
@@ -189,13 +199,19 @@ defmodule PortfolixirWeb.SecuritiesLogoUploadTest do
     assert status.source == "manual"
     assert File.read!(Path.join(tmp, "#{security.id}.png")) == @png
     assert outbound() == []
+
+    # The write is the operator's, and the journal says so.
+    assert [resource_type: "security", resource_id: to_string(security.id)]
+           |> Journal.list_entries()
+           |> Enum.any?(&(&1.actor_type == :owner_ui and &1.operation == :update))
   end
 
   test "a file of a type the store does not take is refused under the chooser",
        %{conn: conn, security: security} do
     view = open_dialog(conn, security)
     gif = choose(view, "arbolia.gif", "GIF89a", "image/gif")
-    assert render_upload(gif, "arbolia.gif") =~ "File type not accepted."
+    render_upload(gif, "arbolia.gif")
+    assert has_element?(view, "#logo-upload-error.field-error", "File type not accepted.")
   end
 
   test "the German dialog carries the upload's strings", %{conn: conn, security: security} do
@@ -235,7 +251,7 @@ defmodule PortfolixirWeb.SecuritiesLogoUploadTest do
     for source <- [nil | sources] do
       label = LogoOverrideDialog.source_label(source)
       assert is_binary(label) and label != "", inspect(source)
-      refute label == source, source
+      refute label == source, inspect(source)
       refute label =~ "_", inspect(source)
     end
 

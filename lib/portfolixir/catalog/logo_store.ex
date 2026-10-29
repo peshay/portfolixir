@@ -52,6 +52,17 @@ defmodule Portfolixir.Catalog.LogoStore do
   # served shape (`served_file/2`) cannot drift from what is written (#933).
   @extensions @allowed_content_types |> Map.values() |> Enum.uniq()
   @url_prefix "/security_logos/"
+  # A manual upload's file name extensions and the content type each is
+  # stored under: only types this store takes (H38).
+  @upload_extensions %{
+    ".png" => "image/png",
+    ".jpg" => "image/jpeg",
+    ".jpeg" => "image/jpeg",
+    ".webp" => "image/webp"
+  }
+  for {_ext, type} <- @upload_extensions, not Map.has_key?(@allowed_content_types, type) do
+    raise ArgumentError, "upload type #{type} is not a type the logo store takes"
+  end
 
   @doc """
   Topic on which `{:security_logo_updated, security_id}` messages are
@@ -120,15 +131,17 @@ defmodule Portfolixir.Catalog.LogoStore do
   end
 
   @doc """
-  Stores manual logo bytes (e.g. from a file upload) after validating the
-  content type and size. Locks the logo like `store_manual_override/3`.
+  Stores manual logo bytes (the Manage-logo dialog's upload, H38) on behalf
+  of `actor` after validating the content type, the size and the image
+  header. Locks the logo like `store_manual_override/3`; journaled under
+  `actor`.
   """
-  @spec store_manual_bytes(Security.t(), binary(), String.t(), keyword()) ::
+  @spec store_manual_bytes(Actor.t(), Security.t(), binary(), String.t(), keyword()) ::
           {:ok, Security.t()} | {:error, term()}
   # storage_dir comes from app config/opts and the filename from the security
   # id plus a validated extension — no user-controlled path segments.
   # sobelow_skip ["Traversal.FileModule"]
-  def store_manual_bytes(%Security{} = security, body, content_type, opts \\ [])
+  def store_manual_bytes(%Actor{} = actor, %Security{} = security, body, content_type, opts \\ [])
       when is_binary(body) and is_binary(content_type) do
     max_bytes = Keyword.get(opts, :max_bytes, @default_max_bytes)
     storage_dir = Keyword.get(opts, :storage_dir) || default_storage_dir()
@@ -139,11 +152,37 @@ defmodule Portfolixir.Catalog.LogoStore do
          :ok <- File.mkdir_p(storage_dir),
          file_path = Path.join(storage_dir, "#{security.id}.#{ext}"),
          :ok <- File.write(file_path, body),
-         {:ok, updated} <-
-           update_security_attributes(:logo_job, security, ext, :manual, lock: true) do
+         {:ok, updated} <- update_security_attributes(actor, security, ext, :manual, lock: true) do
       broadcast_logo_change(updated.id)
       {:ok, updated}
     end
+  end
+
+  @doc """
+  The file extensions a manual logo upload may carry, as the browser's
+  `accept` list (`allow_upload/3`): every extension of the content types
+  this store takes, so the browser and `store_manual_bytes/4` refuse the
+  same files (H38).
+  """
+  @spec upload_accept() :: [String.t()]
+  def upload_accept, do: @upload_extensions |> Map.keys() |> Enum.sort()
+
+  @doc "The largest manual logo upload, in bytes: the store's own manual cap (H38)."
+  @spec upload_max_bytes() :: pos_integer()
+  def upload_max_bytes, do: @default_max_bytes
+
+  @doc """
+  The content type an uploaded file is stored under: the browser's type when
+  this store takes it, else the type its file name's extension names. The
+  image check in `store_manual_bytes/4` still reads the bytes.
+  """
+  @spec upload_content_type(String.t() | nil, String.t()) :: String.t()
+  def upload_content_type(client_type, client_name) when is_binary(client_name) do
+    ext = client_name |> Path.extname() |> String.downcase()
+
+    if is_binary(client_type) and Map.has_key?(@allowed_content_types, client_type),
+      do: client_type,
+      else: Map.get(@upload_extensions, ext, "application/octet-stream")
   end
 
   @doc """

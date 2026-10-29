@@ -25,7 +25,10 @@ defmodule Portfolixir.Invariants.ScopeB6IntakeFormatsTest do
   #   real CSV and JSON fixtures still parse, so the rejections are not vacuous.
   # - The Imports page refuses an `.xml` or `.portfolio` upload outright, and a
   #   workspace body smuggled in under an accepted name reaches no preview.
-  # - Every LiveView upload in lib/portfolixir_web accepts only CSV and JSON.
+  # - Every LiveView upload in lib/portfolixir_web accepts only CSV and JSON,
+  #   except the Manage-logo dialog's image upload (security review
+  #   2026-10-12, H38), which accepts only PNG, JPEG and WebP: an image is no
+  #   document, and a list that mixes in any other format fails.
   # - No module takes a raw multipart upload (`Plug.Upload`), the endpoint
   #   parses no XML body, and nothing in lib/ calls an XML, zip or protobuf
   #   decoder.
@@ -69,6 +72,10 @@ defmodule Portfolixir.Invariants.ScopeB6IntakeFormatsTest do
   ]
 
   @accepted_upload ~w(.csv .json application/json text/csv text/plain)
+  # The manual logo's upload (H38): image formats only, never mixed with a
+  # document format. LogoStore.upload_accept/0 must equal this list
+  # (test/portfolixir_web/live/securities_logo_upload_test.exs).
+  @accepted_image_upload ~w(.jpeg .jpg .png .webp)
   @allowed_parsers [:urlencoded, :multipart, :json]
 
   # Decoders whose presence in lib/ would be the first line of an XML or
@@ -155,15 +162,16 @@ defmodule Portfolixir.Invariants.ScopeB6IntakeFormatsTest do
   end
 
   describe "the intake surface" do
-    test "every LiveView upload accepts only CSV and JSON" do
+    test "every LiveView upload accepts only CSV and JSON, or only the logo's image formats" do
       uploads = Enum.flat_map(web_sources(), &upload_accepts(File.read!(&1), &1))
 
       assert uploads != [], "the upload scan found no allow_upload call"
 
-      offenders = Enum.reject(uploads, fn {_where, accept} -> csv_or_json_only?(accept) end)
+      offenders = Enum.reject(uploads, fn {_where, accept} -> allowed_accept?(accept) end)
 
       assert offenders == [],
-             "Uploads accepting more than CSV/JSON (NFR-9 B6): #{inspect(offenders)}"
+             "Uploads accepting more than CSV/JSON or the logo's images (NFR-9 B6): " <>
+               inspect(offenders)
     end
 
     test "no raw multipart upload, no XML body parser, no XML or workspace decoder" do
@@ -214,15 +222,19 @@ defmodule Portfolixir.Invariants.ScopeB6IntakeFormatsTest do
           |> allow_upload(:d, accept: ~w(.json))
           |> Phoenix.LiveView.allow_upload(:f, accept: ~w(.portfolio))
           |> then(&{:ok, allow_upload(&1, :e, accept: ~w(application/zip))})
+          |> allow_upload(:g, accept: ~w(.png .webp))
+          |> allow_upload(:h, accept: ~w(.png .xml))
+          |> allow_upload(:i, accept: ~w(.png .csv))
+          |> allow_upload(:j, accept: LogoStore.upload_accept())
         end
       end
       """
 
       accepts = upload_accepts(source, "synthetic.ex")
 
-      assert length(accepts) == 6
+      assert length(accepts) == 10
 
-      assert accepts |> Enum.reject(&csv_or_json_only?(elem(&1, 1))) |> length() == 5
+      assert accepts |> Enum.reject(&allowed_accept?(elem(&1, 1))) |> length() == 8
     end
 
     test "a synthetic multipart intake and synthetic decoders are caught" do
@@ -269,10 +281,13 @@ defmodule Portfolixir.Invariants.ScopeB6IntakeFormatsTest do
 
   # --- matchers ------------------------------------------------------------
 
-  defp csv_or_json_only?(accept) when is_list(accept),
-    do: accept != [] and Enum.all?(accept, &(&1 in @accepted_upload))
+  defp allowed_accept?(accept) when is_list(accept),
+    do:
+      accept != [] and (only?(accept, @accepted_upload) or only?(accept, @accepted_image_upload))
 
-  defp csv_or_json_only?(_any_or_computed), do: false
+  defp allowed_accept?(_any_or_computed), do: false
+
+  defp only?(accept, formats), do: Enum.all?(accept, &(&1 in formats))
 
   # `[{"path:line", accept}]` for every `allow_upload/2,3` call, piped or not,
   # imported or called as `Phoenix.LiveView.allow_upload`.

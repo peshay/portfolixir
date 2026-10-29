@@ -20,6 +20,7 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
 
   require Logger
 
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.LogoStore
   alias Portfolixir.Catalog.Security
@@ -170,7 +171,9 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
   test "store_manual_bytes writes validated upload bytes and locks",
        %{tmp: tmp, security: sec} do
     assert {:ok, updated} =
-             LogoStore.store_manual_bytes(sec, @png, "image/png", storage_dir: tmp)
+             LogoStore.store_manual_bytes(Actor.owner_ui(), sec, @png, "image/png",
+               storage_dir: tmp
+             )
 
     assert updated.attributes["logo_source"] == "manual"
     assert updated.attributes["logo_locked"] == true
@@ -180,7 +183,9 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
   test "store_manual_bytes refuses content types outside the allowlist",
        %{tmp: tmp, security: sec} do
     assert {:error, :unsupported_content_type} =
-             LogoStore.store_manual_bytes(sec, "<html/>", "text/html", storage_dir: tmp)
+             LogoStore.store_manual_bytes(Actor.owner_ui(), sec, "<html/>", "text/html",
+               storage_dir: tmp
+             )
 
     refute Repo.get!(Security, sec.id).attributes["logo_locked"]
   end
@@ -229,7 +234,7 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
     on_exit(fn -> Application.put_env(:portfolixir, LogoStore, previous) end)
 
     assert LogoStore.storage_dir() == tmp
-    assert {:ok, _} = LogoStore.store_manual_bytes(sec, @png, "image/png")
+    assert {:ok, _} = LogoStore.store_manual_bytes(Actor.owner_ui(), sec, @png, "image/png")
     assert File.read!(Path.join(tmp, "#{sec.id}.png")) == @png
   end
 
@@ -356,7 +361,11 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
               {security!("Brindle AG"), jpg, "image/jpeg"},
               {security!("Corvala AG"), webp, "image/webp"}
             ] do
-          {:ok, stored} = LogoStore.store_manual_bytes(security, bytes, type, storage_dir: tmp)
+          {:ok, stored} =
+            LogoStore.store_manual_bytes(Actor.owner_ui(), security, bytes, type,
+              storage_dir: tmp
+            )
+
           stored
         end
 
@@ -497,7 +506,9 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
       end
 
       {:ok, uploaded} =
-        LogoStore.store_manual_bytes(marked.(sec), @png, "image/png", storage_dir: tmp)
+        LogoStore.store_manual_bytes(Actor.owner_ui(), marked.(sec), @png, "image/png",
+          storage_dir: tmp
+        )
 
       {:ok, chosen} =
         LogoStore.store_manual_override(
@@ -579,7 +590,7 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
       assert gate == {:ok, false}
 
       # The file of one sits in the configured directory, the other's nowhere.
-      {:ok, present} = LogoStore.store_manual_bytes(sec, @png, "image/png")
+      {:ok, present} = LogoStore.store_manual_bytes(Actor.owner_ui(), sec, @png, "image/png")
       assert File.exists?(Path.join(tmp, "#{sec.id}.png"))
       missing = with_logo!(security!("Brindle AG"), "wikipedia")
 
@@ -826,7 +837,9 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
       :ok = LogoStore.subscribe()
 
       assert {:ok, _updated} =
-               LogoStore.store_manual_bytes(sec, @png, "image/png", storage_dir: tmp)
+               LogoStore.store_manual_bytes(Actor.owner_ui(), sec, @png, "image/png",
+                 storage_dir: tmp
+               )
 
       assert_receive {:security_logo_updated, id}
       assert id == sec.id
