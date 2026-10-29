@@ -58,6 +58,52 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
     ]
   end
 
+  # User story (security review 2026-10-12, H52):
+  # As the operator whose logo is replaced by one of another image type,
+  # I want the store to keep one file per security,
+  # so that the replaced image is not still served under its old name.
+  #
+  # Acceptance criteria:
+  # - A PNG replaced by a JPEG through discovery leaves only `<id>.jpg`.
+  # - A manual upload of a WebP over that leaves only `<id>.webp`.
+  # - Another security's file is never touched.
+  test "a logo stored under a new extension leaves no other file of that security",
+       %{tmp: tmp, security: sec} do
+    jpg = <<0xFF, 0xD8, 0xFF, 0xE0, 0, 16>>
+    webp = "RIFF" <> <<0, 0, 0, 0>> <> "WEBP" <> "VP8 "
+
+    {:ok, other} =
+      Catalog.create_security(Actor.owner_ui(), %{
+        name: "Brindle AG",
+        currency_code: "EUR",
+        provider: "manual",
+        asset_class: "equity"
+      })
+
+    {:ok, _} =
+      LogoStore.store_manual_bytes(Actor.owner_ui(), other, @png, "image/png", storage_dir: tmp)
+
+    {:ok, _} =
+      LogoStore.download_and_store(sec, "https://example.test/logo.png", :wikipedia,
+        req: png_stub(@png),
+        storage_dir: tmp
+      )
+
+    {:ok, _} =
+      LogoStore.download_and_store(sec, "https://example.test/logo.jpg", :wikipedia,
+        req: png_stub(jpg, "image/jpeg"),
+        storage_dir: tmp
+      )
+
+    assert Enum.sort(File.ls!(tmp)) == Enum.sort(["#{sec.id}.jpg", "#{other.id}.png"])
+
+    {:ok, stored} =
+      LogoStore.store_manual_bytes(Actor.owner_ui(), sec, webp, "image/webp", storage_dir: tmp)
+
+    assert stored.attributes["logo_path"] == "/security_logos/#{sec.id}.webp"
+    assert Enum.sort(File.ls!(tmp)) == Enum.sort(["#{sec.id}.webp", "#{other.id}.png"])
+  end
+
   test "writes the image to <storage_dir>/<id>.png and updates the attributes",
        %{tmp: tmp, security: sec} do
     assert {:ok, updated} =
