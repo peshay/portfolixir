@@ -105,8 +105,10 @@ DATABASE_NAME=portfolixir_bench mix portfolixir.derived.measure
 
 It **writes synthetic transactions**, so point it at a throwaway database as
 above — the same convention `priv/demo` uses — and it refuses to run in `:prod`.
-`--securities`, `--bookings` and `--years` size the ledger; `--skip-seed`
-measures whatever is already there.
+It also refuses to seed a database that already holds a portfolio unless
+`--write-synthetic` is given, and journals its writes under the system job
+`derived_measure`. `--securities`, `--bookings` and `--years` size the ledger;
+`--skip-seed` measures whatever is already there.
 
 An analytic that turns out cheap enough not to need a lifetime is a finding and
 is printed as one. Record the run in ADR-0039 next to the existing measurement

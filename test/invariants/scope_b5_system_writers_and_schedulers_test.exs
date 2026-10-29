@@ -52,7 +52,10 @@ defmodule Portfolixir.Invariants.ScopeB5SystemWritersAndSchedulersTest do
     {"Mix.Tasks.Portfolixir.BackfillSettlementLegs", "settlement_backfill"} =>
       "an operator-run, one-shot repair of settlement legs from recorded transactions",
     {"Mix.Tasks.Portfolixir.SeedScopeBuckets", "portfolio_scope_seed"} =>
-      "an operator-run seed turning portfolios into scope buckets and views (ADR-0024)"
+      "an operator-run seed turning portfolios into scope buckets and views (ADR-0024)",
+    {"Mix.Tasks.Portfolixir.Derived.Measure", "derived_measure"} =>
+      "a developer-run synthetic ledger for timing the derived values (ADR-0039 §2), " <>
+        "refused beside an existing portfolio unless asked for (K04)"
   }
 
   # `module => reason`.
