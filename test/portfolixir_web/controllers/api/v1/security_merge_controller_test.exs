@@ -233,16 +233,25 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
       |> json_response(200)
       |> get_in(["data", "open_lots"])
 
+    # Each open lot's cost: quantity x buy price plus its buy fees and taxes
+    # prorated by what is still open, as the matcher counts a lot's cost.
     open_cost =
       Enum.reduce(open_lots, Decimal.new(0), fn lot, acc ->
-        lot["quantity"]
-        |> Decimal.new()
+        quantity = Decimal.new(lot["quantity"])
+        open_share = Decimal.div(quantity, Decimal.new(lot["original_quantity"]))
+
+        quantity
         |> Decimal.mult(Decimal.new(lot["buy_price"]))
+        |> Decimal.add(Decimal.mult(Decimal.new(lot["buy_fees"]), open_share))
+        |> Decimal.add(Decimal.mult(Decimal.new(lot["buy_taxes"]), open_share))
         |> Decimal.add(acc)
       end)
 
     assert [%{"after" => open_after}] = fifo["open_lots"]
     assert Decimal.equal?(open_cost, Decimal.new(open_after))
+    # The buy fee of the target's January lot is in it: 10 x 50.00 + 4.95,
+    # 2 x 50.00 and 3 x 50.00 (the equal February pair collapsed).
+    assert Decimal.equal?(Decimal.new(open_after), Decimal.new("754.95"))
 
     kept = ctx.conn |> get("/api/v1/securities/#{ctx.target.id}") |> json_response(200)
 
@@ -612,7 +621,9 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
   # source also has one on 2025-03-04, a Region assignment, a position
   # target in the active plan and an earnings date.
   defp world!(ctx) do
-    buy!(ctx, ctx.target, "10", "50.00", ~D[2025-01-10])
+    # A buy fee, so the FIFO restatement's open cost carries the fee path
+    # (K11).
+    buy!(ctx, ctx.target, "10", "50.00", ~D[2025-01-10], fees: "4.95")
     buy!(ctx, ctx.target, "2", "50.00", ~D[2025-02-01])
     buy = buy!(ctx, ctx.source, "3", "50.00", ~D[2025-01-20])
     buy!(ctx, ctx.source, "2", "50.00", ~D[2025-02-01])
@@ -704,7 +715,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
     security
   end
 
-  defp buy!(ctx, security, quantity, price, date) do
+  defp buy!(ctx, security, quantity, price, date, opts \\ []) do
     {:ok, tx} =
       Ledger.create_transaction(Actor.owner_ui(), %{
         portfolio_id: ctx.portfolio.id,
@@ -715,6 +726,7 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
         date: date,
         quantity: quantity,
         price: price,
+        fees: Keyword.get(opts, :fees, "0"),
         currency_code: "EUR"
       })
 
