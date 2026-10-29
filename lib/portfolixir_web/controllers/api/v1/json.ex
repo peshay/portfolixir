@@ -2337,12 +2337,28 @@ defmodule PortfolixirWeb.Api.V1.JSON do
     }
   end
 
+  @doc """
+  A changeset's errors as text per field. Total (H30): only the placeholders
+  a message carries are filled, each from its option rendered as text, so an
+  option no text can show (a cast error's type, a tuple) never raises; a
+  placeholder without its option stays as written.
+  """
   def errors(%Changeset{} = changeset) do
     Changeset.traverse_errors(changeset, fn {message, opts} ->
-      Enum.reduce(opts, message, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
+      Regex.replace(~r/%{(\w+)}/, message, fn whole, key ->
+        case Enum.find(opts, fn {opt, _value} -> Atom.to_string(opt) == key end) do
+          {_opt, value} -> error_value(value)
+          nil -> whole
+        end
       end)
     end)
+  end
+
+  defp error_value(value) when is_binary(value), do: value
+  defp error_value(values) when is_list(values), do: Enum.map_join(values, ", ", &error_value/1)
+
+  defp error_value(value) do
+    if String.Chars.impl_for(value), do: to_string(value), else: inspect(value)
   end
 
   @doc """

@@ -70,7 +70,10 @@ defmodule Portfolixir.Tax.Parameters do
       :capital_gains_tax_rate,
       :solidarity_surcharge_rate,
       :saver_allowance_single,
-      :saver_allowance_joint
+      :saver_allowance_joint,
+      # A null list is a field error (H30), not a failed write: no rates is
+      # the empty list.
+      :church_tax_rates
     ])
     |> validate_inclusion(:jurisdiction, @jurisdictions)
     # E25 S4 (G16, G17): each amount rounded to its column and bounded by it
@@ -122,4 +125,7 @@ defmodule Portfolixir.Tax.Parameters do
   defp rate?(%Decimal{} = value) do
     Decimal.compare(value, 0) != :lt and Decimal.compare(value, 1) == :lt
   end
+
+  # A null element is no rate either (H30): a field error, not a crash.
+  defp rate?(_value), do: false
 end
