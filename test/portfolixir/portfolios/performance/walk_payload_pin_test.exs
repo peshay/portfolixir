@@ -544,7 +544,9 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
   #   portfolios and the Everything view, and each period, the walk
   #   from the baseline day keeps the full walk's first date, and its days
   #   from the baseline day on are the full walk's: identical, but for the
-  #   baseline day's basis step, which no window reads.
+  #   baseline day's basis step, which no window reads; a portfolio's walk
+  #   starts on the baseline day, and a view's merged series walks no
+  #   earlier day of a seeded portfolio.
   # - The period's summary and the kept per-position figures are identical
   #   to the full contribution walk's.
   test "a contribution walk from the window's baseline day answers what the full walk answers" do
@@ -610,6 +612,16 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
 
         assert first.date == baseline, label
         assert Map.delete(first, :basis) == Map.delete(plain_first, :basis), label
+        skipped = Enum.take_while(seeded.daily, &(Date.compare(&1.date, baseline) == :lt))
+
+        if scope in ["Everything view", "view across portfolios"] do
+          # The merged series counts zero on the days no seeded walk walked.
+          assert Enum.all?(skipped, &Decimal.equal?(&1.value, 0)), label
+        else
+          # The walk itself starts on the baseline day.
+          assert hd(seeded.daily).date == baseline and skipped == [], label
+        end
+
         assert rest == plain_rest, label
       else
         # A window from the first booking on has no earlier day to skip.
