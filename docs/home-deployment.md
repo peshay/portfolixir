@@ -228,6 +228,12 @@ Without a UI password and with the port opened beyond loopback, the
 application logs a warning at startup naming this table; with a UI password
 shorter than 12 characters it warns as well, and starts either way.
 
+The application's switches (`PHX_FORCE_SSL`, `PHX_BIND_ALL`,
+`PORTFOLIXIR_BACKGROUND_FETCH`) read `1`, `true`, `yes` or `on` as on and `0`,
+`false`, `no` or `off` as off, in any case. Any other value is read as the
+switch's default, and for `PHX_FORCE_SSL` and `PORTFOLIXIR_BACKGROUND_FETCH`
+the startup log names the variable and the value.
+
 A server run from source (the README's "Run from source", `mix phx.server`
 under `MIX_ENV=dev`) reads no `.env`, no `POSTGRES_PASSWORD` and no
 `DATABASE_URL`: it takes its port and its database from the shell's

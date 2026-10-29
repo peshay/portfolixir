@@ -94,10 +94,10 @@ defmodule Portfolixir.Application do
   `PHX_FORCE_SSL` on beyond loopback with no trusted proxy beyond loopback,
   the redirect loop's cause; and, whatever the bind, the entries of
   `PORTFOLIXIR_TRUSTED_PROXIES` that did not parse, and (H04) those too wide
-  to name a proxy; (H20) an API token with few distinct characters; and
-  (H19) a `PORTFOLIXIR_SESSION_DAYS` that is not a whole number of days.
-  The decisions are pure functions in `Portfolixir.RuntimeConfig`, so they
-  are unit-tested; this is
+  to name a proxy; (H20) an API token with few distinct characters; (H19) a
+  `PORTFOLIXIR_SESSION_DAYS` that is not a whole number of days; and (H06) a
+  protective switch whose value is not a switch value. The decisions are pure
+  functions in `Portfolixir.RuntimeConfig`, so they are unit-tested; this is
   only the wiring. Always `:ok`: a warning, never a refusal.
   """
   @spec warn_if_exposed() :: :ok
@@ -125,6 +125,7 @@ defmodule Portfolixir.Application do
           Portfolixir.RuntimeConfig.overbroad_proxies_warning(overbroad),
           Portfolixir.RuntimeConfig.weak_tokens_warning(principals),
           Portfolixir.RuntimeConfig.session_days_warning(session_days)
+          | Portfolixir.RuntimeConfig.protective_switch_warnings()
         ] do
       Logger.warning(message)
     end

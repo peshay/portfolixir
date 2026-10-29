@@ -7,10 +7,76 @@ defmodule Portfolixir.RuntimeConfig do
   instead of by a deployment (ADR-0045 §2, #758).
   """
 
-  @true_values ["1", "true", "yes"]
+  @true_values ~w(1 true yes on)
+  @false_values ~w(0 false no off)
   @loopback {127, 0, 0, 1}
   @any {0, 0, 0, 0}
   @always_allowed_hosts ["localhost", "127.0.0.1"]
+
+  @doc """
+  One boolean switch as the environment holds it (security review
+  2026-10-12, H06): `1`, `true`, `yes` and `on` are true, `0`, `false`, `no`
+  and `off` are false, trimmed and in any case; unset or blank is `default`.
+  Anything else is `{:error, value}`, which the callers read as `default`
+  and `switch_warning/3` names at boot.
+  """
+  @spec switch(String.t() | nil, boolean()) :: {:ok, boolean()} | {:error, String.t()}
+  def switch(value, default) when is_binary(value) do
+    case value |> String.trim() |> String.downcase() do
+      "" -> {:ok, default}
+      word when word in @true_values -> {:ok, true}
+      word when word in @false_values -> {:ok, false}
+      _unrecognised -> {:error, value}
+    end
+  end
+
+  def switch(_unset, default), do: {:ok, default}
+
+  # The switches whose unreadable value leaves the instance less protected
+  # than the operator meant, each with the state it is then read as.
+  @protective_switches [
+    {"PHX_FORCE_SSL", false},
+    {"DATABASE_SSL", false},
+    {"PORTFOLIXIR_BACKGROUND_FETCH", true}
+  ]
+
+  @doc """
+  The startup check behind H06 (security review 2026-10-12): a switch whose
+  value `switch/2` cannot read is named, with the value and the state it is
+  read as. A warning, never a refusal. Pure; `Portfolixir.Application` logs it.
+  """
+  @spec switch_warning(String.t(), String.t() | nil, boolean()) :: :ok | {:warn, String.t()}
+  def switch_warning(variable, value, default) do
+    case switch(value, default) do
+      {:ok, _bool} ->
+        :ok
+
+      {:error, value} ->
+        {:warn,
+         "#{variable} is #{inspect(value)}, which is not a switch value, so it is read as " <>
+           "#{if default, do: "on", else: "off"}. Write 1, true, yes or on, or 0, false, no " <>
+           "or off."}
+    end
+  end
+
+  @doc """
+  `switch_warning/3` over every protective switch (`PHX_FORCE_SSL`,
+  `DATABASE_SSL`, `PORTFOLIXIR_BACKGROUND_FETCH`), read through `get_env`.
+  """
+  @spec protective_switch_warnings((String.t() -> String.t() | nil)) ::
+          [:ok | {:warn, String.t()}]
+  def protective_switch_warnings(get_env \\ &protective_switch_value/1) do
+    for {variable, default} <- @protective_switches,
+        do: switch_warning(variable, get_env.(variable), default)
+  end
+
+  # Each name literal, so the environment scan of the outbound invariant can
+  # read them (NFR-9 B2).
+  defp protective_switch_value("PHX_FORCE_SSL"), do: System.get_env("PHX_FORCE_SSL")
+  defp protective_switch_value("DATABASE_SSL"), do: System.get_env("DATABASE_SSL")
+
+  defp protective_switch_value("PORTFOLIXIR_BACKGROUND_FETCH"),
+    do: System.get_env("PORTFOLIXIR_BACKGROUND_FETCH")
 
   def database_ssl?(value \\ System.get_env("DATABASE_SSL", "false"))
 
@@ -621,12 +687,7 @@ defmodule Portfolixir.RuntimeConfig do
             "deployment) #{what}; generate one with `openssl rand -hex 32`"
   end
 
-  defp truthy?(value) do
-    value
-    |> String.trim()
-    |> String.downcase()
-    |> then(&(&1 in @true_values))
-  end
+  defp truthy?(value), do: switch(value, false) == {:ok, true}
 
   defp split_hosts(nil), do: []
   defp split_hosts(extra) when is_binary(extra), do: String.split(extra, ",")
@@ -687,16 +748,16 @@ defmodule Portfolixir.RuntimeConfig do
   `PORTFOLIXIR_BACKGROUND_FETCH` (#1026): logo discovery and the scheduled
   quote and FX sync. The words development reads turn it off (`0`, `false`,
   `no`, `off`, in any case; `config/dev.exs`, #963), and the release also
-  reads them around a blank; anything else, or nothing, leaves the release as
-  `config/prod.exs` sets it. The switch can only turn fetching off, and only
+  reads them around a blank (`switch/2`); anything else, or nothing, leaves
+  the release as `config/prod.exs` sets it, and a value that is not a switch
+  value is named at boot (H06). The switch can only turn fetching off, and only
   what the release does by itself: a sync, logo update or search someone
   starts still calls out.
   """
   @spec background_fetch?(String.t() | nil) :: boolean()
   def background_fetch?(value \\ System.get_env("PORTFOLIXIR_BACKGROUND_FETCH"))
 
-  def background_fetch?(value) when is_binary(value),
-    do: String.downcase(String.trim(value)) not in ~w(0 false no off)
+  def background_fetch?(value) when is_binary(value), do: switch(value, true) != {:ok, false}
 
   def background_fetch?(_value), do: true
 

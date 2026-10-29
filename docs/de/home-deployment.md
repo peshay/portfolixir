@@ -238,6 +238,12 @@ protokolliert die Anwendung beim Start eine Warnung, die diese Tabelle nennt;
 bei einem UI-Passwort unter 12 Zeichen warnt sie ebenfalls und startet
 trotzdem.
 
+Die Schalter der Anwendung (`PHX_FORCE_SSL`, `PHX_BIND_ALL`,
+`PORTFOLIXIR_BACKGROUND_FETCH`) lesen `1`, `true`, `yes` oder `on` als an und
+`0`, `false`, `no` oder `off` als aus, in beliebiger Schreibung. Jeder andere
+Wert gilt als Voreinstellung des Schalters, und für `PHX_FORCE_SSL` und
+`PORTFOLIXIR_BACKGROUND_FETCH` nennt das Startprotokoll Variable und Wert.
+
 Ein aus dem Quellcode gestarteter Server („Run from source“ im README,
 `mix phx.server` unter `MIX_ENV=dev`) liest keine `.env`, kein
 `POSTGRES_PASSWORD` und keine `DATABASE_URL`: Port und Datenbank nimmt er aus
