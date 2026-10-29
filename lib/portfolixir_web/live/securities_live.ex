@@ -4714,6 +4714,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
+  # H39: refused server-side while a sync of this page is in flight, whatever
+  # the button's DOM state; a catalog sync another window or the scheduled
+  # tick runs is refused by `QuoteSync.sync_all/1` and named in the result.
+  def handle_event("sync_now", _params, %{assigns: %{sync_running?: true}} = socket),
+    do: {:noreply, socket}
+
   def handle_event("sync_now", _params, socket) do
     parent = self()
 
@@ -4759,6 +4765,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # It is that result's next action, so the result goes; the sync's own
   # answer lands in the page-level slot. The toolbar and the Chart tab keep
   # `sync_now`, which means every security.
+  def handle_event("sync_quotes_released", _params, %{assigns: %{sync_running?: true}} = socket),
+    do: {:noreply, socket}
+
   def handle_event("sync_quotes_released", _params, socket) do
     case socket.assigns.selected_security do
       %Security{} = sec ->
@@ -5109,8 +5118,18 @@ defmodule PortfolixirWeb.SecuritiesLive do
     end
   end
 
+  # H39: once queued from this page, a retry is a no-op until the page leaves
+  # the missing-logo list; LogoDiscovery ignores a retry while a drain is
+  # pending.
+  def handle_event(
+        "retry_missing_logos",
+        _params,
+        %{assigns: %{logo_retry_queued?: true}} = socket
+      ),
+      do: {:noreply, socket}
+
   def handle_event("retry_missing_logos", _params, socket) do
-    LogoDiscovery.enqueue_missing_security_logos()
+    LogoDiscovery.retry_missing_security_logos()
 
     # Feedback rides the canonical inline-result slot (design-critic fix
     # round): data-note appearance and dismissal instead of a bare span.
@@ -6267,6 +6286,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # One security's sync, in the background (the row menu's "Sync prices"
   # and the release result's follow-up): the busy sync button shows the
   # progress, no toast, and `:sync_done` brings the answer.
+  # H39: one sync of this page at a time, refused server-side.
+  defp start_security_sync(%{assigns: %{sync_running?: true}} = socket, _sec), do: socket
+
   defp start_security_sync(socket, %Security{} = sec) do
     parent = self()
 
@@ -6352,6 +6374,12 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp kept_manual(%{skipped_manual: kept}) when is_integer(kept), do: kept
   defp kept_manual(_result), do: 0
+
+  defp sync_flash({:error, :sync_in_progress}) do
+    gettext(
+      "A price sync of every security is already running; it was not started a second time."
+    )
+  end
 
   defp sync_flash({:ok, %{ok: ok, skipped: 0, error: 0}}) when ok > 0 do
     gettext("Prices synced.")
