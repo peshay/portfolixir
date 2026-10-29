@@ -39,18 +39,18 @@ defmodule PortfolixirWeb.WealthCappedLoadTest do
   # under its own: 2 KiB, below what any load holds, so the runtime kills the
   # task at its first collection.
   defp with_lowered_cap(fun) do
-    prior = Application.get_env(:portfolixir, PortfolixirWeb.HeapCap, [])
+    prior = Application.get_env(:portfolixir, Portfolixir.HeapCap, [])
 
     Application.put_env(
       :portfolixir,
-      PortfolixirWeb.HeapCap,
+      Portfolixir.HeapCap,
       Keyword.put(prior, :max_heap_bytes, 2_048)
     )
 
     try do
       fun.()
     after
-      Application.put_env(:portfolixir, PortfolixirWeb.HeapCap, prior)
+      Application.put_env(:portfolixir, Portfolixir.HeapCap, prior)
     end
   end
 

@@ -100,50 +100,16 @@ defmodule PortfolixirWeb.CappedAsync do
 
   @doc false
   # The body of a page's load task (#1204): runs `fun` in a capped worker it
-  # monitors and answers as if it had run `fun` itself. A value is returned,
-  # a raise, throw or exit inside `fun` is raised here again with its own
-  # stacktrace, and a worker that died without one (killed past the cap)
-  # becomes this task's exit with the worker's reason.
+  # watches (`Portfolixir.HeapCap.run/1`) and answers as if it had run `fun`
+  # itself. A value is returned, a raise, throw or exit inside `fun` is
+  # raised here again with its own stacktrace, and a worker that died
+  # without one (killed past the cap) becomes this task's exit with the
+  # worker's reason. It traps exits, so its page going away reaches it as a
+  # message and stops the worker.
   @spec __watch__((-> term())) :: term()
   def __watch__(fun) when is_function(fun, 0) do
     Process.flag(:trap_exit, true)
-    caller = self()
-    tag = make_ref()
-
-    {:ok, worker} =
-      Task.start(fn ->
-        HeapCap.cap!()
-        send(caller, {tag, outcome(fun)})
-      end)
-
-    watch = Process.monitor(worker)
-    await(worker, watch, tag)
-  end
-
-  defp outcome(fun) do
-    {:ok, fun.()}
-  catch
-    kind, reason -> {:caught, kind, reason, __STACKTRACE__}
-  end
-
-  defp await(worker, watch, tag) do
-    receive do
-      {^tag, {:ok, result}} ->
-        Process.demonitor(watch, [:flush])
-        result
-
-      {^tag, {:caught, kind, reason, stacktrace}} ->
-        Process.demonitor(watch, [:flush])
-        :erlang.raise(kind, reason, stacktrace)
-
-      {:DOWN, ^watch, :process, ^worker, reason} ->
-        exit(reason)
-
-      # The page went away, or cancelled the load: the worker goes with it.
-      {:EXIT, _from, reason} ->
-        Process.exit(worker, :kill)
-        exit(reason)
-    end
+    Portfolixir.HeapCap.run(fun)
   end
 
   defp capped(fun) do

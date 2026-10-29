@@ -2466,11 +2466,11 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       # The cap the next task takes as its first act, set after the page
       # mounted under its own: 2 KiB, below what the lookup holds once it has
       # read the name, so the runtime kills the task at a collection.
-      prior = Application.get_env(:portfolixir, PortfolixirWeb.HeapCap, [])
+      prior = Application.get_env(:portfolixir, Portfolixir.HeapCap, [])
 
       Application.put_env(
         :portfolixir,
-        PortfolixirWeb.HeapCap,
+        Portfolixir.HeapCap,
         Keyword.put(prior, :max_heap_bytes, 2_048)
       )
 
@@ -2484,7 +2484,7 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
             assert render_hook(view, "row_action", lookup) =~ "Looking up logo…"
             await_logo_result(view)
           after
-            Application.put_env(:portfolixir, PortfolixirWeb.HeapCap, prior)
+            Application.put_env(:portfolixir, Portfolixir.HeapCap, prior)
           end
 
         refute html =~ "inline-result__busy"

@@ -56,6 +56,9 @@ defmodule Portfolixir.Application do
       Portfolixir.Repo,
       {Phoenix.PubSub, name: Portfolixir.PubSub},
       {Task.Supervisor, name: Portfolixir.LogoSupervisor},
+      # The capped workers `Portfolixir.HeapCap.run/1` starts: a page's load,
+      # and each performance warm-up and refresher walk (#1204, K08).
+      {Task.Supervisor, name: Portfolixir.CappedTasks},
       # One run per key for a security's sync and the FX backfill (E25, G04).
       Portfolixir.SingleFlight,
       Portfolixir.Auth.Throttle,

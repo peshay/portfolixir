@@ -43,7 +43,9 @@ defmodule Portfolixir.Derived.Refresher do
   and never freshness. Concretely: `notify/1` is a fire-and-forget cast that is
   a no-op when this process is not running, and a refresh that raises is logged
   and skipped, never fatal. It is disabled by the same switch as the rest of
-  the layer.
+  the layer. The walks `Warmup.warm_basis/1` runs for it each run under the
+  heap cap in a worker of their own (K08), so one grown past the cap is
+  killed and logged while this process goes on.
 
   A refresh triggered by a bump inside a transaction that later rolls back is
   possible and harmless: it re-materializes the state that is actually
