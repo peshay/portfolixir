@@ -289,6 +289,77 @@ defmodule PortfolixirWeb.ImportsParkedPreviewRemountTest do
     refute has_element?(remounted, "#import-correction")
   end
 
+  # The assigns a mounted Imports page holds, by name.
+  defp assign_keys(view) do
+    %{socket: socket} = :sys.get_state(view.pid)
+    socket.assigns |> Map.keys() |> MapSet.new()
+  end
+
+  # User story (security review 2026-10-12, H08):
+  # As the operator who reloads the Imports page with a preview parked,
+  # I want the remount to hold everything the upload showed the preview with,
+  # so that a remount from what was parked never fails on something the
+  # upload computed and the parked summary left out.
+  #
+  # Acceptance criteria:
+  # - A remount from the parked summary holds the same assigns as the page
+  #   that uploaded the file, and as a remount that computes them again,
+  #   with the same values.
+  test "a remount from the parked summary sets every assign the upload set", %{conn: conn} do
+    conn = init_test_session(conn, %{"_csrf_token" => @token})
+    key = PreviewStore.key_for(@token)
+    on_exit(fn -> PreviewStore.delete(key) end)
+
+    {:ok, page, _html} = live(conn, "/imports")
+
+    page
+    |> file_input("#pp-import-form", :pp_file, [
+      %{
+        name: "export.csv",
+        content: @correctable_csv,
+        type: "text/csv",
+        last_modified: 1_700_000_000_000
+      }
+    ])
+    |> render_upload("export.csv")
+
+    render_async(page)
+    assert PreviewStore.parked?(key)
+    uploaded = assign_keys(page)
+
+    {:ok, remounted, _html} = live(conn, "/imports")
+    render_async(remounted)
+    from_summary = assign_keys(remounted)
+
+    # The same preview parked without a summary: the remount computes again.
+    {preview, mapping} = PreviewStore.get(key)
+    :ok = PreviewStore.put(key, preview, mapping)
+    {:ok, recomputed, _html} = live(conn, "/imports")
+    render_async(recomputed)
+    from_recompute = assign_keys(recomputed)
+
+    assert MapSet.difference(uploaded, from_summary) == MapSet.new(),
+           "the remount from the parked summary lacks assigns the upload set"
+
+    assert MapSet.difference(from_recompute, from_summary) == MapSet.new(),
+           "the remount from the parked summary lacks assigns a recomputing remount sets"
+
+    # And holds them as computed: every assign but the page's own upload
+    # handle and its background-count token reads as the recomputing remount
+    # reads it, the database being unchanged in between.
+    %{socket: %{assigns: summary_assigns}} = :sys.get_state(remounted.pid)
+    %{socket: %{assigns: recompute_assigns}} = :sys.get_state(recomputed.pid)
+
+    differing =
+      for {name, value} <- recompute_assigns,
+          name not in [:uploads, :counts_token],
+          Map.get(summary_assigns, name) != value,
+          do: name
+
+    assert differing == [],
+           "the remount from the parked summary holds other values for #{inspect(differing)}"
+  end
+
   defp flush_exits do
     receive do
       {:EXIT, _pid, _reason} -> flush_exits()
