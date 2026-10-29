@@ -46,15 +46,15 @@ defmodule Portfolixir.ReleaseTest do
   # - With the endpoint configured to serve and every scheduler on,
   #   rebuild_derived/0 returns its report, and the configuration it started
   #   under has the endpoint's server off, the quote and FX syncs, the
-  #   warm-up, the refresher and logo discovery off, and the boot seed and
-  #   logo reconciliation off.
+  #   warm-up and logo discovery off, and the boot seed and logo
+  #   reconciliation off. (The derived refresher has no boot work: it acts
+  #   only on a write's notice.)
   test "rebuild_derived/0 starts without the web listener, the schedulers or the boot steps" do
     keys = [
       PortfolixirWeb.Endpoint,
       Portfolixir.Catalog.QuoteSync,
       Portfolixir.Fx.RateSync,
       Portfolixir.Portfolios.Performance.Warmup,
-      Portfolixir.Derived.Refresher,
       :enable_logo_discovery,
       :seed_builtins_on_boot,
       :reconcile_logos_on_boot
@@ -81,20 +81,20 @@ defmodule Portfolixir.ReleaseTest do
 
     put.(PortfolixirWeb.Endpoint, server: true)
 
-    for key <- Enum.slice(keys, 1..4), do: put.(key, enabled?: true)
+    for key <- Enum.slice(keys, 1..3), do: put.(key, enabled?: true)
 
-    for key <- Enum.drop(keys, 5), do: Application.put_env(:portfolixir, key, true)
+    for key <- Enum.drop(keys, 4), do: Application.put_env(:portfolixir, key, true)
 
     Memo.reset()
     assert {:ok, %{dropped: _, runtime_ms: _}} = Release.rebuild_derived()
 
     refute Phoenix.Endpoint.Supervisor.server?(:portfolixir, PortfolixirWeb.Endpoint)
 
-    for key <- Enum.slice(keys, 1..4) do
+    for key <- Enum.slice(keys, 1..3) do
       assert Application.get_env(:portfolixir, key)[:enabled?] == false, inspect(key)
     end
 
-    for key <- Enum.drop(keys, 5) do
+    for key <- Enum.drop(keys, 4) do
       assert Application.get_env(:portfolixir, key) == false, inspect(key)
     end
   end

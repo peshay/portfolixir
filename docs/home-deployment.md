@@ -1025,6 +1025,11 @@ mix portfolixir.derived.rebuild
 docker compose exec app bin/portfolixir eval "Portfolixir.Release.rebuild_derived()"
 ```
 
+The release command runs in a second VM inside the running container: it
+starts the application without its web listener, its scheduled downloads and
+its boot steps, drops and recomputes the derived values, prints the report and
+exits, while the instance keeps serving.
+
 This never touches financial data — the ledger is read, never written. It is
 the recovery step if a derived value is ever suspected stale or corrupt; in
 normal operation invalidation is automatic. Freshness is always visible: the

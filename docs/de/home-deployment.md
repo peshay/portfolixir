@@ -1092,6 +1092,12 @@ mix portfolixir.derived.rebuild
 docker compose exec app bin/portfolixir eval "Portfolixir.Release.rebuild_derived()"
 ```
 
+Der Release-Befehl läuft in einer zweiten VM im laufenden Container: Er
+startet die Anwendung ohne ihren Web-Listener, ohne ihre geplanten Downloads
+und ohne ihre Startschritte, verwirft die abgeleiteten Werte, berechnet sie
+neu, gibt den Bericht aus und beendet sich, während die Instanz weiter
+antwortet.
+
 Das berührt nie Finanzdaten — das Journal wird gelesen, nie geschrieben. Es
 ist der Wiederherstellungsschritt, falls ein abgeleiteter Wert je als veraltet
 oder beschädigt gilt; im Normalbetrieb ist die Invalidierung automatisch.
