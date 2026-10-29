@@ -14,6 +14,7 @@ defmodule Portfolixir.Fx.NonPositiveRateTest do
   alias Portfolixir.Clock
   alias Portfolixir.Fx
   alias Portfolixir.Fx.ExchangeRate
+  alias Portfolixir.Fx.HistoryGaps
   alias Portfolixir.Fx.RateSync
   alias Portfolixir.Ledger
   alias Portfolixir.Portfolios.ExternalFlows
@@ -292,5 +293,24 @@ defmodule Portfolixir.Fx.NonPositiveRateTest do
     assert capture_log([level: :warning], fn ->
              assert Fx.report_non_positive_rates_on_boot() == :ok
            end) == ""
+  end
+
+  # User story (security review 2026-10-12, K06):
+  # As the operator whose earliest stored rate for a currency is such a row,
+  # I want the history-gap read not to count it as coverage,
+  # so that the automatic backfill fetches that currency's history while
+  # every conversion treats the day as missing.
+  #
+  # Acceptance criteria:
+  # - A currency whose only stored rate is 0 is open from its earliest
+  #   booking date, and due for the backfill.
+  test "a non-positive earliest rate does not count as history coverage" do
+    world = usd_world!()
+    day = Date.add(Clock.today(), -10)
+    :ok = book!(world, "deposit", "100", day)
+    plant_legacy_rate!(day)
+
+    assert HistoryGaps.open() == %{"USD" => day}
+    assert Map.has_key?(HistoryGaps.due(), "USD")
   end
 end
