@@ -102,11 +102,11 @@ defmodule Portfolixir.Catalog.LogoStore do
          :ok <- size_ok(response.body, max_bytes),
          :ok <- image_bytes_ok(response.body, ext),
          :ok <- File.mkdir_p(storage_dir),
-         :ok <- delete_existing_logo_file(security, storage_dir),
          file_path = Path.join(storage_dir, "#{security.id}.#{ext}"),
          :ok <- File.write(file_path, response.body),
          {:ok, updated} <-
            update_security_attributes(actor, security, ext, source, url_opts(url, source, opts)) do
+      delete_other_logo_files(security, storage_dir, ext)
       broadcast_logo_change(updated.id)
       {:ok, updated}
     end
@@ -151,10 +151,10 @@ defmodule Portfolixir.Catalog.LogoStore do
          :ok <- size_ok(body, max_bytes),
          :ok <- image_bytes_ok(body, ext),
          :ok <- File.mkdir_p(storage_dir),
-         :ok <- delete_existing_logo_file(security, storage_dir),
          file_path = Path.join(storage_dir, "#{security.id}.#{ext}"),
          :ok <- File.write(file_path, body),
          {:ok, updated} <- update_security_attributes(actor, security, ext, :manual, lock: true) do
+      delete_other_logo_files(security, storage_dir, ext)
       broadcast_logo_change(updated.id)
       {:ok, updated}
     end
@@ -418,14 +418,23 @@ defmodule Portfolixir.Catalog.LogoStore do
   end
 
   # Every file a security's logo may be stored under, whatever its extension:
-  # removed before a store writes its new one (security review 2026-10-12,
-  # H52) and on removal, so one file per security remains and a replaced
-  # image is not served under its old name.
+  # all of them on removal; after a store has written its new file and
+  # recorded it, every other one (security review 2026-10-12, H52), so one
+  # file per security remains, a replaced image is not served under its old
+  # name, and a store that fails leaves the previous logo as it was.
   # storage_dir comes from app config/opts and the filename is the security id
   # plus a validated extension — no user-controlled path segments.
   # sobelow_skip ["Traversal.FileModule"]
-  defp delete_existing_logo_file(%Security{id: id}, storage_dir) do
-    Enum.each(@extensions, fn ext -> File.rm(Path.join(storage_dir, "#{id}.#{ext}")) end)
+  defp delete_existing_logo_file(%Security{} = security, storage_dir),
+    do: delete_other_logo_files(security, storage_dir, nil)
+
+  # sobelow_skip ["Traversal.FileModule"]
+  defp delete_other_logo_files(%Security{id: id}, storage_dir, kept_ext) do
+    for ext <- @extensions, ext != kept_ext do
+      File.rm(Path.join(storage_dir, "#{id}.#{ext}"))
+    end
+
+    :ok
   end
 
   defp extension_for_type(content_type) do
