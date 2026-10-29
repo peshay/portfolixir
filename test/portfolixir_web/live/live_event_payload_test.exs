@@ -14,6 +14,7 @@ defmodule PortfolixirWeb.LiveEventPayloadTest do
   alias PortfolixirWeb.LiveSource
 
   @past_bigint "99999999999999999999999"
+  @nul_text "text\u0000with a NUL"
 
   # Every page of the live session, read from the router rather than listed
   # here, so a page added later is fuzzed without anyone remembering to.
@@ -44,6 +45,8 @@ defmodule PortfolixirWeb.LiveEventPayloadTest do
   # - Every event every page handles, sent with a missing, malformed,
   #   out-of-range, wrongly typed or nested payload, leaves the page's
   #   process alive (a navigation away is allowed; a crash is not).
+  # - Text the database cannot hold (a NUL) is refused before any query
+  #   (security review 2026-10-12, K13).
   # - An event no page knows is ignored.
   # - The same holds on an empty instance.
   for {path, module, world} <- @worlds do
@@ -175,7 +178,10 @@ defmodule PortfolixirWeb.LiveEventPayloadTest do
       all.([@past_bigint]),
       all.(ids_past),
       all.(all.("not-an-id")),
-      all.(all.("NaN"))
+      all.(all.("NaN")),
+      # Text no column holds (K13): a page refuses it before any query.
+      all.(@nul_text),
+      all.(all.(@nul_text))
     ]
   end
 

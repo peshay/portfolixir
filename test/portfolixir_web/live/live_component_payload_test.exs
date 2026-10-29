@@ -208,7 +208,10 @@ defmodule PortfolixirWeb.LiveComponentPayloadTest do
       all.("-9999-01-01"),
       all.(nil),
       all.([@past_bigint]),
-      all.(all.("not-an-id"))
+      all.(all.("not-an-id")),
+      # Text no column holds (K13): a component refuses it before any query.
+      all.("text\u0000with a NUL"),
+      all.(all.("text\u0000with a NUL"))
     ]
   end
 end
