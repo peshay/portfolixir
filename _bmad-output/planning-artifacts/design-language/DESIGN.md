@@ -4729,6 +4729,14 @@ and the domain is unchanged.
   they print the raw field key in front of each ("name can't be blank").
   Translating the message alone would leave a half-German line, so they
   wait for a story that gives their fields labels too.
+- **The account dialog's text fields are tied to their errors** (K13,
+  board 07; UX-DR13's error association): each `.field-error` carries an
+  id, and its field `aria-invalid` and `aria-describedby` naming it. A name
+  the text rule refuses reads the `errors` domain's message under the
+  field ("darf keine Steuerzeichen und keine Zeilenumbrüche enthalten"),
+  and such a new tag the dialog's alert "Neuer Tag darf keine Steuerzeichen
+  und keine Zeilenumbrüche enthalten." The Imports page's bucket-tag field
+  answers in the same words.
 - **The tax statement form** (H36, board 07) names every refused field by
   its label in its problem note (`#tax-form-error`): "Steuerpflichtige
   Person: darf keine Steuerzeichen und keine Zeilenumbrüche enthalten", the
