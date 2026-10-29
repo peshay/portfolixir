@@ -4724,12 +4724,17 @@ and the domain is unchanged.
   frozen once referenced (2 bookings, 1 quote)" / "steht fest, sobald etwas
   darauf verweist (2 Buchungen, 1 Kurs)". The counts are read when the
   error is shown, as the domain read them when it refused.
-- **Not covered here, named:** the security merge dialog's refusal line,
-  the tax statement form and the snapshot form also interpolate changeset
-  messages by hand, and they print the raw field key in front of each
-  ("name can't be blank"). Translating the message alone would leave a
-  half-German line, so they wait for a story that gives their fields labels
-  too.
+- **Not covered here, named:** the security merge dialog's refusal line
+  and the snapshot form also interpolate changeset messages by hand, and
+  they print the raw field key in front of each ("name can't be blank").
+  Translating the message alone would leave a half-German line, so they
+  wait for a story that gives their fields labels too.
+- **The tax statement form** (H36, board 07) names every refused field by
+  its label in its problem note (`#tax-form-error`): "Steuerpflichtige
+  Person: darf keine Steuerzeichen und keine Zeilenumbrüche enthalten", the
+  message through the `errors` domain; a meta-test walks every field the
+  form can be refused on. The holder field carries `aria-invalid` and
+  points at the note, as the institution and date fields do.
 
 ### The plan editor's Σ under 100 % *(H8.4 = A, issue 969)*
 
