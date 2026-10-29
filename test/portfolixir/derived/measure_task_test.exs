@@ -82,7 +82,7 @@ defmodule Portfolixir.Derived.MeasureTaskTest do
 
   test "it seeds deterministically, so two runs are comparable" do
     Measure.run(["--securities", "2", "--bookings", "2", "--years", "1"])
-    Measure.run(["--securities", "2", "--bookings", "2", "--years", "1"])
+    Measure.run(["--securities", "2", "--bookings", "2", "--years", "1", "--write-synthetic"])
 
     # Four securities now: the second run's two must carry the same quote walk
     # as the first run's two, or two measurements are not comparable.
@@ -90,6 +90,65 @@ defmodule Portfolixir.Derived.MeasureTaskTest do
     assert length(closes) == 4
     assert Enum.take(closes, 2) == Enum.drop(closes, 2)
     refute Enum.at(closes, 0) == []
+  end
+
+  # User story (security review 2026-10-12, K04):
+  # As the operator running from source, whose development database holds my
+  # real records,
+  # I want the measurement task to refuse to write its synthetic ledger into
+  # a database that already holds a portfolio unless I say so explicitly, to
+  # say in its one-line help that it writes, and to journal what it writes
+  # under its own name,
+  # so that a measurement never pollutes my ledger by accident and the
+  # journal tells its writes from mine.
+  #
+  # Acceptance criteria:
+  # - With a portfolio present and no --write-synthetic, run/1 raises naming
+  #   the database and the flag, and writes nothing.
+  # - --skip-seed measures what is there without the flag.
+  # - With --write-synthetic it seeds, and every journal entry of the seed is
+  #   attributed to the system job "derived_measure".
+  # - The shortdoc says the task writes.
+  test "it refuses to seed beside an existing portfolio unless told to, and journals as itself" do
+    {:ok, _} =
+      Portfolios.create_portfolio(Portfolixir.Actor.owner_ui(), %{
+        name: "Operator Portfolio",
+        base_currency_code: "EUR"
+      })
+
+    database = Repo.config()[:database]
+    entries_before = Repo.aggregate("audit_journal", :count)
+    last_before = Repo.one(from(e in "audit_journal", select: max(e.id)))
+
+    error =
+      assert_raise Mix.Error, fn ->
+        Measure.run(["--securities", "1", "--bookings", "1", "--years", "1"])
+      end
+
+    assert error.message =~ database
+    assert error.message =~ "--write-synthetic"
+    assert [%Portfolio{name: "Operator Portfolio"}] = Portfolios.list_portfolios()
+    assert Catalog.list_securities() == []
+    assert Repo.aggregate("audit_journal", :count) == entries_before
+
+    Measure.run(["--skip-seed"])
+    assert output() =~ "1st (ms)"
+    assert length(Portfolios.list_portfolios()) == 1
+
+    Measure.run(["--securities", "1", "--bookings", "1", "--years", "1", "--write-synthetic"])
+    assert length(Portfolios.list_portfolios()) == 2
+
+    actors =
+      Repo.all(
+        from(e in "audit_journal",
+          where: e.id > ^last_before,
+          distinct: true,
+          select: {e.actor_type, e.actor_label}
+        )
+      )
+
+    assert actors == [{"system_job", "derived_measure"}]
+    assert Mix.Task.shortdoc(Measure) =~ "writes"
   end
 
   defp closes_by_security do
