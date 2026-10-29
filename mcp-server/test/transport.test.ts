@@ -630,4 +630,71 @@ describe("the built companion over its real transports", () => {
       }
     });
   }
+
+  // User story (security review 2026-10-12, K16):
+  // As the operator whose environment switches on Node's proxy for every
+  // Node tool,
+  // I want the built companion never to send its API calls through that
+  // proxy,
+  // so that the API token and my records never pass through a third process.
+  //
+  // Acceptance criteria:
+  // - Started with NODE_USE_ENV_PROXY=1, HTTP_PROXY pointing at a loopback
+  //   stand-in for a proxy and a NO_PROXY that does not name the API host,
+  //   the companion either answers a tools/call with the fake API's payload,
+  //   the fake API having seen the API token directly, or (on a Node that
+  //   cannot reconfigure its proxy) exits 1 naming NO_PROXY.
+  // - Either way the stand-in proxy receives no connection at all.
+  it("keeps its API calls off Node's environment proxy", { timeout: 60_000 }, async () => {
+    const api = await startFakeApi();
+    let proxyConnections = 0;
+    const fakeProxy = createNetServer((socket) => {
+      proxyConnections += 1;
+      socket.end("HTTP/1.1 403 Forbidden\r\ncontent-length: 0\r\n\r\n");
+    });
+    fakeProxy.listen(0, "127.0.0.1");
+    await once(fakeProxy, "listening");
+    const { port: proxyPort } = fakeProxy.address() as AddressInfo;
+
+    const companion = spawnCompanion({
+      PORTFOLIXIR_API_BASE_URL: api.baseUrl,
+      PORTFOLIXIR_API_TOKEN: apiToken,
+      PORTFOLIXIR_MCP_TRANSPORT: "stdio",
+      NODE_USE_ENV_PROXY: "1",
+      HTTP_PROXY: `http://127.0.0.1:${proxyPort}`,
+      NO_PROXY: "localhost"
+    });
+    const exited = once(companion.child, "close");
+
+    try {
+      const wire = stdioWire(companion);
+      let answered: JsonRpcMessage | undefined;
+
+      try {
+        await wire.request(1, "initialize", initializeParams);
+        wire.notify("notifications/initialized");
+        answered = await wire.request(2, "tools/call", { name: toolName, arguments: toolArguments });
+      } catch {
+        answered = undefined;
+      }
+
+      if (answered) {
+        assert.equal(answered.error, undefined);
+        assert.notEqual(answered.result.isError, true, JSON.stringify(answered.result));
+        assert.deepEqual(answered.result.structuredContent, apiAnswer);
+        assert.deepEqual(api.hits, [{ method: "GET", url: apiPath, authorization: `Bearer ${apiToken}` }]);
+      } else {
+        const [code] = await within(exited, 15_000, "the companion's exit");
+        assert.equal(code, 1, companion.stderr());
+        assert.match(companion.stderr(), /NO_PROXY/);
+        assert.deepEqual(api.hits, []);
+      }
+
+      assert.equal(proxyConnections, 0, "the proxy stand-in received a connection");
+    } finally {
+      await companion.stop();
+      await api.close();
+      fakeProxy.close();
+    }
+  });
 });
