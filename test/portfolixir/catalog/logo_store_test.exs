@@ -104,6 +104,46 @@ defmodule Portfolixir.Catalog.LogoStoreTest do
     assert Enum.sort(File.ls!(tmp)) == Enum.sort(["#{sec.id}.webp", "#{other.id}.png"])
   end
 
+  # User story (security review 2026-10-12, H52, review note):
+  # As the operator whose logo is being replaced,
+  # I want a replacement that fails to be written to leave my logo as it was,
+  # so that a failed store never leaves the security pointing at a removed
+  # file.
+  #
+  # Acceptance criteria:
+  # - When the new file cannot be written, the previous file stays on disk
+  #   and `logo_path` still names it, through discovery and through an upload.
+  test "a logo write that fails leaves the previous logo in place", %{tmp: tmp, security: sec} do
+    jpg = <<0xFF, 0xD8, 0xFF, 0xE0, 0, 16>>
+    webp = "RIFF" <> <<0, 0, 0, 0>> <> "WEBP" <> "VP8 "
+
+    {:ok, _} =
+      LogoStore.download_and_store(sec, "https://example.test/logo.png", :wikipedia,
+        req: png_stub(@png),
+        storage_dir: tmp
+      )
+
+    # The new file's name is taken by a directory, so its write fails.
+    File.mkdir_p!(Path.join(tmp, "#{sec.id}.jpg"))
+    File.mkdir_p!(Path.join(tmp, "#{sec.id}.webp"))
+
+    assert {:error, _} =
+             LogoStore.download_and_store(sec, "https://example.test/logo.jpg", :wikipedia,
+               req: png_stub(jpg, "image/jpeg"),
+               storage_dir: tmp
+             )
+
+    assert {:error, _} =
+             LogoStore.store_manual_bytes(Actor.owner_ui(), sec, webp, "image/webp",
+               storage_dir: tmp
+             )
+
+    assert File.read!(Path.join(tmp, "#{sec.id}.png")) == @png
+
+    assert Catalog.get_security!(sec.id).attributes["logo_path"] ==
+             "/security_logos/#{sec.id}.png"
+  end
+
   test "writes the image to <storage_dir>/<id>.png and updates the attributes",
        %{tmp: tmp, security: sec} do
     assert {:ok, updated} =
