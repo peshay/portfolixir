@@ -87,8 +87,11 @@ defmodule Portfolixir.Tax do
 
     # #853: without a tax year there is no row to look up — the lookup's
     # `== ^nil` raised an ArgumentError (a 500). The insert path answers the
-    # changeset's own field errors instead.
-    case tax_year && fetch_parameters(jurisdiction || @default_jurisdiction, tax_year) do
+    # changeset's own field errors instead. Nor is a key the changeset refused
+    # ever looked up (H36): a value no column holds would fail the query.
+    lookup? = tax_year && valid_fields?(fresh, [:jurisdiction, :tax_year])
+
+    case lookup? && fetch_parameters(jurisdiction || @default_jurisdiction, tax_year) do
       {:ok, existing} -> update_parameters(actor, existing, attrs)
       _absent -> insert_parameters(actor, fresh)
     end
@@ -672,6 +675,9 @@ defmodule Portfolixir.Tax do
          # A date outside the shared bound is the probe's field error, never
          # a lookup (E25 S4, F70).
          true <- is_binary(holder) and BoundedDate.within?(as_of),
+         # A holder the text rule refuses is the probe's field error, never
+         # a lookup (H36), the guard the allowance order carries.
+         true <- valid_fields?(probe, [:holder]),
          %Profile{} = profile <- profile_in_force(holder, as_of) do
       StatementSnapshot.changeset(%StatementSnapshot{}, attrs, today,
         default_church_tax_rate: profile.church_tax_rate
@@ -682,6 +688,10 @@ defmodule Portfolixir.Tax do
   end
 
   # -- internals -------------------------------------------------------------
+
+  # None of `fields` carries an error of the changeset.
+  defp valid_fields?(%Ecto.Changeset{errors: errors}, fields),
+    do: not Enum.any?(errors, fn {field, _error} -> field in fields end)
 
   # Both sides are folded by the database, with the `lower()` the unique
   # indexes use; the value is normalised as a stored one is (E25 S6, G21).

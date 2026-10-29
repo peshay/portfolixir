@@ -42,6 +42,7 @@ defmodule PortfolixirWeb.TaxLive do
   alias Portfolixir.Tax.StatementSnapshot
   alias PortfolixirWeb.AppShell
   alias PortfolixirWeb.DecimalInput
+  alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
 
@@ -402,13 +403,10 @@ defmodule PortfolixirWeb.TaxLive do
     end
   end
 
-  defp changeset_errors(changeset) do
-    Ecto.Changeset.traverse_errors(changeset, fn {message, opts} ->
-      Enum.reduce(opts, message, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
-      end)
-    end)
-  end
+  # Each message in the page's language through the errors domain (H36;
+  # board 07): the problem note reads "<label>: <message>".
+  defp changeset_errors(changeset),
+    do: Ecto.Changeset.traverse_errors(changeset, &FieldLabel.translate_error/1)
 
   # -- display ---------------------------------------------------------------
 
@@ -515,13 +513,23 @@ defmodule PortfolixirWeb.TaxLive do
 
   defp error_text(errors) do
     Enum.map_join(errors, "; ", fn {field, messages} ->
-      "#{field_label_or_name(field)}: #{Enum.join(messages, ", ")}"
+      "#{form_error_label(field)}: #{Enum.join(messages, ", ")}"
     end)
   end
 
-  defp field_label_or_name(:amount_granted), do: gettext("Amount granted")
+  @doc false
+  # The label a problem note names a refused field by: the field's own on the
+  # form, never its raw key (H36; a meta-test walks every field the statement
+  # form can be refused on).
+  def form_error_label(:amount_granted), do: gettext("Amount granted")
+  def form_error_label(:holder), do: gettext("Taxpayer")
+  def form_error_label(:institution), do: gettext("Institution")
+  def form_error_label(:tax_year), do: gettext("Tax year")
+  def form_error_label(:as_of), do: gettext("Statement date")
+  def form_error_label(:note), do: gettext("Note")
+  def form_error_label(:church_tax_rate), do: gettext("Church tax rate")
 
-  defp field_label_or_name(field) do
+  def form_error_label(field) do
     if field in StatementSnapshot.money_fields(), do: field_label(field), else: to_string(field)
   end
 
@@ -774,6 +782,8 @@ defmodule PortfolixirWeb.TaxLive do
                   value={(@editing && @editing.holder) || @holder}
                   list="tax-holders"
                   required
+                  aria-invalid={invalid?(@form_errors, :holder) && "true"}
+                  aria-describedby={invalid?(@form_errors, :holder) && "tax-form-error"}
                 />
                 <datalist id="tax-holders">
                   <option :for={holder <- @holders} value={holder}></option>
