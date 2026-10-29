@@ -544,4 +544,119 @@ defmodule Portfolixir.RuntimeConfigTest do
     assert File.read!("config/runtime.exs") =~
              ~s|Portfolixir.RuntimeConfig.database_url!(System.get_env("DATABASE_URL"))|
   end
+
+  # User story (security review 2026-10-12, K03):
+  # As an operator pointing a release at a PostgreSQL outside the Compose
+  # network with a provider's URL,
+  # I want the URL's TLS settings honoured with verification, refused where
+  # they would allow plaintext or contradict DATABASE_SSL, and a private CA
+  # to be named,
+  # so that my financial records never cross the network in plaintext while I
+  # believe TLS is on.
+  #
+  # Acceptance criteria:
+  # - ?sslmode=require, verify-ca or verify-full turns TLS on with
+  #   Postgrex's verifying defaults; ?ssl=true does too; neither key is left
+  #   in the URL the Repo reads, so nothing in it overrides the decision.
+  # - ?sslmode=disable, allow or prefer, a ?ssl= other than true or false,
+  #   and any key outside ssl, sslmode, pool_size, timeout and idle_interval
+  #   are refused naming DATABASE_URL, never a query value.
+  # - A URL TLS setting that contradicts an explicit DATABASE_SSL is refused
+  #   naming both; DATABASE_SSL alone still decides when the URL is silent.
+  # - DATABASE_SSL_CA_FILE names an absolute, readable file used as the CA
+  #   over the verifying defaults; with TLS off, relative or missing, it is
+  #   refused naming the variable.
+  # - The production runtime configuration reads the Repo's URL and TLS
+  #   through it, and the deployment guide names both variables in English
+  #   and German.
+  test "maps the database URL's TLS settings and refuses permissive or contradicting ones" do
+    url = "postgres://portfolixir:0123abcd@db.example.net:5432/portfolixir_prod"
+
+    assert RuntimeConfig.database_options!(url, nil, nil) == [url: url, ssl: false]
+    assert RuntimeConfig.database_options!(url, "true", nil) == [url: url, ssl: true]
+
+    for mode <- ~w(require verify-ca verify-full) do
+      assert RuntimeConfig.database_options!(url <> "?sslmode=" <> mode, nil, nil) ==
+               [url: url, ssl: true]
+
+      assert RuntimeConfig.database_options!(url <> "?sslmode=" <> mode, "on", nil) ==
+               [url: url, ssl: true]
+    end
+
+    assert RuntimeConfig.database_options!(url <> "?ssl=true", nil, nil) == [url: url, ssl: true]
+    assert RuntimeConfig.database_options!(url <> "?ssl=false", "", nil) == [url: url, ssl: false]
+
+    assert [url: kept, ssl: true] =
+             RuntimeConfig.database_options!(url <> "?sslmode=require&pool_size=5", nil, nil)
+
+    parsed = Ecto.Repo.Supervisor.parse_url(kept)
+    assert parsed[:pool_size] == 5
+    refute Keyword.has_key?(parsed, :ssl)
+    refute Keyword.has_key?(parsed, :sslmode)
+
+    refusals = [
+      {url <> "?sslmode=disable", nil},
+      {url <> "?sslmode=allow", nil},
+      {url <> "?sslmode=prefer", nil},
+      {url <> "?ssl=require", nil},
+      {url <> "?sslrootcert=SyntheticValue", nil},
+      {url <> "?password=SyntheticValue", nil},
+      {url <> "?ssl=false", "true"},
+      {url <> "?sslmode=require", "false"},
+      {url <> "?ssl=false&sslmode=require", nil}
+    ]
+
+    for {bad, ssl} <- refusals do
+      error = assert_raise ArgumentError, fn -> RuntimeConfig.database_options!(bad, ssl, nil) end
+      assert error.message =~ "DATABASE_URL", bad
+      refute error.message =~ "SyntheticValue"
+      refute error.message =~ "0123abcd"
+    end
+
+    error =
+      assert_raise ArgumentError, fn ->
+        RuntimeConfig.database_options!(url <> "?ssl=false", "true", nil)
+      end
+
+    assert error.message =~ "DATABASE_SSL"
+
+    ca =
+      Path.join(System.tmp_dir!(), "runtime-config-ca-#{System.unique_integer([:positive])}.pem")
+
+    File.write!(ca, "synthetic")
+    on_exit(fn -> File.rm(ca) end)
+
+    assert RuntimeConfig.database_options!(url, "true", ca) == [url: url, ssl: [cacertfile: ca]]
+
+    assert RuntimeConfig.database_options!(url <> "?sslmode=verify-full", nil, ca) ==
+             [url: url, ssl: [cacertfile: ca]]
+
+    for {ssl, file} <- [
+          {nil, ca},
+          {"false", ca},
+          {"true", "relative/ca.pem"},
+          {"true", ca <> ".gone"}
+        ] do
+      error =
+        assert_raise ArgumentError, fn -> RuntimeConfig.database_options!(url, ssl, file) end
+
+      assert error.message =~ "DATABASE_SSL_CA_FILE"
+    end
+
+    assert RuntimeConfig.database_options!(url, "true", "  ") == [url: url, ssl: true]
+
+    error = assert_raise ArgumentError, fn -> RuntimeConfig.database_options!(nil, nil, nil) end
+    assert error.message =~ "DATABASE_URL is required"
+
+    runtime = File.read!("config/runtime.exs")
+    assert runtime =~ "Portfolixir.RuntimeConfig.database_options!("
+    assert runtime =~ ~s|System.get_env("DATABASE_SSL_CA_FILE")|
+
+    for guide <- ["docs/home-deployment.md", "docs/de/home-deployment.md"] do
+      text = File.read!(guide)
+      assert text =~ "`DATABASE_SSL`", guide
+      assert text =~ "`DATABASE_SSL_CA_FILE`", guide
+      assert text =~ "sslmode", guide
+    end
+  end
 end
