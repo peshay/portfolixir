@@ -240,8 +240,9 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
   #   benchmark_rate parameter, whether the login page was reached through the
   #   redirect or by a link naming the path itself; every other parameter is
   #   kept.
-  # - A choice made on the instance and redirected to the login is remembered
-  #   by that request already, so the login loses nothing by dropping it.
+  # - A choice redirected to the login is not remembered by that request
+  #   either (K02): before the login no preference cookie is written, so the
+  #   choice is made again once logged in.
   describe "the login's return path" do
     setup do
       previous = Application.get_env(:portfolixir, :ui_password)
@@ -275,11 +276,11 @@ defmodule PortfolixirWeb.PreferencePersistenceTest do
       assert html =~ ~s(action="/login?to=%2Fportfolio")
     end
 
-    test "a same-origin choice is remembered before the login", %{conn: conn} do
+    test "a same-origin choice is not remembered before the login", %{conn: conn} do
       redirected = conn |> from("same-origin") |> get("/portfolio?view=7&locale=de")
 
-      assert PortfolixirWeb.PreferenceCookieHelpers.remembered(redirected, @view_cookie) == "7"
-      assert PortfolixirWeb.PreferenceCookieHelpers.remembered(redirected, @locale_cookie) == "de"
+      assert PortfolixirWeb.PreferenceCookieHelpers.remembered(redirected, @view_cookie) == nil
+      assert PortfolixirWeb.PreferenceCookieHelpers.remembered(redirected, @locale_cookie) == nil
       assert redirected_to(redirected) == "/login?to=%2Fportfolio"
     end
 

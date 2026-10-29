@@ -203,10 +203,14 @@ defmodule PortfolixirWeb.UiAuthTest do
       pre_login_session_token = Plug.Conn.get_session(login_page, "_csrf_token")
       assert is_binary(pre_login_session_token)
 
+      # Before the login no preference cookie is written (K02), so the
+      # language rides the session: the login POST names it, as the German
+      # login page's own request does.
       logged_in =
         login_page
         |> recycle_session_cookie()
-        |> post("/login", %{
+        |> put_req_header("sec-fetch-site", "same-origin")
+        |> post("/login?locale=de", %{
           "_csrf_token" => pre_login_token,
           "session" => %{"password" => @password}
         })

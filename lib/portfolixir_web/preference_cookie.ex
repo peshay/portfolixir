@@ -21,6 +21,13 @@ defmodule PortfolixirWeb.PreferenceCookie do
     `Path=/`, so no `Domain` or `Path` variant of it can be set; a cookie
     without the prefix is not read there.
 
+  - **Only past the login.** With a UI password set, a cookie is written or
+    deleted only for a request the login lets in (`PortfolixirWeb.UiAuth`):
+    the preference plugs run before `PortfolixirWeb.RequireUiAuth`, so
+    without this anyone who reaches the instance could have it sign a value
+    on the redirect to the login and carry that value elsewhere. The choice
+    still applies to the request itself.
+
   A cookie written before this rule, unsigned, does not verify: the page
   falls back to the default view, no benchmark and the browser's language
   until the operator chooses again, and that choice replaces it (on HTTPS the
@@ -30,6 +37,7 @@ defmodule PortfolixirWeb.PreferenceCookie do
   import Plug.Conn
 
   alias Plug.Conn.Cookies
+  alias PortfolixirWeb.UiAuth
 
   @host_prefix "__Host-"
   # One year, the horizon every preference cookie has had.
@@ -57,22 +65,35 @@ defmodule PortfolixirWeb.PreferenceCookie do
     end
   end
 
-  @doc "Remembers `value` under `base` for a year, signed."
+  @doc """
+  Remembers `value` under `base` for a year, signed — on a request the UI
+  login allows; otherwise the response writes nothing.
+  """
   @spec put(Plug.Conn.t(), String.t(), String.t()) :: Plug.Conn.t()
   def put(%Plug.Conn{} = conn, base, value) when is_binary(value) do
-    put_resp_cookie(conn, name(conn, base), value,
-      sign: true,
-      max_age: @max_age,
-      same_site: "Lax",
-      path: "/"
-    )
+    if login_allows?(conn) do
+      put_resp_cookie(conn, name(conn, base), value,
+        sign: true,
+        max_age: @max_age,
+        same_site: "Lax",
+        path: "/"
+      )
+    else
+      conn
+    end
   end
 
-  @doc "Forgets the choice remembered under `base`."
+  @doc "Forgets the choice remembered under `base`, on a request the UI login allows."
   @spec delete(Plug.Conn.t(), String.t()) :: Plug.Conn.t()
   def delete(%Plug.Conn{} = conn, base) do
-    delete_resp_cookie(conn, name(conn, base), same_site: "Lax", path: "/")
+    if login_allows?(conn),
+      do: delete_resp_cookie(conn, name(conn, base), same_site: "Lax", path: "/"),
+      else: conn
   end
+
+  # The check `PortfolixirWeb.RequireUiAuth` makes after these plugs: no
+  # password configured, or a session that passes the login.
+  defp login_allows?(conn), do: UiAuth.allowed?(get_session(conn))
 
   # Every value the request's Cookie headers carry under `name`, in order;
   # Plug's own decoding keeps the first of a duplicated name and so cannot
