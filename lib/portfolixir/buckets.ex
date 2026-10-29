@@ -339,7 +339,13 @@ defmodule Portfolixir.Buckets do
   def ensure_tag_bucket(%Actor{} = actor, name) when is_binary(name) do
     trimmed = String.trim(name)
 
-    case Repo.get_by(Bucket, name: trimmed) do
+    # A name the text rule refuses is never looked up (K13): the create's
+    # changeset answers it as a field error, before any statement runs.
+    lookup =
+      if Text.check(trimmed, max: @name_max_length) == :ok,
+        do: Repo.get_by(Bucket, name: trimmed)
+
+    case lookup do
       %Bucket{dimension: @scope_dimension} -> {:error, :name_taken_by_scope_bucket}
       %Bucket{} = bucket -> {:ok, bucket}
       nil -> create_bucket(actor, %{name: trimmed, dimension: "tag"})
@@ -353,19 +359,24 @@ defmodule Portfolixir.Buckets do
   the 100-character name limit and the scope-bucket name collision.
   """
   @spec validate_tag_bucket_name(String.t()) ::
-          :ok | {:error, :name_too_long | :name_taken_by_scope_bucket}
+          :ok
+          | {:error, :name_too_long | :name_taken_by_scope_bucket | {:text, Text.refusal()}}
   def validate_tag_bucket_name(name) when is_binary(name) do
     trimmed = String.trim(name)
 
-    cond do
-      Text.codepoint_length(trimmed) > @name_max_length ->
+    # The text rule runs before the lookup (K13): a name it refuses is named
+    # by its refusal and never bound into a query.
+    case Text.check(trimmed, max: @name_max_length) do
+      {:error, :too_long} ->
         {:error, :name_too_long}
 
-      match?(%Bucket{dimension: @scope_dimension}, Repo.get_by(Bucket, name: trimmed)) ->
-        {:error, :name_taken_by_scope_bucket}
+      {:error, refusal} ->
+        {:error, {:text, refusal}}
 
-      true ->
-        :ok
+      :ok ->
+        if match?(%Bucket{dimension: @scope_dimension}, Repo.get_by(Bucket, name: trimmed)),
+          do: {:error, :name_taken_by_scope_bucket},
+          else: :ok
     end
   end
 

@@ -12513,3 +12513,9 @@ msgstr "korrigiert"
 #, elixir-autogen, elixir-format
 msgid "Church tax rate"
 msgstr "Kirchensteuersatz"
+
+#: lib/portfolixir_web/live/imports_live.ex:3145
+#: lib/portfolixir_web/live/portfolio_accounts/account_form_dialog.ex:461
+#, elixir-autogen, elixir-format
+msgid "New tag %{message}."
+msgstr "Neuer Tag %{message}."

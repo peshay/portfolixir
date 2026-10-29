@@ -15,9 +15,11 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog.Currencies
+  alias Portfolixir.Input.Text
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.SecuritiesAccount
   alias PortfolixirWeb.AppShell
+  alias PortfolixirWeb.FieldLabel
   alias PortfolixirWeb.LiveEventGuard
   alias PortfolixirWeb.LiveParam
   alias PortfolixirWeb.NamedRecordRefusal
@@ -224,9 +226,11 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
         value={@value || ""}
         required={@required}
         maxlength={@maxlength}
+        aria-invalid={@errors[@name] && "true"}
+        aria-describedby={@errors[@name] && "account-#{@name}-error"}
       />
       <%= if msg = @errors[@name] do %>
-        <span class="field-error"><%= msg %></span>
+        <span class="field-error" id={"account-#{@name}-error"}><%= msg %></span>
       <% end %>
     </label>
     """
@@ -317,8 +321,8 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
       {:error, {:field_errors, errors}} ->
         {:noreply, socket |> assign(:errors, errors) |> assign(:bucket_error, nil)}
 
-      {:error, %Ecto.Changeset{}} ->
-        {:noreply, assign(socket, :bucket_error, gettext("The new tag could not be created."))}
+      {:error, %Ecto.Changeset{} = changeset} ->
+        {:noreply, assign(socket, :bucket_error, new_tag_error(changeset))}
     end
   end
 
@@ -370,6 +374,7 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
     # written; any refusal the depot's own changeset makes after it rolls the
     # cash account back with the save's one transaction (K14).
     with :ok <- require_field(form, "depot_name"),
+         :ok <- require_text(form, "depot_name"),
          :ok <- require_free_depot_name(form),
          {:ok, cash, created?} <- resolve_cash_account(form, socket),
          {:ok, depot} <- create_depot(form, cash) do
@@ -458,6 +463,32 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
       message -> {:error, {:field_errors, %{"depot_name" => message}}}
     end
   end
+
+  # A new tag the text rule refuses says why, in the page's language (K13;
+  # board 07): "New tag <message>.".
+  defp new_tag_error(%Ecto.Changeset{errors: errors}) do
+    case Keyword.fetch(errors, :name) do
+      {:ok, {_message, opts} = error} when is_list(opts) ->
+        if opts[:validation] == :text,
+          do: gettext("New tag %{message}.", message: FieldLabel.translate_error(error)),
+          else: gettext("The new tag could not be created.")
+
+      :error ->
+        gettext("The new tag could not be created.")
+    end
+  end
+
+  # A name the text rule refuses is the field's error before any lookup and
+  # before the cash account is created (K13), in the page's language.
+  defp require_text(form, field) do
+    case Text.check(form[field], max: 255) do
+      :ok -> :ok
+      {:error, refusal} -> {:error, {:field_errors, %{field => text_message(refusal)}}}
+    end
+  end
+
+  defp text_message(refusal),
+    do: refusal |> Text.message(max: 255) |> FieldLabel.translate_error()
 
   defp require_field(form, field) do
     if String.trim(form[field] || "") == "" do

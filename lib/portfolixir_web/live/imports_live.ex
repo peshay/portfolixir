@@ -9,6 +9,7 @@ defmodule PortfolixirWeb.ImportsLive do
   alias Portfolixir.Imports.PortfolioPerformance
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Imports.PreviewStore
+  alias Portfolixir.Input.Text
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AccountNames
   alias PortfolixirWeb.AppShell
@@ -3226,6 +3227,12 @@ defmodule PortfolixirWeb.ImportsLive do
 
   defp bucket_tag_error_message(:name_too_long) do
     gettext("The bucket tag is too long — bucket names carry at most 100 characters.")
+  end
+
+  # A tag the text rule refuses, in the account dialog's words (K13).
+  defp bucket_tag_error_message({:text, refusal}) do
+    message = refusal |> Text.message(max: 100) |> FieldLabel.translate_error()
+    gettext("New tag %{message}.", message: message)
   end
 
   defp bucket_tag_error_message(:name_taken_by_scope_bucket) do

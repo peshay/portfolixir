@@ -314,7 +314,14 @@ defmodule Portfolixir.Lifecycle.AccountNames do
 
   # A live name of another account of the kind in the portfolio, or a former
   # name of any other account — the account's own former names are its own.
+  # A name the text rule refuses holds no conflict and is never bound into a
+  # query (K13): the write's changeset refuses it.
   defp name_conflict(schema, portfolio_id, name, id) do
+    if Text.check(name, []) == :ok,
+      do: stored_conflict(schema, portfolio_id, name, id)
+  end
+
+  defp stored_conflict(schema, portfolio_id, name, id) do
     case live_holder(schema, portfolio_id, name, id) do
       nil ->
         case former_holder(schema, portfolio_id, name, id) do
