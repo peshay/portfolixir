@@ -36,7 +36,11 @@ defmodule Portfolixir.Imports.PreviewStore do
   # their number; the oldest-touched are evicted to make room. One preview
   # may take at most a quarter of it: a file at the parser's caps measures
   # about half of the budget, and is not parked (a remount shows the drop
-  # zone again) rather than evicting every other session's preview.
+  # zone again) rather than evicting every other session's preview. The
+  # measure is the heap the terms take: the binaries of the text cells a
+  # preview keeps (each longer than 64 bytes is one, H58) sit outside it, at
+  # most about one upload's size per entry, so they are bounded by the entry
+  # count and the upload cap, not by this budget.
   @default_max_bytes 256 * 1024 * 1024
   @entry_share 4
 

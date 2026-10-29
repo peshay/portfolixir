@@ -167,7 +167,9 @@ cannot download logos or follow provider redirects (the well-known prefix
 session until it is applied, discarded or left for two hours, within a fixed
 number of parked previews and a fixed byte budget, of which the oldest-touched
 is evicted, judged by its key, timestamp and size alone, and a preview too
-large for its share of the budget is not parked (E25; H07): only a session past the UI password, or,
+large for its share of the budget is not parked, the budget counting the
+heap the previews take and not the binaries of the text cells they keep,
+which the entry count and the upload size bound instead (E25; H07): only a session past the UI password, or,
 without one, a browser that reaches the instance on its loopback binding, can
 park one, so an instance bound beyond loopback without a UI password lets
 anyone who reaches it fill that budget; and the WebSocket handshake is dispatched ahead of the Host guard and rests on
