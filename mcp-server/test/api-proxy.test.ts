@@ -76,4 +76,39 @@ describe("the companion's API client and Node's environment proxy", () => {
       { kind: "direct" }
     );
   });
+
+  // User story (security review 2026-10-12, K16, review round):
+  // As the operator who names hosts in NO_PROXY,
+  // I want the companion to read NO_PROXY exactly as Node's fetch reads it,
+  // so that it never starts while the proxy would still carry its API calls.
+  //
+  // Acceptance criteria:
+  // - A plain entry covers that host only, never its subdomains.
+  // - An entry starting with "." or "*." covers subdomains only, never the
+  //   domain itself; "*" covers everything.
+  // - The lower-case no_proxy wins over NO_PROXY even when it is blank.
+  // - An entry with a port covers that port only; entries split on commas
+  //   and on spaces.
+  it("reads NO_PROXY the way Node's fetch does", () => {
+    const on = { NODE_USE_ENV_PROXY: "1", HTTP_PROXY: proxy };
+    const decide = (url: string, env: NodeJS.ProcessEnv) =>
+      apiProxyDecision(url, { ...on, ...env }, []).kind;
+
+    assert.equal(decide("http://api.home.invalid:4000", { NO_PROXY: "home.invalid" }), "refuse");
+    assert.equal(decide("http://home.invalid:4000", { NO_PROXY: ".home.invalid" }), "refuse");
+    assert.equal(decide("http://home.invalid:4000", { NO_PROXY: "*.home.invalid" }), "refuse");
+    assert.equal(
+      decide("http://x1.invalid:4000", { no_proxy: "", NO_PROXY: "x1.invalid" }),
+      "refuse"
+    );
+    assert.equal(decide(base, { NO_PROXY: "127.0.0.1:5000" }), "refuse");
+
+    assert.equal(decide("http://home.invalid:4000", { NO_PROXY: "home.invalid" }), "direct");
+    assert.equal(decide("http://api.home.invalid:4000", { NO_PROXY: ".home.invalid" }), "direct");
+    assert.equal(decide("http://api.home.invalid:4000", { NO_PROXY: "*.home.invalid" }), "direct");
+    assert.equal(decide("http://x1.invalid:4000", { no_proxy: "x1.invalid", NO_PROXY: "" }), "direct");
+    assert.equal(decide(base, { NO_PROXY: "localhost 127.0.0.1" }), "direct");
+    assert.equal(decide(base, { NO_PROXY: "127.0.0.1:4000" }), "direct");
+    assert.equal(decide(base, { NO_PROXY: "*" }), "direct");
+  });
 });
