@@ -21,6 +21,7 @@ defmodule PortfolixirWeb.Api.V1.PolicyJSON do
       portfolio_id: rule.portfolio_id,
       view_id: rule.view_id,
       name: rule.name,
+      name_author: author(rule.name_author),
       status: rule.status && to_string(rule.status),
       version_in_force: version(rule.version_in_force),
       next_version: version(rule.next_version),
@@ -37,8 +38,9 @@ defmodule PortfolixirWeb.Api.V1.PolicyJSON do
   end
 
   @doc """
-  One finding (ADR-0049 §5): the rule's identity and words, the version and
-  its `author` (E25 S7, G30), the thresholds, the measured `value`, the
+  One finding (ADR-0049 §5): the rule's identity and words, who last named
+  the rule (`rule_name_author`, H14), the version and its `author` (E25 S7,
+  G30), the thresholds, the measured `value`, the
   `state`, the signed `distance` to the
   nearest line, the reason and — for a refused metric — `required` and
   `observations`, and the computation basis of the reading. No action (§6).
@@ -47,6 +49,7 @@ defmodule PortfolixirWeb.Api.V1.PolicyJSON do
     %{
       rule_id: finding.rule_id,
       rule_name: finding.rule_name,
+      rule_name_author: author(finding.rule_name_author),
       view_id: finding.view_id,
       version_id: finding.version_id,
       valid_from: JSON.date(finding.valid_from),
@@ -112,7 +115,9 @@ defmodule PortfolixirWeb.Api.V1.PolicyJSON do
 
   # E25 S7, G30: who wrote the version — "operator" (the Risk page) or
   # "agent" (an API or MCP token); null only for a version stored before
-  # authors existed that has no journaled creation.
+  # authors existed that has no journaled creation. The same words name who
+  # last named a rule (H14, T-16); null only for a rule the name-author
+  # backfill could not trace.
   defp author(nil), do: nil
   defp author(author) when is_atom(author), do: Atom.to_string(author)
 end

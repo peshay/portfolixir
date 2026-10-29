@@ -9541,6 +9541,16 @@ dialog.booking-drawer {
   color: var(--color-text-muted);
 }
 
+/* The name's own author mark (security review 2026-10-12, H14; board
+   ux-design-2026-10-27/03-author-marks): the words line's voice beside the
+   name's button and outside it, so the button's name stays the rule's name;
+   it never breaks inside "· Agent". */
+[data-role="policy-rule-name-author"] {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
 /* Undetermined is neither a pass nor a breach (ADR-0049 §3): an outlined,
    muted badge — the board's reading — so it can never pass for "met". */
 .badge--undetermined {

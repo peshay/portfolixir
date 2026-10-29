@@ -110,6 +110,9 @@ defmodule Portfolixir.Engines.PolicyEvaluation do
     %{
       rule_id: rule.id,
       rule_name: rule.name,
+      # Who last named the rule (H14, T-16): the name is a label outside the
+      # versioning, so the version's author below does not cover it.
+      rule_name_author: rule.name_author,
       view_id: rule.view_id,
       version_id: version.id,
       valid_from: version.valid_from,

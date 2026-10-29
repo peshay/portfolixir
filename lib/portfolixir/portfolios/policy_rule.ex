@@ -16,6 +16,12 @@ defmodule Portfolixir.Portfolios.PolicyRule do
   context nor the portfolio is re-assignable: a rule moved to another context
   would be a different standard, and it is created as one.
 
+  **The name carries its own author** (security review 2026-10-12, H14,
+  T-16): `name_author` is who last named the rule, `operator` or `agent`,
+  derived from the actor of the create or the rename by
+  `PolicyRuleVersion.author_for/1` and never taken from input. A version's
+  author covers the version, not the name.
+
   Journaled and guard-armed from the migration that created the table
   (ADR-0017).
   """
@@ -34,6 +40,11 @@ defmodule Portfolixir.Portfolios.PolicyRule do
     field(:portfolio_id, :integer)
     field(:view_id, :integer)
     field(:name, :string)
+    # Who last named the rule (H14, T-16): set by the context from the
+    # write's actor (`put_name_author/2`), never cast from input; `nil` only
+    # on a rule stored before name authors existed that the backfill could
+    # not trace.
+    field(:name_author, Ecto.Enum, values: [:operator, :agent])
 
     # Read-side annotations of the rule list (ADR-0049 §9), relative to the
     # list's `as_of`; virtual, so they never reach the DB or the journal.
@@ -66,6 +77,18 @@ defmodule Portfolixir.Portfolios.PolicyRule do
     rule
     |> cast(attrs, [:name])
     |> validate_name()
+  end
+
+  @doc """
+  Sets the name author of a create's or a rename's changeset from the actor
+  of the write (`PolicyRuleVersion.author_for/1`); the input never carries
+  it (H14, T-16).
+  """
+  @spec put_name_author(Ecto.Changeset.t(), Portfolixir.Actor.t()) :: Ecto.Changeset.t()
+  def put_name_author(changeset, actor) do
+    changeset
+    |> put_change(:name_author, PolicyRuleVersion.author_for(actor))
+    |> check_constraint(:name_author, name: :policy_rules_name_author_check)
   end
 
   # One validation for the name, shared by every writer of it.

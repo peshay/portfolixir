@@ -519,7 +519,7 @@ defmodule PortfolixirWeb.RiskLive do
                     phx-value-id={finding.rule_id}
                   >
                     <%= finding.rule_name %>
-                  </button>
+                  </button><.author_mark author={finding.rule_name_author} lead={gettext("Named by:")} role="policy-rule-name-author" />
                   <span class="policy-rule__words"><.rule_words parts={PolicyRuleFormat.word_parts(finding, @names)} /><.author_mark author={finding.author} lead={gettext("Version in force by:")} /></span>
                   <%!-- A planned change is part of the rule's standard; it
                        is shown where the rule is, with the day it starts. --%>
@@ -574,7 +574,7 @@ defmodule PortfolixirWeb.RiskLive do
           <li :for={rule <- @scheduled}>
             <button type="button" class="link-button" phx-click="edit_rule" phx-value-id={rule.id}>
               <%= rule.name %>
-            </button>
+            </button><.author_mark author={rule.name_author} lead={gettext("Named by:")} role="policy-rule-name-author" />
             <span class="muted">
               · <%= gettext("from %{date}", date: Format.date(rule.next_version.valid_from)) %>
               · <%= PolicyRuleFormat.line(rule.next_version) %>
@@ -593,7 +593,7 @@ defmodule PortfolixirWeb.RiskLive do
           <li :for={rule <- @retired}>
             <button type="button" class="link-button" phx-click="edit_rule" phx-value-id={rule.id}>
               <%= rule.name %>
-            </button>
+            </button><.author_mark author={rule.name_author} lead={gettext("Named by:")} role="policy-rule-name-author" />
             <span class="muted">
               · <%= PolicyRuleFormat.period(List.last(rule.versions)) %>
               · <%= PolicyRuleFormat.line(List.last(rule.versions)) %>
@@ -619,14 +619,17 @@ defmodule PortfolixirWeb.RiskLive do
 
   attr(:author, :atom, required: true)
   attr(:lead, :string, required: true, doc: "the hidden words before the author, for a reader")
+  attr(:role, :string, default: "policy-rule-author", doc: "what the mark covers")
 
   # E25 S7, G30; pick G12.1 = A (board 12-e25-new-marks): "Agent" as the
   # last word of a rule's line when the agent wrote its version — the
   # research log's word, no badge and no colour. The operator's own rules
   # carry no word, so a portfolio without the agent's rules reads as before.
+  # H14 (T-16, board 03): the same mark after a rule's name when the agent
+  # gave it, its hidden lead saying which of the two it is.
   defp author_mark(assigns) do
     ~H"""
-    <%= if @author == :agent do %> <span data-role="policy-rule-author">· <span class="visually-hidden"><%= @lead %> </span><%= gettext("Agent") %></span><% end %>
+    <%= if @author == :agent do %> <span data-role={@role}>· <span class="visually-hidden"><%= @lead %> </span><%= gettext("Agent") %></span><% end %>
     """
   end
 

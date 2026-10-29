@@ -11,6 +11,7 @@ defmodule Portfolixir.Portfolios.PolicyRuleAuthorTest do
   alias Portfolixir.Journal
   alias Portfolixir.Portfolios.PolicyRule
   alias Portfolixir.Portfolios.PolicyRuleAuthorBackfill
+  alias Portfolixir.Portfolios.PolicyRuleNameAuthorBackfill
   alias Portfolixir.Portfolios.PolicyRules
   alias Portfolixir.Portfolios.PolicyRuleVersion
 
@@ -308,5 +309,142 @@ defmodule Portfolixir.Portfolios.PolicyRuleAuthorTest do
       ])
 
     assert backdated.postgres.code == :restrict_violation
+  end
+
+  # User story (security review 2026-10-12, H14, T-16):
+  # As the operator whose agent can rename my rules with its token,
+  # I want the rule to store who last named it, derived from the actor of
+  # the write,
+  # so that a name a token gave is told apart from mine without the journal.
+  #
+  # Acceptance criteria:
+  # - A rule created by the UI actor stores name author operator; by an API
+  #   token, agent. A `name_author` in the input is never read.
+  # - A rename sets the name author from its actor, whatever it was; a rename
+  #   to the stored name writes nothing and keeps it.
+  # - The versions keep their own authors, and the database refuses a value
+  #   outside operator and agent.
+  test "a rule's name author is the actor of its create or its last rename",
+       %{world: world, security: security} do
+    rule =
+      create!(Actor.owner_ui(), world, weight_cap(security))
+      |> then(&PolicyRules.get_rule(&1.id))
+
+    assert rule.name_author == :operator
+
+    {:ok, by_agent} =
+      PolicyRules.create_rule(Actor.api_token_rw("mcp"), %{
+        portfolio_id: world.portfolio.id,
+        name: "Agent's cap",
+        name_author: "operator",
+        version: weight_cap(security)
+      })
+
+    assert by_agent.name_author == :agent
+
+    {:ok, renamed} =
+      PolicyRules.rename_rule(Actor.api_token_rw("mcp"), rule, %{
+        name: "Renamed by a token",
+        name_author: "operator"
+      })
+
+    assert renamed.name_author == :agent
+    assert [%{author: :operator}] = renamed.versions
+
+    {:ok, same} =
+      PolicyRules.rename_rule(Actor.owner_ui(), renamed, %{name: "Renamed by a token"})
+
+    assert same.name_author == :agent
+
+    {:ok, back} = PolicyRules.rename_rule(Actor.owner_ui(), renamed, %{name: "Mine again"})
+    assert back.name_author == :operator
+
+    error =
+      raw_error("UPDATE policy_rules SET name_author = 'robot' WHERE id = $1", [rule.id])
+
+    assert error.postgres.code == :check_violation
+  end
+
+  # User story (security review 2026-10-12, H14, T-16):
+  # As the operator upgrading an instance whose agent already renamed rules,
+  # I want the rules stored before name authors existed to get the author of
+  # their last journaled rename, or of the version written with their name,
+  # so that the agent's existing labels are marked from the first day.
+  #
+  # Acceptance criteria:
+  # - A rule whose last rename a token made gets agent, even when the
+  #   operator created it; one the operator renamed last gets operator, even
+  #   when a token renamed it before.
+  # - A rule never renamed gets its first version's author; one with neither
+  #   a rename nor an authored version keeps none, counted as untraced.
+  # - Each backfilled row is journaled under the system_job actor it runs
+  #   as; a second run writes and journals nothing.
+  test "the name-author backfill takes the last rename's actor, else the first version's author",
+       %{world: world, security: security} do
+    renamed_by_agent = legacy_rule!(world)
+    rename_entry!(renamed_by_agent, Actor.owner_ui())
+    rename_entry!(renamed_by_agent, Actor.api_token_rw("mcp"))
+    legacy_version!(world, security, Actor.owner_ui(), rule: renamed_by_agent)
+
+    renamed_by_operator = legacy_rule!(world)
+    rename_entry!(renamed_by_operator, Actor.api_token_rw("mcp"))
+    rename_entry!(renamed_by_operator, Actor.owner_ui())
+
+    never_renamed = legacy_rule!(world)
+    legacy_version!(world, security, Actor.api_token_rw("mcp"), rule: never_renamed)
+    {:ok, _report} = PolicyRuleAuthorBackfill.run(Actor.system_job("policy_author_backfill"))
+
+    untraced = legacy_rule!(world)
+
+    for rule <- [renamed_by_agent, renamed_by_operator, never_renamed, untraced] do
+      clear_name_author!(rule)
+    end
+
+    backfill_entries = fn ->
+      [resource_type: "policy_rule", actor_type: :system_job, limit: 1000]
+      |> Journal.list_entries()
+      |> length()
+    end
+
+    assert backfill_entries.() == 0
+
+    actor = Actor.system_job("policy_name_author_backfill")
+    assert {:ok, %{agent: 2, operator: 1, untraced: 1}} = PolicyRuleNameAuthorBackfill.run(actor)
+
+    assert Repo.get!(PolicyRule, renamed_by_agent.id).name_author == :agent
+    assert Repo.get!(PolicyRule, renamed_by_operator.id).name_author == :operator
+    assert Repo.get!(PolicyRule, never_renamed.id).name_author == :agent
+    assert Repo.get!(PolicyRule, untraced.id).name_author == nil
+    assert backfill_entries.() == 3
+
+    assert {:ok, %{agent: 0, operator: 0, untraced: 1}} = PolicyRuleNameAuthorBackfill.run(actor)
+    assert backfill_entries.() == 3
+  end
+
+  # A rename as an earlier release wrote it: the name changes, journaled
+  # under `actor`, and no name author is stored.
+  defp rename_entry!(rule, actor) do
+    stored = Repo.get!(PolicyRule, rule.id)
+
+    {:ok, _changes} =
+      Multi.new()
+      |> Multi.update(
+        :record,
+        PolicyRule.rename_changeset(stored, %{name: "Renamed #{System.unique_integer()}"})
+      )
+      |> Journal.record(actor,
+        resource_type: "policy_rule",
+        operation: :update,
+        source: :record,
+        before: stored
+      )
+      |> Repo.transaction()
+  end
+
+  # A rule as the tables held it before name authors were stored.
+  defp clear_name_author!(rule) do
+    raw!(fn ->
+      Repo.query!("UPDATE policy_rules SET name_author = NULL WHERE id = $1", [rule.id])
+    end)
   end
 end

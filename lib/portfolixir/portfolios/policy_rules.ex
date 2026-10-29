@@ -28,7 +28,12 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   `agent`, derived from the write's actor by
   `PolicyRuleVersion.author_for/1` and never taken from input, so the agent's
   lines are told apart from the operator's own; the database keeps a recorded
-  author. A rename is no version and moves no author.
+  author. A rename is no version and moves no version's author.
+
+  **The name carries its own author** (security review 2026-10-12, H14,
+  T-16): `name_author` on the rule, set from the actor by `create_rule/3` and
+  by every rename that changes the name, so a label a token gave reads as
+  the agent's even where the version in force is the operator's.
 
   **A version that has been in force is immutable**: never updated, never
   deleted; only its `valid_until` is set when an edit or a retirement closes
@@ -87,7 +92,12 @@ defmodule Portfolixir.Portfolios.PolicyRules do
           {:ok, PolicyRule.t()} | {:error, write_error()}
   def create_rule(%Actor{} = actor, attrs, opts \\ []) when is_map(attrs) do
     today = today(opts)
-    rule_changeset = PolicyRule.changeset(%PolicyRule{}, attrs)
+
+    rule_changeset =
+      %PolicyRule{}
+      |> PolicyRule.changeset(attrs)
+      |> PolicyRule.put_name_author(actor)
+
     version_attrs = version_attrs(attr(attrs, :version), today)
 
     # The version is validated before anything is written, against a
@@ -218,7 +228,8 @@ defmodule Portfolixir.Portfolios.PolicyRules do
   a **rule-level edit outside the versioning**: no version is added or
   changed, and the new name reads for the rule with all its versions. The
   journal keeps the previous name (the entry's before-image is the stored
-  row) and who changed it. Only `name` is read from `attrs`: the context
+  row) and who changed it, and the rule's `name_author` becomes the one
+  `actor` derives (H14, T-16). Only `name` is read from `attrs`: the context
   (portfolio, view) never changes. Allowed on a retired rule; a name need not
   be unique. The rules counter is bumped, because a finding carries the name.
 
@@ -252,6 +263,8 @@ defmodule Portfolixir.Portfolios.PolicyRules do
         stored.id
 
       true ->
+        changeset = PolicyRule.put_name_author(changeset, actor)
+
         with {:ok, renamed} <- journaled_update(actor, changeset, stored, "policy_rule") do
           Invalidation.after_rule_write(renamed.portfolio_id, Repo)
           renamed.id

@@ -201,6 +201,11 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
           <p :if={@alert} class="alert-error" role="alert"><%= @alert %></p>
           <p class="hint">
             <%= @view_line %>
+            <%!-- H14 (T-16, board 03): who gave the rule its current name,
+                 where the agent did; the versions below keep their own. --%>
+            <span :if={@rule && @rule.name_author == :agent} data-role="policy-rule-name-author">
+              · <%= gettext("Named by:") %> <%= author_label(:agent) %>
+            </span>
           </p>
 
           <%!-- E25 S7, G20; pick G12.2 = B: a name or a note stored before
@@ -401,7 +406,7 @@ defmodule PortfolixirWeb.Risk.PolicyRuleDialog do
                   <%= PolicyRuleFormat.line(version) %> · <%= PolicyRuleLabel.severity(version.severity) %>
                   <%!-- E25 S7, G30; pick G12.1 (board 12): who wrote each
                        version, in the research log's words. A rename is no
-                       version and carries no author. --%>
+                       version; the name's author is in the head (H14). --%>
                   <span :if={version.author} data-role="policy-rule-version-author">· <%= author_label(version.author) %></span>
                 </li>
               </ol>
