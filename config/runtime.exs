@@ -88,7 +88,12 @@ if config_env() == :prod do
          )
 
   config :portfolixir, Portfolixir.Repo,
-    url: Portfolixir.RuntimeConfig.validate_database_url!(System.fetch_env!("DATABASE_URL")),
+    # Checked at boot: the shape (H72) and then the password (H18, T-14); the
+    # variable is named in a failure, never its value, which holds the password.
+    url:
+      Portfolixir.RuntimeConfig.validate_database_url!(
+        Portfolixir.RuntimeConfig.database_url!(System.get_env("DATABASE_URL"))
+      ),
     ssl: Portfolixir.RuntimeConfig.database_ssl?(),
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10")
 end

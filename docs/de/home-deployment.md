@@ -201,7 +201,8 @@ mit wenigen verschiedenen Zeichen). Erzeuge auch `SECRET_KEY_BASE` mit
 `openssl rand -base64 48` und `POSTGRES_PASSWORD` mit
 `openssl rand -hex 32`:
 die Compose-Datei setzt es in die Datenbank-URL ein, wo ein `/` oder `#` aus
-Base64 die Verbindungszeichenkette zerlegen würde. Erzeuge
+Base64 die Verbindungszeichenkette zerlegen würde; die Anwendung verweigert
+dann den Start und nennt `DATABASE_URL`, ohne sie auszugeben. Erzeuge
 `PORTFOLIXIR_UI_PASSWORD`, die Anmeldung der Web-Oberfläche, mit
 `openssl rand -base64 24`, oder wähle eine Passphrase und setze sie in der
 `.env` in einfache Anführungszeichen (`PORTFOLIXIR_UI_PASSWORD='…'`), denn

@@ -194,7 +194,8 @@ warning). Generate `SECRET_KEY_BASE`
 with `openssl rand -base64 48` as well, and `POSTGRES_PASSWORD` with
 `openssl rand -hex 32`:
 the Compose file splices it into the database URL, where a `/` or `#` from
-base64 would break the connection string. Generate `PORTFOLIXIR_UI_PASSWORD`,
+base64 would break the connection string; the application then refuses to
+start, naming `DATABASE_URL` but never printing it. Generate `PORTFOLIXIR_UI_PASSWORD`,
 the web UI's login, with `openssl rand -base64 24`, or choose a passphrase and
 put it in single quotes in `.env` (`PORTFOLIXIR_UI_PASSWORD='…'`), because
 Compose reads a `$` in an unquoted value as a variable. Such a passphrase holds

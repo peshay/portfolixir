@@ -687,6 +687,57 @@ defmodule Portfolixir.RuntimeConfig do
             "deployment) #{what}; generate one with `openssl rand -hex 32`"
   end
 
+  @database_url_shape "postgres://user:password@host:port/database"
+
+  @doc """
+  The `DATABASE_URL` a production instance boots with (security review
+  2026-10-12, H72): it parses, names a host and a single database name, and
+  its user and password are validly percent-encoded, so the Repo can read it.
+  Raises naming the variable and what is wrong, never its value: the Repo's
+  own error would print the whole URL, password included, into the log.
+  """
+  @spec database_url!(String.t() | nil) :: String.t()
+  def database_url!(url) when is_binary(url) and url != "" do
+    case database_url_problem(url) do
+      nil ->
+        url
+
+      problem ->
+        raise ArgumentError,
+              "DATABASE_URL #{problem}; write it as #{@database_url_shape}, with a " <>
+                "password of letters and digits (`openssl rand -hex 32`) or one whose " <>
+                "/, #, ?, @, : and % are percent-encoded"
+    end
+  end
+
+  def database_url!(_missing) do
+    raise ArgumentError, "DATABASE_URL is required (#{@database_url_shape})"
+  end
+
+  # What is wrong with the URL, in words that hold none of its parts.
+  defp database_url_problem(url) do
+    case URI.new(url) do
+      {:error, _part} -> "does not parse as a URL"
+      {:ok, uri} -> database_uri_problem(uri)
+    end
+  end
+
+  defp database_uri_problem(%URI{} = uri) do
+    cond do
+      uri.scheme not in ~w(postgres postgresql ecto) -> "does not start with postgres://"
+      uri.host in [nil, ""] -> "names no host"
+      not (is_binary(uri.path) and uri.path =~ ~r"\A/[^/]+\z") -> "names no single database"
+      uri.fragment != nil -> "holds a # that ends it early"
+      not decodable?(uri.userinfo) -> "holds a user or password that is not percent-encoded"
+      true -> nil
+    end
+  end
+
+  # A % that does not start a two-digit hex escape would be read as
+  # something else than the operator wrote, silently.
+  defp decodable?(nil), do: true
+  defp decodable?(userinfo), do: not Regex.match?(~r/%(?![0-9A-Fa-f]{2})/, userinfo)
+
   defp truthy?(value), do: switch(value, false) == {:ok, true}
 
   defp split_hosts(nil), do: []
