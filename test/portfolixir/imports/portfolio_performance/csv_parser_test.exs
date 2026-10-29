@@ -667,9 +667,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
     # - A note or an account name carrying an invisible character (a
     #   zero-width space, a bidirectional control) is a row error naming the
     #   field and the character by code point; the other rows still preview.
-    # - A security name's format characters are dropped as the catalog drops
-    #   them (E25 S5, G23), so a zero-width space there is no error; a run of
-    #   variation selectors, which that does not drop, is.
+    # - A security name's default-ignorable characters are dropped as the
+    #   catalog drops them (E25 S5, G23; H12), so neither a zero-width space
+    #   nor a run of variation selectors there is an error.
     test "names the row whose text carries invisible characters" do
       zwsp = <<0x200B::utf8>>
       rlo = <<0x202E::utf8>>
@@ -687,14 +687,16 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
           "2026-03-11 00:00:00;Einlage;;;;;250,00;;;250,00;Girokonto;;;\n"
 
       assert {:ok, %Preview{entries: entries, errors: errors}} = CsvParser.parse(body)
-      assert Enum.map(entries, & &1.source_row) == [4, 6]
 
-      assert [%{row: 2, message: note}, %{row: 3, message: account}, %{row: 5, message: security}] =
-               errors
+      # A security's name is stored without its default-ignorable characters
+      # (E25 S5, G23; H12 extends the strip to the variation selectors), so
+      # its row previews.
+      assert Enum.map(entries, & &1.source_row) == [4, 5, 6]
+
+      assert [%{row: 2, message: note}, %{row: 3, message: account}] = errors
 
       assert note =~ "note" and note =~ "invisible" and note =~ "U+200B"
       assert account =~ "account" and account =~ "U+202E"
-      assert security =~ "security name" and security =~ "U+FE00, U+FE01"
     end
 
     # Acceptance criteria (E25 S6, G02):
