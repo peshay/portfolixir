@@ -158,7 +158,8 @@ and a runtime role without `TRUNCATE` for a new install, and moves an existing
 instance onto them); the outbound URL
 policy resolves a name once for the check and the client resolves it again to
 connect, so a name whose answer changes in between can pass (the byte cap, the
-deadline and the redirect re-check bound what such a fetch can do); an address
+deadline, a parse linear in the body under a wall-clock bound of its own, and
+the redirect re-check bound what such a fetch can do); an address
 in the local-use IPv4/IPv6 translation prefix (`64:ff9b:1::/48`) is refused
 like every special-purpose block, so an IPv6-only host whose DNS64 uses it
 cannot download logos or follow provider redirects (the well-known prefix

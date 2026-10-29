@@ -18,14 +18,22 @@ defmodule Portfolixir.Catalog.LogoLookup.CompaniesLogo do
   """
 
   alias Portfolixir.Net.Http
+  alias Portfolixir.Net.ParseGuard
   alias Portfolixir.Net.PathSegment
 
   @base_url "https://companieslogo.com"
   # The only hosts a request or a redirect hop may reach (F27).
   @allowed_hosts ["companieslogo.com", ".companieslogo.com"]
 
-  @og_image ~r/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i
-  @og_image_rev ~r/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i
+  # The page is read in time linear in its size (security review 2026-10-12,
+  # H50): only its head (up to the first `</head>`, the whole page when there
+  # is none), cut at every `>` first with a plain binary split, so each piece
+  # is at most one tag; the patterns below run inside one piece and never
+  # across the page.
+  @head_end ~r/<\/head\s*>/i
+  @meta_start ~r/<meta\s/i
+  @og_property ~r/\bproperty\s*=\s*["']og:image["']/i
+  @content ~r/\bcontent\s*=\s*["']([^"']++)["']/i
 
   # Dropped from the slug so "Apple Inc." and "Apple" hit the same page.
   @suffix_words ~w(inc incorporated corp corporation co company ag se plc sa nv ltd
@@ -55,7 +63,10 @@ defmodule Portfolixir.Catalog.LogoLookup.CompaniesLogo do
     with {:ok, segment} <- PathSegment.encode(slug) do
       case Http.get(build_req(opts), url: @base_url <> "/" <> segment <> "/logo/") do
         {:ok, %Req.Response{status: 200, body: body}} when is_binary(body) ->
-          extract_og_image(body)
+          case ParseGuard.run(fn -> extract_og_image(body) end) do
+            {:ok, found} -> found
+            {:error, _reason} = error -> error
+          end
 
         {:ok, %Req.Response{status: 404}} ->
           :not_found
@@ -70,9 +81,29 @@ defmodule Portfolixir.Catalog.LogoLookup.CompaniesLogo do
   end
 
   defp extract_og_image(html) do
-    case Regex.run(@og_image, html) || Regex.run(@og_image_rev, html) do
-      [_, url] when is_binary(url) and url != "" -> {:ok, url}
-      _ -> :not_found
+    html
+    |> head()
+    |> :binary.split(">", [:global])
+    |> Enum.find_value(:not_found, &og_image_in_tag/1)
+  end
+
+  defp head(html) do
+    case Regex.run(@head_end, html, return: :index) do
+      [{at, _length}] -> binary_part(html, 0, at)
+      nil -> html
+    end
+  end
+
+  # One tag's text (no `>` inside): a `<meta ` whose own attributes name
+  # og:image and carry a content.
+  defp og_image_in_tag(piece) do
+    with [{at, _length}] <- Regex.run(@meta_start, piece, return: :index),
+         tag = binary_part(piece, at, byte_size(piece) - at),
+         true <- Regex.match?(@og_property, tag),
+         [_, url] when url != "" <- Regex.run(@content, tag) do
+      {:ok, url}
+    else
+      _ -> nil
     end
   end
 

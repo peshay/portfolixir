@@ -24,6 +24,7 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
   alias Portfolixir.Catalog.Currencies
   alias Portfolixir.Catalog.MarketDataBounds
   alias Portfolixir.Net.Http
+  alias Portfolixir.Net.ParseGuard
 
   @endpoint "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-daily.xml"
   @history_endpoint "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml"
@@ -38,7 +39,7 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
   @impl true
   def fetch(opts) do
     case Http.get(req(opts), url: @endpoint) do
-      {:ok, %Req.Response{status: 200, body: body}} -> {:ok, parse(body)}
+      {:ok, %Req.Response{status: 200, body: body}} -> ParseGuard.run(fn -> parse(body) end)
       {:ok, %Req.Response{status: status}} -> {:error, {:http_status, status}}
       {:error, reason} -> {:error, reason}
     end
@@ -55,9 +56,14 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
       |> req(max_bytes: 32 * 1024 * 1024, deadline_ms: 120_000)
 
     case Http.get(history_req, url: @history_endpoint) do
-      {:ok, %Req.Response{status: 200, body: body}} -> {:ok, parse_history(body)}
-      {:ok, %Req.Response{status: status}} -> {:error, {:http_status, status}}
-      {:error, reason} -> {:error, reason}
+      {:ok, %Req.Response{status: 200, body: body}} ->
+        ParseGuard.run(fn -> parse_history(body) end)
+
+      {:ok, %Req.Response{status: status}} ->
+        {:error, {:http_status, status}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -68,18 +74,39 @@ defmodule Portfolixir.Fx.RateSync.Ecb do
   a date the ECB did not publish (a weekend, a holiday) is simply absent, so
   a booking on such a day stays excluded and named downstream.
   """
+  #
+  # The cost is linear in the body (security review 2026-10-12, H50): the
+  # body is cut at every closing `</Cube>` first, a plain binary split, and
+  # each piece is read on its own: its last dated opener, and the rows after
+  # it. An opener with no closer after it ends in the remainder, which is
+  # never read, so no pattern ever scans past a block.
   def parse_history(body) when is_binary(body) do
-    ~r/<Cube\s+time=['"](\d{4}-\d{2}-\d{2})['"]\s*>(.*?)<\/Cube>/s
-    |> Regex.scan(body)
-    |> Enum.flat_map(fn [_, iso, block] ->
-      case Date.from_iso8601(iso) do
-        {:ok, date} -> block |> pairs() |> Enum.flat_map(&row(&1, date))
-        _ -> []
-      end
-    end)
+    body
+    |> :binary.split("</Cube>", [:global])
+    |> Enum.drop(-1)
+    |> Enum.flat_map(&dated_block/1)
   end
 
   def parse_history(_body), do: []
+
+  @dated_opener ~r/<Cube\s+time=['"](\d{4}-\d{2}-\d{2})['"]\s*>/
+
+  defp dated_block(piece) do
+    case Regex.scan(@dated_opener, piece, return: :index) do
+      [] ->
+        []
+
+      openers ->
+        [{start, length}, {iso_start, iso_length}] = List.last(openers)
+        block_start = start + length
+        block = binary_part(piece, block_start, byte_size(piece) - block_start)
+
+        case Date.from_iso8601(binary_part(piece, iso_start, iso_length)) do
+          {:ok, date} -> block |> pairs() |> Enum.flat_map(&row(&1, date))
+          _ -> []
+        end
+    end
+  end
 
   @doc "Parses the ECB daily XML into EUR-hub rate rows. Public for tests."
   def parse(body) when is_binary(body) do
