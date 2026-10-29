@@ -67,7 +67,10 @@ den Agenten nicht aussperrt. Die Bearer-Prüfung der API selbst verhält sich
 genauso, solange jedes konfigurierte Token die Mindestlänge von 32 Bytes
 erreicht; ein aus dem Quellcode gestarteter Server, der nur
 `PORTFOLIXIR_API_TOKEN` liest, hält es an keine, und mit einem kürzeren Token
-prüft sie zuerst die Sperre. Vor allem anderen prüft der
+prüft sie zuerst die Sperre. Die API zählt IPv6-Adressen außerdem je /64, und
+über einer stündlichen Obergrenze für erste Fehlversuche von Adressen, die sie
+noch nicht kennt, wird schon das erste falsche Token von einer solchen Adresse
+mit `429` und `Retry-After` beantwortet statt mit `401`. Vor allem anderen prüft der
 Begleitdienst den `Host`-Header genau, Name und Port: Eine Anfrage unter einem
 `Host`, auf den der Listener nicht antwortet (die Loopback-Namen und seine
 gebundene Adresse mit seinem Port sowie die Namen in

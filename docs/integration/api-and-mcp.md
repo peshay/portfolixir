@@ -63,7 +63,10 @@ client connects from the Docker bridge, a guesser or a stale client there does
 not lock the agent out. The API's own bearer check behaves the same way
 while every token it is configured with meets the 32-byte floor; a server run
 from source that reads `PORTFOLIXIR_API_TOKEN` alone holds it to none, and
-with a shorter token it consults the lock first. Before anything else, the companion checks the `Host`
+with a shorter token it consults the lock first. The API also counts IPv6
+addresses per /64, and past an hourly ceiling on first failures from addresses
+it has not seen, a first wrong token from such an address is answered `429`
+with `Retry-After` too, instead of `401`. Before anything else, the companion checks the `Host`
 header exactly, name and port: a request under a `Host` the listener does not
 answer to (the loopback names and its bound address with its port, and the
 names in `PORTFOLIXIR_MCP_ALLOWED_HOSTS`) is answered `403` before its origin
