@@ -181,12 +181,20 @@ keeps tabs and line breaks but no other control character, a NUL included,
 and is at most 10000 characters long (a research-log entry's `body` 20000, a
 category's `description` 2000), counted in code points; the database refuses
 a longer value as well. No text, one-line or free, carries an **invisible
-character** (E25): a Unicode tag character (U+E0000–U+E007F), a bidirectional
-control (U+061C, U+200E, U+200F, U+202A–U+202E, U+2066–U+2069), another
-invisible format character (the soft hyphen U+00AD, U+180E, the zero-width
-space and joiners U+200B–U+200D, U+2060–U+2065, U+206A–U+206F, the byte-order
-mark U+FEFF, U+FFF9–U+FFFB, U+1BCA0–U+1BCA3, U+1D173–U+1D17A) or a run of two
-or more variation selectors (a single one, an emoji's presentation, passes).
+character** (E25): any of Unicode's default-ignorable code points — a tag
+character and the rest of its block (U+E0000–U+E00FF, U+E01F0–U+E0FFF), a
+bidirectional control (U+061C, U+200E, U+200F, U+202A–U+202E,
+U+2066–U+2069), another invisible format character (the soft hyphen U+00AD,
+the zero-width space and joiners U+200B–U+200D, U+2060–U+2065,
+U+206A–U+206F, the byte-order mark U+FEFF, U+FFF9–U+FFFB, U+1BCA0–U+1BCA3,
+U+1D173–U+1D17A), the combining grapheme joiner U+034F, a Hangul filler
+(U+115F, U+1160, U+3164, U+FFA0), U+17B4–U+17B5, U+180B–U+180F or
+U+FFF0–U+FFF8 — or a variation selector with no base it can vary. A
+selector of U+FE00–U+FE0F passes after a pictograph (an emoji's
+presentation), a keycap's digit, `#` or `*`, a CJK ideograph, a mathematical
+operator or a letter of Myanmar, Phags-pa, Manichaean or the Egyptian
+hieroglyphs; one of U+E0100–U+E01EF only after a CJK ideograph; a selector
+next to another one never.
 A zero-width joiner U+200D passes where it joins two pictographs, as in an
 emoji built from several (a person at a laptop, a family, the rainbow flag):
 the character before it is a pictograph, or a VS16 right after one, and the
@@ -195,9 +203,9 @@ Wales) are built from tag characters and stay refused, and so does the
 zero-width non-joiner U+200C, which some scripts' words (Persian, several
 Indic scripts) carry. They render as nothing but reach an agent intact, so the
 error names them by code point: `must not contain invisible characters
-(U+200B); retype the text without them`. A security's name is the one exception: its format characters
-are dropped as it is stored, as before, and only a run of variation selectors
-is refused. Anything else answers `422` naming the field, never a
+(U+200B); retype the text without them`. A security's name is the one exception: its default-ignorable
+characters, variation selectors included, are dropped as it is stored, as
+before for its format characters. Anything else answers `422` naming the field, never a
 server error. A Portfolio Performance import names a row whose names or note
 break the same rule in its preview. A security's free-form `attributes` map
 meets the rule at any depth: every key is one-line text of at most 255

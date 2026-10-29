@@ -76,9 +76,10 @@ sibling name cannot plant one. The signature proves the instance wrote the
 value, not that the operator chose it: another port of the same host name
 shares the cookies and can still plant a value the instance signed, which with
 a UI password it signs only for a logged-in client (K02). Text an agent reads carries no character the operator cannot see:
-every writer, the importer included, refuses Unicode tag characters,
-bidirectional controls, the other invisible format characters and runs of
-variation selectors, naming them by code point, and the MCP companion hands
+every writer, the importer included, refuses Unicode's default-ignorable
+code points (tag characters, bidirectional controls, the other invisible
+format characters, fillers) and variation selectors with no base to vary,
+naming them by code point, and the MCP companion hands
 the agent any such character a row stored before the rule still carries
 spelled as `[U+XXXX]` (E25). The HTTPS posture is
 the reverse-proxy contract in `docs/home-deployment.md`: TLS is terminated by

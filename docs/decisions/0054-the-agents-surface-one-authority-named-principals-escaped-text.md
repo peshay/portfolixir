@@ -216,3 +216,27 @@ resolution of its Critical Gap 4 (2026-08-12); the security triage of
 | An author on rule versions | G30, T-8 | **Answered** by ADR-0049's Sprint 16 amendment; recorded in §1 |
 | The boundary for invisible characters: refused on write, stored as stored, spelled by the companion | G20; #967 | **Answered:** §4 |
 | D4, FU-6 and their checklist item updated in the architecture | #967 | **Answered:** the architecture points here (Consequences) |
+
+## Amendment (2026-10-29): identifiers, and every character that renders as nothing (security review 2026-10-12, H11, H12)
+
+§4 is widened in two places, by the reason it already gives; nothing in it
+is withdrawn.
+
+- **A record named in a sentence covers identifiers.** A security merge's
+  guard details and refusals name an identity's ISIN, WKN and ticker by
+  their kind ("its stored ISIN"), as #965 did for names: a new security
+  keeps the identifiers it is created with, and an import file's WKN meets
+  the text rule only, so an identifier is stored text like a name. The
+  values travel as data beside the sentence (`errors.unresolvable[].ref`,
+  `errors.source_isin`, `errors.isins`), and the merge dialog shows them as
+  data lines under a reason that names their kind. An invariant test reads
+  the merge contexts and the merge controller and refuses a sentence that
+  interpolates an identifier.
+- **The characters an operator cannot see are Unicode's whole
+  Default_Ignorable_Code_Point set**, still written out in both runtimes and
+  pinned by the shared fixture, not only the format characters G20 wrote
+  out; and a variation selector is refused wherever it has no base it can
+  vary (an emoji's presentation, a keycap, a CJK ideograph's variant, a
+  standardized variant), not only in a run. A security's name, and the
+  import's lookalike skeleton, drop every default-ignorable code point; the
+  skeleton reads a Hangul filler as the space it renders as.

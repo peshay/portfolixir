@@ -199,14 +199,21 @@ Steuerzeichen, auch kein NUL, und ist höchstens 10000 Zeichen lang (der
 `body` eines Research-Log-Eintrags 20000, die `description` einer Kategorie
 2000), gezählt in Codepunkten; auch die Datenbank lehnt einen längeren Wert
 ab. Kein Text, einzeilig oder frei, trägt ein **unsichtbares Zeichen** (E25):
-ein Unicode-Tag-Zeichen (U+E0000–U+E007F), ein Steuerzeichen der
-Schreibrichtung (U+061C, U+200E, U+200F, U+202A–U+202E, U+2066–U+2069), ein
-anderes unsichtbares Formatzeichen (das weiche Trennzeichen U+00AD, U+180E,
-das Leerzeichen und die Verbinder der Breite null U+200B–U+200D,
-U+2060–U+2065, U+206A–U+206F, die Byte-Order-Mark U+FEFF, U+FFF9–U+FFFB,
-U+1BCA0–U+1BCA3, U+1D173–U+1D17A) oder eine Folge von zwei oder mehr
-Variantenselektoren (ein einzelner, die Darstellung eines Emojis, ist
-erlaubt). Ein Verbinder der Breite null U+200D ist erlaubt, wo er zwei
+irgendeinen der standardmäßig ignorierbaren Codepunkte von Unicode — ein
+Tag-Zeichen und den Rest seines Blocks (U+E0000–U+E00FF, U+E01F0–U+E0FFF),
+ein Steuerzeichen der Schreibrichtung (U+061C, U+200E, U+200F,
+U+202A–U+202E, U+2066–U+2069), ein anderes unsichtbares Formatzeichen (das
+weiche Trennzeichen U+00AD, das Leerzeichen und die Verbinder der Breite
+null U+200B–U+200D, U+2060–U+2065, U+206A–U+206F, die Byte-Order-Mark
+U+FEFF, U+FFF9–U+FFFB, U+1BCA0–U+1BCA3, U+1D173–U+1D17A), den kombinierenden
+Graphemverbinder U+034F, einen Hangul-Füller (U+115F, U+1160, U+3164,
+U+FFA0), U+17B4–U+17B5, U+180B–U+180F oder U+FFF0–U+FFF8 — oder einen
+Variantenselektor ohne eine Basis, die er variieren kann. Ein Selektor aus
+U+FE00–U+FE0F ist erlaubt nach einem Piktogramm (die Darstellung eines
+Emojis), der Ziffer, `#` oder `*` einer Tastenkappe, einem CJK-Ideogramm,
+einem mathematischen Operator oder einem Buchstaben von Myanmar, Phags-pa,
+Manichäisch oder den ägyptischen Hieroglyphen; einer aus U+E0100–U+E01EF
+nur nach einem CJK-Ideogramm; ein Selektor neben einem anderen nie. Ein Verbinder der Breite null U+200D ist erlaubt, wo er zwei
 Piktogramme verbindet, wie in einem Emoji aus mehreren (eine Person am
 Laptop, eine Familie, die Regenbogenflagge): Das Zeichen vor ihm ist ein
 Piktogramm oder ein VS16 direkt nach einem, und das Zeichen nach ihm ist
@@ -216,9 +223,9 @@ null U+200C, den Wörter mancher Schriften (Persisch, mehrere indische
 Schriften) tragen. Sie werden als nichts angezeigt, erreichen einen Agenten
 aber unverändert; der Fehler nennt sie darum mit Codepunkt: `must not contain
 invisible characters (U+200B); retype the text without them`. Die eine
-Ausnahme ist der Name eines Wertpapiers: Seine Formatzeichen werden wie
-bisher beim Speichern entfernt, und nur eine Folge von Variantenselektoren
-wird abgelehnt. Alles andere liefert `422` mit dem Namen des Felds, nie einen
+Ausnahme ist der Name eines Wertpapiers: Seine standardmäßig ignorierbaren
+Zeichen, Variantenselektoren eingeschlossen, werden beim Speichern entfernt,
+wie bisher seine Formatzeichen. Alles andere liefert `422` mit dem Namen des Felds, nie einen
 Serverfehler. Ein Portfolio-Performance-Import nennt eine Zeile, deren Namen
 oder Notiz gegen dieselbe Regel verstoßen, in der Vorschau. Die freie
 Zuordnung `attributes` eines Wertpapiers erfüllt die Regel in jeder Tiefe:

@@ -684,8 +684,9 @@ Sperren, die in N Tagen ablaufen.
 
 **Unsichtbare Zeichen** (E25). Kein Text wird mehr mit einem Zeichen
 gespeichert, das als nichts dargestellt wird — ein Leerzeichen der Breite
-null, ein Steuerzeichen der Schreibrichtung, ein Tag-Zeichen, eine Folge von
-Variantenselektoren: Jedes Formular, die API, MCP und der Import lehnen es ab
+null, ein Steuerzeichen der Schreibrichtung, ein Tag-Zeichen, ein
+Hangul-Füller, ein Variantenselektor ohne etwas zu variieren: Jedes Formular,
+die API, MCP und der Import lehnen es ab
 und nennen es (`U+200B`). Ein Emoji aus mehreren, verbunden durch einen
 Verbinder der Breite null (eine Person am Laptop, die Regenbogenflagge), wird
 gespeichert, denn der Verbinder erscheint als das Emoji; die Flaggen von
