@@ -141,6 +141,14 @@ im Browser, der von einem anderen Origin ausgeliefert wird
 Die Compose-Datei setzt Transport, Host und Port für ihren eigenen Dienst; ein
 Begleitdienst, den Sie selbst starten, liest sie aus seiner Umgebung.
 
+Die API-Aufrufe des Begleitdienstes tragen das API-Token, deshalb laufen sie
+nie über einen Proxy. Wo der eigene Proxy von Node eingeschaltet ist
+(`NODE_USE_ENV_PROXY=1` oder `--use-env-proxy`, mit gesetztem `HTTP_PROXY`
+oder `HTTPS_PROXY`), nennen Sie den API-Host in `NO_PROXY` genau so, wie
+`PORTFOLIXIR_API_BASE_URL` ihn schreibt (`NO_PROXY=127.0.0.1,localhost,app`;
+`localhost` deckt `127.0.0.1` nicht ab). Sonst stoppt der Begleitdienst beim
+Start mit dem Exit-Status 1 und einer Zeile, die `NO_PROXY` nennt.
+
 ## Erste Schritte
 
 Bitten Sie den Agenten, den Prompt `first_setup` auszuführen: Er prüft die

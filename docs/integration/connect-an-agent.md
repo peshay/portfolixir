@@ -132,6 +132,14 @@ MCP client served from another origin (`localhost:6274`).
 The Compose file sets the transport, host and port for its own service; a
 companion you start yourself reads them from its environment.
 
+The companion's API calls carry the API token, so they never go through a
+proxy. Where Node's own proxy is switched on (`NODE_USE_ENV_PROXY=1` or
+`--use-env-proxy`, with `HTTP_PROXY` or `HTTPS_PROXY` set), name the API host
+in `NO_PROXY` exactly as `PORTFOLIXIR_API_BASE_URL` writes it
+(`NO_PROXY=127.0.0.1,localhost,app`; `localhost` does not cover `127.0.0.1`).
+Otherwise the companion stops at start with exit status 1 and a line naming
+`NO_PROXY`.
+
 ## First steps
 
 Ask the agent to run the `first_setup` prompt: it checks the instance and the

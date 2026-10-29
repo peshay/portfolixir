@@ -3,6 +3,7 @@
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 
 import { createApiClient } from "./api-client.js";
+import { keepApiOffProxy } from "./api-proxy.js";
 import { mcpHost, mcpTokenWarning, requireMcpPort, requireMcpToken, startHttpServer } from "./http.js";
 import { createPortfolixirMcpServer, profileSwitch } from "./server.js";
 import type { McpProfile } from "./profiles.js";
@@ -12,6 +13,16 @@ const apiToken = process.env.PORTFOLIXIR_API_TOKEN;
 
 if (!apiToken) {
   console.error("PORTFOLIXIR_API_TOKEN is required");
+  process.exit(1);
+}
+
+// The API calls carry the API token, so they never go through Node's
+// environment proxy (K16): with that proxy on and the API host not in
+// NO_PROXY, the companion stops naming NO_PROXY.
+try {
+  keepApiOffProxy(apiBaseUrl);
+} catch (error) {
+  console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 }
 

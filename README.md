@@ -347,7 +347,10 @@ node mcp-server/dist/index.js
 ```
 
 `node` runs the built companion directly: `npm start` would print its own
-banner on stdout before the companion's first JSON-RPC message.
+banner on stdout before the companion's first JSON-RPC message. In a shell
+where Node's proxy is on (`NODE_USE_ENV_PROXY=1` or `--use-env-proxy`), also
+set `NO_PROXY=127.0.0.1,localhost`: the companion refuses to send its API
+calls, and the token with them, through a proxy, and stops naming `NO_PROXY`.
 
 ### Connect your agent
 
