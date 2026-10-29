@@ -44,6 +44,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
 
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias Portfolixir.Catalog.Security
   alias Portfolixir.Imports.Decimals
   alias Portfolixir.Imports.Entry
   alias Portfolixir.Imports.PortfolioPerformance
@@ -71,6 +72,9 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   # ledger's "gross_amount must be greater than 0" check (#482), so these kinds
   # carry no gross_amount.
   @no_cash_kinds ~w(inbound_delivery outbound_delivery security_transfer)
+
+  # H57: the entry warning of a row whose security's ticker was not adopted.
+  @ticker_refused "ticker-not-adopted"
 
   @spec parse(binary(), keyword()) :: {:ok, Preview.t()} | {:error, term()}
   def parse(body, opts \\ []) when is_binary(body) do
@@ -229,11 +233,13 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         end
       end)
 
+    entries = Enum.reverse(entries)
+
     %Preview{
       format: :json,
       source_filename: Keyword.get(opts, :filename),
-      entries: Enum.reverse(entries),
-      errors: Enum.reverse(errors),
+      entries: entries,
+      errors: Enum.sort_by(Enum.reverse(errors) ++ ticker_warnings(entries), & &1.row),
       refused_credits: Enum.reverse(refused)
     }
   end
@@ -257,7 +263,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
          {:ok, shares} <- Decimals.parse(Map.get(raw, "shares")),
          {:ok, {fees, taxes, refund_amounts}} <- sum_units(Map.get(raw, "units", [])),
          {:ok, currency} <- parse_currency(:booking, Map.get(raw, "currency")),
-         {:ok, security} <- parse_security(Map.get(raw, "security")) do
+         {:ok, security, ticker_refused?} <- parse_security(Map.get(raw, "security")) do
       pp_portfolio = present_string(Map.get(raw, "portfolio"))
       pp_account = present_string(Map.get(raw, "account"))
 
@@ -327,6 +333,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         pp_counter_portfolio_name: present_string(Map.get(raw, "otherPortfolio")),
         pp_counter_account_name: present_string(Map.get(raw, "otherAccount")),
         note: present_string(Map.get(raw, "note")),
+        warnings: if(ticker_refused?, do: [@ticker_refused], else: []),
         companion_entries: companions
       }
 
@@ -494,21 +501,50 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
     end
   end
 
+  # Security review 2026-10-12, H57: a ticker the catalog would refuse on
+  # the security it creates is not adopted, and the security is matched and
+  # created by what else the file names; the flag becomes one row warning
+  # per security (`ticker_warnings/1`).
   defp parse_security(%{} = sec) do
     with {:ok, currency} <- parse_currency(:security, Map.get(sec, "currency")) do
+      ticker = present_string(Map.get(sec, "ticker"))
+      refused? = is_binary(ticker) and not Security.ticker_valid?(ticker)
+
       {:ok,
        %{
          name: present_string(Map.get(sec, "name")) |> normalize_letter_spacing(),
          isin: present_string(Map.get(sec, "isin")) |> normalize_isin(),
          wkn: present_string(Map.get(sec, "wkn")),
-         ticker: present_string(Map.get(sec, "ticker")),
+         ticker: if(refused?, do: nil, else: ticker),
          currency: currency
-       }}
+       }, refused?}
     end
   end
 
   # Absent, or not a map at all (#768): no security on the row.
-  defp parse_security(_other), do: {:ok, nil}
+  defp parse_security(_other), do: {:ok, nil, false}
+
+  # H57: one warning per security whose ticker was not adopted, on its first
+  # row that imports, naming the security and the remedy.
+  defp ticker_warnings(entries) do
+    {warnings, _warned} =
+      Enum.reduce(entries, {[], MapSet.new()}, fn %Entry{security: security} = entry,
+                                                  {warnings, warned} ->
+        if @ticker_refused in entry.warnings and not MapSet.member?(warned, security) do
+          message =
+            gettext(
+              "%{name}: the ticker in the file is not a valid ticker symbol and is not adopted; the security is created without a ticker. Record the ticker on the security afterwards.",
+              name: security.name || security.isin || security.wkn
+            )
+
+          {[%{row: entry.source_row, message: message} | warnings], MapSet.put(warned, security)}
+        else
+          {warnings, warned}
+        end
+      end)
+
+    Enum.reverse(warnings)
+  end
 
   # #1044: a transfer moves money or shares between two accounts or depots, so
   # one without its other side has nothing to book against; the apply would

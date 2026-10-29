@@ -19,6 +19,11 @@ defmodule Portfolixir.Catalog.Security do
   @coupon_rate_column {9, 6}
   @face_value_column {20, 6}
 
+  # A ticker's shape (#763, #888): no whitespace, no URL syntax, not made only
+  # of dots, at most 64 characters. `changeset/2` and `ticker_valid?/1`
+  # judge by it.
+  @ticker_shape ~r/\A(?!\.+\z)[^\s\/?#%]{1,64}\z/
+
   @type t :: %__MODULE__{}
 
   schema "securities" do
@@ -167,9 +172,7 @@ defmodule Portfolixir.Catalog.Security do
     # no whitespace, no URL syntax, not made only of dots (a relative-path
     # segment), bounded length. Real shapes (BRK-B, ^GDAXI, EURUSD=X, 0005.HK,
     # an ISIN, a CoinGecko coin id) pass.
-    |> validate_format(:ticker_symbol, ~r/\A(?!\.+\z)[^\s\/?#%]{1,64}\z/,
-      message: "is not a ticker symbol"
-    )
+    |> validate_format(:ticker_symbol, @ticker_shape, message: "is not a ticker symbol")
     |> validate_format(:online_id, ~r/\A(?!\.+\z)[^\s\/?#%]{1,128}\z/,
       message: "is not a provider id"
     )
@@ -200,6 +203,18 @@ defmodule Portfolixir.Catalog.Security do
   # ISINs at parse).
   @wkn_shape ~r/\A[A-Z0-9]{6}\z/
   @printable_ascii ~r/\A[\x21-\x7E]+\z/
+
+  @doc """
+  Whether `value` is a ticker the catalog stores on a new security: the shape
+  `changeset/2` judges an upper-cased ticker by (#763, #888), for a writer
+  that decides before it writes (an import that drops an unusable ticker
+  instead of failing the file, security review 2026-10-12, H57).
+  """
+  @spec ticker_valid?(term()) :: boolean()
+  def ticker_valid?(value) when is_binary(value),
+    do: Regex.match?(@ticker_shape, String.upcase(value))
+
+  def ticker_valid?(_value), do: false
 
   @doc """
   Whether `value` meets the rule a changed `field` (`:isin`, `:wkn` or
