@@ -118,8 +118,16 @@ defmodule PortfolixirWeb.Api.V1.IncomeWithoutRateTest do
              ]
            }
 
-    assert [%{"converted" => false, "currency" => "TWD"}] =
+    assert [%{"converted" => false, "currency" => "TWD"} = unconverted] =
              Enum.reject(data["transactions"], & &1["converted"])
+
+    # Its base-currency figures are null, never its native amount at parity;
+    # the native figures stay.
+    assert unconverted["gross"] == nil
+    assert unconverted["tax"] == nil
+    assert unconverted["net"] == nil
+    assert unconverted["native_gross"] == "3300"
+    assert unconverted["native_net"] == "3300"
 
     basis = data["computation_basis"]
     assert is_map(basis), "income payload keys: #{inspect(data |> Map.keys() |> Enum.sort())}"
@@ -166,5 +174,30 @@ defmodule PortfolixirWeb.Api.V1.IncomeWithoutRateTest do
              "[data-role='facet-composition']",
              "at the most recent stored rate on or before each booking date; a payment with no such rate is excluded and named"
            )
+  end
+
+  # User story (security review 2026-10-12, K07):
+  # As the operator drilling into a year's payments,
+  # I want a payment that could not be converted listed in its own
+  # currency,
+  # so that the table never shows a native amount as a base-currency one.
+  #
+  # Acceptance criteria:
+  # - The drilled year's row of the TWD payment reads 3,300.00 with TWD,
+  #   from its native figures.
+  test "page: the drilled year lists an unconverted payment in its own currency", %{conn: conn} do
+    {:ok, view, _html} = live(conn, "/cashflow")
+
+    render_click(view, "select_year", %{"year" => "2025"})
+
+    text =
+      view
+      |> element("[data-role='income-payments-disclosure'] tbody tr", "Synthetic Taipei Payer")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.text()
+
+    assert text =~ "3,300.00"
+    assert text =~ "TWD"
   end
 end

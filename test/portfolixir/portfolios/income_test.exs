@@ -153,6 +153,10 @@ defmodule Portfolixir.Portfolios.IncomeTest do
     [detail] = Enum.filter(income.transactions, &(&1.year == 2025))
     refute detail.converted
     assert Decimal.equal?(detail.native_gross, Decimal.new("100"))
+    # No base-currency figure: never the native amount at parity.
+    assert detail.gross == nil
+    assert detail.tax == nil
+    assert detail.net == nil
   end
 
   test "lists per-transaction detail for a year drilldown" do
