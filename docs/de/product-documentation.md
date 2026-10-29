@@ -3095,6 +3095,12 @@ Zeilen bleiben ebenso draußen, jede mit ihrer Zeile benannt:
   EUR; ein klein geschriebener Code wie `usd` wird als `USD` gelesen. Eine
   CSV-Zeile bucht in EUR und wird nie wegen ihrer Währung abgelehnt.
 
+Ein JSON-Wertpapier, dessen Ticker der Katalog ablehnen würde (ein
+Leerzeichen, `/`, `?`, `#`, `%`, nur Punkte oder mehr als 64 Zeichen), wird
+ohne ihn importiert: Eine Parser-Warnung nennt das Wertpapier, jede Zeile der
+Datei wird importiert, und der Ticker lässt sich danach am Wertpapier
+erfassen.
+
 Eine Vorschau wird für den nächsten Besuch (Sprachwechsel, Neuladen) erst
 aufbewahrt, wenn sie einmal angezeigt wurde, und nur, solange sie dafür nicht
 zu groß ist: Die Vorschau einer sehr großen Datei wird nicht aufbewahrt, und

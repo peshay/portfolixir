@@ -2826,6 +2826,11 @@ confirm. These rows are left out the same way, each named with its row:
   in the default, EUR; a lower-case code such as `usd` is read as `USD`. A CSV
   row books in EUR and is never refused for its currency.
 
+A JSON security whose ticker the catalog would refuse (a space, `/`, `?`,
+`#`, `%`, only dots, or more than 64 characters) is imported without it: one
+parser warning names the security, every row of the file imports, and the
+ticker can be recorded on the security afterwards.
+
 A preview is kept for your next visit (a language switch, a reload) only once
 it has been shown, and only while it is not too large to keep: the preview of
 a very large file is not kept, and the next visit shows the drop zone again.

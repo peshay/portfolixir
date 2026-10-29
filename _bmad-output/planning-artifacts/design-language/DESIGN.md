@@ -5391,6 +5391,15 @@ the Imports page. Built in `PortfolixirWeb.ImportsLive`, the two parsers and
       und hier nicht zu korrigieren. Die Buchung nicht noch einmal erfassen;
       siehe „Eine negative Steuer in einer Zeile“ in der
       Produktdokumentation."
+- **A refused ticker is dropped with a warning naming its remedy**
+  *(2026-10-28; security review 2026-10-12, H57; board
+  `mockups/ux-design-2026-10-27/02-imports-mapping` ②, pick Q2 = B)*: one
+  warning on the security's first row, "Sorrel Bay Foods AG: the ticker in
+  the file is not a valid ticker symbol and is not adopted; the security is
+  created without a ticker. Record the ticker on the security afterwards." /
+  "… Der Ticker aus der Datei ist kein gültiges Ticker-Symbol und wird nicht
+  übernommen; das Wertpapier wird ohne Ticker angelegt. Den Ticker danach am
+  Wertpapier erfassen."; every row imports.
 - **The parser warnings are ONE `attention` data note** (UX-DR17), no longer
   the accent banner UX-DR17 retired. It keeps `#parser-warnings-box`, sits
   where the box sat (after the counts by kind, before the mapping form), and
