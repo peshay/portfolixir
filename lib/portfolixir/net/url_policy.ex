@@ -40,7 +40,9 @@ defmodule Portfolixir.Net.UrlPolicy do
   and `:resolve` (default `true`). With `resolve: false` a host name is not
   resolved, so only the scheme, the userinfo, the allow-list and a literal
   address are judged: the check `Portfolixir.Net.Http` runs on a client's own
-  compiled-in endpoint, where the full check runs on every redirect hop.
+  compiled-in endpoint, where the full check runs on every redirect hop. A
+  literal is whatever the connect path reads as one, IPv4 shorthand included
+  (H51).
   """
   @spec check(String.t() | nil, keyword()) :: :ok | {:error, {:url_not_allowed, reason()}}
   def check(url, opts \\ [])
@@ -159,19 +161,39 @@ defmodule Portfolixir.Net.UrlPolicy do
     if host_allowed?(host, allowed), do: :ok, else: {:error, :host_not_allowed}
   end
 
+  # A host is judged as the address the connect path would read it as
+  # (security review 2026-10-12, H51): the lenient parser `:inet` uses when
+  # it connects reads IPv4 shorthand (`127.1`, one decimal number, octal,
+  # hex) as an address, so that reading is judged as a literal under both
+  # `resolve:` settings. A host whose last label is a number (decimal or
+  # `0x` hex) but which reads as no address is refused: it is no name.
   defp addresses_for(host, resolver, resolve?) do
-    case :inet.parse_strict_address(String.to_charlist(host)) do
-      {:ok, address} ->
-        {:ok, [address]}
+    charlist = String.to_charlist(host)
 
-      {:error, _not_literal} when not resolve? ->
-        {:ok, []}
+    case literal_address(charlist) do
+      {:ok, address} -> {:ok, [address]}
+      :numeric -> {:error, :host}
+      :name when not resolve? -> {:ok, []}
+      :name -> resolve_name(host, resolver)
+    end
+  end
 
-      {:error, _not_literal} ->
-        case resolver.(host) do
-          {:ok, [_ | _] = addresses} -> {:ok, addresses}
-          _ -> {:error, :unresolvable}
-        end
+  defp literal_address(charlist) do
+    with {:error, _not_strict} <- :inet.parse_strict_address(charlist),
+         {:error, _not_lenient} <- :inet.parse_address(charlist) do
+      if ends_in_number?(charlist), do: :numeric, else: :name
+    end
+  end
+
+  defp ends_in_number?(charlist) do
+    last = charlist |> List.to_string() |> String.split(".") |> List.last()
+    Regex.match?(~r/\A(?:[0-9]+|0[xX][0-9a-fA-F]*)\z/, last)
+  end
+
+  defp resolve_name(host, resolver) do
+    case resolver.(host) do
+      {:ok, [_ | _] = addresses} -> {:ok, addresses}
+      _ -> {:error, :unresolvable}
     end
   end
 
