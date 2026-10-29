@@ -88,6 +88,15 @@ defmodule PortfolixirWeb.ImportsLive do
   # (neither walks the entries), and a connected mount refines the counts as
   # the upload did. Each recompute after the upload (a correction, a refreshed
   # resolution, the refined counts) parks the summary again (`repark/1`).
+  #
+  # Every assign the four helpers of the recomputing path set
+  # (`maybe_assign_preview_pp_names/2`, `assign_security_resolutions/2`,
+  # `assign_account_states/2`, `assign_corrections/2`) is either listed here
+  # or re-read by `reread_assigns/2`: a remount from the summary runs none
+  # of them, so an assign a helper gains and this list lacks is never set,
+  # and the page fails on every remount until the preview expires. The test
+  # "a remount from the parked summary sets every assign the upload set"
+  # compares both paths.
   @parked_assigns [
     :cash_pp_names,
     :depot_pp_names,
@@ -107,9 +116,7 @@ defmodule PortfolixirWeb.ImportsLive do
     if Enum.all?(@parked_assigns, &Map.has_key?(summary, &1)) do
       socket
       |> assign(Map.take(summary, [:park | @parked_assigns]))
-      |> assign(:existing_securities, Catalog.list_securities(is_benchmark: false))
-      |> assign(:row_errors, Imports.row_errors(preview))
-      |> refine_counts(preview)
+      |> reread_assigns(preview)
     else
       assign_preview_state(socket, preview, nil)
     end
@@ -121,6 +128,15 @@ defmodule PortfolixirWeb.ImportsLive do
     |> assign_security_resolutions(preview)
     |> assign_account_states(preview)
     |> assign_corrections(preview)
+  end
+
+  # Set on a remount from the summary without walking the entries: the
+  # catalog list, the parser warnings and the background-count token.
+  defp reread_assigns(socket, preview) do
+    socket
+    |> assign(:existing_securities, Catalog.list_securities(is_benchmark: false))
+    |> assign(:row_errors, Imports.row_errors(preview))
+    |> refine_counts(preview)
   end
 
   # Only the summary of the preview this page parked: another tab of the
