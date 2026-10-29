@@ -1204,10 +1204,10 @@ Datenbanksicherung zurück.
   Schreiboperation. Eine Berechnung, die darüber wächst, wird beendet und
   protokolliert, ihr Bereich wird übersprungen, und das nächste Lesen
   berechnet ihn. Die Performance-Berechnung hält rund 300 Bytes je
-  gehaltenem Wertpapier und Tag und erreicht die Grenze daher bei rund
-  600.000 gehaltenen Wertpapier-Tagen (etwa 160 Wertpapiere, zehn Jahre lang
-  mit Tageskursen gehalten); eine Beitragsauswertung berechnet nur ihr
-  Zeitfenster. `max_heap_bytes` unter `Portfolixir.HeapCap` in
+  gehaltenem Wertpapier und Tag, und gemessen erreicht eine Berechnung die
+  Standardgrenze bei rund 600.000 gehaltenen Wertpapier-Tagen (etwa 160
+  Wertpapiere, zehn Jahre lang mit Tageskursen gehalten); eine
+  Beitragsauswertung berechnet nur ihr Zeitfenster. `max_heap_bytes` unter `Portfolixir.HeapCap` in
   `config/config.exs` ändert sie. Der Arbeitsspeicher-Cache abgeleiteter
   Kennzahlen hält sein eigenes Budget ein (5000 Einträge, 128 MiB).
 - Das Release startet ohne Erlang-Distribution und öffnet deshalb keinen

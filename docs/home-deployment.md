@@ -1121,9 +1121,10 @@ added migrations, restore the database backup taken before that upgrade.
   own: the performance warm-up at boot and after each local midnight, and
   the refresh after a write. A walk grown past it is killed and logged, its
   scope is skipped, and the next read computes it. The performance walk
-  holds roughly 300 bytes per held security and day, so a walk reaches the
-  cap at roughly 600,000 held security-days (about 160 securities held for
-  ten years with daily closes); a contribution read walks only its window.
+  holds roughly 300 bytes per held security and day, and on the default
+  cap a walk was measured to reach it at roughly 600,000 held security-days
+  (about 160 securities held for ten years with daily closes); a
+  contribution read walks only its window.
   `max_heap_bytes` under `Portfolixir.HeapCap` in `config/config.exs`
   changes it. The in-memory cache of derived figures keeps to its own budget
   (5000 entries, 128 MiB).

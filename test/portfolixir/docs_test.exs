@@ -1383,9 +1383,10 @@ defmodule Portfolixir.DocsTest do
   # - The guide (EN, DE) names the warm-up at boot and after each local
   #   midnight and the refresh after a write as walks under the same cap,
   #   each failing alone and logged, its scope skipped.
-  # - It states the walk's cost per held security and day and the
-  #   security-days at which a walk reaches the cap, and names the cap's
-  #   configuration under `Portfolixir.HeapCap`.
+  # - It states the walk's cost per held security and day and, as measured
+  #   on the default cap, the security-days at which a walk reaches it, and
+  #   names the cap's configuration under `Portfolixir.HeapCap`.
+  # - Neither figure is derived from the other ("so", "daher").
   # - It no longer says no ordinary read or write comes near the cap.
   test "the guide names the background walks under the heap cap and the size that reaches it" do
     for {path, fragments, refuted} <- [
@@ -1393,16 +1394,17 @@ defmodule Portfolixir.DocsTest do
            [
              "The background walks run under the same cap, each in a process of its own: the performance warm-up at boot and after each local midnight, and the refresh after a write",
              "A walk grown past it is killed and logged, its scope is skipped, and the next read computes it",
-             "roughly 300 bytes per held security and day, so a walk reaches the cap at roughly 600,000 held security-days",
+             "roughly 300 bytes per held security and day, and on the default cap a walk was measured to reach it at roughly 600,000 held security-days",
              "`max_heap_bytes` under `Portfolixir.HeapCap`"
-           ], "No ordinary read or write comes near it"},
+           ], ~r/No ordinary read or write comes near it|day, so a walk reaches the cap/},
           {"docs/de/home-deployment.md",
            [
              "Die Hintergrundberechnungen laufen unter derselben Grenze, jede in einem eigenen Prozess: das Vorwärmen der Performance beim Start und nach jeder lokalen Mitternacht und die Aktualisierung nach einer Schreiboperation",
              "Eine Berechnung, die darüber wächst, wird beendet und protokolliert, ihr Bereich wird übersprungen",
-             "rund 300 Bytes je gehaltenem Wertpapier und Tag und erreicht die Grenze daher bei rund 600.000 gehaltenen Wertpapier-Tagen",
+             "rund 300 Bytes je gehaltenem Wertpapier und Tag, und gemessen erreicht eine Berechnung die Standardgrenze bei rund 600.000 gehaltenen Wertpapier-Tagen",
              "`max_heap_bytes` unter `Portfolixir.HeapCap`"
-           ], "Kein gewöhnliches Lesen oder Schreiben kommt in ihre Nähe"}
+           ],
+           ~r/Kein gewöhnliches Lesen oder Schreiben kommt in ihre Nähe|erreicht die Grenze daher/u}
         ] do
       doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
 
@@ -1410,7 +1412,7 @@ defmodule Portfolixir.DocsTest do
         assert doc =~ fragment, "#{path}: #{fragment}"
       end
 
-      refute doc =~ refuted, "#{path}: #{refuted}"
+      refute doc =~ refuted, "#{path}: #{inspect(refuted)}"
     end
   end
 
