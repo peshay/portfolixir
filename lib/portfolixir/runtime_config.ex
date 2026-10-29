@@ -325,9 +325,10 @@ defmodule Portfolixir.RuntimeConfig do
   # A token's name is written into the journal's actor label and read back by
   # agents, so it is a short identifier, never free text.
   @principal_name ~r/\A[a-z0-9][a-z0-9_-]{0,31}\z/
-  # What a refusal may quote of a value that fails the name rule (H22): a
-  # short run of identifier characters, which no token generator prints alone.
-  @name_shaped ~r/\A[A-Za-z0-9_-]{1,32}\z/
+  # What a refusal may quote of a value that fails the name rule (H22): a run
+  # of identifier characters shorter than the token floor (`min_token_bytes/0`),
+  # so nothing that could pass as a token is ever quoted.
+  @name_shaped ~r/\A[A-Za-z0-9_-]{1,31}\z/
 
   @doc """
   The API's principals (E25 S7, G26; the architecture's FU-6, named
