@@ -5,6 +5,7 @@ defmodule Portfolixir.Net.UrlPolicyTest do
   use ExUnit.Case, async: true
 
   alias Portfolixir.Net.FakeResolver
+  alias Portfolixir.Net.Http
   alias Portfolixir.Net.UrlPolicy
 
   @opts [resolver: &FakeResolver.resolve/1]
@@ -134,8 +135,8 @@ defmodule Portfolixir.Net.UrlPolicyTest do
     end
 
     assert {:error, {:url_not_allowed, :private_address}} =
-             Portfolixir.Net.Http.get(
-               Portfolixir.Net.Http.new(max_bytes: 10, allowed_hosts: :any),
+             Http.get(
+               Http.new(max_bytes: 10, allowed_hosts: :any),
                url: "https://127.1/x",
                plug: recorder
              )
