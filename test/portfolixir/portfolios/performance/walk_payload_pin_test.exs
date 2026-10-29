@@ -9,6 +9,7 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
   import Portfolixir.WorldFixtures
 
   alias Portfolixir.Actor
+  alias Portfolixir.Buckets
   alias Portfolixir.Catalog
   alias Portfolixir.Catalog.Quote, as: SecurityQuote
   alias Portfolixir.Fx
@@ -198,7 +199,17 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
     buy!(later, alpha, quantity: "7", price: "51", date: ~D[2024-01-04])
     buy!(later, beta, quantity: "3", price: "31", date: ~D[2024-03-01])
 
-    %{world: world, later: later}
+    {:ok, core} = Buckets.create_bucket(Actor.owner_ui(), %{name: "Pin Core"})
+
+    for depot <- [world.depot, later.depot],
+        do: :ok = Buckets.set_depot_default_buckets(Actor.owner_ui(), depot, [core.id])
+
+    :ok = Buckets.set_cash_account_buckets(Actor.owner_ui(), world.cash, [core.id])
+
+    {:ok, view} = Buckets.create_view(Actor.owner_ui(), %{name: "Pin Core", include_all: false})
+    :ok = Buckets.set_view_buckets(Actor.owner_ui(), view, [core.id], [])
+
+    %{world: world, later: later, view: view}
   end
 
   # The figures, never the instant they were computed at, and every row id
@@ -222,7 +233,7 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
   defp canonical(other, _ids), do: other
 
   defp canonical_field(key, id, ids)
-       when key in [:security_id, :portfolio_id, :cash_account_id] and is_integer(id),
+       when key in [:security_id, :portfolio_id, :cash_account_id, :view_id] and is_integer(id),
        do: Map.fetch!(ids, {key, id})
 
   defp canonical_field(key, by_account, ids)
@@ -250,7 +261,10 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
           into: %{},
           do: {{:cash_account_id, a.id}, a.name}
 
-    securities |> Map.merge(portfolios) |> Map.merge(accounts)
+    views =
+      for v <- Repo.all(Portfolixir.Buckets.View), into: %{}, do: {{:view_id, v.id}, v.name}
+
+    securities |> Map.merge(portfolios) |> Map.merge(accounts) |> Map.merge(views)
   end
 
   defp digest(term, ids) do
@@ -266,11 +280,14 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
   defp label({:range, from, to}), do: "range #{from}..#{to}"
   defp label(period), do: period
 
-  defp reads(%{world: world, later: later}) do
+  defp reads(%{world: world, later: later, view: view}) do
     walks = [
       {"analysis pin", Performance.analysis(world.portfolio.id, today: @today)},
       {"analysis later", Performance.analysis(later.portfolio.id, today: @today)},
-      {"view analysis", Performance.view_analysis(nil, today: @today)}
+      {"view analysis", Performance.view_analysis(nil, today: @today)},
+      {"analysis pin core",
+       Performance.analysis(world.portfolio.id, view: view.id, today: @today)},
+      {"view analysis core", Performance.view_analysis(view.id, today: @today)}
     ]
 
     per_period =
@@ -295,7 +312,27 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
                Contribution.for_portfolio(later.portfolio.id, period: period, today: @today)
              end},
             {"contribution view",
-             fn -> Contribution.for_view(nil, period: period, today: @today) end}
+             fn -> Contribution.for_view(nil, period: period, today: @today) end},
+            {"performance pin core",
+             fn ->
+               Performance.for_portfolio(world.portfolio.id,
+                 view: view.id,
+                 period: period,
+                 today: @today
+               )
+             end},
+            {"performance core",
+             fn -> Performance.for_view(view.id, period: period, today: @today) end},
+            {"contribution pin core",
+             fn ->
+               Contribution.for_portfolio(world.portfolio.id,
+                 view: view.id,
+                 period: period,
+                 today: @today
+               )
+             end},
+            {"contribution core",
+             fn -> Contribution.for_view(view.id, period: period, today: @today) end}
           ] do
         {"#{name} #{label(period)}", read.()}
       end
@@ -319,6 +356,18 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
   @pinned %{
     "analysis later" => "e62134dd762e2fbf",
     "analysis pin" => "41a8eafbd5032fd1",
+    "analysis pin core" => "4ad5e08d63b968eb",
+    "contribution core 1y" => "7ba6fa25cf47c301",
+    "contribution core 3y" => "afebf77667ef29ef",
+    "contribution core 5y" => "c0bcd4dc8505f7bf",
+    "contribution core max" => "a24dcc5389bfc89f",
+    "contribution core range 2020-01-01..2022-12-31" => "96535950dd57aafe",
+    "contribution core range 2023-01-02..2023-01-31" => "2de44539de471b2a",
+    "contribution core range 2023-07-01..2023-12-31" => "6c3880bbbd9c55df",
+    "contribution core range 2024-06-01..2024-06-30" => "94257b4672dcedbe",
+    "contribution core year 2023" => "6e1421d7fea3174d",
+    "contribution core year 2024" => "c08bdaeeed7dd82e",
+    "contribution core ytd" => "a02786d398319343",
     "contribution later 1y" => "5809ed1c25542616",
     "contribution later 3y" => "100e4aeb97ce9777",
     "contribution later 5y" => "673671a03d87423e",
@@ -333,6 +382,17 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
     "contribution pin 1y" => "292b259c82e9162c",
     "contribution pin 3y" => "de9b56590ab8b30f",
     "contribution pin 5y" => "b1bd46656d9e436a",
+    "contribution pin core 1y" => "35a95c93b55d097b",
+    "contribution pin core 3y" => "a54be9c6864936cb",
+    "contribution pin core 5y" => "348090367252de03",
+    "contribution pin core max" => "c0eadfe9b85d557e",
+    "contribution pin core range 2020-01-01..2022-12-31" => "fc1949219b9dc6c8",
+    "contribution pin core range 2023-01-02..2023-01-31" => "89647ac96b06f37b",
+    "contribution pin core range 2023-07-01..2023-12-31" => "502a0c5b4ef97f1d",
+    "contribution pin core range 2024-06-01..2024-06-30" => "4c7f7207df7c143b",
+    "contribution pin core year 2023" => "3074ef8f59016340",
+    "contribution pin core year 2024" => "7aae6de56d16e6e2",
+    "contribution pin core ytd" => "beb47cbc4de36b87",
     "contribution pin max" => "ead070f14230c366",
     "contribution pin range 2020-01-01..2022-12-31" => "4b038bee3207e821",
     "contribution pin range 2023-01-02..2023-01-31" => "3926cb5187817fbf",
@@ -352,6 +412,17 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
     "contribution view year 2023" => "19f4ab1ffb68cbe6",
     "contribution view year 2024" => "e6a9b252bdc979af",
     "contribution view ytd" => "38f195241404dba3",
+    "performance core 1y" => "4e7576c9bf9f3d52",
+    "performance core 3y" => "372259ac6fd6c8e8",
+    "performance core 5y" => "6c0ce8ce827f14d5",
+    "performance core max" => "354a99cd767dc38f",
+    "performance core range 2020-01-01..2022-12-31" => "bc7dea730174e871",
+    "performance core range 2023-01-02..2023-01-31" => "39f3d92a78058070",
+    "performance core range 2023-07-01..2023-12-31" => "a03feca51b6813d3",
+    "performance core range 2024-06-01..2024-06-30" => "803af4426676c871",
+    "performance core year 2023" => "be9dbd444f5d6e55",
+    "performance core year 2024" => "fe989c50f48a04b6",
+    "performance core ytd" => "2f9d1792e98ae2b6",
     "performance later 1y" => "2730c9019658d05a",
     "performance later 3y" => "616d2f62d9777eea",
     "performance later 5y" => "6f3c9ce0bb5d061d",
@@ -366,6 +437,17 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
     "performance pin 1y" => "4bf2b0140624af91",
     "performance pin 3y" => "48656d909b940bd0",
     "performance pin 5y" => "d5bf268bd90ffcba",
+    "performance pin core 1y" => "511a655565edcc0d",
+    "performance pin core 3y" => "bad1a3160b53e94d",
+    "performance pin core 5y" => "a1a4e3424daba2eb",
+    "performance pin core max" => "21e9dbf112562ca5",
+    "performance pin core range 2020-01-01..2022-12-31" => "7ecdb190dbba6050",
+    "performance pin core range 2023-01-02..2023-01-31" => "ad7345a2d7b8f229",
+    "performance pin core range 2023-07-01..2023-12-31" => "b83a94de5f7d4814",
+    "performance pin core range 2024-06-01..2024-06-30" => "422ae62bcd51bd7c",
+    "performance pin core year 2023" => "a94d666bad2383d5",
+    "performance pin core year 2024" => "fbc117a1999f9e9b",
+    "performance pin core ytd" => "aac7cdce9ae0550a",
     "performance pin max" => "0e6cf680b4564228",
     "performance pin range 2020-01-01..2022-12-31" => "7ecdb190dbba6050",
     "performance pin range 2023-01-02..2023-01-31" => "7c6fe8e1009b9d8a",
@@ -385,7 +467,8 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
     "performance view year 2023" => "b30962972ea80517",
     "performance view year 2024" => "0ab29fec98008f91",
     "performance view ytd" => "c4ef36dc9932d3f3",
-    "view analysis" => "fbae09e2ebc2da04"
+    "view analysis" => "fbae09e2ebc2da04",
+    "view analysis core" => "549ee3dc78dc4f16"
   }
 
   # User story (security review 2026-10-12, K08):
@@ -431,5 +514,100 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
                   remainder: Decimal.new("-212.476627570967193608703042665307")
                 }, 8}
            }
+  end
+
+  # The kept figures and their window, without the flag that chose the walk.
+  defp kept(nil), do: nil
+  defp kept(kept), do: Map.update!(kept, :window, &Map.take(&1, [:start, :end]))
+
+  # User story (security review 2026-10-12, K08; ADR-0051 I9):
+  # As the reviewer holding the contribution walk to ADR-0051's I9,
+  # I want the walk a contribution read runs from its window's baseline day
+  # to answer what the full walk answers on every day it walks,
+  # so that starting at the window saves the days before it and nothing
+  # else.
+  #
+  # Acceptance criteria:
+  # - For each portfolio, a view-narrowed portfolio, a view across
+  #   portfolios and the Everything view, and each period, the walk
+  #   from the baseline day keeps the full walk's first date, and its days
+  #   from the baseline day on are the full walk's: identical, but for the
+  #   baseline day's basis step, which no window reads.
+  # - The period's summary and the kept per-position figures are identical
+  #   to the full contribution walk's.
+  test "a contribution walk from the window's baseline day answers what the full walk answers" do
+    %{world: world, later: later, view: view} = seed_ledger!()
+    pin = world.portfolio.id
+
+    walks =
+      for id <- [world.portfolio.id, later.portfolio.id] do
+        {"portfolio #{id}", fn -> Performance.analysis(id, today: @today) end,
+         fn period, opts ->
+           Performance.contribution_analysis(id, :unscoped, period, [today: @today] ++ opts)
+         end}
+      end ++
+        [
+          {"Everything view", fn -> Performance.view_analysis(nil, today: @today) end,
+           fn period, opts ->
+             Performance.view_contribution_analysis(
+               nil,
+               :unscoped,
+               period,
+               [today: @today] ++ opts
+             )
+           end},
+          {"portfolio narrowed by a view",
+           fn -> Performance.analysis(pin, view: view.id, today: @today) end,
+           fn period, opts ->
+             Performance.contribution_analysis(
+               pin,
+               Buckets.load_scope(pin, view.id),
+               period,
+               [today: @today] ++ opts
+             )
+           end},
+          {"view across portfolios", fn -> Performance.view_analysis(view.id, today: @today) end,
+           fn period, opts ->
+             Performance.view_contribution_analysis(
+               view.id,
+               Buckets.load_global_scope(view.id),
+               period,
+               [today: @today] ++ opts
+             )
+           end}
+        ]
+
+    for {scope, plain_walk, kept_walk} <- walks, period <- @periods do
+      label = "#{scope} #{label(period)}"
+      plain = plain_walk.()
+      full = kept_walk.(period, [])
+      seeded = kept_walk.(period, from_baseline: true)
+
+      assert seeded.first_date == plain.first_date, label
+
+      {:ok, plain_summary} = Performance.summarise(plain, period)
+      {:ok, seeded_summary} = Performance.summarise(seeded, period)
+
+      baseline = plain_summary.start_date && Date.add(plain_summary.start_date, -1)
+
+      if baseline && Date.compare(baseline, plain.first_date) == :gt do
+        walked = &Enum.drop_while(&1, fn point -> Date.compare(point.date, baseline) == :lt end)
+        [first | rest] = walked.(seeded.daily)
+        [plain_first | plain_rest] = walked.(plain.daily)
+
+        assert first.date == baseline, label
+        assert Map.delete(first, :basis) == Map.delete(plain_first, :basis), label
+        assert rest == plain_rest, label
+      else
+        # A window from the first booking on has no earlier day to skip.
+        assert seeded.daily == plain.daily, label
+      end
+
+      assert Map.drop(seeded_summary, [:as_of, :stale]) ==
+               Map.drop(plain_summary, [:as_of, :stale]),
+             label
+
+      assert kept(seeded.contribution) == kept(full.contribution), label
+    end
   end
 end
