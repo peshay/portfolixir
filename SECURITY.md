@@ -68,8 +68,11 @@ limit that remains is an older browser without the header (Safari before 16.4)
 on HTTPS or loopback, whose unlabelled requests are still remembered, and over
 plain HTTP off loopback a choice typed into the address bar applies to its
 page only. A remembered choice is read only from a cookie the instance signed,
-sent once under its name, and over HTTPS named with the `__Host-` prefix, so
-another port or a sibling name of the same host cannot plant one (K02). Text an agent reads carries no character the operator cannot see:
+sent once under its name; over HTTPS it carries the `__Host-` prefix, so a
+sibling name cannot plant one. The signature proves the instance wrote the
+value, not that the operator chose it: another port of the same host name
+shares the cookies and can still plant a value the instance signed, which with
+a UI password it signs only for a logged-in client (K02). Text an agent reads carries no character the operator cannot see:
 every writer, the importer included, refuses Unicode tag characters,
 bidirectional controls, the other invisible format characters and runs of
 variation selectors, naming them by code point, and the MCP companion hands

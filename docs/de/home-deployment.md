@@ -635,10 +635,13 @@ für diese Domain setzen; eine andere Web-Anwendung unter demselben Namen oder
 daneben teilt sich daher im Browser die Cookies der Instanz. Die Instanz liest
 nur die Ansichts-, Benchmark- und Sprachwahl, die sie selbst geschrieben hat:
 Sie ist signiert, ein Name, den der Browser doppelt schickt, wird nicht
-gelesen, und über HTTPS tragen die Cookies das Präfix `__Host-`, das kein
-anderer Port und kein anderer Name nachahmen kann. Eine solche Anwendung kann
-die Instanz trotzdem eine Wahl vergessen lassen, und sie ist eine weitere
-Stelle, die die Cookies dieses Namens im Browser erreicht. Nach dem Upgrade,
+gelesen, und über HTTPS tragen die Cookies das Präfix `__Host-`, sodass ein
+Nachbarname keines setzen kann. Die Signatur belegt, dass die Instanz einen
+Wert geschrieben hat, nicht, dass du ihn gewählt hast: Eine Anwendung auf
+einem anderen Port desselben Namens teilt sich die Cookies und kann daher
+weiterhin einen Wert setzen, den die Instanz signiert hat (mit UI-Passwort
+signiert sie einen nur für einen angemeldeten Client), und sie kann die
+Instanz eine Wahl vergessen lassen. Nach dem Upgrade,
 das die Signatur eingeführt hat, werden die Wahlen, die sich der Browser von
 vorher gemerkt hat, nicht gelesen: Die Seiten öffnen mit der Standardansicht,
 ohne Benchmark und in der Sprache des Browsers, bis wieder gewählt wird.
