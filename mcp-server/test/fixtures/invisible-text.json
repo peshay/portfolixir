@@ -1,5 +1,5 @@
 {
-  "description": "E25 S7, G20: the one spelling of invisible characters. Portfolixir.Input.Text refuses the characters count counts and escapes them as escaped shows for the screen (pick G12.2 = B); the MCP companion escapes every string the API answers the same way before an agent reads it. Both test suites read these cases. Every non-ASCII character is a JSON escape, so the file itself carries none.",
+  "description": "E25 S7, G20: the one spelling of invisible characters. Portfolixir.Input.Text refuses the characters count counts and escapes them as escaped shows for the screen (pick G12.2 = B); the MCP companion escapes every string the API answers the same way before an agent reads it. Both test suites read these cases. Security review 2026-10-12, H12: every Default_Ignorable_Code_Point, and a variation selector with no base it can vary. Every non-ASCII character is a JSON escape, so the file itself carries none.",
   "cases": [
     {
       "input": "Nordic Timber Holdings AB",
@@ -138,8 +138,8 @@
     },
     {
       "input": "x\ufe0f\u200d\ud83d\udc68",
-      "escaped": "x\ufe0f[U+200D]\ud83d\udc68",
-      "count": 1
+      "escaped": "x[U+FE0F][U+200D]\ud83d\udc68",
+      "count": 2
     },
     {
       "input": "England \ud83c\udff4\udb40\udc67\udb40\udc62\udb40\udc65\udb40\udc6e\udb40\udc67\udb40\udc7f",
@@ -150,6 +150,66 @@
       "input": "\u0645\u06cc\u200c\u062e\u0648\u0627\u0647\u0645",
       "escaped": "\u0645\u06cc[U+200C]\u062e\u0648\u0627\u0647\u0645",
       "count": 1
+    },
+    {
+      "input": "Synthetic Fund\u034f",
+      "escaped": "Synthetic Fund[U+034F]",
+      "count": 1
+    },
+    {
+      "input": "Config\u3164AG \u115f\u1160\uffa0",
+      "escaped": "Config[U+3164]AG [U+115F][U+1160][U+FFA0]",
+      "count": 4
+    },
+    {
+      "input": "a\u17b4b\u17b5c\u180bd\u180ce\u180df\u180f",
+      "escaped": "a[U+17B4]b[U+17B5]c[U+180B]d[U+180C]e[U+180D]f[U+180F]",
+      "count": 6
+    },
+    {
+      "input": "x\ufff0\ufff8",
+      "escaped": "x[U+FFF0][U+FFF8]",
+      "count": 2
+    },
+    {
+      "input": "y\udb40\udc80\udb40\udcff\udb40\uddf0\udb43\udfff",
+      "escaped": "y[U+E0080][U+E00FF][U+E01F0][U+E0FFF]",
+      "count": 4
+    },
+    {
+      "input": "x\ufe00",
+      "escaped": "x[U+FE00]",
+      "count": 1
+    },
+    {
+      "input": "N\udb40\udd38o\udb40\udd39te",
+      "escaped": "N[U+E0138]o[U+E0139]te",
+      "count": 2
+    },
+    {
+      "input": "heart \u2764\ufe0f\ufe0f",
+      "escaped": "heart \u2764[U+FE0F][U+FE0F]",
+      "count": 2
+    },
+    {
+      "input": "text heart \u2764\ufe0e",
+      "escaped": "text heart \u2764\ufe0e",
+      "count": 0
+    },
+    {
+      "input": "keycap 1\ufe0f\u20e3",
+      "escaped": "keycap 1\ufe0f\u20e3",
+      "count": 0
+    },
+    {
+      "input": "variant \u845b\udb40\udd00",
+      "escaped": "variant \u845b\udb40\udd00",
+      "count": 0
+    },
+    {
+      "input": "cap \u2229\ufe00",
+      "escaped": "cap \u2229\ufe00",
+      "count": 0
     }
   ]
 }
