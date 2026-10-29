@@ -579,8 +579,7 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
              "the source&#39;s ISIN fails its check digit, and the merge would write it onto the target."
 
     # H11: the value stands as data on its own line, never in the sentence.
-    lead = view |> element("#security-merge-dialog .merge-refusal__lead") |> render()
-    refute lead =~ "XS0000004560"
+    for lead <- leads(refusal), do: refute(lead =~ "XS0000004560")
 
     assert has_element?(
              view,
@@ -665,8 +664,7 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     assert refusal =~
              "after the merge, 1 identifier of the two would no longer lead to the target:"
 
-    lead = view |> element("#security-merge-dialog .merge-refusal__lead") |> render()
-    refute lead =~ "Fund B"
+    for lead <- leads(refusal), do: refute(lead =~ "Fund B")
 
     assert has_element?(
              view,
@@ -1114,5 +1112,12 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
       })
 
     rule
+  end
+
+  # The refusal's sentences, without the data lines under them (H11).
+  defp leads(refusal) do
+    ~r/<p class="merge-refusal__lead">(.*?)<\/p>/s
+    |> Regex.scan(refusal, capture: :all_but_first)
+    |> List.flatten()
   end
 end
