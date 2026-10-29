@@ -73,6 +73,10 @@ config :portfolixir, :seed_builtins_on_boot, false
 # LogoStore.reconcile_missing_files/1, with a directory of their own.
 config :portfolixir, :reconcile_logos_on_boot, false
 
+# The boot's report of a stored rate that is not positive (K06) reads the
+# database outside any test's sandbox ownership; its test calls it directly.
+config :portfolixir, :report_non_positive_rates_on_boot, false
+
 # Logo discovery is gated off in tests so create_security/1 doesn't make
 # outbound HTTP calls. Tests that need it call LogoLookup.run/2 directly
 # with a Req plug stub.

@@ -32,6 +32,9 @@ defmodule Portfolixir.Application do
     * In a release, the log filter that keeps a crashing live page's form
       values and session out of the log (security review 2026-10-12, H71);
       config-gated, see `PortfolixirWeb.SocketCrashReport.install_on_boot/0`.
+    * A stored exchange rate that is not positive, named in one warning
+      (`Portfolixir.Fx.report_non_positive_rates_on_boot/0`, K06); no read
+      uses it. Config-gated (off in tests).
   """
   @spec after_start() :: :ok
   def after_start do
@@ -39,6 +42,7 @@ defmodule Portfolixir.Application do
     Portfolixir.Classifications.seed_builtins_on_boot()
     Portfolixir.Catalog.reconcile_logos_on_boot()
     warn_if_exposed()
+    Portfolixir.Fx.report_non_positive_rates_on_boot()
   end
 
   @doc """

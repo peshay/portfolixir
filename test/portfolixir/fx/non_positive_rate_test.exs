@@ -267,5 +267,30 @@ defmodule Portfolixir.Fx.NonPositiveRateTest do
     after_report = stored_rate!(day)
     assert after_report.id == planted.id
     assert Decimal.equal?(after_report.rate, 0)
+
+    # The boot step runs the same report unless its config turns it off.
+    previous = Application.fetch_env(:portfolixir, :report_non_positive_rates_on_boot)
+
+    on_exit(fn ->
+      case previous do
+        {:ok, value} ->
+          Application.put_env(:portfolixir, :report_non_positive_rates_on_boot, value)
+
+        :error ->
+          Application.delete_env(:portfolixir, :report_non_positive_rates_on_boot)
+      end
+    end)
+
+    Application.put_env(:portfolixir, :report_non_positive_rates_on_boot, true)
+
+    assert capture_log([level: :warning], fn ->
+             assert Fx.report_non_positive_rates_on_boot() == :ok
+           end) =~ "EUR/USD on #{Date.to_iso8601(day)}"
+
+    Application.put_env(:portfolixir, :report_non_positive_rates_on_boot, false)
+
+    assert capture_log([level: :warning], fn ->
+             assert Fx.report_non_positive_rates_on_boot() == :ok
+           end) == ""
   end
 end

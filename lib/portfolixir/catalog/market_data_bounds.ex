@@ -19,7 +19,7 @@ defmodule Portfolixir.Catalog.MarketDataBounds do
   rate divided by.
 
   Three places apply the same rule, so a point the sync would refuse is also
-  one no other writer can store and no read can serve:
+  one no other writer can store and no latest read can serve:
 
     * the `Portfolixir.Catalog.Quote` and `Portfolixir.Fx.ExchangeRate`
       changesets (`validate/3`), so the API, the sync and every other writer
@@ -29,6 +29,13 @@ defmodule Portfolixir.Catalog.MarketDataBounds do
     * the latest-quote and latest-rate reads, capped at `latest_date/0`, so a
       row stored before the bound existed never becomes the valuation price
       and never makes a stale quote look fresh.
+
+  The date cap is the only bound those reads apply. A value is guarded where
+  it is used: a legacy close that is not positive by the reads that divide
+  by it, and a legacy rate a release before 2026.10.1 stored as 0 by every
+  rate lookup in `Portfolixir.Fx`, which reads only positive rows, so such a
+  rate is no rate (security review 2026-10-12, K06). No read deletes or
+  changes such a row.
   """
 
   import Ecto.Changeset

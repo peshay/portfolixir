@@ -3110,11 +3110,19 @@ Scope-Leiter).
   Paare werden durch Triangulation abgeleitet, und `GBX` (Pence) wird als
   `GBP × 100` behandelt.
   `limit` behält die jüngsten Kurse (Standard 50000, max. 200000).
-  Jeder gespeicherte Wechselkurs ist wie ein Kurs begrenzt: positiv und nicht
-  nach morgen datiert. Eine Synchronisierung verwirft einen Anbieterkurs
-  außerhalb der Grenze, statt den Lauf scheitern zu lassen, und die
-  Lesepfade für den jüngsten Wechselkurs nutzen nie eine gespeicherte Zeile
-  nach dieser Grenze.
+  Jeder Wechselkurs, den ein Schreibweg speichert, ist wie ein Kurs begrenzt:
+  positiv, auf seine 15 Nachkommastellen gerundet, und nicht nach morgen
+  datiert. Eine Synchronisierung verwirft einen Anbieterkurs außerhalb der
+  Grenze, statt den Lauf scheitern zu lassen, und die Lesepfade für den
+  jüngsten Wechselkurs nutzen nie eine gespeicherte Zeile nach dieser
+  Grenze. Ein Kurs, den eine Version vor 2026.10.1 als 0 speichern konnte
+  (ein Wert feiner als die Spalte), ist für jede Umrechnung kein Kurs: Die
+  Zahl, die ihn braucht, schließt die Buchung aus und nennt sie oder meldet
+  den Kurs als fehlend, wie an einem Tag ohne Kurs. Die Zeile wird weder
+  gelöscht noch geändert — sie bleibt in dieser Liste, ein Nachladen der
+  Historie ersetzt sie an einem Tag, den der Anbieter veröffentlicht, und
+  das Startprotokoll nennt jede solche Zeile (Sicherheitsprüfung
+  2026-10-12, K06).
 - `POST /api/v1/exchange_rates/sync` holt Kurse vom konfigurierten Anbieter
   (standardmäßig EZB) und liefert `{provider, status, upserted, scope}`.
   `scope=latest` (Standard) holt den **täglichen** Feed — die heutigen Kurse,

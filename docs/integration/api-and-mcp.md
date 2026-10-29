@@ -2869,10 +2869,16 @@ level (d)).
   against the EUR hub (`1 base_currency = rate quote_currency`); other pairs are
   derived by triangulation, and `GBX` (pence) is handled as `GBP × 100`.
   `limit` keeps the most recent rates (default 50000, max 200000).
-  Every stored rate is bounded like a quote: positive, and dated no later
-  than tomorrow. A sync drops a provider rate outside the bound instead of
-  failing the run, and the latest-rate reads never use a stored row dated
-  past it.
+  Every rate a writer stores is bounded like a quote: positive once rounded
+  to its 15 decimal places, and dated no later than tomorrow. A sync drops a
+  provider rate outside the bound instead of failing the run, and the
+  latest-rate reads never use a stored row dated past it. A rate a release
+  before 2026.10.1 could store as 0 (a value finer than the column) is no
+  rate to any conversion: the figure that needs it excludes and names the
+  booking, or reports the rate missing, as for a day with no rate. The row
+  is neither deleted nor changed — it stays in this list, a history
+  backfill replaces it on a day the provider publishes, and the boot log
+  names each such row (security review 2026-10-12, K06).
 - `POST /api/v1/exchange_rates/sync` fetches rates from the configured
   provider (ECB by default) and returns `{provider, status, upserted, scope}`.
   `scope=latest` (the default) fetches the **daily** feed — today's rates,
