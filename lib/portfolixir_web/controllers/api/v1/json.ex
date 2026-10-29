@@ -2222,9 +2222,18 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       institution: order.institution,
       tax_year: order.tax_year,
       amount_granted: decimal(order.amount_granted),
-      note: order.note
+      note: order.note,
+      author: tax_author(order.author),
+      corrected_by: tax_author(order.corrected_by)
     }
   end
+
+  # K12 (T-16): who recorded a tax row and who corrected it last, "operator"
+  # (the Tax page) or "agent" (an API or MCP token); null for a row stored
+  # before authors existed that the journal could not trace, and for
+  # `corrected_by` until a correction.
+  defp tax_author(nil), do: nil
+  defp tax_author(author) when is_atom(author), do: Atom.to_string(author)
 
   @doc """
   A recorded tax statement plus the two derived figures and the advisory
@@ -2250,6 +2259,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       tax_year: snapshot.tax_year,
       as_of: date(snapshot.as_of),
       source: snapshot.source,
+      author: tax_author(snapshot.author),
+      corrected_by: tax_author(snapshot.corrected_by),
       church_tax_rate: decimal(snapshot.church_tax_rate),
       note: snapshot.note,
       allowance_remaining: decimal(TaxBudget.allowance_remaining(snapshot)),
@@ -2301,7 +2312,8 @@ defmodule PortfolixirWeb.Api.V1.JSON do
 
   @doc """
   The per-holder roll-up (ADR-0031 §5). Always states which institutions it
-  covers and whether it is complete: a configured allowance order with no
+  covers, which of them rest on a statement the agent recorded or corrected
+  last (`agent_institutions`, K12), and whether it is complete: a configured allowance order with no
   snapshot for the year makes the sum a partial picture, and it says so rather
   than presenting a confident total.
   """
@@ -2310,6 +2322,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       holder: summary.holder,
       tax_year: summary.tax_year,
       institutions: summary.institutions,
+      agent_institutions: summary.agent_institutions,
       as_of: date(summary.as_of),
       loss_pot_equities: decimal(summary.loss_pot_equities),
       loss_pot_other: decimal(summary.loss_pot_other),

@@ -24,6 +24,12 @@ defmodule Portfolixir.Tax.StatementSnapshot do
   prefilled by the context from the holder's profile in force at `as_of` and
   then frozen here, so a later profile edit changes future prefills and never
   what an already-recorded statement reconstructs to.
+
+  **Who recorded and who corrected it** (security review 2026-10-12, K12,
+  T-16): `author` is set from the actor of the create and `corrected_by`
+  from the actor of every update, each `operator` or `agent`
+  (`Portfolixir.Actor.author/1`), never cast from input; `source` stays the
+  system's (F20) and says how the figures arrived, not who wrote them.
   """
 
   use Ecto.Schema
@@ -67,6 +73,12 @@ defmodule Portfolixir.Tax.StatementSnapshot do
     field(:source, :string, default: "manual")
     field(:church_tax_rate, :decimal, default: Decimal.new(0))
     field(:note, :string)
+    # K12 (T-16): set by the context from the write's actor (`put_author/2`,
+    # `put_corrected_by/2`), never cast; `nil` on a row stored before authors
+    # existed that the backfill could not trace, and `corrected_by` until the
+    # first correction.
+    field(:author, Ecto.Enum, values: [:operator, :agent])
+    field(:corrected_by, Ecto.Enum, values: [:operator, :agent])
 
     field(:taxable_income, :decimal, default: Decimal.new(0))
     field(:allowance_granted, :decimal, default: Decimal.new(0))
@@ -86,6 +98,41 @@ defmodule Portfolixir.Tax.StatementSnapshot do
   @doc "The recorded money columns, in statement order."
   @spec money_fields() :: [atom()]
   def money_fields, do: @money_fields
+
+  @doc """
+  Sets the author of a new statement's changeset from the actor of the write
+  (K12, T-16); the input never carries it.
+  """
+  @spec put_author(Ecto.Changeset.t(), Portfolixir.Actor.t()) :: Ecto.Changeset.t()
+  def put_author(changeset, actor) do
+    changeset
+    |> put_change(:author, Portfolixir.Actor.author(actor))
+    |> check_constraint(:author, name: :tax_statement_snapshots_author_check)
+  end
+
+  @doc """
+  Sets who corrected a stored statement last from the actor of the update
+  (K12, T-16); the input never carries it. An update that changes nothing
+  corrects nothing and keeps it.
+  """
+  @spec put_corrected_by(Ecto.Changeset.t(), Portfolixir.Actor.t()) :: Ecto.Changeset.t()
+  def put_corrected_by(%Ecto.Changeset{changes: changes} = changeset, _actor)
+      when changes == %{},
+      do: changeset
+
+  def put_corrected_by(changeset, actor) do
+    changeset
+    |> put_change(:corrected_by, Portfolixir.Actor.author(actor))
+    |> check_constraint(:corrected_by, name: :tax_statement_snapshots_corrected_by_check)
+  end
+
+  @doc """
+  Whether the agent recorded the statement or corrected it last (K12): what
+  the Tax page and the trim budget's basis line mark.
+  """
+  @spec agent_written?(t()) :: boolean()
+  def agent_written?(%__MODULE__{author: author, corrected_by: corrected_by}),
+    do: author == :agent or corrected_by == :agent
 
   @doc """
   Builds a snapshot changeset. `today` is injected by the context shell (the

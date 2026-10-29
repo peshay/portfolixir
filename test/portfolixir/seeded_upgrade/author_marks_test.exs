@@ -15,8 +15,10 @@ defmodule Portfolixir.SeededUpgrade.AuthorMarksTest do
 
   @moduletag :seeded_upgrade
 
-  # The migration before the name-author column.
+  # The migration before the name-author column, and the one before the tax
+  # authors.
   @before_name_author 20_261_006_120_000
+  @before_tax_authors 20_261_029_121_200
 
   # User story (security review 2026-10-12, H14):
   # As the operator upgrading an instance whose agent already renamed my
@@ -68,6 +70,94 @@ defmodule Portfolixir.SeededUpgrade.AuthorMarksTest do
              [Integer.to_string(rules.renamed_by_agent)],
              [Integer.to_string(rules.created_by_agent)]
            ]
+  end
+
+  # User story (security review 2026-10-12, K12):
+  # As the operator upgrading an instance whose agent already recorded and
+  # corrected tax statements and put allowance orders,
+  # I want the upgrade to give every stored row the authors its journal
+  # names,
+  # so that the release boots and the agent's figures are marked from the
+  # first day.
+  #
+  # Acceptance criteria:
+  # - Seeded with a statement a token recorded, one the operator recorded
+  #   and a token corrected before a system job normalised it, an order a
+  #   token put and a statement with no journal entry, the database
+  #   migrates to head.
+  # - Each row reads the author of its creation and the corrector of its
+  #   last update no system job wrote; the untraced row keeps none, and the
+  #   log counts it.
+  # - Each backfilled row is journaled under the backfill's system job.
+  @tag seeded_upgrade: 20_261_029_121_300
+  test "the tax author backfill does not stop the upgrade over recorded statements",
+       %{seeded_upgrade: migration} do
+    upgrade = SeededUpgrade.upgrade!(from: @before_tax_authors, seed: &seed_tax_rows/1)
+    rows = upgrade.seeded
+
+    assert migration in upgrade.migrated
+    assert List.last(upgrade.migrated) == SeededUpgrade.head()
+
+    assert %{rows: statements} =
+             SeededUpgrade.query!(
+               upgrade,
+               "SELECT id, author, corrected_by FROM tax_statement_snapshots ORDER BY id"
+             )
+
+    assert statements == [
+             [rows.by_agent, "agent", nil],
+             [rows.corrected, "operator", "agent"],
+             [rows.untraced, nil, nil]
+           ]
+
+    assert %{rows: [[_id, "agent", nil]]} =
+             SeededUpgrade.query!(
+               upgrade,
+               "SELECT id, author, corrected_by FROM allowance_orders"
+             )
+
+    assert upgrade.log =~ "1 statement(s) or allowance order(s) have no journaled creation"
+
+    assert %{rows: [[3]]} =
+             SeededUpgrade.query!(
+               upgrade,
+               """
+               SELECT count(*)::integer FROM audit_journal
+                WHERE operation = 'update' AND actor_type = 'system_job'
+                  AND actor_label = 'tax_author_backfill'
+               """
+             )
+  end
+
+  defp seed_tax_rows(db) do
+    by_agent = insert_statement!(db, "Bank A")
+    journal!(db, "tax_statement_snapshot", by_agent, "create", "api_token_rw")
+
+    corrected = insert_statement!(db, "Bank B")
+    journal!(db, "tax_statement_snapshot", corrected, "create", "owner_ui")
+    journal!(db, "tax_statement_snapshot", corrected, "update", "api_token_rw")
+    journal!(db, "tax_statement_snapshot", corrected, "update", "system_job")
+
+    untraced = insert_statement!(db, "Bank C")
+
+    order =
+      insert!(
+        db,
+        "INSERT INTO allowance_orders #{row(~w(holder institution tax_year amount_granted))}",
+        ["Owner", "Bank A", 2025, Decimal.new("400")]
+      )
+
+    journal!(db, "allowance_order", order, "create", "api_token_rw")
+
+    %{by_agent: by_agent, corrected: corrected, untraced: untraced}
+  end
+
+  defp insert_statement!(db, institution) do
+    insert!(
+      db,
+      "INSERT INTO tax_statement_snapshots #{row(~w(institution holder tax_year as_of))}",
+      [institution, "Owner", 2025, ~D[2025-12-31]]
+    )
   end
 
   defp seed_named_rules(db) do

@@ -37,6 +37,7 @@ defmodule PortfolixirWeb.TaxLive do
   alias Portfolixir.Actor
   alias Portfolixir.Clock
   alias Portfolixir.Tax
+  alias Portfolixir.Tax.AllowanceOrder
   alias Portfolixir.Tax.Budget
   alias Portfolixir.Tax.StatementSnapshot
   alias PortfolixirWeb.AppShell
@@ -530,10 +531,73 @@ defmodule PortfolixirWeb.TaxLive do
   defp value_of(row, field),
     do: row |> Map.fetch!(field) |> Decimal.normalize() |> DecimalInput.value()
 
-  defp orders_summary([]), do: gettext("none configured")
+  attr(:orders, :list, required: true)
 
-  defp orders_summary(orders) do
-    Enum.map_join(orders, " · ", &"#{&1.institution} #{Format.money(&1.amount_granted)}")
+  # The closed disclosure's one-line list; an order the agent put or replaced
+  # last takes the basis line's "(Agent)" after its amount (K12, board 03).
+  defp orders_summary(%{orders: []} = assigns) do
+    ~H"""
+    <%= gettext("none configured") %>
+    """
+  end
+
+  defp orders_summary(assigns) do
+    ~H"""
+    <%= for {order, index} <- Enum.with_index(@orders) do %><%= if index > 0 do %> · <% end %><%= order.institution %> <%= Format.money(order.amount_granted) %><.paren_agent_mark :if={AllowanceOrder.agent_written?(order)} lead={gettext("Allowance order by:")} /><% end %>
+    """
+  end
+
+  attr(:row, :map, required: true)
+
+  # The statement head's last words (K12, T-16; board 03): the source, and
+  # the agent's mark where the agent recorded the statement or corrected it
+  # last. A statement the agent recorded no longer reads "recorded manually":
+  # the source stays the system's (F20), but a token's write is no manual
+  # transcription. The operator's own writes carry no word.
+  defp statement_source(%{row: %{author: :agent, source: "manual"}} = assigns) do
+    ~H"""
+    <%= gettext("recorded") %><.agent_mark lead={gettext("Recorded by:")} />
+    """
+  end
+
+  defp statement_source(%{row: %{author: :agent}} = assigns) do
+    ~H"""
+    <%= source_label(@row.source) %><.agent_mark lead={gettext("Recorded by:")} />
+    """
+  end
+
+  defp statement_source(%{row: %{corrected_by: :agent}} = assigns) do
+    ~H"""
+    <%= source_label(@row.source) %> · <%= gettext("corrected") %><.agent_mark lead={gettext("Last corrected by:")} />
+    """
+  end
+
+  defp statement_source(assigns) do
+    ~H"""
+    <%= source_label(@row.source) %>
+    """
+  end
+
+  attr(:lead, :string, required: true, doc: "the hidden words before the mark, for a reader")
+
+  # Rule versions' author mark (DESIGN.md, amendment 2026-09-26, pick
+  # G12.1-A), reused for tax rows (K12): "Agent" after a middle dot, in the
+  # line's muted text, a hidden lead before it, no badge and no colour.
+  defp agent_mark(assigns) do
+    ~H"""
+    <span data-role="tax-author"> · <span class="visually-hidden"><%= @lead %> </span><%= gettext("Agent") %></span>
+    """
+  end
+
+  attr(:lead, :string, required: true, doc: "the hidden words before the mark, for a reader")
+
+  # The same mark in a comma list (Q3 = A, board 03): "(Agent)" right after
+  # the institution it covers, joined to it by a no-break space, so it never
+  # starts a line alone and never reads as a mark on the whole line.
+  defp paren_agent_mark(assigns) do
+    ~H"""
+    <span data-role="tax-author">&nbsp;(<span class="visually-hidden"><%= @lead %> </span><%= gettext("Agent") %>)</span>
+    """
   end
 
   @impl true
@@ -599,7 +663,7 @@ defmodule PortfolixirWeb.TaxLive do
                   ) %>
                   · <%= gettext("as of %{date}", date: Format.date(@summary.as_of)) %>
                   <span :if={@summary.institutions != []}>
-                    · <%= Enum.join(@summary.institutions, ", ") %>
+                    · <%= for {institution, index} <- Enum.with_index(@summary.institutions) do %><%= if index > 0 do %>, <% end %><%= institution %><.paren_agent_mark :if={institution in @summary.agent_institutions} lead={gettext("Statement by:")} /><% end %>
                   </span>
                 <% else %>
                   <%= gettext("No statement recorded for this year.") %>
@@ -826,7 +890,7 @@ defmodule PortfolixirWeb.TaxLive do
                 <span class="hint">
                   <%= Format.date(entry.row.as_of) %>
                   · <%= gettext("Tax year %{year}", year: entry.row.tax_year) %>
-                  · <%= source_label(entry.row.source) %>
+                  · <.statement_source row={entry.row} />
                 </span>
                 <AppShell.row_kebab
                   id={"tax-row-kebab-statement-#{entry.row.id}"}
@@ -916,7 +980,7 @@ defmodule PortfolixirWeb.TaxLive do
           <details class="tax-orders-disclosure" data-role="orders">
             <summary class="disclosure-summary">
               <AppShell.icon name={:chevron_right} size={12} class="disclosure-chevron" />
-              <%= gettext("Configured allowance orders") %> · <%= orders_summary(@orders) %>
+              <%= gettext("Configured allowance orders") %> · <.orders_summary orders={@orders} />
             </summary>
             <p class="summary-basis">
               <%= gettext(
@@ -925,7 +989,7 @@ defmodule PortfolixirWeb.TaxLive do
             </p>
             <ul :if={@orders != []} class="tax-orders" role="list">
               <li :for={order <- @orders} id={"tax-order-#{order.id}"}>
-                <span><%= order.institution %></span>
+                <span><%= order.institution %><.agent_mark :if={AllowanceOrder.agent_written?(order)} lead={gettext("Allowance order by:")} /></span>
                 <span class="num"><%= Format.money(order.amount_granted) %></span>
                 <AppShell.row_kebab
                   id={"tax-row-kebab-order-#{order.id}"}

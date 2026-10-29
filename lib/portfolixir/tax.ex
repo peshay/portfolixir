@@ -278,7 +278,7 @@ defmodule Portfolixir.Tax do
 
   defp insert_allowance_order(actor, changeset) do
     Multi.new()
-    |> Multi.insert(:order, changeset)
+    |> Multi.insert(:order, AllowanceOrder.put_author(changeset, actor))
     |> Journal.record(actor,
       resource_type: "allowance_order",
       operation: :create,
@@ -290,7 +290,12 @@ defmodule Portfolixir.Tax do
 
   defp update_allowance_order(actor, existing, attrs) do
     Multi.new()
-    |> Multi.update(:order, &AllowanceOrder.changeset(Journal.locked_row(&1), attrs))
+    |> Multi.update(:order, fn changes ->
+      changes
+      |> Journal.locked_row()
+      |> AllowanceOrder.changeset(attrs)
+      |> AllowanceOrder.put_corrected_by(actor)
+    end)
     |> Journal.record(actor,
       resource_type: "allowance_order",
       operation: :update,
@@ -406,7 +411,8 @@ defmodule Portfolixir.Tax do
   end
 
   @doc """
-  Records a statement snapshot on behalf of `actor`.
+  Records a statement snapshot on behalf of `actor`, whose author it stores
+  (K12, T-16).
 
   `opts[:today]` injects the clock (AR-2) and defaults to `Portfolixir.Clock.today/0`;
   an `as_of` after it is rejected. When the caller supplies no
@@ -420,7 +426,10 @@ defmodule Portfolixir.Tax do
     today = Keyword.get(opts, :today, Clock.today())
 
     Multi.new()
-    |> Multi.insert(:snapshot, snapshot_changeset(attrs, today))
+    |> Multi.insert(
+      :snapshot,
+      attrs |> snapshot_changeset(today) |> StatementSnapshot.put_author(actor)
+    )
     |> Journal.record(actor,
       resource_type: "tax_statement_snapshot",
       operation: :create,
@@ -432,7 +441,8 @@ defmodule Portfolixir.Tax do
 
   @doc """
   Updates a recorded snapshot on behalf of `actor` — a corrected re-issue for
-  the same statement date. The frozen `church_tax_rate` is not re-resolved.
+  the same statement date. The frozen `church_tax_rate` is not re-resolved;
+  `corrected_by` becomes the author `actor` derives (K12, T-16).
   """
   @spec update_snapshot(Actor.t(), StatementSnapshot.t(), map(), keyword()) ::
           {:ok, StatementSnapshot.t()} | {:error, Ecto.Changeset.t() | :not_found}
@@ -441,10 +451,12 @@ defmodule Portfolixir.Tax do
     today = Keyword.get(opts, :today, Clock.today())
 
     Multi.new()
-    |> Multi.update(
-      :snapshot,
-      &StatementSnapshot.changeset(Journal.locked_row(&1), attrs, today)
-    )
+    |> Multi.update(:snapshot, fn changes ->
+      changes
+      |> Journal.locked_row()
+      |> StatementSnapshot.changeset(attrs, today)
+      |> StatementSnapshot.put_corrected_by(actor)
+    end)
     |> Journal.record(actor,
       resource_type: "tax_statement_snapshot",
       operation: :update,

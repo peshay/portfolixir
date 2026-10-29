@@ -575,7 +575,7 @@ msgstr "Noch keine Wertpapiere — auf + klicken, um eines anzulegen."
 #: lib/portfolixir_web/live/securities_live.ex:1768
 #: lib/portfolixir_web/live/securities_live.ex:1791
 #: lib/portfolixir_web/live/securities_live.ex:1794
-#: lib/portfolixir_web/live/tax_live.ex:785
+#: lib/portfolixir_web/live/tax_live.ex:849
 #, elixir-autogen, elixir-format
 msgid "Note"
 msgstr "Notiz"
@@ -1025,7 +1025,7 @@ msgstr "Kurse"
 #: lib/portfolixir_web/live/securities_live.ex:1255
 #: lib/portfolixir_web/live/securities_live.ex:1809
 #: lib/portfolixir_web/live/securities_live.ex:2751
-#: lib/portfolixir_web/live/tax_live.ex:794
+#: lib/portfolixir_web/live/tax_live.ex:858
 #: lib/portfolixir_web/live/transaction_management_live.ex:2019
 #: lib/portfolixir_web/live/transaction_management_live.ex:2502
 #: lib/portfolixir_web/live/transactions/booking_delete_dialog.ex:240
@@ -1067,8 +1067,8 @@ msgstr "Status konnte nicht geändert werden."
 #: lib/portfolixir_web/live/portfolio_accounts_live.ex:647
 #: lib/portfolixir_web/live/securities/row_context_menu.ex:189
 #: lib/portfolixir_web/live/snapshots_live.ex:684
-#: lib/portfolixir_web/live/tax_live.ex:980
-#: lib/portfolixir_web/live/tax_live.ex:1004
+#: lib/portfolixir_web/live/tax_live.ex:1044
+#: lib/portfolixir_web/live/tax_live.ex:1068
 #, elixir-autogen, elixir-format
 msgid "Delete"
 msgstr "Löschen"
@@ -1708,7 +1708,7 @@ msgstr "Gebühren"
 
 #: lib/portfolixir_web/components/app_shell.ex:261
 #: lib/portfolixir_web/live/income_live.ex:1181
-#: lib/portfolixir_web/live/tax_live.ex:544
+#: lib/portfolixir_web/live/tax_live.ex:608
 #: lib/portfolixir_web/transaction_kind_label.ex:24
 #, elixir-autogen, elixir-format
 msgid "Tax"
@@ -4352,145 +4352,145 @@ msgstr "Für Anbieter, die Kurse vor einem Split nie nachträglich anpassen — 
 msgid "The stored closes around the effective date contradict their price-basis classification. Nothing is adjusted silently — review the quotes below; if they are raw (as traded), force it via the security's \"Treat synced quotes as raw\" setting."
 msgstr "Die gespeicherten Schlusskurse rund um den Stichtag widersprechen ihrer Kursbasis-Einstufung. Nichts wird stillschweigend angepasst — die Kurse unten prüfen; sind sie roh (wie gehandelt), die Roh-Basis über die Wertpapier-Einstellung \"Synchronisierte Kurse als roh behandeln\" erzwingen."
 
-#: lib/portfolixir_web/live/tax_live.ex:469
+#: lib/portfolixir_web/live/tax_live.ex:470
 #, elixir-autogen, elixir-format
 msgid "%{field} %{recorded} is below the %{expected} an earlier statement of this year already reported. Year-to-date figures do not fall — check whether this is the right statement."
 msgstr "%{field} %{recorded} liegt unter den %{expected}, die eine frühere Abrechnung dieses Jahres bereits ausweist. Jahreswerte sinken nicht — prüfen, ob es die richtige Abrechnung ist."
 
-#: lib/portfolixir_web/live/tax_live.ex:639
+#: lib/portfolixir_web/live/tax_live.ex:703
 #, elixir-autogen, elixir-format
 msgid "About this figure"
 msgstr "Zu dieser Zahl"
 
-#: lib/portfolixir_web/live/tax_live.ex:428
+#: lib/portfolixir_web/live/tax_live.ex:429
 #, elixir-autogen, elixir-format
 msgid "Allowance granted"
 msgstr "Freistellungsauftrag erteilt"
 
-#: lib/portfolixir_web/live/tax_live.ex:476
+#: lib/portfolixir_web/live/tax_live.ex:477
 #, elixir-autogen, elixir-format
 msgid "Allowance granted %{recorded} against %{expected} configured for this institution. Either the instruction never landed at the bank, or the configured order is stale."
 msgstr "Freistellungsauftrag erteilt %{recorded} gegen %{expected} hinterlegt für dieses Institut. Entweder ist der Auftrag bei der Bank nie angekommen, oder die Hinterlegung ist veraltet."
 
-#: lib/portfolixir_web/live/tax_live.ex:429
+#: lib/portfolixir_web/live/tax_live.ex:430
 #, elixir-autogen, elixir-format
 msgid "Allowance used"
 msgstr "Freistellungsauftrag verbraucht"
 
-#: lib/portfolixir_web/live/tax_live.ex:521
-#: lib/portfolixir_web/live/tax_live.ex:811
+#: lib/portfolixir_web/live/tax_live.ex:522
+#: lib/portfolixir_web/live/tax_live.ex:875
 #, elixir-autogen, elixir-format
 msgid "Amount granted"
 msgstr "Betrag"
 
-#: lib/portfolixir_web/live/tax_live.ex:435
+#: lib/portfolixir_web/live/tax_live.ex:436
 #, elixir-autogen, elixir-format
 msgid "Capital-gains tax withheld"
 msgstr "Abgeführte Kapitalertragsteuer"
 
-#: lib/portfolixir_web/live/tax_live.ex:462
+#: lib/portfolixir_web/live/tax_live.ex:463
 #, elixir-autogen, elixir-format
 msgid "Church tax %{recorded} against %{expected} expected — gap %{gap}. Re-check the figure, or the church-tax rate of the profile in force."
 msgstr "Kirchensteuer %{recorded} gegen erwartete %{expected} — Abweichung %{gap}. Zahl prüfen, oder den Kirchensteuersatz des geltenden Profils."
 
-#: lib/portfolixir_web/live/tax_live.ex:437
+#: lib/portfolixir_web/live/tax_live.ex:438
 #, elixir-autogen, elixir-format
 msgid "Church tax withheld"
 msgstr "Abgeführte Kirchensteuer"
 
-#: lib/portfolixir_web/live/tax_live.ex:483
+#: lib/portfolixir_web/live/tax_live.ex:484
 #, elixir-autogen, elixir-format
 msgid "Configured allowance orders total %{recorded} against the %{expected} ceiling for this year — %{gap} above. Redistribute the orders with the banks."
 msgstr "Hinterlegte Freistellungsaufträge summieren sich auf %{recorded} gegen den Höchstbetrag %{expected} dieses Jahres — %{gap} darüber. Aufträge mit den Banken neu verteilen."
 
-#: lib/portfolixir_web/live/tax_live.ex:969
+#: lib/portfolixir_web/live/tax_live.ex:1033
 #, elixir-autogen, elixir-format
 msgid "Correct"
 msgstr "Korrigieren"
 
-#: lib/portfolixir_web/live/tax_live.ex:683
+#: lib/portfolixir_web/live/tax_live.ex:747
 #, elixir-autogen, elixir-format
 msgid "Correct statement"
 msgstr "Abrechnung korrigieren"
 
-#: lib/portfolixir_web/live/tax_live.ex:977
+#: lib/portfolixir_web/live/tax_live.ex:1041
 #, elixir-autogen, elixir-format
 msgid "Delete this recorded statement?"
 msgstr "Diese erfasste Abrechnung löschen?"
 
-#: lib/portfolixir_web/live/tax_live.ex:434
+#: lib/portfolixir_web/live/tax_live.ex:435
 #, elixir-autogen, elixir-format
 msgid "Foreign withholding credited"
 msgstr "Angerechnete ausländische Quellensteuer"
 
-#: lib/portfolixir_web/live/tax_live.ex:433
+#: lib/portfolixir_web/live/tax_live.ex:434
 #, elixir-autogen, elixir-format
 msgid "Foreign withholding pot"
 msgstr "Quellensteuertopf"
 
-#: lib/portfolixir_web/live/tax_live.ex:627
+#: lib/portfolixir_web/live/tax_live.ex:691
 #, elixir-autogen, elixir-format
 msgid "Incomplete: no statement recorded for %{institutions}. The total covers the listed institutions only."
 msgstr "Unvollständig: für %{institutions} ist keine Abrechnung erfasst. Die Summe umfasst nur die genannten Institute."
 
-#: lib/portfolixir_web/live/tax_live.ex:730
-#: lib/portfolixir_web/live/tax_live.ex:807
+#: lib/portfolixir_web/live/tax_live.ex:794
+#: lib/portfolixir_web/live/tax_live.ex:871
 #, elixir-autogen, elixir-format
 msgid "Institution"
 msgstr "Institut"
 
-#: lib/portfolixir_web/live/tax_live.ex:432
+#: lib/portfolixir_web/live/tax_live.ex:433
 #, elixir-autogen, elixir-format
 msgid "Loss carry-forward"
 msgstr "Verlustvortrag"
 
-#: lib/portfolixir_web/live/tax_live.ex:430
-#: lib/portfolixir_web/live/tax_live.ex:649
+#: lib/portfolixir_web/live/tax_live.ex:431
+#: lib/portfolixir_web/live/tax_live.ex:713
 #, elixir-autogen, elixir-format
 msgid "Loss pot, equities"
 msgstr "Verlustverrechnungstopf Aktien"
 
-#: lib/portfolixir_web/live/tax_live.ex:431
+#: lib/portfolixir_web/live/tax_live.ex:432
 #, elixir-autogen, elixir-format
 msgid "Loss pot, other"
 msgstr "Verlustverrechnungstopf Sonstige"
 
-#: lib/portfolixir_web/live/tax_live.ex:819
+#: lib/portfolixir_web/live/tax_live.ex:883
 #, elixir-autogen, elixir-format
 msgid "No statement recorded for this taxpayer and year."
 msgstr "Für diese Person und dieses Jahr ist keine Abrechnung erfasst."
 
-#: lib/portfolixir_web/live/tax_live.ex:605
+#: lib/portfolixir_web/live/tax_live.ex:669
 #, elixir-autogen, elixir-format
 msgid "No statement recorded for this year."
 msgstr "Für dieses Jahr ist keine Abrechnung erfasst."
 
-#: lib/portfolixir_web/live/tax_live.ex:400
+#: lib/portfolixir_web/live/tax_live.ex:401
 #, elixir-autogen, elixir-format
 msgid "Owner"
 msgstr "Inhaber"
 
-#: lib/portfolixir_web/live/tax_live.ex:683
+#: lib/portfolixir_web/live/tax_live.ex:747
 #, elixir-autogen, elixir-format
 msgid "Record a statement"
 msgstr "Abrechnung erfassen"
 
-#: lib/portfolixir_web/live/tax_live.ex:814
+#: lib/portfolixir_web/live/tax_live.ex:878
 #, elixir-autogen, elixir-format
 msgid "Record order"
 msgstr "Auftrag hinterlegen"
 
-#: lib/portfolixir_web/live/tax_live.ex:791
+#: lib/portfolixir_web/live/tax_live.ex:855
 #, elixir-autogen, elixir-format
 msgid "Record statement"
 msgstr "Abrechnung erfassen"
 
-#: lib/portfolixir_web/live/tax_live.ex:133
+#: lib/portfolixir_web/live/tax_live.ex:134
 #, elixir-autogen, elixir-format
 msgid "This statement no longer exists: it was deleted after the form opened, so the correction was not saved. Record it again if it should stay."
 msgstr "Diese Abrechnung gibt es nicht mehr: Sie wurde nach dem Öffnen gelöscht, die Korrektur wurde daher nicht gespeichert. Soll sie bleiben, erneut erfassen."
 
-#: lib/portfolixir_web/live/tax_live.ex:197
+#: lib/portfolixir_web/live/tax_live.ex:198
 #, elixir-autogen, elixir-format
 msgid "This allowance order no longer exists: it was deleted while the new one was recorded, so nothing was saved. Record it again."
 msgstr "Diesen Freistellungsauftrag gibt es nicht mehr: Er wurde während des Hinterlegens gelöscht, es wurde nichts gespeichert. Bitte erneut hinterlegen."
@@ -4500,77 +4500,77 @@ msgstr "Diesen Freistellungsauftrag gibt es nicht mehr: Er wurde während des Hi
 msgid "This security no longer exists: it was deleted after the dialog opened, so nothing was saved."
 msgstr "Dieses Wertpapier gibt es nicht mehr: Es wurde nach dem Öffnen gelöscht, es wurde nichts gespeichert."
 
-#: lib/portfolixir_web/live/tax_live.ex:545
+#: lib/portfolixir_web/live/tax_live.ex:609
 #, elixir-autogen, elixir-format
 msgid "Recorded broker tax statements"
 msgstr "Erfasste Steuerabrechnungen der Bank"
 
-#: lib/portfolixir_web/live/tax_live.ex:671
+#: lib/portfolixir_web/live/tax_live.ex:735
 #, elixir-autogen, elixir-format
 msgid "Recorded statements"
 msgstr "Erfasste Abrechnungen"
 
-#: lib/portfolixir_web/live/tax_live.ex:791
+#: lib/portfolixir_web/live/tax_live.ex:855
 #, elixir-autogen, elixir-format
 msgid "Save correction"
 msgstr "Korrektur speichern"
 
-#: lib/portfolixir_web/live/tax_live.ex:455
+#: lib/portfolixir_web/live/tax_live.ex:456
 #, elixir-autogen, elixir-format
 msgid "Solidarity surcharge %{recorded} against %{expected} expected — gap %{gap}. Re-check the figure against the statement."
 msgstr "Solidaritätszuschlag %{recorded} gegen erwartete %{expected} — Abweichung %{gap}. Zahl gegen die Abrechnung prüfen."
 
-#: lib/portfolixir_web/live/tax_live.ex:436
+#: lib/portfolixir_web/live/tax_live.ex:437
 #, elixir-autogen, elixir-format
 msgid "Solidarity surcharge withheld"
 msgstr "Abgeführter Solidaritätszuschlag"
 
-#: lib/portfolixir_web/live/tax_live.ex:741
+#: lib/portfolixir_web/live/tax_live.ex:805
 #, elixir-autogen, elixir-format
 msgid "Statement date"
 msgstr "Stichtag der Abrechnung"
 
-#: lib/portfolixir_web/live/tax_live.ex:566
-#: lib/portfolixir_web/live/tax_live.ex:719
+#: lib/portfolixir_web/live/tax_live.ex:630
+#: lib/portfolixir_web/live/tax_live.ex:783
 #, elixir-autogen, elixir-format
 msgid "Tax year"
 msgstr "Steuerjahr"
 
-#: lib/portfolixir_web/live/tax_live.ex:552
-#: lib/portfolixir_web/live/tax_live.ex:586
+#: lib/portfolixir_web/live/tax_live.ex:616
+#: lib/portfolixir_web/live/tax_live.ex:650
 #, elixir-autogen, elixir-format
 msgid "Tax-free trim budget"
 msgstr "Steuerfreier Verkaufsspielraum"
 
-#: lib/portfolixir_web/live/tax_live.ex:879
+#: lib/portfolixir_web/live/tax_live.ex:943
 #, elixir-autogen, elixir-format
 msgid "Tax-free trim budget at this institution: %{value}."
 msgstr "Steuerfreier Verkaufsspielraum bei diesem Institut: %{value}."
 
-#: lib/portfolixir_web/live/tax_live.ex:427
+#: lib/portfolixir_web/live/tax_live.ex:428
 #, elixir-autogen, elixir-format
 msgid "Taxable investment income"
 msgstr "Steuerpflichtige Kapitalerträge"
 
-#: lib/portfolixir_web/live/tax_live.ex:556
-#: lib/portfolixir_web/live/tax_live.ex:706
+#: lib/portfolixir_web/live/tax_live.ex:620
+#: lib/portfolixir_web/live/tax_live.ex:770
 #, elixir-autogen, elixir-format
 msgid "Taxpayer"
 msgstr "Steuerpflichtige Person"
 
-#: lib/portfolixir_web/live/tax_live.ex:922
+#: lib/portfolixir_web/live/tax_live.ex:986
 #, elixir-autogen, elixir-format
 msgid "What was instructed per institution, for comparison against what the bank applied."
 msgstr "Was je Institut beauftragt wurde — zum Vergleich mit dem, was die Bank angewendet hat."
 
-#: lib/portfolixir_web/live/tax_live.ex:448
+#: lib/portfolixir_web/live/tax_live.ex:449
 #, elixir-autogen, elixir-format
 msgid "Withheld capital-gains tax %{recorded} against %{expected} reconstructed from the statement — gap %{gap}. Re-check the figure against the statement."
 msgstr "Abgeführte Kapitalertragsteuer %{recorded} gegen %{expected} aus der Abrechnung rekonstruiert — Abweichung %{gap}. Zahl gegen die Abrechnung prüfen."
 
 #: lib/portfolixir_web/live/portfolio_live.ex:1849
 #: lib/portfolixir_web/live/portfolio_live.ex:5023
-#: lib/portfolixir_web/live/tax_live.ex:600
+#: lib/portfolixir_web/live/tax_live.ex:664
 #, elixir-autogen, elixir-format
 msgid "as of %{date}"
 msgstr "Stand %{date}"
@@ -4585,7 +4585,7 @@ msgstr "Prüfung auf verwaiste Konfiguration übersprungen: diese Datei enthält
 msgid "file name: %{name}; stored name kept"
 msgstr "Name in der Datei: %{name}; gespeicherter Name bleibt"
 
-#: lib/portfolixir_web/live/tax_live.ex:641
+#: lib/portfolixir_web/live/tax_live.ex:705
 #, elixir-autogen, elixir-format
 msgid "These pots are transcribed from the broker statement, never computed from the ledger. Not for want of FIFO — lots are matched FIFO already, on the trade list — but that yields a gross gain, and a gross gain is not a tax pot. Teilfreistellung, Vorabpauschale, chronological allowance consumption and prior-year carry-forward are absent from transaction data, and the pots are kept per institution. The statement remains the authority. This is not tax advice."
 msgstr "Diese Töpfe werden aus der Abrechnung der Bank übernommen, nie aus dem Buchungsbestand berechnet. Nicht mangels FIFO — die Lots werden längst nach FIFO zugeordnet, siehe Trade-Liste — sondern weil daraus ein Rohgewinn entsteht, und ein Rohgewinn ist kein Steuertopf. Teilfreistellung, Vorabpauschale, die chronologische Verrechnung des Freistellungsauftrags und der Verlustvortrag fehlen in den Transaktionsdaten, und die Töpfe führt die Bank je Institut. Maßgeblich bleibt die Abrechnung. Dies ist keine Steuerberatung."
@@ -5085,14 +5085,14 @@ msgstr "Startwert (%{currency})"
 msgid "Start/end value, return and flows per period — the chart, summarised."
 msgstr "Start-/Endwert, Rendite und Flüsse je Zeitraum — der Chart, zusammengefasst."
 
-#: lib/portfolixir_web/live/tax_live.ex:385
+#: lib/portfolixir_web/live/tax_live.ex:386
 #, elixir-autogen, elixir-format
 msgid "Stale — %{count} tax-relevant booking since the statement date consumes pots or allowance."
 msgid_plural "Stale — %{count} tax-relevant bookings since the statement date consume pots or allowance."
 msgstr[0] "Veraltet — %{count} steuerrelevante Buchung seit dem Abrechnungsdatum verbraucht Verlusttöpfe oder Freistellungsauftrag."
 msgstr[1] "Veraltet — %{count} steuerrelevante Buchungen seit dem Abrechnungsdatum verbrauchen Verlusttöpfe oder Freistellungsauftrag."
 
-#: lib/portfolixir_web/live/tax_live.ex:394
+#: lib/portfolixir_web/live/tax_live.ex:395
 #, elixir-autogen, elixir-format
 msgid "Stale — the statement is %{days} days old."
 msgstr "Veraltet — die Abrechnung ist %{days} Tage alt."
@@ -5495,6 +5495,8 @@ msgstr "Noch keine Gebühren oder Steuern gebucht."
 #: lib/portfolixir_web/live/risk/policy_rule_dialog.ex:843
 #: lib/portfolixir_web/live/risk_live.ex:632
 #: lib/portfolixir_web/live/securities_live.ex:3090
+#: lib/portfolixir_web/live/tax_live.ex:588
+#: lib/portfolixir_web/live/tax_live.ex:599
 #, elixir-autogen, elixir-format
 msgid "Agent"
 msgstr "Agent"
@@ -5820,7 +5822,7 @@ msgstr "ungültige Position %{unit}"
 msgid "Continue"
 msgstr "Weiter"
 
-#: lib/portfolixir_web/live/tax_live.ex:1001
+#: lib/portfolixir_web/live/tax_live.ex:1065
 #, elixir-autogen, elixir-format
 msgid "Delete this allowance order?"
 msgstr "Diesen Freistellungsauftrag löschen?"
@@ -6152,127 +6154,128 @@ msgctxt "price freshness"
 msgid "stale"
 msgstr "veraltet"
 
-#: lib/portfolixir_web/live/tax_live.ex:763
+#: lib/portfolixir_web/live/tax_live.ex:827
 #, elixir-autogen, elixir-format
 msgid "A loss pot is the volume of loss available for offsetting."
 msgstr "Ein Verlusttopf ist das verrechenbare Verlustvolumen."
 
-#: lib/portfolixir_web/live/tax_live.ex:761
+#: lib/portfolixir_web/live/tax_live.ex:825
 #, elixir-autogen, elixir-format
 msgid "About loss pots"
 msgstr "Zu den Verlusttöpfen"
 
-#: lib/portfolixir_web/live/tax_live.ex:895
+#: lib/portfolixir_web/live/tax_live.ex:959
 #, elixir-autogen, elixir-format
 msgid "Adjust the allowance orders"
 msgstr "Freistellungsaufträge anpassen"
 
-#: lib/portfolixir_web/live/tax_live.ex:596
+#: lib/portfolixir_web/live/tax_live.ex:660
 #, elixir-autogen, elixir-format
 msgid "Allowance %{used} of %{granted} used"
 msgstr "Freistellungsauftrag %{used} von %{granted} verbraucht"
 
-#: lib/portfolixir_web/live/tax_live.ex:847
+#: lib/portfolixir_web/live/tax_live.ex:911
 #, elixir-autogen, elixir-format
 msgid "Allowance granted / used"
 msgstr "Freistellungsauftrag erteilt / verbraucht"
 
-#: lib/portfolixir_web/live/tax_live.ex:993
+#: lib/portfolixir_web/live/tax_live.ex:1057
 #, elixir-autogen, elixir-format
 msgid "Allowance order actions"
 msgstr "Aktionen zum Freistellungsauftrag"
 
-#: lib/portfolixir_web/live/tax_live.ex:768
+#: lib/portfolixir_web/live/tax_live.ex:832
 #, elixir-autogen, elixir-format
 msgid "Amounts without their sign; an empty field counts as zero."
 msgstr "Beträge ohne Vorzeichen; ein leeres Feld zählt als null."
 
-#: lib/portfolixir_web/live/tax_live.ex:904
+#: lib/portfolixir_web/live/tax_live.ex:968
 #, elixir-autogen, elixir-format
 msgid "Check against the statement"
 msgstr "Gegen die Abrechnung prüfen"
 
-#: lib/portfolixir_web/live/tax_live.ex:637
+#: lib/portfolixir_web/live/tax_live.ex:701
 #, elixir-autogen, elixir-format
 msgid "Composition"
 msgstr "Zusammensetzung"
 
-#: lib/portfolixir_web/live/tax_live.ex:919
+#: lib/portfolixir_web/live/tax_live.ex:983
 #, elixir-autogen, elixir-format
 msgid "Configured allowance orders"
 msgstr "Hinterlegte Freistellungsaufträge"
 
-#: lib/portfolixir_web/live/tax_live.ex:759
+#: lib/portfolixir_web/live/tax_live.ex:823
 #, elixir-autogen, elixir-format
 msgid "Figures on the statement"
 msgstr "Zahlen der Abrechnung"
 
-#: lib/portfolixir_web/live/tax_live.ex:861
+#: lib/portfolixir_web/live/tax_live.ex:925
 #, elixir-autogen, elixir-format
 msgid "Foreign withholding: pot / credited"
 msgstr "Ausländische Quellensteuer: Topf / angerechnet"
 
-#: lib/portfolixir_web/live/tax_live.ex:851
+#: lib/portfolixir_web/live/tax_live.ex:915
 #, elixir-autogen, elixir-format
 msgid "Loss pots: equities / other / carry-forward"
 msgstr "Verlusttöpfe: Aktien / Sonstige / Verlustvortrag"
 
-#: lib/portfolixir_web/live/tax_live.ex:619
+#: lib/portfolixir_web/live/tax_live.ex:683
 #, elixir-autogen, elixir-format
 msgid "Record a new statement"
 msgstr "Neue Abrechnung erfassen"
 
-#: lib/portfolixir_web/live/tax_live.ex:694
+#: lib/portfolixir_web/live/tax_live.ex:758
 #, elixir-autogen, elixir-format
 msgid "Record an allowance order"
 msgstr "Freistellungsauftrag hinterlegen"
 
-#: lib/portfolixir_web/live/tax_live.ex:653
+#: lib/portfolixir_web/live/tax_live.ex:717
 #, elixir-autogen, elixir-format
 msgid "Remaining allowance"
 msgstr "Verbleibender Freistellungsauftrag"
 
-#: lib/portfolixir_web/live/tax_live.ex:959
+#: lib/portfolixir_web/live/tax_live.ex:1023
 #, elixir-autogen, elixir-format
 msgid "Statement actions"
 msgstr "Aktionen zur Abrechnung"
 
-#: lib/portfolixir_web/live/tax_live.ex:661
+#: lib/portfolixir_web/live/tax_live.ex:725
 #, elixir-autogen, elixir-format
 msgid "Statutory ceiling %{year}"
 msgstr "Gesetzlicher Höchstbetrag %{year}"
 
-#: lib/portfolixir_web/live/tax_live.ex:828
+#: lib/portfolixir_web/live/tax_live.ex:892
 #, elixir-autogen, elixir-format
 msgid "Tax year %{year}"
 msgstr "Steuerjahr %{year}"
 
-#: lib/portfolixir_web/live/tax_live.ex:657
+#: lib/portfolixir_web/live/tax_live.ex:721
 #, elixir-autogen, elixir-format
 msgid "Trim budget"
 msgstr "Verkaufsspielraum"
 
-#: lib/portfolixir_web/live/tax_live.ex:867
+#: lib/portfolixir_web/live/tax_live.ex:931
 #, elixir-autogen, elixir-format
 msgid "Withheld: capital-gains tax / solidarity surcharge / church tax"
 msgstr "Abgeführt: Kapitalertragsteuer / Solidaritätszuschlag / Kirchensteuer"
 
-#: lib/portfolixir_web/live/tax_live.ex:533
+#: lib/portfolixir_web/live/tax_live.ex:540
 #, elixir-autogen, elixir-format
 msgid "none configured"
 msgstr "keine hinterlegt"
 
-#: lib/portfolixir_web/live/tax_live.ex:443
+#: lib/portfolixir_web/live/tax_live.ex:444
+#: lib/portfolixir_web/live/tax_live.ex:559
 #, elixir-autogen, elixir-format
 msgid "recorded"
 msgstr "erfasst"
 
-#: lib/portfolixir_web/live/tax_live.ex:441
+#: lib/portfolixir_web/live/tax_live.ex:442
 #, elixir-autogen, elixir-format
 msgid "recorded manually"
 msgstr "manuell erfasst"
 
-#: lib/portfolixir_web/live/tax_live.ex:442
+#: lib/portfolixir_web/live/tax_live.ex:443
 #, elixir-autogen, elixir-format
 msgid "from a PDF import"
 msgstr "aus einem PDF-Import"
@@ -12473,3 +12476,30 @@ msgstr "Eine Kursaktualisierung aller Wertpapiere läuft bereits; sie wurde nich
 #, elixir-autogen, elixir-format
 msgid "Named by:"
 msgstr "Name von:"
+
+#: lib/portfolixir_web/live/tax_live.ex:546
+#: lib/portfolixir_web/live/tax_live.ex:992
+#, elixir-autogen, elixir-format
+msgid "Allowance order by:"
+msgstr "Freistellungsauftrag von:"
+
+#: lib/portfolixir_web/live/tax_live.ex:571
+#, elixir-autogen, elixir-format
+msgid "Last corrected by:"
+msgstr "Zuletzt korrigiert von:"
+
+#: lib/portfolixir_web/live/tax_live.ex:559
+#: lib/portfolixir_web/live/tax_live.ex:565
+#, elixir-autogen, elixir-format
+msgid "Recorded by:"
+msgstr "Erfasst von:"
+
+#: lib/portfolixir_web/live/tax_live.ex:666
+#, elixir-autogen, elixir-format
+msgid "Statement by:"
+msgstr "Abrechnung von:"
+
+#: lib/portfolixir_web/live/tax_live.ex:571
+#, elixir-autogen, elixir-format
+msgid "corrected"
+msgstr "korrigiert"

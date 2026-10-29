@@ -64,6 +64,18 @@ defmodule Portfolixir.Actor do
   def system_job(label \\ nil), do: %__MODULE__{type: :system_job, label: label}
 
   @doc """
+  The author a write by `actor` is recorded under (E25 S7, G30, T-8; widened
+  to tax rows by the security review of 2026-10-12, K12, T-16): `:agent` for
+  an API or MCP token, read-write or read-only, named or not; `:operator` for
+  every other writer — the pages, an import session and the instance's own
+  jobs. The mark exists to tell the agent's writes from the operator's own,
+  so only a token's write is the agent's.
+  """
+  @spec author(t()) :: :operator | :agent
+  def author(%__MODULE__{type: type}) when type in [:api_token_rw, :api_token_ro], do: :agent
+  def author(%__MODULE__{}), do: :operator
+
+  @doc """
   Splits an actor into the `{actor_type, actor_label}` strings stored in the
   journal. `actor_type` is the atom rendered as a string code.
   """

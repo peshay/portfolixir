@@ -179,4 +179,180 @@ defmodule PortfolixirWeb.TaxStatementAuthorLiveTest do
     refute row_html(view, snapshot.id) =~ ~r/\bAgent\b/
     assert row_head(view, snapshot.id) =~ "recorded manually"
   end
+
+  defp text(html) do
+    html
+    |> String.replace(~r/<[^>]+>/, "")
+    |> String.replace("&nbsp;", "\u00A0")
+    |> String.replace(~r/[ \t\n]+/, " ")
+    |> String.trim()
+  end
+
+  defp statement!(actor, institution, overrides \\ %{}) do
+    {:ok, snapshot} =
+      Tax.create_snapshot(
+        actor,
+        Map.merge(
+          %{
+            institution: institution,
+            holder: "Owner",
+            tax_year: 2025,
+            as_of: ~D[2025-12-31],
+            allowance_granted: "1000",
+            allowance_used: "0",
+            loss_pot_equities: "0"
+          },
+          overrides
+        ),
+        today: ~D[2026-01-15]
+      )
+
+    snapshot
+  end
+
+  defp correct!(actor, snapshot) do
+    {:ok, corrected} =
+      Tax.update_snapshot(actor, snapshot, %{allowance_used: "10"}, today: ~D[2026-01-15])
+
+    corrected
+  end
+
+  # User story (security review 2026-10-12, K12, T-16; board 03 ②):
+  # As the operator reading a statement's head on the Tax page,
+  # I want its last words to say who recorded it and who corrected it last,
+  # so that "recorded manually" is never said of the agent's transcription.
+  #
+  # Acceptance criteria:
+  # - The agent recorded it: "recorded · Agent", hidden lead "Recorded by:",
+  #   and not "recorded manually" — also after the operator corrected it.
+  # - The operator recorded it and the agent corrected it last: "recorded
+  #   manually · corrected · Agent", hidden lead "Last corrected by:".
+  # - The operator recorded it and nobody else changed it: "recorded
+  #   manually", no mark.
+  test "the statement head says who recorded it and who corrected it last", %{conn: conn} do
+    by_agent = statement!(Actor.api_token_rw("mcp"), "Bank A")
+
+    agent_then_operator =
+      Actor.api_token_rw("mcp") |> statement!("Bank B") |> then(&correct!(Actor.owner_ui(), &1))
+
+    corrected =
+      Actor.owner_ui() |> statement!("Bank C") |> then(&correct!(Actor.api_token_rw("mcp"), &1))
+
+    mine = statement!(Actor.owner_ui(), "Bank D")
+
+    {:ok, view, _html} = live(conn, @scope)
+
+    for row <- [by_agent, agent_then_operator] do
+      head = row_head(view, row.id)
+      assert head =~ ~r/· recorded · Recorded by: Agent$/
+      refute head =~ "recorded manually"
+    end
+
+    assert row_head(view, corrected.id) =~
+             ~r/· recorded manually · corrected · Last corrected by: Agent$/
+
+    assert row_head(view, mine.id) =~ ~r/· recorded manually$/
+  end
+
+  # User story (security review 2026-10-12, K12, T-16; board 03 ③, Q3 = A):
+  # As the operator reading the tax-free trim budget,
+  # I want its basis line to mark each institution whose counted statement
+  # the agent recorded or corrected last,
+  # so that I know which part of the decision figure rests on the agent's
+  # figures.
+  #
+  # Acceptance criteria:
+  # - "(Agent)" follows each such institution, joined by a no-break space,
+  #   hidden lead "Statement by:"; the operator's institutions carry none.
+  test "the budget's basis line marks the institution the agent's statement covers",
+       %{conn: conn} do
+    statement!(Actor.owner_ui(), "Bank A")
+    statement!(Actor.api_token_rw("mcp"), "Bank B")
+    Actor.owner_ui() |> statement!("Bank C") |> then(&correct!(Actor.api_token_rw("mcp"), &1))
+
+    {:ok, view, _html} = live(conn, @scope)
+    basis = view |> element("[data-role=budget-basis]") |> render() |> text()
+
+    assert basis =~
+             "· Bank A, Bank B\u00A0(Statement by: Agent), Bank C\u00A0(Statement by: Agent)"
+  end
+
+  # User story (security review 2026-10-12, K12, T-16; board 03 ②):
+  # As the operator comparing the allowance orders with what the banks
+  # applied,
+  # I want an order the agent put to carry the Agent mark,
+  # so that I do not take the agent's instruction for mine.
+  #
+  # Acceptance criteria:
+  # - The list reads "Bank B · Agent" (hidden lead "Allowance order by:");
+  #   the closed summary reads "Bank B 400.00 (Agent)"; the operator's order
+  #   carries no mark.
+  test "an allowance order the agent put is marked in the list and the summary", %{conn: conn} do
+    statement!(Actor.owner_ui(), "Bank A")
+
+    {:ok, mine} =
+      Tax.put_allowance_order(Actor.owner_ui(), %{
+        holder: "Owner",
+        institution: "Bank A",
+        tax_year: 2025,
+        amount_granted: "600"
+      })
+
+    {:ok, theirs} =
+      Tax.put_allowance_order(Actor.api_token_rw("mcp"), %{
+        holder: "Owner",
+        institution: "Bank B",
+        tax_year: 2025,
+        amount_granted: "400"
+      })
+
+    {:ok, view, _html} = live(conn, @scope)
+
+    summary = view |> element("[data-role=orders] summary") |> render() |> text()
+
+    assert summary =~
+             "Bank A 600.00 · Bank B 400.00\u00A0(Allowance order by: Agent)"
+
+    assert view |> element("#tax-order-#{theirs.id}") |> render() |> text() =~
+             "Bank B · Allowance order by: Agent"
+
+    refute view |> element("#tax-order-#{mine.id}") |> render() =~ ~r/\bAgent\b/
+  end
+
+  # User story (security review 2026-10-12, K12, T-16):
+  # As an agent reading the tax figures,
+  # I want the allowance orders and the trim budget to name the agent's
+  # writes as the statements do,
+  # so that I can tell my own earlier writes from the operator's.
+  #
+  # Acceptance criteria:
+  # - An allowance order reads author and corrected_by; the trim budget
+  #   reads agent_institutions beside institutions.
+  test "the allowance-order and trim-budget reads name the agent's writes" do
+    statement!(Actor.owner_ui(), "Bank A")
+    agent_records!()
+
+    put =
+      put(api(), "/api/v1/tax/allowance_orders", %{
+        "allowance_order" => %{
+          "holder" => "Owner",
+          "institution" => "Bank A",
+          "tax_year" => 2025,
+          "amount_granted" => "600"
+        }
+      })
+
+    assert %{"author" => "agent", "corrected_by" => nil} = json_response(put, 200)["data"]
+
+    [order] = json_response(get(api(), "/api/v1/tax/allowance_orders"), 200)["data"]
+    assert {order["author"], order["corrected_by"]} == {"agent", nil}
+
+    budget =
+      json_response(get(api(), "/api/v1/tax/trim_budget?holder=Owner&tax_year=2025"), 200)[
+        "data"
+      ]
+
+    assert budget["institutions"] == ["Bank A", "Example Bank"]
+    assert budget["agent_institutions"] == ["Example Bank"]
+  end
 end
