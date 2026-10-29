@@ -1372,6 +1372,48 @@ defmodule Portfolixir.DocsTest do
     end
   end
 
+  # User story (security review 2026-10-12, K08):
+  # As an operator sizing the instance's memory,
+  # I want the guide to name the background walks the heap cap covers and
+  # the size of ledger at which a walk reaches it,
+  # so that a skipped warm-up in the log is recognised, and the cap is not
+  # taken for a bound no read comes near.
+  #
+  # Acceptance criteria:
+  # - The guide (EN, DE) names the warm-up at boot and after each local
+  #   midnight and the refresh after a write as walks under the same cap,
+  #   each failing alone and logged, its scope skipped.
+  # - It states the walk's cost per held security and day and the
+  #   security-days at which a walk reaches the cap, and names the cap's
+  #   configuration under `Portfolixir.HeapCap`.
+  # - It no longer says no ordinary read or write comes near the cap.
+  test "the guide names the background walks under the heap cap and the size that reaches it" do
+    for {path, fragments, refuted} <- [
+          {"docs/home-deployment.md",
+           [
+             "The background walks run under the same cap, each in a process of its own: the performance warm-up at boot and after each local midnight, and the refresh after a write",
+             "A walk grown past it is killed and logged, its scope is skipped, and the next read computes it",
+             "roughly 300 bytes per held security and day, so a walk reaches the cap at roughly 600,000 held security-days",
+             "`max_heap_bytes` under `Portfolixir.HeapCap`"
+           ], "No ordinary read or write comes near it"},
+          {"docs/de/home-deployment.md",
+           [
+             "Die Hintergrundberechnungen laufen unter derselben Grenze, jede in einem eigenen Prozess: das Vorwärmen der Performance beim Start und nach jeder lokalen Mitternacht und die Aktualisierung nach einer Schreiboperation",
+             "Eine Berechnung, die darüber wächst, wird beendet und protokolliert, ihr Bereich wird übersprungen",
+             "rund 300 Bytes je gehaltenem Wertpapier und Tag und erreicht die Grenze daher bei rund 600.000 gehaltenen Wertpapier-Tagen",
+             "`max_heap_bytes` unter `Portfolixir.HeapCap`"
+           ], "Kein gewöhnliches Lesen oder Schreiben kommt in ihre Nähe"}
+        ] do
+      doc = path |> File.read!() |> String.replace(~r/\s+/, " ")
+
+      for fragment <- fragments do
+        assert doc =~ fragment, "#{path}: #{fragment}"
+      end
+
+      refute doc =~ refuted, "#{path}: #{refuted}"
+    end
+  end
+
   # User story (E25 S2, F54):
   # As an operator restoring a backup,
   # I want the restore to be all or nothing, the instance started only after

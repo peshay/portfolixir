@@ -15,6 +15,9 @@ description: "Design gate for FR-41 (scope-ladder level (b)), written in Sprint 
   "Amendment (2026-10-03)" below). 2026-10-09, adopted by the merge of the
   Sprint 21 planning PR: a security-linked interest booking is its
   position's income (#928; see "Amendment (2026-10-09)" below).
+  2026-10-28, a dated note: a contribution read walks from its window's
+  baseline day (security review 2026-10-12, K08; see "Note (2026-10-28)"
+  below).
 - **Answers:** FR-41, contribution analysis, scope-ladder level (b):
   *"which position produced how much of the return, over a selectable
   period, scoped to a view."*
@@ -698,3 +701,32 @@ walk's interest clause with the basis and the computation version (I12 and
 I13 green). The docs, the screen's note and a dated note in ADR-0029
 pointing here follow. The verification pass takes I11 first, then I12 and
 I13 against I1 and I9, and the reviewer briefing names all four.
+
+## Note (2026-10-28): a contribution read walks from its window's baseline day
+
+**Why.** The security review of 2026-10-12 (K08, resource exhaustion) found
+that a contribution read walked every day from the portfolio's first booking,
+whatever its window, holding every traded security's closes for the whole
+history in one process. A short custom range over a large history was killed
+at the heap cap on every read.
+
+**What changes.** A contribution read (`Contribution.for_portfolio/2`,
+`Contribution.for_view/2`) starts its walk on the window's baseline day, the
+day before the window, when that day lies after the first booking. The
+quantities and cash the walk carries into that day are folded from the
+earlier bookings through the walk's own leg reducers, and each security's
+price and rate are the latest stored before it, so the baseline day's close
+and every window day are the full walk's. Independently, every walk loads a
+security's closes only from its own first booking (the latest earlier close
+carried in) through the day its position ends for good.
+
+**What stays.** Every payload is unchanged, Decimal for Decimal. §4's
+baseline rule, the start value and the identities I1 to I13 hold as written.
+I9 holds for the walk the reads run on every day it walks: its days from
+the baseline day on are the full walk's, but for the baseline day's basis
+step, which no window reads; `Performance.contribution_analysis/4` without
+`from_baseline: true` is still the full walk, and the I9 test reads it.
+`test/portfolixir/portfolios/performance/walk_payload_pin_test.exs` pins
+every performance and contribution read over a ledger of the review seed's
+shapes as captured before the change, and the baseline-day walk against the
+full one. No computation version moves.
