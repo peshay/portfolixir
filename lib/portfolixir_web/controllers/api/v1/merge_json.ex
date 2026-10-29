@@ -240,9 +240,10 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
   @doc """
   What a failed guard carries beside its code and detail, for the refusal's
   `errors`: the rules that name the source (`policy_rules`), the identities
-  that would no longer resolve (`unresolvable`), the balance anchors a cash
-  merge cannot restate (`anchors`) and the bookings that make one
-  unstorable (`bookings`).
+  that would no longer resolve (`unresolvable`), the stored ISIN that fails
+  its check digit (`source_isin`, H11: the detail names it by its kind), the
+  balance anchors a cash merge cannot restate (`anchors`) and the bookings
+  that make one unstorable (`bookings`).
   """
   def guard_facts(%{policy_rules: [_ | _] = rules}), do: %{policy_rules: rules}
 
@@ -258,6 +259,8 @@ defmodule PortfolixirWeb.Api.V1.MergeJSON do
       end
     )
   end
+
+  def guard_facts(%{code: :invalid_source_isin, source_isin: isin}), do: %{source_isin: isin}
 
   def guard_facts(%{code: :legacy_hashed_split, splits: [_ | _] = splits}),
     do: %{splits: Enum.map(splits, &%{id: &1.id, date: JSON.date(&1.date)})}

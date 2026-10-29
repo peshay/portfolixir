@@ -10243,6 +10243,23 @@ dialog.merge-dialog {
   margin-bottom: 8px;
 }
 
+/* H11 (board 04): an identity a refusal names by kind: its kind as a muted
+   label, its stored value as data after it, isolated and never wrapped
+   inside the value. */
+.merge-refusal__position .merge-refusal__kind {
+  color: var(--color-text-muted);
+}
+
+.merge-refusal__position bdi {
+  overflow-wrap: anywhere;
+}
+
+/* An identifier (ISIN, WKN, ticker) in the mono face the pair cards use;
+   a name stays in the text face. */
+.merge-refusal__position bdi.mono {
+  font-size: 12.5px;
+}
+
 /* The security merge (board 03-security-merge, pick G3-A): the source and
    the target as two cards, because their names can be equal; the role word
    above each, "deleted" in the danger colour and as a word (UX-DR7). */

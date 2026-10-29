@@ -3067,8 +3067,8 @@ const declaredTools: DeclaredTool[] = [
       "retired_target, quote_basis_mismatch, research_notes, policy_rules with errors.policy_rules, " +
       "position_buckets_mismatch, split_ratio_mismatch, split_event_mismatch, split_linearity, " +
       "legacy_hashed_split (a split to move still carries an import hash; errors.splits names it — change " +
-      "its kind back or delete it), invalid_source_isin (the source's " +
-      "ISIN fails its check digit: correct or clear it on the source first), or " +
+      "its kind back or delete it), invalid_source_isin (errors.source_isin " +
+      "fails its check digit: fix or clear it on the source first), or " +
       "identity_unresolvable with errors.unresolvable: an identity of either security, as stored, imported or " +
       "with a former ISIN, or of one merged into either before, that would no longer find the target) " +
       "and errors.guards; a source already merged answers 409 already_merged with errors.merged_into.",
@@ -3082,12 +3082,12 @@ const declaredTools: DeclaredTool[] = [
       "(portfolixir.securities.merge_preview): pass its plan_digest. collapse_key_equal is required when the " +
       "preview lists key_equal_pairs and is never preselected — ask the operator: true deletes each paired booking " +
       "of the source, false keeps both on the target. identity_choice is required when both securities carry an " +
-      "ISIN and is never preselected — ask the operator: keep_target_isin keeps the target's ISIN and records the " +
+      "ISIN (errors.isins) and is never preselected — ask the operator: keep_target_isin keeps the target's ISIN and records the " +
       "source's as its former ISIN; adopt_source_isin gives the target the source's ISIN and keeps its old one as " +
-      "the former ISIN; isin_changed_on dates that former ISIN (the merge date when absent). The source's bookings " +
+      "former ISIN; isin_changed_on dates that former ISIN (the merge date when absent). The source's bookings " +
       "move onto the target in every depot, splits it shares with the target on the same day collapse; its " +
-      "quotes fill the target's gaps, and on a date both have the target's quote wins (the dropped close is kept " +
-      "in the merge record, no quote write is journaled); its category assignments, position targets and events " +
+      "quotes fill the target's gaps, and on a date both have the target's quote wins (the dropped close kept " +
+      "in the merge record; no quote write journaled); its category assignments, position targets and events " +
       "move (an assignment where the target has one in that classification is dropped, a position target that " +
       "would collide or go stale is deleted — each as the preview listed); its former ISINs, and its WKN, ticker " +
       "and feed where the target lacks them, go to the target; name, asset class and logo stay the target's. One " +
@@ -3100,7 +3100,7 @@ const declaredTools: DeclaredTool[] = [
       "the writes, with nothing written; an identifier the database never saw is outside that check. Answers " +
       "201 with the merge " +
       "record. If a booking, a quote, a configuration row, an identifier or a guard changed since the preview, it " +
-      "answers 409 plan_changed with the fresh preview in errors.preview and writes nothing — show it and ask " +
+      "answers 409 plan_changed with the fresh preview in errors.preview and writes nothing — show it, ask " +
       "again. A retry of a completed merge of the same pair answers 200 with the original merge record " +
       "(already_applied true). A later read of the source's id answers 404 with errors.merged_into naming the " +
       "target.",

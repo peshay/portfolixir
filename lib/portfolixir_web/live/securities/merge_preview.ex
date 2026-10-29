@@ -1091,20 +1091,22 @@ defmodule PortfolixirWeb.Securities.MergePreview do
         </p>
         <.rule_list :if={guard.code == :policy_rules} security={@source} />
         <p :for={line <- detail_lines(guard)} class="merge-refusal__position"><%= line %></p>
+        <.value_line :for={line <- value_lines(guard, @source, @target, :direct)} line={line} />
       <% end %>
       <%= if @keep_both? do %>
-        <p :for={guard <- @reverse} class="merge-refusal__lead">
-          <%= gettext("The other way is refused too: %{reason}", reason: reason(guard, @target, @source, :reverse)) %>
-        </p>
+        <%= for guard <- @reverse do %>
+          <p class="merge-refusal__lead">
+            <%= gettext("The other way is refused too: %{reason}", reason: reason(guard, @target, @source, :reverse)) %>
+          </p>
+          <.value_line :for={line <- value_lines(guard, @target, @source, :reverse)} line={line} />
+        <% end %>
         <p :if={not Enum.any?(@failed, &(&1.code == :identity_unresolvable))} class="merge-refusal__remedy">
           <%= gettext("No direction is possible; both securities stay unchanged.") %>
         </p>
       <% end %>
       <p :for={remedy <- @remedies} class="merge-refusal__remedy"><%= remedy %></p>
       <p :if={@other_way?} class="merge-refusal__remedy">
-        <%= gettext("Remedy: merge the other way — %{target} into this security.",
-          target: (@target && (@target.isin || @target.name)) || ""
-        ) %>
+        <%= gettext("Remedy: merge the other way — the target into this security.") %>
       </p>
       <span class="merge-refusal__actions">
         <button :if={@other_way?} type="button" class="button" data-role="merge-other-way" phx-click="other_way" phx-target={@myself}>
@@ -1312,32 +1314,32 @@ defmodule PortfolixirWeb.Securities.MergePreview do
     end
   end
 
+  # H11 (board 04): a reason names the identities by their kind and count;
+  # their stored values follow as data lines (`value_lines/4`).
   defp reason(%{code: :identity_unresolvable} = guard, _subject, _other, _direction) do
-    identifiers =
-      guard
-      |> Map.get(:unresolvable, [])
-      |> Enum.map(& &1.ref)
-      |> Enum.uniq()
-      |> Enum.map_join("; ", &identifier/1)
+    case guard |> unresolvable_refs() |> length() do
+      0 ->
+        gettext("after the merge, an identifier of the two would no longer lead to the target.")
 
-    gettext(
-      "after the merge, an identifier of the two would no longer lead to the target: %{identifiers}.",
-      identifiers: identifiers
-    )
+      count ->
+        ngettext(
+          "after the merge, %{count} identifier of the two would no longer lead to the target:",
+          "after the merge, %{count} identifiers of the two would no longer lead to the target:",
+          count
+        )
+    end
   end
 
-  defp reason(%{code: :invalid_source_isin}, subject, _other, :direct),
+  defp reason(%{code: :invalid_source_isin}, _subject, _other, :direct),
     do:
       gettext(
-        "the source's ISIN %{isin} fails its check digit, and the merge would write it onto the target.",
-        isin: subject.isin
+        "the source's ISIN fails its check digit, and the merge would write it onto the target."
       )
 
-  defp reason(%{code: :invalid_source_isin}, subject, _other, :reverse),
+  defp reason(%{code: :invalid_source_isin}, _subject, _other, :reverse),
     do:
       gettext(
-        "the target's ISIN %{isin} fails its check digit, and that merge would write it onto this security.",
-        isin: subject.isin
+        "the target's ISIN fails its check digit, and that merge would write it onto this security."
       )
 
   defp reason(%{code: :legacy_hashed_split}, _subject, _other, _direction),
@@ -1405,14 +1407,99 @@ defmodule PortfolixirWeb.Securities.MergePreview do
 
   defp ratio(%{numerator: p, denominator: q}), do: "#{p}:#{q}"
 
-  defp identifier(%{isin: isin}) when is_binary(isin), do: gettext("ISIN %{isin}", isin: isin)
-  defp identifier(%{wkn: wkn}) when is_binary(wkn), do: gettext("WKN %{wkn}", wkn: wkn)
+  attr(:line, :map, required: true)
 
-  defp identifier(%{ticker: ticker} = ref) when is_binary(ticker),
-    do: gettext("ticker %{ticker} (%{currency})", ticker: ticker, currency: ref.currency)
+  # H11 (board 04): one stored value a refusal names, on a line of its own:
+  # its kind as a muted label, the value isolated in `<bdi>`, an identifier
+  # in the pair cards' mono face, a name in the text face.
+  defp value_line(assigns) do
+    ~H"""
+    <p class="merge-refusal__position" data-role="merge-refusal-value">
+      <span class="merge-refusal__kind"><%= @line.kind %></span>
+      <bdi class={@line.mono && "mono"}><%= @line.value %></bdi><%= @line.extra %>
+    </p>
+    """
+  end
 
-  defp identifier(ref),
-    do: gettext("name “%{name}” (%{currency})", name: ref.name, currency: ref.currency)
+  # The stored values a reason names by kind. `subject` is the security the
+  # guard speaks of as its source, as in `reason/4`.
+  defp value_lines(%{code: :identity_unresolvable} = guard, subject, other, _direction) do
+    for failure <- unresolvable_refs(guard) do
+      {kind, value, mono?} = identifier(failure)
+
+      %{
+        kind: kind_label(kind, side(failure.security_id, subject, other), failure.identity),
+        value: value,
+        mono: mono?,
+        extra: currency_extra(kind, failure.ref)
+      }
+    end
+  end
+
+  defp value_lines(%{code: :invalid_source_isin} = guard, subject, _other, direction) do
+    case Map.get(guard, :source_isin) || subject.isin do
+      nil ->
+        []
+
+      isin ->
+        side = if direction == :direct, do: :source, else: :target
+        [%{kind: kind_label(:isin, side, :stored), value: isin, mono: true, extra: nil}]
+    end
+  end
+
+  defp value_lines(_guard, _subject, _other, _direction), do: []
+
+  # A ticker and a name resolve within their currency; the line says which.
+  defp currency_extra(kind, %{currency: currency})
+       when kind in [:ticker, :name] and is_binary(currency),
+       do: " · " <> currency
+
+  defp currency_extra(_kind, _ref), do: nil
+
+  defp unresolvable_refs(guard),
+    do: guard |> Map.get(:unresolvable, []) |> Enum.uniq_by(& &1.ref)
+
+  defp side(id, %{id: id}, _other), do: :source
+  defp side(id, _subject, %{id: id}), do: :target
+  defp side(_id, _subject, _other), do: :earlier
+
+  # The identifier an identity resolves by first: ISIN, WKN, ticker, name.
+  defp identifier(%{identity: :former_isin, ref: ref}), do: {:former_isin, ref.isin, true}
+  defp identifier(%{ref: %{isin: isin}}) when is_binary(isin), do: {:isin, isin, true}
+  defp identifier(%{ref: %{wkn: wkn}}) when is_binary(wkn), do: {:wkn, wkn, true}
+  defp identifier(%{ref: %{ticker: ticker}}) when is_binary(ticker), do: {:ticker, ticker, true}
+  defp identifier(%{ref: ref}), do: {:name, ref.name, false}
+
+  defp kind_label(kind, side, identity) do
+    kind = kind_word(kind)
+    imported? = identity in [:imported, :merged_imported]
+
+    case {side, imported?} do
+      {:source, false} ->
+        gettext("%{kind} of the source:", kind: kind)
+
+      {:source, true} ->
+        gettext("%{kind} of the source (as imported):", kind: kind)
+
+      {:target, false} ->
+        gettext("%{kind} of the target:", kind: kind)
+
+      {:target, true} ->
+        gettext("%{kind} of the target (as imported):", kind: kind)
+
+      {:earlier, false} ->
+        gettext("%{kind} of a security merged in earlier:", kind: kind)
+
+      {:earlier, true} ->
+        gettext("%{kind} of a security merged in earlier (as imported):", kind: kind)
+    end
+  end
+
+  defp kind_word(:isin), do: pgettext("identifier kind", "ISIN")
+  defp kind_word(:former_isin), do: pgettext("identifier kind", "Former ISIN")
+  defp kind_word(:wkn), do: pgettext("identifier kind", "WKN")
+  defp kind_word(:ticker), do: pgettext("identifier kind", "Ticker")
+  defp kind_word(:name), do: pgettext("identifier kind", "Name")
 
   # The facts a reason lists line by line: the positions whose buckets
   # differ.
