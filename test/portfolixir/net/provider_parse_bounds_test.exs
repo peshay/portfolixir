@@ -381,4 +381,19 @@ defmodule Portfolixir.Net.ProviderParseBoundsTest do
     assert_received {:parser, parser}
     refute Process.alive?(parser)
   end
+
+  # User story (security review 2026-10-12, H50, review note):
+  # As the operator,
+  # I want a parse that throws to fail alone under the guard,
+  # so that it never takes down the caller that asked for it.
+  #
+  # Acceptance criteria:
+  # - A parse that throws answers {:error, {:parse_failed, _}}, and so do a
+  #   parse that raises and one that exits; the caller lives on.
+  test "a parse that throws, raises or exits fails alone under the guard" do
+    assert {:error, {:parse_failed, _}} = ParseGuard.run(fn -> throw(:hostile) end)
+    assert {:error, {:parse_failed, _}} = ParseGuard.run(fn -> raise "hostile" end)
+    assert {:error, {:parse_failed, _}} = ParseGuard.run(fn -> exit(:hostile) end)
+    assert Process.alive?(self())
+  end
 end
