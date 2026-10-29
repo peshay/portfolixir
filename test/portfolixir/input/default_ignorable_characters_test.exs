@@ -397,8 +397,16 @@ defmodule Portfolixir.Input.DefaultIgnorableCharactersTest do
         catalog_lookalikes: lookalikes
       }
 
-      assert preview.errors != [] or (twin && twin.status in [:matched, :config_at_risk]),
+      # The twin is read as the configured security: its own reference
+      # matches or is flagged, or its name folds into the configured one's
+      # reference, so no resolution creates a security.
+      assert preview.errors != [] or
+               (is_nil(twin) and Enum.all?(resolutions, &(&1.status != :create))) or
+               (twin && twin.status in [:matched, :config_at_risk]),
              "the U+034F twin resolves silently: #{inspect(observed)}"
+
+      assert observed.created_securities in [false, 0],
+             "the import created a security: #{inspect(observed)}"
 
       assert length(lookalikes) == 1,
              "a visually identical twin was created: #{inspect(observed)}"
