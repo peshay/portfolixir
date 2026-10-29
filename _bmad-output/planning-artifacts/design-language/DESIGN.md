@@ -4513,6 +4513,18 @@ error is printed as it answered. Whether the follow-up's result belongs in
 the tab, beside its trigger, stays open; it lands where every sync result
 lands.
 
+**A catalog sync that is already running** *(security review 2026-10-12,
+H39; board `mockups/ux-design-2026-10-27/07-copy-sheet`)*: one catalog sync
+runs at a time across the instance. "Kurse aktualisieren" pressed while the
+scheduled sync or another window's runs answers in the same
+`#securities-action-result`, as a note (nothing is wrong, nothing is lost):
+"Eine Kursaktualisierung aller Wertpapiere läuft bereits; sie wurde nicht
+ein zweites Mal gestartet." (English "A price sync of every security is
+already running; it was not started a second time."). On the page whose own
+sync runs, the busy button stays the answer: the server refuses the pushed
+event and says nothing new. "Logo-Suche für alle wiederholen" is a
+no-op once queued, keeping its result.
+
 ### The detail's range labels *(H7.3; issue 1033)*
 
 The Chart tab's range buttons printed the raw codes ("1M 3M 6M YTD 1Y 3Y 5Y
