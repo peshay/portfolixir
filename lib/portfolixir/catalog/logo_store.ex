@@ -102,6 +102,7 @@ defmodule Portfolixir.Catalog.LogoStore do
          :ok <- size_ok(response.body, max_bytes),
          :ok <- image_bytes_ok(response.body, ext),
          :ok <- File.mkdir_p(storage_dir),
+         :ok <- delete_existing_logo_file(security, storage_dir),
          file_path = Path.join(storage_dir, "#{security.id}.#{ext}"),
          :ok <- File.write(file_path, response.body),
          {:ok, updated} <-
@@ -150,6 +151,7 @@ defmodule Portfolixir.Catalog.LogoStore do
          :ok <- size_ok(body, max_bytes),
          :ok <- image_bytes_ok(body, ext),
          :ok <- File.mkdir_p(storage_dir),
+         :ok <- delete_existing_logo_file(security, storage_dir),
          file_path = Path.join(storage_dir, "#{security.id}.#{ext}"),
          :ok <- File.write(file_path, body),
          {:ok, updated} <- update_security_attributes(actor, security, ext, :manual, lock: true) do
@@ -415,14 +417,15 @@ defmodule Portfolixir.Catalog.LogoStore do
     Phoenix.PubSub.broadcast(@pubsub, @topic, {:security_logo_updated, security_id})
   end
 
+  # Every file a security's logo may be stored under, whatever its extension:
+  # removed before a store writes its new one (security review 2026-10-12,
+  # H52) and on removal, so one file per security remains and a replaced
+  # image is not served under its old name.
   # storage_dir comes from app config/opts and the filename is the security id
   # plus a validated extension — no user-controlled path segments.
   # sobelow_skip ["Traversal.FileModule"]
   defp delete_existing_logo_file(%Security{id: id}, storage_dir) do
-    @allowed_content_types
-    |> Map.values()
-    |> Enum.uniq()
-    |> Enum.each(fn ext -> File.rm(Path.join(storage_dir, "#{id}.#{ext}")) end)
+    Enum.each(@extensions, fn ext -> File.rm(Path.join(storage_dir, "#{id}.#{ext}")) end)
   end
 
   defp extension_for_type(content_type) do
