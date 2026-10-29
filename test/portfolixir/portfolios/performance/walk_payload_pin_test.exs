@@ -15,6 +15,7 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
   alias Portfolixir.Fx
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Splits
+  alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.Performance
   alias Portfolixir.Portfolios.Performance.Contribution
 
@@ -195,6 +196,78 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
       quantity: "5"
     })
 
+    # Every other leg kind the walk reduces: a cash transfer between two
+    # accounts, a depot transfer, a stated balance, a standalone fee (one
+    # naming a security), a tax, interest in both currencies, a removal, and
+    # outbound deliveries with and without a price.
+    reserve =
+      add_depot(world.portfolio, cash_name: "Pin Reserve", depot_name: "Pin Reserve Depot")
+
+    book!(world, %{
+      cash_account_id: world.cash.id,
+      counter_cash_account_id: reserve.cash.id,
+      type: "cash_transfer",
+      date: ~D[2023-06-15],
+      gross_amount: "2000"
+    })
+
+    book!(world, %{
+      securities_account_id: world.depot.id,
+      counter_securities_account_id: reserve.depot.id,
+      security_id: alpha.id,
+      type: "security_transfer",
+      date: ~D[2024-03-15],
+      quantity: "4"
+    })
+
+    {:ok, _} =
+      Ledger.set_cash_balance(
+        Actor.owner_ui(),
+        Portfolios.get_cash_account(reserve.cash.id),
+        %{"date" => "2024-08-30", "amount" => "2100.55"}
+      )
+
+    for {type, amount, date, extra} <- [
+          {"fee", "7.25", ~D[2023-09-01], %{}},
+          {"fee", "3.10", ~D[2024-07-01], %{security_id: alpha.id}},
+          {"tax", "15.40", ~D[2024-02-20], %{}},
+          {"interest", "3.10", ~D[2023-12-29], %{}},
+          {"removal", "500", ~D[2024-10-01], %{}}
+        ] do
+      book!(
+        world,
+        Map.merge(
+          %{cash_account_id: world.cash.id, type: type, date: date, gross_amount: amount},
+          extra
+        )
+      )
+    end
+
+    book!(world, %{
+      cash_account_id: usd.cash.id,
+      type: "interest",
+      date: ~D[2024-06-28],
+      gross_amount: "1.25",
+      currency_code: "USD"
+    })
+
+    book!(world, %{
+      securities_account_id: world.depot.id,
+      security_id: iota.id,
+      type: "outbound_delivery",
+      date: ~D[2025-02-03],
+      quantity: "2"
+    })
+
+    book!(world, %{
+      securities_account_id: world.depot.id,
+      security_id: zeta.id,
+      type: "outbound_delivery",
+      date: ~D[2025-03-03],
+      quantity: "2",
+      price: "0"
+    })
+
     deposit!(later, "3000", ~D[2024-01-03])
     buy!(later, alpha, quantity: "7", price: "51", date: ~D[2024-01-04])
     buy!(later, beta, quantity: "3", price: "31", date: ~D[2024-03-01])
@@ -352,22 +425,23 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
     }
   end
 
-  # Filled from the walk as it loaded every close from the first booking on.
+  # Captured on the base commit, from the walk as it loaded every close
+  # from the first booking on.
   @pinned %{
     "analysis later" => "e62134dd762e2fbf",
-    "analysis pin" => "41a8eafbd5032fd1",
-    "analysis pin core" => "4ad5e08d63b968eb",
-    "contribution core 1y" => "7ba6fa25cf47c301",
-    "contribution core 3y" => "afebf77667ef29ef",
-    "contribution core 5y" => "c0bcd4dc8505f7bf",
-    "contribution core max" => "a24dcc5389bfc89f",
+    "analysis pin" => "60c06f98a124bcaf",
+    "analysis pin core" => "95fb7ae18a87f890",
+    "contribution core 1y" => "f831521effe27c36",
+    "contribution core 3y" => "248d91b0ccf566e5",
+    "contribution core 5y" => "edf57559e0a20dc9",
+    "contribution core max" => "fcd9f774b92f388f",
     "contribution core range 2020-01-01..2022-12-31" => "96535950dd57aafe",
     "contribution core range 2023-01-02..2023-01-31" => "2de44539de471b2a",
-    "contribution core range 2023-07-01..2023-12-31" => "6c3880bbbd9c55df",
-    "contribution core range 2024-06-01..2024-06-30" => "94257b4672dcedbe",
-    "contribution core year 2023" => "6e1421d7fea3174d",
-    "contribution core year 2024" => "c08bdaeeed7dd82e",
-    "contribution core ytd" => "a02786d398319343",
+    "contribution core range 2023-07-01..2023-12-31" => "5e314f145a559ee1",
+    "contribution core range 2024-06-01..2024-06-30" => "fda06cbc8abce95f",
+    "contribution core year 2023" => "e0af31306c79d4d2",
+    "contribution core year 2024" => "37b22fe31588458e",
+    "contribution core ytd" => "585b8648cf86601e",
     "contribution later 1y" => "5809ed1c25542616",
     "contribution later 3y" => "100e4aeb97ce9777",
     "contribution later 5y" => "673671a03d87423e",
@@ -379,50 +453,50 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
     "contribution later year 2023" => "c78ed6cd4fc1e777",
     "contribution later year 2024" => "f6ee57195adb5617",
     "contribution later ytd" => "267a62edc55131dd",
-    "contribution pin 1y" => "292b259c82e9162c",
-    "contribution pin 3y" => "de9b56590ab8b30f",
-    "contribution pin 5y" => "b1bd46656d9e436a",
-    "contribution pin core 1y" => "35a95c93b55d097b",
-    "contribution pin core 3y" => "a54be9c6864936cb",
-    "contribution pin core 5y" => "348090367252de03",
-    "contribution pin core max" => "c0eadfe9b85d557e",
+    "contribution pin 1y" => "67a514f138401103",
+    "contribution pin 3y" => "d776d5a7c772ca6f",
+    "contribution pin 5y" => "64424acc0da57960",
+    "contribution pin core 1y" => "200ffa9b67824b91",
+    "contribution pin core 3y" => "7020689c07be0b40",
+    "contribution pin core 5y" => "5f8a79e288c910e9",
+    "contribution pin core max" => "3f609a22f4d68410",
     "contribution pin core range 2020-01-01..2022-12-31" => "fc1949219b9dc6c8",
     "contribution pin core range 2023-01-02..2023-01-31" => "89647ac96b06f37b",
-    "contribution pin core range 2023-07-01..2023-12-31" => "502a0c5b4ef97f1d",
-    "contribution pin core range 2024-06-01..2024-06-30" => "4c7f7207df7c143b",
-    "contribution pin core year 2023" => "3074ef8f59016340",
-    "contribution pin core year 2024" => "7aae6de56d16e6e2",
-    "contribution pin core ytd" => "beb47cbc4de36b87",
-    "contribution pin max" => "ead070f14230c366",
+    "contribution pin core range 2023-07-01..2023-12-31" => "9da2c36aa7837c6f",
+    "contribution pin core range 2024-06-01..2024-06-30" => "2c44653daa94a607",
+    "contribution pin core year 2023" => "80350dc1c1ee78a8",
+    "contribution pin core year 2024" => "d7698dc9f8cd135a",
+    "contribution pin core ytd" => "0fa1965f378be4a3",
+    "contribution pin max" => "c294e9857601f6e7",
     "contribution pin range 2020-01-01..2022-12-31" => "4b038bee3207e821",
     "contribution pin range 2023-01-02..2023-01-31" => "3926cb5187817fbf",
-    "contribution pin range 2023-07-01..2023-12-31" => "e4321679d4ac8f81",
-    "contribution pin range 2024-06-01..2024-06-30" => "32b9a0dce3e0b3e1",
-    "contribution pin year 2023" => "f4c1df33bfa128fc",
-    "contribution pin year 2024" => "dc4b4f471dec7ef8",
-    "contribution pin ytd" => "8fbcd8003de9a926",
-    "contribution view 1y" => "ea27849b63289d1a",
-    "contribution view 3y" => "de86f6741371d556",
-    "contribution view 5y" => "1ca1e3a36ee18908",
-    "contribution view max" => "c5c6c74d74f55e48",
+    "contribution pin range 2023-07-01..2023-12-31" => "eb80dbd793a069b2",
+    "contribution pin range 2024-06-01..2024-06-30" => "78af0187928c5a20",
+    "contribution pin year 2023" => "3a338d004d975c68",
+    "contribution pin year 2024" => "7628f1dcdc49c32a",
+    "contribution pin ytd" => "ea0c3a7f8cbebf15",
+    "contribution view 1y" => "6b4eeeede2764591",
+    "contribution view 3y" => "e6d2b4ca15cd78fe",
+    "contribution view 5y" => "de5361a612519154",
+    "contribution view max" => "c680eb2b34736899",
     "contribution view range 2020-01-01..2022-12-31" => "6fe5a86c1da9c816",
     "contribution view range 2023-01-02..2023-01-31" => "b711e1bde51a9afd",
-    "contribution view range 2023-07-01..2023-12-31" => "b903c1c5d6db9c8b",
-    "contribution view range 2024-06-01..2024-06-30" => "a20e399d61b2fd3c",
-    "contribution view year 2023" => "19f4ab1ffb68cbe6",
-    "contribution view year 2024" => "e6a9b252bdc979af",
-    "contribution view ytd" => "38f195241404dba3",
-    "performance core 1y" => "4e7576c9bf9f3d52",
-    "performance core 3y" => "372259ac6fd6c8e8",
-    "performance core 5y" => "6c0ce8ce827f14d5",
-    "performance core max" => "354a99cd767dc38f",
+    "contribution view range 2023-07-01..2023-12-31" => "4aeecf148a1ad9f0",
+    "contribution view range 2024-06-01..2024-06-30" => "fc47af863d24d717",
+    "contribution view year 2023" => "56352bef2bdfa212",
+    "contribution view year 2024" => "494f93a5a17ab4e4",
+    "contribution view ytd" => "51223c880241ff99",
+    "performance core 1y" => "145b4bd7e158b5dc",
+    "performance core 3y" => "e6bc8b5462714cce",
+    "performance core 5y" => "92c0d83179fd3cac",
+    "performance core max" => "358304c7e174fb01",
     "performance core range 2020-01-01..2022-12-31" => "bc7dea730174e871",
     "performance core range 2023-01-02..2023-01-31" => "39f3d92a78058070",
-    "performance core range 2023-07-01..2023-12-31" => "a03feca51b6813d3",
-    "performance core range 2024-06-01..2024-06-30" => "803af4426676c871",
-    "performance core year 2023" => "be9dbd444f5d6e55",
-    "performance core year 2024" => "fe989c50f48a04b6",
-    "performance core ytd" => "2f9d1792e98ae2b6",
+    "performance core range 2023-07-01..2023-12-31" => "9fd9ffcda038ca86",
+    "performance core range 2024-06-01..2024-06-30" => "3b874c692011b55b",
+    "performance core year 2023" => "87f2f3e24646e7b1",
+    "performance core year 2024" => "eb6253cfff52c5e6",
+    "performance core ytd" => "8371e0147bfc7fb7",
     "performance later 1y" => "2730c9019658d05a",
     "performance later 3y" => "616d2f62d9777eea",
     "performance later 5y" => "6f3c9ce0bb5d061d",
@@ -434,41 +508,41 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
     "performance later year 2023" => "234faa31c1bccb8a",
     "performance later year 2024" => "d35d8773cb7af67b",
     "performance later ytd" => "f90249ae298e0e44",
-    "performance pin 1y" => "4bf2b0140624af91",
-    "performance pin 3y" => "48656d909b940bd0",
-    "performance pin 5y" => "d5bf268bd90ffcba",
-    "performance pin core 1y" => "511a655565edcc0d",
-    "performance pin core 3y" => "bad1a3160b53e94d",
-    "performance pin core 5y" => "a1a4e3424daba2eb",
-    "performance pin core max" => "21e9dbf112562ca5",
+    "performance pin 1y" => "1de582c262c323c1",
+    "performance pin 3y" => "c752411685bc4f2b",
+    "performance pin 5y" => "c44900a8edc1310e",
+    "performance pin core 1y" => "d5971b093e56e61d",
+    "performance pin core 3y" => "b2741d84d38f66d0",
+    "performance pin core 5y" => "ec7f791cb64837a8",
+    "performance pin core max" => "235a3e90b3b245be",
     "performance pin core range 2020-01-01..2022-12-31" => "7ecdb190dbba6050",
     "performance pin core range 2023-01-02..2023-01-31" => "ad7345a2d7b8f229",
-    "performance pin core range 2023-07-01..2023-12-31" => "b83a94de5f7d4814",
-    "performance pin core range 2024-06-01..2024-06-30" => "422ae62bcd51bd7c",
-    "performance pin core year 2023" => "a94d666bad2383d5",
-    "performance pin core year 2024" => "fbc117a1999f9e9b",
-    "performance pin core ytd" => "aac7cdce9ae0550a",
-    "performance pin max" => "0e6cf680b4564228",
+    "performance pin core range 2023-07-01..2023-12-31" => "bd88d4dbfbde5933",
+    "performance pin core range 2024-06-01..2024-06-30" => "4cb9fdc544d74c87",
+    "performance pin core year 2023" => "2423778dbafec350",
+    "performance pin core year 2024" => "4aa605dc2b2e2d2e",
+    "performance pin core ytd" => "9b18d30f73f3b453",
+    "performance pin max" => "bba2a19179e66534",
     "performance pin range 2020-01-01..2022-12-31" => "7ecdb190dbba6050",
     "performance pin range 2023-01-02..2023-01-31" => "7c6fe8e1009b9d8a",
-    "performance pin range 2023-07-01..2023-12-31" => "148797368e189b88",
-    "performance pin range 2024-06-01..2024-06-30" => "57b89201866d4b46",
-    "performance pin year 2023" => "48e2c7ae5a77002d",
-    "performance pin year 2024" => "0cce71c252ea972f",
-    "performance pin ytd" => "b8753ec81f40d64b",
-    "performance view 1y" => "5d51d28ef6d5c047",
-    "performance view 3y" => "a08b207f16a2f761",
-    "performance view 5y" => "a425d4054754fed3",
-    "performance view max" => "0666100f7aa266b3",
+    "performance pin range 2023-07-01..2023-12-31" => "5ae8b96455fc1f00",
+    "performance pin range 2024-06-01..2024-06-30" => "50a05b22e902ee49",
+    "performance pin year 2023" => "7387db515866e6bd",
+    "performance pin year 2024" => "1695928a8e0ca810",
+    "performance pin ytd" => "a4113434986839be",
+    "performance view 1y" => "41a1483cc3b5744a",
+    "performance view 3y" => "32bc4902466b8d7d",
+    "performance view 5y" => "cffb9cb9970e69fc",
+    "performance view max" => "a5b2db5acb8ed928",
     "performance view range 2020-01-01..2022-12-31" => "ff8c055cc1ce4615",
     "performance view range 2023-01-02..2023-01-31" => "f737ea2d6804d06c",
-    "performance view range 2023-07-01..2023-12-31" => "30fd3b34a9ca7b8d",
-    "performance view range 2024-06-01..2024-06-30" => "1180782713345b72",
-    "performance view year 2023" => "b30962972ea80517",
-    "performance view year 2024" => "0ab29fec98008f91",
-    "performance view ytd" => "c4ef36dc9932d3f3",
-    "view analysis" => "fbae09e2ebc2da04",
-    "view analysis core" => "549ee3dc78dc4f16"
+    "performance view range 2023-07-01..2023-12-31" => "163be9c2885f4bb0",
+    "performance view range 2024-06-01..2024-06-30" => "a1dcd5365fcd1a2a",
+    "performance view year 2023" => "98478a36b329a90f",
+    "performance view year 2024" => "a0634d744ede85fa",
+    "performance view ytd" => "a37bf3079cae7af0",
+    "view analysis" => "92e0bed4fa9d7010",
+    "view analysis core" => "2571ee5b8b796e4e"
   }
 
   # User story (security review 2026-10-12, K08):
@@ -495,23 +569,23 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
 
     assert headline(Map.new(reads)) == %{
              max: %{
-               ttwror: Decimal.new("0.001017611684111213014319390084350"),
-               irr: Decimal.new("0.000483"),
+               ttwror: Decimal.new("0.000316937586158318989571939930244"),
+               irr: Decimal.new("0.000210"),
                start_value: Decimal.new("0"),
-               end_value: Decimal.new("105133.1528571428571428571428571428"),
-               net_external_flows: Decimal.new("105006.6471962616822429906542056075")
+               end_value: Decimal.new("104628.6689285714285714285714285714"),
+               net_external_flows: Decimal.new("104573.6971962616822429906542056075")
              },
              half:
                {%{
-                  result: Decimal.new("-46.8758310871518418688230008985"),
+                  result: Decimal.new("-51.0258310871518418688230008985"),
                   positions: Decimal.new("-1.9522012578616352201257861635220"),
-                  remainder: Decimal.new("-44.923629829290206648697214734950")
+                  remainder: Decimal.new("-49.073629829290206648697214734950")
                 }, 9},
              view:
                {%{
-                  result: Decimal.new("-335.8091109977902430732619411865"),
+                  result: Decimal.new("-353.1829848716641169471358150603"),
                   positions: Decimal.new("-123.3324834268230494645588985211627"),
-                  remainder: Decimal.new("-212.476627570967193608703042665307")
+                  remainder: Decimal.new("-229.8505014448410674825769165391801")
                 }, 8}
            }
   end
