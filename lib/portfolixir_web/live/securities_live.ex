@@ -254,6 +254,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
           params
           |> Map.drop(["id"])
           |> Map.put("merged_from", Integer.to_string(id))
+          # Every other parameter rides along as `LiveParam.carried/1` reads
+          # it, the list page's own `cur[]` chips included (H16).
+          |> LiveParam.carried()
           |> URI.encode_query()
 
         {:noreply, push_patch(socket, to: "/securities/#{survivor}?" <> query, replace: true)}

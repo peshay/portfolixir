@@ -3273,24 +3273,15 @@ defmodule PortfolixirWeb.PortfolioLive do
     query =
       params
       |> Map.drop(["benchmark", "benchmark_merged"])
-      |> Enum.sort()
-      |> Enum.flat_map(&kept_param/1)
+      # Every other parameter of the link rides along as it came (M-8): the
+      # redirect changes the benchmark only, never the period or the view.
+      |> LiveParam.carried()
       |> Kernel.++(Enum.map(Enum.uniq(selectors), &{"benchmark[]", &1}))
       |> Kernel.++([{"benchmark_merged", Enum.map_join(merged, ",", &elem(&1, 0))}])
       |> URI.encode_query()
 
     "/portfolio?" <> query
   end
-
-  # Every other parameter of the link rides along as it came (review finding
-  # M-8): the redirect changes the benchmark only, never the period or the
-  # view a bookmark carries. A list stays a list; anything else is dropped.
-  defp kept_param({key, value}) when is_binary(key) and is_binary(value), do: [{key, value}]
-
-  defp kept_param({key, values}) when is_binary(key) and is_list(values),
-    do: for(value <- values, is_binary(value), do: {key <> "[]", value})
-
-  defp kept_param(_other), do: []
 
   # The note says only what the records say: each id in `benchmark_merged`
   # must name a security a merge took away into an active benchmark.

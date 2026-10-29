@@ -96,4 +96,25 @@ defmodule PortfolixirWeb.LiveParam do
         into: %{},
         do: {key, field}
   end
+
+  @doc """
+  The parameters a redirect carries along (review finding M-8; H16), as
+  query pairs ordered by key: a string stays, a list becomes `key[]` pairs
+  of its strings, and anything else (a map, a number) is dropped, so
+  `URI.encode_query/1` never meets a shape it cannot encode.
+  """
+  @spec carried(term()) :: [{String.t(), String.t()}]
+  def carried(params) do
+    params
+    |> map()
+    |> Enum.sort()
+    |> Enum.flat_map(&carried_pair/1)
+  end
+
+  defp carried_pair({key, value}) when is_binary(key) and is_binary(value), do: [{key, value}]
+
+  defp carried_pair({key, values}) when is_binary(key) and is_list(values),
+    do: for(value <- values, is_binary(value), do: {key <> "[]", value})
+
+  defp carried_pair(_other), do: []
 end
