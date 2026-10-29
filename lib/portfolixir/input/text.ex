@@ -108,12 +108,19 @@ defmodule Portfolixir.Input.Text do
   @spec check(term(), opts()) :: :ok | {:error, refusal()}
   def check(nil, _opts), do: :ok
 
+  # The length is bounded before the value is scanned (H55): a value of more
+  # bytes than four per allowed code point (UTF-8's widest) is too long
+  # whatever it holds, and the code-point count runs before the two pattern
+  # passes, so an over-long value costs one walk and no list.
   def check(value, opts) when is_binary(value) do
+    max = opts[:max]
+
     cond do
+      is_integer(max) and byte_size(value) > 4 * max -> {:error, :too_long}
       not String.valid?(value) -> {:error, :invalid_encoding}
+      too_long?(value, max) -> {:error, :too_long}
       Regex.match?(controls(opts), value) -> {:error, :control_characters}
       Regex.match?(@invisible, value) -> {:error, :invisible_characters}
-      too_long?(value, opts[:max]) -> {:error, :too_long}
       true -> :ok
     end
   end
@@ -335,7 +342,13 @@ defmodule Portfolixir.Input.Text do
   a column's width in (a grapheme can be several code points).
   """
   @spec codepoint_length(String.t()) :: non_neg_integer()
-  def codepoint_length(text) when is_binary(text), do: text |> String.codepoints() |> length()
+  def codepoint_length(text) when is_binary(text), do: count_codepoints(text, 0)
+
+  # A walk over the binary, no list (H55); a byte that starts no code point
+  # counts as one, as `String.codepoints/1` splits it.
+  defp count_codepoints(<<_::utf8, rest::binary>>, count), do: count_codepoints(rest, count + 1)
+  defp count_codepoints(<<_byte, rest::binary>>, count), do: count_codepoints(rest, count + 1)
+  defp count_codepoints(<<>>, count), do: count
 
   @doc """
   Cuts `text` to at most `max` code points without splitting a grapheme: the
@@ -376,5 +389,7 @@ defmodule Portfolixir.Input.Text do
   end
 
   defp too_long?(_value, nil), do: false
+  # No more bytes than the bound: no more code points either.
+  defp too_long?(value, max) when byte_size(value) <= max, do: false
   defp too_long?(value, max), do: codepoint_length(value) > max
 end
