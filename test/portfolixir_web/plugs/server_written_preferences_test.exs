@@ -235,6 +235,68 @@ defmodule PortfolixirWeb.ServerWrittenPreferencesTest do
   end
 
   # User story (security review 2026-10-12, K02):
+  # As an operator who locks the UI with a password,
+  # I want a preference cookie written only for a request the login lets in,
+  # so that whoever reaches the instance without the password cannot obtain a
+  # value it signed and plant it in my browser.
+  #
+  # Acceptance criteria:
+  # - With a password set, a request without the login carrying a view,
+  #   language or benchmark choice is sent to the login and gets no
+  #   preference cookie.
+  # - With the login, the same request still remembers all three.
+  # - With no password set, the open instance remembers them as before.
+  describe "a preference choice and the UI login" do
+    @choice "/?view=total&locale=de&benchmark_rate=2"
+    @preference_cookies ~w(portfolixir_view portfolixir_locale portfolixir_benchmarks)
+
+    defp preference_cookies_written(response) do
+      for {name, _cookie} <- response.resp_cookies,
+          String.replace_prefix(name, "__Host-", "") in @preference_cookies,
+          do: name
+    end
+
+    test "is not remembered for a request the login does not allow" do
+      with_ui_password()
+
+      for site <- ["none", "same-origin"] do
+        response = build_conn() |> put_req_header("sec-fetch-site", site) |> get(@choice)
+
+        assert redirected_to(response) == "/login?to=%2F", "#{site}: the login redirect"
+        assert preference_cookies_written(response) == [], "#{site}: a preference cookie"
+      end
+    end
+
+    test "is remembered for a request the login allows" do
+      with_ui_password()
+
+      response =
+        build_conn()
+        |> Plug.Test.init_test_session(logged_in_session())
+        |> put_req_header("sec-fetch-site", "same-origin")
+        |> get(@choice)
+
+      assert html_response(response, 200)
+
+      assert Enum.sort(preference_cookies_written(response)) ==
+               Enum.sort(@preference_cookies)
+    end
+
+    test "is remembered on an instance without a UI password" do
+      previous = Application.get_env(:portfolixir, :ui_password)
+      Application.delete_env(:portfolixir, :ui_password)
+      on_exit(fn -> Application.put_env(:portfolixir, :ui_password, previous) end)
+
+      response = build_conn() |> put_req_header("sec-fetch-site", "none") |> get(@choice)
+
+      assert html_response(response, 200)
+
+      assert Enum.sort(preference_cookies_written(response)) ==
+               Enum.sort(@preference_cookies)
+    end
+  end
+
+  # User story (security review 2026-10-12, K02):
   # As an operator whose browser also holds cookies another origin of the
   # same host name set,
   # I want my live pages to find the session my instance signed,
