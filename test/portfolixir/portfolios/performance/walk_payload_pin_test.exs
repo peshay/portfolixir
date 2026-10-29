@@ -516,6 +516,18 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
            }
   end
 
+  # A window from the first booking, windows that start later, and one
+  # before the history: the walk is seeded only where the window starts after
+  # the first booking.
+  @seeded_periods [
+    "max",
+    "ytd",
+    {:year, 2023},
+    {:range, ~D[2023-07-01], ~D[2023-12-31]},
+    {:range, ~D[2024-06-01], ~D[2024-06-30]},
+    {:range, ~D[2020-01-01], ~D[2022-12-31]}
+  ]
+
   # The kept figures and their window, without the flag that chose the walk.
   defp kept(nil), do: nil
   defp kept(kept), do: Map.update!(kept, :window, &Map.take(&1, [:start, :end]))
@@ -577,9 +589,10 @@ defmodule Portfolixir.Portfolios.Performance.WalkPayloadPinTest do
            end}
         ]
 
-    for {scope, plain_walk, kept_walk} <- walks, period <- @periods do
+    for {scope, plain_walk, kept_walk} <- walks,
+        plain = plain_walk.(),
+        period <- @seeded_periods do
       label = "#{scope} #{label(period)}"
-      plain = plain_walk.()
       full = kept_walk.(period, [])
       seeded = kept_walk.(period, from_baseline: true)
 
