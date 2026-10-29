@@ -360,6 +360,8 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
   # Acceptance criteria:
   # - A problem note: the source has research entries (count and last
   #   date), which are never moved or deleted; no confirm.
+  # - The remedy names the other way by the sides' roles, never by a stored
+  #   ISIN or name (H11; the pair cards above name both).
   # - "Merge the other way" swaps the pair and shows its preview.
   test "a refusal names its reason, and offers the merge the other way when it is real", ctx do
     buy!(ctx, ctx.source, "3", "105.00", ~D[2025-02-12])
@@ -372,6 +374,9 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
 
     assert refusal =~
              "Merging is not possible: the source has 1 research entry, the last of 2026-01-15. Research entries are never moved or deleted; a security with entries can only be the target."
+
+    assert refusal =~ "Remedy: merge the other way — the target into this security."
+    refute refusal =~ "XS0000000025"
 
     refute has_element?(view, "#security-merge-dialog [data-role='merge-confirm']")
 
@@ -555,7 +560,8 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
   # so that the merge I confirm is never refused by the catalog afterwards.
   #
   # Acceptance criteria:
-  # - The refusal names the ISIN and its check digit, says to correct or
+  # - The refusal names the source's ISIN by its kind and its check digit,
+  #   the stored value on a data line of its own (H11), says to correct or
   #   clear it on the source, offers "Check again", and no confirm.
   # - Once the ISIN is cleared and the WKN kept, the master data list the
   #   WKN as not adopted, with the WKN's rule.
@@ -570,7 +576,23 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     refusal = view |> element("#security-merge-dialog [data-role='merge-refused']") |> render()
 
     assert refusal =~
-             "the source&#39;s ISIN XS0000004560 fails its check digit, and the merge would write it onto the target."
+             "the source&#39;s ISIN fails its check digit, and the merge would write it onto the target."
+
+    # H11: the value stands as data on its own line, never in the sentence.
+    lead = view |> element("#security-merge-dialog .merge-refusal__lead") |> render()
+    refute lead =~ "XS0000004560"
+
+    assert has_element?(
+             view,
+             "#security-merge-dialog .merge-refusal__position bdi.mono",
+             "XS0000004560"
+           )
+
+    assert has_element?(
+             view,
+             "#security-merge-dialog .merge-refusal__position .merge-refusal__kind",
+             "ISIN of the source:"
+           )
 
     assert refusal =~
              "Remedy: correct or clear the source&#39;s ISIN in its master data, then check again."
@@ -623,7 +645,8 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
   # User story:
   # As the operator merging two securities without an ISIN,
   # I want a merge that would leave an identifier leading nowhere refused,
-  # naming the identifier, without a remedy the version does not have,
+  # naming the identifier by its kind with its value on a data line (H11),
+  # without a remedy the version does not have,
   # so that the next import never creates the source again (ADR-0050 §9).
   test "an identity that would no longer resolve is refused, with no invented remedy", ctx do
     target = security!("Fund A")
@@ -640,7 +663,19 @@ defmodule PortfolixirWeb.SecuritiesMergeLiveTest do
     refusal = view |> element("#security-merge-dialog [data-role='merge-refused']") |> render()
 
     assert refusal =~
-             "after the merge, an identifier of the two would no longer lead to the target: name “Fund B” (EUR)."
+             "after the merge, 1 identifier of the two would no longer lead to the target:"
+
+    lead = view |> element("#security-merge-dialog .merge-refusal__lead") |> render()
+    refute lead =~ "Fund B"
+
+    assert has_element?(
+             view,
+             "#security-merge-dialog .merge-refusal__position .merge-refusal__kind",
+             "Name of the source:"
+           )
+
+    assert has_element?(view, "#security-merge-dialog .merge-refusal__position bdi", "Fund B")
+    refute has_element?(view, "#security-merge-dialog .merge-refusal__position bdi.mono")
 
     assert refusal =~ "This version has no way around it; both securities stay unchanged."
   end

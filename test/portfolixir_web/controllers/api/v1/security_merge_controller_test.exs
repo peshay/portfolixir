@@ -295,7 +295,8 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
   #
   # Acceptance criteria:
   # - Without identity_choice while both carry an ISIN: 422 on
-  #   identity_choice naming both ISINs; an unknown choice 422; an
+  #   identity_choice naming the ISINs by their kind, both values in
+  #   errors.isins (H11); an unknown choice 422; an
   #   isin_changed_on that is not a date 422; without collapse_key_equal
   #   while pairs exist 422 — each writing nothing.
   # - A source whose imported identity would no longer resolve answers 409
@@ -310,13 +311,16 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
     base = %{target_id: ctx.target.id, plan_digest: preview["plan_digest"]}
     mark = journal_mark()
 
-    assert %{"errors" => %{"identity_choice" => [message]}} =
+    assert %{"errors" => %{"identity_choice" => [message], "isins" => isins}} =
              ctx.conn
              |> post(path, Map.put(base, :collapse_key_equal, false))
              |> json_response(422)
 
-    assert message =~ @isin_source
-    assert message =~ @isin_target
+    # H11: the message names the ISINs by their kind; the values are data.
+    assert message =~ "both securities carry an ISIN"
+    refute message =~ @isin_source
+    refute message =~ @isin_target
+    assert isins == %{"source_isin" => @isin_source, "target_isin" => @isin_target}
 
     assert %{
              "errors" => %{"identity_choice" => ["must be keep_target_isin or adopt_source_isin"]}
@@ -443,7 +447,8 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
   #
   # Acceptance criteria:
   # - GET merge_preview and POST merge answer 409 invalid_source_isin, the
-  #   detail naming the ISIN, and journal nothing.
+  #   detail naming the security by its id and the ISIN by its kind, the
+  #   stored value in errors.source_isin (H11), and journal nothing.
   test "a source ISIN that fails its check digit answers 409 invalid_source_isin", ctx do
     {:ok, _} =
       Portfolixir.Repo.transaction(fn ->
@@ -466,7 +471,9 @@ defmodule PortfolixirWeb.Api.V1.SecurityMergeControllerTest do
              |> json_response(409)
 
     assert errors["code"] == "invalid_source_isin"
-    assert errors["detail"] =~ "XS0000054560"
+    assert errors["detail"] =~ "security ##{ctx.source.id}'s stored ISIN fails its check digit"
+    refute errors["detail"] =~ "XS0000054560"
+    assert errors["source_isin"] == "XS0000054560"
 
     assert %{"errors" => %{"code" => "invalid_source_isin"}} =
              ctx.conn
