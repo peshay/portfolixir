@@ -107,6 +107,30 @@ defmodule Portfolixir.ApiTokenRefusalRedactionTest do
            "the boot error carries the token: " <> error.message
   end
 
+  # A URL-safe token of exactly the floor's length (what
+  # `secrets.token_urlsafe(24)` prints) is shaped like a name but fails the
+  # name rule: it is never quoted, in either variable.
+  test "a floor-length name-shaped value is never quoted" do
+    floor_length = "AbCdEfGhIjKlMnOpQrStUvWxYz012345"
+    assert byte_size(floor_length) == RuntimeConfig.min_token_bytes()
+
+    principal =
+      assert_raise ArgumentError, fn ->
+        RuntimeConfig.api_tokens!(@default, nil, floor_length)
+      end
+
+    assert principal.message =~ "PORTFOLIXIR_API_PRINCIPAL"
+    refute principal.message =~ floor_length, "the boot error carries the token"
+
+    entry =
+      assert_raise ArgumentError, fn ->
+        RuntimeConfig.api_tokens!(@default, "#{floor_length}=scripts", "mcp")
+      end
+
+    assert entry.message =~ "PORTFOLIXIR_API_TOKENS entry 1"
+    refute entry.message =~ floor_length, "the boot error carries the token"
+  end
+
   test "the release boot path (config/runtime.exs under :prod) prints no token to stderr" do
     env = Map.put(@release_env, "PORTFOLIXIR_API_TOKENS", @padded)
 
