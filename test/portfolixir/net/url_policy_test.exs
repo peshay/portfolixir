@@ -79,6 +79,70 @@ defmodule Portfolixir.Net.UrlPolicyTest do
     assert UrlPolicy.check("https://[2606:4700::1111]/x.png", @opts) == :ok
   end
 
+  # User story (security review 2026-10-12, H51):
+  # As the operator whose instance fetches only what the outbound policy
+  # allows,
+  # I want a host the connect step would read as an address judged as that
+  # address, whether or not the check resolves names,
+  # so that a shorthand IPv4 form never passes as a name and reaches a local
+  # address.
+  #
+  # Acceptance criteria:
+  # - The shorthand forms of a loopback, private or unspecified address
+  #   (fewer parts, one decimal number, octal, hex) are refused as
+  #   :private_address under resolve: true and resolve: false.
+  # - A host whose last label is a number but which reads as no address is
+  #   refused as :host under both settings.
+  # - The same forms of a public address pass; a name still passes unresolved.
+  # - The bounded client makes no request to a shorthand loopback form.
+  test "judges IPv4 shorthand the way the connect path parses it" do
+    for host <- [
+          "127.1",
+          "2130706433",
+          "017700000001",
+          "0",
+          "0x7f000001",
+          "0x7f.1",
+          "10.1",
+          "0x0a.0.0.1",
+          "192.168.257"
+        ],
+        resolve <- [true, false] do
+      assert UrlPolicy.check("https://#{host}/x.png", [resolve: resolve] ++ @opts) ==
+               {:error, {:url_not_allowed, :private_address}},
+             "#{host} (resolve: #{resolve})"
+    end
+
+    for host <- ["1.2.3.999", "4294967296", "example.0x1f", "images.example.123"],
+        resolve <- [true, false] do
+      assert UrlPolicy.check("https://#{host}/x.png", [resolve: resolve] ++ @opts) ==
+               {:error, {:url_not_allowed, :host}},
+             "#{host} (resolve: #{resolve})"
+    end
+
+    for host <- ["93.184.216.34", "1572395042", "0x5db8d822"], resolve <- [true, false] do
+      assert UrlPolicy.check("https://#{host}/x.png", [resolve: resolve] ++ @opts) == :ok,
+             "#{host} (resolve: #{resolve})"
+    end
+
+    assert UrlPolicy.check("https://images.example.com/x.png", [resolve: false] ++ @opts) == :ok
+
+    test_pid = self()
+
+    recorder = fn conn ->
+      send(test_pid, {:requested, conn.host}) && Plug.Conn.send_resp(conn, 200, "")
+    end
+
+    assert {:error, {:url_not_allowed, :private_address}} =
+             Portfolixir.Net.Http.get(
+               Portfolixir.Net.Http.new(max_bytes: 10, allowed_hosts: :any),
+               url: "https://127.1/x",
+               plug: recorder
+             )
+
+    refute_received {:requested, _host}
+  end
+
   test "refuses hosts that resolve to non-public addresses, even partly" do
     for host <-
           ~w(internal.test lan.test loopback.test meta.test cgnat.test v6loopback.test v6local.test v6mapped.test mixed.test) do
