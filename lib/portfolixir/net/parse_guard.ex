@@ -7,9 +7,15 @@ defmodule Portfolixir.Net.ParseGuard do
 
   The request's deadline ends when the body has arrived; the parse comes
   after, in the caller, where it may hold a single-flight key or a
-  discovery queue. Every adapter that reads a fetched body runs its parse
-  here, so a slow parse fails alone. Each parse is also linear in the body;
-  this bound is the defence behind that, not the budget it is sized for.
+  discovery queue. The parses that run here are the ECB rate feeds'
+  (`Portfolixir.Fx.RateSync.Ecb`, daily and history), the companieslogo
+  page's (`Portfolixir.Catalog.LogoLookup.CompaniesLogo`) and the Wikipedia
+  search candidates' (`Portfolixir.Catalog.LogoLookup.Wikipedia`); the
+  Yahoo, CoinGecko and Portfolio Performance search adapters read JSON the
+  bounded client already decoded inside its deadline, and do not use it.
+  Each guarded parse is also linear in the body; this bound is the defence
+  behind that, not the budget it is sized for. A parse that raises, exits or
+  throws fails alone, as `{:error, {:parse_failed, reason}}`.
   """
 
   @default_timeout_ms 5_000
@@ -17,7 +23,7 @@ defmodule Portfolixir.Net.ParseGuard do
   @doc """
   Runs `fun` under `timeout_ms` (default 5 s). A parse that returns is
   `{:ok, value}`; one past the bound is `{:error, :parse_timeout}`, its
-  process killed; one that raises or exits is
+  process killed; one that raises, exits or throws is
   `{:error, {:parse_failed, reason}}`.
   """
   @spec run((-> result), pos_integer()) ::
@@ -33,6 +39,7 @@ defmodule Portfolixir.Net.ParseGuard do
           exception -> {:error, {:parse_failed, exception.__struct__}}
         catch
           :exit, reason -> {:error, {:parse_failed, {:exit, reason}}}
+          :throw, value -> {:error, {:parse_failed, {:throw, value}}}
         end
       end)
 
