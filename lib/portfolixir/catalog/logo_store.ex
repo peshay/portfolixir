@@ -34,9 +34,10 @@ defmodule Portfolixir.Catalog.LogoStore do
   # journaled like any other security write. The background discovery's
   # writes are attributed to the fixed logo system job
   # (`Catalog.put_logo_attributes/2`); a write a person or a token asked for —
-  # a manual override, a removal, a rediscovery — takes that actor first and
-  # is journaled under it, the override with the host its URL named
-  # (security review 2026-10-12, H61).
+  # a manual override, the operator's upload (`store_manual_bytes/5`, H38), a
+  # removal, a rediscovery — takes that actor first and is journaled under it
+  # (`Catalog.put_logo_attributes/3`), the override with the host its URL
+  # named (security review 2026-10-12, H61).
 
   @pubsub Portfolixir.PubSub
   @topic "security_logos"
@@ -163,7 +164,7 @@ defmodule Portfolixir.Catalog.LogoStore do
   @doc """
   The file extensions a manual logo upload may carry, as the browser's
   `accept` list (`allow_upload/3`): every extension of the content types
-  this store takes, so the browser and `store_manual_bytes/4` refuse the
+  this store takes, so the browser and `store_manual_bytes/5` refuse the
   same files (H38).
   """
   @spec upload_accept() :: [String.t()]
@@ -176,7 +177,7 @@ defmodule Portfolixir.Catalog.LogoStore do
   @doc """
   The content type an uploaded file is stored under: the browser's type when
   this store takes it, else the type its file name's extension names. The
-  image check in `store_manual_bytes/4` still reads the bytes.
+  image check in `store_manual_bytes/5` still reads the bytes.
   """
   @spec upload_content_type(String.t() | nil, String.t()) :: String.t()
   def upload_content_type(client_type, client_name) when is_binary(client_name) do
