@@ -659,4 +659,27 @@ defmodule Portfolixir.RuntimeConfigTest do
       assert text =~ "sslmode", guide
     end
   end
+
+  # User story (security review 2026-10-12, H72, review round):
+  # As an operator whose database password holds characters the Repo has
+  # always read, such as ^ | { } [ ] \\ " < > ` or a space,
+  # I want the DATABASE_URL check to read the URL as the Repo does,
+  # so that an instance that booted before still boots, and only a URL the
+  # Repo could not read is refused.
+  #
+  # Acceptance criteria:
+  # - A URL whose password holds those characters (and @ or :) is returned as
+  #   given, and the Repo reads the same host, password and database from it.
+  test "a DATABASE_URL password the Repo has always accepted still boots" do
+    for password <- [~s(a^b|c{d}e[f]g\\h"i<j>k`l m), "p@ss", "p:ss"] do
+      url = "postgres://portfolixir:#{password}@db:5432/portfolixir_prod"
+
+      assert RuntimeConfig.database_url!(url) == url
+
+      parsed = Ecto.Repo.Supervisor.parse_url(url)
+      assert parsed[:hostname] == "db"
+      assert parsed[:password] == password
+      assert parsed[:database] == "portfolixir_prod"
+    end
+  end
 end
