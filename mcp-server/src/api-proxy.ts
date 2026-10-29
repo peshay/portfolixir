@@ -36,7 +36,7 @@ function proxyFor(protocol: string, env: NodeJS.ProcessEnv): string | undefined 
   return httpProxy;
 }
 
-// Whether NO_PROXY exempts the host, read the way Node's fetch reads it
+// Whether NO_PROXY exempts the host, read the way Node's HTTP client reads it
 // (undici's EnvHttpProxyAgent): entries split on commas and spaces, an entry
 // with a port covers that port only, a plain entry covers that exact host and
 // never its subdomains, an entry starting with "." or "*" covers what ends
