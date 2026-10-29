@@ -89,8 +89,9 @@ export function profileSwitch(
 // release of manual quotes), even where a later write could put an equal row
 // back: what comes back is a new row, and drawing the line at removal keeps
 // a book run from thinning out what it may not have read. The three merges,
-// the ISIN change and a rule's retirement are admin too: no book write
-// reverses them.
+// the ISIN change, a rule's retirement and a rule's new version (H13: it
+// closes the version in force and replaces the scheduled ones) are admin
+// too: no book write reverses them.
 //
 // A write that replaces a value stays in `book` (BOOK_KEPT_DESTRUCTIVE
 // below), because the same write sent the former value undoes it, also where
@@ -176,6 +177,10 @@ export const ADMIN_TOOLS: ReadonlyMap<string, string> = new Map([
   [
     "portfolixir.policy_rules.retire",
     "Ends the version in force and drops every scheduled one; a retired rule is never in force again."
+  ],
+  [
+    "portfolixir.policy_rules.add_version",
+    "Closes the version in force and replaces every scheduled one from its date; a version once in force is never changed again."
   ],
   ["portfolixir.policy_rules.delete", "Removes a rule with every version it has."],
   [
@@ -328,7 +333,7 @@ export function profileClause(profile: McpProfile): string {
     book:
       "it lists the reads, the creates and the replace-shaped writes (updates, upserts, " +
       "sets), and leaves out the admin tools (every removal, the merges, the ISIN change, a " +
-      "rule's retirement, the release of manual quotes)",
+      "rule's new version or retirement, the release of manual quotes)",
     full: "it lists every tool"
   }[profile];
 

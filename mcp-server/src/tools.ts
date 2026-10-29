@@ -4067,8 +4067,8 @@ const declaredTools: DeclaredTool[] = [
 // routes to, so a new tool is hinted by its route and none ships without
 // hints. GET reads; POST adds; PUT and PATCH overwrite what is stored; DELETE
 // removes. The exceptions are named here, each with its reason. An
-// append-only write (a research-log entry, a policy-rule version) is POST and
-// so non-destructive; its description states that what it adds is permanent.
+// append-only write (a research-log entry, a new policy rule) is POST and so
+// non-destructive; its description states that what it adds is permanent.
 const READ_ONLY_POSTS = new Set([
   // Computes a split's effect and stores nothing (ADR-0028).
   "portfolixir.splits.preview",
@@ -4103,6 +4103,15 @@ const MODIFYING_POSTS = new Set([
   "portfolixir.securities.merge"
 ]);
 
+// Routed through POST and add a row, but close or replace stored rows on
+// the way (security review 2026-10-12, H13), so they are destructive; not
+// idempotent, since a repeat adds another row.
+const REPLACING_POSTS = new Set([
+  // Closes the version in force and replaces every scheduled version from
+  // its valid_from.
+  "portfolixir.policy_rules.add_version"
+]);
+
 // Reach an external provider through the API, so their answer depends on
 // something outside the instance. The security create queues a provider
 // quote backfill and a logo lookup when enrichment is enabled (R6).
@@ -4115,12 +4124,13 @@ const OPEN_WORLD_TOOLS = new Set([
 
 function hintsFor(name: string, method: string): ToolHints {
   const readOnly = method === "GET" || READ_ONLY_POSTS.has(name);
+  const replacing = REPLACING_POSTS.has(name);
   const hintedAs = REMOVING_POSTS.has(name) ? "DELETE" : MODIFYING_POSTS.has(name) ? "PUT" : method;
 
   return {
     readOnlyHint: readOnly,
-    destructiveHint: !readOnly && ["PUT", "PATCH", "DELETE"].includes(hintedAs),
-    idempotentHint: readOnly || hintedAs !== "POST",
+    destructiveHint: !readOnly && (replacing || ["PUT", "PATCH", "DELETE"].includes(hintedAs)),
+    idempotentHint: readOnly || (!replacing && hintedAs !== "POST"),
     openWorldHint: OPEN_WORLD_TOOLS.has(name)
   };
 }
