@@ -493,6 +493,10 @@ const isinAliasDeleteZ = z.object({
 // The parts persist into int4 columns, hence the 2147483647 cap (E17
 // review, finding 4).
 const INT4_MAX = 2147483647;
+const INT4_MIN = -2147483648;
+// A classification's or a category's position is stored in an int4 column.
+const positionProperty = { type: "integer", minimum: INT4_MIN, maximum: INT4_MAX };
+const position = z.number().int().min(INT4_MIN).max(INT4_MAX);
 
 const splitRequestSchema = {
   type: "object",
@@ -672,7 +676,7 @@ const classificationSchema = objectWith("classification", {
   required: ["name"],
   properties: {
     name: { type: "string" },
-    position: { type: "integer" },
+    position: positionProperty,
     description: { type: "string" }
   }
 });
@@ -680,7 +684,7 @@ const classificationSchema = objectWith("classification", {
 const classificationZ = z.object({
   classification: z.object({
     name: z.string(),
-    position: z.number().int().optional(),
+    position: position.optional(),
     description: optionalString()
   })
 });
@@ -699,7 +703,7 @@ const categorySchema = {
         color: { type: "string" },
         description: { type: "string" },
         parent_id: { type: "integer", minimum: 1 },
-        position: { type: "integer" }
+        position: positionProperty
       }
     }
   }
@@ -712,7 +716,7 @@ const categoryZ = z.object({
     color: optionalString(),
     description: optionalString(),
     parent_id: z.number().int().positive().optional(),
-    position: z.number().int().optional()
+    position: position.optional()
   })
 });
 
@@ -758,7 +762,7 @@ const classificationUpdateSchema = {
       type: "object",
       properties: {
         name: { type: "string" },
-        position: { type: "integer" },
+        position: positionProperty,
         description: { type: "string" }
       }
     }
@@ -769,7 +773,7 @@ const classificationUpdateZ = z.object({
   id: z.number().int().positive(),
   classification: z.object({
     name: optionalString(),
-    position: z.number().int().optional(),
+    position: position.optional(),
     description: optionalString()
   })
 });
@@ -788,7 +792,7 @@ const categoryUpdateSchema = {
         color: { type: "string" },
         description: { type: "string" },
         parent_id: { type: "integer", minimum: 1 },
-        position: { type: "integer" }
+        position: positionProperty
       }
     }
   }
@@ -802,7 +806,7 @@ const categoryUpdateZ = z.object({
     color: optionalString(),
     description: optionalString(),
     parent_id: z.number().int().positive().optional(),
-    position: z.number().int().optional()
+    position: position.optional()
   })
 });
 
@@ -3516,14 +3520,14 @@ const declaredTools: DeclaredTool[] = [
     properties: { limit: { type: "integer", minimum: 1 } }
   }, z.object({ limit: z.number().int().min(1).optional() })),
   tool("portfolixir.exchange_rates.sync", "Sync exchange rates", "Fetch and store exchange rates from the configured provider (ECB, EUR hub). scope=latest (default) fetches the daily feed — today's rates, nothing in the past. scope=history (issue #737) runs the one-shot BACKFILL of the historical ECB series through the same path: every published day at once, so a dated conversion (a realized gain, a cost, a flow excluded and named for a missing close-date rate) can find its rate; run it when a cashflow facet reports excluded rows. The rate-availability rule is unchanged: a day the ECB did not publish (a weekend, an unlisted currency) stays excluded and named. Returns {provider, status, upserted, scope}; a provider without a history answers 422, and a provider failure, or rates the database cannot store, answers 502 with nothing stored. One backfill runs at a time: while one runs, a second answers 409.", exchangeRateSyncSchema, exchangeRateSyncZ),
-  tool("portfolixir.classifications.list", "List classifications", "List classification trees with categories and security assignments.", emptyObjectSchema, emptyObjectZ),
+  tool("portfolixir.classifications.list", "List classifications", "List classification trees with categories and assignments.", emptyObjectSchema, emptyObjectZ),
   tool("portfolixir.classifications.create", "Create classification", "Create a custom classification tree.", classificationSchema, classificationZ),
-  tool("portfolixir.classifications.categories.create", "Create category", "Create a category in a custom classification. A parent_id must name a category of the same classification, and a tree has at most 32 levels; any other parent answers 422 on parent_id and nothing is written.", categorySchema, categoryZ),
-  tool("portfolixir.classifications.update", "Update classification", "Update a custom classification's name, description or position.", classificationUpdateSchema, classificationUpdateZ),
+  tool("portfolixir.classifications.categories.create", "Create category", "Create a category in a custom tree. A parent_id must name a category of the same classification, and a tree has at most 32 levels; any other parent answers 422 on parent_id and nothing is written.", categorySchema, categoryZ),
+  tool("portfolixir.classifications.update", "Update classification", "Update a custom tree's name, description or position.", classificationUpdateSchema, classificationUpdateZ),
   tool("portfolixir.classifications.delete", "Delete classification", "Delete a custom classification (a built-in tree is refused). ONE CALL REMOVES, with it: every category of the tree, at every depth; every security's assignment in it; every target weight on its categories, category and position targets alike; and every target plan of the tree, in every portfolio and view and every version, with its cash target. The securities themselves stay. Each of those rows — the plans with their targets, the stored assignments and the categories — is journaled as its own delete before the classification's, so the journal keeps the whole tree. A tree a policy rule reads is refused with 409 naming the rules.", idSchema, idZ),
   tool("portfolixir.classifications.categories.update", "Update category", "Patch a category. A new parent_id must name a category of the same classification that is neither the category itself nor one of its descendants, and a tree has at most 32 levels; any other parent answers 422 on parent_id and nothing is written.", categoryUpdateSchema, categoryUpdateZ),
   tool("portfolixir.classifications.categories.delete", "Delete category", "Delete a category from a custom classification. ONE CALL REMOVES, with it: its sub-categories at every depth; the securities' assignments to any of them, so those securities are unassigned in the tree; and the target weights on any of them, category and position targets alike, in every plan. Each row is journaled as its own delete, the lowest categories first and the category itself last. A category a policy rule reads, itself or below it, is refused with 409 naming the rules.", categoryDeleteSchema, categoryDeleteZ),
-  tool("portfolixir.classifications.assign", "Assign security", "Assign a security to a category of a custom classification.", assignSchema, assignZ),
+  tool("portfolixir.classifications.assign", "Assign security", "Assign a security to a category of a custom tree.", assignSchema, assignZ),
   tool("portfolixir.classifications.assign_bulk", "Assign securities (bulk)", "Assign many securities to one category in a single call.", assignBulkSchema, assignBulkZ),
   tool("portfolixir.classifications.unassign", "Unassign security", "Remove a security's assignment from a classification.", unassignSchema, unassignZ),
   tool(
@@ -3570,7 +3574,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.targets.list_positions",
     "List position targets",
-    "List a portfolio's position-level SOLL targets (ADR-0030): a target_weight (string fraction in [0,1]) per individual security under a category, plus each affected category's effective roll-up (explicit weight, position sum, effective steering weight and a conflict flag surfacing an explicit/position mismatch). Sums are not enforced, so a category's position sum may differ from its explicit weight or 1. Each position row carries security_id, security_name and a stale flag — true when its security no longer sits under the stored category (reclassified or unassigned); the row still counts where it was filed, so react to stale rows by re-filing them (delete_position + set under the current category). The roll-up carries has_stale per category. Optional classification_id scopes to one tree; optional view (a view id) selects that view's plan. min_drift (an absolute drift-weight threshold as a Decimal string, e.g. \"0.02\" — the same spelling as portfolixir.portfolios.allocation) returns only the position rows whose |drift_weight| meets it, where drift_weight is the security's actual weight in the steering basis minus its position target exactly as the allocation computes it; kept rows carry drift_weight, rows without a drift are filtered out, and the response states min_drift, position_targets_total (the pre-filter count) and drift_basis. Without min_drift the rows carry no drift_weight and the shape is unchanged. Optional since (ISO8601 UTC) makes the position rows a delta read with the same rule as portfolixir.targets.list — a row counts as changed when it or its plan changed, as_of is the next since (a later read may re-deliver a row, never skip one), deletions are not represented — applied before min_drift, so position_targets_total counts the delta; effective_targets is a roll-up and always covers the whole plan.",
+    "List a portfolio's position-level SOLL targets (ADR-0030): a target_weight (string fraction in [0,1]) per individual security under a category, plus each affected category's effective roll-up (explicit weight, position sum, effective steering weight and a conflict flag for an explicit/position mismatch). Sums are not enforced, so a category's position sum may differ from its explicit weight or 1. Each position row carries security_id, security_name and a stale flag — true when its security no longer sits under the stored category (reclassified or unassigned); the row still counts where it was filed; re-file it (delete_position + set under the current category). The roll-up carries has_stale per category. Optional classification_id scopes to one tree; optional view (a view id) selects its plan. min_drift (an absolute drift-weight threshold as a Decimal string, e.g. \"0.02\") returns only the position rows whose |drift_weight| meets it, where drift_weight is the security's actual weight in the steering basis minus its position target, as the allocation computes it; kept rows carry drift_weight, rows without a drift are filtered out, and the response states min_drift, position_targets_total (the pre-filter count) and drift_basis. Without min_drift the rows carry no drift_weight. Optional since (ISO8601 UTC) makes the position rows a delta read with the same rule as portfolixir.targets.list — a row counts as changed when it or its plan changed, as_of is the next since (a later read may re-deliver a row, never skip one), deletions are not represented — applied before min_drift, so position_targets_total counts the delta; effective_targets is a roll-up and always covers the whole plan.",
     positionTargetsListSchema,
     positionTargetsListZ
   ),

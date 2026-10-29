@@ -31,6 +31,12 @@ defmodule Portfolixir.Classifications.Classification do
     |> cast(attrs, [:name, :position, :description])
     |> update_change(:name, &normalize_name/1)
     |> validate_required([:name])
+    # The position is stored in an int4 column (H31): a value past it is a
+    # field error, never a failed write.
+    |> validate_number(:position,
+      greater_than_or_equal_to: -2_147_483_648,
+      less_than_or_equal_to: 2_147_483_647
+    )
     |> Text.validate(:name, max: 255)
     |> Text.validate(:description, multiline: true, max: Text.free_text_max())
     |> check_constraint(:description, name: :classifications_description_length_check)
@@ -41,6 +47,12 @@ defmodule Portfolixir.Classifications.Classification do
     classification
     |> cast(attrs, [:name, :key, :built_in, :position, :description])
     |> validate_required([:name, :key, :built_in])
+    # The position is stored in an int4 column (H31): a value past it is a
+    # field error, never a failed write.
+    |> validate_number(:position,
+      greater_than_or_equal_to: -2_147_483_648,
+      less_than_or_equal_to: 2_147_483_647
+    )
     |> unique_constraint(:key, name: :classifications_key_index)
   end
 
