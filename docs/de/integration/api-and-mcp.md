@@ -2941,9 +2941,16 @@ der Seite Risiko gespeicherte Version, `agent` für eine mit einem API- oder
 MCP-Token geschriebene, abgeleitet aus dem Zugang des Schreibzugriffs und nie
 aus dem Body gelesen; ein Befund trägt den `author` der gültigen Version.
 Eine Version von vor den Autoren erhält den Autor, den ihr Anlegen im Journal
-nennt, `null` nur ohne einen solchen Eintrag. Risiko markiert die Regeln des
-Agenten mit dem Wort „Agent"; ab wann eine Regel gilt, hängt nicht von ihrem
-Autor ab.
+nennt, `null` nur ohne einen solchen Eintrag. `author` gilt für die Version,
+nicht für den Namen: Eine Umbenennung ist keine Version, darum trägt die
+Regel ihren eigenen **`name_author`** (Sicherheitsprüfung H14), wer sie
+zuletzt benannt hat, ebenso gesetzt beim Anlegen und bei jeder Umbenennung;
+ein Befund trägt ihn als `rule_name_author`. Eine Regel von vor den
+Namensautoren erhält den Autor ihrer letzten Umbenennung im Journal, sonst
+den der Version, die mit ihrem Namen geschrieben wurde, `null` nur ohne
+beides. Risiko markiert die Regeln des Agenten mit dem Wort „Agent", hinter
+dem Namen, wo der Agent die Regel benannt hat; ab wann eine Regel gilt,
+hängt nicht von ihrem Autor ab.
 
 **Was eine Regel ist.** Eine Aussage über **eine benannte Kennzahl**, für
 einen Bezug, in einem Auswertungskontext:

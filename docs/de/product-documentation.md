@@ -2849,7 +2849,9 @@ beantworten — wie konzentriert ist das Portfolio, und wie stark schwankt es �
   gilt. Eine Regel, deren gültige Linie der Agent mit seinem API-Token gezogen
   hat, endet in ihrer Wortzeile mit **„Agent“** — geplante und beendete Regeln
   ebenso —, und die Versionsliste im Dialog nennt bei jeder Version den Autor,
-  „Operator“ oder „Agent“ (E25). Eigene Regeln tragen kein Wort. Die Regeln
+  „Operator“ oder „Agent“ (E25). Eine Regel, die zuletzt der Agent benannt
+  hat, trägt „Agent“ auch hinter ihrem Namen (H14). Eigene Regeln tragen kein
+  Wort. Die Regeln
   des Agenten gelten wie die eigenen; das Wort sagt nur, wer die Linie gezogen
   hat. Wie man eine Regel Schritt für Schritt anlegt, liest, ändert und
   beendet, steht im [Leitfaden Eigene Regeln](guides/own-rules.html).

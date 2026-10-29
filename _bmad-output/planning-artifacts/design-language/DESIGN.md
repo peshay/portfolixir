@@ -3264,8 +3264,18 @@ or MCP token as the agent (decision T-8).
 - **The dialog.** Every entry of the version list names its author after the
   severity: "· Operator" or "· Agent". A version stored before authors
   existed and without a journaled creation names none.
-- **A rename is no version** (D-6) and moves no mark: the word follows the
-  line, not the name; the journal names who renamed.
+- **A rename moves the name's own mark** *(amended 2026-10-29, Sprint 21
+  board `mockups/ux-design-2026-10-27/03-author-marks` ①, security review
+  H14, T-16; it replaces "a rename is no version and moves no mark")*: the
+  name carries "Agent" when the agent gave it, the words line when the agent
+  wrote the version in force; each with its hidden lead. The name's mark
+  (`[data-role="policy-rule-name-author"]`, from the rule's `name_author`)
+  follows the name's button, outside it, in the words line's voice (12 px,
+  `--color-text-muted`, no wrap inside "· Agent"), hidden lead "Named by:" /
+  "Name von:"; the scheduled and retired lists carry it after the name's
+  link; the dialog's head line names "Named by: Agent" where the agent named
+  the rule. The mark is the current name's author; the journal keeps every
+  rename.
 - **The title stays "Own rules".** It sets the portfolio's rules apart from
   the lens's generic thresholds (ADR-0049 §7), not from the agent.
 

@@ -229,8 +229,10 @@ without the agent's rules reads exactly as before. The audit journal names the
 token that wrote each version.
 
 An agent's rule is changed, renamed and retired like any other. A version you
-save on this page is yours, and the word follows the version in force, not the
-name: a rename moves no word.
+save on this page is yours, and the word in the words line follows the version
+in force. The name has its own word: a rule the agent named last carries
+“· Agent” right after its name, and the dialog names “Named by: Agent”;
+renaming it yourself removes that word.
 
 ## What rules do not do
 

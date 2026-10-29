@@ -2824,11 +2824,11 @@ const POLICY_REIMPORT_GUARANTEE =
 // operator's; each points to the journal for who wrote it.
 const POLICY_RULE_AUTHOR =
   " Every rule here is a stored rule, whoever wrote it: the operator on the Risk page or an " +
-  "API token, the agent's own among them. Every version carries author — operator for a " +
-  "version saved on the Risk page, agent for one written with an API or MCP token, this " +
-  "companion's included; set from the credential, never from input — and a finding the " +
-  "author of its version; the Risk page marks the agent's rules. Which token wrote a rule or " +
-  "a version is in the audit journal (portfolixir.journal.list with resource_type " +
+  "API token, the agent's own among them. author is operator for the Risk page, agent for an " +
+  "API or MCP token (this companion); set from the credential, never from input. " +
+  "author covers a version (a finding's: its version's), not the name; name_author (a " +
+  "finding's rule_name_author) is who last named the rule. The Risk page marks the agent's. " +
+  "Which token wrote is in the audit journal (portfolixir.journal.list with resource_type " +
   "policy_rule or policy_rule_version; actor_type owner_ui is the Risk page, api_token_rw an " +
   "API token, actor_label its name).";
 
@@ -3654,7 +3654,7 @@ const declaredTools: DeclaredTool[] = [
   tool(
     "portfolixir.portfolios.policy_findings",
     "Did anything cross a line?",
-    "The stored policy rules in force TODAY for one evaluation context (ADR-0049), evaluated at read over the figures the product already serves — one call instead of re-deriving weights, drift or HHI yourself. One finding per rule, sorted breached, undetermined, ok: state breached (strictly beyond the line), ok, or undetermined — the figure could not be read (reason insufficient_data with the metric's required and observations, undefined, no_active_plan, no_target, empty_basis, unvalued, subject_not_found, not_measured), which is NEVER a pass and is never filtered out by default. Each finding carries the rule's words (rule_name, subject, measure, kind, severity, note), the thresholds and the measured value as Decimal strings on the measure's scale, the signed distance to the nearest line, and its computation_basis naming the read it used; the payload carries summary (counts per state) and computation_basis. status narrows (status=breached is the retrievable alarm list); view selects the context. PULL ONLY: nothing is pushed anywhere. A finding is a stored rule applied to a figure and carries no action — it neither proposes nor sizes a trade." + POLICY_REIMPORT_GUARANTEE,
+    "The stored policy rules in force TODAY for one evaluation context (ADR-0049), evaluated at read over the figures the product already serves — one call instead of re-deriving them. One finding per rule, sorted breached, undetermined, ok: state breached (strictly beyond the line), ok, or undetermined — the figure could not be read (reason insufficient_data with the metric's required and observations, undefined, no_active_plan, no_target, empty_basis, unvalued, subject_not_found, not_measured), which is NEVER a pass and is never filtered out by default. Each finding carries the rule's words (rule_name, rule_name_author, subject, measure, kind, severity, note, author), the thresholds and the measured value as Decimal strings on the measure's scale, the signed distance to the nearest line, and its computation_basis naming the read it used; the payload carries summary (counts per state) and computation_basis. status narrows (status=breached is the retrievable alarm list); view selects the context. PULL ONLY: nothing is pushed anywhere. A finding is a stored rule applied to a figure and carries no action — it neither proposes nor sizes a trade." + POLICY_REIMPORT_GUARANTEE,
     policyFindingsSchema,
     policyFindingsZ
   ),

@@ -2718,8 +2718,14 @@ the Risk page, `agent` for one written with an API or MCP token, derived from
 the write's credential and never read from the body; a finding carries the
 `author` of the version in force. A version stored before authors existed
 takes the author its journaled creation names, `null` only without one.
-Risk marks the agent's rules with the word "Agent"; when a rule is in force
-does not depend on its author.
+`author` covers the version, not the name: a rename is no version, so the
+rule carries its own **`name_author`** (security review H14), who last named
+it, set the same way by the create and by every rename, and a finding
+carries it as `rule_name_author`. A rule stored before name authors existed
+takes the author of its last journaled rename, or of the version written
+with its name, `null` only without either. Risk marks the agent's rules
+with the word "Agent", after the name where the agent named the rule; when
+a rule is in force does not depend on its author.
 
 **What a rule is.** A predicate over **one named measure**, for one subject,
 in one evaluation context:

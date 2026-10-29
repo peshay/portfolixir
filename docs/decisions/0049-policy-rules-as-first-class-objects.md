@@ -16,7 +16,9 @@ description: "Decision for gate B3.6 (FR-43). A policy rule is a stored predicat
   review's F45** (see "Amendment" after §11): the view a rule reads is
   journaled with every change to its definition. **Amended in Sprint 16 by
   the security review's G30 and decision T-8** (the second amendment after
-  §11): every version names its author, operator or agent.
+  §11): every version names its author, operator or agent. **Amended in
+Sprint 21 by the security review's H14 and decision T-16** (in that
+amendment): the rule names who last named it.
 - **Date:** 2026-09-23
 - **Answers:** FR-43. §11 lists the asks it answers and the ones it defers, per
   [ADR-0043](0043-a-gate-closing-adr-names-its-asks.html).
@@ -385,7 +387,20 @@ without a creation entry names none. **What does not change:** when a rule is
 in force. An agent-written rule is not held back until the operator adopts it
 (T-8 weighed and declined that); the author makes the difference visible, and
 the journal still names the token (`actor_label`, the architecture's FU-6). A
-rename (§4 as amended by D-6) is no version and carries no author.
+rename (§4 as amended by D-6) is no version and carries no version author.
+
+*Amended 2026-10-29 (Sprint 21, security review 2026-10-12, H14, decision
+T-16):* a version's author covers the version, not the name, so an agent's
+rename of the operator's rule read as the operator's label everywhere but
+the journal. The rule therefore stores its own **name author**, `operator`
+or `agent`, derived the same way from the actor of the create and of every
+rename that changes the name, never from input. The rules read serializes it
+as `name_author`, the findings read as `rule_name_author`, and Risk marks a
+name the agent gave with the same word after the name (board
+`ux-design-2026-10-27/03-author-marks`). It changes with each rename, so the
+database keeps no guard on it beyond its closed set. Rules stored before it
+take the author of their last journaled rename, or of the version written
+with their name; one with neither names none.
 
 ## Consequences
 

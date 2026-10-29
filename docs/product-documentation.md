@@ -2598,7 +2598,8 @@ The **Risk** tab of the Wealth area shows two things that answer one question
   to Risk in the view the rule applies in. A rule whose line in force the
   agent wrote with its API token ends its words with **"Agent"** — scheduled
   and retired rules too — and the dialog's version list names the author of
-  every version, "Operator" or "Agent" (E25). Your own rules carry no word.
+  every version, "Operator" or "Agent" (E25). A rule the agent named last
+  carries "Agent" after its name too (H14). Your own rules carry no word.
   The agent's rules are in force like yours; the word only says who drew the
   line. How to write, read, change and end a rule, step by step, is in the
   [Own Rules Guide](guides/own-rules.html).

@@ -39,12 +39,15 @@ defmodule PortfolixirWeb.Api.V1.PolicyRuleController do
 
   # E25 S7, G30 (T-8): a rule is worded as a stored rule, not as the
   # operator's, because an API token writes rules as well as the Risk page;
-  # who wrote each rule and version is the audit journal's to say.
+  # who wrote each rule and version is the audit journal's to say. H14
+  # (T-16): the version's author does not cover the name; name_author does.
   @rules_note "A rule is a stored standard over a figure the product already serves " <>
                 "(ADR-0049): a cap, floor or band on a weight, a drift, the HHI, or a " <>
                 "portfolio metric. Every version carries author: operator for the Risk page, " <>
-                "agent for an API token; which token wrote a rule or a version is in the " <>
-                "audit journal (resource_type policy_rule and policy_rule_version). Rules " <>
+                "agent for an API token; author covers the version, not the name, and the " <>
+                "rule's name_author is who last named it. Which token wrote a rule or a " <>
+                "version is in the audit journal (resource_type policy_rule and " <>
+                "policy_rule_version). Rules " <>
                 "are versioned: an edit adds a version from a " <>
                 "date and closes the previous one the day before, so the standard in force on " <>
                 "any date stays readable (as_of=). A version that has been in force is never " <>

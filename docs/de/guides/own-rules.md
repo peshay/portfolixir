@@ -242,8 +242,11 @@ ohne Regeln des Agenten liest sich also wie zuvor. Das Audit-Journal nennt das
 Token, das jede Version geschrieben hat.
 
 Eine Regel des Agenten wird wie jede andere geändert, umbenannt und beendet.
-Eine Version, die du auf dieser Seite speicherst, ist deine, und das Wort folgt
-der geltenden Version, nicht dem Namen: Umbenennen verschiebt kein Wort.
+Eine Version, die du auf dieser Seite speicherst, ist deine, und das Wort in
+der Wortzeile folgt der geltenden Version. Der Name hat sein eigenes Wort: Eine
+Regel, die zuletzt der Agent benannt hat, trägt „· Agent“ direkt hinter ihrem
+Namen, und der Dialog nennt „Name von: Agent“; benennst du sie selbst um,
+entfällt dieses Wort.
 
 ## Was Regeln nicht tun
 
