@@ -142,17 +142,25 @@ defmodule Portfolixir.Auth.Throttle do
     :ok
   end
 
-  # A new source is recorded while the table has room and the scope's
-  # first-failure ceiling is not reached; its first failure is then counted.
-  # The ceiling buckets count towards the room; they are a bounded handful.
+  # A new source is recorded while the scope's first-failure ceiling is not
+  # reached and the table has room. Its first failure counts toward the
+  # ceiling before the room is asked, so a full table cannot switch the
+  # ceiling off. The ceiling buckets count towards the room; they are a
+  # bounded handful.
   defp record_new_source?(scope, now) do
     cond do
-      :ets.info(@table, :size) >= @max_rows -> false
-      new_source_ceiling(scope) == nil -> true
-      check_new_sources(scope, now) == :ok -> bump_bucket(scope, :new_sources, now) > 0
-      true -> false
+      new_source_ceiling(scope) == nil ->
+        room?()
+
+      check_new_sources(scope, now) == :ok ->
+        bump_bucket(scope, :new_sources, now) > 0 and room?()
+
+      true ->
+        false
     end
   end
+
+  defp room?, do: :ets.info(@table, :size) < @max_rows
 
   defp bump_bucket(scope, tag, now) do
     bucket = div(now, @bucket_seconds)

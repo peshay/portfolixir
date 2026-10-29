@@ -153,8 +153,9 @@ defmodule PortfolixirWeb.ApiThrottleBoundedTableTest do
   # - Failures recorded from more sources than the bound leave fewer rows
   #   than sources.
   # - Once the table is full, a wrong token from a fresh source is still
-  #   answered 401 and adds no row.
-  test "a full throttle table adds no row and still answers 401" do
+  #   answered 401 and adds no source row; at most the minute's bucket of the
+  #   first-failure ceiling, which is counted even then, is added.
+  test "a full throttle table adds no source row and still answers 401" do
     rows_before = rows()
 
     for i <- 1..@flood do
@@ -165,6 +166,7 @@ defmodule PortfolixirWeb.ApiThrottleBoundedTableTest do
     assert grown < @flood, "no cap: #{grown} rows kept for #{@flood} failed sources"
 
     full = rows()
+    full_sources = source_rows()
 
     conn =
       %{build_conn() | remote_ip: {198, 51, 100, 77}}
@@ -173,7 +175,8 @@ defmodule PortfolixirWeb.ApiThrottleBoundedTableTest do
       |> get("/api/v1/portfolios")
 
     assert conn.status == 401
-    assert rows() == full
+    assert source_rows() == full_sources
+    assert rows() <= full + 1
   end
 
   # One source: refused until its lock, then told to wait.
