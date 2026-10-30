@@ -72,7 +72,7 @@ defmodule Portfolixir.MixProject do
       # declared here rather than reached through Ecto alone: a declared
       # dependency is one Dependabot can move when an advisory names it
       # (2026-10-12 security review, H28).
-      {:decimal, "~> 3.1.2"},
+      {:decimal, "~> 3.2.0"},
       # Phoenix 1.8's default HTTP server (#772, Sprint 11 Lane D): Bandit
       # replaced plug_cowboy, which took cowlib and its unfixed advisories
       # out of the tree.
