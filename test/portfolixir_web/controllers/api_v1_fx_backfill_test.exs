@@ -256,6 +256,8 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
   #   derivation: 200 with the rates' count, settlement_legs {status
   #   "stopped", stopped_at_transaction_id: its id, the counts null}; the
   #   rate is stored, the booking keeps no leg, and the stop is logged.
+  # - A second history run, once the booking can be written, completes and
+  #   derives its legs (derived 1).
   test "a derivation the ledger stops keeps the rates and names the booking", %{conn: conn} do
     marker = "a lost lock cycle in the history run"
     :ok = LostLockCycle.install!(marker)
@@ -279,6 +281,27 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
     assert Ledger.get_transaction(buy.id).security_amount == nil
     assert {:ok, _rate} = Portfolixir.Fx.rate_on("USD", "EUR", ~D[2026-01-21])
     assert log =~ "settlement-leg derivation stopped at transaction ##{buy.id}"
+
+    # A re-run derives the rest (review round S3): once the booking can be
+    # written again, a second history run completes and derives its legs.
+    {:ok, _cleared} =
+      Ledger.update_transaction(Actor.owner_ui(), Ledger.get_transaction(buy.id), %{
+        notes: "cleared"
+      })
+
+    Fake.put_history_response(usd_history([~D[2026-01-21]]))
+
+    assert %{"data" => %{"settlement_legs" => rerun}} = history!(conn, 200)
+
+    assert rerun == %{
+             "status" => "completed",
+             "derived" => 1,
+             "skipped_no_rate" => 0,
+             "skipped_changed" => 0,
+             "stopped_at_transaction_id" => nil
+           }
+
+    assert Decimal.to_string(Ledger.get_transaction(buy.id).settlement_fx_rate) == "0.800000"
   end
 
   defmodule NoHistoryProvider do
