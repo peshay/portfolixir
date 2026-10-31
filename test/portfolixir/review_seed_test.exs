@@ -167,6 +167,32 @@ defmodule Portfolixir.ReviewSeedTest do
     assert row_counts() == rows
   end
 
+  # User story (#1112, Sprint 21 γ2; board 02, pick N7 A; plan D-14):
+  # As the UAT persona walking a security's pages on the review instance,
+  # I want the seed to carry a held security whose quote of a booking's day
+  # contradicts its booked price,
+  # so that the Overview's implausible-quote note is on the instance beside
+  # the two-scales bonds of step 16d.
+  #
+  # Acceptance criteria:
+  # - "Tamarisk Systems Inc." is held in the Demo Depot, bought at 41.20
+  #   with a stored close of 412.00 on the booking's day: the
+  #   implausible_quote predicate names it, one booking outside, ratio 10.
+  # - A second run adds no security or booking.
+  test "the review seed carries a held security whose quote does not match its booking" do
+    seed!()
+    tamarisk = Repo.one!(from(s in Security, where: s.name == "Tamarisk Systems Inc."))
+
+    assert %{kind: "buy", bookings_outside: 1, ratio: ratio} =
+             Portfolixir.Catalog.DataQuality.implausible_quote_finding(tamarisk)
+
+    assert Decimal.equal?(ratio, 10)
+
+    rows = row_counts()
+    seed!()
+    assert row_counts() == rows
+  end
+
   # User story (#928, Sprint 21 α4; plan D-1 round trip 2, D-14):
   # As the UAT persona walking round trip 2, the coupon, on the review
   # instance in the German UI,
