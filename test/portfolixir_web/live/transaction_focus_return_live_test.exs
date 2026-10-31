@@ -17,14 +17,34 @@ defmodule PortfolixirWeb.TransactionFocusReturnLiveTest do
   import Phoenix.LiveViewTest
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 1, buy!: 3, create_security!: 1, deposit!: 3]
+    only: [add_depot: 2, base_world: 1, buy!: 3, create_security!: 1, deposit!: 3]
 
   setup do
     world = base_world(name: "Hauptportfolio", cash_name: "Girokonto", depot_name: "Depot 1")
     security = create_security!(name: "Global Aktien ETF", ticker: "GAE")
-    deposit = deposit!(world, "5000", ~D[2026-09-03])
+    deposit!(world, "5000", ~D[2026-09-03])
     buy = buy!(world, security, quantity: "40", price: "62.50", date: ~D[2026-09-22])
-    %{buy: buy, deposit: deposit}
+    %{buy: buy, deposit: transfer!(world, "500", ~D[2026-09-04])}
+  end
+
+  # Since Sprint 21 α6 (#1052) the drawer books and corrects a deposit, so
+  # the notes-only drawer is reached through a kind it still does not book:
+  # a cash transfer, which has two legs (the plan's D-6).
+  defp transfer!(world, amount, date) do
+    other = add_depot(world.portfolio, cash_name: "Tagesgeld", depot_name: "Depot Tagesgeld")
+
+    {:ok, tx} =
+      Portfolixir.Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        type: "cash_transfer",
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        counter_cash_account_id: other.cash.id,
+        gross_amount: amount,
+        currency_code: "EUR",
+        date: date
+      })
+
+    tx
   end
 
   defp menu_item(view, tx, item) do

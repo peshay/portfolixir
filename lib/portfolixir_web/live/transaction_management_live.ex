@@ -55,6 +55,16 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # The drawer's decimal fields, read by the one decimal-input rule (#869).
   @decimal_fields ~w(quantity price fees taxes settlement_amount settlement_fx_rate)
 
+  # Sprint 21 α6 (#1052, #1206; board 03, pick N12 A): the one-amount cash
+  # kinds the drawer books and corrects, their decimal fields, the kinds
+  # that credit the cash account (the rest debit it), the kinds that name a
+  # security (a dividend must), and the kinds that carry withheld taxes.
+  @cash_kinds Transaction.manual_cash_types()
+  @cash_decimal_fields ~w(gross_amount taxes)
+  @credit_kinds ~w(dividend interest deposit tax_refund)
+  @security_kinds ~w(dividend interest fee tax tax_refund)
+  @taxed_kinds ~w(dividend interest)
+
   @transaction_form %{
     "type" => "buy",
     "date" => "",
@@ -65,6 +75,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     "fees" => "0",
     "taxes" => "0",
     "currency_code" => "EUR",
+    "cash_account_id" => "",
+    "gross_amount" => "",
     "notes" => ""
   }
 
@@ -82,6 +94,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:booking_open?, false)
      |> assign(:editing_id, nil)
      |> assign(:editing_fixed, nil)
+     |> assign(:editing_cash, nil)
      |> assign(:deleting, nil)
      |> assign(:row_menu_id, nil)
      |> assign(:filter_sheet_open?, false)
@@ -550,9 +563,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           :if={@booking_open? and @editing_fixed == nil}
           focus_return={row_kebabs(@editing_id)}
           editing?={@editing_id != nil}
+          editing_cash={@editing_cash}
           transaction_form={@transaction_form}
           form_errors={@form_errors}
           securities_accounts={@securities_accounts}
+          cash_accounts={@cash_accounts}
           securities={@securities}
           sell_preview={@sell_preview}
         />
@@ -569,17 +584,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     """
   end
 
-  @impl true
-  def handle_event(
-        "save_transaction",
-        %{"transaction" => _params},
-        %{assigns: %{securities_accounts: []}} = socket
-      ) do
-    {:noreply, failure(socket, gettext("A booking needs a depot with a cash account."))}
-  end
-
   # U1 (#912), H2b-A: the notes-only drawer has no booking form, so a
   # booking save pushed at it changes nothing.
+  @impl true
   def handle_event(
         "save_transaction",
         _params,
@@ -604,6 +611,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
      |> assign(:booking_open?, false)
      |> assign(:editing_id, nil)
      |> assign(:editing_fixed, nil)
+     |> assign(:editing_cash, nil)
      |> assign(:transaction_form, @transaction_form)
      |> assign(:form_errors, %{})
      |> assign(:sell_preview, nil)}
@@ -627,6 +635,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       end
 
     params = SettlementForm.derive(params, target, settlement_pair(params, socket.assigns))
+
+    # α6: an edit's kind and cash account are disabled controls, which a
+    # form never sends; the form keeps them from the booking being edited.
+    params = put_frozen_cash(params, socket.assigns.editing_cash)
 
     # Clear stale field errors as the user edits, so a corrected field stops
     # reading as invalid before the next submit.
@@ -691,15 +703,20 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   def handle_event("edit_transaction", %{"id" => id_str}, socket) do
     with {:ok, id} <- LiveParam.fetch_id(id_str),
          %Transaction{} = transaction <- Ledger.get_transaction(id) do
+      transaction = with_loaded_security(transaction, socket.assigns.transactions)
+
       {:noreply,
        socket
        |> assign(:row_menu_id, nil)
        |> assign(:editing_id, id)
        # E25 S6 (G07, pick G12.3 = A), generalised by U1 (#912, pick
-       # H2b = A): every kind the drawer does not book — all but buy and
-       # sell — opens the notes-only state, the facts fixed and only the
-       # note editable.
-       |> assign(:editing_fixed, fixed_booking(transaction, socket.assigns.transactions))
+       # H2b = A): every kind the drawer does not book opens the
+       # notes-only state, the facts fixed and only the note editable.
+       # Since α6 (#1052) the drawer books buy, sell and the seven
+       # one-amount cash kinds; a cash kind stored in another currency than
+       # its account's stays notes-only (board 03, found while drawing 3).
+       |> assign(:editing_fixed, fixed_booking(transaction, socket.assigns.cash_accounts))
+       |> assign(:editing_cash, cash_edit(transaction, socket.assigns.cash_accounts))
        |> assign(:transaction_form, form_from_transaction(transaction, socket.assigns.securities))
        |> assign(:form_errors, %{})
        |> assign(:sell_preview, nil)
@@ -767,31 +784,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   def handle_event("save_transaction", %{"transaction" => params}, socket) do
     params = LiveParam.form(params)
 
-    # The currency is authoritative from the chosen depot's cash account, never a
-    # free-text field the user could mistype (#473).
-    currency =
-      derived_currency(socket.assigns.securities_accounts, params["securities_account_id"])
-
-    params =
-      params
-      |> put_portfolio_from_depot(socket.assigns.securities_accounts)
-      |> maybe_put_currency(currency)
-
-    # #869: the figures are read by the one decimal-input rule; the form keeps
-    # them exactly as typed, so a refusal never rewrites "2,5" into "2.5".
-    # #395: a cross-currency trade is booked in the security's currency with
-    # its settlement; a missing settlement amount is named on its field.
-    with {:figures, {:ok, figures}} <- {:figures, DecimalInput.cast(params, @decimal_fields)},
-         {:ok, prepared} <-
-           SettlementForm.prepare(figures, settlement_pair(params, socket.assigns)) do
-      save_booking(socket, params, prepared)
-    else
-      {:figures, {:error, errors}} ->
-        {:noreply,
-         refuse(socket, params, errors, gettext("A figure cannot be read; its field says why."))}
-
-      {:error, errors} ->
-        {:noreply, refuse(socket, params, errors, gettext("The settlement amount is missing."))}
+    case cash_booking_kind(socket.assigns, params) do
+      nil -> save_trade(socket, params)
+      kind -> save_cash(socket, kind, params)
     end
   end
 
@@ -849,6 +844,38 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # nothing (E25 S4, F17).
   def handle_event(_event, _params, socket), do: {:noreply, socket}
 
+  defp save_trade(%{assigns: %{securities_accounts: []}} = socket, _params),
+    do: {:noreply, failure(socket, gettext("A booking needs a depot with a cash account."))}
+
+  defp save_trade(socket, params) do
+    # The currency is authoritative from the chosen depot's cash account, never a
+    # free-text field the user could mistype (#473).
+    currency =
+      derived_currency(socket.assigns.securities_accounts, params["securities_account_id"])
+
+    params =
+      params
+      |> put_portfolio_from_depot(socket.assigns.securities_accounts)
+      |> maybe_put_currency(currency)
+
+    # #869: the figures are read by the one decimal-input rule; the form keeps
+    # them exactly as typed, so a refusal never rewrites "2,5" into "2.5".
+    # #395: a cross-currency trade is booked in the security's currency with
+    # its settlement; a missing settlement amount is named on its field.
+    with {:figures, {:ok, figures}} <- {:figures, DecimalInput.cast(params, @decimal_fields)},
+         {:ok, prepared} <-
+           SettlementForm.prepare(figures, settlement_pair(params, socket.assigns)) do
+      save_booking(socket, params, book_trade(socket.assigns.editing_id, prepared))
+    else
+      {:figures, {:error, errors}} ->
+        {:noreply,
+         refuse(socket, params, errors, gettext("A figure cannot be read; its field says why."))}
+
+      {:error, errors} ->
+        {:noreply, refuse(socket, params, errors, gettext("The settlement amount is missing."))}
+    end
+  end
+
   defp save_note(socket, id, notes) do
     case book(id, %{"notes" => notes}) do
       {:ok, _transaction} ->
@@ -890,6 +917,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     |> assign(:booking_open?, false)
     |> assign(:editing_id, nil)
     |> assign(:editing_fixed, nil)
+    |> assign(:editing_cash, nil)
   end
 
   defp gone_message, do: gettext("That transaction no longer exists.")
@@ -900,15 +928,21 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         "That transaction changed while it was being saved, so nothing was saved. Try again."
       )
 
-  # The kinds the drawer books are buy and sell (AGENTS.md goal 4); every
-  # other row opens notes-only: the row as stored now (its note current),
-  # with the security the history loaded for it, which may be one the
-  # booking form does not offer (a benchmark).
-  defp fixed_booking(%Transaction{type: type}, _loaded)
+  # The kinds the drawer books are buy and sell (AGENTS.md goal 4) and,
+  # since α6 (#1052, #1206), the seven one-amount cash kinds booked in their
+  # account's currency; every other row opens notes-only: the row as stored
+  # now (its note current), with the security the history loaded for it,
+  # which may be one the booking form does not offer (a benchmark).
+  defp fixed_booking(%Transaction{type: type}, _cash_accounts)
        when type in ["buy", "sell"],
        do: nil
 
-  defp fixed_booking(%Transaction{} = transaction, loaded) do
+  defp fixed_booking(%Transaction{} = transaction, cash_accounts) do
+    if cash_edit(transaction, cash_accounts), do: nil, else: transaction
+  end
+
+  # The row with the security the history loaded for it, when it did.
+  defp with_loaded_security(%Transaction{} = transaction, loaded) do
     case Enum.find(loaded, &(&1.id == transaction.id)) do
       %Transaction{security_id: id, security: security} when id == transaction.security_id ->
         %{transaction | security: security}
@@ -917,6 +951,101 @@ defmodule PortfolixirWeb.TransactionManagementLive do
         transaction
     end
   end
+
+  # α6 (board 03, N12 A): a one-amount cash booking the cash form corrects
+  # in place — one of the seven kinds, in its cash account's currency, with
+  # no settlement rate. A booking stored in another currency (an API booking
+  # with its rate) keeps the notes-only drawer, so a corrected amount never
+  # sits beside a stale rate (board 03, found while drawing 3). `nil`
+  # otherwise.
+  defp cash_edit(%Transaction{type: type} = transaction, cash_accounts)
+       when type in @cash_kinds do
+    account = Enum.find(cash_accounts, &(&1.id == transaction.cash_account_id))
+
+    if account && account.currency_code == transaction.currency_code &&
+         is_nil(transaction.settlement_fx_rate),
+       do: transaction,
+       else: nil
+  end
+
+  defp cash_edit(%Transaction{}, _cash_accounts), do: nil
+
+  # The cash kind a save books: the edited booking's own kind, whatever the
+  # save carries, or a new booking's chosen cash kind; `nil` sends the save
+  # down the trade path, whose K10 check refuses any other kind.
+  defp cash_booking_kind(%{editing_cash: %Transaction{type: type}}, _params), do: type
+
+  defp cash_booking_kind(%{editing_id: nil}, %{"type" => type}) when type in @cash_kinds,
+    do: type
+
+  defp cash_booking_kind(_assigns, _params), do: nil
+
+  defp put_frozen_cash(params, nil), do: params
+
+  defp put_frozen_cash(params, %Transaction{} = transaction),
+    do:
+      Map.merge(params, %{
+        "type" => transaction.type,
+        "cash_account_id" => to_string(transaction.cash_account_id)
+      })
+
+  # α6 (#1052, #1206; D-6): a cash booking goes through the ledger functions
+  # the API uses, so it brings no money semantics of its own. A new booking
+  # takes its portfolio and its currency from the chosen cash account (the
+  # account fixes the currency, as a depot does for a trade, #473); an edit
+  # keeps the kind, the cash account, the portfolio and the currency, and
+  # corrects the date, the amount, the taxes, the security and the note.
+  defp save_cash(socket, kind, params) do
+    editing = socket.assigns.editing_cash
+    params = put_frozen_cash(params, editing)
+
+    account =
+      Enum.find(socket.assigns.cash_accounts, &(to_string(&1.id) == params["cash_account_id"]))
+
+    case DecimalInput.cast(params, @cash_decimal_fields) do
+      {:ok, figures} ->
+        save_booking(socket, params, book_cash(socket.assigns.editing_id, kind, figures, account))
+
+      {:error, errors} ->
+        {:noreply,
+         refuse(socket, params, errors, gettext("A figure cannot be read; its field says why."))}
+    end
+  end
+
+  # No cash account chosen: the booking's own checks answer, without the
+  # portfolio and the currency the account would have given it.
+  defp book_cash(nil, kind, figures, nil) do
+    changeset =
+      Transaction.changeset(%Transaction{}, Map.put(cash_attrs(figures, kind), "type", kind))
+
+    {:error,
+     %{changeset | errors: Keyword.drop(changeset.errors, [:portfolio_id, :currency_code])}}
+  end
+
+  defp book_cash(nil, kind, figures, account) do
+    attrs =
+      figures
+      |> cash_attrs(kind)
+      |> Map.merge(%{
+        "type" => kind,
+        "cash_account_id" => account.id,
+        "portfolio_id" => account.portfolio_id,
+        "currency_code" => account.currency_code
+      })
+
+    book(nil, attrs)
+  end
+
+  defp book_cash(id, kind, figures, _account), do: book(id, cash_attrs(figures, kind))
+
+  defp cash_attrs(figures, kind) do
+    figures
+    |> Map.take(["date", "gross_amount", "notes"])
+    |> then(&if(kind in @security_kinds, do: put_field(&1, figures, "security_id"), else: &1))
+    |> then(&if(kind in @taxed_kinds, do: put_field(&1, figures, "taxes"), else: &1))
+  end
+
+  defp put_field(attrs, figures, field), do: Map.put(attrs, field, Map.get(figures, field, ""))
 
   # The row as stored now (R6), with the accounts and the security the
   # history names it by — an account from the page's lists carries its
@@ -971,8 +1100,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     |> failure(message)
   end
 
-  defp save_booking(socket, params, prepared) do
-    case book_trade(socket.assigns.editing_id, prepared) do
+  defp save_booking(socket, params, result) do
+    case result do
       {:ok, _transaction} ->
         {:noreply,
          socket
@@ -983,6 +1112,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          |> success(saved_message(socket.assigns.editing_id))
          |> assign(:editing_id, nil)
          |> assign(:editing_fixed, nil)
+         |> assign(:editing_cash, nil)
          |> load_state()}
 
       {:error, changeset} ->
@@ -997,6 +1127,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
          socket
          |> assign(:booking_open?, false)
          |> assign(:editing_id, nil)
+         |> assign(:editing_cash, nil)
          |> failure(gone_message())
          |> load_state()}
 
@@ -1009,10 +1140,10 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     end
   end
 
-  # K10: the drawer books the kinds its select offers, buy and sell, and no
-  # other: any other kind pushed at it writes nothing and is answered with the
-  # booking's own field errors plus an invalid type. A split is booked through
-  # the split flow only.
+  # K10: the trade path books buy and sell and no other kind (the cash kinds
+  # take `save_cash/3`, α6): any other kind pushed at it writes nothing and
+  # is answered with the booking's own field errors plus an invalid type. A
+  # split is booked through the split flow only.
   defp book_trade(id, params) do
     if params["type"] in Transaction.manual_trade_types(),
       do: book(id, params),
@@ -1067,6 +1198,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       "fees" => to_form_value(transaction.fees),
       "taxes" => to_form_value(transaction.taxes),
       "currency_code" => transaction.currency_code || "EUR",
+      "cash_account_id" => to_form_value(transaction.cash_account_id),
+      "gross_amount" => to_form_value(transaction.gross_amount),
       "notes" => transaction.notes || ""
     }
     |> Map.merge(SettlementForm.from_transaction(transaction, securities))
@@ -2082,13 +2215,13 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   defp notes_drawer_help(%Transaction{import_hash: hash}) when is_binary(hash),
     do:
       gettext(
-        "The date, amounts and accounts of this booking are fixed here; the screen books only buys and sells. The booking is corrected over the API or MCP, or it is deleted and imported again."
+        "The date, amounts and accounts of this booking are fixed here; the screen books buys, sells and cash bookings, not this kind. The booking is corrected over the API or MCP, or it is deleted and imported again."
       )
 
   defp notes_drawer_help(%Transaction{}),
     do:
       gettext(
-        "The date, amounts and accounts of this booking are fixed here; the screen books only buys and sells. The booking is corrected over the API or MCP, or it is deleted and booked again there."
+        "The date, amounts and accounts of this booking are fixed here; the screen books buys, sells and cash bookings, not this kind. The booking is corrected over the API or MCP, or it is deleted and booked again there."
       )
 
   # The facts a kind stores, in the drawer's order: type and date, then the
@@ -2277,17 +2410,29 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   attr(:securities, :list, required: true)
   attr(:sell_preview, :any, required: true)
   attr(:editing?, :boolean, default: false)
+  attr(:editing_cash, :any, default: nil)
+  attr(:cash_accounts, :list, default: [])
   attr(:focus_return, :string, default: nil)
 
   defp booking_drawer(assigns) do
     assigns =
-      assign(
-        assigns,
+      assigns
+      |> assign(
         :settlement_pair,
         SettlementForm.pair(
           assigns.transaction_form,
           assigns.securities_accounts,
           assigns.securities
+        )
+      )
+      |> assign(:cash?, assigns.transaction_form["type"] in @cash_kinds)
+      # α6: a new booking offers every kind the drawer books; a trade's edit
+      # keeps buy and sell (a different kind is a different booking).
+      |> assign(
+        :kinds,
+        if(assigns.editing?,
+          do: Transaction.manual_trade_types(),
+          else: Transaction.manual_trade_types() ++ @cash_kinds
         )
       )
 
@@ -2312,13 +2457,18 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                 else: gettext("Record transaction") %>
             </h2>
             <p class="detail-pane-sub">
-              <%= if @editing?,
-                do:
-                  gettext(
+              <%= cond do %>
+                <% @editing? -> %>
+                  <%= gettext(
                     "Corrects the booking in place; the derived holdings follow, and the journal records the change."
-                  ),
-                else:
-                  gettext("Books against the chosen depot; the cash moves in its cash account's currency.") %>
+                  ) %>
+                <% @cash? -> %>
+                  <%= gettext("Books to the chosen cash account, in its currency.") %>
+                <% true -> %>
+                  <%= gettext(
+                    "Books against the chosen depot; the cash moves in its cash account's currency."
+                  ) %>
+              <% end %>
             </p>
           </div>
         </div>
@@ -2333,12 +2483,26 @@ defmodule PortfolixirWeb.TransactionManagementLive do
           </button>
         </div>
       </header>
-      <form id="transaction-form" phx-change="form_changed" phx-submit="save_transaction">
+      <.cash_form
+        :if={@cash?}
+        transaction_form={@transaction_form}
+        form_errors={@form_errors}
+        cash_accounts={@cash_accounts}
+        securities={@securities}
+        editing_cash={@editing_cash}
+        kinds={Transaction.manual_trade_types() ++ Transaction.manual_cash_types()}
+      />
+      <form
+        :if={not @cash?}
+        id="transaction-form"
+        phx-change="form_changed"
+        phx-submit="save_transaction"
+      >
         <div class="form-grid">
           <label>
             <span><%= gettext("Type") %></span>
             <select name="transaction[type]">
-              <%= for type <- Transaction.manual_trade_types() do %>
+              <%= for type <- @kinds do %>
                 <option value={type} selected={type == @transaction_form["type"]}>
                   <%= tx_type_label(type) %>
                 </option>
@@ -2549,7 +2713,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
            on the ADR-0033 currency basis, so this panel and the
            trades surface cannot disagree. --%>
       <section
-        :if={@sell_preview && @sell_preview.lots != []}
+        :if={not @cash? and @sell_preview && @sell_preview.lots != []}
         id="sell-lot-preview"
         class="workspace-section"
         data-role="sell-lot-preview"
@@ -2647,6 +2811,211 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     </dialog>
     """
   end
+
+  # α6 (#1052, #1206; board 03, pick N12 A): the cash form — the kind
+  # first, then the date, the cash account, the security where the kind
+  # names one, the amount in the account's currency (paired with the
+  # withheld taxes for a dividend or interest), one line that says which
+  # way the cash moves, so a sign is never typed, and the note. An edit
+  # opens the same form prefilled, the kind and the cash account disabled,
+  # with a help line that states that limit and carries "Delete…"; an
+  # imported booking adds one attention note on what the next import does.
+  attr(:transaction_form, :map, required: true)
+  attr(:form_errors, :map, required: true)
+  attr(:cash_accounts, :list, required: true)
+  attr(:securities, :list, required: true)
+  attr(:editing_cash, :any, required: true)
+  attr(:kinds, :list, required: true)
+
+  defp cash_form(assigns) do
+    kind = assigns.transaction_form["type"]
+
+    account =
+      Enum.find(
+        assigns.cash_accounts,
+        &(to_string(&1.id) == assigns.transaction_form["cash_account_id"])
+      )
+
+    assigns =
+      assign(assigns,
+        kind: kind,
+        account: account,
+        frozen?: assigns.editing_cash != nil,
+        security_options: cash_security_options(assigns.securities, assigns.editing_cash)
+      )
+
+    ~H"""
+    <form id="transaction-form" phx-change="form_changed" phx-submit="save_transaction">
+      <AppShell.data_note
+        :if={@editing_cash && is_binary(@editing_cash.import_hash)}
+        severity={:attention}
+        data-role="booking-imported"
+      >
+        <%= gettext(
+          "This booking came from an import. Corrected here, it stays so: a re-import of the same file does not book it again, and the import's correction names it as edited by hand."
+        ) %>
+      </AppShell.data_note>
+      <div class="form-grid">
+        <label>
+          <span><%= gettext("Type") %></span>
+          <select name="transaction[type]" disabled={@frozen?}>
+            <%= for type <- @kinds do %>
+              <option value={type} selected={type == @kind}><%= tx_type_label(type) %></option>
+            <% end %>
+          </select>
+        </label>
+        <label>
+          <span><%= gettext("Date") %></span>
+          <input
+            type="text"
+            placeholder="YYYY-MM-DD"
+            pattern="[0-9]{4}-[0-9]{2}-[0-9]{2}"
+            maxlength="10"
+            name="transaction[date]"
+            value={@transaction_form["date"]}
+            required
+            aria-invalid={@form_errors["date"] && "true"}
+            aria-describedby={@form_errors["date"] && "tx-error-date"}
+          />
+          <.field_error errors={@form_errors} field="date" />
+        </label>
+        <label>
+          <span><%= gettext("Cash account") %></span>
+          <select
+            name="transaction[cash_account_id]"
+            required
+            disabled={@frozen?}
+            aria-invalid={@form_errors["cash_account_id"] && "true"}
+            aria-describedby={@form_errors["cash_account_id"] && "tx-error-cash_account_id"}
+          >
+            <option value=""><%= gettext("Select cash account") %></option>
+            <%= for account <- @cash_accounts do %>
+              <option
+                value={account.id}
+                selected={to_string(account.id) == @transaction_form["cash_account_id"]}
+              >
+                <%= account.name %> (<%= account.currency_code %>)
+              </option>
+            <% end %>
+          </select>
+          <.field_error errors={@form_errors} field="cash_account_id" />
+        </label>
+        <label :if={@kind in ~w(dividend interest fee tax tax_refund)}>
+          <span><%= gettext("Security") %></span>
+          <select
+            name="transaction[security_id]"
+            required={@kind == "dividend"}
+            aria-invalid={@form_errors["security_id"] && "true"}
+            aria-describedby={@form_errors["security_id"] && "tx-error-security_id"}
+          >
+            <option value="">
+              <%= if @kind == "dividend",
+                do: gettext("Select security"),
+                else: gettext("No security") %>
+            </option>
+            <% twin_tags = SecurityNames.tags(@security_options) %>
+            <%= for security <- @security_options do %>
+              <option
+                value={security.id}
+                selected={to_string(security.id) == @transaction_form["security_id"]}
+              >
+                <%= security_option_label(security) %><%= SecurityNames.suffix(twin_tags, security) %>
+              </option>
+            <% end %>
+          </select>
+          <.field_error errors={@form_errors} field="security_id" />
+        </label>
+        <label>
+          <span>
+            <%= if @account,
+              do: gettext("Amount (%{currency})", currency: @account.currency_code),
+              else: gettext("Amount") %>
+          </span>
+          <input
+            name="transaction[gross_amount]"
+            value={@transaction_form["gross_amount"]}
+            inputmode="decimal"
+            class="num"
+            required
+            aria-invalid={@form_errors["gross_amount"] && "true"}
+            aria-describedby={@form_errors["gross_amount"] && "tx-error-gross_amount"}
+          />
+          <.field_error errors={@form_errors} field="gross_amount" />
+        </label>
+        <label :if={@kind in ~w(dividend interest)}>
+          <span>
+            <%= if @account,
+              do: gettext("Taxes (%{currency})", currency: @account.currency_code),
+              else: gettext("Taxes") %>
+          </span>
+          <input
+            name="transaction[taxes]"
+            value={@transaction_form["taxes"]}
+            inputmode="decimal"
+            class="num"
+            aria-invalid={@form_errors["taxes"] && "true"}
+            aria-describedby={@form_errors["taxes"] && "tx-error-taxes"}
+          />
+          <.field_error errors={@form_errors} field="taxes" />
+        </label>
+      </div>
+      <p class="form-help" data-role="cash-direction">
+        <%= cash_direction(@kind, @account) %>
+      </p>
+      <p :if={@editing_cash} id="booking-edit-help" class="form-help">
+        <%= gettext(
+          "The kind and the cash account of a booked transaction are fixed; a booking of the wrong kind or on the wrong account is deleted and recorded again."
+        ) %>
+        <button
+          type="button"
+          class="link-button"
+          phx-click="ask_delete"
+          phx-value-id={@editing_cash.id}
+        >
+          <%= gettext("Delete…") %>
+        </button>
+      </p>
+      <AppShell.invisible_text_note texts={[@transaction_form["notes"]]}>
+        <%= gettext("Typed in anew, it is clean.") %>
+      </AppShell.invisible_text_note>
+      <label>
+        <span><%= gettext("Notes") %></span>
+        <textarea
+          name="transaction[notes]"
+          aria-invalid={@form_errors["notes"] && "true"}
+          aria-describedby={@form_errors["notes"] && "tx-error-notes"}
+        ><%= @transaction_form["notes"] %></textarea>
+        <.field_error errors={@form_errors} field="notes" />
+      </label>
+      <div class="booking-drawer__foot">
+        <button type="submit" class="button-primary">
+          <%= if @frozen?, do: gettext("Save changes"), else: gettext("Record transaction") %>
+        </button>
+        <button type="button" id="booking-cancel" class="button-ghost" phx-click="close_booking">
+          <%= gettext("Cancel") %>
+        </button>
+      </div>
+    </form>
+    """
+  end
+
+  # The kind gives the direction, so no sign is ever typed (board 03, N12 A).
+  defp cash_direction(_kind, nil), do: gettext("Currency is set by the selected cash account.")
+
+  defp cash_direction(kind, account) when kind in @credit_kinds,
+    do: gettext("Credited to %{account}.", account: account.name)
+
+  defp cash_direction(_kind, account),
+    do: gettext("Debited from %{account}.", account: account.name)
+
+  # The securities a cash booking may name, and the edited booking's own one
+  # when the list does not hold it (a benchmark), so an edit never clears it.
+  defp cash_security_options(securities, %Transaction{security: %{id: id} = security})
+       when is_integer(id) do
+    if Enum.any?(securities, &(&1.id == id)), do: securities, else: securities ++ [security]
+  end
+
+  defp cash_security_options(securities, _editing), do: securities
 
   attr(:errors, :map, required: true)
   attr(:field, :string, required: true)

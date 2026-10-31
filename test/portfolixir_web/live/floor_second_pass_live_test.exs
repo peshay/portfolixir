@@ -12,7 +12,14 @@ defmodule PortfolixirWeb.FloorSecondPassLiveTest do
   import Phoenix.LiveViewTest
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 1, buy!: 3, create_security!: 1, deposit!: 3, put_quote!: 3]
+    only: [
+      add_depot: 2,
+      base_world: 1,
+      buy!: 3,
+      create_security!: 1,
+      deposit!: 3,
+      put_quote!: 3
+    ]
 
   alias Portfolixir.Actor
   alias Portfolixir.Ledger
@@ -85,7 +92,21 @@ defmodule PortfolixirWeb.FloorSecondPassLiveTest do
   # - German keeps "Notiz gespeichert" after "Hinweis", which never stuttered.
   test "a saved booking note does not read Note Note saved", %{conn: conn} do
     world = base_world(name: "Notizen", cash_name: "Girokonto", depot_name: "Depot 1")
-    deposit = deposit!(world, "1500", ~D[2026-09-03])
+    deposit!(world, "1500", ~D[2026-09-03])
+    # Since Sprint 21 α6 (#1052) a deposit opens the cash form; the note is
+    # saved on a kind the drawer still shows notes-only, a cash transfer.
+    savings = add_depot(world.portfolio, cash_name: "Tagesgeld", depot_name: "Depot 2")
+
+    {:ok, deposit} =
+      Portfolixir.Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        type: "cash_transfer",
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        counter_cash_account_id: savings.cash.id,
+        gross_amount: "200",
+        currency_code: "EUR",
+        date: ~D[2026-09-04]
+      })
 
     for {query, expected} <- [
           {"", "Note Booking note saved"},

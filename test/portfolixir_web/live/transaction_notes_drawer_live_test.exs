@@ -18,11 +18,30 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
   alias Portfolixir.Actor
   alias Portfolixir.Ledger
 
+  # Since Sprint 21 α6 (#1052, #1206; the plan's D-6) the drawer books and
+  # corrects the seven one-amount cash kinds, so a deposit no longer opens
+  # notes-only: the booking these tests open is a cash transfer, which has
+  # two legs and keeps the notes-only drawer. The cash kinds' facts are read
+  # on a dividend booked in another currency than its account's, which
+  # keeps it too (board 03, found while drawing 3).
   setup do
     world = base_world(name: "Hauptportfolio", cash_name: "Girokonto", depot_name: "Depot 1")
     security = create_security!(name: "Nordwind Industrie AG", ticker: "NWI")
-    deposit = deposit!(world, "1500", ~D[2026-09-03])
-    %{world: world, security: security, deposit: deposit}
+    deposit!(world, "1500", ~D[2026-09-03])
+    savings = add_depot(world.portfolio, cash_name: "Tagesgeld", depot_name: "Depot 2")
+
+    {:ok, transfer} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        type: "cash_transfer",
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        counter_cash_account_id: savings.cash.id,
+        gross_amount: "1500",
+        currency_code: "EUR",
+        date: ~D[2026-09-03]
+      })
+
+    %{world: world, security: security, transfer: transfer, savings: savings}
   end
 
   defp book!(attrs) do
@@ -42,8 +61,8 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
   defp text(html),
     do: html |> Floki.parse_fragment!() |> Floki.text() |> String.replace(~r/\s+/, " ")
 
-  # User story (U1, #912; H2b-A):
-  # As the operator opening "Edit" on a deposit,
+  # User story (U1, #912; H2b-A; since α6 on a cash transfer):
+  # As the operator opening "Edit" on a cash transfer,
   # I want to see the booking's own facts, fixed, and change only its note,
   # with the way to correct it named where I tried,
   # so that the drawer never offers a form that can only refuse.
@@ -53,16 +72,17 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
   #   the screen does not book this kind and only the note changes, and that
   #   the journal records the change (the closing act, R10a and R10d: no
   #   "a “Deposit”", no "journaled").
-  # - Type, date, cash account and amount show as disabled fields.
-  # - The help line states the limit and both correction paths — for a
+  # - Type, date, both accounts and amount show as disabled fields.
+  # - The help line states the limit (since α6: the screen books buys, sells
+  #   and cash bookings, not this kind) and both correction paths — for a
   #   booking that came over the API, booking it again there, never
   #   "imported again" (R10e) — with "Delete…" as a link-button.
   # - "Save note" stores the note alone and closes the drawer with "Booking
   #   note saved" (the note's word "Note" before it, since 2026-10-07); the
-  #   deposit's facts are unchanged.
-  test "a deposit's edit shows its facts fixed and saves only the note",
-       %{conn: conn, deposit: deposit} do
-    view = open_edit(conn, deposit)
+  #   transfer's facts are unchanged.
+  test "a transfer's edit shows its facts fixed and saves only the note",
+       %{conn: conn, transfer: transfer} do
+    view = open_edit(conn, transfer)
 
     assert has_element?(view, "dialog#booking-drawer #note-form")
     refute has_element?(view, "#transaction-form")
@@ -70,7 +90,7 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
     drawer = view |> element("#booking-drawer") |> render() |> text()
 
     assert drawer =~
-             "The screen does not book the kind “Deposit”; only the note changes here, and the journal records the change."
+             "The screen does not book the kind “Cash transfer”; only the note changes here, and the journal records the change."
 
     assert has_element?(view, "#booking-facts select[name='note[type]'][disabled]")
 
@@ -80,6 +100,7 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
            )
 
     assert view |> element("#booking-facts") |> render() |> text() =~ "Girokonto"
+    assert view |> element("#booking-facts") |> render() |> text() =~ "Tagesgeld"
 
     assert has_element?(
              view,
@@ -89,6 +110,7 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
     refute has_element?(view, "#booking-facts [name='note[security_id]']")
 
     help = view |> element("#booking-edit-help") |> render() |> text()
+    assert help =~ "the screen books buys, sells and cash bookings, not this kind"
     assert help =~ "corrected over the API or MCP, or it is deleted and booked again there"
     refute help =~ "imported"
     assert has_element?(view, "#booking-edit-help button.link-button[phx-click='ask_delete']")
@@ -102,9 +124,9 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
     assert view |> element("#transactions-result .data-note--note") |> render() =~
              "Booking note saved"
 
-    stored = Ledger.get_transaction(deposit.id)
+    stored = Ledger.get_transaction(transfer.id)
     assert stored.notes == "per the bank statement"
-    assert stored.type == "deposit"
+    assert stored.type == "cash_transfer"
     assert Decimal.equal?(stored.gross_amount, Decimal.new("1500"))
   end
 
@@ -114,13 +136,14 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
   # so that I can read the whole booking without deleting it.
   #
   # Acceptance criteria:
-  # - A dividend shows its security, cash account, amount and taxes; a cash
+  # - A dividend (booked in USD on the EUR account, so notes-only since α6)
+  #   shows its security, cash account, amount and taxes; a cash
   #   transfer both accounts; an inbound delivery its depot, quantity and
   #   price; a security transfer both depots and the quantity.
   # - A set balance shows its account and the balance, and its help line
   #   names setting it again under Accounts & depots.
-  test "each kind shows the facts it stores", %{conn: conn, world: world, security: security} do
-    savings = add_depot(world.portfolio, cash_name: "Tagesgeld", depot_name: "Depot 2")
+  test "each kind shows the facts it stores",
+       %{conn: conn, world: world, security: security, savings: savings} do
     buy!(world, security, quantity: "30", price: "40", date: ~D[2026-09-05])
 
     dividend =
@@ -131,6 +154,9 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
         cash_account_id: world.cash.id,
         gross_amount: "48.75",
         taxes: "8.61",
+        currency_code: "USD",
+        settlement_fx_rate: "0.8",
+        settlement_amount: "39.00",
         date: ~D[2026-09-26]
       })
 
@@ -205,26 +231,26 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
   end
 
   # User story (U1, #912; H2b-A; the closing act, R10d and R10e):
-  # As the operator opening Edit on a dividend an import brought in, and on
-  # a split,
+  # As the operator opening Edit on a transfer an import brought in, and on
+  # a set balance (since α6 an imported dividend opens the cash form),
   # I want the help line to name the import as the way back only for an
   # imported booking, and every sub line in plain words,
   # so that the drawer tells me what actually corrects this booking.
   #
   # Acceptance criteria:
-  # - An imported dividend's help line names deleting and importing again.
+  # - An imported transfer's help line names deleting and importing again.
   # - The German sub lines say "das Journal hält die Änderung fest" — a
   #   kind, a split and a set balance alike — never "journalisiert".
   test "the help line names the import only for an imported booking",
-       %{conn: conn, world: world, security: security} do
+       %{conn: conn, world: world, savings: savings} do
     {:ok, dividend} =
       Ledger.create_transaction(
         Actor.owner_ui(),
         %{
-          type: "dividend",
+          type: "cash_transfer",
           portfolio_id: world.portfolio.id,
-          security_id: security.id,
           cash_account_id: world.cash.id,
+          counter_cash_account_id: savings.cash.id,
           gross_amount: "48.75",
           currency_code: "EUR",
           date: ~D[2026-09-26]
@@ -248,7 +274,7 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
       )
 
     for {tx, sub} <- [
-          {dividend, "Die Art „Dividende“ bucht die Oberfläche nicht;"},
+          {dividend, "Die Art „Umbuchung“ bucht die Oberfläche nicht;"},
           {anchor, "Ein Saldo wird unter Konten & Depots gesetzt;"}
         ] do
       drawer = german |> open_edit(tx) |> element(".detail-pane-sub") |> render() |> text()
@@ -303,9 +329,9 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
   # - "Delete…" closes the drawer and opens the booking's delete dialog.
   test "the help line's Delete… opens the booking's delete dialog", %{
     conn: conn,
-    deposit: deposit
+    transfer: transfer
   } do
-    view = open_edit(conn, deposit)
+    view = open_edit(conn, transfer)
 
     view |> element("#booking-edit-help button.link-button") |> render_click()
 
@@ -313,7 +339,7 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
     assert has_element?(view, "dialog#booking-delete-dialog")
 
     assert view |> element("#booking-delete-subject") |> render() |> text() =~
-             "2026-09-03 · Deposit"
+             "2026-09-03 · Cash transfer"
   end
 
   # User story (U1, #912; H2b-A):
@@ -326,8 +352,8 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
   # - A save_transaction event while the notes-only drawer is open changes
   #   nothing; the drawer stays.
   test "a forged booking save on the notes-only drawer changes nothing",
-       %{conn: conn, world: world, security: security, deposit: deposit} do
-    view = open_edit(conn, deposit)
+       %{conn: conn, world: world, security: security, transfer: transfer} do
+    view = open_edit(conn, transfer)
 
     render_submit(view, "save_transaction", %{
       "transaction" => %{
@@ -341,8 +367,8 @@ defmodule PortfolixirWeb.TransactionNotesDrawerLiveTest do
     })
 
     assert has_element?(view, "#note-form")
-    stored = Ledger.get_transaction(deposit.id)
-    assert stored.type == "deposit"
+    stored = Ledger.get_transaction(transfer.id)
+    assert stored.type == "cash_transfer"
     assert stored.security_id == nil
   end
 end

@@ -12,7 +12,7 @@ defmodule PortfolixirWeb.TransactionLockCycleLiveTest do
   import Phoenix.LiveViewTest
 
   import Portfolixir.WorldFixtures,
-    only: [base_world: 1, buy!: 3, create_security!: 1, deposit!: 3]
+    only: [add_depot: 2, base_world: 1, buy!: 3, create_security!: 1, deposit!: 3]
 
   alias Portfolixir.Ledger
   alias Portfolixir.LostLockCycle
@@ -23,9 +23,30 @@ defmodule PortfolixirWeb.TransactionLockCycleLiveTest do
     :ok = LostLockCycle.install!(@marker)
     world = base_world(name: "Lock Cycle Drawer", cash_name: "Lock Cycle Drawer Cash")
     security = create_security!(name: "Lock Cycle Drawer AG", ticker: "LCDA")
-    booking = deposit!(world, "250.00", ~D[2026-09-03])
+    deposit!(world, "250.00", ~D[2026-09-03])
+    booking = transfer!(world, "100.00", ~D[2026-09-03])
     buy = buy!(world, security, quantity: "2", price: "40", date: ~D[2026-09-04])
     %{booking: booking, buy: buy}
+  end
+
+  # Since Sprint 21 α6 (#1052) the drawer books and corrects a deposit, so
+  # the notes-only drawer is reached through a kind it still does not book:
+  # a cash transfer, which has two legs (the plan's D-6).
+  defp transfer!(world, amount, date) do
+    other = add_depot(world.portfolio, cash_name: "Tagesgeld", depot_name: "Depot Tagesgeld")
+
+    {:ok, tx} =
+      Portfolixir.Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+        type: "cash_transfer",
+        portfolio_id: world.portfolio.id,
+        cash_account_id: world.cash.id,
+        counter_cash_account_id: other.cash.id,
+        gross_amount: amount,
+        currency_code: "EUR",
+        date: date
+      })
+
+    tx
   end
 
   # User story (#1214; ADR-0050 §10):

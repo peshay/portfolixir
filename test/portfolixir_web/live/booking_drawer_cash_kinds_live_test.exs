@@ -47,8 +47,11 @@ defmodule PortfolixirWeb.BookingDrawerCashKindsLiveTest do
     |> put_req_header("authorization", "Bearer test-api-token")
   end
 
-  defp post_json(path, body), do: api_conn() |> post(path, Jason.encode!(body))
-  defp patch_json(path, body), do: api_conn() |> patch(path, Jason.encode!(body))
+  defp post_json(path, attrs),
+    do: api_conn() |> post(path, Jason.encode!(%{"transaction" => attrs}))
+
+  defp patch_json(path, attrs),
+    do: api_conn() |> patch(path, Jason.encode!(%{"transaction" => attrs}))
 
   # The drawer opened for a new booking, its kind chosen as the select's
   # change event sends it.
@@ -252,6 +255,47 @@ defmodule PortfolixirWeb.BookingDrawerCashKindsLiveTest do
     end
 
     assert Decimal.equal?(balance(world), d("1010.00"))
+  end
+
+  # User story (#1052, #1206, Sprint 21 α6; board 03, N12 A: "the account
+  # fixes the currency", as the depot does for a trade, #473):
+  # As the operator booking a fee on an account kept in US dollars,
+  # I want the booking in that account's currency, whatever the form held,
+  # so that the drawer never books a cross-currency cash kind without its
+  # rate.
+  #
+  # Acceptance criteria:
+  # - The amount reads "Amount (USD)" once USD-Konto is chosen.
+  # - A fee of 4.90 to USD-Konto is stored in USD, in USD-Konto's
+  #   portfolio, and moves its balance from 0 to −4.90.
+  test "a cash booking takes the chosen account's currency", %{conn: conn, world: world} do
+    usd =
+      add_depot(world.portfolio, cash_name: "USD-Konto", depot_name: "Depot USD", currency: "USD")
+
+    view = open_kind(conn, "fee", %{"cash_account_id" => to_string(usd.cash.id)})
+
+    assert view |> element("#transaction-form") |> render() |> text() =~ "Amount (USD)"
+
+    view
+    |> form("#transaction-form", %{
+      "transaction" => %{
+        "type" => "fee",
+        "date" => "2026-10-08",
+        "cash_account_id" => to_string(usd.cash.id),
+        "security_id" => "",
+        "gross_amount" => "4.90"
+      }
+    })
+    |> render_submit()
+
+    [fee] = Enum.filter(Ledger.list_transactions(), &(&1.type == "fee"))
+    assert fee.currency_code == "USD"
+    assert fee.portfolio_id == usd.cash.portfolio_id
+
+    assert Decimal.equal?(
+             Map.fetch!(Ledger.cash_balances(portfolio_id: world.portfolio.id), usd.cash.id),
+             d("-4.90")
+           )
   end
 
   # User story (#1052, Sprint 21 α6; board 03, N12 A, "abgelehnt"):

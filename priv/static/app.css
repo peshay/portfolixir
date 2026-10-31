@@ -9050,6 +9050,15 @@ dialog.booking-drawer {
   grid-column: 1 / -1;
 }
 
+/* Sprint 21 α6 (issues 1052 and 1206; board 03, pick N12 A): the cash form
+   puts the type, date, cash account and security on full rows (the rule
+   above) and pairs the amount with the withheld taxes for a dividend or
+   interest. A kind without taxes leaves the amount as the grid's fifth and
+   last label; it takes the full row instead of half of it. */
+.booking-drawer .form-grid > label:nth-child(5):last-child {
+  grid-column: 1 / -1;
+}
+
 .booking-drawer .workspace-section {
   padding: 0;
   border: 0;
@@ -9079,6 +9088,19 @@ dialog.booking-drawer {
     border-bottom: 0;
     border-radius: var(--radius-md, 8px) var(--radius-md, 8px) 0 0;
     box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
+  }
+
+  /* α6 (board 03, found while drawing 4): a cash form or a buy with its
+     costs open grows past the sheet's 88vh, so the foot stays at the
+     sheet's bottom edge while the fields scroll above it. Its own bottom
+     padding takes the sheet's, so the last scroll ends as before. */
+  .booking-drawer__foot {
+    position: sticky;
+    bottom: 0;
+    padding: var(--space-2) 0 calc(16px + env(safe-area-inset-bottom, 0px));
+    margin-bottom: calc(-16px - env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--color-border);
+    background: var(--color-bg-elevated);
   }
 
   dialog.booking-drawer::backdrop {

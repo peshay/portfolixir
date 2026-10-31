@@ -12,6 +12,11 @@ defmodule Portfolixir.Ledger.Transaction do
   alias Portfolixir.Portfolios.SecuritiesAccount
 
   @manual_trade_types ["buy", "sell"]
+  # Sprint 21 α6 (#1052, #1206; board 03, pick N12 A): the one-amount cash
+  # kinds the booking drawer books and corrects, in its select's order. A
+  # transfer, a delivery, a balance snapshot and a split are not among them:
+  # each has two legs or a rule of its own (K10 keeps the split out).
+  @manual_cash_types ["dividend", "interest", "deposit", "removal", "fee", "tax", "tax_refund"]
   @kinds [
     "buy",
     "sell",
@@ -86,6 +91,7 @@ defmodule Portfolixir.Ledger.Transaction do
   end
 
   def manual_trade_types, do: @manual_trade_types
+  def manual_cash_types, do: @manual_cash_types
   def kinds, do: @kinds
 
   @doc """
