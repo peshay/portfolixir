@@ -133,6 +133,66 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
              "ohne Umrechnung"
   end
 
+  # User story (#1198, N8 A, the tab; a trade that closes two lots):
+  # As the operator whose sale closed two imported buys, neither with a
+  # figure in the sale's currency,
+  # I want the note to name that one trade once, with both buys,
+  # so that it never reads as two trades.
+  #
+  # Acceptance criteria:
+  # - Two legless buys of 5 Arbolia at 80.00 EUR (2025-02-12, 2025-03-12),
+  #   one sale of 10 at 120 USD: the note holds one sentence, "1 trade not
+  #   convertible: 2 buys it closes, of 2025-02-12, 2025-03-12, have no
+  #   figure in USD, the sale's currency"; "1 trade not convertible" appears
+  #   once. In German "1 Trade ohne Umrechnung: 2 Käufe, die er schließt,
+  #   vom 12.02.2025, 12.03.2025, haben keinen Gegenwert in USD".
+  test "a trade that closes two lots without their leg is named once, with both", %{conn: conn} do
+    world =
+      WorldFixtures.base_world(name: "Muster", cash_name: "Test-Cash", depot_name: "Depot Muster")
+
+    arbolia =
+      WorldFixtures.create_security!(name: "Arbolia Inc.", ticker: "ARBL", currency: "USD")
+
+    for date <- [~D[2025-02-12], ~D[2025-03-12]] do
+      {:ok, _buy} =
+        Ledger.create_transaction(Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          securities_account_id: world.depot.id,
+          cash_account_id: world.cash.id,
+          security_id: arbolia.id,
+          type: "buy",
+          date: date,
+          quantity: "5",
+          price: "80",
+          currency_code: "EUR",
+          gross_amount: "400"
+        })
+    end
+
+    WorldFixtures.cross_trade!(world, arbolia,
+      type: "sell",
+      quantity: "10",
+      price: "120",
+      settled: "960.00",
+      gross: "960.00",
+      date: ~D[2026-08-14]
+    )
+
+    {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}?tab=trades")
+    note = view |> element("[data-role=trades-unavailable]") |> render() |> text()
+
+    assert note =~
+             "1 trade not convertible: 2 buys it closes, of 2025-02-12, 2025-03-12, have no figure in USD, the sale's currency"
+
+    assert length(String.split(note, "1 trade not convertible")) == 2
+
+    {:ok, de_view, _html} = live(conn, "/securities/#{arbolia.id}?tab=trades&locale=de")
+    de_note = de_view |> element("[data-role=trades-unavailable]") |> render() |> text()
+
+    assert de_note =~
+             "1 Trade ohne Umrechnung: 2 Käufe, die er schließt, vom 12.02.2025, 12.03.2025, haben keinen Gegenwert in USD"
+  end
+
   # User story (#1198, N8 A, the aggregates):
   # As the operator reading the Trades facet and the Overview card,
   # I want the unavailable trade out of every row and total and named in the
