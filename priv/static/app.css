@@ -2028,8 +2028,13 @@ li + li {
   margin-top: var(--space-1);
 }
 
+/* `.button-secondary` is the outline secondary, `.button-ghost`'s twin
+   (issue 1181, board ux-design-2026-10-09/07-imports ⑨): it joins both of
+   its selector lists and its hover, all before `.button`, so Tax's
+   `button button-secondary` keeps `.button`'s size. */
 .button-primary,
-.button-ghost {
+.button-ghost,
+.button-secondary {
   font: inherit;
   cursor: pointer;
   border-radius: var(--radius-md);
@@ -2064,14 +2069,27 @@ li + li {
   border-color: transparent;
 }
 
-.button-ghost {
+.button-ghost,
+.button-secondary {
   background: transparent;
   border-color: var(--color-border);
   color: var(--color-text);
 }
 
-.button-ghost:hover {
+.button-ghost:hover,
+.button-secondary:hover {
   background: var(--color-hover);
+}
+
+/* A link carrying it aligns as a button does: its text centred in its box,
+   level with the primary beside it. */
+a.button-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-height: 34px;
+  text-decoration: none;
 }
 
 /* The button family draws the house focus ring, the 2 px accent outline at a
@@ -8442,9 +8460,6 @@ select:disabled {
 .tax-form__actions {
   display: flex;
   gap: var(--space-3);
-}
-.button-secondary {
-  color: var(--color-text-muted);
 }
 .tax-statements {
   list-style: none;
