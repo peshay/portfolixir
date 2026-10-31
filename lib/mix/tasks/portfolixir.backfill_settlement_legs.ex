@@ -19,7 +19,8 @@ defmodule Mix.Tasks.Portfolixir.BackfillSettlementLegs do
 
   Idempotent: a row that carries any of the three fields, or is priced in a
   third currency, is never touched, and neither is one that gains a field
-  while the task runs. Rows whose booking date has no stored rate are
+  while the task runs (counted as "skipped (changed)", with a row deleted
+  meanwhile). Rows whose booking date has no stored rate are
   skipped and listed — store a rate for that date and re-run; nothing is
   ever guessed.
   """
@@ -41,6 +42,7 @@ defmodule Mix.Tasks.Portfolixir.BackfillSettlementLegs do
         Settlement-leg backfill complete:
           rows updated:          #{summary.updated}
           skipped (no rate):     #{summary.skipped_no_rate}
+          skipped (changed):     #{summary.skipped_changed}
         """)
 
         Enum.each(summary.skipped_no_rate_rows, fn row ->
