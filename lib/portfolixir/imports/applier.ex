@@ -491,10 +491,10 @@ defmodule Portfolixir.Imports.Applier do
       end
 
     empty = %{hash: 0, retired: 0, unimportable: 0, economics: 0, internal_transfer: 0, new: 0}
+    judged = judge_rows(flat_entries, layers)
 
     counts =
-      flat_entries
-      |> judge_rows(layers)
+      judged
       |> Enum.reduce(%{total: empty, cash_accounts: %{}, depots: %{}}, fn {entry, layer}, acc ->
         count_row(acc, entry, layer, empty)
       end)
@@ -517,9 +517,15 @@ defmodule Portfolixir.Imports.Applier do
         count_security(acc, key, layer, empty)
       end)
 
+    unseen =
+      case outcomes do
+        {:ok, _outcomes} -> release_booked(unseen_names(flat_entries, hash_layers), judged)
+        :error -> unseen_names(flat_entries, hash_layers)
+      end
+
     counts
     |> Map.put(:securities, securities)
-    |> Map.put(:unseen_names, unseen_names(flat_entries, hash_layers))
+    |> Map.put(:unseen_names, unseen)
   end
 
   @typedoc "The file's names unknown to the stored history, as `reimport_counts/3` names them."
@@ -555,6 +561,34 @@ defmodule Portfolixir.Imports.Applier do
     %{
       cash_accounts: Enum.sort(for {:cash, name} <- unseen, do: name),
       depots: Enum.sort(for {:depot, name} <- unseen, do: name)
+    }
+  end
+
+  # The amendment of 2026-10-09 to ADR-0050 §2 (#1195), point 1: once the
+  # dry run has run to its end, a name the first pass named unknown is
+  # released when none of its importable rows counts `:new` or
+  # `:internal_transfer`: every one of them is already booked on the name's
+  # resolution (`:economics`, or a repeat of such a row inside the file). A
+  # name the stored history never saw resolves onto an account the run would
+  # create, whose placeholder key matches no booking, so its rows count new.
+  # The release only removes names: it never names one the first pass did
+  # not, and only a hash hit arms the probe.
+  defp release_booked(unseen, judged) do
+    booking =
+      for {entry, layer} <- judged,
+          layer in [:new, :internal_transfer],
+          {kind, names} <- [
+            cash: [entry.pp_account_name, entry.pp_counter_account_name],
+            depot: [entry.pp_portfolio_name, entry.pp_counter_portfolio_name]
+          ],
+          name <- names,
+          name != nil,
+          into: MapSet.new(),
+          do: {kind, name}
+
+    %{
+      cash_accounts: Enum.filter(unseen.cash_accounts, &MapSet.member?(booking, {:cash, &1})),
+      depots: Enum.filter(unseen.depots, &MapSet.member?(booking, {:depot, &1}))
     }
   end
 
