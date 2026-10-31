@@ -10,6 +10,8 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
   alias Portfolixir.Classifications
   alias Portfolixir.Clock
   alias Portfolixir.Ledger
+  alias Portfolixir.Portfolios.Snapshots
+  alias Portfolixir.Portfolios.Targets
   alias Portfolixir.WorldFixtures
 
   defp text(nodes),
@@ -229,7 +231,7 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
       WorldFixtures.put_quote!(stock, ~D[2026-03-10], "100.004")
 
       {:ok, _} =
-        Portfolixir.Portfolios.Snapshots.create_snapshot(Portfolixir.Actor.owner_ui(), %{
+        Snapshots.create_snapshot(Portfolixir.Actor.owner_ui(), %{
           name: "Flat hold",
           as_of: ~D[2026-02-15]
         })
@@ -374,7 +376,7 @@ defmodule PortfolixirWeb.ZeroFigureUnsignedTest do
       WorldFixtures.buy!(world, harbor, quantity: "1", price: "100.008", date: ~D[2026-01-05])
 
       {:ok, _} =
-        Portfolixir.Portfolios.Targets.set_targets(owner, world.portfolio.id, tree.id, [
+        Targets.set_targets(owner, world.portfolio.id, tree.id, [
           %{"category_id" => growth.id, "target_weight" => "0.5"},
           %{"category_id" => income.id, "target_weight" => "0.5"}
         ])
