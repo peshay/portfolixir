@@ -252,6 +252,51 @@ describe("MCP HTTP security helpers", () => {
     assert.equal(authenticate(auth, "Bearer wrong", "10.0.0.5").statusCode, 401);
   });
 
+  // User story (security review 2026-10-12, H21):
+  // As the operator whose MCP token someone guesses slowly,
+  // I want a source's failure count kept for an hour after its last failure,
+  // well past the longest lock,
+  // so that waiting out a lock never resets the escalation, while a source
+  // that stays quiet for over an hour starts afresh.
+  //
+  // Acceptance criteria:
+  // - Ten failures lock a source for the first lock; an eleventh fifty
+  //   minutes later locks it for twice that.
+  // - Sixty-one quiet minutes after its last failure, the source's next
+  //   failure counts from one: nine more leave it unlocked, the tenth locks
+  //   it for the first lock again.
+  it("keeps a source's failure count for an hour after its last failure", () => {
+    let now = 10_000;
+    const throttle = createFailureThrottle();
+    const source = "10.0.0.9";
+
+    for (let attempt = 1; attempt <= throttle.maxFailures; attempt += 1) {
+      throttle.failure(source, now);
+    }
+
+    assert.deepEqual(throttle.check(source, now), { locked: true, retryAfter: throttle.baseLockSeconds });
+
+    now += 50 * 60;
+    assert.equal(throttle.check(source, now).locked, false);
+    throttle.failure(source, now);
+    assert.deepEqual(throttle.check(source, now), {
+      locked: true,
+      retryAfter: throttle.baseLockSeconds * 2
+    });
+
+    now += 61 * 60;
+    throttle.failure(source, now);
+    assert.equal(throttle.check(source, now).locked, false, "the count starts afresh");
+
+    for (let attempt = 2; attempt < throttle.maxFailures; attempt += 1) {
+      throttle.failure(source, now);
+    }
+
+    assert.equal(throttle.check(source, now).locked, false);
+    throttle.failure(source, now);
+    assert.deepEqual(throttle.check(source, now), { locked: true, retryAfter: throttle.baseLockSeconds });
+  });
+
   // User story (#974, the Sprint 20 plan's D-11):
   // As an operator whose host clients all reach the companion's published
   // port from one address,
