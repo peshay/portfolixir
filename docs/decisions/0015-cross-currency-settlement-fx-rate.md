@@ -504,8 +504,9 @@ in the amendment of 2026-10-07:
    Pinned in `Fx.HistoryBackfillTest` (its round trip of a dollar share
    bought from a euro account gains the legs) and
    `Ledger.SettlementBackfillTest`. Mutation checks: dropping the
-   legs-missing condition journals the sale; reading quantity × price
-   parts the two paths on the rounded row.
+   legs-missing condition journals the imported sale that already carries
+   its legs, and the booking-form sale; reading quantity × price parts
+   the two paths on the rounded row.
 
 ### Consequences of the amendment
 
