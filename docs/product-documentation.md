@@ -3293,7 +3293,13 @@ ISINs, then recorded former-ISIN aliases —, then WKN, then ticker+currency,
 then name+currency. Each tier only applies when the identifier is present on
 both sides, and only when it selects exactly one candidate. Matching never
 changes the matched security's master data: a rename in the export updates
-nothing implicitly.
+nothing implicitly. A security the import creates for an earlier row of the
+file is matched by the later rows as a stored one is: the preview resolves
+each row in file order, counting the securities the import will create on
+the rows before it, so it shows a later row as the import will book it
+(matched onto that creation, or a decision when its identifiers point
+elsewhere). A security you choose to create on a decision row is not
+counted until you confirm.
 
 The preview's **Securities from the export** panel shows the outcome:
 

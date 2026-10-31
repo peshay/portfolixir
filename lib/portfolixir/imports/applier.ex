@@ -1510,24 +1510,12 @@ defmodule Portfolixir.Imports.Applier do
   defp revalidate_against_approval(_ref, _key, %{approved_resolutions: nil}), do: :ok
 
   defp revalidate_against_approval(ref, key, %{approved_resolutions: approved} = state) do
-    digest =
-      case SecurityResolver.resolve(ref, state.pristine_index) do
-        {:match, security, _tier} ->
-          {:matched, security.id}
-
-        :create ->
-          # A plain create that has become config-at-risk since the preview is
-          # a divergence from the approved `:create`, not a silent drop into
-          # unresolved_entries: fold the risk into the digest so it aborts back
-          # to the preview (ADR-0029 §2).
-          case SecurityResolver.config_at_risk(ref, state.pristine_index) do
-            [] -> :create
-            _at_risk -> :create_at_risk
-          end
-
-        {:conflict, _conflict} ->
-          :conflict
-      end
+    # A plain create that has become config-at-risk since the preview is a
+    # divergence from the approved `:create`, not a silent drop into
+    # unresolved_entries: the digest folds the risk in, so it aborts back to
+    # the preview (ADR-0029 §2). The preview's plan carries the same digest
+    # (`SecurityResolver.approval/2`, #1203).
+    digest = SecurityResolver.approval(ref, state.pristine_index)
 
     if Map.get(approved, key) == digest do
       :ok
@@ -1828,7 +1816,7 @@ defmodule Portfolixir.Imports.Applier do
       {:ok, security} ->
         state =
           state
-          |> Map.update!(:live_index, &add_security_to_index(&1, security))
+          |> Map.update!(:live_index, &SecurityResolver.put_security(&1, security))
           |> cache_resolution(key, {:security, security.id, :created})
           |> bump_result(:created_securities)
           |> track_created_security(security.id)
@@ -1840,33 +1828,6 @@ defmodule Portfolixir.Imports.Applier do
         {:error, {:security_create_failed, changeset}}
     end
   end
-
-  # A security created during the run enters the live index so later rows of
-  # the same file resolve onto it instead of minting a second copy.
-  defp add_security_to_index(index, %Security{} = security) do
-    %{
-      index
-      | securities_by_id: Map.put(index.securities_by_id, security.id, security),
-        by_isin: put_if(index.by_isin, security.isin, security),
-        by_wkn: group_put_if(index.by_wkn, security.wkn, security),
-        by_ticker_ccy:
-          group_put_if(index.by_ticker_ccy, key_pair(security.ticker_symbol, security), security),
-        by_name_ccy: group_put_if(index.by_name_ccy, key_pair(security.name, security), security),
-        by_name: group_put_if(index.by_name, security.name, security),
-        by_ticker: group_put_if(index.by_ticker, security.ticker_symbol, security)
-    }
-  end
-
-  defp key_pair(nil, _security), do: nil
-  defp key_pair(value, %Security{currency_code: ccy}), do: {value, ccy}
-
-  defp put_if(map, nil, _security), do: map
-  defp put_if(map, map_key, security), do: Map.put(map, map_key, security)
-
-  defp group_put_if(map, nil, _security), do: map
-
-  defp group_put_if(map, map_key, security),
-    do: Map.update(map, map_key, [security], &(&1 ++ [security]))
 
   # --- account resolution (ADR-0050 §4: resolving creates nothing) ---
 

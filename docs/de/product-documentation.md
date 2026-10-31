@@ -3636,7 +3636,14 @@ ISIN — aktuelle ISINs, dann erfasste Alt-ISIN-Aliase —, dann WKN, dann
 Ticker+Währung, dann Name+Währung. Jede Stufe greift nur, wenn der
 Identifikator auf beiden Seiten vorhanden ist und genau einen Kandidaten
 auswählt. Das Matching verändert die Stammdaten des getroffenen Wertpapiers
-nie: eine Umbenennung im Export ändert implizit nichts.
+nie: eine Umbenennung im Export ändert implizit nichts. Ein Wertpapier, das
+der Import für eine frühere Zeile der Datei anlegt, wird von den späteren
+Zeilen getroffen wie ein gespeichertes: Die Vorschau löst jede Zeile in der
+Reihenfolge der Datei auf und zählt dabei die Wertpapiere mit, die der Import
+in den Zeilen davor anlegen wird. So zeigt sie eine spätere Zeile so, wie der
+Import sie bucht (diesem neuen Wertpapier zugeordnet, oder als Entscheidung,
+wenn ihre Identifikatoren woandershin zeigen). Ein Wertpapier, das Sie in
+einer Entscheidungszeile anlegen lassen, zählt erst mit der Bestätigung.
 
 Das Vorschau-Panel **Wertpapiere aus dem Export** zeigt das Ergebnis:
 

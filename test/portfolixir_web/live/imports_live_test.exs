@@ -1611,14 +1611,17 @@ defmodule PortfolixirWeb.ImportsLiveTest do
         })
     end
 
-    # Two securities share WKN AMB001, so the second file row is ambiguous and
-    # the user must decide. The first row plain-creates ISIN DE000COLL006; the
-    # user then deliberately forces the ambiguous row to ALSO create with the
-    # same ISIN, which collides on the now-live unique ISIN index and makes the
-    # applier return {:security_create_failed, changeset}.
+    # The second file row's ISIN DE000COLL006 selects one stored security and
+    # its WKN AMB001 another, so the user must decide; the first row matches
+    # the stored ISIN. The user then deliberately forces the second row to
+    # create with that ISIN, which collides on the unique ISIN index and makes
+    # the applier return {:security_create_failed, changeset}. (Before #1203
+    # the first row created the ISIN and two stored securities shared the
+    # WKN; the preview now resolves the second row onto the first row's
+    # creation, as the apply does, so it asks for no decision there.)
     defp force_duplicate_isin_create(conn) do
       _portfolio = setup_portfolio()
-      _a = create_security!(%{name: "Share Class A", wkn: "AMB001"})
+      _a = create_security!(%{name: "Share Class A", isin: "DE000COLL006"})
       _b = create_security!(%{name: "Share Class B", wkn: "AMB001"})
 
       {:ok, view, _html} = live(conn, "/imports")

@@ -144,6 +144,77 @@ defmodule Portfolixir.Imports.SecurityResolver do
     }
   end
 
+  @doc """
+  `index` with `security` added as `index_from/2` would hold it: the import
+  run's in-memory record of a security it creates, so the file's later rows
+  resolve onto it (ADR-0029 §2). The apply adds each security it creates; the
+  preview's plan adds the one each creation would make (`simulated/3`), so the
+  two resolve every row alike (#1203).
+  """
+  @spec put_security(Index.t(), Security.t()) :: Index.t()
+  def put_security(%Index{} = index, %Security{} = security) do
+    %{
+      index
+      | securities_by_id: Map.put(index.securities_by_id, security.id, security),
+        by_isin: put_unique(index.by_isin, security.isin, security),
+        by_wkn: put_grouped(index.by_wkn, security.wkn, security),
+        by_ticker_ccy: put_grouped(index.by_ticker_ccy, ticker_ccy_key(security), security),
+        by_name_ccy: put_grouped(index.by_name_ccy, name_ccy_key(security), security),
+        by_name: put_grouped(index.by_name, normalize_name(security.name), security),
+        by_skeleton: put_grouped(index.by_skeleton, skeleton(security.name), security),
+        by_ticker: put_grouped(index.by_ticker, security.ticker_symbol, security)
+    }
+  end
+
+  defp put_unique(map, nil, _security), do: map
+  defp put_unique(map, key, security), do: Map.put(map, key, security)
+
+  defp put_grouped(map, nil, _security), do: map
+  defp put_grouped(map, key, security), do: Map.update(map, key, [security], &(&1 ++ [security]))
+
+  @doc """
+  The security the apply would create for a reference, held in memory only
+  under `id` (a negative integer, which no stored security has): the fields
+  `Portfolixir.Imports.Applier` creates it with, the currency falling back to
+  `default_currency`. Neither stored nor validated; the preview's plan and the
+  dry run resolve the file's later rows onto it (#1203).
+  """
+  @spec simulated(ref(), String.t(), neg_integer()) :: Security.t()
+  def simulated(%{} = ref, default_currency, id) when is_integer(id) and id < 0 do
+    %Security{
+      id: id,
+      name: ref.name || "(unnamed)",
+      isin: ref.isin,
+      wkn: ref.wkn,
+      ticker_symbol: ref.ticker,
+      currency_code: ref.currency || default_currency,
+      provider: "portfolio_performance",
+      feed: "PORTFOLIO_PERFORMANCE"
+    }
+  end
+
+  @doc """
+  What the apply checks a preview's approval against (ADR-0029 §2, the
+  preview→apply revalidation): the ladder's outcome for `ref` on `index`, the
+  catalog as it stands before the run, as a digest — `{:matched, id}`,
+  `:create`, `:create_at_risk` (a creation that would strand strategy
+  configuration) or `:conflict`.
+  """
+  @spec approval(ref(), Index.t()) ::
+          {:matched, integer()} | :create | :create_at_risk | :conflict
+  def approval(%{} = ref, %Index{} = index) do
+    case resolve(ref, index) do
+      {:match, security, _tier} ->
+        {:matched, security.id}
+
+      :create ->
+        if config_at_risk(ref, index) == [], do: :create, else: :create_at_risk
+
+      {:conflict, _conflict} ->
+        :conflict
+    end
+  end
+
   defp group_by_field(securities, fun) do
     securities
     |> Enum.map(&{fun.(&1), &1})
@@ -503,15 +574,25 @@ defmodule Portfolixir.Imports.SecurityResolver do
   # A key that stands for two references (E25 S5, F36) fails closed: every
   # reference behind it is a decision no choice can settle, and the apply
   # refuses the file (`unique_keys/2`).
+  #
+  # #1203: the references are classified in the order the file first names
+  # them, each against the catalog plus the securities the run would create
+  # on earlier rows (`simulated/3`, `put_security/2`), as the apply resolves
+  # each row against its live index. A plain creation enters that index; a
+  # decision, a flagged creation or a key collision creates nothing under
+  # the preview's defaults, so it does not. `approval` is what the apply
+  # checks the row against: the catalog alone (`approval/2`).
   @spec resolution_plan(Preview.t(), Index.t(), (ref() -> String.t())) :: [map()]
   def resolution_plan(%Preview{entries: entries}, %Index{} = index, key_fun \\ &key/1) do
-    grouped =
+    referenced =
       entries
       |> Entry.flatten()
       |> Enum.filter(& &1.security)
       |> Enum.map(fn entry -> {effective_ref(entry), entry.source_row} end)
       |> Enum.reject(fn {ref, _row} -> blank_ref?(ref) end)
-      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+
+    grouped = Enum.group_by(referenced, &elem(&1, 0), &elem(&1, 1))
+    in_file_order = referenced |> Enum.map(&elem(&1, 0)) |> Enum.uniq()
 
     colliding =
       grouped
@@ -520,16 +601,30 @@ defmodule Portfolixir.Imports.SecurityResolver do
       |> Enum.flat_map(fn {key, count} -> if count > 1, do: [key], else: [] end)
       |> MapSet.new()
 
-    grouped
-    |> Enum.map(fn {ref, rows} ->
+    in_file_order
+    |> Enum.map_reduce(index, fn ref, live ->
       key = key_fun.(ref)
+      rows = Map.fetch!(grouped, ref)
 
-      if MapSet.member?(colliding, key),
-        do: key_collision(ref, key, rows),
-        else: classify(ref, key, rows, index)
+      if MapSet.member?(colliding, key) do
+        {key_collision(ref, key, rows), live}
+      else
+        row = classify(ref, key, rows, live)
+        {Map.put(row, :approval, approval(ref, index)), simulate_creation(live, row)}
+      end
     end)
+    |> elem(0)
     |> Enum.sort_by(&{status_rank(&1.status), &1.label})
   end
+
+  # The security a plain creation would make, in the plan's in-memory index
+  # under the next free negative id (#1203).
+  defp simulate_creation(live, %{status: :create, ref: ref}) do
+    id = -(Enum.count(live.securities_by_id, fn {id, _security} -> id < 0 end) + 1)
+    put_security(live, simulated(ref, "EUR", id))
+  end
+
+  defp simulate_creation(live, _row), do: live
 
   # The layers on which the apply skips a row before it resolves any security
   # (ADR-0050 §3; the applier's per-row order): an unimportable line, then a
@@ -581,7 +676,8 @@ defmodule Portfolixir.Imports.SecurityResolver do
     |> base_row(key, rows)
     |> Map.merge(%{
       status: :needs_decision,
-      conflict: %{type: :key_collision, tier: nil, candidates: []}
+      conflict: %{type: :key_collision, tier: nil, candidates: []},
+      approval: :conflict
     })
   end
 

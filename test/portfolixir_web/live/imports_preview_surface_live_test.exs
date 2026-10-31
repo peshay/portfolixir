@@ -439,7 +439,10 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
     # so that I know what to decide when I import the file again, without
     # the applier's English, its record numbers or its ADR references.
     #
-    # Acceptance criteria:
+    # Acceptance criteria (since #1203 the preview resolves a later row onto
+    # an earlier row's creation as the apply does, so each earlier security
+    # here is one the operator chose to create on a row that asked for a
+    # decision; the preview does not follow a choice, the apply does):
     # - Two purchases of "Foo AG" under two ISINs: the second matches the
     #   security the first created except for its ISIN, and reads "Zeile 3:
     #   ein wahrscheinlicher Treffer, „Foo AG“, weicht bei einem stärkeren
@@ -465,15 +468,19 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
       {:ok, view, _html} = live(german(conn), "/imports")
 
       # A second purchase under the conflicting ISIN reuses the run's
-      # decision for its key, and is named the same way.
-      upload!(view, [
+      # decision for its key, and is named the same way. "Foo AG" of row 2
+      # differs from a stored security on its ISIN, and is created by choice.
+      stored!(%{name: "Foo Holding", isin: "XS000SYNTH43", wkn: "FOO025"})
+
+      foo = [
         deposit("Test-Cash", "5000.00", "2026-01-02"),
-        purchase("Foo AG", %{"isin" => "DE000EXMPL25"}, "2026-01-15"),
+        purchase("Foo AG", %{"isin" => "DE000EXMPL25", "wkn" => "FOO025"}, "2026-01-15"),
         purchase("Foo AG", %{"isin" => "DE000EXMPL33"}, "2026-01-16"),
         purchase("Foo AG", %{"isin" => "DE000EXMPL33"}, "2026-01-17")
-      ])
+      ]
 
-      view |> element("form#pp-import-apply") |> render_submit()
+      upload!(view, foo)
+      confirm_creating_the_decision!(view, foo)
       assert render_async(view, 1_000) =~ "Import abgeschlossen"
 
       veto =
@@ -489,13 +496,16 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
 
       {:ok, view, _html} = live(conn, "/imports")
 
-      upload!(view, [
-        deposit("Test-Cash", "5000.00", "2026-01-03"),
-        purchase("Qux AG", %{"isin" => "DE000EXMPL41"}, "2026-01-15"),
-        purchase("Qux AG", %{"isin" => "DE000EXMPL58"}, "2026-01-16")
-      ])
+      stored!(%{name: "Qux Holding", isin: "XS000SYNTH50", wkn: "QUX041"})
 
-      view |> element("form#pp-import-apply") |> render_submit()
+      qux = [
+        deposit("Test-Cash", "5000.00", "2026-01-03"),
+        purchase("Qux AG", %{"isin" => "DE000EXMPL41", "wkn" => "QUX041"}, "2026-01-15"),
+        purchase("Qux AG", %{"isin" => "DE000EXMPL58"}, "2026-01-16")
+      ]
+
+      upload!(view, qux)
+      confirm_creating_the_decision!(view, qux)
       assert render_async(view, 1_000) =~ "Import complete"
 
       assert texts(view, "[data-role='unresolved-entries'] li") == [
@@ -514,13 +524,16 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
 
       {:ok, view, _html} = live(german(conn), "/imports")
 
-      upload!(view, [
-        deposit("Test-Cash", "5000.00", "2026-01-04"),
-        purchase("Foo Neu AG", %{"wkn" => "SYN001"}, "2026-02-15"),
-        purchase("Bar Holding", %{"wkn" => "SYN001", "ticker" => "BARH"}, "2026-02-16")
-      ])
+      stored!(%{name: "Foo Ticker", isin: "XS000SYNTH68", wkn: "FTK001", ticker_symbol: "FNEU"})
 
-      view |> element("form#pp-import-apply") |> render_submit()
+      crossed = [
+        deposit("Test-Cash", "5000.00", "2026-01-04"),
+        purchase("Foo Neu AG", %{"wkn" => "SYN001", "ticker" => "FNEU"}, "2026-02-15"),
+        purchase("Bar Holding", %{"wkn" => "SYN001", "ticker" => "BARH"}, "2026-02-16")
+      ]
+
+      upload!(view, crossed)
+      confirm_creating_the_decision!(view, crossed)
       assert render_async(view, 1_000) =~ "Import abgeschlossen"
 
       assert texts(view, "[data-role='unresolved-entries'] li") == [
@@ -702,6 +715,24 @@ defmodule PortfolixirWeb.ImportsPreviewSurfaceLiveTest do
 
   # A JSON number written as its literal digits, never through a float.
   defp num(digits), do: Jason.Fragment.new(digits)
+
+  defp stored!(attrs) do
+    {:ok, security} =
+      Catalog.create_security(Actor.owner_ui(), Map.put(attrs, :currency_code, "EUR"))
+
+    security
+  end
+
+  # The file's one security decision answered "+ Create new", and confirmed.
+  defp confirm_creating_the_decision!(view, rows) do
+    {:ok, preview} = Imports.parse_portfolio_performance(body(rows), filename: "synthetic.json")
+    %{resolutions: resolutions} = Imports.resolve_securities(preview)
+    [decision] = for res <- resolutions, res.status == :needs_decision, do: res.key
+    choice = %{"security" => %{decision => %{"choice" => "create"}}}
+
+    view |> element("form#pp-import-apply") |> render_change(choice)
+    view |> element("form#pp-import-apply") |> render_submit(choice)
+  end
 
   defp body(rows), do: Jason.encode!(%{"version" => 1, "transactions" => rows})
 

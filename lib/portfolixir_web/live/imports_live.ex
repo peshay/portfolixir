@@ -3603,8 +3603,11 @@ defmodule PortfolixirWeb.ImportsLive do
       end
   end
 
+  # The approval is the catalog's own resolution (#1203): a row matched onto
+  # a security this file creates on an earlier row is approved as the
+  # catalog resolves it, a creation, which is what the apply checks.
   defp security_apply_decision(%{status: :matched} = res, _mapping) do
-    {:approved, {:matched, res.matched.security_id}}
+    {:approved, res.approval}
   end
 
   defp security_apply_decision(res, mapping) do

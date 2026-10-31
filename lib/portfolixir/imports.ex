@@ -42,7 +42,10 @@ defmodule Portfolixir.Imports do
   reference (matched / create / needs-decision / config-at-risk), plus the
   pre-apply inverse check (config-bearing securities matched by zero
   entries). Read-only — the preview UI uses it to drive the security-mapping
-  step before `apply/2`.
+  step before `apply/2`. Each reference resolves in file order against the
+  catalog plus the securities the apply would create on earlier rows, as the
+  apply resolves it (#1203); each resolution's `approval` is what the apply
+  checks it against, the catalog alone.
   """
   @spec resolve_securities(Preview.t()) :: %{
           resolutions: [map()],
