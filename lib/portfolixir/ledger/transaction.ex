@@ -50,6 +50,8 @@ defmodule Portfolixir.Ledger.Transaction do
     :counter_securities_account_id
   ]
 
+  @type t :: %__MODULE__{}
+
   schema "transactions" do
     field(:type, :string)
     field(:date, :date)
