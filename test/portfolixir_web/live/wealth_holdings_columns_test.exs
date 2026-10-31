@@ -120,7 +120,7 @@ defmodule PortfolixirWeb.WealthHoldingsColumnsTest do
   # currency sitting next to properly formatted tables.
   #
   # Acceptance criteria:
-  # - Figures carry the locale's separators and keep every stored digit.
+  # - Figures carry the locale's separators (their digits: N5, below).
   # - A money column carries the row's currency even when the Currency
   #   column is switched off.
   test "money columns are localized and state their currency", %{conn: conn} do
@@ -184,6 +184,98 @@ defmodule PortfolixirWeb.WealthHoldingsColumnsTest do
       assert percent |> Floki.attribute("class") |> List.first("") =~ "is-positive", locale
       refute Floki.text(row) =~ "0.187"
       refute Floki.text(row) =~ "0,187"
+    end
+  end
+
+  # User story (#1125, Sprint 21 γ4; board ux-design-2026-10-09/04-wealth-income
+  # ①, pick N5 A; its found while drawing 1):
+  # As the operator who switched on Wealth's value columns,
+  # I want money to read as money, a price as the history prints a stored
+  # price, and a space before every currency,
+  # so that a market value reads "2.569,68 EUR", not "2.569,676EUR", and an
+  # average cost of 100 ÷ 3 does not print 28 digits.
+  #
+  # Acceptance criteria:
+  # - "Market value" and "P&L" print through Format.money, two places (ADR-0016
+  #   §4); "P&L" is signed, in its sign colour decided on the figure as
+  #   displayed.
+  # - "Avg cost" and "Latest price" print by the history's stored-figure rule
+  #   (R10c): every digit up to four places, at least two.
+  # - A text space precedes every currency suffix; quantities keep their
+  #   digits.
+  test "the value columns print money as money, prices as stored, a space before the currency",
+       %{conn: conn, world: world} do
+    nordwind = create_security!(name: "Nordwind Industrie AG", ticker: "NWI")
+    saltmarsh = create_security!(name: "Saltmarsh Logistics SE", ticker: "SLT")
+    halvorsen = create_security!(name: "Halvorsen Shipping AS", ticker: "HSA")
+
+    buy!(world, nordwind, quantity: "20", price: "115.77", date: ~D[2026-01-05])
+    buy!(world, saltmarsh, quantity: "1", price: "30", date: ~D[2026-01-05])
+    buy!(world, saltmarsh, quantity: "2", price: "35", date: ~D[2026-01-05])
+    buy!(world, halvorsen, quantity: "52", price: "21.25", date: ~D[2026-01-05])
+
+    for {security, close} <- [{nordwind, "128.4838"}, {saltmarsh, "34.1"}, {halvorsen, "20"}] do
+      {:ok, _} =
+        Quotes.upsert_many(security.id, [
+          %{date: ~D[2026-01-06], close: Decimal.new(close), source: "manual"}
+        ])
+    end
+
+    expected = %{
+      "en" => %{
+        "Nordwind Industrie AG" =>
+          {"20", "115.77 EUR", "128.4838 EUR", "2,569.68 EUR", "+254.28 EUR", "is-positive"},
+        "Saltmarsh Logistics SE" =>
+          {"3", "33.3333 EUR", "34.10 EUR", "102.30 EUR", "+2.30 EUR", "is-positive"},
+        "Halvorsen Shipping AS" =>
+          {"52", "21.25 EUR", "20.00 EUR", "1,040.00 EUR", "-65.00 EUR", "is-negative"}
+      },
+      "de" => %{
+        "Nordwind Industrie AG" =>
+          {"20", "115,77 EUR", "128,4838 EUR", "2.569,68 EUR", "+254,28 EUR", "is-positive"}
+      }
+    }
+
+    for {locale, rows} <- expected do
+      {:ok, view, _html} =
+        conn
+        |> PortfolixirWeb.PreferenceCookieHelpers.put_preference_cookie(
+          "portfolixir_locale",
+          locale
+        )
+        |> live("/portfolio")
+
+      render_async(view)
+
+      render_change(view, "set_holdings_columns", %{
+        "columns" => [
+          "security",
+          "quantity",
+          "avg_cost",
+          "latest_price",
+          "market_value",
+          "unrealized_pnl_abs"
+        ]
+      })
+
+      doc = view |> render() |> Floki.parse_document!()
+
+      for {name, {quantity, avg, latest, value, pnl, pnl_class}} <- rows do
+        [row] =
+          doc
+          |> Floki.find("#holdings-positions-table tbody tr")
+          |> Enum.filter(&(Floki.text(&1) =~ name))
+
+        cells =
+          row
+          |> Floki.find("td")
+          |> Enum.map(&(&1 |> Floki.text() |> String.trim()))
+
+        assert {locale, cells} == {locale, [name, quantity, avg, latest, value, pnl]}
+
+        [pnl_cell] = Floki.find(row, "td:nth-child(6)")
+        assert pnl_cell |> Floki.attribute("class") |> List.first("") =~ pnl_class
+      end
     end
   end
 end
