@@ -424,6 +424,42 @@ describe("the companion's prompts", () => {
     );
   });
 
+  // User story (#1216, Sprint 21 β1):
+  // As the user's agent converting an export to JSON v1 with the
+  // import_converter prompt,
+  // I want the JSON v1 section to name the rows that need a security, the
+  // time the importer reads, the rule that folds identical rows into one
+  // booking, and what a delivery books,
+  // so that a file whose preview is clean also applies, and books every
+  // separate row and nothing I did not mean.
+  //
+  // Acceptance criteria:
+  // - security is required on PURCHASE, SALE, DIVIDEND and the three share
+  //   movements (a DIVIDEND without one previews clean and the apply refuses
+  //   the whole file).
+  // - time is HH:MM or HH:MM:SS, as the importer reads both.
+  // - Rows that agree in date and time, type, security, shares, amount, units,
+  //   account and other side are one booking; separate ones get distinct
+  //   times.
+  // - A JSON v1 delivery books no cost basis (the parser reads no amount on a
+  //   row that moves no cash, #482).
+  it("import_converter's JSON v1 section names the security, time, same-hash and delivery rules", async () => {
+    const text = await promptText("import_converter");
+    const json = text.split("## The JSON v1 variant, for other currencies and for ISINs")[1] ?? "";
+
+    assert.match(
+      json,
+      /security: required on PURCHASE, SALE, DIVIDEND and the three share movements/
+    );
+    assert.match(json, /date \(YYYY-MM-DD\) and, when known, time \(HH:MM or HH:MM:SS\)/);
+    assert.match(
+      json,
+      /Rows that agree in date and time, type, security, shares, amount, units, account and other side are one booking/
+    );
+    assert.match(json, /give separate ones distinct times/);
+    assert.match(json, /A JSON v1 delivery books no cost basis/);
+  });
+
   // User story (ADR-0053 A7, the amendment of 2026-10-07; #1098):
   // As the user's agent converting an export that records a tax refund,
   // I want the import_converter prompt to say where a refund of tax goes,
