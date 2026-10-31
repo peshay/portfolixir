@@ -121,7 +121,8 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   # (a transaction's units), may hold before the body is decoded: far more
   # than an export writes (a transaction has some fifteen keys and at most
   # `PortfolioPerformance.max_units/0` units, a units list past that being a
-  # row error), so no export is refused by it.
+  # row error), so no export is refused by it. It holds whatever the row cap
+  # is configured to.
   @max_nested_elements 1_000
 
   # The document's own arrays (its transactions) hold at most `max_rows`
@@ -130,7 +131,7 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
   # `@max_depth`, is no export. A body the pass cannot judge (unbalanced
   # brackets) is left to the decoder, which names it.
   defp within_shape(body, max_rows),
-    do: scan(body, [], {max_rows, max(max_rows, @max_nested_elements)}, 0)
+    do: scan(body, [], {max_rows, @max_nested_elements}, 0)
 
   defp scan(<<?", rest::binary>>, stack, limits, over),
     do: scan_string(rest, stack, limits, over)
