@@ -117,7 +117,7 @@ defmodule Portfolixir.Invariants.CssAccentContrastTest do
     sell = parse("#ef4444")
 
     expected = [
-      {"tx-buy #10b981 / bg #f6f7fa (the chart frame)", buy, frame},
+      {"tx-buy-dark #10b981 / bg #f6f7fa (the chart frame)", buy, frame},
       {"tx-sell #ef4444 / bg (the chart frame)", sell, frame},
       {"buy marker as built, positive #047857 / bg (the chart frame)",
        color(light, "color-positive"), frame},
@@ -125,7 +125,7 @@ defmodule Portfolixir.Invariants.CssAccentContrastTest do
        color(light, "color-danger"), frame},
       {"chart axis, text-muted #5a6577 / bg (the chart frame)", color(light, "color-text-muted"),
        frame},
-      {"tx-buy #10b981 / bg-dark #0b0f14 (the chart frame)", buy, night_frame},
+      {"tx-buy-dark #10b981 / bg-dark #0b0f14 (the chart frame)", buy, night_frame},
       {"tx-sell #ef4444 / bg-dark (the chart frame)", sell, night_frame},
       {"buy marker as built, positive-dark #34d399 / bg-dark (the chart frame)",
        color(night, "color-positive"), night_frame},
