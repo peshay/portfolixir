@@ -923,34 +923,56 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
     end
 
     # User story (#1177's negative FEE unit, Sprint 21 α5 review S1; ADR-0053
-    # A9): As the operator whose row refunds more fee than it charges,
-    # I want the remedy to name the cash to book,
-    # so that I never try to book a negative fee, which the ledger refuses.
+    # A9; #1188): As the operator whose row refunds more fee than it charges,
+    # I want the remedy to name what to enter in the booking drawer,
+    # so that I never try to book a negative fee, which the ledger refuses,
+    # and the booking I enter moves the cash Portfolio Performance shows.
     #
     # Acceptance criteria:
-    # - A purchase with FEE units 1.00 and -2.00 (net -1.00) and `amount`
-    #   1,003.00: "booking with a negative fee (-2.00): … — row not imported.
-    #   Enter the booking by hand at the cash Portfolio Performance shows,
-    #   Gesamtpreis 1,003.00, without a fee."; a sale reads "Book the sale by
-    #   hand at the cash …".
+    # - A purchase of 10 with FEE units 1.00 and -2.00 (net -1.00) and
+    #   `amount` 1,003.00 (Portfolio Performance's price 100.40): the drawer
+    #   books quantity × price without a fee, so the remedy names the price
+    #   that books 1,003.00: "booking with a negative fee (-2.00): … — row
+    #   not imported. Enter the booking by hand without a fee, at the price
+    #   100.30 (Gesamtpreis 1,003.00 ÷ 10)."; a sale of 100 at 20.10 reads
+    #   "Book the sale by hand without a fee, at the price 0.201 (Gesamtpreis
+    #   20.10 ÷ 100)."
+    # - A sale of a USD security through the EUR account (the drawer asks
+    #   its settlement amount): "Book the sale by hand without a fee, with
+    #   the settlement amount 20.10 (the Gesamtpreis Portfolio Performance
+    #   shows)."
+    # - A dividend (the drawer asks its cash) keeps "Enter the booking by
+    #   hand at the cash Portfolio Performance shows, Gesamtpreis 20.10,
+    #   without a fee."
     # - A row that moves no cash (a delivery) reads "… by hand without a
     #   fee."
     # - A net of zero or above keeps "with its fees less the refund (…)".
-    # - In German: "… Die Buchung von Hand mit dem Geld erfassen, das
-    #   Portfolio Performance zeigt, Gesamtpreis 1.003,00, ohne Gebühr."
-    test "a fee refund larger than the fees names the cash to book, never a negative fee" do
+    # - In German: "… Die Buchung von Hand ohne Gebühr erfassen, zum Kurs
+    #   100,30 (Gesamtpreis 1.003,00 ÷ 10)."
+    test "a fee refund larger than the fees names what to enter, never a negative fee" do
       over = [unit("FEE", "1.00"), unit("FEE", "-2.00")]
 
       body =
         Jason.encode!(%{
           version: 1,
           transactions: [
-            tx(%{type: "PURCHASE", amount: Jason.Fragment.new("1003.00"), units: over}),
+            tx(%{
+              type: "PURCHASE",
+              amount: Jason.Fragment.new("1003.00"),
+              shares: Jason.Fragment.new("10"),
+              units: over
+            }),
             tx(%{amount: Jason.Fragment.new("20.10"), units: over}),
             tx(%{
               amount: Jason.Fragment.new("20.10"),
               units: [unit("FEE", "2"), unit("FEE", "-2")]
-            })
+            }),
+            tx(%{
+              amount: Jason.Fragment.new("20.10"),
+              security: %{name: "Synthetic Corp", currency: "USD"},
+              units: over
+            }),
+            tx(%{type: "DIVIDEND", amount: Jason.Fragment.new("20.10"), units: over})
           ]
         })
 
@@ -958,26 +980,39 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
 
       assert Enum.map(errors, & &1.message) == [
                "booking with a negative fee (-2.00): the import does not book a fee refund " <>
-                 "yet — row not imported. Enter the booking by hand at the cash Portfolio " <>
-                 "Performance shows, Gesamtpreis 1,003.00, without a fee.",
+                 "yet — row not imported. Enter the booking by hand without a fee, at the " <>
+                 "price 100.30 (Gesamtpreis 1,003.00 ÷ 10).",
                "sell with a negative fee (-2.00): the import does not book a fee refund yet " <>
-                 "— row not imported. Book the sale by hand at the cash Portfolio Performance " <>
-                 "shows, Gesamtpreis 20.10, without a fee.",
+                 "— row not imported. Book the sale by hand without a fee, at the price " <>
+                 "0.201 (Gesamtpreis 20.10 ÷ 100).",
                "sell with a negative fee (-2.00): the import does not book a fee refund yet " <>
                  "— row not imported. Book the sale by hand, with its fees less the refund " <>
-                 "(0.00)."
+                 "(0.00).",
+               "sell with a negative fee (-2.00): the import does not book a fee refund yet " <>
+                 "— row not imported. Book the sale by hand without a fee, with the " <>
+                 "settlement amount 20.10 (the Gesamtpreis Portfolio Performance shows).",
+               "booking with a negative fee (-2.00): the import does not book a fee refund " <>
+                 "yet — row not imported. Enter the booking by hand at the cash Portfolio " <>
+                 "Performance shows, Gesamtpreis 20.10, without a fee."
              ]
 
       Gettext.put_locale(PortfolixirWeb.Gettext, "de")
       assert {:ok, %Preview{errors: errors}} = JsonParser.parse(body)
 
-      assert Enum.map(errors, & &1.message) |> Enum.take(2) == [
+      assert Enum.map(errors, & &1.message) |> Enum.take(4) == [
                "Buchung mit einer negativen Gebühr (-2,00): Eine Gebührenerstattung bucht der " <>
-                 "Import noch nicht — Zeile nicht übernommen. Die Buchung von Hand mit dem Geld " <>
-                 "erfassen, das Portfolio Performance zeigt, Gesamtpreis 1.003,00, ohne Gebühr.",
+                 "Import noch nicht — Zeile nicht übernommen. Die Buchung von Hand ohne Gebühr " <>
+                 "erfassen, zum Kurs 100,30 (Gesamtpreis 1.003,00 ÷ 10).",
                "Verkauf mit einer negativen Gebühr (-2,00): Eine Gebührenerstattung bucht der " <>
-                 "Import noch nicht — Zeile nicht übernommen. Den Verkauf von Hand mit dem Geld " <>
-                 "buchen, das Portfolio Performance zeigt, Gesamtpreis 20,10, ohne Gebühr."
+                 "Import noch nicht — Zeile nicht übernommen. Den Verkauf von Hand ohne Gebühr " <>
+                 "buchen, zum Kurs 0,201 (Gesamtpreis 20,10 ÷ 100).",
+               "Verkauf mit einer negativen Gebühr (-2,00): Eine Gebührenerstattung bucht der " <>
+                 "Import noch nicht — Zeile nicht übernommen. Den Verkauf von Hand buchen, mit " <>
+                 "den Gebühren abzüglich der Erstattung (0,00).",
+               "Verkauf mit einer negativen Gebühr (-2,00): Eine Gebührenerstattung bucht der " <>
+                 "Import noch nicht — Zeile nicht übernommen. Den Verkauf von Hand ohne Gebühr " <>
+                 "buchen, mit dem Abrechnungsbetrag 20,10 (der Gesamtpreis, den Portfolio " <>
+                 "Performance zeigt)."
              ]
 
       body =
