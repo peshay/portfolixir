@@ -66,7 +66,7 @@ colors:
   # token lands there.
   danger-soft: '#ffe4e6'
   danger-soft-dark: 'rgb(225 29 72 / 0.16)'
-  # buy marker reuses positive-green in light mode (5.12:1 on the chart frame, {colors.bg}); dark keeps the brighter pair
+  # buy marker reuses positive-green in light mode (5.12:1 on the chart frame, {colors.bg}); the dark pair and tx-sell are not painted: the build uses --color-positive (#34d399 dark) and --color-danger
   tx-buy: '#047857'
   tx-buy-dark: '#10b981'
   tx-sell: '#ef4444'
@@ -652,7 +652,7 @@ Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI compo
 | warning #b45309 / bg | 4.69 | pass | stale timestamps |
 | warning / bg-elevated | 5.02 | pass | warning alerts |
 | tx-buy-dark #10b981 / bg #f6f7fa (the chart frame) | **2.37** | **fail 3:1 graphics** (2.54 on chart-surface) | not painted: `#10b981` is {colors.tx-buy-dark}; the light {colors.tx-buy} is `#047857`, the row after next (issue 1200) |
-| tx-sell #ef4444 / bg (the chart frame) | 3.51 | pass 3:1 graphics (fail as text; 3.76 on chart-surface) | sell markers |
+| tx-sell #ef4444 / bg (the chart frame) | 3.51 | pass 3:1 graphics (fail as text; 3.76 on chart-surface) | not painted: the build uses `--color-danger`, the sell marker as built below (issue 1200) |
 | buy marker as built, positive #047857 / bg (the chart frame) | 5.12 | pass 3:1 graphics | light buy markers (`--color-positive`) |
 | sell marker as built, danger #b91c1c / bg (the chart frame) | 6.04 | pass 3:1 graphics | light sell markers (`--color-danger`) |
 | chart axis, text-muted #5a6577 / bg (the chart frame) | 5.50 | pass | axis values and dates, 9 px |
@@ -676,8 +676,8 @@ Thresholds: normal text 4.5:1 · large text (≥24px / 18.7px bold) and UI compo
 | danger-dark #fb7185 / bg-dark | 7.14 | pass | losses |
 | danger-dark / bg-elevated-dark | 6.50 | pass | losses in panels |
 | warning-dark #fbbf24 / bg-dark | 11.51 | pass | stale timestamps |
-| tx-buy-dark #10b981 / bg-dark #0b0f14 (the chart frame) | 7.58 | pass (6.90 on chart-surface-dark) | buy markers (dark) |
-| tx-sell #ef4444 / bg-dark (the chart frame) | 5.11 | pass (4.65 on chart-surface-dark) | sell markers (dark) |
+| tx-buy-dark #10b981 / bg-dark #0b0f14 (the chart frame) | 7.58 | pass (6.90 on chart-surface-dark) | not painted: the build uses `--color-positive` (`#34d399` dark), the buy marker as built below (issue 1200) |
+| tx-sell #ef4444 / bg-dark (the chart frame) | 5.11 | pass (4.65 on chart-surface-dark) | not painted: the build uses `--color-danger` (`#fb7185` dark), the sell marker as built below (issue 1200) |
 | buy marker as built, positive-dark #34d399 / bg-dark (the chart frame) | 10.00 | pass | dark buy markers (`--color-positive`) |
 | sell marker as built, danger-dark #fb7185 / bg-dark (the chart frame) | 7.14 | pass | dark sell markers (`--color-danger`) |
 | chart axis, text-muted-dark #8b97a8 / bg-dark (the chart frame) | 6.49 | pass | axis values and dates (dark) |
