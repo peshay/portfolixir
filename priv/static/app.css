@@ -885,7 +885,7 @@ textarea {
 }
 
 /* Two classes on the slot: the component's region rule,
-   `.inline-result__region:not(:empty)`, comes later in this file at (0,2,0);
+   `.inline-result__region:has(> *)`, comes later in this file at (0,1,0);
    these are (0,3,0). */
 .inline-result.inline-result--page > .inline-result__region {
   margin: 0;
@@ -897,8 +897,10 @@ textarea {
 
 /* Inside a section's grid an empty slot would still take a row and its gap,
    so at rest it leaves the flow (it stays in the accessibility tree, a live
-   region waiting for its result); a result is a grid row like the alert. */
-.workspace-section > .inline-result--page:not(:has(.inline-result__region > *)) {
+   region waiting for its result); a result is a grid row like the alert.
+   Widened from the page slot to every inline result (issue 1160, Sprint 21
+   γ8): Accounts' own slot took its 8 px and a 16 px grid gap at rest. */
+.workspace-section > .inline-result:not(:has(.inline-result__region > *)) {
   position: absolute;
 }
 
@@ -6952,7 +6954,11 @@ button.income-bar-label.is-active {
  * result does not reflow the page. No entrance animation and no timer: a
  * result persists until the next action, a navigation, or the dismiss.
  */
-.inline-result__region:not(:empty) {
+/* Issue 1160 (Sprint 21 γ8, board ux-design-2026-10-09/08-shared-copy):
+   the regions always hold whitespace, so `:not(:empty)` always matched and
+   an empty slot was 8 px tall at rest; `:has(> *)` asks for a result. Every
+   inline result now takes no room until an action answers. */
+.inline-result__region:has(> *) {
   margin: 8px 0;
 }
 

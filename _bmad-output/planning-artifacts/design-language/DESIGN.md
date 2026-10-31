@@ -6475,8 +6475,16 @@ accent at 2 px (see "The view switcher's quiet controls" below).
   the empty slot leaves the flow (`position: absolute`, still a live region
   in the accessibility tree), so the grid adds no gap for it; measured at
   rest, the gap above the next block is unchanged on all five pages
-  (Risk's 28 px would have become 52). The other inline results (Accounts'
-  own, Snapshots, Securities) keep their footprint.
+  (Risk's 28 px would have become 52). ~~The other inline results (Accounts'
+  own, Snapshots, Securities) keep their footprint.~~ *Amended 2026-10-31
+  (issue 1160, Sprint 21 board `mockups/ux-design-2026-10-09/08-shared-copy`):*
+  every inline result takes no room at rest. The component's own region rule
+  asks for a result (`.inline-result__region:has(> *)`, 8 px above and below
+  it, as before), and in a section's grid every empty inline result leaves
+  the flow, not only a page slot. Measured between the block above the slot
+  and the block below: Accounts 52 → 28 px at 980 and 390 px (the 8 px slot
+  and one 16 px grid gap), Securities 8 → 0 px, Snapshots 24 → 16 px; the
+  Quotes tab's release result loses its 8 px.
 - **Not changed.** In-dialog refusals and the Imports page keep their
   alerts (they are not page result slots), and "Classification not found"
   is a page's state, not an action's answer.
