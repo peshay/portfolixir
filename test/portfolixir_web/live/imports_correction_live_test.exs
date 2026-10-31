@@ -1612,6 +1612,65 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       text(view, "#import-correction-result [role='status']")
     end
 
+    # User story (#1205, Sprint 21 α7; ADR-0053 A12; board 07):
+    # As the operator who confirms the import while a row found by its date
+    # and figures is left uncorrected,
+    # I want the done page's skip list to say that row is already imported
+    # with a different amount, and the amount stored,
+    # so that two lines under "is not corrected" no list says it has the
+    # same amount.
+    #
+    # Acceptance criteria:
+    # - The drifted sale (stored at 120.00 under the old reading, the file
+    #   stating 95.00) is skipped under its own group, open: "1 · already
+    #   imported, with a different amount — not corrected by this import",
+    #   its line "Row 3: Sell … — 120.00 EUR stored"; the economic group
+    #   ("same date, security, quantity and amount") keeps only the refund
+    #   stored beside it.
+    # - In German: "bereits importiert, mit anderem Betrag — von diesem
+    #   Import nicht korrigiert" and "— 120,00 EUR gespeichert".
+    test "the done page names a row found by its figures as differing", %{conn: conn} do
+      portfolio = portfolio!()
+      apply_before_the_amendment!(portfolio, sales_json([{"2026-06-15", "15:30"}], 10))
+
+      for {conn, head, stored} <- [
+            {conn, "1 · already imported, with a different amount — not corrected by this import",
+             "— 120.00 EUR stored"},
+            {german(conn),
+             "1 · bereits importiert, mit anderem Betrag — von diesem Import nicht korrigiert",
+             "— 120,00 EUR gespeichert"}
+          ] do
+        {:ok, view, _html} = live(conn, "/imports")
+
+        upload(
+          view,
+          "history.json",
+          sales_json([{"2026-06-15", "15:31"}], 10),
+          "application/json"
+        )
+
+        assert has_element?(view, "#import-correction-open")
+
+        view |> element("form#pp-import-apply") |> render_submit()
+        # The apply, then the done page's own dry run for the correction.
+        render_async(view, 1_000)
+        render_async(view, 1_000)
+
+        assert has_element?(view, "[data-role='correction-not-applied']")
+
+        # The refund stored beside the sale is the one economic duplicate.
+        economics = text(view, "[data-role='duplicate-group'][data-layer='economics']")
+        assert economics =~ ~r/^1 · /
+        refute economics =~ ~r/(Row|Zeile) 3: /
+
+        group = "[data-role='duplicate-group'][data-layer='differs'][open]"
+        assert text(view, group <> " summary") == head
+        line = text(view, group <> " li")
+        assert line =~ ~r/^(Row|Zeile) 3: /
+        assert String.ends_with?(line, stored)
+      end
+    end
+
     # K17's transfer (ADR-0053 K20): 100.00 from Test-Cash to Test-Savings
     # with a tax unit of -5.00, after a deposit of 1,000.00.
     @k20_json """
