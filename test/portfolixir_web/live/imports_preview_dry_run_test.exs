@@ -15,8 +15,9 @@ defmodule PortfolixirWeb.ImportsPreviewDryRunTest do
 
   alias Portfolixir.Actor
   alias Portfolixir.Catalog
-  alias Portfolixir.Catalog.Isin
   alias Portfolixir.Catalog.IdentifierAliases
+  alias Portfolixir.Catalog.Isin
+  alias Portfolixir.Imports.Mapping
   alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Lifecycle.AccountNames
   alias Portfolixir.Portfolios
@@ -106,7 +107,7 @@ defmodule PortfolixirWeb.ImportsPreviewDryRunTest do
            |> render() =~ "5 bookings new"
   end
 
-  defp row_key(name), do: Portfolixir.Imports.Mapping.row_key("cash", name)
+  defp row_key(name), do: Mapping.row_key("cash", name)
 
   defp upload!(view, rows) do
     file_input(view, "#pp-import-form", :pp_file, [
