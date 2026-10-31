@@ -26,7 +26,7 @@ server, for one), so check your client's documentation for its spelling.
 | Profile | The agent can |
 |---|---|
 | `read` | read everything and change nothing |
-| `book` | read, create, and make the replace-shaped writes (update, upsert, set), which the same write sent the former value undoes; no removal, merge, ISIN change, rule retirement or quote release |
+| `book` | read, create, and make the replace-shaped writes (update, upsert, set), which the same write sent the former value undoes; no removal, merge, ISIN change, new rule version, rule retirement or quote release |
 | `full` (the default) | call every tool |
 
 Two of the writes `book` keeps leave a residue their inverse does not clear: a

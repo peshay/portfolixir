@@ -3774,14 +3774,18 @@ bisher aktiven Plan, ein ISIN-Wechsel schreibt die neue ISIN auf das
 Wertpapier — und tragen deshalb die Hinweise eines `PUT`: destruktiv und
 idempotent, weil eine Wiederholung nichts weiter ändert (ein zweiter Ruhestand
 antwortet mit `409`, eine zweite Aktivierung ändert nichts, ein zweiter
-ISIN-Wechsel ist ein benannter Konflikt); `openWorldHint` ist wahr für
+ISIN-Wechsel ist ein benannter Konflikt); `portfolixir.policy_rules.add_version`
+läuft über `POST` und fügt eine Version an, schließt aber die geltende Version
+und ersetzt jede geplante ab ihrem Datum und ist deshalb destruktiv und nicht
+idempotent, weil eine Wiederholung eine weitere Version anfügt;
+`openWorldHint` ist wahr für
 `portfolixir.securities.search_online`, `portfolixir.quotes.sync` und
 `portfolixir.exchange_rates.sync`, die einen externen Anbieter erreichen, und
 für `portfolixir.securities.create`, das bei eingeschalteter Anreicherung der
 Instanz einen Kursnachlauf beim Anbieter und eine Logo-Suche anstößt.
-Die nur anfügenden Schreibvorgänge, `portfolixir.notes.append` und die
-Versionen einer Regel, sind nicht destruktiv, und ihre Beschreibungen sagen,
-dass das Angefügte dauerhaft ist.
+Die nur anfügenden Schreibvorgänge, `portfolixir.notes.append` und eine neue
+Regel (`portfolixir.policy_rules.create`), sind nicht destruktiv, und ihre
+Beschreibungen sagen, dass das Angefügte dauerhaft ist.
 
 **Ohne Rückfrage freigebbare Lesezugriffe.** Ein Host darf jedes Tool mit
 `readOnlyHint: true` ohne Rückfrage ausführen: Keines davon verändert die
@@ -3811,7 +3815,9 @@ Löschen, das Entfernen eines früheren Namens und eines ISIN-Alias, das
 Aufheben einer Klassifikationszuordnung, das Löschen einer
 Positions-Überschreibung, die Freigabe manueller Kurse), auch wo ein späteres
 Schreiben eine gleiche Zeile zurückbringen könnte, ebenso die drei
-Zusammenführungen, die ISIN-Änderung und das Stilllegen einer Regel. Ein
+Zusammenführungen, die ISIN-Änderung, eine neue Version einer Regel (sie
+schließt die geltende Version und ersetzt die geplanten) und das Stilllegen
+einer Regel. Ein
 ersetzender Schreibzugriff (ein Ändern, ein Upsert, eine Bucket-Menge, das
 Aktivieren eines Plans) bleibt in `book`, weil derselbe Schreibzugriff mit dem
 früheren Wert ihn rückgängig macht; eine enger gesendete Bucket-Menge oder

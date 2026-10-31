@@ -3479,14 +3479,17 @@ ones, an activation archives the plan that was active, an ISIN change writes
 the new ISIN onto the security — so they are hinted as a `PUT` is:
 destructive, and idempotent, since a repeat changes nothing more (a second
 retirement answers `409`, a second activation is a no-op, a second ISIN change
-a named conflict); `openWorldHint` is true for
+a named conflict); `portfolixir.policy_rules.add_version` is routed through
+`POST` and adds a version, but closes the version in force and replaces every
+scheduled version from its date, so it is destructive, and not idempotent,
+since a repeat adds another version; `openWorldHint` is true for
 `portfolixir.securities.search_online`, `portfolixir.quotes.sync` and
 `portfolixir.exchange_rates.sync`, which reach an external provider, and for
 `portfolixir.securities.create`, which queues a quote backfill from the
 provider and a logo lookup when the instance's enrichment is enabled. The
-append-only writes, `portfolixir.notes.append` and the policy-rule versions,
-are non-destructive, and their descriptions say that what they add is
-permanent.
+append-only writes, `portfolixir.notes.append` and a new policy rule
+(`portfolixir.policy_rules.create`), are non-destructive, and their
+descriptions say that what they add is permanent.
 
 **Auto-approvable reads.** A host may run every tool with `readOnlyHint: true`
 without asking: none of them changes the instance.
@@ -3512,7 +3515,8 @@ removal-shaped tools are admin, and replace-shaped writes stay in `book`. Every
 removal is admin (every delete, the former-name and ISIN-alias removals, a
 classification's unassignment, a position's override cleared, the release of
 manual quotes), even where a later write could put an equal row back, and so
-are the three merges, the ISIN change and a rule's retirement. A
+are the three merges, the ISIN change, a rule's new version (it closes the
+version in force and replaces the scheduled ones) and a rule's retirement. A
 replace-shaped write (an update, an upsert, a bucket set, a plan's activation)
 stays in `book`, because the same write sent the former value undoes it; a
 bucket set sent narrower, or a position's override set to `[]`, stays too,
