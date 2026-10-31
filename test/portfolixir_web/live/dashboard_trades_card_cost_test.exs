@@ -159,7 +159,8 @@ defmodule PortfolixirWeb.DashboardTradesCardCostTest do
              ],
              basis:
                "The 5 most recently closed · result in EUR · FIFO across every depot, " <>
-                 "whatever the view · p. a. only from 365 days of holding",
+                 "whatever the view · p. a. only from 365 days of holding and only where " <>
+                 "a rate solves the flows",
              rows: [
                {"Gorse Lane plc",
                 "Gorse Lane plc sold 2026-04-15 · 461 days +25.00 EUR +73.1% p. a.",

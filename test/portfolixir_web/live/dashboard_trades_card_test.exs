@@ -251,4 +251,40 @@ defmodule PortfolixirWeb.DashboardTradesCardTest do
     assert text(Floki.find(card_row(doc, "Quickturn Retail"), ".num .attention-item__sub")) ==
              "-10,0% gesamt"
   end
+
+  # User story (#1171, Sprint 21 γ1; board 01 ⑤, before/after): As the
+  # operator reading the Overview's closed-trades card, I want its basis line
+  # to name both limits of "p. a." — 365 days of holding and a rate that
+  # solves the flows — as the Trades facet and the security's Trades tab do,
+  # so that a trade held 604 days that reads "-100,0% gesamt" is the card
+  # keeping its rule, not breaking it.
+  #
+  # Acceptance criteria:
+  # - The basis line reads, word for word, "Die 5 zuletzt abgeschlossenen ·
+  #   Ergebnis in EUR · FIFO über alle Depots, unabhängig von der Ansicht ·
+  #   p. a. erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die
+  #   Zahlungen löst" — the facet's clause, word for word.
+  # - The English source ends "· p. a. only from 365 days of holding and only
+  #   where a rate solves the flows".
+  test "the basis line names both limits of p. a., as the facet's does", %{conn: conn} do
+    seed!()
+
+    {:ok, view, _html} = live(conn, "/")
+    render_async(view)
+
+    assert text(Floki.find(document(view), "#dashboard-trades [data-role='trades-card-basis']")) ==
+             "The 5 most recently closed · result in EUR · FIFO across every depot, " <>
+               "whatever the view · p. a. only from 365 days of holding and only where " <>
+               "a rate solves the flows"
+
+    {:ok, de_view, _html} = live(conn, "/?locale=de")
+    render_async(de_view)
+
+    assert text(
+             Floki.find(document(de_view), "#dashboard-trades [data-role='trades-card-basis']")
+           ) ==
+             "Die 5 zuletzt abgeschlossenen · Ergebnis in EUR · FIFO über alle Depots, " <>
+               "unabhängig von der Ansicht · p. a. erst ab 365 Tagen Haltedauer und nur, " <>
+               "wo ein Zinssatz die Zahlungen löst"
+  end
 end
