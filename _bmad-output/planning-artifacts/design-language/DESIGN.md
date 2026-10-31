@@ -1495,6 +1495,17 @@ components invented for it:
   moves cash is its cash account's (ADR-0015, amendment of 2026-10-07,
   point 1). The test pins Σ Betrag = Δ Saldo for a drawer buy, an API buy
   without a gross amount, a buy at 0 and a sell.
+- **The security's Transaktionen tab names a cross-currency row's
+  currencies** *(Sprint 21 α11, issue 1213; board 09, pick N9 A)*. A row
+  booked in another currency than its cash account's (the drawer's
+  settlement case) gets the `<small>` suffix the Preis cell already
+  carries on every money cell: Gebühren and Steuern name the account's
+  currency ("5,00 EUR"), Brutto the booking's ("1.000,00 USD", quantity ×
+  price; a stored gross amount without a price is cash, in the account's).
+  A same-currency row stays bare — the Depot USD buy, and the buy imported
+  in Portfolio Performance's form in its account's currency — because its
+  Preis already names the one currency all its figures are in. The cells
+  carry `data-role` `fees`, `taxes` and `gross`.
 - **The price keeps its stored digits**: the Price column and the phone
   row's size ("12 × 41,1234") print a price as the notes drawer prints a
   stored figure (R10c) — every stored digit, trailing zeros trimmed, at
@@ -3652,7 +3663,14 @@ The open-lots table above is unchanged.
   Tage · **p. a.** · Realisierter G/V · %. "p. a." is a `.num` column
   directly left of the result, with "Tage", the threshold it is judged by,
   directly left of it — the facet's placement. No ⓘ in the header: the
-  wrapper is its own scroller.
+  wrapper is its own scroller. *Amended (Sprint 21 α11, issue 1213; board
+  `mockups/ux-design-2026-10-09/09-money-states`, pick N9 A):* "Realisierter
+  G/V" names the trade's currency at **every** width, a `<small
+  class="value-suffix">` after the figure ("+98,89 USD"), as the phone row
+  does: since the ADR-0015 amendment of 2026-10-09 a closed trade is in its
+  sale's currency, so two trades of one security can be in two currencies.
+  A dash carries no suffix. Ø Kauf and Ø Verkauf stay bare, in the result's
+  currency.
 - **"p. a." is one word:** on this tab the header, the phone row's
   "· +10,7% p. a." and the basis line set the abbreviation with a no-break
   space (U+00A0, in the gettext msgids and the German msgstrs), so it never
@@ -5190,8 +5208,13 @@ admin tool).
   already use, the fields following the kind's stored fields: Typ and Datum
   (a split: Stichtag), then the security where the booking has one, and per
   kind — a cash kind its Verrechnungskonto, "Betrag (EUR)" and, for a
-  dividend or interest, Steuern; a cash transfer "Von Konto" and "An Konto"
-  and its amount; a delivery its Depot, Stückzahl and Preis; a security
+  dividend or interest, "Steuern (EUR)" (*amended, Sprint 21 α11, issue
+  1213, board `mockups/ux-design-2026-10-09/03-history-drawer`:* both name
+  the **cash account's** currency, the history's rule, never the booking's:
+  a USD security's dividend credited 80,00 EUR reads "Betrag (EUR)", where
+  it read "Betrag (USD)"; a transfer's and a set balance's currency is their
+  account's already, so their labels do not change); a cash transfer "Von
+  Konto" and "An Konto" and its amount; a delivery its Depot, Stückzahl and Preis; a security
   transfer "Von Depot", "An Depot" and Stückzahl; a set balance its account
   and "Saldo (EUR)"; a split its ratio. Ids are general now: `#note-form`,
   `#booking-facts`, `#booking-edit-help`, the fields `note[…]`. A figure

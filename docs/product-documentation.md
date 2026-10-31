@@ -2342,7 +2342,11 @@ prices, income received while a trade was open is not included, and p. a.
 only from 365 days of holding and only where a rate solves the flows. The
 realised P&L and its fees and taxes are in the trade's currency, a trade
 across currencies converting them at its own rate, as on the facet (issue
-#1108). An open lot or a closed trade on no cost shows the dash with "No
+#1108), and **Realised P&L** names that currency at every width ("+188.75
+USD", issue #1213). On the **Transactions** tab a row booked in another
+currency than its cash account names each figure's currency: its fees and
+taxes are in the account's ("5.00 EUR"), its price and gross in the
+booking's ("1,000.00 USD"); a row in one currency stays as it is. An open lot or a closed trade on no cost shows the dash with "No
 return: no cost basis" in its "%" column, and so do the security's
 **Holdings** tab and Wealth's optional **P&L %** column for shares
 delivered in at no cost, such as a spin-off (issue #1142); a holding with

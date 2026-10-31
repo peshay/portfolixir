@@ -2572,7 +2572,13 @@ Lot, Gebühren und Steuern stehen im realisierten G/V, nicht in Ø Kauf und
 erst ab 365 Tagen Haltedauer und nur, wo ein Zinssatz die Zahlungen löst.
 Der realisierte G/V und seine Gebühren und Steuern stehen in der Währung des
 Trades, bei einem Trade über Währungen hinweg zu seinem eigenen Kurs
-umgerechnet, wie in der Facette (Issue #1108). Ein offener Lot oder ein
+umgerechnet, wie in der Facette (Issue #1108), und **Realisierter G/V**
+nennt diese Währung in jeder Breite („+188,75 USD“, Issue #1213). Im Reiter
+**Transaktionen** nennt eine Zeile, die in einer anderen Währung als ihr
+Verrechnungskonto gebucht ist, die Währung jeder Zahl: Gebühren und Steuern
+stehen in der des Kontos („5,00 EUR“), Preis und Brutto in der der Buchung
+(„1.000,00 USD“); eine Zeile in einer Währung bleibt, wie sie ist. Ein
+offener Lot oder ein
 abgeschlossener Trade ohne Kosten zeigt in seiner Spalte „%“ den Strich mit
 „Keine Rendite: keine Kostenbasis“, ebenso der Tab **Bestände** des
 Wertpapiers und die optionale Spalte **G&V %** im Vermögen für Stücke, die
