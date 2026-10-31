@@ -184,22 +184,26 @@ defmodule PortfolixirWeb.CopyDialogStatesLiveTest do
     # so that Tab does not stop on two definitions I cannot see.
     #
     # Acceptance criteria:
-    # - Under 640 px the head is visually hidden, but its two ⓘ summaries
+    # - In the card the head is visually hidden, but its two ⓘ summaries
     #   stayed in the tab order; there they take `display: none`, which
     #   removes them from the tab order and the accessibility tree. The
-    #   rows' copies serve the phone.
-    # - Above 640 px nothing hides them.
-    test "under 640 px the head's two ⓘ leave the tab order" do
+    #   rows' copies serve the phone. The card is `@container accounts
+    #   (width < 840px)` since #1145 (N15 = A); it was `max-width: 640px`.
+    # - Where the table shows its head nothing hides them.
+    test "in the card the head's two ⓘ leave the tab order" do
       css = File.read!("priv/static/app.css")
 
       [_, card] =
-        Regex.run(~r/@media \(max-width: 640px\) \{\s*\.accounts-table thead \{(.*?)\n\}/s, css) ||
-          flunk("no 640 px block for the accounts table")
+        Regex.run(
+          ~r/@container accounts \(width < 840px\) \{\s*\.accounts-table thead \{(.*?)\n\}/s,
+          css
+        ) ||
+          flunk("no card block for the accounts table")
 
       assert card =~ ~r/\.accounts-table thead \.metric-tooltip \{\s*display: none;\s*\}/
 
       refute css =~ ~r/\n\.accounts-table thead \.metric-tooltip \{/,
-             "the head's ⓘ are hidden only under 640 px"
+             "the head's ⓘ are hidden only in the card"
     end
 
     # User story (#1090, board 08 ⑤):

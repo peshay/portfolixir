@@ -1486,8 +1486,10 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
   # so that neither runs under the row's kebab.
   #
   # Acceptance criteria:
-  # - Under 640 px, where the kebab takes the name line's second grid column,
+  # - In the card, where the kebab takes the name line's second grid column,
   #   the name cell wraps instead of inheriting the phone tables' nowrap.
+  #   The card is `@container accounts (width < 840px)` since #1145
+  #   (N15 = A); it was `max-width: 640px`.
   #   (Measured on the review seed at 390 px: the micro-tag ended at 342 px
   #   under a kebab starting at 340 px; now it ends at 190 px on its own
   #   line.)
@@ -1496,7 +1498,7 @@ defmodule PortfolixirWeb.PortfolioAccountsLiveTest do
 
     [block] =
       Regex.run(
-        ~r/@media \(max-width: 640px\) \{\s*\.accounts-table tbody\.account-pair tr \{\s*display: grid;.*?\n\}/s,
+        ~r/@container accounts \(width < 840px\) \{\s*\.accounts-table tbody\.account-pair tr \{\s*display: grid;.*?\n\}/s,
         app_css
       )
 

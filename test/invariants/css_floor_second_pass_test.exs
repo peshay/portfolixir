@@ -136,22 +136,24 @@ defmodule Portfolixir.Invariants.CssFloorSecondPassTest do
 
   # User story (#1085, rule ⑦; the review of U5):
   # As the operator on a phone,
-  # I want the role label visible at 640 px and below, and hidden only where
-  # the column head states it,
+  # I want the role label visible in the card, and hidden only where the
+  # column head states it,
   # so that no width shows the label twice or not at all.
   #
   # Acceptance criteria:
-  # - The label is hidden only inside `@media (width > 640px)`, the exact
-  #   complement of the card layout's `(max-width: 640px)`; at fractional
-  #   widths between 640 and 641 px `min-width: 641px` left both off.
+  # - The label is hidden only inside `@container accounts (width >= 840px)`,
+  #   the exact complement of the card layout's `(width < 840px)` (#1145,
+  #   N15 = A, Sprint 21 board 05; it was `@media (width > 640px)` against
+  #   `(max-width: 640px)`); at fractional widths between 640 and 641 px
+  #   `min-width: 641px` left both off.
   # - Its own rule hides nothing, and no other rule names it.
-  test "the role label is hidden only above 640 px, and visible at 640 and below" do
+  test "the role label is hidden only where the table shows its head, and visible in the card" do
     base = block(".liquidity-role-field__label")
     assert base =~ ~r/display:\s*inline;/
     refute base =~ ~r/(position|clip|overflow|width|height):/
 
     named = Regex.scan(~r/[^{}]*\.liquidity-role-field__label[^{}]*\{/, @css)
-    assert length(named) == 2, "the label's own rule and the one that hides it above 640 px"
+    assert length(named) == 2, "the label's own rule and the one that hides it beside the head"
 
     refute @css =~ "@media (min-width: 641px)"
   end
@@ -355,8 +357,8 @@ defmodule Portfolixir.Invariants.CssFloorSecondPassTest do
   # are not 24 px dots.
   #
   # Acceptance criteria:
-  # - The role label is visually hidden only above 640 px, where the column
-  #   head states it.
+  # - The role label is visually hidden only where the column head states
+  #   it: under `@container accounts (width >= 840px)` (#1145, N15 = A).
   # - Under a coarse pointer the chip's + and × are 44 × 44 — the two
   #   sub-floor values UX-DR6's amendment 2 rejects are gone — and a chip
   #   holding a × gives up its block and right padding, so the × fills its
@@ -369,9 +371,9 @@ defmodule Portfolixir.Invariants.CssFloorSecondPassTest do
   test "the accounts card: the label, the 44 px controls and the arrow" do
     [_, hidden] =
       Regex.run(
-        ~r/@media \(width > 640px\) \{\s*\.accounts-table \.liquidity-role-field__label \{([^}]*)\}\s*\}/,
+        ~r/@container accounts \(width >= 840px\) \{\s*\.accounts-table \.liquidity-role-field__label \{([^}]*)\}\s*\}/,
         @css
-      ) || flunk("the role label is not hidden above 640 px")
+      ) || flunk("the role label is not hidden where the head shows")
 
     assert hidden =~ ~r/position:\s*absolute;/
     assert hidden =~ ~r/clip:\s*rect\(0 0 0 0\);/
