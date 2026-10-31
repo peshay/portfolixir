@@ -916,6 +916,46 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       assert corrections_journal() == []
     end
 
+    # User story (#1193, #1194, Sprint 21 α7; ADR-0053 A10, A11; board 07,
+    # found while drawing 4):
+    # As the operator who put a stored sale the preview now refuses right
+    # by hand,
+    # I want its line to read edited since its import, not refused,
+    # so that I am not told again to replace a booking I already fixed.
+    #
+    # Acceptance criteria:
+    # - K19's sale stored under the old reading (20.10, the refund 25.00
+    #   beside it), then set to 0.10 by hand: Test-Cash 925.10.
+    # - The re-drop lists it as edited since its import (today), not
+    #   refused: Test-Cash +25.10 as stored, +20.10 per the file; no
+    #   confirm, and the confirm writes nothing.
+    test "A10, A11: a refused booking edited by hand reads as edited" do
+      portfolio = portfolio!("Refused, then edited")
+
+      preview =
+        parse_rows([
+          deposit("2026-04-01", 1000.0),
+          purchase("2026-04-02", 10.0, 100.0),
+          sale("2026-04-15", "15:30", 20.10)
+        ])
+
+      apply!(stored_with_refused(preview), portfolio)
+
+      {:ok, _} =
+        Ledger.update_transaction(Actor.owner_ui(), booking(portfolio, "sell"), %{
+          gross_amount: "0.10"
+        })
+
+      assert balances(portfolio) == %{"Test-Cash" => "925.1"}
+
+      assert [%Item{row: 3, state: :edited} = line] = listed(preview, portfolio)
+      assert line.edited_on == Date.utc_today()
+      assert per_account(line) == %{"Test-Cash" => {"25.1", "20.1", "-5"}}
+
+      assert correct!(preview, portfolio) == []
+      assert balances(portfolio) == %{"Test-Cash" => "925.1"}
+    end
+
     # User story (#1193, #1188, Sprint 21 α7; ADR-0053 A10, K20):
     # As the operator whose cash transfer with a tax refund was imported
     # before A8 refused it,
