@@ -2226,7 +2226,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                 "1 trade not convertible: %{count} buy it closes, of %{lot_dates}, has no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for each of those dates — the rate backfill under “All trades” stores them and derives the figures from them — or the figures in %{currency} on the bookings.",
                 "1 trade not convertible: %{count} buys it closes, of %{lot_dates}, have no figure in %{currency}, the sale's currency; the trade's cost and result are missing, and it counts in no total. Remedy: a rate for each of those dates — the rate backfill under “All trades” stores them and derives the figures from them — or the figures in %{currency} on the bookings.",
                 length(lots),
-                lot_dates: Enum.map_join(lots, ", ", &Format.date(&1.open_date)),
+                lot_dates: lots |> Enum.map(&Format.date(&1.open_date)) |> Enum.uniq() |> Enum.join(", "),
                 currency: trade.currency_code || @currency_code
               ) %>
             <% end %>
