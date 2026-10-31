@@ -3067,6 +3067,38 @@ und hier nicht korrigiert werden kann, da die Gutschrift 0 oder weniger wäre:
 nicht noch einmal erfassen; wie eine solche Buchung korrigiert wird, ist noch
 offen (Issue #1193).
 
+**Eine Lieferung oder Umbuchung mit Steuererstattung.** Eine negative Steuer
+auf einer Ein- oder Auslieferung, einer Wertpapierumbuchung oder einer
+Umbuchung wird mit einer Parser-Warnung ausgelassen, in jedem Format, und der
+Rest der Datei wird importiert. Eine Lieferung oder Wertpapierumbuchung
+bewegt kein Geld, die Erstattung hätte also kein Konto; eine Umbuchung bewegt
+ihr Geld zwischen zwei Konten, und eine von ihr abgespaltene Erstattung
+landete nur auf einer Seite, das empfangende Konto um die Erstattung zu
+hoch. Portfolio Performance bewegt für eine Lieferung kein Geld und für eine
+Umbuchung nur ihren Betrag. Die Warnung nennt die Zeile und was zu tun ist:
+die Lieferung oder Umbuchung ohne die Erstattung von Hand buchen (eine
+Umbuchung mit dem Betrag, den Portfolio Performance als bewegt zeigt, dem
+`Gesamtpreis` einer CSV-Zeile oder dem `amount` einer JSON-Zeile) und, nur
+wenn Geld geflossen ist, das als eigene Steuererstattung. Bisher ließ eine
+solche Lieferung die ganze Datei beim Bestätigen scheitern. Eine so früher
+importierte Umbuchung sagt stattdessen, dass sie bereits importiert ist und
+hier nicht korrigiert werden kann: nicht noch einmal buchen.
+
+**Eine Gebührenerstattung.** Eine JSON-Zeile mit einer negativen Gebühr wird
+mit einer Parser-Warnung ausgelassen, bis Portfolixir eine Art für eine
+erstattete Gebühr hat (Issue #1177). Die Warnung nennt die erstattete Gebühr
+und die Gebühren abzüglich der Erstattung, die Nettogebühr, die Portfolio
+Performance zeigt: die Zeile mit dieser Nettogebühr von Hand buchen, mit dem
+Geldbetrag, den Portfolio Performance zeigt. Bisher zählte der Import die
+erstattete Gebühr zu den Gebühren: ein solcher Kauf buchte seinen Geldbetrag
+richtig, aber eine zu hohe Gebühr und einen zu niedrigen Kurs. Eine so früher
+importierte Zeile sagt, dass sie bereits importiert ist, und nennt ihre
+gespeicherten Gebühren, die vorerst bleiben, wie sie sind. Eine CSV ist nicht
+betroffen: die `Gebühren` von Portfolio Performance verrechnen die
+Gebührenposten, eine Zeile, deren Posten unter null fallen, scheitert also an
+der `Gesamtpreis`-Prüfung oben, und eine negative `Gebühren` eines Konverters
+gilt als ihre Gebühr.
+
 Eine Historie, die importiert wurde, bevor Portfolixir die Erstattung aus
 ihrer Buchung nahm, hat eine solche Erstattung doppelt gezählt, neben einer
 Buchung, die sie schon enthielt, und einen JSON-Verkauf mit ihr bewertet.
@@ -3144,6 +3176,23 @@ Zeilen bleiben ebenso draußen, jede mit ihrer Zeile benannt:
   nennt ihren `Betrag`; eine JSON-Zeile nennt ihren `amount` als
   Gesamtpreis, ihre Zahlen in der Schreibweise der Seite (*20,10*, auf
   Englisch *20.10*), die einer CSV-Zeile so, wie die Datei sie schreibt.
+- **Eine Lieferung oder Umbuchung mit Steuererstattung** (siehe „Eine
+  negative Steuer in einer Zeile“ oben), in jedem Format: *Einlieferung mit
+  Steuererstattung 0,40: Eine Einlieferung bewegt kein Geld, die Erstattung
+  hätte kein Konto — Zeile nicht übernommen. Die Einlieferung ohne sie von
+  Hand buchen; ist Geld geflossen, das als eigene Steuererstattung.* Eine
+  Auslieferung und eine Wertpapierumbuchung lauten ebenso in ihren eigenen
+  Worten; eine Umbuchung, gleich welche Seite, lautet *Umbuchung mit
+  Steuererstattung 5,00: Eine Umbuchung bewegt Geld zwischen zwei Konten,
+  eine abgespaltene Erstattung landete nur auf einer Seite — Zeile nicht
+  übernommen. Die Umbuchung ohne sie von Hand buchen; ist Geld geflossen,
+  das als eigene Steuererstattung.*
+- **Eine JSON-Zeile mit einer negativen Gebühr**, eine Gebührenerstattung:
+  *Buchung mit einer negativen Gebühr (-2,00): Eine Gebührenerstattung bucht
+  der Import noch nicht — Zeile nicht übernommen. Die Buchung von Hand
+  erfassen, mit den Gebühren abzüglich der Erstattung (3,00).* Ein Verkauf
+  lautet *Verkauf … Den Verkauf von Hand buchen, …*. Sie wird vor den
+  Gründen oben genannt.
 - **Eine JSON-Zeile, deren Währung Portfolixir nicht unterstützt**, benannt so,
   wie die Datei sie schreibt, in Großbuchstaben: *Währung „EURO“ wird nicht
   unterstützt — Zeile nicht übernommen* für die Währung der Buchung und

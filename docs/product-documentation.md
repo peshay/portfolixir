@@ -2797,6 +2797,33 @@ and cannot be corrected here, as its cash would be 0 or less: do not enter it
 again; how such a booking is corrected is still an open question (issue
 #1193).
 
+**A delivery or a transfer with a tax refund.** A negative tax on an inbound
+or outbound delivery, a security transfer or a cash transfer is left out with
+a parser warning, in every format, and the rest of the file imports. A
+delivery or a security transfer moves no cash, so the refund would have no
+account; a cash transfer moves its cash between two accounts, and a refund
+split off it would land on one side only, leaving the receiving account too
+high by the refund. Portfolio Performance moves no cash for a delivery, and
+for a transfer only its amount. The warning names the row and its remedy:
+book the delivery or the transfer by hand without the refund (a transfer at
+the amount Portfolio Performance shows as moved, a CSV row's `Gesamtpreis`
+or a JSON row's `amount`), and, only if money did move, book that as a tax
+refund of its own. Before, such a delivery made the whole file fail when the
+import was confirmed. A transfer imported that way earlier says instead that
+it is already imported and cannot be corrected here: do not book it again.
+
+**A fee refund.** A JSON row with a negative fee unit is left out with a
+parser warning until Portfolixir has a kind for a refunded fee (issue
+#1177). The warning names the refunded fee and the fees less the refund,
+which is the net fee Portfolio Performance shows: book the row by hand with
+that net fee, at the cash Portfolio Performance shows. Before, the import
+added the refunded fee to the fees: such a purchase booked its cash right,
+but too high a fee and too low a price. A row imported that way earlier says
+it is already imported, naming its fees as stored, which stay as they are for
+now. A CSV is not affected: Portfolio Performance's `Gebühren` nets the fee
+units, so a row whose units net below zero fails the `Gesamtpreis` check
+above, and a converter's negative `Gebühren` is read as its fee.
+
 A history imported before Portfolixir took the refund out of its booking
 counted such a refund twice, beside a booking that already held it, and
 priced a JSON sale with it. Dropping the same export again books nothing
@@ -2866,6 +2893,21 @@ confirm. These rows are left out the same way, each named with its row:
   `Betrag`; a JSON row names its `amount` as the Gesamtpreis, its figures in
   the page's notation (*20.10*, or *20,10* in German), while a CSV row's
   read as the file wrote them.
+- **A delivery or a transfer with a tax refund** (see "A negative tax inside
+  a row" above), in every format: *inbound delivery with a tax refund of
+  0,40: an inbound delivery moves no cash, so the refund would have no
+  account — row not imported. Book the inbound delivery by hand without it;
+  if money did move, book that as a tax refund of its own.* An outbound
+  delivery and a security transfer read the same in their own words; a cash
+  transfer, either side, reads *transfer with a tax refund of 5,00: a
+  transfer moves cash between two accounts, and a refund split off it would
+  land on one side only — row not imported. Book the transfer by hand
+  without it; if money did move, book that as a tax refund of its own.*
+- **A JSON row with a negative fee unit**, a fee refund: *booking with a
+  negative fee (-2.00): the import does not book a fee refund yet — row not
+  imported. Enter the booking by hand, with its fees less the refund
+  (3.00).* A sale reads *sell … Book the sale by hand, …*. It is named before
+  the reasons above.
 - **A JSON row whose currency Portfolixir does not support**, named as the
   file wrote it, in capitals: *currency “EURO” is not supported — row not
   imported* for the booking's currency, and *security currency “XEU” is not
