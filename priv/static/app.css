@@ -5393,6 +5393,19 @@ details[open] > .cat-summary::before {
 .cat-edit-form input[name="category[description]"] {
   flex: 1 1 14rem;
 }
+/* Issue 1211 (board 06 ②, pick N18 A): the parent select sits in
+   `.recolor-label`, the label style the built-in tree's colour field uses;
+   the description gives up 4 rem of its basis so the form keeps one line at
+   1200 px with it. */
+.cat-edit-form .recolor-label select {
+  width: auto;
+  min-width: 0;
+  max-width: 16rem;
+  font-size: 13px;
+}
+.cat-edit-form:has(select[name="category[parent_id]"]) input[name="category[description]"] {
+  flex-basis: 10rem;
+}
 
 /* The page's own blocks take the band's gutter (issue 873, board
    ux-design-2026-09-24/08-classification-detail ①; DESIGN.md → Layout &

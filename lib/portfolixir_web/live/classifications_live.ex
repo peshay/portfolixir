@@ -36,6 +36,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
      |> assign(:tree, nil)
      |> assign(:query, "")
      |> assign(:editing_id, nil)
+     |> assign(:opened_ids, MapSet.new())
      |> assign(:current_only, true)
      |> assign(:holdings, nil)
      |> assign(:results, nil)
@@ -184,6 +185,7 @@ defmodule PortfolixirWeb.ClassificationsLive do
         socket
         |> assign(:query, "")
         |> assign(:editing_id, nil)
+        |> assign(:opened_ids, MapSet.new())
         |> load_show(classification_id)
         |> load_soll()
         # Started here rather than in load_show/2: reload/1 also calls that, so
@@ -505,6 +507,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
               assignable={@tree.assignable}
               editing_id={@editing_id}
               filtering={@tree.filtering?}
+              opened_ids={@opened_ids}
+              flat={@tree.flat}
               results={@results}
               view_scoped={not is_nil(@active_view)}
             />
@@ -1021,7 +1025,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
 
   defp category_node(assigns) do
     ~H"""
-    <details class="cat-node" open={@filtering} {category_attrs(@assignable, @classification_id, @node.category.id)}>
+    <details
+      class="cat-node"
+      open={@filtering or MapSet.member?(@opened_ids, @node.category.id)}
+      {category_attrs(@assignable, @classification_id, @node.category.id)}>
       <summary class="cat-summary">
         <span class="cat-name">
           <span class="cat-swatch" style={swatch(@node.category.color)} aria-hidden="true"></span>
@@ -1128,6 +1135,23 @@ defmodule PortfolixirWeb.ClassificationsLive do
               value={@node.category.description}
               placeholder={gettext("Description")}
             />
+            <%!-- #1211 (board 06 ②, pick N18 A): a move is a change of the
+                 parent, made where the other attributes change. The
+                 category itself and its descendants are left out, so the
+                 cycle the context refuses cannot be picked. --%>
+            <label class="recolor-label">
+              <span><%= gettext("Parent") %></span>
+              <select name="category[parent_id]">
+                <option value="" selected={is_nil(@node.category.parent_id)}>
+                  <%= gettext("— Top level —") %>
+                </option>
+                <%= for {category, depth} <- parent_choices(@flat, @node.category.id) do %>
+                  <option value={category.id} selected={category.id == @node.category.parent_id}>
+                    <%= indent(depth) %><%= category.name %>
+                  </option>
+                <% end %>
+              </select>
+            </label>
             <input
               type="color"
               name="category[color]"
@@ -1171,6 +1195,8 @@ defmodule PortfolixirWeb.ClassificationsLive do
             assignable={@assignable}
             editing_id={@editing_id}
             filtering={@filtering}
+            opened_ids={@opened_ids}
+            flat={@flat}
             results={@results}
             view_scoped={@view_scoped}
           />
@@ -1577,10 +1603,10 @@ defmodule PortfolixirWeb.ClassificationsLive do
       {:noreply,
        socket
        |> assign(:editing_id, nil)
-       |> success(gettext("Category updated"))
+       |> answer_update(category, updated)
        |> reload_after_update(category, updated)}
     else
-      {:error, reason} -> {:noreply, failure(socket, error_message(reason))}
+      {:error, reason} -> {:noreply, refuse_update(socket, reason)}
       _ -> {:noreply, socket}
     end
   end
@@ -2037,6 +2063,51 @@ defmodule PortfolixirWeb.ClassificationsLive do
     do: reload(socket)
 
   defp reload_after_update(socket, _before, _after), do: reload_composition(socket)
+
+  # #1211: a move answers where the category now sits, and opens the new
+  # parent chain so the moved row stays in view (categories render closed).
+  defp answer_update(socket, %{parent_id: parent_id}, %{parent_id: parent_id}),
+    do: success(socket, gettext("Category updated"))
+
+  defp answer_update(socket, _before, %{parent_id: nil} = updated) do
+    success(
+      socket,
+      StoredText.isolate(
+        gettext("“%{name}” now sits on the top level.", name: StoredText.slot(:name)),
+        name: updated.name
+      )
+    )
+  end
+
+  defp answer_update(socket, _before, %{parent_id: parent_id} = updated) do
+    chain = ancestor_chain(socket.assigns.tree.flat, parent_id)
+
+    socket
+    |> assign(:opened_ids, MapSet.union(socket.assigns.opened_ids, MapSet.new(chain)))
+    |> success(
+      StoredText.isolate(
+        gettext("“%{name}” now sits under “%{parent}”.",
+          name: StoredText.slot(:name),
+          parent: StoredText.slot(:parent)
+        ),
+        name: updated.name,
+        parent: category_name(socket.assigns, parent_id)
+      )
+    )
+  end
+
+  # The category and its ancestors, by the tree as loaded before the move
+  # (the move changes no ancestor of the new parent).
+  defp ancestor_chain(flat, category_id) do
+    parents = Map.new(flat, fn {category, _depth} -> {category.id, category.parent_id} end)
+
+    category_id
+    |> Stream.unfold(fn
+      nil -> nil
+      id -> {id, Map.get(parents, id)}
+    end)
+    |> Enum.take(Classifications.max_tree_depth())
+  end
 
   # -- SOLL plan loading -----------------------------------------------------
 
@@ -2787,6 +2858,22 @@ defmodule PortfolixirWeb.ClassificationsLive do
     ngettext("Unassigned %{count} security", "Unassigned %{count} securities", count)
   end
 
+  # The edit form's parent choices (#1211): every category of the tree in its
+  # order, without the edited one and its descendants -- the run of deeper
+  # entries that follows it in the depth-first list.
+  defp parent_choices(flat, category_id) do
+    {choices, _skip_below} =
+      Enum.reduce(flat, {[], nil}, fn {category, depth} = entry, {acc, skip_below} ->
+        cond do
+          skip_below != nil and depth > skip_below -> {acc, skip_below}
+          category.id == category_id -> {acc, depth}
+          true -> {[entry | acc], nil}
+        end
+      end)
+
+    Enum.reverse(choices)
+  end
+
   defp indent(0), do: ""
   defp indent(depth), do: String.duplicate("— ", depth)
 
@@ -3120,6 +3207,37 @@ defmodule PortfolixirWeb.ClassificationsLive do
     StoredText.isolate(
       gettext(
         "Not added: under “%{parent}” the new category would sit on level %{level} — a classification has at most %{max} levels. Under “Parent”, pick a category higher up.",
+        parent: StoredText.slot(:parent),
+        level: opts[:level],
+        max: opts[:max]
+      ),
+      parent: category_name(assigns, Ecto.Changeset.get_field(changeset, :parent_id))
+    )
+  end
+
+  # #1211: a move past the tree's last level is refused as an add is,
+  # brought into view and focused; the form stays open to pick again.
+  defp refuse_update(socket, %Ecto.Changeset{errors: errors} = changeset) do
+    case errors[:parent_id] do
+      {_message, opts} when is_list(opts) ->
+        if opts[:validation] == :tree_depth,
+          do:
+            socket
+            |> failure(move_depth_refusal(socket.assigns, changeset, opts))
+            |> focus_into_view("classifications-result"),
+          else: failure(socket, error_message(changeset))
+
+      _other ->
+        failure(socket, error_message(changeset))
+    end
+  end
+
+  defp refuse_update(socket, reason), do: failure(socket, error_message(reason))
+
+  defp move_depth_refusal(assigns, changeset, opts) do
+    StoredText.isolate(
+      gettext(
+        "Not moved: under “%{parent}” a category would sit on level %{level} — a classification has at most %{max} levels. Under “Parent”, pick a category higher up.",
         parent: StoredText.slot(:parent),
         level: opts[:level],
         max: opts[:max]
