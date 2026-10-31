@@ -381,32 +381,50 @@ defmodule Portfolixir.Imports.CashCorrectionTest do
       assert balances(portfolio) == %{"Test-Cash" => "1120"}
     end
 
-    # User story (ADR-0053 A2, A6; the α closing act, coverage):
-    # As the operator whose JSON sale's cash was changed by hand,
-    # I want its correction to rewrite only what differs,
-    # so that a price that already agrees with the file is not written.
+    # User story (ADR-0053 A2, A6, A11; the α closing act, coverage):
+    # As the operator whose JSON sale's stored cash differs from the file
+    # while its price agrees,
+    # I want its correction to rewrite only what differs, and a cash I
+    # changed by hand to stay as I made it,
+    # so that a price that already agrees with the file is not written, and
+    # no figure I made is rewritten.
     #
     # Acceptance criteria:
     # - sale_with_negative_tax.json applied as read today, the sale's cash
-    #   edited by hand from 95.00 to 96.00 (its price stays 10.00): the
-    #   re-drop lists the sale with the cash alone among its changes.
+    #   set from 95.00 to 96.00 (its price stays 10.00): the re-drop lists
+    #   the sale with the cash alone among its changes.
+    # - Set by hand (`owner_ui`), the line reads edited since its import,
+    #   without a confirm (A11), and the confirm writes nothing.
+    # - Set without a hand edit (the importer's own actor, a stand-in for a
+    #   stored state no other actor touched, as K22's), the line carries a
+    #   confirm, and the confirm writes the cash alone.
     test "a JSON sale whose price agrees lists its cash alone" do
-      portfolio = portfolio!("Hand-edited sale")
       sale_file = fixture("sale_with_negative_tax.json")
-      apply!(parse!(sale_file, "sale.json"), portfolio)
 
-      {:ok, _edited} =
-        Ledger.update_transaction(Actor.owner_ui(), booking(portfolio, "sell"), %{
-          gross_amount: "96.00"
-        })
+      for {actor, state, written} <- [
+            {Actor.owner_ui(), :edited, []},
+            {Actor.import_session(), :confirm, [:gross_amount]}
+          ] do
+        portfolio = portfolio!("Sale set to 96.00 by #{actor.type}")
+        apply!(parse!(sale_file, "sale.json"), portfolio)
 
-      assert [%Item{changes: changes} = sale] =
-               Imports.cash_corrections(parse!(sale_file, "sale.json"),
-                 portfolio_id: portfolio.id
-               )
+        {:ok, _edited} =
+          Ledger.update_transaction(actor, booking(portfolio, "sell"), %{gross_amount: "96.00"})
 
-      assert figures([sale]) == [{3, "96", "95", "-1"}]
-      assert Map.keys(changes) == [:gross_amount]
+        assert [%Item{changes: changes} = sale] =
+                 Imports.cash_corrections(parse!(sale_file, "sale.json"),
+                   portfolio_id: portfolio.id
+                 )
+
+        assert figures([sale]) == [{3, "96", "95", "-1"}]
+        assert Map.keys(changes) == [:gross_amount]
+        assert sale.state == state
+
+        before = snapshot()
+        correct!(parse!(sale_file, "sale.json"), portfolio)
+
+        assert Map.get(changed_fields(before, snapshot()), sale.transaction.id, []) == written
+      end
     end
 
     # User story (ADR-0053 §6; the α closing act, coverage):
