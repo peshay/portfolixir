@@ -108,11 +108,12 @@ defmodule Portfolixir.Fx.RateSync do
   the provider publishes no history, or `{:error, reason}`.
 
   `settlement_legs` counts the legs the run derived once its rates were
-  stored (#1196): `%{status: :completed, derived: n, skipped_no_rate: n}`;
-  `%{status: :not_run, derived: 0, skipped_no_rate: 0}` when it stored no
-  rate; or, when the ledger refused a row, `%{status: :stopped, derived:
-  nil, skipped_no_rate: nil, stopped_at_transaction_id: id}`, the rates
-  stored all the same.
+  stored (#1196): `%{status: :completed, derived: n, skipped_no_rate: n,
+  skipped_changed: n}` (`skipped_changed`: rows that gained a leg after the
+  run read them, or were deleted); `%{status: :not_run, ...}` with every
+  count 0 when it stored no rate; or, when the ledger refused a row,
+  `%{status: :stopped, ...}` with every count nil and
+  `stopped_at_transaction_id: id`, the rates stored all the same.
 
   Options:
     * `:provider` – adapter module, overrides config.
@@ -256,19 +257,26 @@ defmodule Portfolixir.Fx.RateSync do
   # stops the task: the rates stay stored, the stop is logged and answered.
   # Without a stored rate the derivation does not run. The daily sync never
   # reaches here, so it derives no legs (the amendment's limit).
-  defp derive_settlement_legs(0), do: %{status: :not_run, derived: 0, skipped_no_rate: 0}
+  defp derive_settlement_legs(0),
+    do: %{status: :not_run, derived: 0, skipped_no_rate: 0, skipped_changed: 0}
 
   defp derive_settlement_legs(_upserted) do
     case SettlementBackfill.run(Actor.system_job("settlement_backfill")) do
-      {:ok, %{updated: derived, skipped_no_rate: skipped}} ->
-        if derived + skipped > 0 do
+      {:ok, %{updated: derived, skipped_no_rate: skipped, skipped_changed: changed}} ->
+        if derived + skipped + changed > 0 do
           Logger.info(
             "fx history backfill derived #{derived} settlement leg(s); " <>
-              "#{skipped} booking(s) still have no rate for their date"
+              "#{skipped} booking(s) still have no rate for their date, " <>
+              "#{changed} gained a leg or were deleted meanwhile"
           )
         end
 
-        %{status: :completed, derived: derived, skipped_no_rate: skipped}
+        %{
+          status: :completed,
+          derived: derived,
+          skipped_no_rate: skipped,
+          skipped_changed: changed
+        }
 
       {:error, {transaction_id, reason}} ->
         Logger.warning(
@@ -280,6 +288,7 @@ defmodule Portfolixir.Fx.RateSync do
           status: :stopped,
           derived: nil,
           skipped_no_rate: nil,
+          skipped_changed: nil,
           stopped_at_transaction_id: transaction_id
         }
     end
@@ -287,6 +296,7 @@ defmodule Portfolixir.Fx.RateSync do
 
   defp stop_reason(:raced), do: "its update lost a lock cycle with a concurrent write"
   defp stop_reason(%Ecto.Changeset{errors: errors}), do: "refused, #{inspect(errors)}"
+  defp stop_reason(other), do: inspect(other)
 
   # function_exported?/3 is false for a module not loaded yet, so the
   # provider is loaded first; otherwise the answer would depend on whether

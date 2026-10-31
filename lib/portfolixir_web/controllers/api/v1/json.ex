@@ -2145,6 +2145,7 @@ defmodule PortfolixirWeb.Api.V1.JSON do
       status: Atom.to_string(status),
       derived: legs.derived,
       skipped_no_rate: legs.skipped_no_rate,
+      skipped_changed: legs.skipped_changed,
       stopped_at_transaction_id: Map.get(legs, :stopped_at_transaction_id)
     }
   end

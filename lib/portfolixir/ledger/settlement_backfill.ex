@@ -46,8 +46,9 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
   Runs the backfill. Returns `{:ok, summary}` with `updated`,
   `skipped_no_rate`, `skipped_no_rate_rows` (transaction ids with their
   dates, so the skips are actionable) and `skipped_changed` (rows that
-  gained a leg after the candidate read: each write re-checks under the
-  row's lock that none of the three legs is stored, #1196), or `{:error, {transaction_id, changeset}}` on the first failing
+  gained a leg after the candidate read, or were deleted: each write
+  re-checks under the row's lock that none of the three legs is stored,
+  #1196), or `{:error, {transaction_id, changeset}}` on the first failing
   update (nothing further is attempted).
   An update that lost a lock cycle with a concurrent write (#1214) stops it
   the same way as `{:error, {transaction_id, :raced}}`: nothing was written
@@ -147,8 +148,8 @@ defmodule Portfolixir.Ledger.SettlementBackfill do
            settlement_fx_rate: rate
          }) do
       {:ok, _transaction} -> {:ok, :updated}
-      # #1196: the row gained a leg after the candidate read.
-      {:error, :legs_stored} -> {:ok, :changed}
+      # #1196: the row gained a leg after the candidate read, or is gone.
+      {:error, reason} when reason in [:legs_stored, :not_found] -> {:ok, :changed}
       {:error, :raced} -> {:error, :raced}
       {:error, changeset} -> {:error, changeset}
     end
