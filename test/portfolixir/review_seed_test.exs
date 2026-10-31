@@ -9,6 +9,7 @@ defmodule Portfolixir.ReviewSeedTest do
   import Ecto.Query
   import ExUnit.CaptureIO
 
+  alias Portfolixir.Actor
   alias Portfolixir.Catalog.Quote
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Imports
@@ -219,6 +220,58 @@ defmodule Portfolixir.ReviewSeedTest do
 
     seed!()
     assert row_counts() == rows
+  end
+
+  # User story (#1188, Sprint 21 α5; the plan's D-14 and round trip 4):
+  # As the reviewer walking the α round trips on the review instance,
+  # I want the seed to name a Portfolio Performance file with a delivery
+  # that carries a negative tax,
+  # so that I can drop it and see the delivery named as not imported while
+  # the rest books, without writing the file by hand.
+  #
+  # Acceptance criteria:
+  # - The seed's header and the README name
+  #   priv/demo/pp_json_delivery_negative_tax_demo.json.
+  # - The file previews with one row error, the delivery's, naming its
+  #   remedy; the deposit and the purchase preview.
+  # - Applied, "Girokonto Lieferung" reads 499.00 and "Depot Lieferung"
+  #   holds 5 "Arbolia Inc.".
+  # - The seed does not import it, so a second run adds nothing for it (the
+  #   first test pins the bookings across two runs).
+  test "the seed names a delivery with a negative tax that previews with one row error" do
+    file = "priv/demo/pp_json_delivery_negative_tax_demo.json"
+
+    for path <- ["priv/demo/README.md", @seed] do
+      assert File.read!(path) =~ Path.basename(file), path
+    end
+
+    {:ok, preview} = Imports.parse_portfolio_performance(File.read!(file), filename: file)
+
+    assert [%{row: 2, message: "inbound delivery with a tax refund of 0.40: " <> _}] =
+             preview.errors
+
+    assert Enum.map(preview.entries, & &1.kind) == ["deposit", "buy"]
+
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Actor.owner_ui(), %{
+        name: "Round trip 4",
+        base_currency_code: "EUR"
+      })
+
+    assert {:ok, _result} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+
+    %{id: giro} =
+      portfolio.id
+      |> Portfolios.list_cash_accounts_for_portfolio()
+      |> Enum.find(&(&1.name == "Girokonto Lieferung"))
+
+    balance = [portfolio_id: portfolio.id] |> Ledger.cash_balances() |> Map.fetch!(giro)
+    assert Decimal.equal?(balance, Decimal.new("499.00"))
+
+    assert [%{security_name: "Arbolia Inc.", quantity: quantity}] =
+             Ledger.holdings_for_portfolio(portfolio.id)
+
+    assert Decimal.equal?(quantity, 5)
   end
 
   defp stored_class(name) do

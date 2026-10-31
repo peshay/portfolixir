@@ -5528,6 +5528,59 @@ the Imports page. Built in `PortfolixirWeb.ImportsLive`, the two parsers and
       und hier nicht zu korrigieren. Die Buchung nicht noch einmal erfassen;
       siehe „Eine negative Steuer in einer Zeile“ in der
       Produktdokumentation."
+  - **A refund or a fee refund the row cannot carry (ADR-0053 A8 and A9,
+    #1188, #1177)** *(2026-10-31; Sprint 21 PR 1 α5; board
+    `mockups/ux-design-2026-10-09/07-imports` ③, before/after)*: three
+    reasons, each the board's sentence in the shape of A5's: the kind with
+    its figure, why the row cannot carry it, then "— row not imported", then
+    the remedy as a sentence of its own. Each counts in the "Warnings" card;
+    the row's entries, a split-off refund included, leave the "Entries"
+    card; the rest of the file previews and imports. One msgid per kind.
+    A CSV row's figure is quoted in the file's notation; a JSON row's to the
+    cent in the reader's.
+    - A delivery or a security transfer with a negative tax unit (both
+      parsers): "inbound delivery with a tax refund of 0,40: an inbound
+      delivery moves no cash, so the refund would have no account — row not
+      imported. Book the inbound delivery by hand without it; if money did
+      move, book that as a tax refund of its own." / "Einlieferung mit
+      Steuererstattung 0,40: Eine Einlieferung bewegt kein Geld, die
+      Erstattung hätte kein Konto — Zeile nicht übernommen. Die
+      Einlieferung ohne sie von Hand buchen; ist Geld geflossen, das als
+      eigene Steuererstattung."; "outbound delivery" / "Auslieferung" and
+      "security transfer" / "Wertpapierumbuchung" read the same.
+    - A cash transfer with a negative tax unit (both parsers, either side):
+      "transfer with a tax refund of 5,00: a transfer moves cash between
+      two accounts, and a refund split off it would land on one side only
+      — row not imported. Book the transfer by hand without it; if money
+      did move, book that as a tax refund of its own." / "Umbuchung mit
+      Steuererstattung 5,00: Eine Umbuchung bewegt Geld zwischen zwei
+      Konten, eine abgespaltene Erstattung landete nur auf einer Seite —
+      Zeile nicht übernommen. Die Umbuchung ohne sie von Hand buchen; ist
+      Geld geflossen, das als eigene Steuererstattung."
+    - A negative FEE unit (a JSON file only; a CSV's Gebühren keeps its
+      Gesamtpreis check): the refunded fee, then the fees less it as
+      Portfolio Performance nets them; a sale reads "sell"/"Verkauf", every
+      other kind "booking"/"Buchung": "sell with a negative fee (-1,90): the
+      import does not book a fee refund yet — row not imported. Book the
+      sale by hand, with its fees less the refund (3,00)." / "Verkauf mit
+      einer negativen Gebühr (-1,90): Eine Gebührenerstattung bucht der
+      Import noch nicht — Zeile nicht übernommen. Den Verkauf von Hand
+      buchen, mit den Gebühren abzüglich der Erstattung (3,00)."; "booking
+      … Enter the booking by hand, …" / "Buchung … Die Buchung von Hand
+      erfassen, …". It is named first, before the two above and A5's.
+    - Already imported (a transfer stored under Sprint 20's reading, a
+      booking stored with its fees summed): the reason, then "— already
+      imported, and it cannot be corrected here. Do not book the transfer
+      again; see “A negative tax inside a row” in the product
+      documentation." / "— bereits importiert und hier nicht zu
+      korrigieren. Die Umbuchung nicht noch einmal buchen; siehe „Eine
+      negative Steuer in einer Zeile“ in der Produktdokumentation."; a fee
+      refund names its fees as stored: "— already imported with fees of
+      7,00, and it cannot be corrected here. …" / "— bereits importiert mit
+      Gebühren von 7,00 und hier nicht zu korrigieren. …".
+    - The board's "— Eintrag nicht übernommen" for a JSON row is #1179's
+      wording (γ7) and lands with it; until then every reason ends "— row
+      not imported" / "— Zeile nicht übernommen", as the others do.
 - **A refused ticker is dropped with a warning naming its remedy**
   *(2026-10-28; security review 2026-10-12, H57; board
   `mockups/ux-design-2026-10-27/02-imports-mapping` ②, pick Q2 = B)*: one

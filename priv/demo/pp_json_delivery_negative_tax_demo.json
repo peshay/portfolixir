@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "transactions": [
+    {
+      "type": "DEPOSIT",
+      "account": "Girokonto Lieferung",
+      "date": "2026-02-02",
+      "currency": "EUR",
+      "amount": 1000.00
+    },
+    {
+      "type": "INBOUND_DELIVERY",
+      "portfolio": "Depot Lieferung",
+      "date": "2026-02-03",
+      "currency": "EUR",
+      "amount": 999.60,
+      "shares": 10,
+      "security": {
+        "name": "Arbolia Inc.",
+        "currency": "EUR"
+      },
+      "units": [
+        {"type": "TAX", "amount": -0.40}
+      ]
+    },
+    {
+      "type": "PURCHASE",
+      "account": "Girokonto Lieferung",
+      "portfolio": "Depot Lieferung",
+      "date": "2026-02-04",
+      "currency": "EUR",
+      "amount": 501.00,
+      "shares": 5,
+      "security": {
+        "name": "Arbolia Inc.",
+        "currency": "EUR"
+      },
+      "units": [
+        {"type": "FEE", "amount": 1.00}
+      ]
+    }
+  ]
+}

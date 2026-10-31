@@ -24,7 +24,11 @@
 # the Sprint 21 money surfaces (18, plan D-14): a bond whose coupon was
 # imported with it. The Gesamtpreis row error (#1076) is a file the
 # walkthrough drops by hand: priv/demo/pp_csv_gesamtpreis_demo.csv; so are
-# the coupon file's second drop and its re-export.
+# the coupon file's second drop and its re-export, and the delivery with a
+# negative tax (#1188, the Sprint 21 plan's D-14 and round trip 4):
+# priv/demo/pp_json_delivery_negative_tax_demo.json, which previews with one
+# named row error while the rest books. The seed imports neither, so a
+# second run adds nothing for them.
 # Synthetic all the way down; no real data (AGENTS.md → Privacy And
 # Disclosure).
 #

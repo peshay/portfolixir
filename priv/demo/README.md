@@ -111,6 +111,15 @@ The Sprint 19 PR α stories added their surfaces (step 16 of the seed):
   (Gebühren + Steuern). The seed does not import it: drop it into Imports by
   hand and the preview names the row as not imported. Discard the preview
   afterwards.
+- **A delivery with a negative tax (#1188):**
+  `pp_json_delivery_negative_tax_demo.json` is a small Portfolio
+  Performance JSON export: a deposit on "Girokonto Lieferung", an inbound
+  delivery of 10 "Arbolia Inc." into "Depot Lieferung" carrying a tax unit
+  of -0.40, and a purchase of 5 shares for 501.00. The seed does not import
+  it: drop it into Imports by hand (the Sprint 21 plan's round trip 4) and
+  the preview names the delivery as not imported, with its remedy, while
+  the rest previews; confirmed, Girokonto Lieferung reads 499.00 and the
+  depot holds 5 shares.
 
 The Sprint 21 security fixes added theirs (step 17 of the seed, amendment
 D-12); the agent is an API token, as the app reads its writes:
