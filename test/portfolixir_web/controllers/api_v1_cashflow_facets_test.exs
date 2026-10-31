@@ -269,6 +269,12 @@ defmodule PortfolixirWeb.ApiV1CashflowFacetsTest do
   # Acceptance criteria:
   # - `months[m].total` is a Decimal string: fees + taxes of that month,
   #   "12" for a January of 9.90 and 2.10, "0" for an empty month.
+  # - A converted month totals its converted legs: 12.50 USD of fees and
+  #   2.50 USD of taxes at 1 EUR = 1.25 USD read 10 + 2 = 12 EUR.
+  # - An excluded cost (a 99 USD fee on a day with no stored rate) is in no
+  #   month's total and is named: `excluded` = {count 1, currencies [USD]}.
+  # - A refund-only month reads its negative total, "-4".
+  # - The year's total equals the sum of its twelve month totals.
   # - `computation_basis.totals` states the month's and the year's total.
   test "GET /api/v1/costs serves each month's total with its basis", %{conn: conn} do
     world = WorldFixtures.base_world()
@@ -282,11 +288,70 @@ defmodule PortfolixirWeb.ApiV1CashflowFacetsTest do
       date: ~D[2026-01-15]
     )
 
+    # SF-3 (risk tier): a converted month, an excluded cost, a refund-only
+    # month.
+    usd =
+      WorldFixtures.add_depot(world.portfolio,
+        currency: "USD",
+        cash_name: "USD Cash",
+        depot_name: "USD Depot"
+      )
+
+    usd_world = %{portfolio: world.portfolio, depot: usd.depot, cash: usd.cash}
+    dollar = WorldFixtures.create_security!(name: "Dollar Fund", ticker: "DLF", currency: "USD")
+
+    {:ok, _} =
+      Fx.upsert_many([
+        %{
+          base_currency: "EUR",
+          quote_currency: "USD",
+          date: ~D[2026-05-05],
+          rate: "1.25",
+          source: "manual"
+        }
+      ])
+
+    WorldFixtures.buy!(usd_world, dollar,
+      quantity: "2",
+      price: "50",
+      fees: "12.50",
+      taxes: "2.50",
+      date: ~D[2026-05-05],
+      currency: "USD"
+    )
+
+    for {cash, type, amount, currency, date} <- [
+          {usd.cash, "fee", "99", "USD", ~D[2026-06-10]},
+          {world.cash, "tax_refund", "4", "EUR", ~D[2026-07-03]}
+        ] do
+      {:ok, _} =
+        Portfolixir.Ledger.create_transaction(Portfolixir.Actor.owner_ui(), %{
+          portfolio_id: world.portfolio.id,
+          cash_account_id: cash.id,
+          type: type,
+          date: date,
+          gross_amount: amount,
+          currency_code: currency
+        })
+    end
+
     %{"data" => data} = get_json(conn, "/api/v1/costs")
 
     assert [%{"year" => 2026} = year] = data["annual"]
     assert year["months"]["1"] == %{"fees" => "9.9", "taxes" => "2.1", "total" => "12"}
     assert year["months"]["2"] == %{"fees" => "0", "taxes" => "0", "total" => "0"}
+    assert year["months"]["5"] == %{"fees" => "10", "taxes" => "2", "total" => "12"}
+    assert year["months"]["6"] == %{"fees" => "0", "taxes" => "0", "total" => "0"}
+    assert year["months"]["7"] == %{"fees" => "0", "taxes" => "-4", "total" => "-4"}
+    assert data["excluded"] == %{"count" => 1, "currencies" => ["USD"]}
+
+    month_sum =
+      year["months"]
+      |> Map.values()
+      |> Enum.reduce(Decimal.new(0), &Decimal.add(Decimal.new(&1["total"]), &2))
+
+    assert year["total"] == "20"
+    assert Decimal.equal?(month_sum, Decimal.new(year["total"]))
     assert data["computation_basis"]["totals"] =~ "fees plus its taxes"
   end
 end
