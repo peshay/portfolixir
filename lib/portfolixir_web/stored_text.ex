@@ -68,6 +68,21 @@ defmodule PortfolixirWeb.StoredText do
     {:safe, [~s(<a href="), escape(href), ~s(">), bdi_iodata(label), "</a>"]}
   end
 
+  @doc """
+  The sentence that ends on `text`, stored names joined (DESIGN.md H8.8, "One
+  body sentence joined, for its punctuation"; #1208): `without_stop` when
+  `text` already ends in a full stop ("Larkspur Rail Corp."), so no name's
+  last character meets a full stop of the app's; else `with_stop`.
+
+  Each function takes `text` and returns the translated sentence, so the
+  call site keeps both msgids literal for extraction and a translation is
+  never rewritten.
+  """
+  @spec ending_on(String.t(), (String.t() -> term()), (String.t() -> term())) :: term()
+  def ending_on(text, with_stop, without_stop) when is_binary(text) do
+    if String.ends_with?(text, "."), do: without_stop.(text), else: with_stop.(text)
+  end
+
   defp piece(part, values) do
     case Regex.run(@slot, part) do
       [^part, key] -> stored(Map.get(values, key))

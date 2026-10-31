@@ -5100,6 +5100,18 @@ its own `<bdi>`. An inline result's message may be that markup (it was
   für „…“, das Verhältnis als neue:alte Aktien — …") — so no name's last
   character meets a full stop of the app's (the closing act's finding;
   board `mockups/ux-review-2026-10-03/03-gamma-surface-repairs`, G7).
+  *Amended 2026-10-31 (issue 1208, Sprint 21 γ1; board
+  `mockups/ux-design-2026-10-09/01-overview` ⑥):* a sentence that ends its
+  name list with the app's own full stop takes **one shared helper**,
+  `PortfolixirWeb.StoredText.ending_on/3`: a list whose last name ends in
+  "." takes the msgid written without the stop, its own twin in the
+  catalog, so the translation decides where its sentence goes on and is
+  never rewritten. The list it covers: the Overview total's note ("Nicht in
+  der Summe: …", M6 of #1081, moved onto the helper), the closed-trades
+  card's two exclusion sentences ("… fehlt bei den Trades: Larkspur Rail
+  Corp. Das Nachladen der Wechselkurse steht unter „Alle Trades“." and the
+  unconvertible sale's), and the Trades facet's two ("… und ist aus jeder
+  Summe ausgeschlossen: Larkspur Rail Corp."), each with a test.
 
 ## Amendment 2026-10-03 — Deleting a booking, and Edit on the kinds the drawer does not book *(Sprint 18 picks H2 = A and H2b = A, U1; issue 912)*
 

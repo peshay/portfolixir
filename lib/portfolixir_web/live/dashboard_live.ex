@@ -676,30 +676,38 @@ defmodule PortfolixirWeb.DashboardLive do
             <span
               :if={@card.excluded.by_reason.no_rate.count > 0}
               data-role="trades-card-excluded-no-rate"
-            ><%= names_sentence(
-              @card.excluded.by_reason.no_rate.securities,
-              fn names ->
-                ngettext(
-                  "%{count} sale with no stored rate on its close date is left out of the trades: %{securities}. The rate backfill is under “All trades”.",
-                  "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities}. The rate backfill is under “All trades”.",
-                  @card.excluded.by_reason.no_rate.count,
-                  securities: names
-                )
-              end
+            ><%= StoredText.ending_on(
+              Enum.join(@card.excluded.by_reason.no_rate.securities, ", "),
+              &ngettext(
+                "%{count} sale with no stored rate on its close date is left out of the trades: %{securities}. The rate backfill is under “All trades”.",
+                "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities}. The rate backfill is under “All trades”.",
+                @card.excluded.by_reason.no_rate.count,
+                securities: &1
+              ),
+              &ngettext(
+                "%{count} sale with no stored rate on its close date is left out of the trades: %{securities} The rate backfill is under “All trades”.",
+                "%{count} sales with no stored rate on their close dates are left out of the trades: %{securities} The rate backfill is under “All trades”.",
+                @card.excluded.by_reason.no_rate.count,
+                securities: &1
+              )
             ) %></span>
             <span
               :if={@card.excluded.by_reason.missing_settlement_leg.count > 0}
               data-role="trades-card-excluded-missing-leg"
-            ><%= names_sentence(
-              @card.excluded.by_reason.missing_settlement_leg.securities,
-              fn names ->
-                ngettext(
-                  "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}.",
-                  "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}.",
-                  @card.excluded.by_reason.missing_settlement_leg.count,
-                  securities: names
-                )
-              end
+            ><%= StoredText.ending_on(
+              Enum.join(@card.excluded.by_reason.missing_settlement_leg.securities, ", "),
+              &ngettext(
+                "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}.",
+                "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}.",
+                @card.excluded.by_reason.missing_settlement_leg.count,
+                securities: &1
+              ),
+              &ngettext(
+                "%{count} sale not convertible — a buy it closes has no figure in the sale's currency — is left out of the trades: %{securities}",
+                "%{count} sales not convertible — a buy each closes has no figure in its sale's currency — are left out of the trades: %{securities}",
+                @card.excluded.by_reason.missing_settlement_leg.count,
+                securities: &1
+              )
             ) %><%= if @card.excluded.by_reason.no_rate.count == 0,
               do: " " <> gettext("The rate backfill is under “All trades”.") %></span>
           </AppShell.data_note>
@@ -817,13 +825,14 @@ defmodule PortfolixirWeb.DashboardLive do
   end
 
   # A last name that ends in a full stop ("Harborline Freight Inc.") closes
-  # the sentence itself; a second one would read "Inc..".
+  # the sentence itself; a second one would read "Inc.." (M6, on the shared
+  # helper since #1208).
   defp excluded_sentence(groups) do
-    if String.ends_with?(groups, ".") do
-      gettext("Not in the total: %{groups}", groups: groups)
-    else
-      gettext("Not in the total: %{groups}.", groups: groups)
-    end
+    StoredText.ending_on(
+      groups,
+      &gettext("Not in the total: %{groups}.", groups: &1),
+      &gettext("Not in the total: %{groups}", groups: &1)
+    )
   end
 
   # The pending footprint of a strip cell (UX-DR20): the value-sized
@@ -1302,17 +1311,5 @@ defmodule PortfolixirWeb.DashboardLive do
       transactions_count: Ledger.count_transactions(),
       error: nil
     )
-  end
-
-  # A sentence that ends on a list of security names (#1198, the α closing
-  # act's UAT): a name that ends in a full stop ("Arbolia Inc.") ends the
-  # sentence once, not "Arbolia Inc..".
-  defp names_sentence(names, sentence) do
-    list = Enum.join(names, ", ")
-    text = sentence.(list)
-
-    if String.ends_with?(list, "."),
-      do: String.replace(text, list <> ".", list),
-      else: text
   end
 end
