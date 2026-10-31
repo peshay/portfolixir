@@ -4,9 +4,11 @@ defmodule Portfolixir.Imports.UnseenNameProbeTest do
   # account or depot name is **unknown to the stored history** when none of
   # the rows listed under it has a content hash held by a live transaction or
   # a retired hash, while at least one other name of the same file in the
-  # same portfolio has such a hit (point 1). The counts are the hash layers
-  # `reimport_counts` already reads; the economic layer is not read, because
-  # it cannot see a name. Names compare as exact strings after trimming
+  # same portfolio has such a hit (point 1). The hash layers
+  # `reimport_counts` already reads decide the first pass; the amendment of
+  # 2026-10-09 (#1195) lets the refined pass release a name whose importable
+  # rows the dry run finds all booked on its resolution, and a stopped dry
+  # run releases nothing. Names compare as exact strings after trimming
   # surrounding whitespace (point 6, #973).
   #
   # These tests pin the signal itself; what the preview does with it, and
@@ -26,6 +28,7 @@ defmodule Portfolixir.Imports.UnseenNameProbeTest do
   alias Portfolixir.Lifecycle
   alias Portfolixir.Portfolios
   alias Portfolixir.Portfolios.CashAccount
+  alias Portfolixir.Portfolios.SecuritiesAccount
 
   @fund %{"name" => "Example Fund", "isin" => "DE000EXMPL17", "currency" => "EUR"}
 
@@ -55,7 +58,9 @@ defmodule Portfolixir.Imports.UnseenNameProbeTest do
   #   unknown to the stored history; "Test-Cash" and "Depot Muster", whose
   #   other rows are hash hits, are not.
   # - A depot renamed in the file is unknown the same way.
-  # - The first pass (hash layers alone) and the refined pass say the same.
+  # - The first pass (hash layers alone) and the refined pass say the same:
+  #   the refined pass books the renamed name's rows on an account it would
+  #   create, so they count new.
   describe "a name renamed in Portfolio Performance is unknown to the stored history" do
     test "a renamed cash account, one of its rows a transfer to another account", %{
       portfolio: portfolio
@@ -208,32 +213,163 @@ defmodule Portfolixir.Imports.UnseenNameProbeTest do
     assert counts.unseen_names == %{cash_accounts: [], depots: []}
   end
 
-  # User story:
-  # As the operator who renamed an account in Portfolixir and in Portfolio
-  # Performance alike,
-  # I want the probe to read the content hashes only,
-  # so that it judges a name by what was imported under it, never by an
-  # account the name happens to lead to.
+  # User story (#1195, Sprint 21 α8; ADR-0050 as amended on 2026-10-09, P8):
+  # As the operator who re-drops an export whose rows under one name drifted
+  # (a time moved), or who renamed an account in Portfolixir and in
+  # Portfolio Performance alike,
+  # I want a name whose rows the dry run finds all booked on its resolution
+  # to count as known once the dry run answers,
+  # so that a drop that would book nothing under the name stops asking on
+  # every drop.
   #
-  # Acceptance criteria (point 1: "The economic layer is not read"):
-  # - "Tagesgeld" is renamed "Tagesgeld Extra" on both sides. The refined
-  #   counts find its bookings on the economic layer, and the name is still
-  #   unknown to the stored history: no booking was imported under it.
-  test "the economic layer is not read", %{portfolio: portfolio} do
+  # Acceptance criteria (amendment point 1):
+  # - The purchase re-exported at 10:30 instead of 10:00: the first pass
+  #   (hash layers alone) names "Depot Muster" unknown; the refined pass,
+  #   which finds the purchase already booked on Depot Muster against
+  #   Test-Cash, names nothing. Its row counts economics 1, new 0.
+  # - "Tagesgeld" renamed "Tagesgeld Extra" on both sides: the first pass
+  #   names "Tagesgeld Extra"; the refined pass, which counts its three rows
+  #   economics, names nothing.
+  test "a name whose rows are all booked on its resolution is known once the dry run answers",
+       %{portfolio: portfolio} do
     applied!(portfolio, history())
+    drifted = parse!(history(time: "10:30"))
+
+    assert Imports.reimport_counts(drifted, portfolio_id: portfolio.id, dry_run: false).unseen_names ==
+             %{cash_accounts: [], depots: ["Depot Muster"]}
+
+    refined = Imports.reimport_counts(drifted, portfolio_id: portfolio.id)
+
+    assert %{hash: 0, retired: 0, economics: 1, new: 0} = refined.depots["Depot Muster"]
+    assert refined.unseen_names == %{cash_accounts: [], depots: []}
 
     {:ok, _renamed} =
       Portfolios.update_cash_account(agent(), named!("Tagesgeld"), %{name: "Tagesgeld Extra"})
 
-    counts =
-      Imports.reimport_counts(parse!(history(savings: "Tagesgeld Extra")),
-        portfolio_id: portfolio.id
-      )
+    both = parse!(history(savings: "Tagesgeld Extra"))
+
+    assert Imports.reimport_counts(both, portfolio_id: portfolio.id, dry_run: false).unseen_names ==
+             %{cash_accounts: ["Tagesgeld Extra"], depots: []}
+
+    refined = Imports.reimport_counts(both, portfolio_id: portfolio.id)
 
     assert %{hash: 0, retired: 0, economics: 3, new: 0} =
-             counts.cash_accounts["Tagesgeld Extra"]
+             refined.cash_accounts["Tagesgeld Extra"]
 
-    assert counts.unseen_names == %{cash_accounts: ["Tagesgeld Extra"], depots: []}
+    assert refined.unseen_names == %{cash_accounts: [], depots: []}
+  end
+
+  # User story (#1195, Sprint 21 α8; ADR-0050 as amended on 2026-10-09, P9):
+  # As the operator whose renamed account carries one booking the stored
+  # history lacks,
+  # I want the name to stay unknown after the dry run answers,
+  # so that a name whose rows would book anything still asks before the
+  # history lands anywhere.
+  #
+  # Acceptance criteria (amendment point 4):
+  # - "Tagesgeld" renamed "Tagesgeld Extra" on both sides, and the export
+  #   adds 1.35 EUR of interest on 2026-03-31: the refined pass counts
+  #   economics 3, new 1, and still names "Tagesgeld Extra".
+  # - The rename the stored history never saw (P1): the dry run books the
+  #   three rows on an account it would create, so they count new, and the
+  #   name stays unknown.
+  test "a name booked but for one new row stays unknown", %{portfolio: portfolio} do
+    applied!(portfolio, history())
+
+    unseen = parse!(history(savings: "Tagesgeld Extra"))
+
+    assert Imports.reimport_counts(unseen, portfolio_id: portfolio.id).unseen_names ==
+             %{cash_accounts: ["Tagesgeld Extra"], depots: []}
+
+    {:ok, _renamed} =
+      Portfolios.update_cash_account(agent(), named!("Tagesgeld"), %{name: "Tagesgeld Extra"})
+
+    newer =
+      parse!(
+        history(savings: "Tagesgeld Extra") ++ [interest("Tagesgeld Extra", "1.35", "2026-03-31")]
+      )
+
+    refined = Imports.reimport_counts(newer, portfolio_id: portfolio.id)
+
+    assert %{hash: 0, retired: 0, economics: 3, new: 1} =
+             refined.cash_accounts["Tagesgeld Extra"]
+
+    assert refined.unseen_names == %{cash_accounts: ["Tagesgeld Extra"], depots: []}
+  end
+
+  # User story (#1195, Sprint 21 α8; ADR-0050 as amended on 2026-10-09, P7):
+  # As the operator who mapped a renamed name onto its old account with
+  # "Remember this mapping" ticked,
+  # I want the remembered former name to vouch for nothing on its own,
+  # so that a name Portfolio Performance has since given to another account
+  # is never prefilled onto the wrong one.
+  #
+  # Acceptance criteria (amendment point 3):
+  # - P1's file applied with "Tagesgeld Extra" mapped onto Tagesgeld and
+  #   remembered (it inserts nothing). A later export that adds 1.35 EUR of
+  #   interest on 2026-03-31 under "Tagesgeld Extra" still names it unknown
+  #   after the dry run answers: economics 3, new 1.
+  # - P1's file without the new booking is named by the first pass and
+  #   released by the refined one.
+  test "a former name alone does not make a name known", %{portfolio: portfolio} do
+    applied!(portfolio, history())
+    tagesgeld = named!("Tagesgeld")
+    renamed = history(savings: "Tagesgeld Extra")
+
+    assert {:ok, %Result{created_transactions: 0}} =
+             Imports.apply(parse!(renamed), %{
+               portfolio: {:existing, portfolio.id},
+               cash_accounts: %{
+                 "Test-Cash" => {:existing, named!("Test-Cash").id},
+                 "Tagesgeld Extra" => {:existing, tagesgeld.id}
+               },
+               depots: %{
+                 "Depot Muster" => %{
+                   target: {:existing, depot_named!("Depot Muster").id},
+                   cash: "Test-Cash"
+                 }
+               }
+             })
+
+    assert Repo.reload!(tagesgeld).former_names == ["Tagesgeld Extra"]
+
+    later = parse!(renamed ++ [interest("Tagesgeld Extra", "1.35", "2026-03-31")])
+    refined = Imports.reimport_counts(later, portfolio_id: portfolio.id)
+
+    assert %{hash: 0, economics: 3, new: 1} = refined.cash_accounts["Tagesgeld Extra"]
+    assert refined.unseen_names == %{cash_accounts: ["Tagesgeld Extra"], depots: []}
+
+    same = parse!(renamed)
+
+    assert Imports.reimport_counts(same, portfolio_id: portfolio.id, dry_run: false).unseen_names ==
+             %{cash_accounts: ["Tagesgeld Extra"], depots: []}
+
+    assert Imports.reimport_counts(same, portfolio_id: portfolio.id).unseen_names ==
+             %{cash_accounts: [], depots: []}
+  end
+
+  # User story (#1195, Sprint 21 α8; ADR-0050 as amended on 2026-10-09, P10):
+  # As the operator whose file carries a name two of my accounts share from
+  # before the name guard,
+  # I want a dry run that stops to release nothing,
+  # so that a name is never prefilled on counts the apply's own run did not
+  # finish.
+  #
+  # Acceptance criteria (amendment point 2):
+  # - P8's drifted drop with a new deposit of 300.00 EUR under "Festgeld",
+  #   which two accounts carry: the dry run stops, the counts stay on the
+  #   hash layers (the purchase counts new, not economics), and both
+  #   "Festgeld" and "Depot Muster" stay unknown.
+  test "a stopped dry run releases nothing", %{portfolio: portfolio} do
+    applied!(portfolio, history())
+    legacy_cash!(portfolio, "Festgeld")
+    legacy_cash!(portfolio, "Festgeld")
+
+    drop = parse!(history(time: "10:30") ++ [deposit("Festgeld", "300.00", "2026-03-02")])
+    refined = Imports.reimport_counts(drop, portfolio_id: portfolio.id)
+
+    assert %{economics: 0, new: 1} = refined.depots["Depot Muster"]
+    assert refined.unseen_names == %{cash_accounts: ["Festgeld"], depots: ["Depot Muster"]}
   end
 
   # User story:
@@ -272,11 +408,13 @@ defmodule Portfolixir.Imports.UnseenNameProbeTest do
 
   # The history the instance imported: Test-Cash, Tagesgeld and Depot
   # Muster (board 01 ①). `names` renames any of them as Portfolio
-  # Performance would export it after a rename.
+  # Performance would export it after a rename; `time` moves the purchase,
+  # as a drifted re-export does.
   defp history(names \\ []) do
     cash = Keyword.get(names, :cash, "Test-Cash")
     savings = Keyword.get(names, :savings, "Tagesgeld")
     depot = Keyword.get(names, :depot, "Depot Muster")
+    time = Keyword.get(names, :time, "10:00")
 
     [
       deposit(cash, "2000.00", "2026-01-02"),
@@ -286,7 +424,7 @@ defmodule Portfolixir.Imports.UnseenNameProbeTest do
         "account" => cash,
         "portfolio" => depot,
         "date" => "2026-01-15",
-        "time" => "10:00",
+        "time" => time,
         "currency" => "EUR",
         "amount" => num("1000.00"),
         "shares" => num("10"),
@@ -354,6 +492,31 @@ defmodule Portfolixir.Imports.UnseenNameProbeTest do
   # --- the world -------------------------------------------------------------
 
   defp named!(name), do: Repo.one!(from(a in CashAccount, where: a.name == ^name))
+
+  defp depot_named!(name), do: Repo.one!(from(a in SecuritiesAccount, where: a.name == ^name))
+
+  # A duplicate name from before the name guard, inserted the way the old
+  # writer did.
+  defp legacy_cash!(portfolio, name) do
+    {:ok, %{account: account}} =
+      Ecto.Multi.new()
+      |> Ecto.Multi.insert(
+        :account,
+        Ecto.Changeset.change(%CashAccount{}, %{
+          portfolio_id: portfolio.id,
+          name: name,
+          currency_code: "EUR"
+        })
+      )
+      |> Portfolixir.Journal.record(Actor.owner_ui(),
+        resource_type: "cash_account",
+        operation: :create,
+        source: :account
+      )
+      |> Repo.transaction()
+
+    account
+  end
 
   defp cash!(portfolio, name) do
     {:ok, cash} =
