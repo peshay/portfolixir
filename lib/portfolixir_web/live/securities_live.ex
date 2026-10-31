@@ -5208,13 +5208,15 @@ defmodule PortfolixirWeb.SecuritiesLive do
     {:noreply, assign(socket, :logo_upload_error, nil)}
   end
 
+  # Only a ref of an entry the upload holds is cancelled; any other ref
+  # (a stale or pushed one) is a no-op, because cancel_upload/3 raises on it.
   def handle_event("cancel_logo_upload", %{"ref" => ref}, socket) do
-    case LiveParam.string(ref) do
-      ref when is_binary(ref) and ref != "" ->
-        {:noreply, socket |> cancel_upload(:logo, ref) |> assign(:logo_upload_error, nil)}
+    ref = LiveParam.string(ref)
 
-      _ ->
-        {:noreply, socket}
+    if is_binary(ref) and Enum.any?(socket.assigns.uploads.logo.entries, &(&1.ref == ref)) do
+      {:noreply, socket |> cancel_upload(:logo, ref) |> assign(:logo_upload_error, nil)}
+    else
+      {:noreply, socket}
     end
   end
 
