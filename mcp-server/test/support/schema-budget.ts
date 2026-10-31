@@ -259,6 +259,18 @@ export const CEILING_HISTORY: readonly CeilingRow[] = [
     read: 102986,
     book: 172005,
     full: 206560
+  },
+  {
+    since: "2026-10-31",
+    why:
+      "Sprint 21, stacked PR 1 (the money stories, alpha and beta): every byte the stories' " +
+      "descriptions added (plan_id on the target reads, the fees-in-figures bases, the " +
+      "unavailable trade, the settlement-leg counts) was paid by a trim in the same tool, and " +
+      "the ceilings are lowered once, at the end, to the figures measured with the whole PR " +
+      "(the amendment's D-9; D-10's rule)",
+    read: 102915,
+    book: 171986,
+    full: 206541
   }
 ];
 
