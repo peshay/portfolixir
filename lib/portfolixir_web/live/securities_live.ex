@@ -1662,7 +1662,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
               <%= if stale_close?(@metrics) do %>
                 <dd>—</dd>
               <% else %>
-                <dd class={pnl_class(@metrics[:day_change_pct])}>
+                <dd class={percent_points_class(@metrics[:day_change_pct])}>
                   <%= signed_percent_or_dash(@metrics[:day_change_pct]) %>
                 </dd>
               <% end %>
@@ -1671,7 +1671,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
                  as the chart's button and the Quotes tab's basis line. --%>
             <div class="overview-metric" data-role="overview-1y">
               <dt><%= range_label("1Y") %></dt>
-              <dd class={pnl_class(@metrics[:performance_1y])}>
+              <dd class={percent_points_class(@metrics[:performance_1y])}>
                 <%= signed_percent_or_dash(@metrics[:performance_1y]) %>
                 <small class="overview-metric__sub"><%= gettext("price only") %></small>
               </dd>
@@ -3466,19 +3466,23 @@ defmodule PortfolixirWeb.SecuritiesLive do
   def quote_source_label(other) when is_binary(other), do: other
   def quote_source_label(_), do: ""
 
-  defp pnl_class(value) do
-    case decimal_for_display(value) do
-      nil ->
-        nil
+  # #1149 (board 04 ③): a money figure's colour is decided on the figure as
+  # displayed, at its two places (`Format.displayed_sign/2`), so an
+  # unrealised result of -0,004 reads "0,00" in body ink, not the loss
+  # colour.
+  defp pnl_class(value),
+    do: value |> decimal_for_display() |> Format.displayed_sign(2) |> gain_class()
 
-      d ->
-        case Decimal.compare(d, 0) do
-          :gt -> "is-positive"
-          :lt -> "is-negative"
-          _ -> nil
-        end
-    end
-  end
+  # A fraction printed as percentage points with two decimals
+  # (`signed_percent_or_dash/1`): the same rule at that precision, four
+  # places of the fraction — a day change of +0,004 % reads "0,00 %" in body
+  # ink.
+  defp percent_points_class(value),
+    do: value |> decimal_for_display() |> Format.displayed_sign(4) |> gain_class()
+
+  defp gain_class(:positive), do: "is-positive"
+  defp gain_class(:negative), do: "is-negative"
+  defp gain_class(_zero_or_none), do: nil
 
   defp signed_decimal_or_dash(value, places) do
     Format.signed_decimal(decimal_for_display(value), places)
@@ -3823,7 +3827,7 @@ defmodule PortfolixirWeb.SecuritiesLive do
            `.overview-metric` grid one tab over already does, and two tabs of
            one pane disagreeing is what a reader notices. A drawdown is
            always negative, so colour adds nothing and is not applied. --%>
-      <dd class={@signed and not @metric.insufficient_data and pnl_class(@metric.value)}>
+      <dd class={@signed and not @metric.insufficient_data and shown_percent_class(@metric.value)}>
         <%= if @metric.insufficient_data do %>
           <span data-role="metric-na"><%= gettext("not computable") %></span>
         <% else %>
@@ -3920,10 +3924,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp signed_ratio(nil), do: "—"
 
-  defp signed_ratio(%Decimal{} = value) do
-    sign = if Decimal.compare(value, 0) == :lt, do: "", else: "+"
-    "#{sign}#{Format.percent(value)}%"
-  end
+  # The sign is the one the one-decimal percent shows (#1149): "0,0%", never
+  # "+0,0%".
+  defp signed_ratio(%Decimal{} = value), do: "#{Format.signed_percent(value)}%"
 
   # The date a calendar fact could fall on, said the way it is known: a single
   # day, a range, or a month — each in the page's language (Sprint 19 U3).

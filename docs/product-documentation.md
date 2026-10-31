@@ -2474,6 +2474,11 @@ rate of its booking date, as the performance's trade costs are, so the two
 read one figure (issue #1107); an unconvertible cost is named by that
 currency.
 
+A month whose sum reads zero is a quiet "–" in every matrix of the area —
+Income, Trades, Deposits & withdrawals and Costs — while the totals stay
+figures, and a figure that rounds to zero carries no sign and no gain or loss
+colour anywhere in the app: "0.00", never "-0.00" (issue #1149).
+
 Every figure on the area says what it contains: the Income facet states that it
 covers *dividends and interest* and that it **excludes** realized gains,
 deposits and withdrawals, and costs. That is not decoration — those omissions

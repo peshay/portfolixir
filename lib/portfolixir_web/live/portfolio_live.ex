@@ -1110,7 +1110,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               <%!-- The absolute result beside the rate: (end − start) − net
                    external flows, so a deposit never reads as performance. --%>
               <small :if={@performance} class="stat__sub" data-role="period-gain">
-                <b class={perf_sign_class(period_value_gain(@performance))}><%= signed_money(
+                <b class={money_sign_class(period_value_gain(@performance))}><%= signed_money(
                     period_value_gain(@performance)
                   ) %></b>
                 <%= @performance.base_currency %> <%= gettext("in the period") %>
@@ -1237,7 +1237,7 @@ defmodule PortfolixirWeb.PortfolioLive do
               <strong :if={is_nil(@performance) and @performance_failed} class="stat-empty">—</strong>
               <small :if={@performance} class="stat__sub" data-role="net-flows">
                 <%= gettext("net flows") %>
-                <b class={perf_sign_class(@performance.net_external_flows)}><%= Format.signed_decimal(
+                <b class={money_sign_class(@performance.net_external_flows)}><%= Format.signed_decimal(
                     @performance.net_external_flows,
                     2
                   ) %></b> <%= @performance.base_currency %>
@@ -1299,7 +1299,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                 </span>
                 <strong
                   :if={comparison.savings_plan.end_value_delta}
-                  class={perf_sign_class(comparison.savings_plan.end_value_delta)}
+                  class={money_sign_class(comparison.savings_plan.end_value_delta)}
                   data-role="benchmark-delta"
                 >
                   <span class="benchmark-row__figure-label"><%= gettext("savings plan") %>:</span>
@@ -1703,7 +1703,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                    loss must read red, as the contribution table's sum of
                    the same figure does (DESIGN.md → Colors). --%>
               <span
-                class={perf_sign_class(period_value_gain(@performance))}
+                class={money_sign_class(period_value_gain(@performance))}
                 data-role="period-badge-money"
               ><%= signed_money(period_value_gain(@performance)) %> <%= @performance.base_currency %></span>
               <span class="perf-badge-period">(<%= period_label(@period) %>)</span>
@@ -3497,25 +3497,22 @@ defmodule PortfolixirWeb.PortfolioLive do
     |> Decimal.sub(performance.net_external_flows)
   end
 
-  defp perf_sign_class(value) do
-    case Decimal.compare(value, 0) do
-      :gt -> "is-positive"
-      :lt -> "is-negative"
-      :eq -> "is-flat"
-    end
-  end
+  # #1149 (board 04, found while drawing 2): the sign and its colour are
+  # decided on the figure as displayed (`Format.displayed_sign/2`), a percent
+  # at its one decimal, money at two, so a figure that reads zero is unsigned
+  # and `is-flat` — never "+0,0%" in the gain colour.
+  defp perf_sign_class(value), do: value |> Format.displayed_percent_sign() |> flat_sign_class()
 
-  defp signed_percent(value) do
-    signed(value, Format.percent(value))
-  end
+  defp money_sign_class(value), do: value |> Format.displayed_sign(2) |> flat_sign_class()
 
-  defp signed_money(value) do
-    signed(value, Format.money(value))
-  end
+  defp flat_sign_class(:positive), do: "is-positive"
+  defp flat_sign_class(:negative), do: "is-negative"
+  defp flat_sign_class(:zero), do: "is-flat"
+  defp flat_sign_class(nil), do: nil
 
-  defp signed(value, formatted) do
-    if Decimal.compare(value, 0) == :gt, do: "+" <> formatted, else: formatted
-  end
+  defp signed_percent(value), do: Format.signed_percent(value)
+
+  defp signed_money(value), do: Format.signed_decimal(value, 2)
 
   # Concentric rings of annular-sector paths: the innermost ring is the
   # top-level categories, each further ring breaks one level down, the

@@ -688,7 +688,7 @@ defmodule PortfolixirWeb.IncomeLive do
                           <span class="muted">(<%= @realized.base_currency %>)</span>
                         </td>
                         <%= for month <- @months do %>
-                          <td class="num"><%= money(year.months[month]) %></td>
+                          <td class="num"><%= matrix_cell(year.months[month]) %></td>
                         <% end %>
                         <td class="num col-subject"><%= money(year.total) %></td>
                       </tr>
@@ -766,14 +766,14 @@ defmodule PortfolixirWeb.IncomeLive do
                         </td>
                         <td><%= gettext("Deposits") %></td>
                         <%= for month <- @months do %>
-                          <td class="num"><%= money(year.months[month].deposits) %></td>
+                          <td class="num"><%= matrix_cell(year.months[month].deposits) %></td>
                         <% end %>
                         <td class="num col-subject"><%= money(year.deposits_total) %></td>
                       </tr>
                       <tr>
                         <td><%= gettext("Withdrawals") %></td>
                         <%= for month <- @months do %>
-                          <td class="num"><%= money(year.months[month].withdrawals) %></td>
+                          <td class="num"><%= matrix_cell(year.months[month].withdrawals) %></td>
                         <% end %>
                         <td class="num col-subject"><%= money(year.withdrawals_total) %></td>
                       </tr>
@@ -855,14 +855,14 @@ defmodule PortfolixirWeb.IncomeLive do
                         </td>
                         <td><%= gettext("Fees") %></td>
                         <%= for month <- @months do %>
-                          <td class="num"><%= money(year.months[month].fees) %></td>
+                          <td class="num"><%= matrix_cell(year.months[month].fees) %></td>
                         <% end %>
                         <td class="num col-subject"><%= money(year.fees_total) %></td>
                       </tr>
                       <tr>
                         <td><%= gettext("Taxes") %></td>
                         <%= for month <- @months do %>
-                          <td class="num"><%= money(year.months[month].taxes) %></td>
+                          <td class="num"><%= matrix_cell(year.months[month].taxes) %></td>
                         <% end %>
                         <td class="num col-subject"><%= money(year.taxes_total) %></td>
                       </tr>
@@ -1367,9 +1367,12 @@ defmodule PortfolixirWeb.IncomeLive do
 
   # A zero cell in the matrix is a quiet dash (Part 4 rule 6 of the 2026-09-12
   # review), so the non-zero cells are what the eye finds; totals stay
-  # figures.
+  # figures. Zero means displayed as zero (#1149, board 04 found while
+  # drawing 4): 0,004 and -0,004 are the dash too, never "0,00" or "-0,00".
+  # Every matrix of the page keeps it — Income, Trades, Flows and Costs
+  # (found while drawing 5).
   defp matrix_cell(value) do
-    if Decimal.equal?(value, 0) do
+    if Format.displayed_sign(value, 2) == :zero do
       Phoenix.HTML.raw(~s(<span class="matrix-zero">–</span>))
     else
       money(value)

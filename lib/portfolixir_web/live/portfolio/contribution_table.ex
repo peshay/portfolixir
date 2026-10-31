@@ -662,18 +662,17 @@ defmodule PortfolixirWeb.Portfolio.ContributionTable do
 
   # The badge's own rule (`PortfolixirWeb.PortfolioLive`): a plus before a
   # positive amount, the minus from the number itself, two decimals — so the
-  # sum row and the badge print the same characters.
-  defp signed_money(value) do
-    if Decimal.compare(value, 0) == :gt,
-      do: "+" <> Format.money(value),
-      else: Format.money(value)
-  end
+  # sum row and the badge print the same characters. The sign and its colour
+  # are the figure's as displayed (#1149, board 04 found while drawing 2): a
+  # contribution of 0,004 reads "0,00", uncoloured, never "+0,00" in the gain
+  # colour.
+  defp signed_money(value), do: Format.signed_decimal(value, 2)
 
   defp sign_class(value) do
-    case Decimal.compare(value, 0) do
-      :gt -> "is-positive"
-      :lt -> "is-negative"
-      :eq -> nil
+    case Format.displayed_sign(value, 2) do
+      :positive -> "is-positive"
+      :negative -> "is-negative"
+      _zero -> nil
     end
   end
 

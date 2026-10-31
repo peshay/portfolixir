@@ -520,6 +520,7 @@ The accent system is the identity anchor (owner-loved, binding): the operator pi
 - **The brand gradient stops** ({colors.brand-violet-1} → {colors.brand-teal-1} → {colors.brand-coral-1}) appear *together* in exactly one place: the 3px top bar of `.stat` cards. They are the only moment all three logo colors coexist; keep it that rare.
 - **Semantic colors** are accent-independent: {colors.positive} for gains, {colors.danger} for losses and destructive actions, {colors.warning} for caution states, {colors.tx-buy} / {colors.tx-sell} for transaction markers on charts. **Gain/loss color never re-keys with the accent — money semantics outrank brand.**
 - **Semantic color applies wherever a sign exists**, at every level of a table — data rows, subtotals and totals alike. A negative row and a negative total are the same fact at different granularity and must look like it. *Amended 2026-10-31 (Sprint 21 γ3, issue 1147, pick N10 A):* the sign meant is a gain or a loss; a flow's sign is a direction and stays uncoloured (the contribution table, the transaction history).
+- **A figure that reads zero carries no sign and no gain/loss colour, wherever it is printed** *(amended 2026-10-31, Sprint 21 γ4, issue 1149; board `mockups/ux-design-2026-10-09/04-wealth-income` ③, before/after)*. The Trades amendment's rule (2026-10-07, "a figure's sign and its colour are decided on the figure as displayed") is general: `Format.money/2` and `Format.percent/2` print a value that rounds to zero without a sign from either side ("0,00", "0,0", never "-0,00" or "-0,0"), as the signed forms already did, and every sign class takes the displayed sign (`Format.displayed_sign/2`, `Format.displayed_percent_sign/1`) — Wealth's badge and KPI cards, the contribution table, the Overview's card, strip and trades card, and a security's Overview and Holdings tabs. A day change of +0,004 % reads "0,00 %" and an unrealised −0,004 EUR "0,00", both in body ink.
 - **{colors.logo-plate} is constant white in every theme** by design (issue 449): the plate behind real image logos does not follow the theme. **{colors.on-accent} no longer is** — amended 2026-08-05 (designer): white on the three dark accent fills measures 1.86–2.72:1, so the token is light `#ffffff` / dark {colors.on-accent-dark}. See the computed table below.
 - **Surfaces** layer tonally: {colors.bg} canvas → {colors.bg-elevated} panels/inputs → {colors.bg-muted} table heads and wells. The sidebar has its own near-white violet-tinted surface ({colors.sidebar}) with a gradient sheen. Dark mode mirrors the whole stack on a blue-black ramp ({colors.bg-dark} → {colors.bg-elevated-dark} → {colors.bg-muted-dark}).
 - **Text** has four steps, two of which may carry content: {colors.text} (primary) and {colors.text-muted} (secondary — the floor for anything readable). {colors.text-subtle} is for **disabled states and pure decoration only** — at 2.47:1 in light mode it must never convey content; readable tertiary content uses {colors.text-muted}. {colors.text-soft} is a violet-leaning decorative step, never body copy (3.48:1 light).
@@ -1759,7 +1760,12 @@ variants in `../ux-review-2026-09-12.md`. Appearance decided here:
   `<small>` at {typography.stat-label} size and {colors.text-muted}, 4 px
   after the digits. The digits keep tabular numerals and never wrap.
 - **Matrix zero:** "–" (en dash) centred, {colors.text-subtle}, in the cell
-  where a sum is 0,00.
+  where a sum is 0,00. *Amended 2026-10-31 (issue 1149, board
+  `mockups/ux-design-2026-10-09/04-wealth-income`, found while drawing 4 and
+  5):* "0,00" means displayed as 0,00 — a month of 0,004 or −0,004 is the
+  dash too — and the rule holds in every matrix of the Cash-flow page: the
+  Income, Trades, Flows and Costs matrices' month cells. The total column
+  stays a figure.
 - **Stale marker in a value cell:** the `:alert_triangle` glyph at 12 px in
   {colors.warning}, the word "veraltet" and the quote date in
   {typography.table-cell}, on the line under the price. A clock glyph

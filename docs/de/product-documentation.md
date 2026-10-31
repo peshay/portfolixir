@@ -2721,6 +2721,12 @@ gekauft wurde — und von ihr zum Kurs ihres Buchungsdatums umgerechnet, wie
 die Handelskosten der Performance, sodass beide eine Zahl lesen (Issue
 #1107); unkonvertierbare Kosten werden nach dieser Währung benannt.
 
+Ein Monat, dessen Summe null ergibt, ist in jeder Matrix des Bereichs ein
+ruhiges „–“ — Income, Trades, Ein- & Auszahlungen und Kosten —, die Summen
+bleiben Zahlen; und eine Zahl, die auf null rundet, trägt nirgends in der App
+ein Vorzeichen oder eine Gewinn- oder Verlustfarbe: „0,00“, nie „-0,00“
+(Issue #1149).
+
 Jede Kennzahl des Bereichs nennt, was sie enthält: der Income-Bereich schreibt,
 dass er *Dividenden und Zinsen* abdeckt und realisierte Gewinne, Ein- und
 Auszahlungen sowie Kosten **ausschließt**. Das ist keine Dekoration — genau

@@ -740,7 +740,7 @@ defmodule PortfolixirWeb.DashboardLive do
                   </small>
                 </span>
                 <span class="num">
-                  <span class={sign_class(trade.realized_base)}><%= Format.signed_decimal(
+                  <span class={money_sign_class(trade.realized_base)}><%= Format.signed_decimal(
                     trade.realized_base,
                     2
                   ) %></span><small class="value-suffix"><%= @card.base_currency %></small>
@@ -1108,19 +1108,19 @@ defmodule PortfolixirWeb.DashboardLive do
     |> Decimal.to_string(:normal)
   end
 
-  defp signed_percent(value) do
-    formatted = Format.percent(value)
-    if Decimal.compare(value, 0) == :gt, do: "+" <> formatted, else: formatted
-  end
+  defp signed_percent(value), do: Format.signed_percent(value)
 
-  # Gain/loss colour by sign, never the accent (UX-DR7, issue 637).
-  defp sign_class(value) do
-    case Decimal.compare(value, 0) do
-      :gt -> "is-positive"
-      :lt -> "is-negative"
-      :eq -> "is-flat"
-    end
-  end
+  # Gain/loss colour by sign, never the accent (UX-DR7, issue 637), decided
+  # on the figure as displayed (#1149, board 04 found while drawing 3): a
+  # percent at its one decimal, so "0,0%" is `is-flat`; money at two.
+  defp sign_class(value), do: value |> Format.displayed_percent_sign() |> flat_sign_class()
+
+  defp money_sign_class(value), do: value |> Format.displayed_sign(2) |> flat_sign_class()
+
+  defp flat_sign_class(:positive), do: "is-positive"
+  defp flat_sign_class(:negative), do: "is-negative"
+  defp flat_sign_class(:zero), do: "is-flat"
+  defp flat_sign_class(nil), do: nil
 
   # The data-quality line's findings, each with the pre-filtered securities
   # URL that fixes it (#561/#651). Only non-zero counts appear; when the list
