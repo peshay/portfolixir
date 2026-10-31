@@ -74,8 +74,8 @@ defmodule PortfolixirWeb.FetchSite do
     end
   end
 
-  defp bare_host(host) when is_binary(host),
+  # Both callers hand it a binary: `Plug.Conn`'s host is one by type, and the
+  # Referer's is matched as one above.
+  defp bare_host(host),
     do: host |> String.downcase() |> String.trim_leading("[") |> String.trim_trailing("]")
-
-  defp bare_host(_host), do: ""
 end
