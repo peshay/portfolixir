@@ -9258,7 +9258,10 @@ dialog.filter-sheet::backdrop {
      are a fixed composition (UX-DR27), so the controls would do nothing.
      Wealth's Positions toggle joins them with its rows (issue 1065), and so
      does its panel: one opened on a wider window stays open across a
-     resize, and it sits in the section head, outside the hidden wrapper. */
+     resize, and it sits in the section head, outside the hidden wrapper.
+     The securities list's panel joins them for the same reason (issue
+     1151). */
+  #column-picker,
   #toggle-column-popover,
   .column-picker-bar,
   #holdings-column-toggle,
