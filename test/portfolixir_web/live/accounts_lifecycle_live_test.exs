@@ -238,8 +238,50 @@ defmodule PortfolixirWeb.AccountsLifecycleLiveTest do
     open_menu_item(view, "cash", w.giro.id, "rename")
     view |> form("#rename-form", rename: %{name: "Hauptkonto"}) |> render_submit()
 
+    # The field is named by its label (#1191, Sprint 21 γ8; board 08 "found
+    # while drawing" 2): the sentence no longer starts with its verb.
     assert text(view, "#rename-error") ==
-             ~s|include "Festgeld", the name of cash account ##{w.festgeld.id} in this portfolio|
+             ~s|Former names include "Festgeld", the name of cash account ##{w.festgeld.id} | <>
+               "in this portfolio"
+
+    assert Portfolios.get_cash_account(w.giro.id).name == "Giro"
+  end
+
+  # User story (#1191, Sprint 21 γ8; board 08, "#1191"):
+  # As the operator renaming an account on the German interface,
+  # I want the refusal of a former name another account carries in German,
+  # its field named,
+  # so that the dialog does not print an English sentence that starts with a
+  # verb.
+  #
+  # Acceptance criteria:
+  # - The refusal at the field reads "Frühere Namen enthalten „Festgeld“, den
+  #   Namen von Verrechnungskonto #<id> in diesem Portfolio"; nothing is
+  #   written.
+  test "a former name another account carries is refused in German, its field named", %{
+    conn: conn
+  } do
+    w = world()
+
+    {:ok, _} =
+      Ecto.Multi.new()
+      |> Ecto.Multi.update(:account, Ecto.Changeset.change(w.giro, former_names: ["Festgeld"]))
+      |> Journal.record(Actor.owner_ui(),
+        resource_type: "cash_account",
+        operation: :update,
+        source: :account,
+        before: w.giro
+      )
+      |> Repo.transaction()
+
+    {:ok, view, _html} = live(conn, "/portfolios?locale=de")
+
+    open_menu_item(view, "cash", w.giro.id, "rename")
+    view |> form("#rename-form", rename: %{name: "Hauptkonto"}) |> render_submit()
+
+    assert text(view, "#rename-error") ==
+             "Frühere Namen enthalten „Festgeld“, den Namen von Verrechnungskonto " <>
+               "##{w.festgeld.id} in diesem Portfolio"
 
     assert Portfolios.get_cash_account(w.giro.id).name == "Giro"
   end

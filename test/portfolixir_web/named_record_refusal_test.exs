@@ -156,7 +156,8 @@ defmodule PortfolixirWeb.NamedRecordRefusalTest do
   # Acceptance criteria:
   # - The merge's refusal to record an ISIN still live on another security,
   #   which the security merge dialog states field and message, reads as it
-  #   did, the security's name in it.
+  #   did, the security's name in it — the field named by its label, not by
+  #   its key (#1191, Sprint 21 γ8; board 08 "found while drawing" 3).
   test "the security merge dialog's refused ISIN reads as it did" do
     live = security!("Lindwurm Holding", "XS0000400019")
     target = security!("Plain Fund", "XS0000400043")
@@ -164,15 +165,76 @@ defmodule PortfolixirWeb.NamedRecordRefusalTest do
     {:error, changeset} =
       IdentifierAliases.record_merged_isin(Actor.owner_ui(), target, "XS0000400019")
 
-    assert [former_isin: error] = changeset.errors
-    {message, opts} = NamedRecordRefusal.screen(error)
+    assert [former_isin: _error] = changeset.errors
 
-    sentence =
-      Enum.reduce(opts, message, fn {key, value}, acc ->
-        String.replace(acc, "%{#{key}}", to_string(value))
-      end)
+    assert FieldLabel.changeset_message(changeset) ==
+             ~s|Former ISIN is still the current ISIN of "Lindwurm Holding" (security ##{live.id})|
 
-    assert sentence ==
-             ~s|is still the current ISIN of "Lindwurm Holding" (security ##{live.id})|
+    assert Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+             FieldLabel.changeset_message(changeset)
+           end) ==
+             "Frühere ISIN ist noch die aktuelle ISIN von „Lindwurm Holding“ (Wertpapier ##{live.id})"
+  end
+
+  # User story (#1191, Sprint 21 γ8; board 08, "#1191"):
+  # As the operator reading the German interface,
+  # I want the refusals that name another security or account — a former
+  # name, a former or current ISIN — in German,
+  # so that the security dialog, the rename and account dialogs, the Imports
+  # page and the merge dialog do not switch to English mid-page.
+  #
+  # Acceptance criteria:
+  # - Each of the ten screen sentences has a German translation in the
+  #   `errors` domain, its bindings unchanged, as the board gives it.
+  # - The agent's sentence (the API's and the MCP companion's) is not
+  #   translated: only the screen's path swaps it (`screen/1`).
+  @german [
+    {"is still the current ISIN of security #%{security_id}",
+     "ist noch die aktuelle ISIN von „Lindwurm Holding“ (Wertpapier #7)"},
+    {"is already the current ISIN of security #%{security_id}",
+     "ist bereits die aktuelle ISIN von „Lindwurm Holding“ (Wertpapier #7)"},
+    {"is recorded as a former ISIN of security #%{security_id}",
+     "ist als frühere ISIN von „Lindwurm Holding“ (Wertpapier #7) erfasst"},
+    {"is recorded as a former ISIN of security #%{security_id}; delete that alias or " <>
+       "record an ISIN change instead",
+     "ist als frühere ISIN von „Lindwurm Holding“ (Wertpapier #7) erfasst; diesen Alias " <>
+       "löschen oder stattdessen einen ISIN-Wechsel erfassen"},
+    {"is a former name of cash account #%{holder_id}: an import naming it books there. " <>
+       "Remove it from that account's former names first",
+     "ist ein früherer Name von Verrechnungskonto #12 („Tagesgeld“): Ein Import unter " <>
+       "diesem Namen bucht dort. Zuerst aus den früheren Namen jenes Kontos entfernen"},
+    {"is a former name of securities account #%{holder_id}: an import naming it books " <>
+       "there. Remove it from that account's former names first",
+     "ist ein früherer Name von Depot #12 („Tagesgeld“): Ein Import unter diesem Namen " <>
+       "bucht dort. Zuerst aus den früheren Namen jenes Depots entfernen"},
+    {"include the name of cash account #%{holder_id} in this portfolio",
+     "enthalten „Festgeld“, den Namen von Verrechnungskonto #12 in diesem Portfolio"},
+    {"include a former name of cash account #%{holder_id} in this portfolio",
+     "enthalten „Festgeld“, einen früheren Namen von Verrechnungskonto #12 in diesem Portfolio"},
+    {"include the name of securities account #%{holder_id} in this portfolio",
+     "enthalten „Festgeld“, den Namen von Depot #12 in diesem Portfolio"},
+    {"include a former name of securities account #%{holder_id} in this portfolio",
+     "enthalten „Festgeld“, einen früheren Namen von Depot #12 in diesem Portfolio"}
+  ]
+
+  test "each named refusal reads German on the German screen" do
+    bindings = [
+      security_id: 7,
+      security_name: "Lindwurm Holding",
+      holder_id: 12,
+      holder_name: "Tagesgeld",
+      former_name: "Festgeld"
+    ]
+
+    for {agent_message, german} <- @german do
+      assert Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+               FieldLabel.translate_error({agent_message, bindings})
+             end) == german
+
+      # The agent's own sentence has no German: the API answers it as it is.
+      assert Gettext.with_locale(PortfolixirWeb.Gettext, "de", fn ->
+               Gettext.dgettext(PortfolixirWeb.Gettext, "errors", agent_message, bindings)
+             end) == Gettext.dgettext(PortfolixirWeb.Gettext, "errors", agent_message, bindings)
+    end
   end
 end
