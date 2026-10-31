@@ -260,12 +260,13 @@ defmodule PortfolixirWeb.ApiV1LogoAndDefaultViewJournalTest do
 
   # User story (security review 2026-10-12, H61):
   # As the operator,
-  # I want my own logo override and removal on the Securities page journaled
+  # I want my own logo upload and removal on the Securities page journaled
   # under the operator, not the logo system job,
   # so that the journal tells my choice from the background discovery's.
   #
   # Acceptance criteria:
-  # - The page's manual override and its removal journal owner_ui.
+  # - The page's manual logo (the dialog's upload) and its removal journal
+  #   owner_ui.
   test "the UI's manual logo override journals the operator, not the logo system job", %{
     conn: conn
   } do
@@ -279,7 +280,15 @@ defmodule PortfolixirWeb.ApiV1LogoAndDefaultViewJournalTest do
 
     {:ok, view, _html} = live(conn, "/securities")
     render_hook(view, "row_action", %{"action" => "manage_logo", "id" => to_string(sec.id)})
-    render_hook(view, "save_logo_url", %{"logo" => %{"url" => @override_url}})
+
+    # The dialog's upload (H38): choose a PNG, then save it.
+    view
+    |> file_input("#logo-upload-form", :logo, [
+      %{name: "logo.png", content: @png, type: "image/png", last_modified: 1_700_000_000_000}
+    ])
+    |> render_upload("logo.png")
+
+    view |> element("#logo-upload-form") |> render_submit()
 
     [newest | _] = security_entries(sec.id)
     assert newest.after["attributes"]["logo_source"] == "manual"
