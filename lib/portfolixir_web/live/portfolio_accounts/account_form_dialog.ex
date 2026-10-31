@@ -300,10 +300,13 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
         notify_parent(socket, {:created, success_message(socket.assigns.mode)})
         {:noreply, socket}
 
+      # A bucket refusal is this submit's only answer: the field errors of
+      # an earlier submit go with it (K13).
       {:error, :scope_conflict} ->
         {:noreply,
-         assign(
-           socket,
+         socket
+         |> assign(:errors, %{})
+         |> assign(
            :bucket_error,
            gettext("Only one scope bucket per account — pick at most one.")
          )}
@@ -312,8 +315,9 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
       # tag (fix round): tell the user instead of failing opaquely.
       {:error, :name_taken_by_scope_bucket} ->
         {:noreply,
-         assign(
-           socket,
+         socket
+         |> assign(:errors, %{})
+         |> assign(
            :bucket_error,
            gettext("That name belongs to a scope bucket — pick a different tag name.")
          )}
@@ -322,7 +326,8 @@ defmodule PortfolixirWeb.PortfolioAccounts.AccountFormDialog do
         {:noreply, socket |> assign(:errors, errors) |> assign(:bucket_error, nil)}
 
       {:error, %Ecto.Changeset{} = changeset} ->
-        {:noreply, assign(socket, :bucket_error, new_tag_error(changeset))}
+        {:noreply,
+         socket |> assign(:errors, %{}) |> assign(:bucket_error, new_tag_error(changeset))}
     end
   end
 
