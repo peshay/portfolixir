@@ -91,7 +91,9 @@ defmodule PortfolixirWeb.QuoteFreshnessLiveTest do
 
     fresh_row = row_for(doc, "#securities-table tbody tr", "Fresh AG")
     assert Floki.find(fresh_row, ~s([data-role="quote-stale"])) == []
-    assert text(fresh_row) =~ "+1.01"
+    # #1201 (Sprint 21, board 02 ⑦): the list's percent form, one decimal
+    # with the sign glued on.
+    assert text(fresh_row) =~ "+1.0%"
   end
 
   # A retired security carries no stale marker — its stopped feed is expected —

@@ -1658,14 +1658,17 @@ defmodule PortfolixirWeb.SecuritiesLive do
             </div>
             <%!-- Signed metrics carry gain/loss colour at every level, not only
                  totals (UX-DR7, issue 637). A change from a stale close is no
-                 day change (issue 789). --%>
+                 day change (issue 789). #1201 (board 02 ⑦): the percent form
+                 of the Holdings and Trades tabs, signed_pa/1, coloured by the
+                 percent as shown (shown_percent_class/1), so +0.004 % reads
+                 "0.0%" in body ink, never "0.00 %" in the gain colour. --%>
             <div class="overview-metric" data-role="overview-day-change">
               <dt><%= gettext("Day change") %></dt>
               <%= if stale_close?(@metrics) do %>
                 <dd>—</dd>
               <% else %>
-                <dd class={percent_points_class(@metrics[:day_change_pct])}>
-                  <%= signed_percent_or_dash(@metrics[:day_change_pct]) %>
+                <dd class={shown_percent_class(@metrics[:day_change_pct])}>
+                  <%= signed_pa(decimal_for_display(@metrics[:day_change_pct])) %>
                 </dd>
               <% end %>
             </div>
@@ -1673,8 +1676,8 @@ defmodule PortfolixirWeb.SecuritiesLive do
                  as the chart's button and the Quotes tab's basis line. --%>
             <div class="overview-metric" data-role="overview-1y">
               <dt><%= range_label("1Y") %></dt>
-              <dd class={percent_points_class(@metrics[:performance_1y])}>
-                <%= signed_percent_or_dash(@metrics[:performance_1y]) %>
+              <dd class={shown_percent_class(@metrics[:performance_1y])}>
+                <%= signed_pa(decimal_for_display(@metrics[:performance_1y])) %>
                 <small class="overview-metric__sub"><%= gettext("price only") %></small>
               </dd>
             </div>
@@ -1703,11 +1706,16 @@ defmodule PortfolixirWeb.SecuritiesLive do
             </div>
             <div class="overview-metric" data-role="overview-unrealised">
               <dt><%= gettext("Unrealised") %></dt>
-              <dd class={pnl_class(@position.unrealised_abs)}>
+              <%!-- #1201: the amount at two places, coloured as shown; the
+                   sub-line's percent is a coloured span inside the muted
+                   line, the phone rows' second-line anatomy. --%>
+              <dd class={shown_class(@position.unrealised_abs, 2)}>
                 <%= signed_decimal_or_dash(@position.unrealised_abs, 2) %>
                 <small class="overview-metric__sub">
                   <%= if @position.unrealised_pct do %>
-                    <%= signed_percent_or_dash(@position.unrealised_pct) %> ·
+                    <span class={percent_figure_class(@position.unrealised_pct)}><%= signed_pa(
+                      decimal_for_display(@position.unrealised_pct)
+                    ) %></span> ·
                   <% end %>
                   <%= gettext("against average cost") %>
                 </small>
@@ -3476,13 +3484,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp pnl_class(value),
     do: value |> decimal_for_display() |> Format.displayed_sign(2) |> gain_class()
 
-  # A fraction printed as percentage points with two decimals
-  # (`signed_percent_or_dash/1`): the same rule at that precision, four
-  # places of the fraction — a day change of +0,004 % reads "0,00 %" in body
-  # ink.
-  defp percent_points_class(value),
-    do: value |> decimal_for_display() |> Format.displayed_sign(4) |> gain_class()
-
   defp gain_class(:positive), do: "is-positive"
   defp gain_class(:negative), do: "is-negative"
   defp gain_class(_zero_or_none), do: nil
@@ -3558,19 +3559,6 @@ defmodule PortfolixirWeb.SecuritiesLive do
   # Rows without a depot (e.g. splits) render an em dash like the money
   # columns instead of an empty cell (E17 UX review, finding 8).
   defp depot_name(_), do: "—"
-
-  defp signed_percent_or_dash(value) do
-    case decimal_for_display(value) do
-      nil ->
-        "—"
-
-      fractional ->
-        fractional
-        |> Decimal.mult(Decimal.new(100))
-        |> Format.signed_decimal(2)
-        |> Kernel.<>(" %")
-    end
-  end
 
   defp build_chart_overlays(
          quotes,
@@ -4328,12 +4316,14 @@ defmodule PortfolixirWeb.SecuritiesLive do
             if stale_change?(field, security) do
               "—"
             else
-              # value is a fractional decimal (0.05 → +5.00 %)
-              as_percent = Decimal.mult(decimal, Decimal.new(100))
-              formatted = Format.signed_decimal(as_percent, 2) <> " %"
+              # value is a fractional decimal (0.05 → +5.0%). #1201 (board
+              # 02 ⑦, found while drawing 4): the Overview tab's form, one
+              # decimal with the sign glued on, coloured by the percent as
+              # shown, here and in the phone row's day change.
+              formatted = signed_pa(decimal)
 
               Phoenix.HTML.raw(
-                ~s(<span class="#{decimal_class(decimal)}">#{Phoenix.HTML.html_escape(formatted) |> safe_to_string()}</span>)
+                ~s(<span class="#{percent_figure_class(decimal)}">#{Phoenix.HTML.html_escape(formatted) |> safe_to_string()}</span>)
               )
             end
         end

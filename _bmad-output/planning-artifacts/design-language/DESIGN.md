@@ -7042,6 +7042,21 @@ issue 1142 changes (plan D-14):
   (`signed_pa/1`: "+18,7%"), coloured by the percent as shown
   (`shown_percent_class/1`), as the Trades tab's "%" columns are since the
   Sprint 19 U2 review. The other figures of the tab are unchanged.
+- **The security's Overview tab and the securities list** (issue 1201,
+  Sprint 21, board `ux-design-2026-10-09/02-securities` ⑦ and its
+  found-while-drawing 4). The Overview's Tagesänderung and 1J printed
+  `signed_percent_or_dash/1`'s "+10,00 %", coloured from the raw value, so a
+  day change of +0,0041 % read "0,00 %" in the gain colour. Both now print
+  `signed_pa/1` ("0,0%", "+10,0%"), coloured by the percent as shown
+  (`shown_percent_class/1`, `is-flat` at "0,0%"). Unrealisiert keeps its
+  amount at two places, coloured by the amount as shown (`shown_class/2`);
+  its sub-line's percent ("+26,1%") is a `decimal-positive` /
+  `decimal-negative` span inside the muted line, the phone rows'
+  second-line anatomy. The securities list's Tagesänderung %, Performance
+  1M and Performance 1J columns and the phone row's day change take the
+  same form and the same colour rule (`render_cell(:percent_signed)`,
+  `phone_change/1`), with `is-flat` at "0,0%". No surface of the security
+  pages keeps the retired form.
 
 **A return on no cost basis is the reason dash** (issue 1142, plan D-6).
 A closed trade whose basis is zero (a buy booked at 0,00 with no fees or

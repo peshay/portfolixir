@@ -103,7 +103,8 @@ defmodule PortfolixirWeb.PhoneRowsLiveTest do
     assert text(Floki.find(fresh_row, ".phone-row__ids")) == "FRS · DE000FRESH019 · Equity"
     # The price carries its currency as the value slot's suffix.
     assert text(Floki.find(fresh_row, ".phone-row__figure")) == "100.00 EUR"
-    assert text(Floki.find(fresh_row, ".phone-row__figure2")) == "+1.01 %"
+    # #1201 (Sprint 21, board 02 ⑦): the percent form of the Overview tab.
+    assert text(Floki.find(fresh_row, ".phone-row__figure2")) == "+1.0%"
     assert [_logo] = Floki.find(fresh_row, ".security-logo")
 
     # A stale close is marked under the price; the change computed from it

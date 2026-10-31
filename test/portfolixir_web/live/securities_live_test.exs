@@ -659,8 +659,9 @@ defmodule PortfolixirWeb.SecuritiesLiveTest do
       assert html =~ "Latest price"
       assert html =~ "Day change"
       assert html =~ "126.00"
-      # Day change %: (126 - 120) / 120 = +5.00 %
-      assert html =~ "+5.00"
+      # Day change %: (126 - 120) / 120 = +5 %, in the one percent form
+      # since #1201 (Sprint 21, board 02 ⑦).
+      assert html =~ "+5.0%"
     end
 
     test "exposes a Sync prices toolbar button", %{conn: conn} do
