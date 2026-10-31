@@ -224,4 +224,26 @@ defmodule PortfolixirWeb.SecurityNamesTest do
   # Untrimmed: the leading space is part of what is pinned. A trailing
   # newline from the template would be markup the call sites inherit.
   defp render_twin(assigns), do: render_component(&SecurityNames.twin_id/1, assigns)
+
+  # User story (#1155, Sprint 21 γ8; board 08, N14 = A):
+  # As the operator reading a surface whose rows are bookings rather than
+  # securities (the history),
+  # I want its twins decided by the same rule as the tables,
+  # so that a booking's security reads as the Positions table reads it.
+  #
+  # Acceptance criteria:
+  # - `twin_id_map/2` maps each twin's security to its identifier and leaves
+  #   a unique name out.
+  test "twin_id_map/2 maps only the twins" do
+    rows = [
+      row(1, "Arbolia Inc.", %{isin: "XSG8TWIN0002", wkn: nil}),
+      row(2, "Arbolia Inc.", %{isin: "XSG8TWIN0010", wkn: nil}),
+      row(3, "Larkspur Rail AG", %{isin: "XSG8TWIN0028", wkn: nil})
+    ]
+
+    assert SecurityNames.twin_id_map(rows, & &1.name) == %{
+             1 => {:isin, "XSG8TWIN0002"},
+             2 => {:isin, "XSG8TWIN0010"}
+           }
+  end
 end

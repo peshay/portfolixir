@@ -21,6 +21,7 @@ defmodule PortfolixirWeb.DashboardLive do
   alias PortfolixirWeb.ClassificationName
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.SecurityEventLabel
+  alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.StoredText
   alias PortfolixirWeb.TransactionKindLabel
   alias PortfolixirWeb.ValuationNotes
@@ -106,7 +107,14 @@ defmodule PortfolixirWeb.DashboardLive do
   # the whole report it used to cut down.
   defp start_closed_trades(%{assigns: %{has_sells: true}} = socket) do
     CappedAsync.start_async(socket, :closed_trades, fn ->
-      RealizedGains.newest_trades(@closed_trades_shown)
+      # #1155 (board 08, N14 = A): a twin's identifier on each trade the
+      # card lists, decided over the card's trades.
+      @closed_trades_shown
+      |> RealizedGains.newest_trades()
+      |> Map.update!(
+        :trades,
+        &SecurityNames.put_catalog_twin_ids(&1, fn t -> t.security_name end)
+      )
     end)
   end
 
@@ -730,7 +738,7 @@ defmodule PortfolixirWeb.DashboardLive do
                 data-role="closed-trade"
               >
                 <span class="attention-name">
-                  <%= trade.security_name %>
+                  <%= trade.security_name %><SecurityNames.twin_id tag={trade.twin_id} />
                   <small class="attention-item__sub">
                     <%= gettext("sold %{date}", date: Format.date(trade.close_date)) %> · <%= ngettext(
                       "%{count} day",

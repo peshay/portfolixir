@@ -2069,7 +2069,13 @@ beide eine haben und sie sich unterscheiden, sonst ebenso die WKN, sonst die
 Nummer des Datensatzes („Nr. 42“). Das gilt in einem Depot wie über zwei
 Depots hinweg, denn zwei Depotnamen können gleich aussehen, und die Spalte
 Depot lässt sich abschalten. Ein Name, der nur einmal vorkommt, bleibt ohne
-Zusatz, ebenso ein Wertpapier, das in zwei Depots liegt.
+Zusatz, ebenso ein Wertpapier, das in zwei Depots liegt. Dieselbe Regel
+kennzeichnet einen Zwilling in der Transaktionshistorie (in der Tabelle und
+in ihren Zeilen auf dem Telefon, entschieden über die ganze Historie, sodass
+ein Filter keinen Zusatz hinzufügt oder entfernt), unter Cashflow →
+abgeschlossene Trades, in den Positionszeilen der Allokation und in den
+flachen Positionen sowie in der Karte „Abgeschlossene Trades“ der Übersicht
+(#1155).
 
 Neben den festen Buttons verkettet ein Jahres-Dropdown jedes einzelne
 Kalenderjahr mit Daten, und ein Von/Bis-Datumsbereich verkettet eine eigene

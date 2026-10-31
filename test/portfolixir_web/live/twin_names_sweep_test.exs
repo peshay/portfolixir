@@ -85,12 +85,15 @@ defmodule PortfolixirWeb.TwinNamesSweepTest do
   defp settle(view), do: Enum.each(1..4, fn _round -> render_async(view) end)
 
   # The text of every element `selector` matches, its whitespace squeezed.
+  # The test DOM drops a whitespace-only text node between two elements (the
+  # space between a `<bdi>` name and its `.twin-id`), so the parts are joined
+  # by a space, as the browser shows them.
   defp texts(view, selector) do
     view
     |> render()
-    |> LazyHTML.from_document()
-    |> LazyHTML.query(selector)
-    |> Enum.map(&(&1 |> LazyHTML.text() |> String.split() |> Enum.join(" ")))
+    |> Floki.parse_document!()
+    |> Floki.find(selector)
+    |> Enum.map(&(&1 |> Floki.text(sep: " ") |> String.split() |> Enum.join(" ")))
   end
 
   defp tagged?(texts),
@@ -163,10 +166,10 @@ defmodule PortfolixirWeb.TwinNamesSweepTest do
     {:ok, overview, _html} = live(conn, "/")
     settle(overview)
 
-    names =
-      texts(overview, "#dashboard-trades [data-role='closed-trade'] [data-role='trade-name']")
-
-    assert names |> Enum.filter(&(&1 =~ "Arbolia")) |> tagged?()
-    assert "Larkspur Rail AG" in names
+    # The card's name line carries its "sold …" sub-line after the name.
+    names = texts(overview, "#dashboard-trades [data-role='closed-trade'] .attention-name")
+    assert Enum.any?(names, &String.starts_with?(&1, "Arbolia Inc. ISIN #{@arbolia_a} sold"))
+    assert Enum.any?(names, &String.starts_with?(&1, "Arbolia Inc. ISIN #{@arbolia_b} sold"))
+    assert Enum.any?(names, &String.starts_with?(&1, "Larkspur Rail AG sold"))
   end
 end

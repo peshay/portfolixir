@@ -428,6 +428,11 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                                       in its own <bdi> (H8.8). A name that
                                       wraps (U1 review). --%>
                                 <td class="cell-name" data-role="account"><.arrow_names names={tx_accounts(transaction, @account_names)} /></td>
+                              <% "security" -> %>
+                                <%!-- #1155 (board 08, N14 = A): a twin's
+                                      identifier after its name, decided over
+                                      the loaded history. --%>
+                                <td {cell_attrs(key)} data-role="history-security"><%= tx_cell(transaction, key) %><SecurityNames.twin_id tag={@twin_ids[transaction.security_id]} /></td>
                               <% _other -> %>
                                 <td {cell_attrs(key)}><%= tx_cell(transaction, key) %></td>
                             <% end %>
@@ -477,7 +482,7 @@ defmodule PortfolixirWeb.TransactionManagementLive do
                             security: a transfer names both of its accounts
                             (U1 review), one span so they flow as one line. --%>
                       <span :if={phone_subject(transaction, @account_names) != []} class="phone-row__ids">
-                        <span><.arrow_names names={phone_subject(transaction, @account_names)} /></span>
+                        <span data-role="phone-subject"><.arrow_names names={phone_subject(transaction, @account_names)} /><SecurityNames.twin_id tag={@twin_ids[transaction.security_id]} /></span>
                       </span>
                     </span>
                     <span class="phone-row__figures">
@@ -1241,7 +1246,8 @@ defmodule PortfolixirWeb.TransactionManagementLive do
       },
       securities: securities,
       transactions: transactions,
-      twin_tags: twin_tags(transactions)
+      twin_tags: twin_tags(transactions),
+      twin_ids: twin_ids(transactions)
     )
     |> apply_current_filters()
   end
@@ -1404,6 +1410,22 @@ defmodule PortfolixirWeb.TransactionManagementLive do
 
   defp kebab_subject(transaction, _twin_tags),
     do: account_name(transaction.cash_account) || account_name(transaction.securities_account)
+
+  # #1155 (board 08, N14 = A): the table rule's identifiers (ISIN, else WKN,
+  # else the number) over every security of the loaded history, so a filter
+  # never adds or removes a tag.
+  defp twin_ids(transactions) do
+    transactions
+    |> Enum.flat_map(fn
+      %{security: %{id: id, name: name} = security} when is_binary(name) ->
+        [%{security_id: id, isin: security.isin, wkn: security.wkn, name: name}]
+
+      _other ->
+        []
+    end)
+    |> Enum.uniq_by(& &1.security_id)
+    |> SecurityNames.twin_id_map(& &1.name)
+  end
 
   defp twin_tags(transactions) do
     transactions

@@ -1881,7 +1881,11 @@ in a smaller muted font: the ISIN where both have one and they differ, else
 the WKN on the same terms, else the record's number ("no. 42"). This holds
 in one depot or across two, because two depots' names can read alike and
 the Depot column can be switched off. A name that occurs only once stays
-bare, and so does one security held in two depots.
+bare, and so does one security held in two depots. The same rule tags a
+twin in the transaction history (the table and its phone rows, decided over
+the whole history, so a filter never adds or removes a tag), in Cash flow →
+closed trades, in the allocation's position rows and flat positions, and in
+the Overview's "Closed trades" card (#1155).
 
 Beside the fixed buttons, a year dropdown chains any single calendar year
 with data, and a from/to date range chains a custom span — both are pure

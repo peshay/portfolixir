@@ -879,7 +879,7 @@ defmodule PortfolixirWeb.PortfolioLive do
   # the two lookups the collapsible tree needs (parent chain per category and
   # which categories have child categories).
   defp assign_allocation(socket, allocation) do
-    allocation = with_display_colors(allocation)
+    allocation = allocation |> with_display_colors() |> with_twin_ids()
 
     parent_map = Map.new(allocation.categories, &{&1.category_id, &1.parent_id})
 
@@ -894,6 +894,40 @@ defmodule PortfolixirWeb.PortfolioLive do
       category_parent_map: parent_map,
       category_parents_with_children: parents_with_children
     )
+  end
+
+  # #1155 (board 08, N14 = A): a twin's identifier on each position of the
+  # tree, the unassigned bucket and so the flat positions, decided over every
+  # position of the allocation (the collision key over the whole payload).
+  defp with_twin_ids(allocation) do
+    unassigned =
+      case Map.get(allocation, :unassigned) do
+        %{positions: positions} -> positions
+        _none -> []
+      end
+
+    ids =
+      allocation.categories
+      |> Enum.flat_map(& &1.positions)
+      |> Kernel.++(unassigned)
+      |> SecurityNames.put_catalog_twin_ids(& &1.security_name)
+      |> Map.new(&{&1.security_id, &1.twin_id})
+
+    put = fn positions ->
+      Enum.map(positions, &Map.put(&1, :twin_id, Map.get(ids, &1.security_id)))
+    end
+
+    allocation =
+      Map.update!(
+        allocation,
+        :categories,
+        &Enum.map(&1, fn row -> Map.update!(row, :positions, put) end)
+      )
+
+    case Map.get(allocation, :unassigned) do
+      %{positions: _} = bucket -> %{allocation | unassigned: Map.update!(bucket, :positions, put)}
+      _none -> allocation
+    end
   end
 
   # A row is visible when every ancestor on its parent chain is expanded -
@@ -2145,7 +2179,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                       <%= for position <- row.positions do %>
                         <tr class="is-position is-muted" data-role="allocation-position">
                           <td style={"padding-left:#{2.0 + row.depth * 1.25}rem"}>
-                            <%= position.security_name %>
+                            <span data-role="position-name"><%= position.security_name %><SecurityNames.twin_id tag={Map.get(position, :twin_id)} /></span>
                             <%!-- ADR-0030 slice 2a: a SOLL-only row (IST 0) is
                                  marked with text, never hue alone (UX-DR7);
                                  scope-aware inside a view (fix round). --%>
@@ -2264,7 +2298,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                       <%= for position <- @allocation.unassigned.positions do %>
                         <tr class="is-position is-muted" data-role="allocation-position">
                           <td style="padding-left:2.0rem">
-                            <%= position.security_name %>
+                            <span data-role="position-name"><%= position.security_name %><SecurityNames.twin_id tag={Map.get(position, :twin_id)} /></span>
                             <.position_soll_chips position={position} />
                           </td>
                           <td class="num"><%= Format.money(position.market_value) %></td>
@@ -2376,7 +2410,7 @@ defmodule PortfolixirWeb.PortfolioLive do
                       data-role={if entry.cash?, do: "flat-cash", else: "flat-position"}
                     >
                       <td>
-                        <%= entry.security_name %>
+                        <span data-role="position-name"><%= entry.security_name %><SecurityNames.twin_id tag={Map.get(entry, :twin_id)} /></span>
                         <%!-- ADR-0030 slice 2a: SOLL-only rows are marked with
                              text, never hue alone (UX-DR7); scope-aware inside
                              a view (fix round). --%>

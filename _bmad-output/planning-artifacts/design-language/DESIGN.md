@@ -2161,10 +2161,26 @@ short identifier after its name; a unique name stays bare.
   reads its payload.
 - **Not here:** the ISIN on every row (J6.2 B) — twelve mono characters on
   each row, nothing for twins without an ISIN, and a copy of the picker's
-  ISIN column. The surfaces the pass did not name — the contribution's
+  ISIN column. ~~The surfaces the pass did not name — the contribution's
   unvalued note, the allocation tree and its flat positions, the history,
   the trades, the Overview, Risk — print the name alone until a story names
-  them.
+  them.~~
+- **The surfaces now covered** *(amended 2026-10-31, issue 1155, Sprint 21
+  board `mockups/ux-design-2026-10-09/08-shared-copy`, pick N14 = A, the
+  tables)*: the transaction history's security cell and its phone row
+  (decided over the loaded history, so a filter never adds or removes a
+  tag; `SecurityNames.twin_id_map/2`), Cash flow → closed trades (the table
+  and its phone rows), Wealth's allocation tree position rows, its
+  unassigned positions and the flat positions (decided over every position
+  of the allocation), and the Overview's "Closed trades" card (over the
+  trades it lists). A payload that carries a security's id and name but no
+  identifier reads the twins' ISIN and WKN from the catalog in one query,
+  and only where two names collide (`SecurityNames.put_catalog_twin_ids/2`).
+  The security's Trades tab lists one security and is unchanged. The
+  sentence rule (a note that lists names tags a twin the way the table does,
+  N14 A's note half: the contribution's unvalued note, Wealth's missing-rate
+  note, the Overview's and Income's excluded sales) is not built yet; those
+  notes print the name alone.
 
 ### Phone filter sheet *(C4-B, issue 800)*
 

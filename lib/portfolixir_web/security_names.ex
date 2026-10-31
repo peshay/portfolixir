@@ -30,6 +30,8 @@ defmodule PortfolixirWeb.SecurityNames do
   use Phoenix.Component
   use Gettext, backend: PortfolixirWeb.Gettext
 
+  alias Portfolixir.Catalog
+
   @doc """
   Per security whose name another one of `securities` also carries, the tag
   that tells it apart; securities with a unique name carry none. Two names
@@ -102,6 +104,57 @@ defmodule PortfolixirWeb.SecurityNames do
 
     Enum.map(keyed, fn {key, row} ->
       Map.put(row, :twin_id, Map.get(ids, {key, row.security_id}))
+    end)
+  end
+
+  @doc """
+  The table rows' identifiers as a map, `%{security_id => t:twin_id/0}`, the
+  twins only (#1155, Sprint 21 board 08, N14): `put_twin_ids/2` over `rows`,
+  each carrying `:security_id`, `:isin` and `:wkn`, for a surface that looks
+  a row's identifier up rather than carrying it on the row (the history,
+  whose rows are bookings).
+  """
+  @spec twin_id_map([map()], (map() -> String.t() | nil)) :: %{optional(integer()) => twin_id()}
+  def twin_id_map(rows, name) when is_list(rows) and is_function(name, 1) do
+    rows
+    |> put_twin_ids(name)
+    |> Enum.reject(&is_nil(&1.twin_id))
+    |> Map.new(&{&1.security_id, &1.twin_id})
+  end
+
+  @doc """
+  `put_twin_ids/2` for a payload whose rows carry a `:security_id` and a
+  name but no identifier — the closed trades, the allocation's positions
+  (#1155): the twins' ISIN and WKN are read from the catalog in one query,
+  and only where two rows' names read the same for different securities, so
+  a payload without twins reads nothing. Each row comes back with `:twin_id`
+  put and nothing else of it changed.
+  """
+  @spec put_catalog_twin_ids([map()], (map() -> String.t() | nil)) :: [map()]
+  def put_catalog_twin_ids(rows, name) when is_list(rows) and is_function(name, 1) do
+    securities = rows |> colliding_ids(name) |> Catalog.get_securities_by_ids()
+
+    ids =
+      rows
+      |> Enum.filter(&Map.has_key?(securities, &1.security_id))
+      |> Enum.map(fn row ->
+        security = Map.fetch!(securities, row.security_id)
+        %{security_id: row.security_id, isin: security.isin, wkn: security.wkn, name: name.(row)}
+      end)
+      |> twin_id_map(& &1.name)
+
+    Enum.map(rows, &Map.put(&1, :twin_id, Map.get(ids, &1.security_id)))
+  end
+
+  # The securities of the rows whose displayed name another security's row
+  # also shows.
+  defp colliding_ids(rows, name) do
+    rows
+    |> Enum.filter(&is_integer(&1.security_id))
+    |> Enum.group_by(&display_key(name.(&1)), & &1.security_id)
+    |> Enum.flat_map(fn
+      {nil, _ids} -> []
+      {_key, ids} -> if length(Enum.uniq(ids)) > 1, do: Enum.uniq(ids), else: []
     end)
   end
 

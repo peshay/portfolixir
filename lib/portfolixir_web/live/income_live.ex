@@ -24,6 +24,7 @@ defmodule PortfolixirWeb.IncomeLive do
   alias PortfolixirWeb.CappedAsync
   alias PortfolixirWeb.Format
   alias PortfolixirWeb.LiveParam
+  alias PortfolixirWeb.SecurityNames
   alias PortfolixirWeb.StoredText
   alias PortfolixirWeb.TransactionManagementLive
 
@@ -77,7 +78,7 @@ defmodule PortfolixirWeb.IncomeLive do
   # Each facet loads its own read once, on first visit (the income read stays
   # eager in mount — it is the default facet).
   defp load_facet(%{assigns: %{facet: "realized", portfolio: %{}}} = socket) do
-    assign_new(socket, :realized, fn -> RealizedGains.report() end)
+    assign_new(socket, :realized, &realized_report/0)
   end
 
   defp load_facet(%{assigns: %{facet: "flows", portfolio: %{}}} = socket) do
@@ -207,12 +208,22 @@ defmodule PortfolixirWeb.IncomeLive do
     end)
   end
 
+  # #1155 (board 08, N14 = A): a twin's identifier on each closed trade,
+  # decided over every trade of the report (the table and its phone rows).
+  defp realized_report do
+    Map.update!(
+      RealizedGains.report(),
+      :trades,
+      &SecurityNames.put_catalog_twin_ids(&1, fn trade -> trade.security_name end)
+    )
+  end
+
   # Re-reads whatever this session already loaded (the facets are lazy), so the
   # figures on screen reflect the rates that just landed.
   defp reload_facets(%{assigns: %{portfolio: %{id: portfolio_id}}} = socket) do
     socket
     |> assign(:income, Income.for_portfolio(portfolio_id))
-    |> reload_if_loaded(:realized, &RealizedGains.report/0)
+    |> reload_if_loaded(:realized, &realized_report/0)
     |> reload_if_loaded(:flows, &ExternalFlows.report/0)
     |> reload_if_loaded(:costs, &Costs.report/0)
   end
@@ -495,10 +506,10 @@ defmodule PortfolixirWeb.IncomeLive do
                   </thead>
                   <tbody>
                     <tr :for={trade <- @realized.trades} data-role="realized-trade">
-                      <td>
+                      <td data-role="trade-name">
                         <.link navigate={"/securities/#{trade.security_id}?tab=trades"}>
                           <%= trade.security_name %>
-                        </.link>
+                        </.link><SecurityNames.twin_id tag={trade.twin_id} />
                       </td>
                       <td>
                         <%= PortfolixirWeb.Format.date(trade.open_date) %> → <%= PortfolixirWeb.Format.date(
@@ -583,7 +594,7 @@ defmodule PortfolixirWeb.IncomeLive do
                       navigate={"/securities/#{trade.security_id}?tab=trades"}
                       class="phone-row__target"
                     >
-                      <span class="phone-row__name"><%= trade.security_name %></span>
+                      <span class="phone-row__name"><%= trade.security_name %><SecurityNames.twin_id tag={trade.twin_id} /></span>
                     </.link>
                     <span class="phone-row__ids">
                       <%= PortfolixirWeb.Format.date(trade.open_date) %> → <%= PortfolixirWeb.Format.date(
