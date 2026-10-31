@@ -31,7 +31,8 @@
 # the coupon file's second drop and its re-export, and the delivery with a
 # negative tax (#1188, the Sprint 21 plan's D-14 and round trip 4):
 # priv/demo/pp_json_delivery_negative_tax_demo.json, which previews with one
-# named row error while the rest books. The seed imports neither, so a
+# named row error while the rest books (its security "Quillmere Optics AG", a
+# name of its own beside the seed's USD "Arbolia Inc."). The seed imports neither, so a
 # second run adds nothing for them.
 # Synthetic all the way down; no real data (AGENTS.md → Privacy And
 # Disclosure).
@@ -1928,11 +1929,13 @@ IO.puts("Sprint 21 surfaces: an agent-named rule and statement, Thornbury, Wexmo
 # imported into a portfolio of its own, "Anleihen", from
 # priv/demo/pp_json_bond_coupon_demo.json: the coupon keeps its bond. Over
 # 01.01.2026 – 30.06.2026 Wealth's contribution table reads the bond 525,00
-# EUR (Erträge 400,00) and Zinsen 1,10 EUR, the result 526,10 EUR. Dropping
-# the file again books nothing, and neither does
-# priv/demo/pp_json_bond_coupon_reexport_demo.json, the coupon at 09:31
-# instead of 09:30. Like the demo import, it either ran or it did not, and
-# the portfolio's own ledger says which.
+# EUR (Erträge 400,00) and Zinsen 1,10 EUR, the result 526,10 EUR, in a
+# view of the portfolio alone (the README says how). The Imports page books
+# into the default portfolio (ADR-0024), so the second-drop check is made
+# there: the file's first drop books into Demo Depot, a second books
+# nothing, and neither does priv/demo/pp_json_bond_coupon_reexport_demo.json,
+# the coupon at 09:31 instead of 09:30. Like the demo import, it either ran
+# or it did not, and the portfolio's own ledger says which.
 anleihen =
   case Enum.find(Portfolios.list_portfolios(), &(&1.name == "Anleihen")) do
     nil ->

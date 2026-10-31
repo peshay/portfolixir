@@ -114,8 +114,8 @@ The Sprint 19 PR α stories added their surfaces (step 16 of the seed):
 - **A delivery with a negative tax (#1188):**
   `pp_json_delivery_negative_tax_demo.json` is a small Portfolio
   Performance JSON export: a deposit on "Girokonto Lieferung", an inbound
-  delivery of 10 "Arbolia Inc." into "Depot Lieferung" carrying a tax unit
-  of -0.40, and a purchase of 5 shares for 501.00. The seed does not import
+  delivery of 10 "Quillmere Optics AG" into "Depot Lieferung" carrying a tax
+  unit of -0.40, and a purchase of 5 shares for 501.00. The seed does not import
   it: drop it into Imports by hand (the Sprint 21 plan's round trip 4) and
   the preview names the delivery as not imported, with its remedy, while
   the rest previews; confirmed, Girokonto Lieferung reads 499.00 and the
@@ -149,13 +149,23 @@ The Sprint 21 money fixes add theirs (step 18 of the seed, plan D-14):
 - **A bond's coupon is its income (#928, round trip 2):** a portfolio of
   its own, "Anleihen", imported from `pp_json_bond_coupon_demo.json`: the
   bond "Larkspur Rail AG 4,00 % Anleihe 2031" and its coupon of 400,00 EUR,
-  which keeps its bond, beside 1,10 EUR of account interest. On Wealth, over
-  01.01.2026 – 30.06.2026, the contribution table reads the bond 525,00 EUR
-  (Erträge 400,00) and "Zinsen" 1,10 EUR, the result 526,10 EUR; Income's
-  "Je Position" lists the bond and "Zinsen" apart. Drop the same file into
-  Imports again, then `pp_json_bond_coupon_reexport_demo.json` (the coupon
-  at 09:31 instead of 09:30): neither books anything, the re-export's
-  coupon is named as already booked by its figures.
+  which keeps its bond, beside 1,10 EUR of account interest. Wealth shows
+  every portfolio at once, so read the contribution figures in a view of
+  "Anleihen" alone: on Accounts & depots, tag the "Coupon-Depot" row of
+  "Anleihen" (depot and cash account together) with a new bucket, say
+  "Anleihen"; on Views, create a view that includes that bucket only; pick
+  it in Wealth's view switcher. Over 01.01.2026 – 30.06.2026 the
+  contribution table then reads the bond 525,00 EUR (Erträge 400,00) and
+  "Zinsen" 1,10 EUR, the result 526,10 EUR.
+- **The coupon file's second drop (round trip 2):** the Imports page books
+  into the default portfolio, "Demo Depot" (ADR-0024), not into
+  "Anleihen", so the check is made there: drop
+  `pp_json_bond_coupon_demo.json` into Imports once (it books into Demo
+  Depot, its accounts created there), then drop it again (it books
+  nothing), then `pp_json_bond_coupon_reexport_demo.json` (the coupon at
+  09:31 instead of 09:30; it books nothing, and the coupon is named as
+  already booked by its figures). Income reads Demo Depot too: after the
+  first drop its "Je Position" lists the bond and "Zinsen" apart.
 
 Sprint 21's money batch adds round trip 1 (step 18 of the seed, the plan's
 D-14), in a portfolio of its own, "Round Trip Depot":
@@ -163,7 +173,8 @@ D-14), in a portfolio of its own, "Round Trip Depot":
 - **Imported, then sold by hand (#1198):** a Portfolio Performance file buys
   10 "Kestrel Bay Resources Inc." (CAD, because the seed stores no USD rate)
   from the EUR account for 806.00 EUR, the legs derived from the stored 1
-  EUR = 1.25 CAD; a hand-booked sale at 120 CAD settles 957.00 EUR. The
+  EUR = 1.25 CAD; a hand-booked sale at 120 CAD settles 960.00 EUR, 957.00
+  EUR after the fee. The
   closed trade reads 188.75 CAD, and Cash flow → Trades 151.00 EUR, the cash
   the two bookings moved.
 - **A trade not convertible (#1198, board 09):** the same file buys 10
@@ -180,9 +191,9 @@ DATABASE_NAME=portfolixir_review PORT=4003 PORTFOLIXIR_BACKGROUND_FETCH=off mix 
 
 It is **idempotent**: every step asks whether its rows are already there, so a
 second run adds nothing. The quote history is written with the import, on the
-first run only: a second run leaves every quote as the first left it, so a
-re-seeded database shows the figures a fresh one shows (#1126). It makes **no outbound calls** (see "The seeds make
-no outbound calls" above) and refuses to run without the switch. Synthetic all
+first run only: a second run leaves every row count and value as the first
+left it, so a re-seeded database shows the figures a fresh one shows (#1126).
+It makes **no outbound calls** (see "The seeds make no outbound calls" above) and refuses to run without the switch. Synthetic all
 the way down — no real holdings, no real institution, no real person.
 
 The screenshots and the tour GIF under `docs/screenshots/` were produced from
