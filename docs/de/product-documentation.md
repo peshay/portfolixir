@@ -1723,17 +1723,25 @@ Tages schon gespeichert ist; auf einer frischen Instanz ist er es noch
 nicht. Hat das Nachladen der historischen Kurse, von selbst oder von Hand,
 Kurse gespeichert, leitet derselbe Lauf die Beine jedes Kaufs und Verkaufs
 ab, der in der Währung seines Kontos gebucht ist und keines davon
-gespeichert hat: das Geld, das die Buchung bewegt hat, abzüglich Gebühren
-und Steuern, zum gespeicherten Kurs ihres Tages umgerechnet, genau das, was
-der Import speichert, wenn der Kurs schon da ist. Jede abgeleitete Buchung
-wird unter dem Systemakteur `settlement_backfill` im Journal festgehalten.
-Eine Buchung, die schon ein Bein trägt oder in einer dritten Währung
-bepreist ist, bleibt unberührt; eine Buchung, deren Tag noch keinen Kurs
-hat, bekommt keines und wird gezählt. Zwei Fälle lassen einen Trade bis
-zum nächsten Nachladen von Hand oder zur Aufgabe ohne Beine: ein Import,
-der angewendet wird, während das Nachladen seine Kurse speichert, und Kurse
-aus der täglichen Synchronisierung, die keine Beine ableitet. Ein solcher
-Trade gilt dann als nicht verfügbar, nie als falsch.
+gespeichert hat. Der Handelsbetrag wird am Geld abgelesen, das die Buchung
+bewegt hat (bei einem Kauf abzüglich Gebühren und Steuern, bei einem
+Verkauf zuzüglich), oder ist Stückzahl × Preis, wo kein Geldbetrag erfasst
+ist, und wird zum gespeicherten Kurs ihres Tages umgerechnet: genau das,
+was der Import speichert, wenn der Kurs schon da ist. Jede abgeleitete
+Buchung wird unter dem Systemakteur `settlement_backfill` im Journal
+festgehalten. Eine Buchung, die schon ein Bein trägt oder in einer dritten
+Währung bepreist ist, bleibt unberührt, ebenso eine, die während des Laufs
+ein Bein bekommt oder gelöscht wird; eine Buchung, deren Tag noch keinen
+Kurs hat, bekommt keines und wird gezählt. Zwei Fälle lassen einen Trade
+bis zum nächsten Nachladen von Hand oder zur Aufgabe ohne Beine: ein
+Import, der angewendet wird, während das Nachladen seine Kurse speichert,
+und Kurse aus der täglichen Synchronisierung, die keine Beine ableitet.
+Eine Buchung, die das Hauptbuch ablehnt, hält die Ableitung an; die Kurse
+bleiben gespeichert. Nach einem angehaltenen automatischen Lauf versucht es
+die Instanz nicht von selbst erneut (seine Währungen gelten als geholt),
+also leitet ein Nachladen von Hand oder
+`mix portfolixir.backfill_settlement_legs` den Rest ab. Ein solcher Trade
+gilt dann als nicht verfügbar, nie als falsch.
 
 Ein Wertpapier ohne jeden Kurs wird mit dem **zuletzt eigenen Handelspreis
 über alle Portfolios** bepreist — ein Kauf oder Verkauf ist eine

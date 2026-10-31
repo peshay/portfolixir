@@ -2984,12 +2984,15 @@ level (d)).
   cash account's currency with none of the three legs stored, journaled
   under the system actor `settlement_backfill`, as
   `mix portfolixir.backfill_settlement_legs` does. The answer carries
-  `settlement_legs`: `{status, derived, skipped_no_rate,
+  `settlement_legs`: `{status, derived, skipped_no_rate, skipped_changed,
   stopped_at_transaction_id}`, where `status` is `completed` (`derived`
   bookings gained their legs, `skipped_no_rate` still lack a rate for their
-  date), `not_run` (no rate was stored, both counts `0`) or `stopped` (the
-  ledger refused a booking: the rates stay stored, the counts are `null`,
-  `stopped_at_transaction_id` names it, and a re-run derives the rest).
+  date, `skipped_changed` gained a leg or were deleted after the run read
+  them, and are left as they are), `not_run` (no rate was stored, every
+  count `0`) or `stopped` (the ledger refused a booking: the rates stay
+  stored, the counts are `null`, `stopped_at_transaction_id` names it, and a
+  re-run derives the rest; after the automatic run stops it does not retry
+  by itself, so the re-run is this call or the mix task).
   `scope=latest` answers `settlement_legs: null`: the daily sync derives no
   legs. A booking that already carries a leg, or is priced in a third
   currency, is never touched.

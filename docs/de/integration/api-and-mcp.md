@@ -3243,13 +3243,16 @@ Scope-Leiter).
   drei Beine gespeichert hat, im Journal unter dem Systemakteur
   `settlement_backfill`, wie `mix portfolixir.backfill_settlement_legs`.
   Die Antwort trägt `settlement_legs`: `{status, derived, skipped_no_rate,
-  stopped_at_transaction_id}`, wobei `status` `completed` ist (`derived`
-  Buchungen haben ihre Beine bekommen, `skipped_no_rate` haben noch keinen
-  Kurs für ihren Tag), `not_run` (kein Kurs wurde gespeichert, beide
-  Zählungen `0`) oder `stopped` (das Hauptbuch hat eine Buchung abgelehnt:
-  die Kurse bleiben gespeichert, die Zählungen sind `null`,
-  `stopped_at_transaction_id` nennt sie, und ein neuer Lauf leitet den Rest
-  ab). `scope=latest` antwortet mit `settlement_legs: null`: die tägliche
+  skipped_changed, stopped_at_transaction_id}`, wobei `status` `completed`
+  ist (`derived` Buchungen haben ihre Beine bekommen, `skipped_no_rate`
+  haben noch keinen Kurs für ihren Tag, `skipped_changed` haben nach dem
+  Lesen des Laufs ein Bein bekommen oder wurden gelöscht und bleiben, wie
+  sie sind), `not_run` (kein Kurs wurde gespeichert, jede Zählung `0`) oder
+  `stopped` (das Hauptbuch hat eine Buchung abgelehnt: die Kurse bleiben
+  gespeichert, die Zählungen sind `null`, `stopped_at_transaction_id` nennt
+  sie, und ein neuer Lauf leitet den Rest ab; nach einem angehaltenen
+  automatischen Lauf versucht es die Instanz nicht von selbst erneut, also
+  ist der neue Lauf dieser Aufruf oder die Mix-Aufgabe). `scope=latest` antwortet mit `settlement_legs: null`: die tägliche
   Synchronisierung leitet keine Beine ab. Eine Buchung, die schon ein Bein
   trägt oder in einer dritten Währung bepreist ist, bleibt immer unberührt.
 

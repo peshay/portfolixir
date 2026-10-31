@@ -1567,16 +1567,23 @@ bought from a euro account (800.00 EUR and 1,000.00 USD at 1 EUR = 1.25 USD,
 rate 0.800000) only when the rate for its date is already stored; on a fresh
 instance it is not yet. Once the history backfill, by itself or by hand, has
 stored rates, the same run derives the legs of every buy and sell booked in
-its account's currency with none of them stored: the cash the row moved,
-less its fees and taxes, converted at the stored rate of its date, exactly
-what the import stores when the rate is there. Each derived booking is
-journaled under the system actor `settlement_backfill`. A booking that
-already carries a leg, or is priced in a third currency, is not touched; a
+its account's currency with none of them stored. The trade amount is read
+off the cash the booking moved (for a buy, that cash less its fees and
+taxes; for a sale, plus them), or is quantity × price where no cash amount
+is recorded, and is converted at the stored rate of its date: exactly what
+the import stores when the rate is there. Each derived booking is journaled
+under the system actor `settlement_backfill`. A booking that already
+carries a leg, or is priced in a third currency, is not touched, and
+neither is one that gains a leg or is deleted while the run works; a
 booking whose date still has no rate keeps none and is counted. Two cases
 keep a trade without its legs until the next backfill by hand or the task:
 an import applied while the backfill is storing its rates, and rates that
-arrive through the daily sync, which derives no legs. Such a trade then
-reads unavailable, never wrong.
+arrive through the daily sync, which derives no legs. A booking the ledger
+refuses stops the derivation; the rates stay stored. After the automatic
+run has stopped, it does not try again by itself (its currencies count as
+fetched), so the rest is derived by a backfill by hand or by
+`mix portfolixir.backfill_settlement_legs`. Such a trade then reads
+unavailable, never wrong.
 
 A security without any quote yet is priced at the **latest own trade price
 across all portfolios** — a buy or sell is a price observation, exactly how
