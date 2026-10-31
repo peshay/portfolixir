@@ -1193,6 +1193,14 @@ than on the tint (UX-DR7). No new colour, no new radius, no new type size.
   colors; the tint is reinforcement.
 - **Family chips** (Currency, Asset class) render their value in the label —
   "EUR", "Aktie" — never a bare family name with a hidden selection.
+- **A builder condition on a boolean field** renders as "<field>: ja" /
+  "<field>: nein" (en "<field>: yes" / "no"), for every boolean field
+  (Stillgelegt, Benchmark, and any added later): the family chips' rule
+  applied to a family with two values (issue 1104, Sprint 21, board
+  `ux-design-2026-10-09/02-securities`, N6 A). The builder offers the same
+  two words: a boolean field has no value input, so its operator select is
+  the value, labelled "Wert", with the options "ja" and "nein". The stored
+  filter stays `is_retired:is_false`.
 - **Touch:** `{spacing.touch-target}` floor under `pointer: coarse` (UX-DR6),
   like every other chip family.
 - **The row owns its scroller** (UX-DR15): horizontal overflow, scroll-snap, edge

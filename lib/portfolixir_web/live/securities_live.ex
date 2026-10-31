@@ -4734,10 +4734,19 @@ defmodule PortfolixirWeb.SecuritiesLive do
 
   defp safe_to_string({:safe, iodata}), do: IO.iodata_to_binary(iodata)
 
+  # #1104 (board 02, N6 A): a condition on a boolean field reads "<field>:
+  # ja" / "<field>: nein", one rule for every boolean field, the family
+  # chips' "value in the label" (D2). The stored filter stays
+  # `is_retired:is_false`.
   defp chip_label(%{key: key, op: op, value: value}) do
     field = SecurityFields.get(key)
     label = (field && field.label) || Atom.to_string(key)
-    "#{label} #{operator_label(op)} #{format_value(key, value)}"
+
+    if op in [:is_true, :is_false] do
+      gettext("%{field}: %{value}", field: label, value: FilterPopover.boolean_value_label(op))
+    else
+      "#{label} #{operator_label(op)} #{format_value(key, value)}"
+    end
   end
 
   defp operator_label(:eq), do: "="
@@ -4746,13 +4755,9 @@ defmodule PortfolixirWeb.SecuritiesLive do
   defp operator_label(:starts_with), do: "^"
   defp operator_label(:gt), do: ">"
   defp operator_label(:lt), do: "<"
-  defp operator_label(:is_true), do: "= true"
-  defp operator_label(:is_false), do: "= false"
   defp operator_label(:is_nil), do: gettext("is unclassified")
   defp operator_label(other), do: to_string(other)
 
-  defp format_value(_key, true), do: ""
-  defp format_value(_key, false), do: ""
   defp format_value(:asset_class, value), do: AssetClasses.label(value)
   defp format_value(:feed, value), do: Feeds.label(value)
   defp format_value(:latest_feed, value), do: Feeds.label(value)

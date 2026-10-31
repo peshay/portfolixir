@@ -81,8 +81,13 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
         </label>
 
         <%= if @field do %>
+          <%!-- #1104 (board 02, N6 A): a boolean field has no value
+               input, so its operator select is the value: it reads "Value"
+               and offers the chip's two words, "yes" / "no". --%>
           <label>
-            <span><%= gettext("Operator") %></span>
+            <span data-role="filter-operator-label">
+              <%= if @field.type == :boolean, do: gettext("Value"), else: gettext("Operator") %>
+            </span>
             <select name="operator">
               <%= for op <- @field.operators do %>
                 <option value={Atom.to_string(op)} selected={op == @operator}>
@@ -225,6 +230,14 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
 
   # The same labels the securities page shows on the active-filter chip, so
   # picking a condition and reading it back use one vocabulary.
+  @doc """
+  The two words a condition on a boolean field reads as (#1104, board 02,
+  N6 A): the builder's options and the securities page's removable chip, so
+  picking a condition and reading it back use one vocabulary.
+  """
+  def boolean_value_label(:is_true), do: pgettext("boolean filter", "yes")
+  def boolean_value_label(:is_false), do: pgettext("boolean filter", "no")
+
   defp dq_label("stale_quote"),
     do: gettext("No quote in %{days} days", days: DataQuality.stale_days())
 
@@ -243,8 +256,7 @@ defmodule PortfolixirWeb.Securities.FilterPopover do
   defp operator_label(:starts_with), do: gettext("starts with")
   defp operator_label(:gt), do: gettext("greater than")
   defp operator_label(:lt), do: gettext("less than")
-  defp operator_label(:is_true), do: gettext("is true")
-  defp operator_label(:is_false), do: gettext("is false")
+  defp operator_label(op) when op in [:is_true, :is_false], do: boolean_value_label(op)
   defp operator_label(:is_nil), do: gettext("is unclassified")
   defp operator_label(other), do: to_string(other)
 end
