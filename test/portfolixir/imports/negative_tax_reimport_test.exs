@@ -509,7 +509,7 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
   # - K17's transfer stored as Sprint 20 booked it (105.00 to Test-Savings,
   #   the refund 5.00 on Test-Cash; K20): its row error in that portfolio
   #   says "… — already imported, and it cannot be corrected here. Do not
-  #   book the transfer again; …".
+  #   book the transfer again; …"; so does its PP CSV, its figure "5,00".
   # - K18's purchase stored as booked before (cash 1,003.00, fees 7.00): its
   #   row error says it is already imported, naming its fees as stored,
   #   7.00.
@@ -517,19 +517,24 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
   #   remedy; the apply books nothing twice.
   test "a transfer or a purchase A8 or A9 refuses whose booking is stored says it is already imported",
        %{portfolio: portfolio} do
-    for {name, message} <- [
-          {"k17_transfer_negative_tax.json",
+    for {name, row, message} <- [
+          {"k17_transfer_negative_tax.json", 2,
            "transfer with a tax refund of 5.00: a transfer moves cash between two accounts, " <>
              "and a refund split off it would land on one side only — already imported, and " <>
              "it cannot be corrected here. Do not book the transfer again; see “A negative " <>
              "tax inside a row” in the product documentation."},
-          {"k18_negative_fee.json",
+          {"k17_transfer_negative_tax.csv", 3,
+           "transfer with a tax refund of 5,00: a transfer moves cash between two accounts, " <>
+             "and a refund split off it would land on one side only — already imported, and " <>
+             "it cannot be corrected here. Do not book the transfer again; see “A negative " <>
+             "tax inside a row” in the product documentation."},
+          {"k18_negative_fee.json", 2,
            "booking with a negative fee (-2.00): the import does not book a fee refund yet — " <>
              "already imported with fees of 7.00, and it cannot be corrected here. Do not " <>
              "enter the booking again; see “A negative tax inside a row” in the product " <>
              "documentation."}
         ] do
-      {:ok, %Preview{errors: [%{row: 2, message: remedy}]} = preview} =
+      {:ok, %Preview{errors: [%{row: ^row, message: remedy}]} = preview} =
         PortfolioPerformance.parse(fixture(name), filename: name)
 
       # The row as the importer booked it before it was refused: its
@@ -544,12 +549,12 @@ defmodule Portfolixir.Imports.NegativeTaxReimportTest do
 
       apply!(%{preview | entries: preview.entries ++ [stored]}, target)
 
-      assert [%{row: 2, message: ^message}] =
+      assert [%{row: ^row, message: ^message}] =
                Imports.row_errors(preview, portfolio_id: target.id),
              name
 
       assert Imports.row_errors(preview, portfolio_id: portfolio.id) == [
-               %{row: 2, message: remedy}
+               %{row: row, message: remedy}
              ],
              name
 
