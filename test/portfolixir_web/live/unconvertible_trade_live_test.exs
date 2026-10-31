@@ -262,6 +262,68 @@ defmodule PortfolixirWeb.UnconvertibleTradeLiveTest do
     refute card_note =~ "Inc.."
   end
 
+  # User story (#1208, Sprint 21 γ1; board 01 ⑥): As the operator reading
+  # the Overview card's and the Trades facet's exclusion notes in German, I
+  # want a name that ends in a full stop to end each sentence once, the
+  # sentence going on where it goes on, so that no note reads "Inc..".
+  #
+  # Acceptance criteria:
+  # - The card: "1 Verkauf ohne gespeicherten Wechselkurs an seinem
+  #   Schlussdatum fehlt bei den Trades: Kestrel Inc. Das Nachladen der
+  #   Wechselkurse steht unter „Alle Trades“." and "1 Verkauf ohne Umrechnung
+  #   — … — fehlt bei den Trades: Arbolia Inc."
+  # - The facet: "… und ist aus jeder Summe ausgeschlossen: Kestrel Inc." and
+  #   "… und aus jeder Summe ausgeschlossen: Arbolia Inc."
+  # - Each sentence takes the msgid without the stop (one shared helper,
+  #   `StoredText.ending_on/3`), so no note holds "Inc..".
+  test "in German too, a name ending in a full stop ends each note's sentence once",
+       %{conn: conn} do
+    world = seed!()
+
+    kestrel =
+      WorldFixtures.create_security!(name: "Kestrel Inc.", ticker: "KSTL", currency: "USD")
+
+    for {type, date, price} <- [{"buy", ~D[2026-01-05], "50"}, {"sell", ~D[2026-03-02], "60"}] do
+      WorldFixtures.cross_trade!(world.world, kestrel,
+        type: type,
+        quantity: "10",
+        price: price,
+        settled: "#{price}0.00",
+        gross: "#{price}0.00",
+        date: date
+      )
+    end
+
+    {:ok, view, _html} = live(conn, "/cashflow?tab=realized&locale=de")
+    render_async(view)
+
+    assert view |> element("[data-role=realized-excluded-no-rate]") |> render() |> text() =~
+             ~r/und ist aus jeder Summe ausgeschlossen: Kestrel Inc\.$/
+
+    assert view |> element("[data-role=realized-excluded-missing-leg]") |> render() |> text() =~
+             ~r/und aus jeder Summe ausgeschlossen: Arbolia Inc\.$/
+
+    {:ok, card, _html} = live(conn, "/?locale=de")
+    render_async(card)
+
+    no_rate =
+      card |> element("[data-role='trades-card-excluded-no-rate']") |> render() |> text()
+
+    assert String.trim(no_rate) ==
+             "1 Verkauf ohne gespeicherten Wechselkurs an seinem Schlussdatum fehlt bei den " <>
+               "Trades: Kestrel Inc. Das Nachladen der Wechselkurse steht unter „Alle Trades“."
+
+    missing_leg =
+      card |> element("[data-role='trades-card-excluded-missing-leg']") |> render() |> text()
+
+    assert String.trim(missing_leg) ==
+             "1 Verkauf ohne Umrechnung — ein Kauf, den er schließt, hat keinen Gegenwert in " <>
+               "der Währung des Verkaufs — fehlt bei den Trades: Arbolia Inc."
+
+    refute no_rate =~ "Inc.."
+    refute missing_leg =~ "Inc.."
+  end
+
   # A buy or sell as a database stored it before #1199's refusal of a
   # booking priced in a third currency: written past the changeset, under
   # the journal's actor (as `closed_trade_currency_test.exs` writes it).
