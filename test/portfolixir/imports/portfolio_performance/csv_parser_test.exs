@@ -545,6 +545,133 @@ defmodule Portfolixir.Imports.PortfolioPerformance.CsvParserTest do
     end
   end
 
+  # User story (#1188; Sprint 21 α5; ADR-0053 A8, K16 and K17):
+  # As the operator dropping a Portfolio Performance CSV whose delivery or
+  # transfer carries a negative Steuern,
+  # I want that row named in the preview with its remedy, and the rest of
+  # the file to preview,
+  # so that one row the ledger cannot carry never rolls back the whole file
+  # or books a refund on one side of a transfer only.
+  #
+  # Acceptance criteria (board ux-design-2026-10-09/07-imports ③):
+  # - K16: an Einlieferung with Steuern -0,40 is the one row error,
+  #   "inbound delivery with a tax refund of 0,40: …", its figure in the
+  #   file's notation; the Einlage and the Kauf preview.
+  # - An Auslieferung and a depot's Umbuchung read the same in their own
+  #   words.
+  # - K17: an Umbuchung (Ausgang) with Betrag 105,00, Steuern -5,00 and
+  #   Gesamtpreis 100,00 is the row error "transfer with a tax refund of
+  #   5,00: …"; a receiving row is named the same, never a credit that nets
+  #   to nothing (A5 comes after).
+  # - A Gesamtpreis that contradicts its Betrag is named first (§2).
+  # - The preview keeps each refused row's would-be entry, its split-off
+  #   refund included (K25).
+  # - In German as the board writes it.
+  # - A negative Gebühren is not refused: a PP CSV's Gebühren is read
+  #   signed by §2, a converter's as its fee (the note of 2026-10-06; "counts
+  #   a negative Gebühren as the fee it books" above, unchanged).
+  describe "parse/2 a refund the row cannot carry (#1188)" do
+    @header "Datum;Typ;Wertpapier;Stück;Kurs;Betrag;Gebühren;Steuern;Gesamtpreis;Konto;Gegenkonto;Notiz;Quelle\n"
+
+    @no_cash_rows """
+    2026-02-05 00:00:00;Auslieferung;Arbolia Inc.;10;100,00;1.000,00;;-0,40;1.000,40;Test-Depot;;;
+    2026-02-06 00:00:00;Umbuchung (Ausgang);Arbolia Inc.;10;100,00;1.000,00;;-0,40;999,60;Test-Depot;Test-Depot-2;;
+    """
+
+    @receiving_row "2026-02-10 00:00:00;Umbuchung (Eingang);;;;0,00;;-5,00;5,00;Test-Savings;Test-Cash;;\n"
+
+    test "K16: an Einlieferung with a negative Steuern is a row error, and the rest previews" do
+      assert {:ok, %Preview{entries: [deposit, buy], errors: errors, refused_credits: refused}} =
+               CsvParser.parse(read!("k16_delivery_negative_tax.csv"))
+
+      assert {deposit.source_row, deposit.kind, buy.source_row, buy.kind} ==
+               {2, "deposit", 4, "buy"}
+
+      assert errors == [
+               %{
+                 row: 3,
+                 message:
+                   "inbound delivery with a tax refund of 0,40: an inbound delivery moves no " <>
+                     "cash, so the refund would have no account — row not imported. Book the " <>
+                     "inbound delivery by hand without it; if money did move, book that as a " <>
+                     "tax refund of its own."
+               }
+             ]
+
+      assert [%{row: 3, entry: %Entry{kind: "inbound_delivery"} = delivery}] = refused
+      assert [%Entry{kind: "tax_refund", gross_amount: refund}] = delivery.companion_entries
+      assert Decimal.equal?(refund, Decimal.new("0.40"))
+    end
+
+    test "an Auslieferung and a depot's Umbuchung are named in their own words" do
+      assert {:ok, %Preview{entries: [], errors: errors, refused_credits: [_, _]}} =
+               CsvParser.parse(@header <> @no_cash_rows)
+
+      assert Enum.map(errors, & &1.message) == [
+               "outbound delivery with a tax refund of 0,40: an outbound delivery moves no " <>
+                 "cash, so the refund would have no account — row not imported. Book the " <>
+                 "outbound delivery by hand without it; if money did move, book that as a " <>
+                 "tax refund of its own.",
+               "security transfer with a tax refund of 0,40: a security transfer moves no " <>
+                 "cash, so the refund would have no account — row not imported. Book the " <>
+                 "security transfer by hand without it; if money did move, book that as a " <>
+                 "tax refund of its own."
+             ]
+    end
+
+    test "K17: a cash transfer with a negative Steuern is a row error, either side" do
+      assert {:ok, %Preview{entries: [deposit], errors: errors, refused_credits: refused}} =
+               CsvParser.parse(read!("k17_transfer_negative_tax.csv") <> @receiving_row)
+
+      assert deposit.kind == "deposit"
+
+      message =
+        "transfer with a tax refund of 5,00: a transfer moves cash between two accounts, " <>
+          "and a refund split off it would land on one side only — row not imported. Book " <>
+          "the transfer by hand without it; if money did move, book that as a tax refund " <>
+          "of its own."
+
+      assert errors == [%{row: 3, message: message}, %{row: 4, message: message}]
+
+      # The sending row's would-be entry as Sprint 20 booked it: the
+      # transfer at 105,00 with the refund 5,00 beside it.
+      assert [%{row: 3, entry: transfer}, %{row: 4}] = refused
+      assert Decimal.equal?(transfer.gross_amount, Decimal.new("105.00"))
+      assert [%Entry{gross_amount: refund}] = transfer.companion_entries
+      assert Decimal.equal?(refund, Decimal.new("5.00"))
+    end
+
+    test "a Gesamtpreis that contradicts its Betrag is named first" do
+      assert {:ok, %Preview{entries: [], errors: [%{row: 2, message: message}]}} =
+               CsvParser.parse(
+                 @header <>
+                   "2026-02-10 00:00:00;Umbuchung (Ausgang);;;;105,00;;-5,00;99,00;Test-Cash;Test-Savings;;\n"
+               )
+
+      assert message ==
+               "Gesamtpreis 99,00 does not match Betrag 105,00 and Steuern -5,00 " <>
+                 "(expected 100,00) — row not imported"
+    end
+
+    test "says it in German, as the board writes it" do
+      Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+
+      assert {:ok, %Preview{errors: errors}} =
+               CsvParser.parse(read!("k16_delivery_negative_tax.csv") <> @receiving_row)
+
+      assert Enum.map(errors, & &1.message) == [
+               "Einlieferung mit Steuererstattung 0,40: Eine Einlieferung bewegt kein Geld, " <>
+                 "die Erstattung hätte kein Konto — Zeile nicht übernommen. Die Einlieferung " <>
+                 "ohne sie von Hand buchen; ist Geld geflossen, das als eigene " <>
+                 "Steuererstattung.",
+               "Umbuchung mit Steuererstattung 5,00: Eine Umbuchung bewegt Geld zwischen " <>
+                 "zwei Konten, eine abgespaltene Erstattung landete nur auf einer Seite — " <>
+                 "Zeile nicht übernommen. Die Umbuchung ohne sie von Hand buchen; ist Geld " <>
+                 "geflossen, das als eigene Steuererstattung."
+             ]
+    end
+  end
+
   describe "parse/2 the content hash's amount input" do
     test "carries each cash row's Betrag, and nothing for a kind without cash" do
       body = """

@@ -771,6 +771,236 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParserTest do
     end
   end
 
+  # User story (#1188, #1177; Sprint 21 α5; ADR-0053 A8 and A9, K16 to K18):
+  # As the operator dropping a Portfolio Performance JSON export whose
+  # delivery or transfer carries a tax refund, or whose booking carries a
+  # negative fee unit,
+  # I want that row named in the preview with its remedy, and the rest of
+  # the file to preview,
+  # so that one row the ledger cannot carry never rolls back the whole file,
+  # books a refund on an account Portfolio Performance never moved, or
+  # stores a fee refund as a fee.
+  #
+  # Acceptance criteria (board ux-design-2026-10-09/07-imports ③):
+  # - K16: of a deposit, an inbound delivery with a TAX unit of -0.40 and a
+  #   purchase, the delivery is the one row error, "inbound delivery with a
+  #   tax refund of 0.40: an inbound delivery moves no cash, so the refund
+  #   would have no account — row not imported. Book the inbound delivery
+  #   by hand without it; if money did move, book that as a tax refund of
+  #   its own."; the deposit and the purchase preview.
+  # - An outbound delivery and a security transfer read the same, each in
+  #   its own words.
+  # - K17: a cash transfer with a TAX unit of -5.00 is the row error
+  #   "transfer with a tax refund of 5.00: a transfer moves cash between two
+  #   accounts, and a refund split off it would land on one side only — row
+  #   not imported. …"; the deposit previews.
+  # - K18: a purchase with FEE units 5.00 and -2.00 is the row error
+  #   "booking with a negative fee (-2.00): the import does not book a fee
+  #   refund yet — row not imported. Enter the booking by hand, with its
+  #   fees less the refund (3.00)."; a sale reads "sell … Book the sale by
+  #   hand …". It is named before A8's and A5's refusals.
+  # - The preview keeps each refused row's would-be entry as it is built
+  #   today, its split-off refund and its fees of 7.00 included, so its
+  #   content hash does not move (K25).
+  # - In German, with the figures in the German notation.
+  describe "parse/2 a refund or a fee refund the row cannot carry (#1188, #1177)" do
+    test "K16: a delivery with a negative tax unit is a row error, and the rest previews" do
+      assert {:ok, %Preview{entries: [deposit, buy], errors: errors, refused_credits: refused}} =
+               JsonParser.parse(read!("k16_delivery_negative_tax.json"))
+
+      assert {deposit.source_row, deposit.kind, buy.source_row, buy.kind} ==
+               {1, "deposit", 3, "buy"}
+
+      assert errors == [
+               %{
+                 row: 2,
+                 message:
+                   "inbound delivery with a tax refund of 0.40: an inbound delivery moves no " <>
+                     "cash, so the refund would have no account — row not imported. Book the " <>
+                     "inbound delivery by hand without it; if money did move, book that as a " <>
+                     "tax refund of its own."
+               }
+             ]
+
+      assert [%{row: 2, entry: %Entry{kind: "inbound_delivery"} = delivery}] = refused
+      assert [%Entry{kind: "tax_refund", gross_amount: refund}] = delivery.companion_entries
+      assert Decimal.equal?(refund, Decimal.new("0.40"))
+    end
+
+    test "an outbound delivery and a security transfer are named in their own words" do
+      body =
+        Jason.encode!(%{
+          version: 1,
+          transactions: [
+            delivery("OUTBOUND_DELIVERY", %{}),
+            delivery("SECURITY_TRANSFER", %{otherPortfolio: "Test-Depot-2"})
+          ]
+        })
+
+      assert {:ok, %Preview{entries: [], errors: errors, refused_credits: [_, _]}} =
+               JsonParser.parse(body)
+
+      assert Enum.map(errors, & &1.message) == [
+               "outbound delivery with a tax refund of 0.40: an outbound delivery moves no " <>
+                 "cash, so the refund would have no account — row not imported. Book the " <>
+                 "outbound delivery by hand without it; if money did move, book that as a " <>
+                 "tax refund of its own.",
+               "security transfer with a tax refund of 0.40: a security transfer moves no " <>
+                 "cash, so the refund would have no account — row not imported. Book the " <>
+                 "security transfer by hand without it; if money did move, book that as a " <>
+                 "tax refund of its own."
+             ]
+    end
+
+    test "K17: a cash transfer with a negative tax unit is a row error, and the deposit previews" do
+      assert {:ok, %Preview{entries: [deposit], errors: errors, refused_credits: refused}} =
+               JsonParser.parse(read!("k17_transfer_negative_tax.json"))
+
+      assert deposit.kind == "deposit"
+
+      assert errors == [
+               %{
+                 row: 2,
+                 message:
+                   "transfer with a tax refund of 5.00: a transfer moves cash between two " <>
+                     "accounts, and a refund split off it would land on one side only — row " <>
+                     "not imported. Book the transfer by hand without it; if money did move, " <>
+                     "book that as a tax refund of its own."
+               }
+             ]
+
+      # The would-be entry as Sprint 20 booked it: the transfer at 105.00,
+      # the refund 5.00 beside it (K20 reads it).
+      assert [%{row: 2, entry: %Entry{kind: "cash_transfer"} = transfer}] = refused
+      assert Decimal.equal?(transfer.gross_amount, Decimal.new("105.00"))
+      assert [%Entry{kind: "tax_refund", gross_amount: refund}] = transfer.companion_entries
+      assert Decimal.equal?(refund, Decimal.new("5.00"))
+    end
+
+    test "K18: a negative FEE unit is a row error, its would-be entry keeping the fees its hash reads" do
+      assert {:ok, %Preview{entries: [deposit], errors: errors, refused_credits: refused}} =
+               JsonParser.parse(read!("k18_negative_fee.json"))
+
+      assert deposit.kind == "deposit"
+
+      assert errors == [
+               %{
+                 row: 2,
+                 message:
+                   "booking with a negative fee (-2.00): the import does not book a fee " <>
+                     "refund yet — row not imported. Enter the booking by hand, with its fees " <>
+                     "less the refund (3.00)."
+               }
+             ]
+
+      assert [%{row: 2, entry: %Entry{kind: "buy"} = buy}] = refused
+      assert Decimal.equal?(buy.fees, Decimal.new("7.00"))
+      assert Decimal.equal?(buy.price, Decimal.new("99.60"))
+      assert Decimal.equal?(buy.gross_amount, Decimal.new("1003.00"))
+    end
+
+    test "a negative FEE unit is named first, before a refund the row cannot carry" do
+      fee_refund = [unit("FEE", "4.90"), unit("FEE", "-1.90"), unit("TAX", "-25.0")]
+
+      body =
+        Jason.encode!(%{
+          version: 1,
+          transactions: [
+            tx(%{amount: Jason.Fragment.new("20.1"), units: fee_refund}),
+            delivery("INBOUND_DELIVERY", %{units: [unit("FEE", "-1.90"), unit("TAX", "-0.40")]})
+          ]
+        })
+
+      assert {:ok, %Preview{entries: [], errors: errors}} = JsonParser.parse(body)
+
+      assert Enum.map(errors, & &1.message) == [
+               "sell with a negative fee (-1.90): the import does not book a fee refund " <>
+                 "yet — row not imported. Book the sale by hand, with its fees less the " <>
+                 "refund (3.00).",
+               "booking with a negative fee (-1.90): the import does not book a fee refund " <>
+                 "yet — row not imported. Enter the booking by hand, with its fees less the " <>
+                 "refund (-1.90)."
+             ]
+    end
+
+    test "says it in German, its figures in the German notation" do
+      Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+
+      body =
+        Jason.encode!(%{
+          version: 1,
+          transactions: [
+            delivery("INBOUND_DELIVERY", %{units: [unit("TAX", "-12.40")]}),
+            delivery("OUTBOUND_DELIVERY", %{}),
+            delivery("SECURITY_TRANSFER", %{otherPortfolio: "Test-Depot-2"}),
+            %{
+              type: "CASH_TRANSFER",
+              account: "Test-Cash",
+              otherAccount: "Test-Savings",
+              date: "2026-02-10",
+              currency: "EUR",
+              amount: Jason.Fragment.new("100.00"),
+              units: [unit("TAX", "-5.00")]
+            },
+            tx(%{
+              amount: Jason.Fragment.new("120.0"),
+              units: [unit("FEE", "4.90"), unit("FEE", "-1.90")]
+            }),
+            tx(%{
+              type: "PURCHASE",
+              amount: Jason.Fragment.new("1003.0"),
+              units: [unit("FEE", "5"), unit("FEE", "-2")]
+            })
+          ]
+        })
+
+      assert {:ok, %Preview{errors: errors}} = JsonParser.parse(body)
+
+      assert Enum.map(errors, & &1.message) == [
+               "Einlieferung mit Steuererstattung 12,40: Eine Einlieferung bewegt kein Geld, " <>
+                 "die Erstattung hätte kein Konto — Zeile nicht übernommen. Die Einlieferung " <>
+                 "ohne sie von Hand buchen; ist Geld geflossen, das als eigene " <>
+                 "Steuererstattung.",
+               "Auslieferung mit Steuererstattung 0,40: Eine Auslieferung bewegt kein Geld, " <>
+                 "die Erstattung hätte kein Konto — Zeile nicht übernommen. Die Auslieferung " <>
+                 "ohne sie von Hand buchen; ist Geld geflossen, das als eigene " <>
+                 "Steuererstattung.",
+               "Wertpapierumbuchung mit Steuererstattung 0,40: Eine Wertpapierumbuchung " <>
+                 "bewegt kein Geld, die Erstattung hätte kein Konto — Zeile nicht " <>
+                 "übernommen. Die Wertpapierumbuchung ohne sie von Hand buchen; ist Geld " <>
+                 "geflossen, das als eigene Steuererstattung.",
+               "Umbuchung mit Steuererstattung 5,00: Eine Umbuchung bewegt Geld zwischen " <>
+                 "zwei Konten, eine abgespaltene Erstattung landete nur auf einer Seite — " <>
+                 "Zeile nicht übernommen. Die Umbuchung ohne sie von Hand buchen; ist Geld " <>
+                 "geflossen, das als eigene Steuererstattung.",
+               "Verkauf mit einer negativen Gebühr (-1,90): Eine Gebührenerstattung bucht " <>
+                 "der Import noch nicht — Zeile nicht übernommen. Den Verkauf von Hand " <>
+                 "buchen, mit den Gebühren abzüglich der Erstattung (3,00).",
+               "Buchung mit einer negativen Gebühr (-2,00): Eine Gebührenerstattung bucht " <>
+                 "der Import noch nicht — Zeile nicht übernommen. Die Buchung von Hand " <>
+                 "erfassen, mit den Gebühren abzüglich der Erstattung (3,00)."
+             ]
+    end
+
+    # A delivery or a security transfer of 10 Arbolia Inc. with a TAX unit
+    # of -0.40, as Portfolio Performance writes one: a depot, no account.
+    defp delivery(type, fields) do
+      Map.merge(
+        %{
+          type: type,
+          portfolio: "Test-Depot",
+          date: "2026-02-03",
+          currency: "EUR",
+          amount: Jason.Fragment.new("999.60"),
+          shares: Jason.Fragment.new("10"),
+          security: %{name: "Arbolia Inc.", currency: "EUR"},
+          units: [unit("TAX", "-0.40")]
+        },
+        fields
+      )
+    end
+  end
+
   # User story (#1044, the JSON side):
   # As an operator importing a Portfolio Performance JSON export that holds a
   # transfer without its other side,

@@ -197,4 +197,93 @@ defmodule Portfolixir.Imports.NegativeTaxBookingTest do
       assert Decimal.equal?(sale.gross_amount, Decimal.new("95.00"))
     end
   end
+
+  # The preview of a file applied whatever row errors it names: the rows it
+  # previews book, the refused ones are left out. Answers the rows named.
+  defp apply_refusing!(name, portfolio) do
+    {:ok, preview} = PortfolioPerformance.parse(fixture(name), filename: name)
+    assert {:ok, %Result{}} = Imports.apply(preview, %{portfolio_id: portfolio.id})
+    Enum.map(preview.errors, & &1.row)
+  end
+
+  defp held(portfolio) do
+    portfolio.id
+    |> Ledger.holdings_for_portfolio()
+    |> Enum.map(&{&1.security.name, &1.quantity})
+  end
+
+  defp account_names(portfolio) do
+    portfolio.id |> Portfolios.list_cash_accounts_for_portfolio() |> Enum.map(& &1.name)
+  end
+
+  # User story (#1188, Sprint 21 α5; ADR-0053 A8, K16 and K17; risk-tier:
+  # money):
+  # As the operator importing a Portfolio Performance history whose
+  # delivery or cash transfer carries a negative tax unit,
+  # I want that row left out with its row error and every other row booked,
+  # so that one row never rolls back the whole file, and no account ends at
+  # a figure Portfolio Performance never shows.
+  #
+  # Acceptance criteria:
+  # - K16, JSON and PP CSV alike: the delivery is the one row error; the
+  #   deposit of 1,000.00 and the purchase of 5 shares for 501.00 book:
+  #   Test-Cash 499.00, Test-Depot holds 5 Arbolia Inc. (Today the apply
+  #   answers insert_failed on the split-off refund and stores nothing.)
+  # - K17, JSON and PP CSV alike: the transfer is the row error and the
+  #   deposit books: Test-Cash 1,000.00, and nothing books on Test-Savings.
+  #   (Today Test-Cash 900.00 and Test-Savings 105.00.)
+  test "a delivery or a transfer with a negative tax unit is left out, and the rest books" do
+    for name <- ["k16_delivery_negative_tax.json", "k16_delivery_negative_tax.csv"] do
+      portfolio = target("K16 " <> name)
+      refused = apply_refusing!(name, portfolio)
+
+      assert Decimal.equal?(cash(portfolio, "Test-Cash"), Decimal.new("499.00")), name
+      assert [{"Arbolia Inc.", quantity}] = held(portfolio)
+      assert Decimal.equal?(quantity, Decimal.new("5")), name
+      assert booked(portfolio, "tax_refund") == [], name
+      assert refused == [if(String.ends_with?(name, ".csv"), do: 3, else: 2)], name
+    end
+
+    for name <- ["k17_transfer_negative_tax.json", "k17_transfer_negative_tax.csv"] do
+      portfolio = target("K17 " <> name)
+      refused = apply_refusing!(name, portfolio)
+
+      assert Decimal.equal?(cash(portfolio, "Test-Cash"), Decimal.new("1000.00")), name
+      refute "Test-Savings" in account_names(portfolio), name
+      assert booked(portfolio, "cash_transfer") == [], name
+      assert booked(portfolio, "tax_refund") == [], name
+      assert refused == [if(String.ends_with?(name, ".csv"), do: 3, else: 2)], name
+    end
+  end
+
+  # User story (#1177's negative FEE unit, Sprint 21 α5; ADR-0053 A9, K18;
+  # risk-tier: money):
+  # As the operator importing a Portfolio Performance JSON history whose
+  # purchase carries a fee refund as a negative FEE unit,
+  # I want that row left out with its row error until a fee-refund kind
+  # exists,
+  # so that no fee of 7.00 and no price of 99.60 is stored where Portfolio
+  # Performance shows 3.00 and 100.00.
+  #
+  # Acceptance criteria:
+  # - K18: the purchase (amount 1,003.00, FEE 5.00 and -2.00) is the row
+  #   error; the deposit of 2,000.00 books: Test-Cash 2,000.00, no buy.
+  #   (Today the purchase books fees 7.00 and price 99.60, Test-Cash 997.00.)
+  # - The converter CSV's Gebühren written -2,50 still books a fee of 2,50
+  #   (the note of 2026-10-06).
+  test "a JSON purchase with a negative FEE unit is left out, and the deposit books" do
+    portfolio = target("K18 JSON")
+    refused = apply_refusing!("k18_negative_fee.json", portfolio)
+
+    assert Decimal.equal?(cash(portfolio, "Test-Cash"), Decimal.new("2000.00"))
+    assert booked(portfolio, "buy") == []
+    assert refused == [2]
+
+    converter = target("K18 converter CSV")
+    assert apply_refusing!("k18_converter_negative_fee.csv", converter) == []
+
+    assert [buy] = booked(converter, "buy")
+    assert Decimal.equal?(buy.fees, Decimal.new("2.50"))
+    assert Decimal.equal?(cash(converter, "Test-Cash"), Decimal.new("997.50"))
+  end
 end
