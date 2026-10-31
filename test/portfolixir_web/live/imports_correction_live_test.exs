@@ -1046,8 +1046,8 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
     end
 
     # A sale of K21's shape on `date` at `time`, after a deposit and a
-    # purchase of 20 shares.
-    defp sales_json(sales) do
+    # purchase of 20 shares (or `purchased`) at 10.00.
+    defp sales_json(sales, purchased \\ 20) do
       rows =
         Enum.map_join(sales, ",\n", fn {date, time} ->
           ~s({"type": "SALE", "account": "Test-Cash", "portfolio": "Test-Depot", "date": "#{date}", "time": "#{time}", "currency": "EUR", "amount": 120.0, "shares": 10.0, #{@arbolia}, "units": [{"type": "FEE", "amount": 5.0}, {"type": "TAX", "amount": -25.0}]})
@@ -1056,7 +1056,7 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       """
       {"version": 1, "transactions": [
         {"type": "DEPOSIT", "account": "Test-Cash", "date": "2026-03-02", "currency": "EUR", "amount": 1100.0},
-        {"type": "PURCHASE", "account": "Test-Cash", "portfolio": "Test-Depot", "date": "2026-03-03", "time": "10:00", "currency": "EUR", "amount": 200.0, "shares": 20.0, #{@arbolia}},
+        {"type": "PURCHASE", "account": "Test-Cash", "portfolio": "Test-Depot", "date": "2026-03-03", "time": "10:00", "currency": "EUR", "amount": #{purchased * 10}.0, "shares": #{purchased}.0, #{@arbolia}},
         #{rows}
       ]}
       """
@@ -1364,6 +1364,135 @@ defmodule PortfolixirWeb.ImportsCorrectionLiveTest do
       end
 
       refute has_element?(view, "#import-correction-open")
+    end
+
+    defp sale_cash(portfolio, date) do
+      portfolio.id
+      |> Ledger.list_transactions_for_portfolio()
+      |> Enum.filter(&(&1.type == "sell" and &1.date == date))
+      |> Enum.map(&Decimal.to_string(&1.gross_amount))
+    end
+
+    # User story (#1205, Sprint 21 α7; ADR-0053 A12 and its note of
+    # 2026-10-31 "the confirm writes what its dialog offered"):
+    # As the operator whose page could not compare by date and figures (its
+    # dry run stopped), who confirms the one booking the section lists,
+    # I want the confirm to write that booking alone, and to name one it
+    # finds under its lock that the list did not show,
+    # so that a confirm never writes a booking its dialog did not offer.
+    #
+    # Acceptance criteria:
+    # - Two sales stored under the old reading (Test-Cash 1,190.00), the
+    #   re-drop's first a hash hit, its second drifted by a minute; the dry
+    #   run stops: the section lists the hash hit alone, "Correct one
+    #   booking…".
+    # - The confirm corrects it alone: Test-Cash 1,165.00, the drifted sale
+    #   still 120.00; the result reads "One booking corrected: Test-Cash
+    #   -25.00 EUR. The journal keeps the previous amount. One more booking
+    #   with a different amount was found since the list was shown and is
+    #   not corrected. Drop the same file again to correct it."
+    test "a stopped dry run's confirm writes only the line it listed", %{conn: conn} do
+      portfolio = portfolio!()
+
+      apply_before_the_amendment!(
+        portfolio,
+        sales_json([{"2026-06-15", "15:30"}, {"2026-08-17", "15:30"}])
+      )
+
+      assert Decimal.equal?(balance(portfolio, "Test-Cash"), Decimal.new("1190.00"))
+
+      hold_refine!()
+      {:ok, view, _html} = live(conn, "/imports")
+
+      upload_unanswered!(
+        view,
+        "history.json",
+        sales_json([{"2026-06-15", "15:30"}, {"2026-08-17", "15:31"}])
+      )
+
+      assert_receive {:imports_refine_gate, held}, 5_000
+      Application.delete_env(:portfolixir, :imports_refine_gate)
+
+      ExUnit.CaptureLog.capture_log(fn ->
+        Process.exit(held, :kill)
+        render_async(view)
+      end)
+
+      refute has_element?(view, "[data-role='import-correction-pending']")
+      assert text(view, "#import-correction-open") == "Correct one booking…"
+
+      view |> element("#import-correction-open") |> render_click()
+      view |> element("#import-correction-confirm") |> render_click()
+      render_async(view)
+
+      assert text(view, "#import-correction-result [role='status']") ==
+               "Note One booking corrected: Test-Cash -25.00 EUR. The journal keeps the previous amount. One more booking with a different amount was found since the list was shown and is not corrected. Drop the same file again to correct it. ×"
+
+      assert Decimal.equal?(balance(portfolio, "Test-Cash"), Decimal.new("1165.00"))
+      assert sale_cash(portfolio, ~D[2026-08-17]) == ["120.000000"]
+    end
+
+    # User story (#1205, Sprint 21 α7; ADR-0053 A12's twin rule and its
+    # note of 2026-10-31 "the confirm writes what its dialog offered"):
+    # As the operator whose dialog says a twin stays as it is,
+    # I want the confirm to leave it as it is when the other twin is
+    # deleted before I confirm,
+    # so that the confirm writes exactly the lines the dialog offered.
+    #
+    # Acceptance criteria:
+    # - Three sales stored under the old reading, two of them equal on
+    #   2026-06-15 (Test-Cash 1,235.00); the re-drop drifts the first: it
+    #   reads "2 stored bookings match …", the third sale carries the one
+    #   confirm.
+    # - With the dialog open, the second sale of 2026-06-15 is deleted
+    #   (Test-Cash 1,115.00); the confirm corrects the third sale alone:
+    #   Test-Cash 1,090.00, the remaining 2026-06-15 sale still 120.00, and
+    #   the result names one more booking found since.
+    test "a twin deleted before the confirm stays as the dialog said", %{conn: conn} do
+      portfolio = portfolio!()
+
+      apply_before_the_amendment!(
+        portfolio,
+        sales_json(
+          [{"2026-06-15", "15:30"}, {"2026-06-15", "16:10"}, {"2026-08-17", "15:30"}],
+          30
+        )
+      )
+
+      assert Decimal.equal?(balance(portfolio, "Test-Cash"), Decimal.new("1235.00"))
+
+      {:ok, view, _html} = live(conn, "/imports")
+
+      upload(
+        view,
+        "history.json",
+        sales_json([{"2026-06-15", "15:31"}, {"2026-08-17", "15:30"}], 30),
+        "application/json"
+      )
+
+      assert text(view, "#import-correction-table tbody tr:nth-child(1)") =~
+               "2 stored bookings match its date and figures — stays as it is."
+
+      assert text(view, "#import-correction-open") == "Correct one booking…"
+      view |> element("#import-correction-open") |> render_click()
+
+      twin =
+        portfolio.id
+        |> Ledger.list_transactions_for_portfolio()
+        |> Enum.filter(&(&1.type == "sell" and &1.date == ~D[2026-06-15]))
+        |> Enum.max_by(& &1.id)
+
+      {:ok, _} = Ledger.delete_transaction(Actor.owner_ui(), twin)
+      assert Decimal.equal?(balance(portfolio, "Test-Cash"), Decimal.new("1115.00"))
+
+      view |> element("#import-correction-confirm") |> render_click()
+      render_async(view)
+
+      assert text(view, "#import-correction-result [role='status']") =~
+               "One more booking with a different amount was found since the list was shown and is not corrected."
+
+      assert Decimal.equal?(balance(portfolio, "Test-Cash"), Decimal.new("1090.00"))
+      assert sale_cash(portfolio, ~D[2026-06-15]) == ["120.000000"]
     end
 
     # User story (#1197, Sprint 21 α7; board 07 ⑧ and its found while
