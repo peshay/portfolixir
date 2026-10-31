@@ -769,8 +769,13 @@ defmodule PortfolixirWeb.ClassificationsLive do
       >
         <%= gettext("negative quantity") %>
       </span>
+      <%!-- #1158 (board 06 ③): the unit word is the phone row's; the CSS
+           shows it under 560 px of the page only. --%>
       <span class="row-quantity" data-role="security-quantity">
-        <%= Format.money(@security.quantity) %>
+        <%= Format.money(@security.quantity) %><span
+          :if={match?(%Decimal{}, @security.quantity)}
+          class="row-quantity__unit"
+        > <%= gettext("units") %></span>
       </span>
       <span class="row-value" data-role="security-value">
         <%= Format.money(@security.market_value) %>

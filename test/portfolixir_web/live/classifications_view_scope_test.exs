@@ -208,9 +208,13 @@ defmodule PortfolixirWeb.ClassificationsViewScopeTest do
     html
     |> find(~s(#{scope} [data-role="security-row"]))
     |> Enum.map(fn row ->
+      # #1158: the quantity's unit word is the phone row's (CSS shows it
+      # under 560 px only); the figure read here is the desktop's.
       {text(Floki.find(row, ".row-name")),
-       text(Floki.find(row, ~s([data-role="security-quantity"]))),
-       text(Floki.find(row, ~s([data-role="security-value"])))}
+       row
+       |> Floki.find(~s([data-role="security-quantity"]))
+       |> Floki.filter_out(".row-quantity__unit")
+       |> text(), text(Floki.find(row, ~s([data-role="security-value"])))}
     end)
     |> Enum.sort()
   end

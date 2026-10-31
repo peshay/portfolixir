@@ -2066,6 +2066,24 @@ composition per surface that the column picker does not touch.
   securities share anywhere in the table carries its identifier (Twin
   names, below).
   The pinned-name alternative (J6 B) is not built.
+- **Classification rows** *(2026-10-31, issue 1158, Sprint 21 γ6; board
+  `ux-design-2026-10-09/06-classifications` ③, before/after)*: a security
+  row inside an open category (`li.dnd-row`, `security_row/1`) under 560 px
+  of the page (`@container classifications`, the tree's container) is a
+  grid of the same row, no markup moved: the name (600, wrapping anywhere)
+  over "TICKER · CCY" (12 px, the "· " a pseudo-element, the currency alone
+  where the security has no ticker, the "negative quantity" chip beside
+  them); on the right the value (600) over the quantity with its unit word,
+  "120,00 Stück" / "120.00 units" (12 px, muted; the unit is a span the
+  desktop hides). The li stays the drag source — `draggable`,
+  `data-drag-security`, found by `closest("[data-drag-security]")` — and on
+  a phone the move is the select toolbar's "Move to category", as before.
+  The list itself never wraps as a flex line (`flex-wrap: nowrap` at every
+  width, found while drawing 1): the base rule's `wrap` made the column one
+  line as wide as its widest row's max-content, so the rows ran to x 467 in
+  a body ending at x 359, past the screen `.workspace-page` clips. Measured
+  at 390 px: values in view 0 → 3 of 3; rows 29 / 30 / 30 → 47 / 67 / 48 px.
+  Above 560 px the row is unchanged.
 - **Rules kept:** nothing scrolls sideways; matrices and dialog tables keep
   UX-DR15's scroller; the desktop tables are unchanged.
 

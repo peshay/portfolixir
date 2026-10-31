@@ -4948,6 +4948,11 @@ details[open] > .cat-summary::before {
 .classifications-detail .cat-securities {
   display: flex;
   flex-direction: column;
+  /* Issue 1158 (board 06 ③, found while drawing 1): the base rule's `wrap`
+     made the column one flex line as wide as its widest row's max-content,
+     so every row ran past a phone's screen. One line of rows is what the
+     list means. */
+  flex-wrap: nowrap;
   gap: 0;
   margin: 0.25rem 0 0;
   padding: 0;
@@ -5478,6 +5483,82 @@ details[open] > .cat-summary::before {
   font-variant: small-caps;
   letter-spacing: 0.02em;
   color: var(--color-text-muted);
+}
+/* The quantity's unit word ("units" / "Stück") is the phone row's (issue
+   1158); above 560 px the row's quantity stands alone, as before. */
+.dnd-row .row-quantity__unit {
+  display: none;
+}
+
+@container classifications (max-width: 560px) {
+  /* Security rows on two lines (issue 1158, board 06 ③; DESIGN.md → Phone
+     lists — two-line rows, UX-DR27, Wealth's Positions shape): the name
+     (600, wrapping) over "TICKER · CCY", the value (600) over the quantity
+     with its unit word on the right. No markup moves: the li stays the drag
+     source (`[data-drag-security]`) and its children keep their classes. */
+  .classifications-detail .dnd-row {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto;
+    align-items: baseline;
+    column-gap: 6px;
+    row-gap: 1px;
+  }
+
+  .classifications-detail .dnd-row .row-name {
+    grid-column: 1 / 4;
+    grid-row: 1;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-weight: 600;
+  }
+
+  .classifications-detail .dnd-row .row-ticker {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 12px;
+  }
+
+  .classifications-detail .dnd-row .row-ccy {
+    grid-column: 2;
+    grid-row: 2;
+    font-size: 12px;
+  }
+
+  .classifications-detail .dnd-row:not(:has(.row-ticker)) .row-ccy {
+    grid-column: 1;
+  }
+
+  /* "WGA · EUR", the separator of every phone row's second line. */
+  .classifications-detail .dnd-row .row-ticker + .row-ccy::before {
+    content: "· ";
+  }
+
+  .classifications-detail .dnd-row .negative-holding-chip {
+    grid-column: 3;
+    grid-row: 2;
+    justify-self: start;
+  }
+
+  .classifications-detail .dnd-row .row-value {
+    grid-column: 4;
+    grid-row: 1;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+
+  .classifications-detail .dnd-row .row-quantity {
+    grid-column: 4;
+    grid-row: 2;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    font-size: 12px;
+    color: var(--color-text-muted);
+  }
+
+  .dnd-row .row-quantity__unit {
+    display: inline;
+  }
 }
 
 /* Portfolio overview ----------------------------------------------------- */
