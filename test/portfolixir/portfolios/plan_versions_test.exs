@@ -412,4 +412,77 @@ defmodule Portfolixir.Portfolios.PlanVersionsContractTest do
 
     assert scoped.view_id == view.id
   end
+
+  # User story (#1187, Sprint 21 γ6):
+  # As the operator editing plan versions on the classification screen, and as
+  # the agent writing targets over the API,
+  # I want the Targets context itself to refuse a write into an archived plan
+  # version,
+  # so that the screen and the API read one rule: an archived version steers
+  # nothing and is reused by activating it or duplicating it into a draft
+  # (ADR-0027 §3, note of 2026-10-08).
+  #
+  # Acceptance criteria:
+  # - `writable_plan/1` is the rule: `:ok` for an active or a draft version,
+  #   `{:error, :plan_archived}` for an archived one.
+  # - `edit_plan/5`, `set_targets/5`, `delete_target/4` and
+  #   `delete_position_target/5` addressed at an archived version by `plan:`
+  #   answer `{:error, :plan_archived}` and change nothing.
+  # - The same writes into a draft still land.
+  test "a write into an archived plan version is refused by the context" do
+    %{portfolio: portfolio, classification: classification, category: core} = world()
+
+    {:ok, satellite} =
+      Classifications.create_category(Actor.owner_ui(), %{
+        classification_id: classification.id,
+        name: "Satellite"
+      })
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{category_id: core.id, target_weight: Decimal.new("0.8")}
+      ])
+
+    [original] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+    {:ok, draft} = Targets.duplicate_plan(Actor.owner_ui(), original.id, %{name: "Successor"})
+
+    assert Targets.writable_plan(draft) == :ok
+    assert Targets.writable_plan(original) == :ok
+
+    {:ok, _} = Targets.activate_plan(Actor.owner_ui(), draft.id)
+    {:ok, archived} = Targets.fetch_plan(original.id)
+
+    assert Targets.writable_plan(archived) == {:error, :plan_archived}
+
+    pid = portfolio.id
+    cid = classification.id
+    entry = [%{category_id: satellite.id, target_weight: Decimal.new("0.1")}]
+
+    assert Targets.edit_plan(Actor.owner_ui(), pid, cid, entry, plan: archived.id) ==
+             {:error, :plan_archived}
+
+    assert Targets.edit_plan(Actor.owner_ui(), pid, cid, [],
+             plan: archived.id,
+             clear_categories: [core.id]
+           ) == {:error, :plan_archived}
+
+    assert Targets.set_targets(Actor.owner_ui(), pid, cid, entry, plan: archived.id) ==
+             {:error, :plan_archived}
+
+    assert Targets.delete_target(Actor.owner_ui(), pid, core.id, plan: archived.id) ==
+             {:error, :plan_archived}
+
+    assert Targets.delete_position_target(Actor.owner_ui(), pid, core.id, 1, plan: archived.id) ==
+             {:error, :plan_archived}
+
+    weights =
+      pid
+      |> Targets.list_targets(plan: archived.id)
+      |> Enum.map(&{&1.category_id, Decimal.to_string(&1.target_weight)})
+
+    assert weights == [{core.id, "0.8"}]
+
+    # The successor, now active, still takes the same write.
+    assert {:ok, [_]} = Targets.edit_plan(Actor.owner_ui(), pid, cid, entry, plan: draft.id)
+  end
 end

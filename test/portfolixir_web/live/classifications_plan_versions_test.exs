@@ -243,4 +243,135 @@ defmodule PortfolixirWeb.ClassificationsPlanVersionsTest do
     [plan] = Targets.list_plans(portfolio.id, classification_id: classification.id)
     assert plan.name == "Plan"
   end
+
+  # User story (#1187, Sprint 21 γ6, board 06 ④):
+  # As the operator picking an archived plan version in the SOLL editor,
+  # I want the version to open read-only, with its two remedies inside the
+  # note that says why,
+  # so that I cannot save targets into a version that steers nothing, and the
+  # screen follows the rule the API already keeps (ADR-0027 §3, note of
+  # 2026-10-08; UX-DR17 with the remedy inside the note, H6.1).
+  #
+  # Acceptance criteria:
+  # - A `note` data note (`data-role="soll-archived-note"`) says the version
+  #   steers nothing and is read-only, and carries two link-buttons,
+  #   "Activate" and "Duplicate as draft", firing the existing events.
+  # - The version bar keeps the picker and "Rename"; "Duplicate plan",
+  #   "Activate this plan" and the version hint leave it.
+  # - Every weight input is `disabled`; "Save plan" and "Copy from another
+  #   view…" are not rendered; "Delete plan" stays.
+  # - A draft keeps its bar, its hint and its editable weights.
+  test "an archived version opens read-only with its remedies in the note", %{conn: conn} do
+    %{portfolio: portfolio, classification: classification} = plan_world()
+
+    [original] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+    {:ok, successor} = Targets.duplicate_plan(Actor.owner_ui(), original.id, %{name: "Successor"})
+    {:ok, _} = Targets.activate_plan(Actor.owner_ui(), successor.id)
+    {:ok, draft} = Targets.duplicate_plan(Actor.owner_ui(), successor.id, %{name: "Next"})
+
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
+
+    view
+    |> element("form.soll-plan-picker")
+    |> render_change(%{"soll_plan" => "#{original.id}"})
+
+    note = view |> element("[data-role=soll-archived-note]") |> render()
+
+    assert note =~ "data-note--note"
+
+    assert note =~
+             "Archived — this version steers nothing and is read-only; the Wealth page " <>
+               "follows the active plan. To change it, activate it or duplicate it as a draft."
+
+    assert has_element?(
+             view,
+             "[data-role=soll-archived-note] button.link-button[phx-click=activate_soll_plan]",
+             "Activate"
+           )
+
+    assert has_element?(
+             view,
+             "[data-role=soll-archived-note] button.link-button[phx-click=duplicate_soll_plan]",
+             "Duplicate as draft"
+           )
+
+    # The bar keeps the picker and Rename; the two version actions moved.
+    assert has_element?(view, ".soll-plan-versions #soll-plan-select")
+    assert has_element?(view, ".soll-plan-versions details.plan-rename")
+    refute has_element?(view, ".soll-plan-versions button[phx-click=duplicate_soll_plan]")
+    refute has_element?(view, ".soll-plan-versions button[phx-click=activate_soll_plan]")
+    refute has_element?(view, "[data-role=soll-version-hint]")
+
+    # Read-only: no enabled input in the plan form, no save, no copy-in.
+    assert has_element?(view, "#soll-plan-form input[type=number]")
+    refute has_element?(view, "#soll-plan-form input[type=number]:not([disabled])")
+    refute has_element?(view, "#soll-plan-form button[type=submit]")
+    refute has_element?(view, "#soll-copy-form")
+    assert has_element?(view, "#soll-plan-form button[phx-click=delete_soll_plan]", "Delete plan")
+
+    # The remedy duplicates the archived version into a draft and opens it.
+    view
+    |> element("[data-role=soll-archived-note] button[phx-click=duplicate_soll_plan]")
+    |> render_click()
+
+    refute has_element?(view, "[data-role=soll-archived-note]")
+    assert has_element?(view, "#soll-plan-form button[type=submit]", "Save plan")
+
+    # A draft keeps the bar's actions, its hint and editable weights.
+    view
+    |> element("form.soll-plan-picker")
+    |> render_change(%{"soll_plan" => "#{draft.id}"})
+
+    refute has_element?(view, "[data-role=soll-archived-note]")
+    assert has_element?(view, ".soll-plan-versions button[phx-click=activate_soll_plan]")
+    assert has_element?(view, "[data-role=soll-version-hint]", "Draft")
+    assert has_element?(view, "#soll-plan-form input[type=number]:not([disabled])")
+  end
+
+  # User story (#1187, Sprint 21 γ6, board 06 ④, the refusal frame):
+  # As the operator saving a plan version that another tab archived after I
+  # loaded it,
+  # I want the save refused by the same rule the API keeps, in the page's
+  # result slot, and the editor reloaded as archived,
+  # so that nothing lands in a version that steers nothing and I see why.
+  #
+  # Acceptance criteria:
+  # - The context refuses the write (`{:error, :plan_archived}`): the stored
+  #   targets are unchanged.
+  # - The page's alert region says "Not saved: “Plan” is archived and steers
+  #   nothing. Activate it or duplicate it as a draft, then edit.", the name
+  #   in <bdi>, brought into view and focused as every plan refusal is (#945).
+  # - The editor reloads as archived: the note is shown, the save is gone.
+  test "a save into a version archived meanwhile is refused and the editor reloads",
+       %{conn: conn} do
+    %{portfolio: portfolio, classification: classification, equity: equity} = plan_world()
+
+    [original] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+
+    {:ok, view, _html} = live_drained(conn, "/classifications/#{classification.id}")
+
+    # Another tab activates a successor, which archives the loaded plan.
+    {:ok, successor} = Targets.duplicate_plan(Actor.owner_ui(), original.id, %{name: "Successor"})
+    {:ok, _} = Targets.activate_plan(Actor.owner_ui(), successor.id)
+
+    view
+    |> form("#soll-plan-form", %{"weights" => %{"#{equity.id}" => "50"}})
+    |> render_submit()
+
+    assert has_element?(
+             view,
+             "#classifications-result-alert",
+             "Not saved: “Plan” is archived and steers nothing. " <>
+               "Activate it or duplicate it as a draft, then edit."
+           )
+
+    assert view |> element("#classifications-result-alert") |> render() =~ "<bdi>Plan</bdi>"
+    assert_push_event(view, "focus-into-view", %{id: "classifications-result"})
+
+    [kept] = Targets.list_targets(portfolio.id, plan: original.id)
+    assert Decimal.equal?(kept.target_weight, Decimal.new("0.8"))
+
+    assert has_element?(view, "[data-role=soll-archived-note]")
+    refute has_element?(view, "#soll-plan-form button[type=submit]")
+  end
 end
