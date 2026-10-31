@@ -2830,8 +2830,26 @@ defmodule PortfolixirWeb.ImportsLive do
       )
 
   defp correction_result(corrected) do
-    totals = correction_totals(corrected)
+    case correction_totals(corrected) do
+      [] -> price_only_result(corrected)
+      totals -> cash_result(corrected, totals)
+    end
+  end
 
+  # A JSON trade whose cash agrees with the file is corrected on its price
+  # alone (ADR-0053 K22): no cash account moves, so the line names the price.
+  defp price_only_result(corrected),
+    do:
+      {:note,
+       Phoenix.HTML.html_escape(
+         ngettext(
+           "One booking corrected: the price, the cash kept. The journal keeps the previous price.",
+           "%{count} bookings corrected: the prices, the cash kept. The journal keeps the previous prices.",
+           length(corrected)
+         )
+       )}
+
+  defp cash_result(corrected, totals) do
     message =
       ngettext(
         "One booking corrected: %{totals}. The journal keeps the previous amount.",

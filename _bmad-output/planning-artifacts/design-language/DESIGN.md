@@ -6572,7 +6572,11 @@ in `PortfolixirWeb.ImportsLive` on `Imports.cash_corrections/2` and
   note "5 bookings corrected: Girokonto -24.31 EUR, Tagesgeld -1.20 EUR. The
   journal keeps the previous amounts." / "5 Buchungen korrigiert: … Das
   Journal hält die bisherigen Beträge.", until it is dismissed or the next
-  action. The section is read again after the write, so a corrected file
+  action. *(Amended 2026-10-31, #1194; ADR-0053 K22:)* a confirm that moves
+  no cash account (a JSON trade corrected on its price alone) reads "One
+  booking corrected: the price, the cash kept. The journal keeps the
+  previous price." / „Eine Buchung korrigiert: der Kurs, der Betrag bleibt.
+  Das Journal hält den bisherigen Kurs.“ The section is read again after the write, so a corrected file
   shows none; the dialog returns the focus to the result slot. A refused
   write is a `problem` result naming the row and the reason, and nothing is
   corrected.
