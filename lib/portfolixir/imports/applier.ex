@@ -50,6 +50,9 @@ defmodule Portfolixir.Imports.Applier do
     known, before any row is read for update or inserted, so an import keeps
     the lock order of every other writer of account names (the advisory lock,
     then row locks) and a concurrent rename waits instead of deadlocking.
+    The ISIN write locks of the whole file follow it at once, in ascending
+    key order (#1287), so another import or an ISIN change of the same ISINs
+    queues there too.
   - **The mapping is revalidated and remembered at apply start** (§4, §10):
     an `{:existing, id}` account that has gone since the preview aborts with
     `{:resolution_diverged, %{kind, name, id, merged_into}}` (the survivor
@@ -128,6 +131,7 @@ defmodule Portfolixir.Imports.Applier do
   alias Portfolixir.Actor
   alias Portfolixir.Buckets
   alias Portfolixir.Catalog
+  alias Portfolixir.Catalog.IdentifierAliases
   alias Portfolixir.Catalog.Security
   alias Portfolixir.Fx
   alias Portfolixir.Fx.RateSync
@@ -282,6 +286,7 @@ defmodule Portfolixir.Imports.Applier do
         with {:ok, portfolio_id, result} <-
                resolve_portfolio(Map.get(params, :portfolio), %Result{}),
              :ok <- AccountNames.lock_identity(portfolio_id),
+             :ok <- lock_file_isins(flat_entries, params),
              {:ok, cash_plan} <-
                plan_mapped_cash(params.cash_accounts, cash_currencies, default_currency),
              {:ok, depot_plan} <- plan_mapped_depots(params.depots, params.cash_accounts),
@@ -339,7 +344,10 @@ defmodule Portfolixir.Imports.Applier do
   # id no stored row has, so the file's later rows resolve and are judged
   # against it as the apply's own run judges them.
   defp run_auto(flat_entries, portfolio_id, default_currency, params, simulate?) do
-    unless simulate?, do: :ok = AccountNames.lock_identity(portfolio_id)
+    unless simulate? do
+      :ok = AccountNames.lock_identity(portfolio_id)
+      :ok = lock_file_isins(flat_entries, params)
+    end
 
     state =
       base_state(portfolio_id, default_currency, params, %Result{})
@@ -354,6 +362,27 @@ defmodule Portfolixir.Imports.Applier do
 
     with {:ok, state} <- execute_security_mappings(flat_entries, state),
          do: reduce_entries(flat_entries, state)
+  end
+
+  # #1287 (security review 2026-10-12, H53): the ISIN write locks of the
+  # whole file, taken once, right after the account-identity lock and before
+  # the catalog is read or any row is locked: the key of each security whose
+  # ISIN change the mapping records, then every ISIN the file's security
+  # references carry, in ascending key order
+  # (`IdentifierAliases.lock_security_isin_writes/3`, the order every ISIN
+  # writer keeps). A security the run creates, and an ISIN change it records,
+  # take their locks again, which the transaction already holds. Taken row by
+  # row instead, after the bookings before it, the lock closed a cycle with
+  # another import or an ISIN change.
+  defp lock_file_isins(flat_entries, params) do
+    changed =
+      for {_key, {:existing, id, :record_isin_change}} <-
+            Map.get(params, :security_mappings, %{}),
+          do: id
+
+    isins = for entry <- flat_entries, %{isin: isin} <- file_ref(entry), do: isin
+    {:ok, :locked} = IdentifierAliases.lock_security_isin_writes(Repo, changed, isins)
+    :ok
   end
 
   # What the apply would do with every row, under the preview's prefill,

@@ -1126,18 +1126,24 @@ What changed, with no change to points 1 to 5:
   tab) shows it; only a preview parked before the answer came runs it
   again.
 - **The ISIN write lock is one per normalized ISIN** (ADR-0029 §3's
-  serialized check): a writer takes the lock of every ISIN it writes into
-  either column, in ascending key order, so a long transaction serializes
-  only the writers of its own ISINs. Two ISINs that share a key serialize
-  more than they must.
+  serialized check), so a long transaction serializes only the writers of
+  its own ISINs. Two ISINs that share a key serialize more than they must.
+  A writer takes the lock of every ISIN it writes into either column before
+  any row lock, all at once and in ascending key order, so two writers of
+  the same ISINs queue on the first key both want. The apply takes the
+  locks of every ISIN its file names right after the account-identity
+  lock, once (#1287); it first took each one row by row as it created the
+  security, after the row locks of the bookings before it, and two imports
+  creating two ISINs in opposite file order, or an import and an ISIN
+  change of a security it books, closed a cycle.
 
 **The blocking that remains, accepted:**
 
 - **The confirm's apply** still holds, for its whole transaction (bounded
   by its timeout), the account-identity lock of its portfolio, the ISIN
-  write lock of each ISIN it creates, and the import-hash lock shared for
-  its bookings: a rename or an account create in that portfolio, a write of
-  one of those ISINs, and a merge's hash retirement wait for it. That is the
+  write lock of each ISIN its file names, and the import-hash lock shared
+  for its bookings: a rename or an account create in that portfolio, a
+  write of one of those ISINs, and a merge's hash retirement wait for it. That is the
   apply's lock order (`Portfolixir.LockTable`, row 9), taken on the
   operator's confirm, not on a look.
 - **The dry run's reads** take the table locks every read takes, which only
