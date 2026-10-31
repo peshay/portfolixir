@@ -464,16 +464,22 @@ defmodule Portfolixir.Imports.Correction do
 
   defp item(_entry, _transaction, _format), do: nil
 
-  # The cash decides whether a booking is listed (§6, A6); the price of a
-  # JSON trade and a trade's settlement legs follow it in the same write.
+  # A booking is listed when its cash differs (§6, A6), and a JSON
+  # purchase or sale also when its price differs, each compared at its
+  # column's scale (A11, #1194): a JSON price is derived from the cash, so a
+  # trade whose cash agrees while its price does not is listed on its price,
+  # and the confirm writes the price alone. A trade's settlement legs follow
+  # a changed cash in the same write.
   defp changes(%Entry{} = entry, %Transaction{} = transaction, format) do
+    price_changes = put_price(%{}, entry, transaction, format)
+
     case changed(transaction.gross_amount, entry.gross_amount) do
       nil ->
-        %{}
+        price_changes
 
       %Decimal{} = cash ->
-        %{gross_amount: cash}
-        |> put_price(entry, transaction, format)
+        price_changes
+        |> Map.put(:gross_amount, cash)
         |> put_settlement_legs(transaction, cash)
     end
   end
