@@ -371,7 +371,8 @@ full list.
   `input_series`, `reference`, `window`, `gaps`, `threshold` and
   `assumptions`),
   `projection` (`slim`/`full`), and
-  `limit`/`offset` for pagination (both non-negative integers). Use these to
+  `limit`/`offset` for pagination (`limit` a positive integer, default 5000,
+  max 20000; `offset` non-negative). Use these to
   page large catalogs instead of fetching the whole table at once. A
   `data_quality` set is filtered before `limit`/`offset` page it, so only its
   last page is short (issue #1113). The
@@ -691,9 +692,12 @@ a `422`),
 `source_quality` (`primary`, `secondary_multi`, `awareness`, `unverified` —
 **set, not guessed**), `as_of` (the statement's cut-off date, distinct from
 `inserted_at`: an entry written today about last quarter carries last
-quarter's date), `author` (`operator`, `agent`, `local_model`; the API
-defaults to `agent`), `machine_generated` (an extracted entry is a proposal
-until confirmed and must carry its `source_url`), `supersedes_id` (the earlier
+quarter's date), `author` and `machine_generated` — `author` (`operator` or
+`agent`) is derived from the credential that writes the entry, `agent` for
+every API token, and `machine_generated` is reserved for a local-model path
+that does not exist yet (an extracted entry would be a proposal until
+confirmed, carrying its `source_url`); both are ignored in a body, so a body
+can claim neither —, `supersedes_id` (the earlier
 entry of the same security this one replaces; required for a retraction),
 `valid_until` (a dated block such as a lockup or a self-imposed buying block),
 and — on `thesis` entries only — `conviction` (`low`, `medium`, `high`),

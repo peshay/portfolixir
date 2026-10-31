@@ -775,10 +775,13 @@ sind ein `422`),
 `source_quality` (`primary`, `secondary_multi`, `awareness`, `unverified` —
 **gesetzt, nicht geraten**), `as_of` (das Stichdatum der Aussage, getrennt
 von `inserted_at`: ein heute geschriebener Eintrag über das letzte Quartal
-trägt das Datum des Quartals), `author` (`operator`, `agent`, `local_model`;
-die API setzt standardmäßig `agent`), `machine_generated` (ein extrahierter
-Eintrag ist ein Vorschlag bis zur Bestätigung und muss seine `source_url`
-tragen), `supersedes_id` (der frühere Eintrag desselben Wertpapiers, den
+trägt das Datum des Quartals), `author` und `machine_generated` — `author`
+(`operator` oder `agent`) wird aus dem Zugang abgeleitet, der den Eintrag
+schreibt, `agent` für jedes API-Token, und `machine_generated` ist einem Pfad
+mit lokalem Modell vorbehalten, den es noch nicht gibt (ein extrahierter
+Eintrag wäre ein Vorschlag bis zur Bestätigung und trüge seine
+`source_url`); beide werden in einem Body ignoriert, ein Body kann also
+keines von beiden beanspruchen —, `supersedes_id` (der frühere Eintrag desselben Wertpapiers, den
 dieser ersetzt; Pflicht bei einem Widerruf), `valid_until` (eine datierte
 Sperre wie ein Lock-up oder eine selbst auferlegte Kaufsperre) und — nur
 bei `thesis`-Einträgen — `conviction` (`low`, `medium`, `high`),
@@ -890,7 +893,7 @@ Audit-Journal.
 Die Reads:
 
 - `GET /api/v1/securities/:security_id/events` — die Termine eines
-  Wertpapiers, die nächsten zuerst, mit `limit`.
+  Wertpapiers, die nächsten zuerst, mit `limit` (Standard 1000, max. 10000).
 - `GET /api/v1/events/upcoming?days=N` — alles, was in den nächsten `N` Tagen
   (Standard 30) im **gesamten Katalog** ansteht. Ein `window`- oder
   `month`-Termin ist fällig, sobald **irgendein** Tag, auf den er fallen kann,
@@ -902,14 +905,16 @@ Die Reads:
   `limit`; bewusst **kein** `days`, denn ein unbestätigter vergangener Termin
   gehört in die Liste, egal wie alt er ist.
 - `GET /api/v1/events/stale?days=N` — Termine, deren `checked_at` älter als
-  `N` Tage ist oder die nie geprüft wurden (`days_since_checked` ist dann
+  `N` Tage (Standard 90) ist oder die nie geprüft wurden (`days_since_checked` ist dann
   `null`). Ein Termin, dessen gespeichertes `checked_at` nach morgen liegt
   (vor der Ablehnung unten geschrieben), steht ebenfalls darin, mit
   negativem `days_since_checked`.
 
 Die Writes: `POST /api/v1/securities/:security_id/events` (`201`),
 `PATCH /api/v1/security_events/:id` und `DELETE /api/v1/security_events/:id`
-(`204`). Auf beiden schreibenden Wegen liefert ein `checked_at` nach morgen
+(`204`). Beim Anlegen gilt: `security_id` kommt aus dem Pfad, nie aus dem
+Body; `machine_generated` ist reserviert und wird im Body ignoriert. Das
+Wertpapier, zu dem ein Termin gehört, lässt sich nicht ändern. Auf beiden schreibenden Wegen liefert ein `checked_at` nach morgen
 (Kalendertag der Instanz plus ein Tag für Zeitzonen) `422` auf `checked_at`,
 und nichts wird geschrieben. Die `note` eines Termins fasst höchstens 10000
 Zeichen (Unicode-Codepoints); eine längere liefert `422` auf `note`. `source_quality` verwendet dieselben vier Werte wie das Research-Log.
