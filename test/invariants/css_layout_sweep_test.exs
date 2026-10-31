@@ -274,6 +274,20 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
              ~r/#column-picker,\s*#toggle-column-popover,\s*\.column-picker-bar,\s*#holdings-column-toggle,\s*#holdings-column-picker \{\s*display: none;/
   end
 
+  # User story (#1139, Sprint 21 γ2; board ux-design-2026-10-09/02-securities,
+  # rule ④): As the operator reading the securities list on a 390 px phone,
+  # I want each row's monogram and row menu inset by the page gutter, so that
+  # neither touches the viewport's edge.
+  #
+  # Acceptance criteria:
+  # - The securities phone row carries a 16 px inline padding, the gutter
+  #   the toolbar's search field keeps; the row's block padding is unchanged
+  #   and its border still runs edge to edge.
+  test "the securities phone row keeps the 16 px page gutter on both sides" do
+    assert block("#securities-phone-rows .phone-row") =~ ~r/padding-inline:\s*16px;/
+    assert block(".phone-row") =~ ~r/padding:\s*10px 0;/
+  end
+
   # User story (#1057; board ux-design-2026-10-04/06-phone-wealth, pick J6.2
   # A, rule ②):
   # As the operator reading two securities of one name,
