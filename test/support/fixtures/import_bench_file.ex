@@ -27,7 +27,7 @@ defmodule Portfolixir.ImportBenchFile do
     Enum.join([@header | body], "\n") <> "\n"
   end
 
-  defp row(1), do: line(1, "Einlage", "", "", "", "100.000.000,00", "", @cash, "")
+  defp row(1), do: line(1, ["Einlage", "", "", "", "100.000.000,00", "", @cash, ""])
 
   defp row(index) do
     n = index - 2
@@ -36,14 +36,16 @@ defmodule Portfolixir.ImportBenchFile do
       "Bench Security #{String.pad_leading(Integer.to_string(rem(n, @securities) + 1), 2, "0")}"
 
     case rem(div(n, @securities), 4) do
-      0 -> line(index, "Kauf", security, "10", "50,00", "501,00", "1,00", @depot, @cash)
-      1 -> line(index, "Kauf", security, "10", "52,00", "521,00", "1,00", @depot, @cash)
-      2 -> line(index, "Verkauf", security, "5", "55,00", "274,00", "1,00", @depot, @cash)
-      3 -> line(index, "Dividende", security, "15", "", "3,75", "", @cash, "")
+      0 -> line(index, ["Kauf", security, "10", "50,00", "501,00", "1,00", @depot, @cash])
+      1 -> line(index, ["Kauf", security, "10", "52,00", "521,00", "1,00", @depot, @cash])
+      2 -> line(index, ["Verkauf", security, "5", "55,00", "274,00", "1,00", @depot, @cash])
+      3 -> line(index, ["Dividende", security, "15", "", "3,75", "", @cash, ""])
     end
   end
 
-  defp line(index, type, security, quantity, price, amount, fees, account, counter) do
+  # The cells after Datum: Typ, Wertpapier, Stück, Kurs, Betrag, Gebühren,
+  # Konto and Gegenkonto; Steuern, Gesamtpreis, Notiz and Quelle stay empty.
+  defp line(index, [type, security, quantity, price, amount, fees, account, counter]) do
     Enum.join(
       [
         timestamp(index),
