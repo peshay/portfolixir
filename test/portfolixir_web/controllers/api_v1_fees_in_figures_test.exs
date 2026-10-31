@@ -227,4 +227,68 @@ defmodule PortfolixirWeb.ApiV1FeesInFiguresTest do
     assert positions[s.arbolia.id] == %{"invested" => "790"}
     assert positions[s.wrenfield.id] == %{"invested" => "750"}
   end
+
+  # User story (#1212, Sprint 21 α11): As the operating LLM agent, I want
+  # each of the three reads to say whether a buy's and a sell's fees and
+  # taxes are in each money figure it serves, so that I never set an open
+  # position's cost (790,00, the settlement without its 6,00 of costs)
+  # against a closed trade's basis (which counts them) as if they meant the
+  # same thing.
+  #
+  # Acceptance criteria (the computation basis on the payload, AGENTS.md):
+  # - Holdings: computation_basis.fees_and_taxes_in_figures says cost_basis,
+  #   avg_cost and base_cost are without the buys' fees and taxes, that the
+  #   unrealized P&L and its decomposition are measured against them, and
+  #   that a closed trade's basis counts them once the shares are sold.
+  # - Trades: computation_basis.fees_and_taxes_in_figures says an open lot's
+  #   buy prices, base_cost and unrealized P&L are without them (beside it in
+  #   buy_fees and buy_taxes), a closed trade's basis includes the buy's,
+  #   prorated, its proceeds are net of the sell's, and realized_pnl_abs is
+  #   after all four.
+  # - Category result: basis_note says invested is the members' base_cost,
+  #   without the buys' fees and taxes, so the result is before them.
+  # - The statement is the same on every form of the holdings read
+  #   (security_id=, fields=).
+  test "each read states whether fees and taxes are in its figures", %{conn: conn} do
+    s = seed!()
+
+    holdings = get_json(conn, "/api/v1/portfolios/#{s.world.portfolio.id}/holdings")
+    held = holdings["computation_basis"]["fees_and_taxes_in_figures"]
+
+    assert held =~ "cost_basis, avg_cost and base_cost are without the buys' fees and taxes"
+    assert held =~ "unrealized_pnl_* and the decomposition"
+    assert held =~ "a closed trade's basis counts them"
+
+    narrowed =
+      get_json(
+        conn,
+        "/api/v1/portfolios/#{s.world.portfolio.id}/holdings" <>
+          "?security_id=#{s.arbolia.id}&fields=security_id,base_cost"
+      )
+
+    assert narrowed["computation_basis"]["fees_and_taxes_in_figures"] == held
+
+    %{"data" => trades} = get_json(conn, "/api/v1/securities/#{s.wrenfield.id}/trades")
+    traded = trades["computation_basis"]["fees_and_taxes_in_figures"]
+
+    assert traded =~ "An open lot's buy_price, buy_price_native, base_cost and unrealized_pnl_*"
+    assert traded =~ "without the buy's fees and taxes, which buy_fees and buy_taxes state"
+
+    assert traded =~
+             "A closed trade's basis includes the buy fees and taxes of the lots it closes"
+
+    assert traded =~ "proceeds are net of the sell's fees and taxes"
+    assert traded =~ "realized_pnl_abs, proceeds - basis, is after all four"
+
+    %{"data" => result} =
+      get_json(
+        conn,
+        "/api/v1/portfolios/#{s.world.portfolio.id}/category-results" <>
+          "?classification_id=#{s.classification.id}"
+      )
+
+    assert result["basis_note"] =~
+             "Invested is the members' base_cost, without the buys' fees and taxes, " <>
+               "so the result is before them"
+  end
 end
