@@ -177,6 +177,43 @@ defmodule PortfolixirWeb.RefuseBeforeBindingTest do
            )
   end
 
+  # User story (security review 2026-10-12, K13; board 07):
+  # As the operator reading the account dialog with a screen reader,
+  # I want the refused tag field tied to the alert that refuses it,
+  # so that reaching the field tells me why it was refused.
+  #
+  # Acceptance criteria:
+  # - While a tag refusal stands, the tag input carries aria-invalid and
+  #   aria-describedby naming the alert's id; a refusal that is not about the
+  #   tag does not mark it.
+  test "the refused tag field names its alert", %{conn: conn} do
+    Process.flag(:trap_exit, true)
+    base_world(depot_name: "Depot 1", cash_name: "Giro")
+
+    {:ok, _scope} =
+      Buckets.create_bucket(Actor.owner_ui(), %{name: "Haushalt", dimension: "scope"})
+
+    tag_input =
+      ~s{#account-dialog-form input[name="account[new_tag]"][aria-invalid="true"][aria-describedby="account-bucket-error"]}
+
+    {:ok, view, _html} = live(conn, "/portfolios")
+    open_depot_form(view)
+
+    for tag <- ["Tag\u0000Y", "Haushalt"] do
+      submit_account(view, %{"depot_name" => "Depot 2", "cash_name" => "Neu", "new_tag" => tag})
+
+      assert has_element?(view, "#account-form-dialog p.alert-error#account-bucket-error")
+      assert has_element?(view, tag_input), inspect(tag)
+    end
+
+    submit_account(view, %{"depot_name" => "Depot\u0000X", "cash_name" => "Neu"})
+
+    refute has_element?(
+             view,
+             ~s{#account-dialog-form input[name="account[new_tag]"][aria-invalid]}
+           )
+  end
+
   test "the accounts page's inline tag with a NUL is a bucket error, nothing written",
        %{conn: conn} do
     Process.flag(:trap_exit, true)
