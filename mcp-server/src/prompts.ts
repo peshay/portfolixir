@@ -64,9 +64,9 @@ export const PROMPTS: Prompt[] = [
     title: "Import converter",
     description:
       "Write and run, on the operator's machine, a converter from a bank or broker export file " +
-      "to the Portfolio Performance CSV v1 file the instance's Imports page previews and " +
-      "applies. States the target format exactly. No broker sync, no network call, and no " +
-      "booking through the tools.",
+      "to a Portfolio Performance CSV v1 file, or JSON v1 when the export carries ISINs or " +
+      "other currencies, which the instance's Imports page previews and applies. States the " +
+      "target format exactly. No broker sync, no network call, and no booking through the tools.",
     arguments: [
       {
         name: "export_file",
@@ -129,7 +129,7 @@ When the history will come from a file (step 4), the import creates the cash acc
 ## Step 4: explain how data gets in
 Give the operator these paths and let them choose:
 1. A Portfolio Performance export (CSV or JSON v1). The operator drops the file on the Imports page of the instance (Transactions → Import in the UI, /imports), reads the preview and applies it. The apply is atomic, skips every row it has already booked (by content hash, so dropping the same file twice books nothing twice), creates the accounts and securities the file names, and can tag the accounts it creates with a bucket: one file per group, each dropped with its group's bucket name as the tag, lands each group in its bucket (a bucket of the "scope" dimension cannot be an import tag). There is no import tool and no import route under /api/v1, by design: the preview is the operator's step.
-2. A bank or broker export in any other format: use the import_converter prompt. You write a small converter that runs on the operator's machine and turns the export into a Portfolio Performance CSV file, which the operator drops on the Imports page as in path 1.
+2. A bank or broker export in any other format: use the import_converter prompt. You write a small converter that runs on the operator's machine and turns the export into a Portfolio Performance CSV file, or JSON v1 when the export carries ISINs or other currencies, which the operator drops on the Imports page as in path 1.
 3. Manual booking, for a handful of rows: portfolixir.transactions.create, one booking per call, each confirmed by the operator. For a history of more than a few rows use a file: only the Imports page previews a whole history and never books a row twice.
 There is no broker or bank connection: Portfolixir never fetches transactions from a bank or a broker, and you must not offer to set one up.
 
@@ -146,9 +146,9 @@ function importConverter(exportFile: string | undefined): string {
       ? ""
       : ` (the operator named it: "${exportFile.trim().slice(0, 500)}")`;
 
-  return `# Import converter: a bank or broker export to Portfolio Performance CSV v1
+  return `# Import converter: a bank or broker export to Portfolio Performance CSV v1 or JSON v1
 
-You are helping the operator get their history into Portfolixir from an export file their bank or broker gave them${file}. You will write a small converter, run it on the operator's machine, and produce a file in the Portfolio Performance CSV v1 format. The operator drops that file on the Imports page of their instance (Transactions → Import in the UI, /imports), reads the preview and applies it.
+You are helping the operator get their history into Portfolixir from an export file their bank or broker gave them${file}. You will write a small converter, run it on the operator's machine, and produce a file in the Portfolio Performance CSV v1 format, or JSON v1 when the export carries ISINs or other currencies. The operator drops that file on the Imports page of their instance (Transactions → Import in the UI, /imports), reads the preview and applies it.
 
 ## Binding constraints
 - Work on the file the operator supplies, on their machine. No broker or bank connection, no download, and no network call and no model call from the converter or from the app: the converter reads one file and writes another.
@@ -204,7 +204,7 @@ Portfolio Performance's JSON v1 export carries a currency per row and a security
 - date (YYYY-MM-DD) and, when known, time (HH:MM);
 - account (the cash account), portfolio (the depot; on a DIVIDEND, the depot the dividend is booked to), otherAccount (where a CASH_TRANSFER's money arrives), otherPortfolio (where a SECURITY_TRANSFER's shares arrive); a transfer without its other side is refused;
 - currency: the cash account's currency, one currency per account, and one Portfolixir supports: the currencies its security dialog offers (EUR, USD, GBP, CHF and the other ISO codes listed there, GBX for pence); a row whose currency, or whose security's currency, is any other code is refused;
-- amount: the cash effect, as Betrag above (a PURCHASE's total including its fees and taxes, a SALE's net proceeds, a DIVIDEND's net credit), and shares: the quantity, both written as strings with a decimal point, such as "1203.00"; the price is derived from them;
+- amount: the cash effect, as Betrag above (a PURCHASE's total including its fees and taxes, a SALE's net proceeds, a DIVIDEND's net credit), and shares: the quantity, both written as decimal strings, with a point before any decimals, such as "1203.00", or without decimals, such as "20"; the price is derived from them;
 - units: the fees and taxes inside amount, as [{"type": "FEE", "amount": "3.00"}, {"type": "TAX", "amount": "1.20"}];
 - security: {"name", "isin", "wkn", "ticker", "currency"}; an ISIN must carry a valid check digit, and the currency must be a supported one, or the row is refused. Securities match by ISIN first, then by WKN, ticker and name.
 \`\`\`json
