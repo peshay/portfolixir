@@ -1163,9 +1163,10 @@ equal the position's total gain or loss in the base currency, exactly. For
 positions in the base currency the currency return is exactly zero. A
 position whose split cannot be derived from the recorded bookings (for
 example an imported cross-currency trade with no stored rate at its booking
-date) shows a dash instead of a guessed number; the
-`mix portfolixir.backfill_settlement_legs` task derives the missing legs
-for historic imports once rates for the booking dates are stored.
+date) shows a dash instead of a guessed number. The history backfill
+derives the missing legs once it has stored the rates for the booking dates
+(see *Exchange Rates and Valuation*), and the
+`mix portfolixir.backfill_settlement_legs` task does the same by hand.
 
 **Booking one in the form** (issue #395). When the security's currency
 differs from the currency of the chosen depot's cash account, the booking
@@ -1552,6 +1553,23 @@ instance does not try again on every start. Without a network it tries
 again at the next start or import. By hand, **Backfill historical rates** in
 Cash flow's exclusion notes, or `scope=history` on the exchange-rate sync
 endpoint and MCP tool, fetches the same series.
+
+**A first import's trades get their settlement legs from the same run**
+(issue #1196, ADR-0015). An import stores the two legs of a dollar share
+bought from a euro account (800.00 EUR and 1,000.00 USD at 1 EUR = 1.25 USD,
+rate 0.800000) only when the rate for its date is already stored; on a fresh
+instance it is not yet. Once the history backfill, by itself or by hand, has
+stored rates, the same run derives the legs of every buy and sell booked in
+its account's currency with none of them stored: the cash the row moved,
+less its fees and taxes, converted at the stored rate of its date, exactly
+what the import stores when the rate is there. Each derived booking is
+journaled under the system actor `settlement_backfill`. A booking that
+already carries a leg, or is priced in a third currency, is not touched; a
+booking whose date still has no rate keeps none and is counted. Two cases
+keep a trade without its legs until the next backfill by hand or the task:
+an import applied while the backfill is storing its rates, and rates that
+arrive through the daily sync, which derives no legs. Such a trade then
+reads unavailable, never wrong.
 
 A security without any quote yet is priced at the **latest own trade price
 across all portfolios** — a buy or sell is a price observation, exactly how

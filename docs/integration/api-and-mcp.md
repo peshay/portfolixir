@@ -2954,6 +2954,21 @@ level (d)).
   provider, on an instance with background fetches off, or for any other
   reason to refetch; while the automatic one runs it answers `409` like any
   second backfill. No parameter is added and no tool changes.
+  Since issue #1196 (Sprint 21 α2, ADR-0015's amendment of 2026-10-09,
+  point 6) a history run that stored rates also derives, in the same
+  single-flight run, the settlement legs of every buy and sell booked in its
+  cash account's currency with none of the three legs stored, journaled
+  under the system actor `settlement_backfill`, as
+  `mix portfolixir.backfill_settlement_legs` does. The answer carries
+  `settlement_legs`: `{status, derived, skipped_no_rate,
+  stopped_at_transaction_id}`, where `status` is `completed` (`derived`
+  bookings gained their legs, `skipped_no_rate` still lack a rate for their
+  date), `not_run` (no rate was stored, both counts `0`) or `stopped` (the
+  ledger refused a booking: the rates stay stored, the counts are `null`,
+  `stopped_at_transaction_id` names it, and a re-run derives the rest).
+  `scope=latest` answers `settlement_legs: null`: the daily sync derives no
+  legs. A booking that already carries a leg, or is priced in a third
+  currency, is never touched.
 
 ## Classifications
 

@@ -3208,6 +3208,22 @@ Scope-Leiter).
   anderen Grund für ein erneutes Holen; während der automatische läuft,
   antwortet es wie jedes zweite Backfill mit `409`. Es kommt kein Parameter
   hinzu, und kein Tool ändert sich.
+  Seit Issue #1196 (Sprint-21-α2, Nachtrag zu ADR-0015 vom 2026-10-09,
+  Punkt 6) leitet ein Historien-Lauf, der Kurse gespeichert hat, im selben
+  Single-Flight-Lauf auch die Abrechnungsbeine jedes Kaufs und Verkaufs ab,
+  der in der Währung seines Verrechnungskontos gebucht ist und keines der
+  drei Beine gespeichert hat, im Journal unter dem Systemakteur
+  `settlement_backfill`, wie `mix portfolixir.backfill_settlement_legs`.
+  Die Antwort trägt `settlement_legs`: `{status, derived, skipped_no_rate,
+  stopped_at_transaction_id}`, wobei `status` `completed` ist (`derived`
+  Buchungen haben ihre Beine bekommen, `skipped_no_rate` haben noch keinen
+  Kurs für ihren Tag), `not_run` (kein Kurs wurde gespeichert, beide
+  Zählungen `0`) oder `stopped` (das Hauptbuch hat eine Buchung abgelehnt:
+  die Kurse bleiben gespeichert, die Zählungen sind `null`,
+  `stopped_at_transaction_id` nennt sie, und ein neuer Lauf leitet den Rest
+  ab). `scope=latest` antwortet mit `settlement_legs: null`: die tägliche
+  Synchronisierung leitet keine Beine ab. Eine Buchung, die schon ein Bein
+  trägt oder in einer dritten Währung bepreist ist, bleibt immer unberührt.
 
 ## Klassifizierungen
 

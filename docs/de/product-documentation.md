@@ -1278,9 +1278,10 @@ Gewinn oder Verlust der Position in Basiswährung. Für Positionen in der
 Basiswährung ist der Währungsbeitrag exakt null. Eine Position, deren
 Zerlegung sich nicht aus den erfassten Buchungen ableiten lässt (etwa ein
 importierter währungsübergreifender Handel ohne gespeicherten Kurs am
-Buchungstag), zeigt einen Strich statt einer geratenen Zahl; die Aufgabe
-`mix portfolixir.backfill_settlement_legs` leitet die fehlenden Beine für
-historische Importe ab, sobald Kurse für die Buchungstage gespeichert sind.
+Buchungstag), zeigt einen Strich statt einer geratenen Zahl. Das Nachladen
+der historischen Kurse leitet die fehlenden Beine ab, sobald es die Kurse für
+die Buchungstage gespeichert hat (siehe *Wechselkurse und Bewertung*), und
+die Aufgabe `mix portfolixir.backfill_settlement_legs` tut dasselbe von Hand.
 
 **Im Formular buchen** (Issue #395). Weicht die Währung des Wertpapiers von
 der des Geldkontos am gewählten Depot ab, zeigt die Buchungsleiste einen Block
@@ -1704,6 +1705,26 @@ versucht es nicht bei jedem Start erneut. Ohne Netzwerk versucht sie es beim
 nächsten Start oder Import wieder. Von Hand holt **Historische Kurse
 nachladen** in den Ausschluss-Hinweisen unter Cashflow oder `scope=history`
 am Wechselkurs-Sync-Endpunkt und MCP-Tool dieselbe Reihe.
+
+**Die Trades eines ersten Imports bekommen ihre Abrechnungsbeine aus
+demselben Lauf** (Issue #1196, ADR-0015). Ein Import speichert die beiden
+Beine einer von einem Euro-Konto gekauften Dollar-Aktie (800,00 EUR und
+1.000,00 USD bei 1 EUR = 1,25 USD, Kurs 0,800000) nur, wenn der Kurs ihres
+Tages schon gespeichert ist; auf einer frischen Instanz ist er es noch
+nicht. Hat das Nachladen der historischen Kurse, von selbst oder von Hand,
+Kurse gespeichert, leitet derselbe Lauf die Beine jedes Kaufs und Verkaufs
+ab, der in der Währung seines Kontos gebucht ist und keines davon
+gespeichert hat: das Geld, das die Buchung bewegt hat, abzüglich Gebühren
+und Steuern, zum gespeicherten Kurs ihres Tages umgerechnet, genau das, was
+der Import speichert, wenn der Kurs schon da ist. Jede abgeleitete Buchung
+wird unter dem Systemakteur `settlement_backfill` im Journal festgehalten.
+Eine Buchung, die schon ein Bein trägt oder in einer dritten Währung
+bepreist ist, bleibt unberührt; eine Buchung, deren Tag noch keinen Kurs
+hat, bekommt keines und wird gezählt. Zwei Fälle lassen einen Trade bis
+zum nächsten Nachladen von Hand oder zur Aufgabe ohne Beine: ein Import,
+der angewendet wird, während das Nachladen seine Kurse speichert, und Kurse
+aus der täglichen Synchronisierung, die keine Beine ableitet. Ein solcher
+Trade gilt dann als nicht verfügbar, nie als falsch.
 
 Ein Wertpapier ohne jeden Kurs wird mit dem **zuletzt eigenen Handelspreis
 über alle Portfolios** bepreist — ein Kauf oder Verkauf ist eine
