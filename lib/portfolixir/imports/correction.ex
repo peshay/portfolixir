@@ -135,23 +135,140 @@ defmodule Portfolixir.Imports.Correction do
 
   def detect(%Preview{}, nil, _opts), do: []
 
-  def detect(%Preview{entries: entries, format: format}, portfolio_id, opts)
+  def detect(%Preview{entries: entries, format: format} = preview, portfolio_id, opts)
       when is_integer(portfolio_id) do
     flat_entries = Entry.flatten(entries)
     hashes = Applier.row_hashes(flat_entries, portfolio_id)
     stored = stored_by_hash(List.flatten(hashes), Keyword.get(opts, :lock, false))
 
-    flat_entries
-    |> Enum.zip(hashes)
-    |> drop_parents_missing_a_refund(stored)
-    |> Enum.flat_map(fn {entry, row_hashes} ->
-      case Enum.find_value(row_hashes, &Map.get(stored, &1)) do
-        %Transaction{} = transaction -> List.wrap(item(entry, transaction, format))
-        nil -> []
+    lock? = Keyword.get(opts, :lock, false)
+
+    hash_items =
+      flat_entries
+      |> Enum.zip(hashes)
+      |> drop_parents_missing_a_refund(stored)
+      |> Enum.flat_map(fn {entry, row_hashes} ->
+        case Enum.find_value(row_hashes, &Map.get(stored, &1)) do
+          %Transaction{} = transaction -> List.wrap(item(entry, transaction, format))
+          nil -> []
+        end
+      end)
+      |> Enum.uniq_by(& &1.transaction.id)
+
+    (hash_items ++ refused_items(preview, portfolio_id, lock?))
+    |> Enum.uniq_by(& &1.transaction.id)
+    |> Enum.sort_by(&row_order/1)
+  end
+
+  # File order: a row's number, a refused row among the others.
+  defp row_order(%Item{row: row}) when is_integer(row), do: {0, row}
+  defp row_order(%Item{row: row}), do: {1, to_string(row)}
+
+  @doc """
+  The lines of `items` the confirm writes: those in the state `:confirm`.
+  Every other line is listed and stays as it is (ADR-0053 A10–A12).
+  """
+  @spec confirmable([Item.t()]) :: [Item.t()]
+  def confirmable(items), do: Enum.filter(items, &(&1.state == :confirm))
+
+  # A10 (#1193): a row the preview refuses (A5's credit that nets to
+  # nothing, and A8's refund beside a delivery or a transfer, kept in
+  # `refused_credits` with their would-be entries) whose would-be booking a
+  # live transaction holds by its content hash. It is listed, not
+  # correctable here: per cash account the row moves, the booking and the
+  # refund stored beside it (found by the refund's hash with its row),
+  # against the row's cash cell, which in Portfolio Performance is all the
+  # row moves. The correction never deletes a booking, and no cash it
+  # could write makes such a booking right, so the line carries no confirm.
+  # A hash a merge retired has no live booking to list.
+  defp refused_items(%Preview{refused_credits: refused}, portfolio_id, lock?) do
+    Enum.flat_map(refused, fn %{row: row, entry: %Entry{} = entry} ->
+      flat = Entry.flatten([entry])
+      [parent_hashes | refund_hashes] = Applier.row_hashes(flat, portfolio_id)
+      stored = stored_by_hash(List.flatten([parent_hashes | refund_hashes]), lock?)
+
+      case Enum.find_value(parent_hashes, &Map.get(stored, &1)) do
+        %Transaction{} = transaction ->
+          refunds =
+            Enum.flat_map(refund_hashes, &List.wrap(Enum.find_value(&1, fn h -> stored[h] end)))
+
+          [refused_item(row, entry, transaction, refunds)]
+
+        nil ->
+          []
       end
     end)
-    |> Enum.uniq_by(& &1.transaction.id)
   end
+
+  @credit_kinds ~w(sell dividend interest deposit tax_refund)
+
+  defp refused_item(row, %Entry{} = entry, %Transaction{} = transaction, refunds) do
+    refund = entry.companion_entries |> Enum.map(& &1.gross_amount) |> sum()
+    cell = cash_cell(entry, refund)
+
+    stored_legs = Enum.flat_map([transaction | refunds], &cash_legs/1)
+
+    stated_legs =
+      if cell, do: cash_legs(%{transaction | gross_amount: cell}), else: []
+
+    accounts =
+      [
+        transaction.cash_account,
+        transaction.counter_cash_account | Enum.map(refunds, & &1.cash_account)
+      ]
+      |> Enum.filter(&match?(%CashAccount{}, &1))
+      |> Enum.uniq_by(& &1.id)
+      |> Enum.map(fn %CashAccount{id: id} = account ->
+        booked = legs_of(stored_legs, id)
+        stated = legs_of(stated_legs, id)
+        %{account: account, booked: booked, stated: stated, delta: Decimal.sub(stated, booked)}
+      end)
+
+    own = Enum.find(accounts, &(&1.account.id == transaction.cash_account_id)) || hd(accounts)
+
+    %Item{
+      row: row,
+      transaction: transaction,
+      changes: %{},
+      booked: own.booked,
+      stated: own.stated,
+      difference: own.delta,
+      accounts: accounts,
+      state: :refused,
+      refusal: %{
+        kind: transaction.type,
+        refund: refund,
+        rest: entry.gross_amount,
+        fees: entry.fees || Decimal.new(0),
+        # The cash a by-hand booking of the row takes, its fees booked as a
+        # fee of their own and the refund already beside it: the cash cell
+        # plus the fees less the refund, plus the positive taxes.
+        gross: by_hand_gross(entry, cell, refund)
+      }
+    }
+  end
+
+  # The row's cash cell: its own booking's cash and the refunds split off
+  # it together (A1), a credit's less, a debit's plus; `nil` for a row that
+  # moves no cash (a delivery).
+  defp cash_cell(%Entry{gross_amount: nil}, _refund), do: nil
+
+  defp cash_cell(%Entry{kind: kind, gross_amount: gross}, refund) when kind in @credit_kinds,
+    do: Decimal.add(gross, refund)
+
+  defp cash_cell(%Entry{gross_amount: gross}, refund), do: Decimal.sub(gross, refund)
+
+  defp by_hand_gross(%Entry{kind: "sell"} = entry, %Decimal{} = cell, refund) do
+    cell
+    |> Decimal.add(entry.fees || Decimal.new(0))
+    |> Decimal.add(entry.taxes || Decimal.new(0))
+    |> Decimal.sub(refund)
+  end
+
+  defp by_hand_gross(_entry, cell, _refund), do: cell
+
+  defp sum(values),
+    do: Enum.reduce(values, Decimal.new(0), &Decimal.add(&1 || Decimal.new(0), &2))
 
   @doc """
   The credit rows of `preview` that ADR-0053 A5 refuses (their own booking
@@ -208,6 +325,7 @@ defmodule Portfolixir.Imports.Correction do
 
         preview
         |> detect(portfolio_id, lock: true)
+        |> confirmable()
         |> Enum.reduce_while([], fn %Item{} = item, corrected ->
           case Ledger.update_transaction(actor, item.transaction, item.changes) do
             {:ok, _transaction} -> {:cont, [item | corrected]}
