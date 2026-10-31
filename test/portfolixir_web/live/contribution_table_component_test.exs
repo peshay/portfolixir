@@ -431,4 +431,57 @@ defmodule PortfolixirWeb.Portfolio.ContributionTableComponentTest do
       Gettext.put_locale(PortfolixirWeb.Gettext, previous)
     end
   end
+
+  # User story (#1123, Sprint 21 γ4; board ux-design-2026-10-09/04-wealth-income
+  # ②):
+  # As the operator reading the contribution table on a phone,
+  # I want a position's phone row to name its costs where they are not zero,
+  # so that a position whose fees and taxes explain its contribution
+  # reconciles at 390 px as it does in the desktop "Costs" column.
+  #
+  # Acceptance criteria:
+  # - The second line ends with "costs 10.00" ("Kosten 10,00") after the
+  #   flow and the income, the desktop column's figure, unsigned.
+  # - A position with no costs names none.
+  test "a position's phone row names its costs where they are not zero" do
+    positions = [
+      position(1, "32.50", %{
+        name: "Larkspur Rail AG",
+        held_at_start: false,
+        start_value: d("0"),
+        net_flows: d("920"),
+        costs: d("10"),
+        end_value: d("962.50")
+      }),
+      position(2, "8", %{name: "Wrenfield Gardens AG", income: d("96"), costs: d("14.4")}),
+      position(3, "5", %{name: "Arbolia Inc."})
+    ]
+
+    line = fn html, id ->
+      sentence(
+        html,
+        "#contribution-phone-rows li[data-role='contribution-row'][data-security-id='#{id}'] .phone-row__ids"
+      )
+    end
+
+    html = render_table(result(positions))
+
+    assert line.(html, 1) ==
+             "not held at the start · inflow into the position 920.00 · costs 10.00"
+
+    assert line.(html, 2) == "100.00 → 108.00 · income 96.00 · costs 14.40"
+    assert line.(html, 3) == "100.00 → 105.00"
+
+    previous = Gettext.get_locale(PortfolixirWeb.Gettext)
+
+    try do
+      Gettext.put_locale(PortfolixirWeb.Gettext, "de")
+      html = render_table(result(positions))
+
+      assert line.(html, 1) ==
+               "zu Beginn nicht im Bestand · Zufluss in die Position 920,00 · Kosten 10,00"
+    after
+      Gettext.put_locale(PortfolixirWeb.Gettext, previous)
+    end
+  end
 end
