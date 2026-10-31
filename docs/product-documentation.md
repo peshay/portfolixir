@@ -61,7 +61,9 @@ Integration details for `/api/v1` and `mcp-server/` are documented separately in
    decision anywhere — see below).
 3. Record manual buy and sell transactions with Decimal-based quantity and price values.
 4. Optionally import a Portfolio Performance transaction export through
-   Imports, review the preview, map missing accounts, then apply atomically.
+   Imports, review the preview, map missing accounts, then apply atomically
+   (the internal Default portfolio a first import creates stays even when the
+   import fails).
 5. Open the holdings view to verify current position per security.
 6. Record security quotes over time and keep history for reproducible charts.
 7. Review current holdings and quote chart behavior directly in the app.
@@ -2665,7 +2667,10 @@ stable `Row N: message` lines so the diagnostics can be kept with the source
 export. In a CSV file, *Row N* is the row a spreadsheet shows, the header
 being row 1, so the first booking is row 2; every list of the preview and of
 the result names a CSV row the same way. Applying the import is atomic and uses content hashes to skip
-duplicates on re-run.
+duplicates on re-run. One record is the exception: on a fresh instance the
+first import creates the internal Default portfolio and commits it before it
+books the file, so that every other write resolving the default meanwhile
+finds the same one; that record stays even when the import fails.
 
 ### What a Portfolio Performance CSV requires
 

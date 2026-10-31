@@ -65,7 +65,9 @@ Integrationsdetails für `/api/v1` und `mcp-server/` sind separat unter
 3. Erfasse manuelle Kauf- und Verkauftransaktionen mit Decimal-basierten Mengen-
    und Preiswerten.
 4. Importiere optional einen Portfolio-Performance-Transaktionsexport über
-   Imports, prüfe die Vorschau, ordne fehlende Konten zu und wende dann atomar an.
+   Imports, prüfe die Vorschau, ordne fehlende Konten zu und wende dann atomar an
+   (das interne Default-Portfolio, das ein erster Import anlegt, bleibt auch
+   dann bestehen, wenn der Import fehlschlägt).
 5. Öffne die Bestandsansicht, um die aktuelle Position je Wertpapier zu prüfen.
 6. Erfasse Wertpapierkurse im Zeitverlauf und behalte die Historie für
    reproduzierbare Charts.
@@ -2918,7 +2920,12 @@ beim Quell-Export verbleiben kann. In einer CSV-Datei ist *Zeile N* die Zeile,
 die eine Tabellenkalkulation zeigt, die Kopfzeile als Zeile 1, die erste
 Buchung also Zeile 2; jede Liste der Vorschau und des Ergebnisses nennt eine
 CSV-Zeile genauso. Das Anwenden des Imports ist atomar und
-nutzt Inhalts-Hashes, um Duplikate bei erneutem Lauf zu überspringen.
+nutzt Inhalts-Hashes, um Duplikate bei erneutem Lauf zu überspringen. Ein
+Datensatz ist die Ausnahme: Auf einer frischen Instanz legt der erste Import
+das interne Default-Portfolio an und schreibt es fest, bevor er die Datei
+bucht, damit jeder andere Schreibvorgang, der das Default-Portfolio
+inzwischen auflöst, dasselbe findet; dieser Datensatz bleibt auch dann
+bestehen, wenn der Import fehlschlägt.
 
 ### Was eine Portfolio-Performance-CSV voraussetzt
 
