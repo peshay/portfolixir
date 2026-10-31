@@ -1654,8 +1654,9 @@ defmodule PortfolixirWeb.TransactionManagementLive do
     |> Enum.sort_by(& &1.currency)
   end
 
-  # The same figure the Betrag cell shows (#1209), unsigned: a kind's sum is
-  # the cash its bookings moved.
+  # The same figure the Betrag cell shows (#1209), in the kind's direction: a
+  # kind's sum is the cash its bookings moved, and a sell whose fees exceed
+  # its proceeds takes its loss off the sells' sum.
   defp sum_amount(transactions) do
     Enum.reduce(transactions, Decimal.new(0), fn tx, acc ->
       Decimal.add(acc, tx_money(tx) || Decimal.new(0))
@@ -1960,17 +1961,24 @@ defmodule PortfolixirWeb.TransactionManagementLive do
   # cash it moved in its cash account, read from the projection's own cash
   # leg, so a buy's fees and taxes are in it and a sell's out of it whichever
   # route stored the row (the API and the drawer's same-currency buy store no
-  # gross amount), and the column adds up to the balance's change. A kind
-  # with no cash leg keeps its stored amount, else quantity × price; a split
-  # has none.
+  # gross amount), and the column adds up to the balance's change. It is
+  # stated in the kind's own direction, which `signed_money/3` turns back
+  # into the account's, so the sign shown is the leg's: a sell whose fees
+  # exceed its proceeds reads negative. A kind with no cash leg keeps its
+  # stored amount, else quantity × price; a split has none.
   defp tx_money(%{type: "split"}), do: nil
 
   defp tx_money(transaction) do
     case cash_moved(transaction) do
-      %Decimal{} = cash -> cash
+      %Decimal{} = cash -> in_kind_direction(transaction, cash)
       nil -> stored_value(transaction)
     end
   end
+
+  defp in_kind_direction(%{type: type}, cash) when type in ["cash_transfer" | @outflow_kinds],
+    do: outflow(cash)
+
+  defp in_kind_direction(_transaction, cash), do: cash
 
   defp cash_moved(%{type: "split"}), do: nil
   defp cash_moved(transaction), do: Projection.cash_amount(transaction)
