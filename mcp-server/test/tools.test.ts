@@ -2557,8 +2557,11 @@ describe("Portfolixir MCP tools", () => {
   //   changes.
   // - plan_id is a positive integer in both schemas, as on the writes;
   //   anything else is refused before a request is sent.
-  // - Both descriptions say what plan_id reads and point to the writes'
-  //   refusals; list_positions says its drift basis names a draft.
+  // - Both descriptions say what plan_id reads; targets.list names the
+  //   refusals inline (422 on plan_id when archived or of another portfolio,
+  //   classification or view), since the read profile does not list
+  //   targets.set, and list_positions points to targets.list; list_positions
+  //   says its drift basis names a draft.
   it("forwards plan_id through the target reads (#1185)", async () => {
     const { client, requests } = createRecordingClient({ data: { targets: [], position_targets: [] } });
 
@@ -2590,7 +2593,11 @@ describe("Portfolixir MCP tools", () => {
 
     const describe = (name: string) => listTools().find((tool) => tool.name === name)?.description ?? "";
     assert.match(describe("portfolixir.targets.list"), /plan_id reads that plan version/);
-    assert.match(describe("portfolixir.targets.list"), /refused as on portfolixir\.targets\.set/);
+    assert.doesNotMatch(describe("portfolixir.targets.list"), /portfolixir\.targets\.set/);
+    assert.match(
+      describe("portfolixir.targets.list"),
+      /422 on plan_id when archived or of another portfolio, classification or view/
+    );
     assert.match(describe("portfolixir.targets.list_positions"), /plan_id: as on portfolixir\.targets\.list/);
     assert.match(describe("portfolixir.targets.list_positions"), /drift_basis names a draft/);
   });
