@@ -94,7 +94,8 @@ defmodule PortfolixirWeb.IncomeLive do
 
   # The remedy control inside the exclusion note (UX-DR25: no dead control;
   # UX-DR26: the limit that remains is stated). The daily sync cannot fill a
-  # past date; the backfill fetches the whole published ECB series once. A
+  # past date; the backfill fetches the whole published ECB series once and
+  # derives from it the legs imported buys and sells lack (#1196). A
   # date the ECB never published (a weekend, an unlisted currency) stays
   # excluded and named — the rule is unchanged, only the dates are filled.
   defp fx_backfill_control(assigns) do
@@ -102,7 +103,7 @@ defmodule PortfolixirWeb.IncomeLive do
     <div class="fx-backfill" data-role="fx-backfill">
       <span class="muted">
         <%= gettext(
-          "The daily rate sync cannot fill a past date. The backfill fetches the historical ECB series once and stores every published day; a day the ECB did not publish stays excluded."
+          "The daily rate sync cannot fill a past date. The backfill fetches the historical ECB series once, stores every published day and derives from it the settlement legs imported buys and sells lack; a day the ECB did not publish stays excluded."
         ) %>
       </span>
       <button

@@ -2552,7 +2552,9 @@ und Wertpapieren) — nie zum Kurs eines Nachbardatums konvertiert, nie still
 verworfen. Die tägliche Kurssynchronisation holt *aktuelle* Kurse und kann
 einen vergangenen Tag nicht nachtragen; die Notiz trägt daher die Abhilfe, die
 es kann: **Historische Kurse nachladen** holt die historische EZB-Reihe
-einmalig, speichert jeden veröffentlichten Tag und liest die Facette neu — der
+einmalig, speichert jeden veröffentlichten Tag, leitet daraus die Gegenwerte
+ab, die importierten Käufen und Verkäufen fehlen (Issue #1196), und liest die
+Facette neu — der
 ausgeschlossene Verkauf konvertiert zum Kurs seines eigenen Schlusstags,
 sobald dieses Datum einen hat (Issue #737). Die verbleibende Grenze steht
 neben der Schaltfläche: Ein Tag, den die EZB nicht veröffentlicht hat (ein

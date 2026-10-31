@@ -2323,7 +2323,9 @@ named** in an attention note (count and securities) — never converted at a
 neighbouring date's rate, never silently dropped. The daily rate sync fetches
 *current* rates and cannot fill a past date, so the note carries the remedy
 that can: **Backfill historical rates** fetches the historical ECB series
-once, stores every published day, and re-reads the facet — the excluded sale
+once, stores every published day, derives from it the settlement legs
+imported buys and sells lack (issue #1196), and re-reads the facet — the
+excluded sale
 converts at its own close-date rate the moment that date has one (issue
 #737). The limit that remains is stated next to the control: a day the ECB
 did not publish (a weekend, a currency it does not list) stays excluded and
