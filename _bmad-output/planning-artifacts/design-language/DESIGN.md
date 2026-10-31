@@ -1474,6 +1474,27 @@ components invented for it:
   reads from the sender ("-200,00"), the account the Konto cell names first.
   Positive amounts still carry no "+" and history rows no sign colour; that
   gap against the Accessibility Floor is its own story.
+- **The Betrag is the cash the row moved in its account** *(Sprint 21 α11,
+  issue 1209; board `mockups/ux-design-2026-10-09/03-history-drawer`)*. The
+  cell, the phone row, the delete dialog's box and the filter summary read
+  one figure: the cash leg `Projection.effects/1` gives the booking on its
+  own cash account (`Projection.cash_amount/1`), the leg the running balance
+  folds. A buy's fees and taxes are in it and a sell's are out of it,
+  whichever route stored the row: the API and the drawer's own
+  same-currency buy store no gross amount, and a buy of 20 × 48,20 with a
+  fee of 1,00 reads -965,00, as the Saldo falls 965,00 (it read -964,00).
+  The summary sums the same figure, so Σ Betrag over one account equals the
+  Saldo's change; its basis line reads "Anzahl und bewegtes Geld je Art der
+  Transaktionen, die dieser Filter auswählt — je Währung summiert, ohne
+  Vorzeichen und nicht umgerechnet." (English "Counts and the cash moved
+  per kind of the transactions this filter selects, summed per currency,
+  unsigned and not converted."). A zero is unsigned: a buy at 0,00 reads
+  "0,00", never "-0,00". A booking that moves no cash (a delivery, a
+  security transfer) keeps its stored amount, else quantity × price, in the
+  booking's currency; a split has none. The currency suffix of a row that
+  moves cash is its cash account's (ADR-0015, amendment of 2026-10-07,
+  point 1). The test pins Σ Betrag = Δ Saldo for a drawer buy, an API buy
+  without a gross amount, a buy at 0 and a sell.
 - **The price keeps its stored digits**: the Price column and the phone
   row's size ("12 × 41,1234") print a price as the notes drawer prints a
   stored figure (R10c) — every stored digit, trailing zeros trimmed, at

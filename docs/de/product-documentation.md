@@ -1176,16 +1176,22 @@ Eigenschaften dieser Spalte sind wichtig:
 Eine Zeile, die das gewählte Konto nicht bewegt — eine Einlieferung, ein Split
 — zeigt einen Gedankenstrich statt den Wert der Vorzeile zu wiederholen.
 
-Der **Betrag** jeder Zeile ist das Geld der Buchung, wie ihr Verrechnungskonto
-es sieht: was das Konto verlässt, ist negativ, was ankommt, positiv, und ein
-gesetzter Saldo zeigt den Stand, den er setzt. Eine **Umbuchung** bewegt zwei
+Der **Betrag** jeder Zeile ist das Geld, das die Buchung auf ihrem
+Verrechnungskonto bewegt hat, in dessen Währung (Issue #1209): Gebühren und
+Steuern eines Kaufs sind darin enthalten, die eines Verkaufs abgezogen, wie
+auch immer die Buchung erfasst wurde, sodass die Beträge eines Kontos sich
+zur Änderung seines Saldos addieren. Was das Konto verlässt, ist negativ, was
+ankommt, positiv, eine Null trägt kein Vorzeichen, und ein gesetzter Saldo
+zeigt den Stand, den er setzt. Eine Buchung, die kein Geld bewegt — eine
+Einlieferung, eine Wertpapierumbuchung —, zeigt Stückzahl × Preis in der
+Währung der Buchung. Eine **Umbuchung** bewegt zwei
 Konten, also trägt sie das Vorzeichen des Kontos im Blick: Solange die Chips
 ihr Empfängerkonto auswählen und nicht ihr Senderkonto, liest sie sich als
 ankommendes Geld („200,00“, wie der Saldo daneben um 200 steigt); sonst aus
 Sicht des Senders („-200,00“).
 
-Die Zusammenfassung über der Tabelle nennt Anzahl und gebuchte Bruttobeträge
-je Art, mit **einer Summe je Währung**. Die Beträge werden nie umgerechnet oder
+Die Zusammenfassung über der Tabelle nennt Anzahl und bewegtes Geld je Art,
+dieselbe Zahl wie die Spalte Betrag, mit **einer Summe je Währung**. Die Beträge werden nie umgerechnet oder
 über Währungen hinweg addiert — eine Umrechnung wäre eine andere Kennzahl und
 bräuchte ihre eigene Kursbasis. Die Zeilen sind nach Monaten gegliedert, und
 jeder Monatskopf trägt den Monat und allein seine **Anzahl** — *September

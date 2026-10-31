@@ -1071,15 +1071,19 @@ properties of that column are worth knowing:
 A row that does not move the selected account — a delivery, a split — shows a
 dash rather than repeating the previous row's figure.
 
-Each row's **Amount** is the booking's money as its cash account sees it:
-what leaves the account is negative, what arrives positive, and a set
-balance shows the level it set. A **cash transfer** moves two accounts, so
+Each row's **Amount** is the cash the booking moved in its cash account,
+in that account's currency (issue #1209): a buy's fees and taxes are in it,
+a sell's are taken off it, however the booking was entered, so the amounts
+of one account add up to its balance's change. What leaves the account is
+negative, what arrives positive, a zero carries no sign, and a set balance
+shows the level it set. A booking that moves no cash — a delivery, a
+security transfer — shows its quantity × price in the booking's currency. A **cash transfer** moves two accounts, so
 its sign is the one in view's: while the chips select its receiving account
 and not its sender it reads as money arriving ("200.00", as the Balance
 beside it rises by 200); otherwise it reads from the sender ("-200.00").
 
-The summary above the table states the counts and the gross booked amounts
-per kind, with **one total per currency**. Amounts are never converted or
+The summary above the table states the counts and the cash moved per kind,
+the same figure as the Amount column, with **one total per currency**. Amounts are never converted or
 added across currencies; converting them would make them a different figure
 needing its own rate basis. The rows are sectioned by month, and each month
 head carries the month and its **count** alone — *September 2026*, *6
