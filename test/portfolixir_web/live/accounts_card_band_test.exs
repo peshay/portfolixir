@@ -200,6 +200,54 @@ defmodule PortfolixirWeb.AccountsCardBandTest do
       assert block(".accounts-table thead th:first-child") =~ ~r/min-width:\s*13\.5rem;/
       assert block(".accounts-table .cell-name") =~ ~r/overflow-wrap:\s*anywhere;/
     end
+
+    # User story (#1145, Sprint 21 γ5; the review of the γ5 range):
+    # As the operator on a laptop with the sidebar open, just above the
+    # card's bound,
+    # I want the bucket picker to open within the page,
+    # so that the Name column's floor, which moved the bucket cell right,
+    # does not push the picker past the page's right edge, where
+    # `.workspace-page`'s clip cut it (measured 33 px past the edge at
+    # 1116 px, 13 px at 1200 px).
+    #
+    # Acceptance criteria:
+    # - In the table the picker is anchored to its chip group's end
+    #   (`left: auto; right: 0`, as the head's `.metric-tooltip--end`
+    #   panel), so it opens leftward; it stays absolutely placed under its
+    #   +, at least 260 px wide, and no top-level rule places it at
+    #   `left: 0`.
+    # - The picker is the chip group's own child, and the chip group is its
+    #   positioned anchor.
+    # - The card's picker stays static and full-width.
+    test "the table's bucket picker opens leftward from its chip group's end", %{conn: conn} do
+      %{muster: muster} = world()
+      {:ok, view, _html} = live(conn, "/portfolios")
+
+      view
+      |> element("#pair-buckets-#{muster.id} button[data-role='bucket-add']")
+      |> render_click()
+
+      doc = view |> render() |> Floki.parse_document!()
+
+      assert [_] =
+               Floki.find(
+                 doc,
+                 "#pair-buckets-#{muster.id} > #bucket-picker-pair-#{muster.id}[data-role='bucket-picker']"
+               )
+
+      assert block(".bucket-chip-group") =~ ~r/position:\s*relative;/
+
+      picker = block(".accounts-table .bucket-picker")
+      assert picker =~ ~r/position:\s*absolute;/
+      assert picker =~ ~r/left:\s*auto;/
+      assert picker =~ ~r/right:\s*0;/
+      assert picker =~ ~r/min-width:\s*260px;/
+      refute picker =~ ~r/left:\s*0;/
+
+      card = rule(container("width < 840px"), ".accounts-table .bucket-picker")
+      assert card =~ ~r/position:\s*static;/
+      assert card =~ ~r/width:\s*100%;/
+    end
   end
 
   describe "#1162 — the card names the bucket cell (N16 = A)" do
