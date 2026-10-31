@@ -2256,7 +2256,19 @@ marker, the swatch (which never shrinks), the name — allowed to wrap — and i
 result on the second, in their own columns under the head. With the page's
 16 px gutter, one line left the name some 70 px and cut it to a few letters;
 two lines give it the row's width, which is UX-DR27's phone row applied to the
-tree. On the desktop the row is one line as before. The unassigned notice is the attention data note it
+tree. On the desktop the row is one line as before. *Amended 2026-10-31
+(issue 1165, Sprint 21 γ6; board `ux-design-2026-10-09/06-classifications` ①,
+pick N17 A):* **the two-line row, and the dropped "Positions" and "Cost", hold
+up to 720 px**, where they held to 560 px: between 561 and 720 px the one-line
+row left the name column 33 / 4 px at 600 px (level 1 / level 2, "Eu…", "D")
+and drew the head's "Kategorie" 30 px into "Positionen". Under the rule the
+name has the row's width there (486 / 457 px at 600 px). Both blocks are a
+container query on the page (`.classifications-detail { container:
+classifications / inline-size }`, `@container classifications (max-width:
+720px)`), so they follow the room the tree has, not the viewport: with the
+sidebar open, 901 to about 940 px of viewport gives the tree less room than
+721 px without it (name 103 / 74 px at 901 on one line), and that band lies
+on two lines too, the N15 A pattern. The unassigned notice is the attention data note it
 became with issue 791; the result's basis is a `.summary-basis` line with
 the full ADR-0041 sentence behind its ⓘ.
 

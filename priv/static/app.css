@@ -5418,6 +5418,13 @@ details[open] > .cat-summary::before {
   margin-inline: clamp(16px, 2.4vw, 28px);
 }
 
+/* The page is the tree's query container (issue 1165): the tree's rows
+   follow the page's width, not the viewport's, so the open sidebar counts.
+   The page holds no fixed-position element the containment would capture. */
+.classifications-detail {
+  container: classifications / inline-size;
+}
+
 .classifications-detail > .detail-head {
   margin-top: clamp(18px, 2.4vw, 28px);
 }
@@ -9388,7 +9395,14 @@ dialog.booking-drawer {
   margin: 0.5rem 0 0;
 }
 
-@media (max-width: 560px) {
+/* Issue 1165 (board 06 ①, pick N17 A): the two blocks below held at 560 px
+   of viewport; between 561 and 720 px the one-line row left the name 33 / 4
+   px at 600 px (level 1 / level 2) and the head's "Category" ran into
+   "Positions". They hold up to 720 px now, and as a container query on the
+   page (`.classifications-detail`, `container: classifications`), so they
+   follow the room the tree has: the band the open sidebar makes, 901 to
+   about 940 px of viewport, lies on two lines too. */
+@container classifications (max-width: 720px) {
   /* The phone keeps the name, the value and the result; positions and cost
      read in the row's title and on the desktop. */
   .cat-summary {
@@ -9407,7 +9421,7 @@ dialog.booking-drawer {
   }
 }
 
-@media (max-width: 560px) {
+@container classifications (max-width: 720px) {
   /* category rows on two lines (issue 873, pick G8 = A of board
      ux-design-2026-09-24/08-classification-detail): with the page's gutter
      in, one line leaves the name some 70 px beside two 6 rem figures and the
