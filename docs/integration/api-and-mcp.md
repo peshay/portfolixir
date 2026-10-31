@@ -2286,8 +2286,9 @@ Example account payloads:
   (FR-37, issue #740): `min_drift=` — the allocation read's threshold, same
   spelling (a non-negative Decimal string on `|drift_weight|`) — returns only
   the position rows whose drift meets it, where `drift_weight` is the
-  security's actual weight in the steering basis minus its position target
-  exactly as the allocation computes it (one predicate, two surfaces). Kept
+  security's actual weight in the steering basis minus its position target,
+  renormalised as the allocation renormalises a short plan (ADR-0040), exactly
+  as the allocation computes it (one predicate, two surfaces). Kept
   rows carry `drift_weight`; rows without a drift are filtered out; the
   response states the applied `min_drift`, `position_targets_total` (the
   pre-filter count) and a `drift_basis` sentence. Without `min_drift` the rows

@@ -2474,11 +2474,12 @@ Beispiel-Payloads für Konten:
   Allokationsabfrage, gleich geschrieben (ein nicht-negativer Decimal-String
   auf `|drift_weight|`) — liefert nur die Positionszeilen, deren Drift sie
   erreicht; `drift_weight` ist das tatsächliche Gewicht des Wertpapiers in der
-  Steuerbasis minus sein Positionsziel, genau wie die Allokation es rechnet
-  (ein Prädikat, zwei Oberflächen). Behaltene Zeilen tragen `drift_weight`,
-  Zeilen ohne Drift werden mitgefiltert, und die Antwort benennt das
-  angewandte `min_drift`, `position_targets_total` (die Zeilenzahl vor dem
-  Filter) und einen Satz `drift_basis`. Ohne `min_drift` tragen die Zeilen
+  Steuerbasis minus sein Positionsziel, renormiert, wie die Allokation einen
+  bewusst kurzen Plan renormiert (ADR-0040), genau wie die Allokation es
+  rechnet (ein Prädikat, zwei Oberflächen). Behaltene Zeilen tragen
+  `drift_weight`, Zeilen ohne Drift werden mitgefiltert, und die Antwort
+  benennt das angewandte `min_drift`, `position_targets_total` (die
+  Zeilenzahl vor dem Filter) und einen Satz `drift_basis`. Ohne `min_drift` tragen die Zeilen
   kein `drift_weight`, und die Form ist unverändert. Eine ungültige Schwelle
   ist ein `422`. Optionales `plan_id` liest diese Planversion, mit den `422`
   des `PUT` (Issue #1185): ihre Zeilen, ihre `effective_targets` und, mit
