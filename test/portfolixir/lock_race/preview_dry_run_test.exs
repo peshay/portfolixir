@@ -203,6 +203,114 @@ defmodule Portfolixir.LockRace.PreviewDryRunTest do
     assert agent_answered < dry_run_answered
   end
 
+  # User story (security review 2026-10-12, H53):
+  # As the operator renaming an account of a portfolio while an import
+  # preview of it is open,
+  # I want the preview's dry run neither to wait for the rename nor to read
+  # the names mid-change,
+  # so that a look at a file never waits on a writer and never prefills a
+  # name on counts read under a change in flight.
+  #
+  # Acceptance criteria:
+  # - A re-export whose purchase moved from 10:00 to 10:30: on its own the
+  #   dry run releases "Synthetic Depot" (its purchase is booked), which the
+  #   first pass (the hash layers alone) names unknown.
+  # - With a rename of another cash account of the portfolio held after it
+  #   took the account-identity lock, the dry run does not wait for it, and
+  #   stops: its counts stay on the hash layers and it names what the first
+  #   pass names, "Synthetic Depot" among them. (Mutation: without the check
+  #   for a writer of the portfolio's account names in flight, it runs on
+  #   and releases the name.)
+  test "a rename in flight stops the dry run at once, which then releases nothing",
+       %{db: db} do
+    {:ok, portfolio} =
+      Portfolios.create_portfolio(Actor.owner_ui(), %{
+        name: "Synthetic Rename Target",
+        base_currency_code: "EUR"
+      })
+
+    fund = %{"name" => "Synthetic Fund R", "isin" => isin("XR", 1), "currency" => "EUR"}
+    {:ok, _} = Imports.apply(preview!(history(fund, "10:00")), %{portfolio_id: portfolio.id})
+
+    {:ok, other} =
+      Portfolios.create_cash_account(Actor.owner_ui(), %{
+        portfolio_id: portfolio.id,
+        name: "Synthetic Other Cash",
+        currency_code: "EUR"
+      })
+
+    drifted = preview!(history(fund, "10:30"))
+    first = Imports.reimport_counts(drifted, portfolio_id: portfolio.id, dry_run: false)
+    assert first.unseen_names == %{cash_accounts: [], depots: ["Synthetic Depot"]}
+
+    assert Imports.reimport_counts(drifted, portfolio_id: portfolio.id).unseen_names ==
+             %{cash_accounts: [], depots: []}
+
+    {renamed, counts} =
+      LockRace.race!(
+        db,
+        {fn ->
+           Portfolios.update_cash_account(Actor.owner_ui(), other, %{
+             name: "Synthetic Other Cash Renamed"
+           })
+         end, &LockRace.lock?/1},
+        fn -> Imports.reimport_counts(drifted, portfolio_id: portfolio.id) end,
+        second: :passes
+      )
+
+    assert {:ok, %CashAccount{name: "Synthetic Other Cash Renamed"}} = renamed
+    assert counts.unseen_names == first.unseen_names
+    assert counts.total == first.total
+  end
+
+  # User story (security review 2026-10-12, H53):
+  # As the operator looking at an import preview,
+  # I want its dry run to run in a transaction the database itself keeps
+  # read-only,
+  # so that a write the simulation still sent would be refused, never
+  # committed and never held.
+  #
+  # Acceptance criteria:
+  # - Asked from inside the dry run, right after it opens its transaction,
+  #   the database answers that the transaction is read-only ("on").
+  #   (Mutation: without `SET TRANSACTION READ ONLY` it answers "off".)
+  test "the dry run runs in a read-only transaction" do
+    me = self()
+    handler = "preview-read-only-#{inspect(me)}"
+
+    :ok =
+      :telemetry.attach(
+        handler,
+        [:portfolixir, :repo, :query],
+        &__MODULE__.ask_read_only/4,
+        %{process: me}
+      )
+
+    try do
+      Imports.reimport_counts(preview!(file(1, 1, "XS", 500)))
+    after
+      :telemetry.detach(handler)
+    end
+
+    assert_received {:transaction_read_only, "on"}
+  end
+
+  @doc false
+  # Once, on the dry run's first query after it set up its transaction (its
+  # check for a writer of the portfolio's account names), asks the database
+  # on the same connection whether that transaction is read-only.
+  def ask_read_only(_event, _measurements, %{query: query}, %{process: process})
+      when is_binary(query) do
+    if self() == process and String.contains?(query, "pg_locks") and
+         !Process.get(:preview_read_only_asked) do
+      Process.put(:preview_read_only_asked, true)
+      %{rows: [[mode]]} = Repo.query!("SHOW transaction_read_only")
+      send(process, {:transaction_read_only, mode})
+    end
+  end
+
+  def ask_read_only(_event, _measurements, _metadata, _config), do: :ok
+
   # --- the dry run's progress ----------------------------------------------------------
 
   # A pause predicate: past the dry run's `n`th per-row hash check, a query
@@ -440,6 +548,31 @@ defmodule Portfolixir.LockRace.PreviewDryRunTest do
       end
 
     purchases ++ Enum.map(1..deposits, &deposit(50_000 + &1))
+  end
+
+  # A deposit and a purchase of `fund` at `time` (a drifted re-export moves
+  # the time).
+  defp history(fund, time) do
+    [
+      %{
+        "type" => "DEPOSIT",
+        "account" => "Synthetic Cash",
+        "date" => "2026-01-02",
+        "currency" => "EUR",
+        "amount" => num("2000.00")
+      },
+      %{
+        "type" => "PURCHASE",
+        "account" => "Synthetic Cash",
+        "portfolio" => "Synthetic Depot",
+        "date" => "2026-01-15",
+        "time" => time,
+        "currency" => "EUR",
+        "amount" => num("1000.00"),
+        "shares" => num("10"),
+        "security" => fund
+      }
+    ]
   end
 
   defp preview!(rows) do
