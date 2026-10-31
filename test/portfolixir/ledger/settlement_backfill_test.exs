@@ -450,6 +450,113 @@ defmodule Portfolixir.Ledger.SettlementBackfillTest do
              journal_entries([tx.id]) |> Enum.filter(&(&1.operation == :update))
   end
 
+  # The cross-currency buy the cash-edit races start from: 806.00 EUR cash,
+  # 5.00 fees and 1.00 taxes, so its settlement reads 800.00 EUR, no leg
+  # stored, the hub rate 1.25 at its date.
+  defp cash_buy!(w) do
+    {:ok, tx} =
+      Ledger.create_transaction(Actor.owner_ui(), %{
+        portfolio_id: w.portfolio.id,
+        securities_account_id: w.depot.id,
+        cash_account_id: w.cash.id,
+        security_id: w.security.id,
+        type: "buy",
+        date: ~D[2026-01-16],
+        quantity: "10",
+        price: "80.00",
+        fees: "5.00",
+        taxes: "1.00",
+        gross_amount: "806.00",
+        currency_code: "EUR"
+      })
+
+    seed_rate!(~D[2026-01-16], "1.25")
+    tx
+  end
+
+  # The backfill run with an owner edit of the buy's cash committed right
+  # after its candidate read.
+  defp backfill_across_cash_edit(tx, gross_amount) do
+    cash_edit = fn ->
+      Ledger.update_transaction(Actor.owner_ui(), Ledger.get_transaction(tx.id), %{
+        gross_amount: gross_amount
+      })
+    end
+
+    {result, {:ok, _edited}} =
+      Interleave.run(&candidate_read?/1, cash_edit, fn ->
+        SettlementBackfill.run(Actor.system_job("settlement_backfill"))
+      end)
+
+    result
+  end
+
+  defp stored_legs(%Transaction{} = transaction) do
+    transaction |> legs() |> Tuple.to_list() |> Enum.map(&(&1 && Decimal.to_string(&1)))
+  end
+
+  defp backfill_journal(id) do
+    [id] |> journal_entries() |> Enum.filter(&(&1.actor_label == "settlement_backfill"))
+  end
+
+  # User story (#1196, Sprint 21 α2; ADR-0015's amendment of 2026-10-09,
+  # point 6; the lock table's row 17):
+  # As the operator who corrects an imported booking's cash while a history
+  # backfill runs,
+  # I want the backfill to derive no leg from the cash it read before my
+  # edit,
+  # so that a correct edit never stops the run as a ledger refusal, and no
+  # leg is stored off a cash the booking no longer carries.
+  #
+  # Acceptance criteria:
+  # - The buy's cash set from 806.00 to 816.00 right after the backfill read
+  #   its candidates: the run completes, derives nothing and counts the row
+  #   in skipped_changed; the buy keeps 816.00 and no leg, and nothing is
+  #   journaled under settlement_backfill.
+  test "a cash edited after the candidate read derives no leg, and the run goes on" do
+    w = world()
+    tx = cash_buy!(w)
+
+    assert {:ok, %{updated: 0, skipped_no_rate: 0, skipped_changed: 1}} =
+             backfill_across_cash_edit(tx, "816.00")
+
+    stored = Ledger.get_transaction(tx.id)
+    assert Decimal.to_string(stored.gross_amount) == "816.000000"
+    assert stored_legs(stored) == [nil, nil, nil]
+    assert backfill_journal(tx.id) == []
+  end
+
+  # User story (#1196, Sprint 21 α2; ADR-0015's amendment of 2026-10-09,
+  # point 6; the lock table's row 17):
+  # As the operator who corrects an imported booking's cash by a cent while
+  # a history backfill runs,
+  # I want the backfill to leave that booking for a re-run,
+  # so that no leg is stored a cent off the cash the booking carries, inside
+  # the guard's tolerance where nothing would refuse it.
+  #
+  # Acceptance criteria:
+  # - The buy's cash set from 806.00 to 806.01 right after the candidate
+  #   read: the run derives nothing and counts the row in skipped_changed,
+  #   never settlement 800.00 beside a cash that implies 800.01.
+  # - A re-run derives the legs off the stored cash: settlement 800.01 EUR,
+  #   security 1,000.0125 USD, rate 0.800000.
+  test "a cent-level cash edit after the candidate read stores no leg off the old cash" do
+    w = world()
+    tx = cash_buy!(w)
+
+    assert {:ok, %{updated: 0, skipped_no_rate: 0, skipped_changed: 1}} =
+             backfill_across_cash_edit(tx, "806.01")
+
+    assert stored_legs(Ledger.get_transaction(tx.id)) == [nil, nil, nil]
+    assert backfill_journal(tx.id) == []
+
+    assert {:ok, %{updated: 1, skipped_changed: 0}} =
+             SettlementBackfill.run(Actor.system_job("settlement_backfill"))
+
+    assert stored_legs(Ledger.get_transaction(tx.id)) ==
+             ["800.010000", "1000.012500", "0.800000"]
+  end
+
   # User story (#1196, review round: the task's summary):
   # As the maintainer running `mix portfolixir.backfill_settlement_legs`,
   # I want its summary to count the rows it passed over because they gained
