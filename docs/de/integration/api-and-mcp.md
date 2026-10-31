@@ -4214,7 +4214,9 @@ lässt sich nicht lesen.
   dass eine Version dauerhaft ist, sobald sie gilt: Die Regel lässt sich dann
   nur noch beenden.
 - `portfolixir.policy_rules.add_version` — die Änderung: eine neue Version,
-  nie ein Überschreiben, und dauerhaft, sobald sie gilt.
+  nie ein Überschreiben, und dauerhaft, sobald sie gilt. Sie schließt die
+  geltende Version am Vortag und ersetzt jede geplante ab ihrem Datum; deshalb
+  ist sie als destruktiv markiert und gehört zu den Admin-Tools.
 - `portfolixir.policy_rules.rename` — nur der Name; die Beschreibung sagt,
   dass Umbenennen keine Version anlegt und die Versionen unverändert bleiben.
 - `portfolixir.policy_rules.retire` — beendet die geltende Version; alles

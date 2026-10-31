@@ -3875,7 +3875,9 @@ API may have committed it, and its answer cannot be read.
   description carries the measure matrix and the scales, and states that a
   version is permanent once in force: the rule can then only be retired.
 - `portfolixir.policy_rules.add_version` — the edit: a new version, never an
-  overwrite, and permanent once in force.
+  overwrite, and permanent once in force. It closes the version in force the
+  day before and replaces every scheduled version from its date, so it is
+  hinted destructive and held with the admin tools.
 - `portfolixir.policy_rules.rename` — the name only; the description states
   that a rename creates no version and the versions do not change.
 - `portfolixir.policy_rules.retire` — ends the version in force; everything

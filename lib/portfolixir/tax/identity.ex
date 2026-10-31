@@ -26,8 +26,12 @@ defmodule Portfolixir.Tax.Identity do
   @spaces ~r/[\s\p{Zs}]+/u
 
   @doc """
-  Composes to NFC, removes Unicode format characters (zero-width spaces and
-  joiners, the byte-order mark, the soft hyphen, bidi marks), and collapses
+  Composes to NFC, removes every default-ignorable character
+  (`Portfolixir.Input.Text.strip_format_characters/1`: the format characters
+  — zero-width spaces and joiners, the byte-order mark, the soft hyphen, bidi
+  marks — and, since the security review of 2026-10-12 (H12), the variation
+  selectors, the combining grapheme joiner U+034F and the Hangul fillers
+  among the rest), and collapses
   every run of Unicode spaces to a single space, trimmed. A value that was
   only such characters becomes `""`, which the changesets' required check
   refuses as blank.

@@ -245,6 +245,6 @@ is withdrawn.
 
 §3's "a name is 1 to 32 characters of `a-z`, `0-9`, `_` and `-`" is wider
 than the code, which also requires the first character to be a letter or a
-digit (`Portfolixir.RuntimeConfig`, pinned by `api_token_policy_test.exs`):
-`-x` and `_x` are refused at boot. The rule is the stricter one; §3 is read
+digit (`Portfolixir.RuntimeConfig`; `api_token_policy_test.exs` pins `-x`
+and `_x` as refused at boot). The rule is the stricter one; §3 is read
 with it.
