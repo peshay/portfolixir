@@ -492,9 +492,368 @@ true: the listener and log-rotation paragraphs of `docs/home-deployment.md`
 
 ---
 
-## Part 7 — Where each item landed
+## Part 7 — Where each item landed (Sprint 21 batch)
 
-Filled at the closing act of the fix batch, in the form of the 2026-09-24
-review's Part 7: every identifier in order, its status (shipped, partial,
-deferred, refuted, no action, repaired on the planning PR) and the commit that
-carries its fix, named by subject. Empty until then.
+The amendment's done criterion 2, recorded at the closing act of the sprint
+PR. This appendix is the one landing record: the rows of Part 3 keep their
+adopted wording, and this part lists every review identifier in order, with
+its status and the commit that carries its fix, named by subject. Subjects
+survive the history clean-up before the rebase-merge where hashes do not, and
+every landing commit on the branch names its identifier in its message, so
+`git log --grep='\bH07\b'` finds all of them (the T-11 hotfix, on `main`
+before the batch, is found by its subjects below). Classes and fixes only, as
+Part 6 asks: no item here says how its weakness is reached. The build ran
+across three sessions (2026-10-27 to 2026-10-31) because the account's usage
+limit stopped it twice; the fixes are dated by their commits.
+
+Statuses: **shipped** (the adopted fix is on the branch, or for the T-11 rows
+on `main` before it); **partial** (part of the row's fix waits, by a recorded
+decision); **deferred** (nothing of it landed on this PR; the two deferred rows
+are the amendment's D-4 moves into the stacked PRs, not drops); **refuted**;
+**no action**. A follow-up named after an item is a defect found beside it
+while building, filed as a thin issue at integration (AGENTS.md, "Stay in
+scope"); none of them is part of the row's own fix.
+
+**Counted by group:**
+
+| Group | Items | Shipped | Partial | Deferred | Refuted | No action | Follow-ups filed while building it |
+|---|---|---|---|---|---|---|---|
+| S1 credentials, sessions and the perimeter | 10 | 10 | – | – | – | – | 3 (#1262, #1263, #1264) |
+| S2 deployment, listener and logging | 12 | 12 | – | – | – | – | 3 (#1256, #1257, #1258) |
+| S3 outbound requests and provider data | 5 | 5 | – | – | – | – | 3 (#1271, #1275, #1276) |
+| S4 input bounds and cost | 17 | 16 | – | 1 (H45 → stacked PR 2, γ7) | – | – | 8 (#1254, #1255, #1259, #1265, #1266, #1267, #1273, #1277, #1278) |
+| S5 import robustness | 4 | 3 | – | 1 (H53 → stacked PR 1, α9) | – | – | 1 (#1251, T-18's design issue) |
+| S6 the audit trail and integrity | 13 | 13 | – | – | – | – | 6 (#1252, #1253, #1269, #1270, #1272, #1274) |
+| S7 browser and agent surface | 8 | 8 | – | – | – | – | 3 (#1284, #1285, #1286) |
+| S8 CI and supply chain | 6 | 6 | – | – | – | – | 2 (#1260, #1261) |
+| Refuted or no action in Part 5 | 4 | – | – | – | – | 4 | – |
+| **All** | **79** | **73** | **0** | **2** | **0** | **4** | **30** |
+
+Every promoted reproduction test was red before its fix in the commit order
+(each fixer ran it red and committed it on its own; each group's reviewer
+re-ran the red at the test commit) and is green at the head; no gate was
+weakened: `.sobelow-skips` is unchanged, no test carries a skip tag, no test
+was deleted, and the schema-budget ceilings only moved down. One exception to
+"test commit, then fix commit" is recorded: H63 lands test and fix in one
+commit, as the amendment's "one commit" for the gate order asks, and its
+reviewer confirmed the test red against the base. The S7 author rows (H14,
+K12) land their context and backfill tests in the same commit as the code
+behind their red-first acceptance tests.
+
+**The decisions, as adopted (Part 4):**
+
+- **T-11** — as adopted: the three lock moves shipped on `main` ahead of the
+  batch as `fix(deps): move bandit, plug_crypto and decimal past their
+  advisories (T-11)` and `fix(deps): move the companion's npm locks past
+  their advisories (T-11)` (2026-10-27), with the invariant
+  `test/invariants/advisory_fixed_releases_test.exs` pinning the floors; the
+  lane then took Bandit's own fix release 1.14.1 for the advisory published
+  on 2026-10-28 (`chore(deps): bandit 1.14.0 -> 1.14.1`). The version report
+  re-checked the three locks: held.
+- **T-12** — as adopted: cleartext HTTP/2 is off and the listener bounded,
+  in H09's commit.
+- **T-13** — as adopted: the multipart parser left the endpoint (H01).
+- **T-14** — as adopted: a release refuses an empty, placeholder or short
+  database password at boot and the development default stays (H18); the
+  build found no documented password-less route, so a URL without a password
+  is refused too, named in the PR briefing for the owner.
+- **T-15** — tighten: a preference is remembered only from a cookie the
+  instance signed, sent once, `__Host-` on HTTPS, and off loopback over plain
+  HTTP only with the instance's own Referer (K02, H41); what the signature
+  proves and the port limit that stays are documented in `SECURITY.md`.
+- **T-16** — actor-first everywhere: the logo writes, the default view, the
+  asset-class move, the rule's name and the tax rows carry the request's
+  actor (H61, H62, H14, K12), and the write-actor invariant pins it.
+- **T-17** — warn: the token floor stays a length check, and a token with few
+  distinct characters is named in a startup warning by the application and
+  the companion alike (H20, #1202); ADR-0045's note is corrected.
+- **T-18** — as stated: the bounds landed now (H07, H58, H59, H08) and the
+  design issue is filed as #1251 (`needs-decision`).
+- **T-19** — refuse, and ask: a cross-currency trade with a settlement rate and
+  neither amount is refused on `gross_amount`, stored ones are listed, and the
+  settlement guard also runs on an update that changes the currency, the
+  account or the security (H35); the owner's answer on the stored rows is
+  asked in the PR briefing.
+- **T-20** — yes: the lock-order table (`test/support/lock_table.ex`), #1214,
+  H60 and H54 rode the batch as risk-tier work with their own commit group
+  and the lock-race lens in the closing act.
+- **T-21** — the matcher: a split scales every open lot of the security's
+  queue once, whatever portfolio label the lot carries, and no booking is
+  added (K09); ADR-0015's amendment of 2026-10-09 carries the dated note.
+
+**Every identifier, in Part 3's order:**
+
+*S1 — Credentials, sessions and the perimeter*
+
+- **H03** — shipped: `fix(auth): bound the throttle table in count: IPv6
+  sources by their /64, a row cap, a first-failure ceiling for the API scope
+  (H03)`, with `fix(auth): the new-source ceiling is counted before the
+  table-full check (H03)` from its review and the API and security docs.
+- **H04** — shipped: `fix(web): refuse a trusted-proxy block wide enough to
+  cover the clients and name it in a startup warning (H04)`.
+- **H18** — shipped: `fix(config): ship the Compose database password empty
+  and refuse an empty, placeholder or short one at release boot (H18)`
+  (T-14), with the run-from-source route's posture documented.
+- **H22** — shipped: `fix(config): quote a refused principal name only when
+  it is name-shaped, else its length and a hint (H22)` and `fix(config): a
+  refused principal is quoted only below the token floor's length (H22)`;
+  the residual a swapped entry leaves is #1262.
+- **H41** — shipped: `fix(web): remember an unlabelled choice off loopback
+  over plain HTTP only with the instance's own Referer (H41)` (T-15).
+- **H19** — shipped: `fix(web): hold an open page to its login's lifetime and
+  name an unreadable lifetime at boot (H19)`; the lifetime that does not
+  slide over the socket is #1264 for the owner.
+- **H20** — shipped: `fix(auth): keep the token floor a length check and warn
+  at start on a token with few distinct characters, application and companion
+  alike (H20, #1202)` (T-17), closing #1202.
+- **H49** — shipped: `fix(mcp): cap the companion's failed-token throttle,
+  evicting the oldest unlocked source when full (H49)`.
+- **K02** — shipped: `fix(web): read a remembered preference only from a
+  cookie the server signed, sent once, __Host- on HTTPS (K02)` and
+  `fix(web): a preference is remembered only on a request the login allows
+  (K02)` (T-15); the cookie store's widening is named in the briefing.
+- **K18** — shipped: `fix(config): build the development socket's origin list
+  from the Host guard's names and derive its LiveView salt (K18)`.
+
+*S2 — Deployment, listener and logging*
+
+- **H27** — shipped, in two halves as Part 0 records: the lock move on `main`
+  (T-11, above) closed the advisory and its siblings; the defence in depth
+  (T-12) is in H09's commit, cleartext HTTP/2 off.
+- **H09** — shipped: `fix(web): bound the listener's connections, acceptors
+  and read timeout, turn cleartext HTTP/2 off, and raise the app container's
+  descriptor limit above the cap (H09)`; the deployment guide names the
+  proxy's header timeouts and the listener's own bounds. Bandit 1.14 has no
+  header-phase deadline, so the guide puts that deadline on the proxy.
+- **H69** — shipped: `fix(log): escape control characters on their way to the
+  console through a filter on the console handler (H69)`.
+- **H70** — shipped: `fix(deploy): give every Compose service a rotating log
+  driver (H70)`, with the release-outside-Compose instruction.
+- **H71** — shipped: `fix(web): in a release, log a crashing live page's last
+  message by topic and event name only (H71)`; the crash report that can
+  still print a handler's arguments is #1256.
+- **H06** — shipped: `fix(config): read one switch vocabulary and name an
+  unread protective switch at boot (H06)` (on and off are accepted beside
+  true and false; named in the briefing).
+- **H72** — shipped: `fix(config): check DATABASE_URL at boot and refuse it
+  naming the variable, never its value (H72)` and `fix(config): the
+  DATABASE_URL shape check reads the URL as Ecto does (H72)`.
+- **K01** — shipped: `fix(tax): bound the identity backfill in code points
+  and report a row the database refuses (K01)`.
+- **K03** — shipped: `fix(config): read the database URL's TLS settings at
+  boot, verify always, refuse permissive or contradicting ones, add a CA file
+  (K03)`; a Unix-socket URL is no longer accepted, as the guide says.
+- **K04** — shipped: `fix(derived): refuse to seed the measurement ledger
+  beside a portfolio without --write-synthetic, and journal it as its own job
+  (K04)`.
+- **K05** — shipped: `fix(release): start the derived rebuild without the web
+  listener, the schedulers' boot work or the boot steps (K05)`.
+- **K16** — shipped: `fix(mcp): refuse to start when Node's environment proxy
+  would carry the API calls, naming NO_PROXY (K16)` and `fix(mcp): the proxy
+  check reads NO_PROXY the way Node's fetch does, exact for plain entries
+  (K16)`.
+
+*S3 — Outbound requests and provider data*
+
+- **H38** — shipped, design pick Q (D-8): `fix(securities): the manual logo is
+  a browser upload stored under the operator's actor; the image-URL form
+  leaves the page (H38)`; the API's manual-logo URL path stays by D-8, and
+  `SECURITY.md`'s fetch-policy sentence names it as the one exception
+  (`docs(security): the fetch policy names the logo URL a caller points the
+  instance at as its one exception (H61)`). The intake invariant admits the
+  logo dialog's upload alone (narrowed from the fixer's first widening by its
+  review).
+- **H50** — shipped: `fix(net): every provider parse is linear in the body
+  and runs under its own wall-clock guard (H50)` and `fix(net): the parse
+  guard catches a throw too (H50)`.
+- **H39** — shipped: `fix(securities): a catalog price sync runs once at a
+  time and the page refuses sync and logo retry while one is in flight
+  (H39)`; the refused run's notification body is #1276.
+- **H51** — shipped: `fix(net): the outbound policy judges IPv4 shorthand as
+  the literal the connect path reads (H51)`.
+- **H52** — shipped: `fix(catalog): a stored logo replaces every other file
+  of its security (H52)` and `fix(catalog): a stored logo removes the other
+  files of its security only after it is written (H52)`.
+
+*S4 — Input bounds and cost*
+
+- **H01** — shipped: `fix(web): drop the multipart parser from the endpoint,
+  so no request writes a file before authentication (H01)` (T-13).
+- **H02** — shipped: `fix(web): bound what the socket and the body parsers
+  decode: frame and message size, nesting depth, body length, and the
+  transport under the heap cap (H02)`; the API reference states the 413 and
+  400 bounds. The reconcile endpoint's row cap is #1258.
+- **H58** — shipped: `fix(imports): detach every kept text cell from the
+  upload body in both parsers (H58)`.
+- **H26** — shipped: `fix(web): derive the Classifications page path from its
+  route and normalise the id-range redirect target (H26)`.
+- **H37** — shipped: `fix(catalog): type the whole-number attributes at write
+  and order the numeric attribute sort only over numeric text (H37)`.
+- **H45** — deferred to stacked PR 2, γ7, by the amendment's D-4: the picker
+  it changes is built there, against its Q board.
+- **H59** — shipped: `fix(imports): bound a CSV's rows and lines and a JSON
+  body's shape before either is built (H59)` and `fix(imports): count a CSV's
+  lines in one pass over its bytes (H59)`; the numeric cell's own bound is
+  #1265, the version string's #1267.
+- **H08** — shipped: `fix(imports): park what a remount shows beside the
+  preview and restore it instead of recomputing it (H08)` and `fix(imports):
+  a remount from the parked summary sets every assign the upload set (H08)`;
+  two tabs sharing one parked mapping is #1266.
+- **H16** — shipped: `fix(web): carry a merged-away link's parameters through
+  one shared flattening helper (H16)`.
+- **H30** — shipped: `fix(api): render changeset errors totally and refuse a
+  null church tax rate with a field error (H30)`.
+- **H31** — shipped: `fix(classifications): bound position to the int4 range
+  in the four changesets and the four companion schemas (H31)`, the
+  list_positions shape guarantee kept in its description.
+- **H36** — shipped: `fix(tax): look up tax parameters and a holder's profile
+  only with fields the changeset accepted, and name the statement form's
+  refused fields by their labels (H36)` (board 07).
+- **H07** — shipped: `fix(imports): bound the parked previews by bytes and
+  keep a plain page load from copying one (H07)`; the byte budget counts the
+  heap, as the security notes say, and the dead-render restoring stage is
+  named in the briefing.
+- **H55** — shipped: `fix(input): bound the text rule's length before its
+  scans and count code points without a list (H55)`.
+- **K06** — shipped: `fix(fx): a stored exchange rate that is not positive is
+  no rate to every lookup, reported at boot and left in place (K06)` and
+  `fix(fx): the history-gap read ignores a non-positive stored rate too
+  (K06)`.
+- **K08** — shipped (with #1204): `fix(performance): load each security's
+  closes only while held and walk a contribution window from its baseline
+  day (K08)` and `fix(performance): run each warm-up and refresher walk under
+  the heap cap in a supervised worker that fails alone (K08)`; 115 reads
+  pinned byte-identical before the loading changed; the heap-cap config key
+  moved to `Portfolixir.HeapCap` (briefing). The phone-twins margin is #1273.
+- **K13** — shipped: `fix(web): run the text rule before the tag-bucket and
+  account-name lookups and answer a field error or a named refusal (K13)`
+  (board 07), with the Imports page's answer pinned; the raw field keys in
+  the inline tag error are #1277, the bucket created before the depot name is
+  refused #1278.
+
+*S5 — Import robustness*
+
+- **H53** — deferred to stacked PR 1, α9, by the amendment's D-4: the lock-free
+  dry run lands with the story that builds its screen.
+- **H54** — shipped: `fix(imports): the default portfolio is resolved under
+  its own lock and committed before the import's transaction (H54)` (T-20);
+  a failed first import now leaves the committed Default portfolio behind
+  (briefing).
+- **H56** — shipped: `fix(imports): name a JSON version only when it is a
+  string or an integer (H56)`.
+- **H57** — shipped: `fix(imports): drop a ticker the catalog refuses with a
+  row warning, and translate its refusal (H57)`.
+
+*S6 — The audit trail and integrity*
+
+- **H61** — shipped: `fix(journal): logo override, removal and rediscovery
+  and the default view are journaled under the request's actor (H61)`
+  (T-16); the manual override records the host its URL named. The unjournaled
+  settings writers around the journaled path are #1272, the page's logo
+  action that skips the lock check #1271.
+- **H35** — shipped (T-19): `fix(ledger): refuse a cross-currency trade with
+  a rate and neither amount, and list stored ones (H35)` and `fix(ledger):
+  the settlement guard also runs on an update that changes the currency, the
+  account or the security (H35)`; the stored rows' question goes to the
+  owner in the briefing.
+- **H44** — shipped: `fix(buckets): the view bucket picker saves include_all
+  and both sets in one locked, journaled write, so a refusal changes nothing
+  (H44)`.
+- **H60** — shipped (T-20): `fix(ledger): the split booking and deletion hold
+  the security in key-share mode before the fan-out (H60)`, against the
+  lock-order table; the two further orderings found are #1252 and #1253.
+- **H17** — shipped: `fix(accounts): Delete in the Accounts row menu always
+  asks, its question follows what the menu saw, and a delete says so (H17)`.
+- **H10** — shipped: `fix(derived): compact the version log on the
+  post-commit interval (H10)`, ADR-0039's amendment dated.
+- **H62** — shipped (T-16): `fix(classifications): the asset-class move and
+  its reset take the actor first (H62)`.
+- **K07** — shipped: `fix(income): a payment with no rate path to the base
+  currency is excluded from every total and named, with the computation basis
+  on the payload and the page (K07)` and `fix(income): an unconverted
+  payment's base-currency figures are null, never its native amount at parity
+  (K07)`; the drilled-year Currency column is #1274.
+- **K09** — shipped (T-21): `fix(ledger): a split scales every open lot of
+  the security's FIFO queue once, whatever its portfolio (K09)`, ADR-0015
+  noted.
+- **K11** — shipped: `fix(lifecycle): a security merge preview states the
+  FIFO realized gains per close year and the open lots' cost it restates; the
+  depot preview names its moving average (K11)`.
+- **K17** — shipped: `fix(api): a capped delta read is a page, oldest change
+  first, with has_more and a cursor as_of; list reads echo limit and
+  truncated (K17)`; the capped reads outside the five delta reads are #1254.
+- **K10** — shipped: `fix(ledger): a split is booked only through the split
+  flow, and the drawer books buy and sell only (K10)`.
+- **K14** — shipped: `fix(accounts): the account dialog's tag, cash account,
+  depot and bucket sets are written in one transaction that a refusal rolls
+  back (K14)`; the dialog's unhandled refusal clauses are #1259, its generic
+  label #1255.
+
+*S7 — Browser and agent surface*
+
+- **H11** — shipped (board 04): `fix(merge): merge refusals name an identity
+  by kind and carry its stored values as data (H11)`, with the invariant
+  that no merge guard or refusal interpolates a stored identifier; the
+  sentences outside the three the row names are #1284, the reverse
+  refusal's data #1285.
+- **H12** — shipped: `fix(input): the text rule covers every
+  default-ignorable character and a selector without a base (H12)`, the
+  companion mirroring it over the shared fixture; the pre-commit gate's
+  narrower set is #1286.
+- **H13** — shipped: `fix(mcp): a policy rule's new version is hinted
+  destructive and held with the admin tools (H13)`.
+- **H14** — shipped (T-16, board 04): `fix(risk): record who last named a
+  policy rule and mark the agent's name (H14)`, with its backfill migration.
+- **H21** — shipped: tests only, as the row asks: the companion's hour of
+  failure counts, open sessions past the login ceiling and the boot warnings
+  are pinned (`test(auth): pin the companion's hour of failure counts, open
+  sessions past the login ceiling and the boot warnings (H21)`), each
+  mutation-checked.
+- **H25** — shipped: the derived LiveView salt, the password out of the debug
+  log and the API refusing a UI login are pinned, and ADR-0045 and ADR-0054
+  carry dated notes where they read wider than the code.
+- **K12** — shipped (T-16, board 04): `fix(tax): record who recorded and
+  corrected a statement or allowance order and mark the agent's (K12)`, with
+  its backfill migration.
+- **K19** — shipped: `docs(api): the research log's provenance is the
+  system's, and the event and list bounds are stated in both languages
+  (K19)`, pinned by the docs test.
+
+*S8 — CI and supply chain*
+
+- **H64** — shipped: `fix(ci): the invisible-Unicode gate reports any file
+  that is not UTF-8 text unless it is a listed binary, and its unit tests run
+  in pre-commit (H64)`; the two gaps found beside it are #1260 and #1261.
+- **H65** — shipped: `fix(ci): the hygiene hooks run locally on the
+  hash-pinned pre-commit-hooks, so no hook resolves packages at install time
+  (H65)`.
+- **H28** — shipped on `main` with T-11 (above): `decimal` declared in
+  `mix.exs` at `~> 3.1.2`, `plug_crypto` 2.2.1; decimal 3.2 is declined this
+  lane as its own reviewed bump (Dependabot #1279, the version report).
+- **H63** — shipped: `ci(quality): the live-feed audits run as a job of their
+  own (H63)`, test and fix in one commit by the amendment.
+- **H66** — shipped: `fix(docs): the deployment guide calls a release a merged
+  point and says to check its CI run first (H66)`.
+- **H68** — shipped as a pin, which is the row's fix: `test(ci): pin each
+  workflow's token permissions and refuse the triggers that run foreign
+  changes with it (H68)`.
+
+*Refuted or no action (Part 5)*
+
+- **H24** — no action beyond the one-line correction the ledger names:
+  `docs(architecture): the route-scope pattern defers to ADR-0054 (H24)`
+  (the pattern lives in the planning architecture document, not in
+  `docs/architecture.md`).
+- **H29** — no action: the S0 lesson is owned by the version report, which
+  this lane wrote.
+- **H48** — no action: decided in #1045.
+- **K15** — no action: a malformed holder in a Tax page link answers 400
+  through the Ecto exception mapping; nothing is stored, shown or logged at
+  error level.
+
+**The four items moved into the batch** (the amendment's D-4): #1214 and the
+lock-order table (S6a, with H60 and H54), #1202 (with H20), #1204 (with K08),
+#1189 and #1218 (with S8: `fix(ci): both .dockerignore files join the Release
+workflow's shipped paths (#1189)`, `fix(ci): the database service and the
+Compose build pull Docker Hub images through Google's mirror, digests
+unchanged (#1218)`). Each closes with the sprint PR.
