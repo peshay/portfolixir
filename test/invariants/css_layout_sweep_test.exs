@@ -260,6 +260,20 @@ defmodule Portfolixir.Invariants.CssLayoutSweepTest do
              ~r/#toggle-column-popover,\s*\.column-picker-bar,\s*#holdings-column-toggle,\s*#holdings-column-picker \{\s*display: none;/
   end
 
+  # User story (#1151, Sprint 21 γ2; board ux-design-2026-10-09/02-securities,
+  # rule ⑤): As the operator who opened the securities list's column picker
+  # on a wide window and then narrowed it below 560 px, I want the picker's
+  # panel to hide with its toggle, so that no panel stays open over the rows
+  # with nothing left to close it.
+  #
+  # Acceptance criteria:
+  # - `#column-picker` joins the 560 px picker rule beside its toggle,
+  #   `.column-picker-bar` and Wealth's toggle and panel.
+  test "the securities list's column picker hides with its toggle on the phone" do
+    assert phone_block() =~
+             ~r/#column-picker,\s*#toggle-column-popover,\s*\.column-picker-bar,\s*#holdings-column-toggle,\s*#holdings-column-picker \{\s*display: none;/
+  end
+
   # User story (#1057; board ux-design-2026-10-04/06-phone-wealth, pick J6.2
   # A, rule ②):
   # As the operator reading two securities of one name,
