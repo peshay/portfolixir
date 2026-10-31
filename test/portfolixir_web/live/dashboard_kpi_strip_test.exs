@@ -140,4 +140,27 @@ defmodule PortfolixirWeb.DashboardKpiStripTest do
     assert text(cell(doc, "kpi-freshness")) =~ "Kurse"
     assert text(Floki.find(doc, ~s([data-role="kpi-strip-basis"]))) =~ "Alles"
   end
+
+  # User story (#1114, Sprint 21 γ1; board 01 ②, pick N2 A): As the operator
+  # reading the Overview on a narrow window or a tablet between 561 and about
+  # 680 px, I want the key-figure strip to go two by two before a date can
+  # reach its cell's edge, so that "02.10.2026" never runs into the padding
+  # or over the divider, whatever system font stands in for Inter.
+  #
+  # Acceptance criteria:
+  # - The strip's two-by-two block is `@media (max-width: 680px)`: two
+  #   columns, the third cell without its left border, the second row with
+  #   a top border — the 560 px block's three rules, moved, not added to.
+  # - No 560 px block for the strip remains, and the value keeps the spec's
+  #   20 px at every width (no clamp, no padding change).
+  test "the strip goes two by two under 680 px, not 560 px" do
+    css = File.read!("priv/static/app.css")
+
+    assert css =~
+             ~r/@media \(max-width: 680px\) \{\n  \.kpi-strip__cells \{\n    grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);\n  \}\n\n  \.kpi-strip__cell:nth-child\(3\) \{\n    border-left: 0;\n  \}\n\n  \.kpi-strip__cell:nth-child\(n \+ 3\) \{\n    border-top: 1px solid var\(--color-border\);\n  \}\n\}/
+
+    refute css =~ ~r/@media \(max-width: 560px\) \{\n  \.kpi-strip__cells/
+    assert length(Regex.scan(~r/\.kpi-strip__cells \{/, css)) == 2
+    refute css =~ ~r/\.kpi-strip__cell strong \{[^}]*clamp\(/
+  end
 end
