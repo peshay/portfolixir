@@ -4091,7 +4091,13 @@ describe("Portfolixir MCP tools", () => {
   // that the daily sync derives none; the API's settlement_legs reaches the
   // agent unchanged.
   it("describes and passes through the settlement legs a history run derives", async () => {
-    const legs = { status: "completed", derived: 2, skipped_no_rate: 0, stopped_at_transaction_id: null };
+    const legs = {
+      status: "completed",
+      derived: 2,
+      skipped_no_rate: 0,
+      skipped_changed: 0,
+      stopped_at_transaction_id: null
+    };
     const { client } = createRecordingClient({
       data: { provider: "ecb", status: "ok", upserted: 3, scope: "history", settlement_legs: legs }
     });
@@ -4101,7 +4107,7 @@ describe("Portfolixir MCP tools", () => {
 
     const sync = listTools().find((tool) => tool.name === "portfolixir.exchange_rates.sync");
     assert.match(sync?.description ?? "", /settlement_legs/);
-    assert.match(sync?.description ?? "", /derived, skipped_no_rate/);
+    assert.match(sync?.description ?? "", /derived, skipped_no_rate, skipped_changed/);
     assert.match(sync?.description ?? "", /latest derives none/);
   });
 

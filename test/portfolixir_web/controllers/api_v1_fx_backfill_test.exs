@@ -115,6 +115,7 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
                "status" => "completed",
                "derived" => 0,
                "skipped_no_rate" => 0,
+               "skipped_changed" => 0,
                "stopped_at_transaction_id" => nil
              }
            }
@@ -233,6 +234,7 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
              "status" => "completed",
              "derived" => 1,
              "skipped_no_rate" => 1,
+             "skipped_changed" => 0,
              "stopped_at_transaction_id" => nil
            }
 
@@ -270,6 +272,7 @@ defmodule PortfolixirWeb.ApiV1FxBackfillTest do
              "status" => "stopped",
              "derived" => nil,
              "skipped_no_rate" => nil,
+             "skipped_changed" => nil,
              "stopped_at_transaction_id" => buy.id
            }
 

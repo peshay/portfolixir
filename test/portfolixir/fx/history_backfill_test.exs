@@ -20,6 +20,7 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
   alias Portfolixir.Imports
   alias Portfolixir.Imports.Applier.Result
   alias Portfolixir.Imports.SecurityResolver
+  alias Portfolixir.Interleave
   alias Portfolixir.Journal
   alias Portfolixir.Ledger
   alias Portfolixir.Ledger.Transaction
@@ -542,7 +543,14 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
       # stored the rates derived the legs the import could not store.
       assert stored_legs(buy) == {"800.000000", "1000.000000", "0.800000"}
 
-      assert %{settlement_legs: %{status: :completed, derived: 1, skipped_no_rate: 0}} =
+      assert %{
+               settlement_legs: %{
+                 status: :completed,
+                 derived: 1,
+                 skipped_no_rate: 0,
+                 skipped_changed: 0
+               }
+             } =
                elem(run, 1)
 
       put_quote!(security_id, ~D[2024-10-01], "100")
@@ -732,7 +740,7 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
                  history: series
                )
 
-      assert counts == %{status: :completed, derived: 2, skipped_no_rate: 0}
+      assert counts == %{status: :completed, derived: 2, skipped_no_rate: 0, skipped_changed: 0}
 
       for buy <- fresh_buys do
         assert stored_legs(Repo.get!(Transaction, buy.id)) ==
@@ -756,10 +764,70 @@ defmodule Portfolixir.Fx.HistoryBackfillTest do
       settled = untouched ++ fresh_buys ++ imported_buys
       settled_journal = journal_entries(settled)
 
-      assert {:ok, %{settlement_legs: %{status: :completed, derived: 0, skipped_no_rate: 0}}} =
+      assert {:ok,
+              %{
+                settlement_legs: %{
+                  status: :completed,
+                  derived: 0,
+                  skipped_no_rate: 0,
+                  skipped_changed: 0
+                }
+              }} =
                RateSync.backfill(provider: HistoryFeed, history: series)
 
       assert journal_entries(settled) == settled_journal
+    end
+
+    # User story (#1196, review round S1):
+    # As the operator who deletes an imported booking while a history
+    # backfill runs,
+    # I want the run to pass over the booking that is gone and derive the
+    # rest,
+    # so that a manual backfill answers its counts instead of failing, and
+    # the automatic one does not crash.
+    #
+    # Acceptance criteria:
+    # - A legless buy deleted right after the run read its candidates is
+    #   counted in skipped_changed; the other buy gains its legs; the run
+    #   answers {status completed, derived 1, skipped_no_rate 0,
+    #   skipped_changed 1} and raises nothing.
+    test "a booking deleted after the candidate read is passed over, the rest derived" do
+      fresh_instance!()
+
+      {:ok, security} =
+        Catalog.create_security(Actor.owner_ui(), %{
+          name: "Examplia Robotics Corp.",
+          ticker_symbol: "EXRB",
+          currency_code: "USD",
+          asset_class: "equity"
+        })
+
+      {_cash, _depot, [kept, deleted]} = import_identity_six!(security, "Giro", "Depot")
+
+      candidate_read? = fn
+        %{source: "transactions", query: query} ->
+          query =~ "cash_accounts" and not (query =~ "FOR")
+
+        _metadata ->
+          false
+      end
+
+      {result, {:ok, _deleted}} =
+        Interleave.run(
+          candidate_read?,
+          fn ->
+            Ledger.delete_transaction(Actor.owner_ui(), Repo.get!(Transaction, deleted.id))
+          end,
+          fn -> RateSync.backfill(provider: HistoryFeed, history: {:ok, usd_series()}) end
+        )
+
+      assert {:ok, %{settlement_legs: counts}} = result
+      assert counts == %{status: :completed, derived: 1, skipped_no_rate: 0, skipped_changed: 1}
+
+      assert stored_legs(Repo.get!(Transaction, kept.id)) ==
+               {"800.000000", "1000.000000", "0.800000"}
+
+      refute Repo.get(Transaction, deleted.id)
     end
   end
 
