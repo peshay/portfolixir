@@ -2458,9 +2458,9 @@ Währung, den Tagen, an denen es null zählte (der Tag vor dem Zeitraum, dessen
 Schluss der Anfangswert ist, eingeschlossen), und dem Grund — und sagt, wenn
 der erste Wechselkurs im Zeitraum kam, während das Konto noch Geld hielt, an
 welchem Tag der Saldo in den Währungseffekt kam; diese Zeile trägt den
-Vermerk des Kontos („Tagesgeld CHF: 18 Tage null“). Ein Konto, das am letzten
-Tag des Zeitraums noch keinen Wechselkurs hat, „zählt bis zum Ende des
-Zeitraums null“. Bei einem Zeitraum, der nach dem Tag des ersten
+Vermerk des Kontos („Tagesgeld CHF: 18 Tage mit 0 bewertet“). Ein Konto, das
+am letzten Tag des Zeitraums noch keinen Wechselkurs hat, „zählt bis zum Ende
+des Zeitraums null“. Bei einem Zeitraum, der nach dem Tag des ersten
 Wechselkurses beginnt, verschwindet das Konto wie der Sprung aus Tabelle und
 Hinweis. Weil die historischen Wechselkurse von selbst kommen (siehe
 *Wechselkurse und Bewertung*), bleibt ein solches Konto nur, wo sie es nicht

@@ -10470,8 +10470,8 @@ msgstr[1] "%{count} Verkäufe haben für ihre ganze Stückzahl oder einen Teil d
 #, elixir-autogen, elixir-format
 msgid "%{count} day at zero"
 msgid_plural "%{count} days at zero"
-msgstr[0] "%{count} Tag null"
-msgstr[1] "%{count} Tage null"
+msgstr[0] "%{count} Tag mit 0 bewertet"
+msgstr[1] "%{count} Tage mit 0 bewertet"
 
 #: lib/portfolixir_web/live/portfolio/contribution_table.ex:503
 #, elixir-autogen, elixir-format

@@ -4138,7 +4138,10 @@ of the contribution read (`Performance.Contribution.for_view/2`), and it is
 - **The unvalued marker** (UX-DR25): a row that counted zero on some days
   carries `.contribution-unvalued-mark` after its name — "240 Tage null", 11
   px/600 in {colors.warning} inside a dashed {colors.warning} pill. The word
-  is the channel; the colour is the third. *Since #1055 (Sprint 19 PR α M3,
+  is the channel; the colour is the third. *Amended 2026-10-31 (#928, the
+  α closing act's UAT):* in words, „240 Tage mit 0 bewertet“ (English "240
+  days at zero"), since „null“ read as a programming null; every „N Tage
+  null“ below reads so. *Since #1055 (Sprint 19 PR α M3,
   board `mockups/ux-design-2026-10-04/02-money-notes`, pick J2 A):* the
   "Währungseffekt auf Bargeld" line carries the same marker, as built, once
   per cash account that counted zero in the period, with the account's name
