@@ -3393,7 +3393,7 @@ const declaredTools: DeclaredTool[] = [
       "after — moving-average figures, restated as both depots' lots combine; the FIFO realized gains do not " +
       "change), rounding_differences (per " +
       "position and split date, the combined position rounded once less the two rounded apart — expected, " +
-      "never a refusal), the cash accounts a collapsed booking changes, the flows it " +
+      "never a refusal, no bound per split), the cash accounts a collapsed booking changes, the flows it " +
       "moves into a later balance anchor of such an account (flow_changes), and other_depots: a third depot a " +
       "collapsed transfer names, with its quantity before and after. " +
       "positions_basis states how those figures are computed. Show the operator both outcomes; the choice is " +
