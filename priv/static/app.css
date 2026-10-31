@@ -4554,6 +4554,54 @@ input[pattern]:invalid:not(:placeholder-shown) {
 
 /* === Imports: mapping cards === */
 
+/* A security row's target (security review 2026-10-12, H45; board
+   ux-design-2026-10-27/02-imports-mapping, Q1 B): one line saying what the
+   import does — "Created as new: <name>" or "Mapped to: <name> · EUR ·
+   <ISIN>" — and the control that opens the picker. No row carries the
+   catalog. */
+.mapping-target__current {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  font-size: 13px;
+}
+
+.mapping-target__current b {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* The picker, opened on the operator's ask: the merge dialog's search field
+   and its radio cards (`.search-field`, `.merge-targets`, `.merge-target`,
+   reused as they are), inside the row's target column. */
+.mapping-remap {
+  display: grid;
+  gap: 8px;
+  margin-top: 6px;
+  min-width: 0;
+}
+
+.mapping-remap .search-field {
+  margin: 0;
+}
+
+.mapping-remap .merge-targets legend {
+  font-size: 12px;
+}
+
+/* The decision row's search link stands clear of its cards. */
+[data-role="security-decision"] .merge-targets + .link-button {
+  margin-top: 8px;
+}
+
+.mapping-remap__basis,
+.mapping-remap__empty {
+  margin: 0;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
 .mapping-grid {
   display: grid;
   gap: 0.6rem;

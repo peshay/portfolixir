@@ -281,7 +281,8 @@ defmodule PortfolixirWeb.ImportsFileErrorsTest do
     pairs =
       for row <- Floki.find(doc, "#pp-import-apply .mapping-row"),
           selects = Floki.find(row, "select"),
-          [first | _] = selects,
+          # A security row carries no select since H45 (Q1 B).
+          [first | _] <- [selects],
           [name] = Floki.attribute(first, "name"),
           String.starts_with?(name, ["cash[", "depot["]),
           {select, field} <- Enum.zip(selects, fields_of(row)),

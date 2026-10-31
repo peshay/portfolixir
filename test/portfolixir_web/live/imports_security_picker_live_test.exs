@@ -127,7 +127,7 @@ defmodule PortfolixirWeb.ImportsSecurityPickerLiveTest do
              "Larkspur Rail AG"
            ]
 
-    created = PortfolixirWeb.Format.date(DateTime.to_date(larkspur.inserted_at))
+    created = PortfolixirWeb.Format.date(NaiveDateTime.to_date(larkspur.inserted_at))
 
     assert text(view, picker <> " .merge-target[data-id='#{larkspur.id}'] small") ==
              "EUR · DE0001234565 · created #{created}"
@@ -278,9 +278,11 @@ defmodule PortfolixirWeb.ImportsSecurityPickerLiveTest do
 
   defp row(_view, name), do: "#import-security-mapping [data-security-row='#{key(name)}']"
 
+  # The search field belongs to the picker's own form (its `form`
+  # attribute), so typing in it searches and never submits the import.
   defp search(view, name, query) do
     view
-    |> element("form#pp-import-apply")
+    |> element("form#remap-search-#{key(name)}")
     |> render_change(%{"remap" => %{key(name) => %{"q" => query}}})
   end
 

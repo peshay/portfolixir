@@ -3798,12 +3798,20 @@ Das Vorschau-Panel **Wertpapiere aus dem Export** zeigt das Ergebnis:
   zugeordnet* nach einem erfassten ISIN-Wechsel).
 - **Einfache neue Wertpapiere** bleiben als Zusammenfassung eingeklappt;
   die Liste aufklappen, um einzelne stattdessen auf ein bestehendes
-  Wertpapier umzumappen.
+  Wertpapier umzumappen. Jede Zeile lautet *Wird neu angelegt: <Name>*;
+  **Anders zuordnen…** öffnet in der Zeile eine Suche (Name, ISIN, WKN oder
+  Ticker; vor einer Suche wird nichts vorgeschlagen), und die Treffer sind
+  Karten mit Währung, ISIN, Anlagedatum und Buchungen des Wertpapiers. Eine
+  Wahl lautet *Zugeordnet: <Name>* mit **Ändern…**, und die Zusammenfassung
+  zählt nur die Wertpapiere, die noch angelegt werden.
 - **Entscheidungen** werden prominent angezeigt und blockieren den Import,
   bis sie aufgelöst sind: ein mehrdeutiger Identifikator (zwei Wertpapiere
   teilen eine WKN oder Name+Währung) oder ein Kandidat, der einem stärkeren
   Identifikator widerspricht — die typische Form eines noch nicht erfassten
   ISIN-Wechsels. Der Import wählt in diesen Fällen nie stillschweigend aus.
+  Die Kandidaten sind die Wahlmöglichkeiten der Zeile, *+ Neu anlegen*
+  daneben, nichts vorausgewählt; **Anderes Wertpapier suchen…** öffnet
+  dieselbe Suche für den seltenen Fall, dass es keines davon ist.
 - **Konfigurations-Warnungen**: Wenn ein anzulegendes Wertpapier einem
   bestehenden ähnelt, das Kategorie-Zuordnungen oder Positionsziele trägt,
   verlangt die Zeile eine eigene ausdrückliche Bestätigung — ein Duplikat

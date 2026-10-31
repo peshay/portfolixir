@@ -10,6 +10,7 @@ defmodule PortfolixirWeb.ImportsLive do
   alias Portfolixir.Imports.Preview
   alias Portfolixir.Imports.PreviewStore
   alias Portfolixir.Input.Text
+  alias Portfolixir.Ledger
   alias Portfolixir.Portfolios
   alias PortfolixirWeb.AccountNames
   alias PortfolixirWeb.AppShell
@@ -29,6 +30,11 @@ defmodule PortfolixirWeb.ImportsLive do
   # a dry run that answers at once never flickers it (the seconds-class
   # rule, DESIGN.md 2026-08-22).
   @recount_cue_after_ms 500
+
+  # H45, Q1 B: a picker's search reads at most this much of a query and
+  # lists at most this many hits, as the merge dialog's does.
+  @max_remap_query 100
+  @max_remap_hits 25
 
   # The fields a mapping row carries, as its form sends them.
   @depot_fields ~w(target cash)
@@ -61,6 +67,7 @@ defmodule PortfolixirWeb.ImportsLive do
       |> assign(:recount_cue, nil)
       |> assign(:counts_basis, nil)
       |> assign(:counts_mapped, false)
+      |> assign(:remap, blank_remap())
       |> assign_correction_idle()
       |> reload_lookups()
       |> assign(:mapping, mapping)
@@ -151,7 +158,7 @@ defmodule PortfolixirWeb.ImportsLive do
   # the answer came runs it.
   defp reread_assigns(socket, preview) do
     socket
-    |> assign(:existing_securities, Catalog.list_securities(is_benchmark: false))
+    |> assign_remap_lookups()
     |> assign(:row_errors, Imports.row_errors(preview))
     |> refine_unless_answered(preview)
   end
@@ -268,7 +275,7 @@ defmodule PortfolixirWeb.ImportsLive do
         new_security_count:
           Enum.count(
             resolutions,
-            &(&1.status == :create and
+            &(&1.status == :create and security_choice(assigns.mapping, &1) == "create" and
                 not Imports.security_resolves_nothing?(
                   security_counts(assigns.account_states, &1)
                 ))
@@ -769,14 +776,22 @@ defmodule PortfolixirWeb.ImportsLive do
                 ) %>
               </summary>
               <div class="mapping-grid">
+                <%!-- H45 (security review 2026-10-12; board
+                     ux-design-2026-10-27/02-imports-mapping, Q1 B): "create"
+                     is the row's line, and the remap opens on the operator's
+                     ask as a search loaded on demand: no row carries the
+                     catalog. --%>
                 <%= for res <- @plain_create_resolutions do %>
-                  <div class="mapping-row">
+                  <div class="mapping-row" data-security-row={res.key}>
                     <div class="source">
                       <small><%= gettext("PP security") %></small>
                       <%= res.label %>
                     </div>
-                    <.security_choice_select mapping={@mapping} existing_securities={@existing_securities} res={res} />
-                    <.isin_change_offer mapping={@mapping} existing_securities={@existing_securities} res={res} />
+                    <div class="mapping-target">
+                      <.security_line res={res} remap={@remap} mapping={@mapping} />
+                      <.security_remap :if={remap_open?(@remap, res)} res={res} remap={@remap} mapping={@mapping} create />
+                      <.isin_change_offer mapping={@mapping} known={@remap.known} res={res} />
+                    </div>
                   </div>
                 <% end %>
               </div>
@@ -785,22 +800,39 @@ defmodule PortfolixirWeb.ImportsLive do
 
           <%= for res <- @decision_resolutions do %>
             <%= if security_decision_needed?(@account_states, res) do %>
-              <div class="mapping-row" data-role="security-decision">
+              <%!-- H45, Q1 B: the candidates are the row's cards, "+ Create
+                   new" beside them, nothing preselected; the search opens
+                   only for the rare case that is neither. --%>
+              <div class="mapping-row" data-role="security-decision" data-security-row={res.key}>
                 <div class="source">
                   <small><%= gettext("PP security") %></small>
                   <%= res.label %>
                 </div>
                 <div>
                   <p class="muted"><%= decision_text(res) %></p>
-                  <%= if res.candidates != [] do %>
-                    <ul>
-                      <%= for candidate <- res.candidates do %>
-                        <li><%= security_option_label(candidate) %></li>
-                      <% end %>
-                    </ul>
-                  <% end %>
-                  <.security_choice_select mapping={@mapping} existing_securities={@existing_securities} res={res} />
-                  <.isin_change_offer mapping={@mapping} existing_securities={@existing_securities} res={res} />
+                  <input type="hidden" name={"security[#{res.key}][choice]"} value={security_choice(@mapping, res)} />
+                  <fieldset class="merge-targets">
+                    <legend class="visually-hidden"><%= gettext("Map to") %></legend>
+                    <.security_card
+                      :for={security <- decision_cards(res, @mapping, @remap.known)}
+                      res={res}
+                      security={security}
+                      bookings={Map.get(@remap.bookings, security.id, 0)}
+                      choice={security_choice(@mapping, res)}
+                    />
+                    <.create_card res={res} choice={security_choice(@mapping, res)} />
+                  </fieldset>
+                  <button
+                    :if={not remap_open?(@remap, res)}
+                    type="button"
+                    class="link-button"
+                    phx-click="open_remap"
+                    phx-value-key={res.key}
+                  >
+                    <%= gettext("Search for another security…") %>
+                  </button>
+                  <.security_remap :if={remap_open?(@remap, res)} res={res} remap={@remap} mapping={@mapping} />
+                  <.isin_change_offer mapping={@mapping} known={@remap.known} res={res} />
                   <%= if res.status == :config_at_risk and security_choice(@mapping, res) == "create" do %>
                     <label>
                       <input type="hidden" name={"security[#{res.key}][ack]"} value="false" />
@@ -828,20 +860,21 @@ defmodule PortfolixirWeb.ImportsLive do
                    nothing and "+ Create new" creates nothing, so the line
                    promises only the ISIN change (DESIGN.md records the
                    deviation from the board). --%>
-              <div class="mapping-row" data-role="security-decision">
+              <div class="mapping-row" data-role="security-decision" data-security-row={res.key}>
                 <div class="source">
                   <small><%= gettext("PP security") %></small>
                   <%= res.label %>
                   <.mapping_count counts={security_counts(@account_states, res)} />
                 </div>
                 <div class="mapping-target">
-                  <.security_choice_select mapping={@mapping} existing_securities={@existing_securities} res={res} />
+                  <.security_line res={res} remap={@remap} mapping={@mapping} creates={false} />
                   <span class="mapping-basis" data-role="mapping-basis">
                     <%= gettext(
                       "No decision needed: the import books nothing for this security. An ISIN change recorded here still takes effect."
                     ) %>
                   </span>
-                  <.isin_change_offer mapping={@mapping} existing_securities={@existing_securities} res={res} />
+                  <.security_remap :if={remap_open?(@remap, res)} res={res} remap={@remap} mapping={@mapping} create />
+                  <.isin_change_offer mapping={@mapping} known={@remap.known} res={res} />
                 </div>
               </div>
             <% end %>
@@ -910,6 +943,16 @@ defmodule PortfolixirWeb.ImportsLive do
           </button>
           <button type="button" phx-click="reset"><%= gettext("Discard") %></button>
         </div>
+      </form>
+      <%!-- H45, Q1 B: each open picker's search field belongs to a form of
+           its own (its `form` attribute), so typing searches and Enter in it
+           never submits the import. --%>
+      <form
+        :for={key <- @remap.open}
+        id={"remap-search-#{key}"}
+        phx-change="remap_search"
+        phx-submit="remap_search"
+      >
       </form>
     </section>
     """
@@ -1216,6 +1259,7 @@ defmodule PortfolixirWeb.ImportsLive do
   def handle_event("mapping_changed", params, socket) do
     current = socket.assigns.mapping
     mapping = mapping_from_params(params, socket.assigns)
+    socket = close_picked(socket, current, mapping)
     changed? = count_basis(mapping) != count_basis(current)
     mapping = Map.put(mapping, :recount, Map.get(current, :recount, false) or changed?)
     PreviewStore.put_mapping(socket.assigns.session_token, mapping)
@@ -1225,6 +1269,38 @@ defmodule PortfolixirWeb.ImportsLive do
      |> assign(:mapping, mapping)
      |> assign_remember_outcomes()
      |> recount_if_due()}
+  end
+
+  # H45, Q1 B: a row's picker opens on the operator's ask, for a key the
+  # preview's resolution plan handed out, with nothing suggested.
+  def handle_event("open_remap", %{"key" => key}, socket) when is_binary(key) do
+    if Enum.any?(socket.assigns.security_resolutions, &(&1.key == key)) do
+      {:noreply,
+       update(socket, :remap, fn remap ->
+         %{
+           remap
+           | open: Enum.uniq(remap.open ++ [key]),
+             query: Map.put(remap.query, key, ""),
+             hits: Map.put(remap.hits, key, [])
+         }
+       end)}
+    else
+      {:noreply, socket}
+    end
+  end
+
+  # The search of an open picker: the catalog by name, ISIN, WKN and ticker,
+  # on the server, capped; an empty query lists nothing.
+  def handle_event("remap_search", %{"remap" => given}, socket) do
+    remap = socket.assigns.remap
+
+    searches =
+      for {key, %{"q" => q}} <- LiveParam.map(given),
+          key in remap.open,
+          is_binary(q),
+          do: {key, q |> String.slice(0, @max_remap_query) |> String.trim()}
+
+    {:noreply, Enum.reduce(searches, socket, fn {key, q}, acc -> remap_search(acc, key, q) end)}
   end
 
   def handle_event("apply", _params, socket) when socket.assigns.applying do
@@ -1995,6 +2071,252 @@ defmodule PortfolixirWeb.ImportsLive do
       _resolved -> true
     end
   end
+
+  # --- the security picker (H45; board ux-design-2026-10-27/02-imports-mapping, Q1 B) ---
+
+  # What the open pickers hold: the keys open, each one's query and hits, and
+  # the securities the rows name (each decision's candidates, each chosen
+  # target, each hit) with their booking counts. Never the catalog.
+  defp blank_remap, do: %{open: [], query: %{}, hits: %{}, known: %{}, bookings: %{}}
+
+  defp remap_open?(remap, res), do: res.key in remap.open
+
+  # The securities the rows name, read for the rows: every decision's
+  # candidates and every remap the mapping holds.
+  defp assign_remap_lookups(socket) do
+    resolutions = socket.assigns.security_resolutions
+    mapping = Map.get(socket.assigns, :mapping) || blank_mapping()
+    candidates = Enum.flat_map(resolutions, &(Map.get(&1, :candidates) || []))
+    known = Map.new(candidates, &{&1.id, &1})
+
+    chosen =
+      for res <- resolutions,
+          "existing:" <> raw <- [security_choice(mapping, res)],
+          {:ok, id} <- [LiveParam.fetch_id(raw)],
+          not Map.has_key?(known, id),
+          security = Catalog.get_security(id),
+          security != nil,
+          into: %{},
+          do: {id, security}
+
+    known = Map.merge(known, chosen)
+    remap = Map.get(socket.assigns, :remap) || blank_remap()
+
+    assign(socket, :remap, %{
+      remap
+      | known: known,
+        bookings: Ledger.count_transactions_by_security(Map.keys(known))
+    })
+  end
+
+  defp remap_search(socket, key, query) do
+    hits =
+      if query == "",
+        do: [],
+        # A benchmark is not an import target (ADR-0046 §1).
+        else: Catalog.list_securities(query: query, is_benchmark: false, limit: @max_remap_hits)
+
+    counts = Ledger.count_transactions_by_security(Enum.map(hits, & &1.id))
+
+    update(socket, :remap, fn remap ->
+      %{
+        remap
+        | query: Map.put(remap.query, key, query),
+          hits: Map.put(remap.hits, key, hits),
+          known: Map.merge(remap.known, Map.new(hits, &{&1.id, &1})),
+          bookings: Map.merge(remap.bookings, counts)
+      }
+    end)
+  end
+
+  # A pick closes its row's picker into the row's line.
+  defp close_picked(socket, current, mapping) do
+    picked =
+      for key <- socket.assigns.remap.open,
+          get_in(current, [:security, key, "choice"]) !=
+            get_in(mapping, [:security, key, "choice"]),
+          get_in(mapping, [:security, key, "choice"]) != nil,
+          do: key
+
+    update(socket, :remap, &%{&1 | open: &1.open -- picked})
+  end
+
+  # A decision row's cards: its candidates, then a target the operator found
+  # by searching, so a pick stays on the row.
+  defp decision_cards(res, mapping, known) do
+    candidates = Map.get(res, :candidates) || []
+
+    case chosen_existing_security(mapping, res, known) do
+      nil ->
+        candidates
+
+      chosen ->
+        if Enum.any?(candidates, &(&1.id == chosen.id)),
+          do: candidates,
+          else: candidates ++ [chosen]
+    end
+  end
+
+  attr(:res, :map, required: true)
+  attr(:remap, :map, required: true)
+  attr(:mapping, :map, required: true)
+  attr(:creates, :boolean, default: true)
+
+  # The row's line: what the import does with the security, and the control
+  # that opens the picker. The choice rides as a hidden input under the
+  # row's name; an open picker's checked card overrides it.
+  defp security_line(assigns) do
+    choice = security_choice(assigns.mapping, assigns.res)
+
+    assigns =
+      assign(assigns,
+        choice: choice,
+        target: chosen_existing_security(assigns.mapping, assigns.res, assigns.remap.known),
+        open: remap_open?(assigns.remap, assigns.res)
+      )
+
+    ~H"""
+    <input type="hidden" name={"security[#{@res.key}][choice]"} value={@choice} />
+    <span :if={@target || (@creates and @choice == "create") || not @open} class="mapping-target__current">
+      <span :if={@target}><%= StoredText.isolate(gettext("Mapped to: %{name}", name: StoredText.slot(:name)), name: bold(@target.name)) %><%= target_meta(@target) %></span>
+      <span :if={@creates and is_nil(@target) and @choice == "create"}><%= StoredText.isolate(gettext("Created as new: %{name}", name: StoredText.slot(:name)), name: bold(@res.label)) %></span>
+      <button
+        :if={not @open}
+        type="button"
+        class="link-button"
+        phx-click="open_remap"
+        phx-value-key={@res.key}
+      ><%= if @target, do: gettext("Change…"), else: gettext("Map elsewhere…") %></button>
+    </span>
+    """
+  end
+
+  attr(:res, :map, required: true)
+  attr(:remap, :map, required: true)
+  attr(:mapping, :map, required: true)
+  attr(:create, :boolean, default: false)
+
+  # The opened picker: the merge dialog's search field and radio cards,
+  # inside the row; "+ Create new" first where the row's default is a
+  # creation, then what the search found.
+  defp security_remap(assigns) do
+    key = assigns.res.key
+
+    assigns =
+      assign(assigns,
+        query: Map.get(assigns.remap.query, key, ""),
+        hits: Map.get(assigns.remap.hits, key, []),
+        choice: security_choice(assigns.mapping, assigns.res)
+      )
+
+    ~H"""
+    <div
+      class="mapping-remap"
+      role="group"
+      aria-label={gettext("Map elsewhere: %{name}", name: @res.label)}
+    >
+      <label class="search-field">
+        <AppShell.icon name={:search} />
+        <input
+          type="search"
+          form={"remap-search-#{@res.key}"}
+          name={"remap[#{@res.key}][q]"}
+          value={@query}
+          maxlength="100"
+          autocomplete="off"
+          phx-debounce="250"
+          aria-label={gettext("Search securities: name, ISIN, WKN or ticker")}
+          placeholder={gettext("Name, ISIN, WKN or ticker")}
+        />
+      </label>
+      <p :if={@query != "" and @hits == []} class="mapping-remap__empty">
+        <%= gettext("No security matches.") %>
+      </p>
+      <fieldset :if={@create or @hits != []} class="merge-targets">
+        <legend><%= gettext("Map to") %></legend>
+        <.create_card :if={@create} res={@res} choice={@choice} />
+        <.security_card
+          :for={security <- @hits}
+          res={@res}
+          security={security}
+          bookings={Map.get(@remap.bookings, security.id, 0)}
+          choice={@choice}
+        />
+      </fieldset>
+      <p class="mapping-remap__basis">
+        <%= gettext("The catalog is searched by name, ISIN, WKN and ticker; nothing is suggested.") %>
+      </p>
+    </div>
+    """
+  end
+
+  attr(:res, :map, required: true)
+  attr(:choice, :string, required: true)
+
+  defp create_card(assigns) do
+    ~H"""
+    <label class={["merge-target", @choice == "create" && "is-on"]} data-role="merge-target">
+      <input type="radio" name={"security[#{@res.key}][choice]"} value="create" checked={@choice == "create"} />
+      <span class="merge-target__name">
+        <b><%= gettext("+ Create new: %{name}", name: @res.label) %></b>
+      </span>
+      <span class="merge-target__balance num"></span>
+    </label>
+    """
+  end
+
+  attr(:res, :map, required: true)
+  attr(:security, :map, required: true)
+  attr(:bookings, :integer, required: true)
+  attr(:choice, :string, required: true)
+
+  defp security_card(assigns) do
+    assigns = assign(assigns, :value, "existing:#{assigns.security.id}")
+
+    ~H"""
+    <label
+      class={["merge-target", @choice == @value && "is-on"]}
+      data-role="merge-target"
+      data-id={@security.id}
+    >
+      <input type="radio" name={"security[#{@res.key}][choice]"} value={@value} checked={@choice == @value} />
+      <span class="merge-target__name">
+        <b><%= @security.name %></b>
+        <small><%= card_meta(@security) %></small>
+      </span>
+      <span class="merge-target__balance num">
+        <%= ngettext("%{count} booking", "%{count} bookings", @bookings) %>
+      </span>
+    </label>
+    """
+  end
+
+  defp bold(text),
+    do: {:safe, ["<b>", text |> StoredText.bdi() |> Phoenix.HTML.safe_to_string(), "</b>"]}
+
+  # "· EUR · DE0001234565" after a mapped target's name.
+  defp target_meta(security),
+    do:
+      Enum.map_join(
+        Enum.reject([security.currency_code, security.isin], &is_nil/1),
+        &(" · " <> &1)
+      )
+
+  # A card's line: the currency, the ISIN (or that it has none), the day the
+  # security was created.
+  defp card_meta(security) do
+    Enum.join(
+      [
+        security.currency_code,
+        security.isin || gettext("no ISIN"),
+        gettext("created %{date}", date: Format.date(created_on(security.inserted_at)))
+      ],
+      " · "
+    )
+  end
+
+  defp created_on(%DateTime{} = at), do: DateTime.to_date(at)
+  defp created_on(%NaiveDateTime{} = at), do: NaiveDateTime.to_date(at)
 
   # The security rows' counterpart (#923; board 09 ③): a surfaced decision
   # whose rows are all hash, retired or in-file hits needs none, and a key
@@ -3525,7 +3847,7 @@ defmodule PortfolixirWeb.ImportsLive do
     |> assign(:security_resolutions, [])
     |> assign(:unmatched_config, [])
     |> assign(:unmatched_config_scope, :full_export)
-    |> assign(:existing_securities, [])
+    |> assign(:remap, blank_remap())
   end
 
   defp assign_security_resolutions(socket, %Preview{} = preview) do
@@ -3536,8 +3858,7 @@ defmodule PortfolixirWeb.ImportsLive do
     |> assign(:security_resolutions, resolutions)
     |> assign(:unmatched_config, unmatched)
     |> assign(:unmatched_config_scope, scope)
-    # A benchmark is not an import target (ADR-0046 §1).
-    |> assign(:existing_securities, Catalog.list_securities(is_benchmark: false))
+    |> assign_remap_lookups()
   end
 
   # #1174: the bucket tag starts empty, so an import tags nothing unless the
@@ -3728,12 +4049,12 @@ defmodule PortfolixirWeb.ImportsLive do
     get_in(Map.get(mapping, :security, %{}), [res.key, "record_isin_change"]) == "true"
   end
 
-  defp chosen_existing_security(mapping, res, existing_securities) do
+  defp chosen_existing_security(mapping, res, known) do
     case security_choice(mapping, res) do
       "existing:" <> id_str ->
         case LiveParam.id(id_str) do
           nil -> nil
-          id -> Enum.find(existing_securities, &(&1.id == id))
+          id -> Map.get(known, id)
         end
 
       _other ->
@@ -3750,35 +4071,11 @@ defmodule PortfolixirWeb.ImportsLive do
   end
 
   attr(:mapping, :map, required: true)
-  attr(:existing_securities, :list, required: true)
-  attr(:res, :map, required: true)
-
-  defp security_choice_select(assigns) do
-    assigns = assign(assigns, :choice, security_choice(assigns.mapping, assigns.res))
-
-    ~H"""
-    <select name={"security[#{@res.key}][choice]"}>
-      <%= if @res.status == :needs_decision do %>
-        <option value="" selected={@choice == ""}><%= gettext("Decide…") %></option>
-      <% end %>
-      <option value="create" selected={@choice == "create"}>
-        <%= gettext("+ Create new: %{name}", name: @res.label) %>
-      </option>
-      <%= for s <- @existing_securities do %>
-        <option value={"existing:#{s.id}"} selected={@choice == "existing:#{s.id}"}>
-          <%= security_option_label(s) %>
-        </option>
-      <% end %>
-    </select>
-    """
-  end
-
-  attr(:mapping, :map, required: true)
-  attr(:existing_securities, :list, required: true)
+  attr(:known, :map, required: true)
   attr(:res, :map, required: true)
 
   defp isin_change_offer(assigns) do
-    target = chosen_existing_security(assigns.mapping, assigns.res, assigns.existing_securities)
+    target = chosen_existing_security(assigns.mapping, assigns.res, assigns.known)
     assigns = assign(assigns, :target, target)
 
     ~H"""
@@ -3800,12 +4097,6 @@ defmodule PortfolixirWeb.ImportsLive do
       </label>
     <% end %>
     """
-  end
-
-  defp security_option_label(security) do
-    [security.name, security.currency_code, security.isin]
-    |> Enum.reject(&is_nil/1)
-    |> Enum.join(" · ")
   end
 
   defp tier_label(:isin), do: gettext("matched via ISIN")

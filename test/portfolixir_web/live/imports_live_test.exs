@@ -1467,10 +1467,14 @@ defmodule PortfolixirWeb.ImportsLiveTest do
       refute row =~ "strategy configuration"
       refute has_element?(view, ~s(input[name="security[#{res.key}][ack]"]))
 
+      # H45, Q1 B: the choice rides as the row's hidden input; the row says
+      # nothing is created and offers the remap only on ask.
       assert has_element?(
                view,
-               ~s(select[name="security[#{res.key}][choice]"] option[value="create"][selected])
+               ~s(input[type="hidden"][name="security[#{res.key}][choice]"][value="create"])
              )
+
+      refute row =~ "Created as new"
 
       refute has_element?(view, "#pp-import-confirm[disabled]")
 

@@ -3439,12 +3439,20 @@ The preview's **Securities from the export** panel shows the outcome:
   tier that matched it (for example *matched via former ISIN* after a
   recorded ISIN change).
 - **Plain new securities** stay collapsed as a summary; expand the list to
-  remap any of them onto an existing security instead.
+  remap any of them onto an existing security instead. Each row reads
+  *Created as new: <name>*; **Map elsewhere…** opens a search in the row
+  (name, ISIN, WKN or ticker; nothing is suggested before you search), and
+  the hits are cards with the security's currency, ISIN, creation date and
+  bookings. A pick reads *Mapped to: <name>* with **Change…**, and the
+  summary counts only the securities still to be created.
 - **Decisions** are surfaced prominently and block the import until
   resolved: an ambiguous identifier (two securities share a WKN or a
   name+currency), or a candidate that contradicts a stronger identifier —
   the typical shape of an ISIN change that has not been recorded yet. The
-  import never picks silently in these cases.
+  import never picks silently in these cases. The candidates are the row's
+  choices, with *+ Create new* beside them and nothing preselected; **Search
+  for another security…** opens the same search for the rare case that is
+  neither.
 - **Configuration-at-risk warnings**: when a to-be-created security
   near-matches an existing one that carries category assignments or position
   targets, the row requires its own explicit confirmation — a duplicate

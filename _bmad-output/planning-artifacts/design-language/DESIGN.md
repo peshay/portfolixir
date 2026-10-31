@@ -3484,6 +3484,38 @@ and built, open to a comment naming B or C). Built by Sprint 16 Lane L5b in
   kept), so a picker and a table agree on which names are twins. The
   account guard and the import's resolution still compare names exactly;
   the tag is a value inside the anatomy drawn here, and no board changes.
+- **A security row carries no catalog** *(2026-10-31; security review
+  2026-10-12, H45, Sprint 21 γ7; board
+  `mockups/ux-design-2026-10-27/02-imports-mapping`, pick Q1 B)*. **The
+  row's line** (`.mapping-target__current`, 13 px, the name bold): a plain
+  creation reads "Created as new: <name>" / "Wird neu angelegt: <name>" with
+  the `.link-button` "Map elsewhere…" / "Anders zuordnen…"; a remap reads
+  "Mapped to: <name> · <currency> · <ISIN>" / "Zugeordnet: …" with
+  "Change…" / "Ändern…"; the choice rides as the hidden input
+  `security[<key>][choice]`. **The picker** opens inside the row's target
+  column only on that ask (`.mapping-remap`, a `role="group"` labelled "Map
+  elsewhere: <name>"): **the search-and-pick list the merge dialog's first
+  step draws, one shared anatomy** — the `.search-field` ("Search
+  securities: name, ISIN, WKN or ticker", placeholder "Name, ISIN, WKN or
+  ticker", debounced, server-side, at most 25 hits, nothing suggested before
+  a search; the field belongs to a form of its own, so Enter searches and
+  never submits the import), then `.merge-targets` with the legend "Map to"
+  / "Zuordnen zu" and `.merge-target` radio cards (name; currency · ISIN or
+  "no ISIN" · "created <date>"; bookings), "+ Create new: <name>" first and
+  checked, then the hits; "No security matches." / "Kein Wertpapier passt."
+  for a search without one; the basis line `.mapping-remap__basis` "The
+  catalog is searched by name, ISIN, WKN and ticker; nothing is suggested."
+  A pick closes the picker into the line, and the ISIN-change offer follows
+  the chosen target as before. **A decision row's candidates are its
+  cards**, "+ Create new" after them, nothing preselected ("Decide…" is gone
+  from the security rows), and "Search for another security…" / "Anderes
+  Wertpapier suchen…" opens the same search under them for the rare case
+  that is neither. A #923 row (no decision needed) keeps its basis line and
+  offers the remap on ask; it never says "Created as new". **The plain
+  creations' summary follows the choice** (board 02, found while drawing
+  3): a remapped row is not counted as new. No row renders a `<select>` of
+  the catalog, so the page is bounded by the file's rows, not by rows ×
+  catalog.
 - **"+ Create new" for a name the guard refuses (G4b-A)** stays in the list,
   **disabled**, its own label saying why: "+ Create new: <name> — not
   possible: an account already has this name" / "a former name of
