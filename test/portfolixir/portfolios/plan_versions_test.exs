@@ -251,6 +251,8 @@ defmodule Portfolixir.Portfolios.PlanVersionsContractTest do
   alias Portfolixir.Portfolios.TargetPlan
   alias Portfolixir.Portfolios.Targets
 
+  import Portfolixir.WorldFixtures, only: [create_security!: 1]
+
   defp world do
     {:ok, portfolio} =
       Portfolios.create_portfolio(Actor.owner_ui(), %{name: "P", base_currency_code: "EUR"})
@@ -484,5 +486,131 @@ defmodule Portfolixir.Portfolios.PlanVersionsContractTest do
 
     # The successor, now active, still takes the same write.
     assert {:ok, [_]} = Targets.edit_plan(Actor.owner_ui(), pid, cid, entry, plan: draft.id)
+  end
+
+  # The queries `fun` sends on this process, in order (telemetry), each with
+  # the transaction depth it ran at: "begin" opens a level, "commit" and
+  # "rollback" close one.
+  defp observe_queries(fun) do
+    handler = "plan-archived-queries-#{System.unique_integer([:positive])}"
+    me = self()
+
+    :ok =
+      :telemetry.attach(
+        handler,
+        [:portfolixir, :repo, :query],
+        fn _event, _measurements, meta, _config ->
+          if self() == me and is_binary(meta[:query]),
+            do: Process.put(:plan_queries, [meta[:query] | Process.get(:plan_queries, [])])
+        end,
+        nil
+      )
+
+    try do
+      fun.()
+    after
+      :telemetry.detach(handler)
+    end
+
+    :plan_queries
+    |> Process.delete()
+    |> Enum.reverse()
+    |> Enum.map_reduce(0, fn query, depth ->
+      depth =
+        case String.downcase(query) do
+          "begin" -> depth + 1
+          closing when closing in ["commit", "rollback"] -> depth - 1
+          _other -> depth
+        end
+
+      {{query, depth}, depth}
+    end)
+    |> elem(0)
+  end
+
+  # Review of the γ6 range (S1, #1187): the archived check is a `FOR SHARE`
+  # read of the plan row, and the share lock lives only as long as its
+  # transaction. Outside one, the lock ends with the statement, and an
+  # activation could archive the plan before the DELETE runs.
+  #
+  # Acceptance criteria:
+  # - `delete_target/4` and `delete_position_target/5` addressed by `plan:`
+  #   read the plan `FOR SHARE` inside a transaction that stays open until
+  #   their DELETE has run.
+  test "a plan-addressed target delete checks and deletes in one transaction" do
+    %{portfolio: portfolio, classification: classification, category: core} = world()
+
+    security = create_security!(name: "Lock Probe")
+
+    {:ok, _} =
+      Classifications.assign_security(
+        Actor.owner_ui(),
+        security.id,
+        classification.id,
+        core.id
+      )
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{category_id: core.id, target_weight: Decimal.new("0.8")},
+        %{category_id: core.id, security_id: security.id, target_weight: Decimal.new("0.8")}
+      ])
+
+    [plan] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+
+    for delete <- [
+          fn ->
+            Targets.delete_position_target(Actor.owner_ui(), portfolio.id, core.id, security.id,
+              plan: plan.id
+            )
+          end,
+          fn -> Targets.delete_target(Actor.owner_ui(), portfolio.id, core.id, plan: plan.id) end
+        ] do
+      queries = observe_queries(fn -> assert {:ok, 1} = delete.() end)
+
+      share = Enum.find_index(queries, fn {query, _} -> query =~ "FOR SHARE" end)
+
+      removed =
+        Enum.find_index(queries, fn {query, _} ->
+          query =~ ~r/^DELETE FROM "portfolio_targets"/
+        end)
+
+      assert share && removed && share < removed, inspect(queries)
+
+      # The read and the DELETE sit in one transaction: it is open at the
+      # read and never closes before the DELETE.
+      {_query, at_share} = Enum.at(queries, share)
+      assert at_share >= 1, inspect(queries)
+
+      assert queries |> Enum.slice(share..removed) |> Enum.all?(fn {_, depth} -> depth >= 1 end),
+             inspect(queries)
+    end
+  end
+
+  # Review of the γ6 range (S2, #1187): the cash write that names its
+  # version reads the same rule as the target writes.
+  test "a cash target written into an archived plan version is refused" do
+    %{portfolio: portfolio, classification: classification, category: core} = world()
+
+    {:ok, _} =
+      Targets.set_targets(Actor.owner_ui(), portfolio.id, classification.id, [
+        %{category_id: core.id, target_weight: Decimal.new("0.8")}
+      ])
+
+    [original] = Targets.list_plans(portfolio.id, classification_id: classification.id)
+    {:ok, successor} = Targets.duplicate_plan(Actor.owner_ui(), original.id, %{name: "Next"})
+    {:ok, _} = Targets.activate_plan(Actor.owner_ui(), successor.id)
+
+    assert Targets.set_cash_target(Actor.owner_ui(), portfolio.id, Decimal.new("0.1"),
+             plan: original.id
+           ) == {:error, :plan_archived}
+
+    {:ok, archived} = Targets.fetch_plan(original.id)
+    assert archived.cash_target_weight == nil
+
+    assert :ok =
+             Targets.set_cash_target(Actor.owner_ui(), portfolio.id, Decimal.new("0.1"),
+               plan: successor.id
+             )
   end
 end
