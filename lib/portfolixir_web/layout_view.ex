@@ -1390,7 +1390,7 @@ defmodule PortfolixirWeb.LayoutView do
             Hooks.InlineResult = {
               mounted: function () {
                 var self = this;
-                this.shown = this.hasResult();
+                this.shown = this.snapshot();
                 this.trigger = null;
                 this.lastAction = null;
                 this.onActivate = function (event) {
@@ -1408,22 +1408,34 @@ defmodule PortfolixirWeb.LayoutView do
                   if (next) next.focus();
                 };
                 document.addEventListener("click", this.onActivate, true);
+                document.addEventListener("change", this.onActivate, true);
                 document.addEventListener("submit", this.onActivate, true);
                 this.el.addEventListener("click", this.onDismiss);
               },
+              // A result that arrives, or replaces another (a second role
+              // change on Accounts answering the first), names its own
+              // trigger: the review of γ8, S1.
               updated: function () {
-                var shown = this.hasResult();
-                if (shown && !this.shown) this.noteTrigger();
+                var shown = this.snapshot();
+                if (this.noteNeeded(this.shown, shown)) this.noteTrigger();
                 this.shown = shown;
               },
               destroyed: function () {
                 document.removeEventListener("click", this.onActivate, true);
+                document.removeEventListener("change", this.onActivate, true);
                 document.removeEventListener("submit", this.onActivate, true);
                 this.el.removeEventListener("click", this.onDismiss);
               },
-              // A result, not a busy line: only a result carries the ×.
-              hasResult: function () {
-                return !!this.el.querySelector("[data-role='result-dismiss']");
+              // The result on show, as its text, or null: a busy line or an
+              // empty slot is none, since only a result carries the ×.
+              snapshot: function () {
+                if (!this.el.querySelector("[data-role='result-dismiss']")) return null;
+                return this.el.textContent.replace(/\s+/g, " ").trim();
+              },
+              // Pure: a result present now that differs from the one before
+              // (none, a busy line, or another result) is a new answer.
+              noteNeeded: function (previous, current) {
+                return current !== null && current !== previous;
               },
               // Read once the patch is done, so a closing dialog has given
               // its opener the focus back first.
