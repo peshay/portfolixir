@@ -109,6 +109,44 @@ defmodule PortfolixirWeb.CrossCurrencyLabelsTest do
     assert Enum.slice(cells(dividend), 4..6) == ["0,00 EUR", "12,00 EUR", "80,00 EUR"]
   end
 
+  # User story (#1213, Sprint 21 α11; N9 variant A):
+  # As the operator reading a USD security's Transaktionen tab,
+  # I want a cross-currency row's missing figure to read as a bare dash,
+  # so that a currency never labels a figure that is not there.
+  #
+  # Acceptance criteria:
+  # - An inbound delivery of 3 shares booked in USD against the EUR account
+  #   "Test-Cash" (rate 0,8), with no price and no gross amount, reads
+  #   Brutto "—" with no currency beside it, while its fees and taxes still
+  #   read "0,00 EUR". (Fees and taxes are NOT NULL columns, so the gross is
+  #   the one figure a stored cross-currency row can lack.)
+  test "a cross-currency row's missing gross reads a bare dash",
+       %{conn: conn, world: world, arbolia: arbolia} do
+    book!(%{
+      portfolio_id: world.portfolio.id,
+      securities_account_id: world.depot.id,
+      cash_account_id: world.cash.id,
+      security_id: arbolia.id,
+      type: "inbound_delivery",
+      date: ~D[2026-08-15],
+      quantity: "3",
+      settlement_fx_rate: "0.8",
+      currency_code: "USD"
+    })
+
+    {:ok, view, _html} = live(conn, "/securities/#{arbolia.id}?tab=transactions&locale=de")
+
+    [delivery] =
+      view
+      |> element("#detail-tab-panel-transactions")
+      |> render()
+      |> Floki.parse_fragment!()
+      |> Floki.find("tbody tr")
+
+    # Datum · Typ · Stückzahl · Preis · Gebühren · Steuern · Brutto · Depot · Notizen
+    assert Enum.slice(cells(delivery), 4..6) == ["0,00 EUR", "0,00 EUR", "—"]
+  end
+
   # User story (#1213, Sprint 21 α11; N9 variant A, the issue's comment of
   # 2026-10-09):
   # As the operator reading a security's closed trades on a desktop,
