@@ -546,22 +546,27 @@ defmodule Portfolixir.Imports.Correction do
     do: Enum.reduce(values, Decimal.new(0), &Decimal.add(&1 || Decimal.new(0), &2))
 
   @doc """
-  The credit rows of `preview` that ADR-0053 A5 refuses (their own booking
-  would credit 0 or less) and whose would-be booking the stored history of
-  `portfolio_id` already holds, by its content hash, as `%{row =>
-  message}`, each with the message the preview shows for it instead of the
-  refusal's remedy (#1118). Such a row was imported under an older reading.
-  The history holds a hash as the apply's first check reads it (ADR-0050
-  §3; the amendment of 2026-10-07, point 1): a live transaction holds it,
-  or it is retired because a merge removed its row. It is not listed by
-  `detect/3`: its cash would be 0 or less, which no write can store, and
-  how it is corrected is #1193. Read-only; `%{}` without a portfolio.
+  The rows of `preview` that ADR-0053 A5, A8 or A9 refuses and whose
+  would-be booking the stored history of `portfolio_id` already holds, by
+  its content hash, as `%{row => message}`, each with the message the
+  preview shows for it instead of the refusal's remedy (#1118), which would
+  book it twice. Such a row was imported under an older reading. The
+  history holds a hash as the apply's first check reads it (ADR-0050 §3;
+  the amendment of 2026-10-07, point 1): a live transaction holds it, or it
+  is retired because a merge removed its row.
+
+  When `detect/3` lists the stored booking (a live booking holds the hash
+  and a cash account's figure differs, A10), the message points to that
+  line (`listed_message`, board ux-design-2026-10-09/07-imports ①);
+  otherwise — a retired hash, or an A9 row no account differs on — it says
+  that the row cannot be corrected here (`message`). Read-only; `%{}`
+  without a portfolio.
   """
   @spec stored_refusals(Preview.t(), integer() | nil) :: %{pos_integer() => String.t()}
   def stored_refusals(%Preview{}, nil), do: %{}
   def stored_refusals(%Preview{refused_credits: []}, _portfolio_id), do: %{}
 
-  def stored_refusals(%Preview{refused_credits: refused}, portfolio_id)
+  def stored_refusals(%Preview{refused_credits: refused} = preview, portfolio_id)
       when is_integer(portfolio_id) do
     hashes =
       refused
@@ -571,13 +576,18 @@ defmodule Portfolixir.Imports.Correction do
     flat = List.flatten(hashes)
     stored = stored_by_hash(flat, false)
     retired = retired_hashes(flat)
+    listed = MapSet.new(refused_items(preview, portfolio_id, false), & &1.row)
 
     refused
     |> Enum.zip(hashes)
     |> Enum.filter(fn {_refused, row_hashes} ->
       Enum.any?(row_hashes, &(Map.has_key?(stored, &1) or MapSet.member?(retired, &1)))
     end)
-    |> Map.new(fn {%{row: row, message: message}, _row_hashes} -> {row, message} end)
+    |> Map.new(fn {%{row: row} = refusal, _row_hashes} ->
+      if MapSet.member?(listed, row),
+        do: {row, refusal.listed_message},
+        else: {row, refusal.message}
+    end)
   end
 
   @doc """

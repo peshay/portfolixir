@@ -248,6 +248,47 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
         rest: written.rest
       )
 
+  # The stored row's message when the correction lists its booking
+  # (`Correction.detect/3`: a live booking holds its hash, and a cash
+  # account's figure differs): the line under "Already imported, with a
+  # different amount" carries its figures and its remedy, so the message
+  # points there (board ux-design-2026-10-09/07-imports ①).
+  defp listed_credit_message(%{kind: "sell", refund: nil} = written),
+    do:
+      gettext(
+        "sell with %{cell} %{total}: nothing would remain for the sale — already imported; listed under “Already imported, with a different amount”.",
+        cell: written.cell,
+        total: written.cash
+      )
+
+  defp listed_credit_message(%{kind: "sell"} = written),
+    do:
+      gettext(
+        "sell with %{cell} %{total} and a tax refund of %{refund}: %{rest} would remain for the sale — already imported; listed under “Already imported, with a different amount”.",
+        cell: written.cell,
+        total: written.cash,
+        refund: written.refund,
+        rest: written.rest
+      )
+
+  defp listed_credit_message(%{refund: nil} = written),
+    do:
+      gettext(
+        "booking with %{cell} %{total}: nothing would remain for the booking — already imported; listed under “Already imported, with a different amount”.",
+        cell: written.cell,
+        total: written.cash
+      )
+
+  defp listed_credit_message(written),
+    do:
+      gettext(
+        "booking with %{cell} %{total} and a tax refund of %{refund}: %{rest} would remain for the booking — already imported; listed under “Already imported, with a different amount”.",
+        cell: written.cell,
+        total: written.cash,
+        refund: written.refund,
+        rest: written.rest
+      )
+
   @doc """
   `credit_error/3`, with what the preview keeps of a refused row: `nil`
   when the credit is booked, otherwise `{message, refused}`, where
@@ -256,13 +297,24 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   (`stored_credit_message/1`). The row's kind comes from `entry`.
   """
   @spec credit_refusal(:debit | :credit | nil, Entry.t(), map()) ::
-          nil | {String.t(), %{rule: :a5, entry: Entry.t(), message: String.t()}}
+          nil
+          | {String.t(),
+             %{rule: :a5, entry: Entry.t(), message: String.t(), listed_message: String.t()}}
   def credit_refusal(direction, %Entry{} = entry, written) do
     written = Map.put(written, :kind, entry.kind)
 
     case credit_error(direction, entry.gross_amount, written) do
-      nil -> nil
-      message -> {message, %{rule: :a5, entry: entry, message: stored_credit_message(written)}}
+      nil ->
+        nil
+
+      message ->
+        {message,
+         %{
+           rule: :a5,
+           entry: entry,
+           message: stored_credit_message(written),
+           listed_message: listed_credit_message(written)
+         }}
     end
   end
 
@@ -297,11 +349,18 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
   kind.
   """
   @spec refund_refusal(Entry.t(), String.t() | nil) ::
-          nil | {String.t(), %{rule: :a8, entry: Entry.t(), message: String.t()}}
+          nil
+          | {String.t(),
+             %{rule: :a8, entry: Entry.t(), message: String.t(), listed_message: String.t()}}
   def refund_refusal(%Entry{kind: kind, companion_entries: [_ | _]} = entry, refund)
       when kind in @refund_uncarried_kinds do
     {refund_message(kind, refund),
-     %{rule: :a8, entry: entry, message: stored_refund_message(kind, refund)}}
+     %{
+       rule: :a8,
+       entry: entry,
+       message: stored_refund_message(kind, refund),
+       listed_message: listed_refund_message(kind, refund)
+     }}
   end
 
   def refund_refusal(%Entry{}, _refund), do: nil
@@ -362,6 +421,36 @@ defmodule Portfolixir.Imports.PortfolioPerformance do
     do:
       gettext(
         "transfer with a tax refund of %{refund}: a transfer moves cash between two accounts, and a refund split off it would land on one side only — already imported, and it cannot be corrected here. Do not book the transfer again; see “A negative tax inside a row” in the product documentation.",
+        refund: refund
+      )
+
+  # The stored row's message when the correction lists its booking, as
+  # `listed_credit_message/1` says it for A5's rows.
+  defp listed_refund_message("inbound_delivery", refund),
+    do:
+      gettext(
+        "inbound delivery with a tax refund of %{refund}: an inbound delivery moves no cash, so the refund would have no account — already imported; listed under “Already imported, with a different amount”.",
+        refund: refund
+      )
+
+  defp listed_refund_message("outbound_delivery", refund),
+    do:
+      gettext(
+        "outbound delivery with a tax refund of %{refund}: an outbound delivery moves no cash, so the refund would have no account — already imported; listed under “Already imported, with a different amount”.",
+        refund: refund
+      )
+
+  defp listed_refund_message("security_transfer", refund),
+    do:
+      gettext(
+        "security transfer with a tax refund of %{refund}: a security transfer moves no cash, so the refund would have no account — already imported; listed under “Already imported, with a different amount”.",
+        refund: refund
+      )
+
+  defp listed_refund_message("cash_transfer", refund),
+    do:
+      gettext(
+        "transfer with a tax refund of %{refund}: a transfer moves cash between two accounts, and a refund split off it would land on one side only — already imported; listed under “Already imported, with a different amount”.",
         refund: refund
       )
 

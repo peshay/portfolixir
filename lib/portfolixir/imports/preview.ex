@@ -21,13 +21,16 @@ defmodule Portfolixir.Imports.Preview do
   A9 refuses (a JSON row with a negative FEE unit, #1177) is kept the same
   way, its would-be entry built as before, so its hash does not move.
   `rule` names the amendment's rule that refused the row (`:a5`, `:a8` or
-  `:a9`), so the correction gives that rule's remedy (#1193).
+  `:a9`), so the correction gives that rule's remedy (#1193), and
+  `listed_message` is the row's message instead of `message` when the
+  correction lists the stored booking (A10): it points to that line.
   """
   @type refused_credit :: %{
           row: pos_integer(),
           rule: :a5 | :a8 | :a9,
           entry: Entry.t(),
-          message: String.t()
+          message: String.t(),
+          listed_message: String.t()
         }
 
   @type t :: %__MODULE__{

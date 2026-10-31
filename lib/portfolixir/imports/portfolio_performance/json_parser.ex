@@ -523,7 +523,12 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
         }
 
         {:refused, fee_message(entry.kind, Decimal.negative?(net), written),
-         %{rule: :a9, entry: entry, message: stored_fee_message(entry.kind, written)}}
+         %{
+           rule: :a9,
+           entry: entry,
+           message: stored_fee_message(entry.kind, written),
+           listed_message: listed_fee_message(entry.kind, written)
+         }}
     end
   end
 
@@ -609,6 +614,25 @@ defmodule Portfolixir.Imports.PortfolioPerformance.JsonParser do
     do:
       gettext(
         "booking with a negative fee (%{fee}): the import does not book a fee refund yet — already imported with fees of %{stored}, and it cannot be corrected here. Do not enter the booking again; see “A negative tax inside a row” in the product documentation.",
+        fee: written.fee,
+        stored: written.stored
+      )
+
+  # The stored row's message when the correction lists its booking (a
+  # negative tax unit on the same row moves a cash account's figure, A10):
+  # the line carries its figures and its remedy, so the message points there.
+  defp listed_fee_message("sell", written),
+    do:
+      gettext(
+        "sell with a negative fee (%{fee}): the import does not book a fee refund yet — already imported with fees of %{stored}; listed under “Already imported, with a different amount”.",
+        fee: written.fee,
+        stored: written.stored
+      )
+
+  defp listed_fee_message(_kind, written),
+    do:
+      gettext(
+        "booking with a negative fee (%{fee}): the import does not book a fee refund yet — already imported with fees of %{stored}; listed under “Already imported, with a different amount”.",
         fee: written.fee,
         stored: written.stored
       )
