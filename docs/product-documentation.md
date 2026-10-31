@@ -3762,9 +3762,12 @@ naming the already-booked event) stays inline in the dialog.
   apostrophe (`1 664,40`, `1'664.40`, as bank pages and PDFs print figures). A
   refused figure saves nothing, and what you typed stays as you typed it.
 - While values compute, the affected slot shows a placeholder plus a
-  "computing" cue instead of a loading message; headline values settle with
-  a brief count-up. Under a reduced-motion system preference all decorative
-  motion is off and final values render immediately.
+  "computing" cue instead of a loading message. A computed headline value
+  appears at once as the figure it is; it counts briefly only from one
+  figure to the next, when a value already shown is re-valued in place (on
+  Wealth after "Sync exchange rates"). Under a reduced-motion system
+  preference all decorative motion is off and final values render
+  immediately.
 - Expensive figures are recomputed by the write that invalidated them, not by
   the next page you open: after a booking, an import or a quote update they
   are refreshed in the background, so the cue above is normally something you

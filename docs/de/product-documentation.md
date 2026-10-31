@@ -4139,10 +4139,12 @@ Ereignisses abgelehnt wird) bleiben inline im Dialog.
   Eine abgelehnte Zahl speichert nichts, und das Getippte bleibt, wie es
   getippt wurde.
 - Während Werte berechnet werden, zeigt der betroffene Platz einen
-  Platzhalter plus den Hinweis „wird berechnet" statt eines Ladetexts;
-  Kopfzahlen zählen kurz sichtbar hoch. Bei reduzierter Bewegung als
-  Systemeinstellung entfällt alle dekorative Bewegung und Endwerte erscheinen
-  sofort.
+  Platzhalter plus den Hinweis „wird berechnet" statt eines Ladetexts. Eine
+  berechnete Kopfzahl erscheint sofort als die Zahl, die sie ist; sie zählt
+  nur kurz von einer Zahl zur nächsten, wenn ein schon gezeigter Wert an
+  seiner Stelle neu bewertet wird (in Vermögen nach „Wechselkurse
+  synchronisieren“). Bei reduzierter Bewegung als Systemeinstellung entfällt
+  alle dekorative Bewegung und Endwerte erscheinen sofort.
 - Aufwändige Kennzahlen werden von der Buchung neu berechnet, die sie
   ungültig gemacht hat, nicht von der nächsten Seite, die Sie öffnen: nach
   einer Buchung, einem Import oder einer Kursaktualisierung werden sie im

@@ -1410,7 +1410,11 @@ defmodule PortfolixirWeb.LayoutView do
                 var target = parseFloat(el.getAttribute("data-count-to"));
                 if (isNaN(target)) return;
 
-                var from = this.lastValue === null ? 0 : this.lastValue;
+                // #1169 (pick N1 B, the owner's pick of 2026-10-09): a first
+                // value is painted as it is; a count runs only from one
+                // received figure to the next (Wealth's re-value in place),
+                // so no frame shows a figure the ledger never produced.
+                var from = this.lastValue === null ? target : this.lastValue;
                 this.lastValue = target;
                 if (from === target || this.reduceMotion()) return;
 
